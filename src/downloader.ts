@@ -7,6 +7,7 @@
 import { $ } from "bun";
 import type { RateLimiter } from "./ratelimit";
 import type { YtdlpInfo } from "./metadata";
+import { sanitizeGenreFolder } from "./metadata";
 
 export interface DownloadResult {
   status: "downloaded" | "already-had" | "gone" | "failed";
@@ -20,6 +21,8 @@ export interface DownloaderOptions {
   musicDir: string;
   ytdlpBin?: string;
   cookiesFromBrowser?: string | null;
+  /** Cookie jar file (netscape format) — preferred over browser extraction. */
+  cookiesFile?: string | null;
   minBitrateKbps?: number;
 }
 
@@ -86,9 +89,11 @@ export class Downloader {
   async download(
     videoId: string,
     info: YtdlpInfo,
+    genre?: string | null,
   ): Promise<DownloadResult> {
     const url = `https://music.youtube.com/watch?v=${videoId}`;
-    const outTemplate = `${this.opts.musicDir}/%(title)s.%(ext)s`;
+    const folder = genre ? `/${sanitizeGenreFolder(genre)}` : "";
+    const outTemplate = `${this.opts.musicDir}${folder}/%(title)s.%(ext)s`;
 
     const args = [
       "-f", "141/bestaudio[ext=m4a]/bestaudio",
@@ -101,7 +106,9 @@ export class Downloader {
       "--print", "after_move:%(filepath)s",
       "--print", "after_move:%(format_id)s",
     ];
-    if (this.opts.cookiesFromBrowser) {
+    if (this.opts.cookiesFile) {
+      args.push("--cookies", this.opts.cookiesFile);
+    } else if (this.opts.cookiesFromBrowser) {
       args.push("--cookies-from-browser", this.opts.cookiesFromBrowser);
     }
 

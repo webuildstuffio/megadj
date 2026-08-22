@@ -10,17 +10,22 @@ import { $ } from "bun";
 import type { RateLimiter } from "../ratelimit";
 import { withRetry } from "../ratelimit";
 import type { ArchiveState } from "../state";
-import { Downloader } from "../downloader";import { buildMetadata, applyTags } from "../metadata";
+import { Downloader } from "../downloader";import { buildMetadata, applyTags, inferGenre } from "../metadata";
 
 export interface SyncOptions {
   state: ArchiveState;
   limiter: RateLimiter;
   musicDir: string;
   cookiesFromBrowser: string | null;
+  cookiesFile?: string | null;
   limit?: number;
   dryRun?: boolean;
   requality?: boolean;
   sources?: PlaylistSource[];
+  /** Only download tracks YouTube categorizes as Music. */
+  musicOnly?: boolean;
+  /** Stop once this many tracks are downloaded in total. */
+  targetTotal?: number;
   onProgress?: (msg: string) => void;
 }
 
@@ -35,10 +40,14 @@ interface PlaylistEntry {
   title: string | null;
 }
 
-async function fetchPlaylist(playlistId: string): Promise<PlaylistEntry[]> {
-  const proc = await $`yt-dlp --flat-playlist -J "https://music.youtube.com/playlist?list=${playlistId}"`
-    .quiet()
-    .nothrow();
+async function fetchPlaylist(
+  playlistId: string,
+  cookiesFile?: string | null,
+): Promise<PlaylistEntry[]> {
+  const url = `https://music.youtube.com/playlist?list=${playlistId}`;
+  const proc = cookiesFile
+    ? await $`yt-dlp --cookies ${cookiesFile} --flat-playlist -J ${url}`.quiet().nothrow()
+    : await $`yt-dlp --flat-playlist -J ${url}`.quiet().nothrow();
   if (proc.exitCode !== 0) {
     throw new Error(
       `playlist fetch failed (${playlistId}): ${new TextDecoder().decode(proc.stderr).slice(0, 300)}`,
@@ -57,6 +66,7 @@ export async function sync(opts: SyncOptions): Promise<void> {
   const downloader = new Downloader(opts.limiter, {
     musicDir: opts.musicDir,
     cookiesFromBrowser: opts.cookiesFromBrowser,
+    cookiesFile: opts.cookiesFile ?? null,
   });
 
   const sources: PlaylistSource[] = opts.sources ?? [
@@ -68,11 +78,12 @@ export async function sync(opts: SyncOptions): Promise<void> {
   let downloaded = 0;
   let gone = 0;
   let failed = 0;
+  let notMusic = 0;
   let bytes = 0;
 
   for (const source of sources) {
     log(`fetching playlist ${source.id} (${source.label})…`);
-    const entries = await fetchPlaylist(source.id);
+    const entries = await fetchPlaylist(source.id, opts.cookiesFile);
     log(`  ${entries.length} tracks`);
     entries.forEach((entry, index) => {
       opts.state.upsertTrackFromPlaylist(entry.id, index, entry.title, source.label);
@@ -86,7 +97,12 @@ export async function sync(opts: SyncOptions): Promise<void> {
   }
   log(`${queue.length} track(s) to attempt this run`);
 
+  const startTotal = opts.state.downloadedCount();
   for (const track of queue) {
+    if (opts.targetTotal && opts.state.downloadedCount() >= opts.targetTotal) {
+      log(`target of ${opts.targetTotal} downloaded reached — stopping`);
+      break;
+    }
     attempted++;
     log(`[${attempted}/${queue.length}] ${track.title ?? track.video_id}`);
     opts.state.markAttempt(track.video_id, null);
@@ -103,7 +119,28 @@ export async function sync(opts: SyncOptions): Promise<void> {
         { maxRetries: 2 },
       );
 
-      const dl = await downloader.download(track.video_id, result);
+      // Music-only gate: reject anything YouTube doesn't categorize as Music.
+      if (opts.musicOnly) {
+        const cats = result.categories ?? [];
+        const uploader = (result.uploader ?? result.channel ?? "").toLowerCase();
+        const isMusic =
+          cats.some((c) => c.toLowerCase() === "music") ||
+          uploader.includes(" - topic") ||
+          uploader.includes("- topic") ||
+          (result.artist !== undefined && result.artist !== null);
+        if (!isMusic) {
+          notMusic++;
+          opts.state.markNotMusic(track.video_id, cats[0] ?? null);
+          log(`  ↳ skipped (not music: ${cats[0] ?? "no category"})`);
+          continue;
+        }
+      }
+
+      // Genre decides the destination folder for this download.
+      const downloadGenre =
+        inferGenre([result.genre, result.artist, result.album, result.title]) ?? "Music";
+
+      const dl = await downloader.download(track.video_id, result, downloadGenre);
       if (dl.status === "gone") {
         gone++;
         opts.state.markGone(track.video_id, "video unavailable");
@@ -129,6 +166,7 @@ export async function sync(opts: SyncOptions): Promise<void> {
           title: meta.title,
           artist: meta.artist,
           album: meta.album,
+          genre: meta.genre,
           formatId: dl.formatId ?? null,
           bitrateKbps: Downloader.formatBitrateKbps(dl.formatId),
           codec: "aac",
@@ -136,6 +174,7 @@ export async function sync(opts: SyncOptions): Promise<void> {
           fileSizeBytes: fileSize,
           durationS: dl.info.duration ?? null,
         });
+        opts.state.updateGenre(track.video_id, meta.genre);
         downloaded++;
         log(`  ↳ downloaded → ${meta.title ?? track.video_id}`);
       }
@@ -155,10 +194,11 @@ export async function sync(opts: SyncOptions): Promise<void> {
 
   opts.state.finishRun(runId, { attempted, downloaded, gone, failed, bytesDownloaded: bytes });
   log(
-    `\nrun complete: ${downloaded} downloaded, ${gone} gone, ${failed} failed, ${(bytes / 1e6).toFixed(1)} MB`,
+    `\nrun complete: ${downloaded} downloaded, ${notMusic} not-music, ${gone} gone, ${failed} failed, ${(bytes / 1e6).toFixed(1)} MB`,
   );
   const counts = opts.state.statusCounts();
   log(
-    `archive: ${counts["downloaded"] ?? 0} downloaded / ${counts["gone"] ?? 0} gone / ${counts["failed"] ?? 0} failed / ${counts["pending"] ?? 0} pending`,
+    `archive: ${counts["downloaded"] ?? 0} downloaded / ${counts["gone"] ?? 0} gone / ${counts["failed"] ?? 0} failed / ${counts["pending"] ?? 0} pending / ${counts["skipped_not_music"] ?? 0} not-music`,
   );
+  void startTotal;
 }

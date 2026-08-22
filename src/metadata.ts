@@ -31,6 +31,9 @@ export interface YtdlpInfo {
   artist?: string;
   album?: string;
   genre?: string;
+  categories?: string[];
+  channel?: string;
+  uploader?: string;
   release_year?: number;
   release_date?: string;
   upload_date?: string;
@@ -40,25 +43,36 @@ export interface YtdlpInfo {
   ext?: string;
 }
 
+/** Genre → folder name safe for filesystems ("R&B / Soul" → "R&B Soul"). */
+export function sanitizeGenreFolder(genre: string): string {
+  return genre
+    .replace(/\s*\/\s*/g, " ")
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Word-bounded patterns only — substring matches put "Soulji Remix" in
+// R&B and "Rise Of A ChamSET" wait no, but genuinely: "Sunset" in House etc.
 const GENRE_MAP: Array<[RegExp, string]> = [
-  [/hip.?hop|rap|trap|drill/i, "Hip-Hop"],
-  [/r&b|rb|soul/i, "R&B / Soul"],
-  [/house|deep house|tech house|afro house/i, "House"],
-  [/techno|trance|hardstyle/i, "Techno / Trance"],
-  [/edm|electro|dubstep|bass/i, "EDM / Bass"],
-  [/pop/i, "Pop"],
-  [/rock|metal|punk/i, "Rock"],
-  [/jazz|blues/i, "Jazz / Blues"],
-  [/country|folk|americana/i, "Country / Folk"],
-  [/reggae|dancehall|afrobeat/i, "Reggae / Afro"],
-  [/classical|orchestra|piano/i, "Classical"],
-  [/lofi|lo-fi|chill|downtempo/i, "Chill / Lo-Fi"],
-  [/workout|motivation|gym/i, "Workout"],
-  [/mix|set|bootleg/i, "Mix"],
+  [/\b(?:hip.?hop|rap|trap|drill)\b/i, "Hip-Hop"],
+  [/\b(?:r&b|soul|neo.?soul)\b/i, "R&B / Soul"],
+  [/\b(?:deep house|tech house|afro house|house|house music)\b/i, "House"],
+  [/\b(?:techno|trance|hardstyle|psytrance)\b/i, "Techno / Trance"],
+  [/\b(?:edm|electro|dubstep|bass|dnb|drum.?and.?bass|drum.?n.?bass)\b/i, "EDM / Bass"],
+  [/\b(?:lofi|lo.?fi|chill|downtempo|ambient)\b/i, "Chill / Lo-Fi"],
+  [/\b(?:reggae|dancehall|afrobeat|afro beats?)\b/i, "Reggae / Afro"],
+  [/\b(?:rock|metal|punk|indie rock)\b/i, "Rock"],
+  [/\b(?:jazz|blues|soul jazz)\b/i, "Jazz / Blues"],
+  [/\b(?:country|folk|americana)\b/i, "Country / Folk"],
+  [/\b(?:classical|orchestra|symphony|piano solo)\b/i, "Classical"],
+  [/\bpop\b/i, "Pop"],
 ];
 
 export function inferGenre(inputs: Array<string | null | undefined>): string | null {
   const blob = inputs.filter(Boolean).join(" ").toLowerCase();
+  if (!blob) return null;
+  // Channel "- Topic" uploads and explicit genre tags carry the most signal.
   for (const [pattern, genre] of GENRE_MAP) {
     if (pattern.test(blob)) return genre;
   }
@@ -106,8 +120,7 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
     null;
   const composer = extractComposer(info.description);
   const genre =
-    inferGenre([info.genre, info.title, info.description?.slice(0, 200)]) ??
-    "Music";
+    inferGenre([info.genre, info.artist, info.album, info.title]) ?? "Music";
   const albumArtist = artist && album ? artist : null;
 
   return {

@@ -13,7 +13,8 @@ export type TrackStatus =
   | "downloaded"
   | "gone"
   | "failed"
-  | "skipped_low_quality";
+  | "skipped_low_quality"
+  | "skipped_not_music";
 
 export interface TrackRow {
   video_id: string;
@@ -32,6 +33,7 @@ export interface TrackRow {
   last_error: string | null;
   liked_position: number | null;
   source: string;
+  genre: string | null;
   first_seen_at: string;
   updated_at: string;
 }
@@ -95,6 +97,7 @@ export class ArchiveState {
       CREATE INDEX IF NOT EXISTS idx_tracks_position ON tracks(liked_position);
     `);
     this.addColumnIfMissing("tracks", "source", "TEXT NOT NULL DEFAULT 'liked'");
+    this.addColumnIfMissing("tracks", "genre", "TEXT");
     this.db.exec(
       `CREATE INDEX IF NOT EXISTS idx_tracks_source ON tracks(source)`,
     );
@@ -159,6 +162,7 @@ export class ArchiveState {
       title: string | null;
       artist: string | null;
       album: string | null;
+      genre?: string | null;
       formatId: string | null;
       bitrateKbps: number | null;
       codec: string | null;
@@ -175,6 +179,7 @@ export class ArchiveState {
            title = COALESCE(?, title),
            artist = COALESCE(?, artist),
            album = COALESCE(?, album),
+           genre = COALESCE(?, genre),
            format_id = ?, bitrate_kbps = ?, codec = ?,
            file_path = ?, file_size_bytes = ?, duration_s = ?,
            last_error = NULL, updated_at = ?
@@ -184,6 +189,7 @@ export class ArchiveState {
         info.title,
         info.artist,
         info.album,
+        info.genre ?? null,
         info.formatId,
         info.bitrateKbps,
         info.codec,
@@ -219,6 +225,29 @@ export class ArchiveState {
       )
       .run(this.now());
     return result.changes;
+  }
+
+  /** Skip a non-music video permanently (music-only mode). */
+  markNotMusic(videoId: string, category: string | null): void {
+    this.db
+      .query(
+        `UPDATE tracks SET status = 'skipped_not_music', last_error = ?, updated_at = ? WHERE video_id = ?`,
+      )
+      .run(`category: ${category ?? "unknown"}`, this.now(), videoId);
+  }
+
+  /** Update the file path after a move (organize command). */
+  updateFilePath(videoId: string, newFilePath: string): void {
+    this.db
+      .query(`UPDATE tracks SET file_path = ?, updated_at = ? WHERE video_id = ?`)
+      .run(newFilePath, this.now(), videoId);
+  }
+
+  /** Persist inferred genre for a downloaded track. */
+  updateGenre(videoId: string, genre: string | null): void {
+    this.db
+      .query(`UPDATE tracks SET genre = COALESCE(?, genre), updated_at = ? WHERE video_id = ?`)
+      .run(genre, this.now(), videoId);
   }
 
   /** Tracks that should be attempted on the next run. */

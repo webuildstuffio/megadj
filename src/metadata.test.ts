@@ -35,8 +35,11 @@ describe("inferGenre", () => {
   test("detects house", () => {
     expect(inferGenre(["Deep House Mix 2023"])).toBe("House");
   });
-  test("detects workout", () => {
-    expect(inferGenre(["Best Workout Music 2026 Playlist"])).toBe("Workout");
+  test("word-boundary match ignores substrings", () => {
+    // "Soulji" must NOT match the soul pattern.
+    expect(inferGenre(["Karma Fields - You and Me (Soulji Remix) [House]"])).toBe("House");
+    // "Sunset" must not match "set"-based mix heuristics — no Mix genre now.
+    expect(inferGenre(["Chill Sunset Vibes"])).toBe("Chill / Lo-Fi");
   });
   test("returns null on no match", () => {
     expect(inferGenre(["something random"])).toBeNull();

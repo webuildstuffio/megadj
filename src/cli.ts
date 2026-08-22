@@ -7,12 +7,15 @@ import { status, listTracks } from "./commands/status";
 const MUSIC_DIR = process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/YTMusic-Liked`;
 const DB_PATH = process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
 const COOKIES = process.env.MEGADJ_COOKIES ?? "chrome";
+const COOKIES_FILE = process.env.MEGADJ_COOKIES_FILE ?? null;
 
 function printHelp(): void {
   console.log(`megadj — YouTube Music library archiver for rekordbox
 
 usage:
-  megadj sync    [--limit N] [--dry-run] [--sources LM,LL,PLxxxx]   incremental download
+  megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,PLxxxx]
+  megadj enrich  [--dry-run]                   fill weak genres via MusicBrainz
+  megadj organize [--dry-run]                   move downloads into genre folders
   megadj status                              archive summary + recent runs
   megadj list    [filter]                    list tracks (by status or text)
   megadj retry                                retry failed tracks
@@ -84,7 +87,11 @@ async function main(): Promise<void> {
   try {
     switch (command) {
       case "sync": {
-        const flags = parseFlags(process.argv.slice(3), ["limit", "sources"], ["dry-run"]);
+        const flags = parseFlags(
+          process.argv.slice(3),
+          ["limit", "sources", "target-total"],
+          ["dry-run", "music-only"],
+        );
         const limiter = new RateLimiter({
           onPace: (ms) => process.stderr.write(`  (pacing ${Math.round(ms / 100) / 10}s)\n`),
           onBackoff: (attempt, ms, reason) =>
@@ -95,6 +102,9 @@ async function main(): Promise<void> {
         const limitRaw = flags.strings.get("limit");
         const limit = limitRaw ? Number(limitRaw) : undefined;
         const dryRun = flags.bools.has("dry-run");
+        const musicOnly = flags.bools.has("music-only");
+        const targetRaw = flags.strings.get("target-total");
+        const targetTotal = targetRaw ? Number(targetRaw) : undefined;
         const sourcesStr = flags.strings.get("sources") ?? "LM";
         const sources = sourcesStr
           .split(",")
@@ -106,8 +116,11 @@ async function main(): Promise<void> {
           limiter,
           musicDir: MUSIC_DIR,
           cookiesFromBrowser: COOKIES || null,
+          cookiesFile: COOKIES_FILE,
           limit,
           dryRun,
+          musicOnly,
+          targetTotal,
           sources,
         });
         break;
@@ -131,6 +144,26 @@ async function main(): Promise<void> {
       case "adopt": {
         const { adopt } = await import("./commands/adopt");
         await adopt({ state, musicDir: MUSIC_DIR });
+        break;
+      }
+      case "organize": {
+        const flags = parseFlags(process.argv.slice(3), [], ["dry-run"]);
+        const { organize } = await import("./commands/organize");
+        await organize({
+          state,
+          musicDir: MUSIC_DIR,
+          dryRun: flags.bools.has("dry-run"),
+        });
+        break;
+      }
+      case "enrich": {
+        const flags = parseFlags(process.argv.slice(3), [], ["dry-run"]);
+        const { enrich } = await import("./commands/enrich");
+        await enrich({
+          state,
+          musicDir: MUSIC_DIR,
+          dryRun: flags.bools.has("dry-run"),
+        });
         break;
       }
       default:

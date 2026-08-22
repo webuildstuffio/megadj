@@ -4,3 +4,9 @@ dist/
 *.db-wal
 *.db-shm
 .DS_Store
+
+# scratch from agent runs
+*.webm
+*.part
+*.m4a
+*.mp4
