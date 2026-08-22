@@ -1,0 +1,19 @@
+{
+  "name": "megadj",
+  "version": "0.1.0",
+  "description": "Rate-limited YouTube Music library archiver with rekordbox-ready metadata",
+  "type": "module",
+  "module": "src/cli.ts",
+  "bin": {
+    "megadj": "./src/cli.ts"
+  },
+  "scripts": {
+    "megadj": "bun run src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/bun": "^1.3.0"
+  }
+}

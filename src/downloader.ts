@@ -1,0 +1,122 @@
+/**
+ * yt-dlp driver. One JSON-info probe per track (rate-limited), then the
+ * download itself. Classifies failures into permanent vs transient so the
+ * limiter can back off appropriately.
+ */
+
+import { $ } from "bun";
+import type { RateLimiter } from "./ratelimit";
+import type { YtdlpInfo } from "./metadata";
+
+export interface DownloadResult {
+  status: "downloaded" | "already-had" | "gone" | "failed";
+  filePath?: string;
+  formatId?: string;
+  info?: YtdlpInfo;
+  error?: string;
+}
+
+export interface DownloaderOptions {
+  musicDir: string;
+  ytdlpBin?: string;
+  cookiesFromBrowser?: string | null;
+  minBitrateKbps?: number;
+}
+
+const GONE_PATTERNS = [
+  /video unavailable/i,
+  /account associated with this video has been terminated/i,
+  /removed following a copyright removal request/i,
+  /private video/i,
+  /makes it unavailable in your country/i,
+  /sign in to confirm/i,
+];
+
+const THROTTLE_PATTERNS = [
+  /429|too many requests/i,
+  /http error 5\d\d/i,
+  /connection reset|timed out|ETIMEDOUT|ENOTFOUND|ECONNRESET/i,
+  /premiere|live event/i,
+];
+
+export class Downloader {
+  private readonly opts: Required<Pick<DownloaderOptions, "musicDir">> &
+    DownloaderOptions;
+
+  constructor(
+    private readonly limiter: RateLimiter,
+    opts: DownloaderOptions,
+  ) {
+    this.opts = opts;
+  }
+
+  classifyError(stderr: string): "gone" | "throttle" | "other" {
+    if (GONE_PATTERNS.some((p) => p.test(stderr))) return "gone";
+    if (THROTTLE_PATTERNS.some((p) => p.test(stderr))) return "throttle";
+    return "other";
+  }
+
+  /** Fetch metadata JSON without downloading. */
+  async probe(videoId: string): Promise<YtdlpInfo> {
+    const url = `https://music.youtube.com/watch?v=${videoId}`;
+    const proc = await $`yt-dlp -J --no-playlist ${url}`.quiet().nothrow();
+    if (proc.exitCode !== 0) {
+      const errText = new TextDecoder().decode(proc.stderr);
+      const kind = this.classifyError(errText);
+      if (kind === "gone") throw new Error("GONE");
+      throw new Error(errText.split("\n").slice(-3).join(" ").slice(0, 300));
+    }
+    return JSON.parse(new TextDecoder().decode(proc.stdout)) as YtdlpInfo;
+  }
+
+  /** Download best audio; returns path of the landed file. */
+  async download(
+    videoId: string,
+    info: YtdlpInfo,
+  ): Promise<DownloadResult> {
+    const url = `https://music.youtube.com/watch?v=${videoId}`;
+    const outTemplate = `${this.opts.musicDir}/%(title)s.%(ext)s`;
+
+    const args = [
+      "-f", "141/bestaudio[ext=m4a]/bestaudio",
+      "-x", "--audio-format", "m4a", "--audio-quality", "0",
+      "-o", outTemplate,
+      "--no-playlist",
+      "--embed-thumbnail", "--embed-metadata",
+      "--write-info-json",
+      "--no-overwrites",
+      "--no-progress",
+      "--print", "after_move:%(filepath)s",
+      "--print", "after_move:%(format_id)s",
+    ];
+    if (this.opts.cookiesFromBrowser) {
+      args.push("--cookies-from-browser", this.opts.cookiesFromBrowser);
+    }
+
+    const proc = await $`yt-dlp ${args} ${url}`.quiet().nothrow();
+    const stdout = new TextDecoder().decode(proc.stdout).trim().split("\n");
+    const stderr = new TextDecoder().decode(proc.stderr);
+
+    if (proc.exitCode !== 0) {
+      const kind = this.classifyError(stderr);
+      if (kind === "gone") return { status: "gone", error: "video unavailable" };
+      return {
+        status: "failed",
+        error: stderr.split("\n").slice(-2).join(" ").slice(0, 300),
+      };
+    }
+
+    const filePath = stdout.find((l) => l.endsWith(".m4a"));
+    const formatId = stdout.find((l) => /^[0-9]+$/.test(l.trim()));
+    if (!filePath) {
+      return { status: "failed", error: "no output path from yt-dlp" };
+    }
+
+    return {
+      status: "downloaded",
+      filePath,
+      formatId,
+      info,
+    };
+  }
+}
