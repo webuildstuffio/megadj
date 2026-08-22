@@ -10,8 +10,7 @@ import { $ } from "bun";
 import type { RateLimiter } from "../ratelimit";
 import { withRetry } from "../ratelimit";
 import type { ArchiveState } from "../state";
-import { Downloader } from "../downloader";
-import { buildMetadata, applyTags } from "../metadata";
+import { Downloader } from "../downloader";import { buildMetadata, applyTags } from "../metadata";
 
 export interface SyncOptions {
   state: ArchiveState;
@@ -21,7 +20,14 @@ export interface SyncOptions {
   limit?: number;
   dryRun?: boolean;
   requality?: boolean;
+  sources?: PlaylistSource[];
   onProgress?: (msg: string) => void;
+}
+
+/** A playlist source: id (e.g. "LM", "LL", "PL...") plus a label for state. */
+export interface PlaylistSource {
+  id: string;
+  label: string;
 }
 
 interface PlaylistEntry {
@@ -29,13 +35,13 @@ interface PlaylistEntry {
   title: string | null;
 }
 
-async function fetchPlaylist(): Promise<PlaylistEntry[]> {
-  const proc = await $`yt-dlp --flat-playlist -J "https://music.youtube.com/playlist?list=LM"`
+async function fetchPlaylist(playlistId: string): Promise<PlaylistEntry[]> {
+  const proc = await $`yt-dlp --flat-playlist -J "https://music.youtube.com/playlist?list=${playlistId}"`
     .quiet()
     .nothrow();
   if (proc.exitCode !== 0) {
     throw new Error(
-      `playlist fetch failed: ${new TextDecoder().decode(proc.stderr).slice(0, 300)}`,
+      `playlist fetch failed (${playlistId}): ${new TextDecoder().decode(proc.stderr).slice(0, 300)}`,
     );
   }
   const data = JSON.parse(new TextDecoder().decode(proc.stdout)) as {
@@ -53,9 +59,9 @@ export async function sync(opts: SyncOptions): Promise<void> {
     cookiesFromBrowser: opts.cookiesFromBrowser,
   });
 
-  log("fetching liked-songs playlist…");
-  const entries = await fetchPlaylist();
-  log(`playlist has ${entries.length} tracks`);
+  const sources: PlaylistSource[] = opts.sources ?? [
+    { id: "LM", label: "liked" },
+  ];
 
   const runId = opts.state.startRun();
   let attempted = 0;
@@ -64,12 +70,20 @@ export async function sync(opts: SyncOptions): Promise<void> {
   let failed = 0;
   let bytes = 0;
 
-  entries.forEach((entry, index) => {
-    opts.state.upsertTrackFromPlaylist(entry.id, index, entry.title);
-  });
+  for (const source of sources) {
+    log(`fetching playlist ${source.id} (${source.label})…`);
+    const entries = await fetchPlaylist(source.id);
+    log(`  ${entries.length} tracks`);
+    entries.forEach((entry, index) => {
+      opts.state.upsertTrackFromPlaylist(entry.id, index, entry.title, source.label);
+    });
+  }
 
-  const pending = opts.state.pendingTracks();
-  const queue = opts.limit ? pending.slice(0, opts.limit) : pending;
+  // Cross-source dedupe: a video already downloaded from one source stays put.
+  let queue = opts.state.pendingTracks();
+  if (opts.limit) {
+    queue = queue.slice(0, opts.limit);
+  }
   log(`${queue.length} track(s) to attempt this run`);
 
   for (const track of queue) {
@@ -116,7 +130,7 @@ export async function sync(opts: SyncOptions): Promise<void> {
           artist: meta.artist,
           album: meta.album,
           formatId: dl.formatId ?? null,
-          bitrateKbps: null,
+          bitrateKbps: Downloader.formatBitrateKbps(dl.formatId),
           codec: "aac",
           filePath: dl.filePath,
           fileSizeBytes: fileSize,

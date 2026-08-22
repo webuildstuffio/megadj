@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { parseArgs } from "util";
 import { ArchiveState } from "./state";
 import { RateLimiter } from "./ratelimit";
 import { sync } from "./commands/sync";
@@ -13,10 +12,11 @@ function printHelp(): void {
   console.log(`megadj — YouTube Music library archiver for rekordbox
 
 usage:
-  megadj sync    [--limit N] [--dry-run]   incremental download of new likes
+  megadj sync    [--limit N] [--dry-run] [--sources LM,LL,PLxxxx]   incremental download
   megadj status                              archive summary + recent runs
   megadj list    [filter]                    list tracks (by status or text)
   megadj retry                                retry failed tracks
+  megadj adopt                                register existing files in the DB
   megadj help                                this help
 
 environment:
@@ -25,13 +25,54 @@ environment:
   MEGADJ_COOKIES     browser for cookies (default chrome, empty to disable)`);
 }
 
+/** Bun's util.parseArgs is broken (strict:true rejects known options,
+ *  strict:false coerces string values to true), so parse manually. */
+interface ParsedFlags {
+  strings: Map<string, string>;
+  bools: Set<string>;
+}
+
+function parseFlags(
+  args: string[],
+  stringOpts: string[],
+  boolOpts: string[],
+): ParsedFlags {
+  const strings = new Map<string, string>();
+  const bools = new Set<string>();
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === undefined) continue;
+    if (arg === "--") break;
+    if (!arg.startsWith("--")) continue;
+    const eq = arg.indexOf("=");
+    if (eq > 0) {
+      const key = arg.slice(2, eq);
+      const val = arg.slice(eq + 1);
+      if (boolOpts.includes(key)) {
+        if (val !== "true" && val !== "false") continue;
+        if (val === "true") bools.add(key);
+      } else {
+        strings.set(key, val);
+      }
+      continue;
+    }
+    const key = arg.slice(2);
+    if (boolOpts.includes(key)) {
+      bools.add(key);
+    } else if (stringOpts.includes(key)) {
+      const next = args[i + 1];
+      if (next !== undefined && !next.startsWith("--")) {
+        strings.set(key, next);
+        i++;
+      }
+    }
+  }
+  return { strings, bools };
+}
+
 async function main(): Promise<void> {
-  const { positionals } = parseArgs({
-    args: process.argv.slice(2),
-    allowPositionals: true,
-    strict: false,
-  });
-  const command = positionals[0] ?? "help";
+  const argv = process.argv.slice(2);
+  const command = argv.find((a) => !a.startsWith("--")) ?? "help";
 
   if (command === "help" || command === "--help" || command === "-h") {
     printHelp();
@@ -43,13 +84,7 @@ async function main(): Promise<void> {
   try {
     switch (command) {
       case "sync": {
-        const flags = parseArgs({
-          args: process.argv.slice(3),
-          boolean: ["dry-run"],
-          string: ["limit"],
-          allowPositionals: true,
-          strict: false,
-        }) as { values: { limit?: string; "dry-run"?: boolean } };
+        const flags = parseFlags(process.argv.slice(3), ["limit", "sources"], ["dry-run"]);
         const limiter = new RateLimiter({
           onPace: (ms) => process.stderr.write(`  (pacing ${Math.round(ms / 100) / 10}s)\n`),
           onBackoff: (attempt, ms, reason) =>
@@ -57,9 +92,15 @@ async function main(): Promise<void> {
               `  (backoff #${attempt}: ${(ms / 1000).toFixed(1)}s — ${reason.slice(0, 60)})\n`,
             ),
         });
-        const limitRaw = flags.values.limit;
-        const limit = typeof limitRaw === "string" ? Number(limitRaw) : undefined;
-        const dryRun = flags.values["dry-run"] === true;
+        const limitRaw = flags.strings.get("limit");
+        const limit = limitRaw ? Number(limitRaw) : undefined;
+        const dryRun = flags.bools.has("dry-run");
+        const sourcesStr = flags.strings.get("sources") ?? "LM";
+        const sources = sourcesStr
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((id) => ({ id, label: id === "LM" ? "liked" : id === "LL" ? "liked-videos" : id }));
         await sync({
           state,
           limiter,
@@ -67,6 +108,7 @@ async function main(): Promise<void> {
           cookiesFromBrowser: COOKIES || null,
           limit,
           dryRun,
+          sources,
         });
         break;
       }
@@ -75,7 +117,8 @@ async function main(): Promise<void> {
         break;
       }
       case "list": {
-        listTracks(state, positionals[1]);
+        const filter = process.argv.slice(3).find((a) => !a.startsWith("--"));
+        listTracks(state, filter);
         break;
       }
       case "retry": {
@@ -83,6 +126,11 @@ async function main(): Promise<void> {
         // this resets the ladder for everything failed.
         state.resetFailures();
         console.log("failure counters reset — run `megadj sync` to retry");
+        break;
+      }
+      case "adopt": {
+        const { adopt } = await import("./commands/adopt");
+        await adopt({ state, musicDir: MUSIC_DIR });
         break;
       }
       default:

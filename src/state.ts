@@ -31,6 +31,7 @@ export interface TrackRow {
   last_attempt_at: string | null;
   last_error: string | null;
   liked_position: number | null;
+  source: string;
   first_seen_at: string;
   updated_at: string;
 }
@@ -93,6 +94,23 @@ export class ArchiveState {
       CREATE INDEX IF NOT EXISTS idx_tracks_status ON tracks(status);
       CREATE INDEX IF NOT EXISTS idx_tracks_position ON tracks(liked_position);
     `);
+    this.addColumnIfMissing("tracks", "source", "TEXT NOT NULL DEFAULT 'liked'");
+    this.db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_tracks_source ON tracks(source)`,
+    );
+  }
+
+  private addColumnIfMissing(
+    table: string,
+    column: string,
+    ddl: string,
+  ): void {
+    const cols = this.db
+      .query(`PRAGMA table_info(${table})`)
+      .all() as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === column)) {
+      this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+    }
   }
 
   close(): void {
@@ -107,18 +125,19 @@ export class ArchiveState {
     videoId: string,
     position: number,
     title: string | null,
+    source = "liked",
   ): void {
     const now = this.now();
     this.db
       .query(
-        `INSERT INTO tracks (video_id, liked_position, title, first_seen_at, updated_at)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO tracks (video_id, liked_position, title, source, first_seen_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(video_id) DO UPDATE SET
            liked_position = excluded.liked_position,
            title = COALESCE(excluded.title, tracks.title),
            updated_at = excluded.updated_at`,
       )
-      .run(videoId, position, title, now, now);
+      .run(videoId, position, title, source, now, now);
   }
 
   markAttempt(videoId: string, error: string | null): void {
@@ -206,9 +225,28 @@ export class ArchiveState {
   pendingTracks(): TrackRow[] {
     return this.db
       .query(
-        `SELECT * FROM tracks WHERE status IN ('pending', 'failed') AND attempts < 5 ORDER BY liked_position`,
+        `SELECT * FROM tracks WHERE status IN ('pending', 'failed') AND attempts < 5
+         ORDER BY liked_position`,
       )
       .all() as TrackRow[];
+  }
+
+  /** Pending tracks from a specific source, position-ordered. */
+  pendingTracksFromSource(source: string): TrackRow[] {
+    return this.db
+      .query(
+        `SELECT * FROM tracks WHERE source = ? AND status IN ('pending', 'failed') AND attempts < 5
+         ORDER BY liked_position`,
+      )
+      .all(source) as TrackRow[];
+  }
+
+  /** Total downloaded tracks across all sources. */
+  downloadedCount(): number {
+    const row = this.db
+      .query(`SELECT COUNT(*) as n FROM tracks WHERE status = 'downloaded'`)
+      .get() as { n: number };
+    return row.n;
   }
 
   statusCounts(): Record<string, number> {

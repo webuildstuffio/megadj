@@ -69,6 +69,19 @@ export class Downloader {
     return JSON.parse(new TextDecoder().decode(proc.stdout)) as YtdlpInfo;
   }
 
+  /** Bitrate by known YouTube format ID. */
+  static formatBitrateKbps(formatId: string | null | undefined): number | null {
+    switch (formatId) {
+      case "141": return 256;
+      case "774": return 256;
+      case "140": return 128;
+      case "251": return 130;
+      case "250": return 61;
+      case "249": return 46;
+      default: return null;
+    }
+  }
+
   /** Download best audio; returns path of the landed file. */
   async download(
     videoId: string,
@@ -83,7 +96,6 @@ export class Downloader {
       "-o", outTemplate,
       "--no-playlist",
       "--embed-thumbnail", "--embed-metadata",
-      "--write-info-json",
       "--no-overwrites",
       "--no-progress",
       "--print", "after_move:%(filepath)s",
@@ -93,6 +105,7 @@ export class Downloader {
       args.push("--cookies-from-browser", this.opts.cookiesFromBrowser);
     }
 
+    void info;
     const proc = await $`yt-dlp ${args} ${url}`.quiet().nothrow();
     const stdout = new TextDecoder().decode(proc.stdout).trim().split("\n");
     const stderr = new TextDecoder().decode(proc.stderr);
