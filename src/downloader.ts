@@ -95,10 +95,16 @@ export class Downloader {
     const folder = genre ? `/${sanitizeGenreFolder(genre)}` : "";
     const outTemplate = `${this.opts.musicDir}${folder}/%(title)s.%(ext)s`;
 
+    // Scratch dir for intermediate fragments — keep the music tree clean of
+    // stray .part/.webm/.fXXX files if a download dies midway.
+    const scratchDir = `${this.opts.musicDir}/.scratch`;
     const args = [
-      "-f", "141/bestaudio[ext=m4a]/bestaudio",
+      // Audio-only, always. Never let format fallback pick a merged
+      // video+audio format (that's how .webm/.mp4 strays happen).
+      "-f", "141/bestaudio[ext=m4a]/bestaudio/bestaudio*",
       "-x", "--audio-format", "m4a", "--audio-quality", "0",
       "-o", outTemplate,
+      "--paths", scratchDir,
       "--no-playlist",
       "--embed-thumbnail", "--embed-metadata",
       "--no-overwrites",
