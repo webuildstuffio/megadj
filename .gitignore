@@ -10,3 +10,4 @@ dist/
 *.part
 *.m4a
 *.mp4
+__pycache__/

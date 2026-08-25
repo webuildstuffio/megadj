@@ -61,11 +61,36 @@ alias megadj='bun run ~/github/megadj/src/cli.ts'
 
 ## Rekordbox import
 
+Two supported flows:
+
+### A. Regular rekordbox library (Mac)
+
 1. rekordbox → File → Import → Import Folder → select `~/Music/YTMusic-Liked`
 2. Let auto-analysis finish (BPM/grid/waveform)
 3. Optional: drag into a playlist for gig organization
 
 Don't move the folder after import — rekordbox references paths. If you relocate, use Preferences → Database → Auto Relocate.
+
+### B. DJ USB drives (DJMASTER + DJMIRROR)
+
+The `.claude/skills/rekordbox-usb-sync/` skill injects downloads directly
+into the drives' device DB, generates beatgrids/waveforms, mirrors both
+drives byte-identical, and verifies everything:
+
+```bash
+# new batch of downloads -> master drive
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+    --with librosa --with numpy \
+    python .claude/skills/rekordbox-usb-sync/scripts/usb_sync.py \
+    --db /tmp/usb-sync/work_master.db --drive /Volumes/DJMASTER
+
+# replicate master -> mirror, then verify
+uv run python .claude/skills/rekordbox-usb-sync/scripts/usb_mirror.py
+uv run python .claude/skills/rekordbox-usb-sync/scripts/usb_mirror.py --verify-only --hash-parity
+```
+
+See [docs/usb-sync.md](docs/usb-sync.md) for the pipeline overview and
+[(local ops log)]((local ops log)) for the operations log.
 
 ## License
 
