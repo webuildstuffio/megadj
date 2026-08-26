@@ -59,7 +59,10 @@ const GENRE_MAP: Array<[RegExp, string]> = [
   [/\b(?:r&b|soul|neo.?soul)\b/i, "R&B / Soul"],
   [/\b(?:deep house|tech house|afro house|house|house music)\b/i, "House"],
   [/\b(?:techno|trance|hardstyle|psytrance)\b/i, "Techno / Trance"],
-  [/\b(?:edm|electro|dubstep|bass|dnb|drum.?and.?bass|drum.?n.?bass)\b/i, "EDM / Bass"],
+  [
+    /\b(?:edm|electro|dubstep|bass|dnb|drum.?and.?bass|drum.?n.?bass)\b/i,
+    "EDM / Bass",
+  ],
   [/\b(?:lofi|lo.?fi|chill|downtempo|ambient)\b/i, "Chill / Lo-Fi"],
   [/\b(?:reggae|dancehall|afrobeat|afro beats?)\b/i, "Reggae / Afro"],
   [/\b(?:rock|metal|punk|indie rock)\b/i, "Rock"],
@@ -69,7 +72,9 @@ const GENRE_MAP: Array<[RegExp, string]> = [
   [/\bpop\b/i, "Pop"],
 ];
 
-export function inferGenre(inputs: Array<string | null | undefined>): string | null {
+export function inferGenre(
+  inputs: Array<string | null | undefined>,
+): string | null {
   const blob = inputs.filter(Boolean).join(" ").toLowerCase();
   if (!blob) return null;
   // Channel "- Topic" uploads and explicit genre tags carry the most signal.
@@ -80,7 +85,9 @@ export function inferGenre(inputs: Array<string | null | undefined>): string | n
 }
 
 /** Extract "Producer: X" style credits from a YouTube description. */
-export function extractComposer(description: string | null | undefined): string | null {
+export function extractComposer(
+  description: string | null | undefined,
+): string | null {
   if (!description) return null;
   const lines = description.split(/\r?\n/).map((l) => l.trim());
   const producers: string[] = [];
@@ -144,15 +151,11 @@ export async function applyTags(
   filePath: string,
   meta: EnrichedMetadata,
 ): Promise<void> {
-  const args: string[] = [
-    "-y",
-    "-i", filePath,
-    "-c", "copy",
-    "-map", "0",
-  ];
+  const args: string[] = ["-y", "-i", filePath, "-c", "copy", "-map", "0"];
   if (meta.title) args.push("-metadata", `title=${meta.title}`);
   if (meta.artist) args.push("-metadata", `artist=${meta.artist}`);
-  if (meta.albumArtist) args.push("-metadata", `album_artist=${meta.albumArtist}`);
+  if (meta.albumArtist)
+    args.push("-metadata", `album_artist=${meta.albumArtist}`);
   if (meta.album) args.push("-metadata", `album=${meta.album}`);
   if (meta.genre) args.push("-metadata", `genre=${meta.genre}`);
   if (meta.date) args.push("-metadata", `date=${meta.date}`);

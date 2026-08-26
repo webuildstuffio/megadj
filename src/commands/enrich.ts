@@ -37,7 +37,9 @@ async function mbGenreForArtist(artist: string): Promise<string | null> {
   const url = `https://musicbrainz.org/ws/2/artist/?query=artist:"${encodeURIComponent(artist)}"&fmt=json&limit=1`;
   try {
     const res = await fetch(url, {
-      headers: { "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)" },
+      headers: {
+        "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
+      },
     });
     if (!res.ok) return null;
     const data = (await res.json()) as MbSearchResponse;
@@ -58,11 +60,15 @@ async function mbGenreForArtist(artist: string): Promise<string | null> {
   }
 }
 
-async function rewriteGenreTag(filePath: string, genre: string): Promise<boolean> {
+async function rewriteGenreTag(
+  filePath: string,
+  genre: string,
+): Promise<boolean> {
   const tmp = filePath.replace(/(\.[^.]+)$/, ".retag$1");
-  const proc = await $`ffmpeg -y -hide_banner -loglevel error -i ${filePath} -c copy -map 0 -metadata genre=${genre} ${tmp}`
-    .quiet()
-    .nothrow();
+  const proc =
+    await $`ffmpeg -y -hide_banner -loglevel error -i ${filePath} -c copy -map 0 -metadata genre=${genre} ${tmp}`
+      .quiet()
+      .nothrow();
   if (proc.exitCode !== 0) return false;
   const proc2 = await $`mv ${tmp} ${filePath}`.quiet().nothrow();
   return proc2.exitCode === 0;

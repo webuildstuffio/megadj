@@ -58,7 +58,9 @@ export class ProgressBar {
       const pctInt = Math.floor(pct * 100);
       if (pctInt >= this.lastPct + 5 || force) {
         this.lastPct = pctInt;
-        console.log(`[${this.label}] ${this.done}/${this.total} ${this.unit} · ${pctInt}% · ${this.suffix(elapsed)}`);
+        console.log(
+          `[${this.label}] ${this.done}/${this.total} ${this.unit} · ${pctInt}% · ${this.suffix(elapsed)}`,
+        );
       }
       return;
     }
@@ -71,7 +73,8 @@ export class ProgressBar {
 
   private suffix(elapsed: number): string {
     const parts: string[] = [];
-    if (this.bytes > 0 && elapsed > 1) parts.push(`${fmtBytes(this.bytes / elapsed)}/s`);
+    if (this.bytes > 0 && elapsed > 1)
+      parts.push(`${fmtBytes(this.bytes / elapsed)}/s`);
     if (this.done > 0 && elapsed > 2) {
       const remaining = (elapsed / this.done) * (this.total - this.done);
       parts.push(`ETA ${fmtDur(remaining)}`);
@@ -86,7 +89,10 @@ export class ProgressBar {
     const parts = [
       `[${this.label}] ${this.done}/${this.total} ${this.unit} in ${fmtDur(elapsed)}`,
     ];
-    if (this.bytes > 0) parts.push(`(${fmtBytes(this.bytes)} at ${fmtBytes(this.bytes / Math.max(elapsed, 0.001))}/s)`);
+    if (this.bytes > 0)
+      parts.push(
+        `(${fmtBytes(this.bytes)} at ${fmtBytes(this.bytes / Math.max(elapsed, 0.001))}/s)`,
+      );
     console.log(parts.join(" "));
     if (summary) console.log(summary);
   }

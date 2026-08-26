@@ -23,9 +23,10 @@ export interface OrganizeOptions {
 }
 
 async function fileGenreTag(filePath: string): Promise<string | null> {
-  const proc = await $`ffprobe -v quiet -show_entries format_tags=genre -of csv=p=0 ${filePath}`
-    .quiet()
-    .nothrow();
+  const proc =
+    await $`ffprobe -v quiet -show_entries format_tags=genre -of csv=p=0 ${filePath}`
+      .quiet()
+      .nothrow();
   if (proc.exitCode !== 0) return null;
   const tag = new TextDecoder().decode(proc.stdout).trim();
   return tag || null;
@@ -33,10 +34,11 @@ async function fileGenreTag(filePath: string): Promise<string | null> {
 
 export async function organize(opts: OrganizeOptions): Promise<void> {
   const log = opts.onProgress ?? ((m: string) => console.log(m));
-  const tracks = opts.state.allTracks().filter(
-    (t) => t.status === "downloaded" && t.file_path,
-  );
-  log(`organizing ${tracks.length} downloaded track(s)`);  let moved = 0;
+  const tracks = opts.state
+    .allTracks()
+    .filter((t) => t.status === "downloaded" && t.file_path);
+  log(`organizing ${tracks.length} downloaded track(s)`);
+  let moved = 0;
   let skipped = 0;
   let missing = 0;
 
@@ -54,7 +56,8 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
     if (genre === "Music" && track.artist) {
       genre = "Music";
     }
-    const folder = sanitizeGenreFolder(genre);    const fileName = filePath.split("/").pop() ?? `${track.video_id}.m4a`;
+    const folder = sanitizeGenreFolder(genre);
+    const fileName = filePath.split("/").pop() ?? `${track.video_id}.m4a`;
     const targetDir = `${opts.musicDir}/${folder}`;
     const targetPath = `${targetDir}/${fileName}`;
 
@@ -75,7 +78,9 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
       const ext = fileName.match(/(\.[^.]+)$/)?.[1] ?? "";
       const stem = ext ? fileName.slice(0, -ext.length) : fileName;
       const alt = `${targetDir}/${stem} [${track.video_id}]${ext}`;
-      log(`  ⚠ destination exists — moving as ${stem} [${track.video_id}]${ext}`);
+      log(
+        `  ⚠ destination exists — moving as ${stem} [${track.video_id}]${ext}`,
+      );
       await $`mv ${filePath} ${alt}`.quiet();
       opts.state.updateFilePath(track.video_id, alt);
       moved++;

@@ -82,16 +82,23 @@ export class Downloader {
     return JSON.parse(new TextDecoder().decode(proc.stdout)) as YtdlpInfo;
   }
 
-/** Bitrate by known YouTube format ID. */
+  /** Bitrate by known YouTube format ID. */
   static formatBitrateKbps(formatId: string | null | undefined): number | null {
     switch (formatId) {
-      case "141": return 256;
-      case "774": return 256;
-      case "140": return 128;
-      case "251": return 130;
-      case "250": return 61;
-      case "249": return 46;
-      default: return null;
+      case "141":
+        return 256;
+      case "774":
+        return 256;
+      case "140":
+        return 128;
+      case "251":
+        return 130;
+      case "250":
+        return 61;
+      case "249":
+        return 46;
+      default:
+        return null;
     }
   }
 
@@ -126,16 +133,25 @@ export class Downloader {
     const args = [
       // Audio-only, always. Never let format fallback pick a merged
       // video+audio format (that's how .webm/.mp4 strays happen).
-      "-f", "141/bestaudio[ext=m4a]/bestaudio/bestaudio*",
-      "-x", "--audio-format", "m4a", "--audio-quality", "0",
-      "-o", outTemplate,
+      "-f",
+      "141/bestaudio[ext=m4a]/bestaudio/bestaudio*",
+      "-x",
+      "--audio-format",
+      "m4a",
+      "--audio-quality",
+      "0",
+      "-o",
+      outTemplate,
       "--no-playlist",
-      "--embed-thumbnail", "--embed-metadata",
+      "--embed-thumbnail",
+      "--embed-metadata",
       "--no-overwrites",
       "--newline",
       "--progress",
-      "--print", "after_move:%(filepath)s",
-      "--print", "after_move:%(format_id)s",
+      "--print",
+      "after_move:%(filepath)s",
+      "--print",
+      "after_move:%(format_id)s",
     ];
     args.push(...this.cookieArgs());
     void info;
@@ -144,7 +160,8 @@ export class Downloader {
 
     if (proc.exitCode !== 0) {
       const kind = this.classifyError(stderr);
-      if (kind === "gone") return { status: "gone", error: "video unavailable" };
+      if (kind === "gone")
+        return { status: "gone", error: "video unavailable" };
       return {
         status: "failed",
         error: stderr.split("\n").slice(-2).join(" ").slice(0, 300),

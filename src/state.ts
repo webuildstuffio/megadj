@@ -96,21 +96,21 @@ export class ArchiveState {
       CREATE INDEX IF NOT EXISTS idx_tracks_status ON tracks(status);
       CREATE INDEX IF NOT EXISTS idx_tracks_position ON tracks(liked_position);
     `);
-    this.addColumnIfMissing("tracks", "source", "TEXT NOT NULL DEFAULT 'liked'");
+    this.addColumnIfMissing(
+      "tracks",
+      "source",
+      "TEXT NOT NULL DEFAULT 'liked'",
+    );
     this.addColumnIfMissing("tracks", "genre", "TEXT");
     this.db.exec(
       `CREATE INDEX IF NOT EXISTS idx_tracks_source ON tracks(source)`,
     );
   }
 
-  private addColumnIfMissing(
-    table: string,
-    column: string,
-    ddl: string,
-  ): void {
-    const cols = this.db
-      .query(`PRAGMA table_info(${table})`)
-      .all() as Array<{ name: string }>;
+  private addColumnIfMissing(table: string, column: string, ddl: string): void {
+    const cols = this.db.query(`PRAGMA table_info(${table})`).all() as Array<{
+      name: string;
+    }>;
     if (!cols.some((c) => c.name === column)) {
       this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
     }
@@ -239,14 +239,18 @@ export class ArchiveState {
   /** Update the file path after a move (organize command). */
   updateFilePath(videoId: string, newFilePath: string): void {
     this.db
-      .query(`UPDATE tracks SET file_path = ?, updated_at = ? WHERE video_id = ?`)
+      .query(
+        `UPDATE tracks SET file_path = ?, updated_at = ? WHERE video_id = ?`,
+      )
       .run(newFilePath, this.now(), videoId);
   }
 
   /** Persist inferred genre for a downloaded track. */
   updateGenre(videoId: string, genre: string | null): void {
     this.db
-      .query(`UPDATE tracks SET genre = COALESCE(?, genre), updated_at = ? WHERE video_id = ?`)
+      .query(
+        `UPDATE tracks SET genre = COALESCE(?, genre), updated_at = ? WHERE video_id = ?`,
+      )
       .run(genre, this.now(), videoId);
   }
 

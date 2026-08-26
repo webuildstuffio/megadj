@@ -50,7 +50,9 @@ async function fetchPlaylist(
 ): Promise<PlaylistEntry[]> {
   const url = `https://music.youtube.com/playlist?list=${playlistId}`;
   const proc = cookiesFile
-    ? await $`yt-dlp --cookies ${cookiesFile} --flat-playlist -J ${url}`.quiet().nothrow()
+    ? await $`yt-dlp --cookies ${cookiesFile} --flat-playlist -J ${url}`
+        .quiet()
+        .nothrow()
     : await $`yt-dlp --flat-playlist -J ${url}`.quiet().nothrow();
   if (proc.exitCode !== 0) {
     throw new Error(
@@ -90,7 +92,12 @@ export async function sync(opts: SyncOptions): Promise<void> {
     const entries = await fetchPlaylist(source.id, opts.cookiesFile);
     log(`  ${entries.length} tracks`);
     entries.forEach((entry, index) => {
-      opts.state.upsertTrackFromPlaylist(entry.id, index, entry.title, source.label);
+      opts.state.upsertTrackFromPlaylist(
+        entry.id,
+        index,
+        entry.title,
+        source.label,
+      );
     });
   }
 
@@ -130,7 +137,11 @@ export async function sync(opts: SyncOptions): Promise<void> {
       // Music-only gate: reject anything YouTube doesn't categorize as Music.
       if (opts.musicOnly) {
         const cats = result.categories ?? [];
-        const uploader = (result.uploader ?? result.channel ?? "").toLowerCase();
+        const uploader = (
+          result.uploader ??
+          result.channel ??
+          ""
+        ).toLowerCase();
         const isMusic =
           cats.some((c) => c.toLowerCase() === "music") ||
           uploader.includes(" - topic") ||
@@ -147,9 +158,14 @@ export async function sync(opts: SyncOptions): Promise<void> {
 
       // Genre decides the destination folder for this download.
       const downloadGenre =
-        inferGenre([result.genre, result.artist, result.album, result.title]) ?? "Music";
+        inferGenre([result.genre, result.artist, result.album, result.title]) ??
+        "Music";
 
-      const dl = await downloader.download(track.video_id, result, downloadGenre);
+      const dl = await downloader.download(
+        track.video_id,
+        result,
+        downloadGenre,
+      );
       if (dl.status === "gone") {
         gone++;
         opts.state.markGone(track.video_id, "video unavailable");
@@ -205,7 +221,13 @@ export async function sync(opts: SyncOptions): Promise<void> {
     }
   }
   bar.close();
-  opts.state.finishRun(runId, { attempted, downloaded, gone, failed, bytesDownloaded: bytes });
+  opts.state.finishRun(runId, {
+    attempted,
+    downloaded,
+    gone,
+    failed,
+    bytesDownloaded: bytes,
+  });
   log(
     `\nrun complete: ${downloaded} downloaded, ${notMusic} not-music, ${gone} gone, ${failed} failed, ${(bytes / 1e6).toFixed(1)} MB`,
   );

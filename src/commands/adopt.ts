@@ -52,7 +52,11 @@ export async function adopt(opts: AdoptOptions): Promise<void> {
 
   let adopted = 0;
   for (const file of files) {
-    const base = file.replace(/\.m4a$/, "").split("/").pop() ?? file;
+    const base =
+      file
+        .replace(/\.m4a$/, "")
+        .split("/")
+        .pop() ?? file;
     const key = normalize(base);
     const match = byTitle.get(key);
     if (!match) continue;
