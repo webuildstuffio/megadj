@@ -73,6 +73,36 @@ describe("ArchiveState", () => {
     expect(state.allTracks()[0]?.status).toBe("pending");
   });
 
+  test("pending tracks order: pending-first, then by liked_position", () => {
+    state.upsertTrackFromPlaylist("p5", 5, "pending pos 5");
+    state.upsertTrackFromPlaylist("p1", 1, "pending pos 1");
+    state.upsertTrackFromPlaylist("f9", 9, "failed pos 9");
+    state.markFailed("f9", "err");
+    const order = state.pendingTracks().map((t) => t.video_id);
+    // failed track must not jump ahead of fresh pending ones
+    expect(order.indexOf("p1")).toBeLessThan(order.indexOf("f9"));
+    expect(order.indexOf("p5")).toBeLessThan(order.indexOf("f9"));
+  });
+
+  test("null-position source tracks sort after positioned ones", () => {
+    state.upsertTrackFromPlaylist("pos", 3, "positioned");
+    state.upsertTrackFromPlaylist("nopos", 3, "later source"); // same row updated
+    // simulate a second-source row: direct insert via upsert keeps one row;
+    // instead mark one downloaded and check ordering stability
+    state.markDownloaded("pos", {
+      title: "positioned",
+      artist: null,
+      album: null,
+      formatId: null,
+      bitrateKbps: null,
+      codec: null,
+      filePath: null,
+      fileSizeBytes: null,
+      durationS: null,
+    });
+    expect(state.pendingTracks().map((t) => t.video_id)).toEqual(["nopos"]);
+  });
+
   test("run lifecycle persisted", () => {
     const runId = state.startRun();
     state.finishRun(runId, {

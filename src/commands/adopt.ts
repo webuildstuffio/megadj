@@ -26,9 +26,20 @@ function normalize(s: string): string {
     .trim();
 }
 
+/** Recursively collect .m4a files (the tree has genre subfolders). */
+async function walkM4a(dir: string, out: string[] = []): Promise<string[]> {
+  for (const ent of await readdir(dir, { withFileTypes: true })) {
+    if (ent.name.startsWith(".")) continue;
+    const full = join(dir, ent.name);
+    if (ent.isDirectory()) await walkM4a(full, out);
+    else if (ent.name.endsWith(".m4a")) out.push(full);
+  }
+  return out;
+}
+
 export async function adopt(opts: AdoptOptions): Promise<void> {
-  const files = (await readdir(opts.musicDir)).filter((f) => f.endsWith(".m4a"));
-  console.log(`found ${files.length} audio files in ${opts.musicDir}`);
+  const files = await walkM4a(opts.musicDir);
+  console.log(`found ${files.length} audio files under ${opts.musicDir}`);
 
   const tracks = opts.state.allTracks();
   // Build a lookup of normalized title -> track row. Prefer entries that
@@ -41,12 +52,11 @@ export async function adopt(opts: AdoptOptions): Promise<void> {
 
   let adopted = 0;
   for (const file of files) {
-    const base = file.replace(/\.m4a$/, "");
+    const base = file.replace(/\.m4a$/, "").split("/").pop() ?? file;
     const key = normalize(base);
     const match = byTitle.get(key);
     if (!match) continue;
-    const filePath = join(opts.musicDir, file);
-    const stat = await Bun.file(filePath).stat();
+    const stat = await Bun.file(file).stat();
     opts.state.markDownloaded(match.video_id, {
       title: match.title,
       artist: match.artist,
@@ -54,7 +64,7 @@ export async function adopt(opts: AdoptOptions): Promise<void> {
       formatId: null,
       bitrateKbps: null,
       codec: "aac",
-      filePath,
+      filePath: file,
       fileSizeBytes: stat.size,
       durationS: null,
     });

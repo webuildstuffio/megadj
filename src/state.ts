@@ -255,7 +255,7 @@ export class ArchiveState {
     return this.db
       .query(
         `SELECT * FROM tracks WHERE status IN ('pending', 'failed') AND attempts < 5
-         ORDER BY liked_position`,
+         ORDER BY status = 'pending' DESC, liked_position IS NULL, liked_position, first_seen_at`,
       )
       .all() as TrackRow[];
   }
@@ -265,7 +265,7 @@ export class ArchiveState {
     return this.db
       .query(
         `SELECT * FROM tracks WHERE source = ? AND status IN ('pending', 'failed') AND attempts < 5
-         ORDER BY liked_position`,
+         ORDER BY status = 'pending' DESC, liked_position IS NULL, liked_position, first_seen_at`,
       )
       .all(source) as TrackRow[];
   }

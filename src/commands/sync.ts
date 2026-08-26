@@ -7,10 +7,14 @@
  */
 
 import { $ } from "bun";
+import type { ArchiveState } from "../state";
 import type { RateLimiter } from "../ratelimit";
 import { withRetry } from "../ratelimit";
-import type { ArchiveState } from "../state";
-import { Downloader } from "../downloader";import { buildMetadata, applyTags, inferGenre } from "../metadata";
+import { Downloader } from "../downloader";
+import { applyTags, buildMetadata, inferGenre } from "../metadata";
+import { ProgressBar } from "../progress";
+
+const isTty = process.stdout.isTTY ?? false;
 
 export interface SyncOptions {
   state: ArchiveState;
@@ -98,19 +102,23 @@ export async function sync(opts: SyncOptions): Promise<void> {
   log(`${queue.length} track(s) to attempt this run`);
 
   const startTotal = opts.state.downloadedCount();
+  const bar = new ProgressBar(queue.length, "sync");
   for (const track of queue) {
     if (opts.targetTotal && opts.state.downloadedCount() >= opts.targetTotal) {
       log(`target of ${opts.targetTotal} downloaded reached — stopping`);
       break;
     }
     attempted++;
+    if (isTty) process.stdout.write("\r\u001b[K");
     log(`[${attempted}/${queue.length}] ${track.title ?? track.video_id}`);
-    opts.state.markAttempt(track.video_id, null);
 
     if (opts.dryRun) {
       log(`  ↳ would download (dry-run)`);
+      bar.update(0);
       continue;
     }
+
+    opts.state.markAttempt(track.video_id, null);
 
     try {
       const result = await withRetry(
@@ -132,6 +140,7 @@ export async function sync(opts: SyncOptions): Promise<void> {
           notMusic++;
           opts.state.markNotMusic(track.video_id, cats[0] ?? null);
           log(`  ↳ skipped (not music: ${cats[0] ?? "no category"})`);
+          bar.update();
           continue;
         }
       }
@@ -145,12 +154,14 @@ export async function sync(opts: SyncOptions): Promise<void> {
         gone++;
         opts.state.markGone(track.video_id, "video unavailable");
         log(`  ↳ gone (unavailable)`);
+        bar.update();
         continue;
       }
       if (dl.status === "failed") {
         failed++;
         opts.state.markFailed(track.video_id, dl.error ?? "unknown");
         log(`  ↳ failed: ${dl.error?.slice(0, 120)}`);
+        bar.update();
         continue;
       }
 
@@ -177,6 +188,7 @@ export async function sync(opts: SyncOptions): Promise<void> {
         opts.state.updateGenre(track.video_id, meta.genre);
         downloaded++;
         log(`  ↳ downloaded → ${meta.title ?? track.video_id}`);
+        bar.update(1, fileSize);
       }
     } catch (error) {
       const message = (error as Error).message;
@@ -189,9 +201,10 @@ export async function sync(opts: SyncOptions): Promise<void> {
         opts.state.markFailed(track.video_id, message.slice(0, 300));
         log(`  ↳ failed after retries: ${message.slice(0, 120)}`);
       }
+      bar.update();
     }
   }
-
+  bar.close();
   opts.state.finishRun(runId, { attempted, downloaded, gone, failed, bytesDownloaded: bytes });
   log(
     `\nrun complete: ${downloaded} downloaded, ${notMusic} not-music, ${gone} gone, ${failed} failed, ${(bytes / 1e6).toFixed(1)} MB`,

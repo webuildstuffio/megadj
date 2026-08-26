@@ -160,17 +160,13 @@ export async function applyTags(
   // Rekordbox reads the comment field; carrying the source URL makes
   // provenance traceable without polluting other fields.
   if (meta.comment) args.push("-metadata", `comment=${meta.comment}`);
-  args.push(filePath.replace(/(\.[^.]+)$/, ".tagged$1"));
+  const tagged = filePath.replace(/(\.[^.]+)$/, ".tagged$1");
+  args.push(tagged);
 
   const proc = await $`ffmpeg -hide_banner -loglevel error ${args}`.quiet();
   if (proc.exitCode !== 0) {
     throw new Error(`ffmpeg tag write failed for ${filePath}`);
   }
-  // Atomic swap so a crash mid-write never corrupts the archive copy.
-  const tagged = filePath.replace(/(\.[^.]+)$/, ".tagged$1");
-  await Bun.write(
-    filePath,
-    await Bun.file(tagged).arrayBuffer(),
-  );
-  await $`rm -f ${tagged}`.quiet();
+  // Atomic swap via rename — a crash can never leave a half-written original.
+  await $`mv -f ${tagged} ${filePath}`.quiet();
 }

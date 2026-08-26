@@ -27,7 +27,6 @@ Device DB gotchas baked in from hard-won experience:
 import argparse
 import json
 import os
-import random
 import subprocess
 import sys
 import warnings
@@ -103,6 +102,7 @@ def cmd_probe(args, stage: Stage) -> dict:
 
 
 def cmd_inject(args, meta: dict, stage: Stage) -> None:
+    from anlz_paths import compute_anlz_folder, folder_key, next_free_suffix
     from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus
     from pyrekordbox.devicelib_plus.models import (
         Artist,
@@ -116,15 +116,22 @@ def cmd_inject(args, meta: dict, stage: Stage) -> None:
     artists = {a.name: a.artist_id for a in db.query(Artist).all()}
     next_artist = db.query(Artist).order_by(Artist.artist_id.desc()).first().artist_id
 
-    used_anlz = set()
+    # Players compute the USBANLZ folder from the audio path hash — occupy
+    # every folder already used (DB paths AND folders physically present) so
+    # open addressing never aliases an existing track.
+    used_folders = set()
     for c in db.query(Content).all():
         if c.analysisDataFilePath:
-            try:
-                used_anlz.add(int(c.analysisDataFilePath.split("/")[4], 16))
-            except (IndexError, ValueError):
-                pass
+            parts = c.analysisDataFilePath.split("/")
+            if len(parts) >= 5:
+                used_folders.add("/".join(parts[3:5]))
+    usb_root = os.path.join(args.drive, "PIONEER/USBANLZ")
+    if os.path.isdir(usb_root):
+        for pdir in os.listdir(usb_root):
+            if pdir.startswith("P") and len(pdir) == 4:
+                for hrdir in os.listdir(os.path.join(usb_root, pdir)):
+                    used_folders.add(f"{pdir}/{hrdir}")
 
-    rng = random.Random()
     added = skipped = 0
     results = []
     for fn in sorted(meta):
@@ -143,11 +150,11 @@ def cmd_inject(args, meta: dict, stage: Stage) -> None:
             db.add(Artist(artist_id=next_artist, name=artist_name))
             artists[artist_name] = next_artist
         aid = artists.get(artist_name)
-        while True:
-            uid = rng.randint(0x10000, 0xFFFFFF)
-            if uid not in used_anlz:
-                used_anlz.add(uid)
-                break
+        p, hr = compute_anlz_folder(device_path)
+        key = folder_key(p, hr)
+        if key in used_folders:
+            hr = next_free_suffix(p, hr, used_folders)
+        used_folders.add(folder_key(p, hr))
         c = Content(
             title=title,
             bpmx100=None,
@@ -165,7 +172,9 @@ def cmd_inject(args, meta: dict, stage: Stage) -> None:
             cueUpdateCount=0,
             analysisDataUpdateCount=0,
             informationUpdateCount=0,
-            analysisDataFilePath=f"/PIONEER/USBANLZ/{args.device}/{uid:08X}/ANLZ0000.DAT",
+            analysisDataFilePath=(
+                f"/PIONEER/USBANLZ/{folder_key(p, hr)}/ANLZ0000.DAT"
+            ),
         )
         db.add(c)
         db.flush()
@@ -255,16 +264,18 @@ def cmd_bpm(args, stage: Stage) -> None:
     prog.close(f"errors: {errs}")
 
 
-def build_pmai() -> bytes:
+def build_pmai(file_size: int) -> bytes:
     import struct
 
-    return b"PMAI" + struct.pack(">IIIIII", 28, 0x18FA, 1, 0x10000, 1, 0)
+    # field2 MUST equal the final file size — Pioneer writes it exactly
+    return b"PMAI" + struct.pack(">IIIIII", 28, file_size, 1, 0x10000, 0x10000, 0)
 
 
 def build_ppth(path: str) -> bytes:
     import struct
 
-    p = path.encode("utf-16-be")
+    # players REQUIRE the UTF-16BE null terminator; path_len counts it
+    p = (path + "\x00").encode("utf-16-be")
     return b"PPTH" + struct.pack(">III", 16, 16 + len(p), len(p)) + p
 
 
@@ -293,6 +304,7 @@ def build_pqtz(bpm100: int, length_sec: int) -> bytes:
         ms += beat_ms
         beat = beat % 4 + 1
     payload = b"".join(entries)
+    # PQTZ header is 24 bytes + beat_count u32; 0x80000 entry-size marker is REQUIRED
     hdr = struct.pack(">IIIII", 0, 0x80000, n, bpm100, 147)
     return b"PQTZ" + struct.pack(">II", 24, 32 + len(payload)) + hdr + payload
 
@@ -301,6 +313,7 @@ def build_pwav(scaled) -> bytes:
     import struct
 
     payload = scaled.tobytes()
+    # PWAV carries 400 entries (Pioneer spec) — callers must pass 400 peaks
     return (
         b"PWAV"
         + struct.pack(">IIII", 20, 20 + len(payload), len(scaled), 0x10000)
@@ -322,7 +335,8 @@ def build_pwv2(scaled) -> bytes:
 def build_pcob() -> bytes:
     import struct
 
-    return b"PCOB" + struct.pack(">IIIII", 24, 24, 0, 0, 0)
+    # 24-byte header, 0 entries; sentinel 0xFFFFFFFF per rekordbox
+    return b"PCOB" + struct.pack(">IIIII", 24, 24, 0, 0, 0xFFFFFFFF)
 
 
 def get_peaks(path: str):
@@ -354,9 +368,10 @@ def get_peaks(path: str):
         raise RuntimeError("decode failed")
     y = np.frombuffer(r.stdout, dtype=np.float32)
     usable = y[: len(y) // 8000 * 8000]
+    # PWAV: 400 entries full-width; PWV2: 100 entries (half-width color preview)
     pwav = np.clip(
         np.array(
-            [np.abs(s).max() if len(s) else 0.0 for s in np.array_split(usable, 200)]
+            [np.abs(s).max() if len(s) else 0.0 for s in np.array_split(usable, 400)]
         )
         * 255,
         0,
@@ -388,19 +403,33 @@ def cmd_anlz(args, stage: Stage) -> None:
             if not c.bpmx100:
                 raise RuntimeError("no BPM")
             pwav, pwv2 = get_peaks(full)
-            dat = (
-                build_pmai()
-                + build_ppth(c.path)
+            body = (
+                build_ppth(c.path)
                 + build_pvbr()
                 + build_pqtz(c.bpmx100, c.length)
                 + build_pwav(pwav)
                 + build_pwv2(pwv2)
                 + build_pcob()
             )
+            dat = build_pmai(28 + len(body)) + body
             out_dir = args.drive + os.path.dirname(c.analysisDataFilePath)
             os.makedirs(out_dir, exist_ok=True)
             with open(os.path.join(out_dir, "ANLZ0000.DAT"), "wb") as f:
                 f.write(dat)
+            # structural self-check: final section offset MUST equal file length
+            import struct as _s
+
+            off, n = 0, 0
+            while off < len(dat) - 8:
+                _, total = _s.unpack_from(">II", dat, off + 4)
+                if total < 24 or off + total > len(dat):
+                    raise RuntimeError("self-check: malformed section walk")
+                off += total
+                n += 1
+            if off != len(dat):
+                raise RuntimeError(f"self-check: section walk ended off by {len(dat)-off}")
+            if _s.unpack_from(">I", dat, 8)[0] != len(dat):
+                raise RuntimeError("self-check: PMAI size field != file size")
             built += 1
         except Exception as e:  # noqa: BLE001
             errs += 1
@@ -428,9 +457,6 @@ def main() -> int:
     )
     ap.add_argument(
         "--playlist", default="YTMusic Liked", help="playlist name for new tracks"
-    )
-    ap.add_argument(
-        "--device", default="P080", help="USBANLZ device folder for new analysis"
     )
     ap.add_argument("--meta", help="reuse existing metadata JSON instead of re-probing")
     args = ap.parse_args()

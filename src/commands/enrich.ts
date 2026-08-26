@@ -91,6 +91,8 @@ export async function enrich(opts: EnrichOptions): Promise<void> {
     const genre = await mbGenreForArtist(track.artist);
     if (!genre) {
       unchanged++;
+      // Be polite to MusicBrainz: 1 rps even for lookups that map to nothing.
+      await new Promise((r) => setTimeout(r, 1050));
       continue;
     }
     if (opts.dryRun) {

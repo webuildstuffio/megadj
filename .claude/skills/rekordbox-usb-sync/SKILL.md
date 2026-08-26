@@ -20,8 +20,8 @@ verified, fully analyzed rekordbox device library.
 | Role | MASTER | Mirror (kept identical) |
 | DB | `PIONEER/rekordbox/exportLibrary.db` — SQLCipher, 3,054 tracks · 154 playlists · 30,435 entries | same file, MD5-identical |
 | Music | `Contents/` — 3,794 files | superset, 0 diff |
-| Analysis | `PIONEER/USBANLZ/` — device folders P000–P07F + P080 (YTMusic) | superset, 0 diff |
-| New tracks device ID | `P080` | `P080` |
+| Analysis | `PIONEER/USBANLZ/` — device folders P000–P07F + hash-path folders for YTMusic | superset, 0 diff |
+| New tracks device ID | hash-computed (see `scripts/anlz_paths.py`) | same |
 
 Recovery kit: `~/rekordbox-exports/` (STATUS-FINAL.md, XML).
 Working scratch: `/tmp/usb-sync/` (work_master.db is the live master copy).
@@ -77,7 +77,8 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 - `Content` rows: `title`, `length` (**SECONDS**, not ms), `artist_id_artist`, `path` =
   `/Contents/YTMusic Liked/<filename>`, `fileType=4` (m4a), `fileSize`,
   `bitrate`, `samplingRate`, `analysisDataFilePath` =
-  `/PIONEER/USBANLZ/P080/<8-hex-uid>/ANLZ0000.DAT` (unique random uid).
+  hash-computed `/PIONEER/USBANLZ/P{p:03X}/{hr:08X}/ANLZ0000.DAT`
+  (shared module `scripts/anlz_paths.py`; on collision bump hr+1 open-addressing).
 - **Gotchas**: `releaseDate`/`dateCreated`/`dateAdded` must be set — the
   model serializer crashes on None datetime. Artist FK requires an Artist
   row (create with next free artist_id).
@@ -105,13 +106,13 @@ the tag start. Layouts (verified against Pioneer-generated files):
 
 | Tag | Layout |
 |---|---|
-| PMAI | total=28: `tag + (28, 0x18FA, 1, 0x10000, 1, 0)` — six u32s |
-| PPTH | `tag + (16, 16+len(path_bytes), len(path_bytes)) + path` UTF-16BE, no pad |
+| PMAI | `tag + (28, FILE_SIZE, 1, 0x10000, 0x10000, 0)` — field2 MUST equal final file size |
+| PPTH | `tag + (16, 16+len(path_bytes), len(path_bytes)) + path` UTF-16BE **with trailing U+0000 terminator; length counts it** |
 | PVBR | `tag + (16, 24, 1620, 0) + 4 zero bytes` |
 | PQTZ | hdr `tag + (24, 32+n*8) + (0, 0x80000, n, bpm100, 147)`; entries `>4H`: (beat_in_bar 1-4, bpm100, ms_hi, ms_lo) |
-| PWAV | `tag + (20, 20+n, n, 0x10000) + n u8 peaks` |
-| PWV2 | same shape as PWAV, n u8 color peaks |
-| PCOB | empty cues: `tag + (24, 24, 0, 0, 0)` |
+| PWAV | `tag + (20, 20+n, n, 0x10000) + n u8 peaks` — Pioneer writes **n=400** |
+| PWV2 | same shape as PWAV, 100 u8 color peaks |
+| PCOB | empty cues: `tag + (24, 24, 0, 0, 0xFFFFFFFF)` — sentinel |
 
 Beat grid entries: first beat at ~615ms, beat_in_bar cycles 2→3→4→1,
 ms stored as hi/lo u16 pair (full_ms = hi*65536 + lo).
@@ -164,7 +165,8 @@ Output looks like:
 ### 8. Verify (all must pass)
 
 ```bash
-uv run python .claude/skills/rekordbox-usb-sync/scripts/usb_mirror.py --verify-only
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+  python .claude/skills/rekordbox-usb-sync/scripts/usb_verify.py --drives DJMASTER DJMIRROR
 ```
 
 - DB decrypts; track/playlist/entry counts match on both drives
@@ -174,6 +176,43 @@ uv run python .claude/skills/rekordbox-usb-sync/scripts/usb_mirror.py --verify-o
 - 0 tracks without BPM
 - Manifests: mirror ⊇ master, 0 diff
 - Random hash spot-checks across drives: 0 mismatches
+- **Hardware gate (NEW): export.pdb live-row count == OneLibrary count, and
+  every track's ANLZ exists at its hash-computed path** — this is what
+  legacy players (XDJ-XZ, older CDJs) actually see. It MUST pass before
+  a drive is called "good for the XZ".
+  The pdb count walks row groups backwards from each 4096-byte page tail
+  (0x24 stride: 4 flag bytes + 16 u16 offsets) and excludes tombstoned
+  rows — validated against a rekordbox-7-written export.pdb on 2026-08-25
+  (`pdb_live_rows` in usb_verify.py; a naive u8@0x18 read overcounts by
+  ~2x on tables with freed row slots).
+
+### 9. Legacy-player export (XDJ-XZ and older CDJs)
+
+The pipeline above only updates the OneLibrary DB. Legacy players read
+`export.pdb`, which only rekordbox writes. Once per library generation:
+
+1. Plug the master drive into the Mac (rekordbox must be closed during
+   step-3's file ops, open only for the export itself).
+2. Generate the full-library XML from the working DB
+   (`/tmp/usb-sync/gen_full_xml.py` pattern: COLLECTION + PLAYLISTS tree).
+   **XML schema rules (learned the hard way Aug 25):**
+   - TRACK location must be a FLAT `Location` ATTRIBUTE, URL-encoded:
+     `Location="file://localhost//Volumes/DJMASTER/Contents/...mp3"`.
+     Build it with pyrekordbox's `encode_path` — never hand-roll it.
+     A nested `<LOCATION File= Dir= Volume=>` child element is TRAKTOR's
+     schema; rekordbox silently drops every track, so playlists import empty.
+   - NODE `Type`: `0` = folder, `1` = playlist leaf. KeyType `0`.
+   - Playlist entries: `<TRACK Key="TrackID"/>` referencing the COLLECTION
+     TrackIDs — not text paths.
+   - Validate before handing to rekordbox: counts round-trip, 0 dangling
+     keys, and sample-decode Locations with `decode_path` + `os.path.exists`
+     against the mounted volume. 200/200 must exist.
+3. Open rekordbox 7 → import the XML (drag onto the playlist panel; it
+   carries collection + playlists) → then export to the USB device
+   (right-click device → Export). rekordbox writes BOTH export.pdb and
+   OneLibrary, and re-grids live sets properly.
+4. Mirror with `usb_mirror.py`, then run usb_verify.py — the hardware
+   gate goes green when export.pdb == OneLibrary == 3,054.
 
 Update `~/rekordbox-exports/STATUS-FINAL.md` with new counts.
 
@@ -210,13 +249,33 @@ Update `~/rekordbox-exports/STATUS-FINAL.md` with new counts.
 
 ## Known limitations
 
+- **Legacy players (XDJ-XZ, CDJ-2000/3000, all pre-OneLibrary gear) read
+  `export.pdb`, NOT `exportLibrary.db`.** This pipeline only updates the
+  OneLibrary DB — legacy `export.pdb` stays stale. For an XZ: import the
+  recovery XML into rekordbox and do a proper USB export (writes both formats).
+- Players **ignore `analysisDataFilePath` in the DB** — they compute the USBANLZ
+  folder from the audio path hash (below). Generated ANLZ must live at the
+  hash-computed location or hardware never finds it.
 - Generated grids are constant-BPM; live sets / tempo-drifting mixes need a
   rekordbox re-analysis pass for perfect grids.
 - PWAV/PWV2 waveforms cover the first 30s only; rekordbox re-analysis fills
   the rest.
-- `export.pdb` is NOT regenerated (old-format export). Device-library-plus
-  players (CDJ-3000/XDJ-RX3 etc.) read `exportLibrary.db`; if a target needs
-  the legacy pdb, do a rekordbox export instead of this pipeline.
+
+## ANLZ path hash (players compute this themselves)
+
+Canonical implementation: `scripts/anlz_paths.py` (`compute_anlz_folder`,
+`folder_key`, `next_free_suffix`). Do not hand-roll copies — fix_anlz_paths.py
+once shipped a divergent bit mapping (bit 4 → two output bits, bit 5 skipped),
+which silently placed ANLZ where hardware would never look.
+
+```python
+from anlz_paths import compute_anlz_folder, folder_key, next_free_suffix
+p, hr = compute_anlz_folder(device_relative_audio_path)   # hash mod 200003
+key  = folder_key(p, hr)          # "P{p:03X}/{hr:08X}"
+# collisions: Pioneer uses open addressing — keep p, bump hr until free:
+if key in occupied:
+    hr = next_free_suffix(p, hr, occupied)
+```
 - Multi-origin merges can leave different rips of the same track on each
   drive. `usb_mirror.py --audio-parity` reconciles (master wins, mirror
   variants backed up first).

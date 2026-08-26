@@ -27,6 +27,8 @@ import random
 import struct
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from anlz_paths import compute_anlz_folder
 from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus
 from pyrekordbox.devicelib_plus.models import Artist, Content, Playlist, PlaylistContent
 
@@ -70,6 +72,96 @@ def walk_anlz(data: bytes):
     if off != len(data):
         return None
     return path, out
+
+
+def pdb_live_rows(pdb_path: str, table_type: int = 0) -> int:
+    """Count live (non-tombstone) rows in a legacy export.pdb table.
+
+    Page index walks the chain from the file header; row groups build
+    backwards from each 4096-byte page tail with a 0x24-byte stride (4 flag
+    bytes + 16 u16 row offsets). Validated against a rekordbox-7-written
+    export.pdb on 2026-08-25.
+    """
+    PAGE = 4096
+    with open(pdb_path, "rb") as f:
+        data = f.read()
+    n_tables = struct.unpack_from("<I", data, 0x08)[0]
+    first = last = None
+    for i in range(n_tables):
+        t, _empty, f_, l = struct.unpack_from("<IIII", data, 0x1C + 16 * i)
+        if t == table_type:
+            first, last = f_, l
+            break
+    if first is None:
+        return -1
+    live = 0
+    seen, cur = set(), first
+    while cur and cur not in seen and (cur + 1) * PAGE <= len(data):
+        seen.add(cur)
+        o = cur * PAGE
+        packed = data[o + 0x18] | (data[o + 0x19] << 8) | (data[o + 0x1A] << 16)
+        n_slots = packed >> 11
+        if n_slots and not (data[o + 0x1B] & 0x40):  # data pages only
+            n_groups = (n_slots - 1) // 16 + 1
+            for g in range(n_groups):
+                base = o + PAGE - (g * 0x24)
+                present = struct.unpack_from("<H", data, base - 4)[0]
+                for b in range(16):
+                    slot = g * 16 + b
+                    if slot >= n_slots:
+                        break
+                    if present & (1 << b):
+                        row_off = struct.unpack_from("<H", data, base - (6 + 2 * b))[0]
+                        ro = o + 32 + row_off
+                        subtype = struct.unpack_from("<H", data, ro)[0]
+                        if subtype & 0x02 == 0:  # 0x02 = missing/deleted marker
+                            live += 1
+        if cur == last:
+            break
+        cur = struct.unpack_from("<I", data, o + 0x0C)[0]
+    return live
+
+
+def verify_hardware_view(drive: str) -> list:
+    """What a legacy player (XDJ-XZ etc.) actually reads: export.pdb vs OneLibrary."""
+    vol = f"/Volumes/{drive}"
+    fails = []
+    pdb_path = os.path.join(vol, "PIONEER/rekordbox/export.pdb")
+    db = DeviceLibraryPlus(os.path.join(vol, "PIONEER/rekordbox/exportLibrary.db"))
+    try:
+        contents = db.query(Content).all()
+        n_db = len(contents)
+    finally:
+        db.close()
+    if not os.path.exists(pdb_path):
+        print("  export.pdb missing — legacy players will show NOTHING")
+        fails.append(f"{drive}: no export.pdb")
+        return fails
+    n_pdb = pdb_live_rows(pdb_path, table_type=0)
+    print(f"  hardware view: export.pdb={n_pdb} tracks vs OneLibrary DB={n_db} tracks")
+    if n_pdb != n_db:
+        delta = n_db - n_pdb
+        if delta > 0:
+            print(f"  MISMATCH — legacy players (XDJ-XZ, older CDJs) will not show the {delta} newer tracks")
+        else:
+            print(f"  MISMATCH — export.pdb carries {abs(delta)} extra rows (stale/tombstoned) vs OneLibrary DB")
+        fails.append(f"{drive}: pdb/db track count")
+    # ANLZ at hash paths for every track
+    bad_hash = 0
+    for c in contents:
+        p, hr = compute_anlz_folder(c.path)
+        expected = os.path.join(
+            vol, "PIONEER/USBANLZ", f"P{p:03X}", f"{hr:08X}", "ANLZ0000.DAT"
+        )
+        if not os.path.exists(expected) and (
+            not c.analysisDataFilePath
+            or not os.path.exists(vol + c.analysisDataFilePath)
+        ):
+            bad_hash += 1
+    print(f"  ANLZ missing at hash path AND at DB path: {bad_hash}")
+    if bad_hash:
+        fails.append(f"{drive}: anlz hardware paths")
+    return fails
 
 
 def verify_drive(drive: str) -> list:
@@ -171,6 +263,7 @@ def main() -> int:
     print("\n=== per-drive DB + disk + grid checks ===")
     for drive in args.drives:
         print(f"\n### {drive}")
+        fails += verify_hardware_view(drive)
         fails += verify_drive(drive)
 
     if len(args.drives) == 2:
@@ -204,7 +297,10 @@ def main() -> int:
                 fails.append("ANLZ parity")
 
         db = DeviceLibraryPlus(f"/Volumes/{a}/PIONEER/rekordbox/exportLibrary.db")
-        sample = random.sample(db.query(Content).all(), 40)
+        try:
+            sample = random.sample(db.query(Content).all(), 40)
+        finally:
+            db.close()
         am = 0
         for c in sample:
             fa, fb = f"/Volumes/{a}{c.path}", f"/Volumes/{b}{c.path}"

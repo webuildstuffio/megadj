@@ -59,10 +59,20 @@ export class Downloader {
     return "other";
   }
 
+  /** Common auth flags so probe and download see the same session. */
+  private cookieArgs(): string[] {
+    if (this.opts.cookiesFile) return ["--cookies", this.opts.cookiesFile];
+    if (this.opts.cookiesFromBrowser)
+      return ["--cookies-from-browser", this.opts.cookiesFromBrowser];
+    return [];
+  }
+
   /** Fetch metadata JSON without downloading. */
   async probe(videoId: string): Promise<YtdlpInfo> {
     const url = `https://music.youtube.com/watch?v=${videoId}`;
-    const proc = await $`yt-dlp -J --no-playlist ${url}`.quiet().nothrow();
+    const proc = await $`yt-dlp -J --no-playlist ${this.cookieArgs()} ${url}`
+      .quiet()
+      .nothrow();
     if (proc.exitCode !== 0) {
       const errText = new TextDecoder().decode(proc.stderr);
       const kind = this.classifyError(errText);
@@ -72,7 +82,7 @@ export class Downloader {
     return JSON.parse(new TextDecoder().decode(proc.stdout)) as YtdlpInfo;
   }
 
-  /** Bitrate by known YouTube format ID. */
+/** Bitrate by known YouTube format ID. */
   static formatBitrateKbps(formatId: string | null | undefined): number | null {
     switch (formatId) {
       case "141": return 256;
@@ -85,6 +95,24 @@ export class Downloader {
     }
   }
 
+  /**
+   * Parse yt-dlp's stdout after a download: --newline progress lines start
+   * with "[" and must not shadow the printed filepath / format id.
+   */
+  static parseDownloadOutput(stdout: string): {
+    filePath?: string;
+    formatId?: string;
+  } {
+    const printed = stdout
+      .trim()
+      .split("\n")
+      .filter((l) => !/^\[/.test(l));
+    return {
+      filePath: printed.find((l) => l.endsWith(".m4a")),
+      formatId: printed.find((l) => /^[0-9]+$/.test(l.trim())),
+    };
+  }
+
   /** Download best audio; returns path of the landed file. */
   async download(
     videoId: string,
@@ -95,32 +123,23 @@ export class Downloader {
     const folder = genre ? `/${sanitizeGenreFolder(genre)}` : "";
     const outTemplate = `${this.opts.musicDir}${folder}/%(title)s.%(ext)s`;
 
-    // Scratch dir for intermediate fragments — keep the music tree clean of
-    // stray .part/.webm/.fXXX files if a download dies midway.
-    const scratchDir = `${this.opts.musicDir}/.scratch`;
     const args = [
       // Audio-only, always. Never let format fallback pick a merged
       // video+audio format (that's how .webm/.mp4 strays happen).
       "-f", "141/bestaudio[ext=m4a]/bestaudio/bestaudio*",
       "-x", "--audio-format", "m4a", "--audio-quality", "0",
       "-o", outTemplate,
-      "--paths", scratchDir,
       "--no-playlist",
       "--embed-thumbnail", "--embed-metadata",
       "--no-overwrites",
-      "--no-progress",
+      "--newline",
+      "--progress",
       "--print", "after_move:%(filepath)s",
       "--print", "after_move:%(format_id)s",
     ];
-    if (this.opts.cookiesFile) {
-      args.push("--cookies", this.opts.cookiesFile);
-    } else if (this.opts.cookiesFromBrowser) {
-      args.push("--cookies-from-browser", this.opts.cookiesFromBrowser);
-    }
-
+    args.push(...this.cookieArgs());
     void info;
     const proc = await $`yt-dlp ${args} ${url}`.quiet().nothrow();
-    const stdout = new TextDecoder().decode(proc.stdout).trim().split("\n");
     const stderr = new TextDecoder().decode(proc.stderr);
 
     if (proc.exitCode !== 0) {
@@ -132,8 +151,11 @@ export class Downloader {
       };
     }
 
-    const filePath = stdout.find((l) => l.endsWith(".m4a"));
-    const formatId = stdout.find((l) => /^[0-9]+$/.test(l.trim()));
+    // Filter out any [download]/[ExtractAudio] progress lines first so a
+    // numeric-looking fragment of a filename can't shadow the format ID.
+    const { filePath, formatId } = Downloader.parseDownloadOutput(
+      new TextDecoder().decode(proc.stdout),
+    );
     if (!filePath) {
       return { status: "failed", error: "no output path from yt-dlp" };
     }

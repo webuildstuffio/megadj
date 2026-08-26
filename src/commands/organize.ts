@@ -36,9 +36,7 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
   const tracks = opts.state.allTracks().filter(
     (t) => t.status === "downloaded" && t.file_path,
   );
-  log(`organizing ${tracks.length} downloaded track(s)`);
-
-  let moved = 0;
+  log(`organizing ${tracks.length} downloaded track(s)`);  let moved = 0;
   let skipped = 0;
   let missing = 0;
 
@@ -56,8 +54,7 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
     if (genre === "Music" && track.artist) {
       genre = "Music";
     }
-    const folder = sanitizeGenreFolder(genre);
-    const fileName = filePath.split("/").pop() ?? `${track.video_id}.m4a`;
+    const folder = sanitizeGenreFolder(genre);    const fileName = filePath.split("/").pop() ?? `${track.video_id}.m4a`;
     const targetDir = `${opts.musicDir}/${folder}`;
     const targetPath = `${targetDir}/${fileName}`;
 
@@ -72,6 +69,18 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
     }
 
     await $`mkdir -p ${targetDir}`.quiet();
+    // Never clobber: if the destination exists with different bytes it is a
+    // different rip of the same track — keep both, disambiguate the name.
+    if (await Bun.file(targetPath).exists()) {
+      const ext = fileName.match(/(\.[^.]+)$/)?.[1] ?? "";
+      const stem = ext ? fileName.slice(0, -ext.length) : fileName;
+      const alt = `${targetDir}/${stem} [${track.video_id}]${ext}`;
+      log(`  ⚠ destination exists — moving as ${stem} [${track.video_id}]${ext}`);
+      await $`mv ${filePath} ${alt}`.quiet();
+      opts.state.updateFilePath(track.video_id, alt);
+      moved++;
+      continue;
+    }
     await $`mv ${filePath} ${targetPath}`.quiet();
     opts.state.updateFilePath(track.video_id, targetPath);
     moved++;
