@@ -5,7 +5,6 @@
  */
 import { join } from "node:path";
 import { readdirSync, existsSync } from "node:fs";
-import { Database } from "bun:sqlite";
 
 export interface FetchOptions {
   all?: boolean;
@@ -26,7 +25,6 @@ interface Truth {
 
 /** Read the file's real tags via mutagen/ffprobe (spawned). */
 function groundTruth(p: string): Truth {
-  const isWav = p.toLowerCase().endsWith(".wav");
   const script = `import json
 from mutagen.wave import WAVE
 from mutagen.mp3 import MP3

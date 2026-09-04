@@ -138,6 +138,7 @@ export function spawnVerify(
       "--with",
       PYREKORDBOX,
       "python",
+      "-u", // unbuffered — piped python output must reach the job log live
       join(
         cfg.root,
         "..",
@@ -163,6 +164,7 @@ export function spawnMirror(
       UV,
       "run",
       "python",
+      "-u", // unbuffered — see spawnVerify
       join(
         cfg.root,
         "..",

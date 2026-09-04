@@ -63,29 +63,46 @@ export function JobsDock(props: {
             onFocus={() => props.focusDrive(j.drive_id)}
           />
         ))}
-        {history.map((j) => (
-          <div
-            class={`jobrow ${j.status}`}
-            key={j.id}
-            style={{ cursor: "pointer" }}
-            onClick={() => props.focusDrive(j.drive_id)}
-          >
-            <div class="jobrow-top">
-              <span class={`jstat ${j.status}`}>{j.status}</span>
-              <span class="jkind">{j.kind}</span>
-              <span class="jdrive">{driveName(j.drive_id)}</span>
-              <span class="spacer" />
-              <span class="jmeta" style={{ marginTop: 0 }}>
-                {j.finished_at && fmtEta((Date.now() - j.finished_at) / 1000)}
-              </span>
-            </div>
-            {j.error && (
-              <div class="jmsg" title={j.error}>
-                {j.error}
+        {history.map((j) => {
+          let final: string | null = null;
+          try {
+            final =
+              j.result_json != null
+                ? ((JSON.parse(j.result_json) as { final?: string }).final ??
+                  null)
+                : null;
+          } catch {
+            final = null;
+          }
+          return (
+            <div
+              class={`jobrow ${j.status}`}
+              key={j.id}
+              style={{ cursor: "pointer" }}
+              onClick={() => props.focusDrive(j.drive_id)}
+            >
+              <div class="jobrow-top">
+                <span class={`jstat ${j.status}`}>{j.status}</span>
+                <span class="jkind">{j.kind}</span>
+                <span class="jdrive">{driveName(j.drive_id)}</span>
+                <span class="spacer" />
+                <span class="jmeta" style={{ marginTop: 0 }}>
+                  {j.finished_at && fmtEta((Date.now() - j.finished_at) / 1000)}
+                </span>
               </div>
-            )}
-          </div>
-        ))}
+              {final && (
+                <div class="jmsg" title={final}>
+                  {final}
+                </div>
+              )}
+              {j.error && (
+                <div class="jmsg" title={j.error}>
+                  {j.error}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

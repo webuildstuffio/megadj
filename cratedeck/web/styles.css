@@ -588,6 +588,19 @@ button {
 .hero .hsub .sep {
   color: var(--faint);
 }
+.hero .hsub.hw {
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  gap: 4px 8px;
+}
+.hero .hsub.hw svg {
+  flex: none;
+}
+.hero .hsub .hwserial {
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+}
 .crumb {
   display: inline-flex;
   align-items: center;

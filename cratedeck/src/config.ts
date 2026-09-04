@@ -69,8 +69,15 @@ export function loadConfig(root: string): CrateConfig {
     volumesRoot: process.env.CRATEDECK_VOLUMES ?? "/Volumes",
     masterDrive: file?.library?.master_drive ?? "DJMASTER",
     mirrorDrive: file?.library?.mirror_drive ?? "DJMIRROR",
-    imageProvider: file?.images?.provider ?? null,
-    imageKey: file?.images?.key ?? process.env.CRATEDECK_IMAGE_KEY ?? null,
+    imageProvider:
+      (file?.images?.provider as "brave" | "exa" | undefined) ??
+      (process.env.CRATEDECK_IMAGE_PROVIDER as "brave" | "exa" | undefined) ??
+      null,
+    imageKey:
+      file?.images?.key ??
+      process.env.CRATEDECK_IMAGE_KEY ??
+      process.env.EXA_API_KEY ??
+      null,
     verifyTimeoutMin: file?.jobs?.verify_timeout_min ?? 40,
     benchmarkMb: file?.jobs?.benchmark_mb ?? 512,
   };

@@ -202,13 +202,21 @@ export class JobEngine {
       force?: boolean,
     ) => void,
   ): Promise<unknown> {
-    // percent-style lines from usb_verify/usb_mirror still feed progress
-    const log = (line: string) => {
-      const p = progressFromLine(line);
-      if (p !== null) {
+    // Lines from usb_verify/usb_mirror feed progress AND live status text.
+    // Every non-empty line updates the job message (throttled by SQLite write
+    // cost, not dropped) so the dock always shows what the script is doing.
+    let lastMsg = 0;
+    const log = (line: string, isError = false) => {
+      const text = line.trim();
+      if (!text) return;
+      const p = progressFromLine(text);
+      const now = Date.now();
+      const isHeading = /^#{1,3} |===|^### /.test(text);
+      if (p !== null || isHeading || now - lastMsg > 400) {
+        lastMsg = now;
         this.db.setJobProgress(job.id, {
-          progress: p,
-          message: line.trim().slice(0, 120),
+          ...(p !== null ? { progress: p } : {}),
+          message: (isError ? "⚠ " : "") + text.slice(0, 120),
         });
         this.emit("job", this.db.getJob(job.id));
       }
@@ -260,31 +268,58 @@ export class JobEngine {
       }
       case "verify": {
         const name = basename(mountPoint);
-        tick(0, 1, `verifying ${name} via usb_verify.py…`, "verify", true);
+        tick(0, 1, `verifying ${name} — opening rekordbox DB…`, "verify", true);
         const proc = spawnVerify(this.cfg, [name]);
         handle.proc = proc;
-        const verdict = await drain(
-          proc,
-          log,
-          handle,
-          this.cfg.verifyTimeoutMin * 60_000,
-        );
+        const [verdict, errText] = await Promise.all([
+          drain(
+            proc,
+            (l) => log(l),
+            handle,
+            this.cfg.verifyTimeoutMin * 60_000,
+          ),
+          drainText(proc.stderr),
+        ]);
+        const out = verdict.out + (errText ? `\n[stderr]\n${errText}` : "");
+        // usb_verify.py prints `FINAL: ALL PASS` or `FINAL: FAILED: …`;
+        // trust that line over the exit code (uv can exit non-zero on
+        // warnings) but require the FINAL marker to exist at all.
+        const finalLine = verdict.out
+          .split("\n")
+          .find((l) => l.startsWith("FINAL:"));
         const pass =
-          /ALL PASS|all data checks PASS/i.test(verdict.out) &&
+          !!finalLine &&
+          /FINAL: ALL PASS/.test(finalLine) &&
           proc.exitCode === 0;
-        tick(1, 1, pass ? "verify passed" : "verify FAILED", "done", true);
+        tick(
+          1,
+          1,
+          pass
+            ? "verify passed"
+            : `verify FAILED — ${finalLine ?? "no FINAL line (crashed?)"}`.slice(
+                0,
+                200,
+              ),
+          "done",
+          true,
+        );
         return {
           verdict: pass ? "pass" : "fail",
-          summary: lastLines(verdict.out, 20),
+          final: finalLine ?? null,
+          summary: lastLines(out, 20),
         };
       }
       case "mirror": {
         tick(0, 1, "mirroring to DJMIRROR…", "mirror", true);
         const proc = spawnMirror(this.cfg, []);
         handle.proc = proc;
-        const res = await drain(proc, log, handle);
+        const [res, errText] = await Promise.all([
+          drain(proc, (l) => log(l), handle),
+          drainText(proc.stderr),
+        ]);
+        const out = res.out + (errText ? `\n[stderr]\n${errText}` : "");
         tick(1, 1, "mirror finished", "done", true);
-        return { summary: lastLines(res.out, 20) };
+        return { summary: lastLines(out, 20) };
       }
       case "benchmark": {
         tick(0, 1, "reading largest files sequentially…", "bench-seq", true);
@@ -372,6 +407,7 @@ async function drain(
       for (const line of lines) {
         if (line.trim()) onLine(line);
       }
+      out += chunk;
       if (handle.cancelled) {
         proc.kill();
         break;
@@ -383,6 +419,18 @@ async function drain(
     await proc.exited;
   }
   return { out };
+}
+
+/** Collect a subprocess stream (e.g. stderr) to text without line callbacks. */
+async function drainText(
+  stream: ReadableStream<Uint8Array> | number | undefined,
+): Promise<string> {
+  if (!stream || typeof stream === "number") return "";
+  try {
+    return await new Response(stream).text();
+  } catch {
+    return "";
+  }
 }
 
 function lastLines(text: string, n: number): string {

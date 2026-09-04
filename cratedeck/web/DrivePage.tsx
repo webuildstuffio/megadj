@@ -323,6 +323,37 @@ export function DrivePage(props: {
               </>
             )}
           </div>
+          {(detail.drive.vendor || detail.drive.model) && (
+            <div class="hsub hw">
+              <Icon name="usb" size={12} />
+              <span>
+                {[detail.drive.vendor, detail.drive.model]
+                  .filter(Boolean)
+                  .join(" ")}
+              </span>
+              {detail.drive.usb_serial && (
+                <>
+                  <span class="sep">·</span>
+                  <span class="hwserial" title={detail.drive.usb_serial}>
+                    S/N {detail.drive.usb_serial.slice(0, 10)}…
+                  </span>
+                </>
+              )}
+              {detail.drive.last_port_key && (
+                <>
+                  <span class="sep">·</span>
+                  <span title="Physical USB port (from ioreg location)">
+                    port {detail.drive.last_port_key.replace(/^\//, "")}
+                  </span>
+                </>
+              )}
+              <span class="sep">·</span>
+              <span>
+                {detail.drive.plug_count} plug
+                {detail.drive.plug_count === 1 ? "" : "s"}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

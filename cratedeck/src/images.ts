@@ -25,7 +25,12 @@ interface BraveResponse {
 
 /** Minimal response typing for the Exa search API. */
 interface ExaResponse {
-  results?: { id?: string; image?: string; url?: string }[];
+  results?: {
+    id?: string;
+    image?: string;
+    url?: string;
+    extras?: { imageLinks?: string[] };
+  }[];
 }
 
 export class ImageService {
@@ -67,6 +72,8 @@ export class ImageService {
   }
 
   private async exa(q: string): Promise<ImageHit[]> {
+    // Exa's search only returns a page-level `image` sometimes; the reliable
+    // way to get product images is contents.extras.imageLinks. Merge both.
     const res = await fetch("https://api.exa.ai/search", {
       method: "POST",
       headers: {
@@ -77,22 +84,32 @@ export class ImageService {
         query: q,
         numResults: 12,
         type: "keyword",
-        includeDomains: [],
+        contents: { extras: { imageLinks: 4 }, text: false },
       }),
     });
     if (!res.ok) throw new Error(`exa ${res.status}`);
     const data = (await res.json()) as ExaResponse;
-    return (data.results ?? [])
-      .filter(
-        (r): r is { id?: string; image: string; url?: string } => !!r.image,
-      )
-      .slice(0, 12)
-      .map((r, i) => ({
-        id: String(r.id ?? i),
-        thumb: r.image,
-        full: r.image,
-        source: r.url ?? "web",
-      }));
+    const hits: ImageHit[] = [];
+    for (const r of data.results ?? []) {
+      const source = r.url ?? "web";
+      if (r.image)
+        hits.push({
+          id: `${r.id ?? hits.length}-main`,
+          thumb: r.image,
+          full: r.image,
+          source,
+        });
+      for (const [i, img] of (r.extras?.imageLinks ?? []).entries()) {
+        hits.push({
+          id: `${r.id ?? hits.length}-${i}`,
+          thumb: img,
+          full: img,
+          source,
+        });
+        if (hits.length >= 12) return hits;
+      }
+    }
+    return hits;
   }
 
   /** Persist a chosen image for a drive (download URL or copy local path). */
