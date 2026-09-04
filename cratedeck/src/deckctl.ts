@@ -10,6 +10,7 @@
 //   bun run cratedeck/src/deckctl.ts report <drive> [--json]   # name or UUID
 //   bun run cratedeck/src/deckctl.ts run <drive> <scan|verify|mirror|benchmark|checksum> [--wait] [--json]
 //   bun run cratedeck/src/deckctl.ts jobs [--json]
+//   bun run cratedeck/src/deckctl.ts explain [kind]            # what each job does
 //   bun run cratedeck/src/deckctl.ts cancel <jobId>
 //   bun run cratedeck/src/deckctl.ts stop
 //
@@ -310,9 +311,35 @@ function clearLine(): void {
 function finishLine(j: Job, driveName: string, elapsedS: number): void {
   if (j.status === "done") {
     log(`✓ ${j.kind} on ${driveName} finished in ${fmtEta(elapsedS)}`);
-    if (j.kind === "checksum" && j.result_json) {
+    let result: Record<string, unknown> | null = null;
+    try {
+      result = j.result_json
+        ? (JSON.parse(j.result_json) as Record<string, unknown>)
+        : null;
+    } catch {}
+    if (j.kind === "verify" && result) {
+      const findings = (result.findings ?? []) as {
+        label: string;
+        detail: string;
+        meaning: string;
+        fix: string;
+      }[];
+      if (!findings.length) {
+        log(
+          "  ALL PASS — DBs agree, all audio present, all grids valid, no junk.",
+        );
+      } else {
+        log(`  ${findings.length} finding(s):`);
+        for (const f of findings) {
+          log(`  ✕ ${f.label}  (${f.detail})`);
+          log(`     what it means: ${f.meaning}`);
+          log(`     fix: ${f.fix}`);
+        }
+      }
+    }
+    if (j.kind === "checksum" && result) {
       try {
-        const r = JSON.parse(j.result_json) as {
+        const r = result as unknown as {
           hashed: number;
           changed: string[];
         };
@@ -362,6 +389,94 @@ async function cmdCancel(jobId: string): Promise<void> {
   process.exit(body.ok ? 0 : 1);
 }
 
+// ---- explain: what each job actually does, how long, why it matters ---------
+interface KindDoc {
+  what: string;
+  checks?: string[];
+  typical: string;
+  safe: string;
+  needs: string;
+}
+
+const KIND_DOCS: Record<string, KindDoc> = {
+  scan: {
+    what: "Inventory the drive. Walks every file (light) and reads the rekordbox device DB (full: tracks, playlists, beatgrid coverage, genres/BPM/artwork stats, free space).",
+    typical: "10–60s (scales with library size)",
+    safe: "Read-only. Always safe.",
+    needs: "drive mounted",
+  },
+  verify: {
+    what: "Deep integrity audit — is the drive's data actually GOOD, not just present? Checks both databases agree, every audio file exists on disk, every beatgrid file exists at the exact hashed path hardware players look up, playlists have no dangling entries, and (when 2 drives are given) master↔mirror are byte-identical.",
+    checks: [
+      "OneLibrary DB ↔ legacy export.pdb track counts match (what CDJ/XDJ hardware actually reads)",
+      "every DB track's audio file exists on disk",
+      "every track has an ANLZ analysis file at its hash path (waveform/beatgrid on hardware)",
+      "beatgrids plausible: duration↔BPM↔beat-count cross-check per track",
+      "playlists: entries resolve, no dangling artist FKs",
+      "cross-drive (mirror setups): exportLibrary.db byte-identical, ANLZ full hash parity, 40-track audio spot-hash",
+    ],
+    typical:
+      "~15s per drive up to ~4k tracks; cross-drive hash parity adds 1–5 min",
+    safe: "Read-only. Always safe. Fails when data is actually wrong — the fix column tells you what to do.",
+    needs: "drive mounted, rekordbox NOT running",
+  },
+  mirror: {
+    what: "Copy master → mirror so both USB drives are identical (files + both databases + ANLZ). Skips files that already match.",
+    typical: "minutes–1h+ depending on how much changed",
+    safe: "Writes ONLY to the mirror drive. Master is never written. rekordbox must be closed.",
+    needs: "both drives mounted, rekordbox NOT running",
+  },
+  benchmark: {
+    what: "Measure real read speed: sequential (big files) + random 4k. CDJ hardware needs sustained ≥30 MB/s or tracks stutter.",
+    typical: "~10–30s",
+    safe: "Read-only. Safe anytime.",
+    needs: "drive mounted",
+  },
+  checksum: {
+    what: "Hash every audio file into a corruption ledger. Later runs re-hash only files whose size/mtime changed and report any file whose CONTENT changed silently — that's bitrot/failing flash.",
+    typical: "first run ~1–5 min (hashes everything); later runs seconds–1 min",
+    safe: "Read-only (writes one small ledger DB on the host, never on the drive).",
+    needs: "drive mounted",
+  },
+};
+
+function cmdExplain(kind?: string): void {
+  if (JSON_MODE) {
+    console.log(
+      JSON.stringify(kind ? { [kind]: KIND_DOCS[kind] } : KIND_DOCS, null, 2),
+    );
+    if (kind && !KIND_DOCS[kind]) process.exit(2);
+    return;
+  }
+  if (kind && KIND_DOCS[kind]) {
+    const d = KIND_DOCS[kind]!;
+    log(`── ${kind} ──`);
+    log(d.what);
+    if (d.checks) {
+      log("");
+      log("checks:");
+      for (const c of d.checks) log(`  • ${c}`);
+    }
+    log("");
+    log(`typical time: ${d.typical}`);
+    log(`safety: ${d.safe}`);
+    log(`requires: ${d.needs}`);
+    return;
+  }
+  if (kind) {
+    errOut(
+      `unknown kind "${kind}" — one of: ${Object.keys(KIND_DOCS).join(", ")}`,
+    );
+    process.exit(2);
+  }
+  for (const [k, d] of Object.entries(KIND_DOCS)) {
+    log(`── ${k} ──`);
+    log(`  ${d.what.split(".")[0]}.`);
+    log(`  time: ${d.typical}`);
+    log("");
+  }
+}
+
 // ---- main -------------------------------------------------------------------
 async function main(): Promise<void> {
   const args = process.argv.slice(2).filter((a) => a !== "--json");
@@ -386,6 +501,8 @@ async function main(): Promise<void> {
       );
     case "jobs":
       return cmdJobs();
+    case "explain":
+      return cmdExplain(args[1]);
     case "cancel":
       return cmdCancel(args[1] ?? usage());
     case "stop":
@@ -405,6 +522,7 @@ function usage(): never {
       "  drives                        list drives with badge verdicts",
       "  report <drive>                health-check dossier (drive = name, nickname, or UUID)",
       "  run <drive> <kind>            enqueue + follow a job (scan|verify|mirror|benchmark|checksum)",
+      "  explain [kind]                what each job checks, typical duration, safety",
       "  jobs                          recent jobs",
       "  cancel <jobId>                cancel an active job",
       "",

@@ -28,6 +28,7 @@ import {
   pendingZipDeletes,
 } from "./ingest-zips";
 import { embedArtwork, soundcloudArtwork, itunesArtwork } from "./embed";
+import { wavToAiff } from "./wav-to-aiff";
 import { appendQueueEntries, type QueueEntry } from "./queue";
 
 export interface IngestOptions {
@@ -485,11 +486,12 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   let artSkippedWav = 0;
   let shortSkipped = 0;
   let unchanged = 0;
+  let wavConverted = 0;
   const queueEntries: QueueEntry[] = [];
 
   for (const rec of toIngest) {
-    const { file, probe, parsed } = rec;
-    const ext = extname(file).toLowerCase();
+    let { file, probe, parsed } = rec;
+    let ext = extname(file).toLowerCase();
     const title = firstTag(probe.tags, ["title"]) || parsed.title;
     let artist = firstTag(probe.tags, ["artist"]) || parsed.artist;
     let album = firstTag(probe.tags, ["album"]);
@@ -515,6 +517,20 @@ export async function ingest(opts: IngestOptions): Promise<void> {
         opts.state.markShortSkipped(shortId, file, probe.durationS);
       }
       continue;
+    }
+
+    // WAV → AIFF lossless conversion (stream copy, tags ride along).
+    // rekordbox cannot read embedded art from WAVs; AIFF is bit-identical
+    // audio with native art support. See docs/rekordbox-wav-artwork.md.
+    if (ext === ".wav" && !opts.dryRun) {
+      const aiff = await wavToAiff(file);
+      if (aiff) {
+        file = aiff;
+        ext = ".aiff";
+        probe.hasArt = true; // tags+art already rode along via map_metadata
+        wavConverted++;
+        log(`  ⇄ wav→aiff: ${basename(aiff)}`);
+      }
     }
 
     if (!artist || !album || !genre || genre === "Music") {
@@ -592,7 +608,9 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     // short-circuits before this).
     const energy = opts.dryRun ? null : energyFromLufs(await measureRms(file));
 
-    // Artwork: embedded → SoundCloud (URL in tags) → iTunes. Never WAV.
+    // Artwork: embedded → SoundCloud (URL in tags) → iTunes. AIFF/MP3/M4A/
+    // FLAC embed natively; WAV never happens post-conversion (except when
+    // ffmpeg conversion failed — art embeds via APIC for other players).
     let artUrlFound: string | null = null;
     if (!probe.hasArt && !opts.noArtwork && artist) {
       if (!ARTWORK_EXTS.has(ext)) {
@@ -710,6 +728,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
 
   log(
     `\ndone: ${tagged} retagged, ${artAdded} artwork embedded` +
+      (wavConverted ? `, ${wavConverted} wav→aiff` : "") +
       (artQueued ? `, ${artQueued} artwork QUEUED for image-maker` : "") +
       (artSkippedWav ? `, ${artSkippedWav} wav skipped for art` : "") +
       (shortSkipped ? `, ${shortSkipped} skipped (<${minDuration}s)` : "") +

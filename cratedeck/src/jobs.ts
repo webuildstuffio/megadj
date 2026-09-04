@@ -327,13 +327,49 @@ export class JobEngine {
       }
       case "verify": {
         const name = basename(mountPoint);
-        tick(0, 1, `verifying ${name} — opening rekordbox DB…`, "verify", true);
+        tick(
+          0,
+          1,
+          `verifying ${name} — opening rekordbox DB…`,
+          "1-databases",
+          true,
+        );
         const proc = spawnVerify(this.cfg, [name]);
         handle.proc = proc;
+        // Phase-driven progress: the script prints deterministic section
+        // markers in a known order. Map each to a progress span so the bar
+        // + ETA move meaningfully instead of sitting at 0% for 14s.
+        //   0.00–0.15 open DBs · 0.15–0.35 hardware view · 0.35–0.80 per-track
+        //   0.80–0.95 relations · 0.95–1.00 verdict  (cross-drive phases get
+        //   appended as they print: 0.80–0.95 hash parity, then audio spot)
+        const PHASES: [RegExp, number, number, string][] = [
+          [/^### /, 0.15, 0.35, "checking hardware DB view (export.pdb)…"],
+          [/^  tracks:/, 0.35, 0.8, "checking every track: files, grids, BPM…"],
+          [/^  playlists:/, 0.8, 0.9, "checking playlists + relations…"],
+          [/=== cross-drive ===/, 0.9, 0.95, "comparing master ↔ mirror…"],
+          [/^  hashed \d+\//, 0.9, 0.97, "hashing ANLZ files on both drives…"],
+          [/audio hash spot-check/, 0.97, 0.99, "spot-hashing audio files…"],
+          [/^FINAL:/, 0.99, 1, "writing verdict…"],
+        ];
+        let phaseIdx = 0;
+        const rawLine = (line: string) => {
+          const text = line.trim();
+          for (let i = phaseIdx; i < PHASES.length; i++) {
+            const [re, from, to, msg] = PHASES[i]!;
+            if (re.test(text)) {
+              phaseIdx = i + 1;
+              tick(from, to, msg, `phase-${phaseIdx}`, true);
+              break;
+            }
+          }
+        };
         const [verdict, errText] = await Promise.all([
           drain(
             proc,
-            (l) => log(l),
+            (l) => {
+              log(l);
+              rawLine(l);
+            },
             handle,
             this.cfg.verifyTimeoutMin * 60_000,
           ),
@@ -365,6 +401,7 @@ export class JobEngine {
         return {
           verdict: pass ? "pass" : "fail",
           final: finalLine ?? null,
+          ...parseVerifyFindings(verdict.out),
           summary: lastLines(out, 20),
         };
       }
@@ -495,4 +532,140 @@ async function drainText(
 
 function lastLines(text: string, n: number): string {
   return text.split("\n").filter(Boolean).slice(-n).join("\n");
+}
+
+export interface VerifyFinding {
+  id: string;
+  label: string;
+  detail: string;
+  meaning: string;
+  fix: string;
+}
+
+/** Parse usb_verify.py output into structured, human-explained findings.
+ *  The script prints stable "key: value" lines; regex them out so the UI and
+ *  CLI can render a proper report instead of a raw wall of text. */
+export function parseVerifyFindings(out: string): {
+  findings: VerifyFinding[];
+  stats: Record<string, number>;
+} {
+  const stats: Record<string, number> = {};
+  const grab = (re: RegExp): number | null => {
+    const m = out.match(re);
+    if (!m?.[1]) return null;
+    const v = parseInt(m[1], 10);
+    if (Number.isNaN(v)) return null;
+    return v;
+  };
+  const pdb = grab(/export\.pdb=(\d+) tracks vs OneLibrary DB=(\d+)/);
+  const odb = grab(/OneLibrary DB=(\d+) tracks/);
+  if (pdb !== null && odb !== null) {
+    stats.pdb_tracks = pdb;
+    stats.onelibrary_tracks = odb;
+  }
+  const missingAudio = grab(/missing audio: (\d+)/);
+  const missingAnlz = grab(/missing analysis: (\d+)/);
+  const noBpm = grab(/no BPM: (\d+)/);
+  const badLen = grab(/bad length: (\d+)/);
+  const badGrids = grab(/bad grids \(generated\): (\d+)/);
+  const pioneerVar = grab(/pioneer-native variance \(informational\): (\d+)/);
+  const dangling = grab(/dangling: (\d+)/);
+  const artistFk = grab(/artist FK bad: (\d+)/);
+  const anlzHash = grab(/ANLZ missing at hash path AND at DB path: (\d+)/);
+  const playlists = grab(/playlists: (\d+)/);
+  if (playlists !== null) stats.playlists = playlists;
+
+  const findings: VerifyFinding[] = [];
+  const push = (f: VerifyFinding) => findings.push(f);
+
+  if (pdb !== null && odb !== null && pdb !== odb) {
+    const delta = odb - pdb;
+    push({
+      id: "pdb-parity",
+      label:
+        delta > 0
+          ? `Legacy DB behind by ${delta} tracks`
+          : `Legacy DB has ${-delta} stale rows`,
+      detail: `export.pdb ${pdb} vs OneLibrary ${odb}`,
+      meaning:
+        "USB drives carry TWO databases: exportLibrary.db (new rekordbox) and export.pdb (what CDJ/XDJ hardware actually reads). If they disagree, hardware players see a different library than rekordbox does.",
+      fix:
+        delta > 0
+          ? "Re-run the USB export from rekordbox (with the drive connected) so export.pdb catches up"
+          : "Stale tombstones in export.pdb — re-run the USB export to rebuild it",
+    });
+  }
+  const missingAnalysis = (missingAnlz ?? 0) + (anlzHash ?? 0);
+  if (missingAnalysis > 0) {
+    push({
+      id: "anlz-missing",
+      label: `${missingAnalysis} track(s) missing beatgrid/waveform files`,
+      detail: `${missingAnlz ?? 0} missing at DB path, ${anlzHash ?? 0} missing at hardware hash path`,
+      meaning:
+        "ANLZ files store waveforms + beatgrids. Without them, CDJs show no waveform and no Beat Sync for those tracks.",
+      fix: "In rekordbox: select the tracks → Track → Analyze, then re-export to the drive",
+    });
+  }
+  if (missingAudio !== null && missingAudio > 0) {
+    push({
+      id: "audio-missing",
+      label: `${missingAudio} track(s) in the DB have no audio file on disk`,
+      detail: "DB rows pointing at non-existent files",
+      meaning:
+        "These tracks show in the browser but won't load (dead entries).",
+      fix: "In rekordbox: File → Library maintenance, or remove the broken rows, then re-export",
+    });
+  }
+  if ((noBpm ?? 0) > 0 || (badLen ?? 0) > 0) {
+    push({
+      id: "fields",
+      label: `${(noBpm ?? 0) + (badLen ?? 0)} track(s) missing BPM or length`,
+      detail: `${noBpm ?? 0} without BPM, ${badLen ?? 0} with implausible length`,
+      meaning: "Breaks BPM sync and search-by-BPM on hardware.",
+      fix: "Analyze those tracks in rekordbox, re-export",
+    });
+  }
+  if ((badGrids ?? 0) > 0) {
+    push({
+      id: "grids",
+      label: `${badGrids} track(s) with bad beatgrids`,
+      detail: "grid data inconsistent with track length/BPM",
+      meaning: "Beat Sync/Beat Jump will be wrong for these tracks.",
+      fix: "Re-analyze those specific tracks in rekordbox",
+    });
+  }
+  if ((dangling ?? 0) > 0 || (artistFk ?? 0) > 0) {
+    push({
+      id: "relations",
+      label: `${(dangling ?? 0) + (artistFk ?? 0)} broken DB reference(s)`,
+      detail: `${dangling ?? 0} dangling playlist entries, ${artistFk ?? 0} bad artist links`,
+      meaning:
+        "Playlist or artist views may crash or show blank entries on hardware.",
+      fix: "Usually heals on the next full rekordbox export; if persistent, rebuild the playlist",
+    });
+  }
+  if (out.includes("DB byte-identical: false")) {
+    push({
+      id: "db-parity",
+      label: "Master and mirror databases DIFFER",
+      detail: "exportLibrary.db hashes don't match across drives",
+      meaning:
+        "The two drives will behave differently in the booth — playlists/track data won't match.",
+      fix: "Re-run the mirror sync so both drives get the same DB",
+    });
+  }
+  const audioMismatch = grab(/audio hash spot-check \(40\): (\d+) mismatches/);
+  if (audioMismatch !== null && audioMismatch > 0) {
+    push({
+      id: "audio-parity",
+      label: `${audioMismatch}/40 sampled audio files differ between drives`,
+      detail: "same track, different bytes — probably different rips",
+      meaning: "One drive has a different version of the song than the other.",
+      fix: "Copy the master's version over the mirror's (usb_verify prints which files)",
+    });
+  }
+  if (pioneerVar !== null) {
+    stats.pioneer_variance = pioneerVar;
+  }
+  return { findings, stats };
 }

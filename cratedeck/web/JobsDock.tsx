@@ -65,12 +65,19 @@ export function JobsDock(props: {
         ))}
         {history.map((j) => {
           let final: string | null = null;
+          let findings: {
+            label: string;
+            detail: string;
+          }[] = [];
           try {
-            final =
-              j.result_json != null
-                ? ((JSON.parse(j.result_json) as { final?: string }).final ??
-                  null)
-                : null;
+            if (j.result_json != null) {
+              const r = JSON.parse(j.result_json) as {
+                final?: string;
+                findings?: { label: string; detail: string }[];
+              };
+              final = r.final ?? null;
+              findings = r.findings ?? [];
+            }
           } catch {
             final = null;
           }
@@ -93,6 +100,21 @@ export function JobsDock(props: {
               {final && (
                 <div class="jmsg" title={final}>
                   {final}
+                </div>
+              )}
+              {findings.length > 0 && (
+                <div class="jfindings">
+                  {findings.slice(0, 4).map((f) => (
+                    <div class="jfinding" key={f.label} title={f.detail}>
+                      <Icon name="warn" size={11} /> {f.label}
+                    </div>
+                  ))}
+                  {findings.length > 4 && (
+                    <div class="jfinding more">
+                      +{findings.length - 4} more — run deckctl report for
+                      details
+                    </div>
+                  )}
                 </div>
               )}
               {j.error && (
