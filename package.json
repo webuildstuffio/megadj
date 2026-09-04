@@ -7,8 +7,12 @@
   "bin": {
     "megadj": "./src/cli.ts"
   },
+  "workspaces": [
+    "cratedeck"
+  ],
   "scripts": {
     "megadj": "bun run src/cli.ts",
+    "deck": "bun run cratedeck/src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },

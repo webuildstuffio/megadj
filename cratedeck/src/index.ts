@@ -1,0 +1,238 @@
+// index.ts — wire-up: config → db → detector → jobs → HTTP+SSE. 127.0.0.1 only.
+import { join } from "node:path";
+import { loadConfig } from "./config";
+import { DB } from "./db";
+import { Guard } from "./guard";
+import { listMountedVolumes, watchVolumes } from "./detect";
+import { Registry } from "./registry";
+import { JobEngine } from "./jobs";
+import { ImageService } from "./images";
+
+const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
+const cfg = loadConfig(here);
+const db = new DB(cfg.dbPath);
+const guard = new Guard(cfg);
+const webRoot = join(here, "web", "dist");
+
+const clients = new Set<ReadableStreamDefaultController>();
+function sse(): Response {
+  const stream = new ReadableStream({
+    start(controller) {
+      clients.add(controller);
+    },
+    cancel() {
+      // removed on close below
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+}
+function emit(channel: string, data: unknown): void {
+  const msg = `event: ${channel}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const c of [...clients]) {
+    try {
+      c.enqueue(new TextEncoder().encode(msg));
+    } catch {
+      clients.delete(c);
+    }
+  }
+}
+
+const registry = new Registry(cfg, db, emit);
+const images = new ImageService(cfg, db, guard);
+const jobs = new JobEngine(cfg, db, guard, emit);
+
+// boot hygiene: orphan jobs from a dead process, stale scratch
+const reaped = db.reapOrphanJobs();
+registry.sweepScratch();
+if (reaped) console.log(`cratedeck: reaped ${reaped} orphan job(s)`);
+
+let reconciling = false;
+async function reconcile(): Promise<void> {
+  if (reconciling) return;
+  reconciling = true;
+  try {
+    registry.reconcile(await listMountedVolumes(cfg.volumesRoot));
+  } catch (e) {
+    console.error("reconcile:", (e as Error).message);
+  } finally {
+    reconciling = false;
+  }
+}
+const watcher = watchVolumes(cfg.volumesRoot, reconcile);
+await reconcile(); // initial sweep
+
+const server = Bun.serve({
+  port: cfg.serverPort,
+  hostname: "127.0.0.1", // localhost is the trust boundary
+  async fetch(req) {
+    const url = new URL(req.url);
+    const path = url.pathname;
+
+    // ---- API -------------------------------------------------------------
+    if (path.startsWith("/api/")) {
+      const route = path.slice(4); // /drives, /drives/:id/...
+      try {
+        if (route === "/drives") {
+          const snaps = db.latestSnapshots();
+          return json(
+            registry.list().map((d) => ({
+              ...d,
+              badges: [
+                ...require("./badges_view").driveBadgesView(db, d, snaps),
+              ],
+            })),
+          );
+        }
+        const driveMatch = route.match(/^\/drives\/([^/]+)(\/.*)?$/);
+        if (driveMatch) {
+          const [, id, sub] = driveMatch;
+          if (!sub) return json(registry.detail(id));
+          if (sub === "/timeline") return json(db.timeline(id));
+          if (sub === "/export") return exportDossier(id);
+          if (sub === "/photo" && req.method === "POST") {
+            const body = (await req.json()) as {
+              url?: string;
+              localPath?: string;
+            };
+            const dest = await images.choose(id, body);
+            return json({ ok: true, path: dest });
+          }
+          if (sub === "/name" && req.method === "POST") {
+            const body = (await req.json()) as { nickname: string | null };
+            registry.rename(id, body.nickname);
+            return json({ ok: true });
+          }
+          if (sub === "/jobs" && req.method === "POST") {
+            const body = (await req.json()) as { kind: JobKindX };
+            if (
+              !["scan", "verify", "mirror", "benchmark", "checksum"].includes(
+                body.kind,
+              )
+            ) {
+              return json({ error: "bad kind" }, 400);
+            }
+            const drive = db.getDrive(id);
+            if (!drive?.mounted)
+              return json({ error: "drive not mounted" }, 409);
+            const mountPoint = `/Volumes/${drive.name}`;
+            const job = jobs.enqueue(id, body.kind, mountPoint);
+            return json(job);
+          }
+          if (sub === "/benchmarks") return json(db.benchmarks(id));
+        }
+        if (route === "/ports") {
+          return json(portView());
+        }
+        if (route === "/jobs") {
+          const active = url.searchParams.get("active");
+          return json(active ? db.activeJobs() : db.jobsForDrive("*", 50));
+        }
+        const jobMatch = route.match(/^\/jobs\/([^/]+)(\/cancel)?$/);
+        if (jobMatch) {
+          const [, id, cancel] = jobMatch;
+          if (cancel && req.method === "POST")
+            return json({ ok: jobs.cancel(id) });
+          return json(db.getJob(id));
+        }
+        if (route === "/search") {
+          return json(registry.search(url.searchParams.get("q") ?? ""));
+        }
+        if (route === "/images/search") {
+          return json(await images.search(url.searchParams.get("q") ?? ""));
+        }
+        if (route === "/interlock") {
+          const lock = jobs.interlock();
+          return json({ rekordbox_running: lock.running, pid: lock.pid });
+        }
+        if (
+          route === "/events" &&
+          req.headers.get("accept")?.includes("event-stream")
+        ) {
+          return sse();
+        }
+        return json({ error: "not found" }, 404);
+      } catch (e) {
+        const msg = (e as Error).message;
+        const status =
+          msg.startsWith("REKORDBOX_RUNNING") ||
+          msg.startsWith("GUARD VIOLATION")
+            ? 423
+            : 500;
+        return json({ error: msg }, status);
+      }
+    }
+
+    // ---- photo files ------------------------------------------------------
+    if (path.startsWith("/photos/")) {
+      const id = path.slice(8);
+      const p = images.photoPath(id);
+      if (!p) return new Response("no photo", { status: 404 });
+      return new Response(Bun.file(p));
+    }
+
+    // ---- static web -------------------------------------------------------
+    const file = path === "/" ? "/index.html" : path;
+    const f = Bun.file(join(webRoot, file));
+    if (await f.exists()) return new Response(f);
+    return new Response(Bun.file(join(webRoot, "index.html"))); // SPA fallback
+  },
+});
+
+type JobKindX = "scan" | "verify" | "mirror" | "benchmark" | "checksum";
+
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function portView() {
+  return db
+    .allDrives()
+    .filter((d) => d.last_port_key)
+    .map((d) => ({
+      port_key: d.last_port_key,
+      label: null,
+      drive_id: d.id,
+      drive_name: d.nickname ?? d.name,
+      mounted: !!d.mounted,
+      last_seen_at: d.last_seen_at,
+    }));
+}
+
+function exportDossier(driveId: string): Response {
+  const detail = registry.detail(driveId);
+  if (!detail) return json({ error: "unknown drive" }, 404);
+  const dossier = {
+    exported_at: new Date().toISOString(),
+    drive: { ...detail.drive, last_snapshot_json: undefined },
+    snapshot: detail.snapshot,
+    sync: detail.sync,
+    timeline: db.timeline(driveId, 500),
+    benchmarks: db.benchmarks(driveId),
+  };
+  return new Response(JSON.stringify(dossier, null, 2), {
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Disposition": `attachment; filename="cratedeck-${detail.drive.name}.json"`,
+    },
+  });
+}
+
+console.log(
+  `cratedeck: http://127.0.0.1:${cfg.serverPort} (reaped jobs: ${reaped})`,
+);
+
+process.on("SIGINT", async () => {
+  watcher.stop();
+  await jobs.shutdown();
+  db.close();
+  process.exit(0);
+});

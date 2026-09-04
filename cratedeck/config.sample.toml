@@ -1,0 +1,18 @@
+# CrateDeck config — copy to config.toml and edit.
+# Key can also come from env CRATEDECK_IMAGE_KEY.
+
+[server]
+port = 7742
+
+[library]
+# reference drives for sync status
+master_drive = "DJMASTER"
+mirror_drive = "DJMIRROR"
+
+[images]
+# provider = "brave"   # brave | exa
+# key = "..."
+
+[jobs]
+verify_timeout_min = 40
+benchmark_mb = 512

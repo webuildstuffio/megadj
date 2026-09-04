@@ -12,3 +12,5 @@ dist/
 *.mp4
 __pycache__/
 .ruff_cache/
+cratedeck/data/
+cratedeck/config.toml
