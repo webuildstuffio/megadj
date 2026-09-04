@@ -12,10 +12,29 @@ the what/why summary for humans.
 
 | | DJMASTER | DJMIRROR |
 |---|---|---|
-| Role | **MASTER** — source of truth | Mirror — kept identical |
+| Role | **MASTER** — source of truth | Mirror — kept identical (superset OK) |
 | DB | `PIONEER/rekordbox/exportLibrary.db` (SQLCipher) | same file, MD5-identical |
-| Library | 3,054 tracks · 154 playlists · 30,435 entries · 3,794 audio files | identical |
-| Analysis | `PIONEER/USBANLZ/` (P000–P07F + P080 for YTMusic) | identical, 10,783 files hash-verified |
+| Library | 3,054 core tracks + YTMusic Liked (294) + event playlists | mirrors master |
+| Analysis | `PIONEER/USBANLZ/` (P000–P07F + hash-path folders for YTMusic) | identical, hash-verified |
+
+Master audio lives in `Contents/` (~3,795 files); the mirror carries a few
+more (legacy superset, +157) — that is normal and not a sync failure.
+
+## The two databases (read this before touching anything)
+
+| DB | Read by | Who writes it |
+|---|---|---|
+| `exportLibrary.db` (OneLibrary) | rekordbox 7, OPUS-QUAD, XDJ-AZ | our pipeline (pyrekordbox injection) |
+| `export.pdb` (legacy PDB) | **XDJ-XZ, older CDJs** | rekordbox only, via USB export |
+
+Injecting into OneLibrary alone leaves the XZ blind to new tracks. Once per
+library generation, do the **legacy export**: generate full-library XML from
+the working DB → import into rekordbox 7 → drag playlists onto both devices →
+let rekordbox analyze (~1–2h for thousands of tracks) → export to the
+devices. rekordbox then writes BOTH DBs and Pioneer-grade grids/waveforms.
+XML schema rules that silently break the import are documented in the skill
+(flat `Location` attribute, `encode_path`, NODE types — get any of them wrong
+and playlists import empty).
 
 ## The two commands
 
@@ -58,6 +77,10 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 
 ## Hard-won facts (don't relearn these)
 
+- **rekordbox must be quit during DB/file surgery; a running app rewrites
+  export.pdb/exportLibrary.db concurrently and corrupts them.** During its
+  own export/analysis, though, hands OFF the drives entirely (FAT32 corrupts
+  on concurrent writes).
 - **`Content.length` is SECONDS**, not ms. A ms value looks like a 90-minute track.
 - Datetime columns (`releaseDate`, `dateCreated`, `dateAdded`) must be non-None
   or the pyrekordbox serializer crashes on commit.
@@ -75,8 +98,11 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 
 ## Known limitations
 
-- Generated grids are constant-BPM; tempo-drifting mixes deserve a rekordbox
-  re-analysis pass for perfect grids.
-- Waveform previews cover the first 30s; rekordbox re-analysis fills the rest.
-- `export.pdb` (legacy) is not regenerated — device-library-plus players
-  (CDJ-3000 etc.) read `exportLibrary.db`, which we do keep identical.
+- Generated grids (from `usb_sync.py`) are constant-BPM; tempo-drifting mixes
+  deserve a rekordbox re-analysis pass for perfect grids — or just let the
+  legacy XML export analyze everything (it re-grids properly).
+- Synthetic waveform previews cover the first 30s; rekordbox analysis fills
+  the rest.
+- The XZ-visible legacy `export.pdb` only updates via the XML-import +
+  USB-export flow above — plan for it after each library generation, don't
+  discover it gig night.

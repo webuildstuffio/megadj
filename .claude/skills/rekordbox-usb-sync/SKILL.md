@@ -189,7 +189,8 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 ### 9. Legacy-player export (XDJ-XZ and older CDJs)
 
 The pipeline above only updates the OneLibrary DB. Legacy players read
-`export.pdb`, which only rekordbox writes. Once per library generation:
+`export.pdb`, which only rekordbox writes. Once per library generation
+(ran 2026-09-03, see (local ops log)):
 
 1. Plug the master drive into the Mac (rekordbox must be closed during
    step-3's file ops, open only for the export itself).
@@ -251,8 +252,11 @@ Update `~/rekordbox-exports/STATUS-FINAL.md` with new counts.
 
 - **Legacy players (XDJ-XZ, CDJ-2000/3000, all pre-OneLibrary gear) read
   `export.pdb`, NOT `exportLibrary.db`.** This pipeline only updates the
-  OneLibrary DB — legacy `export.pdb` stays stale. For an XZ: import the
-  recovery XML into rekordbox and do a proper USB export (writes both formats).
+  OneLibrary DB — refresh export.pdb via step 9's XML-import + USB-export
+  flow once per library generation.
+- **While rekordbox is open: hands off the drives entirely** (it may be
+  mid-export; concurrent FAT32 writes corrupt). Verify/mirror only after it
+  quits.
 - Players **ignore `analysisDataFilePath` in the DB** — they compute the USBANLZ
   folder from the audio path hash (below). Generated ANLZ must live at the
   hash-computed location or hardware never finds it.

@@ -11,3 +11,4 @@ dist/
 *.m4a
 *.mp4
 __pycache__/
+.ruff_cache/
