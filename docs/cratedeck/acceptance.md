@@ -8,15 +8,15 @@ that trust", architecture §9). Last audited: 2026-09-04.
 
 ## Milestones
 
-| Milestone | Scope | Status |
-|---|---|---|
-| M0 — Skeleton & spine | registry, detection, ghosts, page | ✅ shipped |
-| M1 — Photo & identity | image search/confirm, rename | ✅ shipped |
-| M2 — Rekordbox introspection | Python seam, scan, playlists | ✅ shipped |
-| M3 — Jobs, interlock, sync | verify/mirror/bench/checksum | ✅ shipped |
-| M4 — Ports, timeline, search | port strip, timeline, search | ✅ shipped |
-| M5 — Polish, dossier, radar | reports, dossier export | ✅ shipped |
-| M6 — Hardening & docs | failure modes, rotation, docs | ☐ in progress |
+| Milestone                    | Scope                             | Status        |
+| ---------------------------- | --------------------------------- | ------------- |
+| M0 — Skeleton & spine        | registry, detection, ghosts, page | ✅ shipped    |
+| M1 — Photo & identity        | image search/confirm, rename      | ✅ shipped    |
+| M2 — Rekordbox introspection | Python seam, scan, playlists      | ✅ shipped    |
+| M3 — Jobs, interlock, sync   | verify/mirror/bench/checksum      | ✅ shipped    |
+| M4 — Ports, timeline, search | port strip, timeline, search      | ✅ shipped    |
+| M5 — Polish, dossier, radar  | reports, dossier export           | ✅ shipped    |
+| M6 — Hardening & docs        | failure modes, rotation, docs     | ☐ in progress |
 
 ## Evidence map (code)
 
@@ -35,10 +35,13 @@ that trust", architecture §9). Last audited: 2026-09-04.
 - **F7 health & corruption** — `src/report.ts` (dual-DB gate, grids, space,
   bitrot ledger, junk), junk detection in `src/scan.ts`
 - **F8 timeline** — events table + `GET /drives/:id/timeline`, drawer tab
-- **F9 cockpit UI** — `web/App.tsx` (cards), `web/DriveDrawer.tsx` (tabs),
-  `web/DriveCard.tsx`, search box
-- **F10 extras** — dossier export (`GET /drives/:id/export` incl. report);
-  gig mode + new-music radar remain → [../ideas.md](../ideas.md) B/F
+- **F9 cockpit UI** — hash-routed two-pane UI: `web/router.ts` (deep
+  links), `web/DriveRail.tsx` (cards incl. ghosts), `web/DrivePage.tsx`
+  (tabs: `PlaylistsTab`, `HealthTab`, `TimelineTab`), `web/JobsDock.tsx`,
+  interlock banner, `toast.tsx`
+- **F10 extras** — dossier export (`GET /drives/:id/export` incl. report),
+  deckctl CLI (`cratedeck/src/deckctl.ts`, agent-facing with interlock
+  exit codes); gig mode + new-music radar remain → [../ideas.md](../ideas.md) B/F
 
 ## Test coverage
 
@@ -50,7 +53,7 @@ superset/behind, artwork coverage, space/df, NFC+casefold).
 ## Open acceptance items (need real hardware, not tests)
 
 - [ ] PRD F5: DJMIRROR badge matches a manual `usb_mirror.py
-      --verify-only` run on the live drive
+--verify-only` run on the live drive
 - [ ] PRD F4: DJMASTER detail vs known ground truth (3,054+ core tracks,
       YTMusic Liked, event playlist tree) after the 2026-09-03 export settles
 - [ ] PRD F9: all real drives on one screen at 1440×900 without scrolling

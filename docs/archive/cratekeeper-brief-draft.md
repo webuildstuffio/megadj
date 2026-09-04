@@ -25,7 +25,7 @@
 You own roughly eight USB drives. Some are rekordbox export drives, some are half-forgotten backups, some might be neither. Today, answering even trivial questions requires physically plugging drives in one at a time and squinting at Finder or rekordbox:
 
 - **Identity is unsolved.** They're physically near-identical, unlabeled, and the volume names are inconsistent or default (`NO NAME`, `UNTITLED`, `SANDISK`). You cannot tell drive #3 from drive #7 without mounting it.
-- **State is invisible when unplugged.** Rekordbox shows you a device only while it's connected, and shows you *one* device at a time. There is no cross-device view, no history, and nothing at all when the drive is in a bag.
+- **State is invisible when unplugged.** Rekordbox shows you a device only while it's connected, and shows you _one_ device at a time. There is no cross-device view, no history, and nothing at all when the drive is in a bag.
 - **"Is it in sync?" has no answer.** Rekordbox has no honest diff between your master library and an exported device. You get a nagging feeling that a drive is three months stale and no way to confirm it in under twenty minutes.
 - **Quality is assumed, not verified.** Beat grids, memory cues, hot cues, phrase analysis, colour waveforms and artwork are all silently optional. A track can export "successfully" with no grid and you find out on stage.
 - **Corruption is silent.** Flash drives fail progressively and quietly. A truncated `export.pdb` or a handful of bad audio sectors surfaces as a CDJ that won't load the drive, mid-set, in front of people.
@@ -60,8 +60,8 @@ The compounding cost is not "mild annoyance." It's **pre-gig anxiety and on-stag
 
 ## 5. Product principles
 
-1. **Read-only until proven otherwise.** The default mode never writes to a drive, with a single deliberate exception (§6.1). Writes are opt-in, dry-run first, and *never* inside `/PIONEER/`. Rekordbox owns that directory; we only read it.
-2. **Offline truth is the product.** The interesting state is the state of the seven drives *not* currently plugged in. Everything is snapshotted locally so the app is fully useful with zero drives connected.
+1. **Read-only until proven otherwise.** The default mode never writes to a drive, with a single deliberate exception (§6.1). Writes are opt-in, dry-run first, and _never_ inside `/PIONEER/`. Rekordbox owns that directory; we only read it.
+2. **Offline truth is the product.** The interesting state is the state of the seven drives _not_ currently plugged in. Everything is snapshotted locally so the app is fully useful with zero drives connected.
 3. **One page, no navigation.** A single HTML page that loads instantly and shows the whole fleet. Detail expands in place. No routing, no dashboard sprawl.
 4. **Zero config, zero cloud, zero telemetry.** Runs on `localhost`, stores everything in a local SQLite file, phones home to nothing. The only outbound call is an explicit, user-triggered image search.
 5. **Never guess silently.** Every derived number (health, readiness, sync %) is explainable — click it and see the inputs. Uncertain data is labeled uncertain, not rounded into confidence.
@@ -77,7 +77,7 @@ The compounding cost is not "mild annoyance." It's **pre-gig anxiety and on-stag
 You start the app and plug in an unknown drive. Cratekeeper:
 
 1. Detects the mount and reads the **hardware identity triple**: USB vendor/product/serial, volume UUID, and filesystem label.
-2. Looks for its own **hidden manifest** — a dotfile (`/.cratekeeper/id.json`, marked hidden) written once per drive containing a stable UUID, first-seen date, and the user's chosen name. This is the *one* write the app performs on a drive, it lives outside `/PIONEER/`, and it is invisible to Finder, to rekordbox, and to CDJs.
+2. Looks for its own **hidden manifest** — a dotfile (`/.cratekeeper/id.json`, marked hidden) written once per drive containing a stable UUID, first-seen date, and the user's chosen name. This is the _one_ write the app performs on a drive, it lives outside `/PIONEER/`, and it is invisible to Finder, to rekordbox, and to CDJs.
 3. If no manifest exists, it's a **new drive**. The app scans it, then opens the **Identify flow**:
    - Shows what it inferred: capacity, filesystem, controller, "SanDisk Extreme 64GB", whether it's a rekordbox export drive.
    - Fires an **image search** (Exa / Brave Image / configurable provider) for the detected make + model and presents a grid of candidate product photos.
@@ -117,7 +117,7 @@ Expanding a card reveals everything rekordbox shows you, plus everything it does
 
 These only exist because the app sees all eight drives at once:
 
-- **Coverage matrix.** A track-by-drive grid. Instantly answers: *which drive has this track?* and *which tracks exist on exactly one drive?* (i.e., one drive failure from gone forever).
+- **Coverage matrix.** A track-by-drive grid. Instantly answers: _which drive has this track?_ and _which tracks exist on exactly one drive?_ (i.e., one drive failure from gone forever).
 - **Redundancy audit.** "Every track in playlist `Gig 2026` is on ≥2 drives" — pass or fail, with the gaps listed.
 - **Fleet diff.** Compare any two drives, or a drive against your rekordbox master library, and get a clean added/removed/changed list.
 - **Global search.** One box, all drives, plugged in or not: "do I own this track anywhere, and on which sticks?"
@@ -129,80 +129,85 @@ These only exist because the app sees all eight drives at once:
 
 ## 7. Feature pillars
 
-| # | Pillar | Why it matters | v1? |
-|---|---|---|---|
-| 1 | **Identity & naming** — hardware triple + hidden manifest + product photo + human name | Solves the core "which stick is this" problem | ✅ |
-| 2 | **Offline memory** — persisted last-known state for every drive | The whole point; rekordbox can't do this at all | ✅ |
-| 3 | **Deep content inventory** — tracks, playlists, folders, histories, artwork from `export.pdb` | Parity with rekordbox, without rekordbox | ✅ |
-| 4 | **Analysis coverage** — beat grids, cues, loops, phrases, waveforms from `ANLZ` files | Catches the failure that actually bites on stage | ✅ |
-| 5 | **Integrity & corruption** — pdb parse, dangling refs, orphans, checksum drift | Silent failure → loud, early warning | ✅ |
-| 6 | **Health & speed** — benchmarks, trend, capacity verification, retirement signal | Flash dies; know before it does | ✅ |
-| 7 | **Sync & diff** — vs. master library and vs. other drives | Ends "is this one stale?" forever | ✅ |
-| 8 | **Port & topology** — which physical port, which bus, negotiated speed | Diagnoses "why is this drive slow" (it's in a 480 Mb/s port) | ✅ |
-| 9 | **Fleet analytics** — coverage matrix, redundancy, global search, snapshots | Emerges only at fleet scale; the moat | ✅ |
-| 10 | **Lifecycle & physical** — location, loans, purchase, notes, QR labels | The drive is an object, not just a volume | v1.1 |
-| 11 | **Set intelligence** — history harvesting, played/never-played, set reconstruction | Turns exhaust data into a personal archive | v1.1 |
-| 12 | **Safe mirroring** — dry-run, verified copy from drive A to drive B | Backup without trusting Finder drag-and-drop | v1.2 |
+| #   | Pillar                                                                                        | Why it matters                                               | v1?  |
+| --- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ---- |
+| 1   | **Identity & naming** — hardware triple + hidden manifest + product photo + human name        | Solves the core "which stick is this" problem                | ✅   |
+| 2   | **Offline memory** — persisted last-known state for every drive                               | The whole point; rekordbox can't do this at all              | ✅   |
+| 3   | **Deep content inventory** — tracks, playlists, folders, histories, artwork from `export.pdb` | Parity with rekordbox, without rekordbox                     | ✅   |
+| 4   | **Analysis coverage** — beat grids, cues, loops, phrases, waveforms from `ANLZ` files         | Catches the failure that actually bites on stage             | ✅   |
+| 5   | **Integrity & corruption** — pdb parse, dangling refs, orphans, checksum drift                | Silent failure → loud, early warning                         | ✅   |
+| 6   | **Health & speed** — benchmarks, trend, capacity verification, retirement signal              | Flash dies; know before it does                              | ✅   |
+| 7   | **Sync & diff** — vs. master library and vs. other drives                                     | Ends "is this one stale?" forever                            | ✅   |
+| 8   | **Port & topology** — which physical port, which bus, negotiated speed                        | Diagnoses "why is this drive slow" (it's in a 480 Mb/s port) | ✅   |
+| 9   | **Fleet analytics** — coverage matrix, redundancy, global search, snapshots                   | Emerges only at fleet scale; the moat                        | ✅   |
+| 10  | **Lifecycle & physical** — location, loans, purchase, notes, QR labels                        | The drive is an object, not just a volume                    | v1.1 |
+| 11  | **Set intelligence** — history harvesting, played/never-played, set reconstruction            | Turns exhaust data into a personal archive                   | v1.1 |
+| 12  | **Safe mirroring** — dry-run, verified copy from drive A to drive B                           | Backup without trusting Finder drag-and-drop                 | v1.2 |
 
 ---
 
 ## 8. Competitive landscape
 
-| Alternative | What it does | Where it fails you |
-|---|---|---|
-| **rekordbox itself** | Exports to and browses one connected device | One device at a time; nothing when unplugged; no diff; no health; no fleet view; no history mining |
-| **Finder / Explorer** | Shows files and capacity | Format-blind — can't read `export.pdb`, can't see a beat grid, can't tell a rekordbox drive from a backup |
-| **Generic backup tools (rsync, Carbon Copy, ChronoSync)** | Copy bytes reliably | No domain awareness; will happily mirror a corrupt database |
-| **`smartctl` / disk utilities** | Low-level device health | Most USB flash exposes no SMART data at all; needs heuristic substitutes |
-| **Community libraries (crate-digger, pyrekordbox)** | Parse the formats | Libraries, not products — no UI, no fleet model, no persistence, no health |
-| **DJ library-manager utilities** | Tag cleanup, duplicate finding | Library-side, not device-side; ignore the physical fleet entirely |
+| Alternative                                               | What it does                                | Where it fails you                                                                                        |
+| --------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **rekordbox itself**                                      | Exports to and browses one connected device | One device at a time; nothing when unplugged; no diff; no health; no fleet view; no history mining        |
+| **Finder / Explorer**                                     | Shows files and capacity                    | Format-blind — can't read `export.pdb`, can't see a beat grid, can't tell a rekordbox drive from a backup |
+| **Generic backup tools (rsync, Carbon Copy, ChronoSync)** | Copy bytes reliably                         | No domain awareness; will happily mirror a corrupt database                                               |
+| **`smartctl` / disk utilities**                           | Low-level device health                     | Most USB flash exposes no SMART data at all; needs heuristic substitutes                                  |
+| **Community libraries (crate-digger, pyrekordbox)**       | Parse the formats                           | Libraries, not products — no UI, no fleet model, no persistence, no health                                |
+| **DJ library-manager utilities**                          | Tag cleanup, duplicate finding              | Library-side, not device-side; ignore the physical fleet entirely                                         |
 
-**The gap:** everything is either *one device, live* or *bytes, dumb*. Nobody occupies *many devices, remembered, with domain-aware verdicts*. That's the whole product.
+**The gap:** everything is either _one device, live_ or _bytes, dumb_. Nobody occupies _many devices, remembered, with domain-aware verdicts_. That's the whole product.
 
 ---
 
 ## 9. Success metrics
 
 **Primary — does it end the problem?**
+
 - Time to answer "which drive has track X" drops from ~10 minutes of plugging to **<5 seconds**.
 - **100% of the fleet named and photographed** after week one.
 - **Zero unknown drives** in the drawer thereafter.
 
 **Product health**
+
 - Recognition-to-scanned time for a plugged-in 64 GB drive: **<15s warm, <90s cold**.
 - Fleet page interactive: **<300ms** with 8 drives / ~20k tracks cached.
 - Scans run **weekly or better** without prompting (auto-scan on mount).
 
 **Outcome**
-- Number of gigs where a drive problem is discovered *at the venue*: **0**.
+
+- Number of gigs where a drive problem is discovered _at the venue_: **0**.
 - At least one **real catch** in the first month — a stale drive, a missing grid, a dying stick — that would otherwise have surfaced live. This is the moment the tool proves itself.
 
 ---
 
 ## 10. Risks & mitigations
 
-| Risk | Severity | Mitigation |
-|---|---|---|
-| **Writing to a drive corrupts a rekordbox export** | Critical | Read-only by default. Never write inside `/PIONEER/` or `/CONTENTS/`, ever. The single hidden manifest write is atomic, tiny, and outside both. All future write features are dry-run-first with explicit confirmation. |
-| **`export.pdb` format drifts with a rekordbox update** | High | Parser is defensive and versioned; unknown page types are skipped, not fatal. A parse failure degrades to filesystem-level inventory rather than crashing. Format assumptions are isolated in one module. |
-| **exFAT / player compatibility claims are wrong** | Medium | Ship a **compatibility matrix as data, not code** — FAT32 and HFS+ are the known-safe baseline; exFAT support varies by player and firmware. The app states its source and lets you correct it rather than asserting confidently. |
-| **No SMART data on USB flash** | Medium | Health is explicitly a *heuristic composite* (measured throughput trend, error counts, filesystem check results, checksum drift, age, write-verify). Labeled as an estimate, with inputs visible. Never presented as manufacturer telemetry. |
-| **Benchmarks add wear / take too long** | Low | Benchmarks are bounded, sampled, opt-in on a schedule (not every mount), and default to read-biased. Full write-verify (capacity fraud check) is a manual, clearly-warned action. |
-| **Image search API cost / ToS / link rot** | Low | Use a proper search API (Exa / Brave), never scrape retail sites directly. Images are cached locally for personal identification only. Provider is a swappable adapter; the app is fully functional with image search disabled. |
-| **Scope explosion — this becomes a DJ library manager** | Medium | Hard non-goal (§11). Cratekeeper describes and verifies; rekordbox creates and edits. |
-| **Reading a rekordbox master library** | Medium | v1 uses the **user-generated `rekordbox.xml` export** as the master-library source of truth — documented, stable, and explicitly user-initiated. No dependence on the encrypted internal database. |
+| Risk                                                    | Severity | Mitigation                                                                                                                                                                                                                                   |
+| ------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Writing to a drive corrupts a rekordbox export**      | Critical | Read-only by default. Never write inside `/PIONEER/` or `/CONTENTS/`, ever. The single hidden manifest write is atomic, tiny, and outside both. All future write features are dry-run-first with explicit confirmation.                      |
+| **`export.pdb` format drifts with a rekordbox update**  | High     | Parser is defensive and versioned; unknown page types are skipped, not fatal. A parse failure degrades to filesystem-level inventory rather than crashing. Format assumptions are isolated in one module.                                    |
+| **exFAT / player compatibility claims are wrong**       | Medium   | Ship a **compatibility matrix as data, not code** — FAT32 and HFS+ are the known-safe baseline; exFAT support varies by player and firmware. The app states its source and lets you correct it rather than asserting confidently.            |
+| **No SMART data on USB flash**                          | Medium   | Health is explicitly a _heuristic composite_ (measured throughput trend, error counts, filesystem check results, checksum drift, age, write-verify). Labeled as an estimate, with inputs visible. Never presented as manufacturer telemetry. |
+| **Benchmarks add wear / take too long**                 | Low      | Benchmarks are bounded, sampled, opt-in on a schedule (not every mount), and default to read-biased. Full write-verify (capacity fraud check) is a manual, clearly-warned action.                                                            |
+| **Image search API cost / ToS / link rot**              | Low      | Use a proper search API (Exa / Brave), never scrape retail sites directly. Images are cached locally for personal identification only. Provider is a swappable adapter; the app is fully functional with image search disabled.              |
+| **Scope explosion — this becomes a DJ library manager** | Medium   | Hard non-goal (§11). Cratekeeper describes and verifies; rekordbox creates and edits.                                                                                                                                                        |
+| **Reading a rekordbox master library**                  | Medium   | v1 uses the **user-generated `rekordbox.xml` export** as the master-library source of truth — documented, stable, and explicitly user-initiated. No dependence on the encrypted internal database.                                           |
 
 ---
 
 ## 11. Goals and non-goals
 
 **Goals**
+
 - Know every drive on sight, forever, including unplugged.
 - Answer any "what's on which drive, and is it good" question in seconds.
 - Surface silent failures — stale exports, missing grids, corruption, dying flash — before a gig, not during one.
 - Be a genuinely nice single page you actually want to open.
 
 **Non-goals (v1)**
+
 - ❌ Editing tags, cues, grids, or playlists. Rekordbox owns creation.
 - ❌ Writing a rekordbox export. Rekordbox owns export.
 - ❌ Audio playback or waveform scrubbing.
@@ -245,4 +250,4 @@ Menu-bar companion with plug-in notifications · CLI (`bun run scan`) for script
 
 ## 14. The one-sentence bet
 
-*If you can see all eight drives at once — named, photographed, verified, and remembered even in a drawer — then the entire category of "USB problem discovered at the venue" stops existing.*
+_If you can see all eight drives at once — named, photographed, verified, and remembered even in a drawer — then the entire category of "USB problem discovered at the venue" stops existing._

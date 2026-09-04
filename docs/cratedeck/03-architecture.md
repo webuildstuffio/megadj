@@ -14,10 +14,10 @@ v2 · 2026-09-03 · [Brief](01-product-brief.md) · [PRD](02-prd.md) → **Archi
 
 **One Bun process, one Python seam, one page.**
 
-*Note (2026-09-04 audit): the file list below has grown from the original 10
+_Note (2026-09-04 audit): the file list below has grown from the original 10
 to 13 TS files (`badges_view.ts`, `fmt.ts` moved to shared, `report.ts`,
 `images.ts`, `python/usb_tree.py`); the single-seam and guard rules are
-unchanged and still hold.*
+unchanged and still hold._
 
 ```
 cratedeck/
@@ -33,8 +33,8 @@ cratedeck/
 `bun run deck` → `127.0.0.1:7742`. Dev: `bun run deck:dev` (Vite proxying).
 Localhost is the trust boundary; no auth, no TLS.
 
-**The one architectural rule:** TypeScript owns *state and orchestration*;
-Python owns *rekordbox truth* — through a single seam (`src/rb.ts` ↔
+**The one architectural rule:** TypeScript owns _state and orchestration_;
+Python owns _rekordbox truth_ — through a single seam (`src/rb.ts` ↔
 `python/rb_read.py` / the skill's `usb_verify.py` / `usb_mirror.py`). The
 skill's `anlz_paths.py` and `usb_verify.py::pdb_live_rows` are the canonical
 implementations and are **imported directly** by the bridge — never ported,
@@ -157,12 +157,19 @@ never re-queried for that drive.
 
 ## 8. Frontend
 
-Preact + signals + Vite. One page, no router: `DriveCard` grid →
-`DriveDrawer` (Overview / Playlists / Health / Timeline) · `PortStrip` ·
-`JobsTray` · `InterlockBanner` · search. SSE with auto-reconnect. Badge
-rules live in `shared/badges.ts`, computed server-side, rendered client-side
-— badge and data can never disagree. Dark, flat, crate-card metaphor;
-ghosts dimmed; spinning state while a job runs.
+Preact + Vite. Two-pane layout driven by a **zero-dep hash router**
+(`web/router.ts`, `#/drives/:id/:tab`) — deep links and browser
+back/forward work with no router dependency. `DriveRail` (all drives,
+ghosts dimmed) → `DrivePage` (Overview / Playlists / Health / Timeline /
+Report tabs: `PlaylistsTab`, `HealthTab`, `TimelineTab`) · `JobsDock` ·
+interlock banner · toast notifications (`toast.tsx`) · `icons.tsx`. SSE
+with auto-reconnect. Badge rules live in `shared/badges.ts`, computed
+server-side, rendered client-side — badge and data can never disagree.
+Dark, flat, crate-card metaphor; spinning state while a job runs.
+
+_(2026-09-04 audit note: original plan was a single page with a
+`DriveDrawer` drawer; shipped as rail + routed page, which scales better
+with five tabs and deep-linkable drive state.)_
 
 ## 9. Testing
 
@@ -181,14 +188,14 @@ ghosts dimmed; spinning state while a job runs.
 
 ## 10. Failure modes
 
-| Failure | Behavior |
-|---|---|
-| Drive yanked mid-job | job → `interrupted`, partials kept, drive ghosts on next event |
+| Failure                        | Behavior                                                       |
+| ------------------------------ | -------------------------------------------------------------- |
+| Drive yanked mid-job           | job → `interrupted`, partials kept, drive ghosts on next event |
 | rekordbox launched mid-session | running read-only job finishes; new work locked via SSE banner |
-| Image provider down | search 502s; manual path unaffected |
-| SQLite corruption | WAL + nightly `data/backup.sqlite`; images relink by UUID |
-| FSEvents misses (edge) | 5s diff net catches it; UI unaffected |
-| Server killed mid-scan | boot-time scratch sweep; job → `interrupted` |
+| Image provider down            | search 502s; manual path unaffected                            |
+| SQLite corruption              | WAL + nightly `data/backup.sqlite`; images relink by UUID      |
+| FSEvents misses (edge)         | 5s diff net catches it; UI unaffected                          |
+| Server killed mid-scan         | boot-time scratch sweep; job → `interrupted`                   |
 
 ## 11. Security
 

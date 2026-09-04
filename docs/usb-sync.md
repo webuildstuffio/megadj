@@ -10,22 +10,22 @@ the what/why summary for humans.
 
 ## Topology
 
-| | DJMASTER | DJMIRROR |
-|---|---|---|
-| Role | **MASTER** — source of truth | Mirror — kept identical (superset OK) |
-| DB | `PIONEER/rekordbox/exportLibrary.db` (SQLCipher) | same file, MD5-identical |
-| Library | 3,054 core tracks + YTMusic Liked (294) + event playlists | mirrors master |
-| Analysis | `PIONEER/USBANLZ/` (P000–P07F + hash-path folders for YTMusic) | identical, hash-verified |
+|          | DJMASTER                                                     | DJMIRROR                           |
+| -------- | -------------------------------------------------------------- | ------------------------------------- |
+| Role     | **MASTER** — source of truth                                   | Mirror — kept identical (superset OK) |
+| DB       | `PIONEER/rekordbox/exportLibrary.db` (SQLCipher)               | same file, MD5-identical              |
+| Library  | 3,054 core tracks + YTMusic Liked (294) + event playlists    | mirrors master                        |
+| Analysis | `PIONEER/USBANLZ/` (P000–P07F + hash-path folders for YTMusic) | identical, hash-verified              |
 
 Master audio lives in `Contents/` (~3,795 files); the mirror carries a few
 more (legacy superset, +157) — that is normal and not a sync failure.
 
 ## The two databases (read this before touching anything)
 
-| DB | Read by | Who writes it |
-|---|---|---|
+| DB                              | Read by                        | Who writes it                        |
+| ------------------------------- | ------------------------------ | ------------------------------------ |
 | `exportLibrary.db` (OneLibrary) | rekordbox 7, OPUS-QUAD, XDJ-AZ | our pipeline (pyrekordbox injection) |
-| `export.pdb` (legacy PDB) | **XDJ-XZ, older CDJs** | rekordbox only, via USB export |
+| `export.pdb` (legacy PDB)       | **XDJ-XZ, older CDJs**         | rekordbox only, via USB export       |
 
 Injecting into OneLibrary alone leaves the XZ blind to new tracks. Once per
 library generation, do the **legacy export**: generate full-library XML from

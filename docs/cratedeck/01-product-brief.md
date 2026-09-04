@@ -24,7 +24,7 @@ None of these answer the real questions fast:
 - When did I last verify it? Did anything corrupt since?
 - Which physical port is it in, and does that matter?
 
-The megadj repo already solved the *hard* half — byte-accurate rekordbox
+The megadj repo already solved the _hard_ half — byte-accurate rekordbox
 device-library reads, ANLZ validation, hardware-gate verification, mirror
 tooling. What's missing is a **face**: a single always-on page that turns
 that machinery into something you can glance at.
@@ -47,15 +47,15 @@ a stick and needs to know what's on it in 5 seconds.
 
 ## 4. Jobs to be done
 
-| # | Job | Today | With CrateDeck |
-|---|---|---|---|
-| J1 | "Tell me what this stick in my hand is" | plug in, browse folders | card lights up with photo + name in ~2s |
-| J2 | "Is it safe to play this drive tonight?" | hope / run scripts by hand | PASS/FAIL readiness badge with the same gates the verify tool uses |
-| J3 | "What's different between my two main drives?" | run `usb_verify.py`, read logs | in-sync badge + one-glance diff (files, DB, ANLZ, playlists) |
-| J4 | "Which stick has the party playlist?" | plug in each and look | search across **all** known drives, including unplugged (last-known data) |
-| J5 | "Is the new YTMusic batch on the drives yet?" | run sync, check output | new-music radar: downloads vs each drive, one click to queue the sync |
-| J6 | "Did this stick get slower / is it dying?" | nothing — until it fails | benchmark history, bitrot ledger, SMART/health signals |
-| J7 | "Where do I plug the exporter so drives behave?" | guess | port map — labeled physical ports, drive-to-port history |
+| #   | Job                                              | Today                          | With CrateDeck                                                            |
+| --- | ------------------------------------------------ | ------------------------------ | ------------------------------------------------------------------------- |
+| J1  | "Tell me what this stick in my hand is"          | plug in, browse folders        | card lights up with photo + name in ~2s                                   |
+| J2  | "Is it safe to play this drive tonight?"         | hope / run scripts by hand     | PASS/FAIL readiness badge with the same gates the verify tool uses        |
+| J3  | "What's different between my two main drives?"   | run `usb_verify.py`, read logs | in-sync badge + one-glance diff (files, DB, ANLZ, playlists)              |
+| J4  | "Which stick has the party playlist?"          | plug in each and look          | search across **all** known drives, including unplugged (last-known data) |
+| J5  | "Is the new YTMusic batch on the drives yet?"    | run sync, check output         | new-music radar: downloads vs each drive, one click to queue the sync     |
+| J6  | "Did this stick get slower / is it dying?"       | nothing — until it fails       | benchmark history, bitrot ledger, SMART/health signals                    |
+| J7  | "Where do I plug the exporter so drives behave?" | guess                          | port map — labeled physical ports, drive-to-port history                  |
 
 ## 5. What it does (the 10x version)
 
@@ -128,13 +128,13 @@ Status colors: green ready, amber stale, red attention, gray ghost.
 
 ## 10. Key risks & kills
 
-| Risk | Mitigation |
-|---|---|
-| Writing to drives while rekordbox runs | hard interlock, red banner, jobs refused at API layer |
-| Cheap sticks report no serial/UUID | identity = volume UUID, fallback fingerprint (name+capacity+fs), manual merge UI |
-| Image search APIs flake/rate-limit | provider abstraction, manual upload always available, image cached forever once chosen |
-| Deep verify slow on 4k-file drives | cached results keyed by DB mtime; jobs async with progress; light checks instant |
-| macOS API changes break detection | thin detection module, golden-fixture tests |
+| Risk                                   | Mitigation                                                                             |
+| -------------------------------------- | -------------------------------------------------------------------------------------- |
+| Writing to drives while rekordbox runs | hard interlock, red banner, jobs refused at API layer                                  |
+| Cheap sticks report no serial/UUID     | identity = volume UUID, fallback fingerprint (name+capacity+fs), manual merge UI       |
+| Image search APIs flake/rate-limit     | provider abstraction, manual upload always available, image cached forever once chosen |
+| Deep verify slow on 4k-file drives     | cached results keyed by DB mtime; jobs async with progress; light checks instant       |
+| macOS API changes break detection      | thin detection module, golden-fixture tests                                            |
 
 **The one architectural rule:** TypeScript owns state + orchestration;
 Python owns rekordbox truth — through a single seam. The skill's canonical

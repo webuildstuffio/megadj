@@ -32,6 +32,7 @@ missing (cheap sticks): `name + capacity + fs`. Collisions resolve through a
 manual merge dialog ("is this the same drive as X?").
 
 **Acceptance:**
+
 - [ ] Plug a never-seen stick → card appears within 2s, persisted across
       restarts of the app and across unplug.
 - [ ] Unplug it → card becomes ghost with last-known data + timestamp.
@@ -48,6 +49,7 @@ Physical port identity comes from the USB topology path
 label ("MBP left rear", "hub slot 2").
 
 **Acceptance:**
+
 - [ ] Mount/unmount reflected in UI ≤ 2s (poll interval 1s).
 - [ ] Port map page shows a tree: Mac → bus → hub → labeled ports, drives
       in their current slots, history of which drive was where.
@@ -57,6 +59,7 @@ label ("MBP left rear", "hub slot 2").
 
 **What:** each drive gets a human name ("OLDBACKUP", "Party Crate") and a
 photo. Sources:
+
 1. **Product image search** — type a model, get an image grid. Provider
    abstraction with two implementations: Brave Image Search and Exa; the
    active provider + API key live in `cratedeck/config.toml` or env. No key?
@@ -67,6 +70,7 @@ Images are downloaded, normalized (square thumb + original), stored under
 `cratedeck/data/images/<uuid>/`, and never re-fetched.
 
 **Acceptance:**
+
 - [ ] Search "SanDisk Ultra Fit 128GB" with a configured key → ≥ 8 results,
       click to confirm → photo persists on the card forever (offline OK).
 - [ ] No API key → manual upload path fully works.
@@ -76,6 +80,7 @@ Images are downloaded, normalized (square thumb + original), stored under
 
 **What (mounted):** read-only parse of the device library (working copy in
 /tmp, never the live DB — the skill's rule, enforced in code):
+
 - track count, total duration, per-folder composition (genre/artist dirs)
 - playlists: names, entry counts, parents (folder tree)
 - coverage: % tracks with ANLZ present at hash-computed path
@@ -90,6 +95,7 @@ Images are downloaded, normalized (square thumb + original), stored under
 button appears only when mounted.
 
 **Acceptance:**
+
 - [ ] DJMASTER detail matches known ground truth: 3,054+ core tracks,
       YTMusic Liked playlist, party folder tree, pdb vs OneLibrary delta.
 - [ ] Zero writes to the drive during any scan (tests assert mtime/bytes
@@ -101,6 +107,7 @@ button appears only when mounted.
 
 **What:** for each mounted drive, diff against the master definition
 (DJMASTER or a configured reference):
+
 - audio file manifest diff (new/missing/variant counts — reuse manifest
   logic from usb_mirror)
 - DB parity: track/playlist counts
@@ -108,6 +115,7 @@ button appears only when mounted.
 - verdict: `IN SYNC` / `BEHIND (n files)` / `DIVERGED` / `UNKNOWN (stale scan)`
 
 **Acceptance:**
+
 - [ ] DJMIRROR reads IN SYNC or BEHIND with exact counts, matching a
       manual `usb_mirror.py --verify-only` run.
 - [ ] Superset tolerance: extra mirror-only files don't fail the badge
@@ -117,6 +125,7 @@ button appears only when mounted.
 
 **What:** long operations run as background jobs with progress, log tail,
 and history. Wrappers around the existing Python tools:
+
 - `verify` — `usb_verify.py --drives <d>` (the 10x gate)
 - `mirror` — `usb_mirror.py` (master→mirror)
 - `benchmark` — read test: sequential (dd-style, capped 512MB) + random
@@ -131,6 +140,7 @@ Verify/mirror additionally refuse if the target drive is the wrong role
 (mirror run on master, etc.) unless overridden in config.
 
 **Acceptance:**
+
 - [ ] Job lifecycle: queued → running (progress %, MB/s, ETA) → done/failed
       with persisted log; survive page reloads; one job per drive at a time.
 - [ ] With rekordbox running, every mutating job is refused at the API and
@@ -141,6 +151,7 @@ Verify/mirror additionally refuse if the target drive is the wrong role
 ## F7 — Health & corruption
 
 **What per drive:**
+
 - space: capacity/used/free + treemap of `Contents/` top folders
 - benchmark history (F6) with trend arrow
 - bitrot ledger: files changed since last checksum run, benign (tags) vs
@@ -153,6 +164,7 @@ Verify/mirror additionally refuse if the target drive is the wrong role
   (corruption signals) / GHOST (unplugged)
 
 **Acceptance:**
+
 - [ ] A deliberately zero-byte'd file in a test fixture surfaces as ATTN
       with the exact path.
 - [ ] Case-collision detector reproduces the Aug-25 phantom-missing-file
@@ -168,6 +180,7 @@ feed. Export: JSON dump button per drive (the "save details from last known
 time" requirement — ghosts are exportable).
 
 **Acceptance:**
+
 - [ ] Any question "what happened to this stick?" answerable from the
       timeline with timestamps.
 - [ ] Export JSON re-imports on a fresh machine.
@@ -175,6 +188,7 @@ time" requirement — ghosts are exportable).
 ## F9 — One-page cockpit UI
 
 **What:** single page, dark, flat:
+
 - top bar: rekordbox interlock banner, global activity pulse, search
 - shelf: all drives as crate cards — photo, name, badges (role, capacity,
   in-sync, readiness, grids %), ghost cards dimmed
@@ -183,6 +197,7 @@ time" requirement — ghosts are exportable).
 - global search: tracks/playlists across all known drives incl. ghosts
 
 **Acceptance:**
+
 - [ ] All 8 real drives visible on one screen at 1440×900 without scrolling
       (grid adapts).
 - [ ] Search a playlist name returns every drive holding it, ghost or not.
