@@ -34,14 +34,31 @@ that trust", architecture §9). Last audited: 2026-09-04.
   interlock route + banner
 - **F7 health & corruption** — `src/report.ts` (dual-DB gate, grids, space,
   bitrot ledger, junk), junk detection in `src/scan.ts`
-- **F8 timeline** — events table + `GET /drives/:id/timeline`, drawer tab
+- **F8 timeline** — events table + `GET /drives/:id/timeline`, `web/TimelineTab.tsx`
+  (day grouping, event icons, kind chips)
 - **F9 cockpit UI** — hash-routed two-pane UI: `web/router.ts` (deep
   links), `web/DriveRail.tsx` (cards incl. ghosts), `web/DrivePage.tsx`
   (tabs: `PlaylistsTab`, `HealthTab`, `TimelineTab`), `web/JobsDock.tsx`,
-  interlock banner, `toast.tsx`
+  interlock banner, `toast.tsx`. No drawer — the rail is always visible and
+  the canvas is the drive page.
 - **F10 extras** — dossier export (`GET /drives/:id/export` incl. report),
   deckctl CLI (`cratedeck/src/deckctl.ts`, agent-facing with interlock
   exit codes); gig mode + new-music radar remain → [../ideas.md](../ideas.md) B/F
+
+## Sep 2026 UI redesign (verified end-to-end)
+
+Drawer replaced by an always-visible left rail + main canvas, hash-routed
+(`web/router.ts`). Redesigned: SVG icon set (`web/icons.tsx`), design tokens
+(`web/styles.css`), drive rail cards (health ring, role chips, space bar,
+ghost styling), Overview hero + grouped checks, Playlists browser (search/
+sort/folders), Health tab (SVG bench chart, stat cards, folder bars),
+Timeline (icons, day grouping, kind chips), Photo tab (search/clear),
+JobsDock (progress/ETA/cancel/history), toasts, ⌘K search with keyboard nav,
+inline rename. Bug-fixed during the pass: jobs initial load, unknown-drive
+404 + "Drive not found" card, swallowed 423 errors, `prompt()` rename,
+stale rail nicknames (10s poll), `resolveMountPoint` respecting
+`CRATEDECK_VOLUMES`, plaintext-DB fallback in `rb_read.py`. Verified via
+fixture server + Chrome DevTools Protocol DOM checks; screenshots reviewed.
 
 ## Test coverage
 

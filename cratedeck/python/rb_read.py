@@ -147,12 +147,34 @@ def dj_stats(db, contents) -> dict:
     }
 
 
-def snapshot(db_path: str, drive_root: str) -> dict:
+def open_device_db(db_path: str):
+    """Open a device-library copy. Real rekordbox drives carry SQLCipher
+    encryption (default key path); plaintext copies (dev fixtures, some
+    tooling) fail the decrypt with 'file is not a database' — retry those
+    with unlock=False before giving up. The failure surfaces on the FIRST
+    QUERY, not the constructor (SQLCipher engines connect lazily), so we
+    probe with a cheap SELECT and swap connections on failure."""
     from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus
+    from sqlalchemy import text
+
+    db = DeviceLibraryPlus(db_path)
+    try:
+        db.session.execute(text("SELECT 1 FROM content LIMIT 1"))
+        return db
+    except Exception as exc:  # probe plaintext fallback (BLE001 scoped)
+        if "file is not a database" in str(exc):
+            db.session.close()
+            plain = DeviceLibraryPlus(db_path, unlock=False)
+            plain.session.execute(text("SELECT 1 FROM content LIMIT 1"))
+            return plain
+        raise
+
+
+def snapshot(db_path: str, drive_root: str) -> dict:
     from pyrekordbox.devicelib_plus.models import Content, Playlist, PlaylistContent
     from usb_verify import pdb_live_rows
 
-    db = DeviceLibraryPlus(db_path)
+    db = open_device_db(db_path)
     try:
         contents = db.query(Content).all()
         playlists = db.query(Playlist).all()
@@ -176,7 +198,7 @@ def snapshot(db_path: str, drive_root: str) -> dict:
             if getattr(p, "attribute", 0) != 4  # skip folder-node stubs in tree
         ]
 
-        durations = [c.length for c in contents if c.length]
+        durations = [float(c.length) for c in contents if c.length]
         grid_cov = analyze_anlz_coverage(db, Content, drive_root)
 
         onelibrary_rows = len(contents)
