@@ -97,19 +97,17 @@ export function checksumLedger(
     const rel = f.startsWith(mountPoint) ? f.slice(mountPoint.length + 1) : f;
     const st = statSync(f);
     const prev = db.ledgerGet(driveId, rel);
-    if (
-      prev &&
-      (prev.size !== st.size || prev.mtime !== Math.floor(st.mtimeMs))
-    ) {
-      // file changed since last hash — flag for re-hash comparison
+    const mtime = Math.floor(st.mtimeMs);
+    if (!prev) {
+      // first sighting — hash and seed the ledger
+      db.ledgerPut(driveId, rel, st.size, mtime, hashFile(f));
+    } else if (prev.size !== st.size || prev.mtime !== mtime) {
+      // metadata changed since the stored hash — re-hash and compare
       const fresh = hashFile(f);
       if (fresh !== prev.hash) changed.push(rel);
+      db.ledgerPut(driveId, rel, st.size, mtime, fresh);
     }
-    if (!prev) {
-      db.ledgerPut(driveId, rel, st.size, Math.floor(st.mtimeMs), hashFile(f));
-    } else if (!changed.includes(rel)) {
-      db.ledgerPut(driveId, rel, st.size, Math.floor(st.mtimeMs), prev.hash);
-    }
+    // unchanged files (size+mtime match) are trusted without a re-read
     hashed++;
   }
   return { hashed, changed };

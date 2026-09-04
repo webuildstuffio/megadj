@@ -151,7 +151,27 @@ export async function applyTags(
   filePath: string,
   meta: EnrichedMetadata,
 ): Promise<void> {
-  const args: string[] = ["-y", "-i", filePath, "-c", "copy", "-map", "0"];
+  // Explicit a+v mapping avoids the m4a ipod muxer choking on bin_data/text
+  // and PNG-cover streams under a blanket `-c copy` ("Tag text incompatible
+  // with output codec id"). Maps are optional ("?") because stripped files
+  // may have no video stream at all. Audio is stream-copied (bit-identical);
+  // a cover, when present, is re-encoded to mjpeg (the m4a attached-pic
+  // codec) and flagged attached_pic.
+  const args: string[] = [
+    "-y",
+    "-i",
+    filePath,
+    "-map",
+    "0:a",
+    "-map",
+    "0:v?",
+    "-c:a",
+    "copy",
+    "-c:v",
+    "mjpeg",
+    "-disposition:v:0",
+    "attached_pic",
+  ];
   if (meta.title) args.push("-metadata", `title=${meta.title}`);
   if (meta.artist) args.push("-metadata", `artist=${meta.artist}`);
   if (meta.albumArtist)
@@ -164,7 +184,7 @@ export async function applyTags(
   // provenance traceable without polluting other fields.
   if (meta.comment) args.push("-metadata", `comment=${meta.comment}`);
   const tagged = filePath.replace(/(\.[^.]+)$/, ".tagged$1");
-  args.push(tagged);
+  args.push("-f", "ipod", tagged);
 
   const proc = await $`ffmpeg -hide_banner -loglevel error ${args}`.quiet();
   if (proc.exitCode !== 0) {

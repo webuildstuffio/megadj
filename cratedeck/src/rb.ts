@@ -1,7 +1,7 @@
 // rb.ts — THE Python seam. Only this file spawns processes.
 // Reads go through python/rb_read.py (which imports the skill's canonical
 // anlz_paths + pdb_live_rows). Deep jobs wrap usb_verify.py / usb_mirror.py.
-import { mkdirSync, statSync } from "node:fs";
+import { copyFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { SnapshotData } from "../shared/types";
 import type { Guard } from "./guard";
@@ -47,8 +47,7 @@ export function rbSnapshot(
     sanitize(basename(mountPoint)),
     String(Date.now()),
   );
-  guard.write(scratch + "/", ""); // create via guard (allowed: data/)
-  mkdirSync(scratch, { recursive: true });
+  guard.mkdir(scratch); // dest under data/ — the only allowed write root
   for (const f of [
     "exportLibrary.db",
     "exportLibrary.db-wal",
@@ -56,8 +55,9 @@ export function rbSnapshot(
   ]) {
     const src = join(mountPoint, "PIONEER", "rekordbox", f);
     if (exists(src)) {
-      require("node:fs").copyFileSync(src, join(scratch, f));
-      guard.assertAllowed(join(scratch, f)); // dest under data/ — enforced
+      const dest = join(scratch, f);
+      guard.assertAllowed(dest); // enforce before the copy, not after
+      copyFileSync(src, dest);
     }
   }
 

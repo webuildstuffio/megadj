@@ -7,6 +7,7 @@ import { listMountedVolumes, watchVolumes } from "./detect";
 import { Registry } from "./registry";
 import { JobEngine } from "./jobs";
 import { ImageService } from "./images";
+import { driveBadgesView } from "./badges_view";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
@@ -84,7 +85,7 @@ const server = Bun.serve({
             registry.list().map((d) => ({
               ...d,
               badges: [
-                ...require("./badges_view").driveBadgesView(db, d, snaps),
+                ...driveBadgesView(db, d, snaps, cfg.masterDrive, cfg.mirrorDrive),
               ],
             })),
           );

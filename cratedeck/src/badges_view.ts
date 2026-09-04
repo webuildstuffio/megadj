@@ -8,16 +8,20 @@ export function driveBadgesView(
   db: DB,
   drive: Drive,
   snaps: Map<string, SnapshotData>,
+  masterDriveName: string,
+  mirrorDriveName: string,
 ) {
   const master = db
     .allDrives()
-    .find((d) => d.role === "master" || d.name.toUpperCase() === "DJMASTER");
+    .find(
+      (d) =>
+        d.role === "master" ||
+        d.name.toUpperCase() === masterDriveName.toUpperCase(),
+    );
   const masterSnap = master?.last_snapshot_json
     ? (JSON.parse(master.last_snapshot_json) as SnapshotData)
     : null;
-  const badges = driveBadges(drive, {
-    latestVerify: db.latestVerify(drive.id),
-  });
+  const badges = driveBadges(drive, { latestVerify: db.latestVerify(drive.id) });
   const sync = syncBadge(drive, masterSnap);
   if (sync) badges.push(sync);
   return badges;

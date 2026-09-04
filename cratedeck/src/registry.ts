@@ -1,4 +1,5 @@
 // registry.ts — drive identity, ghost lifecycle, snapshots, sync status.
+import { rmSync } from "node:fs";
 import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Drive, SearchResult, SnapshotData } from "../shared/types";
@@ -173,10 +174,7 @@ export class Registry {
   /** Boot-time scratch sweep: DB copies left by a killed process. */
   sweepScratch(): void {
     try {
-      require("node:fs").rmSync(this.cfg.scratchDir, {
-        recursive: true,
-        force: true,
-      });
+      rmSync(this.cfg.scratchDir, { recursive: true, force: true });
     } catch {}
   }
 }
