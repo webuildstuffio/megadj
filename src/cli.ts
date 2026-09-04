@@ -12,15 +12,15 @@ const COOKIES = process.env.MEGADJ_COOKIES ?? "chrome";
 const COOKIES_FILE = process.env.MEGADJ_COOKIES_FILE ?? null;
 
 function printHelp(): void {
-  console.log(`megadj — YouTube Music library archiver for rekordbox
+  console.log(`megadj — DJ music library manager for rekordbox
 
 usage:
   megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,PLxxxx]
   megadj enrich  [--dry-run]                   fill weak genres via MusicBrainz
   megadj ingest  <folder> [--dry-run] [--no-artwork] [--min-duration N]
-                                             tag + artwork external downloads
-  megadj artwork                              process queued artwork via image-maker
-  megadj organize [--dry-run]                   move downloads into genre folders
+                                               tag+art+dedupe downloads (zips too)
+  megadj artwork [--model M] [--max N] [--dry-run]
+                                               generate covers for queued tracks
   megadj status                              archive summary + recent runs
   megadj list    [filter]                    list tracks (by status or text)
   megadj retry                                retry failed tracks
@@ -30,7 +30,8 @@ usage:
 environment:
   MEGADJ_MUSIC_DIR   target folder (default ~/Music/DJ-Imports)
   MEGADJ_DB          state db path (default ~/.local/state/megadj/archive.db)
-  MEGADJ_COOKIES     browser for cookies (default chrome, empty to disable)`);
+  MEGADJ_COOKIES     browser for cookies (default chrome, empty to disable)
+  OPENROUTER_API_KEY required for \`artwork\` (load from keychain, never hardcode)`);
 }
 
 /** Bun's util.parseArgs is broken (strict:true rejects known options,
@@ -207,8 +208,20 @@ async function main(): Promise<void> {
         break;
       }
       case "artwork": {
+        const flags = parseFlags(
+          process.argv.slice(3),
+          ["model", "max"],
+          ["dry-run"],
+        );
         const { artwork } = await import("./commands/artwork");
-        await artwork({ state });
+        await artwork({
+          state,
+          model: flags.strings.get("model"),
+          maxImages: flags.strings.get("max")
+            ? Number(flags.strings.get("max"))
+            : undefined,
+          dryRun: flags.bools.has("dry-run"),
+        });
         break;
       }
       default:

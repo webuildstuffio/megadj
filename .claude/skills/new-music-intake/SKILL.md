@@ -62,15 +62,18 @@ permalink + genre; embeds t500x500) → **hypeddit/hyperfollow gateways**
 (og:image scrape) → **mp3-twin** → **Deezer** cover_xl → **iTunes** 600px →
 leftovers appended to `artwork-queue.jsonl` for AI.
 
-For stubborn tracks `tools/sc_art_direct.ts` goes deeper: resolves the SC
-page and pulls the og:image directly — this recovered 44 covers that flat
-search missed (the "original artwork from where we got the wav" pass).
+For stubborn tracks `tools/pack_art.ts` goes deepest: walks each plausible
+uploader's SoundCloud profile/track pages and og:image-scrapes every
+candidate — this is the "original artwork from where we got the wav" pass.
+`tools/sc_art_direct.ts` additionally upgrades embedded SC covers from
+t500x500 to **original resolution** (run with `--all` to re-embed).
 
 ```bash
 cd ~/github/megadj
-bun tools/art_final.ts            # fill files missing art
+bun tools/art_final.ts            # fill files missing art (fast multi-source)
 bun tools/art_final.ts --all      # overwrite everywhere (SC-first)
-bun tools/sc_art_direct.ts        # deep SC page scrape for the rest
+bun tools/pack_art.ts             # deep SC profile walk for the rest
+bun tools/sc_art_direct.ts        # upgrade SC covers to original res
 ```
 
 WAV embedding: mutagen APIC (ID3v2 in WAV works; ffmpeg's wav muxer canNOT
@@ -79,24 +82,33 @@ permalink into `format_id` for provenance, and SC's genre into the DB.
 **No AI-generated covers by default** — real artwork gets scraped first;
 AI (`megadj artwork`) is the last resort only.
 
-## Step 3b — AI covers for bootlegs with no cover anywhere
+## Step 3b — AI covers: last resort only
+
+Real artwork gets scraped first (SC pages, gateways, twins, Deezer,
+iTunes). Only tracks with **no online presence at all** go to the queue —
+and AI covers are opt-in, never default:
 
 `megadj artwork` generates square covers (image-maker/OpenRouter,
-nano-banana-2-lite ≈ $0.034/img, cap `MEGADJ_ART_MAX`) and embeds — WAVs now
-supported via APIC. Requires `OPENROUTER_API_KEY` with credit.
+nano-banana-2-lite ≈ $0.034/img, cap `MEGADJ_ART_MAX`) and embeds — WAVs
+included via APIC. Requires `OPENROUTER_API_KEY` (keep it in the keychain:
+`security add-generic-password -a $USER -s megadj-openrouter-key -w <key>`
+— the repo never hardcodes keys).
 
 ```bash
-bun src/cli.ts artwork --dry-run    # preview prompts
-bun src/cli.ts artwork              # generate + embed (bounded batch)
+bun src/cli.ts artwork --dry-run        # preview prompts, no spend
+bun src/cli.ts artwork --max 10         # bounded batch
+bun src/cli.ts artwork --model nano-banana-2   # fancier model
 ```
 
 ## Step 3c — Genres at scale: `tools/sc_genres.ts` + `tools/ai_genres.ts`
 
 1. `bun tools/sc_genres.ts` — SC genre tags (#house style) via yt-dlp, 6
    parallel workers, fuzzy match gate.
-2. `bun tools/sync_genres.ts` — normalize SC's freeform labels to the
-   canonical taxonomy and push DB genre into every file's tags.
-3. `bun tools/ai_genres.ts` — OpenRouter classifier (default
+2. `bun tools/normalize_genres.ts` — normalize SC's freeform labels to the
+   canonical taxonomy and write into file tags.
+3. `bun tools/sync_genres.ts` — push DB genre into any file whose embedded
+   tag is missing/stale (ground-truth read, safe re-run).
+4. `bun tools/ai_genres.ts` — OpenRouter classifier (default
    `google/gemini-2.5-flash-lite`, ~$0.10/M in — pennies per full pass,
    20 tracks/request, confidence ≥ 0.7 gate) for whatever's left.
 
