@@ -42,15 +42,15 @@ repo — never commit it).
 ```bash
 alias megadj='bun run ~/github/megadj/src/cli.ts'
 
-megadj sync                       # incremental: fetch likes, download new tracks
-megadj sync --limit 5             # small test batch
-megadj sync --dry-run             # playlist refresh only, no downloads
-megadj sync --music-only          # skip non-audio (videos/sets)
-megadj sync --sources LM,LL,PLxxx # multi-source: liked music + liked + playlists
+megadj sync [--limit N] [--dry-run] [--music-only] [--target-total N]
+                                  # multi-source: --sources LM,LL,PLxxx
 megadj enrich [--dry-run]         # fill weak genres via MusicBrainz
 megadj ingest <folder> [--dry-run] [--no-artwork] [--min-duration N]
-                                  # tag + artwork external downloads
-megadj artwork                    # process queued artwork via image-maker
+                                  # tag + art + dedupe external downloads
+                                  # (zips expanded; zip deleted only when
+                                  # every staged file has landed)
+megadj artwork [--model M] [--max N] [--dry-run]
+                                  # generate covers for queued tracks
 megadj organize [--dry-run]       # move downloads into genre folders
 megadj status                     # archive summary + recent run history
 megadj list [filter]              # all tracks, by status or free text (LOWQ flagged)
@@ -60,11 +60,12 @@ megadj adopt                      # register existing files in the DB
 
 ### Environment
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `MEGADJ_MUSIC_DIR` | `~/Music/DJ-Imports` | where audio lands |
-| `MEGADJ_DB` | `~/.local/state/megadj/archive.db` | state database |
-| `MEGADJ_COOKIES` | `chrome` | browser for yt-dlp cookies; empty disables |
+| Variable             | Default                            | Purpose                                                            |
+| -------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `MEGADJ_MUSIC_DIR`   | `~/Music/DJ-Imports`               | where audio lands                                                  |
+| `MEGADJ_DB`          | `~/.local/state/megadj/archive.db` | state database                                                     |
+| `MEGADJ_COOKIES`     | `chrome`                           | browser for yt-dlp cookies; empty disables                         |
+| `OPENROUTER_API_KEY` | —                                  | required for `megadj artwork` (load from keychain, never hardcode) |
 
 ## Design
 
@@ -72,6 +73,7 @@ megadj adopt                      # register existing files in the DB
 - **State** — SQLite tracks every video ID with status, format, bitrate, file path, size, duration, and attempt history. Runs are logged; nothing re-downloads.
 - **Metadata** — yt-dlp's `web_music` client metadata (label feed: artist, album, release date, credits) is cleaned of "(Official Audio)" noise, genre is inferred from title/description then enriched via MusicBrainz (`enrich`), producer credits are parsed into the composer tag, and tags are applied via ffmpeg stream-copy (no re-encode, artwork preserved).
 - **Quality** — format selection is `141/bestaudio[m4a]/bestaudio` (256kbps AAC first, falls back gracefully). The `list` output flags tracks below 250kbps as `LOWQ`.
+- **Artwork & genre completion** — `tools/fetch_all.ts` is the one-shot enrichment pipeline (idempotent, parallel, ground-truth verified): tags → genre (SoundCloud tags via yt-dlp, then OpenRouter classifier at conf ≥ 0.7) → artwork (SoundCloud `-original` → gateway pages → Deezer → iTunes → AI cover queue last). Specialist passes: `tools/pack_art.ts` (pack/edit uploads), `tools/sc_art_direct.ts`, `tools/sync_genres.ts`.
 
 ## DJ USB pipeline (DJMASTER + DJMIRROR)
 
@@ -100,10 +102,10 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 
 ### Two databases on each drive (why the XML/export dance exists)
 
-| DB | Read by | How it updates |
-|---|---|---|
-| `exportLibrary.db` (OneLibrary) | rekordbox 7, OPUS-QUAD, XDJ-AZ | our pipeline injects directly |
-| `export.pdb` (legacy PDB) | **XDJ-XZ**, older CDJs | only rekordbox writes it — via XML import + USB export |
+| DB                              | Read by                        | How it updates                                         |
+| ------------------------------- | ------------------------------ | ------------------------------------------------------ |
+| `exportLibrary.db` (OneLibrary) | rekordbox 7, OPUS-QUAD, XDJ-AZ | our pipeline injects directly                          |
+| `export.pdb` (legacy PDB)       | **XDJ-XZ**, older CDJs         | only rekordbox writes it — via XML import + USB export |
 
 After a big library change, do the once-per-generation legacy export
 (described in the skill): generate full-library XML → import into rekordbox 7
@@ -130,6 +132,7 @@ the rekordbox interlock. Docs: [docs/cratedeck/](docs/cratedeck/).
 bun run deck        # serves http://localhost:7742 (CRATEDECK_PORT overrides)
 bun run check       # typecheck + lint; bun test for the test suite
 # UI dev: cd cratedeck/web && bunx vite (proxy) · build: bun run web:build
+# agents: bun run cratedeck/src/deckctl.ts status|report|run|jobs
 ```
 
 **CLI (agents + humans):** `bun run cratedeck/src/deckctl.ts status` —
@@ -138,17 +141,21 @@ bun run check       # typecheck + lint; bun test for the test suite
 
 ## Docs index
 
-| Doc | Purpose |
-|---|---|
-| [docs/usb-sync.md](docs/usb-sync.md) | USB pipeline what/why |
-| [(local ops log)]((local ops log)) | append-only operations log |
-| [docs/cratedeck/01-product-brief.md](docs/cratedeck/01-product-brief.md) | CrateDeck brief |
-| [docs/cratedeck/02-prd.md](docs/cratedeck/02-prd.md) | feature PRD (F1–F10) |
-| [docs/cratedeck/03-architecture.md](docs/cratedeck/03-architecture.md) | architecture |
-| [docs/cratedeck/04-build-plan.md](docs/cratedeck/04-build-plan.md) | milestones M0–M6 |
-| [docs/cratedeck/acceptance.md](docs/cratedeck/acceptance.md) | acceptance status per PRD feature |
-| [docs/ideas.md](docs/ideas.md) | ideas & future backlog |
-| [docs/archive/cratekeeper-brief-draft.md](docs/archive/cratekeeper-brief-draft.md) | superseded early draft (kept for reference) |
+| Doc                                                                                      | Purpose                                     |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------- |
+| [docs/usb-sync.md](docs/usb-sync.md)                                                     | USB pipeline what/why                       |
+| [(local ops log)]((local ops log))                                             | append-only operations log                  |
+| [docs/cratedeck/01-product-brief.md](docs/cratedeck/01-product-brief.md)                 | CrateDeck brief                             |
+| [docs/cratedeck/02-prd.md](docs/cratedeck/02-prd.md)                                     | feature PRD (F1–F10)                        |
+| [docs/cratedeck/03-architecture.md](docs/cratedeck/03-architecture.md)                   | architecture                                |
+| [docs/cratedeck/04-build-plan.md](docs/cratedeck/04-build-plan.md)                       | milestones M0–M6                            |
+| [docs/cratedeck/acceptance.md](docs/cratedeck/acceptance.md)                             | acceptance status per PRD feature           |
+| [docs/ideas.md](docs/ideas.md)                                                           | ideas & future backlog (§0 do-now gate)     |
+| [cratedeck/deckctl.md](cratedeck/deckctl.md)                                             | deckctl CLI guide (exit codes, flags)       |
+| [.claude/skills/rekordbox-usb-sync/SKILL.md](.claude/skills/rekordbox-usb-sync/SKILL.md) | full USB sync runbook                       |
+| [.claude/skills/new-music-intake/SKILL.md](.claude/skills/new-music-intake/SKILL.md)     | ingest/intake guide                         |
+| [.claude/skills/cratedeck-deckctl/SKILL.md](.claude/skills/cratedeck-deckctl/SKILL.md)   | agent-facing dashboard skill                |
+| [docs/archive/cratekeeper-brief-draft.md](docs/archive/cratekeeper-brief-draft.md)       | superseded early draft (kept for reference) |
 
 ## License
 

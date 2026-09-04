@@ -16,8 +16,12 @@ export function status(state: ArchiveState): void {
   const bytes = downloaded.reduce((a, t) => a + (t.file_size_bytes ?? 0), 0);
   console.log(`\narchive size: ${(bytes / 1e9).toFixed(2)} GB`);
 
-  const highQ = downloaded.filter((t) => t.bitrate_kbps === null || t.bitrate_kbps >= 250);
-  console.log(`high-quality tracks (>=250kbps or unprobed): ${highQ.length}/${downloaded.length}`);
+  const highQ = downloaded.filter(
+    (t) => t.bitrate_kbps === null || t.bitrate_kbps >= 250,
+  );
+  console.log(
+    `high-quality tracks (>=250kbps or unprobed): ${highQ.length}/${downloaded.length}`,
+  );
 
   if (runs.length > 0) {
     console.log("\nrecent runs:");
