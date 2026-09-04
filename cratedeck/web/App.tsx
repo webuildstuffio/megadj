@@ -86,6 +86,12 @@ export function App() {
       refreshJobs();
       window.dispatchEvent(new CustomEvent("cratedeck:job"));
     });
+    // SSE can silently die (proxy idle timeout, sleep/wake). EventSource
+    // auto-reconnects, but any job event that fired while dead is gone —
+    // so re-sync on every reconnect.
+    es.addEventListener("open", () => {
+      refreshJobs();
+    });
     const interlockPoll = setInterval(async () => {
       try {
         const s = await fetch("/api/interlock").then((r) => r.json());

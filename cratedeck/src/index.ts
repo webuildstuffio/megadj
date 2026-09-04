@@ -21,12 +21,24 @@ const webRoot = join(here, "web", "dist");
 const clients = new Set<ReadableStreamDefaultController>();
 function sse(): Response {
   let controller: ReadableStreamDefaultController;
+  // Heartbeat: Bun.serve kills streams idle for 10s, which silently severed
+  // event delivery (a job finishing during a quiet period was never seen).
+  // A comment ping every 5s keeps every client alive; comments are ignored
+  // by EventSource but reset the idle timer.
+  const hb = setInterval(() => {
+    try {
+      controller?.enqueue(new TextEncoder().encode(": hb\n\n"));
+    } catch {
+      clearInterval(hb);
+    }
+  }, 5_000);
   const stream = new ReadableStream({
     start(c) {
       controller = c;
       clients.add(c);
     },
     cancel() {
+      clearInterval(hb);
       clients.delete(controller); // client disconnected — stop broadcasting to it
     },
   });
@@ -250,8 +262,21 @@ Bun.serve({
     // ---- static web -------------------------------------------------------
     const file = path === "/" ? "/index.html" : path;
     const f = Bun.file(join(webRoot, file));
-    if (await f.exists()) return new Response(f);
-    return new Response(Bun.file(join(webRoot, "index.html"))); // SPA fallback
+    if (await f.exists()) {
+      // hashed assets (index-<hash>.js) cache forever; everything else
+      // (index.html) must revalidate so new deploys are picked up.
+      const immutable = /assets\/.*-[A-Za-z0-9_-]+\.(js|css)$/.test(file);
+      return new Response(f, {
+        headers: {
+          "Cache-Control": immutable
+            ? "public, max-age=31536000, immutable"
+            : "no-cache",
+        },
+      });
+    }
+    return new Response(Bun.file(join(webRoot, "index.html")), {
+      headers: { "Cache-Control": "no-cache" },
+    }); // SPA fallback
   },
 });
 

@@ -27,13 +27,47 @@ interface RunHandle {
 export class JobEngine {
   private running = new Map<string, RunHandle>(); // drive_id -> handle
   private queue: { job: Job; mountPoint: string }[] = [];
+  private reaper: ReturnType<typeof setInterval> | null = null;
+  /** last progress touch per job id — lets the reaper tell live from lost */
+  private touched = new Map<string, number>();
 
   constructor(
     private cfg: CrateConfig,
     private db: DB,
     private guard: Guard,
     private emit: Emit,
-  ) {}
+  ) {
+    // Phantom-job reaper: if a 'running' row hasn't been touched in 2 min
+    // while no in-process handle owns it, the completion event was lost
+    // (crash, full server freeze). Mark it interrupted so the UI and the
+    // per-drive dup-check heal automatically.
+    this.reaper = setInterval(() => {
+      const cutoff = Date.now() - 120_000;
+      for (const [id, at] of this.touched) {
+        if (at < cutoff) this.touched.delete(id);
+      }
+      const orphans = this.db
+        .activeJobs()
+        .filter((j) => j.started_at && j.started_at < cutoff - 60_000)
+        .filter((j) => !this.running.has(j.drive_id))
+        .filter((j) => (this.touched.get(j.id) ?? 0) < cutoff);
+      for (const j of orphans) {
+        this.db.updateJob(j.id, {
+          status: "interrupted",
+          error: "job lost — completion event never delivered",
+          finished_at: Date.now(),
+        });
+        this.emit("job", this.db.getJob(j.id));
+      }
+      if (orphans.length)
+        console.log(`cratedeck: reaped ${orphans.length} phantom job(s)`);
+    }, 30_000);
+  }
+
+  /** Stop background work (SIGINT path). */
+  markTouched(jobId: string): void {
+    this.touched.set(jobId, Date.now());
+  }
 
   interlock(): { running: boolean; pid: number | null } {
     return rekordboxRunning();
@@ -202,13 +236,17 @@ export class JobEngine {
       force?: boolean,
     ) => void,
   ): Promise<unknown> {
-    // Lines from usb_verify/usb_mirror feed progress AND live status text.
-    // Every non-empty line updates the job message (throttled by SQLite write
-    // cost, not dropped) so the dock always shows what the script is doing.
+    // Live liveness tracking: touch on start + every 5s so the phantom-job
+    // reaper can distinguish "running" from "lost". Verify/mirror log lines
+    // ALSO update the job message live (throttled) — the dock shows exactly
+    // what the script is printing, when it prints it.
+    this.markTouched(job.id);
+    const heartbeat = setInterval(() => this.markTouched(job.id), 5_000);
     let lastMsg = 0;
     const log = (line: string, isError = false) => {
       const text = line.trim();
       if (!text) return;
+      this.markTouched(job.id);
       const p = progressFromLine(text);
       const now = Date.now();
       const isHeading = /^#{1,3} |===|^### /.test(text);
@@ -221,6 +259,27 @@ export class JobEngine {
         this.emit("job", this.db.getJob(job.id));
       }
     };
+    try {
+      return await this.executeInner(job, mountPoint, handle, tick, log);
+    } finally {
+      clearInterval(heartbeat);
+      this.touched.delete(job.id);
+    }
+  }
+
+  private async executeInner(
+    job: Job,
+    mountPoint: string,
+    handle: RunHandle,
+    tick: (
+      done: number,
+      total: number,
+      message: string,
+      phase: string,
+      force?: boolean,
+    ) => void,
+    log: (line: string, isError?: boolean) => void,
+  ): Promise<unknown> {
     switch (job.kind) {
       case "scan": {
         tick(0, 1, "walking filesystem…", "light-scan", true);
@@ -372,6 +431,7 @@ export class JobEngine {
   }
 
   async shutdown(): Promise<void> {
+    if (this.reaper) clearInterval(this.reaper);
     for (const h of this.running.values()) h.proc?.kill();
   }
 }

@@ -485,6 +485,23 @@ export class DB {
       .all() as Job[];
   }
 
+  /** Safety net for crashed/lost job completions: any 'running' job whose
+   *  row went stale (no heartbeat for staleMs) is marked interrupted. The
+   *  JobEngine calls this on a timer so a phantom "running 0%" can never
+   *  outlive the process that owns it. */
+  reapStaleRunning(staleMs: number): number {
+    const cutoff = Date.now() - staleMs;
+    const r = this.sqlite
+      .query(
+        `UPDATE jobs SET status='interrupted', finished_at=?, error=COALESCE(error,'job lost — server restarted or event stream dropped')
+         WHERE status IN ('queued','running') AND id IN (
+           SELECT id FROM jobs WHERE status IN ('queued','running') AND started_at IS NOT NULL AND started_at < ?
+         )`,
+      )
+      .run(Date.now(), cutoff);
+    return r.changes;
+  }
+
   activeJobOfKind(driveId: string, kind: JobKind): Job | null {
     return (
       (this.sqlite

@@ -86,14 +86,40 @@ export function DrivePage(props: {
 
   useEffect(() => {
     load();
-    // adaptive cadence: 2s while jobs run (live progress), 10s idle — an
-    // 80% request cut on the common idle path vs the old fixed 5s.
+    // adaptive cadence: 2s while jobs run (live progress), 10s idle. When a
+    // job looks stuck (running >90s with no progress change) do a full
+    // reload anyway — this is the self-heal for a lost SSE "done" event.
     let iv: ReturnType<typeof setTimeout>;
+    let lastSnapshot = "";
+    let stuckCount = 0;
     const loop = async () => {
-      const active = await fetch(`/api/jobs?drive=${driveId}&active=1`)
-        .then((r) => r.json())
-        .catch(() => []);
-      iv = setTimeout(loop, (active as unknown[]).length > 0 ? 2000 : 10000);
+      try {
+        const active = (await fetch(
+          `/api/jobs?drive=${encodeURIComponent(driveId)}&active=1`,
+        ).then((r) => r.json())) as Job[];
+        const n = Array.isArray(active) ? active.length : 0;
+        if (n > 0) {
+          // detect a stuck job: identical progress payload twice in a row
+          const sig = JSON.stringify(active.map((j) => [j.id, j.progress]));
+          stuckCount = sig === lastSnapshot ? stuckCount + 1 : 0;
+          lastSnapshot = sig;
+          // every job the server still calls active is authoritative — but
+          // if the server-side reaper already ended them, active=1 will
+          // stop returning them and we fall through to the idle path.
+          if (stuckCount >= 45) {
+            // ~90s frozen: force a full reload (also picks up final state)
+            stuckCount = 0;
+            lastSnapshot = "";
+            await load();
+          }
+        } else {
+          stuckCount = 0;
+          lastSnapshot = "";
+        }
+        iv = setTimeout(loop, n > 0 ? 2000 : 10000);
+      } catch {
+        iv = setTimeout(loop, 10000);
+      }
     };
     loop();
     return () => clearTimeout(iv);
