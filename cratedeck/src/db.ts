@@ -137,7 +137,10 @@ export class DB {
   }
 
   /** Called after each setSnapshot so history never grows unbounded. */
-  private pruneSnapshotsFor(driveId: string, max = MAX_SNAPSHOTS_PER_DRIVE): void {
+  private pruneSnapshotsFor(
+    driveId: string,
+    max = MAX_SNAPSHOTS_PER_DRIVE,
+  ): void {
     this.sqlite
       .query(
         `DELETE FROM snapshots WHERE drive_id=? AND taken_at NOT IN (
@@ -378,7 +381,12 @@ export class DB {
   /** Fine-grained progress update: fraction, human message, phase, ETA (s). */
   setJobProgress(
     id: string,
-    p: { progress?: number; message?: string; phase?: string; eta_seconds?: number | null },
+    p: {
+      progress?: number;
+      message?: string;
+      phase?: string;
+      eta_seconds?: number | null;
+    },
   ): void {
     this.sqlite
       .query(

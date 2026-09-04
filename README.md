@@ -132,6 +132,10 @@ bun run check       # typecheck + lint; bun test for the test suite
 # UI dev: cd cratedeck/web && bunx vite (proxy) · build: bun run web:build
 ```
 
+**CLI (agents + humans):** `bun run cratedeck/src/deckctl.ts status` —
+`status/drives/report/run/jobs/cancel/stop`, live progress + ETA on `run`,
+`--json` for machines. Guide: [cratedeck/deckctl.md](cratedeck/deckctl.md).
+
 ## Docs index
 
 | Doc | Purpose |

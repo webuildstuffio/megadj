@@ -127,52 +127,67 @@ export function DriveDrawer({
       </div>
 
       <div class="actions">
-        <button type="button" onClick={rename}>
-          Rename
+        <button
+          type="button"
+          onClick={rename}
+          title="Set a display name (kept forever, even when unplugged)"
+        >
+          ✎ Rename
         </button>
         <button
           type="button"
           class="primary"
           disabled={!detail?.drive.mounted || locked || busy === "scan"}
           onClick={() => run("scan")}
-          title={locked ? "rekordbox is running" : undefined}
+          title="Read all files + the rekordbox DB on this drive and refresh every stat. Read-only. ~10–60s."
         >
-          {busy === "scan" ? "Scanning…" : "Scan"}
+          {busy === "scan" ? "◌ Scanning…" : "▦ Scan"}
         </button>
         <button
           type="button"
           disabled={!detail?.drive.mounted || locked || busy === "verify"}
           onClick={() => run("verify")}
-          title={locked ? "rekordbox is running" : undefined}
+          title="Full data check: every file hash + DB integrity via usb_verify.py. Slow (minutes) — run before a gig."
         >
-          Verify
+          {busy === "verify" ? "◌ Verifying…" : "✓ Verify"}
         </button>
         <button
           type="button"
           disabled={!detail?.drive.mounted || locked || busy === "benchmark"}
           onClick={() => run("benchmark")}
+          title="Read-speed test (sequential + random 4k). Confirms the stick is fast enough for CDJs (≥30 MB/s)."
         >
-          Benchmark
+          {busy === "benchmark" ? "◌ Testing…" : "⚡ Benchmark"}
         </button>
         <button
           type="button"
           disabled={!detail?.drive.mounted || locked || busy === "checksum"}
           onClick={() => run("checksum")}
+          title="Seed/update the corruption ledger (blake2b per file). Re-runs only hash changed files. First run is slow."
         >
-          Checksum
+          {busy === "checksum" ? "◌ Hashing…" : "# Checksum"}
         </button>
-        <a class="btn" href={`/api/drives/${drive.id}/export`} download>
-          Export dossier
+        <a
+          class="btn"
+          href={`/api/drives/${drive.id}/export`}
+          download
+          title="Download everything known about this drive as JSON (report, timeline, benchmarks)"
+        >
+          ⬇ Export
         </a>
       </div>
       {locked && (
-        <div class="note bad-note">
-          Drive ops locked — rekordbox is running.
+        <div
+          class="note bad-note"
+          title="rekordbox holds the drive DBs open; editing them while it runs corrupts the library"
+        >
+          🔒 Drive ops locked — rekordbox is running. Quit it to unlock.
         </div>
       )}
       {!detail?.drive.mounted && (
         <div class="note">
-          Ghost view — data from the last scan. Plug it in to refresh.
+          👻 Ghost view — showing data from the last time this drive was plugged
+          in. Plug it in and run a Scan to refresh.
         </div>
       )}
 
@@ -353,24 +368,86 @@ export function DriveDrawer({
 
 function OverallPill({ verdict }: { verdict?: string }) {
   const v = verdict ?? "unknown";
-  return <span class={`pill ${v}`}>{v}</span>;
+  const icon =
+    { healthy: "●", attention: "▲", critical: "✕", unknown: "○" }[v] ?? "○";
+  return (
+    <span class={`pill ${v}`} title={`Overall verdict: ${v}`}>
+      {icon} {v}
+    </span>
+  );
 }
 
+/** Why a check isn't passing — plain-language, per status. */
+const WHY: Record<string, { warn: string; fail: string; unknown: string }> = {
+  "dual-db": {
+    warn: "Legacy players read the old pdb DB; a mismatch means they'd see a stale library.",
+    fail: "Legacy players (XDJ-XZ, older CDJs) will see a different library than newer gear.",
+    unknown: "Needs a full Scan (with rekordbox closed) to compare both DBs.",
+  },
+  grids: {
+    warn: "Some tracks lack beatgrids — they'll need analysis before hot cues/loop work.",
+    fail: "Many tracks have no beatgrids — expected gapless/beatjump won't work on them.",
+    unknown: "Beatgrid coverage comes from a full Scan.",
+  },
+  verify: {
+    warn: "Library changed since the last verify, or the verify is getting old.",
+    fail: "The last verify found problems — don't trust this drive for a gig yet.",
+    unknown: "This drive has never been fully verified.",
+  },
+  bitrot: {
+    warn: "Checksum ledger is getting stale — re-run Checksum to re-confirm.",
+    fail: "Files differ from their recorded hashes — silent corruption. Replace them.",
+    unknown: "Run Checksum once to seed corruption tracking.",
+  },
+  junk: {
+    warn: "Junk files can crash older CDJ firmware or double-count tracks.",
+    fail: "Junk files can crash older CDJ firmware or double-count tracks.",
+    unknown: "Junk info comes from a Scan.",
+  },
+  space: {
+    warn: "rekordbox needs headroom for ANLZ files and DB WAL — below 15% is risky.",
+    fail: "Critically full — rekordbox syncs will fail or corrupt.",
+    unknown: "Space is measured on each Scan.",
+  },
+  dupes: {
+    warn: "Two paths differ only by case — FAT32 sees them as one file, rekordbox may double-count.",
+    fail: "Two paths differ only by case — FAT32 sees them as one file, rekordbox may double-count.",
+    unknown: "Dupe detection runs on Scan.",
+  },
+  artwork: {
+    warn: "Some tracks are missing cover art — shows blank on players.",
+    fail: "Many tracks missing artwork — browsing on the player looks broken.",
+    unknown: "Artwork coverage comes from a full Scan.",
+  },
+  mirror: {
+    warn: "Mirror is behind the master — run the mirror sync to converge.",
+    fail: "Mirror is badly behind the master — it is NOT a safe backup right now.",
+    unknown: "Needs scans of both master and mirror.",
+  },
+  speed: {
+    warn: "Slower than ideal — may buffer-stall on high-bitrate tracks.",
+    fail: "Too slow for CDJs — likely fake-capacity or failing stick. Replace it.",
+    unknown: "Run a Benchmark to measure read speed.",
+  },
+};
+
 function CheckRow({ c }: { c: HealthCheck }) {
+  const why = c.status !== "pass" ? WHY[c.id]?.[c.status] : undefined;
   return (
     <div class={`check ${c.status}`}>
-      <span class="check-ico">
+      <span class="check-ico" title={c.status}>
         {c.status === "pass"
           ? "✓"
           : c.status === "warn"
-            ? "!"
+            ? "▲"
             : c.status === "fail"
               ? "✕"
-              : "?"}
+              : "○"}
       </span>
       <span class="check-body">
         <b>{c.label}</b>
         <span class="check-detail">{c.detail}</span>
+        {why && <span class="check-why">{why}</span>}
         {c.fix && <span class="check-fix">→ {c.fix}</span>}
       </span>
     </div>

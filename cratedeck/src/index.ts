@@ -168,6 +168,16 @@ Bun.serve({
           const lock = jobs.interlock();
           return json({ rekordbox_running: lock.running, pid: lock.pid });
         }
+        if (route === "/stop" && req.method === "POST") {
+          // graceful: stop watcher + jobs, then exit (used by deckctl stop)
+          setTimeout(async () => {
+            watcher.stop();
+            await jobs.shutdown();
+            db.close();
+            process.exit(0);
+          }, 50);
+          return json({ ok: true });
+        }
         if (
           route === "/events" &&
           req.headers.get("accept")?.includes("event-stream")

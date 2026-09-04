@@ -330,6 +330,19 @@
   background: var(--good);
   transition: width 0.3s;
 }
+.jobmsg {
+  color: var(--muted);
+}
+.jobpct {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.check-why {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
 
 .search-results {
   position: absolute;

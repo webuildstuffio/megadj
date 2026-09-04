@@ -5,6 +5,7 @@ import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Guard } from "./guard";
 import type { Job, JobKind } from "../shared/types";
+import { fmtBytes } from "../shared/fmt";
 import { benchmarkDrive, checksumLedger } from "./bench";
 import {
   progressFromLine,
@@ -125,8 +126,43 @@ export class JobEngine {
     this.db.updateJob(job.id, { status: "running", started_at: Date.now() });
     this.emit("job", this.db.getJob(job.id));
 
+    // Throttled progress pipe: coalesces bursts to ≤4 writes/s and derives a
+    // rolling ETA from observed throughput. Keeps SSE + UI live without
+    // hammering SQLite.
+    let lastWrite = 0;
+    let lastCount = 0;
+    let lastTime = 0;
+    let etaS: number | null = null;
+    const tick = (
+      done: number,
+      total: number,
+      message: string,
+      phase: string,
+      force = false,
+    ) => {
+      const now = Date.now();
+      const p = total > 0 ? Math.min(1, done / total) : 0;
+      if (!force && now - lastWrite < 250) return;
+      if (lastCount > 0 && now > lastTime) {
+        const rate = (done - lastCount) / ((now - lastTime) / 1000);
+        if (rate > 0) etaS = Math.round((total - done) / rate);
+      }
+      lastWrite = now;
+      if (lastCount === 0 || now - lastTime > 1000) {
+        lastCount = done;
+        lastTime = now;
+      }
+      this.db.setJobProgress(job.id, {
+        progress: p,
+        message,
+        phase,
+        eta_seconds: etaS,
+      });
+      this.emit("job", this.db.getJob(job.id));
+    };
+
     try {
-      const result = await this.execute(job, mountPoint, handle);
+      const result = await this.execute(job, mountPoint, handle, tick);
       this.db.updateJob(job.id, {
         status: handle.cancelled ? "cancelled" : "done",
         progress: 1,
@@ -152,18 +188,28 @@ export class JobEngine {
     job: Job,
     mountPoint: string,
     handle: RunHandle,
+    tick: (
+      done: number,
+      total: number,
+      message: string,
+      phase: string,
+      force?: boolean,
+    ) => void,
   ): Promise<unknown> {
+    // percent-style lines from usb_verify/usb_mirror still feed progress
     const log = (line: string) => {
-      // lightweight progress: parse percent-style lines
       const p = progressFromLine(line);
       if (p !== null) {
-        this.db.updateJob(job.id, { progress: p });
+        this.db.setJobProgress(job.id, {
+          progress: p,
+          message: line.trim().slice(0, 120),
+        });
         this.emit("job", this.db.getJob(job.id));
       }
     };
-
     switch (job.kind) {
       case "scan": {
+        tick(0, 1, "walking filesystem…", "light-scan", true);
         const light = scanVolume(mountPoint);
         this.db.setSnapshot(job.drive_id, light);
         this.db.event(job.drive_id, "scan", {
@@ -173,6 +219,7 @@ export class JobEngine {
         let full = false;
         // full (rekordbox) scan in same job when a device DB exists
         try {
+          tick(0.5, 1, "reading rekordbox database…", "full-scan", true);
           const fullSnap = await rbSnapshot(this.cfg, this.guard, mountPoint);
           // merge: full gives DJ/DB data, light keeps filesystem truth
           this.db.setSnapshot(job.drive_id, {
@@ -196,10 +243,18 @@ export class JobEngine {
           if ((e as Error).message.startsWith("REKORDBOX_RUNNING")) throw e;
           // no device DB / parse error: light scan is the answer
         }
+        tick(
+          1,
+          1,
+          full ? "scan complete" : "light scan complete",
+          "done",
+          true,
+        );
         return { light: true, full };
       }
       case "verify": {
         const name = basename(mountPoint);
+        tick(0, 1, `verifying ${name} via usb_verify.py…`, "verify", true);
         const proc = spawnVerify(this.cfg, [name]);
         handle.proc = proc;
         const verdict = await drain(
@@ -211,24 +266,29 @@ export class JobEngine {
         const pass =
           /ALL PASS|all data checks PASS/i.test(verdict.out) &&
           proc.exitCode === 0;
+        tick(1, 1, pass ? "verify passed" : "verify FAILED", "done", true);
         return {
           verdict: pass ? "pass" : "fail",
           summary: lastLines(verdict.out, 20),
         };
       }
       case "mirror": {
+        tick(0, 1, "mirroring to DJMIRROR…", "mirror", true);
         const proc = spawnMirror(this.cfg, []);
         handle.proc = proc;
         const res = await drain(proc, log, handle);
+        tick(1, 1, "mirror finished", "done", true);
         return { summary: lastLines(res.out, 20) };
       }
       case "benchmark": {
+        tick(0, 1, "reading largest files sequentially…", "bench-seq", true);
         const r = benchmarkDrive(mountPoint, this.cfg.benchmarkMb);
         this.db.addBenchmark(job.drive_id, r.seq_mbps, r.rand4k_mbps);
         this.db.event(job.drive_id, "benchmark", {
           seq: r.seq_mbps,
           rand4k: r.rand4k_mbps,
         });
+        tick(1, 1, `${r.seq_mbps} MB/s sequential`, "done", true);
         return r;
       }
       case "checksum": {
@@ -239,6 +299,13 @@ export class JobEngine {
           mountPoint,
           8 * 1024 * 1024 * 1024,
           handle,
+          (done, total, bytes) =>
+            tick(
+              done,
+              total,
+              `hashing ${done.toLocaleString()}/${total.toLocaleString()} files (${fmtBytes(bytes)})`,
+              "checksum",
+            ),
         );
         this.db.event(job.drive_id, "checksum", {
           hashed: r.hashed,
@@ -249,6 +316,15 @@ export class JobEngine {
             paths: r.changed.slice(0, 50),
           });
         }
+        tick(
+          1,
+          1,
+          r.changed.length
+            ? `${r.changed.length} file(s) changed vs ledger`
+            : `${r.hashed.toLocaleString()} files clean`,
+          "done",
+          true,
+        );
         return r;
       }
     }

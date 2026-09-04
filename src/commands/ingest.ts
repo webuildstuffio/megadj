@@ -37,7 +37,7 @@ export interface IngestOptions {
 
 const AUDIO_EXTS = new Set([".m4a", ".mp3", ".wav", ".flac", ".aiff", ".aif"]);
 /** Containers that reliably hold embedded artwork. */
-const ARTWORK_EXTS = new Set([".m4a", ".mp3", ".flac", ".aiff", ".aif"]);
+const ARTWORK_EXTS = new Set([".m4a", ".mp3", ".flac", ".aiff", ".aif", ".wav"]);
 const LOSSLESS = new Set([".wav", ".flac", ".aiff", ".aif"]);
 const MB_UA = "megadj/0.1 (https://github.com/megadj/megadj)";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -340,8 +340,29 @@ async function embedArtwork(
     const buf = new Uint8Array(await res.arrayBuffer());
     if (buf.length < 1000) return false;
     await Bun.write(img, buf);
-    const args =
-      extname(filePath).toLowerCase() === ".mp3" ? ["-id3v2_version", "3"] : [];
+    // WAV: ffmpeg's wav muxer can't carry attached_pic — use mutagen APIC
+    if (extname(filePath).toLowerCase() === ".wav") {
+      const script = `
+from mutagen.wave import WAVE
+from mutagen.id3 import ID3, APIC
+a = WAVE(${JSON.stringify(filePath)})
+try:
+    a.add_tags()
+except Exception:
+    pass
+if not isinstance(a.tags, ID3):
+    a.tags = ID3()
+a.tags.add(APIC(encoding=3, mime="image/jpeg", type=3, desc="Cover", data=open(${JSON.stringify(img)}, "rb").read()))
+a.save()
+print("ok")`;
+      const proc =
+        await $`uv run --with mutagen python -c ${script}`.quiet().nothrow();
+      return (
+        proc.exitCode === 0 &&
+        proc.stdout.toString().trim().includes("ok")
+      );
+    }
+    const args = extname(filePath).toLowerCase() === ".mp3" ? ["-id3v2_version", "3"] : [];
     const proc =
       await $`ffmpeg -y -hide_banner -loglevel error -i ${filePath} -i ${img} -map 0:a -map 1:v -c:a copy -c:v mjpeg -disposition:v:0 attached_pic ${args} ${tmp}`
         .quiet()
@@ -352,6 +373,80 @@ async function embedArtwork(
     await $`rm -f ${img}`.quiet().nothrow();
   }
 }
+
+/**
+ * Expand .zip files in the folder: extract to a temp dir, hand audio files
+ * to the caller, delete the zip only after every extracted audio file was
+ * successfully ingested (moved into the archive) — no duplicates, no data
+ * loss on partial failure.
+ */
+async function expandZips(
+  folder: string,
+  dryRun: boolean | undefined,
+  log: (m: string) => void,
+): Promise<void> {
+  let zips: string[] = [];
+  try {
+    zips = (await readdir(folder, { withFileTypes: true }))
+      .filter(
+        (e) =>
+          e.isFile() &&
+          !e.name.startsWith(".") &&
+          extname(e.name).toLowerCase() === ".zip",
+      )
+      .map((e) => join(folder, e.name));
+  } catch {
+    return;
+  }
+  for (const zip of zips) {
+    const stage = join(folder, `.megadj-zip-${basename(zip, ".zip")}-${Date.now()}`);
+    log(`zip: ${basename(zip)}`);
+    if (dryRun) {
+      log(`  [zip] would extract + ingest (delete zip on success)`);
+      continue;
+    }
+    try {
+      await mkdir(stage, { recursive: true });
+      const un =
+        await $`ditto -x -k ${zip} ${stage}`.quiet().nothrow();
+      if (un.exitCode !== 0) {
+        log(`  ✗ zip extract failed — left in place: ${basename(zip)}`);
+        continue;
+      }
+      // flatten nested structure into the stage dir root
+      const inner = await walkAudio(stage);
+      log(`  ${inner.length} audio file(s) inside`);
+      if (inner.length === 0) {
+        log(`  ~ no audio in zip — left in place`);
+        continue;
+      }
+      // move audio up next to the zip so the normal pipeline picks it up
+      const stagedNames: string[] = [];
+      for (const f of inner) {
+        const dest = join(folder, basename(f));
+        if (existsSync(dest)) {
+          const a = await stat(f);
+          const b = await stat(dest);
+          if (a.size === b.size) continue; // identical dupe — drop
+        }
+        try {
+          await rename(f, dest);
+        } catch {
+          await copyFile(f, dest);
+        }
+        stagedNames.push(basename(f));
+      }
+      await $`rm -rf ${stage}`.quiet().nothrow();
+      pendingZipDeletes.set(zip, stagedNames);
+    } catch (err) {
+      log(`  ✗ zip error, left in place: ${basename(zip)}`);
+      await $`rm -rf ${stage}`.quiet().nothrow();
+    }
+  }
+}
+
+/** zip → basenames staged from it (zip deleted only after all are ingested). */
+const pendingZipDeletes = new Map<string, string[]>();
 
 async function walkAudio(
   dir: string,
@@ -436,6 +531,11 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     [quarantineDir, join(opts.musicDir, "rekordbox")],
   );
   log(`${files.length} audio file(s) under ${opts.folder}`);
+
+  // Zips in the folder: extract audio next to them so the pipeline below
+  // picks it up; the zip itself is deleted only after every staged file
+  // is safely in the archive.
+  await expandZips(opts.folder, opts.dryRun, log);
 
   // ---- Phase A: probe everything -------------------------------------
   const records: Record_[] = [];
@@ -666,7 +766,9 @@ export async function ingest(opts: IngestOptions): Promise<void> {
 
     if (opts.dryRun) continue;
 
-    // Register + copy into the music dir (unless already there).
+    // Register + move into the music dir (unless already there).
+    // Sources are moved (not copied) once the copy into the archive
+    // succeeds, so Downloads doesn't fill with duplicate copies.
     const extId = `ext-${createHash("sha1").update(file).digest("hex").slice(0, 12)}`;
     let destPath = join(opts.musicDir, basename(file));
     if (!file.startsWith(opts.musicDir)) {
@@ -683,6 +785,13 @@ export async function ingest(opts: IngestOptions): Promise<void> {
           /* dest missing — normal path */
         }
         await copyFile(file, destPath);
+        // success: remove the source so nothing is left duplicated
+        try {
+          await rename(file, `${file}.ingested`);
+          await $`rm -f ${`${file}.ingested`}`.quiet().nothrow();
+        } catch {
+          /* keep source if we can't even mark it — copy already succeeded */
+        }
       }
     } else {
       destPath = file;
@@ -767,4 +876,28 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     log(`duplicates moved to: ${quarantineDir}`);
   if (broken.length > 0)
     log(`broken files:\n  ${broken.map((b) => basename(b)).join("\n  ")}`);
+
+  // Zips: delete only when EVERY file staged from them has left the source
+  // folder (i.e. was moved into the archive or quarantined as a dupe).
+  // Anything skipped/broken keeps its zip on disk — no data loss.
+  if (!opts.dryRun && pendingZipDeletes.size > 0) {
+    for (const [zip, staged] of pendingZipDeletes) {
+      const allHandled = staged.every(
+        (name) =>
+          !existsSync(join(opts.folder, name)) &&
+          (existsSync(join(opts.musicDir, name)) ||
+            existsSync(join(quarantineDir, name))),
+      );
+      if (allHandled) {
+        const del = await $`rm -f ${zip}`.quiet().nothrow();
+        log(
+          del.exitCode === 0
+            ? `zip ✓ fully ingested — removed: ${basename(zip)}`
+            : `zip ✓ fully ingested (zip delete failed): ${basename(zip)}`,
+        );
+      } else {
+        log(`zip kept (some files not fully ingested): ${basename(zip)}`);
+      }
+    }
+  }
 }

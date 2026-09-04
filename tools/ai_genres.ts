@@ -17,7 +17,7 @@ const db = new Database(`${home}/.local/state/megadj/archive.db`);
 const API_KEY = process.env.OPENROUTER_API_KEY;
 const MODEL = (() => {
   const i = process.argv.indexOf("--model");
-  return i > -1 ? process.argv[i + 1] : "google/gemini-2.5-flash-lite";
+  return i > -1 ? process.argv[i + 1] : "google/gemini-2.5-flash-lite"; // $0.10/M in — cheapest solid
 })();
 const MIN_CONF = (() => {
   const i = process.argv.indexOf("--min-conf");

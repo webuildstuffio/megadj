@@ -6,8 +6,24 @@ import type {
   PortInfo,
   SearchResult,
 } from "../shared/types";
+import type { JobKind } from "../shared/types";
 import { DriveCard } from "./DriveCard";
 import { DriveDrawer } from "./DriveDrawer";
+
+/** Icons so each job kind is recognizable at a glance. */
+const JOB_ICON: Record<JobKind, string> = {
+  scan: "▦",
+  verify: "✓",
+  mirror: "⇄",
+  benchmark: "⚡",
+  checksum: "#",
+};
+
+function fmtEta(s: number): string {
+  if (s < 90) return `${Math.round(s)}s`;
+  if (s < 5400) return `${Math.round(s / 60)}m`;
+  return `${(s / 3600).toFixed(1)}h`;
+}
 
 export function App() {
   const [drives, setDrives] = useState<DriveCardData[]>([]);
@@ -190,18 +206,42 @@ export function App() {
         <div class="jobtray">
           {jobs
             .filter((j) => j.status === "running" || j.status === "queued")
-            .map((j) => (
-              <span class="jobchip" key={j.id}>
-                <span class="spin">◌</span> {j.kind} ·{" "}
-                {drives.find((d) => d.id === j.drive_id)?.nickname ??
-                  drives.find((d) => d.id === j.drive_id)?.name}
-                {j.status === "running" && (
-                  <span class="progressbar">
-                    <i style={{ width: `${Math.round(j.progress * 100)}%` }} />
-                  </span>
-                )}
-              </span>
-            ))}
+            .map((j) => {
+              const drv = drives.find((d) => d.id === j.drive_id);
+              return (
+                <span class="jobchip" key={j.id} title={j.message ?? j.kind}>
+                  <span class="spin">◌</span>{" "}
+                  <b>
+                    {JOB_ICON[j.kind] ?? ""} {j.kind}
+                  </b>{" "}
+                  · {drv?.nickname ?? drv?.name ?? "…"}
+                  {j.message && (
+                    <span class="jobmsg">
+                      {" "}
+                      —{" "}
+                      {j.message.length > 44
+                        ? j.message.slice(0, 44) + "…"
+                        : j.message}
+                    </span>
+                  )}
+                  {j.status === "running" && (
+                    <>
+                      <span class="progressbar">
+                        <i
+                          style={{ width: `${Math.round(j.progress * 100)}%` }}
+                        />
+                      </span>
+                      <span class="jobpct">
+                        {j.eta_seconds != null
+                          ? `${Math.round(j.progress * 100)}% · ~${fmtEta(j.eta_seconds)} left`
+                          : `${Math.round(j.progress * 100)}%`}
+                      </span>
+                    </>
+                  )}
+                  {j.status === "queued" && <span class="jobpct">queued…</span>}
+                </span>
+              );
+            })}
         </div>
       )}
     </div>

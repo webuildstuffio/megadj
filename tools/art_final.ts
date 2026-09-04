@@ -91,6 +91,7 @@ interface ScHit {
   thumbnail: string | null;
   uploader: string | null;
   title: string;
+  genre?: string;
 }
 
 function cleanQuery(artist: string, title: string): string {
@@ -117,7 +118,7 @@ async function scSearch(artist: string, title: string): Promise<ScHit[]> {
         "yt-dlp",
         "--flat-playlist",
         "--print",
-        "COL|%(title).60s|%(webpage_url)s|%(uploader)s|%(thumbnails).600s",
+        "COL|%(title).60s|%(webpage_url)s|%(uploader)s|%(thumbnails).600s|%(genre)s",
         `scsearch4:${q}`,
       ],
       stdout: "pipe",
@@ -133,7 +134,7 @@ async function scSearch(artist: string, title: string): Promise<ScHit[]> {
     if (!line.startsWith("COL|")) continue;
     const parts = line.slice(4).split("|");
     if (parts.length < 5) continue;
-    const [t, url, uploader, , thumbsRaw] = parts;
+    const [t, url, uploader, , thumbsRaw, genre] = parts;
     if (!url.includes("soundcloud.com")) continue;
     const m = thumbsRaw?.match(
       /https:\/\/i1\.sndcdn\.com\/artworks[^\s',]+t500x500\.jpg/,
@@ -143,6 +144,7 @@ async function scSearch(artist: string, title: string): Promise<ScHit[]> {
       thumbnail: m?.[0] ?? null,
       uploader: uploader || null,
       title: t,
+      genre: genre && genre !== "NA" ? genre : undefined,
     });
   }
   return hits;
@@ -160,9 +162,10 @@ function matchScore(hit: ScHit, r: Row): number {
   const tWords = words(r.title);
   const hWords = words(hit.title);
   const titleOverlap = tWords.filter((w) => hWords.includes(w)).length;
+  const artist0 = (r.artist ?? "unknown").split(/[,&]/)[0].trim().toLowerCase();
   const artistOK = (hit.uploader ?? "")
     .toLowerCase()
-    .includes(r.artist.split(/[,&]/)[0].trim().toLowerCase().slice(0, 8));
+    .includes(artist0.slice(0, 8));
   return titleOverlap * 2 + (artistOK ? 1 : 0);
 }
 
@@ -180,9 +183,45 @@ async function fetchImage(url: string): Promise<Uint8Array | null> {
   }
 }
 
-async function soundcloudSource(
+/**
+ * hypedditSource — these DJ gateways embed og:image with the release cover
+ * and usually carry the SC/YouTube landing links. Feeds the raw gateway URL
+ * back for provenance.
+ */
+async function hypedditSource(
   r: Row,
 ): Promise<{ bytes: Uint8Array; note: string } | null> {
+  // No URL in DB: try DuckDuckGo HTML for "<artist> <title> hypeddit"
+  const q = encodeURIComponent(`${r.artist} ${r.title} hypeddit OR hyperfollow`);
+  try {
+    const res = await fetch(`https://html.duckduckgo.com/html/?q=${q}`, {
+      headers: { ...UA, "Content-Type": "application/x-www-form-urlencoded" },
+      signal: AbortSignal.timeout(10000),
+    });
+    const html = await res.text();
+    const re =
+      /href="[^"]*(https?:\/\/(?:www\.)?(?:hypeddit|hyperfollow|fruitbat)\.com\/[^"&]+)/g;
+    const links = [...html.matchAll(re)].map((m) => m[1]);
+    for (const link of links.slice(0, 3)) {
+      try {
+        const page = await fetch(link, { headers: UA, signal: AbortSignal.timeout(10000) });
+        if (!page.ok) continue;
+        const body = await page.text();
+        const og =
+          body.match(/<meta\s+property="og:image"\s+content="([^"]+)"/)?.[1] ??
+          body.match(/<meta\s+content="([^"]+)"\s+property="og:image"/)?.[1];
+        if (!og) continue;
+        const bytes = await fetchImage(og);
+        if (bytes) return { bytes, note: link };
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
+
+async function soundcloudSource(
+  r: Row,
+): Promise<{ bytes: Uint8Array; note: string; genre?: string } | null> {
   const hits = await scSearch(r.artist, r.title);
   if (!hits.length) return null;
   let best: ScHit | null = null;
@@ -196,10 +235,11 @@ async function soundcloudSource(
   }
   if (!best || !best.thumbnail) return null;
   const bytes = await fetchImage(best.thumbnail);
-  return bytes ? { bytes, note: `sc:${best.webpage_url}` } : null;
+  return bytes ? { bytes, note: `sc:${best.webpage_url}`, genre: best.genre } : null;
 }
 
-// ---------- source 2: mp3 twin ----------
+// ---------- source 2: gateway pages (hypeddit / hyperfollow) ----------
+// ---------- source 3: mp3 twin ----------
 function twinArt(r: Row): Uint8Array | null {
   const stem = basename(r.file_path)
     .replace(/\.\w+$/i, "")
@@ -242,7 +282,7 @@ function twinArt(r: Row): Uint8Array | null {
   return null;
 }
 
-// ---------- sources 3+4: deezer / itunes ----------
+// ---------- sources 4+5: deezer / itunes ----------
 async function deezerSource(r: Row): Promise<Uint8Array | null> {
   try {
     const q = encodeURIComponent(`artist:"${r.artist}" track:"${r.title}"`);
@@ -345,28 +385,34 @@ interface Job {
 
 async function processJob(
   job: Job,
-): Promise<{ ok: boolean; source: string; scUrl?: string }> {
+): Promise<{ ok: boolean; source: string; scUrl?: string; genre?: string }> {
   const { row } = job;
-  // 1. SoundCloud
+  // 1. SoundCloud (art + genre)
   const sc = await soundcloudSource(row);
   if (sc && embedArt(row.file_path, sc.bytes)) {
     return {
       ok: true,
       source: "soundcloud",
       scUrl: sc.note.replace(/^sc:/, ""),
+      genre: sc.genre,
     };
   }
-  // 2. twin
+  // 2. gateway pages (hypeddit/hyperfollow) — where DJ free downloads live
+  const hy = await hypedditSource(row);
+  if (hy && embedArt(row.file_path, hy.bytes)) {
+    return { ok: true, source: "gateway", scUrl: hy.note };
+  }
+  // 3. twin
   const twin = twinArt(row);
   if (twin && embedArt(row.file_path, twin)) {
     return { ok: true, source: "mp3-twin" };
   }
-  // 3. deezer
+  // 4. deezer
   const dz = await deezerSource(row);
   if (dz && embedArt(row.file_path, dz)) {
     return { ok: true, source: "deezer" };
   }
-  // 4. itunes
+  // 5. itunes
   const it = await itunesSource(row);
   if (it && embedArt(row.file_path, it)) {
     return { ok: true, source: "itunes" };
@@ -418,6 +464,12 @@ async function main() {
           job.row.video_id,
         );
         if (res.scUrl) scUrls.push([job.row.video_id, res.scUrl]);
+        if (res.genre) {
+          db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
+            res.genre,
+            job.row.video_id,
+          );
+        }
         console.log(`  [${i + 1}/${jobs.length}] ✓ ${res.source}: ${name}`);
       } else {
         failCount++;

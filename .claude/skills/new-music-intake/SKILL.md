@@ -39,28 +39,45 @@ bun src/cli.ts ingest ~/Downloads             # execute
 ```
 
 It probes, dedupes (quality rules, `(1)`-dupe detection, losers moved to
-`<folder>/ingest-duplicates/` — never delete source files), merges tags with
-filename parsing, fills artist/album from MusicBrainz, infers genre, gates
-sub-60s clips, energy-rates, bootleg-aware tags (remixer in version tag,
-grouping = genre), copies into `~/Music/DJ-Imports` flat, registers in DB.
+`<folder>/ingest-duplicates/`), merges tags with filename parsing, fills
+artist/album from MusicBrainz, infers genre, gates sub-60s clips,
+energy-rates, bootleg-aware tags (remixer in version tag, grouping =
+genre), copies into `~/Music/DJ-Imports` flat, registers in DB.
+
+**Zips are built in:** every `*.zip` in the folder is extracted, its audio
+staged next to it and ingested. The zip is **deleted only after every file
+from it landed in the archive or quarantine** — anything skipped/broken
+keeps the zip on disk. Sources (loose files too) are **moved, not copied**:
+after a successful copy into the archive the original in Downloads is
+removed, so nothing duplicates.
+
+**WAVs get artwork now:** ingest embeds via mutagen APIC (ffmpeg's wav
+muxer can't carry attached_pic).
 
 ## Step 3 — Artwork: `tools/art_final.ts` (production, parallel)
 
 Multi-source, 8 workers, ground-truth art detection (ffprobe/mutagen, not
 the DB). Sources in order: **SoundCloud** (yt-dlp `scsearch4:` resolves the
-permalink + genre; embeds t500x500) → **mp3-twin** → **Deezer** cover_xl →
-**iTunes** 600px → leftovers appended to `artwork-queue.jsonl` for AI.
+permalink + genre; embeds t500x500) → **hypeddit/hyperfollow gateways**
+(og:image scrape) → **mp3-twin** → **Deezer** cover_xl → **iTunes** 600px →
+leftovers appended to `artwork-queue.jsonl` for AI.
+
+For stubborn tracks `tools/sc_art_direct.ts` goes deeper: resolves the SC
+page and pulls the og:image directly — this recovered 44 covers that flat
+search missed (the "original artwork from where we got the wav" pass).
 
 ```bash
 cd ~/github/megadj
 bun tools/art_final.ts            # fill files missing art
 bun tools/art_final.ts --all      # overwrite everywhere (SC-first)
-bun tools/art_final.ts --jobs 8   # more workers
+bun tools/sc_art_direct.ts        # deep SC page scrape for the rest
 ```
 
 WAV embedding: mutagen APIC (ID3v2 in WAV works; ffmpeg's wav muxer canNOT
 carry attached_pic). mp3/m4a: ffmpeg attached_pic. Also writes the SC
 permalink into `format_id` for provenance, and SC's genre into the DB.
+**No AI-generated covers by default** — real artwork gets scraped first;
+AI (`megadj artwork`) is the last resort only.
 
 ## Step 3b — AI covers for bootlegs with no cover anywhere
 
@@ -73,18 +90,15 @@ bun src/cli.ts artwork --dry-run    # preview prompts
 bun src/cli.ts artwork              # generate + embed (bounded batch)
 ```
 
-## Step 3c — Genres at scale: `tools/ai_genres.ts`
+## Step 3c — Genres at scale: `tools/sc_genres.ts` + `tools/ai_genres.ts`
 
-OpenRouter mini-model, 20 tracks/request, strict JSON out. Only applies
-labels with confidence ≥ 0.7. Requires `OPENROUTER_API_KEY` with credit.
-
-```bash
-bun tools/ai_genres.ts                        # default gemini-flash-lite
-bun tools/ai_genres.ts --min-conf 0.8         # stricter
-```
-
-Between passes: SC genre tags (`#house` style) + iTunes `primaryGenreName`
-cover most mainstream tracks; the classifier mops up the rest.
+1. `bun tools/sc_genres.ts` — SC genre tags (#house style) via yt-dlp, 6
+   parallel workers, fuzzy match gate.
+2. `bun tools/sync_genres.ts` — normalize SC's freeform labels to the
+   canonical taxonomy and push DB genre into every file's tags.
+3. `bun tools/ai_genres.ts` — OpenRouter classifier (default
+   `google/gemini-2.5-flash-lite`, ~$0.10/M in — pennies per full pass,
+   20 tracks/request, confidence ≥ 0.7 gate) for whatever's left.
 
 ## Step 4 — Onto the USB drives
 

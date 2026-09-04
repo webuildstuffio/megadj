@@ -82,6 +82,7 @@ export function benchmarkDrive(mountPoint: string, capMb: number): BenchResult {
 export interface ChecksumResult {
   hashed: number;
   changed: string[]; // path differs from ledger = corrupted or modified
+  bytes_hashed: number;
 }
 
 export async function checksumLedger(
@@ -91,29 +92,40 @@ export async function checksumLedger(
   mountPoint: string,
   maxBytes = 8 * 1024 * 1024 * 1024,
   signal?: { cancelled: boolean },
+  onProgress?: (done: number, total: number, bytes: number) => void,
 ): Promise<ChecksumResult> {
   const files = biggestFiles(mountPoint, Infinity, maxBytes);
   const changed: string[] = [];
   let hashed = 0;
+  let bytesHashed = 0;
   for (const f of files) {
     if (signal?.cancelled) break;
     const rel = f.startsWith(mountPoint) ? f.slice(mountPoint.length + 1) : f;
     const st = statSync(f);
     const prev = db.ledgerGet(driveId, rel);
     const mtime = Math.floor(st.mtimeMs);
+    const needsHash = !prev || prev.size !== st.size || prev.mtime !== mtime;
     if (!prev) {
       // first sighting — hash and seed the ledger
-      db.ledgerPut(driveId, rel, st.size, mtime, await hashFileAsync(f));
+      db.ledgerPut(
+        driveId,
+        rel,
+        st.size,
+        mtime,
+        await hashFileAsync(f, signal),
+      );
     } else if (prev.size !== st.size || prev.mtime !== mtime) {
       // metadata changed since the stored hash — re-hash and compare
-      const fresh = await hashFileAsync(f);
+      const fresh = await hashFileAsync(f, signal);
       if (fresh !== prev.hash) changed.push(rel);
       db.ledgerPut(driveId, rel, st.size, mtime, fresh);
     }
     // unchanged files (size+mtime match) are trusted without a re-read
     hashed++;
+    if (needsHash) bytesHashed += st.size;
+    onProgress?.(hashed, files.length, bytesHashed);
   }
-  return { hashed, changed };
+  return { hashed, changed, bytes_hashed: bytesHashed };
 }
 
 export function hashFile(path: string): string {
@@ -142,7 +154,8 @@ export async function hashFileAsync(
     if (signal?.cancelled) break;
     h.update(chunk as Buffer);
     // yield periodically — a full 8GB pass must not starve the server
-    if ((hashedCounter++ & 0x3f) === 0) await new Promise((r) => setTimeout(r, 0));
+    if ((hashedCounter++ & 0x3f) === 0)
+      await new Promise((r) => setTimeout(r, 0));
   }
   return h.digest("hex");
 }
