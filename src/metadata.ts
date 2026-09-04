@@ -29,6 +29,8 @@ export interface EnrichedMetadata {
   remixer?: string | null;
   /** Style/scene grouping (rekordbox reads grouping) for library filters. */
   grouping?: string | null;
+  /** MusicBrainz recording MBID — provenance for future enrichment passes. */
+  mbid?: string | null;
 }
 
 export interface YtdlpInfo {
@@ -190,6 +192,9 @@ export async function applyTags(
   // arbitrary -metadata but players ignore it; harmless to write.
   if (meta.remixer) args.push("-metadata", `version=${meta.remixer}`);
   if (meta.grouping) args.push("-metadata", `grouping=${meta.grouping}`);
+  // MusicBrainz provenance — standard Picard tag, makes re-enrichment and
+  // AcoustID lookups possible without re-searching.
+  if (meta.mbid) args.push("-metadata", `musicbrainz_trackid=${meta.mbid}`);
   // Rekordbox reads the comment field; carrying the source URL makes
   // provenance traceable without polluting other fields.
   if (meta.comment) args.push("-metadata", `comment=${meta.comment}`);

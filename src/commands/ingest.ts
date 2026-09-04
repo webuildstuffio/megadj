@@ -219,6 +219,7 @@ async function mbRecording(
   album: string | null;
   date: string | null;
   artistTags: string;
+  mbid: string | null;
 }> {
   const q = artist
     ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
@@ -227,9 +228,10 @@ async function mbRecording(
   try {
     const res = await fetch(url, { headers: { "User-Agent": MB_UA } });
     if (!res.ok)
-      return { artist: null, album: null, date: null, artistTags: "" };
+      return { artist: null, album: null, date: null, artistTags: "", mbid: null };
     const data = (await res.json()) as {
       recordings?: Array<{
+        id?: string;
         "artist-credit"?: Array<{
           name?: string;
           artist?: {
@@ -253,9 +255,10 @@ async function mbRecording(
       album: rel?.title ?? null,
       date: rel?.date?.slice(0, 4) ?? null,
       artistTags: tags,
+      mbid: rec?.id ?? null,
     };
   } catch {
-    return { artist: null, album: null, date: null, artistTags: "" };
+    return { artist: null, album: null, date: null, artistTags: "", mbid: null };
   }
 }
 
@@ -522,6 +525,8 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     let album = firstTag(probe.tags, ["album"]);
     let date = firstTag(probe.tags, ["date", "year"]);
     let genre = firstTag(probe.tags, ["genre"]);
+    let mbidUsed: string | null =
+      firstTag(probe.tags, ["musicbrainz_trackid"]) ?? null;
     const remixOf = detectRemix(parsed.title);
     const bootleg = /\b(bootleg|unofficial|unreleased)\b/i.test(parsed.title);
 
@@ -551,6 +556,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
         if (!date && mb.date) date = mb.date;
         if (!genre || genre === "Music")
           genre = inferGenre([genre, mb.artistTags, artist]);
+        if (mb.mbid) mbidUsed = mb.mbid;
       }
     }
     genre = inferGenre([genre, artist, album, title]) ?? "Music";
@@ -606,6 +612,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
         bpm: null,
         grouping: extraMeta.grouping ?? null,
         remixer: extraMeta.remixer ?? null,
+        mbid: mbidUsed,
       });
       tagged++;
     }
