@@ -7,11 +7,65 @@ Expanded same day with an open-source ecosystem research pass (§I–§L).
 Status note (2026-09-04 docs audit): A1 (drive report) shipped —
 `cratedeck/src/report.ts` + `GET /drives/:id/report` + drawer Report tab +
 `cratedeck/test/report.test.ts`; A2 partially landed (`tools/` consolidation
-in 3604b7e); A5 (acceptance doc) done — `docs/cratedeck/acceptance.md`.*
+in 3604b7e); A5 (acceptance doc) done — `docs/cratedeck/acceptance.md`.
+**Post-audit revision (2026-09-04): §0 added (do-now items gate everything),
+cold backup promoted from §G, C18c explicitly unbuilt, I52 deleted, §M
+added (AI cool-list + Mac-DJ irritants), sequencing rewritten as a gated
+straight line.***
 
 How to read: each idea lists **why now** (the specific repo fact that motivates
 it) and rough **effort** (S/M/L). Nothing here is committed scope — this is the
 parking lot. Hard non-goals from the product brief stay non-goals (see §H).
+
+**The deal (2026-09-04 audit):** this backlog is capped. A new idea goes in
+only when an old one comes out or ships — a 60+-item list on one project of
+many is planning becoming more fun than finishing. §0 comes before everything
+and blocks everything else. The sequencing at the bottom is conditional on
+real-world inputs (gig frequency), not vibes.
+
+---
+
+## §0 — Do now, before anything else
+
+Nothing in this document matters while these are open. §0 blocks §A–§L.
+
+0a. **Evacuate the dying SSD.** It has a hardware clock; every other item
+    here has a calendar. This is item zero, full stop. Copy to a healthy
+    disk first, triage contents later. (`rsync -av --progress` to a new
+    disk, then `usb_verify.py`-style hash spot-check on what matters.)
+0b. **Cold backup of the master library.** *Promoted from §G40 in the
+    audit* — it was misfiled as a wild swing when it's actually the cure
+    for the disease §B7 diagnoses: some tracks exist on exactly one
+    physical device. B2 or R2 of `Contents/` + the archive DB via rclone
+    (`rclone sync --backup-dir` for versioning) is read-only, violates no
+    repo rule, and is a weekend. Kills the single-point-of-failure class
+    forever. *Why this wasn't obvious: it's the only item that protects
+    against all drives failing at once, which is the only failure that
+    ends the archive.*
+0c. **OLDUSB verdict.** 264 OLDBACKUP-only files (10.1 GB) exist nowhere
+    but OLDUSB. One session: adopt into master (via `megadj adopt` +
+    ingest) or declare them dead in the sync log. Do it *before* 0b so
+    the cloud backup captures the decision, not the ambiguity.
+0d. **Build the redundancy audit (§B7) + coverage matrix (§B6).** The two
+    cheapest items in the doc — pure queries over snapshots already
+    collected — and the only ones that tell you the *actual* damage
+    radius of the next drive failure. If only four things ever ship from
+    this doc, it's 0a–0d.
+
+**Reality gate — the input that decides the rest of this doc:** how often
+do you actually play? The sequencing section is now conditional on it.
+- **~Monthly or more:** preflight (B12), redundancy (B7), grid/cue work
+  (I46) and keys (I51) are load-bearing infrastructure. The AI layer is a
+  real edge. Build §B and §I as written.
+- **A few times a year:** half of §B and all of §F35 are elaborate
+  cosplay. The honest roadmap is: 0a–0c, full tags (J53), fingerprints
+  (L62), done. Revisit this doc after the next gig — and start the
+  incident log below.
+- **The missing input:** there is no record of what has actually gone
+  wrong at a gig — no incident log, no "couldn't find a track in the
+  booth" count, no sets-per-month. Add one line per gig to the sync log
+  (`## YYYY-MM-DD gig — venue, what bit us`). One real incident outranks
+  any idea in this file.
 
 ---
 
@@ -39,6 +93,10 @@ ideas below:
 
 ## A. Finish what's already in flight (this week)
 
+*(Post-audit: the hardware-clock items moved up to §0 — SSD evacuation is
+0a, OLDUSB verdict is 0c, cold backup is 0b. This section keeps the
+remaining in-flight work.)*
+
 1. **Drive dossier & health report — ✅ SHIPPED 2026-09-04.**
    `cratedeck/src/report.ts` computes the dual-DB gate, grid coverage, and
    one-JSON dossier per drive; live at `GET /drives/:id/report`, folded into
@@ -51,15 +109,12 @@ ideas below:
    `tools/tag_audit.ts`, `tools/final_audit.py` — all verified present).
    Remaining: decide whether `tools/wav_tag_fill.ts` graduates into `ingest`
    or stays a one-off.
-3. **Close the 2026-09-03 sync-log checklist.** All four pending items are
-   concrete, small, and unblock everything else:
+3. **Close the 2026-09-03 sync-log checklist.** Three pending items remain
+   (the fourth, SSD evacuation, is now §0a):
    - `usb_verify.py` hardware gate (pdb live rows == OneLibrary, both drives)
    - `usb_mirror.py --verify-only --hash-parity` post-export drift check
    - Update `~/rekordbox-exports/STATUS-FINAL.md` counts
-   - **Dying SSD evacuation** — the one genuinely urgent physical item.
-4. **OLDUSB verdict.** 264 OLDBACKUP-only files (10.1 GB) never made it to the
-   master. One review session: adopt (via `megadj adopt` + ingest) or
-   explicitly declare them dead in the sync log. Ambiguity here is the risk.
+4. **OLDUSB verdict — now §0c** (promoted; do before the cloud backup).
 5. **CrateDeck acceptance doc — ✅ DONE 2026-09-04:**
    `docs/cratedeck/acceptance.md` now exists with code-verified evidence per
    PRD feature; remaining ☐ items are the real-hardware checks.
@@ -117,30 +172,30 @@ once* — the moat. Roughly in value order:
 
 ## C. Sync pipeline: kill the remaining manual pain
 
-18. **Automate the legacy-export dance.** The XDJ-XZ-facing `export.pdb` still
-    requires the manual human loop: XML → rekordbox UI import → drag playlists
-    → analysis → USB export. Ideas, in escalating ambition:
+18. **Automate the legacy-export dance.** The XDJ-XZ-facing `export.pdb`
+    still requires the manual human loop: XML → rekordbox UI import → drag
+    playlists → analysis → USB export. Ideas, in escalating ambition:
     a. *Assisted runbook* — CrateDeck drives the human: checklist UI with
        per-step done-buttons, auto-detecting each stage's completion (pdb
        row counts, playlists3*.sync mtimes) so you can't miss a step.
-    b. *rekordbox scripting* — watch for a stable AppleScript/CLI surface in
-       rekordbox 7.x; automate import/export trigger.
-    c. **Legacy-pdb editing — upgraded from "long shot" to real candidate
-       (research update 2026-09-04).** `fragmede/rekordbox-pdb` is a
-       dependency-free Python read/**write** library for `export.pdb` +
-       `exportExt.pdb`, byte-verified against real exports, cross-checked
-       against the crate-digger Kaitai parser, and validated by opening
-       edited sticks in rekordbox itself. It documents the exact write-path
-       rules we'd need (row heaps, presence bitmasks, tombstones — the same
-       structures `pdb_live_rows` already walks). Adoption path:
-       keep drives read-only until a validation harness proves it —
-       clone a real drive image → edit with the library → re-open in
-       rekordbox → rekordbox re-export → `usb_verify.py` ALL PASS → then and
-       only then allow "add tracks/playlist to legacy DB" as a CrateDeck
-       job behind the interlock. That would delete the entire manual
-       XML/export dance for new-music batches. The repo rule ("never write
-       device DBs outside rekordbox") stays until this harness exists —
-       update the rule *in the skill doc* the day it does.
+       **This is the right buy.** Priced honestly: it captures ~most of
+       the value of automation (no missed steps, auto-detection of stage
+       completion) at none of the risk. The dance runs a few times a
+       month at most; the runbook makes those few times un-failable.
+    b. *rekordbox scripting* — watch for a stable AppleScript/CLI surface
+       in rekordbox 7.x; automate import/export trigger.
+    c. **Legacy-pdb editing — kept written down and UNBUILT.**
+       `fragmede/rekordbox-pdb` is a dependency-free Python read/**write**
+       library for `export.pdb`/`exportExt.pdb`, byte-verified and
+       validated by opening edited sticks in rekordbox. The gauntlet is
+       right: clone a real drive image → edit → re-open in rekordbox →
+       rekordbox re-export → `usb_verify.py` ALL PASS, before any rule
+       change. But price it honestly: **upside** = deleting a manual dance
+       done a few times a month; **downside** = a corrupted library
+       discovered at a venue, on hardware, in front of people. The
+       asymmetry is terrible unless batch frequency is much higher than
+       it is. The gauntlet stands as written; it exists so that if this
+       is *ever* built, it's built safely — not as a to-do.
 19. **Grid quality upgrade pass.** Generated grids are constant-BPM; the
     2026-09-03 rekordbox re-analysis fixed the first 294. Add a CrateDeck
     "grid provenance" field (rekordbox-native vs synthetic) to snapshots and
@@ -253,11 +308,12 @@ once* — the moat. Roughly in value order:
 
 ## G. Wilder swings (parking lot)
 
-40. **Cold cloud backup of the master.** The redundancy audit (#7) will show
-    the uncomfortable truth: some tracks exist on exactly one physical device.
-    Backblaze B2 / R2 cold storage of `Contents/` (or at least the DBs +
-    playlists + a manifest) = the one-drive-failure problem finally dies.
-    Read-only restore path, zero drive writes — compatible with every rule.
+40. **Cold cloud backup of the master — ✅ PROMOTED to §0b (2026-09-04
+    audit).** The redundancy audit (#7) diagnoses the single-device
+    problem; B2/R2 via rclone cures it — read-only, no rule violations, a
+    weekend of work. It was misfiled here as a wild swing when it's the
+    only protection against *all* drives failing at once. Kept in §G
+    solely so numbering stays stable.
 41. **PRO DJ LINK listener.** CDJs on the same network broadcast status
     (beat, BPM, deck load) — a passive listener could log *actual* live
     playback into the timeline, making set intelligence (#11) automatic even
@@ -306,7 +362,12 @@ tags** (§J), **the archive DB**, and **the rekordbox/ANLZ injection path**.
     - phrase-aware synthetic grids (the current constant-BPM grid gets
       downbeat anchoring; tempo curve from the analyzer instead of a flat line)
     - "drop only" browsing structure on CDJs via cue placement convention
-    This is the killer feature of the whole section. Effort M-L.
+    **Honest label: the genuine 10x item and the likeliest to eat a
+    month.** It earns the complexity because constant-BPM synthetic grids
+    are a real on-stage failure mode (a drifting track with a straight
+    grid fights the beatjump logic). Scope it in slices: cue placement
+    alone is shippable in a weekend; the tempo-curve grid upgrade is the
+    month-long part and can land later. Effort M-L.
 
 47. **Auto hot-cue archetypes.** rekordbox 7's in-app "learning" places cues
     by your habits; replicate offline with segment labels: cue A = intro,
@@ -329,9 +390,11 @@ tags** (§J), **the archive DB**, and **the rekordbox/ANLZ injection path**.
 50. **LLM track captioning (vibe notes).** Feed Essentia tags + structure
     labels + metadata to a local/small LLM (the ask-models MCP pattern, or
     MU-LLaMA-style locally) → a one-line vibe description per track
-    ("warm late-night house groover, long intro, vocal drop") written to the
-    comment tag and shown in CrateDeck. This is the "AI analyzer" dream in
-    its most useful, least gimmicky form. Effort S-M.
+    ("warm late-night house groover, long intro, vocal drop") written to
+    the comment tag and shown in CrateDeck. **Honest bet, from the audit:
+    you'd read these twice and never filter by them.** Keep only as a
+    `megadj drop` garnish (one line in the CLI output) unless it proves
+    itself; do not build infrastructure for it. Effort S.
 
 51. **Key detection that beats rekordbox.** Dubspot's 2026 lab test:
     libKeyFinder scored 76% overall / **90% on dance music**; rekordbox's own
@@ -341,12 +404,15 @@ tags** (§J), **the archive DB**, and **the rekordbox/ANLZ injection path**.
     Initial Key + Camelot to tags (§J), inject `key_id` into device DB rows,
     and add a **harmonic-mix panel** in CrateDeck: pick a track, see the
     Camelot-compatible candidates already on the same drive. Effort S-M.
+    *(The audit's verdict: best payoff-per-risk in the AI section —
+    verifiable against ground truth, writes a field hardware already
+    reads, immediate mixing value.)*
 
-52. **Personal affinity model.** Once §I embeddings + #11 play histories
-    exist: train a tiny classifier on played-vs-never-played → a "will I
-    play this" score per library track, refreshed monthly. Surfaces what's
-    worth exporting and what's dead weight in the archive. Park until #11
-    has harvested a few real sets.
+52. ~~**Personal affinity model.**~~ **DELETED (2026-09-04 audit).** A
+    trained "will I play this" classifier was fantasy until B11 harvests
+    real set histories — and if that day comes, its bounded sibling now
+    lives at M64 (hit predictor). This slot is intentionally empty; a
+    new idea takes this number when an old one ships.
 
 ---
 
@@ -458,11 +524,90 @@ per-platform JSON extractors.
 
 ---
 
+## M. Cool AI things & annoying-Mac-DJ problems (2026-09-04 addendum)
+
+Born from the audit: the fun-but-dangerous section gets a dedicated home,
+plus a list of the everyday Mac-DJ irritations nobody builds for.
+
+### AI ideas (the cool list)
+
+64. **Listening-based hit predictor.** Essentia DEAM + danceability +
+    embedding (I45) → a "will the floor like this" score calibrated on
+    which of your tracks actually got played (needs B11 history harvest).
+    Sibling of the deleted I52 but bounded: one number, no model
+    training, just a regression you can sanity-check. Parked until
+    history exists — listed so it's not forgotten.
+65. **Auto DJ-friendly renamer.** YTM filenames are garbage
+    (`(Official Audio)`, ft. soup, emoji, `&` vs `and`). An LLM pass at
+    ingest normalizes to a strict `Artist - Title (Remixer)` convention,
+    verified against MusicBrainz, with a diff view before apply. FAT32-
+    safe length checks built in (the case-collision lesson, applied
+    upstream). Effort S.
+66. **Set-builder copilot.** Give it: target gig length, venue vibe, the
+    drive contents. It proposes ordered sequences using BPM/key-compat +
+    energy arcs (valence-arousal from I45), rendered as a CrateDeck panel
+    with drag edits. Never auto-exports; proposes only. This is the
+    ChatGPT-for-crate-digging feature, and unlike I50 it produces an
+    artifact you act on. Effort M.
+67. **"Find the double-drop" detector.** Scan the library for pairs of
+    tracks whose grids + keys align so well they can be layered (acapella
+    over instrumental). Classic mashup hunting, done by embeddings +
+    grid math instead of memory. Pure analysis over data §I already
+    computes. Effort M.
+68. **Voice memo → crate.** After a gig, AirDrop the phone voice memos
+    ("that ID at 1am was...") → Whisper transcribes → LLM resolves
+    fuzzy titles → cross-checked against 1001TL mining (K59) and
+    SoundCloud search → candidate queue in the archive DB. Closes the
+    "what was that track" loop with zero typing. Effort M.
+
+### Annoying things for DJs on Mac (the irritation list)
+
+69. **The format-eject dance.** Every DJ knows: macOS wants to APFS-format
+    new sticks, CDJs want FAT32 with an MBR partition scheme, and Disk
+    Utility hides the "Master Boot Record" dropdown three dialogs deep.
+    `megadj format <volume>` — one command, correct FAT32/GPT answers for
+    target players (XZ/CDJ-3000 vs OPUS-QUAD), refuses to touch a volume
+    with a rekordbox tree on it, prints the exact `diskutil` invocation
+    for review. Effort S.
+70. **macOS metadata litter audit.** `._*` AppleDouble files, `.DS_Store`,
+    `.Spotlight-V100`, `.Trash` on FAT32 sticks — CDJs choke or slow-walk
+    on these, and Finder recreates them every mount. Extend the existing
+    scan junk detection with a **one-click clean** (guard.ts-gated,
+    allow-listed files only) plus a `defaults write com.apple.desktopservices`
+    hint sheet so Finder stops polluting in the first place. Effort S.
+    (PRD F7 already counts orphans — this finishes the thought.)
+71. **"Why is my transfer 8 MB/s?" — port-speed truth serum.** macOS never
+    tells you a stick landed in a USB 2 port, or that a hub is capping
+    the bus. CrateDeck already captures the USB topology at mount (F2) —
+    surface negotiated speed as a loud card badge + a "this drive would
+    be 4× faster in the other port" note in the port map. Zero new
+    hardware access; it's presentation of data already collected. Effort S.
+72. **Sleep/wake drive-mace.** macOS aggressively spins down USB drives;
+    the first CDJ-track-onload after idle stalls. A tiny optional launchd
+    helper keeps gig drives awake while mounted (`caffeinate -i` scoped
+    to the volume, auto-clears on eject). Include the honest caveat:
+    wears flash slightly, use on gig day only. Effort S.
+73. **Finder-bait guard.** Accidentally dragging the `PIONEER/` folder to
+    Finder instead of `Contents/` is a classic library-mangling move.
+    A Finder symlink farm is risky (FAT32 has no symlinks) — instead:
+    CrateDeck detects a drive mounted with `PIONEER/` at unexpected depth
+    or a `Contents/`-less PIONEER tree and screams. Cheap heuristic,
+    catches the mistake *before* the sync run does, when it's still
+    fixable. Effort S.
+74. **Bulk-playlist → folder audio exporter.** iOS/venue-CDR/guest-DJ
+    reality: someone wants "just the party playlist" as plain files.
+    Export any playlist (drive DB or archive) → sorted, renamed, tagged
+    folder + optional `.m3u8`. Reuses ingest machinery in reverse; the
+    Quickie competitor feature K61 in mirror-image. Effort S.
+
+---
+
 ## H. Explicit non-goals (unchanged — say no)
 
 - ❌ Writing device DBs outside rekordbox (`export.pdb`/`exportLibrary.db`
-  injection stays in the proven pipeline only) — *note: C18c defines the
-  validation harness that would someday amend this rule, deliberately*
+  injection stays in the proven pipeline only) — *C18c's validation
+  gauntlet is written down precisely so this rule only ever changes
+  deliberately and safely; until then, unbuilt.*
 - ❌ Editing tags/cues/grids *on drives*; rekordbox owns creation
   (analysis-derived tags live in the *files* and our own DB/ANLZ pipeline)
 - ❌ Cloud sync, accounts, multi-user, telemetry (§I models run locally)
@@ -474,21 +619,42 @@ per-platform JSON extractors.
 
 ---
 
-## Suggested sequencing (opinionated)
+## Suggested sequencing (rewritten after the 2026-09-04 audit)
 
-1. **Now:** A1–A5 (ship in-flight work, close the sync-log checklist, SSD
-   evacuation) — everything else is noise while a drive is dying.
-2. **Next:** B6–B9 (coverage matrix, redundancy audit, fleet diff, global
-   search) — the fleet moat, all pure reads over data already collected.
-3. **Then:** C18a (assisted legacy-export runbook) + C21 (diff mirror) +
-   D24 (LOWQ upgrade) — kills the three biggest recurring manual pains.
-4. **AI track (parallel, high payoff):** I51 (keys) → J53 (full tags) →
-   I45 (Essentia moods) → I46 (structure-aware grids/cues) → I50 (vibe
-   notes). Each is independently shippable; together they're the "AI DJ
-   librarian" identity. K61 (`megadj drop`) packages the result.
-5. **Sources:** K57 (SoundCloud) → K58 (Bandcamp) → K59 (1001TL mining).
-6. **Ongoing background:** B17 (auto-scan on mount), B13 (alerts), D30
-   (archive integrity cron), L62 (fingerprint ledger) — set-and-forget
-   reliability.
-7. **When it earns it:** E31 (Engine read), F35 (gig mode), G40 (cold
-   backup), C18c (pdb write harness — only with the validation gauntlet).
+The old version had six parallel tracks — which is not an answer. This one
+is a straight line, gated by §0 and by the **reality gate** (gig frequency)
+defined there.
+
+**Phase 1 — survival (§0, blocks everything):**
+SSD evacuation (0a) → cloud backup (0b) → OLDUSB verdict (0c). Nothing
+else in this repo gets a single commit while 0a is open. 0d (redundancy
+audit + coverage matrix) rides along because it's two cheap pure queries.
+
+**Phase 2 — the moat (§B):**
+B6–B9 (coverage matrix, redundancy, fleet diff, global search). All pure
+reads over data already collected. If you do Phase 1 + Phase 2 and stop,
+the project has done its job.
+
+**Phase 3 — the manual-pain killers:**
+C18a (assisted export runbook — the right buy per the audit), C21
+(differential mirror), D24 (LOWQ upgrade), J53 (full tag schema),
+L62 (fingerprint ledger). Each independently shippable.
+
+**Phase 4 — the AI edge (only if the reality gate says monthly+):**
+I51 (keys — best payoff per risk) → I45 (Essentia moods) → I46 sliced:
+*auto cue placement first (weekend-scale), tempo-curve grids later*
+(month-scale) → K61 (`megadj drop` packages it). M66/M67 (set copilot,
+double-drop detector) after B11 history exists. I50 stays a garnish.
+
+**Phase 5 — sources & irritants (background, whenever):**
+K57 SoundCloud → K58 Bandcamp → K59 1001TL mining; M69–M74 Mac-DJ fixes
+are all S-effort — slot them between any two phases as palate cleansers.
+
+**Deliberately unbuilt:** C18b/c (the pdb write gauntlet — written down,
+priced, and parked), I52 (deleted), K56 (lyrics), K60 (setlist.fm), E44
+(Serato export). The cap rule stands: something ships or leaves before
+something new enters.
+
+**Stop condition:** if two consecutive months produce zero gigs and zero
+incidents in the log, the honest move per §0's reality gate is to finish
+Phase 1, keep the nightly backup running, and freeze the rest of the doc.
