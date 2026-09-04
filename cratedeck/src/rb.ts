@@ -9,14 +9,29 @@ import type { CrateConfig } from "./config";
 
 const RB = "rekordbox";
 
+// The interlock is polled by every job enqueue, every /api/interlock request
+// and every rbSnapshot. pgrep is cheap but not free — cache the verdict for
+// 1s (rekordbox starting mid-job is re-checked at job start regardless).
+let interlockCache: {
+  at: number;
+  running: boolean;
+  pid: number | null;
+} | null = null;
+const INTERLOCK_TTL_MS = 1_000;
+
 export function rekordboxRunning(): { running: boolean; pid: number | null } {
+  const now = Date.now();
+  if (interlockCache && now - interlockCache.at < INTERLOCK_TTL_MS)
+    return interlockCache;
   const p = Bun.spawnSync(["pgrep", "-x", RB], { stdout: "pipe" });
   const out = p.stdout.toString().trim();
   const pid = out ? parseInt(out.split("\n")[0] ?? "", 10) : null;
-  return {
+  const result = {
     running: !!out,
     pid: pid !== null && !Number.isNaN(pid) ? pid : null,
   };
+  interlockCache = { at: now, ...result };
+  return result;
 }
 
 const UV = "uv";

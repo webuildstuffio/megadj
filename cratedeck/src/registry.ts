@@ -3,6 +3,7 @@ import { rmSync } from "node:fs";
 import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Drive, SearchResult, SnapshotData } from "../shared/types";
+import { legacySyncVerdict } from "./report";
 
 export type Emit = (channel: string, data: unknown) => void;
 
@@ -45,18 +46,33 @@ export class Registry {
         this.emit("drives", this.list());
       } else {
         const wasMounted = !!drive.mounted;
-        this.db.upsertDrive({
-          id: drive.id,
-          name: vol.name,
-          capacity_bytes: vol.capacityBytes,
-          fs: vol.fs,
-          vendor: vol.vendor,
-          model: vol.model,
-          usb_serial: vol.usbSerial,
-          last_port_key: vol.portKey,
-          mounted: true,
-        });
+        // No-op write guard: the reconcile sweep fires every few seconds; a
+        // stable drive used to rewrite the full row each time (WAL churn).
+        // `last_seen_at` is now only bumped on real changes or mount flips.
+        if (
+          !wasMounted ||
+          drive.name !== vol.name ||
+          drive.capacity_bytes !== vol.capacityBytes ||
+          drive.fs !== vol.fs ||
+          drive.usb_serial !== vol.usbSerial ||
+          drive.last_port_key !== vol.portKey ||
+          drive.model !== vol.model ||
+          drive.vendor !== vol.vendor
+        ) {
+          this.db.upsertDrive({
+            id: drive.id,
+            name: vol.name,
+            capacity_bytes: vol.capacityBytes,
+            fs: vol.fs,
+            vendor: vol.vendor,
+            model: vol.model,
+            usb_serial: vol.usbSerial,
+            last_port_key: vol.portKey,
+            mounted: true,
+          });
+        }
         if (!wasMounted) {
+          this.db.bumpPlugCount(drive.id); // accurate session count
           const fresh = this.db.getDrive(drive.id)!;
           this.db.event(drive.id, "mounted", {
             port: vol.portKey,
@@ -100,28 +116,16 @@ export class Registry {
     const snap: SnapshotData | null = drive.last_snapshot_json
       ? JSON.parse(drive.last_snapshot_json)
       : null;
-    const master = this.db
-      .allDrives()
-      .find((d) => d.name.toUpperCase() === this.cfg.masterDrive.toUpperCase());
-    let sync: { verdict: string; missing?: number } | null = null;
-    if (
+    const master = this.db.masterDrive();
+    const isMirror =
       drive.role === "mirror" ||
-      drive.name.toUpperCase() === this.cfg.mirrorDrive.toUpperCase()
-    ) {
-      const masterSnap: SnapshotData | null = master?.last_snapshot_json
-        ? JSON.parse(master.last_snapshot_json)
-        : null;
-      if (!masterSnap?.file_count || !snap?.file_count) {
-        sync = { verdict: "unknown" };
-      } else if (snap.file_count >= masterSnap.file_count) {
-        sync = { verdict: "in-sync" };
-      } else {
-        sync = {
-          verdict: "behind",
-          missing: masterSnap.file_count - snap.file_count,
-        };
-      }
-    }
+      drive.name.toUpperCase() === this.cfg.mirrorDrive.toUpperCase();
+    const masterSnap: SnapshotData | null = master?.last_snapshot_json
+      ? JSON.parse(master.last_snapshot_json)
+      : null;
+    const sync: { verdict: string; missing?: number } | null = isMirror
+      ? legacySyncVerdict(true, snap?.file_count, masterSnap?.file_count)
+      : null;
     return {
       drive: { ...drive, state: drive.mounted ? "mounted" : "ghost" },
       snapshot: snap,

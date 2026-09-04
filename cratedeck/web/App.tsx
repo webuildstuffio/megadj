@@ -28,33 +28,30 @@ export function App() {
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [ports, setPorts] = useState<PortInfo[]>([]);
   const [reports, setReports] = useState<
-    Map<string, { overall?: string; checks: { status: string }[] }>
+    Map<string, { overall?: string; pass_rate?: number }>
   >(new Map());
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   const refresh = useCallback(async () => {
-    const [d, p] = await Promise.all([
+    const [d, p, rep] = await Promise.all([
       fetch("/api/drives").then((r) => r.json()),
       fetch("/api/ports").then((r) => r.json()),
+      fetch("/api/reports")
+        .then((r) => r.json())
+        .catch(() => ({})),
     ]);
     setDrives(d);
     setPorts(p);
-    // rail verdicts: one report fetch per mounted drive (cheap, cached 60s
-    // server-side by snapshot mtime; failures leave the ring neutral)
-    const ids: string[] = d.map((x: DriveCardData) => x.id);
-    const entries = await Promise.all(
-      ids.map(async (id) => {
-        try {
-          const r = await fetch(`/api/drives/${id}/report`).then((r) =>
-            r.json(),
-          );
-          return [id, r] as const;
-        } catch {
-          return [id, { checks: [] }] as const;
-        }
-      }),
+    setReports(
+      new Map(
+        Object.entries(
+          rep as Record<
+            string,
+            { overall?: string; checks: { status: string }[] }
+          >,
+        ),
+      ),
     );
-    setReports(new Map(entries));
   }, []);
 
   // jobs: load once on boot (the old code never did — the dock stayed empty
@@ -95,6 +92,9 @@ export function App() {
         setInterlock(s);
       } catch {}
     }, 3000);
+    // rail safety net: SSE drives events only fire on mount/unmount/first-seen,
+    // so renames (and similar in-place changes) would never refresh the rail.
+    const drivesPoll = setInterval(refresh, 10_000);
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -109,6 +109,7 @@ export function App() {
     return () => {
       es.close();
       clearInterval(interlockPoll);
+      clearInterval(drivesPoll);
       window.removeEventListener("keydown", onKey);
     };
   }, [refresh, refreshJobs]);

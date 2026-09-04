@@ -7,17 +7,11 @@ import { driveBadges, syncBadge } from "../shared/badges";
 export function driveBadgesView(
   db: DB,
   drive: Drive,
-  snaps: Map<string, SnapshotData>,
-  masterDriveName: string,
+  _snaps: Map<string, SnapshotData>,
+  _masterDriveName: string,
   _mirrorDriveName: string,
 ) {
-  const master = db
-    .allDrives()
-    .find(
-      (d) =>
-        d.role === "master" ||
-        d.name.toUpperCase() === masterDriveName.toUpperCase(),
-    );
+  const master = db.masterDrive();
   const masterSnap = master?.last_snapshot_json
     ? (JSON.parse(master.last_snapshot_json) as SnapshotData)
     : null;

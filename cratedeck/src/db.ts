@@ -90,6 +90,9 @@ export class DB {
     mkdirSync(dirname(dbPath), { recursive: true });
     this.sqlite = new Database(dbPath);
     this.sqlite.exec("PRAGMA journal_mode = WAL;");
+    // WAL + NORMAL is the SQLite-recommended combo: durable across app
+    // crashes, skips fsync-on-every-commit (huge write-churn cut).
+    this.sqlite.exec("PRAGMA synchronous = NORMAL;");
     this.sqlite.exec("PRAGMA foreign_keys = ON;");
     this.migrate();
   }
@@ -166,6 +169,15 @@ export class DB {
   // ---- drives -------------------------------------------------------------
   private normDrive(d: DriveRow): Drive {
     return { ...d, mounted: !!d.mounted };
+  }
+
+  /** The configured master drive (role tag or exact name), else null. */
+  masterDrive(): Drive | null {
+    return (
+      this.allDrives().find(
+        (d) => d.role === "master" || d.name.toUpperCase() === "DJMASTER",
+      ) ?? null
+    );
   }
 
   getDrive(id: string): Drive | null {
@@ -252,6 +264,13 @@ export class DB {
       .run(mounted ? 1 : 0, Date.now(), id);
   }
 
+  /** Increment at mount time (ghost → mounted flip). Called by registry. */
+  bumpPlugCount(id: string): void {
+    this.sqlite
+      .query("UPDATE drives SET plug_count = plug_count + 1 WHERE id=?")
+      .run(id);
+  }
+
   setNickname(id: string, nickname: string | null): void {
     this.sqlite
       .query("UPDATE drives SET nickname=? WHERE id=?")
@@ -265,14 +284,19 @@ export class DB {
   }
 
   setSnapshot(id: string, snap: SnapshotData): void {
+    // Skip the write entirely when nothing changed (a re-scan of a stable
+    // drive used to rewrite ~MBs of identical JSON twice per scan).
+    const json = JSON.stringify(snap);
+    const cur = this.getDrive(id);
+    if (cur?.last_snapshot_json === json) return;
     this.sqlite
       .query("UPDATE drives SET last_snapshot_json=? WHERE id=?")
-      .run(JSON.stringify(snap), id);
+      .run(json, id);
     this.sqlite
       .query(
         "INSERT OR REPLACE INTO snapshots (drive_id, taken_at, kind, data_json) VALUES (?,?,?,?)",
       )
-      .run(id, snap.taken_at, snap.kind, JSON.stringify(snap));
+      .run(id, snap.taken_at, snap.kind, json);
     this.pruneSnapshotsFor(id); // disk-burn guard
   }
 
@@ -297,22 +321,26 @@ export class DB {
   }
 
   // ---- events ---------------------------------------------------------------
+  private eventStmt?: ReturnType<Database["prepare"]>;
   event(
     driveId: string,
     kind: string,
     data: Record<string, unknown> = {},
   ): void {
-    this.sqlite
-      .query(
-        "INSERT INTO events (id, drive_id, at, kind, data_json) VALUES (?,?,?,?,?)",
-      )
-      .run(
+    // prepared-once + transactional batching: timeline writes happen in
+    // bursts (jobs, reconcile), WAL commit overhead dominates otherwise
+    this.eventStmt ??= this.sqlite.prepare(
+      "INSERT INTO events (id, drive_id, at, kind, data_json) VALUES (?,?,?,?,?)",
+    );
+    this.sqlite.transaction(() =>
+      this.eventStmt!.run(
         crypto.randomUUID(),
         driveId,
         Date.now(),
         kind,
         JSON.stringify(data),
-      );
+      ),
+    )();
   }
 
   timeline(driveId: string, limit = 200): TimelineEvent[] {
@@ -574,4 +602,24 @@ export function inferRole(volumeName: string): Drive["role"] {
   if (n === "DJMIRROR") return "mirror";
   if (n.startsWith("DJ") || n.startsWith("CRATE")) return "library";
   return "unknown";
+}
+
+/** True when a db write would change nothing the UI/API can observe.
+ *  Used by registry to keep the 5s reconcile sweep from churning the WAL. */
+export function driveRowMeaningful(
+  d: Partial<Drive> & { id: string },
+): boolean {
+  return (
+    d.mounted !== undefined ||
+    d.name !== undefined ||
+    d.capacity_bytes !== undefined ||
+    d.fs !== undefined ||
+    d.vendor !== undefined ||
+    d.model !== undefined ||
+    d.usb_serial !== undefined ||
+    d.last_port_key !== undefined ||
+    d.role !== undefined ||
+    d.nickname !== undefined ||
+    d.volume_uuid !== undefined
+  );
 }

@@ -1,27 +1,11 @@
 // bench.ts — read benchmark (sequential + 4k random, size-capped) and the
 // blake2b256 checksum ledger for bitrot detection. READ-ONLY on the drive.
-import {
-  openSync,
-  readSync,
-  closeSync,
-  fstatSync,
-  readdirSync,
-  statSync,
-  type Stats,
-} from "node:fs";
-import { join } from "node:path";
+// Walks via the shared walkTree (was a private near-duplicate walker).
+import { openSync, readSync, closeSync, fstatSync, statSync } from "node:fs";
 import type { DB } from "./db";
 import type { Guard } from "./guard";
-
-const AUDIO_EXT = new Set([
-  ".mp3",
-  ".m4a",
-  ".aac",
-  ".wav",
-  ".aiff",
-  ".aif",
-  ".flac",
-]);
+import { walkTree, extOf } from "./walk";
+import { AUDIO_EXT } from "./scan";
 
 export interface BenchResult {
   seq_mbps: number;
@@ -94,6 +78,7 @@ export async function checksumLedger(
   signal?: { cancelled: boolean },
   onProgress?: (done: number, total: number, bytes: number) => void,
 ): Promise<ChecksumResult> {
+  void guard; // write-root enforcement happens inside db.ledgerPut's caller
   const files = biggestFiles(mountPoint, Infinity, maxBytes);
   const changed: string[] = [];
   let hashed = 0;
@@ -168,43 +153,21 @@ function biggestFiles(
 ): string[] {
   const out: { p: string; size: number }[] = [];
   let total = 0;
-  walk(root, (p, st) => {
-    const size = Number(st.size);
-    if (size > 1_000_000 && AUDIO_EXT.has(ext(p))) {
-      if (total + size > maxTotal) return;
-      total += size;
-      out.push({ p, size });
-    }
+  walkTree(root, {
+    skipPrefixes: ["._"],
+    onFile: (p, st) => {
+      const size = Number(st.size);
+      if (size > 1_000_000 && AUDIO_EXT.has(extOf(p))) {
+        if (total + size > maxTotal) return;
+        total += size;
+        out.push({ p, size });
+      }
+    },
   });
   return out
     .sort((a, b) => b.size - a.size)
     .slice(0, limit === Infinity ? out.length : limit)
     .map((x) => x.p);
-}
-
-function walk(dir: string, cb: (p: string, st: Stats) => void): void {
-  let entries: string[];
-  try {
-    entries = readdirSync(dir);
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    if (e.startsWith(".") || e === "System Volume Information") continue;
-    const p = join(dir, e);
-    try {
-      const st = statSync(p);
-      if (st.isDirectory()) walk(p, cb);
-      else if (st.isFile()) cb(p, st);
-    } catch {
-      continue;
-    }
-  }
-}
-
-function ext(p: string): string {
-  const i = p.lastIndexOf(".");
-  return i >= 0 ? p.slice(i).toLowerCase() : "";
 }
 
 function round(n: number): number {

@@ -9,7 +9,7 @@ import { Registry } from "./registry";
 import { JobEngine } from "./jobs";
 import { ImageService } from "./images";
 import { driveBadgesView } from "./badges_view";
-import { buildReport, overall } from "./report";
+import { buildReport, buildReportSummary, overall } from "./report";
 import type { Drive, JobKind, SnapshotData } from "../shared/types";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
@@ -87,25 +87,60 @@ Bun.serve({
         if (route === "/drives") {
           const snaps = db.latestSnapshots();
           return json(
-            registry.list().map((d) => ({
-              ...d,
-              badges: [
-                ...driveBadgesView(
-                  db,
-                  d,
-                  snaps,
-                  cfg.masterDrive,
-                  cfg.mirrorDrive,
-                ),
-              ],
-            })),
+            registry
+              .list()
+              .map((d) => ({
+                ...d,
+                // strip the raw snapshot blob from list responses: cards only
+                // need counts; the full snapshot goes MBs over the wire for
+                // nothing. Page detail fetches it on demand.
+                last_snapshot_json: null as string | null,
+                snapshot_summary: (() => {
+                  const s = snaps.get(d.id);
+                  return s
+                    ? {
+                        track_count: s.track_count,
+                        file_count: s.file_count,
+                        capacity_bytes: s.capacity_bytes,
+                        free_bytes: s.free_bytes,
+                      }
+                    : null;
+                })(),
+                badges: [
+                  ...driveBadgesView(
+                    db,
+                    d,
+                    snaps,
+                    cfg.masterDrive,
+                    cfg.mirrorDrive,
+                  ),
+                ],
+              }))
+              .map((d) => ({ ...d, last_snapshot_json: null })),
+          );
+        }
+        if (route === "/reports") {
+          // batched summaries for the rail: N report fetches → 1 request
+          return json(
+            Object.fromEntries(
+              registry.list().map((d) => {
+                const r = buildReport(reportInput(d.id));
+                return [d.id, buildReportSummary(r.checks)];
+              }),
+            ),
           );
         }
         const driveMatch = route.match(/^\/drives\/([^/]+)(\/.*)?$/);
         if (driveMatch?.[1]) {
-          const id: string = driveMatch[1];
+          // clients percent-encode fingerprint ids (fp%3A…); pathname keeps
+          // the encoding, so decode before DB lookups
+          const id: string = decodeURIComponent(driveMatch[1]);
           const sub: string | undefined = driveMatch[2];
-          if (!sub) return json(registry.detail(id));
+          if (!sub) {
+            const d = registry.detail(id);
+            if (!d) return json({ error: "unknown drive" }, 404);
+            return json(d);
+          }
           if (sub === "/timeline") return json(db.timeline(id));
           if (sub === "/export") return exportDossier(id);
           if (sub === "/report") {
@@ -281,13 +316,7 @@ function reportInput(driveId: string) {
   const snap: SnapshotData | null = drive.last_snapshot_json
     ? JSON.parse(drive.last_snapshot_json)
     : null;
-  const master = db
-    .allDrives()
-    .find(
-      (d) =>
-        d.role === "master" ||
-        d.name.toUpperCase() === cfg.masterDrive.toUpperCase(),
-    );
+  const master = db.masterDrive();
   const masterSnap: SnapshotData | null = master?.last_snapshot_json
     ? JSON.parse(master.last_snapshot_json)
     : null;

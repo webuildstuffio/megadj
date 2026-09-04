@@ -264,7 +264,10 @@ async function cmdRun(
         last = key;
       }
       if (terminal(j.status)) break;
-      await new Promise((r) => setTimeout(r, 2000));
+      // adaptive poll: slow while idle-ish, fast near completion for a
+      // snappy final line (fewer total requests than fixed 2s over long jobs)
+      const remain = 1 - j.progress;
+      await new Promise((r) => setTimeout(r, remain > 0.5 ? 3000 : 750));
     }
   } else {
     while (true) {
@@ -290,7 +293,8 @@ async function cmdRun(
           );
         else if (frame % 10 === 0) console.log(`${kind} ${pct}% ${msg}${eta}`);
       }
-      await new Promise((r) => setTimeout(r, 500));
+      // server throttles progress writes to 4/s; polling faster is waste
+      await new Promise((r) => setTimeout(r, 750));
     }
   }
 }

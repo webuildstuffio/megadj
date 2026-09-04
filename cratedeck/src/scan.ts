@@ -2,11 +2,13 @@
 // composition, junk detection (zero-byte, case collisions, ._* forks),
 // space analysis (free bytes, per-extension, largest files, age histogram).
 // READ-ONLY on the drive: never writes, never renames, never deletes.
-import { readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+// One walkTree pass collects everything (the old code walked + statSync'd
+// per concern; now it's a single traversal).
+import { spawnSync } from "node:child_process";
 import type { SnapshotData } from "../shared/types";
+import { walkTree, extOf } from "./walk";
 
-const AUDIO_EXT = new Set([
+export const AUDIO_EXT = new Set([
   ".mp3",
   ".m4a",
   ".aac",
@@ -36,15 +38,13 @@ export function ageBucket(mtimeMs: number, now = Date.now()): keyof AgeBuckets {
 }
 
 export function freeBytes(mountPoint: string): number | null {
-  const p = Bun.spawnSync(["df", "-k", mountPoint], { stdout: "pipe" });
-  if (p.exitCode !== 0) return null;
-  const lines = p.stdout.toString().trim().split("\n");
-  const last = lines.at(-1);
+  const p = spawnSync("df", ["-k", mountPoint], { encoding: "utf8" });
+  if (p.status !== 0) return null;
+  const last = p.stdout.trim().split("\n").at(-1);
   if (!last) return null;
   const cols = last.split(/\s+/);
-  // macOS df -k: filesystem, 512-blocks... actually: Filesystem 1024-blocks Used Available Capacity iurls ...
-  const availK = cols[3];
-  const n = availK ? parseInt(availK, 10) : NaN;
+  // macOS df -k: Filesystem 1024-blocks Used Available Capacity ...
+  const n = parseInt(cols[3] ?? "", 10);
   return Number.isFinite(n) ? n * 1024 : null;
 }
 
@@ -52,7 +52,6 @@ export function scanVolume(mountPoint: string): SnapshotData {
   const folders = new Map<string, { files: number; bytes: number }>();
   const byExt = new Map<string, { files: number; bytes: number }>();
   const largest: { path: string; bytes: number }[] = [];
-  const root = join(mountPoint, "Contents");
   const zeroByte: string[] = [];
   const byFolded = new Map<string, string[]>();
   const age: AgeBuckets = { fresh: 0, recent: 0, old: 0, ancient: 0 };
@@ -60,67 +59,50 @@ export function scanVolume(mountPoint: string): SnapshotData {
   let totalBytes = 0;
   let orphanForks = 0;
 
-  const walk = (dir: string, topFolder: string | null, rel: string) => {
-    let entries: string[];
-    try {
-      entries = readdirSync(dir);
-    } catch {
-      return;
-    }
-    for (const e of entries) {
-      if (e === ".Trash" || e === "System Volume Information") continue;
-      const p = join(dir, e);
-      const relPath = rel ? `${rel}/${e}` : e;
-      let st;
-      try {
-        st = statSync(p);
-      } catch {
-        continue;
+  walkTree(mountPoint, {
+    onlySubdir: "Contents", // prefer rekordbox layout; falls back to root
+    onFile: (_p, st, relPath) => {
+      const base = relPath.split("/").at(-1) ?? "";
+      if (base.startsWith("._")) {
+        orphanForks++;
+        return;
       }
-      if (st.isDirectory()) {
-        walk(p, topFolder ?? (e.startsWith(".") ? null : e), relPath);
-      } else if (st.isFile()) {
-        if (e.startsWith("._")) {
-          orphanForks++;
-          continue;
-        }
-        fileCount++;
-        totalBytes += st.size;
-        if (topFolder) {
-          const f = folders.get(topFolder) ?? { files: 0, bytes: 0 };
-          f.files++;
-          f.bytes += st.size;
-          folders.set(topFolder, f);
-        }
-        const ext = extOf(e);
-        const b = byExt.get(ext) ?? { files: 0, bytes: 0 };
-        b.files++;
-        b.bytes += st.size;
-        byExt.set(ext, b);
-        if (st.size > 0) {
-          largest.push({ path: relPath, bytes: st.size });
-          if (AUDIO_EXT.has(ext)) {
-            age[ageBucket(st.mtimeMs)]++;
-            const key = nfcCasefold(relPath);
-            byFolded.set(key, [...(byFolded.get(key) ?? []), relPath]);
-          }
-        } else {
-          zeroByte.push(relPath);
-        }
+      fileCount++;
+      totalBytes += st.size;
+      // top folder = first real dir component; when walking Contents/, the
+      // playlist folder is the second component (parity with old walker)
+      const parts = relPath.split("/");
+      const top =
+        parts[0] === "Contents"
+          ? parts.length > 2
+            ? parts[1]!
+            : null
+          : parts.length > 1
+            ? parts[0]!
+            : null;
+      if (top) {
+        const f = folders.get(top) ?? { files: 0, bytes: 0 };
+        f.files++;
+        f.bytes += st.size;
+        folders.set(top, f);
       }
-    }
-  };
-
-  // Prefer Contents/ when present (rekordbox layout); fall back to the root
-  // so non-rekordbox sticks still scan.
-  let base = mountPoint;
-  let relBase = "";
-  try {
-    readdirSync(root);
-    base = root;
-    relBase = "Contents";
-  } catch {}
-  walk(base, null, relBase);
+      const ext = extOf(base);
+      const b = byExt.get(ext) ?? { files: 0, bytes: 0 };
+      b.files++;
+      b.bytes += st.size;
+      byExt.set(ext, b);
+      if (st.size > 0) {
+        largest.push({ path: relPath, bytes: st.size });
+        if (AUDIO_EXT.has(ext)) {
+          age[ageBucket(st.mtimeMs)]++;
+          const key = nfcCasefold(relPath);
+          byFolded.set(key, [...(byFolded.get(key) ?? []), relPath]);
+        }
+      } else {
+        zeroByte.push(relPath);
+      }
+    },
+  });
 
   largest.sort((a, b) => b.bytes - a.bytes);
   const caseCollisions = [...byFolded.values()]
@@ -128,7 +110,7 @@ export function scanVolume(mountPoint: string): SnapshotData {
     .flatMap((paths) => paths)
     .slice(0, 100);
 
-  const snap: SnapshotData = {
+  return {
     kind: "light",
     taken_at: Date.now(),
     file_count: fileCount,
@@ -150,10 +132,4 @@ export function scanVolume(mountPoint: string): SnapshotData {
       orphan_resource_forks: orphanForks,
     },
   };
-  return snap;
-}
-
-function extOf(name: string): string {
-  const i = name.lastIndexOf(".");
-  return i >= 0 ? name.slice(i).toLowerCase() : "(none)";
 }

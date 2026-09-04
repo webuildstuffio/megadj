@@ -1,7 +1,7 @@
 // DriveRail.tsx — the integrated left rail. Every known drive lives here
 // forever: mounted drives get a live health ring; ghosts stay dimmed. This
 // replaces the old drawer-open model — selecting a drive swaps the canvas.
-import type { DriveCardData, SnapshotData } from "../shared/types";
+import type { DriveCardData } from "../shared/types";
 import { fmtBytes, timeAgo } from "../shared/fmt";
 import { Icon } from "./icons";
 
@@ -10,13 +10,6 @@ const VERDICT_COLOR: Record<string, string> = {
   attention: "var(--warn)",
   critical: "var(--bad)",
   unknown: "var(--muted)",
-};
-
-const CHECK_ICONS: Record<string, string> = {
-  pass: "check",
-  warn: "warn",
-  fail: "warn",
-  unknown: "dot",
 };
 
 function HealthRing({ verdict, pct }: { verdict: string; pct: number }) {
@@ -59,26 +52,9 @@ function HealthRing({ verdict, pct }: { verdict: string; pct: number }) {
   );
 }
 
-function checkPct(checks: { status: string }[]): number {
-  if (!checks.length) return 0;
-  const score = checks.reduce(
-    (s, c) =>
-      s +
-      (c.status === "pass"
-        ? 1
-        : c.status === "warn"
-          ? 0.6
-          : c.status === "unknown"
-            ? 0.3
-            : 0),
-    0,
-  );
-  return score / checks.length;
-}
-
 export function DriveRail(props: {
   drives: DriveCardData[];
-  reports: Map<string, { overall?: string; checks: { status: string }[] }>;
+  reports: Map<string, { overall?: string; pass_rate?: number }>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   ports: { port_key: string; drive_name: string | null; mounted: boolean }[];
@@ -146,22 +122,20 @@ export function DriveRail(props: {
 
 function RailCard(props: {
   drive: DriveCardData;
-  report?: { overall?: string; checks: { status: string }[] };
+  report?: { overall?: string; pass_rate?: number };
   on: boolean;
   onSelect: () => void;
 }) {
   const d = props.drive;
   const name = d.nickname ?? d.name;
-  const snap: SnapshotData | null = d.last_snapshot_json
-    ? JSON.parse(d.last_snapshot_json)
-    : null;
+  const snap = d.snapshot_summary;
   const cap = d.capacity_bytes ? fmtBytes(d.capacity_bytes) : null;
   const pctUsed =
     snap?.capacity_bytes && (snap.free_bytes ?? -1) >= 0
-      ? 1 - snap.free_bytes! / snap.capacity_bytes
+      ? 1 - (snap.free_bytes as number) / snap.capacity_bytes
       : null;
   const verdict = props.report?.overall ?? "unknown";
-  const ringPct = props.report ? checkPct(props.report.checks) : 0;
+  const ringPct = props.report?.pass_rate ?? 0;
 
   return (
     <button
@@ -213,5 +187,3 @@ function RailCard(props: {
     </button>
   );
 }
-
-export { CHECK_ICONS };

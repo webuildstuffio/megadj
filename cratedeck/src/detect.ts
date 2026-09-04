@@ -1,6 +1,7 @@
 // detect.ts — "what's plugged where": FSEvents on the volumes root +
 // diskutil detail per mount event + USB tree via the Python seam.
-import { readdirSync, watch, writeFileSync, unlinkSync } from "node:fs";
+import { readdirSync, watch } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
 export interface MountedVolume {
@@ -18,9 +19,21 @@ export interface MountedVolume {
 
 const IGNORED = new Set([".DS_Store", "Macintosh HD"]);
 
+// ---- USB tree cache ---------------------------------------------------------
+// The physical USB tree only changes on plug/unplug — exactly the events that
+// trigger a reconcile sweep. Caching it per sweep turns every 5s poll from
+// "diskutil + python + plutil per volume" into "one cheap diskutil per volume".
+let usbTreeCache: { at: number; devices: UsbDevice[] } | null = null;
+const USB_TREE_TTL_MS = 2_000;
+
+export function invalidateUsbTreeCache(): void {
+  usbTreeCache = null;
+}
+
 export async function listMountedVolumes(
   cfgRoot = "/Volumes",
 ): Promise<MountedVolume[]> {
+  invalidateUsbTreeCache(); // a sweep = one coherent tree snapshot
   let names: string[] = [];
   try {
     names = readdirSync(cfgRoot);
@@ -92,8 +105,13 @@ export interface UsbDevice {
   portKey: string;
 }
 
-/** Parse the USB tree via the Python seam (python/usb_tree.py). */
+/** Parse the USB tree via the Python seam (python/usb_tree.py).
+ *  Result is cached briefly — the tree only changes on plug/unplug, and this
+ *  used to spawn python3 on every volume detail (per poll). */
 export function usbTree(): UsbDevice[] {
+  const now = Date.now();
+  if (usbTreeCache && now - usbTreeCache.at < USB_TREE_TTL_MS)
+    return usbTreeCache.devices;
   const p = Bun.spawnSync(
     ["python3", join(import.meta.dir, "..", "python", "usb_tree.py")],
     {
@@ -101,12 +119,14 @@ export function usbTree(): UsbDevice[] {
       stderr: "pipe",
     },
   );
-  if (p.exitCode !== 0) return [];
-  try {
-    return JSON.parse(p.stdout.toString()).devices ?? [];
-  } catch {
-    return [];
+  let devices: UsbDevice[] = [];
+  if (p.exitCode === 0) {
+    try {
+      devices = JSON.parse(p.stdout.toString()).devices ?? [];
+    } catch {}
   }
+  usbTreeCache = { at: now, devices };
+  return devices;
 }
 
 /** Choose the USB device a mounted volume belongs to. The join key is the
@@ -167,21 +187,19 @@ function candidates_are_unique(pool: UsbDevice[]): boolean {
   return pool.length === 1;
 }
 
-/** Robust plist reader: plutil converts to JSON (available on every macOS). */
+/** Robust plist reader: plutil converts JSON from stdin (node child_process
+ *  delivers `input` reliably; Bun's spawnSync stdin pipe did not). No temp
+ *  files — the old tmp-write+delete churn per volume per poll is gone. */
 export function parsePlist(xml: string): Record<string, any> {
-  const tmp = `/tmp/cratedeck_plist_${Date.now()}_${Math.random().toString(36).slice(2)}.plist`;
   try {
-    writeFileSync(tmp, xml);
-    const r = Bun.spawnSync(["plutil", "-convert", "json", "-o", "-", tmp], {
-      stdout: "pipe",
+    const r = spawnSync("plutil", ["-convert", "json", "-o", "-", "-"], {
+      input: xml,
+      encoding: "utf8",
     });
-    return JSON.parse(r.stdout.toString() || "{}");
+    if (r.status !== 0) return {};
+    return JSON.parse(r.stdout || "{}");
   } catch {
     return {};
-  } finally {
-    try {
-      unlinkSync(tmp);
-    } catch {}
   }
 }
 

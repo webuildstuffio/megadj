@@ -10,7 +10,7 @@ import type {
   SnapshotData,
   TimelineEvent,
 } from "../shared/types";
-import { fmtBytes, timeAgo } from "../shared/fmt";
+import { fmtBytes, fmtDur, timeAgo } from "../shared/fmt";
 import { api, toast } from "./toast";
 import { Icon } from "./icons";
 import { navigate } from "./router";
@@ -64,13 +64,19 @@ export function DrivePage(props: {
   const locked = interlock.rekordbox_running;
 
   const load = useCallback(async () => {
+    const enc = encodeURIComponent(driveId);
     const [d, r, t, b, j] = await Promise.all([
-      fetch(`/api/drives/${driveId}`).then((res) => res.json()),
-      fetch(`/api/drives/${driveId}/report`).then((res) => res.json()),
-      fetch(`/api/drives/${driveId}/timeline`).then((res) => res.json()),
-      fetch(`/api/drives/${driveId}/benchmarks`).then((res) => res.json()),
-      fetch(`/api/jobs?drive=${driveId}`).then((res) => res.json()),
+      fetch(`/api/drives/${enc}`).then((res) => res.json()),
+      fetch(`/api/drives/${enc}/report`).then((res) => res.json()),
+      fetch(`/api/drives/${enc}/timeline`).then((res) => res.json()),
+      fetch(`/api/drives/${enc}/benchmarks`).then((res) => res.json()),
+      fetch(`/api/jobs?drive=${enc}`).then((res) => res.json()),
     ]);
+    if (!d?.drive) {
+      // unknown drive id (stale link / renamed registry) — surface, don't hang
+      setDetail({ drive: null } as unknown as Detail);
+      return;
+    }
     setDetail(d);
     setReport(r);
     setTimeline(t);
@@ -80,9 +86,18 @@ export function DrivePage(props: {
 
   useEffect(() => {
     load();
-    const iv = setInterval(load, 5000);
-    return () => clearInterval(iv);
-  }, [load]);
+    // adaptive cadence: 2s while jobs run (live progress), 10s idle — an
+    // 80% request cut on the common idle path vs the old fixed 5s.
+    let iv: ReturnType<typeof setTimeout>;
+    const loop = async () => {
+      const active = await fetch(`/api/jobs?drive=${driveId}&active=1`)
+        .then((r) => r.json())
+        .catch(() => []);
+      iv = setTimeout(loop, (active as unknown[]).length > 0 ? 2000 : 10000);
+    };
+    loop();
+    return () => clearTimeout(iv);
+  }, [load, driveId]);
 
   // SSE-driven job refreshes land in App; here we only need the drive's own
   // jobs list to stay current between polls.
@@ -182,6 +197,19 @@ export function DrivePage(props: {
         <div class="note-card">
           <Icon name="clock" size={20} />
           Loading drive…
+        </div>
+      </div>
+    );
+
+  if (!(detail as unknown as { drive: unknown }).drive)
+    return (
+      <div class="canvas">
+        <div class="note-card">
+          <Icon name="warn" size={20} />
+          Drive not found — it may have been removed from the registry.
+          <button type="button" class="btn" onClick={() => navigate(null)}>
+            Back to all drives
+          </button>
         </div>
       </div>
     );
@@ -736,10 +764,4 @@ function Bars({
       ))}
     </div>
   );
-}
-
-function fmtDur(s: number): string {
-  const m = Math.floor(s / 60);
-  const r = Math.round(s % 60);
-  return `${m}:${String(r).padStart(2, "0")}`;
 }

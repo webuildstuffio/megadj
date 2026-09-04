@@ -42,8 +42,18 @@ export interface Badge {
 }
 
 /** Wire shape for a drive card: the Drive row flattened with its computed
- *  badges (server spreads `{...drive, badges}`; web consumes it directly). */
-export type DriveCardData = Drive & { badges: Badge[] };
+ *  badges (server spreads `{...drive, badges}`; web consumes it directly).
+ *  `last_snapshot_json` is stripped on the wire (payload is MBs); the four
+ *  counts cards actually use ride along as `snapshot_summary`. */
+export type DriveCardData = Omit<Drive, "last_snapshot_json"> & {
+  badges: Badge[];
+  snapshot_summary: {
+    track_count?: number;
+    file_count?: number;
+    capacity_bytes?: number;
+    free_bytes?: number | null;
+  } | null;
+};
 
 export interface PlaylistInfo {
   name: string;

@@ -265,6 +265,31 @@ export function buildReport(input: ReportInput): DriveReport {
   };
 }
 
+/** Compact per-drive row for list views (rail cards): verdict + pass rate.
+ *  One call for all drives replaces the UI's N+1 report fetches. */
+export function buildReportSummary(checks: HealthCheck[]): {
+  overall: ReturnType<typeof overall>;
+  pass_rate: number;
+} {
+  return {
+    overall: overall(checks),
+    pass_rate: checks.length
+      ? checks.reduce(
+          (s, c) =>
+            s +
+            (c.status === "pass"
+              ? 1
+              : c.status === "warn"
+                ? 0.6
+                : c.status === "unknown"
+                  ? 0.3
+                  : 0),
+          0,
+        ) / checks.length
+      : 0,
+  };
+}
+
 function syncVerdict(input: ReportInput): DriveReport["sync"] {
   const { snapshot: snap, masterSnapshot: m, isMirror } = input;
   if (!isMirror) return null;
@@ -272,6 +297,21 @@ function syncVerdict(input: ReportInput): DriveReport["sync"] {
   return snap.file_count >= m.file_count
     ? { verdict: "in-sync" }
     : { verdict: "behind", missing: m.file_count - snap.file_count };
+}
+
+/** Legacy/detail-level sync verdict (registry.detail). Same honest rules:
+ *  mirror-only, count-based, and a mirror can only be in-sync or behind —
+ *  it is never "in-sync" simply because it has ≥ as many rows as master. */
+export function legacySyncVerdict(
+  isMirror: boolean,
+  snapCount: number | undefined,
+  masterCount: number | undefined,
+): { verdict: "in-sync" | "behind" | "unknown"; missing?: number } {
+  if (!isMirror) return { verdict: "unknown" };
+  if (!masterCount || !snapCount) return { verdict: "unknown" };
+  return snapCount >= masterCount
+    ? { verdict: "in-sync" }
+    : { verdict: "behind", missing: masterCount - snapCount };
 }
 
 /** Overall verdict: worst status wins, but "unknown" is degraded-honest —
