@@ -105,9 +105,13 @@ export class JobEngine {
     try {
       this.assertInterlock();
     } catch (e) {
+      // transient: rekordbox appeared between enqueue and start. Not a
+      // terminal state — release it so a later retry isn't deadlocked by
+      // activeJobOfKind() counting 'locked' as active forever.
       this.db.updateJob(job.id, {
-        status: "locked",
+        status: "failed",
         error: (e as Error).message,
+        finished_at: Date.now(),
       });
       this.emit("job", this.db.getJob(job.id));
       return;
@@ -163,25 +167,33 @@ export class JobEngine {
           kind: "light",
           files: light.file_count,
         });
+        let full = false;
         // full (rekordbox) scan in same job when a device DB exists
         try {
-          const full = rbSnapshot(this.cfg, this.guard, mountPoint);
+          const fullSnap = await rbSnapshot(this.cfg, this.guard, mountPoint);
+          // merge: full gives DJ/DB data, light keeps filesystem truth
           this.db.setSnapshot(job.drive_id, {
-            ...full,
+            ...fullSnap,
             file_count: light.file_count,
             folders: light.folders,
             junk: light.junk,
             total_bytes: light.total_bytes,
+            free_bytes: light.free_bytes,
+            capacity_bytes: light.capacity_bytes ?? fullSnap.capacity_bytes,
+            by_ext: light.by_ext,
+            largest: light.largest,
+            age: light.age,
           });
+          full = true;
           this.db.event(job.drive_id, "scan", {
             kind: "full",
-            tracks: full.track_count,
+            tracks: fullSnap.track_count,
           });
         } catch (e) {
           if ((e as Error).message.startsWith("REKORDBOX_RUNNING")) throw e;
           // no device DB / parse error: light scan is the answer
         }
-        return { light: true, full: true };
+        return { light: true, full };
       }
       case "verify": {
         const name = basename(mountPoint);
@@ -258,12 +270,14 @@ async function drain(
     : null;
   try {
     const dec = new TextDecoder();
+    let carry = ""; // partial line from the previous chunk
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const chunk = dec.decode(value);
-      out += chunk;
-      for (const line of chunk.split("\n")) {
+      const chunk = carry + dec.decode(value);
+      const lines = chunk.split("\n");
+      carry = lines.pop() ?? ""; // last element may be incomplete
+      for (const line of lines) {
         if (line.trim()) onLine(line);
       }
       if (handle.cancelled) {
@@ -271,6 +285,7 @@ async function drain(
         break;
       }
     }
+    if (carry.trim()) onLine(carry); // flush the final partial line
   } finally {
     if (timer) clearTimeout(timer);
     await proc.exited;

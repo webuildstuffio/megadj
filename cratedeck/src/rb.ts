@@ -24,11 +24,11 @@ const PYREKORDBOX =
   "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git";
 
 /** Full rekordbox snapshot of a mounted drive. Throws on interlock or error. */
-export function rbSnapshot(
+export async function rbSnapshot(
   cfg: CrateConfig,
   guard: Guard,
   mountPoint: string,
-): SnapshotData {
+): Promise<SnapshotData> {
   const lock = rekordboxRunning();
   if (lock.running) {
     throw new Error(
@@ -64,7 +64,7 @@ export function rbSnapshot(
     }
   }
 
-  const proc = Bun.spawnSync(
+  const proc = Bun.spawn(
     [
       UV,
       "run",
@@ -75,16 +75,28 @@ export function rbSnapshot(
       join(scratch, "exportLibrary.db"),
       mountPoint,
     ],
-    { stdout: "pipe", stderr: "pipe", cwd: cfg.root, timeout: 120_000 },
+    { stdout: "pipe", stderr: "pipe", cwd: cfg.root },
   );
-  const out = proc.stdout.toString().trim();
+  const timeout = setTimeout(() => proc.kill(), 120_000);
+  let out: string;
+  let err: string;
+  try {
+    // async read: keeps the HTTP/SSE server responsive during the 10-90s run
+    [out, err] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    await proc.exited;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const last = out.trim().split("\n").filter(Boolean).pop() ?? "";
   let parsed: { ok: boolean; snapshot?: SnapshotData; error?: string };
   try {
-    parsed = JSON.parse(out.split("\n").filter(Boolean).pop() ?? "");
+    parsed = JSON.parse(last);
   } catch {
-    throw new Error(
-      `rb_read failed: ${proc.stderr.toString().slice(0, 400) || "no output"}`,
-    );
+    throw new Error(`rb_read failed: ${err.slice(0, 400) || "no output"}`);
   }
   if (!parsed.ok) throw new Error(parsed.error ?? "rb_read failed");
   return parsed.snapshot!;

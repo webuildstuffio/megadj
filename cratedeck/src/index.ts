@@ -9,7 +9,7 @@ import { JobEngine } from "./jobs";
 import { ImageService } from "./images";
 import { driveBadgesView } from "./badges_view";
 import { buildReport, overall } from "./report";
-import type { Drive, SnapshotData } from "../shared/types";
+import type { Drive, JobKind, SnapshotData } from "../shared/types";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
@@ -19,12 +19,14 @@ const webRoot = join(here, "web", "dist");
 
 const clients = new Set<ReadableStreamDefaultController>();
 function sse(): Response {
+  let controller: ReadableStreamDefaultController;
   const stream = new ReadableStream({
-    start(controller) {
-      clients.add(controller);
+    start(c) {
+      controller = c;
+      clients.add(c);
     },
     cancel() {
-      // removed on close below
+      clients.delete(controller); // client disconnected — stop broadcasting to it
     },
   });
   return new Response(stream, {
@@ -106,6 +108,7 @@ Bun.serve({
           if (sub === "/timeline") return json(db.timeline(id));
           if (sub === "/export") return exportDossier(id);
           if (sub === "/report") {
+            if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
             const report = buildReport(reportInput(id));
             return json({ ...report, overall: overall(report.checks) });
           }
@@ -123,7 +126,7 @@ Bun.serve({
             return json({ ok: true });
           }
           if (sub === "/jobs" && req.method === "POST") {
-            const body = (await req.json()) as { kind: JobKindX };
+            const body = (await req.json()) as { kind: JobKind };
             if (
               !["scan", "verify", "mirror", "benchmark", "checksum"].includes(
                 body.kind,
@@ -198,8 +201,6 @@ Bun.serve({
     return new Response(Bun.file(join(webRoot, "index.html"))); // SPA fallback
   },
 });
-
-type JobKindX = "scan" | "verify" | "mirror" | "benchmark" | "checksum";
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {

@@ -10,8 +10,29 @@ import type {
   TimelineEvent,
 } from "../shared/types";
 
-const SCHEMA_V1 = `
-CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+/** Raw row shape as stored in the drives table (mounted is 0/1). */
+interface DriveRow extends Omit<Drive, "mounted"> {
+  mounted: number;
+}
+
+/** Raw row shape as stored in the events table. */
+interface EventRow {
+  id: string;
+  drive_id: string;
+  at: number;
+  kind: string;
+  data_json: string | null;
+}
+
+function eventRow(r: EventRow): TimelineEvent {
+  let data: Record<string, unknown> = {};
+  try {
+    data = JSON.parse(r.data_json ?? "{}");
+  } catch {}
+  return { id: r.id, drive_id: r.drive_id, at: r.at, kind: r.kind, data };
+}
+
+const SCHEMA_V1 = `CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS drives (
   id TEXT PRIMARY KEY,
   volume_uuid TEXT UNIQUE,
@@ -81,21 +102,21 @@ export class DB {
   }
 
   // ---- drives -------------------------------------------------------------
-  private normDrive(d: any): Drive {
+  private normDrive(d: DriveRow): Drive {
     return { ...d, mounted: !!d.mounted };
   }
 
   getDrive(id: string): Drive | null {
     const r = this.sqlite
       .query("SELECT * FROM drives WHERE id = ?")
-      .get(id) as any;
+      .get(id) as DriveRow | null;
     return r ? this.normDrive(r) : null;
   }
 
   getDriveByUuid(uuid: string): Drive | null {
     const r = this.sqlite
       .query("SELECT * FROM drives WHERE volume_uuid = ?")
-      .get(uuid) as any;
+      .get(uuid) as DriveRow | null;
     return r ? this.normDrive(r) : null;
   }
 
@@ -105,7 +126,7 @@ export class DB {
         .query(
           "SELECT * FROM drives ORDER BY mounted DESC, nickname IS NULL, name",
         )
-        .all() as any[]
+        .all() as DriveRow[]
     ).map((r) => this.normDrive(r));
   }
 
@@ -235,28 +256,16 @@ export class DB {
     return (
       this.sqlite
         .query("SELECT * FROM events WHERE drive_id=? ORDER BY at DESC LIMIT ?")
-        .all(driveId, limit) as any[]
-    ).map((r) => ({
-      id: r.id,
-      drive_id: r.drive_id,
-      at: r.at,
-      kind: r.kind,
-      data: JSON.parse(r.data_json ?? "{}"),
-    }));
+        .all(driveId, limit) as EventRow[]
+    ).map(eventRow);
   }
 
   recentEvents(limit = 50): TimelineEvent[] {
     return (
       this.sqlite
         .query("SELECT * FROM events ORDER BY at DESC LIMIT ?")
-        .all(limit) as any[]
-    ).map((r) => ({
-      id: r.id,
-      drive_id: r.drive_id,
-      at: r.at,
-      kind: r.kind,
-      data: JSON.parse(r.data_json ?? "{}"),
-    }));
+        .all(limit) as EventRow[]
+    ).map(eventRow);
   }
 
   // ---- jobs -----------------------------------------------------------------
@@ -326,7 +335,7 @@ export class DB {
   activeJobs(): Job[] {
     return this.sqlite
       .query(
-        "SELECT * FROM jobs WHERE status IN ('queued','running','locked') ORDER BY created_at",
+        "SELECT * FROM jobs WHERE status IN ('queued','running') ORDER BY created_at",
       )
       .all() as Job[];
   }
@@ -335,7 +344,7 @@ export class DB {
     return (
       (this.sqlite
         .query(
-          "SELECT * FROM jobs WHERE drive_id=? AND kind=? AND status IN ('queued','running','locked')",
+          "SELECT * FROM jobs WHERE drive_id=? AND kind=? AND status IN ('queued','running')",
         )
         .get(driveId, kind) as Job | null) ?? null
     );
@@ -382,7 +391,11 @@ export class DB {
   ): { ran_at: number; seq_mbps: number; rand4k_mbps: number }[] {
     return this.sqlite
       .query("SELECT * FROM benchmarks WHERE drive_id=? ORDER BY ran_at")
-      .all(driveId) as any[];
+      .all(driveId) as {
+      ran_at: number;
+      seq_mbps: number;
+      rand4k_mbps: number;
+    }[];
   }
 
   ledgerPut(
@@ -411,7 +424,11 @@ export class DB {
         .query(
           "SELECT hash, size, mtime FROM ledger WHERE drive_id=? AND path=?",
         )
-        .get(driveId, path) as any | null) ?? null
+        .get(driveId, path) as {
+        hash: string;
+        size: number;
+        mtime: number;
+      } | null) ?? null
     );
   }
 

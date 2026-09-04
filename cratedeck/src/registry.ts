@@ -72,9 +72,10 @@ export class Registry {
     for (const drive of this.db.allDrives()) {
       const key = drive.volume_uuid ?? drive.id;
       if (drive.mounted && !seen.has(key)) {
-        const wasDirty = true; // volume gone without eject — we can't know; log as-is
+        // volume gone without a clean eject marker — recorded as dirty so
+        // the timeline shows why a verify is worthwhile after re-mount
         this.db.setMounted(drive.id, false);
-        this.db.event(drive.id, wasDirty ? "unmounted-dirty" : "unmounted", {});
+        this.db.event(drive.id, "unmounted-dirty", {});
         this.emit("drives", this.list());
       }
     }
