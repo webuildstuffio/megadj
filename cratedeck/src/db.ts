@@ -6,7 +6,6 @@ import type {
   Drive,
   Job,
   JobKind,
-  JobStatus,
   SnapshotData,
   TimelineEvent,
 } from "../shared/types";
@@ -124,7 +123,7 @@ export class DB {
         .run(
           d.id,
           d.volume_uuid ?? null,
-          d.name,
+          d.name ?? "",
           d.capacity_bytes ?? 0,
           d.fs ?? null,
           d.vendor ?? null,

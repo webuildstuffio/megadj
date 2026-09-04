@@ -14,6 +14,8 @@
     "megadj": "bun run src/cli.ts",
     "deck": "bun run cratedeck/src/index.ts",
     "typecheck": "tsc --noEmit",
+    "lint": "oxlint src cratedeck/src cratedeck/shared cratedeck/web cratedeck/test",
+    "check": "bun run typecheck && bun run lint",
     "test": "bun test"
   },
   "devDependencies": {

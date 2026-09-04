@@ -30,7 +30,7 @@ function drive(over: Partial<Drive> = {}): Drive {
 describe("badges", () => {
   it("ghost when unmounted", () => {
     const b = driveBadges(drive({ mounted: false, state: "ghost" }));
-    expect(b[0].key).toBe("ghost");
+    expect(b[0]?.key).toBe("ghost");
   });
 
   it("attn on junk in latest scan", () => {
@@ -47,7 +47,6 @@ describe("badges", () => {
     const b = driveBadges(drive({ last_snapshot_json: JSON.stringify(snap) }));
     expect(b.some((x) => x.key === "attn")).toBe(true);
   });
-
   it("ready when verified after last change", () => {
     const snap: SnapshotData = {
       kind: "full",

@@ -26,19 +26,20 @@ function parseTomlSimple(src: string): Record<string, any> {
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
     const sec = line.match(/^\[(.+)\]$/);
-    if (sec) {
+    if (sec?.[1]) {
       section = {};
       const parts = sec[1].split(".");
-      let cur = out;
+      let cur: Record<string, any> = out;
       for (const p of parts) {
         cur[p] ??= {};
-        cur = cur[p];
+        const next = cur[p];
+        if (next && typeof next === "object") cur = next;
       }
       section = cur;
       continue;
     }
     const kv = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.+?)\s*(?:#.*)?$/);
-    if (kv) {
+    if (kv?.[1] && kv[2]) {
       let v: any = kv[2].replace(/^"(.*)"$/, "$1");
       if (v === "true") v = true;
       else if (v === "false") v = false;

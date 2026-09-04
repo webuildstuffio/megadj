@@ -67,29 +67,8 @@ describe("nfcCasefold", () => {
 });
 
 // ---- detector fixtures (built from real macOS ioreg -p IOUSB -a -l output) --
-const IOREG_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>usb</key><array>
-<dict>
-  <key>kUSBProductString</key><string>Thunderbolt 5 Hub</string>
-  <key>kUSBVendorString</key><string>Other World Computing</string>
-  <key>kUSBSerialNumberString</key><string>0052</string>
-  <key>locationID</key><integer>1114112</integer>
-  <key>IOUSBHostDevice</key><array>
-    <dict>
-      <key>kUSBProductString</key><string> SanDisk 3.2Gen1</string>
-      <key>kUSBVendorString</key><string> USB</string>
-      <key>kUSBSerialNumberString</key><string>040175fa8e4f9518</string>
-      <key>locationID</key><integer>18874368</integer>
-    </dict>
-  </array>
-</dict>
-<dict>
-  <key>kUSBProductString</key><string>USB C Video Adaptor</string>
-  <key>kUSBVendorString</key><string>USB C</string>
-  <key>locationID</key><integer>18022400</integer>
-</dict>
-</array></dict></plist>`;
+// (the live plist is parsed by python/usb_tree.py; tests exercise the
+//  pickUsbDevice join logic directly via the UsbDevice[] fixtures below)
 
 describe("detect", () => {
   // real shapes from this Mac: two identical SanDisk sticks on different
@@ -164,7 +143,7 @@ describe("detect", () => {
   });
 
   it("falls back to single-storage heuristic without a tree path", () => {
-    const pick = pickUsbDevice([devices[2], devices[5]], null, null);
+    const pick = pickUsbDevice([devices[2]!, devices[5]!], null, null);
     expect(pick?.serial).toBe("040175fa8e4f9518");
   });
 

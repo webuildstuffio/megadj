@@ -9,7 +9,7 @@ export function driveBadgesView(
   drive: Drive,
   snaps: Map<string, SnapshotData>,
   masterDriveName: string,
-  mirrorDriveName: string,
+  _mirrorDriveName: string,
 ) {
   const master = db
     .allDrives()
@@ -21,7 +21,9 @@ export function driveBadgesView(
   const masterSnap = master?.last_snapshot_json
     ? (JSON.parse(master.last_snapshot_json) as SnapshotData)
     : null;
-  const badges = driveBadges(drive, { latestVerify: db.latestVerify(drive.id) });
+  const badges = driveBadges(drive, {
+    latestVerify: db.latestVerify(drive.id),
+  });
   const sync = syncBadge(drive, masterSnap);
   if (sync) badges.push(sync);
   return badges;

@@ -6,12 +6,12 @@ export type DriveState = "mounting" | "mounted" | "ghost";
 
 export interface Drive {
   id: string;
-  volume_uuid: string;
+  volume_uuid: string | null;
   name: string; // volume name (technical)
   nickname: string | null; // user name (e.g. "OLDBACKUP")
   photo_path: string | null;
   capacity_bytes: number;
-  fs: string;
+  fs: string | null;
   vendor: string | null;
   model: string | null;
   usb_serial: string | null;
@@ -40,6 +40,10 @@ export interface Badge {
   label: string;
   tone: "good" | "warn" | "bad" | "muted" | "info";
 }
+
+/** Wire shape for a drive card: the Drive row flattened with its computed
+ *  badges (server spreads `{...drive, badges}`; web consumes it directly). */
+export type DriveCardData = Drive & { badges: Badge[] };
 
 export interface PlaylistInfo {
   name: string;
@@ -88,6 +92,7 @@ export interface Job {
   progress: number; // 0..1
   error: string | null;
   result_json: string | null;
+  log_path: string | null; // schema column; unused by jobs.ts yet
   created_at: number;
   started_at: number | null;
   finished_at: number | null;
@@ -106,6 +111,7 @@ export interface PortInfo {
   label: string | null;
   drive_id: string | null;
   drive_name: string | null;
+  mounted: boolean;
   last_seen_at: number | null;
 }
 

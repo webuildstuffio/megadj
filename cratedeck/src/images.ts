@@ -1,6 +1,5 @@
 // images — provider search (brave | exa) proxied server-side; chosen images
 // cached forever under data/images/<drive>/.
-import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { CrateConfig } from "./config";
 import type { Guard } from "./guard";

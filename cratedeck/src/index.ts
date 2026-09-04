@@ -35,7 +35,7 @@ function sse(): Response {
 }
 function emit(channel: string, data: unknown): void {
   const msg = `event: ${channel}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const c of [...clients]) {
+  for (const c of clients) {
     try {
       c.enqueue(new TextEncoder().encode(msg));
     } catch {
@@ -68,7 +68,7 @@ async function reconcile(): Promise<void> {
 const watcher = watchVolumes(cfg.volumesRoot, reconcile);
 await reconcile(); // initial sweep
 
-const server = Bun.serve({
+Bun.serve({
   port: cfg.serverPort,
   hostname: "127.0.0.1", // localhost is the trust boundary
   async fetch(req) {
@@ -85,14 +85,21 @@ const server = Bun.serve({
             registry.list().map((d) => ({
               ...d,
               badges: [
-                ...driveBadgesView(db, d, snaps, cfg.masterDrive, cfg.mirrorDrive),
+                ...driveBadgesView(
+                  db,
+                  d,
+                  snaps,
+                  cfg.masterDrive,
+                  cfg.mirrorDrive,
+                ),
               ],
             })),
           );
         }
         const driveMatch = route.match(/^\/drives\/([^/]+)(\/.*)?$/);
-        if (driveMatch) {
-          const [, id, sub] = driveMatch;
+        if (driveMatch?.[1]) {
+          const id: string = driveMatch[1];
+          const sub: string | undefined = driveMatch[2];
           if (!sub) return json(registry.detail(id));
           if (sub === "/timeline") return json(db.timeline(id));
           if (sub === "/export") return exportDossier(id);
@@ -135,8 +142,9 @@ const server = Bun.serve({
           return json(active ? db.activeJobs() : db.jobsForDrive("*", 50));
         }
         const jobMatch = route.match(/^\/jobs\/([^/]+)(\/cancel)?$/);
-        if (jobMatch) {
-          const [, id, cancel] = jobMatch;
+        if (jobMatch?.[1]) {
+          const id: string = jobMatch[1];
+          const cancel: string | undefined = jobMatch[2];
           if (cancel && req.method === "POST")
             return json({ ok: jobs.cancel(id) });
           return json(db.getJob(id));

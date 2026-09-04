@@ -12,8 +12,11 @@ const RB = "rekordbox";
 export function rekordboxRunning(): { running: boolean; pid: number | null } {
   const p = Bun.spawnSync(["pgrep", "-x", RB], { stdout: "pipe" });
   const out = p.stdout.toString().trim();
-  const pid = out ? parseInt(out.split("\n")[0], 10) : null;
-  return { running: !!out, pid: pid && !isNaN(pid) ? pid : null };
+  const pid = out ? parseInt(out.split("\n")[0] ?? "", 10) : null;
+  return {
+    running: !!out,
+    pid: pid !== null && !Number.isNaN(pid) ? pid : null,
+  };
 }
 
 const UV = "uv";
@@ -141,14 +144,14 @@ export function spawnMirror(
 
 /** Parse mirror/verify stdout milestones into 0..1 progress. */
 export function progressFromLine(line: string): number | null {
-  const m = line.match(/\[(\#+|-*)\]\s*(\d+)\/(\d+)/);
-  if (m) {
+  const m = line.match(/\[(#+|-*)\]\s*(\d+)\/(\d+)/);
+  if (m?.[2] && m[3]) {
     const done = parseInt(m[2], 10);
     const total = parseInt(m[3], 10);
     return total ? done / total : null;
   }
   const pct = line.match(/\b(\d{1,3})%/);
-  return pct ? parseInt(pct[1], 10) / 100 : null;
+  return pct?.[1] ? parseInt(pct[1], 10) / 100 : null;
 }
 
 function exists(p: string): boolean {

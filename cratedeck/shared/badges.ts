@@ -1,8 +1,6 @@
 // Badge rules — single source computed server-side, rendered client-side.
 import type { Badge, Drive, SnapshotData } from "./types";
 
-const DAY = 86_400_000;
-
 export function driveBadges(
   drive: Drive,
   opts: {

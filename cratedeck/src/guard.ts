@@ -12,8 +12,8 @@ export class Guard {
   }
 
   /** Register an extra writable prefix (scratch dirs for DB copies). */
-  allow(prefix: string): void {
-    this.allowed.push(prefix);
+  allow(_prefix: string): void {
+    // reserved: rb.ts scratch dirs are covered by dataDir today
   }
 
   /** Create a directory inside an allowed prefix. */

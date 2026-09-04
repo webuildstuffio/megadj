@@ -7,9 +7,9 @@ import {
   fstatSync,
   readdirSync,
   statSync,
+  type Stats,
 } from "node:fs";
 import { join } from "node:path";
-import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Guard } from "./guard";
 
@@ -57,9 +57,10 @@ export function benchmarkDrive(mountPoint: string, capMb: number): BenchResult {
   let randBytes = 0;
   for (let i = 0; i < 4000; i++) {
     const f = candidates[i % candidates.length];
+    if (!f) continue;
     const fd = openSync(f, "r");
     try {
-      const size = fstatSync(fd).size;
+      const size = Number(fstatSync(fd).size);
       if (size > 4096) {
         const pos = Math.floor(Math.random() * (size - 4096));
         readSync(fd, rand, 0, 4096, pos);
@@ -135,10 +136,11 @@ function biggestFiles(
   const out: { p: string; size: number }[] = [];
   let total = 0;
   walk(root, (p, st) => {
-    if (st.size > 1_000_000 && AUDIO_EXT.has(ext(p))) {
-      if (total + st.size > maxTotal) return;
-      total += st.size;
-      out.push({ p, size: st.size });
+    const size = Number(st.size);
+    if (size > 1_000_000 && AUDIO_EXT.has(ext(p))) {
+      if (total + size > maxTotal) return;
+      total += size;
+      out.push({ p, size });
     }
   });
   return out
@@ -147,10 +149,7 @@ function biggestFiles(
     .map((x) => x.p);
 }
 
-function walk(
-  dir: string,
-  cb: (p: string, st: ReturnType<typeof statSync>) => void,
-): void {
+function walk(dir: string, cb: (p: string, st: Stats) => void): void {
   let entries: string[];
   try {
     entries = readdirSync(dir);
@@ -160,14 +159,13 @@ function walk(
   for (const e of entries) {
     if (e.startsWith(".") || e === "System Volume Information") continue;
     const p = join(dir, e);
-    let st;
     try {
-      st = statSync(p);
+      const st = statSync(p);
+      if (st.isDirectory()) walk(p, cb);
+      else if (st.isFile()) cb(p, st);
     } catch {
       continue;
     }
-    if (st.isDirectory()) walk(p, cb);
-    else if (st.isFile()) cb(p, st);
   }
 }
 

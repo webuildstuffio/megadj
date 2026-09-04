@@ -2,7 +2,7 @@
 // mounted volume, and walks the core loop: appear → scan → ghost → search →
 // export. The detector is exercised through the real reconcile path.
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { mkdirSync, writeFileSync, cpSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 
 const FIX_ROOT = `/tmp/cratedeck-e2e-${Date.now()}`;
 const FIX_DRIVE = `${FIX_ROOT}/vol/DJTESTCRATE`;

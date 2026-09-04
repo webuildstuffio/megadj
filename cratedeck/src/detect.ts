@@ -131,7 +131,7 @@ export function pickUsbDevice(
 
   if (treePath) {
     const m = treePath.match(/@([0-9a-fA-F]+)\)?$/);
-    if (m) {
+    if (m?.[1]) {
       const treeAddr = parseInt(m[1], 16);
       // ioreg locationID == treeAddr, or treeAddr with the port-index bit
       // (0x10000) set (verified: 0x01200000→0x1200000, 0x02100000→0x2110000).
@@ -147,7 +147,7 @@ export function pickUsbDevice(
       if (byLoc) return byLoc;
     }
   }
-  if (candidates_are_unique(pool)) return pool[0];
+  if (candidates_are_unique(pool)) return pool[0] ?? null;
   if (mediaName) {
     const med = mediaName
       .toLowerCase()
@@ -160,7 +160,7 @@ export function pickUsbDevice(
     );
     if (match) return match;
   }
-  return pool[0];
+  return pool[0] ?? null;
 }
 
 function candidates_are_unique(pool: UsbDevice[]): boolean {

@@ -113,7 +113,7 @@ export class Downloader {
     const printed = stdout
       .trim()
       .split("\n")
-      .filter((l) => !/^\[/.test(l));
+      .filter((l) => !l.startsWith("["));
     return {
       filePath: printed.find((l) => l.endsWith(".m4a")),
       formatId: printed.find((l) => /^[0-9]+$/.test(l.trim())),

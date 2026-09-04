@@ -111,6 +111,7 @@ describe("db jobs", () => {
       progress: 0.5,
       error: null,
       result_json: null,
+      log_path: null,
       created_at: 1,
       started_at: 2,
       finished_at: null,
@@ -136,6 +137,7 @@ describe("db jobs", () => {
       progress: 1,
       error: null,
       result_json: null,
+      log_path: null,
       created_at: 1,
       started_at: 1,
     };

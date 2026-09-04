@@ -1,20 +1,13 @@
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import type {
-  Badge,
-  Drive,
+  DriveCardData,
   InterlockState,
   Job,
   PortInfo,
   SearchResult,
-  SnapshotData,
-  TimelineEvent,
 } from "../shared/types";
 import { DriveCard } from "./DriveCard";
 import { DriveDrawer } from "./DriveDrawer";
-
-export interface DriveCardData extends Drive {
-  badges: Badge[];
-}
 
 export function App() {
   const [drives, setDrives] = useState<DriveCardData[]>([]);

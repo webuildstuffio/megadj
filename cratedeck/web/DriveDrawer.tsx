@@ -1,9 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import type {
-  Badge,
   Drive,
   InterlockState,
-  Job,
   SnapshotData,
   TimelineEvent,
 } from "../shared/types";
@@ -85,7 +83,7 @@ export function DriveDrawer({
 
   return (
     <div class="drawer" onClick={(e) => e.stopPropagation()}>
-      <button class="close" onClick={onClose}>
+      <button type="button" class="close" onClick={onClose}>
         ✕
       </button>
       <h2>
@@ -108,8 +106,11 @@ export function DriveDrawer({
       </div>
 
       <div class="actions">
-        <button onClick={rename}>Rename</button>
+        <button type="button" onClick={rename}>
+          Rename
+        </button>
         <button
+          type="button"
           class="primary"
           disabled={!detail?.drive.mounted || locked || busy === "scan"}
           onClick={() => run("scan")}
@@ -118,6 +119,7 @@ export function DriveDrawer({
           {busy === "scan" ? "Scanning…" : "Scan"}
         </button>
         <button
+          type="button"
           disabled={!detail?.drive.mounted || locked || busy === "verify"}
           onClick={() => run("verify")}
           title={locked ? "rekordbox is running" : undefined}
@@ -125,12 +127,14 @@ export function DriveDrawer({
           Verify
         </button>
         <button
+          type="button"
           disabled={!detail?.drive.mounted || locked || busy === "benchmark"}
           onClick={() => run("benchmark")}
         >
           Benchmark
         </button>
         <button
+          type="button"
           disabled={!detail?.drive.mounted || locked || busy === "checksum"}
           onClick={() => run("checksum")}
         >
@@ -158,6 +162,7 @@ export function DriveDrawer({
       <div class="tabs">
         {TABS.map((t) => (
           <button
+            type="button"
             key={t}
             class={tab === t ? "on" : ""}
             onClick={() => setTab(t)}
@@ -263,17 +268,11 @@ export function DriveDrawer({
         <div>
           <div class="statgrid">
             <Stat
-              v={
-                bench.length ? `${bench[bench.length - 1].seq_mbps} MB/s` : "—"
-              }
+              v={bench.at(-1) ? `${bench.at(-1)!.seq_mbps} MB/s` : "—"}
               l="sequential read (last)"
             />
             <Stat
-              v={
-                bench.length
-                  ? `${bench[bench.length - 1].rand4k_mbps} MB/s`
-                  : "—"
-              }
+              v={bench.at(-1) ? `${bench.at(-1)!.rand4k_mbps} MB/s` : "—"}
               l="random 4k read (last)"
             />
             <Stat v={detail?.drive.usb_serial ?? "—"} l="USB serial" />

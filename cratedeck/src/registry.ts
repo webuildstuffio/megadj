@@ -3,7 +3,6 @@ import { rmSync } from "node:fs";
 import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Drive, SearchResult, SnapshotData } from "../shared/types";
-import { scanVolume } from "./scan";
 
 export type Emit = (channel: string, data: unknown) => void;
 

@@ -5,9 +5,19 @@
     "moduleResolution": "bundler",
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "types": ["bun"]
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "cratedeck/src/**/*.ts",
+    "cratedeck/shared/**/*.ts",
+    "cratedeck/web/**/*.ts",
+    "cratedeck/web/**/*.tsx",
+    "cratedeck/test/**/*.ts"
+  ]
 }

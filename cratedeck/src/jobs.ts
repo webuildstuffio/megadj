@@ -1,6 +1,6 @@
 // jobs.ts — queue with per-drive concurrency 1, progress, logs, cancel,
 // and the rekordbox interlock (refuse everything while rekordbox runs).
-import { basename, join } from "node:path";
+import { basename } from "node:path";
 import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Guard } from "./guard";
@@ -57,6 +57,7 @@ export class JobEngine {
       progress: 0,
       error: null,
       result_json: null,
+      log_path: null,
       created_at: Date.now(),
       started_at: null,
       finished_at: null,
@@ -93,7 +94,7 @@ export class JobEngine {
 
   private pump(): void {
     // per-drive concurrency 1: skip if that drive already has a running job
-    const runningDrives = new Set([...this.running.keys()]);
+    const runningDrives = new Set(this.running.keys());
     const next = this.queue.find((q) => !runningDrives.has(q.job.drive_id));
     if (!next) return;
     this.queue = this.queue.filter((q) => q !== next);
@@ -243,7 +244,12 @@ async function drain(
   timeoutMs = 0,
 ): Promise<{ out: string }> {
   let out = "";
-  const reader = proc.stdout.getReader();
+  const stdout = proc.stdout;
+  if (!stdout || typeof stdout === "number") {
+    await proc.exited;
+    return { out };
+  }
+  const reader = stdout.getReader();
   const timer = timeoutMs
     ? setTimeout(() => {
         handle.cancelled = true;

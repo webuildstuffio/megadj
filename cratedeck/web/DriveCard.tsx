@@ -1,4 +1,4 @@
-import type { DriveCardData } from "./App";
+import type { DriveCardData } from "../shared/types";
 
 const toneColor: Record<string, string> = {
   good: "var(--good)",
