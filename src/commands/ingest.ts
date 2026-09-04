@@ -64,7 +64,7 @@ export function normalize(s: string): string {
     .replace(/[‘’]/g, "'")
     .replace(/[｜|]/g, "|")
     .replace(/\(1\)|\(2\)|\(3\)/g, " ") // Safari "name (1).ext" dupes
-    .replace(/[\[\]\(\)]/g, " ")
+    .replace(/[()[\]]/g, " ")
     .replace(/_/g, " ")
     .replace(/\b(final|master|mstr|v\d+)\b/g, " ")
     .replace(/[^a-z0-9 ]/g, " ")
