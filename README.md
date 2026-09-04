@@ -73,7 +73,7 @@ megadj adopt                      # register existing files in the DB
 - **State** — SQLite tracks every video ID with status, format, bitrate, file path, size, duration, and attempt history. Runs are logged; nothing re-downloads.
 - **Metadata** — yt-dlp's `web_music` client metadata (label feed: artist, album, release date, credits) is cleaned of "(Official Audio)" noise, genre is inferred from title/description then enriched via MusicBrainz (`enrich`), producer credits are parsed into the composer tag, and tags are applied via ffmpeg stream-copy (no re-encode, artwork preserved).
 - **Quality** — format selection is `141/bestaudio[m4a]/bestaudio` (256kbps AAC first, falls back gracefully). The `list` output flags tracks below 250kbps as `LOWQ`.
-- **Artwork & genre completion** — `tools/fetch_all.ts` is the one-shot enrichment pipeline (idempotent, parallel, ground-truth verified): tags → genre (SoundCloud tags via yt-dlp, then OpenRouter classifier at conf ≥ 0.7) → artwork (SoundCloud `-original` → gateway pages → Deezer → iTunes → AI cover queue last). Specialist passes: `tools/pack_art.ts` (pack/edit uploads), `tools/sc_art_direct.ts`, `tools/sync_genres.ts`.
+- **Artwork & genre completion** — `tools/fetch_all.ts` is the one-shot enrichment pipeline (idempotent, parallel, ground-truth verified): tags → genre (SoundCloud tags via yt-dlp, canonicalized, then OpenRouter classifier at conf ≥ 0.7) → artwork (SoundCloud page `-original`/`t1080` → hypeddit gateways → mp3-twin → Deezer → iTunes → AI cover queue last). All former specialist passes (`art_final`, `pack_art`, `sc_art_direct`, `sc_genres`, `normalize_genres`, `sync_genres`, `ai_genres`) are consolidated inside it.
 
 ## DJ USB pipeline (DJMASTER + DJMIRROR)
 

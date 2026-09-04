@@ -106,9 +106,9 @@ remaining in-flight work.)_
    print-styled HTML one-pager (idea #37).
 2. **Consolidate `tools/` — ✅ DONE** (post-audit 2026-09-04: ingest
    absorbed zip expansion, artwork embedding, and dedupe in `a4ace28`/
-   `76b344a`; `tools/` is now a stable set of pipeline utilities —
-   art/genre tooling plus `fetch_all.ts`, `pack_art.ts`, `sc_*` SoundCloud
-   passes — all committed).
+   `76b344a`; Sep 2026: all art/genre passes consolidated into
+   `fetch_all.ts` — `art_final`, `pack_art`, `sc_art_direct`, `sc_genres`,
+   `normalize_genres`, `sync_genres`, `ai_genres` retired).
 3. **Close the 2026-09-03 sync-log checklist.** Three pending items remain
    (the fourth, SSD evacuation, is now §0a):
    - `usb_verify.py` hardware gate (pdb live rows == OneLibrary, both drives)
@@ -244,7 +244,8 @@ once_ — the moat. Roughly in value order:
       filtering that rekordbox can't do natively. Cheap because analysis
       already runs during ingest. **(Superseded/leveled-up by §I: pretrained
       models make this dramatically better than hand-rolled features.)**
-28. **Genre governance.** `ai_genres.ts` (in flight) + MusicBrainz genres +
+28. **Genre governance.** `fetch_all.ts`'s genre stage (SC tags + canonical
+    map + OpenRouter classifier) + MusicBrainz genres +
     your own conventions → one canonical genre vocabulary file, with an audit
     report of strays. Prevents the folder tree (organize) from forking into
     `Hip-Hop` vs `HipHop` vs `Rap`. Essentia's MusiCNN genre models (§I45)
@@ -431,8 +432,8 @@ pass. One mutagen pass (Python side), one schema, everything else reads it.
     - `COMM` comment = vibe line + camelot, so it shows on any player screen
       Effort S. This is what "full tagging" means operationally.
 
-54. **Artwork standardization.** Consolidate `art_final.ts` into ingest:
-    target 1400×1400 (or 600×600) JPEG, type-3 front-cover frame, consistent
+54. **Artwork standardization.** Extend `fetch_all.ts`'s art stage: target
+    1400×1400 (or 600×600) JPEG, type-3 front-cover frame, consistent
     quality; keep the AI-artwork fallback path. Feeds both ID3 `APIC` and
     the ANLZ `PWAV`-adjacent artwork pipeline rekordbox reads. Effort S.
 
