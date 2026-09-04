@@ -109,6 +109,9 @@ describe("db jobs", () => {
       kind: "verify" as const,
       status: "running" as const,
       progress: 0.5,
+      message: null,
+      phase: null,
+      eta_seconds: null,
       error: null,
       result_json: null,
       log_path: null,
@@ -135,6 +138,9 @@ describe("db jobs", () => {
       drive_id: UUID_A,
       kind: "verify" as const,
       progress: 1,
+      message: null,
+      phase: null,
+      eta_seconds: null,
       error: null,
       result_json: null,
       log_path: null,
@@ -148,6 +154,56 @@ describe("db jobs", () => {
       result_json: JSON.stringify({ verdict: "pass" }),
     });
     expect(db.latestVerify(UUID_A)).toEqual({ ran_at: 5, ok: true });
+  });
+
+  it("latestChecksum returns real changed-count, null when never run", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    expect(db.latestChecksum(UUID_A)).toBeNull(); // never run
+    const base = {
+      id: "j3",
+      drive_id: UUID_A,
+      kind: "checksum" as const,
+      progress: 1,
+      message: null,
+      phase: null,
+      eta_seconds: null,
+      error: null,
+      result_json: null,
+      log_path: null,
+      created_at: 1,
+      started_at: 1,
+    };
+    db.insertJob({ ...base, status: "running" as const, finished_at: null });
+    db.updateJob("j3", {
+      status: "done",
+      finished_at: 9,
+      result_json: JSON.stringify({ hashed: 100, changed: ["a.wav"] }),
+    });
+    expect(db.latestChecksum(UUID_A)).toEqual({ ran_at: 9, changed: 1 });
+  });
+
+  it("setSnapshot prunes snapshot history (disk-burn guard)", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    for (let i = 0; i < 25; i++) {
+      db.setSnapshot(UUID_A, {
+        kind: "light",
+        taken_at: 1_000 + i,
+        file_count: i,
+      });
+    }
+    expect(db.snapshots(UUID_A).length).toBeLessThanOrEqual(20);
+    // newest kept, oldest dropped
+    expect(db.snapshots(UUID_A).at(-1)?.taken_at).toBe(1_024);
   });
 });
 

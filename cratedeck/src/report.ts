@@ -18,7 +18,8 @@ export interface ReportInput {
   masterSnapshot: SnapshotData | null;
   masterName: string;
   isMirror: boolean;
-  checksumChanged: number;
+  /** Newest checksum job verdict. null = never run (≠ a clean 0). */
+  latestChecksum: { ran_at: number; changed: number } | null;
 }
 
 const DAY = 86_400_000;
@@ -106,21 +107,31 @@ export function buildChecks(input: ReportInput): HealthCheck[] {
 
   // ---- bitrot / checksum ledger -------------------------------------------
   if (input.ledgerFiles > 0) {
+    const changed = input.latestChecksum?.changed;
     checks.push({
       id: "bitrot",
       label: "Bitrot (checksum ledger)",
-      status: input.checksumChanged > 0 ? "fail" : "pass",
+      status:
+        changed === undefined || changed === null
+          ? "unknown"
+          : changed > 0
+            ? "fail"
+            : "pass",
       detail:
-        input.checksumChanged > 0
-          ? `${input.checksumChanged} file(s) changed vs ledger`
-          : `${input.ledgerFiles} file(s) watched, no corruption detected` +
-            (input.ledgerStaleDays !== null && input.ledgerStaleDays > 60
-              ? ` (ledger ${Math.round(input.ledgerStaleDays)}d old — re-run Checksum)`
-              : ""),
+        changed === undefined || changed === null
+          ? `ledger has ${input.ledgerFiles} file(s) but no finished checksum run — verdict unknown`
+          : changed > 0
+            ? `${changed} file(s) differ from the ledger — silent corruption risk`
+            : `${input.ledgerFiles} file(s) watched, no corruption detected` +
+              (input.ledgerStaleDays !== null && input.ledgerStaleDays > 60
+                ? ` (ledger ${Math.round(input.ledgerStaleDays)}d old — re-run Checksum)`
+                : ""),
       fix:
-        input.checksumChanged > 0
-          ? "Re-download or replace the changed file(s), then re-run Checksum"
-          : undefined,
+        changed === undefined || changed === null
+          ? "Run Checksum to get a corruption verdict"
+          : changed > 0
+            ? "Re-download or replace the changed file(s), then re-run Checksum"
+            : undefined,
     });
   } else {
     checks.push({
@@ -263,12 +274,15 @@ function syncVerdict(input: ReportInput): DriveReport["sync"] {
     : { verdict: "behind", missing: m.file_count - snap.file_count };
 }
 
-/** Overall verdict: worst status wins. */
+/** Overall verdict: worst status wins, but "unknown" is degraded-honest —
+ *  a drive with all-unknown checks reports "unknown", never a fake "healthy".
+ *  Warnings outweigh unknowns (attention), failures always win. */
 export function overall(
   checks: HealthCheck[],
 ): "healthy" | "attention" | "critical" | "unknown" {
   if (!checks.length) return "unknown";
   if (checks.some((c) => c.status === "fail")) return "critical";
   if (checks.some((c) => c.status === "warn")) return "attention";
+  if (checks.every((c) => c.status === "unknown")) return "unknown";
   return "healthy";
 }

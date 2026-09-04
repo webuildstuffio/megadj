@@ -24,6 +24,11 @@ interface EventRow {
   data_json: string | null;
 }
 
+/** Snapshot history is capped so years of scans can't eat the host disk. */
+const MAX_SNAPSHOTS_PER_DRIVE = 20;
+/** Timeline events trimmed at boot; cheap insurance against slow bloat. */
+const MAX_EVENTS_PER_DRIVE = 2000;
+
 function eventRow(r: EventRow): TimelineEvent {
   let data: Record<string, unknown> = {};
   try {
@@ -91,14 +96,68 @@ export class DB {
 
   private migrate() {
     this.sqlite.exec(SCHEMA_V1);
+    // v2: human-facing job progress (message/phase/eta) for UI + agent CLI
+    const cols = this.sqlite
+      .query<{ name: string }, []>("PRAGMA table_info(jobs)")
+      .all()
+      .map((c) => c.name);
+    if (!cols.includes("message"))
+      this.sqlite.exec("ALTER TABLE jobs ADD COLUMN message TEXT");
+    if (!cols.includes("phase"))
+      this.sqlite.exec("ALTER TABLE jobs ADD COLUMN phase TEXT");
+    if (!cols.includes("eta_seconds"))
+      this.sqlite.exec("ALTER TABLE jobs ADD COLUMN eta_seconds REAL");
+    // disk-burn guard: cap per-drive snapshot history (each full snapshot can
+    // be ~MBs of JSON; unbounded growth would eat the host disk over months)
+    this.pruneSnapshots();
+    this.pruneEvents();
     const v = this.sqlite
       .query<{ value: string }, []>("SELECT value FROM meta WHERE key='schema'")
       .get();
     if (!v) {
       this.sqlite
-        .query("INSERT INTO meta (key, value) VALUES ('schema', '1')")
+        .query("INSERT INTO meta (key, value) VALUES ('schema', '2')")
         .run();
     }
+  }
+
+  /** Keep the newest MAX_SNAPSHOTS_PER_DRIVE snapshots per drive. */
+  private pruneSnapshots(max = MAX_SNAPSHOTS_PER_DRIVE): void {
+    this.sqlite
+      .query(
+        `DELETE FROM snapshots WHERE drive_id IN (
+           SELECT DISTINCT drive_id FROM snapshots
+         ) AND taken_at NOT IN (
+           SELECT taken_at FROM snapshots s2
+           WHERE s2.drive_id = snapshots.drive_id
+           ORDER BY taken_at DESC LIMIT ?
+         )`,
+      )
+      .run(max);
+  }
+
+  /** Called after each setSnapshot so history never grows unbounded. */
+  private pruneSnapshotsFor(driveId: string, max = MAX_SNAPSHOTS_PER_DRIVE): void {
+    this.sqlite
+      .query(
+        `DELETE FROM snapshots WHERE drive_id=? AND taken_at NOT IN (
+           SELECT taken_at FROM snapshots WHERE drive_id=?
+           ORDER BY taken_at DESC LIMIT ?
+         )`,
+      )
+      .run(driveId, driveId, max);
+  }
+
+  /** Trim timeline events at boot (they're capped per drive). */
+  private pruneEvents(max = MAX_EVENTS_PER_DRIVE): void {
+    this.sqlite
+      .query(
+        `DELETE FROM events WHERE id NOT IN (
+           SELECT id FROM events e2 WHERE e2.drive_id = events.drive_id
+           ORDER BY at DESC LIMIT ?
+         )`,
+      )
+      .run(max);
   }
 
   // ---- drives -------------------------------------------------------------
@@ -211,6 +270,7 @@ export class DB {
         "INSERT OR REPLACE INTO snapshots (drive_id, taken_at, kind, data_json) VALUES (?,?,?,?)",
       )
       .run(id, snap.taken_at, snap.kind, JSON.stringify(snap));
+    this.pruneSnapshotsFor(id); // disk-burn guard
   }
 
   latestSnapshots(): Map<string, SnapshotData> {
@@ -298,7 +358,8 @@ export class DB {
     this.sqlite
       .query(
         `UPDATE jobs SET status=?, progress=?, error=?, result_json=?,
-           started_at=?, finished_at=? WHERE id=?`,
+           started_at=?, finished_at=?, message=?, phase=?, eta_seconds=?
+         WHERE id=?`,
       )
       .run(
         j.status,
@@ -307,6 +368,32 @@ export class DB {
         j.result_json,
         j.started_at,
         j.finished_at,
+        j.message ?? null,
+        j.phase ?? null,
+        j.eta_seconds ?? null,
+        id,
+      );
+  }
+
+  /** Fine-grained progress update: fraction, human message, phase, ETA (s). */
+  setJobProgress(
+    id: string,
+    p: { progress?: number; message?: string; phase?: string; eta_seconds?: number | null },
+  ): void {
+    this.sqlite
+      .query(
+        `UPDATE jobs SET
+           progress=COALESCE(?,progress),
+           message=COALESCE(?,message),
+           phase=COALESCE(?,phase),
+           eta_seconds=?
+         WHERE id=?`,
+      )
+      .run(
+        p.progress ?? null,
+        p.message ?? null,
+        p.phase ?? null,
+        p.eta_seconds === undefined ? null : p.eta_seconds,
         id,
       );
   }
@@ -364,6 +451,27 @@ export class DB {
       ok = JSON.parse(row.result_json)?.verdict === "pass";
     } catch {}
     return { ran_at: row.finished_at, ok };
+  }
+
+  /** Files that changed vs the checksum ledger, from the newest checksum job.
+   *  null = no checksum run recorded yet (distinct from a clean 0). */
+  latestChecksum(driveId: string): { ran_at: number; changed: number } | null {
+    const row = this.sqlite
+      .query(
+        `SELECT finished_at, result_json FROM jobs
+         WHERE drive_id=? AND kind='checksum' AND status='done'
+         ORDER BY finished_at DESC LIMIT 1`,
+      )
+      .get(driveId) as { finished_at: number; result_json: string } | null;
+    if (!row) return null;
+    try {
+      const changed = JSON.parse(row.result_json)?.changed?.length;
+      return typeof changed === "number"
+        ? { ran_at: row.finished_at, changed }
+        : null;
+    } catch {
+      return null;
+    }
   }
 
   /** Boot-time: any job left queued/running from a dead process. */

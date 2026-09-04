@@ -123,6 +123,12 @@ export interface Job {
   kind: JobKind;
   status: JobStatus;
   progress: number; // 0..1
+  /** Human-readable current step, e.g. "hashing 1,204/8,911 files". */
+  message: string | null;
+  /** Coarse stage for progress bar segmentation. */
+  phase: string | null;
+  /** Seconds remaining estimate (null while unknown). */
+  eta_seconds: number | null;
   error: string | null;
   result_json: string | null;
   log_path: string | null; // schema column; unused by jobs.ts yet

@@ -118,7 +118,7 @@ const baseInput = {
   masterSnapshot: null,
   masterName: "M",
   isMirror: false,
-  checksumChanged: 0,
+  latestChecksum: { ran_at: Date.now() - 1 * 86_400_000, changed: 0 },
 };
 
 describe("report checks", () => {
@@ -153,9 +153,33 @@ describe("report checks", () => {
   });
 
   it("fails bitrot when checksums changed", () => {
-    const checks = buildChecks({ ...baseInput, checksumChanged: 3 });
+    const checks = buildChecks({
+      ...baseInput,
+      latestChecksum: { ran_at: Date.now() - 1000, changed: 3 },
+    });
     expect(checks.find((c) => c.id === "bitrot")!.status).toBe("fail");
     expect(overall(checks)).toBe("critical");
+  });
+
+  it("bitrot verdict is honest-unknown when checksum never ran", () => {
+    const checks = buildChecks({ ...baseInput, latestChecksum: null });
+    const bitrot = checks.find((c) => c.id === "bitrot")!;
+    expect(bitrot.status).toBe("unknown");
+    expect(bitrot.detail).toContain("unknown");
+  });
+
+  it("all-unknown checks degrade overall to unknown, never fake healthy", () => {
+    const checks = buildChecks({
+      ...baseInput,
+      snapshot: null,
+      latestVerify: null,
+      bench: [],
+      ledgerFiles: 0,
+      latestChecksum: null,
+    });
+    expect(checks.length).toBeGreaterThan(0);
+    expect(checks.every((c) => c.status === "unknown")).toBe(true);
+    expect(overall(checks)).toBe("unknown");
   });
 
   it("mirror parity: behind by a lot fails", () => {

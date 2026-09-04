@@ -55,6 +55,9 @@ export class JobEngine {
       kind,
       status: "queued",
       progress: 0,
+      message: null,
+      phase: null,
+      eta_seconds: null,
       error: null,
       result_json: null,
       log_path: null,
@@ -229,7 +232,14 @@ export class JobEngine {
         return r;
       }
       case "checksum": {
-        const r = checksumLedger(this.db, this.guard, job.drive_id, mountPoint);
+        const r = await checksumLedger(
+          this.db,
+          this.guard,
+          job.drive_id,
+          mountPoint,
+          8 * 1024 * 1024 * 1024,
+          handle,
+        );
         this.db.event(job.drive_id, "checksum", {
           hashed: r.hashed,
           changed: r.changed.length,

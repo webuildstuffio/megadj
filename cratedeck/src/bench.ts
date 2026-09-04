@@ -84,27 +84,29 @@ export interface ChecksumResult {
   changed: string[]; // path differs from ledger = corrupted or modified
 }
 
-export function checksumLedger(
+export async function checksumLedger(
   db: DB,
   guard: Guard,
   driveId: string,
   mountPoint: string,
   maxBytes = 8 * 1024 * 1024 * 1024,
-): ChecksumResult {
+  signal?: { cancelled: boolean },
+): Promise<ChecksumResult> {
   const files = biggestFiles(mountPoint, Infinity, maxBytes);
   const changed: string[] = [];
   let hashed = 0;
   for (const f of files) {
+    if (signal?.cancelled) break;
     const rel = f.startsWith(mountPoint) ? f.slice(mountPoint.length + 1) : f;
     const st = statSync(f);
     const prev = db.ledgerGet(driveId, rel);
     const mtime = Math.floor(st.mtimeMs);
     if (!prev) {
       // first sighting — hash and seed the ledger
-      db.ledgerPut(driveId, rel, st.size, mtime, hashFile(f));
+      db.ledgerPut(driveId, rel, st.size, mtime, await hashFileAsync(f));
     } else if (prev.size !== st.size || prev.mtime !== mtime) {
       // metadata changed since the stored hash — re-hash and compare
-      const fresh = hashFile(f);
+      const fresh = await hashFileAsync(f);
       if (fresh !== prev.hash) changed.push(rel);
       db.ledgerPut(driveId, rel, st.size, mtime, fresh);
     }
@@ -127,6 +129,24 @@ export function hashFile(path: string): string {
   }
   return h.digest("hex");
 }
+
+/** Async variant so long hash runs never block the HTTP/SSE event loop. */
+export async function hashFileAsync(
+  path: string,
+  signal?: { cancelled: boolean },
+): Promise<string> {
+  const h = new Bun.CryptoHasher("blake2b256");
+  const file = Bun.file(path);
+  const stream = file.stream();
+  for await (const chunk of stream) {
+    if (signal?.cancelled) break;
+    h.update(chunk as Buffer);
+    // yield periodically — a full 8GB pass must not starve the server
+    if ((hashedCounter++ & 0x3f) === 0) await new Promise((r) => setTimeout(r, 0));
+  }
+  return h.digest("hex");
+}
+let hashedCounter = 0;
 
 function biggestFiles(
   root: string,

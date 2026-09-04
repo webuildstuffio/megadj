@@ -280,7 +280,8 @@ function reportInput(driveId: string) {
     masterSnapshot: masterSnap,
     masterName: master ? (master.nickname ?? master.name) : cfg.masterDrive,
     isMirror,
-    checksumChanged: 0, // per-run value; surfaced via checksum job events
+    // real verdict from the newest finished checksum job (null = never run)
+    latestChecksum: db.latestChecksum(driveId),
   };
 }
 
