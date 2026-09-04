@@ -61,10 +61,8 @@ photos survive offline.
 
 ```
 server/drives/scan.ts          light scan: manifest walk, sizes, folder composition
-server/drives/rekordbox.ts     DB copy→scratch, pyrekordbox subprocess JSON dump
-server/drives/rb_read.py       pyrekordbox read → JSON (device library)
-server/drives/pdb_rows.ts      pdb_live_rows TS port
-server/drives/anlz.ts          anlz_paths TS port + existence check
+server/drives/rekordbox.ts     THE Python seam: DB copy→scratch, rb_read.py JSON
+server/python/rb_read.py       imports skill's anlz_paths.py + pdb_live_rows (canonical)
 server/api/routes/drives.ts    GET /drives/:id (detail), /drives/:id/timeline
 web/DriveDrawer.tsx            Overview + Playlists tabs
 ```
@@ -73,9 +71,10 @@ Fixtures under `cratedeck/testdata/`: mini FAT32-shaped tree,
 `fixture_device.db` (pyrekordbox-created), `fixture.pdb` snippets, recorded
 diskutil/ioreg outputs.
 
-Tests: cross-validation TS↔Python on fixtures (pdb rows, anlz hash paths,
-byte-equal); scan on fixture tree; zero-write assertion (drive mtimes
-unchanged after full scan).
+Tests: bridge golden tests (rb_read.py JSON vs fixture values incl. the
+Aug-25 ground truth 3,177 pdb live rows); scan on fixture tree; zero-write
+assertion (drive mtimes unchanged after full scan). No TS ports exist to
+test — the Python canonicals are imported, not duplicated.
 **Done when:** DJMASTER detail shows correct tracks/playlists/pdb delta;
 scans leave drives untouched.
 

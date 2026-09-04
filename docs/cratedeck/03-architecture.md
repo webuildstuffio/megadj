@@ -1,146 +1,116 @@
 # CrateDeck — Architecture
 
-v1 · 2026-09-03 · [Brief](01-product-brief.md) · [PRD](02-prd.md) → **Architecture** → [Build Plan](04-build-plan.md)
+v2 · 2026-09-03 · [Brief](01-product-brief.md) · [PRD](02-prd.md) → **Architecture** → [Build Plan](04-build-plan.md)
+
+> v1→v2 changes: killed the TS ports of `pdb_live_rows`/ANLZ hashing (that's
+> the divergence bug class that bit us Aug-25 — one Python seam instead of
+> two implementations), collapsed ~25 server files into 10, replaced the 1s
+> poll loop with FSEvents-on-/Volumes + lazy detail, merged detector into one
+> module and the Python boundary into one module.
 
 ---
 
 ## 1. Shape
 
-One Bun process, two planes:
+**One Bun process, one Python seam, one page.**
 
 ```
 cratedeck/
-  server/     Bun + TypeScript — HTTP API, SSE, detector, job engine, SQLite
-  web/        frontend — Vite + Preact + TS, built to static assets the server serves
-  shared/     types + protocol shared by both planes
-  data/       runtime state (gitignored): SQLite DB, images, benchmarks, logs
-  config.toml user config: image provider key, master drive name, port labels
+  src/            Bun + TS — the whole server (10 files, one dir, no nesting)
+  python/         rb_read.py — the ONLY bridge into rekordbox-land
+  web/            Preact + Vite page (built assets served by the server)
+  shared/         types.ts + badges.ts — imported by both sides
+  testdata/       fixtures (synthetic drive tree, fixture DBs, recorded plists)
+  data/           runtime state (gitignored): SQLite, images, logs, scratch
+  config.toml     user config (sample committed)
 ```
 
-`bun run deck` (root package.json script) starts the server on
-`127.0.0.1:7742` ("CRates" upside down-ish, mnemonic only) and serves the
-built web assets. Dev mode: `bun run deck:dev` runs Vite dev server proxying
-API. No auth, no TLS — localhost is the trust boundary.
+`bun run deck` → `127.0.0.1:7742`. Dev: `bun run deck:dev` (Vite proxying).
+Localhost is the trust boundary; no auth, no TLS.
 
-**Why not reuse usb_sync's Python for everything?** Detection (polling
-diskutil/ioreg every 1s), SSE streaming, and a persistent registry are
-natural Bun/TS. The deep rekordbox/ANLZ/pdb logic stays in the proven Python
-tools, invoked as subprocess jobs. Boundary is explicit: TS owns state +
-orchestration; Python owns deep verification. No logic duplicated except two
-small ports (ANLZ existence check, pdb live-row count) that are needed for
-the *fast* path and are golden-tested against the Python originals.
+**The one architectural rule:** TypeScript owns *state and orchestration*;
+Python owns *rekordbox truth* — through a single seam (`src/rb.ts` ↔
+`python/rb_read.py` / the skill's `usb_verify.py` / `usb_mirror.py`). The
+skill's `anlz_paths.py` and `usb_verify.py::pdb_live_rows` are the canonical
+implementations and are **imported directly** by the bridge — never ported,
+never duplicated. If a fast path ever needs one of them in TS, that's a bug
+in the design, not a task.
 
-## 2. Server internals
+## 2. The 10 server files
 
 ```
-server/
-  index.ts            bootstrap: config, db open, detector start, router
-  config.ts           config.toml + env, validated
-  db.ts               bun:sqlite wrapper, migrations
-  detector/
-    volumes.ts        diskutil list -plist poll → mount/unmount events
-    usb.ts            ioreg USB tree → locationID, port path, serials
-    ports.ts          port identity: stable path key + user labels
-    index.ts          1s tick, diff, emit events (EventEmitter)
-  drives/
-    identity.ts       volume UUID → drive record; fallback fingerprint; lineage
-    scan.ts           light scan: manifest, sizes, mtimes, folder composition
-    rekordbox.ts      DB copy → /tmp, pyrekordbox subprocess read, pdb rows
-    anlz.ts           hash-path existence check (TS port, golden tests)
-  jobs/
-    engine.ts         queue (per-drive concurrency 1), progress, logs, cancel
-    verify.ts         usb_verify.py wrapper
-    mirror.ts         usb_mirror.py wrapper
-    benchmark.ts      pure-TS read bench (seq + 4k random, size-capped)
-    checksum.ts       xxhash64 ledger, store + compare modes
-    interlock.ts      rekordbox running? → refuse mutations
-  api/
-    router.ts         route table
-    sse.ts            /events stream (drive events, job progress)
-    routes/*.ts       drives, drives/:id/detail, search, jobs, ports, config
-  io/
-    guard.ts          THE write-guard: allow-list of everything server may touch
+src/
+  index.ts      wire-up: config → db → detect → jobs → http; static files
+  config.ts     config.toml + env, validated once at boot
+  db.ts         bun:sqlite: schema v1, migrations, every query (one place)
+  detect.ts     "what's plugged where" — volumes, USB, ports (one concern)
+  registry.ts   drive identity, ghosts, snapshots, timeline events
+  scan.ts       light scan: manifest, sizes, folders, space, junk (orphan ._*, zero-byte)
+  rb.ts         THE Python seam: rekordbox reads + verify/mirror job wrappers
+  bench.ts      benchmark + checksum ledger (pure TS, Bun.CryptoHasher)
+  jobs.ts       queue, progress, interlock (rekordbox running? → refuse)
+  guard.ts      THE write allow-list — every disk write goes through it
 ```
 
-### Detection design
+Dependency direction is strictly downward: `index → {api-ish files} →
+domain files → db/guard`. `rb.ts` is the only file allowed to spawn
+processes. `guard.ts` is the only file allowed to write outside `data/`.
 
-- `diskutil list -plist` every 1s (cheap, ~ms). Diff by disk identifier.
-- For each USB volume: `diskutil info -plist <disk>` → VolumeUUID,
-  VolumeName, FilesystemType, ContainerTotal/Used, DeviceIdentifier.
-- `ioreg -p IOUSB -a -l` (or `system_profiler SPUSBDataType -json`) →
-  locationID, product string, serial number, vendor; the port identity is
-  the tree path (hub chain + port index) — stable across reboots; locationID
-  alone is not (can shift). Map tree paths → user labels from config.
-- Mount/insert races: a newly appeared disk may take seconds to mount; emit
-  `appeared` then `mounted` separately; drives UI shows "mounting…".
-- Eject: listen for volume disappearance (diskutil diff) — do not hook
-  DiskArbitration from Bun (native); polling diff is robust and enough.
+## 3. Detection: event-driven, not polled
 
-### Rekordbox read path (never touch the live DB)
+- **Heartbeat:** `fs.watch` (FSEvents) on `/Volumes` → mount/unmount fires in
+  < 1s with zero polling. A 5s `diskutil list -plist` diff runs as a safety
+  net (FSEvents misses nothing on macOS mounts, but the net is cheap).
+- **Detail is lazy and event-time, not loop-time:** when a volume appears,
+  one `diskutil info -plist <disk>` (UUID, name, fs, capacity) + one
+  `ioreg -p IOUSB -a -l -n <usb device>` (locationID, serial, port chain)
+  — ~50ms, once per mount. No ioreg in any loop.
+- **Port identity:** the USB tree path captured at mount (hub chain + port),
+  user-labeled in config. If a drive shows up on an unlabeled port, the UI
+  prompts "name this port". Port history = mount events; no separate port
+  machinery.
+- **States:** `mounting…` (appeared, not yet mounted) → `mounted` → `ghost`
+  (unmounted, rendered from last snapshot). Yank-detection = volume
+  disappears without eject: logged as `unplugged (dirty)`.
 
-1. Copy `PIONEER/rekordbox/exportLibrary.db` (+ `-wal`, `-shm` if present)
-   to `data/scratch/<drive>/<ts>/`. Copy is read-safe.
-2. `uv run --with pyrekordbox python - cratedeck/server/drives/rb_read.py`
-   subprocess (same pattern as the skill scripts) dumps JSON: tracks,
-   playlists, counts, dates. Device-library SQLCipher key derivation is
-   handled by pyrekordbox — no key material lives in this repo.
-3. `export.pdb` live-row count: TS port of `pdb_live_rows` (page-tail walk,
-   0x24 stride, presence bitmask, tombstone filter) — validated against
-   Python output in tests, plus ground truth from Aug-25 log (3,177).
-4. ANLZ existence: for sampled tracks compute the hash folder (TS port of
-   `anlz_paths.py`, same golden tests) and stat the ANLZ files.
+## 4. The Python seam (`src/rb.ts` → `python/`)
 
-### Job engine
+**Reads** (scan-level): copy `exportLibrary.db` (+wal/shm) to
+`data/scratch/`, then `uv run python python/rb_read.py <copy>` → one JSON:
+tracks, playlists + counts, dates, coverage. `rb_read.py` imports the
+skill's canonical modules (`anlz_paths.py` for hash-path existence checks,
+`usb_verify.pdb_live_rows` for the legacy-pdb count) — same repo, direct
+import, zero duplication.
 
-- SQLite-backed queue: `jobs(id, drive_id, kind, status, progress, log_path,
-  created_at, started_at, finished_at, result_json, error)`.
-- One job per drive, N drives in parallel; app restart reaps orphans
-  (marks `interrupted`, never auto-resumes destructive-ish work).
-- Progress from Python tools: parse their stdout milestones (usb_mirror's
-  5% lines / progress bar protocol already prints parseable lines).
-- Interlock is enforced **inside the engine**, not the UI: before any job
-  with `mutating: true` or `touches_drive: true`, `pgrep -x rekordbox` must
-  be empty, else `JobError.REKORDBOX_RUNNING`. UI renders locked state from
-  the same check via SSE.
+**Jobs** (deep): `verify` = `usb_verify.py --drives <d>`, `mirror` =
+`usb_mirror.py` — spawned with cwd = repo root, progress parsed from their
+existing stdout milestones. The Aug-25-proven tools stay the engines;
+CrateDeck is the face.
 
-### Write guard (the only place disk writes happen)
+**Interlock:** `pgrep -x rekordbox` non-empty → `rb.ts` refuses every call
+(reads included — policy: during rekordbox operation, hands off), jobs.ts
+marks queued work `locked`, SSE pushes `interlock:on`. One function, one
+truth, checked at the seam — not scattered through the UI.
 
-`io/guard.ts` allow-list: `data/`, `scratch/`, image cache, and — only for
-explicit user-approved copy actions (v1.1) — a configured drive path. Every
-write goes through it; a unit test walks the codebase and fails if `fs`
-write calls occur outside guard usage. This is the enforcement of the
-megadj safety religion (never write to drives; never touch DBs live).
-
-## 3. Data model (SQLite via bun:sqlite)
+## 5. Data model (bun:sqlite, WAL)
 
 ```sql
-drives(id TEXT PK,             -- uuid or fingerprint hash
-       volume_uuid TEXT UNIQUE, name TEXT, nickname TEXT, photo_path TEXT,
+drives(id TEXT PK, volume_uuid TEXT UNIQUE, name TEXT, photo_path TEXT,
        capacity_bytes INT, fs TEXT, vendor TEXT, model TEXT, usb_serial TEXT,
-       role TEXT DEFAULT 'unknown',     -- master|mirror|library|unknown
-       first_seen_at INT, last_seen_at INT, plug_count INT,
-       mounted INT, predecessor_id TEXT)
-
-mounts(id TEXT PK, drive_id TEXT, port_key TEXT, mounted_at INT, unmounted_at INT)
-
-ports(port_key TEXT PK,          -- stable tree path
-      label TEXT,                -- user-facing "Left rear"
-      last_drive_id TEXT, last_seen_at INT)
-
-snapshots(id TEXT PK, drive_id TEXT, taken_at INT, kind TEXT,  -- light|full
-          data_json TEXT)        -- manifests, playlists, counts, coverage
-
-verifications(id TEXT PK, drive_id TEXT, ran_at INT, verdict TEXT,
-              result_json TEXT, job_id TEXT)
-
-benchmarks(id TEXT PK, drive_id TEXT, ran_at INT,
-           seq_mbps REAL, rand4k_mbps REAL, bytes_read INT)
-
-checksum_ledger(drive_id TEXT, path TEXT, size INT, mtime INT, xxh64 TEXT,
-                first_seen INT, last_ok INT,
-                PRIMARY KEY(drive_id, path))
+       role TEXT,                       -- master|mirror|library|unknown
+       first_seen_at INT, last_seen_at INT, last_port_key TEXT,
+       plug_count INT, mounted INT, last_snapshot_json TEXT,  -- ghost fuel
+       predecessor_id TEXT)             -- reformat lineage
 
 events(id TEXT PK, drive_id TEXT, at INT, kind TEXT, data_json TEXT)
+       -- mounted/unmounted(dirty?), port, scan, job-done, rename, photo...
+
+snapshots(drive_id TEXT, taken_at INT, kind TEXT, data_json TEXT,
+          PRIMARY KEY(drive_id, taken_at))    -- pruned to first/last/pre-verify
+
+benchmarks(drive_id TEXT, ran_at INT, seq_mbps REAL, rand4k_mbps REAL)
+ledger(drive_id TEXT, path TEXT, size INT, mtime INT, hash TEXT, last_ok INT,
+       PRIMARY KEY(drive_id, path))           -- bitrot detection
 
 jobs(id TEXT PK, drive_id TEXT, kind TEXT, status TEXT, progress REAL,
      log_path TEXT, result_json TEXT, error TEXT,
@@ -149,113 +119,77 @@ jobs(id TEXT PK, drive_id TEXT, kind TEXT, status TEXT, progress REAL,
 settings(key TEXT PK, value_json TEXT)
 ```
 
-Light-scan snapshots are also re-derivable from ghost cards; DB size kept
-sane by pruning > 50 snapshots per drive (keep first, last, and all that
-precede a verification).
+Design choices: ghost rendering reads `drives.last_snapshot_json` (one row,
+no join); full snapshot history is for the timeline, pruned to keep the DB
+tiny; jobs double as verification history (`result_json` holds the verdict —
+no separate verifications table). Checksum = `Bun.CryptoHasher` blake2b256,
+zero deps.
 
-## 4. API surface (all under `/api`)
-
-```
-GET  /drives                      cards (mounted + ghosts, badges)
-GET  /drives/:id                  full detail (tabs data)
-GET  /drives/:id/timeline         events page
-GET  /drives/:id/export           JSON dossier download
-POST /drives/:id/name             rename
-POST /drives/:id/photo            set from library/{upload,url}
-POST /drives/:id/merge            resolve identity collision
-GET  /ports                       port tree + labels
-POST /ports/:key/label            label a port
-POST /drives/:id/jobs             enqueue {kind: scan|verify|mirror|benchmark|checksum}
-GET  /jobs?active=1               job tray
-GET  /jobs/:id                    status/progress/log tail
-POST /jobs/:id/cancel
-GET  /search?q=                   cross-drive track/playlist search
-GET  /images/search?q=            proxy to configured provider
-GET  /events                      SSE: drives, jobs, interlock
-GET  /interlock                   rekordbox running? (also pushed via SSE)
-```
-
-POSTs are idempotent where meaningful; jobs dedupe per (drive, kind) while
-one is already queued/running.
-
-## 5. Frontend
-
-Vite + Preact + TypeScript, ~6 components, no router (one page + drawers):
-`DriveCard`, `DriveDrawer` (tabs: Overview / Playlists / Health / Timeline),
-`PortMap`, `JobsTray`, `InterlockBanner`, `SearchBox`. SSE client with
-auto-reconnect. Design per brief §9: dark, flat, crate-card metaphor, badge
-vocabulary READY/STALE/ATTN/GHOST consistent everywhere. State: tiny store
-(`@preact/signals`), no Redux-sized ceremony.
-
-Badge logic lives in `shared/badges.ts` — same code server-side (compute)
-and client-side (render), so a badge can never disagree with its data.
-
-## 6. Image search providers
+## 6. API (all under `/api`, one file)
 
 ```
-ImageProvider { search(q): {id, thumb, full, source}[] }
-BraveImages(config.key)   — api.search.brave.com/res/v1/images/search
-ExaImages(config.key)     — exa /search with image extras
-ManualOnly                — always present; UI falls back with a hint
-```
-Provider chosen by config (`provider = "brave" | "exa"`), key from
-`config.toml` or `CRATEDECK_IMAGE_KEY`. Images fetched server-side (no CORS
-pain), thumb 512px square + original cached under `data/images/<drive>/`.
-Chosen image is permanent — providers never queried again for that drive.
-
-## 7. Config (`cratedeck/config.toml`, gitignored sample committed)
-
-```toml
-[server]
-port = 7742
-
-[library]
-master_drive = "DJMASTER"        # reference for sync status
-mirror_drive = "DJMIRROR"
-
-[images]
-provider = "brave"                 # brave | exa
-# key = "..."                      # or env CRATEDECK_IMAGE_KEY
-
-[jobs]
-verify_timeout_min = 30
-benchmark_bytes = 536870912        # 512MB
+GET  /drives                     cards (mounted + ghosts + badges)
+GET  /drives/:id                 detail tabs data
+GET  /drives/:id/timeline        events
+GET  /drives/:id/export          JSON dossier (ghost memories, downloadable)
+POST /drives/:id/name | /photo | /merge
+GET  /ports · POST /ports/:key/label
+POST /drives/:id/jobs {kind} · GET /jobs · GET /jobs/:id · POST /jobs/:id/cancel
+GET  /search?q=                  cross-drive (ghosts included)
+GET  /images/search?q=           provider proxy
+GET  /events                     SSE: mounts, job progress, interlock
 ```
 
-## 8. Testing strategy
+Job dedupe: one queued/running job per (drive, kind).
 
-- **Golden fixtures:** tiny synthetic USB tree (FAT32-shaped) + fixture
-  exportLibrary.db (pyrekordbox-created, committed ~20KB) + fixture
-  export.pdb snippets → deterministic tests for rekordbox.ts, anlz.ts, pdb
-  rows.
-- **Cross-validation:** CI job runs TS ports vs Python originals on
-  fixtures; byte-equal outputs required (guards the Aug-25 divergence bug
-  class forever).
-- **Detector:** replay fixtures of diskutil/ioreg output (recorded once per
-  real topology change); poller is pure diff logic in tests.
-- **Interlock & guard:** pgrep mocked; guard allow-list tested by scanning
-  for raw fs writes.
-- **E2E:** Bun test against a running server on a fixture data dir; card
-  appears → scan → verify(mock) → ghost → history flow.
-- Real-drive runs stay manual (the gig drives) — the repo's Python tools
-  already have the operational confidence.
+## 7. Images
 
-## 9. Failure modes & posture
+`ImageProvider { search(q) }` — `brave` | `exa`, chosen in config, key from
+config or `CRATEDECK_IMAGE_KEY`; fetched server-side, cached forever under
+`data/images/<drive>/` (square thumb + original). No key → manual
+upload/drag/URL only, UI says why. Chosen image is permanent; providers are
+never re-queried for that drive.
+
+## 8. Frontend
+
+Preact + signals + Vite. One page, no router: `DriveCard` grid →
+`DriveDrawer` (Overview / Playlists / Health / Timeline) · `PortStrip` ·
+`JobsTray` · `InterlockBanner` · search. SSE with auto-reconnect. Badge
+rules live in `shared/badges.ts`, computed server-side, rendered client-side
+— badge and data can never disagree. Dark, flat, crate-card metaphor;
+ghosts dimmed; spinning state while a job runs.
+
+## 9. Testing
+
+- **Fixtures:** synthetic FAT32-shaped tree, pyrekordbox-created fixture
+  device DB, pdb snippets, recorded diskutil/ioreg outputs.
+- **Bridge golden tests:** `rb_read.py` output vs known-fixture values
+  (incl. the Aug-25 ground truth: 3,177 pdb live rows) — proves the seam,
+  no cross-language port matrix to maintain.
+- **Detector:** replay fixture diffs; FSEvents simulated by dir create in
+  tmp; state machine tests for mounting→mounted→ghost.
+- **Interlock + guard:** mocked pgrep; test that walks for raw fs writes
+  outside `guard.ts` (structural enforcement).
+- **E2E:** Bun test against a live server on a fixture data dir: card →
+  scan → verify(mock) → unplug → ghost → search → export.
+- Real gig drives stay manual — the Python tools already carry that trust.
+
+## 10. Failure modes
 
 | Failure | Behavior |
 |---|---|
-| Drive yanked mid-job | job marked interrupted; partial results kept; drive ghosted on next tick |
-| rekordbox launched mid-verify | current job allowed to finish (read-only), new jobs refused |
-| Image provider down | search returns 502; manual path unaffected |
-| SQLite corruption | WAL mode + daily `data/backup.sqlite` copy; images unrecoverable? re-link by UUID, photo re-pick |
-| Port labels stale after hub change | port_key unknown → UI prompts "name this port" |
-| Server killed mid-scan | scratch dir orphan cleaned at boot; job `interrupted` |
+| Drive yanked mid-job | job → `interrupted`, partials kept, drive ghosts on next event |
+| rekordbox launched mid-session | running read-only job finishes; new work locked via SSE banner |
+| Image provider down | search 502s; manual path unaffected |
+| SQLite corruption | WAL + nightly `data/backup.sqlite`; images relink by UUID |
+| FSEvents misses (edge) | 5s diff net catches it; UI unaffected |
+| Server killed mid-scan | boot-time scratch sweep; job → `interrupted` |
 
-## 10. Security posture
+## 11. Security
 
-Binds 127.0.0.1 only; no cookies/auth by design; image proxy allow-lists
-domains (provider APIs only); uploads size-capped (10MB) and type-checked;
-subprocess args never built from user strings (drive ids are UUIDs from our
-own DB); API key never sent to the client. The write-guard is the real
-security boundary — the app is structurally incapable of writing to a
-mounted volume outside an explicit, logged, user-initiated action.
+Bind 127.0.0.1 only. API key never leaves the server. Uploads size/type
+capped. Subprocess args are UUIDs from our DB, never user strings. The
+structural guarantee: `guard.ts` allow-lists every writable path (`data/`,
+scratch); a repo test fails CI if any file outside `guard.ts` performs a
+write. The app is incapable of writing to a gig drive except through one
+auditable, logged, user-initiated path.

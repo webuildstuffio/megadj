@@ -136,6 +136,10 @@ Status colors: green ready, amber stale, red attention, gray ghost.
 | Deep verify slow on 4k-file drives | cached results keyed by DB mtime; jobs async with progress; light checks instant |
 | macOS API changes break detection | thin detection module, golden-fixture tests |
 
+**The one architectural rule:** TypeScript owns state + orchestration;
+Python owns rekordbox truth — through a single seam. The skill's canonical
+Python implementations are imported, never ported (see architecture §1/§4).
+
 **Kill criteria:** if the registry/ghost layer doesn't earn its keep within
 two real gig cycles (drives still getting mixed up), simplify to a verify
 badge page only.

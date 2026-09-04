@@ -71,10 +71,11 @@ Images are downloaded, normalized (square thumb + original), stored under
 - track count, total duration, per-folder composition (genre/artist dirs)
 - playlists: names, entry counts, parents (folder tree)
 - coverage: % tracks with ANLZ present at hash-computed path
-  (`anlz_paths.py` logic, ported to TS), % with beatgrid (PQTZ), % with
-  waveform (PWAV)
-- OneLibrary vs legacy `export.pdb` live-row counts (port of
-  `pdb_live_rows`) — the hardware gate
+  (canonical `anlz_paths.py`, imported by the Python bridge), % with
+  beatgrid (PQTZ), % with waveform (PWAV)
+- OneLibrary vs legacy `export.pdb` live-row counts (canonical
+  `pdb_live_rows` from `usb_verify.py`, imported by the bridge) — the
+  hardware gate
 - DB last-modified, export.pdb last-written, rekordbox running? (interlock)
 
 **What (ghost):** last cached snapshot with an "as of" stamp; a "rescan"
