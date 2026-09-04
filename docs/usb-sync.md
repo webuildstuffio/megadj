@@ -93,6 +93,15 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
   variable-tempo tracks; the verifier treats this as informational, not a failure.
 - FAT32 is case-insensitive and NFC-ambiguous: compare paths with
   `NFC + casefold` keys or you'll see phantom missing files.
+- **Rekordbox artwork is DB pointers + cached files, not tags**: covers live in
+  `share/PIONEER/Artwork/<shard>/<uuid>/` (`artwork.jpg` + `_m`/`_s` thumbnails —
+  RB renders from the thumbnails; missing `_m`/`_s` = silently blank) and
+  `djmdContent.ImagePath` points there. USB export copies the artwork files into
+  `PIONEER/Artwork/000xx/` on the drive and rewrites device-DB rows, so art set in
+  the collection (incl. via `tools/rb_art.py`) rides to the hardware automatically.
+- **WAVs never carry RB-readable art** — new ingests convert to AIFF
+  (`src/commands/wav-to-aiff.ts`); the 73 legacy WAVs were pointer-fixed via
+  `tools/rb_art.py` (see `docs/rekordbox-wav-artwork.md`).
 - Long-running background jobs on this machine get reaped; the tools are
   resumable for that reason.
 

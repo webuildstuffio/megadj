@@ -1,5 +1,10 @@
 # rekordbox WAV Artwork — Reference (Sep 2026)
 
+**Status:** ✅ RESOLVED (2026-09-04) — all 73 legacy WAVs got covers via Option A
+(pilot + batch, `ok=73 errors=0`, user-verified in rekordbox); new WAVs convert to
+AIFF at ingest so they never need this. This doc is kept as reference for the
+research, the decision, and the tooling (`tools/rb_art.py`).
+
 **Problem:** embedded artwork in WAV files never shows in rekordbox. Of the 88 archive
 tracks, 15 MP3s display covers; the 73 WAVs never do — in the browser, on the CDJs, anywhere.
 
@@ -68,16 +73,20 @@ same rules the repo already uses for any rekordbox touching (see below).
 
 ```bash
 # 0. inspect — read-only status: how many WAVs lack art in RB
-uv run python tools/rb_art.py status
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+    --with mutagen --with Pillow python tools/rb_art.py status
 
 # 1. dry-run — plan every write, touch nothing
-uv run python tools/rb_art.py dry-run
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+    --with mutagen --with Pillow python tools/rb_art.py dry-run
 
 # 2. pilot — write 3 tracks only, then YOU open rekordbox and verify covers show
-uv run python tools/rb_art.py pilot
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+    --with mutagen --with Pillow python tools/rb_art.py pilot
 
 # 3. batch — all remaining WAVs
-uv run python tools/rb_art.py batch
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+    --with mutagen --with Pillow python tools/rb_art.py batch
 ```
 
 ### Safety rails (non-negotiable, enforced by the script)
@@ -91,22 +100,31 @@ uv run python tools/rb_art.py batch
 
 ### What the script does per track
 1. Extract the embedded JPEG from the WAV's ID3 APIC frame (already 100% present).
-2. Write it to `share/PIONEER/Artwork/<shard>/<uuid>/artwork.jpg` (matching RB's layout —
-   3-hex shard dir + uuid dir, confirmed against 1,637 existing files).
+2. Write it to `share/PIONEER/Artwork/<shard>/<uuid>/` in RB's layout — **all three
+   files**: `artwork.jpg` + `artwork_m.jpg` (250px) + `artwork_s.jpg` (125px) via
+   Pillow. **RB renders covers from the thumbnails** — a dir with only the full-res
+   `artwork.jpg` silently shows no art (pilot-verified 2026-09-04).
 3. Set `djmdContent.ImagePath = "/PIONEER/Artwork/<shard>/<uuid>/artwork.jpg"` (relative,
    matching how existing MP3 rows store it).
 4. Commit via pyrekordbox (USN-managed).
 
-### Status / open items
+Gotcha: if covers still show blank after a successful write, quit + reopen
+rekordbox — it caches the old blank state in memory.
+
+### Status — ✅ COMPLETE (2026-09-04)
 - [x] Root cause researched + documented
 - [x] `master.db` unlock verified (pyrekordbox, key cached)
 - [x] Artwork layout confirmed on disk
 - [x] `tools/rb_art.py` built (status / dry-run / pilot / batch)
 - [x] Pilot machinery validated against a **copy** of master.db
-- [ ] **PENDING DRIVES:** plug in rekordbox drive(s) → run `pilot` → verify in RB → `batch`
-- [ ] After batch: export to USBs as usual; covers ride along to the CDJs
+- [x] Pilot on live DB: 3 tracks, covers verified in rekordbox by user
+- [x] Batch: `ok=70 errors=0` → **73/73 WAVs have art** (`status`: without-art = 0)
+- [x] USB export carries RB artwork to the drives automatically (artwork files +
+      device-DB rows are written by the export; CDJ/XDJ screens read the drive's
+      `PIONEER/Artwork/`). Verified live: the Sep 4 export updated
+      `exportLibrary.db` + artwork on DJMIRROR.
 
 ### Future ingests
-After the batch mode is proven, wire `rb_art.py batch` into the post-ingest flow
-(`fetch_all` pass or the intake SKILL Step 5) so every new WAV gets its RB art pointer
-automatically. Until then, re-run `batch` manually after each ingest.
+Not needed for WAVs anymore — `megadj ingest` converts them to AIFF (native
+covers). `rb_art.py` remains for any future legacy-WAV edge cases; re-run
+`batch` manually after ingesting one.

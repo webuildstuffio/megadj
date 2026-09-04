@@ -138,11 +138,12 @@ Never hand-edit drive DBs; never let two writers touch a drive at once.
 megadj audit                    # ground-truth file audit: art+title+artist+album+genre+year
 bun tools/fetch_all.ts --dry-run  # what would still be done
 bun tools/fix_years.ts --dry-run  # verify years against real SC page dates
-uv run --with mutagen python tools/final_audit.py   # deep mutagen audit
 ```
 
 `megadj audit` exits 1 and lists every file with `[missing,fields]` if
-anything is incomplete — use it as the final gate after any batch.
+anything is incomplete — use it as the final gate after any batch. It reads
+tags via mutagen ground truth (the old `final_audit.py`/`tag_audit.ts`
+one-offs are retired; `megadj audit` supersedes both).
 
 Ground truth = files, not the DB. As of Sep 2026: **88/88 tracks have art,
 full tags, genre and verified remix-year** (73 WAV via APIC, 15 MP3).

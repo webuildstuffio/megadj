@@ -48,10 +48,14 @@ megadj enrich [--dry-run]         # fill weak genres via MusicBrainz
 megadj ingest <folder> [--dry-run] [--no-artwork] [--min-duration N]
                                   # tag + art + dedupe external downloads
                                   # (zips expanded; zip deleted only when
-                                  # every staged file has landed)
+                                  # every staged file has landed; WAVs
+                                  # convert to AIFF for rekordbox covers)
+megadj fetch                      # enrichment pass over the archive:
+                                  # tags, genres, artwork, years (parallel)
+megadj audit                      # ground-truth completeness gate
+                                  # (art + title + artist + album + genre + year)
 megadj artwork [--model M] [--max N] [--dry-run]
                                   # generate covers for queued tracks
-megadj organize [--dry-run]       # move downloads into genre folders
 megadj status                     # archive summary + recent run history
 megadj list [filter]              # all tracks, by status or free text (LOWQ flagged)
 megadj retry                      # reset failed tracks for the next sync
@@ -112,13 +116,16 @@ After a big library change, do the once-per-generation legacy export
 → drag playlists onto both devices → let analysis finish → export. Then
 mirror + verify.
 
-## Current library state (2026-09-03)
+## Current library state (2026-09-04)
 
 - 3,054-track core library + YTMusic Liked (294) injected; Wed 2026-09-03 the
   full-library XML was imported into rekordbox 7 and exported to both drives
   (legacy export.pdb), with event playlists added and rekordbox re-analysis
   running.
-- Verify after the export finishes: `usb_verify.py` hardware gate —
+- **Sep 4 2026: all 73 archive WAVs got rekordbox covers** (via
+  `tools/rb_art.py`, see [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md));
+  new WAVs convert to AIFF at ingest so they never need this.
+- Verify after any export finishes: `usb_verify.py` hardware gate —
   `export.pdb` live rows == OneLibrary count on both drives. Track this on
   the [sync log]((local ops log)) pending checklist.
 
@@ -145,6 +152,7 @@ bun run check       # typecheck + lint; bun test for the test suite
 | ---------------------------------------------------------------------------------------- | ------------------------------------------- |
 | [docs/usb-sync.md](docs/usb-sync.md)                                                     | USB pipeline what/why                       |
 | [(local ops log)]((local ops log))                                             | append-only operations log                  |
+| [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md)                           | WAV artwork research + fix (resolved)       |
 | [docs/cratedeck/01-product-brief.md](docs/cratedeck/01-product-brief.md)                 | CrateDeck brief                             |
 | [docs/cratedeck/02-prd.md](docs/cratedeck/02-prd.md)                                     | feature PRD (F1–F10)                        |
 | [docs/cratedeck/03-architecture.md](docs/cratedeck/03-architecture.md)                   | architecture                                |

@@ -108,7 +108,12 @@ remaining in-flight work.)_
    absorbed zip expansion, artwork embedding, and dedupe in `a4ace28`/
    `76b344a`; Sep 2026: all art/genre passes consolidated into
    `fetch_all.ts` — `art_final`, `pack_art`, `sc_art_direct`, `sc_genres`,
-   `normalize_genres`, `sync_genres`, `ai_genres` retired).
+   `normalize_genres`, `sync_genres`, `ai_genres` retired; Sep 4 2026:
+   ingest module split `probe/art/identity/remix/energy` + `wav-to-aiff`).
+3. **WAV artwork in rekordbox — ✅ DONE 2026-09-04** (73/73 via
+   `tools/rb_art.py`, thumbnail gotcha fixed; see
+   `docs/rekordbox-wav-artwork.md`). Remaining sliver: spot-check covers
+   on the XDJ-XZ at the next export.
 3. **Close the 2026-09-03 sync-log checklist.** Three pending items remain
    (the fourth, SSD evacuation, is now §0a):
    - `usb_verify.py` hardware gate (pdb live rows == OneLibrary, both drives)
