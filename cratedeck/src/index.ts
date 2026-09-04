@@ -1,6 +1,7 @@
 // index.ts — wire-up: config → db → detector → jobs → HTTP+SSE. 127.0.0.1 only.
 import { join } from "node:path";
-import { loadConfig } from "./config";
+import { readdirSync } from "node:fs";
+import { loadConfig, type CrateConfig } from "./config";
 import { DB } from "./db";
 import { Guard } from "./guard";
 import { listMountedVolumes, watchVolumes } from "./detect";
@@ -116,7 +117,12 @@ Bun.serve({
             const body = (await req.json()) as {
               url?: string;
               localPath?: string;
+              clear?: boolean;
             };
+            if (body.clear) {
+              images.clear(id);
+              return json({ ok: true, cleared: true });
+            }
             const dest = await images.choose(id, body);
             return json({ ok: true, path: dest });
           }
@@ -137,7 +143,7 @@ Bun.serve({
             const drive = db.getDrive(id);
             if (!drive?.mounted)
               return json({ error: "drive not mounted" }, 409);
-            const mountPoint = `/Volumes/${drive.name}`;
+            const mountPoint = resolveMountPoint(cfg, drive.name);
             const job = jobs.enqueue(id, body.kind, mountPoint);
             return json(job);
           }
@@ -148,6 +154,8 @@ Bun.serve({
         }
         if (route === "/jobs") {
           const active = url.searchParams.get("active");
+          const drive = url.searchParams.get("drive");
+          if (drive) return json(db.jobsForDrive(drive, 20));
           return json(active ? db.activeJobs() : db.jobsForDrive("*", 50));
         }
         const jobMatch = route.match(/^\/jobs\/([^/]+)(\/cancel)?$/);
@@ -179,7 +187,7 @@ Bun.serve({
           return json({ ok: true });
         }
         if (
-          route === "/events" &&
+          (route === "/events" || route === "/events/") &&
           req.headers.get("accept")?.includes("event-stream")
         ) {
           return sse();
@@ -217,6 +225,19 @@ function json(data: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/** Where a drive's volume is mounted. Respects CRATEDECK_VOLUMES/config
+ *  volumesRoot (tests, fixtures, non-standard hosts) instead of assuming
+ *  /Volumes — and verifies the directory is really there right now. */
+function resolveMountPoint(cfg: CrateConfig, volumeName: string): string {
+  const candidate = join(cfg.volumesRoot, volumeName);
+  try {
+    readdirSync(candidate); // mounted + readable at this instant
+    return candidate;
+  } catch {
+    throw new Error(`drive volume not mounted at ${candidate}`);
+  }
 }
 
 function portView() {

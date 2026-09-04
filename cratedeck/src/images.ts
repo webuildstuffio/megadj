@@ -123,4 +123,16 @@ export class ImageService {
   photoPath(driveId: string): string | null {
     return this.db.getDrive(driveId)?.photo_path ?? null;
   }
+
+  /** Remove a drive's cover photo (file + DB pointer). */
+  clear(driveId: string): void {
+    const p = this.photoPath(driveId);
+    if (p) {
+      try {
+        this.guard.rm(p);
+      } catch {}
+    }
+    this.db.setPhoto(driveId, "");
+    this.db.event(driveId, "photo-cleared", {});
+  }
 }

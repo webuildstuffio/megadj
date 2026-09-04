@@ -37,6 +37,33 @@ export function shortSerial(s: string): string {
   return s.length <= 18 ? s : `${s.slice(0, 10)}…${s.slice(-6)}`;
 }
 
+/** Human countdown from an ETA in seconds ("1m 20s"). Empty when unknown. */
+export function fmtEta(s: number | null | undefined): string {
+  if (s === null || s === undefined || !Number.isFinite(s) || s < 0) return "";
+  if (s < 60) return `${Math.round(s)}s`;
+  const m = Math.floor(s / 60);
+  const r = Math.round(s % 60);
+  if (m < 60) return `${m}m ${r}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+/** "today 14:32" / "Sep 2, 13:04" — compact wall-clock for feeds. */
+export function fmtWhen(ts: number): string {
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const time = d.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  if (sameDay) return `today ${time}`;
+  return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
+}
+
 /** Human event-payload strings instead of raw JSON fragments. */
 export function fmtEventData(data: Record<string, unknown>): string {
   const parts = Object.entries(data).map(([k, v]) => {

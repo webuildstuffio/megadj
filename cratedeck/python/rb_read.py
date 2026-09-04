@@ -20,7 +20,8 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(HERE)
+# python/ sits at <repo>/cratedeck/python, so the repo root is two levels up.
+REPO = os.path.dirname(os.path.dirname(HERE))
 SKILL_SCRIPTS = os.path.join(REPO, ".claude", "skills", "rekordbox-usb-sync", "scripts")
 sys.path.insert(0, SKILL_SCRIPTS)
 
