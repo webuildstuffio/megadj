@@ -150,15 +150,23 @@ full tags, genre and verified remix-year** (73 WAV via APIC, 15 MP3).
 ### rekordbox WAV artwork (legacy tracks)
 
 rekordbox cannot read art embedded in WAVs — it stores art in its own
-library (`share/PIONEER/Artwork/<shard>/<uuid>/artwork.jpg` + `ImagePath`
-in `djmdContent`). **New ingests don't hit this** (WAVs convert to AIFF at
-ingest, covers just work). The 73 legacy WAVs already in the archive need
-`tools/rb_art.py` once (see `docs/rekordbox-wav-artwork.md` for the full
-research + options):
+library (`share/PIONEER/Artwork/<shard>/<uuid>/` + `ImagePath` in
+`djmdContent`). **New ingests don't hit this** (WAVs convert to AIFF at
+ingest, covers just work). **DONE Sep 4 2026: all 73 legacy WAVs fixed**
+via `tools/rb_art.py` pilot → batch (`ok=73 errors=0`, verified in RB).
+
+Key gotcha learned during the pilot: RB renders covers from the
+`artwork_m.jpg` + `artwork_s.jpg` thumbnails — a dir with only
+`artwork.jpg` silently shows no art. `ensure_artwork_file` generates all
+three via Pillow now. If covers don't render after an ImagePath write,
+quit + reopen rekordbox (it caches the old blank state in memory).
+
+`tools/rb_art.py` remains available for any future legacy WAVs
+(see `docs/rekordbox-wav-artwork.md` for the full research + options):
 
 ```bash
 uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
-    --with mutagen python tools/rb_art.py status    # read-only counts
+    --with mutagen --with Pillow python tools/rb_art.py status
 #  dry-run → pilot (3 tracks, verify in RB) → batch (all WAVs)
 ```
 
