@@ -141,6 +141,22 @@ anything is incomplete — use it as the final gate after any batch.
 Ground truth = files, not the DB. As of Sep 2026: **88/88 tracks have art,
 full tags, genre and verified remix-year** (73 WAV via APIC, 15 MP3).
 
+### rekordbox WAV artwork (covers not showing in RB?)
+
+rekordbox cannot read art embedded in WAVs — it stores art in its own
+library (`share/PIONEER/Artwork/<shard>/<uuid>/artwork.jpg` + `ImagePath`
+in `djmdContent`). `tools/rb_art.py` automates it (see
+`docs/rekordbox-wav-artwork.md` for the full research + options):
+
+```bash
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+    --with mutagen python tools/rb_art.py status    # read-only counts
+#  dry-run → pilot (3 tracks, verify in RB) → batch (all WAVs)
+```
+
+Safety rails enforced: rekordbox closed, master.db+shm+wal backed up,
+pilot before batch, idempotent re-runs.
+
 **Why a WAV can "show no tags":** Finder/QuickTime don't display WAV ID3
 chunks — ffprobe/mutagen see them fine. Files whose DB row exists but whose
 file is "missing" usually live inside rekordbox's Mac collection.
