@@ -45,9 +45,17 @@ export function App() {
       const s = await fetch("/api/interlock").then((r) => r.json());
       setInterlock(s);
     }, 3000);
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        document.getElementById("global-search")?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
     return () => {
       es.close();
       clearInterval(interlockPoll);
+      window.removeEventListener("keydown", onKey);
     };
   }, []);
 
@@ -66,12 +74,21 @@ export function App() {
     return () => clearTimeout(t);
   }, [query]);
 
+  // refresh drives when a job finishes so cards update without a manual reload
+  useEffect(() => {
+    const active = jobs.some(
+      (j) => j.status === "running" || j.status === "queued",
+    );
+    if (!active) refresh();
+  }, [jobs]);
+
   const open = drives.find((d) => d.id === openId) ?? null;
   const mounted = drives.filter((d) => d.mounted);
   const ghosts = drives.filter((d) => !d.mounted);
 
   return (
     <div class="app">
+      {open && <div class="backdrop" onClick={() => setOpenId(null)} />}
       <div class="topbar">
         <h1>CrateDeck</h1>
         <span style={{ color: "var(--muted)", fontSize: 12.5 }}>
@@ -111,8 +128,8 @@ export function App() {
                       </span>
                     )}
                   </div>
-                  {r.matches.map((m, i) => (
-                    <div key={i} class="sr-match">
+                  {r.matches.map((m) => (
+                    <div class="sr-match" key={m.type + ":" + m.name}>
                       <span>{m.name}</span>
                       <span>{m.entries ?? ""}</span>
                     </div>
@@ -139,8 +156,9 @@ export function App() {
         <div class="portstrip">
           {ports.map((p) => (
             <span class="port" key={p.port_key}>
-              <b>{p.drive_name}</b> · {p.label ?? "unlabeled port"}{" "}
-              {p.mounted ? "" : "(last)"}
+              <span class={"dot " + (p.mounted ? "on" : "off")} />
+              <b>{p.drive_name}</b>
+              {!p.mounted && <span class="port-last">last</span>}
             </span>
           ))}
         </div>

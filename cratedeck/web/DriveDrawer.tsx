@@ -51,6 +51,14 @@ export function DriveDrawer({
     return () => clearInterval(iv);
   }, [drive.id]);
 
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
   const run = async (kind: string) => {
     setBusy(kind);
     try {
@@ -140,12 +148,8 @@ export function DriveDrawer({
         >
           Checksum
         </button>
-        <a
-          href={`/api/drives/${drive.id}/export`}
-          download
-          style={{ alignSelf: "center" }}
-        >
-          <button>Export dossier</button>
+        <a class="btn" href={`/api/drives/${drive.id}/export`} download>
+          Export dossier
         </a>
       </div>
       {locked && (
@@ -275,7 +279,15 @@ export function DriveDrawer({
               v={bench.at(-1) ? `${bench.at(-1)!.rand4k_mbps} MB/s` : "—"}
               l="random 4k read (last)"
             />
-            <Stat v={detail?.drive.usb_serial ?? "—"} l="USB serial" />
+            <Stat
+              v={
+                detail?.drive.usb_serial
+                  ? shortSerial(detail.drive.usb_serial)
+                  : "—"
+              }
+              l="USB serial"
+              title={detail?.drive.usb_serial ?? undefined}
+            />
             <Stat v={`${detail?.drive.plug_count ?? 0}`} l="plug sessions" />
           </div>
           {bench.length > 1 && (
@@ -331,7 +343,7 @@ export function DriveDrawer({
               <span>
                 <b>{e.kind}</b>{" "}
                 <span style={{ color: "var(--muted)" }}>
-                  {JSON.stringify(e.data).slice(1, 90)}
+                  {fmtEventData(e.data)}
                 </span>
               </span>
             </div>
@@ -342,10 +354,12 @@ export function DriveDrawer({
   );
 }
 
-function Stat({ v, l }: { v: string; l: string }) {
+function Stat({ v, l, title }: { v: string; l: string; title?: string }) {
   return (
     <div class="stat">
-      <div class="v">{v}</div>
+      <div class="v" title={title}>
+        {v}
+      </div>
       <div class="l">{l}</div>
     </div>
   );
@@ -353,4 +367,21 @@ function Stat({ v, l }: { v: string; l: string }) {
 
 function pct(x?: number): string {
   return x === undefined ? "—" : `${Math.round(x * 100)}%`;
+}
+
+/** 130-char macOS serials → readable head + tail. */
+function shortSerial(s: string): string {
+  return s.length <= 18 ? s : `${s.slice(0, 10)}…${s.slice(-6)}`;
+}
+
+/** Human timeline data instead of raw JSON fragments. */
+function fmtEventData(data: Record<string, unknown>): string {
+  const parts = Object.entries(data).map(([k, v]) => {
+    if (v === null || v === undefined) return null;
+    if (Array.isArray(v)) return `${k}×${v.length}`;
+    if (typeof v === "object") return null;
+    return `${k} ${String(v)}`;
+  });
+  const out = parts.filter((x): x is string => x !== null);
+  return out.length ? out.join(" · ") : "—";
 }

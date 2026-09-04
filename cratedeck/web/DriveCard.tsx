@@ -31,7 +31,7 @@ export function DriveCard({
           "◉"
         )}
       </div>
-      <div class="name">
+      <div class="name" title={name}>
         {name}
         {drive.role !== "unknown" && (
           <span
@@ -42,7 +42,7 @@ export function DriveCard({
           </span>
         )}
       </div>
-      <div class="sub">
+      <div class="sub" title={`${cap ?? ""} · ${drive.name}`}>
         {cap ? `${cap} · ` : ""}
         {drive.mounted ? "mounted" : `ghost · seen ${seen}`}
         {snap?.track_count
@@ -53,10 +53,10 @@ export function DriveCard({
           : ""}
       </div>
       <div class="badges">
-        {drive.badges.map((b, i) => (
+        {drive.badges.map((b) => (
           <span
             class={`badge ${b.tone}`}
-            key={i}
+            key={b.key + ":" + b.label}
             style={{ color: toneColor[b.tone] }}
           >
             {b.label}

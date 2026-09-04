@@ -122,11 +122,17 @@ body {
 .card .name {
   font-weight: 600;
   font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .card .sub {
   color: var(--muted);
   font-size: 12px;
   margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .badges {
   display: flex;
@@ -175,12 +181,28 @@ body {
   right: 0;
   bottom: 0;
   width: 520px;
+  max-width: 92vw;
   z-index: 10;
   background: var(--surface);
   border-left: 1px solid var(--stroke);
+  box-shadow:
+    -24px 0 60px rgba(0, 0, 0, 0.45),
+    -2px 0 12px rgba(0, 0, 0, 0.3);
   padding: 22px 24px;
   overflow-y: auto;
   animation: slide 0.18s ease;
+}
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background: rgba(0, 0, 0, 0.45);
+  animation: fade 0.15s ease;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
 }
 @keyframes slide {
   from {
@@ -241,11 +263,17 @@ body {
 .stat .v {
   font-size: 17px;
   font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .stat .l {
   color: var(--muted);
   font-size: 11.5px;
   margin-top: 1px;
+}
+.stat {
+  min-width: 0;
 }
 .actions {
   display: flex;
@@ -253,7 +281,8 @@ body {
   gap: 8px;
   margin: 14px 0;
 }
-.actions button {
+.actions button,
+.actions .btn {
   background: var(--surface2);
   color: var(--text);
   border: 1px solid var(--stroke);
@@ -262,8 +291,13 @@ body {
   cursor: pointer;
   font-size: 12.5px;
   font-weight: 500;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  font-family: inherit;
 }
-.actions button:hover:not(:disabled) {
+.actions button:hover:not(:disabled),
+.actions .btn:hover {
   border-color: #3d4048;
 }
 .actions button:disabled {
@@ -404,10 +438,17 @@ body {
   border: 1px solid var(--stroke);
   border-radius: 8px;
   padding: 4px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .port b {
   color: var(--text);
   font-weight: 550;
+}
+.port .port-last {
+  color: var(--muted);
+  font-style: italic;
 }
 h3.sect {
   font-size: 12px;
