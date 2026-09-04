@@ -415,6 +415,21 @@ export class DB {
     );
   }
 
+  ledgerCount(driveId: string): number {
+    const r = this.sqlite
+      .query("SELECT COUNT(*) AS n FROM ledger WHERE drive_id=?")
+      .get(driveId) as { n: number } | null;
+    return r?.n ?? 0;
+  }
+
+  /** Days since the newest ledger entry (how fresh corruption tracking is). */
+  ledgerAgeDays(driveId: string): number | null {
+    const r = this.sqlite
+      .query("SELECT MAX(last_ok) AS t FROM ledger WHERE drive_id=?")
+      .get(driveId) as { t: number | null } | null;
+    return r?.t ? (Date.now() - r.t) / 86_400_000 : null;
+  }
+
   close(): void {
     this.sqlite.close();
   }

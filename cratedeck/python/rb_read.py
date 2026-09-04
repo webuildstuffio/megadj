@@ -46,6 +46,106 @@ def analyze_anlz_coverage(db, content_model, drive_root: str) -> float:
     return round(found / total, 4) if total else 0.0
 
 
+def _median(vals):
+    s = sorted(vals)
+    n = len(s)
+    if not n:
+        return 0
+    mid = n // 2
+    return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2
+
+
+def _top(counter: dict, n: int = 12):
+    return [
+        {"name": k, "count": v}
+        for k, v in sorted(counter.items(), key=lambda kv: -kv[1])[:n]
+        if k
+    ]
+
+
+def _bpm_bucket(bpm):
+    if not bpm or bpm <= 0:
+        return None
+    return f"{int(bpm // 10) * 10}-{int(bpm // 10) * 10 + 9}"
+
+
+def dj_stats(db, contents) -> dict:
+    """Genre/BPM/key/artist/duration/bitrate/artwork analytics from Content rows."""
+    from pyrekordbox.devicelib_plus.models import Genre, Key
+
+    genre_names = {g.genre_id: g.name for g in db.query(Genre).all()}
+    key_names = {k.key_id: k.name for k in db.query(Key).all()}
+
+    genres: dict = {}
+    keys: dict = {}
+    artists: dict = {}
+    bpm_hist: dict = {}
+    bpms = []
+    durations = []
+    lossless = lossy_high = lossy = unknown_br = 0
+    artwork_missing = 0
+    artwork_total = 0
+
+    for c in contents:
+        if c.fileType not in (4, 1):
+            continue
+        g = genre_names.get(getattr(c, "genre_id", None))
+        if g:
+            genres[g] = genres.get(g, 0) + 1
+        k = key_names.get(getattr(c, "key_id", None))
+        if k:
+            keys[k] = keys.get(k, 0) + 1
+        a = getattr(c, "artist_id_artist", None)
+        if a:
+            artists[a] = artists.get(a, 0) + 1
+        bpm = getattr(c, "bpmx100", None)
+        if bpm:
+            real_bpm = bpm / 100.0
+            bpms.append(real_bpm)
+            b = _bpm_bucket(real_bpm)
+            if b:
+                bpm_hist[b] = bpm_hist.get(b, 0) + 1
+        if c.length:
+            durations.append(c.length)
+        bitrate = getattr(c, "bitrate", None)
+        if not bitrate:
+            unknown_br += 1
+        elif bitrate >= 1000:  # rekordbox marks lossless with high pseudo-bitrate
+            lossless += 1
+        elif bitrate >= 256:
+            lossy_high += 1
+        else:
+            lossy += 1
+        artwork_total += 1
+        if not getattr(c, "image_id", None):
+            artwork_missing += 1
+
+    bpm_sorted = sorted(bpm_hist.items(), key=lambda kv: int(kv[0].split("-")[0]))
+    return {
+        "genres": _top(genres),
+        "keys": _top(keys),
+        "artists_top": _top(artists),
+        "bpm_min": min(bpms) if bpms else None,
+        "bpm_max": max(bpms) if bpms else None,
+        "bpm_median": round(_median(bpms), 1) if bpms else None,
+        "bpm_histogram": [{"bucket": b, "count": c} for b, c in bpm_sorted],
+        "duration": {
+            "shortest_s": min(durations) if durations else 0,
+            "longest_s": max(durations) if durations else 0,
+            "median_s": round(_median(durations), 1) if durations else 0,
+            "average_s": round(sum(durations) / len(durations), 1) if durations else 0,
+        },
+        "bitrate": {
+            "lossless": lossless,
+            "lossy_high": lossy_high,
+            "lossy": lossy,
+            "unknown": unknown_br,
+        },
+        "artwork_missing": artwork_missing,
+        "artwork_total": artwork_total,
+    }
+
+
 def snapshot(db_path: str, drive_root: str) -> dict:
     from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus
     from pyrekordbox.devicelib_plus.models import Content, Playlist, PlaylistContent
@@ -97,6 +197,7 @@ def snapshot(db_path: str, drive_root: str) -> dict:
             "grid_coverage": grid_cov,
             "onelibrary_rows": onelibrary_rows,
             "pdb_live_rows": pdb_rows,
+            "dj": dj_stats(db, contents),
             "db_mtime": mtime(os.path.join(drive_root, "PIONEER", "rekordbox", "exportLibrary.db")),
             "pdb_mtime": mtime(pdb_path) if os.path.exists(pdb_path) else None,
         }

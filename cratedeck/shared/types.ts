@@ -63,6 +63,12 @@ export interface SnapshotData {
     case_collisions: string[];
     orphan_resource_forks: number;
   };
+  // space analysis
+  free_bytes?: number | null;
+  capacity_bytes?: number;
+  by_ext?: { ext: string; files: number; bytes: number }[];
+  largest?: { path: string; bytes: number }[];
+  age?: { fresh: number; recent: number; old: number; ancient: number };
   // full (rekordbox) scan
   track_count?: number;
   total_duration_ms?: number;
@@ -72,6 +78,33 @@ export interface SnapshotData {
   onelibrary_rows?: number;
   db_mtime?: number;
   pdb_mtime?: number;
+  // DJ metadata (rekordbox columns)
+  dj?: DjStats;
+}
+
+/** DJ-library analytics from the rekordbox device DB. */
+export interface DjStats {
+  genres?: { name: string; count: number }[];
+  bpm_min?: number;
+  bpm_max?: number;
+  bpm_median?: number;
+  bpm_histogram?: { bucket: string; count: number }[];
+  keys?: { name: string; count: number }[];
+  artists_top?: { name: string; count: number }[];
+  duration?: {
+    shortest_s: number;
+    longest_s: number;
+    median_s: number;
+    average_s: number;
+  };
+  bitrate?: {
+    lossless: number;
+    lossy_high: number;
+    lossy: number;
+    unknown: number;
+  };
+  artwork_missing?: number;
+  artwork_total?: number;
 }
 
 export type JobKind = "scan" | "verify" | "mirror" | "benchmark" | "checksum";
@@ -129,4 +162,24 @@ export interface SearchResult {
     name: string;
     entries?: number;
   }[];
+}
+
+/** One verification/health check with a verdict. */
+export interface HealthCheck {
+  id: string;
+  label: string;
+  status: "pass" | "warn" | "fail" | "unknown";
+  detail: string;
+  /** suggestion shown when status != pass */
+  fix?: string;
+}
+
+/** Full drive dossier served by /api/report. */
+export interface DriveReport {
+  drive: Drive;
+  snapshot: SnapshotData | null;
+  checks: HealthCheck[];
+  sync: { verdict: string; missing?: number } | null;
+  master_name: string;
+  generated_at: number;
 }

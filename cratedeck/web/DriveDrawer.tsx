@@ -1,6 +1,8 @@
 import { useEffect, useState } from "preact/hooks";
 import type {
   Drive,
+  DriveReport,
+  HealthCheck,
   InterlockState,
   SnapshotData,
   TimelineEvent,
@@ -8,13 +10,13 @@ import type {
 import { fmtBytes, timeAgo } from "./DriveCard";
 
 interface Detail {
-  drive: Drive;
+  drive: DriveReport["drive"];
   snapshot: SnapshotData | null;
   sync: { verdict: string; missing?: number } | null;
   master_name: string;
 }
 
-const TABS = ["overview", "playlists", "health", "timeline"] as const;
+const TABS = ["report", "playlists", "health", "timeline"] as const;
 type Tab = (typeof TABS)[number];
 
 export function DriveDrawer({
@@ -27,27 +29,32 @@ export function DriveDrawer({
   onClose: () => void;
 }) {
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [report, setReport] = useState<
+    (DriveReport & { overall?: string }) | null
+  >(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [bench, setBench] = useState<
     { ran_at: number; seq_mbps: number; rand4k_mbps: number }[]
   >([]);
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>("report");
   const [busy, setBusy] = useState<string | null>(null);
   const locked = interlock.rekordbox_running;
 
   const load = async () => {
-    const [d, t, b] = await Promise.all([
-      fetch(`/api/drives/${drive.id}`).then((r) => r.json()),
-      fetch(`/api/drives/${drive.id}/timeline`).then((r) => r.json()),
-      fetch(`/api/drives/${drive.id}/benchmarks`).then((r) => r.json()),
+    const [d, r, t, b] = await Promise.all([
+      fetch(`/api/drives/${drive.id}`).then((res) => res.json()),
+      fetch(`/api/drives/${drive.id}/report`).then((res) => res.json()),
+      fetch(`/api/drives/${drive.id}/timeline`).then((res) => res.json()),
+      fetch(`/api/drives/${drive.id}/benchmarks`).then((res) => res.json()),
     ]);
     setDetail(d);
+    setReport(r);
     setTimeline(t);
     setBench(b);
   };
   useEffect(() => {
     load();
-    const iv = setInterval(load, 4000);
+    const iv = setInterval(load, 5000);
     return () => clearInterval(iv);
   }, [drive.id]);
 
@@ -87,21 +94,26 @@ export function DriveDrawer({
   };
 
   const snap = detail?.snapshot ?? null;
+  const dj = snap?.dj ?? null;
   const name = detail?.drive.nickname ?? detail?.drive.name ?? drive.name;
+  const checks = report?.checks ?? [];
 
   return (
     <div class="drawer" onClick={(e) => e.stopPropagation()}>
       <button type="button" class="close" onClick={onClose}>
         ✕
       </button>
-      <h2>
-        {name}
-        {!detail?.drive.mounted && (
-          <span class="badge muted" style={{ marginLeft: 8 }}>
-            ghost
-          </span>
-        )}
-      </h2>
+      <div class="drawer-head">
+        <h2>
+          {name}
+          {!detail?.drive.mounted && (
+            <span class="badge muted" style={{ marginLeft: 8 }}>
+              ghost
+            </span>
+          )}
+        </h2>
+        <OverallPill verdict={report?.overall} />
+      </div>
       <div class="sub">
         {detail?.drive.name} · {fmtBytes(detail?.drive.capacity_bytes ?? 0)}{" "}
         {detail?.drive.fs ?? ""} · first seen{" "}
@@ -153,12 +165,12 @@ export function DriveDrawer({
         </a>
       </div>
       {locked && (
-        <div style={{ color: "var(--bad)", fontSize: 12, marginBottom: 8 }}>
+        <div class="note bad-note">
           Drive ops locked — rekordbox is running.
         </div>
       )}
       {!detail?.drive.mounted && (
-        <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 8 }}>
+        <div class="note">
           Ghost view — data from the last scan. Plug it in to refresh.
         </div>
       )}
@@ -176,84 +188,80 @@ export function DriveDrawer({
         ))}
       </div>
 
-      {tab === "overview" && (
+      {tab === "report" && (
         <div>
-          <div class="statgrid">
-            <Stat
-              v={snap?.track_count?.toLocaleString() ?? "—"}
-              l="rekordbox tracks"
-            />
-            <Stat
-              v={snap?.file_count?.toLocaleString() ?? "—"}
-              l="audio files on disk"
-            />
-            <Stat
-              v={snap ? pct(snap.grid_coverage) : "—"}
-              l="beatgrid coverage (ANLZ)"
-            />
-            <Stat
-              v={snap ? fmtBytes(snap.total_bytes ?? 0) : "—"}
-              l="audio size"
-            />
-            <Stat
-              v={
-                snap
-                  ? `${snap.onelibrary_rows ?? "—"} / ${snap.pdb_live_rows ?? "—"}`
-                  : "—"
-              }
-              l="OneLibrary / legacy pdb rows (hardware gate)"
-            />
-            <Stat
-              v={snap?.db_mtime ? timeAgo(snap.db_mtime) : "—"}
-              l="device DB last changed"
-            />
+          {/* health checks first — the verdict */}
+          <div class="checks">
+            {checks.length === 0 && (
+              <div class="note">No checks yet — run a scan when mounted.</div>
+            )}
+            {checks.map((c) => (
+              <CheckRow c={c} key={c.id} />
+            ))}
           </div>
-          {snap?.junk && (
-            <div>
-              <h3 class="sect">Junk scan</h3>
-              <div style={{ fontSize: 13 }}>
-                {snap.junk.zero_byte.length === 0 &&
-                snap.junk.case_collisions.length === 0 &&
-                snap.junk.orphan_resource_forks === 0 ? (
-                  "Clean — no zero-byte files, case collisions, or orphan forks."
-                ) : (
-                  <>
-                    {snap.junk.zero_byte.length > 0 && (
-                      <div style={{ color: "var(--bad)" }}>
-                        {snap.junk.zero_byte.length} zero-byte file(s)
-                      </div>
-                    )}
-                    {snap.junk.case_collisions.length > 0 && (
-                      <div style={{ color: "var(--warn)" }}>
-                        {snap.junk.case_collisions.length} case-collision
-                        path(s)
-                      </div>
-                    )}
-                    {snap.junk.orphan_resource_forks > 0 && (
-                      <div style={{ color: "var(--muted)" }}>
-                        {snap.junk.orphan_resource_forks} orphan ._* forks
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+
+          {/* space analysis */}
+          <h3 class="sect">Space</h3>
+          {snap?.capacity_bytes ? (
+            <SpaceBar snap={snap} />
+          ) : (
+            <div class="note">Run a scan to measure usage.</div>
+          )}
+          {!!snap?.by_ext?.length && (
+            <div class="extbars">
+              {snap.by_ext.slice(0, 8).map((e) => {
+                const max = snap.by_ext?.[0]?.bytes ?? 1;
+                return (
+                  <div class="extrow" key={e.ext}>
+                    <span class="ext">{e.ext}</span>
+                    <span class="extbar">
+                      <i
+                        style={{
+                          width: `${Math.max(2, (e.bytes / max) * 100)}%`,
+                        }}
+                      />
+                    </span>
+                    <span class="extn">
+                      {fmtBytes(e.bytes)} · {e.files}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
+          {!!snap?.age && (
+            <div class="agestrip">
+              {(
+                [
+                  ["fresh", "< 30d"],
+                  ["recent", "30–180d"],
+                  ["old", "180d–2y"],
+                  ["ancient", "> 2y"],
+                ] as const
+              ).map(([k, label]) => (
+                <span class="agecell" key={k} title={label}>
+                  <b>{snap.age![k]}</b>
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* DJ metadata */}
+          {dj && <DjPanel dj={dj} />}
         </div>
       )}
 
       {tab === "playlists" && (
         <div class="pllist">
           {(snap?.playlists ?? []).length === 0 && (
-            <div style={{ color: "var(--muted)" }}>
-              No snapshot yet — run a scan when mounted.
-            </div>
+            <div class="note">No snapshot yet — run a scan when mounted.</div>
           )}
           {(snap?.playlists ?? [])
             .slice()
             .sort((a, b) => b.entries - a.entries)
             .map((pl) => (
-              <div class="plrow" key={pl.name}>
+              <div class="plrow" key={pl.parent + "/" + pl.name}>
                 <span>
                   {pl.parent && (
                     <span style={{ color: "var(--muted)" }}>
@@ -293,14 +301,7 @@ export function DriveDrawer({
           {bench.length > 1 && (
             <div>
               <h3 class="sect">Benchmark history (seq MB/s)</h3>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 3,
-                  alignItems: "flex-end",
-                  height: 60,
-                }}
-              >
+              <div class="benchbars">
                 {bench.map((b) => {
                   const max = Math.max(...bench.map((x) => x.seq_mbps));
                   return (
@@ -310,9 +311,6 @@ export function DriveDrawer({
                       style={{
                         width: 22,
                         height: `${(b.seq_mbps / max) * 100}%`,
-                        background: "var(--info)",
-                        borderRadius: 3,
-                        opacity: 0.85,
                       }}
                     />
                   );
@@ -334,9 +332,7 @@ export function DriveDrawer({
 
       {tab === "timeline" && (
         <div class="tl">
-          {timeline.length === 0 && (
-            <div style={{ color: "var(--muted)" }}>No events yet.</div>
-          )}
+          {timeline.length === 0 && <div class="note">No events yet.</div>}
           {timeline.map((e) => (
             <div class="row" key={e.id}>
               <span class="t">{new Date(e.at).toLocaleString()}</span>
@@ -354,6 +350,155 @@ export function DriveDrawer({
   );
 }
 
+function OverallPill({ verdict }: { verdict?: string }) {
+  const v = verdict ?? "unknown";
+  return <span class={`pill ${v}`}>{v}</span>;
+}
+
+function CheckRow({ c }: { c: HealthCheck }) {
+  return (
+    <div class={`check ${c.status}`}>
+      <span class="check-ico">
+        {c.status === "pass"
+          ? "✓"
+          : c.status === "warn"
+            ? "!"
+            : c.status === "fail"
+              ? "✕"
+              : "?"}
+      </span>
+      <span class="check-body">
+        <b>{c.label}</b>
+        <span class="check-detail">{c.detail}</span>
+        {c.fix && <span class="check-fix">→ {c.fix}</span>}
+      </span>
+    </div>
+  );
+}
+
+function SpaceBar({ snap }: { snap: SnapshotData }) {
+  const cap = snap.capacity_bytes ?? 0;
+  const used = Math.max(0, cap - (snap.free_bytes ?? 0));
+  const usedPct = cap ? (used / cap) * 100 : 0;
+  return (
+    <div class="spacewrap">
+      <div class="spacebar">
+        <i
+          class={usedPct > 85 ? "hot" : ""}
+          style={{ width: `${Math.min(100, usedPct)}%` }}
+        />
+      </div>
+      <div class="spacelegend">
+        <span>
+          <b>{fmtBytes(used)}</b> used ({Math.round(usedPct)}%)
+        </span>
+        <span>
+          <b>
+            {snap.free_bytes !== null && snap.free_bytes !== undefined
+              ? fmtBytes(snap.free_bytes)
+              : "—"}
+          </b>{" "}
+          free
+        </span>
+        <span>{fmtBytes(cap)} total</span>
+      </div>
+    </div>
+  );
+}
+
+function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
+  return (
+    <>
+      <h3 class="sect">DJ library</h3>
+      <div class="statgrid">
+        <Stat
+          v={
+            dj.bpm_min
+              ? `${Math.round(dj.bpm_min)}–${Math.round(dj.bpm_max ?? 0)}`
+              : "—"
+          }
+          l="BPM range"
+        />
+        <Stat v={dj.bpm_median ? `${dj.bpm_median}` : "—"} l="BPM median" />
+        <Stat
+          v={dj.duration ? fmtDur(dj.duration.median_s) : "—"}
+          l="median track length"
+        />
+        <Stat
+          v={dj.duration ? fmtDur(dj.duration.longest_s) : "—"}
+          l="longest track"
+        />
+      </div>
+      {!!dj.bpm_histogram?.length && (
+        <div class="bpmhist" title="tracks per 10-BPM bucket">
+          {dj.bpm_histogram.map((b) => {
+            const max = Math.max(...dj.bpm_histogram!.map((x) => x.count));
+            return (
+              <div
+                class="bpmcol"
+                key={b.bucket}
+                title={`${b.bucket} BPM: ${b.count}`}
+              >
+                <i style={{ height: `${(b.count / max) * 100}%` }} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {!!dj.genres?.length && <Bars title="Genres" rows={dj.genres} />}
+      {!!dj.keys?.length && <Bars title="Keys" rows={dj.keys} />}
+      {!!dj.artists_top?.length && (
+        <Bars title="Top artists" rows={dj.artists_top} />
+      )}
+      {dj.bitrate && (
+        <div class="brstrip">
+          {(
+            [
+              ["lossless", dj.bitrate.lossless, "good"],
+              ["≥256 kbps", dj.bitrate.lossy_high, "info"],
+              ["<256 kbps", dj.bitrate.lossy, "warn"],
+              ["unknown", dj.bitrate.unknown, "muted"],
+            ] as const
+          ).map(([label, n, tone]) => (
+            <span class={`badge ${tone}`} key={label}>
+              {label} {n}
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function Bars({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: { name: string; count: number }[];
+}) {
+  const total = rows.reduce((s, r) => s + r.count, 0) || 1;
+  const max = Math.max(...rows.map((r) => r.count));
+  return (
+    <div>
+      <h3 class="sect">
+        {title} <span class="sect-n">{rows.length}</span>
+      </h3>
+      {rows.slice(0, 8).map((r) => (
+        <div class="barrow" key={r.name}>
+          <span class="barname" title={r.name}>
+            {r.name}
+          </span>
+          <span class="bartrack">
+            <i style={{ width: `${(r.count / max) * 100}%` }} />
+          </span>
+          <span class="barn">{Math.round((r.count / total) * 100)}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Stat({ v, l, title }: { v: string; l: string; title?: string }) {
   return (
     <div class="stat">
@@ -365,8 +510,11 @@ function Stat({ v, l, title }: { v: string; l: string; title?: string }) {
   );
 }
 
-function pct(x?: number): string {
-  return x === undefined ? "—" : `${Math.round(x * 100)}%`;
+function fmtDur(s: number): string {
+  if (!s) return "—";
+  const m = Math.floor(s / 60);
+  const r = Math.round(s % 60);
+  return `${m}:${String(r).padStart(2, "0")}`;
 }
 
 /** 130-char macOS serials → readable head + tail. */

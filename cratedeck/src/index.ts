@@ -8,6 +8,8 @@ import { Registry } from "./registry";
 import { JobEngine } from "./jobs";
 import { ImageService } from "./images";
 import { driveBadgesView } from "./badges_view";
+import { buildReport, overall } from "./report";
+import type { Drive, SnapshotData } from "../shared/types";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
@@ -103,6 +105,10 @@ Bun.serve({
           if (!sub) return json(registry.detail(id));
           if (sub === "/timeline") return json(db.timeline(id));
           if (sub === "/export") return exportDossier(id);
+          if (sub === "/report") {
+            const report = buildReport(reportInput(id));
+            return json({ ...report, overall: overall(report.checks) });
+          }
           if (sub === "/photo" && req.method === "POST") {
             const body = (await req.json()) as {
               url?: string;
@@ -224,6 +230,7 @@ function exportDossier(driveId: string): Response {
     drive: { ...detail.drive, last_snapshot_json: undefined },
     snapshot: detail.snapshot,
     sync: detail.sync,
+    report: buildReport(reportInput(driveId)),
     timeline: db.timeline(driveId, 500),
     benchmarks: db.benchmarks(driveId),
   };
@@ -233,6 +240,47 @@ function exportDossier(driveId: string): Response {
       "Content-Disposition": `attachment; filename="cratedeck-${detail.drive.name}.json"`,
     },
   });
+}
+
+/** Assemble DB state for the report builder. */
+function reportInput(driveId: string) {
+  const drive = db.getDrive(driveId);
+  if (!drive) throw new Error("unknown drive");
+  const snap: SnapshotData | null = drive.last_snapshot_json
+    ? JSON.parse(drive.last_snapshot_json)
+    : null;
+  const master = db
+    .allDrives()
+    .find(
+      (d) =>
+        d.role === "master" ||
+        d.name.toUpperCase() === cfg.masterDrive.toUpperCase(),
+    );
+  const masterSnap: SnapshotData | null = master?.last_snapshot_json
+    ? JSON.parse(master.last_snapshot_json)
+    : null;
+  const isMirror =
+    drive.role === "mirror" ||
+    drive.name.toUpperCase() === cfg.mirrorDrive.toUpperCase();
+  // capacity: prefer live value; falls back to snapshot
+  const withCap: Drive = {
+    ...drive,
+    capacity_bytes: drive.capacity_bytes || snap?.capacity_bytes || 0,
+  };
+  if (snap && !snap.capacity_bytes && drive.capacity_bytes)
+    snap.capacity_bytes = drive.capacity_bytes;
+  return {
+    drive: withCap,
+    snapshot: snap,
+    latestVerify: db.latestVerify(driveId),
+    bench: db.benchmarks(driveId),
+    ledgerFiles: db.ledgerCount(driveId),
+    ledgerStaleDays: db.ledgerAgeDays(driveId),
+    masterSnapshot: masterSnap,
+    masterName: master ? (master.nickname ?? master.name) : cfg.masterDrive,
+    isMirror,
+    checksumChanged: 0, // per-run value; surfaced via checksum job events
+  };
 }
 
 console.log(
