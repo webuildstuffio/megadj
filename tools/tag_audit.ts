@@ -8,7 +8,7 @@ import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 const home = process.env.HOME!;
-const roots = [`${home}/Music/YTMusic-Liked`];
+const roots = [`${home}/Music/DJ-Imports`];
 const CORE = ["title", "artist", "album", "genre", "date"];
 const zeroTags: Array<[string, string]> = [];
 const partial: Array<[string, string]> = [];

@@ -90,7 +90,7 @@ for (const group of Array.from(byId.values())) {
     db.query("DELETE FROM tracks WHERE video_id = ?").run(loser.video_id);
     removedDb++;
     const p = loser.file_path;
-    if (p && existsSync(p) && p !== winner.file_path && p.includes("YTMusic-Liked")) {
+    if (p && existsSync(p) && p !== winner.file_path && p.includes("DJ-Imports")) {
       try {
         renameSync(p, `${home}/Downloads/ingest-duplicates/${p.split("/").pop()}`);
         moved++;

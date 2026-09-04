@@ -5,7 +5,7 @@ import { sync } from "./commands/sync";
 import { status, listTracks } from "./commands/status";
 
 const MUSIC_DIR =
-  process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/YTMusic-Liked`;
+  process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/DJ-Imports`;
 const DB_PATH =
   process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
 const COOKIES = process.env.MEGADJ_COOKIES ?? "chrome";
@@ -28,7 +28,7 @@ usage:
   megadj help                                this help
 
 environment:
-  MEGADJ_MUSIC_DIR   target folder (default ~/Music/YTMusic-Liked)
+  MEGADJ_MUSIC_DIR   target folder (default ~/Music/DJ-Imports)
   MEGADJ_DB          state db path (default ~/.local/state/megadj/archive.db)
   MEGADJ_COOKIES     browser for cookies (default chrome, empty to disable)`);
 }

@@ -2,7 +2,7 @@
  * megadj organize — move downloaded files into genre folders and keep the
  * state DB in sync. Rekordbox-friendly layout:
  *
- *   ~/Music/YTMusic-Liked/
+ *   ~/Music/DJ-Imports/
  *     House/Track A.m4a
  *     Hip-Hop/Track B.m4a
  *     ...

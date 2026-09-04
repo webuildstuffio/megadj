@@ -10,7 +10,7 @@ import { Database } from "bun:sqlite";
 import { appendFile } from "node:fs/promises";
 
 const home = process.env.HOME!;
-const root = `${home}/Music/YTMusic-Liked`;
+const root = `${home}/Music/DJ-Imports`;
 const queuePath = `${home}/.local/state/megadj/artwork-queue.jsonl`;
 const db = new Database(`${home}/.local/state/megadj/archive.db`);
 

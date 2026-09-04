@@ -59,7 +59,7 @@ megadj adopt                      # register existing files in the DB
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `MEGADJ_MUSIC_DIR` | `~/Music/YTMusic-Liked` | where audio lands |
+| `MEGADJ_MUSIC_DIR` | `~/Music/DJ-Imports` | where audio lands |
 | `MEGADJ_DB` | `~/.local/state/megadj/archive.db` | state database |
 | `MEGADJ_COOKIES` | `chrome` | browser for yt-dlp cookies; empty disables |
 

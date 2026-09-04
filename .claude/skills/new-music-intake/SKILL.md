@@ -11,7 +11,7 @@ description: >-
 # New Music Intake → DJ Library
 
 Pipeline: **tag+dedupe locally → organize → USB**. Wherever a track came
-from, it ends up in `~/Music/YTMusic-Liked` (tagged, artworked, registered
+from, it ends up in `~/Music/DJ-Imports` (tagged, artworked, registered
 in megadj's DB), and only then goes to the drives.
 
 ## Step 1 — Scan for downloads (loose files first)
@@ -22,7 +22,7 @@ find ~/Downloads -maxdepth 2 -type f \
      -o -iname "*.flac" -o -iname "*.aiff" \) ! -name "._*" | wc -l
 ```
 
-Also peek at `~/Desktop` and `~/Music` (outside YTMusic-Liked). DJ edits
+Also peek at `~/Desktop` and `~/Music` (outside DJ-Imports). DJ edits
 usually pile up loose in `~/Downloads` as WAVs with names like
 `BLAH (DUER Remix) FINAL.wav`.
 
@@ -52,7 +52,7 @@ usually pile up loose in `~/Downloads` as WAVs with names like
   version/remixer tag (rekordbox shows it), original artist goes in
   composer, album falls back to `Original — Track (Remixes)` or
   `Artist — Bootlegs & Edits`, and grouping carries the genre for filters
-- copies tagged files into `~/Music/YTMusic-Liked` (sources never touched)
+- copies tagged files into `~/Music/DJ-Imports` (sources never touched)
   and registers them in the state DB
 
 ```bash

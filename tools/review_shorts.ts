@@ -1,7 +1,7 @@
 /**
  * tools/review_shorts.ts — move TikTok/YouTube shorts, podcasts, and other
  * sub-60s or non-DJ clips OUT of the archive root into a review folder
- * (~/Music/YTMusic-Liked-review/). NOT deleted — user reviews later.
+ * (~/Music/DJ-Imports-review/). NOT deleted — user reviews later.
  * Uses the DB duration + filename heuristics (#shorts, Reel, etc).
  */
 import { Database } from "bun:sqlite";
@@ -9,8 +9,8 @@ import { readdirSync, renameSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const home = process.env.HOME!;
-const ARCH = `${home}/Music/YTMusic-Liked`;
-const REVIEW = `${home}/Music/YTMusic-Liked-review`;
+const ARCH = `${home}/Music/DJ-Imports`;
+const REVIEW = `${home}/Music/DJ-Imports-review`;
 mkdirSync(REVIEW, { recursive: true });
 const db = new Database(`${home}/.local/state/megadj/archive.db`);
 
@@ -45,5 +45,5 @@ for (const f of files) {
     kept++;
   }
 }
-console.log(`moved ${moved} shorts/clips to ~/Music/YTMusic-Liked-review/`);
+console.log(`moved ${moved} shorts/clips to ~/Music/DJ-Imports-review/`);
 db.close();

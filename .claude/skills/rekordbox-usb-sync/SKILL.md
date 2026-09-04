@@ -57,7 +57,7 @@ megadj's tagging step can crash mid-run leaving zero-byte `.tagged.m4a` /
 # Good originals usually sit next to the junk in the same source folder.
 ```
 
-Replace broken files from the megadj source dir (`~/Music/YTMusic-Liked`),
+Replace broken files from the megadj source dir (`~/Music/DJ-Imports`),
 preserving the `NNN - ` rank prefix.
 
 ### 2. Metadata extraction (ffprobe)

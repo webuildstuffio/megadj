@@ -8,7 +8,7 @@ import { readdirSync, renameSync, existsSync, rmdirSync, statSync } from "node:f
 import { join } from "node:path";
 
 const home = process.env.HOME!;
-const ARCH = `${home}/Music/YTMusic-Liked`;
+const ARCH = `${home}/Music/DJ-Imports`;
 const db = new Database(`${home}/.local/state/megadj/archive.db`);
 
 let moved = 0;

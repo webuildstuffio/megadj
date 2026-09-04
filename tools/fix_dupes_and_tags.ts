@@ -13,7 +13,7 @@ import { $ } from "bun";
 
 const home = process.env.HOME!;
 const Q = `${home}/Downloads/ingest-duplicates`;
-const ARCH = `${home}/Music/YTMusic-Liked`;
+const ARCH = `${home}/Music/DJ-Imports`;
 const db = new Database(`${home}/.local/state/megadj/archive.db`);
 
 interface Row {
