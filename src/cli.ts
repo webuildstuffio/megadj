@@ -4,8 +4,10 @@ import { RateLimiter } from "./ratelimit";
 import { sync } from "./commands/sync";
 import { status, listTracks } from "./commands/status";
 
-const MUSIC_DIR = process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/YTMusic-Liked`;
-const DB_PATH = process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
+const MUSIC_DIR =
+  process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/YTMusic-Liked`;
+const DB_PATH =
+  process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
 const COOKIES = process.env.MEGADJ_COOKIES ?? "chrome";
 const COOKIES_FILE = process.env.MEGADJ_COOKIES_FILE ?? null;
 
@@ -15,6 +17,8 @@ function printHelp(): void {
 usage:
   megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,PLxxxx]
   megadj enrich  [--dry-run]                   fill weak genres via MusicBrainz
+  megadj ingest  <folder> [--dry-run] [--no-artwork]
+                                             tag + artwork external downloads
   megadj organize [--dry-run]                   move downloads into genre folders
   megadj status                              archive summary + recent runs
   megadj list    [filter]                    list tracks (by status or text)
@@ -93,7 +97,8 @@ async function main(): Promise<void> {
           ["dry-run", "music-only"],
         );
         const limiter = new RateLimiter({
-          onPace: (ms) => process.stderr.write(`  (pacing ${Math.round(ms / 100) / 10}s)\n`),
+          onPace: (ms) =>
+            process.stderr.write(`  (pacing ${Math.round(ms / 100) / 10}s)\n`),
           onBackoff: (attempt, ms, reason) =>
             process.stderr.write(
               `  (backoff #${attempt}: ${(ms / 1000).toFixed(1)}s — ${reason.slice(0, 60)})\n`,
@@ -110,7 +115,10 @@ async function main(): Promise<void> {
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean)
-          .map((id) => ({ id, label: id === "LM" ? "liked" : id === "LL" ? "liked-videos" : id }));
+          .map((id) => ({
+            id,
+            label: id === "LM" ? "liked" : id === "LL" ? "liked-videos" : id,
+          }));
         await sync({
           state,
           limiter,
@@ -163,6 +171,34 @@ async function main(): Promise<void> {
           state,
           musicDir: MUSIC_DIR,
           dryRun: flags.bools.has("dry-run"),
+        });
+        break;
+      }
+      case "ingest": {
+        const flags = parseFlags(
+          process.argv.slice(3),
+          ["ingest", "folder"],
+          ["dry-run", "no-artwork"],
+        );
+        const folder =
+          flags.strings.get("folder") ??
+          process.argv
+            .slice(3)
+            .find((a) => !a.startsWith("--") && a !== "ingest");
+        if (!folder) {
+          console.error(
+            "ingest: pass a folder — megadj ingest <folder> [--dry-run]",
+          );
+          process.exitCode = 1;
+          break;
+        }
+        const { ingest } = await import("./commands/ingest");
+        await ingest({
+          state,
+          musicDir: MUSIC_DIR,
+          folder,
+          dryRun: flags.bools.has("dry-run"),
+          noArtwork: flags.bools.has("no-artwork"),
         });
         break;
       }
