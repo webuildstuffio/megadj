@@ -58,6 +58,12 @@ same rules the repo already uses for any rekordbox touching (see below).
 
 ## The chosen implementation — Option A
 
+> **Sep 2026 update:** a second fix shipped alongside this — **ingest now
+> converts every new WAV to AIFF on the way in** (`src/commands/wav-to-aiff.ts`),
+> so anything ingested from now on has native AIFF covers and never needs
+> Option A. Option A remains the one-time fix for the 73 legacy WAVs
+> already in the archive.
+
 **Tool:** `tools/rb_art.py` (see below). Modes:
 
 ```bash

@@ -9,8 +9,8 @@
  *  3. Merge existing tags with `Artist - Title` filename parsing; missing
  *     artist/album/date get filled from MusicBrainz (1 rps, polite).
  *  4. Artwork: embedded art wins; else SoundCloud (URL found in tags → page
- *     og:image); else iTunes Search (600x600). WAV gets tags but no embedded
- *     art (WAV + artwork is unreliable across players).
+ *     og:image); else iTunes Search; else queued for AI generation.
+ *     WAVs are converted to AIFF first (rekordbox can't read WAV art).
  *  5. Tagged files are copied into the music dir (sources never touched) and
  *     registered in the state DB so `organize` / USB sync pick them up.
  */
@@ -18,7 +18,6 @@
 import { $ } from "bun";
 import { createHash } from "node:crypto";
 import { readdir, stat, copyFile, mkdir, rename } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import { join, basename, extname } from "node:path";
 import type { ArchiveState, TrackRow } from "../state";
 import { applyTags, inferGenre, sanitizeGenreFolder } from "../metadata";
@@ -27,9 +26,28 @@ import {
   deleteFullyIngestedZips,
   pendingZipDeletes,
 } from "./ingest-zips";
-import { embedArtwork, soundcloudArtwork, itunesArtwork } from "./embed";
+import {
+  AUDIO_EXTS,
+  firstTag,
+  mbRecording,
+  parseFilename,
+  probeFile,
+  qualityScore,
+  quarantine,
+  walkAudio,
+  type Record_,
+} from "./ingest-probe";
+import { identityKey, normalize } from "./identity";
+import { detectRemix } from "./remix";
+import { energyFromLufs, measureRms } from "./energy";
 import { wavToAiff } from "./wav-to-aiff";
-import { appendQueueEntries, type QueueEntry } from "./queue";
+import {
+  ARTWORK_EXTS,
+  fetchAndEmbedArtwork,
+  flushArtworkQueue,
+  type ArtworkOutcome,
+} from "./ingest-art";
+import type { QueueEntry } from "./queue";
 
 export interface IngestOptions {
   state: ArchiveState;
@@ -43,335 +61,7 @@ export interface IngestOptions {
   onProgress?: (msg: string) => void;
 }
 
-const AUDIO_EXTS = new Set([".m4a", ".mp3", ".wav", ".flac", ".aiff", ".aif"]);
-/** Containers that reliably hold embedded artwork. */
-const ARTWORK_EXTS = new Set([
-  ".m4a",
-  ".mp3",
-  ".flac",
-  ".aiff",
-  ".aif",
-  ".wav",
-]);
-const LOSSLESS = new Set([".wav", ".flac", ".aiff", ".aif"]);
-const MB_UA = "megadj/0.1 (https://github.com/megadj/megadj)";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/** Normalize a string for loose title/artist comparison (same idea as adopt). */
-export function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/[｜|]/g, "|")
-    .replace(/\(1\)|\(2\)|\(3\)/g, " ") // Safari "name (1).ext" dupes
-    .replace(/[()[\]]/g, " ")
-    .replace(/_/g, " ")
-    .replace(/\b(final|master|mstr|v\d+)\b/g, " ")
-    .replace(/[^a-z0-9 ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function identityKey(artist: string | null, title: string): string {
-  return `${normalize(artist ?? "")}|${normalize(title)}`;
-}
-
-export interface RemixInfo {
-  /** Original track title, e.g. "Savin Me". */
-  track: string;
-  /** Original artist, e.g. "Nickelback". */
-  originalArtist: string;
-  /** Remix credit, e.g. "Flozone" or "Flozone Flip". */
-  remixName: string;
-  remixer: string;
-  original: string;
-}
-
-/**
- * Detect `X - Y (Z Remix/Flip/Edit)` patterns. Bootlegs rarely have
- * MusicBrainz entries, so filename structure is the best source for the
- * original-artist credit. Returns null when no remix pattern is present.
- */
-export function detectRemix(title: string): RemixInfo | null {
-  // "Artist - Track (Remixer Remix)" / "(Remixer Flip)" / "(Remixer Edit)"
-  const m =
-    /^(.{2,80}?)\s+-\s+(.{1,120}?)\s*\(([^()]{2,60}?)\s+(remix|flip|edit|rework|re-work|vip|bootleg)\s*\)$/i.exec(
-      title.trim(),
-    );
-  if (!m || !m[1] || !m[2] || !m[3] || !m[4]) return null;
-  const originalArtist = m[1].trim();
-  const track = m[2].trim();
-  const tail = m[3].trim();
-  const kind = m[4].toLowerCase();
-  // "Flozone Remix" → remixer "Flozone"; "a x b Remix" → last name wins.
-  const remixers = tail
-    .replace(new RegExp(`\\s+${kind}$`, "i"), "")
-    .split(/\s+[x&]\s+/i)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const remixer = remixers[remixers.length - 1] ?? tail;
-  // m[3] is lazy so it stops before the keyword — rebuild the full credit.
-  const remixName = `${tail} ${m[4]}`;
-  return {
-    track,
-    originalArtist,
-    remixName,
-    remixer,
-    original: `${originalArtist} - ${track}`,
-  };
-}
-
-interface ParsedName {
-  trackNo: number | null;
-  artist: string | null;
-  title: string;
-}
-
-/** Parse `NNN - Artist - Title.ext` / `Artist - Title.ext` / `Title.ext`. */
-export function parseFilename(basename: string): ParsedName {
-  const stem = basename.replace(/\.[^.]+$/, "");
-  const numMatch = /^(\d{1,3})\s+-\s+(.+)$/.exec(stem);
-  let rest = stem;
-  let trackNo: number | null = null;
-  if (numMatch) {
-    trackNo = Number(numMatch[1]);
-    rest = numMatch[2] ?? stem;
-  }
-  const parts = rest.split(/\s+-\s+/);
-  if (parts.length >= 2) {
-    const artistPart = parts[0]?.trim();
-    return {
-      trackNo,
-      artist: artistPart ? artistPart : null,
-      title: parts.slice(1).join(" - ").trim(),
-    };
-  }
-  return { trackNo, artist: null, title: rest.trim() };
-}
-
-interface Probe {
-  ok: boolean;
-  durationS: number | null;
-  bitrateKbps: number | null;
-  sampleRate: number | null;
-  codec: string | null;
-  hasArt: boolean;
-  tags: Record<string, string>;
-}
-
-async function probeFile(path: string): Promise<Probe> {
-  const proc =
-    await $`ffprobe -v error -print_format json -show_format -show_streams ${path}`
-      .quiet()
-      .nothrow();
-  if (proc.exitCode !== 0) {
-    return {
-      ok: false,
-      durationS: null,
-      bitrateKbps: null,
-      sampleRate: null,
-      codec: null,
-      hasArt: false,
-      tags: {},
-    };
-  }
-  const stdout =
-    typeof proc.stdout === "string" ? proc.stdout : proc.stdout.toString();
-  const data = JSON.parse(stdout) as {
-    format?: {
-      duration?: string;
-      bit_rate?: string;
-      tags?: Record<string, string>;
-    };
-    streams?: Array<{
-      codec_type?: string;
-      codec_name?: string;
-      sample_rate?: string;
-    }>;
-  };
-  const tags: Record<string, string> = {};
-  const formatTags = data.format?.tags ?? {};
-  for (const k of Object.keys(formatTags)) {
-    tags[k.toLowerCase()] = String(formatTags[k]).trim();
-  }
-  const streams = data.streams ?? [];
-  const audio = streams.find((s) => s.codec_type === "audio");
-  return {
-    ok: true,
-    durationS: data.format?.duration ? Number(data.format.duration) : null,
-    bitrateKbps: data.format?.bit_rate
-      ? Math.round(Number(data.format.bit_rate) / 1000)
-      : null,
-    sampleRate: audio?.sample_rate ? Number(audio.sample_rate) : null,
-    codec: audio?.codec_name ?? null,
-    hasArt: streams.some((s) => s.codec_type === "video"),
-    tags,
-  };
-}
-
-/** Higher = better. Lossless dominates, then bitrate, then length. */
-export function qualityScore(p: Probe): number {
-  const lossless =
-    p.codec && LOSSLESS.has(`.${p.codec.replace("pcm_s16le", "wav")}`)
-      ? 1e9
-      : 0;
-  return lossless + (p.bitrateKbps ?? 0) * 1e3 + (p.durationS ?? 0);
-}
-
-function firstTag(tags: Record<string, string>, keys: string[]): string | null {
-  for (const k of keys) {
-    const v = tags[k];
-    if (v) return v;
-  }
-  return null;
-}
-
-async function mbRecording(
-  artist: string | null,
-  title: string,
-): Promise<{
-  artist: string | null;
-  album: string | null;
-  date: string | null;
-  artistTags: string;
-  mbid: string | null;
-}> {
-  const q = artist
-    ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
-    : `recording:"${encodeURIComponent(title)}"`;
-  const url = `https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`;
-  try {
-    const res = await fetch(url, { headers: { "User-Agent": MB_UA } });
-    if (!res.ok)
-      return {
-        artist: null,
-        album: null,
-        date: null,
-        artistTags: "",
-        mbid: null,
-      };
-    const data = (await res.json()) as {
-      recordings?: Array<{
-        id?: string;
-        "artist-credit"?: Array<{
-          name?: string;
-          artist?: {
-            name?: string;
-            tags?: Array<{ name: string; count: number }>;
-          };
-        }>;
-        releases?: Array<{ title?: string; date?: string }>;
-      }>;
-    };
-    const rec = data.recordings?.[0];
-    const credit = rec?.["artist-credit"]?.[0];
-    const mbArtist = credit?.artist?.name ?? credit?.name ?? null;
-    const rel = rec?.releases?.[0];
-    const tags = (credit?.artist?.tags ?? [])
-      .sort((a, b) => b.count - a.count)
-      .map((t) => t.name)
-      .join(" ");
-    return {
-      artist: mbArtist,
-      album: rel?.title ?? null,
-      date: rel?.date?.slice(0, 4) ?? null,
-      artistTags: tags,
-      mbid: rec?.id ?? null,
-    };
-  } catch {
-    return {
-      artist: null,
-      album: null,
-      date: null,
-      artistTags: "",
-      mbid: null,
-    };
-  }
-}
-
-function soundcloudUrlInTags(tags: Record<string, string>): string | null {
-  for (const v of Object.values(tags)) {
-    const m = /https?:\/\/(www\.)?soundcloud\.com\/[^\s"'<>]+/.exec(v);
-    if (m?.[0]) return m[0];
-  }
-  return null;
-}
-
-/**
- * zips module — expandZips + deleteFullyIngestedZips (see ingest-zips.ts).
- */
-
-async function walkAudio(
-  dir: string,
-  out: string[] = [],
-  skip?: string[],
-): Promise<string[]> {
-  for (const ent of await readdir(dir, { withFileTypes: true })) {
-    if (ent.name.startsWith(".")) continue;
-    const full = join(dir, ent.name);
-    if (ent.isDirectory()) {
-      if (skip?.some((s) => full === s || full.startsWith(s + "/"))) continue;
-      await walkAudio(full, out, skip);
-    } else if (AUDIO_EXTS.has(extname(ent.name).toLowerCase())) out.push(full);
-  }
-  return out;
-}
-
-/**
- * Crude DJ "energy" rating (1–10) from integrated loudness — same idea as
- * Mixed In Key's energy column: how hard a track hits, for set planning.
- * RMS dBFS typical range -25 (chill) .. -8 (banger) mapped linearly.
- * rekordbox/MatchMySound do fancier analysis; this is a sortable baseline.
- */
-export function energyFromLufs(rmsDb: number | null): number | null {
-  if (rmsDb === null || Number.isNaN(rmsDb)) return null;
-  const clamped = Math.min(-8, Math.max(-25, rmsDb));
-  return Math.round((1 + ((clamped + 25) / 17) * 9) * 10) / 10;
-}
-
-async function measureRms(file: string): Promise<number | null> {
-  const proc =
-    await $`ffmpeg -hide_banner -nostats -i ${file} -af astats=measure_overall=RMS_level:measure_perchannel=none -f null -`
-      .quiet()
-      .nothrow();
-  if (proc.exitCode !== 0) return null;
-  const out = proc.stderr.toString();
-  const m = /RMS level dB:\s*(-?[\d.]+)/.exec(out);
-  return m?.[1] ? Number(m[1]) : null;
-}
-
-interface Record_ {
-  file: string;
-  size: number;
-  probe: Probe;
-  parsed: ParsedName;
-  identity: string;
-  score: number;
-}
-
-async function quarantine(
-  file: string,
-  quarantineDir: string,
-  dryRun: boolean | undefined,
-  log: (m: string) => void,
-): Promise<void> {
-  if (dryRun) {
-    log(`  [dupe] would quarantine: ${basename(file)}`);
-    return;
-  }
-  await mkdir(quarantineDir, { recursive: true });
-  const dest = join(quarantineDir, basename(file));
-  if (!existsSync(file)) {
-    log(`  [dupe] already gone (handled earlier): ${basename(file)}`);
-    return;
-  }
-  try {
-    await rename(file, dest);
-  } catch {
-    await copyFile(file, dest); // cross-device fallback; original left in place
-  }
-}
 
 export async function ingest(opts: IngestOptions): Promise<void> {
   const log = opts.onProgress ?? ((m: string) => console.log(m));
@@ -608,23 +298,30 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     // short-circuits before this).
     const energy = opts.dryRun ? null : energyFromLufs(await measureRms(file));
 
-    // Artwork: embedded → SoundCloud (URL in tags) → iTunes. AIFF/MP3/M4A/
-    // FLAC embed natively; WAV never happens post-conversion (except when
-    // ffmpeg conversion failed — art embeds via APIC for other players).
-    let artUrlFound: string | null = null;
+    // Artwork: embedded → SoundCloud (URL in tags) → iTunes → AI queue.
+    // AIFF/MP3/M4A/FLAC embed natively; WAV rarely reaches here because
+    // ingest converts to AIFF first (art rides along via mutagen).
+    let art: ArtworkOutcome = {
+      source: null,
+      failedUrl: null,
+      queued: false,
+      skipped: false,
+    };
     if (!probe.hasArt && !opts.noArtwork && artist) {
-      if (!ARTWORK_EXTS.has(ext)) {
+      art = await fetchAndEmbedArtwork(file, {
+        tags: probe.tags,
+        hasArt: probe.hasArt,
+        noArtwork: opts.noArtwork,
+        artist,
+        album,
+        title,
+        dryRun: opts.dryRun,
+      });
+      if (art.skipped) {
         artSkippedWav++;
-      } else {
-        const scUrl = soundcloudUrlInTags(probe.tags);
-        const artUrl =
-          (scUrl && (await soundcloudArtwork(scUrl))) ||
-          (await itunesArtwork(artist, album ?? title));
-        artUrlFound = artUrl;
-        if (artUrl && !opts.dryRun && (await embedArtwork(file, artUrl))) {
-          artAdded++;
-          changes.push("artwork");
-        }
+      } else if (art.source) {
+        artAdded++;
+        changes.push("artwork");
       }
     }
 
@@ -644,6 +341,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     let destPath = join(opts.musicDir, basename(file));
     if (!file.startsWith(opts.musicDir)) {
       if (destPath !== file) {
+        await mkdir(opts.musicDir, { recursive: true });
         try {
           const destStat = await stat(destPath);
           if (destStat.size !== rec.size) {
@@ -688,11 +386,11 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     // nano-banana-2, ~$0.03-0.07/img). Written to
     // ~/.local/state/megadj/artwork-queue.jsonl (one JSON per line).
     if (!probe.hasArt && !opts.noArtwork) {
-      if (!ARTWORK_EXTS.has(ext)) {
-        artSkippedWav++;
+      if (art.skipped) {
+        // format can't hold art — nothing to queue
       } else if (queuedIdentity.has(rec.identity)) {
         // already in queue from an earlier run/file
-      } else if (artUrlFound) {
+      } else if (art.failedUrl) {
         // artwork found but embedding failed — try again next run
         queuedIdentity.add(rec.identity);
         queueEntries.push({
@@ -701,11 +399,11 @@ export async function ingest(opts: IngestOptions): Promise<void> {
           artist,
           album,
           reason: "embed-failed",
-          sourceUrl: artUrlFound,
+          sourceUrl: art.failedUrl,
         });
         opts.state.updateArtworkStatus(extId, "queued");
         artQueued++;
-      } else {
+      } else if (art.queued || !art.source) {
         queuedIdentity.add(rec.identity);
         queueEntries.push({
           path: destPath,
@@ -721,9 +419,9 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     }
   }
 
+  await flushArtworkQueue(opts.state.dbDir, queueEntries, opts.dryRun);
   if (queueEntries.length > 0 && !opts.dryRun) {
-    const queuePath = await appendQueueEntries(opts.state.dbDir, queueEntries);
-    log(`artwork queue: ${queueEntries.length} entr(ies) → ${queuePath}`);
+    log(`artwork queue: ${queueEntries.length} entr(ies)`);
   }
 
   log(

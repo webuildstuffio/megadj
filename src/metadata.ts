@@ -158,6 +158,15 @@ export async function applyTags(
   filePath: string,
   meta: EnrichedMetadata,
 ): Promise<void> {
+  // AIFF special case: ffmpeg's aiff muxer DROPS the ID3 chunk (verified —
+  // title degrades to an annotation chunk, artist/APIC vanish). AIFF tag
+  // writes go through mutagen instead, which edits the ID3 chunk in place
+  // and keeps any embedded artwork intact.
+  const extLower = extname(filePath).toLowerCase();
+  if (extLower === ".aiff" || extLower === ".aif") {
+    await applyTagsAiff(filePath, meta);
+    return;
+  }
   // Explicit a+v mapping avoids the m4a ipod muxer choking on bin_data/text
   // and PNG-cover streams under a blanket `-c copy` ("Tag text incompatible
   // with output codec id"). Maps are optional ("?") because stripped files
@@ -227,4 +236,67 @@ export async function applyTags(
   }
   // Atomic swap via rename — a crash can never leave a half-written original.
   await $`mv -f ${tagged} ${filePath}`.quiet();
+}
+
+/**
+ * AIFF tag write via mutagen (in-place ID3v2 chunk edit; ffmpeg would drop
+ * the chunk entirely). Maps EnrichedMetadata → ID3 frames:
+ *   title→TIT2 artist→TPE1 albumArtist→TPE2 album→TALB genre→TCON
+ *   date→TDRC composer→TCOM grouping→TIT1 remixer→TXXX:version
+ *   comment→COMM mbid→UFID/http://musicbrainz.org
+ */
+async function applyTagsAiff(
+  filePath: string,
+  meta: EnrichedMetadata,
+): Promise<void> {
+  const frames: string[] = [];
+  const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const set = (frame: string, value: string | null | undefined) => {
+    if (value)
+      frames.push(
+        `t = ${frame}(encoding=3, text=["${esc(value)}"]); id3.add(t)`,
+      );
+  };
+  set("TIT2", meta.title);
+  set("TPE1", meta.artist);
+  set("TPE2", meta.albumArtist);
+  set("TALB", meta.album);
+  set("TCON", meta.genre);
+  set("TDRC", meta.date);
+  set("TCOM", meta.composer);
+  set("TIT1", meta.grouping);
+  if (meta.remixer)
+    frames.push(
+      `t = TXXX(encoding=3, desc="version", text=["${esc(meta.remixer)}"]); id3.add(t)`,
+    );
+  if (meta.comment)
+    frames.push(
+      `t = COMM(encoding=3, lang="eng", desc="", text=["${esc(meta.comment)}"]); id3.add(t)`,
+    );
+  if (meta.mbid)
+    frames.push(
+      `t = TXXX(encoding=3, desc="MusicBrainz Track Id", text=["${esc(meta.mbid)}"]); id3.add(t)`,
+    );
+  const script = `
+from mutagen.aiff import AIFF
+from mutagen.id3 import ID3, TIT2, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TXXX, COMM
+a = AIFF(${JSON.stringify(filePath)})
+if a.tags is None:
+    a.add_tags()
+id3 = a.tags
+# wipe all text frames, keep APIC (embedded art) untouched
+for k in list(id3.keys()):
+    if k != "APIC":
+        del id3[k]
+${frames.join("\n")}
+a.save()
+print("ok")`;
+  const proc = await $`uv run --with mutagen python -c ${script}`
+    .quiet()
+    .nothrow();
+  if (proc.exitCode !== 0 || !proc.stdout.toString().trim().includes("ok")) {
+    throw new Error(
+      `mutagen AIFF tag write failed for ${filePath}: ${proc.stderr.toString().slice(0, 200)}`,
+    );
+  }
 }
