@@ -110,6 +110,25 @@ rules):
 **Never** hand-edit drive DBs, and never let two writers (megadj pipeline +
 rekordbox export) touch a drive at the same time.
 
+## Step 5 — Housekeeping tools (after crash-interrupted runs)
+
+If an ingest crashes mid-run (or Finder shows a file with "no tags"), use:
+
+```bash
+cd ~/github/megadj
+bun tools/tag_audit.ts            # scan archive: zero/partial/full core tags
+bun tools/fix_dupes_and_tags.ts   # swap inverted (1)-dupes back, fill missing
+                                  #   artist/album/genre on flip/edit files
+bash tools/dedupe_archive.ts      # DB-level dedupe, highest quality wins
+bun tools/queue_missing_artwork.ts  # mark art-less mp3/m4a as queued
+```
+
+**Why a file can show "0 tags" but isn't:** WAV files keep tags in trailing
+ID3 chunks that Finder/QuickTime don't display — `tag_audit.ts` reads them
+properly via ffprobe. Also, files whose DB row exists but file is "missing"
+often live inside rekordbox's Mac collection (imported from the USB path);
+check rekordbox before assuming data loss.
+
 ## MusicBrainz Picard — when actually needed
 
 Only for compilations/albums where track numbering and per-track credits

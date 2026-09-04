@@ -18,6 +18,7 @@
 import { $ } from "bun";
 import { createHash } from "node:crypto";
 import { readdir, stat, copyFile, mkdir, rename } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join, basename, extname } from "node:path";
 import type { ArchiveState, TrackRow } from "../state";
 import { applyTags, inferGenre, sanitizeGenreFolder } from "../metadata";
@@ -228,7 +229,13 @@ async function mbRecording(
   try {
     const res = await fetch(url, { headers: { "User-Agent": MB_UA } });
     if (!res.ok)
-      return { artist: null, album: null, date: null, artistTags: "", mbid: null };
+      return {
+        artist: null,
+        album: null,
+        date: null,
+        artistTags: "",
+        mbid: null,
+      };
     const data = (await res.json()) as {
       recordings?: Array<{
         id?: string;
@@ -258,7 +265,13 @@ async function mbRecording(
       mbid: rec?.id ?? null,
     };
   } catch {
-    return { artist: null, album: null, date: null, artistTags: "", mbid: null };
+    return {
+      artist: null,
+      album: null,
+      date: null,
+      artistTags: "",
+      mbid: null,
+    };
   }
 }
 
@@ -400,6 +413,10 @@ async function quarantine(
   }
   await mkdir(quarantineDir, { recursive: true });
   const dest = join(quarantineDir, basename(file));
+  if (!existsSync(file)) {
+    log(`  [dupe] already gone (handled earlier): ${basename(file)}`);
+    return;
+  }
   try {
     await rename(file, dest);
   } catch {
