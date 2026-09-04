@@ -142,10 +142,18 @@ def collect_targets(db, DjmdContent) -> list[dict]:
 def ensure_artwork_file(art: bytes, row_id: str) -> str:
     """Write art into RB's Artwork tree; return the ImagePath value.
 
-    Layout mirrors existing files:  Artwork/<3-hex>/<uuid>/artwork.jpg
+    Layout mirrors existing files:  Artwork/<3-hex>/<uuid>/
+        artwork.jpg    — full resolution
+        artwork_m.jpg  — medium thumbnail (RB renders the browser from these)
+        artwork_s.jpg  — small thumbnail
     ImagePath is stored relative to the share/ root: /PIONEER/Artwork/...
+    RB-native dirs ALWAYS have all three; writing only the full-res makes
+    covers silently not render (pilot-verified 2026-09-04).
     """
+    import io
     import uuid as uuid_mod
+
+    from PIL import Image
 
     row_id = str(row_id)
     # shard = stable 3-hex dir; existing dirs use first 3 chars of a hex uuid.
@@ -153,10 +161,27 @@ def ensure_artwork_file(art: bytes, row_id: str) -> str:
     uid = str(uuid_mod.uuid5(uuid_mod.NAMESPACE_URL, f"megadj-artwork-{row_id}"))
     dest_dir = ARTWORK_ROOT / shard / uid
     dest_dir.mkdir(parents=True, exist_ok=True)
-    ext = "png" if art[:8] == b"\x89PNG\r\n\x1a\n" else "jpg"
+    is_png = art[:8] == b"\x89PNG\r\n\x1a\n"
+    ext = "png" if is_png else "jpg"
     dest = dest_dir / f"artwork.{ext}"
     if not dest.exists() or dest.stat().st_size != len(art):
         dest.write_bytes(art)
+    # thumbnails: always (re)generate if missing — cheap and idempotent
+    try:
+        img = Image.open(io.BytesIO(art))
+        img.load()
+        for suffix, size in (("m", 250), ("s", 125)):
+            tpath = dest_dir / f"artwork_{suffix}.{ext}"
+            if tpath.exists():
+                continue
+            t = img.convert("RGB") if not is_png else img.copy()
+            t.thumbnail((size, size))
+            if is_png:
+                t.save(tpath, "PNG")
+            else:
+                t.save(tpath, "JPEG", quality=85)
+    except Exception as exc:  # noqa: BLE001 — thumbnails are best-effort
+        print(f"  ⚠ thumbnail generation failed for {shard}/{uid}: {exc}")
     return f"/PIONEER/Artwork/{shard}/{uid}/artwork.{ext}"
 
 
@@ -192,6 +217,8 @@ def plan(mode: str) -> list[dict]:
         backup_master_db(mode)
     db, DjmdContent = open_db()
     targets = collect_targets(db, DjmdContent)
+    for t in targets:
+        t["db"] = db  # carry the session so apply() can commit per-track
     if mode == "pilot":
         targets = targets[:PILOT_N]
     print(f"{'MODE':<8} {mode} — {len(targets)} track(s) to update\n")
@@ -203,6 +230,7 @@ def apply(mode: str) -> int:
     if not targets:
         print("Nothing to do — all WAVs already have art in RB.")
         return 0
+    db = targets[0]["db"]  # Session opened in plan()
     ok = no_art = err = 0
     for t in targets:
         if not t["art"]:
@@ -215,7 +243,7 @@ def apply(mode: str) -> int:
                 ok += 1
                 continue
             image_path = ensure_artwork_file(t["art"], t["id"])
-            set_image_path(t["content"], image_path)
+            set_image_path(db, t["content"], image_path)
             ok += 1
             print(f"  ✓ {t['file'][:60]}")
         except Exception as exc:  # noqa: BLE001 — keep batch going, log the failure
