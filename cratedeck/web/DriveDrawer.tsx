@@ -7,7 +7,8 @@ import type {
   SnapshotData,
   TimelineEvent,
 } from "../shared/types";
-import { fmtBytes, timeAgo } from "./DriveCard";
+import { fmtBytes, timeAgo } from "../shared/fmt";
+import { fmtDur, fmtEventData, shortSerial } from "../shared/fmt";
 
 interface Detail {
   drive: DriveReport["drive"];
@@ -508,28 +509,4 @@ function Stat({ v, l, title }: { v: string; l: string; title?: string }) {
       <div class="l">{l}</div>
     </div>
   );
-}
-
-function fmtDur(s: number): string {
-  if (!s) return "—";
-  const m = Math.floor(s / 60);
-  const r = Math.round(s % 60);
-  return `${m}:${String(r).padStart(2, "0")}`;
-}
-
-/** 130-char macOS serials → readable head + tail. */
-function shortSerial(s: string): string {
-  return s.length <= 18 ? s : `${s.slice(0, 10)}…${s.slice(-6)}`;
-}
-
-/** Human timeline data instead of raw JSON fragments. */
-function fmtEventData(data: Record<string, unknown>): string {
-  const parts = Object.entries(data).map(([k, v]) => {
-    if (v === null || v === undefined) return null;
-    if (Array.isArray(v)) return `${k}×${v.length}`;
-    if (typeof v === "object") return null;
-    return `${k} ${String(v)}`;
-  });
-  const out = parts.filter((x): x is string => x !== null);
-  return out.length ? out.join(" · ") : "—";
 }

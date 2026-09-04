@@ -190,10 +190,8 @@ export function watchVolumes(
   root: string,
   onChange: () => void,
 ): { stop: () => void } {
-  let timer:
-    | ReturnType<typeof setTimeout>
-    | ReturnType<typeof setInterval>
-    | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let poll: ReturnType<typeof setInterval> | null = null;
   try {
     const w = watch(root, { persistent: true }, () => {
       // debounce bursts (macOS fires several events per mount)
@@ -207,8 +205,13 @@ export function watchVolumes(
       },
     };
   } catch {
-    // fallback: pure 5s net
-    timer = setInterval(onChange, 5000);
-    return { stop: () => timer && clearInterval(timer as any) };
+    // fallback: pure 5s poll (watch unavailable for this root)
+    poll = setInterval(onChange, 5000);
+    return {
+      stop: () => {
+        if (poll) clearInterval(poll);
+        if (timer) clearTimeout(timer);
+      },
+    };
   }
 }

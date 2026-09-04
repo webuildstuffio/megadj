@@ -6,6 +6,7 @@ import type {
   HealthCheck,
   SnapshotData,
 } from "../shared/types";
+import { fmtBytes, fmtPct } from "../shared/fmt";
 
 export interface ReportInput {
   drive: Drive;
@@ -160,7 +161,7 @@ export function buildChecks(input: ReportInput): HealthCheck[] {
       id: "space",
       label: "Free space",
       status: freePct < 0.05 ? "fail" : freePct < 0.15 ? "warn" : "pass",
-      detail: `${pct1(freePct)} free (${fmtGb(snap.free_bytes)} of ${fmtGb(snap.capacity_bytes)})`,
+      detail: `${fmtPct(freePct)} free (${fmtBytes(snap.free_bytes)} of ${fmtBytes(snap.capacity_bytes)})`,
       fix:
         freePct < 0.15
           ? "rekordbox needs headroom for ANLZ + DB WAL — prune or offload"
@@ -270,12 +271,4 @@ export function overall(
   if (checks.some((c) => c.status === "fail")) return "critical";
   if (checks.some((c) => c.status === "warn")) return "attention";
   return "healthy";
-}
-
-function pct1(x: number): string {
-  return `${Math.round(x * 100)}%`;
-}
-
-function fmtGb(n: number): string {
-  return n >= 1e9 ? `${(n / 1e9).toFixed(0)} GB` : `${(n / 1e6).toFixed(0)} MB`;
 }

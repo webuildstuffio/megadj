@@ -12,6 +12,22 @@ export interface ImageHit {
   source: string;
 }
 
+/** Minimal response typing for the Brave image-search API. */
+interface BraveResponse {
+  results?: {
+    index?: number;
+    url?: string;
+    source?: string;
+    thumbnail?: { src?: string };
+    properties?: { image?: string };
+  }[];
+}
+
+/** Minimal response typing for the Exa search API. */
+interface ExaResponse {
+  results?: { id?: string; image?: string; url?: string }[];
+}
+
 export class ImageService {
   constructor(
     private cfg: CrateConfig,
@@ -41,11 +57,11 @@ export class ImageService {
       },
     );
     if (!res.ok) throw new Error(`brave ${res.status}`);
-    const data = (await res.json()) as any;
-    return (data?.results ?? []).slice(0, 12).map((r: any, i: number) => ({
+    const data = (await res.json()) as BraveResponse;
+    return (data.results ?? []).slice(0, 12).map((r, i) => ({
       id: String(r.index ?? i),
-      thumb: r.thumbnail?.src ?? r.properties?.image ?? r.url,
-      full: r.properties?.image ?? r.url,
+      thumb: r.thumbnail?.src ?? r.properties?.image ?? r.url ?? "",
+      full: r.properties?.image ?? r.url ?? "",
       source: r.source ?? "web",
     }));
   }
@@ -65,11 +81,13 @@ export class ImageService {
       }),
     });
     if (!res.ok) throw new Error(`exa ${res.status}`);
-    const data = (await res.json()) as any;
-    return (data?.results ?? [])
-      .filter((r: any) => r.image)
+    const data = (await res.json()) as ExaResponse;
+    return (data.results ?? [])
+      .filter(
+        (r): r is { id?: string; image: string; url?: string } => !!r.image,
+      )
       .slice(0, 12)
-      .map((r: any, i: number) => ({
+      .map((r, i) => ({
         id: String(r.id ?? i),
         thumb: r.image,
         full: r.image,
