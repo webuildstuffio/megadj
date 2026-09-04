@@ -13,6 +13,7 @@
  */
 
 import { $ } from "bun";
+import { extname } from "node:path";
 
 export interface EnrichedMetadata {
   title: string | null;
@@ -24,6 +25,10 @@ export interface EnrichedMetadata {
   composer: string | null;
   comment: string | null;
   bpm: number | null;
+  /** Remix credit ("Flozone Flip") — written to the version/remix tag. */
+  remixer?: string | null;
+  /** Style/scene grouping (rekordbox reads grouping) for library filters. */
+  grouping?: string | null;
 }
 
 export interface YtdlpInfo {
@@ -180,11 +185,36 @@ export async function applyTags(
   if (meta.genre) args.push("-metadata", `genre=${meta.genre}`);
   if (meta.date) args.push("-metadata", `date=${meta.date}`);
   if (meta.composer) args.push("-metadata", `composer=${meta.composer}`);
+  // Remix credit: ID3v2.4 TXXX:version / MP4 ©rem — rekordbox shows it as
+  // "Remixer" and CDJs group on it. WAV/AIFF: ffmpeg's wav muxer accepts
+  // arbitrary -metadata but players ignore it; harmless to write.
+  if (meta.remixer) args.push("-metadata", `version=${meta.remixer}`);
+  if (meta.grouping) args.push("-metadata", `grouping=${meta.grouping}`);
   // Rekordbox reads the comment field; carrying the source URL makes
   // provenance traceable without polluting other fields.
   if (meta.comment) args.push("-metadata", `comment=${meta.comment}`);
   const tagged = filePath.replace(/(\.[^.]+)$/, ".tagged$1");
-  args.push("-f", "ipod", tagged);
+  // Container/format selection: m4a uses the ipod muxer; mp3 needs id3v2.3
+  // (widest compatibility); lossless (wav/flac/aiff) stays in its own
+  // container via explicit -c:a copy + matched muxer. The old behavior
+  // forced ipod for everything, which is why .tagged.m4a junk appeared
+  // next to WAV downloads ("Could not find tag for codec pcm_s16le").
+  const ext = extname(filePath).toLowerCase();
+  const isLossless = [".wav", ".flac", ".aiff", ".aif"].includes(ext);
+  if (ext === ".mp3") {
+    args.push("-c:v", "copy", "-write_id3v2", "1", "-id3v2_version", "3");
+    args.push(tagged);
+  } else if (isLossless) {
+    if (ext === ".flac") {
+      // FLAC supports embedded pictures — keep base video handling.
+      args.push(tagged);
+    } else {
+      // WAV/AIFF muxers reject video streams — drop any attached pic.
+      args.push("-vn", "-f", ext.slice(1), tagged);
+    }
+  } else {
+    args.push("-f", "ipod", tagged);
+  }
 
   const proc = await $`ffmpeg -hide_banner -loglevel error ${args}`.quiet();
   if (proc.exitCode !== 0) {

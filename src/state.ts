@@ -34,6 +34,8 @@ export interface TrackRow {
   liked_position: number | null;
   source: string;
   genre: string | null;
+  energy: number | null;
+  artwork_status: string | null;
   first_seen_at: string;
   updated_at: string;
 }
@@ -51,9 +53,12 @@ export interface RunRow {
 
 export class ArchiveState {
   private db: Database;
+  /** Directory holding the sqlite file — also hosts sidecar files. */
+  readonly dbDir: string;
 
   constructor(dbPath: string) {
     const dir = dbPath.substring(0, dbPath.lastIndexOf("/"));
+    this.dbDir = dir;
     if (dir) {
       mkdirSync(dir, { recursive: true });
     }
@@ -102,6 +107,8 @@ export class ArchiveState {
       "TEXT NOT NULL DEFAULT 'liked'",
     );
     this.addColumnIfMissing("tracks", "genre", "TEXT");
+    this.addColumnIfMissing("tracks", "energy", "INTEGER");
+    this.addColumnIfMissing("tracks", "artwork_status", "TEXT");
     this.db.exec(
       `CREATE INDEX IF NOT EXISTS idx_tracks_source ON tracks(source)`,
     );
@@ -169,6 +176,8 @@ export class ArchiveState {
       filePath: string | null;
       fileSizeBytes: number | null;
       durationS: number | null;
+      energy?: number | null;
+      artworkStatus?: string | null;
     },
   ): void {
     const now = this.now();
@@ -180,6 +189,8 @@ export class ArchiveState {
            artist = COALESCE(?, artist),
            album = COALESCE(?, album),
            genre = COALESCE(?, genre),
+           energy = COALESCE(?, energy),
+           artwork_status = COALESCE(?, artwork_status),
            format_id = ?, bitrate_kbps = ?, codec = ?,
            file_path = ?, file_size_bytes = ?, duration_s = ?,
            last_error = NULL, updated_at = ?
@@ -190,6 +201,8 @@ export class ArchiveState {
         info.artist,
         info.album,
         info.genre ?? null,
+        info.energy ?? null,
+        info.artworkStatus ?? null,
         info.formatId,
         info.bitrateKbps,
         info.codec,
@@ -245,6 +258,19 @@ export class ArchiveState {
       .run(newFilePath, this.now(), videoId);
   }
 
+  /** Mark an ingested file as too short for DJ use (kept out of the archive). */
+  markShortSkipped(
+    videoId: string,
+    filePath: string,
+    durationS: number | null,
+  ): void {
+    this.db
+      .query(
+        `UPDATE tracks SET status = 'skipped_short', file_path = ?, duration_s = ?, updated_at = ? WHERE video_id = ?`,
+      )
+      .run(filePath, durationS, this.now(), videoId);
+  }
+
   /** Persist inferred genre for a downloaded track. */
   updateGenre(videoId: string, genre: string | null): void {
     this.db
@@ -252,6 +278,27 @@ export class ArchiveState {
         `UPDATE tracks SET genre = COALESCE(?, genre), updated_at = ? WHERE video_id = ?`,
       )
       .run(genre, this.now(), videoId);
+  }
+
+  /** Persist artwork status: 'embedded' | 'queued' | 'none' | 'skipped:<ext>'. */
+  updateArtworkStatus(videoId: string, status: string): void {
+    this.db
+      .query(
+        `UPDATE tracks SET artwork_status = ?, updated_at = ? WHERE video_id = ?`,
+      )
+      .run(status, this.now(), videoId);
+  }
+
+  /**
+   * Queue flag persisted via artwork_status='queued'; queue file lives at
+   * ~/.local/state/megadj/artwork-queue.jsonl (one JSON object per line).
+   */
+  queuedArtworkTracks(): TrackRow[] {
+    return this.db
+      .query(
+        `SELECT * FROM tracks WHERE artwork_status = 'queued' ORDER BY updated_at`,
+      )
+      .all() as TrackRow[];
   }
 
   /** Tracks that should be attempted on the next run. */

@@ -17,8 +17,9 @@ function printHelp(): void {
 usage:
   megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,PLxxxx]
   megadj enrich  [--dry-run]                   fill weak genres via MusicBrainz
-  megadj ingest  <folder> [--dry-run] [--no-artwork]
+  megadj ingest  <folder> [--dry-run] [--no-artwork] [--min-duration N]
                                              tag + artwork external downloads
+  megadj artwork                              process queued artwork via image-maker
   megadj organize [--dry-run]                   move downloads into genre folders
   megadj status                              archive summary + recent runs
   megadj list    [filter]                    list tracks (by status or text)
@@ -199,7 +200,15 @@ async function main(): Promise<void> {
           folder,
           dryRun: flags.bools.has("dry-run"),
           noArtwork: flags.bools.has("no-artwork"),
+          minDuration: flags.strings.get("min-duration")
+            ? Number(flags.strings.get("min-duration"))
+            : undefined,
         });
+        break;
+      }
+      case "artwork": {
+        const { artwork } = await import("./commands/artwork");
+        await artwork({ state });
         break;
       }
       default:
