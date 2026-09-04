@@ -161,7 +161,7 @@ Preact + Vite. Two-pane layout driven by a **zero-dep hash router**
 (`web/router.ts`, `#/drives/:id/:tab`) — deep links and browser
 back/forward work with no router dependency. `DriveRail` (all drives,
 ghosts dimmed) → `DrivePage` (Overview / Playlists / Health / Timeline /
-Report tabs: `PlaylistsTab`, `HealthTab`, `TimelineTab`) · `JobsDock` ·
+Photo tabs: `PlaylistsTab`, `HealthTab`, `TimelineTab`) · `JobsDock` ·
 interlock banner · toast notifications (`toast.tsx`) · `icons.tsx`. SSE
 with auto-reconnect. Badge rules live in `shared/badges.ts`, computed
 server-side, rendered client-side — badge and data can never disagree.

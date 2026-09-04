@@ -192,7 +192,8 @@ time" requirement — ghosts are exportable).
 - top bar: rekordbox interlock banner, global activity pulse, search
 - shelf: all drives as crate cards — photo, name, badges (role, capacity,
   in-sync, readiness, grids %), ghost cards dimmed
-- click a card → detail drawer (F4/F5/F7/F8 tabs)
+- click a card → drive page in the main canvas (F4/F5/F7/F8 tabs); the
+  drive shelf stays visible as a left rail (Sep 2026 redesign — no drawer)
 - side: port map mini-tree; jobs tray with live progress
 - global search: tracks/playlists across all known drives incl. ghosts
 
