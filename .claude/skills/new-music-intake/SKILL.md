@@ -3,135 +3,110 @@ name: new-music-intake
 description: >-
   How to get NEW songs into the DJ library: download (megadj or by hand),
   tag/artwork/dedupe them (megadj ingest does the Picard pass automatically),
-  move them into the local archive, then get them onto the DJ USB drives.
-  Use when asked to add new music, tag downloads, fix ID3 tags or artwork,
-  dedupe downloads, or get tracks ready for rekordbox / the XDJ-XZ.
+  artwork via SC/Deezer/iTunes/twin/AI (art_final), genres via SC +
+  OpenRouter classifier (ai_genres), then onto the USB drives. Use when asked
+  to add new music, tag downloads, fix ID3 tags or artwork, dedupe downloads,
+  or get tracks ready for rekordbox / the XDJ-XZ.
 ---
 
 # New Music Intake → DJ Library
 
-Pipeline: **tag+dedupe locally → organize → USB**. Wherever a track came
-from, it ends up in `~/Music/DJ-Imports` (tagged, artworked, registered
-in megadj's DB), and only then goes to the drives.
+Pipeline: **tag+dedupe locally (flat!) → artwork+genres → USB**. Whatever the
+source, a track ends up in `~/Music/DJ-Imports` — **one flat folder, no genre
+subfolders** (genre lives in the ID3 `genre` tag; rekordbox filters on it) —
+tagged, artworked, registered in megadj's DB.
 
-## Step 1 — Scan for downloads (loose files first)
+## Step 1 — Scan for downloads (loose files + zips)
 
 ```bash
 find ~/Downloads -maxdepth 2 -type f \
   \( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.wav" \
-     -o -iname "*.flac" -o -iname "*.aiff" \) ! -name "._*" | wc -l
+     -o -iname "*.flac" -o -iname "*.aiff" -o -iname "*.zip" \) ! -name "._*"
 ```
 
-Also peek at `~/Desktop` and `~/Music` (outside DJ-Imports). DJ edits
-usually pile up loose in `~/Downloads` as WAVs with names like
-`BLAH (DUER Remix) FINAL.wav`.
+Also peek at `~/Desktop`. DJ edits pile up loose in `~/Downloads` as WAVs
+named like `BLAH (DUER Remix) FINAL.wav`; pools ship zips.
 
-## Step 2 — Always dry-run first, review, then run
+**Zip rule:** mp3+wav pairs = same song, take the WAV, copy the mp3's
+embedded art onto it (mutagen APIC), let ingest's dedupe quarantine the mp3.
 
-`megadj ingest` is the scripted Picard pass. It:
-
-- probes every file; broken/zero-byte files are reported and left in place
-- **dedupes with quality rules**: within the folder AND against the existing
-  archive, highest quality wins (lossless > bitrate > duration). Losers are
-  moved to `<folder>/ingest-duplicates/` — never deleted, review + empty
-  that folder manually when satisfied
-- catches Safari re-download dupes (`name (1).ext`) and version noise
-  (`final`, `MASTER`, `v3`) via identity normalization
-- merges existing ID3 tags with `Artist - Title` filename parsing
-- fills missing artist/album/date from MusicBrainz (1 rps, polite)
-- genre inference (YouTube categories + MusicBrainz artist tags)
-- artwork, in order: already embedded → SoundCloud (URL found in file tags
-  → oEmbed/og:image, upscaled to t500x500) → iTunes Search 600x600.
-  WAV files get tags but never embedded art (WAV+art is unreliable)
-- **duration gate**: files < 60s are skipped (clips/ads/broken rips — you
-  won't DJ them). Override with `--min-duration N` seconds. Skipped files
-  are recorded (`skipped_short`) so nothing silently disappears
-- **energy rating** (1–10, RMS-loudness based — Mixed In Key style) stored
-  in the DB for set planning / CrateDeck sorting
-- **bootleg-aware tags**: `X - Y (Z Remix/Flip/Edit)` filenames set the
-  version/remixer tag (rekordbox shows it), original artist goes in
-  composer, album falls back to `Original — Track (Remixes)` or
-  `Artist — Bootlegs & Edits`, and grouping carries the genre for filters
-- copies tagged files into `~/Music/DJ-Imports` (sources never touched)
-  and registers them in the state DB
+## Step 2 — megadj ingest (the Picard pass)
 
 ```bash
 cd ~/github/megadj
 bun src/cli.ts ingest ~/Downloads --dry-run   # review the plan
 bun src/cli.ts ingest ~/Downloads             # execute
-ls ~/Downloads/ingest-duplicates/             # review dupes; delete manually
 ```
 
-## Step 2b — Generated artwork queue (bootlegs with no cover anywhere)
+It probes, dedupes (quality rules, `(1)`-dupe detection, losers moved to
+`<folder>/ingest-duplicates/` — never delete source files), merges tags with
+filename parsing, fills artist/album from MusicBrainz, infers genre, gates
+sub-60s clips, energy-rates, bootleg-aware tags (remixer in version tag,
+grouping = genre), copies into `~/Music/DJ-Imports` flat, registers in DB.
 
-When no artwork source is found, ingest writes the track to
-`~/.local/state/megadj/artwork-queue.jsonl` and marks it `queued`. Later
-(an agent session, or manually), generate square covers via the
-**image-maker** CLI (`~/.claude/skills/image-maker/SKILL.md`,
-OpenRouter; default `nano-banana-2-lite` ≈ $0.034/img, hard cap via
-`MEGADJ_ART_MAX`, default 20 → max ~$0.68/run) and embed:
+## Step 3 — Artwork: `tools/art_final.ts` (production, parallel)
+
+Multi-source, 8 workers, ground-truth art detection (ffprobe/mutagen, not
+the DB). Sources in order: **SoundCloud** (yt-dlp `scsearch4:` resolves the
+permalink + genre; embeds t500x500) → **mp3-twin** → **Deezer** cover_xl →
+**iTunes** 600px → leftovers appended to `artwork-queue.jsonl` for AI.
 
 ```bash
 cd ~/github/megadj
-export OPENROUTER_API_KEY=...        # same key as image-maker MCP config
-bun src/cli.ts artwork --dry-run     # preview prompts (no spend)
-bun src/cli.ts artwork               # generate + embed (bounded batch)
-bun src/cli.ts artwork --model nano-banana-2   # fancier model if wanted
+bun tools/art_final.ts            # fill files missing art
+bun tools/art_final.ts --all      # overwrite everywhere (SC-first)
+bun tools/art_final.ts --jobs 8   # more workers
 ```
 
-Processed entries move to `artwork-queue.jsonl.done`; covers are kept in
-`~/.local/state/megadj/artwork-covers/`. Nothing spends money without an
-explicit `artwork` run.
+WAV embedding: mutagen APIC (ID3v2 in WAV works; ffmpeg's wav muxer canNOT
+carry attached_pic). mp3/m4a: ffmpeg attached_pic. Also writes the SC
+permalink into `format_id` for provenance, and SC's genre into the DB.
 
-Expected pace: ~1–2 s/file (MusicBrainz politeness + artwork lookups);
-60 files ≈ 10–15 min.
+## Step 3b — AI covers for bootlegs with no cover anywhere
 
-## Step 3 — Organize into genre folders
+`megadj artwork` generates square covers (image-maker/OpenRouter,
+nano-banana-2-lite ≈ $0.034/img, cap `MEGADJ_ART_MAX`) and embeds — WAVs now
+supported via APIC. Requires `OPENROUTER_API_KEY` with credit.
 
 ```bash
-cd ~/github/megadj
-bun src/cli.ts organize            # move into House/ Hip-Hop/ etc.
-bun src/cli.ts status              # archive summary
+bun src/cli.ts artwork --dry-run    # preview prompts
+bun src/cli.ts artwork              # generate + embed (bounded batch)
 ```
+
+## Step 3c — Genres at scale: `tools/ai_genres.ts`
+
+OpenRouter mini-model, 20 tracks/request, strict JSON out. Only applies
+labels with confidence ≥ 0.7. Requires `OPENROUTER_API_KEY` with credit.
+
+```bash
+bun tools/ai_genres.ts                        # default gemini-flash-lite
+bun tools/ai_genres.ts --min-conf 0.8         # stricter
+```
+
+Between passes: SC genre tags (`#house` style) + iTunes `primaryGenreName`
+cover most mainstream tracks; the classifier mops up the rest.
 
 ## Step 4 — Onto the USB drives
 
-Two paths (see `rekordbox-usb-sync` skill for the full pipeline + safety
-rules):
+- **A few tracks** → drag onto the device in rekordbox; it analyzes and
+  writes both DBs on export.
+- **A batch** → `usb_sync.py` per the `rekordbox-usb-sync` skill, verify
+  with `usb_verify.py`. Hardware gate: export.pdb == OneLibrary counts.
 
-- **A few tracks** → drag them onto the device in rekordbox while it's open.
-  rekordbox analyzes (BPM/grids/waveforms) and writes both DBs on export.
-  Fine for <20 tracks; no megadj DB surgery needed.
-- **A batch / full sync** → `usb_sync.py` (DB injection + BPM + ANLZ
-  generation) per the rekordbox-usb-sync skill, then verify with
-  `usb_verify.py` after rekordbox closes. Hardware gate: export.pdb ==
-  OneLibrary counts.
+Never hand-edit drive DBs; never let two writers touch a drive at once.
 
-**Never** hand-edit drive DBs, and never let two writers (megadj pipeline +
-rekordbox export) touch a drive at the same time.
-
-## Step 5 — Housekeeping tools (after crash-interrupted runs)
-
-If an ingest crashes mid-run (or Finder shows a file with "no tags"), use:
+## Step 5 — Health checks
 
 ```bash
-cd ~/github/megadj
-bun tools/tag_audit.ts            # scan archive: zero/partial/full core tags
-bun tools/fix_dupes_and_tags.ts   # swap inverted (1)-dupes back, fill missing
-                                  #   artist/album/genre on flip/edit files
-bash tools/dedupe_archive.ts      # DB-level dedupe, highest quality wins
-bun tools/queue_missing_artwork.ts  # mark art-less mp3/m4a as queued
+bun tools/tag_audit.ts                              # file-level: zero/partial/full tags
+uv run --with mutagen python tools/final_audit.py   # ground truth: tags + embedded art per file
 ```
 
-**Why a file can show "0 tags" but isn't:** WAV files keep tags in trailing
-ID3 chunks that Finder/QuickTime don't display — `tag_audit.ts` reads them
-properly via ffprobe. Also, files whose DB row exists but file is "missing"
-often live inside rekordbox's Mac collection (imported from the USB path);
-check rekordbox before assuming data loss.
+**Why a WAV can "show no tags":** Finder/QuickTime don't display WAV ID3
+chunks — ffprobe/mutagen see them fine. Files whose DB row exists but whose
+file is "missing" usually live inside rekordbox's Mac collection.
 
 ## MusicBrainz Picard — when actually needed
 
-Only for compilations/albums where track numbering and per-track credits
-matter, or when ingest's automatic match is wrong for a whole batch.
-Picard can also embed cover art (Options → Cover Art → Embed). After
-Picard, run `megadj adopt` to register the files, then organize.
+Only for compilations/albums needing per-track credits, or when ingest's
+match is wrong for a whole batch. After Picard, run `megadj adopt`.

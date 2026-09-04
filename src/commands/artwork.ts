@@ -23,7 +23,14 @@ export interface ArtworkOptions {
   onProgress?: (msg: string) => void;
 }
 
-const ARTWORK_EXTS = new Set([".m4a", ".mp3", ".flac", ".aiff", ".aif"]);
+const ARTWORK_EXTS = new Set([
+  ".m4a",
+  ".mp3",
+  ".flac",
+  ".aiff",
+  ".aif",
+  ".wav",
+]);
 const DEFAULT_MODEL = "nano-banana-2-lite"; // $0.034/img — "a few cents max"
 const QUEUE_PATH = () =>
   process.env.MEGADJ_ART_QUEUE ??
@@ -57,9 +64,31 @@ async function embedArtwork(
   filePath: string,
   artPath: string,
 ): Promise<boolean> {
+  const ext = extname(filePath).toLowerCase();
+  // WAV: ffmpeg's wav muxer can't carry attached_pic — use mutagen APIC
+  if (ext === ".wav") {
+    const script = `
+from mutagen.wave import WAVE
+from mutagen.id3 import ID3, APIC
+a = WAVE(${JSON.stringify(filePath)})
+try:
+    a.add_tags()
+except Exception:
+    pass
+if not isinstance(a.tags, ID3):
+    a.tags = ID3()
+a.tags.add(APIC(encoding=3, mime="image/png", type=3, desc="Cover", data=open(${JSON.stringify(artPath)}, "rb").read()))
+a.save()
+print("ok")`;
+    const proc = await $`uv run --with mutagen python -c ${script}`
+      .quiet()
+      .nothrow();
+    return (
+      proc.exitCode === 0 && (proc.stdout as Buffer).toString().includes("ok")
+    );
+  }
   const tmp = filePath.replace(/(\.[^.]+)$/, ".art$1");
-  const args =
-    extname(filePath).toLowerCase() === ".mp3" ? ["-id3v2_version", "3"] : [];
+  const args = ext === ".mp3" ? ["-id3v2_version", "3"] : [];
   const proc =
     await $`ffmpeg -y -hide_banner -loglevel error -i ${filePath} -i ${artPath} -map 0:a -map 1:v -c:a copy -c:v mjpeg -disposition:v:0 attached_pic ${args} ${tmp}`
       .quiet()
