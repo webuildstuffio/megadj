@@ -4,14 +4,15 @@
  * parallel, idempotent — safe to re-run any time.
  *
  * Per track (skips whatever is already complete):
- *   1. tags    — push DB values into file (album heuristic if DB missing)
+ *   1. tags    — title/artist/album/genre/year from DB → file
  *   2. genre   — SoundCloud tag (via search) → OpenRouter classifier (conf ≥ 0.7)
  *   3. artwork — SC search → SC page og:image at ORIGINAL resolution →
  *                gateway (hypeddit/hyperfollow) → mp3-twin → Deezer →
  *                iTunes → append to AI cover queue (last resort)
+ *   4. year    — SC upload timestamp = the remix/edit year (NOT the
+ *                original's) → OpenRouter fallback → file release_year
  *
- * One yt-dlp call per track feeds BOTH genre and artwork; SC art is always
- * upgraded to `-original`/`-t1080` when available (226KB vs 69KB t500x500).
+ * One yt-dlp call per track feeds genre AND art AND year.
  *
  * usage:
  *   bun tools/fetch_all.ts                 # fill everything missing
@@ -19,18 +20,17 @@
  *   bun tools/fetch_all.ts --art           # artwork only
  *   bun tools/fetch_all.ts --genres        # genres only
  *   bun tools/fetch_all.ts --tags          # tags only
+ *   bun tools/fetch_all.ts --years         # years only
  *   bun tools/fetch_all.ts --jobs 8        # workers (default 6)
  *   bun tools/fetch_all.ts --dry-run       # report what would happen
  *
- * env: OPENROUTER_API_KEY (only needed for AI genre fallback + covers)
+ * env: OPENROUTER_API_KEY (only needed for AI genre/year fallback + covers)
  *
  * Shared plumbing lives in tools/fetch_lib.ts.
  */
 import {
   ARCH,
   QUEUE,
-  aiGenres,
-  albumHeuristic,
   canonGenre,
   db,
   deezerArt,
@@ -46,7 +46,9 @@ import {
   twinArt,
   embedArt,
   type Row,
+  type TagValues,
 } from "./fetch_lib";
+import { aiGenres, albumHeuristic } from "./fetch_ai";
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { appendFile } from "node:fs/promises";
@@ -60,8 +62,10 @@ const ONLY = (
       ? "genres"
       : argv.includes("--tags")
         ? "tags"
-        : "all"
-) as "art" | "genres" | "tags" | "all";
+        : argv.includes("--years")
+          ? "years"
+          : "all"
+) as "art" | "genres" | "tags" | "years" | "all";
 const DRY = argv.includes("--dry-run");
 const t0 = Date.now();
 const jobsArg = argv.indexOf("--jobs");
@@ -73,7 +77,22 @@ interface Task {
   needTags: boolean;
   needGenre: boolean;
   needArt: boolean;
+  needYear: boolean;
   upgradeSc: boolean;
+}
+
+interface Stats {
+  tags: number;
+  genreSc: number;
+  genreAi: number;
+  artSc: number;
+  artScOrig: number;
+  artGateway: number;
+  artTwin: number;
+  artDeezer: number;
+  artItunes: number;
+  yearSc: number;
+  yearAi: number;
 }
 
 async function processTask(
@@ -82,16 +101,17 @@ async function processTask(
   total: number,
   stats: Stats,
   aiGenreBatch: Row[],
+  aiYearBatch: Row[],
   artless: Row[],
 ): Promise<void> {
   const { row: r, truth } = t;
   const name = `${r.artist ?? "?"} - ${r.title}`.slice(0, 56);
   const notes: string[] = [];
 
-  // ---- 1. tags ----
+  // ---- 1. tags (DB → file) ----
   if (t.needTags && !DRY) {
     const artist = truth.artist ?? r.artist ?? null;
-    const vals: Record<string, string> = {};
+    const vals: TagValues = {};
     if (!truth.title) vals.title = r.title;
     if (!truth.artist && artist) vals.artist = artist;
     if (!truth.album && artist)
@@ -112,8 +132,8 @@ async function processTask(
     }
   }
 
-  // ---- 2+3. SC search feeds genre AND art ----
-  const wantsSc = t.needGenre || t.needArt || t.upgradeSc;
+  // ---- 2+3+4. SC search feeds genre AND art AND year ----
+  const wantsSc = t.needGenre || t.needArt || t.upgradeSc || t.needYear;
   const sc = wantsSc && !DRY ? scSearch(r) : null;
   const best = sc?.[0];
 
@@ -126,6 +146,20 @@ async function processTask(
       notes.push(`genre:${g}`);
     } else {
       aiGenreBatch.push(r);
+    }
+  }
+
+  if (t.needYear && !DRY) {
+    if (best?.year) {
+      setFileTags(r.file_path, { year: best.year });
+      db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
+        String(best.year),
+        r.video_id,
+      );
+      stats.yearSc++;
+      notes.push(`year:${best.year}`);
+    } else {
+      aiYearBatch.push(r);
     }
   }
 
@@ -158,6 +192,15 @@ async function processTask(
             g,
             r.video_id,
           );
+        }
+        if (best.year && t.needYear) {
+          setFileTags(r.file_path, { year: best.year });
+          db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
+            String(best.year),
+            r.video_id,
+          );
+          stats.yearSc++;
+          notes.push(`year:${best.year}`);
         }
       }
     }
@@ -216,20 +259,8 @@ async function processTask(
     console.log(`  [${i + 1}/${total}] ${notes.join(" ")} — ${name}`);
   else if (DRY)
     console.log(
-      `  [${i + 1}/${total}] (dry) tags:${t.needTags} genre:${t.needGenre} art:${t.needArt} — ${name}`,
+      `  [${i + 1}/${total}] (dry) tags:${t.needTags} genre:${t.needGenre} art:${t.needArt} year:${t.needYear} — ${name}`,
     );
-}
-
-interface Stats {
-  tags: number;
-  genreSc: number;
-  genreAi: number;
-  artSc: number;
-  artScOrig: number;
-  artGateway: number;
-  artTwin: number;
-  artDeezer: number;
-  artItunes: number;
 }
 
 async function main() {
@@ -250,19 +281,27 @@ async function main() {
     const truth = groundTruth(r.file_path);
     const genreOk = truth.genre && truth.genre !== "Music";
     const needTags =
-      ONLY !== "art" &&
-      ONLY !== "genres" &&
+      (ONLY === "all" || ONLY === "tags") &&
       (!truth.title || !truth.artist || !truth.album || !genreOk);
     const needGenre = (ONLY === "all" || ONLY === "genres") && !genreOk;
+    const needYear = (ONLY === "all" || ONLY === "years") && !truth.year;
     const upgradeSc = ALL && !!r.format_id?.startsWith("sc:");
     const needArt =
       (ONLY === "all" || ONLY === "art") && (!truth.art || upgradeSc);
-    if (needTags || needGenre || needArt)
-      tasks.push({ row: r, truth, needTags, needGenre, needArt, upgradeSc });
+    if (needTags || needGenre || needArt || needYear)
+      tasks.push({
+        row: r,
+        truth,
+        needTags,
+        needGenre,
+        needArt,
+        needYear,
+        upgradeSc,
+      });
   }
 
   console.log(
-    `fetch_all: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}) | jobs: ${JOBS}${ALL ? " [--all upgrade]" : ""}${DRY ? " [DRY RUN]" : ""}\n`,
+    `fetch_all: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${JOBS}${ALL ? " [--all upgrade]" : ""}${DRY ? " [DRY RUN]" : ""}\n`,
   );
 
   const stats: Stats = {
@@ -275,8 +314,11 @@ async function main() {
     artTwin: 0,
     artDeezer: 0,
     artItunes: 0,
+    yearSc: 0,
+    yearAi: 0,
   };
   const aiGenreBatch: Row[] = [];
+  const aiYearBatch: Row[] = [];
   const artless: Row[] = [];
 
   let idx = 0;
@@ -291,6 +333,7 @@ async function main() {
           tasks.length,
           stats,
           aiGenreBatch,
+          aiYearBatch,
           artless,
         );
       } catch (err) {
@@ -308,7 +351,9 @@ async function main() {
     for (let k = 0; k < aiGenreBatch.length; k += 20) {
       const batch = aiGenreBatch.slice(k, k + 20);
       const res = await aiGenres(batch);
-      for (const [vid, genre] of res) {
+      for (const [vid, result] of res) {
+        const genre = result[0];
+        if (!genre) continue;
         const row = batch.find((b) => b.video_id === vid)!;
         db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(genre, vid);
         setFileTags(row.file_path, { genre });
@@ -316,6 +361,40 @@ async function main() {
       }
     }
     console.log(`  AI set: ${stats.genreAi}/${aiGenreBatch.length}`);
+  }
+
+  // ---- AI year fallback (single batched call: genre + year together) ----
+  if (aiYearBatch.length && !DRY) {
+    console.log(`\nAI year fallback for ${aiYearBatch.length}…`);
+    for (let k = 0; k < aiYearBatch.length; k += 20) {
+      const batch = aiYearBatch.slice(k, k + 20);
+      const res = await aiGenres(batch, true);
+      for (const [vid, result] of res) {
+        const [genre, year] = result;
+        const row = batch.find((b) => b.video_id === vid)!;
+        const vals: TagValues = {};
+        if (genre) {
+          db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
+            genre,
+            vid,
+          );
+          vals.genre = genre;
+          stats.genreAi++;
+        }
+        if (year) {
+          db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
+            String(year),
+            vid,
+          );
+          vals.year = year;
+          stats.yearAi++;
+        }
+        if (Object.keys(vals).length) setFileTags(row.file_path, vals);
+      }
+    }
+    console.log(
+      `  AI years set: ${stats.yearAi}/${aiYearBatch.length} (genres too where missing: +${stats.genreAi})`,
+    );
   }
 
   // ---- AI cover queue append ----
@@ -337,7 +416,7 @@ async function main() {
   // ---- summary ----
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
   console.log(
-    `\nDONE${DRY ? " (dry)" : ""} in ${secs}s — tags: ${stats.tags} | genres: SC ${stats.genreSc} + AI ${stats.genreAi} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}`,
+    `\nDONE${DRY ? " (dry)" : ""} in ${secs}s — tags: ${stats.tags} | genres: SC ${stats.genreSc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + AI ${stats.yearAi} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}`,
   );
   db.close();
 }

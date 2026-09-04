@@ -19,6 +19,9 @@ usage:
   megadj enrich  [--dry-run]                   fill weak genres via MusicBrainz
   megadj ingest  <folder> [--dry-run] [--no-artwork] [--min-duration N]
                                                tag+art+dedupe downloads (zips too)
+  megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run]
+                                               enrichment pass: tags+genres+years+art
+  megadj audit                                ground-truth tag/art audit of the archive
   megadj artwork [--model M] [--max N] [--dry-run]
                                                generate covers for queued tracks
   megadj status                              archive summary + recent runs
@@ -222,6 +225,54 @@ async function main(): Promise<void> {
             : undefined,
           dryRun: flags.bools.has("dry-run"),
         });
+        break;
+      }
+      case "fetch": {
+        const flags = parseFlags(
+          process.argv.slice(3),
+          ["jobs"],
+          ["art", "genres", "tags", "years", "all", "dry-run"],
+        );
+        const { fetch } = await import("./commands/fetch");
+        const only = flags.bools.has("art")
+          ? "art"
+          : flags.bools.has("genres")
+            ? "genres"
+            : flags.bools.has("tags")
+              ? "tags"
+              : flags.bools.has("years")
+                ? "years"
+                : "all";
+        await fetch({
+          all: flags.bools.has("all"),
+          only,
+          jobs: flags.strings.get("jobs")
+            ? Number(flags.strings.get("jobs"))
+            : undefined,
+          dryRun: flags.bools.has("dry-run"),
+        });
+        break;
+      }
+      case "audit": {
+        const { auditArchive } = await import("./commands/fetch");
+        const report = auditArchive(MUSIC_DIR);
+        const gaps = report.rows.filter((r) => !r.complete);
+        console.log(
+          `audit: ${report.complete}/${report.total} complete (art + title + artist + album + genre + year)`,
+        );
+        if (gaps.length) {
+          console.log(`\nincomplete:`);
+          for (const r of gaps) {
+            const miss = Object.entries(r)
+              .filter(([k, v]) => k !== "file" && k !== "complete" && !v)
+              .map(([k]) => k)
+              .join(",");
+            console.log(`  [${miss}] ${r.file}`);
+          }
+          process.exitCode = 1;
+        } else {
+          console.log("✅ all tracks fully tagged");
+        }
         break;
       }
       default:

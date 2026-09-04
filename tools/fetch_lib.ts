@@ -82,7 +82,14 @@ tags, art = {}, False
 if a.tags:
     for k in a.tags.keys():
         try:
-            tags[k.split(":")[0]] = str(a.tags.get(k))
+            frame = a.tags.get(k)
+            if k.startswith("COMM"):
+                v = str(frame.text[0]) if frame.text else ""
+            elif k.startswith("APIC"):
+                continue
+            else:
+                v = str(frame)
+            tags[k.split(":")[0]] = v
         except Exception:
             pass
     art = any(k.startswith("APIC") for k in a.tags.keys())
@@ -106,6 +113,8 @@ export interface Truth {
   artist: string | null;
   album: string | null;
   genre: string | null;
+  year: string | null;
+  comment: string | null;
 }
 
 export function groundTruth(p: string): Truth {
@@ -118,8 +127,14 @@ export function groundTruth(p: string): Truth {
     if (w.art) art = true;
     for (const [k, v] of Object.entries(w.tags)) {
       const key =
-        { TIT2: "title", TPE1: "artist", TALB: "album", TCON: "genre" }[k] ??
-        k.toLowerCase();
+        {
+          TIT2: "title",
+          TPE1: "artist",
+          TALB: "album",
+          TCON: "genre",
+          TDRC: "date",
+          COMM: "comment",
+        }[k] ?? k.toLowerCase();
       if (!merged[key]) merged[key] = v;
     }
   }
@@ -132,12 +147,16 @@ export function groundTruth(p: string): Truth {
   };
   let genre = g("genre");
   if (genre && genre.includes(",")) genre = genre.split(",")[0].trim();
+  const rawDate = g("date", "year", "TDRC");
+  const year = rawDate ? (rawDate.match(/\d{4}/)?.[0] ?? null) : null;
   return {
     art,
     title: g("title"),
     artist: g("artist"),
     album: g("album"),
     genre,
+    year,
+    comment: g("comment"),
   };
 }
 
@@ -256,27 +275,59 @@ print("ok")`;
   return ok;
 }
 
-export function setFileTags(
-  p: string,
-  vals: { title?: string; artist?: string; album?: string; genre?: string },
-): boolean {
-  const pairs = Object.entries(vals).filter(([, v]) => v);
+/** Tag fields the pipeline manages. `year` = release year of THIS file's
+ * version (for edits/remixes: the remix year, NOT the original's). */
+export interface TagValues {
+  title?: string;
+  artist?: string;
+  album?: string;
+  genre?: string;
+  year?: number;
+  comment?: string;
+}
+
+const WAV_ID3: Record<keyof TagValues, string> = {
+  title: "TIT2",
+  artist: "TPE1",
+  album: "TALB",
+  genre: "TCON",
+  year: "TDRC",
+  comment: "COMM",
+};
+
+/** Runtime validator — throws with a precise message on bad input. */
+export function validateTagValues(vals: TagValues): void {
+  for (const [k, v] of Object.entries(vals) as [keyof TagValues, unknown][]) {
+    if (v === undefined) continue;
+    if (k === "year") {
+      if (typeof v !== "number" || !Number.isInteger(v) || v < 1900 || v > 2100)
+        throw new TypeError(`year must be an integer 1900–2100, got ${v}`);
+      continue;
+    }
+    if (typeof v !== "string")
+      throw new TypeError(`${k} must be a string, got ${typeof v}`);
+    if (k !== "comment" && !v.trim())
+      throw new TypeError(`${k} must be non-empty`);
+    if (v.length > 500)
+      throw new TypeError(`${k} too long (${v.length} chars, max 500)`);
+  }
+}
+
+export function setFileTags(p: string, vals: TagValues): boolean {
+  validateTagValues(vals);
+  const pairs = Object.entries(vals).filter(([, v]) => v !== undefined);
   if (!pairs.length) return true;
   if (p.toLowerCase().endsWith(".wav")) {
-    const id3: Record<string, string> = {
-      title: "TIT2",
-      artist: "TPE1",
-      album: "TALB",
-      genre: "TCON",
-    };
     const sets = pairs
-      .map(
-        ([k, v]) =>
-          `a.tags.add(${id3[k]}(encoding=3, text=${JSON.stringify(v)}))`,
-      )
+      .map(([k, v]) => {
+        if (k === "year") return `a.tags.add(TDRC(encoding=3, text="${v}"))`;
+        if (k === "comment")
+          return `a.tags.add(COMM(encoding=3, lang="eng", desc="", text=${JSON.stringify(v)}))`;
+        return `a.tags.add(${WAV_ID3[k]}(encoding=3, text=${JSON.stringify(v)}))`;
+      })
       .join("\n");
     const script = `from mutagen.wave import WAVE
-from mutagen.id3 import ID3, TIT2, TPE1, TALB, TCON
+from mutagen.id3 import ID3, TIT2, TPE1, TALB, TCON, TDRC, COMM
 a = WAVE(${JSON.stringify(p)})
 if not a.tags: a.add_tags()
 if not isinstance(a.tags, ID3): a.tags = ID3()
@@ -289,9 +340,12 @@ print("ok")`;
     });
     return new TextDecoder().decode(pr.stdout).trim() === "ok";
   }
-  // mp3/m4a: fresh-file rewrite (xattr-safe)
+  // mp3/m4a: fresh-file rewrite (xattr-safe); date needs TDRC-style value
   const tmp = `${ARCH}/.fa${Date.now()}${p.slice(-4)}`;
-  const meta = pairs.flatMap(([k, v]) => ["-metadata", `${k}=${v}`]);
+  const meta = pairs.flatMap(([k, v]) => [
+    "-metadata",
+    k === "year" ? `date=${v}` : `${k}=${v}`,
+  ]);
   const pr = Bun.spawnSync({
     cmd: [
       "ffmpeg",
@@ -326,6 +380,8 @@ export interface ScHit {
   uploader: string | null;
   thumb: string | null;
   genre?: string;
+  /** SC upload year — for edits/remixes this is the remix year */
+  year?: number;
   score: number;
 }
 
@@ -354,7 +410,7 @@ export function scSearch(r: Row): ScHit[] {
         "yt-dlp",
         "--flat-playlist",
         "--print",
-        "COL|%(title).60s|%(webpage_url)s|%(uploader)s|%(thumbnails).600s|%(genre)s",
+        "COL|%(title).60s|%(webpage_url)s|%(uploader)s|%(thumbnails).600s|%(genre)s|%(timestamp)s",
         `scsearch4:${q}`,
       ],
       stdout: "pipe",
@@ -372,7 +428,7 @@ export function scSearch(r: Row): ScHit[] {
     if (!line.startsWith("COL|")) continue;
     const parts = line.slice(4).split("|");
     if (parts.length < 5) continue;
-    const [t, url, uploader, , thumbsRaw, genre] = parts;
+    const [t, url, uploader, , thumbsRaw, genre, tsRaw] = parts;
     if (!url?.includes("soundcloud.com")) continue;
     const hWords = words(t ?? "");
     const overlap = tWords.filter((w) => hWords.includes(w)).length;
@@ -380,6 +436,14 @@ export function scSearch(r: Row): ScHit[] {
     const uploaderOK = (uploader ?? "")
       .toLowerCase()
       .includes(artist0.slice(0, 8));
+    // SC upload year = the remix/edit's year (not the original's)
+    const ts = Number(tsRaw?.trim());
+    const year =
+      Number.isFinite(ts) &&
+      ts > 946_684_800 && // 2000-01-01 UTC
+      ts < 4_102_444_800 // 2100-01-01 UTC
+        ? new Date(ts * 1000).getUTCFullYear()
+        : undefined;
     hits.push({
       url,
       title: t,
@@ -389,6 +453,7 @@ export function scSearch(r: Row): ScHit[] {
           /https:\/\/i1\.sndcdn\.com\/artworks[^\s',]+t500x500\.jpg/,
         )?.[0] ?? null,
       genre: genre && genre !== "NA" ? genre : undefined,
+      year,
       score: overlap * 2 + (uploaderOK ? 1 : 0),
     });
   }
@@ -528,56 +593,3 @@ export async function itunesArt(r: Row): Promise<Uint8Array | null> {
   } catch {}
   return null;
 }
-
-// ---------- AI genre fallback ----------
-export async function aiGenres(batch: Row[]): Promise<Map<string, string>> {
-  const key = process.env.OPENROUTER_API_KEY;
-  const out = new Map<string, string>();
-  if (!key || !batch.length) return out;
-  const GENRES =
-    "House, Tech House, Deep House, Progressive House, Afro House, Bass House, Techno, Trance, Drum & Bass, Dubstep, Trap, Future Bass, Garage, Hip-Hop, Pop, R&B, Soul, Funk, Disco, Nu-Disco, Rock, Edits / Bootlegs, Ambient, World";
-  const prompt = `You are a DJ music genre classifier. Assign ONE genre per track from: ${GENRES}.
-Use "Edits / Bootlegs" for remixes/flips/edits/mashups of other artists' tracks. If genuinely unsure use "Unknown".
-Tracks:
-${batch.map((r, i) => `${i}. file: ${basename(r.file_path)} | title: ${r.title} | artist: ${r.artist ?? "?"}`).join("\n")}
-Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.0-1.0}]`;
-  try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.1,
-        max_tokens: 1500,
-      }),
-    });
-    if (!res.ok) return out;
-    const json = await res.json();
-    const arr = JSON.parse(
-      json.choices?.[0]?.message?.content?.match(/\[[\s\S]*\]/)?.[0] ?? "[]",
-    );
-    for (const item of arr) {
-      if (
-        item.genre &&
-        item.genre !== "Unknown" &&
-        (item.confidence ?? 0) >= 0.7
-      ) {
-        const row = batch[item.id];
-        if (row) out.set(row.video_id, item.genre);
-      }
-    }
-  } catch {}
-  return out;
-}
-
-export const albumHeuristic = (artist: string, fname: string): string => {
-  const a0 = artist.split(/[,&]/)[0].trim();
-  if (/remix/i.test(fname)) return `${a0} remixes`;
-  if (/flip/i.test(fname)) return `${a0} flips`;
-  if (/edit|mash|bootleg|rework|re-?work/i.test(fname)) return `${a0} edits`;
-  return `${a0} — Singles`;
-};

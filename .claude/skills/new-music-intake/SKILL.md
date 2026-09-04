@@ -82,9 +82,19 @@ Per track it does, skipping whatever is already complete:
      (the big one: plain t500x500 search hits get replaced by full-res page
      art; one yt-dlp call feeds genre AND permalink AND art).
    - **hypeddit/hyperfollow gateways** (DDG → og:image scrape).
-   - **mp3-twin** (same-named mp3's embedded art, for WAVs from pools).
+   - **mp3-twin** (same-named mp3's embedded art, for WAVs from pools —
+     CHECK THE ZIP FIRST: pool zips ship mp3+wav pairs and the mp3 twin
+     often carries the original 2000×2000 cover).
    - **Deezer** cover_xl → **iTunes** 600px.
    - leftovers → `artwork-queue.jsonl` → `megadj artwork` (AI, last resort).
+4. **year** — SC upload timestamp of the remix/edit page = the version's
+   year (NOT the original song's year) → `tools/fix_years.ts` re-verifies
+   every year against the real SC page `display_date` → AI best-estimate
+   as the last fallback.
+
+**Year accuracy warning:** OpenRouter flash-lite defaults to "2023" when
+asked for a remix year — always verify with `fix_years.ts` (real SC page
+dates) before trusting AI years.
 
 **Lesson from the 88-track full pass (Sep 2026):** tracks that "can't be
 found" usually ARE on SoundCloud under a different name/query — search the
@@ -119,12 +129,17 @@ Never hand-edit drive DBs; never let two writers touch a drive at once.
 ## Step 5 — Health checks
 
 ```bash
-bun tools/fetch_all.ts --dry-run                     # what would still be done
-uv run --with mutagen python tools/final_audit.py    # ground truth: tags + embedded art
+megadj audit                    # ground-truth file audit: art+title+artist+album+genre+year
+bun tools/fetch_all.ts --dry-run  # what would still be done
+bun tools/fix_years.ts --dry-run  # verify years against real SC page dates
+uv run --with mutagen python tools/final_audit.py   # deep mutagen audit
 ```
 
+`megadj audit` exits 1 and lists every file with `[missing,fields]` if
+anything is incomplete — use it as the final gate after any batch.
+
 Ground truth = files, not the DB. As of Sep 2026: **88/88 tracks have art,
-complete tags and genre** (73 WAV via APIC, 15 MP3).
+full tags, genre and verified remix-year** (73 WAV via APIC, 15 MP3).
 
 **Why a WAV can "show no tags":** Finder/QuickTime don't display WAV ID3
 chunks — ffprobe/mutagen see them fine. Files whose DB row exists but whose
