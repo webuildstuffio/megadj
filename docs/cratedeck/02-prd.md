@@ -2,6 +2,14 @@
 
 v1 · 2026-09-03 · [Brief](01-product-brief.md) → **PRD** → [Architecture](03-architecture.md) → [Build Plan](04-build-plan.md)
 
+**Status:** ✅ Core shipped (v0.1, 2026-09-04) — F1–F9 implemented in
+`cratedeck/` (registry, detection, images, rekordbox introspection via the
+Python seam, jobs + interlock, health reports, timeline, search, cockpit UI);
+health report is the newest addition (`src/report.ts`, `GET /drives/:id/report`).
+Acceptance evidence per feature: [acceptance.md](acceptance.md). Remaining
+v1.x items (gig mode, radar, dossiers UI) are tracked in
+[../../ideas.md](../ideas.md).
+
 This doc turns the brief into concrete, testable features. Every feature has
 an ID used by the architecture and build plan.
 

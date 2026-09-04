@@ -48,6 +48,9 @@ megadj sync --dry-run             # playlist refresh only, no downloads
 megadj sync --music-only          # skip non-audio (videos/sets)
 megadj sync --sources LM,LL,PLxxx # multi-source: liked music + liked + playlists
 megadj enrich [--dry-run]         # fill weak genres via MusicBrainz
+megadj ingest <folder> [--dry-run] [--no-artwork] [--min-duration N]
+                                  # tag + artwork external downloads
+megadj artwork                    # process queued artwork via image-maker
 megadj organize [--dry-run]       # move downloads into genre folders
 megadj status                     # archive summary + recent run history
 megadj list [filter]              # all tracks, by status or free text (LOWQ flagged)
@@ -114,7 +117,34 @@ mirror + verify.
   (legacy export.pdb), with event playlists added and rekordbox re-analysis
   running.
 - Verify after the export finishes: `usb_verify.py` hardware gate —
-  `export.pdb` live rows == OneLibrary count on both drives.
+  `export.pdb` live rows == OneLibrary count on both drives. Track this on
+  the [sync log]((local ops log)) pending checklist.
+
+## CrateDeck (the dashboard)
+
+Bun + Preact web app in `cratedeck/` showing every USB drive — mounted or
+ghost — with rekordbox introspection, health reports, benchmarks, jobs, and
+the rekordbox interlock. Docs: [docs/cratedeck/](docs/cratedeck/).
+
+```bash
+bun run deck        # serves http://localhost:7742 (CRATEDECK_PORT overrides)
+bun run check       # typecheck + lint; bun test for the test suite
+# UI dev: cd cratedeck/web && bunx vite (proxy) · build: bun run web:build
+```
+
+## Docs index
+
+| Doc | Purpose |
+|---|---|
+| [docs/usb-sync.md](docs/usb-sync.md) | USB pipeline what/why |
+| [(local ops log)]((local ops log)) | append-only operations log |
+| [docs/cratedeck/01-product-brief.md](docs/cratedeck/01-product-brief.md) | CrateDeck brief |
+| [docs/cratedeck/02-prd.md](docs/cratedeck/02-prd.md) | feature PRD (F1–F10) |
+| [docs/cratedeck/03-architecture.md](docs/cratedeck/03-architecture.md) | architecture |
+| [docs/cratedeck/04-build-plan.md](docs/cratedeck/04-build-plan.md) | milestones M0–M6 |
+| [docs/cratedeck/acceptance.md](docs/cratedeck/acceptance.md) | acceptance status per PRD feature |
+| [docs/ideas.md](docs/ideas.md) | ideas & future backlog |
+| [docs/archive/cratekeeper-brief-draft.md](docs/archive/cratekeeper-brief-draft.md) | superseded early draft (kept for reference) |
 
 ## License
 

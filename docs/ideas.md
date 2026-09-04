@@ -1,10 +1,13 @@
 # megadj — Ideas & Future Backlog
 
 *Compiled 2026-09-04 · grounded in the actual repo state: megadj archive/ingest,
-the rekordbox-usb-sync pipeline, CrateDeck v1 (built), the in-flight uncommitted
-work (`cratedeck/src/report.ts`, `tools/wav_tag_fill.ts`, `tools/ai_genres.ts`,
-`tools/art_final.ts`), and open items in `(local ops log)`.
-Expanded same day with an open-source ecosystem research pass (§I–§L).*
+the rekordbox-usb-sync pipeline, CrateDeck v1 (built), and open items in
+`(local ops log)`.
+Expanded same day with an open-source ecosystem research pass (§I–§L).
+Status note (2026-09-04 docs audit): A1 (drive report) shipped —
+`cratedeck/src/report.ts` + `GET /drives/:id/report` + drawer Report tab +
+`cratedeck/test/report.test.ts`; A2 partially landed (`tools/` consolidation
+in 3604b7e); A5 (acceptance doc) done — `docs/cratedeck/acceptance.md`.*
 
 How to read: each idea lists **why now** (the specific repo fact that motivates
 it) and rough **effort** (S/M/L). Nothing here is committed scope — this is the
@@ -36,14 +39,18 @@ ideas below:
 
 ## A. Finish what's already in flight (this week)
 
-1. **Drive dossier & health report — ship it.** `cratedeck/src/report.ts`
-   (274 lines, uncommitted) already computes the dual-DB gate, grid coverage,
-   and one-JSON dossier per drive. Wire it to `GET /drives/:id/export`, add a
-   print-styled HTML one-pager, and M5's "drive dossier" is done.
-2. **Consolidate `tools/` before it grows again.** Four uncommitted one-off
-   scripts (`wav_tag_fill`, `ai_genres`, `art_final`, `final_audit`) — fold the
-   keepers into `megadj ingest` flags (the workspace rule: one CLI, params, not
-   per-task scripts), delete the rest, commit the outcome.
+1. **Drive dossier & health report — ✅ SHIPPED 2026-09-04.**
+   `cratedeck/src/report.ts` computes the dual-DB gate, grid coverage, and
+   one-JSON dossier per drive; live at `GET /drives/:id/report`, folded into
+   the `/drives/:id/export` dossier, rendered in the drawer's Report tab,
+   covered by `cratedeck/test/report.test.ts`. Remaining sliver: a
+   print-styled HTML one-pager (idea #37).
+2. **Consolidate `tools/` — ✅ mostly done** (commit `3604b7e` folded the
+   art/genre passes into the production pipeline; the new-music-intake skill
+   now references the committed `tools/art_final.ts`, `tools/ai_genres.ts`,
+   `tools/tag_audit.ts`, `tools/final_audit.py` — all verified present).
+   Remaining: decide whether `tools/wav_tag_fill.ts` graduates into `ingest`
+   or stays a one-off.
 3. **Close the 2026-09-03 sync-log checklist.** All four pending items are
    concrete, small, and unblock everything else:
    - `usb_verify.py` hardware gate (pdb live rows == OneLibrary, both drives)
@@ -53,9 +60,9 @@ ideas below:
 4. **OLDUSB verdict.** 264 OLDBACKUP-only files (10.1 GB) never made it to the
    master. One review session: adopt (via `megadj adopt` + ingest) or
    explicitly declare them dead in the sync log. Ambiguity here is the risk.
-5. **CrateDeck acceptance doc.** The build plan promises
-   `docs/cratedeck/acceptance.md` as PRD checkboxes get tested — it doesn't
-   exist yet. Cheap to add, keeps M6 honest.
+5. **CrateDeck acceptance doc — ✅ DONE 2026-09-04:**
+   `docs/cratedeck/acceptance.md` now exists with code-verified evidence per
+   PRD feature; remaining ☐ items are the real-hardware checks.
 
 ---
 

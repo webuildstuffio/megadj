@@ -2,6 +2,11 @@
 
 v1 · 2026-09-03 · [Brief](01-product-brief.md) · [PRD](02-prd.md) · [Architecture](03-architecture.md) → **Build Plan**
 
+**Status:** ✅ M0–M5 shipped (v0.1, 2026-09-04) — dashboard live at
+`bun run deck`; test suite in `cratedeck/test/` (badges, config, db, guard,
+scan-detect, report, e2e). M6 hardening is in progress; the remaining
+acceptance evidence lives in [acceptance.md](acceptance.md).
+
 Milestones M0–M6. Each ends runnable + committed. Tests ride along with the
 code they cover (no "testing phase" at the end). Estimated with focus and
 the existing megadj tooling as leverage: the Python tools already solve the

@@ -14,6 +14,11 @@ v2 · 2026-09-03 · [Brief](01-product-brief.md) · [PRD](02-prd.md) → **Archi
 
 **One Bun process, one Python seam, one page.**
 
+*Note (2026-09-04 audit): the file list below has grown from the original 10
+to 13 TS files (`badges_view.ts`, `fmt.ts` moved to shared, `report.ts`,
+`images.ts`, `python/usb_tree.py`); the single-seam and guard rules are
+unchanged and still hold.*
+
 ```
 cratedeck/
   src/            Bun + TS — the whole server (10 files, one dir, no nesting)
@@ -36,7 +41,7 @@ implementations and are **imported directly** by the bridge — never ported,
 never duplicated. If a fast path ever needs one of them in TS, that's a bug
 in the design, not a task.
 
-## 2. The 10 server files
+## 2. The 13 server files (+ the Python seam)
 
 ```
 src/
