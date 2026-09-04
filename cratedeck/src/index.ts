@@ -190,7 +190,7 @@ Bun.serve({
         if (route === "/jobs") {
           const active = url.searchParams.get("active");
           const drive = url.searchParams.get("drive");
-          if (drive) return json(db.jobsForDrive(drive, 20));
+          if (drive) return json(db.jobsForDrive(drive, 20, !!active));
           return json(active ? db.activeJobs() : db.jobsForDrive("*", 50));
         }
         const jobMatch = route.match(/^\/jobs\/([^/]+)(\/cancel)?$/);

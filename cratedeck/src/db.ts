@@ -284,11 +284,26 @@ export class DB {
   }
 
   setSnapshot(id: string, snap: SnapshotData): void {
-    // Skip the write entirely when nothing changed (a re-scan of a stable
-    // drive used to rewrite ~MBs of identical JSON twice per scan).
-    const json = JSON.stringify(snap);
+    // Skip the write entirely when nothing changed apart from the timestamp:
+    // every scan stamps `taken_at`, so a naive JSON compare never fired and a
+    // re-scan of a stable drive rewrote ~MBs of identical JSON. Key-sorted
+    // stringify keeps the comparison key-order-insensitive.
     const cur = this.getDrive(id);
-    if (cur?.last_snapshot_json === json) return;
+    if (cur?.last_snapshot_json) {
+      try {
+        const prev = JSON.parse(cur.last_snapshot_json) as SnapshotData;
+        const strip = (s: SnapshotData): Record<string, unknown> => {
+          const { taken_at: _takenAt, ...rest } = s;
+          return rest;
+        };
+        const canon = (o: Record<string, unknown>): string =>
+          JSON.stringify(o, Object.keys(o).sort());
+        if (canon(strip(prev)) === canon(strip(snap))) return;
+      } catch {
+        // unparsable previous blob — fall through and write
+      }
+    }
+    const json = JSON.stringify(snap);
     this.sqlite
       .query("UPDATE drives SET last_snapshot_json=? WHERE id=?")
       .run(json, id);
@@ -442,11 +457,18 @@ export class DB {
     );
   }
 
-  jobsForDrive(driveId: string, limit = 20): Job[] {
+  jobsForDrive(driveId: string, limit = 20, activeOnly = false): Job[] {
     if (driveId === "*") {
       return this.sqlite
         .query("SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?")
         .all(limit) as Job[];
+    }
+    if (activeOnly) {
+      return this.sqlite
+        .query(
+          "SELECT * FROM jobs WHERE drive_id=? AND status IN ('queued','running') ORDER BY created_at DESC LIMIT ?",
+        )
+        .all(driveId, limit) as Job[];
     }
     return this.sqlite
       .query(
@@ -602,24 +624,4 @@ export function inferRole(volumeName: string): Drive["role"] {
   if (n === "DJMIRROR") return "mirror";
   if (n.startsWith("DJ") || n.startsWith("CRATE")) return "library";
   return "unknown";
-}
-
-/** True when a db write would change nothing the UI/API can observe.
- *  Used by registry to keep the 5s reconcile sweep from churning the WAL. */
-export function driveRowMeaningful(
-  d: Partial<Drive> & { id: string },
-): boolean {
-  return (
-    d.mounted !== undefined ||
-    d.name !== undefined ||
-    d.capacity_bytes !== undefined ||
-    d.fs !== undefined ||
-    d.vendor !== undefined ||
-    d.model !== undefined ||
-    d.usb_serial !== undefined ||
-    d.last_port_key !== undefined ||
-    d.role !== undefined ||
-    d.nickname !== undefined ||
-    d.volume_uuid !== undefined
-  );
 }

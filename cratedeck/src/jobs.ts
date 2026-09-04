@@ -39,8 +39,14 @@ export class JobEngine {
     return rekordboxRunning();
   }
 
+  /** Interlock verdict straight from pgrep, bypassing the 1s TTL cache.
+   *  Safety gates (job start, snapshot start) must use this. */
+  interlockFresh(): { running: boolean; pid: number | null } {
+    return rekordboxRunning({ fresh: true });
+  }
+
   private assertInterlock(): void {
-    const lock = this.interlock();
+    const lock = this.interlockFresh();
     if (lock.running) {
       throw new Error(`REKORDBOX_RUNNING (pid ${lock.pid}) — all jobs locked`);
     }

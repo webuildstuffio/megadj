@@ -93,6 +93,49 @@ describe("db snapshots", () => {
     expect(latest.file_count).toBe(12);
     expect(db.snapshots(UUID_A).length).toBe(2);
   });
+
+  it("setSnapshot skips an identical re-scan (only taken_at differs)", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    const base = {
+      kind: "full" as const,
+      track_count: 100,
+      file_count: 120,
+      dj: { genres: [{ name: "House", count: 40 }] },
+    };
+    const t1: SnapshotData = { ...base, taken_at: 1000 };
+    const t2: SnapshotData = { ...base, taken_at: 2000 };
+    db.setSnapshot(UUID_A, t1);
+    const firstCount = db.snapshots(UUID_A).length;
+    db.setSnapshot(UUID_A, t2); // identical content → skip
+    expect(db.snapshots(UUID_A).length).toBe(firstCount);
+    expect(db.getDrive(UUID_A)!.last_snapshot_json).toContain("1000");
+  });
+
+  it("setSnapshot still writes when content actually changes", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.setSnapshot(UUID_A, {
+      kind: "light",
+      taken_at: 1000,
+      file_count: 10,
+    } as SnapshotData);
+    db.setSnapshot(UUID_A, {
+      kind: "light",
+      taken_at: 2000,
+      file_count: 11,
+    } as SnapshotData);
+    expect(db.snapshots(UUID_A).length).toBe(2);
+    expect(db.latestSnapshots().get(UUID_A)!.file_count).toBe(11);
+  });
 });
 
 describe("db jobs", () => {

@@ -19,9 +19,16 @@ let interlockCache: {
 } | null = null;
 const INTERLOCK_TTL_MS = 1_000;
 
-export function rekordboxRunning(): { running: boolean; pid: number | null } {
+export function rekordboxRunning(opts?: { fresh?: boolean }): {
+  running: boolean;
+  pid: number | null;
+} {
   const now = Date.now();
-  if (interlockCache && now - interlockCache.at < INTERLOCK_TTL_MS)
+  if (
+    !opts?.fresh &&
+    interlockCache &&
+    now - interlockCache.at < INTERLOCK_TTL_MS
+  )
     return interlockCache;
   const p = Bun.spawnSync(["pgrep", "-x", RB], { stdout: "pipe" });
   const out = p.stdout.toString().trim();
@@ -44,7 +51,9 @@ export async function rbSnapshot(
   guard: Guard,
   mountPoint: string,
 ): Promise<SnapshotData> {
-  const lock = rekordboxRunning();
+  // fresh check: this is the safety gate for a long DB read — never trust a
+  // cached verdict here (rekordbox could have started within the TTL window).
+  const lock = rekordboxRunning({ fresh: true });
   if (lock.running) {
     throw new Error(
       `REKORDBOX_RUNNING (pid ${lock.pid}) — hands off the drives`,
