@@ -180,11 +180,15 @@ export class Registry {
     return out;
   }
 
-  /** Boot-time scratch sweep: DB copies left by a killed process. */
+  /** Boot-time scratch sweep: DB copies left by a killed process.
+   *  A leftover scratch dir is expected after a crash (that's why we sweep),
+   *  but any other failure (permissions, disk) must be visible. */
   sweepScratch(): void {
     try {
       rmSync(this.cfg.scratchDir, { recursive: true, force: true });
-    } catch {}
+    } catch (e) {
+      console.error(`scratch sweep failed for ${this.cfg.scratchDir}`, e);
+    }
   }
 }
 

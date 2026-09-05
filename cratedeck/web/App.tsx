@@ -13,7 +13,7 @@ import { DriveRail } from "./DriveRail";
 import { DrivePage } from "./DrivePage";
 import { FleetPage } from "./FleetPage";
 import { JobsDock } from "./JobsDock";
-import { Toaster } from "./toast";
+import { Toaster, toast } from "./toast";
 import { Icon } from "./icons";
 import { navigate, navigateFleet, useRoute } from "./router";
 
@@ -37,20 +37,12 @@ export function App() {
     const [d, p, rep] = await Promise.all([
       fetch("/api/drives").then((r) => r.json() as Promise<DriveCardData[]>),
       fetch("/api/ports").then((r) => r.json() as Promise<PortInfo[]>),
-      fetch("/api/reports")
-        .then(
-          (r) =>
-            r.json() as Promise<
-              Record<string, { overall?: string; checks: { status: string }[] }>
-            >,
-        )
-        .catch(
-          () =>
-            ({}) as Record<
-              string,
-              { overall?: string; checks: { status: string }[] }
-            >,
-        ),
+      fetch("/api/reports").then(
+        (r) =>
+          r.json() as Promise<
+            Record<string, { overall?: string; checks: { status: string }[] }>
+          >,
+      ),
     ]);
     setDrives(d);
     setPorts(p);
@@ -74,11 +66,23 @@ export function App() {
             (b.started_at ?? b.created_at) - (a.started_at ?? a.created_at),
         ),
       );
-    } catch {}
+    } catch (e) {
+      console.error("jobs refresh failed", e);
+      toast(
+        `jobs unavailable: ${e instanceof Error ? e.message : String(e)}`,
+        "err",
+      );
+    }
   }, []);
 
   useEffect(() => {
-    refresh();
+    refresh().catch((e: unknown) => {
+      console.error("drive list refresh failed", e);
+      toast(
+        `drive list unavailable: ${e instanceof Error ? e.message : String(e)}`,
+        "err",
+      );
+    });
     refreshJobs();
     const es = new EventSource("/api/events");
     es.addEventListener("drives", () => refresh());
@@ -94,8 +98,12 @@ export function App() {
             "boolean"
         ) {
           setInterlock(data as InterlockState);
+        } else {
+          console.error("interlock SSE payload failed shape check", data);
         }
-      } catch {}
+      } catch (e) {
+        console.error("interlock SSE event was not valid JSON", e);
+      }
     });
     es.addEventListener("job", () => {
       refreshJobs();
@@ -113,7 +121,10 @@ export function App() {
           (r) => r.json() as Promise<InterlockState>,
         );
         setInterlock(s);
-      } catch {}
+      } catch {
+        // interlock poll is advisory (the SSE stream + server gate are the
+        // enforcement); transient fetch failures stay silent by design.
+      }
     }, 3000);
     // rail safety net: SSE drives events only fire on mount/unmount/first-seen,
     // so renames (and similar in-place changes) would never refresh the rail.
@@ -149,7 +160,10 @@ export function App() {
           `/api/search?q=${encodeURIComponent(query.trim())}`,
         ).then((x) => x.json() as Promise<SearchResult[]>);
         setResults(r);
-      } catch {}
+      } catch (e) {
+        console.error("search failed", e);
+        toast("search failed — server unreachable", "err");
+      }
     }, 220);
     return () => clearTimeout(t);
   }, [query]);

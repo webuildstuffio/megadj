@@ -65,7 +65,10 @@ export async function api<T = unknown>(
     try {
       const body = (await res.json()) as { error?: string };
       if (body?.error) msg = body.error;
-    } catch {}
+    } catch {
+      // non-JSON error body (proxy/interlock plaintext) — the status code is
+      // still the message; res.ok already failed and we throw below.
+    }
     if (res.status === 423) msg = `locked — ${msg}`;
     toast(msg, "err");
     throw new Error(msg);

@@ -52,7 +52,7 @@ produces, regardless of the language used in the request.
 [--tags|--genre|--art|--year|--energy] [--dry-run]`; `fulltags audit
 <folder> --json` = same completeness gate as `megadj audit`). megadj's
   modules are thin re-export shims — import surface unchanged. Idempotent
-  (energy stamped as TXXX:ENERGY; re-run = no-op). 55 tests in
+  (energy stamped as TXXX:ENERGY; re-run = no-op). 56 tests in
   `fulltags/test/`. **Perf invariant:** `setFileTags`/`writePatchSync` is
   sync — never bridge it to async code via a spawned `bun -e` (measured
   6.4× slowdown; there is a regression test). Roadmap **rev 2

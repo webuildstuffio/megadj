@@ -1,7 +1,8 @@
 # megadj — Future Roadmap Proposal
 
-_Proposal v1 · compiled 2026-09-05 · after a full read of every doc in the
-repo: [PRINCIPLES.md](PRINCIPLES.md) (the arbiter), [FEATURES.md](FEATURES.md),
+_Proposal v2 · 2026-09-05 (v1 same day; revised for the MCP/⌘K drop +
+second external-claims re-verification) · after a full read of every doc in
+the repo: [PRINCIPLES.md](PRINCIPLES.md) (the arbiter), [FEATURES.md](FEATURES.md),
 [ideas.md](ideas.md) (the parking lot), [fulltags-roadmap.md](fulltags-roadmap.md)
 (the model ladder), the CrateDeck doc set
 ([01](cratedeck/01-product-brief.md)–[04](cratedeck/04-build-plan.md) +
@@ -25,7 +26,7 @@ projects have shipped cores:
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | GetDat    | `megadj sync` (YTM, 256k-first, rate-limited, SQLite state, `LOWQ` flag)                                                                     | one source (YouTube Music); quality ratchet has no swap tool  |
 | FullTags  | `fulltags/` sub-project: one schema, one atomic writer (5 formats + gotchas), art ladder, conf-gated AI, `audit` gate; megadj = thin shims   | no key, no real BPM, no fingerprints, no research-grade moods |
-| CrateDeck | v0.1: registry+ghosts, ANLZ hand-building, dual-DB verify, interlock, fleet superpowers (coverage/redundancy/diff), deckctl, auto-scan (B17) | preflight, gig mode, export runbook, set intelligence, MCP    |
+| CrateDeck | v0.1: registry+ghosts, ANLZ hand-building, dual-DB verify, interlock, fleet superpowers (coverage/redundancy/diff), deckctl, auto-scan (B17), ⌘K global search (B9), **MCP server (O82)** — 10 tools, interlock in the tool layer | preflight, gig mode, export runbook, set intelligence, archive-side MCP |
 
 Also true, from the acceptance doc: **four open items need real hardware**
 (mirror-badge ground truth, drive-detail vs known counts, 1440×900 one-screen
@@ -47,9 +48,9 @@ The fleet layer (coverage/redundancy/diff) shipped, but the _gig-day_ layer
 is still manual. This move finishes the "is this stick safe for tonight?"
 loop the product brief defines as CrateDeck's reason to exist:
 
-1. **B9 — global search across ghosts** (⌘K over every snapshot). Highest
-   daily-use feature in the app; the query engine already exists in
-   `fleet.ts`, this is UI + one API route.
+1. **B9 — global search across ghosts** — **✅ shipped 2026-09-05** (⌘K in
+   the topbar → `/api/search` over every snapshot). The daily-use item is
+   done; what remains of Move 1 is the gig-day checklist.
 2. **B12 + N76 — preflight with firmware notes.** One pass/fail checklist
    per drive: sync state, grid coverage, integrity, space, plus the
    firmware-aware "shows on player, playlists empty → check which library
@@ -109,30 +110,33 @@ re-running is safe), and the fields land where hardware actually reads them.
 
 ### Move 3 — Agentify (the O layer) · _why: P1, agent-first is a principle_
 
-`deckctl`, `--json`, and three SKILL.md files already exist; the 2026
-agent-CLI taxonomy (MCP, headless one-shots, hooks) needs thin wrappers,
-not new infrastructure:
+**Shipped since v1 (2026-09-05): the first half of this move.** O82's
+CrateDeck half and O86's rails are live — `cratedeck/src/mcp.ts` exposes 10
+tools over stdio JSON-RPC (`deck_status/drives/report/coverage/redundancy/
+diff/jobs/run/cancel/explain`), readonly tools are annotation-marked,
+mutating ones (`deck_run`, `deck_cancel`) are flagged `[MUTATES DRIVE STATE]`
+and gated by the interlock check **inside the tool layer** — exactly where
+O86 said it must live. `bun run mcp` from the repo root; registration
+snippet in [cratedeck/deckctl.md](../cratedeck/deckctl.md#mcp). What
+remains is the archive half and the loops:
 
-1. **O86 first — the safety rails.** Mutating tools (mirror/format/anything
-   drive-touching) absent from the agent surface or behind explicit
-   confirmation; the interlock check lives in the tool layer, not the prompt
-   ("prompts are suggestions, exit codes are law"); every agent action lands
-   in the timeline with a session id.
-2. **O82 — megadj MCP server.** `search_tracks`, `track_stats`,
-   `drive_status`, `drive_report`, `enqueue_job` (scan/verify/checksum
-   only), `playlist_diff`. Bun + official SDK; wrappers over existing
-   functions.
-3. **O83 — headless weekly agent loop.** Archive integrity sweep → scan
+1. **O82b — megadj MCP server (archive half).** `search_tracks`,
+   `track_stats`, `ingest_status`, `playlist_diff`, `lowq_queue` over the
+   archive DB + FullTags audit. Same pattern as the CrateDeck half: thin
+   wrappers over existing functions, `--json` payloads already exist for
+   most verbs.
+2. **O83 — headless weekly agent loop.** Archive integrity sweep → scan
    deltas → redundancy → new-music-not-exported → markdown digest. The
    agent writes nothing; it reads and reports. Supersedes the F39 weekly
-   digest as the preferred implementation. The cheapest reliability win in
+   digest as the-proposed implementation. The cheapest reliability win in
    the entire backlog.
-4. **O84/O85 after the surface is stable** — inbox-to-crate agent on top of
-   `megadj drop`; skill/plugin packaging.
+3. **O84/O85 after the surface is stable** — inbox-to-crate agent on top of
+   `megadj drop`; skill/plugin packaging (O85's Claude-Code plugin manifest
+   now just points at the live MCP server instead of shipping one).
 
 **Why:** the one-user-one-machine rule (P1) already says "if a feature can't
 be expressed as a command an operator or an AI agent can run, it doesn't
-exist." §O is the second half of that sentence, and the safety rails are
+exist." §O is the second half of that sentence, and the shipped rails are
 what keep agents inside P9/P11's idempotent, resumable discipline.
 
 ---
@@ -144,17 +148,18 @@ All local/offline — P9's zero-telemetry and §H's cloud non-goal hold.
 
 | Task            | Pick                                                            | Why this pick (and what was rejected)                                                                                                                                                                        | License              | Verification gate                          |
 | --------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | ------------------------------------------ |
-| Key / Camelot   | OpenKeyScan analyzer server                                     | CNN-based, ~79% community-tested, MPS-accelerated; `keyfinder-cli` rejected (not in homebrew-core, ARM friction); MIK not self-hostable                                                                      | check at integration | ≥80% on 20 known-key tracks                |
+| Key / Camelot   | OpenKeyScan analyzer — **open-source repo mode** (stdin/stdout JSON, device auto-select CUDA>MPS>CPU); the `:58721` REST server belongs to the _closed desktop app_, not the repo | CNN extending MusicalKeyCNN, GiantSteps-trained, Rekordcloud-maintained; site claims beat RB/MIK/Serato on a 500-track set (marketing figures — verify locally before trusting); `keyfinder-cli` rejected (not in homebrew-core) | MIT (code)           | ≥80% on 20 known-key tracks                |
 | Key cross-check | Essentia `Key` algorithm                                        | free second vote; disagreements → review queue                                                                                                                                                               | AGPL (code)          | agreement tracking per batch               |
-| BPM / downbeats | `beat_this`                                                     | ISMIR 2024 SOTA without DBN; MIT; pip + Rust/ONNX ports. **BeatFM beats it on paper (+4.1pt downbeat F1) but ships no weights — rejected for now**, revisit if released                                      | MIT                  | vs the 294 rekordbox-fixed grids, >2% flag |
-| Structure/cues  | `all-in-one-infer` (prefer `-mlx`)                              | functional segments + beats + demucs stems in one pip install; MIT. Labels are pop-trained → map to drop/outro heuristically and verify on EDM first                                                         | MIT                  | 20-track EDM spot check before batch       |
+| BPM / downbeats | `beat_this`                                                     | ISMIR 2024 SOTA without DBN; MIT; pip + Rust/ONNX ports; v1.1.0 (Apr 2026) still current. **BeatFM beats it on paper (+4.1pt downbeat F1) but still ships no code/weights (re-verified 2026-09-05) — rejected again**; watch `livechord-beat-refiner` (May 2026) as a downbeat post-processor | MIT                  | vs the 294 rekordbox-fixed grids, >2% flag |
+| Structure/cues  | `all-in-one-infer` v3.x                                         | functional segments + beats + demucs stems; **v3 rewrote NATTEN in pure PyTorch — installs on Apple Silicon with no compiler**; MLX port (`all-in-one-mlx`, `allin1-mlx` CLI) claims ~12.6× on AS (repo-reported). Labels pop-trained → map to drop/outro heuristically and verify on EDM first | MIT                  | 20-track EDM spot check before batch       |
 | Moods/genre/VA  | Essentia ONNX model zoo (MusiCNN etc.)                          | official ONNX exports run on ARM64 today; research-grade replaces hand-rolled RMS + LLM-only genre. **Models are CC BY-NC-SA — fine for a personal library per P9, re-review before any commercial release** | CC BY-NC-SA          | confidence history per tag; audit strays   |
 | Energy          | danceability + DEAM arousal co-votes                            | replaces RMS-linear; keeps the 1–10 UI scale (Energy 2.0, roadmap #9)                                                                                                                                        | (via Essentia)       | A/B vs current TXXX:ENERGY on 50 tracks    |
-| Embeddings      | MusiCNN MUSE first; **MusicFM** if a stronger encoder is needed | MusicFM = MIT code + CC-licensed FMA weights — the license-clean foundation model; **MERT weights are CC-BY-NC** (usable per P9, but riskier if the repo ever goes public)                                   | MIT (MusicFM)        | kNN sanity on "sounds like" queries        |
-| Fingerprints    | chromaprint (`fpcalc`)                                          | standard, one brew dep, AcoustID lookup free at 3 rps                                                                                                                                                        | LGPL                 | same-recording check on every upgrade swap |
-| Dupe scanning   | dupsonic design reference                                       | Rust, incremental, LSH — steal the incremental design before writing our own                                                                                                                                 | MIT                  | precision spot-check vs known dupes        |
+| Embeddings      | MUSE first → **MuQ-MuLan** as the strong step-up                | MuQ-MuLan (~700M, Tencent, MIT code) is 2026 SOTA zero-shot music tagging (MagnaTagATune AUC 79.3 vs CLAP's 73.9–75.5); **weights CC-BY-NC** — same personal-use carve-out as Essentia; MERT effectively superseded for embeddings; MusicFM dormant since 2024 | MIT (code) / CC-BY-NC (weights) | kNN sanity on "sounds like" queries |
+| Fingerprints    | chromaprint (`fpcalc`)                                          | standard, one brew dep, AcoustID lookup free at 3 rps; chromaprint itself unchanged since 1.5.1 (2021) — stable and boring is good                                                                        | LGPL                 | same-recording check on every upgrade swap |
+| Dupe scanning   | dupsonic                                                        | **Rust, v0.2.5, first release Jul 2026, ships macOS-aarch64 prebuilt binaries** — chromaprint + LSH + SQLite cache, built for 100k+ libraries; use as-is or steal the incremental design; `soundalike` (Go, mature) is the safe fallback | MIT                  | precision spot-check vs known dupes        |
 | Vibe captions   | none (garnish only)                                             | I50 verdict stands: you'd read them twice and never filter by them. `megadj drop` prints one line; no infrastructure                                                                                         | —                    | none — deliberately not built              |
 | Voice memo → ID | mlx-whisper (M68, later)                                        | 20–30× realtime on Metal; only after K59 mining exists (its trigger)                                                                                                                                         | MIT                  | transcribe→resolve→queue E2E on 5 memos    |
+| Source health    | yt-dlp SoundCloud/Bandcamp watch                                | SC works (DataDome 403s fixed by merged browser-impersonation, Feb 2026; DRM-wrapped go+/premium tracks 404 — unsupported upstream by design). **Bandcamp extraction broken since 2026-08-21** (yt-dlp #17506, open) — keep yt-dlp on nightly + `curl_cffi`; sequence K58 after the fix lands | —                    | nightly smoke test before K57/K58 batch    |
 
 **Model-gate rules (from P5/P7/P11, applied to ML):** paper-SOTA ≠
 usable-SOTA — no pick without runnable code/weights on macOS ARM; every
@@ -178,7 +183,8 @@ Weeks 5–7   fingerprints + megadj upgrade (D24+L62 fused)
 Weeks 6–9   CrateDeck: preflight+firmware notes (B12+N76),
             players.toml verdict (N75/77/78)               [Move 1 completes]
 Weeks 8–10  C18a runbook → C21 differential mirror → C22
-Weeks 10–13 O86 rails → O82 MCP → O83 weekly agent         [Move 3]
+Weeks 10–13 O82b archive MCP → O83 weekly agent             [Move 3;
+            O86 rails + CrateDeck MCP already live]
 Rolling     S-effort palate cleansers: M69 format cmd, M70
             litter clean, M71 port-speed badge, M74 exporter
 Later       Essentia heads → I46 cues (sliced: auto-cues

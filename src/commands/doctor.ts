@@ -99,7 +99,11 @@ function checkPlatform(): CheckResult {
         stdout: "pipe",
       });
       ver = new TextDecoder().decode(p.stdout).trim();
-    } catch {}
+    } catch (e) {
+      // cosmetic version probe — the pass/fail verdict (mac) is unchanged;
+      // a failure to read the version still gets reported.
+      console.error("sw_vers probe failed", e);
+    }
   }
   return {
     id: "platform",

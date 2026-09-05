@@ -37,10 +37,18 @@ export async function fetchImage(url: string): Promise<Uint8Array | null> {
       headers: UA,
       signal: AbortSignal.timeout(12000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`art fetch ${url} → HTTP ${res.status}`);
+      return null;
+    }
     const b = new Uint8Array(await res.arrayBuffer());
-    return b.length > 3000 ? b : null;
-  } catch {
+    if (b.length <= 3000) {
+      console.error(`art fetch ${url} → ${b.length}B (below min-size floor)`);
+      return null;
+    }
+    return b;
+  } catch (e) {
+    console.error(`art fetch ${url} failed`, e);
     return null;
   }
 }
@@ -51,14 +59,19 @@ export async function pageOgImage(url: string): Promise<string | null> {
       headers: UA,
       signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`og:image fetch ${url} → HTTP ${res.status}`);
+      return null;
+    }
     const html = await res.text();
-    return (
+    const og =
       html.match(/property="og:image"\s+content="([^"]+)"/)?.[1] ??
       html.match(/content="([^"]+)"\s+property="og:image"/)?.[1] ??
-      null
-    );
-  } catch {
+      null;
+    if (!og) console.error(`og:image fetch ${url} → no og:image tag`);
+    return og;
+  } catch (e) {
+    console.error(`og:image fetch ${url} failed`, e);
     return null;
   }
 }
@@ -127,13 +140,18 @@ export async function itunesArtwork(
     const res = await fetch(
       `https://itunes.apple.com/search?term=${term}&entity=song&limit=1`,
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`itunes search → HTTP ${res.status}`);
+      return null;
+    }
     const data = (await res.json()) as {
       results?: Array<{ artworkUrl100?: string }>;
     };
     const url = data.results?.[0]?.artworkUrl100;
+    if (!url) console.error(`itunes search → no artwork result`);
     return url ? url.replace("/100x100", "/600x600") : null;
-  } catch {
+  } catch (e) {
+    console.error(`itunes search failed`, e);
     return null;
   }
 }
@@ -156,7 +174,12 @@ export async function deezerArt(r: ArtRow): Promise<Uint8Array | null> {
       const bytes = await fetchImage(url);
       if (bytes) return bytes;
     }
-  } catch {}
+    console.error(
+      `deezer search → no usable cover for "${r.artist} - ${r.title}"`,
+    );
+  } catch (e) {
+    console.error(`deezer search failed`, e);
+  }
   return null;
 }
 
@@ -181,7 +204,12 @@ export async function gatewayArt(
       const bytes = await fetchImage(og);
       if (bytes) return { bytes, note: link };
     }
-  } catch {}
+    console.error(
+      `gateway search → no hype-gateway art for "${r.artist} - ${r.title}"`,
+    );
+  } catch (e) {
+    console.error(`gateway search failed`, e);
+  }
   return null;
 }
 

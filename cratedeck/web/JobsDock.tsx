@@ -4,7 +4,7 @@
 import { useState } from "preact/hooks";
 import type { DriveCardData, Job } from "../shared/types";
 import { fmtEta } from "../shared/fmt";
-import { api } from "./toast";
+import { api, toast } from "./toast";
 import { Icon } from "./icons";
 
 const ACTIVE = new Set(["queued", "running"]);
@@ -57,7 +57,11 @@ export function JobsDock(props: {
             driveName={driveName(j.drive_id)}
             onCancel={() =>
               api(`/api/jobs/${j.id}/cancel`, { method: "POST" }).catch(
-                () => {},
+                (e: unknown) =>
+                  toast(
+                    `cancel failed: ${e instanceof Error ? e.message : String(e)}`,
+                    "err",
+                  ),
               )
             }
             onFocus={() => props.focusDrive(j.drive_id)}

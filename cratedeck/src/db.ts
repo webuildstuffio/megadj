@@ -36,7 +36,12 @@ function eventRow(r: EventRow): TimelineEvent {
   let data: Record<string, unknown> = {};
   try {
     data = JSON.parse(r.data_json ?? "{}");
-  } catch {}
+  } catch (e) {
+    // corrupt row keeps rendering (timeline must not break on one bad event)
+    // but the bad payload is visible in the event itself + server console.
+    console.error(`timeline event ${r.id} has corrupt data_json`, e);
+    data = { corrupt: true, raw: r.data_json ?? null };
+  }
   return { id: r.id, drive_id: r.drive_id, at: r.at, kind: r.kind, data };
 }
 
@@ -589,7 +594,12 @@ export class DB {
       ok =
         (JSON.parse(row.result_json) as { verdict?: string } | null)
           ?.verdict === "pass";
-    } catch {}
+    } catch (e) {
+      // a corrupt verify result must not read as "verified" — treat as
+      // unknown-failure and say why on the console.
+      console.error(`verify result for ${driveId} has corrupt result_json`, e);
+      ok = false;
+    }
     return { ran_at: row.finished_at, ok };
   }
 

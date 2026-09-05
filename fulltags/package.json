@@ -1,7 +1,7 @@
 {
   "name": "fulltags",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Full-depth audio tag enrichment — one pass, every field, mp3/wav/aiff/flac/m4a",
   "type": "module",
   "module": "cli.ts",

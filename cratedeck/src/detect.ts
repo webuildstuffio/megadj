@@ -83,7 +83,11 @@ export async function volumeDetail(
     v.capacityBytes = Number(info.TotalSize ?? 0);
     mediaName = info["Device / Media Name"] ?? info.DeviceMediaName ?? null;
     treePath = info.DeviceTreePath ?? null;
-  } catch {}
+  } catch (e) {
+    // a volume whose diskutil probe fails still appears on the rail (name +
+    // mountpoint are already set) — but the degraded identity is reported.
+    console.error(`diskutil info failed for ${mountPoint}`, e);
+  }
 
   try {
     const usb = pickUsbDevice(await usbTree(), mediaName, treePath);
@@ -93,7 +97,9 @@ export async function volumeDetail(
       v.model = usb.product;
       v.portKey = usb.portKey;
     }
-  } catch {}
+  } catch (e) {
+    console.error(`usb tree lookup failed for ${mountPoint}`, e);
+  }
   return v;
 }
 
@@ -125,7 +131,13 @@ export function usbTree(): UsbDevice[] {
       devices =
         (JSON.parse(p.stdout.toString()) as { devices?: UsbDevice[] })
           .devices ?? [];
-    } catch {}
+    } catch (e) {
+      console.error("usb_tree.py produced invalid JSON", e);
+    }
+  } else {
+    console.error(
+      `usb_tree.py exited ${p.exitCode}: ${p.stderr.toString().slice(0, 200)}`,
+    );
   }
   usbTreeCache = { at: now, devices };
   return devices;

@@ -82,7 +82,7 @@ function CoverageTab() {
       setData(await api<CoverageResult>("/api/fleet/coverage"));
       setErr(null);
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
@@ -394,7 +394,13 @@ function DiffTab() {
           setB(refs[1]!.id);
         }
       })
-      .catch(() => {});
+      .catch((e: unknown) => {
+        console.error("fleet drive list failed", e);
+        toast(
+          `drive list unavailable: ${e instanceof Error ? e.message : String(e)}`,
+          "err",
+        );
+      });
   }, [aId, bId]);
 
   const run = useCallback(async () => {

@@ -4,7 +4,6 @@
 // and the check ids stay stable for the UI/CLI.
 import { describe, expect, it } from "bun:test";
 import { parseVerifyReport, verifyDeltas } from "../src/jobs";
-import { findingsOf } from "../src/jobs";
 
 const PASS_OUTPUT = `
 === databases ===
@@ -107,11 +106,14 @@ describe("parseVerifyReport", () => {
     expect(rMany.checks.find((c) => c.id === "anlz")?.status).toBe("fail");
   });
 
-  it("findingsOf maps non-pass checks to the legacy finding shape", () => {
+  it("every non-pass check carries meaning + fix (contract for UI/CLI printers)", () => {
     const r = parseVerifyReport(FAIL_OUTPUT, false, "FINAL: FAILED", 1);
-    const f = findingsOf(r);
-    expect(f.length).toBe(r.checks.filter((c) => c.status !== "pass").length);
-    for (const x of f) expect(x.fix).toBeTruthy();
+    const f = r.checks.filter((c) => c.status !== "pass");
+    expect(f.length).toBeGreaterThan(0);
+    for (const x of f) {
+      expect(x.meaning).toBeTruthy();
+      expect(x.fix).toBeTruthy();
+    }
   });
 
   it("single-drive run has no cross-drive checks", () => {

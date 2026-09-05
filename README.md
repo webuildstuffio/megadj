@@ -142,22 +142,29 @@ and it should never be committed.
 
 ### Environment
 
-| Variable              | Default                                     | Purpose                                                            |
-| --------------------- | ------------------------------------------- | ------------------------------------------------------------------ |
-| `MEGADJ_MUSIC_DIR`    | `~/Music/DJ-Imports`                        | where downloaded audio lands                                       |
-| `MEGADJ_DB`           | `~/.local/state/megadj/archive.db`          | the archive's memory                                               |
-| `MEGADJ_COOKIES`      | `chrome`                                    | browser for yt-dlp cookies; empty disables                         |
-| `OPENROUTER_API_KEY`  | —                                           | AI genre/year fallback + `megadj artwork`                          |
-| `IMAGE_MAKER_CLIENT`  | —                                           | ES module exporting an `ImageClient`, for AI covers                |
-| `MEGADJ_COOKIES_FILE` | —                                           | netscape cookie jar for headless runs (overrides `MEGADJ_COOKIES`) |
-| `MEGADJ_ART_MAX`      | `20`                                        | max AI covers per `megadj artwork` pass                            |
-| `MEGADJ_ART_QUEUE`    | `~/.local/state/megadj/artwork-queue.jsonl` | where misses are queued for AI covers                              |
+| Variable                   | Default                                     | Purpose                                                            |
+| -------------------------- | ------------------------------------------- | ------------------------------------------------------------------ |
+| `MEGADJ_MUSIC_DIR`         | `~/Music/DJ-Imports`                        | where downloaded audio lands                                       |
+| `MEGADJ_DB`                | `~/.local/state/megadj/archive.db`          | the archive's memory                                               |
+| `MEGADJ_COOKIES`           | `chrome`                                    | browser for yt-dlp cookies; empty disables                         |
+| `OPENROUTER_API_KEY`       | —                                           | AI genre/year fallback + `megadj artwork`                          |
+| `IMAGE_MAKER_CLIENT`       | —                                           | ES module exporting an `ImageClient`, for AI covers                |
+| `MEGADJ_COOKIES_FILE`      | —                                           | netscape cookie jar for headless runs (overrides `MEGADJ_COOKIES`) |
+| `MEGADJ_ART_MAX`           | `20`                                        | max AI covers per `megadj artwork` pass                            |
+| `MEGADJ_ART_QUEUE`         | `~/.local/state/megadj/artwork-queue.jsonl` | where misses are queued for AI covers                              |
+| `CRATEDECK_DATA`           | `~/.local/state/cratedeck`                  | dashboard state (DB, snapshots, images)                            |
+| `CRATEDECK_PORT`           | `7742`                                      | dashboard port (`bun run deck`)                                    |
+| `CRATEDECK_VOLUMES`        | autodetect                                  | extra volumes to watch beyond `/Volumes`                           |
+| `CRATEDECK_IMAGE_PROVIDER` | `brave`                                     | drive-photo search provider (`brave` or `exa`)                     |
+| `CRATEDECK_IMAGE_KEY`      | —                                           | API key for the image provider (optional)                          |
 
 Full command reference: `megadj --help`, or
 [docs/FEATURES.md](docs/FEATURES.md).
 
-Machines and agents: `megadj status|list|audit|doctor` all take `--json`
-(single JSON document, exit code still meaningful), and CrateDeck speaks
+Machines and agents: `megadj sync|status|list|audit|doctor|organize|enrich|adopt`
+all take `--json`
+([PRINCIPLES.md](docs/PRINCIPLES.md) §1: if a command can't be consumed by an
+agent, it doesn't exist), and CrateDeck speaks
 MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
 
 ## Docs index

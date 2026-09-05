@@ -52,7 +52,9 @@ export async function ensureServer(): Promise<boolean> {
       signal: AbortSignal.timeout(1500),
     });
     if (r.ok) return true;
-  } catch {}
+  } catch {
+    // probe failure = not up yet; the spawn+retry loop below is the handling
+  }
   try {
     const proc = Bun.spawn(["bun", "run", "cratedeck/src/index.ts"], {
       stdout: "ignore",
@@ -61,7 +63,8 @@ export async function ensureServer(): Promise<boolean> {
       detached: true,
     });
     proc.unref();
-  } catch {
+  } catch (e) {
+    console.error("failed to spawn cratedeck server", e);
     return false;
   }
   for (let i = 0; i < 40; i++) {
@@ -71,7 +74,9 @@ export async function ensureServer(): Promise<boolean> {
         signal: AbortSignal.timeout(1000),
       });
       if (r.ok) return true;
-    } catch {}
+    } catch {
+      // still not accepting connections — keep polling until the budget ends
+    }
   }
   return false;
 }

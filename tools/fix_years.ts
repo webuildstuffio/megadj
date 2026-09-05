@@ -37,7 +37,10 @@ function scPageYear(url: string): number | null {
     if (r2?.[1]) return Number(r2[1]);
     const r3 = res.match(/"created_at":"(\d{4})-\d{2}-\d{2}T/);
     if (r3?.[1]) return Number(r3[1]);
-  } catch {}
+    console.error(`sc page year: no date field in ${url}`);
+  } catch (e) {
+    console.error(`sc page year fetch failed for ${url}`, e);
+  }
   return null;
 }
 

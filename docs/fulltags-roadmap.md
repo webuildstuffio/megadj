@@ -1,10 +1,13 @@
-# FullTags — Prioritized Roadmap (rev 2, fact-checked)
+# FullTags — Prioritized Roadmap (rev 3)
 
-_Rev 2, 2026-09-05 · every external claim re-verified against primary
-sources (Dubspot lab report, rekordbox metadata matrix, MTG/essentia
-issue tracker, beat_this repo/PyPI, AcoustID docs); two integration
-recommendations corrected; plus a stress-test pass over the shipped v0
-code that found and fixed a 6.4× write-path regression (§5)._
+_Rev 3, 2026-09-05 · external claims re-verified against primary sources
+(second pass, same day as rev 2): OpenKeyScan's actual open-source surface,
+beat_this v1.1.0 still current, all-in-one-infer v3's Apple-Silicon
+installs, MuQ-MuLan as the 2026 embeddings step-up, dupsonic's first
+release, yt-dlp Bandcamp status. Rev 2 (same day) fact-checked the Dubspot
+lab report, rekordbox metadata matrix, Essentia ARM64 issues, AcoustID
+limits, and stress-tested the shipped v0 code (found + fixed a 6.4×
+write-path regression, §5)._
 
 How to read: ranked by **value-per-effort** for a 3–10k track dance
 library on one Mac, offline-first. Effort: S <1d / M 1–3d / L >3d.
@@ -19,7 +22,7 @@ enters.
   aiff), file-first ground-truth readers, full art ladder, AI genre/year
   fallback, `fulltags` CLI (enrich + audit --json). megadj `ingest` /
   `fetch` write through the same code via shims.
-- 49 FullTags tests; repo 187/187; tsc + oxlint clean.
+- 56 FullTags tests (verified 2026-09-05); tsc + oxlint clean.
 - Format matrix round-trip **verified on real files** (§5): mp3/m4a/wav/
   aiff write+read-back, art embed+detect, WAV→AIFF conversion with ID3
   frame + APIC preservation.
@@ -28,11 +31,11 @@ enters.
 
 | Claim in rev 1                | Verdict               | Correction                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ----------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| "keyfinder-cli, Effort S"     | **Corrected**         | Not in homebrew-core — only the author's personal tap, with known ARM build friction (libavutil path issues). Primary key path is now **OpenKeyScan's analyzer server** (localhost REST :58721, MPS-accelerated, standalone executable available); keyfinder-cli demoted to fallback. Effort S→M.                                                                                                                               |
+| "keyfinder-cli, Effort S"     | **Corrected (twice)** | Not in homebrew-core — only the author's personal tap, with known ARM build friction (libavutil path issues). Primary key path is now **OpenKeyScan's analyzer** — open-source repo mode speaks JSON over **stdin/stdout** with device auto-selection (CUDA > MPS > CPU), MIT, Rekordcloud-maintained; the **`:58721` REST server documented at openkeyscan.com/api is the closed desktop app's**, usable but not the repo's (rev 3 correction — rev 2 conflated the two). keyfinder-cli demoted to fallback. Effort S→M.                                                                                                                      |
 | "libKeyFinder ~90% on dance"  | **Verified**          | Dubspot 200-track ear-keyed test: KeyFinder 76% overall (152/200), **90% on dance/electronic**, MIK 89%, rekordbox 7 69%, Beatport metadata 60%. Weakness: relative major/minor ambiguity.                                                                                                                                                                                                                                      |
 | "rekordbox's own ~60%"        | **Corrected**         | 60% is **Beatport metadata**, not rekordbox. Rekordbox 7 = 69% in the same test. (A 2019 GiantSteps MIREX-style study even scored rekordbox _highest_ on pure EDM, 79.55 weighted.) The rebuild case is the **dance-subset gap (90% vs ~70%)** + file-level portability, not overall dominance.                                                                                                                                 |
 | "rekordbox reads TKEY"        | **Verified + gotcha** | Official matrix: Key = TKEY, read on AIFF (ID3v2.4) + MP3 (ID3v2.3) — **not WAV** (RIFF INFO has no key field; our ingest converts WAV→AIFF, so the pipeline is safe). Gotchas: RB **overwrites imported keys on analysis unless Key analysis is disabled** in Preferences → Analysis; after external writes use **Reload Tags**. Mix Name (TIT3), Remixer (TPE4), Label (TPUB) are also tag-writable — free schema extensions. |
-| "beat_this MIT, pip, CPU"     | **Verified**          | `pip install beat-this` (v1.1.0, Apr 2026), MIT code **and** weights, ships a CLI (`beat-this`/File2File). Needs PyTorch ≥2.0 + rotary-embedding-torch; optional DBN needs madmom **from CPJKU's fork**, not PyPI.                                                                                                                                                                                                              |
+| "beat_this MIT, pip, CPU"     | **Verified**          | `pip install beat-this` (v1.1.0, Apr 2026 — still current as of 2026-09-05), MIT code **and** weights, ships a CLI (`beat-this`/File2File). Needs PyTorch ≥2.0 + rotary-embedding-torch; optional DBN needs madmom **from CPJKU's fork**, not PyPI. BeatFM (ICME 2025) still ships no code/weights (re-checked) — keep waiting. New watch: `livechord-beat-refiner` (May 2026) refines beat_this/madmom downbeats with full-song context + resolves double-time/bar confusion.                                                                                                                                      |
 | "Essentia ONNX path on ARM64" | **Verified**          | Base `essentia` arm64 wheels exist (py ≤3.13); `essentia.tensorflow` is **broken on ARM** (open issue #1486) — confirmed. Essentia's `OnnxPredict` is still an unmerged PR (#1488) requiring source build. Practical path stays: brew `onnxruntime` (1.29, arm64) + MTG's ONNX model exports + essentia/librosa preprocessing. Models: CC BY-NC-SA.                                                                             |
 | "AcoustID free 3 rps"         | **Verified**          | Official: max 3 req/s, non-commercial, key required. fpcalc fingerprints first 120s by default (`-length`).                                                                                                                                                                                                                                                                                                                     |
 
@@ -65,11 +68,11 @@ before any batch run.
 
 ### #3 — Harmonic key via OpenKeyScan — **M, the DJ-value king**
 
-**Primary:** OpenKeyScan analyzer server — localhost REST (:58721) or
-stdin/stdout JSON mode, standalone executable (no Python), MPS-accelerated,
-batch = hundreds of tracks/min, trained on GiantSteps (electronic music),
-outputs Camelot + Open Key. **Fallback:** essentia `Key` as a cheap
-second vote; keyfinder-cli only via the author's tap if ever needed.
+**Primary:** OpenKeyScan analyzer — open-source repo mode (JSON over
+stdin/stdout, MPS auto-selected; MIT). The `:58721` REST server is the
+closed desktop app's — a convenience if that app is installed, never a
+dependency. **Fallback:** essentia `Key` as a cheap second vote;
+keyfinder-cli only via the author's tap if ever needed.
 **Write:** `TKEY` (Initial Key) + `TXXX:CAMELOT` via the existing
 `writePatch({ key })` — frame map already reserved. AIFF/MP3 carry TKEY;
 WAV doesn't (ingest's AIFF conversion keeps the archive covered).
@@ -111,13 +114,22 @@ pipeline, then **delete it** (the last duplicated writer).
 
 ## 3. P2 / P3 (unchanged in substance, resized by facts)
 
-- **Structure cues (all-in-one-infer / -mlx)** — M–L. Still the 10x item;
+- **Structure cues (all-in-one-infer v3 / -mlx)** — M–L. Still the 10x item;
   beat_this downbeats (#2) are its anchor, so nothing is lost by waiting.
-  MIT; labels pop-trained — verify on EDM before batch.
-- **Vocal density (demucs-mlx)** — M. ~3 s/track on M4-class silicon;
-  stems temp-only.
-- **Similarity (MUSE from #4 → sqlite-vec)** — M after #4; MuQ-MuLan
-  (CC-BY-NC) only if MUSE disappoints.
+  v3 installs on Apple Silicon with no compiler (pure-PyTorch NATTEN);
+  MLX port claims ~12.6× faster on AS (repo-reported — verify). MIT;
+  labels pop-trained — verify on EDM before batch.
+- **Vocal density (demucs-infer, or `demucs-mlx`)** — M. ~3 s/track on
+  M4-class silicon; stems temp-only.
+- **Similarity (MUSE from #4 → sqlite-vec)** — M after #4. Step-up: **MuQ-MuLan**
+  (Tencent, MIT code) — 2026 SOTA zero-shot music tagging (MagnaTagATune
+  AUC 79.3 vs CLAP 73.9–75.5); weights CC-BY-NC (personal-use carve-out).
+  MERT effectively superseded; MusicFM dormant since 2024 — both demoted
+  to "if MUSE/MuQ disappoint".
+- **Watch: settag** — Essentia MAEST genre + Discogs-EffNet moods, staged
+  writes with provenance tags, built for DJ libraries specifically (2026).
+  Direct feature overlap with FullTags — competitor-as-reference, not a
+  dependency; steal the provenance-tag pattern.
 - **Parked (unchanged):** LLM captions (garnish-only), Whisper voice
   memos (S when triggered), set copilot + double-drop (need B11
   history), hit predictor (needs B11).
@@ -183,12 +195,16 @@ content fingerprint — the full DJ-useful frame set, in the actual files.
 
 | Verdict    | Project                                | Status                                                                             |
 | ---------- | -------------------------------------- | ---------------------------------------------------------------------------------- |
-| Adopt (#1) | chromaprint/fpcalc + AcoustID          | verified: 3 rps, non-comm, 120s default                                            |
-| Adopt (#2) | beat_this (CPJKU)                      | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork                   |
-| Adopt (#3) | OpenKeyScan analyzer server            | verified: localhost REST :58721, MPS, standalone exe, GiantSteps-trained           |
+| Adopt (#1) | chromaprint/fpcalc + AcoustID          | verified: 3 rps, non-comm, 120s default; chromaprint stable at 1.5.1 (2021)        |
+| Adopt (#2) | beat_this (CPJKU)                      | verified: MIT, pip v1.1.0 (still current), CLI; torch dep; DBN→CPJKU madmom fork   |
+| Adopt (#3) | OpenKeyScan analyzer (repo mode)       | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained; REST :58721 = closed desktop app (rev 3) |
 | Fallback   | essentia `Key` / keyfinder-cli         | keyfinder-cli NOT in core brew (personal tap, ARM friction)                        |
-| Adopt (#4) | Essentia ONNX heads + brew onnxruntime | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged |
+| Adopt (#4) | Essentia ONNX heads + brew onnxruntime | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged, last push 2026-03 |
 | Verified   | Dubspot 200-track test                 | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                         |
 | Verified   | rekordbox tag matrix                   | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable |
-| Watch      | all-in-one-mlx, MuQ-MuLan, CLAP        | unchanged                                                                          |
+| Adopt (#1b)| dupsonic                               | verified: v0.2.5 (Jul 2026), Rust, macOS-aarch64 prebuilt, LSH + SQLite cache      |
+| Adopt-up    | MuQ-MuLan                              | 2026 SOTA zero-shot tagging (AUC 79.3); MIT code / CC-BY-NC weights; supersedes MERT for embeddings |
+| Verified   | all-in-one-infer v3 / -mlx             | v3 pure-PyTorch NATTEN (no compiler on AS); mlx port ~12.6× (repo-reported)        |
+| Watch      | livechord-beat-refiner, settag, BeatFM | refiner (May 2026) polishes downbeats; settag = direct competitor; BeatFM still weightless |
+| Verified   | yt-dlp SC/Bandcamp (GetDat side)       | SC works (impersonation merged Feb 2026; DRM tracks 404 by design); Bandcamp broken since 2026-08-21 (#17506) |
 | Blueprint  | robertolupi/deep-cuts                  | ONNX + sqlite-vec local tagger architecture                                        |

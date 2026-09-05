@@ -53,7 +53,10 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
         max_tokens: 2000,
       }),
     });
-    if (!res.ok) return out;
+    if (!res.ok) {
+      console.error(`genre AI → HTTP ${res.status}`);
+      return out;
+    }
     const json = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
@@ -87,7 +90,11 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
           : null;
       if (genre || year) out.set(row.video_id, [genre, year]);
     }
-  } catch {}
+  } catch (e) {
+    // AI classification is best-effort by design (ladder: SC tag → canonical
+    // map → AI) — but a total failure is logged, not swallowed.
+    console.error(`genre AI batch failed (${batch.length} rows)`, e);
+  }
   return out;
 }
 

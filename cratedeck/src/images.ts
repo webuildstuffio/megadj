@@ -147,7 +147,11 @@ export class ImageService {
     if (p) {
       try {
         this.guard.rm(p);
-      } catch {}
+      } catch (e) {
+        // DB pointer is cleared regardless; a file that wouldn't delete
+        // (permissions/AV) must be visible, not silently orphaned on disk.
+        console.error(`photo rm failed for ${driveId} at ${p}`, e);
+      }
     }
     this.db.setPhoto(driveId, "");
     this.db.event(driveId, "photo-cleared", {});

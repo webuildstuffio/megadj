@@ -111,68 +111,26 @@ architecture, build plan, acceptance).
 The full parking lot lives in [ideas.md](ideas.md); the **opinionated
 proposal — what to build next and why — is
 [roadmap-proposal.md](roadmap-proposal.md)** (three moves: harden the moat →
-complete the metadata → agentify). Headliners:
+complete the metadata → agentify). Headliners per project:
 
-### CrateDeck v1.x
-
-- **Global search across ghosts** — ⌘K over every snapshot: "do I own this
-  anywhere, and on which stick?" (§B9)
-- **Gig mode & preflight** — one click: drive marked out-for-gig → pass/fail
-  checklist (sync, grids, integrity, space) → history harvest on return (§B12, F35)
-- **Player-compatibility verdict** — per-drive "works on: XZ ✓, AZ ✗" from
-  the official Device-vs-OneLibrary matrix + measured dual-DB state (§N75–78)
-- **Set intelligence** — harvest player-written history from the drives:
-  most-played, never-played, set reconstruction (§B11)
-- **Assisted legacy-export runbook** — CrateDeck walks you through the
-  once-per-generation XDJ-XZ export dance, auto-detecting each stage (§C18a)
-- **Scheduled unattended sync** — sync→mirror→verify as one job with
-  notifications, safe under the interlock (§C22)
-
-_Shipped since this list was written: auto-scan on mount + weekly
-auto-verify (§B17), fleet coverage/redundancy/diff (§B6–B8), ⌘K search
-over snapshots + the Fleet page._
-
-### GetDat v2
-
-- **SoundCloud as a first-class source** — favorites sync, 320 kbps streams,
-  reposts and playlists (§K57)
-- **Bandcamp + long-tail platforms** (§K58)
-- **1001tracklists mining → discovery queue** — "played everywhere, not in
-  your library" (§K59)
-- **`megadj drop`** — the one-shot: drop a folder or URL → clean → analyze →
-  tag → rekordbox-ready (§K61)
-- **LOWQ upgrade queue** — re-resolve every low-quality track at today's best
-  format, verify by fingerprint before swapping (§D24, L62)
-
-### FullTags v2
-
-- **Acoustic fingerprint ledger** — Chromaprint per file: cross-format dupe
-  detection, verified swaps, untagged-file identification (§L62)
-- **Key detection that beats rekordbox** — OpenKeyScan (GiantSteps-trained,
-  ~79%), ~90%-class accuracy on dance vs rekordbox 7's 69%, writing `TKEY` +
-  Camelot + a harmonic-mix panel (§I51)
-- **Real BPM + downbeats via `beat_this`** — current open SOTA (MIT,
-  CPU-friendly); feeds `TBPM` and anchors structure-aware cues later (§I46);
-  BeatFM beats it on paper but ships no weights (§research notes)
-- **Full-depth tag schema** — BPM, Initial Key, producer credits, label,
-  source, energy, vibe — every DJ-useful frame, idempotently (§J53)
-- **Essentia mood & vibe suite** — danceability, valence–arousal, embeddings
-  — research-grade, offline, pip-installable (§I45)
-- **Structure-aware grids & cues** — intro/drop/outro detection → auto-placed
-  memory cues, phrase-aware grids (§I46)
-
-### The agentic layer
-
-- **Safety rails first, then megadj MCP server** — expose the archive +
-  deckctl as MCP tools so any agent can answer "what's on the XZ?" or "run
-  a checksum" with the interlock enforced _in the tool layer_ (§O86, O82)
-- **Weekly agent prep loop** — headless one-shot that preps the drives on a
-  schedule (§O83)
-
-### The dream
-
-- **Hit predictor & set-builder copilot** — calibrated on what actually got
-  played; proposes sequences, never auto-exports (§M64, M66)
+- **CrateDeck v1.x** — global search across ghosts (§B9), gig mode &
+  preflight (§B12), player-compatibility verdict (§N75–78), set
+  intelligence (§B11), assisted legacy-export runbook (§C18a),
+  scheduled unattended sync (§C22).
+  _Shipped since this list was written: auto-scan on mount + weekly
+  auto-verify (§B17), fleet coverage/redundancy/diff (§B6–B8), ⌘K search
+  over snapshots + the Fleet page._
+- **GetDat v2** — SoundCloud as a first-class source (§K57), Bandcamp +
+  long-tail platforms (§K58), 1001tracklists mining → discovery queue
+  (§K59), `megadj drop` one-shot (§K61), LOWQ upgrade queue (§D24, L62).
+- **FullTags v2** — acoustic fingerprint ledger (§L62), OpenKeyScan key
+  detection writing `TKEY` + Camelot (§I51), real BPM + downbeats via
+  `beat_this` (§I46), Essentia mood & vibe suite (§I45),
+  structure-aware grids & cues (§I46).
+- **The agentic layer** — safety rails first (§O86), then the megadj MCP
+  server (§O82) and a weekly headless agent prep loop (§O83).
+- **The dream** — hit predictor & set-builder copilot, calibrated on what
+  actually got played; proposes sequences, never auto-exports (§M64, M66).
 
 ---
 

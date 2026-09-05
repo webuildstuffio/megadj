@@ -24,29 +24,38 @@ function assertMac(): void {
 function printHelp(): void {
   console.log(`megadj — DJ library manager: acquire (GetDat), enrich (FullTags), drive it (CrateDeck)
 
-usage:
-  megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)
-  megadj init                                  first-run bootstrap: scaffold config.toml + doctor
-  megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,PLxxxx]
-  megadj enrich  [--dry-run]                   fill weak genres via MusicBrainz
+getdat — pull every track from everywhere:
+  megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,PLxxxx] [--json]
+                                               download from YouTube Music; resumable, rate-limited
+  megadj status [--json]                       archive summary + recent runs
+  megadj list    [filter] [--json]             list tracks (by status or text)
+  megadj adopt   [--json]                      register existing files in the DB
+  megadj retry                                reset failure counters, then \`megadj sync\` to retry
+
+fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj ingest  <folder> [--dry-run] [--no-artwork] [--min-duration N]
                                                tag+art+dedupe downloads (zips too)
   megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run]
                                                enrichment pass: tags+genres+years+art
-  megadj audit   [--json]                      ground-truth tag/art audit of the archive
+  megadj audit   [--json]                      ground-truth tag/art audit — exits 1 on any gap
   megadj artwork [--model M] [--max N] [--dry-run]
-                                               generate covers for queued tracks
-  megadj status [--json]                       archive summary + recent runs
-  megadj list    [filter] [--json]             list tracks (by status or text)
-  megadj retry                                retry failed tracks
-  megadj adopt                                register existing files in the DB
-  megadj help                                this help
+                                               generate covers for queued tracks (last resort)
+  megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz
+  megadj organize [--dry-run] [--json]         move downloaded files into genre folders
+
+cratedeck — the Crate: organize, sync & verify every DJ USB:
+  megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)
+  megadj init                                  first-run bootstrap: scaffold config.toml + doctor
+  bun run deck                                 the dashboard: every drive, its health, its playlists
+  bun run deckctl status | report | run | coverage | diff    agent/human CLI
+  bun run mcp                                  same surface over MCP for AI agents
 
 environment:
-  MEGADJ_MUSIC_DIR   target folder (default ~/Music/DJ-Imports)
-  MEGADJ_DB          state db path (default ~/.local/state/megadj/archive.db)
-  MEGADJ_COOKIES     browser for cookies (default chrome, empty to disable)
-  OPENROUTER_API_KEY required for \`artwork\` (load from keychain, never hardcode)`);
+  MEGADJ_MUSIC_DIR      target folder (default ~/Music/DJ-Imports)
+  MEGADJ_DB             state db path (default ~/.local/state/megadj/archive.db)
+  MEGADJ_COOKIES        browser for cookies (default chrome, empty to disable)
+  MEGADJ_COOKIES_FILE   exported cookie jar for headless runs (see scripts/export-cookies.sh)
+  OPENROUTER_API_KEY    required for \`artwork\` (load from keychain, never hardcode)`);
 }
 
 /** Bun's util.parseArgs is broken (strict:true rejects known options,
@@ -130,7 +139,7 @@ async function main(): Promise<void> {
         const flags = parseFlags(
           process.argv.slice(3),
           ["limit", "sources", "target-total"],
-          ["dry-run", "music-only"],
+          ["dry-run", "music-only", "json"],
         );
         const limiter = new RateLimiter({
           onPace: (ms) =>
@@ -166,6 +175,7 @@ async function main(): Promise<void> {
           musicOnly,
           targetTotal,
           sources,
+          json: flags.bools.has("json"),
         });
         break;
       }
@@ -194,26 +204,37 @@ async function main(): Promise<void> {
       }
       case "adopt": {
         const { adopt } = await import("./commands/adopt");
-        await adopt({ state, musicDir: MUSIC_DIR });
+        const json = process.argv.slice(3).includes("--json");
+        await adopt({ state, musicDir: MUSIC_DIR, json });
         break;
       }
       case "organize": {
-        const flags = parseFlags(process.argv.slice(3), [], ["dry-run"]);
+        const flags = parseFlags(
+          process.argv.slice(3),
+          [],
+          ["dry-run", "json"],
+        );
         const { organize } = await import("./commands/organize");
         await organize({
           state,
           musicDir: MUSIC_DIR,
           dryRun: flags.bools.has("dry-run"),
+          json: flags.bools.has("json"),
         });
         break;
       }
       case "enrich": {
-        const flags = parseFlags(process.argv.slice(3), [], ["dry-run"]);
+        const flags = parseFlags(
+          process.argv.slice(3),
+          [],
+          ["dry-run", "json"],
+        );
         const { enrich } = await import("./commands/enrich");
         await enrich({
           state,
           musicDir: MUSIC_DIR,
           dryRun: flags.bools.has("dry-run"),
+          json: flags.bools.has("json"),
         });
         break;
       }

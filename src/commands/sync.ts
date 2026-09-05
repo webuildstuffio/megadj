@@ -31,6 +31,8 @@ export interface SyncOptions {
   /** Stop once this many tracks are downloaded in total. */
   targetTotal?: number;
   onProgress?: (msg: string) => void;
+  /** Machine-readable summary instead of human logs (P1: --json everywhere). */
+  json?: boolean;
 }
 
 /** A playlist source: id (e.g. "LM", "LL", "PL...") plus a label for state. */
@@ -235,5 +237,28 @@ export async function sync(opts: SyncOptions): Promise<void> {
   log(
     `archive: ${counts["downloaded"] ?? 0} downloaded / ${counts["gone"] ?? 0} gone / ${counts["failed"] ?? 0} failed / ${counts["pending"] ?? 0} pending / ${counts["skipped_not_music"] ?? 0} not-music`,
   );
+  if (opts.json) {
+    // P1 (--json on every command): one summary object on stdout, last.
+    console.log(
+      JSON.stringify({
+        command: "sync",
+        dryRun: opts.dryRun ?? false,
+        runId,
+        attempted,
+        downloaded,
+        notMusic,
+        gone,
+        failed,
+        bytesDownloaded: bytes,
+        archive: {
+          downloaded: counts["downloaded"] ?? 0,
+          gone: counts["gone"] ?? 0,
+          failed: counts["failed"] ?? 0,
+          pending: counts["pending"] ?? 0,
+          skippedNotMusic: counts["skipped_not_music"] ?? 0,
+        },
+      }),
+    );
+  }
   void startTotal;
 }

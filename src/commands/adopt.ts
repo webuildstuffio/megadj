@@ -12,6 +12,9 @@ import type { ArchiveState } from "../state";
 export interface AdoptOptions {
   state: ArchiveState;
   musicDir: string;
+  onProgress?: (msg: string) => void;
+  /** Machine-readable summary instead of human logs (P1: --json everywhere). */
+  json?: boolean;
 }
 
 /** Normalize a string for loose title comparison. */
@@ -28,7 +31,14 @@ function normalize(s: string): string {
 
 /** Recursively collect .m4a files (the tree has genre subfolders). */
 async function walkM4a(dir: string, out: string[] = []): Promise<string[]> {
-  for (const ent of await readdir(dir, { withFileTypes: true })) {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    // Missing music dir: nothing to adopt (doctor flags this upstream).
+    return out;
+  }
+  for (const ent of entries) {
     if (ent.name.startsWith(".")) continue;
     const full = join(dir, ent.name);
     if (ent.isDirectory()) await walkM4a(full, out);
@@ -38,8 +48,9 @@ async function walkM4a(dir: string, out: string[] = []): Promise<string[]> {
 }
 
 export async function adopt(opts: AdoptOptions): Promise<void> {
+  const log = opts.onProgress ?? ((m: string) => console.log(m));
   const files = await walkM4a(opts.musicDir);
-  console.log(`found ${files.length} audio files under ${opts.musicDir}`);
+  log(`found ${files.length} audio files under ${opts.musicDir}`);
 
   const tracks = opts.state.allTracks();
   // Build a lookup of normalized title -> track row. Prefer entries that
@@ -74,10 +85,21 @@ export async function adopt(opts: AdoptOptions): Promise<void> {
     });
     byTitle.delete(key);
     adopted++;
-    console.log(`  adopted: ${base}`);
+    log(`  adopted: ${base}`);
   }
 
-  console.log(
+  log(
     `\nadopted ${adopted} file(s); ${files.length - adopted} unmatched (left pending or already tracked)`,
   );
+  if (opts.json) {
+    // P1 (--json on every command): one summary object on stdout, last.
+    console.log(
+      JSON.stringify({
+        command: "adopt",
+        scanned: files.length,
+        adopted,
+        unmatched: files.length - adopted,
+      }),
+    );
+  }
 }

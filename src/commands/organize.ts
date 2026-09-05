@@ -20,6 +20,8 @@ export interface OrganizeOptions {
   musicDir: string;
   dryRun?: boolean;
   onProgress?: (msg: string) => void;
+  /** Machine-readable summary instead of human logs (P1: --json everywhere). */
+  json?: boolean;
 }
 
 async function fileGenreTag(filePath: string): Promise<string | null> {
@@ -52,10 +54,7 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
       continue;
     }
 
-    let genre = track.genre ?? (await fileGenreTag(filePath)) ?? "Music";
-    if (genre === "Music" && track.artist) {
-      genre = "Music";
-    }
+    const genre = track.genre ?? (await fileGenreTag(filePath)) ?? "Music";
     const folder = sanitizeGenreFolder(genre);
     const fileName = filePath.split("/").pop() ?? `${track.video_id}.m4a`;
     const targetDir = `${opts.musicDir}/${folder}`;
@@ -95,4 +94,17 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
   log(
     `\norganize complete: ${moved} moved, ${skipped} already organized, ${missing} missing`,
   );
+  if (opts.json) {
+    // P1 (--json on every command): one summary object on stdout, last.
+    console.log(
+      JSON.stringify({
+        command: "organize",
+        dryRun: opts.dryRun ?? false,
+        considered: tracks.length,
+        moved,
+        alreadyOrganized: skipped,
+        missing,
+      }),
+    );
+  }
 }

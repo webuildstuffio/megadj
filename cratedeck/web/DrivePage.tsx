@@ -65,46 +65,62 @@ export function DrivePage(props: {
   const [nameDraft, setNameDraft] = useState("");
   const [photoHits, setPhotoHits] = useState<PhotoHit[] | null>(null);
   const [photoQuery, setPhotoQuery] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const locked = interlock.rekordbox_running;
 
   const load = useCallback(async () => {
     const enc = encodeURIComponent(driveId);
-    const [d, r, t, b, j, v] = await Promise.all([
-      fetch(`/api/drives/${enc}`).then((res) => res.json() as Promise<Detail>),
-      fetch(`/api/drives/${enc}/report`).then(
-        (res) => res.json() as Promise<DriveReport & { overall?: string }>,
-      ),
-      fetch(`/api/drives/${enc}/timeline`).then(
-        (res) => res.json() as Promise<TimelineEvent[]>,
-      ),
-      fetch(`/api/drives/${enc}/benchmarks`).then(
-        (res) =>
-          res.json() as Promise<
-            { ran_at: number; seq_mbps: number; rand4k_mbps: number }[]
-          >,
-      ),
-      fetch(`/api/jobs?drive=${enc}`).then(
-        (res) => res.json() as Promise<Job[]>,
-      ),
-      fetch(`/api/drives/${enc}/verify`).then(
-        (res) => res.json() as Promise<VerifyReport>,
-      ),
-    ]);
-    if (!d?.drive) {
-      // unknown drive id (stale link / renamed registry) — surface, don't hang
-      setDetail({ drive: null } as unknown as Detail);
+    try {
+      const [d, r, t, b, j, v] = await Promise.all([
+        fetch(`/api/drives/${enc}`).then(
+          (res) => res.json() as Promise<Detail>,
+        ),
+        fetch(`/api/drives/${enc}/report`).then(
+          (res) => res.json() as Promise<DriveReport & { overall?: string }>,
+        ),
+        fetch(`/api/drives/${enc}/timeline`).then(
+          (res) => res.json() as Promise<TimelineEvent[]>,
+        ),
+        fetch(`/api/drives/${enc}/benchmarks`).then(
+          (res) =>
+            res.json() as Promise<
+              { ran_at: number; seq_mbps: number; rand4k_mbps: number }[]
+            >,
+        ),
+        fetch(`/api/jobs?drive=${enc}`).then(
+          (res) => res.json() as Promise<Job[]>,
+        ),
+        fetch(`/api/drives/${enc}/verify`).then(
+          (res) => res.json() as Promise<VerifyReport>,
+        ),
+      ]);
+      if (!d?.drive) {
+        // unknown drive id (stale link / renamed registry) — surface, don't hang
+        setDetail({ drive: null } as unknown as Detail);
+        setLoadError(null);
+        return;
+      }
+      const fresh = d;
+      setDetail(fresh);
+      setReport(r);
+      setTimeline(t);
+      setBench(b);
+      setJobs(j);
+      setVerify(v);
+      setLoadError(null);
+    } catch (e) {
+      // failed background refresh: keep the last good render visible, but the
+      // failure is surfaced (banner) instead of silently showing stale data.
+      console.error(`drive ${driveId} load failed`, e);
+      setLoadError(e instanceof Error ? e.message : String(e));
       return;
     }
-    setDetail(d);
-    setReport(r);
-    setTimeline(t);
-    setBench(b);
-    setJobs(j);
-    setVerify(v);
   }, [driveId]);
 
   useEffect(() => {
-    load();
+    load().catch((e: unknown) => {
+      console.error(`initial load for ${driveId} failed`, e);
+    });
     // adaptive cadence: 2s while jobs run (live progress), 10s idle. When a
     // job looks stuck (running >90s with no progress change) do a full
     // reload anyway — this is the self-heal for a lost SSE "done" event.
@@ -149,9 +165,12 @@ export function DrivePage(props: {
   useEffect(() => {
     const onJob = () => {
       fetch(`/api/jobs?drive=${driveId}`)
-        .then((r) => r.json())
+        .then((r) => r.json() as Promise<Job[]>)
         .then(setJobs)
-        .catch(() => {});
+        .catch((e: unknown) => {
+          console.error(`jobs refresh for ${driveId} failed`, e);
+          toast("job list refresh failed — server unreachable", "err");
+        });
     };
     window.addEventListener("cratedeck:job", onJob);
     return () => window.removeEventListener("cratedeck:job", onJob);
@@ -189,7 +208,9 @@ export function DrivePage(props: {
     });
     setRenaming(false);
     toast(nickname ? "Drive renamed" : "Nickname cleared", "ok");
-    load();
+    load().catch((e: unknown) =>
+      console.error("post-rename refresh failed", e),
+    );
   };
 
   const searchPhotos = async () => {
@@ -208,7 +229,13 @@ export function DrivePage(props: {
         return;
       }
       setPhotoHits(res.hits);
-    } catch {}
+    } catch (e) {
+      console.error("photo search failed", e);
+      toast(
+        `image search failed: ${e instanceof Error ? e.message : String(e)}`,
+        "err",
+      );
+    }
   };
 
   const choosePhoto = async (hit: PhotoHit) => {
@@ -219,8 +246,15 @@ export function DrivePage(props: {
         body: JSON.stringify({ url: hit.full }),
       });
       toast("Photo saved", "ok");
-      load();
-    } catch {}
+      load().catch((e: unknown) =>
+        console.error("post-save refresh failed", e),
+      );
+    } catch (e) {
+      toast(
+        `photo save failed: ${e instanceof Error ? e.message : String(e)}`,
+        "err",
+      );
+    }
   };
 
   const clearPhoto = async () => {
@@ -233,7 +267,12 @@ export function DrivePage(props: {
       });
       toast("Photo removed", "ok");
       load();
-    } catch {}
+    } catch (e) {
+      toast(
+        `photo removal failed: ${e instanceof Error ? e.message : String(e)}`,
+        "err",
+      );
+    }
   };
 
   if (!detail)
@@ -241,7 +280,9 @@ export function DrivePage(props: {
       <div class="canvas">
         <div class="note-card">
           <Icon name="clock" size={20} />
-          Loading drive…
+          {loadError
+            ? `Loading failed: ${loadError} — retrying in the background`
+            : "Loading drive…"}
         </div>
       </div>
     );

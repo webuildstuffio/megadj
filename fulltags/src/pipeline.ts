@@ -92,8 +92,14 @@ export async function enrichTrack(
   }
 
   // ---------- 1. tags: MusicBrainz fills artist/album/date ----------
+  // CLI hints fill what the file lacks; hints covering every missing field
+  // make the pass deterministic — skip MB entirely (keeps offline/CI runs
+  // off the network and the run fast).
+  const hinted =
+    (!truth.title || Boolean(opts.hints?.title)) &&
+    (!truth.artist || Boolean(opts.hints?.artist)) &&
+    (!truth.album || Boolean(opts.hints?.album));
   if (want("tags") && (!truth.title || !truth.artist || !truth.album)) {
-    // CLI hints first (only where the file lacks the field), then MB.
     if (!truth.title && opts.hints?.title) patch.title = opts.hints.title;
     if (!truth.artist && opts.hints?.artist) patch.artist = opts.hints.artist;
     if (!truth.album && opts.hints?.album) patch.album = opts.hints.album;
@@ -101,7 +107,9 @@ export async function enrichTrack(
       (truth.artist ?? t.artist ?? patch.artist ?? "")
         .split(/[,&]/)[0]
         ?.trim() || null;
-    const rec = await mbLookupCached(artist0, titleGuess ?? basename(t.path));
+    const rec = hinted
+      ? null
+      : await mbLookupCached(artist0, titleGuess ?? basename(t.path));
     if (rec) {
       if (!truth.title && !patch.title && rec.title) patch.title = rec.title;
       if (!truth.artist && !patch.artist && rec.artist)
@@ -300,7 +308,10 @@ async function mbLookupCached(
     // Be polite to MusicBrainz: 1 rps even for misses.
     await new Promise((r) => setTimeout(r, 1050));
     return out;
-  } catch {
+  } catch (e) {
+    // MB fill is one optional hint among many (filename + SC tags come
+    // first); failure degrades to null but is logged, not swallowed.
+    console.error(`MusicBrainz lookup failed for ${key}`, e);
     return null;
   }
 }
@@ -370,7 +381,8 @@ print(json.dumps({"energy": val}))`;
       : null;
     const n = v === null ? NaN : Number(v);
     return Number.isFinite(n) ? n : null;
-  } catch {
+  } catch (e) {
+    console.error(`energy probe failed (exit ${pr.exitCode})`, e);
     return null;
   }
 }

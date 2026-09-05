@@ -39,9 +39,13 @@ export function VerifyTab(props: {
 
   useEffect(() => {
     fetch(`/api/drives/${driveId}/verify/help`)
-      .then((r) => r.json())
+      .then((r) => r.json() as Promise<HelpDoc>)
       .then(setHelp)
-      .catch(() => {});
+      .catch((e: unknown) => {
+        console.error(`verify help for ${driveId} failed`, e);
+        // the tab still works without the help doc (report + run button are
+        // self-contained) — the failure is logged, not hidden.
+      });
   }, [driveId]);
 
   const runVerify = async () => {

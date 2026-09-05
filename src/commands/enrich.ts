@@ -9,13 +9,15 @@
 
 import { $ } from "bun";
 import type { ArchiveState } from "../state";
-import { inferGenre, sanitizeGenreFolder } from "../metadata";
+import { inferGenre } from "../metadata";
 
 export interface EnrichOptions {
   state: ArchiveState;
   musicDir: string;
   dryRun?: boolean;
   onProgress?: (msg: string) => void;
+  /** Machine-readable summary instead of human logs (P1: --json everywhere). */
+  json?: boolean;
 }
 
 interface MbArtist {
@@ -118,5 +120,16 @@ export async function enrich(opts: EnrichOptions): Promise<void> {
   log(
     `\nenrich complete: ${upgraded} upgraded, ${unchanged} unchanged (of ${tracks.length})`,
   );
-  void sanitizeGenreFolder;
+  if (opts.json) {
+    // P1 (--json on every command): one summary object on stdout, last.
+    console.log(
+      JSON.stringify({
+        command: "enrich",
+        dryRun: opts.dryRun ?? false,
+        considered: tracks.length,
+        upgraded,
+        unchanged,
+      }),
+    );
+  }
 }
