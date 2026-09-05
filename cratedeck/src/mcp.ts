@@ -31,6 +31,7 @@
  *   archive_lowq_queue          below-bitrate upgrade queue (D24)
  *   archive_source_diff {a, b}  track-set diff between two sources
  *   archive_grid_cross_check    beat_this ledger vs RB BPM×duration verdicts
+ *   archive_mood_profile        mood/dance/VA averages + extremes (roadmap #4)
  */
 import {
   apiGet,
@@ -636,6 +637,30 @@ const TOOLS: Record<string, ToolDef> = {
           ? Math.min(Math.floor(lim), 500)
           : 200;
       const res = await apiGet(`/api/archive/grid-cross-check?limit=${limit}`);
+      return res.json();
+    },
+  },
+
+  archive_mood_profile: {
+    description:
+      "[READ-ONLY] Mood / dance / valence profile of the archive (roadmap #4): ledger averages (danceability, valence, arousal, party, electronic, aggressive) + the highest/lowest tracks per axis — 'play me something dark/hyped/smooth' picker data from megadj's mood ledger (TXXX:MOOD mirror). analyzed=0 means run `megadj mood` first.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "extremes per axis, high+low each (default 5, max 25)",
+        },
+      },
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const lim = args.limit;
+      const limit =
+        typeof lim === "number" && Number.isFinite(lim) && lim > 0
+          ? Math.min(Math.floor(lim), 25)
+          : 5;
+      const res = await apiGet(`/api/archive/mood?limit=${limit}`);
       return res.json();
     },
   },

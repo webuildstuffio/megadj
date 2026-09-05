@@ -505,6 +505,11 @@ Bun.serve({
         if (route === "/archive/grid-cross-check") {
           return json(archive.gridCrossCheck());
         }
+        // Mood/dance/valence profile (roadmap #4): aggregate + extremes
+        // over the mood ledger. Read-only over the archive DB.
+        if (route === "/archive/mood") {
+          return json(archive.moodProfile());
+        }
         if (route === "/images/search") {
           return json(await images.search(url.searchParams.get("q") ?? ""));
         }

@@ -7,6 +7,37 @@ All notable changes to megadj are documented here. Format:
 
 ### Added
 
+- **Roadmap rev 6.2 — mood execution pass 3 + CrateDeck mood surface
+  (Sep 5 2026):** finished the "then" block of the roadmap by executing
+  and hardening what rev 6.1 shipped.
+  - **Mood convergence verified on the real archive:** re-run of
+    `fulltags --mood` = 0 changed (idempotent); `megadj mood` mirror
+    re-synced 88/88 ledger rows (`--force` re-reads file stamps).
+  - **CrateDeck readonly mood surface:** `ArchiveReader.moodProfile()`
+    (ledger averages + per-axis high/low extremes with title/artist
+    joins), `GET /api/archive/mood`, and MCP tool
+    `archive_mood_profile` — "play me something dark/hyped/smooth"
+    picker data for agents/UI, zero audio touched. Degrades cleanly on
+    pre-mood DBs (no `mood` table) and empty ledgers (no NaN).
+  - **Energy 2.0 verified end-to-end + measureRms bug fixed:** 84/88
+    archive files already carried the `0.5·RMS + 0.3·dance +
+0.2·arousal` blend (written by the mood pass); the 4 misses were
+    art-embedded WAVs — the embedded cover decodes as a bogus video
+    stream, ffmpeg's default stream selection fed it into the astats
+    graph, the decode failed, and the whole command exited non-zero →
+    `measureRms` returned null and the energy stage silently skipped
+    (`fulltags/src/probes.ts`). Fixed with `-map 0:a`; regression test
+    embeds an APIC cover on a WAV first; repaired pass = 88/88 stamped,
+    re-run 0 changed.
+  - **effnet genre ONNX confirmed absent upstream:** the
+    `genre_discogs400` head dir ships 7 ONNX files, all maest variants;
+    the effnet head is pb-only (its own `model_types` lists `onnx` but
+    every ONNX URL 404s). Combined with the saturation gate failure,
+    genre-head writes are **deferred indefinitely**.
+  - Tests: `moodProfile` extremes/degradation tests in
+    `cratedeck/test/archive.test.ts` (11 pass), art-embedded-WAV energy
+    regression in `fulltags/test/pipeline.test.ts`.
+
 - **Mood pass over the archive + label-order hotfix + `megadj mood`
   ledger (Sep 5 2026, late night):** the rev 6.1 mood suite executed for
   real, one bug caught and fixed in the process.

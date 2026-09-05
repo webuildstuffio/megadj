@@ -151,6 +151,17 @@ export class ArchiveState {
         analyzed_at TEXT NOT NULL
       );
     `);
+    // Structure cues ledger (roadmap "structure cues" slice): DJ phrase
+    // markers (every 8 bars) derived from the beats ledger's downbeats.
+    // DB-side only — rekordbox memory cues are a separate gated surface.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS cues (
+        video_id TEXT PRIMARY KEY,
+        cues_json TEXT NOT NULL,
+        model TEXT NOT NULL,
+        derived_at TEXT NOT NULL
+      );
+    `);
     this.db.exec(
       `CREATE INDEX IF NOT EXISTS idx_tracks_source ON tracks(source)`,
     );
@@ -679,5 +690,107 @@ export class ArchiveState {
         electronic: r(row.electronic),
       },
     };
+  }
+
+  // ---------- structure cues ledger (roadmap cues slice) ----------
+
+  /** Upsert one derived cue set. Idempotent by video_id: a re-run replaces
+   * the row (fresh timestamps). */
+  setCueRecord(rec: {
+    videoId: string;
+    cues: Array<{ index: number; position: number; bar: number }>;
+    source: string;
+  }): void {
+    this.db
+      .query(
+        `INSERT INTO cues (video_id, cues_json, model, derived_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(video_id) DO UPDATE SET
+           cues_json = excluded.cues_json,
+           model = excluded.model,
+           derived_at = excluded.derived_at`,
+      )
+      .run(
+        rec.videoId,
+        JSON.stringify(rec.cues),
+        rec.source,
+        this.now(),
+      );
+  }
+
+  /** One cue record (by video id), null when never derived. */
+  cueRecord(videoId: string): {
+    videoId: string;
+    cues: Array<{ index: number; position: number; bar: number }>;
+    source: string;
+    derivedAt: string;
+  } | null {
+    const row = this.db
+      .query(
+        `SELECT video_id, cues_json, model, derived_at
+         FROM cues WHERE video_id = ?`,
+      )
+      .get(videoId) as {
+      video_id: string;
+      cues_json: string;
+      model: string;
+      derived_at: string;
+    } | null;
+    if (!row) return null;
+    let cues: Array<{ index: number; position: number; bar: number }> = [];
+    try {
+      cues = JSON.parse(row.cues_json) as Array<{
+        index: number;
+        position: number;
+        bar: number;
+      }>;
+    } catch {
+      return null; // corrupt JSON row — treat as absent so the pass re-derives
+    }
+    return {
+      videoId: row.video_id,
+      cues,
+      source: row.model,
+      derivedAt: row.derived_at,
+    };
+  }
+
+  /** All cue records joined to their track rows (downloaded only). */
+  cueAnalyzedTracks(): Array<{
+    videoId: string;
+    title: string | null;
+    cues: Array<{ index: number; position: number; bar: number }>;
+    source: string;
+  }> {
+    const rows = this.db
+      .query(
+        `SELECT c.video_id, t.title, c.cues_json, c.model
+         FROM cues c JOIN tracks t ON t.video_id = c.video_id
+         WHERE t.status = 'downloaded'`,
+      )
+      .all() as Array<{
+      video_id: string;
+      title: string | null;
+      cues_json: string;
+      model: string;
+    }>;
+    return rows.flatMap((r) => {
+      try {
+        return [
+          {
+            videoId: r.video_id,
+            title: r.title,
+            cues: JSON.parse(r.cues_json) as Array<{
+              index: number;
+              position: number;
+              bar: number;
+            }>,
+            source: r.model,
+          },
+        ];
+      } catch {
+        return []; // corrupt row — skip, never throw
+      }
+    });
   }
 }

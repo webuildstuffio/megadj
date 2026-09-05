@@ -43,6 +43,8 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                beat_this → DB ledger (downbeats for cues/grid checks; no tag writes)
   megadj mood    [--limit N] [--jobs N] [--force] [--dry-run] [--json]
                                                ONNX mood/dance/VA → DB ledger (syncs TXXX:MOOD stamps; analyzes unstamped)
+  megadj cues    [--limit N] [--force] [--dry-run] [--json]
+                                               8-bar phrase cues from the beats ledger → DB (no player writes)
   megadj artwork [--model M] [--max N] [--dry-run] [--json]
                                                generate covers for queued tracks (last resort)
   megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz
@@ -383,7 +385,7 @@ async function main(): Promise<void> {
           break;
         }
         console.log(
-          `audit: ${report.complete}/${report.total} complete (art + title + artist + album + genre + year)`,
+          `audit: ${report.complete}/${report.total} complete (art + title + artist + album + genre + year + mood + energy)`,
         );
         if (gaps.length) {
           console.log(`\nincomplete:`);
@@ -466,6 +468,33 @@ async function main(): Promise<void> {
           state,
           musicDir: MUSIC_DIR,
           jobs: numOpt(flags, "jobs"),
+          limit: limRaw !== undefined ? limNum : undefined,
+          force: flags.bools.has("force"),
+          dryRun: flags.bools.has("dry-run"),
+          json: flags.bools.has("json"),
+        });
+        break;
+      }
+      case "cues": {
+        // Roadmap cues slice: DJ phrase markers (8-bar) from the beats
+        // ledger's downbeats — DB-side only, no player writes.
+        const flags = parseFlags(
+          process.argv.slice(3),
+          ["limit"],
+          ["force", "dry-run", "json"],
+        );
+        const limRaw = flags.strings.get("limit");
+        const limNum = limRaw !== undefined ? Number(limRaw) : NaN;
+        if (limRaw !== undefined && (!Number.isFinite(limNum) || limNum < 0)) {
+          console.error(
+            `cues: --limit must be a non-negative number (got "${limRaw}")`,
+          );
+          process.exitCode = 1;
+          break;
+        }
+        const { cues } = await import("./commands/cues");
+        await cues({
+          state,
           limit: limRaw !== undefined ? limNum : undefined,
           force: flags.bools.has("force"),
           dryRun: flags.bools.has("dry-run"),

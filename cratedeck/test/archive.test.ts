@@ -103,6 +103,14 @@ beforeEach(() => {
     seed.exec("DELETE FROM beats");
     seed.exec("DELETE FROM tracks WHERE video_id IN ('v5','v6')");
   }
+  // moodProfile fixture rows — same guard pattern for the mood table.
+  const hasMood = seed
+    .query(`SELECT name FROM sqlite_master WHERE type='table' AND name='mood'`)
+    .get();
+  if (hasMood) {
+    seed.exec("DELETE FROM mood");
+    seed.exec("DELETE FROM tracks WHERE video_id IN ('v7','v8')");
+  }
 });
 
 afterAll(() => {
@@ -276,5 +284,86 @@ describe("ArchiveReader (O82b)", () => {
     expect(g.checked).toBe(0);
     r.close();
     rmSync(oldDir, { recursive: true, force: true });
+  });
+
+  it("moodProfile: averages + valence/arousal/dance extremes off the mood ledger", () => {
+    // mood table mirrors megadj's src/state.ts schema
+    seed.exec(`
+      CREATE TABLE IF NOT EXISTS mood (
+        video_id TEXT PRIMARY KEY, dance REAL NOT NULL, aggressive REAL NOT NULL,
+        happy REAL NOT NULL, electronic REAL NOT NULL, party REAL NOT NULL,
+        valence REAL NOT NULL, arousal REAL NOT NULL,
+        source_path TEXT NOT NULL, analyzed_at TEXT NOT NULL
+      );
+    `);
+    const insM = seed.query(
+      `INSERT OR REPLACE INTO mood (video_id, dance, aggressive, happy, electronic, party, valence, arousal, source_path, analyzed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    // tracks for title/artist joins (v7 bright-dance, v8 sleepy; v1/v2 reuse fixtures)
+    const insT7 = seed.query(
+      `INSERT INTO tracks (video_id, title, artist, status, bitrate_kbps, codec,
+       file_path, duration_s, genre, energy, source, liked_position,
+       first_seen_at, updated_at)
+       VALUES (?, ?, 'A', 'downloaded', 320, 'mp3', '/p', 300,
+               'Techno', 7, 'liked', 1, '2026-09-01', '2026-09-05')`,
+    );
+    insT7.run("v7", "Dance Top");
+    insT7.run("v8", "Sleepy");
+    insM.run("v1", 0.9, 0.1, 0.8, 0.9, 0.9, 7.5, 7.0, "/p", "t"); // bright
+    insM.run("v2", 0.8, 0.9, 0.1, 0.7, 0.2, 2.5, 8.5, "/p", "t"); // dark+hyped
+    insM.run("v7", 0.99, 0.2, 0.4, 0.95, 0.95, 5.0, 5.0, "/p", "t"); // dance top
+    insM.run("v8", 0.1, 0.3, 0.2, 0.1, 0.1, 4.0, 2.0, "/p", "t"); // sleepy
+    const r = reader();
+    const p = r.moodProfile(1);
+    expect(p.available).toBe(true);
+    expect(p.analyzed).toBe(4);
+    // average valence: (7.5+2.5+5+4)/4 = 4.75
+    expect(p.avg.valence).toBeCloseTo(4.75, 2);
+    expect(p.avg.dance).toBeCloseTo((0.9 + 0.8 + 0.99 + 0.1) / 4, 2);
+    // extremes: 1 high + 1 low per axis at limit=1
+    expect(p.extremes.valence).toHaveLength(2);
+    expect(p.extremes.valence[0]).toMatchObject({ video_id: "v1", v: 7.5 });
+    expect(p.extremes.valence[1]).toMatchObject({ video_id: "v2", v: 2.5 });
+    expect(p.extremes.arousal[0]).toMatchObject({ video_id: "v2", v: 8.5 });
+    expect(p.extremes.arousal[1]).toMatchObject({ video_id: "v8", v: 2 });
+    expect(p.extremes.dance[0]).toMatchObject({ video_id: "v7" });
+    expect(p.extremes.dance[0]!.v).toBeGreaterThan(0.98);
+    expect(p.extremes.dance[1]).toMatchObject({ video_id: "v8" });
+    r.close();
+  });
+
+  it("moodProfile degrades on a schema without mood and on an empty ledger", () => {
+    // no mood table at all → available stays true (DB exists), zeros out
+    const oldDir = mkdtempSync("/tmp/cratedeck-archive-nomood-");
+    const oldPath = join(oldDir, "archive.db");
+    const old = new Database(oldPath, { create: true });
+    old.exec(
+      `CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT, duration_s REAL)`,
+    );
+    old.close();
+    const rOld = new ArchiveReader(oldPath);
+    const pOld = rOld.moodProfile();
+    expect(pOld.available).toBe(true);
+    expect(pOld.analyzed).toBe(0);
+    expect(Number.isNaN(pOld.avg.valence)).toBe(false);
+    rOld.close();
+    rmSync(oldDir, { recursive: true, force: true });
+    // mood table EXISTS but is empty → analyzed 0, no NaN
+    seed.exec(`
+      CREATE TABLE IF NOT EXISTS mood (
+        video_id TEXT PRIMARY KEY, dance REAL NOT NULL, aggressive REAL NOT NULL,
+        happy REAL NOT NULL, electronic REAL NOT NULL, party REAL NOT NULL,
+        valence REAL NOT NULL, arousal REAL NOT NULL,
+        source_path TEXT NOT NULL, analyzed_at TEXT NOT NULL
+      );
+    `);
+    seed.exec("DELETE FROM mood");
+    const r = reader();
+    const p = r.moodProfile();
+    expect(p.analyzed).toBe(0);
+    expect(p.extremes.valence).toEqual([]);
+    expect(Number.isNaN(p.avg.dance)).toBe(false);
+    r.close();
   });
 });

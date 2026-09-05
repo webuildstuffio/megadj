@@ -228,6 +228,21 @@ with edge replicate). 9 regression tests in
   discrimination), so effnet genre writes stay BLOCKED (same pattern as
   the TBPM gate). dance/happy/aggressive DO differentiate (happy 0.04–
   0.99, aggressive 0.01–0.98).
+  **Rev 6.2 addendum — genre head ONNX availability + CrateDeck
+  surface:** Essentia ships **no ONNX export of the effnet genre head**
+  (the `genre_discogs400` head dir carries 7 ONNX files, all maest
+  variants; the effnet head is pb-only — the head's own `model_types`
+  lists `onnx`, but every onnx URL variant 404s). A conversion would
+  need tf2onnx + a fresh sampled gate, for a write whose value is near
+  zero on this library (genres already populated by SC/MB) —
+  **deferred indefinitely**. What DID ship in 6.2: CrateDeck's readonly
+  mood surface — `ArchiveReader.moodProfile()` (ledger averages +
+  per-axis extremes), `GET /api/archive/mood`, MCP tool
+  `archive_mood_profile` — "play me something dark/hyped/smooth" picker
+  data with zero audio touched. Energy 2.0 verified on the real
+  archive: 84/88 already carried the blend (the mood pass computes it),
+  the 4 misses were the art-embedded WAVs (§5b bug 8) — after the fix,
+  88/88 stamped, re-run 0 changed.
 
 ### #5 — MBID provenance + MusicBrainz genre harvest — **S — ✅ SHIPPED (rev 6.1, this pass)**
 
@@ -322,15 +337,16 @@ a spawned interpreter is a perf trap — expose a native sync twin instead
 Pre-rev-4 audit of the shipped surface; all fixed same day with regression
 tests. Rev 5's execution pass found two more (see §0).
 
-| #   | Bug                                                                                | Root cause                                                                        | Fix                                                                                                                          |
-| --- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `fulltags single <file>` misparsed the file as the target dir                      | `parseArgs` skipped only `audit` as a subcommand                                  | skip `single` too                                                                                                            |
-| 2   | failed ffmpeg writes leaked the `.tagged` tmp file                                 | `Bun.$` throws on non-zero exit → cleanup never ran; sync path checked nothing    | try/catch unlink (async) + explicit exitCode check (sync); regression-tested                                                 |
-| 3   | m4a silently dropped bpm/energy/mbid/AI stamps and wiped freeform atoms on rewrite | ffmpeg `ipod` muxer has no mapping for them and clobbers `----` atoms             | M4A writes routed to mutagen (`writePatchMp4`); `readTxxx` parses m4a freeform + flac vorbis (list-unwrap, case-insensitive) |
-| 4   | `qualityScore` treated AIFF/hi-res WAV as lossy                                    | `.replace("pcm_s16le","wav")` matched only 16-bit LE WAV                          | explicit `LOSSLESS_CODECS` set (pcm_s16/24/32 LE+BE, alac, flac, wav)                                                        |
-| 5   | `audit --json` never exited 1 on gaps                                              | exit gate only ran in the human-output branch                                     | gate applied to both branches (CI contract restored)                                                                         |
-| 6   | WAV/AIFF stamp reads returned null → all 73 WAVs re-fingerprinted on every re-run  | `readTxxx`'s WAV/AIFF branches opened the file but never read the ID3 TXXX frames | one shared ID3-TXXX read loop for WAV/AIFF/MP3; regression test pins WAV idempotency                                         |
-| 7   | scoped runs wrote remix credits (`--fingerprint` stamped `TXXX:version`)           | remix detection ran before/outside the stage gate                                 | gated behind `want("tags")`; regression test                                                                                 |
+| #   | Bug                                                                                | Root cause                                                                                                                                                                                                            | Fix                                                                                                                                                           |
+| --- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `fulltags single <file>` misparsed the file as the target dir                      | `parseArgs` skipped only `audit` as a subcommand                                                                                                                                                                      | skip `single` too                                                                                                                                             |
+| 2   | failed ffmpeg writes leaked the `.tagged` tmp file                                 | `Bun.$` throws on non-zero exit → cleanup never ran; sync path checked nothing                                                                                                                                        | try/catch unlink (async) + explicit exitCode check (sync); regression-tested                                                                                  |
+| 3   | m4a silently dropped bpm/energy/mbid/AI stamps and wiped freeform atoms on rewrite | ffmpeg `ipod` muxer has no mapping for them and clobbers `----` atoms                                                                                                                                                 | M4A writes routed to mutagen (`writePatchMp4`); `readTxxx` parses m4a freeform + flac vorbis (list-unwrap, case-insensitive)                                  |
+| 4   | `qualityScore` treated AIFF/hi-res WAV as lossy                                    | `.replace("pcm_s16le","wav")` matched only 16-bit LE WAV                                                                                                                                                              | explicit `LOSSLESS_CODECS` set (pcm_s16/24/32 LE+BE, alac, flac, wav)                                                                                         |
+| 5   | `audit --json` never exited 1 on gaps                                              | exit gate only ran in the human-output branch                                                                                                                                                                         | gate applied to both branches (CI contract restored)                                                                                                          |
+| 6   | WAV/AIFF stamp reads returned null → all 73 WAVs re-fingerprinted on every re-run  | `readTxxx`'s WAV/AIFF branches opened the file but never read the ID3 TXXX frames                                                                                                                                     | one shared ID3-TXXX read loop for WAV/AIFF/MP3; regression test pins WAV idempotency                                                                          |
+| 7   | scoped runs wrote remix credits (`--fingerprint` stamped `TXXX:version`)           | remix detection ran before/outside the stage gate                                                                                                                                                                     | gated behind `want("tags")`; regression test                                                                                                                  |
+| 8   | art-embedded files got NO energy stamp (rev 6.2, found by execution)               | the embedded cover decodes as a bogus video stream; ffmpeg's default stream selection fed it into the astats graph, the JPEG-as-PNG decode failed, and the whole command exited non-zero → `measureRms` returned null | `-map 0:a` on the astats command (`fulltags/src/probes.ts`); regression test embeds an APIC cover on a WAV first; 4 real archive WAVs repaired, 88/88 stamped |
 
 **Lesson recorded (generalized):** every container the writer touches needs
 a _round-trip_ test that reads back what it wrote through the ground-truth
@@ -396,7 +412,7 @@ Operational gates still standing: the rekordbox key gauntlet (disable
 Key analysis → Reload Tags) is the ONLY thing left for #3; the BPM
 re-gate (§2/#2 step 3) must pass before any TBPM reconsideration.
 
-## 6. Sequencing (rev 6.1, executed pass 2)
+## 6. Sequencing (rev 6.2, executed pass 3)
 
 ```
 done  ▸ #1 fingerprints (88/88) · #3 key gate PASSED + batch-written (88/88,
@@ -409,20 +425,28 @@ done  ▸ #1 fingerprints (88/88) · #3 key gate PASSED + batch-written (88/88,
           stamps re-run) · `megadj mood` ledger mirror SHIPPED (88/88)
         · electronic genre-head gate EXECUTED: FAILED (saturated 0.87–1.0
           on every genre) — genre writes stay BLOCKED
+        · pass 3 (rev 6.2): mood convergence re-verified (re-run 0
+          changed) · energy 2.0 blend verified on the real archive —
+          84/88 pre-blended, 4 art-embedded WAVs fixed via the measureRms
+          `-map 0:a` bug (§5b #8), now 88/88 · CrateDeck mood surface
+          SHIPPED: ArchiveReader.moodProfile + /api/archive/mood +
+          archive_mood_profile MCP · effnet genre ONNX confirmed absent
+          upstream (pb-only) — deferred indefinitely
 now   ▸ the RB gauntlet at next DJLIBRARYM mount — 30 s, do it FIRST
         (disable Key analysis, reload tags, verify TKEY survives)
-then  ▸ CrateDeck mood/VA viz off the `mood` ledger (moodSummary() is the
-        feed) · energy-2.0 note in the audit gate
-next  ▸ structure cues (slice: cues first; downbeats now in the ledger,
+then  ▸ structure cues (slice: cues first; downbeats now in the ledger,
         ready) → vocal density → similarity (88-fp ledger as the
         sqlite-vec pilot)
-parked▸ P3 with explicit triggers
+parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
+        no ONNX export — needs a reason to exist first)
 ```
 
 Each item is independently shippable; the order maximizes
 verified-value-per-day. After #4, every archive file carries complete
-identity, multi-vote genre, year, key, fingerprint, and (DB-side) beats +
-mood/valence — the full DJ-useful frame set, in the actual files.
+identity, multi-vote genre, year, key, fingerprint, mood/valence, and
+blended energy — in the actual files — with beats + downbeats DB-side.
+The `then` block is now purely P2 research items: **no write passes
+remain on the P1 plan.**
 
 ## Research base (rev 5 — rev 4 rows re-checked 2026-09-05)
 

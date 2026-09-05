@@ -56,6 +56,20 @@ describe("schema: completeness", () => {
     expect(r.missing).toContain("genre");
     expect(r.missing).toContain("year");
   });
+  test("mood + energy are required fields (rev 6.1: analysis stages feed the gate)", () => {
+    const full = {
+      art: true,
+      title: "T",
+      artist: "A",
+      album: "Al",
+      genre: "House",
+      year: "2024",
+    };
+    expect(completeness(full).missing).toEqual(["mood", "energy"]);
+    expect(
+      completeness({ ...full, mood: "dance=0.5", energy: 7 }).complete,
+    ).toBe(true);
+  });
   test("complete when all fields present", () => {
     const r = completeness({
       art: true,
@@ -64,6 +78,8 @@ describe("schema: completeness", () => {
       album: "Al",
       genre: "House",
       year: "2024",
+      mood: "dance=0.5; party=0.6; valence=4.0; arousal=5.0",
+      energy: 7,
     });
     expect(r.complete).toBe(true);
     expect(r.missing).toEqual([]);

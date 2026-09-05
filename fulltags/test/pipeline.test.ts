@@ -16,7 +16,10 @@ describe("enrichTrack (offline stages)", () => {
       await $`mkdir -p ${DIR}`.quiet();
       await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p}`.quiet();
       // Only local stages: energy. No network (no genre/art/tags/year).
-      const res = await enrichTrack({ path: p }, { only: ["energy"], artworkQueue: null });
+      const res = await enrichTrack(
+        { path: p },
+        { only: ["energy"], artworkQueue: null },
+      );
       expect(res.notes.some((n) => n.startsWith("energy:"))).toBe(true);
       // No metadata was filled — must be reported missing.
       expect(res.complete).toBe(false);
@@ -46,8 +49,14 @@ describe("enrichTrack (offline stages)", () => {
   test("idempotent: second pass changes nothing", async () => {
     const p = `${DIR}/idem.mp3`;
     await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p}`.quiet();
-    const first = await enrichTrack({ path: p }, { only: ["energy"], artworkQueue: null });
-    const second = await enrichTrack({ path: p }, { only: ["energy"], artworkQueue: null });
+    const first = await enrichTrack(
+      { path: p },
+      { only: ["energy"], artworkQueue: null },
+    );
+    const second = await enrichTrack(
+      { path: p },
+      { only: ["energy"], artworkQueue: null },
+    );
     expect(first.notes.length).toBeGreaterThan(0);
     expect(second.notes.length).toBe(0);
   });
@@ -88,9 +97,15 @@ describe("enrichTrack (offline stages)", () => {
       // makes the fixture order-independent).
       await $`mkdir -p ${DIR}`.quiet();
       await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=5 ${p}`.quiet();
-      const first = await enrichTrack({ path: p }, { only: ["fingerprint"], artworkQueue: null });
+      const first = await enrichTrack(
+        { path: p },
+        { only: ["fingerprint"], artworkQueue: null },
+      );
       expect(first.notes.some((n) => n.startsWith("fingerprint:"))).toBe(true);
-      const second = await enrichTrack({ path: p }, { only: ["fingerprint"], artworkQueue: null });
+      const second = await enrichTrack(
+        { path: p },
+        { only: ["fingerprint"], artworkQueue: null },
+      );
       expect(second.notes.length).toBe(0);
     },
     { timeout: 60_000 },
@@ -135,7 +150,8 @@ import json; print(json.dumps(found))`,
         stdout: "pipe",
       });
       const found = JSON.parse(
-        new TextDecoder().decode(probe.stdout).trim().split("\n").at(-1) ?? "[]",
+        new TextDecoder().decode(probe.stdout).trim().split("\n").at(-1) ??
+          "[]",
       );
       expect(found).toEqual([]);
     },
@@ -180,7 +196,10 @@ a.save()`,
         stderr: "pipe",
       });
       expect(embed.exitCode).toBe(0);
-      const res = await enrichTrack({ path: p }, { only: ["energy"], artworkQueue: null });
+      const res = await enrichTrack(
+        { path: p },
+        { only: ["energy"], artworkQueue: null },
+      );
       expect(res.notes.some((n) => n.startsWith("energy:"))).toBe(true);
     },
     { timeout: 60_000 },
