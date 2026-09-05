@@ -351,7 +351,12 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     // succeeds, so Downloads doesn't fill with duplicate copies.
     const extId = `ext-${createHash("sha1").update(file).digest("hex").slice(0, 12)}`;
     let destPath = join(opts.musicDir, basename(file));
-    if (!file.startsWith(opts.musicDir)) {
+    // Membership needs the separator: "/X/DJ-Imports-old/f" must NOT count
+    // as inside "/X/DJ-Imports" (bare startsWith treats siblings as members
+    // and then skips the copy).
+    const inArchive =
+      file === opts.musicDir || file.startsWith(opts.musicDir + "/");
+    if (!inArchive) {
       if (destPath !== file) {
         await mkdir(opts.musicDir, { recursive: true });
         try {

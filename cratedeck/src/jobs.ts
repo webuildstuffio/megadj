@@ -309,6 +309,9 @@ export class JobEngine {
           files: light.file_count,
         });
         let full = false;
+        // honour cancel between phases: no point launching the 10–90s
+        // rekordbox snapshot for a job the user already cancelled
+        if (handle.cancelled) throw new Error("cancelled");
         // full (rekordbox) scan in same job when a device DB exists
         try {
           tick(0.5, 1, "reading rekordbox database…", "full-scan", true);
@@ -435,7 +438,15 @@ export class JobEngine {
         const proc = spawnMirror(this.cfg, []);
         handle.proc = proc;
         const [res, errText] = await Promise.all([
-          drain(proc, (l) => log(l), handle),
+          // mirror gets a hard timeout like verify: a hung uv/python sync
+          // must not run forever while the liveness heartbeat hides it
+          // from the phantom-job reaper.
+          drain(
+            proc,
+            (l) => log(l),
+            handle,
+            this.cfg.mirrorTimeoutMin * 60_000,
+          ),
           drainText(proc.stderr),
         ]);
         const out = res.out + (errText ? `\n[stderr]\n${errText}` : "");
@@ -444,7 +455,11 @@ export class JobEngine {
       }
       case "benchmark": {
         tick(0, 1, "reading largest files sequentially…", "bench-seq", true);
+        if (handle.cancelled) throw new Error("cancelled");
         const r = benchmarkDrive(mountPoint, this.cfg.benchmarkMb);
+        // benchmarkDrive is sync I/O (repo-invariant exception for now):
+        // at least refuse to PERSIST results for a job cancelled mid-read.
+        if (handle.cancelled) throw new Error("cancelled");
         this.db.addBenchmark(job.drive_id, r.seq_mbps, r.rand4k_mbps);
         this.db.event(job.drive_id, "benchmark", {
           seq: r.seq_mbps,

@@ -401,6 +401,7 @@ export class DB {
 
   // ---- events ---------------------------------------------------------------
   private eventStmt?: ReturnType<Database["prepare"]>;
+  private eventPruneStmt?: ReturnType<Database["prepare"]>;
   event(
     driveId: string,
     kind: string,
@@ -420,6 +421,16 @@ export class DB {
         JSON.stringify(data),
       ),
     )();
+    // Enforce the per-drive cap on the WRITE path too: boot-time pruning
+    // alone lets the table grow without bound during long uptimes
+    // (auto-scan + weekly verify + per-job bursts). Cheap: indexed by
+    // (drive_id, at), deletes nothing until the cap is crossed.
+    this.eventPruneStmt ??= this.sqlite.prepare(
+      `DELETE FROM events WHERE drive_id=? AND id NOT IN (
+         SELECT id FROM events WHERE drive_id=? ORDER BY at DESC LIMIT ?
+       )`,
+    );
+    this.eventPruneStmt.run(driveId, driveId, MAX_EVENTS_PER_DRIVE);
   }
 
   timeline(driveId: string, limit = 200): TimelineEvent[] {

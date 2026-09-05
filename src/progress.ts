@@ -4,7 +4,9 @@
  */
 
 const BAR_WIDTH = 24;
-const isTty = process.stdout.isTTY ?? false;
+// stderr, always: stdout belongs to the data (--json must stay parseable,
+// piped output must stay clean). TTY detection follows stderr accordingly.
+const isTty = process.stderr.isTTY ?? false;
 
 export function fmtBytes(n: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -58,8 +60,8 @@ export class ProgressBar {
       const pctInt = Math.floor(pct * 100);
       if (pctInt >= this.lastPct + 5 || force) {
         this.lastPct = pctInt;
-        console.log(
-          `[${this.label}] ${this.done}/${this.total} ${this.unit} · ${pctInt}% · ${this.suffix(elapsed)}`,
+        process.stderr.write(
+          `[${this.label}] ${this.done}/${this.total} ${this.unit} · ${pctInt}% · ${this.suffix(elapsed)}\n`,
         );
       }
       return;
@@ -68,7 +70,7 @@ export class ProgressBar {
     const filled = Math.round(BAR_WIDTH * Math.min(pct, 1));
     const bar = "#".repeat(filled) + "-".repeat(BAR_WIDTH - filled);
     const line = `[${this.label}] [${bar}] ${this.done}/${this.total} ${this.unit} · ${Math.min(Math.round(pct * 100), 100)}% · ${this.suffix(elapsed)}`;
-    process.stdout.write(`\r\u001b[K${line.slice(0, 120)}`);
+    process.stderr.write(`\r\u001b[K${line.slice(0, 120)}`);
   }
 
   private suffix(elapsed: number): string {
@@ -85,7 +87,7 @@ export class ProgressBar {
   close(summary?: string): void {
     const elapsed = (Date.now() - this.start) / 1000;
     this.render(true);
-    if (isTty) process.stdout.write("\n");
+    if (isTty) process.stderr.write("\n");
     const parts = [
       `[${this.label}] ${this.done}/${this.total} ${this.unit} in ${fmtDur(elapsed)}`,
     ];
@@ -93,7 +95,7 @@ export class ProgressBar {
       parts.push(
         `(${fmtBytes(this.bytes)} at ${fmtBytes(this.bytes / Math.max(elapsed, 0.001))}/s)`,
       );
-    console.log(parts.join(" "));
-    if (summary) console.log(summary);
+    process.stderr.write(parts.join(" ") + "\n");
+    if (summary) console.log(summary); // explicit caller-provided summary: stdout
   }
 }

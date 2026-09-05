@@ -124,6 +124,13 @@ async function main(): Promise<void> {
     return;
   }
 
+  // `megadj <cmd> --help` documents, never executes — organize must not
+  // move files because someone asked what it does.
+  if (argv.includes("--help") || argv.includes("-h")) {
+    printHelp();
+    return;
+  }
+
   assertMac();
 
   const state = new ArchiveState(DB_PATH);
@@ -166,7 +173,18 @@ async function main(): Promise<void> {
             ),
         });
         const limitRaw = flags.strings.get("limit");
-        const limit = limitRaw ? Number(limitRaw) : undefined;
+        // --limit must mean what it says: non-numeric input is an error,
+        // not "unlimited" (NaN is falsy and would skip the slice — a
+        // typo would start an UNBOUNDED download run). 0 = attempt nothing.
+        const limitNum = limitRaw !== undefined ? Number(limitRaw) : NaN;
+        if (limitRaw !== undefined && !Number.isInteger(limitNum)) {
+          console.error(
+            `sync: --limit must be a whole number (got "${limitRaw}")`,
+          );
+          process.exitCode = 1;
+          break;
+        }
+        const limit = limitRaw !== undefined ? limitNum : undefined;
         const dryRun = flags.bools.has("dry-run");
         const musicOnly = flags.bools.has("music-only");
         const targetRaw = flags.strings.get("target-total");
@@ -251,7 +269,9 @@ async function main(): Promise<void> {
       case "ingest": {
         const flags = parseFlags(
           process.argv.slice(3),
-          ["ingest", "folder"],
+          // "min-duration" must be registered or parseFlags skips it and
+          // its value falls through to the positional folder → walkAudio("90")
+          ["ingest", "folder", "min-duration"],
           ["dry-run", "no-artwork", "json"],
         );
         const folder =
@@ -266,6 +286,15 @@ async function main(): Promise<void> {
           process.exitCode = 1;
           break;
         }
+        const minDurRaw = flags.strings.get("min-duration");
+        const minDurNum = minDurRaw !== undefined ? Number(minDurRaw) : NaN;
+        if (minDurRaw !== undefined && !Number.isFinite(minDurNum)) {
+          console.error(
+            `ingest: --min-duration must be a number of seconds (got "${minDurRaw}")`,
+          );
+          process.exitCode = 1;
+          break;
+        }
         const { ingest } = await import("./commands/ingest");
         await ingest({
           state,
@@ -273,9 +302,7 @@ async function main(): Promise<void> {
           folder,
           dryRun: flags.bools.has("dry-run"),
           noArtwork: flags.bools.has("no-artwork"),
-          minDuration: flags.strings.get("min-duration")
-            ? Number(flags.strings.get("min-duration"))
-            : undefined,
+          minDuration: minDurRaw !== undefined ? minDurNum : undefined,
           json: flags.bools.has("json"),
         });
         break;

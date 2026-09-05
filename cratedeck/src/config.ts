@@ -15,6 +15,8 @@ export interface CrateConfig {
   imageProvider: "brave" | "exa" | null;
   imageKey: string | null;
   verifyTimeoutMin: number;
+  /** Hard kill for a hung mirror sync (minutes; default 90). */
+  mirrorTimeoutMin: number;
   benchmarkMb: number;
   /** Auto light-scan a drive when it mounts (default: on). */
   autoScanOnMount: boolean;
@@ -109,6 +111,10 @@ export function loadConfig(root: string): CrateConfig {
       typeof jobs.verify_timeout_min === "number"
         ? jobs.verify_timeout_min
         : 40,
+    mirrorTimeoutMin:
+      typeof jobs.mirror_timeout_min === "number"
+        ? jobs.mirror_timeout_min
+        : 90,
     benchmarkMb:
       typeof jobs.benchmark_mb === "number" ? jobs.benchmark_mb : 512,
     autoScanOnMount:

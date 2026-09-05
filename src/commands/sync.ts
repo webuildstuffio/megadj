@@ -105,7 +105,9 @@ export async function sync(opts: SyncOptions): Promise<void> {
 
   // Cross-source dedupe: a video already downloaded from one source stays put.
   let queue = opts.state.pendingTracks();
-  if (opts.limit) {
+  // --limit 0 must mean "attempt nothing" (0 is falsy — the old check
+  // silently treated it as unlimited); negative makes no sense either.
+  if (opts.limit !== undefined && opts.limit >= 0) {
     queue = queue.slice(0, opts.limit);
   }
   log(`${queue.length} track(s) to attempt this run`);
@@ -207,6 +209,17 @@ export async function sync(opts: SyncOptions): Promise<void> {
         downloaded++;
         log(`  ↳ downloaded → ${meta.title ?? track.video_id}`);
         bar.update(1, fileSize);
+      } else {
+        // yt-dlp exited 0 but no usable path/info came back (output drift,
+        // odd filename): count the track and burn the attempt — silence
+        // here shrank every run summary while consuming retry budget.
+        failed++;
+        opts.state.markFailed(
+          track.video_id,
+          "download reported success but no file path was parsed",
+        );
+        log(`  ↳ failed: no file path parsed from downloader output`);
+        bar.update();
       }
     } catch (error) {
       const message = (error as Error).message;

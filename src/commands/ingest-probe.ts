@@ -51,13 +51,26 @@ export async function quarantine(
   }
 }
 
-/** Recursively list audio files under `dir`, skipping hidden entries. */
+/** Recursively list audio files under `dir`, skipping hidden entries.
+ * A missing/unreadable dir returns [] (with an stderr note) rather than
+ * crashing — e.g. `megadj ingest <typoed-path>` must fail soft like
+ * adopt does. */
 export async function walkAudio(
   dir: string,
   out: string[] = [],
   skip?: string[],
 ): Promise<string[]> {
-  for (const ent of await readdir(dir, { withFileTypes: true })) {
+  let ents: import("node:fs").Dirent[];
+  try {
+    ents = await readdir(dir, { withFileTypes: true });
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+      console.error(`walk: directory not found: ${dir}`);
+      return out;
+    }
+    throw e;
+  }
+  for (const ent of ents) {
     if (ent.name.startsWith(".")) continue;
     const full = join(dir, ent.name);
     if (ent.isDirectory()) {
