@@ -1,20 +1,73 @@
 # megadj
 
-Rate-limited YouTube Music library archiver for rekordbox, with an end-to-end
-pipeline onto DJ USB drives. Tracks every liked song in a SQLite database,
-downloads the highest available audio quality (256kbps AAC when the account
-has access), enriches metadata, tags files so rekordbox imports cleanly, and
-syncs everything to hardware with full verification.
+**Make people dance.** A fleet of AI-powered tools that take electronic music
+from any source to a verified, gig-ready Pioneer DJ USB library — with zero
+manual labour.
+
+Rate-limited YouTube Music archiver · 100%-coverage metadata engine ·
+rekordbox USB drive dashboard with deep verification. macOS + Pioneer only,
+on purpose.
+
+```
+GetDat ──▶ FullTags ──▶ CrateDeck ──▶ the booth
+download    perfect       sync &       play on
+& archive   metadata      verify USBs   Pioneer
+```
+
+## The projects
+
+### 🎧 GetDat — pull every track from everywhere
+One command pulls tracks from any source into the archive at the highest
+quality available (256 kbps AAC first), rate-limited and polite, with SQLite
+state so nothing ever re-downloads. YouTube Music today — SoundCloud, Bandcamp
+and tracklist-mining next.
+
+```bash
+megadj sync [--limit N] [--dry-run] [--music-only] [--target-total N]
+```
+
+### 🏷️ FullTags — 100% accuracy, 100% coverage, zero manual labour
+Every ID3 field filled and *correct*: genre, artist, album, and the remix's
+year — not the 20-year-old original's. Artwork comes from the source the
+track came from (SoundCloud page art at original res → gateways → Deezer →
+iTunes), escalating to AI-generated covers only as a rare last resort. Cheap,
+confidence-gated AI fills every gap. `megadj audit` is the ground-truth gate:
+it reads the files, not the DB.
+
+```bash
+megadj ingest <folder> [--dry-run]  # tag + art + dedupe downloads (zips expand)
+megadj fetch                        # tags, genres, artwork, years (parallel)
+megadj audit                        # completeness gate — exits 1 on any gap
+```
+
+### 📼 CrateDeck — the Crate: organize, sync & verify every DJ USB
+A local dashboard plus CLI for a fleet of rekordbox USB drives: every drive is
+a card with a face; unplugged drives stay as ghosts that remember everything.
+The pipeline injects tracks into the device DB (pyrekordbox), detects BPM, and
+hand-builds ANLZ beatgrid/waveform files at the hash-computed paths hardware
+actually reads — then verifies down to dual-DB agreement, grid math, and
+cross-drive hash parity. A hard interlock locks everything while rekordbox is
+running.
+
+```bash
+bun run deck                         # dashboard → http://localhost:7742
+bun run cratedeck/src/deckctl.ts status | report | run | coverage | diff
+```
+
+**Coming next:** Gig mode & preflight, set intelligence from player history,
+SoundCloud/Bandcamp sources, fingerprint dedupe, key detection, MCP server —
+see [docs/FEATURES.md](docs/FEATURES.md) for the full roadmap.
 
 ## Requirements
 
-- [Bun](https://bun.sh) runtime
+- [Bun](https://bun.sh) runtime · macOS
 - `yt-dlp` with EJS solver (`uv tool install 'yt-dlp[default]'`)
-- `ffmpeg` (`brew install ffmpeg`)
-- Node.js on PATH (yt-dlp JS challenge solver)
+- `ffmpeg` (`brew install ffmpeg`) · Node.js on PATH (yt-dlp JS solver)
 - Chrome logged into YouTube Music (cookie source)
 - For the USB pipeline: `uv`, plus `pyrekordbox`/`librosa`/`numpy` (pulled in
   automatically via `uv run --with ...`)
+- `OPENROUTER_API_KEY` for AI genre/year/artwork fallback (keychain, never
+  hardcoded)
 
 ## Setup
 
@@ -24,7 +77,7 @@ cd megadj
 bun install
 ```
 
-yt-dlp config at `~/.config/yt-dlp/config` should contain:
+yt-dlp config at `~/.config/yt-dlp/config`:
 
 ```
 --js-runtimes node
@@ -36,33 +89,6 @@ For headless runs (browser closed), export a cookie jar first:
 `scripts/export-cookies.sh` (writes a chmod-600 netscape jar outside the
 repo — never commit it).
 
-## Usage
-
-```bash
-alias megadj='bun run /path/to/megadj/src/cli.ts'
-
-megadj sync [--limit N] [--dry-run] [--music-only] [--target-total N]
-                                  # multi-source: --sources LM,LL,PLxxx
-megadj enrich [--dry-run]         # fill weak genres via MusicBrainz
-megadj ingest <folder> [--dry-run] [--no-artwork] [--min-duration N]
-                                  # tag + art + dedupe external downloads
-                                  # (zips expanded; zip deleted only when
-                                  # every staged file has landed; WAVs
-                                  # convert to AIFF for rekordbox covers)
-megadj fetch                      # enrichment pass over the archive:
-                                  # tags, genres, artwork, years (parallel)
-megadj audit                      # ground-truth completeness gate
-                                  # (art + title + artist + album + genre + year)
-megadj artwork [--model M] [--max N] [--dry-run]
-                                  # generate covers for queued tracks
-                                  # (set IMAGE_MAKER_CLIENT to an ES module
-                                  # exporting an ImageClient class)
-megadj status                     # archive summary + recent run history
-megadj list [filter]              # all tracks, by status or free text (LOWQ flagged)
-megadj retry                      # reset failed tracks for the next sync
-megadj adopt                      # register existing files in the DB
-```
-
 ### Environment
 
 | Variable             | Default                            | Purpose                                                            |
@@ -70,7 +96,11 @@ megadj adopt                      # register existing files in the DB
 | `MEGADJ_MUSIC_DIR`   | `~/Music/DJ-Imports`               | where audio lands                                                  |
 | `MEGADJ_DB`          | `~/.local/state/megadj/archive.db` | state database                                                     |
 | `MEGADJ_COOKIES`     | `chrome`                           | browser for yt-dlp cookies; empty disables                         |
-| `OPENROUTER_API_KEY` | —                                  | required for `megadj artwork` + AI genre/year fallback (load from keychain, never hardcode) |
+| `OPENROUTER_API_KEY` | —                                  | AI genre/year fallback + `megadj artwork`                          |
+| `IMAGE_MAKER_CLIENT` | —                                  | ES module exporting an `ImageClient` class, for AI covers          |
+
+Full command reference: run `megadj --help` or see
+[docs/FEATURES.md](docs/FEATURES.md).
 
 ## Design
 
@@ -92,7 +122,7 @@ files, byte-identical mirroring, and deep verification. See
 uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
     --with librosa --with numpy \
     python .claude/skills/rekordbox-usb-sync/scripts/usb_sync.py \
-    --db /tmp/work_master.db --drive /Volumes/YOUR_MASTER_DRIVE \
+    --db /tmp/usb-sync/work_master.db --drive /Volumes/DJMASTER \
     --folder "/Contents/YTMusic Liked" --playlist "YTMusic Liked"
 
 # replicate master -> mirror, then verify
@@ -106,8 +136,9 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 
 > The sync scripts take your drive names as arguments. Defaults are generic
 > (`DJMASTER`/`DJMIRROR`); either rename your volumes to match or pass
-> `--drive`/`--drives` explicitly. CrateDeck's `config.toml` (see
-> `config.sample.toml`) also needs your volume names.
+> `--drive`/`--drives` explicitly, or set `USB_SYNC_MASTER`/`USB_SYNC_MIRROR`.
+> CrateDeck's `config.toml` (see `cratedeck/config.sample.toml`) also needs
+> your volume names.
 
 ### Two databases on each drive (why the XML/export dance exists)
 
@@ -121,34 +152,12 @@ After a big library change, do the once-per-generation legacy export
 → drag playlists onto both devices → let analysis finish → export. Then
 mirror + verify.
 
-## CrateDeck (the dashboard)
-
-Bun + Preact web app in `cratedeck/` showing every USB drive — mounted or
-ghost — with rekordbox introspection, health reports, benchmarks, jobs, and
-the rekordbox interlock. Docs: [docs/cratedeck/](docs/cratedeck/).
-
-```bash
-bun run deck        # serves http://localhost:7742 (CRATEDECK_PORT overrides)
-bun run check       # typecheck + lint; bun test for the test suite
-# UI dev: cd cratedeck/web && bunx vite (proxy) · build: bun run web:build
-# agents: bun run cratedeck/src/deckctl.ts status|report|run|jobs|coverage|redundancy|diff
-```
-
-**Fleet features**: scan a drive and CrateDeck learns its track inventory;
-cross-drive queries then answer _which stick has this track_ (`deckctl
-coverage`), _is every playlist redundant?_ (`deckctl redundancy`), and _what
-differs between two drives_ (`deckctl diff A B`). UI: the **Fleet** button →
-Coverage / Redundancy / Diff.
-
-**CLI (agents + humans):** `bun run cratedeck/src/deckctl.ts status` —
-`status/drives/report/run/coverage/redundancy/diff/jobs/cancel/stop`, live
-progress + ETA on `run`, `--json` for machines. Guide:
-[cratedeck/deckctl.md](cratedeck/deckctl.md).
-
 ## Docs index
 
 | Doc                                                                                      | Purpose                                     |
 | ---------------------------------------------------------------------------------------- | ------------------------------------------- |
+| [docs/PRINCIPLES.md](docs/PRINCIPLES.md)                                                 | product principles — how we decide          |
+| [docs/FEATURES.md](docs/FEATURES.md)                                                     | feature/project sections + roadmap          |
 | [docs/usb-sync.md](docs/usb-sync.md)                                                     | USB pipeline what/why                       |
 | [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md)                           | WAV artwork research + fix (resolved)       |
 | [docs/cratedeck/01-product-brief.md](docs/cratedeck/01-product-brief.md)                 | CrateDeck brief                             |
