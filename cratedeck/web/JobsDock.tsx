@@ -3,12 +3,13 @@
 // pill-only tray.
 import { useState } from "preact/hooks";
 import type { DriveCardData, Job } from "../shared/types";
+import { ACTIVE_JOB_STATUSES, TERMINAL_JOB_STATUSES } from "../shared/types";
 import { fmtEta } from "../shared/fmt";
 import { api, toast } from "./toast";
 import { Icon } from "./icons";
 
-const ACTIVE = new Set(["queued", "running"]);
-const HISTORY = new Set(["done", "failed", "cancelled", "interrupted"]);
+const ACTIVE = new Set<string>(ACTIVE_JOB_STATUSES);
+const HISTORY = new Set<string>(TERMINAL_JOB_STATUSES);
 
 export function JobsDock(props: {
   jobs: Job[];
