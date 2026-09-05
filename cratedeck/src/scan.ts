@@ -54,6 +54,7 @@ export function scanVolume(mountPoint: string): SnapshotData {
   const largest: { path: string; bytes: number }[] = [];
   const zeroByte: string[] = [];
   const byFolded = new Map<string, string[]>();
+  const manifest: NonNullable<SnapshotData["manifest"]> = [];
   const age: AgeBuckets = { fresh: 0, recent: 0, old: 0, ancient: 0 };
   let fileCount = 0;
   let totalBytes = 0;
@@ -97,6 +98,16 @@ export function scanVolume(mountPoint: string): SnapshotData {
           age[ageBucket(st.mtimeMs)]++;
           const key = nfcCasefold(relPath);
           byFolded.set(key, [...(byFolded.get(key) ?? []), relPath]);
+          // fleet manifest: audio byte-truth for §B8 fleet diff. Contents/
+          // stripped + folded to match fleet track identity. Capped at 20k
+          // rows as a runaway-fs guard (real libraries are ~3-10k).
+          if (manifest.length < 20_000) {
+            manifest.push({
+              path: key.replace(/^Contents\//, ""),
+              bytes: st.size,
+              mtime_ms: Math.round(st.mtimeMs),
+            });
+          }
         }
       } else {
         zeroByte.push(relPath);
@@ -126,6 +137,7 @@ export function scanVolume(mountPoint: string): SnapshotData {
       .slice(0, 20),
     largest: largest.slice(0, 15),
     age,
+    manifest,
     junk: {
       zero_byte: zeroByte.slice(0, 100),
       case_collisions: caseCollisions,

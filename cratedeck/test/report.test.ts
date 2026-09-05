@@ -90,6 +90,7 @@ function drive(over: Partial<Drive> = {}): Drive {
     state: "mounted",
     last_snapshot_json: null,
     predecessor_id: null,
+    verify_report_json: null,
     ...over,
   };
 }

@@ -16,6 +16,8 @@
 //
 // Exit codes: 0 ok · 1 job failed/verify-fail · 2 usage · 3 interlock · 4 server unreachable.
 
+import { VERIFY_HELP } from "./verify_help";
+
 const PORT = 7742;
 const BASE = `http://127.0.0.1:${PORT}`;
 
@@ -318,22 +320,31 @@ function finishLine(j: Job, driveName: string, elapsedS: number): void {
         : null;
     } catch {}
     if (j.kind === "verify" && result) {
-      const findings = (result.findings ?? []) as {
+      const checks = (result.checks ?? []) as {
+        id: string;
         label: string;
+        status: string;
         detail: string;
         meaning: string;
-        fix: string;
+        fix?: string;
       }[];
-      if (!findings.length) {
+      if (!checks.length) {
         log(
-          "  ALL PASS — DBs agree, all audio present, all grids valid, no junk.",
+          "  (no structured checks parsed — raw summary below)",
         );
       } else {
-        log(`  ${findings.length} finding(s):`);
-        for (const f of findings) {
-          log(`  ✕ ${f.label}  (${f.detail})`);
-          log(`     what it means: ${f.meaning}`);
-          log(`     fix: ${f.fix}`);
+        const bad = checks.filter((c) => c.status !== "pass");
+        const good = checks.filter((c) => c.status === "pass");
+        log(
+          `  ${good.length} passed, ${bad.length} need attention:`,
+        );
+        for (const c of checks) {
+          const mark =
+            c.status === "pass" ? "✓" : c.status === "warn" ? "⚠" : "✕";
+          log(`  ${mark} ${c.label}`);
+          log(`     ${c.detail}`);
+          log(`     why it matters: ${c.meaning}`);
+          if (c.status !== "pass" && c.fix) log(`     fix: ${c.fix}`);
         }
       }
     }
@@ -405,21 +416,6 @@ const KIND_DOCS: Record<string, KindDoc> = {
     safe: "Read-only. Always safe.",
     needs: "drive mounted",
   },
-  verify: {
-    what: "Deep integrity audit — is the drive's data actually GOOD, not just present? Checks both databases agree, every audio file exists on disk, every beatgrid file exists at the exact hashed path hardware players look up, playlists have no dangling entries, and (when 2 drives are given) master↔mirror are byte-identical.",
-    checks: [
-      "OneLibrary DB ↔ legacy export.pdb track counts match (what CDJ/XDJ hardware actually reads)",
-      "every DB track's audio file exists on disk",
-      "every track has an ANLZ analysis file at its hash path (waveform/beatgrid on hardware)",
-      "beatgrids plausible: duration↔BPM↔beat-count cross-check per track",
-      "playlists: entries resolve, no dangling artist FKs",
-      "cross-drive (mirror setups): exportLibrary.db byte-identical, ANLZ full hash parity, 40-track audio spot-hash",
-    ],
-    typical:
-      "~15s per drive up to ~4k tracks; cross-drive hash parity adds 1–5 min",
-    safe: "Read-only. Always safe. Fails when data is actually wrong — the fix column tells you what to do.",
-    needs: "drive mounted, rekordbox NOT running",
-  },
   mirror: {
     what: "Copy master → mirror so both USB drives are identical (files + both databases + ANLZ). Skips files that already match.",
     typical: "minutes–1h+ depending on how much changed",
@@ -441,40 +437,69 @@ const KIND_DOCS: Record<string, KindDoc> = {
 };
 
 function cmdExplain(kind?: string): void {
-  if (JSON_MODE) {
-    console.log(
-      JSON.stringify(kind ? { [kind]: KIND_DOCS[kind] } : KIND_DOCS, null, 2),
-    );
-    if (kind && !KIND_DOCS[kind]) process.exit(2);
-    return;
-  }
-  if (kind && KIND_DOCS[kind]) {
-    const d = KIND_DOCS[kind]!;
-    log(`── ${kind} ──`);
-    log(d.what);
-    if (d.checks) {
-      log("");
-      log("checks:");
-      for (const c of d.checks) log(`  • ${c}`);
+  // verify gets the full treatment: rich shared doc from verify_help.ts
+  const showVerify = !kind || kind === "verify";
+  if (showVerify) {
+    const v = VERIFY_HELP;
+    if (JSON_MODE && kind === "verify") {
+      console.log(JSON.stringify({ verify: v }, null, 2));
+      return;
+    }
+    log("── verify ──");
+    log(v.intro);
+    log("");
+    log("checks:");
+    for (const c of v.checks) {
+      log(`  • ${c.label} — ${c.what}`);
+      log(`      why: ${c.why}`);
+      log(`      if it fails: ${c.if_fail}`);
+      log(`      fix: ${c.fix}`);
     }
     log("");
-    log(`typical time: ${d.typical}`);
-    log(`safety: ${d.safe}`);
-    log(`requires: ${d.needs}`);
+    log(`typical time: ${v.duration}`);
+    log(`safety: ${v.safety}`);
+    log("");
+    if (kind === "verify") return;
+  }
+  if (JSON_MODE) {
+    console.log(JSON.stringify(KIND_DOCS, null, 2));
     return;
   }
-  if (kind) {
+  if (!kind) {
+    for (const [k, d] of Object.entries(KIND_DOCS)) {
+      log(`── ${k} ──`);
+      log(d.what);
+      if (d.checks) {
+        log("");
+        log("checks:");
+        for (const c of d.checks) log(`  • ${c}`);
+      }
+      log("");
+      log(`typical time: ${d.typical}`);
+      log(`safety: ${d.safe}`);
+      log(`requires: ${d.needs}`);
+      log("");
+    }
+    return;
+  }
+  const d = KIND_DOCS[kind];
+  if (!d) {
     errOut(
-      `unknown kind "${kind}" — one of: ${Object.keys(KIND_DOCS).join(", ")}`,
+      `unknown kind "${kind}" — one of: verify, ${Object.keys(KIND_DOCS).join(", ")}`,
     );
     process.exit(2);
   }
-  for (const [k, d] of Object.entries(KIND_DOCS)) {
-    log(`── ${k} ──`);
-    log(`  ${d.what.split(".")[0]}.`);
-    log(`  time: ${d.typical}`);
+  log(`── ${kind} ──`);
+  log(d.what);
+  if (d.checks) {
     log("");
+    log("checks:");
+    for (const c of d.checks) log(`  • ${c}`);
   }
+  log("");
+  log(`typical time: ${d.typical}`);
+  log(`safety: ${d.safe}`);
+  log(`requires: ${d.needs}`);
 }
 
 // ---- main -------------------------------------------------------------------

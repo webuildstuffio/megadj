@@ -11,10 +11,11 @@ import type {
 } from "../shared/types";
 import { DriveRail } from "./DriveRail";
 import { DrivePage } from "./DrivePage";
+import { FleetPage } from "./FleetPage";
 import { JobsDock } from "./JobsDock";
 import { Toaster } from "./toast";
 import { Icon } from "./icons";
-import { navigate, useRoute } from "./router";
+import { navigate, navigateFleet, useRoute } from "./router";
 
 export function App() {
   const route = useRoute();
@@ -180,6 +181,14 @@ export function App() {
           {ghosts === 1 ? "" : "s"}
         </span>
         <div class="spacer" />
+        <button
+          type="button"
+          class={`fleetchip ${route.fleet ? "on" : ""}`}
+          onClick={() => navigateFleet("coverage")}
+          title="Fleet: coverage matrix, redundancy audit, drive diffs"
+        >
+          <Icon name="grid" size={13} /> Fleet
+        </button>
         <span
           class={`lockchip ${locked ? "on" : "off"}`}
           title={
@@ -262,7 +271,9 @@ export function App() {
           class="canvas-wrap"
           style={{ flex: 1, minWidth: 0, display: "flex" }}
         >
-          {route.driveId ? (
+          {route.fleet ? (
+            <FleetPage key="fleet" tab={route.tab} />
+          ) : route.driveId ? (
             <DrivePage
               key={route.driveId}
               driveId={route.driveId}

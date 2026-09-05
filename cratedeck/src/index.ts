@@ -10,6 +10,13 @@ import { JobEngine } from "./jobs";
 import { ImageService } from "./images";
 import { driveBadgesView } from "./badges_view";
 import { buildReport, buildReportSummary, overall } from "./report";
+import { VERIFY_HELP } from "./verify_help";
+import {
+  coverage,
+  redundancy,
+  diff,
+  trackLocations,
+} from "./fleet";
 import type { Drive, JobKind, SnapshotData } from "../shared/types";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
@@ -160,6 +167,14 @@ Bun.serve({
             const report = buildReport(reportInput(id));
             return json({ ...report, overall: overall(report.checks) });
           }
+          // latest granular verify report (per-check pass/fail + meanings)
+          if (sub === "/verify") {
+            if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
+            return json(db.getVerifyReport(id) ?? { ran_at: null });
+          }
+          if (sub === "/verify/help") {
+            return json(VERIFY_HELP);
+          }
           if (sub === "/photo" && req.method === "POST") {
             const body = (await req.json()) as {
               url?: string;
@@ -216,12 +231,98 @@ Bun.serve({
         if (route === "/search") {
           return json(registry.search(url.searchParams.get("q") ?? ""));
         }
+        // ---- fleet superpowers (§B6 coverage / §B7 redundancy / §B8 diff) --
+        // Pure reads over fleet tables (refreshed by scans). Drive names in
+        // responses are display labels resolved here, once.
+        if (route === "/fleet/coverage") {
+          const minCopies = Math.max(
+            1,
+            parseInt(url.searchParams.get("min_copies") ?? "2", 10) || 2,
+          );
+          const names = driveNames();
+          const result = coverage(db.fleetInventories(), minCopies);
+          return json({
+            ...result,
+            drives: result.drives.map((d) => ({
+              ...d,
+              name: names.get(d.id) ?? d.id,
+            })),
+            rows: undefined, // full matrix is huge; at_risk + lookups cover the UI
+          });
+        }
+        if (route === "/fleet/track") {
+          const q = (url.searchParams.get("q") ?? "").trim();
+          if (!q) return json({ error: "q required" }, 400);
+          const names = driveNames();
+          const hit =
+            trackLocations(db.fleetInventories(), q, q) ?? null;
+          return json(
+            hit
+              ? {
+                  ...hit,
+                  drives: hit.drives.map((id) => ({
+                    id,
+                    name: names.get(id) ?? id,
+                    mounted: !!db.getDrive(id)?.mounted,
+                  })),
+                }
+              : { identity: null, drives: [] },
+          );
+        }
+        if (route === "/fleet/redundancy") {
+          const minCopies = Math.max(
+            1,
+            parseInt(url.searchParams.get("min_copies") ?? "2", 10) || 2,
+          );
+          const names = driveNames();
+          const result = redundancy(
+            db.fleetInventories(),
+            db.fleetPlaylistEntries(),
+            minCopies,
+          );
+          return json({
+            ...result,
+            playlists: result.playlists.map((p) => ({
+              ...p,
+              tracks: p.tracks.map((t) => ({
+                ...t,
+                drives: t.drives.map((id) => ({
+                  id,
+                  name: names.get(id) ?? id,
+                })),
+              })),
+            })),
+          });
+        }
+        if (route === "/fleet/diff") {
+          const a = url.searchParams.get("a");
+          const b = url.searchParams.get("b");
+          if (!a || !b) return json({ error: "a and b drive ids required" }, 400);
+          const da = db.getDrive(a);
+          const dbb = db.getDrive(b);
+          if (!da || !dbb) return json({ error: "unknown drive" }, 404);
+          const inv = db.fleetInventories([a, b]);
+          const mans = db.fleetManifests([a, b]);
+          const result = diff(
+            da.nickname ?? da.name,
+            inv.get(a) ?? [],
+            mans.get(a) ?? null,
+            dbb.nickname ?? dbb.name,
+            inv.get(b) ?? [],
+            mans.get(b) ?? null,
+          );
+          return json(result);
+        }
         if (route === "/images/search") {
           return json(await images.search(url.searchParams.get("q") ?? ""));
         }
         if (route === "/interlock") {
           const lock = jobs.interlock();
           return json({ rekordbox_running: lock.running, pid: lock.pid });
+        }
+        // global help: what does each job kind do (human + agent readable)
+        if (route === "/help/jobs") {
+          return json(VERIFY_HELP); // verify-centric help; per-kind docs live in deckctl explain
         }
         if (route === "/stop" && req.method === "POST") {
           // graceful: stop watcher + jobs, then exit (used by deckctl stop)
@@ -312,6 +413,11 @@ function portView() {
       mounted: !!d.mounted,
       last_seen_at: d.last_seen_at,
     }));
+}
+
+/** display labels for fleet responses: drive_id → nickname/name */
+function driveNames(): Map<string, string> {
+  return new Map(db.allDrives().map((d) => [d.id, d.nickname ?? d.name]));
 }
 
 function exportDossier(driveId: string): Response {

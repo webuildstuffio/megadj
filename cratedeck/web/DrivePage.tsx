@@ -8,6 +8,7 @@ import type {
   Job,
   SnapshotData,
   TimelineEvent,
+  VerifyReport,
 } from "../shared/types";
 import { fmtBytes, timeAgo } from "../shared/fmt";
 import { api, toast } from "./toast";
@@ -16,12 +17,14 @@ import { navigate } from "./router";
 import { PlaylistsTab } from "./PlaylistsTab";
 import { HealthTab } from "./HealthTab";
 import { TimelineTab } from "./TimelineTab";
+import { VerifyTab } from "./VerifyTab";
 import { AgeStrip, CheckRow, DjPanel, ExtBars, SpaceBar } from "./DrivePanels";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: "grid" },
   { id: "playlists", label: "Playlists", icon: "disc" },
   { id: "health", label: "Health", icon: "pulse" },
+  { id: "verify", label: "Verify", icon: "check" },
   { id: "timeline", label: "Timeline", icon: "history" },
   { id: "photos", label: "Photo", icon: "photo" },
 ] as const;
@@ -56,6 +59,7 @@ export function DrivePage(props: {
     { ran_at: number; seq_mbps: number; rand4k_mbps: number }[]
   >([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [verify, setVerify] = useState<VerifyReport | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -65,12 +69,13 @@ export function DrivePage(props: {
 
   const load = useCallback(async () => {
     const enc = encodeURIComponent(driveId);
-    const [d, r, t, b, j] = await Promise.all([
+    const [d, r, t, b, j, v] = await Promise.all([
       fetch(`/api/drives/${enc}`).then((res) => res.json()),
       fetch(`/api/drives/${enc}/report`).then((res) => res.json()),
       fetch(`/api/drives/${enc}/timeline`).then((res) => res.json()),
       fetch(`/api/drives/${enc}/benchmarks`).then((res) => res.json()),
       fetch(`/api/jobs?drive=${enc}`).then((res) => res.json()),
+      fetch(`/api/drives/${enc}/verify`).then((res) => res.json()),
     ]);
     if (!d?.drive) {
       // unknown drive id (stale link / renamed registry) — surface, don't hang
@@ -82,6 +87,7 @@ export function DrivePage(props: {
     setTimeline(t);
     setBench(b);
     setJobs(j);
+    setVerify(v);
   }, [driveId]);
 
   useEffect(() => {
@@ -488,6 +494,8 @@ export function DrivePage(props: {
       {tab === "health" && (
         <HealthTab drive={detail.drive} snap={snap} bench={bench} />
       )}
+
+      {tab === "verify" && <VerifyTab driveId={driveId} report={verify} />}
 
       {tab === "timeline" && <TimelineTab events={timeline} />}
 

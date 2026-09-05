@@ -8,7 +8,13 @@ import type {
   JobKind,
   SnapshotData,
   TimelineEvent,
+  VerifyReport,
 } from "../shared/types";
+import type {
+  TrackRow,
+  PlaylistEntryRow,
+  ManifestRow,
+} from "./fleet";
 
 /** Raw row shape as stored in the drives table (mounted is 0/1). */
 interface DriveRow extends Omit<Drive, "mounted"> {
@@ -110,6 +116,20 @@ export class DB {
       this.sqlite.exec("ALTER TABLE jobs ADD COLUMN phase TEXT");
     if (!cols.includes("eta_seconds"))
       this.sqlite.exec("ALTER TABLE jobs ADD COLUMN eta_seconds REAL");
+    // v3: persist the latest verify report per drive so UI/CLI can render a
+    // granular check-by-check breakdown without digging through job history.
+    if (
+      !this.sqlite
+        .query<{ name: string }, []>("PRAGMA table_info(drives)")
+        .all()
+        .map((c) => c.name)
+        .includes("verify_report_json")
+    ) {
+      this.sqlite.exec(
+        "ALTER TABLE drives ADD COLUMN verify_report_json TEXT",
+      );
+    }
+    this.migrateFleet();
     // disk-burn guard: cap per-drive snapshot history (each full snapshot can
     // be ~MBs of JSON; unbounded growth would eat the host disk over months)
     this.pruneSnapshots();
@@ -164,6 +184,179 @@ export class DB {
          )`,
       )
       .run(max);
+  }
+
+  // ---- fleet tables (ideas.md §B6/B7/B8) ------------------------------------
+  // Per-track inventory + playlist entries + audio manifest, one row per
+  // (drive, track). Refreshed wholesale by setSnapshot on every scan; the
+  // fleet queries in fleet.ts read them as pure tables.
+  private fleetMigrated = false;
+  private migrateFleet(): void {
+    if (this.fleetMigrated) return;
+    this.sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS fleet_tracks (
+        drive_id TEXT NOT NULL,
+        path TEXT NOT NULL,
+        title TEXT,
+        artist TEXT,
+        bpm REAL,
+        key TEXT,
+        duration_ms INTEGER,
+        taken_at INTEGER NOT NULL,
+        PRIMARY KEY (drive_id, path)
+      );
+      CREATE TABLE IF NOT EXISTS fleet_playlist_entries (
+        drive_id TEXT NOT NULL,
+        playlist_name TEXT NOT NULL,
+        track_path TEXT NOT NULL,
+        PRIMARY KEY (drive_id, playlist_name, track_path)
+      );
+      CREATE TABLE IF NOT EXISTS fleet_manifest (
+        drive_id TEXT NOT NULL,
+        path TEXT NOT NULL,
+        bytes INTEGER NOT NULL,
+        mtime_ms INTEGER NOT NULL,
+        PRIMARY KEY (drive_id, path)
+      );
+      CREATE INDEX IF NOT EXISTS fleet_tracks_path ON fleet_tracks(path);
+    `);
+    this.fleetMigrated = true;
+  }
+
+  /** Drop + reload this drive's fleet rows from a fresh scan. One transaction
+   *  so a mid-scan reader never sees a half-loaded inventory. */
+  private syncFleetTables(
+    driveId: string,
+    snap: SnapshotData,
+  ): void {
+    this.migrateFleet();
+    const tracks = snap.tracks ?? [];
+    const entries = snap.playlist_entries ?? [];
+    const manifest = snap.manifest ?? [];
+    const tx = this.sqlite.transaction(() => {
+      this.sqlite
+        .query("DELETE FROM fleet_tracks WHERE drive_id=?")
+        .run(driveId);
+      this.sqlite
+        .query("DELETE FROM fleet_playlist_entries WHERE drive_id=?")
+        .run(driveId);
+      this.sqlite
+        .query("DELETE FROM fleet_manifest WHERE drive_id=?")
+        .run(driveId);
+      if (tracks.length) {
+        this.sqlite
+          .query(
+            `INSERT INTO fleet_tracks (drive_id, path, title, artist, bpm, key, duration_ms, taken_at)
+             VALUES (?,?,?,?,?,?,?,?)`,
+          )
+          .run(
+            ...tracks.flatMap((t) => [
+              driveId,
+              t.path,
+              t.title ?? null,
+              t.artist ?? null,
+              t.bpm ?? null,
+              t.key ?? null,
+              t.duration_ms ?? null,
+              snap.taken_at,
+            ]),
+          );
+      }
+      if (entries.length) {
+        this.sqlite
+          .query(
+            `INSERT INTO fleet_playlist_entries (drive_id, playlist_name, track_path)
+             VALUES (?,?,?)`,
+          )
+          .run(
+            ...entries.flatMap((e) => [
+              driveId,
+              e.playlist_name,
+              e.track_path,
+            ]),
+          );
+      }
+      if (manifest.length) {
+        this.sqlite
+          .query(
+            `INSERT INTO fleet_manifest (drive_id, path, bytes, mtime_ms)
+             VALUES (?,?,?,?)`,
+          )
+          .run(
+            ...manifest.flatMap((m) => [
+              driveId,
+              m.path,
+              m.bytes,
+              m.mtime_ms,
+            ]),
+          );
+      }
+    });
+    tx();
+  }
+
+  /** Latest per-track inventory rows per drive (fleet queries' input). */
+  fleetInventories(driveIds?: string[]): Map<string, TrackRow[]> {
+    this.migrateFleet();
+    const rows = (driveIds?.length
+      ? this.sqlite
+          .query(
+            `SELECT drive_id, path, title, artist, bpm, key, duration_ms
+             FROM fleet_tracks WHERE drive_id IN (${driveIds.map(() => "?").join(",")})`,
+          )
+          .all(...driveIds)
+      : this.sqlite
+          .query(
+            `SELECT drive_id, path, title, artist, bpm, key, duration_ms
+             FROM fleet_tracks`,
+          )
+          .all()) as TrackRow[];
+    const out = new Map<string, TrackRow[]>();
+    for (const r of rows) {
+      (out.get(r.drive_id) ?? out.set(r.drive_id, []).get(r.drive_id)!).push(r);
+    }
+    return out;
+  }
+
+  fleetPlaylistEntries(driveIds?: string[]): Map<string, PlaylistEntryRow[]> {
+    this.migrateFleet();
+    const rows = (driveIds?.length
+      ? this.sqlite
+          .query(
+            `SELECT drive_id, playlist_name, track_path
+             FROM fleet_playlist_entries
+             WHERE drive_id IN (${driveIds.map(() => "?").join(",")})`,
+          )
+          .all(...driveIds)
+      : this.sqlite
+          .query(`SELECT drive_id, playlist_name, track_path FROM fleet_playlist_entries`)
+          .all()) as PlaylistEntryRow[];
+    const out = new Map<string, PlaylistEntryRow[]>();
+    for (const r of rows) {
+      (
+        out.get(r.drive_id) ?? out.set(r.drive_id, []).get(r.drive_id)!
+      ).push(r);
+    }
+    return out;
+  }
+
+  fleetManifests(driveIds?: string[]): Map<string, ManifestRow[]> {
+    this.migrateFleet();
+    const rows = (driveIds?.length
+      ? this.sqlite
+          .query(
+            `SELECT drive_id, path, bytes, mtime_ms FROM fleet_manifest
+             WHERE drive_id IN (${driveIds.map(() => "?").join(",")})`,
+          )
+          .all(...driveIds)
+      : this.sqlite
+          .query(`SELECT drive_id, path, bytes, mtime_ms FROM fleet_manifest`)
+          .all()) as ManifestRow[];
+    const out = new Map<string, ManifestRow[]>();
+    for (const r of rows) {
+      (out.get(r.drive_id) ?? out.set(r.drive_id, []).get(r.drive_id)!).push(r);
+    }
+    return out;
   }
 
   // ---- drives -------------------------------------------------------------
@@ -264,6 +457,27 @@ export class DB {
       .run(mounted ? 1 : 0, Date.now(), id);
   }
 
+  /** Persist the latest verify report for a drive (or clear with null). */
+  setVerifyReport(id: string, report: VerifyReport | null): void {
+    this.sqlite
+      .query("UPDATE drives SET verify_report_json=? WHERE id=?")
+      .run(report ? JSON.stringify(report) : null, id);
+  }
+
+  getVerifyReport(id: string): VerifyReport | null {
+    const r = this.sqlite
+      .query<{ verify_report_json: string | null }, [string]>(
+        "SELECT verify_report_json FROM drives WHERE id=?",
+      )
+      .get(id);
+    if (!r?.verify_report_json) return null;
+    try {
+      return JSON.parse(r.verify_report_json) as VerifyReport;
+    } catch {
+      return null;
+    }
+  }
+
   /** Increment at mount time (ghost → mounted flip). Called by registry. */
   bumpPlugCount(id: string): void {
     this.sqlite
@@ -312,6 +526,9 @@ export class DB {
         "INSERT OR REPLACE INTO snapshots (drive_id, taken_at, kind, data_json) VALUES (?,?,?,?)",
       )
       .run(id, snap.taken_at, snap.kind, json);
+    // fleet tables ride along: per-track inventory + playlist entries +
+    // manifest refresh wholesale on every persisted scan (§B6/B7/B8 input)
+    this.syncFleetTables(id, snap);
     this.pruneSnapshotsFor(id); // disk-burn guard
   }
 
@@ -513,6 +730,10 @@ export class DB {
   }
 
   latestVerify(driveId: string): { ran_at: number; ok: boolean } | null {
+    // Prefer the persisted per-drive verify report (single source of truth
+    // for the latest run); fall back to job history for pre-migration data.
+    const rep = this.getVerifyReport(driveId);
+    if (rep) return { ran_at: rep.ran_at, ok: rep.ok };
     const row = this.sqlite
       .query(
         `SELECT finished_at, result_json FROM jobs

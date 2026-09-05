@@ -24,6 +24,8 @@ export interface Drive {
   state: DriveState; // derived, not stored
   last_snapshot_json: string | null;
   predecessor_id: string | null;
+  /** Latest structured verify report (from parseVerifyReport), JSON-encoded. */
+  verify_report_json: string | null;
 }
 
 export interface Badge {
@@ -90,6 +92,21 @@ export interface SnapshotData {
   pdb_mtime?: number;
   // DJ metadata (rekordbox columns)
   dj?: DjStats;
+  // fleet superpowers (§B6/B7/B8 inputs; light scan gives manifest, full scan
+  // adds tracks + playlist_entries; absent = not collected by older scans)
+  /** Per-track inventory from the device DB (audio rows only). */
+  tracks?: {
+    path: string; // NFC-casefolded, Contents-relative
+    title: string | null;
+    artist: string | null;
+    bpm: number | null;
+    key: string | null;
+    duration_ms: number | null;
+  }[];
+  /** Playlist membership: one row per (playlist, track). */
+  playlist_entries?: { playlist_name: string; track_path: string }[];
+  /** Audio files from the walk — byte truth for fleet diffs. */
+  manifest?: { path: string; bytes: number; mtime_ms: number }[];
 }
 
 /** DJ-library analytics from the rekordbox device DB. */
@@ -155,6 +172,29 @@ export interface TimelineEvent {
   data: Record<string, unknown>;
 }
 
+/** One granular verify check — mirrors HealthCheck but for usb_verify output. */
+export interface VerifyCheck {
+  id: string;
+  label: string;
+  status: "pass" | "fail" | "warn" | "unknown";
+  detail: string;
+  /** Plain-English: why does this check matter for a DJ? */
+  meaning: string;
+  fix?: string;
+}
+
+/** Full structured result of a verify run, stored per drive. */
+export interface VerifyReport {
+  ran_at: number;
+  ok: boolean;
+  final: string | null;
+  duration_s: number | null;
+  checks: VerifyCheck[];
+  /** Raw counts from the script (tracks, playlists, pioneer variance…). */
+  stats: Record<string, number>;
+  summary: string;
+}
+
 export interface PortInfo {
   port_key: string;
   label: string | null;
@@ -199,3 +239,20 @@ export interface DriveReport {
   master_name: string;
   generated_at: number;
 }
+
+// ---- fleet superpowers (docs/ideas.md §B6/B7/B8) -----------------------------
+
+/** Wire shape of the coverage matrix + at-risk list. Re-exports the pure
+ *  engine's shapes so web/deckctl share one source of truth. */
+export type {
+  TrackRow,
+  PlaylistEntryRow,
+  ManifestRow,
+  TrackCoverage,
+  CoverageResult,
+  PlaylistRedundancy,
+  RedundancyResult,
+  DiffRow,
+  FleetDiff,
+  DiffKind,
+} from "../src/fleet";

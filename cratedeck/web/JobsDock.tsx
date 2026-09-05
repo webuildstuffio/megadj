@@ -69,14 +69,17 @@ export function JobsDock(props: {
             label: string;
             detail: string;
           }[] = [];
+          let checkCount = 0;
           try {
             if (j.result_json != null) {
               const r = JSON.parse(j.result_json) as {
                 final?: string;
-                findings?: { label: string; detail: string }[];
+                checks?: { label: string; detail: string; status: string }[];
               };
               final = r.final ?? null;
-              findings = r.findings ?? [];
+              // non-passing checks surface as finding chips; count all
+              checkCount = r.checks?.length ?? 0;
+              findings = (r.checks ?? []).filter((c) => c.status !== "pass");
             }
           } catch {
             final = null;
@@ -102,6 +105,12 @@ export function JobsDock(props: {
                   {final}
                 </div>
               )}
+              {j.kind === "verify" && checkCount > 0 && findings.length === 0 && (
+                <div class="jmsg pass">
+                  <Icon name="check" size={11} /> all {checkCount} checks
+                  passed — full breakdown in the Verify tab
+                </div>
+              )}
               {findings.length > 0 && (
                 <div class="jfindings">
                   {findings.slice(0, 4).map((f) => (
@@ -111,8 +120,7 @@ export function JobsDock(props: {
                   ))}
                   {findings.length > 4 && (
                     <div class="jfinding more">
-                      +{findings.length - 4} more — run deckctl report for
-                      details
+                      +{findings.length - 4} more — details in the Verify tab
                     </div>
                   )}
                 </div>

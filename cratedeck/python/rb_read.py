@@ -147,6 +147,56 @@ def dj_stats(db, contents) -> dict:
     }
 
 
+def track_inventory(db, contents) -> list[dict]:
+    """Per-track fleet rows (ideas.md §B6/B7/B8): path-keyed identity plus the
+    metadata the coverage UI shows. Casefolded here so TS consumers never
+    re-implement the fold. Only audio rows (fileType 4=mp3, 1=others)."""
+    from pyrekordbox.devicelib_plus.models import Artist
+
+    artist_names = {a.artist_id: a.name for a in db.query(Artist).all()}
+    out = []
+    for c in contents:
+        if c.fileType not in (4, 1) or not c.path:
+            continue
+        rel = c.path.lstrip("/").replace("Contents/", "", 1)
+        bpmx = getattr(c, "bpmx100", None)
+        dur = getattr(c, "length", None)
+        artist = artist_names.get(getattr(c, "artist_id_artist", None))
+        title = getattr(c, "title", None)
+        out.append(
+            {
+                "path": rel.strip().lower(),
+                "title": (title or "").strip() or None,
+                "artist": (artist or "").strip() or None,
+                "bpm": bpmx / 100.0 if bpmx else None,
+                "key": None,  # key name join is done in dj_stats; kept None here
+                "duration_ms": int(dur * 1000) if dur else None,
+            }
+        )
+    return out
+
+
+def playlist_membership(db) -> list[dict]:
+    """One row per (playlist, track-path) so the redundancy audit can union
+    playlists across drives. Folder nodes are skipped; paths casefolded to
+    match track_inventory."""
+    from pyrekordbox.devicelib_plus.models import Content, Playlist, PlaylistContent
+
+    rows = []
+    for pc in db.query(PlaylistContent).all():
+        pl = db.query(Playlist).filter(Playlist.playlist_id == pc.playlist_id).first()
+        if pl is None or getattr(pl, "attribute", 0) == 4:
+            continue
+        c = db.query(Content).filter(Content.content_id == pc.content_id).first()
+        if c is None or not c.path or c.fileType not in (4, 1):
+            continue
+        rel = c.path.lstrip("/").replace("Contents/", "", 1)
+        rows.append(
+            {"playlist_name": pl.name, "track_path": rel.strip().lower()}
+        )
+    return rows
+
+
 def open_device_db(db_path: str):
     """Open a device-library copy. Real rekordbox drives carry SQLCipher
     encryption (default key path); plaintext copies (dev fixtures, some
@@ -221,6 +271,8 @@ def snapshot(db_path: str, drive_root: str) -> dict:
             "onelibrary_rows": onelibrary_rows,
             "pdb_live_rows": pdb_rows,
             "dj": dj_stats(db, contents),
+            "tracks": track_inventory(db, contents),
+            "playlist_entries": playlist_membership(db),
             "db_mtime": mtime(os.path.join(drive_root, "PIONEER", "rekordbox", "exportLibrary.db")),
             "pdb_mtime": mtime(pdb_path) if os.path.exists(pdb_path) else None,
         }
