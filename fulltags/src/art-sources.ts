@@ -104,7 +104,9 @@ export async function soundcloudArtwork(
         return data.thumbnail_url.replace(/-(large|t\d+x\d+)\./, "-t500x500.");
       }
     }
-    const page = await fetch(pageUrl, { headers: { "User-Agent": UA["User-Agent"] } });
+    const page = await fetch(pageUrl, {
+      headers: { "User-Agent": UA["User-Agent"] },
+    });
     if (page.ok) {
       const html = await page.text();
       const og = /property="og:image" content="([^"]+)"/.exec(html);
@@ -189,7 +191,10 @@ export function twinArt(r: ArtRow): Uint8Array | null {
   for (const f of readdirSync(archiveDir)) {
     if (!/\.mp3$/i.test(f)) continue;
     if (
-      f.replace(/\.mp3$/i, "").toLowerCase().replace(/[^a-z0-9]/g, "") !== stem
+      f
+        .replace(/\.mp3$/i, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "") !== stem
     )
       continue;
     const dump = r.file_path + ".twin.jpg";
@@ -256,7 +261,8 @@ function cleanQuery(r: SearchRow): string {
   return `${artist0} ${t}`.split(" ").filter(Boolean).slice(0, 8).join(" ");
 }
 
-export function scSearch(r: SearchRow): ScHit[] {  const q = cleanQuery(r);
+export function scSearch(r: SearchRow): ScHit[] {
+  const q = cleanQuery(r);
   if (!q) return [];
   let out = "";
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -278,7 +284,8 @@ export function scSearch(r: SearchRow): ScHit[] {  const q = cleanQuery(r);
   }
   const hits: ScHit[] = [];
   const tWords = words(r.title);
-  const artist0 = (r.artist ?? "unknown").split(/[,&]/)[0]?.trim().toLowerCase() ?? "";
+  const artist0 =
+    (r.artist ?? "unknown").split(/[,&]/)[0]?.trim().toLowerCase() ?? "";
   for (const line of out.split("\n")) {
     if (!line.startsWith("COL|")) continue;
     const parts = line.slice(4).split("|");

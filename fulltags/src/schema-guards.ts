@@ -7,10 +7,7 @@ import type { TagPatch } from "./schema";
 
 /** Runtime validator — throws with a precise message on bad input. */
 export function validatePatch(vals: TagPatch): void {
-  for (const [k, v] of Object.entries(vals) as [
-    keyof TagPatch,
-    unknown,
-  ][]) {
+  for (const [k, v] of Object.entries(vals) as [keyof TagPatch, unknown][]) {
     if (v === undefined) continue;
     if (k === "year") {
       if (typeof v !== "number" || !Number.isInteger(v) || v < 1900 || v > 2100)
@@ -18,22 +15,12 @@ export function validatePatch(vals: TagPatch): void {
       continue;
     }
     if (k === "bpm") {
-      if (
-        typeof v !== "number" ||
-        !Number.isFinite(v) ||
-        v <= 0 ||
-        v > 400
-      )
+      if (typeof v !== "number" || !Number.isFinite(v) || v <= 0 || v > 400)
         throw new TypeError(`bpm must be a number 0–400, got ${v}`);
       continue;
     }
     if (k === "energy") {
-      if (
-        typeof v !== "number" ||
-        !Number.isFinite(v) ||
-        v < 1 ||
-        v > 10
-      )
+      if (typeof v !== "number" || !Number.isFinite(v) || v < 1 || v > 10)
         throw new TypeError(`energy must be a number 1–10, got ${v}`);
       continue;
     }

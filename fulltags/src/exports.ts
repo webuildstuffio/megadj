@@ -37,17 +37,8 @@ export {
   type ScHit,
   type ArtRow,
 } from "./art-sources";
-export {
-  aiGenres,
-  albumHeuristic,
-  AI_MODEL,
-  type AiRow,
-} from "./ai";
-export {
-  groundTruth,
-  readFullTag,
-  type Truth,
-} from "./readers";
+export { aiGenres, albumHeuristic, AI_MODEL, type AiRow } from "./ai";
+export { groundTruth, readFullTag, type Truth } from "./readers";
 export {
   energyFromLufs,
   firstTag,

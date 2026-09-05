@@ -83,8 +83,7 @@ function parseArgs(argv: string[]): CliArgs {
     else if (a === "--album") args.hints.album = argv[++i];
     else if (!a.startsWith("--") && !args.target) args.target = a;
   }
-  if (stages.size)
-    args.stages = [...stages] as CliArgs["stages"];
+  if (stages.size) args.stages = [...stages] as CliArgs["stages"];
   return args;
 }
 
@@ -113,7 +112,8 @@ async function main(): Promise<void> {
       console.error("audit: pass an existing folder — fulltags audit <folder>");
       process.exitCode = 1;
       return;
-    }    const files = collectFiles(dir);
+    }
+    const files = collectFiles(dir);
     const rows = files.map((f) => {
       const t = groundTruth(f);
       const missing: string[] = [];
@@ -127,7 +127,9 @@ async function main(): Promise<void> {
     });
     const complete = rows.filter((r) => r.complete).length;
     if (args.json) {
-      console.log(JSON.stringify({ total: rows.length, complete, rows }, null, 2));
+      console.log(
+        JSON.stringify({ total: rows.length, complete, rows }, null, 2),
+      );
     } else {
       console.log(
         `audit: ${complete}/${rows.length} complete (art + title + artist + album + genre + year)`,

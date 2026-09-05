@@ -49,8 +49,14 @@ describe("enrichTrack (offline stages)", () => {
   test("idempotent: second pass changes nothing", async () => {
     const p = `${DIR}/idem.mp3`;
     await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p}`.quiet();
-    const first = await enrichTrack({ path: p }, { only: ["energy"], artworkQueue: null });
-    const second = await enrichTrack({ path: p }, { only: ["energy"], artworkQueue: null });
+    const first = await enrichTrack(
+      { path: p },
+      { only: ["energy"], artworkQueue: null },
+    );
+    const second = await enrichTrack(
+      { path: p },
+      { only: ["energy"], artworkQueue: null },
+    );
     expect(first.notes.length).toBeGreaterThan(0);
     expect(second.notes.length).toBe(0);
   });

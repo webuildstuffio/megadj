@@ -35,7 +35,9 @@ describe("schema: genre canon", () => {
 
 describe("schema: inferGenre + sanitize", () => {
   test("word-boundary match ignores substrings", () => {
-    expect(inferGenre(["Karma Fields - You and Me (Soulji Remix) [House]"])).toBe("House");
+    expect(
+      inferGenre(["Karma Fields - You and Me (Soulji Remix) [House]"]),
+    ).toBe("House");
     expect(inferGenre(["Chill Sunset Vibes"])).toBe("Chill / Lo-Fi");
     expect(inferGenre(["something random"])).toBeNull();
   });
@@ -87,9 +89,7 @@ describe("schema-guards: validatePatch", () => {
   test("rejects out-of-range years", () => {
     expect(() => validatePatch({ year: 1899 })).toThrow();
     expect(() => validatePatch({ year: 2101 })).toThrow();
-    expect(() =>
-      validatePatch({ year: 20.5 as unknown as number }),
-    ).toThrow();
+    expect(() => validatePatch({ year: 20.5 as unknown as number })).toThrow();
     expect(() => validatePatch({ year: NaN })).toThrow();
     expect(() => validatePatch({ year: 1995 })).not.toThrow();
   });
@@ -110,15 +110,13 @@ describe("schema-guards: validatePatch", () => {
     expect(() => validatePatch({ title: 42 as unknown as string })).toThrow(
       /must be a string/,
     );
-    expect(() =>
-      validatePatch({ year: "2020" as unknown as number }),
-    ).toThrow(/integer 1900–2100/);
+    expect(() => validatePatch({ year: "2020" as unknown as number })).toThrow(
+      /integer 1900–2100/,
+    );
   });
 
   test("rejects overlong strings", () => {
-    expect(() => validatePatch({ title: "x".repeat(501) })).toThrow(
-      /too long/,
-    );
+    expect(() => validatePatch({ title: "x".repeat(501) })).toThrow(/too long/);
   });
 
   test("allows undefined fields", () => {

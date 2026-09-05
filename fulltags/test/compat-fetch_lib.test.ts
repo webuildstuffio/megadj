@@ -42,9 +42,7 @@ describe("validatePatch (compat: validateTagValues)", () => {
   test("rejects out-of-range years", () => {
     expect(() => validatePatch({ year: 1899 })).toThrow();
     expect(() => validatePatch({ year: 2101 })).toThrow();
-    expect(() =>
-      validatePatch({ year: 20.5 as unknown as number }),
-    ).toThrow();
+    expect(() => validatePatch({ year: 20.5 as unknown as number })).toThrow();
     expect(() => validatePatch({ year: NaN })).toThrow();
     expect(() => validatePatch({ year: 1995 })).not.toThrow();
   });
@@ -58,15 +56,13 @@ describe("validatePatch (compat: validateTagValues)", () => {
     expect(() => validatePatch({ title: 42 as unknown as string })).toThrow(
       /must be a string/,
     );
-    expect(() =>
-      validatePatch({ year: "2020" as unknown as number }),
-    ).toThrow(/integer 1900–2100/);
+    expect(() => validatePatch({ year: "2020" as unknown as number })).toThrow(
+      /integer 1900–2100/,
+    );
   });
 
   test("rejects overlong strings", () => {
-    expect(() => validatePatch({ title: "x".repeat(501) })).toThrow(
-      /too long/,
-    );
+    expect(() => validatePatch({ title: "x".repeat(501) })).toThrow(/too long/);
   });
 
   test("allows undefined fields", () => {

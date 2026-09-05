@@ -19,7 +19,9 @@ describe("cleanTitle", () => {
   });
 
   test("keeps feat. formatting normalized", () => {
-    expect(cleanTitle("Go Dumb (feat. blackbear)")).toBe("Go Dumb (ft. blackbear)");
+    expect(cleanTitle("Go Dumb (feat. blackbear)")).toBe(
+      "Go Dumb (ft. blackbear)",
+    );
   });
 
   test("handles null", () => {
@@ -37,7 +39,9 @@ describe("inferGenre", () => {
   });
   test("word-boundary match ignores substrings", () => {
     // "Soulji" must NOT match the soul pattern.
-    expect(inferGenre(["Karma Fields - You and Me (Soulji Remix) [House]"])).toBe("House");
+    expect(
+      inferGenre(["Karma Fields - You and Me (Soulji Remix) [House]"]),
+    ).toBe("House");
     // "Sunset" must not match "set"-based mix heuristics — no Mix genre now.
     expect(inferGenre(["Chill Sunset Vibes"])).toBe("Chill / Lo-Fi");
   });
@@ -52,10 +56,13 @@ describe("extractComposer", () => {
     expect(extractComposer(desc)).toBe("Heavy Keyzz, SEVEN");
   });
   test("handles 'Produced by' variant", () => {
-    expect(extractComposer("Produced by John Cunningham")).toBe("John Cunningham");
+    expect(extractComposer("Produced by John Cunningham")).toBe(
+      "John Cunningham",
+    );
   });
   test("dedupes and caps at 3", () => {
-    const desc = "Producer: A\nProducer: A\nProducer: B\nProducer: C\nProducer: D";
+    const desc =
+      "Producer: A\nProducer: A\nProducer: B\nProducer: C\nProducer: D";
     expect(extractComposer(desc)).toBe("A, B, C");
   });
   test("null when no credits", () => {

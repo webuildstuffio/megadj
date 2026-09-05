@@ -2,7 +2,7 @@
 
 **One pass, every field.** FullTags is the megadj sub-project that takes any
 `mp3 / m4a / wav / flac / aiff` and fully enriches it: title, artist, album,
-album artist, genre, year (of *this version* — remix year for edits), remix
+album artist, genre, year (of _this version_ — remix year for edits), remix
 credit, producer credits, grouping, source URL, energy, embedded artwork,
 MusicBrainz MBID.
 
@@ -51,14 +51,14 @@ fulltags/
 
 ## The ladders (first success wins)
 
-| Field    | Order                                                                                     |
-| -------- | ----------------------------------------------------------------------------------------- |
-| identity | file tags → filename parse → MusicBrainz recording (1 rps)                                 |
-| genre    | file → SoundCloud tags (via yt-dlp scsearch) → canonical map → AI classifier (conf ≥ 0.7)  |
-| year     | file → SC upload timestamp (the **remix** year) → AI (verify: flash-lite guesses 2023)     |
+| Field    | Order                                                                                                |
+| -------- | ---------------------------------------------------------------------------------------------------- |
+| identity | file tags → filename parse → MusicBrainz recording (1 rps)                                           |
+| genre    | file → SoundCloud tags (via yt-dlp scsearch) → canonical map → AI classifier (conf ≥ 0.7)            |
+| year     | file → SC upload timestamp (the **remix** year) → AI (verify: flash-lite guesses 2023)               |
 | artwork  | embedded → SC page og:image (original/t1080) → hype gateways → mp3-twin → Deezer → iTunes → AI queue |
-| remixer  | title/filename `(Remixer Remix/Flip/Edit)` pattern                                          |
-| energy   | ffmpeg RMS astats → 1–10 (Mixed In Key style baseline)                                      |
+| remixer  | title/filename `(Remixer Remix/Flip/Edit)` pattern                                                   |
+| energy   | ffmpeg RMS astats → 1–10 (Mixed In Key style baseline)                                               |
 
 ## Format gotchas (why there's one writer)
 
@@ -91,12 +91,12 @@ append to `~/.local/state/megadj/artwork-queue.jsonl` so the existing
 
 ## Relationship to megadj commands
 
-| megadj command | What it does now                                                        |
-| -------------- | ----------------------------------------------------------------------- |
-| `megadj ingest`| unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims      |
-| `megadj fetch` | unchanged — `tools/fetch_all.ts` now writes through FullTags `writePatch`|
-| `megadj audit` | same completeness gate as `fulltags audit` (one reader)                  |
-| `megadj enrich`| MB genre top-up (kept; will fold into FullTags later)                    |
+| megadj command  | What it does now                                                          |
+| --------------- | ------------------------------------------------------------------------- |
+| `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims       |
+| `megadj fetch`  | unchanged — `tools/fetch_all.ts` now writes through FullTags `writePatch` |
+| `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                   |
+| `megadj enrich` | MB genre top-up (kept; will fold into FullTags later)                     |
 
 The **roadmap** for what comes next (key detection, Essentia mood/genre
 models, beat_this BPM, fingerprints) lives in

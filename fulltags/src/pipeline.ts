@@ -17,10 +17,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { groundTruth } from "./readers";
 import { embedArt, writePatch, isAudioFile } from "./writer";
-import {
-  canonGenre,
-  type TagPatch,
-} from "./schema";
+import { canonGenre, type TagPatch } from "./schema";
 import {
   deezerArt,
   fetchBestScArt,
@@ -92,7 +89,8 @@ export async function enrichTrack(
 
   // ---------- 1. tags: MusicBrainz fills artist/album/date ----------
   if (want("tags") && (!truth.title || !truth.artist || !truth.album)) {
-    const artist0 = (truth.artist ?? t.artist ?? "").split(/[,&]/)[0]?.trim() || null;
+    const artist0 =
+      (truth.artist ?? t.artist ?? "").split(/[,&]/)[0]?.trim() || null;
     const rec = await mbLookupCached(artist0, titleGuess ?? basename(t.path));
     if (rec) {
       if (!truth.title && rec.title) patch.title = rec.title;
@@ -114,11 +112,14 @@ export async function enrichTrack(
   if (wantsSc && !opts.dryRun) {
     const effTitle = patch.title ?? truth.title ?? t.title ?? basename(t.path);
     const effArtist = patch.artist ?? truth.artist ?? t.artist ?? null;
-    scBest = scSearch({ artist: effArtist, title: effTitle, file_path: t.path })[0] ?? null;
+    scBest =
+      scSearch({ artist: effArtist, title: effTitle, file_path: t.path })[0] ??
+      null;
   }
 
   if (needGenre) {
-    const fileGenre = truth.genre && truth.genre !== "Music" ? truth.genre : null;
+    const fileGenre =
+      truth.genre && truth.genre !== "Music" ? truth.genre : null;
     const g =
       canonGenre(scBest?.genre ?? "") ||
       (fileGenre && fileGenre !== "Music" ? fileGenre : null);
@@ -185,22 +186,22 @@ export async function enrichTrack(
     }
   }
 
-// ---------- energy (cheap, local, sortable) ----------
-// Idempotency: energy lives in TXXX:ENERGY which groundTruth() doesn't
-// surface. Before re-measuring, probe the file for an existing stamp —
-// a second identical value would still rewrite the container, so skip
-// when the stamp matches the measured value.
-if (want("energy") && !opts.dryRun) {
-  const rms = await measureRms(t.path);
-  const e = energyFromLufs(rms);
-  if (e !== null) {
-    const existing = readEnergyStamp(t.path);
-    if (existing !== e) {
-      patch.energy = e;
-      notes.push(`energy:${e}`);
+  // ---------- energy (cheap, local, sortable) ----------
+  // Idempotency: energy lives in TXXX:ENERGY which groundTruth() doesn't
+  // surface. Before re-measuring, probe the file for an existing stamp —
+  // a second identical value would still rewrite the container, so skip
+  // when the stamp matches the measured value.
+  if (want("energy") && !opts.dryRun) {
+    const rms = await measureRms(t.path);
+    const e = energyFromLufs(rms);
+    if (e !== null) {
+      const existing = readEnergyStamp(t.path);
+      if (existing !== e) {
+        patch.energy = e;
+        notes.push(`energy:${e}`);
+      }
     }
   }
-}
 
   // ---------- write ----------
   if (!opts.dryRun && Object.keys(patch).length) {
@@ -215,13 +216,25 @@ if (want("energy") && !opts.dryRun) {
 // ---------- MusicBrainz (1 rps, in-process cache) ----------
 const mbCache = new Map<
   string,
-  { title: string | null; artist: string | null; album: string | null; year: number | null; mbid: string | null } | null
+  {
+    title: string | null;
+    artist: string | null;
+    album: string | null;
+    year: number | null;
+    mbid: string | null;
+  } | null
 >();
 
 async function mbLookupCached(
   artist: string | null,
   title: string,
-): Promise<{ title: string | null; artist: string | null; album: string | null; year: number | null; mbid: string | null } | null> {
+): Promise<{
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  year: number | null;
+  mbid: string | null;
+} | null> {
   const key = `${artist ?? ""}::${title.toLowerCase()}`;
   if (mbCache.has(key)) return mbCache.get(key) ?? null;
   const q = artist
@@ -237,7 +250,13 @@ async function mbLookupCached(
         signal: AbortSignal.timeout(8000),
       },
     );
-    let out: { title: string | null; artist: string | null; album: string | null; year: number | null; mbid: string | null } | null = null;
+    let out: {
+      title: string | null;
+      artist: string | null;
+      album: string | null;
+      year: number | null;
+      mbid: string | null;
+    } | null = null;
     if (res.ok) {
       const data = (await res.json()) as {
         recordings?: Array<{
@@ -283,7 +302,8 @@ async function itunesArt(r: ArtRow): Promise<Uint8Array | null> {
 }
 
 function appendQueue(queuePath: string, r: ArtRow): void {
-  const { appendFile } = require("node:fs/promises") as typeof import("node:fs/promises");
+  const { appendFile } =
+    require("node:fs/promises") as typeof import("node:fs/promises");
   void appendFile(
     queuePath,
     JSON.stringify({
@@ -383,11 +403,15 @@ export async function enrichAll(
         const r = await enrichTrack({ path: f }, opts);
         results.push(r);
         if (r.notes.length)
-          log(`  [${my + 1}/${files.length}] ${r.notes.join(" ")} — ${basename(f)}`);
+          log(
+            `  [${my + 1}/${files.length}] ${r.notes.join(" ")} — ${basename(f)}`,
+          );
         else if (opts.dryRun)
           log(`  [${my + 1}/${files.length}] (dry) — ${basename(f)}`);
       } catch (err) {
-        log(`  [${my + 1}/${files.length}] ✗ ${(err as Error).message?.slice(0, 90)} — ${basename(f)}`);
+        log(
+          `  [${my + 1}/${files.length}] ✗ ${(err as Error).message?.slice(0, 90)} — ${basename(f)}`,
+        );
       }
     }
   }

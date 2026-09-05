@@ -15,12 +15,7 @@
  */
 import { $ } from "bun";
 import { extname } from "node:path";
-import {
-  existsSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import type { EnrichedMetadata, TagPatch } from "./schema";
 import { validatePatch } from "./schema-guards";
 
@@ -45,9 +40,7 @@ export function isAudioFile(p: string): boolean {
 }
 
 export function isLossless(p: string): boolean {
-  return [".wav", ".flac", ".aiff", ".aif"].includes(
-    extname(p).toLowerCase(),
-  );
+  return [".wav", ".flac", ".aiff", ".aif"].includes(extname(p).toLowerCase());
 }
 
 /**
@@ -64,7 +57,9 @@ export async function applyTags(
     albumArtist: meta.albumArtist ?? undefined,
     album: meta.album ?? undefined,
     genre: meta.genre ?? undefined,
-    year: meta.date ? Number(meta.date.match(/\d{4}/)?.[0]) || undefined : undefined,
+    year: meta.date
+      ? Number(meta.date.match(/\d{4}/)?.[0]) || undefined
+      : undefined,
     composer: meta.composer ?? undefined,
     grouping: meta.grouping ?? undefined,
     remixer: meta.remixer ?? undefined,
@@ -171,23 +166,47 @@ async function writePatchAiff(
   for (const [k, v] of pairs) {
     const s = String(v);
     switch (k) {
-      case "title": set("TIT2", s); break;
-      case "artist": set("TPE1", s); break;
-      case "albumArtist": set("TPE2", s); break;
-      case "album": set("TALB", s); break;
-      case "genre": set("TCON", s); break;
-      case "year": set("TDRC", s); break;
-      case "composer": set("TCOM", s); break;
-      case "grouping": set("TIT1", s); break;
-      case "remixer": txxx("version", s); break;
-      case "bpm": set("TBPM", s); break;
-      case "energy": txxx("ENERGY", s); break;
+      case "title":
+        set("TIT2", s);
+        break;
+      case "artist":
+        set("TPE1", s);
+        break;
+      case "albumArtist":
+        set("TPE2", s);
+        break;
+      case "album":
+        set("TALB", s);
+        break;
+      case "genre":
+        set("TCON", s);
+        break;
+      case "year":
+        set("TDRC", s);
+        break;
+      case "composer":
+        set("TCOM", s);
+        break;
+      case "grouping":
+        set("TIT1", s);
+        break;
+      case "remixer":
+        txxx("version", s);
+        break;
+      case "bpm":
+        set("TBPM", s);
+        break;
+      case "energy":
+        txxx("ENERGY", s);
+        break;
       case "comment":
         frames.push(
           `t = COMM(encoding=3, lang="eng", desc="", text=["${esc(s)}"]); id3.add(t)`,
         );
         break;
-      case "mbid": txxx("MusicBrainz Track Id", s); break;
+      case "mbid":
+        txxx("MusicBrainz Track Id", s);
+        break;
     }
   }
   const script = `
@@ -215,10 +234,7 @@ print("ok")`;
  * accepts arbitrary -metadata but players ignore it — mutagen is the real
  * path for WAV.
  */
-export function writePatchWav(
-  filePath: string,
-  patch: TagPatch,
-): boolean {
+export function writePatchWav(filePath: string, patch: TagPatch): boolean {
   validatePatch(patch);
   const pairs = Object.entries(patch).filter(([, v]) => v !== undefined) as [
     keyof TagPatch,

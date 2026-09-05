@@ -52,7 +52,10 @@ function ffprobeJson(p: string): FfprobeJson {
 }
 
 /** Mutagen read for WAV (ID3-in-RIFF) and MP3 (ID3v2), JSON over stdout. */
-function mutagenRead(p: string): { art: boolean; tags: Record<string, string> } {
+function mutagenRead(p: string): {
+  art: boolean;
+  tags: Record<string, string>;
+} {
   const script = `import json, sys
 p = ${JSON.stringify(p)}
 tags, art = {}, False
