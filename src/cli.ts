@@ -38,6 +38,7 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run]
                                                enrichment pass: tags+genres+years+art
   megadj audit   [--json]                      ground-truth tag/art audit — exits 1 on any gap
+  megadj years   [--dry-run]                   verify years vs SC page/yt-dlp (kills AI 2023 guesses)
   megadj artwork [--model M] [--max N] [--dry-run]
                                                generate covers for queued tracks (last resort)
   megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz
@@ -357,6 +358,14 @@ async function main(): Promise<void> {
         } else {
           console.log("✅ all tracks fully tagged");
         }
+        break;
+      }
+      case "years": {
+        // the fix_years pass, one entry point: verifies every track's year
+        // against the SC page / yt-dlp timestamp (never the AI guess)
+        const flags = parseFlags(process.argv.slice(3), [], ["dry-run"]);
+        const { runFixYears } = await import("../tools/fix_years");
+        runFixYears({ dryRun: flags.bools.has("dry-run") });
         break;
       }
       default:

@@ -15,6 +15,9 @@ __pycache__/
 cratedeck/data/
 cratedeck/config.toml
 
+# real env (commit .env.example, never .env)
+.env
+
 # local-only ops files (personal; never commit)
 docs/usb-sync-log.md
 reports/

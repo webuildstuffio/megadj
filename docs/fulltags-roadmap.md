@@ -156,8 +156,8 @@ pipeline, then **delete it** (the last duplicated writer).
    the canonical example; OpenKeyScan's relative-major/minor weakness is
    the next one to expect.
 6. **Old-code retirement** — `src/commands/enrich.ts` folds in at #5;
-   `tools/fix_years.ts` folds in when years stage gains the SC
-   `display_date` refinement.
+   `tools/fix_years.ts` folded into `megadj years` (Sep 5 2026) once the
+   years stage gained the SC `display_date` refinement.
 
 ## 5. Stress-test log (2026-09-05, v0 code)
 

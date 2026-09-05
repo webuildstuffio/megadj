@@ -94,7 +94,7 @@ Per track it does, skipping whatever is already complete:
    - **Deezer** cover_xl → **iTunes** 600px.
    - leftovers → `artwork-queue.jsonl` → `megadj artwork` (AI, last resort).
 4. **year** — SC upload timestamp of the remix/edit page = the version's
-   year (NOT the original song's year) → `tools/fix_years.ts` re-verifies
+   year (NOT the original song's year) → `megadj years` re-verifies
    every year against the real SC page `display_date` → AI best-estimate
    as the last fallback.
 
@@ -136,8 +136,8 @@ Never hand-edit drive DBs; never let two writers touch a drive at once.
 
 ```bash
 megadj audit                    # ground-truth file audit: art+title+artist+album+genre+year
-bun tools/fetch_all.ts --dry-run  # what would still be done
-bun tools/fix_years.ts --dry-run  # verify years against real SC page dates
+megadj fetch --dry-run          # what would still be done
+megadj years --dry-run          # verify years against real SC page dates
 ```
 
 `megadj audit` exits 1 and lists every file with `[missing,fields]` if

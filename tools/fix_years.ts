@@ -4,7 +4,8 @@
  * yt-dlp's %(timestamp)s, then AI as last resort. Overwrites the AI guess
  * of 2023 that flash-lite defaulted to.
  *
- * usage: bun tools/fix_years.ts [--dry-run]
+ * usage: as CLI → `bun tools/fix_years.ts [--dry-run]`
+ *        as lib  → `runFixYears({ dryRun })` from `megadj years` (src/cli.ts)
  */
 import { Database } from "bun:sqlite";
 import { setFileTags, groundTruth, ARCH } from "./fetch_lib";
@@ -83,58 +84,75 @@ function ytdlpYear(url: string): number | null {
   return null;
 }
 
-let scPage = 0;
-let ytdlp = 0;
-let kept = 0;
-let failed: Row[] = [];
-
-for (const r of rows) {
-  const t = groundTruth(r.file_path);
-  let year: number | null = null;
-  let source = "";
-
-  // 1. permalink in format_id → real SC page date
-  if (r.format_id?.startsWith("sc:")) {
-    const url = r.format_id.slice(3);
-    year = scPageYear(url);
-    if (year) source = "sc-page";
-  }
-  // 2. yt-dlp full metadata (search → top hit timestamp)
-  if (!year && r.format_id?.startsWith("sc:")) {
-    year = ytdlpYear(r.format_id.slice(3));
-    if (year) source = "yt-dlp";
-  }
-  // 3. keep existing non-2023 year (probably intentional)
-  if (!year && r.year && r.year !== "2023") {
-    kept++;
-    continue;
-  }
-  if (!year) {
-    failed.push(r);
-    continue;
-  }
-
-  const current = t.year ?? r.year;
-  if (current === String(year)) {
-    kept++;
-    continue;
-  }
-  if (!DRY) {
-    setFileTags(r.file_path, { year });
-    db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-      String(year),
-      r.video_id,
-    );
-  }
-  if (source === "sc-page") scPage++;
-  else ytdlp++;
-  console.log(
-    `  ${current ?? "?"} → ${year} (${source}) — ${r.artist ?? "?"}: ${r.title.slice(0, 45)}`,
-  );
+export interface FixYearsStats {
+  scPage: number;
+  ytdlp: number;
+  kept: number;
+  failed: number;
 }
 
-console.log(
-  `\n${DRY ? "DRY " : ""}DONE — sc-page: ${scPage} | yt-dlp: ${ytdlp} | kept: ${kept} | unresolved: ${failed.length}`,
-);
-for (const f of failed) console.log(`  ? ${f.title.slice(0, 60)}`);
-db.close();
+/** Year-verification pass (SC page date → yt-dlp timestamp). */
+export function runFixYears(opts: { dryRun?: boolean } = {}): FixYearsStats {
+  const dry = opts.dryRun ?? false;
+  let scPage = 0;
+  let ytdlp = 0;
+  let kept = 0;
+  const failed: Row[] = [];
+
+  for (const r of rows) {
+    const t = groundTruth(r.file_path);
+    let year: number | null = null;
+    let source = "";
+
+    // 1. permalink in format_id → real SC page date
+    if (r.format_id?.startsWith("sc:")) {
+      const url = r.format_id.slice(3);
+      year = scPageYear(url);
+      if (year) source = "sc-page";
+    }
+    // 2. yt-dlp full metadata (search → top hit timestamp)
+    if (!year && r.format_id?.startsWith("sc:")) {
+      year = ytdlpYear(r.format_id.slice(3));
+      if (year) source = "yt-dlp";
+    }
+    // 3. keep existing non-2023 year (probably intentional)
+    if (!year && r.year && r.year !== "2023") {
+      kept++;
+      continue;
+    }
+    if (!year) {
+      failed.push(r);
+      continue;
+    }
+
+    const current = t.year ?? r.year;
+    if (current === String(year)) {
+      kept++;
+      continue;
+    }
+    if (!dry) {
+      setFileTags(r.file_path, { year });
+      db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
+        String(year),
+        r.video_id,
+      );
+    }
+    if (source === "sc-page") scPage++;
+    else ytdlp++;
+    console.log(
+      `  ${current ?? "?"} → ${year} (${source}) — ${r.artist ?? "?"}: ${r.title.slice(0, 45)}`,
+    );
+  }
+
+  console.log(
+    `\n${dry ? "DRY " : ""}DONE — sc-page: ${scPage} | yt-dlp: ${ytdlp} | kept: ${kept} | unresolved: ${failed.length}`,
+  );
+  for (const f of failed) console.log(`  ? ${f.title.slice(0, 60)}`);
+  return { scPage, ytdlp, kept, failed: failed.length };
+}
+
+// direct CLI entry (megadj years is the supported path; keep back-compat)
+if (import.meta.main) {
+  runFixYears({ dryRun: DRY });
+  db.close();
+}

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Roadmap & ideas
+    url: https://github.com/webuildstuffio/megadj/blob/main/docs/ideas.md
+    about: Check whether your idea is already on the roadmap before opening a feature request.

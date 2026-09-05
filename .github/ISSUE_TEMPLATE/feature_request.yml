@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest a capability — check docs/ideas.md first for existing roadmap items
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What manual labour or gap does this remove? Principle §8 — AI turns unstructured into structured; prefer asking for outcomes over features.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: input
+    id: roadmap
+    attributes:
+      label: Related docs/ideas.md section (if any)

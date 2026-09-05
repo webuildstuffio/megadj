@@ -452,6 +452,12 @@ export function runInit(): number {
 
   const results = runDoctor();
   const code = printDoctor(results);
+  // one-time env starter: copy the commented example if no real .env exists
+  const envFile = join(CRATEDECK_DIR, "..", ".env");
+  if (!existsSync(envFile)) {
+    copyFileSync(join(CRATEDECK_DIR, "..", ".env.example"), envFile);
+    console.log(`✓ copied .env.example → .env (uncomment what you need)`);
+  }
   if (didScaffold) {
     console.log(
       `next: edit cratedeck/config.toml → set master_drive/mirror_drive to your USB volume names, then re-run \`megadj doctor\``,

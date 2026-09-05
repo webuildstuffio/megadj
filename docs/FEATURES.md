@@ -108,28 +108,23 @@ architecture, build plan, acceptance).
 
 ## 🧭 Coming next (from the roadmap)
 
-The full parking lot lives in [ideas.md](ideas.md); the **opinionated
-proposal — what to build next and why — is
-[roadmap-proposal.md](roadmap-proposal.md)** (three moves: harden the moat →
-complete the metadata → agentify). Headliners per project:
+The roadmap lives in two places — this section restates neither:
 
-- **CrateDeck v1.x** — global search across ghosts (§B9), gig mode &
-  preflight (§B12), player-compatibility verdict (§N75–78), set
-  intelligence (§B11), assisted legacy-export runbook (§C18a),
-  scheduled unattended sync (§C22).
-  _Shipped since this list was written: auto-scan on mount + weekly
-  auto-verify (§B17), fleet coverage/redundancy/diff (§B6–B8), ⌘K search
-  over snapshots + the Fleet page._
-- **GetDat v2** — SoundCloud as a first-class source (§K57), Bandcamp +
-  long-tail platforms (§K58), 1001tracklists mining → discovery queue
-  (§K59), `megadj drop` one-shot (§K61), LOWQ upgrade queue (§D24, L62).
-- **FullTags v2** — acoustic fingerprint ledger (§L62), OpenKeyScan key
-  detection writing `TKEY` + Camelot (§I51), real BPM + downbeats via
-  `beat_this` (§I46), Essentia mood & vibe suite (§I45),
-  structure-aware grids & cues (§I46).
-- **The agentic layer** — safety rails first (§O86), then the megadj MCP
-  server (§O82; the CrateDeck half already ships via `bun run mcp`) and a
-  weekly headless agent prep loop (§O83).
+- **[roadmap-proposal.md](roadmap-proposal.md) is canon for ordering** —
+  the opinionated proposal: what to build next and why (three moves:
+  harden the moat → complete the metadata → agentify).
+- **[ideas.md](ideas.md) is canon for detail** — the full parking lot
+  (§A–§O), with §0 gating everything.
+
+Headline shape, in one line each (read the docs for the real list):
+
+- **Move 1 — CrateDeck v1.x:** gig-day preflight + player-compatibility
+  verdict + assisted legacy-export runbook + differential mirror.
+- **Move 2 — FullTags v1.x:** OpenKeyScan key → real BPM → acoustic
+  fingerprints → mood/vibe, each behind a ground-truth gate.
+- **Move 3 — The agentic layer:** archive-half MCP server (the CrateDeck
+  half already ships via `bun run mcp`), then the headless weekly agent
+  loop.
 - **The dream** — hit predictor & set-builder copilot, calibrated on what
   actually got played; proposes sequences, never auto-exports (§M64, M66).
 
