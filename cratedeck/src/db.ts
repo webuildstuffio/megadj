@@ -11,11 +11,7 @@ import type {
   VerifyReport,
 } from "../shared/types";
 import { FleetStore } from "./fleet-db";
-import type {
-  TrackRow,
-  PlaylistEntryRow,
-  ManifestRow,
-} from "./fleet";
+import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./fleet";
 
 /** Raw row shape as stored in the drives table (mounted is 0/1). */
 interface DriveRow extends Omit<Drive, "mounted"> {
@@ -126,9 +122,7 @@ export class DB {
         .map((c) => c.name)
         .includes("verify_report_json")
     ) {
-      this.sqlite.exec(
-        "ALTER TABLE drives ADD COLUMN verify_report_json TEXT",
-      );
+      this.sqlite.exec("ALTER TABLE drives ADD COLUMN verify_report_json TEXT");
     }
     // disk-burn guard: cap per-drive snapshot history (each full snapshot can
     // be ~MBs of JSON; unbounded growth would eat the host disk over months)
@@ -317,9 +311,10 @@ export class DB {
 
   getVerifyReport(id: string): VerifyReport | null {
     const r = this.sqlite
-      .query<{ verify_report_json: string | null }, [string]>(
-        "SELECT verify_report_json FROM drives WHERE id=?",
-      )
+      .query<
+        { verify_report_json: string | null },
+        [string]
+      >("SELECT verify_report_json FROM drives WHERE id=?")
       .get(id);
     if (!r?.verify_report_json) return null;
     try {

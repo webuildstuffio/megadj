@@ -47,9 +47,7 @@ function fold(s: string): string {
 }
 
 /** Fallback identity: "artist - title". null when neither side exists. */
-function metaKey(
-  t: Pick<TrackRow, "title" | "artist">,
-): string | null {
+function metaKey(t: Pick<TrackRow, "title" | "artist">): string | null {
   const artist = (t.artist ?? "").trim();
   const title = (t.title ?? "").trim();
   if (!artist && !title) return null;
@@ -130,7 +128,10 @@ export function coverage(
   }));
   const atRisk = rows
     .filter((r) => r.at_risk)
-    .sort((a, b) => a.copies - b.copies || a.identity.path.localeCompare(b.identity.path));
+    .sort(
+      (a, b) =>
+        a.copies - b.copies || a.identity.path.localeCompare(b.identity.path),
+    );
 
   return {
     drives,
@@ -155,19 +156,21 @@ export function trackLocations(
   inventories: Map<string, TrackRow[]>,
   pathQuery: string | null,
   metaQuery: string | null,
-): { identity: { path: string; title: string | null; artist: string | null }; drives: string[] } | null {
+): {
+  identity: { path: string; title: string | null; artist: string | null };
+  drives: string[];
+} | null {
   const path = pathQuery ? fold(pathQuery) : null;
   const meta = metaQuery ? fold(metaQuery) : null;
   if (!path && !meta) return null;
-  const hit: { identity: { path: string; title: string | null; artist: string | null }; drives: string[] } = {
+  const hit: {
+    identity: { path: string; title: string | null; artist: string | null };
+    drives: string[];
+  } = {
     identity: { path: path ?? "", title: null, artist: null },
     drives: [],
   };
-  const tryRow = (
-    t: TrackRow,
-    driveId: string,
-    ok: boolean,
-  ): void => {
+  const tryRow = (t: TrackRow, driveId: string, ok: boolean): void => {
     if (!ok) return;
     if (!hit.drives.includes(driveId)) hit.drives.push(driveId);
     hit.identity.path = t.path;
@@ -295,7 +298,9 @@ export function redundancy(
 
   out.sort((a, b) => {
     const rank = { fail: 0, warn: 1, unknown: 2, pass: 3 } as const;
-    return rank[a.verdict] - rank[b.verdict] || b.unique_tracks - a.unique_tracks;
+    return (
+      rank[a.verdict] - rank[b.verdict] || b.unique_tracks - a.unique_tracks
+    );
   });
   const fails = out.filter((p) => p.verdict === "fail").length;
   const warns = out.filter((p) => p.verdict === "warn").length;
@@ -388,8 +393,9 @@ export function diff(
   });
 
   const matchedB = new Set<string>();
-  const bytesOf = (r: TrackRow | ManifestRow | undefined): number | undefined =>
-    r && "bytes" in r ? r.bytes : undefined;
+  const bytesOf = (
+    r: TrackRow | ManifestRow | undefined,
+  ): number | undefined => (r && "bytes" in r ? r.bytes : undefined);
   for (const [path, ra] of ia.byPath) {
     const rb =
       ib.byPath.get(path) ??
@@ -403,12 +409,13 @@ export function diff(
       matchedB.add(path);
       const ba = bytesOf(fa.byPath.get(path)) ?? bytesOf(ra);
       const bb = bytesOf(fb.byPath.get(path)) ?? bytesOf(rb);
-      if (
-        ba !== undefined &&
-        bb !== undefined &&
-        ba !== bb
-      ) {
-        changed.push({ ...rowOf(ra), kind: "changed", bytes_a: ba, bytes_b: bb });
+      if (ba !== undefined && bb !== undefined && ba !== bb) {
+        changed.push({
+          ...rowOf(ra),
+          kind: "changed",
+          bytes_a: ba,
+          bytes_b: bb,
+        });
       }
     } else {
       removed.push({ ...rowOf(ra), kind: "removed" });
@@ -421,8 +428,7 @@ export function diff(
     added.push({ ...rowOf(rb), kind: "added" });
   }
 
-  const byPathSort = (x: DiffRow, y: DiffRow) =>
-    x.path.localeCompare(y.path);
+  const byPathSort = (x: DiffRow, y: DiffRow) => x.path.localeCompare(y.path);
   added.sort(byPathSort);
   removed.sort(byPathSort);
   changed.sort(byPathSort);

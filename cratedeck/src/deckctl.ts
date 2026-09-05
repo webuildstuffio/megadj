@@ -329,15 +329,11 @@ function finishLine(j: Job, driveName: string, elapsedS: number): void {
         fix?: string;
       }[];
       if (!checks.length) {
-        log(
-          "  (no structured checks parsed — raw summary below)",
-        );
+        log("  (no structured checks parsed — raw summary below)");
       } else {
         const bad = checks.filter((c) => c.status !== "pass");
         const good = checks.filter((c) => c.status === "pass");
-        log(
-          `  ${good.length} passed, ${bad.length} need attention:`,
-        );
+        log(`  ${good.length} passed, ${bad.length} need attention:`);
         for (const c of checks) {
           const mark =
             c.status === "pass" ? "✓" : c.status === "warn" ? "⚠" : "✕";
@@ -415,11 +411,10 @@ async function cmdCoverage(minCopies?: string): Promise<void> {
   log(
     `fleet coverage — ${r.totals.unique_tracks.toLocaleString()} unique tracks across ${r.drives.length} drive(s)`,
   );
-  for (const d of r.drives) log(`  ${d.name}: ${d.tracks.toLocaleString()} tracks`);
+  for (const d of r.drives)
+    log(`  ${d.name}: ${d.tracks.toLocaleString()} tracks`);
   if (!r.at_risk.length) {
-    log(
-      `✓ no at-risk tracks — everything lives on ≥${r.min_copies} drive(s)`,
-    );
+    log(`✓ no at-risk tracks — everything lives on ≥${r.min_copies} drive(s)`);
     return;
   }
   log(

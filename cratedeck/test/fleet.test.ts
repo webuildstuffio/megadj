@@ -315,14 +315,8 @@ describe("db fleet tables", () => {
     );
     const cov = coverage(db.fleetInventories(), 2);
     expect(cov.totals.unique_tracks).toBe(2);
-    expect(cov.at_risk.map((r) => r.identity.path)).toEqual([
-      "house/two.mp3",
-    ]);
-    const red = redundancy(
-      db.fleetInventories(),
-      db.fleetPlaylistEntries(),
-      2,
-    );
+    expect(cov.at_risk.map((r) => r.identity.path)).toEqual(["house/two.mp3"]);
+    const red = redundancy(db.fleetInventories(), db.fleetPlaylistEntries(), 2);
     expect(red.playlists[0]!.playlist).toBe("Party");
     const d = diff(
       "A",
