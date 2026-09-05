@@ -124,10 +124,22 @@ export async function probeFile(path: string): Promise<Probe> {
 
 /** Higher = better. Lossless dominates, then bitrate, then length. */
 export function qualityScore(p: Probe): number {
-  const lossless =
-    p.codec && LOSSLESS.has(`.${p.codec.replace("pcm_s16le", "wav")}`)
-      ? 1e9
-      : 0;
+  // ffprobe reports raw PCM codec names — AIFF is pcm_s16be/big-endian and
+  // hi-res WAV is pcm_s24le/32le: all lossless, all previously scored ZERO
+  // lossless bonus (only pcm_s16le mapped), so an AIFF master lost its
+  // dupe-resolution to any 16-bit WAV.
+  const LOSSLESS_CODECS = new Set([
+    "flac",
+    "wav",
+    "pcm_s16le",
+    "pcm_s24le",
+    "pcm_s32le",
+    "pcm_s16be",
+    "pcm_s24be",
+    "pcm_s32be",
+    "alac",
+  ]);
+  const lossless = p.codec && LOSSLESS_CODECS.has(p.codec) ? 1e9 : 0;
   return lossless + (p.bitrateKbps ?? 0) * 1e3 + (p.durationS ?? 0);
 }
 
