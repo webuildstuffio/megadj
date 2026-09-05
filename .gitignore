@@ -17,5 +17,4 @@ cratedeck/config.toml
 
 # local-only ops files (personal; never commit)
 docs/usb-sync-log.md
-fulltags/
 reports/
