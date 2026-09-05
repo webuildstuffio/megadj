@@ -151,6 +151,16 @@ produces, regardless of the language used in the request.
   phase regexes must match untrimmed lines, and `tick(from, to)` means
   done/total — a phase span must be passed as `tick(progress, 1)` (pure
   `verifyPhase()` in `jobs.ts`, `test/verify-phases.test.ts`).
+- CrateDeck round-3 gotchas (regression-tested): `inferRole` must compare
+  against the CONFIGURED master/mirror volume names (`DB.masterName`/
+  `mirrorName`, set from config in `index.ts`) — hardcoding DJMASTER/
+  DJMIRROR made custom-named masters `role: unknown`, killing parity
+  checks + sync badges; the DrivePage poll loop must self-heal a failed
+  FIRST load (idle branch retries while `loadError` is set, else the
+  "Loading failed" card sticks forever); SSE `job` events fire up to ~4/s
+  per running job — App coalesces `refreshJobs` to ≤1/s and DrivePage
+  throttles its drive-scoped fetch to ≤1/2s, or a long verify hammers the
+  server with thousands of redundant fetches.
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
   server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
   10 tools (`deck_status/drives/report/coverage/redundancy/diff/jobs/
