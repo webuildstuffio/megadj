@@ -66,7 +66,7 @@ the remix's, not the original's.
 
 **Commands:** `megadj ingest`, `megadj fetch`, `megadj enrich`, `megadj
 artwork`, `megadj audit`
-**Docs:** [.claude/skills/new-music-intake/SKILL.md](.claude/skills/new-music-intake/SKILL.md)
+**Docs:** [new-music-intake skill](../.claude/skills/new-music-intake/SKILL.md)
 
 **Vibe:** Picard, if Picard had a web browser, a fingerprint matcher, and a
 budget of four cents.
@@ -80,7 +80,7 @@ kept byte-identical to its mirror, verified down to the byte-grid level, and
 answered in one glance: **is this stick safe for tonight?**
 
 This is the USB-crate organization project, and it's a project in its own
-right. It has [its own doc set](cratedeck/README.md) (brief, PRD,
+right. It has [its own doc set](../cratedeck/README.md) (brief, PRD,
 architecture, build plan, acceptance).
 
 | | |
@@ -94,10 +94,10 @@ architecture, build plan, acceptance).
 | **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: `status/drives/report/run/coverage/redundancy/diff`, `--json` for agents) |
 
 **Commands:** `bun run deck`, `bun run cratedeck/src/deckctl.ts …`
-**Docs:** [cratedeck/README.md](cratedeck/README.md) ·
-[deckctl guide](cratedeck/deckctl.md) ·
-[USB pipeline](docs/usb-sync.md) ·
-[docs/cratedeck/](docs/cratedeck/)
+**Docs:** [cratedeck/README.md](../cratedeck/README.md) ·
+[deckctl guide](../cratedeck/deckctl.md) ·
+[USB pipeline](usb-sync.md) ·
+[docs/cratedeck/](cratedeck/)
 
 **Vibe:** mission control for a drawer full of identical-looking sticks.
 
