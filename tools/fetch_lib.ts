@@ -23,6 +23,29 @@ export const ARCH = process.env.MEGADJ_MUSIC_DIR ?? `${home}/Music/DJ-Imports`;
 export const QUEUE = `${home}/.local/state/megadj/artwork-queue.jsonl`;
 export const db = new Database(`${home}/.local/state/megadj/archive.db`);
 
+/** Audio files under the archive, recursively (genre subfolders included —
+ * organize() moves tracks into them, so a top-level readdir skipped every
+ * organized track and let same-named files in different folders collide). */
+export function archiveFiles(): Set<string> {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
+      if (ent.name.startsWith(".")) continue;
+      const full = `${dir}/${ent.name}`;
+      if (ent.isDirectory()) walk(full);
+      else if (/\.(wav|mp3|m4a|flac|aiff)$/i.test(ent.name)) out.push(full);
+    }
+  };
+  walk(ARCH);
+  return new Set(out);
+}
+
 export interface Row {
   video_id: string;
   title: string;
@@ -31,14 +54,6 @@ export interface Row {
   genre: string | null;
   file_path: string;
   format_id: string | null;
-}
-
-export function archiveFiles(): Set<string> {
-  return new Set(
-    readdirSync(ARCH).filter(
-      (f) => !f.startsWith(".") && /\.(wav|mp3|m4a|flac|aiff)$/i.test(f),
-    ),
-  );
 }
 
 export interface Truth {

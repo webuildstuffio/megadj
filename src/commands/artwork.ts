@@ -119,11 +119,19 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
   let done = 0;
   let failed = 0;
   const doneLines: string[] = [];
+  // Which batch entries actually LEFT the queue: embedded, or skipped as
+  // unsupported (no point queuing a container that can't hold art).
+  // Everything else (generation failed, embed failed) must stay queued —
+  // the old rewrite (entries.slice(batch.length)) dropped the whole batch
+  // slice, so a failed generation silently deleted its queue entry forever.
+  const processedIdx = new Set<number>();
 
-  for (const entry of batch) {
+  for (let i = 0; i < batch.length; i++) {
+    const entry = batch[i]!;
     if (!ARTWORK_EXTS.has(extname(entry.path).toLowerCase())) {
       log(`  - skip (unsupported container): ${basename(entry.path)}`);
       doneLines.push(JSON.stringify({ ...entry, result: "skipped-ext" }));
+      processedIdx.add(i);
       continue;
     }
     const prompt = buildPrompt(entry);
@@ -150,6 +158,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
       if (await embedArtwork(entry.path, coverPath)) {
         log("    embedded ✓");
         done++;
+        processedIdx.add(i);
         doneLines.push(
           JSON.stringify({ ...entry, result: "embedded", model, coverPath }),
         );
@@ -167,8 +176,12 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
 
   if (!opts.dryRun && doneLines.length > 0) {
     await appendFile(DONE_PATH(), doneLines.join("\n") + "\n", "utf8");
-    // Rewrite the queue without processed entries.
-    const remaining = entries.slice(batch.length);
+    // Rewrite the queue keeping only entries that neither embedded nor were
+    // skipped as unsupported — failed generations stay queued for retry
+    // (the slice-by-batch-size rewrite used to drop them forever).
+    const remaining = entries.filter(
+      (e) => !processedIdx.has(entries.indexOf(e)),
+    );
     await Bun.write(
       QUEUE_PATH(),
       remaining.map((e) => JSON.stringify(e)).join("\n") +
@@ -186,14 +199,14 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
         processed: batch.length,
         embedded: done,
         failed,
-        leftInQueue: Math.max(0, entries.length - batch.length),
+        leftInQueue: Math.max(0, entries.length - processedIdx.size),
       }),
     );
   } else {
     log(
       `\ndone: ${done} embedded, ${failed} failed` +
         (opts.dryRun ? " (dry run — nothing generated)" : "") +
-        `, ${Math.max(0, entries.length - batch.length)} left in queue`,
+        `, ${Math.max(0, entries.length - processedIdx.size)} left in queue`,
     );
   }
 }

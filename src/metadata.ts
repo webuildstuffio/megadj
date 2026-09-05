@@ -11,5 +11,6 @@ export {
   buildMetadata,
   inferGenre,
   sanitizeGenreFolder,
+  writePatch,
   type YtdlpInfo,
 } from "../fulltags/src/exports";

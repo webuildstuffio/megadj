@@ -7,9 +7,8 @@
  * in-file with ffmpeg, ready for a follow-up `organize`.
  */
 
-import { $ } from "bun";
 import type { ArchiveState } from "../state";
-import { inferGenre } from "../metadata";
+import { inferGenre, writePatch } from "../metadata";
 
 export interface EnrichOptions {
   state: ArchiveState;
@@ -66,14 +65,12 @@ async function rewriteGenreTag(
   filePath: string,
   genre: string,
 ): Promise<boolean> {
-  const tmp = filePath.replace(/(\.[^.]+)$/, ".retag$1");
-  const proc =
-    await $`ffmpeg -y -hide_banner -loglevel error -i ${filePath} -c copy -map 0 -metadata genre=${genre} ${tmp}`
-      .quiet()
-      .nothrow();
-  if (proc.exitCode !== 0) return false;
-  const proc2 = await $`mv ${tmp} ${filePath}`.quiet().nothrow();
-  return proc2.exitCode === 0;
+  // Route through FullTags' writer: the raw `ffmpeg -c copy` remux used here
+  // before dropped embedded artwork on AIFF (its muxer discards the ID3
+  // chunk — the documented repo gotcha) and leaked an orphan tmp file when
+  // ffmpeg failed on a corrupt input. writePatch is atomic (tmp + rename),
+  // format-aware (mutagen for AIFF/WAV/m4a), and cleans up after itself.
+  return writePatch(filePath, { genre });
 }
 
 export async function enrich(opts: EnrichOptions): Promise<void> {

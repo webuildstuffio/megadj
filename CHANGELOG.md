@@ -68,6 +68,28 @@ diff|jobs|cancel|stop|explain` with `--json`, spinner + ETA, exit 3 on
     every spawn hardcoded the binary; the option is now honored (and args
     go through one hardened array-interpolation spawn).
   - removed dead code: `requality` option, `startTotal`, `pendingTracksFromSource`.
+- GetDat round 2 — five more bugs found and fixed with regression tests
+  (`src/commands/fetch.test.ts`, new; src suite 54 → 60):
+  - `megadj fetch` parsed `--art|--genres|--tags|--years|--jobs|--dry-run`
+    and then dropped all of them when spawning `tools/fetch_all.ts` — every
+    scoped run did the full pass with default workers.
+  - `megadj audit` / `auditArchive` read only the archive's top level;
+    after `organize` moved tracks into genre subfolders it audited an
+    empty set and reported 0/0 vacuous success. Now walks recursively.
+  - `tools/fetch_all.ts` matched DB rows by *basename* against a top-level
+    file set — organized tracks were silently skipped by every fetch pass
+    and two same-named tracks in different genre folders collided.
+    `archiveFiles()` now walks recursively and rows match by full path.
+  - `megadj artwork` rewrote its queue with `entries.slice(batch.length)`,
+    deleting batch entries that never completed: a failed generation or
+    embed had its queue entry silently dropped forever (the log even said
+    "entry stays in queue"). The rewrite now keeps every entry that did
+    not finish, and `leftInQueue` reflects reality.
+  - `megadj enrich` retagged with a raw `ffmpeg -c copy` remux: the AIFF
+    muxer drops the ID3 chunk (the documented repo gotcha), so enriched
+    tracks lost embedded artwork and comments, and a failed run leaked an
+    orphan tmp per corrupt input. Now routes through FullTags'
+    format-aware `writePatch` (atomic, mutagen for AIFF/WAV/m4a).
 - `scripts/export-cookies.sh` success line printed literal garbage;
   now reports the real cookie count.
 - FullTags audit: five bugs found and fixed with regression tests

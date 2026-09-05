@@ -282,8 +282,9 @@ async function main() {
       )
       .all(`${ARCH}/%`) as Row[]
   ).filter(
-    (r) =>
-      files.has(r.file_path.split("/").pop() ?? "") && existsSync(r.file_path),
+    // files now holds full paths (genre subfolders included), so match
+    // file_path directly — the basename Set missed every organized track.
+    (r) => files.has(r.file_path) && existsSync(r.file_path),
   );
 
   const tasks: Task[] = [];

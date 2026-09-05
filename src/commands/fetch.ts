@@ -10,7 +10,6 @@
 import { join } from "node:path";
 import { readdirSync, existsSync } from "node:fs";
 import { groundTruth } from "../../fulltags/src/exports";
-
 export interface FetchOptions {
   all?: boolean;
   only?: "art" | "genres" | "tags" | "years" | "all";
@@ -31,23 +30,39 @@ export interface AuditRow {
   complete: boolean;
 }
 
+/** Audio files under the archive, recursively — organize() moves tracks
+ * into genre subfolders, so a top-level readdir would audit an empty set
+ * and always report "all complete" (0/0 is vacuous). */
+function walkArchive(dir: string, out: string[] = []): string[] {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const ent of entries) {
+    if (ent.name.startsWith(".")) continue;
+    const full = join(dir, ent.name);
+    if (ent.isDirectory()) walkArchive(full, out);
+    else if (/\.(wav|mp3|m4a|flac|aiff)$/i.test(ent.name)) out.push(full);
+  }
+  return out;
+}
+
 /** Ground-truth audit of every audio file in the archive. */
 export function auditArchive(musicDir: string): {
   total: number;
   complete: number;
   rows: AuditRow[];
 } {
-  const files = readdirSync(musicDir).filter(
-    (f) => !f.startsWith(".") && /\.(wav|mp3|m4a|flac|aiff)$/i.test(f),
-  );
+  const files = walkArchive(musicDir);
   const rows: AuditRow[] = [];
-  for (const f of files) {
-    const p = join(musicDir, f);
+  for (const p of files) {
     if (!existsSync(p)) continue;
     const t = groundTruth(p);
     const genreOk = !!t.genre && t.genre !== "Music";
     const row: AuditRow = {
-      file: f,
+      file: p,
       art: t.art,
       title: !!t.title,
       artist: !!t.artist,
@@ -69,11 +84,23 @@ export function auditArchive(musicDir: string): {
 
 export async function fetch(opts: FetchOptions): Promise<void> {
   const script = join(import.meta.dir, "../../tools/fetch_all.ts");
-  const extra = opts.json ? ["--json"] : [];
-  const proc = Bun.spawn(["bun", script, ...extra], {
+  const proc = Bun.spawn(["bun", script, ...fetchAllArgs(opts)], {
     stdout: "inherit",
     stderr: "inherit",
   });
   await proc.exited;
   if (proc.exitCode !== 0) process.exitCode = proc.exitCode ?? 1;
+}
+
+/** Map FetchOptions to fetch_all.ts CLI args. Exported for tests — the
+ * flags used to be parsed and then silently dropped (only --json made it
+ * through), so `megadj fetch --art` ran the full pass. */
+export function fetchAllArgs(opts: FetchOptions): string[] {
+  const extra: string[] = [];
+  if (opts.json) extra.push("--json");
+  if (opts.all) extra.push("--all");
+  if (opts.only && opts.only !== "all") extra.push(`--${opts.only}`);
+  if (opts.jobs !== undefined) extra.push("--jobs", String(opts.jobs));
+  if (opts.dryRun) extra.push("--dry-run");
+  return extra;
 }
