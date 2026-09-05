@@ -31,6 +31,7 @@ re-downloads.
 
 ```bash
 megadj sync          # bring in everything new since last time
+megadj sync --limit 50 --dry-run   # peek before you commit
 ```
 
 ### 🏷️ FullTags — a library you'd actually show people
@@ -39,7 +40,7 @@ Nothing kills the vibe like "Unknown Artist", a 20-year-old's release year
 on a track that dropped last month, or a generic cover on a remix you love.
 
 FullTags fills in every field and gets it **right**: the genre, the artist,
-the album — and the year of *this version*, not the original. Artwork comes
+the album — and the year of _this version_, not the original. Artwork comes
 from where the track actually came from (a SoundCloud remix keeps its
 SoundCloud cover), and AI only steps in for the gaps normal sources can't
 fill — and only when it's confident. When it's done, `megadj audit` reads
@@ -67,24 +68,26 @@ agree, every audio file is present, and the beatgrids and waveforms exist
 where the hardware actually looks for them. If rekordbox is open, everything
 waits safely until you quit it — no corrupt databases, ever.
 
-So the question CrateDeck exists to answer — *can I play this stick
-tonight?* — is one glance at the dashboard, or one `report`, away.
+So the question CrateDeck exists to answer — _can I play this stick
+tonight?_ — is one glance at the dashboard, or one `report`, away.
 
 ```bash
 bun run deck    # the dashboard: every drive, its health, its playlists
-bun run cratedeck/src/deckctl.ts status | report | run | coverage | diff
+bun run deckctl status | report | run | coverage | diff
 ```
 
-Drives are matched by volume name. The defaults are `DJMASTER` and
-`DJMIRROR` — rename your drives to match, or set your own names in
-`cratedeck/config.toml` (see `cratedeck/config.sample.toml`). Each drive
+First run of the dashboard? Build the UI once: `cd cratedeck/web && bun
+install && bun run build`. Drives are matched by volume name — the defaults
+are `DJMASTER` and `DJMIRROR`; rename your drives to match, or set your own
+names in `cratedeck/config.toml` (copy `cratedeck/config.sample.toml`). Each drive
 also carries a second, legacy database that older players like the XDJ-XZ
 read; a one-time rekordbox export per library generation keeps it current —
 [docs/usb-sync.md](docs/usb-sync.md) explains when and why.
 
 **Coming next:** Gig mode & preflight, set intelligence from player history,
-SoundCloud/Bandcamp sources, fingerprint dedupe, key detection, MCP server —
-see [docs/FEATURES.md](docs/FEATURES.md) for the full roadmap.
+SoundCloud/Bandcamp sources, fingerprint dedupe, key detection — see
+[docs/FEATURES.md](docs/FEATURES.md) for the full roadmap. Agents can
+already talk to the whole thing over MCP: `bun run mcp`.
 
 ## What we believe
 
@@ -92,7 +95,7 @@ see [docs/FEATURES.md](docs/FEATURES.md) for the full roadmap.
   a wiki to explain, the flow is wrong.
 - **Built for your booth, not everyone's.** macOS and Pioneer only — that
   focus is exactly what lets it go deep enough to actually work everywhere
-  *you* play.
+  _you_ play.
 - **AI does the boring parts.** Hunting artwork, fixing years, spotting
   duplicates — that's computer work, not your evening.
 - **Pro results, normal-person hours.** You have evenings, not engineers.
@@ -134,12 +137,12 @@ and it should never be committed.
 
 ### Environment
 
-| Variable             | Default                            | Purpose                                     |
-| -------------------- | ---------------------------------- | ------------------------------------------- |
-| `MEGADJ_MUSIC_DIR`   | `~/Music/DJ-Imports`               | where downloaded audio lands                |
-| `MEGADJ_DB`          | `~/.local/state/megadj/archive.db` | the archive's memory                        |
-| `MEGADJ_COOKIES`     | `chrome`                           | browser for yt-dlp cookies; empty disables  |
-| `OPENROUTER_API_KEY` | —                                  | AI genre/year fallback + `megadj artwork`   |
+| Variable             | Default                            | Purpose                                             |
+| -------------------- | ---------------------------------- | --------------------------------------------------- |
+| `MEGADJ_MUSIC_DIR`   | `~/Music/DJ-Imports`               | where downloaded audio lands                        |
+| `MEGADJ_DB`          | `~/.local/state/megadj/archive.db` | the archive's memory                                |
+| `MEGADJ_COOKIES`     | `chrome`                           | browser for yt-dlp cookies; empty disables          |
+| `OPENROUTER_API_KEY` | —                                  | AI genre/year fallback + `megadj artwork`           |
 | `IMAGE_MAKER_CLIENT` | —                                  | ES module exporting an `ImageClient`, for AI covers |
 
 Full command reference: `megadj --help`, or
@@ -147,24 +150,24 @@ Full command reference: `megadj --help`, or
 
 ## Docs index
 
-| Doc                                                                                      | Purpose                                     |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------- |
-| [docs/PRINCIPLES.md](docs/PRINCIPLES.md)                                                 | product principles — how we decide          |
-| [docs/FEATURES.md](docs/FEATURES.md)                                                     | feature/project sections + roadmap          |
-| [docs/usb-sync.md](docs/usb-sync.md)                                                     | USB pipeline what/why                       |
-| [fulltags/README.md](fulltags/README.md)                                                 | FullTags enrichment engine                  |
-| [docs/fulltags-roadmap.md](docs/fulltags-roadmap.md)                                     | FullTags prioritized AI/tagging roadmap     |
-| [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md)                           | WAV artwork research + fix (resolved)       |
-| [docs/cratedeck/01-product-brief.md](docs/cratedeck/01-product-brief.md)                 | CrateDeck brief                             |
-| [docs/cratedeck/02-prd.md](docs/cratedeck/02-prd.md)                                     | feature PRD (F1–F10)                        |
-| [docs/cratedeck/03-architecture.md](docs/cratedeck/03-architecture.md)                   | architecture                                |
-| [docs/cratedeck/04-build-plan.md](docs/cratedeck/04-build-plan.md)                       | milestones M0–M6                            |
-| [docs/cratedeck/acceptance.md](docs/cratedeck/acceptance.md)                             | acceptance status per PRD feature           |
-| [docs/ideas.md](docs/ideas.md)                                                           | ideas & future backlog (§0 do-now gate)     |
-| [cratedeck/deckctl.md](cratedeck/deckctl.md)                                             | deckctl CLI guide (exit codes, flags)       |
-| [.claude/skills/rekordbox-usb-sync/SKILL.md](.claude/skills/rekordbox-usb-sync/SKILL.md) | full USB sync runbook                       |
-| [.claude/skills/new-music-intake/SKILL.md](.claude/skills/new-music-intake/SKILL.md)     | ingest/intake guide                         |
-| [.claude/skills/cratedeck-deckctl/SKILL.md](.claude/skills/cratedeck-deckctl/SKILL.md)   | agent-facing dashboard skill                |
+| Doc                                                                                      | Purpose                                 |
+| ---------------------------------------------------------------------------------------- | --------------------------------------- |
+| [docs/PRINCIPLES.md](docs/PRINCIPLES.md)                                                 | product principles — how we decide      |
+| [docs/FEATURES.md](docs/FEATURES.md)                                                     | feature/project sections + roadmap      |
+| [docs/usb-sync.md](docs/usb-sync.md)                                                     | USB pipeline what/why                   |
+| [fulltags/README.md](fulltags/README.md)                                                 | FullTags enrichment engine              |
+| [docs/fulltags-roadmap.md](docs/fulltags-roadmap.md)                                     | FullTags prioritized AI/tagging roadmap |
+| [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md)                           | WAV artwork research + fix (resolved)   |
+| [docs/cratedeck/01-product-brief.md](docs/cratedeck/01-product-brief.md)                 | CrateDeck brief                         |
+| [docs/cratedeck/02-prd.md](docs/cratedeck/02-prd.md)                                     | feature PRD (F1–F10)                    |
+| [docs/cratedeck/03-architecture.md](docs/cratedeck/03-architecture.md)                   | architecture                            |
+| [docs/cratedeck/04-build-plan.md](docs/cratedeck/04-build-plan.md)                       | milestones M0–M6                        |
+| [docs/cratedeck/acceptance.md](docs/cratedeck/acceptance.md)                             | acceptance status per PRD feature       |
+| [docs/ideas.md](docs/ideas.md)                                                           | ideas & future backlog (§0 do-now gate) |
+| [cratedeck/deckctl.md](cratedeck/deckctl.md)                                             | deckctl CLI guide (exit codes, flags)   |
+| [.claude/skills/rekordbox-usb-sync/SKILL.md](.claude/skills/rekordbox-usb-sync/SKILL.md) | full USB sync runbook                   |
+| [.claude/skills/new-music-intake/SKILL.md](.claude/skills/new-music-intake/SKILL.md)     | ingest/intake guide                     |
+| [.claude/skills/cratedeck-deckctl/SKILL.md](.claude/skills/cratedeck-deckctl/SKILL.md)   | agent-facing dashboard skill            |
 
 ## License
 

@@ -23,6 +23,10 @@ implement.\_
 How to read: each idea lists **why now** (the specific repo fact that motivates
 it) and rough **effort** (S/M/L). Nothing here is committed scope — this is the
 parking lot. Hard non-goals from the product brief stay non-goals (see §H).
+**The opinionated ordering — what to build next and why — now lives in
+[roadmap-proposal.md](roadmap-proposal.md)** (2026-09-05: three moves —
+harden the moat, complete the metadata, agentify); this doc keeps the
+detail, that one keeps the decision.
 
 **The deal (2026-09-04 audit):** this backlog is capped. A new idea goes in
 only when an old one comes out or ships — a 60+-item list on one project of
@@ -822,6 +826,10 @@ are what keep agents inside P9/P11's idempotent, resumable safety rules.
 ---
 
 ## Suggested sequencing (rewritten after the 2026-09-04 audit)
+
+> **Superseded in part:** the gated 90-day line + model slate + risk ledger
+> now live in [roadmap-proposal.md](roadmap-proposal.md) (§4–§6). This
+> section stays as the idea-level ordering; that doc is the build order.
 
 The old version had six parallel tracks — which is not an answer. This one
 is a straight line, gated by §0 and by the **reality gate** (gig frequency)

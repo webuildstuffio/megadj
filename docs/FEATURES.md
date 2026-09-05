@@ -85,7 +85,7 @@ architecture, build plan, acceptance).
 
 |                    |                                                                                                                                                                                                                      |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features                                                                                                                                                                 |
+| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify)                                                                                                           |
 | **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                              |
 | **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                          |
 | **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads              |
@@ -97,7 +97,7 @@ architecture, build plan, acceptance).
 **Docs:** [cratedeck/README.md](../cratedeck/README.md) ·
 [deckctl guide](../cratedeck/deckctl.md) ·
 [USB pipeline](usb-sync.md) ·
-[docs/cratedeck/](cratedeck/)
+[the doc set](cratedeck/)
 
 **Vibe:** mission control for a drawer full of identical-looking sticks.
 
@@ -105,13 +105,19 @@ architecture, build plan, acceptance).
 
 ## 🧭 Coming next (from the roadmap)
 
-The full parking lot lives in [ideas.md](ideas.md); these are the named
-major features it's pointing at:
+The full parking lot lives in [ideas.md](ideas.md); the **opinionated
+proposal — what to build next and why — is
+[roadmap-proposal.md](roadmap-proposal.md)** (three moves: harden the moat →
+complete the metadata → agentify). Headliners:
 
 ### CrateDeck v1.x
 
+- **Global search across ghosts** — ⌘K over every snapshot: "do I own this
+  anywhere, and on which stick?" (§B9)
 - **Gig mode & preflight** — one click: drive marked out-for-gig → pass/fail
   checklist (sync, grids, integrity, space) → history harvest on return (§B12, F35)
+- **Player-compatibility verdict** — per-drive "works on: XZ ✓, AZ ✗" from
+  the official Device-vs-OneLibrary matrix + measured dual-DB state (§N75–78)
 - **Set intelligence** — harvest player-written history from the drives:
   most-played, never-played, set reconstruction (§B11)
 - **Assisted legacy-export runbook** — CrateDeck walks you through the
@@ -149,9 +155,9 @@ major features it's pointing at:
 
 ### The agentic layer
 
-- **megadj MCP server** — expose the archive + deckctl as MCP tools so any
-  agent can answer "what's on the XZ?" or "run a checksum" with the interlock
-  enforced (§O82)
+- **Safety rails first, then megadj MCP server** — expose the archive +
+  deckctl as MCP tools so any agent can answer "what's on the XZ?" or "run
+  a checksum" with the interlock enforced _in the tool layer_ (§O86, O82)
 - **Weekly agent prep loop** — headless one-shot that preps the drives on a
   schedule (§O83)
 
