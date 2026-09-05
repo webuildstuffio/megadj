@@ -184,6 +184,9 @@ MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
   [docs/roadmap-proposal.md](docs/roadmap-proposal.md),
   [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md),
   [docs/ideas.md](docs/ideas.md)
+- **Records:** [docs/docs-audit-2026-09-05.md](docs/docs-audit-2026-09-05.md)
+  (docs audit log — the current record; `usb-sync-log.md` is local-only,
+  gitignored)
 - **Runbooks:** [rekordbox-usb-sync](.claude/skills/rekordbox-usb-sync/SKILL.md),
   [new-music-intake](.claude/skills/new-music-intake/SKILL.md),
   [cratedeck-deckctl](.claude/skills/cratedeck-deckctl/SKILL.md)

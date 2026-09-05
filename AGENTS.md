@@ -55,9 +55,11 @@ produces, regardless of the language used in the request.
   (energy stamped as TXXX:ENERGY; re-run = no-op). 56 tests in
   `fulltags/test/`. **Perf invariant:** `setFileTags`/`writePatchSync` is
   sync — never bridge it to async code via a spawned `bun -e` (measured
-  6.4× slowdown; there is a regression test). Roadmap **rev 2
-  (2026-09-05, fact-checked — key via OpenKeyScan's analyzer server, not
-  keyfinder-cli; keyfinder-cli is not in homebrew-core)**:
+  6.4× slowdown; there is a regression test). Roadmap **rev 3
+  (2026-09-05, fact-checked twice — key via OpenKeyScan's analyzer
+  open-source repo mode: JSON over stdin/stdout, MPS auto-select; the
+  :58721 REST API is the closed desktop app's. keyfinder-cli is not in
+  homebrew-core)**:
   `docs/fulltags-roadmap.md`. rekordbox tag gotchas verified: TKEY is
   read on AIFF/MP3 only (WAV RIFF INFO has no key field), and RB
   overwrites imported keys on analysis unless Key analysis is disabled —
@@ -126,6 +128,17 @@ produces, regardless of the language used in the request.
   finished verify as a phantom "running 0%" forever (fixed with 5s heartbeat
   - server-side phantom-job reaper marking stale `running` jobs `interrupted`
     after 2min + UI re-sync on reconnect + cache-busting headers).
+- **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
+  server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
+  10 tools (`deck_status/drives/report/coverage/redundancy/diff/jobs/
+  run/cancel/explain`); `bun run mcp` from repo root; guide + registration
+  snippet in `cratedeck/deckctl.md` §MCP. Readonly tools carry
+  `readOnlyHint: true` annotations; `deck_run`/`deck_cancel` are flagged
+  `[MUTATES DRIVE STATE]` and the rekordbox interlock is enforced inside
+  the tool layer (prompts are suggestions, exit codes are law). ⌘K global
+  search over all snapshots ships in the web topbar (`GET /api/search`,
+  B9). Doc alignment: ideas.md B9/O82/O86 are marked shipped; the archive
+  half of the MCP surface (O82b) is the open remainder.
 
 ## Local-only files
 

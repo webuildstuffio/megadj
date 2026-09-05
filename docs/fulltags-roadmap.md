@@ -134,7 +134,7 @@ pipeline, then **delete it** (the last duplicated writer).
   memos (S when triggered), set copilot + double-drop (need B11
   history), hit predictor (needs B11).
 
-## 4. Gaps & risks (rev 2)
+## 4. Gaps & risks (rev 3)
 
 1. **The erasure risk is rekordbox, not the code.** Key/BPM tags are
    only as durable as the RB import settings around them (Key analysis
@@ -191,7 +191,7 @@ verified-value-per-day. After #1–#5 every archive file carries complete
 identity, multi-vote genre, year, key, BPM, energy, mood/valence, and a
 content fingerprint — the full DJ-useful frame set, in the actual files.
 
-## Research base (rev 2 — all rows re-checked 2026-09-05)
+## Research base (rev 3 — rows re-checked 2026-09-05, second pass)
 
 | Verdict    | Project                                | Status                                                                             |
 | ---------- | -------------------------------------- | ---------------------------------------------------------------------------------- |
