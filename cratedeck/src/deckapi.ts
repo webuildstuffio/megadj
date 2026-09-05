@@ -8,29 +8,22 @@
 export const PORT = 7742;
 export const BASE = `http://127.0.0.1:${PORT}`;
 
-export interface Job {
-  id: string;
-  drive_id: string;
-  kind: string;
-  status: string;
-  progress: number;
-  message: string | null;
-  phase: string | null;
-  eta_seconds: number | null;
-  error: string | null;
-  result_json: string | null;
-}
+// Wire shapes come from the shared type SSOT (cratedeck/shared/types.ts) so
+// the server, CLI, and MCP layers can't drift apart.
+import {
+  TERMINAL_JOB_STATUSES,
+  type Drive,
+  type InterlockState,
+  type Job,
+  type JobKind,
+  type JobStatus,
+} from "../shared/types";
+export type { Drive, InterlockState, Job, JobKind, JobStatus };
+export type Interlock = InterlockState; // legacy alias (deckctl pre-SSOT)
 
-export interface Drive {
-  id: string;
-  name: string;
-  nickname: string | null;
-  mounted: boolean;
-}
-
-export interface Interlock {
-  rekordbox_running: boolean;
-  pid: number | null;
+/** True when a job has reached a terminal state. */
+export function jobTerminal(status: JobStatus | string): boolean {
+  return (TERMINAL_JOB_STATUSES as readonly string[]).includes(status);
 }
 
 export async function apiGet(path: string): Promise<Response> {
@@ -91,11 +84,6 @@ export async function resolveDrive(nameOrId: string): Promise<Drive | null> {
     drives.find((d) => (d.nickname ?? "").toLowerCase() === q) ??
     null
   );
-}
-
-/** True when a job has reached a terminal state. */
-export function jobTerminal(status: string): boolean {
-  return ["done", "failed", "cancelled", "interrupted"].includes(status);
 }
 
 /** Block until a job finishes; returns the final job record. */

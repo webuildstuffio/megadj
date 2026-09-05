@@ -26,15 +26,12 @@ import {
   type Job,
   type Drive,
 } from "./deckapi";
-import type { CoverageResponse, RedundancyResult } from "../shared/types";
-
-interface HealthCheck {
-  id: string;
-  label: string;
-  status: "pass" | "warn" | "fail" | "unknown";
-  detail: string;
-  fix?: string;
-}
+import type {
+  CoverageResponse,
+  HealthCheck,
+  InterlockState,
+  RedundancyResult,
+} from "../shared/types";
 
 // ---- output helpers ---------------------------------------------------------
 const JSON_MODE = process.argv.includes("--json");
@@ -46,10 +43,6 @@ async function getJson<T>(p: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-interface InterlockState {
-  rekordbox_running: boolean;
-  pid: number | null;
-}
 type DriveWithBadges = Drive & {
   badges?: { label: string; tone: string }[];
 };

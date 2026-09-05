@@ -32,7 +32,11 @@ import {
   type Job,
 } from "./deckapi";
 import { VERIFY_HELP } from "./verify_help";
-import type { CoverageResponse, RedundancyResult } from "../shared/types";
+import type {
+  CoverageResponse,
+  JobKind,
+  RedundancyResult,
+} from "../shared/types";
 
 // re-exported for tests (deckapi's terminal-status predicate)
 export { jobTerminal };
@@ -68,13 +72,15 @@ interface ToolDef {
   run: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
+// compile-checked against the canonical JobKind union — adding a job kind
+// in shared/types.ts without updating this list is a type error
 const JOB_KINDS = [
   "scan",
   "verify",
   "mirror",
   "benchmark",
   "checksum",
-] as const;
+] as const satisfies readonly JobKind[];
 
 function str(args: Record<string, unknown>, key: string): string | undefined {
   const v = args[key];

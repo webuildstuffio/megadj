@@ -144,6 +144,22 @@ export type JobStatus =
   | "cancelled"
   | "locked";
 
+/** Terminal = no further transitions possible (locked is a blocked state,
+ *  queued/running are live). Single source of truth for deckapi.jobTerminal
+ *  and the web JobsDock history filter. */
+export const TERMINAL_JOB_STATUSES = [
+  "done",
+  "failed",
+  "cancelled",
+  "interrupted",
+] as const satisfies readonly JobStatus[];
+
+/** Live (non-terminal, non-blocked) statuses. */
+export const ACTIVE_JOB_STATUSES = [
+  "queued",
+  "running",
+] as const satisfies readonly JobStatus[];
+
 export interface Job {
   id: string;
   drive_id: string;
@@ -172,11 +188,22 @@ export interface TimelineEvent {
   data: Record<string, unknown>;
 }
 
+/** One verification/health check with a verdict. Declared before VerifyCheck
+ *  (which references its status union). */
+export interface HealthCheck {
+  id: string;
+  label: string;
+  status: "pass" | "warn" | "fail" | "unknown";
+  detail: string;
+  /** suggestion shown when status != pass */
+  fix?: string;
+}
+
 /** One granular verify check — mirrors HealthCheck but for usb_verify output. */
 export interface VerifyCheck {
   id: string;
   label: string;
-  status: "pass" | "fail" | "warn" | "unknown";
+  status: HealthCheck["status"];
   detail: string;
   /** Plain-English: why does this check matter for a DJ? */
   meaning: string;
@@ -236,16 +263,6 @@ export interface SearchResult {
     name: string;
     entries?: number;
   }[];
-}
-
-/** One verification/health check with a verdict. */
-export interface HealthCheck {
-  id: string;
-  label: string;
-  status: "pass" | "warn" | "fail" | "unknown";
-  detail: string;
-  /** suggestion shown when status != pass */
-  fix?: string;
 }
 
 /** Full drive dossier served by /api/report. */
