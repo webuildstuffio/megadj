@@ -34,6 +34,9 @@ import {
 import { VERIFY_HELP } from "./verify_help";
 import type { CoverageResponse, RedundancyResult } from "../shared/types";
 
+// re-exported for tests (deckapi's terminal-status predicate)
+export { jobTerminal };
+
 // ---- JSON-RPC plumbing ------------------------------------------------------
 type JsonRpcId = string | number | null;
 interface RpcRequest {
@@ -248,6 +251,7 @@ const TOOLS: Record<string, ToolDef> = {
   deck_run: {
     description:
       "ENQUEUES A DRIVE JOB (mutating): scan (inventory) · verify (deep integrity audit) · mirror (copy master→mirror; writes the mirror) · benchmark (read speed) · checksum (hash ledger). Blocks until done when wait=true. Refuses while rekordbox is running. Mirror only ever writes to the mirror drive.",
+    destructive: true,
     inputSchema: {
       type: "object",
       properties: {
@@ -282,6 +286,13 @@ const TOOLS: Record<string, ToolDef> = {
         );
       await interlockGuard();
       const res = await apiPost(`/api/drives/${d.id}/jobs`, { kind });
+      // server re-checks the interlock at enqueue (TOCTOU guard); map its
+      // 423 to the same clean param-style message our own guard throws
+      if (res.status === 423) {
+        throw new RpcParamError(
+          "rekordbox started mid-request — drive operations locked. Quit rekordbox and retry.",
+        );
+      }
       const body = (await res.json()) as Job & { error?: string };
       if (!res.ok) {
         throw new Error(body.error ?? `enqueue failed (${res.status})`);
@@ -301,6 +312,7 @@ const TOOLS: Record<string, ToolDef> = {
 
   deck_cancel: {
     description: "Cancel an active job by id.",
+    destructive: true,
     inputSchema: {
       type: "object",
       properties: { job_id: { type: "string" } },
@@ -460,4 +472,3 @@ async function main(): Promise<void> {
 }
 
 await main();
-void jobTerminal; // exported for tests; kept referenced to satisfy noUnusedLocals
