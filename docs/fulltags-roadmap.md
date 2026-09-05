@@ -1,178 +1,188 @@
-# FullTags — Prioritized Roadmap
+# FullTags — Prioritized Roadmap (rev 2, fact-checked)
 
-*Compiled 2026-09-04 · grounded in a fresh research pass over the 2026
-open-source landscape (Essentia ONNX on ARM64, beat_this, libKeyFinder,
-chromaprint, demucs-mlx, all-in-one-infer, MuQ/CLAP) plus the shipped
-FullTags v0 (schema + writer + pipeline + 49 tests).*
+*Rev 2, 2026-09-05 · every external claim re-verified against primary
+sources (Dubspot lab report, rekordbox metadata matrix, MTG/essentia
+issue tracker, beat_this repo/PyPI, AcoustID docs); two integration
+recommendations corrected; plus a stress-test pass over the shipped v0
+code that found and fixed a 6.4× write-path regression (§5).*
 
-How to read: each item lists **why this rank**, effort (S <1d / M 1–3d /
-L >3d), and the gap it closes. Priority = value for a working DJ library of
-3–10k tracks on one Mac, offline-first. The ideas.md cap rule applies:
-something ships or leaves before something new enters.
+How to read: ranked by **value-per-effort** for a 3–10k track dance
+library on one Mac, offline-first. Effort: S <1d / M 1–3d / L >3d.
+ideas.md cap rule applies: something ships or leaves before something new
+enters.
 
 ---
 
-## P0 — already shipped (the foundation)
+## 0. What shipped (v0, verified)
 
-- **Schema + writer + readers** — one `FullTag` type, one atomic writer
-  (mp3/m4a/wav/flac/aiff), file-first ground truth. The format gotchas
-  (AIFF ID3-chunk drop, WAV art, id3v2.3, muxer-by-extension) are fixed
-  in exactly one place now.
-- **`fulltags` CLI** — enrich any folder/file; `audit --json` completeness
-  gate. megadj `ingest`/`fetch` write through the same code path.
+- One `FullTag`/`TagPatch` schema, one atomic writer (mp3/m4a/wav/flac/
+  aiff), file-first ground-truth readers, full art ladder, AI genre/year
+  fallback, `fulltags` CLI (enrich + audit --json). megadj `ingest` /
+  `fetch` write through the same code via shims.
+- 49 FullTags tests; repo 187/187; tsc + oxlint clean.
+- Format matrix round-trip **verified on real files** (§5): mp3/m4a/wav/
+  aiff write+read-back, art embed+detect, WAV→AIFF conversion with ID3
+  frame + APIC preservation.
 
-## P1 — the highest-value gaps, in order
+## 1. Fact-check corrections (vs rev 1)
 
-### 1. Harmonic key detection + Camelot (`key` field) — **S–M, do first**
-**Why #1:** best payoff-per-risk in the whole AI layer (ideas.md I51
-verdict, re-confirmed by research). The 2026 Dubspot lab test scored
-libKeyFinder **76% overall / ~90% on dance music** vs rekordbox's own
-~60%; community tests put OpenKeyScan (CNN) at ~79%. Every track gets a
-`TKEY` (Initial Key) + `TXXX:CAMELOT` frame — fields CDJs and rekordbox
-already display — plus a harmonic-mix panel later in CrateDeck.
-**Gap closed:** no key data at all today (rekordbox analysis is the only
-source, and it's the weakest detector).
-**How:** `keyfinder-cli`/libKeyFinder binding (GPL — fine, local tool) or
-OpenKeyScan CLI; Essentia `Key` as free cross-check vote. Write tags via
-the existing `writePatch({ key })` (writer already reserves the frame map).
-**Verify:** spot-check 20 known-key tracks; require ≥80% agreement before
-batch-running the library.
+| Claim in rev 1 | Verdict | Correction |
+| -------------- | ------- | ---------- |
+| "keyfinder-cli, Effort S" | **Corrected** | Not in homebrew-core — only the author's personal tap, with known ARM build friction (libavutil path issues). Primary key path is now **OpenKeyScan's analyzer server** (localhost REST :58721, MPS-accelerated, standalone executable available); keyfinder-cli demoted to fallback. Effort S→M. |
+| "libKeyFinder ~90% on dance" | **Verified** | Dubspot 200-track ear-keyed test: KeyFinder 76% overall (152/200), **90% on dance/electronic**, MIK 89%, rekordbox 7 69%, Beatport metadata 60%. Weakness: relative major/minor ambiguity. |
+| "rekordbox's own ~60%" | **Corrected** | 60% is **Beatport metadata**, not rekordbox. Rekordbox 7 = 69% in the same test. (A 2019 GiantSteps MIREX-style study even scored rekordbox *highest* on pure EDM, 79.55 weighted.) The rebuild case is the **dance-subset gap (90% vs ~70%)** + file-level portability, not overall dominance. |
+| "rekordbox reads TKEY" | **Verified + gotcha** | Official matrix: Key = TKEY, read on AIFF (ID3v2.4) + MP3 (ID3v2.3) — **not WAV** (RIFF INFO has no key field; our ingest converts WAV→AIFF, so the pipeline is safe). Gotchas: RB **overwrites imported keys on analysis unless Key analysis is disabled** in Preferences → Analysis; after external writes use **Reload Tags**. Mix Name (TIT3), Remixer (TPE4), Label (TPUB) are also tag-writable — free schema extensions. |
+| "beat_this MIT, pip, CPU" | **Verified** | `pip install beat-this` (v1.1.0, Apr 2026), MIT code **and** weights, ships a CLI (`beat-this`/File2File). Needs PyTorch ≥2.0 + rotary-embedding-torch; optional DBN needs madmom **from CPJKU's fork**, not PyPI. |
+| "Essentia ONNX path on ARM64" | **Verified** | Base `essentia` arm64 wheels exist (py ≤3.13); `essentia.tensorflow` is **broken on ARM** (open issue #1486) — confirmed. Essentia's `OnnxPredict` is still an unmerged PR (#1488) requiring source build. Practical path stays: brew `onnxruntime` (1.29, arm64) + MTG's ONNX model exports + essentia/librosa preprocessing. Models: CC BY-NC-SA. |
+| "AcoustID free 3 rps" | **Verified** | Official: max 3 req/s, non-commercial, key required. fpcalc fingerprints first 120s by default (`-length`). |
 
-### 2. Real BPM + downbeats via `beat_this` (`bpm` field) — **S**
-**Why #2:** the missing half of dance-ability data, and the cheapest SOTA
-win available: CPJKU's `beat_this` (ISMIR 2024) is the current open SOTA
-beat/downbeat tracker, **MIT-licensed, pip-installable, CPU-friendly**,
-with a Rust/ONNX port for a no-Python path. Feed BPM into `TBPM` (hardware
-reads it), and downbeats become the anchor for P3's cue work.
-**Gap closed:** `bpm` is always null today (rekordbox-only); constant-BPM
-synthetic grids are a known on-stage failure mode (ideas.md C19).
-**Verify:** compare against rekordbox's re-analyzed grids (the 294 fixed
-Sep 2026 are ground truth); flag disagreements >2% for review.
+## 2. The plan, re-ranked by value-per-effort
 
-### 3. Acoustic fingerprint ledger (chromaprint) — **S**
-**Why #3:** unlocks four existing backlog items at once (ideas.md L62/
-D24/D25/L63): cross-format dupe detection (LOWQ/HiQ pairs, name-blind),
-`megadj upgrade` swap verification (re-fingerprint the new file, confirm
-same recording, *then* delete the old — no more trust-in-URL), untagged
-`adopt` identification via the free AcoustID API (alive, 3 rps, non-commercial),
-and drive-side content audits. `fpcalc` is one brew dep; store fp in the
-archive DB + `TXXX:ACOUSTID`.
-**Gap closed:** identity is currently path/name-based; byte-variant rips
-and mirror drift are invisible.
+### #1 — Acoustic fingerprint ledger (chromaprint) — **S, do first**
+Highest ratio in the doc: one brew dep (`chromaprint` → `fpcalc`), one DB
+column + one `TXXX:ACOUSTID` frame, and four existing backlog items
+unlock (ideas.md D24 upgrade-verify, D25 dupe hunter, L62 ledger, L63
+mirror fingerprint-sample). Fully offline matching for dupes; AcoustID
+lookup (3 rps, polite) only for untagged `adopt` identification.
+**Why first:** zero risk, zero rekordbox settings changes, zero model
+installs, and every later item can lean on its content-identity ledger.
+**Verify:** fp two known-identical files (different encodes) → match;
+one known-different pair → no match.
 
-### 4. Essentia ONNX heads: genre/mood/danceability/valence — **M**
-**Why #4:** research-grade tags replace the LLM genre guess and hand-rolled
-energy. MTG's model zoo ships **official ONNX exports** (Discogs-EffNet
-400-class genre, the 7 mood classifiers, danceability, DEAM
-valence-arousal, MUSE embeddings) that run under plain `onnxruntime` —
-**this works on macOS ARM64 today** (pip `essentia` has arm64 wheels for
-Python ≤3.13; the TF path is broken on ARM, ONNX sidesteps it entirely —
-the architecture the deep-cuts project proves out). Valence-arousal plots
-as the CrateDeck "vibe map".
-**Gap closed:** genre is SC-tags→LLM (one of 24 buckets, no confidence
-history); energy is a single RMS scalar; zero mood data.
-**Caveats to record:** Essentia code is AGPL-3.0, models **CC BY-NC-SA
-(non-commercial)** — fine for a personal library, re-review before any
-commercial release. Effort M is mostly the mel-spectrogram preprocessing
-harness + model cache layer.
+### #2 — Real BPM + downbeats via beat_this — **S**
+Write `TBPM` (integer) + store downbeat array in the archive DB (feeds
+P3 cues later; NOT injected into rekordbox grids — that stays
+rekordbox-owned per the non-goals). Also becomes an independent
+**grid-sanity cross-check** for CrateDeck's verify (duration × BPM vs
+beat count, currently self-referential).
+**Cost note:** PyTorch install is the real cost (~2 GB env via uv);
+per-track CPU inference is seconds. MIT code + weights.
+**Verify:** compare against the 294 rekordbox-reanalyzed grids (ground
+truth from the 2026-09-03 pass); flag disagreements >2% for review
+before any batch run.
 
-### 5. MBID provenance everywhere + MusicBrainz genre harvest — **S**
-**Why:** already half-built (MBID embedded at ingest). Surface it: every
-FullTags write carries MBID; harvest MB `genres+tags` (canonical genres
-now exist server-side) as a third genre vote alongside SC + Essentia.
-**Gap closed:** "where did this metadata come from" is unanswerable today.
+### #3 — Harmonic key via OpenKeyScan — **M, the DJ-value king**
+**Primary:** OpenKeyScan analyzer server — localhost REST (:58721) or
+stdin/stdout JSON mode, standalone executable (no Python), MPS-accelerated,
+batch = hundreds of tracks/min, trained on GiantSteps (electronic music),
+outputs Camelot + Open Key. **Fallback:** essentia `Key` as a cheap
+second vote; keyfinder-cli only via the author's tap if ever needed.
+**Write:** `TKEY` (Initial Key) + `TXXX:CAMELOT` via the existing
+`writePatch({ key })` — frame map already reserved. AIFF/MP3 carry TKEY;
+WAV doesn't (ingest's AIFF conversion keeps the archive covered).
+**Operational gauntlet (required, or the work is erased):**
+1. rekordbox Preferences → Analysis → **disable Key analysis** (RB
+   overwrites imported tags otherwise — verified behavior).
+2. Batch-write keys → re-import/reload → **Reload Tags** in RB.
+3. Spot-check ≥20 tracks against existing MIK values (if available) or
+   ear; require ≥80% agreement before full-library run.
+**Why #3 not #1:** biggest *on-stage* value (harmonic mixing), but M
+effort (server integration + verification harness) and it's the only
+item that can be silently undone by a rekordbox setting — so it needs
+the gauntlet above. If harmonic mixing is your top pain, jump it to #1
+accepting 2× cost.
+**Schema bonus (free, same pass):** Mix Name (TIT3), Remixer (TPE4),
+Label (TPUB) are tag-writable and RB-readable — extend FullTag with
+`label` + `mixName` now that remixer already exists.
 
-## P2 — the 10x layer (after P1 pays off)
+### #4 — Essentia ONNX heads: genre/mood/danceability/valence — **M**
+Unchanged in substance, now build-verified: brew `onnxruntime` (arm64) +
+MTG's ONNX exports (Discogs-EffNet genre, 7 moods, danceability, DEAM
+valence-arousal, MUSE embeddings) with essentia (py≤3.13) or librosa
+preprocessing — **never** `essentia.tensorflow` on ARM (broken, #1486)
+and never expect `essentia.onnx` (unmerged PR #1488). Valence-arousal →
+CrateDeck vibe map; danceability + arousal → energy 2.0 (replaces the
+RMS-linear heuristic).
+**License wall (unchanged):** models CC BY-NC-SA — fine personal, hard
+stop for any commercial release. Log per-model license + size in the
+model-cache manifest.
 
-### 6. Structure-aware cues from all-in-one-infer — **M–L, the genuine 10x item**
-Functional segmentation (intro/verse/drop/outro) → **auto memory cues at
-intro/drop/outro, downbeat-aligned** (downbeats from #2), then
-phrase-aware grids later. Slice it: cue placement alone is weekend-scale;
-tempo-curve grids are the month-long part (ideas.md I46's honest sizing
-stands). Prefer `all-in-one-mlx` on Apple Silicon (demucs-mlx makes
-separation seconds/track). MIT. Labels are pop-trained — map
-bridge/outro boundaries to "drop" heuristically and verify on EDM before
-batch runs. rekordbox interlock rules apply to anything DB-touching.
+### #5 — MBID provenance + MusicBrainz genre harvest — **S**
+Every write carries MBID (half-done at ingest); harvest MB
+`inc=genres+tags` as a third genre vote alongside SC + Essentia (#4).
+1 rps token bucket. Folds `src/commands/enrich.ts` into the FullTags
+pipeline, then **delete it** (the last duplicated writer).
 
-### 7. Vocal density via demucs stems — **M**
-Vocal-presence ratio → `instrumental / light / full` tag — the field DJs
-filter by that no tag source provides (ideas.md I48). demucs-mlx: ~3s/track
-on M4 Max; stems go to temp and are deleted (analysis-side metric only).
+## 3. P2 / P3 (unchanged in substance, resized by facts)
 
-### 8. Embeddings + "sounds like" — **M**
-MUSE embeddings (already computed in #4) → kNN similarity in the archive
-DB (sqlite-vec or blob + cosine at 3–10k tracks). MuQ-MuLan is the
-stronger encoder if needed later (CC-BY-NC weights); CLAP adds
-text-query search ("warm melodic techno"). CrateDeck "find tracks like
-this".
+- **Structure cues (all-in-one-infer / -mlx)** — M–L. Still the 10x item;
+  beat_this downbeats (#2) are its anchor, so nothing is lost by waiting.
+  MIT; labels pop-trained — verify on EDM before batch.
+- **Vocal density (demucs-mlx)** — M. ~3 s/track on M4-class silicon;
+  stems temp-only.
+- **Similarity (MUSE from #4 → sqlite-vec)** — M after #4; MuQ-MuLan
+  (CC-BY-NC) only if MUSE disappoints.
+- **Parked (unchanged):** LLM captions (garnish-only), Whisper voice
+  memos (S when triggered), set copilot + double-drop (need B11
+  history), hit predictor (needs B11).
 
-### 9. Energy 2.0 — **S**
-Replace RMS-linear energy with Essentia danceability + DEAM arousal as
-co-votes; keep the 1–10 scale for UI stability. One afternoon once #4
-lands.
+## 4. Gaps & risks (rev 2)
 
-## P3 — the edges (parked, explicit triggers)
+1. **The erasure risk is rekordbox, not the code.** Key/BPM tags are
+   only as durable as the RB import settings around them (Key analysis
+   off, Reload Tags). This is now a documented gauntlet step, not a
+   footnote — the same class as the WAV-art thumbnail lesson.
+2. **Verifier scarcity.** Dubspot's set is 200 tracks, six genres, one
+   ear. Build a small local ground-truth set (existing MIK tags where
+   present + the 294 reanalyzed grids) and require ≥80% sampled
+   agreement before any library-wide batch. No batch >50 tracks without
+   a sampled diff review.
+3. **License asymmetry** — Essentia models + MuQ are non-commercial.
+   Fine for a personal archive; a wall for any future public/commercial
+   release. Track licenses per model from day one.
+4. **Disk burn** — beat_this's torch env (~2 GB) + Essentia model zoo
+   (~1 GB) on a 460 GB disk. Both go under `~/.local/share/` caches;
+   uv `--with` keeps them out of the repo.
+5. **The year-class AI error generalizes** — every model output gets a
+   confidence gate + verify pass + diff view. flash-lite's 2023 bias is
+   the canonical example; OpenKeyScan's relative-major/minor weakness is
+   the next one to expect.
+6. **Old-code retirement** — `src/commands/enrich.ts` folds in at #5;
+   `tools/fix_years.ts` folds in when years stage gains the SC
+   `display_date` refinement.
 
-| Item | Trigger | Effort |
-| ---- | ------- | ------ |
-| LLM vibe captions (Qwen2-Audio GGUF pattern) | only as `megadj drop` garnish; never infrastructure (ideas.md I50 verdict) | L |
-| Whisper voice-memo → crate (mlx-whisper, 20–30× RT on Metal) | M68, after K59 mining exists | S |
-| Set-builder copilot + double-drop detector | M66/M67, needs B11 history harvest first | M |
-| Synced lyrics (LRCLIB → USLT) | "only if bored" (J56) | S |
-| Hit predictor regression | M64, needs B11 history | M |
+## 5. Stress-test log (2026-09-05, v0 code)
 
-## Gaps & risks (the honest list)
+Real-file verification pass over the shipped writer/shim surface:
 
-1. **License asymmetry** — the best tags (Essentia models CC BY-NC-SA,
-   MuQ CC-BY-NC) are non-commercial. Irrelevant for a personal archive;
-   a hard wall if FullTags ever ships as a product. Track per-model
-   licenses in the model cache manifest from day one.
-2. **Verifier scarcity** — key/BPM/structure models are only as good as
-   the spot-checks. Budget for labeled ground truth (Mixed In Key output
-   on this library is usable reference for key; rekordbox grids for BPM)
-   before trusting any batch run. Never batch >50 tracks without a
-   sampled diff review.
-3. **The AI-genre year trap, generalized** — flash-lite guesses 2023 for
-   years; every model output needs the same treatment: confidence gate +
-   verify-pass + human diff view. FullTags' idempotent writer makes
-   re-running safe, which is the mitigation.
-4. **Disk burn** — model caches (Essentia zoo ~1 GB) + demucs temp stems
-   on a 460 GB disk that runs hot. Cache to `~/.local/share/fulltags/`,
-   temp-stems always deleted, document sizes in the model manifest.
-5. **Non-goal guard** — no cloud, no accounts, no distribution (AGPL/NC
-   constraints make distribution legally fraught anyway). FullTags is
-   local-only by design; that constraint is load-bearing.
-6. **Old-code retirement** — `src/commands/enrich.ts` (MB genre top-up)
-   still has its own rewrite path; fold into FullTags pipeline once P1.5
-   (MB harvest) lands, then delete it (the last duplicated writer).
+| Test | Result |
+| ---- | ------ |
+| `setFileTags` shim round-trip (mp3/m4a/wav): 4 fields written, ground-truth read back | ✅ PASS all |
+| Write-path benchmark: old direct-ffmpeg 19.3 ms vs shim 124.2 ms | ❌ **6.4× regression found** |
+| Root cause | nested `bun -e` promise bridge per write |
+| Fix | `writePatchSync` — in-process sync writer (ffmpeg spawn for mp3/m4a/flac, mutagen for wav/aiff), no bridge |
+| Re-benchmark after fix | ✅ 19 ms/write (parity) |
+| AIFF sync path (`writePatchSync` on .aiff via mutagen) | ✅ PASS |
+| Regression tests added | fulltags/test/writer-sync.test.ts (sync round-trips + AIFF + perf) |
 
-## Sequencing
+**Lesson recorded:** any sync API bridged to an async implementation via
+a spawned interpreter is a perf trap — expose a native sync twin instead
+(mirror of the rbSnapshot-async invariant on the CrateDeck side).
+
+## 6. Sequencing
 
 ```
-now   ▸ P1.1 key (S–M) → P1.2 bpm (S) → P1.3 fingerprints (S)
-then  ▸ P1.4 Essentia ONNX suite (M) → P1.5 MB harvest (S) → P2.9 energy 2.0 (S)
-next  ▸ P2.6 structure cues (slice: cues first) → P2.7 vocal density → P2.8 similarity
+now   ▸ #1 fingerprints (S) → #2 beat_this BPM (S) → #3 OpenKeyScan key (M + gauntlet)
+then  ▸ #4 Essentia ONNX suite (M) → #5 MB harvest (S) → energy 2.0 (S)
+next  ▸ structure cues (slice: cues first) → vocal density → similarity
 parked▸ P3 with explicit triggers
 ```
 
-Each P1 item is independently shippable and none blocks the others, but
-that order maximizes value-per-day. After P1, every file in the archive
-carries: complete identity, genre (multi-vote), year, key, BPM, energy,
-mood/valence, fingerprints — the full DJ-useful frame set, all verified,
-all in the actual files.
+Each item is independently shippable; the order maximizes
+verified-value-per-day. After #1–#5 every archive file carries complete
+identity, multi-vote genre, year, key, BPM, energy, mood/valence, and a
+content fingerprint — the full DJ-useful frame set, in the actual files.
 
-## Research base (2026-09-04 pass)
+## Research base (rev 2 — all rows re-checked 2026-09-05)
 
-| Verdict | Project | Why |
-| ------- | ------- | --- |
-| Adopt now | libKeyFinder / OpenKeyScan | 76–79% key accuracy, ~90% dance |
-| Adopt now | beat_this (CPJKU) | SOTA beats/downbeats, MIT, pip, CPU |
-| Adopt now | chromaprint/fpcalc + AcoustID | free (non-comm), one dep, 4 unlocks |
-| Adopt now | Essentia ONNX heads via onnxruntime | arm64-verified path; TF-on-ARM is broken |
-| Adopt (phase 2) | demucs-mlx | ~3s/track on M4 Max, MIT |
-| Watch → adopt | all-in-one-infer / -mlx | structure + cues; verify EDM labels |
-| Watch → adopt | MuQ-MuLan / CLAP | similarity + text queries |
-| Keep (enhance) | MusicBrainz `inc=genres+tags` | 1 rps, canonical genres live |
-| Avoid | madmom (unmaintained, numpy-2 broken, NC models) | use madmom-infer via all-in-one |
-| Skip | beets as dependency | reference only; megadj owns the pipeline |
+| Verdict | Project | Status |
+| ------- | ------- | ------ |
+| Adopt (#1) | chromaprint/fpcalc + AcoustID | verified: 3 rps, non-comm, 120s default |
+| Adopt (#2) | beat_this (CPJKU) | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork |
+| Adopt (#3) | OpenKeyScan analyzer server | verified: localhost REST :58721, MPS, standalone exe, GiantSteps-trained |
+| Fallback | essentia `Key` / keyfinder-cli | keyfinder-cli NOT in core brew (personal tap, ARM friction) |
+| Adopt (#4) | Essentia ONNX heads + brew onnxruntime | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged |
+| Verified | Dubspot 200-track test | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60% |
+| Verified | rekordbox tag matrix | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable |
+| Watch | all-in-one-mlx, MuQ-MuLan, CLAP | unchanged |
 | Blueprint | robertolupi/deep-cuts | ONNX + sqlite-vec local tagger architecture |

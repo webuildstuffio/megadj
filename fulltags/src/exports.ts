@@ -21,7 +21,9 @@ export {
   embedArt,
   isAudioFile,
   writePatch,
+  writePatchSync,
   writePatchWav,
+  AUDIO_EXTS as ARTWORK_EXTS,
 } from "./writer";
 export {
   fetchImage,
@@ -37,11 +39,18 @@ export {
   type ScHit,
   type ArtRow,
 } from "./art-sources";
-export { aiGenres, albumHeuristic, AI_MODEL, type AiRow } from "./ai";
+export {
+  aiGenres,
+  albumHeuristic,
+  AI_MODEL,
+  type AiRow,
+  type AiTagResult,
+} from "./ai";
 export { groundTruth, readFullTag, type Truth } from "./readers";
 export {
   energyFromLufs,
   firstTag,
+  LOSSLESS,
   mbRecording,
   measureRms,
   parseFilename,

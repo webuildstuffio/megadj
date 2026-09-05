@@ -13,14 +13,13 @@ import {
   fetchImage as ftFetchImage,
   groundTruth as ftGroundTruth,
   validatePatch,
-  writePatchWav,
+  writePatchSync,
   canonGenre as ftCanonGenre,
   type TagPatch,
 } from "../fulltags/src/exports";
 
 export const home = process.env.HOME!;
-export const ARCH =
-  process.env.MEGADJ_MUSIC_DIR ?? `${home}/Music/DJ-Imports`;
+export const ARCH = process.env.MEGADJ_MUSIC_DIR ?? `${home}/Music/DJ-Imports`;
 export const QUEUE = `${home}/.local/state/megadj/artwork-queue.jsonl`;
 export const db = new Database(`${home}/.local/state/megadj/archive.db`);
 
@@ -84,42 +83,12 @@ export function validateTagValues(vals: TagValues): void {
   validatePatch(vals as TagPatch);
 }
 
-/**
- * Write DB-driven tag values into the file (atomic, stream-copied).
- * Sync API preserved for fetch_all's workers: mp3/m4a/flac go through a
- * nested `bun -e` call running FullTags' async writePatch; WAV uses the
- * sync mutagen path directly.
- */
+/** Write DB-driven tag values into the file (atomic, stream-copied).
+ * FullTags `writePatchSync` — direct in-process write, no promise bridge
+ * (the nested-`bun -e` bridge measured 6.4× slower; see writer.ts). */
 export function setFileTags(p: string, vals: TagValues): boolean {
   validateTagValues(vals);
-  const pairs = Object.entries(vals).filter(([, v]) => v !== undefined);
-  if (!pairs.length) return true;
-  if (p.toLowerCase().endsWith(".wav")) {
-    return writePatchWav(p, vals as TagPatch);
-  }
-  try {
-    const script = `import { writePatch } from ${JSON.stringify(
-      new URL("../fulltags/src/exports.ts", import.meta.url).pathname,
-    )};\nawait writePatch(${JSON.stringify(p)}, ${JSON.stringify(vals)});`;
-    const pr = Bun.spawnSync({
-      cmd: ["bun", "-e", script],
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: 120_000,
-    });
-    if (pr.exitCode !== 0) return false;
-    // Confirm via ground truth on the first written field.
-    const t = ftGroundTruth(p);
-    const first = pairs[0]![0] as keyof TagValues;
-    if (first === "year") return !!t.year;
-    if (first === "genre") return !!t.genre;
-    if (first === "title") return !!t.title;
-    if (first === "artist") return !!t.artist;
-    if (first === "album") return !!t.album;
-    return true;
-  } catch {
-    return false;
-  }
+  return writePatchSync(p, vals as TagPatch);
 }
 
 // ---------- SoundCloud search + art sources (FullTags re-exports) ----------

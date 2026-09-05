@@ -45,10 +45,16 @@ Notes for coding agents working in this repo.
   [--tags|--genre|--art|--year|--energy] [--dry-run]`; `fulltags audit
   <folder> --json` = same completeness gate as `megadj audit`). megadj's
   modules are thin re-export shims — import surface unchanged. Idempotent
-  (energy stamped as TXXX:ENERGY; re-run = no-op). 49 tests in
-  `fulltags/test/`. Roadmap (key via libKeyFinder, beat_this BPM,
-  chromaprint fingerprints, Essentia ONNX heads — research-verified Sep
-  2026): `docs/fulltags-roadmap.md`.
+  (energy stamped as TXXX:ENERGY; re-run = no-op). 55 tests in
+  `fulltags/test/`. **Perf invariant:** `setFileTags`/`writePatchSync` is
+  sync — never bridge it to async code via a spawned `bun -e` (measured
+  6.4× slowdown; there is a regression test). Roadmap **rev 2
+  (2026-09-05, fact-checked — key via OpenKeyScan's analyzer server, not
+  keyfinder-cli; keyfinder-cli is not in homebrew-core)**:
+  `docs/fulltags-roadmap.md`. rekordbox tag gotchas verified: TKEY is
+  read on AIFF/MP3 only (WAV RIFF INFO has no key field), and RB
+  overwrites imported keys on analysis unless Key analysis is disabled —
+  see the roadmap gauntlet.
 - **rekordbox WAV artwork**: RB never reads art embedded in WAVs (RIFF INFO
   has no art field; it ignores the ID3 APIC chunk). Two-part solution:
   (1) **ingest converts new WAVs → AIFF** (`src/commands/wav-to-aiff.ts`,

@@ -19,6 +19,14 @@ import { existsSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import type { EnrichedMetadata, TagPatch } from "./schema";
 import { validatePatch } from "./schema-guards";
 
+/** Defined entries of a TagPatch — set fields only (year/bpm/energy are numeric). */
+type TagPair = [keyof TagPatch, string | number];
+function tagPairs(patch: TagPatch): TagPair[] {
+  return Object.entries(patch).filter(
+    (pair): pair is TagPair => pair[1] !== undefined,
+  );
+}
+
 /** Keep the extension on ffmpeg tmp outputs — the muxer is inferred from
  * the filename, so `.fa` (extensionless) fails with "Unable to choose an
  * output format". Pattern: `track.m4a` → `track.m4a.fa.m4a`. */
@@ -78,10 +86,7 @@ export async function writePatch(
   patch: TagPatch,
 ): Promise<void> {
   validatePatch(patch);
-  const pairs = Object.entries(patch).filter(([, v]) => v !== undefined) as [
-    keyof TagPatch,
-    string | number,
-  ][];
+  const pairs = tagPairs(patch);
   if (!pairs.length) return;
 
   const ext = extname(filePath).toLowerCase();
@@ -106,7 +111,7 @@ export async function writePatch(
     "attached_pic",
   ];
   for (const [k, v] of pairs) args.push("-metadata", `${FFMPEG_KEY[k]}=${v}`);
-  const tagged = filePath.replace(/(\.[^.]+)$/, ".tagged$1");
+  const tagged = tmpLike(filePath, ".tagged");
   if (ext === ".mp3") {
     args.push("-c:v", "copy", "-write_id3v2", "1", "-id3v2_version", "3");
     args.push(tagged);
@@ -127,6 +132,64 @@ export async function writePatch(
   }
   // Atomic swap via rename — a crash can never leave a half-written original.
   await $`mv -f ${tagged} ${filePath}`.quiet();
+}
+
+/**
+ * Synchronous twin of writePatch's ffmpeg branch — same behavior, no
+ * promise bridge. The sync API is what tools/fetch_all.ts's parallel
+ * workers need (its setFileTags contract is sync); the nested `bun -e`
+ * bridge it used before measured 6.4× slower than direct ffmpeg.
+ * WAV/AIFF go through the mutagen paths (natively sync).
+ */
+export function writePatchSync(filePath: string, patch: TagPatch): boolean {
+  try {
+    validatePatch(patch);
+    const pairs = tagPairs(patch);
+    if (!pairs.length) return true;
+
+    const ext = extname(filePath).toLowerCase();
+    if (ext === ".aiff" || ext === ".aif" || ext === ".wav") {
+      return writePatchWav(filePath, patch); // mutagen ID3-in-container
+    }
+    const args: string[] = [
+      "-y",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-i",
+      filePath,
+      "-map",
+      "0:a",
+      "-map",
+      "0:v?",
+      "-c:a",
+      "copy",
+      "-c:v",
+      "mjpeg",
+      "-disposition:v:0",
+      "attached_pic",
+    ];
+    for (const [k, v] of pairs) args.push("-metadata", `${FFMPEG_KEY[k]}=${v}`);
+    const tagged = tmpLike(filePath, ".tagged");
+    if (ext === ".mp3") {
+      args.push("-c:v", "copy", "-write_id3v2", "1", "-id3v2_version", "3");
+      args.push(tagged);
+    } else if (ext === ".flac") {
+      args.push(tagged);
+    } else {
+      args.push("-f", "ipod", tagged); // m4a
+    }
+    const pr = Bun.spawnSync({
+      cmd: ["ffmpeg", ...args],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    if (pr.exitCode !== 0) return false;
+    renameSync(tagged, filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const FFMPEG_KEY: Record<keyof TagPatch, string> = {
@@ -230,56 +293,66 @@ print("ok")`;
 }
 
 /**
- * WAV tag write via mutagen (ID3 chunk inside the RIFF). ffmpeg's wav muxer
- * accepts arbitrary -metadata but players ignore it — mutagen is the real
- * path for WAV.
+ * Sync tag write for ID3-in-container formats (WAV RIFF / AIFF ID3 chunk)
+ * via mutagen. ffmpeg's wav/aiff muxers drop or mangle ID3 chunks, so
+ * mutagen editing the chunk in place is the real path for these containers
+ * (it also preserves embedded art). Sync API for the fetch-pipeline
+ * workers; returns false on any failure (no throw).
  */
 export function writePatchWav(filePath: string, patch: TagPatch): boolean {
-  validatePatch(patch);
-  const pairs = Object.entries(patch).filter(([, v]) => v !== undefined) as [
-    keyof TagPatch,
-    string | number,
-  ][];
-  if (!pairs.length) return true;
-  const WAV_ID3: Partial<Record<keyof TagPatch, string>> = {
-    title: "TIT2",
-    artist: "TPE1",
-    album: "TALB",
-    genre: "TCON",
-    composer: "TCOM",
-  };
-  const sets = pairs
-    .map(([k, v]) => {
-      if (k === "year") return `a.tags.add(TDRC(encoding=3, text="${v}"))`;
-      if (k === "comment")
-        return `a.tags.add(COMM(encoding=3, lang="eng", desc="", text=${JSON.stringify(String(v))}))`;
-      if (k === "mbid")
-        return `a.tags.add(TXXX(encoding=3, desc="MusicBrainz Track Id", text=${JSON.stringify(String(v))}))`;
-      if (k === "energy")
-        return `a.tags.add(TXXX(encoding=3, desc="ENERGY", text=${JSON.stringify(String(v))}))`;
-      if (k === "remixer")
-        return `a.tags.add(TXXX(encoding=3, desc="version", text=${JSON.stringify(String(v))}))`;
-      if (k === "bpm") return `a.tags.add(TBPM(encoding=3, text="${v}"))`;
-      const frame = WAV_ID3[k];
-      return frame
-        ? `a.tags.add(${frame}(encoding=3, text=${JSON.stringify(String(v))}))`
-        : "";
-    })
-    .filter(Boolean)
-    .join("\n");
-  const script = `from mutagen.wave import WAVE
-from mutagen.id3 import ID3, TIT2, TPE1, TALB, TCON, TDRC, TCOM, TBPM, TXXX, COMM
-a = WAVE(${JSON.stringify(filePath)})
+  try {
+    validatePatch(patch);
+    const pairs = tagPairs(patch);
+    if (!pairs.length) return true;
+    const isAiff = /\.(aiff|aif)$/i.test(filePath);
+    const WAV_ID3: Partial<Record<keyof TagPatch, string>> = {
+      title: "TIT2",
+      artist: "TPE1",
+      album: "TALB",
+      genre: "TCON",
+      composer: "TCOM",
+    };
+    const sets = pairs
+      .map(([k, v]) => {
+        if (k === "year") return `a.tags.add(TDRC(encoding=3, text="${v}"))`;
+        if (k === "comment")
+          return `a.tags.add(COMM(encoding=3, lang="eng", desc="", text=${JSON.stringify(String(v))}))`;
+        if (k === "mbid")
+          return `a.tags.add(TXXX(encoding=3, desc="MusicBrainz Track Id", text=${JSON.stringify(String(v))}))`;
+        if (k === "energy")
+          return `a.tags.add(TXXX(encoding=3, desc="ENERGY", text=${JSON.stringify(String(v))}))`;
+        if (k === "remixer")
+          return `a.tags.add(TXXX(encoding=3, desc="version", text=${JSON.stringify(String(v))}))`;
+        if (k === "bpm") return `a.tags.add(TBPM(encoding=3, text="${v}"))`;
+        if (k === "albumArtist")
+          return `a.tags.add(TPE2(encoding=3, text=${JSON.stringify(String(v))}))`;
+        if (k === "grouping")
+          return `a.tags.add(TIT1(encoding=3, text=${JSON.stringify(String(v))}))`;
+        const frame = WAV_ID3[k];
+        return frame
+          ? `a.tags.add(${frame}(encoding=3, text=${JSON.stringify(String(v))}))`
+          : "";
+      })
+      .filter(Boolean)
+      .join("\n");
+    const open = isAiff
+      ? `from mutagen.aiff import AIFF\na = AIFF(${JSON.stringify(filePath)})`
+      : `from mutagen.wave import WAVE\na = WAVE(${JSON.stringify(filePath)})`;
+    const script = `${open}
+from mutagen.id3 import ID3, TIT2, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TXXX, COMM
 if not a.tags: a.add_tags()
 if not isinstance(a.tags, ID3): a.tags = ID3()
 ${sets}
 a.save()
 print("ok")`;
-  const pr = Bun.spawnSync({
-    cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
-    stdout: "pipe",
-  });
-  return new TextDecoder().decode(pr.stdout).trim() === "ok";
+    const pr = Bun.spawnSync({
+      cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
+      stdout: "pipe",
+    });
+    return new TextDecoder().decode(pr.stdout).trim() === "ok";
+  } catch {
+    return false;
+  }
 }
 
 /**
