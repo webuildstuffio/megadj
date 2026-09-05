@@ -22,6 +22,7 @@
  *   deck_cancel {job_id}        cancel an active job
  *   deck_explain {kind?}        what each job does, typical duration, safety
  *   deck_preflight              gig-night pass/fail across mounted drives (B12)
+ *   deck_players {drive?}       which players can read each stick (N75/N78)
  *   archive_search_tracks {q}   search the archive (O82b, readonly)
  *   archive_track_stats {video_id}  one track's full archive row
  *   archive_ingest_status       counts + recent runs + newest tracks
@@ -97,6 +98,11 @@ const JOB_KINDS = [
   "benchmark",
   "checksum",
 ] as const satisfies readonly JobKind[];
+
+/** O87 attribution: one id per MCP server process, stamped on mutating calls
+ *  so jobs/timeline entries read "mcp:<short-id>" — an agent action is
+ *  distinguishable from a human click without any client cooperation. */
+const MCP_SESSION = `mcp:${crypto.randomUUID().slice(0, 8)}`;
 
 function str(args: Record<string, unknown>, key: string): string | undefined {
   const v = args[key];
@@ -307,7 +313,12 @@ const TOOLS: Record<string, ToolDef> = {
           `drive ${d.nickname ?? d.name} is not mounted — plug it in first`,
         );
       await interlockGuard();
-      const res = await apiPost(`/api/drives/${d.id}/jobs`, { kind });
+      // O87 attribution: agent-initiated jobs carry the MCP session so the
+      // timeline answers "why did this verify run at 3am" ("mcp:<session>")
+      const res = await apiPost(`/api/drives/${d.id}/jobs`, {
+        kind,
+        origin: `mcp:${MCP_SESSION}`,
+      });
       // server re-checks the interlock at enqueue (TOCTOU guard); map its
       // 423 to the same clean param-style message our own guard throws
       if (res.status === 423) {
@@ -402,6 +413,27 @@ const TOOLS: Record<string, ToolDef> = {
       additionalProperties: false,
     },
     run: async () => apiGet("/api/preflight").then((r) => r.json()),
+  },
+
+  deck_players: {
+    description:
+      "N78 hardware compatibility: which Pioneer players (XDJ-XZ, CDJ-3000, XDJ-AZ, OPUS-QUAD…) can actually read a drive, derived from its MEASURED dual-DB state. Drive omitted = every known drive. Read-only.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        drive: {
+          type: "string",
+          description: "volume name, nickname, or id (omit for all drives)",
+        },
+      },
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const drive = str(args, "drive");
+      if (!drive) return apiGet("/api/drives").then((r) => r.json());
+      const d = await needDrive(drive);
+      return apiGet(`/api/drives/${d.id}/players`).then((r) => r.json());
+    },
   },
 
   // ---- O82b: the archive half (megadj's own DB, readonly) -------------------

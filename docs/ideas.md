@@ -623,14 +623,17 @@ Grounded in the official AlphaTheta compatibility notice + the 2026 stems
 comparisons. The repo's XDJ-XZ is the reason the dual-DB gate exists; the
 ecosystem research confirms the architecture aims at the right wall.
 
-75. **Hardware compatibility matrix as data (Device vs OneLibrary).**
-    AlphaTheta's notice gives the official split: XDJ-XZ, CDJ-3000, RX3,
-    RR, XDJ-1000MK2, XDJ-700, NXS2 generation = **Device Library**
-    (export.pdb); XDJ-AZ, OPUS-QUAD, OMNIS-DUO, CDJ-3000X = **OneLibrary
-    only**. Encode it as `players.toml`, not code: CrateDeck annotates
-    every drive with "plays on: XZ ✓, AZ ✗" badges derived from the
-    _actual_ DB rows measured — making a compatibility gap visible before
-    a gig, not at the venue. Effort S — mostly data entry.
+75. **Hardware compatibility matrix as data (Device vs OneLibrary) — ✅
+    SHIPPED 2026-09-05 (`cratedeck/src/players.ts`, `deckctl players`,
+    `deck_players` MCP tool).** The official split encoded as data:
+    XDJ-XZ, CDJ-3000 gen, RX3, RR, XDJ-1000MK2, XDJ-700, NXS2 =
+    **Device Library** (export.pdb); XDJ-AZ, OPUS-QUAD, OMNIS-DUO,
+    CDJ-3000X = **OneLibrary only**. Extensible via config.toml
+    `[players.players]`. Verdicts come from the drive's MEASURED dual-DB
+    rows — a stale pdb blocks device players with the numbers in the
+    reason, and a device-only export (0 OneLibrary rows) still reads on
+    the XZ fleet. folded into preflight as a check (a fully blocked
+    drive is not-ready).
 
 76. **Preflight firmware-notes field.** The CDJ-3000 v3.30 incident
     (firmware pulled after DJs' playlists vanished; OneLibrary
@@ -648,12 +651,13 @@ ecosystem research confirms the architecture aims at the right wall.
     right scheme; CrateDeck flags incompatible formats. Effort S.
 
 78. **"Which players will this stick actually work on?" — the fleet
-    answer.** Combine N75's matrix + the measured dual-DB state + format
-    profile into a per-drive verdict: _Device Library current ✓, pdb ==
-    OneLibrary ✓ → works on XZ + CDJ-3000 generation; OneLibrary-only
-    content → AZ/OPUS/3000X only._ The thing rekordbox cannot tell you
-    at all, and the single clearest expression of what megadj is for.
-    Falls out of B12 + N75 nearly free. Effort S.
+    answer — ✅ SHIPPED 2026-09-05** (`deckctl players [drive]`,
+    `/api/drives/:id/players`). Combine N75's matrix + the measured
+    dual-DB state into a per-drive verdict: _Device Library current ✓,
+    pdb == OneLibrary ✓ → works on XZ + CDJ-3000 generation;
+    OneLibrary-only content → AZ/OPUS/3000X only._ The thing rekordbox
+    cannot tell you at all, and the single clearest expression of what
+    megadj is for.
 
 79. **Genre-normalized house/techno taxonomy.** The 400-Discogs-styles
     model (harmonie) + Essentia genre classifiers give every track a
@@ -733,11 +737,13 @@ archive.ts`, opened `readonly: true`; missing DB degrades to
     readonly (`readonly: true` sqlite handle). Pattern stays open for
     every future tool.
 
-87. **Timeline + job audit for agent actions.** The rails (86) log into
-    the jobs/timeline system already; the missing piece is attribution:
-    agent-initiated actions carry the MCP session id in the event log so
-    "why did this verify run at 3am" is answerable from the UI. Pairs
-    with O83; pure presentation of data already collected. Effort S.
+87. **Timeline + job audit for agent actions — ✅ SHIPPED 2026-09-05.**
+    `jobs.origin` (v4 column, default `web`) records who asked: MCP
+    enqueues stamp `mcp:<session-id>`, deckctl `deckctl`, the
+    auto-scheduler `auto`. It rides on the job row (visible in
+    `deckctl jobs` as `[origin]`) and on job-queued/done/failed timeline
+    events, so "why did this verify run at 3am" is answerable from the
+    UI or CLI. Pairs with O83.
 
 88. **CrateDeck findings-from-agents feed.** The MCP surface makes agents
     natural _readers_ of fleet health; make their conclusions first-class
@@ -781,12 +787,13 @@ coverage|redundancy|diff`; needs one scan per drive with rekordbox
   (`deckctl preflight`, exit-code gate).
 - **Phase 3 — manual-pain killers:** C18a runbook, C12 differential
   mirror, D24 LOWQ upgrade (queue read is live in O82b/`prep`), L62
-  fingerprints — ~~J53~~ ✅ shipped as the FullTags sub-project (ladder in
-  `docs/fulltags-roadmap.md`).
-- **Phase 6 — agentified (§O):** O82 (both halves) + O86 rails + O83 core
-  **✅ SHIPPED 2026-09-05** (`bun run mcp` — 16 tools; `deckctl prep`).
-  Open remainder: O84 inbox-agent, O85 plugin packaging, O87
-  attribution, O88 notes feed.
+  fingerprints, N75/N78 hardware matrix ✅ SHIPPED 2026-09-05
+  (`deckctl players`) — ~~J53~~ ✅ shipped as the FullTags sub-project
+  (ladder in `docs/fulltags-roadmap.md`).
+- **Phase 6 — agentified (§O):** O82 (both halves) + O86 rails + O87
+  attribution + O83 core **✅ SHIPPED 2026-09-05** (`bun run mcp` — 17
+  tools; `deckctl prep`). Open remainder: O84 inbox-agent, O85 plugin
+  packaging, O88 notes feed.
 - **Phase 4 — the AI edge (reality gate says monthly+):** I51 keys →
   I45 moods → I46 sliced (cues first, tempo-curve later) → K61
   `megadj drop`; M66/M67 after B11 history. Model gates: offline/local

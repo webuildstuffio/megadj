@@ -163,26 +163,32 @@ produces, regardless of the language used in the request.
   server with thousands of redundant fetches.
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
  server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
-16 tools — the original 10 (`deck_status/drives/report/coverage/
-redundancy/diff/jobs/run/cancel/explain`) plus `deck_preflight` (B12)
- and the O82b archive half (`archive_search_tracks/track_stats/
-ingest_status/lowq_queue/source_diff` — readonly reads over megadj's
- archive DB via `cratedeck/src/archive.ts`, opened `readonly: true`, so
- a bug there cannot corrupt archive state; missing DB degrades to
- `available:false`). `bun run mcp` from repo root; guide + registration
-snippet in `cratedeck/deckctl.md` §MCP. Readonly tools carry
- `readOnlyHint: true` annotations; `deck_run`/`deck_cancel` are flagged
- `[MUTATES DRIVE STATE]` and the rekordbox interlock is enforced inside
- the tool layer (prompts are suggestions, exit codes are law). ⌘K global
- search over all snapshots ships in the web topbar (`GET /api/search`,
- B9). B12 preflight (`cratedeck/src/preflight.ts` + `deckctl preflight`
- + `/api/preflight`) is the gig-night gate: worst-status-wins verdict
- per drive (not-ready/attention/unknown/ready), unknowns never fake
- ready, exit 1 when not ready — cron/agents gate on the code. O83
- weekly digest: `deckctl prep [--out FILE]` (`cratedeck/src/
-weekly_prep.ts`, pure renderer) → markdown over preflight + redundancy
- + archive reads. Doc alignment: ideas.md B9/B12/O82/O83/O86 are marked
- shipped.
+17 tools — the original 10 (`deck_status/drives/report/coverage/
+redundancy/diff/jobs/run/cancel/explain`) plus `deck_preflight` (B12),
+ `deck_players` (N75/N78 hardware compat from measured dual-DB rows;
+ matrix in `cratedeck/src/players.ts`, user-extendable via config.toml
+ `[players.players]`), and the O82b archive half
+ (`archive_search_tracks/track_stats/ingest_status/lowq_queue/
+source_diff` — readonly reads over megadj's archive DB via
+ `cratedeck/src/archive.ts`, opened `readonly: true`, so a bug there
+ cannot corrupt archive state; missing DB degrades to `available:false`).
+ `bun run mcp` from repo root; guide + registration snippet in
+ `cratedeck/deckctl.md` §MCP. Readonly tools carry `readOnlyHint: true`
+ annotations; `deck_run`/`deck_cancel` are flagged `[MUTATES DRIVE
+ STATE]` and the rekordbox interlock is enforced inside the tool layer
+ (prompts are suggestions, exit codes are law). **O87 attribution:**
+ `jobs.origin` ("web"/"deckctl"/"auto"/"mcp:<session>") rides on job
+ rows + timeline events so agent actions are distinguishable in `deckctl
+ jobs` and the UI timeline. ⌘K global search over all snapshots ships in
+ the web topbar (`GET /api/search`, B9). B12 preflight
+ (`cratedeck/src/preflight.ts` + `deckctl preflight` + `/api/preflight`)
+ is the gig-night gate: worst-status-wins verdict per drive
+ (not-ready/attention/unknown/ready), unknowns never fake ready, exit 1
+ when not ready — cron/agents gate on the code; includes the N75 player
+ compat check (fully blocked drive = not-ready). O83 weekly digest:
+ `deckctl prep [--out FILE]` (`cratedeck/src/weekly_prep.ts`, pure
+ renderer) → markdown over preflight + redundancy + archive reads. Doc
+ alignment: ideas.md B9/B12/N75/N78/O82/O83/O86/O87 are marked shipped.
 
 ## Local-only files
 

@@ -154,6 +154,19 @@ export class DB {
     ) {
       this.sqlite.exec("ALTER TABLE drives ADD COLUMN verify_report_json TEXT");
     }
+    // v4 (O87): job attribution — "why did this verify run at 3am" is only
+    // answerable if the row records who asked. Backfilled rows read "web".
+    if (
+      !this.sqlite
+        .query<{ name: string }, []>("PRAGMA table_info(jobs)")
+        .all()
+        .map((c) => c.name)
+        .includes("origin")
+    ) {
+      this.sqlite.exec(
+        "ALTER TABLE jobs ADD COLUMN origin TEXT NOT NULL DEFAULT 'web'",
+      );
+    }
     // disk-burn guard: cap per-drive snapshot history (each full snapshot can
     // be ~MBs of JSON; unbounded growth would eat the host disk over months)
     this.pruneSnapshots();
@@ -475,12 +488,12 @@ export class DB {
   }
 
   // ---- jobs -----------------------------------------------------------------
-  insertJob(j: Job): void {
+  insertJob(j: Job, origin = "web"): void {
     this.sqlite
       .query(
         `INSERT INTO jobs (id, drive_id, kind, status, progress, error, result_json,
-           log_path, created_at, started_at, finished_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+           log_path, created_at, started_at, finished_at, origin)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       )
       .run(
         j.id,
@@ -494,6 +507,7 @@ export class DB {
         j.created_at,
         j.started_at,
         j.finished_at,
+        origin,
       );
   }
 

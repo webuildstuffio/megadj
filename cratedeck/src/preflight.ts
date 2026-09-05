@@ -7,6 +7,7 @@
 // aggregated read, not a new measurement pass.
 import type { Drive, HealthCheck, SnapshotData } from "../shared/types";
 import { fmtBytes } from "../shared/fmt";
+import type { PlayerSpec } from "./players";
 
 const DAY = 86_400_000;
 
@@ -20,6 +21,12 @@ export interface PreflightInput {
   masterSnapshot: SnapshotData | null;
   isMirror: boolean;
   now: number;
+  /** N75/N78: hardware compatibility verdict (omit to skip the check). */
+  players?: {
+    ok: PlayerSpec[];
+    blocked: { player: PlayerSpec; reason: string }[];
+    unknown: boolean;
+  };
 }
 
 export interface PreflightDriveResult {
@@ -207,6 +214,32 @@ function mirrorCheck(
       };
 }
 
+/** N75/N78: which players can read this stick, from MEASURED db rows. A
+ *  partial block (e.g. OneLibrary-only content on an XZ-only rig) warns —
+ *  usable at tonight's venue, invisible elsewhere. No db data → no check. */
+function playersCheck(players: PreflightInput["players"]): HealthCheck | null {
+  if (!players || players.unknown) return null;
+  if (!players.blocked.length) {
+    return {
+      id: "players",
+      label: "Player compatibility",
+      status: "pass",
+      detail: `readable by all ${players.ok.length} known players`,
+    };
+  }
+  const names = players.blocked.map((b) => b.player.name).join(", ");
+  return {
+    id: "players",
+    label: "Player compatibility",
+    status: players.ok.length === 0 ? "fail" : "warn",
+    detail:
+      players.ok.length === 0
+        ? `NO player can read this drive: ${names}`
+        : `invisible to: ${names} (${players.ok.length} players fine)`,
+    fix: "Re-export from rekordbox to refresh both device libraries",
+  };
+}
+
 /** The B12 gate itself. Defaults keep it honest: any check with no data is
  *  omitted (unknowns never block), and a drive with no data at all reports
  *  unknown — never a fake ready. */
@@ -220,6 +253,7 @@ export function preflightForDrive(input: PreflightInput): PreflightDriveResult {
     bitrotCheck(input.ledgerFiles, input.latestChecksum),
     spaceCheck(snap),
     mirrorCheck(snap, input.masterSnapshot),
+    playersCheck(input.players),
   ].filter((c): c is HealthCheck => c !== null);
 
   const blockers = checks

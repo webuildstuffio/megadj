@@ -391,3 +391,61 @@ describe("inferRole", () => {
     expect(inferRole("djmaster", "DJMaster", "DJMirror")).toBe("master");
   });
 });
+
+describe("job origin attribution (O87)", () => {
+  it("insertJob stores origin; SELECT * flows it back out", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    const base = {
+      id: "jo1",
+      drive_id: UUID_A,
+      kind: "verify" as const,
+      status: "queued" as const,
+      progress: 0,
+      message: null,
+      phase: null,
+      eta_seconds: null,
+      error: null,
+      result_json: null,
+      log_path: null,
+      created_at: 1,
+      started_at: null,
+      finished_at: null,
+    };
+    db.insertJob(base, "mcp:deadbeef");
+    expect(db.getJob("jo1")!.origin).toBe("mcp:deadbeef");
+    // default attribution = web (human click)
+    db.insertJob({ ...base, id: "jo2" });
+    expect(db.getJob("jo2")!.origin).toBe("web");
+    // same created_at on both rows → order-insensitive assert
+    expect(
+      db
+        .jobsForDrive(UUID_A)
+        .map((j) => j.origin)
+        .sort(),
+    ).toEqual(["mcp:deadbeef", "web"]);
+  });
+
+  it("pre-migration rows backfill as 'web' via column default", () => {
+    // simulate a row written before the origin column existed: insert with
+    // the DEFAULT keyword path — insertJob always writes it explicitly, so
+    // raw-SQL a row without the column value
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.sqlite
+      .query(
+        `INSERT INTO jobs (id, drive_id, kind, status, progress, created_at)
+         VALUES ('legacy1', ?, 'scan', 'done', 1, 1)`,
+      )
+      .run(UUID_A);
+    expect(db.getJob("legacy1")!.origin).toBe("web");
+  });
+});

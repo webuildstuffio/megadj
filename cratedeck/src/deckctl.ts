@@ -9,6 +9,7 @@
 //   bun run cratedeck/src/deckctl.ts drives [--json]
 //   bun run cratedeck/src/deckctl.ts report <drive> [--json]   # name or UUID
 //   bun run cratedeck/src/deckctl.ts preflight [--json]        # gig-night gate
+//   bun run cratedeck/src/deckctl.ts players [drive] [--json]  # hardware compat (N78)
 //   bun run cratedeck/src/deckctl.ts prep [--out FILE]         # weekly digest (O83)
 //   bun run cratedeck/src/deckctl.ts run <drive> <scan|verify|mirror|benchmark|checksum> [--wait] [--json]
 //   bun run cratedeck/src/deckctl.ts jobs [--json]
@@ -176,6 +177,62 @@ async function cmdPreflight(): Promise<void> {
   if (r.overall !== "ready") process.exit(1);
 }
 
+// ---- players (N75/N78): "which players will this stick actually work on?" ---
+interface PlayersPayload {
+  drive: { id: string; name: string; nickname: string | null };
+  measured: { pdb_live_rows: number | null; onelibrary_rows: number | null };
+  ok: { name: string }[];
+  blocked: { player: { name: string }; reason: string }[];
+  unknown: boolean;
+}
+
+async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
+  // drive omitted → every known drive, the fleet answer
+  const drives: { id: string; name: string; nickname: string | null }[] = [];
+  if (nameOrId) {
+    const d = await resolveDrive(nameOrId);
+    if (!d) {
+      errOut(`unknown drive: ${nameOrId}`);
+      process.exit(2);
+    }
+    drives.push(d);
+  } else {
+    drives.push(
+      ...(await getJson<
+        { id: string; name: string; nickname: string | null }[]
+      >("/api/drives")),
+    );
+  }
+  const payloads: PlayersPayload[] = [];
+  for (const d of drives) {
+    try {
+      payloads.push(
+        await getJson<PlayersPayload>(`/api/drives/${d.id}/players`),
+      );
+    } catch {
+      /* drive disappeared mid-loop — skip */
+    }
+  }
+  if (JSON_MODE) {
+    console.log(JSON.stringify(nameOrId ? payloads[0] : payloads, null, 2));
+    return;
+  }
+  for (const p of payloads) {
+    if (p.unknown) {
+      log(
+        `${p.drive.nickname ?? p.drive.name}: no scan data — run a full scan`,
+      );
+      continue;
+    }
+    log(
+      `${p.drive.nickname ?? p.drive.name}: works on ${p.ok.length} player type(s)` +
+        ` · pdb ${p.measured.pdb_live_rows ?? "—"} · onelibrary ${p.measured.onelibrary_rows ?? "—"}`,
+    );
+    log(`  ✓ ${p.ok.map((x) => x.name).join(", ")}`);
+    for (const b of p.blocked) log(`  ✕ ${b.player.name} — ${b.reason}`);
+  }
+}
+
 async function cmdReport(nameOrId: string): Promise<void> {
   const d = await resolveDrive(nameOrId);
   if (!d) {
@@ -225,7 +282,10 @@ async function cmdRun(
     process.exit(3);
   }
 
-  const res = await apiPost(`/api/drives/${d.id}/jobs`, { kind });
+  const res = await apiPost(`/api/drives/${d.id}/jobs`, {
+    kind,
+    origin: "deckctl",
+  });
   const body = (await res.json()) as Job & { error?: string };
   if (!res.ok) {
     errOut(`enqueue failed: ${body.error ?? res.status}`);
@@ -377,8 +437,10 @@ async function cmdJobs(): Promise<void> {
           : j.status === "failed"
             ? "✕"
             : "·";
+    // O87: origin rides along so agent-initiated jobs are visible in the CLI
+    const originTag = j.origin && j.origin !== "web" ? ` [${j.origin}]` : "";
     log(
-      `${status} ${j.id.slice(0, 8)} ${j.kind} ${pct}% ${j.message ?? ""} ${j.error ?? ""}`.trimEnd(),
+      `${status} ${j.id.slice(0, 8)} ${j.kind} ${pct}%${originTag} ${j.message ?? ""} ${j.error ?? ""}`.trimEnd(),
     );
   }
 }
@@ -670,6 +732,8 @@ async function main(): Promise<void> {
       );
     case "report":
       return cmdReport(args[1] ?? usage());
+    case "players":
+      return cmdPlayers(args[1]);
     case "run":
       return cmdRun(
         args[1] ?? usage(),
@@ -715,6 +779,7 @@ function usage(): never {
       "  coverage [min-copies]         which tracks live on which drives + at-risk list",
       "  redundancy [min-copies]       per-playlist audit: every track on ≥N drives?",
       "  preflight                     gig-night pass/fail across all mounted drives (exit 1 if not ready)",
+      "  players [drive]               which CDJs/XDJs can read each stick (measured dual-DB state)",
       "  prep [--out FILE]             weekly digest: fleet + redundancy + archive markdown",
       "  diff <driveA> <driveB>        added / removed / changed between two drives",
       "  explain [kind]                what each job checks, typical duration, safety",

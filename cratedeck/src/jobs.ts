@@ -89,7 +89,16 @@ export class JobEngine {
     }
   }
 
-  enqueue(driveId: string, kind: JobKind, mountPoint: string): Job {
+  /** Who asked for this job — O87 attribution. "mcp:<session>" for agent
+   *  calls, "web", "deckctl", "auto" (auto-scheduler). Rendered in the
+   *  timeline + jobs list so "why did this verify run at 3am" is answerable.
+   *  Optional column: pre-migration rows read as "web" (the UI default). */
+  enqueue(
+    driveId: string,
+    kind: JobKind,
+    mountPoint: string,
+    origin = "web",
+  ): Job {
     this.assertInterlock();
     const dup = this.db.activeJobOfKind(driveId, kind);
     if (dup) return dup;
@@ -109,8 +118,12 @@ export class JobEngine {
       started_at: null,
       finished_at: null,
     };
-    this.db.insertJob(job);
-    this.db.event(driveId, "job-queued", { kind, job_id: job.id });
+    this.db.insertJob(job, origin);
+    this.db.event(driveId, "job-queued", {
+      kind,
+      job_id: job.id,
+      origin,
+    });
     this.queue.push({ job, mountPoint });
     this.emit("job", job);
     this.pump();
@@ -228,7 +241,11 @@ export class JobEngine {
         finished_at: Date.now(),
         result_json: JSON.stringify(result ?? null),
       });
-      this.db.event(job.drive_id, "job-done", { kind: job.kind, result });
+      this.db.event(job.drive_id, "job-done", {
+        kind: job.kind,
+        origin: job.origin,
+        result,
+      });
     } catch (e) {
       const msg = (e as Error).message;
       this.db.updateJob(job.id, {
@@ -236,7 +253,11 @@ export class JobEngine {
         error: msg,
         finished_at: Date.now(),
       });
-      this.db.event(job.drive_id, "job-failed", { kind: job.kind, error: msg });
+      this.db.event(job.drive_id, "job-failed", {
+        kind: job.kind,
+        origin: job.origin,
+        error: msg,
+      });
     } finally {
       this.running.delete(job.drive_id);
       this.emit("job", this.db.getJob(job.id));

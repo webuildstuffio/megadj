@@ -14,6 +14,7 @@ import { VERIFY_HELP } from "./verify_help";
 import { coverage, redundancy, diff, trackLocations } from "./fleet";
 import { ArchiveReader } from "./archive";
 import { buildPreflight, type PreflightInput } from "./preflight";
+import { driveCompatibility, playersFromConfig } from "./players";
 import {
   shouldAutoScan,
   shouldAutoVerify,
@@ -33,6 +34,8 @@ const guard = new Guard(cfg);
 const webRoot = join(here, "web", "dist");
 // O82b archive tools: one shared readonly handle over megadj's archive DB
 const archive = new ArchiveReader(cfg.archiveDbPath);
+// N75: vendor matrix + user-added players from config.toml [players.players]
+const extraPlayers = () => playersFromConfig(cfg.extraPlayers);
 
 const clients = new Set<ReadableStreamDefaultController>();
 function sse(): Response {
@@ -120,7 +123,7 @@ function autoSchedule(): void {
           cfg.autoScanOnMount,
         )
       ) {
-        const j = jobs.enqueue(id, "scan", mountPointOf(drive.name));
+        const j = jobs.enqueue(id, "scan", mountPointOf(drive.name), "auto");
         console.log(`cratedeck: auto-scan ${drive.name} (${j.id.slice(0, 8)})`);
       }
     }
@@ -145,7 +148,12 @@ function autoSchedule(): void {
         if (now - lastAttempt < 3_600_000) continue; // max 1 attempt/hour
         autoVerifyAttempts.set(drive.id, now);
         const reason = autoVerifyReason(input, cfg.verifyIntervalDays);
-        const j = jobs.enqueue(drive.id, "verify", mountPointOf(drive.name));
+        const j = jobs.enqueue(
+          drive.id,
+          "verify",
+          mountPointOf(drive.name),
+          "auto",
+        );
         console.log(
           `cratedeck: auto-verify ${drive.name} (${j.id.slice(0, 8)}) — ${reason}`,
         );
@@ -269,7 +277,10 @@ Bun.serve({
             return json({ ok: true });
           }
           if (sub === "/jobs" && req.method === "POST") {
-            const body = (await req.json()) as { kind: JobKind };
+            const body = (await req.json()) as {
+              kind: JobKind;
+              origin?: string;
+            };
             if (
               !["scan", "verify", "mirror", "benchmark", "checksum"].includes(
                 body.kind,
@@ -281,10 +292,41 @@ Bun.serve({
             if (!drive?.mounted)
               return json({ error: "drive not mounted" }, 409);
             const mountPoint = resolveMountPoint(cfg, drive.name);
-            const job = jobs.enqueue(id, body.kind, mountPoint);
+            // O87: callers may attribute the job ("mcp:xxxx", "deckctl").
+            // Sanitized to a short flat tag — it lands in JSON + UI labels.
+            const origin =
+              typeof body.origin === "string" && body.origin.trim()
+                ? body.origin
+                    .trim()
+                    .slice(0, 40)
+                    .replace(/[^\w:.-]/g, "")
+                : "web";
+            const job = jobs.enqueue(id, body.kind, mountPoint, origin);
             return json(job);
           }
           if (sub === "/benchmarks") return json(db.benchmarks(id));
+          // N78: "which players will this stick actually work on?" —
+          // measured dual-DB rows mapped onto the vendor player matrix
+          if (sub === "/players") {
+            const drive = db.getDrive(id);
+            if (!drive) return json({ error: "unknown drive" }, 404);
+            const snap: SnapshotData | null = drive.last_snapshot_json
+              ? JSON.parse(drive.last_snapshot_json)
+              : null;
+            const compat = driveCompatibility(snap, extraPlayers());
+            return json({
+              drive: {
+                id: drive.id,
+                name: drive.name,
+                nickname: drive.nickname,
+              },
+              measured: {
+                pdb_live_rows: snap?.pdb_live_rows ?? null,
+                onelibrary_rows: snap?.onelibrary_rows ?? null,
+              },
+              ...compat,
+            });
+          }
         }
         if (route === "/ports") {
           return json(portView());
@@ -603,6 +645,8 @@ function allPreflightInputs(): PreflightInput[] {
         isMirror:
           d.role === "mirror" ||
           d.name.toUpperCase() === cfg.mirrorDrive.toUpperCase(),
+        // N78 rides on preflight: measured dual-DB rows → player verdict
+        players: driveCompatibility(snap, extraPlayers()),
         now: Date.now(),
       };
     });

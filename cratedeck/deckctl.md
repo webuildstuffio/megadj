@@ -23,8 +23,9 @@ bun run deckctl <command> [--json]    # repo-root script (short form)
 | `cancel <jobId>`         | cancel an active job                                                                                                           |
 | `stop`                   | stop the CrateDeck server                                                                                                      |
 | `explain [kind]`         | documentation as a tool: what each job type checks, typical duration, safety guarantees                                        |
-| `preflight`              | **B12 gig-night gate**: pass/fail checklist over all mounted drives (dual-DB, grids, verify, speed, bitrot, space, parity)     |
-| `prep [--out FILE]`      | **O83 weekly digest**: fleet + redundancy + archive markdown, written to `--out` when given                                    |
+| `preflight`              | **B12 gig-night gate**: pass/fail checklist over all mounted drives (dual-DB, grids, verify, speed, bitrot, space, parity, player compat) |
+| `players [drive]`        | **N78 hardware compat**: which CDJs/XDJs can read each stick, from measured dual-DB rows vs the N75 player matrix                            |
+| `prep [--out FILE]`      | **O83 weekly digest**: fleet + redundancy + archive markdown, written to `--out` when given                                                |
 
 `<drive>` = volume name, nickname, or UUID.
 
@@ -124,8 +125,15 @@ Tools: `deck_status` · `deck_drives` · `deck_report {drive}` ·
 `deck_coverage {min_copies?}` · `deck_redundancy {min_copies?}` ·
 `deck_diff {a,b}` · `deck_jobs` · `deck_run {drive,kind,wait?}` ·
 `deck_cancel {job_id}` · `deck_explain {kind?}` · `deck_preflight` ·
-`archive_search_tracks {q}` · `archive_track_stats {video_id}` ·
-`archive_ingest_status` · `archive_lowq_queue` · `archive_source_diff {a,b}`.
+`deck_players {drive?}` · `archive_search_tracks {q}` ·
+`archive_track_stats {video_id}` · `archive_ingest_status` ·
+`archive_lowq_queue` · `archive_source_diff {a,b}`.
+
+Agent attribution (O87): jobs enqueued through MCP are stamped
+`origin = "mcp:<session-id>"` (deckctl → `"deckctl"`, the auto-scheduler →
+`"auto"`, UI clicks → `"web"`). The origin rides on the job row and the
+timeline events, so "why did this verify run at 3am" is answerable from
+`deckctl jobs` or the drive page.
 
 `deck_run`/`deck_cancel` are the only mutating tools (`deck_cancel` is a
 push on an in-flight job; `deck_run` refuses while rekordbox is running —

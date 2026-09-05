@@ -237,4 +237,51 @@ describe("preflight (B12)", () => {
     expect(rep.mountedCount).toBe(1);
     expect(rep.overall).toBe("ready");
   });
+
+  it("players check: no db data → omitted (no fake verdict)", () => {
+    const r = preflightForDrive(
+      input({ players: { ok: [], blocked: [], unknown: true } }),
+    );
+    expect(byId(r, "players")).toBeUndefined();
+  });
+
+  it("players check: fully blocked drive is a blocker (no player reads it)", () => {
+    const r = preflightForDrive(
+      input({
+        players: {
+          ok: [],
+          blocked: [
+            { player: { name: "XDJ-XZ", reads: "device" }, reason: "stale" },
+            {
+              player: { name: "XDJ-AZ", reads: "onelibrary" },
+              reason: "no rows",
+            },
+          ],
+          unknown: false,
+        },
+      }),
+    );
+    expect(byId(r, "players")?.status).toBe("fail");
+    expect(r.overall).toBe("not-ready");
+    expect(r.blockers[0]).toContain("NO player can read");
+  });
+
+  it("players check: partial block warns (usable at home, invisible elsewhere)", () => {
+    const r = preflightForDrive(
+      input({
+        players: {
+          ok: [{ name: "XDJ-XZ", reads: "device" }],
+          blocked: [
+            {
+              player: { name: "CDJ-3000X", reads: "onelibrary" },
+              reason: "no OneLibrary rows",
+            },
+          ],
+          unknown: false,
+        },
+      }),
+    );
+    expect(byId(r, "players")?.status).toBe("warn");
+    expect(r.overall).toBe("attention");
+  });
 });

@@ -24,6 +24,8 @@ export interface CrateConfig {
   verifyIntervalDays: number;
   /** megadj's archive DB (O82b archive tools read it; never written). */
   archiveDbPath: string;
+  /** Raw [players.players] section — name → "device" | "onelibrary" (N75). */
+  extraPlayers: Record<string, string>;
 }
 
 /** Raw TOML value: what the tiny parser can produce. */
@@ -130,6 +132,17 @@ export function loadConfig(root: string): CrateConfig {
     archiveDbPath:
       process.env.MEGADJ_DB ??
       `${process.env.HOME}/.local/state/megadj/archive.db`,
+    // [players.players] MY-XDJ = "device" — user-added players for the N75
+    // compatibility matrix (players.ts merges them with the vendor defaults).
+    extraPlayers: (() => {
+      const players = isTomlTable(file.players) ? file.players : {};
+      const inner = isTomlTable(players.players) ? players.players : {};
+      const out: Record<string, string> = {};
+      for (const [name, reads] of Object.entries(inner)) {
+        if (reads === "device" || reads === "onelibrary") out[name] = reads;
+      }
+      return out;
+    })(),
   };
   if (cfg.imageProvider && !["brave", "exa"].includes(cfg.imageProvider)) {
     throw new Error(`config: unknown images.provider '${cfg.imageProvider}'`);

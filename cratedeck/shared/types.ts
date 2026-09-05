@@ -175,6 +175,10 @@ export interface Job {
   error: string | null;
   result_json: string | null;
   log_path: string | null; // schema column; unused by jobs.ts yet
+  /** O87 attribution: "web" | "deckctl" | "auto" | "mcp:<id>" — who asked
+   *  for this job. Optional in the type (legacy literals); the jobs table
+   *  column defaults to 'web', and enqueue() always sets it. */
+  origin?: string;
   created_at: number;
   started_at: number | null;
   finished_at: number | null;
