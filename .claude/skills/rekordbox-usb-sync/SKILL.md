@@ -20,13 +20,13 @@ verified, fully analyzed rekordbox device library.
 
 ## Library conventions
 
-| | Master (DJMASTER) | Mirror (DJMIRROR) |
-|---|---|---|
-| Role | MASTER | Mirror (kept identical) |
-| DB | `PIONEER/rekordbox/exportLibrary.db` (SQLCipher) | same file, MD5-identical |
-| Music | `Contents/` | superset OK, 0 diff after sync |
-| Analysis | `PIONEER/USBANLZ/` — device folders + hash-path folders | superset, 0 diff |
-| New tracks device ID | hash-computed (see `scripts/anlz_paths.py`) | same |
+|                      | Master (DJMASTER)                                       | Mirror (DJMIRROR)              |
+| -------------------- | ------------------------------------------------------- | ------------------------------ |
+| Role                 | MASTER                                                  | Mirror (kept identical)        |
+| DB                   | `PIONEER/rekordbox/exportLibrary.db` (SQLCipher)        | same file, MD5-identical       |
+| Music                | `Contents/`                                             | superset OK, 0 diff after sync |
+| Analysis             | `PIONEER/USBANLZ/` — device folders + hash-path folders | superset, 0 diff               |
+| New tracks device ID | hash-computed (see `scripts/anlz_paths.py`)             | same                           |
 
 Recovery kit / XML exports: a local folder of your choosing (e.g.
 `~/rekordbox-exports/`).
@@ -110,18 +110,18 @@ ANLZ0000.DAT is big-endian tagged sections. **Section = tag(4) +
 u32 hdr_size + u32 total + header + payload**, where `total` counts from
 the tag start. Layouts (verified against Pioneer-generated files):
 
-| Tag | Layout |
-|---|---|
-| PMAI | `tag + (28, FILE_SIZE, 1, 0x10000, 0x10000, 0)` — field2 MUST equal final file size |
+| Tag  | Layout                                                                                                                  |
+| ---- | ----------------------------------------------------------------------------------------------------------------------- |
+| PMAI | `tag + (28, FILE_SIZE, 1, 0x10000, 0x10000, 0)` — field2 MUST equal final file size                                     |
 | PPTH | `tag + (16, 16+len(path_bytes), len(path_bytes)) + path` UTF-16BE **with trailing U+0000 terminator; length counts it** |
-| PVBR | `tag + (16, 24, 1620, 0) + 4 zero bytes` |
-| PQTZ | hdr `tag + (24, 32+n*8) + (0, 0x80000, n, bpm100, 147)`; entries `>4H`: (beat_in_bar 1-4, bpm100, ms_hi, ms_lo) |
-| PWAV | `tag + (20, 20+n, n, 0x10000) + n u8 peaks` — Pioneer writes **n=400** |
-| PWV2 | same shape as PWAV, 100 u8 color peaks |
-| PCOB | empty cues: `tag + (24, 24, 0, 0, 0xFFFFFFFF)` — sentinel |
+| PVBR | `tag + (16, 24, 1620, 0) + 4 zero bytes`                                                                                |
+| PQTZ | hdr `tag + (24, 32+n*8) + (0, 0x80000, n, bpm100, 147)`; entries `>4H`: (beat_in_bar 1-4, bpm100, ms_hi, ms_lo)         |
+| PWAV | `tag + (20, 20+n, n, 0x10000) + n u8 peaks` — Pioneer writes **n=400**                                                  |
+| PWV2 | same shape as PWAV, 100 u8 color peaks                                                                                  |
+| PCOB | empty cues: `tag + (24, 24, 0, 0, 0xFFFFFFFF)` — sentinel                                                               |
 
 Beat grid entries: first beat at ~615ms, beat_in_bar cycles 2→3→4→1,
-ms stored as hi/lo u16 pair (full_ms = hi*65536 + lo).
+ms stored as hi/lo u16 pair (full_ms = hi\*65536 + lo).
 
 Waveform peaks: ffmpeg-decode first 30s mono 8kHz, abs-max per bucket,
 200 buckets for PWAV / 100 for PWV2, scaled to 0-255 u8.
@@ -286,6 +286,7 @@ key  = folder_key(p, hr)          # "P{p:03X}/{hr:08X}"
 if key in occupied:
     hr = next_free_suffix(p, hr, occupied)
 ```
+
 - Multi-origin merges can leave different rips of the same track on each
   drive. `usb_mirror.py --audio-parity` reconciles (master wins, mirror
   variants backed up first).

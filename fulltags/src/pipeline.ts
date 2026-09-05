@@ -93,7 +93,7 @@ export async function enrichTrack(
 
   // ---------- 1. tags: MusicBrainz fills artist/album/date ----------
   // CLI hints fill what the file lacks; hints covering every missing field
-  // make the pass deterministic — skip MB entirely (keeps offline runs
+  // make the pass deterministic — skip MB entirely (keeps offline/CI runs
   // off the network and the run fast).
   const hinted =
     (!truth.title || Boolean(opts.hints?.title)) &&

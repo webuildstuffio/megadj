@@ -12,12 +12,6 @@ feature can't be expressed as a command an operator or an AI agent can run, it
 doesn't exist. Anything not yet 1:1 must become a **TODO or a GitHub issue** —
 never silent drift between "the tool" and "the interface".
 
-**No CI — ever** (decided Sep 5 2026, when we deleted `.github/workflows/`
-outright rather than disabling it): hosted runners and PR gates are shared
-server infra for team pull-request flow, and this repo is one author on one
-Mac with zero commercial intent (§9 — nothing to babysit, no SLA). The gate
-is — and stays — local: `bun run check` && `bun test` before you push (§11).
-
 ## 2. Mac only. Pioneer only. Sorry — nothing else, ever, at all.
 
 megadj targets **macOS** and **Pioneer DJ (rekordbox / CDJ / XDJ)** hardware.

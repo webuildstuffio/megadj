@@ -131,7 +131,7 @@ produces, regardless of the language used in the request.
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
   server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
   10 tools (`deck_status/drives/report/coverage/redundancy/diff/jobs/
-  run/cancel/explain`); `bun run mcp` from repo root; guide + registration
+run/cancel/explain`); `bun run mcp` from repo root; guide + registration
   snippet in `cratedeck/deckctl.md` §MCP. Readonly tools carry
   `readOnlyHint: true` annotations; `deck_run`/`deck_cancel` are flagged
   `[MUTATES DRIVE STATE]` and the rekordbox interlock is enforced inside

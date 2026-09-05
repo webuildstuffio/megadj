@@ -33,8 +33,7 @@ support `--json`.
 
 ## Rules
 
-1. **Interlock is sacred**: if rekordbox is running, every job exits with code
-   3. Never bypass — quit rekordbox first (its DBs must not be touched while
+1. **Interlock is sacred**: if rekordbox is running, every job exits with code 3. Never bypass — quit rekordbox first (its DBs must not be touched while
    open).
 2. Read `cratedeck/deckctl.md` for full flags/exit codes. Use `--json` when
    another program consumes the output.
