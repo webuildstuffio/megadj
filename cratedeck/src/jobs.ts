@@ -516,7 +516,10 @@ export class JobEngine {
   }
 }
 
-async function drain(
+/** Read a subprocess's stdout line-by-line (onLine per complete line) while
+ *  capturing the full text. Exported for tests — the capture must contain
+ *  every byte exactly once (a regression once duplicated every chunk). */
+export async function drain(
   proc: Bun.Subprocess,
   onLine: (l: string) => void,
   handle: RunHandle,
@@ -541,18 +544,25 @@ async function drain(
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const chunk = carry + dec.decode(value);
+      // stream:true — a multi-byte UTF-8 char split across chunks must not
+      // become a replacement char in the captured output
+      const text = dec.decode(value, { stream: true });
+      const chunk = carry + text;
       const lines = chunk.split("\n");
       carry = lines.pop() ?? ""; // last element may be incomplete
       for (const line of lines) {
         if (line.trim()) onLine(line);
       }
-      out += chunk;
+      // append only the NEW bytes: `carry` was already counted when its
+      // chunk arrived (the old `out += chunk` re-added it every iteration,
+      // duplicating text through the whole captured output)
+      out += text;
       if (handle.cancelled) {
         proc.kill();
         break;
       }
     }
+    out += dec.decode(); // flush a buffered partial multi-byte sequence
     if (carry.trim()) onLine(carry); // flush the final partial line
   } finally {
     if (timer) clearTimeout(timer);

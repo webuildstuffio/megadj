@@ -91,6 +91,26 @@ CREATE INDEX IF NOT EXISTS jobs_drive ON jobs(drive_id, status);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value_json TEXT);
 `;
 
+/** Stable stringify: key-sorted at EVERY depth, arrays kept in order, every
+ *  key included. Used by the setSnapshot change-detector, which must SEE
+ *  nested edits. The old `JSON.stringify(o, Object.keys(o).sort())` passed
+ *  the top-level key list as the replacer — replacer arrays filter keys at
+ *  ALL levels, so nested objects stringified as {} and any same-length
+ *  nested change (track title/BPM edit, playlist membership swap) read as
+ *  "unchanged" and was silently dropped (stale fleet tables + parity). */
+function canon(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canon).join(",")}]`;
+  if (v !== null && typeof v === "object") {
+    const entries = Object.entries(v as Record<string, unknown>).sort(
+      ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
+    );
+    return `{${entries
+      .map(([k, val]) => `${JSON.stringify(k)}:${canon(val)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "null";
+}
+
 export class DB {
   readonly sqlite: Database;
 
@@ -357,8 +377,8 @@ export class DB {
           const { taken_at: _takenAt, ...rest } = s;
           return rest;
         };
-        const canon = (o: Record<string, unknown>): string =>
-          JSON.stringify(o, Object.keys(o).sort());
+        // canon() must recurse (see its doc): nested-only edits are real
+        // library changes and must invalidate the dedupe.
         if (canon(strip(prev)) === canon(strip(snap))) return;
       } catch {
         // unparsable previous blob — fall through and write

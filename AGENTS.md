@@ -134,6 +134,16 @@ produces, regardless of the language used in the request.
   finished verify as a phantom "running 0%" forever (fixed with 5s heartbeat
   - server-side phantom-job reaper marking stale `running` jobs `interrupted`
     after 2min + UI re-sync on reconnect + cache-busting headers).
+- CrateDeck dedupe/stream gotchas (regression-tested): the `setSnapshot`
+  change-detector must recurse — `JSON.stringify(o, keys)` passes a replacer
+  ARRAY, which filters keys at EVERY depth, so nested objects stringify as
+  `{}` and same-length nested edits (track/playlist changes) looked
+  "unchanged" and were dropped (`db.ts canon()`, test
+  `db.test.ts "nested-only change"`); `jobs.ts drain()` must append only the
+  new bytes of each stdout chunk — `out += carry + text` re-counted the
+  previous chunk's tail every iteration, duplicating text through captured
+  verify output (`test/jobs-drain.test.ts`); `deckctl coverage|redundancy`
+  take an optional min-copies arg that must be forwarded from `main()`.
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
   server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
   10 tools (`deck_status/drives/report/coverage/redundancy/diff/jobs/

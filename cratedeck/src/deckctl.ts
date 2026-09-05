@@ -576,9 +576,9 @@ async function main(): Promise<void> {
     case "jobs":
       return cmdJobs();
     case "coverage":
-      return cmdCoverage();
+      return cmdCoverage(args[1]);
     case "redundancy":
-      return cmdRedundancy();
+      return cmdRedundancy(args[1]);
     case "diff":
       return cmdDiff(args[1], args[2]);
     case "explain":

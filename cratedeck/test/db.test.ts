@@ -136,6 +136,56 @@ describe("db snapshots", () => {
     expect(db.snapshots(UUID_A).length).toBe(2);
     expect(db.latestSnapshots().get(UUID_A)!.file_count).toBe(11);
   });
+
+  // regression: the old dedupe compared with JSON.stringify's replacer
+  // ARRAY (top-level key list), which filters keys at every depth — nested
+  // objects stringified as {} and any same-length nested change was
+  // silently swallowed (stale fleet tables, wrong verify-freshness/parity).
+  it("setSnapshot detects a nested-only change between scans", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    const base = {
+      kind: "full" as const,
+      track_count: 2,
+      file_count: 2,
+      playlists: [{ name: "Warmup", entries: 1, parent: null }],
+      playlist_entries: [
+        { playlist_name: "Warmup", track_path: "a.mp3" },
+        { playlist_name: "Warmup", track_path: "b.mp3" },
+      ],
+      tracks: [
+        { path: "a.mp3", title: "Old Title", artist: "A" },
+        { path: "b.mp3", title: "Other", artist: "B" },
+      ],
+    };
+    const t1: SnapshotData = { ...base, taken_at: 1000 } as SnapshotData;
+    const t2: SnapshotData = {
+      ...base,
+      // same array lengths; only nested values changed (user re-analyzed in
+      // rekordbox + moved a playlist membership)
+      taken_at: 2000,
+      playlists: [{ name: "Warmup", entries: 2, parent: null }],
+      playlist_entries: [
+        { playlist_name: "Warmup", track_path: "a.mp3" },
+        { playlist_name: "Warmup", track_path: "c.mp3" },
+      ],
+      tracks: [
+        { path: "a.mp3", title: "New Title (Extended Mix)", artist: "A" },
+        { path: "b.mp3", title: "Other", artist: "B" },
+      ],
+    } as SnapshotData;
+    db.setSnapshot(UUID_A, t1);
+    db.setSnapshot(UUID_A, t2); // must NOT be treated as a no-op
+    expect(db.snapshots(UUID_A).length).toBe(2);
+    expect(db.latestSnapshots().get(UUID_A)!.playlists?.[0]?.entries).toBe(2);
+    expect(db.latestSnapshots().get(UUID_A)!.tracks?.[0]?.title).toBe(
+      "New Title (Extended Mix)",
+    );
+  });
 });
 
 describe("db jobs", () => {
