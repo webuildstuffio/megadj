@@ -17,7 +17,7 @@
     "deck": "bun run cratedeck/src/index.ts",
     "deckctl": "bun run cratedeck/src/deckctl.ts",
     "mcp": "bun run cratedeck/src/mcp.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bun install --cwd cratedeck/web --frozen-lockfile && tsc --noEmit",
     "lint": "oxlint src fulltags cratedeck/src cratedeck/shared cratedeck/web cratedeck/test",
     "check": "bun run typecheck && bun run lint",
     "test": "bun test"
