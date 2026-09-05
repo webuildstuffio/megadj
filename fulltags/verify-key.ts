@@ -12,20 +12,12 @@
  * through the same class map the analyzer uses; ±1 Camelot neighbor or
  * relative major/minor counts as "near" (listed separately from matches).
  */
-import { readdirSync, statSync, existsSync } from "node:fs";
+import { readdirSync, statSync, existsSync, readFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import { analyzeKeys } from "./src/analysis";
 import { groundTruth } from "./src/readers";
 
-const AUDIO = new Set([
-  ".mp3",
-  ".wav",
-  ".aiff",
-  ".aif",
-  ".flac",
-  ".m4a",
-  ".m4b",
-]);
+const AUDIO = new Set([".mp3", ".wav", ".aiff", ".aif", ".flac", ".m4a", ".m4b"]);
 
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -38,35 +30,49 @@ function walk(dir: string): string[] {
   return out;
 }
 
-// Camelot class map (matches the analyzer's: 0-11 minor=1A-12A, 12-23 major)
-const CAMELOT_MINOR = [
-  "12A",
-  "7A",
-  "2A",
-  "9A",
-  "4A",
-  "11A",
-  "6A",
-  "1A",
-  "8A",
-  "3A",
-  "10A",
-  "5A",
-];
-const CAMELOT_MAJOR = [
-  "8B",
-  "3B",
-  "10B",
-  "5B",
-  "12B",
-  "7B",
-  "2B",
-  "9B",
-  "4B",
-  "11B",
-  "6B",
-  "1B",
-];
+// Note→Camelot maps, extracted from the analyzer's own camelot_output()
+// (authoritative — a generic circle-of-fifths table disagrees with it).
+// Verified against openkeyscan_analyzer_server.py, 2026-09-05:
+//   minor: Ab=1A D#=2A A#=3A F=4A C=5A G=6A D=7A A=8A E=9A B=10A F#=11A C#=12A
+//   major: B=1B F#=2B C#=3B Ab=4B D#=5B A#=6B F=7B C=8B G=9B D=10B A=11B E=12B
+const NOTE_MINOR: Record<string, string> = {
+  "G#": "1A",
+  Ab: "1A",
+  "D#": "2A",
+  Eb: "2A",
+  "A#": "3A",
+  Bb: "3A",
+  F: "4A",
+  C: "5A",
+  G: "6A",
+  D: "7A",
+  A: "8A",
+  E: "9A",
+  B: "10A",
+  "F#": "11A",
+  Gb: "11A",
+  "C#": "12A",
+  Db: "12A",
+};
+const NOTE_MAJOR: Record<string, string> = {
+  B: "1B",
+  "F#": "2B",
+  Gb: "2B",
+  "C#": "3B",
+  Db: "3B",
+  "G#": "4B",
+  Ab: "4B",
+  "D#": "5B",
+  Eb: "5B",
+  "A#": "6B",
+  Bb: "6B",
+  F: "7B",
+  C: "8B",
+  G: "9B",
+  D: "10B",
+  A: "11B",
+  E: "12B",
+};
 
 /** Parse any key-ish string to Camelot ("9A") when possible. */
 function toCamelot(raw: string | null): string | null {
@@ -74,27 +80,15 @@ function toCamelot(raw: string | null): string | null {
   const s = raw.trim();
   const m = s.match(/^(\d{1,2})([ABab])$/);
   if (m && m[1] && m[2]) return `${m[1]}${m[2].toUpperCase()}`;
-  // Traditional: "E min", "C major", "F#m", "dbmaj" → camelot via circle
-  const note = s.match(/^([A-G])([#b♭♯]?)/i);
+  // Traditional: "E min", "C major", "F#m", "dbmaj" → note name lookup
+  const note = s.match(/^([A-G])([#b♯♭]?)/i);
   if (!note || !note[1]) return null;
-  const semis: Record<string, number> = {
-    C: 0,
-    D: 2,
-    E: 4,
-    F: 5,
-    G: 7,
-    A: 9,
-    B: 11,
-  };
-  let idx = semis[note[1].toUpperCase()] ?? -1;
   const acc = (note[2] ?? "").toLowerCase();
-  if (acc === "#" || acc === "♯") idx += 1;
-  if (acc === "b" || acc === "♭") idx -= 1;
-  if (idx < 0) idx += 12;
-  if (idx > 11) idx -= 12;
+  const keyName =
+    note[1].toUpperCase() +
+    (acc === "#" || acc === "♯" ? "#" : acc === "b" || acc === "♭" ? "b" : "");
   const isMinor = /min|m\b|[^a-z]m$/i.test(s) && !/maj/i.test(s);
-  const table = isMinor ? CAMELOT_MINOR : CAMELOT_MAJOR;
-  return table[((idx % 12) + 12) % 12] ?? null;
+  return (isMinor ? NOTE_MINOR : NOTE_MAJOR)[keyName] ?? null;
 }
 
 /** Distance on the camelot wheel: 0 same, 1 neighbor/relative, 99 far. */
@@ -113,7 +107,10 @@ function main() {
   const json = args.includes("--json");
   const limIdx = args.indexOf("--limit");
   const limit = limIdx >= 0 ? parseInt(args[limIdx + 1] ?? "20", 10) : 20;
-  const targets = args.filter((a) => !a.startsWith("--") && a !== String(limit));
+  const refsIdx = args.indexOf("--refs");
+  const targets = args.filter(
+    (a) => !a.startsWith("--") && a !== String(limit) && (refsIdx < 0 || a !== args[refsIdx + 1]),
+  );
   const files: string[] = [];
   for (const t of targets) {
     if (!existsSync(t)) continue;
@@ -123,20 +120,35 @@ function main() {
   const sample = files.slice(0, limit);
   if (!sample.length) {
     console.error(
-      "usage: bun run fulltags/verify-key.ts <folder|files...> [--limit 20] [--json]",
+      "usage: bun run fulltags/verify-key.ts <folder|files...> [--limit 20] [--refs map.json] [--json]\n" +
+        '  --refs: JSON {"<basename>": "Ebm"} — external reference keys\n        (e.g. rekordbox master.db ScaleName via pyrekordbox) used when\n        the file itself carries no key tag',
     );
     process.exit(2);
   }
 
-  // Reference = existing key tags on disk (MIK/rekordbox output)
+  // Reference = existing key tags on disk (MIK/rekordbox output), or an
+  // external --refs JSON map {basename: "Ebm"} — e.g. rekordbox master.db
+  // ScaleName values extracted via pyrekordbox. This is the real-world path:
+  // archive files often carry NO key tags yet (that's why they're being
+  // verified before write), while rekordbox has already analyzed them.
+  let externalRefs: Record<string, string> | null = null;
+  if (refsIdx >= 0) {
+    const p = args[refsIdx + 1];
+    if (!p || !existsSync(p)) {
+      console.error(`--refs: file not found: ${p}`);
+      process.exit(2);
+    }
+    externalRefs = JSON.parse(readFileSync(p, "utf8")) as Record<string, string>;
+  }
+
   const refs = new Map<string, string | null>();
-  for (const f of sample) refs.set(f, groundTruth(f).key);
+  for (const f of sample) {
+    refs.set(f, groundTruth(f).key ?? externalRefs?.[basename(f)] ?? null);
+  }
 
   const withRefs = sample.filter((f) => refs.get(f));
   const t0 = Date.now();
-  const results = withRefs.length
-    ? analyzeKeys(withRefs)
-    : Promise.resolve(new Map());
+  const results = withRefs.length ? analyzeKeys(withRefs) : Promise.resolve(new Map());
   void results.then((keys) => {
     const rows = withRefs.map((f) => {
       const ref = toCamelot(refs.get(f)!);
@@ -147,8 +159,7 @@ function main() {
         ref: refs.get(f),
         refCamelot: ref,
         got,
-        verdict:
-          dist === 0 ? "match" : dist === 1 ? "near" : "mismatch",
+        verdict: dist === 0 ? "match" : dist === 1 ? "near" : "mismatch",
       };
     });
     const match = rows.filter((r) => r.verdict === "match").length;
@@ -176,14 +187,11 @@ function main() {
         ),
       );
     } else {
-      console.log(`analyzed ${analyzed} (skipped ${sample.length - analyzed} without existing key tags)`);
+      console.log(
+        `analyzed ${analyzed} (skipped ${sample.length - analyzed} without existing key tags)`,
+      );
       for (const r of rows) {
-        const mark =
-          r.verdict === "match"
-            ? "✓"
-            : r.verdict === "near"
-              ? "~"
-              : "✗";
+        const mark = r.verdict === "match" ? "✓" : r.verdict === "near" ? "~" : "✗";
         console.log(
           ` ${mark} ${r.file.padEnd(40)} ref=${String(r.ref).padEnd(8)} got=${String(r.got).padEnd(4)} (${r.verdict})`,
         );

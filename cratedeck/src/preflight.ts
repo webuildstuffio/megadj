@@ -7,7 +7,7 @@
 // aggregated read, not a new measurement pass.
 import type { Drive, HealthCheck, SnapshotData } from "../shared/types";
 import { fmtBytes } from "../shared/fmt";
-import type { PlayerSpec } from "./players";
+import { firmwareAdvisories, type PlayerSpec } from "./players";
 
 const DAY = 86_400_000;
 
@@ -44,6 +44,8 @@ export interface PreflightReport {
   overall: "ready" | "attention" | "not-ready" | "unknown";
   /** one line a human reads before leaving for the gig */
   summary: string;
+  /** N76: known firmware advisories from the player matrix (informational). */
+  firmware_advisories: string[];
 }
 
 /** Worst-status-wins aggregation tuned for gig night: a fail is "don't take
@@ -306,5 +308,6 @@ export function buildPreflight(
     mountedCount: mounted.length,
     overall,
     summary: parts.join(" · "),
+    firmware_advisories: firmwareAdvisories(),
   };
 }

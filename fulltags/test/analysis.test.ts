@@ -35,17 +35,14 @@ async function makeFile(name: string, secs = 3): Promise<string> {
   return p;
 }
 
-const hasFpcalc =
-  Bun.spawnSync({ cmd: ["fpcalc", "-version"], stdout: "pipe" }).exitCode === 0;
+const hasFpcalc = Bun.spawnSync({ cmd: ["fpcalc", "-version"], stdout: "pipe" }).exitCode === 0;
 const hasBeatThis =
   Bun.spawnSync({
     cmd: ["uv", "run", "--with", "beat-this", "python", "-c", "import beat_this"],
     stdout: "pipe",
     stderr: "pipe",
   }).exitCode === 0;
-const hasKeyscan = existsSync(
-  `${keyscanDir()}/openkeyscan_analyzer_server.py`,
-);
+const hasKeyscan = existsSync(`${keyscanDir()}/openkeyscan_analyzer_server.py`);
 
 describe("foldTempo (DJ window folding)", () => {
   test("keeps in-window tempos, folds double/half", () => {
@@ -57,19 +54,16 @@ describe("foldTempo (DJ window folding)", () => {
 });
 
 describe("chromaprint fingerprints (roadmap #1)", () => {
-  test.skipIf(!hasFpcalc)(
-    "same content different containers → identical fingerprint",
-    async () => {
-      const a = await makeFile("fp-a.mp3");
-      const b = `${DIR}/fp-b.wav`;
-      await $`ffmpeg -y -hide_banner -loglevel error -i ${a} ${b}`.quiet();
-      const fa = fingerprintFile(a);
-      const fb = fingerprintFile(b);
-      expect(fa).toBeTruthy();
-      expect(fb).toBeTruthy();
-      expect(fa).toBe(fb); // content identity, format-blind
-    },
-  );
+  test.skipIf(!hasFpcalc)("same content different containers → identical fingerprint", async () => {
+    const a = await makeFile("fp-a.mp3");
+    const b = `${DIR}/fp-b.wav`;
+    await $`ffmpeg -y -hide_banner -loglevel error -i ${a} ${b}`.quiet();
+    const fa = fingerprintFile(a);
+    const fb = fingerprintFile(b);
+    expect(fa).toBeTruthy();
+    expect(fb).toBeTruthy();
+    expect(fa).toBe(fb); // content identity, format-blind
+  });
 
   test.skipIf(!hasFpcalc)("different audio → different fingerprint", async () => {
     // Pure 440 vs 880 Hz sines hash identically (chromaprint's chroma
@@ -105,6 +99,33 @@ describe("chromaprint fingerprints (roadmap #1)", () => {
   test.skipIf(hasFpcalc)("missing fpcalc → probe returns null (no throw)", () => {
     expect(fingerprintFile("/definitely/not/a/file.mp3")).toBeNull();
   });
+
+  test.skipIf(!hasFpcalc)(
+    "missing fpcalc from PATH → null, never ENOENT throw (regression)",
+    () => {
+      // Regression: Bun.spawnSync THROWS ENOENT when the binary is absent;
+      // the probe contract is degrade-to-null (the CLI masks it, in-process
+      // callers like `megadj fetch` would otherwise abort the whole pass).
+      // Re-spawn THIS bun with a PATH that has no fpcalc and import the
+      // probe there — runs even on machines where fpcalc IS installed.
+      const script = `
+const { fingerprintFile, fingerprintWithDuration } = await import(${JSON.stringify(import.meta.dir + "/../src/analysis.ts")});
+const r1 = fingerprintFile(${JSON.stringify(DIR + "/fp-t.mp3")});
+if (r1 !== null) throw new Error("expected null, got " + r1);
+const r2 = fingerprintWithDuration(${JSON.stringify(DIR + "/fp-t.mp3")});
+if (r2.fingerprint !== null || r2.durationS !== null) throw new Error("expected nulls");
+console.log("MISSING-ENV-OK");
+`;
+      const pr = Bun.spawnSync({
+        cmd: [process.execPath, "-e", script],
+        env: { ...process.env, PATH: "/usr/bin:/bin" },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      expect(pr.exitCode).toBe(0);
+      expect(new TextDecoder().decode(pr.stdout)).toContain("MISSING-ENV-OK");
+    },
+  );
 });
 
 describe("beat_this BPM (roadmap #2)", () => {
@@ -128,16 +149,41 @@ describe("beat_this BPM (roadmap #2)", () => {
     { timeout: 240_000 },
   );
 
-  test.skipIf(!hasBeatThis)("analyzeBeats returns arrays + tempo", async () => {
-    const p = `${DIR}/bpm-raw.mp3`;
-    await $`mkdir -p ${DIR}`.quiet();
-    await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i "sine=frequency=220:duration=20" -af "tremolo=f=4:d=0.9" ${p}`.quiet();
-    const res = await analyzeBeats(p);
-    expect(res).toBeTruthy();
-    expect(res!.bpm).toBeGreaterThan(0);
-    expect(res!.beats.length).toBeGreaterThan(4);
-    expect(res!.downbeats.length).toBeGreaterThan(1);
-  }, 240_000);
+  test.skipIf(!hasBeatThis)(
+    "analyzeBeats returns arrays + tempo",
+    async () => {
+      const p = `${DIR}/bpm-raw.mp3`;
+      await $`mkdir -p ${DIR}`.quiet();
+      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i "sine=frequency=220:duration=20" -af "tremolo=f=4:d=0.9" ${p}`.quiet();
+      const res = await analyzeBeats(p);
+      expect(res).toBeTruthy();
+      expect(res!.bpm).toBeGreaterThan(0);
+      expect(res!.beats.length).toBeGreaterThan(4);
+      expect(res!.downbeats.length).toBeGreaterThan(1);
+    },
+    240_000,
+  );
+
+  test.skipIf(!hasBeatThis)(
+    "m4a/mp3 decode: compressed containers analyzed via tmp wav (regression)",
+    async () => {
+      // beat_this's loader (torchaudio→soundfile→madmom) can't demux
+      // m4a/aac: torchaudio needs torchcodec, libsndfile can't. The stage
+      // must ffmpeg-decode to a temp wav, analyze, and clean up.
+      const p = `${DIR}/bpm-c.m4a`;
+      await $`mkdir -p ${DIR}`.quiet();
+      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i "sine=frequency=220:duration=20" -af "tremolo=f=4:d=0.9" ${p}`.quiet();
+      const res = await analyzeBeats(p);
+      expect(res).toBeTruthy();
+      expect(res!.bpm).toBeGreaterThan(0);
+      // tmp wav cleaned up
+      expect(existsSync(`${DIR}/.bpm-c.m4a.beats-${process.pid}.wav`)).toBe(false);
+      // pipeline stage end-to-end on the same file
+      const r = await enrichTrack({ path: p }, { only: ["bpm"], artworkQueue: null });
+      expect(r.notes.some((n) => n.startsWith("bpm:"))).toBe(true);
+    },
+    240_000,
+  );
 
   test.skipIf(hasBeatThis)("missing env → analyzeBeats null (no throw)", async () => {
     expect(await analyzeBeats("/definitely/not/a/file.mp3")).toBeNull();
@@ -161,14 +207,36 @@ describe("OpenKeyScan key (roadmap #3)", () => {
     { timeout: 180_000 },
   );
 
-  test.skipIf(!hasKeyscan)("analyzeKeys amortizes the model load (batch)", async () => {
-    const a = await makeFile("key-b1.mp3");
-    const b = await makeFile("key-b2.mp3");
-    const m = await analyzeKeys([a, b]);
-    expect(m.size).toBe(2);
-    expect(m.get(a)).toBeTruthy();
-    expect(m.get(b)!.camelot).toMatch(/^\d{1,2}[AB]$/);
-  }, 180_000);
+  test.skipIf(!hasKeyscan)(
+    "analyzeKeys amortizes the model load (batch)",
+    async () => {
+      const a = await makeFile("key-b1.mp3");
+      const b = await makeFile("key-b2.mp3");
+      const m = await analyzeKeys([a, b]);
+      expect(m.size).toBe(2);
+      expect(m.get(a)).toBeTruthy();
+      expect(m.get(b)!.camelot).toMatch(/^\d{1,2}[AB]$/);
+    },
+    180_000,
+  );
+
+  test.skipIf(!hasKeyscan)(
+    "m4a decode: key analysis via tmp wav, id maps to original (regression)",
+    async () => {
+      // The analyzer's librosa/libsndfile loader can't demux m4a. The
+      // stage must decode via ffmpeg and return results keyed by the
+      // ORIGINAL path (not the temp wav's).
+      const p = `${DIR}/key-c.m4a`;
+      await $`mkdir -p ${DIR}`.quiet();
+      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=8 ${p}`.quiet();
+      const m = await analyzeKeys([p]);
+      expect(m.get(p)).toBeTruthy(); // keyed by original path
+      expect(m.get(p)!.camelot).toMatch(/^\d{1,2}[AB]$/);
+      // tmp wav cleaned up
+      expect(existsSync(`${DIR}/.key-c.m4a.key-${process.pid}.wav`)).toBe(false);
+    },
+    180_000,
+  );
 
   test.skipIf(hasKeyscan)("missing analyzer → analyzeKey null (no throw)", async () => {
     expect(await analyzeKey("/definitely/not/a/file.mp3")).toBeNull();

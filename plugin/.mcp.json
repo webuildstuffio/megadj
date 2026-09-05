@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "cratedeck": {
+      "command": "bun",
+      "args": ["run", "cratedeck/src/mcp.ts"],
+      "cwd": "${CLAUDE_PROJECT_DIR}"
+    }
+  }
+}

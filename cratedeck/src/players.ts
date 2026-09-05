@@ -24,13 +24,15 @@ export interface PlayerSpec {
   note?: string;
 }
 
-/** The official matrix (research note 2026-09-04, ideas.md N75). */
+/** The official matrix (research note 2026-09-04, ideas.md N75). Notes carry
+ *  known firmware advisories (N76) — the CDJ-3000 v3.30 playlist-vanishing
+ *  pull is the newest recurring nightmare class. */
 export const PLAYERS: PlayerSpec[] = [
   { name: "XDJ-XZ", reads: "device" },
   {
     name: "CDJ-3000",
     reads: "device",
-    note: "v3.30 was pulled — playlists vanished on some units; stay on 3.22+ (rolled back)",
+    note: "v3.30 was PULLED (playlists vanished; OneLibrary prioritized over Device Library) — check the venue units run 3.22 or the fixed re-release",
   },
   { name: "CDJ-3000X", reads: "onelibrary" },
   { name: "XDJ-AZ", reads: "onelibrary" },
@@ -43,6 +45,13 @@ export const PLAYERS: PlayerSpec[] = [
   { name: "CDJ-2000NXS2", reads: "device" },
   { name: "CDJ-2000NXS", reads: "device" },
 ];
+
+/** N76: firmware advisories across the whole matrix — preflight renders
+ *  these as an informational check so the "drive shows on the player but
+ *  playlists are empty" nightmare has its rule of thumb attached. */
+export function firmwareAdvisories(): string[] {
+  return PLAYERS.filter((p) => p.note).map((p) => `${p.name}: ${p.note}`);
+}
 
 /** Extra user-defined players (config.toml [players.players] name = "device"). */
 export interface PlayerOverrides {

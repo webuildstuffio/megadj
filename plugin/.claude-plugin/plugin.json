@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "megadj",
+  "description": "The whole DJ-ops surface: CrateDeck drive health + fleet tools, FullTags enrichment, ingest pipeline. Installs the deckctl MCP server, DJ skills, and a session-start hook reporting drive readiness.",
+  "version": "0.1.0",
+  "author": {
+    "name": "nichm"
+  },
+  "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json"
+}

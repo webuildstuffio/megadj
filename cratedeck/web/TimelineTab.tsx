@@ -1,9 +1,10 @@
 // TimelineTab.tsx — reverse-chron event feed, grouped by day, with kind
 // chips + icons so scanning beats reading.
-import { useMemo } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
 import type { TimelineEvent } from "../shared/types";
 import { fmtWhen, fmtEventData } from "../shared/fmt";
 import { Icon } from "./icons";
+import { toast } from "./toast";
 
 /** Event kind → [icon, chip tone]. Everything unknown falls back to muted. */
 const KIND_STYLE: Record<string, [string, string]> = {
@@ -21,6 +22,7 @@ const KIND_STYLE: Record<string, [string, string]> = {
   checksum: ["shield", "info"],
   verify: ["shield", "good"],
   mirror: ["refresh", "info"],
+  "agent-note": ["bolt", "info"],
 };
 
 function dayKey(ts: number): string {
@@ -44,11 +46,14 @@ function dayKey(ts: number): string {
   });
 }
 
-export function TimelineTab({ events }: { events: TimelineEvent[] }) {
+export function TimelineTab({ events, driveId }: { events: TimelineEvent[]; driveId: string }) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const groups = useMemo(() => {
     const out: [string, TimelineEvent[]][] = [];
     let cur: string | null = null;
     for (const e of events) {
+      // dismissed agent notes leave the feed (the event stays in history)
+      if (e.kind === "agent-note" && dismissed.has(e.id)) continue;
       const k = dayKey(e.at);
       if (k !== cur) {
         out.push([k, [e]]);
@@ -58,7 +63,25 @@ export function TimelineTab({ events }: { events: TimelineEvent[] }) {
       }
     }
     return out;
-  }, [events]);
+  }, [events, dismissed]);
+
+  const dismiss = (driveId: string, id: string) => {
+    setDismissed((prev) => new Set(prev).add(id));
+    fetch(`/api/drives/${encodeURIComponent(driveId)}/notes/${encodeURIComponent(id)}/dismiss`, {
+      method: "POST",
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+      })
+      .catch(() => {
+        toast("dismiss failed — reload and retry", "err");
+        setDismissed((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      });
+  };
 
   if (!events.length)
     return (
@@ -77,15 +100,36 @@ export function TimelineTab({ events }: { events: TimelineEvent[] }) {
             {evts.map((e) => {
               const [icon, tone] = KIND_STYLE[e.kind] ?? ["dot", "muted"];
               const detail = fmtEventData(e.data);
+              // O88: agent notes render as a card — severity tone + dismiss
+              const sev =
+                e.kind === "agent-note" && typeof e.data["severity"] === "string"
+                  ? (e.data["severity"] as string)
+                  : null;
+              const noteTone =
+                sev === "critical" ? "bad" : sev === "warn" ? "warn" : "info";
               return (
                 <div class="row" key={e.id}>
-                  <span class={`tico kc-${tone}`}>
+                  <span class={`tico kc-${e.kind === "agent-note" ? noteTone : tone}`}>
                     <Icon name={icon} size={13} />
                   </span>
                   <span class="t">{fmtWhen(e.at)}</span>
                   <span class="body">
-                    <span class={`kindchip kc-${tone}`}>{e.kind}</span>
+                    <span class={`kindchip kc-${e.kind === "agent-note" ? noteTone : tone}`}>
+                      {e.kind === "agent-note"
+                        ? `agent note${sev && sev !== "info" ? ` · ${sev}` : ""}`
+                        : e.kind}
+                    </span>
                     <span class="detail">{detail}</span>
+                    {e.kind === "agent-note" && (
+                      <button
+                        class="btn ghostbtn sm"
+                        style={{ marginLeft: "8px" }}
+                        onClick={() => dismiss(driveId, e.id)}
+                        title="Dismiss this note (stays in history)"
+                      >
+                        dismiss
+                      </button>
+                    )}
                   </span>
                 </div>
               );

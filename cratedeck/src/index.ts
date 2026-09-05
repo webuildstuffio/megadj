@@ -16,6 +16,12 @@ import { ArchiveReader } from "./archive";
 import { buildPreflight, type PreflightInput } from "./preflight";
 import { driveCompatibility, playersFromConfig } from "./players";
 import {
+  normalizeNote,
+  addAgentNote,
+  dismissAgentNote,
+  agentNotes,
+} from "./notes";
+import {
   shouldAutoScan,
   shouldAutoVerify,
   autoVerifyReason,
@@ -242,6 +248,41 @@ Bun.serve({
             return json(d);
           }
           if (sub === "/timeline") return json(db.timeline(id));
+          // O88: agent findings feed — active notes as JSON + write/dismiss.
+          // Logic lives in notes.ts; db exposes the raw rows it needs.
+          if (sub === "/notes" && req.method === "GET")
+            return json(agentNotes(db, id));
+          if (sub === "/notes" && req.method === "POST") {
+            if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
+            const body = (await req.json()) as {
+              note?: string;
+              origin?: string;
+              severity?: "info" | "warn" | "critical";
+            };
+            // normalizeNote throws a clean message on empty/oversized input;
+            // the outer catch maps Error → 500, so map validation errors to
+            // 400 explicitly here
+            let v;
+            try {
+              v = normalizeNote({
+                drive_id: id,
+                note: body.note ?? "",
+                origin: body.origin,
+                severity: body.severity,
+              });
+            } catch (e) {
+              return json({ error: (e as Error).message }, 400);
+            }
+            addAgentNote(db, v);
+            return json({ ok: true });
+          }
+          const noteMatch = sub?.match(/^\/notes\/([^/]+)\/dismiss$/);
+          if (noteMatch?.[1] && req.method === "POST") {
+            const ok = dismissAgentNote(db, id, noteMatch[1]);
+            return ok
+              ? json({ ok: true })
+              : json({ error: "note not found" }, 404);
+          }
           if (sub === "/export") return exportDossier(id);
           if (sub === "/report") {
             if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);

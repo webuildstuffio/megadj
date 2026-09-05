@@ -36,6 +36,7 @@ function preflight(over: Partial<PreflightReport> = {}): PreflightReport {
     mountedCount: 0,
     overall: "ready",
     summary: "no drives mounted",
+    firmware_advisories: [],
     ...over,
   };
 }

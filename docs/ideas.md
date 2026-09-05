@@ -175,8 +175,10 @@ The PRD features that _only exist because the app sees all drives at once_
     checklist across all mounted drives: dual-DB currency, grid coverage,
     last-verify age/changed-since, bench trend (B13's −40% rule) + CDJ
     floor, bitrot ledger, free space, mirror parity. Unknowns never fake
-    ready; exit 1 gates cron/agents. Remaining optional: firmware-notes
-    field (N76), UI card.
+    ready; exit 1 gates cron/agents. N76 firmware notes **✅ SHIPPED
+    2026-09-05**: `preflight.firmware_advisories` (from the player matrix
+    in `players.ts`) renders informational firmware lines in `deckctl
+    preflight` — never gates. Remaining optional: UI card.
 13. **Benchmark sparklines + anomaly alerts.** `bench.ts` already stores
     seq/rand4k history. Render the sparkline; alert when a drive's read speed
     drops >40% between runs (the brief's vNext item, and it's ~free).
@@ -694,11 +696,13 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
 82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves).** Live:
-    `cratedeck/src/mcp.ts` + `bun run mcp` — 16 tools. CrateDeck half (10):
+    `cratedeck/src/mcp.ts` + `bun run mcp` — 19 tools. CrateDeck half (14):
     `deck_status/drives/report/coverage/redundancy/diff/jobs/run/
 cancel/explain` over stdio JSON-RPC, readonly annotations, mutating
     tools flagged `[MUTATES DRIVE STATE]`, interlock enforced in the tool
-    layer, plus `deck_preflight` (B12). Archive half (O82b, 5):
+    layer, plus `deck_preflight` (B12), `deck_players` (N78), and the
+    O88 pair `deck_note` (mutating) / `deck_notes` (readonly). Archive
+    half (O82b, 5):
     `archive_search_tracks/track_stats/ingest_status/lowq_queue/
 source_diff` — readonly reads over megadj's own DB (`cratedeck/src/
 archive.ts`, opened `readonly: true`; missing DB degrades to
@@ -721,11 +725,14 @@ archive.ts`, opened `readonly: true`; missing DB degrades to
     artwork picks) by asking the human only when confidence is low —
     `ingest --dry-run`, present the plan, execute on approval. Effort M.
 
-85. **Skill/plugin packaging.** megadj ships 3 skills today. Package the
-    set as an installable Claude Code plugin (skills + hooks + MCP
-    manifest) so the _whole DJ-ops surface_ installs into any Claude
-    Code instance — and as the natural open-source artifact if this
-    repo ever goes public. Effort S once 82 exists.
+85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
+    installable Claude Code bundle: `.claude-plugin/plugin.json` +
+    `.mcp.json` (the 19-tool MCP server) + `hooks/hooks.json`
+    (SessionStart posts `deckctl status --json` into context) + the 3
+    skills. `claude plugin validate` passes; dev-install with
+    `claude --plugin-dir $PWD/plugin`. A published marketplace variant
+    (pinned versioned checkout, packaged CLI) is deliberately deferred —
+    the cap rule: something ships or leaves first.
 
 86. **Agent safety rails (the non-negotiable half) — ✅ SHIPPED
     2026-09-05 (now covering the archive tools too).** `mcp.ts` implements
@@ -745,12 +752,16 @@ archive.ts`, opened `readonly: true`; missing DB degrades to
     events, so "why did this verify run at 3am" is answerable from the
     UI or CLI. Pairs with O83.
 
-88. **CrateDeck findings-from-agents feed.** The MCP surface makes agents
-    natural _readers_ of fleet health; make their conclusions first-class
-    too: a tiny `deck_note {drive, note}` tool (explicitly human-confirmed
-    writes) that lands in the drive timeline — "agent flagged this
-    drive's firmware against the AlphaTheta matrix" becomes a visible,
-    dismissable card instead of chat scrollback. Effort S.
+88. **CrateDeck findings-from-agents feed — ✅ SHIPPED 2026-09-05.**
+    `deck_note {drive, note, severity?}` (mcp.ts, flagged mutating,
+    human-confirmed) lands a finding on the drive timeline as a dismissable
+    card; `deck_notes {drive?}` reads the active feed. Notes ARE timeline
+    events (kind `agent-note`) — the 2000-per-drive event cap bounds
+    growth, they render in the existing timeline with severity tones, and
+    dismissal (human, in the UI) flips `dismissed_at` without deleting
+    history. Engine: `cratedeck/src/notes.ts` (validate/clamp, 600-char
+    cap) + `db.addAgentNote/dismissAgentNote/agentNotes`; API:
+    `GET/POST /api/drives/:id/notes`, `POST .../notes/:id/dismiss`.
 
 ---
 
@@ -791,9 +802,10 @@ coverage|redundancy|diff`; needs one scan per drive with rekordbox
   (`deckctl players`) — ~~J53~~ ✅ shipped as the FullTags sub-project
   (ladder in `docs/fulltags-roadmap.md`).
 - **Phase 6 — agentified (§O):** O82 (both halves) + O86 rails + O87
-  attribution + O83 core **✅ SHIPPED 2026-09-05** (`bun run mcp` — 17
-  tools; `deckctl prep`). Open remainder: O84 inbox-agent, O85 plugin
-  packaging, O88 notes feed.
+  attribution + O83 core + **O88 notes feed + O85 plugin packaging ✅
+  SHIPPED 2026-09-05** (`bun run mcp` — 19 tools incl. `deck_note`;
+  `plugin/` installs the whole surface). Open remainder: O84 inbox-agent;
+  O83 optional `claude -p` digest wrapper.
 - **Phase 4 — the AI edge (reality gate says monthly+):** I51 keys →
   I45 moods → I46 sliced (cues first, tempo-curve later) → K61
   `megadj drop`; M66/M67 after B11 history. Model gates: offline/local

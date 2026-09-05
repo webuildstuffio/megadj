@@ -68,6 +68,7 @@ export function fmtWhen(ts: number): string {
 export function fmtEventData(data: Record<string, unknown>): string {
   const parts = Object.entries(data).map(([k, v]) => {
     if (v === null || v === undefined) return null;
+    if (k === "dismissed_at") return null; // O88: dismissal is UI state, not text
     if (Array.isArray(v)) return `${k}×${v.length}`;
     if (typeof v === "object") return null;
     if (typeof v === "string" && v.length > 120)

@@ -25,7 +25,7 @@ enters.
   aiff), file-first ground-truth readers, full art ladder, AI genre/year
   fallback, `fulltags` CLI (enrich + audit --json). megadj `ingest` /
   `fetch` write through the same code via shims.
-- 56 FullTags tests (verified 2026-09-05); tsc + oxlint clean.
+- 85 FullTags tests (verified 2026-09-05, rev 4.1); tsc + oxlint clean.
 - Format matrix round-trip **verified on real files** (§5): mp3/m4a/wav/
   aiff write+read-back, art embed+detect, WAV→AIFF conversion with ID3
   frame + APIC preservation.
@@ -37,9 +37,13 @@ enters.
   extended with `fingerprint`/`label`/`mixName` (+ `camelot` in TagPatch);
   every format's writer/reader carries them (m4a via new freeform atoms
   initialkey/CAMELOT/ACOUSTID/LABEL/MIXNAME). New `fulltags/verify-key.ts`
-  gate harness (Camelot-aware ref comparison, ≥80% gate). 14 new tests in
+  gate harness (Camelot-aware ref comparison, ≥80% gate). 17 new tests in
   `fulltags/test/analysis.test.ts` (env-gated: run green with deps, skip
-  with a note without).
+  with a note without). Rev-4.1 verification pass hardening: missing
+  fpcalc degrades to null (never ENOENT throw), compressed-container
+  decode for bpm/key stages, verify-key note→Camelot maps extracted from
+  the analyzer's own `camelot_output()` (a generic circle-of-fifths table
+  mislabels keys). FullTags suite: 85 tests.
 
 ## 1. Fact-check corrections (vs rev 1)
 
@@ -194,7 +198,8 @@ a spawned interpreter is a perf trap — expose a native sync twin instead
 ## 5b. Bug-audit log (2026-09-05, later — 5 bugs found + fixed)
 
 Pre-rev-4 audit of the shipped surface; all fixed same day with regression
-tests in `fulltags/test/m4a-stamps.test.ts` (suite went 56 → 68+):
+tests in `fulltags/test/m4a-stamps.test.ts` (suite went 56 → 68 at the
+time; 85 after rev 4.1):
 
 | # | Bug                                                                 | Root cause                                                                                | Fix                                                                                         |
 | - | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -225,8 +230,13 @@ Env gotchas, each empirically verified:
    wants `(audio_path, output_path)` and writes TSV; use `File2Beats` and
    derive tempo from the median inter-beat interval. Beats/downbeats come
    back in **seconds**, frame-rate assumptions don't apply.
-2. **beat_this needs `soundfile`** for mp3/m4a: its `load_audio` falls back
-   torchaudio → soundfile → madmom, and torchaudio alone fails on mp3.
+2. **Compressed containers must be ffmpeg-decoded before analysis** — both
+   `analyzeBeats` and the key analyzer: beat_this's `load_audio` chain
+   (torchaudio → soundfile → madmom) fails on mp3/m4a/aac because
+   torchaudio ≥2.1 needs torchcodec (absent) and libsndfile can't demux
+   compressed containers (`--with soundfile` alone does NOT help). Fix:
+   decode to a hidden temp WAV beside the file, analyze, delete; key
+   results are remapped from temp id back to the original path.
 3. **OpenKeyScan treats stdin EOF as shutdown** — writing all requests then
    `stdin.end()` kills the server before responses are computed
    ("cannot schedule new futures after shutdown"). Keep stdin open; reap
@@ -277,7 +287,7 @@ content fingerprint — the full DJ-useful frame set, in the actual files.
 | Verified    | Dubspot 200-track test                 | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                      |
 | Verified    | rekordbox tag matrix                   | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                              |
 | Shipped #1   | chromaprint 1.6.1 via brew              | fpcalc -json verified on mp3/wav; identical content → identical fp across containers |
-| Shipped #2   | beat_this v1.1.0 via uv                 | File2Beats path; seconds-domain beats; soundfile dep discovered; ~1 s/track CPU |
+| Shipped #2   | beat_this v1.1.0 via uv                 | File2Beats path; seconds-domain beats; compressed inputs ffmpeg-decoded to tmp wav (soundfile can't demux mp3/m4a); ~1 s/track CPU |
 | Shipped #3   | OpenKeyScan analyzer (repo mode)        | cloned + server protocol verified on MPS; ready 1.3 s, ~0.02 s warm inference |
 | Adopt (#1b) | dupsonic                               | verified: v0.2.5 (Jul 2026), Rust, macOS-aarch64 prebuilt, LSH + SQLite cache                                   |
 | Adopt-up    | MuQ-MuLan                              | 2026 SOTA zero-shot tagging (AUC 79.3); MIT code / CC-BY-NC weights; supersedes MERT for embeddings             |

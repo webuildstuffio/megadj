@@ -8,27 +8,35 @@
  * existing tag stamp (TXXX:ACOUSTID / TBPM / TKEY) before spending
  * compute.
  */
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
+import { basename, dirname, extname } from "node:path";
 
 /** Where the OpenKeyScan analyzer repo is cloned (stdin/stdout JSON mode).
  * Override with FULLTAGS_KEYSCAN_DIR. Resolved lazily so tests/env can
  * set the variable at runtime. */
 export function keyscanDir(): string {
   return (
-    process.env.FULLTAGS_KEYSCAN_DIR ??
-    `${process.env.HOME}/.local/share/openkeyscan-analyzer`
+    process.env.FULLTAGS_KEYSCAN_DIR ?? `${process.env.HOME}/.local/share/openkeyscan-analyzer`
   );
 }
 
 /** Chromaprint fingerprint (raw fpcalc output, base64). Null when the
- * file is unreadable or fpcalc is missing (brew install chromaprint). */
+ * file is unreadable or fpcalc is missing (brew install chromaprint).
+ * Throws are caught — Bun.spawnSync throws ENOENT when the binary is
+ * absent from PATH, and the stage contract is degrade-to-null, never
+ * abort the caller's pass. */
 export function fingerprintFile(path: string): string | null {
   if (!existsSync(path)) return null;
-  const pr = Bun.spawnSync({
-    cmd: ["fpcalc", "-json", path],
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  let pr: Bun.SyncSubprocess;
+  try {
+    pr = Bun.spawnSync({
+      cmd: ["fpcalc", "-json", path],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+  } catch {
+    return null; // fpcalc not installed
+  }
   if (pr.exitCode !== 0) return null;
   try {
     const j = JSON.parse(new TextDecoder().decode(pr.stdout)) as {
@@ -47,11 +55,16 @@ export function fingerprintWithDuration(path: string): {
   durationS: number | null;
 } {
   if (!existsSync(path)) return { fingerprint: null, durationS: null };
-  const pr = Bun.spawnSync({
-    cmd: ["fpcalc", "-json", path],
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  let pr: Bun.SyncSubprocess;
+  try {
+    pr = Bun.spawnSync({
+      cmd: ["fpcalc", "-json", path],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+  } catch {
+    return { fingerprint: null, durationS: null }; // fpcalc not installed
+  }
   if (pr.exitCode !== 0) return { fingerprint: null, durationS: null };
   try {
     const j = JSON.parse(new TextDecoder().decode(pr.stdout)) as {
@@ -96,10 +109,45 @@ export function foldTempo(bpm: number, lo = 70, hi = 180): number {
  * derived from the median inter-beat interval (the package exposes no
  * tempo field on this path).
  *
+ * COMPRESSED-CONTAINER GOTCHA: beat_this's `load_audio` tries torchaudio →
+ * soundfile → madmom. torchaudio ≥2.1 needs torchcodec for mp3/m4a/aac
+ * (not in this env) and libsndfile can't demux them — so m4a/mp3/aac
+ * inputs fail with "Could not load audio". Fix: decode via ffmpeg to a
+ * temp WAV first (the archive always has ffmpeg); lossless containers
+ * (wav/aiff/flac) go straight to beat_this.
+ *
  * VERIFY GATE (roadmap #2): compare against rekordbox's re-analyzed
  * grids before any batch run; flag disagreements > 2%. */
 export async function analyzeBeats(path: string): Promise<BeatResult | null> {
   if (!existsSync(path)) return null;
+  // m4a/mp3/aac/ogg: ffmpeg-decode to a temp wav (same dir, cleaned up
+  // below) so beat_this's loader never sees a compressed container.
+  const ext = extname(path).toLowerCase();
+  const needsDecode = [".m4a", ".m4b", ".mp3", ".aac", ".ogg", ".opus"].includes(ext);
+  let decodedTmp: string | null = null;
+  let analyzePath = path;
+  if (needsDecode) {
+    decodedTmp = `${dirname(path)}/.${basename(path)}.beats-${process.pid}.wav`;
+    const dec = Bun.spawnSync({
+      cmd: ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", path, decodedTmp],
+      stdout: "ignore",
+      stderr: "pipe",
+    });
+    if (dec.exitCode !== 0 || !existsSync(decodedTmp)) {
+      if (decodedTmp && existsSync(decodedTmp)) rmSync(decodedTmp);
+      decodedTmp = null;
+    } else {
+      analyzePath = decodedTmp;
+    }
+  }
+  try {
+    return await runBeatThis(analyzePath);
+  } finally {
+    if (decodedTmp && existsSync(decodedTmp)) rmSync(decodedTmp);
+  }
+}
+
+async function runBeatThis(path: string): Promise<BeatResult | null> {
   const script = `import json
 import numpy as np
 from beat_this.inference import File2Beats
@@ -130,11 +178,7 @@ print(json.dumps({
   });
   if (proc.exitCode !== 0) return null;
   try {
-    const last = new TextDecoder()
-      .decode(proc.stdout)
-      .trim()
-      .split("\n")
-      .at(-1);
+    const last = new TextDecoder().decode(proc.stdout).trim().split("\n").at(-1);
     if (!last) return null;
     const j = JSON.parse(last) as {
       bpm?: number;
@@ -176,12 +220,52 @@ export interface KeyResult {
  * 2. after batch writes: Reload Tags in RB
  * 3. ≥80% agreement on 20 known-key tracks before full-library run
  */
-export async function analyzeKeys(
-  paths: string[],
-): Promise<Map<string, KeyResult>> {
+export async function analyzeKeys(paths: string[]): Promise<Map<string, KeyResult>> {
   const out = new Map<string, KeyResult>();
   const server = `${keyscanDir()}/openkeyscan_analyzer_server.py`;
   if (!existsSync(server) || !paths.length) return out;
+  // COMPRESSED-CONTAINER GOTCHA (same as analyzeBeats): the analyzer's
+  // librosa/libsndfile loader can't demux m4a/mp3/aac. ffmpeg-decode any
+  // compressed input to temp WAVs (beside the originals, cleaned up in
+  // finally) and analyze those; id stays the ORIGINAL path so callers map
+  // results back correctly.
+  const decodeMap = new Map<string, string>(); // tmp wav -> original path
+  const tmps: string[] = [];
+  const prepared = paths.map((p) => {
+    const ext = extname(p).toLowerCase();
+    if (![".m4a", ".m4b", ".mp3", ".aac", ".ogg", ".opus"].includes(ext) || !existsSync(p)) {
+      return p;
+    }
+    const tmp = `${dirname(p)}/.${basename(p)}.key-${process.pid}.wav`;
+    const dec = Bun.spawnSync({
+      cmd: ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", p, tmp],
+      stdout: "ignore",
+      stderr: "pipe",
+    });
+    if (dec.exitCode === 0 && existsSync(tmp)) {
+      tmps.push(tmp);
+      decodeMap.set(tmp, p);
+      return tmp; // request references the tmp; response id maps back
+    }
+    return p; // decode failed — let the analyzer report the real error
+  });
+  try {
+    const results = await runKeyServer(server, prepared);
+    // Map tmp ids back to original paths.
+    for (const [tmp, orig] of decodeMap) {
+      const r = results.get(tmp);
+      results.delete(tmp);
+      if (r) results.set(orig, r);
+    }
+    return results;
+  } finally {
+    for (const t of tmps) if (existsSync(t)) rmSync(t);
+  }
+}
+
+async function runKeyServer(server: string, paths: string[]): Promise<Map<string, KeyResult>> {
+  const out = new Map<string, KeyResult>();
+  if (!paths.length) return out;
   const proc = Bun.spawn({
     cmd: [
       "uv",
@@ -242,9 +326,7 @@ export async function analyzeKeys(
   try {
     if (!(await readUntil(isReady, 90_000))) return out;
     for (const p of paths) {
-      proc.stdin.write(
-        enc.encode(`${JSON.stringify({ id: p, path: p })}\n`),
-      );
+      proc.stdin.write(enc.encode(`${JSON.stringify({ id: p, path: p })}\n`));
     }
     // Do NOT end stdin here — the analyzer treats stdin EOF as shutdown
     // ("cannot schedule new futures after shutdown") and dies before the

@@ -30,12 +30,7 @@ import {
 } from "./art-sources";
 import { energyFromLufs, measureRms } from "./probes";
 import { detectRemix } from "./remix";
-import {
-  analyzeBeats,
-  analyzeKey,
-  fingerprintWithDuration,
-  foldTempo,
-} from "./analysis";
+import { analyzeBeats, analyzeKey, fingerprintWithDuration, foldTempo } from "./analysis";
 
 export interface TrackInput {
   /** Absolute path to the audio file. */
@@ -54,9 +49,7 @@ export interface PipelineOptions {
   archiveDir?: string;
   artworkQueue?: string | null;
   /** Stages to run (default: all). */
-  only?: Array<
-    "tags" | "genre" | "art" | "year" | "energy" | "fingerprint" | "bpm" | "key"
-  >;
+  only?: Array<"tags" | "genre" | "art" | "year" | "energy" | "fingerprint" | "bpm" | "key">;
   jobs?: number;
   dryRun?: boolean;
   /** Re-embed existing SC art at original resolution. */
@@ -81,10 +74,7 @@ export const DEFAULT_QUEUE =
   `${process.env.HOME}/.local/state/megadj/artwork-queue.jsonl`;
 
 /** One-track pass. Returns the human-readable change notes. */
-export async function enrichTrack(
-  t: TrackInput,
-  opts: PipelineOptions = {},
-): Promise<TrackResult> {
+export async function enrichTrack(t: TrackInput, opts: PipelineOptions = {}): Promise<TrackResult> {
   const notes: string[] = [];
   let artWritten = false;
   const want = (s: NonNullable<PipelineOptions["only"]>[number]) =>
@@ -94,8 +84,11 @@ export async function enrichTrack(
   const patch: TagPatch = {};
 
   // ---------- remix credit (filename/title derived) ----------
+  // Stage-gated: a `--fingerprint`-only run must not write remix tags —
+  // every mutation belongs to the stage the caller asked for (least
+  // surprise for scoped runs; the idempotency stamp still dedupes).
   const titleGuess = truth.title ?? t.title ?? null;
-  if (titleGuess && !truth.comment) {
+  if (want("tags") && titleGuess && !truth.comment) {
     const remix = detectRemix(titleGuess);
     if (remix) patch.remixer = remix.remixName;
   }
@@ -113,16 +106,11 @@ export async function enrichTrack(
     if (!truth.artist && opts.hints?.artist) patch.artist = opts.hints.artist;
     if (!truth.album && opts.hints?.album) patch.album = opts.hints.album;
     const artist0 =
-      (truth.artist ?? t.artist ?? patch.artist ?? "")
-        .split(/[,&]/)[0]
-        ?.trim() || null;
-    const rec = hinted
-      ? null
-      : await mbLookupCached(artist0, titleGuess ?? basename(t.path));
+      (truth.artist ?? t.artist ?? patch.artist ?? "").split(/[,&]/)[0]?.trim() || null;
+    const rec = hinted ? null : await mbLookupCached(artist0, titleGuess ?? basename(t.path));
     if (rec) {
       if (!truth.title && !patch.title && rec.title) patch.title = rec.title;
-      if (!truth.artist && !patch.artist && rec.artist)
-        patch.artist = rec.artist;
+      if (!truth.artist && !patch.artist && rec.artist) patch.artist = rec.artist;
       if (!truth.album && !patch.album && rec.album) patch.album = rec.album;
       if (rec.year) patch.year = rec.year;
       if (rec.mbid) patch.mbid = rec.mbid;
@@ -132,25 +120,20 @@ export async function enrichTrack(
   // ---------- 2+3+4. one SC search feeds genre AND art AND year ----------
   const needGenre = want("genre") && !genreOk;
   const needYear = want("year") && !truth.year && !patch.year;
-  const needArt =
-    (want("art") && !truth.art) || (want("art") && opts.upgradeScArt);
+  const needArt = (want("art") && !truth.art) || (want("art") && opts.upgradeScArt);
   const wantsSc = needGenre || needYear || needArt;
 
   let scBest: ReturnType<typeof scSearch>[number] | null | undefined;
   if (wantsSc && !opts.dryRun) {
     const effTitle = patch.title ?? truth.title ?? t.title ?? basename(t.path);
     const effArtist = patch.artist ?? truth.artist ?? t.artist ?? null;
-    scBest =
-      scSearch({ artist: effArtist, title: effTitle, file_path: t.path })[0] ??
-      null;
+    scBest = scSearch({ artist: effArtist, title: effTitle, file_path: t.path })[0] ?? null;
   }
 
   if (needGenre) {
-    const fileGenre =
-      truth.genre && truth.genre !== "Music" ? truth.genre : null;
+    const fileGenre = truth.genre && truth.genre !== "Music" ? truth.genre : null;
     const g =
-      canonGenre(scBest?.genre ?? "") ||
-      (fileGenre && fileGenre !== "Music" ? fileGenre : null);
+      canonGenre(scBest?.genre ?? "") || (fileGenre && fileGenre !== "Music" ? fileGenre : null);
     if (g) {
       patch.genre = g;
       notes.push(`genre:${g}`);
@@ -180,11 +163,7 @@ export async function enrichTrack(
     let source: string | null = null;
     if (scBest) {
       const og = await pageOgImage(scBest.url);
-      bytes = og
-        ? await fetchBestScArt(og)
-        : scBest.thumb
-          ? await fetchImage(scBest.thumb)
-          : null;
+      bytes = og ? await fetchBestScArt(og) : scBest.thumb ? await fetchImage(scBest.thumb) : null;
       if (bytes) source = scBest.url.includes("-original") ? "sc-orig" : "sc";
     }
     if (!bytes) {
@@ -278,9 +257,7 @@ export async function enrichTrack(
         patch.camelot = k.camelot; // TXXX:CAMELOT — container-independent
         notes.push(`key:${k.camelot} (${k.key})`);
       } else {
-        notes.push(
-          "key:SKIP (analyzer missing — clone openkeyscan-analyzer to ~/.local/share)",
-        );
+        notes.push("key:SKIP (analyzer missing — clone openkeyscan-analyzer to ~/.local/share)");
       }
     }
   }
@@ -327,15 +304,12 @@ async function mbLookupCached(
     ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
     : `recording:"${encodeURIComponent(title)}"`;
   try {
-    const res = await fetch(
-      `https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`,
-      {
-        headers: {
-          "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
-        },
-        signal: AbortSignal.timeout(8000),
+    const res = await fetch(`https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`, {
+      headers: {
+        "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
       },
-    );
+      signal: AbortSignal.timeout(8000),
+    });
     let out: {
       title: string | null;
       artist: string | null;
@@ -362,9 +336,7 @@ async function mbLookupCached(
         out = {
           title: rec.title ?? null,
           artist:
-            rec["artist-credit"]?.[0]?.artist?.name ??
-            rec["artist-credit"]?.[0]?.name ??
-            null,
+            rec["artist-credit"]?.[0]?.artist?.name ?? rec["artist-credit"]?.[0]?.name ?? null,
           album: rec.releases?.[0]?.title ?? null,
           year: Number.isInteger(year) && year > 1900 ? year : null,
           mbid: rec.id ?? null,
@@ -391,8 +363,7 @@ async function itunesArt(r: ArtRow): Promise<Uint8Array | null> {
 }
 
 function appendQueue(queuePath: string, r: ArtRow): boolean {
-  const { existsSync, readFileSync } =
-    require("node:fs") as typeof import("node:fs");
+  const { existsSync, readFileSync } = require("node:fs") as typeof import("node:fs");
   try {
     // Dedupe: a path already queued (by path) must not re-queue on every
     // re-run — the queue is consumed by megadj artwork, duplicates just
@@ -401,8 +372,7 @@ function appendQueue(queuePath: string, r: ArtRow): boolean {
       const seen = readFileSync(queuePath, "utf8");
       if (seen.includes(JSON.stringify(r.file_path))) return false;
     }
-    const { appendFile } =
-      require("node:fs/promises") as typeof import("node:fs/promises");
+    const { appendFile } = require("node:fs/promises") as typeof import("node:fs/promises");
     void appendFile(
       queuePath,
       JSON.stringify({
@@ -431,6 +401,7 @@ p = ${JSON.stringify(p)}
 wanted = ${JSON.stringify(descs)}
 vals = {d: None for d in wanted}
 try:
+    a = None
     if p.lower().endswith(".wav"):
         from mutagen.wave import WAVE
         a = WAVE(p)
@@ -451,31 +422,39 @@ try:
                         vals[desc] = bytes(v[0]).decode("utf-8")
                     except Exception:
                         pass
+    elif p.lower().endswith(".flac"):
+        from mutagen.flac import FLAC
+        a = FLAC(p)
+        tags = a.tags
+        if tags is not None:
+            # ffmpeg writes these as Vorbis comments in lowercase
+            # (energy=6), never TXXX — match keys case-insensitively
+            # and unwrap the single-element list mutagen returns.
+            upper = {k.upper(): k for k in tags.keys()}
+            for d in wanted:
+                k = upper.get(d.upper())
+                if k is not None and vals[d] is None:
+                    v = tags.get(k)
+                    vals[d] = str(v[0]) if isinstance(v, list) and v else str(v)
     else:
         from mutagen.mp3 import MP3
-        from mutagen.flac import FLAC
-        if p.lower().endswith(".flac"):
-            a = FLAC(p)
-            tags = a.tags
-            if tags is not None:
-                # ffmpeg writes these as Vorbis comments in lowercase
-                # (energy=6), never TXXX — match keys case-insensitively
-                # and unwrap the single-element list mutagen returns.
-                upper = {k.upper(): k for k in tags.keys()}
-                for d in wanted:
-                    k = upper.get(d.upper())
-                    if k is not None and vals[d] is None:
-                        v = tags.get(k)
-                        vals[d] = str(v[0]) if isinstance(v, list) and v else str(v)
-        else:
-            a = MP3(p)
-            tags = a.tags
-            if tags is not None:
-                for k in tags.keys():
-                    if k.startswith("TXXX"):
-                        desc = getattr(tags.get(k), "desc", "")
-                        if desc in vals and vals[desc] is None:
-                            vals[desc] = str(tags.get(k).text[0])
+        a = MP3(p)
+    # ID3-family containers (WAV RIFF/INFO:ID3 chunk, AIFF ID3 chunk, MP3):
+    # all expose a.tags as an ID3 dict with TXXX frames keyed by desc.
+    # REGRESSION NOTE: the WAV/AIFF branches used to open the file and read
+    # NOTHING — every stamp probe (ACOUSTID/CAMELOT/ENERGY/AI-*) returned
+    # null on 73 archive WAVs, so fingerprint/key/energy re-runs rewrote
+    # all of them forever (idempotency was mp3/flac/m4a-only).
+    if a is not None and getattr(a, "tags", None) is not None:
+        tags = a.tags
+        try:
+            for k in tags.keys():
+                if str(k).startswith("TXXX"):
+                    desc = getattr(tags.get(k), "desc", "")
+                    if desc in vals and vals[desc] is None:
+                        vals[desc] = str(tags.get(k).text[0])
+        except Exception:
+            pass
 except Exception:
     pass
 print(json.dumps(vals))`;
@@ -513,10 +492,7 @@ export function readAiStamps(p: string): {
   aiGenre: string | null;
   aiYear: string | null;
 } {
-  const { "AI-GENRE": genre, "AI-YEAR": year } = readTxxx(p, [
-    "AI-GENRE",
-    "AI-YEAR",
-  ]);
+  const { "AI-GENRE": genre, "AI-YEAR": year } = readTxxx(p, ["AI-GENRE", "AI-YEAR"]);
   return { aiGenre: genre ?? null, aiYear: year ?? null };
 }
 
@@ -560,11 +536,8 @@ export async function enrichAll(
         const r = await enrichTrack({ path: f }, opts);
         results.push(r);
         if (r.notes.length)
-          log(
-            `  [${my + 1}/${files.length}] ${r.notes.join(" ")} — ${basename(f)}`,
-          );
-        else if (opts.dryRun)
-          log(`  [${my + 1}/${files.length}] (dry) — ${basename(f)}`);
+          log(`  [${my + 1}/${files.length}] ${r.notes.join(" ")} — ${basename(f)}`);
+        else if (opts.dryRun) log(`  [${my + 1}/${files.length}] (dry) — ${basename(f)}`);
       } catch (err) {
         log(
           `  [${my + 1}/${files.length}] ✗ ${(err as Error).message?.slice(0, 90)} — ${basename(f)}`,

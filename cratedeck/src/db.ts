@@ -12,7 +12,6 @@ import type {
 } from "../shared/types";
 import { FleetStore } from "./fleet-db";
 import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./fleet";
-
 /** Raw row shape as stored in the drives table (mounted is 0/1). */
 interface DriveRow extends Omit<Drive, "mounted"> {
   mounted: number;

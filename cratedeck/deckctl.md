@@ -125,9 +125,16 @@ Tools: `deck_status` · `deck_drives` · `deck_report {drive}` ·
 `deck_coverage {min_copies?}` · `deck_redundancy {min_copies?}` ·
 `deck_diff {a,b}` · `deck_jobs` · `deck_run {drive,kind,wait?}` ·
 `deck_cancel {job_id}` · `deck_explain {kind?}` · `deck_preflight` ·
-`deck_players {drive?}` · `archive_search_tracks {q}` ·
+`deck_players {drive?}` · `deck_note {drive,note,severity?}` ·
+`deck_notes {drive?}` · `archive_search_tracks {q}` ·
 `archive_track_stats {video_id}` · `archive_ingest_status` ·
 `archive_lowq_queue` · `archive_source_diff {a,b}`.
+
+Agent findings (O88): `deck_note` lands an agent's conclusion on a drive's
+timeline as a dismissable card (600-char cap, severity tone). Confirm with
+the human before calling it — notes are human-visible annotations, not
+logs. `deck_notes` lists the active (non-dismissed) feed; dismissal
+happens in the UI timeline, which flips `dismissed_at` but keeps history.
 
 Agent attribution (O87): jobs enqueued through MCP are stamped
 `origin = "mcp:<session-id>"` (deckctl → `"deckctl"`, the auto-scheduler →
@@ -135,7 +142,8 @@ Agent attribution (O87): jobs enqueued through MCP are stamped
 timeline events, so "why did this verify run at 3am" is answerable from
 `deckctl jobs` or the drive page.
 
-`deck_run`/`deck_cancel` are the only mutating tools (`deck_cancel` is a
+`deck_run`/`deck_cancel`/`deck_note` are the only mutating tools
+(`deck_cancel` is a
 push on an in-flight job; `deck_run` refuses while rekordbox is running —
 the interlock is enforced server-side too, belt _and_ suspenders, never a
 bypass). The `archive_*` tools are O82b: readonly reads over megadj's own

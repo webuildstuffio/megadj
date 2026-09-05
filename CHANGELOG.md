@@ -7,6 +7,23 @@ All notable changes to megadj are documented here. Format:
 
 ### Added
 
+- **CrateDeck O88 — findings-from-agents feed:** `deck_note {drive, note,
+  severity?}` MCP tool (flagged mutating, human-confirmed) lands an agent
+  finding on the drive timeline as a dismissable card; `deck_notes` reads
+  the active feed. Notes are timeline events (kind `agent-note`), so the
+  per-drive event cap bounds growth; engine `cratedeck/src/notes.ts`
+  (validate/clamp, 600-char cap) + `db.addAgentNote/dismissAgentNote/
+  agentNotes`; API `GET/POST /api/drives/:id/notes` +
+  `POST .../notes/:id/dismiss`; the UI timeline renders severity-toned
+  note cards with dismiss (history kept via `dismissed_at`).
+- **CrateDeck N76 — firmware advisories in preflight:** the player matrix
+  (`players.ts`) carries known firmware advisories (CDJ-3000 v3.30 pull);
+  `preflight.firmware_advisories` renders informational lines in
+  `deckctl preflight` — never gates.
+- **CrateDeck O85 — plugin packaging:** `plugin/` is an installable
+  Claude Code plugin (`claude plugin validate` passes): the 19-tool MCP
+  server, a SessionStart hook posting `deckctl status --json`, and the 3
+  DJ skills. Dev-install: `claude --plugin-dir $PWD/plugin`.
 - FullTags analysis stages (roadmap rev 4 #1–#3, Sep 5 2026): `--fingerprint`
   (chromaprint → `TXXX:ACOUSTID`), `--bpm` (beat_this → `TBPM`, half/double
   folded into 70–180), `--key` (OpenKeyScan analyzer → `TKEY` +
@@ -15,7 +32,14 @@ All notable changes to megadj are documented here. Format:
   (+`camelot` patch field); writers/readers updated for every format
   (m4a freeform `initialkey`/`CAMELOT`/`ACOUSTID`/`LABEL`/`MIXNAME`).
   New `fulltags/verify-key.ts` gauntlet gate (≥80% Camelot-aware agreement)
-  and `fulltags/test/analysis.test.ts` (14 env-gated tests).
+  and `fulltags/test/analysis.test.ts` (17 env-gated tests). Verification
+  hardening after a super-sure pass: compressed containers (mp3/m4a/aac)
+  are ffmpeg-decoded to a temp wav for the bpm+key analyzers (their
+  loaders can't demux them — result ids remap to the original path,
+  temps cleaned up); missing fpcalc degrades to null instead of throwing
+  ENOENT; `verify-key.ts` uses note→Camelot maps extracted from the
+  analyzer's own `camelot_output()` (a generic circle-of-fifths table
+  mislabels every key).
 - AI provenance: AI-filled genre/year stamped as `TXXX:AI-GENRE` /
   `TXXX:AI-YEAR` with classifier confidence; `fulltags audit` reports
   `aiFilled` per track (text + `--json`).
@@ -44,7 +68,7 @@ diff|jobs|cancel|stop|explain` with `--json`, spinner + ETA, exit 3 on
 - Config story documented in one place (README §Configuration): config
   file → env override → default.
 - `fulltags/` tests count 68 after schema validation + bugfix regression
-  additions.
+  additions; 85 after the analysis stages + verification hardening.
 
 ### Removed
 
@@ -54,7 +78,8 @@ diff|jobs|cancel|stop|explain` with `--json`, spinner + ETA, exit 3 on
 ### Fixed
 
 - FullTags: five bugs found in a same-day audit, fixed with regression
-  tests (`fulltags/test/m4a-stamps.test.ts`, suite 56 → 68+):
+  tests (`fulltags/test/m4a-stamps.test.ts`, suite 56 → 68 at the time,
+  85 after the analysis stages):
   - `fulltags single <file>` misparsed the file as the target dir
     (parseArgs only skipped `audit` as a subcommand).
   - failed ffmpeg tag writes leaked the `.tagged` tmp file (async path's
@@ -142,25 +167,6 @@ diff|jobs|cancel|stop|explain` with `--json`, spinner + ETA, exit 3 on
     keep going (same hardening `sync` got in round 1).
 - `scripts/export-cookies.sh` success line printed literal garbage;
   now reports the real cookie count.
-- FullTags audit: five bugs found and fixed with regression tests
-  (`fulltags/test/m4a-stamps.test.ts`, suite now 68):
-  - m4a tag writes silently dropped `bpm`/`energy`/`aiGenre`/`aiYear`/
-    `remixer`/`mbid` — ffmpeg's ipod muxer has no metadata mapping for
-    those keys and every remux wiped existing freeform (`----`) atoms.
-    m4a now writes through mutagen (`writePatchMp4`), matching the
-    WAV/AIFF pattern; `readTxxx` reads m4a freeform atoms and flac
-    vorbis comments, restoring pipeline idempotency on those formats.
-  - failed ffmpeg writes leaked an orphan `.tagged` tmp file per corrupt
-    input (async path's exit-code check was dead code — Bun `$` throws
-    `ShellError`); both paths now clean up.
-  - `qualityScore` scored AIFF (`pcm_s16be`) and hi-res WAV
-    (`pcm_s24le/32le`) zero lossless bonus — only `pcm_s16le` mapped —
-    so AIFF masters lost dupe-resolution; explicit codec set now.
-  - `fulltags audit --json` never exited 1 on gaps (megadj audit parity:
-    exit code is the gate in both output modes; json also carries `ok`).
-  - `fulltags single <file>` was unparsable — `single` was picked up as
-    the target, so the documented per-file hint entrypoint always
-    printed the usage error.
 
 ## [0.1.0] — initial public release
 

@@ -46,7 +46,7 @@ megadj's modules are now thin re-export shims so nothing else had to change
 
 ```
 fulltags/
-  cli.ts                 CLI entry (enrich + audit subcommands)
+  cli.ts                 CLI entry (enrich + audit + single subcommands)
   src/
     schema.ts            FullTag / TagPatch types, genre canon + vocabulary
     schema-guards.ts     validatePatch (runtime guards before any write)
@@ -61,7 +61,7 @@ fulltags/
     remix.ts             `X - Y (Z Remix)` detection
     pipeline.ts          enrichTrack / enrichAll — the orchestrator
     exports.ts           public import surface
-  test/                  82 tests (schema, writer round-trips, pipeline,
+  test/                  85 tests (schema, writer round-trips, pipeline,
                          m4a/AIFF stamps, audit gate, CLI subcommands,
                          analysis stages — env-gated)
 ```
@@ -105,11 +105,13 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
   unlink lives in `catch`, not after an exit-code check).
 - **analysis-stage envs** (see roadmap rev 4 §7 for the full list): beat_this
   has no tempo field on the programmatic path (derive `60/median(Δbeats)`;
-  beats arrive in seconds) and needs `soundfile` for mp3/m4a decode;
-  OpenKeyScan treats **stdin EOF as shutdown** (never `stdin.end()` before
-  responses land) and its stdout must be read line-by-line, never
-  buffered-to-end; uv `--with-requirements` ≠ the same pins spelled as
-  `--with` flags (the latter hung).
+  beats arrive in seconds); **compressed containers (mp3/m4a/aac) must be
+  ffmpeg-decoded to a temp wav first** — beat_this's loader and the key
+  analyzer's librosa both fail to demux them; OpenKeyScan treats **stdin
+  EOF as shutdown** (never `stdin.end()` before responses land) and its
+  stdout must be read line-by-line, never buffered-to-end;
+  uv `--with-requirements` ≠ the same pins spelled as `--with` flags (the
+  latter hung).
 
 ## Usage
 
@@ -119,9 +121,10 @@ bun run fulltags/cli.ts track.mp3 --energy --dry-run   # stage subset, no write
 bun run fulltags/cli.ts audit <archive-folder>         # completeness gate (--json for machines)
 ```
 
-Stages: `--tags --genre --art --year --energy` (default: all). Other flags:
-`--jobs N`, `--upgrade-sc-art`, `--artwork-queue PATH | --no-queue`,
-`--archive-dir DIR`.
+Stages: `--tags --genre --art --year --energy --fingerprint --bpm --key`
+(default: all; analysis stages need fpcalc / beat-this / the
+openkeyscan-analyzer clone). Other flags: `--jobs N`, `--upgrade-sc-art`,
+`--artwork-queue PATH | --no-queue`, `--archive-dir DIR`.
 
 **Env**: `OPENROUTER_API_KEY` for the AI genre/year fallback. Artwork misses
 append to `~/.local/state/megadj/artwork-queue.jsonl` so the existing
@@ -136,6 +139,6 @@ append to `~/.local/state/megadj/artwork-queue.jsonl` so the existing
 | `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                   |
 | `megadj enrich` | MB genre top-up (kept; will fold into FullTags later)                     |
 
-The **roadmap** for what comes next (key detection, Essentia mood/genre
-models, beat_this BPM, fingerprints) lives in
+The **roadmap** for what comes next (Essentia mood/genre models, dupe
+hunting on the new fingerprints) lives in
 [docs/fulltags-roadmap.md](../docs/fulltags-roadmap.md).

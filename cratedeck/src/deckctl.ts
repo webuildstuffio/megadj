@@ -133,6 +133,7 @@ interface PreflightPayload {
   overall: "ready" | "attention" | "not-ready" | "unknown";
   summary: string;
   mountedCount: number;
+  firmware_advisories?: string[];
   drives: {
     drive: {
       id: string;
@@ -166,14 +167,17 @@ async function cmdPreflight(): Promise<void> {
   const icon = { pass: "✓", warn: "▲", fail: "✕", unknown: "○" };
   for (const d of r.drives) {
     if (!d.drive.mounted) continue;
-    log(
-      `${d.overall === "ready" ? "🟢" : d.overall === "not-ready" ? "🔴" : d.overall === "attention" ? "🟡" : "⚪"} ${d.drive.nickname ?? d.drive.name} — ${d.overall}`,
-    );
+    const dot =
+      d.overall === "ready" ? "🟢" : d.overall === "not-ready" ? "🔴" : d.overall === "attention" ? "🟡" : "⚪";
+    log(`${dot} ${d.drive.nickname ?? d.drive.name} — ${d.overall}`);
     for (const c of d.checks) {
       log(`  ${icon[c.status]} ${c.label}: ${c.detail ?? ""}`);
       if (c.fix) log(`     → ${c.fix}`);
     }
   }
+  // N76: known player firmware advisories — informational, never gates
+  if (r.firmware_advisories?.length)
+    for (const a of r.firmware_advisories) log(`ℹ firmware: ${a}`);
   if (r.overall !== "ready") process.exit(1);
 }
 
@@ -219,9 +223,7 @@ async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
   }
   for (const p of payloads) {
     if (p.unknown) {
-      log(
-        `${p.drive.nickname ?? p.drive.name}: no scan data — run a full scan`,
-      );
+      log(`${p.drive.nickname ?? p.drive.name}: no scan data — run a full scan`);
       continue;
     }
     log(
@@ -430,13 +432,7 @@ async function cmdJobs(): Promise<void> {
   for (const j of jobs.slice(0, 15)) {
     const pct = Math.round(j.progress * 100);
     const status =
-      j.status === "running"
-        ? "◌"
-        : j.status === "done"
-          ? "✓"
-          : j.status === "failed"
-            ? "✕"
-            : "·";
+      j.status === "running" ? "◌" : j.status === "done" ? "✓" : j.status === "failed" ? "✕" : "·";
     // O87: origin rides along so agent-initiated jobs are visible in the CLI
     const originTag = j.origin && j.origin !== "web" ? ` [${j.origin}]` : "";
     log(

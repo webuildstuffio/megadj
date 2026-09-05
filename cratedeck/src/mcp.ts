@@ -23,6 +23,8 @@
  *   deck_explain {kind?}        what each job does, typical duration, safety
  *   deck_preflight              gig-night pass/fail across mounted drives (B12)
  *   deck_players {drive?}       which players can read each stick (N75/N78)
+ *   deck_note {drive, note}     RECORD a finding on a drive timeline (O88)
+ *   deck_notes {drive?}         active agent findings (O88, readonly)
  *   archive_search_tracks {q}   search the archive (O82b, readonly)
  *   archive_track_stats {video_id}  one track's full archive row
  *   archive_ingest_status       counts + recent runs + newest tracks
@@ -34,6 +36,7 @@ import {
   apiPost,
   ensureServer,
   resolveDrive,
+  PORT,
   waitForJob,
   jobTerminal,
   type Job,
@@ -433,6 +436,89 @@ const TOOLS: Record<string, ToolDef> = {
       if (!drive) return apiGet("/api/drives").then((r) => r.json());
       const d = await needDrive(drive);
       return apiGet(`/api/drives/${d.id}/players`).then((r) => r.json());
+    },
+  },
+
+  deck_note: {
+    description:
+      "RECORDS A FINDING ON A DRIVE'S TIMELINE (mutating, human-visible): land a conclusion an agent reached about a drive (e.g. 'firmware 3.30 has the playlist-vanishing bug — stay on 3.22'). The note shows as a dismissable card on the drive page. Max 600 chars. Confirm with the human before calling.",
+    destructive: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        drive: {
+          type: "string",
+          description: "volume name, nickname, or id",
+        },
+        note: { type: "string", description: "the finding (max 600 chars)" },
+        severity: {
+          type: "string",
+          enum: ["info", "warn", "critical"],
+          description: "card tone (default info)",
+        },
+      },
+      required: ["drive", "note"],
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const drive = str(args, "drive");
+      const note = str(args, "note");
+      if (!drive) throw new RpcParamError("drive is required");
+      if (!note) throw new RpcParamError("note is required");
+      const d = await needDrive(drive);
+      const severity = str(args, "severity");
+      const res = await apiPost(`/api/drives/${d.id}/notes`, {
+        note,
+        origin: MCP_SESSION,
+        severity:
+          severity === "warn" || severity === "critical" ? severity : "info",
+      });
+      if (!res.ok) {
+        const body = (await res.json()) as { error?: string };
+        throw new RpcParamError(body.error ?? `note rejected (${res.status})`);
+      }
+      return {
+        ok: true,
+        drive: d.nickname ?? d.name,
+        note,
+        visible_at: `http://127.0.0.1:${PORT}/drives/${d.id}`,
+      };
+    },
+  },
+
+  deck_notes: {
+    description:
+      "Active agent findings for a drive (or all drives): notes landed via deck_note that a human has not dismissed. Read-only.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        drive: {
+          type: "string",
+          description: "volume name, nickname, or id (omit for all drives)",
+        },
+      },
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const drive = str(args, "drive");
+      if (!drive) {
+        const drives = await apiGet("/api/drives").then((r) => r.json());
+        const out = [];
+        for (const d of drives as { id: string; name: string }[]) {
+          try {
+            const notes = await apiGet(`/api/drives/${d.id}/notes`).then(
+              (r) => r.json(),
+            );
+            if (Array.isArray(notes) && notes.length)
+              out.push({ drive: d.name, notes });
+          } catch {
+            /* drive gone mid-loop */
+          }
+        }
+        return out;
+      }
+      const d = await needDrive(drive);
+      return apiGet(`/api/drives/${d.id}/notes`).then((r) => r.json());
     },
   },
 

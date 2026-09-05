@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { DB, inferRole } from "../src/db";
+import {
+  addAgentNote,
+  dismissAgentNote,
+  agentNotes,
+} from "../src/notes";
 import type { SnapshotData } from "../shared/types";
 
 let db: DB;
@@ -447,5 +452,52 @@ describe("job origin attribution (O87)", () => {
       )
       .run(UUID_A);
     expect(db.getJob("legacy1")!.origin).toBe("web");
+  });
+});
+
+describe("agent notes (O88)", () => {
+  it("add → list → dismiss round-trip through the timeline", () => {
+    addAgentNote(db, {
+      drive_id: UUID_A,
+      note: "firmware 3.30 flagged",
+      origin: "mcp:deadbeef",
+      severity: "warn",
+    });
+    addAgentNote(db, {
+      drive_id: UUID_A,
+      note: "healthy",
+      origin: "mcp:deadbeef",
+      severity: "info",
+    });
+    const notes = agentNotes(db, UUID_A);
+    expect(notes.length).toBe(2);
+    expect(notes[0]!.note).toBe("healthy"); // newest first
+    expect(notes.every((n) => n.dismissed_at === null)).toBe(true);
+    // notes are ALSO timeline events — they render in the existing feed
+    expect(db.timeline(UUID_A).some((e) => e.kind === "agent-note")).toBe(
+      true,
+    );
+    // dismiss the newest; it leaves the active feed but stays in history
+    const id = notes[0]!.id;
+    expect(dismissAgentNote(db, UUID_A, id)).toBe(true);
+    expect(dismissAgentNote(db, UUID_A, id)).toBe(true); // idempotent
+    expect(agentNotes(db, UUID_A).map((n) => n.note)).toEqual([
+      "firmware 3.30 flagged",
+    ]);
+    expect(agentNotes(db, UUID_A)[0]!.dismissed_at).toBeNull();
+  });
+
+  it("dismiss rejects non-note events and unknown ids", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.event(UUID_A, "job-queued", { kind: "scan" });
+    const ev = db.timeline(UUID_A)[0]!;
+    expect(dismissAgentNote(db, UUID_A, ev.id)).toBe(false);
+    expect(dismissAgentNote(db, UUID_A, "nope")).toBe(false);
+    expect(agentNotes(db, UUID_A)).toEqual([]);
   });
 });

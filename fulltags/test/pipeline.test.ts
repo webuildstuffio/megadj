@@ -16,10 +16,7 @@ describe("enrichTrack (offline stages)", () => {
       await $`mkdir -p ${DIR}`.quiet();
       await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p}`.quiet();
       // Only local stages: energy. No network (no genre/art/tags/year).
-      const res = await enrichTrack(
-        { path: p },
-        { only: ["energy"], artworkQueue: null },
-      );
+      const res = await enrichTrack({ path: p }, { only: ["energy"], artworkQueue: null });
       expect(res.notes.some((n) => n.startsWith("energy:"))).toBe(true);
       // No metadata was filled — must be reported missing.
       expect(res.complete).toBe(false);
@@ -49,14 +46,8 @@ describe("enrichTrack (offline stages)", () => {
   test("idempotent: second pass changes nothing", async () => {
     const p = `${DIR}/idem.mp3`;
     await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p}`.quiet();
-    const first = await enrichTrack(
-      { path: p },
-      { only: ["energy"], artworkQueue: null },
-    );
-    const second = await enrichTrack(
-      { path: p },
-      { only: ["energy"], artworkQueue: null },
-    );
+    const first = await enrichTrack({ path: p }, { only: ["energy"], artworkQueue: null });
+    const second = await enrichTrack({ path: p }, { only: ["energy"], artworkQueue: null });
     expect(first.notes.length).toBeGreaterThan(0);
     expect(second.notes.length).toBe(0);
   });
@@ -81,4 +72,73 @@ describe("enrichTrack (offline stages)", () => {
     expect(res.notes).toContain("title");
     expect(res.notes).toContain("artist");
   });
+
+  test(
+    "WAV stamp reads work: second fingerprint pass is a no-op (regression)",
+    async () => {
+      // The WAV/AIFF branches of readTxxx used to open the file and read
+      // NOTHING — TXXX:ACOUSTID was invisible on WAVs, so every re-run
+      // re-fingerprinted and rewrote all 73 archive WAVs (idempotency was
+      // mp3/flac/m4a-only). CAMELOT/ENERGY/AI-* probes had the same hole.
+      const p = `${DIR}/idem.wav`;
+      // fpcalc returns "Empty fingerprint" (exit 2) on sub-3s audio — use a
+      // 5 s tone so the first pass actually has something to stamp. The
+      // test's own `mkdir -p` runs first (another test in this file may
+      // have created DIR after an rm -rf in a parallel worker; the guard
+      // makes the fixture order-independent).
+      await $`mkdir -p ${DIR}`.quiet();
+      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=5 ${p}`.quiet();
+      const first = await enrichTrack({ path: p }, { only: ["fingerprint"], artworkQueue: null });
+      expect(first.notes.some((n) => n.startsWith("fingerprint:"))).toBe(true);
+      const second = await enrichTrack({ path: p }, { only: ["fingerprint"], artworkQueue: null });
+      expect(second.notes.length).toBe(0);
+    },
+    { timeout: 60_000 },
+  );
+
+  test(
+    "scoped run writes only requested stages: --fingerprint does not stamp remix tags",
+    async () => {
+      const p = `${DIR}/remix-scope.mp3`;
+      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p}`.quiet();
+      // Sanity: the tags stage WOULD stamp the remix credit.
+      await enrichTrack(
+        { path: p, title: "Song (Someone Remix)" },
+        { only: ["tags"], artworkQueue: null },
+      );
+      const withTags = await import("../src/pipeline").then((m) =>
+        (m as any).readTxxx ? (m as any).readTxxx(p, ["version"]) : null,
+      );
+      void withTags; // readers don't export it — assert via CLI-level TXXX probe instead
+      // Now the scoped run on a fresh file: fingerprint-only must NOT write
+      // the remix credit (TXXX:version stays absent).
+      const p2 = `${DIR}/remix-scope2.mp3`;
+      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p2}`.quiet();
+      await enrichTrack(
+        { path: p2, title: "Song (Someone Remix)" },
+        { only: ["fingerprint"], artworkQueue: null },
+      );
+      const probe = Bun.spawnSync({
+        cmd: [
+          "uv",
+          "run",
+          "--with",
+          "mutagen",
+          "python",
+          "-c",
+          `from mutagen.mp3 import MP3
+a = MP3(${JSON.stringify(p2)})
+tags = a.tags or {}
+found = [str(tags.get(k).text[0]) for k in tags.keys() if str(k).startswith("TXXX") and getattr(tags.get(k), "desc", "") == "version"]
+import json; print(json.dumps(found))`,
+        ],
+        stdout: "pipe",
+      });
+      const found = JSON.parse(
+        new TextDecoder().decode(probe.stdout).trim().split("\n").at(-1) ?? "[]",
+      );
+      expect(found).toEqual([]);
+    },
+    { timeout: 90_000 },
+  );
 });
