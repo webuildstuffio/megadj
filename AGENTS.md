@@ -144,6 +144,13 @@ produces, regardless of the language used in the request.
   previous chunk's tail every iteration, duplicating text through captured
   verify output (`test/jobs-drain.test.ts`); `deckctl coverage|redundancy`
   take an optional min-copies arg that must be forwarded from `main()`.
+- More CrateDeck job-progress gotchas (round 2, regression-tested): ETA in
+  `setJobProgress` is TRI-STATE — undefined = keep, null = clear — the log
+  updater omits it and must not wipe the estimator's value (test
+  `db.test.ts "keeps ETA…"`); usb_verify.py phase markers are INDENTED, so
+  phase regexes must match untrimmed lines, and `tick(from, to)` means
+  done/total — a phase span must be passed as `tick(progress, 1)` (pure
+  `verifyPhase()` in `jobs.ts`, `test/verify-phases.test.ts`).
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
   server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
   10 tools (`deck_status/drives/report/coverage/redundancy/diff/jobs/
