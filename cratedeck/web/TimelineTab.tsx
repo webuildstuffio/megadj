@@ -46,7 +46,13 @@ function dayKey(ts: number): string {
   });
 }
 
-export function TimelineTab({ events, driveId }: { events: TimelineEvent[]; driveId: string }) {
+export function TimelineTab({
+  events,
+  driveId,
+}: {
+  events: TimelineEvent[];
+  driveId: string;
+}) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const groups = useMemo(() => {
     const out: [string, TimelineEvent[]][] = [];
@@ -72,9 +78,12 @@ export function TimelineTab({ events, driveId }: { events: TimelineEvent[]; driv
 
   const dismiss = (driveId: string, id: string) => {
     setDismissed((prev) => new Set(prev).add(id));
-    fetch(`/api/drives/${encodeURIComponent(driveId)}/notes/${encodeURIComponent(id)}/dismiss`, {
-      method: "POST",
-    })
+    fetch(
+      `/api/drives/${encodeURIComponent(driveId)}/notes/${encodeURIComponent(id)}/dismiss`,
+      {
+        method: "POST",
+      },
+    )
       .then((r) => {
         if (!r.ok) throw new Error(String(r.status));
       })
@@ -107,19 +116,24 @@ export function TimelineTab({ events, driveId }: { events: TimelineEvent[]; driv
               const detail = fmtEventData(e.data);
               // O88: agent notes render as a card — severity tone + dismiss
               const sev =
-                e.kind === "agent-note" && typeof e.data["severity"] === "string"
+                e.kind === "agent-note" &&
+                typeof e.data["severity"] === "string"
                   ? (e.data["severity"] as string)
                   : null;
               const noteTone =
                 sev === "critical" ? "bad" : sev === "warn" ? "warn" : "info";
               return (
                 <div class="row" key={e.id}>
-                  <span class={`tico kc-${e.kind === "agent-note" ? noteTone : tone}`}>
+                  <span
+                    class={`tico kc-${e.kind === "agent-note" ? noteTone : tone}`}
+                  >
                     <Icon name={icon} size={13} />
                   </span>
                   <span class="t">{fmtWhen(e.at)}</span>
                   <span class="body">
-                    <span class={`kindchip kc-${e.kind === "agent-note" ? noteTone : tone}`}>
+                    <span
+                      class={`kindchip kc-${e.kind === "agent-note" ? noteTone : tone}`}
+                    >
                       {e.kind === "agent-note"
                         ? `agent note${sev && sev !== "info" ? ` · ${sev}` : ""}`
                         : e.kind}

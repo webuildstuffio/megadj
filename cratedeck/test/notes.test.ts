@@ -79,7 +79,13 @@ describe("agent notes (O88)", () => {
       }),
     ).toBeNull();
     expect(
-      noteFromEvent({ id: "e3", drive_id: "d1", at: 1, kind: "agent-note", data: {} }),
+      noteFromEvent({
+        id: "e3",
+        drive_id: "d1",
+        at: 1,
+        kind: "agent-note",
+        data: {},
+      }),
     ).toBeNull(); // missing note text
   });
 
