@@ -11,6 +11,8 @@ export interface FetchOptions {
   only?: "art" | "genres" | "tags" | "years" | "all";
   jobs?: number;
   dryRun?: boolean;
+  /** Machine-readable summary instead of human logs (P1: --json everywhere). */
+  json?: boolean;
 }
 
 interface Truth {
@@ -156,9 +158,10 @@ export function auditArchive(musicDir: string): {
   };
 }
 
-export async function fetch(_opts: FetchOptions): Promise<void> {
+export async function fetch(opts: FetchOptions): Promise<void> {
   const script = join(import.meta.dir, "../../tools/fetch_all.ts");
-  const proc = Bun.spawn(["bun", script], {
+  const extra = opts.json ? ["--json"] : [];
+  const proc = Bun.spawn(["bun", script, ...extra], {
     stdout: "inherit",
     stderr: "inherit",
   });

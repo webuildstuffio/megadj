@@ -92,7 +92,9 @@ export interface FixYearsStats {
 }
 
 /** Year-verification pass (SC page date → yt-dlp timestamp). */
-export function runFixYears(opts: { dryRun?: boolean } = {}): FixYearsStats {
+export function runFixYears(
+  opts: { dryRun?: boolean; json?: boolean } = {},
+): FixYearsStats {
   const dry = opts.dryRun ?? false;
   let scPage = 0;
   let ytdlp = 0;
@@ -139,15 +141,32 @@ export function runFixYears(opts: { dryRun?: boolean } = {}): FixYearsStats {
     }
     if (source === "sc-page") scPage++;
     else ytdlp++;
-    console.log(
-      `  ${current ?? "?"} → ${year} (${source}) — ${r.artist ?? "?"}: ${r.title.slice(0, 45)}`,
-    );
+    if (!opts.json) {
+      console.log(
+        `  ${current ?? "?"} → ${year} (${source}) — ${r.artist ?? "?"}: ${r.title.slice(0, 45)}`,
+      );
+    }
   }
 
-  console.log(
-    `\n${dry ? "DRY " : ""}DONE — sc-page: ${scPage} | yt-dlp: ${ytdlp} | kept: ${kept} | unresolved: ${failed.length}`,
-  );
-  for (const f of failed) console.log(`  ? ${f.title.slice(0, 60)}`);
+  if (opts.json) {
+    // P1 (--json on every command): one summary object on stdout, last.
+    console.log(
+      JSON.stringify({
+        command: "years",
+        dryRun: dry,
+        scPage,
+        ytdlp,
+        kept,
+        unresolved: failed.length,
+        unresolvedTitles: failed.map((f) => f.title),
+      }),
+    );
+  } else {
+    console.log(
+      `\n${dry ? "DRY " : ""}DONE — sc-page: ${scPage} | yt-dlp: ${ytdlp} | kept: ${kept} | unresolved: ${failed.length}`,
+    );
+    for (const f of failed) console.log(`  ? ${f.title.slice(0, 60)}`);
+  }
   return { scPage, ytdlp, kept, failed: failed.length };
 }
 

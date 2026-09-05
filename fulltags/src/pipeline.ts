@@ -431,7 +431,10 @@ print(json.dumps({"aiGenre": genre, "aiYear": year}))`;
   try {
     const last = new TextDecoder().decode(pr.stdout).trim().split("\n").at(-1);
     const parsed = last
-      ? (JSON.parse(last) as { aiGenre?: string | null; aiYear?: string | null })
+      ? (JSON.parse(last) as {
+          aiGenre?: string | null;
+          aiYear?: string | null;
+        })
       : {};
     return {
       aiGenre: parsed.aiGenre ?? null,

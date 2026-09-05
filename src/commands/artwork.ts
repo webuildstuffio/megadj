@@ -22,6 +22,8 @@ export interface ArtworkOptions {
   maxImages?: number;
   dryRun?: boolean;
   onProgress?: (msg: string) => void;
+  /** Machine-readable summary instead of human logs (P1: --json everywhere). */
+  json?: boolean;
 }
 
 const DEFAULT_MODEL = "nano-banana-2-lite"; // $0.034/img — "a few cents max"
@@ -52,7 +54,10 @@ function embedArtwork(filePath: string, artPath: string): Promise<boolean> {
 }
 
 export async function artwork(opts: ArtworkOptions): Promise<void> {
-  const log = opts.onProgress ?? ((m: string) => console.log(m));
+  const rawLog = opts.onProgress ?? ((m: string) => console.log(m));
+  // --json mode (P1): human logs go quiet — the summary object is the only
+  // stdout output so agents get parseable JSON.
+  const log = opts.json && !opts.onProgress ? () => {} : rawLog;
   const model = opts.model ?? DEFAULT_MODEL;
   const max = opts.maxImages ?? Number(process.env.MEGADJ_ART_MAX ?? 20);
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -171,9 +176,24 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
     );
   }
 
-  log(
-    `\ndone: ${done} embedded, ${failed} failed` +
-      (opts.dryRun ? " (dry run — nothing generated)" : "") +
-      `, ${Math.max(0, entries.length - batch.length)} left in queue`,
-  );
+  if (opts.json) {
+    // P1 (--json on every command): one summary object on stdout, last.
+    console.log(
+      JSON.stringify({
+        command: "artwork",
+        dryRun: opts.dryRun ?? false,
+        queued: entries.length,
+        processed: batch.length,
+        embedded: done,
+        failed,
+        leftInQueue: Math.max(0, entries.length - batch.length),
+      }),
+    );
+  } else {
+    log(
+      `\ndone: ${done} embedded, ${failed} failed` +
+        (opts.dryRun ? " (dry run — nothing generated)" : "") +
+        `, ${Math.max(0, entries.length - batch.length)} left in queue`,
+    );
+  }
 }

@@ -57,6 +57,7 @@ import { ProgressBar } from "../src/progress";
 /** Print a line without corrupting the live progress bar redraw. */
 let activeBar: ProgressBar | null = null;
 function progressLog(line: string): void {
+  if (JSON_OUT) return; // --json: stdout carries only the summary object
   if (!activeBar) {
     console.log(line);
     return;
@@ -70,6 +71,7 @@ let activeBarTotal = 0;
 
 const argv = process.argv.slice(2);
 const ALL = argv.includes("--all");
+const JSON_OUT = argv.includes("--json");
 const ONLY = (
   argv.includes("--art")
     ? "art"
@@ -261,6 +263,7 @@ async function processTask(
     progress.update(1);
     return;
   }
+  if (JSON_OUT) return; // --json: no per-item milestones
   // plain mode (no progress bar): keep the classic per-item output
   if (notes.length)
     console.log(`  [${i + 1}/${total}] ${notes.join(" ")} — ${name}`);
@@ -307,9 +310,11 @@ async function main() {
       });
   }
 
-  console.log(
-    `fetch_all: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${JOBS}${ALL ? " [--all upgrade]" : ""}${DRY ? " [DRY RUN]" : ""}\n`,
-  );
+  if (!JSON_OUT) {
+    console.log(
+      `fetch_all: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${JOBS}${ALL ? " [--all upgrade]" : ""}${DRY ? " [DRY RUN]" : ""}\n`,
+    );
+  }
 
   const stats: Stats = {
     tags: 0,
@@ -379,12 +384,13 @@ async function main() {
         stats.genreAi++;
       }
     }
-    console.log(`  AI set: ${stats.genreAi}/${aiGenreBatch.length}`);
+    if (!JSON_OUT)
+      console.log(`  AI set: ${stats.genreAi}/${aiGenreBatch.length}`);
   }
 
   // ---- AI year fallback (single batched call: genre + year together) ----
   if (aiYearBatch.length && !DRY) {
-    console.log(`\nAI year fallback for ${aiYearBatch.length}…`);
+    if (!JSON_OUT) console.log(`\nAI year fallback for ${aiYearBatch.length}…`);
     for (let k = 0; k < aiYearBatch.length; k += 20) {
       const batch = aiYearBatch.slice(k, k + 20);
       const res = await aiGenres(batch, true);
@@ -413,9 +419,11 @@ async function main() {
         if (Object.keys(vals).length) setFileTags(row.file_path, vals);
       }
     }
-    console.log(
-      `  AI years set: ${stats.yearAi}/${aiYearBatch.length} (genres too where missing: +${stats.genreAi})`,
-    );
+    if (!JSON_OUT) {
+      console.log(
+        `  AI years set: ${stats.yearAi}/${aiYearBatch.length} (genres too where missing: +${stats.genreAi})`,
+      );
+    }
   }
 
   // ---- AI cover queue append ----
@@ -435,9 +443,31 @@ async function main() {
   }
 
   // ---- summary ----
-  progress?.close(
-    `DONE${DRY ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + AI ${stats.yearAi} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}`,
-  );
+  const summary = {
+    command: "fetch",
+    dryRun: DRY,
+    tracks: rows.length,
+    tasks: tasks.length,
+    tags: stats.tags,
+    genreSc: stats.genreSc,
+    genreAi: stats.genreAi,
+    yearSc: stats.yearSc,
+    yearAi: stats.yearAi,
+    artSc: stats.artSc,
+    artGateway: stats.artGateway,
+    artTwin: stats.artTwin,
+    artDeezer: stats.artDeezer,
+    artItunes: stats.artItunes,
+    artQueued: artless.length,
+  };
+  if (JSON_OUT) {
+    // P1 (--json on every command): one summary object on stdout, last.
+    console.log(JSON.stringify(summary));
+  } else {
+    progress?.close(
+      `DONE${DRY ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + AI ${stats.yearAi} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}`,
+    );
+  }
   db.close();
 }
 

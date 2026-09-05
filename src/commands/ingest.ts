@@ -57,12 +57,19 @@ export interface IngestOptions {
   /** Tracks shorter than this many seconds are skipped (default 60). */
   minDuration?: number;
   onProgress?: (msg: string) => void;
+  /** Machine-readable summary instead of human logs (P1: --json everywhere). */
+  json?: boolean;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function ingest(opts: IngestOptions): Promise<void> {
-  const log = opts.onProgress ?? ((m: string) => console.log(m));
+  // --json mode (P1): silence human progress logs — the summary object is
+  // the only stdout output, so agents get parseable JSON.
+  const log =
+    opts.json && !opts.onProgress
+      ? () => {}
+      : (opts.onProgress ?? ((m: string) => console.log(m)));
   const quarantineDir =
     opts.quarantineDir ?? join(opts.folder, "ingest-duplicates");
   const minDuration = opts.minDuration ?? 60;
@@ -437,6 +444,27 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     log(`duplicates moved to: ${quarantineDir}`);
   if (broken.length > 0)
     log(`broken files:\n  ${broken.map((b) => basename(b)).join("\n  ")}`);
+
+  if (opts.json) {
+    // P1 (--json on every command): one summary object on stdout, last.
+    console.log(
+      JSON.stringify({
+        command: "ingest",
+        dryRun: opts.dryRun ?? false,
+        files: files.length,
+        tagged,
+        artAdded,
+        artQueued,
+        wavConverted,
+        shortSkipped,
+        unchanged,
+        folderDupes,
+        archiveDupes,
+        upgrades,
+        broken: broken.length,
+      }),
+    );
+  }
 
   // Zips: delete only when EVERY file staged from them has left the source
   // folder (i.e. was moved into the archive or quarantined as a dupe).

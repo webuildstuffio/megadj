@@ -18,7 +18,13 @@
  *   cookies      browser cookie access for yt-dlp (optional)
  *   cratedeck/config.toml  exists + master/mirror drives set (init can fix)
  */
-import { existsSync, readFileSync, copyFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  copyFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { homedir, platform } from "node:os";
 

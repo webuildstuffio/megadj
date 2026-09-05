@@ -30,16 +30,16 @@ getdat — pull every track from everywhere:
   megadj status [--json]                       archive summary + recent runs
   megadj list    [filter] [--json]             list tracks (by status or text)
   megadj adopt   [--json]                      register existing files in the DB
-  megadj retry                                reset failure counters, then \`megadj sync\` to retry
+  megadj retry   [--json]                      reset failure counters, then \`megadj sync\` to retry
 
 fulltags — 100% accuracy, 100% coverage, zero manual labour:
-  megadj ingest  <folder> [--dry-run] [--no-artwork] [--min-duration N]
+  megadj ingest  <folder> [--dry-run] [--no-artwork] [--min-duration N] [--json]
                                                tag+art+dedupe downloads (zips too)
-  megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run]
+  megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run] [--json]
                                                enrichment pass: tags+genres+years+art
   megadj audit   [--json]                      ground-truth tag/art audit — exits 1 on any gap
-  megadj years   [--dry-run]                   verify years vs SC page/yt-dlp (kills AI 2023 guesses)
-  megadj artwork [--model M] [--max N] [--dry-run]
+  megadj years   [--dry-run] [--json]          verify years vs SC page/yt-dlp (kills AI 2023 guesses)
+  megadj artwork [--model M] [--max N] [--dry-run] [--json]
                                                generate covers for queued tracks (last resort)
   megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz
   megadj organize [--dry-run] [--json]         move downloaded files into genre folders
@@ -56,7 +56,12 @@ environment:
   MEGADJ_DB             state db path (default ~/.local/state/megadj/archive.db)
   MEGADJ_COOKIES        browser for cookies (default chrome, empty to disable)
   MEGADJ_COOKIES_FILE   exported cookie jar for headless runs (see scripts/export-cookies.sh)
-  OPENROUTER_API_KEY    required for \`artwork\` (load from keychain, never hardcode)`);
+  MEGADJ_ART_MAX        max AI covers per artwork pass (default 20)
+  MEGADJ_ART_QUEUE      artwork queue path (default ~/.local/state/megadj/artwork-queue.jsonl)
+  OPENROUTER_API_KEY    required for \`artwork\` + AI genre/year (load from keychain, never hardcode)
+
+agents: every command takes --json (one summary object on stdout, exit code
+still meaningful) — PRINCIPLES.md §1.`);
 }
 
 /** Bun's util.parseArgs is broken (strict:true rejects known options,
@@ -127,7 +132,8 @@ async function main(): Promise<void> {
         if (flags.bools.has("json")) {
           console.log(doctorJson(results));
           // --json keeps the same contract as text mode: exit 1 if any
-          // required check is broken (usable as a CI/script gate)
+          // required check is broken (usable as a script/local gate —
+          // there is no CI by principle; PRINCIPLES.md §1)
           process.exitCode = results.some((c) => !c.ok && c.required) ? 1 : 0;
         } else {
           process.exitCode = printDoctor(results);
@@ -203,7 +209,12 @@ async function main(): Promise<void> {
         // Failed tracks with attempts < 5 are already picked up by sync;
         // this resets the ladder for everything failed.
         state.resetFailures();
-        console.log("failure counters reset — run `megadj sync` to retry");
+        if (process.argv.slice(3).includes("--json")) {
+          // P1 (--json on every command): one summary object on stdout.
+          console.log(JSON.stringify({ command: "retry", reset: true }));
+        } else {
+          console.log("failure counters reset — run `megadj sync` to retry");
+        }
         break;
       }
       case "adopt": {
@@ -246,7 +257,7 @@ async function main(): Promise<void> {
         const flags = parseFlags(
           process.argv.slice(3),
           ["ingest", "folder"],
-          ["dry-run", "no-artwork"],
+          ["dry-run", "no-artwork", "json"],
         );
         const folder =
           flags.strings.get("folder") ??
@@ -270,6 +281,7 @@ async function main(): Promise<void> {
           minDuration: flags.strings.get("min-duration")
             ? Number(flags.strings.get("min-duration"))
             : undefined,
+          json: flags.bools.has("json"),
         });
         break;
       }
@@ -277,7 +289,7 @@ async function main(): Promise<void> {
         const flags = parseFlags(
           process.argv.slice(3),
           ["model", "max"],
-          ["dry-run"],
+          ["dry-run", "json"],
         );
         const { artwork } = await import("./commands/artwork");
         await artwork({
@@ -287,6 +299,7 @@ async function main(): Promise<void> {
             ? Number(flags.strings.get("max"))
             : undefined,
           dryRun: flags.bools.has("dry-run"),
+          json: flags.bools.has("json"),
         });
         break;
       }
@@ -294,7 +307,7 @@ async function main(): Promise<void> {
         const flags = parseFlags(
           process.argv.slice(3),
           ["jobs"],
-          ["art", "genres", "tags", "years", "all", "dry-run"],
+          ["art", "genres", "tags", "years", "all", "dry-run", "json"],
         );
         const { fetch } = await import("./commands/fetch");
         const only = flags.bools.has("art")
@@ -313,6 +326,7 @@ async function main(): Promise<void> {
             ? Number(flags.strings.get("jobs"))
             : undefined,
           dryRun: flags.bools.has("dry-run"),
+          json: flags.bools.has("json"),
         });
         break;
       }
@@ -363,9 +377,16 @@ async function main(): Promise<void> {
       case "years": {
         // the fix_years pass, one entry point: verifies every track's year
         // against the SC page / yt-dlp timestamp (never the AI guess)
-        const flags = parseFlags(process.argv.slice(3), [], ["dry-run"]);
+        const flags = parseFlags(
+          process.argv.slice(3),
+          [],
+          ["dry-run", "json"],
+        );
         const { runFixYears } = await import("../tools/fix_years");
-        runFixYears({ dryRun: flags.bools.has("dry-run") });
+        runFixYears({
+          dryRun: flags.bools.has("dry-run"),
+          json: flags.bools.has("json"),
+        });
         break;
       }
       default:
