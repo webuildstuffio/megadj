@@ -88,11 +88,28 @@ fixture server + Chrome DevTools Protocol DOM checks; screenshots reviewed.
   feed the readiness badge. Max one auto-verify attempt per drive per
   sweep; interlock applies as to every job.
 
+## Agent surface (shipped 2026-09-05)
+
+- **MCP server** — `src/mcp.ts`: stdio JSON-RPC exposing deckctl's surface
+  (`deck_status/drives/report/run/coverage/redundancy/diff/jobs/cancel/
+  explain`) as tools; mutating tools flagged `destructive`; the rekordbox
+  interlock is enforced client-side *and* server-side (423 on enqueue).
+  Run: `bun run mcp`.
+- **Shared HTTP client** — `src/deckapi.ts`: server auto-start, drive
+  resolution, `waitForJob`; one source of truth for deckctl + mcp.
+- **Verify reports** — `src/verify_report.ts` (+ tests): structured
+  deep-verify results feeding the readiness badge.
+- **CLI verification gates** — `megadj doctor [--json]` (exit 1 if any
+  required dependency/config check fails — usable as a script gate) and
+  `megadj init` (scaffolds `cratedeck/config.toml`, auto-filling drive
+  names from mounted volumes).
+
 ## Test coverage
 
 `cratedeck/test/`: `badges`, `config`, `db`, `e2e` (live server: interlock,
-drives list, SPA shell), `fleet` (coverage/redundancy/diff engine +
-persistence), `guard` (write allow-list), `scan-detect`,
+drives list, SPA shell — skips the shell assertion when `web/dist` isn't
+built), `fleet` (coverage/redundancy/diff engine + persistence), `guard`
+(write allow-list), `scan-detect`, `verify_report`,
 `report` (dual-DB gate fail path, grid coverage thresholds, bitrot, mirror
 superset/behind, artwork coverage, space/df, NFC+casefold).
 
