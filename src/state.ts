@@ -133,6 +133,24 @@ export class ArchiveState {
         analyzed_at TEXT NOT NULL
       );
     `);
+    // Mood/dance/valence ledger (roadmap rev 6.1 #4): the parsed TXXX:MOOD
+    // stamp per track — danceability, 4 mood heads, valence/arousal. The
+    // FILE carries the stamp (ground truth); this is the queryable mirror
+    // for CrateDeck/agents (same pattern as the beats ledger).
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS mood (
+        video_id TEXT PRIMARY KEY,
+        dance REAL NOT NULL,
+        aggressive REAL NOT NULL,
+        happy REAL NOT NULL,
+        electronic REAL NOT NULL,
+        party REAL NOT NULL,
+        valence REAL NOT NULL,
+        arousal REAL NOT NULL,
+        source_path TEXT NOT NULL,
+        analyzed_at TEXT NOT NULL
+      );
+    `);
     this.db.exec(
       `CREATE INDEX IF NOT EXISTS idx_tracks_source ON tracks(source)`,
     );
@@ -530,5 +548,136 @@ export class ArchiveState {
         bpmFolded: r.bpm_folded,
       };
     });
+  }
+
+  // ---------- mood ledger (roadmap rev 6.1 #4) ----------
+
+  /** Upsert one parsed mood result. Idempotent by video_id: a re-run
+   * replaces the row (fresh timestamps). */
+  setMoodRecord(rec: {
+    videoId: string;
+    dance: number;
+    aggressive: number;
+    happy: number;
+    electronic: number;
+    party: number;
+    valence: number;
+    arousal: number;
+    sourcePath: string;
+  }): void {
+    this.db
+      .query(
+        `INSERT INTO mood (video_id, dance, aggressive, happy, electronic, party, valence, arousal, source_path, analyzed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(video_id) DO UPDATE SET
+           dance = excluded.dance,
+           aggressive = excluded.aggressive,
+           happy = excluded.happy,
+           electronic = excluded.electronic,
+           party = excluded.party,
+           valence = excluded.valence,
+           arousal = excluded.arousal,
+           source_path = excluded.source_path,
+           analyzed_at = excluded.analyzed_at`,
+      )
+      .run(
+        rec.videoId,
+        rec.dance,
+        rec.aggressive,
+        rec.happy,
+        rec.electronic,
+        rec.party,
+        rec.valence,
+        rec.arousal,
+        rec.sourcePath,
+        this.now(),
+      );
+  }
+
+  /** One mood record (by video id), null when never analyzed. */
+  moodRecord(videoId: string): {
+    videoId: string;
+    dance: number;
+    aggressive: number;
+    happy: number;
+    electronic: number;
+    party: number;
+    valence: number;
+    arousal: number;
+    sourcePath: string;
+    analyzedAt: string;
+  } | null {
+    const row = this.db
+      .query(
+        `SELECT video_id, dance, aggressive, happy, electronic, party, valence, arousal, source_path, analyzed_at
+         FROM mood WHERE video_id = ?`,
+      )
+      .get(videoId) as {
+      video_id: string;
+      dance: number;
+      aggressive: number;
+      happy: number;
+      electronic: number;
+      party: number;
+      valence: number;
+      arousal: number;
+      source_path: string;
+      analyzed_at: string;
+    } | null;
+    if (!row) return null;
+    return {
+      videoId: row.video_id,
+      dance: row.dance,
+      aggressive: row.aggressive,
+      happy: row.happy,
+      electronic: row.electronic,
+      party: row.party,
+      valence: row.valence,
+      arousal: row.arousal,
+      sourcePath: row.source_path,
+      analyzedAt: row.analyzed_at,
+    };
+  }
+
+  /** Aggregate mood/energy profile over all analyzed tracks — the CrateDeck
+   * vibe-map feed: averages + count, ordered extremes for UI pickers. */
+  moodSummary(): {
+    available: boolean;
+    analyzed: number;
+    avg: {
+      dance: number;
+      valence: number;
+      arousal: number;
+      party: number;
+      electronic: number;
+    };
+  } {
+    const row = this.db
+      .query(
+        `SELECT COUNT(*) n,
+                AVG(dance) dance, AVG(valence) valence, AVG(arousal) arousal,
+                AVG(party) party, AVG(electronic) electronic
+         FROM mood`,
+      )
+      .get() as {
+      n: number;
+      dance: number | null;
+      valence: number | null;
+      arousal: number | null;
+      party: number | null;
+      electronic: number | null;
+    };
+    const r = (v: number | null): number => Math.round((v ?? 0) * 1000) / 1000;
+    return {
+      available: true,
+      analyzed: row.n,
+      avg: {
+        dance: r(row.dance),
+        valence: r(row.valence),
+        arousal: r(row.arousal),
+        party: r(row.party),
+        electronic: r(row.electronic),
+      },
+    };
   }
 }

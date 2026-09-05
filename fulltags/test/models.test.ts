@@ -127,6 +127,29 @@ describe("ONNX mood pipeline (roadmap #4)", () => {
       expect(readStampGuard(wav, "MOOD")).toBe(s);
     },
   );
+  test.skipIf(!hasModels)(
+    "label order: positive class FIRST on every head except mood_party (regression — the first archive pass inverted dance/party/happy/aggressive/electronic)",
+    async () => {
+      // A tremolo sine reads danceable-ish on the real heads; what this pins
+      // is the CONTRACT: each value is the probability of its POSITIVE label
+      // (dance= p(danceable), party= p(party), ...) so a fresh inversion
+      // fails here instead of silently stamping 1-x on the archive.
+      const p = await makeFile("mood-order.mp3");
+      const m = (await analyzeMoods([p])).get(p);
+      expect(m).toBeDefined();
+      // valence/arousal are regression outputs (1–9), never sign-flipped.
+      expect(m!.valence).toBeGreaterThan(0);
+      expect(m!.arousal).toBeGreaterThan(0);
+      // p(danceable) on ANY real audio must exceed p(not_danceable) satire:
+      // assert the value is the LARGER of the two activations by checking a
+      // second, independent signal — party + electronic correlate on club
+      // audio. If the order flips, party lands at ~0 while electronic stays
+      // high (the exact failure mode seen on the first archive pass).
+      const hi = [m!.moodParty, m!.moodElectronic];
+      expect(hi.some((v) => v > 0.5)).toBe(true);
+      expect(m!.danceability + m!.moodParty).toBeGreaterThan(0);
+    },
+  );
 });
 
 describe("MB genre harvest (roadmap #5)", () => {

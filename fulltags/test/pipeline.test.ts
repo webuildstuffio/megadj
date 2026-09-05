@@ -141,4 +141,48 @@ import json; print(json.dumps(found))`,
     },
     { timeout: 90_000 },
   );
+
+  test(
+    "measureRms works on art-embedded WAV (regression: cover-as-video poisoned astats)",
+    async () => {
+      // Art-embedded files carry the cover as a bogus video stream; with
+      // ffmpeg's default stream selection that stream reached the astats
+      // graph, failed to decode (JPEG misdetected as PNG), and the whole
+      // command exited non-zero — measureRms returned null and 4 real
+      // archive WAVs silently got NO energy stamp. -map 0:a skips it.
+      const p = `${DIR}/art.wav`;
+      await $`mkdir -p ${DIR}`.quiet();
+      // 5 s tone (fingerprint-length irrelevant here but keeps fixtures uniform)
+      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=5 ${p}`.quiet();
+      // 5 s tone; then embed the cover the way the writer really does it
+      // (mutagen APIC in the ID3 chunk — ffmpeg's WAV muxer can't carry
+      // a video stream at all, which is exactly why the bug hid until a
+      // real art-embedded file hit it).
+      const cover = `${DIR}/cover.jpg`;
+      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i color=c=red:s=32x32:d=1 -frames:v 1 ${cover}`.quiet();
+      await $`ffmpeg -y -hide_banner -loglevel error -i ${cover} -vf scale=32:32 -c:v png ${DIR}/cover.png`.quiet();
+      const embed = Bun.spawnSync({
+        cmd: [
+          "uv",
+          "run",
+          "--with",
+          "mutagen",
+          "python",
+          "-c",
+          `from mutagen.wave import WAVE
+from mutagen.id3 import APIC
+a = WAVE(${JSON.stringify(p)})
+a.add_tags()
+a.tags.add(APIC(encoding=3, mime="image/png", type=3, desc="Cover", data=open(${JSON.stringify(`${DIR}/cover.png`)}, "rb").read()))
+a.save()`,
+        ],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      expect(embed.exitCode).toBe(0);
+      const res = await enrichTrack({ path: p }, { only: ["energy"], artworkQueue: null });
+      expect(res.notes.some((n) => n.startsWith("energy:"))).toBe(true);
+    },
+    { timeout: 60_000 },
+  );
 });

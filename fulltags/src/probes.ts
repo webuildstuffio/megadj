@@ -28,10 +28,16 @@ export function energyFromLufs(rmsDb: number | null): number | null {
   return Math.round((1 + ((clamped + 25) / 17) * 9) * 10) / 10;
 }
 
-/** Integrated RMS level (dBFS) via ffmpeg astats; null on failure. */
+/** Integrated RMS level (dBFS) via ffmpeg astats; null on failure.
+ *  `-map 0:a` is NOT optional: art-embedded files carry a cover-video
+ *  stream (the APIC/mjpeg chunk), and when it's left in the default
+ *  stream selection ffmpeg decodes it into the astats graph, fails the
+ *  decode, and exits non-zero — measureRms returned null for every
+ *  art-embedded track (4 real archive WAVs lost their energy stamp to
+ *  this). Mapping the audio stream explicitly sidesteps the junk. */
 export async function measureRms(file: string): Promise<number | null> {
   const proc =
-    await $`ffmpeg -hide_banner -nostats -i ${file} -af astats=measure_overall=RMS_level:measure_perchannel=none -f null -`
+    await $`ffmpeg -hide_banner -nostats -i ${file} -map 0:a -af astats=measure_overall=RMS_level:measure_perchannel=none -f null -`
       .quiet()
       .nothrow();
   if (proc.exitCode !== 0) return null;

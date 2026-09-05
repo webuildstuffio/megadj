@@ -41,6 +41,8 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj years   [--dry-run] [--json]          verify years vs SC page/yt-dlp (kills AI 2023 guesses)
   megadj beats   [--limit N] [--jobs N] [--force] [--dry-run] [--json]
                                                beat_this → DB ledger (downbeats for cues/grid checks; no tag writes)
+  megadj mood    [--limit N] [--jobs N] [--force] [--dry-run] [--json]
+                                               ONNX mood/dance/VA → DB ledger (syncs TXXX:MOOD stamps; analyzes unstamped)
   megadj artwork [--model M] [--max N] [--dry-run] [--json]
                                                generate covers for queued tracks (last resort)
   megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz
@@ -432,6 +434,35 @@ async function main(): Promise<void> {
         }
         const { beats } = await import("./commands/beats");
         await beats({
+          state,
+          musicDir: MUSIC_DIR,
+          jobs: numOpt(flags, "jobs"),
+          limit: limRaw !== undefined ? limNum : undefined,
+          force: flags.bools.has("force"),
+          dryRun: flags.bools.has("dry-run"),
+          json: flags.bools.has("json"),
+        });
+        break;
+      }
+      case "mood": {
+        // Roadmap rev 6.1 #4: ONNX mood/dance/valence → DB ledger. File
+        // stamps (TXXX:MOOD) sync first; unstamped tracks analyze inline.
+        const flags = parseFlags(
+          process.argv.slice(3),
+          ["limit", "jobs"],
+          ["force", "dry-run", "json"],
+        );
+        const limRaw = flags.strings.get("limit");
+        const limNum = limRaw !== undefined ? Number(limRaw) : NaN;
+        if (limRaw !== undefined && (!Number.isFinite(limNum) || limNum < 0)) {
+          console.error(
+            `mood: --limit must be a non-negative number (got "${limRaw}")`,
+          );
+          process.exitCode = 1;
+          break;
+        }
+        const { mood } = await import("./commands/mood");
+        await mood({
           state,
           musicDir: MUSIC_DIR,
           jobs: numOpt(flags, "jobs"),

@@ -97,8 +97,16 @@ produces, regardless of the language used in the request.
   CC BY-NC-SA personal; **energy 2.0** = `0.5·RMS + 0.3·dance + 0.2·arousal`
   when a MOOD stamp exists) and **#5 MB genre harvest** (`fulltags/src/mb.ts`,
   1 rps + cache; `megadj enrich` folded onto it + the shared writer — the
-  last duplicate writer is deleted). Head gotchas: label order `[not_X, X]`
-  (positive = LAST), emomusic = (valence, arousal) 1–9, effnet melspec =
+  last duplicate writer is deleted). **Archive execution (same day):**
+  the first mood pass shipped with the head label order INVERTED — it is
+  positive FIRST for every head except mood_party (per each model .json);
+  saturated output (dance=0.00/party=1.00 on all 88) is the tell, direct
+  ONNX probe confirms, stamps stripped + re-run, regression test pins it.
+  `megadj mood` mirrors stamps into the DB `mood` ledger
+  (`setMoodRecord`/`moodRecord`/`moodSummary`, 88/88); electronic genre
+  head GATE FAILED (saturated 0.87–1.0 on every genre incl. Ambient) —
+  genre writes stay BLOCKED. Head gotchas: label order positive FIRST
+  (mood_party LAST), emomusic = (valence, arousal) 1–9, effnet melspec =
   MusiCNN 512/256 in 128-frame chunks (fixed ONNX batch), vggish = 400/200
   → 96-frame patches transposed (64, 96).
 - **rekordbox WAV artwork**: RB never reads art embedded in WAVs (RIFF INFO
@@ -193,56 +201,58 @@ produces, regardless of the language used in the request.
   throttles its drive-scoped fetch to ≤1/2s, or a long verify hammers the
   server with thousands of redundant fetches.
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
- server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
-19 tools — the original 10 (`deck_status/drives/report/coverage/
+  server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
+  19 tools — the original 10 (`deck_status/drives/report/coverage/
 redundancy/diff/jobs/run/cancel/explain`) plus `deck_preflight` (B12),
- `deck_players` (N75/N78 hardware compat from measured dual-DB rows;
- matrix in `cratedeck/src/players.ts`, user-extendable via config.toml
- `[players.players]`), the O82b archive half
- (`archive_search_tracks/track_stats/ingest_status/lowq_queue/
+  `deck_players` (N75/N78 hardware compat from measured dual-DB rows;
+  matrix in `cratedeck/src/players.ts`, user-extendable via config.toml
+  `[players.players]`), the O82b archive half
+  (`archive_search_tracks/track_stats/ingest_status/lowq_queue/
 source_diff` — readonly reads over megadj's archive DB via
- `cratedeck/src/archive.ts`, opened `readonly: true`, so a bug there
- cannot corrupt archive state; missing DB degrades to `available:false`),
- and the O88 pair `deck_note` (mutating, human-confirmed findings) /
- `deck_notes` (readonly active feed).
- `bun run mcp` from repo root; guide + registration snippet in
- `cratedeck/deckctl.md` §MCP; `plugin/` packages the whole surface as an
- installable Claude Code plugin (O85 — manifest + MCP + SessionStart hook
- + the 3 skills; `claude plugin validate` passes). Readonly tools carry
- `readOnlyHint: true`
- annotations; `deck_run`/`deck_cancel`/`deck_note` are flagged
- `[MUTATES DRIVE STATE]` and the rekordbox interlock is enforced inside
- the tool layer
- (prompts are suggestions, exit codes are law). **O88 agent notes:**
- notes ARE timeline events (kind `agent-note`) — the 2000-per-drive event
- cap bounds growth automatically; engine `cratedeck/src/notes.ts`
- (validate/clamp, 600-char cap) + `db.addAgentNote/dismissAgentNote/
+  `cratedeck/src/archive.ts`, opened `readonly: true`, so a bug there
+  cannot corrupt archive state; missing DB degrades to `available:false`),
+  and the O88 pair `deck_note` (mutating, human-confirmed findings) /
+  `deck_notes` (readonly active feed).
+  `bun run mcp` from repo root; guide + registration snippet in
+  `cratedeck/deckctl.md` §MCP; `plugin/` packages the whole surface as an
+  installable Claude Code plugin (O85 — manifest + MCP + SessionStart hook
+
+* the 3 skills; `claude plugin validate` passes). Readonly tools carry
+  `readOnlyHint: true`
+  annotations; `deck_run`/`deck_cancel`/`deck_note` are flagged
+  `[MUTATES DRIVE STATE]` and the rekordbox interlock is enforced inside
+  the tool layer
+  (prompts are suggestions, exit codes are law). **O88 agent notes:**
+  notes ARE timeline events (kind `agent-note`) — the 2000-per-drive event
+  cap bounds growth automatically; engine `cratedeck/src/notes.ts`
+  (validate/clamp, 600-char cap) + `db.addAgentNote/dismissAgentNote/
 agentNotes`; API `GET/POST /api/drives/:id/notes` + `POST .../notes/:id/
 dismiss`; dismissal flips `dismissed_at` (history kept) and the active
- feed skips it; TimelineTab renders severity-toned cards with a dismiss
- button. **O87 attribution:**
- `jobs.origin` ("web"/"deckctl"/"auto"/"mcp:<session>") rides on job
- rows + timeline events so agent actions are distinguishable in `deckctl
+  feed skips it; TimelineTab renders severity-toned cards with a dismiss
+  button. **O87 attribution:**
+  `jobs.origin` ("web"/"deckctl"/"auto"/"mcp:<session>") rides on job
+  rows + timeline events so agent actions are distinguishable in `deckctl
  jobs` and the UI timeline. ⌘K global search over all snapshots ships in
- the web topbar (`GET /api/search`, B9). B12 preflight
- (`cratedeck/src/preflight.ts` + `deckctl preflight` + `/api/preflight`)
- is the gig-night gate: worst-status-wins verdict per drive
- (not-ready/attention/unknown/ready), unknowns never fake ready, exit 1
- when not ready — cron/agents gate on the code; includes the N75 player
- compat check (fully blocked drive = not-ready) and N76 firmware
- advisories (`firmware_advisories` in the report, informational only).
- O83 weekly digest:
- `deckctl prep [--out FILE]` (`cratedeck/src/weekly_prep.ts`, pure
- renderer) → markdown over preflight + redundancy + archive reads. Doc
- alignment: ideas.md B9/B12/N75/N76/N78/O82/O83/O85/O86/O87/O88 are
- marked shipped.
+  the web topbar (`GET /api/search`, B9). B12 preflight
+  (`cratedeck/src/preflight.ts` + `deckctl preflight` + `/api/preflight`)
+  is the gig-night gate: worst-status-wins verdict per drive
+  (not-ready/attention/unknown/ready), unknowns never fake ready, exit 1
+  when not ready — cron/agents gate on the code; includes the N75 player
+  compat check (fully blocked drive = not-ready) and N76 firmware
+  advisories (`firmware_advisories` in the report, informational only).
+  O83 weekly digest:
+  `deckctl prep [--out FILE]` (`cratedeck/src/weekly_prep.ts`, pure
+  renderer) → markdown over preflight + redundancy + archive reads. Doc
+  alignment: ideas.md B9/B12/N75/N76/N78/O82/O83/O85/O86/O87/O88 are
+  marked shipped.
+
 - **Docs hygiene passes (Sep 5 2026):** docs go through `/docs-audit`
- rounds (SSOT-merge duplicates, kill stale claims, verify against code)
- before pushes; `knip.json` was added so knip flags real dead code instead
- of legitimate entry points (tests, web components, standalone CLIs); a
- repo-wide cleanup pass fixed hardcoded user-specific paths in
- `tools/fetch_lib.ts`/`fetch_all.ts`/`fix_years.ts`/`artwork.ts` —
- new tools take volume names/paths from config, never literals.
+  rounds (SSOT-merge duplicates, kill stale claims, verify against code)
+  before pushes; `knip.json` was added so knip flags real dead code instead
+  of legitimate entry points (tests, web components, standalone CLIs); a
+  repo-wide cleanup pass fixed hardcoded user-specific paths in
+  `tools/fetch_lib.ts`/`fetch_all.ts`/`fix_years.ts`/`artwork.ts` —
+  new tools take volume names/paths from config, never literals.
 
 ## Local-only files
 

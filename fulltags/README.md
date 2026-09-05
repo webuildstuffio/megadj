@@ -68,9 +68,9 @@ fulltags/
     remix.ts             `X - Y (Z Remix)` detection
     pipeline.ts          enrichTrack / enrichAll — the orchestrator
     exports.ts           public import surface
-  test/                  93 tests (schema, writer round-trips, pipeline,
+  test/                  94 tests (schema, writer round-trips, pipeline,
                          m4a/AIFF stamps, audit gate, CLI subcommands,
-                         analysis + mood stages — env-gated)
+                         analysis + mood stages + label-order pin — env-gated)
 ```
 
 ## The ladders (first success wins)
@@ -101,7 +101,7 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
   (`convert.ts`).
 - **mp3**: written as id3v2.3 for widest hardware compatibility.
 - **m4a**: tags go through mutagen (ffmpeg's ipod muxer has NO metadata
-  mapping for bpm/energy/remixer/mbid/AI-* — they vanish silently, and
+  mapping for bpm/energy/remixer/mbid/AI-\* — they vanish silently, and
   every remux wipes existing freeform atoms); covers still remux via
   ffmpeg (mjpeg + `attached_pic`).
 - **tmp files keep their extension** — ffmpeg infers the muxer from the
@@ -147,12 +147,13 @@ use).
 
 ## Relationship to megadj commands
 
-| megadj command  | What it does now                                                          |
-| --------------- | ------------------------------------------------------------------------- |
-| `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims       |
-| `megadj fetch`  | unchanged — `tools/fetch_all.ts` now writes through FullTags `writePatch` |
-| `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                   |
-| `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted) |
+| megadj command  | What it does now                                                                             |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims                          |
+| `megadj fetch`  | unchanged — `tools/fetch_all.ts` now writes through FullTags `writePatch`                    |
+| `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                                      |
+| `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted)         |
+| `megadj mood`   | syncs `TXXX:MOOD` stamps into the archive DB `mood` ledger; analyzes unstamped tracks inline |
 
 The **roadmap** for what comes next (genre-head write pass, dupe hunting on
 the new fingerprints, structure cues) lives in

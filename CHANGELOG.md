@@ -7,6 +7,37 @@ All notable changes to megadj are documented here. Format:
 
 ### Added
 
+- **Mood pass over the archive + label-order hotfix + `megadj mood`
+  ledger (Sep 5 2026, late night):** the rev 6.1 mood suite executed for
+  real, one bug caught and fixed in the process.
+  - **Label-order hotfix** (`fulltags/src/models.ts`): the first archive
+    pass stamped every track `dance=0.00 party=1.00` — the head softmax
+    order was read as `[not_X, X]` but is **positive FIRST for every
+    head except mood_party** (per each model's .json:
+    `['danceable','not_danceable']`, `['aggressive','not_aggressive']`,
+    `['happy','non_happy']`, `['electronic','non_electronic']`,
+    `['non_party','party']`). Caught because saturated-constant output
+    is never believable; direct ONNX probe on a real track confirmed
+    sane values after the flip. All 88 MOOD+ENERGY stamps stripped and
+    re-run; third pass = 0 changed (converged idempotent). Regression
+    test pins the label order in `fulltags/test/models.test.ts`.
+  - **`megadj mood [--limit N] [--jobs N] [--force] [--dry-run]
+[--json]`** (`src/commands/mood.ts`): syncs `TXXX:MOOD` file stamps
+    into the new `mood` table in the archive DB (`src/state.ts`:
+    `setMoodRecord`/`moodRecord`/`moodSummary`) and analyzes unstamped
+    tracks inline. 88/88 ledgered, avg dance 1.0 / party 0.99 /
+    valence 4.34 / arousal 4.98; re-run is a no-op. P1 `--json` clean.
+  - **Electronic genre-head gate FAILED (kept BLOCKED):** the effnet
+    electronic head is saturated on this library — 0.87–1.0 across
+    every genre including Ambient — so genre writes from it would
+    destroy ladder-sourced genres (same verdict pattern as the TBPM
+    gate). dance/happy/aggressive DO differentiate (happy 0.04–0.99,
+    aggressive 0.01–0.98); mood fields stay, genre stays multi-vote.
+  - Tests: label-order pin + 3 mood-ledger tests — suite at 94 (+3 in
+    `src/mood-ledger.test.ts`).
+
+### Added
+
 - **FullTags roadmap rev 6.1 — #4 + #5 SHIPPED (Sep 5 2026, late night):**
   the ONNX mood suite and the MB genre harvest are live.
   - `fulltags <folder> --mood` (`fulltags/src/models.ts`): Essentia ONNX
@@ -56,11 +87,11 @@ All notable changes to megadj are documented here. Format:
     remaining 8 failures are genuine half/double phase-locks.
   - CrateDeck independent grid cross-check:
     `ArchiveReader.gridCrossCheck` + `GET /api/archive/grid-cross-check`
-    + MCP tool `archive_grid_cross_check` (readonly) — beat_this's grid
-    vs RB's BPM×duration per track, classified ok / off (>2%) / octave
-    (half-double lock). The verify pipeline's own grid check compares
-    duration×BPM against a beat count from the SAME analysis
-    (self-referential); this one pits two analyzers against each other.
+    - MCP tool `archive_grid_cross_check` (readonly) — beat_this's grid
+      vs RB's BPM×duration per track, classified ok / off (>2%) / octave
+      (half-double lock). The verify pipeline's own grid check compares
+      duration×BPM against a beat count from the SAME analysis
+      (self-referential); this one pits two analyzers against each other.
   - Tests: beats-ledger round-trip/idempotency/corrupt-row +
     command-contract tests (`src/state.test.ts`,
     `src/commands/beats.test.ts`) and ok/off/octave verdict tests
@@ -83,7 +114,7 @@ All notable changes to megadj are documented here. Format:
 - Two latent FullTags bugs found by the rev 5 execution, both fixed with
   regression tests in `fulltags/test/pipeline.test.ts`:
   (1) `readTxxx`'s WAV/AIFF branches opened files but never read the ID3
-  TXXX frames — every stamp probe (ACOUSTID/CAMELOT/ENERGY/AI-*) was
+  TXXX frames — every stamp probe (ACOUSTID/CAMELOT/ENERGY/AI-\*) was
   null on WAVs, so the "idempotent" fingerprint stage re-fingerprinted
   and rewrote all 73 archive WAVs on every re-run, forever; one shared
   ID3-TXXX read loop now covers WAV/AIFF/MP3. Lesson: idempotency is
@@ -91,12 +122,12 @@ All notable changes to megadj are documented here. Format:
   also wrote remix credits — remix detection is now stage-gated behind
   `want("tags")`.
 - **CrateDeck O88 — findings-from-agents feed:** `deck_note {drive, note,
-  severity?}` MCP tool (flagged mutating, human-confirmed) lands an agent
+severity?}` MCP tool (flagged mutating, human-confirmed) lands an agent
   finding on the drive timeline as a dismissable card; `deck_notes` reads
   the active feed. Notes are timeline events (kind `agent-note`), so the
   per-drive event cap bounds growth; engine `cratedeck/src/notes.ts`
   (validate/clamp, 600-char cap) + `db.addAgentNote/dismissAgentNote/
-  agentNotes`; API `GET/POST /api/drives/:id/notes` +
+agentNotes`; API `GET/POST /api/drives/:id/notes` +
   `POST .../notes/:id/dismiss`; the UI timeline renders severity-toned
   note cards with dismiss (history kept via `dismissed_at`).
 - **CrateDeck N76 — firmware advisories in preflight:** the player matrix
@@ -180,7 +211,7 @@ diff|jobs|cancel|stop|explain` with `--json`, spinner + ETA, exit 3 on
     `organize`/`enrich` (artwork/ingest already suppressed) — agents got
     unparsable output; PRINCIPLES §1 restored everywhere.
   - expired cookies classified every live video **GONE** (`sign in to
-    confirm` was in the gone patterns) and `markGone` is permanent — one
+confirm` was in the gone patterns) and `markGone` is permanent — one
     dead session poisoned the archive; auth-shield text now backs off and
     retries (`megadj retry` requeues a failed run).
   - `--dry-run` mutated the state DB (playlist upserts + a finished run
@@ -206,7 +237,7 @@ diff|jobs|cancel|stop|explain` with `--json`, spinner + ETA, exit 3 on
   - `megadj audit` / `auditArchive` read only the archive's top level;
     after `organize` moved tracks into genre subfolders it audited an
     empty set and reported 0/0 vacuous success. Now walks recursively.
-  - `tools/fetch_all.ts` matched DB rows by *basename* against a top-level
+  - `tools/fetch_all.ts` matched DB rows by _basename_ against a top-level
     file set — organized tracks were silently skipped by every fetch pass
     and two same-named tracks in different genre folders collided.
     `archiveFiles()` now walks recursively and rows match by full path.

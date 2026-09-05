@@ -169,10 +169,17 @@ def analyze(path):
     out = {}
     for name, sess in heads.items():
         act = sess.run(["activations"], {"embeddings": emb1280})[0].flatten()
-        # label order from the model .json: [not_X, X] — positive is LAST
+        # label order from the model .json — POSITIVE FIRST for every head
+        # except mood_party which is ['non_party', 'party']:
+        #   danceability: ['danceable', 'not_danceable']
+        #   mood_aggressive: ['aggressive', 'not_aggressive']
+        #   mood_happy: ['happy', 'non_happy']
+        #   mood_electronic: ['electronic', 'non_electronic']
+        #   mood_party: ['non_party', 'party']
+        idx = 0 if name != "mood_party" else 1
         suffix = name[len("mood_"):]
         key = "danceability" if name == "danceability" else "mood" + suffix[0].upper() + suffix[1:]
-        out[key] = float(act[-1])
+        out[key] = float(act[idx])
     # vggish tower: vggish melspec (400/200), 96-frame patches transposed to (64, 96)
     melv = TensorflowInputVGGish()
     fsv = np.asarray([melv(f) for f in FrameGenerator(audio, frameSize=400, hopSize=200)], dtype=np.float32)
