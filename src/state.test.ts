@@ -118,12 +118,6 @@ describe("ArchiveState", () => {
   });
 
   test("fresh DB has the `year` column (fetch/years writes must not crash)", () => {
-    // Regression: fetch_all.ts + fix_years.ts run plain
-    // `UPDATE tracks SET year=?` — on a DB created before that column was
-    // added manually, every write crashed with "no such column: year".
-    // migrate() must add it so fresh databases work out of the box.
-    // (Verified through the public surface: upsert + allTracks round-trips
-    // the row, and TrackRow now types `year`.)
     state.upsertTrackFromPlaylist("abc", 1, "First Title");
     expect(() =>
       state.markDownloaded("abc", {
@@ -138,12 +132,106 @@ describe("ArchiveState", () => {
         durationS: 100,
       }),
     ).not.toThrow();
-    const cols = (
-      state.allTracks()[0] as unknown as Record<string, unknown>
-    ) ?? {};
+    const cols =
+      (state.allTracks()[0] as unknown as Record<string, unknown>) ?? {};
     // The migration is structural: a `year` property must exist on the row
     // (null before any fetch run populates it).
     expect(Object.keys(cols)).toContain("year");
     expect(cols.year).toBeNull();
+  });
+
+  test("beats ledger: upsert + round-trip + idempotent replace", () => {
+    state.upsertTrackFromPlaylist("bv1", 0, "Beat Track");
+    state.markDownloaded("bv1", {
+      title: "Beat Track",
+      artist: null,
+      album: null,
+      formatId: null,
+      bitrateKbps: 256,
+      codec: "aac",
+      filePath: "/tmp/bv1.m4a",
+      fileSizeBytes: 1,
+      durationS: 100,
+    });
+    expect(state.beatRecord("bv1")).toBeNull();
+
+    state.setBeatRecord({
+      videoId: "bv1",
+      bpmRaw: 130.43,
+      bpmFolded: 130,
+      beats: [0, 0.46, 0.92],
+      downbeats: [0, 1.84],
+      model: "beat-this@1.1.0",
+      sourcePath: "/tmp/bv1.m4a",
+    });
+    const rec = state.beatRecord("bv1");
+    expect(rec).not.toBeNull();
+    expect(rec?.bpmRaw).toBeCloseTo(130.43);
+    expect(rec?.beats).toEqual([0, 0.46, 0.92]);
+    expect(rec?.downbeats).toEqual([0, 1.84]);
+    expect(rec?.model).toBe("beat-this@1.1.0");
+
+    // Re-run same model: replaces (fresh analyzed_at), not duplicates.
+    state.setBeatRecord({
+      videoId: "bv1",
+      bpmRaw: 130.5,
+      bpmFolded: 131,
+      beats: [0, 0.46],
+      downbeats: [0],
+      model: "beat-this@1.1.0",
+      sourcePath: "/tmp/bv1.m4a",
+    });
+    const again = state.beatRecord("bv1");
+    expect(again?.bpmRaw).toBeCloseTo(130.5);
+    expect(state.beatAnalyzedTracks().length).toBe(1);
+
+    // Corrupt JSON row degrades to null (pass re-analyzes it).
+    const raw = (
+      state as unknown as {
+        db: { query: (q: string) => { run: (...a: unknown[]) => void } };
+      }
+    ).db;
+    raw
+      .query("UPDATE beats SET beats_json = '{corrupt' WHERE video_id = 'bv1'")
+      .run();
+    expect(state.beatRecord("bv1")).toBeNull();
+  });
+
+  test("beatAnalyzedTracks joins downloaded tracks only, empty arrays on corrupt json", () => {
+    state.upsertTrackFromPlaylist("bv2", 0, "Downloaded");
+    state.markDownloaded("bv2", {
+      title: "Downloaded",
+      artist: null,
+      album: null,
+      formatId: null,
+      bitrateKbps: 256,
+      codec: "aac",
+      filePath: "/tmp/bv2.m4a",
+      fileSizeBytes: 1,
+      durationS: 100,
+    });
+    state.upsertTrackFromPlaylist("bv3", 1, "Pending");
+    state.setBeatRecord({
+      videoId: "bv2",
+      bpmRaw: 128,
+      bpmFolded: 128,
+      beats: [0, 0.47],
+      downbeats: [0],
+      model: "beat-this@1.1.0",
+      sourcePath: "/tmp/bv2.m4a",
+    });
+    state.setBeatRecord({
+      videoId: "bv3", // pending track with a beat row — must NOT join
+      bpmRaw: 140,
+      bpmFolded: 140,
+      beats: [0],
+      downbeats: [],
+      model: "beat-this@1.1.0",
+      sourcePath: "/tmp/bv3.m4a",
+    });
+    const joined = state.beatAnalyzedTracks();
+    expect(joined.length).toBe(1);
+    expect(joined[0]?.track.video_id).toBe("bv2");
+    expect(joined[0]?.beats).toEqual([0, 0.47]);
   });
 });

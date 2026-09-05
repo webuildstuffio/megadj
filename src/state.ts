@@ -117,6 +117,22 @@ export class ArchiveState {
     this.addColumnIfMissing("tracks", "year", "TEXT");
     this.addColumnIfMissing("tracks", "energy", "INTEGER");
     this.addColumnIfMissing("tracks", "artwork_status", "TEXT");
+    // Beats/downbeats ledger (roadmap rev 5 §2/#2 pivot): beat_this's
+    // tempo FAILS the tag gate (12/24 within 2% vs rekordbox), but the
+    // BEAT ARRAY is the valuable output — it feeds structure cues and
+    // CrateDeck's grid cross-check. Grid data lands here, NEVER in tags.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS beats (
+        video_id TEXT PRIMARY KEY,
+        bpm_raw REAL,
+        bpm_folded REAL,
+        beats_json TEXT NOT NULL,
+        downbeats_json TEXT NOT NULL,
+        model TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        analyzed_at TEXT NOT NULL
+      );
+    `);
     this.db.exec(
       `CREATE INDEX IF NOT EXISTS idx_tracks_source ON tracks(source)`,
     );
@@ -386,5 +402,133 @@ export class ArchiveState {
     return this.db
       .query("SELECT * FROM runs ORDER BY id DESC LIMIT ?")
       .all(n) as RunRow[];
+  }
+
+  // ---------- beats ledger (roadmap rev 5 §2/#2) ----------
+
+  /** Upsert one beat-analysis result. Idempotent by video_id: a re-run
+   * with the same model REPLACES the row (fresh timestamps), a re-run
+   * with a DIFFERENT model never clobbers silently — callers pass
+   * force=true for that. */
+  setBeatRecord(rec: {
+    videoId: string;
+    bpmRaw: number | null;
+    bpmFolded: number | null;
+    beats: number[];
+    downbeats: number[];
+    model: string;
+    sourcePath: string;
+  }): void {
+    this.db
+      .query(
+        `INSERT INTO beats (video_id, bpm_raw, bpm_folded, beats_json, downbeats_json, model, source_path, analyzed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(video_id) DO UPDATE SET
+           bpm_raw = excluded.bpm_raw,
+           bpm_folded = excluded.bpm_folded,
+           beats_json = excluded.beats_json,
+           downbeats_json = excluded.downbeats_json,
+           model = excluded.model,
+           source_path = excluded.source_path,
+           analyzed_at = excluded.analyzed_at`,
+      )
+      .run(
+        rec.videoId,
+        rec.bpmRaw,
+        rec.bpmFolded,
+        JSON.stringify(rec.beats),
+        JSON.stringify(rec.downbeats),
+        rec.model,
+        rec.sourcePath,
+        this.now(),
+      );
+  }
+
+  beatRecord(videoId: string): {
+    videoId: string;
+    bpmRaw: number | null;
+    bpmFolded: number | null;
+    beats: number[];
+    downbeats: number[];
+    model: string;
+    sourcePath: string;
+    analyzedAt: string;
+  } | null {
+    const row = this.db
+      .query(
+        `SELECT video_id, bpm_raw, bpm_folded, beats_json, downbeats_json, model, source_path, analyzed_at
+         FROM beats WHERE video_id = ?`,
+      )
+      .get(videoId) as {
+      video_id: string;
+      bpm_raw: number | null;
+      bpm_folded: number | null;
+      beats_json: string;
+      downbeats_json: string;
+      model: string;
+      source_path: string;
+      analyzed_at: string;
+    } | null;
+    if (!row) return null;
+    let beats: number[] = [];
+    let downbeats: number[] = [];
+    try {
+      beats = JSON.parse(row.beats_json) as number[];
+      downbeats = JSON.parse(row.downbeats_json) as number[];
+    } catch {
+      // corrupt JSON row — treat as absent so the pass re-analyzes
+      return null;
+    }
+    return {
+      videoId: row.video_id,
+      bpmRaw: row.bpm_raw,
+      bpmFolded: row.bpm_folded,
+      beats,
+      downbeats,
+      model: row.model,
+      sourcePath: row.source_path,
+      analyzedAt: row.analyzed_at,
+    };
+  }
+
+  /** All beat records joined to their track rows (downloaded only). */
+  beatAnalyzedTracks(): Array<{
+    track: TrackRow;
+    beats: number[];
+    downbeats: number[];
+    bpmRaw: number | null;
+    bpmFolded: number | null;
+  }> {
+    const rows = this.db
+      .query(
+        `SELECT t.*, b.beats_json, b.downbeats_json, b.bpm_raw, b.bpm_folded
+         FROM tracks t JOIN beats b ON b.video_id = t.video_id
+         WHERE t.status = 'downloaded'`,
+      )
+      .all() as Array<
+      TrackRow & {
+        beats_json: string;
+        downbeats_json: string;
+        bpm_raw: number | null;
+        bpm_folded: number | null;
+      }
+    >;
+    return rows.map((r) => {
+      let beats: number[] = [];
+      let downbeats: number[] = [];
+      try {
+        beats = JSON.parse(r.beats_json) as number[];
+        downbeats = JSON.parse(r.downbeats_json) as number[];
+      } catch {
+        // leave empty — consumers treat empty arrays as "no grid"
+      }
+      return {
+        track: r,
+        beats,
+        downbeats,
+        bpmRaw: r.bpm_raw,
+        bpmFolded: r.bpm_folded,
+      };
+    });
   }
 }

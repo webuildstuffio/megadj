@@ -39,6 +39,8 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                enrichment pass: tags+genres+years+art
   megadj audit   [--json]                      ground-truth tag/art audit — exits 1 on any gap
   megadj years   [--dry-run] [--json]          verify years vs SC page/yt-dlp (kills AI 2023 guesses)
+  megadj beats   [--limit N] [--jobs N] [--force] [--dry-run] [--json]
+                                               beat_this → DB ledger (downbeats for cues/grid checks; no tag writes)
   megadj artwork [--model M] [--max N] [--dry-run] [--json]
                                                generate covers for queued tracks (last resort)
   megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz
@@ -406,6 +408,35 @@ async function main(): Promise<void> {
         );
         const { runFixYears } = await import("../tools/fix_years");
         await runFixYears({
+          dryRun: flags.bools.has("dry-run"),
+          json: flags.bools.has("json"),
+        });
+        break;
+      }
+      case "beats": {
+        // Roadmap rev 5 §2/#2 pivot: beat_this → DB ledger, NEVER tags
+        // (the tempo gate failed 12/24; arrays feed cues + grid checks).
+        const flags = parseFlags(
+          process.argv.slice(3),
+          ["limit", "jobs"],
+          ["force", "dry-run", "json"],
+        );
+        const limRaw = flags.strings.get("limit");
+        const limNum = limRaw !== undefined ? Number(limRaw) : NaN;
+        if (limRaw !== undefined && (!Number.isFinite(limNum) || limNum < 0)) {
+          console.error(
+            `beats: --limit must be a non-negative number (got "${limRaw}")`,
+          );
+          process.exitCode = 1;
+          break;
+        }
+        const { beats } = await import("./commands/beats");
+        await beats({
+          state,
+          musicDir: MUSIC_DIR,
+          jobs: numOpt(flags, "jobs"),
+          limit: limRaw !== undefined ? limNum : undefined,
+          force: flags.bools.has("force"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
         });

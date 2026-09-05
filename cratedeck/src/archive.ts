@@ -200,4 +200,138 @@ export class ArchiveReader {
       shared: rowsA.filter((r) => setB.has(r.video_id)).length,
     };
   }
+
+  /**
+   * INDEPENDENT beatgrid cross-check (roadmap rev 5 §2/#2): beat_this's
+   * beat arrays (megadj `beats` ledger) vs the track's rekordbox BPM +
+   * duration. The verify pipeline's own grid check is self-referential
+   * (duration × BPM vs beat count from the SAME analysis) — this one
+   * compares a SECOND analyzer's grid against RB's numbers, so a drifted
+   * or octave-locked grid actually shows.
+   *
+   * Per-track verdict: ok | off (grid implies a tempo >2% from RB's) |
+   * octave (fold mismatch — grid locks half/double) | no-data.
+   */
+  gridCrossCheck(limit = 200): {
+    available: boolean;
+    ledgered: number;
+    checked: number;
+    ok: number;
+    off: Array<{
+      video_id: string;
+      title: string | null;
+      rbBpm: number;
+      ledgerBpm: number;
+    }>;
+    octave: Array<{
+      video_id: string;
+      title: string | null;
+      rbBpm: number;
+      ledgerBpm: number;
+    }>;
+  } {
+    // Pre-ledger archive DBs have no `beats` table — degrade to an empty
+    // result (the SQLiteError would otherwise break every caller).
+    const hasBeats = this.rows<{ name: string }>(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'beats'`,
+    );
+    if (!hasBeats.length) {
+      return {
+        available: this.handle() !== null,
+        ledgered: 0,
+        checked: 0,
+        ok: 0,
+        off: [],
+        octave: [],
+      };
+    }
+    const rows = this.rows<{
+      video_id: string;
+      title: string | null;
+      duration_s: number | null;
+      beats_json: string;
+      bpm_folded: number | null;
+    }>(
+      `SELECT t.video_id, t.title, t.duration_s, b.beats_json, b.bpm_folded
+       FROM tracks t JOIN beats b ON b.video_id = t.video_id
+       WHERE t.status = 'downloaded' AND t.duration_s IS NOT NULL
+       ORDER BY t.updated_at DESC LIMIT ?`,
+      Math.min(Math.max(limit, 1), 500),
+    );
+    const off: {
+      video_id: string;
+      title: string | null;
+      rbBpm: number;
+      ledgerBpm: number;
+    }[] = [];
+    const octave: {
+      video_id: string;
+      title: string | null;
+      rbBpm: number;
+      ledgerBpm: number;
+    }[] = [];
+    const result = {
+      available: this.handle() !== null,
+      ledgered: rows.length,
+      checked: 0,
+      ok: 0,
+      off,
+      octave,
+    };
+    for (const r of rows) {
+      if (r.bpm_folded == null) continue;
+      let beats: number[] = [];
+      try {
+        beats = JSON.parse(r.beats_json) as number[];
+      } catch {
+        continue;
+      }
+      if (beats.length < 8 || !r.duration_s) continue;
+      result.checked++;
+      const gridSpan = beats[beats.length - 1]! - beats[0]!;
+      if (gridSpan <= 0) continue;
+      // Tempo the beat_this GRID implies, over its own wall-clock span.
+      const gridBpm = ((beats.length - 1) / gridSpan) * 60;
+      // Tempo RB's DB implies for the same track: its BPM × duration.
+      // The independent ruler is duration: how many beat_this beats fit
+      // in the track vs how many RB BPM beats SHOULD fit.
+      const rbBpm = r.bpm_folded;
+      const expectedBeats = (r.duration_s / 60) * rbBpm;
+      const beatCountDev =
+        Math.abs(beats.length - expectedBeats) / expectedBeats;
+      const folded = (b: number): number => {
+        let x = b;
+        while (x < 70) x *= 2;
+        while (x > 180) x /= 2;
+        return x;
+      };
+      const gridFolded = folded(gridBpm);
+      const ratio = gridFolded / rbBpm;
+      // Octave lock: the grid counts half/double the beats RB expects.
+      const isOctave =
+        Math.abs(ratio - 2) < 0.06 ||
+        Math.abs(ratio - 0.5) < 0.03 ||
+        Math.abs(beats.length / expectedBeats - 2) < 0.06 ||
+        Math.abs(beats.length / expectedBeats - 0.5) < 0.03;
+      if (isOctave) {
+        octave.push({
+          video_id: r.video_id,
+          title: r.title,
+          rbBpm,
+          ledgerBpm: Math.round(gridFolded * 10) / 10,
+        });
+      } else if (beatCountDev > 0.02) {
+        off.push({
+          video_id: r.video_id,
+          title: r.title,
+          rbBpm,
+          ledgerBpm: Math.round(gridBpm * 10) / 10,
+        });
+      } else {
+        result.ok++;
+      }
+    }
+    result.ok = result.checked - off.length - octave.length;
+    return result;
+  }
 }

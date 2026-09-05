@@ -500,6 +500,11 @@ Bun.serve({
             return json({ error: "a and b source names required" }, 400);
           return json(archive.sourceDiff(a, b));
         }
+        // Independent beatgrid cross-check (roadmap §2/#2): beat_this
+        // ledger vs RB BPM×duration. Read-only over the archive DB.
+        if (route === "/archive/grid-cross-check") {
+          return json(archive.gridCrossCheck());
+        }
         if (route === "/images/search") {
           return json(await images.search(url.searchParams.get("q") ?? ""));
         }

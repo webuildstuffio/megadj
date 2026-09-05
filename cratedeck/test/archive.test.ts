@@ -94,6 +94,15 @@ function reader() {
 
 beforeEach(() => {
   seed.exec("DELETE FROM tracks WHERE video_id = 'vx'");
+  // gridCrossCheck fixture rows — table exists only after its test creates
+  // it, so guard for the earlier tests in this file.
+  const hasBeats = seed
+    .query(`SELECT name FROM sqlite_master WHERE type='table' AND name='beats'`)
+    .get();
+  if (hasBeats) {
+    seed.exec("DELETE FROM beats");
+    seed.exec("DELETE FROM tracks WHERE video_id IN ('v5','v6')");
+  }
 });
 
 afterAll(() => {
@@ -176,5 +185,96 @@ describe("ArchiveReader (O82b)", () => {
     expect(threw).toBe(true);
     expect(db).toBeNull(); // silence unused-var lints while keeping the assert above
     r.close();
+  });
+
+  it("gridCrossCheck: ok / off / octave verdicts against the beats ledger", () => {
+    // beats table mirrors megadj's src/state.ts schema
+    seed.exec(`
+      CREATE TABLE IF NOT EXISTS beats (
+        video_id TEXT PRIMARY KEY, bpm_raw REAL, bpm_folded REAL,
+        beats_json TEXT NOT NULL, downbeats_json TEXT NOT NULL,
+        model TEXT NOT NULL, source_path TEXT NOT NULL, analyzed_at TEXT NOT NULL
+      );
+    `);
+    const insB = seed.query(
+      `INSERT OR REPLACE INTO beats (video_id, bpm_raw, bpm_folded, beats_json, downbeats_json, model, source_path, analyzed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const grid = (bpm: number, seconds: number): number[] =>
+      Array.from({ length: Math.floor((seconds / 60) * bpm) + 1 }, (_, i) =>
+        Number((i * (60 / bpm)).toFixed(4)),
+      );
+    // The grid rows join to tracks — seed v5/v6 tracks as downloaded
+    const insT5 = seed.query(
+      `INSERT INTO tracks (video_id, title, artist, status, bitrate_kbps, codec,
+       file_path, duration_s, genre, energy, source, liked_position,
+       first_seen_at, updated_at)
+       VALUES (?, 'Grid Off', 'A', 'downloaded', 320, 'mp3', '/p', 300,
+               'Techno', 7, 'liked', 1, '2026-09-01', '2026-09-05')`,
+    );
+    insT5.run("v5");
+    insT5.run("v6");
+    // v1: RB says 128, grid agrees → ok (300 s ≈ 640 beats)
+    insB.run(
+      "v1",
+      128,
+      128,
+      JSON.stringify(grid(128, 300)),
+      "[]",
+      "m",
+      "p",
+      "t",
+    );
+    // v5: RB says 130, grid implies ~146 (>2% off, not octave) → off
+    insB.run(
+      "v5",
+      130.4,
+      130.4,
+      JSON.stringify(grid(146, 300)),
+      "[]",
+      "m",
+      "p",
+      "t",
+    );
+    // v6: RB says 174 (drum&bass), grid locks the half-tempo 87 → octave
+    insB.run(
+      "v6",
+      174,
+      174,
+      JSON.stringify(grid(87, 300)),
+      "[]",
+      "m",
+      "p",
+      "t",
+    );
+    const r = reader();
+    const g = r.gridCrossCheck();
+    expect(g.available).toBe(true);
+    expect(g.checked).toBe(3);
+    expect(g.ok).toBe(1);
+    expect(g.off.map((o) => o.video_id)).toEqual(["v5"]);
+    expect(g.octave.map((o) => o.video_id)).toEqual(["v6"]);
+    expect(g.octave[0]!.ledgerBpm).toBeGreaterThan(85);
+    expect(g.octave[0]!.ledgerBpm).toBeLessThan(89);
+    r.close();
+  });
+
+  it("gridCrossCheck degrades gracefully on a schema without beats", () => {
+    // a DB built before the ledger (no beats table) → empty result, no throw
+    const oldDir = mkdtempSync("/tmp/cratedeck-archive-old-");
+    const oldPath = join(oldDir, "archive.db");
+    const old = new Database(oldPath, { create: true });
+    old.exec(
+      `CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT, duration_s REAL)`,
+    );
+    old.query(`INSERT INTO tracks VALUES ('x', 'T', 'downloaded', 300)`).run();
+    old.close();
+    const r = new ArchiveReader(oldPath);
+    const g = r.gridCrossCheck();
+    expect(g.available).toBe(true);
+    expect(g.ledgered).toBe(0);
+    expect(g.checked).toBe(0);
+    r.close();
+    rmSync(oldDir, { recursive: true, force: true });
   });
 });

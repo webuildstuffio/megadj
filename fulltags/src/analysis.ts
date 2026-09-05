@@ -16,7 +16,8 @@ import { basename, dirname, extname } from "node:path";
  * set the variable at runtime. */
 export function keyscanDir(): string {
   return (
-    process.env.FULLTAGS_KEYSCAN_DIR ?? `${process.env.HOME}/.local/share/openkeyscan-analyzer`
+    process.env.FULLTAGS_KEYSCAN_DIR ??
+    `${process.env.HOME}/.local/share/openkeyscan-analyzer`
   );
 }
 
@@ -99,6 +100,42 @@ export function foldTempo(bpm: number, lo = 70, hi = 180): number {
   return b;
 }
 
+/**
+ * Periodicity readout over the beat ARRAY: autocorrelation of the
+ * inter-beat interval series at lag 1 bar (4 intervals). The rev 5 BPM
+ * gate found the median-interval tempo phase-locking 2.2–2.6% off
+ * rekordbox on half the pilot — a median over local intervals inherits
+ * every local drift. The bar-lag autocorrelation instead measures how
+ * long the beat GRID takes to repeat over the whole track, which is
+ * what a DJ means by the tempo.
+ *
+ * Returns null when the array is too short for a bar-lag estimate.
+ */
+export function tempoFromBeatGrid(beats: number[]): number | null {
+  if (beats.length < 9) return null; // need ≥2 independent bar-lag samples
+  const intervals: number[] = [];
+  for (let i = 1; i < beats.length; i++) {
+    const d = beats[i]! - beats[i - 1]!;
+    if (d > 0.05 && d < 2) intervals.push(d); // sanity window: 30–1200 BPM
+  }
+  if (intervals.length < 9) return null;
+  const n = intervals.length;
+  const bar = 4;
+  // mean interval over lag-4 pairs: sum of 4 consecutive intervals vs 4×
+  // the mean of those same 4-window sums — this is the grid's own bar
+  // period, robust to per-interval jitter.
+  const sums: number[] = [];
+  for (let i = 0; i + bar <= n; i++) {
+    let s = 0;
+    for (let k = 0; k < bar; k++) s += intervals[i + k]!;
+    sums.push(s);
+  }
+  if (!sums.length) return null;
+  const meanBar = sums.reduce((a, b) => a + b, 0) / sums.length;
+  if (meanBar <= 0) return null;
+  return 240 / meanBar; // 4 beats per bar → 60*(4/barSeconds)
+}
+
 /** Run beat_this on a file. Returns null when the env is missing — the
  * caller decides whether that's fatal (stage explicitly requested) or a
  * skip (idempotent re-run). Spawns `uv run --with beat-this` so the
@@ -123,13 +160,29 @@ export async function analyzeBeats(path: string): Promise<BeatResult | null> {
   // m4a/mp3/aac/ogg: ffmpeg-decode to a temp wav (same dir, cleaned up
   // below) so beat_this's loader never sees a compressed container.
   const ext = extname(path).toLowerCase();
-  const needsDecode = [".m4a", ".m4b", ".mp3", ".aac", ".ogg", ".opus"].includes(ext);
+  const needsDecode = [
+    ".m4a",
+    ".m4b",
+    ".mp3",
+    ".aac",
+    ".ogg",
+    ".opus",
+  ].includes(ext);
   let decodedTmp: string | null = null;
   let analyzePath = path;
   if (needsDecode) {
     decodedTmp = `${dirname(path)}/.${basename(path)}.beats-${process.pid}.wav`;
     const dec = Bun.spawnSync({
-      cmd: ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", path, decodedTmp],
+      cmd: [
+        "ffmpeg",
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        path,
+        decodedTmp,
+      ],
       stdout: "ignore",
       stderr: "pipe",
     });
@@ -178,7 +231,11 @@ print(json.dumps({
   });
   if (proc.exitCode !== 0) return null;
   try {
-    const last = new TextDecoder().decode(proc.stdout).trim().split("\n").at(-1);
+    const last = new TextDecoder()
+      .decode(proc.stdout)
+      .trim()
+      .split("\n")
+      .at(-1);
     if (!last) return null;
     const j = JSON.parse(last) as {
       bpm?: number;
@@ -220,7 +277,9 @@ export interface KeyResult {
  * 2. after batch writes: Reload Tags in RB
  * 3. ≥80% agreement on 20 known-key tracks before full-library run
  */
-export async function analyzeKeys(paths: string[]): Promise<Map<string, KeyResult>> {
+export async function analyzeKeys(
+  paths: string[],
+): Promise<Map<string, KeyResult>> {
   const out = new Map<string, KeyResult>();
   const server = `${keyscanDir()}/openkeyscan_analyzer_server.py`;
   if (!existsSync(server) || !paths.length) return out;
@@ -233,7 +292,10 @@ export async function analyzeKeys(paths: string[]): Promise<Map<string, KeyResul
   const tmps: string[] = [];
   const prepared = paths.map((p) => {
     const ext = extname(p).toLowerCase();
-    if (![".m4a", ".m4b", ".mp3", ".aac", ".ogg", ".opus"].includes(ext) || !existsSync(p)) {
+    if (
+      ![".m4a", ".m4b", ".mp3", ".aac", ".ogg", ".opus"].includes(ext) ||
+      !existsSync(p)
+    ) {
       return p;
     }
     const tmp = `${dirname(p)}/.${basename(p)}.key-${process.pid}.wav`;
@@ -263,7 +325,10 @@ export async function analyzeKeys(paths: string[]): Promise<Map<string, KeyResul
   }
 }
 
-async function runKeyServer(server: string, paths: string[]): Promise<Map<string, KeyResult>> {
+async function runKeyServer(
+  server: string,
+  paths: string[],
+): Promise<Map<string, KeyResult>> {
   const out = new Map<string, KeyResult>();
   if (!paths.length) return out;
   const proc = Bun.spawn({

@@ -30,6 +30,7 @@
  *   archive_ingest_status       counts + recent runs + newest tracks
  *   archive_lowq_queue          below-bitrate upgrade queue (D24)
  *   archive_source_diff {a, b}  track-set diff between two sources
+ *   archive_grid_cross_check    beat_this ledger vs RB BPM×duration verdicts
  */
 import {
   apiGet,
@@ -506,8 +507,8 @@ const TOOLS: Record<string, ToolDef> = {
         const out = [];
         for (const d of drives as { id: string; name: string }[]) {
           try {
-            const notes = await apiGet(`/api/drives/${d.id}/notes`).then(
-              (r) => r.json(),
+            const notes = await apiGet(`/api/drives/${d.id}/notes`).then((r) =>
+              r.json(),
             );
             if (Array.isArray(notes) && notes.length)
               out.push({ drive: d.name, notes });
@@ -611,6 +612,30 @@ const TOOLS: Record<string, ToolDef> = {
       const res = await apiGet(
         `/api/archive/source-diff?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`,
       );
+      return res.json();
+    },
+  },
+
+  archive_grid_cross_check: {
+    description:
+      "[READ-ONLY] Independent beatgrid cross-check: beat_this beat arrays (megadj beats ledger) vs each track's rekordbox BPM × duration. Returns ok/off/octave verdicts and offender lists — 'off' = grid tempo >2% from RB, 'octave' = grid locked half/double tempo. Empty ledgered=0 means run `megadj beats` first.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "max tracks to check (default 200, max 500)",
+        },
+      },
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const lim = args.limit;
+      const limit =
+        typeof lim === "number" && Number.isFinite(lim) && lim > 0
+          ? Math.min(Math.floor(lim), 500)
+          : 200;
+      const res = await apiGet(`/api/archive/grid-cross-check?limit=${limit}`);
       return res.json();
     },
   },
