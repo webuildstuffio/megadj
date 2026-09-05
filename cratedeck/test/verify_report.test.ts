@@ -3,7 +3,7 @@
 // failing check carries a meaning + fix, passes are included (not silent),
 // and the check ids stay stable for the UI/CLI.
 import { describe, expect, it } from "bun:test";
-import { parseVerifyReport } from "../src/jobs";
+import { parseVerifyReport, verifyDeltas } from "../src/jobs";
 import { findingsOf } from "../src/jobs";
 
 const PASS_OUTPUT = `
@@ -109,5 +109,132 @@ describe("parseVerifyReport", () => {
     expect(ids).not.toContain("db-parity");
     expect(ids).not.toContain("anlz-parity");
     expect(ids).not.toContain("audio-parity");
+  });
+});
+
+// ---- structured payload (VERIFY_JSON line) ----------------------------------
+
+const JSON_PAYLOAD: VerifyJsonLike = {
+  drives: {
+    DJMASTER: {
+      pdb_tracks: 3521,
+      onelibrary_tracks: 3521,
+      tracks: 3521,
+      playlists: 42,
+      playlist_entries: 1210,
+      dangling_entries: 0,
+      artist_fk_bad: 0,
+      missing_anlz: ["/Contents/YTMusic Liked/A - B.mp3"],
+      no_bpm: ["/Contents/YTMusic Liked/C - D.mp3"],
+    },
+  },
+  db_identical: true,
+  anlz_total: 82000,
+  anlz_mismatches: [],
+  audio_mismatches: [],
+  fails: [],
+};
+
+interface VerifyJsonLike {
+  drives: Record<string, Record<string, unknown>>;
+  [k: string]: unknown;
+}
+
+function jsonOut(payload: VerifyJsonLike): string {
+  return (
+    "\n=== per-drive ===\n(human output present but parser prefers JSON)\nVERIFY_JSON: " +
+    JSON.stringify(payload) +
+    "\nFINAL: ALL PASS\n"
+  );
+}
+
+describe("parseVerifyReport: structured payload", () => {
+  it("parses the VERIFY_JSON line and attaches offenders", () => {
+    const r = parseVerifyReport(jsonOut(JSON_PAYLOAD), true, "FINAL: ALL PASS", 88);
+    expect(r.stats.tracks).toBe(3521);
+    expect(r.stats.playlists).toBe(42);
+    const anlz = r.checks.find((c) => c.id === "anlz");
+    expect(anlz?.status).toBe("warn");
+    expect(anlz?.offenders).toEqual(["/Contents/YTMusic Liked/A - B.mp3"]);
+    expect(anlz?.offender_count).toBe(1);
+    const fields = r.checks.find((c) => c.id === "fields");
+    expect(fields?.offenders).toEqual(["/Contents/YTMusic Liked/C - D.mp3"]);
+    // cross-drive parsed from JSON, not the (absent) human text
+    const dbp = r.checks.find((c) => c.id === "db-parity");
+    expect(dbp?.status).toBe("pass");
+  });
+
+  it("2-drive payloads aggregate counts", () => {
+    const two: VerifyJsonLike = {
+      ...JSON_PAYLOAD,
+      drives: {
+        DJMASTER: { tracks: 100, missing_files: ["/Contents/x.mp3"] },
+        DJMIRROR: { tracks: 100, missing_files: ["/Contents/y.mp3", "/Contents/z.mp3"] },
+      },
+      db_identical: false,
+      anlz_total: 10,
+      anlz_mismatches: ["/P0100/DEADBEEF/ANLZ0000.DAT"],
+      audio_mismatches: ["/Contents/rip.mp3"],
+    };
+    const r = parseVerifyReport(jsonOut(two), false, "FINAL: FAILED", 90);
+    const audio = r.checks.find((c) => c.id === "audio-files");
+    expect(audio?.detail).toContain("3 of 200");
+    expect(audio?.offender_count).toBe(3);
+    expect(r.checks.find((c) => c.id === "db-parity")?.status).toBe("fail");
+    const ap = r.checks.find((c) => c.id === "anlz-parity");
+    expect(ap?.status).toBe("fail");
+    expect(ap?.offenders).toEqual(["/P0100/DEADBEEF/ANLZ0000.DAT"]);
+  });
+
+  it("offender lists cap at 50 but keep the true total", () => {
+    const many = Array.from({ length: 60 }, (_, i) => `/Contents/t${i}.mp3`);
+    const p: VerifyJsonLike = {
+      ...JSON_PAYLOAD,
+      drives: { DJMASTER: { tracks: 100, missing_anlz: many } },
+    };
+    const r = parseVerifyReport(jsonOut(p), false, "FINAL: FAILED", 5);
+    const anlz = r.checks.find((c) => c.id === "anlz")!;
+    expect(anlz.offenders!.length).toBe(50);
+    expect(anlz.offender_count).toBe(60);
+  });
+
+  it("malformed JSON line falls back to regex parsing", () => {
+    const out =
+      "\nexport.pdb=99 tracks vs OneLibrary DB=99 tracks\n  tracks: 99\nVERIFY_JSON: {broken\nFINAL: ALL PASS\n";
+    const r = parseVerifyReport(out, true, "FINAL: ALL PASS", 3);
+    expect(r.stats.tracks).toBe(99);
+    expect(r.checks.find((c) => c.id === "dual-db")?.status).toBe("pass");
+  });
+});
+
+// ---- deltas vs previous run -------------------------------------------------
+
+describe("verifyDeltas", () => {
+  it("computes +N worse and −N better per check", () => {
+    const prev = parseVerifyReport(jsonOut(JSON_PAYLOAD), false, "FINAL: FAILED", 10);
+    const worse: VerifyJsonLike = {
+      ...JSON_PAYLOAD,
+      drives: {
+        DJMASTER: {
+          ...JSON_PAYLOAD.drives.DJMASTER,
+          missing_anlz: [
+            "/Contents/YTMusic Liked/A - B.mp3",
+            "/Contents/YTMusic Liked/E - F.mp3",
+            "/Contents/YTMusic Liked/G - H.mp3",
+          ],
+        },
+      },
+    };
+    const next = parseVerifyReport(jsonOut(worse), false, "FINAL: FAILED", 10);
+    const deltas = verifyDeltas(prev, next);
+    const anlz = deltas.find((d) => d.check_id === "anlz");
+    expect(anlz?.delta).toBe(2);
+    // unchanged checks are omitted entirely (noise reduction)
+    expect(deltas.find((d) => d.check_id === "fields")).toBeUndefined();
+  });
+
+  it("no previous report → no deltas", () => {
+    const next = parseVerifyReport(jsonOut(JSON_PAYLOAD), true, "FINAL: ALL PASS", 5);
+    expect(verifyDeltas(null, next)).toEqual([]);
   });
 });

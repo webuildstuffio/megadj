@@ -131,16 +131,28 @@ remaining in-flight work.)_
 These are the PRD features that _only exist because the app sees all drives at
 once_ — the moat. Roughly in value order:
 
-6. **Coverage matrix.** Track × drive grid from existing snapshots:
-   _which stick has this track?_ / _which tracks exist on exactly one drive?_
-   (one drive failure from gone forever). Pure query over
-   `drives.last_snapshot_json` — no new scanning.
-7. **Redundancy audit.** "Every track in playlist a shared playlist is on ≥2 drives —
-   PASS" with gaps listed. Directly consumes #6. This is the feature that
-   would have caught the OLDUSB situation in #4 automatically.
-8. **Fleet diff.** Drive-vs-drive and drive-vs-master (via `rekordbox.xml`)
-   clean added/removed/changed list. Reuses the manifest-diff logic already
-   proven in `usb_mirror.py --verify-only`.
+6. **Coverage matrix — ✅ SHIPPED 2026-09-04.** `cratedeck/src/fleet.ts`
+   (`coverage()` + `trackLocations()`) over new per-track fleet tables
+   (`fleet_tracks`/`fleet_playlist_entries`/`fleet_manifest`, refreshed by
+   every scan via `db.setSnapshot`); full scan now emits per-track +
+   playlist-entry rows (`cratedeck/python/rb_read.py`), light scan emits an
+   audio manifest. UI: Fleet page → Coverage tab (`#/fleet/coverage`):
+   unique-track/copy totals, at-risk (1-copy) list, "where is this track?"
+   lookup (exact path / artist-title / substring). CLI: `deckctl coverage`.
+   API: `GET /api/fleet/coverage`, `GET /api/fleet/track?q=`. Covered by
+   `cratedeck/test/fleet.test.ts`.
+7. **Redundancy audit — ✅ SHIPPED 2026-09-04.** `fleet.ts redundancy()`
+   unions playlist entries across drives and verdicts each playlist:
+   fail = a track on a single drive, warn = below floor, pass = all ≥N.
+   UI: Fleet → Redundancy tab with expandable per-playlist gap lists (every
+   gap shows its drive locations). CLI: `deckctl redundancy`. API:
+   `GET /api/fleet/redundancy?min_copies=`. Same test coverage.
+8. **Fleet diff — ✅ SHIPPED 2026-09-04.** `fleet.ts diff()`: added /
+   removed / changed between any two drives; DB tracks define add/remove,
+   scan manifests give byte-level changed detection; `artist - title`
+   meta-join catches the same track at different paths. UI: Fleet → Diff
+   tab (pick two drives, filterable results). CLI:
+   `deckctl diff A B`. API: `GET /api/fleet/diff?a=&b=`.
 9. **Global search across ghosts.** ⌘K box querying all snapshots — "do I own
    this anywhere, and on which stick?" Already specced (F9); highest daily-use
    feature in the whole app.
@@ -634,9 +646,12 @@ else in this repo gets a single commit while 0a is open. 0d (redundancy
 audit + coverage matrix) rides along because it's two cheap pure queries.
 
 **Phase 2 — the moat (§B):**
-B6–B9 (coverage matrix, redundancy, fleet diff, global search). All pure
-reads over data already collected. If you do Phase 1 + Phase 2 and stop,
-the project has done its job.
+B6–B9 (coverage matrix, redundancy, fleet diff, global search) — **B6–B8
+✅ SHIPPED 2026-09-04** (`cratedeck/src/fleet.ts` + Fleet page +
+`deckctl coverage|redundancy|diff`; needs one scan per drive with
+rekordbox closed to load inventories). All pure reads over data already
+collected. If you do Phase 1 + Phase 2 and stop, the project has done its
+job.
 
 **Phase 3 — the manual-pain killers:**
 C18a (assisted export runbook — the right buy per the audit), C21

@@ -139,12 +139,19 @@ the rekordbox interlock. Docs: [docs/cratedeck/](docs/cratedeck/).
 bun run deck        # serves http://localhost:7742 (CRATEDECK_PORT overrides)
 bun run check       # typecheck + lint; bun test for the test suite
 # UI dev: cd cratedeck/web && bunx vite (proxy) · build: bun run web:build
-# agents: bun run cratedeck/src/deckctl.ts status|report|run|jobs
+# agents: bun run cratedeck/src/deckctl.ts status|report|run|jobs|coverage|redundancy|diff
 ```
 
+**Fleet superpowers** (Sep 2026): scan a drive and CrateDeck learns its
+track inventory; cross-drive queries then answer _which stick has this
+track_ (`deckctl coverage`), _is every playlist redundant?_ (`deckctl
+redundancy`), and _what differs between two drives_ (`deckctl diff A B`).
+UI: the **Fleet** button → Coverage / Redundancy / Diff.
+
 **CLI (agents + humans):** `bun run cratedeck/src/deckctl.ts status` —
-`status/drives/report/run/jobs/cancel/stop`, live progress + ETA on `run`,
-`--json` for machines. Guide: [cratedeck/deckctl.md](cratedeck/deckctl.md).
+`status/drives/report/run/coverage/redundancy/diff/jobs/cancel/stop`, live
+progress + ETA on `run`, `--json` for machines. Guide:
+[cratedeck/deckctl.md](cratedeck/deckctl.md).
 
 ## Docs index
 

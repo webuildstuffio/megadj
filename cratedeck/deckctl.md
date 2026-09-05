@@ -15,11 +15,28 @@ bun run cratedeck/src/deckctl.ts <command> [--json]
 | `drives`             | drive list with per-badge ✓/▲/✕ verdicts                                                                                       |
 | `report <drive>`     | full health dossier: every check, its detail, why it matters, and the fix                                                      |
 | `run <drive> <kind>` | enqueue + **follow** a job live: spinner, %, current step, rolling ETA. Kinds: `scan` `verify` `mirror` `benchmark` `checksum` |
+| `coverage [min]`     | fleet coverage matrix: tracks per drive + at-risk list (tracks below `min` copies, default 2)                                  |
+| `redundancy [min]`   | per-playlist redundancy audit: every track on ≥`min` drives? pass/warn/fail per playlist                                       |
+| `diff <driveA> <driveB>` | drive-vs-drive inventory diff: added / removed / changed bytes                                                             |
 | `jobs`               | recent jobs with progress/messages                                                                                             |
 | `cancel <jobId>`     | cancel an active job                                                                                                           |
 | `stop`               | stop the CrateDeck server                                                                                                      |
 
 `<drive>` = volume name (`DJMASTER`), nickname, or UUID.
+
+## Fleet commands
+
+`coverage`, `redundancy`, and `diff` are pure reads over fleet tables that are
+refreshed on every **scan** — run `deckctl run <drive> scan` on each mounted
+drive first, then:
+
+```bash
+deckctl coverage            # which tracks live on which drives + 1-copy risks
+deckctl coverage 3          # custom redundancy floor
+deckctl redundancy          # "every track in a shared playlist is on ≥2 drives — PASS"
+deckctl diff DJMASTER DJMIRROR   # master vs mirror drift
+deckctl coverage --json     # feed agents/dashboards
+```
 
 ## Flags
 
@@ -54,5 +71,6 @@ bun run cratedeck/src/deckctl.ts <command> [--json]
 deckctl status --json                     # what's plugged in, locked?
 deckctl run DJMASTER scan               # refresh stats (follows live)
 deckctl report DJMASTER                 # read verdicts + fixes
+deckctl coverage                          # what survives a drive death?
 deckctl run DJMASTER checksum --json --wait   # machine-readable progress lines
 ```

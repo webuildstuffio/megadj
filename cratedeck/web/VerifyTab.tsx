@@ -127,6 +127,7 @@ export function VerifyTab(props: {
 
       {report && (
         <>
+          <DeltasBar report={report} />
           {failed.length > 0 && (
             <div class="vgroup vfail">
               <h3>
@@ -174,6 +175,7 @@ function CheckCard(props: { c: VerifyCheck }) {
         <span class={`chip ${c.status}`}>{c.status}</span>
       </div>
       <div class="vdetail">{c.detail}</div>
+      <OffenderList c={c} />
       <div class="vwhy" title="Why this check matters">
         <Icon name="dot" size={11} /> {c.meaning}
       </div>
@@ -182,6 +184,77 @@ function CheckCard(props: { c: VerifyCheck }) {
           <Icon name="sliders" size={11} /> <b>Fix:</b> {c.fix}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Track-path list for failing checks — exactly WHAT needs attention,
+ *  capped with the true total. Passes with offenders=0 render nothing. */
+function OffenderList(props: { c: VerifyCheck }) {
+  const { c } = props;
+  if (c.status === "pass" || !c.offenders?.length) return null;
+  const total = c.offender_count ?? c.offenders.length;
+  return (
+    <div class="voffenders">
+      <div class="voffhead">
+        {total} track{total === 1 ? "" : "s"}:
+      </div>
+      {c.offenders.slice(0, 8).map((p) => (
+        <div class="voff" key={p} title={p}>
+          {trackName(p)}
+        </div>
+      ))}
+      {total > 8 && (
+        <div class="voff more">
+          +{total - 8} more (full list in the job log — deckctl jobs)
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** "Contents/YTMusic Liked/Artist - Title.mp3" → "Artist - Title" */
+function trackName(p: string): string {
+  const base = p.split("/").pop() ?? p;
+  return base.replace(/\.[a-z0-9]+$/i, "");
+}
+
+/** Delta strip: what changed since the previous stored run. */
+function DeltasBar(props: { report: VerifyReport }) {
+  const { report } = props;
+  const deltas = report.deltas ?? [];
+  if (!report.prev_ran_at || deltas.length === 0) return null;
+  const worsened = deltas.filter((d) => d.delta > 0);
+  const improved = deltas.filter((d) => d.delta < 0);
+  const flipped = deltas.filter((d) => d.delta === 0);
+  if (!worsened.length && !improved.length && !flipped.length) {
+    return (
+      <div class="vdeltas same">
+        <Icon name="check" size={12} /> identical to the previous run (
+        {new Date(report.prev_ran_at).toLocaleString()})
+      </div>
+    );
+  }
+  return (
+    <div class="vdeltas">
+      <span class="vdhead">
+        vs previous run ({new Date(report.prev_ran_at).toLocaleString()}):
+      </span>
+      {worsened.map((d) => (
+        <span class="vdelta worse" key={d.check_id}>
+          <Icon name="warn" size={11} /> {d.label}: +{d.delta} new
+        </span>
+      ))}
+      {improved.map((d) => (
+        <span class="vdelta better" key={d.check_id}>
+          <Icon name="check" size={11} /> {d.label}: {d.delta} fixed
+        </span>
+      ))}
+      {flipped.map((d) => (
+        <span class="vdelta" key={d.check_id}>
+          {d.label}: status {d.prev_status} → now failing with {d.count}
+        </span>
+      ))}
     </div>
   );
 }

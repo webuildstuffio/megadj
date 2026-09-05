@@ -60,10 +60,29 @@ stale rail nicknames (10s poll), `resolveMountPoint` respecting
 `CRATEDECK_VOLUMES`, plaintext-DB fallback in `rb_read.py`. Verified via
 fixture server + Chrome DevTools Protocol DOM checks; screenshots reviewed.
 
+## Fleet superpowers (shipped 2026-09-04 — ideas.md §B6/B7/B8)
+
+- **B6 coverage matrix** — `src/fleet.ts coverage()/trackLocations()` over
+  per-track fleet tables (`fleet_tracks`, refreshed by every scan in
+  `db.setSnapshot`; full-scan inventory from `python/rb_read.py`). UI:
+  Fleet page Coverage tab (`#/fleet/coverage`, Fleet button in the topbar);
+  API `GET /api/fleet/coverage` + `GET /api/fleet/track?q=`; CLI
+  `deckctl coverage [min]`.
+- **B7 redundancy audit** — `src/fleet.ts redundancy()`; per-playlist
+  pass/warn/fail with expandable gap lists. UI: Fleet → Redundancy tab;
+  API `GET /api/fleet/redundancy`; CLI `deckctl redundancy [min]`.
+- **B8 fleet diff** — `src/fleet.ts diff()`; added/removed from DB tracks,
+  byte-level changed from scan manifests, `artist - title` meta-join for
+  moved tracks. UI: Fleet → Diff tab; API `GET /api/fleet/diff?a=&b=`;
+  CLI `deckctl diff A B`.
+- Tests: `test/fleet.test.ts` (engine + DB round-trips). Data loads on the
+  next full scan of each drive with rekordbox closed.
+
 ## Test coverage
 
 `cratedeck/test/`: `badges`, `config`, `db`, `e2e` (live server: interlock,
-drives list, SPA shell), `guard` (write allow-list), `scan-detect`,
+drives list, SPA shell), `fleet` (coverage/redundancy/diff engine +
+persistence), `guard` (write allow-list), `scan-detect`,
 `report` (dual-DB gate fail path, grid coverage thresholds, bitrot, mirror
 superset/behind, artwork coverage, space/df, NFC+casefold).
 

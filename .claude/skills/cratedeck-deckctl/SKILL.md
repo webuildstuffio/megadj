@@ -17,6 +17,20 @@ bun run cratedeck/src/deckctl.ts report DJMASTER
 bun run cratedeck/src/deckctl.ts run DJMASTER scan    # follows live w/ ETA
 ```
 
+## Fleet questions (cross-drive)
+
+After each drive has been scanned at least once (fleet tables refresh on
+every scan):
+
+```bash
+bun run cratedeck/src/deckctl.ts coverage        # which tracks on which drives + 1-copy risks
+bun run cratedeck/src/deckctl.ts redundancy      # per-playlist: every track on ≥2 drives?
+bun run cratedeck/src/deckctl.ts diff DJMASTER DJMIRROR   # master vs mirror drift
+```
+
+`coverage`/`redundancy` take an optional floor (`coverage 3`). All three
+support `--json`.
+
 ## Rules
 
 1. **Interlock is sacred**: if rekordbox is running, every job exits with code

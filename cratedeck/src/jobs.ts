@@ -4,9 +4,16 @@ import { basename } from "node:path";
 import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Guard } from "./guard";
-import type { Job, JobKind, VerifyCheck, VerifyReport } from "../shared/types";
+import type {
+  Job,
+  JobKind,
+  VerifyCheck,
+  VerifyDelta,
+  VerifyReport,
+} from "../shared/types";
 import { fmtBytes } from "../shared/fmt";
 import { benchmarkDrive, checksumLedger } from "./bench";
+import { VERIFY_HELP } from "./verify_help";
 import {
   progressFromLine,
   rbSnapshot,
@@ -205,9 +212,19 @@ export class JobEngine {
       const result = await this.execute(job, mountPoint, handle, tick);
       // Verify runs persist their granular report on the drive itself, so the
       // UI/CLI can show the latest breakdown without walking job history.
+      // Deltas vs the previous stored run make trends visible ("2 NEW broken
+      // grids since last verify") without the user diffing by hand.
       if (job.kind === "verify" && result && !handle.cancelled) {
         const r = result as Partial<VerifyReport> & { verdict?: string };
-        if (r.checks) this.db.setVerifyReport(job.drive_id, r as VerifyReport);
+        if (r.checks) {
+          const prev = this.db.getVerifyReport(job.drive_id);
+          const withDeltas: VerifyReport = {
+            ...(r as VerifyReport),
+            deltas: verifyDeltas(prev, r as VerifyReport),
+            prev_ran_at: prev?.ran_at ?? null,
+          };
+          this.db.setVerifyReport(job.drive_id, withDeltas);
+        }
       }
       this.db.updateJob(job.id, {
         status: handle.cancelled ? "cancelled" : "done",
@@ -568,222 +585,290 @@ export function findingsOf(report: VerifyReport): VerifyFinding[] {
     }));
 }
 
-/** Parse usb_verify.py output into a full structured verify report: every
- *  check gets a status (pass/fail/warn), a plain-English "why this matters",
- *  and a fix when it fails. Passes are included — silence about 3500 good
- *  tracks is exactly the confusion we're fixing. */
+/** The usb_verify.py structured payload (the "VERIFY_JSON: {...}" line). */
+interface VerifyJsonPayload {
+  drives?: Record<
+    string,
+    {
+      pdb_tracks?: number;
+      onelibrary_tracks?: number;
+      tracks?: number;
+      playlists?: number;
+      playlist_entries?: number;
+      dangling_entries?: number;
+      artist_fk_bad?: number;
+      missing_files?: string[];
+      missing_anlz?: string[];
+      anlz_hash_missing?: string[];
+      no_bpm?: string[];
+      bad_length?: string[];
+      bad_grids?: string[];
+    }
+  >;
+  db_identical?: boolean;
+  anlz_total?: number;
+  anlz_mismatches?: string[];
+  audio_mismatches?: string[];
+  fails?: string[];
+}
+
+/** Longest offender list kept per check (full list stays in the log). */
+const MAX_OFFENDERS = 50;
+
+/** Check doc lookup from the shared help SSOT: meaning + fix stay in one place. */
+const DOC = new Map(VERIFY_HELP.checks.map((c) => [c.id, c]));
+
+function cap(list: string[] | undefined): {
+  offenders?: string[];
+  offender_count?: number;
+} {
+  if (!list?.length) return {};
+  return {
+    offenders: list.slice(0, MAX_OFFENDERS),
+    offender_count: list.length,
+  };
+}
+
+/** Parse usb_verify.py output into a full structured verify report.
+ *
+ *  Preferred input: the script's machine-readable "VERIFY_JSON: {...}" line
+ *  (has exact counts + offending track paths). Falls back to regexing the
+ *  human output for older script versions. Every check gets a status
+ *  (pass/fail/warn), plain-English meaning, and a fix when failing. Passes
+ *  are included — silence about 3500 good tracks is exactly the confusion
+ *  we're fixing. */
 export function parseVerifyReport(
   out: string,
   ok: boolean,
   finalLine: string | null,
   durationS: number | null,
 ): VerifyReport {
+  // ---- structured payload first ------------------------------------------
+  const jsonLine = out
+    .split("\n")
+    .find((l) => l.startsWith("VERIFY_JSON: "));
+  let j: VerifyJsonPayload | null = null;
+  if (jsonLine) {
+    try {
+      j = JSON.parse(jsonLine.slice("VERIFY_JSON: ".length)) as VerifyJsonPayload;
+    } catch {
+      j = null; // malformed payload → regex fallback below
+    }
+  }
+
   const stats: Record<string, number> = {};
-  const grab = (re: RegExp): number | null => {
-    const m = out.match(re);
-    if (!m?.[1]) return null;
-    const v = parseInt(m[1], 10);
-    return Number.isNaN(v) ? null : v;
+  const checks: VerifyCheck[] = [];
+  const drives = j?.drives ? Object.values(j.drives) : [];
+
+  // script may verify 1 or 2 drives; per-drive metrics aggregate when 2
+  const sum = (pick: (d: NonNullable<VerifyJsonPayload["drives"]>[string]) => number | undefined): number | null => {
+    const vals = drives.map(pick).filter((v): v is number => typeof v === "number");
+    return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
   };
-  const grab2 = (re: RegExp): [number, number] | null => {
-    const m = out.match(re);
-    if (!m?.[1] || !m[2]) return null;
-    const a = parseInt(m[1], 10);
-    const b = parseInt(m[2], 10);
-    if (Number.isNaN(a) || Number.isNaN(b)) return null;
-    return [a, b];
-  };
-  const pdb = grab(/export\.pdb=(\d+) tracks vs OneLibrary DB=(\d+)/);
-  const odb = grab(/vs OneLibrary DB=(\d+) tracks/);
+
+  const tracks = j ? sum((d) => d.tracks) : grabNum(out, /^  tracks: (\d+)/m);
+  const pdb = j ? sum((d) => d.pdb_tracks) : grabNum(out, /export\.pdb=(\d+) tracks/);
+  const odb = j ? sum((d) => d.onelibrary_tracks) : grabNum(out, /OneLibrary DB=(\d+) tracks/);
+  const playlists = j ? sum((d) => d.playlists) : grabNum(out, /playlists: (\d+)/);
+  const entries = j ? sum((d) => d.playlist_entries) : grabNum(out, /entries: (\d+)/);
+  const dangling = j
+    ? sum((d) => d.dangling_entries)
+    : (grabNum(out, /dangling: (\d+)/) ?? 0);
+  const artistFk = j
+    ? sum((d) => d.artist_fk_bad)
+    : (grabNum(out, /artist FK bad: (\d+)/) ?? 0);
+  const pioneerVar = grabNum(out, /pioneer-native variance \(informational\): (\d+)/);
+
+  // offenders: JSON gives exact lists; regex fallback has counts only
+  const allOff = (pick: (d: NonNullable<VerifyJsonPayload["drives"]>[string]) => string[] | undefined): string[] =>
+    j ? drives.flatMap((d) => pick(d) ?? []) : [];
+  const missingFiles = allOff((d) => d.missing_files);
+  const missingAnlzList = allOff((d) => d.missing_anlz);
+  const anlzHashList = allOff((d) => d.anlz_hash_missing);
+  const noBpmList = allOff((d) => d.no_bpm);
+  const badLenList = allOff((d) => d.bad_length);
+  const badGridList = allOff((d) => d.bad_grids);
+
+  const missingAudio = j ? missingFiles.length : (grabNum(out, /missing audio: (\d+)/) ?? 0);
+  const missingAnlz = j ? missingAnlzList.length : (grabNum(out, /missing analysis: (\d+)/) ?? 0);
+  const noBpm = j ? noBpmList.length : (grabNum(out, /no BPM: (\d+)/) ?? 0);
+  const badLen = j ? badLenList.length : (grabNum(out, /bad length: (\d+)/) ?? 0);
+  const badGrids = j ? badGridList.length : (grabNum(out, /bad grids \(generated\): (\d+)/) ?? 0);
+  const anlzHash = j ? anlzHashList.length : (grabNum(out, /ANLZ missing at hash path AND at DB path: (\d+)/) ?? 0);
+
   if (pdb !== null) stats.pdb_tracks = pdb;
   if (odb !== null) stats.onelibrary_tracks = odb;
-  const tracks = grab(/^  tracks: (\d+)/m);
   if (tracks !== null) stats.tracks = tracks;
-  const missingAudio = grab(/missing audio: (\d+)/) ?? 0;
-  const missingAnlz = grab(/missing analysis: (\d+)/) ?? 0;
-  const noBpm = grab(/no BPM: (\d+)/) ?? 0;
-  const badLen = grab(/bad length: (\d+)/) ?? 0;
-  const badGrids = grab(/bad grids \(generated\): (\d+)/) ?? 0;
-  const pioneerVar = grab(/pioneer-native variance \(informational\): (\d+)/);
-  if (pioneerVar !== null) stats.pioneer_variance = pioneerVar;
-  const dangling = grab(/dangling: (\d+)/) ?? 0;
-  const artistFk = grab(/artist FK bad: (\d+)/) ?? 0;
-  const anlzHash = grab(/ANLZ missing at hash path AND at DB path: (\d+)/) ?? 0;
-  const playlists = grab(/playlists: (\d+)/);
-  const entries = grab(/entries: (\d+)/);
   if (playlists !== null) stats.playlists = playlists;
   if (entries !== null) stats.playlist_entries = entries;
-  const crossDrive = out.includes("=== cross-drive ===");
-  const dbIdentical = out.includes("DB byte-identical: true");
-  const audioMismatch = grab(/audio hash spot-check \(40\): (\d+) mismatches/);
-  const anlzParity = grab2(
-    /ANLZ full hash parity: (\d+)\/(\d+) mismatches/,
-  );
-  if (anlzParity) stats.anlz_hash_mismatches = anlzParity[0];
+  if (pioneerVar !== null) stats.pioneer_variance = pioneerVar;
 
-  const checks: VerifyCheck[] = [];
+  const crossDrive = j
+    ? typeof j.db_identical === "boolean" ||
+      j.anlz_mismatches !== undefined ||
+      j.audio_mismatches !== undefined
+    : out.includes("=== cross-drive ===");
+  const dbIdentical = j
+    ? (j.db_identical ?? false)
+    : out.includes("DB byte-identical: true");
+  const anlzMismatchList = j?.anlz_mismatches ?? [];
+  const anlzParity: [number, number] | null = j
+    ? j.anlz_total !== undefined || anlzMismatchList.length
+      ? [j.anlz_mismatches?.length ?? 0, j.anlz_total ?? 0]
+      : null
+    : grab2Num(out, /ANLZ full hash parity: (\d+)\/(\d+) mismatches/);
+  if (anlzParity) stats.anlz_hash_mismatches = anlzParity[0];
+  const audioMismatchList = j?.audio_mismatches ?? [];
+  const audioMismatch = j
+    ? audioMismatchList.length
+    : grabNum(out, /audio hash spot-check \(40\): (\d+) mismatches/);
+
+  const mk = (
+    id: string,
+    status: VerifyCheck["status"],
+    detail: string,
+    off?: { offenders?: string[]; offender_count?: number },
+  ): VerifyCheck => {
+    const doc = DOC.get(id);
+    return {
+      id,
+      label: doc?.label ?? id,
+      status,
+      detail,
+      meaning: doc?.why ?? "See deckctl explain verify.",
+      fix: status === "pass" ? undefined : doc?.fix,
+      ...off,
+    };
+  };
 
   // 1 — dual-DB agreement
   if (pdb !== null && odb !== null) {
-    checks.push({
-      id: "dual-db",
-      label: "Hardware library (export.pdb) matches rekordbox",
-      status: pdb === odb ? "pass" : "fail",
-      detail:
+    checks.push(
+      mk(
+        "dual-db",
+        pdb === odb ? "pass" : "fail",
         pdb === odb
           ? `${odb} tracks in both databases`
           : `export.pdb ${pdb} vs OneLibrary ${odb} (${
-              odb > pdb ? `${odb - pdb} newer tracks invisible to hardware` : `${pdb - odb} stale rows hardware will show but rekordbox won't`
+              odb > pdb
+                ? `${odb - pdb} newer tracks invisible to hardware`
+                : `${pdb - odb} stale rows hardware will show but rekordbox won't`
             })`,
-      meaning:
-        "Drives carry two libraries: exportLibrary.db (rekordbox reads this) and export.pdb (CDJ/XDJ hardware reads ONLY this). If they disagree, the booth sees a different library than your laptop does.",
-      fix:
-        pdb === odb
-          ? undefined
-          : "In rekordbox, re-run the USB export with this drive connected — it rebuilds export.pdb",
-    });
+      ),
+    );
   }
 
   // 2 — audio files present
   if (tracks !== null) {
-    checks.push({
-      id: "audio-files",
-      label: "Audio files on disk",
-      status: missingAudio === 0 ? "pass" : "fail",
-      detail:
+    checks.push(
+      mk(
+        "audio-files",
+        missingAudio === 0 ? "pass" : "fail",
         missingAudio === 0
           ? `all ${tracks} DB tracks have their file on disk`
           : `${missingAudio} of ${tracks} DB tracks have NO file on disk`,
-      meaning:
-        "Dead DB rows: the track shows in the browser but won't load in the booth.",
-      fix:
-        missingAudio === 0
-          ? undefined
-          : "In rekordbox, find the missing tracks (search for the titles), delete/replace them, re-export",
-    });
+        cap(missingFiles),
+      ),
+    );
   }
 
   // 3 — analysis files (waveforms + beatgrids)
   const anlzTotal = missingAnlz + anlzHash;
   if (tracks !== null) {
-    checks.push({
-      id: "anlz",
-      label: "Waveforms + beatgrids (ANLZ)",
-      status: anlzTotal === 0 ? "pass" : anlzTotal < 20 ? "warn" : "fail",
-      detail:
+    checks.push(
+      mk(
+        "anlz",
+        anlzTotal === 0 ? "pass" : anlzTotal < 20 ? "warn" : "fail",
         anlzTotal === 0
           ? `all ${tracks} tracks have analysis at both the DB and hardware hash path`
           : `${anlzTotal} track(s) missing analysis (${missingAnlz} at DB path, ${anlzHash} at hardware hash path)`,
-      meaning:
-        "ANLZ files are what put a waveform on the CDJ screen and make Beat Sync work. A missing file = that track loads with no wave, no grid, no sync.",
-      fix:
-        anlzTotal === 0
-          ? undefined
-          : "In rekordbox: select affected tracks → Track → Analyze, then re-export",
-    });
+        cap([...missingAnlzList, ...anlzHashList]),
+      ),
+    );
   }
 
   // 4 — field sanity (BPM / duration)
-  checks.push({
-    id: "fields",
-    label: "BPM + duration sanity",
-    status: noBpm + badLen === 0 ? "pass" : "warn",
-    detail:
+  checks.push(
+    mk(
+      "fields",
+      noBpm + badLen === 0 ? "pass" : "warn",
       noBpm + badLen === 0
         ? `all ${tracks ?? "?"} tracks have plausible BPM and length`
         : `${noBpm} without BPM, ${badLen} with implausible length`,
-    meaning:
-      "Empty BPM breaks search-by-BPM and Beat Sync; impossible durations mean a corrupt file.",
-    fix: noBpm + badLen === 0 ? undefined : "Analyze those tracks in rekordbox, re-export",
-  });
+      cap([...noBpmList, ...badLenList]),
+    ),
+  );
 
   // 5 — grid plausibility
   if (tracks !== null) {
-    checks.push({
-      id: "grids",
-      label: "Beatgrid plausibility",
-      status: badGrids === 0 ? "pass" : "warn",
-      detail:
+    checks.push(
+      mk(
+        "grids",
+        badGrids === 0 ? "pass" : "warn",
         badGrids === 0
           ? `all generated grids consistent with track length + BPM`
           : `${badGrids} generated track(s) with grids that don't match length/BPM`,
-      meaning:
-        "A wrong grid means Beat Sync drifts mid-track even though it looks locked.",
-      fix: badGrids === 0 ? undefined : "Re-analyze the flagged tracks in rekordbox",
-    });
+        cap(badGridList),
+      ),
+    );
   }
   if (pioneerVar !== null && pioneerVar > 0) {
-    checks.push({
-      id: "pioneer-variance",
-      label: "Pioneer-native grid variance (info)",
-      status: "pass",
-      detail: `${pioneerVar} Pioneer-shipped tracks have loose grids — informational, not an error`,
-      meaning:
-        "Pioneer's own factory tracks (and their samples) often have imprecise grids. This is upstream data, not your problem.",
-    });
+    checks.push(
+      mk(
+        "pioneer-variance",
+        "pass",
+        `${pioneerVar} Pioneer-shipped tracks have loose grids — informational, not an error`,
+      ),
+    );
   }
 
   // 6 — playlists + relations
   if (playlists !== null) {
-    checks.push({
-      id: "relations",
-      label: "Playlists + relations",
-      status: dangling + artistFk === 0 ? "pass" : "fail",
-      detail:
-        dangling + artistFk === 0
+    const dang = dangling ?? 0;
+    const fk = artistFk ?? 0;
+    checks.push(
+      mk(
+        "relations",
+        dang + fk === 0 ? "pass" : "fail",
+        dang + fk === 0
           ? `${playlists} playlists, ${entries ?? "?"} entries, no dangling rows`
-          : `${playlists} playlists · ${dangling} dangling entries · ${artistFk} broken artist links`,
-      meaning:
-        "Dangling entries make playlists randomly shorter (or crash older firmware) on hardware.",
-      fix:
-        dangling + artistFk === 0
-          ? undefined
-          : "Usually heals on the next full rekordbox export; if it persists, rebuild the affected playlist",
-    });
+          : `${playlists} playlists · ${dang} dangling entries · ${fk} broken artist links`,
+      ),
+    );
   }
 
   // 7..9 — cross-drive parity (only present in 2-drive runs)
   if (crossDrive) {
-    checks.push({
-      id: "db-parity",
-      label: "Master ↔ mirror database parity",
-      status: dbIdentical ? "pass" : "fail",
-      detail: dbIdentical
-        ? "exportLibrary.db byte-identical on both drives"
-        : "exportLibrary.db differs between drives",
-      meaning:
-        "If the DBs differ, the two drives will disagree about playlists and track data — the booth result depends on which stick you grabbed.",
-      fix: dbIdentical ? undefined : "Re-run Mirror so both drives get the same DB",
-    });
+    checks.push(
+      mk(
+        "db-parity",
+        dbIdentical ? "pass" : "fail",
+        dbIdentical
+          ? "exportLibrary.db byte-identical on both drives"
+          : "exportLibrary.db differs between drives",
+      ),
+    );
     if (anlzParity) {
-      checks.push({
-        id: "anlz-parity",
-        label: "ANLZ hash parity",
-        status: anlzParity[0] === 0 ? "pass" : "fail",
-        detail: `${anlzParity[0]} of ${anlzParity[1]} analysis files differ between drives`,
-        meaning: "Same track can show a different waveform on each drive.",
-        fix:
-          anlzParity[0] === 0
-            ? undefined
-            : "Mirror sync copies ANLZ too — re-run Mirror, then Verify",
-      });
+      checks.push(
+        mk(
+          "anlz-parity",
+          anlzParity[0] === 0 ? "pass" : "fail",
+          `${anlzParity[0]} of ${anlzParity[1]} analysis files differ between drives`,
+          cap(anlzMismatchList),
+        ),
+      );
     }
-    if (audioMismatch !== null) {
-      checks.push({
-        id: "audio-parity",
-        label: "Audio spot-check (40 sampled)",
-        status: audioMismatch === 0 ? "pass" : "fail",
-        detail:
+    if (j || audioMismatch !== null) {
+      checks.push(
+        mk(
+          "audio-parity",
+          audioMismatch === 0 ? "pass" : "fail",
           audioMismatch === 0
             ? "40 random tracks hash-identical across drives"
             : `${audioMismatch}/40 sampled tracks DIFFER between drives (different rips)`,
-        meaning:
-          "The same song plays slightly differently from each drive — usually two different downloads/rips of it.",
-        fix:
-          audioMismatch === 0
-            ? undefined
-            : "Copy the master's version over the mirror's for the listed files, then Verify",
-      });
+          cap(audioMismatchList),
+        ),
+      );
     }
   }
 
@@ -796,4 +881,53 @@ export function parseVerifyReport(
     stats,
     summary: lastLines(out, 25),
   };
+}
+
+function grabNum(out: string, re: RegExp): number | null {
+  const m = out.match(re);
+  if (!m?.[1]) return null;
+  const v = parseInt(m[1], 10);
+  return Number.isNaN(v) ? null : v;
+}
+
+function grab2Num(out: string, re: RegExp): [number, number] | null {
+  const m = out.match(re);
+  if (!m?.[1] || !m[2]) return null;
+  const a = parseInt(m[1], 10);
+  const b = parseInt(m[2], 10);
+  if (Number.isNaN(a) || Number.isNaN(b)) return null;
+  return [a, b];
+}
+
+/** Compare a fresh verify report against the previously stored one:
+ *  per-check offender-count deltas so the UI can show "2 new broken grids
+ *  since last run" instead of making the user re-derive that themselves. */
+export function verifyDeltas(
+  prev: VerifyReport | null,
+  next: VerifyReport,
+): VerifyDelta[] {
+  if (!prev) return [];
+  const prevBy = new Map(prev.checks.map((c) => [c.id, c]));
+  const deltas: VerifyDelta[] = [];
+  for (const c of next.checks) {
+    if (c.id === "pioneer-variance") continue; // informational, not tracked
+    const p = prevBy.get(c.id);
+    const count = c.offender_count ?? 0;
+    const prevCount =
+      p?.offender_count ??
+      // legacy reports had no offender_count — derive from detail via status
+      (p ? (p.status === "pass" ? 0 : NaN) : NaN);
+    if (Number.isNaN(prevCount)) continue; // can't compare legacy fails
+    if (count !== prevCount || p?.status !== c.status) {
+      deltas.push({
+        check_id: c.id,
+        label: c.label,
+        delta: count - prevCount,
+        prev_status: p?.status ?? null,
+        prev_count: prevCount,
+        count,
+      });
+    }
+  }
+  return deltas;
 }

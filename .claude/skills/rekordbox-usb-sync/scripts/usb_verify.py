@@ -22,6 +22,7 @@ Known-benign exclusions (Pioneer-native, not bugs):
 
 import argparse
 import hashlib
+import json
 import os
 import random
 import struct
@@ -42,6 +43,13 @@ FACTORY_SAMPLES = {
     "House 2",
     "House 3",
 }
+
+# Structured payload accumulated during the run and emitted as ONE
+# "VERIFY_JSON: {...}" line before FINAL. The CrateDeck job engine parses
+# this first; the human-readable text above stays the source of truth for
+# eyes. Offender lists are full paths so the UI can say exactly which
+# tracks need attention.
+VERIFY_JSON: dict = {}
 
 
 def md5(path: str) -> str:
@@ -126,6 +134,7 @@ def verify_hardware_view(drive: str) -> list:
     """What a legacy player (XDJ-XZ etc.) actually reads: export.pdb vs OneLibrary."""
     vol = f"/Volumes/{drive}"
     fails = []
+    J = VERIFY_JSON.setdefault("drives", {}).setdefault(drive, {})
     pdb_path = os.path.join(vol, "PIONEER/rekordbox/export.pdb")
     db = DeviceLibraryPlus(os.path.join(vol, "PIONEER/rekordbox/exportLibrary.db"))
     try:
@@ -139,6 +148,8 @@ def verify_hardware_view(drive: str) -> list:
         return fails
     n_pdb = pdb_live_rows(pdb_path, table_type=0)
     print(f"  hardware view: export.pdb={n_pdb} tracks vs OneLibrary DB={n_db} tracks")
+    J["pdb_tracks"] = n_pdb
+    J["onelibrary_tracks"] = n_db
     if n_pdb != n_db:
         delta = n_db - n_pdb
         if delta > 0:
@@ -148,6 +159,7 @@ def verify_hardware_view(drive: str) -> list:
         fails.append(f"{drive}: pdb/db track count")
     # ANLZ at hash paths for every track
     bad_hash = 0
+    anlz_hash_missing: list[str] = []
     for c in contents:
         p, hr = compute_anlz_folder(c.path)
         expected = os.path.join(
@@ -158,8 +170,10 @@ def verify_hardware_view(drive: str) -> list:
             or not os.path.exists(vol + c.analysisDataFilePath)
         ):
             bad_hash += 1
+            anlz_hash_missing.append(c.path)
     print(f"  ANLZ missing at hash path AND at DB path: {bad_hash}")
     if bad_hash:
+        J["anlz_hash_missing"] = anlz_hash_missing
         fails.append(f"{drive}: anlz hardware paths")
     return fails
 
@@ -167,32 +181,45 @@ def verify_hardware_view(drive: str) -> list:
 def verify_drive(drive: str) -> list:
     vol = f"/Volumes/{drive}"
     fails = []
+    J = VERIFY_JSON.setdefault("drives", {}).setdefault(drive, {})
     db = DeviceLibraryPlus(os.path.join(vol, "PIONEER/rekordbox/exportLibrary.db"))
     rows = db.query(Content).all()
     print(f"  tracks: {len(rows)}")
+    J["tracks"] = len(rows)
 
     no_file = no_anlz = no_bpm = bad_len = 0
+    missing_files: list[str] = []
+    missing_anlz: list[str] = []
+    no_bpm_list: list[str] = []
+    bad_len_list: list[str] = []
+    bad_grid_list: list[str] = []
     bad_grid = pioneer_variance = 0
     for c in rows:
         if not os.path.exists(vol + c.path):
             no_file += 1
+            missing_files.append(c.path)
         if not c.bpmx100:
             no_bpm += 1
+            no_bpm_list.append(c.path)
         if not (0 < c.length < 25000):
             bad_len += 1
+            bad_len_list.append(c.path)
         if not c.analysisDataFilePath or not os.path.exists(
             vol + c.analysisDataFilePath
         ):
             no_anlz += 1
+            missing_anlz.append(c.path)
             continue
         data = open(vol + c.analysisDataFilePath, "rb").read()  # noqa: SIM115
         parsed = walk_anlz(data)
         if parsed is None:
             bad_grid += 1
+            bad_grid_list.append(c.path)
             continue
         pth, sections = parsed
         if pth != c.path:
             bad_grid += 1
+            bad_grid_list.append(c.path)
             continue
         qt = next((s for s in sections if s[0] == "PQTZ"), None)
         is_generated = c.path.startswith("/Contents/YTMusic Liked/")
@@ -201,6 +228,7 @@ def verify_drive(drive: str) -> list:
             # PQTZ is only a problem if we generated it
             if is_generated and c.title not in FACTORY_SAMPLES:
                 bad_grid += 1
+                bad_grid_list.append(c.path)
             elif c.title not in FACTORY_SAMPLES:
                 pioneer_variance += 1
             continue
@@ -213,6 +241,7 @@ def verify_drive(drive: str) -> list:
         if beats < 4:
             if is_generated and c.title not in FACTORY_SAMPLES:
                 bad_grid += 1
+                bad_grid_list.append(c.path)
             else:
                 pioneer_variance += 1
         elif beat_off or bpm_off:
@@ -220,6 +249,7 @@ def verify_drive(drive: str) -> list:
             # (variable-BPM sections, rounding); only flag generated files
             if is_generated:
                 bad_grid += 1
+                bad_grid_list.append(c.path)
             else:
                 pioneer_variance += 1
 
@@ -229,21 +259,37 @@ def verify_drive(drive: str) -> list:
     print(
         f"  bad grids (generated): {bad_grid} | pioneer-native variance (informational): {pioneer_variance}"
     )
+    # structured offenders (only non-empty; keep the JSON line compact)
+    if missing_files:
+        J["missing_files"] = missing_files
+    if missing_anlz:
+        J["missing_anlz"] = missing_anlz
+    if no_bpm_list:
+        J["no_bpm"] = no_bpm_list
+    if bad_len_list:
+        J["bad_length"] = bad_len_list
+    if bad_grid_list:
+        J["bad_grids"] = bad_grid_list
     if any([no_file, no_anlz, no_bpm, bad_len]):
         fails.append(f"{drive}: coverage/fields")
 
     tids = {c.content_id for c in rows}
-    bad_e = sum(1 for e in db.query(PlaylistContent).all() if e.content_id not in tids)
+    bad_entries = [e for e in db.query(PlaylistContent).all() if e.content_id not in tids]
+    bad_e = len(bad_entries)
     aids = {a.artist_id for a in db.query(Artist).all()}
     dang = sum(1 for c in rows if c.artist_id_artist and c.artist_id_artist not in aids)
     print(
         f"  playlists: {db.query(Playlist).count()} | entries: {db.query(PlaylistContent).count()} | dangling: {bad_e} | artist FK bad: {dang}"
     )
+    JD = VERIFY_JSON["drives"].setdefault(drive, {})
+    JD["playlists"] = db.query(Playlist).count()
+    JD["playlist_entries"] = db.query(PlaylistContent).count()
+    JD["dangling_entries"] = bad_e
+    JD["artist_fk_bad"] = dang
     if bad_e or dang:
         fails.append(f"{drive}: relations")
     db.close()
     return fails
-
 
 def main() -> int:
     ap = argparse.ArgumentParser(
@@ -273,7 +319,9 @@ def main() -> int:
             f"/Volumes/{b}/PIONEER/rekordbox/exportLibrary.db"
         )
         print(f"DB byte-identical: {same}")
-        fails.append("DB parity") if not same else None
+        VERIFY_JSON["db_identical"] = same
+        if not same:
+            fails.append("DB parity")
 
         if not args.skip_hash_parity:
             src = {}
@@ -284,16 +332,20 @@ def main() -> int:
                     p = os.path.join(dp, fn)
                     src[os.path.relpath(p, f"/Volumes/{a}/PIONEER/USBANLZ")] = p
             mm = 0
+            anlz_mismatch: list[str] = []
             for i, (rel, p) in enumerate(src.items(), 1):
                 d = f"/Volumes/{b}/PIONEER/USBANLZ/" + rel
                 if not os.path.exists(d) or md5(p) != md5(d):
                     mm += 1
+                    anlz_mismatch.append(rel)
                     if mm <= 3:
                         print(f"  MISMATCH: {rel}")
                 if i % 4000 == 0:
                     print(f"  hashed {i}/{len(src)}", flush=True)
             print(f"ANLZ full hash parity: {mm}/{len(src)} mismatches")
+            VERIFY_JSON["anlz_total"] = len(src)
             if mm:
+                VERIFY_JSON["anlz_mismatches"] = anlz_mismatch
                 fails.append("ANLZ parity")
 
         db = DeviceLibraryPlus(f"/Volumes/{a}/PIONEER/rekordbox/exportLibrary.db")
@@ -302,17 +354,28 @@ def main() -> int:
         finally:
             db.close()
         am = 0
+        audio_mismatch: list[str] = []
         for c in sample:
             fa, fb = f"/Volumes/{a}{c.path}", f"/Volumes/{b}{c.path}"
             if os.path.exists(fa) and os.path.exists(fb) and md5(fa) != md5(fb):
                 am += 1
+                audio_mismatch.append(c.path)
                 print(
                     f"  AUDIO MISMATCH (different rips — copy master's version over): {c.path}"
                 )
         print(f"audio hash spot-check (40): {am} mismatches")
         if am:
+            VERIFY_JSON["audio_mismatches"] = audio_mismatch
             fails.append("audio parity")
 
+    VERIFY_JSON["fails"] = fails
+    # machine-readable payload on ONE stable line: the job engine parses this
+    # first and only falls back to regexing the human output if absent.
+    print(
+        "VERIFY_JSON: "
+        + json.dumps(VERIFY_JSON, separators=(",", ":"), default=str),
+        flush=True,
+    )
     print(f"\nFINAL: {'ALL PASS' if not fails else 'FAILED: ' + ', '.join(fails)}")
     return 1 if fails else 0
 

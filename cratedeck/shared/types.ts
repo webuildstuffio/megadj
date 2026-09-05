@@ -181,6 +181,21 @@ export interface VerifyCheck {
   /** Plain-English: why does this check matter for a DJ? */
   meaning: string;
   fix?: string;
+  /** The offending track paths (capped) — exactly WHAT needs attention. */
+  offenders?: string[];
+  /** How many offenders exist in total (offenders may be truncated). */
+  offender_count?: number;
+}
+
+/** Per-check direction vs the previous run (fewer = improving). */
+export interface VerifyDelta {
+  check_id: string;
+  label: string;
+  /** +N more offenders than last run, −N fewer. 0/no-entry = unchanged. */
+  delta: number;
+  prev_status: VerifyCheck["status"] | null;
+  prev_count: number;
+  count: number;
 }
 
 /** Full structured result of a verify run, stored per drive. */
@@ -193,6 +208,9 @@ export interface VerifyReport {
   /** Raw counts from the script (tracks, playlists, pioneer variance…). */
   stats: Record<string, number>;
   summary: string;
+  /** Comparison against the previous stored run, when one existed. */
+  deltas?: VerifyDelta[];
+  prev_ran_at?: number | null;
 }
 
 export interface PortInfo {

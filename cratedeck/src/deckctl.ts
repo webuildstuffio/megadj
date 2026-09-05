@@ -389,6 +389,135 @@ async function cmdJobs(): Promise<void> {
   }
 }
 
+// ---- fleet superpowers (§B6 coverage / §B7 redundancy / §B8 diff) -----------
+
+interface CoverageRes {
+  drives: { id: string; name: string; tracks: number }[];
+  at_risk: {
+    identity: { path: string; title: string | null; artist: string | null };
+    copies: number;
+    drives: string[];
+  }[];
+  min_copies: number;
+  totals: { unique_tracks: number; fully_redundant: number };
+}
+
+async function cmdCoverage(minCopies?: string): Promise<void> {
+  const n = minCopies ? parseInt(minCopies, 10) : undefined;
+  const qs = n && n > 0 ? `?min_copies=${n}` : "";
+  const r = (await apiGet(`/api/fleet/coverage${qs}`).then((res) =>
+    res.json(),
+  )) as CoverageRes;
+  if (JSON_MODE) {
+    console.log(JSON.stringify(r, null, 2));
+    return;
+  }
+  log(
+    `fleet coverage — ${r.totals.unique_tracks.toLocaleString()} unique tracks across ${r.drives.length} drive(s)`,
+  );
+  for (const d of r.drives) log(`  ${d.name}: ${d.tracks.toLocaleString()} tracks`);
+  if (!r.at_risk.length) {
+    log(
+      `✓ no at-risk tracks — everything lives on ≥${r.min_copies} drive(s)`,
+    );
+    return;
+  }
+  log(
+    `⚠ ${r.at_risk.length} track(s) below ${r.min_copies} copies (first 50):`,
+  );
+  for (const t of r.at_risk.slice(0, 50)) {
+    const name = t.identity.title ?? t.identity.path;
+    const artist = t.identity.artist ? ` — ${t.identity.artist}` : "";
+    log(`  ${t.copies}· ${name}${artist}  [${t.drives.join(", ")}]`);
+  }
+}
+
+interface RedundancyRes {
+  overall: string;
+  summary: string;
+  playlists: {
+    playlist: string;
+    verdict: string;
+    detail: string;
+    unique_tracks: number;
+    protected_tracks: number;
+  }[];
+}
+
+async function cmdRedundancy(minCopies?: string): Promise<void> {
+  const n = minCopies ? parseInt(minCopies, 10) : undefined;
+  const qs = n && n > 0 ? `?min_copies=${n}` : "";
+  const r = (await apiGet(`/api/fleet/redundancy${qs}`).then((res) =>
+    res.json(),
+  )) as RedundancyRes;
+  if (JSON_MODE) {
+    console.log(JSON.stringify(r, null, 2));
+    return;
+  }
+  log(`redundancy audit — ${r.summary}`);
+  for (const p of r.playlists) {
+    const mark =
+      p.verdict === "pass"
+        ? "✓"
+        : p.verdict === "fail"
+          ? "✕"
+          : p.verdict === "warn"
+            ? "▲"
+            : "○";
+    log(
+      `${mark} ${p.playlist}: ${p.protected_tracks}/${p.unique_tracks} protected — ${p.detail}`,
+    );
+  }
+}
+
+async function cmdDiff(a?: string, b?: string): Promise<void> {
+  if (!a || !b) {
+    errOut("usage: deckctl diff <driveA> <driveB>  (name, nickname, or UUID)");
+    process.exit(2);
+  }
+  const da = await resolveDrive(a);
+  const dbb = await resolveDrive(b);
+  if (!da) {
+    errOut(`unknown drive: ${a}`);
+    process.exit(2);
+  }
+  if (!dbb) {
+    errOut(`unknown drive: ${b}`);
+    process.exit(2);
+  }
+  const r = (await apiGet(
+    `/api/fleet/diff?a=${encodeURIComponent(da.id)}&b=${encodeURIComponent(dbb.id)}`,
+  ).then((res) => res.json())) as {
+    a: string;
+    b: string;
+    summary: string;
+    added: { path: string; title: string | null; artist: string | null }[];
+    removed: { path: string; title: string | null; artist: string | null }[];
+    changed: { path: string; title: string | null }[];
+  };
+  if (JSON_MODE) {
+    console.log(JSON.stringify(r, null, 2));
+    return;
+  }
+  log(`${r.a} → ${r.b}: ${r.summary}`);
+  const show = (rows: { title: string | null; path: string }[]) =>
+    rows.slice(0, 30).forEach((x) => log(`    ${x.title ?? x.path}`));
+  if (r.added.length) {
+    log(`  + added (${r.added.length}):`);
+    show(r.added);
+  }
+  if (r.removed.length) {
+    log(`  − missing (${r.removed.length}):`);
+    show(r.removed);
+  }
+  if (r.changed.length) {
+    log(`  ~ changed bytes (${r.changed.length}):`);
+    show(r.changed);
+  }
+  if (r.added.length + r.removed.length + r.changed.length === 0)
+    log("  identical inventories");
+}
+
 async function cmdCancel(jobId: string): Promise<void> {
   const r = await fetch(`${BASE}/api/jobs/${jobId}/cancel`, { method: "POST" });
   const body = (await r.json()) as { ok: boolean };
@@ -526,6 +655,12 @@ async function main(): Promise<void> {
       );
     case "jobs":
       return cmdJobs();
+    case "coverage":
+      return cmdCoverage();
+    case "redundancy":
+      return cmdRedundancy();
+    case "diff":
+      return cmdDiff(args[1], args[2]);
     case "explain":
       return cmdExplain(args[1]);
     case "cancel":
@@ -547,6 +682,9 @@ function usage(): never {
       "  drives                        list drives with badge verdicts",
       "  report <drive>                health-check dossier (drive = name, nickname, or UUID)",
       "  run <drive> <kind>            enqueue + follow a job (scan|verify|mirror|benchmark|checksum)",
+      "  coverage [min-copies]         which tracks live on which drives + at-risk list",
+      "  redundancy [min-copies]       per-playlist audit: every track on ≥N drives?",
+      "  diff <driveA> <driveB>        added / removed / changed between two drives",
       "  explain [kind]                what each job checks, typical duration, safety",
       "  jobs                          recent jobs",
       "  cancel <jobId>                cancel an active job",

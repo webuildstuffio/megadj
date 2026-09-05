@@ -20,7 +20,8 @@ export interface TrackRow {
   bpm: number | null;
   key: string | null;
   duration_ms: number | null;
-  playlist_names: string[];
+  /** Playlist memberships for this track (populated by the DB reader). */
+  playlist_names?: string[];
 }
 
 export interface PlaylistEntryRow {
@@ -145,9 +146,10 @@ export function coverage(
 
 /**
  * Which drives carry one track? Accepts either identity and merges hits:
- * match by exact casefolded path OR (when the path is unknown) by
- * artist - title. Powers the search box on the coverage tab and the
- * "is this anywhere else?" question mid-gig.
+ * exact casefolded path, exact "artist - title", and — when nothing exact
+ * matches — substring match on title/artist/path (so typing "three" finds
+ * "Three"). Powers the search box on the coverage tab and the "is this
+ * anywhere else?" question mid-gig.
  */
 export function trackLocations(
   inventories: Map<string, TrackRow[]>,
@@ -161,15 +163,36 @@ export function trackLocations(
     identity: { path: path ?? "", title: null, artist: null },
     drives: [],
   };
+  const tryRow = (
+    t: TrackRow,
+    driveId: string,
+    ok: boolean,
+  ): void => {
+    if (!ok) return;
+    if (!hit.drives.includes(driveId)) hit.drives.push(driveId);
+    hit.identity.path = t.path;
+    hit.identity.title = t.title;
+    hit.identity.artist = t.artist;
+  };
+  // pass 1: exact semantics (path hit is authoritative; meta only when the
+  // path query doesn't match, so a stray path query doesn't veto the join)
   for (const [driveId, rows] of inventories) {
     for (const t of rows) {
       const byPath = !!path && t.path === path;
-      const byMeta = !!meta && metaKey(t) === meta;
-      if (byPath || byMeta) {
-        if (!hit.drives.includes(driveId)) hit.drives.push(driveId);
-        hit.identity.path = t.path;
-        hit.identity.title = t.title;
-        hit.identity.artist = t.artist;
+      const byMeta = !!meta && !byPath && metaKey(t) === meta;
+      tryRow(t, driveId, byPath || byMeta);
+    }
+  }
+  // pass 2: substring fallback over path + title + artist (one loop; the
+  // single query string is checked against the combined haystack)
+  if (!hit.drives.length) {
+    const needle = path ?? meta;
+    if (needle) {
+      for (const [driveId, rows] of inventories) {
+        for (const t of rows) {
+          const hay = fold(`${t.path} ${t.title ?? ""} ${t.artist ?? ""}`);
+          tryRow(t, driveId, hay.includes(needle));
+        }
       }
     }
   }

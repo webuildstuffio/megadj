@@ -1948,3 +1948,51 @@ h3.sect .icon {
   color: var(--faint);
   font-weight: 700;
 }
+
+/* verify: offender lists + run-over-run deltas */
+.voffenders {
+  background: var(--surface3);
+  border-radius: 8px;
+  padding: 8px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.voffhead {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text2);
+}
+.voff {
+  font-size: 12.5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.voff.more { color: var(--text2); font-style: italic; }
+.vdeltas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  background: var(--surface2);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+}
+.vdeltas.same { color: var(--text2); }
+.vdhead { color: var(--text2); }
+.vdelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--surface4);
+  color: var(--text);
+}
+.vdelta.worse { background: var(--bad-dim); color: var(--bad); }
+.vdelta.better { background: var(--accent-dim); color: var(--accent); }
