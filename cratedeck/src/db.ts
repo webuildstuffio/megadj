@@ -113,6 +113,11 @@ function canon(v: unknown): string {
 
 export class DB {
   readonly sqlite: Database;
+  /** Configured master/mirror volume names — inferRole compares against
+   *  these, not just the DJMASTER/DJMIRROR doc defaults (config.toml's
+   *  library.master_drive/mirror_drive override them). */
+  masterName = "DJMASTER";
+  mirrorName = "DJMIRROR";
 
   constructor(dbPath: string) {
     mkdirSync(dirname(dbPath), { recursive: true });
@@ -283,7 +288,7 @@ export class DB {
           d.vendor ?? null,
           d.model ?? null,
           d.usb_serial ?? null,
-          d.role ?? inferRole(d.name ?? ""),
+          d.role ?? inferRole(d.name ?? "", this.masterName, this.mirrorName),
           now,
           now,
           d.last_port_key ?? null,
@@ -750,10 +755,17 @@ export class DB {
   }
 }
 
-export function inferRole(volumeName: string): Drive["role"] {
+export function inferRole(
+  volumeName: string,
+  masterName = "DJMASTER",
+  mirrorName = "DJMIRROR",
+): Drive["role"] {
   const n = volumeName.toUpperCase();
-  if (n === "DJMASTER") return "master";
-  if (n === "DJMIRROR") return "mirror";
+  // compare against the CONFIGURED volume names, not just the doc defaults —
+  // config.toml's library.master_drive/mirror_drive promise an override, and
+  // a drive that misses its role silently degrades parity checks + badges
+  if (n === masterName.toUpperCase()) return "master";
+  if (n === mirrorName.toUpperCase()) return "mirror";
   if (n.startsWith("DJ") || n.startsWith("CRATE")) return "library";
   return "unknown";
 }

@@ -150,6 +150,10 @@ export function DrivePage(props: {
         } else {
           stuckCount = 0;
           lastSnapshot = "";
+          // idle self-heal: the poll loop used to only refresh job state —
+          // if the FIRST full load failed (server busy/restarting), the
+          // "Loading failed" card stuck forever because nothing retried it
+          if (loadError) await load();
         }
         iv = setTimeout(loop, n > 0 ? 2000 : 10000);
       } catch {
@@ -158,12 +162,38 @@ export function DrivePage(props: {
     };
     loop();
     return () => clearTimeout(iv);
-  }, [load, driveId]);
+    // loadError rides along: the idle self-heal only retries after a failed
+    // load, and must see the flag flip false once the retry succeeds
+  }, [load, driveId, loadError]);
 
   // SSE-driven job refreshes land in App; here we only need the drive's own
-  // jobs list to stay current between polls.
+  // jobs list to stay current between polls. `cratedeck:job` fires per SSE
+  // event (up to ~4/s while a job runs) — throttle to ≤1 fetch per 2s.
   useEffect(() => {
+    let last = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const onJob = () => {
+      const now = Date.now();
+      if (now - last < 2000) {
+        if (!timer) {
+          timer = setTimeout(
+            () => {
+              timer = null;
+              last = Date.now();
+              fetch(`/api/jobs?drive=${driveId}`)
+                .then((r) => r.json() as Promise<Job[]>)
+                .then(setJobs)
+                .catch((e: unknown) => {
+                  console.error(`jobs refresh for ${driveId} failed`, e);
+                  toast("job list refresh failed — server unreachable", "err");
+                });
+            },
+            2000 - (now - last),
+          );
+        }
+        return;
+      }
+      last = now;
       fetch(`/api/jobs?drive=${driveId}`)
         .then((r) => r.json() as Promise<Job[]>)
         .then(setJobs)
@@ -173,7 +203,10 @@ export function DrivePage(props: {
         });
     };
     window.addEventListener("cratedeck:job", onJob);
-    return () => window.removeEventListener("cratedeck:job", onJob);
+    return () => {
+      window.removeEventListener("cratedeck:job", onJob);
+      if (timer) clearTimeout(timer);
+    };
   }, [driveId]);
 
   useEffect(() => {

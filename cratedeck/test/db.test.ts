@@ -376,4 +376,18 @@ describe("inferRole", () => {
     expect(inferRole("CRATE_OF_DOOM")).toBe("library");
     expect(inferRole("SANDISK")).toBe("unknown");
   });
+
+  // regression: role inference hardcoded DJMASTER/DJMIRROR and ignored the
+  // configured library.master_drive/mirror_drive overrides — custom setups
+  // got role "unknown" and silently lost parity checks + sync badges.
+  it("honours configured master/mirror volume names", () => {
+    expect(inferRole("GIGRIG", "GigRig", "Backup")).toBe("master");
+    expect(inferRole("backup", "GigRig", "BACKUP")).toBe("mirror");
+    expect(inferRole("DJMASTER", "GigRig", "Backup")).toBe("library"); // doc default no longer magic
+    expect(inferRole("DJBACKUP", "GigRig", "Backup")).toBe("library"); // prefix proximity must not match mirror
+  });
+
+  it("matches configured names case-insensitively", () => {
+    expect(inferRole("djmaster", "DJMaster", "DJMirror")).toBe("master");
+  });
 });

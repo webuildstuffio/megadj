@@ -32,6 +32,8 @@ export function App() {
     Map<string, { overall?: string; pass_rate?: number }>
   >(new Map());
   const searchRef = useRef<HTMLInputElement | null>(null);
+  /** coalesces SSE `job` bursts into ≤1 jobs refresh per second (see below) */
+  const jobRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     const [d, p, rep] = await Promise.all([
@@ -106,7 +108,14 @@ export function App() {
       }
     });
     es.addEventListener("job", () => {
-      refreshJobs();
+      // the server emits `job` up to ~4/s per running job (progress ticks +
+      // log lines); a fetch each would hammer the server + SQLite. Coalesce
+      // bursts into one refresh per second (the trailing call wins).
+      if (jobRefreshTimer.current) return;
+      jobRefreshTimer.current = setTimeout(() => {
+        jobRefreshTimer.current = null;
+        refreshJobs();
+      }, 1000);
       window.dispatchEvent(new CustomEvent("cratedeck:job"));
     });
     // SSE can silently die (proxy idle timeout, sleep/wake). EventSource
@@ -145,6 +154,7 @@ export function App() {
       clearInterval(interlockPoll);
       clearInterval(drivesPoll);
       window.removeEventListener("keydown", onKey);
+      if (jobRefreshTimer.current) clearTimeout(jobRefreshTimer.current);
     };
   }, [refresh, refreshJobs]);
 

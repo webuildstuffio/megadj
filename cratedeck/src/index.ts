@@ -22,6 +22,11 @@ import type { Drive, JobKind, SnapshotData } from "../shared/types";
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
 const db = new DB(cfg.dbPath);
+// role inference must compare against the CONFIGURED volume names, not the
+// DJMASTER/DJMIRROR doc defaults (custom library.master_drive setups would
+// otherwise get role "unknown" and silently lose parity checks + badges)
+db.masterName = cfg.masterDrive;
+db.mirrorName = cfg.mirrorDrive;
 const guard = new Guard(cfg);
 const webRoot = join(here, "web", "dist");
 
