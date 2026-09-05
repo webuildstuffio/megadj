@@ -33,6 +33,22 @@ Notes for coding agents working in this repo.
   `display_date` (flash-lite guesses 2023 — always verify via
   `tools/fix_years.ts`). CLI: `megadj fetch` (enrichment pass) and
   `megadj audit` (ground-truth completeness gate).
+- **FullTags** (`fulltags/`, Sep 4 2026) is the in-repo enrichment engine
+  sub-project: every tag/art capability (formerly scattered across
+  `src/metadata.ts`, `src/commands/{energy,embed,remix,wav-to-aiff}.ts`,
+  `tools/fetch_lib.ts`, `tools/fetch_ai.ts`) behind one schema
+  (`FullTag`/`TagPatch`), one atomic writer (`writer.ts` — all format
+  gotchas: ffmpeg drops AIFF ID3 chunks → mutagen; WAV art via mutagen APIC;
+  mp3 id3v2.3; **ffmpeg infers the muxer from the tmp filename, so tmp
+  outputs must keep their extension**), file-first readers, the full art
+  ladder, and a standalone CLI (`bun run fulltags/cli.ts <target>
+  [--tags|--genre|--art|--year|--energy] [--dry-run]`; `fulltags audit
+  <folder> --json` = same completeness gate as `megadj audit`). megadj's
+  modules are thin re-export shims — import surface unchanged. Idempotent
+  (energy stamped as TXXX:ENERGY; re-run = no-op). 49 tests in
+  `fulltags/test/`. Roadmap (key via libKeyFinder, beat_this BPM,
+  chromaprint fingerprints, Essentia ONNX heads — research-verified Sep
+  2026): `docs/fulltags-roadmap.md`.
 - **rekordbox WAV artwork**: RB never reads art embedded in WAVs (RIFF INFO
   has no art field; it ignores the ID3 APIC chunk). Two-part solution:
   (1) **ingest converts new WAVs → AIFF** (`src/commands/wav-to-aiff.ts`,
