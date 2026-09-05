@@ -17,3 +17,5 @@ cratedeck/config.toml
 
 # local-only ops files (personal; never commit)
 (local ops log)
+fulltags/
+reports/
