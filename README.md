@@ -110,6 +110,22 @@ Full command reference: run `megadj --help` or see
 - **Quality** — format selection is `141/bestaudio[m4a]/bestaudio` (256kbps AAC first, falls back gracefully). The `list` output flags tracks below 250kbps as `LOWQ`.
 - **Artwork & genre completion** — `tools/fetch_all.ts` is the one-shot enrichment pipeline (idempotent, parallel, ground-truth verified): tags → genre (SoundCloud tags via yt-dlp, canonicalized, then OpenRouter classifier at conf ≥ 0.7) → artwork (SoundCloud page `-original`/`t1080` → hypeddit gateways → mp3-twin → Deezer → iTunes → AI cover queue last).
 
+## FullTags (the enrichment engine)
+
+Every tag/art/metadata capability lives in [`fulltags/`](fulltags/README.md)
+as a standalone sub-project: one schema, one atomic writer (mp3/m4a/wav/
+flac/aiff with all the format gotchas), ground-truth readers, the full
+art ladder, and a standalone CLI. megadj's commands are thin wrappers over
+it.
+
+```bash
+bun run fulltags/cli.ts <file-or-folder>     # fill every missing field
+bun run fulltags/cli.ts audit <folder>       # completeness gate (--json)
+```
+
+Roadmap (key detection, Essentia mood/genre models, beat_this BPM,
+fingerprints): [docs/fulltags-roadmap.md](docs/fulltags-roadmap.md).
+
 ## DJ USB pipeline
 
 The `rekordbox-usb-sync` skill (`.claude/skills/rekordbox-usb-sync/`) is the
@@ -159,6 +175,8 @@ mirror + verify.
 | [docs/PRINCIPLES.md](docs/PRINCIPLES.md)                                                 | product principles — how we decide          |
 | [docs/FEATURES.md](docs/FEATURES.md)                                                     | feature/project sections + roadmap          |
 | [docs/usb-sync.md](docs/usb-sync.md)                                                     | USB pipeline what/why                       |
+| [fulltags/README.md](fulltags/README.md)                                                 | FullTags enrichment engine                  |
+| [docs/fulltags-roadmap.md](docs/fulltags-roadmap.md)                                     | FullTags prioritized AI/tagging roadmap     |
 | [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md)                           | WAV artwork research + fix (resolved)       |
 | [docs/cratedeck/01-product-brief.md](docs/cratedeck/01-product-brief.md)                 | CrateDeck brief                             |
 | [docs/cratedeck/02-prd.md](docs/cratedeck/02-prd.md)                                     | feature PRD (F1–F10)                        |

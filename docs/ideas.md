@@ -440,6 +440,12 @@ The tagging side of the request: make every file _fully_ tagged — not just
 title/artist, but the complete DJ-useful frame set, idempotently, with one
 pass. One mutagen pass (Python side), one schema, everything else reads it.
 
+> **2026-09-04 update: this section is now the FullTags sub-project**
+> (`fulltags/` — standalone CLI + engine, megadj's modules are shims over
+> it). J53's schema is live (`fulltags/src/schema.ts`), the writer/readers
+> are consolidated, and the follow-on roadmap (key, BPM, fingerprints,
+> Essentia moods) is `docs/fulltags-roadmap.md`.
+
 53. **The full frame schema.** Define once in the skill docs, apply in
     `ingest` + `upgrade`:
     - `TBPM` (integer BPM, already), `TKEY` (Initial Key, from I51)
