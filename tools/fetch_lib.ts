@@ -19,7 +19,8 @@ import {
 } from "../fulltags/src/exports";
 
 export const home = process.env.HOME!;
-export const ARCH = `${home}/Music/DJ-Imports`;
+export const ARCH =
+  process.env.MEGADJ_MUSIC_DIR ?? `${home}/Music/DJ-Imports`;
 export const QUEUE = `${home}/.local/state/megadj/artwork-queue.jsonl`;
 export const db = new Database(`${home}/.local/state/megadj/archive.db`);
 
@@ -129,16 +130,7 @@ export {
   itunesArtwork,
   pageOgImage,
   scSearch,
-  soundcloudArtwork,
   twinArt,
-  type ScHit,
 } from "../fulltags/src/exports";
-
-export const words = (s: string): string[] =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2);
 
 export const AI_MODEL = "google/gemini-2.5-flash-lite"; // cheapest solid

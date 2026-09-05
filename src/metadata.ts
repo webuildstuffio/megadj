@@ -9,10 +9,7 @@
 export {
   applyTags,
   buildMetadata,
-  cleanTitle,
-  extractComposer,
   inferGenre,
   sanitizeGenreFolder,
-  type EnrichedMetadata,
   type YtdlpInfo,
 } from "../fulltags/src/exports";

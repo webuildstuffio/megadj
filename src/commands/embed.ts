@@ -21,12 +21,3 @@ export async function embedArtwork(
   if (!bytes) return false;
   return embedArt(filePath, bytes);
 }
-
-/** APIC into a WAV's ID3 chunk, preserving existing tags. */
-export async function embedWav(
-  filePath: string,
-  imgPath: string,
-): Promise<boolean> {
-  const bytes = new Uint8Array(await Bun.file(imgPath).arrayBuffer());
-  return embedArt(filePath, bytes);
-}
