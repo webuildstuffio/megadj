@@ -8,7 +8,6 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@preact/signals": "^1.2.2",
     "preact": "^10.22.0"
   },
   "devDependencies": {
