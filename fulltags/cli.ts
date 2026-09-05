@@ -19,7 +19,7 @@
  */
 import { existsSync, statSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { enrichAll, DEFAULT_QUEUE } from "./src/pipeline";
+import { enrichAll, DEFAULT_QUEUE, readAiStamps } from "./src/pipeline";
 import { groundTruth } from "./src/readers";
 import { isAudioFile } from "./src/writer";
 
@@ -116,6 +116,7 @@ async function main(): Promise<void> {
     const files = collectFiles(dir);
     const rows = files.map((f) => {
       const t = groundTruth(f);
+      const ai = readAiStamps(f);
       const missing: string[] = [];
       if (!t.art) missing.push("art");
       if (!t.title) missing.push("title");
@@ -123,9 +124,19 @@ async function main(): Promise<void> {
       if (!t.album) missing.push("album");
       if (!t.genre || t.genre === "Music") missing.push("genre");
       if (!t.year) missing.push("year");
-      return { file: basename(f), missing, complete: missing.length === 0 };
+      const aiFilled = [
+        ai.aiGenre ? `genre←AI(${ai.aiGenre.split("|")[1] ?? "?"})` : null,
+        ai.aiYear ? `year←AI(${ai.aiYear.split("|")[1] ?? "?"})` : null,
+      ].filter((x): x is string => x !== null);
+      return {
+        file: basename(f),
+        missing,
+        aiFilled,
+        complete: missing.length === 0,
+      };
     });
     const complete = rows.filter((r) => r.complete).length;
+    const aiCount = rows.filter((r) => r.aiFilled.length).length;
     if (args.json) {
       console.log(
         JSON.stringify({ total: rows.length, complete, rows }, null, 2),
@@ -134,6 +145,10 @@ async function main(): Promise<void> {
       console.log(
         `audit: ${complete}/${rows.length} complete (art + title + artist + album + genre + year)`,
       );
+      if (aiCount)
+        console.log(
+          `  ${aiCount} track(s) carry AI-filled fields (genre←AI/year←AI with confidence)`,
+        );
       const gaps = rows.filter((r) => !r.complete);
       if (gaps.length) {
         console.log("\nincomplete:");

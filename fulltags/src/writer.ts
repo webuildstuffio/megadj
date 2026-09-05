@@ -206,6 +206,8 @@ const FFMPEG_KEY: Record<keyof TagPatch, string> = {
   mbid: "musicbrainz_trackid",
   bpm: "TBPM",
   energy: "ENERGY",
+  aiGenre: "AI-GENRE",
+  aiYear: "AI-YEAR",
 };
 
 /**
@@ -270,6 +272,12 @@ async function writePatchAiff(
       case "mbid":
         txxx("MusicBrainz Track Id", s);
         break;
+      case "aiGenre":
+        txxx("AI-GENRE", s);
+        break;
+      case "aiYear":
+        txxx("AI-YEAR", s);
+        break;
     }
   }
   const script = `
@@ -321,6 +329,10 @@ export function writePatchWav(filePath: string, patch: TagPatch): boolean {
           return `a.tags.add(TXXX(encoding=3, desc="MusicBrainz Track Id", text=${JSON.stringify(String(v))}))`;
         if (k === "energy")
           return `a.tags.add(TXXX(encoding=3, desc="ENERGY", text=${JSON.stringify(String(v))}))`;
+        if (k === "aiGenre")
+          return `a.tags.add(TXXX(encoding=3, desc="AI-GENRE", text=${JSON.stringify(String(v))}))`;
+        if (k === "aiYear")
+          return `a.tags.add(TXXX(encoding=3, desc="AI-YEAR", text=${JSON.stringify(String(v))}))`;
         if (k === "remixer")
           return `a.tags.add(TXXX(encoding=3, desc="version", text=${JSON.stringify(String(v))}))`;
         if (k === "bpm") return `a.tags.add(TBPM(encoding=3, text="${v}"))`;

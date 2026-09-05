@@ -18,7 +18,7 @@
  *   cookies      browser cookie access for yt-dlp (optional)
  *   cratedeck/config.toml  exists + master/mirror drives set (init can fix)
  */
-import { existsSync, readFileSync, copyFileSync } from "node:fs";
+import { existsSync, readFileSync, copyFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, platform } from "node:os";
 
@@ -384,6 +384,30 @@ export function doctorJson(results: CheckResult[]): string {
 }
 
 // ---- init -------------------------------------------------------------------
+/** Mounted volumes worth offering as drives (excludes system/junk mounts). */
+export function detectVolumes(): string[] {
+  try {
+    return readdirSync("/Volumes")
+      .filter((n) => n !== "Macintosh HD" && !n.startsWith("Macintosh HD "))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+/** Rewrite the [library] drive names in a config.toml string. */
+export function applyDriveNames(
+  cfg: string,
+  master: string,
+  mirror: string,
+): string {
+  const set = (c: string, key: string, val: string): string =>
+    new RegExp(`^\\s*${key}\\s*=`, "m").test(c)
+      ? c.replace(new RegExp(`^(\\s*${key}\\s*=\\s*).*$`, "m"), `$1"${val}"`)
+      : c;
+  return set(set(cfg, "master_drive", master), "mirror_drive", mirror);
+}
+
 export function runInit(): number {
   const sample = join(CRATEDECK_DIR, "config.sample.toml");
   const target = join(CRATEDECK_DIR, "config.toml");
@@ -398,6 +422,32 @@ export function runInit(): number {
     console.log(
       `! config.sample.toml not found at ${sample} — skipping scaffold`,
     );
+  }
+
+  // Auto-detect mounted USB volumes and write them into the scaffolded config
+  // so the very first run works without hand-editing. Only two (or one, when
+  // mirror just mirrors master) mounted non-system volumes → unambiguous.
+  if (didScaffold) {
+    const vols = detectVolumes();
+    const candidates = vols.filter(
+      (v) => !v.startsWith("com.apple.") && !v.startsWith("Time Machine"),
+    );
+    if (candidates.length === 2) {
+      const [master, mirror] = candidates as [string, string];
+      const cfg = readFileSync(target, "utf8");
+      const next = applyDriveNames(cfg, master, mirror);
+      if (next !== cfg) {
+        writeFileSync(target, next);
+        console.log(
+          `✓ detected mounted volumes → master_drive="${master}", mirror_drive="${mirror}"`,
+        );
+        didScaffold = false; // fully configured; skip the "edit it" hint
+      }
+    } else if (candidates.length > 2) {
+      console.log(
+        `! ${candidates.length} volumes mounted (${candidates.join(", ")}) — edit cratedeck/config.toml to pick master/mirror`,
+      );
+    }
   }
 
   const results = runDoctor();

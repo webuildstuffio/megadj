@@ -52,6 +52,21 @@ import { aiGenres, albumHeuristic } from "./fetch_ai";
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { appendFile } from "node:fs/promises";
+import { ProgressBar } from "../src/progress";
+
+/** Print a line without corrupting the live progress bar redraw. */
+let activeBar: ProgressBar | null = null;
+function progressLog(line: string): void {
+  if (!activeBar) {
+    console.log(line);
+    return;
+  }
+  activeBar.close();
+  console.log(line);
+  activeBar = new ProgressBar(activeBarTotal, "fetch");
+  activeBar.update(0);
+}
+let activeBarTotal = 0;
 
 const argv = process.argv.slice(2);
 const ALL = argv.includes("--all");
@@ -67,7 +82,6 @@ const ONLY = (
           : "all"
 ) as "art" | "genres" | "tags" | "years" | "all";
 const DRY = argv.includes("--dry-run");
-const t0 = Date.now();
 const jobsArg = argv.indexOf("--jobs");
 const JOBS = Math.max(1, Number(jobsArg !== -1 ? argv[jobsArg + 1] : 6) || 6);
 
@@ -104,6 +118,8 @@ async function processTask(
   aiYearBatch: Row[],
   /** out-param: rows that exhausted every art source → megadj artwork queue */
   artless: Row[],
+  /** live progress bar; ticks instead of printing per-item logs */
+  progress?: ProgressBar | null,
 ): Promise<void> {
   const { row: r, truth } = t;
   const name = `${r.artist ?? "?"} - ${r.title}`.slice(0, 56);
@@ -241,6 +257,11 @@ async function processTask(
     if (!artDone) artless.push(r);
   }
 
+  if (progress) {
+    progress.update(1);
+    return;
+  }
+  // plain mode (no progress bar): keep the classic per-item output
   if (notes.length)
     console.log(`  [${i + 1}/${total}] ${notes.join(" ")} — ${name}`);
   else if (DRY)
@@ -307,6 +328,14 @@ async function main() {
   const aiYearBatch: Row[] = [];
   const artless: Row[] = [];
 
+  // live progress bar (TTY bar + ETA; plain [n/total] milestones when piped)
+  const progress = tasks.length ? new ProgressBar(tasks.length, "fetch") : null;
+  if (progress) {
+    activeBar = progress;
+    activeBarTotal = tasks.length;
+    progress.update(0);
+  }
+
   let idx = 0;
   async function worker() {
     while (true) {
@@ -321,19 +350,20 @@ async function main() {
           aiGenreBatch,
           aiYearBatch,
           artless,
+          progress,
         );
       } catch (err) {
-        console.log(
-          `  [${my + 1}/${tasks.length}] ✗ error: ${(err as Error).message?.slice(0, 80)}`,
+        progressLog(
+          `  ✗ [${my + 1}/${tasks.length}] error: ${(err as Error).message?.slice(0, 80)}`,
         );
       }
     }
   }
   await Promise.all(Array.from({ length: JOBS }, () => worker()));
-
+  activeBar = null;
   // ---- AI genre fallback (batched, after the parallel pass) ----
   if (aiGenreBatch.length && !DRY) {
-    console.log(`\nAI genre fallback for ${aiGenreBatch.length}…`);
+    progressLog(`AI genre fallback for ${aiGenreBatch.length}…`);
     for (let k = 0; k < aiGenreBatch.length; k += 20) {
       const batch = aiGenreBatch.slice(k, k + 20);
       const res = await aiGenres(batch);
@@ -342,7 +372,10 @@ async function main() {
         if (!genre) continue;
         const row = batch.find((b) => b.video_id === vid)!;
         db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(genre, vid);
-        setFileTags(row.file_path, { genre });
+        setFileTags(row.file_path, {
+          genre,
+          aiGenre: `${genre}|${result[2] ?? 1}`,
+        });
         stats.genreAi++;
       }
     }
@@ -356,7 +389,7 @@ async function main() {
       const batch = aiYearBatch.slice(k, k + 20);
       const res = await aiGenres(batch, true);
       for (const [vid, result] of res) {
-        const [genre, year] = result;
+        const [genre, year, confidence] = result;
         const row = batch.find((b) => b.video_id === vid)!;
         const vals: TagValues = {};
         if (genre) {
@@ -365,6 +398,7 @@ async function main() {
             vid,
           );
           vals.genre = genre;
+          vals.aiGenre = `${genre}|${confidence ?? 1}`;
           stats.genreAi++;
         }
         if (year) {
@@ -373,6 +407,7 @@ async function main() {
             vid,
           );
           vals.year = year;
+          vals.aiYear = `${year}|${confidence ?? 1}`;
           stats.yearAi++;
         }
         if (Object.keys(vals).length) setFileTags(row.file_path, vals);
@@ -400,9 +435,8 @@ async function main() {
   }
 
   // ---- summary ----
-  const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  console.log(
-    `\nDONE${DRY ? " (dry)" : ""} in ${secs}s — tags: ${stats.tags} | genres: SC ${stats.genreSc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + AI ${stats.yearAi} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}`,
+  progress?.close(
+    `DONE${DRY ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + AI ${stats.yearAi} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}`,
   );
   db.close();
 }

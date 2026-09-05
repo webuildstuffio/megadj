@@ -30,6 +30,11 @@ export function validatePatch(vals: TagPatch): void {
       throw new TypeError(`${k} must be non-empty`);
     if (v.length > 500)
       throw new TypeError(`${k} too long (${v.length} chars, max 500)`);
+    // AI provenance stamps carry "value|confidence" — sanity-check the shape
+    if ((k === "aiGenre" || k === "aiYear") && !/^[^|]+\|\d*\.?\d+$/.test(v))
+      throw new TypeError(
+        `${k} must be "value|confidence" (e.g. "Techno|0.92"), got ${v}`,
+      );
   }
 }
 

@@ -67,6 +67,7 @@ export {
 } from "./metadata-build";
 export { detectRemix, type RemixInfo } from "./remix";
 export { wavToAiff } from "./convert";
+export { readAiStamps } from "./pipeline";
 export {
   enrichAll,
   enrichTrack,

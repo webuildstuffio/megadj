@@ -11,7 +11,7 @@ export const AI_MODEL = "google/gemini-2.5-flash-lite"; // cheapest solid
 
 export type AiTagResult = Map<
   string,
-  [genre: string | null, year: number | null]
+  [genre: string | null, year: number | null, confidence: number]
 >;
 
 export interface AiRow {
@@ -88,7 +88,8 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
         yearNum <= new Date().getFullYear()
           ? yearNum
           : null;
-      if (genre || year) out.set(row.video_id, [genre, year]);
+      if (genre || year)
+        out.set(row.video_id, [genre, year, item.confidence ?? 1]);
     }
   } catch (e) {
     // AI classification is best-effort by design (ladder: SC tag → canonical

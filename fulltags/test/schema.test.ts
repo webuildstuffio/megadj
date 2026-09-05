@@ -119,6 +119,18 @@ describe("schema-guards: validatePatch", () => {
     expect(() => validatePatch({ title: "x".repeat(501) })).toThrow(/too long/);
   });
 
+  test("AI provenance stamps must be value|confidence", () => {
+    expect(() => validatePatch({ aiGenre: "Techno|0.92" })).not.toThrow();
+    expect(() => validatePatch({ aiYear: "2019|0.7" })).not.toThrow();
+    expect(() => validatePatch({ aiGenre: "Techno" })).toThrow(
+      /value\|confidence/,
+    );
+    expect(() => validatePatch({ aiYear: "2019|" })).toThrow(
+      /value\|confidence/,
+    );
+    expect(() => validatePatch({ aiGenre: "" })).toThrow(/non-empty/);
+  });
+
   test("allows undefined fields", () => {
     expect(() => validatePatch({})).not.toThrow();
   });

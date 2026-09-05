@@ -92,6 +92,11 @@ export interface TagPatch {
   bpm?: number;
   /** DJ energy 1–10, written as TXXX:ENERGY where supported. */
   energy?: number;
+  /** AI provenance stamp: "value|confidence" → TXXX:AI-GENRE (trust in
+   * automation: an AI-filled field is always identifiable). */
+  aiGenre?: string;
+  /** AI provenance stamp: "value|confidence" → TXXX:AI-YEAR. */
+  aiYear?: string;
 }
 
 /** Genre → folder name safe for filesystems ("R&B / Soul" → "R&B Soul"). */

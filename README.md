@@ -77,9 +77,10 @@ bun run deckctl status | report | run | coverage | diff
 ```
 
 First run of the dashboard? Build the UI once: `cd cratedeck/web && bun
-install && bun run build`. Drives are matched by volume name — the defaults
-are `DJMASTER` and `DJMIRROR`; rename your drives to match, or set your own
-names in `cratedeck/config.toml` (copy `cratedeck/config.sample.toml`). Each drive
+install && bun run build`. Drives are matched by volume name — `megadj init`
+auto-detects mounted volumes and writes them into `cratedeck/config.toml`
+(copied from `cratedeck/config.sample.toml`); edit that file to change the
+names later. Each drive
 also carries a second, legacy database that older players like the XDJ-XZ
 read; a one-time rekordbox export per library generation keeps it current —
 [docs/usb-sync.md](docs/usb-sync.md) explains when and why.
@@ -140,6 +141,19 @@ Running from a headless session (browser closed)? Export a cookie jar first
 with `scripts/export-cookies.sh` — it writes a private jar outside the repo,
 and it should never be committed.
 
+### Configuration
+
+One file and a set of env vars — that's the whole story:
+
+- **`cratedeck/config.toml`** — drive names, dashboard port, jobs, image
+  provider. `megadj init` scaffolds it (and auto-fills drive names from
+  mounted volumes). Read by CrateDeck + `megadj doctor`; env vars override
+  per CrateDeck's precedence.
+- **Env vars** (below) — per-invocation knobs for the megadj CLI and
+  FullTags; nothing else is file-based.
+- **`USB_SYNC_MASTER` / `USB_SYNC_MIRROR`** — drive names for the
+  `scripts/sync-usb.sh` one-shot, independent of config.toml.
+
 ### Environment
 
 | Variable                   | Default                                     | Purpose                                                            |
@@ -152,6 +166,7 @@ and it should never be committed.
 | `MEGADJ_COOKIES_FILE`      | —                                           | netscape cookie jar for headless runs (overrides `MEGADJ_COOKIES`) |
 | `MEGADJ_ART_MAX`           | `20`                                        | max AI covers per `megadj artwork` pass                            |
 | `MEGADJ_ART_QUEUE`         | `~/.local/state/megadj/artwork-queue.jsonl` | where misses are queued for AI covers                              |
+| `FULLTAGS_ARTWORK_QUEUE`   | `~/.local/state/megadj/artwork-queue.jsonl` | same queue, FullTags-side name (`megadj artwork` consumes both)    |
 | `CRATEDECK_DATA`           | `~/.local/state/cratedeck`                  | dashboard state (DB, snapshots, images)                            |
 | `CRATEDECK_PORT`           | `7742`                                      | dashboard port (`bun run deck`)                                    |
 | `CRATEDECK_VOLUMES`        | autodetect                                  | extra volumes to watch beyond `/Volumes`                           |

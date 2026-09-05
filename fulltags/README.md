@@ -60,6 +60,14 @@ fulltags/
 | remixer  | title/filename `(Remixer Remix/Flip/Edit)` pattern                                                   |
 | energy   | ffmpeg RMS astats → 1–10 (Mixed In Key style baseline)                                               |
 
+## AI provenance (trust in automation)
+
+AI-filled genre/year are stamped into the file as `TXXX:AI-GENRE` /
+`TXXX:AI-YEAR` with the classifier's confidence — `Techno|0.92` — so an
+AI-filled field is always identifiable and auditable, never silently
+indistinguishable from a human/SC-sourced one. `fulltags audit` reports
+them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
+
 ## Format gotchas (why there's one writer)
 
 - **AIFF**: ffmpeg's aiff muxer **drops the ID3 chunk** — AIFF tag writes go

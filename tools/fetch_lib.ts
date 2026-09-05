@@ -68,7 +68,9 @@ export function embedArt(p: string, bytes: Uint8Array): boolean {
 }
 
 /** Tag fields the archive DB pipeline manages. `year` = release year of
- * THIS file's version (remixes: the remix year, NOT the original's). */
+ * THIS file's version (remixes: the remix year, NOT the original's).
+ * `aiGenre`/`aiYear` are provenance stamps "value|confidence" (0–1) written
+ * as TXXX:AI-GENRE / TXXX:AI-YEAR so AI-filled fields are always visible. */
 export interface TagValues {
   title?: string;
   artist?: string;
@@ -76,6 +78,8 @@ export interface TagValues {
   genre?: string;
   year?: number;
   comment?: string;
+  aiGenre?: string;
+  aiYear?: string;
 }
 
 /** Same rules as FullTags TagPatch (this shape is a subset). */

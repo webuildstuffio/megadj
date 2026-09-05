@@ -46,4 +46,4 @@ print("jar written")
 PYEOF
 
 chmod 600 "$JAR"
-echo "cookies exported to $JAR ($(grep -c . "$JAR") | wc lines)"
+echo "cookies exported to $JAR ($(( $(grep -c . "$JAR") - 1 )) cookie(s))"

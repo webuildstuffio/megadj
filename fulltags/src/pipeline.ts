@@ -93,7 +93,7 @@ export async function enrichTrack(
 
   // ---------- 1. tags: MusicBrainz fills artist/album/date ----------
   // CLI hints fill what the file lacks; hints covering every missing field
-  // make the pass deterministic — skip MB entirely (keeps offline/CI runs
+  // make the pass deterministic — skip MB entirely (keeps offline runs
   // off the network and the run fast).
   const hinted =
     (!truth.title || Boolean(opts.hints?.title)) &&
@@ -387,6 +387,60 @@ print(json.dumps({"energy": val}))`;
   }
 }
 void dirname;
+
+/** AI provenance stamps on a file: {aiGenre, aiYear} = "value|confidence",
+ * null when not AI-filled (mutagen TXXX read; never throws). */
+export function readAiStamps(p: string): {
+  aiGenre: string | null;
+  aiYear: string | null;
+} {
+  const script = `import json
+p = ${JSON.stringify(p)}
+genre = None
+year = None
+try:
+    if p.lower().endswith(".wav"):
+        from mutagen.wave import WAVE
+        a = WAVE(p)
+    elif p.lower().endswith((".aiff", ".aif")):
+        from mutagen.aiff import AIFF
+        a = AIFF(p)
+    else:
+        from mutagen.mp3 import MP3
+        from mutagen.flac import FLAC
+        if p.lower().endswith(".flac"):
+            a = FLAC(p)
+        else:
+            a = MP3(p)
+    tags = a.tags
+    if tags is not None:
+        for k in tags.keys():
+            if k.startswith("TXXX"):
+                desc = getattr(tags.get(k), "desc", "")
+                if desc == "AI-GENRE":
+                    genre = str(tags.get(k).text[0])
+                elif desc == "AI-YEAR":
+                    year = str(tags.get(k).text[0])
+except Exception:
+    pass
+print(json.dumps({"aiGenre": genre, "aiYear": year}))`;
+  const pr = Bun.spawnSync({
+    cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
+    stdout: "pipe",
+  });
+  try {
+    const last = new TextDecoder().decode(pr.stdout).trim().split("\n").at(-1);
+    const parsed = last
+      ? (JSON.parse(last) as { aiGenre?: string | null; aiYear?: string | null })
+      : {};
+    return {
+      aiGenre: parsed.aiGenre ?? null,
+      aiYear: parsed.aiYear ?? null,
+    };
+  } catch {
+    return { aiGenre: null, aiYear: null };
+  }
+}
 
 function completenessOf(
   truth: ReturnType<typeof groundTruth>,
