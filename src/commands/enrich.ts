@@ -70,7 +70,12 @@ async function rewriteGenreTag(
   // chunk — the documented repo gotcha) and leaked an orphan tmp file when
   // ffmpeg failed on a corrupt input. writePatch is atomic (tmp + rename),
   // format-aware (mutagen for AIFF/WAV/m4a), and cleans up after itself.
-  return writePatch(filePath, { genre });
+  try {
+    await writePatch(filePath, { genre });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function enrich(opts: EnrichOptions): Promise<void> {

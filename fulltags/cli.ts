@@ -9,6 +9,7 @@
  *
  * flags:
  *   --tags --genre --art --year --energy   run only these stages (repeatable)
+ *   --fingerprint --bpm --key              analysis stages (offline, idempotent)
  *   --jobs N                               parallel workers (default 4)
  *   --dry-run                              report, don't write
  *   --upgrade-sc-art                       re-embed SC art at original res
@@ -30,7 +31,9 @@ usage:
   fulltags <file-or-folder> [flags]      fill every missing field
   fulltags audit <folder> [--json]       ground-truth completeness gate
 
-stages: --tags --genre --art --year --energy (default: all)
+stages: --tags --genre --art --year --energy --fingerprint --bpm --key
+        (default: all; analysis stages need fpcalc / beat-this / the
+        openkeyscan-analyzer clone — missing envs are skipped with a note)
 more:   --jobs N · --dry-run · --upgrade-sc-art · --archive-dir DIR
         --artwork-queue PATH | --no-queue · --json
 
@@ -40,7 +43,16 @@ env: OPENROUTER_API_KEY (AI genre/year fallback) · artwork queue appends to
 
 interface CliArgs {
   target: string | null;
-  stages: Array<"tags" | "genre" | "art" | "year" | "energy"> | null;
+  stages: Array<
+    | "tags"
+    | "genre"
+    | "art"
+    | "year"
+    | "energy"
+    | "fingerprint"
+    | "bpm"
+    | "key"
+  > | null;
   jobs: number;
   dryRun: boolean;
   upgradeScArt: boolean;
@@ -62,10 +74,20 @@ function parseArgs(argv: string[]): CliArgs {
     json: false,
     hints: {},
   };
-  const stageKeys = ["tags", "genre", "art", "year", "energy"] as const;
+  const stageKeys = [
+    "tags",
+    "genre",
+    "art",
+    "year",
+    "energy",
+    "fingerprint",
+    "bpm",
+    "key",
+  ] as const;
   const stages = new Set<string>();
-  // `audit` is a subcommand, not a target — skip it during target pickup.
-  const skipFirst = argv[0] === "audit";
+  // `audit` and `single` are subcommands, not targets — skip them during
+  // target pickup (`single` is the documented per-file hint entrypoint).
+  const skipFirst = argv[0] === "audit" || argv[0] === "single";
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a) continue;
@@ -137,9 +159,13 @@ async function main(): Promise<void> {
     });
     const complete = rows.filter((r) => r.complete).length;
     const aiCount = rows.filter((r) => r.aiFilled.length).length;
+    const gaps = rows.filter((r) => !r.complete);
+    // Gate semantics (megadj audit parity): gaps → exit 1, in BOTH output
+    // modes. Agents/CI consume --json and rely on the exit code as the gate.
+    if (gaps.length) process.exitCode = 1;
     if (args.json) {
       console.log(
-        JSON.stringify({ total: rows.length, complete, rows }, null, 2),
+        JSON.stringify({ ok: gaps.length === 0, total: rows.length, complete, rows }, null, 2),
       );
     } else {
       console.log(
@@ -149,12 +175,10 @@ async function main(): Promise<void> {
         console.log(
           `  ${aiCount} track(s) carry AI-filled fields (genre←AI/year←AI with confidence)`,
         );
-      const gaps = rows.filter((r) => !r.complete);
       if (gaps.length) {
         console.log("\nincomplete:");
         for (const r of gaps)
           console.log(`  [${r.missing.join(",")}] ${r.file}`);
-        process.exitCode = 1;
       } else {
         console.log("✅ all tracks fully tagged");
       }

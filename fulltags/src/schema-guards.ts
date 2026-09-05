@@ -24,6 +24,23 @@ export function validatePatch(vals: TagPatch): void {
         throw new TypeError(`energy must be a number 1–10, got ${v}`);
       continue;
     }
+    if (k === "fingerprint") {
+      // chromaprint base64 — long but bounded; non-empty is the gate
+      if (typeof v !== "string" || !v.trim())
+        throw new TypeError("fingerprint must be a non-empty string");
+      continue;
+    }
+    if (k === "key" || k === "camelot") {
+      // Camelot ("9A"/"12B") or traditional ("E min", "C maj", "F# minor")
+      if (
+        typeof v !== "string" ||
+        !/^\d{1,2}[AB]$|^[A-G][#♯b♭]?\s?(maj(or)?|min(or)?|m)?$/i.test(v.trim())
+      )
+        throw new TypeError(
+          `key must be Camelot ("9A") or traditional ("E min"), got ${v}`,
+        );
+      continue;
+    }
     if (typeof v !== "string")
       throw new TypeError(`${k} must be a string, got ${typeof v}`);
     if (k !== "comment" && !v.trim())

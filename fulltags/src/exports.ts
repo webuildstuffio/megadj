@@ -23,6 +23,7 @@ export {
   writePatch,
   writePatchSync,
   writePatchWav,
+  writePatchMp4,
   AUDIO_EXTS as ARTWORK_EXTS,
 } from "./writer";
 export {
@@ -68,6 +69,16 @@ export {
 export { detectRemix, type RemixInfo } from "./remix";
 export { wavToAiff } from "./convert";
 export { readAiStamps } from "./pipeline";
+export {
+  fingerprintFile,
+  fingerprintWithDuration,
+  analyzeBeats,
+  analyzeKey,
+  analyzeKeys,
+  foldTempo,
+  type BeatResult,
+  type KeyResult,
+} from "./analysis";
 export {
   enrichAll,
   enrichTrack,

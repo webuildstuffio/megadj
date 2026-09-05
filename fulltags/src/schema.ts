@@ -22,15 +22,23 @@ export interface FullTag {
   grouping: string | null;
   /** Producer credits (parsed from descriptions / MusicBrainz relations). */
   composer: string | null;
+  /** Record label — TPUB, read by rekordbox (roadmap #3 schema bonus). */
+  label: string | null;
+  /** Mix name ("Club Mix", "Radio Edit") — TIT3, read by rekordbox. */
+  mixName: string | null;
   /** Source URL — provenance, shows in the comment field. */
   comment: string | null;
   bpm: number | null;
-  /** Harmonic key (Initial Key / Camelot) — roadmap P1, not yet auto-filled. */
+  /** Harmonic key — Camelot ("9A") or traditional ("E min"); TKEY on
+   * AIFF/MP3 (WAV has no key field), filled by the key stage. */
   key: string | null;
   /** DJ energy 1–10 from integrated RMS loudness. */
   energy: number | null;
   /** MusicBrainz recording MBID — metadata provenance. */
   mbid: string | null;
+  /** Chromaprint fingerprint — content identity for dupes/upgrade
+   * verification (TXXX:ACOUSTID). */
+  fingerprint: string | null;
   /** Embedded front cover present. */
   art: boolean;
 }
@@ -86,12 +94,22 @@ export interface TagPatch {
   composer?: string;
   grouping?: string;
   remixer?: string;
+  /** Record label (TPUB). */
+  label?: string;
+  /** Mix name (TIT3). */
+  mixName?: string;
   comment?: string;
   mbid?: string;
   /** Written where the container supports it (mp3/flac + mutagen paths). */
   bpm?: number;
+  /** Harmonic key — Camelot or traditional; TKEY/TXXX:CAMELOT. */
+  key?: string;
+  /** Camelot mirror of `key` — TXXX:CAMELOT, container-independent. */
+  camelot?: string;
   /** DJ energy 1–10, written as TXXX:ENERGY where supported. */
   energy?: number;
+  /** Chromaprint fingerprint, written as TXXX:ACOUSTID. */
+  fingerprint?: string;
   /** AI provenance stamp: "value|confidence" → TXXX:AI-GENRE (trust in
    * automation: an AI-filled field is always identifiable). */
   aiGenre?: string;

@@ -7,6 +7,15 @@ All notable changes to megadj are documented here. Format:
 
 ### Added
 
+- FullTags analysis stages (roadmap rev 4 #1–#3, Sep 5 2026): `--fingerprint`
+  (chromaprint → `TXXX:ACOUSTID`), `--bpm` (beat_this → `TBPM`, half/double
+  folded into 70–180), `--key` (OpenKeyScan analyzer → `TKEY` +
+  `TXXX:CAMELOT`); all offline, idempotent via existing-stamp detection,
+  missing-env → skip note. Schema grows `fingerprint`/`label`/`mixName`
+  (+`camelot` patch field); writers/readers updated for every format
+  (m4a freeform `initialkey`/`CAMELOT`/`ACOUSTID`/`LABEL`/`MIXNAME`).
+  New `fulltags/verify-key.ts` gauntlet gate (≥80% Camelot-aware agreement)
+  and `fulltags/test/analysis.test.ts` (14 env-gated tests).
 - AI provenance: AI-filled genre/year stamped as `TXXX:AI-GENRE` /
   `TXXX:AI-YEAR` with classifier confidence; `fulltags audit` reports
   `aiFilled` per track (text + `--json`).
@@ -44,6 +53,19 @@ diff|jobs|cancel|stop|explain` with `--json`, spinner + ETA, exit 3 on
 
 ### Fixed
 
+- FullTags: five bugs found in a same-day audit, fixed with regression
+  tests (`fulltags/test/m4a-stamps.test.ts`, suite 56 → 68+):
+  - `fulltags single <file>` misparsed the file as the target dir
+    (parseArgs only skipped `audit` as a subcommand).
+  - failed ffmpeg tag writes leaked the `.tagged` tmp file (async path's
+    cleanup never ran past a thrown `$`; sync path checked nothing).
+  - m4a silently dropped bpm/energy/mbid/AI stamps and wiped freeform
+    atoms on every rewrite (ffmpeg ipod muxer) — M4A writes now go through
+    mutagen (`writePatchMp4`), `readTxxx` parses m4a freeform + flac
+    Vorbis stamps (idempotency restored).
+  - `qualityScore` treated AIFF/hi-res WAV as lossy (only pcm_s16le was
+    recognized) — explicit `LOSSLESS_CODECS` set.
+  - `audit --json` never exited 1 on gaps (CI contract restored).
 - GetDat (`megadj sync` + downloader): ten bugs found and fixed with
   regression tests (`src/commands/sync.test.ts`, suite now 54):
   - `--json` mode leaked human logs into stdout on `sync`/`adopt`/

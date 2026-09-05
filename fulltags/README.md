@@ -4,7 +4,12 @@
 `mp3 / m4a / wav / flac / aiff` and fully enriches it: title, artist, album,
 album artist, genre, year (of _this version_ — remix year for edits), remix
 credit, producer credits, grouping, source URL, energy, embedded artwork,
-MusicBrainz MBID.
+MusicBrainz MBID — plus three offline analysis stages shipped Sep 5 2026
+(roadmap rev 4): **acoustic fingerprint** (chromaprint → `TXXX:ACOUSTID`),
+**real BPM** (beat_this → `TBPM`, half/double-tempo folded into the 70–180
+DJ window), and **harmonic key** (OpenKeyScan analyzer → `TKEY` +
+`TXXX:CAMELOT`). All idempotent via existing-stamp detection; missing envs
+degrade to a skip note, never a failure.
 
 Ground-truth driven: the **file** is the truth, the DB is a cache. Every
 write is atomic (tmp + rename, audio stream-copied — never re-encoded).
@@ -13,7 +18,17 @@ Idempotent: run it twice, the second pass changes nothing.
 ```
 fulltags <file-or-folder>            fill every missing field
 fulltags audit <folder> [--json]     completeness gate (same gate as `megadj audit`)
+fulltags <folder> --fingerprint      chromaprint fingerprint → TXXX:ACOUSTID (brew install chromaprint)
+fulltags <folder> --bpm              beat_this tempo → TBPM (uv-managed env; ~1 s/track CPU)
+fulltags <folder> --key              OpenKeyScan key → TKEY + TXXX:CAMELOT (clone the analyzer repo)
+bun run fulltags/verify-key.ts <folder> --limit 20   # key gauntlet gate: ≥80% vs existing tags
 ```
+
+Key-stage operational gauntlet (before any library-wide run): disable
+rekordbox Key analysis (it overwrites imported keys), batch-write, Reload
+Tags in RB, then run `verify-key.ts` against tracks with existing MIK/RB
+keys — require ≥80% exact agreement. BPM stage: compare against
+rekordbox-reanalyzed grids; flag disagreements > 2%.
 
 ---
 
@@ -46,7 +61,9 @@ fulltags/
     remix.ts             `X - Y (Z Remix)` detection
     pipeline.ts          enrichTrack / enrichAll — the orchestrator
     exports.ts           public import surface
-  test/                  56 tests (schema, writer round-trips, pipeline, AIFF)
+  test/                  82 tests (schema, writer round-trips, pipeline,
+                         m4a/AIFF stamps, audit gate, CLI subcommands,
+                         analysis stages — env-gated)
 ```
 
 ## The ladders (first success wins)
@@ -76,10 +93,23 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
   APIC. But rekordbox ignores WAV art entirely → convert to AIFF at ingest
   (`convert.ts`).
 - **mp3**: written as id3v2.3 for widest hardware compatibility.
-- **m4a**: ipod muxer; covers re-encode to mjpeg + `attached_pic`.
+- **m4a**: tags go through mutagen (ffmpeg's ipod muxer has NO metadata
+  mapping for bpm/energy/remixer/mbid/AI-* — they vanish silently, and
+  every remux wipes existing freeform atoms); covers still remux via
+  ffmpeg (mjpeg + `attached_pic`).
 - **tmp files keep their extension** — ffmpeg infers the muxer from the
   filename; an extensionless `.fa` tmp fails with "Unable to choose an output
   format" (a real bug this migration fixed in the old `fetch_lib` path).
+- **failed writes clean up** — a corrupt input must never leave an orphan
+  `.tagged` tmp in the folder (Bun's `$` throws on non-zero exit, so the
+  unlink lives in `catch`, not after an exit-code check).
+- **analysis-stage envs** (see roadmap rev 4 §7 for the full list): beat_this
+  has no tempo field on the programmatic path (derive `60/median(Δbeats)`;
+  beats arrive in seconds) and needs `soundfile` for mp3/m4a decode;
+  OpenKeyScan treats **stdin EOF as shutdown** (never `stdin.end()` before
+  responses land) and its stdout must be read line-by-line, never
+  buffered-to-end; uv `--with-requirements` ≠ the same pins spelled as
+  `--with` flags (the latter hung).
 
 ## Usage
 

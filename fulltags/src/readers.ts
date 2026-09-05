@@ -18,6 +18,8 @@ export interface Truth {
   genre: string | null;
   year: string | null;
   comment: string | null;
+  bpm: number | null;
+  key: string | null;
 }
 
 interface FfprobeJson {
@@ -112,6 +114,8 @@ const TRUTH_KEY: Record<string, string> = {
   TCON: "genre",
   TDRC: "date",
   COMM: "comment",
+  TBPM: "TBPM",
+  TKEY: "TKEY",
 };
 
 /** Ground-truth read of a file's tags + art presence. Never throws. */
@@ -141,6 +145,8 @@ export function groundTruth(p: string): Truth {
   if (genre && genre.includes(",")) genre = genre.split(",")[0]?.trim() ?? null;
   const rawDate = g("date", "year", "TDRC");
   const year = rawDate ? (rawDate.match(/\d{4}/)?.[0] ?? null) : null;
+  const bpmRaw = g("TBPM", "bpm", "tmpo");
+  const bpm = bpmRaw ? Number(bpmRaw.split(/[.,;]/)[0]) : NaN;
   return {
     art,
     title: g("title"),
@@ -149,6 +155,8 @@ export function groundTruth(p: string): Truth {
     genre,
     year,
     comment: g("comment"),
+    bpm: Number.isFinite(bpm) && bpm > 0 ? Math.round(bpm) : null,
+    key: g("TKEY", "initial_key", "initialkey", "CAMELOT"),
   };
 }
 
@@ -165,11 +173,14 @@ export function readFullTag(p: string): FullTag {
     remixer: null,
     grouping: null,
     composer: null,
+    label: null,
+    mixName: null,
     comment: t.comment,
-    bpm: null,
-    key: null,
+    bpm: t.bpm,
+    key: t.key,
     energy: null,
     mbid: null,
+    fingerprint: null,
     art: t.art,
   };
 }

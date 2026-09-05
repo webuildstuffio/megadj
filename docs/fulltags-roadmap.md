@@ -1,6 +1,9 @@
-# FullTags — Prioritized Roadmap (rev 3)
+# FullTags — Prioritized Roadmap (rev 4)
 
-_Rev 3, 2026-09-05 · external claims re-verified against primary sources
+_Rev 4, 2026-09-05 (later the same day): **#1–#3 SHIPPED** — fingerprints, beat_this
+BPM, and OpenKeyScan key are live pipeline stages with tests, a key-verification
+harness, and empirically-verified env gotchas (§7). A 5-bug audit also hardened
+the v0 core the same day (§5b). Rev 3, 2026-09-05 · external claims re-verified against primary sources
 (second pass, same day as rev 2): OpenKeyScan's actual open-source surface,
 beat_this v1.1.0 still current, all-in-one-infer v3's Apple-Silicon
 installs, MuQ-MuLan as the 2026 embeddings step-up, dupsonic's first
@@ -26,6 +29,17 @@ enters.
 - Format matrix round-trip **verified on real files** (§5): mp3/m4a/wav/
   aiff write+read-back, art embed+detect, WAV→AIFF conversion with ID3
   frame + APIC preservation.
+- **(rev 4, later today) #1–#3 analysis stages** (§7): `fulltags` gains
+  `--fingerprint` (chromaprint→TXXX:ACOUSTID), `--bpm` (beat_this→TBPM,
+  half/double-tempo folded into the 70–180 DJ window), and `--key`
+  (OpenKeyScan analyzer→TKEY+TXXX:CAMELOT) — all offline, all idempotent
+  via existing-stamp detection, env-missing → skip with a note. Schema
+  extended with `fingerprint`/`label`/`mixName` (+ `camelot` in TagPatch);
+  every format's writer/reader carries them (m4a via new freeform atoms
+  initialkey/CAMELOT/ACOUSTID/LABEL/MIXNAME). New `fulltags/verify-key.ts`
+  gate harness (Camelot-aware ref comparison, ≥80% gate). 14 new tests in
+  `fulltags/test/analysis.test.ts` (env-gated: run green with deps, skip
+  with a note without).
 
 ## 1. Fact-check corrections (vs rev 1)
 
@@ -41,7 +55,7 @@ enters.
 
 ## 2. The plan, re-ranked by value-per-effort
 
-### #1 — Acoustic fingerprint ledger (chromaprint) — **S, do first**
+### #1 — Acoustic fingerprint ledger (chromaprint) — **S — ✅ SHIPPED (rev 4)**
 
 Highest ratio in the doc: one brew dep (`chromaprint` → `fpcalc`), one DB
 column + one `TXXX:ACOUSTID` frame, and four existing backlog items
@@ -53,7 +67,7 @@ installs, and every later item can lean on its content-identity ledger.
 **Verify:** fp two known-identical files (different encodes) → match;
 one known-different pair → no match.
 
-### #2 — Real BPM + downbeats via beat_this — **S**
+### #2 — Real BPM + downbeats via beat_this — **S — ✅ SHIPPED (rev 4)**
 
 Write `TBPM` (integer) + store downbeat array in the archive DB (feeds
 P3 cues later; NOT injected into rekordbox grids — that stays
@@ -66,7 +80,7 @@ per-track CPU inference is seconds. MIT code + weights.
 truth from the 2026-09-03 pass); flag disagreements >2% for review
 before any batch run.
 
-### #3 — Harmonic key via OpenKeyScan — **M, the DJ-value king**
+### #3 — Harmonic key via OpenKeyScan — **M, the DJ-value king — ✅ SHIPPED (rev 4, tag-write half + verify gate)**
 
 **Primary:** OpenKeyScan analyzer — open-source repo mode (JSON over
 stdin/stdout, MPS auto-selected; MIT). The `:58721` REST server is the
@@ -177,11 +191,71 @@ Real-file verification pass over the shipped writer/shim surface:
 a spawned interpreter is a perf trap — expose a native sync twin instead
 (mirror of the rbSnapshot-async invariant on the CrateDeck side).
 
+## 5b. Bug-audit log (2026-09-05, later — 5 bugs found + fixed)
+
+Pre-rev-4 audit of the shipped surface; all fixed same day with regression
+tests in `fulltags/test/m4a-stamps.test.ts` (suite went 56 → 68+):
+
+| # | Bug                                                                 | Root cause                                                                                | Fix                                                                                         |
+| - | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 1 | `fulltags single <file>` misparsed the file as the target dir       | `parseArgs` skipped only `audit` as a subcommand                                          | skip `single` too                                                                            |
+| 2 | failed ffmpeg writes leaked the `.tagged` tmp file                  | `Bun.$` throws on non-zero exit → cleanup never ran; sync path checked nothing            | try/catch unlink (async) + explicit exitCode check (sync); regression-tested                 |
+| 3 | m4a silently dropped bpm/energy/mbid/AI stamps and wiped freeform atoms on rewrite | ffmpeg `ipod` muxer has no mapping for them and clobbers `----` atoms                     | M4A writes routed to mutagen (`writePatchMp4`); `readTxxx` parses m4a freeform + flac vorbis (list-unwrap, case-insensitive) |
+| 4 | `qualityScore` treated AIFF/hi-res WAV as lossy                     | `.replace("pcm_s16le","wav")` matched only 16-bit LE WAV                                  | explicit `LOSSLESS_CODECS` set (pcm_s16/24/32 LE+BE, alac, flac, wav)                         |
+| 5 | `audit --json` never exited 1 on gaps                               | exit gate only ran in the human-output branch                                             | gate applied to both branches (CI contract restored)                                          |
+
+**Lesson recorded (generalized):** every container the writer touches needs
+a *round-trip* test that reads back what it wrote through the ground-truth
+reader — ffmpeg's silent-drop behavior differs per muxer and nothing errors.
+
+## 7. Shipped: #1–#3 implementation notes (rev 4)
+
+What landed, and the env gotchas that cost real time (would have cost more
+without the smoke-tests-first loop):
+
+| Stage          | Path                                                                                                   | Writes                                    | Idempotency stamp          |
+| -------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------- | -------------------------- |
+| `--fingerprint`| `fpcalc -json` (brew chromaprint) → `analysis.ts fingerprintWithDuration`                              | `TXXX:ACOUSTID` (all formats)             | existing TXXX:ACOUSTID     |
+| `--bpm`        | `uv run --with beat-this` → `File2Beats(path)` → beats in **seconds**; tempo = `60/median(diff(beats))` | `TBPM` integer, half/double folded into 70–180 (`foldTempo`) | existing TBPM              |
+| `--key`        | OpenKeyScan analyzer server (JSON over stdin/stdout, MPS auto-select), batched per run                 | `TKEY` + `TXXX:CAMELOT` (+ m4a freeform `initialkey`) | existing TXXX:CAMELOT or TKEY |
+
+Env gotchas, each empirically verified:
+
+1. **beat_this has no tempo field on the programmatic path** — `File2File`
+   wants `(audio_path, output_path)` and writes TSV; use `File2Beats` and
+   derive tempo from the median inter-beat interval. Beats/downbeats come
+   back in **seconds**, frame-rate assumptions don't apply.
+2. **beat_this needs `soundfile`** for mp3/m4a: its `load_audio` falls back
+   torchaudio → soundfile → madmom, and torchaudio alone fails on mp3.
+3. **OpenKeyScan treats stdin EOF as shutdown** — writing all requests then
+   `stdin.end()` kills the server before responses are computed
+   ("cannot schedule new futures after shutdown"). Keep stdin open; reap
+   via kill().
+4. **Bun stdout reading must not buffer past a newline** — a read-to-end
+   (`new Response(stream).text()`) blocks until process exit, so the ready
+   line never "arrives". Use an explicit `getReader()` loop that consumes
+   line-by-line.
+5. **uv env resolution is not interchangeable**: `--with-requirements
+   requirements.txt` hits the warm cached env; spelling the same pins as
+   per-package `--with torch>=2.0 ...` resolved differently and hung. Never
+   hand-translate a requirements file into `--with` flags.
+6. **chromaprint is octave-invariant**: two pure sines an octave apart
+   fingerprint *identically* (same chroma). Test dupe-matching with noise
+   vs tone, not sine vs sine.
+
+Operational gates still standing (unchanged): the rekordbox key gauntlet
+(disable Key analysis → Reload Tags → ≥80% spot-check via
+`fulltags/verify-key.ts`) and the BPM verify pass against the 294
+rekordbox-reanalyzed grids before any library-wide batch.
+
+
 ## 6. Sequencing
 
 ```
-now   ▸ #1 fingerprints (S) → #2 beat_this BPM (S) → #3 OpenKeyScan key (M + gauntlet)
+now   ▸ ~~#1 fingerprints → #2 beat_this BPM → #3 OpenKeyScan key~~ ✅ SHIPPED (rev 4)
 then  ▸ #4 Essentia ONNX suite (M) → #5 MB harvest (S) → energy 2.0 (S)
+        batch-run the shipped stages per the §7 gates (verify-key ≥80%,
+        294-grid BPM check, RB key-analysis off) before full-library writes
 next  ▸ structure cues (slice: cues first) → vocal density → similarity
 parked▸ P3 with explicit triggers
 ```
@@ -191,7 +265,7 @@ verified-value-per-day. After #1–#5 every archive file carries complete
 identity, multi-vote genre, year, key, BPM, energy, mood/valence, and a
 content fingerprint — the full DJ-useful frame set, in the actual files.
 
-## Research base (rev 3 — rows re-checked 2026-09-05, second pass)
+## Research base (rev 4 — shipped rows added; rev 3 rows re-checked 2026-09-05, second pass)
 
 | Verdict     | Project                                | Status                                                                                                          |
 | ----------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -202,6 +276,9 @@ content fingerprint — the full DJ-useful frame set, in the actual files.
 | Adopt (#4)  | Essentia ONNX heads + brew onnxruntime | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged, last push 2026-03           |
 | Verified    | Dubspot 200-track test                 | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                      |
 | Verified    | rekordbox tag matrix                   | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                              |
+| Shipped #1   | chromaprint 1.6.1 via brew              | fpcalc -json verified on mp3/wav; identical content → identical fp across containers |
+| Shipped #2   | beat_this v1.1.0 via uv                 | File2Beats path; seconds-domain beats; soundfile dep discovered; ~1 s/track CPU |
+| Shipped #3   | OpenKeyScan analyzer (repo mode)        | cloned + server protocol verified on MPS; ready 1.3 s, ~0.02 s warm inference |
 | Adopt (#1b) | dupsonic                               | verified: v0.2.5 (Jul 2026), Rust, macOS-aarch64 prebuilt, LSH + SQLite cache                                   |
 | Adopt-up    | MuQ-MuLan                              | 2026 SOTA zero-shot tagging (AUC 79.3); MIT code / CC-BY-NC weights; supersedes MERT for embeddings             |
 | Verified    | all-in-one-infer v3 / -mlx             | v3 pure-PyTorch NATTEN (no compiler on AS); mlx port ~12.6× (repo-reported)                                     |

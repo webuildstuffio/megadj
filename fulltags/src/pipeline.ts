@@ -30,6 +30,12 @@ import {
 } from "./art-sources";
 import { energyFromLufs, measureRms } from "./probes";
 import { detectRemix } from "./remix";
+import {
+  analyzeBeats,
+  analyzeKey,
+  fingerprintWithDuration,
+  foldTempo,
+} from "./analysis";
 
 export interface TrackInput {
   /** Absolute path to the audio file. */
@@ -48,7 +54,9 @@ export interface PipelineOptions {
   archiveDir?: string;
   artworkQueue?: string | null;
   /** Stages to run (default: all). */
-  only?: Array<"tags" | "genre" | "art" | "year" | "energy">;
+  only?: Array<
+    "tags" | "genre" | "art" | "year" | "energy" | "fingerprint" | "bpm" | "key"
+  >;
   jobs?: number;
   dryRun?: boolean;
   /** Re-embed existing SC art at original resolution. */
@@ -225,6 +233,58 @@ export async function enrichTrack(
     }
   }
 
+  // ---------- fingerprint (chromaprint — content identity) ----------
+  // Idempotent: TXXX:ACOUSTID stamp means already done (the fingerprint is
+  // deterministic per audio content; a re-run would produce the same value
+  // and needlessly rewrite the container).
+  if (want("fingerprint") && !opts.dryRun) {
+    const existing = readStamp(t.path, "ACOUSTID");
+    if (!existing) {
+      const { fingerprint } = fingerprintWithDuration(t.path);
+      if (fingerprint) {
+        patch.fingerprint = fingerprint;
+        notes.push(`fingerprint:${fingerprint.slice(0, 8)}…`);
+      }
+    }
+  }
+
+  // ---------- real BPM + downbeats (beat_this) ----------
+  // Idempotent: TBPM stamp (read via ffprobe/groundTruth) means done —
+  // per-track inference costs seconds and the env load is the real cost.
+  if (want("bpm") && !opts.dryRun) {
+    if (!truth.bpm) {
+      const beats = await analyzeBeats(t.path);
+      if (beats) {
+        // Fold double/half tempo into the 70–180 DJ window, write as the
+        // integer TBPM rekordbox displays; keep precision in the note.
+        patch.bpm = Math.round(foldTempo(beats.bpm));
+        notes.push(`bpm:${beats.bpm.toFixed(1)}→${patch.bpm}`);
+      } else {
+        notes.push("bpm:SKIP (beat_this env missing — uv run --with beat-this)");
+      }
+    }
+  }
+
+  // ---------- harmonic key (OpenKeyScan analyzer) ----------
+  // Idempotent: TKEY/TXXX:CAMELOT stamp means done. Writes TKEY where the
+  // container supports it (AIFF/MP3; WAV RIFF has no key field) plus
+  // TXXX:CAMELOT everywhere via the generic stamp path.
+  if (want("key") && !opts.dryRun) {
+    const existing = readStamp(t.path, "CAMELOT");
+    if (!existing && !truth.key) {
+      const k = await analyzeKey(t.path);
+      if (k) {
+        patch.key = k.camelot; // TKEY / m4a freeform initialkey
+        patch.camelot = k.camelot; // TXXX:CAMELOT — container-independent
+        notes.push(`key:${k.camelot} (${k.key})`);
+      } else {
+        notes.push(
+          "key:SKIP (analyzer missing — clone openkeyscan-analyzer to ~/.local/share)",
+        );
+      }
+    }
+  }
+
   // ---------- write ----------
   // Art embedding writes the file directly (not via the tag patch), so
   // `wrote` covers both paths — the verify re-read must run whenever the
@@ -377,20 +437,45 @@ try:
     elif p.lower().endswith((".aiff", ".aif")):
         from mutagen.aiff import AIFF
         a = AIFF(p)
+    elif p.lower().endswith((".m4a", ".m4b")):
+        from mutagen.mp4 import MP4
+        a = MP4(p)
+        tags = a.tags
+        if tags is not None:
+            for key, v in tags.items():
+                if not key.startswith("----:"):
+                    continue
+                desc = key.rsplit(":", 1)[-1]
+                if desc in vals and vals[desc] is None:
+                    try:
+                        vals[desc] = bytes(v[0]).decode("utf-8")
+                    except Exception:
+                        pass
     else:
         from mutagen.mp3 import MP3
         from mutagen.flac import FLAC
         if p.lower().endswith(".flac"):
             a = FLAC(p)
+            tags = a.tags
+            if tags is not None:
+                # ffmpeg writes these as Vorbis comments in lowercase
+                # (energy=6), never TXXX — match keys case-insensitively
+                # and unwrap the single-element list mutagen returns.
+                upper = {k.upper(): k for k in tags.keys()}
+                for d in wanted:
+                    k = upper.get(d.upper())
+                    if k is not None and vals[d] is None:
+                        v = tags.get(k)
+                        vals[d] = str(v[0]) if isinstance(v, list) and v else str(v)
         else:
             a = MP3(p)
-    tags = a.tags
-    if tags is not None:
-        for k in tags.keys():
-            if k.startswith("TXXX"):
-                desc = getattr(tags.get(k), "desc", "")
-                if desc in vals and vals[desc] is None:
-                    vals[desc] = str(tags.get(k).text[0])
+            tags = a.tags
+            if tags is not None:
+                for k in tags.keys():
+                    if k.startswith("TXXX"):
+                        desc = getattr(tags.get(k), "desc", "")
+                        if desc in vals and vals[desc] is None:
+                            vals[desc] = str(tags.get(k).text[0])
 except Exception:
     pass
 print(json.dumps(vals))`;
@@ -413,6 +498,13 @@ function readEnergyStamp(p: string): number | null {
   const { ENERGY: v } = readTxxx(p, ["ENERGY"]);
   const n = v === null || v === undefined ? NaN : Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+/** Generic stamp read: any TXXX/freeform/vorbis stamp by description
+ * (ACOUSTID, CAMELOT, …). Null when absent. */
+function readStamp(p: string, desc: string): string | null {
+  const out = readTxxx(p, [desc]);
+  return out[desc] ?? null;
 }
 
 /** AI provenance stamps on a file: {aiGenre, aiYear} = "value|confidence",

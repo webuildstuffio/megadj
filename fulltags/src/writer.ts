@@ -90,11 +90,19 @@ export async function writePatch(
   if (!pairs.length) return;
 
   const ext = extname(filePath).toLowerCase();
-  // WAV/AIFF: mutagen edits the ID3 chunk in place. ffmpeg's wav muxer
-  // DROPS the ID3 chunk entirely (art + TXXX stamps vanish) and its aiff
-  // muxer does the same — the sync path exists precisely for this.
+  // WAV/AIFF/M4A: mutagen edits the metadata in place. ffmpeg's wav/aiff
+  // muxers DROP the ID3 chunk entirely (art + TXXX stamps vanish), and the
+  // ipod (m4a) muxer has no metadata mapping for bpm/energy/remixer/mbid/
+  // AI-* keys — they are silently dropped, plus every remux wipes existing
+  // freeform atoms. The mutagen paths exist precisely for this.
   if (ext === ".aiff" || ext === ".aif" || ext === ".wav") {
     if (!writePatchWav(filePath, patch)) {
+      throw new Error(`mutagen tag write failed for ${filePath}`);
+    }
+    return;
+  }
+  if (ext === ".m4a" || ext === ".m4b") {
+    if (!writePatchMp4(filePath, patch)) {
       throw new Error(`mutagen tag write failed for ${filePath}`);
     }
     return;
@@ -123,17 +131,22 @@ export async function writePatch(
   } else if (ext === ".flac") {
     // FLAC supports embedded pictures — keep base video handling.
     args.push(tagged);
-  } else if (ext === ".wav") {
-    // WAV muxer rejects video streams — drop any attached pic. ffmpeg writes
-    // RIFF INFO (players largely ignore it); mutagen path covers real ID3.
-    args.push("-vn", "-f", "wav", tagged);
   } else {
-    args.push("-f", "ipod", tagged);
+    // Unknown container — let ffmpeg infer the muxer from the extension.
+    args.push(tagged);
   }
 
-  const proc = await $`ffmpeg -hide_banner -loglevel error ${args}`.quiet();
-  if (proc.exitCode !== 0) {
-    throw new Error(`ffmpeg tag write failed for ${filePath}`);
+  // Bun's $ throws ShellError on non-zero exit (even .quiet()), so the
+  // cleanup must be in a catch — the old exitCode check never ran, and a
+  // finally would unlink the tmp on success (breaking the mv below).
+  try {
+    await $`ffmpeg -hide_banner -loglevel error ${args}`.quiet();
+  } catch (e) {
+    // Never leak the tmp file — a failed write must leave the directory
+    // exactly as it was (batch runs otherwise drop one orphan `.tagged`
+    // file per corrupt input).
+    if (existsSync(tagged)) unlinkSync(tagged);
+    throw e;
   }
   // Atomic swap via rename — a crash can never leave a half-written original.
   await $`mv -f ${tagged} ${filePath}`.quiet();
@@ -155,6 +168,9 @@ export function writePatchSync(filePath: string, patch: TagPatch): boolean {
     const ext = extname(filePath).toLowerCase();
     if (ext === ".aiff" || ext === ".aif" || ext === ".wav") {
       return writePatchWav(filePath, patch); // mutagen ID3-in-container
+    }
+    if (ext === ".m4a" || ext === ".m4b") {
+      return writePatchMp4(filePath, patch); // mutagen MP4 atoms
     }
     const args: string[] = [
       "-y",
@@ -182,14 +198,21 @@ export function writePatchSync(filePath: string, patch: TagPatch): boolean {
     } else if (ext === ".flac") {
       args.push(tagged);
     } else {
-      args.push("-f", "ipod", tagged); // m4a
+      // Unknown container — let ffmpeg infer from the extension.
+      args.push(tagged);
     }
     const pr = Bun.spawnSync({
       cmd: ["ffmpeg", ...args],
       stdout: "pipe",
       stderr: "pipe",
     });
-    if (pr.exitCode !== 0) return false;
+    if (pr.exitCode !== 0) {
+      // Never leak the tmp file — a failed write must leave the directory
+      // exactly as it was (batch runs would otherwise drop one orphan
+      // `.tagged` file per corrupt input).
+      if (existsSync(tagged)) unlinkSync(tagged);
+      return false;
+    }
     renameSync(tagged, filePath);
     return true;
   } catch {
@@ -213,6 +236,11 @@ const FFMPEG_KEY: Record<keyof TagPatch, string> = {
   energy: "ENERGY",
   aiGenre: "AI-GENRE",
   aiYear: "AI-YEAR",
+  key: "TKEY",
+  camelot: "CAMELOT",
+  label: "TPUB",
+  mixName: "TIT3",
+  fingerprint: "ACOUSTID",
 };
 
 /**
@@ -234,6 +262,9 @@ export function writePatchWav(filePath: string, patch: TagPatch): boolean {
       album: "TALB",
       genre: "TCON",
       composer: "TCOM",
+      label: "TPUB",
+      mixName: "TIT3",
+      key: "TKEY",
     };
     const sets = pairs
       .map(([k, v]) => {
@@ -244,6 +275,10 @@ export function writePatchWav(filePath: string, patch: TagPatch): boolean {
           return `a.tags.add(TXXX(encoding=3, desc="MusicBrainz Track Id", text=${JSON.stringify(String(v))}))`;
         if (k === "energy")
           return `a.tags.add(TXXX(encoding=3, desc="ENERGY", text=${JSON.stringify(String(v))}))`;
+        if (k === "fingerprint")
+          return `a.tags.add(TXXX(encoding=3, desc="ACOUSTID", text=${JSON.stringify(String(v))}))`;
+        if (k === "camelot")
+          return `a.tags.add(TXXX(encoding=3, desc="CAMELOT", text=${JSON.stringify(String(v))}))`;
         if (k === "aiGenre")
           return `a.tags.add(TXXX(encoding=3, desc="AI-GENRE", text=${JSON.stringify(String(v))}))`;
         if (k === "aiYear")
@@ -266,9 +301,74 @@ export function writePatchWav(filePath: string, patch: TagPatch): boolean {
       ? `from mutagen.aiff import AIFF\na = AIFF(${JSON.stringify(filePath)})`
       : `from mutagen.wave import WAVE\na = WAVE(${JSON.stringify(filePath)})`;
     const script = `${open}
-from mutagen.id3 import ID3, TIT2, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TXXX, COMM
+from mutagen.id3 import ID3, TIT2, TIT3, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TKEY, TPUB, TXXX, COMM
 if not a.tags: a.add_tags()
 if not isinstance(a.tags, ID3): a.tags = ID3()
+${sets}
+a.save()
+print("ok")`;
+    const pr = Bun.spawnSync({
+      cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
+      stdout: "pipe",
+    });
+    return new TextDecoder().decode(pr.stdout).trim() === "ok";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Sync tag write for MP4 containers (m4a) via mutagen. ffmpeg's ipod
+ * muxer has NO metadata mapping for bpm/energy/remixer/mbid/AI-* keys —
+ * those silently vanish, and every remux also wipes existing freeform
+ * (----) atoms. Mutagen edits the atoms in place: audio untouched, art
+ * survives, stamps persist. Sync API matching writePatchWav; returns
+ * false on any failure (no throw).
+ */
+export function writePatchMp4(filePath: string, patch: TagPatch): boolean {
+  try {
+    validatePatch(patch);
+    const pairs = tagPairs(patch);
+    if (!pairs.length) return true;
+    const sets = pairs
+      .map(([k, v]) => {
+        if (k === "title") return `a["\\xa9nam"] = [${JSON.stringify(String(v))}]`;
+        if (k === "artist") return `a["\\xa9ART"] = [${JSON.stringify(String(v))}]`;
+        if (k === "albumArtist") return `a["aART"] = [${JSON.stringify(String(v))}]`;
+        if (k === "album") return `a["\\xa9alb"] = [${JSON.stringify(String(v))}]`;
+        if (k === "genre") return `a["\\xa9gen"] = [${JSON.stringify(String(v))}]`;
+        if (k === "year") return `a["\\xa9day"] = [${JSON.stringify(String(v))}]`;
+        if (k === "composer") return `a["\\xa9wrt"] = [${JSON.stringify(String(v))}]`;
+        if (k === "grouping") return `a["\\xa9grp"] = [${JSON.stringify(String(v))}]`;
+        if (k === "comment") return `a["\\xa9cmt"] = [${JSON.stringify(String(v))}]`;
+        if (k === "bpm") return `a["tmpo"] = [${Math.round(Number(v))}]`;
+        if (k === "remixer")
+          return `a["----:com.apple.iTunes:REMIXER"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        if (k === "mbid")
+          return `a["----:com.apple.iTunes:MusicBrainz Track Id"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        if (k === "energy")
+          return `a["----:com.apple.iTunes:ENERGY"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        if (k === "fingerprint")
+          return `a["----:com.apple.iTunes:ACOUSTID"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        if (k === "key")
+          return `a["----:com.apple.iTunes:initialkey"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        if (k === "camelot")
+          return `a["----:com.apple.iTunes:CAMELOT"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        if (k === "label")
+          return `a["----:com.apple.iTunes:LABEL"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        if (k === "mixName")
+          return `a["----:com.apple.iTunes:MIXNAME"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        if (k === "aiGenre")
+          return `a["----:com.apple.iTunes:AI-GENRE"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        if (k === "aiYear")
+          return `a["----:com.apple.iTunes:AI-YEAR"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n");
+    const script = `from mutagen.mp4 import MP4, MP4FreeForm
+a = MP4(${JSON.stringify(filePath)})
+if a.tags is None: a.add_tags()
 ${sets}
 a.save()
 print("ok")`;
