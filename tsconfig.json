@@ -6,6 +6,11 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "noEmit": true,
     "jsx": "react-jsx",
@@ -14,10 +19,12 @@
   },
   "include": [
     "src/**/*.ts",
+    "fulltags/**/*.ts",
     "cratedeck/src/**/*.ts",
     "cratedeck/shared/**/*.ts",
     "cratedeck/web/**/*.ts",
     "cratedeck/web/**/*.tsx",
-    "cratedeck/test/**/*.ts"
+    "cratedeck/test/**/*.ts",
+    "tools/**/*.ts"
   ]
 }
