@@ -516,7 +516,10 @@ export class DB {
       );
   }
 
-  /** Fine-grained progress update: fraction, human message, phase, ETA (s). */
+  /** Fine-grained progress update: fraction, human message, phase, ETA (s).
+   *  ETA is tri-state: `undefined` = keep the current value (log-line updates
+   *  pass no ETA and must not wipe the one `tick()` computed), `null` =
+   *  explicitly clear (unknown again), a number = set. */
   setJobProgress(
     id: string,
     p: {
@@ -532,13 +535,15 @@ export class DB {
            progress=COALESCE(?,progress),
            message=COALESCE(?,message),
            phase=COALESCE(?,phase),
-           eta_seconds=?
+           eta_seconds=CASE WHEN ? THEN ? ELSE eta_seconds END
          WHERE id=?`,
       )
       .run(
         p.progress ?? null,
         p.message ?? null,
         p.phase ?? null,
+        // 0 = omitted (keep), 1 = present (set, possibly to NULL)
+        p.eta_seconds === undefined ? 0 : 1,
         p.eta_seconds === undefined ? null : p.eta_seconds,
         id,
       );

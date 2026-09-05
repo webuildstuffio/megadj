@@ -280,6 +280,75 @@ describe("db jobs", () => {
     expect(db.latestChecksum(UUID_A)).toEqual({ ran_at: 9, changed: 1 });
   });
 
+  it("setJobProgress keeps ETA when a log-line update omits it", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.insertJob({
+      id: "j4",
+      drive_id: UUID_A,
+      kind: "verify",
+      status: "running",
+      progress: 0,
+      message: null,
+      phase: null,
+      eta_seconds: null,
+      error: null,
+      result_json: null,
+      log_path: null,
+      created_at: 1,
+      started_at: 1,
+      finished_at: null,
+    });
+    // tick() computes an ETA…
+    db.setJobProgress("j4", {
+      progress: 0.4,
+      message: "checking every track…",
+      phase: "phase-2",
+      eta_seconds: 42,
+    });
+    expect(db.getJob("j4")!.eta_seconds).toBe(42);
+    // …then a log-line update passes only message (eta omitted). The old
+    // implementation bound null on `undefined`, wiping the ETA — the UI/CLI
+    // ETA flickered on/off between tick and log updates.
+    db.setJobProgress("j4", { message: "  tracks: 3512" });
+    const j = db.getJob("j4")!;
+    expect(j.eta_seconds).toBe(42); // survives
+    expect(j.message).toBe("  tracks: 3512"); // and the message landed
+  });
+
+  it("setJobProgress can explicitly clear the ETA with null", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.insertJob({
+      id: "j5",
+      drive_id: UUID_A,
+      kind: "scan",
+      status: "running",
+      progress: 0,
+      message: null,
+      phase: null,
+      eta_seconds: null,
+      error: null,
+      result_json: null,
+      log_path: null,
+      created_at: 1,
+      started_at: 1,
+      finished_at: null,
+    });
+    db.setJobProgress("j5", { eta_seconds: 30 });
+    expect(db.getJob("j5")!.eta_seconds).toBe(30);
+    db.setJobProgress("j5", { eta_seconds: null }); // explicit clear stays possible
+    expect(db.getJob("j5")!.eta_seconds).toBeNull();
+  });
+
   it("setSnapshot prunes snapshot history (disk-burn guard)", () => {
     db.upsertDrive({
       id: UUID_A,

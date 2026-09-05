@@ -361,30 +361,19 @@ export class JobEngine {
         const proc = spawnVerify(this.cfg, [name]);
         handle.proc = proc;
         // Phase-driven progress: the script prints deterministic section
-        // markers in a known order. Map each to a progress span so the bar
-        // + ETA move meaningfully instead of sitting at 0% for 14s.
+        // markers in a known order; verifyPhase() maps each to the ABSOLUTE
+        // progress it starts (the old inline version (a) required leading
+        // spaces on trimmed lines — the longest phase never matched — and
+        // (b) computed progress as from/to, i.e. 0.15/0.35 = 43%).
         //   0.00–0.15 open DBs · 0.15–0.35 hardware view · 0.35–0.80 per-track
-        //   0.80–0.95 relations · 0.95–1.00 verdict  (cross-drive phases get
-        //   appended as they print: 0.80–0.95 hash parity, then audio spot)
-        const PHASES: [RegExp, number, number, string][] = [
-          [/^### /, 0.15, 0.35, "checking hardware DB view (export.pdb)…"],
-          [/^  tracks:/, 0.35, 0.8, "checking every track: files, grids, BPM…"],
-          [/^  playlists:/, 0.8, 0.9, "checking playlists + relations…"],
-          [/=== cross-drive ===/, 0.9, 0.95, "comparing master ↔ mirror…"],
-          [/^  hashed \d+\//, 0.9, 0.97, "hashing ANLZ files on both drives…"],
-          [/audio hash spot-check/, 0.97, 0.99, "spot-hashing audio files…"],
-          [/^FINAL:/, 0.99, 1, "writing verdict…"],
-        ];
+        //   0.80–0.90 relations · 0.90–0.95 cross-drive · 0.95–0.99 hashing ·
+        //   0.99–1.00 verdict
         let phaseIdx = 0;
         const rawLine = (line: string) => {
-          const text = line.trim();
-          for (let i = phaseIdx; i < PHASES.length; i++) {
-            const [re, from, to, msg] = PHASES[i]!;
-            if (re.test(text)) {
-              phaseIdx = i + 1;
-              tick(from, to, msg, `phase-${phaseIdx}`, true);
-              break;
-            }
+          const m = verifyPhase(line, phaseIdx);
+          if (m) {
+            phaseIdx = m.nextIdx;
+            tick(m.progress, 1, m.message, `phase-${phaseIdx}`, true);
           }
         };
         const [verdict, errText] = await Promise.all([
@@ -584,3 +573,35 @@ async function drainText(
 }
 
 export { parseVerifyReport, verifyDeltas } from "./verify_report";
+
+/** Where a line belongs in usb_verify.py's phase order → absolute progress.
+ *
+ * Phases are matched IN ORDER (once phase N fires, earlier phases are
+ * skipped) so repeated/hashed noise lines can't rewind the bar. Returns the
+ * absolute progress the phase starts at (not a from/to span — the old inline
+ * mapping computed from/to as done/total and showed garbage percentages).
+ *
+ * Lines are matched UNTRIMMED: usb_verify.py indents per-drive output
+ * ("  tracks: 3512"), and the previous trimmed-input regexes never matched,
+ * leaving the bar at ~15% through the longest phase. */
+export function verifyPhase(
+  line: string,
+  phaseIdx: number,
+): { progress: number; message: string; nextIdx: number } | null {
+  const PHASES: [RegExp, number, string][] = [
+    [/^### /, 0.15, "checking hardware DB view (export.pdb)…"],
+    [/^  tracks:/, 0.35, "checking every track: files, grids, BPM…"],
+    [/^  playlists:/, 0.8, "checking playlists + relations…"],
+    [/=== cross-drive ===/, 0.85, "comparing master ↔ mirror…"],
+    [/^  hashed \d+\//, 0.9, "hashing ANLZ files on both drives…"],
+    [/audio hash spot-check/, 0.95, "spot-hashing audio files…"],
+    [/^FINAL:/, 0.99, "writing verdict…"],
+  ];
+  for (let i = phaseIdx; i < PHASES.length; i++) {
+    const [re, progress, message] = PHASES[i]!;
+    if (re.test(line)) {
+      return { progress, message, nextIdx: i + 1 };
+    }
+  }
+  return null;
+}
