@@ -3,13 +3,22 @@
 _Compiled 2026-09-04 · grounded in the actual repo state: megadj archive/ingest,
 the rekordbox-usb-sync pipeline, CrateDeck v1 (built), and your own local
 operations log (kept outside the repo)._
+
+_Also grounded in the product docs: `docs/PRINCIPLES.md` is the arbiter —
+ideas that violate a principle get struck (E31, E44, 2026-09-05), ideas
+that implement one get tagged (§I → P7/P8/P9, §O → P1).\_\_
 Expanded same day with an open-source ecosystem research pass (§I–§L);
 second pass same day added §N (XDJ-XZ / Pioneer / house & techno) and §O
 (agentic megadj for Codex / Claude Code operators).
-**Post-audit revision (2026-09-04): §0 added (do-now items gate everything),
+\*\*Post-audit revision (2026-09-04): §0 added (do-now items gate everything),
 cold backup promoted from §G, C18c explicitly unbuilt, I52 deleted, §M
 added (AI cool-list + Mac-DJ irritants), sequencing rewritten as a gated
 straight line._
+**2026-09-05 revision:** re-grounded against `docs/PRINCIPLES.md` (now
+exists) and the shipped FullTags/fleet work — B17/J53 marked ✅, E31 struck
+(violates P2), a best-models re-check added to the research notes (BeatFM,
+MusicFM, license verdicts), §I/§O annotated with the principles they
+implement.\_
 
 How to read: each idea lists **why now** (the specific repo fact that motivates
 it) and rough **effort** (S/M/L). Nothing here is committed scope — this is the
@@ -81,7 +90,7 @@ ideas below:
 | [Essentia models](https://essentia.upf.edu/models.html) (MTG/UPF)                                                                                                                              | Pretrained TF/ONNX models: MusiCNN auto-tagging, mood classifiers (happy/party/aggressive/sad/relaxed/acoustic/electronic), danceability, DEAM valence-arousal, MUSE embeddings                                                        | The whole AI vibe layer (§I) — ONNX weights mean no TF dependency                                                                    |
 | [openmirlab/all-in-one-infer](https://github.com/openmirlab/all-in-one-infer/)                                                                                                                 | `pip install all-in-one-infer` — structure analysis (intro/verse/drop/outro), beats, downbeats, tempo + demucs stems, PyPI-only                                                                                                        | Structure-aware grids and auto cue placement (→ I46)                                                                                 |
 | [yizhilll/MERT](https://github.com/yizhilll/MERT) + [MU-LLaMA](https://github.com/shansongliu/MU-LLaMA)                                                                                        | Music understanding encoder (95M/330M); MERT+LLaMA music QA/captioning                                                                                                                                                                 | Embeddings for similarity/dedupe; LLM track captioning (→ I49, I50)                                                                  |
-| [mixxxdj/libkeyfinder](https://github.com/mixxxdj/libkeyfinder/)                                                                                                                               | The KeyFinder algorithm, GPL; 76% overall / **90% on dance music** vs rekordbox's own metadata at ~60% (Dubspot 2026 test)                                                                                                             | Key detection that beats rekordbox → tag + DB injection (→ I51)                                                                      |
+| [mixxxdj/libkeyfinder](https://github.com/mixxxdj/libkeyfinder/)                                                                                                                               | The KeyFinder algorithm, GPL; 76% overall / **90% on dance music** vs rekordbox 7's 69% (Dubspot 2026 test)                                                                                                                            | Key detection that beats rekordbox → tag + DB injection (→ I51)                                                                      |
 | [scdl-org/scdl](https://github.com/scdl-org/scdl/)                                                                                                                                             | SoundCloud downloader — **as of v3 it is literally a yt-dlp wrapper**                                                                                                                                                                  | megadj already runs yt-dlp → SoundCloud sources are config work (→ K57)                                                              |
 | [acoustid/chromaprint](https://github.com/acoustid/chromaprint) + [dupsonic](https://github.com/zas/dupsonic/) / soundalike                                                                    | Acoustic fingerprinting; dupsonic = fast Rust single-binary incremental dupe scanner                                                                                                                                                   | Cross-format dedupe, LOWQ-upgrade verification, untagged-file ID (→ L62)                                                             |
 | [beetbox/beets](https://github.com/beetbox/beets) v2.4 + [beetcamp](https://github.com/snejus/beetcamp)                                                                                        | The music-tagger ecosystem; Bandcamp autotag/acquire plugin                                                                                                                                                                            | Borrow plugin ideas; Bandcamp source (→ J55, K58)                                                                                    |
@@ -93,6 +102,25 @@ ideas below:
 | [robertlestak/digarr](https://github.com/robertlestak/digarr) · [dean1850/musicdrome](https://github.com/dean1850/musicdrome) · [Snapyou2/re-command](https://github.com/Snapyou2/re-command/) | AI discovery loops: listening history (ListenBrainz/Last.fm) → MusicBrainz+AI similar-artists → scored approval queue → auto-download (ytmusicapi/Soulseek/Streamrip). Musicdrome's rule: _"a wrong file is worse than a missing one"_ | The exact architecture for megadj's discovery engine — taste source → AI → YTMusic resolve with confidence gating (→ N82)            |
 | [mxschll/harmonie](https://github.com/mxschll/harmonie)                                                                                                                                        | Essentia embeddings + descriptors + **400 Discogs-style probabilities** in SQLite, HTTP similarity API                                                                                                                                 | Prior art for I45/I49 — possibly runnable as-is beside the archive instead of building from scratch                                  |
 | [Claude Code agentic primitives](https://code.claude.com/docs/en/plugins.md) (skills, hooks, subagents, MCP, headless `claude -p`)                                                             | The 2026 agent-CLI taxonomy: SKILL.md for domain logic, hooks for lifecycle automation, MCP for tool exposure, headless one-shots for cron-able agents                                                                                 | megadj already ships skills + deckctl; next step is exposing the archive as MCP tools + agent loops (→ §O)                           |
+
+**Best-models re-check (2026-09-05 deep dive — verdicts only, full ladder
+lives in `docs/fulltags-roadmap.md`):**
+
+- **BeatFM (ICME 2025)** — foundation-model beat/downbeat tracker, +4.1pt
+  downbeat F1 over beat_this (79.6 vs 75.5 on GTZAN). **No public code or
+  weights as of this date** → verdict: beat_this stays the pick for I46/#2;
+  revisit only if weights ship. Exactly the paper-SOTA ≠ usable-SOTA trap
+  P5 warns about.
+- **MusicFM (MIT code, weights trained on CC-licensed FMA)** — the
+  license-clean foundation encoder; near-SOTA on downbeats even frozen.
+  MERT's weights are CC-BY-NC-4.0 — fine per P9 (zero commercial intent)
+  but MusicFM is the safer default for I49 embeddings if this repo ever
+  goes public.
+- **License ledger for §I (principle-aligned: P9):** Essentia models CC
+  BY-NC-SA · libKeyFinder GPL (local tool, fine) · beat_this MIT ·
+  chromaprint LGPL · MERT/MuQ CC-BY-NC · MusicFM MIT. All run offline/local
+  (P9's zero-telemetry, §H's cloud non-goal). Track per-model licenses in
+  the model-cache manifest (roadmap risk #1).
 
 ---
 
@@ -183,10 +211,10 @@ once_ — the moat. Roughly in value order:
     `swiftbar`-style menu item showing interlock state + mount events +
     "N drives, 1 needs attention". Alternative cheap version: `bun run deck`
     notification hooks (osascript) on mount/interlock — ship that first.
-17. **Watch-folder auto-scan + auto-verify schedule.** FSEvents is already
-    event-driven; add "on mount → light scan automatically, full verify
-    weekly" with results feeding the readiness badge. Removes the last
-    reason to open the page manually.
+17. **Watch-folder auto-scan + auto-verify schedule — ✅ SHIPPED 2026-09-05.**
+    `cratedeck/src/auto_schedule.ts`: on-mount → light scan automatically,
+    full verify weekly (commit `aa64e04`), results feed the readiness badge.
+    Removes the last reason to open the page manually.
 
 ---
 
@@ -264,12 +292,12 @@ once_ — the moat. Roughly in value order:
       filtering that rekordbox can't do natively. Cheap because analysis
       already runs during ingest. **(Superseded/leveled-up by §I: pretrained
       models make this dramatically better than hand-rolled features.)**
-28. **Genre governance.** `fetch_all.ts`'s genre stage (SC tags + canonical
-    map + OpenRouter classifier) + MusicBrainz genres +
-    your own conventions → one canonical genre vocabulary file, with an audit
-    report of strays. Prevents the folder tree (organize) from forking into
-    `Hip-Hop` vs `HipHop` vs `Rap`. Essentia's MusiCNN genre models (§I45)
-    can vote alongside LLM/AI genre and MusicBrainz.
+28. **Genre governance.** FullTags' genre stage (SC tags + canonical map +
+    OpenRouter classifier at conf ≥ 0.7, `fulltags/src/ai.ts`) + MusicBrainz
+    genres + your own conventions → one canonical genre vocabulary file, with
+    an audit report of strays. Prevents the folder tree (organize) from
+    forking into `Hip-Hop` vs `HipHop` vs `Rap`. Essentia's MusiCNN genre
+    models (§I45) can vote alongside LLM/AI genre and MusicBrainz.
 29. **Archive → playlist automation.** "Everything ingested since last gig"
     as an auto-generated rekordbox playlist on the next sync — closes the
     loop from download to playable-without-touching-rekordbox.
@@ -282,12 +310,16 @@ once_ — the moat. Roughly in value order:
 
 ## E. Format & platform expansion (careful)
 
-31. **Engine DJ read support.** The brief's vNext item and the right next
-    format: Denon Engine DBs are SQLite (no encryption dance), Engine DJ 4.x
-    is on Smartlists/stems, and a lot of venue gear runs Engine. Read-only
-    inventory first: a drive could be _both_ a rekordbox export and an Engine
-    library — CrateDeck should describe both. Keep the Python seam rule: one
-    `engine_read.py`, no TS ports.
+31. ~~**Engine DJ read support.**~~ **STRUCK (2026-09-05 principles
+    alignment).** `docs/PRINCIPLES.md` P2 landed overnight: **"Mac only.
+    Pioneer only. Sorry — nothing else, ever, at all."** No Denon Engine,
+    no Serato — and that focus is the whole point (we can reverse ANLZ and
+    inject device DBs _because_ we only stand on Pioneer). A read-only
+    Engine inventory contradicts the principle even though it's technically
+    cheap. This slot is intentionally empty; per the cap rule, the next new
+    idea takes number 31. (Historical note kept: the original argument —
+    Engine DBs are unencrypted SQLite, venue gear runs Engine — was sound
+    engineering but wrong product.)
 32. **Spotify-on-CDJ era readiness.** rekordbox 7.2.16–7.2.18 added Spotify
     sign-in on CDJ/XDJ with streaming tracks visible in EXPORT mode (but not
     loadable via USB). Implication for the fleet model: track _sources_ per
@@ -347,9 +379,10 @@ once_ — the moat. Roughly in value order:
     pyrekordbox) would give live collection state for diffing without
     asking you to re-export XML. Risk: schema drift; keep it strictly
     read-only and behind the same seam discipline.
-44. **Serato crate export.** Non-goal to _read_ Serato, but a one-way
-    _export_ of playlists as Serato crates costs almost nothing and helps
-    guest DJs. Only if a guest DJ actually asks.
+44. ~~**Serato crate export.**~~ **STRUCK (2026-09-05 principles
+    alignment).** P2's rule is absolute — no Serato, not even as a one-way
+    export target. Guest DJs get files and an `.m3u8` (M74 covers it), not
+    Serato crates. Slot intentionally empty; the next new idea takes 44.
 
 ---
 
@@ -359,8 +392,12 @@ The big unlock from the research pass: **pretrained models have made
 "AI analyzer" a pip-install away**, and megadj's pipeline is the perfect
 consumer — it already decodes audio, already writes tags, already injects DB
 rows. All models below run offline/local; nothing in the cloud, matching the
-product principles. Everything computed here feeds three sinks: **ID3/TXXX
-tags** (§J), **the archive DB**, and **the rekordbox/ANLZ injection path**.
+product principles (P8: AI does the labour; P9: zero commercial intent is
+what makes the NC-licensed model zoo usable; P7: every model here is picked
+for electronic music first). Everything computed here feeds three sinks:
+**ID3/TXXX tags** (§J), **the archive DB**, and **the rekordbox/ANLZ
+injection path**. Model picks + licenses are re-verified in the research
+notes above (2026-09-05).
 
 45. **Essentia mood & vibe suite.** ONNX models from the MTG Essentia
     collection, run per track at ingest:
@@ -377,7 +414,10 @@ tags** (§J), **the archive DB**, and **the rekordbox/ANLZ injection path**.
 46. **Structure-aware grids & cues (all-in-one-infer).** `pip install
 all-in-one-infer` gives beats, downbeats, tempo, and **functional
     segment labels** (intro / verse / drop / chorus / break / outro) plus
-    demucs stems. Pipe segment boundaries into the existing ANLZ generator: - **memory cues auto-placed at intro/drop/outro, downbeat-aligned** —
+    demucs stems. _Model note (2026-09-05): BeatFM (ICME 2025) now beats
+    beat_this on downbeat F1 by +4.1pt on paper but has **no public
+    weights** — beat_this stays the practical pick; revisit if weights
+    ship._ Pipe segment boundaries into the existing ANLZ generator: - **memory cues auto-placed at intro/drop/outro, downbeat-aligned** —
     the single biggest on-hardware quality-of-life jump available - phrase-aware synthetic grids (the current constant-BPM grid gets
     downbeat anchoring; tempo curve from the analyzer instead of a flat line) - "drop only" browsing structure on CDJs via cue placement convention
     **Honest label: the genuine 10x item and the likeliest to eat a
@@ -399,11 +439,13 @@ all-in-one-infer` gives beats, downbeats, tempo, and **functional
     files themselves stay out of scope (CDJs can't play them); this is an
     analysis-side metric only.
 
-49. **Embeddings & "sounds like".** MERT-95M (or reuse MusiCNN MUSE
-    embeddings from I45 — much cheaper) per track → kNN similarity in the
-    archive DB → CrateDeck "find tracks like this" + "never-played tracks
-    closest to what you actually play." sqlite-vec or plain blob +
-    cosine scan is fine at 3–10k tracks. Effort M.
+49. **Embeddings & "sounds like".** MERT-95M (CC-BY-NC weights — fine per
+    P9, but **MusicFM is the license-clean alternative**: MIT code,
+    CC-licensed FMA training data, near-SOTA on downbeats even frozen; or
+    reuse MusiCNN MUSE embeddings from I45 — much cheaper) per track →
+    kNN similarity in the archive DB → CrateDeck "find tracks like this" +
+    "never-played tracks closest to what you actually play." sqlite-vec or
+    plain blob + cosine scan is fine at 3–10k tracks. Effort M.
 
 50. **LLM track captioning (vibe notes).** Feed Essentia tags + structure
     labels + metadata to a local/small LLM (the ask-models MCP pattern, or
@@ -415,9 +457,11 @@ all-in-one-infer` gives beats, downbeats, tempo, and **functional
     itself; do not build infrastructure for it. Effort S.
 
 51. **Key detection that beats rekordbox.** Dubspot's 2026 lab test:
-    libKeyFinder scored 76% overall / **90% on dance music**; rekordbox's own
-    metadata ~60%. Options: `keyfinder-py` bindings (stale but working),
-    libkeyfinder via a tiny C++ build, OpenKeyScan (CNN-based, modern), or
+    libKeyFinder scored 76% overall / **90% on dance music**; rekordbox 7's
+    own metadata 69% (fact-checked rev 2). Options: OpenKeyScan (CNN-based,
+    modern — note: ship via its server, not `keyfinder-cli`, which is not
+    in homebrew-core), `keyfinder-py` bindings (stale but working),
+    libkeyfinder via a tiny C++ build, or
     Essentia's built-in `Key` algorithm as the cheap baseline. Write
     Initial Key + Camelot to tags (§J), inject `key_id` into device DB rows,
     and add a **harmonic-mix panel** in CrateDeck: pick a track, see the
@@ -444,7 +488,13 @@ pass. One mutagen pass (Python side), one schema, everything else reads it.
 > (`fulltags/` — standalone CLI + engine, megadj's modules are shims over
 > it). J53's schema is live (`fulltags/src/schema.ts`), the writer/readers
 > are consolidated, and the follow-on roadmap (key, BPM, fingerprints,
-> Essentia moods) is `docs/fulltags-roadmap.md`.
+> Essentia moods) is `docs/fulltags-roadmap.md` — **rev 2 (2026-09-05)
+> fact-checked**: key path is OpenKeyScan's server (keyfinder-cli is not
+> in homebrew-core), Dubspot numbers verified (KeyFinder 76% overall /
+> 90% dance vs rekordbox 7's 69%), rekordbox TKEY gotchas documented
+> (AIFF/MP3 only; Key-analysis overwrite), and a stress-test pass found
+>
+> - fixed a 6.4× write-path regression in the fetch shim.
 
 53. **The full frame schema.** Define once in the skill docs, apply in
     `ingest` + `upgrade`:
@@ -458,10 +508,12 @@ pass. One mutagen pass (Python side), one schema, everything else reads it.
     - `COMM` comment = vibe line + camelot, so it shows on any player screen
       Effort S. This is what "full tagging" means operationally.
 
-54. **Artwork standardization.** Extend `fetch_all.ts`'s art stage: target
+54. **Artwork standardization.** Extend FullTags' art stage
+    (`fulltags/src/art-sources.ts` — the ladder's single home): target
     1400×1400 (or 600×600) JPEG, type-3 front-cover frame, consistent
-    quality; keep the AI-artwork fallback path. Feeds both ID3 `APIC` and
-    the ANLZ `PWAV`-adjacent artwork pipeline rekordbox reads. Effort S.
+    quality; keep the AI-artwork fallback path queued as last resort. Feeds
+    both ID3 `APIC` and the ANLZ `PWAV`-adjacent artwork pipeline rekordbox
+    reads. Effort S.
 
 55. **Borrow the beets ecosystem, don't adopt it.** beets v2.4's plugin ideas
     map 1:1 to backlog items: `badfiles` (→ #30 integrity), `duplicates`
@@ -674,8 +726,9 @@ ecosystem research confirms the architecture is aimed at the right wall.
     arbitrate against the LLM genre (already shipped) and MusicBrainz.
     Output: one normalized genre + a styles[] array in the archive DB,
     feeding smarter "more like this" in the crate copilot (M66) and the
-    1001TL discovery ranking (K59). Replaces the ad-hoc SC-tag voting
-    in `tools/sc_genres.ts` with something principled. Effort M.
+    1001TL discovery ranking (K59). Replaces the ad-hoc SC-tag voting in
+    the SC-genre pass (now `fulltags/src/ai.ts`, conf ≥ 0.7) with
+    something principled. Effort M.
 
 80. **Energy-arc presets per genre.** House/techno sets live on
     energy curves, not just BPM. With I45's valence-arousal + danceability
@@ -701,7 +754,11 @@ ecosystem research confirms the architecture is aimed at the right wall.
 The 2026 agent-CLI taxonomy (skills, hooks, subagents, MCP, headless
 one-shots) maps onto megadj with almost no new code — the CLI and deckctl
 already exist. These ideas make agents _safe, useful operators_ of the
-library, not gimmicks.
+library, not gimmicks. **This section is P1 made real:** "agent-first,
+MCP-friendly, `--json` on every command... If a feature can't be expressed
+as a command an operator or an AI agent can run, it doesn't exist" — §O is
+the missing interface for the second half of that sentence, and O86's rails
+are what keep agents inside P9/P11's idempotent, resumable safety rules.
 
 82. **megadj MCP server.** Expose the archive + deckctl as MCP tools:
     `search_tracks`, `track_stats`, `drive_status`, `drive_report`,
@@ -785,23 +842,32 @@ job.
 
 **Phase 3 — the manual-pain killers:**
 C18a (assisted export runbook — the right buy per the audit), C21
-(differential mirror), D24 (LOWQ upgrade), J53 (full tag schema),
-L62 (fingerprint ledger). Each independently shippable.
+(differential mirror), D24 (LOWQ upgrade), ~~J53~~ **✅ shipped as the
+FullTags sub-project** (schema live, roadmap in `docs/fulltags-roadmap.md`
+— its P1 ladder: key → beat_this BPM → chromaprint → Essentia ONNX heads
+is now the fastest route through I51/I45/L62), L62 (fingerprint ledger).
+Each independently shippable.
 
 **Phase 4 — the AI edge (only if the reality gate says monthly+):**
 I51 (keys — best payoff per risk) → I45 (Essentia moods) → I46 sliced:
 _auto cue placement first (weekend-scale), tempo-curve grids later_
 (month-scale) → K61 (`megadj drop` packages it). M66/M67 (set copilot,
 double-drop detector) after B11 history exists. I50 stays a garnish.
+_Model gates (2026-09-05 re-check): every model in this phase is
+offline/local (P9), genre/mood-tuned for electronic music (P7), and
+picks are license-ledgered in the research notes; spot-check
+verifications before any batch run are P11's "breaking things never
+means losing the library" applied to ML output._
 
 **Phase 5 — sources & irritants (background, whenever):**
 K57 SoundCloud → K58 Bandcamp → K59 1001TL mining; M69–M74 Mac-DJ fixes
 are all S-effort — slot them between any two phases as palate cleansers.
 
 **Deliberately unbuilt:** C18b/c (the pdb write gauntlet — written down,
-priced, and parked), I52 (deleted), K56 (lyrics), K60 (setlist.fm), E44
-(Serato export). The cap rule stands: something ships or leaves before
-something new enters.
+priced, and parked), I52 (deleted), K56 (lyrics), K60 (setlist.fm), ~~E31~~
+~~E44~~ **struck 2026-09-05 (P2: Pioneer only — no Engine, no Serato, ever;
+slots left intentionally empty per the cap rule)**. The cap rule stands:
+something ships or leaves before something new enters.
 
 **Stop condition:** if two consecutive months produce zero gigs and zero
 incidents in the log, the honest move per §0's reality gate is to finish
