@@ -66,6 +66,9 @@ the remix's, not the original's.
 
 **Commands:** `megadj ingest`, `megadj fetch`, `megadj enrich`, `megadj
 artwork`, `megadj audit`
+**Also:** FullTags ships standalone in [`fulltags/`](../fulltags/README.md)
+— same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
+commands are thin wrappers over it.
 **Docs:** [new-music-intake skill](../.claude/skills/new-music-intake/SKILL.md)
 
 **Vibe:** Picard, if Picard had a web browser, a fingerprint matcher, and a
@@ -180,3 +183,7 @@ megadj sync                    # GetDat: pull new music
 megadj fetch && megadj audit   # FullTags: perfect the metadata
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
+
+Going deeper: [usb-sync.md](usb-sync.md) (pipeline what/why) ·
+[`fulltags/`](../fulltags/README.md) (the enrichment engine) ·
+[fulltags-roadmap.md](fulltags-roadmap.md) (what's next for tags)

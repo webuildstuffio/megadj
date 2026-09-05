@@ -27,6 +27,10 @@ Dev mode (hot reload): `bun run web:dev` in `cratedeck/web/` alongside `bun run 
 Read-only by construction: every disk write goes through `src/guard.ts`
 (allow-list = `cratedeck/data/` only). Tests: `bun test cratedeck/`.
 
+Agents: the same surface is exposed over MCP — `bun run mcp` (from the repo
+root) speaks stdio JSON-RPC; `deckctl --json` gives the same data one-shot.
+The rekordbox interlock is enforced in both.
+
 Docs: [product brief](../docs/cratedeck/01-product-brief.md) ·
 [PRD](../docs/cratedeck/02-prd.md) ·
 [architecture](../docs/cratedeck/03-architecture.md) ·
