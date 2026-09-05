@@ -14,17 +14,18 @@ v2 · 2026-09-03 · [Brief](01-product-brief.md) · [PRD](02-prd.md) → **Archi
 
 **One Bun process, one Python seam, one page.**
 
-_Note (2026-09-04 audit): the file list below has grown from the original 10
-to 13 TS files (`badges_view.ts`, `fmt.ts` moved to shared, `report.ts`,
-`images.ts`, `python/usb_tree.py`); the single-seam and guard rules are
-unchanged and still hold._
+_Note (2026-09-05 audit): the original 10-file server has grown to 19 TS
+files in `src/` (`report.ts`, `images.ts`, `fleet.ts`, `fleet-db.ts`,
+`deckctl.ts`, `auto_schedule.ts`, `verify_help.ts`, `walk.ts`, `badges_view.ts`;
+`fmt.ts` moved to shared; `python/usb_tree.py` added); the single-seam,
+guard, and downward-dependency rules are unchanged and still hold._
 
 ```
 cratedeck/
-  src/            Bun + TS — the whole server (10 files, one dir, no nesting)
-  python/         rb_read.py — the ONLY bridge into rekordbox-land
+  src/            Bun + TS — the whole server (one dir, no nesting)
+  python/         rb_read.py — the ONLY bridge into rekordbox-land (+ usb_tree.py for ports)
   web/            Preact + Vite page (built assets served by the server)
-  shared/         types.ts + badges.ts — imported by both sides
+  shared/         types.ts + badges.ts + fmt.ts — imported by both sides
   testdata/       fixtures (synthetic drive tree, fixture DBs, recorded plists)
   data/           runtime state (gitignored): SQLite, images, logs, scratch
   config.toml     user config (sample committed)
@@ -41,7 +42,9 @@ implementations and are **imported directly** by the bridge — never ported,
 never duplicated. If a fast path ever needs one of them in TS, that's a bug
 in the design, not a task.
 
-## 2. The 13 server files (+ the Python seam)
+## 2. The server files (+ the Python seam)
+
+_The original ten, still the load-bearing core:_
 
 ```
 src/
@@ -56,6 +59,13 @@ src/
   jobs.ts       queue, progress, interlock (rekordbox running? → refuse)
   guard.ts      THE write allow-list — every disk write goes through it
 ```
+
+_Added since (same dependency rules): `report.ts` (health/SSOT verdicts),
+`images.ts` (photo providers), `fleet.ts` + `fleet-db.ts` (§B6–B8 engine +
+persistence), `deckctl.ts` (agent CLI), `auto_schedule.ts` (§B17 mount-scan
+/ weekly-verify intent — pure, never runs anything), `verify_help.ts`
+(verify-doc SSOT for server + deckctl), `walk.ts` (one shared fs walker),
+`badges_view.ts` (badge presentation)._
 
 Dependency direction is strictly downward: `index → {api-ish files} →
 domain files → db/guard`. `rb.ts` is the only file allowed to spawn

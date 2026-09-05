@@ -2,7 +2,7 @@
 import { ArchiveState } from "./state";
 import { RateLimiter } from "./ratelimit";
 import { sync } from "./commands/sync";
-import { status, listTracks } from "./commands/status";
+import { status, listTracks, statusJson, listJson } from "./commands/status";
 
 const MUSIC_DIR =
   process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/DJ-Imports`;
@@ -11,21 +11,33 @@ const DB_PATH =
 const COOKIES = process.env.MEGADJ_COOKIES ?? "chrome";
 const COOKIES_FILE = process.env.MEGADJ_COOKIES_FILE ?? null;
 
+/** macOS-only by design (Principle 2) — fail fast with the reason. */
+function assertMac(): void {
+  if (process.platform !== "darwin") {
+    console.error(
+      "megadj is macOS-only by design (docs/PRINCIPLES.md §2) — it drives rekordbox, Pioneer hardware, and macOS browser cookies.",
+    );
+    process.exit(2);
+  }
+}
+
 function printHelp(): void {
   console.log(`megadj — DJ library manager: acquire (GetDat), enrich (FullTags), drive it (CrateDeck)
 
 usage:
+  megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)
+  megadj init                                  first-run bootstrap: scaffold config.toml + doctor
   megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,PLxxxx]
   megadj enrich  [--dry-run]                   fill weak genres via MusicBrainz
   megadj ingest  <folder> [--dry-run] [--no-artwork] [--min-duration N]
                                                tag+art+dedupe downloads (zips too)
   megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run]
                                                enrichment pass: tags+genres+years+art
-  megadj audit                                ground-truth tag/art audit of the archive
+  megadj audit   [--json]                      ground-truth tag/art audit of the archive
   megadj artwork [--model M] [--max N] [--dry-run]
                                                generate covers for queued tracks
-  megadj status                              archive summary + recent runs
-  megadj list    [filter]                    list tracks (by status or text)
+  megadj status [--json]                       archive summary + recent runs
+  megadj list    [filter] [--json]             list tracks (by status or text)
   megadj retry                                retry failed tracks
   megadj adopt                                register existing files in the DB
   megadj help                                this help
@@ -91,10 +103,29 @@ async function main(): Promise<void> {
     return;
   }
 
+  assertMac();
+
   const state = new ArchiveState(DB_PATH);
 
   try {
     switch (command) {
+      case "doctor": {
+        const flags = parseFlags(process.argv.slice(3), [], ["json"]);
+        const { runDoctor, printDoctor, doctorJson } =
+          await import("./commands/doctor");
+        const results = runDoctor();
+        if (flags.bools.has("json")) {
+          console.log(doctorJson(results));
+        } else {
+          process.exitCode = printDoctor(results);
+        }
+        break;
+      }
+      case "init": {
+        const { runInit } = await import("./commands/doctor");
+        process.exitCode = runInit();
+        break;
+      }
       case "sync": {
         const flags = parseFlags(
           process.argv.slice(3),
@@ -139,12 +170,19 @@ async function main(): Promise<void> {
         break;
       }
       case "status": {
-        status(state);
+        const json = process.argv.slice(3).includes("--json");
+        if (json) statusJson(state);
+        else status(state);
         break;
       }
       case "list": {
-        const filter = process.argv.slice(3).find((a) => !a.startsWith("--"));
-        listTracks(state, filter);
+        const rest = process.argv.slice(3);
+        const filter = rest.find((a) => !a.startsWith("--"));
+        if (rest.includes("--json")) {
+          listJson(state, filter);
+        } else {
+          listTracks(state, filter);
+        }
         break;
       }
       case "retry": {
@@ -254,16 +292,38 @@ async function main(): Promise<void> {
         break;
       }
       case "audit": {
+        const json = process.argv.slice(3).includes("--json");
         const { auditArchive } = await import("./commands/fetch");
         const report = auditArchive(MUSIC_DIR);
         const gaps = report.rows.filter((r) => !r.complete);
+        if (json) {
+          console.log(
+            JSON.stringify(
+              {
+                ok: gaps.length === 0,
+                total: report.total,
+                complete: report.complete,
+                incomplete: gaps.map((r) => ({
+                  file: r.file,
+                  missing: (Object.entries(r) as [string, unknown][])
+                    .filter(([k, v]) => k !== "file" && k !== "complete" && !v)
+                    .map(([k]) => k),
+                })),
+              },
+              null,
+              2,
+            ),
+          );
+          if (gaps.length) process.exitCode = 1;
+          break;
+        }
         console.log(
           `audit: ${report.complete}/${report.total} complete (art + title + artist + album + genre + year)`,
         );
         if (gaps.length) {
           console.log(`\nincomplete:`);
           for (const r of gaps) {
-            const miss = Object.entries(r)
+            const miss = (Object.entries(r) as [string, unknown][])
               .filter(([k, v]) => k !== "file" && k !== "complete" && !v)
               .map(([k]) => k)
               .join(",");

@@ -122,7 +122,9 @@ export function usbTree(): UsbDevice[] {
   let devices: UsbDevice[] = [];
   if (p.exitCode === 0) {
     try {
-      devices = JSON.parse(p.stdout.toString()).devices ?? [];
+      devices =
+        (JSON.parse(p.stdout.toString()) as { devices?: UsbDevice[] })
+          .devices ?? [];
     } catch {}
   }
   usbTreeCache = { at: now, devices };
@@ -187,17 +189,29 @@ function candidates_are_unique(pool: UsbDevice[]): boolean {
   return pool.length === 1;
 }
 
+/** Typed view of `diskutil info -plist` output (only the keys we read). */
+export interface DiskutilInfo {
+  DeviceIdentifier?: string;
+  VolumeUUID?: string;
+  FileSystemType?: string;
+  TotalSize?: string | number;
+  DeviceMediaName?: string;
+  "Device / Media Name"?: string;
+  DeviceTreePath?: string;
+  [key: string]: string | number | boolean | undefined;
+}
+
 /** Robust plist reader: plutil converts JSON from stdin (node child_process
  *  delivers `input` reliably; Bun's spawnSync stdin pipe did not). No temp
  *  files — the old tmp-write+delete churn per volume per poll is gone. */
-export function parsePlist(xml: string): Record<string, any> {
+export function parsePlist(xml: string): DiskutilInfo {
   try {
     const r = spawnSync("plutil", ["-convert", "json", "-o", "-", "-"], {
       input: xml,
       encoding: "utf8",
     });
     if (r.status !== 0) return {};
-    return JSON.parse(r.stdout || "{}");
+    return JSON.parse(r.stdout || "{}") as DiskutilInfo;
   } catch {
     return {};
   }

@@ -40,12 +40,15 @@ export async function measureRms(file: string): Promise<number | null> {
   return m?.[1] ? Number(m[1]) : null;
 }
 
-/** Parse `NNN - Artist - Title.ext` / `Artist - Title.ext` / `Title.ext`. */
-export function parseFilename(basename: string): {
+/** Structured result of `parseFilename`. */
+export interface ParsedName {
   trackNo: number | null;
   artist: string | null;
   title: string;
-} {
+}
+
+/** Parse `NNN - Artist - Title.ext` / `Artist - Title.ext` / `Title.ext`. */
+export function parseFilename(basename: string): ParsedName {
   const stem = basename.replace(/\.[^.]+$/, "");
   const numMatch = /^(\d{1,3})\s+-\s+(.+)$/.exec(stem);
   let rest = stem;

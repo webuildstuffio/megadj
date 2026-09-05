@@ -56,6 +56,7 @@ export {
   parseFilename,
   probeFile,
   qualityScore,
+  type ParsedName,
   type Probe,
 } from "./probes";
 export {

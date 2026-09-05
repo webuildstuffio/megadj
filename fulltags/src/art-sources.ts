@@ -141,12 +141,16 @@ export async function itunesArtwork(
 export async function deezerArt(r: ArtRow): Promise<Uint8Array | null> {
   try {
     const q = encodeURIComponent(`artist:"${r.artist}" track:"${r.title}"`);
-    const d = await (
+    const d = (await (
       await fetch(`https://api.deezer.com/search?q=${q}&limit=3`, {
         headers: UA,
       })
-    ).json();
-    for (const hit of d?.data ?? []) {
+    ).json()) as {
+      data?: Array<{
+        album?: { cover_xl?: string; cover_big?: string };
+      }>;
+    };
+    for (const hit of d.data ?? []) {
       const url = hit.album?.cover_xl ?? hit.album?.cover_big;
       if (!url) continue;
       const bytes = await fetchImage(url);
@@ -290,7 +294,15 @@ export function scSearch(r: SearchRow): ScHit[] {
     if (!line.startsWith("COL|")) continue;
     const parts = line.slice(4).split("|");
     if (parts.length < 5) continue;
-    const [t, url, uploader, , thumbsRaw, genre, tsRaw] = parts;
+    const [t, url, uploader, , thumbsRaw, genre, tsRaw] = parts as [
+      string | undefined,
+      string | undefined,
+      string | undefined,
+      string,
+      string | undefined,
+      string | undefined,
+      string | undefined,
+    ];
     if (!url?.includes("soundcloud.com")) continue;
     const hWords = words(t ?? "");
     const overlap = tWords.filter((w) => hWords.includes(w)).length;

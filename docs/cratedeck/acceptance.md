@@ -8,15 +8,15 @@ that trust", architecture §9). Last audited: 2026-09-04.
 
 ## Milestones
 
-| Milestone                    | Scope                             | Status        |
-| ---------------------------- | --------------------------------- | ------------- |
-| M0 — Skeleton & spine        | registry, detection, ghosts, page | ✅ shipped    |
-| M1 — Photo & identity        | image search/confirm, rename      | ✅ shipped    |
-| M2 — Rekordbox introspection | Python seam, scan, playlists      | ✅ shipped    |
-| M3 — Jobs, interlock, sync   | verify/mirror/bench/checksum      | ✅ shipped    |
-| M4 — Ports, timeline, search | port strip, timeline, search      | ✅ shipped    |
-| M5 — Polish, dossier, radar  | reports, dossier export           | ✅ shipped    |
-| M6 — Hardening & docs        | failure modes, rotation, docs     | ☐ in progress |
+| Milestone                    | Scope                             | Status                                           |
+| ---------------------------- | --------------------------------- | ------------------------------------------------ |
+| M0 — Skeleton & spine        | registry, detection, ghosts, page | ✅ shipped                                       |
+| M1 — Photo & identity        | image search/confirm, rename      | ✅ shipped                                       |
+| M2 — Rekordbox introspection | Python seam, scan, playlists      | ✅ shipped                                       |
+| M3 — Jobs, interlock, sync   | verify/mirror/bench/checksum      | ✅ shipped                                       |
+| M4 — Ports, timeline, search | port strip, timeline, search      | ✅ shipped                                       |
+| M5 — Polish, dossier, radar  | reports, dossier export           | ✅ shipped                                       |
+| M6 — Hardening & docs        | failure modes, rotation, docs     | 🔶 partial (docs shipped; kill -9 + tag pending) |
 
 ## Evidence map (code)
 
@@ -77,6 +77,16 @@ fixture server + Chrome DevTools Protocol DOM checks; screenshots reviewed.
   CLI `deckctl diff A B`.
 - Tests: `test/fleet.test.ts` (engine + DB round-trips). Data loads on the
   next full scan of each drive with rekordbox closed.
+
+## Automation (shipped 2026-09-05 — ideas.md §B17, commit `aa64e04`)
+
+- **Auto light-scan on mount** — `src/auto_schedule.ts`
+  (`shouldAutoScan`: fresh mount + no fresh snapshot → enqueue scan);
+  config `[automation] auto_scan_on_mount` (default on).
+- **Weekly auto-verify** — `shouldAutoVerify`: never-verified, or last
+  verify older than `verify_interval_days` (default 7, 0 = off); results
+  feed the readiness badge. Max one auto-verify attempt per drive per
+  sweep; interlock applies as to every job.
 
 ## Test coverage
 

@@ -101,5 +101,3 @@ export {
   scSearch,
   twinArt,
 } from "../fulltags/src/exports";
-
-export const AI_MODEL = "google/gemini-2.5-flash-lite"; // cheapest solid

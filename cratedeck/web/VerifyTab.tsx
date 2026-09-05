@@ -106,8 +106,8 @@ export function VerifyTab(props: {
       {!report && (
         <div class="vnever">
           <p>
-            <b>What you get:</b> a check-by-check breakdown of drive health
-            from the hardware's point of view — not just "it's fine", but
+            <b>What you get:</b> a check-by-check breakdown of drive health from
+            the hardware's point of view — not just "it's fine", but
             <i> what was checked and how many tracks each check covered</i>.
           </p>
           <ul>
@@ -131,8 +131,7 @@ export function VerifyTab(props: {
           {failed.length > 0 && (
             <div class="vgroup vfail">
               <h3>
-                <Icon name="warn" size={13} /> Needs attention (
-                {failed.length})
+                <Icon name="warn" size={13} /> Needs attention ({failed.length})
               </h3>
               {failed.map((c) => (
                 <CheckCard key={c.id} c={c} />

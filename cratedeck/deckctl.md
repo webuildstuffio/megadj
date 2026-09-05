@@ -4,23 +4,25 @@ Agent- and human-facing CLI for CrateDeck (the DJ USB dashboard). Talks to the
 CrateDeck server on `127.0.0.1:7742`; auto-starts the server if it isn't running.
 
 ```bash
-bun run cratedeck/src/deckctl.ts <command> [--json]
+bun run deckctl <command> [--json]    # repo-root script (short form)
+# or: bun run cratedeck/src/deckctl.ts <command> [--json]
 ```
 
 ## Commands
 
-| Command              | What it does                                                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `status`             | rekordbox lock state, every drive with badges, active jobs                                                                     |
-| `drives`             | drive list with per-badge ✓/▲/✕ verdicts                                                                                       |
-| `report <drive>`     | full health dossier: every check, its detail, why it matters, and the fix                                                      |
-| `run <drive> <kind>` | enqueue + **follow** a job live: spinner, %, current step, rolling ETA. Kinds: `scan` `verify` `mirror` `benchmark` `checksum` |
-| `coverage [min]`     | fleet coverage matrix: tracks per drive + at-risk list (tracks below `min` copies, default 2)                                  |
-| `redundancy [min]`   | per-playlist redundancy audit: every track on ≥`min` drives? pass/warn/fail per playlist                                       |
-| `diff <driveA> <driveB>` | drive-vs-drive inventory diff: added / removed / changed bytes                                                             |
-| `jobs`               | recent jobs with progress/messages                                                                                             |
-| `cancel <jobId>`     | cancel an active job                                                                                                           |
-| `stop`               | stop the CrateDeck server                                                                                                      |
+| Command                  | What it does                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `status`                 | rekordbox lock state, every drive with badges, active jobs                                                                     |
+| `drives`                 | drive list with per-badge ✓/▲/✕ verdicts                                                                                       |
+| `report <drive>`         | full health dossier: every check, its detail, why it matters, and the fix                                                      |
+| `run <drive> <kind>`     | enqueue + **follow** a job live: spinner, %, current step, rolling ETA. Kinds: `scan` `verify` `mirror` `benchmark` `checksum` |
+| `coverage [min]`         | fleet coverage matrix: tracks per drive + at-risk list (tracks below `min` copies, default 2)                                  |
+| `redundancy [min]`       | per-playlist redundancy audit: every track on ≥`min` drives? pass/warn/fail per playlist                                       |
+| `diff <driveA> <driveB>` | drive-vs-drive inventory diff: added / removed / changed bytes                                                                 |
+| `jobs`                   | recent jobs with progress/messages                                                                                             |
+| `cancel <jobId>`         | cancel an active job                                                                                                           |
+| `stop`                   | stop the CrateDeck server                                                                                                      |
+| `explain [kind]`         | documentation as a tool: what each job type checks, typical duration, safety guarantees                                        |
 
 `<drive>` = volume name, nickname, or UUID.
 
@@ -74,3 +76,40 @@ deckctl report MASTER                     # read verdicts + fixes
 deckctl coverage                          # what survives a drive death?
 deckctl run MASTER checksum --json --wait # machine-readable progress lines
 ```
+
+## MCP — the same surface for AI agents
+
+`cratedeck/src/mcp.ts` is an MCP (Model Context Protocol) server exposing
+everything above as tools over stdio JSON-RPC, so Claude/Cursor/any MCP client
+gets the product 1:1 with the CLI. Same server, same interlock, same guards.
+
+```bash
+bun run mcp        # from the repo root (alias for cratedeck/src/mcp.ts)
+```
+
+Register it in your MCP client config, e.g. (Cursor / Claude Desktop):
+
+```json
+{
+  "mcpServers": {
+    "cratedeck": {
+      "command": "bun",
+      "args": ["run", "cratedeck/src/mcp.ts"],
+      "cwd": "/path/to/megadj"
+    }
+  }
+}
+```
+
+Tools: `deck_status` · `deck_drives` · `deck_report {drive}` ·
+`deck_coverage {min_copies?}` · `deck_redundancy {min_copies?}` ·
+`deck_diff {a,b}` · `deck_jobs` · `deck_run {drive,kind,wait?}` ·
+`deck_cancel {job_id}` · `deck_explain {kind?}`.
+
+`deck_run` is the only mutating tool; it refuses while rekordbox is running
+(the interlock is enforced server-side too — this is belt _and_ suspenders,
+never a bypass).
+
+Implementation note: `cratedeck/src/deckapi.ts` is the shared HTTP client
+(server auto-start, drive resolution, job polling) used by both `deckctl.ts`
+and `mcp.ts` — one seam, no drift.

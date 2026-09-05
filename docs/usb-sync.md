@@ -13,12 +13,12 @@ names (defaults `DJMASTER`/`DJMIRROR`; every script takes them as arguments).
 
 ## Topology
 
-|          | Master                                          | Mirror                                |
-| -------- | ----------------------------------------------- | ------------------------------------- |
-| Role     | **MASTER** — source of truth                    | Mirror — kept identical (superset OK) |
-| DB       | `PIONEER/rekordbox/exportLibrary.db` (SQLCipher) | same file, MD5-identical             |
-| Library  | full core library + downloaded playlists        | mirrors master                        |
-| Analysis | `PIONEER/USBANLZ/` (hash-path folders)          | identical, hash-verified              |
+|          | Master                                           | Mirror                                |
+| -------- | ------------------------------------------------ | ------------------------------------- |
+| Role     | **MASTER** — source of truth                     | Mirror — kept identical (superset OK) |
+| DB       | `PIONEER/rekordbox/exportLibrary.db` (SQLCipher) | same file, MD5-identical              |
+| Library  | full core library + downloaded playlists         | mirrors master                        |
+| Analysis | `PIONEER/USBANLZ/` (hash-path folders)           | identical, hash-verified              |
 
 Master audio lives in `Contents/`; the mirror may carry a few extra files
 (legacy superset) — that is normal and not a sync failure.
@@ -107,6 +107,11 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
   the legacy-WAV research.
 - Long-running background jobs can get reaped; the tools are resumable for
   that reason.
+- **CrateDeck automates the routine checks**: a fresh mount triggers a
+  light scan automatically, and each drive gets a full verify weekly
+  (`cratedeck/src/auto_schedule.ts`, config `[automation]`) — results feed
+  the readiness badge, so "is this stick ok?" no longer requires opening
+  anything.
 
 ## Known limitations
 

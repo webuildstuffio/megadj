@@ -53,6 +53,10 @@ export interface PipelineOptions {
   dryRun?: boolean;
   /** Re-embed existing SC art at original resolution. */
   upgradeScArt?: boolean;
+  /** CLI-provided hints (fulltags single <file> --title/--artist/--album):
+   * fill in what the filename can't say. Only consulted when the file
+   * itself lacks the field. */
+  hints?: { title?: string; artist?: string; album?: string };
   onProgress?: (msg: string) => void;
 }
 
@@ -89,13 +93,20 @@ export async function enrichTrack(
 
   // ---------- 1. tags: MusicBrainz fills artist/album/date ----------
   if (want("tags") && (!truth.title || !truth.artist || !truth.album)) {
+    // CLI hints first (only where the file lacks the field), then MB.
+    if (!truth.title && opts.hints?.title) patch.title = opts.hints.title;
+    if (!truth.artist && opts.hints?.artist) patch.artist = opts.hints.artist;
+    if (!truth.album && opts.hints?.album) patch.album = opts.hints.album;
     const artist0 =
-      (truth.artist ?? t.artist ?? "").split(/[,&]/)[0]?.trim() || null;
+      (truth.artist ?? t.artist ?? patch.artist ?? "")
+        .split(/[,&]/)[0]
+        ?.trim() || null;
     const rec = await mbLookupCached(artist0, titleGuess ?? basename(t.path));
     if (rec) {
-      if (!truth.title && rec.title) patch.title = rec.title;
-      if (!truth.artist && rec.artist) patch.artist = rec.artist;
-      if (!truth.album && rec.album) patch.album = rec.album;
+      if (!truth.title && !patch.title && rec.title) patch.title = rec.title;
+      if (!truth.artist && !patch.artist && rec.artist)
+        patch.artist = rec.artist;
+      if (!truth.album && !patch.album && rec.album) patch.album = rec.album;
       if (rec.year) patch.year = rec.year;
       if (rec.mbid) patch.mbid = rec.mbid;
     }
@@ -354,7 +365,9 @@ print(json.dumps({"energy": val}))`;
   });
   try {
     const last = new TextDecoder().decode(pr.stdout).trim().split("\n").at(-1);
-    const v = last ? (JSON.parse(last).energy as string | null) : null;
+    const v = last
+      ? ((JSON.parse(last) as { energy?: string | null }).energy ?? null)
+      : null;
     const n = v === null ? NaN : Number(v);
     return Number.isFinite(n) ? n : null;
   } catch {

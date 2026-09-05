@@ -9,7 +9,7 @@ research, the decision, and the tooling (`tools/rb_art.py`).
 display covers; WAVs never do — in the browser, on the CDJs, anywhere.
 
 **Root cause (verified):** rekordbox reads WAV metadata **only** from RIFF INFO — which has
-*no artwork field*. The ID3 chunk our pipeline embeds in the WAVs is valid (Finder, Serato,
+_no artwork field_. The ID3 chunk our pipeline embeds in the WAVs is valid (Finder, Serato,
 VirtualDJ, etc. all show it), but rekordbox's WAV parser ignores it by design. This is not
 a bug in our files and no tag trick fixes it.
 
@@ -28,29 +28,31 @@ layout (from the MP3s).
 
 ## All options considered
 
-| # | Option | Verdict | Why |
-|---|--------|---------|-----|
-| A | **Master DB write via pyrekordbox** | ✅ **CHOSEN** | Automated now + forever; identical storage to Pioneer's own manual workflow |
-| B | Convert WAV → AIFF | Clean but disruptive | Lossless (`-c:a copy`), RB reads AIFF art natively — but RB sees new files: re-import the files, redo playlists, re-analyze. Tools exist (`rekordbox-bulk-edit`, `rekordbox-edit`, `rekordbox-relocator`) that automate convert + DB path update preserving cues. Best long-term, costs prep rework |
-| C | Manual drag in RB | Safe, tedious | Pioneer's official workflow; a batch of drags one-time + every future WAV. Keep `cover.jpg` beside each WAV to make it easier |
-| D | ID3v2.3 tag trick | ❌ Myth | Contradicted by the rekordbox 7.0.7 manual, Pioneer's metadata matrix, and Lexicon's docs ("Rekordbox does not support album art for WAV files, even reloading tags will not show them") |
-| E | Sidecar cover.jpg files | ❌ Does nothing | RB never reads companion image files on import; only useful as hand-off for C |
-| F | Raw SQLCipher UPDATE on master.db | ⚠️ Risky | Same result as A but skips pyrekordbox's USN bookkeeping + FK checks. One typo = corrupt library. A supersedes it |
-| G | Ignore it | ❌ | Not solving the problem |
+| #   | Option                              | Verdict              | Why                                                                                                                                                                                                                                                                                                 |
+| --- | ----------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A   | **Master DB write via pyrekordbox** | ✅ **CHOSEN**        | Automated now + forever; identical storage to Pioneer's own manual workflow                                                                                                                                                                                                                         |
+| B   | Convert WAV → AIFF                  | Clean but disruptive | Lossless (`-c:a copy`), RB reads AIFF art natively — but RB sees new files: re-import the files, redo playlists, re-analyze. Tools exist (`rekordbox-bulk-edit`, `rekordbox-edit`, `rekordbox-relocator`) that automate convert + DB path update preserving cues. Best long-term, costs prep rework |
+| C   | Manual drag in RB                   | Safe, tedious        | Pioneer's official workflow; a batch of drags one-time + every future WAV. Keep `cover.jpg` beside each WAV to make it easier                                                                                                                                                                       |
+| D   | ID3v2.3 tag trick                   | ❌ Myth              | Contradicted by the rekordbox 7.0.7 manual, Pioneer's metadata matrix, and Lexicon's docs ("Rekordbox does not support album art for WAV files, even reloading tags will not show them")                                                                                                            |
+| E   | Sidecar cover.jpg files             | ❌ Does nothing      | RB never reads companion image files on import; only useful as hand-off for C                                                                                                                                                                                                                       |
+| F   | Raw SQLCipher UPDATE on master.db   | ⚠️ Risky             | Same result as A but skips pyrekordbox's USN bookkeeping + FK checks. One typo = corrupt library. A supersedes it                                                                                                                                                                                   |
+| G   | Ignore it                           | ❌                   | Not solving the problem                                                                                                                                                                                                                                                                             |
 
 ### Why A wins
-It is the **only** option that is both fully automated *now* and automatable for **every
+
+It is the **only** option that is both fully automated _now_ and automatable for **every
 future ingest**, while using the identical storage mechanism as Pioneer's own Artwork tab.
 B costs RB prep rework; C costs manual drags forever. The DB-write risk is managed with the
 same rules the repo already uses for any rekordbox touching (see below).
 
 ### Key research facts
+
 - **Official spec** (rekordbox 7.0.7 manual): displayable tags are ID3 (MP3/AIFF), M4A meta,
   RIFF INFO (WAV), Vorbis (FLAC). WAV artwork is absent from the spec entirely.
 - **Pioneer metadata matrix** maps WAV → Title/Artist/Album/Genre/Comment only. No art.
 - **Lexicon** (largest 3rd-party RB tool, writes master.db directly) documented that even
   their direct-write path can't make WAV-embedded art appear — it's a parser limitation,
-  not a DB one. But setting the DB *pointer* to stored artwork files is exactly what RB's
+  not a DB one. But setting the DB _pointer_ to stored artwork files is exactly what RB's
   own Artwork tab does — automatable.
 - **Reload Tag will never help** for WAV art — confirmed independently by Lexicon's manual.
 - **CDJ art comes from the USB export**, which carries RB's DB artwork along — fixing the
@@ -90,6 +92,7 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 ```
 
 ### Safety rails (non-negotiable, enforced by the script)
+
 1. **rekordbox must be closed** — script aborts if the process is running (WAL corruption).
 2. **Triple backup** before any write: `master.db` + `master.db-shm` + `master.db-wal` →
    dated folder `~/Library/Pioneer/rekordbox/backups/<date>/`.
@@ -99,6 +102,7 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 5. **Idempotent** — re-running skips tracks that already have `ImagePath`; safe after crashes.
 
 ### What the script does per track
+
 1. Extract the embedded JPEG from the WAV's ID3 APIC frame (already 100% present).
 2. Write it to `share/PIONEER/Artwork/<shard>/<uuid>/` in RB's layout — **all three
    files**: `artwork.jpg` + `artwork_m.jpg` (250px) + `artwork_s.jpg` (125px) via
@@ -112,6 +116,7 @@ Gotcha: if covers still show blank after a successful write, quit + reopen
 rekordbox — it caches the old blank state in memory.
 
 ### Status — ✅ COMPLETE (2026-09-04)
+
 - [x] Root cause researched + documented
 - [x] `master.db` unlock verified (pyrekordbox, key cached)
 - [x] Artwork layout confirmed on disk
@@ -125,6 +130,7 @@ rekordbox — it caches the old blank state in memory.
       `exportLibrary.db` + artwork on the mirror drive.
 
 ### Future ingests
+
 Not needed for WAVs anymore — `megadj ingest` converts them to AIFF (native
 covers). `rb_art.py` remains for any future legacy-WAV edge cases; re-run
 `batch` manually after ingesting one.

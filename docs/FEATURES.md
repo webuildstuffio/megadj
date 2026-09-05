@@ -21,14 +21,14 @@ Status: ✅ shipped · 🔨 in progress · 🧭 coming (roadmap in
 the local archive — highest quality available, rate-limited and polite,
 nothing ever downloaded twice.
 
-|                    |                                                                                                                                                                                                              |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Status**         | 🔨 YouTube Music today; SoundCloud next                                                                                                                                                                      |
-| **Sources today**  | YouTube Music (liked songs, playlists)                                                                                                                                                                       |
-| **Sources coming** | SoundCloud (yt-dlp already covers it — it's config work), Bandcamp, 1001tracklists mining as a discovery queue                                                                                               |
-| **How it works**   | `megadj sync` → yt-dlp with premium-quality formats (256 kbps AAC first, graceful fallback), token-bucket rate limiting with jitter and exponential backoff, permanent failures classified and never retried |
-| **State**          | SQLite tracks every video ID: status, format, bitrate, path, attempt history. Nothing re-downloads.                                                                                                          |
-| **Flag**           | anything below 250 kbps is flagged `LOWQ` in `megadj list` — quality only ever ratchets up                                                                                                                   |
+|                    |                                                                                                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**         | 🔨 YouTube Music today; SoundCloud next                                                                                                                                 |
+| **Sources today**  | YouTube Music (liked songs, playlists)                                                                                                                                  |
+| **Sources coming** | SoundCloud (yt-dlp already covers it — it's config work), Bandcamp, 1001tracklists mining as a discovery queue                                                          |
+| **How it works**   | `megadj sync` → yt-dlp at the best format available (256 kbps AAC first, graceful fallback); polite pacing and backoff, permanent failures classified and never retried |
+| **State**          | SQLite tracks every video ID: status, format, bitrate, path, attempt history. Nothing re-downloads.                                                                     |
+| **Flag**           | anything below 250 kbps is flagged `LOWQ` in `megadj list` — quality only ever ratchets up                                                                              |
 
 **Vibe:** the archiver that never says "this source isn't supported" without
 also saying "here's the issue where it will be".

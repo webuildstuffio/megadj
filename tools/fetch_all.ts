@@ -102,6 +102,7 @@ async function processTask(
   stats: Stats,
   aiGenreBatch: Row[],
   aiYearBatch: Row[],
+  /** out-param: rows that exhausted every art source → megadj artwork queue */
   artless: Row[],
 ): Promise<void> {
   const { row: r, truth } = t;
@@ -164,7 +165,15 @@ async function processTask(
   }
 
   if (t.needArt && !DRY) {
-    let done = false;
+    let artDone = false;
+    const markArt = (label: string, formatId?: string): void => {
+      db.query(
+        formatId
+          ? "UPDATE tracks SET artwork_status=?, format_id=? WHERE video_id=?"
+          : "UPDATE tracks SET artwork_status=? WHERE video_id=?",
+      ).run(`embedded:${label}`, ...(formatId ? [formatId] : []), r.video_id);
+    };
+
     // 3a. SC search hit → original-res page art (best quality path)
     if (best) {
       const og = await pageOgImage(best.url);
@@ -175,17 +184,11 @@ async function processTask(
           : null;
       const isOrig = !!og?.includes("-original");
       if (bytes && embedArt(r.file_path, bytes)) {
-        done = true;
+        artDone = true;
         if (isOrig) stats.artScOrig++;
         else stats.artSc++;
         notes.push(`art:sc${isOrig ? "-orig" : ""}`);
-        db.query(
-          "UPDATE tracks SET artwork_status=?, format_id=? WHERE video_id=?",
-        ).run(
-          `embedded:sc${isOrig ? "-orig" : ""}`,
-          `sc:${best.url}`,
-          r.video_id,
-        );
+        markArt(`sc${isOrig ? "-orig" : ""}`, `sc:${best.url}`);
         if (best.genre && t.needGenre) {
           const g = canonGenre(best.genre);
           db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
@@ -204,58 +207,38 @@ async function processTask(
         }
       }
     }
-    // 3b. gateway
-    if (!done) {
-      const gw = await gatewayArt(r);
-      if (gw && embedArt(r.file_path, gw.bytes)) {
-        done = true;
-        stats.artGateway++;
-        notes.push("art:gateway");
-        db.query(
-          "UPDATE tracks SET artwork_status='embedded:gateway' WHERE video_id=?",
-        ).run(r.video_id);
+    // 3b–3e. gateway → twin → deezer → itunes (first embed wins)
+    const fallbacks: Array<{
+      stat: keyof Stats;
+      label: string;
+      bytes: Uint8Array | null | Promise<Uint8Array | null>;
+    }> = [
+      {
+        stat: "artGateway",
+        label: "gateway",
+        bytes: gatewayArt(r).then((g) => g?.bytes ?? null),
+      },
+      { stat: "artTwin", label: "mp3-twin", bytes: twinArt(r) },
+      { stat: "artDeezer", label: "deezer", bytes: deezerArt(r) },
+      {
+        stat: "artItunes",
+        label: "itunes",
+        bytes: itunesArtUrl(r.artist ?? "", r.album ?? r.title).then((u) =>
+          u ? fetchImage(u) : null,
+        ),
+      },
+    ];
+    for (const fb of fallbacks) {
+      if (artDone) break;
+      const bytes = await fb.bytes;
+      if (bytes && embedArt(r.file_path, bytes)) {
+        artDone = true;
+        stats[fb.stat]++;
+        notes.push(`art:${fb.label}`);
+        markArt(fb.label);
       }
     }
-    // 3c. twin
-    if (!done) {
-      const twin = twinArt(r);
-      if (twin && embedArt(r.file_path, twin)) {
-        done = true;
-        stats.artTwin++;
-        notes.push("art:twin");
-        db.query(
-          "UPDATE tracks SET artwork_status='embedded:mp3-twin' WHERE video_id=?",
-        ).run(r.video_id);
-      }
-    }
-    // 3d. deezer
-    if (!done) {
-      const dz = await deezerArt(r);
-      if (dz && embedArt(r.file_path, dz)) {
-        done = true;
-        stats.artDeezer++;
-        notes.push("art:deezer");
-        db.query(
-          "UPDATE tracks SET artwork_status='embedded:deezer' WHERE video_id=?",
-        ).run(r.video_id);
-      }
-    }
-    // 3e. itunes
-    if (!done) {
-      // FullTags itunesArtwork returns a URL; fetch bytes here to keep the
-      // same embed+DB flow as the other art sources.
-      const url = await itunesArtUrl(r.artist ?? "", r.album ?? r.title);
-      const it = url ? await fetchImage(url) : null;
-      if (it && embedArt(r.file_path, it)) {
-        done = true;
-        stats.artItunes++;
-        notes.push("art:itunes");
-        db.query(
-          "UPDATE tracks SET artwork_status='embedded:itunes' WHERE video_id=?",
-        ).run(r.video_id);
-      }
-    }
-    if (!done) artless.push(r);
+    if (!artDone) artless.push(r);
   }
 
   if (notes.length)

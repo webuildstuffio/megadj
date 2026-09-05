@@ -22,29 +22,39 @@ export interface CrateConfig {
   verifyIntervalDays: number;
 }
 
-function parseTomlSimple(src: string): Record<string, any> {
+/** Raw TOML value: what the tiny parser can produce. */
+type TomlValue = string | number | boolean | TomlTable;
+type TomlTable = { [key: string]: TomlValue };
+
+function isTomlTable(v: TomlValue | undefined): v is TomlTable {
+  return typeof v === "object" && v !== null;
+}
+
+function parseTomlSimple(src: string): TomlTable {
   // Tiny flat/nested toml reader for our known shape (no deps).
-  const out: Record<string, any> = {};
-  let section = out;
+  const out: TomlTable = {};
+  let section: TomlTable = out;
   for (const raw of src.split("\n")) {
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
     const sec = line.match(/^\[(.+)\]$/);
     if (sec?.[1]) {
-      section = {};
-      const parts = sec[1].split(".");
-      let cur: Record<string, any> = out;
-      for (const p of parts) {
-        cur[p] ??= {};
-        const next = cur[p];
-        if (next && typeof next === "object") cur = next;
+      section = out;
+      for (const p of sec[1].split(".")) {
+        const next = section[p];
+        if (!isTomlTable(next)) {
+          const fresh: TomlTable = {};
+          section[p] = fresh;
+          section = fresh;
+        } else {
+          section = next;
+        }
       }
-      section = cur;
       continue;
     }
     const kv = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.+?)\s*(?:#.*)?$/);
     if (kv?.[1] && kv[2]) {
-      let v: any = kv[2].replace(/^"(.*)"$/, "$1");
+      let v: TomlValue = kv[2].replace(/^"(.*)"$/, "$1");
       if (v === "true") v = true;
       else if (v === "false") v = false;
       else if (/^\d+$/.test(v)) v = parseInt(v, 10);
@@ -59,6 +69,11 @@ export function loadConfig(root: string): CrateConfig {
   const file = existsSync(cfgPath)
     ? parseTomlSimple(readFileSync(cfgPath, "utf8"))
     : {};
+  const server = isTomlTable(file.server) ? file.server : {};
+  const library = isTomlTable(file.library) ? file.library : {};
+  const images = isTomlTable(file.images) ? file.images : {};
+  const jobs = isTomlTable(file.jobs) ? file.jobs : {};
+  const automation = isTomlTable(file.automation) ? file.automation : {};
   const dataDir = process.env.CRATEDECK_DATA ?? join(root, "data");
   const cfg: CrateConfig = {
     root,
@@ -68,24 +83,42 @@ export function loadConfig(root: string): CrateConfig {
     imagesDir: join(dataDir, "images"),
     serverPort:
       parseInt(process.env.CRATEDECK_PORT ?? "", 10) ||
-      file?.server?.port ||
+      (typeof server.port === "number" ? server.port : 0) ||
       7742,
     volumesRoot: process.env.CRATEDECK_VOLUMES ?? "/Volumes",
-    masterDrive: file?.library?.master_drive ?? "DJMASTER",
-    mirrorDrive: file?.library?.mirror_drive ?? "DJMIRROR",
+    masterDrive:
+      typeof library.master_drive === "string"
+        ? library.master_drive
+        : "DJMASTER",
+    mirrorDrive:
+      typeof library.mirror_drive === "string"
+        ? library.mirror_drive
+        : "DJMIRROR",
     imageProvider:
-      (file?.images?.provider as "brave" | "exa" | undefined) ??
+      (typeof images.provider === "string"
+        ? (images.provider as "brave" | "exa")
+        : undefined) ??
       (process.env.CRATEDECK_IMAGE_PROVIDER as "brave" | "exa" | undefined) ??
       null,
     imageKey:
-      file?.images?.key ??
+      (typeof images.key === "string" ? images.key : undefined) ??
       process.env.CRATEDECK_IMAGE_KEY ??
       process.env.EXA_API_KEY ??
       null,
-    verifyTimeoutMin: file?.jobs?.verify_timeout_min ?? 40,
-    benchmarkMb: file?.jobs?.benchmark_mb ?? 512,
-    autoScanOnMount: file?.automation?.auto_scan_on_mount ?? true,
-    verifyIntervalDays: file?.automation?.verify_interval_days ?? 7,
+    verifyTimeoutMin:
+      typeof jobs.verify_timeout_min === "number"
+        ? jobs.verify_timeout_min
+        : 40,
+    benchmarkMb:
+      typeof jobs.benchmark_mb === "number" ? jobs.benchmark_mb : 512,
+    autoScanOnMount:
+      typeof automation.auto_scan_on_mount === "boolean"
+        ? automation.auto_scan_on_mount
+        : true,
+    verifyIntervalDays:
+      typeof automation.verify_interval_days === "number"
+        ? automation.verify_interval_days
+        : 7,
   };
   if (cfg.imageProvider && !["brave", "exa"].includes(cfg.imageProvider)) {
     throw new Error(`config: unknown images.provider '${cfg.imageProvider}'`);

@@ -1,10 +1,10 @@
 # FullTags — Prioritized Roadmap (rev 2, fact-checked)
 
-*Rev 2, 2026-09-05 · every external claim re-verified against primary
+_Rev 2, 2026-09-05 · every external claim re-verified against primary
 sources (Dubspot lab report, rekordbox metadata matrix, MTG/essentia
 issue tracker, beat_this repo/PyPI, AcoustID docs); two integration
 recommendations corrected; plus a stress-test pass over the shipped v0
-code that found and fixed a 6.4× write-path regression (§5).*
+code that found and fixed a 6.4× write-path regression (§5)._
 
 How to read: ranked by **value-per-effort** for a 3–10k track dance
 library on one Mac, offline-first. Effort: S <1d / M 1–3d / L >3d.
@@ -26,19 +26,20 @@ enters.
 
 ## 1. Fact-check corrections (vs rev 1)
 
-| Claim in rev 1 | Verdict | Correction |
-| -------------- | ------- | ---------- |
-| "keyfinder-cli, Effort S" | **Corrected** | Not in homebrew-core — only the author's personal tap, with known ARM build friction (libavutil path issues). Primary key path is now **OpenKeyScan's analyzer server** (localhost REST :58721, MPS-accelerated, standalone executable available); keyfinder-cli demoted to fallback. Effort S→M. |
-| "libKeyFinder ~90% on dance" | **Verified** | Dubspot 200-track ear-keyed test: KeyFinder 76% overall (152/200), **90% on dance/electronic**, MIK 89%, rekordbox 7 69%, Beatport metadata 60%. Weakness: relative major/minor ambiguity. |
-| "rekordbox's own ~60%" | **Corrected** | 60% is **Beatport metadata**, not rekordbox. Rekordbox 7 = 69% in the same test. (A 2019 GiantSteps MIREX-style study even scored rekordbox *highest* on pure EDM, 79.55 weighted.) The rebuild case is the **dance-subset gap (90% vs ~70%)** + file-level portability, not overall dominance. |
-| "rekordbox reads TKEY" | **Verified + gotcha** | Official matrix: Key = TKEY, read on AIFF (ID3v2.4) + MP3 (ID3v2.3) — **not WAV** (RIFF INFO has no key field; our ingest converts WAV→AIFF, so the pipeline is safe). Gotchas: RB **overwrites imported keys on analysis unless Key analysis is disabled** in Preferences → Analysis; after external writes use **Reload Tags**. Mix Name (TIT3), Remixer (TPE4), Label (TPUB) are also tag-writable — free schema extensions. |
-| "beat_this MIT, pip, CPU" | **Verified** | `pip install beat-this` (v1.1.0, Apr 2026), MIT code **and** weights, ships a CLI (`beat-this`/File2File). Needs PyTorch ≥2.0 + rotary-embedding-torch; optional DBN needs madmom **from CPJKU's fork**, not PyPI. |
-| "Essentia ONNX path on ARM64" | **Verified** | Base `essentia` arm64 wheels exist (py ≤3.13); `essentia.tensorflow` is **broken on ARM** (open issue #1486) — confirmed. Essentia's `OnnxPredict` is still an unmerged PR (#1488) requiring source build. Practical path stays: brew `onnxruntime` (1.29, arm64) + MTG's ONNX model exports + essentia/librosa preprocessing. Models: CC BY-NC-SA. |
-| "AcoustID free 3 rps" | **Verified** | Official: max 3 req/s, non-commercial, key required. fpcalc fingerprints first 120s by default (`-length`). |
+| Claim in rev 1                | Verdict               | Correction                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "keyfinder-cli, Effort S"     | **Corrected**         | Not in homebrew-core — only the author's personal tap, with known ARM build friction (libavutil path issues). Primary key path is now **OpenKeyScan's analyzer server** (localhost REST :58721, MPS-accelerated, standalone executable available); keyfinder-cli demoted to fallback. Effort S→M.                                                                                                                               |
+| "libKeyFinder ~90% on dance"  | **Verified**          | Dubspot 200-track ear-keyed test: KeyFinder 76% overall (152/200), **90% on dance/electronic**, MIK 89%, rekordbox 7 69%, Beatport metadata 60%. Weakness: relative major/minor ambiguity.                                                                                                                                                                                                                                      |
+| "rekordbox's own ~60%"        | **Corrected**         | 60% is **Beatport metadata**, not rekordbox. Rekordbox 7 = 69% in the same test. (A 2019 GiantSteps MIREX-style study even scored rekordbox _highest_ on pure EDM, 79.55 weighted.) The rebuild case is the **dance-subset gap (90% vs ~70%)** + file-level portability, not overall dominance.                                                                                                                                 |
+| "rekordbox reads TKEY"        | **Verified + gotcha** | Official matrix: Key = TKEY, read on AIFF (ID3v2.4) + MP3 (ID3v2.3) — **not WAV** (RIFF INFO has no key field; our ingest converts WAV→AIFF, so the pipeline is safe). Gotchas: RB **overwrites imported keys on analysis unless Key analysis is disabled** in Preferences → Analysis; after external writes use **Reload Tags**. Mix Name (TIT3), Remixer (TPE4), Label (TPUB) are also tag-writable — free schema extensions. |
+| "beat_this MIT, pip, CPU"     | **Verified**          | `pip install beat-this` (v1.1.0, Apr 2026), MIT code **and** weights, ships a CLI (`beat-this`/File2File). Needs PyTorch ≥2.0 + rotary-embedding-torch; optional DBN needs madmom **from CPJKU's fork**, not PyPI.                                                                                                                                                                                                              |
+| "Essentia ONNX path on ARM64" | **Verified**          | Base `essentia` arm64 wheels exist (py ≤3.13); `essentia.tensorflow` is **broken on ARM** (open issue #1486) — confirmed. Essentia's `OnnxPredict` is still an unmerged PR (#1488) requiring source build. Practical path stays: brew `onnxruntime` (1.29, arm64) + MTG's ONNX model exports + essentia/librosa preprocessing. Models: CC BY-NC-SA.                                                                             |
+| "AcoustID free 3 rps"         | **Verified**          | Official: max 3 req/s, non-commercial, key required. fpcalc fingerprints first 120s by default (`-length`).                                                                                                                                                                                                                                                                                                                     |
 
 ## 2. The plan, re-ranked by value-per-effort
 
 ### #1 — Acoustic fingerprint ledger (chromaprint) — **S, do first**
+
 Highest ratio in the doc: one brew dep (`chromaprint` → `fpcalc`), one DB
 column + one `TXXX:ACOUSTID` frame, and four existing backlog items
 unlock (ideas.md D24 upgrade-verify, D25 dupe hunter, L62 ledger, L63
@@ -50,6 +51,7 @@ installs, and every later item can lean on its content-identity ledger.
 one known-different pair → no match.
 
 ### #2 — Real BPM + downbeats via beat_this — **S**
+
 Write `TBPM` (integer) + store downbeat array in the archive DB (feeds
 P3 cues later; NOT injected into rekordbox grids — that stays
 rekordbox-owned per the non-goals). Also becomes an independent
@@ -62,6 +64,7 @@ truth from the 2026-09-03 pass); flag disagreements >2% for review
 before any batch run.
 
 ### #3 — Harmonic key via OpenKeyScan — **M, the DJ-value king**
+
 **Primary:** OpenKeyScan analyzer server — localhost REST (:58721) or
 stdin/stdout JSON mode, standalone executable (no Python), MPS-accelerated,
 batch = hundreds of tracks/min, trained on GiantSteps (electronic music),
@@ -71,21 +74,23 @@ second vote; keyfinder-cli only via the author's tap if ever needed.
 `writePatch({ key })` — frame map already reserved. AIFF/MP3 carry TKEY;
 WAV doesn't (ingest's AIFF conversion keeps the archive covered).
 **Operational gauntlet (required, or the work is erased):**
+
 1. rekordbox Preferences → Analysis → **disable Key analysis** (RB
    overwrites imported tags otherwise — verified behavior).
 2. Batch-write keys → re-import/reload → **Reload Tags** in RB.
 3. Spot-check ≥20 tracks against existing MIK values (if available) or
    ear; require ≥80% agreement before full-library run.
-**Why #3 not #1:** biggest *on-stage* value (harmonic mixing), but M
-effort (server integration + verification harness) and it's the only
-item that can be silently undone by a rekordbox setting — so it needs
-the gauntlet above. If harmonic mixing is your top pain, jump it to #1
-accepting 2× cost.
-**Schema bonus (free, same pass):** Mix Name (TIT3), Remixer (TPE4),
-Label (TPUB) are tag-writable and RB-readable — extend FullTag with
-`label` + `mixName` now that remixer already exists.
+   **Why #3 not #1:** biggest _on-stage_ value (harmonic mixing), but M
+   effort (server integration + verification harness) and it's the only
+   item that can be silently undone by a rekordbox setting — so it needs
+   the gauntlet above. If harmonic mixing is your top pain, jump it to #1
+   accepting 2× cost.
+   **Schema bonus (free, same pass):** Mix Name (TIT3), Remixer (TPE4),
+   Label (TPUB) are tag-writable and RB-readable — extend FullTag with
+   `label` + `mixName` now that remixer already exists.
 
 ### #4 — Essentia ONNX heads: genre/mood/danceability/valence — **M**
+
 Unchanged in substance, now build-verified: brew `onnxruntime` (arm64) +
 MTG's ONNX exports (Discogs-EffNet genre, 7 moods, danceability, DEAM
 valence-arousal, MUSE embeddings) with essentia (py≤3.13) or librosa
@@ -98,6 +103,7 @@ stop for any commercial release. Log per-model license + size in the
 model-cache manifest.
 
 ### #5 — MBID provenance + MusicBrainz genre harvest — **S**
+
 Every write carries MBID (half-done at ingest); harvest MB
 `inc=genres+tags` as a third genre vote alongside SC + Essentia (#4).
 1 rps token bucket. Folds `src/commands/enrich.ts` into the FullTags
@@ -145,15 +151,15 @@ pipeline, then **delete it** (the last duplicated writer).
 
 Real-file verification pass over the shipped writer/shim surface:
 
-| Test | Result |
-| ---- | ------ |
-| `setFileTags` shim round-trip (mp3/m4a/wav): 4 fields written, ground-truth read back | ✅ PASS all |
-| Write-path benchmark: old direct-ffmpeg 19.3 ms vs shim 124.2 ms | ❌ **6.4× regression found** |
-| Root cause | nested `bun -e` promise bridge per write |
-| Fix | `writePatchSync` — in-process sync writer (ffmpeg spawn for mp3/m4a/flac, mutagen for wav/aiff), no bridge |
-| Re-benchmark after fix | ✅ 19 ms/write (parity) |
-| AIFF sync path (`writePatchSync` on .aiff via mutagen) | ✅ PASS |
-| Regression tests added | fulltags/test/writer-sync.test.ts (sync round-trips + AIFF + perf) |
+| Test                                                                                  | Result                                                                                                     |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `setFileTags` shim round-trip (mp3/m4a/wav): 4 fields written, ground-truth read back | ✅ PASS all                                                                                                |
+| Write-path benchmark: old direct-ffmpeg 19.3 ms vs shim 124.2 ms                      | ❌ **6.4× regression found**                                                                               |
+| Root cause                                                                            | nested `bun -e` promise bridge per write                                                                   |
+| Fix                                                                                   | `writePatchSync` — in-process sync writer (ffmpeg spawn for mp3/m4a/flac, mutagen for wav/aiff), no bridge |
+| Re-benchmark after fix                                                                | ✅ 19 ms/write (parity)                                                                                    |
+| AIFF sync path (`writePatchSync` on .aiff via mutagen)                                | ✅ PASS                                                                                                    |
+| Regression tests added                                                                | fulltags/test/writer-sync.test.ts (sync round-trips + AIFF + perf)                                         |
 
 **Lesson recorded:** any sync API bridged to an async implementation via
 a spawned interpreter is a perf trap — expose a native sync twin instead
@@ -175,14 +181,14 @@ content fingerprint — the full DJ-useful frame set, in the actual files.
 
 ## Research base (rev 2 — all rows re-checked 2026-09-05)
 
-| Verdict | Project | Status |
-| ------- | ------- | ------ |
-| Adopt (#1) | chromaprint/fpcalc + AcoustID | verified: 3 rps, non-comm, 120s default |
-| Adopt (#2) | beat_this (CPJKU) | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork |
-| Adopt (#3) | OpenKeyScan analyzer server | verified: localhost REST :58721, MPS, standalone exe, GiantSteps-trained |
-| Fallback | essentia `Key` / keyfinder-cli | keyfinder-cli NOT in core brew (personal tap, ARM friction) |
+| Verdict    | Project                                | Status                                                                             |
+| ---------- | -------------------------------------- | ---------------------------------------------------------------------------------- |
+| Adopt (#1) | chromaprint/fpcalc + AcoustID          | verified: 3 rps, non-comm, 120s default                                            |
+| Adopt (#2) | beat_this (CPJKU)                      | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork                   |
+| Adopt (#3) | OpenKeyScan analyzer server            | verified: localhost REST :58721, MPS, standalone exe, GiantSteps-trained           |
+| Fallback   | essentia `Key` / keyfinder-cli         | keyfinder-cli NOT in core brew (personal tap, ARM friction)                        |
 | Adopt (#4) | Essentia ONNX heads + brew onnxruntime | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged |
-| Verified | Dubspot 200-track test | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60% |
-| Verified | rekordbox tag matrix | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable |
-| Watch | all-in-one-mlx, MuQ-MuLan, CLAP | unchanged |
-| Blueprint | robertolupi/deep-cuts | ONNX + sqlite-vec local tagger architecture |
+| Verified   | Dubspot 200-track test                 | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                         |
+| Verified   | rekordbox tag matrix                   | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable |
+| Watch      | all-in-one-mlx, MuQ-MuLan, CLAP        | unchanged                                                                          |
+| Blueprint  | robertolupi/deep-cuts                  | ONNX + sqlite-vec local tagger architecture                                        |

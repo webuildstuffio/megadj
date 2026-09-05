@@ -60,4 +60,25 @@ describe("enrichTrack (offline stages)", () => {
     expect(first.notes.length).toBeGreaterThan(0);
     expect(second.notes.length).toBe(0);
   });
+
+  test("hints fill only missing fields (no network)", async () => {
+    const p = `${DIR}/hinted.mp3`;
+    await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p}`.quiet();
+    // tags stage with hints but MB lookup suppressed: pass an impossible
+    // artist so mbLookupCached misses; hints must still land. Use only
+    // ["tags"] so no SC/AI stages fire.
+    const res = await enrichTrack(
+      { path: p, title: "Hint Song", artist: "Hint Artist" },
+      {
+        only: ["tags"],
+        hints: { title: "Hint Song", artist: "Hint Artist" },
+        artworkQueue: null,
+      },
+    );
+    const t = await import("../src/readers").then((m) => m.groundTruth(p));
+    expect(t.title).toBe("Hint Song");
+    expect(t.artist).toBe("Hint Artist");
+    expect(res.notes).toContain("title");
+    expect(res.notes).toContain("artist");
+  });
 });

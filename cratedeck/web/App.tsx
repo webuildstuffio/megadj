@@ -35,24 +35,26 @@ export function App() {
 
   const refresh = useCallback(async () => {
     const [d, p, rep] = await Promise.all([
-      fetch("/api/drives").then((r) => r.json()),
-      fetch("/api/ports").then((r) => r.json()),
+      fetch("/api/drives").then((r) => r.json() as Promise<DriveCardData[]>),
+      fetch("/api/ports").then((r) => r.json() as Promise<PortInfo[]>),
       fetch("/api/reports")
-        .then((r) => r.json())
-        .catch(() => ({})),
+        .then(
+          (r) =>
+            r.json() as Promise<
+              Record<string, { overall?: string; checks: { status: string }[] }>
+            >,
+        )
+        .catch(
+          () =>
+            ({}) as Record<
+              string,
+              { overall?: string; checks: { status: string }[] }
+            >,
+        ),
     ]);
     setDrives(d);
     setPorts(p);
-    setReports(
-      new Map(
-        Object.entries(
-          rep as Record<
-            string,
-            { overall?: string; checks: { status: string }[] }
-          >,
-        ),
-      ),
-    );
+    setReports(new Map(Object.entries(rep)));
   }, []);
 
   // jobs: load once on boot (the old code never did — the dock stayed empty
@@ -60,12 +62,12 @@ export function App() {
   const refreshJobs = useCallback(async () => {
     try {
       const [active, all] = await Promise.all([
-        fetch("/api/jobs?active=1").then((r) => r.json()),
-        fetch("/api/jobs").then((r) => r.json()),
+        fetch("/api/jobs?active=1").then((r) => r.json() as Promise<Job[]>),
+        fetch("/api/jobs").then((r) => r.json() as Promise<Job[]>),
       ]);
       // merge: active rows win over stale history rows with the same id
-      const byId = new Map<string, Job>((all as Job[]).map((j) => [j.id, j]));
-      for (const j of active as Job[]) byId.set(j.id, j);
+      const byId = new Map<string, Job>(all.map((j) => [j.id, j]));
+      for (const j of active) byId.set(j.id, j);
       setJobs(
         [...byId.values()].sort(
           (a, b) =>
@@ -80,9 +82,21 @@ export function App() {
     refreshJobs();
     const es = new EventSource("/api/events");
     es.addEventListener("drives", () => refresh());
-    es.addEventListener("interlock", (e) =>
-      setInterlock(JSON.parse((e as MessageEvent).data)),
-    );
+    es.addEventListener("interlock", (ev) => {
+      try {
+        const data: unknown = JSON.parse(
+          (ev as MessageEvent<string>).data ?? "null",
+        );
+        if (
+          data &&
+          typeof data === "object" &&
+          typeof (data as { rekordbox_running?: unknown }).rekordbox_running ===
+            "boolean"
+        ) {
+          setInterlock(data as InterlockState);
+        }
+      } catch {}
+    });
     es.addEventListener("job", () => {
       refreshJobs();
       window.dispatchEvent(new CustomEvent("cratedeck:job"));
@@ -95,7 +109,9 @@ export function App() {
     });
     const interlockPoll = setInterval(async () => {
       try {
-        const s = await fetch("/api/interlock").then((r) => r.json());
+        const s = await fetch("/api/interlock").then(
+          (r) => r.json() as Promise<InterlockState>,
+        );
         setInterlock(s);
       } catch {}
     }, 3000);
@@ -131,7 +147,7 @@ export function App() {
       try {
         const r = await fetch(
           `/api/search?q=${encodeURIComponent(query.trim())}`,
-        ).then((x) => x.json());
+        ).then((x) => x.json() as Promise<SearchResult[]>);
         setResults(r);
       } catch {}
     }, 220);

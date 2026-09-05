@@ -17,29 +17,17 @@
 // Exit codes: 0 ok · 1 job failed/verify-fail · 2 usage · 3 interlock · 4 server unreachable.
 
 import { VERIFY_HELP } from "./verify_help";
+import {
+  apiGet,
+  apiPost,
+  ensureServer,
+  resolveDrive,
+  jobTerminal,
+  type Job,
+  type Drive,
+} from "./deckapi";
 import type { CoverageResponse, RedundancyResult } from "../shared/types";
 
-const PORT = 7742;
-const BASE = `http://127.0.0.1:${PORT}`;
-
-interface Job {
-  id: string;
-  drive_id: string;
-  kind: string;
-  status: string;
-  progress: number;
-  message: string | null;
-  phase: string | null;
-  eta_seconds: number | null;
-  error: string | null;
-  result_json: string | null;
-}
-interface Drive {
-  id: string;
-  name: string;
-  nickname: string | null;
-  mounted: boolean;
-}
 interface HealthCheck {
   id: string;
   label: string;
@@ -52,9 +40,24 @@ interface HealthCheck {
 const JSON_MODE = process.argv.includes("--json");
 const IS_TTY = process.stderr.isTTY ?? false;
 
-function plain(s: string): string {
-  return JSON_MODE ? "" : s;
+/** Typed JSON reader: `const d = await getJson<Drive[]>(res)`. */
+async function getJson<T>(p: string): Promise<T> {
+  const res = await apiGet(p);
+  return (await res.json()) as T;
 }
+
+interface InterlockState {
+  rekordbox_running: boolean;
+  pid: number | null;
+}
+type DriveWithBadges = Drive & {
+  badges?: { label: string; tone: string }[];
+};
+interface ReportPayload {
+  overall?: string;
+  checks?: HealthCheck[];
+}
+
 function spinFrame(): string {
   const t = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   return t[Math.floor(Date.now() / 80) % t.length] ?? "⠋";
@@ -73,69 +76,24 @@ function errOut(msg: string): void {
   else console.error(msg);
 }
 
-// ---- server boot ------------------------------------------------------------
-async function apiGet(path: string): Promise<Response> {
-  return fetch(`${BASE}${path}`);
-}
-async function ensureServer(): Promise<boolean> {
-  try {
-    const r = await fetch(`${BASE}/api/interlock`, {
-      signal: AbortSignal.timeout(1500),
-    });
-    return r.ok;
-  } catch {}
-  log(plain("cratedeck not running — starting it…"));
-  try {
-    const proc = Bun.spawn(["bun", "run", "cratedeck/src/index.ts"], {
-      stdout: "ignore",
-      stderr: "ignore",
-      cwd: import.meta.dir + "/../..",
-      detached: true,
-    });
-    proc.unref();
-  } catch {
-    return false;
-  }
-  for (let i = 0; i < 40; i++) {
-    await new Promise((r) => setTimeout(r, 500));
-    try {
-      const r = await fetch(`${BASE}/api/interlock`, {
-        signal: AbortSignal.timeout(1000),
-      });
-      if (r.ok) return true;
-    } catch {}
-  }
-  return false;
-}
-
-// ---- drive resolution -------------------------------------------------------
-async function resolveDrive(nameOrId: string): Promise<Drive | null> {
-  const drives = (await apiGet("/api/drives").then((r) => r.json())) as Drive[];
-  const q = nameOrId.toLowerCase();
-  return (
-    drives.find((d) => d.id.toLowerCase() === q) ??
-    drives.find((d) => d.name.toLowerCase() === q) ??
-    drives.find((d) => (d.nickname ?? "").toLowerCase() === q) ??
-    null
-  );
-}
+// ---- server boot / drive resolution ----------------------------------------
+// apiGet / ensureServer / resolveDrive / jobTerminal live in deckapi.ts —
+// one implementation shared with mcp.ts (the MCP server over these calls).
 
 // ---- commands ---------------------------------------------------------------
 async function cmdStatus(): Promise<void> {
   const [interlock, drives, jobs] = await Promise.all([
-    apiGet("/api/interlock").then((r) => r.json()),
-    apiGet("/api/drives").then((r) => r.json()),
-    apiGet("/api/jobs?active=1").then((r) => r.json()),
+    getJson<InterlockState>("/api/interlock"),
+    getJson<DriveWithBadges[]>("/api/drives"),
+    getJson<Job[]>("/api/jobs?active=1"),
   ]);
   if (JSON_MODE) {
     console.log(JSON.stringify({ interlock, drives, jobs }, null, 2));
     return;
   }
-  const il = interlock as { rekordbox_running: boolean; pid: number | null };
-  const ds = drives as (Drive & {
-    badges?: { label: string; tone: string }[];
-  })[];
-  const js = jobs as Job[];
+  const il = interlock;
+  const ds = drives;
+  const js = jobs;
   log(
     il.rekordbox_running
       ? `🔒 rekordbox RUNNING (pid ${il.pid}) — all drive operations locked`
@@ -156,11 +114,7 @@ async function cmdStatus(): Promise<void> {
 }
 
 async function cmdDrives(): Promise<void> {
-  const drives = (await apiGet("/api/drives").then((r) =>
-    r.json(),
-  )) as (Drive & {
-    badges?: { label: string; tone: string }[];
-  })[];
+  const drives = await getJson<DriveWithBadges[]>("/api/drives");
   if (JSON_MODE) {
     console.log(JSON.stringify(drives, null, 2));
     return;
@@ -182,14 +136,12 @@ async function cmdReport(nameOrId: string): Promise<void> {
     errOut(`unknown drive: ${nameOrId}`);
     process.exit(2);
   }
-  const r = await apiGet(`/api/drives/${d.id}/report`).then((res) =>
-    res.json(),
-  );
+  const r = await getJson<ReportPayload>(`/api/drives/${d.id}/report`);
   if (JSON_MODE) {
     console.log(JSON.stringify(r, null, 2));
     return;
   }
-  const checks = (r.checks ?? []) as HealthCheck[];
+  const checks = r.checks ?? [];
   const icon = { pass: "✓", warn: "▲", fail: "✕", unknown: "○" };
   log(`drive: ${d.nickname ?? d.name}  overall: ${r.overall ?? "?"}`);
   log("");
@@ -218,28 +170,22 @@ async function cmdRun(
     errOut(`drive ${d.nickname ?? d.name} is not mounted — plug it in first`);
     process.exit(1);
   }
-  const interlock = await apiGet("/api/interlock").then((r) => r.json());
-  if ((interlock as { rekordbox_running: boolean }).rekordbox_running) {
-    const pid = (interlock as { pid: number | null }).pid;
+  const interlock = await getJson<InterlockState>("/api/interlock");
+  if (interlock.rekordbox_running) {
+    const pid = interlock.pid;
     errOut(
       `rekordbox is running (pid ${pid}) — operations locked to prevent library corruption. Quit rekordbox and retry.`,
     );
     process.exit(3);
   }
 
-  const res = await fetch(`${BASE}/api/drives/${d.id}/jobs`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind }),
-  });
-  const body = await res.json();
+  const res = await apiPost(`/api/drives/${d.id}/jobs`, { kind });
+  const body = (await res.json()) as Job & { error?: string };
   if (!res.ok) {
-    errOut(
-      `enqueue failed: ${(body as { error?: string }).error ?? res.status}`,
-    );
+    errOut(`enqueue failed: ${body.error ?? res.status}`);
     process.exit(res.status === 423 ? 3 : 1);
   }
-  const job = body as Job;
+  const job = body;
   if (JSON_MODE && !wait) {
     console.log(JSON.stringify(job, null, 2));
     return;
@@ -304,7 +250,7 @@ async function cmdRun(
 }
 
 function terminal(status: string): boolean {
-  return ["done", "failed", "cancelled", "interrupted"].includes(status);
+  return jobTerminal(status);
 }
 
 function clearLine(): void {
@@ -494,7 +440,7 @@ async function cmdDiff(a?: string, b?: string): Promise<void> {
 }
 
 async function cmdCancel(jobId: string): Promise<void> {
-  const r = await fetch(`${BASE}/api/jobs/${jobId}/cancel`, { method: "POST" });
+  const r = await apiPost(`/api/jobs/${jobId}/cancel`);
   const body = (await r.json()) as { ok: boolean };
   log(
     body.ok
@@ -642,7 +588,7 @@ async function main(): Promise<void> {
       return cmdCancel(args[1] ?? usage());
     case "stop":
       log("stopping server…");
-      await fetch(`${BASE}/api/stop`, { method: "POST" }).catch(() => {});
+      await apiPost("/api/stop").catch(() => {});
       return;
     default:
       usage();

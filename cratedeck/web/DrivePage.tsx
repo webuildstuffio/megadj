@@ -70,12 +70,25 @@ export function DrivePage(props: {
   const load = useCallback(async () => {
     const enc = encodeURIComponent(driveId);
     const [d, r, t, b, j, v] = await Promise.all([
-      fetch(`/api/drives/${enc}`).then((res) => res.json()),
-      fetch(`/api/drives/${enc}/report`).then((res) => res.json()),
-      fetch(`/api/drives/${enc}/timeline`).then((res) => res.json()),
-      fetch(`/api/drives/${enc}/benchmarks`).then((res) => res.json()),
-      fetch(`/api/jobs?drive=${enc}`).then((res) => res.json()),
-      fetch(`/api/drives/${enc}/verify`).then((res) => res.json()),
+      fetch(`/api/drives/${enc}`).then((res) => res.json() as Promise<Detail>),
+      fetch(`/api/drives/${enc}/report`).then(
+        (res) => res.json() as Promise<DriveReport & { overall?: string }>,
+      ),
+      fetch(`/api/drives/${enc}/timeline`).then(
+        (res) => res.json() as Promise<TimelineEvent[]>,
+      ),
+      fetch(`/api/drives/${enc}/benchmarks`).then(
+        (res) =>
+          res.json() as Promise<
+            { ran_at: number; seq_mbps: number; rand4k_mbps: number }[]
+          >,
+      ),
+      fetch(`/api/jobs?drive=${enc}`).then(
+        (res) => res.json() as Promise<Job[]>,
+      ),
+      fetch(`/api/drives/${enc}/verify`).then(
+        (res) => res.json() as Promise<VerifyReport>,
+      ),
     ]);
     if (!d?.drive) {
       // unknown drive id (stale link / renamed registry) — surface, don't hang

@@ -586,7 +586,9 @@ export class DB {
     if (!row) return null;
     let ok = false;
     try {
-      ok = JSON.parse(row.result_json)?.verdict === "pass";
+      ok =
+        (JSON.parse(row.result_json) as { verdict?: string } | null)
+          ?.verdict === "pass";
     } catch {}
     return { ran_at: row.finished_at, ok };
   }
@@ -603,9 +605,13 @@ export class DB {
       .get(driveId) as { finished_at: number; result_json: string } | null;
     if (!row) return null;
     try {
-      const changed = JSON.parse(row.result_json)?.changed?.length;
-      return typeof changed === "number"
-        ? { ran_at: row.finished_at, changed }
+      const parsed = JSON.parse(row.result_json) as {
+        changed?: unknown;
+      } | null;
+      const changed = parsed?.changed;
+      const n = Array.isArray(changed) ? changed.length : undefined;
+      return typeof n === "number"
+        ? { ran_at: row.finished_at, changed: n }
         : null;
     } catch {
       return null;

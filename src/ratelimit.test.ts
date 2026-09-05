@@ -88,7 +88,11 @@ describe("withRetry", () => {
   });
 
   test("GONE fails fast without retry", async () => {
-    const rl = new RateLimiter({ minIntervalMs: 0, baseBackoffMs: 1, sleepFn: noSleep });
+    const rl = new RateLimiter({
+      minIntervalMs: 0,
+      baseBackoffMs: 1,
+      sleepFn: noSleep,
+    });
     let calls = 0;
     let sawGone = false;
     try {
@@ -98,7 +102,12 @@ describe("withRetry", () => {
           calls++;
           return Promise.reject(new Error("GONE"));
         },
-        { maxRetries: 3, onGone: () => { sawGone = true; } },
+        {
+          maxRetries: 3,
+          onGone: () => {
+            sawGone = true;
+          },
+        },
       );
       expect.unreachable();
     } catch (e) {
@@ -109,7 +118,12 @@ describe("withRetry", () => {
   });
 
   test("gives up after maxRetries", async () => {
-    const rl = new RateLimiter({ minIntervalMs: 0, baseBackoffMs: 1, jitterFraction: 0, sleepFn: noSleep });
+    const rl = new RateLimiter({
+      minIntervalMs: 0,
+      baseBackoffMs: 1,
+      jitterFraction: 0,
+      sleepFn: noSleep,
+    });
     let calls = 0;
     try {
       await withRetry(

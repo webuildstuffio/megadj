@@ -40,10 +40,14 @@ function ffprobeJson(p: string): FfprobeJson {
     stdout: "pipe",
   });
   try {
-    const j = JSON.parse(new TextDecoder().decode(pr.stdout));
+    const j = JSON.parse(new TextDecoder().decode(pr.stdout)) as {
+      streams?: Array<{ codec_type?: string; codec_name?: string }>;
+      format?: { tags?: Record<string, string> };
+    };
     const hasVideo = (j.streams ?? []).some(
-      (s: any) =>
-        s.codec_type === "video" && ["png", "mjpeg"].includes(s.codec_name),
+      (s) =>
+        s.codec_type === "video" &&
+        ["png", "mjpeg"].includes(s.codec_name ?? ""),
     );
     return { tags: j.format?.tags ?? {}, hasVideo };
   } catch {
@@ -91,7 +95,11 @@ print(json.dumps({"art": art, "tags": tags}))`;
   try {
     const last = new TextDecoder().decode(pr.stdout).trim().split("\n").at(-1);
     if (!last) throw new Error("empty");
-    return JSON.parse(last);
+    const parsed = JSON.parse(last) as {
+      art?: boolean;
+      tags?: Record<string, string>;
+    };
+    return { art: parsed.art === true, tags: parsed.tags ?? {} };
   } catch {
     return { art: false, tags: {} };
   }

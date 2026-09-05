@@ -18,7 +18,7 @@ megadj targets **macOS** and **Pioneer DJ (rekordbox / CDJ / XDJ)** hardware.
 No Windows builds, no Denon Engine, no Serato, no web app. This is not
 close-mindedness, it's focus: we can **hack Pioneer and hack macOS to our
 desires** — reverse the ANLZ format, inject into device DBs, script the USB
-topology — *because* we only ever stand on those two bases. Every portability
+topology — _because_ we only ever stand on those two bases. Every portability
 abstraction is a tax on the one thing that matters.
 
 ## 3. Super easy
@@ -31,7 +31,7 @@ the flow is wrong.
 ## 4. We never give up. There is always a way.
 
 "We get it done, and try harder" is an engineering stance, not a slogan. When
-rekordbox won't read WAV artwork, we convert to AIFF *and* write the DB
+rekordbox won't read WAV artwork, we convert to AIFF _and_ write the DB
 pointers ourselves. When players ignore `analysisDataFilePath`, we compute the
 hash and place ANLZ files where hardware actually looks. Dead end is not a
 status; it's a prompt to dig one layer deeper.
@@ -48,24 +48,24 @@ better, not for fashion — but when it is better, we move immediately.
 We're hobbyists with professional standards and finite evenings. Every build
 decision is judged by **minutes saved per gig** and **hands-off automation**.
 Constant-BPM grids are fine until they're not; AI cover art is fine when every
-real source is exhausted. The bar is: does it *sound* and *look* pro on the
+real source is exhausted. The bar is: does it _sound_ and _look_ pro on the
 booth, and did it cost us zero manual labour?
 
 ## 7. Electronic music is the design target
 
 **EDM / house / techno / trance / dubstep / bass** — beatgrids, keys, camelot
 mixing, phrase structure, drop-aware cues, energy levels. All models are picked
-and tuned for electronic music. The toolkit absolutely *can* prep a wedding or
+and tuned for electronic music. The toolkit absolutely _can_ prep a wedding or
 any other gig (and does) — but it's a happy side effect, never the design
 centre.
 
 ## 8. AI turns unstructured into structured — let it do the labour
 
-We believe AI is *very* good at exactly the grunt work DJs hate:
+We believe AI is _very_ good at exactly the grunt work DJs hate:
 
 - **Duplicate review** → match on audio fingerprints and sound analysis, not
   just ID3 tags or filenames.
-- **Web research** → find the real release year of the *remix* (not the 20-year-old
+- **Web research** → find the real release year of the _remix_ (not the 20-year-old
   original), pull artwork from the source it came from, resolve credits.
 - **Gap filling** → cheap LLM calls (confidence-gated) fill any field left
   empty after deterministic sources are exhausted.
@@ -91,7 +91,7 @@ belong.
 
 ## 11. Ship high-quality code. Move fast and break things.
 
-Type-safe, tested, documented *and* shipped today — in that order of
+Type-safe, tested, documented _and_ shipped today — in that order of
 magnitude. We'd rather delete a wrong abstraction next week than carry a
 perfect guessed one for a year. Breaking changes are fine; silent breakage is
 not. Every sync/verify tool is idempotent and resumable so "breaking things"

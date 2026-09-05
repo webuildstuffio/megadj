@@ -51,7 +51,8 @@ export function autoVerifyReason(
   input: AutoVerifyInput,
   intervalDays: number,
 ): string {
-  if (input.lastVerifyAt === null) return "never verified — auto-running first verify";
+  if (input.lastVerifyAt === null)
+    return "never verified — auto-running first verify";
   const ageDays = Math.floor((input.now - input.lastVerifyAt) / 86_400_000);
   return `last verified ${ageDays}d ago (interval ${intervalDays}d) — auto-verifying`;
 }

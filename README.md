@@ -121,7 +121,12 @@ use an `OPENROUTER_API_KEY` — keep it in your keychain.
 git clone https://github.com/YOUR_USERNAME/megadj.git
 cd megadj
 bun install
+megadj doctor   # check everything above in one shot — tells you exactly what's missing
+megadj init     # first run: scaffold cratedeck/config.toml + doctor
 ```
+
+`megadj doctor` exits non-zero if something required is broken, so you can
+also use it as a gate in scripts and CI. `--json` for machines.
 
 yt-dlp config at `~/.config/yt-dlp/config`:
 
@@ -137,37 +142,44 @@ and it should never be committed.
 
 ### Environment
 
-| Variable             | Default                            | Purpose                                             |
-| -------------------- | ---------------------------------- | --------------------------------------------------- |
-| `MEGADJ_MUSIC_DIR`   | `~/Music/DJ-Imports`               | where downloaded audio lands                        |
-| `MEGADJ_DB`          | `~/.local/state/megadj/archive.db` | the archive's memory                                |
-| `MEGADJ_COOKIES`     | `chrome`                           | browser for yt-dlp cookies; empty disables          |
-| `OPENROUTER_API_KEY` | —                                  | AI genre/year fallback + `megadj artwork`           |
-| `IMAGE_MAKER_CLIENT` | —                                  | ES module exporting an `ImageClient`, for AI covers |
+| Variable              | Default                                     | Purpose                                                            |
+| --------------------- | ------------------------------------------- | ------------------------------------------------------------------ |
+| `MEGADJ_MUSIC_DIR`    | `~/Music/DJ-Imports`                        | where downloaded audio lands                                       |
+| `MEGADJ_DB`           | `~/.local/state/megadj/archive.db`          | the archive's memory                                               |
+| `MEGADJ_COOKIES`      | `chrome`                                    | browser for yt-dlp cookies; empty disables                         |
+| `OPENROUTER_API_KEY`  | —                                           | AI genre/year fallback + `megadj artwork`                          |
+| `IMAGE_MAKER_CLIENT`  | —                                           | ES module exporting an `ImageClient`, for AI covers                |
+| `MEGADJ_COOKIES_FILE` | —                                           | netscape cookie jar for headless runs (overrides `MEGADJ_COOKIES`) |
+| `MEGADJ_ART_MAX`      | `20`                                        | max AI covers per `megadj artwork` pass                            |
+| `MEGADJ_ART_QUEUE`    | `~/.local/state/megadj/artwork-queue.jsonl` | where misses are queued for AI covers                              |
 
 Full command reference: `megadj --help`, or
 [docs/FEATURES.md](docs/FEATURES.md).
 
+Machines and agents: `megadj status|list|audit|doctor` all take `--json`
+(single JSON document, exit code still meaningful), and CrateDeck speaks
+MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
+
 ## Docs index
 
-| Doc                                                                                      | Purpose                                 |
-| ---------------------------------------------------------------------------------------- | --------------------------------------- |
-| [docs/PRINCIPLES.md](docs/PRINCIPLES.md)                                                 | product principles — how we decide      |
-| [docs/FEATURES.md](docs/FEATURES.md)                                                     | feature/project sections + roadmap      |
-| [docs/usb-sync.md](docs/usb-sync.md)                                                     | USB pipeline what/why                   |
-| [fulltags/README.md](fulltags/README.md)                                                 | FullTags enrichment engine              |
-| [docs/fulltags-roadmap.md](docs/fulltags-roadmap.md)                                     | FullTags prioritized AI/tagging roadmap |
-| [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md)                           | WAV artwork research + fix (resolved)   |
-| [docs/cratedeck/01-product-brief.md](docs/cratedeck/01-product-brief.md)                 | CrateDeck brief                         |
-| [docs/cratedeck/02-prd.md](docs/cratedeck/02-prd.md)                                     | feature PRD (F1–F10)                    |
-| [docs/cratedeck/03-architecture.md](docs/cratedeck/03-architecture.md)                   | architecture                            |
-| [docs/cratedeck/04-build-plan.md](docs/cratedeck/04-build-plan.md)                       | milestones M0–M6                        |
-| [docs/cratedeck/acceptance.md](docs/cratedeck/acceptance.md)                             | acceptance status per PRD feature       |
-| [docs/ideas.md](docs/ideas.md)                                                           | ideas & future backlog (§0 do-now gate) |
-| [cratedeck/deckctl.md](cratedeck/deckctl.md)                                             | deckctl CLI guide (exit codes, flags)   |
-| [.claude/skills/rekordbox-usb-sync/SKILL.md](.claude/skills/rekordbox-usb-sync/SKILL.md) | full USB sync runbook                   |
-| [.claude/skills/new-music-intake/SKILL.md](.claude/skills/new-music-intake/SKILL.md)     | ingest/intake guide                     |
-| [.claude/skills/cratedeck-deckctl/SKILL.md](.claude/skills/cratedeck-deckctl/SKILL.md)   | agent-facing dashboard skill            |
+- **Start here:** [docs/PRINCIPLES.md](docs/PRINCIPLES.md) ·
+  [docs/FEATURES.md](docs/FEATURES.md) ·
+  [docs/usb-sync.md](docs/usb-sync.md) ·
+  [fulltags/README.md](fulltags/README.md) ·
+  [cratedeck/deckctl.md](cratedeck/deckctl.md)
+- **Product briefs:** [docs/cratedeck/](docs/cratedeck/) —
+  [01 brief](docs/cratedeck/01-product-brief.md),
+  [02 PRD](docs/cratedeck/02-prd.md),
+  [03 architecture](docs/cratedeck/03-architecture.md),
+  [04 build plan](docs/cratedeck/04-build-plan.md),
+  [acceptance](docs/cratedeck/acceptance.md)
+- **Reference:** [docs/fulltags-roadmap.md](docs/fulltags-roadmap.md),
+  [docs/roadmap-proposal.md](docs/roadmap-proposal.md),
+  [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md),
+  [docs/ideas.md](docs/ideas.md)
+- **Runbooks:** [rekordbox-usb-sync](.claude/skills/rekordbox-usb-sync/SKILL.md),
+  [new-music-intake](.claude/skills/new-music-intake/SKILL.md),
+  [cratedeck-deckctl](.claude/skills/cratedeck-deckctl/SKILL.md)
 
 ## License
 

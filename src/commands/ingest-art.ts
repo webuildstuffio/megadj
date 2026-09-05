@@ -1,25 +1,15 @@
 /**
  * Ingest Phase-D helpers: artwork acquisition + AI-art queueing.
- *
- * Split out of ingest.ts to keep that file focused on the pipeline
- * (probe → dedupe → tag → register); everything here is the artwork
- * concern: fetch (SoundCloud → iTunes), embed, and queue fallback for
- * the image-maker AI pass when online sources fail.
+ * The art ladder itself is FullTags-owned (soundcloudUrlInTags +
+ * soundcloudArtwork/itunesArtwork via embed.ts shims); this module adds
+ * the ingest-specific outcome tracking and the AI-generation queue flush.
  */
 import { extname } from "node:path";
 import { embedArtwork, soundcloudArtwork, itunesArtwork } from "./embed";
+import { soundcloudUrlInTags } from "../../fulltags/src/exports";
 import { appendQueueEntries, type QueueEntry } from "./queue";
 
-/** A SoundCloud permalink found in any tag value (usually comment). */
-export function soundcloudUrlInTags(
-  tags: Record<string, string>,
-): string | null {
-  for (const v of Object.values(tags)) {
-    const m = /https?:\/\/(www\.)?soundcloud\.com\/[^\s"'<>]+/.exec(v);
-    if (m?.[0]) return m[0];
-  }
-  return null;
-}
+export { soundcloudUrlInTags };
 
 /** Containers that reliably hold embedded artwork. */
 export const ARTWORK_EXTS = new Set([

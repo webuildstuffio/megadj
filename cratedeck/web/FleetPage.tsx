@@ -23,7 +23,11 @@ const TABS = [
 type DriveRef = { id: string; name: string; mounted?: boolean };
 
 interface TrackHit {
-  identity: { path: string; title: string | null; artist: string | null } | null;
+  identity: {
+    path: string;
+    title: string | null;
+    artist: string | null;
+  } | null;
   drives: DriveRef[];
 }
 
@@ -39,8 +43,7 @@ export function FleetPage(props: { tab: string }) {
           <Icon name="grid" size={18} /> Fleet
         </h2>
         <span class="fleet-sub">
-          every drive, cross-checked — who has what, and what dies with a
-          drive
+          every drive, cross-checked — who has what, and what dies with a drive
         </span>
         <div class="spacer" />
         <div class="tabs inline">
@@ -87,22 +90,19 @@ function CoverageTab() {
     load();
   }, [load]);
 
-  const lookup = useCallback(
-    async (q: string) => {
-      setSearching(true);
-      try {
-        const r = await api<TrackHit>(
-          `/api/fleet/track?q=${encodeURIComponent(q)}`,
-        );
-        setHit(r);
-        if (!r.drives.length) toast("Not found on any scanned drive", "info");
-      } catch {
-      } finally {
-        setSearching(false);
-      }
-    },
-    [],
-  );
+  const lookup = useCallback(async (q: string) => {
+    setSearching(true);
+    try {
+      const r = await api<TrackHit>(
+        `/api/fleet/track?q=${encodeURIComponent(q)}`,
+      );
+      setHit(r);
+      if (!r.drives.length) toast("Not found on any scanned drive", "info");
+    } catch {
+    } finally {
+      setSearching(false);
+    }
+  }, []);
 
   if (err)
     return (
@@ -124,23 +124,24 @@ function CoverageTab() {
       <div class="statgrid">
         <div class="stat">
           <div class="v">
-            <Icon name="disc" size={13} /> {data.totals.unique_tracks.toLocaleString()}
+            <Icon name="disc" size={13} />{" "}
+            {data.totals.unique_tracks.toLocaleString()}
           </div>
           <div class="l">unique tracks across the fleet</div>
         </div>
         <div class="stat">
           <div class="v">
-            <Icon name="check" size={13} /> {data.totals.fully_redundant.toLocaleString()}
+            <Icon name="check" size={13} />{" "}
+            {data.totals.fully_redundant.toLocaleString()}
           </div>
           <div class="l">on ≥{data.min_copies} drives (safe)</div>
         </div>
         <div class={`stat ${data.at_risk.length ? "bad" : ""}`}>
           <div class="v">
-            <Icon name="warn" size={13} /> {data.at_risk.length.toLocaleString()}
+            <Icon name="warn" size={13} />{" "}
+            {data.at_risk.length.toLocaleString()}
           </div>
-          <div class="l">
-            single-drive tracks — gone if that drive dies
-          </div>
+          <div class="l">single-drive tracks — gone if that drive dies</div>
         </div>
         <div class="stat">
           <div class="v">
@@ -256,7 +257,9 @@ function RedundancyTab() {
   useEffect(() => {
     api<RedundancyResult>("/api/fleet/redundancy")
       .then(setData)
-      .catch((e) => setErr((e as Error).message));
+      .catch((e: unknown) =>
+        setErr(e instanceof Error ? e.message : String(e)),
+      );
   }, []);
 
   if (err)
@@ -276,7 +279,9 @@ function RedundancyTab() {
 
   return (
     <div>
-      <div class={`note ${data.overall === "pass" ? "ok" : data.overall === "unknown" ? "" : "bad"}`}>
+      <div
+        class={`note ${data.overall === "pass" ? "ok" : data.overall === "unknown" ? "" : "bad"}`}
+      >
         <Icon name={data.overall === "pass" ? "check" : "warn"} size={14} />
         {data.summary}
       </div>
@@ -299,7 +304,7 @@ function RedundancyTab() {
                 role="button"
                 tabIndex={0}
                 onClick={() => setOpen(isOpen ? null : p.playlist)}
-                onKeyDown={(e) => {
+                onKeyDown={(e: KeyboardEvent) => {
                   if (e.key === "Enter") setOpen(isOpen ? null : p.playlist);
                 }}
               >
@@ -377,9 +382,7 @@ function DiffTab() {
   const [filter, setFilter] = useState("");
 
   useEffect(() => {
-    api<{ id: string; nickname: string | null; name: string }[]>(
-      "/api/drives",
-    )
+    api<{ id: string; nickname: string | null; name: string }[]>("/api/drives")
       .then((ds) => {
         const refs = ds.map((d) => ({
           id: d.id,
@@ -434,7 +437,10 @@ function DiffTab() {
   return (
     <div>
       <div class="pl-tools">
-        <select value={aId} onInput={(e) => setA((e.target as HTMLSelectElement).value)}>
+        <select
+          value={aId}
+          onInput={(e) => setA((e.target as HTMLSelectElement).value)}
+        >
           {drives.map((d) => (
             <option value={d.id} key={d.id}>
               {d.name}
@@ -442,7 +448,10 @@ function DiffTab() {
           ))}
         </select>
         <span class="diff-arrow">→</span>
-        <select value={bId} onInput={(e) => setB((e.target as HTMLSelectElement).value)}>
+        <select
+          value={bId}
+          onInput={(e) => setB((e.target as HTMLSelectElement).value)}
+        >
           {drives.map((d) => (
             <option value={d.id} key={d.id}>
               {d.name}
@@ -457,8 +466,8 @@ function DiffTab() {
       {!result && (
         <div class="note-card">
           <Icon name="sort" size={20} />
-          Pick two drives and diff their inventories — added / removed /
-          changed (byte-level when a file manifest exists).
+          Pick two drives and diff their inventories — added / removed / changed
+          (byte-level when a file manifest exists).
         </div>
       )}
 
@@ -553,9 +562,7 @@ function DiffSection(props: {
           </div>
         ))}
         {props.rows.length > 300 && (
-          <div class="fleet-note">
-            showing 300 of {props.rows.length}
-          </div>
+          <div class="fleet-note">showing 300 of {props.rows.length}</div>
         )}
       </div>
     </div>

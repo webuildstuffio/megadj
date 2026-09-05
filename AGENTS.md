@@ -2,6 +2,13 @@
 
 Notes for coding agents working in this repo.
 
+## Language rule (always, non-negotiable)
+
+**Write English only — always.** Every commit message, doc, comment, code
+identifier, changelog, issue, PR description, and reply to the user must be
+in plain English. No other language, ever, in any file or message this repo
+produces, regardless of the language used in the request.
+
 ## What this repo is
 
 - megadj is a YouTube Music archiver (Bun/TypeScript CLI) feeding a pair of
@@ -42,8 +49,8 @@ Notes for coding agents working in this repo.
   mp3 id3v2.3; **ffmpeg infers the muxer from the tmp filename, so tmp
   outputs must keep their extension**), file-first readers, the full art
   ladder, and a standalone CLI (`bun run fulltags/cli.ts <target>
-  [--tags|--genre|--art|--year|--energy] [--dry-run]`; `fulltags audit
-  <folder> --json` = same completeness gate as `megadj audit`). megadj's
+[--tags|--genre|--art|--year|--energy] [--dry-run]`; `fulltags audit
+<folder> --json` = same completeness gate as `megadj audit`). megadj's
   modules are thin re-export shims — import surface unchanged. Idempotent
   (energy stamped as TXXX:ENERGY; re-run = no-op). 55 tests in
   `fulltags/test/`. **Perf invariant:** `setFileTags`/`writePatchSync` is
@@ -116,8 +123,8 @@ Notes for coding agents working in this repo.
   (`db.latestChecksum`), never hardcoded; the SSE stream needs a heartbeat —
   Bun kills silent event streams after ~10s idle, which once stranded a
   finished verify as a phantom "running 0%" forever (fixed with 5s heartbeat
-  + server-side phantom-job reaper marking stale `running` jobs `interrupted`
-  after 2min + UI re-sync on reconnect + cache-busting headers).
+  - server-side phantom-job reaper marking stale `running` jobs `interrupted`
+    after 2min + UI re-sync on reconnect + cache-busting headers).
 
 ## Local-only files
 

@@ -105,12 +105,14 @@ export function JobsDock(props: {
                   {final}
                 </div>
               )}
-              {j.kind === "verify" && checkCount > 0 && findings.length === 0 && (
-                <div class="jmsg pass">
-                  <Icon name="check" size={11} /> all {checkCount} checks
-                  passed — full breakdown in the Verify tab
-                </div>
-              )}
+              {j.kind === "verify" &&
+                checkCount > 0 &&
+                findings.length === 0 && (
+                  <div class="jmsg pass">
+                    <Icon name="check" size={11} /> all {checkCount} checks
+                    passed — full breakdown in the Verify tab
+                  </div>
+                )}
               {findings.length > 0 && (
                 <div class="jfindings">
                   {findings.slice(0, 4).map((f) => (

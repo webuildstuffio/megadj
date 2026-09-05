@@ -14,7 +14,8 @@ type TrackStatus =
   | "gone"
   | "failed"
   | "skipped_low_quality"
-  | "skipped_not_music";
+  | "skipped_not_music"
+  | "skipped_short";
 
 export interface TrackRow {
   video_id: string;
@@ -215,19 +216,11 @@ export class ArchiveState {
   }
 
   markGone(videoId: string, reason: string): void {
-    this.db
-      .query(
-        `UPDATE tracks SET status = 'gone', last_error = ?, last_attempt_at = ?, updated_at = ? WHERE video_id = ?`,
-      )
-      .run(reason, this.now(), this.now(), videoId);
+    this.markStatus(videoId, "gone", { lastError: reason });
   }
 
   markFailed(videoId: string, error: string): void {
-    this.db
-      .query(
-        `UPDATE tracks SET status = 'failed', last_error = ?, last_attempt_at = ?, updated_at = ? WHERE video_id = ?`,
-      )
-      .run(error, this.now(), this.now(), videoId);
+    this.markStatus(videoId, "failed", { lastError: error });
   }
 
   /** Reset failed tracks back to pending so the next sync retries them. */
@@ -242,11 +235,33 @@ export class ArchiveState {
 
   /** Skip a non-music video permanently (music-only mode). */
   markNotMusic(videoId: string, category: string | null): void {
+    this.markStatus(videoId, "skipped_not_music", {
+      lastError: `category: ${category ?? "unknown"}`,
+    });
+  }
+
+  /** Set status (+ optional fields) with a fresh updated_at in one place. */
+  private markStatus(
+    videoId: string,
+    status: TrackStatus,
+    fields: {
+      filePath?: string;
+      durationS?: number | null;
+      lastError?: string;
+    } = {},
+  ): void {
     this.db
       .query(
-        `UPDATE tracks SET status = 'skipped_not_music', last_error = ?, updated_at = ? WHERE video_id = ?`,
+        `UPDATE tracks SET status = ?, file_path = COALESCE(?, file_path), duration_s = COALESCE(?, duration_s), last_error = COALESCE(?, last_error), updated_at = ? WHERE video_id = ?`,
       )
-      .run(`category: ${category ?? "unknown"}`, this.now(), videoId);
+      .run(
+        status,
+        fields.filePath ?? null,
+        fields.durationS ?? null,
+        fields.lastError ?? null,
+        this.now(),
+        videoId,
+      );
   }
 
   /** Update the file path after a move (organize command). */
@@ -264,11 +279,7 @@ export class ArchiveState {
     filePath: string,
     durationS: number | null,
   ): void {
-    this.db
-      .query(
-        `UPDATE tracks SET status = 'skipped_short', file_path = ?, duration_s = ?, updated_at = ? WHERE video_id = ?`,
-      )
-      .run(filePath, durationS, this.now(), videoId);
+    this.markStatus(videoId, "skipped_short", { filePath, durationS });
   }
 
   /** Persist inferred genre for a downloaded track. */

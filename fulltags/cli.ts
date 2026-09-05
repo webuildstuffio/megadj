@@ -162,16 +162,28 @@ async function main(): Promise<void> {
   console.log(
     `fulltags: ${files.length} file(s)${args.stages ? ` · stages: ${args.stages.join("+")}` : " · all stages"}${args.dryRun ? " · DRY RUN" : ""}`,
   );
-  const summary = await enrichAll(files, {
+  // Hints (--title/--artist/--album) only make sense for a single file —
+  // they pre-seed the MB lookup / SC search when the filename is garbage.
+  const hintFiles =
+    (args.hints.title ?? args.hints.artist ?? args.hints.album)
+      ? files.slice(0, 1)
+      : files;
+  if (hintFiles.length < files.length) {
+    console.log(
+      "fulltags: note — hints apply to the first file only; run `fulltags single <file>` per file for the rest",
+    );
+  }
+  const summary = await enrichAll(hintFiles, {
     only: args.stages ?? undefined,
     jobs: args.jobs,
     dryRun: args.dryRun,
     upgradeScArt: args.upgradeScArt,
     archiveDir: args.archiveDir ?? undefined,
     artworkQueue: args.artworkQueue,
+    hints: args.hints,
   });
   console.log(
-    `\nDONE — ${summary.complete}/${summary.total} complete · ${summary.notes} file(s) updated`,
+    `\nDONE — ${summary.complete}/${summary.total} complete · ${summary.notes} file(s) changed${args.dryRun ? " (dry run — nothing written)" : ""}`,
   );
 }
 

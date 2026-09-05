@@ -53,8 +53,8 @@ borrows a stick and needs to know what's on it in 5 seconds.
 | J1  | "Tell me what this stick in my hand is"          | plug in, browse folders        | card lights up with photo + name in ~2s                                   |
 | J2  | "Is it safe to play this drive tonight?"         | hope / run scripts by hand     | PASS/FAIL readiness badge with the same gates the verify tool uses        |
 | J3  | "What's different between my two main drives?"   | run `usb_verify.py`, read logs | in-sync badge + one-glance diff (files, DB, ANLZ, playlists)              |
-| J4  | "Which stick has this playlist?"          | plug in each and look          | search across **all** known drives, including unplugged (last-known data) |
-| J5  | "Are the new downloads on the drives yet?"    | run sync, check output         | new-music radar: downloads vs each drive, one click to queue the sync     |
+| J4  | "Which stick has this playlist?"                 | plug in each and look          | search across **all** known drives, including unplugged (last-known data) |
+| J5  | "Are the new downloads on the drives yet?"       | run sync, check output         | new-music radar: downloads vs each drive, one click to queue the sync     |
 | J6  | "Did this stick get slower / is it dying?"       | nothing — until it fails       | benchmark history, bitrot ledger, SMART/health signals                    |
 | J7  | "Where do I plug the exporter so drives behave?" | guess                          | port map — labeled physical ports, drive-to-port history                  |
 

@@ -32,7 +32,9 @@ const DEFAULTS = {
 } as const;
 
 export class RateLimiter {
-  private readonly opts: Required<Omit<RateLimiterOptions, "onBackoff" | "onPace" | "sleepFn">>;
+  private readonly opts: Required<
+    Omit<RateLimiterOptions, "onBackoff" | "onPace" | "sleepFn">
+  >;
   private readonly onBackoff?: RateLimiterOptions["onBackoff"];
   private readonly onPace?: RateLimiterOptions["onPace"];
   private readonly sleepFn: (ms: number) => Promise<void>;
@@ -45,7 +47,9 @@ export class RateLimiter {
     this.opts = { ...DEFAULTS, ...rest };
     this.onBackoff = onBackoff;
     this.onPace = onPace;
-    this.sleepFn = injectedSleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+    this.sleepFn =
+      injectedSleep ??
+      ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 
   /** Uniform random in [-f, +f] * value. */

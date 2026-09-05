@@ -8,12 +8,13 @@
  * Queue file: ~/.local/state/megadj/artwork-queue.jsonl (written by ingest).
  * Env: OPENROUTER_API_KEY (required), MEGADJ_ART_MAX (max images, default 20).
  */
-
-import { $ } from "bun";
 import { readFile, appendFile } from "node:fs/promises";
-import { join, basename } from "node:path";
+import { join, basename, extname } from "node:path";
 import type { ArchiveState } from "../state";
-import { extname } from "node:path";
+import { embedArt, fetchImage, ARTWORK_EXTS } from "../../fulltags/src/exports";
+import type { QueueEntry } from "./queue";
+
+export type { QueueEntry };
 
 export interface ArtworkOptions {
   state: ArchiveState;
@@ -23,28 +24,11 @@ export interface ArtworkOptions {
   onProgress?: (msg: string) => void;
 }
 
-const ARTWORK_EXTS = new Set([
-  ".m4a",
-  ".mp3",
-  ".flac",
-  ".aiff",
-  ".aif",
-  ".wav",
-]);
 const DEFAULT_MODEL = "nano-banana-2-lite"; // $0.034/img — "a few cents max"
 const QUEUE_PATH = () =>
   process.env.MEGADJ_ART_QUEUE ??
   `${process.env.HOME}/.local/state/megadj/artwork-queue.jsonl`;
 const DONE_PATH = () => `${QUEUE_PATH()}.done`;
-
-interface QueueEntry {
-  path: string;
-  title: string;
-  artist: string | null;
-  album: string | null;
-  reason: string;
-  remixOf?: string | null;
-}
 
 /** Build the generation prompt from whatever track metadata we have. */
 export function buildPrompt(entry: QueueEntry): string {
@@ -60,41 +44,11 @@ export function buildPrompt(entry: QueueEntry): string {
   return parts.filter(Boolean).join(". ");
 }
 
-async function embedArtwork(
-  filePath: string,
-  artPath: string,
-): Promise<boolean> {
-  const ext = extname(filePath).toLowerCase();
-  // WAV: ffmpeg's wav muxer can't carry attached_pic — use mutagen APIC
-  if (ext === ".wav") {
-    const script = `
-from mutagen.wave import WAVE
-from mutagen.id3 import ID3, APIC
-a = WAVE(${JSON.stringify(filePath)})
-try:
-    a.add_tags()
-except Exception:
-    pass
-if not isinstance(a.tags, ID3):
-    a.tags = ID3()
-a.tags.add(APIC(encoding=3, mime="image/png", type=3, desc="Cover", data=open(${JSON.stringify(artPath)}, "rb").read()))
-a.save()
-print("ok")`;
-    const proc = await $`uv run --with mutagen python -c ${script}`
-      .quiet()
-      .nothrow();
-    return (
-      proc.exitCode === 0 && (proc.stdout as Buffer).toString().includes("ok")
-    );
-  }
-  const tmp = filePath.replace(/(\.[^.]+)$/, ".art$1");
-  const args = ext === ".mp3" ? ["-id3v2_version", "3"] : [];
-  const proc =
-    await $`ffmpeg -y -hide_banner -loglevel error -i ${filePath} -i ${artPath} -map 0:a -map 1:v -c:a copy -c:v mjpeg -disposition:v:0 attached_pic ${args} ${tmp}`
-      .quiet()
-      .nothrow();
-  if (proc.exitCode !== 0) return false;
-  return (await $`mv -f ${tmp} ${filePath}`.quiet().nothrow()).exitCode === 0;
+/** Embed a generated cover file as the front cover (any container). */
+function embedArtwork(filePath: string, artPath: string): Promise<boolean> {
+  return fetchImage(artPath).then((bytes) =>
+    bytes ? embedArt(filePath, bytes) : false,
+  );
 }
 
 export async function artwork(opts: ArtworkOptions): Promise<void> {
@@ -138,10 +92,20 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
       (opts.dryRun ? " (dry run)" : ""),
   );
 
-  const { ImageClient } = await import(
+  const { ImageClient } = (await import(
     process.env.IMAGE_MAKER_CLIENT ??
       `${process.env.HOME}/github/image-maker-cli/dist/client.js`
-  );
+  )) as {
+    ImageClient: new (apiKey: string) => {
+      generate(req: {
+        prompt: string;
+        model: string;
+        size: string;
+        output: string;
+        outputFormat: string;
+      }): Promise<{ cost?: number }>;
+    };
+  };
   const client = new ImageClient(apiKey ?? "");
   const { mkdir } = await import("node:fs/promises");
   const coverDir = join(QUEUE_PATH(), "..", "artwork-covers");
@@ -153,7 +117,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
 
   for (const entry of batch) {
     if (!ARTWORK_EXTS.has(extname(entry.path).toLowerCase())) {
-      log(`  - skip (wav/aiff): ${basename(entry.path)}`);
+      log(`  - skip (unsupported container): ${basename(entry.path)}`);
       doneLines.push(JSON.stringify({ ...entry, result: "skipped-ext" }));
       continue;
     }
@@ -174,7 +138,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
         output: coverPath,
         outputFormat: "png",
       });
-      const cost = (result as { cost?: number }).cost;
+      const cost = result.cost;
       log(
         `    generated ${coverPath}${cost !== undefined ? ` ($${Number(cost).toFixed(3)})` : ""}`,
       );

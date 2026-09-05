@@ -33,7 +33,8 @@ export const VERIFY_HELP: {
       label: "Hardware library matches rekordbox",
       what: "Compares track counts between export.pdb (what CDJs/XDJs read) and exportLibrary.db (what rekordbox reads).",
       why: "Drives carry two libraries. Hardware players only ever read the legacy one.",
-      if_fail: "The booth sees a different (usually older) library than your laptop does — tracks you added recently won't exist on the CDJs.",
+      if_fail:
+        "The booth sees a different (usually older) library than your laptop does — tracks you added recently won't exist on the CDJs.",
       fix: "In rekordbox, re-run the USB export with the drive connected — it rebuilds export.pdb.",
     },
     {
@@ -41,7 +42,8 @@ export const VERIFY_HELP: {
       label: "Audio files on disk",
       what: "Confirms every track row in the DB points at a file that exists on the drive.",
       why: "Databases can outlive their files (a failed copy, an interrupted move).",
-      if_fail: "Those tracks show in the browser but won't load — dead entries mid-set.",
+      if_fail:
+        "Those tracks show in the browser but won't load — dead entries mid-set.",
       fix: "Delete/replace the missing tracks in rekordbox, then re-export.",
     },
     {
@@ -49,7 +51,8 @@ export const VERIFY_HELP: {
       label: "Waveforms + beatgrids (ANLZ)",
       what: "Checks each track has its .ANLZ analysis files at both the DB path and the hashed sub-directory hardware actually uses.",
       why: "ANLZ files ARE the waveform and the beatgrid on hardware.",
-      if_fail: "Affected tracks load with no waveform, no Beat Sync, no Beat Jump.",
+      if_fail:
+        "Affected tracks load with no waveform, no Beat Sync, no Beat Jump.",
       fix: "In rekordbox: select tracks → Track → Analyze, then re-export.",
     },
     {

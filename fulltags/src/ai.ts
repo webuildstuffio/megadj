@@ -54,16 +54,28 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
       }),
     });
     if (!res.ok) return out;
-    const json = await res.json();
-    const arr = JSON.parse(
+    const json = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const parsed: unknown = JSON.parse(
       json.choices?.[0]?.message?.content?.match(/\[[\s\S]*\]/)?.[0] ?? "[]",
     );
-    for (const item of arr) {
-      const row = batch[item.id];
+    if (!Array.isArray(parsed)) return out;
+    interface AiItem {
+      id?: number;
+      genre?: string;
+      confidence?: number;
+      year?: number;
+    }
+    const isItem = (x: unknown): x is AiItem =>
+      typeof x === "object" && x !== null;
+    const items = parsed.filter(isItem);
+    for (const item of items) {
+      const row = batch[item.id ?? -1];
       if (!row) continue;
       const genre =
         item.genre && item.genre !== "Unknown" && (item.confidence ?? 0) >= 0.7
-          ? (item.genre as string)
+          ? item.genre
           : null;
       const yearNum = Number(item.year);
       const year =

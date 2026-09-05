@@ -4,8 +4,9 @@ v1 · 2026-09-03 · [Brief](01-product-brief.md) · [PRD](02-prd.md) · [Archite
 
 **Status:** ✅ M0–M5 shipped (v0.1, 2026-09-04) — dashboard live at
 `bun run deck`; test suite in `cratedeck/test/` (badges, config, db, guard,
-scan-detect, report, e2e). M6 hardening is in progress; the remaining
-acceptance evidence lives in [acceptance.md](acceptance.md).
+scan-detect, report, e2e). M6 hardening is partially done (docs shipped;
+kill -9 resilience + the `cratedeck-v0.1.0` tag remain — see
+[acceptance.md](acceptance.md)).
 _Shipped-structure note: the per-milestone file lists below were the plan —
 the real layout evolved (hash-routed `DriveRail`/`DrivePage` tabs instead of
 a drawer; `deckctl` CLI added; see

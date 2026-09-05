@@ -59,7 +59,10 @@ print(json.dumps({"art": art, "tags": tags}))`;
     const out = new TextDecoder().decode(pr.stdout).trim();
     const last = out.split("\n").at(-1);
     if (!last) throw new Error("empty output");
-    const j = JSON.parse(last);
+    const j = JSON.parse(last) as {
+      art?: boolean;
+      tags?: Record<string, unknown>;
+    };
     const map: Record<string, string> = {
       TIT2: "title",
       TPE1: "artist",
@@ -69,10 +72,10 @@ print(json.dumps({"art": art, "tags": tags}))`;
       COMM: "comment",
     };
     const merged: Record<string, string> = {};
-    for (const [k, v] of Object.entries(j.tags)) {
+    for (const [k, v] of Object.entries(j.tags ?? {})) {
       merged[map[k] ?? k.toLowerCase()] = String(v);
     }
-    const g = (...keys: string[]) => {
+    const g = (...keys: string[]): string | null => {
       for (const k of keys) {
         const val = merged[k];
         if (val && String(val).trim()) return String(val).trim();
@@ -80,10 +83,12 @@ print(json.dumps({"art": art, "tags": tags}))`;
       return null;
     };
     let genre = g("genre") ?? "";
-    genre = genre.includes(",") ? genre.split(",")[0]!.trim() : genre;
+    genre = genre.includes(",")
+      ? (genre.split(",")[0]?.trim() ?? genre)
+      : genre;
     const year = g("date")?.match(/\d{4}/)?.[0] ?? null;
     return {
-      art: !!j.art,
+      art: j.art === true,
       title: g("title"),
       artist: g("artist"),
       album: g("album"),
