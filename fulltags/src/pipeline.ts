@@ -30,7 +30,13 @@ import {
 } from "./art-sources";
 import { energyFromLufs, measureRms } from "./probes";
 import { detectRemix } from "./remix";
-import { analyzeBeats, analyzeKey, fingerprintWithDuration, foldTempo } from "./analysis";
+import {
+  analyzeBeats,
+  analyzeKey,
+  fingerprintWithDuration,
+  foldTempo,
+} from "./analysis";
+import { analyzeMoods, moodStamp, type MoodResult } from "./models";
 
 export interface TrackInput {
   /** Absolute path to the audio file. */
@@ -49,7 +55,17 @@ export interface PipelineOptions {
   archiveDir?: string;
   artworkQueue?: string | null;
   /** Stages to run (default: all). */
-  only?: Array<"tags" | "genre" | "art" | "year" | "energy" | "fingerprint" | "bpm" | "key">;
+  only?: Array<
+    | "tags"
+    | "genre"
+    | "art"
+    | "year"
+    | "energy"
+    | "fingerprint"
+    | "bpm"
+    | "key"
+    | "mood"
+  >;
   jobs?: number;
   dryRun?: boolean;
   /** Re-embed existing SC art at original resolution. */
@@ -74,7 +90,10 @@ export const DEFAULT_QUEUE =
   `${process.env.HOME}/.local/state/megadj/artwork-queue.jsonl`;
 
 /** One-track pass. Returns the human-readable change notes. */
-export async function enrichTrack(t: TrackInput, opts: PipelineOptions = {}): Promise<TrackResult> {
+export async function enrichTrack(
+  t: TrackInput,
+  opts: PipelineOptions = {},
+): Promise<TrackResult> {
   const notes: string[] = [];
   let artWritten = false;
   const want = (s: NonNullable<PipelineOptions["only"]>[number]) =>
@@ -106,11 +125,16 @@ export async function enrichTrack(t: TrackInput, opts: PipelineOptions = {}): Pr
     if (!truth.artist && opts.hints?.artist) patch.artist = opts.hints.artist;
     if (!truth.album && opts.hints?.album) patch.album = opts.hints.album;
     const artist0 =
-      (truth.artist ?? t.artist ?? patch.artist ?? "").split(/[,&]/)[0]?.trim() || null;
-    const rec = hinted ? null : await mbLookupCached(artist0, titleGuess ?? basename(t.path));
+      (truth.artist ?? t.artist ?? patch.artist ?? "")
+        .split(/[,&]/)[0]
+        ?.trim() || null;
+    const rec = hinted
+      ? null
+      : await mbLookupCached(artist0, titleGuess ?? basename(t.path));
     if (rec) {
       if (!truth.title && !patch.title && rec.title) patch.title = rec.title;
-      if (!truth.artist && !patch.artist && rec.artist) patch.artist = rec.artist;
+      if (!truth.artist && !patch.artist && rec.artist)
+        patch.artist = rec.artist;
       if (!truth.album && !patch.album && rec.album) patch.album = rec.album;
       if (rec.year) patch.year = rec.year;
       if (rec.mbid) patch.mbid = rec.mbid;
@@ -120,20 +144,25 @@ export async function enrichTrack(t: TrackInput, opts: PipelineOptions = {}): Pr
   // ---------- 2+3+4. one SC search feeds genre AND art AND year ----------
   const needGenre = want("genre") && !genreOk;
   const needYear = want("year") && !truth.year && !patch.year;
-  const needArt = (want("art") && !truth.art) || (want("art") && opts.upgradeScArt);
+  const needArt =
+    (want("art") && !truth.art) || (want("art") && opts.upgradeScArt);
   const wantsSc = needGenre || needYear || needArt;
 
   let scBest: ReturnType<typeof scSearch>[number] | null | undefined;
   if (wantsSc && !opts.dryRun) {
     const effTitle = patch.title ?? truth.title ?? t.title ?? basename(t.path);
     const effArtist = patch.artist ?? truth.artist ?? t.artist ?? null;
-    scBest = scSearch({ artist: effArtist, title: effTitle, file_path: t.path })[0] ?? null;
+    scBest =
+      scSearch({ artist: effArtist, title: effTitle, file_path: t.path })[0] ??
+      null;
   }
 
   if (needGenre) {
-    const fileGenre = truth.genre && truth.genre !== "Music" ? truth.genre : null;
+    const fileGenre =
+      truth.genre && truth.genre !== "Music" ? truth.genre : null;
     const g =
-      canonGenre(scBest?.genre ?? "") || (fileGenre && fileGenre !== "Music" ? fileGenre : null);
+      canonGenre(scBest?.genre ?? "") ||
+      (fileGenre && fileGenre !== "Music" ? fileGenre : null);
     if (g) {
       patch.genre = g;
       notes.push(`genre:${g}`);
@@ -163,7 +192,11 @@ export async function enrichTrack(t: TrackInput, opts: PipelineOptions = {}): Pr
     let source: string | null = null;
     if (scBest) {
       const og = await pageOgImage(scBest.url);
-      bytes = og ? await fetchBestScArt(og) : scBest.thumb ? await fetchImage(scBest.thumb) : null;
+      bytes = og
+        ? await fetchBestScArt(og)
+        : scBest.thumb
+          ? await fetchImage(scBest.thumb)
+          : null;
       if (bytes) source = scBest.url.includes("-original") ? "sc-orig" : "sc";
     }
     if (!bytes) {
@@ -200,9 +233,23 @@ export async function enrichTrack(t: TrackInput, opts: PipelineOptions = {}): Pr
   // surface. Before re-measuring, probe the file for an existing stamp —
   // a second identical value would still rewrite the container, so skip
   // when the stamp matches the measured value.
+  //
+  // ENERGY 2.0 (roadmap #4): when the mood stamp carries model-derived
+  // danceability + arousal, blend them with the RMS score
+  // (0.5·rms + 0.3·dance + 0.2·arousal-scaled) — perceptual energy tracks
+  // the model view, not just loudness. RMS-only files keep the old value.
   if (want("energy") && !opts.dryRun) {
     const rms = await measureRms(t.path);
-    const e = energyFromLufs(rms);
+    let e = energyFromLufs(rms);
+    const moodStampVal = readStamp(t.path, "MOOD");
+    if (e !== null && moodStampVal) {
+      const m = parseMoodStamp(moodStampVal);
+      if (m) {
+        const arousalNorm = Math.min(1, Math.max(0, (m.arousal - 1) / 8));
+        const e2 = 0.5 * e + 0.3 * m.danceability * 10 + 0.2 * arousalNorm * 10;
+        e = Math.round(e2 * 10) / 10;
+      }
+    }
     if (e !== null) {
       const existing = readEnergyStamp(t.path);
       if (existing !== e) {
@@ -239,7 +286,9 @@ export async function enrichTrack(t: TrackInput, opts: PipelineOptions = {}): Pr
         patch.bpm = Math.round(foldTempo(beats.bpm));
         notes.push(`bpm:${beats.bpm.toFixed(1)}→${patch.bpm}`);
       } else {
-        notes.push("bpm:SKIP (beat_this env missing — uv run --with beat-this)");
+        notes.push(
+          "bpm:SKIP (beat_this env missing — uv run --with beat-this)",
+        );
       }
     }
   }
@@ -257,7 +306,29 @@ export async function enrichTrack(t: TrackInput, opts: PipelineOptions = {}): Pr
         patch.camelot = k.camelot; // TXXX:CAMELOT — container-independent
         notes.push(`key:${k.camelot} (${k.key})`);
       } else {
-        notes.push("key:SKIP (analyzer missing — clone openkeyscan-analyzer to ~/.local/share)");
+        notes.push(
+          "key:SKIP (analyzer missing — clone openkeyscan-analyzer to ~/.local/share)",
+        );
+      }
+    }
+  }
+
+  // ---------- mood / dance / valence (ONNX heads — roadmap #4) ----------
+  // Idempotent: TXXX:MOOD stamp means done. One python spawn per track here
+  // (enrichTrack is per-track); enrichBatchMoods batches when running solo.
+  if (want("mood") && !opts.dryRun) {
+    const existing = readStamp(t.path, "MOOD");
+    if (!existing) {
+      const m = (await analyzeMoods([t.path])).get(t.path);
+      if (m) {
+        patch.mood = moodStamp(m);
+        notes.push(
+          `mood:dance=${m.danceability.toFixed(2)} party=${m.moodParty.toFixed(2)} V=${m.valence.toFixed(1)} A=${m.arousal.toFixed(1)}`,
+        );
+      } else {
+        notes.push(
+          "mood:SKIP (models missing — FULLTAGS ensure-models, or onnxruntime env broken)",
+        );
       }
     }
   }
@@ -304,12 +375,15 @@ async function mbLookupCached(
     ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
     : `recording:"${encodeURIComponent(title)}"`;
   try {
-    const res = await fetch(`https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`, {
-      headers: {
-        "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
+    const res = await fetch(
+      `https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`,
+      {
+        headers: {
+          "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
+        },
+        signal: AbortSignal.timeout(8000),
       },
-      signal: AbortSignal.timeout(8000),
-    });
+    );
     let out: {
       title: string | null;
       artist: string | null;
@@ -336,7 +410,9 @@ async function mbLookupCached(
         out = {
           title: rec.title ?? null,
           artist:
-            rec["artist-credit"]?.[0]?.artist?.name ?? rec["artist-credit"]?.[0]?.name ?? null,
+            rec["artist-credit"]?.[0]?.artist?.name ??
+            rec["artist-credit"]?.[0]?.name ??
+            null,
           album: rec.releases?.[0]?.title ?? null,
           year: Number.isInteger(year) && year > 1900 ? year : null,
           mbid: rec.id ?? null,
@@ -363,7 +439,8 @@ async function itunesArt(r: ArtRow): Promise<Uint8Array | null> {
 }
 
 function appendQueue(queuePath: string, r: ArtRow): boolean {
-  const { existsSync, readFileSync } = require("node:fs") as typeof import("node:fs");
+  const { existsSync, readFileSync } =
+    require("node:fs") as typeof import("node:fs");
   try {
     // Dedupe: a path already queued (by path) must not re-queue on every
     // re-run — the queue is consumed by megadj artwork, duplicates just
@@ -372,7 +449,8 @@ function appendQueue(queuePath: string, r: ArtRow): boolean {
       const seen = readFileSync(queuePath, "utf8");
       if (seen.includes(JSON.stringify(r.file_path))) return false;
     }
-    const { appendFile } = require("node:fs/promises") as typeof import("node:fs/promises");
+    const { appendFile } =
+      require("node:fs/promises") as typeof import("node:fs/promises");
     void appendFile(
       queuePath,
       JSON.stringify({
@@ -492,7 +570,10 @@ export function readAiStamps(p: string): {
   aiGenre: string | null;
   aiYear: string | null;
 } {
-  const { "AI-GENRE": genre, "AI-YEAR": year } = readTxxx(p, ["AI-GENRE", "AI-YEAR"]);
+  const { "AI-GENRE": genre, "AI-YEAR": year } = readTxxx(p, [
+    "AI-GENRE",
+    "AI-YEAR",
+  ]);
   return { aiGenre: genre ?? null, aiYear: year ?? null };
 }
 
@@ -536,8 +617,11 @@ export async function enrichAll(
         const r = await enrichTrack({ path: f }, opts);
         results.push(r);
         if (r.notes.length)
-          log(`  [${my + 1}/${files.length}] ${r.notes.join(" ")} — ${basename(f)}`);
-        else if (opts.dryRun) log(`  [${my + 1}/${files.length}] (dry) — ${basename(f)}`);
+          log(
+            `  [${my + 1}/${files.length}] ${r.notes.join(" ")} — ${basename(f)}`,
+          );
+        else if (opts.dryRun)
+          log(`  [${my + 1}/${files.length}] (dry) — ${basename(f)}`);
       } catch (err) {
         log(
           `  [${my + 1}/${files.length}] ✗ ${(err as Error).message?.slice(0, 90)} — ${basename(f)}`,
@@ -560,4 +644,39 @@ export function listAudio(dir: string): string[] {
   return readdirSync(dir)
     .filter((f) => !f.startsWith(".") && isAudioFile(join(dir, f)))
     .map((f) => join(dir, f));
+}
+
+/** Parse a TXXX:MOOD stamp ("dance=0.155; …; valence=4.04; arousal=4.61")
+ * into a MoodResult. Null when the stamp is malformed. */
+export function parseMoodStamp(s: string): MoodResult | null {
+  const parts = s
+    .split(";")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const kv: Record<string, number> = {};
+  for (const p of parts) {
+    const m = /^([a-zA-Z]+)=([\d.]+)$/.exec(p);
+    if (!m?.[1] || !m[2]) return null;
+    kv[m[1].toLowerCase()] = Number(m[2]);
+  }
+  const need = (k: string): number => {
+    const v = kv[k];
+    if (typeof v !== "number" || !Number.isFinite(v)) {
+      throw new Error(`missing ${k}`);
+    }
+    return v;
+  };
+  try {
+    return {
+      danceability: need("dance"),
+      moodAggressive: need("aggressive"),
+      moodHappy: need("happy"),
+      moodElectronic: need("electronic"),
+      moodParty: need("party"),
+      valence: need("valence"),
+      arousal: need("arousal"),
+    };
+  } catch {
+    return null;
+  }
 }

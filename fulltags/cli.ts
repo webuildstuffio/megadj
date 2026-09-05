@@ -31,9 +31,10 @@ usage:
   fulltags <file-or-folder> [flags]      fill every missing field
   fulltags audit <folder> [--json]       ground-truth completeness gate
 
-stages: --tags --genre --art --year --energy --fingerprint --bpm --key
+stages: --tags --genre --art --year --energy --fingerprint --bpm --key --mood
         (default: all; analysis stages need fpcalc / beat-this / the
-        openkeyscan-analyzer clone — missing envs are skipped with a note)
+        openkeyscan-analyzer clone / the ONNX mood models (~320 MB,
+        auto-downloaded on first --mood use) — missing envs skip with a note)
 more:   --jobs N · --dry-run · --upgrade-sc-art · --archive-dir DIR
         --artwork-queue PATH | --no-queue · --json
 
@@ -52,6 +53,7 @@ interface CliArgs {
     | "fingerprint"
     | "bpm"
     | "key"
+    | "mood"
   > | null;
   jobs: number;
   dryRun: boolean;
@@ -83,6 +85,7 @@ function parseArgs(argv: string[]): CliArgs {
     "fingerprint",
     "bpm",
     "key",
+    "mood",
   ] as const;
   const stages = new Set<string>();
   // `audit` and `single` are subcommands, not targets — skip them during
@@ -128,6 +131,30 @@ async function main(): Promise<void> {
   }
   const args = parseArgs(argv);
 
+  // `fulltags ensure-models`: pre-download the ONNX mood models so a later
+  // --mood run never stalls on a 320 MB fetch mid-batch.
+  if (argv[0] === "ensure-models") {
+    const { modelsEnsure, moodModelsPresent, modelDir } =
+      await import("./src/models");
+    try {
+      const got = modelsEnsure();
+      console.log(
+        got.length
+          ? `downloaded ${got.length} model file(s) to ${modelDir()}: ${got.join(", ")}`
+          : `all mood models already present in ${modelDir()}`,
+      );
+    } catch (e) {
+      console.error(`ensure-models failed: ${(e as Error).message}`);
+      process.exitCode = 1;
+      return;
+    }
+    if (!moodModelsPresent()) {
+      console.error("models still missing after download — check disk space");
+      process.exitCode = 1;
+    }
+    return;
+  }
+
   if (argv[0] === "audit") {
     const dir = args.target;
     if (!dir || !existsSync(dir)) {
@@ -165,7 +192,11 @@ async function main(): Promise<void> {
     if (gaps.length) process.exitCode = 1;
     if (args.json) {
       console.log(
-        JSON.stringify({ ok: gaps.length === 0, total: rows.length, complete, rows }, null, 2),
+        JSON.stringify(
+          { ok: gaps.length === 0, total: rows.length, complete, rows },
+          null,
+          2,
+        ),
       );
     } else {
       console.log(
@@ -211,6 +242,26 @@ async function main(): Promise<void> {
     console.log(
       "fulltags: note — hints apply to the first file only; run `fulltags single <file>` per file for the rest",
     );
+  }
+  // Mood stage pre-flight: models are ~320 MB on first use — make that
+  // explicit up front rather than a mid-batch stall, then reuse.
+  const moodWanted = !args.stages || args.stages.includes("mood");
+  if (moodWanted && !args.dryRun) {
+    const { moodModelsPresent, modelsEnsure, modelDir } =
+      await import("./src/models");
+    if (!moodModelsPresent()) {
+      console.log(
+        `fulltags: mood models missing — downloading to ${modelDir()} (~320 MB, once)…`,
+      );
+      try {
+        modelsEnsure();
+        console.log("fulltags: mood models ready");
+      } catch (e) {
+        console.log(
+          `fulltags: model download failed (${(e as Error).message}) — mood will SKIP`,
+        );
+      }
+    }
   }
   const summary = await enrichAll(hintFiles, {
     only: args.stages ?? undefined,

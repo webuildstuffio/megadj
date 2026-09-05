@@ -39,6 +39,9 @@ export interface FullTag {
   /** Chromaprint fingerprint — content identity for dupes/upgrade
    * verification (TXXX:ACOUSTID). */
   fingerprint: string | null;
+  /** Model-derived mood/dance profile, "k=v; k=v" stamped as TXXX:MOOD —
+   * danceability, 4 mood heads, valence+arousal (roadmap #4). */
+  mood: string | null;
   /** Embedded front cover present. */
   art: boolean;
 }
@@ -115,6 +118,8 @@ export interface TagPatch {
   aiGenre?: string;
   /** AI provenance stamp: "value|confidence" → TXXX:AI-YEAR. */
   aiYear?: string;
+  /** Model mood/dance stamp, "k=v; …" → TXXX:MOOD (roadmap #4). */
+  mood?: string;
 }
 
 /** Genre → folder name safe for filesystems ("R&B / Soul" → "R&B Soul"). */

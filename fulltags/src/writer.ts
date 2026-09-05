@@ -241,6 +241,7 @@ const FFMPEG_KEY: Record<keyof TagPatch, string> = {
   label: "TPUB",
   mixName: "TIT3",
   fingerprint: "ACOUSTID",
+  mood: "MOOD",
 };
 
 /**
@@ -277,6 +278,8 @@ export function writePatchWav(filePath: string, patch: TagPatch): boolean {
           return `a.tags.add(TXXX(encoding=3, desc="ENERGY", text=${JSON.stringify(String(v))}))`;
         if (k === "fingerprint")
           return `a.tags.add(TXXX(encoding=3, desc="ACOUSTID", text=${JSON.stringify(String(v))}))`;
+        if (k === "mood")
+          return `a.tags.add(TXXX(encoding=3, desc="MOOD", text=${JSON.stringify(String(v))}))`;
         if (k === "camelot")
           return `a.tags.add(TXXX(encoding=3, desc="CAMELOT", text=${JSON.stringify(String(v))}))`;
         if (k === "aiGenre")
@@ -332,15 +335,24 @@ export function writePatchMp4(filePath: string, patch: TagPatch): boolean {
     if (!pairs.length) return true;
     const sets = pairs
       .map(([k, v]) => {
-        if (k === "title") return `a["\\xa9nam"] = [${JSON.stringify(String(v))}]`;
-        if (k === "artist") return `a["\\xa9ART"] = [${JSON.stringify(String(v))}]`;
-        if (k === "albumArtist") return `a["aART"] = [${JSON.stringify(String(v))}]`;
-        if (k === "album") return `a["\\xa9alb"] = [${JSON.stringify(String(v))}]`;
-        if (k === "genre") return `a["\\xa9gen"] = [${JSON.stringify(String(v))}]`;
-        if (k === "year") return `a["\\xa9day"] = [${JSON.stringify(String(v))}]`;
-        if (k === "composer") return `a["\\xa9wrt"] = [${JSON.stringify(String(v))}]`;
-        if (k === "grouping") return `a["\\xa9grp"] = [${JSON.stringify(String(v))}]`;
-        if (k === "comment") return `a["\\xa9cmt"] = [${JSON.stringify(String(v))}]`;
+        if (k === "title")
+          return `a["\\xa9nam"] = [${JSON.stringify(String(v))}]`;
+        if (k === "artist")
+          return `a["\\xa9ART"] = [${JSON.stringify(String(v))}]`;
+        if (k === "albumArtist")
+          return `a["aART"] = [${JSON.stringify(String(v))}]`;
+        if (k === "album")
+          return `a["\\xa9alb"] = [${JSON.stringify(String(v))}]`;
+        if (k === "genre")
+          return `a["\\xa9gen"] = [${JSON.stringify(String(v))}]`;
+        if (k === "year")
+          return `a["\\xa9day"] = [${JSON.stringify(String(v))}]`;
+        if (k === "composer")
+          return `a["\\xa9wrt"] = [${JSON.stringify(String(v))}]`;
+        if (k === "grouping")
+          return `a["\\xa9grp"] = [${JSON.stringify(String(v))}]`;
+        if (k === "comment")
+          return `a["\\xa9cmt"] = [${JSON.stringify(String(v))}]`;
         if (k === "bpm") return `a["tmpo"] = [${Math.round(Number(v))}]`;
         if (k === "remixer")
           return `a["----:com.apple.iTunes:REMIXER"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
@@ -350,6 +362,8 @@ export function writePatchMp4(filePath: string, patch: TagPatch): boolean {
           return `a["----:com.apple.iTunes:ENERGY"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
         if (k === "fingerprint")
           return `a["----:com.apple.iTunes:ACOUSTID"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+        if (k === "mood")
+          return `a["----:com.apple.iTunes:MOOD"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
         if (k === "key")
           return `a["----:com.apple.iTunes:initialkey"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
         if (k === "camelot")

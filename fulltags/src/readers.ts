@@ -20,6 +20,8 @@ export interface Truth {
   comment: string | null;
   bpm: number | null;
   key: string | null;
+  /** Raw TXXX:MOOD "k=v; …" stamp — presence gates the mood stage. */
+  mood: string | null;
 }
 
 interface FfprobeJson {
@@ -157,6 +159,7 @@ export function groundTruth(p: string): Truth {
     comment: g("comment"),
     bpm: Number.isFinite(bpm) && bpm > 0 ? Math.round(bpm) : null,
     key: g("TKEY", "initial_key", "initialkey", "CAMELOT"),
+    mood: g("MOOD"),
   };
 }
 
@@ -181,6 +184,7 @@ export function readFullTag(p: string): FullTag {
     energy: null,
     mbid: null,
     fingerprint: null,
+    mood: t.mood,
     art: t.art,
   };
 }

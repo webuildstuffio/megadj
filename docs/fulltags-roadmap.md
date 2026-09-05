@@ -1,12 +1,22 @@
-# FullTags — Prioritized Roadmap (rev 5)
+# FullTags — Prioritized Roadmap (rev 6.1)
 
-_Rev 5, 2026-09-05 (evening): **#1–#3 EXECUTED against the real archive** —
-the gates were run, not just built. Results: fingerprint ledger fully
-shipped (88/88, idempotent, one latent idempotency-killer bug found and
-fixed mid-execution); key gate **PASSED at 80.7%** on all 88 tracks vs
-rekordbox-analyzed references (71 exact + 8 near + 9 mismatch); BPM gate
-**FAILED at 12/24 within 2%** — beat_this's tempo output is phase-locked
-to ~2.2–2.6% offsets against rekordbox on half the sample, so **batch BPM
+_Rev 6.1, 2026-09-05 (late night): **#4 + #5 SHIPPED** — the Essentia
+ONNX mood/dance/valence suite runs on onnxruntime (`fulltags --mood` →
+`TXXX:MOOD`, energy 2.0 blend), and the MusicBrainz folksonomy harvest
+lands as `fulltags/src/mb.ts` with `megadj enrich` folded onto the one
+shared writer. Rev 6 (night): **#2 pivot SHIPPED** — the failed BPM gate
+resolved into the beats ledger: `megadj beats` writes beat_this grids to
+the archive DB (never tags), CrateDeck's `archive_grid_cross_check` gives
+the independent grid verdict, and the re-gate with the bar-grid tempo
+readout came in at 16/24 (67%) — still under the 80% gate, so TBPM writes
+stay blocked. Rev 5, 2026-09-05 (evening): **#1–#3 EXECUTED against the
+real archive** — the gates were run, not just built. Results: fingerprint
+ledger fully shipped (88/88, idempotent, one latent idempotency-killer
+bug found and fixed mid-execution); key gate **PASSED at 80.7%** on all
+88 tracks vs rekordbox-analyzed references (71 exact + 8 near + 9
+mismatch); BPM gate **FAILED at 12/24 within 2%** — beat_this's tempo
+output is phase-locked to ~2.2–2.6% offsets against rekordbox on half
+the sample, so **batch BPM
 writes are BLOCKED** until resolved (§2/#2). Rev 4 (same day): #1–#3
 shipped as pipeline stages. Rev 3 (same day): external claims re-verified
 against primary sources. Rev 2 (same day): fact-checked rev 1, stress-
@@ -30,10 +40,19 @@ is stated with numbers, and the next action is a command you can run.**
 - Analysis stages (`fulltags --fingerprint|--bpm|--key`): chromaprint →
   `TXXX:ACOUSTID`, beat_this → `TBPM` (70–180 folded), OpenKeyScan →
   `TKEY`+`TXXX:CAMELOT`. All offline, idempotent by existing-stamp skip,
-  env-missing → skip with a note. `fulltags/verify-key.ts` gate harness
-  with Camelot-aware comparison, now also `--refs map.json` for external
-  reference keys (rekordbox master.db ScaleName via pyrekordbox — the
-  normal case, since archive files carry no key tags yet).
+  env-missing → skip with a note. `fulltags/verify-key.ts` gate harness,
+  now also `--refs map.json` for external reference keys (rekordbox
+  master.db ScaleName via pyrekordbox — the normal case, since archive
+  files carry no key tags yet).
+- **Beats ledger (rev 6):** `megadj beats` analyzes every downloaded
+  track with beat_this and writes the beat/downbeat arrays to the archive
+  DB `beats` table — never tags (the TBPM write gate failed at 12/24, and
+  the bar-grid re-gate reached only 16/24). CrateDeck consumes it via
+  `ArchiveReader.gridCrossCheck` (`GET /api/archive/grid-cross-check`,
+  MCP `archive_grid_cross_check`): per-track ok / off (>2% from RB
+  BPM×duration) / octave (half-double lock) verdicts — the independent
+  second opinion the verify pipeline's self-referential grid check
+  couldn't give.
 - **Execution log (rev 5, real archive, 88 files):**
   - `--fingerprint`: **88/88 stamped** in 24.5 s (jobs=8). Re-run: 0
     changed. Second re-run: 0 changed. DONE — the content-identity
@@ -92,28 +111,42 @@ later idempotent re-run.
 hunter over the 88 fingerprints) as the first consumer; expected finding:
 the three "Actin' Tough" variants and the two "WOOPS" files cluster.
 
-### #2 — Real BPM + downbeats via beat_this — **S→M — ⛔ WRITE GATE FAILED (rev 5: 12/24 within 2%)**
+### #2 — Real BPM + downbeats via beat_this — **S→M — ⛔ WRITE GATE FAILED → ✅ LEDGER SHIPPED (rev 6)**
 
-The gate did its job: **do not batch-write TBPM yet.** beat_this locks a
+The gate did its job: **do not batch-write TBPM.** beat_this locks a
 beat period ~2.2–2.6% off rekordbox's on half the pilot (e.g. 130.43 vs
 127.66, 136.36 vs 133.33); those offsets are exactly what audibly drifts
 against rekordbox grids. This is not the 70–180 fold (raw values are
 already in-window) and not decode quality (WAVs fail too).
 
-**Decision (opinionated): TBPM stays rekordbox-owned until beat_this
-agrees with it; the tag write is the LEAST valuable BPM output anyway.**
-The valuable outputs are downbeats + beat grids for structure cues (#P2)
-and the CrateDeck grid cross-check — both consume the beat ARRAY, not
-TBPM, and neither needs the tag. Concretely:
-1. Keep `--bpm` in the CLI (idempotent, safe), but treat its TBPM write
-   as a dev feature — do not run it against the archive.
-2. Build the DB-side ledger: archive DB table `beats(track_id, bpm_raw,
-   beats_json, downbeats_json, model, analyzed_at)` — grid data lands
-   there, never in tags.
-3. Re-gate after switching the tempo readout from median-inter-beat to
-   the DBN downbeat-locked period (CPJKU madmom fork) or tempo-invariant
-   autocorrelation — target ≥80% within 2% vs RB before any reconsider.
-4. Watch `livechord-beat-refiner` — its pitch is precisely this failure.
+**Re-gate result (rev 6, bar-grid autocorrelation readout —
+`tempoFromBeatGrid` in `fulltags/src/analysis.ts`): 16/24 within 2% —
+still under the 80% gate.** The bar-lag readout is strictly better than
+the median (16 vs 12) and fixes half of the drift cases, but the 8
+remaining failures are genuinely hard: half/double phase-locks (75.7 vs
+138.9, 108.8 vs 150) and the ~2.4% family on tracks whose beat_this
+period is simply slightly different from RB's. Median stays the
+conservative choice for display; nothing about the write-block changes.
+
+**Decision (opinionated): TBPM stays rekordbox-owned; the tag write is
+the LEAST valuable BPM output anyway. The valuable outputs — downbeats +
+beat grids — now live in the archive DB ledger, and that shipped:**
+1. `megadj beats` (`src/commands/beats.ts` + the `beats` table in
+   `src/state.ts`): beat_this over every downloaded track →
+   `beats(video_id PK, bpm_raw, bpm_folded, beats_json, downbeats_json,
+   model, source_path, analyzed_at)`. No tags are touched — ever.
+   Idempotent (ledgered tracks skipped without `--force`), `--json` P1-
+   clean, `--jobs N`, corrupt-JSON rows degrade to "re-analyze".
+2. The independent grid cross-check shipped in CrateDeck
+   (`ArchiveReader.gridCrossCheck`, `GET /api/archive/grid-cross-check`,
+   MCP tool `archive_grid_cross_check`): beat_this's grid vs RB's
+   BPM×duration, classified ok / off (>2%) / octave (half-double lock).
+   Unlike the verify pipeline's grid check (duration×BPM vs beat count
+   from the SAME analysis — self-referential), this one compares a second
+   analyzer, so a drifted grid actually shows.
+3. Re-gate verdict recorded: 16/24 (67%) < 80% — TBPM writes stay
+   blocked; watch `livechord-beat-refiner` (its pitch is exactly this
+   phase-lock). `--bpm` TBPM writes remain a dev-only feature.
 
 ### #3 — Harmonic key via OpenKeyScan — **M — ✅ GATE PASSED (80.7%, all 88) — writes UNLOCKED, pending the RB gauntlet**
 
@@ -140,32 +173,50 @@ regardless of what RB reads.
    round happens next time DJLIBRARYM is plugged in; until then the keys
    exist in files only, which is the durable half.
 
-### #4 — Essentia ONNX heads: genre/mood/danceability/valence — **M**
+### #4 — Essentia ONNX heads: mood/dance/valence — **M — ✅ SHIPPED (rev 6.1, this pass)**
 
-Unchanged in substance: brew `onnxruntime` (arm64) + MTG's ONNX exports
-(Discogs-EffNet genre, 7 moods, danceability, DEAM valence-arousal, MUSE
-embeddings) with essentia (py≤3.13) or librosa preprocessing — **never**
-`essentia.tensorflow` on ARM (broken, #1486) and never expect
-`essentia.onnx` (unmerged PR #1488). Valence-arousal → CrateDeck vibe
-map; danceability + arousal → energy 2.0 (replaces the RMS heuristic).
-**License wall (unchanged):** models CC BY-NC-SA — fine personal, hard
-stop for any commercial release. Log per-model license + size in the
-model-cache manifest.
-**Why #4 is now clearly before #5:** the archive's genre field is the
-weakest remaining tag (SC-tag → canonical map → AI has the 2023-style
-confidence problem), and #1's fingerprint ledger makes the dupe risk of
-a second genre writer zero. This is the highest-value remaining M.
+**Shipped:** `fulltags/src/models.ts` — two ONNX towers on onnxruntime
+(the `uv --with onnxruntime` env, NOT brew and NOT essentia.tensorflow):
+discogs-effnet-bsdynamic embeddings (1280-d) feed the danceability +
+4 mood heads; audioset-vggish embeddings (128-d) feed the emomusic
+valence-arousal head. One python spawn per batch (stdin/stdout JSON
+lines, same pattern as the key server). Stage: `fulltags --mood` →
+`TXXX:MOOD` stamp `dance=…; aggressive=…; happy=…; electronic=…;
+party=…; valence=…; arousal=…` (idempotent by stamp presence).
+`fulltags ensure-models` pre-downloads the ~320 MB model set to
+`~/.local/share/fulltags-models` (CC BY-NC-SA — personal use).
+**Energy 2.0 shipped in the same pass:** when a MOOD stamp exists, the
+energy stage blends `0.5·RMS + 0.3·dance + 0.2·arousal` (all 0–10
+scaled) instead of raw RMS — verified 1.0 → 1.9 on a test tone,
+idempotent. Models absent → mood SKIPs with a note and energy falls
+back to pure RMS (old behavior preserved).
+**Genre head NOT shipped** — deliberately deferred to #5's vote fold
+(see below): Discogs-EffNet genre labels are 400-way and pop-trained;
+on a dance library they need label-mapping + verification before any
+write. Mood/dance/VA carry no such risk (new fields, no existing truth
+to clobber).
+**Env gotchas (empirically probed, rev 6.1):** effnet wants essentia's
+`TensorflowInputMusiCNN` melspec in **128-frame chunks of 96 bands**
+(input name `melspectrogram`, output `embeddings`); the heads' positive
+class is **LAST** in the softmax vector (label order from the .json:
+`[not_X, X]`); emomusic outputs **(valence, arousal) on a 1–9 scale**;
+vggish wants 400/200 frames → 96-frame patches transposed to (64, 96);
+ONNX batch dims are fixed-128 on the bsdynamic export (chunks padded
+with edge replicate). 8 regression tests in
+`fulltags/test/models.test.ts` (env-gated: full pipeline + idempotency
++ writer surface when models present, guard paths otherwise).
 
-### #5 — MBID provenance + MusicBrainz genre harvest — **S**
+### #5 — MBID provenance + MusicBrainz genre harvest — **S — ✅ SHIPPED (rev 6.1, this pass)**
 
-Every write carries MBID (half-done at ingest); harvest MB
-`inc=genres+tags` as a third genre vote alongside SC + Essentia (#4).
-1 rps token bucket. Folds `src/commands/enrich.ts` into the FullTags
-pipeline, then **delete it** (the last duplicated writer).
-**Rev 5 sharpening: demote below #4.** MB genres are thin for dance
-subgenres (checked: "house, electro house" granularity); as a third vote
-it's fine as a tiebreaker, not as a stage worth its own sprint. Fold the
-MB harvest INTO #4's genre head work as one vote among four.
+**Shipped:** `fulltags/src/mb.ts` — MB artist folksonomy harvest, 1 rps
+token bucket, in-process cache, canonGenre-mapped. `megadj enrich`
+rewrote as a thin shim over it + the shared FullTags writer — **the
+last duplicate writer is deleted** (the old in-file ffmpeg remux with
+its art-dropping and tmp-leak history is gone; enrich now writes through
+`writePatch` like everything else). Genre ladder is now: SC tag →
+canonical map → MB folksonomy → AI (conf ≥ 0.7) — four votes, one
+writer. enrich's `GenreResolver`/`TagWriter` test seams preserved (all
+existing tests pass unmodified).
 
 ## 3. P2 / P3 (unchanged in substance, resized by facts)
 
@@ -322,17 +373,23 @@ Operational gates still standing: the rekordbox key gauntlet (disable
 Key analysis → Reload Tags) is the ONLY thing left for #3; the BPM
 re-gate (§2/#2 step 3) must pass before any TBPM reconsideration.
 
-## 6. Sequencing (rev 5)
+## 6. Sequencing (rev 6.1)
 
 ```
-done  ▸ #1 fingerprints (88/88) · #3 key gate PASSED (writes unlocked,
-        RB gauntlet at next mount) · WAV idempotency bug found+fixed
-now   ▸ #3 key batch write (`fulltags ~/Music/DJ-Imports --key`) THEN the
-        RB gauntlet at next DJLIBRARYM mount — 30 s, do it FIRST
-then  ▸ #2 pivot: beats→DB ledger (no TBPM tag writes) → #4 Essentia ONNX
-        suite (genre head first) with MB harvest folded in (#5 demoted)
-next  ▸ structure cues (slice: cues first) → vocal density → similarity
-        (88-fp ledger as the sqlite-vec pilot)
+done  ▸ #1 fingerprints (88/88) · #3 key gate PASSED + batch-written (88/88,
+        RB gauntlet at next DJLIBRARYM mount) · WAV idempotency bug fixed
+        · #2 pivot SHIPPED: beats ledger + `megadj beats` + CrateDeck
+        archive_grid_cross_check; re-gate 16/24 (67%) — TBPM stays blocked
+        · #4 mood/dance/VA SHIPPED (`--mood` + energy 2.0) · #5 MB harvest
+        SHIPPED (enrich folded, dup writer deleted)
+now   ▸ the RB gauntlet at next DJLIBRARYM mount — 30 s, do it FIRST
+        (disable Key analysis, reload tags, verify TKEY survives)
+then  ▸ `fulltags --mood` over the archive (fast, offline) · genre-head
+        write pass (effnet genre → map-verified subset, behind a sampled
+        gate) · CrateDeck mood/VA viz off the MOOD stamps
+next  ▸ structure cues (slice: cues first; downbeats now in the ledger,
+        ready) → vocal density → similarity (88-fp ledger as the
+        sqlite-vec pilot)
 parked▸ P3 with explicit triggers
 ```
 
@@ -349,7 +406,8 @@ mood/valence — the full DJ-useful frame set, in the actual files.
 | Adopt (#2)  | beat_this (CPJKU)                      | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork. **Gate: 12/24 within 2% — TBPM writes blocked** |
 | Adopt (#3)  | OpenKeyScan analyzer (repo mode)       | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**        |
 | Fallback    | essentia `Key` / keyfinder-cli         | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                     |
-| Adopt (#4)  | Essentia ONNX heads + brew onnxruntime | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged, last push 2026-03           |
+| Adopt (#4)  | Essentia ONNX heads + onnxruntime      | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
+| Shipped #5  | MusicBrainz ws/2 artist search         | folksonomy tags 1 rps; shipped as fulltags/src/mb.ts + enrich fold (rev 6.1)                                     |
 | Verified    | Dubspot 200-track test                 | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                      |
 | Verified    | rekordbox tag matrix                   | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                              |
 | Verified    | pyrekordbox 0.4.4 (local master.db)    | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                       |

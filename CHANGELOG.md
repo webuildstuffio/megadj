@@ -7,6 +7,65 @@ All notable changes to megadj are documented here. Format:
 
 ### Added
 
+- **FullTags roadmap rev 6.1 — #4 + #5 SHIPPED (Sep 5 2026, late night):**
+  the ONNX mood suite and the MB genre harvest are live.
+  - `fulltags <folder> --mood` (`fulltags/src/models.ts`): Essentia ONNX
+    heads on onnxruntime — discogs-effnet embeddings feed danceability +
+    aggressive/happy/electronic/party heads; audioset-vggish embeddings
+    feed the emomusic valence-arousal head. Writes `TXXX:MOOD`
+    (`dance=…; aggressive=…; …; valence=…; arousal=…`), idempotent by
+    stamp presence. `fulltags ensure-models` pre-downloads the ~320 MB
+    model set to `~/.local/share/fulltags-models` (CC BY-NC-SA, personal
+    use); first `--mood` run auto-downloads with an explicit notice.
+  - **Energy 2.0:** when a MOOD stamp exists the energy stage blends
+    `0.5·RMS + 0.3·dance + 0.2·arousal` (0–10 scaled) instead of raw RMS;
+    verified 1.0 → 1.9 on a test tone, idempotent. No stamp → pure RMS
+    (old behavior preserved exactly).
+  - **MB genre harvest** (`fulltags/src/mb.ts`): artist folksonomy tags →
+    canonical map, 1 rps bucket, in-process cache. `megadj enrich` is now
+    a thin shim over it + the shared FullTags writer — **the last
+    duplicate writer is deleted** (the old in-file ffmpeg remux dropped
+    AIFF art on failure paths; every genre write now goes through
+    `writePatch`). Genre ladder: SC tag → canonical map → MB folksonomy →
+    AI (conf ≥ 0.7).
+  - Tests: 8 new in `fulltags/test/models.test.ts` (stamp round-trip,
+    malformed-stamp guards, full ONNX pipeline E2E, enrichTrack mood
+    idempotency, wav writer surface, MB smoke) — suite at 93.
+  - Env gotchas recorded (roadmap §2/#4): effnet melspec = essentia
+    `TensorflowInputMusiCNN` in 128-frame chunks (fixed batch on the ONNX
+    export); head softmax order is `[not_X, X]` (positive LAST);
+    emomusic = (valence, arousal) on a 1–9 scale; vggish = 400/200 frames
+    → 96-frame patches transposed (64, 96).
+
+- **FullTags roadmap rev 6 — the #2 pivot SHIPPED (Sep 5 2026, night):**
+  the failed BPM gate resolved into a beats ledger, exactly as the
+  roadmap's opinionated call predicted — the beat ARRAY is the valuable
+  output, not TBPM.
+  - `megadj beats [--limit N] [--jobs N] [--force] [--dry-run] [--json]`
+    (`src/commands/beats.ts`): beat_this over every downloaded track →
+    the new `beats` table in the archive DB (`src/state.ts`:
+    `bpm_raw`, `bpm_folded`, `beats_json`, `downbeats_json`, `model`,
+    `analyzed_at`). No tags are touched, ever. Idempotent (ledgered
+    tracks skipped unless `--force`), P1-clean `--json`, corrupt-JSON
+    rows degrade to re-analyze.
+  - Re-gate with the new bar-grid tempo readout
+    (`tempoFromBeatGrid` in `fulltags/src/analysis.ts` — bar-lag mean
+    over the beat array instead of median inter-beat interval):
+    **16/24 within 2% vs rekordbox — still under the 80% gate, so TBPM
+    writes stay blocked.** Strictly better than the median (12/24); the
+    remaining 8 failures are genuine half/double phase-locks.
+  - CrateDeck independent grid cross-check:
+    `ArchiveReader.gridCrossCheck` + `GET /api/archive/grid-cross-check`
+    + MCP tool `archive_grid_cross_check` (readonly) — beat_this's grid
+    vs RB's BPM×duration per track, classified ok / off (>2%) / octave
+    (half-double lock). The verify pipeline's own grid check compares
+    duration×BPM against a beat count from the SAME analysis
+    (self-referential); this one pits two analyzers against each other.
+  - Tests: beats-ledger round-trip/idempotency/corrupt-row +
+    command-contract tests (`src/state.test.ts`,
+    `src/commands/beats.test.ts`) and ok/off/octave verdict tests
+    (`cratedeck/test/archive.test.ts`).
+
 - **FullTags roadmap rev 5 — gates EXECUTED against the real archive
   (Sep 5 2026, evening):** fingerprint ledger done (88/88 stamped,
   double re-run 0 changed); key gate PASSED at **80.7% exact** on all 88

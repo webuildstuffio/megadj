@@ -16,6 +16,15 @@ produces, regardless of the language used in the request.
   `--json` — one summary JSON object on stdout (last line), human logs
   suppressed in json mode, exit code still meaningful. Adding a command
   without `--json` + a help-text entry fails the test suite.
+- **Product principles SSOT: `docs/PRINCIPLES.md`** (Sep 5 2026): Mac-only/
+  Pioneer-only, electronic music is the design target, AI turns unstructured
+  data into structured (no manual duplicate eyeballing), zero commercial
+  intent, sub-projects are named units (GetDat/FullTags/CrateDeck — one-liners
+  in `docs/FEATURES.md`), latest-tech-only, ship-today. When a decision is
+  unclear, PRINCIPLES.md wins. **No CI — ever** (decided Sep 5 2026):
+  `.github/workflows/` was deleted outright, not disabled — hosted runners are
+  shared team infra and this repo is one author on one Mac. The gate is local:
+  `bun run check` && `bun test` before every push.
 - megadj is a YouTube Music archiver (Bun/TypeScript CLI) feeding a pair of
   DJ USB drives: a **master** and a **mirror** (kept identical). Volume names
   are user-specific — examples in docs/scripts use `DJMASTER`/`DJMIRROR`;
@@ -69,7 +78,29 @@ produces, regardless of the language used in the request.
   `docs/fulltags-roadmap.md`. rekordbox tag gotchas verified: TKEY is
   read on AIFF/MP3 only (WAV RIFF INFO has no key field), and RB
   overwrites imported keys on analysis unless Key analysis is disabled —
-  see the roadmap gauntlet.
+  see the roadmap gauntlet. **Roadmap moves fast — re-read before citing:**
+  rev 4 shipped #1–#3 as analysis pipeline stages (`fulltags/src/analysis.ts`:
+  chromaprint fingerprints, beat_this BPM/key); rev 5 executed the gates on
+  the real archive (88 files: fingerprint ledger DONE 88/88, key gate
+  PASSED 80.7% + all 88 files keyed, BPM gate FAILED 12/24 within-2% —
+  beat_this tempo is phase-locked ~2.2–2.6% off rekordbox on half the
+  sample); rev 6 shipped the pivot: the **beats ledger** (`megadj beats`
+  → archive DB `beats` table: bpm_raw/bpm_folded/beat+downbeat arrays,
+  never tags; 88/88 executed, idempotent) + CrateDeck's independent
+  `archive_grid_cross_check` (beat_this grid vs RB BPM×duration: ok/off/
+  octave; real-archive verdict 46 ok / 40 off / 2 octave) — batch BPM tag
+  writes stay BLOCKED (bar-grid re-gate 16/24 < 80%). rev 6.1 shipped
+  **#4 mood/dance/valence** (`fulltags/src/models.ts`: Essentia ONNX heads
+  via `uv --with onnxruntime` — effnet 1280-d embeddings → danceability +
+  4 mood heads, vggish 128-d → emomusic valence/arousal; `fulltags --mood`
+  → TXXX:MOOD, `ensure-models` pulls ~320 MB to `~/.local/share/fulltags-models`,
+  CC BY-NC-SA personal; **energy 2.0** = `0.5·RMS + 0.3·dance + 0.2·arousal`
+  when a MOOD stamp exists) and **#5 MB genre harvest** (`fulltags/src/mb.ts`,
+  1 rps + cache; `megadj enrich` folded onto it + the shared writer — the
+  last duplicate writer is deleted). Head gotchas: label order `[not_X, X]`
+  (positive = LAST), emomusic = (valence, arousal) 1–9, effnet melspec =
+  MusiCNN 512/256 in 128-frame chunks (fixed ONNX batch), vggish = 400/200
+  → 96-frame patches transposed (64, 96).
 - **rekordbox WAV artwork**: RB never reads art embedded in WAVs (RIFF INFO
   has no art field; it ignores the ID3 APIC chunk). Two-part solution:
   (1) **ingest converts new WAVs → AIFF** (`src/commands/wav-to-aiff.ts`,
@@ -205,6 +236,13 @@ dismiss`; dismissal flips `dismissed_at` (history kept) and the active
  renderer) → markdown over preflight + redundancy + archive reads. Doc
  alignment: ideas.md B9/B12/N75/N76/N78/O82/O83/O85/O86/O87/O88 are
  marked shipped.
+- **Docs hygiene passes (Sep 5 2026):** docs go through `/docs-audit`
+ rounds (SSOT-merge duplicates, kill stale claims, verify against code)
+ before pushes; `knip.json` was added so knip flags real dead code instead
+ of legitimate entry points (tests, web components, standalone CLIs); a
+ repo-wide cleanup pass fixed hardcoded user-specific paths in
+ `tools/fetch_lib.ts`/`fetch_all.ts`/`fix_years.ts`/`artwork.ts` —
+ new tools take volume names/paths from config, never literals.
 
 ## Local-only files
 

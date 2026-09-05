@@ -68,7 +68,7 @@ export {
 } from "./metadata-build";
 export { detectRemix, type RemixInfo } from "./remix";
 export { wavToAiff } from "./convert";
-export { readAiStamps } from "./pipeline";
+export { readAiStamps, parseMoodStamp } from "./pipeline";
 export {
   fingerprintFile,
   fingerprintWithDuration,
@@ -80,6 +80,14 @@ export {
   type KeyResult,
 } from "./analysis";
 export {
+  analyzeMoods,
+  modelsEnsure,
+  moodModelsPresent,
+  moodStamp,
+  modelDir,
+  type MoodResult,
+} from "./models";
+export {
   enrichAll,
   enrichTrack,
   listAudio,
@@ -88,3 +96,9 @@ export {
   type TrackInput,
   type TrackResult,
 } from "./pipeline";
+export {
+  mbGenreForArtist,
+  mbGenresForArtists,
+  mbGenreCacheReset,
+  type MbGenreResult,
+} from "./mb";

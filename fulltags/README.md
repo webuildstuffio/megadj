@@ -4,12 +4,14 @@
 `mp3 / m4a / wav / flac / aiff` and fully enriches it: title, artist, album,
 album artist, genre, year (of _this version_ — remix year for edits), remix
 credit, producer credits, grouping, source URL, energy, embedded artwork,
-MusicBrainz MBID — plus three offline analysis stages shipped Sep 5 2026
-(roadmap rev 4): **acoustic fingerprint** (chromaprint → `TXXX:ACOUSTID`),
+MusicBrainz MBID — plus offline analysis stages shipped Sep 5 2026:
+**acoustic fingerprint** (chromaprint → `TXXX:ACOUSTID`),
 **real BPM** (beat_this → `TBPM`, half/double-tempo folded into the 70–180
-DJ window), and **harmonic key** (OpenKeyScan analyzer → `TKEY` +
-`TXXX:CAMELOT`). All idempotent via existing-stamp detection; missing envs
-degrade to a skip note, never a failure.
+DJ window), **harmonic key** (OpenKeyScan analyzer → `TKEY` +
+`TXXX:CAMELOT`), and **mood/dance/valence** (Essentia ONNX heads on
+onnxruntime → `TXXX:MOOD`, which also drives the energy 2.0 blend). All
+idempotent via existing-stamp detection; missing envs degrade to a skip
+note, never a failure.
 
 Ground-truth driven: the **file** is the truth, the DB is a cache. Every
 write is atomic (tmp + rename, audio stream-copied — never re-encoded).
@@ -21,6 +23,8 @@ fulltags audit <folder> [--json]     completeness gate (same gate as `megadj aud
 fulltags <folder> --fingerprint      chromaprint fingerprint → TXXX:ACOUSTID (brew install chromaprint)
 fulltags <folder> --bpm              beat_this tempo → TBPM (uv-managed env; ~1 s/track CPU)
 fulltags <folder> --key              OpenKeyScan key → TKEY + TXXX:CAMELOT (clone the analyzer repo)
+fulltags <folder> --mood             Essentia ONNX mood/dance/valence → TXXX:MOOD (~320 MB models, auto-downloaded once)
+fulltags ensure-models               pre-download the mood model set (~320 MB → ~/.local/share/fulltags-models)
 bun run fulltags/verify-key.ts <folder> --limit 20   # key gauntlet gate: ≥80% vs existing tags
 ```
 
@@ -46,7 +50,7 @@ megadj's modules are now thin re-export shims so nothing else had to change
 
 ```
 fulltags/
-  cli.ts                 CLI entry (enrich + audit + single subcommands)
+  cli.ts                 CLI entry (enrich + audit + single + ensure-models subcommands)
   src/
     schema.ts            FullTag / TagPatch types, genre canon + vocabulary
     schema-guards.ts     validatePatch (runtime guards before any write)
@@ -57,13 +61,16 @@ fulltags/
     metadata-build.ts    yt-dlp info → EnrichedMetadata (cleanTitle, credits)
     art-sources.ts       SC search + every artwork source (the art ladder)
     ai.ts                OpenRouter genre/year fallback (conf ≥ 0.7)
+    analysis.ts          chromaprint / beat_this / OpenKeyScan stages
+    models.ts            ONNX mood/dance/valence (essentia melspec + onnxruntime)
+    mb.ts                MusicBrainz folksonomy genre harvest (1 rps)
     convert.ts           WAV → AIFF (rekordbox covers)
     remix.ts             `X - Y (Z Remix)` detection
     pipeline.ts          enrichTrack / enrichAll — the orchestrator
     exports.ts           public import surface
-  test/                  85 tests (schema, writer round-trips, pipeline,
+  test/                  93 tests (schema, writer round-trips, pipeline,
                          m4a/AIFF stamps, audit gate, CLI subcommands,
-                         analysis stages — env-gated)
+                         analysis + mood stages — env-gated)
 ```
 
 ## The ladders (first success wins)
@@ -71,11 +78,11 @@ fulltags/
 | Field    | Order                                                                                                |
 | -------- | ---------------------------------------------------------------------------------------------------- |
 | identity | file tags → filename parse → MusicBrainz recording (1 rps)                                           |
-| genre    | file → SoundCloud tags (via yt-dlp scsearch) → canonical map → AI classifier (conf ≥ 0.7)            |
+| genre    | file → SoundCloud tags (via yt-dlp scsearch) → canonical map → MB folksonomy → AI (conf ≥ 0.7)       |
 | year     | file → SC upload timestamp (the **remix** year) → AI (verify: flash-lite guesses 2023)               |
 | artwork  | embedded → SC page og:image (original/t1080) → hype gateways → mp3-twin → Deezer → iTunes → AI queue |
 | remixer  | title/filename `(Remixer Remix/Flip/Edit)` pattern                                                   |
-| energy   | ffmpeg RMS astats → 1–10 (Mixed In Key style baseline)                                               |
+| energy   | RMS 1–10 baseline; **energy 2.0**: `0.5·RMS + 0.3·dance + 0.2·arousal` when a MOOD stamp exists      |
 
 ## AI provenance (trust in automation)
 
@@ -103,15 +110,19 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
 - **failed writes clean up** — a corrupt input must never leave an orphan
   `.tagged` tmp in the folder (Bun's `$` throws on non-zero exit, so the
   unlink lives in `catch`, not after an exit-code check).
-- **analysis-stage envs** (see roadmap rev 4 §7 for the full list): beat_this
-  has no tempo field on the programmatic path (derive `60/median(Δbeats)`;
-  beats arrive in seconds); **compressed containers (mp3/m4a/aac) must be
-  ffmpeg-decoded to a temp wav first** — beat_this's loader and the key
-  analyzer's librosa both fail to demux them; OpenKeyScan treats **stdin
-  EOF as shutdown** (never `stdin.end()` before responses land) and its
-  stdout must be read line-by-line, never buffered-to-end;
-  uv `--with-requirements` ≠ the same pins spelled as `--with` flags (the
-  latter hung).
+- **analysis-stage envs** (see roadmap rev 4 §7 + rev 6.1 §2/#4 for the full
+  list): beat_this has no tempo field on the programmatic path (derive
+  `60/median(Δbeats)`; beats arrive in seconds); **compressed containers
+  (mp3/m4a/aac) must be ffmpeg-decoded to a temp wav first** — beat_this's
+  loader and the key analyzer's librosa both fail to demux them;
+  OpenKeyScan treats **stdin EOF as shutdown** (never `stdin.end()` before
+  responses land) and its stdout must be read line-by-line, never
+  buffered-to-end; uv `--with-requirements` ≠ the same pins spelled as
+  `--with` flags (the latter hung). Mood stage: effnet wants essentia
+  `TensorflowInputMusiCNN` melspec in **128-frame chunks** (fixed batch on
+  the ONNX export); head label order is `[not_X, X]` (positive = LAST);
+  emomusic reads **(valence, arousal) on a 1–9 scale**; vggish wants
+  400/200 frames → 96-frame patches transposed to (64, 96).
 
 ## Usage
 
@@ -119,16 +130,20 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
 bun run fulltags/cli.ts <folder-or-file>               # enrich (folder or single file)
 bun run fulltags/cli.ts track.mp3 --energy --dry-run   # stage subset, no write
 bun run fulltags/cli.ts audit <archive-folder>         # completeness gate (--json for machines)
+bun run fulltags/cli.ts ensure-models                  # pre-pull the ~320 MB mood model set
 ```
 
-Stages: `--tags --genre --art --year --energy --fingerprint --bpm --key`
-(default: all; analysis stages need fpcalc / beat-this / the
-openkeyscan-analyzer clone). Other flags: `--jobs N`, `--upgrade-sc-art`,
+Stages: `--tags --genre --art --year --energy --fingerprint --bpm --key
+--mood` (default: all; analysis stages need fpcalc / beat-this / the
+openkeyscan-analyzer clone / the ONNX mood models — missing envs skip with
+a note). Other flags: `--jobs N`, `--upgrade-sc-art`,
 `--artwork-queue PATH | --no-queue`, `--archive-dir DIR`.
 
 **Env**: `OPENROUTER_API_KEY` for the AI genre/year fallback. Artwork misses
 append to `~/.local/state/megadj/artwork-queue.jsonl` so the existing
-`megadj artwork` AI-cover pass can pick them up.
+`megadj artwork` AI-cover pass can pick them up. Mood models live in
+`~/.local/share/fulltags-models` (MTG/UPF exports, CC BY-NC-SA — personal
+use).
 
 ## Relationship to megadj commands
 
@@ -137,8 +152,8 @@ append to `~/.local/state/megadj/artwork-queue.jsonl` so the existing
 | `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims       |
 | `megadj fetch`  | unchanged — `tools/fetch_all.ts` now writes through FullTags `writePatch` |
 | `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                   |
-| `megadj enrich` | MB genre top-up (kept; will fold into FullTags later)                     |
+| `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted) |
 
-The **roadmap** for what comes next (Essentia mood/genre models, dupe
-hunting on the new fingerprints) lives in
+The **roadmap** for what comes next (genre-head write pass, dupe hunting on
+the new fingerprints, structure cues) lives in
 [docs/fulltags-roadmap.md](../docs/fulltags-roadmap.md).

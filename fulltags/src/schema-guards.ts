@@ -52,6 +52,15 @@ export function validatePatch(vals: TagPatch): void {
       throw new TypeError(
         `${k} must be "value|confidence" (e.g. "Techno|0.92"), got ${v}`,
       );
+    if (k === "mood") {
+      // "k=v; k=v" pairs; numeric values 0–1 or valence/arousal 1–9
+      if (typeof v !== "string" || !v.trim())
+        throw new TypeError("mood must be a non-empty string");
+      if (v.length > 500) throw new TypeError(`mood too long (${v.length})`);
+      if (!v.split(";").every((p) => /^[a-zA-Z]+=[\d.]+$/.test(p.trim())))
+        throw new TypeError(`mood must be "k=v; k=v" numeric pairs, got ${v}`);
+      continue;
+    }
   }
 }
 
