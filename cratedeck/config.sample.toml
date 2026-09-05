@@ -5,7 +5,7 @@
 port = 7742
 
 [library]
-# reference drives for sync status
+# reference drives for sync status — set these to your actual volume names
 master_drive = "DJMASTER"
 mirror_drive = "DJMIRROR"
 

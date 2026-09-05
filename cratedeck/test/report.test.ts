@@ -203,6 +203,21 @@ describe("report checks", () => {
     expect(checks.find((c) => c.id === "mirror")!.status).toBe("pass");
   });
 
+  it("verify freshness: 6d old passes, 8d old warns (7d auto-verify interval)", () => {
+    const fresh = buildChecks({
+      ...baseInput,
+      latestVerify: { ran_at: Date.now() - 6 * 86_400_000, ok: true },
+    });
+    expect(fresh.find((c) => c.id === "verify")!.status).toBe("pass");
+    const stale = buildChecks({
+      ...baseInput,
+      latestVerify: { ran_at: Date.now() - 8 * 86_400_000, ok: true },
+    });
+    const v = stale.find((c) => c.id === "verify")!;
+    expect(v.status).toBe("warn");
+    expect(v.fix).toContain("auto-verify");
+  });
+
   it("artwork coverage check from dj stats", () => {
     const checks = buildChecks({
       ...baseInput,

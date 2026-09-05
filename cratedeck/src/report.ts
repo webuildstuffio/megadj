@@ -66,7 +66,7 @@ export function buildChecks(input: ReportInput): HealthCheck[] {
     });
   }
 
-  // ---- verify freshness ---------------------------------------------------
+  // ---- verify freshness (aligned with the 7d auto-verify interval) --------
   if (input.latestVerify) {
     const ageDays = (Date.now() - input.latestVerify.ran_at) / DAY;
     const changedSince = snap
@@ -80,7 +80,7 @@ export function buildChecks(input: ReportInput): HealthCheck[] {
         ? "fail"
         : changedSince
           ? "warn"
-          : ageDays > 30
+          : ageDays > 7
             ? "warn"
             : "pass",
       detail: !input.latestVerify.ok
@@ -90,8 +90,8 @@ export function buildChecks(input: ReportInput): HealthCheck[] {
           : `verified ${Math.round(ageDays)}d ago, all pass`,
       fix:
         input.latestVerify.ok && !changedSince
-          ? ageDays > 30
-            ? "Run Verify"
+          ? ageDays > 7
+            ? "Run Verify (auto-verify runs weekly on mount)"
             : undefined
           : "Run Verify",
     });

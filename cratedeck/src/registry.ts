@@ -8,6 +8,10 @@ import { legacySyncVerdict } from "./report";
 export type Emit = (channel: string, data: unknown) => void;
 
 export class Registry {
+  /** Drive ids that flipped ghost → mounted on the most recent sweep.
+   *  Consumed (and cleared) by the auto-scheduler in index.ts. */
+  justMountedIds = new Set<string>();
+
   constructor(
     private cfg: CrateConfig,
     private db: DB,
@@ -78,6 +82,7 @@ export class Registry {
             port: vol.portKey,
             plug_count: fresh.plug_count,
           });
+          this.justMountedIds.add(drive.id); // auto-scheduler picks this up
           this.emit("drives", this.list());
         }
       }

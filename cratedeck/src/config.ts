@@ -16,6 +16,10 @@ export interface CrateConfig {
   imageKey: string | null;
   verifyTimeoutMin: number;
   benchmarkMb: number;
+  /** Auto light-scan a drive when it mounts (default: on). */
+  autoScanOnMount: boolean;
+  /** Re-verify drives whose last verify is older than this many days (0 = off). */
+  verifyIntervalDays: number;
 }
 
 function parseTomlSimple(src: string): Record<string, any> {
@@ -80,6 +84,8 @@ export function loadConfig(root: string): CrateConfig {
       null,
     verifyTimeoutMin: file?.jobs?.verify_timeout_min ?? 40,
     benchmarkMb: file?.jobs?.benchmark_mb ?? 512,
+    autoScanOnMount: file?.automation?.auto_scan_on_mount ?? true,
+    verifyIntervalDays: file?.automation?.verify_interval_days ?? 7,
   };
   if (cfg.imageProvider && !["brave", "exa"].includes(cfg.imageProvider)) {
     throw new Error(`config: unknown images.provider '${cfg.imageProvider}'`);

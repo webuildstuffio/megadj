@@ -17,6 +17,11 @@ import {
   diff,
   trackLocations,
 } from "./fleet";
+import {
+  shouldAutoScan,
+  shouldAutoVerify,
+  autoVerifyReason,
+} from "./auto_schedule";
 import type { Drive, JobKind, SnapshotData } from "../shared/types";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
@@ -83,12 +88,72 @@ async function reconcile(): Promise<void> {
   reconciling = true;
   try {
     registry.reconcile(await listMountedVolumes(cfg.volumesRoot));
+    autoSchedule();
   } catch (e) {
     console.error("reconcile:", (e as Error).message);
   } finally {
     reconciling = false;
   }
 }
+
+/** ideas.md §C17: on mount → light scan automatically; stale verify → auto
+ *  verify weekly. Decisions in auto_schedule.ts (pure, tested); this only
+ *  resolves inputs and enqueues. All job-engine guards (dedupe, interlock,
+ *  per-drive concurrency) still apply on top. */
+function autoSchedule(): void {
+  const now = Date.now();
+  // 1 — mount-triggered light scan
+  if (registry.justMountedIds.size) {
+    const snaps = db.latestSnapshots();
+    for (const id of registry.justMountedIds) {
+      const drive = db.getDrive(id);
+      if (!drive?.mounted) continue;
+      const snap = snaps.get(id);
+      const hasFresh = !!snap?.taken_at && now - snap.taken_at < 60_000;
+      if (
+        shouldAutoScan(
+          { mounted: true, justMounted: true, hasFreshSnapshot: hasFresh },
+          cfg.autoScanOnMount,
+        )
+      ) {
+        const j = jobs.enqueue(id, "scan", mountPointOf(drive.name));
+        console.log(`cratedeck: auto-scan ${drive.name} (${j.id.slice(0, 8)})`);
+      }
+    }
+    registry.justMountedIds.clear();
+  }
+  // 2 — weekly auto-verify for mounted drives (checked every sweep; cheap)
+  if (cfg.verifyIntervalDays > 0) {
+    for (const drive of db.allDrives()) {
+      if (!drive.mounted) continue;
+      if (db.activeJobOfKind(drive.id, "verify")) continue;
+      const last = db.latestVerify(drive.id);
+      const input = {
+        mounted: true,
+        lastVerifyAt: last?.ran_at ?? null,
+        hasActiveJob: !!db.activeJobOfKind(drive.id, "scan"),
+        now,
+      };
+      if (shouldAutoVerify(input, cfg.verifyIntervalDays)) {
+        // one shot per server boot per drive: mark by enqueueing (dedupe)
+        // and remembering the decision so a failed verify doesn't loop
+        const lastAttempt = autoVerifyAttempts.get(drive.id) ?? 0;
+        if (now - lastAttempt < 3_600_000) continue; // max 1 attempt/hour
+        autoVerifyAttempts.set(drive.id, now);
+        const reason = autoVerifyReason(input, cfg.verifyIntervalDays);
+        const j = jobs.enqueue(drive.id, "verify", mountPointOf(drive.name));
+        console.log(
+          `cratedeck: auto-verify ${drive.name} (${j.id.slice(0, 8)}) — ${reason}`,
+        );
+      }
+    }
+  }
+}
+
+function mountPointOf(driveName: string): string {
+  return `${cfg.volumesRoot}/${driveName}`;
+}
+const autoVerifyAttempts = new Map<string, number>();
 const watcher = watchVolumes(cfg.volumesRoot, reconcile);
 await reconcile(); // initial sweep
 
