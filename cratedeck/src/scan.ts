@@ -4,7 +4,11 @@
 // READ-ONLY on the drive: never writes, never renames, never deletes.
 // One walkTree pass collects everything (the old code walked + statSync'd
 // per concern; now it's a single traversal).
-import { spawnSync } from "node:child_process";
+//
+// Async end-to-end (fs/promises + `df` via Bun.spawn): scanVolume runs on
+// the server's event loop — the sync version blocked it for the whole walk,
+// starving the SSE heartbeat (Bun kills silent streams ~10s) and stalling
+// every API request (see AGENTS.md invariants — keep scans async).
 import type { SnapshotData } from "../shared/types";
 import { walkTree, extOf } from "./walk";
 
@@ -37,10 +41,17 @@ export function ageBucket(mtimeMs: number, now = Date.now()): keyof AgeBuckets {
   return "ancient";
 }
 
-export function freeBytes(mountPoint: string): number | null {
-  const p = spawnSync("df", ["-k", mountPoint], { encoding: "utf8" });
-  if (p.status !== 0) return null;
-  const last = p.stdout.trim().split("\n").at(-1);
+/** Free bytes on the volume holding `mountPoint`, via `df -k` (async). */
+export async function freeBytes(mountPoint: string): Promise<number | null> {
+  const proc = Bun.spawn(["df", "-k", mountPoint], {
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const exitedTimer = proc.exited;
+  const out = await new Response(proc.stdout).text();
+  await exitedTimer;
+  if (proc.exitCode !== 0) return null;
+  const last = out.trim().split("\n").at(-1);
   if (!last) return null;
   const cols = last.split(/\s+/);
   // macOS df -k: Filesystem 1024-blocks Used Available Capacity ...
@@ -48,7 +59,7 @@ export function freeBytes(mountPoint: string): number | null {
   return Number.isFinite(n) ? n * 1024 : null;
 }
 
-export function scanVolume(mountPoint: string): SnapshotData {
+export async function scanVolume(mountPoint: string): Promise<SnapshotData> {
   const folders = new Map<string, { files: number; bytes: number }>();
   const byExt = new Map<string, { files: number; bytes: number }>();
   const largest: { path: string; bytes: number }[] = [];
@@ -60,7 +71,7 @@ export function scanVolume(mountPoint: string): SnapshotData {
   let totalBytes = 0;
   let orphanForks = 0;
 
-  walkTree(mountPoint, {
+  await walkTree(mountPoint, {
     onlySubdir: "Contents", // prefer rekordbox layout; falls back to root
     onFile: (_p, st, relPath) => {
       const base = relPath.split("/").at(-1) ?? "";
@@ -97,7 +108,12 @@ export function scanVolume(mountPoint: string): SnapshotData {
         if (AUDIO_EXT.has(ext)) {
           age[ageBucket(st.mtimeMs)]++;
           const key = nfcCasefold(relPath);
-          byFolded.set(key, [...(byFolded.get(key) ?? []), relPath]);
+          // PERF: build the folded group in place — the old
+          // `[...spread, x]` re-copied the array on every audio file
+          // (O(n²) over a library).
+          const group = byFolded.get(key);
+          if (group) group.push(relPath);
+          else byFolded.set(key, [relPath]);
           // fleet manifest: audio byte-truth for §B8 fleet diff. Contents/
           // stripped + folded to match fleet track identity. Strip BEFORE the
           // casefold — nfcCasefold lowercases, so /^Contents\// would never
@@ -129,7 +145,7 @@ export function scanVolume(mountPoint: string): SnapshotData {
     taken_at: Date.now(),
     file_count: fileCount,
     total_bytes: totalBytes,
-    free_bytes: freeBytes(mountPoint),
+    free_bytes: await freeBytes(mountPoint),
     folders: [...folders.entries()]
       .map(([name, f]) => ({ name, ...f }))
       .sort((a, b) => b.files - a.files)

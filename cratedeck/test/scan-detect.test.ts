@@ -30,9 +30,9 @@ function makeFakeDrive(): string {
 }
 
 describe("scan", () => {
-  it("counts files, detects junk, ignores resource forks", () => {
+  it("counts files, detects junk, ignores resource forks", async () => {
     const root = makeFakeDrive();
-    const snap = scanVolume(root);
+    const snap = await scanVolume(root);
     expect(snap.kind).toBe("light");
     expect(snap.junk?.zero_byte).toContain(
       "Contents/YTMusic Liked/002 - Artist - Other.m4a",
@@ -58,11 +58,11 @@ describe("scan", () => {
     expect(collisions).toEqual(["Contents/Dance.MP3", "Contents/dance.mp3"]);
   });
 
-  it("manifest paths are Contents-stripped AND folded (strip before fold)", () => {
+  it("manifest paths are Contents-stripped AND folded (strip before fold)", async () => {
     // Regression: fold-then-strip left every row as "contents/…" so diff()
     // byte lookups against fleet track paths always missed.
     const root = makeFakeDrive();
-    const snap = scanVolume(root);
+    const snap = await scanVolume(root);
     const man = snap.manifest ?? [];
     expect(man.length).toBeGreaterThan(0);
     for (const m of man) {

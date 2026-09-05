@@ -302,7 +302,7 @@ export class JobEngine {
     switch (job.kind) {
       case "scan": {
         tick(0, 1, "walking filesystem…", "light-scan", true);
-        const light = scanVolume(mountPoint);
+        const light = await scanVolume(mountPoint);
         this.db.setSnapshot(job.drive_id, light);
         this.db.event(job.drive_id, "scan", {
           kind: "light",
@@ -455,11 +455,14 @@ export class JobEngine {
       }
       case "benchmark": {
         tick(0, 1, "reading largest files sequentially…", "bench-seq", true);
-        if (handle.cancelled) throw new Error("cancelled");
-        const r = benchmarkDrive(mountPoint, this.cfg.benchmarkMb);
-        // benchmarkDrive is sync I/O (repo-invariant exception for now):
-        // at least refuse to PERSIST results for a job cancelled mid-read.
-        if (handle.cancelled) throw new Error("cancelled");
+        // benchmarkDrive is now async + cancellation-aware: reads abort
+        // promptly on cancel instead of running to completion, and the
+        // event loop stays live throughout (SSE heartbeat keeps firing).
+        const r = await benchmarkDrive(
+          mountPoint,
+          this.cfg.benchmarkMb,
+          handle,
+        );
         this.db.addBenchmark(job.drive_id, r.seq_mbps, r.rand4k_mbps);
         this.db.event(job.drive_id, "benchmark", {
           seq: r.seq_mbps,

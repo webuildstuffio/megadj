@@ -51,15 +51,25 @@ export function jobTerminal(status: JobStatus | string): boolean {
   return (TERMINAL_JOB_STATUSES as readonly string[]).includes(status);
 }
 
-export async function apiGet(path: string): Promise<Response> {
-  return fetch(`${BASE}${path}`);
+export async function apiGet(
+  path: string,
+  timeoutMs = 10_000,
+): Promise<Response> {
+  // every server round-trip gets a deadline: a wedged/restarting server
+  // must surface as a catchable failure, not an infinite client hang
+  return fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
 }
 
-export async function apiPost(path: string, body?: unknown): Promise<Response> {
+export async function apiPost(
+  path: string,
+  body?: unknown,
+  timeoutMs = 30_000,
+): Promise<Response> {
   return fetch(`${BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 }
 
@@ -118,8 +128,26 @@ export async function waitForJob(
 ): Promise<Job> {
   const deadline = Date.now() + (opts.timeoutMs ?? 30 * 60 * 1000);
   let last = "";
+  let transientErrors = 0;
   while (Date.now() < deadline) {
-    const j = (await apiGet(`/api/jobs/${jobId}`).then((r) => r.json())) as Job;
+    let j: Job;
+    try {
+      j = (await apiGet(`/api/jobs/${jobId}`, 5_000).then((r) =>
+        r.json(),
+      )) as Job;
+      transientErrors = 0;
+    } catch (e) {
+      // the job is RUNNING on the server — a dropped poll (server busy in a
+      // benchmark, brief restart) must not fail the wait; only give up after
+      // repeated consecutive failures
+      if (++transientErrors >= 10) {
+        throw new Error(
+          `job ${jobId} unreachable after 10 consecutive polls: ${(e as Error).message}`,
+        );
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+      continue;
+    }
     // dedupe on status+message: progress ticks fire every poll by design,
     // so including them would re-notify on each 3s poll while % moves
     const key = `${j.status}:${j.message}`;

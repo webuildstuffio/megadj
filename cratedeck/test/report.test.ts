@@ -1,4 +1,4 @@
-import { afterAll, describe, it, expect } from "bun:test";
+import { afterAll, beforeAll, describe, it, expect } from "bun:test";
 import { ageBucket, freeBytes, nfcCasefold, scanVolume } from "../src/scan";
 import { buildChecks, overall } from "../src/report";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -18,7 +18,10 @@ function makeFakeDrive(): string {
 
 describe("scan space analysis", () => {
   const vol = makeFakeDrive();
-  const snap = scanVolume(vol);
+  let snap: SnapshotData;
+  beforeAll(async () => {
+    snap = await scanVolume(vol);
+  });
 
   it("counts files, bytes, junk as before", () => {
     expect(snap.file_count).toBe(3);
@@ -45,8 +48,8 @@ describe("scan space analysis", () => {
     expect(total).toBe(2); // only audio files bucketed
   });
 
-  it("reads free space via df", () => {
-    const free = freeBytes(vol);
+  it("reads free space via df", async () => {
+    const free = await freeBytes(vol);
     expect(free).toBeGreaterThan(0);
   });
 

@@ -51,13 +51,23 @@ interface RpcRequest {
 }
 
 function reply(id: JsonRpcId, result: unknown): void {
-  process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\n");
+  // EPIPE-safe: when the client closes the pipe (timeout, disconnect) the
+  // server must not crash — an unwritable stdout just means nobody listens.
+  try {
+    process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\n");
+  } catch {
+    /* client gone */
+  }
 }
 
 function replyError(id: JsonRpcId, code: number, message: string): void {
-  process.stdout.write(
-    JSON.stringify({ jsonrpc: "2.0", id, error: { code, message } }) + "\n",
-  );
+  try {
+    process.stdout.write(
+      JSON.stringify({ jsonrpc: "2.0", id, error: { code, message } }) + "\n",
+    );
+  } catch {
+    /* client gone */
+  }
 }
 
 const ERR_PARAMS = -32602;

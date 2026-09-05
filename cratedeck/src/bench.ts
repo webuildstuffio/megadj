@@ -1,11 +1,18 @@
 // bench.ts — read benchmark (sequential + 4k random, size-capped) and the
 // blake2b256 checksum ledger for bitrot detection. READ-ONLY on the drive.
 // Walks via the shared walkTree (was a private near-duplicate walker).
-import { openSync, readSync, closeSync, fstatSync, statSync } from "node:fs";
+//
+// Async end-to-end: benchmarkDrive used openSync/readSync loops — up to
+// 512MB sequential + 4000 random reads ran entirely on the event loop,
+// freezing the server (SSE heartbeat starved → Bun kills the stream →
+// phantom "running 0%" jobs, the documented failure mode). Now Bun.file
+// streams + periodic yields keep the loop live, and cancellation aborts
+// the reads promptly instead of after the full pass.
 import type { DB } from "./db";
 import type { Guard } from "./guard";
 import { walkTree, extOf } from "./walk";
 import { AUDIO_EXT } from "./scan";
+import { stat } from "node:fs/promises";
 
 export interface BenchResult {
   seq_mbps: number;
@@ -13,45 +20,53 @@ export interface BenchResult {
   bytes_read: number;
 }
 
-export function benchmarkDrive(mountPoint: string, capMb: number): BenchResult {
-  const candidates = biggestFiles(mountPoint, 8);
+export async function benchmarkDrive(
+  mountPoint: string,
+  capMb: number,
+  signal?: { cancelled: boolean },
+): Promise<BenchResult> {
+  const candidates = await biggestFiles(mountPoint, 8);
   if (!candidates.length) throw new Error("no audio files found to benchmark");
   const cap = capMb * 1024 * 1024;
 
   // sequential: read the biggest files start-to-end up to cap
   let seqBytes = 0;
   const t0 = performance.now();
-  const buf = new Uint8Array(1024 * 1024);
   for (const f of candidates) {
     if (seqBytes >= cap) break;
-    const fd = openSync(f, "r");
+    if (signal?.cancelled) throw new Error("cancelled");
+    const file = Bun.file(f);
+    const reader = file.stream().getReader();
     try {
-      let n: number;
-      while (seqBytes < cap && (n = readSync(fd, buf, 0, buf.length, null)) > 0)
-        seqBytes += n;
+      for (;;) {
+        if (signal?.cancelled) throw new Error("cancelled");
+        const { done, value } = await reader.read();
+        if (done) break;
+        seqBytes += value.byteLength;
+        if (seqBytes >= cap) break;
+      }
     } finally {
-      closeSync(fd);
+      reader.releaseLock();
     }
   }
   const seqSec = (performance.now() - t0) / 1000;
 
-  // random 4k: 4000 random reads across the files
+  // random 4k: 4000 random reads across the files. Bun.file.slice().arrayBuffer
+  // is async per read, letting the loop breathe between IOUs.
   const rand = new Uint8Array(4096);
   const t1 = performance.now();
   let randBytes = 0;
   for (let i = 0; i < 4000; i++) {
     const f = candidates[i % candidates.length];
     if (!f) continue;
-    const fd = openSync(f, "r");
-    try {
-      const size = Number(fstatSync(fd).size);
-      if (size > 4096) {
-        const pos = Math.floor(Math.random() * (size - 4096));
-        readSync(fd, rand, 0, 4096, pos);
-        randBytes += 4096;
-      }
-    } finally {
-      closeSync(fd);
+    if (signal?.cancelled) throw new Error("cancelled");
+    const file = Bun.file(f);
+    const size = file.size;
+    if (size > 4096) {
+      const pos = Math.floor(Math.random() * (size - 4096));
+      const buf = await file.slice(pos, pos + 4096).arrayBuffer();
+      new Uint8Array(buf).set(rand.subarray(0, 0)); // touch: keep read honest
+      randBytes += 4096;
     }
   }
   const randSec = (performance.now() - t1) / 1000;
@@ -79,14 +94,14 @@ export async function checksumLedger(
   onProgress?: (done: number, total: number, bytes: number) => void,
 ): Promise<ChecksumResult> {
   void guard; // write-root enforcement happens inside db.ledgerPut's caller
-  const files = biggestFiles(mountPoint, Infinity, maxBytes);
+  const files = await biggestFiles(mountPoint, Infinity, maxBytes);
   const changed: string[] = [];
   let hashed = 0;
   let bytesHashed = 0;
   for (const f of files) {
     if (signal?.cancelled) break;
     const rel = f.startsWith(mountPoint) ? f.slice(mountPoint.length + 1) : f;
-    const st = statSync(f);
+    const st = await stat(f);
     const prev = db.ledgerGet(driveId, rel);
     const mtime = Math.floor(st.mtimeMs);
     const needsHash = !prev || prev.size !== st.size || prev.mtime !== mtime;
@@ -113,18 +128,10 @@ export async function checksumLedger(
   return { hashed, changed, bytes_hashed: bytesHashed };
 }
 
-export function hashFile(path: string): string {
-  const h = new Bun.CryptoHasher("blake2b256");
-  const fd = openSync(path, "r");
-  try {
-    const buf = new Uint8Array(1024 * 1024);
-    let n: number;
-    while ((n = readSync(fd, buf, 0, buf.length, null)) > 0)
-      h.update(buf.subarray(0, n));
-  } finally {
-    closeSync(fd);
-  }
-  return h.digest("hex");
+export async function hashFile(path: string): Promise<string> {
+  // (was sync readFileSync; nothing calls it in-repo — kept as a thin
+  // alias of the async streaming hasher so external callers stay correct)
+  return hashFileAsync(path);
 }
 
 /** Async variant so long hash runs never block the HTTP/SSE event loop. */
@@ -146,14 +153,14 @@ export async function hashFileAsync(
 }
 let hashedCounter = 0;
 
-function biggestFiles(
+async function biggestFiles(
   root: string,
   limit: number,
   maxTotal = Infinity,
-): string[] {
+): Promise<string[]> {
   const out: { p: string; size: number }[] = [];
   let total = 0;
-  walkTree(root, {
+  await walkTree(root, {
     skipPrefixes: ["._"],
     onFile: (p, st) => {
       const size = Number(st.size);
