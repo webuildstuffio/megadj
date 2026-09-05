@@ -125,6 +125,10 @@ complete the metadata → agentify). Headliners:
 - **Scheduled unattended sync** — sync→mirror→verify as one job with
   notifications, safe under the interlock (§C22)
 
+_Shipped since this list was written: auto-scan on mount + weekly
+auto-verify (§B17), fleet coverage/redundancy/diff (§B6–B8), ⌘K search
+over snapshots + the Fleet page._
+
 ### GetDat v2
 
 - **SoundCloud as a first-class source** — favorites sync, 320 kbps streams,
@@ -141,8 +145,9 @@ complete the metadata → agentify). Headliners:
 
 - **Acoustic fingerprint ledger** — Chromaprint per file: cross-format dupe
   detection, verified swaps, untagged-file identification (§L62)
-- **Key detection that beats rekordbox** — libKeyFinder (90% on dance music
-  vs rekordbox 7's 69%), Camelot tags + harmonic-mix panel (§I51)
+- **Key detection that beats rekordbox** — OpenKeyScan (GiantSteps-trained,
+  ~79%), ~90%-class accuracy on dance vs rekordbox 7's 69%, writing `TKEY` +
+  Camelot + a harmonic-mix panel (§I51)
 - **Real BPM + downbeats via `beat_this`** — current open SOTA (MIT,
   CPU-friendly); feeds `TBPM` and anchors structure-aware cues later (§I46);
   BeatFM beats it on paper but ships no weights (§research notes)
