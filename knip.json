@@ -2,18 +2,30 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["src/cli.ts", "tools/fetch_all.ts", "tools/fix_years.ts"],
-      "ignoreExportsUsedInFile": true
+      "entry": ["tools/fetch_all.ts", "tools/fix_years.ts"],
+      "ignore": ["fulltags/**"],
+      "ignoreExportsUsedInFile": true,
+      "ignoreBinaries": [
+        "oxlint",
+        "ditto",
+        "ffmpeg",
+        "uv",
+        "ffprobe",
+        "yt-dlp",
+        "plutil"
+      ],
+      "ignoreDependencies": ["preact"]
     },
     "cratedeck": {
       "entry": [
-        "src/index.ts",
         "src/deckctl.ts",
         "src/bench.ts",
         "shared/types.ts",
-        "test/*.test.ts",
-        "web/main.tsx"
+        "test/*.test.ts"
       ],
+      "ignoreExportsUsedInFile": true
+    },
+    "cratedeck/web": {
       "ignoreExportsUsedInFile": true
     }
   }

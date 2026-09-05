@@ -39,7 +39,7 @@ import {
   gatewayArt,
   groundTruth,
   archiveFiles,
-  itunesArt,
+  itunesArtwork as itunesArtUrl,
   pageOgImage,
   scSearch,
   setFileTags,
@@ -242,7 +242,10 @@ async function processTask(
     }
     // 3e. itunes
     if (!done) {
-      const it = await itunesArt(r);
+      // FullTags itunesArtwork returns a URL; fetch bytes here to keep the
+      // same embed+DB flow as the other art sources.
+      const url = await itunesArtUrl(r.artist ?? "", r.album ?? r.title);
+      const it = url ? await fetchImage(url) : null;
       if (it && embedArt(r.file_path, it)) {
         done = true;
         stats.artItunes++;
