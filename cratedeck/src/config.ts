@@ -22,6 +22,8 @@ export interface CrateConfig {
   autoScanOnMount: boolean;
   /** Re-verify drives whose last verify is older than this many days (0 = off). */
   verifyIntervalDays: number;
+  /** megadj's archive DB (O82b archive tools read it; never written). */
+  archiveDbPath: string;
 }
 
 /** Raw TOML value: what the tiny parser can produce. */
@@ -125,6 +127,9 @@ export function loadConfig(root: string): CrateConfig {
       typeof automation.verify_interval_days === "number"
         ? automation.verify_interval_days
         : 7,
+    archiveDbPath:
+      process.env.MEGADJ_DB ??
+      `${process.env.HOME}/.local/state/megadj/archive.db`,
   };
   if (cfg.imageProvider && !["brave", "exa"].includes(cfg.imageProvider)) {
     throw new Error(`config: unknown images.provider '${cfg.imageProvider}'`);

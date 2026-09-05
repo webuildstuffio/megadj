@@ -8,6 +8,8 @@
 //   bun run cratedeck/src/deckctl.ts status [--json]
 //   bun run cratedeck/src/deckctl.ts drives [--json]
 //   bun run cratedeck/src/deckctl.ts report <drive> [--json]   # name or UUID
+//   bun run cratedeck/src/deckctl.ts preflight [--json]        # gig-night gate
+//   bun run cratedeck/src/deckctl.ts prep [--out FILE]         # weekly digest (O83)
 //   bun run cratedeck/src/deckctl.ts run <drive> <scan|verify|mirror|benchmark|checksum> [--wait] [--json]
 //   bun run cratedeck/src/deckctl.ts jobs [--json]
 //   bun run cratedeck/src/deckctl.ts explain [kind]            # what each job does
@@ -122,6 +124,56 @@ async function cmdDrives(): Promise<void> {
       .join("  ");
     log(`${d.mounted ? "🟢" : "⚫"} ${d.nickname ?? d.name}  ${badges}`);
   }
+}
+
+// ---- preflight (B12): the one command to run before leaving for a gig -------
+interface PreflightPayload {
+  generated_at: number;
+  overall: "ready" | "attention" | "not-ready" | "unknown";
+  summary: string;
+  mountedCount: number;
+  drives: {
+    drive: {
+      id: string;
+      name: string;
+      nickname: string | null;
+      mounted: boolean;
+    };
+    overall: "ready" | "attention" | "not-ready" | "unknown";
+    checks: {
+      id: string;
+      label: string;
+      status: "pass" | "warn" | "fail" | "unknown";
+      detail?: string;
+      fix?: string;
+    }[];
+    blockers: string[];
+  }[];
+}
+
+/** Exit codes carry the verdict: 0 ready · 1 attention/not-ready/unknown so
+ *  cron + agents can gate on it without parsing JSON. */
+async function cmdPreflight(): Promise<void> {
+  const r = await getJson<PreflightPayload>("/api/preflight");
+  if (JSON_MODE) {
+    console.log(JSON.stringify(r, null, 2));
+    if (r.overall !== "ready") process.exit(1);
+    return;
+  }
+  log(`preflight — ${r.summary}`);
+  log("");
+  const icon = { pass: "✓", warn: "▲", fail: "✕", unknown: "○" };
+  for (const d of r.drives) {
+    if (!d.drive.mounted) continue;
+    log(
+      `${d.overall === "ready" ? "🟢" : d.overall === "not-ready" ? "🔴" : d.overall === "attention" ? "🟡" : "⚪"} ${d.drive.nickname ?? d.drive.name} — ${d.overall}`,
+    );
+    for (const c of d.checks) {
+      log(`  ${icon[c.status]} ${c.label}: ${c.detail ?? ""}`);
+      if (c.fix) log(`     → ${c.fix}`);
+    }
+  }
+  if (r.overall !== "ready") process.exit(1);
 }
 
 async function cmdReport(nameOrId: string): Promise<void> {
@@ -449,6 +501,49 @@ async function cmdCancel(jobId: string): Promise<void> {
   process.exit(body.ok ? 0 : 1);
 }
 
+// ---- prep (O83): the weekly digest — fetch, render, write -------------------
+async function cmdPrep(outPath: string | undefined): Promise<void> {
+  const [pf, redundancy, ingest, lowq] = await Promise.all([
+    getJson<PreflightPayload>("/api/preflight"),
+    getJson<{
+      playlists: {
+        playlist: string;
+        verdict: "pass" | "warn" | "fail" | "unknown";
+        tracks: { at_risk: boolean }[];
+      }[];
+    }>("/api/fleet/redundancy"),
+    getJson<import("./weekly_prep").IngestDigest>("/api/archive/ingest-status"),
+    getJson<import("./weekly_prep").LowqDigest>("/api/archive/lowq"),
+  ]);
+  // digest shape: only the fields the renderer reads; at_risk tracks are the
+  // per-playlist gap count
+  const digestIn: import("./weekly_prep").WeeklyPrepInput = {
+    preflight: pf,
+    redundancy: {
+      playlists: redundancy.playlists
+        .filter((p) => p.verdict !== "unknown")
+        .map((p) => ({
+          name: p.playlist,
+          verdict: p.verdict === "unknown" ? "warn" : p.verdict,
+          missing_count: p.tracks.filter((t) => t.at_risk).length,
+        })),
+    },
+    ingest,
+    lowq,
+  };
+  const { renderWeeklyPrep } = await import("./weekly_prep");
+  const md = renderWeeklyPrep(digestIn);
+  if (JSON_MODE) {
+    console.log(JSON.stringify({ ...digestIn, markdown: md }, null, 2));
+    return;
+  }
+  log(md);
+  if (outPath) {
+    await Bun.write(outPath, md + "\n");
+    log(`\nwritten: ${outPath}`);
+  }
+}
+
 // ---- explain: what each job actually does, how long, why it matters ---------
 interface KindDoc {
   what: string;
@@ -565,6 +660,14 @@ async function main(): Promise<void> {
       return cmdStatus();
     case "drives":
       return cmdDrives();
+    case "preflight":
+      return cmdPreflight();
+    case "prep":
+      return cmdPrep(
+        process.argv.includes("--out")
+          ? process.argv[process.argv.indexOf("--out") + 1]
+          : undefined,
+      );
     case "report":
       return cmdReport(args[1] ?? usage());
     case "run":
@@ -611,6 +714,8 @@ function usage(): never {
       "  run <drive> <kind>            enqueue + follow a job (scan|verify|mirror|benchmark|checksum)",
       "  coverage [min-copies]         which tracks live on which drives + at-risk list",
       "  redundancy [min-copies]       per-playlist audit: every track on ≥N drives?",
+      "  preflight                     gig-night pass/fail across all mounted drives (exit 1 if not ready)",
+      "  prep [--out FILE]             weekly digest: fleet + redundancy + archive markdown",
       "  diff <driveA> <driveB>        added / removed / changed between two drives",
       "  explain [kind]                what each job checks, typical duration, safety",
       "  jobs                          recent jobs",

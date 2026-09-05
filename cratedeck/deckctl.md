@@ -23,6 +23,8 @@ bun run deckctl <command> [--json]    # repo-root script (short form)
 | `cancel <jobId>`         | cancel an active job                                                                                                           |
 | `stop`                   | stop the CrateDeck server                                                                                                      |
 | `explain [kind]`         | documentation as a tool: what each job type checks, typical duration, safety guarantees                                        |
+| `preflight`              | **B12 gig-night gate**: pass/fail checklist over all mounted drives (dual-DB, grids, verify, speed, bitrot, space, parity)     |
+| `prep [--out FILE]`      | **O83 weekly digest**: fleet + redundancy + archive markdown, written to `--out` when given                                    |
 
 `<drive>` = volume name, nickname, or UUID.
 
@@ -39,6 +41,23 @@ deckctl redundancy          # "every track in this playlist is on ≥2 drives �
 deckctl diff MASTER MIRROR  # master vs mirror drift
 deckctl coverage --json     # feed agents/dashboards
 ```
+
+## Gig-night commands (B12 + O83)
+
+```bash
+deckctl preflight           # THE gate before leaving for a gig: per-drive
+                            # pass/fail + fixes; exit 1 when not ready —
+                            # cron/agents can gate on the code alone
+deckctl prep                # weekly digest (markdown): fleet verdict,
+                            # redundancy gaps, archive status, LOWQ queue
+deckctl prep --out prep.md  # same, written to a file
+deckctl prep --json         # full digest payload + rendered markdown
+```
+
+Preflight is an aggregated read of data scans/verifies/benchmarks/checksums
+already collected — it never touches a drive. It follows the report.ts
+verdict language: unknown never masquerades as ready, and a drive with no
+data reports `unknown` (exit 1) so a cron can schedule the missing scan.
 
 ## Flags
 
@@ -104,11 +123,16 @@ Register it in your MCP client config, e.g. (Cursor / Claude Desktop):
 Tools: `deck_status` · `deck_drives` · `deck_report {drive}` ·
 `deck_coverage {min_copies?}` · `deck_redundancy {min_copies?}` ·
 `deck_diff {a,b}` · `deck_jobs` · `deck_run {drive,kind,wait?}` ·
-`deck_cancel {job_id}` · `deck_explain {kind?}`.
+`deck_cancel {job_id}` · `deck_explain {kind?}` · `deck_preflight` ·
+`archive_search_tracks {q}` · `archive_track_stats {video_id}` ·
+`archive_ingest_status` · `archive_lowq_queue` · `archive_source_diff {a,b}`.
 
-`deck_run` is the only mutating tool; it refuses while rekordbox is running
-(the interlock is enforced server-side too — this is belt _and_ suspenders,
-never a bypass).
+`deck_run`/`deck_cancel` are the only mutating tools (`deck_cancel` is a
+push on an in-flight job; `deck_run` refuses while rekordbox is running —
+the interlock is enforced server-side too, belt _and_ suspenders, never a
+bypass). The `archive_*` tools are O82b: readonly reads over megadj's own
+archive DB (`MEGADJ_DB`, opened `readonly: true` — a bug there physically
+cannot corrupt archive state).
 
 Implementation note: `cratedeck/src/deckapi.ts` is the shared HTTP client
 (server auto-start, drive resolution, job polling) used by both `deckctl.ts`

@@ -12,6 +12,8 @@ import { driveBadgesView } from "./badges_view";
 import { buildReport, buildReportSummary, overall } from "./report";
 import { VERIFY_HELP } from "./verify_help";
 import { coverage, redundancy, diff, trackLocations } from "./fleet";
+import { ArchiveReader } from "./archive";
+import { buildPreflight, type PreflightInput } from "./preflight";
 import {
   shouldAutoScan,
   shouldAutoVerify,
@@ -29,6 +31,8 @@ db.masterName = cfg.masterDrive;
 db.mirrorName = cfg.mirrorDrive;
 const guard = new Guard(cfg);
 const webRoot = join(here, "web", "dist");
+// O82b archive tools: one shared readonly handle over megadj's archive DB
+const archive = new ArchiveReader(cfg.archiveDbPath);
 
 const clients = new Set<ReadableStreamDefaultController>();
 function sse(): Response {
@@ -214,6 +218,10 @@ Bun.serve({
             ),
           );
         }
+        // B12 preflight: the gig-night pass/fail across every mounted drive
+        if (route === "/preflight") {
+          return json(buildPreflight(allPreflightInputs()));
+        }
         const driveMatch = route.match(/^\/drives\/([^/]+)(\/.*)?$/);
         if (driveMatch?.[1]) {
           // clients percent-encode fingerprint ids (fp%3A…); pathname keeps
@@ -380,6 +388,30 @@ Bun.serve({
           );
           return json(result);
         }
+        // ---- archive reads (O82b): megadj's DB, readonly -----------------
+        if (route === "/archive/search") {
+          const q = (url.searchParams.get("q") ?? "").trim();
+          if (q.length < 2) return json({ error: "q must be ≥2 chars" }, 400);
+          return json(archive.searchTracks(q));
+        }
+        if (route === "/archive/track") {
+          const id = url.searchParams.get("id") ?? "";
+          const t = archive.trackStats(id);
+          return t ? json(t) : json({ error: "unknown video_id" }, 404);
+        }
+        if (route === "/archive/ingest-status") {
+          return json(archive.ingestStatus());
+        }
+        if (route === "/archive/lowq") {
+          return json(archive.lowqQueue());
+        }
+        if (route === "/archive/source-diff") {
+          const a = url.searchParams.get("a");
+          const b = url.searchParams.get("b");
+          if (!a || !b)
+            return json({ error: "a and b source names required" }, 400);
+          return json(archive.sourceDiff(a, b));
+        }
         if (route === "/images/search") {
           return json(await images.search(url.searchParams.get("q") ?? ""));
         }
@@ -396,6 +428,7 @@ Bun.serve({
           setTimeout(async () => {
             watcher.stop();
             await jobs.shutdown();
+            archive.close();
             db.close();
             process.exit(0);
           }, 50);
@@ -543,6 +576,38 @@ function reportInput(driveId: string) {
   };
 }
 
+/** B12 input collector: per mounted drive, gather only what preflight reads.
+ *  Mirrors reportInput's data plumbing but stays fleet-wide. */
+function allPreflightInputs(): PreflightInput[] {
+  const master = db.masterDrive();
+  const masterSnap: SnapshotData | null = master?.last_snapshot_json
+    ? JSON.parse(master.last_snapshot_json)
+    : null;
+  return registry
+    .list()
+    .filter((d) => d.mounted)
+    .map((d): PreflightInput => {
+      const snap: SnapshotData | null = d.last_snapshot_json
+        ? JSON.parse(d.last_snapshot_json)
+        : null;
+      if (snap && !snap.capacity_bytes && d.capacity_bytes)
+        snap.capacity_bytes = d.capacity_bytes;
+      return {
+        drive: d,
+        snapshot: snap,
+        latestVerify: db.latestVerify(d.id),
+        bench: db.benchmarks(d.id),
+        latestChecksum: db.latestChecksum(d.id),
+        ledgerFiles: db.ledgerCount(d.id),
+        masterSnapshot: d.id === master?.id ? null : masterSnap,
+        isMirror:
+          d.role === "mirror" ||
+          d.name.toUpperCase() === cfg.mirrorDrive.toUpperCase(),
+        now: Date.now(),
+      };
+    });
+}
+
 console.log(
   `cratedeck: http://127.0.0.1:${cfg.serverPort} (reaped jobs: ${reaped})`,
 );
@@ -550,6 +615,7 @@ console.log(
 process.on("SIGINT", async () => {
   watcher.stop();
   await jobs.shutdown();
+  archive.close();
   db.close();
   process.exit(0);
 });

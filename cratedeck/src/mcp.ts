@@ -21,6 +21,12 @@
  *   deck_run {drive, kind, wait}  ENQUEUES A JOB — scan|verify|mirror|benchmark|checksum
  *   deck_cancel {job_id}        cancel an active job
  *   deck_explain {kind?}        what each job does, typical duration, safety
+ *   deck_preflight              gig-night pass/fail across mounted drives (B12)
+ *   archive_search_tracks {q}   search the archive (O82b, readonly)
+ *   archive_track_stats {video_id}  one track's full archive row
+ *   archive_ingest_status       counts + recent runs + newest tracks
+ *   archive_lowq_queue          below-bitrate upgrade queue (D24)
+ *   archive_source_diff {a, b}  track-set diff between two sources
  */
 import {
   apiGet,
@@ -384,6 +390,110 @@ const TOOLS: Record<string, ToolDef> = {
           error: `unknown kind "${kind}" — one of: verify, ${Object.keys(others).join(", ")}`,
         }
       );
+    },
+  },
+
+  deck_preflight: {
+    description:
+      "B12 gig-night gate: aggregated pass/fail checklist over every mounted drive (dual-DB currency, grids, last verify, read speed, bitrot, space, mirror parity). Verdict is ready / attention / not-ready / unknown with per-check fixes. Read-only.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+    run: async () => apiGet("/api/preflight").then((r) => r.json()),
+  },
+
+  // ---- O82b: the archive half (megadj's own DB, readonly) -------------------
+  archive_search_tracks: {
+    description:
+      "Search megadj's downloaded archive by artist/title/album/file path (case-insensitive substring, min 2 chars). Read-only.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        q: { type: "string", description: "search text (≥2 chars)" },
+        limit: {
+          type: "number",
+          description: "max rows (default 50, max 200)",
+        },
+      },
+      required: ["q"],
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const q = str(args, "q");
+      if (!q || q.trim().length < 2)
+        throw new RpcParamError("q must be at least 2 characters");
+      const res = await apiGet(
+        `/api/archive/search?q=${encodeURIComponent(q)}&limit=${num(args, "limit") ?? 50}`,
+      );
+      return res.json();
+    },
+  },
+
+  archive_track_stats: {
+    description:
+      "Full archive row for one track by video id: status, bitrate/codec, genre, energy, file path, timestamps. Read-only.",
+    inputSchema: {
+      type: "object",
+      properties: { video_id: { type: "string" } },
+      required: ["video_id"],
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const id = str(args, "video_id");
+      if (!id) throw new RpcParamError("video_id is required");
+      const res = await apiGet(
+        `/api/archive/track?id=${encodeURIComponent(id)}`,
+      );
+      if (res.status === 404)
+        throw new RpcParamError(`no archive track with video_id ${id}`);
+      return res.json();
+    },
+  },
+
+  archive_ingest_status: {
+    description:
+      "Ingest pipeline health: per-status track counts, last 5 sync runs (downloaded/failed/gone), 10 most recently updated tracks. Answers 'what did I ingest lately'. Read-only.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+    run: async () => apiGet("/api/archive/ingest-status").then((r) => r.json()),
+  },
+
+  archive_lowq_queue: {
+    description:
+      "D24 low-quality upgrade queue: downloaded tracks below the set-ready bitrate floor (lossy <256 kbps AAC or <320 kbps MP3), worst first. Read-only.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+    run: async () => apiGet("/api/archive/lowq").then((r) => r.json()),
+  },
+
+  archive_source_diff: {
+    description:
+      "Diff two archive sources (e.g. 'liked' vs 'PLxxxx…'): video ids only in one of them, and the shared count. Read-only.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        a: { type: "string", description: "first source tag" },
+        b: { type: "string", description: "second source tag" },
+      },
+      required: ["a", "b"],
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const a = str(args, "a");
+      const b = str(args, "b");
+      if (!a || !b) throw new RpcParamError("a and b source tags are required");
+      const res = await apiGet(
+        `/api/archive/source-diff?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`,
+      );
+      return res.json();
     },
   },
 };

@@ -90,7 +90,7 @@ Discovered during the research pass; mapped to the ideas below:
 | [2026 stems comparisons](https://thedjmixtape.com/virtualdj-stems-vs-serato-stems-vs-rekordbox-stems/)                                                                                         | Blind tests: djay (AudioShake) best vocals on Apple silicon; VirtualDJ 5–6 stems; **rekordbox 7 rated ~3★**; Traktor/Engine pre-render                                                                                                 | Offline demucs stems (I46/I48) can _exceed_ rekordbox's own real-time stems — precomputed analysis is a legitimate edge                         |
 | [robertlestak/digarr](https://github.com/robertlestak/digarr) · [dean1850/musicdrome](https://github.com/dean1850/musicdrome) · [Snapyou2/re-command](https://github.com/Snapyou2/re-command/) | AI discovery loops: listening history (ListenBrainz/Last.fm) → MusicBrainz+AI similar-artists → scored approval queue → auto-download (ytmusicapi/Soulseek/Streamrip). Musicdrome's rule: _"a wrong file is worse than a missing one"_ | The exact architecture for megadj's discovery engine — taste source → AI → YTMusic resolve with confidence gating (→ N82)                       |
 | [mxschll/harmonie](https://github.com/mxschll/harmonie)                                                                                                                                        | Essentia embeddings + descriptors + **400 Discogs-style probabilities** in SQLite, HTTP similarity API                                                                                                                                 | Prior art for I45/I49 — possibly runnable as-is beside the archive instead of building from scratch                                             |
-| [Claude Code agentic primitives](https://code.claude.com/docs/en/plugins.md) (skills, hooks, subagents, MCP, headless `claude -p`)                                                             | The 2026 agent-CLI taxonomy: SKILL.md for domain logic, hooks for lifecycle automation, MCP for tool exposure, headless one-shots for cron-able agents                                                                                 | megadj already ships skills + deckctl + an MCP server (O82, Sep 2026); next step is the archive MCP half + agent loops (→ §O)                   |
+| [Claude Code agentic primitives](https://code.claude.com/docs/en/plugins.md) (skills, hooks, subagents, MCP, headless `claude -p`)                                                             | The 2026 agent-CLI taxonomy: SKILL.md for domain logic, hooks for lifecycle automation, MCP for tool exposure, headless one-shots for cron-able agents                                                                                 | megadj already ships skills + deckctl + a full MCP server (O82 incl. O82b archive half + preflight, Sep 2026); next step is agent loops (O84) + plugin packaging (O85)              |
 | [settag](https://pypi.org/project/settag/) · [dupsonic](https://github.com/zas/dupsonic/) v0.2.5 · [livechord-beat-refiner](https://pypi.org/project/livechord-beat-refiner/) (2026 finds)     | settag: Essentia MAEST/Discogs-EffNet tagger for DJ libraries with staged writes + provenance tags; dupsonic shipped macOS-aarch64 binaries (Jul 2026); refiner post-processes beat_this downbeats + fixes bar confusion               | settag = the closest thing to a FullTags competitor — steal its provenance-tag pattern; dupsonic = L62 done for us; refiner = grid-QA candidate |
 
 **Best-models re-check (2026-09-05 deep dive — verdicts only, full ladder
@@ -170,10 +170,13 @@ The PRD features that _only exist because the app sees all drives at once_
 11. **Set intelligence.** Harvest player-written history (`HIST` entries on the
     drives) across the fleet → most-played, never-played, set reconstruction
     with timestamps → export as CSV/markdown/Spotify-searchable track list.
-12. **Preflight check.** Pick drives → single pass/fail checklist: sync state,
-    grid coverage, integrity, bench trend, free space, _firmware-relevant
-    notes_ (e.g. PRO DJ LINK had a security advisory in 7.2.17 — worth a
-    "players on old firmware" line). One click before every gig.
+12. **Preflight check — ✅ core SHIPPED 2026-09-05 (`deckctl preflight`,
+    `cratedeck/src/preflight.ts` + `/api/preflight`).** Single pass/fail
+    checklist across all mounted drives: dual-DB currency, grid coverage,
+    last-verify age/changed-since, bench trend (B13's −40% rule) + CDJ
+    floor, bitrot ledger, free space, mirror parity. Unknowns never fake
+    ready; exit 1 gates cron/agents. Remaining optional: firmware-notes
+    field (N76), UI card.
 13. **Benchmark sparklines + anomaly alerts.** `bench.ts` already stores
     seq/rand4k history. Render the sparkline; alert when a drive's read speed
     drops >40% between runs (the brief's vNext item, and it's ~free).
@@ -686,24 +689,27 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 "agent-first, MCP-friendly, `--json` on every command" — with O86's rails
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
-82. **megadj MCP server — ✅ CrateDeck half SHIPPED 2026-09-05; archive
-    half remains.** Live: `cratedeck/src/mcp.ts` + `bun run mcp` — 10
-    tools (`deck_status/drives/report/coverage/redundancy/diff/jobs/run/
-cancel/explain`) over stdio JSON-RPC, readonly annotations, mutating
+82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves).** Live:
+    `cratedeck/src/mcp.ts` + `bun run mcp` — 16 tools. CrateDeck half (10):
+    `deck_status/drives/report/coverage/redundancy/diff/jobs/run/
+cancel/explain` over stdio JSON-RPC, readonly annotations, mutating
     tools flagged `[MUTATES DRIVE STATE]`, interlock enforced in the tool
-    layer. Remaining (O82b): archive-side tools — `search_tracks`,
-    `track_stats`, `ingest_status`, `playlist_diff`, `lowq_queue` — the
-    same thin-wrapper pattern over the archive DB. Any MCP client
-    (Claude Code, Codex, Cursor) can then answer "what did I ingest last
-    week" as naturally as "what's on the XZ".
+    layer, plus `deck_preflight` (B12). Archive half (O82b, 5):
+    `archive_search_tracks/track_stats/ingest_status/lowq_queue/
+source_diff` — readonly reads over megadj's own DB (`cratedeck/src/
+archive.ts`, opened `readonly: true`; missing DB degrades to
+    `available:false`, never throws). Any MCP client (Claude Code, Codex,
+    Cursor) can answer "what did I ingest last week" as naturally as
+    "what's on the XZ".
 
-83. **Weekly agent prep loop (headless).** A cron-able one-shot
-    (`claude -p "run the megadj weekly prep skill"` style, or a plain
-    shell entry calling deckctl): archive integrity sweep (D30) → drive
-    scan deltas → redundancy check (B7) → new-music-not-yet-exported
-    report → markdown digest. The agent writes _nothing_ — the weekly
-    digest (F39) implemented by an operator that never gets bored.
-    Effort S-M.
+83. **Weekly agent prep loop (headless) — ✅ core SHIPPED 2026-09-05
+    (`deckctl prep`).** One command renders the markdown digest:
+    preflight verdict (B12) → redundancy gaps (B7) → archive status +
+    LOWQ queue (O82b reads) — the agent writes _nothing_. `--out FILE`
+    persists it; `--json` feeds an agent loop; cron-able as-is
+    (`deckctl prep --out ~/preps/$(date +%F).md`). Remaining optional:
+    wiring a `claude -p` wrapper + the D30 archive-integrity sweep into
+    the digest. Effort S.
 
 84. **Inbox-to-crate agent.** "Dump this folder/zip/URL list, get clean
     tagged files": combine `megadj drop` (K61) with an agent loop that
@@ -717,13 +723,15 @@ cancel/explain`) over stdio JSON-RPC, readonly annotations, mutating
     Code instance — and as the natural open-source artifact if this
     repo ever goes public. Effort S once 82 exists.
 
-86. **Agent safety rails (the non-negotiable half) — ✅ SHIPPED for the
-    CrateDeck surface 2026-09-05.** `mcp.ts` implements exactly this spec:
-    mutating tools (`deck_run`/`deck_cancel`) are annotation-flagged
-    `readOnlyHint: false` and described `[MUTATES DRIVE STATE]`; the
-    interlock check runs inside the tool layer (prompts are suggestions,
-    exit codes are law); mirror/format are simply absent from the surface.
-    Stays open for the archive half (O82b) and every future tool.
+86. **Agent safety rails (the non-negotiable half) — ✅ SHIPPED
+    2026-09-05 (now covering the archive tools too).** `mcp.ts` implements
+    exactly this spec: mutating tools (`deck_run`/`deck_cancel`) are
+    annotation-flagged `readOnlyHint: false` and described
+    `[MUTATES DRIVE STATE]`; the interlock check runs inside the tool
+    layer (prompts are suggestions, exit codes are law); mirror/format are
+    simply absent from the surface; the O82b archive tools are physically
+    readonly (`readonly: true` sqlite handle). Pattern stays open for
+    every future tool.
 
 87. **Timeline + job audit for agent actions.** The rails (86) log into
     the jobs/timeline system already; the missing piece is attribution:
@@ -769,13 +777,16 @@ cancel/explain`) over stdio JSON-RPC, readonly annotations, mutating
   (`cratedeck/src/fleet.ts` + Fleet page + `deckctl
 coverage|redundancy|diff`; needs one scan per drive with rekordbox
   closed). B9 (global search) **✅ SHIPPED 2026-09-05** (⌘K +
-  `/api/search`). Remaining daily-use item: B12 preflight.
+  `/api/search`). B12 preflight **✅ core SHIPPED 2026-09-05**
+  (`deckctl preflight`, exit-code gate).
 - **Phase 3 — manual-pain killers:** C18a runbook, C12 differential
-  mirror, D24 LOWQ upgrade, L62 fingerprints — ~~J53~~ ✅ shipped as the
-  FullTags sub-project (ladder in `docs/fulltags-roadmap.md`).
-- **Phase 6 — agentified (§O):** O82 CrateDeck half + O86 rails
-  **✅ SHIPPED 2026-09-05** (`bun run mcp`); O82b archive half + O83
-  weekly loop are the open remainder.
+  mirror, D24 LOWQ upgrade (queue read is live in O82b/`prep`), L62
+  fingerprints — ~~J53~~ ✅ shipped as the FullTags sub-project (ladder in
+  `docs/fulltags-roadmap.md`).
+- **Phase 6 — agentified (§O):** O82 (both halves) + O86 rails + O83 core
+  **✅ SHIPPED 2026-09-05** (`bun run mcp` — 16 tools; `deckctl prep`).
+  Open remainder: O84 inbox-agent, O85 plugin packaging, O87
+  attribution, O88 notes feed.
 - **Phase 4 — the AI edge (reality gate says monthly+):** I51 keys →
   I45 moods → I46 sliced (cues first, tempo-curve later) → K61
   `megadj drop`; M66/M67 after B11 history. Model gates: offline/local

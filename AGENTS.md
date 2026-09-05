@@ -162,16 +162,27 @@ produces, regardless of the language used in the request.
   throttles its drive-scoped fetch to ≤1/2s, or a long verify hammers the
   server with thousands of redundant fetches.
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
-  server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
-  10 tools (`deck_status/drives/report/coverage/redundancy/diff/jobs/
-run/cancel/explain`); `bun run mcp` from repo root; guide + registration
-  snippet in `cratedeck/deckctl.md` §MCP. Readonly tools carry
-  `readOnlyHint: true` annotations; `deck_run`/`deck_cancel` are flagged
-  `[MUTATES DRIVE STATE]` and the rekordbox interlock is enforced inside
-  the tool layer (prompts are suggestions, exit codes are law). ⌘K global
-  search over all snapshots ships in the web topbar (`GET /api/search`,
-  B9). Doc alignment: ideas.md B9/O82/O86 are marked shipped; the archive
-  half of the MCP surface (O82b) is the open remainder.
+ server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
+16 tools — the original 10 (`deck_status/drives/report/coverage/
+redundancy/diff/jobs/run/cancel/explain`) plus `deck_preflight` (B12)
+ and the O82b archive half (`archive_search_tracks/track_stats/
+ingest_status/lowq_queue/source_diff` — readonly reads over megadj's
+ archive DB via `cratedeck/src/archive.ts`, opened `readonly: true`, so
+ a bug there cannot corrupt archive state; missing DB degrades to
+ `available:false`). `bun run mcp` from repo root; guide + registration
+snippet in `cratedeck/deckctl.md` §MCP. Readonly tools carry
+ `readOnlyHint: true` annotations; `deck_run`/`deck_cancel` are flagged
+ `[MUTATES DRIVE STATE]` and the rekordbox interlock is enforced inside
+ the tool layer (prompts are suggestions, exit codes are law). ⌘K global
+ search over all snapshots ships in the web topbar (`GET /api/search`,
+ B9). B12 preflight (`cratedeck/src/preflight.ts` + `deckctl preflight`
+ + `/api/preflight`) is the gig-night gate: worst-status-wins verdict
+ per drive (not-ready/attention/unknown/ready), unknowns never fake
+ ready, exit 1 when not ready — cron/agents gate on the code. O83
+ weekly digest: `deckctl prep [--out FILE]` (`cratedeck/src/
+weekly_prep.ts`, pure renderer) → markdown over preflight + redundancy
+ + archive reads. Doc alignment: ideas.md B9/B12/O82/O83/O86 are marked
+ shipped.
 
 ## Local-only files
 
