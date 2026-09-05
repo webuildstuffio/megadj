@@ -126,7 +126,7 @@ megadj init     # first run: scaffold cratedeck/config.toml + doctor
 ```
 
 `megadj doctor` exits non-zero if something required is broken, so you can
-also use it as a gate in scripts and CI. `--json` for machines.
+also use it as a gate in scripts. `--json` for machines.
 
 yt-dlp config at `~/.config/yt-dlp/config`:
 

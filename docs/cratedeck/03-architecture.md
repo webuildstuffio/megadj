@@ -212,6 +212,6 @@ with five tabs and deep-linkable drive state.)_
 Bind 127.0.0.1 only. API key never leaves the server. Uploads size/type
 capped. Subprocess args are UUIDs from our DB, never user strings. The
 structural guarantee: `guard.ts` allow-lists every writable path (`data/`,
-scratch); a repo test fails CI if any file outside `guard.ts` performs a
+scratch); a repo test fails if any file outside `guard.ts` performs a
 write. The app is incapable of writing to a gig drive except through one
 auditable, logged, user-initiated path.
