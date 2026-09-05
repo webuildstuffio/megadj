@@ -1,8 +1,13 @@
 # megadj
 
-**Make people dance.** A fleet of AI-powered tools that take electronic music
-from any source to a verified, gig-ready Pioneer DJ USB library — with zero
-manual labour.
+**Make people dance.**
+
+megadj handles the unglamorous half of DJing — the downloading, the tagging,
+the artwork hunting, the USB wrangling — so you can spend your time on the
+fun half. Music goes in from wherever you found it and comes out the other
+side clean: properly tagged, artworked, beatgridded, on your drives, and
+ready for the booth. No spreadsheets, no tag editors, no "I'll fix the
+artwork later".
 
 ```
 GetDat ──▶ FullTags ──▶ CrateDeck ──▶ the booth
@@ -10,99 +15,104 @@ download    perfect       sync &       play on
 & archive   metadata      verify USBs   Pioneer
 ```
 
-macOS + Pioneer only, on purpose. CLI-first, agent-first. AI does the labour.
 [Principles](docs/PRINCIPLES.md) · [Features & roadmap](docs/FEATURES.md)
 
 ## The projects
 
-### 🎧 GetDat — pull every track from everywhere
+### 🎧 GetDat — your downloads, handled
 
-One command pulls tracks from any source into the archive at the highest
-quality available (256 kbps AAC first), with SQLite state so nothing ever
-re-downloads — and permanent failures (terminated accounts, copyright
-removals) are classified and never retried. YouTube Music today — SoundCloud,
-Bandcamp and tracklist-mining next.
+You hear a track. You want it in your library, at the best quality it
+exists in, tonight.
+
+`megadj sync` pulls from YouTube Music (SoundCloud and Bandcamp are next),
+grabs the best audio available, and remembers everything it has already
+downloaded — so you can run it as often as you like and nothing ever
+re-downloads.
 
 ```bash
-megadj sync [--limit N] [--dry-run] [--music-only] [--target-total N]
+megadj sync          # bring in everything new since last time
 ```
 
-### 🏷️ FullTags — 100% accuracy, 100% coverage, zero manual labour
+### 🏷️ FullTags — a library you'd actually show people
 
-Every ID3 field filled and *correct*: genre, artist, album, and the remix's
-year — not the 20-year-old original's. Artwork comes from the source the
-track came from (SoundCloud page art at original res → gateways → Deezer →
-iTunes), escalating to AI-generated covers only as a rare last resort. Cheap,
-confidence-gated AI fills every gap. `megadj audit` is the ground-truth gate:
-it reads the files, not the DB.
+Nothing kills the vibe like "Unknown Artist", a 20-year-old's release year
+on a track that dropped last month, or a generic cover on a remix you love.
 
-FullTags is also a standalone sub-project,
-[`fulltags/`](fulltags/README.md): one schema, one atomic writer (mp3/m4a/
-wav/flac/aiff with all the format gotchas in exactly one place),
-ground-truth readers, the full art ladder, and its own CLI. megadj's
-commands are thin wrappers over it.
+FullTags fills in every field and gets it **right**: the genre, the artist,
+the album — and the year of *this version*, not the original. Artwork comes
+from where the track actually came from (a SoundCloud remix keeps its
+SoundCloud cover), and AI only steps in for the gaps normal sources can't
+fill — and only when it's confident. When it's done, `megadj audit` reads
+your actual files and tells you honestly what's still missing.
+
+FullTags also lives as a standalone tool in
+[`fulltags/`](fulltags/README.md) — megadj's commands are thin wrappers
+around it.
 
 ```bash
-megadj ingest <folder> [--dry-run]  # tag + art + dedupe downloads (zips expand)
-megadj fetch                        # tags, genres, artwork, years (parallel)
-megadj audit                        # completeness gate — exits 1 on any gap
-
-bun run fulltags/cli.ts <file-or-folder>  # fill every missing field
-bun run fulltags/cli.ts audit <folder>    # same gate, standalone (--json)
+megadj ingest <folder>   # point it at a messy downloads folder, get a clean one back
+megadj fetch             # top up tags, genres, artwork and years
+megadj audit             # the completeness check across the whole library
 ```
 
-Roadmap (key detection, Essentia mood/genre models, beat_this BPM,
-fingerprints): [docs/fulltags-roadmap.md](docs/fulltags-roadmap.md).
+### 📼 CrateDeck — know your drives are gig-ready
 
-### 📼 CrateDeck — the Crate: organize, sync & verify every DJ USB
+Every USB drive you own shows up in the dashboard as a card, with its
+playlists and its health. Unplug it and it stays in the sidebar — a quiet
+reminder of what's on it and when you last verified it.
 
-A local dashboard plus CLI for a fleet of rekordbox USB drives: every drive is
-a card with a face; unplugged drives stay as ghosts that remember everything.
-The sync injects tracks into the device DB (pyrekordbox), detects BPM, and
-hand-builds ANLZ beatgrid/waveform files at the hash-computed paths hardware
-actually reads. Verify then checks dual-DB agreement, grid math, audio
-existence, and cross-drive hash parity. A hard interlock locks everything
-while rekordbox is running.
+Sync puts new tracks onto your master drive, mirrors them to the backup,
+then verifies both down to the details players care about: the databases
+agree, every audio file is present, and the beatgrids and waveforms exist
+where the hardware actually looks for them. If rekordbox is open, everything
+waits safely until you quit it — no corrupt databases, ever.
 
-Each drive carries **two databases** — `exportLibrary.db` for rekordbox 7,
-plus the legacy `export.pdb` that XDJ-XZ and older CDJs read — so one
-rekordbox legacy export per library generation keeps both in agreement. The
-what/why lives in [docs/usb-sync.md](docs/usb-sync.md).
+So the question CrateDeck exists to answer — *can I play this stick
+tonight?* — is one glance at the dashboard, or one `report`, away.
 
 ```bash
-bun run deck                         # dashboard → http://localhost:7742
+bun run deck    # the dashboard: every drive, its health, its playlists
 bun run cratedeck/src/deckctl.ts status | report | run | coverage | diff
 ```
+
+Drives are matched by volume name. The defaults are `DJMASTER` and
+`DJMIRROR` — rename your drives to match, or set your own names in
+`cratedeck/config.toml` (see `cratedeck/config.sample.toml`). Each drive
+also carries a second, legacy database that older players like the XDJ-XZ
+read; a one-time rekordbox export per library generation keeps it current —
+[docs/usb-sync.md](docs/usb-sync.md) explains when and why.
 
 **Coming next:** Gig mode & preflight, set intelligence from player history,
 SoundCloud/Bandcamp sources, fingerprint dedupe, key detection, MCP server —
 see [docs/FEATURES.md](docs/FEATURES.md) for the full roadmap.
 
-## Principles
+## What we believe
 
-The short version of [docs/PRINCIPLES.md](docs/PRINCIPLES.md):
+- **It should just work.** One command, one obvious outcome. If a flow needs
+  a wiki to explain, the flow is wrong.
+- **Built for your booth, not everyone's.** macOS and Pioneer only — that
+  focus is exactly what lets it go deep enough to actually work everywhere
+  *you* play.
+- **AI does the boring parts.** Hunting artwork, fixing years, spotting
+  duplicates — that's computer work, not your evening.
+- **Pro results, normal-person hours.** You have evenings, not engineers.
+  Every decision is judged by minutes saved before a gig.
+- **We don't give up.** When a file format fights back, we dig in until it
+  gives in — your library shouldn't have boundaries just because a spec was
+  rude.
+- **Yours, fully.** It runs on your machine against your library. No
+  accounts, no cloud, no subscription, nothing to cancel.
 
-- **One user, one machine** — CLI-first, agent-first (`--json` everywhere);
-  no accounts, no server, no team plan.
-- **Mac only. Pioneer only.** — focus is what makes the deep hacks possible.
-- **Super easy** — one command does one obvious, complete thing.
-- **We never give up** — a dead end is a prompt to dig one layer deeper.
-- **AI does the labour** — dedupe, web research, artwork, gap filling;
-  humans do nothing.
-- **Not pros — pro results** — every build is judged by minutes saved per gig.
+The long version: [docs/PRINCIPLES.md](docs/PRINCIPLES.md).
 
-## Requirements
+## Getting started
 
-- [Bun](https://bun.sh) runtime · macOS
-- `yt-dlp` with EJS solver (`uv tool install 'yt-dlp[default]'`)
-- `ffmpeg` (`brew install ffmpeg`) · Node.js on PATH (yt-dlp JS solver)
-- Chrome logged into YouTube Music (cookie source)
-- For the USB pipeline: `uv`, plus `pyrekordbox`/`librosa`/`numpy` (pulled in
-  automatically via `uv run --with ...`)
-- `OPENROUTER_API_KEY` for AI genre/year/artwork fallback (keychain, never
-  hardcoded)
-
-## Setup
+You'll need a Mac with [Bun](https://bun.sh), plus:
+`yt-dlp` (`uv tool install 'yt-dlp[default]'`), `ffmpeg`
+(`brew install ffmpeg`), Node.js on PATH, and Chrome logged into YouTube
+Music (that's the cookie source — no API keys needed). The USB tools pull in
+their Python dependencies automatically. AI fallbacks (genre, year, artwork)
+use an `OPENROUTER_API_KEY` — keep it in your keychain.
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/megadj.git
@@ -118,21 +128,21 @@ yt-dlp config at `~/.config/yt-dlp/config`:
 --extractor-args youtube:formats=missing_pot
 ```
 
-For headless runs (browser closed), export a cookie jar first:
-`scripts/export-cookies.sh` (writes a chmod-600 netscape jar outside the
-repo — never commit it).
+Running from a headless session (browser closed)? Export a cookie jar first
+with `scripts/export-cookies.sh` — it writes a private jar outside the repo,
+and it should never be committed.
 
 ### Environment
 
-| Variable             | Default                            | Purpose                                                            |
-| -------------------- | ---------------------------------- | ------------------------------------------------------------------ |
-| `MEGADJ_MUSIC_DIR`   | `~/Music/DJ-Imports`               | where audio lands                                                  |
-| `MEGADJ_DB`          | `~/.local/state/megadj/archive.db` | state database                                                     |
-| `MEGADJ_COOKIES`     | `chrome`                           | browser for yt-dlp cookies; empty disables                         |
-| `OPENROUTER_API_KEY` | —                                  | AI genre/year fallback + `megadj artwork`                          |
-| `IMAGE_MAKER_CLIENT` | —                                  | ES module exporting an `ImageClient` class, for AI covers          |
+| Variable             | Default                            | Purpose                                     |
+| -------------------- | ---------------------------------- | ------------------------------------------- |
+| `MEGADJ_MUSIC_DIR`   | `~/Music/DJ-Imports`               | where downloaded audio lands                |
+| `MEGADJ_DB`          | `~/.local/state/megadj/archive.db` | the archive's memory                        |
+| `MEGADJ_COOKIES`     | `chrome`                           | browser for yt-dlp cookies; empty disables  |
+| `OPENROUTER_API_KEY` | —                                  | AI genre/year fallback + `megadj artwork`   |
+| `IMAGE_MAKER_CLIENT` | —                                  | ES module exporting an `ImageClient`, for AI covers |
 
-Full command reference: run `megadj --help` or see
+Full command reference: `megadj --help`, or
 [docs/FEATURES.md](docs/FEATURES.md).
 
 ## Docs index
