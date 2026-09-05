@@ -74,17 +74,24 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     opts.quarantineDir ?? join(opts.folder, "ingest-duplicates");
   const minDuration = opts.minDuration ?? 60;
   const queuedIdentity = new Set<string>();
+  const files0 = await walkAudio(
+    opts.folder,
+    [],
+    [quarantineDir, join(opts.musicDir, "rekordbox")],
+  );
+  log(`${files0.length} audio file(s) under ${opts.folder}`);
+
+  // Zips in the folder: extract audio next to them so the pipeline below
+  // picks it up; the zip itself is deleted only after every staged file
+  // is safely in the archive. MUST run before the final walk — otherwise
+  // staged files miss this run and only get ingested on a second run.
+  await expandZips(opts.folder, opts.dryRun, (d) => walkAudio(d), log);
+
   const files = await walkAudio(
     opts.folder,
     [],
     [quarantineDir, join(opts.musicDir, "rekordbox")],
   );
-  log(`${files.length} audio file(s) under ${opts.folder}`);
-
-  // Zips in the folder: extract audio next to them so the pipeline below
-  // picks it up; the zip itself is deleted only after every staged file
-  // is safely in the archive.
-  await expandZips(opts.folder, opts.dryRun, (d) => walkAudio(d), log);
 
   // ---- Phase A: probe everything -------------------------------------
   const records: Record_[] = [];

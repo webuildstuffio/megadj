@@ -226,6 +226,17 @@ describe("parseVerifyReport: structured payload", () => {
     expect(r.stats.tracks).toBe(99);
     expect(r.checks.find((c) => c.id === "dual-db")?.status).toBe("pass");
   });
+
+  it("null drive entries never crash the parse (structurally-broken payload)", () => {
+    // usb_verify.py output drift or a truncated drain() can produce a
+    // VALID json line with a null drive value — the FINAL verdict and all
+    // checks must survive via the regex fallback, not throw.
+    const out =
+      'VERIFY_JSON: {"drives": {"DJX": null}}\nexport.pdb=77 tracks vs OneLibrary DB=77 tracks\n  tracks: 77\nFINAL: ALL PASS\n';
+    const r = parseVerifyReport(out, true, "FINAL: ALL PASS", 2);
+    expect(r.stats.tracks).toBe(77);
+    expect(r.checks.find((c) => c.id === "dual-db")?.status).toBe("pass");
+  });
 });
 
 // ---- deltas vs previous run -------------------------------------------------

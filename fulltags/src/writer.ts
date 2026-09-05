@@ -90,8 +90,13 @@ export async function writePatch(
   if (!pairs.length) return;
 
   const ext = extname(filePath).toLowerCase();
-  if (ext === ".aiff" || ext === ".aif") {
-    await writePatchAiff(filePath, pairs);
+  // WAV/AIFF: mutagen edits the ID3 chunk in place. ffmpeg's wav muxer
+  // DROPS the ID3 chunk entirely (art + TXXX stamps vanish) and its aiff
+  // muxer does the same — the sync path exists precisely for this.
+  if (ext === ".aiff" || ext === ".aif" || ext === ".wav") {
+    if (!writePatchWav(filePath, patch)) {
+      throw new Error(`mutagen tag write failed for ${filePath}`);
+    }
     return;
   }
 
@@ -211,96 +216,6 @@ const FFMPEG_KEY: Record<keyof TagPatch, string> = {
 };
 
 /**
- * AIFF: mutagen in-place ID3 chunk edit (ffmpeg would drop the chunk).
- * Frame map: title→TIT2 artist→TPE1 albumArtist→TPE2 album→TALB genre→TCON
- * date→TDRC composer→TCOM grouping→TIT1 remixer→TXXX:version bpm→TBPM
- * energy→TXXX:ENERGY comment→COMM mbid→TXXX:MusicBrainz Track Id
- */
-async function writePatchAiff(
-  filePath: string,
-  pairs: [keyof TagPatch, string | number][],
-): Promise<void> {
-  const frames: string[] = [];
-  const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  const set = (frame: string, value: string) =>
-    frames.push(`t = ${frame}(encoding=3, text=["${esc(value)}"]); id3.add(t)`);
-  const txxx = (desc: string, value: string) =>
-    frames.push(
-      `t = TXXX(encoding=3, desc="${desc}", text=["${esc(value)}"]); id3.add(t)`,
-    );
-  for (const [k, v] of pairs) {
-    const s = String(v);
-    switch (k) {
-      case "title":
-        set("TIT2", s);
-        break;
-      case "artist":
-        set("TPE1", s);
-        break;
-      case "albumArtist":
-        set("TPE2", s);
-        break;
-      case "album":
-        set("TALB", s);
-        break;
-      case "genre":
-        set("TCON", s);
-        break;
-      case "year":
-        set("TDRC", s);
-        break;
-      case "composer":
-        set("TCOM", s);
-        break;
-      case "grouping":
-        set("TIT1", s);
-        break;
-      case "remixer":
-        txxx("version", s);
-        break;
-      case "bpm":
-        set("TBPM", s);
-        break;
-      case "energy":
-        txxx("ENERGY", s);
-        break;
-      case "comment":
-        frames.push(
-          `t = COMM(encoding=3, lang="eng", desc="", text=["${esc(s)}"]); id3.add(t)`,
-        );
-        break;
-      case "mbid":
-        txxx("MusicBrainz Track Id", s);
-        break;
-      case "aiGenre":
-        txxx("AI-GENRE", s);
-        break;
-      case "aiYear":
-        txxx("AI-YEAR", s);
-        break;
-    }
-  }
-  const script = `
-from mutagen.aiff import AIFF
-from mutagen.id3 import ID3, TIT2, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TXXX, COMM
-a = AIFF(${JSON.stringify(filePath)})
-if a.tags is None:
-    a.add_tags()
-id3 = a.tags
-${frames.join("\n")}
-a.save()
-print("ok")`;
-  const proc = await $`uv run --with mutagen python -c ${script}`
-    .quiet()
-    .nothrow();
-  if (proc.exitCode !== 0 || !proc.stdout.toString().trim().includes("ok")) {
-    throw new Error(
-      `mutagen AIFF tag write failed for ${filePath}: ${proc.stderr.toString().slice(0, 200)}`,
-    );
-  }
-}
-
-/**
  * Sync tag write for ID3-in-container formats (WAV RIFF / AIFF ID3 chunk)
  * via mutagen. ffmpeg's wav/aiff muxers drop or mangle ID3 chunks, so
  * mutagen editing the chunk in place is the real path for these containers
@@ -375,10 +290,15 @@ export function embedArt(p: string, bytes: Uint8Array): boolean {
   const dump = p + ".fa.jpg";
   writeFileSync(dump, bytes);
   try {
-    if (p.toLowerCase().endsWith(".wav")) {
-      const script = `from mutagen.wave import WAVE
+    // WAV and AIFF: mutagen edits the ID3 chunk in place. ffmpeg's remux
+    // (below) drops/rebuilds those containers' ID3 chunks — a re-embed
+    // would wipe TXXX stamps (energy etc.) written by the tag pass.
+    if (p.toLowerCase().endsWith(".wav") || /\.(aiff?|aif)$/i.test(p)) {
+      const open = /\.(aiff?|aif)$/i.test(p)
+        ? `from mutagen.aiff import AIFF\na = AIFF(${JSON.stringify(p)})`
+        : `from mutagen.wave import WAVE\na = WAVE(${JSON.stringify(p)})`;
+      const script = `${open}
 from mutagen.id3 import ID3, APIC
-a = WAVE(${JSON.stringify(p)})
 if a.tags and any(k.startswith("APIC") for k in a.tags.keys()):
     a.tags.delall("APIC")
 try:

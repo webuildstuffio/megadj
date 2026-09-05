@@ -78,6 +78,7 @@ export async function enrichTrack(
   opts: PipelineOptions = {},
 ): Promise<TrackResult> {
   const notes: string[] = [];
+  let artWritten = false;
   const want = (s: NonNullable<PipelineOptions["only"]>[number]) =>
     !opts.only || opts.only.includes(s);
   const truth = groundTruth(t.path);
@@ -199,9 +200,11 @@ export async function enrichTrack(
     }
     if (bytes && embedArt(t.path, bytes)) {
       notes.push(`art:${source}`);
+      artWritten = true;
     } else if (opts.artworkQueue) {
-      appendQueue(opts.artworkQueue, artRow);
-      notes.push("art:queued");
+      // Note only when the path was newly queued — a re-run finding the
+      // path already in the queue is a no-op, not a change.
+      if (appendQueue(opts.artworkQueue, artRow)) notes.push("art:queued");
     }
   }
 
@@ -223,14 +226,14 @@ export async function enrichTrack(
   }
 
   // ---------- write ----------
-  const wrote = !opts.dryRun && Object.keys(patch).length > 0;
-  if (wrote) {
+  // Art embedding writes the file directly (not via the tag patch), so
+  // `wrote` covers both paths — the verify re-read must run whenever the
+  // file could have changed, and only then.
+  const wrote = (!opts.dryRun && Object.keys(patch).length > 0) || artWritten;
+  if (!opts.dryRun && Object.keys(patch).length > 0) {
     await writePatch(t.path, patch);
   }
 
-  // Verify re-read only when something could have changed — an empty patch
-  // or dry run leaves the file untouched, so `truth` is already current
-  // (saves an ffprobe+spawn per already-complete track on re-runs).
   const after = wrote ? groundTruth(t.path) : truth;
   const { complete, missing } = completenessOf(after, t);
   return { path: t.path, notes, complete, missing };
@@ -327,19 +330,34 @@ async function itunesArt(r: ArtRow): Promise<Uint8Array | null> {
   return fetchImage(url);
 }
 
-function appendQueue(queuePath: string, r: ArtRow): void {
-  const { appendFile } =
-    require("node:fs/promises") as typeof import("node:fs/promises");
-  void appendFile(
-    queuePath,
-    JSON.stringify({
-      path: r.file_path,
-      title: r.title,
-      artist: r.artist,
-      album: r.album ?? null,
-      reason: "no-online-cover",
-    }) + "\n",
-  ).catch(() => {});
+function appendQueue(queuePath: string, r: ArtRow): boolean {
+  const { existsSync, readFileSync } =
+    require("node:fs") as typeof import("node:fs");
+  try {
+    // Dedupe: a path already queued (by path) must not re-queue on every
+    // re-run — the queue is consumed by megadj artwork, duplicates just
+    // burn AI generations.
+    if (existsSync(queuePath)) {
+      const seen = readFileSync(queuePath, "utf8");
+      if (seen.includes(JSON.stringify(r.file_path))) return false;
+    }
+    const { appendFile } =
+      require("node:fs/promises") as typeof import("node:fs/promises");
+    void appendFile(
+      queuePath,
+      JSON.stringify({
+        path: r.file_path,
+        title: r.title,
+        artist: r.artist,
+        album: r.album ?? null,
+        reason: "no-online-cover",
+      }) + "\n",
+    ).catch(() => {});
+    return true;
+  } catch {
+    // queue is best-effort — never fail the pipeline over it
+    return false;
+  }
 }
 
 /**

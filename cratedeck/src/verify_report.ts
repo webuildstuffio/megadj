@@ -85,7 +85,14 @@ export function parseVerifyReport(
 
   const stats: Record<string, number> = {};
   const checks: VerifyCheck[] = [];
-  const drives = j?.drives ? Object.values(j.drives) : [];
+  // sanitize: a structurally-broken payload (e.g. {"drives":{"DJX":null}})
+  // must degrade to regex fallback, not throw away the whole verdict.
+  const drives: NonNullable<VerifyJsonPayload["drives"]>[string][] = j?.drives
+    ? (Object.values(j.drives).filter(
+        (d): d is NonNullable<VerifyJsonPayload["drives"]>[string] =>
+          !!d && typeof d === "object",
+      ) as NonNullable<VerifyJsonPayload["drives"]>[string][])
+    : [];
 
   // script may verify 1 or 2 drives; per-drive metrics aggregate when 2
   const sum = (
@@ -99,23 +106,29 @@ export function parseVerifyReport(
     return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
   };
 
-  const tracks = j ? sum((d) => d.tracks) : grabNum(out, /^  tracks: (\d+)/m);
-  const pdb = j
+  // When the payload parsed but yielded no usable drive entries (drift,
+  // truncation), fall back to the human-text regexes instead of reporting
+  // an all-undefined (and all-empty-offender) report.
+  const useJson = j !== null && drives.length > 0;
+  const tracks = useJson
+    ? sum((d) => d.tracks)
+    : grabNum(out, /^  tracks: (\d+)/m);
+  const pdb = useJson
     ? sum((d) => d.pdb_tracks)
     : grabNum(out, /export\.pdb=(\d+) tracks/);
-  const odb = j
+  const odb = useJson
     ? sum((d) => d.onelibrary_tracks)
     : grabNum(out, /OneLibrary DB=(\d+) tracks/);
-  const playlists = j
+  const playlists = useJson
     ? sum((d) => d.playlists)
     : grabNum(out, /playlists: (\d+)/);
-  const entries = j
+  const entries = useJson
     ? sum((d) => d.playlist_entries)
     : grabNum(out, /entries: (\d+)/);
-  const dangling = j
+  const dangling = useJson
     ? sum((d) => d.dangling_entries)
     : (grabNum(out, /dangling: (\d+)/) ?? 0);
-  const artistFk = j
+  const artistFk = useJson
     ? sum((d) => d.artist_fk_bad)
     : (grabNum(out, /artist FK bad: (\d+)/) ?? 0);
   const pioneerVar = grabNum(
@@ -128,7 +141,7 @@ export function parseVerifyReport(
     pick: (
       d: NonNullable<VerifyJsonPayload["drives"]>[string],
     ) => string[] | undefined,
-  ): string[] => (j ? drives.flatMap((d) => pick(d) ?? []) : []);
+  ): string[] => (useJson ? drives.flatMap((d) => pick(d) ?? []) : []);
   const missingFiles = allOff((d) => d.missing_files);
   const missingAnlzList = allOff((d) => d.missing_anlz);
   const anlzHashList = allOff((d) => d.anlz_hash_missing);
@@ -136,20 +149,22 @@ export function parseVerifyReport(
   const badLenList = allOff((d) => d.bad_length);
   const badGridList = allOff((d) => d.bad_grids);
 
-  const missingAudio = j
+  const missingAudio = useJson
     ? missingFiles.length
     : (grabNum(out, /missing audio: (\d+)/) ?? 0);
-  const missingAnlz = j
+  const missingAnlz = useJson
     ? missingAnlzList.length
     : (grabNum(out, /missing analysis: (\d+)/) ?? 0);
-  const noBpm = j ? noBpmList.length : (grabNum(out, /no BPM: (\d+)/) ?? 0);
-  const badLen = j
+  const noBpm = useJson
+    ? noBpmList.length
+    : (grabNum(out, /no BPM: (\d+)/) ?? 0);
+  const badLen = useJson
     ? badLenList.length
     : (grabNum(out, /bad length: (\d+)/) ?? 0);
-  const badGrids = j
+  const badGrids = useJson
     ? badGridList.length
     : (grabNum(out, /bad grids \(generated\): (\d+)/) ?? 0);
-  const anlzHash = j
+  const anlzHash = useJson
     ? anlzHashList.length
     : (grabNum(out, /ANLZ missing at hash path AND at DB path: (\d+)/) ?? 0);
 
@@ -160,23 +175,23 @@ export function parseVerifyReport(
   if (entries !== null) stats.playlist_entries = entries;
   if (pioneerVar !== null) stats.pioneer_variance = pioneerVar;
 
-  const crossDrive = j
-    ? typeof j.db_identical === "boolean" ||
-      j.anlz_mismatches !== undefined ||
-      j.audio_mismatches !== undefined
+  const crossDrive = useJson
+    ? typeof j!.db_identical === "boolean" ||
+      j!.anlz_mismatches !== undefined ||
+      j!.audio_mismatches !== undefined
     : out.includes("=== cross-drive ===");
-  const dbIdentical = j
-    ? (j.db_identical ?? false)
+  const dbIdentical = useJson
+    ? (j!.db_identical ?? false)
     : out.includes("DB byte-identical: true");
-  const anlzMismatchList = j?.anlz_mismatches ?? [];
-  const anlzParity: [number, number] | null = j
-    ? j.anlz_total !== undefined || anlzMismatchList.length
-      ? [j.anlz_mismatches?.length ?? 0, j.anlz_total ?? 0]
+  const anlzMismatchList = useJson ? (j!.anlz_mismatches ?? []) : [];
+  const anlzParity: [number, number] | null = useJson
+    ? j!.anlz_total !== undefined || anlzMismatchList.length
+      ? [j!.anlz_mismatches?.length ?? 0, j!.anlz_total ?? 0]
       : null
     : grab2Num(out, /ANLZ full hash parity: (\d+)\/(\d+) mismatches/);
   if (anlzParity) stats.anlz_hash_mismatches = anlzParity[0];
-  const audioMismatchList = j?.audio_mismatches ?? [];
-  const audioMismatch = j
+  const audioMismatchList = useJson ? (j!.audio_mismatches ?? []) : [];
+  const audioMismatch = useJson
     ? audioMismatchList.length
     : grabNum(out, /audio hash spot-check \(40\): (\d+) mismatches/);
 

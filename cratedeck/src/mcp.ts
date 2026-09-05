@@ -420,9 +420,12 @@ async function handle(req: RpcRequest): Promise<void> {
           replyError(id, ERR_PARAMS, `unknown tool: ${name}`);
           return;
         }
+        // MCP spec: params key is "arguments" (not "args") — reading the
+        // wrong key silently dropped every argument from conforming clients.
         const args =
-          ((req.params ?? {})["args"] as Record<string, unknown> | undefined) ??
-          {};
+          ((req.params ?? {})["arguments"] as
+            | Record<string, unknown>
+            | undefined) ?? {};
         const raw = await TOOLS[name].run(args);
         const text = JSON.stringify(raw, null, 2);
         reply(id, {
@@ -465,14 +468,25 @@ async function main(): Promise<void> {
         continue;
       }
       if (!up && req.method !== "initialize" && req.method !== "ping") {
-        replyError(
-          req.id ?? null,
-          ERR_INTERNAL,
-          "cratedeck server unreachable",
-        );
+        if (req.id !== undefined && req.id !== null) {
+          replyError(req.id, ERR_INTERNAL, "cratedeck server unreachable");
+        }
+        // notifications stay silent even when the backend is down
         continue;
       }
-      await handle(req);
+      // JSON-RPC 2.0: a message without an id is a notification — MUST NOT
+      // be answered (a stray id:null error can be mis-associated by
+      // strict clients).
+      if (req.id === undefined || req.id === null) {
+        if (!req.method.startsWith("notifications/")) {
+          console.error(`mcp: ignoring id-less ${req.method}`);
+        }
+        continue;
+      }
+      // Not awaited: a long tool call (deck_run with wait) must not stall
+      // the pipe — subsequent requests stay answerable. Replies are
+      // single-line stdout writes, so ordering interleaving is safe.
+      void handle(req).catch(() => {});
     }
   }
 }

@@ -230,7 +230,9 @@ Bun.serve({
           // latest granular verify report (per-check pass/fail + meanings)
           if (sub === "/verify") {
             if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
-            return json(db.getVerifyReport(id) ?? { ran_at: null });
+            // null (not a stub) — the web tab renders a "never verified"
+            // state for null; a {ran_at:null} stub crashed `.checks.filter`.
+            return json(db.getVerifyReport(id));
           }
           if (sub === "/verify/help") {
             return json(VERIFY_HELP);

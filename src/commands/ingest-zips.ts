@@ -57,21 +57,35 @@ export async function expandZips(
         log(`  ~ no audio in zip — left in place`);
         continue;
       }
-      // move audio up next to the zip so the normal pipeline picks it up
+      // move audio up next to the zip so the normal pipeline picks it up.
+      // Collision-safe: same-basename files (multi-CD rips: "CD1/01 - x.mp3",
+      // "CD2/01 - x.mp3") must BOTH survive — silently overwriting or
+      // dropping one, then deleting the zip, is permanent content loss.
       const stagedNames: string[] = [];
       for (const f of inner) {
-        const dest = join(folder, basename(f));
+        let dest = join(folder, basename(f));
         if (existsSync(dest)) {
           const a = await stat(f);
           const b = await stat(dest);
-          if (a.size === b.size) continue; // identical dupe — drop
+          if (a.size === b.size) {
+            log(`  ~ identical dupe, dropped: ${basename(f)}`);
+            continue; // identical dupe — drop
+          }
+          // different content, same name: never overwrite — disambiguate
+          const ext = extname(dest);
+          const stem = basename(dest, ext);
+          let n = 1;
+          do {
+            dest = join(folder, `${stem} [zip-${n++}]${ext}`);
+          } while (existsSync(dest));
+          log(`  ~ name collision, staging as: ${basename(dest)}`);
         }
         try {
           await rename(f, dest);
         } catch {
           await copyFile(f, dest);
         }
-        stagedNames.push(basename(f));
+        stagedNames.push(basename(dest));
       }
       await $`rm -rf ${stage}`.quiet().nothrow();
       pendingZipDeletes.set(zip, stagedNames);
@@ -93,6 +107,13 @@ export async function deleteFullyIngestedZips(
   log: (m: string) => void,
 ): Promise<void> {
   for (const [zip, staged] of pendingZipDeletes) {
+    // A zip that staged NOTHING is not "fully ingested" — it means staging
+    // collapsed to dupes or was skipped; deletion here would be vacuous
+    // ([].every === true). Keep the zip; the human can decide.
+    if (staged.length === 0) {
+      log(`zip kept (no files were staged from it): ${basename(zip)}`);
+      continue;
+    }
     const allHandled = staged.every(
       (name) =>
         !existsSync(join(folder, name)) &&

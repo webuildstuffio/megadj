@@ -60,8 +60,8 @@ async function scPageYear(url: string): Promise<number | null> {
  * ~1-2s of interpreter boot; batching amortizes it across the whole run).
  * Returns url → year for the ones yt-dlp could resolve.
  */
-async function ytdlpYearsBatch(urls: string[]): Promise<Map<string, number>> {
-  const out = new Map<string, number>();
+async function ytdlpYearsBatch(urls: string[]): Promise<[string, number][]> {
+  const out: [string, number][] = [];
   if (!urls.length) return out;
   const pr = Bun.spawnSync({
     cmd: [
@@ -84,7 +84,7 @@ async function ytdlpYearsBatch(urls: string[]): Promise<Map<string, number>> {
     if (Number.isFinite(tsN) && tsN > 946_684_800)
       year = new Date(tsN * 1000).getUTCFullYear();
     else if (ud && /^\d{8}$/.test(ud)) year = Number(ud.slice(0, 4));
-    if (year !== null) out.set(url, year);
+    if (year !== null) out.push([url, year]);
   }
   return out;
 }
@@ -106,8 +106,10 @@ export async function runFixYears(
   let kept = 0;
   const failed: Row[] = [];
 
-  // Phase 1 — resolve years for every SC-sourced track concurrently
-  // (network-bound: Bun fetch, 8 in flight; no per-track curl spawn).
+  // Phase 1 — resolve years for every SC-sourced track. Step 1a: SC page
+  // dates via Bun fetch, 8 in flight (no per-track curl spawn). Step 1b:
+  // ONE yt-dlp invocation answers all still-unresolved URLs at once —
+  // one interpreter boot instead of N, and yt-dlp pipelines the fetches.
   const scUrls = rows
     .filter((r) => r.format_id?.startsWith("sc:"))
     .map((r) => r.format_id!.slice(3));
@@ -119,16 +121,15 @@ export async function runFixYears(
         while (i < scUrls.length) {
           const url = scUrls[i++]!;
           const pageYear = await scPageYear(url);
-          if (pageYear !== null) {
+          if (pageYear !== null)
             resolved.set(url, { year: pageYear, source: "sc-page" });
-            continue;
-          }
-          const viaYtdlp = (await ytdlpYearsBatch([url])).get(url);
-          if (viaYtdlp !== undefined)
-            resolved.set(url, { year: viaYtdlp, source: "yt-dlp" });
         }
       }),
     );
+    const unresolved = scUrls.filter((u) => !resolved.has(u));
+    for (const [url, year] of await ytdlpYearsBatch(unresolved)) {
+      resolved.set(url, { year, source: "yt-dlp" });
+    }
   }
 
   // Phase 2 — apply resolutions against ground truth (local, fast).

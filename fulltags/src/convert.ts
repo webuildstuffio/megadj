@@ -13,13 +13,24 @@
  * Docs: docs/rekordbox-wav-artwork.md
  */
 import { $ } from "bun";
+import { basename, dirname, join } from "node:path";
 
 /** Convert a .wav to .aiff in place (stream copy + full ID3 frame copy,
  * artwork included). Returns the AIFF path on success, null on failure
  * (caller keeps the WAV and proceeds normally). */
 export async function wavToAiff(wavPath: string): Promise<string | null> {
   if (!wavPath.toLowerCase().endsWith(".wav")) return null;
-  const aiffPath = wavPath.replace(/\.wav$/i, ".aiff");
+  let aiffPath = wavPath.replace(/\.wav$/i, ".aiff");
+  // Never clobber an existing AIFF: a same-named file may be a previous
+  // conversion, or an entirely different track. Disambiguate instead.
+  if (await Bun.file(aiffPath).exists()) {
+    const ext = ".aiff";
+    const stem = basename(aiffPath, ext);
+    let n = 1;
+    do {
+      aiffPath = `${join(dirname(wavPath), `${stem} [wavconv-${n++}]`)}${ext}`;
+    } while (await Bun.file(aiffPath).exists());
+  }
   const proc =
     await $`ffmpeg -y -hide_banner -loglevel error -i ${wavPath} -map 0:a -c:a copy ${aiffPath}`
       .quiet()

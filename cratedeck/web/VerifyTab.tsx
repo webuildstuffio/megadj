@@ -63,8 +63,8 @@ export function VerifyTab(props: {
     }
   };
 
-  const failed = report?.checks.filter((c) => c.status !== "pass") ?? [];
-  const passed = report?.checks.filter((c) => c.status === "pass") ?? [];
+  const failed = report?.checks?.filter((c) => c.status !== "pass") ?? [];
+  const passed = report?.checks?.filter((c) => c.status === "pass") ?? [];
 
   return (
     <div class="verifytab">
