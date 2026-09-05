@@ -12,7 +12,7 @@ const COOKIES = process.env.MEGADJ_COOKIES ?? "chrome";
 const COOKIES_FILE = process.env.MEGADJ_COOKIES_FILE ?? null;
 
 function printHelp(): void {
-  console.log(`megadj — DJ music library manager for rekordbox
+  console.log(`megadj — DJ library manager: acquire (GetDat), enrich (FullTags), drive it (CrateDeck)
 
 usage:
   megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,PLxxxx]

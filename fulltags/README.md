@@ -46,7 +46,7 @@ fulltags/
     remix.ts             `X - Y (Z Remix)` detection
     pipeline.ts          enrichTrack / enrichAll — the orchestrator
     exports.ts           public import surface
-  test/                  49 tests (schema, writer round-trips, pipeline, AIFF)
+  test/                  55 tests (schema, writer round-trips, pipeline, AIFF)
 ```
 
 ## The ladders (first success wins)
