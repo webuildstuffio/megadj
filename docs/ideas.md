@@ -3,11 +3,13 @@
 \*Compiled 2026-09-04 · grounded in the actual repo state: megadj archive/ingest,
 the rekordbox-usb-sync pipeline, CrateDeck v1 (built), and open items in
 `(local ops log)`.
-Expanded same day with an open-source ecosystem research pass (§I–§L).
+Expanded same day with an open-source ecosystem research pass (§I–§L);
+second pass same day added §N (XDJ-XZ / Pioneer / house & techno) and §O
+(agentic megadj for Codex / Claude Code operators).
 Status note (2026-09-04 docs audit): A1 (drive report) shipped —
 `cratedeck/src/report.ts` + `GET /drives/:id/report` + drawer Report tab +
-`cratedeck/test/report.test.ts`; A2 partially landed (`tools/` consolidation
-in 3604b7e); A5 (acceptance doc) done — `docs/cratedeck/acceptance.md`.
+`cratedeck/test/report.test.ts`; A2 DONE (tools consolidation, `a4ace28`);
+A5 (acceptance doc) done — `docs/cratedeck/acceptance.md`.
 **Post-audit revision (2026-09-04): §0 added (do-now items gate everything),
 cold backup promoted from §G, C18c explicitly unbuilt, I52 deleted, §M
 added (AI cool-list + Mac-DJ irritants), sequencing rewritten as a gated
@@ -75,20 +77,26 @@ do you actually play? The sequencing section is now conditional on it.
 Repos and projects discovered during the research pass that map directly onto
 ideas below:
 
-| Project                                                                                                                                                            | What it is                                                                                                                                                                      | Why it matters here                                                                                            |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| [fragmede/rekordbox-pdb](https://github.com/fragmede/rekordbox-pdb)                                                                                                | **Read AND write** Python library for `export.pdb`/`exportExt.pdb` — dependency-free, byte-verified, validated by opening edited sticks in rekordbox                            | Moves legacy-pdb editing from "impossible" to "validate then adopt" (→ C18c). Rust port: `rekordbox_pdb` crate |
-| [Deep-Symmetry/crate-digger](https://github.com/Deep-Symmetry/crate-digger)                                                                                        | Java + Kaitai spec for pdb/ANLZ; the canonical format docs                                                                                                                      | Reference for parser edge cases; djl-analysis.deepsymmetry.org docs                                            |
-| [Holzhaus/rekordcrate](https://github.com/Holzhaus/rekordcrate)                                                                                                    | Rust parser for pdb, ANLZ, and `*SETTING.DAT` files                                                                                                                             | ANLZ cross-checks; SETTING.DAT parsing for a "player settings diff" idea                                       |
-| [Essentia models](https://essentia.upf.edu/models.html) (MTG/UPF)                                                                                                  | Pretrained TF/ONNX models: MusiCNN auto-tagging, mood classifiers (happy/party/aggressive/sad/relaxed/acoustic/electronic), danceability, DEAM valence-arousal, MUSE embeddings | The whole AI vibe layer (§I) — ONNX weights mean no TF dependency                                              |
-| [openmirlab/all-in-one-infer](https://github.com/openmirlab/all-in-one-infer/)                                                                                     | `pip install all-in-one-infer` — structure analysis (intro/verse/drop/outro), beats, downbeats, tempo + demucs stems, PyPI-only                                                 | Structure-aware grids and auto cue placement (→ I46)                                                           |
-| [yizhilll/MERT](https://github.com/yizhilll/MERT) + [MU-LLaMA](https://github.com/shansongliu/MU-LLaMA)                                                            | Music understanding encoder (95M/330M); MERT+LLaMA music QA/captioning                                                                                                          | Embeddings for similarity/dedupe; LLM track captioning (→ I49, I50)                                            |
-| [mixxxdj/libkeyfinder](https://github.com/mixxxdj/libkeyfinder/)                                                                                                   | The KeyFinder algorithm, GPL; 76% overall / **90% on dance music** vs rekordbox's own metadata at ~60% (Dubspot 2026 test)                                                      | Key detection that beats rekordbox → tag + DB injection (→ I51)                                                |
-| [scdl-org/scdl](https://github.com/scdl-org/scdl/)                                                                                                                 | SoundCloud downloader — **as of v3 it is literally a yt-dlp wrapper**                                                                                                           | megadj already runs yt-dlp → SoundCloud sources are config work (→ K57)                                        |
-| [acoustid/chromaprint](https://github.com/acoustid/chromaprint) + [dupsonic](https://github.com/zas/dupsonic/) / soundalike                                        | Acoustic fingerprinting; dupsonic = fast Rust single-binary incremental dupe scanner                                                                                            | Cross-format dedupe, LOWQ-upgrade verification, untagged-file ID (→ L62)                                       |
-| [beetbox/beets](https://github.com/beetbox/beets) v2.4 + [beetcamp](https://github.com/snejus/beetcamp)                                                            | The music-tagger ecosystem; Bandcamp autotag/acquire plugin                                                                                                                     | Borrow plugin ideas; Bandcamp source (→ J55, K58)                                                              |
-| [gmunumel/track-list-extractor](https://github.com/gmunumel/track-list-extractor) · [1001-tracklists-api](https://github.com/leandertolksdorf/1001-tracklists-api) | 1001tracklists scrapers (Python)                                                                                                                                                | Discovery: mine DJ sets → download queue (→ K59)                                                               |
-| [Quickie Music](https://quickiemusic.com/)                                                                                                                         | SaaS: drop folder → AI clean names, BPM/key, genre split → tagged ZIP + `.m3u8` for rekordbox. $4/mo                                                                            | Competitive proof the "one-shot prep" UX has value; megadj already owns every component (→ K61)                |
+| Project                                                                                                                                                                                        | What it is                                                                                                                                                                                                                             | Why it matters here                                                                                                                  |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| [fragmede/rekordbox-pdb](https://github.com/fragmede/rekordbox-pdb)                                                                                                                            | **Read AND write** Python library for `export.pdb`/`exportExt.pdb` — dependency-free, byte-verified, validated by opening edited sticks in rekordbox                                                                                   | Moves legacy-pdb editing from "impossible" to "validate then adopt" (→ C18c). Rust port: `rekordbox_pdb` crate                       |
+| [Deep-Symmetry/crate-digger](https://github.com/Deep-Symmetry/crate-digger)                                                                                                                    | Java + Kaitai spec for pdb/ANLZ; the canonical format docs                                                                                                                                                                             | Reference for parser edge cases; djl-analysis.deepsymmetry.org docs                                                                  |
+| [Holzhaus/rekordcrate](https://github.com/Holzhaus/rekordcrate)                                                                                                                                | Rust parser for pdb, ANLZ, and `*SETTING.DAT` files                                                                                                                                                                                    | ANLZ cross-checks; SETTING.DAT parsing for a "player settings diff" idea                                                             |
+| [Essentia models](https://essentia.upf.edu/models.html) (MTG/UPF)                                                                                                                              | Pretrained TF/ONNX models: MusiCNN auto-tagging, mood classifiers (happy/party/aggressive/sad/relaxed/acoustic/electronic), danceability, DEAM valence-arousal, MUSE embeddings                                                        | The whole AI vibe layer (§I) — ONNX weights mean no TF dependency                                                                    |
+| [openmirlab/all-in-one-infer](https://github.com/openmirlab/all-in-one-infer/)                                                                                                                 | `pip install all-in-one-infer` — structure analysis (intro/verse/drop/outro), beats, downbeats, tempo + demucs stems, PyPI-only                                                                                                        | Structure-aware grids and auto cue placement (→ I46)                                                                                 |
+| [yizhilll/MERT](https://github.com/yizhilll/MERT) + [MU-LLaMA](https://github.com/shansongliu/MU-LLaMA)                                                                                        | Music understanding encoder (95M/330M); MERT+LLaMA music QA/captioning                                                                                                                                                                 | Embeddings for similarity/dedupe; LLM track captioning (→ I49, I50)                                                                  |
+| [mixxxdj/libkeyfinder](https://github.com/mixxxdj/libkeyfinder/)                                                                                                                               | The KeyFinder algorithm, GPL; 76% overall / **90% on dance music** vs rekordbox's own metadata at ~60% (Dubspot 2026 test)                                                                                                             | Key detection that beats rekordbox → tag + DB injection (→ I51)                                                                      |
+| [scdl-org/scdl](https://github.com/scdl-org/scdl/)                                                                                                                                             | SoundCloud downloader — **as of v3 it is literally a yt-dlp wrapper**                                                                                                                                                                  | megadj already runs yt-dlp → SoundCloud sources are config work (→ K57)                                                              |
+| [acoustid/chromaprint](https://github.com/acoustid/chromaprint) + [dupsonic](https://github.com/zas/dupsonic/) / soundalike                                                                    | Acoustic fingerprinting; dupsonic = fast Rust single-binary incremental dupe scanner                                                                                                                                                   | Cross-format dedupe, LOWQ-upgrade verification, untagged-file ID (→ L62)                                                             |
+| [beetbox/beets](https://github.com/beetbox/beets) v2.4 + [beetcamp](https://github.com/snejus/beetcamp)                                                                                        | The music-tagger ecosystem; Bandcamp autotag/acquire plugin                                                                                                                                                                            | Borrow plugin ideas; Bandcamp source (→ J55, K58)                                                                                    |
+| [gmunumel/track-list-extractor](https://github.com/gmunumel/track-list-extractor) · [1001-tracklists-api](https://github.com/leandertolksdorf/1001-tracklists-api)                             | 1001tracklists scrapers (Python)                                                                                                                                                                                                       | Discovery: mine DJ sets → download queue (→ K59)                                                                                     |
+| [Quickie Music](https://quickiemusic.com/)                                                                                                                                                     | SaaS: drop folder → AI clean names, BPM/key, genre split → tagged ZIP + `.m3u8` for rekordbox. $4/mo                                                                                                                                   | Competitive proof the "one-shot prep" UX has value; megadj already owns every component (→ K61)                                      |
+| [AlphaTheta library-format notice](https://alphatheta.com/en/information/important-notice-for-customers-using-usb-devices-with-our-dj-equipment/)                                              | Official two-format split: XDJ-XZ, CDJ-3000, RX3, RR, NXS2 = **Device Library** (export.pdb); XDJ-AZ, OPUS-QUAD, OMNIS-DUO, CDJ-3000X = **OneLibrary** only. rekordbox 7.2.11+ writes both on export                                   | Our dual-DB gate maps exactly onto Pioneer's official compatibility matrix (→ N75). Explains why the pdb gate _is_ the hardware gate |
+| [CDJ-3000 v3.30 incident](https://djmag.com/tech/alphatheta-shares-guide-fix-playlist-issues-firmware-update)                                                                                  | Firmware pulled after DJs reported missing playlists (3.30 prioritized OneLibrary; rolled back to 3.22)                                                                                                                                | Venue firmware version is a real failure mode → preflight firmware-notes field (→ B12 note)                                          |
+| [2026 stems comparisons](https://thedjmixtape.com/virtualdj-stems-vs-serato-stems-vs-rekordbox-stems/)                                                                                         | Blind tests: djay (AudioShake) best vocals on Apple silicon; VirtualDJ 5–6 stems; **rekordbox 7 rated ~3★**; Traktor/Engine pre-render                                                                                                 | Offline demucs stems (I46/I48) can _exceed_ rekordbox's own real-time stems — precomputed analysis is a legitimate edge              |
+| [robertlestak/digarr](https://github.com/robertlestak/digarr) · [dean1850/musicdrome](https://github.com/dean1850/musicdrome) · [Snapyou2/re-command](https://github.com/Snapyou2/re-command/) | AI discovery loops: listening history (ListenBrainz/Last.fm) → MusicBrainz+AI similar-artists → scored approval queue → auto-download (ytmusicapi/Soulseek/Streamrip). Musicdrome's rule: _"a wrong file is worse than a missing one"_ | The exact architecture for megadj's discovery engine — taste source → AI → YTMusic resolve with confidence gating (→ N82)            |
+| [mxschll/harmonie](https://github.com/mxschll/harmonie)                                                                                                                                        | Essentia embeddings + descriptors + **400 Discogs-style probabilities** in SQLite, HTTP similarity API                                                                                                                                 | Prior art for I45/I49 — possibly runnable as-is beside the archive instead of building from scratch                                  |
+| [Claude Code agentic primitives](https://code.claude.com/docs/en/plugins.md) (skills, hooks, subagents, MCP, headless `claude -p`)                                                             | The 2026 agent-CLI taxonomy: SKILL.md for domain logic, hooks for lifecycle automation, MCP for tool exposure, headless one-shots for cron-able agents                                                                                 | megadj already ships skills + deckctl; next step is exposing the archive as MCP tools + agent loops (→ §O)                           |
 
 ---
 
@@ -114,13 +122,13 @@ remaining in-flight work.)_
    `tools/rb_art.py`, thumbnail gotcha fixed; see
    `docs/rekordbox-wav-artwork.md`). Remaining sliver: spot-check covers
    on the XDJ-XZ at the next export.
-3. **Close the 2026-09-03 sync-log checklist.** Three pending items remain
+4. **Close the 2026-09-03 sync-log checklist.** Three pending items remain
    (the fourth, SSD evacuation, is now §0a):
    - `usb_verify.py` hardware gate (pdb live rows == OneLibrary, both drives)
    - `usb_mirror.py --verify-only --hash-parity` post-export drift check
    - Update `~/rekordbox-exports/STATUS-FINAL.md` counts
-4. **OLDUSB verdict — now §0c** (promoted; do before the cloud backup).
-5. **CrateDeck acceptance doc — ✅ DONE 2026-09-04:**
+5. **OLDUSB verdict — now §0c** (promoted; do before the cloud backup).
+6. **CrateDeck acceptance doc — ✅ DONE 2026-09-04:**
    `docs/cratedeck/acceptance.md` now exists with code-verified evidence per
    PRD feature; remaining ☐ items are the real-hardware checks.
 
@@ -617,6 +625,127 @@ plus a list of the everyday Mac-DJ irritations nobody builds for.
 
 ---
 
+## N. XDJ-XZ / Pioneer ecosystem / house & techno (2026-09-04 research addendum)
+
+Grounded in the official AlphaTheta compatibility notice + the 2026 stems
+comparisons. The repo's XDJ-XZ is the reason the dual-DB gate exists — the
+ecosystem research confirms the architecture is aimed at the right wall.
+
+75. **Hardware compatibility matrix as data (Device vs OneLibrary).**
+    AlphaTheta's notice gives the official split: XDJ-XZ, CDJ-3000, RX3,
+    RR, XDJ-1000MK2, XDJ-700, NXS2 generation = **Device Library**
+    (export.pdb); XDJ-AZ, OPUS-QUAD, OMNIS-DUO, CDJ-3000X = **OneLibrary
+    only**. Encode it as a config file (`players.toml`), not code:
+    CrateDeck reads it and annotates every drive with "plays on: XZ ✓,
+    AZ ✗" style badges derived from the _actual_ DB rows measured (pdb
+    live rows == OneLibrary rows == the gate we already compute). When
+    the fleet gains a CDJ-3000X or AZ, the matrix makes the gap visible
+    before a gig, not at the venue. Effort S — mostly data entry.
+
+76. **Preflight firmware-notes field.** The CDJ-3000 v3.30 incident
+    (firmware pulled after DJs' playlists vanished; OneLibrary
+    prioritized over Device Library; rolled back to 3.22) is the newest
+    recurring nightmare class. Preflight (B12) gains a manual,
+    per-player firmware field + a link-check against AlphaTheta's
+    notice page, plus a rule of thumb rendered in the UI: _drive shows
+    on the player but playlists are empty → check which library format
+    that firmware prioritizes._ Effort S.
+
+77. **XDJ-XZ-specific export profile.** The XZ reads Device Library
+    only, supports FAT32/exFAT/HFS+ (NTFS no; GUID partition map no;
+    case-sensitive HFS+ no), and firmware updates require FAT/FAT32 +
+    MBR. Today this knowledge lives in humans and skill docs. Encode it:
+    `megadj format --profile xdj-xz` (M69) defaults to exactly the right
+    scheme, and CrateDeck flags a drive formatted case-sensitively or
+    GUID-partitioned as incompatible. Effort S.
+
+78. **"Which players will this stick actually work on?" — the fleet
+    answer.** Combine N75's matrix + the measured dual-DB state + format
+    profile into a per-drive verdict: _Device Library current ✓, pdb ==
+    OneLibrary ✓ → works on XZ + CDJ-3000 generation; OneLibrary-only
+    content → AZ/OPUS/3000X only._ This is the thing rekordbox cannot
+    tell you at all and the single clearest expression of what megadj is
+    for. Falls out of B12 + N75 nearly free. Effort S.
+
+79. **Genre-normalized house/techno taxonomy.** The 400-Discogs-styles
+    model (harmonie) + Essentia genre classifiers give every track a
+    machine-vote (`tech-house`, `deep-house`, `peak-time techno`) to
+    arbitrate against the LLM genre (already shipped) and MusicBrainz.
+    Output: one normalized genre + a styles[] array in the archive DB,
+    feeding smarter "more like this" in the crate copilot (M66) and the
+    1001TL discovery ranking (K59). Replaces the ad-hoc SC-tag voting
+    in `tools/sc_genres.ts` with something principled. Effort M.
+
+80. **Energy-arc presets per genre.** House/techno sets live on
+    energy curves, not just BPM. With I45's valence-arousal + danceability
+    per track, define presets ("warm-up", "peak", "afterhours") as
+    valence/energy envelopes, and have the crate copilot (M66) assemble
+    against a chosen envelope. This is the "play a warm-up set" button,
+    grounded in measured track features rather than vibes. Effort M.
+
+81. **Stems-as-metadata (offline, exceeding rekordbox's own).** The 2026
+    comparisons rate rekordbox 7's real-time stems ~3★ while offline
+    demucs/AudioShake-class models lead blind tests. megadj's pipeline is
+    offline by design: render stems at ingest (I46 demucs pass), store
+    vocal-density + instrumental-ness (I48), and _later_ (explicitly
+    parked, non-goal today) consider pre-rendered stem files for players
+    that support them (Engine-style). The near-term win is analytical:
+    every track gets instrumental/acapella/drum ratings that CDJs can't
+    compute but DJs constantly need. Effort M.
+
+---
+
+## O. Agentic megadj (Codex / Claude Code as first-class operators)
+
+The 2026 agent-CLI taxonomy (skills, hooks, subagents, MCP, headless
+one-shots) maps onto megadj with almost no new code — the CLI and deckctl
+already exist. These ideas make agents _safe, useful operators_ of the
+library, not gimmicks.
+
+82. **megadj MCP server.** Expose the archive + deckctl as MCP tools:
+    `search_tracks`, `track_stats`, `drive_status`, `drive_report`,
+    `enqueue_job` (scan/verify/checksum only — never mirror/format),
+    `playlist_diff`. Any MCP client (Claude Code, Codex, Cursor) can
+    then answer "what's on the XZ", "what did I ingest last week", "run
+    a checksum on DJMIRROR" in natural language, with the interlock
+    enforced inside the tool layer. Bun + the official MCP SDK; the
+    tools are thin wrappers over existing functions. Effort M.
+
+83. **Weekly agent prep loop (headless).** A cron-able one-shot:
+    `claude -p "run the megadj weekly prep skill"` style — or a plain
+    shell entry that calls deckctl + fetches a digest. It runs: archive
+    integrity sweep (D30) → drive scan deltas → redundancy check (B7) →
+    new-music-not-yet-exported report → posts a markdown digest (file
+    or notification). The agent writes _nothing_; it only reads and
+    reports. This is the weekly digest (F39) implemented by an operator
+    that never gets bored. Effort S-M.
+
+84. **Inbox-to-crate agent.** "Dump this folder/zip/URL list, get clean
+    tagged files": combine `megadj drop` (K61) with an agent loop that
+    handles the judgment calls (dupe resolution, genre arbitration,
+    artwork picks) by asking the human only when confidence is low.
+    The agent drives `ingest --dry-run`, presents the plan, executes on
+    approval. Skills already exist for intake; this wraps them in a
+    conversation. Effort M.
+
+85. **Skill/plugin packaging.** megadj ships 3 skills today. Package the
+    set as an installable Claude Code plugin (skills + hooks + MCP
+    manifest) so the _whole DJ-ops surface_ installs into any Claude
+    Code instance: interlock-aware job skills, the intake runbook, the
+    discovery queue. Also the natural open-source artifact if this repo
+    ever goes public. Effort S once 82 exists.
+
+86. **Agent safety rails (the non-negotiable half).** Whatever the
+    agent layer looks like: mutating tools (mirror, format, anything
+    touching drives) are either absent from the MCP surface or gated
+    behind an explicit confirm-tool-call pattern; the interlock check
+    lives in the tool layer, not the prompt (prompts are suggestions,
+    exit codes are law); every agent-initiated action lands in the
+    timeline events log with the agent's session id. The doc's existing
+    non-goals all still apply to agents, twice over. Effort S.
+
+---
+
 ## H. Explicit non-goals (unchanged — say no)
 
 - ❌ Writing device DBs outside rekordbox (`export.pdb`/`exportLibrary.db`
@@ -676,3 +805,19 @@ something new enters.
 **Stop condition:** if two consecutive months produce zero gigs and zero
 incidents in the log, the honest move per §0's reality gate is to finish
 Phase 1, keep the nightly backup running, and freeze the rest of the doc.
+
+**Addendum tracks (2026-09-04 research pass):**
+
+- **§N is cheap and fleet-true:** N75–N78 (player matrix, firmware notes,
+  XZ format profile, "works on which players" verdict) slot into Phase 2
+  alongside §B — all small, all derived from the dual-DB gate that
+  already ships. N79–N81 (genre taxonomy, energy arcs, stems-as-metadata)
+  join Phase 4 after I45/I46 exist.
+- **§O joins when the moat is live:** O82 (MCP server) after B6–B9,
+  O83 (headless weekly agent) any time after D30/B7 exist — it's the
+  cheapest reliability win in the doc. O85/O86 last (packaging and
+  rails harden once the surface is stable).
+- **Dedupe note:** O83 supersedes F39 (weekly digest) as the preferred
+  implementation; M64/N80 feed M66. K59 discovery should adopt the
+  digarr/musicdrome pattern (taste source → AI score → confident
+  YTMusic resolve → approval queue) rather than raw scraping alone.
