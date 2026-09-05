@@ -7,7 +7,7 @@ import type { CrateConfig } from "./config";
 export class Guard {
   private allowed: string[]; // prefixes that may be written
 
-  constructor(private cfg: CrateConfig) {
+  constructor(cfg: CrateConfig) {
     this.allowed = [cfg.dataDir];
   }
 

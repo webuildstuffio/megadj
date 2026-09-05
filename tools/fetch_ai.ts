@@ -74,7 +74,7 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
 
 /** Album fallback for pack tracks: "Artist remixes/flips/edits — Singles". */
 export const albumHeuristic = (artist: string, fname: string): string => {
-  const a0 = artist.split(/[,&]/)[0].trim();
+  const a0 = artist.split(/[,&]/)[0]?.trim() ?? artist;
   if (/remix/i.test(fname)) return `${a0} remixes`;
   if (/flip/i.test(fname)) return `${a0} flips`;
   if (/edit|mash|bootleg|rework|re-?work/i.test(fname)) return `${a0} edits`;

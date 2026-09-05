@@ -25,9 +25,8 @@ interface Row {
 const rows = db
   .query(
     "SELECT video_id, title, artist, file_path, format_id, year FROM tracks WHERE status='downloaded' AND file_path LIKE ?",
-    `${ARCH}/%`,
   )
-  .all() as Row[];
+  .all(`${ARCH}/%`) as Row[];
 
 function scPageYear(url: string): number | null {
   try {

@@ -99,9 +99,12 @@ print(json.dumps({"art": art, "tags": tags}))`;
     stdout: "pipe",
   });
   try {
-    return JSON.parse(
-      new TextDecoder().decode(pr.stdout).trim().splitlines().at(-1)!,
-    );
+    const lastLine =
+      new TextDecoder().decode(pr.stdout).trim().split("\n").at(-1) ?? "";
+    return JSON.parse(lastLine) as {
+      art: boolean;
+      tags: Record<string, string>;
+    };
   } catch {
     return { art: false, tags: {} };
   }
@@ -146,7 +149,9 @@ export function groundTruth(p: string): Truth {
     return null;
   };
   let genre = g("genre");
-  if (genre && genre.includes(",")) genre = genre.split(",")[0].trim();
+  if (genre && genre.includes(",")) {
+    genre = genre.split(",")[0]?.trim() || genre;
+  }
   const rawDate = g("date", "year", "TDRC");
   const year = rawDate ? (rawDate.match(/\d{4}/)?.[0] ?? null) : null;
   return {
@@ -315,7 +320,10 @@ export function validateTagValues(vals: TagValues): void {
 
 export function setFileTags(p: string, vals: TagValues): boolean {
   validateTagValues(vals);
-  const pairs = Object.entries(vals).filter(([, v]) => v !== undefined);
+  const pairs = Object.entries(vals).filter(([, v]) => v !== undefined) as [
+    keyof TagValues,
+    string | number,
+  ][];
   if (!pairs.length) return true;
   if (p.toLowerCase().endsWith(".wav")) {
     const sets = pairs
@@ -386,7 +394,7 @@ export interface ScHit {
 }
 
 function cleanQuery(r: Row): string {
-  const artist0 = (r.artist ?? "").split(/[,&]/)[0].trim();
+  const artist0 = (r.artist ?? "").split(/[,&]/)[0]?.trim() ?? "";
   const t = r.title
     .replace(/\[[^\]]*\]/g, " ")
     .replace(/\([^)]*\)/g, " ")
@@ -423,7 +431,9 @@ export function scSearch(r: Row): ScHit[] {
   }
   const hits: ScHit[] = [];
   const tWords = words(r.title);
-  const artist0 = (r.artist ?? "unknown").split(/[,&]/)[0].trim().toLowerCase();
+  const artist0 = ((r.artist ?? "unknown").split(/[,&]/)[0] ?? "")
+    .trim()
+    .toLowerCase();
   for (const line of out.split("\n")) {
     if (!line.startsWith("COL|")) continue;
     const parts = line.slice(4).split("|");
@@ -446,7 +456,7 @@ export function scSearch(r: Row): ScHit[] {
         : undefined;
     hits.push({
       url,
-      title: t,
+      title: t ?? "",
       uploader: uploader || null,
       thumb:
         thumbsRaw?.match(

@@ -269,9 +269,8 @@ async function main() {
     db
       .query(
         "SELECT video_id, title, artist, album, genre, file_path, format_id FROM tracks WHERE status='downloaded' AND file_path LIKE ?",
-        `${ARCH}/%`,
       )
-      .all() as Row[]
+      .all(`${ARCH}/%`) as Row[]
   ).filter(
     (r) =>
       files.has(r.file_path.split("/").pop() ?? "") && existsSync(r.file_path),
