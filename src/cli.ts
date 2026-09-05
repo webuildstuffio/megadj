@@ -125,6 +125,9 @@ async function main(): Promise<void> {
         const results = runDoctor();
         if (flags.bools.has("json")) {
           console.log(doctorJson(results));
+          // --json keeps the same contract as text mode: exit 1 if any
+          // required check is broken (usable as a CI/script gate)
+          process.exitCode = results.some((c) => !c.ok && c.required) ? 1 : 0;
         } else {
           process.exitCode = printDoctor(results);
         }

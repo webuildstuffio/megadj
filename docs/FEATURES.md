@@ -128,9 +128,13 @@ complete the metadata → agentify). Headliners per project:
   `beat_this` (§I46), Essentia mood & vibe suite (§I45),
   structure-aware grids & cues (§I46).
 - **The agentic layer** — safety rails first (§O86), then the megadj MCP
-  server (§O82) and a weekly headless agent prep loop (§O83).
+  server (§O82; the CrateDeck half already ships via `bun run mcp`) and a
+  weekly headless agent prep loop (§O83).
 - **The dream** — hit predictor & set-builder copilot, calibrated on what
   actually got played; proposes sequences, never auto-exports (§M64, M66).
+
+Do-now items are tracked as GitHub issues, not just prose — see the issue
+links at the top of [ideas.md §0](ideas.md#0--do-now-before-anything-else).
 
 ---
 

@@ -265,7 +265,11 @@ function finishLine(j: Job, driveName: string, elapsedS: number): void {
       result = j.result_json
         ? (JSON.parse(j.result_json) as Record<string, unknown>)
         : null;
-    } catch {}
+    } catch (e) {
+      // job finished; only the pretty summary is lost — the status line
+      // above is the truth. Corrupt payload gets called out, not hidden.
+      console.error("job result_json was not valid JSON", e);
+    }
     if (j.kind === "verify" && result) {
       const checks = (result.checks ?? []) as {
         id: string;
@@ -302,7 +306,9 @@ function finishLine(j: Job, driveName: string, elapsedS: number): void {
             ? `  ⚠ ${r.changed.length} file(s) differ from ledger:\n   ${r.changed.slice(0, 5).join("\n   ")}`
             : `  ${r.hashed.toLocaleString()} files clean`,
         );
-      } catch {}
+      } catch (e) {
+        console.error("checksum result_json had an unexpected shape", e);
+      }
     }
     process.exit(0);
   }
@@ -588,7 +594,14 @@ async function main(): Promise<void> {
       return cmdCancel(args[1] ?? usage());
     case "stop":
       log("stopping server…");
-      await apiPost("/api/stop").catch(() => {});
+      await apiPost("/api/stop").catch((e: unknown) => {
+        // stop tolerates an already-dead server (that's the goal state),
+        // but anything else (refused, malformed) is reported, not hidden.
+        console.error(
+          "stop request failed (server may already be down):",
+          e instanceof Error ? e.message : e,
+        );
+      });
       return;
     default:
       usage();

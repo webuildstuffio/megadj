@@ -107,7 +107,9 @@ export async function waitForJob(
   let last = "";
   while (Date.now() < deadline) {
     const j = (await apiGet(`/api/jobs/${jobId}`).then((r) => r.json())) as Job;
-    const key = `${j.status}:${j.progress}:${j.message}`;
+    // dedupe on status+message: progress ticks fire every poll by design,
+    // so including them would re-notify on each 3s poll while % moves
+    const key = `${j.status}:${j.message}`;
     if (key !== last) {
       opts.onProgress?.(j);
       last = key;

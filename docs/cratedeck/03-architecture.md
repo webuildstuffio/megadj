@@ -57,6 +57,7 @@ src/
   rb.ts         THE Python seam: rekordbox reads + verify/mirror job wrappers
   bench.ts      benchmark + checksum ledger (pure TS, Bun.CryptoHasher)
   jobs.ts       queue, progress, interlock (rekordbox running? → refuse)
+  verify_report.ts  usb_verify.py output → structured, explained verdicts (pure)
   guard.ts      THE write allow-list — every disk write goes through it
 ```
 

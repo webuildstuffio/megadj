@@ -85,7 +85,8 @@ produces, regardless of the language used in the request.
   exit code 3 when locked; guide `cratedeck/deckctl.md`, skill
   `.claude/skills/cratedeck-deckctl/`). Canonical product docs live in
   `docs/cratedeck/` (brief, PRD, architecture, build plan, acceptance), ideas
-  backlog in `docs/ideas.md` (§0 = do-now gate).
+  backlog in `docs/ideas.md` (§0 = do-now gate; §0 items are tracked as
+  GitHub issues — file one per new §0 item and link it from the doc).
 - CrateDeck UI is a two-pane shell — left `DriveRail` + main canvas — with
   NO drawer and NO sidebar; navigation is hash-routed (`web/router.ts`,
   `#/drives/:id/:tab`, deep-linkable, browser back/forward works). Drive
