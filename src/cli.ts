@@ -109,6 +109,12 @@ function parseFlags(
   return { strings, bools };
 }
 
+/** Numeric string option: `numOpt(flags, "jobs")` → number | undefined. */
+function numOpt(flags: ParsedFlags, key: string): number | undefined {
+  const raw = flags.strings.get(key);
+  return raw ? Number(raw) || undefined : undefined;
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const command = argv.find((a) => !a.startsWith("--")) ?? "help";
@@ -217,40 +223,29 @@ async function main(): Promise<void> {
         }
         break;
       }
+      case "organize":
+      case "enrich": {
+        // organize and enrich share the exact same option surface.
+        const flags = parseFlags(
+          process.argv.slice(3),
+          [],
+          ["dry-run", "json"],
+        );
+        const mod = await import(
+          command === "organize" ? "./commands/organize" : "./commands/enrich"
+        );
+        await mod[command]({
+          state,
+          musicDir: MUSIC_DIR,
+          dryRun: flags.bools.has("dry-run"),
+          json: flags.bools.has("json"),
+        });
+        break;
+      }
       case "adopt": {
         const { adopt } = await import("./commands/adopt");
         const json = process.argv.slice(3).includes("--json");
         await adopt({ state, musicDir: MUSIC_DIR, json });
-        break;
-      }
-      case "organize": {
-        const flags = parseFlags(
-          process.argv.slice(3),
-          [],
-          ["dry-run", "json"],
-        );
-        const { organize } = await import("./commands/organize");
-        await organize({
-          state,
-          musicDir: MUSIC_DIR,
-          dryRun: flags.bools.has("dry-run"),
-          json: flags.bools.has("json"),
-        });
-        break;
-      }
-      case "enrich": {
-        const flags = parseFlags(
-          process.argv.slice(3),
-          [],
-          ["dry-run", "json"],
-        );
-        const { enrich } = await import("./commands/enrich");
-        await enrich({
-          state,
-          musicDir: MUSIC_DIR,
-          dryRun: flags.bools.has("dry-run"),
-          json: flags.bools.has("json"),
-        });
         break;
       }
       case "ingest": {
@@ -295,9 +290,7 @@ async function main(): Promise<void> {
         await artwork({
           state,
           model: flags.strings.get("model"),
-          maxImages: flags.strings.get("max")
-            ? Number(flags.strings.get("max"))
-            : undefined,
+          maxImages: numOpt(flags, "max"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
         });
@@ -310,21 +303,12 @@ async function main(): Promise<void> {
           ["art", "genres", "tags", "years", "all", "dry-run", "json"],
         );
         const { fetch } = await import("./commands/fetch");
-        const only = flags.bools.has("art")
-          ? "art"
-          : flags.bools.has("genres")
-            ? "genres"
-            : flags.bools.has("tags")
-              ? "tags"
-              : flags.bools.has("years")
-                ? "years"
-                : "all";
         await fetch({
           all: flags.bools.has("all"),
-          only,
-          jobs: flags.strings.get("jobs")
-            ? Number(flags.strings.get("jobs"))
-            : undefined,
+          only: (["art", "genres", "tags", "years"].find((k) =>
+            flags.bools.has(k),
+          ) ?? "all") as "art" | "genres" | "tags" | "years" | "all",
+          jobs: numOpt(flags, "jobs"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
         });
@@ -383,7 +367,7 @@ async function main(): Promise<void> {
           ["dry-run", "json"],
         );
         const { runFixYears } = await import("../tools/fix_years");
-        runFixYears({
+        await runFixYears({
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
         });

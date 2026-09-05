@@ -2,9 +2,14 @@
  * fetch command — agent/user-facing wrapper around tools/fetch_all.ts.
  * Runs the enrichment pipeline (tags + genres + years + artwork) in-process
  * with the same flags, so `megadj fetch --dry-run` etc. just work.
+ *
+ * `auditArchive` reads ground truth through FullTags' reader (one
+ * implementation — the file is the truth, and `megadj audit` and
+ * `fulltags audit` must agree by construction).
  */
 import { join } from "node:path";
 import { readdirSync, existsSync } from "node:fs";
+import { groundTruth } from "../../fulltags/src/exports";
 
 export interface FetchOptions {
   all?: boolean;
@@ -13,102 +18,6 @@ export interface FetchOptions {
   dryRun?: boolean;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
   json?: boolean;
-}
-
-interface Truth {
-  art: boolean;
-  title: string | null;
-  artist: string | null;
-  album: string | null;
-  genre: string | null;
-  year: string | null;
-  comment: string | null;
-}
-
-/** Read the file's real tags via mutagen/ffprobe (spawned). */
-function groundTruth(p: string): Truth {
-  const script = `import json
-from mutagen.wave import WAVE
-from mutagen.mp3 import MP3
-from mutagen.id3 import ID3
-p = ${JSON.stringify(p)}
-if p.lower().endswith(".wav"):
-    a = WAVE(p)
-    tags, art = {}, False
-    if a.tags:
-        for k in a.tags.keys():
-            try:
-                if k.startswith("APIC"): continue
-                frame = a.tags.get(k)
-                v = str(frame.text[0]) if k.startswith("COMM") and frame.text else str(frame)
-                tags[k.split(":")[0]] = v
-            except Exception: pass
-        art = any(k.startswith("APIC") for k in a.tags.keys())
-else:
-    a = MP3(p)
-    tags, art = {}, False
-    if a.tags:
-        for k, v in a.tags.items():
-            try: tags[k] = str(v.text[0]) if hasattr(v, "text") and v.text else str(v)
-            except Exception: pass
-        art = bool(a.tags.getall("APIC"))
-print(json.dumps({"art": art, "tags": tags}))`;
-  const pr = Bun.spawnSync({
-    cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
-    stdout: "pipe",
-  });
-  try {
-    const out = new TextDecoder().decode(pr.stdout).trim();
-    const last = out.split("\n").at(-1);
-    if (!last) throw new Error("empty output");
-    const j = JSON.parse(last) as {
-      art?: boolean;
-      tags?: Record<string, unknown>;
-    };
-    const map: Record<string, string> = {
-      TIT2: "title",
-      TPE1: "artist",
-      TALB: "album",
-      TCON: "genre",
-      TDRC: "date",
-      COMM: "comment",
-    };
-    const merged: Record<string, string> = {};
-    for (const [k, v] of Object.entries(j.tags ?? {})) {
-      merged[map[k] ?? k.toLowerCase()] = String(v);
-    }
-    const g = (...keys: string[]): string | null => {
-      for (const k of keys) {
-        const val = merged[k];
-        if (val && String(val).trim()) return String(val).trim();
-      }
-      return null;
-    };
-    let genre = g("genre") ?? "";
-    genre = genre.includes(",")
-      ? (genre.split(",")[0]?.trim() ?? genre)
-      : genre;
-    const year = g("date")?.match(/\d{4}/)?.[0] ?? null;
-    return {
-      art: j.art === true,
-      title: g("title"),
-      artist: g("artist"),
-      album: g("album"),
-      genre,
-      year,
-      comment: g("comment"),
-    };
-  } catch {
-    return {
-      art: false,
-      title: null,
-      artist: null,
-      album: null,
-      genre: null,
-      year: null,
-      comment: null,
-    };
-  }
 }
 
 export interface AuditRow {

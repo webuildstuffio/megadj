@@ -223,11 +223,15 @@ export async function enrichTrack(
   }
 
   // ---------- write ----------
-  if (!opts.dryRun && Object.keys(patch).length) {
+  const wrote = !opts.dryRun && Object.keys(patch).length > 0;
+  if (wrote) {
     await writePatch(t.path, patch);
   }
 
-  const after = opts.dryRun ? truth : groundTruth(t.path);
+  // Verify re-read only when something could have changed — an empty patch
+  // or dry run leaves the file untouched, so `truth` is already current
+  // (saves an ffprobe+spawn per already-complete track on re-runs).
+  const after = wrote ? groundTruth(t.path) : truth;
   const { complete, missing } = completenessOf(after, t);
   return { path: t.path, notes, complete, missing };
 }
@@ -338,66 +342,16 @@ function appendQueue(queuePath: string, r: ArtRow): void {
   ).catch(() => {});
 }
 
-function dirname(p: string): string {
-  return p.replace(/\/[^/]*$/, "") || "/";
-}
-
-/** Read the TXXX:ENERGY stamp (mutagen) — null when absent. */
-function readEnergyStamp(p: string): number | null {
+/**
+ * Read TXXX frames (mutagen) in one spawn: pass descriptions, get values.
+ * Shared by the energy stamp and AI-provenance reads — same format
+ * dispatch, one python script, never throws.
+ */
+function readTxxx(p: string, descs: string[]): Record<string, string | null> {
   const script = `import json
 p = ${JSON.stringify(p)}
-val = None
-try:
-    if p.lower().endswith(".wav"):
-        from mutagen.wave import WAVE
-        a = WAVE(p)
-    elif p.lower().endswith((".aiff", ".aif")):
-        from mutagen.aiff import AIFF
-        a = AIFF(p)
-    else:
-        from mutagen.mp3 import MP3
-        from mutagen.flac import FLAC
-        if p.lower().endswith(".flac"):
-            a = FLAC(p)
-        else:
-            a = MP3(p)
-    tags = a.tags
-    if tags is not None:
-        for k in tags.keys():
-            if k.startswith("TXXX") and getattr(tags.get(k), "desc", "") == "ENERGY":
-                val = str(tags.get(k).text[0])
-                break
-except Exception:
-    pass
-print(json.dumps({"energy": val}))`;
-  const pr = Bun.spawnSync({
-    cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
-    stdout: "pipe",
-  });
-  try {
-    const last = new TextDecoder().decode(pr.stdout).trim().split("\n").at(-1);
-    const v = last
-      ? ((JSON.parse(last) as { energy?: string | null }).energy ?? null)
-      : null;
-    const n = v === null ? NaN : Number(v);
-    return Number.isFinite(n) ? n : null;
-  } catch (e) {
-    console.error(`energy probe failed (exit ${pr.exitCode})`, e);
-    return null;
-  }
-}
-void dirname;
-
-/** AI provenance stamps on a file: {aiGenre, aiYear} = "value|confidence",
- * null when not AI-filled (mutagen TXXX read; never throws). */
-export function readAiStamps(p: string): {
-  aiGenre: string | null;
-  aiYear: string | null;
-} {
-  const script = `import json
-p = ${JSON.stringify(p)}
-genre = None
-year = None
+wanted = ${JSON.stringify(descs)}
+vals = {d: None for d in wanted}
 try:
     if p.lower().endswith(".wav"):
         from mutagen.wave import WAVE
@@ -417,32 +371,43 @@ try:
         for k in tags.keys():
             if k.startswith("TXXX"):
                 desc = getattr(tags.get(k), "desc", "")
-                if desc == "AI-GENRE":
-                    genre = str(tags.get(k).text[0])
-                elif desc == "AI-YEAR":
-                    year = str(tags.get(k).text[0])
+                if desc in vals and vals[desc] is None:
+                    vals[desc] = str(tags.get(k).text[0])
 except Exception:
     pass
-print(json.dumps({"aiGenre": genre, "aiYear": year}))`;
+print(json.dumps(vals))`;
   const pr = Bun.spawnSync({
     cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
     stdout: "pipe",
   });
   try {
     const last = new TextDecoder().decode(pr.stdout).trim().split("\n").at(-1);
-    const parsed = last
-      ? (JSON.parse(last) as {
-          aiGenre?: string | null;
-          aiYear?: string | null;
-        })
-      : {};
-    return {
-      aiGenre: parsed.aiGenre ?? null,
-      aiYear: parsed.aiYear ?? null,
-    };
+    return last
+      ? (JSON.parse(last) as Record<string, string | null>)
+      : Object.fromEntries(descs.map((d) => [d, null]));
   } catch {
-    return { aiGenre: null, aiYear: null };
+    return Object.fromEntries(descs.map((d) => [d, null]));
   }
+}
+
+/** Read the TXXX:ENERGY stamp (mutagen) — null when absent. */
+function readEnergyStamp(p: string): number | null {
+  const { ENERGY: v } = readTxxx(p, ["ENERGY"]);
+  const n = v === null || v === undefined ? NaN : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** AI provenance stamps on a file: {aiGenre, aiYear} = "value|confidence",
+ * null when not AI-filled (mutagen TXXX read; never throws). */
+export function readAiStamps(p: string): {
+  aiGenre: string | null;
+  aiYear: string | null;
+} {
+  const { "AI-GENRE": genre, "AI-YEAR": year } = readTxxx(p, [
+    "AI-GENRE",
+    "AI-YEAR",
+  ]);
+  return { aiGenre: genre ?? null, aiYear: year ?? null };
 }
 
 function completenessOf(

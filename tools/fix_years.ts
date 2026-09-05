@@ -29,59 +29,64 @@ const rows = db
   )
   .all(`${ARCH}/%`) as Row[];
 
-function scPageYear(url: string): number | null {
-  try {
-    const res = fetchSync(url);
-    const m = res.match(/"display_date":"(\d{4})-\d{2}-\d{2}T/);
-    if (m?.[1]) return Number(m[1]);
-    const r2 = res.match(/"release_date":"(\d{4})-/);
-    if (r2?.[1]) return Number(r2[1]);
-    const r3 = res.match(/"created_at":"(\d{4})-\d{2}-\d{2}T/);
-    if (r3?.[1]) return Number(r3[1]);
-    console.error(`sc page year: no date field in ${url}`);
-  } catch (e) {
-    console.error(`sc page year fetch failed for ${url}`, e);
-  }
+function parseScPageDates(html: string): number | null {
+  const m = html.match(/"display_date":"(\d{4})-\d{2}-\d{2}T/);
+  if (m?.[1]) return Number(m[1]);
+  const r2 = html.match(/"release_date":"(\d{4})-/);
+  if (r2?.[1]) return Number(r2[1]);
+  const r3 = html.match(/"created_at":"(\d{4})-\d{2}-\d{2}T/);
+  if (r3?.[1]) return Number(r3[1]);
   return null;
 }
 
-function fetchSync(url: string): string {
-  const pr = Bun.spawnSync({
-    cmd: [
-      "curl",
-      "-sL",
-      "--max-time",
-      "12",
-      "-A",
-      "Mozilla/5.0 (Macintosh)",
-      url,
-    ],
-    stdout: "pipe",
-  });
-  return new TextDecoder().decode(pr.stdout);
+/** Fetch one SC page's year. Bun's fetch — no curl spawn, 8 at a time. */
+async function scPageYear(url: string): Promise<number | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (Macintosh)" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    const year = parseScPageDates(await res.text());
+    if (year === null) console.error(`sc page year: no date field in ${url}`);
+    return year;
+  } catch (e) {
+    console.error(`sc page year fetch failed for ${url}`, e);
+    return null;
+  }
 }
 
-/** yt-dlp full-metadata fetch (not flat) gives exact timestamp. */
-function ytdlpYear(url: string): number | null {
+/**
+ * Batch yt-dlp year lookup: one invocation answers N URLs (each spawn is
+ * ~1-2s of interpreter boot; batching amortizes it across the whole run).
+ * Returns url → year for the ones yt-dlp could resolve.
+ */
+async function ytdlpYearsBatch(urls: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (!urls.length) return out;
   const pr = Bun.spawnSync({
     cmd: [
       "yt-dlp",
       "--no-download",
       "--print",
-      "%(timestamp)s|%(upload_date)s",
-      url,
+      "%(webpage_url)s|%(timestamp)s|%(upload_date)s",
+      ...urls,
     ],
     stdout: "pipe",
     stderr: "pipe",
-    timeout: 45_000,
+    timeout: 120_000,
   });
-  const out = new TextDecoder().decode(pr.stdout).trim();
-  const ts = Number(out.split("|")[0]);
-  if (Number.isFinite(ts) && ts > 946_684_800)
-    return new Date(ts * 1000).getUTCFullYear();
-  const ud = out.split("|")[1];
-  if (ud && /^\d{8}$/.test(ud)) return Number(ud.slice(0, 4));
-  return null;
+  const lines = new TextDecoder().decode(pr.stdout).trim().split("\n");
+  for (const line of lines) {
+    const [url, ts, ud] = line.split("|");
+    if (!url) continue;
+    const tsN = Number(ts);
+    let year: number | null = null;
+    if (Number.isFinite(tsN) && tsN > 946_684_800)
+      year = new Date(tsN * 1000).getUTCFullYear();
+    else if (ud && /^\d{8}$/.test(ud)) year = Number(ud.slice(0, 4));
+    if (year !== null) out.set(url, year);
+  }
+  return out;
 }
 
 export interface FixYearsStats {
@@ -92,32 +97,52 @@ export interface FixYearsStats {
 }
 
 /** Year-verification pass (SC page date → yt-dlp timestamp). */
-export function runFixYears(
+export async function runFixYears(
   opts: { dryRun?: boolean; json?: boolean } = {},
-): FixYearsStats {
+): Promise<FixYearsStats> {
   const dry = opts.dryRun ?? false;
   let scPage = 0;
   let ytdlp = 0;
   let kept = 0;
   const failed: Row[] = [];
 
+  // Phase 1 — resolve years for every SC-sourced track concurrently
+  // (network-bound: Bun fetch, 8 in flight; no per-track curl spawn).
+  const scUrls = rows
+    .filter((r) => r.format_id?.startsWith("sc:"))
+    .map((r) => r.format_id!.slice(3));
+  const resolved = new Map<string, { year: number; source: string }>();
+  {
+    let i = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(8, scUrls.length) }, async () => {
+        while (i < scUrls.length) {
+          const url = scUrls[i++]!;
+          const pageYear = await scPageYear(url);
+          if (pageYear !== null) {
+            resolved.set(url, { year: pageYear, source: "sc-page" });
+            continue;
+          }
+          const viaYtdlp = (await ytdlpYearsBatch([url])).get(url);
+          if (viaYtdlp !== undefined)
+            resolved.set(url, { year: viaYtdlp, source: "yt-dlp" });
+        }
+      }),
+    );
+  }
+
+  // Phase 2 — apply resolutions against ground truth (local, fast).
   for (const r of rows) {
-    const t = groundTruth(r.file_path);
     let year: number | null = null;
     let source = "";
-
-    // 1. permalink in format_id → real SC page date
     if (r.format_id?.startsWith("sc:")) {
-      const url = r.format_id.slice(3);
-      year = scPageYear(url);
-      if (year) source = "sc-page";
+      const hit = resolved.get(r.format_id.slice(3));
+      if (hit) {
+        year = hit.year;
+        source = hit.source;
+      }
     }
-    // 2. yt-dlp full metadata (search → top hit timestamp)
-    if (!year && r.format_id?.startsWith("sc:")) {
-      year = ytdlpYear(r.format_id.slice(3));
-      if (year) source = "yt-dlp";
-    }
-    // 3. keep existing non-2023 year (probably intentional)
+    // keep existing non-2023 year (probably intentional)
     if (!year && r.year && r.year !== "2023") {
       kept++;
       continue;
@@ -127,7 +152,7 @@ export function runFixYears(
       continue;
     }
 
-    const current = t.year ?? r.year;
+    const current = groundTruth(r.file_path).year ?? r.year;
     if (current === String(year)) {
       kept++;
       continue;
@@ -172,6 +197,6 @@ export function runFixYears(
 
 // direct CLI entry (megadj years is the supported path; keep back-compat)
 if (import.meta.main) {
-  runFixYears({ dryRun: DRY });
+  await runFixYears({ dryRun: DRY });
   db.close();
 }
