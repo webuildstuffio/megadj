@@ -1,19 +1,15 @@
 # megadj — Ideas & Future Backlog
 
-\*Compiled 2026-09-04 · grounded in the actual repo state: megadj archive/ingest,
-the rekordbox-usb-sync pipeline, CrateDeck v1 (built), and open items in
-`(local ops log)`.
+_Compiled 2026-09-04 · grounded in the actual repo state: megadj archive/ingest,
+the rekordbox-usb-sync pipeline, CrateDeck v1 (built), and your own local
+operations log (kept outside the repo)._
 Expanded same day with an open-source ecosystem research pass (§I–§L);
 second pass same day added §N (XDJ-XZ / Pioneer / house & techno) and §O
 (agentic megadj for Codex / Claude Code operators).
-Status note (2026-09-04 docs audit): A1 (drive report) shipped —
-`cratedeck/src/report.ts` + `GET /drives/:id/report` + drawer Report tab +
-`cratedeck/test/report.test.ts`; A2 DONE (tools consolidation, `a4ace28`);
-A5 (acceptance doc) done — `docs/cratedeck/acceptance.md`.
 **Post-audit revision (2026-09-04): §0 added (do-now items gate everything),
 cold backup promoted from §G, C18c explicitly unbuilt, I52 deleted, §M
 added (AI cool-list + Mac-DJ irritants), sequencing rewritten as a gated
-straight line.\***
+straight line._
 
 How to read: each idea lists **why now** (the specific repo fact that motivates
 it) and rough **effort** (S/M/L). Nothing here is committed scope — this is the
@@ -44,8 +40,8 @@ repo rule, and is a weekend. Kills the single-point-of-failure class
 forever. _Why this wasn't obvious: it's the only item that protects
 against all drives failing at once, which is the only failure that
 ends the archive._
-0c. **OLDUSB verdict.** 264 OLDBACKUP-only files (10.1 GB) exist nowhere
-but OLDUSB. One session: adopt into master (via `megadj adopt` +
+0c. **Orphan-drive verdict.** Files unique to an old backup drive exist
+nowhere else. One session: adopt into master (via `megadj adopt` +
 ingest) or declare them dead in the sync log. Do it _before_ 0b so
 the cloud backup captures the decision, not the ambiguity.
 0d. **Build the redundancy audit (§B7) + coverage matrix (§B6).** The two
@@ -103,7 +99,7 @@ ideas below:
 ## A. Finish what's already in flight (this week)
 
 _(Post-audit: the hardware-clock items moved up to §0 — SSD evacuation is
-0a, OLDUSB verdict is 0c, cold backup is 0b. This section keeps the
+0a, legacy-backup verdict is 0c, cold backup is 0b. This section keeps the
 remaining in-flight work.)_
 
 1. **Drive dossier & health report — ✅ SHIPPED 2026-09-04.**
@@ -118,16 +114,15 @@ remaining in-flight work.)_
    `fetch_all.ts` — `art_final`, `pack_art`, `sc_art_direct`, `sc_genres`,
    `normalize_genres`, `sync_genres`, `ai_genres` retired; Sep 4 2026:
    ingest module split `probe/art/identity/remix/energy` + `wav-to-aiff`).
-3. **WAV artwork in rekordbox — ✅ DONE 2026-09-04** (73/73 via
+3. **WAV artwork in rekordbox — ✅ DONE 2026-09-04** (# of legacy WAVs via
    `tools/rb_art.py`, thumbnail gotcha fixed; see
    `docs/rekordbox-wav-artwork.md`). Remaining sliver: spot-check covers
    on the XDJ-XZ at the next export.
-4. **Close the 2026-09-03 sync-log checklist.** Three pending items remain
-   (the fourth, SSD evacuation, is now §0a):
+4. **Close the sync-log checklist.** Any pending items in your local
+   operations log (kept outside the repo):
    - `usb_verify.py` hardware gate (pdb live rows == OneLibrary, both drives)
    - `usb_mirror.py --verify-only --hash-parity` post-export drift check
-   - Update `~/rekordbox-exports/STATUS-FINAL.md` counts
-5. **OLDUSB verdict — now §0c** (promoted; do before the cloud backup).
+5. **Orphan-drive verdict — now §0c** (promoted; do before the cloud backup).
 6. **CrateDeck acceptance doc — ✅ DONE 2026-09-04:**
    `docs/cratedeck/acceptance.md` now exists with code-verified evidence per
    PRD feature; remaining ☐ items are the real-hardware checks.
@@ -165,7 +160,7 @@ once_ — the moat. Roughly in value order:
    this anywhere, and on which stick?" Already specced (F9); highest daily-use
    feature in the whole app.
 10. **Snapshot timeline & "what changed".** Versioned diffs between any two
-    scans: "what changed on OLDBACKUP between the Nov 14 gig and now?"
+    scans: "what changed on an old backup drive between the last gig and now?"
 11. **Set intelligence.** Harvest player-written history (`HIST` entries on the
     drives) across the fleet → most-played, never-played, set reconstruction
     with timestamps → export as CSV/markdown/Spotify-searchable track list.
@@ -323,7 +318,7 @@ once_ — the moat. Roughly in value order:
 37. **Dark-mode print dossier.** The dossier (#1) in a print stylesheet —
     folded into a borrowed stick's bag. The brief calls this the "5-second
     answer for a borrowed stick."
-38. **Voice/shortcuts integration.** "Hey Deck, is OLDBACKUP ready?" — a
+38. **Voice/shortcuts integration.** "Hey Deck, is the mirror ready?" — a
     one-route JSON API (`GET /verdict/:drive`) + a Shortcuts app action.
     Almost free given the report module exists.
 39. **Weekly digest.** Monday-morning markdown/email digest: drives needing
@@ -618,7 +613,7 @@ plus a list of the everyday Mac-DJ irritations nobody builds for.
     catches the mistake _before_ the sync run does, when it's still
     fixable. Effort S.
 74. **Bulk-playlist → folder audio exporter.** iOS/venue-CDR/guest-DJ
-    reality: someone wants "just the party playlist" as plain files.
+    reality: someone wants a specific playlist as plain files.
     Export any playlist (drive DB or archive) → sorted, renamed, tagged
     folder + optional `.m3u8`. Reuses ingest machinery in reverse; the
     Quickie competitor feature K61 in mirror-image. Effort S.
@@ -707,7 +702,7 @@ library, not gimmicks.
     `enqueue_job` (scan/verify/checksum only — never mirror/format),
     `playlist_diff`. Any MCP client (Claude Code, Codex, Cursor) can
     then answer "what's on the XZ", "what did I ingest last week", "run
-    a checksum on DJMIRROR" in natural language, with the interlock
+    a checksum on the mirror" in natural language, with the interlock
     enforced inside the tool layer. Bun + the official MCP SDK; the
     tools are thin wrappers over existing functions. Effort M.
 
@@ -770,7 +765,7 @@ is a straight line, gated by §0 and by the **reality gate** (gig frequency)
 defined there.
 
 **Phase 1 — survival (§0, blocks everything):**
-SSD evacuation (0a) → cloud backup (0b) → OLDUSB verdict (0c). Nothing
+SSD evacuation (0a) → cloud backup (0b) → legacy-backup verdict (0c). Nothing
 else in this repo gets a single commit while 0a is open. 0d (redundancy
 audit + coverage matrix) rides along because it's two cheap pure queries.
 

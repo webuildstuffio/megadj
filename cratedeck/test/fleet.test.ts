@@ -93,10 +93,10 @@ describe("coverage", () => {
       tr(A, "a/one.mp3", { title: "One", artist: "Alpha" }),
       tr(B, "b/one remix.mp3", { title: "One", artist: "Alpha" }),
     );
-    expect(trackLocations(rows, "a/one.mp3", null)?.drives).toEqual([A]);
-    // path miss → meta join catches the retitled-path copy
-    expect(trackLocations(rows, null, "Alpha - One")?.drives).toEqual([A, B]);
-    expect(trackLocations(rows, null, "nope - nothing")).toBeNull();
+    expect(trackLocations(rows, "a/one.mp3")?.drives).toEqual([A]);
+    // exact path miss → meta join catches the retitled-path copy
+    expect(trackLocations(rows, "Alpha - One")?.drives).toEqual([A, B]);
+    expect(trackLocations(rows, "nope - nothing")).toBeNull();
   });
 
   it("trackLocations falls back to substring when nothing exact matches", () => {
@@ -105,14 +105,11 @@ describe("coverage", () => {
       tr(B, "house/three.mp3", { title: "Three", artist: "Alpha" }),
     );
     // title fragment
-    expect(trackLocations(rows, "three", "three")?.drives).toEqual([A, B]);
-    // exact still wins over substring when both could match
-    expect(trackLocations(rows, "house/three.mp3", "junk")?.drives).toEqual([
-      A,
-      B,
-    ]);
+    expect(trackLocations(rows, "three")?.drives).toEqual([A, B]);
+    // exact path still wins over substring when both could match
+    expect(trackLocations(rows, "house/three.mp3")?.drives).toEqual([A, B]);
     // substring on artist too
-    expect(trackLocations(rows, null, "alph")?.drives).toEqual([A, B]);
+    expect(trackLocations(rows, "alph")?.drives).toEqual([A, B]);
   });
 });
 
@@ -233,6 +230,38 @@ describe("diff", () => {
     expect(r.added.length).toBe(0);
     expect(r.removed.length).toBe(0);
   });
+
+  it("cross-path matches compare bytes at each side's OWN path", () => {
+    // Regression: byte lookup used a's path against b's manifest, so a
+    // meta-joined track at a different folder read b's bytes at the wrong
+    // key — equal files reported "changed", real changes were missed.
+    const man = (drive: string, path: string, bytes: number): ManifestRow => ({
+      drive_id: drive,
+      path,
+      bytes,
+      mtime_ms: 1,
+    });
+    const r = diff(
+      "A",
+      [tr(A, "old path/song.mp3", { title: "Song", artist: "Duo" })],
+      [man(A, "old path/song.mp3", 100)],
+      "B",
+      [tr(B, "new path/song.mp3", { title: "Song", artist: "Duo" })],
+      [man(B, "new path/song.mp3", 100)],
+    );
+    expect(r.changed).toEqual([]);
+    const r2 = diff(
+      "A",
+      [tr(A, "old path/song.mp3", { title: "Song", artist: "Duo" })],
+      [man(A, "old path/song.mp3", 100)],
+      "B",
+      [tr(B, "new path/song.mp3", { title: "Song", artist: "Duo" })],
+      [man(B, "new path/song.mp3", 999)],
+    );
+    expect(r2.changed.map((x) => x.path)).toEqual(["old path/song.mp3"]);
+    expect(r2.changed[0]!.bytes_a).toBe(100);
+    expect(r2.changed[0]!.bytes_b).toBe(999);
+  });
 });
 
 // ---- DB round-trips ----------------------------------------------------------
@@ -266,9 +295,7 @@ function snapWith(over: Partial<SnapshotData> = {}): SnapshotData {
         duration_ms: 280_000,
       },
     ],
-    playlist_entries: [
-      { playlist_name: "Party", track_path: "house/one.mp3" },
-    ],
+    playlist_entries: [{ playlist_name: "Party", track_path: "house/one.mp3" }],
     manifest: [{ path: "house/one.mp3", bytes: 1, mtime_ms: 2 }],
     ...over,
   };

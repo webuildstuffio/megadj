@@ -8,7 +8,7 @@ export interface Drive {
   id: string;
   volume_uuid: string | null;
   name: string; // volume name (technical)
-  nickname: string | null; // user name (e.g. "OLDBACKUP")
+  nickname: string | null; // user name (e.g. "Resident Crate")
   photo_path: string | null;
   capacity_bytes: number;
   fs: string | null;
@@ -268,6 +268,7 @@ export type {
   ManifestRow,
   TrackCoverage,
   CoverageResult,
+  CoverageResponse,
   PlaylistRedundancy,
   RedundancyResult,
   DiffRow,

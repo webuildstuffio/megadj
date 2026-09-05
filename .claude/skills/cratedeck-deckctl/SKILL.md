@@ -1,6 +1,6 @@
 ---
 name: cratedeck-deckctl
-description: Drive health dashboard + agent CLI for the megadj DJ USB drives (DJMASTER master, DJMIRROR mirror). Use when checking drive health, running scans/verifies/checksums, or answering "is my USB ready for a gig".
+description: Drive health dashboard + agent CLI for the megadj DJ USB drives. Use when checking drive health, running scans/verifies/checksums, or answering "is my USB ready for a gig".
 ---
 
 # CrateDeck / deckctl
@@ -13,8 +13,8 @@ curl, so they get the interlock check and consistent exit codes.
 
 ```bash
 bun run cratedeck/src/deckctl.ts status          # lock state + all drives
-bun run cratedeck/src/deckctl.ts report DJMASTER
-bun run cratedeck/src/deckctl.ts run DJMASTER scan    # follows live w/ ETA
+bun run cratedeck/src/deckctl.ts report YOUR_MASTER
+bun run cratedeck/src/deckctl.ts run YOUR_MASTER scan    # follows live w/ ETA
 ```
 
 ## Fleet questions (cross-drive)
@@ -25,7 +25,7 @@ every scan):
 ```bash
 bun run cratedeck/src/deckctl.ts coverage        # which tracks on which drives + 1-copy risks
 bun run cratedeck/src/deckctl.ts redundancy      # per-playlist: every track on ≥2 drives?
-bun run cratedeck/src/deckctl.ts diff DJMASTER DJMIRROR   # master vs mirror drift
+bun run cratedeck/src/deckctl.ts diff YOUR_MASTER YOUR_MIRROR   # master vs mirror drift
 ```
 
 `coverage`/`redundancy` take an optional floor (`coverage 3`). All three

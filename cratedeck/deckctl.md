@@ -22,7 +22,7 @@ bun run cratedeck/src/deckctl.ts <command> [--json]
 | `cancel <jobId>`     | cancel an active job                                                                                                           |
 | `stop`               | stop the CrateDeck server                                                                                                      |
 
-`<drive>` = volume name (`DJMASTER`), nickname, or UUID.
+`<drive>` = volume name, nickname, or UUID.
 
 ## Fleet commands
 
@@ -33,8 +33,8 @@ drive first, then:
 ```bash
 deckctl coverage            # which tracks live on which drives + 1-copy risks
 deckctl coverage 3          # custom redundancy floor
-deckctl redundancy          # "every track in a shared playlist is on ≥2 drives — PASS"
-deckctl diff DJMASTER DJMIRROR   # master vs mirror drift
+deckctl redundancy          # "every track in this playlist is on ≥2 drives — PASS"
+deckctl diff MASTER MIRROR  # master vs mirror drift
 deckctl coverage --json     # feed agents/dashboards
 ```
 
@@ -69,8 +69,8 @@ deckctl coverage --json     # feed agents/dashboards
 
 ```bash
 deckctl status --json                     # what's plugged in, locked?
-deckctl run DJMASTER scan               # refresh stats (follows live)
-deckctl report DJMASTER                 # read verdicts + fixes
+deckctl run MASTER scan                   # refresh stats (follows live)
+deckctl report MASTER                     # read verdicts + fixes
 deckctl coverage                          # what survives a drive death?
-deckctl run DJMASTER checksum --json --wait   # machine-readable progress lines
+deckctl run MASTER checksum --json --wait # machine-readable progress lines
 ```

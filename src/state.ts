@@ -8,7 +8,7 @@ import { mkdirSync } from "node:fs";
  * nothing is re-downloaded or lost track of.
  */
 
-export type TrackStatus =
+type TrackStatus =
   | "pending"
   | "downloaded"
   | "gone"

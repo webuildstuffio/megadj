@@ -57,7 +57,7 @@ label ("MBP left rear", "hub slot 2").
 
 ## F3 — Photo identification & naming
 
-**What:** each drive gets a human name ("OLDBACKUP", "Party Crate") and a
+**What:** each drive gets a human name ("Resident Crate", "Weekend Banger") and a
 photo. Sources:
 
 1. **Product image search** — type a model, get an image grid. Provider
@@ -96,8 +96,8 @@ button appears only when mounted.
 
 **Acceptance:**
 
-- [ ] DJMASTER detail matches known ground truth: 3,054+ core tracks,
-      YTMusic Liked playlist, party folder tree, pdb vs OneLibrary delta.
+- [ ] Any drive's detail matches its known ground truth: track count,
+      playlists, pdb vs OneLibrary delta.
 - [ ] Zero writes to the drive during any scan (tests assert mtime/bytes
       unchanged).
 - [ ] SQLCipher read works without the key present in any repo file
@@ -105,8 +105,8 @@ button appears only when mounted.
 
 ## F5 — Sync status vs master
 
-**What:** for each mounted drive, diff against the master definition
-(DJMASTER or a configured reference):
+**What:** for each mounted drive, diff against the master reference
+(configured in `config.toml`):
 
 - audio file manifest diff (new/missing/variant counts — reuse manifest
   logic from usb_mirror)
@@ -116,7 +116,7 @@ button appears only when mounted.
 
 **Acceptance:**
 
-- [ ] DJMIRROR reads IN SYNC or BEHIND with exact counts, matching a
+- [ ] the mirror reads IN SYNC or BEHIND with exact counts, matching a
       manual `usb_mirror.py --verify-only` run.
 - [ ] Superset tolerance: extra mirror-only files don't fail the badge
       (configurable strictness).
@@ -199,16 +199,16 @@ time" requirement — ghosts are exportable).
 
 **Acceptance:**
 
-- [ ] All 8 real drives visible on one screen at 1440×900 without scrolling
+- [ ] All real drives visible on one screen at 1440×900 without scrolling
       (grid adapts).
-- [ ] Search a playlist name returns every drive holding it, ghost or not.
+- [ ] Search for a playlist name returns every drive holding it, ghost or not.
 - [ ] Interlock banner appears within 2s of rekordbox launching; job buttons
       disable instantly.
 
 ## F10 — Extras that fall out nearly free
 
 - **New-music radar:** megadj archive DB (`~/.local/state/megadj/archive.db`)
-  vs each drive — "12 downloaded tracks not on DJMASTER" + button to copy
+  vs each drive — "12 downloaded tracks not on the master" + button to copy
   the sync command (v1: copy; v1.1: run as job).
 - **Gig mode:** one click marks a drive "out for gig" (plugged at a venue —
   date + note); timeline shows its tour history.

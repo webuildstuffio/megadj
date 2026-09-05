@@ -7,7 +7,7 @@
 > [acceptance.md](../cratedeck/acceptance.md)). Kept for history only — the
 > `apps/cratekeeper/` location below never existed; the app landed in-repo.
 
-**Status:** Draft v1.0 · **Owner:** REDACTED · **Date:** 2026-09-03
+**Status:** Draft v1.0 · **Status:** Draft v1.0 · 2026-09-03
 **Type:** Local-first desktop utility (Bun + TypeScript, single-page HTML app)
 **Location:** `apps/cratekeeper/` — self-contained sub-app within the existing monorepo
 **Doc 1 of 4:** Product Brief → PRD → Architecture Plan → Build Plan

@@ -18,6 +18,15 @@ import json
 import os
 import sys
 import time
+import unicodedata
+
+
+def casefold(s: str) -> str:
+    """Fold EXACTLY like fleet.ts fold(): NFC-normalize + lowercase. Python's
+    str.lower() alone skips NFC, so 'café' (NFD from FAT32) vs 'café' (NFC
+    from rekordbox) become different track identities — phantom at-risk rows."""
+    return unicodedata.normalize("NFC", s).lower()
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # python/ sits at <repo>/cratedeck/python, so the repo root is two levels up.
@@ -165,7 +174,7 @@ def track_inventory(db, contents) -> list[dict]:
         title = getattr(c, "title", None)
         out.append(
             {
-                "path": rel.strip().lower(),
+                "path": casefold(rel.strip()),
                 "title": (title or "").strip() or None,
                 "artist": (artist or "").strip() or None,
                 "bpm": bpmx / 100.0 if bpmx else None,
@@ -191,9 +200,7 @@ def playlist_membership(db) -> list[dict]:
         if c is None or not c.path or c.fileType not in (4, 1):
             continue
         rel = c.path.lstrip("/").replace("Contents/", "", 1)
-        rows.append(
-            {"playlist_name": pl.name, "track_path": rel.strip().lower()}
-        )
+        rows.append({"playlist_name": pl.name, "track_path": casefold(rel.strip())})
     return rows
 
 
@@ -273,7 +280,9 @@ def snapshot(db_path: str, drive_root: str) -> dict:
             "dj": dj_stats(db, contents),
             "tracks": track_inventory(db, contents),
             "playlist_entries": playlist_membership(db),
-            "db_mtime": mtime(os.path.join(drive_root, "PIONEER", "rekordbox", "exportLibrary.db")),
+            "db_mtime": mtime(
+                os.path.join(drive_root, "PIONEER", "rekordbox", "exportLibrary.db")
+            ),
             "pdb_mtime": mtime(pdb_path) if os.path.exists(pdb_path) else None,
         }
     finally:
@@ -285,13 +294,24 @@ def snapshot(db_path: str, drive_root: str) -> dict:
 
 def main() -> int:
     if len(sys.argv) < 3:
-        print(json.dumps({"ok": False, "error": "usage: rb_read.py <db_copy> <drive_root>"}))
+        print(
+            json.dumps(
+                {"ok": False, "error": "usage: rb_read.py <db_copy> <drive_root>"}
+            )
+        )
         return 1
     db_path, drive_root = sys.argv[1], sys.argv[2]
     try:
         import pyrekordbox  # noqa: F401
     except ImportError:
-        print(json.dumps({"ok": False, "error": "pyrekordbox not installed; run via uv --with pyrekordbox"}))
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "error": "pyrekordbox not installed; run via uv --with pyrekordbox",
+                }
+            )
+        )
         return 1
     try:
         print(json.dumps({"ok": True, "snapshot": snapshot(db_path, drive_root)}))

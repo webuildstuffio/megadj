@@ -34,7 +34,7 @@ export interface SyncOptions {
 }
 
 /** A playlist source: id (e.g. "LM", "LL", "PL...") plus a label for state. */
-export interface PlaylistSource {
+interface PlaylistSource {
   id: string;
   label: string;
 }
@@ -69,7 +69,7 @@ async function fetchPlaylist(
 
 export async function sync(opts: SyncOptions): Promise<void> {
   const log = opts.onProgress ?? ((m: string) => console.log(m));
-  const downloader = new Downloader(opts.limiter, {
+  const downloader = new Downloader({
     musicDir: opts.musicDir,
     cookiesFromBrowser: opts.cookiesFromBrowser,
     cookiesFile: opts.cookiesFile ?? null,

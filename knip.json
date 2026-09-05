@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["src/cli.ts", "tools/fetch_all.ts", "tools/fix_years.ts"],
+      "ignoreExportsUsedInFile": true
+    },
+    "cratedeck": {
+      "entry": [
+        "src/index.ts",
+        "src/deckctl.ts",
+        "src/bench.ts",
+        "shared/types.ts",
+        "test/*.test.ts",
+        "web/main.tsx"
+      ],
+      "ignoreExportsUsedInFile": true
+    }
+  }
+}

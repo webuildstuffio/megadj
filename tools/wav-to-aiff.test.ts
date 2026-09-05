@@ -33,7 +33,7 @@ describe("wavToAiff", () => {
     const wav = await makeTaggedWav();
 
     const out = await wavToAiff(wav);
-
+    if (out === null) throw new Error("wavToAiff unexpectedly returned null");
     expect(out).toBe(`${DIR}/track.aiff`);
     expect(await Bun.file(wav).exists()).toBe(false); // wav replaced
 

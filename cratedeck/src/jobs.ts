@@ -435,7 +435,7 @@ export class JobEngine {
         };
       }
       case "mirror": {
-        tick(0, 1, "mirroring to DJMIRROR…", "mirror", true);
+        tick(0, 1, "mirroring to mirror drive…", "mirror", true);
         const proc = spawnMirror(this.cfg, []);
         handle.proc = proc;
         const [res, errText] = await Promise.all([
@@ -644,13 +644,13 @@ export function parseVerifyReport(
   durationS: number | null,
 ): VerifyReport {
   // ---- structured payload first ------------------------------------------
-  const jsonLine = out
-    .split("\n")
-    .find((l) => l.startsWith("VERIFY_JSON: "));
+  const jsonLine = out.split("\n").find((l) => l.startsWith("VERIFY_JSON: "));
   let j: VerifyJsonPayload | null = null;
   if (jsonLine) {
     try {
-      j = JSON.parse(jsonLine.slice("VERIFY_JSON: ".length)) as VerifyJsonPayload;
+      j = JSON.parse(
+        jsonLine.slice("VERIFY_JSON: ".length),
+      ) as VerifyJsonPayload;
     } catch {
       j = null; // malformed payload → regex fallback below
     }
@@ -661,27 +661,47 @@ export function parseVerifyReport(
   const drives = j?.drives ? Object.values(j.drives) : [];
 
   // script may verify 1 or 2 drives; per-drive metrics aggregate when 2
-  const sum = (pick: (d: NonNullable<VerifyJsonPayload["drives"]>[string]) => number | undefined): number | null => {
-    const vals = drives.map(pick).filter((v): v is number => typeof v === "number");
+  const sum = (
+    pick: (
+      d: NonNullable<VerifyJsonPayload["drives"]>[string],
+    ) => number | undefined,
+  ): number | null => {
+    const vals = drives
+      .map(pick)
+      .filter((v): v is number => typeof v === "number");
     return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
   };
 
   const tracks = j ? sum((d) => d.tracks) : grabNum(out, /^  tracks: (\d+)/m);
-  const pdb = j ? sum((d) => d.pdb_tracks) : grabNum(out, /export\.pdb=(\d+) tracks/);
-  const odb = j ? sum((d) => d.onelibrary_tracks) : grabNum(out, /OneLibrary DB=(\d+) tracks/);
-  const playlists = j ? sum((d) => d.playlists) : grabNum(out, /playlists: (\d+)/);
-  const entries = j ? sum((d) => d.playlist_entries) : grabNum(out, /entries: (\d+)/);
+  const pdb = j
+    ? sum((d) => d.pdb_tracks)
+    : grabNum(out, /export\.pdb=(\d+) tracks/);
+  const odb = j
+    ? sum((d) => d.onelibrary_tracks)
+    : grabNum(out, /OneLibrary DB=(\d+) tracks/);
+  const playlists = j
+    ? sum((d) => d.playlists)
+    : grabNum(out, /playlists: (\d+)/);
+  const entries = j
+    ? sum((d) => d.playlist_entries)
+    : grabNum(out, /entries: (\d+)/);
   const dangling = j
     ? sum((d) => d.dangling_entries)
     : (grabNum(out, /dangling: (\d+)/) ?? 0);
   const artistFk = j
     ? sum((d) => d.artist_fk_bad)
     : (grabNum(out, /artist FK bad: (\d+)/) ?? 0);
-  const pioneerVar = grabNum(out, /pioneer-native variance \(informational\): (\d+)/);
+  const pioneerVar = grabNum(
+    out,
+    /pioneer-native variance \(informational\): (\d+)/,
+  );
 
   // offenders: JSON gives exact lists; regex fallback has counts only
-  const allOff = (pick: (d: NonNullable<VerifyJsonPayload["drives"]>[string]) => string[] | undefined): string[] =>
-    j ? drives.flatMap((d) => pick(d) ?? []) : [];
+  const allOff = (
+    pick: (
+      d: NonNullable<VerifyJsonPayload["drives"]>[string],
+    ) => string[] | undefined,
+  ): string[] => (j ? drives.flatMap((d) => pick(d) ?? []) : []);
   const missingFiles = allOff((d) => d.missing_files);
   const missingAnlzList = allOff((d) => d.missing_anlz);
   const anlzHashList = allOff((d) => d.anlz_hash_missing);
@@ -689,12 +709,22 @@ export function parseVerifyReport(
   const badLenList = allOff((d) => d.bad_length);
   const badGridList = allOff((d) => d.bad_grids);
 
-  const missingAudio = j ? missingFiles.length : (grabNum(out, /missing audio: (\d+)/) ?? 0);
-  const missingAnlz = j ? missingAnlzList.length : (grabNum(out, /missing analysis: (\d+)/) ?? 0);
+  const missingAudio = j
+    ? missingFiles.length
+    : (grabNum(out, /missing audio: (\d+)/) ?? 0);
+  const missingAnlz = j
+    ? missingAnlzList.length
+    : (grabNum(out, /missing analysis: (\d+)/) ?? 0);
   const noBpm = j ? noBpmList.length : (grabNum(out, /no BPM: (\d+)/) ?? 0);
-  const badLen = j ? badLenList.length : (grabNum(out, /bad length: (\d+)/) ?? 0);
-  const badGrids = j ? badGridList.length : (grabNum(out, /bad grids \(generated\): (\d+)/) ?? 0);
-  const anlzHash = j ? anlzHashList.length : (grabNum(out, /ANLZ missing at hash path AND at DB path: (\d+)/) ?? 0);
+  const badLen = j
+    ? badLenList.length
+    : (grabNum(out, /bad length: (\d+)/) ?? 0);
+  const badGrids = j
+    ? badGridList.length
+    : (grabNum(out, /bad grids \(generated\): (\d+)/) ?? 0);
+  const anlzHash = j
+    ? anlzHashList.length
+    : (grabNum(out, /ANLZ missing at hash path AND at DB path: (\d+)/) ?? 0);
 
   if (pdb !== null) stats.pdb_tracks = pdb;
   if (odb !== null) stats.onelibrary_tracks = odb;

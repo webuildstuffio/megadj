@@ -211,11 +211,7 @@ export class DB {
 
   /** The configured master drive (role tag or exact name), else null. */
   masterDrive(): Drive | null {
-    return (
-      this.allDrives().find(
-        (d) => d.role === "master" || d.name.toUpperCase() === "DJMASTER",
-      ) ?? null
-    );
+    return this.allDrives().find((d) => d.role === "master") ?? null;
   }
 
   getDrive(id: string): Drive | null {

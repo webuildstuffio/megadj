@@ -1,4 +1,4 @@
-# USB Sync Pipeline (DJMASTER ⇄ DJMIRROR)
+# USB Sync Pipeline (master ⇄ mirror)
 
 megadj downloads music; this pipeline puts it on the DJ USB drives with full
 rekordbox integration (DB rows, BPM, beatgrids, waveforms) and keeps the two
@@ -8,17 +8,20 @@ The step-by-step runbook (including the ANLZ binary format reference and all
 gotchas) lives in `.claude/skills/rekordbox-usb-sync/SKILL.md`. This page is
 the what/why summary for humans.
 
+Throughout this doc, **master** and **mirror** are your two drive volume
+names (defaults `DJMASTER`/`DJMIRROR`; every script takes them as arguments).
+
 ## Topology
 
-|          | DJMASTER                                                     | DJMIRROR                           |
-| -------- | -------------------------------------------------------------- | ------------------------------------- |
-| Role     | **MASTER** — source of truth                                   | Mirror — kept identical (superset OK) |
-| DB       | `PIONEER/rekordbox/exportLibrary.db` (SQLCipher)               | same file, MD5-identical              |
-| Library  | 3,054 core tracks + YTMusic Liked (294) + event playlists    | mirrors master                        |
-| Analysis | `PIONEER/USBANLZ/` (P000–P07F + hash-path folders for YTMusic) | identical, hash-verified              |
+|          | Master                                          | Mirror                                |
+| -------- | ----------------------------------------------- | ------------------------------------- |
+| Role     | **MASTER** — source of truth                    | Mirror — kept identical (superset OK) |
+| DB       | `PIONEER/rekordbox/exportLibrary.db` (SQLCipher) | same file, MD5-identical             |
+| Library  | full core library + downloaded playlists        | mirrors master                        |
+| Analysis | `PIONEER/USBANLZ/` (hash-path folders)          | identical, hash-verified              |
 
-Master audio lives in `Contents/` (~3,795 files); the mirror carries a few
-more (legacy superset, +157) — that is normal and not a sync failure.
+Master audio lives in `Contents/`; the mirror may carry a few extra files
+(legacy superset) — that is normal and not a sync failure.
 
 ## The two databases (read this before touching anything)
 
@@ -43,7 +46,7 @@ and playlists import empty).
 uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
     --with librosa --with numpy \
     python .claude/skills/rekordbox-usb-sync/scripts/usb_sync.py \
-    --db /tmp/usb-sync/work_master.db --drive /Volumes/DJMASTER \
+    --db /tmp/work_master.db --drive /Volumes/DJMASTER \
     --folder "/Contents/YTMusic Liked" --playlist "YTMusic Liked"
 
 # 2. Replicate master -> mirror + verify
@@ -51,7 +54,7 @@ uv run python .claude/skills/rekordbox-usb-sync/scripts/usb_mirror.py
 uv run python .claude/skills/rekordbox-usb-sync/scripts/usb_mirror.py --verify-only --hash-parity
 ```
 
-Deep 10x verification (per-drive DB/grid/playlist checks + cross-drive hashes):
+Deep verification (per-drive DB/grid/playlist checks + cross-drive hashes):
 
 ```bash
 uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
@@ -60,9 +63,9 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 
 ## What the pipeline does
 
-1. **Integrity probe** — ffprobe every file; catches megadj's crashed-tagging
+1. **Integrity probe** — ffprobe every file; catches crashed-tagging
    zero-byte junk before it poisons the DB.
-2. **DB injection** — `Content`/`Artist` rows + a `YTMusic Liked` playlist via
+2. **DB injection** — `Content`/`Artist` rows + a playlist via
    pyrekordbox `DeviceLibraryPlus`, on a /tmp copy of the DB (never the live
    file; rekordbox must be quit).
 3. **BPM** — ffmpeg→librosa (`beat_track`), 60–200 BPM range correction,
@@ -70,8 +73,8 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 4. **ANLZ generation** — builds `ANLZ0000.DAT` by hand (PMAI/PPTH/PVBR/PQTZ/
    PWAV/PWV2/PCOB, big-endian tagged sections). Constant-BPM grid from ~615ms,
    30s waveform preview.
-5. **Mirror** — contents, analysis, DB, and rekordbox support files to
-   DJMIRROR; resumable with progress bars.
+5. **Mirror** — contents, analysis, DB, and rekordbox support files to the
+   mirror drive; resumable with progress bars.
 6. **Verify** — manifest coverage, DB MD5 parity, full USBANLZ hash parity,
    audio spot-checks, per-track grid math, playlist FK integrity.
 
@@ -97,13 +100,13 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
   `share/PIONEER/Artwork/<shard>/<uuid>/` (`artwork.jpg` + `_m`/`_s` thumbnails —
   RB renders from the thumbnails; missing `_m`/`_s` = silently blank) and
   `djmdContent.ImagePath` points there. USB export copies the artwork files into
-  `PIONEER/Artwork/000xx/` on the drive and rewrites device-DB rows, so art set in
-  the collection (incl. via `tools/rb_art.py`) rides to the hardware automatically.
+  `PIONEER/Artwork/000xx/` on the drive and rewrites device-DB rows, so art set
+  in the collection rides to the hardware automatically.
 - **WAVs never carry RB-readable art** — new ingests convert to AIFF
-  (`src/commands/wav-to-aiff.ts`); the 73 legacy WAVs were pointer-fixed via
-  `tools/rb_art.py` (see `docs/rekordbox-wav-artwork.md`).
-- Long-running background jobs on this machine get reaped; the tools are
-  resumable for that reason.
+  (`src/commands/wav-to-aiff.ts`); see `docs/rekordbox-wav-artwork.md` for
+  the legacy-WAV research.
+- Long-running background jobs can get reaped; the tools are resumable for
+  that reason.
 
 ## Known limitations
 

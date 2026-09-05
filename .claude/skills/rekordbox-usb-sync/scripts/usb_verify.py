@@ -2,7 +2,7 @@
 """Deep 10x verification of the rekordbox USB library state.
 
     uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
-        python scripts/usb_verify.py [--drives DJMASTER DJMIRROR]
+        python scripts/usb_verify.py [--drives MASTER MIRROR]
 
 Checks per drive:
   - DB decrypts; every track's audio file + analysis file exists on disk

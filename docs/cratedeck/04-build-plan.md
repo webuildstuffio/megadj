@@ -62,7 +62,7 @@ Config: `[images] provider/key` (or `CRATEDECK_IMAGE_KEY`). Cache under
 mode with a hint.
 
 Tests: provider contract (mock fetch), cache write, upload type/size guard.
-**Done when:** all 8 real drives can be named + photographed in one sitting,
+**Done when:** all real drives can be named + photographed in one sitting,
 photos survive offline.
 
 ## M2 — Rekordbox introspection (the brain)
@@ -85,7 +85,7 @@ Tests: bridge golden tests (rb_read.py JSON vs fixture values incl. the
 Aug-25 ground truth 3,177 pdb live rows); scan on fixture tree; zero-write
 assertion (drive mtimes unchanged after full scan). No TS ports exist to
 test — the Python canonicals are imported, not duplicated.
-**Done when:** DJMASTER detail shows correct tracks/playlists/pdb delta;
+**Done when:** each drive's detail shows correct tracks/playlists/pdb delta;
 scans leave drives untouched.
 
 ## M3 — Jobs, interlock, sync status (the muscles)
@@ -109,7 +109,7 @@ Tests: engine lifecycle incl. yank-mid-job; interlock refusal (mocked pgrep);
 benchmark determinism on tmpfs fixture; checksum bitrot detection (flip a
 byte in fixture); syncstatus on fixture manifests (superset tolerance).
 **Done when:** with rekordbox open everything is visibly locked; closed, a
-verify runs to a verdict badge; DJMIRROR badge matches a manual
+verify runs to a verdict badge; the mirror badge matches a manual
 `usb_mirror --verify-only`.
 
 ## M4 — Ports, timeline, search (the world model)
@@ -141,7 +141,7 @@ one search away, with the answer's port labeled.
 - Perf: light scan ≤ 5s on 4k files; page interactive < 1s; SSE reconnect
 
 Tests: badge matrix table-test; radar diff correctness; dossier snapshot
-render. **Done when:** REDACTED's actual 8 drives all show correct real-world
+render. **Done when:** the owner's actual drives all show correct real-world
 state on one screen, and the workflow "glance → act only when not green"
 works without opening a terminal.
 

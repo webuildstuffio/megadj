@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 DB = "/tmp/usb-sync/nm_current.db"
 OUT = os.path.expanduser("~/rekordbox-exports/full_library.xml")
-VOL = "DJMASTER"
+VOL = os.environ.get("USB_SYNC_MASTER", "DJMASTER")
 
 from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus
 from pyrekordbox.devicelib_plus.models import (

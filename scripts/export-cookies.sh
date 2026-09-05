@@ -11,7 +11,21 @@ mkdir -p "$(dirname "$JAR")"
 chmod 700 "$(dirname "$JAR")"
 
 # yt-dlp is a uv-managed tool; run the export with its own interpreter.
-YTDLP_PYTHON="~/.local/share/uv/tools/yt-dlp/bin/python"
+# Locate it portably — works with the default `uv tool install` layout or
+# whatever python has yt_dlp importable on PATH.
+if [ -z "${YTDLP_PYTHON:-}" ]; then
+  for c in "$HOME/.local/share/uv/tools/yt-dlp/bin/python" \
+           "$(command -v python3 || true)"; do
+    if [ -n "$c" ] && "$c" -c "import yt_dlp" >/dev/null 2>&1; then
+      YTDLP_PYTHON="$c"
+      break
+    fi
+  done
+fi
+if [ -z "${YTDLP_PYTHON:-}" ]; then
+  echo "error: no python with yt_dlp found (set YTDLP_PYTHON or uv tool install 'yt-dlp[default]')" >&2
+  exit 1
+fi
 
 "$YTDLP_PYTHON" - "$JAR" <<'PYEOF'
 import sys

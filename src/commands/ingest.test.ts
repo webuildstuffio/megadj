@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseFilename, qualityScore, probeFile } from "./ingest-probe";
+import { parseFilename, qualityScore } from "./ingest-probe";
 import { normalize } from "./identity";
 import { detectRemix } from "./remix";
 

@@ -13,14 +13,7 @@ const MB_UA = "megadj/0.1 (https://github.com/megadj/megadj)";
 
 export const LOSSLESS = new Set([".wav", ".flac", ".aiff", ".aif"]);
 
-export const AUDIO_EXTS = new Set([
-  ".m4a",
-  ".mp3",
-  ".wav",
-  ".flac",
-  ".aiff",
-  ".aif",
-]);
+const AUDIO_EXTS = new Set([".m4a", ".mp3", ".wav", ".flac", ".aiff", ".aif"]);
 
 export interface ParsedName {
   trackNo: number | null;

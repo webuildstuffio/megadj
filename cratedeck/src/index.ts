@@ -11,12 +11,7 @@ import { ImageService } from "./images";
 import { driveBadgesView } from "./badges_view";
 import { buildReport, buildReportSummary, overall } from "./report";
 import { VERIFY_HELP } from "./verify_help";
-import {
-  coverage,
-  redundancy,
-  diff,
-  trackLocations,
-} from "./fleet";
+import { coverage, redundancy, diff, trackLocations } from "./fleet";
 import {
   shouldAutoScan,
   shouldAutoVerify,
@@ -319,8 +314,7 @@ Bun.serve({
           const q = (url.searchParams.get("q") ?? "").trim();
           if (!q) return json({ error: "q required" }, 400);
           const names = driveNames();
-          const hit =
-            trackLocations(db.fleetInventories(), q, q) ?? null;
+          const hit = trackLocations(db.fleetInventories(), q) ?? null;
           return json(
             hit
               ? {
@@ -362,7 +356,8 @@ Bun.serve({
         if (route === "/fleet/diff") {
           const a = url.searchParams.get("a");
           const b = url.searchParams.get("b");
-          if (!a || !b) return json({ error: "a and b drive ids required" }, 400);
+          if (!a || !b)
+            return json({ error: "a and b drive ids required" }, 400);
           const da = db.getDrive(a);
           const dbb = db.getDrive(b);
           if (!da || !dbb) return json({ error: "unknown drive" }, 404);

@@ -46,8 +46,12 @@ function fold(s: string): string {
   return s.normalize("NFC").toLowerCase();
 }
 
-/** Fallback identity: "artist - title". null when neither side exists. */
-function metaKey(t: Pick<TrackRow, "title" | "artist">): string | null {
+/** Fallback identity: "artist - title". null when neither side exists.
+ *  Fields optional: manifests (DiffSource) carry no metadata at all. */
+function metaKey(t: {
+  title?: string | null;
+  artist?: string | null;
+}): string | null {
   const artist = (t.artist ?? "").trim();
   const title = (t.title ?? "").trim();
   if (!artist && !title) return null;
@@ -75,6 +79,16 @@ export interface CoverageResult {
   at_risk: TrackCoverage[];
   min_copies: number;
   totals: { unique_tracks: number; fully_redundant: number };
+}
+
+/** What GET /api/fleet/coverage actually returns: the engine result with
+ *  display names merged into `drives` and the huge matrix dropped. */
+export interface CoverageResponse extends Omit<
+  CoverageResult,
+  "drives" | "rows"
+> {
+  drives: { id: string; name: string; tracks: number }[];
+  rows?: undefined;
 }
 
 /**
@@ -146,28 +160,25 @@ export function coverage(
 }
 
 /**
- * Which drives carry one track? Accepts either identity and merges hits:
- * exact casefolded path, exact "artist - title", and — when nothing exact
- * matches — substring match on title/artist/path (so typing "three" finds
- * "Three"). Powers the search box on the coverage tab and the "is this
- * anywhere else?" question mid-gig.
+ * Which drives carry one track? One query string, two passes: exact identity
+ * (folded path, or exact "artist - title") first, then substring over
+ * path/title/artist — so typing "three" finds "Three". Powers the coverage
+ * tab's search box and the "is this anywhere else?" question mid-gig.
  */
 export function trackLocations(
   inventories: Map<string, TrackRow[]>,
-  pathQuery: string | null,
-  metaQuery: string | null,
+  query: string,
 ): {
   identity: { path: string; title: string | null; artist: string | null };
   drives: string[];
 } | null {
-  const path = pathQuery ? fold(pathQuery) : null;
-  const meta = metaQuery ? fold(metaQuery) : null;
-  if (!path && !meta) return null;
+  const q = fold(query.trim());
+  if (!q) return null;
   const hit: {
     identity: { path: string; title: string | null; artist: string | null };
     drives: string[];
   } = {
-    identity: { path: path ?? "", title: null, artist: null },
+    identity: { path: "", title: null, artist: null },
     drives: [],
   };
   const tryRow = (t: TrackRow, driveId: string, ok: boolean): void => {
@@ -177,25 +188,18 @@ export function trackLocations(
     hit.identity.title = t.title;
     hit.identity.artist = t.artist;
   };
-  // pass 1: exact semantics (path hit is authoritative; meta only when the
-  // path query doesn't match, so a stray path query doesn't veto the join)
+  // pass 1: exact identity (folded path or "artist - title")
   for (const [driveId, rows] of inventories) {
     for (const t of rows) {
-      const byPath = !!path && t.path === path;
-      const byMeta = !!meta && !byPath && metaKey(t) === meta;
-      tryRow(t, driveId, byPath || byMeta);
+      tryRow(t, driveId, t.path === q || metaKey(t) === q);
     }
   }
-  // pass 2: substring fallback over path + title + artist (one loop; the
-  // single query string is checked against the combined haystack)
+  // pass 2: substring fallback over path + title + artist
   if (!hit.drives.length) {
-    const needle = path ?? meta;
-    if (needle) {
-      for (const [driveId, rows] of inventories) {
-        for (const t of rows) {
-          const hay = fold(`${t.path} ${t.title ?? ""} ${t.artist ?? ""}`);
-          tryRow(t, driveId, hay.includes(needle));
-        }
+    for (const [driveId, rows] of inventories) {
+      for (const t of rows) {
+        const hay = fold(`${t.path} ${t.title ?? ""} ${t.artist ?? ""}`);
+        tryRow(t, driveId, hay.includes(q));
       }
     }
   }
@@ -347,19 +351,25 @@ export interface FleetDiff {
   summary: string;
 }
 
-function metaIndex(rows: (TrackRow | ManifestRow)[]): {
-  byPath: Map<string, TrackRow | ManifestRow>;
-  byMeta: Map<string, TrackRow | ManifestRow>;
+/** Minimal shape the diff engine actually needs — TrackRow and ManifestRow
+ *  both fit structurally, so no `in`-narrowing or casts anywhere below. */
+type DiffSource = Pick<TrackRow, "path"> & {
+  title?: string | null;
+  artist?: string | null;
+  bytes?: number;
+};
+
+function metaIndex(rows: DiffSource[]): {
+  byPath: Map<string, DiffSource>;
+  byMeta: Map<string, DiffSource>;
 } {
-  const byPath = new Map<string, TrackRow | ManifestRow>();
-  const byMeta = new Map<string, TrackRow | ManifestRow>();
+  const byPath = new Map<string, DiffSource>();
+  const byMeta = new Map<string, DiffSource>();
   for (const r of rows) {
-    const p = "path" in r ? fold(r.path) : "";
+    const p = fold(r.path);
     if (p) byPath.set(p, r);
-    if ("title" in r) {
-      const m = metaKey(r);
-      if (m) byMeta.set(m, r);
-    }
+    const m = metaKey(r);
+    if (m) byMeta.set(m, r);
   }
   return { byPath, byMeta };
 }
@@ -385,33 +395,37 @@ export function diff(
   const added: DiffRow[] = [];
   const removed: DiffRow[] = [];
   const changed: DiffRow[] = [];
-  const rowOf = (r: TrackRow | ManifestRow): DiffRow => ({
+  // true display meta comes from TrackRow; manifests only carry bytes.
+  const rowOf = (r: DiffSource, tr?: DiffSource): DiffRow => ({
     path: r.path,
-    title: "title" in r ? (r.title ?? null) : null,
-    artist: "artist" in r ? (r.artist ?? null) : null,
+    title: tr?.title ?? r.title ?? null,
+    artist: tr?.artist ?? r.artist ?? null,
     kind: "added",
   });
+  const bytesOf = (r?: DiffSource): number | undefined => r?.bytes;
 
   const matchedB = new Set<string>();
-  const bytesOf = (
-    r: TrackRow | ManifestRow | undefined,
-  ): number | undefined => (r && "bytes" in r ? r.bytes : undefined);
   for (const [path, ra] of ia.byPath) {
-    const rb =
-      ib.byPath.get(path) ??
-      (() => {
-        const m = metaKey(ra as TrackRow);
-        if (!m) return undefined;
-        const cand = ib.byMeta.get(m);
-        return cand ? (matchedB.add(fold(cand.path)), cand) : undefined;
-      })();
+    let rb = ib.byPath.get(path);
+    if (!rb) {
+      // same track, different folder: join on artist - title
+      const m = metaKey(ra);
+      const cand = m ? ib.byMeta.get(m) : undefined;
+      if (cand) {
+        rb = cand;
+        matchedB.add(fold(cand.path));
+      }
+    }
     if (rb) {
       matchedB.add(path);
+      // bytes compare at each side's OWN path — cross-path matches would
+      // otherwise read b's manifest under a's path and miss (or invent) a
+      // "changed" verdict.
       const ba = bytesOf(fa.byPath.get(path)) ?? bytesOf(ra);
-      const bb = bytesOf(fb.byPath.get(path)) ?? bytesOf(rb);
+      const bb = bytesOf(fb.byPath.get(fold(rb.path))) ?? bytesOf(rb);
       if (ba !== undefined && bb !== undefined && ba !== bb) {
         changed.push({
-          ...rowOf(ra),
+          ...rowOf(ra, rb),
           kind: "changed",
           bytes_a: ba,
           bytes_b: bb,
@@ -423,7 +437,7 @@ export function diff(
   }
   for (const [path, rb] of ib.byPath) {
     if (matchedB.has(path)) continue;
-    const m = metaKey(rb as TrackRow);
+    const m = metaKey(rb);
     if (m && ia.byMeta.has(m)) continue; // caught on the a-side byMeta pass
     added.push({ ...rowOf(rb), kind: "added" });
   }

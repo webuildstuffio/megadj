@@ -43,12 +43,6 @@ export function navigate(driveId: string | null, tab?: string): void {
   if (location.hash !== next) location.hash = next;
 }
 
-export function navigateTab(tab: string): void {
-  const cur = parse();
-  if (cur.fleet) navigateFleet(tab);
-  else navigate(cur.driveId, tab);
-}
-
 export function navigateFleet(tab: string): void {
   const next = `#/fleet/${tab}`;
   if (location.hash !== next) location.hash = next;

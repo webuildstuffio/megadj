@@ -268,7 +268,8 @@ async function main() {
   const rows = (
     db
       .query(
-        "SELECT video_id, title, artist, album, genre, file_path, format_id FROM tracks WHERE status='downloaded' AND file_path LIKE '~/Music/DJ-Imports/%'",
+        "SELECT video_id, title, artist, album, genre, file_path, format_id FROM tracks WHERE status='downloaded' AND file_path LIKE ?",
+        `${ARCH}/%`,
       )
       .all() as Row[]
   ).filter(

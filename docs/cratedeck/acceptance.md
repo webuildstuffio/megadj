@@ -88,10 +88,10 @@ superset/behind, artwork coverage, space/df, NFC+casefold).
 
 ## Open acceptance items (need real hardware, not tests)
 
-- [ ] PRD F5: DJMIRROR badge matches a manual `usb_mirror.py
+- [ ] PRD F5: the mirror badge matches a manual `usb_mirror.py
 --verify-only` run on the live drive
-- [ ] PRD F4: DJMASTER detail vs known ground truth (3,054+ core tracks,
-      YTMusic Liked, event playlist tree) after the 2026-09-03 export settles
+- [ ] PRD F4: drive detail vs known ground truth (track counts,
+      playlists) after the latest export settles
 - [ ] PRD F9: all real drives on one screen at 1440×900 without scrolling
 - [ ] Build plan M6: kill -9 random-point resilience pass; SQLite/log
       rotation check; tag `cratedeck-v0.1.0`

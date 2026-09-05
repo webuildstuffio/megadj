@@ -71,9 +71,9 @@ describe("db drives", () => {
       name: "X",
       mounted: true,
     });
-    db.setNickname(UUID_A, "OLDBACKUP");
+    db.setNickname(UUID_A, "Resident Crate");
     db.setPhoto(UUID_A, "/tmp/p");
-    expect(db.getDrive(UUID_A)!.nickname).toBe("OLDBACKUP");
+    expect(db.getDrive(UUID_A)!.nickname).toBe("Resident Crate");
   });
 });
 
@@ -253,7 +253,7 @@ describe("db jobs", () => {
 describe("inferRole", () => {
   it("maps known volume names", () => {
     expect(inferRole("DJMASTER")).toBe("master");
-    expect(inferRole("djmirror")).toBe("mirror");
+    expect(inferRole("DJMIRROR")).toBe("mirror");
     expect(inferRole("CRATE_OF_DOOM")).toBe("library");
     expect(inferRole("SANDISK")).toBe("unknown");
   });

@@ -70,6 +70,8 @@ export function fmtEventData(data: Record<string, unknown>): string {
     if (v === null || v === undefined) return null;
     if (Array.isArray(v)) return `${k}×${v.length}`;
     if (typeof v === "object") return null;
+    if (typeof v === "string" && v.length > 120)
+      return `${k} ${v.slice(0, 117)}…`;
     return `${k} ${String(v)}`;
   });
   const out = parts.filter((x): x is string => x !== null);

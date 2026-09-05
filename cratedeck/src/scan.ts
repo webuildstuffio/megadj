@@ -99,11 +99,14 @@ export function scanVolume(mountPoint: string): SnapshotData {
           const key = nfcCasefold(relPath);
           byFolded.set(key, [...(byFolded.get(key) ?? []), relPath]);
           // fleet manifest: audio byte-truth for §B8 fleet diff. Contents/
-          // stripped + folded to match fleet track identity. Capped at 20k
-          // rows as a runaway-fs guard (real libraries are ~3-10k).
+          // stripped + folded to match fleet track identity. Strip BEFORE the
+          // casefold — nfcCasefold lowercases, so /^Contents\// would never
+          // match afterwards and every manifest path would keep the prefix,
+          // making all diff() byte lookups miss. Capped at 20k rows as a
+          // runaway-fs guard (real libraries are ~3-10k).
           if (manifest.length < 20_000) {
             manifest.push({
-              path: key.replace(/^Contents\//, ""),
+              path: nfcCasefold(relPath.replace(/^Contents\//, "")),
               bytes: st.size,
               mtime_ms: Math.round(st.mtimeMs),
             });

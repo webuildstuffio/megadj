@@ -13,11 +13,11 @@ import {
 } from "node:fs";
 import { join, basename } from "node:path";
 
-export const home = process.env.HOME!;
+const home = process.env.HOME!;
 export const ARCH = `${home}/Music/DJ-Imports`;
 export const QUEUE = `${home}/.local/state/megadj/artwork-queue.jsonl`;
 export const db = new Database(`${home}/.local/state/megadj/archive.db`);
-export const UA = {
+const UA = {
   "User-Agent":
     "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/126.0 Safari/537.36",
 };
@@ -161,7 +161,7 @@ export function groundTruth(p: string): Truth {
 }
 
 // ---------- helpers ----------
-export const words = (s: string) =>
+const words = (s: string) =>
   s
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
@@ -550,6 +550,7 @@ export async function gatewayArt(
     const re =
       /href="[^"]*(https?:\/\/(?:www\.)?(?:hypeddit|hyperfollow|fruitbat)\.com\/[^"&]+)/g;
     for (const link of [...html.matchAll(re)].map((m) => m[1]).slice(0, 3)) {
+      if (!link) continue;
       const og = await pageOgImage(link);
       if (!og) continue;
       const bytes = await fetchImage(og);

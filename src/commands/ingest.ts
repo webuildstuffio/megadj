@@ -17,7 +17,7 @@
 
 import { $ } from "bun";
 import { createHash } from "node:crypto";
-import { readdir, stat, copyFile, mkdir, rename } from "node:fs/promises";
+import { stat, copyFile, mkdir, rename } from "node:fs/promises";
 import { join, basename, extname } from "node:path";
 import type { ArchiveState, TrackRow } from "../state";
 import { applyTags, inferGenre, sanitizeGenreFolder } from "../metadata";
@@ -27,7 +27,6 @@ import {
   pendingZipDeletes,
 } from "./ingest-zips";
 import {
-  AUDIO_EXTS,
   firstTag,
   mbRecording,
   parseFilename,
@@ -37,12 +36,11 @@ import {
   walkAudio,
   type Record_,
 } from "./ingest-probe";
-import { identityKey, normalize } from "./identity";
+import { identityKey } from "./identity";
 import { detectRemix } from "./remix";
 import { energyFromLufs, measureRms } from "./energy";
 import { wavToAiff } from "./wav-to-aiff";
 import {
-  ARTWORK_EXTS,
   fetchAndEmbedArtwork,
   flushArtworkQueue,
   type ArtworkOutcome,

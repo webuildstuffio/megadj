@@ -7,7 +7,7 @@
  * usage: bun tools/fix_years.ts [--dry-run]
  */
 import { Database } from "bun:sqlite";
-import { setFileTags, groundTruth } from "./fetch_lib";
+import { setFileTags, groundTruth, ARCH } from "./fetch_lib";
 
 const home = process.env.HOME!;
 const db = new Database(`${home}/.local/state/megadj/archive.db`);
@@ -24,7 +24,8 @@ interface Row {
 
 const rows = db
   .query(
-    "SELECT video_id, title, artist, file_path, format_id, year FROM tracks WHERE status='downloaded' AND file_path LIKE '~/Music/DJ-Imports/%'",
+    "SELECT video_id, title, artist, file_path, format_id, year FROM tracks WHERE status='downloaded' AND file_path LIKE ?",
+    `${ARCH}/%`,
   )
   .all() as Row[];
 

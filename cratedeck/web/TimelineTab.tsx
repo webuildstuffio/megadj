@@ -2,7 +2,7 @@
 // chips + icons so scanning beats reading.
 import { useMemo } from "preact/hooks";
 import type { TimelineEvent } from "../shared/types";
-import { fmtWhen } from "../shared/fmt";
+import { fmtWhen, fmtEventData } from "../shared/fmt";
 import { Icon } from "./icons";
 
 /** Event kind → [icon, chip tone]. Everything unknown falls back to muted. */
@@ -95,18 +95,4 @@ export function TimelineTab({ events }: { events: TimelineEvent[] }) {
       ))}
     </div>
   );
-}
-
-/** Human event-payload strings (local copy keeps timeline self-contained). */
-function fmtEventData(data: Record<string, unknown>): string {
-  const parts = Object.entries(data).map(([k, v]) => {
-    if (v === null || v === undefined) return null;
-    if (Array.isArray(v)) return `${k}×${v.length}`;
-    if (typeof v === "object") return null;
-    if (typeof v === "string" && v.length > 120)
-      return `${k} ${v.slice(0, 117)}…`;
-    return `${k} ${String(v)}`;
-  });
-  const out = parts.filter((x): x is string => x !== null);
-  return out.length ? out.join(" · ") : "—";
 }

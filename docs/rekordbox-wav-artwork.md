@@ -1,12 +1,12 @@
 # rekordbox WAV Artwork — Reference (Sep 2026)
 
-**Status:** ✅ RESOLVED (2026-09-04) — all 73 legacy WAVs got covers via Option A
-(pilot + batch, `ok=73 errors=0`, user-verified in rekordbox); new WAVs convert to
+**Status:** ✅ RESOLVED — all legacy WAVs got covers via Option A
+(pilot + batch, verified in rekordbox); new WAVs convert to
 AIFF at ingest so they never need this. This doc is kept as reference for the
 research, the decision, and the tooling (`tools/rb_art.py`).
 
-**Problem:** embedded artwork in WAV files never shows in rekordbox. Of the 88 archive
-tracks, 15 MP3s display covers; the 73 WAVs never do — in the browser, on the CDJs, anywhere.
+**Problem:** embedded artwork in WAV files never shows in rekordbox. MP3s
+display covers; WAVs never do — in the browser, on the CDJs, anywhere.
 
 **Root cause (verified):** rekordbox reads WAV metadata **only** from RIFF INFO — which has
 *no artwork field*. The ID3 chunk our pipeline embeds in the WAVs is valid (Finder, Serato,
@@ -20,9 +20,9 @@ a bug in our files and no tag trick fixes it.
 ```
 
 Each track row in `master.db` (`djmdContent` table) points there via its `ImagePath`
-column. Dragging art into the Artwork tab writes exactly this. Verified Sep 4 2026:
-all 805 WAV rows in our `master.db` have empty `ImagePath`; 1,637 artwork files already
-exist on disk in this layout (from the MP3s).
+column. Dragging art into the Artwork tab writes exactly this. WAV rows in
+`master.db` can have empty `ImagePath`; artwork files exist on disk in this
+layout (from the MP3s).
 
 ---
 
@@ -31,8 +31,8 @@ exist on disk in this layout (from the MP3s).
 | # | Option | Verdict | Why |
 |---|--------|---------|-----|
 | A | **Master DB write via pyrekordbox** | ✅ **CHOSEN** | Automated now + forever; identical storage to Pioneer's own manual workflow |
-| B | Convert WAV → AIFF | Clean but disruptive | Lossless (`-c:a copy`), RB reads AIFF art natively — but RB sees new files: re-import 88, redo playlists, re-analyze. Tools exist (`rekordbox-bulk-edit`, `rekordbox-edit`, `rekordbox-relocator`) that automate convert + DB path update preserving cues. Best long-term, costs prep rework |
-| C | Manual drag in RB | Safe, tedious | Pioneer's official workflow; ~73 drags one-time + every future WAV. Keep `cover.jpg` beside each WAV to make it easier |
+| B | Convert WAV → AIFF | Clean but disruptive | Lossless (`-c:a copy`), RB reads AIFF art natively — but RB sees new files: re-import the files, redo playlists, re-analyze. Tools exist (`rekordbox-bulk-edit`, `rekordbox-edit`, `rekordbox-relocator`) that automate convert + DB path update preserving cues. Best long-term, costs prep rework |
+| C | Manual drag in RB | Safe, tedious | Pioneer's official workflow; a batch of drags one-time + every future WAV. Keep `cover.jpg` beside each WAV to make it easier |
 | D | ID3v2.3 tag trick | ❌ Myth | Contradicted by the rekordbox 7.0.7 manual, Pioneer's metadata matrix, and Lexicon's docs ("Rekordbox does not support album art for WAV files, even reloading tags will not show them") |
 | E | Sidecar cover.jpg files | ❌ Does nothing | RB never reads companion image files on import; only useful as hand-off for C |
 | F | Raw SQLCipher UPDATE on master.db | ⚠️ Risky | Same result as A but skips pyrekordbox's USN bookkeeping + FK checks. One typo = corrupt library. A supersedes it |
@@ -66,7 +66,7 @@ same rules the repo already uses for any rekordbox touching (see below).
 > **Sep 2026 update:** a second fix shipped alongside this — **ingest now
 > converts every new WAV to AIFF on the way in** (`src/commands/wav-to-aiff.ts`),
 > so anything ingested from now on has native AIFF covers and never needs
-> Option A. Option A remains the one-time fix for the 73 legacy WAVs
+> Option A. Option A remains the one-time fix for legacy WAVs
 > already in the archive.
 
 **Tool:** `tools/rb_art.py` (see below). Modes:
@@ -117,12 +117,12 @@ rekordbox — it caches the old blank state in memory.
 - [x] Artwork layout confirmed on disk
 - [x] `tools/rb_art.py` built (status / dry-run / pilot / batch)
 - [x] Pilot machinery validated against a **copy** of master.db
-- [x] Pilot on live DB: 3 tracks, covers verified in rekordbox by user
-- [x] Batch: `ok=70 errors=0` → **73/73 WAVs have art** (`status`: without-art = 0)
+- [x] Pilot on live DB: 3 tracks, covers verified in rekordbox
+- [x] Batch: all legacy WAVs have art (`status`: without-art = 0)
 - [x] USB export carries RB artwork to the drives automatically (artwork files +
       device-DB rows are written by the export; CDJ/XDJ screens read the drive's
-      `PIONEER/Artwork/`). Verified live: the Sep 4 export updated
-      `exportLibrary.db` + artwork on DJMIRROR.
+      `PIONEER/Artwork/`). Verified live: a USB export updated
+      `exportLibrary.db` + artwork on the mirror drive.
 
 ### Future ingests
 Not needed for WAVs anymore — `megadj ingest` converts them to AIFF (native

@@ -17,9 +17,12 @@ Dev mode (hot reload): `bun run web:dev` in `cratedeck/web/` alongside `bun run 
   `POST /api/drives/:id/photo {"url": ...}` (Brave/Exa search proxy at
   `GET /api/images/search?q=`; set `provider`/`key` in `config.toml` or
   `CRATEDECK_IMAGE_KEY`).
-- **Jobs**: Scan / Verify / Benchmark / Checksum from the drawer. All
-  refused while rekordbox is running (interlock).
-- **Export**: per-drive JSON dossier from the drawer.
+- **Jobs**: Scan / Verify / Benchmark / Checksum. All refused while
+  rekordbox is running (interlock).
+- **Export**: per-drive JSON dossier from the drive page.
+- **Your drives**: set `master_drive` / `mirror_drive` in `config.toml`
+  (copy `config.sample.toml`) to your volume names so sync status and role
+  detection work.
 
 Read-only by construction: every disk write goes through `src/guard.ts`
 (allow-list = `cratedeck/data/` only). Tests: `bun test cratedeck/`.

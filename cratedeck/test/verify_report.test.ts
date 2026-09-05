@@ -69,7 +69,12 @@ describe("parseVerifyReport", () => {
   });
 
   it("failing output: failing checks carry meaning + fix", () => {
-    const r = parseVerifyReport(FAIL_OUTPUT, false, "FINAL: FAILED: 6 checks", 180);
+    const r = parseVerifyReport(
+      FAIL_OUTPUT,
+      false,
+      "FINAL: FAILED: 6 checks",
+      180,
+    );
     expect(r.ok).toBe(false);
     const bad = r.checks.filter((c) => c.status !== "pass");
     expect(bad.length).toBeGreaterThanOrEqual(5);
@@ -88,10 +93,16 @@ describe("parseVerifyReport", () => {
   });
 
   it("anlz warn threshold: a few missing is warn, many is fail", () => {
-    const few = PASS_OUTPUT.replace("missing analysis: 0", "missing analysis: 3");
+    const few = PASS_OUTPUT.replace(
+      "missing analysis: 0",
+      "missing analysis: 3",
+    );
     const rFew = parseVerifyReport(few, false, "FINAL: FAILED", 60);
     expect(rFew.checks.find((c) => c.id === "anlz")?.status).toBe("warn");
-    const many = PASS_OUTPUT.replace("missing analysis: 0", "missing analysis: 500");
+    const many = PASS_OUTPUT.replace(
+      "missing analysis: 0",
+      "missing analysis: 500",
+    );
     const rMany = parseVerifyReport(many, false, "FINAL: FAILED", 60);
     expect(rMany.checks.find((c) => c.id === "anlz")?.status).toBe("fail");
   });
@@ -116,7 +127,7 @@ describe("parseVerifyReport", () => {
 
 const JSON_PAYLOAD: VerifyJsonLike = {
   drives: {
-    DJMASTER: {
+    MASTER: {
       pdb_tracks: 3521,
       onelibrary_tracks: 3521,
       tracks: 3521,
@@ -150,7 +161,12 @@ function jsonOut(payload: VerifyJsonLike): string {
 
 describe("parseVerifyReport: structured payload", () => {
   it("parses the VERIFY_JSON line and attaches offenders", () => {
-    const r = parseVerifyReport(jsonOut(JSON_PAYLOAD), true, "FINAL: ALL PASS", 88);
+    const r = parseVerifyReport(
+      jsonOut(JSON_PAYLOAD),
+      true,
+      "FINAL: ALL PASS",
+      88,
+    );
     expect(r.stats.tracks).toBe(3521);
     expect(r.stats.playlists).toBe(42);
     const anlz = r.checks.find((c) => c.id === "anlz");
@@ -168,8 +184,11 @@ describe("parseVerifyReport: structured payload", () => {
     const two: VerifyJsonLike = {
       ...JSON_PAYLOAD,
       drives: {
-        DJMASTER: { tracks: 100, missing_files: ["/Contents/x.mp3"] },
-        DJMIRROR: { tracks: 100, missing_files: ["/Contents/y.mp3", "/Contents/z.mp3"] },
+        MASTER: { tracks: 100, missing_files: ["/Contents/x.mp3"] },
+        MIRROR: {
+          tracks: 100,
+          missing_files: ["/Contents/y.mp3", "/Contents/z.mp3"],
+        },
       },
       db_identical: false,
       anlz_total: 10,
@@ -190,7 +209,7 @@ describe("parseVerifyReport: structured payload", () => {
     const many = Array.from({ length: 60 }, (_, i) => `/Contents/t${i}.mp3`);
     const p: VerifyJsonLike = {
       ...JSON_PAYLOAD,
-      drives: { DJMASTER: { tracks: 100, missing_anlz: many } },
+      drives: { MASTER: { tracks: 100, missing_anlz: many } },
     };
     const r = parseVerifyReport(jsonOut(p), false, "FINAL: FAILED", 5);
     const anlz = r.checks.find((c) => c.id === "anlz")!;
@@ -211,12 +230,17 @@ describe("parseVerifyReport: structured payload", () => {
 
 describe("verifyDeltas", () => {
   it("computes +N worse and −N better per check", () => {
-    const prev = parseVerifyReport(jsonOut(JSON_PAYLOAD), false, "FINAL: FAILED", 10);
+    const prev = parseVerifyReport(
+      jsonOut(JSON_PAYLOAD),
+      false,
+      "FINAL: FAILED",
+      10,
+    );
     const worse: VerifyJsonLike = {
       ...JSON_PAYLOAD,
       drives: {
-        DJMASTER: {
-          ...JSON_PAYLOAD.drives.DJMASTER,
+        MASTER: {
+          ...JSON_PAYLOAD.drives.MASTER,
           missing_anlz: [
             "/Contents/YTMusic Liked/A - B.mp3",
             "/Contents/YTMusic Liked/E - F.mp3",
@@ -234,7 +258,12 @@ describe("verifyDeltas", () => {
   });
 
   it("no previous report → no deltas", () => {
-    const next = parseVerifyReport(jsonOut(JSON_PAYLOAD), true, "FINAL: ALL PASS", 5);
+    const next = parseVerifyReport(
+      jsonOut(JSON_PAYLOAD),
+      true,
+      "FINAL: ALL PASS",
+      5,
+    );
     expect(verifyDeltas(null, next)).toEqual([]);
   });
 });

@@ -5,10 +5,8 @@
  */
 
 import { $ } from "bun";
-import type { RateLimiter } from "./ratelimit";
 import type { YtdlpInfo } from "./metadata";
 import { sanitizeGenreFolder } from "./metadata";
-
 export interface DownloadResult {
   status: "downloaded" | "already-had" | "gone" | "failed";
   filePath?: string;
@@ -46,11 +44,8 @@ export class Downloader {
   private readonly opts: Required<Pick<DownloaderOptions, "musicDir">> &
     DownloaderOptions;
 
-  constructor(
-    private readonly limiter: RateLimiter,
-    opts: DownloaderOptions,
-  ) {
-    this.opts = opts;
+  constructor(opts: DownloaderOptions) {
+    this.opts = { ...opts, musicDir: opts.musicDir };
   }
 
   classifyError(stderr: string): "gone" | "throttle" | "other" {

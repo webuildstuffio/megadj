@@ -57,6 +57,22 @@ describe("scan", () => {
     const collisions = [...groups.values()].filter((p) => p.length > 1).flat();
     expect(collisions).toEqual(["Contents/Dance.MP3", "Contents/dance.mp3"]);
   });
+
+  it("manifest paths are Contents-stripped AND folded (strip before fold)", () => {
+    // Regression: fold-then-strip left every row as "contents/…" so diff()
+    // byte lookups against fleet track paths always missed.
+    const root = makeFakeDrive();
+    const snap = scanVolume(root);
+    const man = snap.manifest ?? [];
+    expect(man.length).toBeGreaterThan(0);
+    for (const m of man) {
+      expect(m.path.startsWith("Contents/")).toBe(false);
+      expect(m.path.startsWith("contents/")).toBe(false);
+      expect(m.path).toBe(m.path.toLowerCase());
+    }
+    // identity parity with the fleet track layer: same fold, no prefix
+    expect(man.map((m) => m.path)).toContain("tech house/groover.mp3");
+  });
 });
 
 describe("nfcCasefold", () => {

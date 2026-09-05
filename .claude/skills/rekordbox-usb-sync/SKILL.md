@@ -1,11 +1,12 @@
 ---
 name: rekordbox-usb-sync
 description: >-
-  Sync megadj YTMusic downloads onto the DJ USB drives (DJMASTER master +
-  DJMIRROR mirror) with full rekordbox integration: DB injection, BPM
-  detection, beatgrid/waveform ANLZ generation, and verification. Use when
-  asked to put new megadj/YTMusic music on the USBs, sync the drives, or
-  analyze/beatgrid tracks for rekordbox.
+  Sync megadj downloads onto the DJ USB drives (a master and a mirror, kept
+  identical) with full rekordbox integration: DB injection, BPM detection,
+  beatgrid/waveform ANLZ generation, and verification. Use when asked to put
+  new music on the USBs, sync the drives, or analyze/beatgrid tracks for
+  rekordbox. Defaults use DJMASTER/DJMIRROR volume names — override via
+  arguments or USB_SYNC_MASTER/USB_SYNC_MIRROR env vars for your drives.
 ---
 
 # Rekordbox USB Sync
@@ -13,17 +14,22 @@ description: >-
 End-to-end pipeline: megadj download folder → both DJ USB drives running a
 verified, fully analyzed rekordbox device library.
 
-## Current library state (as of 2026-08-25)
+**Drive names:** the scripts default to volume names `DJMASTER` (master) and
+`DJMIRROR` (mirror). Rename your volumes to match, set `USB_SYNC_MASTER` /
+`USB_SYNC_MIRROR`, or pass `--drive` / `--drives` explicitly.
 
-| | DJMASTER | DJMIRROR |
+## Library conventions
+
+| | Master (DJMASTER) | Mirror (DJMIRROR) |
 |---|---|---|
 | Role | MASTER | Mirror (kept identical) |
-| DB | `PIONEER/rekordbox/exportLibrary.db` — SQLCipher, 3,054 tracks · 154 playlists · 30,435 entries | same file, MD5-identical |
-| Music | `Contents/` — 3,794 files | superset, 0 diff |
-| Analysis | `PIONEER/USBANLZ/` — device folders P000–P07F + hash-path folders for YTMusic | superset, 0 diff |
+| DB | `PIONEER/rekordbox/exportLibrary.db` (SQLCipher) | same file, MD5-identical |
+| Music | `Contents/` | superset OK, 0 diff after sync |
+| Analysis | `PIONEER/USBANLZ/` — device folders + hash-path folders | superset, 0 diff |
 | New tracks device ID | hash-computed (see `scripts/anlz_paths.py`) | same |
 
-Recovery kit: `~/rekordbox-exports/` (STATUS-FINAL.md, XML).
+Recovery kit / XML exports: a local folder of your choosing (e.g.
+`~/rekordbox-exports/`).
 Working scratch: `/tmp/usb-sync/` (work_master.db is the live master copy).
 
 ## Safety rules
@@ -213,7 +219,7 @@ The pipeline above only updates the OneLibrary DB. Legacy players read
    (right-click device → Export). rekordbox writes BOTH export.pdb and
    OneLibrary, and re-grids live sets properly.
 4. Mirror with `usb_mirror.py`, then run usb_verify.py — the hardware
-   gate goes green when export.pdb == OneLibrary == 3,054.
+   gate goes green when export.pdb == OneLibrary == the full library count.
 
 Update `~/rekordbox-exports/STATUS-FINAL.md` with new counts.
 

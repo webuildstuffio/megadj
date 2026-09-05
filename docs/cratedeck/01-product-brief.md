@@ -2,15 +2,16 @@
 
 **One dashboard for every DJ USB drive you own — mounted or not.**
 
-Status: Draft v1 · 2026-09-03 · Owner: REDACTED · Repo: megadj/megadj
+Status: Draft v1 · 2026-09-03
 Companion docs: [02-prd.md](02-prd.md) · [03-architecture.md](03-architecture.md) · [04-build-plan.md](04-build-plan.md)
 
 ---
 
 ## 1. The problem, honestly
 
-REDACTED owns ~8 USB drives that carry gig-critical rekordbox libraries. Right now
-the only ways to answer "what's on this stick and is it healthy?" are:
+A working DJ owns a shelf of USB drives that carry gig-critical rekordbox
+libraries. Right now the only ways to answer "what's on this stick and is it
+healthy?" are:
 
 1. Plug it in, open Finder, squint.
 2. Open rekordbox (slow, and it mutates DBs just by looking).
@@ -40,10 +41,10 @@ One command (`bun run deck`), one page, zero accounts, localhost only.
 
 ## 3. Who it's for
 
-**Primary user:** REDACTED — one person, multiple venues' worth of gear, values
-glanceability over configuration, allergic to busywork. This is not a SaaS;
-it's the cockpit of a one-DJ operation. Secondary: any visitor DJ who borrows
-a stick and needs to know what's on it in 5 seconds.
+**Primary user:** a working DJ — one person, multiple venues' worth of gear,
+values glanceability over configuration, allergic to busywork. This is not a
+SaaS; it's the cockpit of a one-DJ operation. Secondary: any visiting DJ who
+borrows a stick and needs to know what's on it in 5 seconds.
 
 ## 4. Jobs to be done
 
@@ -52,8 +53,8 @@ a stick and needs to know what's on it in 5 seconds.
 | J1  | "Tell me what this stick in my hand is"          | plug in, browse folders        | card lights up with photo + name in ~2s                                   |
 | J2  | "Is it safe to play this drive tonight?"         | hope / run scripts by hand     | PASS/FAIL readiness badge with the same gates the verify tool uses        |
 | J3  | "What's different between my two main drives?"   | run `usb_verify.py`, read logs | in-sync badge + one-glance diff (files, DB, ANLZ, playlists)              |
-| J4  | "Which stick has the party playlist?"          | plug in each and look          | search across **all** known drives, including unplugged (last-known data) |
-| J5  | "Is the new YTMusic batch on the drives yet?"    | run sync, check output         | new-music radar: downloads vs each drive, one click to queue the sync     |
+| J4  | "Which stick has this playlist?"          | plug in each and look          | search across **all** known drives, including unplugged (last-known data) |
+| J5  | "Are the new downloads on the drives yet?"    | run sync, check output         | new-music radar: downloads vs each drive, one click to queue the sync     |
 | J6  | "Did this stick get slower / is it dying?"       | nothing — until it fails       | benchmark history, bitrot ledger, SMART/health signals                    |
 | J7  | "Where do I plug the exporter so drives behave?" | guess                          | port map — labeled physical ports, drive-to-port history                  |
 
@@ -113,7 +114,7 @@ management, automatic background writes of any kind.
 - "What's on this stick?" answered in < 5 seconds, from the couch.
 - Zero gig-night surprises: every drive card shows a readiness badge dated
   after its last change.
-- All 8 real drives named, photographed, and accounted for within the first
+- All real drives named, photographed, and accounted for within the first
   session.
 - The agent + scripts workflow becomes: glance at CrateDeck → act only when
   a badge isn't green.

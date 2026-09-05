@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mirror DJMASTER (master) -> DJMIRROR (backup): music + analysis + rekordbox files.
+"""Mirror master drive -> mirror drive: music + analysis + rekordbox files.
 
 Usage:
     uv run python .claude/skills/rekordbox-usb-sync/scripts/usb_mirror.py          # everything
@@ -24,8 +24,8 @@ import unicodedata
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from progress import Progress, Stage
 
-MASTER = "/Volumes/DJMASTER"
-MIRROR = "/Volumes/DJMIRROR"
+MASTER = os.environ.get("USB_SYNC_MASTER", "/Volumes/DJMASTER")
+MIRROR = os.environ.get("USB_SYNC_MIRROR", "/Volumes/DJMIRROR")
 STATE_FILE = "/tmp/usb-sync/usb_mirror_state.json"
 
 REKORDBOX_FILES = [

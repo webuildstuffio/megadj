@@ -34,7 +34,7 @@ embedded art onto it (mutagen APIC), let ingest's dedupe quarantine the mp3.
 ## Step 2 — megadj ingest (the Picard pass)
 
 ```bash
-cd ~/github/megadj
+cd /path/to/megadj
 bun src/cli.ts ingest ~/Downloads --dry-run   # review the plan
 bun src/cli.ts ingest ~/Downloads             # execute
 ```
@@ -57,8 +57,8 @@ removed, so nothing duplicates.
 bit-identical, tags + art ride along via mutagen — ffmpeg's aiff muxer
 drops the ID3 chunk, so the converter copies ID3 frames back afterwards).
 AIFF covers show natively in rekordbox, CDJs and the XDJ-XZ — no
-`rb_art.py` DB surgery needed for anything ingested after Sep 2026.
-Legacy WAVs already in the archive (the 73) still need the `rb_art.py`
+`rb_art.py` DB surgery needed for anything ingested going forward.
+Legacy WAVs already in the archive still need the one-time `rb_art.py`
 pass once the drives are plugged in.
 
 ## Step 3 — THE one command: `tools/fetch_all.ts`
@@ -67,7 +67,7 @@ Everything ingest didn't finish — tags, genres, artwork — in one parallel,
 idempotent, ground-truth pass (reads the files, not the DB):
 
 ```bash
-cd ~/github/megadj
+cd /path/to/megadj
 bun tools/fetch_all.ts             # fill everything missing (default)
 bun tools/fetch_all.ts --dry-run   # report only
 bun tools/fetch_all.ts --all       # + upgrade existing SC art to original res
@@ -102,11 +102,11 @@ Per track it does, skipping whatever is already complete:
 asked for a remix year — always verify with `fix_years.ts` (real SC page
 dates) before trusting AI years.
 
-**Lesson from the 88-track full pass (Sep 2026):** tracks that "can't be
+**Lesson from a full-archive enrichment pass:** tracks that "can't be
 found" usually ARE on SoundCloud under a different name/query — search the
-**remixer's name + original title** (`"Tiwari Kesha Blow"`), look for the
-**uploader's pack pages** (Vazana edit/mashup packs, RAFAEL VIP's
-`LEVEX x RAFAEL MASHUP PACK`) and use the pack cover. Never accept
+**remixer's name + original title**, look for the
+**uploader's pack pages** (edit/mashup/VIP packs often have their own
+cover art) and use the pack cover. Never accept
 "untraceable" until you've tried the remixer's profile and pack pages.
 
 ## Step 3b — AI covers: last resort only
@@ -145,16 +145,17 @@ anything is incomplete — use it as the final gate after any batch. It reads
 tags via mutagen ground truth (the old `final_audit.py`/`tag_audit.ts`
 one-offs are retired; `megadj audit` supersedes both).
 
-Ground truth = files, not the DB. As of Sep 2026: **88/88 tracks have art,
-full tags, genre and verified remix-year** (73 WAV via APIC, 15 MP3).
+Ground truth = files, not the DB. Run `megadj audit` after every batch;
+it exits 0 only when every track has art, full tags, genre and a
+verified year.
 
 ### rekordbox WAV artwork (legacy tracks)
 
 rekordbox cannot read art embedded in WAVs — it stores art in its own
 library (`share/PIONEER/Artwork/<shard>/<uuid>/` + `ImagePath` in
 `djmdContent`). **New ingests don't hit this** (WAVs convert to AIFF at
-ingest, covers just work). **DONE Sep 4 2026: all 73 legacy WAVs fixed**
-via `tools/rb_art.py` pilot → batch (`ok=73 errors=0`, verified in RB).
+ingest, covers just work). **Legacy WAVs can be fixed in one pass** via
+`tools/rb_art.py` pilot → batch (pilot first, verify in RB, then batch).
 
 Key gotcha learned during the pilot: RB renders covers from the
 `artwork_m.jpg` + `artwork_s.jpg` thumbnails — a dir with only

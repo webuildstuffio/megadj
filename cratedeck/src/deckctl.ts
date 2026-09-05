@@ -17,6 +17,7 @@
 // Exit codes: 0 ok · 1 job failed/verify-fail · 2 usage · 3 interlock · 4 server unreachable.
 
 import { VERIFY_HELP } from "./verify_help";
+import type { CoverageResponse, RedundancyResult } from "../shared/types";
 
 const PORT = 7742;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -386,24 +387,15 @@ async function cmdJobs(): Promise<void> {
 }
 
 // ---- fleet superpowers (§B6 coverage / §B7 redundancy / §B8 diff) -----------
-
-interface CoverageRes {
-  drives: { id: string; name: string; tracks: number }[];
-  at_risk: {
-    identity: { path: string; title: string | null; artist: string | null };
-    copies: number;
-    drives: string[];
-  }[];
-  min_copies: number;
-  totals: { unique_tracks: number; fully_redundant: number };
-}
+// Response types come from shared/types.ts — the same wire shapes the API
+// emits, so CLI drift is a type error, not a runtime surprise.
 
 async function cmdCoverage(minCopies?: string): Promise<void> {
   const n = minCopies ? parseInt(minCopies, 10) : undefined;
   const qs = n && n > 0 ? `?min_copies=${n}` : "";
   const r = (await apiGet(`/api/fleet/coverage${qs}`).then((res) =>
     res.json(),
-  )) as CoverageRes;
+  )) as CoverageResponse;
   if (JSON_MODE) {
     console.log(JSON.stringify(r, null, 2));
     return;
@@ -427,24 +419,12 @@ async function cmdCoverage(minCopies?: string): Promise<void> {
   }
 }
 
-interface RedundancyRes {
-  overall: string;
-  summary: string;
-  playlists: {
-    playlist: string;
-    verdict: string;
-    detail: string;
-    unique_tracks: number;
-    protected_tracks: number;
-  }[];
-}
-
 async function cmdRedundancy(minCopies?: string): Promise<void> {
   const n = minCopies ? parseInt(minCopies, 10) : undefined;
   const qs = n && n > 0 ? `?min_copies=${n}` : "";
   const r = (await apiGet(`/api/fleet/redundancy${qs}`).then((res) =>
     res.json(),
-  )) as RedundancyRes;
+  )) as RedundancyResult;
   if (JSON_MODE) {
     console.log(JSON.stringify(r, null, 2));
     return;

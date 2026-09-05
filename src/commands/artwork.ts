@@ -138,8 +138,10 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
       (opts.dryRun ? " (dry run)" : ""),
   );
 
-  const { ImageClient } =
-    await import("~/github/image-maker-cli/dist/client.js");
+  const { ImageClient } = await import(
+    process.env.IMAGE_MAKER_CLIENT ??
+      `${process.env.HOME}/github/image-maker-cli/dist/client.js`
+  );
   const client = new ImageClient(apiKey ?? "");
   const { mkdir } = await import("node:fs/promises");
   const coverDir = join(QUEUE_PATH(), "..", "artwork-covers");

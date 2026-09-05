@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { Downloader } from "./downloader";
-import type { RateLimiter } from "./ratelimit";
 
 function makeDownloader(): Downloader {
-  const limiter = {} as RateLimiter;
-  return new Downloader(limiter, { musicDir: "/tmp/megadj-test" });
+  return new Downloader({ musicDir: "/tmp/megadj-test" });
 }
 
 describe("Downloader.parseDownloadOutput", () => {
