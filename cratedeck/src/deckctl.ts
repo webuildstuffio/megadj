@@ -17,6 +17,7 @@
 // Exit codes: 0 ok · 1 job failed/verify-fail · 2 usage · 3 interlock · 4 server unreachable.
 
 import { VERIFY_HELP } from "./verify_help";
+import type { ChecksumResult } from "./bench";
 import {
   apiGet,
   apiPost,
@@ -289,18 +290,17 @@ function finishLine(j: Job, driveName: string, elapsedS: number): void {
       }
     }
     if (j.kind === "checksum" && result) {
-      try {
-        const r = result as unknown as {
-          hashed: number;
-          changed: string[];
-        };
+      // result_json is untrusted JSON from the wire — narrow at runtime
+      // instead of casting, so a shape change can't print garbage.
+      const { hashed, changed } = result as Partial<ChecksumResult>;
+      if (typeof hashed === "number" && Array.isArray(changed)) {
         log(
-          r.changed.length
-            ? `  ⚠ ${r.changed.length} file(s) differ from ledger:\n   ${r.changed.slice(0, 5).join("\n   ")}`
-            : `  ${r.hashed.toLocaleString()} files clean`,
+          changed.length
+            ? `  ⚠ ${changed.length} file(s) differ from ledger:\n   ${changed.slice(0, 5).join("\n   ")}`
+            : `  ${hashed.toLocaleString()} files clean`,
         );
-      } catch (e) {
-        console.error("checksum result_json had an unexpected shape", e);
+      } else {
+        console.error("checksum result_json had an unexpected shape");
       }
     }
     process.exit(0);
