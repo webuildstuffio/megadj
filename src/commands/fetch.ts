@@ -27,6 +27,10 @@ export interface AuditRow {
   album: boolean;
   genre: boolean;
   year: boolean;
+  /** TXXX:MOOD stamp present (roadmap #4 — mood/valence completeness). */
+  mood: boolean;
+  /** TXXX:ENERGY stamp present (the energy stage's output). */
+  energy: boolean;
   complete: boolean;
 }
 
@@ -69,10 +73,19 @@ export function auditArchive(musicDir: string): {
       album: !!t.album,
       genre: genreOk,
       year: !!t.year,
+      mood: !!t.mood,
+      energy: t.energy !== null,
       complete: false,
     };
     row.complete =
-      row.art && row.title && row.artist && row.album && row.genre && row.year;
+      row.art &&
+      row.title &&
+      row.artist &&
+      row.album &&
+      row.genre &&
+      row.year &&
+      row.mood &&
+      row.energy;
     rows.push(row);
   }
   return {

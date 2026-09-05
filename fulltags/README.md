@@ -154,7 +154,8 @@ use).
 | `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                                      |
 | `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted)         |
 | `megadj mood`   | syncs `TXXX:MOOD` stamps into the archive DB `mood` ledger; analyzes unstamped tracks inline |
+| `megadj cues`   | 8-bar phrase cues from the beats ledger → `cues` DB table (no player writes)                 |
 
-The **roadmap** for what comes next (genre-head write pass, dupe hunting on
-the new fingerprints, structure cues) lives in
+The **roadmap** for what comes next (rekordbox cue writes, vocal density,
+similarity) lives in
 [docs/fulltags-roadmap.md](../docs/fulltags-roadmap.md).

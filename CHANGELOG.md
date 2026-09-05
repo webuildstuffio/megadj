@@ -7,6 +7,23 @@ All notable changes to megadj are documented here. Format:
 
 ### Added
 
+- **Structure cues slice v0 + audit-gate upgrade (Sep 5 2026, pass 3):**
+  - **`megadj cues [--limit N] [--force] [--dry-run] [--json]`**
+    (`src/commands/cues.ts`): derives DJ phrase markers (every 8 bars)
+    from the beats ledger's downbeat arrays into the new `cues` table
+    (`src/state.ts`: `setCueRecord`/`cueRecord`/`cueAnalyzedTracks`).
+    Pure deterministic slicer (`phraseCues`), trailing partial phrases
+    dropped, idempotent by video_id. **88/88 tracks cued, 1366 cues.**
+    DB-side only — the rekordbox memory-cue WRITE pass is the deliberate
+    next gate (interlock + gauntlet apply).
+  - **Audit gate requires mood + energy** (`fulltags/src/schema.ts`
+    `COMPLETENESS_FIELDS`, `fulltags/cli.ts` audit, `megadj audit`):
+    the completeness gate now flags files missing the TXXX:MOOD /
+    TXXX:ENERGY stamps. `groundTruth` now reads TXXX:ENERGY (it was
+    hardcoded `null` — `readFullTag().energy` always lied). Archive:
+    88/88 complete under the upgraded gate. Tests: phrase-slicer unit
+    tests + cue-ledger round-trip + schema completeness pin.
+
 - **Roadmap rev 6.2 — mood execution pass 3 + CrateDeck mood surface
   (Sep 5 2026):** finished the "then" block of the roadmap by executing
   and hardening what rev 6.1 shipped.

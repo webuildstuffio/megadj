@@ -173,6 +173,8 @@ async function main(): Promise<void> {
       if (!t.album) missing.push("album");
       if (!t.genre || t.genre === "Music") missing.push("genre");
       if (!t.year) missing.push("year");
+      if (!t.mood) missing.push("mood");
+      if (t.energy === null || t.energy === undefined) missing.push("energy");
       const aiFilled = [
         ai.aiGenre ? `genre←AI(${ai.aiGenre.split("|")[1] ?? "?"})` : null,
         ai.aiYear ? `year←AI(${ai.aiYear.split("|")[1] ?? "?"})` : null,
@@ -200,7 +202,7 @@ async function main(): Promise<void> {
       );
     } else {
       console.log(
-        `audit: ${complete}/${rows.length} complete (art + title + artist + album + genre + year)`,
+        `audit: ${complete}/${rows.length} complete (art + title + artist + album + genre + year + mood + energy)`,
       );
       if (aiCount)
         console.log(

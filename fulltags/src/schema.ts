@@ -46,7 +46,10 @@ export interface FullTag {
   art: boolean;
 }
 
-/** The fields the archive completeness gate requires (megadj audit parity). */
+/** The fields the archive completeness gate requires (megadj audit parity).
+ * mood + energy joined rev 6.1 pass 2: both are real stamp fields written
+ * by the analysis stages, the audit is the completeness gate, so a file
+ * missing them IS a gap. */
 export const COMPLETENESS_FIELDS = [
   "art",
   "title",
@@ -54,6 +57,8 @@ export const COMPLETENESS_FIELDS = [
   "album",
   "genre",
   "year",
+  "mood",
+  "energy",
 ] as const satisfies ReadonlyArray<keyof FullTag>;
 
 /** Which required fields are missing from a tag record. */

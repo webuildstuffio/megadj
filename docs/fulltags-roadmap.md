@@ -434,9 +434,9 @@ done  ▸ #1 fingerprints (88/88) · #3 key gate PASSED + batch-written (88/88,
           upstream (pb-only) — deferred indefinitely
 now   ▸ the RB gauntlet at next DJLIBRARYM mount — 30 s, do it FIRST
         (disable Key analysis, reload tags, verify TKEY survives)
-then  ▸ structure cues (slice: cues first; downbeats now in the ledger,
-        ready) → vocal density → similarity (88-fp ledger as the
-        sqlite-vec pilot)
+then  ▸ rekordbox cue WRITE pass (memory cues from the `cues` ledger —
+        drive writes, gated behind the interlock + gauntlet) → vocal
+        density → similarity (88-fp ledger as the sqlite-vec pilot)
 parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
         no ONNX export — needs a reason to exist first)
 ```
@@ -444,9 +444,15 @@ parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
 Each item is independently shippable; the order maximizes
 verified-value-per-day. After #4, every archive file carries complete
 identity, multi-vote genre, year, key, fingerprint, mood/valence, and
-blended energy — in the actual files — with beats + downbeats DB-side.
-The `then` block is now purely P2 research items: **no write passes
-remain on the P1 plan.**
+blended energy — in the actual files — with beats + downbeats + phrase
+cues DB-side. **Structure-cues slice v0 SHIPPED (pass 3, rev 6.2):**
+`megadj cues` derives 8-bar phrase markers from the beats ledger's
+downbeats into the `cues` table — 88/88 tracks, 1366 cues, idempotent,
+DB-side only; the rekordbox memory-cue WRITE is the deliberate next
+gate. **Audit gate upgraded (pass 3):** mood + energy are now required
+fields (`COMPLETENESS_FIELDS`, both audit CLIs); `groundTruth` reads
+TXXX:ENERGY (it was hardcoded null — the audit would have flagged
+nothing and verified nothing).
 
 ## Research base (rev 5 — rev 4 rows re-checked 2026-09-05)
 

@@ -108,7 +108,14 @@ produces, regardless of the language used in the request.
   genre writes stay BLOCKED. Head gotchas: label order positive FIRST
   (mood_party LAST), emomusic = (valence, arousal) 1–9, effnet melspec =
   MusiCNN 512/256 in 128-frame chunks (fixed ONNX batch), vggish = 400/200
-  → 96-frame patches transposed (64, 96).
+  → 96-frame patches transposed (64, 96). **Pass 3 (same night):**
+  `megadj cues` derives 8-bar phrase cues from the beats ledger's
+  downbeats into the `cues` table (`setCueRecord`/`cueRecord`/
+  `cueAnalyzedTracks`; 88/88 tracks, 1366 cues, idempotent, DB-side —
+  rekordbox memory-cue writes remain a gated next step). The audit gate
+  now REQUIRES mood + energy (`COMPLETENESS_FIELDS` + both audit CLIs);
+  `groundTruth` reads TXXX:ENERGY (was hardcoded null, so
+  `readFullTag().energy` always lied).
 - **rekordbox WAV artwork**: RB never reads art embedded in WAVs (RIFF INFO
   has no art field; it ignores the ID3 APIC chunk). Two-part solution:
   (1) **ingest converts new WAVs → AIFF** (`src/commands/wav-to-aiff.ts`,

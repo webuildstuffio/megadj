@@ -710,12 +710,7 @@ export class ArchiveState {
            model = excluded.model,
            derived_at = excluded.derived_at`,
       )
-      .run(
-        rec.videoId,
-        JSON.stringify(rec.cues),
-        rec.source,
-        this.now(),
-      );
+      .run(rec.videoId, JSON.stringify(rec.cues), rec.source, this.now());
   }
 
   /** One cue record (by video id), null when never derived. */
