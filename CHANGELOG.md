@@ -112,6 +112,34 @@ diff|jobs|cancel|stop|explain` with `--json`, spinner + ETA, exit 3 on
     tracks lost embedded artwork and comments, and a failed run leaked an
     orphan tmp per corrupt input. Now routes through FullTags'
     format-aware `writePatch` (atomic, mutagen for AIFF/WAV/m4a).
+- GetDat round 3 — five more bugs found and fixed with regression tests
+  (src suite now 69; new `enrich.test.ts`, `organize.test.ts`,
+  `adopt.test.ts`):
+  - `ArchiveState.migrate()` never added the `tracks.year` column that
+    `megadj fetch` and `megadj years` write with plain SQL — every such
+    write crashed a freshly created DB with "no such column: year"
+    (existing DBs only worked because the column was added by hand).
+    Fresh databases now migrate it automatically.
+  - `megadj enrich` recorded the new genre in the DB even when the
+    in-file tag write failed — DB and file diverged silently, and the
+    track became invisible to every later enrich pass (its genre was no
+    longer "weak/missing"). The DB update is now gated on the file write
+    succeeding, and failures are counted + reported (`writeFailed`).
+  - one corrupt line in `artwork-queue.jsonl` (partial write, hand edit)
+    bricked the whole `megadj artwork` pass: the JSON.parse throw was
+    caught as "queue is empty" and the command exited 0 having done
+    nothing. Bad lines are now skipped and counted; good entries still
+    process.
+  - `megadj organize` updated `file_path` unconditionally after a
+    quiet+nothrow `mv` (and crashed outright if `mkdir -p` failed) — a
+    failed move left the DB pointing at a file that never existed, and
+    every later pass treated the phantom path as ground truth. Moves and
+    mkdirs are now exit-code gated; failures keep the old path and are
+    reported (`moveFailed`).
+  - `megadj adopt` / `megadj ingest` crashed when a file vanished between
+    the directory walk and its `stat()` (cleanup, another agent) — one
+    ENOENT killed the whole pass. Both now skip the vanished file and
+    keep going (same hardening `sync` got in round 1).
 - `scripts/export-cookies.sh` success line printed literal garbage;
   now reports the real cookie count.
 - FullTags audit: five bugs found and fixed with regression tests

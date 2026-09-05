@@ -97,7 +97,16 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   const records: Record_[] = [];
   const broken: string[] = [];
   for (const file of files) {
-    const st = await stat(file);
+    // A file can vanish between the walk and this stat (cleanup, another
+    // agent). Skip it — one ENOENT must not kill the whole ingest pass
+    // (same hardening `sync` got for its byte counter).
+    let st;
+    try {
+      st = await stat(file);
+    } catch {
+      log(`  ✗ vanished mid-scan, skipped: ${basename(file)}`);
+      continue;
+    }
     const probe = await probeFile(file);
     if (!st.size || !probe.ok) {
       broken.push(file);

@@ -116,4 +116,34 @@ describe("ArchiveState", () => {
     expect(runs[0]?.downloaded).toBe(3);
     expect(runs[0]?.bytes_downloaded).toBe(12345);
   });
+
+  test("fresh DB has the `year` column (fetch/years writes must not crash)", () => {
+    // Regression: fetch_all.ts + fix_years.ts run plain
+    // `UPDATE tracks SET year=?` — on a DB created before that column was
+    // added manually, every write crashed with "no such column: year".
+    // migrate() must add it so fresh databases work out of the box.
+    // (Verified through the public surface: upsert + allTracks round-trips
+    // the row, and TrackRow now types `year`.)
+    state.upsertTrackFromPlaylist("abc", 1, "First Title");
+    expect(() =>
+      state.markDownloaded("abc", {
+        title: "First Title",
+        artist: null,
+        album: null,
+        formatId: null,
+        bitrateKbps: 256,
+        codec: "aac",
+        filePath: "/tmp/x.m4a",
+        fileSizeBytes: 1,
+        durationS: 100,
+      }),
+    ).not.toThrow();
+    const cols = (
+      state.allTracks()[0] as unknown as Record<string, unknown>
+    ) ?? {};
+    // The migration is structural: a `year` property must exist on the row
+    // (null before any fetch run populates it).
+    expect(Object.keys(cols)).toContain("year");
+    expect(cols.year).toBeNull();
+  });
 });

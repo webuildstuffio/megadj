@@ -65,6 +65,7 @@ export async function adopt(opts: AdoptOptions): Promise<void> {
   }
 
   let adopted = 0;
+  let vanished = 0;
   for (const file of files) {
     const base =
       file
@@ -74,7 +75,17 @@ export async function adopt(opts: AdoptOptions): Promise<void> {
     const key = normalize(base);
     const match = byTitle.get(key);
     if (!match) continue;
-    const stat = await Bun.file(file).stat();
+    // A file can vanish between the directory walk and this stat (cleanup,
+    // another agent, a moving tree). Skipping one file beats crashing the
+    // whole adoption pass — same hardening `sync` got for its byte counter.
+    let stat: Awaited<ReturnType<typeof Bun.file.prototype.stat>>;
+    try {
+      stat = await Bun.file(file).stat();
+    } catch {
+      vanished++;
+      log(`  ✗ vanished mid-scan, skipped: ${base}`);
+      continue;
+    }
     opts.state.markDownloaded(match.video_id, {
       title: match.title,
       artist: match.artist,
@@ -92,7 +103,8 @@ export async function adopt(opts: AdoptOptions): Promise<void> {
   }
 
   log(
-    `\nadopted ${adopted} file(s); ${files.length - adopted} unmatched (left pending or already tracked)`,
+    `\nadopted ${adopted} file(s); ${files.length - adopted} unmatched (left pending or already tracked)` +
+      (vanished > 0 ? `, ${vanished} vanished` : ""),
   );
   if (opts.json) {
     // P1 (--json on every command): one summary object on stdout, last.
@@ -102,6 +114,7 @@ export async function adopt(opts: AdoptOptions): Promise<void> {
         scanned: files.length,
         adopted,
         unmatched: files.length - adopted,
+        vanished,
       }),
     );
   }

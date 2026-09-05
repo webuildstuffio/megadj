@@ -37,6 +37,7 @@ export interface TrackRow {
   genre: string | null;
   energy: number | null;
   artwork_status: string | null;
+  year: string | null;
   first_seen_at: string;
   updated_at: string;
 }
@@ -108,6 +109,12 @@ export class ArchiveState {
       "TEXT NOT NULL DEFAULT 'liked'",
     );
     this.addColumnIfMissing("tracks", "genre", "TEXT");
+    // `year` = release year of THIS file's version (see TagValues in
+    // tools/fetch_lib.ts). fetch_all + fix_years run plain
+    // `UPDATE tracks SET year=?` — without this migration every
+    // `megadj fetch`/`megadj years` write crashes a freshly created DB
+    // with "no such column: year" (older DBs only worked via manual ALTER).
+    this.addColumnIfMissing("tracks", "year", "TEXT");
     this.addColumnIfMissing("tracks", "energy", "INTEGER");
     this.addColumnIfMissing("tracks", "artwork_status", "TEXT");
     this.db.exec(

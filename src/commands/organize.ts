@@ -46,6 +46,7 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
   let moved = 0;
   let skipped = 0;
   let missing = 0;
+  let movedFailed = 0;
 
   for (const track of tracks) {
     const filePath = track.file_path;
@@ -73,29 +74,42 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
       continue;
     }
 
-    await $`mkdir -p ${targetDir}`.quiet();
+    // nothrow: an unwritable parent must skip the track, not crash the run.
+    const mk = await $`mkdir -p ${targetDir}`.quiet().nothrow();
+    if (mk.exitCode !== 0) {
+      movedFailed++;
+      log(`  ✗ cannot create ${folder}/ (skipping): ${filePath}`);
+      continue;
+    }
     // Never clobber: if the destination exists with different bytes it is a
     // different rip of the same track — keep both, disambiguate the name.
+    let dest = targetPath;
     if (await Bun.file(targetPath).exists()) {
       const ext = fileName.match(/(\.[^.]+)$/)?.[1] ?? "";
       const stem = ext ? fileName.slice(0, -ext.length) : fileName;
-      const alt = `${targetDir}/${stem} [${track.video_id}]${ext}`;
+      dest = `${targetDir}/${stem} [${track.video_id}]${ext}`;
       log(
         `  ⚠ destination exists — moving as ${stem} [${track.video_id}]${ext}`,
       );
-      await $`mv ${filePath} ${alt}`.quiet();
-      opts.state.updateFilePath(track.video_id, alt);
-      moved++;
+    }
+    // Only record the move when it actually happened. The old quiet+nothrow
+    // `mv` updated file_path unconditionally, so a failed move (EXDEV, disk
+    // full, permissions) left the DB pointing at a file that never existed —
+    // and every later pass treated the phantom path as ground truth.
+    const mv = await $`mv ${filePath} ${dest}`.quiet().nothrow();
+    if (mv.exitCode !== 0) {
+      movedFailed++;
+      log(`  ✗ move failed (DB unchanged): ${filePath}`);
       continue;
     }
-    await $`mv ${filePath} ${targetPath}`.quiet();
-    opts.state.updateFilePath(track.video_id, targetPath);
+    opts.state.updateFilePath(track.video_id, dest);
     moved++;
-    log(`  → ${folder}/${fileName}`);
+    log(`  → ${folder}/${dest.split("/").pop()}`);
   }
 
   log(
-    `\norganize complete: ${moved} moved, ${skipped} already organized, ${missing} missing`,
+    `\norganize complete: ${moved} moved, ${skipped} already organized, ${missing} missing` +
+      (movedFailed > 0 ? `, ${movedFailed} move-failed` : ""),
   );
   if (opts.json) {
     // P1 (--json on every command): one summary object on stdout, last.
@@ -107,6 +121,7 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
         moved,
         alreadyOrganized: skipped,
         missing,
+        moveFailed: movedFailed,
       }),
     );
   }

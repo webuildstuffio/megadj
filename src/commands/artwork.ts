@@ -32,6 +32,32 @@ const QUEUE_PATH = () =>
   `${process.env.HOME}/.local/state/megadj/artwork-queue.jsonl`;
 const DONE_PATH = () => `${QUEUE_PATH()}.done`;
 
+/**
+ * Parse JSONL queue content. One corrupt line (partial write, hand edit)
+ * never bricks the pass: bad lines are skipped and counted — the caller
+ * surfaces them — instead of the old all-or-nothing `JSON.parse` throw that
+ * reported a non-empty queue as "queue is empty" (exit 0, nothing done).
+ * Exported for tests. Returns null when the file is missing/unreadable.
+ */
+export function parseQueue(raw: string): {
+  entries: QueueEntry[];
+  badLines: number;
+} {
+  let badLines = 0;
+  const entries = raw
+    .split("\n")
+    .filter((l) => l.trim())
+    .flatMap((l) => {
+      try {
+        return [JSON.parse(l) as QueueEntry];
+      } catch {
+        badLines++;
+        return [];
+      }
+    });
+  return { entries, badLines };
+}
+
 /** Build the generation prompt from whatever track metadata we have. */
 export function buildPrompt(entry: QueueEntry): string {
   const genreish = entry.album && !entry.album.includes("—") ? entry.album : "";
@@ -65,10 +91,13 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
   let entries: QueueEntry[] = [];
   try {
     const raw = await readFile(QUEUE_PATH(), "utf8");
-    entries = raw
-      .split("\n")
-      .filter((l) => l.trim())
-      .map((l) => JSON.parse(l) as QueueEntry);
+    const parsed = parseQueue(raw);
+    entries = parsed.entries;
+    if (parsed.badLines > 0) {
+      log(
+        `  ⚠ skipped ${parsed.badLines} corrupt queue line(s) — re-save or fix artwork-queue.jsonl if entries are missing`,
+      );
+    }
   } catch {
     log(
       "queue is empty — nothing to do (entries appear after `megadj ingest`)",

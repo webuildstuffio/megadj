@@ -17,6 +17,10 @@ export interface EnrichOptions {
   onProgress?: (msg: string) => void;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
   json?: boolean;
+  /** Test seam: override the MusicBrainz genre lookup. */
+  genreResolver?: GenreResolver;
+  /** Test seam: override the in-file tag writer (false = write failure). */
+  tagWriter?: TagWriter;
 }
 
 interface MbArtist {
@@ -28,6 +32,14 @@ interface MbArtist {
 interface MbSearchResponse {
   artists?: MbArtist[];
 }
+
+/** Injectable for tests: resolve an artist → canonical genre (or null). */
+export type GenreResolver = (artist: string) => Promise<string | null>;
+/** Injectable for tests: write the genre tag into a file; false = failure. */
+export type TagWriter = (
+  filePath: string,
+  genre: string,
+) => Promise<boolean>;
 
 const artistCache = new Map<string, string | null>();
 
@@ -95,13 +107,14 @@ export async function enrich(opts: EnrichOptions): Promise<void> {
 
   let upgraded = 0;
   let unchanged = 0;
+  let writeFailed = 0;
 
   for (const track of tracks) {
     if (!track.artist) {
       unchanged++;
       continue;
     }
-    const genre = await mbGenreForArtist(track.artist);
+    const genre = await (opts.genreResolver ?? mbGenreForArtist)(track.artist);
     if (!genre) {
       unchanged++;
       // Be polite to MusicBrainz: 1 rps even for lookups that map to nothing.
@@ -112,18 +125,34 @@ export async function enrich(opts: EnrichOptions): Promise<void> {
       log(`  would set ${track.title?.slice(0, 40)} → ${genre}`);
       continue;
     }
+    // Ground-truth invariant: the DB row and the file's tag must agree.
+    // Only record the genre when the in-file write succeeded — otherwise
+    // `megadj audit`/`organize` act on a DB genre the file never got,
+    // and the track is silently skipped by every later enrich run
+    // (its genre is no longer "weak/missing").
+    let fileOk = true;
     if (track.file_path) {
-      await rewriteGenreTag(track.file_path, genre);
+      fileOk = await (opts.tagWriter ?? rewriteGenreTag)(
+        track.file_path,
+        genre,
+      );
+      if (!fileOk) writeFailed++;
     }
-    opts.state.updateGenre(track.video_id, genre);
-    log(`  ${track.title?.slice(0, 40) ?? track.video_id} → ${genre}`);
-    upgraded++;
+    if (fileOk) {
+      opts.state.updateGenre(track.video_id, genre);
+      log(`  ${track.title?.slice(0, 40) ?? track.video_id} → ${genre}`);
+      upgraded++;
+    } else {
+      log(
+        `  ✗ tag write failed (DB left unchanged): ${track.title?.slice(0, 40) ?? track.video_id}`,
+      );
+    }
     // Be polite to MusicBrainz: 1 rps.
     await new Promise((r) => setTimeout(r, 1050));
   }
 
   log(
-    `\nenrich complete: ${upgraded} upgraded, ${unchanged} unchanged (of ${tracks.length})`,
+    `\nenrich complete: ${upgraded} upgraded, ${unchanged} unchanged, ${writeFailed} write-failed (of ${tracks.length})`,
   );
   if (opts.json) {
     // P1 (--json on every command): one summary object on stdout, last.
@@ -134,6 +163,7 @@ export async function enrich(opts: EnrichOptions): Promise<void> {
         considered: tracks.length,
         upgraded,
         unchanged,
+        writeFailed,
       }),
     );
   }
