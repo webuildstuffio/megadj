@@ -322,16 +322,6 @@ export class ArchiveState {
       .all() as TrackRow[];
   }
 
-  /** Pending tracks from a specific source, position-ordered. */
-  pendingTracksFromSource(source: string): TrackRow[] {
-    return this.db
-      .query(
-        `SELECT * FROM tracks WHERE source = ? AND status IN ('pending', 'failed') AND attempts < 5
-         ORDER BY status = 'pending' DESC, liked_position IS NULL, liked_position, first_seen_at`,
-      )
-      .all(source) as TrackRow[];
-  }
-
   /** Total downloaded tracks across all sources. */
   downloadedCount(): number {
     const row = this.db

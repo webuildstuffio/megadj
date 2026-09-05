@@ -48,7 +48,10 @@ async function walkM4a(dir: string, out: string[] = []): Promise<string[]> {
 }
 
 export async function adopt(opts: AdoptOptions): Promise<void> {
-  const log = opts.onProgress ?? ((m: string) => console.log(m));
+  // --json mode (P1): human logs go quiet — the summary object is the only
+  // stdout output so agents get parseable JSON.
+  const rawLog = opts.onProgress ?? ((m: string) => console.log(m));
+  const log = opts.json && !opts.onProgress ? () => {} : rawLog;
   const files = await walkM4a(opts.musicDir);
   log(`found ${files.length} audio files under ${opts.musicDir}`);
 

@@ -24,7 +24,6 @@ export interface SyncOptions {
   cookiesFile?: string | null;
   limit?: number;
   dryRun?: boolean;
-  requality?: boolean;
   sources?: PlaylistSource[];
   /** Only download tracks YouTube categorizes as Music. */
   musicOnly?: boolean;
@@ -33,6 +32,8 @@ export interface SyncOptions {
   onProgress?: (msg: string) => void;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
   json?: boolean;
+  /** Injectable playlist fetcher for tests — defaults to the yt-dlp probe. */
+  fetchPlaylistFn?: typeof fetchPlaylist;
 }
 
 /** A playlist source: id (e.g. "LM", "LL", "PL...") plus a label for state. */
@@ -49,13 +50,22 @@ interface PlaylistEntry {
 async function fetchPlaylist(
   playlistId: string,
   cookiesFile?: string | null,
+  cookiesFromBrowser?: string | null,
 ): Promise<PlaylistEntry[]> {
   const url = `https://music.youtube.com/playlist?list=${playlistId}`;
-  const proc = cookiesFile
-    ? await $`yt-dlp --cookies ${cookiesFile} --flat-playlist -J ${url}`
-        .quiet()
-        .nothrow()
-    : await $`yt-dlp --flat-playlist -J ${url}`.quiet().nothrow();
+  // Cookie resolution order mirrors the downloader: explicit jar file first,
+  // then browser extraction. Skipping browser extraction here (the old
+  // behavior) made `megadj sync` fail playlist fetch for every default
+  // config (MEGADJ_COOKIES=chrome, no jar) — auth-required liked lists just
+  // 403'd even though the downloader could have seen the session.
+  const cookieArgs = cookiesFile
+    ? ["--cookies", cookiesFile]
+    : cookiesFromBrowser
+      ? ["--cookies-from-browser", cookiesFromBrowser]
+      : [];
+  const proc = await $`yt-dlp ${[...cookieArgs, "--flat-playlist", "-J", url]}`
+    .quiet()
+    .nothrow();
   if (proc.exitCode !== 0) {
     throw new Error(
       `playlist fetch failed (${playlistId}): ${new TextDecoder().decode(proc.stderr).slice(0, 300)}`,
@@ -70,7 +80,11 @@ async function fetchPlaylist(
 }
 
 export async function sync(opts: SyncOptions): Promise<void> {
-  const log = opts.onProgress ?? ((m: string) => console.log(m));
+  // --json mode (P1): human logs go quiet — the summary object must be the
+  // only stdout output so agents get parseable JSON (same contract as the
+  // artwork/ingest commands).
+  const rawLog = opts.onProgress ?? ((m: string) => console.log(m));
+  const log = opts.json && !opts.onProgress ? () => {} : rawLog;
   const downloader = new Downloader({
     musicDir: opts.musicDir,
     cookiesFromBrowser: opts.cookiesFromBrowser,
@@ -81,7 +95,18 @@ export async function sync(opts: SyncOptions): Promise<void> {
     { id: "LM", label: "liked" },
   ];
 
-  const runId = opts.state.startRun();
+  const isDry = opts.dryRun === true;
+  // A dry run reports what WOULD happen — it must not write to the state DB
+  // (no playlist upserts, no run rows). The old dry-run recorded tracks and
+  // a finished run row, so "dry" mutated the archive's memory.
+  const runId = isDry ? null : opts.state.startRun();
+  // Dry-run preview of playlist entries (in-memory only; filled below).
+  const pendingPreview: Array<{
+    video_id: string;
+    title: string | null;
+    liked_position: number | null;
+    status: string;
+  }> = [];
   let attempted = 0;
   let downloaded = 0;
   let gone = 0;
@@ -91,39 +116,66 @@ export async function sync(opts: SyncOptions): Promise<void> {
 
   for (const source of sources) {
     log(`fetching playlist ${source.id} (${source.label})…`);
-    const entries = await fetchPlaylist(source.id, opts.cookiesFile);
+    const entries = await (opts.fetchPlaylistFn ?? fetchPlaylist)(
+      source.id,
+      opts.cookiesFile,
+      opts.cookiesFromBrowser,
+    );
     log(`  ${entries.length} tracks`);
-    entries.forEach((entry, index) => {
-      opts.state.upsertTrackFromPlaylist(
-        entry.id,
-        index,
-        entry.title,
-        source.label,
+    if (!isDry) {
+      entries.forEach((entry, index) => {
+        opts.state.upsertTrackFromPlaylist(
+          entry.id,
+          index,
+          entry.title,
+          source.label,
+        );
+      });
+    } else {
+      // Dry-run on a fresh DB would otherwise report 0 tracks (the pending
+      // queue is only populated by real runs). Project what WOULD be
+      // tracked — in memory, nothing written — so `--dry-run` answers
+      // "what would the next real run do?" on any database state.
+      pendingPreview.push(
+        ...entries.map((entry, index) => ({
+          video_id: entry.id,
+          title: entry.title,
+          liked_position: index,
+          status: "pending",
+        })),
       );
-    });
+    }
   }
 
   // Cross-source dedupe: a video already downloaded from one source stays put.
-  let queue = opts.state.pendingTracks();
+  // A dry run previews playlist entries in memory (nothing was upserted, so
+  // the DB queue is blind to them); a real run reads only the DB queue.
+  let queue: Array<{ video_id: string; title: string | null }> = isDry
+    ? pendingPreview
+    : opts.state.pendingTracks();
   // --limit 0 must mean "attempt nothing" (0 is falsy — the old check
-  // silently treated it as unlimited); negative makes no sense either.
+  // silently treated it as unlimited); negative was already rejected by the CLI.
   if (opts.limit !== undefined && opts.limit >= 0) {
     queue = queue.slice(0, opts.limit);
   }
   log(`${queue.length} track(s) to attempt this run`);
 
-  const startTotal = opts.state.downloadedCount();
   const bar = new ProgressBar(queue.length, "sync");
   for (const track of queue) {
-    if (opts.targetTotal && opts.state.downloadedCount() >= opts.targetTotal) {
+    // Explicit !== undefined (not truthiness): --target-total 0 must mean
+    // "stop immediately" — truthiness used to silently ignore it.
+    if (
+      opts.targetTotal !== undefined &&
+      opts.state.downloadedCount() >= opts.targetTotal
+    ) {
       log(`target of ${opts.targetTotal} downloaded reached — stopping`);
       break;
     }
     attempted++;
-    if (isTty) process.stdout.write("\r\u001b[K");
+    if (isTty && !opts.json) process.stdout.write("\r\u001b[K");
     log(`[${attempted}/${queue.length}] ${track.title ?? track.video_id}`);
 
-    if (opts.dryRun) {
+    if (isDry) {
       log(`  ↳ would download (dry-run)`);
       bar.update(0);
       continue;
@@ -188,9 +240,15 @@ export async function sync(opts: SyncOptions): Promise<void> {
       if (dl.filePath && dl.info) {
         const meta = buildMetadata(dl.info);
         await applyTags(dl.filePath, meta);
-        const fileSize = dl.filePath
-          ? (await Bun.file(dl.filePath).stat()).size
-          : 0;
+        // stat() throws if yt-dlp's reported path vanished between the
+        // download finishing and here (AV quarantine, race) — that must
+        // fail this one track, not the whole run.
+        let fileSize = 0;
+        try {
+          fileSize = (await Bun.file(dl.filePath).stat()).size;
+        } catch {
+          log(`  ⚠ landed file not statable: ${dl.filePath}`);
+        }
         bytes += fileSize;
 
         opts.state.markDownloaded(track.video_id, {
@@ -236,13 +294,15 @@ export async function sync(opts: SyncOptions): Promise<void> {
     }
   }
   bar.close();
-  opts.state.finishRun(runId, {
-    attempted,
-    downloaded,
-    gone,
-    failed,
-    bytesDownloaded: bytes,
-  });
+  if (runId !== null) {
+    opts.state.finishRun(runId, {
+      attempted,
+      downloaded,
+      gone,
+      failed,
+      bytesDownloaded: bytes,
+    });
+  }
   log(
     `\nrun complete: ${downloaded} downloaded, ${notMusic} not-music, ${gone} gone, ${failed} failed, ${(bytes / 1e6).toFixed(1)} MB`,
   );
@@ -263,6 +323,9 @@ export async function sync(opts: SyncOptions): Promise<void> {
         gone,
         failed,
         bytesDownloaded: bytes,
+        // Dry runs only ever "would download" — give agents the queue size
+        // a real run would have attempted.
+        wouldAttempt: opts.dryRun ? attempted : undefined,
         archive: {
           downloaded: counts["downloaded"] ?? 0,
           gone: counts["gone"] ?? 0,
@@ -273,5 +336,4 @@ export async function sync(opts: SyncOptions): Promise<void> {
       }),
     );
   }
-  void startTotal;
 }

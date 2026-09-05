@@ -172,23 +172,34 @@ async function main(): Promise<void> {
               `  (backoff #${attempt}: ${(ms / 1000).toFixed(1)}s — ${reason.slice(0, 60)})\n`,
             ),
         });
-        const limitRaw = flags.strings.get("limit");
-        // --limit must mean what it says: non-numeric input is an error,
-        // not "unlimited" (NaN is falsy and would skip the slice — a
-        // typo would start an UNBOUNDED download run). 0 = attempt nothing.
-        const limitNum = limitRaw !== undefined ? Number(limitRaw) : NaN;
-        if (limitRaw !== undefined && !Number.isInteger(limitNum)) {
-          console.error(
-            `sync: --limit must be a whole number (got "${limitRaw}")`,
-          );
+        // Numeric options must mean what they say: non-numeric or negative
+        // input is an error, never "unlimited" (NaN is falsy and would skip
+        // every guard — a typo like --limit abc or --target-total 10o must
+        // not start an UNBOUNDED download run). 0 = attempt nothing.
+        const intOpt = (key: string): { value?: number; error?: string } => {
+          const raw = flags.strings.get(key);
+          if (raw === undefined) return {};
+          const n = Number(raw);
+          if (!Number.isInteger(n) || n < 0)
+            return {
+              error: `sync: --${key} must be a whole number >= 0 (got "${raw}")`,
+            };
+          return { value: n };
+        };
+        const limit = intOpt("limit");
+        if (limit.error) {
+          console.error(limit.error);
           process.exitCode = 1;
           break;
         }
-        const limit = limitRaw !== undefined ? limitNum : undefined;
+        const targetTotal = intOpt("target-total");
+        if (targetTotal.error) {
+          console.error(targetTotal.error);
+          process.exitCode = 1;
+          break;
+        }
         const dryRun = flags.bools.has("dry-run");
         const musicOnly = flags.bools.has("music-only");
-        const targetRaw = flags.strings.get("target-total");
-        const targetTotal = targetRaw ? Number(targetRaw) : undefined;
         const sourcesStr = flags.strings.get("sources") ?? "LM";
         const sources = sourcesStr
           .split(",")
@@ -204,10 +215,10 @@ async function main(): Promise<void> {
           musicDir: MUSIC_DIR,
           cookiesFromBrowser: COOKIES || null,
           cookiesFile: COOKIES_FILE,
-          limit,
+          limit: limit.value,
           dryRun,
           musicOnly,
-          targetTotal,
+          targetTotal: targetTotal.value,
           sources,
           json: flags.bools.has("json"),
         });

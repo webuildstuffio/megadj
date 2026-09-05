@@ -35,7 +35,10 @@ async function fileGenreTag(filePath: string): Promise<string | null> {
 }
 
 export async function organize(opts: OrganizeOptions): Promise<void> {
-  const log = opts.onProgress ?? ((m: string) => console.log(m));
+  // --json mode (P1): human logs go quiet — the summary object is the only
+  // stdout output so agents get parseable JSON.
+  const rawLog = opts.onProgress ?? ((m: string) => console.log(m));
+  const log = opts.json && !opts.onProgress ? () => {} : rawLog;
   const tracks = opts.state
     .allTracks()
     .filter((t) => t.status === "downloaded" && t.file_path);

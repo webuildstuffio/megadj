@@ -59,4 +59,14 @@ describe("Downloader.classifyError", () => {
   test("other", () => {
     expect(makeDownloader().classifyError("some random failure")).toBe("other");
   });
+  test("auth-shield text is throttle, never gone (regression)", () => {
+    // Expired cookies used to classify every live video GONE and permanently
+    // poison the archive (markGone is never revisited). It must back off
+    // instead.
+    const d = makeDownloader();
+    expect(d.classifyError("Sign in to confirm you're not a bot")).toBe(
+      "throttle",
+    );
+    expect(d.classifyError("Sign in to confirm your age")).toBe("throttle");
+  });
 });

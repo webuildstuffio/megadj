@@ -17,6 +17,8 @@ export interface DownloadResult {
 
 export interface DownloaderOptions {
   musicDir: string;
+  /** yt-dlp binary to invoke (default "yt-dlp") — previously declared and
+   * silently ignored; every spawn used a hardcoded "yt-dlp". */
   ytdlpBin?: string;
   cookiesFromBrowser?: string | null;
   /** Cookie jar file (netscape format) — preferred over browser extraction. */
@@ -30,7 +32,6 @@ const GONE_PATTERNS = [
   /removed following a copyright removal request/i,
   /private video/i,
   /makes it unavailable in your country/i,
-  /sign in to confirm/i,
 ];
 
 const THROTTLE_PATTERNS = [
@@ -38,14 +39,27 @@ const THROTTLE_PATTERNS = [
   /http error 5\d\d/i,
   /connection reset|timed out|ETIMEDOUT|ENOTFOUND|ECONNRESET/i,
   /premiere|live event/i,
+  // Auth/bot-shield text is NOT a dead video: classifying it "gone" used
+  // to permanently mark every live track gone when cookies expired
+  // (markGone is permanent — nothing ever revisits gone rows). Backoff +
+  // retry instead, and `megadj retry` can requeue a failed run.
+  /sign in to confirm/i,
+  /confirm you'?re not a bot/i,
 ];
 
 export class Downloader {
-  private readonly opts: Required<Pick<DownloaderOptions, "musicDir">> &
-    DownloaderOptions;
+  private readonly opts: DownloaderOptions & {
+    musicDir: string;
+    ytdlpBin: string;
+  };
 
   constructor(opts: DownloaderOptions) {
-    this.opts = { ...opts, musicDir: opts.musicDir };
+    this.opts = {
+      musicDir: opts.musicDir,
+      ytdlpBin: opts.ytdlpBin ?? "yt-dlp",
+      cookiesFromBrowser: opts.cookiesFromBrowser ?? null,
+      cookiesFile: opts.cookiesFile ?? null,
+    };
   }
 
   classifyError(stderr: string): "gone" | "throttle" | "other" {
@@ -62,12 +76,24 @@ export class Downloader {
     return [];
   }
 
+  /**
+   * Spawn yt-dlp. The binary comes from this.opts.ytdlpBin and args are
+   * passed as one array — Bun shell interpolates arrays as individually
+   * quoted argv entries, so the command position is always the binary.
+   */
+  private spawn(args: string[]) {
+    return $`${[this.opts.ytdlpBin, ...args]}`.quiet().nothrow();
+  }
+
   /** Fetch metadata JSON without downloading. */
   async probe(videoId: string): Promise<YtdlpInfo> {
     const url = `https://music.youtube.com/watch?v=${videoId}`;
-    const proc = await $`yt-dlp -J --no-playlist ${this.cookieArgs()} ${url}`
-      .quiet()
-      .nothrow();
+    const proc = await this.spawn([
+      "-J",
+      "--no-playlist",
+      ...this.cookieArgs(),
+      url,
+    ]);
     if (proc.exitCode !== 0) {
       const errText = new TextDecoder().decode(proc.stderr);
       const kind = this.classifyError(errText);
@@ -150,7 +176,7 @@ export class Downloader {
     ];
     args.push(...this.cookieArgs());
     void info;
-    const proc = await $`yt-dlp ${args} ${url}`.quiet().nothrow();
+    const proc = await this.spawn([...args, url]);
     const stderr = new TextDecoder().decode(proc.stderr);
 
     if (proc.exitCode !== 0) {
