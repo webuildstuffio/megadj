@@ -53,6 +53,7 @@ around it.
 ```bash
 megadj ingest <folder>   # point it at a messy downloads folder, get a clean one back
 megadj fetch             # top up tags, genres, artwork and years
+megadj years             # verify years against the SC page (not the AI's 2023 guess)
 megadj audit             # the completeness check across the whole library
 ```
 
@@ -176,8 +177,8 @@ One file and a set of env vars — that's the whole story:
 Full command reference: `megadj --help`, or
 [docs/FEATURES.md](docs/FEATURES.md).
 
-Machines and agents: `megadj sync|status|list|audit|doctor|organize|enrich|adopt`
-all take `--json`
+Machines and agents: every `megadj` command takes `--json` (one summary
+object on stdout, exit code still meaningful)
 ([PRINCIPLES.md](docs/PRINCIPLES.md) §1: if a command can't be consumed by an
 agent, it doesn't exist), and CrateDeck speaks
 MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.

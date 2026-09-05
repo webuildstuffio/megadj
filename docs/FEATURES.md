@@ -138,6 +138,7 @@ links at the top of [ideas.md §0](ideas.md#0--do-now-before-anything-else).
 ```bash
 megadj sync                    # GetDat: pull new music
 megadj fetch && megadj audit   # FullTags: perfect the metadata
+megadj years                   # FullTags: verify years vs SC page (kills AI 2023 guesses)
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 

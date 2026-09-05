@@ -11,6 +11,11 @@ produces, regardless of the language used in the request.
 
 ## What this repo is
 
+- **Agent-first contract (PRINCIPLES.md §1, enforced by
+  `src/commands/json-summary.test.ts`):** every `megadj` command takes
+  `--json` — one summary JSON object on stdout (last line), human logs
+  suppressed in json mode, exit code still meaningful. Adding a command
+  without `--json` + a help-text entry fails the test suite.
 - megadj is a YouTube Music archiver (Bun/TypeScript CLI) feeding a pair of
   DJ USB drives: a **master** and a **mirror** (kept identical). Volume names
   are user-specific — examples in docs/scripts use `DJMASTER`/`DJMIRROR`;
@@ -38,7 +43,8 @@ produces, regardless of the language used in the request.
   gateways → mp3-twin → Deezer → iTunes → AI queue. Genre: SC tag → canonical
   map → OpenRouter flash-lite (conf ≥ 0.7). Years: SC upload timestamp/page
   `display_date` (flash-lite guesses 2023 — always verify via
-  `tools/fix_years.ts`). CLI: `megadj fetch` (enrichment pass) and
+  `tools/fix_years.ts`). CLI: `megadj fetch` (enrichment pass),
+  `megadj years` (year-verification pass, also `--json`), and
   `megadj audit` (ground-truth completeness gate).
 - **FullTags** (`fulltags/`, Sep 4 2026) is the in-repo enrichment engine
   sub-project: every tag/art capability (formerly scattered across

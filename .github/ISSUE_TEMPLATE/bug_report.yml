@@ -33,5 +33,5 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: `megadj doctor` output (optional but speeds up triage)
+      label: "megadj doctor output (optional but speeds up triage)"
       render: text

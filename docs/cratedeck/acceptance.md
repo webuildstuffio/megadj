@@ -92,8 +92,8 @@ fixture server + Chrome DevTools Protocol DOM checks; screenshots reviewed.
 
 - **MCP server** — `src/mcp.ts`: stdio JSON-RPC exposing deckctl's surface
   (`deck_status/drives/report/run/coverage/redundancy/diff/jobs/cancel/
-  explain`) as tools; mutating tools flagged `destructive`; the rekordbox
-  interlock is enforced client-side *and* server-side (423 on enqueue).
+explain`) as tools; mutating tools flagged `destructive`; the rekordbox
+  interlock is enforced client-side _and_ server-side (423 on enqueue).
   Run: `bun run mcp`.
 - **Shared HTTP client** — `src/deckapi.ts`: server auto-start, drive
   resolution, `waitForJob`; one source of truth for deckctl + mcp.
