@@ -7,6 +7,30 @@ All notable changes to megadj are documented here. Format:
 
 ### Added
 
+- **FullTags roadmap rev 5 — gates EXECUTED against the real archive
+  (Sep 5 2026, evening):** fingerprint ledger done (88/88 stamped,
+  double re-run 0 changed); key gate PASSED at **80.7% exact** on all 88
+  tracks vs rekordbox-analyzed references (71 exact + 8 near + 9
+  mismatch, Camelot-aware) → key writes UNLOCKED and executed (TKEY +
+  TXXX:CAMELOT now in all 88 files, re-run no-op); BPM gate FAILED
+  (beat_this locks 2.2–2.6% off rekordbox on 12/24 of the pilot) →
+  **TBPM tag writes blocked**, roadmap #2 pivoted to a DB-side
+  beats/downbeats ledger. `verify-key.ts` gains `--refs map.json`
+  (external reference keys — rekordbox master.db `DjmdKey.ScaleName`
+  via pyrekordbox; `DjmdContent.BPM` is x100 fixed-point). New
+  execution env: openkeyscan-analyzer cloned to `~/.local/share`
+  (MPS, 88 tracks ≈ 31 s). Full numbers + opinionated decisions in
+  `docs/fulltags-roadmap.md` (rev 5).
+- Two latent FullTags bugs found by the rev 5 execution, both fixed with
+  regression tests in `fulltags/test/pipeline.test.ts`:
+  (1) `readTxxx`'s WAV/AIFF branches opened files but never read the ID3
+  TXXX frames — every stamp probe (ACOUSTID/CAMELOT/ENERGY/AI-*) was
+  null on WAVs, so the "idempotent" fingerprint stage re-fingerprinted
+  and rewrote all 73 archive WAVs on every re-run, forever; one shared
+  ID3-TXXX read loop now covers WAV/AIFF/MP3. Lesson: idempotency is
+  per-container-format, not per-stage. (2) Scoped runs (`--fingerprint`)
+  also wrote remix credits — remix detection is now stage-gated behind
+  `want("tags")`.
 - **CrateDeck O88 — findings-from-agents feed:** `deck_note {drive, note,
   severity?}` MCP tool (flagged mutating, human-confirmed) lands an agent
   finding on the drive timeline as a dismissable card; `deck_notes` reads
