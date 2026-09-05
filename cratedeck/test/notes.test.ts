@@ -82,4 +82,26 @@ describe("agent notes (O88)", () => {
       noteFromEvent({ id: "e3", drive_id: "d1", at: 1, kind: "agent-note", data: {} }),
     ).toBeNull(); // missing note text
   });
+
+  it("dismissed_at survives the event round-trip (UI filter relies on it)", () => {
+    // regression: TimelineTab originally ignored dismissed_at, so dismissed
+    // notes reappeared after reload; this pins the wire contract
+    const ev = noteEvent({
+      id: "e4",
+      drive_id: "d1",
+      note: "done",
+      origin: "mcp",
+      severity: "info",
+      at: 9,
+      dismissed_at: 1234,
+    });
+    const back = noteFromEvent({
+      id: ev.id,
+      drive_id: ev.drive_id,
+      at: ev.at,
+      kind: ev.kind,
+      data: ev.data,
+    });
+    expect(back?.dismissed_at).toBe(1234);
+  });
 });

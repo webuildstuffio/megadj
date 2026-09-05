@@ -52,8 +52,13 @@ export function TimelineTab({ events, driveId }: { events: TimelineEvent[]; driv
     const out: [string, TimelineEvent[]][] = [];
     let cur: string | null = null;
     for (const e of events) {
-      // dismissed agent notes leave the feed (the event stays in history)
-      if (e.kind === "agent-note" && dismissed.has(e.id)) continue;
+      // dismissed agent notes leave the feed (the event stays in history).
+      // Server truth first (dismissed_at survives reload), then local
+      // optimistic state for the just-clicked one.
+      if (e.kind === "agent-note") {
+        if (typeof e.data["dismissed_at"] === "number") continue;
+        if (dismissed.has(e.id)) continue;
+      }
       const k = dayKey(e.at);
       if (k !== cur) {
         out.push([k, [e]]);

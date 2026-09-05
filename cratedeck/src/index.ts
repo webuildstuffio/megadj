@@ -254,14 +254,19 @@ Bun.serve({
             return json(agentNotes(db, id));
           if (sub === "/notes" && req.method === "POST") {
             if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
-            const body = (await req.json()) as {
+            // malformed JSON → 400 (client error), not the outer 500 catch
+            let body: {
               note?: string;
               origin?: string;
               severity?: "info" | "warn" | "critical";
             };
+            try {
+              body = (await req.json()) as typeof body;
+            } catch {
+              return json({ error: "invalid JSON body" }, 400);
+            }
             // normalizeNote throws a clean message on empty/oversized input;
-            // the outer catch maps Error → 500, so map validation errors to
-            // 400 explicitly here
+            // map validation errors to 400 explicitly here
             let v;
             try {
               v = normalizeNote({
