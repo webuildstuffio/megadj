@@ -128,7 +128,10 @@ Tools: `deck_status` · `deck_drives` · `deck_report {drive}` ·
 `deck_players {drive?}` · `deck_note {drive,note,severity?}` ·
 `deck_notes {drive?}` · `archive_search_tracks {q}` ·
 `archive_track_stats {video_id}` · `archive_ingest_status` ·
-`archive_lowq_queue` · `archive_source_diff {a,b}`.
+`archive_lowq_queue` · `archive_source_diff {a,b}` ·
+`archive_grid_cross_check {limit?}` (rev 6 beats-ledger grid verdicts) ·
+`archive_mood_profile {limit?}` (rev 6.2 mood-ledger picker data) —
+21 tools total.
 
 Agent findings (O88): `deck_note` lands an agent's conclusion on a drive's
 timeline as a dismissable card (600-char cap, severity tone). Confirm with

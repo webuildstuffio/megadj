@@ -65,7 +65,7 @@ the remix's, not the original's.
    anything poisons the library, sub-60s clip gating.
 
 **Commands:** `megadj ingest`, `megadj fetch`, `megadj enrich`, `megadj
-artwork`, `megadj audit`
+artwork`, `megadj audit`, `megadj beats`, `megadj mood`, `megadj cues`
 **Also:** FullTags ships standalone in [`fulltags/`](../fulltags/README.md)
 — same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
 commands are thin wrappers over it.
@@ -88,7 +88,7 @@ architecture, build plan, acceptance).
 
 |                    |                                                                                                                                                                                                                      |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify)                                                                                                           |
+| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (21-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                                  |
 | **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                              |
 | **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                          |
 | **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads              |
@@ -101,6 +101,14 @@ architecture, build plan, acceptance).
 [deckctl guide](../cratedeck/deckctl.md) ·
 [USB pipeline](usb-sync.md) ·
 [the doc set](cratedeck/)
+
+> **Shipped since this table was written (Sep 5 2026):** B12 preflight
+> (`deckctl preflight`, worst-status-wins gig-night gate), N75/N78
+> hardware-compat verdict (`deckctl players`), O82 MCP server — now 21
+> tools incl. the archive half (search/stats/ingest/LOWQ/source-diff/
+> grid-cross-check/mood-profile), O83 weekly digest (`deckctl prep`),
+> O87 job attribution, O88 agent-notes feed, O85 plugin packaging,
+> FullTags beats + mood + cues ledgers (see the FullTags roadmap rev 6.2).
 
 **Vibe:** mission control for a drawer full of identical-looking sticks.
 
@@ -120,11 +128,17 @@ Headline shape, in one line each (read the docs for the real list):
 
 - **Move 1 — CrateDeck v1.x:** gig-day preflight + player-compatibility
   verdict + assisted legacy-export runbook + differential mirror.
+  _(Preflight + player verdict SHIPPED Sep 5 2026 — `deckctl preflight` /
+  `deckctl players`; remaining: C18a runbook, C21/C22 differential mirror.)_
 - **Move 2 — FullTags v1.x:** OpenKeyScan key → real BPM → acoustic
   fingerprints → mood/vibe, each behind a ground-truth gate.
+  _(ALL SHIPPED Sep 5 2026 — key gate passed 80.7% and written; BPM +
+  genre writes gate-FAILED → beats/mood/cues DB ledgers instead; see
+  [fulltags-roadmap.md](fulltags-roadmap.md) rev 6.2.)_
 - **Move 3 — The agentic layer:** archive-half MCP server (the CrateDeck
   half already ships via `bun run mcp`), then the headless weekly agent
-  loop.
+  loop. _(BOTH HALVES SHIPPED Sep 5 2026 — 21-tool MCP + `deckctl prep`;
+  remaining: O84 inbox agent.)_
 - **The dream** — hit predictor & set-builder copilot, calibrated on what
   actually got played; proposes sequences, never auto-exports (§M64, M66).
 
@@ -138,6 +152,7 @@ links at the top of [ideas.md §0](ideas.md#0--do-now-before-anything-else).
 ```bash
 megadj sync                    # GetDat: pull new music
 megadj fetch && megadj audit   # FullTags: perfect the metadata
+megadj beats && megadj mood    # FullTags: beats + mood ledgers (DB-side)
 megadj years                   # FullTags: verify years vs SC page (kills AI 2023 guesses)
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```

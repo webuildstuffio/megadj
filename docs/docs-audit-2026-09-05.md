@@ -9,6 +9,12 @@ shipped state.
 landed and a second external-claims research pass. Findings for both
 passes below; this file is the current record.
 
+**Pass 3 (2026-09-06, next morning):** after the rev 4–6.2 burst landed
+(fingerprints/BPM/key stages → beats ledger → mood/MB harvest → cues +
+CrateDeck mood surface). Docs had drifted behind the code again — same
+class as pass 2: shipped-status staleness, this time concentrated in the
+MCP tool count and the roadmap "shipped-since" blocks.
+
 ## Findings — pass 1
 
 | #   | Severity | File                                | Issue                                                                                             | Fix                                                 |
@@ -65,3 +71,38 @@ All HIGH + MED fixed same day. No renames or archives needed;
   installs compiler-free on Apple Silicon; MuQ-MuLan AUC 79.3 SOTA;
   dupsonic v0.2.5 binaries; yt-dlp SoundCloud fixed / Bandcamp broken
   (#17506).
+
+## Findings — pass 3 (2026-09-06, rev 4–6.2 burst aftermath)
+
+| #   | Severity | File                              | Issue                                                                                                        | Fix                                                        |
+| --- | -------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| 21  | HIGH     | `docs/ideas.md` O82               | "19 tools / archive half (O82b, 5)" — actually 21 tools; rev 6/6.2 added `archive_grid_cross_check` + `archive_mood_profile` | 21 tools; O82b = 7, both new tools named                   |
+| 22  | HIGH     | `cratedeck/deckctl.md` §MCP       | Tool list ended at `archive_source_diff`; grid + mood tools missing                                          | Both added, "21 tools total"                               |
+| 23  | HIGH     | `AGENTS.md`                       | Same 19-tool claim + archive half missing the two new tools                                                  | 21 tools; tool list extended                               |
+| 24  | HIGH     | `docs/roadmap-proposal.md`        | State-of-the-union table: CrateDeck "10 tools", gaps listed preflight/players/archive-MCP as open — all shipped; FullTags gap said "no key/BPM/fingerprints/moods" — all shipped | Table rewritten against rev 6.2 reality                     |
+| 25  | MED      | `docs/roadmap-proposal.md`        | Move 3 listed O82b + O83 as unbuilt — both shipped (`deckctl prep`)                                          | Marked ✅ shipped with evidence; sequencing line updated    |
+| 26  | MED      | `README.md`                       | "Coming next: …preflight, fingerprint dedupe, key detection" — all three shipped Sep 5                        | Reworded to what actually remains (gig mode, sources, dupe hunt) |
+| 27  | MED      | `docs/FEATURES.md`                | CrateDeck status omitted preflight/players/MCP/prep; no shipped-since block; FullTags commands missed beats/mood/cues; "Coming next" moves stale | Status extended, shipped-since callout added, moves annotated, pipeline commands updated |
+| 28  | MED      | `docs/cratedeck/acceptance.md`    | Agent-surface section pre-dated B12/N75/O82b/O83/O85/O87/O88 (described the 10-tool era)                      | New "Gig-night + agent surface" evidence section; audit date bumped |
+| 29  | MED      | `docs/cratedeck/03-architecture.md` | "19 TS files" — now 27; added-since list missing 7 newer modules                                            | Count + module list updated                                |
+| 30  | LOW      | `docs/ideas.md` B12               | "Remaining optional: UI card" lacked the N76 shipped note                                                     | `firmware_advisories` shipped note added                   |
+
+## Applied (pass 3)
+
+All HIGH + MED fixed same session. No renames, no archives. Link check
+re-run after edits: all relative `.md` links across `docs/`,
+`docs/cratedeck/`, `README.md`, `AGENTS.md`, `fulltags/README.md`,
+`cratedeck/*.md` resolve.
+
+## Verified clean (pass 3)
+
+- MCP tool census against `cratedeck/src/mcp.ts`: 21 `deck_*`/`archive_*`
+  tools (14 + 7), matching every updated claim.
+- `cratedeck/src/` file census: 27 TS files.
+- `deckctl` verb census: `status|drives|report|run|coverage|redundancy|
+diff|jobs|cancel|stop|explain|preflight|players|prep` — guide matches.
+- megadj CLI census: beats/mood/cues present in `src/cli.ts` +
+  `src/commands/`; FEATURES.md command lists now match.
+- fulltags-roadmap rev 6.2 claims spot-checked against CHANGELOG entries
+  (same-day, rev-by-rev consistent) and `src/commands/{beats,mood,cues}.ts`.
+- No stale "19 tools" strings remain anywhere (`rg` verified).

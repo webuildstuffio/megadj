@@ -178,7 +178,10 @@ The PRD features that _only exist because the app sees all drives at once_
     ready; exit 1 gates cron/agents. N76 firmware notes **✅ SHIPPED
     2026-09-05**: `preflight.firmware_advisories` (from the player matrix
     in `players.ts`) renders informational firmware lines in `deckctl
-    preflight` — never gates. Remaining optional: UI card.
+    preflight` — never gates. Remaining optional: UI card. **N76 shipped
+    as `firmware_advisories` in the report (pass 2):** the player matrix
+    in `players.ts` renders informational firmware lines in preflight
+    output.
 13. **Benchmark sparklines + anomaly alerts.** `bench.ts` already stores
     seq/rand4k history. Render the sparkline; alert when a drive's read speed
     drops >40% between runs (the brief's vNext item, and it's ~free).
@@ -696,17 +699,21 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
 82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves).** Live:
-    `cratedeck/src/mcp.ts` + `bun run mcp` — 19 tools. CrateDeck half (14):
+    `cratedeck/src/mcp.ts` + `bun run mcp` — **21 tools** (Sep 5 2026 pass
+    3 audit; was 19 before rev 6/6.2 added the grid + mood reads).
+    CrateDeck half (14):
     `deck_status/drives/report/coverage/redundancy/diff/jobs/run/
 cancel/explain` over stdio JSON-RPC, readonly annotations, mutating
     tools flagged `[MUTATES DRIVE STATE]`, interlock enforced in the tool
     layer, plus `deck_preflight` (B12), `deck_players` (N78), and the
     O88 pair `deck_note` (mutating) / `deck_notes` (readonly). Archive
-    half (O82b, 5):
+    half (O82b, 7):
     `archive_search_tracks/track_stats/ingest_status/lowq_queue/
 source_diff` — readonly reads over megadj's own DB (`cratedeck/src/
 archive.ts`, opened `readonly: true`; missing DB degrades to
-    `available:false`, never throws). Any MCP client (Claude Code, Codex,
+    `available:false`, never throws) — plus `archive_grid_cross_check`
+    (rev 6 beats-ledger verdicts) and `archive_mood_profile` (rev 6.2
+    mood-ledger averages + extremes). Any MCP client (Claude Code, Codex,
     Cursor) can answer "what did I ingest last week" as naturally as
     "what's on the XZ".
 
@@ -727,7 +734,7 @@ archive.ts`, opened `readonly: true`; missing DB degrades to
 
 85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
     installable Claude Code bundle: `.claude-plugin/plugin.json` +
-    `.mcp.json` (the 19-tool MCP server) + `hooks/hooks.json`
+    `.mcp.json` (the 21-tool MCP server) + `hooks/hooks.json`
     (SessionStart posts `deckctl status --json` into context) + the 3
     skills. `claude plugin validate` passes; dev-install with
     `claude --plugin-dir $PWD/plugin`. A published marketplace variant
@@ -803,7 +810,7 @@ coverage|redundancy|diff`; needs one scan per drive with rekordbox
   (ladder in `docs/fulltags-roadmap.md`).
 - **Phase 6 — agentified (§O):** O82 (both halves) + O86 rails + O87
   attribution + O83 core + **O88 notes feed + O85 plugin packaging ✅
-  SHIPPED 2026-09-05** (`bun run mcp` — 19 tools incl. `deck_note`;
+  SHIPPED 2026-09-05** (`bun run mcp` — 21 tools incl. `deck_note`;
   `plugin/` installs the whole surface). Open remainder: O84 inbox-agent;
   O83 optional `claude -p` digest wrapper.
 - **Phase 4 — the AI edge (reality gate says monthly+):** I51 keys →

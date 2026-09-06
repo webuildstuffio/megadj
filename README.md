@@ -86,10 +86,10 @@ also carries a second, legacy database that older players like the XDJ-XZ
 read; a one-time rekordbox export per library generation keeps it current —
 [docs/usb-sync.md](docs/usb-sync.md) explains when and why.
 
-**Coming next:** Gig mode & preflight, set intelligence from player history,
-SoundCloud/Bandcamp sources, fingerprint dedupe, key detection — see
-[docs/FEATURES.md](docs/FEATURES.md) for the full roadmap. Agents can
-already talk to the whole thing over MCP: `bun run mcp`.
+**Coming next:** gig mode, set intelligence from player history,
+SoundCloud/Bandcamp sources, dupe hunting over the shipped fingerprint
+ledger — see [docs/FEATURES.md](docs/FEATURES.md) for the full roadmap.
+Agents can already talk to the whole thing over MCP: `bun run mcp`.
 
 ## What we believe
 

@@ -4,7 +4,8 @@ Tracks the PRD (F1–F10) and build-plan milestone acceptance items. Evidence
 here is **code-verified only** (file/route/test existence in `cratedeck/`).
 Items marked ☐ require real-hardware runs (gig drives) — those stay manual
 by design ("real gig drives stay manual — the Python tools already carry
-that trust", architecture §9). Last audited: 2026-09-04.
+that trust", architecture §9). Last audited: 2026-09-06 (pass 3; B12/N75/
+N76/O82b/O83/O85/O87/O88 evidence added).
 
 ## Milestones
 
@@ -91,8 +92,13 @@ fixture server + Chrome DevTools Protocol DOM checks; screenshots reviewed.
 ## Agent surface (shipped 2026-09-05)
 
 - **MCP server** — `src/mcp.ts`: stdio JSON-RPC exposing deckctl's surface
-  (`deck_status/drives/report/run/coverage/redundancy/diff/jobs/cancel/
-explain`) as tools; mutating tools flagged `destructive`; the rekordbox
+  — **21 tools** (`deck_status/drives/report/coverage/redundancy/diff/
+jobs/run/cancel/explain` + `deck_preflight` (B12), `deck_players` (N78),
+  `deck_note`/`deck_notes` (O88), and the O82b archive half:
+  `archive_search_tracks/track_stats/ingest_status/lowq_queue/
+source_diff/grid_cross_check/mood_profile`); readonly tools carry
+  `readOnlyHint: true`; mutating tools flagged `destructive`; the
+  rekordbox
   interlock is enforced client-side _and_ server-side (423 on enqueue).
   Run: `bun run mcp`.
 - **Shared HTTP client** — `src/deckapi.ts`: server auto-start, drive
@@ -103,6 +109,34 @@ explain`) as tools; mutating tools flagged `destructive`; the rekordbox
   required dependency/config check fails — usable as a script gate) and
   `megadj init` (scaffolds `cratedeck/config.toml`, auto-filling drive
   names from mounted volumes).
+
+## Gig-night + agent surface (shipped 2026-09-05, pass 2–3)
+
+- **B12 preflight** — `src/preflight.ts` + `deckctl preflight` +
+  `GET /api/preflight`: worst-status-wins verdict per drive
+  (not-ready/attention/unknown/ready); unknowns never fake ready;
+  exit 1 when not ready so cron/agents gate on the code. Includes the
+  N75 player-compat check (fully blocked drive = not-ready) and the N76
+  firmware advisories (`firmware_advisories`, informational).
+- **N75/N78 player-compat matrix** — `src/players.ts`, `deckctl players
+  [drive]`, `deck_players` MCP tool: Device-vs-OneLibrary verdicts from
+  MEASURED dual-DB rows; user-extendable via config.toml
+  `[players.players]`.
+- **O82b archive MCP half** — `src/archive.ts` (opened `readonly: true`)
+  + 7 `archive_*` tools incl. `archive_grid_cross_check` (rev 6 beats
+  ledger vs RB BPM×duration: ok/off/octave) and `archive_mood_profile`
+  (rev 6.2 mood-ledger picker data). Missing archive DB degrades to
+  `available:false`.
+- **O83 weekly prep** — `src/weekly_prep.ts`, `deckctl prep [--out
+  FILE] [--json]`: markdown digest over preflight + redundancy +
+  archive reads.
+- **O87 attribution + O88 agent notes** — `jobs.origin`
+  ("web"/"deckctl"/"auto"/"mcp:<session>") on job rows + timeline
+  events; `deck_note` lands dismissable severity-toned timeline cards
+  (`src/notes.ts`, 600-char cap, human dismissal flips `dismissed_at`).
+- **O85 plugin packaging** — `plugin/` bundles the MCP server +
+  SessionStart hook + skills as an installable Claude Code plugin
+  (`claude plugin validate` passes).
 
 ## Test coverage
 

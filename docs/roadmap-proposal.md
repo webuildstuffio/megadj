@@ -25,8 +25,8 @@ projects have shipped cores:
 | Project   | Shipped core (evidence)                                                                                                                                                                                                           | The gap                                                                 |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | GetDat    | `megadj sync` (YTM, 256k-first, rate-limited, SQLite state, `LOWQ` flag)                                                                                                                                                          | one source (YouTube Music); quality ratchet has no swap tool            |
-| FullTags  | `fulltags/` sub-project: one schema, one atomic writer (5 formats + gotchas), art ladder, conf-gated AI, `audit` gate; megadj = thin shims                                                                                        | no key, no real BPM, no fingerprints, no research-grade moods           |
-| CrateDeck | v0.1: registry+ghosts, ANLZ hand-building, dual-DB verify, interlock, fleet superpowers (coverage/redundancy/diff), deckctl, auto-scan (B17), ⌘K global search (B9), **MCP server (O82)** — 10 tools, interlock in the tool layer | preflight, gig mode, export runbook, set intelligence, archive-side MCP |
+| FullTags  | `fulltags/` sub-project: one schema, one atomic writer (5 formats + gotchas), art ladder, conf-gated AI, `audit` gate; megadj = thin shims                                                                                        | no structure cues, no vocal density, no similarity embeddings — key, BPM, fingerprints, mood all SHIPPED; TBPM + genre writes stay gate-blocked           |
+| CrateDeck | v0.1: registry+ghosts, ANLZ hand-building, dual-DB verify, interlock, fleet superpowers (coverage/redundancy/diff), deckctl, auto-scan (B17), ⌘K global search (B9), **MCP server (O82)** — 21 tools, interlock in the tool layer, **B12 preflight + N75/N78 player verdict shipped** | gig mode (F35), export runbook (C18a), set intelligence, differential mirror (C21) |
 
 Also true, from the acceptance doc: **four open items need real hardware**
 (mirror-badge ground truth, drive-detail vs known counts, 1440×900 one-screen
@@ -120,16 +120,21 @@ O86 said it must live. `bun run mcp` from the repo root; registration
 snippet in [cratedeck/deckctl.md](../cratedeck/deckctl.md#mcp). What
 remains is the archive half and the loops:
 
-1. **O82b — megadj MCP server (archive half).** `search_tracks`,
+1. **O82b — megadj MCP server (archive half) — ✅ SHIPPED 2026-09-05.**
+   `search_tracks`,
    `track_stats`, `ingest_status`, `playlist_diff`, `lowq_queue` over the
    archive DB + FullTags audit. Same pattern as the CrateDeck half: thin
    wrappers over existing functions, `--json` payloads already exist for
    most verbs.
-2. **O83 — headless weekly agent loop.** Archive integrity sweep → scan
-   deltas → redundancy → new-music-not-exported → markdown digest. The
-   agent writes nothing; it reads and reports. Supersedes the F39 weekly
-   digest as the-proposed implementation. The cheapest reliability win in
-   the entire backlog.
+2. **O83 — headless weekly agent loop — ✅ core SHIPPED 2026-09-05**
+   (`deckctl prep`, `cratedeck/src/weekly_prep.ts`): one command renders
+   the markdown digest — preflight verdict (B12) → redundancy gaps (B7)
+   → archive status + LOWQ queue (O82b reads). `--out FILE` persists it;
+   `--json` feeds an agent loop. The agent writes nothing; it reads and
+   reports. Supersedes the F39 weekly digest as the-proposed
+   implementation. The cheapest reliability win in the entire backlog.
+   Remaining optional: a `claude -p` cron wrapper + the D30
+   archive-integrity sweep inside the digest.
 3. **O84/O85 after the surface is stable** — inbox-to-crate agent on top of
    `megadj drop`; skill/plugin packaging (O85's Claude-Code plugin manifest
    now just points at the live MCP server instead of shipping one).
@@ -183,8 +188,9 @@ Weeks 5–7   fingerprints + megadj upgrade (D24+L62 fused)
 Weeks 6–9   CrateDeck: preflight+firmware notes (B12+N76),
             players.toml verdict (N75/77/78)               [Move 1 completes]
 Weeks 8–10  C18a runbook → C21 differential mirror → C22
-Weeks 10–13 O82b archive MCP → O83 weekly agent             [Move 3;
-            O86 rails + CrateDeck MCP already live]
+Weeks 10–13 O82b archive MCP → O83 weekly agent  [Move 3;
+            O82b shipped (archive_* tools, incl. grid + mood reads);
+            O83 shipped as `deckctl prep`; O86 rails + CrateDeck MCP live]
 Rolling     S-effort palate cleansers: M69 format cmd, M70
             litter clean, M71 port-speed badge, M74 exporter
 Later       Essentia heads → I46 cues (sliced: auto-cues

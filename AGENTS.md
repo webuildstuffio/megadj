@@ -209,13 +209,16 @@ produces, regardless of the language used in the request.
   server with thousands of redundant fetches.
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
   server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
-  19 tools — the original 10 (`deck_status/drives/report/coverage/
+  21 tools (pass-3 audit Sep 5 2026; rev 6/6.2 added the archive
+  `archive_grid_cross_check` + `archive_mood_profile` reads) — the
+  original 10 (`deck_status/drives/report/coverage/
 redundancy/diff/jobs/run/cancel/explain`) plus `deck_preflight` (B12),
   `deck_players` (N75/N78 hardware compat from measured dual-DB rows;
   matrix in `cratedeck/src/players.ts`, user-extendable via config.toml
   `[players.players]`), the O82b archive half
   (`archive_search_tracks/track_stats/ingest_status/lowq_queue/
-source_diff` — readonly reads over megadj's archive DB via
+source_diff/grid_cross_check/mood_profile` — readonly reads over megadj's
+  archive DB via
   `cratedeck/src/archive.ts`, opened `readonly: true`, so a bug there
   cannot corrupt archive state; missing DB degrades to `available:false`),
   and the O88 pair `deck_note` (mutating, human-confirmed findings) /
