@@ -14,7 +14,7 @@ bun run deckctl <command> [--json]    # repo-root script (short form)
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
 | `status`                 | rekordbox lock state, every drive with badges, active jobs                                                                     |
 | `drives`                 | drive list with per-badge ✓/▲/✕ verdicts                                                                                       |
-| `report <drive>`         | full health dossier: every check, its detail, why it matters, and the fix                                                      |
+| `report <drive>`         | full health dossier: every check, its detail, why it matters, and the fix. `--dossier` = the full export bundle (drive + snapshot + sync + report + timeline + benchmarks), `--out FILE` writes it |
 | `run <drive> <kind>`     | enqueue + **follow** a job live: spinner, %, current step, rolling ETA. Kinds: `scan` `verify` `mirror` `benchmark` `checksum` |
 | `coverage [min]`         | fleet coverage matrix: tracks per drive + at-risk list (tracks below `min` copies, default 2)                                  |
 | `redundancy [min]`       | per-playlist redundancy audit: every track on ≥`min` drives? pass/warn/fail per playlist                                       |
@@ -26,8 +26,10 @@ bun run deckctl <command> [--json]    # repo-root script (short form)
 | `preflight`              | **B12 gig-night gate**: pass/fail checklist over all mounted drives (dual-DB, grids, verify, speed, bitrot, space, parity, player compat) |
 | `players [drive]`        | **N78 hardware compat**: which CDJs/XDJs can read each stick, from measured dual-DB rows vs the N75 player matrix                            |
 | `prep [--out FILE]`      | **O83 weekly digest**: fleet + redundancy + archive markdown, written to `--out` when given                                                |
-| `note <drive> <text>`    | **O88 findings feed**: post a dismissable note to the drive timeline (`--severity info\|warn\|attention`)                                  |
+| `note <drive> <text>`    | **O88 findings feed**: post a dismissable note to the drive timeline (`--severity info\|warn\|critical`)                                  |
 | `notes [drive]`          | **O88 findings feed**: active (undismissed) notes, one per line; omit drive = every drive                                                  |
+| `rename <drive> [nick]`  | set/clear the display nickname shown in UI, CLI, and MCP (omit nickname = clear)                                                            |
+| `search <query>`         | global search: playlists + folders across all drive snapshots (the ⌘K twin)                                                                 |
 
 `<drive>` = volume name, nickname, or UUID.
 
@@ -123,21 +125,26 @@ Register it in your MCP client config, e.g. (Cursor / Claude Desktop):
 }
 ```
 
-Tools: `deck_status` · `deck_drives` · `deck_report {drive}` ·
+Tools: `deck_status` · `deck_drives` · `deck_report {drive,format?}` ·
 `deck_coverage {min_copies?}` · `deck_redundancy {min_copies?}` ·
 `deck_diff {a,b}` · `deck_jobs` · `deck_run {drive,kind,wait?}` ·
 `deck_cancel {job_id}` · `deck_explain {kind?}` · `deck_preflight` ·
 `deck_players {drive?}` · `deck_note {drive,note,severity?}` ·
-`deck_notes {drive?}` · `deck_prep` (the `prep` twin — renders the
-weekly digest markdown, readonly) · `deck_search {q}` (global search,
-the ⌘K twin) · `archive_search_tracks {q}` ·
+`deck_notes {drive?}` · `deck_rename {drive,nickname?}` (set/clear the
+display nickname — mutating, confirm first) · `deck_prep` (the `prep`
+twin — renders the weekly digest markdown, readonly) ·
+`deck_search {q}` (global search, the ⌘K twin) ·
+`archive_search_tracks {q}` ·
 `archive_track_stats {video_id}` · `archive_ingest_status` ·
 `archive_lowq_queue` · `archive_source_diff {a,b}` ·
 `archive_grid_cross_check {limit?}` (rev 6 beats-ledger grid verdicts) ·
 `archive_mood_profile {limit?}` (rev 6.2 mood-ledger picker data) ·
 `archive_sweep` (D30 bitrot/truncation sweep — also the "Archive
 integrity" section of `deckctl prep`) —
-24 tools total.
+25 tools total. `deck_report {format:"dossier"}` returns the full
+export bundle (drive + snapshot + sync + report + timeline +
+benchmarks) — the twin of `deckctl report --dossier` and the UI's
+Export button.
 
 Agent findings (O88): `deck_note` lands an agent's conclusion on a drive's
 timeline as a dismissable card (600-char cap, severity tone). Confirm with

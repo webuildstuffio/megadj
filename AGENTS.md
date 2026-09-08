@@ -155,7 +155,8 @@ produces, regardless of the language used in the request.
   Doc set status: `docs/cratedeck/acceptance.md`.
 - `deckctl` (`cratedeck/src/deckctl.ts`) is the agent/user CLI over CrateDeck:
   `status|drives|report|run|coverage|redundancy|diff|jobs|cancel|stop|explain
-|preflight|players|prep|note|notes`,
+|preflight|players|prep|note|notes|search|rename` (report takes
+  `--dossier [--out FILE]`),
   `--json` for machines, live spinner+ETA on `run`, exit code 3 = rekordbox
   interlock. Never bypass the interlock; auto-starts the server. Guide:
   `cratedeck/deckctl.md`, agent skill: `.claude/skills/cratedeck-deckctl/SKILL.md`.
@@ -219,29 +220,34 @@ produces, regardless of the language used in the request.
   server with thousands of redundant fetches.
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
   server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
-  22 tools (pass-3 audit Sep 5 2026; rev 6/6.2 added the archive
+  25 tools (pass-3 audit Sep 5 2026; rev 6/6.2 added the archive
   `archive_grid_cross_check` + `archive_mood_profile` reads; the
-  2026-09-07 surface-parity audit added `deck_prep` and closed the
-  CLI notes gap) — the
+  2026-09-07 surface-parity revs 1–3 added `deck_prep`, `deck_search`,
+  `deck_rename`, `archive_sweep`, and closed every closeable gap —
+  `docs/surface-parity.md` is the registry, enforced by
+  `cratedeck/test/surface-parity.test.ts`) — the
   original 10 (`deck_status/drives/report/coverage/
 redundancy/diff/jobs/run/cancel/explain`) plus `deck_preflight` (B12),
   `deck_players` (N75/N78 hardware compat from measured dual-DB rows;
   matrix in `cratedeck/src/players.ts`, user-extendable via config.toml
   `[players.players]`), the O82b archive half
   (`archive_search_tracks/track_stats/ingest_status/lowq_queue/
-source_diff/grid_cross_check/mood_profile` — readonly reads over megadj's
+source_diff/grid_cross_check/mood_profile/sweep` — readonly reads over megadj's
   archive DB via
   `cratedeck/src/archive.ts`, opened `readonly: true`, so a bug there
   cannot corrupt archive state; missing DB degrades to `available:false`),
   and the O88 pair `deck_note` (mutating, human-confirmed findings) /
-  `deck_notes` (readonly active feed).
+  `deck_notes` (readonly active feed), plus `deck_search` (B9 ⌘K twin)
+  and `deck_rename` (drive nickname, mutating).
+  `deck_report {format:"dossier"}` streams the full export bundle —
+  the CLI twin is `deckctl report <d> --dossier [--out FILE]`.
   `bun run mcp` from repo root; guide + registration snippet in
   `cratedeck/deckctl.md` §MCP; `plugin/` packages the whole surface as an
   installable Claude Code plugin (O85 — manifest + MCP + SessionStart hook
 
 * the 3 skills; `claude plugin validate` passes). Readonly tools carry
   `readOnlyHint: true`
-  annotations; `deck_run`/`deck_cancel`/`deck_note` are flagged
+  annotations; `deck_run`/`deck_cancel`/`deck_note`/`deck_rename` are flagged
   `[MUTATES DRIVE STATE]` and the rekordbox interlock is enforced inside
   the tool layer
   (prompts are suggestions, exit codes are law). **O88 agent notes:**

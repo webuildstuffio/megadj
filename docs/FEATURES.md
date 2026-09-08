@@ -90,13 +90,13 @@ architecture, build plan, acceptance).
 
 |                    |                                                                                                                                                                                                                      |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (24-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                                  |
+| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (25-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                                  |
 | **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                              |
 | **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                          |
 | **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads              |
 | **The verify**     | `usb_verify.py` deep gate: dual-DB agreement (OneLibrary vs legacy `export.pdb` live rows), audio existence, ANLZ-at-hash-path, grid math (duration × BPM ≈ beat count), playlist integrity, cross-drive hash parity |
 | **The interlock**  | rekordbox running? everything locks — exit code 3, red banner, no exceptions. Never bypassed.                                                                                                                        |
-| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: `status/drives/report/run/coverage/redundancy/diff`, `--json` for agents)                                                                                               |
+| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: 18 verbs incl. `run/coverage/redundancy/diff/preflight/prep/note/rename/search`, `--json` for agents) · `bun run mcp` (25-tool MCP server)                                                     |
 
 **Commands:** `bun run deck`, `bun run cratedeck/src/deckctl.ts …`
 **Docs:** [cratedeck/README.md](../cratedeck/README.md) ·
@@ -104,11 +104,13 @@ architecture, build plan, acceptance).
 [USB pipeline](usb-sync.md) ·
 [the doc set](cratedeck/)
 
-> **Note:** the status row already includes the Sep 5 2026 additions — B12
-> preflight, N75/N78 player-compat verdicts, the 22-tool MCP server
-> (incl. the O82b archive half), O83 weekly digest, O87 job attribution,
-> O88 agent notes, O85 plugin packaging, and the FullTags beats + mood +
-> cues ledgers (FullTags roadmap rev 6.2).
+> **Note:** the status row already includes the Sep 5–7 2026 additions —
+> B12 preflight, N75/N78 player-compat verdicts, the 25-tool MCP server
+> (incl. the O82b archive half), O83 weekly digest (now also a Fleet ⌗
+> Prep tab), O87 job attribution, O88 agent notes, O85 plugin packaging,
+> the FullTags beats + mood + cues ledgers (FullTags roadmap rev 6.2),
+> and the Sep 7 surface-parity revs (Fleet ⌗ Archive tab, `deckctl
+> rename`/`report --dossier` + MCP twins).
 
 **Vibe:** mission control for a drawer full of identical-looking sticks.
 

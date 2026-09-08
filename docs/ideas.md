@@ -710,14 +710,16 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 "agent-first, MCP-friendly, `--json` on every command" — with O86's rails
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
-82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves).** Live:
-    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — **24 tools**. CrateDeck
-    half (15): `deck_status/drives/report/coverage/redundancy/diff/
+82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 25 tools
+    after the Sep 7 parity revs).** Live:
+    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — **25 tools**. CrateDeck
+    half (17): `deck_status/drives/report/coverage/redundancy/diff/
 jobs/run/cancel/explain` + `deck_preflight` (B12), `deck_players`
-    (N78), `deck_note`/`deck_notes` (O88), `deck_prep` (O83). Archive
-    half (O82b, 7):
+    (N78), `deck_note`/`deck_notes` (O88), `deck_prep` (O83),
+    `deck_search`/`deck_rename` (parity rev 2/3). Archive
+    half (O82b, 8):
     `archive_search_tracks/track_stats/ingest_status/lowq_queue/
-source_diff/grid_cross_check/mood_profile` — readonly reads over
+source_diff/grid_cross_check/mood_profile/sweep` — readonly reads over
     megadj's own DB (`cratedeck/src/archive.ts`, opened `readonly: true`;
     missing DB degrades to `available:false`, never throws). Any MCP
     client (Claude Code, Codex, Cursor) answers "what did I ingest last
@@ -820,13 +822,14 @@ coverage|redundancy|diff`; needs one scan per drive with rekordbox
   (ladder in `docs/fulltags-roadmap.md`).
 - **Phase 6 — agentified (§O):** O82 (both halves) + O86 rails + O87
   attribution + O83 core + **O88 notes feed + O85 plugin packaging ✅
-  SHIPPED 2026-09-05** (`bun run mcp` — 24 tools incl. `deck_note` + the Sep 7 `deck_search`/`deck_prep`/`archive_sweep` additions;
+  SHIPPED 2026-09-05** (`bun run mcp` — 25 tools incl. `deck_note` + the Sep 7 `deck_search`/`deck_prep`/`deck_rename`/`archive_sweep` additions;
   `plugin/` installs the whole surface). Open remainder: O84 inbox-agent;
   O83 optional `claude -p` digest wrapper.
 - **Phase 4 — the AI edge (reality gate says monthly+):** ~~I51 keys →
   I45 moods →~~ ✅ shipped (rev 5–6.2: keys 80.7% gate PASS 88/88,
   moods/energy 2.0 88/88, fingerprints 88/88). Remaining: I46 full
-  segment slice, vocal density, K61 `megadj drop`; M66/M67 after B11
+  segment slice, vocal density (K61 `megadj drop` ✅ shipped); M66/M67
+  after B11
   history. Model gates: offline/local (P9), EDM-verified (P7),
   license-ledgered, spot-checked before any batch run.
 - **Phase 5 — sources & irritants (whenever):** K57→K58→K59; M69–M74

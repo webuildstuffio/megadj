@@ -26,10 +26,10 @@ surface-parity.test.ts` keeps it that way.
 
 | Surface | Entry points | Count |
 | --- | --- | --- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 18 commands (17 + `--help`) |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 19 commands + `--help` |
 | deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 18 verbs |
 | MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 25 tools |
-| HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~31 routes |
+| HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~33 routes |
 | Web UI | `cratedeck/web/` (hash-routed pages) | 4 pages, ~22 actions |
 
 The server's HTTP API is the **fourth surface** and the seam everything
@@ -92,7 +92,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Archive search | `megadj list` ✅ | `archive_search_tracks` ✅ | ⌘K + Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
 | Track stats | `status`/`list` ✅ | `archive_track_stats` ✅ | Fleet ⌗ Archive (mood/grid cards) ✅ | — (A3 closed rev 3) |
 | Ingest status / LOWQ queue | `list LOWQ` ✅ | `archive_ingest_status`/`lowq_queue` ✅ | Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
-| Source diff | — | `archive_source_diff` ✅ | ⛔ §4-F1-adjacent (diff-shaped read; rides `deck_diff`'s pattern) | — |
+| Source diff | — | `archive_source_diff` ✅ | ⛔ §4-F3 (see note) | — |
 | Grid cross-check | `megadj beats` data ✅ | `archive_grid_cross_check` ✅ | Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
 | Mood profile | `megadj mood` data ✅ | `archive_mood_profile` ✅ | Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
 | Rename drive | `rename <d> [nick]` ✅ | `deck_rename` ✅ | inline rename ✅ | — (D2-rename closed rev 3) |
@@ -159,6 +159,10 @@ this table AND the enforcement test together (that's the point).
   (`deckctl rename` + `deck_rename`).
 - **F1 — track-locations detail rides `coverage`'s output**; no
   separate MCP tool (same data, one shape).
+- **F3 — source-diff has no UI card.** It's a two-argument diagnostic
+  (which YouTube sources diverged between two sync states) — agent/
+  operator-shaped, and its inputs surface in the Prep tab's archive
+  section. Revisit if a "sources" view ever ships.
 - **G2 — CLOSED (rev 3, GAP-8).** The Fleet ⌗ Prep tab renders the
   digest.
 - **A1 — archive mutation stays CLI-only.** `sync`/`ingest`/`fetch`/
