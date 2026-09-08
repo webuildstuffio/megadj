@@ -1290,6 +1290,7 @@ h3.sect .icon {
   border-radius: 999px;
   margin-right: 7px;
 }
+/* tone variants composed dynamically as kc-${tone} (TimelineTab) */
 .kc-good {
   color: var(--accent);
   background: var(--accent-dim);

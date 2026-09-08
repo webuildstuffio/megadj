@@ -14,6 +14,11 @@ megadj operator toolkit without repo-local setup.
 | MCP | `.mcp.json` → `cratedeck` | 25 tools: drive health, fleet, preflight, players, notes, rename, dossier export, archive reads (incl. grid cross-check + mood profile + sweep), `deck_note` |
 | Hook | `hooks/hooks.json` | SessionStart: drives + interlock status in context (async, 15s timeout) |
 
+**Skills are symlinks** into `../../.claude/skills/` — the in-repo skill
+directories are the single source of truth; editing a skill updates the
+plugin copy too (no byte-duplicated fork to drift). A published/marketplace
+build would dereference them at package time.
+
 ## Install (development, from this repo)
 
 ```bash

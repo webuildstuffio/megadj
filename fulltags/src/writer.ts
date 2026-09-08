@@ -78,6 +78,45 @@ export async function applyTags(
 }
 
 /**
+ * Shared ffmpeg arg plan for the copy-audio + preserve-art tag remux —
+ * the async ($ shell) and sync (spawnSync) writePatch branches are the
+ * same plan modulo the banner flags. mp3 gets id3v2.3 + copied art; the
+ * tmp output KEEPS its extension (ffmpeg infers the muxer from it).
+ */
+function ffmpegTagPlan(
+  filePath: string,
+  pairs: TagPair[],
+  sync = false,
+): { args: string[]; tagged: string } {
+  const ext = extname(filePath).toLowerCase();
+  const args = sync
+    ? ["-y", "-hide_banner", "-loglevel", "error", "-i", filePath]
+    : ["-y", "-i", filePath];
+  args.push(
+    "-map",
+    "0:a",
+    "-map",
+    "0:v?",
+    "-c:a",
+    "copy",
+    "-c:v",
+    "mjpeg",
+    "-disposition:v:0",
+    "attached_pic",
+  );
+  for (const [k, v] of pairs)
+    args.push("-metadata", `${FFMPEG_KEY[k]}=${String(v)}`);
+  const tagged = tmpLike(filePath, ".tagged");
+  if (ext === ".mp3") {
+    args.push("-c:v", "copy", "-write_id3v2", "1", "-id3v2_version", "3");
+  }
+  // FLAC keeps base video handling; unknown containers let ffmpeg infer
+  // the muxer from the tmp extension.
+  args.push(tagged);
+  return { args, tagged };
+}
+
+/**
  * Merge a partial TagPatch into the file's tags. Only the provided fields
  * are written; audio stream-copied; art preserved; atomic swap at the end.
  */
@@ -108,33 +147,7 @@ export async function writePatch(
     return;
   }
 
-  const args: string[] = [
-    "-y",
-    "-i",
-    filePath,
-    "-map",
-    "0:a",
-    "-map",
-    "0:v?",
-    "-c:a",
-    "copy",
-    "-c:v",
-    "mjpeg",
-    "-disposition:v:0",
-    "attached_pic",
-  ];
-  for (const [k, v] of pairs) args.push("-metadata", `${FFMPEG_KEY[k]}=${v}`);
-  const tagged = tmpLike(filePath, ".tagged");
-  if (ext === ".mp3") {
-    args.push("-c:v", "copy", "-write_id3v2", "1", "-id3v2_version", "3");
-    args.push(tagged);
-  } else if (ext === ".flac") {
-    // FLAC supports embedded pictures — keep base video handling.
-    args.push(tagged);
-  } else {
-    // Unknown container — let ffmpeg infer the muxer from the extension.
-    args.push(tagged);
-  }
+  const { args, tagged } = ffmpegTagPlan(filePath, pairs);
 
   // Bun's $ throws ShellError on non-zero exit (even .quiet()), so the
   // cleanup must be in a catch — the old exitCode check never ran, and a
@@ -172,35 +185,7 @@ export function writePatchSync(filePath: string, patch: TagPatch): boolean {
     if (ext === ".m4a" || ext === ".m4b") {
       return writePatchMp4(filePath, patch); // mutagen MP4 atoms
     }
-    const args: string[] = [
-      "-y",
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-i",
-      filePath,
-      "-map",
-      "0:a",
-      "-map",
-      "0:v?",
-      "-c:a",
-      "copy",
-      "-c:v",
-      "mjpeg",
-      "-disposition:v:0",
-      "attached_pic",
-    ];
-    for (const [k, v] of pairs) args.push("-metadata", `${FFMPEG_KEY[k]}=${v}`);
-    const tagged = tmpLike(filePath, ".tagged");
-    if (ext === ".mp3") {
-      args.push("-c:v", "copy", "-write_id3v2", "1", "-id3v2_version", "3");
-      args.push(tagged);
-    } else if (ext === ".flac") {
-      args.push(tagged);
-    } else {
-      // Unknown container — let ffmpeg infer from the extension.
-      args.push(tagged);
-    }
+    const { args, tagged } = ffmpegTagPlan(filePath, pairs, true);
     const pr = Bun.spawnSync({
       cmd: ["ffmpeg", ...args],
       stdout: "pipe",

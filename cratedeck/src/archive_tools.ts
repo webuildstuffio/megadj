@@ -5,17 +5,7 @@
 // archive DB readonly — a bug here cannot corrupt archive state).
 
 import { apiGet } from "./deckapi";
-
-function str(args: Record<string, unknown>, key: string): string | undefined {
-  return typeof args[key] === "string" ? (args[key] as string) : undefined;
-}
-
-function num(args: Record<string, unknown>, key: string): number | undefined {
-  const v = args[key];
-  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
-}
-
-class RpcParamError extends Error {}
+import { str, num, RpcParamError } from "./mcp_params";
 
 /** The archive_* tool table (O82b, readonly reads over megadj's DB). */
 export function archiveTools(): Record<string, unknown> {

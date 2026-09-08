@@ -636,20 +636,7 @@ function cmdExplain(kind?: string): void {
     return;
   }
   if (!kind) {
-    for (const [k, d] of Object.entries(KIND_DOCS)) {
-      log(`── ${k} ──`);
-      log(d.what);
-      if (d.checks) {
-        log("");
-        log("checks:");
-        for (const c of d.checks) log(`  • ${c}`);
-      }
-      log("");
-      log(`typical time: ${d.typical}`);
-      log(`safety: ${d.safe}`);
-      log(`requires: ${d.needs}`);
-      log("");
-    }
+    for (const [k, d] of Object.entries(KIND_DOCS)) printKindDoc(k, d);
     return;
   }
   const d = KIND_DOCS[kind];
@@ -659,6 +646,11 @@ function cmdExplain(kind?: string): void {
     );
     process.exit(2);
   }
+  printKindDoc(kind, d);
+}
+
+/** One KIND_DOCS entry as CLI prose (shared by the all-kinds + single-kind paths). */
+function printKindDoc(kind: string, d: (typeof KIND_DOCS)[string]): void {
   log(`── ${kind} ──`);
   log(d.what);
   if (d.checks) {
@@ -670,6 +662,7 @@ function cmdExplain(kind?: string): void {
   log(`typical time: ${d.typical}`);
   log(`safety: ${d.safe}`);
   log(`requires: ${d.needs}`);
+  log("");
 }
 
 // ---- main -------------------------------------------------------------------

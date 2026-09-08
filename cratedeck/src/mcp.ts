@@ -37,6 +37,7 @@
  *   archive_sweep               D30 bitrot/truncation sweep (readonly)
  */
 import { archiveTools } from "./archive_tools";
+import { str, num, RpcParamError } from "./mcp_params";
 import {
   apiGet,
   apiPost,
@@ -111,14 +112,6 @@ const JOB_KINDS = [
 /** O87 attribution: one id per MCP server process, stamped on mutating calls
  *  so agent actions are distinguishable from human clicks. */
 const MCP_SESSION = `mcp:${crypto.randomUUID().slice(0, 8)}`;
-
-function str(args: Record<string, unknown>, key: string): string | undefined {
-  return typeof args[key] === "string" ? (args[key] as string) : undefined;
-}
-function num(args: Record<string, unknown>, key: string): number | undefined {
-  const v = args[key];
-  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
-}
 /** Resolve a drive or throw a clean param error. */
 async function needDrive(nameOrId: string | undefined): Promise<{
   id: string;
@@ -132,8 +125,6 @@ async function needDrive(nameOrId: string | undefined): Promise<{
   if (!d) throw new RpcParamError(`unknown drive: ${nameOrId}`);
   return d;
 }
-
-class RpcParamError extends Error {}
 
 async function interlockGuard(): Promise<void> {
   const il = (await apiGet("/api/interlock").then((r) => r.json())) as {

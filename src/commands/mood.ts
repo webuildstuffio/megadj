@@ -4,6 +4,7 @@ import {
   analyzeMoods,
   groundTruth,
   parseMoodStamp,
+  type MoodResult,
 } from "../../fulltags/src/exports";
 import type { ArchiveState, TrackRow } from "../state";
 
@@ -43,34 +44,34 @@ export async function mood(opts: MoodOptions): Promise<void> {
         t.status === "downloaded" && t.file_path && existsSync(t.file_path),
     );
 
+  // Shared record shape for both passes (file-stamp sync + ONNX analysis).
+  const record = (t: TrackRow, m: MoodResult): void => {
+    if (opts.dryRun) return;
+    opts.state.setMoodRecord({
+      videoId: t.video_id,
+      dance: m.danceability,
+      aggressive: m.moodAggressive,
+      happy: m.moodHappy,
+      electronic: m.moodElectronic,
+      party: m.moodParty,
+      valence: m.valence,
+      arousal: m.arousal,
+      sourcePath: t.file_path!,
+    });
+  };
+
   // Pass 1 — sync existing file stamps into the ledger (cheap, no ONNX).
   let synced = 0;
   const needAnalysis: TrackRow[] = [];
   for (const t of candidates) {
     const stamp = groundTruth(t.file_path!).mood;
-    if (!stamp) {
-      needAnalysis.push(t);
-      continue;
-    }
-    const m = parseMoodStamp(stamp);
+    const m = stamp ? parseMoodStamp(stamp) : undefined;
     if (!m) {
       needAnalysis.push(t);
       continue;
     }
     if (!opts.force && opts.state.moodRecord(t.video_id)) continue;
-    if (!opts.dryRun) {
-      opts.state.setMoodRecord({
-        videoId: t.video_id,
-        dance: m.danceability,
-        aggressive: m.moodAggressive,
-        happy: m.moodHappy,
-        electronic: m.moodElectronic,
-        party: m.moodParty,
-        valence: m.valence,
-        arousal: m.arousal,
-        sourcePath: t.file_path!,
-      });
-    }
+    record(t, m);
     synced++;
   }
 
@@ -85,19 +86,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
         failed++;
         continue;
       }
-      if (!opts.dryRun) {
-        opts.state.setMoodRecord({
-          videoId: t.video_id,
-          dance: m.danceability,
-          aggressive: m.moodAggressive,
-          happy: m.moodHappy,
-          electronic: m.moodElectronic,
-          party: m.moodParty,
-          valence: m.valence,
-          arousal: m.arousal,
-          sourcePath: t.file_path!,
-        });
-      }
+      record(t, m);
       analyzed++;
       log(
         `  analyzed dance=${m.danceability.toFixed(2)} V=${m.valence.toFixed(1)} A=${m.arousal.toFixed(1)} — ${basename(t.file_path!)}`,
