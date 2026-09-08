@@ -353,3 +353,209 @@
   max-height: 62vh;
   overflow: auto;
 }
+
+/* ---- archive tab UX pass (Sep 8): verdict banner + work queue ---------- */
+.arch-verdict {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  border-radius: var(--r-md);
+  font-size: 13.5px;
+  font-weight: 650;
+  border: 1px solid var(--stroke);
+  background: var(--surface2);
+  margin-bottom: 6px;
+}
+.arch-verdict.ok {
+  color: var(--accent);
+  border-color: #1e4a37;
+  background: var(--accent-dim);
+}
+.arch-verdict.warn {
+  color: var(--warn);
+  border-color: #6b5a20;
+  background: var(--warn-dim);
+}
+.arch-verdict-meta {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+.arch-issues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 2px 2px 10px;
+}
+.arch-issue {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.arch-what .arch-lede {
+  margin: 8px 0 10px;
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.arch-pill {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+.arch-pill.warn {
+  color: var(--warn);
+  background: var(--warn-dim);
+}
+.arch-pill.bad {
+  color: var(--bad);
+  background: var(--bad-dim);
+}
+.arch-pill.muted {
+  color: var(--muted);
+  background: var(--surface4);
+}
+/* the pipeline shape, as one stacked bar */
+.arch-pie {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface4);
+}
+.arch-seg {
+  height: 100%;
+  min-width: 2px;
+}
+.arch-seg.have {
+  background: var(--accent);
+}
+.arch-seg.broken {
+  background: var(--bad);
+}
+.arch-seg.waiting {
+  background: var(--warn);
+}
+.arch-seg.moved {
+  background: var(--stroke2);
+}
+.arch-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 7px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.arch-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.arch-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2.5px;
+  display: inline-block;
+}
+.arch-legend i.have {
+  background: var(--accent);
+}
+.arch-legend i.broken {
+  background: var(--bad);
+}
+.arch-legend i.waiting {
+  background: var(--warn);
+}
+.arch-legend i.moved {
+  background: var(--stroke2);
+}
+.arch-legend em {
+  font-style: normal;
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+/* work-queue cards */
+.ah-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ah-head b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  min-width: 0;
+}
+.ah-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn.sm {
+  padding: 3px 9px;
+  font-size: 11px;
+}
+.arch-fix {
+  margin-top: 9px;
+  font-size: 12px;
+  color: var(--faint);
+}
+.arch-fix code {
+  color: var(--text);
+  background: var(--surface4);
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+.arch-what-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arch-extremes {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 10px;
+}
+.arch-extreme {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  min-width: 0;
+}
+.arch-extreme b {
+  color: var(--faint);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  flex: none;
+  width: 92px;
+}
+.arch-extreme span {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arch-extreme span + span::before {
+  content: "·";
+  color: var(--faint);
+  margin-right: 8px;
+}
