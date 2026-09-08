@@ -3,28 +3,20 @@
 // Extracted module (file-length guard): the ⌘K topbar search reaches
 // GET /api/search; this is the same read for terminals/agents (F2 closed —
 // deckctl + MCP twins of the UI's global search).
+//
+// Wire shapes come from the shared SSOT (shared/types.ts `SearchResult`),
+// not re-declared here — a local duplicate drifts silently and ships
+// runtime bugs (the Sep 7 ArchiveTab bug class).
 
 import { apiGet } from "./deckapi";
+import type { SearchResult } from "../shared/types";
 
-export interface SearchMatch {
-  type: "playlist" | "folder";
-  name: string;
-  entries: unknown[];
-}
-
-export interface SearchHit {
-  drive_id: string;
-  drive_name: string;
-  mounted: boolean;
-  matches: SearchMatch[];
-}
-
-export interface SearchPrintHooks {
+export type SearchPrintHooks = {
   jsonMode: boolean;
   log: (s: string) => void;
   errOut: (s: string) => void;
   exit: (code: number) => never;
-}
+};
 
 /** `deckctl search <query>` — playlists + folders across every snapshot. */
 export async function cmdSearch(
@@ -37,7 +29,7 @@ export async function cmdSearch(
     h.exit(2);
   }
   const res = await apiGet(`/api/search?q=${encodeURIComponent(q)}`);
-  const hits = (await res.json()) as SearchHit[];
+  const hits = (await res.json()) as SearchResult[];
   if (h.jsonMode) {
     console.log(JSON.stringify({ query: q, hits }, null, 2));
     return;
@@ -51,6 +43,6 @@ export async function cmdSearch(
       `${hit.drive_name}${hit.mounted ? "" : " (unmounted)"} — ${hit.matches.length} match${hit.matches.length === 1 ? "" : "es"}`,
     );
     for (const m of hit.matches)
-      h.log(`  [${m.type}] ${m.name} (${m.entries.length} entries)`);
+      h.log(`  [${m.type}] ${m.name} (${m.entries ?? 0} entries)`);
   }
 }

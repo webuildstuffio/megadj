@@ -240,6 +240,22 @@ produces, regardless of the language used in the request.
   MCP route params: `archive_grid_cross_check`/`archive_mood_profile`
   accepted `limit` but the routes dropped it (fixed — forwarded to
   `archive.ts`).
+- **Type-audit pass (Sep 8 2026, 100.00% type-coverage):** the repo's
+  `bun run typecov` gate is now a hard 100% — do not land anything that
+  drops it (`bun run check:full` covers it). The last offenders were
+  `let entries;`/`let st;` before try/catch assignment (implicit-any lets —
+  annotate with `Dirent[]`/`Stats` from `node:fs` type-only imports),
+  `Response.json()`/`req.json()` (return `any` — always pin via
+  `deckapi.ts`'s `apiGetJson<T>` or an `as {shape}` on the wire envelope),
+  `JSON.parse` results (cast at the parse site), `require("node:fs")` in
+  tests (returns `any` — import `mkdirSync` etc. statically), and the
+  fulltags stage union, which lived in three hand-copies until
+  `pipeline.ts` exported `STAGES`/`Stage` (SSOT; the CLI's `--tags`-style
+  parser now narrows via an `isStage` guard instead of `includes(.. as
+  any)`). Same drift class as round-4: `deckctl_search.ts` re-declared
+  `SearchHit` with `entries: unknown[]` while the producer/web shared
+  `SearchResult` with `entries?: number` — consolidated to shared re-exports
+  (`PlayersPayload`, `StoredNote`, `SearchResult`, `FleetDiff`).
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
   server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
   25 tools (pass-3 audit Sep 5 2026; rev 6/6.2 added the archive

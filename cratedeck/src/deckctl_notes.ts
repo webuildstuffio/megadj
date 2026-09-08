@@ -4,8 +4,14 @@
 // growing one verb at a time, and the note/notes pair is self-contained —
 // resolve drive → POST/GET the notes routes → print. Uses deckctl's
 // output helpers via the exported hooks (JSON mode + log/errOut + exit).
+//
+// Note wire shapes come from the shared SSOT (notes.ts `StoredNote`), not
+// re-declared here — a local duplicate drifts silently (the Sep 7
+// ArchiveTab bug class: same-length local types hide server shape changes
+// until the UI renders `[object Object]`).
 
 import { apiGet, apiPost, resolveDrive } from "./deckapi";
+import type { StoredNote } from "./notes";
 
 export interface NotePrintHooks {
   /** true when --json is on: emit one JSON object, no prose. */
@@ -15,16 +21,6 @@ export interface NotePrintHooks {
   /** argv, for `--severity` flag parsing on `note`. */
   argv: string[];
   exit: (code: number) => never;
-}
-
-interface NoteRow {
-  id: string;
-  drive_id?: string;
-  note: string;
-  origin?: string;
-  severity: string;
-  at: number;
-  dismissed_at?: number | null;
 }
 
 async function getJson<T>(p: string): Promise<T> {
@@ -70,18 +66,15 @@ export async function cmdNotes(
   if (!nameOrId) {
     // P1: --json must work on every verb, in every branch (agent-first
     // contract). One JSON object covering every drive's feed.
-    const drives = (await getJson<
-      { id: string; name: string; nickname: string | null }[]
-    >("/api/drives")) as {
-      id: string;
-      name: string;
-      nickname: string | null;
-    }[];
-    const perDrive: { drive: string; notes: NoteRow[] }[] = [];
+    const drives =
+      await getJson<{ id: string; name: string; nickname: string | null }[]>(
+        "/api/drives",
+      );
+    const perDrive: { drive: string; notes: StoredNote[] }[] = [];
     for (const d of drives) {
-      const notes = (await getJson<NoteRow[]>(
+      const notes = await getJson<StoredNote[]>(
         `/api/drives/${d.id}/notes`,
-      ).catch(() => [])) as NoteRow[];
+      ).catch(() => [] as StoredNote[]);
       perDrive.push({ drive: d.nickname ?? d.name, notes });
       if (!h.jsonMode)
         for (const n of notes)
@@ -95,9 +88,7 @@ export async function cmdNotes(
     h.errOut(`unknown drive: ${nameOrId}`);
     h.exit(2);
   }
-  const notes = (await getJson<NoteRow[]>(
-    `/api/drives/${d.id}/notes`,
-  )) as NoteRow[];
+  const notes = await getJson<StoredNote[]>(`/api/drives/${d.id}/notes`);
   if (h.jsonMode) {
     console.log(JSON.stringify({ drive: d.name, notes }, null, 2));
     return;

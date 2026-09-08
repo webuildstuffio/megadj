@@ -341,3 +341,21 @@ export type ArchiveGridCrossCheck = ReturnType<
 export type ArchiveMoodProfile = ReturnType<
   import("../src/archive").ArchiveReader["moodProfile"]
 >;
+
+// ---- preflight (B12): re-export the producer's own interface so web/
+// deckctl share one source of truth (PreflightTab used to re-declare the
+// wire shape by hand).
+export type { PreflightReport, PreflightDriveResult } from "../src/preflight";
+
+// ---- player compatibility (N75/N78): wire shape of GET /drives/:id/players.
+// The server spreads DriveCompat (src/players.ts, the measured dual-DB
+// verdicts) under {drive, measured}; this mirrors that envelope once so
+// deckctl + the web PreflightTab don't each hand-declare it.
+export type PlayersPayload = {
+  drive: { id: string; name: string; nickname: string | null };
+  measured: { pdb_live_rows: number | null; onelibrary_rows: number | null };
+} & import("../src/players").DriveCompat;
+
+// ---- notes (O88): re-export the feed's row type so deckctl and any other
+// consumer read the producer's shape instead of re-declaring it.
+export type { StoredNote } from "../src/notes";

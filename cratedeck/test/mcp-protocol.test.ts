@@ -30,11 +30,42 @@ const proc = Bun.spawn(["bun", "run", join("src", "mcp.ts")], {
 
 let nextId = 1;
 
+/** JSON-RPC response wire shape (typed alternative to Record<string, any>). */
+interface JsonRpcResponse {
+  jsonrpc: "2.0";
+  id?: string | number | null;
+  result?: unknown;
+  error?: { code: number; message: string };
+}
+
+/** Parse one stream line, tolerating non-JSON noise (null = skip). */
+function parseJsonRpc(line: string): JsonRpcResponse | null {
+  try {
+    const raw = JSON.parse(line) as Partial<JsonRpcResponse> | null;
+    if (raw === null || typeof raw !== "object") return null;
+    return {
+      jsonrpc: "2.0",
+      id: raw.id ?? null,
+      result: raw.result,
+      error: raw.error,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Extract the first text block from a tools/call result ("" if absent). */
+function resultText(res: JsonRpcResponse): string {
+  const content = (res.result as { content?: { text?: unknown }[] } | undefined)
+    ?.content;
+  return typeof content?.[0]?.text === "string" ? content[0].text : "";
+}
+
 /** Send one JSON-RPC request, read lines until its id answers. */
 async function rpc(
   method: string,
   params: Record<string, unknown>,
-): Promise<Record<string, any>> {
+): Promise<JsonRpcResponse> {
   const id = nextId++;
   proc.stdin.write(
     JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n",
@@ -44,7 +75,8 @@ async function rpc(
   for (;;) {
     const line = await readLine(deadline);
     if (line === null) throw new Error(`no reply for ${method} (timeout)`);
-    const msg = JSON.parse(line);
+    const msg = parseJsonRpc(line);
+    if (msg === null) continue; // non-JSON noise — not a reply
     if (msg.id === id) return msg;
     // ignore unrelated traffic (none expected, but be safe)
   }
@@ -108,7 +140,7 @@ describe("mcp stdio protocol", () => {
       arguments: { kind: "verify" },
     });
     expect(withKind.error).toBeUndefined();
-    const text = withKind.result?.content?.[0]?.text ?? "";
+    const text = resultText(withKind);
     expect(text).toContain("verify");
     expect(text.length).toBeGreaterThan(40);
 
@@ -118,7 +150,7 @@ describe("mcp stdio protocol", () => {
       name: "deck_explain",
       arguments: { kind: "checksum" },
     });
-    const otherText = other.result?.content?.[0]?.text ?? "";
+    const otherText = resultText(other);
     expect(otherText).not.toBe(text);
   }, 30_000);
 

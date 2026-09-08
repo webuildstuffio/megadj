@@ -1,4 +1,5 @@
 import { describe, it, expect } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { loadConfig } from "../src/config";
 
 describe("config", () => {
@@ -11,7 +12,6 @@ describe("config", () => {
   });
 
   it("reads config.toml when present", () => {
-    const { writeFileSync, mkdirSync } = require("node:fs");
     mkdirSync("/tmp/cratedeck-test-cfg", { recursive: true });
     writeFileSync(
       "/tmp/cratedeck-test-cfg/config.toml",
@@ -24,7 +24,6 @@ describe("config", () => {
   });
 
   it("rejects unknown image providers", () => {
-    const { writeFileSync, mkdirSync } = require("node:fs");
     mkdirSync("/tmp/cratedeck-test-bad", { recursive: true });
     writeFileSync(
       "/tmp/cratedeck-test-bad/config.toml",

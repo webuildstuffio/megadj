@@ -29,6 +29,13 @@ const SCRIPTS_DIR = join(
   "rekordbox-usb-sync",
   "scripts",
 );
+
+/** The CLI error contract of rb_read.py: {ok: false, error: "..."} (rb_read
+ *  prints one JSON object per run — failures included). */
+interface RbReadError {
+  ok: boolean;
+  error: string;
+}
 const TMP = `/tmp/megadj-rbread-test-${process.pid}`;
 // The exact pin rb.ts uses in production — keeps the test seam identical.
 const PYREKORDBOX_PIN =
@@ -264,7 +271,9 @@ describe("rb_read.main (CLI contract)", () => {
       return; // skip gracefully
     }
     expect(p.exitCode).toBe(1);
-    const out = JSON.parse(new TextDecoder().decode(p.stdout).trim());
+    const out = JSON.parse(
+      new TextDecoder().decode(p.stdout).trim(),
+    ) as RbReadError;
     expect(out.ok).toBe(false);
     expect(out.error).toContain("usage");
   }, 60_000);
@@ -290,7 +299,9 @@ describe("rb_read.main (CLI contract)", () => {
       stderr: "pipe",
       cwd: TMP,
     });
-    const out = JSON.parse(new TextDecoder().decode(p.stdout).trim());
+    const out = JSON.parse(
+      new TextDecoder().decode(p.stdout).trim(),
+    ) as RbReadError;
     expect(out.ok).toBe(false);
     expect(typeof out.error).toBe("string");
     expect(out.error.length).toBeGreaterThan(0);

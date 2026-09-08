@@ -20,9 +20,20 @@
  */
 import { existsSync, statSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { enrichAll, DEFAULT_QUEUE, readAiStamps } from "./src/pipeline";
+import {
+  enrichAll,
+  DEFAULT_QUEUE,
+  readAiStamps,
+  STAGES,
+  type Stage,
+} from "./src/pipeline";
 import { groundTruth } from "./src/readers";
 import { isAudioFile } from "./src/writer";
+
+/** Narrow a CLI word to a Stage (undefined = not a stage name). */
+function isStage(word: string): word is Stage {
+  return (STAGES as readonly string[]).includes(word);
+}
 
 function printHelp(): void {
   console.log(`fulltags — fully enrich any mp3/wav/aiff/flac/m4a with one command
@@ -44,17 +55,7 @@ env: OPENROUTER_API_KEY (AI genre/year fallback) · artwork queue appends to
 
 interface CliArgs {
   target: string | null;
-  stages: Array<
-    | "tags"
-    | "genre"
-    | "art"
-    | "year"
-    | "energy"
-    | "fingerprint"
-    | "bpm"
-    | "key"
-    | "mood"
-  > | null;
+  stages: Stage[] | null;
   jobs: number;
   dryRun: boolean;
   upgradeScArt: boolean;
@@ -76,18 +77,7 @@ function parseArgs(argv: string[]): CliArgs {
     json: false,
     hints: {},
   };
-  const stageKeys = [
-    "tags",
-    "genre",
-    "art",
-    "year",
-    "energy",
-    "fingerprint",
-    "bpm",
-    "key",
-    "mood",
-  ] as const;
-  const stages = new Set<string>();
+  const stages = new Set<Stage>();
   // `audit` and `single` are subcommands, not targets — skip them during
   // target pickup (`single` is the documented per-file hint entrypoint).
   const skipFirst = argv[0] === "audit" || argv[0] === "single";
@@ -102,13 +92,13 @@ function parseArgs(argv: string[]): CliArgs {
     else if (a === "--jobs") args.jobs = Number(argv[++i]) || 4;
     else if (a === "--archive-dir") args.archiveDir = argv[++i] ?? null;
     else if (a === "--artwork-queue") args.artworkQueue = argv[++i] ?? null;
-    else if (stageKeys.includes(a.slice(2) as any)) stages.add(a.slice(2));
+    else if (isStage(a.slice(2))) stages.add(a.slice(2) as Stage);
     else if (a === "--title") args.hints.title = argv[++i];
     else if (a === "--artist") args.hints.artist = argv[++i];
     else if (a === "--album") args.hints.album = argv[++i];
     else if (!a.startsWith("--") && !args.target) args.target = a;
   }
-  if (stages.size) args.stages = [...stages] as CliArgs["stages"];
+  if (stages.size) args.stages = [...stages];
   return args;
 }
 

@@ -11,38 +11,21 @@ import { api } from "./toast";
 import { Icon } from "./icons";
 import type {
   CheckStatus,
-  HealthCheck,
-  PreflightVerdict,
+  PlayersPayload,
+  PreflightReport,
 } from "../shared/types";
+// PlayersPayload = the wire shape of GET /api/drives/:id/players (N78),
+// imported from the shared SSOT instead of re-declared here — a local
+// duplicate drifts silently (the Sep 7 ArchiveTab bug class).
 
-/** Wire subset of PreflightReport (GET /api/preflight); player compat
- *  (N78) is fetched lazily per expanded drive card from /api/drives/:id/players. */
-interface PreflightPayload {
-  generated_at: number;
-  overall: PreflightVerdict;
-  summary: string;
-  mountedCount: number;
-  firmware_advisories: string[];
-  drives: {
-    drive: {
-      id: string;
-      name: string;
-      nickname: string | null;
-      mounted: boolean;
-    };
-    overall: PreflightVerdict;
-    checks: HealthCheck[];
-    blockers: string[];
-  }[];
-}
-
-interface PlayersPayload {
-  drive: { id: string; name: string; nickname: string | null };
-  measured: { pdb_live_rows: number | null; onelibrary_rows: number | null };
-  ok: { name: string }[];
-  blocked: { player: { name: string }; reason: string }[];
-  unknown: boolean;
-}
+/** Per-drive player-compat load state: payload, or the failure that
+ *  replaces it. A failed fetch must never render as "unknown — run a scan";
+ *  that verdict is a measurement gap, not a transport error. */
+type PlayersState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ok"; payload: PlayersPayload };
 
 const VERDICT_ICON: Record<string, string> = {
   ready: "check",
@@ -66,13 +49,13 @@ const STATUS_ICON: Record<CheckStatus, string> = {
 };
 
 export function PreflightTab() {
-  const [data, setData] = useState<PreflightPayload | null>(null);
+  const [data, setData] = useState<PreflightReport | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
-  const [players, setPlayers] = useState<Record<string, PlayersPayload>>({});
+  const [players, setPlayers] = useState<Record<string, PlayersState>>({});
 
   useEffect(() => {
-    api<PreflightPayload>("/api/preflight")
+    api<PreflightReport>("/api/preflight")
       .then(setData)
       .catch((e: unknown) =>
         setErr(e instanceof Error ? e.message : String(e)),
@@ -82,17 +65,22 @@ export function PreflightTab() {
   const toggle = (id: string) => {
     setOpen(open === id ? null : id);
     if (!players[id]) {
-      api<PlayersPayload>(`/api/drives/${encodeURIComponent(id)}/players`)
-        .then((p) => setPlayers((prev) => ({ ...prev, [id]: p })))
-        .catch(() =>
+      setPlayers((prev) => ({ ...prev, [id]: { status: "loading" } }));
+      api<PlayersPayload>(`/api/drives/${encodeURIComponent(id)}/players`, {
+        quiet: true,
+      })
+        .then((p) =>
+          setPlayers((prev) => ({
+            ...prev,
+            [id]: { status: "ok", payload: p },
+          })),
+        )
+        .catch((e: unknown) =>
           setPlayers((prev) => ({
             ...prev,
             [id]: {
-              drive: { id, name: "", nickname: null },
-              measured: { pdb_live_rows: null, onelibrary_rows: null },
-              ok: [],
-              blocked: [],
-              unknown: true,
+              status: "error",
+              message: e instanceof Error ? e.message : String(e),
             },
           })),
         );
@@ -173,29 +161,51 @@ export function PreflightTab() {
                   )}
                 </div>
               ))}
-              {(players[d.drive.id]?.blocked ?? []).map((p) => (
-                <div key={p.player.name} class="check bad">
-                  <Icon name="x" size={12} />
-                  <strong>{p.player.name}</strong>
-                  <span class="detail">can't read this drive — {p.reason}</span>
-                </div>
-              ))}
-              {(players[d.drive.id]?.ok ?? []).map((p) => (
-                <div key={p.name} class="check">
-                  <Icon name="disc" size={12} />
-                  <strong>{p.name}</strong>
-                  <span class="detail">reads this drive</span>
-                </div>
-              ))}
-              {players[d.drive.id] && players[d.drive.id]?.unknown && (
-                <div class="check">
-                  <Icon name="dot" size={12} />
-                  <strong>Player compat</strong>
-                  <span class="detail">
-                    unknown — run a full scan to measure dual-DB rows
-                  </span>
-                </div>
-              )}
+              {(() => {
+                const ps = players[d.drive.id];
+                if (ps?.status === "error")
+                  return (
+                    <div class="check warn">
+                      <Icon name="warn" size={12} />
+                      <strong>Player compat</strong>
+                      <span class="detail">
+                        unavailable: {ps.message} — close and reopen this card
+                        to retry
+                      </span>
+                    </div>
+                  );
+                if (ps?.status !== "ok") return null;
+                const p = ps.payload;
+                return (
+                  <>
+                    {p.blocked.map((b) => (
+                      <div key={b.player.name} class="check bad">
+                        <Icon name="x" size={12} />
+                        <strong>{b.player.name}</strong>
+                        <span class="detail">
+                          can't read this drive — {b.reason}
+                        </span>
+                      </div>
+                    ))}
+                    {p.ok.map((p2) => (
+                      <div key={p2.name} class="check">
+                        <Icon name="disc" size={12} />
+                        <strong>{p2.name}</strong>
+                        <span class="detail">reads this drive</span>
+                      </div>
+                    ))}
+                    {p.unknown && (
+                      <div class="check">
+                        <Icon name="dot" size={12} />
+                        <strong>Player compat</strong>
+                        <span class="detail">
+                          unknown — run a full scan to measure dual-DB rows
+                        </span>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>

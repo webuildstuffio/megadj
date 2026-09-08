@@ -53,12 +53,13 @@ describe("async-only invariant for event-loop fs code", () => {
     // A sync walk would block this timer from firing; the async walker
     // lets a 0ms timer interleave between directory reads.
     const { walkTree } = await import("../src/walk");
-    const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+    const { mkdirSync, mkdtempSync, writeFileSync, rmSync } =
+      await import("node:fs");
     const dir = mkdtempSync("/tmp/cratedeck-walk-async-");
     try {
       for (let i = 0; i < 40; i++) {
         const sub = join(dir, `d${i}`);
-        require("node:fs").mkdirSync(sub);
+        mkdirSync(sub);
         for (let j = 0; j < 20; j++)
           writeFileSync(join(sub, `f${j}.m4a`), new Uint8Array(10));
       }

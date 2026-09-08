@@ -50,22 +50,30 @@ export interface TrackInput {
   comment?: string | null;
 }
 
+/** The enrichment/analysis stages, in pipeline order. Single source of
+ *  truth: PipelineOptions.only, the CLI --stage parser, and the
+ *  megadj-side re-exports all derive from this array (adding a stage
+ *  updates every consumer by construction, not by memory). */
+export const STAGES = [
+  "tags",
+  "genre",
+  "art",
+  "year",
+  "energy",
+  "fingerprint",
+  "bpm",
+  "key",
+  "mood",
+] as const;
+
+export type Stage = (typeof STAGES)[number];
+
 export interface PipelineOptions {
   /** Where the AI cover queue appends when every online source misses. */
   archiveDir?: string;
   artworkQueue?: string | null;
   /** Stages to run (default: all). */
-  only?: Array<
-    | "tags"
-    | "genre"
-    | "art"
-    | "year"
-    | "energy"
-    | "fingerprint"
-    | "bpm"
-    | "key"
-    | "mood"
-  >;
+  only?: Stage[];
   jobs?: number;
   dryRun?: boolean;
   /** Re-embed existing SC art at original resolution. */
@@ -96,8 +104,7 @@ export async function enrichTrack(
 ): Promise<TrackResult> {
   const notes: string[] = [];
   let artWritten = false;
-  const want = (s: NonNullable<PipelineOptions["only"]>[number]) =>
-    !opts.only || opts.only.includes(s);
+  const want = (s: Stage) => !opts.only || opts.only.includes(s);
   const truth = groundTruth(t.path);
   const genreOk = !!truth.genre && truth.genre !== "Music";
   const patch: TagPatch = {};

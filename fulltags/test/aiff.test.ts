@@ -73,8 +73,10 @@ describe("AIFF tag pipeline (rekordbox covers)", () => {
       expect(chunks).toContain("ID3 "); // art + tags still there
 
       const probe =
-        await $`ffprobe -v error -show_entries format_tags=title,artist,album,genre,date -of json ${AIFF}`.json();
-      const tags = (probe.format as { tags: Record<string, string> }).tags;
+        (await $`ffprobe -v error -show_entries format_tags=title,artist,album,genre,date -of json ${AIFF}`.json()) as {
+          format?: { tags?: Record<string, string> };
+        };
+      const tags = probe.format?.tags ?? {};
       expect(tags.title).toBe("Song (Remixer Remix)");
       expect(tags.artist).toBe("Test Artist");
       expect(tags.album).toContain("Remixes");

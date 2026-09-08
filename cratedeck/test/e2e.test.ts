@@ -9,9 +9,15 @@ const FIX_DRIVE = `${FIX_ROOT}/vol/DJTESTCRATE`;
 const DATA = `${FIX_ROOT}/data`;
 let PORT = 7800 + Math.floor(Math.random() * 100);
 
-let serverProc: Bun.Subprocess;
+let serverProc: Bun.Subprocess<"ignore", "pipe", "pipe">;
+let serverStdout = "";
+let serverStderr = "";
 
-async function api(path: string, init?: RequestInit) {
+/** GET one /api route; body typed at the call site (null = non-JSON body). */
+async function api<T = unknown>(
+  path: string,
+  init?: RequestInit,
+): Promise<{ status: number; body: T | null }> {
   const res = await fetch(`http://127.0.0.1:${PORT}/api${path}`, init);
   return { status: res.status, body: await res.json().catch(() => null) };
 }
@@ -36,16 +42,50 @@ beforeAll(async () => {
       CRATEDECK_ROOT: join(import.meta.dir, ".."),
       CRATEDECK_VOLUMES: FIX_ROOT + "/vol",
     },
+    stdin: "ignore",
     stdout: "pipe",
     stderr: "pipe",
   });
-  // wait for boot
+  // Drain the pipes: a pipe buffer that fills (64 KB) blocks the server
+  // mid-boot and looks exactly like a hang.
+  void (async () => {
+    const dec = new TextDecoder();
+    const reader =
+      serverProc.stdout.getReader() as ReadableStreamDefaultReader<Uint8Array>;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      serverStdout += dec.decode(value, { stream: true });
+    }
+  })().catch(() => {});
+  void (async () => {
+    const dec = new TextDecoder();
+    const reader =
+      serverProc.stderr.getReader() as ReadableStreamDefaultReader<Uint8Array>;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      serverStderr += dec.decode(value, { stream: true });
+    }
+  })().catch(() => {});
+  // wait for boot; on failure surface the server's own output so the
+  // root cause is in the test log (was: silent 5s loop → ConnectionRefused)
+  let up = false;
   for (let i = 0; i < 50; i++) {
+    if (serverProc.exitCode !== null) break; // died mid-boot
     try {
       const r = await fetch(`http://127.0.0.1:${PORT}/api/interlock`);
-      if (r.ok) break;
+      if (r.ok) {
+        up = true;
+        break;
+      }
     } catch {}
     await new Promise((r) => setTimeout(r, 100));
+  }
+  if (!up) {
+    throw new Error(
+      `e2e server failed to boot on :${PORT} (exit ${serverProc.exitCode})\n--- stdout ---\n${serverStdout}\n--- stderr ---\n${serverStderr}`,
+    );
   }
 }, 30_000);
 
@@ -58,13 +98,15 @@ import { join } from "node:path";
 
 describe("cratedeck e2e", () => {
   it("interlock endpoint responds", async () => {
-    const { status, body } = await api("/interlock");
+    const { status, body } = await api<{ rekordbox_running: unknown }>(
+      "/interlock",
+    );
     expect(status).toBe(200);
-    expect(typeof body.rekordbox_running).toBe("boolean");
+    expect(typeof body?.rekordbox_running).toBe("boolean");
   });
 
   it("lists drives (fixture ghost from prior state or empty)", async () => {
-    const { status, body } = await api("/drives");
+    const { status, body } = await api<unknown[]>("/drives");
     expect(status).toBe(200);
     expect(Array.isArray(body)).toBe(true);
   });

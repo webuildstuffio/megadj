@@ -128,12 +128,9 @@ describe("enrichTrack (offline stages)", () => {
         { path: p, title: "Song (Someone Remix)" },
         { only: ["tags"], artworkQueue: null },
       );
-      const withTags = await import("../src/pipeline").then((m) =>
-        (m as any).readTxxx ? (m as any).readTxxx(p, ["version"]) : null,
-      );
-      void withTags; // readers don't export it — assert via CLI-level TXXX probe instead
       // Now the scoped run on a fresh file: fingerprint-only must NOT write
-      // the remix credit (TXXX:version stays absent).
+      // the remix credit (TXXX:version stays absent). Asserted via a
+      // mutagen probe — the pipeline's readTxxx is module-private.
       const p2 = `${DIR}/remix-scope2.mp3`;
       await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p2}`.quiet();
       await enrichTrack(
@@ -159,7 +156,7 @@ import json; print(json.dumps(found))`,
       const found = JSON.parse(
         new TextDecoder().decode(probe.stdout).trim().split("\n").at(-1) ??
           "[]",
-      );
+      ) as unknown[];
       expect(found).toEqual([]);
     },
     { timeout: 90_000 },

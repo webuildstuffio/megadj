@@ -32,7 +32,9 @@ import {
 } from "./deckapi";
 import type {
   CoverageResponse,
+  FleetDiff,
   InterlockState,
+  PlayersPayload,
   RedundancyResult,
 } from "../shared/types";
 import type { PreflightReport } from "./preflight";
@@ -188,14 +190,8 @@ async function cmdPreflight(): Promise<void> {
   if (r.overall !== "ready") process.exit(1);
 }
 
-// ---- players (N75/N78): "which players will this stick actually work on?" ---
-interface PlayersPayload {
-  drive: { id: string; name: string; nickname: string | null };
-  measured: { pdb_live_rows: number | null; onelibrary_rows: number | null };
-  ok: { name: string }[];
-  blocked: { player: { name: string }; reason: string }[];
-  unknown: boolean;
-}
+// ---- players (N75/N78): "which players will this stick actually work on?"
+// (wire shape = shared/types.ts PlayersPayload, from the producer)
 
 async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
   // drive omitted → every known drive, the fleet answer
@@ -511,14 +507,7 @@ async function cmdDiff(a?: string, b?: string): Promise<void> {
   }
   const r = (await apiGet(
     `/api/fleet/diff?a=${encodeURIComponent(da.id)}&b=${encodeURIComponent(dbb.id)}`,
-  ).then((res) => res.json())) as {
-    a: string;
-    b: string;
-    summary: string;
-    added: { path: string; title: string | null; artist: string | null }[];
-    removed: { path: string; title: string | null; artist: string | null }[];
-    changed: { path: string; title: string | null }[];
-  };
+  ).then((res) => res.json())) as FleetDiff;
   if (JSON_MODE) {
     console.log(JSON.stringify(r, null, 2));
     return;
