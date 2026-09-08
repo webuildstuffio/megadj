@@ -142,8 +142,10 @@ settings(key TEXT PK, value_json TEXT)
 ```
 
 Design choices: ghost rendering reads `drives.last_snapshot_json` (one row,
-no join); full snapshot history is for the timeline, pruned to keep the DB
-tiny; jobs double as verification history (`result_json` holds the verdict —
+no join); full snapshot history is for the timeline — kept as a
+**20-per-drive rolling window** (`db.ts` `pruneSnapshots`, with events
+capped at 2000/drive) to bound disk burn; jobs double as verification
+history (`result_json` holds the verdict —
 no separate verifications table). Checksum = `Bun.CryptoHasher` blake2b256,
 zero deps.
 

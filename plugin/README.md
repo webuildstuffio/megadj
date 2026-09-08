@@ -11,7 +11,7 @@ megadj operator toolkit without repo-local setup.
 | Skills | `skills/cratedeck-deckctl` | Drive health, scans/verifies, gig readiness via `deckctl` |
 | | `skills/rekordbox-usb-sync` | The USB sync pipeline + safety rules |
 | | `skills/new-music-intake` | `megadj ingest` usage: tagging, art, dedupe |
-| MCP | `.mcp.json` → `cratedeck` | 17 tools: drive health, fleet, preflight, players, archive reads, `deck_note` |
+| MCP | `.mcp.json` → `cratedeck` | 21 tools: drive health, fleet, preflight, players, notes, archive reads (incl. grid cross-check + mood profile), `deck_note` |
 | Hook | `hooks/hooks.json` | SessionStart: drives + interlock status in context (async, 15s timeout) |
 
 ## Install (development, from this repo)
@@ -28,7 +28,7 @@ Or install into any session:
 
 ## Requirements
 
-- [megadj](https://github.com/nichm/megadj) cloned locally (`bun` installed)
+- [megadj](https://github.com/webuildstuffio/megadj) cloned locally (`bun` installed)
 - The MCP server + hook shell out to `bun run cratedeck/src/mcp.ts` /
   `deckctl` relative to `${CLAUDE_PROJECT_DIR}` — i.e. this repo must be the
   working project (a packaged release would vendor a built CLI instead; see

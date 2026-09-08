@@ -1,33 +1,24 @@
-# FullTags — Prioritized Roadmap (rev 6.1)
+# FullTags — Prioritized Roadmap (rev 6.2)
 
-_Rev 6.1, 2026-09-05 (late night): **#4 + #5 SHIPPED** — the Essentia
-ONNX mood/dance/valence suite runs on onnxruntime (`fulltags --mood` →
-`TXXX:MOOD`, energy 2.0 blend), and the MusicBrainz folksonomy harvest
-lands as `fulltags/src/mb.ts` with `megadj enrich` folded onto the one
-shared writer. Rev 6 (night): **#2 pivot SHIPPED** — the failed BPM gate
-resolved into the beats ledger: `megadj beats` writes beat_this grids to
-the archive DB (never tags), CrateDeck's `archive_grid_cross_check` gives
-the independent grid verdict, and the re-gate with the bar-grid tempo
-readout came in at 16/24 (67%) — still under the 80% gate, so TBPM writes
-stay blocked. Rev 5, 2026-09-05 (evening): **#1–#3 EXECUTED against the
-real archive** — the gates were run, not just built. Results: fingerprint
-ledger fully shipped (88/88, idempotent, one latent idempotency-killer
-bug found and fixed mid-execution); key gate **PASSED at 80.7%** on all
-88 tracks vs rekordbox-analyzed references (71 exact + 8 near + 9
-mismatch); BPM gate **FAILED at 12/24 within 2%** — beat_this's tempo
-output is phase-locked to ~2.2–2.6% offsets against rekordbox on half
-the sample, so **batch BPM
-writes are BLOCKED** until resolved (§2/#2). Rev 4 (same day): #1–#3
-shipped as pipeline stages. Rev 3 (same day): external claims re-verified
-against primary sources. Rev 2 (same day): fact-checked rev 1, stress-
-tested the shipped v0 code (found + fixed a 6.4× write-path regression)._
+_Rev 6.2, 2026-09-05/06 (pass 3). Revision history in one line each:
+rev 4 shipped #1–#3 as pipeline stages; rev 5 executed the gates on the
+real archive (fingerprints DONE 88/88, key gate PASSED 80.7%, BPM gate
+FAILED 12/24 — TBPM writes blocked); rev 6 pivoted #2 into the beats
+ledger (`megadj beats`) + CrateDeck grid cross-check (re-gate 16/24,
+still blocked); rev 6.1 shipped #4 mood/dance/valence ONNX + #5 MB
+harvest (energy 2.0, dup-writer deleted) and executed the mood pass —
+label order was INVERTED on first run, caught + fixed + regression-
+pinned; rev 6.2 added the mood CrateDeck surface + `megadj cues` phrase
+ledger (88/88, 1366 cues) + the audit gate requiring mood + energy.
+Rev 3 re-verified external claims; rev 2 fact-checked + found the 6.4×
+write-path regression._
 
 How to read: ranked by **value-per-effort** for a 3–10k track dance
 library on one Mac, offline-first. Effort: S <1d / M 1–3d / L >3d.
 ideas.md cap rule applies: something ships or leaves before something new
-enters. **Rev 5 opinionation rule: one recommendation per item, no
-"optionally could also" hedging. If an item has a gate, the gate result
-is stated with numbers, and the next action is a command you can run.**
+enters. **One recommendation per item, no "optionally could also" hedging.
+If an item has a gate, the gate result is stated with numbers, and the
+next action is a command you can run.**
 
 ## 0. What shipped (verified)
 
@@ -54,35 +45,26 @@ is stated with numbers, and the next action is a command you can run.**
   second opinion the verify pipeline's self-referential grid check
   couldn't give.
 - **Execution log (rev 5, real archive, 88 files):**
-  - `--fingerprint`: **88/88 stamped** in 24.5 s (jobs=8). Re-run: 0
-    changed. Second re-run: 0 changed. DONE — the content-identity
-    ledger exists now; ideas.md D24/D25/L62/L63 are unblocked.
-  - `--key` gate: `verify-key.ts --refs` over ALL 88 tracks vs RB
-    ScaleName: **80.7% exact — PASS** (71 match, 8 near = relative/
-    neighbor, 9 mismatch). 20-sample run was 90%. Gate margin is thin —
-    see §2/#3 for the write decision.
-  - `--bpm` gate: beat_this vs RB `Tempo` (x100 column), 24 tracks:
-    **12/24 within 2% — FAIL**. Failure mode is consistent: raw values
-    like 130.43 vs 127.66, 136.36 vs 133.33 — a locked ~2.2–2.6% offset,
-    i.e. beat_this picks a slightly different (valid) beat period; the
-    70–180 fold is NOT the culprit (raw values already sit in-window).
-  - Env established for real: openkeyscan-analyzer cloned to
-    `~/.local/share/openkeyscan-analyzer` (MPS, ~1.3 s ready, ~0.02 s
-    warm per track; 88 tracks ≈ 31 s end-to-end). RB reference keys +
-    BPM for all 88 archive tracks extracted from local `master.db` via
-    pyrekordbox 0.4.4 (`DjmdContent.FolderPath` join, `BPM` is x100).
+  - `--fingerprint`: **88/88 stamped** in 24.5 s (jobs=8); re-runs 0
+    changed. DONE — D24/D25/L62/L63 unblocked.
+  - `--key` gate vs RB ScaleName: **80.7% exact — PASS** (71 match,
+    8 near, 9 mismatch). Gate margin is thin — see §2/#3.
+  - `--bpm` gate vs RB `Tempo`: **12/24 within 2% — FAIL**; consistent
+    locked ~2.2–2.6% offset (130.43 vs 127.66 class); the 70–180 fold
+    is NOT the culprit.
+  - Env: openkeyscan-analyzer at `~/.local/share/openkeyscan-analyzer`
+    (MPS, 88 tracks ≈ 31 s end-to-end); RB reference keys + BPM
+    extracted from local `master.db` via pyrekordbox 0.4.4.
 - **Two latent bugs found BY executing, both fixed with regression
   tests** (`fulltags/test/pipeline.test.ts`):
-  1. `readTxxx`'s WAV/AIFF branches opened the file and read **nothing**
-     — every stamp probe (ACOUSTID/CAMELOT/ENERGY/AI-\*) returned null on
-     WAVs, so the "idempotent" fingerprint stage re-fingerprinted and
-     rewrote **73 archive WAVs on every re-run**, forever. Idempotency
-     was mp3/flac/m4a-only. One shared ID3-TXXX read loop now covers
-     WAV/AIFF/MP3.
-  2. Remix credit was written even on scoped runs (`--fingerprint` also
-     stamped `TXXX:version`). Stage-gated behind `want("tags")`.
-     **Lesson recorded:** idempotency claims must be tested per container
-     format, not per stage — "second run changes nothing" only ran on mp3.
+  1. `readTxxx`'s WAV/AIFF branches read **nothing** — stamp probes
+     returned null on WAVs, so the "idempotent" fingerprint stage
+     rewrote **73 archive WAVs on every re-run**. One shared ID3-TXXX
+     read loop now covers WAV/AIFF/MP3.
+  2. Remix credit was written even on scoped runs (`--fingerprint`
+     also stamped `TXXX:version`). Stage-gated behind `want("tags")`.
+     **Lesson:** idempotency claims must be tested per container
+     format, not per stage.
 
 ## 1. Fact-check corrections (vs rev 1)
 
@@ -187,45 +169,37 @@ lines, same pattern as the key server). Stage: `fulltags --mood` →
 party=…; valence=…; arousal=…` (idempotent by stamp presence).
 `fulltags ensure-models` pre-downloads the ~320 MB model set to
 `~/.local/share/fulltags-models` (CC BY-NC-SA — personal use).
-**Energy 2.0 shipped in the same pass:** when a MOOD stamp exists, the
-energy stage blends `0.5·RMS + 0.3·dance + 0.2·arousal` (all 0–10
-scaled) instead of raw RMS — verified 1.0 → 1.9 on a test tone,
-idempotent. Models absent → mood SKIPs with a note and energy falls
-back to pure RMS (old behavior preserved).
-**Genre head NOT shipped** — deliberately deferred to #5's vote fold
-(see below): Discogs-EffNet genre labels are 400-way and pop-trained;
-on a dance library they need label-mapping + verification before any
-write. Mood/dance/VA carry no such risk (new fields, no existing truth
-to clobber).
+**Energy 2.0 (same pass):** with a MOOD stamp, energy blends
+`0.5·RMS + 0.3·dance + 0.2·arousal` (0–10 scaled) instead of raw RMS
+— verified 1.0 → 1.9 on a test tone, idempotent. Models absent → mood
+SKIPs, energy falls back to pure RMS.
+**Genre head NOT shipped** — deliberately deferred (see the verdict
+below): Discogs-EffNet genre labels are 400-way and pop-trained; they
+need label-mapping + a sampled gate before any write. Mood/dance/VA
+carry no such risk (new fields, nothing to clobber).
 **Env gotchas (empirically probed, rev 6.1, label order CORRECTED in
 the second pass):** effnet wants essentia's
 `TensorflowInputMusiCNN` melspec in **128-frame chunks of 96 bands**
-(input name `melspectrogram`, output `embeddings`); the heads' positive
-class is **FIRST** in the softmax vector for every head except
-`mood_party` (label order from the .json: danceability
-`['danceable','not_danceable']`, mood_aggressive
-`['aggressive','not_aggressive']`, mood_happy `['happy','non_happy']`,
-mood_electronic `['electronic','non_electronic']`, mood_party
-`['non_party','party']`). **The first archive pass shipped with this
+(`melspectrogram` → `embeddings`); the heads' positive class is
+**FIRST** in the softmax vector for every head except `mood_party`
+(`['non_party','party']` — every other head is positive-first). **The
+first archive pass shipped with this
 INVERTED** (`act[-1]` read the negative → every track stamped
 dance=0.00 party=1.00) — caught because saturated-constant output is
 never believable; stamps stripped, re-run 88/88 sane, regression test
 pins the order. emomusic outputs **(valence, arousal) on a 1–9 scale**;
 vggish wants 400/200 frames → 96-frame patches transposed to (64, 96);
-ONNX batch dims are fixed-128 on the bsdynamic export (chunks padded
-with edge replicate). 9 regression tests in
-`fulltags/test/models.test.ts` (env-gated: full pipeline + idempotency
-
-- writer surface + label-order pin when models present, guard paths
-  otherwise).
+ONNX batch dims are fixed-128 on the bsdynamic export (edge-replicate
+padding). 9 regression tests in
+`fulltags/test/models.test.ts` (env-gated).
   **Archive verdict (rev 6.1, 88 files):** mood pass 88/88 stamped,
   converged idempotent (third run = 0 changed). Ledger mirror shipped:
   `megadj mood` syncs TXXX:MOOD stamps into the archive DB `mood` table
   (+ analyzes unstamped tracks inline) and exposes `moodSummary()` —
   88/88 ledgered, avg dance 1.0 / party 0.99 / V 4.34 / A 4.98.
-  **Electronic genre head GATE FAILED**: the head is saturated on this
-  library (0.87–1.0 across every genre incl. Ambient — zero
-  discrimination), so effnet genre writes stay BLOCKED (same pattern as
+  **Electronic genre head GATE FAILED**: saturated on this library
+  (0.87–1.0 across every genre incl. Ambient — zero discrimination),
+  so effnet genre writes stay BLOCKED (same pattern as
   the TBPM gate). dance/happy/aggressive DO differentiate (happy 0.04–
   0.99, aggressive 0.01–0.98).
   **Rev 6.2 addendum — genre head ONNX availability + CrateDeck
@@ -354,7 +328,7 @@ reader — ffmpeg's silent-drop behavior differs per muxer and nothing errors.
 And: **idempotency is per-format** — "second run changes nothing" must run
 on every container in the matrix, or it's not a claim, it's a wish.
 
-## 7. Shipped: #1–#3 implementation notes (rev 4; execution notes rev 5)
+## 6. Shipped: #1–#3 implementation notes (rev 4; execution notes rev 5)
 
 What landed, and the env gotchas that cost real time (would have cost more
 without the smoke-tests-first loop):
@@ -412,7 +386,7 @@ Operational gates still standing: the rekordbox key gauntlet (disable
 Key analysis → Reload Tags) is the ONLY thing left for #3; the BPM
 re-gate (§2/#2 step 3) must pass before any TBPM reconsideration.
 
-## 6. Sequencing (rev 6.2, executed pass 3)
+## 7. Sequencing (rev 6.2, executed pass 3)
 
 ```
 done  ▸ #1 fingerprints (88/88) · #3 key gate PASSED + batch-written (88/88,

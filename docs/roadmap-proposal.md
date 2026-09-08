@@ -1,7 +1,8 @@
 # megadj — Future Roadmap Proposal
 
-_Proposal v2 · 2026-09-05 (v1 same day; revised for the MCP/⌘K drop +
-second external-claims re-verification) · after a full read of every doc in
+_Proposal v3 · 2026-09-06 (v2 same-day-before the rev 4–6.2 burst; v3
+reconciles Move 2 and sequencing with what actually shipped + the failed
+BPM/genre gates) · after a full read of every doc in
 the repo: [PRINCIPLES.md](PRINCIPLES.md) (the arbiter), [FEATURES.md](FEATURES.md),
 [ideas.md](ideas.md) (the parking lot), [fulltags-roadmap.md](fulltags-roadmap.md)
 (the model ladder), the CrateDeck doc set
@@ -17,7 +18,7 @@ wins on ordering; ideas.md wins on detail.
 
 ---
 
-## 1. Where we are (state of the union, 2026-09-05)
+## 1. Where we are (state of the union, 2026-09-06)
 
 The pipeline: **GetDat ─▶ FullTags ─▶ CrateDeck ─▶ the booth**. All three
 projects have shipped cores:
@@ -78,33 +79,33 @@ already ships.
 
 ### Move 2 — Complete the metadata (FullTags v1.x) · _why: P8, AI does the labour_
 
-The FullTags roadmap's P1 ladder is the highest payoff-per-risk sequence in
-the repo, re-confirmed by the 2026-09-05 model re-check. In order, with its
-verification gates:
+**Largely shipped (rev 4–6.2, Sep 5–6 2026) — gates executed against the
+real 88-track archive, not just built.** Where each landed:
 
-1. **Harmonic key** — OpenKeyScan's analyzer server (primary;
-   `keyfinder-cli` is _not_ in homebrew-core), Essentia `Key` as a
-   cross-check vote. Writes `TKEY` + `TXXX:CAMELOT` — fields the CDJ
-   hardware already displays. Gate: ≥80% agreement on 20 known-key tracks
-   before any batch run (Mixed In Key output on this library is the
-   reference).
-2. **Real BPM + downbeats** — `beat_this` (ISMIR 2024, MIT, CPU-friendly).
-   Feeds `TBPM` and anchors everything structural later. Gate: compare
-   against rekordbox's re-analyzed grids (the 294 fixed Sep 2026 are ground
-   truth); flag disagreements >2%.
-3. **Chromaprint fingerprint ledger** — one brew dep (`fpcalc`), stored in
-   the archive DB + `TXXX:ACOUSTID`. Unlocks four backlog items at once:
-   content-based dupe detection (D25), verified `megadj upgrade` swaps
-   (D24), smarter `adopt` (AcoustID lookup), mirror content audits (L63).
-4. **Essentia ONNX heads** — genre/mood/danceability/DEAM valence-arousal
-   under plain `onnxruntime` (works on macOS ARM64; the TF path is broken
-   on ARM, ONNX sidesteps it). Replaces hand-rolled RMS energy and the
-   LLM-only genre guess; valence-arousal plots as the CrateDeck vibe map.
+1. **Harmonic key — ✅ SHIPPED.** OpenKeyScan analyzer (repo mode,
+   stdin/stdout JSON) → `TKEY` + `TXXX:CAMELOT`, all 88 written. Gate:
+   **80.7% exact vs RB master.db** (71 exact + 8 near + 9 mismatch) —
+   PASS. Remaining: the RB gauntlet (disable Key analysis → Reload Tags
+   at next drive mount) so RB doesn't overwrite the imports.
+2. **Real BPM + downbeats — 🔶 pivoted.** beat_this TBPM writes are
+   **gate-BLOCKED** (12/24 then 16/24 within 2% vs RB — a consistent
+   ~2.2–2.6% beat-period lock). The valuable outputs shipped DB-side:
+   `megadj beats` ledger (beat/downbeat arrays, never tags) + CrateDeck's
+   independent `archive_grid_cross_check` verdicts.
+3. **Chromaprint fingerprint ledger — ✅ SHIPPED.** 88/88 stamped,
+   idempotent; consumers (D24 swap-verify, D25 dupe hunt, L63 mirror
+   sampling) now unblocked and open.
+4. **Essentia ONNX heads — ✅ mood shipped, genre blocked.** `--mood` →
+   `TXXX:MOOD` + energy 2.0 blend + `megadj mood` DB ledger + CrateDeck
+   mood profile. Genre head gate FAILED (saturated 0.87–1.0 on every
+   genre incl. Ambient) — writes stay blocked.
 5. **`megadj drop` (K61)** — the packaging win: drop a folder/URL → clean →
    analyze → tag → organize → stage for sync. Every component exists;
-   Quickie Music charges $4/mo for less. P3: _super easy_.
+   Quickie Music charges $4/mo for less. P3: _super easy_. **Still open.**
 
-**Why in this order:** each step is verifiable against ground truth the repo
+**What remains of Move 2:** the RB key gauntlet (operational, 30 s),
+`megadj drop`, vocal density, similarity embeddings. **Why the rest still
+earns its slot:** each step is verifiable against ground truth the repo
 already owns, each write goes through the one atomic writer (idempotent —
 re-running is safe), and the fields land where hardware actually reads them.
 
@@ -182,19 +183,22 @@ This is ideas.md's sequencing, made concrete. **§0 still gates it**: no
 commit of substance while the SSD evacuation (0a) is open.
 
 ```
-Weeks 1–2   §0 survival (0a–0d) + B9 global search        [Move 1 starts]
-Weeks 3–5   FullTags: key → BPM (gates: 20-key, 294-grid)  [Move 2 starts]
-Weeks 5–7   fingerprints + megadj upgrade (D24+L62 fused)
-Weeks 6–9   CrateDeck: preflight+firmware notes (B12+N76),
-            players.toml verdict (N75/77/78)               [Move 1 completes]
-Weeks 8–10  C18a runbook → C21 differential mirror → C22
-Weeks 10–13 O82b archive MCP → O83 weekly agent  [Move 3;
-            O82b shipped (archive_* tools, incl. grid + mood reads);
-            O83 shipped as `deckctl prep`; O86 rails + CrateDeck MCP live]
+done  ▸ FullTags ladder: key (80.7% gate PASS, 88/88 written) ·
+        fingerprints (88/88) · mood + energy 2.0 + MB harvest ·
+        beats/mood/cues DB ledgers (BPM/genre writes gate-blocked) ·
+        O82b archive MCP · O83 deckctl prep · O86 rails + O85 plugin
+now   ▸ the RB key gauntlet at next DJLIBRARYM mount — 30 s, do it FIRST
+        (disable Key analysis, reload tags, verify TKEY survives)
+Weeks 1–2   §0 survival (0a–0d) + the RB gauntlet above
+Weeks 2–5   Move 1 finishers: C18a runbook → C21 differential mirror →
+            C22 one-click sync; B13 sparklines, B14 loan tracking
+Weeks 5–7   Move 2 finishers: megadj drop (K61) · D24+D25 over the
+            fingerprint ledger · vocal density (demucs-mlx)
+Weeks 6–8   I46 full slice: all-in-one-infer segments → memory cues;
+            similarity (88-fp ledger as the sqlite-vec pilot)
 Rolling     S-effort palate cleansers: M69 format cmd, M70
             litter clean, M71 port-speed badge, M74 exporter
-Later       Essentia heads → I46 cues (sliced: auto-cues
-            first) → K57/K58 sources → K59 mining → `megadj drop`
+Later       K57/K58 sources → K59 mining; O84 inbox agent
 ```
 
 **The reality gate still decides depth:** at monthly+ gig cadence, Moves 1–3
@@ -238,8 +242,8 @@ running, freeze the rest.
 | Metric                                    | Target                                                  | Measured by                               |
 | ----------------------------------------- | ------------------------------------------------------- | ----------------------------------------- |
 | Gig-day answer time ("is this stick ok?") | < 60 s, one click                                       | preflight (B12) latency                   |
-| Metadata completeness                     | 100% art/title/artist/album/genre/year, now + key + BPM | `megadj audit` / `fulltags audit` exits 0 |
-| Key/BPM accuracy vs ground truth          | ≥80% key agreement; >98% grid agreement                 | spot-check harnesses from Move 2          |
+| Metadata completeness                     | 100% art/title/artist/album/genre/year + key + mood + energy; beats/cues DB-side | `megadj audit` / `fulltags audit` exits 0 |
+| Key/BPM accuracy vs ground truth          | key ≥80% (measured 80.7% ✅); BPM writes stay blocked until the re-gate passes | spot-check harnesses (verify-key.ts, grid cross-check) |
 | Mirror cost                               | weekly mirror in minutes, not hours                     | C21 differential run timing               |
 | Hands-off reliability                     | weekly agent digest, zero manual triggers               | O83 run log                               |
 | Redundancy                                | every gig playlist ≥ 2 drives or explicitly accepted    | B7 redundancy verdicts                    |

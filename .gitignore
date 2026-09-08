@@ -1,5 +1,7 @@
 node_modules/
 dist/
+*.tsbuildinfo
+node_modules/.cache/
 *.db
 *.db-wal
 *.db-shm

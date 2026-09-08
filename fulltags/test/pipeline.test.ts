@@ -64,14 +64,21 @@ describe("enrichTrack (offline stages)", () => {
   test("hints fill only missing fields (no network)", async () => {
     const p = `${DIR}/hinted.mp3`;
     await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p}`.quiet();
-    // tags stage with hints but MB lookup suppressed: pass an impossible
-    // artist so mbLookupCached misses; hints must still land. Use only
-    // ["tags"] so no SC/AI stages fire.
+    // tags stage with hints covering EVERY missing field (title, artist,
+    // AND album): full-hint coverage is what suppresses the MusicBrainz
+    // lookup (see enrichTrack's `hinted` gate). Regression: with album
+    // unhinted this test used to fire a real MB fetch (8s timeout) inside
+    // bun's 5s default — a network test masquerading as an offline one.
+    // Use only ["tags"] so no SC/AI stages fire.
     const res = await enrichTrack(
       { path: p, title: "Hint Song", artist: "Hint Artist" },
       {
         only: ["tags"],
-        hints: { title: "Hint Song", artist: "Hint Artist" },
+        hints: {
+          title: "Hint Song",
+          artist: "Hint Artist",
+          album: "Hint Album",
+        },
         artworkQueue: null,
       },
     );

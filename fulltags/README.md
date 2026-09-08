@@ -68,9 +68,10 @@ fulltags/
     remix.ts             `X - Y (Z Remix)` detection
     pipeline.ts          enrichTrack / enrichAll — the orchestrator
     exports.ts           public import surface
-  test/                  94 tests (schema, writer round-trips, pipeline,
-                         m4a/AIFF stamps, audit gate, CLI subcommands,
-                         analysis + mood stages + label-order pin — env-gated)
+  test/                  98 tests across 12 files (schema, writer round-trips,
+                         pipeline, m4a/AIFF stamps, audit gate, CLI
+                         subcommands, analysis + mood stages + label-order
+                         pin — env-gated)
 ```
 
 ## The ladders (first success wins)
@@ -120,7 +121,10 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
   buffered-to-end; uv `--with-requirements` ≠ the same pins spelled as
   `--with` flags (the latter hung). Mood stage: effnet wants essentia
   `TensorflowInputMusiCNN` melspec in **128-frame chunks** (fixed batch on
-  the ONNX export); head label order is `[not_X, X]` (positive = LAST);
+  the ONNX export); head label order is **positive FIRST for every head
+  except mood_party** (`['non_party', 'party']` — the first archive pass
+  shipped inverted and was caught by saturated output; pinned by a
+  regression test);
   emomusic reads **(valence, arousal) on a 1–9 scale**; vggish wants
   400/200 frames → 96-frame patches transposed to (64, 96).
 

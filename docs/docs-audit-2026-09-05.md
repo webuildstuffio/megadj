@@ -106,3 +106,73 @@ diff|jobs|cancel|stop|explain|preflight|players|prep` — guide matches.
 - fulltags-roadmap rev 6.2 claims spot-checked against CHANGELOG entries
   (same-day, rev-by-rev consistent) and `src/commands/{beats,mood,cues}.ts`.
 - No stale "19 tools" strings remain anywhere (`rg` verified).
+
+## Findings — pass 4 (2026-09-07, full re-audit + branch review)
+
+Full pass over every markdown in the repo (docs/, docs/cratedeck/,
+fulltags/, cratedeck/, plugin/, root README, AGENTS.md) against the code,
+plus a branch-review audit of the shipped window `15accb0^..fac7f0e`.
+
+| #   | Severity | File                     | Issue                                                                                                     | Fix                                        |
+| --- | -------- | ------------------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| 31  | HIGH     | `fulltags/README.md`     | Mood label order claimed `[not_X, X]` (positive LAST) — the code (and rev 6.1's own hotfix) says positive FIRST except mood_party; the stale line described the exact bug that was fixed | Corrected to the pinned reality            |
+| 32  | HIGH     | `fulltags/src/models.ts` | Header comment carried the same inverted `[not_X, X]` claim (the in-function comment was right)            | Header fixed; `analyze()` comment is SSOT  |
+| 33  | HIGH     | `plugin/README.md`       | MCP table said "17 tools" (never true: 19 → 21 at ship); requirements linked `nichm/megadj`, which does not exist | 21 tools; link → `webuildstuffio/megadj`   |
+| 34  | MED      | `cratedeck/README.md`    | Surface list pre-dated preflight/players/prep; docs line missing acceptance + deckctl guide                | "Beyond the core" paragraph + links added  |
+| 35  | MED      | `fulltags/README.md` + `AGENTS.md` | "94 tests" / "56 tests" — the suite is 98 across 12 files (env-gated count shifts runs)          | Both set to 98-across-12 (verified)        |
+| 36  | MED      | `docs/cratedeck/03-architecture.md` §5 | "full snapshot history … pruned" implied wholesale retention; code keeps a 20/drive rolling window (events 2000) | Reworded to the real pruning contract      |
+| 37  | LOW      | `docs/cratedeck/01-product-brief.md` | Status still "Draft v1 · 2026-09-03" though the product shipped and went far past the brief        | Status line + shipped-since note added     |
+
+## Verified clean (pass 4)
+
+- `docs/roadmap-proposal.md`, `docs/ideas.md`, `AGENTS.md`, `FEATURES.md`,
+  `deckctl.md`, `acceptance.md`: pass-3 fixes all still accurate (21-tool
+  census re-checked against `mcp.ts`; deckctl verbs; CLI commands).
+- GitHub issues #1–#5 (§0) match `ideas.md` §0 wording; #4 already carries
+  its shipped-2026-09-04 note.
+- CLAUDE.md ↔ AGENTS.md symlink intact; docs-audit file is the audit SSOT;
+  no `C12` (typo-class) references anywhere; no stale "19 tools"/"17
+  tools" strings.
+- Branch review of `15accb0^..fac7f0e` (23 commits): no deleted files, no
+  lost features; enrich's `GenreResolver`/`TagWriter` seams preserved as
+  claimed; beats/mood/cues all wired in `src/cli.ts`; MCP mutating tools
+  flagged + interlock-guarded with server-side TOCTOU re-check; archive DB
+  migrations additive (`CREATE TABLE IF NOT EXISTS` + column backfill).
+- External links in README/docs resolve (repo-relative ones verified on
+  disk; `webuildstuffio/megadj` exists on GitHub).
+
+## Findings — pass 5 (2026-09-07 evening, verification + conciseness)
+
+Independent /super-sure re-verification of passes 1–4 plus the original
+ask's conciseness target (−5% tracked-doc lines, redundancy-only).
+
+| #   | Severity | File                     | Issue                                                                                                    | Fix                                                     |
+| --- | -------- | ------------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| 38  | HIGH     | `fulltags-roadmap.md`    | §7 (impl notes) preceded §6 (sequencing) — order broken by rev-6.2 inserts                                | Renumbered (§6 impl notes, §7 sequencing)               |
+| 39  | HIGH     | `ideas.md` I46           | Sub-bullets collapsed onto one line (same paste class as pass-1 #5)                                      | List breaks restored; shipped-status line added         |
+| 40  | MED      | `ideas.md` I45/I49/I51/I46/L62, Phase 3 | AI-section claims pre-dated rev 5–6.2 execution (keys/mood/fingerprints all shipped — gates now measured) | Shipped-status stamps with gate numbers                 |
+| 41  | MED      | `roadmap-proposal.md`    | Move 2 + week-by-week sequencing + success metrics still described key/BPM/fingerprints/mood as future work; "key + BPM" completeness metric unreachable (BPM gate failed) | v3: Move 2 rewritten as shipped/pivoted/blocked per gate; sequencing + metrics reconciled to rev 6.2 |
+| 42  | MED      | `ideas.md` B12           | N76 shipped-note duplicated (same fact stated twice in one item)                                         | Deduped                                                  |
+| 43  | MED      | `ideas.md` Phase 3       | "C12 differential mirror" — typo for C21                                                                | Fixed                                                    |
+| 44  | MED      | `FEATURES.md`            | "gateaway" typo                                                                                          | Fixed                                                    |
+| 45  | LOW      | `ideas.md` §0 intro      | "§0 blocks §A–§L" — sections run to §O                                                                  | Range fixed                                              |
+| 46  | LOW      | `ideas.md` §J note       | Cited "rev 2" of the FullTags roadmap inside a rev-6.2 world                                            | Updated to rev 6.2 state                                 |
+| 47  | LOW      | `roadmap-proposal.md`    | Date stamps said 2026-09-05/v2 while the body carried pass-3 content                                     | v3 · 2026-09-06 stamps                                                   |
+| 48  | LOW      | `ideas.md` O82           | Full tool-census prose duplicated deckctl.md §MCP verbatim                                              | Compressed; census link added                                            |
+
+## Applied (pass 5)
+
+All HIGH + MED fixed. Conciseness trims applied to redundancy only
+(fulltags-roadmap revision-log compression, ideas.md verbosity in
+C18/M-section/O82, execution-log bullets) — every fact preserved.
+§0's "missing input" bullet became item 0e (it was already issue #5).
+Post-fix link check: all relative links in tracked docs resolve.
+
+## Verified clean (pass 5)
+
+- MCP census re-counted directly in `mcp.ts`: 21 tools (14 deck + 7
+  archive) — matches every claim.
+- `cratedeck/src/` = 27 TS files; deckctl verb set matches the guide;
+  `src/cli.ts` census (beats/mood/cues/years/doctor/init) matches docs.
+- GitHub issues #1–#5 for §0 exist and are open.
+- fulltags test count (98 across 12 files) consistent post pass-4 fix.

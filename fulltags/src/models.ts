@@ -15,7 +15,8 @@
  *   vggish:  TensorflowInputVGGish — FrameGenerator(400, 200) → (N, 64) bands
  *            → patches of 96 frames → (c, 64, 96) via transpose → output
  *            "embeddings" (c, 128) → time-mean
- *   heads:   dance/mood = [not_X, X] softmax (label order from the .json!),
+ *   heads:   dance/mood = softmax — label order from the .json (positive
+ *            FIRST for every head except mood_party; see analyze()),
  *            emomusic = (valence, arousal) on a 1–9 scale (DEAM convention)
  *
  * Idempotency: TXXX:MOOD / TXXX:DANCE stamps (same pattern as ENERGY).

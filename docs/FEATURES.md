@@ -48,7 +48,7 @@ the remix's, not the original's.
    100% of tracks, verified by reading files (never trusting the DB).
 2. **Source-correct metadata** — a SoundCloud remix gets the SoundCloud
    artwork, the remix year (from the upload page's `display_date`, not a
-   guessed "2023"), the SoundCloud genre tags. A hypeddit gateaway track gets
+   guessed "2023"), the SoundCloud genre tags. A hypeddit gateway track gets
    gateway art. The source it came from is the first source of truth.
 3. **Highest quality, always** — the art ladder escalates: SoundCloud page
    art at original resolution → hypeddit/hyperfollow gateways → mp3-twin →
