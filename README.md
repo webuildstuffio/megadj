@@ -34,7 +34,7 @@ megadj sync          # bring in everything new since last time
 megadj sync --limit 50 --dry-run   # peek before you commit
 ```
 
-### 🏷️ FullTags — a library you'd actually show people
+### 🏷️ FullTags — a library you'd show people
 
 Nothing kills the vibe like "Unknown Artist", a 20-year-old's release year
 on a track that dropped last month, or a generic cover on a remix you love.
@@ -204,9 +204,6 @@ MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
   (all learnings & findings from the Sep 5–7 build window) ·
   [docs/product-state-2026-09-07.md](docs/product-state-2026-09-07.md)
   (product & roadmap state, re-scored)
-- **Records:** [docs/docs-audit-2026-09-05.md](docs/docs-audit-2026-09-05.md)
-  (docs audit log — the current record; `usb-sync-log.md` is local-only,
-  gitignored)
 - **Runbooks:** [rekordbox-usb-sync](.claude/skills/rekordbox-usb-sync/SKILL.md),
   [new-music-intake](.claude/skills/new-music-intake/SKILL.md),
   [cratedeck-deckctl](.claude/skills/cratedeck-deckctl/SKILL.md)

@@ -14,13 +14,14 @@ v2 · 2026-09-03 · [Brief](01-product-brief.md) · [PRD](02-prd.md) → **Archi
 
 **One Bun process, one Python seam, one page.**
 
-_Note (2026-09-06 audit): the server has grown to 27 TS files in `src/`
-(`report.ts`, `images.ts`, `fleet.ts`, `fleet-db.ts`, `deckctl.ts`,
-`auto_schedule.ts`, `verify_help.ts`, `walk.ts`, `badges_view.ts`,
-`players.ts`, `preflight.ts`, `notes.ts`, `archive.ts`, `weekly_prep.ts`,
-`mcp.ts`, `deckapi.ts`; `fmt.ts` lives in shared; `python/usb_tree.py`
-added); the single-seam,
-guard, and downward-dependency rules are unchanged and still hold._
+_Note (2026-09-08 census): the server is now **34 TS files** in `src/` —
+the original ten below plus the health/fleet/agent layers (`report`,
+`images`, `fleet`+`fleet-db`, `deckctl`+`deckctl_{notes,report,search}`,
+`deckapi`, `auto_schedule`, `verify_help`, `walk`, `badges_view`,
+`players`, `preflight`, `notes`, `archive`+`archive_{sweep,tools}`,
+`weekly_prep`, `mcp`+`mcp_params`, `db_ledger`), plus
+`python/usb_tree.py`. The single-seam, guard, and downward-dependency
+rules are unchanged and still hold._
 
 ```
 cratedeck/
@@ -63,16 +64,13 @@ src/
   guard.ts      THE write allow-list — every disk write goes through it
 ```
 
-_Added since (same dependency rules): `report.ts` (health/SSOT verdicts),
-`images.ts` (photo providers), `fleet.ts` + `fleet-db.ts` (§B6–B8 engine +
-persistence), `deckctl.ts` (agent CLI), `auto_schedule.ts` (§B17 mount-scan
-/ weekly-verify intent — pure, never runs anything), `verify_help.ts`
-(verify-doc SSOT for server + deckctl), `walk.ts` (one shared fs walker),
-`badges_view.ts` (badge presentation), `deckapi.ts` (shared HTTP client for
-deckctl + MCP), `players.ts` (N75/N78 hardware-compat matrix),
-`preflight.ts` (B12 gig-night gate, pure), `notes.ts` (O88 agent-note
-validation), `archive.ts` (O82b readonly archive-DB reads),
-`weekly_prep.ts` (O83 digest renderer), `mcp.ts` (the MCP tool layer)._
+_The added files follow the same dependency rules: pure engines
+(`report`, `fleet`, `preflight`, `players`, `verify_report`,
+`verify_help`), persistence (`fleet-db`, `db_ledger`), the agent/CLI
+spokes (`deckctl*`, `deckapi`, `mcp*`, `notes`, `archive*`,
+`weekly_prep`), and shared infra (`walk`, `badges_view`, `images`,
+`auto_schedule`, `archive_sweep`). Every capability they add is
+registered in `docs/surface-parity.md` §4._
 
 Dependency direction is strictly downward: `index → {api-ish files} →
 domain files → db/guard`. `rb.ts` is the only file allowed to spawn
@@ -128,7 +126,7 @@ events(id TEXT PK, drive_id TEXT, at INT, kind TEXT, data_json TEXT)
        -- mounted/unmounted(dirty?), port, scan, job-done, rename, photo...
 
 snapshots(drive_id TEXT, taken_at INT, kind TEXT, data_json TEXT,
-          PRIMARY KEY(drive_id, taken_at))    -- pruned to first/last/pre-verify
+          PRIMARY KEY(drive_id, taken_at))    -- 20/drive rolling window (disk-burn guard)
 
 benchmarks(drive_id TEXT, ran_at INT, seq_mbps REAL, rand4k_mbps REAL)
 ledger(drive_id TEXT, path TEXT, size INT, mtime INT, hash TEXT, last_ok INT,
@@ -142,7 +140,7 @@ settings(key TEXT PK, value_json TEXT)
 ```
 
 Design choices: ghost rendering reads `drives.last_snapshot_json` (one row,
-no join); full snapshot history is for the timeline — kept as a
+no join); full snapshot history is kept as a
 **20-per-drive rolling window** (`db.ts` `pruneSnapshots`, with events
 capped at 2000/drive) to bound disk burn; jobs double as verification
 history (`result_json` holds the verdict —
@@ -163,6 +161,10 @@ GET  /search?q=                  cross-drive (ghosts included)
 GET  /images/search?q=           provider proxy
 GET  /events                     SSE: mounts, job progress, interlock
 ```
+
+_The full live route surface (fleet, preflight, archive, notes, sweep,
+parity-era additions) is catalogued in `docs/surface-parity.md`; this
+list is the original core shape._
 
 Job dedupe: one queued/running job per (drive, kind).
 

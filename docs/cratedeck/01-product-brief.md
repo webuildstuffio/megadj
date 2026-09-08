@@ -5,7 +5,7 @@
 Status: ✅ SHIPPED (v0.1, 2026-09-04) — this v1 brief is fully implemented
 and has since grown the fleet layer (coverage/redundancy/diff), ⌘K search,
 B12 preflight, the N75/N78 player-compat verdict, automation, and the
-21-tool agent surface. Living status:
+25-tool agent surface. Living status:
 [acceptance.md](acceptance.md) · evidence:
 [../ideas.md](../ideas.md) §B/§O.
 Companion docs: [02-prd.md](02-prd.md) · [03-architecture.md](03-architecture.md) · [04-build-plan.md](04-build-plan.md)
@@ -65,30 +65,21 @@ borrows a stick and needs to know what's on it in 5 seconds.
 
 ## 5. What it does (the 10x version)
 
-1. **Drive registry with faces.** Every drive ever seen is persisted locally
-   (SQLite) with: name, nickname, photo (product image), capacity, model,
-   serial/UUID, first/last seen, total plugging sessions. Unplugged drives
-   render as dimmed "ghost" cards — invisible state made visible again.
-2. **Photo identification.** Type "SanDisk Ultra 128GB", CrateDeck searches
-   product images (Brave/Exa — whichever API key is configured), shows a
-   click-to-confirm grid, stores the chosen image next to the drive forever.
-   Manual upload/paste works with zero API keys.
-3. **Full rekordbox introspection per drive** (when mounted): tracks,
-   playlists + entry counts, % of tracks with beatgrids/waveforms, ANLZ
-   coverage at hash-computed paths, OneLibrary + legacy export.pdb row
-   counts, DB freshness, export age.
-4. **Sync & verification, one click.** Master ⇄ mirror diff, deep verify
-   (the existing 10x gate), mirror run — all surfaced as jobs with live
-   progress. **Safety interlock: if rekordbox is running, every write action
-   is visibly disabled with the reason.**
-5. **Health & corruption.** Space usage (treemap by folder), file counts,
-   read benchmark with history, checksum ledger that detects bitrot between
-   visits, optional SMART status, FAT32 consistency check (read-only) with
-   plain-language verdict.
-6. **History & timeline.** Every plug/unplug, sync, verify, benchmark, and
-   name change is an event. Per-drive timeline + "last known good" stamp.
-7. **Port map.** Which physical port each drive is in right now (macOS USB
-   device tree), with human labels ("MBP left rear") and per-port history.
+1. **Drive registry with faces** — every drive ever seen persists in
+   SQLite (name, photo, capacity, serial/UUID, first/last seen, plug
+   sessions); unplugged drives render as dimmed **ghost** cards.
+2. **Photo identification** — product image search (Brave/Exa) with
+   click-to-confirm; manual upload works with zero API keys.
+3. **Full rekordbox introspection** — tracks, playlists, grid/waveform
+   coverage, ANLZ-at-hash-path, OneLibrary vs legacy pdb row counts.
+4. **Sync & verify, one click** — jobs with live progress under the
+   **rekordbox interlock** (app running → everything visibly locked).
+5. **Health & corruption** — space treemap, benchmark history, checksum
+   bitrot ledger, optional SMART, FAT32 sanity.
+6. **History & timeline** — every plug/unplug/job/rename is an event.
+7. **Port map** — labeled physical ports ("MBP left rear") with history.
+
+Feature specs: [02-prd.md](02-prd.md).
 
 ## 6. What makes it 10x (differentiators)
 

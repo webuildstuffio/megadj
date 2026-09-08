@@ -89,48 +89,33 @@ fixture server + Chrome DevTools Protocol DOM checks; screenshots reviewed.
   feed the readiness badge. Max one auto-verify attempt per drive per
   sweep; interlock applies as to every job.
 
-## Agent surface (shipped 2026-09-05)
+## Agent + gig-night surface (shipped 2026-09-05–07)
 
 - **MCP server** — `src/mcp.ts`: stdio JSON-RPC exposing deckctl's surface
-  — **25 tools** (`deck_status/drives/report/coverage/redundancy/diff/
-jobs/run/cancel/explain` + `deck_preflight` (B12), `deck_players` (N78),
-  `deck_note`/`deck_notes` (O88), `deck_rename` (rev 3 parity), and the
-  O82b archive half:
-  `archive_search_tracks/track_stats/ingest_status/lowq_queue/
-source_diff/grid_cross_check/mood_profile/sweep`); readonly tools carry
+  — **25 tools** (17 `deck_*`: status/drives/report/coverage/redundancy/
+  diff/jobs/run/cancel/explain + `deck_preflight`, `deck_players`,
+  `deck_note`/`deck_notes`, `deck_prep`, `deck_search`, `deck_rename`;
+  8 `archive_*`: search_tracks/track_stats/ingest_status/lowq_queue/
+  source_diff/grid_cross_check/mood_profile/sweep). Readonly tools carry
   `readOnlyHint: true`; mutating tools flagged `destructive`; the
-  rekordbox
-  interlock is enforced client-side _and_ server-side (423 on enqueue).
-  Run: `bun run mcp`.
+  rekordbox interlock is enforced client-side _and_ server-side (423 on
+  enqueue). Run: `bun run mcp`.
 - **Shared HTTP client** — `src/deckapi.ts`: server auto-start, drive
   resolution, `waitForJob`; one source of truth for deckctl + mcp.
-- **Verify reports** — `src/verify_report.ts` (+ tests): structured
-  deep-verify results feeding the readiness badge.
-- **CLI verification gates** — `megadj doctor [--json]` (exit 1 if any
-  required dependency/config check fails — usable as a script gate) and
-  `megadj init` (scaffolds `cratedeck/config.toml`, auto-filling drive
-  names from mounted volumes).
-
-## Gig-night + agent surface (shipped 2026-09-05, pass 2–3)
-
 - **B12 preflight** — `src/preflight.ts` + `deckctl preflight` +
   `GET /api/preflight`: worst-status-wins verdict per drive
   (not-ready/attention/unknown/ready); unknowns never fake ready;
   exit 1 when not ready so cron/agents gate on the code. Includes the
-  N75 player-compat check (fully blocked drive = not-ready) and the N76
-  firmware advisories (`firmware_advisories`, informational).
+  N75 player-compat check and N76 firmware advisories.
 - **N75/N78 player-compat matrix** — `src/players.ts`, `deckctl players
-  [drive]`, `deck_players` MCP tool: Device-vs-OneLibrary verdicts from
-  MEASURED dual-DB rows; user-extendable via config.toml
-  `[players.players]`.
-- **O82b archive MCP half** — `src/archive.ts` (opened `readonly: true`)
-  + 7 `archive_*` tools incl. `archive_grid_cross_check` (rev 6 beats
-  ledger vs RB BPM×duration: ok/off/octave) and `archive_mood_profile`
-  (rev 6.2 mood-ledger picker data). Missing archive DB degrades to
-  `available:false`.
-- **O83 weekly prep** — `src/weekly_prep.ts`, `deckctl prep [--out
-  FILE] [--json]`: markdown digest over preflight + redundancy +
-  archive reads.
+  [drive]`, `deck_players`: Device-vs-OneLibrary verdicts from MEASURED
+  dual-DB rows; user-extendable via config.toml `[players.players]`.
+- **O82b archive half** — `src/archive.ts` (opened `readonly: true`);
+  missing archive DB degrades to `available:false`.
+- **O83 weekly prep + D30 sweep** — `src/weekly_prep.ts`, `deckctl prep
+  [--out FILE] [--json]`: markdown digest over preflight + redundancy +
+  archive reads; `src/archive_sweep.ts` adds the blake2b archive-integrity
+  section (first run caught 88/88 stale DB sizes).
 - **O87 attribution + O88 agent notes** — `jobs.origin`
   ("web"/"deckctl"/"auto"/"mcp:<session>") on job rows + timeline
   events; `deck_note` lands dismissable severity-toned timeline cards
@@ -138,6 +123,9 @@ source_diff/grid_cross_check/mood_profile/sweep`); readonly tools carry
 - **O85 plugin packaging** — `plugin/` bundles the MCP server +
   SessionStart hook + skills as an installable Claude Code plugin
   (`claude plugin validate` passes).
+- **CLI verification gates** — `megadj doctor [--json]` (exit 1 if any
+  required dependency/config check fails) and `megadj init` (scaffolds
+  `cratedeck/config.toml`, auto-filling drive names from mounted volumes).
 
 ## Test coverage
 

@@ -68,15 +68,18 @@ next action is a command you can run.**
 
 ## 1. Fact-check corrections (vs rev 1)
 
-| Claim in rev 1                | Verdict               | Correction                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ----------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| "keyfinder-cli, Effort S"     | **Corrected (twice)** | Not in homebrew-core — only the author's personal tap, with known ARM build friction (libavutil path issues). Primary key path is **OpenKeyScan's analyzer** — open-source repo mode speaks JSON over **stdin/stdout** with device auto-selection (CUDA > MPS > CPU), MIT, Rekordcloud-maintained; the **`:58721` REST server documented at openkeyscan.com/api is the closed desktop app's**. keyfinder-cli demoted to fallback. Effort S→M.                                  |
-| "libKeyFinder ~90% on dance"  | **Verified**          | Dubspot 200-track ear-keyed test: KeyFinder 76% overall (152/200), **90% on dance/electronic**, MIK 89%, rekordbox 7 69%, Beatport metadata 60%. Weakness: relative major/minor ambiguity.                                                                                                                                                                                                                                                                                     |
-| "rekordbox's own ~60%"        | **Corrected**         | 60% is **Beatport metadata**, not rekordbox. Rekordbox 7 = 69% in the same test. (A 2019 GiantSteps MIREX-style study even scored rekordbox _highest_ on pure EDM, 79.55 weighted.) The rebuild case is the **dance-subset gap (90% vs ~70%)** + file-level portability, not overall dominance.                                                                                                                                                                                |
-| "rekordbox reads TKEY"        | **Verified + gotcha** | Official matrix: Key = TKEY, read on AIFF (ID3v2.4) + MP3 (ID3v2.3) — **not WAV** (RIFF INFO has no key field; our ingest converts WAV→AIFF, so the pipeline is safe). Gotchas: RB **overwrites imported keys on analysis unless Key analysis is disabled** in Preferences → Analysis; after external writes use **Reload Tags**. Mix Name (TIT3), Remixer (TPE4), Label (TPUB) are also tag-writable — free schema extensions.                                                |
-| "beat_this MIT, pip, CPU"     | **Verified**          | `pip install beat-this` (v1.1.0, Apr 2026 — still current as of 2026-09-05), MIT code **and** weights, ships a CLI (`beat-this`/File2File). Needs PyTorch ≥2.0 + rotary-embedding-torch; optional DBN needs madmom **from CPJKU's fork**, not PyPI. BeatFM (ICME 2025) still ships no code/weights (re-checked) — keep waiting. New watch: `livechord-beat-refiner` (May 2026) refines beat_this/madmom downbeats with full-song context + resolves double-time/bar confusion. |
-| "Essentia ONNX path on ARM64" | **Verified**          | Base `essentia` arm64 wheels exist (py ≤3.13); `essentia.tensorflow` is **broken on ARM** (open issue #1486) — confirmed. Essentia's `OnnxPredict` is still an unmerged PR (#1488) requiring source build. Practical path stays: brew `onnxruntime` (1.29, arm64) + MTG's ONNX model exports + essentia/librosa preprocessing. Models: CC BY-NC-SA.                                                                                                                            |
-| "AcoustID free 3 rps"         | **Verified**          | Official: max 3 req/s, non-commercial, key required. fpcalc fingerprints first 120s by default (`-length`).                                                                                                                                                                                                                                                                                                                                                                    |
+Rev 2/3 re-verified every rev-1 claim against primary sources; the
+corrections that matter are baked into §2 and the research base below:
+keyfinder-cli is NOT in homebrew-core (primary key path = OpenKeyScan's
+analyzer, repo mode; the `:58721` REST server is the closed desktop
+app's); "libKeyFinder ~90%" is the **dance subset** of Dubspot's
+KeyFinder-76%-overall test (MIK 89%, RB7 69%, Beatport 60%); rekordbox
+reads TKEY on AIFF/MP3 only and **overwrites imported keys on analysis
+unless Key analysis is disabled** (the gauntlet); beat_this v1.1.0 MIT
+(pip, CLI, torch; DBN needs CPJKU's madmom fork); Essentia
+`essentia.tensorflow` is broken on ARM (#1486) — the practical path is
+`uv --with onnxruntime`; AcoustID is 3 rps non-commercial, fpcalc
+defaults to the first 120 s.
 
 ## 2. The plan, re-ranked by value-per-effort
 
@@ -105,9 +108,9 @@ already in-window) and not decode quality (WAVs fail too).
 `tempoFromBeatGrid` in `fulltags/src/analysis.ts`): 16/24 within 2% —
 still under the 80% gate.** The bar-lag readout is strictly better than
 the median (16 vs 12) and fixes half of the drift cases, but the 8
-remaining failures are genuinely hard: half/double phase-locks (75.7 vs
+remaining failures are hard to close: half/double phase-locks (75.7 vs
 138.9, 108.8 vs 150) and the ~2.4% family on tracks whose beat_this
-period is simply slightly different from RB's. Median stays the
+period is slightly different from RB's. Median stays the
 conservative choice for display; nothing about the write-block changes.
 
 **Decision (opinionated): TBPM stays rekordbox-owned; the tag write is
@@ -290,17 +293,14 @@ existing tests pass unmodified).
 
 ## 5. Stress-test log (2026-09-05, v0 code)
 
-Real-file verification pass over the shipped writer/shim surface:
-
-| Test                                                                                  | Result                                                                                                     |
-| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `setFileTags` shim round-trip (mp3/m4a/wav): 4 fields written, ground-truth read back | ✅ PASS all                                                                                                |
-| Write-path benchmark: old direct-ffmpeg 19.3 ms vs shim 124.2 ms                      | ❌ **6.4× regression found**                                                                               |
-| Root cause                                                                            | nested `bun -e` promise bridge per write                                                                   |
-| Fix                                                                                   | `writePatchSync` — in-process sync writer (ffmpeg spawn for mp3/m4a/flac, mutagen for wav/aiff), no bridge |
-| Re-benchmark after fix                                                                | ✅ 19 ms/write (parity)                                                                                    |
-| AIFF sync path (`writePatchSync` on .aiff via mutagen)                                | ✅ PASS                                                                                                    |
-| Regression tests added                                                                | fulltags/test/writer-sync.test.ts (sync round-trips + AIFF + perf)                                         |
+Real-file verification of the writer/shim surface: `setFileTags`
+round-trips passed on mp3/m4a/wav (ground-truth read-back), and the
+benchmark **caught a 6.4× write-path regression** (19.3 ms direct-ffmpeg
+→ 124.2 ms shim) — root cause was a nested `bun -e` promise bridge per
+write. Fix: `writePatchSync`, the in-process sync writer (ffmpeg spawn
+for mp3/m4a/flac, mutagen for wav/aiff); re-benchmark 19 ms/write
+(parity), AIFF sync path verified. Regression tests:
+`fulltags/test/writer-sync.test.ts` (round-trips + AIFF + perf).
 
 **Lesson recorded:** any sync API bridged to an async implementation via
 a spawned interpreter is a perf trap — expose a native sync twin instead
@@ -309,18 +309,18 @@ a spawned interpreter is a perf trap — expose a native sync twin instead
 ## 5b. Bug-audit log (2026-09-05 — 5 bugs found + fixed; +2 found by rev 5 execution)
 
 Pre-rev-4 audit of the shipped surface; all fixed same day with regression
-tests. Rev 5's execution pass found two more (see §0).
+tests (engine in `fulltags/test/`). Rev 5's execution pass found two more.
 
-| #   | Bug                                                                                | Root cause                                                                                                                                                                                                            | Fix                                                                                                                                                           |
-| --- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `fulltags single <file>` misparsed the file as the target dir                      | `parseArgs` skipped only `audit` as a subcommand                                                                                                                                                                      | skip `single` too                                                                                                                                             |
-| 2   | failed ffmpeg writes leaked the `.tagged` tmp file                                 | `Bun.$` throws on non-zero exit → cleanup never ran; sync path checked nothing                                                                                                                                        | try/catch unlink (async) + explicit exitCode check (sync); regression-tested                                                                                  |
-| 3   | m4a silently dropped bpm/energy/mbid/AI stamps and wiped freeform atoms on rewrite | ffmpeg `ipod` muxer has no mapping for them and clobbers `----` atoms                                                                                                                                                 | M4A writes routed to mutagen (`writePatchMp4`); `readTxxx` parses m4a freeform + flac vorbis (list-unwrap, case-insensitive)                                  |
-| 4   | `qualityScore` treated AIFF/hi-res WAV as lossy                                    | `.replace("pcm_s16le","wav")` matched only 16-bit LE WAV                                                                                                                                                              | explicit `LOSSLESS_CODECS` set (pcm_s16/24/32 LE+BE, alac, flac, wav)                                                                                         |
-| 5   | `audit --json` never exited 1 on gaps                                              | exit gate only ran in the human-output branch                                                                                                                                                                         | gate applied to both branches (CI contract restored)                                                                                                          |
-| 6   | WAV/AIFF stamp reads returned null → all 73 WAVs re-fingerprinted on every re-run  | `readTxxx`'s WAV/AIFF branches opened the file but never read the ID3 TXXX frames                                                                                                                                     | one shared ID3-TXXX read loop for WAV/AIFF/MP3; regression test pins WAV idempotency                                                                          |
-| 7   | scoped runs wrote remix credits (`--fingerprint` stamped `TXXX:version`)           | remix detection ran before/outside the stage gate                                                                                                                                                                     | gated behind `want("tags")`; regression test                                                                                                                  |
-| 8   | art-embedded files got NO energy stamp (rev 6.2, found by execution)               | the embedded cover decodes as a bogus video stream; ffmpeg's default stream selection fed it into the astats graph, the JPEG-as-PNG decode failed, and the whole command exited non-zero → `measureRms` returned null | `-map 0:a` on the astats command (`fulltags/src/probes.ts`); regression test embeds an APIC cover on a WAV first; 4 real archive WAVs repaired, 88/88 stamped |
+| #  | Bug + root cause | Fix |
+| -- | --- | --- |
+| 1 | `fulltags single <file>` misparsed the file as the target dir (`parseArgs` skipped only `audit`) | skip `single` too |
+| 2 | failed ffmpeg writes leaked the `.tagged` tmp (`Bun.$` throws before cleanup; sync path checked nothing) | try/catch unlink + explicit exitCode check |
+| 3 | m4a silently dropped bpm/energy/mbid/AI stamps and wiped freeform atoms (ffmpeg `ipod` muxer has no mapping) | m4a writes routed to mutagen (`writePatchMp4`); `readTxxx` parses m4a freeform + flac vorbis |
+| 4 | `qualityScore` treated AIFF/hi-res WAV as lossy (`.replace` matched only 16-bit LE WAV) | explicit `LOSSLESS_CODECS` set |
+| 5 | `audit --json` never exited 1 on gaps (gate only in the human branch) | gate applied to both branches |
+| 6 | WAV/AIFF stamp reads returned null → all 73 WAVs re-fingerprinted every re-run (`readTxxx` opened but never read) | one shared ID3-TXXX read loop; regression test pins WAV idempotency |
+| 7 | scoped runs wrote remix credits (`--fingerprint` stamped `TXXX:version`) | gated behind `want("tags")` |
+| 8 | art-embedded files got NO energy stamp — cover decodes as a bogus video stream, ffmpeg fed it into astats, command failed, `measureRms` returned null (rev 6.2) | `-map 0:a` on the astats command; regression test embeds an APIC cover first; 4 real archive WAVs repaired |
 
 **Lesson recorded (generalized):** every container the writer touches needs
 a _round-trip_ test that reads back what it wrote through the ground-truth
@@ -373,60 +373,31 @@ requirements.txt` hits the warm cached env; spelling the same pins as
 8. **(rev 5) `fpcalc` exits 2 "Empty fingerprint" on sub-3-second audio**
    — test fixtures need ≥5 s tones.
 
-Gate results (2026-09-05, real archive, full detail in §0):
+Gate results (2026-09-05, real archive, full detail in §0): key PASS
+(80.7% exact; mismatches cluster on relative major/minor + neighbor
+tones, no wild-class errors) — BPM FAIL (12/24 within 2%, the
+~2.2–2.6% phase-lock, lossless included). The RB gauntlet is the only
+thing left for #3; the bar-grid re-gate must clear 80% before any TBPM
+reconsideration.
 
-- **Key: PASS.** 88 analyzed, 71 exact + 8 near + 9 mismatch = 80.7%
-  exact. Mismatches cluster on relative-major/minor and neighbor-tone
-  flips (documented OpenKeyScan weakness) — no wild-class errors.
-- **BPM: FAIL.** 12/24 within 2% vs RB. Failure is a consistent
-  beat-period lock ~2.2–2.6% off (130.43 vs 127.66 class), present on
-  lossless inputs too. TBPM writes blocked; downbeats to the DB ledger.
+## 7. Sequencing
 
-Operational gates still standing: the rekordbox key gauntlet (disable
-Key analysis → Reload Tags) is the ONLY thing left for #3; the BPM
-re-gate (§2/#2 step 3) must pass before any TBPM reconsideration.
-
-## 7. Sequencing (rev 6.2, executed pass 3)
+The execution log (§0) and the per-item statuses (§2) are the SSOT; the
+live order:
 
 ```
-done  ▸ #1 fingerprints (88/88) · #3 key gate PASSED + batch-written (88/88,
-        RB gauntlet at next DJLIBRARYM mount) · WAV idempotency bug fixed
-        · #2 pivot SHIPPED: beats ledger + `megadj beats` + CrateDeck
-        archive_grid_cross_check; re-gate 16/24 (67%) — TBPM stays blocked
-        · #4 mood/dance/VA SHIPPED (`--mood` + energy 2.0) · #5 MB harvest
-        SHIPPED (enrich folded, dup writer deleted)
-        · mood pass over the archive 88/88 (label-order bug found+fixed,
-          stamps re-run) · `megadj mood` ledger mirror SHIPPED (88/88)
-        · electronic genre-head gate EXECUTED: FAILED (saturated 0.87–1.0
-          on every genre) — genre writes stay BLOCKED
-        · pass 3 (rev 6.2): mood convergence re-verified (re-run 0
-          changed) · energy 2.0 blend verified on the real archive —
-          84/88 pre-blended, 4 art-embedded WAVs fixed via the measureRms
-          `-map 0:a` bug (§5b #8), now 88/88 · CrateDeck mood surface
-          SHIPPED: ArchiveReader.moodProfile + /api/archive/mood +
-          archive_mood_profile MCP · effnet genre ONNX confirmed absent
-          upstream (pb-only) — deferred indefinitely
-now   ▸ the RB gauntlet at next DJLIBRARYM mount — 30 s, do it FIRST
+done  ▸ #1 fingerprints 88/88 · #3 key gate PASS + written (RB gauntlet
+        pending) · #2 pivot: beats ledger + grid cross-check (TBPM stays
+        blocked) · #4 mood/energy 2.0 88/88 · #5 MB harvest (dup writer
+        deleted) · cues ledger 88/88 · mood CrateDeck surface · audit
+        gate now requires mood + energy
+now   ▸ the RB gauntlet at next drive mount — 30 s, do it FIRST
         (disable Key analysis, reload tags, verify TKEY survives)
-then  ▸ rekordbox cue WRITE pass (memory cues from the `cues` ledger —
-        drive writes, gated behind the interlock + gauntlet) → vocal
-        density → similarity (88-fp ledger as the sqlite-vec pilot)
+then  ▸ rekordbox cue WRITE pass (interlock + gauntlet) → vocal density
+        → similarity (88-fp ledger as the sqlite-vec pilot)
 parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
         no ONNX export — needs a reason to exist first)
 ```
-
-Each item is independently shippable; the order maximizes
-verified-value-per-day. After #4, every archive file carries complete
-identity, multi-vote genre, year, key, fingerprint, mood/valence, and
-blended energy — in the actual files — with beats + downbeats + phrase
-cues DB-side. **Structure-cues slice v0 SHIPPED (pass 3, rev 6.2):**
-`megadj cues` derives 8-bar phrase markers from the beats ledger's
-downbeats into the `cues` table — 88/88 tracks, 1366 cues, idempotent,
-DB-side only; the rekordbox memory-cue WRITE is the deliberate next
-gate. **Audit gate upgraded (pass 3):** mood + energy are now required
-fields (`COMPLETENESS_FIELDS`, both audit CLIs); `groundTruth` reads
-TXXX:ENERGY (it was hardcoded null — the audit would have flagged
-nothing and verified nothing).
 
 ## Research base (rev 5 — rev 4 rows re-checked 2026-09-05)
 

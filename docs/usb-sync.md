@@ -63,20 +63,14 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
 
 ## What the pipeline does
 
-1. **Integrity probe** — ffprobe every file; catches crashed-tagging
-   zero-byte junk before it poisons the DB.
-2. **DB injection** — `Content`/`Artist` rows + a playlist via
-   pyrekordbox `DeviceLibraryPlus`, on a /tmp copy of the DB (never the live
-   file; rekordbox must be quit).
-3. **BPM** — ffmpeg→librosa (`beat_track`), 60–200 BPM range correction,
-   stored as `bpmx100`.
-4. **ANLZ generation** — builds `ANLZ0000.DAT` by hand (PMAI/PPTH/PVBR/PQTZ/
-   PWAV/PWV2/PCOB, big-endian tagged sections). Constant-BPM grid from ~615ms,
-   30s waveform preview.
-5. **Mirror** — contents, analysis, DB, and rekordbox support files to the
-   mirror drive; resumable with progress bars.
-6. **Verify** — manifest coverage, DB MD5 parity, full USBANLZ hash parity,
-   audio spot-checks, per-track grid math, playlist FK integrity.
+`usb_sync.py` runs the six-stage pass — integrity probe (ffprobe every
+file) → DB injection (pyrekordbox `DeviceLibraryPlus`, /tmp DB copy) →
+BPM (ffmpeg→librosa, 60–200 correction, `bpmx100`) → hand-built ANLZ
+(`ANLZ0000.DAT`: PMAI/PPTH/PVBR/PQTZ/PWAV/PWV2/PCOB big-endian sections,
+constant-BPM grid, 30s waveform) → mirror (resumable) → verify (manifest
+coverage, DB MD5 + USBANLZ hash parity, per-track grid math, playlist FK
+integrity). Stage details and the ANLZ binary reference live in the
+skill's SKILL.md.
 
 ## Hard-won facts (don't relearn these)
 
@@ -96,12 +90,11 @@ uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git"
   variable-tempo tracks; the verifier treats this as informational, not a failure.
 - FAT32 is case-insensitive and NFC-ambiguous: compare paths with
   `NFC + casefold` keys or you'll see phantom missing files.
-- **Rekordbox artwork is DB pointers + cached files, not tags**: covers live in
-  `share/PIONEER/Artwork/<shard>/<uuid>/` (`artwork.jpg` + `_m`/`_s` thumbnails —
-  RB renders from the thumbnails; missing `_m`/`_s` = silently blank) and
-  `djmdContent.ImagePath` points there. USB export copies the artwork files into
-  `PIONEER/Artwork/000xx/` on the drive and rewrites device-DB rows, so art set
-  in the collection rides to the hardware automatically.
+- **Rekordbox artwork is DB pointers + cached files, not tags** —
+  `djmdContent.ImagePath` → `share/PIONEER/Artwork/<shard>/<uuid>/`;
+  USB export carries the files + device-DB rows to the drive. Layout,
+  thumbnail gotcha, and the legacy-WAV fix:
+  [rekordbox-wav-artwork.md](rekordbox-wav-artwork.md).
 - **WAVs never carry RB-readable art** — new ingests convert to AIFF
   (`src/commands/wav-to-aiff.ts`); see `docs/rekordbox-wav-artwork.md` for
   the legacy-WAV research.

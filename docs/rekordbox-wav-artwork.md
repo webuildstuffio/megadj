@@ -117,17 +117,12 @@ rekordbox — it caches the old blank state in memory.
 
 ### Status — ✅ COMPLETE (2026-09-04)
 
-- [x] Root cause researched + documented
-- [x] `master.db` unlock verified (pyrekordbox, key cached)
-- [x] Artwork layout confirmed on disk
-- [x] `tools/rb_art.py` built (status / dry-run / pilot / batch)
-- [x] Pilot machinery validated against a **copy** of master.db
-- [x] Pilot on live DB: 3 tracks, covers verified in rekordbox
-- [x] Batch: all legacy WAVs have art (`status`: without-art = 0)
-- [x] USB export carries RB artwork to the drives automatically (artwork files +
-      device-DB rows are written by the export; CDJ/XDJ screens read the drive's
-      `PIONEER/Artwork/`). Verified live: a USB export updated
-      `exportLibrary.db` + artwork on the mirror drive.
+Root cause documented, tool built (status / dry-run / pilot / batch),
+pilot validated on a master.db **copy** then live (3 tracks, covers
+verified in rekordbox), batch run: all legacy WAVs have art
+(`status`: without-art = 0). A real USB export confirmed the hardware
+leg: artwork files + device-DB rows ride to the drive, CDJ/XDJ screens
+read the drive's `PIONEER/Artwork/`.
 
 ### Future ingests
 

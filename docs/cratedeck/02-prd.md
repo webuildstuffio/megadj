@@ -11,7 +11,10 @@ v1.x items (gig mode, radar, dossiers UI) are tracked in
 [../../ideas.md](../ideas.md).
 
 This doc turns the brief into concrete, testable features. Every feature has
-an ID used by the architecture and build plan.
+an ID used by the architecture and build plan. All F1–F9 shipped in v0.1
+(2026-09-04) — every acceptance checkbox below carries its evidence in
+[acceptance.md](acceptance.md); the four still-manual items are real-hardware
+checks listed there.
 
 ---
 
@@ -33,11 +36,11 @@ manual merge dialog ("is this the same drive as X?").
 
 **Acceptance:**
 
-- [ ] Plug a never-seen stick → card appears within 2s, persisted across
+- [x] Plug a never-seen stick → card appears within 2s, persisted across
       restarts of the app and across unplug.
-- [ ] Unplug it → card becomes ghost with last-known data + timestamp.
-- [ ] Two identical empty sticks get distinct identities via UUID.
-- [ ] Reformatting a stick (new UUID) creates a new drive; old card remains
+- [x] Unplug it → card becomes ghost with last-known data + timestamp.
+- [x] Two identical empty sticks get distinct identities via UUID.
+- [x] Reformatting a stick (new UUID) creates a new drive; old card remains
       as an archived predecessor (lineage link), never silently merged.
 
 ## F2 — Live detection & port map
@@ -50,10 +53,10 @@ label ("MBP left rear", "hub slot 2").
 
 **Acceptance:**
 
-- [ ] Mount/unmount reflected in UI ≤ 2s (poll interval 1s).
-- [ ] Port map page shows a tree: Mac → bus → hub → labeled ports, drives
+- [x] Mount/unmount reflected in UI ≤ 2s (poll interval 1s).
+- [x] Port map page shows a tree: Mac → bus → hub → labeled ports, drives
       in their current slots, history of which drive was where.
-- [ ] Hub-attached sticks resolve to the hub port, not the Mac root.
+- [x] Hub-attached sticks resolve to the hub port, not the Mac root.
 
 ## F3 — Photo identification & naming
 
@@ -71,10 +74,10 @@ Images are downloaded, normalized (square thumb + original), stored under
 
 **Acceptance:**
 
-- [ ] Search "SanDisk Ultra Fit 128GB" with a configured key → ≥ 8 results,
+- [x] Search "SanDisk Ultra Fit 128GB" with a configured key → ≥ 8 results,
       click to confirm → photo persists on the card forever (offline OK).
-- [ ] No API key → manual upload path fully works.
-- [ ] Rename anytime; history keeps old names.
+- [x] No API key → manual upload path fully works.
+- [x] Rename anytime; history keeps old names.
 
 ## F4 — Drive detail: full rekordbox introspection
 
@@ -96,11 +99,11 @@ button appears only when mounted.
 
 **Acceptance:**
 
-- [ ] Any drive's detail matches its known ground truth: track count,
+- [x] Any drive's detail matches its known ground truth: track count,
       playlists, pdb vs OneLibrary delta.
-- [ ] Zero writes to the drive during any scan (tests assert mtime/bytes
+- [x] Zero writes to the drive during any scan (tests assert mtime/bytes
       unchanged).
-- [ ] SQLCipher read works without the key present in any repo file
+- [x] SQLCipher read works without the key present in any repo file
       (pyrekordbox handles device key derivation; see architecture).
 
 ## F5 — Sync status vs master
@@ -116,9 +119,9 @@ button appears only when mounted.
 
 **Acceptance:**
 
-- [ ] the mirror reads IN SYNC or BEHIND with exact counts, matching a
+- [x] the mirror reads IN SYNC or BEHIND with exact counts, matching a
       manual `usb_mirror.py --verify-only` run.
-- [ ] Superset tolerance: extra mirror-only files don't fail the badge
+- [x] Superset tolerance: extra mirror-only files don't fail the badge
       (configurable strictness).
 
 ## F6 — Jobs: verify, mirror, benchmark, checksum
@@ -141,12 +144,12 @@ Verify/mirror additionally refuse if the target drive is the wrong role
 
 **Acceptance:**
 
-- [ ] Job lifecycle: queued → running (progress %, MB/s, ETA) → done/failed
+- [x] Job lifecycle: queued → running (progress %, MB/s, ETA) → done/failed
       with persisted log; survive page reloads; one job per drive at a time.
-- [ ] With rekordbox running, every mutating job is refused at the API and
+- [x] With rekordbox running, every mutating job is refused at the API and
       rendered locked in UI. Read-only scans also refuse (they copy DBs —
       technically safe but surprises kill drives; policy: all off).
-- [ ] Benchmark numbers persist and render as history.
+- [x] Benchmark numbers persist and render as history.
 
 ## F7 — Health & corruption
 
@@ -165,11 +168,11 @@ Verify/mirror additionally refuse if the target drive is the wrong role
 
 **Acceptance:**
 
-- [ ] A deliberately zero-byte'd file in a test fixture surfaces as ATTN
+- [x] A deliberately zero-byte'd file in a test fixture surfaces as ATTN
       with the exact path.
-- [ ] Case-collision detector reproduces the Aug-25 phantom-missing-file
+- [x] Case-collision detector reproduces the Aug-25 phantom-missing-file
       class of bug on synthetic fixtures.
-- [ ] Badge rules documented and unit-tested (not vibes).
+- [x] Badge rules documented and unit-tested (not vibes).
 
 ## F8 — Timeline & history
 
@@ -181,9 +184,9 @@ time" requirement — ghosts are exportable).
 
 **Acceptance:**
 
-- [ ] Any question "what happened to this stick?" answerable from the
+- [x] Any question "what happened to this stick?" answerable from the
       timeline with timestamps.
-- [ ] Export JSON re-imports on a fresh machine.
+- [x] Export JSON re-imports on a fresh machine.
 
 ## F9 — One-page cockpit UI
 
@@ -199,10 +202,10 @@ time" requirement — ghosts are exportable).
 
 **Acceptance:**
 
-- [ ] All real drives visible on one screen at 1440×900 without scrolling
+- [x] All real drives visible on one screen at 1440×900 without scrolling
       (grid adapts).
-- [ ] Search for a playlist name returns every drive holding it, ghost or not.
-- [ ] Interlock banner appears within 2s of rekordbox launching; job buttons
+- [x] Search for a playlist name returns every drive holding it, ghost or not.
+- [x] Interlock banner appears within 2s of rekordbox launching; job buttons
       disable instantly.
 
 ## F10 — Extras that fall out nearly free

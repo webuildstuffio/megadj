@@ -33,7 +33,7 @@ why: [0a](https://github.com/webuildstuffio/megadj/issues/1) ·
 all five open.
 
 0a. **Evacuate the dying SSD.** It has a hardware clock; every other item
-here has a calendar. This is item zero, full stop: copy to a healthy disk
+here has a calendar. This is item zero: copy to a healthy disk
 first, triage contents later (`rsync -av --progress`, then
 `usb_verify.py`-style hash spot-check on what matters).
 0b. **Cold backup of the master library.** _Promoted from §G40 in the
@@ -58,7 +58,7 @@ actually gone wrong at a gig. Add one line per gig to the sync log
 any idea in this file.
 
 **Reality gate — the input that decides the rest of this doc:** how often
-do you actually play?
+do you play?
 
 - **~Monthly or more:** preflight (B12), redundancy (B7), grid/cue work
   (I46) and keys (I51) are load-bearing infrastructure; the AI layer is a
@@ -82,7 +82,7 @@ Discovered during the research pass; mapped to the ideas below:
 | [openmirlab/all-in-one-infer](https://github.com/openmirlab/all-in-one-infer/)                                                                                                                 | `pip install all-in-one-infer` — structure analysis (intro/verse/drop/outro), beats, downbeats, tempo + demucs stems, PyPI-only                                                                                                        | Structure-aware grids and auto cue placement (→ I46)                                                                                                                   |
 | [yizhilll/MERT](https://github.com/yizhilll/MERT) + [MU-LLaMA](https://github.com/shansongliu/MU-LLaMA)                                                                                        | Music understanding encoder (95M/330M); MERT+LLaMA music QA/captioning                                                                                                                                                                 | Embeddings for similarity/dedupe; LLM track captioning (→ I49, I50)                                                                                                    |
 | [mixxxdj/libkeyfinder](https://github.com/mixxxdj/libkeyfinder/)                                                                                                                               | The KeyFinder algorithm, GPL; 76% overall / **90% on dance music** vs rekordbox 7's 69% (Dubspot 2026 test)                                                                                                                            | Key detection that beats rekordbox → tag + DB injection (→ I51)                                                                                                        |
-| [scdl-org/scdl](https://github.com/scdl-org/scdl/)                                                                                                                                             | SoundCloud downloader — **as of v3 it is literally a yt-dlp wrapper**                                                                                                                                                                  | megadj already runs yt-dlp → SoundCloud sources are config work (→ K57)                                                                                                |
+| [scdl-org/scdl](https://github.com/scdl-org/scdl/)                                                                                                                                             | SoundCloud downloader — **as of v3 it is a yt-dlp wrapper**                                                                                                                                                                  | megadj already runs yt-dlp → SoundCloud sources are config work (→ K57)                                                                                                |
 | [acoustid/chromaprint](https://github.com/acoustid/chromaprint) + [dupsonic](https://github.com/zas/dupsonic/) / soundalike                                                                    | Acoustic fingerprinting; dupsonic = Rust single-binary incremental dupe scanner; soundalike = mature Go fpcalc-based scanner with built-in move/delete                                                                                 | Cross-format dedupe, LOWQ-upgrade verification, untagged-file ID (→ L62)                                                                                               |
 | [beetbox/beets](https://github.com/beetbox/beets) v2.4 + [beetcamp](https://github.com/snejus/beetcamp)                                                                                        | The music-tagger ecosystem; Bandcamp autotag/acquire plugin                                                                                                                                                                            | Borrow plugin ideas; Bandcamp source (→ J55, K58)                                                                                                                      |
 | [gmunumel/track-list-extractor](https://github.com/gmunumel/track-list-extractor) · [1001-tracklists-api](https://github.com/leandertolksdorf/1001-tracklists-api)                             | 1001tracklists scrapers (Python)                                                                                                                                                                                                       | Discovery: mine DJ sets → download queue (→ K59)                                                                                                                       |
@@ -95,7 +95,7 @@ Discovered during the research pass; mapped to the ideas below:
 | [Claude Code agentic primitives](https://code.claude.com/docs/en/plugins.md) (skills, hooks, subagents, MCP, headless `claude -p`)                                                             | The 2026 agent-CLI taxonomy: SKILL.md for domain logic, hooks for lifecycle automation, MCP for tool exposure, headless one-shots for cron-able agents                                                                                 | megadj already ships skills + deckctl + a full MCP server (O82 incl. O82b archive half + preflight, Sep 2026); next step is agent loops (O84) + plugin packaging (O85) |
 | [settag](https://pypi.org/project/settag/) · [dupsonic](https://github.com/zas/dupsonic/) v0.2.5 · [livechord-beat-refiner](https://pypi.org/project/livechord-beat-refiner/) (2026 finds)     | settag: Essentia MAEST/Discogs-EffNet tagger for DJ libraries with staged writes + provenance tags; dupsonic shipped macOS-aarch64 binaries (Jul 2026); refiner post-processes beat_this downbeats + fixes bar confusion               | settag = the closest thing to a FullTags competitor — steal its provenance-tag pattern; dupsonic = L62 done for us; refiner = grid-QA candidate                        |
 
-**Best-models re-check (2026-09-05 deep dive — verdicts only, full ladder
+**Best-models re-check (2026-09-05 verdicts only, full ladder
 lives in `docs/fulltags-roadmap.md`):**
 
 - **BeatFM (ICME 2025)** — +4.1pt downbeat F1 over beat_this on paper,
@@ -120,24 +120,18 @@ lives in `docs/fulltags-roadmap.md`):**
 
 ---
 
-## A. Finish what's already in flight — ✅ ALL RESOLVED
+## A. Finish what's already in flight — ✅ ALL RESOLVED (kept as history)
 
-1. **Drive dossier & health report — ✅ SHIPPED 2026-09-04** (§B1 below).
-2. **Consolidate `tools/` — ✅ DONE** (all art/genre passes live in
-   `tools/fetch_all.ts`; ingest split into `probe/art/identity/remix/
-energy` + `wav-to-aiff`; the enrichment core moved to `fulltags/`).
-3. **WAV artwork in rekordbox — ✅ DONE** (`tools/rb_art.py`, see
-   `docs/rekordbox-wav-artwork.md`). Sliver: spot-check covers on the
-   XDJ-XZ at the next export.
-4. **Close the sync-log checklist** — `usb_verify.py` hardware gate +
-   `usb_mirror.py --verify-only --hash-parity` post-export drift check
-   (tracked in the local operations log).
-5. **Orphan-drive verdict — promoted to §0c.**
-6. **CrateDeck acceptance doc — ✅ DONE** (`docs/cratedeck/acceptance.md`;
-   remaining ☐ items are the real-hardware checks).
-
-> §A is now fully shipped or promoted — nothing left in flight here.
-> The live "what's next" list is [roadmap-proposal.md](roadmap-proposal.md).
+Everything here shipped or was promoted by 2026-09-04: the drive dossier +
+health report (→ §B1), the `tools/` consolidation (→ `tools/fetch_all.ts`
++ `fulltags/`), WAV artwork in rekordbox
+([rekordbox-wav-artwork.md](rekordbox-wav-artwork.md); sliver: spot-check
+covers on the XDJ-XZ at the next export), the sync-log checklist gates
+(`usb_verify.py` + `usb_mirror.py --verify-only --hash-parity`, tracked in
+the local ops log), the orphan-drive verdict (→ §0c), and the acceptance
+doc ([cratedeck/acceptance.md](cratedeck/acceptance.md) — remaining ☐
+items are the real-hardware checks). Nothing left in flight; the live
+"what's next" list is [roadmap-proposal.md](roadmap-proposal.md).
 
 ---
 
@@ -408,7 +402,7 @@ re-verified in the research notes (2026-09-05).
     CC-BY-NC weights, 2026 SOTA zero-shot tagging; MERT effectively
     superseded; MusicFM = dormant license-clean fallback), per track →
     kNN similarity in the archive DB → CrateDeck "find tracks like
-    this" + "never-played tracks closest to what you actually play."
+    this" + "never-played tracks closest to what you play."
     sqlite-vec or blob + cosine at 3–10k tracks; the 88-fingerprint
     ledger is the natural pilot. Effort M.
 
@@ -487,7 +481,7 @@ everything else reads it.
 ## K. Scrapers, sources & discovery
 
 megadj's soul is acquisition-with-taste. The multi-source road is shorter
-than expected: **yt-dlp already covers most of it** (scdl v3 is literally
+than expected: **yt-dlp already covers most of it** (scdl v3 is
 a yt-dlp wrapper now; multidl proves the rest with per-platform JSON
 extractors).
 
@@ -518,7 +512,7 @@ extractors).
     long-tail extractors unaffected.
 
 59. **1001tracklists mining → discovery queue.** Scrape tracklists of DJs
-    and shows you actually follow (track-list-extractor / 1001-tracklists-api,
+    and shows you follow (track-list-extractor / 1001-tracklists-api,
     both small):
     - "track appears in N sets in the last 90 days" ranking
     - diff against archive → "played everywhere, not in your library" queue
@@ -577,7 +571,7 @@ Mac-DJ irritations nobody builds for.
 
 64. **Listening-based hit predictor.** Essentia DEAM + danceability +
     embedding (I45) → a "will the floor like this" score calibrated on
-    which of your tracks actually got played (needs B11 history harvest).
+    which of your tracks got played (needs B11 history harvest).
     Bounded sibling of the deleted I52: one number, a regression you can
     sanity-check. Parked until history exists.
 65. **Auto DJ-friendly renamer.** YTM filenames are garbage
@@ -667,7 +661,7 @@ ecosystem research confirms the architecture aims at the right wall.
     Encode it: `megadj format --profile xdj-xz` (M69) defaults to the
     right scheme; CrateDeck flags incompatible formats. Effort S.
 
-78. **"Which players will this stick actually work on?" — the fleet
+78. **"Which players will this stick work on?" — the fleet
     answer — ✅ SHIPPED 2026-09-05** (`deckctl players [drive]`,
     `/api/drives/:id/players`). Combine N75's matrix + the measured
     dual-DB state into a per-drive verdict: _Device Library current ✓,
@@ -745,7 +739,7 @@ source_diff/grid_cross_check/mood_profile/sweep` — readonly reads over
 
 85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
     installable Claude Code bundle: `.claude-plugin/plugin.json` +
-    `.mcp.json` (the 24-tool MCP server) + `hooks/hooks.json`
+    `.mcp.json` (the 25-tool MCP server) + `hooks/hooks.json`
     (SessionStart posts `deckctl status --json` into context) + the 3
     skills. `claude plugin validate` passes; dev-install with
     `claude --plugin-dir $PWD/plugin`. A published marketplace variant
@@ -801,42 +795,17 @@ source_diff/grid_cross_check/mood_profile/sweep` — readonly reads over
 
 ## Suggested sequencing (idea-level)
 
-> **Superseded in part:** the gated 90-day line + model slate + risk ledger
-> now live in [roadmap-proposal.md](roadmap-proposal.md) (§4–§6); that doc
-> is the build order. What remains binding here: §0 gates everything, and
-> the **reality gate** (gig frequency, see §0) decides depth.
-
-- **Phase 1 — survival (§0):** SSD evacuation (0a) → cloud backup (0b) →
-  legacy-backup verdict (0c); 0d rides along (two cheap pure queries).
-- **Phase 2 — the moat (§B):** B6–B8 **✅ SHIPPED 2026-09-04**
-  (`cratedeck/src/fleet.ts` + Fleet page + `deckctl
-coverage|redundancy|diff`; needs one scan per drive with rekordbox
-  closed). B9 (global search) **✅ SHIPPED 2026-09-05** (⌘K +
-  `/api/search`). B12 preflight **✅ core SHIPPED 2026-09-05**
-  (`deckctl preflight`, exit-code gate).
-- **Phase 3 — manual-pain killers:** C18a runbook, C21 differential
-  mirror, D24 LOWQ upgrade (queue read is live in O82b/`prep`), ~~L62
-  fingerprints~~ ✅ SHIPPED (88/88 ledger), N75/N78 hardware matrix
-  ✅ SHIPPED 2026-09-05
-  (`deckctl players`) — ~~J53~~ ✅ shipped as the FullTags sub-project
-  (ladder in `docs/fulltags-roadmap.md`).
-- **Phase 6 — agentified (§O):** O82 (both halves) + O86 rails + O87
-  attribution + O83 core + **O88 notes feed + O85 plugin packaging ✅
-  SHIPPED 2026-09-05** (`bun run mcp` — 25 tools incl. `deck_note` + the Sep 7 `deck_search`/`deck_prep`/`deck_rename`/`archive_sweep` additions;
-  `plugin/` installs the whole surface). Open remainder: O84 inbox-agent;
-  O83 optional `claude -p` digest wrapper.
-- **Phase 4 — the AI edge (reality gate says monthly+):** ~~I51 keys →
-  I45 moods →~~ ✅ shipped (rev 5–6.2: keys 80.7% gate PASS 88/88,
-  moods/energy 2.0 88/88, fingerprints 88/88). Remaining: I46 full
-  segment slice, vocal density (K61 `megadj drop` ✅ shipped); M66/M67
-  after B11
-  history. Model gates: offline/local (P9), EDM-verified (P7),
-  license-ledgered, spot-checked before any batch run.
-- **Phase 5 — sources & irritants (whenever):** K57→K58→K59; M69–M74
-  as S-effort palate cleansers.
+> **Superseded:** the build order now lives in
+> [roadmap-proposal.md](roadmap-proposal.md) (three moves) and the live
+> queue in [product-state-2026-09-07.md](product-state-2026-09-07.md).
+> What remains binding here: **§0 gates everything**, and the **reality
+> gate** (gig frequency, see §0) decides depth. Nearly every Phase 2–6
+> item above shipped in the Sep 4–7 window (fleet, ⌘K, preflight,
+> players, fingerprints, keys, moods, O82–O88, drop) — the open
+> remainders are C18a/C21, O84, I46 full slice, K57–K59, and M69–M74.
 
 **Deliberately unbuilt:** C18b/c (pdb write gauntlet — parked), I52
-(deleted), K56 (lyrics), K60 (setlist.fm), ~~E31/E44~~ (struck 2026-09-05:
+(deleted), K56 (lyrics), K60 (setlist.fm), E31/E44 (struck 2026-09-05:
 P2 Pioneer-only). The cap rule stands: something ships or leaves before
 something new enters.
 

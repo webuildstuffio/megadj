@@ -126,21 +126,15 @@ The roadmap lives in two places — this section restates neither:
 - **[ideas.md](ideas.md) is canon for detail** — the full parking lot
   (§A–§O), with §0 gating everything.
 
-Headline shape, in one line each (read the docs for the real list):
+Headline shape (status inline; the docs own the detail):
 
-- **Move 1 — CrateDeck v1.x:** gig-day preflight + player-compatibility
-  verdict + assisted legacy-export runbook + differential mirror.
-  _(Preflight + player verdict SHIPPED Sep 5 2026 — `deckctl preflight` /
-  `deckctl players`; remaining: C18a runbook, C21/C22 differential mirror.)_
-- **Move 2 — FullTags v1.x:** OpenKeyScan key → real BPM → acoustic
-  fingerprints → mood/vibe, each behind a ground-truth gate.
-  _(ALL SHIPPED Sep 5 2026 — key gate passed 80.7% and written; BPM +
-  genre writes gate-FAILED → beats/mood/cues DB ledgers instead; see
-  [fulltags-roadmap.md](fulltags-roadmap.md) rev 6.2.)_
-- **Move 3 — The agentic layer:** archive-half MCP server (the CrateDeck
-  half already ships via `bun run mcp`), then the headless weekly agent
-  loop. _(BOTH HALVES SHIPPED Sep 5 2026 — 24-tool MCP + `deckctl prep` + D30 sweep (Sep 7);
-  remaining: O84 inbox agent.)_
+- **Move 1 — CrateDeck v1.x:** preflight ✅ + player verdict ✅ shipped;
+  remaining: C18a runbook, C21/C22 differential mirror.
+- **Move 2 — FullTags v1.x:** ALL SHIPPED behind ground-truth gates
+  (key 80.7% written; BPM + genre writes gate-FAILED → beats/mood/cues
+  DB ledgers instead — [fulltags-roadmap.md](fulltags-roadmap.md) rev 6.2).
+- **Move 3 — the agentic layer:** SHIPPED (25-tool MCP + `deckctl prep`
+  + D30 sweep); remaining: O84 inbox agent.
 - **The dream** — hit predictor & set-builder copilot, calibrated on what
   actually got played; proposes sequences, never auto-exports (§M64, M66).
 
