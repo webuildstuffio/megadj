@@ -23,6 +23,7 @@
  */
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { basename, dirname } from "node:path";
+import { lineReader } from "./stdio";
 
 const MODEL_DIR = `${process.env.HOME ?? ""}/.local/share/fulltags-models`;
 const MODEL_BASE = "https://essentia.upf.edu/models";
@@ -229,24 +230,8 @@ export async function analyzeMoods(
     stderr: "ignore",
   });
   const enc = new TextEncoder();
-  const dec = new TextDecoder();
-  const reader = (proc.stdout as ReadableStream).getReader();
-  let buf = "";
-  const readLine = async (timeoutMs: number): Promise<string | null> => {
-    const t0 = Date.now();
-    while (Date.now() - t0 < timeoutMs) {
-      const nl = buf.indexOf("\n");
-      if (nl >= 0) {
-        const line = buf.slice(0, nl);
-        buf = buf.slice(nl + 1);
-        return line;
-      }
-      const { done, value } = await reader.read();
-      if (done) return null;
-      buf += dec.decode(value, { stream: true });
-    }
-    return null;
-  };
+  const lr = lineReader(proc.stdout as ReadableStream);
+  const readLine = (timeoutMs: number) => lr.next(timeoutMs);
   try {
     for (const p of paths)
       proc.stdin.write(enc.encode(`${JSON.stringify(p)}\n`));

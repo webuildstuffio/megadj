@@ -35,6 +35,10 @@ function baseOpts(
     cookiesFile: null,
     sources: [{ id: "LM", label: "liked" }],
     fetchPlaylistFn: fakeFetch,
+    // nonexistent binary → probes fail fast (exit 1, no network), exactly
+    // what this file's design comment promises; without it the two "real
+    // run" tests hit YouTube and stall on the ~22s real yt-dlp round-trip.
+    ytdlpBin: "megadj-no-such-bin",
     onProgress: () => {}, // silence human logs in tests
     ...over,
   };

@@ -10,6 +10,6 @@
   },
   "scripts": {
     "fulltags": "bun run cli.ts",
-    "test": "bun test fulltags/"
+    "test": "bun test ../fulltags ../src"
   }
 }

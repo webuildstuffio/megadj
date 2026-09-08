@@ -40,6 +40,7 @@ import { archiveTools } from "./archive_tools";
 import { str, num, RpcParamError } from "./mcp_params";
 import {
   apiGet,
+  apiGetJson,
   apiPost,
   ensureServer,
   resolveDrive,
@@ -127,7 +128,7 @@ async function needDrive(nameOrId: string | undefined): Promise<{
 }
 
 async function interlockGuard(): Promise<void> {
-  const il = (await apiGet("/api/interlock").then((r) => r.json())) as {
+  const il = (await apiGetJson("/api/interlock")) as {
     rekordbox_running: boolean;
     pid: number | null;
   };
@@ -158,9 +159,9 @@ const TOOLS: Record<string, ToolDef> = {
     },
     run: async () => {
       const [interlock, drives, jobs] = await Promise.all([
-        apiGet("/api/interlock").then((r) => r.json()),
-        apiGet("/api/drives").then((r) => r.json()),
-        apiGet("/api/jobs?active=1").then((r) => r.json()),
+        apiGetJson("/api/interlock"),
+        apiGetJson("/api/drives"),
+        apiGetJson("/api/jobs?active=1"),
       ]);
       return { interlock, drives, jobs };
     },
@@ -174,7 +175,7 @@ const TOOLS: Record<string, ToolDef> = {
       properties: {},
       additionalProperties: false,
     },
-    run: async () => apiGet("/api/drives").then((r) => r.json()),
+    run: async () => apiGetJson("/api/drives"),
   },
 
   deck_report: {
@@ -200,8 +201,8 @@ const TOOLS: Record<string, ToolDef> = {
     run: async (args) => {
       const d = await needDrive(str(args, "drive"));
       if (str(args, "format") === "dossier")
-        return apiGet(`/api/drives/${d.id}/export`).then((r) => r.json());
-      return apiGet(`/api/drives/${d.id}/report`).then((r) => r.json());
+        return apiGetJson(`/api/drives/${d.id}/export`);
+      return apiGetJson(`/api/drives/${d.id}/report`);
     },
   },
 
@@ -221,8 +222,8 @@ const TOOLS: Record<string, ToolDef> = {
     run: async (args) => {
       const n = num(args, "min_copies");
       const qs = n && n > 0 ? `?min_copies=${n}` : "";
-      return apiGet(`/api/fleet/coverage${qs}`).then((r) =>
-        r.json(),
+      return apiGetJson(
+        `/api/fleet/coverage${qs}`,
       ) as Promise<CoverageResponse>;
     },
   },
@@ -240,8 +241,8 @@ const TOOLS: Record<string, ToolDef> = {
     run: async (args) => {
       const n = num(args, "min_copies");
       const qs = n && n > 0 ? `?min_copies=${n}` : "";
-      return apiGet(`/api/fleet/redundancy${qs}`).then((r) =>
-        r.json(),
+      return apiGetJson(
+        `/api/fleet/redundancy${qs}`,
       ) as Promise<RedundancyResult>;
     },
   },
@@ -264,9 +265,9 @@ const TOOLS: Record<string, ToolDef> = {
     run: async (args) => {
       const da = await needDrive(str(args, "a"));
       const dbb = await needDrive(str(args, "b"));
-      return apiGet(
+      return apiGetJson(
         `/api/fleet/diff?a=${encodeURIComponent(da.id)}&b=${encodeURIComponent(dbb.id)}`,
-      ).then((r) => r.json());
+      );
     },
   },
 
@@ -277,7 +278,7 @@ const TOOLS: Record<string, ToolDef> = {
       properties: {},
       additionalProperties: false,
     },
-    run: async () => apiGet("/api/jobs").then((r) => r.json()),
+    run: async () => apiGetJson("/api/jobs"),
   },
 
   deck_run: {
@@ -360,7 +361,7 @@ const TOOLS: Record<string, ToolDef> = {
       const jobId = str(args, "job_id");
       if (!jobId) throw new RpcParamError("job_id is required");
       const r = await apiPost(`/api/jobs/${jobId}/cancel`);
-      return r.json();
+      return (await r.json()) as unknown;
     },
   },
 
@@ -416,7 +417,7 @@ const TOOLS: Record<string, ToolDef> = {
       properties: {},
       additionalProperties: false,
     },
-    run: async () => apiGet("/api/preflight").then((r) => r.json()),
+    run: async () => apiGetJson("/api/preflight"),
   },
 
   deck_players: {
@@ -434,9 +435,9 @@ const TOOLS: Record<string, ToolDef> = {
     },
     run: async (args) => {
       const drive = str(args, "drive");
-      if (!drive) return apiGet("/api/drives").then((r) => r.json());
+      if (!drive) return apiGetJson("/api/drives");
       const d = await needDrive(drive);
-      return apiGet(`/api/drives/${d.id}/players`).then((r) => r.json());
+      return apiGetJson(`/api/drives/${d.id}/players`);
     },
   },
 
@@ -536,13 +537,11 @@ const TOOLS: Record<string, ToolDef> = {
     run: async (args) => {
       const drive = str(args, "drive");
       if (!drive) {
-        const drives = await apiGet("/api/drives").then((r) => r.json());
+        const drives = await apiGetJson("/api/drives");
         const out = [];
         for (const d of drives as { id: string; name: string }[]) {
           try {
-            const notes = await apiGet(`/api/drives/${d.id}/notes`).then((r) =>
-              r.json(),
-            );
+            const notes = await apiGetJson(`/api/drives/${d.id}/notes`);
             if (Array.isArray(notes) && notes.length)
               out.push({ drive: d.name, notes });
           } catch {
@@ -552,7 +551,7 @@ const TOOLS: Record<string, ToolDef> = {
         return out;
       }
       const d = await needDrive(drive);
-      return apiGet(`/api/drives/${d.id}/notes`).then((r) => r.json());
+      return apiGetJson(`/api/drives/${d.id}/notes`);
     },
   },
 
@@ -593,9 +592,7 @@ const TOOLS: Record<string, ToolDef> = {
     run: async (args) => {
       const q = str(args, "q")?.trim();
       if (!q) throw new RpcParamError("q is required");
-      return apiGet(`/api/search?q=${encodeURIComponent(q)}`).then((r) =>
-        r.json(),
-      );
+      return apiGetJson(`/api/search?q=${encodeURIComponent(q)}`);
     },
   },
 
@@ -649,8 +646,7 @@ async function handle(req: RpcRequest): Promise<void> {
         // wrong key silently dropped every argument from conforming clients.
         const args =
           ((req.params ?? {})["arguments"] as
-            | Record<string, unknown>
-            | undefined) ?? {};
+            Record<string, unknown> | undefined) ?? {};
         const raw = await TOOLS[name].run(args);
         const text = JSON.stringify(raw, null, 2);
         reply(id, {

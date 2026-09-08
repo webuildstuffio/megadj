@@ -15,6 +15,7 @@
 import { readdirSync, statSync, existsSync, readFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import { analyzeKeys } from "./src/analysis";
+import type { KeyResult } from "./src/analysis";
 import { groundTruth } from "./src/readers";
 
 const AUDIO = new Set([
@@ -162,7 +163,7 @@ function main() {
 
   const withRefs = sample.filter((f) => refs.get(f));
   const t0 = Date.now();
-  const results = withRefs.length
+  const results: Promise<Map<string, KeyResult>> = withRefs.length
     ? analyzeKeys(withRefs)
     : Promise.resolve(new Map());
   void results.then((keys) => {

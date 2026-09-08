@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { ArchiveState } from "./state";
+import type { OrganizeOptions } from "./commands/organize";
 import { RateLimiter } from "./ratelimit";
 import { sync } from "./commands/sync";
 import { status, listTracks, statusJson, listJson } from "./commands/status";
@@ -121,6 +122,26 @@ function parseFlags(
 function numOpt(flags: ParsedFlags, key: string): number | undefined {
   const raw = flags.strings.get(key);
   return raw ? Number(raw) || undefined : undefined;
+}
+
+/** Non-negative numeric option with a hard error (`--limit 5`). Returns
+ * undefined when absent; exits 2 when present but invalid. The beats/
+ * mood/cues case blocks each hand-rolled this check 3× inline. */
+function nonNegOpt(
+  flags: ParsedFlags,
+  key: string,
+  cmd: string,
+): number | undefined {
+  const raw = flags.strings.get(key);
+  if (raw === undefined) return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) {
+    console.error(
+      `${cmd}: --${key} must be a non-negative number (got "${raw}")`,
+    );
+    process.exitCode = 2;
+  }
+  return n;
 }
 
 async function main(): Promise<void> {
@@ -268,7 +289,10 @@ async function main(): Promise<void> {
           [],
           ["dry-run", "json"],
         );
-        const mod = await import(
+        const mod: Record<
+          "organize" | "enrich",
+          (opts: OrganizeOptions) => Promise<void>
+        > = await import(
           command === "organize" ? "./commands/organize" : "./commands/enrich"
         );
         await mod[command]({
@@ -458,21 +482,12 @@ async function main(): Promise<void> {
           ["limit", "jobs"],
           ["force", "dry-run", "json"],
         );
-        const limRaw = flags.strings.get("limit");
-        const limNum = limRaw !== undefined ? Number(limRaw) : NaN;
-        if (limRaw !== undefined && (!Number.isFinite(limNum) || limNum < 0)) {
-          console.error(
-            `beats: --limit must be a non-negative number (got "${limRaw}")`,
-          );
-          process.exitCode = 1;
-          break;
-        }
         const { beats } = await import("./commands/beats");
         await beats({
           state,
           musicDir: MUSIC_DIR,
           jobs: numOpt(flags, "jobs"),
-          limit: limRaw !== undefined ? limNum : undefined,
+          limit: nonNegOpt(flags, "limit", "beats"),
           force: flags.bools.has("force"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
@@ -487,21 +502,12 @@ async function main(): Promise<void> {
           ["limit", "jobs"],
           ["force", "dry-run", "json"],
         );
-        const limRaw = flags.strings.get("limit");
-        const limNum = limRaw !== undefined ? Number(limRaw) : NaN;
-        if (limRaw !== undefined && (!Number.isFinite(limNum) || limNum < 0)) {
-          console.error(
-            `mood: --limit must be a non-negative number (got "${limRaw}")`,
-          );
-          process.exitCode = 1;
-          break;
-        }
         const { mood } = await import("./commands/mood");
         await mood({
           state,
           musicDir: MUSIC_DIR,
           jobs: numOpt(flags, "jobs"),
-          limit: limRaw !== undefined ? limNum : undefined,
+          limit: nonNegOpt(flags, "limit", "mood"),
           force: flags.bools.has("force"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
@@ -516,19 +522,10 @@ async function main(): Promise<void> {
           ["limit"],
           ["force", "dry-run", "json"],
         );
-        const limRaw = flags.strings.get("limit");
-        const limNum = limRaw !== undefined ? Number(limRaw) : NaN;
-        if (limRaw !== undefined && (!Number.isFinite(limNum) || limNum < 0)) {
-          console.error(
-            `cues: --limit must be a non-negative number (got "${limRaw}")`,
-          );
-          process.exitCode = 1;
-          break;
-        }
         const { cues } = await import("./commands/cues");
         await cues({
           state,
-          limit: limRaw !== undefined ? limNum : undefined,
+          limit: nonNegOpt(flags, "limit", "cues"),
           force: flags.bools.has("force"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),

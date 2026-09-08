@@ -17,6 +17,7 @@
 
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
+import type { Stats } from "node:fs";
 import { ArchiveReader } from "./archive";
 
 /** One ledger row: the last known-good fingerprint of an archive file.
@@ -92,7 +93,7 @@ export async function sweepArchive(
     // archive DB stores paths relative to the music dir (see state.ts);
     // tolerate absolute rows too
     const abs = rel.startsWith("/") ? rel : `${musicDir}/${rel}`;
-    let st;
+    let st: Stats;
     try {
       st = await stat(abs);
     } catch {

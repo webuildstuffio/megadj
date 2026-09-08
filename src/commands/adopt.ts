@@ -5,9 +5,11 @@
  * the tool.
  */
 
-import { readdir } from "node:fs/promises";
-import { join } from "node:path";
+import type { Stats } from "node:fs";
+import { walkAudioFiles } from "../../fulltags/src/exports";
+import { normalize } from "../../fulltags/src/identity";
 import type { ArchiveState } from "../state";
+import { commandLog } from "../progress";
 
 export interface AdoptOptions {
   state: ArchiveState;
@@ -17,42 +19,16 @@ export interface AdoptOptions {
   json?: boolean;
 }
 
-/** Normalize a string for loose title comparison. */
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/[｜|]/g, "|")
-    .replace(/[^a-z0-9 ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/** Recursively collect .m4a files (the tree has genre subfolders). */
-async function walkM4a(dir: string, out: string[] = []): Promise<string[]> {
-  let entries;
-  try {
-    entries = await readdir(dir, { withFileTypes: true });
-  } catch {
-    // Missing music dir: nothing to adopt (doctor flags this upstream).
-    return out;
-  }
-  for (const ent of entries) {
-    if (ent.name.startsWith(".")) continue;
-    const full = join(dir, ent.name);
-    if (ent.isDirectory()) await walkM4a(full, out);
-    else if (ent.name.endsWith(".m4a")) out.push(full);
-  }
-  return out;
+/** Audio files under the archive (the tree has genre subfolders) — shared
+ * FullTags walker, filtered to .m4a for the YouTube-intake format. Sync
+ * walk is fine here: adopt is a short CLI pass. */
+function walkM4a(dir: string): string[] {
+  return walkAudioFiles(dir).filter((f) => f.toLowerCase().endsWith(".m4a"));
 }
 
 export async function adopt(opts: AdoptOptions): Promise<void> {
-  // --json mode (P1): human logs go quiet — the summary object is the only
-  // stdout output so agents get parseable JSON.
-  const rawLog = opts.onProgress ?? ((m: string) => console.log(m));
-  const log = opts.json && !opts.onProgress ? () => {} : rawLog;
-  const files = await walkM4a(opts.musicDir);
+  const log = commandLog(opts);
+  const files = walkM4a(opts.musicDir);
   log(`found ${files.length} audio files under ${opts.musicDir}`);
 
   const tracks = opts.state.allTracks();
@@ -78,7 +54,7 @@ export async function adopt(opts: AdoptOptions): Promise<void> {
     // A file can vanish between the directory walk and this stat (cleanup,
     // another agent, a moving tree). Skipping one file beats crashing the
     // whole adoption pass — same hardening `sync` got for its byte counter.
-    let stat: Awaited<ReturnType<typeof Bun.file.prototype.stat>>;
+    let stat: Stats;
     try {
       stat = await Bun.file(file).stat();
     } catch {

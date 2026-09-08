@@ -7,7 +7,7 @@
 // which stranded finished jobs as phantom "running 0%" (see AGENTS.md
 // invariants). Keep it async — there is a regression expectation.
 import { readdir, stat } from "node:fs/promises";
-import type { Stats } from "node:fs";
+import type { Dirent, Stats } from "node:fs";
 import { join } from "node:path";
 
 export interface WalkOptions {
@@ -50,7 +50,7 @@ async function rec(
   rel: string,
   opts: WalkOptions,
 ): Promise<boolean /* false = stop */> {
-  let entries;
+  let entries: Dirent[];
   try {
     // withFileTypes gives Dirents and saves a stat per entry on the happy
     // path (isDirectory()/isFile() come from the dirent, not statSync).

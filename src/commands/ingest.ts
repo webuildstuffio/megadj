@@ -18,9 +18,15 @@
 import { $ } from "bun";
 import { createHash } from "node:crypto";
 import { stat, copyFile, mkdir, rename } from "node:fs/promises";
+import type { Stats } from "node:fs";
 import { join, basename, extname } from "node:path";
 import type { ArchiveState, TrackRow } from "../state";
-import { applyTags, inferGenre, sanitizeGenreFolder } from "../metadata";
+import { commandLog } from "../progress";
+import {
+  applyTags,
+  inferGenre,
+  sanitizeGenreFolder,
+} from "../../fulltags/src/exports";
 import {
   expandZips,
   deleteFullyIngestedZips,
@@ -36,9 +42,12 @@ import {
   walkAudio,
   type Record_,
 } from "./ingest-probe";
-import { identityKey } from "./identity";
-import { detectRemix } from "./remix";
-import { energyFromLufs, measureRms } from "./energy";
+import { identityKey } from "../../fulltags/src/identity";
+import {
+  detectRemix,
+  energyFromLufs,
+  measureRms,
+} from "../../fulltags/src/exports";
 import { wavToAiff } from "./wav-to-aiff";
 import {
   fetchAndEmbedArtwork,
@@ -64,12 +73,7 @@ export interface IngestOptions {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function ingest(opts: IngestOptions): Promise<void> {
-  // --json mode (P1): silence human progress logs — the summary object is
-  // the only stdout output, so agents get parseable JSON.
-  const log =
-    opts.json && !opts.onProgress
-      ? () => {}
-      : (opts.onProgress ?? ((m: string) => console.log(m)));
+  const log = commandLog(opts);
   const quarantineDir =
     opts.quarantineDir ?? join(opts.folder, "ingest-duplicates");
   const minDuration = opts.minDuration ?? 60;
@@ -100,7 +104,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     // A file can vanish between the walk and this stat (cleanup, another
     // agent). Skip it — one ENOENT must not kill the whole ingest pass
     // (same hardening `sync` got for its byte counter).
-    let st;
+    let st: Stats;
     try {
       st = await stat(file);
     } catch {
@@ -156,9 +160,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   }
 
   // ---- Phase C: archive collision check ------------------------------
-  const archiveTracks = opts.state
-    .allTracks()
-    .filter((t) => t.status === "downloaded" && t.file_path);
+  const archiveTracks = opts.state.downloadedWithFiles();
   const archiveByIdentity = new Map<string, TrackRow>();
   for (const t of archiveTracks) {
     if (!t.title) continue;

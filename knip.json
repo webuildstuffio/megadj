@@ -5,7 +5,7 @@
       "entry": ["tools/fetch_all.ts", "tools/fix_years.ts"],
       "ignore": ["fulltags/**"],
       "ignoreExportsUsedInFile": true,
-      "ignoreBinaries": ["ditto", "ffprobe", "yt-dlp", "plutil", "prettier", "wait"],
+      "ignoreBinaries": ["ditto", "ffprobe", "yt-dlp", "plutil", "wait"],
       "ignoreDependencies": ["preact"]
     },
     "cratedeck": {

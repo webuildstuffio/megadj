@@ -1,0 +1,4 @@
+# Local mirror of the repo-root bunfig [test] block — bun reads bunfig.toml
+# from CWD, so workspace-level `bun run test` needs its own copy.
+[test]
+timeout = 60000

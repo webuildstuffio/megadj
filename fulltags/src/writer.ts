@@ -14,10 +14,18 @@
  * Audio is always stream-copied (`-c:a copy`) — never re-encoded.
  */
 import { $ } from "bun";
-import { extname } from "node:path";
-import { existsSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { extname, join } from "node:path";
+import {
+  existsSync,
+  readdirSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import type { Dirent } from "node:fs";
 import type { EnrichedMetadata, TagPatch } from "./schema";
 import { validatePatch } from "./schema-guards";
+import { id3Open, mutagenOk } from "./mutagen";
 
 /** Defined entries of a TagPatch — set fields only (year/bpm/energy are numeric). */
 type TagPair = [keyof TagPatch, string | number];
@@ -45,6 +53,30 @@ export const AUDIO_EXTS = new Set([
 
 export function isAudioFile(p: string): boolean {
   return AUDIO_EXTS.has(extname(p).toLowerCase());
+}
+
+/** Recursively list audio files under `dir`, skipping hidden entries.
+ * One shared walker for every "collect the archive" pass — fetch/audit,
+ * fetch_lib's ground-truth set, adopt's intake — so skip rules and the
+ * extension filter can never drift apart again. A missing/unreadable dir
+ * returns [] (soft-fail: callers treat an absent music dir as empty, a
+ * typoed path must not crash the pass). Sync on purpose: callers are
+ * short CLI passes; for server/event-loop contexts use cratedeck's
+ * async walkTree instead. */
+export function walkAudioFiles(dir: string, out: string[] = []): string[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const ent of entries) {
+    if (ent.name.startsWith(".")) continue;
+    const full = join(dir, ent.name);
+    if (ent.isDirectory()) walkAudioFiles(full, out);
+    else if (ent.isFile() && isAudioFile(ent.name)) out.push(full);
+  }
+  return out;
 }
 
 export function isLossless(p: string): boolean {
@@ -241,7 +273,6 @@ export function writePatchWav(filePath: string, patch: TagPatch): boolean {
     validatePatch(patch);
     const pairs = tagPairs(patch);
     if (!pairs.length) return true;
-    const isAiff = /\.(aiff|aif)$/i.test(filePath);
     const WAV_ID3: Partial<Record<keyof TagPatch, string>> = {
       title: "TIT2",
       artist: "TPE1",
@@ -285,21 +316,14 @@ export function writePatchWav(filePath: string, patch: TagPatch): boolean {
       })
       .filter(Boolean)
       .join("\n");
-    const open = isAiff
-      ? `from mutagen.aiff import AIFF\na = AIFF(${JSON.stringify(filePath)})`
-      : `from mutagen.wave import WAVE\na = WAVE(${JSON.stringify(filePath)})`;
-    const script = `${open}
+    const script = `${id3Open(filePath)}
 from mutagen.id3 import ID3, TIT2, TIT3, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TKEY, TPUB, TXXX, COMM
 if not a.tags: a.add_tags()
 if not isinstance(a.tags, ID3): a.tags = ID3()
 ${sets}
 a.save()
 print("ok")`;
-    const pr = Bun.spawnSync({
-      cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
-      stdout: "pipe",
-    });
-    return new TextDecoder().decode(pr.stdout).trim() === "ok";
+    return mutagenOk(script);
   } catch {
     return false;
   }
@@ -371,11 +395,7 @@ if a.tags is None: a.add_tags()
 ${sets}
 a.save()
 print("ok")`;
-    const pr = Bun.spawnSync({
-      cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
-      stdout: "pipe",
-    });
-    return new TextDecoder().decode(pr.stdout).trim() === "ok";
+    return mutagenOk(script);
   } catch {
     return false;
   }
@@ -393,10 +413,7 @@ export function embedArt(p: string, bytes: Uint8Array): boolean {
     // (below) drops/rebuilds those containers' ID3 chunks — a re-embed
     // would wipe TXXX stamps (energy etc.) written by the tag pass.
     if (p.toLowerCase().endsWith(".wav") || /\.(aiff?|aif)$/i.test(p)) {
-      const open = /\.(aiff?|aif)$/i.test(p)
-        ? `from mutagen.aiff import AIFF\na = AIFF(${JSON.stringify(p)})`
-        : `from mutagen.wave import WAVE\na = WAVE(${JSON.stringify(p)})`;
-      const script = `${open}
+      const script = `${id3Open(p)}
 from mutagen.id3 import ID3, APIC
 if a.tags and any(k.startswith("APIC") for k in a.tags.keys()):
     a.tags.delall("APIC")
@@ -409,11 +426,7 @@ if not isinstance(a.tags, ID3):
 a.tags.add(APIC(encoding=3, mime="image/jpeg", type=3, desc="Cover", data=open(${JSON.stringify(dump)}, "rb").read()))
 a.save()
 print("ok")`;
-      const pr = Bun.spawnSync({
-        cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
-        stdout: "pipe",
-      });
-      return new TextDecoder().decode(pr.stdout).trim() === "ok";
+      return mutagenOk(script);
     }
     const tmp = tmpLike(p, ".fa");
     const pr = Bun.spawnSync({

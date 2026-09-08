@@ -1,0 +1,12 @@
+# Bun runtime config.
+# [test] timeout: the suite spawns real subprocesses (uv/essentia ONNX env,
+# fpcalc, usb_verify.py). On a cold uv cache the first `uv run --with` env
+# build far exceeds bun's 5s default — that is env provisioning, not a hang.
+# Warm runs (the common case) are unaffected: full suite ≈ 45s.
+[test]
+timeout = 60000
+# Coverage report skips test files themselves (default reports them).
+coverageSkipTestFiles = true
+
+[install]
+# Workspaces resolve from the root lockfile.

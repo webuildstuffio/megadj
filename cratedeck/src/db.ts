@@ -386,9 +386,10 @@ export class DB {
   }
 
   setNickname(id: string, nickname: string | null): void {
-    // "" is not a name — callers mean "clear" (null) or sent garbage;
-    // storing "" renders as a blank label everywhere downstream
-    const value = nickname === "" ? null : nickname;
+    // Whitespace/empty is not a name — callers mean "clear" (null) or sent
+    // garbage; storing "" or "   " renders as a blank label downstream.
+    const trimmed = nickname?.trim();
+    const value = trimmed ? trimmed : null;
     this.sqlite.query("UPDATE drives SET nickname=? WHERE id=?").run(value, id);
   }
 

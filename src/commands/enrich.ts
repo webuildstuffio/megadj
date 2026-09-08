@@ -8,6 +8,7 @@
  * write) lives in FullTags.
  */
 import type { ArchiveState } from "../state";
+import { commandLog } from "../progress";
 import { writePatch } from "../../fulltags/src/exports";
 import { mbGenreForArtist } from "../../fulltags/src/mb";
 
@@ -45,8 +46,7 @@ async function rewriteGenreTag(
 }
 
 export async function enrich(opts: EnrichOptions): Promise<void> {
-  const rawLog = opts.onProgress ?? ((m: string) => console.log(m));
-  const log = opts.json && !opts.onProgress ? () => {} : rawLog;
+  const log = commandLog(opts);
   const tracks = opts.state
     .allTracks()
     .filter(

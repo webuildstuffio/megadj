@@ -10,6 +10,7 @@
  */
 import { existsSync, rmSync } from "node:fs";
 import { basename, dirname, extname } from "node:path";
+import { lineReader } from "./stdio";
 
 /** Where the OpenKeyScan analyzer repo is cloned (stdin/stdout JSON mode).
  * Override with FULLTAGS_KEYSCAN_DIR. Resolved lazily so tests/env can
@@ -349,9 +350,7 @@ async function runKeyServer(
     stderr: "ignore",
   });
   const enc = new TextEncoder();
-  let buf = "";
-  const dec = new TextDecoder();
-  const stdoutReader = (proc.stdout as ReadableStream).getReader();
+  const lr = lineReader(proc.stdout as ReadableStream);
   /** Read lines until pred matches (or timeout/EOF). Deterministic: each
    * iteration either consumes a buffered line or awaits exactly one read()
    * — no polling race between a pump task and the caller. */
@@ -359,31 +358,25 @@ async function runKeyServer(
     pred: (line: string) => boolean,
     timeoutMs: number,
   ): Promise<string | null> => {
-    const t0 = Date.now();
-    while (Date.now() - t0 < timeoutMs) {
-      const nl = buf.indexOf("\n");
-      if (nl >= 0) {
-        const line = buf.slice(0, nl);
-        buf = buf.slice(nl + 1);
-        if (pred(line)) return line;
-        continue;
-      }
-      const { done, value } = await stdoutReader.read();
-      if (done) return null;
-      buf += dec.decode(value, { stream: true });
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return null;
+      const line = await lr.next(remaining);
+      if (line == null) return null;
+      if (pred(line)) return line;
     }
-    return null;
   };
   const isReady = (l: string) => {
     try {
-      return JSON.parse(l).type === "ready";
+      return (JSON.parse(l) as { type?: unknown }).type === "ready";
     } catch {
       return false;
     }
   };
   const hasId = (l: string) => {
     try {
-      return !!JSON.parse(l).id;
+      return !!(JSON.parse(l) as { id?: unknown }).id;
     } catch {
       return false;
     }
@@ -426,7 +419,6 @@ async function runKeyServer(
     } catch {
       /* already dead */
     }
-    void enc;
   }
   // Drop error placeholders — callers key on success only.
   for (const [k, v] of out) if (!v) out.delete(k);

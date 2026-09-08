@@ -11,7 +11,12 @@ import type { ArchiveState } from "../state";
 import type { RateLimiter } from "../ratelimit";
 import { withRetry } from "../ratelimit";
 import { Downloader } from "../downloader";
-import { applyTags, buildMetadata, inferGenre } from "../metadata";
+import { commandLog } from "../progress";
+import {
+  applyTags,
+  buildMetadata,
+  inferGenre,
+} from "../../fulltags/src/exports";
 import { ProgressBar } from "../progress";
 
 const isTty = process.stdout.isTTY ?? false;
@@ -34,6 +39,9 @@ export interface SyncOptions {
   json?: boolean;
   /** Injectable playlist fetcher for tests — defaults to the yt-dlp probe. */
   fetchPlaylistFn?: typeof fetchPlaylist;
+  /** yt-dlp binary passed to the Downloader. Tests set a nonexistent path
+   * so probes fail fast (exit 1, no network) — see sync.test.ts. */
+  ytdlpBin?: string;
 }
 
 /** A playlist source: id (e.g. "LM", "LL", "PL...") plus a label for state. */
@@ -80,13 +88,10 @@ async function fetchPlaylist(
 }
 
 export async function sync(opts: SyncOptions): Promise<void> {
-  // --json mode (P1): human logs go quiet — the summary object must be the
-  // only stdout output so agents get parseable JSON (same contract as the
-  // artwork/ingest commands).
-  const rawLog = opts.onProgress ?? ((m: string) => console.log(m));
-  const log = opts.json && !opts.onProgress ? () => {} : rawLog;
+  const log = commandLog(opts);
   const downloader = new Downloader({
     musicDir: opts.musicDir,
+    ytdlpBin: opts.ytdlpBin,
     cookiesFromBrowser: opts.cookiesFromBrowser,
     cookiesFile: opts.cookiesFile ?? null,
   });

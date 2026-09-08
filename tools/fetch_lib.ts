@@ -7,12 +7,12 @@
  * the Row/TagValues shapes the DB pipeline speaks.
  */
 import { Database } from "bun:sqlite";
-import { readdirSync } from "node:fs";
 import {
   embedArt as ftEmbedArt,
   fetchImage as ftFetchImage,
   groundTruth as ftGroundTruth,
   validatePatch,
+  walkAudioFiles,
   writePatchSync,
   canonGenre as ftCanonGenre,
   type TagPatch,
@@ -27,23 +27,7 @@ export const db = new Database(`${home}/.local/state/megadj/archive.db`);
  * organize() moves tracks into them, so a top-level readdir skipped every
  * organized track and let same-named files in different folders collide). */
 export function archiveFiles(): Set<string> {
-  const out: string[] = [];
-  const walk = (dir: string): void => {
-    let entries;
-    try {
-      entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const ent of entries) {
-      if (ent.name.startsWith(".")) continue;
-      const full = `${dir}/${ent.name}`;
-      if (ent.isDirectory()) walk(full);
-      else if (/\.(wav|mp3|m4a|flac|aiff)$/i.test(ent.name)) out.push(full);
-    }
-  };
-  walk(ARCH);
-  return new Set(out);
+  return new Set(walkAudioFiles(ARCH));
 }
 
 export interface Row {

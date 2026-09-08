@@ -88,6 +88,19 @@ describe("db drives", () => {
     db.setNickname(UUID_A, "");
     expect(db.getDrive(UUID_A)!.nickname).toBeNull();
   });
+
+  it("setNickname trims whitespace and clears whitespace-only names", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.setNickname(UUID_A, "  Padded Name  ");
+    expect(db.getDrive(UUID_A)!.nickname).toBe("Padded Name");
+    db.setNickname(UUID_A, "   ");
+    expect(db.getDrive(UUID_A)!.nickname).toBeNull();
+  });
 });
 
 describe("db snapshots", () => {

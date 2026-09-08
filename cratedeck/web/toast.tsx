@@ -104,14 +104,20 @@ export async function api<T = unknown>(
 export function apiPost<T = unknown>(
   path: string,
   body: unknown,
-  init?: Omit<RequestInit, "method" | "body" | "headers"> & { quiet?: boolean },
+  init?: Omit<RequestInit, "method" | "body" | "headers"> & {
+    quiet?: boolean;
+    timeoutMs?: number;
+  },
 ): Promise<T> {
-  const { quiet, ...rest } = init ?? {};
+  // timeoutMs must be forwarded or long POSTs (dossier-style calls) inherit
+  // the 30s default and abort mid-flight.
+  const { quiet, timeoutMs, ...rest } = init ?? {};
   return api<T>(path, {
     ...rest,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     ...(quiet === undefined ? {} : { quiet }),
+    ...(timeoutMs === undefined ? {} : { timeoutMs }),
   });
 }

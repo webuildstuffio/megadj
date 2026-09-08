@@ -6,9 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "bun run src/index.ts",
-    "web:dev": "cd web && bunx vite",
-    "web:build": "cd web && bunx vite build",
+    "web:dev": "cd web && bun run dev",
+    "web:build": "cd web && bun run build",
     "start": "bun run src/index.ts",
-    "test": "bun test cratedeck/"
+    "test": "bun test ../cratedeck/test ../cratedeck/shared"
   }
 }

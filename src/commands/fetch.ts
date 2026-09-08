@@ -8,8 +8,8 @@
  * `fulltags audit` must agree by construction).
  */
 import { join } from "node:path";
-import { readdirSync, existsSync } from "node:fs";
-import { groundTruth } from "../../fulltags/src/exports";
+import { existsSync } from "node:fs";
+import { groundTruth, walkAudioFiles } from "../../fulltags/src/exports";
 export interface FetchOptions {
   all?: boolean;
   only?: "art" | "genres" | "tags" | "years" | "all";
@@ -36,22 +36,9 @@ export interface AuditRow {
 
 /** Audio files under the archive, recursively — organize() moves tracks
  * into genre subfolders, so a top-level readdir would audit an empty set
- * and always report "all complete" (0/0 is vacuous). */
-function walkArchive(dir: string, out: string[] = []): string[] {
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return out;
-  }
-  for (const ent of entries) {
-    if (ent.name.startsWith(".")) continue;
-    const full = join(dir, ent.name);
-    if (ent.isDirectory()) walkArchive(full, out);
-    else if (/\.(wav|mp3|m4a|flac|aiff)$/i.test(ent.name)) out.push(full);
-  }
-  return out;
-}
+ * and always report "all complete" (0/0 is vacuous). Shared FullTags
+ * walker: same skip/extension rules as every other collect pass. */
+const walkArchive = walkAudioFiles;
 
 /** Ground-truth audit of every audio file in the archive. */
 export function auditArchive(musicDir: string): {

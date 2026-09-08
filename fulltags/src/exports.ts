@@ -20,6 +20,7 @@ export {
   applyTags,
   embedArt,
   isAudioFile,
+  walkAudioFiles,
   writePatch,
   writePatchSync,
   writePatchWav,
@@ -67,6 +68,7 @@ export {
   type YtdlpInfo,
 } from "./metadata-build";
 export { detectRemix, type RemixInfo } from "./remix";
+export { normalize, identityKey } from "./identity";
 export { wavToAiff } from "./convert";
 export { readAiStamps, parseMoodStamp } from "./pipeline";
 export {
