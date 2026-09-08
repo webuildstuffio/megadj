@@ -24,6 +24,13 @@ covers invariants and traps only — product detail lives in `docs/`.
   are normal). Long `bun test` runs can hang on in-flight churn — rerun
   clean before declaring failure.
 - **Prose passes:** preserve em dashes and punctuation in shipped docs.
+- **Scrub private identifiers before history-touching work.** When removing a
+  private name (drive/volume/service) from the product, wipe every reference
+  from code, docs, and stored app state — and don't name it in the commit
+  message or replacement text either; history and diffs count as leaks.
+- **Dependency bumps carry a ~5-day release-age floor** ("latest stable minus
+  5 days") — too-fresh releases get held back to the next pass, and the gate
+  is re-run fully after every bump.
 
 ## What this repo is
 
@@ -164,6 +171,12 @@ Architecture + wire-shape rules:
   verify against code) before pushes. Dated analysis/learnings docs are
   snapshots — check `docs/product-state-2026-09-07.md` for current state.
 - Tools take volume names/paths from config — never hardcoded literals.
+- Perf passes are QUANTIFIED: measure a baseline, then prove the saving
+  (e.g. "≥20%") against it — never declare a pass done on vibes. Sep 8
+  benchmark: full gate `bun run check:full` ~36s → 7.4s, `bun test` 385
+  tests 32.3s → 6.5s (−80%) via `bun test --parallel=16` (workers
+  subprocess-bound; 20 adds nothing) + splitting the
+  `fulltags/test/analysis.test.ts` monolith per roadmap stage.
 
 ## Local-only files
 
