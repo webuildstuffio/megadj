@@ -8,11 +8,18 @@
 import type {
   Drive,
   HealthCheck,
-  PreflightVerdict,
+  PreflightDriveResult,
+  PreflightReport,
   SnapshotData,
 } from "../shared/types";
 import { fmtBytes } from "../shared/fmt";
 import { firmwareAdvisories, type PlayerSpec } from "./players";
+
+// PreflightDriveResult/PreflightReport (the B12 wire shapes) are DEFINED in
+// shared/types.ts — the dependency leaf — and imported above. Re-exported
+// here for existing `from "./preflight"` consumers (shared/types consumers
+// switched to the canonical definitions).
+export type { PreflightDriveResult, PreflightReport };
 
 const DAY = 86_400_000;
 
@@ -32,25 +39,6 @@ export interface PreflightInput {
     blocked: { player: PlayerSpec; reason: string }[];
     unknown: boolean;
   };
-}
-
-export interface PreflightDriveResult {
-  drive: Drive;
-  overall: PreflightVerdict;
-  checks: HealthCheck[];
-  /** show-stoppers — the reason a drive is not-ready, for the top line */
-  blockers: string[];
-}
-
-export interface PreflightReport {
-  generated_at: number;
-  drives: PreflightDriveResult[];
-  mountedCount: number;
-  overall: PreflightVerdict;
-  /** one line a human reads before leaving for the gig */
-  summary: string;
-  /** N76: known firmware advisories from the player matrix (informational). */
-  firmware_advisories: string[];
 }
 
 /** Worst-status-wins aggregation tuned for gig night: a fail is "don't take

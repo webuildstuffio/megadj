@@ -11,37 +11,22 @@
 //   title+artist — fallback join when a track lives at different paths on
 //              different sticks (B6's "same track, different folder" case).
 
-import type { RedundancyVerdict } from "../shared/types";
+import type {
+  CoverageResult,
+  DiffRow,
+  FleetDiff,
+  ManifestRow,
+  PlaylistEntryRow,
+  PlaylistRedundancy,
+  RedundancyResult,
+  TrackCoverage,
+  TrackRow,
+} from "../shared/types";
 
-export interface TrackRow {
-  drive_id: string;
-  /** NFC-casefolded path relative to Contents/ (audio files only). */
-  path: string;
-  title: string | null;
-  artist: string | null;
-  bpm: number | null;
-  key: string | null;
-  duration_ms: number | null;
-  /** Playlist memberships for this track (populated by the DB reader). */
-  playlist_names?: string[];
-}
-
-export interface PlaylistEntryRow {
-  drive_id: string;
-  /** Casefolded path in track_tracks (matches TrackRow.path). */
-  track_path: string;
-  playlist_name: string;
-}
-
-/** One file in a drive's audio manifest (from the light scan walk). */
-export interface ManifestRow {
-  drive_id: string;
-  path: string; // casefolded, Contents-relative
-  bytes: number;
-  mtime_ms: number;
-}
-
-// ---- helpers ----------------------------------------------------------------
+// TrackRow/PlaylistEntryRow/ManifestRow re-exports stay (db.ts + tests
+// import them from here); the rest of the wire types live canonically in
+// shared/types.ts — import them from there.
+export type { ManifestRow, PlaylistEntryRow, TrackRow };
 
 /** Casefold like scan.nfcCasefold without importing scan (keeps this pure). */
 function fold(s: string): string {
@@ -61,37 +46,8 @@ function metaKey(t: {
 }
 
 // ---- coverage (B6) ----------------------------------------------------------
-
-export interface TrackCoverage {
-  identity: { path: string; title: string | null; artist: string | null };
-  /** drive_ids that carry this track */
-  drives: string[];
-  /** number of drives, repeated for sort/display convenience */
-  copies: number;
-  /** true when copies < required (the "gone forever if one fails" list) */
-  at_risk: boolean;
-}
-
-export interface CoverageResult {
-  /** drives that actually contributed an inventory (skipped empty ones) */
-  drives: { id: string; tracks: number }[];
-  /** one row per unique track across the fleet */
-  rows: TrackCoverage[];
-  /** tracks that exist on exactly `minCopies` drives or fewer */
-  at_risk: TrackCoverage[];
-  min_copies: number;
-  totals: { unique_tracks: number; fully_redundant: number };
-}
-
-/** What GET /api/fleet/coverage actually returns: the engine result with
- *  display names merged into `drives` and the huge matrix dropped. */
-export interface CoverageResponse extends Omit<
-  CoverageResult,
-  "drives" | "rows"
-> {
-  drives: { id: string; name: string; tracks: number }[];
-  rows?: undefined;
-}
+// (TrackCoverage / CoverageResult / CoverageResponse are defined in
+// shared/types.ts and re-exported at the top of this file.)
 
 /**
  * Track × drive coverage across the whole fleet.
@@ -209,24 +165,7 @@ export function trackLocations(
 }
 
 // ---- redundancy (B7) --------------------------------------------------------
-
-export interface PlaylistRedundancy {
-  playlist: string;
-  /** unique tracks in the playlist across every drive that has it */
-  unique_tracks: number;
-  /** tracks meeting the floor */
-  protected_tracks: number;
-  tracks: (TrackCoverage & { playlists: string[] })[];
-  verdict: RedundancyVerdict;
-  detail: string;
-}
-
-export interface RedundancyResult {
-  playlists: PlaylistRedundancy[];
-  /** fleet-wide verdict across all audited playlists */
-  overall: RedundancyVerdict;
-  summary: string;
-}
+// (PlaylistRedundancy / RedundancyResult are defined in shared/types.ts.)
 
 /**
  * Redundancy audit per playlist: is every track on ≥ minCopies drives?
@@ -331,27 +270,7 @@ export function redundancy(
 }
 
 // ---- fleet diff (B8) --------------------------------------------------------
-
-export type DiffKind = "added" | "removed" | "changed";
-
-export interface DiffRow {
-  path: string;
-  title: string | null;
-  artist: string | null;
-  kind: DiffKind;
-  /** source-side size/bytes when known (file manifests) */
-  bytes_a?: number;
-  bytes_b?: number;
-}
-
-export interface FleetDiff {
-  a: string;
-  b: string;
-  added: DiffRow[]; // on b, missing on a
-  removed: DiffRow[]; // on a, missing on b
-  changed: DiffRow[]; // both present, bytes differ
-  summary: string;
-}
+// (DiffKind / DiffRow / FleetDiff are defined in shared/types.ts.)
 
 /** Minimal shape the diff engine actually needs — TrackRow and ManifestRow
  *  both fit structurally, so no `in`-narrowing or casts anywhere below. */

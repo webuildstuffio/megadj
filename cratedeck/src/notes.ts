@@ -16,7 +16,12 @@ export const NOTE_MAX = 600;
 /** Longest attribution tag. */
 export const ORIGIN_MAX = 40;
 
-import type { NoteSeverity } from "../shared/types";
+import type { NoteSeverity, StoredNote } from "../shared/types";
+
+// StoredNote (the feed's wire row) is DEFINED in shared/types.ts — the
+// dependency leaf — and imported here. Re-exported below for existing
+// `from "./notes"` consumers.
+export type { StoredNote };
 
 export interface NoteInput {
   drive_id: string;
@@ -25,17 +30,6 @@ export interface NoteInput {
   origin?: string;
   /** Optional severity, rendered as the card tone. Default "info". */
   severity?: NoteSeverity;
-}
-
-export interface StoredNote {
-  id: string;
-  drive_id: string;
-  note: string;
-  origin: string;
-  severity: NoteSeverity;
-  at: number;
-  /** Set when dismissed; dismissed notes leave the active feed. */
-  dismissed_at: number | null;
 }
 
 /** Validate + clamp a note. Throws RpcParamError-style Error on garbage —

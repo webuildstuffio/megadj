@@ -11,18 +11,12 @@
 // The table is user-editable (config.toml [players] / players.toml extra
 // entries); these defaults ship in code because they come from the vendor's
 // own notice and only change when AlphaTheta says so.
-import type { SnapshotData } from "../shared/types";
+import type { DriveCompat, PlayerSpec, SnapshotData } from "../shared/types";
 
-export type LibraryFormat = "device" | "onelibrary";
-
-export interface PlayerSpec {
-  /** Display name, e.g. "XDJ-XZ". */
-  name: string;
-  /** Which library DB the player reads. */
-  reads: LibraryFormat;
-  /** Pioneer's firmware-pull era note, rendered as a preflight hint. */
-  note?: string;
-}
+// PlayerSpec + DriveCompat (the N75/N78 wire types) are DEFINED in
+// shared/types.ts — the dependency leaf — and imported here. Re-exported
+// for existing `from "./players"` consumers.
+export type { DriveCompat, PlayerSpec } from "../shared/types";
 
 /** The official matrix (research note 2026-09-04, ideas.md N75). Notes carry
  *  known firmware advisories (N76) — the CDJ-3000 v3.30 playlist-vanishing
@@ -51,15 +45,6 @@ export const PLAYERS: PlayerSpec[] = [
  *  playlists are empty" failure has its rule of thumb attached. */
 export function firmwareAdvisories(): string[] {
   return PLAYERS.filter((p) => p.note).map((p) => `${p.name}: ${p.note}`);
-}
-
-export interface DriveCompat {
-  /** Players that can read this drive as-is. */
-  ok: PlayerSpec[];
-  /** Players this drive is INVISIBLE to, with the measured reason. */
-  blocked: { player: PlayerSpec; reason: string }[];
-  /** true when the drive has no DB data at all (never full-scanned). */
-  unknown: boolean;
 }
 
 /** The fleet answer to "which players will this stick actually work on?"

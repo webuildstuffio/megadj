@@ -1,4 +1,12 @@
 // CrateDeck shared types — imported by server and web.
+//
+// DEPENDENCY RULE (enforced by `bunx madge --circular cratedeck/src
+// cratedeck/shared cratedeck/web`): this file is the leaf of the graph.
+// It may import NOTHING from src/ — every wire type used across the
+// server/web boundary is DEFINED here, and src/ producers import their
+// wire shapes FROM here. Re-exporting producer types from this file
+// created four shared/types → src cycles (fleet/notes/players/preflight),
+// which made the pre-commit hook block any staged edit to types.ts.
 
 export type DriveRole = "master" | "mirror" | "library" | "unknown";
 
@@ -306,22 +314,112 @@ export interface DriveReport {
 }
 
 // ---- fleet superpowers (docs/ideas.md §B6/B7/B8) -----------------------------
+//
+// The fleet wire types are DEFINED here (not re-exported from src/fleet):
+// src/fleet.ts is a pure engine that needs RedundancyVerdict from this file,
+// so defining its row/result shapes here keeps the graph one-way
+// (src/fleet → shared/types). Both the engine and the web/deckctl
+// consumers import these from the same place — one source of truth, zero
+// cycles.
 
-/** Wire shape of the coverage matrix + at-risk list. Re-exports the pure
- *  engine's shapes so web/deckctl share one source of truth. */
-export type {
-  TrackRow,
-  PlaylistEntryRow,
-  ManifestRow,
-  TrackCoverage,
-  CoverageResult,
-  CoverageResponse,
-  PlaylistRedundancy,
-  RedundancyResult,
-  DiffRow,
-  FleetDiff,
-  DiffKind,
-} from "../src/fleet";
+/** One track in a drive inventory (populated by the DB reader). */
+export interface TrackRow {
+  drive_id: string;
+  /** NFC-casefolded path relative to Contents/ (audio files only). */
+  path: string;
+  title: string | null;
+  artist: string | null;
+  bpm: number | null;
+  key: string | null;
+  duration_ms: number | null;
+  /** Playlist memberships for this track (populated by the DB reader). */
+  playlist_names?: string[];
+}
+
+/** One playlist-membership row: (drive, playlist, track). */
+export interface PlaylistEntryRow {
+  drive_id: string;
+  /** Casefolded path in track_tracks (matches TrackRow.path). */
+  track_path: string;
+  playlist_name: string;
+}
+
+/** One file in a drive's audio manifest (from the light scan walk). */
+export interface ManifestRow {
+  drive_id: string;
+  path: string; // casefolded, Contents-relative
+  bytes: number;
+  mtime_ms: number;
+}
+
+/** One unique track's presence across the fleet. */
+export interface TrackCoverage {
+  identity: { path: string; title: string | null; artist: string | null };
+  /** drive_ids that carry this track */
+  drives: string[];
+  /** number of drives, repeated for sort/display convenience */
+  copies: number;
+  /** true when copies < required (the "gone forever if one fails" list) */
+  at_risk: boolean;
+}
+
+export interface CoverageResult {
+  /** drives that actually contributed an inventory (skipped empty ones) */
+  drives: { id: string; tracks: number }[];
+  /** one row per unique track across the fleet */
+  rows: TrackCoverage[];
+  /** tracks that exist on exactly `minCopies` drives or fewer */
+  at_risk: TrackCoverage[];
+  min_copies: number;
+  totals: { unique_tracks: number; fully_redundant: number };
+}
+
+/** What GET /api/fleet/coverage actually returns: the engine result with
+ *  display names merged into `drives` and the huge matrix dropped. */
+export type CoverageResponse = Omit<CoverageResult, "drives" | "rows"> & {
+  drives: { id: string; name: string; tracks: number }[];
+  rows?: undefined;
+};
+
+/** Redundancy verdict for one playlist, with its gap detail. */
+export interface PlaylistRedundancy {
+  playlist: string;
+  /** unique tracks in the playlist across every drive that has it */
+  unique_tracks: number;
+  /** tracks meeting the floor */
+  protected_tracks: number;
+  tracks: (TrackCoverage & { playlists: string[] })[];
+  verdict: RedundancyVerdict;
+  detail: string;
+}
+
+export interface RedundancyResult {
+  playlists: PlaylistRedundancy[];
+  /** fleet-wide verdict across all audited playlists */
+  overall: RedundancyVerdict;
+  summary: string;
+}
+
+export type DiffKind = "added" | "removed" | "changed";
+
+export interface DiffRow {
+  path: string;
+  title: string | null;
+  artist: string | null;
+  kind: DiffKind;
+  /** source-side size/bytes when known (file manifests) */
+  bytes_a?: number;
+  bytes_b?: number;
+}
+
+export interface FleetDiff {
+  a: string;
+  b: string;
+  added: DiffRow[]; // on b, missing on a
+  removed: DiffRow[]; // on a, missing on b
+  changed: DiffRow[]; // both present, bytes differ
+  summary: string;
+}
 
 // ---- archive reads (O82b): one SSOT for the JSON the archive routes serve ----
 //
@@ -329,6 +427,8 @@ export type {
 // so a web component that re-declares these shapes locally drifts straight
 // into a compile error instead of rendering `Invalid Date` / `undefined` in
 // production (the Sep 7 ArchiveTab bug class).
+// These are type-only `import()`s — erased at runtime, so they add no
+// runtime edge and no cycle (src/archive does not import shared/types).
 export type ArchiveIngestStatus = ReturnType<
   import("../src/archive").ArchiveReader["ingestStatus"]
 >;
@@ -342,20 +442,69 @@ export type ArchiveMoodProfile = ReturnType<
   import("../src/archive").ArchiveReader["moodProfile"]
 >;
 
-// ---- preflight (B12): re-export the producer's own interface so web/
-// deckctl share one source of truth (PreflightTab used to re-declare the
-// wire shape by hand).
-export type { PreflightReport, PreflightDriveResult } from "../src/preflight";
+// ---- preflight (B12): the wire shapes are DEFINED here; src/preflight.ts
+// (the pure engine that produces them) imports them back. One source of
+// truth for web/deckctl/MCP without re-exporting the producer's module.
+export interface PreflightDriveResult {
+  drive: Drive;
+  overall: PreflightVerdict;
+  checks: HealthCheck[];
+  /** show-stoppers — the reason a drive is not-ready, for the top line */
+  blockers: string[];
+}
+
+export interface PreflightReport {
+  generated_at: number;
+  drives: PreflightDriveResult[];
+  mountedCount: number;
+  overall: PreflightVerdict;
+  /** one line a human reads before leaving for the gig */
+  summary: string;
+  /** N76: known firmware advisories from the player matrix (informational). */
+  firmware_advisories: string[];
+}
 
 // ---- player compatibility (N75/N78): wire shape of GET /drives/:id/players.
-// The server spreads DriveCompat (src/players.ts, the measured dual-DB
-// verdicts) under {drive, measured}; this mirrors that envelope once so
-// deckctl + the web PreflightTab don't each hand-declare it.
+// DriveCompat + PlayerSpec (the measured dual-DB verdicts) are DEFINED here;
+// src/players.ts imports them back. The server spreads DriveCompat under
+// {drive, measured}; PlayersPayload mirrors that envelope once so deckctl +
+// the web PreflightTab don't each hand-declare it.
+
+/** One row in the Pioneer player matrix. Notes carry known firmware
+ *  advisories (N76) and render as preflight hints. */
+export interface PlayerSpec {
+  /** Display name, e.g. "XDJ-XZ". */
+  name: string;
+  /** Which library DB the player reads. */
+  reads: "device" | "onelibrary";
+  /** Pioneer's firmware-pull era note, rendered as a preflight hint. */
+  note?: string;
+}
+
+export interface DriveCompat {
+  /** Players that can read this drive as-is. */
+  ok: PlayerSpec[];
+  /** Players this drive is INVISIBLE to, with the measured reason. */
+  blocked: { player: PlayerSpec; reason: string }[];
+  /** true when the drive has no DB data at all (never full-scanned). */
+  unknown: boolean;
+}
+
 export type PlayersPayload = {
   drive: { id: string; name: string; nickname: string | null };
   measured: { pdb_live_rows: number | null; onelibrary_rows: number | null };
-} & import("../src/players").DriveCompat;
+} & DriveCompat;
 
-// ---- notes (O88): re-export the feed's row type so deckctl and any other
-// consumer read the producer's shape instead of re-declaring it.
-export type { StoredNote } from "../src/notes";
+// ---- notes (O88): the feed's row type lives here; src/notes.ts (the
+// producer) imports it back so deckctl and any other consumer read the
+// same shape without a module cycle.
+export interface StoredNote {
+  id: string;
+  drive_id: string;
+  note: string;
+  origin: string;
+  severity: NoteSeverity;
+  at: number;
+  /** Set when dismissed; dismissed notes leave the active feed. */
+  dismissed_at: number | null;
+}
