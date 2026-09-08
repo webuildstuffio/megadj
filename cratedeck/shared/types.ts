@@ -194,7 +194,18 @@ export const ACTIVE_JOB_STATUSES = [
   "running",
 ] as const satisfies readonly JobStatus[];
 
-export interface Job {
+/** Client-side stamp: when THIS browser last received the row from a jobs
+ *  fetch. The server never sends it — the web client attaches it after
+ *  each fetch (App's refreshJobs) so JobsDock can measure per-row
+ *  staleness client-side (a frozen progress + a fresh fetch = the server
+ *  really isn't moving). Declared here because it rides the Job wire type
+ *  through the fetch-merge pipeline. */
+export interface Job extends WireJob {
+  /** client-only; optional so server rows typecheck as Job too */
+  _received?: number;
+}
+
+export interface WireJob {
   id: string;
   drive_id: string;
   kind: JobKind;

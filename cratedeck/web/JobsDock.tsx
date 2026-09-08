@@ -1,10 +1,18 @@
 // JobsDock.tsx — bottom-right job center. Live jobs with progress/phase/ETA
 // and cancel; collapsible history of finished runs. Replaces the old
 // pill-only tray.
+//
+// "Always spinning" fix (Sep 8 2026): the dock used to treat every row in
+// the active set as healthy live work — one stale spin for anything
+// queued/running, no matter how long it had been sitting still. Now each
+// row's freshness is measured against its own last-change time, a stalled
+// job is SAID to be stalled (matched by the server's stall watchdog, which
+// actually kills it after cfg.stall_timeout_min), and the header spinner
+// only turns while something is genuinely running (not queued).
 import { useState } from "preact/hooks";
 import type { DriveCardData, Job, VerifyReport } from "../shared/types";
 import { ACTIVE_JOB_STATUSES, TERMINAL_JOB_STATUSES } from "../shared/types";
-import { errMessage, fmtEta } from "../shared/fmt";
+import { errMessage, fmtEta, timeAgo } from "../shared/fmt";
 import { apiPost, toast } from "./toast";
 import { Icon } from "./icons";
 import { HELP_JOBS } from "../shared/help";
@@ -25,6 +33,62 @@ const STATUS_HELP: Record<string, string> = {
     "Refused because rekordbox was running (the interlock). Quit rekordbox and re-run.",
 };
 
+/** Readable stage label for the machine phase string the engine stores
+ *  ("phase-2" was literally rendered before — phase names are for machines,
+ *  this map is for humans). Falls back to the raw phase when unknown. */
+const PHASE_LABELS: Record<string, string> = {
+  "light-scan": "walking files",
+  "full-scan": "reading rekordbox DB",
+  "bench-seq": "reading big files",
+  "bench-rand": "random 4K reads",
+  checksum: "hashing files",
+  mirror: "syncing to mirror",
+  "1-databases": "opening databases",
+  "2-hardware": "hardware DB view",
+  "3-tracks": "checking tracks",
+  "4-relations": "playlists + relations",
+  "5-cross": "comparing drives",
+  "6-anlz": "hashing ANLZ",
+  "7-audio": "hash spot-check",
+  "8-verdict": "writing verdict",
+  done: "done",
+};
+
+function phaseLabel(phase: string | null): string | null {
+  if (!phase) return null;
+  // verify phases arrive as "phase-<n>" (engine) — map the number
+  const m = phase.match(/^phase-(\d+)$/);
+  if (m) {
+    const names = [
+      "opening databases",
+      "hardware DB view",
+      "checking tracks",
+      "playlists + relations",
+      "comparing drives",
+      "hashing ANLZ",
+      "hash spot-check",
+      "writing verdict",
+    ];
+    return names[Number(m[1]) - 1] ?? phase;
+  }
+  return PHASE_LABELS[phase] ?? phase;
+}
+
+/** How stale a running job may look before the dock says so. Deliberately
+ *  ~half the server's default stall_timeout (15m): the UI should warn well
+ *  before the server acts. A queued job gets a shorter patience — it should
+ *  start or be cancelled, not sit silently. */
+const RUNNING_STALE_MS = 5 * 60_000;
+const QUEUED_STALE_MS = 90_000;
+
+/** ms since the job last changed in any observable way. Server progress
+ *  writes ride the SSE stream, so `received` (when THIS client got the row)
+ *  bounds it if the stream is dead. */
+function lastChangeAge(job: Job, received: number): number {
+  const at = Math.max(job.finished_at ?? 0, job.started_at ?? 0, received);
+  return Date.now() - at;
+}
+
 export function JobsDock(props: {
   jobs: Job[];
   drives: DriveCardData[];
@@ -40,6 +104,10 @@ export function JobsDock(props: {
     props.drives.find((d) => d.id === id)?.name ??
     "…";
 
+  // header spinner only while something is genuinely RUNNING (a queue of
+  // parked jobs used to spin the header too — spinning implies motion)
+  const anyRunning = active.some((j) => j.status === "running");
+
   return (
     <div class={`jobdock${collapsed ? " collapsed" : ""}`}>
       <div
@@ -50,12 +118,19 @@ export function JobsDock(props: {
         onKeyDown={(e) => e.key === "Enter" && setCollapsed(!collapsed)}
         title="Jobs run one-per-drive, read-only unless stated, and are refused while rekordbox is open. Click to collapse."
       >
-        <span class="spin">
-          <Icon name="refresh" size={14} />
-        </span>
+        {anyRunning ? (
+          <span class="spin">
+            <Icon name="refresh" size={14} />
+          </span>
+        ) : (
+          <Icon name="clock" size={14} />
+        )}
         {active.length > 0 ? (
           <span>
-            {active.length} job{active.length > 1 ? "s" : ""} running
+            {active.filter((j) => j.status === "running").length} running
+            {active.some((j) => j.status === "queued")
+              ? ` · ${active.filter((j) => j.status === "queued").length} queued`
+              : ""}
           </span>
         ) : (
           <span>Recent jobs</span>
@@ -130,7 +205,7 @@ export function JobsDock(props: {
                 <span class="jdrive">{driveName(j.drive_id)}</span>
                 <span class="spacer" />
                 <span class="jmeta" style={{ marginTop: 0 }}>
-                  {j.finished_at && fmtEta((Date.now() - j.finished_at) / 1000)}
+                  {j.finished_at && timeAgo(j.finished_at)}
                 </span>
               </div>
               {final && (
@@ -186,13 +261,28 @@ function ActiveRow(props: {
 }) {
   const j = props.job;
   const kindHelp = HELP_JOBS.find((x) => x.kind === j.kind);
+  // staleness: measure against the last time this row changed shape in the
+  // client. `_received` is stamped by App's jobs fetch whenever a row's
+  // rendered fields differ from the previous fetch — so a frozen progress
+  // + a fresh fetch = genuinely no movement on the server.
+  const receivedAt = j._received ?? Date.now();
+  const staleMs = lastChangeAge(j, receivedAt);
+  const staleLimit =
+    j.status === "running" ? RUNNING_STALE_MS : QUEUED_STALE_MS;
+  const stalled = j.status === "running" && staleMs > staleLimit;
+  const parked = j.status === "queued" && staleMs > staleLimit;
+  const phase = phaseLabel(j.phase);
   return (
-    <div class="jobrow">
+    <div class={`jobrow${stalled ? " stalled" : ""}`}>
       <div class="jobrow-top">
         {j.status === "running" ? (
-          <span class="spin">
-            <Icon name="refresh" size={13} />
-          </span>
+          stalled ? (
+            <Icon name="warn" size={13} />
+          ) : (
+            <span class="spin">
+              <Icon name="refresh" size={13} />
+            </span>
+          )
         ) : (
           <Icon name="clock" size={13} />
         )}
@@ -210,17 +300,25 @@ function ActiveRow(props: {
         </span>
         <span class="jdrive">{props.driveName}</span>
         <span
-          class={`jstat ${j.status}`}
-          title={STATUS_HELP[j.status] ?? "Open drive"}
+          class={`jstat ${j.status}${stalled ? " stalled" : ""}`}
+          title={
+            stalled
+              ? `No visible progress for ${Math.round(staleMs / 60_000)} min — either a quiet stretch or the job is wedged. The server auto-cancels true stalls; a few more minutes settle it.`
+              : (STATUS_HELP[j.status] ?? "Open drive")
+          }
         >
           {j.status}
         </span>
         <span class="spacer" />
-        {j.status === "running" && (
+        {(j.status === "running" || j.status === "queued") && (
           <button
             type="button"
             class="cancel"
-            title={`Cancel this ${j.kind} — safe: it's read-only${j.kind === "mirror" ? "" : ""}, already-written changes stay`}
+            title={
+              j.status === "queued"
+                ? `Remove this queued ${j.kind} from the line`
+                : `Cancel this ${j.kind} — safe: it's read-only, already-written changes stay`
+            }
             onClick={props.onCancel}
           >
             <Icon name="x" size={13} />
@@ -231,13 +329,16 @@ function ActiveRow(props: {
       {j.status === "running" && (
         <>
           <div class="jbar">
-            <i style={{ width: `${Math.round(j.progress * 100)}%` }} />
+            <i
+              class={stalled ? "stalled" : undefined}
+              style={{ width: `${Math.max(2, Math.round(j.progress * 100))}%` }}
+            />
           </div>
           <div class="jmeta">
             <span>{Math.round(j.progress * 100)}%</span>
-            {j.phase && (
+            {phase && (
               <span title="The coarse stage of this job (e.g. 'hashing', 'comparing databases')">
-                {j.phase}
+                {phase}
               </span>
             )}
             <span style={{ marginLeft: "auto" }}>
@@ -245,6 +346,12 @@ function ActiveRow(props: {
             </span>
           </div>
         </>
+      )}
+      {parked && (
+        <div class="jmsg warn">
+          <Icon name="clock" size={11} /> still queued after{" "}
+          {Math.round(staleMs / 60_000)} min — something ahead may be wedged
+        </div>
       )}
     </div>
   );

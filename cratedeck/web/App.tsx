@@ -37,6 +37,13 @@ export function App() {
   const searchRef = useRef<HTMLInputElement | null>(null);
   /** coalesces SSE `job` bursts into ≤1 jobs refresh per second (see below) */
   const jobRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** last fetch in which each job id actually CHANGED shape (progress /
+   *  status / message / eta). JobsDock's stall warning keys off this — a
+   *  re-fetch returning an identical row must NOT reset the clock, or the
+   *  warning could never fire. */
+  const jobShapeAt = useRef<Map<string, { sig: string; at: number }>>(
+    new Map(),
+  );
 
   const refresh = useCallback(async () => {
     const [d, p, rep] = await Promise.all([
@@ -65,11 +72,23 @@ export function App() {
       // merge: active rows win over stale history rows with the same id
       const byId = new Map<string, Job>(all.map((j) => [j.id, j]));
       for (const j of active) byId.set(j.id, j);
+      const now = Date.now();
       setJobs(
-        [...byId.values()].sort(
-          (a, b) =>
-            (b.started_at ?? b.created_at) - (a.started_at ?? a.created_at),
-        ),
+        [...byId.values()]
+          .map((j) => {
+            // `_received` = when this row last CHANGED (client-side, shared
+            // types). Signature covers every field the dock renders; an
+            // identical re-fetch must not reset the staleness clock.
+            const sig = `${j.status}|${j.progress}|${j.phase}|${j.message}|${j.eta_seconds}|${j.error}`;
+            const prev = jobShapeAt.current.get(j.id);
+            const at = prev && prev.sig === sig ? prev.at : now;
+            jobShapeAt.current.set(j.id, { sig, at });
+            return { ...j, _received: at };
+          })
+          .sort(
+            (a, b) =>
+              (b.started_at ?? b.created_at) - (a.started_at ?? a.created_at),
+          ),
       );
     } catch (e) {
       console.error("jobs refresh failed", e);
