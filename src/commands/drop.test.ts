@@ -68,6 +68,11 @@ describe("megadj drop (K61 one-shot pipeline)", () => {
     }
   });
 
+  // .timeout(30000): the URL-failure path waits for yt-dlp to exhaust DNS
+  // resolution for example.invalid (~5–9s warm); bun's 5s default kills
+  // the test before yt-dlp returns. The root bunfig.toml timeout raise is
+  // untracked personal config, not a contract other machines (or other
+  // invocation CWDs) can rely on.
   test("URL download failure: contained, exit 1, stages after download skipped", async () => {
     const { dir, env } = freshEnv();
     try {
@@ -89,7 +94,7 @@ describe("megadj drop (K61 one-shot pipeline)", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   test("missing target: usage error, exit 1", async () => {
     const { dir, env } = freshEnv();

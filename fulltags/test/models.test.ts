@@ -97,6 +97,9 @@ describe("ONNX mood pipeline (roadmap #4)", () => {
       expect(m!.arousal).toBeGreaterThan(0);
       expect(m!.arousal).toBeLessThan(10);
     },
+    // First `uv run --with` in a session resolves/builds the Python env
+    // (cold ~100 MB cache) — comfortably past bun's default 5s timeout.
+    120_000,
   );
   test.skipIf(!hasModels)(
     "enrichTrack --mood writes a MOOD stamp; second pass is a no-op",
@@ -116,6 +119,7 @@ describe("ONNX mood pipeline (roadmap #4)", () => {
       );
       expect(r2.notes.length).toBe(0); // idempotent
     },
+    120_000, // same cold-uv-env allowance as above
   );
   test.skipIf(!hasModels)(
     "MOOD stamp round-trips on wav + m4a (writer surface)",
@@ -149,6 +153,7 @@ describe("ONNX mood pipeline (roadmap #4)", () => {
       expect(hi.some((v) => v > 0.5)).toBe(true);
       expect(m!.danceability + m!.moodParty).toBeGreaterThan(0);
     },
+    120_000, // ONNX head inference + cold uv env (see the timeout note above)
   );
 });
 

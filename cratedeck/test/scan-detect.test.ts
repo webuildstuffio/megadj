@@ -1,6 +1,12 @@
 import { describe, it, expect } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { nfcCasefold, scanVolume } from "../src/scan";
-import { pickUsbDevice, parsePlist } from "../src/detect";
+import {
+  pickUsbDevice,
+  parsePlist,
+  isPhysicalExternal,
+  listMountedVolumes,
+} from "../src/detect";
 import type { UsbDevice } from "../src/detect";
 import { progressFromLine } from "../src/rb";
 
@@ -13,8 +19,7 @@ function makeFakeDrive(): string {
     "Contents/Tech House",
     "Contents/Party",
   ];
-  for (const d of dirs)
-    require("node:fs").mkdirSync(`${root}/${d}`, { recursive: true });
+  for (const d of dirs) mkdirSync(`${root}/${d}`, { recursive: true });
   const files: [string, number][] = [
     ["Contents/YTMusic Liked/001 - Artist - Track.m4a", 1024 * 1024],
     ["Contents/YTMusic Liked/002 - Artist - Other.m4a", 0], // zero-byte junk
@@ -25,7 +30,7 @@ function makeFakeDrive(): string {
     ["Contents/dance.mp3", 2 * 1024 * 1024], // case collision with Dance.MP3
   ];
   for (const [f, size] of files)
-    require("node:fs").writeFileSync(`${root}/${f}`, new Uint8Array(size));
+    writeFileSync(`${root}/${f}`, new Uint8Array(size));
   return root;
 }
 
@@ -171,6 +176,100 @@ describe("detect", () => {
     expect(info.VolumeUUID).toBe("ABC-123");
     expect(info.TotalSize).toBe(128000000000);
   });
+});
+
+describe("physical-media gate", () => {
+  // truth table over the measured macOS signals (volumeDetail fields):
+  // image-backed = virtual whole disk / disk-image bus / root DeviceTreePath;
+  // internal = inside the Mac; unknown-everything = fixtures (accepted).
+  it("accepts physical external, rejects images and internal", () => {
+    expect(
+      isPhysicalExternal({
+        virtual: false,
+        busProtocol: "USB",
+        internal: false,
+      }),
+    ).toBe(true);
+    expect(
+      isPhysicalExternal({
+        virtual: false,
+        busProtocol: "Thunderbolt",
+        internal: false,
+      }),
+    ).toBe(true);
+    expect(
+      isPhysicalExternal({ virtual: null, busProtocol: null, internal: null }),
+    ).toBe(true); // fixture / probe-less
+    // image-backed: any of the three measured signals is enough
+    expect(
+      isPhysicalExternal({
+        virtual: true,
+        busProtocol: "Disk Image",
+        internal: false,
+      }),
+    ).toBe(false);
+    expect(
+      isPhysicalExternal({ virtual: true, busProtocol: null, internal: null }),
+    ).toBe(false);
+    expect(
+      isPhysicalExternal({
+        virtual: null,
+        busProtocol: "Disk Image",
+        internal: null,
+      }),
+    ).toBe(false);
+    // internal: rejected even when every other field is unknown
+    expect(
+      isPhysicalExternal({ virtual: null, busProtocol: null, internal: true }),
+    ).toBe(false);
+  });
+
+  it("end-to-end: a mounted image-backed volume is refused (real macOS probe)", async () => {
+    // HERMETIC: mount under a private root, NOT /Volumes — a server
+    // auto-started by another test (deckctl/mcp) watches the real /Volumes
+    // and would register the probe image as a drive while it is mounted.
+    // diskutil answers identically for any mount path, so the gate's
+    // signals (VirtualOrPhysical/BusProtocol/DeviceTreePath) are the same.
+    const root = `${process.env.TMPDIR ?? "/tmp"}/cratedeck-gate-vol-${Date.now()}`;
+    const img = `${process.env.TMPDIR ?? "/tmp"}/cratedeck-gate-${Date.now()}.dmg`;
+    const mnt = `${root}/CRATEDECK-GATE-PROBE`;
+    let attached = false;
+    try {
+      const mk = Bun.spawnSync(["mkdir", "-p", root]);
+      expect(mk.exitCode).toBe(0);
+      const hdi = Bun.spawnSync([
+        "hdiutil",
+        "create",
+        "-size",
+        "4m",
+        "-fs",
+        "APFS",
+        "-volname",
+        "CRATEDECK-GATE-PROBE",
+        img,
+        "-quiet",
+      ]);
+      expect(hdi.exitCode).toBe(0);
+      const at = Bun.spawnSync([
+        "hdiutil",
+        "attach",
+        "-nobrowse",
+        "-readonly",
+        "-mountpoint",
+        mnt,
+        img,
+      ]);
+      expect(at.exitCode).toBe(0);
+      attached = true;
+      const vols = await listMountedVolumes(root);
+      const leaked = vols.find((v) => v.mountPoint === mnt);
+      expect(leaked).toBeUndefined(); // the gate must swallow it entirely
+      expect(vols.every((v) => isPhysicalExternal(v))).toBe(true);
+    } finally {
+      if (attached) Bun.spawnSync(["hdiutil", "detach", mnt, "-quiet"]);
+      Bun.spawnSync(["rm", "-rf", img, root]);
+    }
+  }, 30_000);
 });
 
 describe("progress parsing", () => {

@@ -182,7 +182,13 @@ produces, regardless of the language used in the request.
   `GET /api/fleet/{coverage,track,redundancy,diff}`; CLI
   `deckctl coverage|redundancy|diff`. Tests: `cratedeck/test/fleet.test.ts`.
 - CrateDeck engineering invariants: `rbSnapshot`/`checksumLedger` must stay
-  async (spawnSync/hash loops once froze the server for minutes); snapshots
+  async (spawnSync/hash loops once froze the server for minutes); the
+  detector's physical-media gate (`detect.ts` `isPhysicalExternal`) is the
+  only registration path — only external physical hardware (USB/Thunderbolt)
+  may become a drive; image-backed and internal volumes are rejected on
+  measured `diskutil` whole-disk signals (VirtualOrPhysical/BusProtocol/
+  DeviceTreePath) before any row or event is written (regression-tested with
+  a real mounted image); snapshots
   capped at 20/drive and events at 2000/drive (disk-burn guard, enforced in
   `db.ts` migrations); `overall()` never reports `healthy` when every check
   is `unknown`; bitrot verdicts come from real checksum job results

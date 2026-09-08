@@ -93,6 +93,12 @@ describe("beats command (ledger, no tag writes)", () => {
     expect(state.beatRecord("m2")?.bpmRaw).toBeCloseTo(128);
   });
 
+  // .timeout(60000): this seed has a real (5-byte) file, so the command
+  // invokes analyzeBeats → `uv run --with beat-this` (~2 GB torch env
+  // resolution). Even a warm uv cache takes 5–15s before returning null
+  // (invalid audio) — past bun's 5s default. The other tests in this file
+  // never reach the spawn (missing file / empty queue), so only this one
+  // needs the allowance.
   test("--json summary is a single parseable object with promised counters", async () => {
     seedDownloaded("m3", "Json Track");
     const stdout: string[] = [];
@@ -115,5 +121,5 @@ describe("beats command (ledger, no tag writes)", () => {
     expect(typeof parsed.analyzed).toBe("number");
     expect(typeof parsed.failed).toBe("number");
     expect(typeof parsed.ledgered).toBe("number");
-  });
+  }, 60_000);
 });

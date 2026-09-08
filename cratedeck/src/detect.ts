@@ -15,9 +15,42 @@ export interface MountedVolume {
   vendor: string | null;
   model: string | null;
   portKey: string | null;
+  /** Whole-disk truth from `diskutil info` on the parent whole disk:
+   *  `false` = physical hardware, `true` = image-backed (virtual),
+   *  `null` = probe failed / unavailable (fixtures, degraded hosts). */
+  virtual: boolean | null;
+  /** Parent whole-disk bus protocol (e.g. "USB", "Disk Image"). */
+  busProtocol: string | null;
+  /** Parent whole-disk internality: `true` = inside the Mac, `null` = unknown. */
+  internal: boolean | null;
 }
 
 const IGNORED = new Set([".DS_Store", "Macintosh HD"]);
+
+/**
+ * Physical-media gate — the single choke point every volume must pass before
+ * it can become a drive. Only external physical hardware (USB/Thunderbolt
+ * sticks and SSDs) qualifies. Everything else is rejected:
+ * - image-backed volumes (virtual whole disks, disk-image bus, or an empty
+ *   DeviceTreePath root) — measured live via `diskutil info` on the parent
+ *   whole disk: virtual disks report VirtualOrPhysical "Virtual",
+ *   BusProtocol "Disk Image", DeviceTreePath "IODeviceTree:/";
+ * - internal volumes (inside the Mac) — they are never DJ hardware.
+ * A failed/absent probe does NOT reject: fixtures and degraded hosts have no
+ * diskutil answer at all, and a hard failure there would break the e2e path
+ * and the drive rail on probe hiccups. Real macOS always answers for a
+ * mounted volume, so images and internal volumes are still caught on hardware.
+ */
+export function isPhysicalExternal(v: {
+  virtual: boolean | null;
+  busProtocol: string | null;
+  internal: boolean | null;
+}): boolean {
+  if (v.internal === true) return false; // inside the Mac
+  if (v.virtual === true) return false; // image-backed (virtual whole disk)
+  if (v.busProtocol && /disk image/i.test(v.busProtocol)) return false;
+  return true; // physical external, or unknown-because-no-probe (fixtures)
+}
 
 // ---- USB tree cache ---------------------------------------------------------
 // The physical USB tree only changes on plug/unplug — exactly the events that
@@ -49,7 +82,9 @@ export async function listMountedVolumes(
     } catch {
       continue;
     }
-    out.push(await volumeDetail(name, mountPoint));
+    const detail = await volumeDetail(name, mountPoint);
+    if (!isPhysicalExternal(detail)) continue; // images/internal never register
+    out.push(detail);
   }
   return out;
 }
@@ -69,6 +104,9 @@ export async function volumeDetail(
     vendor: null,
     model: null,
     portKey: null,
+    virtual: null,
+    busProtocol: null,
+    internal: null,
   };
   let mediaName: string | null = null;
   let treePath: string | null = null;
@@ -81,8 +119,33 @@ export async function volumeDetail(
     v.volumeUuid = info.VolumeUUID ?? null;
     v.fs = info.FileSystemType ?? null;
     v.capacityBytes = Number(info.TotalSize ?? 0);
+    v.internal = typeof info.Internal === "boolean" ? info.Internal : null;
     mediaName = info["Device / Media Name"] ?? info.DeviceMediaName ?? null;
     treePath = info.DeviceTreePath ?? null;
+    // Whole-disk truth lives on the parent whole disk (strip the slice
+    // suffix: disk7s1 → disk7). The volume slice alone cannot distinguish
+    // physical from image-backed — verified live: image slices omit
+    // VirtualOrPhysical/BusProtocol, their whole disks carry them.
+    const whole = v.disk ? v.disk.replace(/s\d+$/, "") : null;
+    if (whole) {
+      const pw = Bun.spawnSync(["diskutil", "info", "-plist", whole], {
+        stdout: "pipe",
+      });
+      const winfo = parsePlist(pw.stdout.toString());
+      v.virtual =
+        winfo.VirtualOrPhysical === "Virtual"
+          ? true
+          : winfo.VirtualOrPhysical === "Physical"
+            ? false
+            : null;
+      v.busProtocol =
+        typeof winfo.BusProtocol === "string" ? winfo.BusProtocol : null;
+      if (v.internal === null && typeof winfo.Internal === "boolean")
+        v.internal = winfo.Internal;
+      // Image-backed volumes carry a root-only DeviceTreePath even when the
+      // whole-disk probe is degraded — treat that as virtual too.
+      if (treePath && /^IODeviceTree:\/?$/.test(treePath)) v.virtual = true;
+    }
   } catch (e) {
     // a volume whose diskutil probe fails still appears on the rail (name +
     // mountpoint are already set) — but the degraded identity is reported.
