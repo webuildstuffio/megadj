@@ -11,7 +11,7 @@ import { mkdtempSync } from "node:fs";
  */
 
 async function runCli(args: string[], env: Record<string, string>) {
-  const proc = await $`bun run src/cli.ts ${args}`
+  const proc = await $`bun run ${join(import.meta.dir, "../cli.ts")} ${args}`
     .env({ ...process.env, ...env })
     .quiet()
     .nothrow();

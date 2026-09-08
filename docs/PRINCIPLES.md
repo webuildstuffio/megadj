@@ -46,7 +46,7 @@ status; it's a prompt to dig one layer deeper.
 
 Bun, TypeScript, the newest yt-dlp, current ONNX/ML runtimes, current Pioneer
 firmware reality. No legacy shims, no "support back to X", no polyfills for
-platforms we don't support anyway. New tooling is adopted when it's genuinely
+platforms we don't support anyway. New tooling is adopted when it's
 better, not for fashion — but when it is better, we move immediately.
 
 ## 6. Not pros — but pro results. Time efficiency always.

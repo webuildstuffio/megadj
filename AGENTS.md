@@ -57,8 +57,9 @@ produces, regardless of the language used in the request.
   `megadj audit` (ground-truth completeness gate).
 - **FullTags** (`fulltags/`, Sep 4 2026) is the in-repo enrichment engine
   sub-project: every tag/art capability (formerly scattered across
-  `src/metadata.ts`, `src/commands/{energy,embed,remix,wav-to-aiff}.ts`,
-  `tools/fetch_lib.ts`, `tools/fetch_ai.ts`) behind one schema
+  `src/metadata.ts` (now deleted — import `fulltags/src/exports` directly),
+  `src/commands/{energy,embed,remix,wav-to-aiff}.ts`,
+  `tools/fetch_lib.ts`) behind one schema
   (`FullTag`/`TagPatch`), one atomic writer (`writer.ts` — all format
   gotchas: ffmpeg drops AIFF ID3 chunks → mutagen; WAV art via mutagen APIC;
   mp3 id3v2.3; **ffmpeg infers the muxer from the tmp filename, so tmp
@@ -256,6 +257,26 @@ produces, regardless of the language used in the request.
   `SearchHit` with `entries: unknown[]` while the producer/web shared
   `SearchResult` with `entries?: number` — consolidated to shared re-exports
   (`PlayersPayload`, `StoredNote`, `SearchResult`, `FleetDiff`).
+- **Silent-fallback purge (Sep 7–8 2026):** zero bare `catch {}` in prod
+  code — every catch must (a) surface to the user (toast / error state),
+  (b) log at the boundary, or (c) be documented sanctioned resilience
+  (interlock poll, `ensureServer` retry). Corrupt persisted JSON can never
+  read as success: `data_json` renders `{corrupt: true}` + console error,
+  and a corrupt verify `result_json` can no longer count as "verified"
+  (cratedeck web/CLI, fulltags art ladder, `tools/fix_years.ts`).
+- **Integrity-sweep ledger (D30, Sep 8 2026):** the hash sweep must never
+  destroy its own evidence — on divergence it overwrote the ledger with the
+  corrupt hash, so bitrot alerted exactly once then read "unchanged" forever
+  and the declared `restored` verdict was unreachable. Ledger rows now keep
+  corruption memory (`flagged_at` + preserved
+  `known_good_blake2b`/`known_good_size_bytes`, migrated via
+  `migrateArchiveLedger` in `db_ledger.ts`); later sweeps keep re-reporting
+  and emit `restored` when trusted bytes return (regression-tested).
+  Related: client fetch deadlines must exceed server-side job duration (a
+  10s prep-fetch deadline vs a ~15s sweep silently dropped the integrity
+  section from every digest — `weekly_prep` now takes `timeoutMs`, sweep
+  leg 60s across deckctl/MCP/web), and `deckctl prep --out FILE --json`
+  must still write the file in json mode.
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
   server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
   25 tools (pass-3 audit Sep 5 2026; rev 6/6.2 added the archive
@@ -319,6 +340,19 @@ dismiss`; dismissal flips `dismissed_at` (history kept) and the active
   repo-wide cleanup pass fixed hardcoded user-specific paths in
   `tools/fetch_lib.ts`/`fetch_all.ts`/`fix_years.ts`/`artwork.ts` —
   new tools take volume names/paths from config, never literals.
+- **Concurrent-agent hygiene (live-learned Sep 7–8 2026):** several agents
+  work the same repo at once — never `git add -A`; stage only your own
+  files; re-read files immediately before editing (in-flight fixes have
+  been stashed and conflict-marker-merged mid-session by another agent);
+  verify your content landed via worktree-vs-HEAD diff, not the commit
+  hash (amends and swept-in staged files are normal — check what rode
+  along before calling it done). Prose/copy passes: preserve em dashes and
+  punctuation in shipped docs — a mechanical punctuation rewrite of 27
+  docs was mangled and had to be per-line reconciled against base. Long
+  `bun test` runs hang on concurrent agents' in-flight churn (new test
+  files / `bunfig.toml` landing mid-run) — rerun clean or test in
+  isolation before declaring failure; the `bun test` gate stays local
+  (no CI).
 
 ## Local-only files
 

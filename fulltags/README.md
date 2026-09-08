@@ -42,9 +42,11 @@ megadj grew enrichment logic across five files (`src/metadata.ts`,
 `src/commands/{energy,embed,remix,wav-to-aiff}.ts`, `tools/fetch_lib.ts`,
 `tools/fetch_ai.ts`). Each had a hard-won format gotcha in it (AIFF drops
 ID3 chunks; WAV can't carry ffmpeg art; mp3 wants id3v2.3). FullTags
-consolidates all of it behind **one schema, one writer, one pipeline**, and
-megadj's modules are now thin re-export shims so nothing else had to change
-(atomic migration — `git log --follow` keeps the history).
+consolidates all of it behind **one schema, one writer, one pipeline**.
+The `src/metadata.ts` / `src/commands/{remix,energy,identity}.ts` shims
+were deleted once no importer needed them — import
+`fulltags/src/exports` directly (atomic migration —
+`git log --follow` keeps the history).
 
 ## Layout
 

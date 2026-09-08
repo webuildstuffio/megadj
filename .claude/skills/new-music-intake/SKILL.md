@@ -179,7 +179,7 @@ pilot before batch, idempotent re-runs.
 chunks — ffprobe/mutagen see them fine. Files whose DB row exists but whose
 file is "missing" usually live inside rekordbox's Mac collection.
 
-## MusicBrainz Picard — when actually needed
+## MusicBrainz Picard, when needed
 
 Only for compilations/albums needing per-track credits, or when ingest's
 match is wrong for a whole batch. After Picard, run `megadj adopt`.

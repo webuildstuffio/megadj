@@ -12,10 +12,11 @@ import { join } from "node:path";
  */
 
 async function runDrop(args: string[], env: Record<string, string>) {
-  const proc = await $`bun run src/cli.ts drop ${args}`
-    .env({ ...process.env, ...env })
-    .quiet()
-    .nothrow();
+  const proc =
+    await $`bun run ${join(import.meta.dir, "../cli.ts")} drop ${args}`
+      .env({ ...process.env, ...env })
+      .quiet()
+      .nothrow();
   return {
     code: proc.exitCode,
     stdout: new TextDecoder().decode(proc.stdout),

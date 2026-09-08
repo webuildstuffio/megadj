@@ -26,7 +26,8 @@
  *
  * env: OPENROUTER_API_KEY (only needed for AI genre/year fallback + covers)
  *
- * Shared plumbing lives in tools/fetch_lib.ts.
+ * Shared plumbing lives in tools/fetch_lib.ts; AI fallbacks come from
+ * fulltags/src/ai.ts (via fulltags/src/exports).
  */
 import {
   ARCH,
@@ -48,7 +49,7 @@ import {
   type Row,
   type TagValues,
 } from "./fetch_lib";
-import { aiGenres, albumHeuristic } from "./fetch_ai";
+import { aiGenres, albumHeuristic } from "../fulltags/src/exports";
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { appendFile } from "node:fs/promises";

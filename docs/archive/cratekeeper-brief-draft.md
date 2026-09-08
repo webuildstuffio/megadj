@@ -16,7 +16,7 @@
 
 ## 1. One-liner
 
-**Cratekeeper is a local, offline-first control tower for a fleet of rekordbox DJ USB drives — it identifies every stick on sight, remembers everything on it even when it's unplugged, and tells you which one is actually safe to take to the gig.**
+**Cratekeeper is a local, offline-first control tower for a fleet of rekordbox DJ USB drives — it identifies every stick on sight, remembers everything on it even when it's unplugged, and tells you which one is safe to take to the gig.**
 
 ---
 
@@ -52,7 +52,7 @@ The compounding cost is not "mild annoyance." It's **pre-gig anxiety and on-stag
 
 **Secondary — "Working DJ with a drawer problem."** Less technical, but has the same drawer of unlabeled sticks. Needs the identify-and-name flow and the readiness score; will never read a `.pdb` spec.
 
-**Tertiary — "The archivist."** Wants long-term provenance: what was on this drive in November, which tracks exist on only one drive in the world, what did I actually play last year.
+**Tertiary — "The archivist."** Wants long-term provenance: what was on this drive in November, which tracks exist on only one drive in the world, what did I play last year.
 
 **Non-users (explicitly):** Serato/Traktor/Engine DJ users at v1. Multi-user teams. Anyone wanting cloud sync.
 
@@ -204,7 +204,7 @@ These only exist because the app sees all eight drives at once:
 - Know every drive on sight, forever, including unplugged.
 - Answer any "what's on which drive, and is it good" question in seconds.
 - Surface silent failures — stale exports, missing grids, corruption, dying flash — before a gig, not during one.
-- Be a genuinely nice single page you actually want to open.
+- Be a page you want to open.
 
 **Non-goals (v1)**
 

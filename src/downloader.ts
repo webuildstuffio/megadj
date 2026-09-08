@@ -5,8 +5,8 @@
  */
 
 import { $ } from "bun";
-import type { YtdlpInfo } from "./metadata";
-import { sanitizeGenreFolder } from "./metadata";
+import type { YtdlpInfo } from "../fulltags/src/exports";
+import { sanitizeGenreFolder } from "../fulltags/src/exports";
 export interface DownloadResult {
   status: "downloaded" | "already-had" | "gone" | "failed";
   filePath?: string;

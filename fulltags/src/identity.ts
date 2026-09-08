@@ -1,6 +1,11 @@
-/** Loose identity normalization shared by ingest dedupe + adopt. */
+/**
+ * FullTags identity — loose title/artist normalization for ingest dedupe
+ * and `megadj adopt`. The file's truth beats the DB row's, and both must
+ * collapse to the same key for "Nari & Milani - Atom (Immersed remix)
+ * _FINAL" vs "Nari & Milani Atom Immersed remix" class duplicates.
+ */
 
-/** Normalize a string for loose title/artist comparison (same idea as adopt). */
+/** Normalize a string for loose title/artist comparison. */
 export function normalize(s: string): string {
   return s
     .toLowerCase()
