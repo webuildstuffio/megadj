@@ -1,9 +1,42 @@
 // DrivePanels.tsx — presentational panels used by DrivePage: health-check
 // rows, space/extension/age visualizations, DJ analytics. Pure props → JSX;
 // no fetching, no polling.
+import { useState } from "preact/hooks";
 import type { HealthCheck, SnapshotData } from "../shared/types";
 import { fmtBytes, fmtDur } from "../shared/fmt";
 import { Icon } from "./icons";
+
+/** Two-step destructive-action button: first click arms it ("Sure?"), a
+ *  second click within 3s fires, clicking away disarms. Kills accidental
+ *  data loss without a modal. */
+export function ConfirmButton(props: {
+  label: string;
+  confirmLabel?: string;
+  hint?: string;
+  onConfirm: () => void;
+}) {
+  const [armed, setArmed] = useState(false);
+  return (
+    <button
+      type="button"
+      class={`btn danger sm ${armed ? "armed" : ""}`}
+      title={props.hint}
+      onBlur={() => setArmed(false)}
+      onClick={() => {
+        if (armed) {
+          setArmed(false);
+          props.onConfirm();
+        } else {
+          setArmed(true);
+          setTimeout(() => setArmed(false), 3000);
+        }
+      }}
+    >
+      <Icon name="trash" size={13} />{" "}
+      {armed ? (props.confirmLabel ?? "Sure? Click again") : props.label}
+    </button>
+  );
+}
 
 export function CheckRow({ c }: { c: HealthCheck }) {
   return (
@@ -34,9 +67,25 @@ export function CheckRow({ c }: { c: HealthCheck }) {
 }
 
 export function SpaceBar({ snap }: { snap: SnapshotData }) {
-  const cap = snap.capacity_bytes ?? 0;
-  const used = Math.max(0, cap - (snap.free_bytes ?? 0));
-  const usedPct = cap ? (used / cap) * 100 : 0;
+  const cap = snap.capacity_bytes;
+  const free = snap.free_bytes ?? null;
+  // DrivePage gates this panel on capacity being measured, but free_bytes can
+  // be null (statfs failure) — fabricating 0 would draw a "drive full" bar
+  // from unknown data, so unknown stays explicit.
+  if (!cap || free === null) {
+    return (
+      <div class="spacewrap">
+        <div class="spacelegend">
+          <span>usage unknown — scan didn't measure free space</span>
+          <span>
+            <b>{cap ? fmtBytes(cap) : "—"}</b> total
+          </span>
+        </div>
+      </div>
+    );
+  }
+  const used = Math.max(0, cap - free);
+  const usedPct = (used / cap) * 100;
   return (
     <div class="spacewrap">
       <div class="bar">
@@ -50,12 +99,7 @@ export function SpaceBar({ snap }: { snap: SnapshotData }) {
           <b>{fmtBytes(used)}</b> used ({Math.round(usedPct)}%)
         </span>
         <span>
-          <b>
-            {snap.free_bytes !== null && snap.free_bytes !== undefined
-              ? fmtBytes(snap.free_bytes)
-              : "—"}
-          </b>{" "}
-          free
+          <b>{fmtBytes(free)}</b> free
         </span>
         <span>{fmtBytes(cap)} total</span>
       </div>
@@ -64,8 +108,10 @@ export function SpaceBar({ snap }: { snap: SnapshotData }) {
 }
 
 export function ExtBars({ snap }: { snap: SnapshotData }) {
-  const byExt = snap.by_ext ?? [];
-  const max = byExt[0]?.bytes ?? 1;
+  const byExt = snap.by_ext;
+  if (!byExt?.length) return null;
+  // `|| 1` also covers a leading all-zero-byte extension (NaN width guard)
+  const max = byExt[0]?.bytes || 1;
   const total = byExt.reduce((s, e) => s + e.bytes, 0);
   return (
     <div class="extbars">
@@ -151,9 +197,9 @@ export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
       </div>
       {!!dj.bpm_histogram?.length && (
         <div class="bpmhist" title="tracks per 10-BPM bucket">
-          {dj.bpm_histogram.map((b) => {
-            const max = Math.max(...dj.bpm_histogram!.map((x) => x.count));
-            return (
+          {(() => {
+            const max = Math.max(...dj.bpm_histogram.map((x) => x.count));
+            return dj.bpm_histogram.map((b) => (
               <div
                 class="bpmcol"
                 key={b.bucket}
@@ -161,8 +207,8 @@ export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
               >
                 <i style={{ height: `${(b.count / max) * 100}%` }} />
               </div>
-            );
-          })}
+            ));
+          })()}
         </div>
       )}
       {!!dj.genres?.length && <Bars title="Genres" rows={dj.genres} />}
@@ -194,14 +240,16 @@ export function StatCard({
   v,
   l,
   icon,
+  title,
 }: {
   v: string;
   l: string;
   icon: string;
+  title?: string;
 }) {
   return (
     <div class="stat">
-      <div class="v">
+      <div class="v" title={title}>
         <Icon name={icon} size={13} /> {v}
       </div>
       <div class="l">{l}</div>

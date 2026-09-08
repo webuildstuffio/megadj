@@ -6,35 +6,113 @@ import type {
   DriveReport,
   InterlockState,
   Job,
+  JobKind,
   SnapshotData,
-  SyncVerdict,
   TimelineEvent,
   VerifyReport,
 } from "../shared/types";
-import { fmtBytes, timeAgo } from "../shared/fmt";
-import { api, toast } from "./toast";
+import { errMessage, fmtBytes, timeAgo } from "../shared/fmt";
+import { ApiError, api, apiPost, toast } from "./toast";
 import { Icon } from "./icons";
 import { navigate } from "./router";
 import { PlaylistsTab } from "./PlaylistsTab";
-import { HealthTab } from "./HealthTab";
+import { HealthTab, type HealthTabBench } from "./HealthTab";
 import { TimelineTab } from "./TimelineTab";
 import { VerifyTab } from "./VerifyTab";
-import { AgeStrip, CheckRow, DjPanel, ExtBars, SpaceBar } from "./DrivePanels";
+import {
+  AgeStrip,
+  CheckRow,
+  ConfirmButton,
+  DjPanel,
+  ExtBars,
+  SpaceBar,
+} from "./DrivePanels";
 
 const TABS = [
-  { id: "overview", label: "Overview", icon: "grid" },
-  { id: "playlists", label: "Playlists", icon: "disc" },
-  { id: "health", label: "Health", icon: "pulse" },
-  { id: "verify", label: "Verify", icon: "check" },
-  { id: "timeline", label: "Timeline", icon: "history" },
-  { id: "photos", label: "Photo", icon: "photo" },
+  {
+    id: "overview",
+    label: "Overview",
+    icon: "grid",
+    title: "Health checks, space usage, DJ metadata at a glance",
+  },
+  {
+    id: "playlists",
+    label: "Playlists",
+    icon: "disc",
+    title: "Browse and search the playlists stored on this drive",
+  },
+  {
+    id: "health",
+    label: "Health",
+    icon: "pulse",
+    title: "Hardware health: speed benchmarks, disk age, capacity history",
+  },
+  {
+    id: "verify",
+    label: "Verify",
+    icon: "check",
+    title: "Deep integrity audit results — databases, files, grids, parity",
+  },
+  {
+    id: "timeline",
+    label: "Timeline",
+    icon: "history",
+    title: "Everything that happened to this drive, newest first",
+  },
+  {
+    id: "photos",
+    label: "Photo",
+    icon: "photo",
+    title: "Pick the cover photo shown on this drive's card",
+  },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
+
+/** The four standard drive jobs — one config row per button, one render
+ *  loop. Each carries a `hint`: the plain-language explanation shown as the
+ *  hover tooltip ("what does this actually do?"). */
+const JOB_BUTTONS: {
+  kind: JobKind;
+  label: string;
+  busy?: string;
+  icon: string;
+  primary?: boolean;
+  interlockHint?: boolean;
+  hint: string;
+}[] = [
+  {
+    kind: "scan",
+    label: "Scan",
+    busy: "Scanning…",
+    icon: "scan",
+    primary: true,
+    hint: "Read the rekordbox library on this drive — tracks, playlists, health stats. Read-only, safe any time.",
+  },
+  {
+    kind: "verify",
+    label: "Verify",
+    icon: "shield",
+    interlockHint: true,
+    hint: "Deep integrity audit: both rekordbox databases agree, every audio file exists, beatgrids sane, mirror matches master. Read-only.",
+  },
+  {
+    kind: "benchmark",
+    label: "Benchmark",
+    icon: "pulse",
+    hint: "Measure real read/write speed of this drive — tells you if it can handle gig-night playback. Writes a temp file, then deletes it.",
+  },
+  {
+    kind: "checksum",
+    label: "Checksum",
+    icon: "hash",
+    hint: "Hash every audio file (blake2b) so future scans can detect silent corruption/bitrot. Slow the first time, fast after.",
+  },
+];
 
 interface Detail {
   drive: DriveReport["drive"];
   snapshot: SnapshotData | null;
-  sync: { verdict: SyncVerdict; missing?: number } | null;
+  sync: DriveReport["sync"];
   master_name: string;
 }
 
@@ -45,20 +123,27 @@ interface PhotoHit {
   source: string;
 }
 
+/** Page load state: a machine where every branch is named. Replaces the old
+ *  `{ drive: null } as unknown as Detail` sentinel — the Detail type no
+ *  longer lies about its own shape. */
+type PageState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "not-found" }
+  | { status: "ok"; detail: Detail };
+
 export function DrivePage(props: {
   driveId: string;
   tab: string;
   interlock: InterlockState;
 }) {
   const { driveId, interlock } = props;
-  const [detail, setDetail] = useState<Detail | null>(null);
+  const [page, setPage] = useState<PageState>({ status: "loading" });
   const [report, setReport] = useState<
     (DriveReport & { overall?: string }) | null
   >(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
-  const [bench, setBench] = useState<
-    { ran_at: number; seq_mbps: number; rand4k_mbps: number }[]
-  >([]);
+  const [bench, setBench] = useState<HealthTabBench[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [verify, setVerify] = useState<VerifyReport | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -66,54 +151,53 @@ export function DrivePage(props: {
   const [nameDraft, setNameDraft] = useState("");
   const [photoHits, setPhotoHits] = useState<PhotoHit[] | null>(null);
   const [photoQuery, setPhotoQuery] = useState("");
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const detailOrNull = page.status === "ok" ? page.detail : null;
+  const loadError = page.status === "error" ? page.message : null;
   const locked = interlock.rekordbox_running;
 
   const load = useCallback(async () => {
     const enc = encodeURIComponent(driveId);
     try {
       const [d, r, t, b, j, v] = await Promise.all([
-        fetch(`/api/drives/${enc}`).then(
-          (res) => res.json() as Promise<Detail>,
-        ),
-        fetch(`/api/drives/${enc}/report`).then(
-          (res) => res.json() as Promise<DriveReport & { overall?: string }>,
-        ),
-        fetch(`/api/drives/${enc}/timeline`).then(
-          (res) => res.json() as Promise<TimelineEvent[]>,
-        ),
-        fetch(`/api/drives/${enc}/benchmarks`).then(
-          (res) =>
-            res.json() as Promise<
-              { ran_at: number; seq_mbps: number; rand4k_mbps: number }[]
-            >,
-        ),
-        fetch(`/api/jobs?drive=${enc}`).then(
-          (res) => res.json() as Promise<Job[]>,
-        ),
-        fetch(`/api/drives/${enc}/verify`).then(
-          (res) => res.json() as Promise<VerifyReport>,
-        ),
+        api<Detail>(`/api/drives/${enc}`, { quiet: true }),
+        api<DriveReport & { overall?: string }>(`/api/drives/${enc}/report`, {
+          quiet: true,
+        }),
+        api<TimelineEvent[]>(`/api/drives/${enc}/timeline`, { quiet: true }),
+        api<HealthTabBench[]>(`/api/drives/${enc}/benchmarks`, {
+          quiet: true,
+        }),
+        api<Job[]>(`/api/jobs?drive=${enc}`, { quiet: true }),
+        api<VerifyReport>(`/api/drives/${enc}/verify`, { quiet: true }),
       ]);
       if (!d?.drive) {
-        // unknown drive id (stale link / renamed registry) — surface, don't hang
-        setDetail({ drive: null } as unknown as Detail);
-        setLoadError(null);
+        // unknown drive id (stale link / renamed registry) — api() only gets
+        // here on a real 200, so this is a deliberate soft-not-found shape.
+        setPage({ status: "not-found" });
         return;
       }
       const fresh = d;
-      setDetail(fresh);
+      setPage({ status: "ok", detail: fresh });
       setReport(r);
       setTimeline(t);
       setBench(b);
       setJobs(j);
       setVerify(v);
-      setLoadError(null);
     } catch (e) {
       // failed background refresh: keep the last good render visible, but the
       // failure is surfaced (banner) instead of silently showing stale data.
       console.error(`drive ${driveId} load failed`, e);
-      setLoadError(e instanceof Error ? e.message : String(e));
+      // A 404 on the drive itself is a verdict (stale link / removed from
+      // registry), not a transport failure — map only that to not-found;
+      // everything else (500, network) keeps the error banner honest.
+      if (e instanceof ApiError && e.status === 404) {
+        setPage({ status: "not-found" });
+        return;
+      }
+      const msg = errMessage(e);
+      setPage((prev) =>
+        prev.status === "ok" ? prev : { status: "error", message: msg },
+      );
       return;
     }
   }, [driveId]);
@@ -130,9 +214,10 @@ export function DrivePage(props: {
     let stuckCount = 0;
     const loop = async () => {
       try {
-        const active = (await fetch(
+        const active = await api<Job[]>(
           `/api/jobs?drive=${encodeURIComponent(driveId)}&active=1`,
-        ).then((r) => r.json())) as Job[];
+          { quiet: true },
+        );
         const n = Array.isArray(active) ? active.length : 0;
         if (n > 0) {
           // detect a stuck job: identical progress payload twice in a row
@@ -170,6 +255,15 @@ export function DrivePage(props: {
   // SSE-driven job refreshes land in App; here we only need the drive's own
   // jobs list to stay current between polls. `cratedeck:job` fires per SSE
   // event (up to ~4/s while a job runs) — throttle to ≤1 fetch per 2s.
+  const refreshJobs = useCallback(async () => {
+    try {
+      setJobs(await api<Job[]>(`/api/jobs?drive=${driveId}`, { quiet: true }));
+    } catch (e) {
+      console.error(`jobs refresh for ${driveId} failed`, e);
+      toast("job list refresh failed — server unreachable", "err");
+    }
+  }, [driveId]);
+
   useEffect(() => {
     let last = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -181,13 +275,7 @@ export function DrivePage(props: {
             () => {
               timer = null;
               last = Date.now();
-              fetch(`/api/jobs?drive=${driveId}`)
-                .then((r) => r.json() as Promise<Job[]>)
-                .then(setJobs)
-                .catch((e: unknown) => {
-                  console.error(`jobs refresh for ${driveId} failed`, e);
-                  toast("job list refresh failed — server unreachable", "err");
-                });
+              refreshJobs();
             },
             2000 - (now - last),
           );
@@ -195,20 +283,14 @@ export function DrivePage(props: {
         return;
       }
       last = now;
-      fetch(`/api/jobs?drive=${driveId}`)
-        .then((r) => r.json() as Promise<Job[]>)
-        .then(setJobs)
-        .catch((e: unknown) => {
-          console.error(`jobs refresh for ${driveId} failed`, e);
-          toast("job list refresh failed — server unreachable", "err");
-        });
+      refreshJobs();
     };
     window.addEventListener("cratedeck:job", onJob);
     return () => {
       window.removeEventListener("cratedeck:job", onJob);
       if (timer) clearTimeout(timer);
     };
-  }, [driveId]);
+  }, [driveId, refreshJobs]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -221,11 +303,7 @@ export function DrivePage(props: {
   const run = async (kind: string) => {
     setBusy(kind);
     try {
-      await api<Job>(`/api/drives/${driveId}/jobs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind }),
-      });
+      await apiPost<Job>(`/api/drives/${driveId}/jobs`, { kind });
       toast(`${kind} queued`, "ok");
     } catch {
       /* toast already surfaced the failure */
@@ -235,11 +313,15 @@ export function DrivePage(props: {
   };
 
   const rename = async (nickname: string | null) => {
-    await api(`/api/drives/${driveId}/name`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nickname: nickname || null }),
-    });
+    try {
+      await apiPost(`/api/drives/${driveId}/name`, {
+        nickname: nickname || null,
+      });
+    } catch {
+      // api() already toasted the failure — stay in rename mode so the
+      // user can retry or Escape out.
+      return;
+    }
     setRenaming(false);
     toast(nickname ? "Drive renamed" : "Nickname cleared", "ok");
     load().catch((e: unknown) =>
@@ -248,7 +330,7 @@ export function DrivePage(props: {
   };
 
   const searchPhotos = async () => {
-    const q = photoQuery.trim() || nameGuess(detail);
+    const q = photoQuery.trim() || nameGuess(detailOrNull);
     try {
       const res = await api<{ provider: string; hits: PhotoHit[] }>(
         `/api/images/search?q=${encodeURIComponent(q)}`,
@@ -264,83 +346,66 @@ export function DrivePage(props: {
       }
       setPhotoHits(res.hits);
     } catch (e) {
+      // api() already toasted the failure; the catch only stops propagation.
       console.error("photo search failed", e);
-      toast(
-        `image search failed: ${e instanceof Error ? e.message : String(e)}`,
-        "err",
-      );
     }
   };
 
   const choosePhoto = async (hit: PhotoHit) => {
     try {
-      await api(`/api/drives/${driveId}/photo`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: hit.full }),
-      });
+      await apiPost(`/api/drives/${driveId}/photo`, { url: hit.full });
       toast("Photo saved", "ok");
       load().catch((e: unknown) =>
         console.error("post-save refresh failed", e),
       );
-    } catch (e) {
-      toast(
-        `photo save failed: ${e instanceof Error ? e.message : String(e)}`,
-        "err",
-      );
+    } catch {
+      /* toast already surfaced the failure */
     }
   };
 
   const clearPhoto = async () => {
     // photo clearing = set nickname-style: dedicated endpoint keeps guard happy
     try {
-      await api(`/api/drives/${driveId}/photo`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clear: true }),
-      });
+      await apiPost(`/api/drives/${driveId}/photo`, { clear: true });
       toast("Photo removed", "ok");
       load();
-    } catch (e) {
-      toast(
-        `photo removal failed: ${e instanceof Error ? e.message : String(e)}`,
-        "err",
-      );
+    } catch {
+      /* toast already surfaced the failure */
     }
   };
 
-  if (!detail)
+  if (page.status !== "ok")
     return (
       <div class="canvas">
         <div class="note-card">
-          <Icon name="clock" size={20} />
-          {loadError
-            ? `Loading failed: ${loadError} — retrying in the background`
-            : "Loading drive…"}
+          {page.status === "not-found" ? (
+            <>
+              <Icon name="warn" size={20} />
+              Drive not found — it may have been removed from the registry.
+              <button type="button" class="btn" onClick={() => navigate(null)}>
+                Back to all drives
+              </button>
+            </>
+          ) : (
+            <>
+              <Icon name="clock" size={20} />
+              {page.status === "error"
+                ? `Loading failed: ${page.message} — retrying in the background`
+                : "Loading drive…"}
+            </>
+          )}
         </div>
       </div>
     );
-
-  if (!(detail as unknown as { drive: unknown }).drive)
-    return (
-      <div class="canvas">
-        <div class="note-card">
-          <Icon name="warn" size={20} />
-          Drive not found — it may have been removed from the registry.
-          <button type="button" class="btn" onClick={() => navigate(null)}>
-            Back to all drives
-          </button>
-        </div>
-      </div>
-    );
+  // After the gate TS sees page as the ok branch — bind the narrowed detail.
+  const detail = page.detail;
 
   const snap = detail.snapshot;
   const dj = snap?.dj ?? null;
   const name = detail.drive.nickname ?? detail.drive.name;
   const checks = report?.checks ?? [];
-  const tab = (
-    TABS.some((t) => t.id === props.tab) ? props.tab : "overview"
-  ) as TabId;
+  // unknown tab → overview; the hoisted conf kills per-tab casts in JSX
+  const tabConf = TABS.find((t) => t.id === props.tab) ?? TABS[0];
   const counts: Partial<Record<TabId, number>> = {
     playlists: snap?.playlists?.length,
     timeline: timeline.length,
@@ -478,41 +543,23 @@ export function DrivePage(props: {
       </div>
 
       <div class="actions">
-        <button
-          type="button"
-          class="btn primary"
-          disabled={!detail.drive.mounted || locked || busy === "scan"}
-          onClick={() => run("scan")}
-          title={locked ? "rekordbox is running" : undefined}
-        >
-          <Icon name="scan" size={14} />{" "}
-          {busy === "scan" ? "Scanning…" : "Scan"}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          disabled={!detail.drive.mounted || locked || busy === "verify"}
-          onClick={() => run("verify")}
-          title={locked ? "rekordbox is running" : undefined}
-        >
-          <Icon name="shield" size={14} /> Verify
-        </button>
-        <button
-          type="button"
-          class="btn"
-          disabled={!detail.drive.mounted || locked || busy === "benchmark"}
-          onClick={() => run("benchmark")}
-        >
-          <Icon name="pulse" size={14} /> Benchmark
-        </button>
-        <button
-          type="button"
-          class="btn"
-          disabled={!detail.drive.mounted || locked || busy === "checksum"}
-          onClick={() => run("checksum")}
-        >
-          <Icon name="hash" size={14} /> Checksum
-        </button>
+        {JOB_BUTTONS.map((b) => (
+          <button
+            type="button"
+            key={b.kind}
+            class={b.primary ? "btn primary" : "btn"}
+            disabled={!detail.drive.mounted || locked || busy === b.kind}
+            onClick={() => run(b.kind)}
+            title={
+              locked && b.interlockHint
+                ? `${b.hint} — blocked right now: rekordbox is running`
+                : b.hint
+            }
+          >
+            <Icon name={b.icon} size={14} />{" "}
+            {busy === b.kind ? (b.busy ?? b.label) : b.label}
+          </button>
+        ))}
         {detail.drive.role === "mirror" && (
           <button
             type="button"
@@ -529,7 +576,12 @@ export function DrivePage(props: {
             {busy === "mirror" ? "Mirroring…" : "Mirror"}
           </button>
         )}
-        <a class="btn" href={`/api/drives/${driveId}/export`} download>
+        <a
+          class="btn"
+          href={`/api/drives/${driveId}/export`}
+          download
+          title="Download a full status dossier (report, playlists, checks) as a file"
+        >
           <Icon name="play" size={14} /> Export dossier
         </a>
       </div>
@@ -552,8 +604,9 @@ export function DrivePage(props: {
           <button
             type="button"
             key={t.id}
-            class={tab === t.id ? "on" : ""}
+            class={tabConf.id === t.id ? "on" : ""}
             onClick={() => navigate(driveId, t.id)}
+            title={t.title}
           >
             <Icon name={t.icon} size={14} />
             {t.label}
@@ -564,7 +617,7 @@ export function DrivePage(props: {
         ))}
       </div>
 
-      {tab === "overview" && (
+      {tabConf.id === "overview" && (
         <div>
           <div class="checks">
             {checks.length === 0 && (
@@ -593,19 +646,21 @@ export function DrivePage(props: {
         </div>
       )}
 
-      {tab === "playlists" && <PlaylistsTab snap={snap} />}
+      {tabConf.id === "playlists" && <PlaylistsTab snap={snap} />}
 
-      {tab === "health" && (
+      {tabConf.id === "health" && (
         <HealthTab drive={detail.drive} snap={snap} bench={bench} />
       )}
 
-      {tab === "verify" && <VerifyTab driveId={driveId} report={verify} />}
+      {tabConf.id === "verify" && (
+        <VerifyTab driveId={driveId} report={verify} />
+      )}
 
-      {tab === "timeline" && (
+      {tabConf.id === "timeline" && (
         <TimelineTab events={timeline} driveId={driveId} />
       )}
 
-      {tab === "photos" && (
+      {tabConf.id === "photos" && (
         <div>
           <div class="note">
             <Icon name="photo" size={14} /> Pick a cover photo for this drive's
@@ -631,9 +686,12 @@ export function DrivePage(props: {
                   border: "1px solid var(--stroke)",
                 }}
               />
-              <button type="button" class="btn danger sm" onClick={clearPhoto}>
-                <Icon name="trash" size={13} /> Remove photo
-              </button>
+              <ConfirmButton
+                label="Remove photo"
+                confirmLabel="Remove photo — sure?"
+                hint="Deletes the cover photo (the file stays on disk untouched)"
+                onConfirm={clearPhoto}
+              />
             </div>
           )}
           <div class="pl-tools">
@@ -708,6 +766,5 @@ export function DrivePage(props: {
 }
 
 function nameGuess(d: Detail | null): string {
-  if (!d) return "";
-  return d.drive.nickname ?? d.drive.name;
+  return d?.drive.nickname ?? d?.drive.name ?? "";
 }

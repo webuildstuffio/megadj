@@ -662,6 +662,7 @@ button {
 /* tabs */
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   margin: 16px 0 18px;
   border-bottom: 1px solid var(--stroke);
@@ -754,6 +755,18 @@ button {
 .btn.danger:hover:not(:disabled) {
   border-color: #7a3237;
   background: rgba(242, 85, 90, 0.2);
+}
+/* two-step confirm armed state — loud so the second click is deliberate */
+.btn.danger.armed {
+  color: #fff;
+  border-color: var(--bad);
+  background: var(--bad);
+  animation: arm-pulse 1s ease-in-out infinite;
+}
+@keyframes arm-pulse {
+  50% {
+    background: #d43a3f;
+  }
 }
 .btn.sm {
   padding: 4.5px 10px;

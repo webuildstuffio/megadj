@@ -76,6 +76,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
             type="button"
             class={sort === "entries" ? "on" : ""}
             onClick={() => setSort("entries")}
+            title="Sort by number of entries, busiest first"
           >
             Busiest
           </button>
@@ -83,6 +84,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
             type="button"
             class={sort === "name" ? "on" : ""}
             onClick={() => setSort("name")}
+            title="Sort alphabetically"
           >
             A–Z
           </button>
@@ -92,6 +94,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
             type="button"
             class={group ? "on" : ""}
             onClick={() => setGroup(!group)}
+            title={group ? "Flatten to one list" : "Group playlists by folder"}
           >
             Group folders
           </button>

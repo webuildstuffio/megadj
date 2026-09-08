@@ -9,21 +9,54 @@ import type {
   RedundancyResult,
   FleetDiff,
 } from "../shared/types";
-import { fmtBytes } from "../shared/fmt";
+import { errMessage, fmtBytes } from "../shared/fmt";
 import { api, toast } from "./toast";
 import { Icon } from "./icons";
 import { navigateFleet } from "./router";
+import { useFetched } from "./useFetched";
+import { StatCard } from "./DrivePanels";
 import { PreflightTab } from "./PreflightTab";
 import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
 
 const TABS = [
-  { id: "coverage", label: "Coverage", icon: "grid" },
-  { id: "redundancy", label: "Redundancy", icon: "shield" },
-  { id: "diff", label: "Diff", icon: "sort" },
-  { id: "preflight", label: "Preflight", icon: "bolt" },
-  { id: "archive", label: "Archive", icon: "doc" },
-  { id: "prep", label: "Prep", icon: "doc" },
+  {
+    id: "coverage",
+    label: "Coverage",
+    icon: "grid",
+    title: "Which stick has this track — and the at-risk single-copy list",
+  },
+  {
+    id: "redundancy",
+    label: "Redundancy",
+    icon: "shield",
+    title:
+      "Per-playlist audit: is every track on enough drives to survive one dying?",
+  },
+  {
+    id: "diff",
+    label: "Diff",
+    icon: "sort",
+    title: "Two drives side by side: added, removed, changed",
+  },
+  {
+    id: "preflight",
+    label: "Preflight",
+    icon: "bolt",
+    title: "Gig-night gate: is every drive ready to play right now?",
+  },
+  {
+    id: "archive",
+    label: "Archive",
+    icon: "doc",
+    title: "The local archive: ingest queue, analysis state, integrity",
+  },
+  {
+    id: "prep",
+    label: "Prep",
+    icon: "doc",
+    title: "Weekly prep digest — everything worth knowing, one page",
+  },
 ] as const;
 
 type DriveRef = { id: string; name: string; mounted?: boolean };
@@ -38,9 +71,7 @@ interface TrackHit {
 }
 
 export function FleetPage(props: { tab: string }) {
-  const tab = (
-    TABS.some((t) => t.id === props.tab) ? props.tab : "coverage"
-  ) as (typeof TABS)[number]["id"];
+  const tab = TABS.find((t) => t.id === props.tab)?.id ?? TABS[0].id;
 
   return (
     <div class="canvas fleet">
@@ -59,6 +90,7 @@ export function FleetPage(props: { tab: string }) {
               key={t.id}
               class={tab === t.id ? "on" : ""}
               onClick={() => navigateFleet(t.id)}
+              title={t.title}
             >
               <Icon name={t.icon} size={14} />
               {t.label}
@@ -80,34 +112,27 @@ export function FleetPage(props: { tab: string }) {
 // ---- coverage ---------------------------------------------------------------
 
 function CoverageTab() {
-  const [data, setData] = useState<CoverageResult | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const page = useFetched<CoverageResult>(() => api("/api/fleet/coverage"), []);
+  const data = page.status === "ok" ? page.data : null;
+  const err = page.status === "error" ? page.message : null;
   const [query, setQuery] = useState("");
   const [hit, setHit] = useState<TrackHit | null>(null);
   const [searching, setSearching] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      setData(await api<CoverageResult>("/api/fleet/coverage"));
-      setErr(null);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const [lookupErr, setLookupErr] = useState<string | null>(null);
 
   const lookup = useCallback(async (q: string) => {
     setSearching(true);
+    setLookupErr(null);
     try {
       const r = await api<TrackHit>(
         `/api/fleet/track?q=${encodeURIComponent(q)}`,
       );
       setHit(r);
       if (!r.drives.length) toast("Not found on any scanned drive", "info");
-    } catch {
+    } catch (e) {
+      // inline error state — the generic toast fades, this stays until the
+      // next lookup clears it
+      setLookupErr(errMessage(e));
     } finally {
       setSearching(false);
     }
@@ -131,20 +156,16 @@ function CoverageTab() {
   return (
     <div>
       <div class="statgrid">
-        <div class="stat">
-          <div class="v">
-            <Icon name="disc" size={13} />{" "}
-            {data.totals.unique_tracks.toLocaleString()}
-          </div>
-          <div class="l">unique tracks across the fleet</div>
-        </div>
-        <div class="stat">
-          <div class="v">
-            <Icon name="check" size={13} />{" "}
-            {data.totals.fully_redundant.toLocaleString()}
-          </div>
-          <div class="l">on ≥{data.min_copies} drives (safe)</div>
-        </div>
+        <StatCard
+          v={data.totals.unique_tracks.toLocaleString()}
+          l="unique tracks across the fleet"
+          icon="disc"
+        />
+        <StatCard
+          v={data.totals.fully_redundant.toLocaleString()}
+          l={`on ≥${data.min_copies} drives (safe)`}
+          icon="check"
+        />
         <div class={`stat ${data.at_risk.length ? "bad" : ""}`}>
           <div class="v">
             <Icon name="warn" size={13} />{" "}
@@ -152,12 +173,11 @@ function CoverageTab() {
           </div>
           <div class="l">single-drive tracks — gone if that drive dies</div>
         </div>
-        <div class="stat">
-          <div class="v">
-            <Icon name="usb" size={13} /> {data.drives.length}
-          </div>
-          <div class="l">drives with a track inventory</div>
-        </div>
+        <StatCard
+          v={`${data.drives.length}`}
+          l="drives with a track inventory"
+          icon="usb"
+        />
       </div>
 
       <div class="pl-tools">
@@ -174,6 +194,7 @@ function CoverageTab() {
           class="btn"
           disabled={!query.trim() || searching}
           onClick={() => lookup(query.trim())}
+          title="Search every known drive for this track"
         >
           <Icon name="search" size={14} /> Where is it?
         </button>
@@ -182,11 +203,18 @@ function CoverageTab() {
             type="button"
             class="btn ghostbtn"
             onClick={() => setHit(null)}
+            title="Clear the lookup result"
           >
             <Icon name="x" size={13} /> Clear
           </button>
         )}
       </div>
+
+      {lookupErr && (
+        <div class="note bad">
+          <Icon name="warn" size={14} /> Track lookup failed: {lookupErr}
+        </div>
+      )}
 
       {hit && (
         <div class={`note ${hit.drives.length > 1 ? "ok" : "bad"}`}>
@@ -259,17 +287,13 @@ function CoverageTab() {
 // ---- redundancy -------------------------------------------------------------
 
 function RedundancyTab() {
-  const [data, setData] = useState<RedundancyResult | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const page = useFetched<RedundancyResult>(
+    () => api("/api/fleet/redundancy"),
+    [],
+  );
+  const data = page.status === "ok" ? page.data : null;
+  const err = page.status === "error" ? page.message : null;
   const [open, setOpen] = useState<string | null>(null);
-
-  useEffect(() => {
-    api<RedundancyResult>("/api/fleet/redundancy")
-      .then(setData)
-      .catch((e: unknown) =>
-        setErr(e instanceof Error ? e.message : String(e)),
-      );
-  }, []);
 
   if (err)
     return (
@@ -388,6 +412,7 @@ function DiffTab() {
   const [bId, setB] = useState("");
   const [result, setResult] = useState<FleetDiff | null>(null);
   const [busy, setBusy] = useState(false);
+  const [diffErr, setDiffErr] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
   useEffect(() => {
@@ -405,10 +430,7 @@ function DiffTab() {
       })
       .catch((e: unknown) => {
         console.error("fleet drive list failed", e);
-        toast(
-          `drive list unavailable: ${e instanceof Error ? e.message : String(e)}`,
-          "err",
-        );
+        toast(`drive list unavailable: ${errMessage(e)}`, "err");
       });
   }, [aId, bId]);
 
@@ -418,13 +440,17 @@ function DiffTab() {
       return;
     }
     setBusy(true);
+    setDiffErr(null);
     try {
       setResult(
         await api<FleetDiff>(
           `/api/fleet/diff?a=${encodeURIComponent(aId)}&b=${encodeURIComponent(bId)}`,
         ),
       );
-    } catch {
+    } catch (e) {
+      // keep the previous result visible but mark it stale — a diff that
+      // failed must never read as current
+      setDiffErr(errMessage(e));
     } finally {
       setBusy(false);
     }
@@ -473,12 +499,27 @@ function DiffTab() {
             </option>
           ))}
         </select>
-        <button type="button" class="btn primary" disabled={busy} onClick={run}>
+        <button
+          type="button"
+          class="btn primary"
+          disabled={busy}
+          onClick={run}
+          title="Compare the two selected drives track-by-track"
+        >
           <Icon name="sort" size={14} /> {busy ? "Diffing…" : "Diff"}
         </button>
       </div>
 
-      {!result && (
+      {diffErr && (
+        <div class="note bad">
+          <Icon name="warn" size={14} /> Diff failed: {diffErr}
+          {result && (
+            <span> — the tables below are the PREVIOUS run, not current.</span>
+          )}
+        </div>
+      )}
+
+      {!result && !diffErr && (
         <div class="note-card">
           <Icon name="sort" size={20} />
           Pick two drives and diff their inventories — added / removed / changed
@@ -489,24 +530,21 @@ function DiffTab() {
       {result && filtered && (
         <>
           <div class="statgrid">
-            <div class="stat">
-              <div class="v">
-                <Icon name="check" size={13} /> {result.added.length}
-              </div>
-              <div class="l">added on {result.b}</div>
-            </div>
-            <div class="stat">
-              <div class="v">
-                <Icon name="x" size={13} /> {result.removed.length}
-              </div>
-              <div class="l">missing on {result.b}</div>
-            </div>
-            <div class="stat">
-              <div class="v">
-                <Icon name="warn" size={13} /> {result.changed.length}
-              </div>
-              <div class="l">changed bytes</div>
-            </div>
+            <StatCard
+              v={`${result.added.length}`}
+              l={`added on ${result.b}`}
+              icon="check"
+            />
+            <StatCard
+              v={`${result.removed.length}`}
+              l={`missing on ${result.b}`}
+              icon="x"
+            />
+            <StatCard
+              v={`${result.changed.length}`}
+              l="changed bytes"
+              icon="warn"
+            />
           </div>
           <div class="pl-tools">
             <input
@@ -550,36 +588,31 @@ function DiffSection(props: {
   empty: string;
   renderExtra?: (r: FleetDiff["added"][number]) => string;
 }) {
-  if (!props.rows.length)
-    return (
-      <div>
-        <h3 class="sect">
-          <Icon name="check" /> {props.title}
-          <span class="sect-n">0</span>
-        </h3>
-        <div class="fleet-note">{props.empty}</div>
-      </div>
-    );
+  const icon = props.rows.length ? "disc" : "check";
   return (
     <div>
       <h3 class="sect">
-        <Icon name="disc" /> {props.title}
+        <Icon name={icon} /> {props.title}
         <span class="sect-n">{props.rows.length}</span>
       </h3>
-      <div class="covtable">
-        {props.rows.slice(0, 300).map((r) => (
-          <div class="covrow" key={r.kind + r.path}>
-            <span class="covpath" title={r.path}>
-              <b>{r.title ?? r.path}</b>
-              {r.artist && <span class="covartist"> — {r.artist}</span>}
-            </span>
-            <span class="covdrives">{props.renderExtra?.(r) ?? ""}</span>
-          </div>
-        ))}
-        {props.rows.length > 300 && (
-          <div class="fleet-note">showing 300 of {props.rows.length}</div>
-        )}
-      </div>
+      {!props.rows.length ? (
+        <div class="fleet-note">{props.empty}</div>
+      ) : (
+        <div class="covtable">
+          {props.rows.slice(0, 300).map((r) => (
+            <div class="covrow" key={r.kind + r.path}>
+              <span class="covpath" title={r.path}>
+                <b>{r.title ?? r.path}</b>
+                {r.artist && <span class="covartist"> — {r.artist}</span>}
+              </span>
+              <span class="covdrives">{props.renderExtra?.(r) ?? ""}</span>
+            </div>
+          ))}
+          {props.rows.length > 300 && (
+            <div class="fleet-note">showing 300 of {props.rows.length}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
