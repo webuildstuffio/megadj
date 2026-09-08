@@ -1,20 +1,17 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { tempState } from "./testutil";
 import { ArchiveState } from "./state";
 
 let dir: string;
 let state: ArchiveState;
+const ts = tempState("megadj-test-");
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "megadj-test-"));
-  state = new ArchiveState(join(dir, "archive.db"));
+  ({ dir, state } = ts.next());
 });
 
 afterEach(() => {
-  state.close();
-  rmSync(dir, { recursive: true, force: true });
+  ts.done({ dir, state });
 });
 
 describe("ArchiveState", () => {

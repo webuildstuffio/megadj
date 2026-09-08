@@ -113,6 +113,13 @@ const JOB_KINDS = [
 /** O87 attribution: one id per MCP server process, stamped on mutating calls
  *  so agent actions are distinguishable from human clicks. */
 const MCP_SESSION = `mcp:${crypto.randomUUID().slice(0, 8)}`;
+
+/** The optional `drive` selector shared by every drive-scoped tool schema. */
+const DRIVE_PARAM = (omitNote: string) => ({
+  type: "string" as const,
+  description: `volume name, nickname, or id${omitNote}`,
+});
+
 /** Resolve a drive or throw a clean param error. */
 async function needDrive(nameOrId: string | undefined): Promise<{
   id: string;
@@ -426,10 +433,7 @@ const TOOLS: Record<string, ToolDef> = {
     inputSchema: {
       type: "object",
       properties: {
-        drive: {
-          type: "string",
-          description: "volume name, nickname, or id (omit for all drives)",
-        },
+        drive: DRIVE_PARAM(" (omit for all drives)"),
       },
       additionalProperties: false,
     },
@@ -527,10 +531,7 @@ const TOOLS: Record<string, ToolDef> = {
     inputSchema: {
       type: "object",
       properties: {
-        drive: {
-          type: "string",
-          description: "volume name, nickname, or id (omit for all drives)",
-        },
+        drive: DRIVE_PARAM(" (omit for all drives)"),
       },
       additionalProperties: false,
     },

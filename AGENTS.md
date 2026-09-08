@@ -43,7 +43,7 @@ mirror pair of DJ USB drives. Volume names are user-specific — examples use
 - **CrateDeck** (`cratedeck/`) — Bun + Preact dashboard over the drives'
   rekordbox libraries (Python seam: `cratedeck/python/rb_read.py`). Driven
   via `deckctl` (guide: `cratedeck/deckctl.md`) and the MCP server
-  (`bun run mcp`, 26 tools). Surface registry: `docs/surface-parity.md`.
+  (`bun run mcp`, 25 tools). Surface registry: `docs/surface-parity.md`.
   Idea backlog: `docs/ideas.md` (§0 = do-now gate → one GitHub issue each).
 
 **Agent-first contract (enforced by `src/commands/json-summary.test.ts`):**

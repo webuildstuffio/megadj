@@ -1,24 +1,21 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { ArchiveState } from "./state";
 import { phraseCues } from "./commands/cues";
+import { tempState } from "./testutil";
 
 /** Roadmap rev 6.1 #4: the mood ledger — same contract family as the beats
  * ledger (upsert idempotent by video_id, summary aggregate, corrupt-free). */
 
 let dir: string;
 let state: ArchiveState;
+const ts = tempState("megadj-mood-test-");
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "megadj-mood-test-"));
-  state = new ArchiveState(join(dir, "archive.db"));
+  ({ dir, state } = ts.next());
 });
 
 afterEach(() => {
-  state.close();
-  rmSync(dir, { recursive: true, force: true });
+  ts.done({ dir, state });
 });
 
 function addDownloaded(s: ArchiveState, videoId: string, path: string): void {

@@ -1,24 +1,23 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { ArchiveState } from "../state";
 import { organize } from "./organize";
+import { tempState } from "../testutil";
 
 let dir: string;
 let musicDir: string;
 let state: ArchiveState;
+const ts = tempState("megadj-organize-test-");
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "megadj-organize-test-"));
+  ({ dir, state } = ts.next());
   musicDir = join(dir, "music");
   mkdirSync(musicDir, { recursive: true });
-  state = new ArchiveState(join(dir, "archive.db"));
 });
 
 afterEach(() => {
-  state.close();
-  rmSync(dir, { recursive: true, force: true });
+  ts.done({ dir, state });
 });
 
 function seedDownloaded(videoId: string, title: string, filePath: string) {

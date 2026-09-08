@@ -1,21 +1,20 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { ArchiveState } from "../state";
 import { enrich } from "./enrich";
+import { tempState } from "../testutil";
 
 let dir: string;
 let state: ArchiveState;
+const ts = tempState("megadj-enrich-test-");
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "megadj-enrich-test-"));
-  state = new ArchiveState(join(dir, "archive.db"));
+  ({ dir, state } = ts.next());
 });
 
 afterEach(() => {
-  state.close();
-  rmSync(dir, { recursive: true, force: true });
+  ts.done({ dir, state });
 });
 
 function seedDownloaded(videoId: string, title: string, artist: string) {

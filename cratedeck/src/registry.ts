@@ -7,6 +7,22 @@ import { legacySyncVerdict } from "./report";
 
 export type Emit = (channel: string, data: unknown) => void;
 
+/** The drive-row fields that come straight off a mounted volume — both
+ * upsert paths (first-seen and reconcile) write this same projection. */
+function volPatch(
+  vol: import("./detect").MountedVolume,
+): Partial<Drive> & Pick<Drive, "name"> {
+  return {
+    name: vol.name,
+    capacity_bytes: vol.capacityBytes,
+    fs: vol.fs,
+    vendor: vol.vendor,
+    model: vol.model,
+    usb_serial: vol.usbSerial,
+    last_port_key: vol.portKey,
+  };
+}
+
 export class Registry {
   /** Drive ids that flipped ghost → mounted on the most recent sweep.
    *  Consumed (and cleared) by the auto-scheduler in index.ts. */
@@ -34,13 +50,7 @@ export class Registry {
         this.db.upsertDrive({
           id,
           volume_uuid: vol.volumeUuid,
-          name: vol.name,
-          capacity_bytes: vol.capacityBytes,
-          fs: vol.fs,
-          vendor: vol.vendor,
-          model: vol.model,
-          usb_serial: vol.usbSerial,
-          last_port_key: vol.portKey,
+          ...volPatch(vol),
           mounted: true,
         });
         this.db.event(id, "first-seen", {
@@ -65,13 +75,7 @@ export class Registry {
         ) {
           this.db.upsertDrive({
             id: drive.id,
-            name: vol.name,
-            capacity_bytes: vol.capacityBytes,
-            fs: vol.fs,
-            vendor: vol.vendor,
-            model: vol.model,
-            usb_serial: vol.usbSerial,
-            last_port_key: vol.portKey,
+            ...volPatch(vol),
             mounted: true,
           });
         }

@@ -110,6 +110,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     const verbs = deckctlVerbs();
     const tools = mcpTools();
     expect(verbs.length).toBeGreaterThanOrEqual(18);
+    // 17 deck_* + 8 archive_* (source census; mcpTools() dedupes).
     expect(tools.length).toBeGreaterThanOrEqual(25);
     const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
     expect(doc).toContain("| 18 verbs |");

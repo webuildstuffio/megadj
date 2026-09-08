@@ -128,6 +128,18 @@ async function processTask(
   const name = `${r.artist ?? "?"} - ${r.title}`.slice(0, 56);
   const notes: string[] = [];
 
+  /** SC-path year stamp: file tag + DB row + stat + note, in one call
+   * (the art path and the direct year path were identical 8-liners). */
+  const markYear = (year: number): void => {
+    setFileTags(r.file_path, { year });
+    db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
+      String(year),
+      r.video_id,
+    );
+    stats.yearSc++;
+    notes.push(`year:${year}`);
+  };
+
   // ---- 1. tags (DB → file) ----
   if (t.needTags && !DRY) {
     const artist = truth.artist ?? r.artist ?? null;
@@ -171,13 +183,7 @@ async function processTask(
 
   if (t.needYear && !DRY) {
     if (best?.year) {
-      setFileTags(r.file_path, { year: best.year });
-      db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-        String(best.year),
-        r.video_id,
-      );
-      stats.yearSc++;
-      notes.push(`year:${best.year}`);
+      markYear(best.year);
     } else {
       aiYearBatch.push(r);
     }
@@ -216,13 +222,7 @@ async function processTask(
           );
         }
         if (best.year && t.needYear) {
-          setFileTags(r.file_path, { year: best.year });
-          db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-            String(best.year),
-            r.video_id,
-          );
-          stats.yearSc++;
-          notes.push(`year:${best.year}`);
+          markYear(best.year);
         }
       }
     }

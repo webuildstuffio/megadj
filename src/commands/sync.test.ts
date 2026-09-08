@@ -1,11 +1,9 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { ArchiveState } from "../state";
 import { RateLimiter } from "../ratelimit";
 import { Downloader } from "../downloader";
 import { sync, type SyncOptions } from "./sync";
+import { tempState } from "../testutil";
 
 /**
  * GetDat regression tests for the sync pipeline — run with an injected
@@ -19,6 +17,7 @@ import { sync, type SyncOptions } from "./sync";
 
 let dir: string;
 let state: ArchiveState;
+const ts = tempState("megadj-sync-test-");
 
 /** Injected fetcher signature matches sync's fetchPlaylistFn. */
 const fakeFetch = async () => [{ id: "v1", title: "Track One" }];
@@ -45,13 +44,11 @@ function baseOpts(
 }
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "megadj-sync-test-"));
-  state = new ArchiveState(join(dir, "archive.db"));
+  ({ dir, state } = ts.next());
 });
 
 afterEach(() => {
-  state.close();
-  rmSync(dir, { recursive: true, force: true });
+  ts.done({ dir, state });
 });
 
 describe("sync (GetDat pipeline)", () => {

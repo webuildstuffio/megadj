@@ -67,6 +67,15 @@ export function DriveRail(props: {
 }) {
   const mounted = props.drives.filter((d) => d.mounted);
   const ghosts = props.drives.filter((d) => !d.mounted);
+  const railCard = (d: DriveCardData) => (
+    <RailCard
+      key={d.id}
+      drive={d}
+      report={props.reports.get(d.id)}
+      on={props.selectedId === d.id}
+      onSelect={() => props.onSelect(d.id)}
+    />
+  );
   return (
     <aside class="rail">
       <div class="rail-head">
@@ -81,29 +90,13 @@ export function DriveRail(props: {
           No drives known yet — plug one in and it will appear here, forever.
         </div>
       )}
-      {mounted.map((d) => (
-        <RailCard
-          key={d.id}
-          drive={d}
-          report={props.reports.get(d.id)}
-          on={props.selectedId === d.id}
-          onSelect={() => props.onSelect(d.id)}
-        />
-      ))}
+      {mounted.map(railCard)}
       {ghosts.length > 0 && (
         <>
           <div class="rail-head" style={{ marginTop: 6 }}>
             <h2>Ghosts</h2>
           </div>
-          {ghosts.map((d) => (
-            <RailCard
-              key={d.id}
-              drive={d}
-              report={props.reports.get(d.id)}
-              on={props.selectedId === d.id}
-              onSelect={() => props.onSelect(d.id)}
-            />
-          ))}
+          {ghosts.map(railCard)}
         </>
       )}
       {props.ports.length > 0 && (
