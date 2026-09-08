@@ -19,8 +19,8 @@ import { PlaylistsTab } from "./PlaylistsTab";
 import { HealthTab, type HealthTabBench } from "./HealthTab";
 import { TimelineTab } from "./TimelineTab";
 import { VerifyTab } from "./VerifyTab";
-import { AgeStrip, CheckRow, DjPanel, ExtBars, SpaceBar } from "./DrivePanels";
-import { InfoTip, TabIntro } from "./InfoTip";
+import { OverviewTab } from "./OverviewTab";
+import { InfoTip } from "./InfoTip";
 import { HELP_JOBS, ROLE_HELP, VERDICT_HELP } from "../shared/help";
 import { PhotoTab, type PhotoHit } from "./PhotoTab";
 
@@ -665,43 +665,7 @@ export function DrivePage(props: {
       </div>
 
       {tabConf.id === "overview" && (
-        <div>
-          <TabIntro
-            what="This is the drive's report card."
-            how="Every row is one health check with a verdict: green = measured and fine, yellow = usable but look into it, red = fix before a gig, grey = no data yet (grey never pretends to be green). Each row says what it measured and — when it fails — the fix."
-            next="Deep audit with per-track detail lives in the Verify tab; this page is the quick verdict."
-          />
-          <div class="checks">
-            {checks.length === 0 && (
-              <div class="note-card">
-                <Icon name="scan" size={20} />
-                No checks yet — run a scan when mounted.
-              </div>
-            )}
-            {checks.map((c) => (
-              <CheckRow key={c.id} c={c} />
-            ))}
-          </div>
-
-          <h3 class="sect">
-            <Icon name="grid" /> Space
-            <InfoTip
-              title="Space"
-              body="Used vs free against capacity. rekordbox needs headroom for its database journal and analysis files — under ~15% free degrades syncs and can corrupt exports."
-              align="right"
-            />
-          </h3>
-
-          {snap?.capacity_bytes ? (
-            <SpaceBar snap={snap} />
-          ) : (
-            <div class="note">Run a scan to measure usage.</div>
-          )}
-          {!!snap?.by_ext?.length && <ExtBars snap={snap} />}
-          {!!snap?.age && <AgeStrip snap={snap} />}
-
-          {dj && <DjPanel dj={dj} />}
-        </div>
+        <OverviewTab name={name} snap={snap} dj={dj} checks={checks} />
       )}
 
       {tabConf.id === "playlists" && <PlaylistsTab snap={snap} />}

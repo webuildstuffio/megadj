@@ -1,11 +1,18 @@
 // HealthTab.tsx — hardware story: live stat cards, benchmark history as an
 // SVG line chart (seq + random), identity serials, and folder composition
 // with proportional bars.
+//
+// UX pass (Sep 8, same treatment as ArchiveTab/FleetPage): the tab leads
+// with a verdict — is this stick gig-safe on speed? — against the CDJ
+// floor (≥30 MB/s sequential; below that high-bitrate playback can
+// stutter). The bench history is copyable so a dying-stick trend can be
+// handed to an agent in one paste.
 import type { Drive, SnapshotData } from "../shared/types";
 import { fmtBytes, shortSerial } from "../shared/fmt";
 import { Icon } from "./icons";
 import { StatCard } from "./DrivePanels";
 import { InfoTip, TabIntro } from "./InfoTip";
+import { ListHead, FixNote } from "./ListHead";
 
 // identical to DrivePage's local Bench — one shared shape (same producer)
 type Bench = {
@@ -22,13 +29,55 @@ export function HealthTab(props: {
 }) {
   const { drive, snap, bench } = props;
   const last = bench.at(-1);
+  // ---- the verdict: is this stick fast enough for the booth? ------------
+  // CDJ floor: ~30 MB/s sequential (below that, playback can stutter on
+  // high-bitrate files). ≥60 is comfortable, 30–59 usable, <30 replace it.
+  const seq = last?.seq_mbps ?? null;
+  const speed =
+    seq === null
+      ? null
+      : seq >= 60
+        ? {
+            cls: "ok",
+            label: "gig-safe",
+            text: `Reads ${seq} MB/s sequential — comfortably above the 30 MB/s CDJ floor.`,
+          }
+        : seq >= 30
+          ? {
+              cls: "warn",
+              label: "usable",
+              text: `Reads ${seq} MB/s sequential — above the 30 MB/s floor, but not comfortably. Watch the trend.`,
+            }
+          : {
+              cls: "warn",
+              label: "too slow",
+              text: `Reads only ${seq} MB/s sequential — below the 30 MB/s CDJ floor. High-bitrate playback can stutter; replace this stick.`,
+            };
+  // dying-stick signature: ~40% drop between the last two runs
+  const prev = bench.at(-2);
+  const drop =
+    prev && seq && prev.seq_mbps > 0 && seq / prev.seq_mbps < 0.6
+      ? Math.round((1 - seq / prev.seq_mbps) * 100)
+      : 0;
   return (
     <div>
       <TabIntro
         what="Hardware, not library: is this stick fast enough and healthy?"
-        how="Benchmarks measure real read speed (CDJ floor: ~30 MB/s sequential — below that, playback can stutter on high-bitrate files). Watch the trend: a sudden drop between runs predicts a dying stick better than any single number."
+        how="The verdict banner answers the booth question — sequential read vs the 30 MB/s CDJ floor. The chart shows the trend: a sudden drop between runs predicts a dying stick better than any single number."
         next="Library-side health (databases, grids, corruption) lives in Overview and Verify."
       />
+      {speed && (
+        <div class={`arch-verdict ${speed.cls}`}>
+          <Icon name={speed.cls === "ok" ? "check" : "warn"} size={15} />
+          <span>
+            {speed.text}
+            {drop > 0 && (
+              <b> {drop}% drop since the last run — dying-stick signature.</b>
+            )}
+          </span>
+          <span class="arch-verdict-meta">{speed.label}</span>
+        </div>
+      )}
       <div class="statgrid">
         <StatCard
           v={last ? `${last.seq_mbps} MB/s` : "—"}
@@ -64,7 +113,15 @@ export function HealthTab(props: {
         ) : null}
       </div>
 
-      {bench.length > 1 && <BenchChart bench={bench} />}
+      {bench.length > 1 && (
+        <BenchChart
+          bench={bench}
+          lines={bench.map(
+            (b) =>
+              `${new Date(b.ran_at).toISOString().slice(0, 10)} — seq ${b.seq_mbps} MB/s · 4k ${b.rand4k_mbps} MB/s`,
+          )}
+        />
+      )}
       {bench.length === 1 && (
         <div class="note">
           One benchmark so far — run Benchmark again after a few sessions to
@@ -85,6 +142,13 @@ export function HealthTab(props: {
         <div class="note">No folders recorded — run a scan.</div>
       )}
       <FolderBars snap={snap} />
+      {speed && speed.cls === "warn" && (
+        <FixNote>
+          {drop > 0
+            ? "run Benchmark again to confirm the drop — if it repeats, copy the music off and retire this stick"
+            : "a Benchmark job will re-measure — confirm before trusting it for a gig"}
+        </FixNote>
+      )}
     </div>
   );
 }
@@ -95,7 +159,13 @@ function fmtHours(ms: number): string {
   return `${(h / 1000).toFixed(1)}k h`;
 }
 
-function BenchChart({ bench }: { bench: HealthTabBench[] }) {
+function BenchChart({
+  bench,
+  lines,
+}: {
+  bench: HealthTabBench[];
+  lines: string[];
+}) {
   const W = 640;
   const H = 120;
   const PAD = 6;
@@ -118,15 +188,13 @@ function BenchChart({ bench }: { bench: HealthTabBench[] }) {
   const area = `${line((b) => b.seq_mbps)} L${x(bench.length - 1).toFixed(1)},${H - PAD} L${x(0)},${H - PAD} Z`;
   return (
     <div>
-      <h3 class="sect">
-        <Icon name="pulse" /> Benchmark history
-        <InfoTip
-          title="Benchmark history"
-          body="Each run draws two lines: sequential MB/s (solid) and random-4k MB/s (dashed). Hover the dots for the exact readings and date."
-          why="A sudden ~40% drop between consecutive runs is the classic dying-stick signature — preflight flags it automatically."
-          align="right"
-        />
-      </h3>
+      <ListHead
+        icon="pulse"
+        title="Benchmark history"
+        n={bench.length}
+        hint="Each run draws two lines: sequential MB/s (solid) and random-4k MB/s (dashed). Hover the dots for the exact readings and date. A sudden ~40% drop between consecutive runs is the classic dying-stick signature — preflight flags it automatically."
+        lines={lines}
+      />
       <div class="benchchart">
         <div class="bench-legend">
           <span

@@ -1,10 +1,16 @@
 // PlaylistsTab.tsx — playlists as a real browser: client-side filter,
 // sort by entries/name, folder grouping toggle, and per-playlist entry bars
 // scaled against the biggest playlist.
+//
+// UX pass (Sep 8): the tab leads with a one-line read of the library shape
+// (playlists, entries, the biggest crate) and the list is copyable —
+// handing the crate inventory to an agent ("rebuild these on a new stick")
+// is one paste.
 import { useMemo, useState } from "preact/hooks";
 import type { PlaylistInfo, SnapshotData } from "../shared/types";
 import { Icon } from "./icons";
-import { TabIntro } from "./InfoTip";
+import { InfoTip, TabIntro } from "./InfoTip";
+import { copyList } from "./ListHead";
 
 type SortKey = "entries" | "name";
 
@@ -63,14 +69,59 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
     );
 
   const totalEntries = all.reduce((s, p) => s + p.entries, 0);
+  const folders = new Set(all.map((p) => p.parent).filter(Boolean));
+  const biggest = all[0];
+  const copyInventory = () =>
+    copyList(
+      "Playlist inventory",
+      all.map(
+        (p) =>
+          `${p.name}${p.parent ? ` [${p.parent}]` : ""} — ${p.entries} entries`,
+      ),
+    );
 
   return (
     <div>
       <TabIntro
         what="Every playlist on this stick, exactly as rekordbox exported it."
-        how="Bars scale against the biggest playlist so outliers jump out. Filter box matches playlist and folder names; 'Group folders' mirrors the folder tree rekordbox shows."
+        how="The banner reads the library shape in one line. Bars scale against the biggest playlist so outliers jump out. Filter box matches playlist and folder names; 'Group folders' mirrors the folder tree rekordbox shows. Copy exports the whole inventory."
         next="Cross-drive playlist safety (would a playlist survive one drive dying?) lives in Fleet → Redundancy."
       />
+      <div class="arch-verdict ok">
+        <Icon name="disc" size={15} />
+        <span>
+          {all.length} playlist{all.length === 1 ? "" : "s"} ·{" "}
+          {totalEntries.toLocaleString()} entr
+          {totalEntries === 1 ? "y" : "ies"}
+          {biggest && biggest.entries > 0 && (
+            <>
+              {" "}
+              · biggest crate <b>{biggest.name}</b> ({biggest.entries})
+            </>
+          )}
+          {folders.size > 0 && (
+            <>
+              {" "}
+              · {folders.size} folder{folders.size === 1 ? "" : "s"}
+            </>
+          )}
+        </span>
+        <span class="arch-verdict-meta">
+          <InfoTip
+            title="Playlist inventory"
+            body="Copy exports every playlist with folder + entry count — for agents rebuilding lists on a fresh stick, auditing crates, or feeding a set-planning tool."
+            align="right"
+          />
+          <button
+            type="button"
+            class="btn sm ghostbtn"
+            title="Copy the full playlist inventory — paste to an agent or notes"
+            onClick={copyInventory}
+          >
+            <Icon name="copy" size={12} /> Copy
+          </button>
+        </span>
+      </div>
       <div class="pl-tools">
         <input
           placeholder="Filter playlists…"
@@ -105,9 +156,6 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
             Group folders
           </button>
         </div>
-        <span class="note" style={{ margin: 0 }}>
-          {all.length} playlists · {totalEntries.toLocaleString()} entries
-        </span>
       </div>
 
       {shown.length === 0 && (

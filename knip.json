@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["tools/fetch_all.ts", "tools/fix_years.ts"],
+      "entry": ["tools/fetch_all.ts", "tools/fix_years.ts", "tools/prof_sweep.ts"],
       "ignore": ["fulltags/**"],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": ["ditto", "ffprobe", "yt-dlp", "plutil", "wait"],
