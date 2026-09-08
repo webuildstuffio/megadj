@@ -6,7 +6,6 @@
 // routes deckctl consumes. Everything here degrades to "not available"
 // when the archive DB is absent — same as the MCP tools.
 
-import { useEffect, useState } from "preact/hooks";
 import type {
   ArchiveGridCrossCheck,
   ArchiveIngestStatus,
@@ -15,6 +14,8 @@ import type {
 } from "../shared/types";
 import { api } from "./toast";
 import { Icon } from "./icons";
+import { StatCard } from "./DrivePanels";
+import { useFetched } from "./useFetched";
 
 // Payload types are DERIVED from ArchiveReader's return types
 // (shared/types.ts) — never re-declare server shapes locally. Local
@@ -24,50 +25,27 @@ type MoodPayload = ArchiveMoodProfile;
 type LowqPayload = ArchiveLowqQueue;
 type GridPayload = ArchiveGridCrossCheck;
 
-function Stat(props: { v: string; l: string; icon: string }) {
-  return (
-    <div class="stat">
-      <div class="v">
-        <Icon name={props.icon} size={13} /> {props.v}
-      </div>
-      <div class="l">{props.l}</div>
-    </div>
-  );
-}
+type ArchivePayload = [IngestPayload, MoodPayload, LowqPayload, GridPayload];
 
 export function ArchiveTab() {
-  const [ingest, setIngest] = useState<IngestPayload | null>(null);
-  const [mood, setMood] = useState<MoodPayload | null>(null);
-  const [lowq, setLowq] = useState<LowqPayload | null>(null);
-  const [grid, setGrid] = useState<GridPayload | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const page = useFetched<ArchivePayload>(
+    () =>
+      Promise.all([
+        api<IngestPayload>("/api/archive/ingest-status"),
+        api<MoodPayload>("/api/archive/mood"),
+        api<LowqPayload>("/api/archive/lowq"),
+        api<GridPayload>("/api/archive/grid-cross-check"),
+      ]),
+    [],
+  );
+  const [ingest, mood, lowq, grid] =
+    page.status === "ok" ? page.data : [null, null, null, null];
 
-  useEffect(() => {
-    let alive = true;
-    Promise.all([
-      api<IngestPayload>("/api/archive/ingest-status"),
-      api<MoodPayload>("/api/archive/mood"),
-      api<LowqPayload>("/api/archive/lowq"),
-      api<GridPayload>("/api/archive/grid-cross-check"),
-    ])
-      .then(([i, m, l, g]) => {
-        if (!alive) return;
-        setIngest(i);
-        setMood(m);
-        setLowq(l);
-        setGrid(g);
-      })
-      .catch((e: Error) => alive && setErr(String(e)));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  if (err)
+  if (page.status === "error")
     return (
       <div class="card">
         <div class="empty">
-          <Icon name="x" size={16} /> Archive reads failed: {err}
+          <Icon name="x" size={16} /> Archive reads failed: {page.message}
         </div>
       </div>
     );
@@ -90,7 +68,7 @@ export function ArchiveTab() {
           <>
             <div class="statgrid">
               {Object.entries(ingest.counts).map(([k, v]) => (
-                <Stat key={k} v={String(v)} l={k} icon="dot" />
+                <StatCard key={k} v={String(v)} l={k} icon="dot" />
               ))}
             </div>
             {ingest.recent_runs.length > 0 && (
@@ -120,9 +98,9 @@ export function ArchiveTab() {
         ) : (
           <>
             <div class="statgrid">
-              <Stat v={String(mood.analyzed)} l="analyzed" icon="check" />
+              <StatCard v={String(mood.analyzed)} l="analyzed" icon="check" />
               {Object.entries(mood.avg).map(([k, v]) => (
-                <Stat key={k} v={v.toFixed(2)} l={k} icon="dot" />
+                <StatCard key={k} v={v.toFixed(2)} l={k} icon="dot" />
               ))}
             </div>
             {(["valence", "arousal", "dance"] as const).map((dim) => {
@@ -170,9 +148,9 @@ export function ArchiveTab() {
         ) : (
           <>
             <div class="statgrid">
-              <Stat v={String(grid.ok ?? 0)} l="ok" icon="check" />
-              <Stat v={String(grid.off?.length ?? 0)} l="off" icon="warn" />
-              <Stat v={String(grid.octave?.length ?? 0)} l="octave" icon="x" />
+              <StatCard v={String(grid.ok)} l="ok" icon="check" />
+              <StatCard v={String(grid.off.length)} l="off" icon="warn" />
+              <StatCard v={String(grid.octave.length)} l="octave" icon="x" />
             </div>
             <div class="fleet-sub">
               beat_this grid vs RB BPM×duration (rev 6 verdicts)

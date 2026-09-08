@@ -5,7 +5,7 @@
 import { useEffect, useState } from "preact/hooks";
 import type { VerifyCheck, VerifyReport } from "../shared/types";
 import { timeAgo } from "../shared/fmt";
-import { api, toast } from "./toast";
+import { api, apiPost, toast } from "./toast";
 import { Icon } from "./icons";
 
 interface HelpDoc {
@@ -38,8 +38,7 @@ export function VerifyTab(props: {
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/drives/${driveId}/verify/help`)
-      .then((r) => r.json() as Promise<HelpDoc>)
+    api<HelpDoc>(`/api/drives/${driveId}/verify/help`, { quiet: true })
       .then(setHelp)
       .catch((e: unknown) => {
         console.error(`verify help for ${driveId} failed`, e);
@@ -51,14 +50,12 @@ export function VerifyTab(props: {
   const runVerify = async () => {
     setRunning(true);
     try {
-      await api(`/api/drives/${encodeURIComponent(driveId)}/jobs`, {
-        method: "POST",
-        body: JSON.stringify({ kind: "verify" }),
+      await apiPost(`/api/drives/${encodeURIComponent(driveId)}/jobs`, {
+        kind: "verify",
       });
       toast("Verify started — progress in the job dock below");
-    } catch (e) {
-      toast((e as Error).message || "could not start verify");
     } finally {
+      // api() already toasted the failure; the catch only stops propagation.
       setRunning(false);
     }
   };
@@ -70,10 +67,16 @@ export function VerifyTab(props: {
     <div class="verifytab">
       <div class="note">
         <Icon name="shield" size={14} />
-        <span>
-          {help?.intro ??
-            "Verify reads both rekordbox databases on the drive and checks that every track, waveform, beatgrid and playlist is really there and consistent — read-only, nothing is modified."}
-        </span>
+        {help ? (
+          <span>{help.intro}</span>
+        ) : (
+          // help fetch failed — say so instead of silently standing in a
+          // second copy of the server's prose
+          <span class="muted">
+            explainer unavailable (help doc failed to load) — the run button and
+            report below are unaffected
+          </span>
+        )}
       </div>
 
       <div class="vmeta">
@@ -227,22 +230,19 @@ function DeltasBar(props: { report: VerifyReport }) {
   const { report } = props;
   const deltas = report.deltas ?? [];
   if (!report.prev_ran_at || deltas.length === 0) return null;
+  const at = new Date(report.prev_ran_at).toLocaleString();
   const worsened = deltas.filter((d) => d.delta > 0);
   const improved = deltas.filter((d) => d.delta < 0);
   const flipped = deltas.filter((d) => d.delta === 0);
-  if (!worsened.length && !improved.length && !flipped.length) {
+  if (!worsened.length && !improved.length && !flipped.length)
     return (
       <div class="vdeltas same">
-        <Icon name="check" size={12} /> identical to the previous run (
-        {new Date(report.prev_ran_at).toLocaleString()})
+        <Icon name="check" size={12} /> identical to the previous run ({at})
       </div>
     );
-  }
   return (
     <div class="vdeltas">
-      <span class="vdhead">
-        vs previous run ({new Date(report.prev_ran_at).toLocaleString()}):
-      </span>
+      <span class="vdhead">vs previous run ({at}):</span>
       {worsened.map((d) => (
         <span class="vdelta worse" key={d.check_id}>
           <Icon name="warn" size={11} /> {d.label}: +{d.delta} new

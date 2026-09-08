@@ -6,9 +6,11 @@
 // deck_preflight consume — verdict cards per drive, expandable checks,
 // firmware advisories, N78 player-compat folded in per drive.
 
-import { useEffect, useState } from "preact/hooks";
+import { useState } from "preact/hooks";
 import { api } from "./toast";
 import { Icon } from "./icons";
+import { errMessage } from "../shared/fmt";
+import { useFetched } from "./useFetched";
 import type {
   CheckStatus,
   PlayersPayload,
@@ -49,18 +51,11 @@ const STATUS_ICON: Record<CheckStatus, string> = {
 };
 
 export function PreflightTab() {
-  const [data, setData] = useState<PreflightReport | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const page = useFetched<PreflightReport>(() => api("/api/preflight"), []);
+  const data = page.status === "ok" ? page.data : null;
+  const err = page.status === "error" ? page.message : null;
   const [open, setOpen] = useState<string | null>(null);
   const [players, setPlayers] = useState<Record<string, PlayersState>>({});
-
-  useEffect(() => {
-    api<PreflightReport>("/api/preflight")
-      .then(setData)
-      .catch((e: unknown) =>
-        setErr(e instanceof Error ? e.message : String(e)),
-      );
-  }, []);
 
   const toggle = (id: string) => {
     setOpen(open === id ? null : id);
@@ -80,7 +75,7 @@ export function PreflightTab() {
             ...prev,
             [id]: {
               status: "error",
-              message: e instanceof Error ? e.message : String(e),
+              message: errMessage(e),
             },
           })),
         );
@@ -121,6 +116,11 @@ export function PreflightTab() {
             type="button"
             class="pf-head"
             onClick={() => toggle(d.drive.id)}
+            title={
+              open === d.drive.id
+                ? "Collapse this drive's checks"
+                : "Expand checks, blockers and player compatibility"
+            }
           >
             <span class={`rolechip ${VERDICT_TONE[d.overall] ?? ""}`}>
               <Icon name={VERDICT_ICON[d.overall] ?? "dot"} size={12} />

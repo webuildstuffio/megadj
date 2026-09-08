@@ -4,7 +4,7 @@ import { useMemo, useState } from "preact/hooks";
 import type { TimelineEvent } from "../shared/types";
 import { fmtWhen, fmtEventData } from "../shared/fmt";
 import { Icon } from "./icons";
-import { toast } from "./toast";
+import { toast, apiPost } from "./toast";
 
 /** Event kind → [icon, chip tone]. Everything unknown falls back to muted. */
 const KIND_STYLE: Record<string, [string, string]> = {
@@ -78,23 +78,17 @@ export function TimelineTab({
 
   const dismiss = (driveId: string, id: string) => {
     setDismissed((prev) => new Set(prev).add(id));
-    fetch(
+    apiPost(
       `/api/drives/${encodeURIComponent(driveId)}/notes/${encodeURIComponent(id)}/dismiss`,
-      {
-        method: "POST",
-      },
-    )
-      .then((r) => {
-        if (!r.ok) throw new Error(String(r.status));
-      })
-      .catch(() => {
-        toast("dismiss failed — reload and retry", "err");
-        setDismissed((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
+      undefined,
+    ).catch(() => {
+      toast("dismiss failed — reload and retry", "err");
+      setDismissed((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
       });
+    });
   };
 
   if (!events.length)
@@ -115,31 +109,28 @@ export function TimelineTab({
               const [icon, tone] = KIND_STYLE[e.kind] ?? ["dot", "muted"];
               const detail = fmtEventData(e.data);
               // O88: agent notes render as a card — severity tone + dismiss
+              const isNote = e.kind === "agent-note";
               const sev =
-                e.kind === "agent-note" &&
-                typeof e.data["severity"] === "string"
+                isNote && typeof e.data["severity"] === "string"
                   ? (e.data["severity"] as string)
                   : null;
               const noteTone =
                 sev === "critical" ? "bad" : sev === "warn" ? "warn" : "info";
+              const tone2 = isNote ? noteTone : tone;
               return (
                 <div class="row" key={e.id}>
-                  <span
-                    class={`tico kc-${e.kind === "agent-note" ? noteTone : tone}`}
-                  >
+                  <span class={`tico kc-${tone2}`}>
                     <Icon name={icon} size={13} />
                   </span>
                   <span class="t">{fmtWhen(e.at)}</span>
                   <span class="body">
-                    <span
-                      class={`kindchip kc-${e.kind === "agent-note" ? noteTone : tone}`}
-                    >
-                      {e.kind === "agent-note"
+                    <span class={`kindchip kc-${tone2}`}>
+                      {isNote
                         ? `agent note${sev && sev !== "info" ? ` · ${sev}` : ""}`
                         : e.kind}
                     </span>
                     <span class="detail">{detail}</span>
-                    {e.kind === "agent-note" && (
+                    {isNote && (
                       <button
                         class="btn ghostbtn sm"
                         style={{ marginLeft: "8px" }}

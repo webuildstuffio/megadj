@@ -14,9 +14,10 @@ import { DriveRail } from "./DriveRail";
 import { DrivePage } from "./DrivePage";
 import { FleetPage } from "./FleetPage";
 import { JobsDock } from "./JobsDock";
-import { Toaster, toast } from "./toast";
+import { Toaster, api, toast } from "./toast";
 import { Icon } from "./icons";
 import { navigate, navigateFleet, useRoute } from "./router";
+import { errMessage } from "../shared/fmt";
 
 export function App() {
   const route = useRoute();
@@ -38,17 +39,14 @@ export function App() {
 
   const refresh = useCallback(async () => {
     const [d, p, rep] = await Promise.all([
-      fetch("/api/drives").then((r) => r.json() as Promise<DriveCardData[]>),
-      fetch("/api/ports").then((r) => r.json() as Promise<PortInfo[]>),
-      fetch("/api/reports").then(
-        (r) =>
-          r.json() as Promise<
-            Record<
-              string,
-              { overall?: OverallHealth; checks: { status: string }[] }
-            >
-          >,
-      ),
+      api<DriveCardData[]>("/api/drives", { quiet: true }),
+      api<PortInfo[]>("/api/ports", { quiet: true }),
+      api<
+        Record<
+          string,
+          { overall?: OverallHealth; checks: { status: string }[] }
+        >
+      >("/api/reports", { quiet: true }),
     ]);
     setDrives(d);
     setPorts(p);
@@ -60,8 +58,8 @@ export function App() {
   const refreshJobs = useCallback(async () => {
     try {
       const [active, all] = await Promise.all([
-        fetch("/api/jobs?active=1").then((r) => r.json() as Promise<Job[]>),
-        fetch("/api/jobs").then((r) => r.json() as Promise<Job[]>),
+        api<Job[]>("/api/jobs?active=1", { quiet: true }),
+        api<Job[]>("/api/jobs", { quiet: true }),
       ]);
       // merge: active rows win over stale history rows with the same id
       const byId = new Map<string, Job>(all.map((j) => [j.id, j]));
@@ -74,20 +72,14 @@ export function App() {
       );
     } catch (e) {
       console.error("jobs refresh failed", e);
-      toast(
-        `jobs unavailable: ${e instanceof Error ? e.message : String(e)}`,
-        "err",
-      );
+      toast(`jobs unavailable: ${errMessage(e)}`, "err");
     }
   }, []);
 
   useEffect(() => {
     refresh().catch((e: unknown) => {
       console.error("drive list refresh failed", e);
-      toast(
-        `drive list unavailable: ${e instanceof Error ? e.message : String(e)}`,
-        "err",
-      );
+      toast(`drive list unavailable: ${errMessage(e)}`, "err");
     });
     refreshJobs();
     const es = new EventSource("/api/events");
@@ -130,9 +122,7 @@ export function App() {
     });
     const interlockPoll = setInterval(async () => {
       try {
-        const s = await fetch("/api/interlock").then(
-          (r) => r.json() as Promise<InterlockState>,
-        );
+        const s = await api<InterlockState>("/api/interlock", { quiet: true });
         setInterlock(s);
       } catch {
         // interlock poll is advisory (the SSE stream + server gate are the
@@ -170,9 +160,10 @@ export function App() {
     }
     const t = setTimeout(async () => {
       try {
-        const r = await fetch(
+        const r = await api<SearchResult[]>(
           `/api/search?q=${encodeURIComponent(query.trim())}`,
-        ).then((x) => x.json() as Promise<SearchResult[]>);
+          { quiet: true },
+        );
         setResults(r);
       } catch (e) {
         console.error("search failed", e);
@@ -252,6 +243,7 @@ export function App() {
             ref={searchRef}
             id="global-search"
             placeholder="Search playlists, folders…"
+            title="Search all drives — press ⌘K to focus, Enter to open the top hit"
             value={query}
             onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
             onKeyDown={(e) => {
@@ -293,7 +285,7 @@ export function App() {
                       <span>
                         <span class="sr-type">{m.type}</span> {m.name}
                       </span>
-                      <span>{m.entries ?? ""}</span>
+                      <span>{m.entries?.toLocaleString() ?? "—"}</span>
                     </div>
                   ))}
                 </div>

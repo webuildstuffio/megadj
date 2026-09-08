@@ -1,4 +1,10 @@
 // fmt.ts — shared human formatters (server + web).
+
+/** Normalize any thrown value to its user-facing message. */
+export function errMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 export function fmtBytes(n: number): string {
   if (!Number.isFinite(n)) return "—";
   const abs = Math.abs(n);

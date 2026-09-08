@@ -2,10 +2,10 @@
 // and cancel; collapsible history of finished runs. Replaces the old
 // pill-only tray.
 import { useState } from "preact/hooks";
-import type { DriveCardData, Job } from "../shared/types";
+import type { DriveCardData, Job, VerifyReport } from "../shared/types";
 import { ACTIVE_JOB_STATUSES, TERMINAL_JOB_STATUSES } from "../shared/types";
-import { fmtEta } from "../shared/fmt";
-import { api, toast } from "./toast";
+import { errMessage, fmtEta } from "../shared/fmt";
+import { apiPost, toast } from "./toast";
 import { Icon } from "./icons";
 
 const ACTIVE = new Set<string>(ACTIVE_JOB_STATUSES);
@@ -57,12 +57,8 @@ export function JobsDock(props: {
             job={j}
             driveName={driveName(j.drive_id)}
             onCancel={() =>
-              api(`/api/jobs/${j.id}/cancel`, { method: "POST" }).catch(
-                (e: unknown) =>
-                  toast(
-                    `cancel failed: ${e instanceof Error ? e.message : String(e)}`,
-                    "err",
-                  ),
+              apiPost(`/api/jobs/${j.id}/cancel`, undefined).catch(
+                (e: unknown) => toast(`cancel failed: ${errMessage(e)}`, "err"),
               )
             }
             onFocus={() => props.focusDrive(j.drive_id)}
@@ -75,19 +71,23 @@ export function JobsDock(props: {
             detail: string;
           }[] = [];
           let checkCount = 0;
+          let unreadable: string | null = null;
           try {
             if (j.result_json != null) {
-              const r = JSON.parse(j.result_json) as {
-                final?: string;
-                checks?: { label: string; detail: string; status: string }[];
-              };
+              // VerifyReport is the producer SSOT (verify_report.ts) — the
+              // local shape used to drift (checks was "optional" here only
+              // because of a hand-copy, masking missing arrays as 0).
+              const r = JSON.parse(j.result_json) as Partial<VerifyReport>;
               final = r.final ?? null;
               // non-passing checks surface as finding chips; count all
               checkCount = r.checks?.length ?? 0;
               findings = (r.checks ?? []).filter((c) => c.status !== "pass");
             }
-          } catch {
-            final = null;
+          } catch (e) {
+            // a result the UI cannot read must never render as a clean row —
+            // surface it (the user checks deckctl jobs with this string).
+            console.error(`verify result_json parse failed (job ${j.id})`, e);
+            unreadable = "result unreadable — see deckctl jobs";
           }
           return (
             <div
@@ -108,6 +108,11 @@ export function JobsDock(props: {
               {final && (
                 <div class="jmsg" title={final}>
                   {final}
+                </div>
+              )}
+              {unreadable && (
+                <div class="jmsg">
+                  <Icon name="warn" size={11} /> {unreadable}
                 </div>
               )}
               {j.kind === "verify" &&

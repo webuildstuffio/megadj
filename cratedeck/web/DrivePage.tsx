@@ -294,7 +294,15 @@ export function DrivePage(props: {
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !renaming) navigate(null);
+      // Only leave the page for Escape when NOT typing (rename editor, photo
+      // search) — the input's own handler closes the editor; this global one
+      // must never fire for the same keypress (it races the renaming state
+      // re-bind and ejects the user to the welcome screen mid-edit).
+      const inEditor =
+        renaming ||
+        (document.activeElement instanceof HTMLInputElement &&
+          document.activeElement.closest(".name-edit, .pl-tools, .search"));
+      if (e.key === "Escape" && !inEditor) navigate(null);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -437,8 +445,19 @@ export function DrivePage(props: {
                 value={nameDraft}
                 autoFocus
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") rename(nameDraft.trim() || null);
-                  if (e.key === "Escape") setRenaming(false);
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    // empty draft + Enter = cancel, never "clear the name" —
+                    // wiping your drive's name with one stray keypress is a
+                    // trap; explicit clearing is a deliberate Save on empty
+                    // only when the drive already had a nickname
+                    if (!nameDraft.trim()) setRenaming(false);
+                    else rename(nameDraft.trim());
+                  }
+                  if (e.key === "Escape") {
+                    e.stopPropagation();
+                    setRenaming(false);
+                  }
                 }}
                 onInput={(e) =>
                   setNameDraft((e.target as HTMLInputElement).value)
@@ -447,7 +466,11 @@ export function DrivePage(props: {
               <button
                 type="button"
                 class="btn sm primary"
-                onClick={() => rename(nameDraft.trim() || null)}
+                onClick={() =>
+                  nameDraft.trim()
+                    ? rename(nameDraft.trim())
+                    : setRenaming(false)
+                }
               >
                 Save
               </button>
@@ -482,7 +505,11 @@ export function DrivePage(props: {
           <div class="hsub">
             <span>{detail.drive.name}</span>
             <span class="sep">·</span>
-            <span>{fmtBytes(detail.drive.capacity_bytes ?? 0)}</span>
+            <span>
+              {detail.drive.capacity_bytes
+                ? fmtBytes(detail.drive.capacity_bytes)
+                : "—"}
+            </span>
             {detail.drive.fs && (
               <>
                 <span class="sep">·</span>

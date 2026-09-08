@@ -4,42 +4,45 @@
 import type { Drive, SnapshotData } from "../shared/types";
 import { fmtBytes, shortSerial } from "../shared/fmt";
 import { Icon } from "./icons";
+import { StatCard } from "./DrivePanels";
 
-interface Bench {
+// identical to DrivePage's local Bench — one shared shape (same producer)
+type Bench = {
   ran_at: number;
   seq_mbps: number;
   rand4k_mbps: number;
-}
+};
+export type HealthTabBench = Bench;
 
 export function HealthTab(props: {
   drive: Drive;
   snap: SnapshotData | null;
-  bench: Bench[];
+  bench: HealthTabBench[];
 }) {
   const { drive, snap, bench } = props;
   const last = bench.at(-1);
   return (
     <div>
       <div class="statgrid">
-        <Stat
+        <StatCard
           v={last ? `${last.seq_mbps} MB/s` : "—"}
           l="sequential read (last)"
           icon="pulse"
         />
-        <Stat
+        <StatCard
           v={last ? `${last.rand4k_mbps} MB/s` : "—"}
           l="random 4k read (last)"
           icon="grid"
         />
-        <Stat
+        <StatCard
           v={drive.usb_serial ? shortSerial(drive.usb_serial) : "—"}
           l="USB serial"
           icon="hash"
           title={drive.usb_serial ?? undefined}
         />
-        <Stat v={`${drive.plug_count}`} l="plug sessions" icon="usb" />
+        <StatCard v={`${drive.plug_count}`} l="plug sessions" icon="usb" />
         {snap?.total_duration_ms ? (
-          <Stat
+          <StatCard
             v={fmtHours(snap.total_duration_ms)}
             l="total music duration"
             icon="clock"
@@ -66,24 +69,13 @@ export function HealthTab(props: {
   );
 }
 
-function Stat(props: { v: string; l: string; icon: string; title?: string }) {
-  return (
-    <div class="stat">
-      <div class="v" title={props.title}>
-        <Icon name={props.icon} size={13} /> {props.v}
-      </div>
-      <div class="l">{props.l}</div>
-    </div>
-  );
-}
-
 function fmtHours(ms: number): string {
   const h = Math.round(ms / 3_600_000);
   if (h < 1000) return `${h} h`;
   return `${(h / 1000).toFixed(1)}k h`;
 }
 
-function BenchChart({ bench }: { bench: Bench[] }) {
+function BenchChart({ bench }: { bench: HealthTabBench[] }) {
   const W = 640;
   const H = 120;
   const PAD = 6;

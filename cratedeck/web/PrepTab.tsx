@@ -7,27 +7,28 @@
 // plus download for pasting into notes. Markdown is rendered as a
 // monospace block — the digest is the artifact, styling it twice is
 // duplication.
-
-import { useEffect, useState } from "preact/hooks";
-import { api } from "./toast";
+import { api, toast } from "./toast";
 import { Icon } from "./icons";
+import { useFetched } from "./useFetched";
+import { errMessage } from "../shared/fmt";
 
 export function PrepTab() {
-  const [md, setMd] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const page = useFetched<{ markdown: string }>(
+    () => api<{ markdown: string }>("/api/fleet/prep"),
+    [],
+  );
+  const md = page.status === "ok" ? page.data.markdown : null;
 
-  useEffect(() => {
-    let alive = true;
-    api<{ markdown: string }>("/api/fleet/prep")
-      .then((r) => alive && setMd(r.markdown))
-      .catch((e: Error) => alive && setErr(String(e)));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const copy = () => {
-    if (md) navigator.clipboard.writeText(md);
+  const copy = async () => {
+    if (!md) return;
+    try {
+      await navigator.clipboard.writeText(md);
+      toast("Prep digest copied", "ok");
+    } catch (e) {
+      // clipboard rejects on permission denial / insecure context — a silent
+      // no-op Copy button is the slop this tab must not ship
+      toast(`copy failed: ${errMessage(e)}`, "err");
+    }
   };
   const download = () => {
     if (!md) return;
@@ -39,11 +40,11 @@ export function PrepTab() {
     URL.revokeObjectURL(a.href);
   };
 
-  if (err)
+  if (page.status === "error")
     return (
       <div class="card">
         <div class="empty">
-          <Icon name="x" size={16} /> Prep digest failed: {err}
+          <Icon name="x" size={16} /> Prep digest failed: {page.message}
         </div>
       </div>
     );

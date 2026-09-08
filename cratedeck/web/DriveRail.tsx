@@ -15,6 +15,10 @@ const VERDICT_COLOR: Record<OverallHealth, string> = {
 function HealthRing({ verdict, pct }: { verdict: OverallHealth; pct: number }) {
   const R = 19;
   const C = 2 * Math.PI * R;
+  // no report yet = unknown data, not zero data — the indeterminate dashed
+  // arc keeps "no data" visually distinct from "worst data" (0% pass)
+  const hasReport = pct > 0;
+  const color = VERDICT_COLOR[verdict] ?? VERDICT_COLOR.unknown;
   return (
     <div class="ring" title={verdict}>
       <svg width="46" height="46" viewBox="0 0 46 46">
@@ -33,13 +37,15 @@ function HealthRing({ verdict, pct }: { verdict: OverallHealth; pct: number }) {
           r={R}
           fill="none"
           stroke-width="3.5"
-          stroke={VERDICT_COLOR[verdict] ?? VERDICT_COLOR.unknown}
-          stroke-dasharray={C}
-          stroke-dashoffset={C * (1 - Math.max(0.04, Math.min(1, pct)))}
+          stroke={color}
+          stroke-dasharray={hasReport ? C : "3 6"}
+          stroke-dashoffset={
+            hasReport ? C * (1 - Math.max(0.04, Math.min(1, pct))) : 0
+          }
           transform="rotate(-90 23 23)"
         />
       </svg>
-      <span class="ring-label" style={{ color: VERDICT_COLOR[verdict] }}>
+      <span class="ring-label" style={{ color: color }}>
         {verdict === "healthy"
           ? "✓"
           : verdict === "critical"
@@ -135,6 +141,7 @@ function RailCard(props: {
       ? 1 - (snap.free_bytes as number) / snap.capacity_bytes
       : null;
   const verdict = props.report?.overall ?? "unknown";
+  // undefined report = no data (dashed arc); a real 0 pass_rate stays solid
   const ringPct = props.report?.pass_rate ?? 0;
 
   return (
