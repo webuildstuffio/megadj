@@ -616,8 +616,7 @@ export function DrivePage(props: {
             title={
               locked
                 ? "rekordbox is running"
-                : ((HELP_JOBS.find((j) => j.kind === "mirror")?.what as
-                    string | undefined) ?? "Copy master → this mirror")
+                : jobHint("mirror") || "Copy master → this mirror"
             }
           >
             <Icon name="copy" size={14} />{" "}
