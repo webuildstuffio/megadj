@@ -314,9 +314,28 @@ describe("db fleet tables", () => {
     expect(mans.get(A)![0]!.bytes).toBe(1);
   });
 
-  it("replaces (not appends) rows on rescan", () => {
+  it("survives duplicate playlist entries (real-drive dirty data)", () => {
+    // Live-learned Sep 8: a real master drive's full snapshot carried 7
+    // duplicate (playlist, track) rows out of 22,906. The plain INSERT
+    // aborted the whole sync transaction → fleet tables empty → the UI
+    // reported "no inventories" forever. Dirty rows are dropped, clean
+    // rows still land.
     db.upsertDrive({ id: A, volume_uuid: A, name: "X", mounted: true });
-    db.setSnapshot(A, snapWith());
+    const snap = snapWith({
+      playlist_entries: [
+        { playlist_name: "Party", track_path: "house/one.mp3" },
+        { playlist_name: "Party", track_path: "house/one.mp3" }, // dupe
+        { playlist_name: "Party", track_path: "house/two.mp3" },
+        { playlist_name: "Party", track_path: "house/two.mp3" }, // dupe
+      ],
+    });
+    db.setSnapshot(A, snap);
+    const entries = db.fleetPlaylistEntries().get(A)!;
+    expect(entries.length).toBe(2); // dupes dropped, not crashed
+    expect(entries.map((e) => e.playlist_name)).toEqual(["Party", "Party"]);
+  });
+
+  it("replaces (not appends) rows on rescan", () => {
     db.setSnapshot(A, snapWith({ taken_at: Date.now() + 1 }));
     // identical content is skipped by setSnapshot, so force a real change
     db.setSnapshot(

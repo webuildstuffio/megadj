@@ -3,7 +3,15 @@
 //   redundancy — per-playlist audit: every track on ≥N drives?
 //   diff       — drive-vs-drive added/removed/changed
 // All server-rendered from fleet tables; this page is pure presentation.
+//
+// UX pass (Sep 8, same treatment as ArchiveTab): every tab now answers the
+// three questions in order — (1) a verdict banner a human reads first,
+// (2) the work, with real data rendered and every list copyable (the fix
+// is an agent running deckctl/megadj — handing the list over is the CTA),
+// (3) context. Preflight and Prep were already verdict-first/copyable by
+// design; this pass covers the other three.
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import type { ComponentChildren } from "preact";
 import type {
   CoverageResult,
   RedundancyResult,
@@ -18,7 +26,8 @@ import { StatCard } from "./DrivePanels";
 import { PreflightTab } from "./PreflightTab";
 import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
-import { TabIntro, InfoTip } from "./InfoTip";
+import { TabIntro } from "./InfoTip";
+import { ListHead, FixNote, copyList } from "./ListHead";
 
 const TABS = [
   {
@@ -155,13 +164,41 @@ function CoverageTab() {
   }
 
   const shown = data.at_risk.slice(0, 200);
+  // ---- the verdict: one line a human reads before anything else ---------
+  const atRisk = data.at_risk.length;
+  const verdict =
+    data.drives.length === 0
+      ? null // the no-data branch renders its own guidance below
+      : atRisk === 0
+        ? {
+            cls: "ok",
+            text: `Fleet is redundant — every track lives on ≥${data.min_copies} drives.`,
+          }
+        : {
+            cls: "warn",
+            text: `${atRisk.toLocaleString()} track${atRisk === 1 ? "" : "s"} would vanish if a drive died — run Mirror to converge.`,
+          };
+
   return (
     <div>
       <TabIntro
         what="The redundancy map: what exists where, and what a dead drive would take with it."
-        how="The headline numbers: unique tracks across every scanned drive, how many live on enough sticks to be safe, and the at-risk list — tracks on fewer drives than the floor (default 2). Search any track to see exactly which sticks carry it."
+        how="The verdict banner is the one-line answer. The at-risk list is every track below the copy floor (default 2) — copy it and hand it to an agent, or just run Mirror. Search any track to see exactly which sticks carry it."
         next="The fix for at-risk tracks is ordinary: run Mirror so the master's copy lands on the mirror."
       />
+
+      {verdict && (
+        <div class={`arch-verdict ${verdict.cls}`}>
+          <Icon name={verdict.cls === "ok" ? "check" : "warn"} size={15} />
+          <span>{verdict.text}</span>
+          <span class="arch-verdict-meta">
+            {data.totals.unique_tracks.toLocaleString()} unique tracks ·{" "}
+            {data.drives.length} drive{data.drives.length === 1 ? "" : "s"}{" "}
+            scanned
+          </span>
+        </div>
+      )}
+
       <div class="statgrid">
         <StatCard
           v={data.totals.unique_tracks.toLocaleString()}
@@ -173,10 +210,9 @@ function CoverageTab() {
           l={`on ≥${data.min_copies} drives (safe)`}
           icon="check"
         />
-        <div class={`stat ${data.at_risk.length ? "bad" : ""}`}>
+        <div class={`stat ${atRisk ? "bad" : ""}`}>
           <div class="v">
-            <Icon name="warn" size={13} />{" "}
-            {data.at_risk.length.toLocaleString()}
+            <Icon name="warn" size={13} /> {atRisk.toLocaleString()}
           </div>
           <div class="l">single-drive tracks — gone if that drive dies</div>
         </div>
@@ -241,56 +277,53 @@ function CoverageTab() {
           No track inventories yet — run a Scan on a mounted rekordbox drive,
           then come back.
         </div>
+      ) : atRisk === 0 ? (
+        <div class="note ok">
+          <Icon name="check" size={14} /> Every track lives on ≥
+          {data.min_copies} drives. This is the whole point of the mirror.
+        </div>
       ) : (
         <>
-          <h3 class="sect">
-            <Icon name="warn" /> At-risk tracks
-            <span class="sect-n">{data.at_risk.length}</span>
-            <InfoTip
-              title="At-risk tracks"
-              body={`Tracks living on fewer than ${data.min_copies} drives. These are one dead stick away from gone.`}
-              why="The fix is the ordinary mirror run — it converges master → mirror."
-              align="right"
-            />
-          </h3>
-          <div class="fleet-note">
-            On fewer than {data.min_copies} drives. The fix is the ordinary
-            mirror: sync the master's new music to the mirror.
-          </div>
-          {shown.length === 0 ? (
-            <div class="note ok">
-              <Icon name="check" size={14} /> Every track lives on ≥
-              {data.min_copies} drives. This is the whole point of the mirror.
+          <ListHead
+            icon="warn"
+            title="At-risk tracks"
+            n={atRisk}
+            hint={`Tracks living on fewer than ${data.min_copies} drives — one dead stick away from gone. The fix is the ordinary mirror run: it converges master → mirror. Copy the list to hand it to an agent.`}
+            lines={data.at_risk.map(
+              (r) =>
+                `${r.identity.title ?? r.identity.path}${r.identity.artist ? ` — ${r.identity.artist}` : ""} (${r.copies} cop${r.copies === 1 ? "y" : "ies"}: ${r.drives.join(", ")})`,
+            )}
+          />
+          <div class="covtable">
+            <div class="covrow head">
+              <span>track</span>
+              <span>copies</span>
+              <span>on drives</span>
             </div>
-          ) : (
-            <div class="covtable">
-              <div class="covrow head">
-                <span>track</span>
-                <span>copies</span>
-                <span>on drives</span>
+            {shown.map((r) => (
+              <div class="covrow" key={r.identity.path}>
+                <span class="covpath" title={r.identity.path}>
+                  <b>{r.identity.title ?? r.identity.path}</b>
+                  {r.identity.artist && (
+                    <span class="covartist"> — {r.identity.artist}</span>
+                  )}
+                </span>
+                <span class={`n ${r.copies <= 1 ? "bad" : ""}`}>
+                  {r.copies}
+                </span>
+                <span class="covdrives">{r.drives.join(", ")}</span>
               </div>
-              {shown.map((r) => (
-                <div class="covrow" key={r.identity.path}>
-                  <span class="covpath" title={r.identity.path}>
-                    <b>{r.identity.title ?? r.identity.path}</b>
-                    {r.identity.artist && (
-                      <span class="covartist"> — {r.identity.artist}</span>
-                    )}
-                  </span>
-                  <span class={`n ${r.copies <= 1 ? "bad" : ""}`}>
-                    {r.copies}
-                  </span>
-                  <span class="covdrives">{r.drives.join(", ")}</span>
-                </div>
-              ))}
-              {data.at_risk.length > shown.length && (
-                <div class="fleet-note">
-                  showing {shown.length} of {data.at_risk.length} — export the
-                  dossier or use deckctl for the full list
-                </div>
-              )}
-            </div>
-          )}
+            ))}
+            {atRisk > shown.length && (
+              <div class="fleet-note">
+                showing {shown.length} of {atRisk} — Copy has the full list
+              </div>
+            )}
+          </div>
+          <FixNote>
+            run <code>Mirror</code> (topbar or <code>deckctl run mirror</code>)
+            — it copies the master's new music to the mirror
+          </FixNote>
         </>
       )}
     </div>
@@ -322,19 +355,38 @@ function RedundancyTab() {
     );
 
   const icon = { pass: "check", warn: "warn", fail: "warn", unknown: "dot" };
+  // risky-first: at-risk playlists on top, unknowns pinned last — the order
+  // IS the work queue (the first render was server order, whichever that was)
+  const order = { fail: 0, warn: 1, pass: 2, unknown: 3 };
+  const sorted = [...data.playlists].sort(
+    (a, b) => order[a.verdict] - order[b.verdict],
+  );
+  const gapCount = data.playlists.reduce(
+    (s, p) => s + p.tracks.filter((t) => t.copies < 2).length,
+    0,
+  );
 
   return (
     <div>
       <TabIntro
         what="Per-playlist survival audit: if one drive died tonight, which playlists come up short?"
-        how="Each playlist gets a verdict: safe (every track on enough drives), thin (some gaps, usable), or at risk (tracks would vanish with a drive). Click a playlist to see the exact tracks and where they live."
-        next="The verdict floor is 2 copies — the master + the mirror. Converge with a Mirror run."
+        how="Playlists are sorted risky-first: at-risk on top, thin below, safe buried. Click one to see the exact gap tracks; Copy hands the gap list to an agent. The floor is the copy minimum — usually master + mirror."
+        next="The fix is always the same: run Mirror and the gaps close as the master converges."
       />
       <div
-        class={`note ${data.overall === "pass" ? "ok" : data.overall === "unknown" ? "" : "bad"}`}
+        class={`arch-verdict ${data.overall === "pass" ? "ok" : data.overall === "unknown" ? "" : "warn"}`}
       >
-        <Icon name={data.overall === "pass" ? "check" : "warn"} size={14} />
-        {data.summary}
+        <Icon name={data.overall === "pass" ? "check" : "warn"} size={15} />
+        <span>{data.summary}</span>
+        {gapCount > 0 && (
+          <span class="arch-verdict-meta">
+            {gapCount} gap track{gapCount === 1 ? "" : "s"} across{" "}
+            {data.playlists.filter((p) => p.verdict !== "pass").length} playlist
+            {data.playlists.filter((p) => p.verdict !== "pass").length === 1
+              ? ""
+              : "s"}
+          </span>
+        )}
       </div>
 
       {data.playlists.length === 0 && (
@@ -345,7 +397,7 @@ function RedundancyTab() {
       )}
 
       <div class="checks">
-        {data.playlists.map((p) => {
+        {sorted.map((p) => {
           const isOpen = open === p.playlist;
           const gaps = p.tracks.filter((t) => t.copies < 2);
           return (
@@ -378,31 +430,49 @@ function RedundancyTab() {
                       every track redundant — nothing to fix
                     </span>
                   ) : (
-                    <span class="gaplist">
-                      {gaps.slice(0, 100).map((t) => (
-                        <span class="gaprow" key={t.identity.path}>
-                          <Icon
-                            name={t.copies <= 1 ? "warn" : "dot"}
-                            size={11}
-                          />
-                          <b>{t.identity.title ?? t.identity.path}</b>
-                          {t.identity.artist && (
-                            <span class="covartist">
-                              {" "}
-                              — {t.identity.artist}
+                    <>
+                      <span class="gaplist">
+                        {gaps.slice(0, 100).map((t) => (
+                          <span class="gaprow" key={t.identity.path}>
+                            <Icon
+                              name={t.copies <= 1 ? "warn" : "dot"}
+                              size={11}
+                            />
+                            <b>{t.identity.title ?? t.identity.path}</b>
+                            {t.identity.artist && (
+                              <span class="covartist">
+                                {" "}
+                                — {t.identity.artist}
+                              </span>
+                            )}
+                            <span class="covdrives">
+                              on {t.drives.join(", ") || "no scanned drive"}
                             </span>
-                          )}
-                          <span class="covdrives">
-                            on {t.drives.join(", ") || "no scanned drive"}
                           </span>
-                        </span>
-                      ))}
-                      {gaps.length > 100 && (
-                        <span class="gaprow">
-                          …and {gaps.length - 100} more
-                        </span>
-                      )}
-                    </span>
+                        ))}
+                        {gaps.length > 100 && (
+                          <span class="gaprow">
+                            …and {gaps.length - 100} more
+                          </span>
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        class="btn sm ghostbtn"
+                        title={`Copy these ${gaps.length} gap tracks — paste to an agent to work the list`}
+                        onClick={() =>
+                          copyList(
+                            `${p.playlist} gaps`,
+                            gaps.map(
+                              (t) =>
+                                `${t.identity.title ?? t.identity.path}${t.identity.artist ? ` — ${t.identity.artist}` : ""} (${t.copies}: ${t.drives.join(", ") || "nowhere"})`,
+                            ),
+                          )
+                        }
+                      >
+                        <Icon name="copy" size={12} /> Copy gaps
+                      </button>
+                    </>
                   ))}
               </span>
               <span class={`pill mini ${p.verdict}`}>
@@ -418,6 +488,13 @@ function RedundancyTab() {
           );
         })}
       </div>
+
+      {gapCount > 0 && (
+        <FixNote>
+          run <code>Mirror</code> — every gap here is a track the mirror is
+          missing from the master
+        </FixNote>
+      )}
     </div>
   );
 }
@@ -552,32 +629,50 @@ function DiffTab() {
 
       {result && filtered && (
         <>
-          <div class="statgrid">
-            <StatCard
-              v={`${result.added.length}`}
-              l={`added on ${result.b}`}
-              icon="check"
-            />
-            <StatCard
-              v={`${result.removed.length}`}
-              l={`missing on ${result.b}`}
-              icon="x"
-            />
-            <StatCard
-              v={`${result.changed.length}`}
-              l="changed bytes"
-              icon="warn"
-            />
-          </div>
+          {(() => {
+            // ---- the verdict: interpret the three numbers -----------------
+            // A healthy master→mirror diff reads: removed=0, changed=0;
+            // added ≈ recent imports. Anything else gets a plain sentence.
+            const missing = result.removed.length;
+            const changed = result.changed.length;
+            const added = result.added.length;
+            const a = result.a;
+            const b = result.b;
+            const aIsMaster = /master/i.test(a);
+            const healthyDirection =
+              aIsMaster || (added > 0 && missing === 0 && changed === 0);
+            const verdict =
+              missing === 0 && changed === 0
+                ? {
+                    cls: "ok",
+                    text:
+                      added === 0
+                        ? `${b} matches ${a} exactly — perfect parity.`
+                        : `${b} is ahead of ${a} by ${added} track${added === 1 ? "" : "s"}${healthyDirection ? "" : " — check which side should be ahead"}, nothing missing, nothing changed.`,
+                  }
+                : {
+                    cls: "warn",
+                    text: `${b} is missing ${missing} track${missing === 1 ? "" : "s"}${changed > 0 ? ` and ${changed} differ in bytes` : ""} — run Mirror to converge.`,
+                  };
+            return (
+              <div class={`arch-verdict ${verdict.cls}`}>
+                <Icon
+                  name={verdict.cls === "ok" ? "check" : "warn"}
+                  size={15}
+                />
+                <span>{verdict.text}</span>
+                <span class="arch-verdict-meta">
+                  {added} added · {missing} missing · {changed} changed
+                </span>
+              </div>
+            );
+          })()}
           <div class="pl-tools">
             <input
               placeholder="Filter results…"
               value={filter}
               onInput={(e) => setFilter((e.target as HTMLInputElement).value)}
             />
-            <span class="note" style={{ margin: 0 }}>
-              {result.a} → {result.b}: {result.summary}
-            </span>
           </div>
           <DiffSection
             title={`only on ${result.b}`}
@@ -588,11 +683,23 @@ function DiffTab() {
             title={`missing on ${result.b}`}
             rows={filtered.removed}
             empty="none — nothing dropped"
+            fix={
+              <>
+                these are on <code>{result.a}</code> but not{" "}
+                <code>{result.b}</code> — <code>Mirror</code> closes the gap
+              </>
+            }
           />
           <DiffSection
             title="different bytes"
             rows={filtered.changed}
             empty="none — every shared file byte-identical"
+            fix={
+              <>
+                same path, different size — re-copy the file, or investigate
+                which copy is the good one before overwriting
+              </>
+            }
             renderExtra={(r) =>
               r.bytes_a !== undefined && r.bytes_b !== undefined
                 ? `${fmtBytes(r.bytes_a)} → ${fmtBytes(r.bytes_b)}`
@@ -610,14 +717,25 @@ function DiffSection(props: {
   rows: FleetDiff["added"];
   empty: string;
   renderExtra?: (r: FleetDiff["added"][number]) => string;
+  fix?: ComponentChildren;
 }) {
   const icon = props.rows.length ? "disc" : "check";
   return (
     <div>
-      <h3 class="sect">
-        <Icon name={icon} /> {props.title}
-        <span class="sect-n">{props.rows.length}</span>
-      </h3>
+      <ListHead
+        icon={icon}
+        title={props.title}
+        n={props.rows.length}
+        hint="Track-level diff between the two drives. Copy hands the list to an agent — e.g. 'copy these to the other stick' or 'check why these differ'."
+        lines={
+          props.rows.length > 0
+            ? props.rows.map(
+                (r) =>
+                  `${r.title ?? r.path}${r.artist ? ` — ${r.artist}` : ""}${props.renderExtra ? ` (${props.renderExtra(r)})` : ""}`,
+              )
+            : undefined
+        }
+      />
       {!props.rows.length ? (
         <div class="fleet-note">{props.empty}</div>
       ) : (
@@ -632,10 +750,13 @@ function DiffSection(props: {
             </div>
           ))}
           {props.rows.length > 300 && (
-            <div class="fleet-note">showing 300 of {props.rows.length}</div>
+            <div class="fleet-note">
+              showing 300 of {props.rows.length} — Copy has the full list
+            </div>
           )}
         </div>
       )}
+      {props.fix && props.rows.length > 0 && <FixNote>{props.fix}</FixNote>}
     </div>
   );
 }

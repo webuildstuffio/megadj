@@ -21,10 +21,11 @@ import type {
   ArchiveLowqQueue,
   ArchiveMoodProfile,
 } from "../shared/types";
-import { api, toast } from "./toast";
+import { api } from "./toast";
 import { Icon } from "./icons";
 import { FetchedGate, useFetched } from "./useFetched";
 import { InfoTip, TabIntro } from "./InfoTip";
+import { ListHead } from "./ListHead";
 
 // Payload types are DERIVED from ArchiveReader's return types
 // (shared/types.ts) — never re-declare server shapes locally. Local
@@ -48,55 +49,6 @@ const STATUS_LANG: Record<string, string> = {
   deleted: "removed locally",
   skipped_not_music: "skipped (not music)",
 };
-
-/** Copy a text list to the clipboard. Lists exist to be fixed — and the
- *  fix is an agent running megadj, so handing the list over is the CTA. */
-async function copyList(name: string, lines: string[]): Promise<void> {
-  if (lines.length === 0) return;
-  try {
-    await navigator.clipboard.writeText(lines.join("\n"));
-    toast(
-      `${name} copied (${lines.length} line${lines.length === 1 ? "" : "s"})`,
-      "ok",
-    );
-  } catch (e: unknown) {
-    // clipboard rejects on permission denial / insecure context — surface,
-    // never silently no-op (PrepTab's copy button set the pattern)
-    toast(`copy failed: ${e instanceof Error ? e.message : String(e)}`, "err");
-  }
-}
-
-/** One work item list header: what it is, why it matters, Copy CTA (only
- *  when the list is actually worth pasting). */
-function ListHead(props: {
-  icon: string;
-  title: string;
-  n: number;
-  hint: string;
-  lines?: string[];
-}) {
-  return (
-    <div class="ah-head">
-      <b>
-        <Icon name={props.icon} size={13} /> {props.title}
-        <span class="sect-n">{props.n}</span>
-      </b>
-      <div class="ah-actions">
-        <InfoTip title={props.title} body={props.hint} align="right" />
-        {props.lines && props.lines.length > 0 && (
-          <button
-            type="button"
-            class="btn sm ghostbtn"
-            title={`Copy these ${props.n} items — paste to an agent or notes to work the list`}
-            onClick={() => copyList(props.title, props.lines ?? [])}
-          >
-            <Icon name="copy" size={12} /> Copy
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /** The pipeline pie: have vs broken vs waiting, in plain language. */
 function PipelineBars(props: { ingest: IngestPayload }) {

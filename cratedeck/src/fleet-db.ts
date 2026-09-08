@@ -88,9 +88,14 @@ export class FleetStore {
         );
       }
       const insEntry = this.sqlite.query(
-        `INSERT INTO fleet_playlist_entries (drive_id, playlist_name, track_path)
+        `INSERT OR IGNORE INTO fleet_playlist_entries (drive_id, playlist_name, track_path)
          VALUES (?,?,?)`,
       );
+      // OR IGNORE, not INSERT: real drives can list the same track twice in
+      // one playlist (duplicate rekordbox rows), and one dirty row must not
+      // abort the whole sync transaction — the fleet tables going empty is
+      // exactly the "no data" state the UI then reports (live-learned Sep 8:
+      // DJLIBRARYM's full snapshot carries 7 dupes out of 22,906 entries).
       for (const e of entries) {
         insEntry.run(driveId, e.playlist_name, e.track_path);
       }
