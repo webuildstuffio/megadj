@@ -529,14 +529,18 @@ extractors).
 60. **setlist.fm mining (low priority).** Free API key, clean Python client
     (`setlist-fm-client`). Only useful for non-DJ gig mining; park.
 
-61. **Quickie-style one-shot mode (`megadj drop`).** Quickie Music charges
-    $4/mo for: drop a folder → AI name cleanup, BPM/key detection, genre
-    split → tagged files + `.m3u8` → "rekordbox-ready." megadj already owns
-    every component (ingest, BPM, keys via I51, genres via #28, artwork,
-    playlists, even ANLZ generation which Quickie can't do). Glue them
-    into one command: `megadj drop <folder-or-url>` → clean → analyze →
-    tag → organize → optionally stage for the next drive sync. Local,
-    free, better — and a natural public demo someday. Effort S-M.
+61. **Quickie-style one-shot mode (`megadj drop`) — ✅ SHIPPED 2026-09-07.**
+    Quickie Music charges $4/mo for: drop a folder → AI name cleanup,
+    BPM/key detection, genre split → tagged files + `.m3u8` →
+    "rekordbox-ready." megadj owns every component, and now the glue:
+    `megadj drop <folder-or-url>` → download (if URL, via yt-dlp) →
+    ingest (clean/tag/art/dedupe/WAV→AIFF) → beats ledger → mood ledger
+    (skipped when ONNX models absent — never auto-downloads 320 MB) →
+    phrase cues → organize. One `--json` summary with per-stage
+    ok/skipped/failed accounting; stage failure is contained (exit 1,
+    later stages skip, earlier work keeps). `--dry-run` end-to-end.
+    Local, free, better. Effort S-M (landed as S: pure glue over
+    idempotent commands).
 
 ---
 

@@ -35,6 +35,8 @@ getdat — pull every track from everywhere:
 fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj ingest  <folder> [--dry-run] [--no-artwork] [--min-duration N] [--json]
                                                tag+art+dedupe downloads (zips too)
+  megadj drop    <folder-or-url> [--dry-run] [--no-mood] [--json]
+                                               one-shot pipeline: download → ingest → beats → mood → cues → organize
   megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run] [--json]
                                                enrichment pass: tags+genres+years+art
   megadj audit   [--json]                      ground-truth tag/art audit — exits 1 on any gap
@@ -321,6 +323,37 @@ async function main(): Promise<void> {
           noArtwork: flags.bools.has("no-artwork"),
           minDuration: minDurRaw !== undefined ? minDurNum : undefined,
           json: flags.bools.has("json"),
+        });
+        break;
+      }
+      case "drop": {
+        const flags = parseFlags(
+          process.argv.slice(3),
+          ["drop", "target"],
+          ["dry-run", "no-mood", "json"],
+        );
+        const target =
+          flags.strings.get("target") ??
+          process.argv
+            .slice(3)
+            .find((a) => !a.startsWith("--") && a !== "drop");
+        if (!target) {
+          console.error(
+            "drop: pass a folder or URL — megadj drop <folder-or-url> [--dry-run] [--no-mood]",
+          );
+          process.exitCode = 1;
+          break;
+        }
+        const { drop } = await import("./commands/drop");
+        await drop({
+          state,
+          musicDir: MUSIC_DIR,
+          target,
+          dryRun: flags.bools.has("dry-run"),
+          noMood: flags.bools.has("no-mood"),
+          json: flags.bools.has("json"),
+          cookiesFromBrowser: COOKIES || null,
+          cookiesFile: COOKIES_FILE,
         });
         break;
       }

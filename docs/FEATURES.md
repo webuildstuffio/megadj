@@ -64,8 +64,10 @@ the remix's, not the original's.
    quality rules, quarantine folder), zero-byte/corrupt probe before
    anything poisons the library, sub-60s clip gating.
 
-**Commands:** `megadj ingest`, `megadj fetch`, `megadj enrich`, `megadj
-artwork`, `megadj audit`, `megadj beats`, `megadj mood`, `megadj cues`
+**Commands:** `megadj ingest`, `megadj drop` (one-shot: download →
+ingest → beats → mood → cues → organize), `megadj fetch`, `megadj
+enrich`, `megadj artwork`, `megadj audit`, `megadj beats`, `megadj
+mood`, `megadj cues`
 **Also:** FullTags ships standalone in [`fulltags/`](../fulltags/README.md)
 — same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
 commands are thin wrappers over it.

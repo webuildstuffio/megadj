@@ -110,6 +110,7 @@ describe("principles P1: --json on every command", () => {
       "organize",
       "enrich",
       "ingest",
+      "drop",
       "fetch",
       "audit",
       "years",

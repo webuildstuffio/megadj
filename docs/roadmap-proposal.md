@@ -99,12 +99,14 @@ real 88-track archive, not just built.** Where each landed:
    `TXXX:MOOD` + energy 2.0 blend + `megadj mood` DB ledger + CrateDeck
    mood profile. Genre head gate FAILED (saturated 0.87–1.0 on every
    genre incl. Ambient) — writes stay blocked.
-5. **`megadj drop` (K61)** — the packaging win: drop a folder/URL → clean →
-   analyze → tag → organize → stage for sync. Every component exists;
-   Quickie Music charges $4/mo for less. P3: _super easy_. **Still open.**
+5. **`megadj drop` (K61) — ✅ SHIPPED 2026-09-07.** One command:
+   `megadj drop <folder-or-url>` → download → ingest → beats → mood
+   (model-gated) → cues → organize, with per-stage `--json` accounting
+   and contained failures. The packaging win: drop a folder, get
+   rekordbox-ready files. Quickie Music charges $4/mo for less.
 
 **What remains of Move 2:** the RB key gauntlet (operational, 30 s),
-`megadj drop`, vocal density, similarity embeddings. **Why the rest still
+vocal density, similarity embeddings. **Why the rest still
 earns its slot:** each step is verifiable against ground truth the repo
 already owns, each write goes through the one atomic writer (idempotent —
 re-running is safe), and the fields land where hardware actually reads them.
