@@ -191,6 +191,13 @@ describe("usb_verify.pdb_live_rows", () => {
     return p;
   }
 
+  // .timeout(30000): this suite spawns `uv run --with <git package>` per
+  // test — even warm, the env resolution + pyrekordbox import takes 3–12s,
+  // which blows bun's 5s default. The root bunfig.toml [test].timeout is
+  // UNTRACKED (personal machine config) and bun resolves bunfig from the
+  // CWD — running `bun test` from cratedeck/ (its own package.json) never
+  // sees it. Per-test overrides keep this suite green regardless of
+  // invocation directory. Measured warm: 3.2–5.7s per spawn.
   test("counts only live rows (tombstones excluded)", () => {
     const p = writePdb(8);
     const r = runPython(
@@ -199,7 +206,7 @@ print(pdb_live_rows(${JSON.stringify(p)}))`,
     );
     expect(r.ok).toBe(true);
     expect(Number(r.stdout.trim())).toBe(8);
-  });
+  }, 30_000);
 
   test("returns -1 for an unknown table type", () => {
     const p = writePdb(8);
@@ -209,13 +216,15 @@ print(pdb_live_rows(${JSON.stringify(p)}, table_type=99))`,
     );
     expect(r.ok).toBe(true);
     expect(Number(r.stdout.trim())).toBe(-1);
-  });
+  }, 30_000);
 });
 
 // ---------------------------------------------------------------------------
 // rb_read.casefold — identity folding shared with fleet.ts fold()
 // ---------------------------------------------------------------------------
 describe("rb_read.casefold", () => {
+  // .timeout(30000): spawned via runPython (see the pdb_live_rows note —
+  // uv env resolution + pyrekordbox import can exceed bun's 5s default).
   test("NFC-normalizes before lowercasing (FAT32 vs rekordbox paths)", () => {
     const r = runPython(
       `from rb_read import casefold
@@ -233,13 +242,17 @@ print(json.dumps([casefold(nfd), casefold(nfc), casefold(nfd) == casefold(nfc)])
     expect(foldedNfd).toBe(foldedNfc);
     expect(equal).toBe(true);
     expect(foldedNfd).toBe("café remix");
-  });
+  }, 30_000);
 });
 
 // ---------------------------------------------------------------------------
 // Full snapshot via the CLI contract (needs pyrekordbox + a device DB)
 // ---------------------------------------------------------------------------
 describe("rb_read.main (CLI contract)", () => {
+  // .timeout(60000): the unopenable-db path still pays the full
+  // pyrekordbox import before rb_read.py can reject the file — measured
+  // up to 12s warm; bun's 5s default (and any inherited bunfig) is not a
+  // contract this suite may rely on, so the override rides the test.
   test("missing args → JSON error, exit 1", () => {
     const p = Bun.spawnSync({
       cmd: ["uv", "run", "python", join(PY_DIR, "rb_read.py")],
@@ -254,7 +267,7 @@ describe("rb_read.main (CLI contract)", () => {
     const out = JSON.parse(new TextDecoder().decode(p.stdout).trim());
     expect(out.ok).toBe(false);
     expect(out.error).toContain("usage");
-  });
+  }, 60_000);
 
   test("unopenable db → JSON error, not a traceback", () => {
     if (!uvAvailable) return;
@@ -281,5 +294,5 @@ describe("rb_read.main (CLI contract)", () => {
     expect(out.ok).toBe(false);
     expect(typeof out.error).toBe("string");
     expect(out.error.length).toBeGreaterThan(0);
-  });
+  }, 60_000);
 });
