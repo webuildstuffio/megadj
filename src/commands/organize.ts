@@ -13,7 +13,8 @@
 
 import { $ } from "bun";
 import type { ArchiveState } from "../state";
-import { sanitizeGenreFolder } from "../metadata";
+import { commandLog } from "../progress";
+import { sanitizeGenreFolder } from "../../fulltags/src/exports";
 
 export interface OrganizeOptions {
   state: ArchiveState;
@@ -35,13 +36,8 @@ async function fileGenreTag(filePath: string): Promise<string | null> {
 }
 
 export async function organize(opts: OrganizeOptions): Promise<void> {
-  // --json mode (P1): human logs go quiet — the summary object is the only
-  // stdout output so agents get parseable JSON.
-  const rawLog = opts.onProgress ?? ((m: string) => console.log(m));
-  const log = opts.json && !opts.onProgress ? () => {} : rawLog;
-  const tracks = opts.state
-    .allTracks()
-    .filter((t) => t.status === "downloaded" && t.file_path);
+  const log = commandLog(opts);
+  const tracks = opts.state.downloadedWithFiles();
   log(`organizing ${tracks.length} downloaded track(s)`);
   let moved = 0;
   let skipped = 0;

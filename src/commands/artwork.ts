@@ -13,6 +13,7 @@ import { join, basename, extname } from "node:path";
 import type { ArchiveState } from "../state";
 import { embedArt, fetchImage, ARTWORK_EXTS } from "../../fulltags/src/exports";
 import type { QueueEntry } from "./queue";
+import { commandLog } from "../progress";
 
 export type { QueueEntry };
 
@@ -80,10 +81,7 @@ function embedArtwork(filePath: string, artPath: string): Promise<boolean> {
 }
 
 export async function artwork(opts: ArtworkOptions): Promise<void> {
-  const rawLog = opts.onProgress ?? ((m: string) => console.log(m));
-  // --json mode (P1): human logs go quiet — the summary object is the only
-  // stdout output so agents get parseable JSON.
-  const log = opts.json && !opts.onProgress ? () => {} : rawLog;
+  const log = commandLog(opts);
   const model = opts.model ?? DEFAULT_MODEL;
   const max = opts.maxImages ?? Number(process.env.MEGADJ_ART_MAX ?? 20);
   const apiKey = process.env.OPENROUTER_API_KEY;

@@ -7,6 +7,7 @@ import {
   type MoodResult,
 } from "../../fulltags/src/exports";
 import type { ArchiveState, TrackRow } from "../state";
+import { commandLog } from "../progress";
 
 /**
  * megadj mood — ONNX mood/dance/valence into the archive DB ledger.
@@ -33,9 +34,7 @@ export interface MoodOptions {
 }
 
 export async function mood(opts: MoodOptions): Promise<void> {
-  const log = opts.json
-    ? (m: string) => process.stderr.write(`${m}\n`)
-    : (opts.onProgress ?? ((m: string) => console.log(m)));
+  const log = commandLog(opts);
 
   const candidates = opts.state
     .allTracks()

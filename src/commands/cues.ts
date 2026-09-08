@@ -1,4 +1,5 @@
 import type { ArchiveState } from "../state";
+import { commandLog } from "../progress";
 
 /**
  * megadj cues — phrase cues derived from the beats ledger (DB-side, no
@@ -55,9 +56,7 @@ export interface CuesOptions {
 }
 
 export async function cues(opts: CuesOptions): Promise<void> {
-  const log = opts.json
-    ? (m: string) => process.stderr.write(`${m}\n`)
-    : (opts.onProgress ?? ((m: string) => console.log(m)));
+  const log = commandLog(opts);
 
   const rows = opts.state.beatAnalyzedTracks();
   const todo = opts.limit ? rows.slice(0, opts.limit) : rows;

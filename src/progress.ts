@@ -99,3 +99,17 @@ export class ProgressBar {
     if (summary) console.log(summary); // explicit caller-provided summary: stdout
   }
 }
+
+/** The standard command log function (P1 --json contract): human progress
+ * goes to stdout via console.log normally; in --json mode stdout carries
+ * exactly one summary object, so logs go silent (unless the caller
+ * injected onProgress, which owns routing). Every command's
+ * `const log = ...` preamble was this exact three-liner — now one call. */
+export function commandLog(opts: {
+  json?: boolean;
+  onProgress?: (msg: string) => void;
+}): (msg: string) => void {
+  if (opts.onProgress) return opts.onProgress;
+  if (opts.json) return () => {};
+  return (m: string) => console.log(m);
+}

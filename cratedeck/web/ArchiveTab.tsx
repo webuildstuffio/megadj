@@ -15,7 +15,7 @@ import type {
 import { api } from "./toast";
 import { Icon } from "./icons";
 import { StatCard } from "./DrivePanels";
-import { useFetched } from "./useFetched";
+import { FetchedGate, useFetched } from "./useFetched";
 
 // Payload types are DERIVED from ArchiveReader's return types
 // (shared/types.ts) — never re-declare server shapes locally. Local
@@ -41,20 +41,8 @@ export function ArchiveTab() {
   const [ingest, mood, lowq, grid] =
     page.status === "ok" ? page.data : [null, null, null, null];
 
-  if (page.status === "error")
-    return (
-      <div class="card">
-        <div class="empty">
-          <Icon name="x" size={16} /> Archive reads failed: {page.message}
-        </div>
-      </div>
-    );
-  if (!ingest)
-    return (
-      <div class="card">
-        <div class="empty">loading archive reads…</div>
-      </div>
-    );
+  if (page.status !== "ok" || !ingest)
+    return <FetchedGate page={page} loading="loading archive reads…" />;
 
   return (
     <div class="archive-cols">

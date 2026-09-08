@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { analyzeBeats, foldTempo } from "../../fulltags/src/analysis";
 import type { ArchiveState, TrackRow } from "../state";
+import { commandLog } from "../progress";
 
 /**
  * megadj beats — beat_this analysis into the archive DB ledger.
@@ -28,17 +29,10 @@ export interface BeatsOptions {
 const MODEL = "beat-this@1.1.0";
 
 export async function beats(opts: BeatsOptions): Promise<void> {
-  // P1 (--json on every command): human progress goes to stderr in json
-  // mode — stdout carries exactly one JSON object. Same fix class as
-  // sync/enrich/organize/adopt before it.
-  const log = opts.json
-    ? (m: string) => process.stderr.write(`${m}\n`)
-    : (opts.onProgress ?? ((m: string) => console.log(m)));
+  const log = commandLog(opts);
   const jobs = Math.max(1, opts.jobs ?? 2);
 
-  const candidates = opts.state
-    .allTracks()
-    .filter((t) => t.status === "downloaded" && t.file_path);
+  const candidates = opts.state.downloadedWithFiles();
   const todo: TrackRow[] = [];
   for (const t of candidates) {
     if (!opts.force && opts.state.beatRecord(t.video_id)) continue;

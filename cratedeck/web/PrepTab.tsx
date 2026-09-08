@@ -9,7 +9,7 @@
 // duplication.
 import { api, toast } from "./toast";
 import { Icon } from "./icons";
-import { useFetched } from "./useFetched";
+import { FetchedGate, useFetched } from "./useFetched";
 import { errMessage } from "../shared/fmt";
 
 export function PrepTab() {
@@ -42,20 +42,8 @@ export function PrepTab() {
     URL.revokeObjectURL(a.href);
   };
 
-  if (page.status === "error")
-    return (
-      <div class="card">
-        <div class="empty">
-          <Icon name="x" size={16} /> Prep digest failed: {page.message}
-        </div>
-      </div>
-    );
-  if (md === null)
-    return (
-      <div class="card">
-        <div class="empty">loading prep digest…</div>
-      </div>
-    );
+  if (page.status !== "ok")
+    return <FetchedGate page={page} loading="loading prep digest…" />;
   return (
     <div class="card">
       <div class="fleet-head">

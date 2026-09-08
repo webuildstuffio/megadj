@@ -18,6 +18,7 @@ import { basename, join } from "node:path";
 import { groundTruth } from "./readers";
 import { embedArt, writePatch, isAudioFile } from "./writer";
 import { canonGenre, type TagPatch } from "./schema";
+import { mutagenJson } from "./mutagen";
 import {
   deezerArt,
   fetchBestScArt,
@@ -543,18 +544,10 @@ try:
 except Exception:
     pass
 print(json.dumps(vals))`;
-  const pr = Bun.spawnSync({
-    cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
-    stdout: "pipe",
-  });
-  try {
-    const last = new TextDecoder().decode(pr.stdout).trim().split("\n").at(-1);
-    return last
-      ? (JSON.parse(last) as Record<string, string | null>)
-      : Object.fromEntries(descs.map((d) => [d, null]));
-  } catch {
-    return Object.fromEntries(descs.map((d) => [d, null]));
-  }
+  return mutagenJson<Record<string, string | null>>(
+    script,
+    Object.fromEntries(descs.map((d) => [d, null])),
+  );
 }
 
 /** Read the TXXX:ENERGY stamp (mutagen) — null when absent. */

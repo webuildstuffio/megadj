@@ -15,6 +15,7 @@ import { mood } from "./mood";
 import { cues } from "./cues";
 import { organize } from "./organize";
 import type { ArchiveState } from "../state";
+import { commandLog } from "../progress";
 
 export interface DropOptions {
   state: ArchiveState;
@@ -107,9 +108,7 @@ async function runStage(
 }
 
 export async function drop(opts: DropOptions): Promise<void> {
-  const log = opts.json
-    ? (m: string) => process.stderr.write(`${m}\n`)
-    : (opts.onProgress ?? ((m: string) => console.log(m)));
+  const log = commandLog(opts);
   const stages: DropStage[] = [];
   let ok = true;
 

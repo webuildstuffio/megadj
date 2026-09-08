@@ -9,6 +9,7 @@
  */
 import { extname } from "node:path";
 import type { FullTag } from "./schema";
+import { mutagenJson } from "./mutagen";
 
 export interface Truth {
   art: boolean;
@@ -94,21 +95,13 @@ else:
                 pass
         art = bool(a.tags.getall("APIC"))
 print(json.dumps({"art": art, "tags": tags}))`;
-  const pr = Bun.spawnSync({
-    cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
-    stdout: "pipe",
-  });
-  try {
-    const last = new TextDecoder().decode(pr.stdout).trim().split("\n").at(-1);
-    if (!last) throw new Error("empty");
-    const parsed = JSON.parse(last) as {
-      art?: boolean;
-      tags?: Record<string, string>;
-    };
-    return { art: parsed.art === true, tags: parsed.tags ?? {} };
-  } catch {
-    return { art: false, tags: {} };
-  }
+  const parsed = mutagenJson<
+    Partial<{
+      art: boolean;
+      tags: Record<string, string>;
+    }>
+  >(script, {});
+  return { art: parsed.art === true, tags: parsed.tags ?? {} };
 }
 
 const TRUTH_KEY: Record<string, string> = {

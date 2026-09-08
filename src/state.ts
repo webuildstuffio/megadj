@@ -395,6 +395,15 @@ export class ArchiveState {
       .all() as TrackRow[];
   }
 
+  /** Tracks downloaded AND on disk — the shared candidate filter for the
+   * post-download passes (organize/mood/ingest/beats all re-derived this
+   * identical predicate). */
+  downloadedWithFiles(): TrackRow[] {
+    return this.allTracks().filter(
+      (t) => t.status === "downloaded" && t.file_path,
+    );
+  }
+
   startRun(): number {
     const result = this.db
       .query("INSERT INTO runs (started_at) VALUES (?)")
