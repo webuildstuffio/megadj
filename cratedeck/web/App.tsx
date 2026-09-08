@@ -357,8 +357,8 @@ function Welcome(props: {
         <h2>Your crate shelf</h2>
         {props.drives.length === 0 ? (
           <p>
-            Plug in a DJ USB drive — it appears on the rail and stays forever,
-            even after unmounting.
+            Plug in a DJ USB drive. It appears on the rail and stays after
+            unmounting.
           </p>
         ) : (
           <p>

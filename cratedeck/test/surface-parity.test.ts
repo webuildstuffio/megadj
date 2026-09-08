@@ -31,10 +31,18 @@ function deckctlVerbs(): string[] {
   return [...new Set(verbs)].sort();
 }
 
-/** MCP tool set: the tool table's top-level keys. */
+/** MCP tool set: tool keys in mcp.ts's table + the extracted archive_tools
+ *  module (both are part of the server's tool census; the module's keys sit
+ *  one level deeper — 4 spaces — inside its factory). */
 function mcpTools(): string[] {
-  const tools = read("cratedeck/src/mcp.ts")
-    .map((l) => l.match(/^\s{2}((?:deck|archive)_[a-z_]+):/))
+  const files = [
+    "cratedeck/src/mcp.ts",
+    "cratedeck/src/archive_tools.ts",
+  ];
+  const tools = files
+    .flatMap((f) =>
+      read(f).map((l) => l.match(/^\s{2,4}((?:deck|archive)_[a-z_]+):/)),
+    )
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
   return [...new Set(tools)].sort();
@@ -100,11 +108,11 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // keep this file and the doc honest about each other
     const verbs = deckctlVerbs();
     const tools = mcpTools();
-    expect(verbs.length).toBeGreaterThanOrEqual(16);
-    expect(tools.length).toBeGreaterThanOrEqual(22);
+    expect(verbs.length).toBeGreaterThanOrEqual(17);
+    expect(tools.length).toBeGreaterThanOrEqual(23);
     const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
-    expect(doc).toContain("| 16 verbs |");
-    expect(doc).toContain("| 22 tools |");
+    expect(doc).toContain("| 17 verbs |");
+    expect(doc).toContain("| 23 tools |");
   });
 
   test("every deckctl verb has an MCP twin or a registered exemption", () => {

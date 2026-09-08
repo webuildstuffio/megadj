@@ -1,0 +1,167 @@
+// archive_tools.ts — the O82b archive half of the MCP surface.
+//
+// Extracted from mcp.ts (file-length guard): every archive_* tool is a
+// thin read over the server's /api/archive/* routes (which open megadj's
+// archive DB readonly — a bug here cannot corrupt archive state).
+
+import { apiGet } from "./deckapi";
+
+function str(args: Record<string, unknown>, key: string): string | undefined {
+  return typeof args[key] === "string" ? (args[key] as string) : undefined;
+}
+
+function num(args: Record<string, unknown>, key: string): number | undefined {
+  const v = args[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+class RpcParamError extends Error {}
+
+/** The archive_* tool table (O82b, readonly reads over megadj's DB). */
+export function archiveTools(): Record<string, unknown> {
+  return {
+    archive_search_tracks: {
+      description:
+        "Search megadj's downloaded archive by artist/title/album/file path (case-insensitive substring, min 2 chars). Read-only.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          q: { type: "string", description: "search text (≥2 chars)" },
+          limit: {
+            type: "number",
+            description: "max rows (default 50, max 200)",
+          },
+        },
+        required: ["q"],
+        additionalProperties: false,
+      },
+      run: async (args: Record<string, unknown>) => {
+        const q = str(args, "q");
+        if (!q || q.trim().length < 2)
+          throw new RpcParamError("q must be at least 2 characters");
+        const res = await apiGet(
+          `/api/archive/search?q=${encodeURIComponent(q)}&limit=${num(args, "limit") ?? 50}`,
+        );
+        return res.json();
+      },
+    },
+
+    archive_track_stats: {
+      description:
+        "Full archive row for one track by video id: status, bitrate/codec, genre, energy, file path, timestamps. Read-only.",
+      inputSchema: {
+        type: "object",
+        properties: { video_id: { type: "string" } },
+        required: ["video_id"],
+        additionalProperties: false,
+      },
+      run: async (args: Record<string, unknown>) => {
+        const id = str(args, "video_id");
+        if (!id) throw new RpcParamError("video_id is required");
+        const res = await apiGet(
+          `/api/archive/track?id=${encodeURIComponent(id)}`,
+        );
+        if (res.status === 404)
+          throw new RpcParamError(`no archive track with video_id ${id}`);
+        return res.json();
+      },
+    },
+
+    archive_ingest_status: {
+      description:
+        "Ingest pipeline health: per-status track counts, last 5 sync runs (downloaded/failed/gone), 10 most recently updated tracks. Answers 'what did I ingest lately'. Read-only.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      run: async () =>
+        apiGet("/api/archive/ingest-status").then((r) => r.json()),
+    },
+
+    archive_lowq_queue: {
+      description:
+        "D24 low-quality upgrade queue: downloaded tracks below the set-ready bitrate floor (lossy <256 kbps AAC or <320 kbps MP3), worst first. Read-only.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      run: async () => apiGet("/api/archive/lowq").then((r) => r.json()),
+    },
+
+    archive_source_diff: {
+      description:
+        "Diff two archive sources (e.g. 'liked' vs 'PLxxxx…'): video ids only in one of them, and the shared count. Read-only.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          a: { type: "string", description: "first source tag" },
+          b: { type: "string", description: "second source tag" },
+        },
+        required: ["a", "b"],
+        additionalProperties: false,
+      },
+      run: async (args: Record<string, unknown>) => {
+        const a = str(args, "a");
+        const b = str(args, "b");
+        if (!a || !b)
+          throw new RpcParamError("a and b source tags are required");
+        const res = await apiGet(
+          `/api/archive/source-diff?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`,
+        );
+        return res.json();
+      },
+    },
+
+    archive_grid_cross_check: {
+      description:
+        "[READ-ONLY] Independent beatgrid cross-check: beat_this beat arrays (megadj beats ledger) vs each track's rekordbox BPM × duration. Returns ok/off/octave verdicts and offender lists — 'off' = grid tempo >2% from RB, 'octave' = grid locked half/double tempo. Empty ledgered=0 means run `megadj beats` first.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "max tracks to check (default 200, max 500)",
+          },
+        },
+        additionalProperties: false,
+      },
+      run: async (args: Record<string, unknown>) => {
+        const lim = args.limit;
+        const limit =
+          typeof lim === "number" && Number.isFinite(lim) && lim > 0
+            ? Math.min(Math.floor(lim), 500)
+            : 200;
+        const res = await apiGet(
+          `/api/archive/grid-cross-check?limit=${limit}`,
+        );
+        return res.json();
+      },
+    },
+
+    archive_mood_profile: {
+      description:
+        "[READ-ONLY] Mood / dance / valence profile of the archive (roadmap #4): ledger averages (danceability, valence, arousal, party, electronic, aggressive) + the highest/lowest tracks per axis — 'play me something dark/hyped/smooth' picker data from megadj's mood ledger (TXXX:MOOD mirror). analyzed=0 means run `megadj mood` first.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "extremes per axis, high+low each (default 5, max 25)",
+          },
+        },
+        additionalProperties: false,
+      },
+      run: async (args: Record<string, unknown>) => {
+        const lim = args.limit;
+        const limit =
+          typeof lim === "number" && Number.isFinite(lim) && lim > 0
+            ? Math.min(Math.floor(lim), 25)
+            : 5;
+        const res = await apiGet(`/api/archive/mood?limit=${limit}`);
+        return res.json();
+      },
+    },
+  };
+}

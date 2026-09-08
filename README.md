@@ -103,8 +103,7 @@ Agents can already talk to the whole thing over MCP: `bun run mcp`.
 - **Pro results, normal-person hours.** You have evenings, not engineers.
   Every decision is judged by minutes saved before a gig.
 - **We don't give up.** When a file format fights back, we dig in until it
-  gives in — your library shouldn't have boundaries just because a spec was
-  rude.
+  gives in — a spec quirk shouldn't cost you tracks.
 - **Yours, fully.** It runs on your machine against your library. No
   accounts, no cloud, no subscription, nothing to cancel.
 

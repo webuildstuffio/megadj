@@ -26,7 +26,7 @@ export interface PlayerSpec {
 
 /** The official matrix (research note 2026-09-04, ideas.md N75). Notes carry
  *  known firmware advisories (N76) — the CDJ-3000 v3.30 playlist-vanishing
- *  pull is the newest recurring nightmare class. */
+ *  pull is the newest recurring failure class. */
 export const PLAYERS: PlayerSpec[] = [
   { name: "XDJ-XZ", reads: "device" },
   {
@@ -48,7 +48,7 @@ export const PLAYERS: PlayerSpec[] = [
 
 /** N76: firmware advisories across the whole matrix — preflight renders
  *  these as an informational check so the "drive shows on the player but
- *  playlists are empty" nightmare has its rule of thumb attached. */
+ *  playlists are empty" failure has its rule of thumb attached. */
 export function firmwareAdvisories(): string[] {
   return PLAYERS.filter((p) => p.note).map((p) => `${p.name}: ${p.note}`);
 }
@@ -66,7 +66,7 @@ export interface DriveCompat {
  *  (N78). Derived from MEASURED state, not intent:
  *  - a device-library player needs export.pdb present AND current
  *    (pdb_live_rows > 0 and matching OneLibrary within tolerance — a stale
- *    pdb means the booth sees an old library, the N76 nightmare class);
+ *    pdb means the booth sees an old library, the N76 failure class);
  *  - a OneLibrary player needs onelibrary_rows > 0. */
 export function driveCompatibility(
   snap: SnapshotData | null,

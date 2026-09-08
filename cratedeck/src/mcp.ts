@@ -32,7 +32,9 @@
  *   archive_grid_cross_check    beat_this ledger vs RB BPM×duration verdicts
  *   archive_mood_profile        mood/dance/VA averages + extremes (roadmap #4)
  *   deck_prep                   weekly digest markdown (O83, readonly)
+ *   deck_search {q}             global search: playlists + folders (B9, readonly)
  */
+import { archiveTools } from "./archive_tools";
 import {
   apiGet,
   apiPost,
@@ -541,146 +543,31 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  // ---- O82b: the archive half (megadj's own DB, readonly) -------------------
-  archive_search_tracks: {
+  deck_search: {
     description:
-      "Search megadj's downloaded archive by artist/title/album/file path (case-insensitive substring, min 2 chars). Read-only.",
+      "B9 global search (the UI's ⌘K): case-insensitive substring match over playlists and folders in every drive snapshot. Returns per-drive match lists. Read-only.",
     inputSchema: {
       type: "object",
       properties: {
-        q: { type: "string", description: "search text (≥2 chars)" },
-        limit: {
-          type: "number",
-          description: "max rows (default 50, max 200)",
+        q: {
+          type: "string",
+          description: "search text (playlist or folder name substring)",
         },
       },
       required: ["q"],
       additionalProperties: false,
     },
     run: async (args) => {
-      const q = str(args, "q");
-      if (!q || q.trim().length < 2)
-        throw new RpcParamError("q must be at least 2 characters");
-      const res = await apiGet(
-        `/api/archive/search?q=${encodeURIComponent(q)}&limit=${num(args, "limit") ?? 50}`,
+      const q = str(args, "q")?.trim();
+      if (!q) throw new RpcParamError("q is required");
+      return apiGet(`/api/search?q=${encodeURIComponent(q)}`).then((r) =>
+        r.json(),
       );
-      return res.json();
     },
   },
 
-  archive_track_stats: {
-    description:
-      "Full archive row for one track by video id: status, bitrate/codec, genre, energy, file path, timestamps. Read-only.",
-    inputSchema: {
-      type: "object",
-      properties: { video_id: { type: "string" } },
-      required: ["video_id"],
-      additionalProperties: false,
-    },
-    run: async (args) => {
-      const id = str(args, "video_id");
-      if (!id) throw new RpcParamError("video_id is required");
-      const res = await apiGet(
-        `/api/archive/track?id=${encodeURIComponent(id)}`,
-      );
-      if (res.status === 404)
-        throw new RpcParamError(`no archive track with video_id ${id}`);
-      return res.json();
-    },
-  },
-
-  archive_ingest_status: {
-    description:
-      "Ingest pipeline health: per-status track counts, last 5 sync runs (downloaded/failed/gone), 10 most recently updated tracks. Answers 'what did I ingest lately'. Read-only.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
-    run: async () => apiGet("/api/archive/ingest-status").then((r) => r.json()),
-  },
-
-  archive_lowq_queue: {
-    description:
-      "D24 low-quality upgrade queue: downloaded tracks below the set-ready bitrate floor (lossy <256 kbps AAC or <320 kbps MP3), worst first. Read-only.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
-    run: async () => apiGet("/api/archive/lowq").then((r) => r.json()),
-  },
-
-  archive_source_diff: {
-    description:
-      "Diff two archive sources (e.g. 'liked' vs 'PLxxxx…'): video ids only in one of them, and the shared count. Read-only.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        a: { type: "string", description: "first source tag" },
-        b: { type: "string", description: "second source tag" },
-      },
-      required: ["a", "b"],
-      additionalProperties: false,
-    },
-    run: async (args) => {
-      const a = str(args, "a");
-      const b = str(args, "b");
-      if (!a || !b) throw new RpcParamError("a and b source tags are required");
-      const res = await apiGet(
-        `/api/archive/source-diff?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`,
-      );
-      return res.json();
-    },
-  },
-
-  archive_grid_cross_check: {
-    description:
-      "[READ-ONLY] Independent beatgrid cross-check: beat_this beat arrays (megadj beats ledger) vs each track's rekordbox BPM × duration. Returns ok/off/octave verdicts and offender lists — 'off' = grid tempo >2% from RB, 'octave' = grid locked half/double tempo. Empty ledgered=0 means run `megadj beats` first.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        limit: {
-          type: "number",
-          description: "max tracks to check (default 200, max 500)",
-        },
-      },
-      additionalProperties: false,
-    },
-    run: async (args) => {
-      const lim = args.limit;
-      const limit =
-        typeof lim === "number" && Number.isFinite(lim) && lim > 0
-          ? Math.min(Math.floor(lim), 500)
-          : 200;
-      const res = await apiGet(`/api/archive/grid-cross-check?limit=${limit}`);
-      return res.json();
-    },
-  },
-
-  archive_mood_profile: {
-    description:
-      "[READ-ONLY] Mood / dance / valence profile of the archive (roadmap #4): ledger averages (danceability, valence, arousal, party, electronic, aggressive) + the highest/lowest tracks per axis — 'play me something dark/hyped/smooth' picker data from megadj's mood ledger (TXXX:MOOD mirror). analyzed=0 means run `megadj mood` first.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        limit: {
-          type: "number",
-          description: "extremes per axis, high+low each (default 5, max 25)",
-        },
-      },
-      additionalProperties: false,
-    },
-    run: async (args) => {
-      const lim = args.limit;
-      const limit =
-        typeof lim === "number" && Number.isFinite(lim) && lim > 0
-          ? Math.min(Math.floor(lim), 25)
-          : 5;
-      const res = await apiGet(`/api/archive/mood?limit=${limit}`);
-      return res.json();
-    },
-  },
+  // ---- O82b: the archive half (megadj's own DB, readonly) -------------------
+  ...archiveTools(),
 };
 
 // ---- server loop ------------------------------------------------------------

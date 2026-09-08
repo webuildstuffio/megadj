@@ -17,25 +17,6 @@ import type { PreflightReport } from "./preflight";
  *  one type from producer to renderer, no structural-minimum drift. */
 export type PreflightDigest = PreflightReport;
 
-/** Structural minimum of the preflight report (deckctl's wire payload is
- *  narrower than the server type — this accepts both). Verdict fields keep
- *  the canonical unions so callers can't feed garbage strings in. */
-export interface PreflightDigestStruct {
-  generated_at: number;
-  overall: string;
-  summary: string;
-  drives: {
-    drive: { name: string; nickname: string | null; mounted: boolean };
-    overall: string;
-    checks: {
-      label: string;
-      status: string;
-      detail?: string;
-      fix?: string;
-    }[];
-  }[];
-}
-
 export interface RedundancyDigest {
   playlists: {
     name: string;
@@ -94,7 +75,7 @@ export async function fetchWeeklyPrepInput(
     getJson<{
       playlists: {
         playlist: string;
-        verdict: "pass" | "warn" | "fail" | "unknown";
+        verdict: RedundancyVerdict;
         tracks: { at_risk: boolean }[];
       }[];
     }>("/api/fleet/redundancy"),
@@ -108,10 +89,10 @@ export async function fetchWeeklyPrepInput(
         .filter((p) => p.verdict !== "unknown")
         .map((p) => ({
           name: p.playlist,
-          verdict: (p.verdict === "unknown" ? "warn" : p.verdict) as
-            | "pass"
-            | "warn"
-            | "fail",
+          verdict: (p.verdict === "unknown" ? "warn" : p.verdict) as Exclude<
+            RedundancyVerdict,
+            "unknown"
+          >,
           missing_count: p.tracks.filter((t) => t.at_risk).length,
         })),
     },

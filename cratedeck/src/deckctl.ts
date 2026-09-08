@@ -38,6 +38,7 @@ import type {
 } from "../shared/types";
 import type { PreflightReport } from "./preflight";
 import { cmdNote, cmdNotes, type NotePrintHooks } from "./deckctl_notes";
+import { cmdSearch, type SearchPrintHooks } from "./deckctl_search";
 
 // ---- output helpers ---------------------------------------------------------
 const JSON_MODE = process.argv.includes("--json");
@@ -52,6 +53,11 @@ async function getJson<T>(p: string): Promise<T> {
 /** Print hooks for the extracted notes commands (deckctl_notes.ts). */
 function noteHooks(): NotePrintHooks {
   return { jsonMode: JSON_MODE, log, errOut, argv: process.argv, exit: process.exit };
+}
+
+/** Print hooks for the extracted search command (deckctl_search.ts). */
+function searchHooks(): SearchPrintHooks {
+  return { jsonMode: JSON_MODE, log, errOut, exit: process.exit };
 }
 
 type DriveWithBadges = Drive & {
@@ -688,6 +694,8 @@ async function main(): Promise<void> {
       return cmdNote(noteHooks(), args[1] ?? usage(), (args[2] ?? "").trim() || usage());
     case "notes":
       return cmdNotes(noteHooks(), args[1]);
+    case "search":
+      return cmdSearch(searchHooks(), args[1] ?? usage());
     case "report":
       return cmdReport(args[1] ?? usage());
     case "players":
@@ -741,6 +749,7 @@ function usage(): never {
       "  prep [--out FILE]             weekly digest: fleet + redundancy + archive markdown",
       "  note <drive> <text>           post a finding to the drive timeline (--severity info|warn|attention)",
       "  notes [drive]                 active findings feed (omit drive = every drive)",
+      "  search <query>                global search: playlists + folders across all drive snapshots",
       "  diff <driveA> <driveB>        added / removed / changed between two drives",
       "  explain [kind]                what each job checks, typical duration, safety",
       "  jobs                          recent jobs",

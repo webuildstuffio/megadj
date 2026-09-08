@@ -7,13 +7,14 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 1 · 2026-09-07 · census taken from source the same day (every count
+Rev 2 · 2026-09-07 · census taken from source the same day (every count
 below re-derived from `src/cli.ts`, `cratedeck/src/deckctl.ts`,
-`cratedeck/src/mcp.ts`, `cratedeck/src/index.ts`, `cratedeck/web/*.tsx`).
-**Same-day enforcement pass:** GAP-1/2/3 closed (UI Mirror button,
-`deck_prep` tool, `deckctl note|notes` verbs) and
-`cratedeck/test/surface-parity.test.ts` shipped — the census table is
-now test-checked, not hand-maintained.
+`cratedeck/src/mcp.ts` + `archive_tools.ts`, `cratedeck/src/index.ts`,
+`cratedeck/web/*.tsx`). **Same-day enforcement pass:** GAP-1/2/3 closed
+(UI Mirror button, `deck_prep` tool, `deckctl note|notes` verbs); the
+rev-2 pass closed G1 (Fleet ⌗ Preflight tab) and F2 (`deckctl search` +
+`deck_search`) — the surface set is now genuinely complete pending new
+capabilities. `cratedeck/test/surface-parity.test.ts` keeps it that way.
 
 ---
 
@@ -22,10 +23,10 @@ now test-checked, not hand-maintained.
 | Surface | Entry points | Count |
 | --- | --- | --- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 18 commands (17 + `--help`) |
-| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 16 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts`) | 22 tools |
+| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 17 verbs |
+| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 23 tools |
 | HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~30 routes |
-| Web UI | `cratedeck/web/` (hash-routed pages) | 4 pages, ~21 actions |
+| Web UI | `cratedeck/web/` (hash-routed pages) | 4 pages, ~22 actions |
 
 The server's HTTP API is the **fourth surface** and the seam everything
 converges on: deckctl and MCP are HTTP clients of it, and the UI talks to
@@ -63,14 +64,14 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Redundancy audit | `redundancy` ✅ | `deck_redundancy` ✅ | Fleet page ✅ | — |
 | Fleet diff | `diff A B` ✅ | `deck_diff` ✅ | Fleet page ✅ | — |
 | Track locations | `coverage` output ✅ | via `deck_coverage` ⛔ §4-F1 | Fleet page ✅ | — |
-| Global search | ⛔ §4-F2 (deckctl lacks a `search` verb) | ⛔ §4-F2 | ⌘K ✅ | — |
+| Global search | `search <q>` ✅ | `deck_search {q}` ✅ | ⌘K ✅ | — (F2 closed) |
 
 ### 2c. Gig-night + agent layer
 
 | Capability | CLI | MCP | UI | Verdict |
 | --- | --- | --- | --- | --- |
-| Preflight verdict | `preflight` ✅ | `deck_preflight` ✅ | ⛔ §4-G1 (UI card is B12 remainder) | — |
-| Player compat | `players [d]` ✅ | `deck_players` ✅ | ⛔ §4-G1 | — |
+| Preflight verdict | `preflight` ✅ | `deck_preflight` ✅ | Fleet ⌗ Preflight tab ✅ | — (G1 closed) |
+| Player compat | `players [d]` ✅ | `deck_players` ✅ | Preflight tab (per-drive expand) ✅ | — (G1 closed) |
 | Weekly digest | `prep [--out]` ✅ | `deck_prep` ✅ (markdown; `--out` stays CLI) | ⛔ §4-G2 | — (GAP-2 closed) |
 | Agent notes feed | `note`/`notes` ✅ | `deck_note`/`deck_notes` ✅ | Timeline cards ✅ | — (GAP-3 closed) |
 | Job attribution (O87) | jobs show `[origin]` ✅ | stamps `mcp:<session>` ✅ | timeline chips ✅ | — |
@@ -109,6 +110,14 @@ stays as the record of what was missing and why it mattered:**
   `deck_notes` were MCP-only. Fix shipped: `deckctl note <drive> <text>
   [--severity s]` + `deckctl notes [drive]` over the same routes
   (origin `deckctl`; dismissal stays a human UI action).
+- **GAP-4 (rev 2) — preflight/player-compat had no UI (CLOSED, was
+  exemption G1).** The B12 "UI card" remainder: a Preflight tab on the
+  Fleet page — overall verdict banner, per-drive expandable cards with
+  checks + blockers + fixes, firmware advisories, and N78 player compat
+  (ok/blocked + measured reason) folded into each drive card.
+- **GAP-5 (rev 2) — global search had no CLI/MCP twins (CLOSED, was
+  exemption F2).** `deckctl search <q>` (`deckctl_search.ts`) +
+  `deck_search {q}` over the same `GET /api/search` the ⌘K topbar uses.
 
 ## 4. Deliberate exemptions (the whitelist)
 
@@ -128,16 +137,9 @@ this table AND the enforcement test together (that's the point).
   deliberately lacks them (agents don't pick cover photos; O86 rails).
 - **F1 — track-locations detail rides `coverage`'s output**; no
   separate MCP tool (same data, one shape).
-- **F2 — global search is UI-first.** ⌘K exists; `deckctl search`/MCP
-  equivalent is deliberately not built (agents have `archive_search_tracks`
-  + `deck_coverage` for the same questions). Revisit if an agent loop
-  asks for it.
-- **G1 — preflight/players UI cards are the recorded B12 remainder**
-  ([ideas.md](ideas.md) B12 "remaining optional: UI card"). Data is on
-  every surface; presentation is CLI/MCP for now.
 - **G2 — weekly digest UI is deliberately absent** (`prep` is a
-  terminal-shaped artifact; the UI surfaces its inputs — preflight +
-  redundancy — live).
+  terminal-shaped artifact; the UI surfaces its inputs — the Preflight
+  tab (rev 2) + redundancy — live).
 - **A1 — archive mutation stays CLI-only.** `sync`/`ingest`/`fetch`/
   `beats`/`mood`/`cues`/`organize`/`upgrade` are long-running,
   file-mutating pipeline stages; MCP's archive half is **readonly by
