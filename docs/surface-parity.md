@@ -28,7 +28,7 @@ surface-parity.test.ts` keeps it that way.
 | --- | --- | --- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 19 commands + `--help` |
 | deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 18 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 25 tools |
+| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 26 tools |
 | HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~33 routes |
 | Web UI | `cratedeck/web/` (hash-routed pages) | 4 pages, ~22 actions |
 

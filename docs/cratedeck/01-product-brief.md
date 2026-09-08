@@ -5,7 +5,7 @@
 Status: ✅ SHIPPED (v0.1, 2026-09-04) — this v1 brief is fully implemented
 and has since grown the fleet layer (coverage/redundancy/diff), ⌘K search,
 B12 preflight, the N75/N78 player-compat verdict, automation, and the
-25-tool agent surface. Living status:
+26-tool agent surface. Living status:
 [acceptance.md](acceptance.md) · evidence:
 [../ideas.md](../ideas.md) §B/§O.
 Companion docs: [02-prd.md](02-prd.md) · [03-architecture.md](03-architecture.md) · [04-build-plan.md](04-build-plan.md)

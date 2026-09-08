@@ -1,381 +1,148 @@
 # AGENTS.md — megadj
 
-Notes for coding agents working in this repo.
+Notes for coding agents working in this repo. Pointers over prose: this file
+covers invariants and traps only — product detail lives in `docs/`.
 
-## Language rule (always, non-negotiable)
+## Ground rules
 
-**Write English only — always.** Every commit message, doc, comment, code
-identifier, changelog, issue, PR description, and reply to the user must be
-in plain English. No other language, ever, in any file or message this repo
-produces, regardless of the language used in the request.
+- **English only, always.** Every commit message, doc, comment, identifier,
+  and reply this repo produces is plain English, regardless of request language.
+- **Product principles SSOT: `docs/PRINCIPLES.md`.** Mac-only/Pioneer-only,
+  electronic music is the design target, AI turns unstructured into
+  structured, zero commercial intent, latest-tech-only, ship-today. When a
+  decision is unclear, PRINCIPLES.md wins.
+- **No CI — ever.** `.github/workflows/` was deleted outright (one author,
+  one Mac, hosted runners are shared infra). The gate is local: `bun run
+  check` && `bun test` before every push. Type coverage is a hard 100%
+  (`bun run check:full`); nothing lands below it.
+- **Zero bare `catch {}` in prod code.** Every catch must (a) surface to the
+  user (toast/error state), (b) log at the boundary, or (c) be documented
+  sanctioned resilience. Corrupt persisted JSON can never read as success.
+- **Concurrent agents work this repo.** Never `git add -A` — stage only your
+  own files; re-read immediately before editing; verify content landed via
+  worktree-vs-HEAD diff, not commit hash (amends and swept-in staged files
+  are normal). Long `bun test` runs can hang on in-flight churn — rerun
+  clean before declaring failure.
+- **Prose passes:** preserve em dashes and punctuation in shipped docs.
 
 ## What this repo is
 
-- **Agent-first contract (PRINCIPLES.md §1, enforced by
-  `src/commands/json-summary.test.ts`):** every `megadj` command takes
-  `--json` — one summary JSON object on stdout (last line), human logs
-  suppressed in json mode, exit code still meaningful. Adding a command
-  without `--json` + a help-text entry fails the test suite.
-- **Product principles SSOT: `docs/PRINCIPLES.md`** (Sep 5 2026): Mac-only/
-  Pioneer-only, electronic music is the design target, AI turns unstructured
-  data into structured (no manual duplicate eyeballing), zero commercial
-  intent, sub-projects are named units (GetDat/FullTags/CrateDeck — one-liners
-  in `docs/FEATURES.md`), latest-tech-only, ship-today. When a decision is
-  unclear, PRINCIPLES.md wins. **No CI — ever** (decided Sep 5 2026):
-  `.github/workflows/` was deleted outright, not disabled — hosted runners are
-  shared team infra and this repo is one author on one Mac. The gate is local:
-  `bun run check` && `bun test` before every push.
-- megadj is a YouTube Music archiver (Bun/TypeScript CLI) feeding a pair of
-  DJ USB drives: a **master** and a **mirror** (kept identical). Volume names
-  are user-specific — examples in docs/scripts use `DJMASTER`/`DJMIRROR`;
-  override via arguments, `config.toml`, or `USB_SYNC_MASTER`/`USB_SYNC_MIRROR`.
-- Rekordbox device libraries are dual-DB: OneLibrary `exportLibrary.db`
-  (SQLCipher) plus legacy `export.pdb`/`exportExt.pdb`/`playlists3*.sync`
-  that older players (XDJ-XZ, legacy CDJs) read; a sync is only done when the
-  export.pdb live-row count equals the OneLibrary count. Full pipeline +
-  safety rules (quit rekordbox before DB edits, never write drive DBs in
-  place, never delete source files) live in
-  `.claude/skills/rekordbox-usb-sync/SKILL.md`. CrateDeck's verify job is a
-  read-only deep integrity audit of exactly these failure modes: dual-DB
-  agreement, audio file existence per DB track, ANLZ files at the hashed
-  paths hardware looks up, grid sanity (duration × BPM ≈ beat count),
-  playlist integrity, cross-drive parity; `deckctl explain` documents every
-  job type.
-- `megadj ingest` (`src/commands/ingest.ts`) imports external downloads into
-  the archive: MusicBrainz album/date fill, iTunes artwork embedding, genre
-  inference, `--dry-run` flag; zips expand + delete only when fully ingested;
-  sources are moved (not copied) after success. User-facing guide:
-  `.claude/skills/new-music-intake/SKILL.md`.
-- `tools/fetch_all.ts` is THE consolidated post-ingest pass (tags + genres +
-  artwork + years, parallel, idempotent, ground-truth file reads). Art
-  ladder: SC search → SC page og:image at original/t1080 res → hypeddit
-  gateways → mp3-twin → Deezer → iTunes → AI queue. Genre: SC tag → canonical
-  map → OpenRouter flash-lite (conf ≥ 0.7). Years: SC upload timestamp/page
-  `display_date` (flash-lite guesses 2023 — always verify via
-  `tools/fix_years.ts`). CLI: `megadj fetch` (enrichment pass),
-  `megadj years` (year-verification pass, also `--json`), and
-  `megadj audit` (ground-truth completeness gate).
-- **FullTags** (`fulltags/`, Sep 4 2026) is the in-repo enrichment engine
-  sub-project: every tag/art capability (formerly scattered across
-  `src/metadata.ts` (now deleted — import `fulltags/src/exports` directly),
-  `src/commands/{energy,embed,remix,wav-to-aiff}.ts`,
-  `tools/fetch_lib.ts`) behind one schema
-  (`FullTag`/`TagPatch`), one atomic writer (`writer.ts` — all format
-  gotchas: ffmpeg drops AIFF ID3 chunks → mutagen; WAV art via mutagen APIC;
-  mp3 id3v2.3; **ffmpeg infers the muxer from the tmp filename, so tmp
-  outputs must keep their extension**), file-first readers, the full art
-  ladder, and a standalone CLI (`bun run fulltags/cli.ts <target>
-[--tags|--genre|--art|--year|--energy] [--dry-run]`; `fulltags audit
-<folder> --json` = same completeness gate as `megadj audit`). megadj's
-  modules are thin re-export shims — import surface unchanged. Idempotent
-  (energy stamped as TXXX:ENERGY; re-run = no-op). 98 tests in
-  `fulltags/test/` (11 files). **Perf invariant:** `setFileTags`/`writePatchSync` is
-  sync — never bridge it to async code via a spawned `bun -e` (measured
-  6.4× slowdown; there is a regression test). Roadmap **rev 3
-  (2026-09-05, fact-checked twice — key via OpenKeyScan's analyzer
-  open-source repo mode: JSON over stdin/stdout, MPS auto-select; the
-  :58721 REST API is the closed desktop app's. keyfinder-cli is not in
-  homebrew-core)**:
-  `docs/fulltags-roadmap.md`. rekordbox tag gotchas verified: TKEY is
-  read on AIFF/MP3 only (WAV RIFF INFO has no key field), and RB
-  overwrites imported keys on analysis unless Key analysis is disabled —
-  see the roadmap gauntlet. **Roadmap moves fast — re-read before citing:**
-  rev 4 shipped #1–#3 as analysis pipeline stages (`fulltags/src/analysis.ts`:
-  chromaprint fingerprints, beat_this BPM/key); rev 5 executed the gates on
-  the real archive (88 files: fingerprint ledger DONE 88/88, key gate
-  PASSED 80.7% + all 88 files keyed, BPM gate FAILED 12/24 within-2% —
-  beat_this tempo is phase-locked ~2.2–2.6% off rekordbox on half the
-  sample); rev 6 shipped the pivot: the **beats ledger** (`megadj beats`
-  → archive DB `beats` table: bpm_raw/bpm_folded/beat+downbeat arrays,
-  never tags; 88/88 executed, idempotent) + CrateDeck's independent
-  `archive_grid_cross_check` (beat_this grid vs RB BPM×duration: ok/off/
-  octave; real-archive verdict 46 ok / 40 off / 2 octave) — batch BPM tag
-  writes stay BLOCKED (bar-grid re-gate 16/24 < 80%). rev 6.1 shipped
-  **#4 mood/dance/valence** (`fulltags/src/models.ts`: Essentia ONNX heads
-  via `uv --with onnxruntime` — effnet 1280-d embeddings → danceability +
-  4 mood heads, vggish 128-d → emomusic valence/arousal; `fulltags --mood`
-  → TXXX:MOOD, `ensure-models` pulls ~320 MB to `~/.local/share/fulltags-models`,
-  CC BY-NC-SA personal; **energy 2.0** = `0.5·RMS + 0.3·dance + 0.2·arousal`
-  when a MOOD stamp exists) and **#5 MB genre harvest** (`fulltags/src/mb.ts`,
-  1 rps + cache; `megadj enrich` folded onto it + the shared writer — the
-  last duplicate writer is deleted). **Archive execution (same day):**
-  the first mood pass shipped with the head label order INVERTED — it is
-  positive FIRST for every head except mood_party (per each model .json);
-  saturated output (dance=0.00/party=1.00 on all 88) is the tell, direct
-  ONNX probe confirms, stamps stripped + re-run, regression test pins it.
-  `megadj mood` mirrors stamps into the DB `mood` ledger
-  (`setMoodRecord`/`moodRecord`/`moodSummary`, 88/88); electronic genre
-  head GATE FAILED (saturated 0.87–1.0 on every genre incl. Ambient) —
-  genre writes stay BLOCKED. Head gotchas: label order positive FIRST
-  (mood_party LAST), emomusic = (valence, arousal) 1–9, effnet melspec =
-  MusiCNN 512/256 in 128-frame chunks (fixed ONNX batch), vggish = 400/200
-  → 96-frame patches transposed (64, 96). **Pass 3 (same night):**
-  `megadj cues` derives 8-bar phrase cues from the beats ledger's
-  downbeats into the `cues` table (`setCueRecord`/`cueRecord`/
-  `cueAnalyzedTracks`; 88/88 tracks, 1366 cues, idempotent, DB-side —
-  rekordbox memory-cue writes remain a gated next step). The audit gate
-  now REQUIRES mood + energy (`COMPLETENESS_FIELDS` + both audit CLIs);
-  `groundTruth` reads TXXX:ENERGY (was hardcoded null, so
-  `readFullTag().energy` always lied).
-- **rekordbox WAV artwork**: RB never reads art embedded in WAVs (RIFF INFO
-  has no art field; it ignores the ID3 APIC chunk). Two-part solution:
-  (1) **ingest converts new WAVs → AIFF** (`src/commands/wav-to-aiff.ts`,
-  lossless stream copy + mutagen ID3 frame copy — ffmpeg's aiff muxer DROPS
-  the ID3 chunk, and `applyTags` uses mutagen for AIFF for the same reason),
-  so new tracks have native covers; (2) **legacy** archive WAVs can be
-  pointer-fixed via `tools/rb_art.py` pilot → batch. Gotcha: RB renders
-  covers from `artwork_m.jpg`/`artwork_s.jpg` thumbnails — dirs with only
-  `artwork.jpg` silently show nothing; `ensure_artwork_file` generates all
-  three. Full research + 7-option comparison: `docs/rekordbox-wav-artwork.md`.
-- **ingest module map**: `ingest.ts` (pipeline), `ingest-probe.ts`
-  (probe/parse/score/quarantine/walk/MB), `ingest-art.ts` (art ladder + AI
-  queue), `ingest-zips.ts` (zip expand/delete), `wav-to-aiff.ts` (RB covers),
-  `identity.ts` (normalize/dupe keys), `remix.ts` (remix detection),
-  `energy.ts` (RMS energy), `metadata.ts` (tag writes).
-- CrateDeck (`cratedeck/`) is an in-repo Bun + TypeScript + Preact web
-  dashboard showing USB drive status, playlists, analysis/beatgrid state, and
-  health, reading rekordbox data through a Python seam
-  (`cratedeck/python/rb_read.py`); agents drive it via the `deckctl` CLI
-  (`bun run cratedeck/src/deckctl.ts` — respects the rekordbox interlock,
-  exit code 3 when locked; guide `cratedeck/deckctl.md`, skill
-  `.claude/skills/cratedeck-deckctl/`). Canonical product docs live in
-  `docs/cratedeck/` (brief, PRD, architecture, build plan, acceptance), ideas
-  backlog in `docs/ideas.md` (§0 = do-now gate; §0 items are tracked as
-  GitHub issues — file one per new §0 item and link it from the doc).
-- CrateDeck UI is a two-pane shell — left `DriveRail` + main canvas — with
-  NO drawer and NO sidebar; navigation is hash-routed (`web/router.ts`,
-  `#/drives/:id/:tab`, deep-linkable, browser back/forward works). Drive
-  pages have tabs (Overview, Playlists, Health, Timeline, Photo); jobs live
-  in a bottom-right `JobsDock`; feedback via toasts (`web/toast.tsx`); icons
-  are a central SVG set (`web/icons.tsx`). Unknown drive ids render a
-  "Drive not found" card (server 404s on `GET /drives/:id`).
-- CrateDeck's drive health report (`cratedeck/src/report.ts`) is the SSOT
-  for readiness verdicts: dual-DB hardware gate, beatgrid coverage, space,
-  bitrot, mirror parity — exposed at `GET /drives/:id/report` and folded into
-  the `/drives/:id/export` dossier; served in the drive page's Health tab.
-  Doc set status: `docs/cratedeck/acceptance.md`.
-- `deckctl` (`cratedeck/src/deckctl.ts`) is the agent/user CLI over CrateDeck:
-  `status|drives|report|run|coverage|redundancy|diff|jobs|cancel|stop|explain
-|preflight|players|prep|note|notes|search|rename` (report takes
-  `--dossier [--out FILE]`),
-  `--json` for machines, live spinner+ETA on `run`, exit code 3 = rekordbox
-  interlock. Never bypass the interlock; auto-starts the server. Guide:
-  `cratedeck/deckctl.md`, agent skill: `.claude/skills/cratedeck-deckctl/SKILL.md`.
-- **Surface parity (Sep 7 2026, `docs/surface-parity.md`):** every
-  capability exposed on one surface (deckctl CLI / MCP / web UI) must be
-  reachable on the others or carry an exemption row in that doc's §4
-  registry. Enforced by `cratedeck/test/surface-parity.test.ts`
-  (source-parsed census: verbs ↔ tools ↔ UI buttons ↔ doc table). New
-  capability = API route + spokes in the same PR, or doc §4 + test
-  exemption together. Same-day pass closed all 3 found gaps (UI Mirror
-  button role-gated to mirrors, `deck_prep` MCP twin, `deckctl
-  note|notes`).
-- **CrateDeck fleet superpowers**: `cratedeck/src/fleet.ts` is the pure query
-  engine — `coverage()` (track × drive matrix + at-risk list), `redundancy()`
-  (per-playlist pass/warn/fail with gap lists), `diff()` (added/removed/
-  changed between two drives). Data lives in
-  `fleet_tracks`/`fleet_playlist_entries`/`fleet_manifest` tables, refreshed
-  wholesale inside `db.setSnapshot` on every scan (full scan emits per-track +
-  playlist-entry rows via `python/rb_read.py`; light scan emits the audio
-  manifest in `scan.ts` — identity = NFC-casefolded Contents-relative path,
-  meta-join = "artist - title"). UI: Fleet page (`web/FleetPage.tsx`,
-  `#/fleet/:tab`, Fleet button in topbar); API
-  `GET /api/fleet/{coverage,track,redundancy,diff}`; CLI
-  `deckctl coverage|redundancy|diff`. Tests: `cratedeck/test/fleet.test.ts`.
-- CrateDeck engineering invariants: `rbSnapshot`/`checksumLedger` must stay
-  async (spawnSync/hash loops once froze the server for minutes); the
-  detector's physical-media gate (`detect.ts` `isPhysicalExternal`) is the
-  only registration path — only external physical hardware (USB/Thunderbolt)
-  may become a drive; image-backed and internal volumes are rejected on
-  measured `diskutil` whole-disk signals (VirtualOrPhysical/BusProtocol/
-  DeviceTreePath) before any row or event is written (regression-tested with
-  a real mounted image); snapshots
-  capped at 20/drive and events at 2000/drive (disk-burn guard, enforced in
-  `db.ts` migrations); `overall()` never reports `healthy` when every check
-  is `unknown`; bitrot verdicts come from real checksum job results
-  (`db.latestChecksum`), never hardcoded; the SSE stream needs a heartbeat —
-  Bun kills silent event streams after ~10s idle, which once stranded a
-  finished verify as a phantom "running 0%" forever (fixed with 5s heartbeat
-  - server-side phantom-job reaper marking stale `running` jobs `interrupted`
-    after 2min + UI re-sync on reconnect + cache-busting headers).
-- CrateDeck dedupe/stream gotchas (regression-tested): the `setSnapshot`
-  change-detector must recurse — `JSON.stringify(o, keys)` passes a replacer
-  ARRAY, which filters keys at EVERY depth, so nested objects stringify as
-  `{}` and same-length nested edits (track/playlist changes) looked
-  "unchanged" and were dropped (`db.ts canon()`, test
-  `db.test.ts "nested-only change"`); `jobs.ts drain()` must append only the
-  new bytes of each stdout chunk — `out += carry + text` re-counted the
-  previous chunk's tail every iteration, duplicating text through captured
-  verify output (`test/jobs-drain.test.ts`); `deckctl coverage|redundancy`
-  take an optional min-copies arg that must be forwarded from `main()`.
-- More CrateDeck job-progress gotchas (round 2, regression-tested): ETA in
-  `setJobProgress` is TRI-STATE — undefined = keep, null = clear — the log
-  updater omits it and must not wipe the estimator's value (test
-  `db.test.ts "keeps ETA…"`); usb_verify.py phase markers are INDENTED, so
-  phase regexes must match untrimmed lines, and `tick(from, to)` means
-  done/total — a phase span must be passed as `tick(progress, 1)` (pure
-  `verifyPhase()` in `jobs.ts`, `test/verify-phases.test.ts`).
-- CrateDeck round-3 gotchas (regression-tested): `inferRole` must compare
-  against the CONFIGURED master/mirror volume names (`DB.masterName`/
-  `mirrorName`, set from config in `index.ts`) — hardcoding DJMASTER/
-  DJMIRROR made custom-named masters `role: unknown`, killing parity
-  checks + sync badges; the DrivePage poll loop must self-heal a failed
-  FIRST load (idle branch retries while `loadError` is set, else the
-  "Loading failed" card sticks forever); SSE `job` events fire up to ~4/s
-  per running job — App coalesces `refreshJobs` to ≤1/s and DrivePage
-  throttles its drive-scoped fetch to ≤1/2s, or a long verify hammers the
-  server with thousands of redundant fetches.
-- **CrateDeck round-4 gotcha (Sep 7 2026, DOM-verified fix):** web
-  components must NOT re-declare server payload shapes as local
-  interfaces — a local duplicate drifts silently (TS can't see it) and
-  shipped three runtime bugs in one tab: `ArchiveTab.tsx` rendered
-  `Invalid Date` (epoch-multiplying an ISO `started_at`), `+undefined`
-  (`ingested` vs the real `downloaded/failed/gone`), and `[object
-  Object]` (grid `off`/`octave` are per-track ARRAYS, not counts). Fix
-  pattern: derive wire types from the producer via
-  `ReturnType<ArchiveReader["..."]>` re-exports in
-  `cratedeck/shared/types.ts` (`ArchiveIngestStatus`,
-  `ArchiveLowqQueue`, `ArchiveGridCrossCheck`, `ArchiveMoodProfile`)
-  and alias them in the component — any server shape change now fails
-  `bun run typecheck`, not the gig-night UI. Same lesson applies to
-  MCP route params: `archive_grid_cross_check`/`archive_mood_profile`
-  accepted `limit` but the routes dropped it (fixed — forwarded to
-  `archive.ts`).
-- **Type-audit pass (Sep 8 2026, 100.00% type-coverage):** the repo's
-  `bun run typecov` gate is now a hard 100% — do not land anything that
-  drops it (`bun run check:full` covers it). The last offenders were
-  `let entries;`/`let st;` before try/catch assignment (implicit-any lets —
-  annotate with `Dirent[]`/`Stats` from `node:fs` type-only imports),
-  `Response.json()`/`req.json()` (return `any` — always pin via
-  `deckapi.ts`'s `apiGetJson<T>` or an `as {shape}` on the wire envelope),
-  `JSON.parse` results (cast at the parse site), `require("node:fs")` in
-  tests (returns `any` — import `mkdirSync` etc. statically), and the
-  fulltags stage union, which lived in three hand-copies until
-  `pipeline.ts` exported `STAGES`/`Stage` (SSOT; the CLI's `--tags`-style
-  parser now narrows via an `isStage` guard instead of `includes(.. as
-  any)`). Same drift class as round-4: `deckctl_search.ts` re-declared
-  `SearchHit` with `entries: unknown[]` while the producer/web shared
-  `SearchResult` with `entries?: number` — consolidated to shared re-exports
-  (`PlayersPayload`, `StoredNote`, `SearchResult`, `FleetDiff`).
-- **Cycle-free shared/types (Sep 8 2026):** `shared/types.ts` is the LEAF
-  of the cratedeck graph — it may import nothing from `src/`. It used to
-  re-export producer types from `src/{fleet,notes,players,preflight}`
-  while those modules imported base types back — four cycles that made
-  the pre-commit circular-dependency check block ANY staged edit to
-  `types.ts` (forcing `GIT_SKIP_HOOKS` on ordinary commits). Fixed at the
-  root (`6d7e29e`): all cross-boundary wire types are DEFINED in
-  `shared/types.ts`; producers import them from there and re-export only
-  what legacy consumers still fetch (`fleet.ts` keeps
-  `TrackRow`/`PlaylistEntryRow`/`ManifestRow`; `players.ts` re-exports
-  `DriveCompat`/`PlayerSpec`; `preflight.ts` its report types). The
-  archive wire types stay type-only `import()`s — erased at runtime, no
-  cycle. Verify with
+megadj is a YouTube Music archiver (Bun/TypeScript CLI) feeding a master +
+mirror pair of DJ USB drives. Volume names are user-specific — examples use
+`DJMASTER`/`DJMIRROR`; override via args, `config.toml`, or
+`USB_SYNC_MASTER`/`USB_SYNC_MIRROR`. Three named sub-projects (one-liners in
+`docs/FEATURES.md`; honest state in `docs/product-state-2026-09-07.md`):
+
+- **GetDat** — download + `megadj ingest` into the archive (MusicBrainz
+  fill, art, genre; zips expand only when fully ingested; sources move after
+  success). Guide: `.claude/skills/new-music-intake/SKILL.md`.
+- **FullTags** (`fulltags/`) — the enrichment engine: one schema
+  (`FullTag`/`TagPatch`), one atomic writer (`writer.ts`), file-first
+  readers, art ladder, standalone CLI. megadj imports it via thin shims.
+  Roadmap + analysis-gate results: `docs/fulltags-roadmap.md`.
+- **CrateDeck** (`cratedeck/`) — Bun + Preact dashboard over the drives'
+  rekordbox libraries (Python seam: `cratedeck/python/rb_read.py`). Driven
+  via `deckctl` (guide: `cratedeck/deckctl.md`) and the MCP server
+  (`bun run mcp`, 26 tools). Surface registry: `docs/surface-parity.md`.
+  Idea backlog: `docs/ideas.md` (§0 = do-now gate → one GitHub issue each).
+
+**Agent-first contract (enforced by `src/commands/json-summary.test.ts`):**
+every `megadj` command takes `--json` — one summary JSON object on stdout,
+human logs suppressed, exit code still meaningful.
+
+## Rekordbox realities
+
+- Device libraries are dual-DB: OneLibrary `exportLibrary.db` (SQLCipher) +
+  legacy `export.pdb`/`exportExt.pdb` that older players read. A sync only
+  happens when the export.pdb live-row count equals the OneLibrary count.
+  Pipeline + safety rules: `.claude/skills/rekordbox-usb-sync/SKILL.md`.
+- CrateDeck's verify job audits exactly these failure modes (dual-DB
+  agreement, file existence, ANLZ at hashed paths, grid sanity, playlist
+  integrity, parity); `deckctl explain` documents every job type.
+- RB never reads art in WAVs (RIFF INFO has no art field) — ingest converts
+  new WAVs → AIFF (`src/commands/wav-to-aiff.ts`); legacy WAVs are
+  pointer-fixed via `tools/rb_art.py`. RB renders covers from
+  `artwork_m/s.jpg` thumbnails — `ensure_artwork_file` generates all three.
+  Research: `docs/rekordbox-wav-artwork.md`.
+- TKEY is read on AIFF/MP3 only, and RB overwrites imported keys on analysis
+  unless Key analysis is disabled (`docs/fulltags-roadmap.md` gauntlet).
+- Safety: quit rekordbox before DB edits; never write drive DBs in place;
+  never delete source files.
+
+## CrateDeck invariants (all regression-tested — re-read before touching)
+
+Architecture + wire-shape rules:
+
+- `shared/types.ts` is the **leaf** of the import graph — it defines every
+  cross-boundary wire type and imports nothing from `src/` (cycles there
+  once forced `GIT_SKIP_HOOKS` on every commit). Verify:
   `bunx madge --circular --extensions ts,tsx cratedeck/src cratedeck/shared cratedeck/web`.
-  Also that day: `api()` gained an AbortController deadline
-  (`timeoutMs`, default 30s; `apiPost` forwards it) — client deadlines
-  must exist AND exceed the server leg (prep digest passes 75s vs the
-  60s sweep leg; Bun.serve `idleTimeout: 120` so the ~18s prep handler
-  isn't killed at the default 10s). `setNickname` trims and maps
-  blank-after-trim to null — a nickname can never be `''` or whitespace.
-- **Silent-fallback purge (Sep 7–8 2026):** zero bare `catch {}` in prod
-  code — every catch must (a) surface to the user (toast / error state),
-  (b) log at the boundary, or (c) be documented sanctioned resilience
-  (interlock poll, `ensureServer` retry). Corrupt persisted JSON can never
-  read as success: `data_json` renders `{corrupt: true}` + console error,
-  and a corrupt verify `result_json` can no longer count as "verified"
-  (cratedeck web/CLI, fulltags art ladder, `tools/fix_years.ts`).
-- **Integrity-sweep ledger (D30, Sep 8 2026):** the hash sweep must never
-  destroy its own evidence — on divergence it overwrote the ledger with the
-  corrupt hash, so bitrot alerted exactly once then read "unchanged" forever
-  and the declared `restored` verdict was unreachable. Ledger rows now keep
-  corruption memory (`flagged_at` + preserved
-  `known_good_blake2b`/`known_good_size_bytes`, migrated via
-  `migrateArchiveLedger` in `db_ledger.ts`); later sweeps keep re-reporting
-  and emit `restored` when trusted bytes return (regression-tested).
-  Related: client fetch deadlines must exceed server-side job duration (a
-  10s prep-fetch deadline vs a ~15s sweep silently dropped the integrity
-  section from every digest — `weekly_prep` now takes `timeoutMs`, sweep
-  leg 60s across deckctl/MCP/web), and `deckctl prep --out FILE --json`
-  must still write the file in json mode.
-- **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
-  server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
-  25 tools (pass-3 audit Sep 5 2026; rev 6/6.2 added the archive
-  `archive_grid_cross_check` + `archive_mood_profile` reads; the
-  2026-09-07 surface-parity revs 1–3 added `deck_prep`, `deck_search`,
-  `deck_rename`, `archive_sweep`, and closed every closeable gap —
-  `docs/surface-parity.md` is the registry, enforced by
-  `cratedeck/test/surface-parity.test.ts`) — the
-  original 10 (`deck_status/drives/report/coverage/
-redundancy/diff/jobs/run/cancel/explain`) plus `deck_preflight` (B12),
-  `deck_players` (N75/N78 hardware compat from measured dual-DB rows;
-  matrix in `cratedeck/src/players.ts`, user-extendable via config.toml
-  `[players.players]`), the O82b archive half
-  (`archive_search_tracks/track_stats/ingest_status/lowq_queue/
-source_diff/grid_cross_check/mood_profile/sweep` — readonly reads over megadj's
-  archive DB via
-  `cratedeck/src/archive.ts`, opened `readonly: true`, so a bug there
-  cannot corrupt archive state; missing DB degrades to `available:false`),
-  and the O88 pair `deck_note` (mutating, human-confirmed findings) /
-  `deck_notes` (readonly active feed), plus `deck_search` (B9 ⌘K twin)
-  and `deck_rename` (drive nickname, mutating).
-  `deck_report {format:"dossier"}` streams the full export bundle —
-  the CLI twin is `deckctl report <d> --dossier [--out FILE]`.
-  `bun run mcp` from repo root; guide + registration snippet in
-  `cratedeck/deckctl.md` §MCP; `plugin/` packages the whole surface as an
-  installable Claude Code plugin (O85 — manifest + MCP + SessionStart hook
+- Web components must NOT re-declare server payload shapes locally — a
+  local duplicate drifts silently and ships runtime bugs (it did, three in
+  one tab). Derive from the producer: `shared/types.ts` re-exports
+  (`ArchiveIngestStatus`, `FleetDiff`, `SearchResult`, …) fail `typecheck`
+  on drift instead.
+- `rbSnapshot`/`checksumLedger` stay async — spawnSync/hash loops froze the
+  server for minutes once.
+- Only external physical hardware passes `detect.ts` `isPhysicalExternal` —
+  image-backed/internal volumes are rejected on measured `diskutil` signals
+  before any row is written.
+- `overall()` never reports `healthy` when every check is `unknown`; bitrot
+  verdicts come from real checksum results, never hardcoded.
+- Every fetch has a deadline that exists AND exceeds its server leg: `api()`
+  defaults 30s (`AbortController`; `apiPost` forwards `timeoutMs`), prep
+  digest passes 75s vs the 60s sweep leg, `Bun.serve` runs
+  `idleTimeout: 120` so the ~18s prep handler isn't killed at the default
+  10s. A hung request must abort into a clear toast, never spin forever.
+- The SSE stream needs a heartbeat (Bun kills idle streams ~10s — this once
+  stranded a finished verify as "running 0%" forever) + a phantom-job
+  reaper for stale `running` rows.
+- SSE `job` events fire up to ~4/s — `App` coalesces `refreshJobs` to ≤1/s,
+  `DrivePage` throttles drive fetches to ≤1/2s.
+- Disk-burn guards: snapshots capped 20/drive, events 2000/drive (agent
+  notes ARE events — the cap bounds them automatically).
+- `setNickname` trims and maps blank-after-trim to null — a nickname is
+  never `''` or whitespace; empty rename input cancels, never wipes.
+- `inferRole` compares against the CONFIGURED master/mirror names
+  (`DB.masterName`/`mirrorName`) — hardcoding volume names broke custom
+  setups once.
+- The `setSnapshot` change-detector must recurse (a `JSON.stringify`
+  replacer ARRAY filters keys at every depth — nested edits looked
+  "unchanged"); `jobs.ts drain()` must append only new stdout bytes;
+  ETA in `setJobProgress` is tri-state (undefined = keep, null = clear);
+  usb_verify phase markers are indented and `tick(from, to)` means
+  done/total — pass spans as `tick(progress, 1)`.
+- Surface parity is enforced: a capability on one surface (deckctl / MCP /
+  web) must exist on the others or carry an exemption row in
+  `docs/surface-parity.md` §4 (`cratedeck/test/surface-parity.test.ts`).
 
-* the 3 skills; `claude plugin validate` passes). Readonly tools carry
-  `readOnlyHint: true`
-  annotations; `deck_run`/`deck_cancel`/`deck_note`/`deck_rename` are flagged
-  `[MUTATES DRIVE STATE]` and the rekordbox interlock is enforced inside
-  the tool layer
-  (prompts are suggestions, exit codes are law). **O88 agent notes:**
-  notes ARE timeline events (kind `agent-note`) — the 2000-per-drive event
-  cap bounds growth automatically; engine `cratedeck/src/notes.ts`
-  (validate/clamp, 600-char cap) + `db.addAgentNote/dismissAgentNote/
-agentNotes`; API `GET/POST /api/drives/:id/notes` + `POST .../notes/:id/
-dismiss`; dismissal flips `dismissed_at` (history kept) and the active
-  feed skips it; TimelineTab renders severity-toned cards with a dismiss
-  button. **O87 attribution:**
-  `jobs.origin` ("web"/"deckctl"/"auto"/"mcp:<session>") rides on job
-  rows + timeline events so agent actions are distinguishable in `deckctl
- jobs` and the UI timeline. ⌘K global search over all snapshots ships in
-  the web topbar (`GET /api/search`, B9). B12 preflight
-  (`cratedeck/src/preflight.ts` + `deckctl preflight` + `/api/preflight`)
-  is the gig-night gate: worst-status-wins verdict per drive
-  (not-ready/attention/unknown/ready), unknowns never fake ready, exit 1
-  when not ready — cron/agents gate on the code; includes the N75 player
-  compat check (fully blocked drive = not-ready) and N76 firmware
-  advisories (`firmware_advisories` in the report, informational only).
-  O83 weekly digest:
-  `deckctl prep [--out FILE]` (`cratedeck/src/weekly_prep.ts`, pure
-  renderer) → markdown over preflight + redundancy + archive reads. Doc
-  alignment: ideas.md B9/B12/N75/N76/N78/O82/O83/O85/O86/O87/O88 are
-  marked shipped.
+## FullTags invariants
 
-- **Docs hygiene passes (Sep 5 2026):** docs go through `/docs-audit`
-  rounds (SSOT-merge duplicates, kill stale claims, verify against code)
-  before pushes; `knip.json` was added so knip flags real dead code instead
-  of legitimate entry points (tests, web components, standalone CLIs); a
-  repo-wide cleanup pass fixed hardcoded user-specific paths in
-  `tools/fetch_lib.ts`/`fetch_all.ts`/`fix_years.ts`/`artwork.ts` —
-  new tools take volume names/paths from config, never literals.
-- **Concurrent-agent hygiene (live-learned Sep 7–8 2026):** several agents
-  work the same repo at once — never `git add -A`; stage only your own
-  files; re-read files immediately before editing (in-flight fixes have
-  been stashed and conflict-marker-merged mid-session by another agent);
-  verify your content landed via worktree-vs-HEAD diff, not the commit
-  hash (amends and swept-in staged files are normal — check what rode
-  along before calling it done). Prose/copy passes: preserve em dashes and
-  punctuation in shipped docs — a mechanical punctuation rewrite of 27
-  docs was mangled and had to be per-line reconciled against base. Long
-  `bun test` runs hang on concurrent agents' in-flight churn (new test
-  files / `bunfig.toml` landing mid-run) — rerun clean or test in
-  isolation before declaring failure; the `bun test` gate stays local
-  (no CI).
+- **Perf:** `setFileTags`/`writePatchSync` is sync — never bridge it to
+  async via spawned `bun -e` (measured 6.4× slowdown; regression test).
+- Writer format gotchas: ffmpeg drops AIFF ID3 chunks (use mutagen); WAV
+  art via mutagen APIC; mp3 id3v2.3; ffmpeg infers the muxer from the tmp
+  filename — tmp outputs keep their extension.
+- ONNX mood heads: label order is positive FIRST for every head except
+  mood_party; emomusic outputs (valence, arousal) 1–9. An inverted or
+  saturated head (same value on every track) means a wiring bug — probe the
+  model directly before stamping.
+- Write gates: batch tag writes stay BLOCKED unless the re-gate passes
+  (key passed at 80.7%; BPM phase-lock and the genre head failed and are
+  blocked). Analysis output lives in DB ledgers (`beats`, `mood`, `cues`),
+  never in tags, until a gate passes.
+- The audit gate requires mood + energy (`COMPLETENESS_FIELDS`); idempotent
+  re-runs are no-ops.
+
+## Process
+
+- Docs go through `/docs-audit` rounds (SSOT-merge, kill stale claims,
+  verify against code) before pushes. Dated analysis/learnings docs are
+  snapshots — check `docs/product-state-2026-09-07.md` for current state.
+- Tools take volume names/paths from config — never hardcoded literals.
 
 ## Local-only files
 
-- `(local ops log)` (operations log) and the previous private version of
-  this file are **gitignored** — they contain personal library details and
-  never get committed. Keep them local; back up copies outside the repo.
+- `(local ops log)` and previous private versions of this file are
+  **gitignored** — personal library details never get committed. Back up
+  copies outside the repo.

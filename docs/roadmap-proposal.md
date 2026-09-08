@@ -82,7 +82,7 @@ gates, gotchas): [fulltags-roadmap.md](fulltags-roadmap.md).
 ### Move 3 — Agentify (the O layer) · _why: P1, agent-first is a principle_
 
 **Functionally shipped (Sep 5–7 2026).** `bun run mcp` exposes
-the whole product as **25 tools** (17 `deck_*` + 8 `archive_*`) over stdio
+the whole product as **26 tools** (18 `deck_*` + 8 `archive_*`) over stdio
 JSON-RPC — readonly tools annotation-marked, mutating ones flagged
 `[MUTATES DRIVE STATE]` and gated by the interlock **inside the tool
 layer** (where O86 said it must live); the archive half reads megadj's DB
