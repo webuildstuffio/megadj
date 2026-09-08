@@ -5,7 +5,7 @@
 // archive DB readonly — a bug here cannot corrupt archive state).
 
 import { apiGet } from "./deckapi";
-import { str, num, RpcParamError } from "./mcp_params";
+import { str, num, optLimit, RpcParamError } from "./mcp_params";
 
 /** The archive_* tool table (O82b, readonly reads over megadj's DB). */
 export function archiveTools(): Record<string, unknown> {
@@ -118,13 +118,8 @@ export function archiveTools(): Record<string, unknown> {
         additionalProperties: false,
       },
       run: async (args: Record<string, unknown>) => {
-        const lim = args.limit;
-        const limit =
-          typeof lim === "number" && Number.isFinite(lim) && lim > 0
-            ? Math.min(Math.floor(lim), 500)
-            : 200;
         const res = await apiGet(
-          `/api/archive/grid-cross-check?limit=${limit}`,
+          `/api/archive/grid-cross-check?limit=${optLimit(args, 200, 500)}`,
         );
         return res.json();
       },
@@ -144,12 +139,9 @@ export function archiveTools(): Record<string, unknown> {
         additionalProperties: false,
       },
       run: async (args: Record<string, unknown>) => {
-        const lim = args.limit;
-        const limit =
-          typeof lim === "number" && Number.isFinite(lim) && lim > 0
-            ? Math.min(Math.floor(lim), 25)
-            : 5;
-        const res = await apiGet(`/api/archive/mood?limit=${limit}`);
+        const res = await apiGet(
+          `/api/archive/mood?limit=${optLimit(args, 5, 25)}`,
+        );
         return res.json();
       },
     },

@@ -19,5 +19,17 @@ export function num(
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
 
+/** Optional bounded-number param: clamps to [1, max], falls back to def.
+ * The archive_* tools all expose `limit` with the same clamp semantics. */
+export function optLimit(
+  args: Record<string, unknown>,
+  def: number,
+  max: number,
+): number {
+  const v = num(args, "limit");
+  if (v === undefined) return def;
+  return Math.min(Math.max(Math.floor(v), 1), max);
+}
+
 /** Invalid/missing tool argument — maps to JSON-RPC -32602. */
 export class RpcParamError extends Error {}
