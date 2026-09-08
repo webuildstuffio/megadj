@@ -289,7 +289,7 @@ export interface SearchResult {
   drive_name: string;
   mounted: boolean;
   matches: {
-    type: "playlist" | "folder" | "track";
+    type: "playlist" | "folder" | "track" | "drive";
     name: string;
     entries?: number;
   }[];

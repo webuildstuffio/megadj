@@ -14,7 +14,9 @@ import { errMessage } from "../shared/fmt";
 
 export function PrepTab() {
   const page = useFetched<{ markdown: string }>(
-    () => api<{ markdown: string }>("/api/fleet/prep"),
+    // 75s > the server's sweep leg deadline (60s) — the digest legitimately
+    // takes ~15s on the real archive; the default 30s would abort it.
+    () => api<{ markdown: string }>("/api/fleet/prep", { timeoutMs: 75_000 }),
     [],
   );
   const md = page.status === "ok" ? page.data.markdown : null;

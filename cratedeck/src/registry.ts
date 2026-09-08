@@ -151,10 +151,17 @@ export class Registry {
     const needle = q.toLowerCase();
     const out: SearchResult[] = [];
     for (const drive of this.db.allDrives()) {
-      if (!drive.last_snapshot_json) continue;
-      const snap: SnapshotData = JSON.parse(drive.last_snapshot_json);
+      // drive name/nickname match: the whole drive is the hit — ⌘K should
+      // find "DJMASTER" by name, not only playlists inside it
+      const label = drive.nickname ?? drive.name;
+      const driveHit =
+        drive.name.toLowerCase().includes(needle) ||
+        (drive.nickname ?? "").toLowerCase().includes(needle);
+      const snap = drive.last_snapshot_json
+        ? (JSON.parse(drive.last_snapshot_json) as SnapshotData)
+        : null;
       const matches: SearchResult["matches"] = [];
-      for (const pl of snap.playlists ?? []) {
+      for (const pl of snap?.playlists ?? []) {
         if (pl.name.toLowerCase().includes(needle)) {
           matches.push({
             type: "playlist",
@@ -163,15 +170,22 @@ export class Registry {
           });
         }
       }
-      for (const f of snap.folders ?? []) {
+      for (const f of snap?.folders ?? []) {
         if (f.name.toLowerCase().includes(needle)) {
           matches.push({ type: "folder", name: f.name, entries: f.files });
         }
       }
+      if (driveHit) {
+        matches.unshift({
+          type: "drive",
+          name: label,
+          entries: snap?.track_count ?? 0,
+        });
+      }
       if (matches.length) {
         out.push({
           drive_id: drive.id,
-          drive_name: drive.nickname ?? drive.name,
+          drive_name: label,
           mounted: !!drive.mounted,
           matches: matches.slice(0, 10),
         });

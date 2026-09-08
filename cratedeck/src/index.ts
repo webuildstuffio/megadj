@@ -184,6 +184,11 @@ await reconcile(); // initial sweep
 Bun.serve({
   port: cfg.serverPort,
   hostname: "127.0.0.1", // localhost is the trust boundary
+  // 120s: the /fleet/prep route self-fetches the D30 archive sweep (~15s on
+  // the real archive, 60s client deadline) — the default 10s idleTimeout
+  // killed the outer request mid-handler and the digest died with
+  // "request timed out" before the sweep could answer.
+  idleTimeout: 120,
   async fetch(req) {
     const url = new URL(req.url);
     const path = url.pathname;
@@ -273,7 +278,7 @@ Bun.serve({
             }
             // normalizeNote throws a clean message on empty/oversized input;
             // map validation errors to 400 explicitly here
-            let v;
+            let v: ReturnType<typeof normalizeNote>;
             try {
               v = normalizeNote({
                 drive_id: id,

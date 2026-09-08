@@ -60,19 +60,30 @@ export class ApiError extends Error {
 
 export async function api<T = unknown>(
   path: string,
-  init?: RequestInit & { quiet?: boolean },
+  init?: RequestInit & { quiet?: boolean; timeoutMs?: number },
 ): Promise<T> {
   // quiet = caller owns the surfacing (poll loops, probes, mapped verdicts).
   // The error still throws — quiet only suppresses the generic toast.
-  const { quiet, ...fetchInit } = init ?? {};
+  // timeoutMs: abort a hung request instead of spinning forever (default
+  // 30s). Long calls (prep digest ≈ the D30 sweep leg) pass their own,
+  // larger budget — the deadline must EXIST and must exceed the server's
+  // job duration.
+  const { quiet, timeoutMs = 30_000, ...fetchInit } = init ?? {};
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   let res: Response;
   try {
-    res = await fetch(path, fetchInit);
+    res = await fetch(path, { ...fetchInit, signal: ctrl.signal });
   } catch (e) {
-    const msg = `network error: ${(e as Error).message}`;
+    clearTimeout(timer);
+    const msg =
+      (e as Error).name === "AbortError"
+        ? `timed out after ${Math.round(timeoutMs / 1000)}s — server busy; retry`
+        : `network error: ${(e as Error).message}`;
     if (!quiet) toast(msg, "err");
     throw new ApiError(msg, 0);
   }
+  clearTimeout(timer);
   if (!res.ok) {
     let msg = `${res.status}`;
     try {

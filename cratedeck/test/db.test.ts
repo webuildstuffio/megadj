@@ -76,6 +76,18 @@ describe("db drives", () => {
     db.setPhoto(UUID_A, "/tmp/p");
     expect(db.getDrive(UUID_A)!.nickname).toBe("Resident Crate");
   });
+
+  it("setNickname treats empty string as clear (never stores '')", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.setNickname(UUID_A, "Resident Crate");
+    db.setNickname(UUID_A, "");
+    expect(db.getDrive(UUID_A)!.nickname).toBeNull();
+  });
 });
 
 describe("db snapshots", () => {

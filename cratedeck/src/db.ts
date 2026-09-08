@@ -366,10 +366,9 @@ export class DB {
 
   getVerifyReport(id: string): VerifyReport | null {
     const r = this.sqlite
-      .query<
-        { verify_report_json: string | null },
-        [string]
-      >("SELECT verify_report_json FROM drives WHERE id=?")
+      .query<{ verify_report_json: string | null }, [string]>(
+        "SELECT verify_report_json FROM drives WHERE id=?",
+      )
       .get(id);
     if (!r?.verify_report_json) return null;
     try {
@@ -387,9 +386,10 @@ export class DB {
   }
 
   setNickname(id: string, nickname: string | null): void {
-    this.sqlite
-      .query("UPDATE drives SET nickname=? WHERE id=?")
-      .run(nickname, id);
+    // "" is not a name — callers mean "clear" (null) or sent garbage;
+    // storing "" renders as a blank label everywhere downstream
+    const value = nickname === "" ? null : nickname;
+    this.sqlite.query("UPDATE drives SET nickname=? WHERE id=?").run(value, id);
   }
 
   setPhoto(id: string, path: string): void {
