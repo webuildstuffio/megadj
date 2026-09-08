@@ -17,8 +17,7 @@ import type { ArchiveState } from "../state";
  * `--force` recomputes. `--json` emits one summary object (P1).
  */
 
-export const BEATS_PER_BAR = 4;
-/** 8 bars = 32 beats = the standard EDM phrase unit. */
+/** 8 bars = 32 beats = the standard EDM phrase unit (4/4). */
 export const BARS_PER_PHRASE = 8;
 
 export interface Cue {

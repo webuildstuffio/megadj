@@ -5,24 +5,11 @@
       "entry": ["tools/fetch_all.ts", "tools/fix_years.ts"],
       "ignore": ["fulltags/**"],
       "ignoreExportsUsedInFile": true,
-      "ignoreBinaries": [
-        "oxlint",
-        "ditto",
-        "ffmpeg",
-        "uv",
-        "ffprobe",
-        "yt-dlp",
-        "plutil"
-      ],
+      "ignoreBinaries": ["ditto", "ffprobe", "yt-dlp", "plutil", "prettier", "wait"],
       "ignoreDependencies": ["preact"]
     },
     "cratedeck": {
-      "entry": [
-        "src/deckctl.ts",
-        "src/bench.ts",
-        "shared/types.ts",
-        "test/*.test.ts"
-      ],
+      "entry": ["src/deckctl.ts", "src/bench.ts", "src/mcp.ts", "shared/types.ts", "test/*.test.ts"],
       "ignoreExportsUsedInFile": true
     },
     "cratedeck/web": {

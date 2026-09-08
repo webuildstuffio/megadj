@@ -10,7 +10,6 @@
 // `readOnlyHint: false` + described [WRITES TO TIMELINE]; the server
 // validates + clamps everything; notes are events, so the 2000-per-drive
 // disk-burn cap applies — no unbounded growth.
-import { randomUUID } from "node:crypto";
 
 /** Longest note body accepted (chars). Agents ramble; the card shouldn't. */
 export const NOTE_MAX = 600;
@@ -110,10 +109,6 @@ export function noteFromEvent(row: {
         ? (row.data["dismissed_at"] as number)
         : null,
   };
-}
-
-export function newNoteId(): string {
-  return randomUUID();
 }
 
 // ---- store operations -------------------------------------------------------

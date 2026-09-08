@@ -28,13 +28,6 @@ import {
 import { join } from "node:path";
 import { homedir, platform } from "node:os";
 
-export interface DoctorOptions {
-  /** Print JSON instead of human text (agents, CI). */
-  json?: boolean;
-  /** Only report; don't offer fixes. (init uses this internally.) */
-  quietFixes?: boolean;
-}
-
 export interface CheckResult {
   id: string;
   label: string;

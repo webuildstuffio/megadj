@@ -53,12 +53,6 @@ export function firmwareAdvisories(): string[] {
   return PLAYERS.filter((p) => p.note).map((p) => `${p.name}: ${p.note}`);
 }
 
-/** Extra user-defined players (config.toml [players.players] name = "device"). */
-export interface PlayerOverrides {
-  /** name → reads */
-  players?: Record<string, string>;
-}
-
 export interface DriveCompat {
   /** Players that can read this drive as-is. */
   ok: PlayerSpec[];
