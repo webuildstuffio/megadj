@@ -195,6 +195,18 @@ export function App() {
     return () => window.removeEventListener("click", h);
   }, []);
 
+  // tab title mirrors the route: with many deep-linkable tabs open at once,
+  // identical "CrateDeck" titles make browser history/tab switchers
+  // unusable. Route words only (no per-drive fetches) — cheap and instant.
+  useEffect(() => {
+    const tab = route.tab.charAt(0).toUpperCase() + route.tab.slice(1);
+    document.title = route.fleet
+      ? `Fleet · ${tab} — CrateDeck`
+      : route.driveId
+        ? `${decodeURIComponent(route.driveId)} · ${tab} — CrateDeck`
+        : "CrateDeck — DJ USB library";
+  }, [route.driveId, route.fleet, route.tab]);
+
   const openDrive = (id: string, tab?: string) => {
     setQuery("");
     setResults(null);

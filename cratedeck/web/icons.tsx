@@ -38,6 +38,8 @@ const P: Record<string, string> = {
   info: "M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18Zm0-9.5V16m0-7.5v.1",
   compass: "M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18Zm3.5-12.5-2 5-5 2 2-5 5-2Z",
   download: "M12 3v11m0 0-4-4m4 4 4-4M4.5 19.5h15",
+  chevD: "M5 9l7 7 7-7",
+  chevU: "M5 15l7-7 7 7",
 };
 
 export function Icon(props: {

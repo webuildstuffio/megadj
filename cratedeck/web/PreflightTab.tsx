@@ -38,10 +38,10 @@ const VERDICT_ICON: Record<string, string> = {
 };
 
 const VERDICT_TONE: Record<string, string> = {
-  ready: "ok",
+  ready: "pass",
   attention: "warn",
-  "not-ready": "bad",
-  unknown: "",
+  "not-ready": "fail",
+  unknown: "unknown",
 };
 
 const STATUS_ICON: Record<CheckStatus, string> = {
@@ -193,7 +193,7 @@ export function PreflightTab() {
                 : "Expand checks, blockers and player compatibility"
             }
           >
-            <span class={`rolechip ${VERDICT_TONE[d.overall] ?? ""}`}>
+            <span class={`rolechip ${VERDICT_TONE[d.overall] ?? "unknown"}`}>
               <Icon name={VERDICT_ICON[d.overall] ?? "dot"} size={12} />
               {d.overall}
             </span>
@@ -206,8 +206,8 @@ export function PreflightTab() {
                 {d.blockers.length} blocker{d.blockers.length === 1 ? "" : "s"}
               </span>
             )}
-            <span class="pf-chevron">
-              <Icon name="sort" size={12} />
+            <span class={`pf-chevron ${open === d.drive.id ? "open" : ""}`}>
+              <Icon name={open === d.drive.id ? "chevU" : "chevD"} size={12} />
             </span>
           </button>
 
@@ -227,7 +227,7 @@ export function PreflightTab() {
                 return (
                   <div
                     key={c.id}
-                    class={`check ${VERDICT_TONE[c.status] ?? ""}`}
+                    class={`check ${c.status}`}
                     title={pf ? `${pf.what} ${pf.why}` : undefined}
                   >
                     <Icon name={STATUS_ICON[c.status]} size={12} />
@@ -265,7 +265,7 @@ export function PreflightTab() {
                 return (
                   <>
                     {p.blocked.map((b) => (
-                      <div key={b.player.name} class="check bad">
+                      <div key={b.player.name} class="check fail">
                         <Icon name="x" size={12} />
                         <strong>{b.player.name}</strong>
                         <span class="detail">

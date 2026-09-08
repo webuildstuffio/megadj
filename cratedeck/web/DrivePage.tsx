@@ -629,7 +629,7 @@ export function DrivePage(props: {
           download
           title="Download a full status dossier (report, playlists, checks) as a file"
         >
-          <Icon name="play" size={14} /> Export dossier
+          <Icon name="download" size={14} /> Export dossier
         </a>
       </div>
 
