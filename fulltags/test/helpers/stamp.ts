@@ -57,7 +57,10 @@ print(json.dumps(vals))`;
 
 /** Read one stamp by description. Null when absent/unreadable. */
 export function readStampGuard(p: string, desc: string): string | null {
-  const script = SCRIPT_HEAD + JSON.stringify(p) + SCRIPT_TAIL.replace("__DESCS__", JSON.stringify([desc]));
+  const script =
+    SCRIPT_HEAD +
+    JSON.stringify(p) +
+    SCRIPT_TAIL.replace("__DESCS__", JSON.stringify([desc]));
   const pr = Bun.spawnSync({
     cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],
     stdout: "pipe",

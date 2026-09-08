@@ -61,7 +61,12 @@ async function hashFile(absPath: string): Promise<string> {
  *  module stays pure/I/O-minimal and testable against fixtures. */
 export async function sweepArchive(
   musicDir: string,
-  tracks: { file_path: string | null; title: string | null; artist: string | null; size_hint?: number | null }[],
+  tracks: {
+    file_path: string | null;
+    title: string | null;
+    artist: string | null;
+    size_hint?: number | null;
+  }[],
   ledger: Map<string, LedgerRow>,
   update: (row: LedgerRow) => void,
   signal?: AbortSignal,
@@ -94,20 +99,35 @@ export async function sweepArchive(
     checked++;
     const hex = await hashFile(abs);
     const prior = ledger.get(rel);
-    const sizeChanged = prior && prior.size_bytes !== null && prior.size_bytes !== st.size;
+    const sizeChanged =
+      prior && prior.size_bytes !== null && prior.size_bytes !== st.size;
     if (prior && prior.blake2b === hex) {
       unchanged++;
       if (sizeChanged) {
         // hash identical but size differs from ledger: ledger needs refresh
-        update({ file_path: rel, size_bytes: st.size, blake2b: hex, checked_at: Date.now() });
+        update({
+          file_path: rel,
+          size_bytes: st.size,
+          blake2b: hex,
+          checked_at: Date.now(),
+        });
       }
       continue;
     }
     if (!prior) {
       // first sighting: baseline it, nothing to report (it's not a finding
       // — but DO note a size mismatch vs the DB, the truncation tell)
-      update({ file_path: rel, size_bytes: st.size, blake2b: hex, checked_at: Date.now() });
-      if (typeof t.size_hint === "number" && t.size_hint > 0 && t.size_hint !== st.size) {
+      update({
+        file_path: rel,
+        size_bytes: st.size,
+        blake2b: hex,
+        checked_at: Date.now(),
+      });
+      if (
+        typeof t.size_hint === "number" &&
+        t.size_hint > 0 &&
+        t.size_hint !== st.size
+      ) {
         findings.push({
           path: rel,
           title: t.title,
@@ -124,13 +144,19 @@ export async function sweepArchive(
       path: rel,
       title: t.title,
       artist: t.artist,
-      verdict: priorSize !== null && st.size < priorSize ? "truncated" : "changed",
+      verdict:
+        priorSize !== null && st.size < priorSize ? "truncated" : "changed",
       detail:
         priorSize !== null && st.size < priorSize
           ? `shrank ${priorSize} → ${st.size} B (silent truncation)`
           : `content differs from known-good hash (recorded ${prior.size_bytes ?? "?"} B, now ${st.size} B)`,
     });
-    update({ file_path: rel, size_bytes: st.size, blake2b: hex, checked_at: Date.now() });
+    update({
+      file_path: rel,
+      size_bytes: st.size,
+      blake2b: hex,
+      checked_at: Date.now(),
+    });
   }
 
   return {

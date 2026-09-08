@@ -11,6 +11,7 @@ import type {
   VerifyReport,
 } from "../shared/types";
 import { FleetStore } from "./fleet-db";
+import { LedgerQueries } from "./db_ledger";
 import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./fleet";
 /** Raw row shape as stored in the drives table (mounted is 0/1). */
 interface DriveRow extends Omit<Drive, "mounted"> {
@@ -121,6 +122,8 @@ export class DB {
    *  library.master_drive/mirror_drive override them). */
   masterName = "DJMASTER";
   mirrorName = "DJMIRROR";
+  /** D30 archive-integrity ledger queries (db_ledger.ts). */
+  private ledger: LedgerQueries;
 
   constructor(dbPath: string) {
     mkdirSync(dirname(dbPath), { recursive: true });
@@ -130,6 +133,7 @@ export class DB {
     // crashes, skips fsync-on-every-commit (huge write-churn cut).
     this.sqlite.exec("PRAGMA synchronous = NORMAL;");
     this.sqlite.exec("PRAGMA foreign_keys = ON;");
+    this.ledger = new LedgerQueries(this.sqlite);
     this.migrate();
   }
 
@@ -226,52 +230,16 @@ export class DB {
       .run(max);
   }
 
-  // ---- D30: archive-integrity ledger (known-good hashes, CrateDeck-side) --
-
+  // ---- D30 archive-integrity ledger + fleet tables (queries in db_ledger.ts /
+  //  fleet-db.ts) -----------------------------------------------------------
   /** All known-good archive hashes (file_path → row). */
   archiveLedger(): Map<string, import("./archive_sweep").LedgerRow> {
-    const rows = this.sqlite
-      .query<{ file_path: string; size_bytes: number | null; blake2b: string; checked_at: number }, []>(
-        `SELECT file_path, size_bytes, blake2b, checked_at FROM archive_ledger`,
-      )
-      .all();
-    return new Map(
-      rows.map((r) => [
-        r.file_path,
-        {
-          file_path: r.file_path,
-          size_bytes: r.size_bytes,
-          blake2b: r.blake2b,
-          checked_at: r.checked_at,
-        },
-      ]),
-    );
+    return this.ledger.all();
   }
-
   /** Record/refresh one known-good hash (upsert; sweep findings only). */
-  upsertArchiveLedger(row: {
-    file_path: string;
-    size_bytes: number | null;
-    blake2b: string;
-    checked_at: number;
-  }): void {
-    this.sqlite
-      .query(
-        `INSERT INTO archive_ledger (file_path, size_bytes, blake2b, checked_at)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(file_path) DO UPDATE SET
-           size_bytes = excluded.size_bytes,
-           blake2b = excluded.blake2b,
-           checked_at = excluded.checked_at`,
-      )
-      .run(row.file_path, row.size_bytes, row.blake2b, row.checked_at);
+  upsertArchiveLedger(row: import("./archive_sweep").LedgerRow): void {
+    this.ledger.upsert(row);
   }
-
-  // ---- fleet tables (ideas.md §B6/B7/B8) ------------------------------------
-  // Persistence lives in fleet-db.ts (FleetStore); db.ts delegates. Rows are
-  // refreshed wholesale by setSnapshot on every scan; the pure queries in
-  // fleet.ts read them via the accessors below. Lazy init: field
-  // initializers run before the constructor body assigns this.sqlite.
   private fleetStore?: FleetStore;
   private get fleet(): FleetStore {
     this.fleetStore ??= new FleetStore(this.sqlite);

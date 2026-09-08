@@ -601,7 +601,9 @@ export function DrivePage(props: {
 
       {tab === "verify" && <VerifyTab driveId={driveId} report={verify} />}
 
-      {tab === "timeline" && <TimelineTab events={timeline} driveId={driveId} />}
+      {tab === "timeline" && (
+        <TimelineTab events={timeline} driveId={driveId} />
+      )}
 
       {tab === "photos" && (
         <div>

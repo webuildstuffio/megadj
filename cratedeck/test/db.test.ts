@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { DB, inferRole } from "../src/db";
-import {
-  addAgentNote,
-  dismissAgentNote,
-  agentNotes,
-} from "../src/notes";
+import { addAgentNote, dismissAgentNote, agentNotes } from "../src/notes";
 import type { SnapshotData } from "../shared/types";
 
 let db: DB;
@@ -474,9 +470,7 @@ describe("agent notes (O88)", () => {
     expect(notes[0]!.note).toBe("healthy"); // newest first
     expect(notes.every((n) => n.dismissed_at === null)).toBe(true);
     // notes are ALSO timeline events — they render in the existing feed
-    expect(db.timeline(UUID_A).some((e) => e.kind === "agent-note")).toBe(
-      true,
-    );
+    expect(db.timeline(UUID_A).some((e) => e.kind === "agent-note")).toBe(true);
     // dismiss the newest; it leaves the active feed but stays in history
     const id = notes[0]!.id;
     expect(dismissAgentNote(db, UUID_A, id)).toBe(true);

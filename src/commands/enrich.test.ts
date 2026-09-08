@@ -77,8 +77,6 @@ describe("enrich (DB/file genre agreement)", () => {
 
     const row = state.allTracks().find((t) => t.video_id === "v2");
     expect(row?.genre).toBe("House");
-    expect(written).toEqual([
-      [join(dir, "Track Two.m4a"), "House"],
-    ]);
+    expect(written).toEqual([[join(dir, "Track Two.m4a"), "House"]]);
   });
 });

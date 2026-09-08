@@ -67,7 +67,11 @@ export async function cmdNotes(
   if (!nameOrId) {
     const drives = (await getJson<
       { id: string; name: string; nickname: string | null }[]
-    >("/api/drives")) as { id: string; name: string; nickname: string | null }[];
+    >("/api/drives")) as {
+      id: string;
+      name: string;
+      nickname: string | null;
+    }[];
     for (const d of drives) {
       const notes = (await getJson<NoteRow[]>(
         `/api/drives/${d.id}/notes`,
@@ -94,4 +98,36 @@ export async function cmdNotes(
       `[${n.severity}] ${n.note} (${new Date(n.created_at).toISOString()})`,
     );
   if (!notes.length) h.log("(no active notes)");
+}
+
+/** `deckctl rename <drive> [nickname]` — set/clear the display nickname.
+ *  CLI twin of the UI's rename dialog and POST /api/drives/:id/name
+ *  (surface-parity GAP-7); omitting the nickname clears it. */
+export async function cmdRename(
+  h: NotePrintHooks,
+  nameOrId: string,
+  nickname: string | null,
+): Promise<void> {
+  const d = await resolveDrive(nameOrId);
+  if (!d) {
+    h.errOut(`unknown drive: ${nameOrId}`);
+    h.exit(2);
+  }
+  const res = await apiPost(`/api/drives/${d.id}/name`, {
+    nickname: nickname?.trim() || null,
+  });
+  if (!res.ok) {
+    const body = (await res.json()) as { error?: string };
+    h.errOut(body.error ?? `rename rejected (${res.status})`);
+    h.exit(1);
+  }
+  if (h.jsonMode)
+    console.log(
+      JSON.stringify({
+        command: "rename",
+        drive: d.name,
+        nickname: nickname?.trim() || null,
+      }),
+    );
+  else h.log(`renamed ${d.name} → ${nickname?.trim() || "(cleared)"}`);
 }

@@ -32,12 +32,17 @@ import {
 } from "./deckapi";
 import type {
   CoverageResponse,
-  HealthCheck,
   InterlockState,
   RedundancyResult,
 } from "../shared/types";
 import type { PreflightReport } from "./preflight";
-import { cmdNote, cmdNotes, type NotePrintHooks } from "./deckctl_notes";
+import {
+  cmdNote,
+  cmdNotes,
+  cmdRename,
+  type NotePrintHooks,
+} from "./deckctl_notes";
+import { cmdReport, type ReportPrintHooks } from "./deckctl_report";
 import { cmdSearch, type SearchPrintHooks } from "./deckctl_search";
 
 // ---- output helpers ---------------------------------------------------------
@@ -52,7 +57,18 @@ async function getJson<T>(p: string): Promise<T> {
 
 /** Print hooks for the extracted notes commands (deckctl_notes.ts). */
 function noteHooks(): NotePrintHooks {
-  return { jsonMode: JSON_MODE, log, errOut, argv: process.argv, exit: process.exit };
+  return {
+    jsonMode: JSON_MODE,
+    log,
+    errOut,
+    argv: process.argv,
+    exit: process.exit,
+  };
+}
+
+/** Print hooks for the extracted report command (deckctl_report.ts). */
+function reportHooks(): ReportPrintHooks {
+  return { jsonMode: JSON_MODE, log, errOut, exit: process.exit };
 }
 
 /** Print hooks for the extracted search command (deckctl_search.ts). */
@@ -63,10 +79,6 @@ function searchHooks(): SearchPrintHooks {
 type DriveWithBadges = Drive & {
   badges?: { label: string; tone: string }[];
 };
-interface ReportPayload {
-  overall?: string;
-  checks?: HealthCheck[];
-}
 
 function spinFrame(): string {
   const t = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -157,7 +169,13 @@ async function cmdPreflight(): Promise<void> {
   for (const d of r.drives) {
     if (!d.drive.mounted) continue;
     const dot =
-      d.overall === "ready" ? "🟢" : d.overall === "not-ready" ? "🔴" : d.overall === "attention" ? "🟡" : "⚪";
+      d.overall === "ready"
+        ? "🟢"
+        : d.overall === "not-ready"
+          ? "🔴"
+          : d.overall === "attention"
+            ? "🟡"
+            : "⚪";
     log(`${dot} ${d.drive.nickname ?? d.drive.name} — ${d.overall}`);
     for (const c of d.checks) {
       log(`  ${icon[c.status]} ${c.label}: ${c.detail ?? ""}`);
@@ -212,7 +230,9 @@ async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
   }
   for (const p of payloads) {
     if (p.unknown) {
-      log(`${p.drive.nickname ?? p.drive.name}: no scan data — run a full scan`);
+      log(
+        `${p.drive.nickname ?? p.drive.name}: no scan data — run a full scan`,
+      );
       continue;
     }
     log(
@@ -221,27 +241,6 @@ async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
     );
     log(`  ✓ ${p.ok.map((x) => x.name).join(", ")}`);
     for (const b of p.blocked) log(`  ✕ ${b.player.name} — ${b.reason}`);
-  }
-}
-
-async function cmdReport(nameOrId: string): Promise<void> {
-  const d = await resolveDrive(nameOrId);
-  if (!d) {
-    errOut(`unknown drive: ${nameOrId}`);
-    process.exit(2);
-  }
-  const r = await getJson<ReportPayload>(`/api/drives/${d.id}/report`);
-  if (JSON_MODE) {
-    console.log(JSON.stringify(r, null, 2));
-    return;
-  }
-  const checks = r.checks ?? [];
-  const icon = { pass: "✓", warn: "▲", fail: "✕", unknown: "○" };
-  log(`drive: ${d.nickname ?? d.name}  overall: ${r.overall ?? "?"}`);
-  log("");
-  for (const c of checks) {
-    log(`${icon[c.status]} ${c.label}: ${c.detail}`);
-    if (c.fix) log(`   → ${c.fix}`);
   }
 }
 
@@ -421,7 +420,13 @@ async function cmdJobs(): Promise<void> {
   for (const j of jobs.slice(0, 15)) {
     const pct = Math.round(j.progress * 100);
     const status =
-      j.status === "running" ? "◌" : j.status === "done" ? "✓" : j.status === "failed" ? "✕" : "·";
+      j.status === "running"
+        ? "◌"
+        : j.status === "done"
+          ? "✓"
+          : j.status === "failed"
+            ? "✕"
+            : "·";
     // O87: origin rides along so agent-initiated jobs are visible in the CLI
     const originTag = j.origin && j.origin !== "web" ? ` [${j.origin}]` : "";
     log(
@@ -550,9 +555,8 @@ async function cmdCancel(jobId: string): Promise<void> {
 
 // ---- prep (O83): the weekly digest — fetch, render, write -------------------
 async function cmdPrep(outPath: string | undefined): Promise<void> {
-  const { fetchWeeklyPrepInput, renderWeeklyPrep } = await import(
-    "./weekly_prep"
-  );
+  const { fetchWeeklyPrepInput, renderWeeklyPrep } =
+    await import("./weekly_prep");
   const digestIn = await fetchWeeklyPrepInput(getJson);
   const md = renderWeeklyPrep(digestIn);
   if (JSON_MODE) {
@@ -691,13 +695,23 @@ async function main(): Promise<void> {
           : undefined,
       );
     case "note":
-      return cmdNote(noteHooks(), args[1] ?? usage(), (args[2] ?? "").trim() || usage());
+      return cmdNote(
+        noteHooks(),
+        args[1] ?? usage(),
+        (args[2] ?? "").trim() || usage(),
+      );
     case "notes":
       return cmdNotes(noteHooks(), args[1]);
     case "search":
       return cmdSearch(searchHooks(), args[1] ?? usage());
     case "report":
-      return cmdReport(args[1] ?? usage());
+      return cmdReport(reportHooks(), args[1] ?? usage(), process.argv);
+    case "rename":
+      return cmdRename(
+        noteHooks(),
+        args[1] ?? usage(),
+        args.slice(2).join(" ") || null,
+      );
     case "players":
       return cmdPlayers(args[1]);
     case "run":
@@ -740,7 +754,8 @@ function usage(): never {
       "",
       "  status                        rekordbox lock + all drives + active jobs",
       "  drives                        list drives with badge verdicts",
-      "  report <drive>                health-check dossier (drive = name, nickname, or UUID)",
+      "  report <drive>                health-check dossier (drive = name, nickname, or UUID; --dossier = full export bundle, --out FILE writes it)",
+      "  rename <drive> [nickname]      set/clear the display nickname (omit = clear)",
       "  run <drive> <kind>            enqueue + follow a job (scan|verify|mirror|benchmark|checksum)",
       "  coverage [min-copies]         which tracks live on which drives + at-risk list",
       "  redundancy [min-copies]       per-playlist audit: every track on ≥N drives?",

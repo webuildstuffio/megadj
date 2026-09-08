@@ -36,9 +36,7 @@ export async function cmdSearch(
     h.errOut("usage: deckctl search <query>");
     h.exit(2);
   }
-  const res = await apiGet(
-    `/api/search?q=${encodeURIComponent(q)}`,
-  );
+  const res = await apiGet(`/api/search?q=${encodeURIComponent(q)}`);
   const hits = (await res.json()) as SearchHit[];
   if (h.jsonMode) {
     console.log(JSON.stringify({ query: q, hits }, null, 2));

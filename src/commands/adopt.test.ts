@@ -38,12 +38,12 @@ describe("adopt (vanished-file resilience)", () => {
       onProgress: (m) => logs.push(m),
     });
 
-    expect(
-      state.allTracks().find((t) => t.video_id === "v1")?.status,
-    ).toBe("downloaded");
-    expect(
-      state.allTracks().find((t) => t.video_id === "v2")?.status,
-    ).toBe("pending");
+    expect(state.allTracks().find((t) => t.video_id === "v1")?.status).toBe(
+      "downloaded",
+    );
+    expect(state.allTracks().find((t) => t.video_id === "v2")?.status).toBe(
+      "pending",
+    );
     expect(logs.some((m) => m.includes("adopted 1 file(s)"))).toBe(true);
   });
 

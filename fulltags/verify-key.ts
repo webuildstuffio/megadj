@@ -17,7 +17,15 @@ import { basename, extname, join } from "node:path";
 import { analyzeKeys } from "./src/analysis";
 import { groundTruth } from "./src/readers";
 
-const AUDIO = new Set([".mp3", ".wav", ".aiff", ".aif", ".flac", ".m4a", ".m4b"]);
+const AUDIO = new Set([
+  ".mp3",
+  ".wav",
+  ".aiff",
+  ".aif",
+  ".flac",
+  ".m4a",
+  ".m4b",
+]);
 
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -109,7 +117,10 @@ function main() {
   const limit = limIdx >= 0 ? parseInt(args[limIdx + 1] ?? "20", 10) : 20;
   const refsIdx = args.indexOf("--refs");
   const targets = args.filter(
-    (a) => !a.startsWith("--") && a !== String(limit) && (refsIdx < 0 || a !== args[refsIdx + 1]),
+    (a) =>
+      !a.startsWith("--") &&
+      a !== String(limit) &&
+      (refsIdx < 0 || a !== args[refsIdx + 1]),
   );
   const files: string[] = [];
   for (const t of targets) {
@@ -138,7 +149,10 @@ function main() {
       console.error(`--refs: file not found: ${p}`);
       process.exit(2);
     }
-    externalRefs = JSON.parse(readFileSync(p, "utf8")) as Record<string, string>;
+    externalRefs = JSON.parse(readFileSync(p, "utf8")) as Record<
+      string,
+      string
+    >;
   }
 
   const refs = new Map<string, string | null>();
@@ -148,7 +162,9 @@ function main() {
 
   const withRefs = sample.filter((f) => refs.get(f));
   const t0 = Date.now();
-  const results = withRefs.length ? analyzeKeys(withRefs) : Promise.resolve(new Map());
+  const results = withRefs.length
+    ? analyzeKeys(withRefs)
+    : Promise.resolve(new Map());
   void results.then((keys) => {
     const rows = withRefs.map((f) => {
       const ref = toCamelot(refs.get(f)!);
@@ -191,7 +207,8 @@ function main() {
         `analyzed ${analyzed} (skipped ${sample.length - analyzed} without existing key tags)`,
       );
       for (const r of rows) {
-        const mark = r.verdict === "match" ? "✓" : r.verdict === "near" ? "~" : "✗";
+        const mark =
+          r.verdict === "match" ? "✓" : r.verdict === "near" ? "~" : "✗";
         console.log(
           ` ${mark} ${r.file.padEnd(40)} ref=${String(r.ref).padEnd(8)} got=${String(r.got).padEnd(4)} (${r.verdict})`,
         );

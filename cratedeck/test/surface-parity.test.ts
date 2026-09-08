@@ -35,10 +35,7 @@ function deckctlVerbs(): string[] {
  *  module (both are part of the server's tool census; the module's keys sit
  *  one level deeper — 4 spaces — inside its factory). */
 function mcpTools(): string[] {
-  const files = [
-    "cratedeck/src/mcp.ts",
-    "cratedeck/src/archive_tools.ts",
-  ];
+  const files = ["cratedeck/src/mcp.ts", "cratedeck/src/archive_tools.ts"];
   const tools = files
     .flatMap((f) =>
       read(f).map((l) => l.match(/^\s{2,4}((?:deck|archive)_[a-z_]+):/)),
@@ -75,7 +72,8 @@ function canonicalJobKinds(): string[] {
     .split(",")
     .map((s) => s.trim().replace(/['"]/g, ""))
     .filter(Boolean);
-  if (kinds.length === 0) throw new Error("could not parse job kinds from deckctl.ts");
+  if (kinds.length === 0)
+    throw new Error("could not parse job kinds from deckctl.ts");
   return [...new Set(kinds)].sort();
 }
 
@@ -89,14 +87,16 @@ const VERB_EXEMPTIONS: Record<string, string> = {
 /** MCP tools with no deckctl verb, with exemption tags. */
 const TOOL_EXEMPTIONS: Record<string, string> = {
   // readonly archive reads are agent-surface by design (doc §4-A3)
-  archive_search_tracks: "A3 — archive reads are agent-facing, not CLI-verb-shaped",
+  archive_search_tracks:
+    "A3 — archive reads are agent-facing, not CLI-verb-shaped",
   archive_track_stats: "A3",
   archive_ingest_status: "A3",
   archive_lowq_queue: "A3",
   archive_source_diff: "A3",
   archive_grid_cross_check: "A3",
   archive_mood_profile: "A3",
-  archive_sweep: "A3 (also folded into deckctl prep via the D30 digest section)",
+  archive_sweep:
+    "A3 (also folded into deckctl prep via the D30 digest section)",
 };
 
 /** UI job buttons exempt from existing (none today; mirror closes GAP-1). */
@@ -109,11 +109,11 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // keep this file and the doc honest about each other
     const verbs = deckctlVerbs();
     const tools = mcpTools();
-    expect(verbs.length).toBeGreaterThanOrEqual(17);
-    expect(tools.length).toBeGreaterThanOrEqual(24);
+    expect(verbs.length).toBeGreaterThanOrEqual(18);
+    expect(tools.length).toBeGreaterThanOrEqual(25);
     const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
-    expect(doc).toContain("| 17 verbs |");
-    expect(doc).toContain("| 24 tools |");
+    expect(doc).toContain("| 18 verbs |");
+    expect(doc).toContain("| 25 tools |");
   });
 
   test("every deckctl verb has an MCP twin or a registered exemption", () => {
@@ -158,7 +158,12 @@ describe("surface parity (docs/surface-parity.md)", () => {
 
   test("mutating MCP tools are flagged destructive + interlock-guarded", () => {
     const src = readFileSync(join(ROOT, "cratedeck/src/mcp.ts"), "utf8");
-    for (const tool of ["deck_run", "deck_cancel", "deck_note"]) {
+    for (const tool of [
+      "deck_run",
+      "deck_cancel",
+      "deck_note",
+      "deck_rename",
+    ]) {
       const def = src.split(`${tool}: {`)[1]?.split(/\n\s{2}\}/)[0] ?? "";
       expect(def.length, `${tool} definition found`).toBeGreaterThan(0);
       expect(def, `${tool} must carry destructive: true`).toContain(
@@ -179,11 +184,17 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // an exemption for a verb/tool that no longer exists is stale — prune it
     const verbs = new Set(deckctlVerbs());
     for (const v of Object.keys(VERB_EXEMPTIONS)) {
-      expect(verbs.has(v), `stale verb exemption: "${v}" no longer exists`).toBe(true);
+      expect(
+        verbs.has(v),
+        `stale verb exemption: "${v}" no longer exists`,
+      ).toBe(true);
     }
     const tools = new Set(mcpTools());
     for (const t of Object.keys(TOOL_EXEMPTIONS)) {
-      expect(tools.has(t), `stale tool exemption: "${t}" no longer exists`).toBe(true);
+      expect(
+        tools.has(t),
+        `stale tool exemption: "${t}" no longer exists`,
+      ).toBe(true);
     }
     for (const k of Object.keys(UI_KIND_EXEMPTIONS)) {
       expect(

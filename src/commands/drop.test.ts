@@ -48,9 +48,7 @@ describe("megadj drop (K61 one-shot pipeline)", () => {
         // on zero candidates → must still complete without spawning
       });
       expect(code).toBe(0);
-      const parsed = JSON.parse(
-        stdout.trim().split("\n").at(-1) ?? "",
-      ) as {
+      const parsed = JSON.parse(stdout.trim().split("\n").at(-1) ?? "") as {
         command: string;
         ok: boolean;
         stages: { stage: string; status: string }[];
@@ -78,9 +76,10 @@ describe("megadj drop (K61 one-shot pipeline)", () => {
         env,
       );
       expect(code).toBe(1);
-      const parsed = JSON.parse(
-        stdout.trim().split("\n").at(-1) ?? "",
-      ) as { ok: boolean; stages: { stage: string; status: string }[] };
+      const parsed = JSON.parse(stdout.trim().split("\n").at(-1) ?? "") as {
+        ok: boolean;
+        stages: { stage: string; status: string }[];
+      };
       expect(parsed.ok).toBe(false);
       expect(parsed.stages[0]?.stage).toBe("download");
       expect(parsed.stages[0]?.status).toBe("failed");

@@ -7,14 +7,18 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 2 · 2026-09-07 · census taken from source the same day (every count
+Rev 3 · 2026-09-07 · census taken from source the same day (every count
 below re-derived from `src/cli.ts`, `cratedeck/src/deckctl.ts`,
 `cratedeck/src/mcp.ts` + `archive_tools.ts`, `cratedeck/src/index.ts`,
-`cratedeck/web/*.tsx`). **Same-day enforcement pass:** GAP-1/2/3 closed
-(UI Mirror button, `deck_prep` tool, `deckctl note|notes` verbs); the
-rev-2 pass closed G1 (Fleet ⌗ Preflight tab) and F2 (`deckctl search` +
-`deck_search`) — the surface set is now genuinely complete pending new
-capabilities. `cratedeck/test/surface-parity.test.ts` keeps it that way.
+`cratedeck/web/*.tsx`). **Rev 2** closed GAP-1/2/3 (UI Mirror button,
+`deck_prep` tool, `deckctl note|notes` verbs), G1 (Fleet ⌗ Preflight
+tab), F2 (`deckctl search` + `deck_search`). **Rev 3 closed every
+remaining closeable exemption:** D1 (`report --dossier` +
+`deck_report {format: "dossier"}`), D2-rename (`deckctl rename` +
+`deck_rename`), G2 (Fleet ⌗ Prep tab), A3 (Fleet ⌗ Archive tab). What
+remains in §4 is physically principled — host process control, photo
+upload, and archive mutation safety rails. `cratedeck/test/
+surface-parity.test.ts` keeps it that way.
 
 ---
 
@@ -23,8 +27,8 @@ capabilities. `cratedeck/test/surface-parity.test.ts` keeps it that way.
 | Surface | Entry points | Count |
 | --- | --- | --- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 18 commands (17 + `--help`) |
-| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 17 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 24 tools |
+| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 18 verbs |
+| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 25 tools |
 | HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~31 routes |
 | Web UI | `cratedeck/web/` (hash-routed pages) | 4 pages, ~22 actions |
 
@@ -54,7 +58,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Cancel job | `cancel <id>` ✅ | `deck_cancel` ✅ | JobsDock cancel ✅ | — |
 | Stop server | `stop` ✅ | ⛔ §4-P1 (clients don't kill hosts) | ⛔ §4-P2 | — |
 | Verify doc (explain) | `explain [kind]` ✅ | `deck_explain` ✅ | VerifyTab help ✅ | — |
-| Export dossier | `report` text ⛔ §4-D1 | ⛔ §4-D1 | Export button ✅ | — |
+| Export dossier | `report --dossier [--out F]` ✅ | `deck_report {format:"dossier"}` ✅ | Export button ✅ | — (D1 closed rev 3) |
 
 ### 2b. Fleet queries
 
@@ -72,7 +76,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | --- | --- | --- | --- | --- |
 | Preflight verdict | `preflight` ✅ | `deck_preflight` ✅ | Fleet ⌗ Preflight tab ✅ | — (G1 closed) |
 | Player compat | `players [d]` ✅ | `deck_players` ✅ | Preflight tab (per-drive expand) ✅ | — (G1 closed) |
-| Weekly digest | `prep [--out]` ✅ | `deck_prep` ✅ (markdown; `--out` stays CLI) | ⛔ §4-G2 | — (GAP-2 closed) |
+| Weekly digest | `prep [--out]` ✅ | `deck_prep` ✅ (markdown; `--out` stays CLI) | Fleet ⌗ Prep tab ✅ | — (G2 closed rev 3) |
 | Agent notes feed | `note`/`notes` ✅ | `deck_note`/`deck_notes` ✅ | Timeline cards ✅ | — (GAP-3 closed) |
 | Job attribution (O87) | jobs show `[origin]` ✅ | stamps `mcp:<session>` ✅ | timeline chips ✅ | — |
 
@@ -85,13 +89,14 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | beats / mood / cues | ✅ | ⛔ §4-A1 | ⛔ §4-A1 | — |
 | organize | ✅ | ⛔ §4-A1 | ⛔ §4-A1 | — |
 | doctor / init | ✅ | ⛔ §4-A2 (host setup is human work) | ⛔ §4-A2 | — |
-| Archive search | `megadj list` ✅ | `archive_search_tracks` ✅ | ⛔ §4-A3 (crate-side ⌘K covers browse) | — |
-| Track stats | `status`/`list` ✅ | `archive_track_stats` ✅ | ⛔ §4-A3 | — |
-| Ingest status / LOWQ queue | `list LOWQ` ✅ | `archive_ingest_status`/`lowq_queue` ✅ | ⛔ §4-A3 | — |
-| Source diff | — | `archive_source_diff` ✅ | ⛔ §4-A3 | — |
-| Grid cross-check | `megadj beats` data ✅ | `archive_grid_cross_check` ✅ | ⛔ §4-A3 | — |
-| Mood profile | `megadj mood` data ✅ | `archive_mood_profile` ✅ | ⛔ §4-A3 | — |
-| Rename drive / set photo | — | ⛔ §4-D2 | inline rename + Photo tab ✅ | — |
+| Archive search | `megadj list` ✅ | `archive_search_tracks` ✅ | ⌘K + Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
+| Track stats | `status`/`list` ✅ | `archive_track_stats` ✅ | Fleet ⌗ Archive (mood/grid cards) ✅ | — (A3 closed rev 3) |
+| Ingest status / LOWQ queue | `list LOWQ` ✅ | `archive_ingest_status`/`lowq_queue` ✅ | Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
+| Source diff | — | `archive_source_diff` ✅ | ⛔ §4-F1-adjacent (diff-shaped read; rides `deck_diff`'s pattern) | — |
+| Grid cross-check | `megadj beats` data ✅ | `archive_grid_cross_check` ✅ | Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
+| Mood profile | `megadj mood` data ✅ | `archive_mood_profile` ✅ | Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
+| Rename drive | `rename <d> [nick]` ✅ | `deck_rename` ✅ | inline rename ✅ | — (D2-rename closed rev 3) |
+| Set drive photo | — | ⛔ §4-D2 (human picks the art) | Photo tab ✅ | — |
 
 ## 3. True gaps (action list)
 
@@ -118,6 +123,24 @@ stays as the record of what was missing and why it mattered:**
 - **GAP-5 (rev 2) — global search had no CLI/MCP twins (CLOSED, was
   exemption F2).** `deckctl search <q>` (`deckctl_search.ts`) +
   `deck_search {q}` over the same `GET /api/search` the ⌘K topbar uses.
+- **GAP-6 (rev 3) — dossier export had no CLI/MCP twins (CLOSED, was
+  exemption D1).** `deckctl report <d> --dossier [--out FILE]` +
+  `deck_report {format: "dossier"}` return the exact `GET /drives/:id/
+export` bundle the UI's Export button streams.
+- **GAP-7 (rev 3) — drive rename had no CLI/MCP twins (CLOSED, was
+  exemption D2's rename half).** `deckctl rename <d> [nickname]` +
+  `deck_rename` over the same `POST /drives/:id/name` the UI dialog
+  uses. Photo upload stays UI-only — a human picks the art.
+- **GAP-8 (rev 3) — weekly digest had no UI (CLOSED, was exemption
+  G2).** A Prep tab on the Fleet page renders the same markdown at
+  `GET /api/fleet/prep` (server-rendered from the identical
+  `fetchWeeklyPrepInput` seam `deckctl prep`/`deck_prep` use), with
+  copy + `.md` download.
+- **GAP-9 (rev 3) — archive reads had no UI (CLOSED, was exemption
+  A3).** An Archive tab on the Fleet page: ingest status (counts +
+  recent runs), mood profile (averages + extremes), LOWQ queue, grid
+  cross-check verdicts — the same four readonly routes the MCP tools
+  read, degrading to "not available" identically.
 
 ## 4. Deliberate exemptions (the whitelist)
 
@@ -129,17 +152,15 @@ this table AND the enforcement test together (that's the point).
   obviously can't stop itself. Localhost operator only.
 - **P2 — UI can't stop itself** (same reasoning, explicit row so the
   test doesn't flag it from the other direction).
-- **D1 — dossier export is UI/download-shaped.** `GET /drives/:id/export`
-  streams a file; CLI/MCP users get the same content via `report`. A
-  future `deck_report {format: "dossier"}` would close this if it ever
-  matters.
-- **D2 — drive rename/photo are human-in-the-loop UI actions.** MCP
-  deliberately lacks them (agents don't pick cover photos; O86 rails).
+- **D1 — CLOSED (rev 3, GAP-6).** `report --dossier` / `deck_report
+  {format: "dossier"}` now stream the same export bundle as the UI.
+- **D2 — photo half remains: a human picks cover art** (agents don't
+  choose aesthetics; O86 rails). The rename half closed rev 3
+  (`deckctl rename` + `deck_rename`).
 - **F1 — track-locations detail rides `coverage`'s output**; no
   separate MCP tool (same data, one shape).
-- **G2 — weekly digest UI is deliberately absent** (`prep` is a
-  terminal-shaped artifact; the UI surfaces its inputs — the Preflight
-  tab (rev 2) + redundancy — live).
+- **G2 — CLOSED (rev 3, GAP-8).** The Fleet ⌗ Prep tab renders the
+  digest.
 - **A1 — archive mutation stays CLI-only.** `sync`/`ingest`/`fetch`/
   `beats`/`mood`/`cues`/`organize`/`upgrade` are long-running,
   file-mutating pipeline stages; MCP's archive half is **readonly by
@@ -149,11 +170,9 @@ this table AND the enforcement test together (that's the point).
   CLI + skills, which is the P1 contract (`--json` everywhere).
 - **A2 — doctor/init are host setup**, not library operations; they
   scaffold config and check the local machine. No UI/MCP sense.
-- **A3 — archive read tools are agent-facing, not UI-facing.** The UI
-  is drive-centric; archive browsing/query belongs to agents (MCP) and
-  operators (CLI). A future "library" page would revisit this. (The D30
-  sweep rides the same rule: `archive_sweep` MCP tool + the `deckctl
-  prep` digest section — no standalone UI card.)
+- **A3 — CLOSED (rev 3, GAP-9).** The Fleet ⌗ Archive tab serves the
+  read tools' data (ingest status, mood profile, LOWQ, grid
+  cross-check); ⌘K covers track search.
 
 ## 5. Enforcement — how the parity rule can't rot
 

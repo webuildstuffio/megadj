@@ -40,9 +40,7 @@ export interface StoredNote {
 
 /** Validate + clamp a note. Throws RpcParamError-style Error on garbage —
  *  the caller maps it to a clean tool error. Returns the normalized fields. */
-export function normalizeNote(
-  input: NoteInput,
-): {
+export function normalizeNote(input: NoteInput): {
   drive_id: string;
   note: string;
   origin: string;
@@ -53,7 +51,9 @@ export function normalizeNote(
   const text = input.note?.trim();
   if (!text) throw new Error("note is required");
   if (text.length > NOTE_MAX)
-    throw new Error(`note too long (max ${NOTE_MAX} chars, got ${text.length})`);
+    throw new Error(
+      `note too long (max ${NOTE_MAX} chars, got ${text.length})`,
+    );
   const origin = (input.origin ?? "mcp").trim().slice(0, ORIGIN_MAX) || "mcp";
   const severity =
     input.severity === "warn" || input.severity === "critical"
@@ -99,8 +99,7 @@ export function noteFromEvent(row: {
     id: row.id,
     drive_id: row.drive_id,
     note: text,
-    origin:
-      typeof row.data["origin"] === "string" ? row.data["origin"] : "mcp",
+    origin: typeof row.data["origin"] === "string" ? row.data["origin"] : "mcp",
     severity:
       row.data["severity"] === "warn" || row.data["severity"] === "critical"
         ? row.data["severity"]
@@ -145,11 +144,7 @@ function parseNoteRow(row: NoteEventRow): StoredNote | null {
 /** The slice of DB the note store needs: the event() writer plus the raw
  *  sqlite handle (readonly public field on DB). */
 export interface NotesStore {
-  event(
-    driveId: string,
-    kind: string,
-    data?: Record<string, unknown>,
-  ): void;
+  event(driveId: string, kind: string, data?: Record<string, unknown>): void;
   readonly sqlite: {
     query(sql: string): {
       all(...p: unknown[]): unknown[];

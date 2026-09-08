@@ -90,27 +90,24 @@ describe("bug 2: failed writes leave no tmp files", () => {
 });
 
 describe("bug 3: m4a stamps survive write + read-back", () => {
-  test(
-    "writePatchSync on m4a persists energy/AI stamps (mutagen)",
-    async () => {
-      const p = await makeFile("stamps.m4a");
-      expect(
-        writePatchSync(p, {
-          title: "Stamped",
-          energy: 7,
-          aiGenre: "Techno|0.9",
-          aiYear: "2024|0.8",
-          bpm: 174,
-          remixer: "Flozone",
-        }),
-      ).toBe(true);
-      // readTxxx must see the freeform atoms — a pipeline re-run then
-      // treats the stamps as present (m4a idempotency restored).
-      const ai = readAiStamps(p);
-      expect(ai.aiGenre).toBe("Techno|0.9");
-      expect(ai.aiYear).toBe("2024|0.8");
-    },
-  );
+  test("writePatchSync on m4a persists energy/AI stamps (mutagen)", async () => {
+    const p = await makeFile("stamps.m4a");
+    expect(
+      writePatchSync(p, {
+        title: "Stamped",
+        energy: 7,
+        aiGenre: "Techno|0.9",
+        aiYear: "2024|0.8",
+        bpm: 174,
+        remixer: "Flozone",
+      }),
+    ).toBe(true);
+    // readTxxx must see the freeform atoms — a pipeline re-run then
+    // treats the stamps as present (m4a idempotency restored).
+    const ai = readAiStamps(p);
+    expect(ai.aiGenre).toBe("Techno|0.9");
+    expect(ai.aiYear).toBe("2024|0.8");
+  });
 
   test("writePatch async m4a round-trips standard tags", async () => {
     const p = await makeFile("rt.m4a");

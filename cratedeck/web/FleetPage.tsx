@@ -14,12 +14,16 @@ import { api, toast } from "./toast";
 import { Icon } from "./icons";
 import { navigateFleet } from "./router";
 import { PreflightTab } from "./PreflightTab";
+import { PrepTab } from "./PrepTab";
+import { ArchiveTab } from "./ArchiveTab";
 
 const TABS = [
   { id: "coverage", label: "Coverage", icon: "grid" },
   { id: "redundancy", label: "Redundancy", icon: "shield" },
   { id: "diff", label: "Diff", icon: "sort" },
   { id: "preflight", label: "Preflight", icon: "bolt" },
+  { id: "archive", label: "Archive", icon: "doc" },
+  { id: "prep", label: "Prep", icon: "doc" },
 ] as const;
 
 type DriveRef = { id: string; name: string; mounted?: boolean };
@@ -67,6 +71,8 @@ export function FleetPage(props: { tab: string }) {
       {tab === "redundancy" && <RedundancyTab />}
       {tab === "diff" && <DiffTab />}
       {tab === "preflight" && <PreflightTab />}
+      {tab === "archive" && <ArchiveTab />}
+      {tab === "prep" && <PrepTab />}
     </div>
   );
 }

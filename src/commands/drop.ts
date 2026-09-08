@@ -148,7 +148,11 @@ export async function drop(opts: DropOptions): Promise<void> {
       log,
     );
   } else {
-    stages.push({ stage: "ingest", status: "skipped", detail: "download failed" });
+    stages.push({
+      stage: "ingest",
+      status: "skipped",
+      detail: "download failed",
+    });
   }
 
   // Stage 2 — beats ledger (beat_this → DB; no tag writes).

@@ -24,6 +24,7 @@
  *   deck_players {drive?}       which players can read each stick (N75/N78)
  *   deck_note {drive, note}     RECORD a finding on a drive timeline (O88)
  *   deck_notes {drive?}         active agent findings (O88, readonly)
+ *   deck_rename {drive, nickname?} set/clear the display nickname (mutating)
  *   archive_search_tracks {q}   search the archive (O82b, readonly)
  *   archive_track_stats {video_id}  one track's full archive row
  *   archive_ingest_status       counts + recent runs + newest tracks
@@ -187,7 +188,7 @@ const TOOLS: Record<string, ToolDef> = {
 
   deck_report: {
     description:
-      "Full health dossier for one drive: dual-DB hardware gate, beatgrid coverage, bitrot (checksum ledger), space, mirror parity — with an overall verdict. Drive = volume name, nickname, or id.",
+      "Full health dossier for one drive: dual-DB hardware gate, beatgrid coverage, bitrot (checksum ledger), space, mirror parity — with an overall verdict. format=dossier returns the export bundle (drive + snapshot + sync + report + timeline + benchmarks). Drive = volume name, nickname, or id.",
     inputSchema: {
       type: "object",
       properties: {
@@ -195,12 +196,20 @@ const TOOLS: Record<string, ToolDef> = {
           type: "string",
           description: "volume name, nickname, or drive id",
         },
+        format: {
+          type: "string",
+          enum: ["report", "dossier"],
+          description:
+            "report (default) = health checks; dossier = full export bundle",
+        },
       },
       required: ["drive"],
       additionalProperties: false,
     },
     run: async (args) => {
       const d = await needDrive(str(args, "drive"));
+      if (str(args, "format") === "dossier")
+        return apiGet(`/api/drives/${d.id}/export`).then((r) => r.json());
       return apiGet(`/api/drives/${d.id}/report`).then((r) => r.json());
     },
   },
@@ -487,6 +496,39 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
+  deck_rename: {
+    description:
+      "RENAMES A DRIVE (mutating): set or clear the display nickname shown across the UI, deckctl, and MCP. Pass an empty string or omit nickname to clear. Confirm with the human before calling — this is a human-facing label.",
+    destructive: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        drive: {
+          type: "string",
+          description: "volume name, nickname, or id",
+        },
+        nickname: {
+          type: "string",
+          description: "new display name (empty/omitted = clear)",
+        },
+      },
+      required: ["drive"],
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const d = await needDrive(str(args, "drive"));
+      const nickname = str(args, "nickname")?.trim() || null;
+      const res = await apiPost(`/api/drives/${d.id}/name`, { nickname });
+      if (!res.ok) {
+        const body = (await res.json()) as { error?: string };
+        throw new RpcParamError(
+          body.error ?? `rename rejected (${res.status})`,
+        );
+      }
+      return { ok: true, drive: d.name, nickname };
+    },
+  },
+
   deck_notes: {
     description:
       "Active agent findings for a drive (or all drives): notes landed via deck_note that a human has not dismissed. Read-only.",
@@ -534,9 +576,8 @@ const TOOLS: Record<string, ToolDef> = {
     run: async () => {
       // same fetch-and-render seam as deckctl cmdPrep (one implementation,
       // two spokes — surface-parity.md GAP-2 closed)
-      const { fetchWeeklyPrepInput, renderWeeklyPrep } = await import(
-        "./weekly_prep"
-      );
+      const { fetchWeeklyPrepInput, renderWeeklyPrep } =
+        await import("./weekly_prep");
       const getJson = <T>(path: string) =>
         apiGet(path).then((r) => r.json() as Promise<T>);
       const input = await fetchWeeklyPrepInput(getJson);

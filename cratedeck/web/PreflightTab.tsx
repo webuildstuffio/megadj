@@ -115,10 +115,7 @@ export function PreflightTab() {
   return (
     <div class="preflight">
       <div class={`note ${VERDICT_TONE[data.overall] ?? ""}`}>
-        <Icon
-          name={VERDICT_ICON[data.overall] ?? "dot"}
-          size={16}
-        />{" "}
+        <Icon name={VERDICT_ICON[data.overall] ?? "dot"} size={16} />{" "}
         <strong>{data.overall}</strong> — {data.summary} ({data.mountedCount}{" "}
         mounted)
       </div>

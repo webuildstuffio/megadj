@@ -12,6 +12,7 @@ import { driveBadgesView } from "./badges_view";
 import { buildReport, buildReportSummary, overall } from "./report";
 import { VERIFY_HELP } from "./verify_help";
 import { coverage, redundancy, diff, trackLocations } from "./fleet";
+import { fetchWeeklyPrepInput, renderWeeklyPrep } from "./weekly_prep";
 import { ArchiveReader } from "./archive";
 import { buildPreflight, type PreflightInput } from "./preflight";
 import { driveCompatibility, playersFromConfig } from "./players";
@@ -26,7 +27,12 @@ import {
   shouldAutoVerify,
   autoVerifyReason,
 } from "./auto_schedule";
-import type { Drive, JobKind, NoteSeverity, SnapshotData } from "../shared/types";
+import type {
+  Drive,
+  JobKind,
+  NoteSeverity,
+  SnapshotData,
+} from "../shared/types";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
@@ -476,6 +482,19 @@ Bun.serve({
           );
           return json(result);
         }
+        // ---- weekly prep digest (O83): the markdown brief, server-rendered
+        if (route === "/fleet/prep") {
+          try {
+            const input = await fetchWeeklyPrepInput(async (p: string) => {
+              const r = await fetch(`http://127.0.0.1:${cfg.serverPort}${p}`);
+              if (!r.ok) throw new Error(`${p} → ${r.status}`);
+              return r.json();
+            });
+            return json({ markdown: renderWeeklyPrep(input) });
+          } catch (e) {
+            return json({ error: String(e) }, 500);
+          }
+        }
         // ---- archive reads (O82b): megadj's DB, readonly -----------------
         if (route === "/archive/search") {
           const q = (url.searchParams.get("q") ?? "").trim();
@@ -503,12 +522,25 @@ Bun.serve({
         // Independent beatgrid cross-check (roadmap §2/#2): beat_this
         // ledger vs RB BPM×duration. Read-only over the archive DB.
         if (route === "/archive/grid-cross-check") {
-          return json(archive.gridCrossCheck());
+          const lim = url.searchParams.get("limit");
+          const limit = lim ? parseInt(lim, 10) : undefined;
+          return json(
+            Number.isFinite(limit)
+              ? archive.gridCrossCheck(limit)
+              : archive.gridCrossCheck(),
+          );
         }
         // Mood/dance/valence profile (roadmap #4): aggregate + extremes
-        // over the mood ledger. Read-only over the archive DB.
+        // over the mood ledger. Read-only over the archive DB. `limit`
+        // (default 5, max 25) sizes the per-dimension extremes lists.
         if (route === "/archive/mood") {
-          return json(archive.moodProfile());
+          const lim = url.searchParams.get("limit");
+          const limit = lim ? parseInt(lim, 10) : undefined;
+          return json(
+            Number.isFinite(limit)
+              ? archive.moodProfile(limit)
+              : archive.moodProfile(),
+          );
         }
         // D30 archive-integrity sweep: blake2b the music tree vs the archive
         // DB + CrateDeck-side known-good ledger. READ-ONLY on both the tree
@@ -516,9 +548,8 @@ Bun.serve({
         // own db. Long enough (~15s / 88 files) that it must not block the
         // event loop — the engine hashes file-by-file with await.
         if (route === "/archive/sweep") {
-          const { sweepArchive, tracksForSweep } = await import(
-            "./archive_sweep"
-          );
+          const { sweepArchive, tracksForSweep } =
+            await import("./archive_sweep");
           const report = await sweepArchive(
             cfg.musicDir,
             tracksForSweep(archive),
