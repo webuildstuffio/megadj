@@ -18,24 +18,26 @@
     "deckctl": "bun run cratedeck/src/deckctl.ts",
     "mcp": "bun run cratedeck/src/mcp.ts",
     "install:web": "bun install --cwd cratedeck/web --frozen-lockfile",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --pretty false",
     "lint": "oxlint src fulltags cratedeck/src cratedeck/shared cratedeck/web cratedeck/test",
-    "format:check": "prettier --check src tools fulltags cratedeck/src cratedeck/shared cratedeck/web cratedeck/test",
-    "format": "prettier --write src tools fulltags cratedeck/src cratedeck/shared cratedeck/web cratedeck/test",
-    "knip": "bunx knip",
-    "typecov": "bunx type-coverage --detail",
-    "check": "bun run typecheck && bun run lint",
+    "format:check": "prettier --cache --cache-location node_modules/.cache/prettier-cache --cache-strategy content --check src tools fulltags cratedeck/src cratedeck/shared cratedeck/web cratedeck/test",
+    "format": "prettier --cache --cache-location node_modules/.cache/prettier-cache --cache-strategy content --write src tools fulltags cratedeck/src cratedeck/shared cratedeck/web cratedeck/test",
+    "knip": "knip",
+    "typecov": "type-coverage --detail --ignore-tests --threshold 99.5",
+    "check": "bun run typecheck && bun run lint && bun run format:check",
     "check:full": "bun run check && bun test && bun run knip && bun run typecov",
     "test": "bun test",
-    "test:fast": "bun test --exclude cratedeck/test/e2e.test.ts",
+    "test:fast": "bun test --path-ignore-patterns cratedeck/test/e2e.test.ts",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
-    "check:watch": "bun run typecheck -- --watch & bun run lint --watch & wait"
+    "check:watch": "tsc --noEmit --watch --pretty false & bun --watch run lint & wait"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.0",
+    "@types/bun": "^1.4.0",
+    "knip": "^6.34.0",
     "oxlint": "1.81.0",
-    "type-coverage": "^2.29.7",
+    "prettier": "^3.9.6",
+    "type-coverage": "^2.30.1",
     "typescript": "^5.9.0"
   }
 }

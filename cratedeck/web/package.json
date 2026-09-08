@@ -11,8 +11,8 @@
     "preact": "^10.22.0"
   },
   "devDependencies": {
-    "@preact/preset-vite": "^2.9.0",
+    "@preact/preset-vite": "^2.10.6",
     "preact-render-to-string": "^6.7.0",
-    "vite": "^5.4.0"
+    "vite": "^8.2.2"
   }
 }
