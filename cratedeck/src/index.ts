@@ -284,8 +284,10 @@ Bun.serve({
             } catch (e) {
               return json({ error: (e as Error).message }, 400);
             }
-            addAgentNote(db, v);
-            return json({ ok: true });
+            const noteId = addAgentNote(db, v);
+            // O88: return the event id — deck_note / deckctl note --json
+            // promise {id} so callers can cite or dismiss the note later
+            return json({ ok: true, id: noteId });
           }
           const noteMatch = sub?.match(/^\/notes\/([^/]+)\/dismiss$/);
           if (noteMatch?.[1] && req.method === "POST") {

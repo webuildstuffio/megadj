@@ -19,9 +19,12 @@ export interface NotePrintHooks {
 
 interface NoteRow {
   id: string;
+  drive_id?: string;
   note: string;
+  origin?: string;
   severity: string;
-  created_at: number;
+  at: number;
+  dismissed_at?: number | null;
 }
 
 async function getJson<T>(p: string): Promise<T> {
@@ -65,6 +68,8 @@ export async function cmdNotes(
   nameOrId?: string,
 ): Promise<void> {
   if (!nameOrId) {
+    // P1: --json must work on every verb, in every branch (agent-first
+    // contract). One JSON object covering every drive's feed.
     const drives = (await getJson<
       { id: string; name: string; nickname: string | null }[]
     >("/api/drives")) as {
@@ -72,13 +77,17 @@ export async function cmdNotes(
       name: string;
       nickname: string | null;
     }[];
+    const perDrive: { drive: string; notes: NoteRow[] }[] = [];
     for (const d of drives) {
       const notes = (await getJson<NoteRow[]>(
         `/api/drives/${d.id}/notes`,
       ).catch(() => [])) as NoteRow[];
-      for (const n of notes)
-        h.log(`${d.nickname ?? d.name} [${n.severity}] ${n.note}`);
+      perDrive.push({ drive: d.nickname ?? d.name, notes });
+      if (!h.jsonMode)
+        for (const n of notes)
+          h.log(`${d.nickname ?? d.name} [${n.severity}] ${n.note}`);
     }
+    if (h.jsonMode) console.log(JSON.stringify({ notes: perDrive }, null, 2));
     return;
   }
   const d = await resolveDrive(nameOrId);
@@ -94,9 +103,7 @@ export async function cmdNotes(
     return;
   }
   for (const n of notes)
-    h.log(
-      `[${n.severity}] ${n.note} (${new Date(n.created_at).toISOString()})`,
-    );
+    h.log(`[${n.severity}] ${n.note} (${new Date(n.at).toISOString()})`);
   if (!notes.length) h.log("(no active notes)");
 }
 

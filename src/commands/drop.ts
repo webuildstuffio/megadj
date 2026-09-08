@@ -58,6 +58,10 @@ async function downloadUrl(
     "-f",
     "bestaudio/best",
     "--no-playlist",
+    // P1: drop's stdout carries the one-line JSON summary — yt-dlp progress
+    // MUST not inherit into it. stderr is drained to a buffer for errors.
+    "--quiet",
+    "--no-warnings",
     "-o",
     `${musicDir}/%(title)s.%(ext)s`,
   ];
@@ -65,7 +69,11 @@ async function downloadUrl(
   else if (opts.cookiesFromBrowser)
     args.push("--cookies-from-browser", opts.cookiesFromBrowser);
   args.push(target);
-  const proc = Bun.spawnSync({ cmd: ["yt-dlp", ...args], stderr: "pipe" });
+  const proc = Bun.spawnSync({
+    cmd: ["yt-dlp", ...args],
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   if (proc.exitCode !== 0) {
     const err = new TextDecoder()
       .decode(proc.stderr)

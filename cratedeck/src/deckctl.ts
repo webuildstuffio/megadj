@@ -50,8 +50,8 @@ const JSON_MODE = process.argv.includes("--json");
 const IS_TTY = process.stderr.isTTY ?? false;
 
 /** Typed JSON reader: `const d = await getJson<Drive[]>(res)`. */
-async function getJson<T>(p: string): Promise<T> {
-  const res = await apiGet(p);
+async function getJson<T>(p: string, timeoutMs?: number): Promise<T> {
+  const res = await apiGet(p, timeoutMs);
   return (await res.json()) as T;
 }
 
@@ -559,15 +559,17 @@ async function cmdPrep(outPath: string | undefined): Promise<void> {
     await import("./weekly_prep");
   const digestIn = await fetchWeeklyPrepInput(getJson);
   const md = renderWeeklyPrep(digestIn);
+  // --out must hold in JSON mode too (P1: agents write the file AND parse
+  // the summary; ignoring the flag silently lost the artifact)
+  if (outPath) await Bun.write(outPath, md + "\n");
   if (JSON_MODE) {
-    console.log(JSON.stringify({ ...digestIn, markdown: md }, null, 2));
+    console.log(
+      JSON.stringify({ ...digestIn, markdown: md, written: outPath }, null, 2),
+    );
     return;
   }
   log(md);
-  if (outPath) {
-    await Bun.write(outPath, md + "\n");
-    log(`\nwritten: ${outPath}`);
-  }
+  if (outPath) log(`\nwritten: ${outPath}`);
 }
 
 // ---- explain: what each job actually does, how long, why it matters ---------

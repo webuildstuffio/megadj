@@ -84,7 +84,7 @@ function dateLine(now: number): string {
  *  the server's own reads — preflight, fleet redundancy, archive status,
  *  LOWQ queue, and the D30 archive-integrity sweep. */
 export async function fetchWeeklyPrepInput(
-  getJson: <T>(path: string) => Promise<T>,
+  getJson: <T>(path: string, timeoutMs?: number) => Promise<T>,
 ): Promise<WeeklyPrepInput> {
   const [pf, redundancy, ingest, lowq, sweep] = await Promise.all([
     getJson<PreflightReport>("/api/preflight"),
@@ -97,9 +97,10 @@ export async function fetchWeeklyPrepInput(
     }>("/api/fleet/redundancy"),
     getJson<IngestDigest>("/api/archive/ingest-status"),
     getJson<LowqDigest>("/api/archive/lowq"),
-    // D30 sweep (~15s on the real archive): degrade gracefully when the
-    // route or archive is absent — the digest still renders the rest.
-    getJson<SweepDigest>("/api/archive/sweep").catch(
+    // D30 sweep (~15s on the real archive): the default apiGet deadline is
+    // 10s, so the sweep leg would time out and silently vanish from the
+    // digest. Give it a deadline sized to the documented sweep duration.
+    getJson<SweepDigest>("/api/archive/sweep", 60_000).catch(
       (): SweepDigest => ({ available: false, checked: 0, findings: [] }),
     ),
   ]);

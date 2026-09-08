@@ -3,6 +3,8 @@ import {
   normalizeNote,
   noteEvent,
   noteFromEvent,
+  addAgentNote,
+  agentNotes,
   NOTE_MAX,
 } from "../src/notes";
 
@@ -90,8 +92,6 @@ describe("agent notes (O88)", () => {
   });
 
   it("dismissed_at survives the event round-trip (UI filter relies on it)", () => {
-    // regression: TimelineTab originally ignored dismissed_at, so dismissed
-    // notes reappeared after reload; this pins the wire contract
     const ev = noteEvent({
       id: "e4",
       drive_id: "d1",
@@ -109,5 +109,50 @@ describe("agent notes (O88)", () => {
       data: ev.data,
     });
     expect(back?.dismissed_at).toBe(1234);
+  });
+
+  it("REGRESSION: addAgentNote returns the row id the store generated", () => {
+    // deck_note / deckctl note --json promise {id} for later citation +
+    // dismissal; the id must be the events.id the store actually wrote,
+    // not a fresh uuid that exists nowhere
+    const storeRows: {
+      id: string;
+      drive_id: string;
+      at: number;
+      kind: string;
+      data_json: string;
+    }[] = [];
+    const store = {
+      event(driveId: string, kind: string, data: Record<string, unknown>) {
+        const id = `row-${storeRows.length + 1}`;
+        storeRows.push({
+          id,
+          drive_id: driveId,
+          at: 42,
+          kind,
+          data_json: JSON.stringify(data),
+        });
+        return id;
+      },
+      sqlite: {
+        query() {
+          return {
+            all: () => storeRows,
+            get: () => storeRows[0],
+            run: () => {},
+          };
+        },
+      },
+    };
+    const id = addAgentNote(store, {
+      drive_id: "d1",
+      note: "cite me",
+      origin: "deckctl",
+      severity: "info",
+    });
+    expect(id).toBe("row-1");
+    // and the id round-trips through the reader (dismiss/feed key on it)
+    const feed = agentNotes(store as never, "d1");
+    expect(feed[0]?.id).toBe("row-1");
   });
 });

@@ -131,6 +131,60 @@ describe("D30 sweepArchive", () => {
     }
   });
 
+  test("REGRESSION: changed file keeps re-reporting until restored", async () => {
+    // the original engine overwrote the ledger with the corrupt hash, so a
+    // divergent file alerted exactly ONCE and then read "unchanged" forever
+    // — the entire point of the sweep is to keep screaming until it's fixed
+    const dir = fixtureDir();
+    try {
+      writeFileSync(join(dir, "r.wav"), "g".repeat(400));
+      const ledger = new Map<string, LedgerRow>();
+      const updates: LedgerRow[] = [];
+      const upd = (r: LedgerRow) => {
+        updates.push(r);
+        ledger.set(r.file_path, r);
+      };
+      await sweepArchive(dir, [baseTrack("r.wav", 400)], ledger, upd);
+      // corruption: same length, different bytes
+      writeFileSync(join(dir, "r.wav"), "b".repeat(400));
+      const second = await sweepArchive(
+        dir,
+        [baseTrack("r.wav", 400)],
+        ledger,
+        upd,
+      );
+      expect(second.findings[0]?.verdict).toBe("changed");
+      // THIRD sweep with the file still corrupt: must STILL report
+      const third = await sweepArchive(
+        dir,
+        [baseTrack("r.wav", 400)],
+        ledger,
+        upd,
+      );
+      expect(third.findings[0]?.verdict).toBe("changed");
+      // repaired (original bytes back): the flag clears + restored fires
+      writeFileSync(join(dir, "r.wav"), "g".repeat(400));
+      const fourth = await sweepArchive(
+        dir,
+        [baseTrack("r.wav", 400)],
+        ledger,
+        upd,
+      );
+      expect(fourth.findings.map((f) => f.verdict)).toContain("restored");
+      expect(updates.at(-1)?.flagged_at).toBeNull();
+      // and a healthy sweep after that is quiet again
+      const fifth = await sweepArchive(
+        dir,
+        [baseTrack("r.wav", 400)],
+        ledger,
+        upd,
+      );
+      expect(fifth.findings).toHaveLength(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("absolute archive paths are used as-is", async () => {
     const dir = fixtureDir();
     try {

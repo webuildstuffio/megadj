@@ -569,8 +569,8 @@ const TOOLS: Record<string, ToolDef> = {
       // two spokes — surface-parity.md GAP-2 closed)
       const { fetchWeeklyPrepInput, renderWeeklyPrep } =
         await import("./weekly_prep");
-      const getJson = <T>(path: string) =>
-        apiGet(path).then((r) => r.json() as Promise<T>);
+      const getJson = <T>(path: string, timeoutMs?: number) =>
+        apiGet(path, timeoutMs).then((r) => r.json() as Promise<T>);
       const input = await fetchWeeklyPrepInput(getJson);
       return { markdown: renderWeeklyPrep(input) };
     },

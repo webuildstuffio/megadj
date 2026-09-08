@@ -11,7 +11,7 @@ import type {
   VerifyReport,
 } from "../shared/types";
 import { FleetStore } from "./fleet-db";
-import { LedgerQueries } from "./db_ledger";
+import { LedgerQueries, migrateArchiveLedger } from "./db_ledger";
 import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./fleet";
 /** Raw row shape as stored in the drives table (mounted is 0/1). */
 interface DriveRow extends Omit<Drive, "mounted"> {
@@ -91,7 +91,10 @@ CREATE INDEX IF NOT EXISTS jobs_drive ON jobs(drive_id, status);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value_json TEXT);
 CREATE TABLE IF NOT EXISTS archive_ledger (
   file_path TEXT PRIMARY KEY, size_bytes INTEGER, blake2b TEXT NOT NULL,
-  checked_at INTEGER NOT NULL
+  checked_at INTEGER NOT NULL,
+  flagged_at INTEGER,
+  known_good_blake2b TEXT,
+  known_good_size_bytes INTEGER
 );
 `;
 
@@ -134,6 +137,7 @@ export class DB {
     this.sqlite.exec("PRAGMA synchronous = NORMAL;");
     this.sqlite.exec("PRAGMA foreign_keys = ON;");
     this.ledger = new LedgerQueries(this.sqlite);
+    migrateArchiveLedger(this.sqlite);
     this.migrate();
   }
 
@@ -449,27 +453,23 @@ export class DB {
     ).map((r) => JSON.parse(r.data_json));
   }
 
-  // ---- events ---------------------------------------------------------------
+  // ---- events (queries extracted to db_events.ts at the file-length
+  // guard; the writer stays here — prepared-stmt caching is hot-path) ----
   private eventStmt?: ReturnType<Database["prepare"]>;
   private eventPruneStmt?: ReturnType<Database["prepare"]>;
   event(
     driveId: string,
     kind: string,
     data: Record<string, unknown> = {},
-  ): void {
+  ): string {
     // prepared-once + transactional batching: timeline writes happen in
     // bursts (jobs, reconcile), WAL commit overhead dominates otherwise
     this.eventStmt ??= this.sqlite.prepare(
       "INSERT INTO events (id, drive_id, at, kind, data_json) VALUES (?,?,?,?,?)",
     );
+    const id = crypto.randomUUID();
     this.sqlite.transaction(() =>
-      this.eventStmt!.run(
-        crypto.randomUUID(),
-        driveId,
-        Date.now(),
-        kind,
-        JSON.stringify(data),
-      ),
+      this.eventStmt!.run(id, driveId, Date.now(), kind, JSON.stringify(data)),
     )();
     // Enforce the per-drive cap on the WRITE path too: boot-time pruning
     // alone lets the table grow without bound during long uptimes
@@ -481,6 +481,7 @@ export class DB {
        )`,
     );
     this.eventPruneStmt.run(driveId, driveId, MAX_EVENTS_PER_DRIVE);
+    return id;
   }
 
   timeline(driveId: string, limit = 200): TimelineEvent[] {
@@ -488,14 +489,6 @@ export class DB {
       this.sqlite
         .query("SELECT * FROM events WHERE drive_id=? ORDER BY at DESC LIMIT ?")
         .all(driveId, limit) as EventRow[]
-    ).map(eventRow);
-  }
-
-  recentEvents(limit = 50): TimelineEvent[] {
-    return (
-      this.sqlite
-        .query("SELECT * FROM events ORDER BY at DESC LIMIT ?")
-        .all(limit) as EventRow[]
     ).map(eventRow);
   }
 

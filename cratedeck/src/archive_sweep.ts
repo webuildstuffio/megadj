@@ -19,12 +19,21 @@ import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { ArchiveReader } from "./archive";
 
-/** One ledger row: the last known-good fingerprint of an archive file. */
+/** One ledger row: the last known-good fingerprint of an archive file.
+ *  Corruption memory: when a file's hash diverges from the trusted
+ *  fingerprint, the row keeps `known_good_blake2b`/`known_good_size_bytes`
+ *  and sets `flagged_at` — so later sweeps keep re-reporting the file
+ *  (changed/truncated) AND detect "restored" when the trusted bytes come
+ *  back. The original always-overwrite design let corruption alert once
+ *  and then hide as "unchanged" forever, with the reference hash lost. */
 export interface LedgerRow {
   file_path: string;
   size_bytes: number | null;
   blake2b: string;
   checked_at: number;
+  flagged_at: number | null;
+  known_good_blake2b: string | null;
+  known_good_size_bytes: number | null;
 }
 
 export interface SweepVerdict {
@@ -99,17 +108,37 @@ export async function sweepArchive(
     checked++;
     const hex = await hashFile(abs);
     const prior = ledger.get(rel);
-    const sizeChanged =
-      prior && prior.size_bytes !== null && prior.size_bytes !== st.size;
-    if (prior && prior.blake2b === hex) {
+    // The trusted fingerprint: an already-flagged row compares against its
+    // PRESERVED known-good, not the corrupt bytes the last sweep recorded.
+    const trustedHash =
+      prior?.flagged_at != null ? prior.known_good_blake2b : prior?.blake2b;
+    const trustedSize =
+      prior?.flagged_at != null
+        ? (prior.known_good_size_bytes ?? prior.size_bytes)
+        : prior?.size_bytes;
+    const sizeChanged = trustedSize != null && trustedSize !== st.size;
+    if (prior && trustedHash === hex) {
       unchanged++;
-      if (sizeChanged) {
-        // hash identical but size differs from ledger: ledger needs refresh
+      if (sizeChanged || prior?.flagged_at != null) {
+        // known-good hash is back (or size caught up): clear the flag
         update({
           file_path: rel,
           size_bytes: st.size,
           blake2b: hex,
           checked_at: Date.now(),
+          flagged_at: null,
+          known_good_blake2b: null,
+          known_good_size_bytes: null,
+        });
+      }
+      if (prior?.flagged_at != null) {
+        // previously corrupt/changed, now matches the known-good again
+        findings.push({
+          path: rel,
+          title: t.title,
+          artist: t.artist,
+          verdict: "restored",
+          detail: "content matches the known-good hash again",
         });
       }
       continue;
@@ -122,6 +151,9 @@ export async function sweepArchive(
         size_bytes: st.size,
         blake2b: hex,
         checked_at: Date.now(),
+        flagged_at: null,
+        known_good_blake2b: null,
+        known_good_size_bytes: null,
       });
       if (
         typeof t.size_hint === "number" &&
@@ -138,8 +170,11 @@ export async function sweepArchive(
       }
       continue;
     }
-    // hash differs from known-good → the bitrot/truncation class
-    const priorSize = prior.size_bytes ?? null;
+    // hash differs from the trusted fingerprint → the bitrot/truncation
+    // class. Record the divergent bytes BUT preserve the known-good pair
+    // and keep the flag set — every future sweep keeps re-reporting this
+    // file until the trusted bytes return (then it reports "restored").
+    const priorSize = trustedSize ?? prior.size_bytes ?? null;
     findings.push({
       path: rel,
       title: t.title,
@@ -156,6 +191,9 @@ export async function sweepArchive(
       size_bytes: st.size,
       blake2b: hex,
       checked_at: Date.now(),
+      flagged_at: prior?.flagged_at ?? Date.now(),
+      known_good_blake2b: prior.known_good_blake2b ?? prior.blake2b,
+      known_good_size_bytes: prior.known_good_size_bytes ?? prior.size_bytes,
     });
   }
 

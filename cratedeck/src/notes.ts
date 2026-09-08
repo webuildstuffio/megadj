@@ -144,7 +144,7 @@ function parseNoteRow(row: NoteEventRow): StoredNote | null {
 /** The slice of DB the note store needs: the event() writer plus the raw
  *  sqlite handle (readonly public field on DB). */
 export interface NotesStore {
-  event(driveId: string, kind: string, data?: Record<string, unknown>): void;
+  event(driveId: string, kind: string, data?: Record<string, unknown>): string;
   readonly sqlite: {
     query(sql: string): {
       all(...p: unknown[]): unknown[];
@@ -165,8 +165,10 @@ export function addAgentNote(
     origin: string;
     severity: NoteSeverity;
   },
-): void {
-  store.event(input.drive_id, "agent-note", {
+): string {
+  // the ROW id (events.id) is the citation handle — dismiss + feed lookup
+  // key on it, so return exactly what the store generated
+  return store.event(input.drive_id, "agent-note", {
     note: input.note,
     origin: input.origin,
     severity: input.severity,
