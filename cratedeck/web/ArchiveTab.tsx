@@ -16,6 +16,7 @@ import { api } from "./toast";
 import { Icon } from "./icons";
 import { StatCard } from "./DrivePanels";
 import { FetchedGate, useFetched } from "./useFetched";
+import { InfoTip } from "./InfoTip";
 
 // Payload types are DERIVED from ArchiveReader's return types
 // (shared/types.ts) — never re-declare server shapes locally. Local
@@ -49,6 +50,12 @@ export function ArchiveTab() {
       <div class="card">
         <h3>
           <Icon name="doc" size={14} /> Ingest status
+          <InfoTip
+            title="Ingest status"
+            body="megadj ingest brings external downloads into the local archive: it fills metadata from MusicBrainz, embeds artwork, infers genre, and quarantines anything it can't identify. The counts are the current state of that pipeline; recent runs show throughput."
+            why="Failed/gone counts are your re-download backlog."
+            align="right"
+          />
         </h3>
         {!ingest.available ? (
           <div class="empty">archive DB absent</div>
@@ -80,6 +87,12 @@ export function ArchiveTab() {
       <div class="card">
         <h3>
           <Icon name="bolt" size={14} /> Mood profile
+          <InfoTip
+            title="Mood profile"
+            body="ONNX models score every archived track for danceability, mood (party/electronic/etc.), valence (positive ↔ sad) and arousal (calm ↔ intense). Averages show the archive's overall character; extremes list the outliers per dimension."
+            why="Valence/arousal extremes are quick set-planning tools — 'play something happy' or 'build the energy' become lookups, not guesses."
+            align="right"
+          />
         </h3>
         {!mood?.available ? (
           <div class="empty">mood ledger empty</div>
@@ -110,6 +123,11 @@ export function ArchiveTab() {
       <div class="card">
         <h3>
           <Icon name="sort" size={14} /> LOWQ queue
+          <InfoTip
+            title="LOWQ queue"
+            body="Downloads flagged as low-quality (bitrate, source, duration) and waiting for a better rip or a decision. Working this queue to empty is how tracks graduate to gig-safe."
+            align="right"
+          />
         </h3>
         {!lowq?.available ? (
           <div class="empty">archive DB absent</div>
@@ -130,6 +148,12 @@ export function ArchiveTab() {
       <div class="card">
         <h3>
           <Icon name="grid" size={14} /> Grid cross-check
+          <InfoTip
+            title="Grid cross-check"
+            body="Independent beatgrid verification: the beat_this analysis grid is compared against rekordbox BPM × duration. 'ok' = agrees; 'off' = tempo drift beyond tolerance; 'octave' = BPM double/half — the classic half-time miscalculation."
+            why="Off/octave tracks will Beat Sync badly in the booth even when they sound fine at home."
+            align="right"
+          />
         </h3>
         {!grid?.available ? (
           <div class="empty">beats ledger absent — run megadj beats</div>

@@ -5,6 +5,7 @@ import type { Drive, SnapshotData } from "../shared/types";
 import { fmtBytes, shortSerial } from "../shared/fmt";
 import { Icon } from "./icons";
 import { StatCard } from "./DrivePanels";
+import { InfoTip, TabIntro } from "./InfoTip";
 
 // identical to DrivePage's local Bench — one shared shape (same producer)
 type Bench = {
@@ -23,16 +24,23 @@ export function HealthTab(props: {
   const last = bench.at(-1);
   return (
     <div>
+      <TabIntro
+        what="Hardware, not library: is this stick fast enough and healthy?"
+        how="Benchmarks measure real read speed (CDJ floor: ~30 MB/s sequential — below that, playback can stutter on high-bitrate files). Watch the trend: a sudden drop between runs predicts a dying stick better than any single number."
+        next="Library-side health (databases, grids, corruption) lives in Overview and Verify."
+      />
       <div class="statgrid">
         <StatCard
           v={last ? `${last.seq_mbps} MB/s` : "—"}
           l="sequential read (last)"
           icon="pulse"
+          title="Big-file read speed — what CDJ playback actually needs. Green ≥60, usable ≥30, below that replace the stick."
         />
         <StatCard
           v={last ? `${last.rand4k_mbps} MB/s` : "—"}
           l="random 4k read (last)"
           icon="grid"
+          title="Small-chunk read speed — covers library browsing, artwork loading and waveform seeks on hardware."
         />
         <StatCard
           v={drive.usb_serial ? shortSerial(drive.usb_serial) : "—"}
@@ -40,12 +48,18 @@ export function HealthTab(props: {
           icon="hash"
           title={drive.usb_serial ?? undefined}
         />
-        <StatCard v={`${drive.plug_count}`} l="plug sessions" icon="usb" />
+        <StatCard
+          v={`${drive.plug_count}`}
+          l="plug sessions"
+          icon="usb"
+          title="How many times this drive has been mounted since CrateDeck first saw it."
+        />
         {snap?.total_duration_ms ? (
           <StatCard
             v={fmtHours(snap.total_duration_ms)}
             l="total music duration"
             icon="clock"
+            title="End-to-end runtime of every audio file on the drive, straight from rekordbox durations."
           />
         ) : null}
       </div>
@@ -60,6 +74,12 @@ export function HealthTab(props: {
 
       <h3 class="sect">
         <Icon name="folder" /> Folders
+        <InfoTip
+          title="Folders"
+          body="Where the bytes live: the 15 biggest folders with proportional bars."
+          why="Surprise GB-eaters (old backups, duplicated exports) show up here first."
+          align="right"
+        />
       </h3>
       {(snap?.folders ?? []).length === 0 && (
         <div class="note">No folders recorded — run a scan.</div>
@@ -100,14 +120,26 @@ function BenchChart({ bench }: { bench: HealthTabBench[] }) {
     <div>
       <h3 class="sect">
         <Icon name="pulse" /> Benchmark history
+        <InfoTip
+          title="Benchmark history"
+          body="Each run draws two lines: sequential MB/s (solid) and random-4k MB/s (dashed). Hover the dots for the exact readings and date."
+          why="A sudden ~40% drop between consecutive runs is the classic dying-stick signature — preflight flags it automatically."
+          align="right"
+        />
       </h3>
       <div class="benchchart">
         <div class="bench-legend">
-          <span class="key">
+          <span
+            class="key"
+            title="Big-file read speed — the number for CDJ playback"
+          >
             <span class="sw" style={{ background: "var(--info)" }} /> sequential
             MB/s
           </span>
-          <span class="key">
+          <span
+            class="key"
+            title="Small-chunk speed — browsing, artwork, waveform seeks"
+          >
             <span class="sw" style={{ background: "var(--accent)" }} /> random
             4k MB/s
           </span>

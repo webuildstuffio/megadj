@@ -132,6 +132,28 @@ export function VerifyTab(props: {
         </div>
       )}
 
+      {report && help && (
+        <details class="tabintro">
+          <summary>
+            <Icon name="info" size={13} />
+            <b>What verify checks, and what each failure means</b>
+            <span class="tabintro-hint">
+              {help.checks.length} checks · {help.duration}
+            </span>
+          </summary>
+          <div class="tabintro-body">
+            <p>{help.safety}</p>
+            <ul>
+              {help.checks.map((c) => (
+                <li key={c.id}>
+                  <b>{c.label}</b> — {c.what} <i>{c.if_fail}</i>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
+      )}
+
       {report && (
         <>
           <DeltasBar report={report} />

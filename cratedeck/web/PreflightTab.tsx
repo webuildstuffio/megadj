@@ -16,6 +16,7 @@ import type {
   PlayersPayload,
   PreflightReport,
 } from "../shared/types";
+import { InfoTip } from "./InfoTip";
 // PlayersPayload = the wire shape of GET /api/drives/:id/players (N78),
 // imported from the shared SSOT instead of re-declared here — a local
 // duplicate drifts silently (the Sep 7 ArchiveTab bug class).
@@ -48,6 +49,62 @@ const STATUS_ICON: Record<CheckStatus, string> = {
   warn: "warn",
   fail: "x",
   unknown: "dot",
+};
+
+/** Hover copy for each preflight verdict — the promise each word makes. */
+const VERDICT_HELP: Record<string, { body: string; why: string }> = {
+  ready: {
+    body: "Every mounted drive measured ready. This is the walk-out-the-door green.",
+    why: "'Ready' requires data — all-unknown drives never fake it.",
+  },
+  attention: {
+    body: "Nothing is broken, but at least one drive has a warning (stale verify, low space, thin beatgrids). Playable — know what you're carrying.",
+    why: "Click the drive below to see exactly which check warned.",
+  },
+  "not-ready": {
+    body: "At least one mounted drive has a FAILING check — do not take it as your only stick.",
+    why: "The blockers line under the drive names the exact failure and fix.",
+  },
+  unknown: {
+    body: "Some mounted drives have no data yet (never scanned). Unknown is not ready — scan first, then re-run.",
+    why: "Preflight is a gate for cron/agents: exit code 1 on anything but ready.",
+  },
+};
+
+/** Hover copy per preflight check id (mirrors src/preflight.ts checks). */
+const PF_CHECK_HELP: Record<string, { what: string; why: string }> = {
+  "dual-db": {
+    what: "Are the drive's two rekordbox libraries in agreement?",
+    why: "Stale pdb = the booth sees an old library even though your laptop shows the new one.",
+  },
+  grids: {
+    what: "Beatgrid/ANLZ coverage — how many tracks have waveform data at the path hardware reads.",
+    why: "Missing grids = no Beat Sync and no waveforms on those tracks.",
+  },
+  verify: {
+    what: "Age and result of the last deep integrity audit.",
+    why: "Library changes after verify are unproven — re-verify after adding music.",
+  },
+  speed: {
+    what: "Latest read-speed benchmark vs the ~30 MB/s CDJ floor and the previous run.",
+    why: "A big drop between runs predicts a dying stick better than one absolute number.",
+  },
+  bitrot: {
+    what: "Checksum ledger comparison — any file whose bytes changed since it was hashed.",
+    why: "Silent corruption has no other symptom until the track fails mid-set.",
+  },
+  space: {
+    what: "Free space — rekordbox needs headroom for its DB journal.",
+    why: "A full drive corrupts exports; under ~15% free already degrades syncs.",
+  },
+  mirror: {
+    what: "Mirror file count vs the master's.",
+    why: "A behind mirror isn't a backup for the tracks it lacks.",
+  },
+  players: {
+    what: "Which known players can read this drive, from measured dual-DB rows.",
+    why: "A partial block is the 'works at home, invisible in the booth' trap — check the venue units.",
+  },
 };
 
 export function PreflightTab() {
@@ -101,10 +158,24 @@ export function PreflightTab() {
         <Icon name={VERDICT_ICON[data.overall] ?? "dot"} size={16} />{" "}
         <strong>{data.overall}</strong> — {data.summary} ({data.mountedCount}{" "}
         mounted)
+        <InfoTip
+          title={`preflight verdict: ${data.overall}`}
+          body={
+            VERDICT_HELP[data.overall]?.body ??
+            "Worst status across mounted drives wins."
+          }
+          why={
+            VERDICT_HELP[data.overall]?.why ??
+            "deckctl preflight exits 1 unless the verdict is ready."
+          }
+        />
       </div>
 
       {data.firmware_advisories.length > 0 && (
-        <div class="note">
+        <div
+          class="note"
+          title="Known vendor firmware problems (e.g. a pulled CDJ-3000 update that made playlists vanish). Informational — not a drive fault."
+        >
           <Icon name="bell" size={14} /> Firmware advisories:{" "}
           {data.firmware_advisories.join(" · ")}
         </div>
@@ -151,16 +222,31 @@ export function PreflightTab() {
                   ))}
                 </div>
               )}
-              {d.checks.map((c) => (
-                <div key={c.id} class={`check ${VERDICT_TONE[c.status] ?? ""}`}>
-                  <Icon name={STATUS_ICON[c.status]} size={12} />
-                  <strong>{c.label}</strong>
-                  <span class="detail">{c.detail}</span>
-                  {c.status !== "pass" && c.fix && (
-                    <span class="fix">fix: {c.fix}</span>
-                  )}
-                </div>
-              ))}
+              {d.checks.map((c) => {
+                const pf = PF_CHECK_HELP[c.id];
+                return (
+                  <div
+                    key={c.id}
+                    class={`check ${VERDICT_TONE[c.status] ?? ""}`}
+                    title={pf ? `${pf.what} ${pf.why}` : undefined}
+                  >
+                    <Icon name={STATUS_ICON[c.status]} size={12} />
+                    <strong>{c.label}</strong>
+                    {pf && (
+                      <InfoTip
+                        title={c.label}
+                        body={pf.what}
+                        why={pf.why}
+                        align="right"
+                      />
+                    )}
+                    <span class="detail">{c.detail}</span>
+                    {c.status !== "pass" && c.fix && (
+                      <span class="fix">fix: {c.fix}</span>
+                    )}
+                  </div>
+                );
+              })}
               {(() => {
                 const ps = players[d.drive.id];
                 if (ps?.status === "error")

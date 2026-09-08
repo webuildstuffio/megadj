@@ -11,6 +11,7 @@ import { ImageService } from "./images";
 import { driveBadgesView } from "./badges_view";
 import { buildReport, buildReportSummary, overall } from "./report";
 import { VERIFY_HELP } from "./verify_help";
+import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
 import { coverage, redundancy, diff, trackLocations } from "./fleet";
 import { fetchWeeklyPrepInput, renderWeeklyPrep } from "./weekly_prep";
 import { ArchiveReader } from "./archive";
@@ -246,6 +247,15 @@ Bun.serve({
         // B12 preflight: the gig-night pass/fail across every mounted drive
         if (route === "/preflight") {
           return json(buildPreflight(allPreflightInputs()));
+        }
+        // in-app help SSOT: glossary + job/surface explainers (deckctl/MCP
+        // can serve the same wording the UI tooltips use)
+        if (route === "/help") {
+          return json({
+            terms: HELP_TERMS,
+            jobs: HELP_JOBS,
+            surfaces: HELP_SURFACES,
+          });
         }
         const driveMatch = route.match(/^\/drives\/([^/]+)(\/.*)?$/);
         if (driveMatch?.[1]) {

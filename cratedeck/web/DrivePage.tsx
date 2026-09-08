@@ -19,14 +19,10 @@ import { PlaylistsTab } from "./PlaylistsTab";
 import { HealthTab, type HealthTabBench } from "./HealthTab";
 import { TimelineTab } from "./TimelineTab";
 import { VerifyTab } from "./VerifyTab";
-import {
-  AgeStrip,
-  CheckRow,
-  ConfirmButton,
-  DjPanel,
-  ExtBars,
-  SpaceBar,
-} from "./DrivePanels";
+import { AgeStrip, CheckRow, DjPanel, ExtBars, SpaceBar } from "./DrivePanels";
+import { InfoTip, TabIntro } from "./InfoTip";
+import { HELP_JOBS, ROLE_HELP, VERDICT_HELP } from "../shared/help";
+import { PhotoTab, type PhotoHit } from "./PhotoTab";
 
 const TABS = [
   {
@@ -68,9 +64,17 @@ const TABS = [
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
+/** Plain-language hover hint for a job kind, built from the shared help
+ *  SSOT (shared/help.ts) so tooltips, the Welcome tour and the API agree. */
+function jobHint(kind: JobKind): string {
+  const j = HELP_JOBS.find((x) => x.kind === kind);
+  if (!j) return "";
+  return `${j.what}\nWhen: ${j.when}\nTakes ${j.duration}. ${j.safety}`;
+}
+
 /** The four standard drive jobs — one config row per button, one render
- *  loop. Each carries a `hint`: the plain-language explanation shown as the
- *  hover tooltip ("what does this actually do?"). */
+ *  loop. `kind` stays a literal per row (the surface-parity census parses
+ *  these); the copy comes from jobHint(). */
 const JOB_BUTTONS: {
   kind: JobKind;
   label: string;
@@ -86,26 +90,26 @@ const JOB_BUTTONS: {
     busy: "Scanning…",
     icon: "scan",
     primary: true,
-    hint: "Read the rekordbox library on this drive — tracks, playlists, health stats. Read-only, safe any time.",
+    hint: jobHint("scan"),
   },
   {
     kind: "verify",
     label: "Verify",
     icon: "shield",
     interlockHint: true,
-    hint: "Deep integrity audit: both rekordbox databases agree, every audio file exists, beatgrids sane, mirror matches master. Read-only.",
+    hint: jobHint("verify"),
   },
   {
     kind: "benchmark",
     label: "Benchmark",
     icon: "pulse",
-    hint: "Measure real read/write speed of this drive — tells you if it can handle gig-night playback. Writes a temp file, then deletes it.",
+    hint: jobHint("benchmark"),
   },
   {
     kind: "checksum",
     label: "Checksum",
     icon: "hash",
-    hint: "Hash every audio file (blake2b) so future scans can detect silent corruption/bitrot. Slow the first time, fast after.",
+    hint: jobHint("checksum"),
   },
 ];
 
@@ -114,13 +118,6 @@ interface Detail {
   snapshot: SnapshotData | null;
   sync: DriveReport["sync"];
   master_name: string;
-}
-
-interface PhotoHit {
-  id: string;
-  thumb: string;
-  full: string;
-  source: string;
 }
 
 /** Page load state: a machine where every branch is named. Replaces the old
@@ -485,10 +482,33 @@ export function DrivePage(props: {
           ) : (
             <h2>
               {name}
-              {!detail.drive.mounted && <span class="badge muted">ghost</span>}
+              {!detail.drive.mounted && (
+                <span
+                  class="badge muted"
+                  title="Ghost: not plugged in right now — everything below reads from the last snapshot."
+                >
+                  ghost
+                </span>
+              )}
               <span class={`pill ${report?.overall ?? "unknown"}`}>
                 {report?.overall ?? "unknown"}
               </span>
+              <InfoTip
+                title={`verdict: ${report?.overall ?? "unknown"}`}
+                body={
+                  VERDICT_HELP[report?.overall ?? "unknown"] ??
+                  "No report yet — run a scan."
+                }
+                why="Worst status wins: one failing check makes the whole drive critical — the failing rows just below say which."
+                below
+              />
+              <InfoTip
+                title={`role: ${detail.drive.role}`}
+                body={
+                  ROLE_HELP[detail.drive.role] ??
+                  "Role derived from the configured master/mirror volume names."
+                }
+              />
               <button
                 type="button"
                 class="btn sm ghostbtn"
@@ -596,7 +616,8 @@ export function DrivePage(props: {
             title={
               locked
                 ? "rekordbox is running"
-                : "Copy master → this mirror (never writes the master)"
+                : ((HELP_JOBS.find((j) => j.kind === "mirror")?.what as
+                    string | undefined) ?? "Copy master → this mirror")
             }
           >
             <Icon name="copy" size={14} />{" "}
@@ -646,6 +667,11 @@ export function DrivePage(props: {
 
       {tabConf.id === "overview" && (
         <div>
+          <TabIntro
+            what="This is the drive's report card."
+            how="Every row is one health check with a verdict: green = measured and fine, yellow = usable but look into it, red = fix before a gig, grey = no data yet (grey never pretends to be green). Each row says what it measured and — when it fails — the fix."
+            next="Deep audit with per-track detail lives in the Verify tab; this page is the quick verdict."
+          />
           <div class="checks">
             {checks.length === 0 && (
               <div class="note-card">
@@ -660,7 +686,13 @@ export function DrivePage(props: {
 
           <h3 class="sect">
             <Icon name="grid" /> Space
+            <InfoTip
+              title="Space"
+              body="Used vs free against capacity. rekordbox needs headroom for its database journal and analysis files — under ~15% free degrades syncs and can corrupt exports."
+              align="right"
+            />
           </h3>
+
           {snap?.capacity_bytes ? (
             <SpaceBar snap={snap} />
           ) : (
@@ -688,66 +720,17 @@ export function DrivePage(props: {
       )}
 
       {tabConf.id === "photos" && (
-        <div>
-          <div class="note">
-            <Icon name="photo" size={14} /> Pick a cover photo for this drive's
-            card — it's saved locally and shown across the app.
-          </div>
-          {detail.drive.photo_path && (
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                alignItems: "center",
-                margin: "8px 0",
-              }}
-            >
-              <img
-                src={`/photos/${driveId}?v=${detail.drive.last_seen_at}`}
-                alt={name}
-                style={{
-                  width: 140,
-                  height: 105,
-                  objectFit: "cover",
-                  borderRadius: 12,
-                  border: "1px solid var(--stroke)",
-                }}
-              />
-              <ConfirmButton
-                label="Remove photo"
-                confirmLabel="Remove photo — sure?"
-                hint="Deletes the cover photo (the file stays on disk untouched)"
-                onConfirm={clearPhoto}
-              />
-            </div>
-          )}
-          <div class="pl-tools">
-            <input
-              placeholder={`Search images for “${nameGuess(detail)}”…`}
-              value={photoQuery}
-              onInput={(e) =>
-                setPhotoQuery((e.target as HTMLInputElement).value)
-              }
-              onKeyDown={(e) => e.key === "Enter" && searchPhotos()}
-            />
-            <button type="button" class="btn" onClick={searchPhotos}>
-              <Icon name="search" size={14} /> Search
-            </button>
-          </div>
-          {photoHits && (
-            <div class="photopick">
-              {photoHits.map((h) => (
-                <img
-                  key={h.id}
-                  src={h.thumb}
-                  alt={h.source}
-                  title={`source: ${h.source}`}
-                  onClick={() => choosePhoto(h)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <PhotoTab
+          drive={detail.drive}
+          driveId={driveId}
+          name={nameGuess(detail)}
+          photoQuery={photoQuery}
+          setPhotoQuery={setPhotoQuery}
+          onSearch={searchPhotos}
+          hits={photoHits}
+          onChoose={choosePhoto}
+          onClear={clearPhoto}
+        />
       )}
 
       {/* recent jobs for this drive */}

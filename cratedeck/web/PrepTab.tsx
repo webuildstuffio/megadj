@@ -50,14 +50,27 @@ export function PrepTab() {
         <b>
           <Icon name="doc" size={14} /> Weekly prep
         </b>
-        <span class="fleet-sub">
+        <span
+          class="fleet-sub"
+          title="Same content as `deckctl prep` — preflight verdicts, redundancy gaps, archive ingest queue, LOWQ backlog, and the archive integrity sweep. Rendered server-side; Copy/.md hand it to notes or an agent."
+        >
           the gig brief — preflight, redundancy, ingest, LOWQ, archive sweep
         </span>
         <div class="spacer" />
-        <button type="button" class="btn" onClick={copy}>
+        <button
+          type="button"
+          class="btn"
+          onClick={copy}
+          title="Copy the markdown to your clipboard (paste into notes, issues, or an agent prompt)"
+        >
           <Icon name="copy" size={14} /> Copy
         </button>
-        <button type="button" class="btn" onClick={download}>
+        <button
+          type="button"
+          class="btn"
+          onClick={download}
+          title="Download as prep-YYYY-MM-DD.md"
+        >
           <Icon name="download" size={14} /> .md
         </button>
       </div>

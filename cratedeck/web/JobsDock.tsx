@@ -7,9 +7,23 @@ import { ACTIVE_JOB_STATUSES, TERMINAL_JOB_STATUSES } from "../shared/types";
 import { errMessage, fmtEta } from "../shared/fmt";
 import { apiPost, toast } from "./toast";
 import { Icon } from "./icons";
+import { HELP_JOBS } from "../shared/help";
 
 const ACTIVE = new Set<string>(ACTIVE_JOB_STATUSES);
 const HISTORY = new Set<string>(TERMINAL_JOB_STATUSES);
+
+/** Job status → what it means for the user (hover on the status chip). */
+const STATUS_HELP: Record<string, string> = {
+  queued: "Waiting for its turn — one job runs per drive at a time.",
+  running: "Active now. Progress, phase and ETA update live.",
+  done: "Finished successfully.",
+  failed: "Ran and failed — the error line says why. Safe to re-run.",
+  interrupted:
+    "The server was restarted (or the job's process died) mid-run. Re-run it.",
+  cancelled: "Cancelled by a user or agent before it finished.",
+  locked:
+    "Refused because rekordbox was running (the interlock). Quit rekordbox and re-run.",
+};
 
 export function JobsDock(props: {
   jobs: Job[];
@@ -34,6 +48,7 @@ export function JobsDock(props: {
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && setCollapsed(!collapsed)}
+        title="Jobs run one-per-drive, read-only unless stated, and are refused while rekordbox is open. Click to collapse."
       >
         <span class="spin">
           <Icon name="refresh" size={14} />
@@ -95,10 +110,23 @@ export function JobsDock(props: {
               key={j.id}
               style={{ cursor: "pointer" }}
               onClick={() => props.focusDrive(j.drive_id)}
+              title="Open this drive"
             >
               <div class="jobrow-top">
-                <span class={`jstat ${j.status}`}>{j.status}</span>
-                <span class="jkind">{j.kind}</span>
+                <span
+                  class={`jstat ${j.status}`}
+                  title={STATUS_HELP[j.status] ?? undefined}
+                >
+                  {j.status}
+                </span>
+                <span
+                  class="jkind"
+                  title={
+                    HELP_JOBS.find((x) => x.kind === j.kind)?.what ?? undefined
+                  }
+                >
+                  {j.kind}
+                </span>
                 <span class="jdrive">{driveName(j.drive_id)}</span>
                 <span class="spacer" />
                 <span class="jmeta" style={{ marginTop: 0 }}>
@@ -157,6 +185,7 @@ function ActiveRow(props: {
   onFocus: () => void;
 }) {
   const j = props.job;
+  const kindHelp = HELP_JOBS.find((x) => x.kind === j.kind);
   return (
     <div class="jobrow">
       <div class="jobrow-top">
@@ -171,18 +200,27 @@ function ActiveRow(props: {
           class="jkind"
           style={{ cursor: "pointer" }}
           onClick={props.onFocus}
-          title="Open drive"
+          title={
+            kindHelp
+              ? `${kindHelp.what}\nTakes ${kindHelp.duration}. ${kindHelp.safety}`
+              : "Open drive"
+          }
         >
           {j.kind}
         </span>
         <span class="jdrive">{props.driveName}</span>
-        <span class={`jstat ${j.status}`}>{j.status}</span>
+        <span
+          class={`jstat ${j.status}`}
+          title={STATUS_HELP[j.status] ?? "Open drive"}
+        >
+          {j.status}
+        </span>
         <span class="spacer" />
         {j.status === "running" && (
           <button
             type="button"
             class="cancel"
-            title="Cancel job"
+            title={`Cancel this ${j.kind} — safe: it's read-only${j.kind === "mirror" ? "" : ""}, already-written changes stay`}
             onClick={props.onCancel}
           >
             <Icon name="x" size={13} />
@@ -197,7 +235,11 @@ function ActiveRow(props: {
           </div>
           <div class="jmeta">
             <span>{Math.round(j.progress * 100)}%</span>
-            {j.phase && <span>{j.phase}</span>}
+            {j.phase && (
+              <span title="The coarse stage of this job (e.g. 'hashing', 'comparing databases')">
+                {j.phase}
+              </span>
+            )}
             <span style={{ marginLeft: "auto" }}>
               {j.eta_seconds != null ? `ETA ${fmtEta(j.eta_seconds)}` : ""}
             </span>

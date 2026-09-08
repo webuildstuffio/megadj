@@ -18,6 +18,7 @@ import { Toaster, api, toast } from "./toast";
 import { Icon } from "./icons";
 import { navigate, navigateFleet, useRoute } from "./router";
 import { errMessage } from "../shared/fmt";
+import { Onboard } from "./Onboard";
 
 export function App() {
   const route = useRoute();
@@ -211,7 +212,10 @@ export function App() {
           <span class="brand-mark" />
           <h1>CrateDeck</h1>
         </div>
-        <span class="top-meta">
+        <span
+          class="top-meta"
+          title="How many known drives are mounted now vs remembered-but-unplugged ('ghosts')."
+        >
           <b>{mounted}</b> mounted · <b>{ghosts}</b> ghost
           {ghosts === 1 ? "" : "s"}
         </span>
@@ -220,7 +224,7 @@ export function App() {
           type="button"
           class={`fleetchip ${route.fleet ? "on" : ""}`}
           onClick={() => navigateFleet("coverage")}
-          title="Fleet: coverage matrix, redundancy audit, drive diffs"
+          title="Fleet view: cross-drive coverage, playlist redundancy, diffs, the gig-night preflight gate, the archive and the weekly prep digest"
         >
           <Icon name="grid" size={13} /> Fleet
         </button>
@@ -228,8 +232,8 @@ export function App() {
           class={`lockchip ${locked ? "on" : "off"}`}
           title={
             locked
-              ? "rekordbox is running — all drive jobs are refused"
-              : "rekordbox not running — jobs allowed"
+              ? `rekordbox is running (pid ${interlock.pid}) — the interlock refuses ALL drive jobs because rekordbox locks the same databases. Quit rekordbox to unlock.`
+              : "rekordbox is not running — the interlock allows drive jobs."
           }
         >
           <span class="lockdot" />
@@ -243,7 +247,7 @@ export function App() {
             ref={searchRef}
             id="global-search"
             placeholder="Search playlists, folders…"
-            title="Search all drives — press ⌘K to focus, Enter to open the top hit"
+            title="Search every drive's playlists, folders and tracks — ⌘K focuses, Enter opens the top hit, Esc clears"
             value={query}
             onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
             onKeyDown={(e) => {
@@ -379,6 +383,7 @@ function Welcome(props: {
           </div>
         )}
       </div>
+      <Onboard />
     </div>
   );
 }

@@ -4,6 +4,7 @@
 import { useMemo, useState } from "preact/hooks";
 import type { PlaylistInfo, SnapshotData } from "../shared/types";
 import { Icon } from "./icons";
+import { TabIntro } from "./InfoTip";
 
 type SortKey = "entries" | "name";
 
@@ -65,6 +66,11 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
 
   return (
     <div>
+      <TabIntro
+        what="Every playlist on this stick, exactly as rekordbox exported it."
+        how="Bars scale against the biggest playlist so outliers jump out. Filter box matches playlist and folder names; 'Group folders' mirrors the folder tree rekordbox shows."
+        next="Cross-drive playlist safety (would a playlist survive one drive dying?) lives in Fleet → Redundancy."
+      />
       <div class="pl-tools">
         <input
           placeholder="Filter playlists…"

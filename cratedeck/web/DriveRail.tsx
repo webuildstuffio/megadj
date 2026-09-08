@@ -3,6 +3,7 @@
 // replaces the old drawer-open model — selecting a drive swaps the canvas.
 import type { DriveCardData, OverallHealth } from "../shared/types";
 import { fmtBytes, timeAgo } from "../shared/fmt";
+import { ROLE_HELP } from "../shared/help";
 import { Icon } from "./icons";
 
 const VERDICT_COLOR: Record<OverallHealth, string> = {
@@ -10,6 +11,14 @@ const VERDICT_COLOR: Record<OverallHealth, string> = {
   attention: "var(--warn)",
   critical: "var(--bad)",
   unknown: "var(--muted)",
+};
+
+/** Ring hover copy — the verdict words mean the same thing everywhere. */
+const RING_HELP: Record<OverallHealth, string> = {
+  healthy: "All measured checks passed.",
+  attention: "Usable, but warnings need a look — open the drive for the list.",
+  critical: "At least one check FAILED. Open the drive before trusting it.",
+  unknown: "No data yet — run a Scan (unknown never fakes healthy).",
 };
 
 function HealthRing({ verdict, pct }: { verdict: OverallHealth; pct: number }) {
@@ -20,7 +29,12 @@ function HealthRing({ verdict, pct }: { verdict: OverallHealth; pct: number }) {
   const hasReport = pct > 0;
   const color = VERDICT_COLOR[verdict] ?? VERDICT_COLOR.unknown;
   return (
-    <div class="ring" title={verdict}>
+    <div
+      class="ring"
+      title={`${verdict} — ${RING_HELP[verdict]}${
+        hasReport ? "" : " (dashed ring = no report yet)"
+      }`}
+    >
       <svg width="46" height="46" viewBox="0 0 46 46">
         <circle
           class="ring-track"
@@ -87,7 +101,8 @@ export function DriveRail(props: {
       {props.drives.length === 0 && (
         <div class="note-card">
           <Icon name="usb" size={22} />
-          No drives known yet — plug one in and it will appear here, forever.
+          No drives known yet — plug one in and it will appear here, forever. It
+          stays browsable as a "ghost" after unmounting.
         </div>
       )}
       {mounted.map(railCard)}
@@ -95,6 +110,12 @@ export function DriveRail(props: {
         <>
           <div class="rail-head" style={{ marginTop: 6 }}>
             <h2>Ghosts</h2>
+            <span
+              class="count"
+              title="Known drives that aren't plugged in — their last snapshot stays browsable."
+            >
+              last-scan state
+            </span>
           </div>
           {ghosts.map(railCard)}
         </>
@@ -103,6 +124,12 @@ export function DriveRail(props: {
         <>
           <div class="rail-head" style={{ marginTop: 8 }}>
             <h2>Ports</h2>
+            <span
+              class="count"
+              title="Physical USB ports and which drive was last seen in each — handy for 'which port is the mirror' habits."
+            >
+              physical slots
+            </span>
           </div>
           <div class="portstrip">
             {props.ports.map((p) => (
@@ -142,7 +169,7 @@ function RailCard(props: {
       type="button"
       class={`dcard${d.mounted ? "" : " ghost"}${props.on ? " on" : ""}`}
       onClick={props.onSelect}
-      title={d.name}
+      title={`${d.name}${ROLE_HELP[d.role] ? ` — ${ROLE_HELP[d.role]}` : ""}`}
     >
       <div class="dcard-top">
         <HealthRing verdict={verdict} pct={ringPct} />
@@ -152,7 +179,9 @@ function RailCard(props: {
               {name}
             </span>
             {d.role !== "unknown" && (
-              <span class={`rolechip ${d.role}`}>{d.role}</span>
+              <span class={`rolechip ${d.role}`} title={ROLE_HELP[d.role]}>
+                {d.role}
+              </span>
             )}
           </div>
           <div class="sub">
@@ -173,14 +202,40 @@ function RailCard(props: {
         </div>
       )}
       {d.badges.length > 0 && (
-        <div class="badges">
+        <div
+          class="badges"
+          title={d.badges
+            .map(
+              (b) =>
+                `${b.label} — ${
+                  b.tone === "good"
+                    ? "good"
+                    : b.tone === "warn"
+                      ? "warning"
+                      : b.tone === "bad"
+                        ? "needs attention"
+                        : b.tone === "info"
+                          ? "info"
+                          : "neutral"
+                }`,
+            )
+            .join("\n")}
+        >
           {d.badges.slice(0, 3).map((b) => (
             <span class={`badge ${b.tone}`} key={b.key + b.label}>
               {b.label}
             </span>
           ))}
           {d.badges.length > 3 && (
-            <span class="badge muted">+{d.badges.length - 3}</span>
+            <span
+              class="badge muted"
+              title={d.badges
+                .slice(3)
+                .map((b) => b.label)
+                .join("\n")}
+            >
+              +{d.badges.length - 3}
+            </span>
           )}
         </div>
       )}

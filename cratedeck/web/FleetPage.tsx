@@ -18,6 +18,7 @@ import { StatCard } from "./DrivePanels";
 import { PreflightTab } from "./PreflightTab";
 import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
+import { TabIntro, InfoTip } from "./InfoTip";
 
 const TABS = [
   {
@@ -138,23 +139,29 @@ function CoverageTab() {
     }
   }, []);
 
-  if (err)
+  if (err) {
     return (
       <div class="note bad">
         <Icon name="warn" size={14} /> {err}
       </div>
     );
-  if (!data)
+  }
+  if (!data) {
     return (
       <div class="note-card">
         <Icon name="clock" size={20} /> Loading fleet inventory…
       </div>
     );
+  }
 
   const shown = data.at_risk.slice(0, 200);
-
   return (
     <div>
+      <TabIntro
+        what="The redundancy map: what exists where, and what a dead drive would take with it."
+        how="The headline numbers: unique tracks across every scanned drive, how many live on enough sticks to be safe, and the at-risk list — tracks on fewer drives than the floor (default 2). Search any track to see exactly which sticks carry it."
+        next="The fix for at-risk tracks is ordinary: run Mirror so the master's copy lands on the mirror."
+      />
       <div class="statgrid">
         <StatCard
           v={data.totals.unique_tracks.toLocaleString()}
@@ -239,6 +246,12 @@ function CoverageTab() {
           <h3 class="sect">
             <Icon name="warn" /> At-risk tracks
             <span class="sect-n">{data.at_risk.length}</span>
+            <InfoTip
+              title="At-risk tracks"
+              body={`Tracks living on fewer than ${data.min_copies} drives. These are one dead stick away from gone.`}
+              why="The fix is the ordinary mirror run — it converges master → mirror."
+              align="right"
+            />
           </h3>
           <div class="fleet-note">
             On fewer than {data.min_copies} drives. The fix is the ordinary
@@ -312,6 +325,11 @@ function RedundancyTab() {
 
   return (
     <div>
+      <TabIntro
+        what="Per-playlist survival audit: if one drive died tonight, which playlists come up short?"
+        how="Each playlist gets a verdict: safe (every track on enough drives), thin (some gaps, usable), or at risk (tracks would vanish with a drive). Click a playlist to see the exact tracks and where they live."
+        next="The verdict floor is 2 copies — the master + the mirror. Converge with a Mirror run."
+      />
       <div
         class={`note ${data.overall === "pass" ? "ok" : data.overall === "unknown" ? "" : "bad"}`}
       >
@@ -477,6 +495,11 @@ function DiffTab() {
 
   return (
     <div>
+      <TabIntro
+        what="Two drives, side by side, track by track."
+        how="Pick a source and a target: 'added' = tracks the target has that the source lacks, 'missing' = the reverse, 'changed' = same path, different bytes (only visible when a file manifest exists). Filter box narrows all three lists live."
+        next="A healthy master→mirror diff reads: added on mirror ≈ your recent imports, missing on mirror = 0, changed = 0."
+      />
       <div class="pl-tools">
         <select
           value={aId}

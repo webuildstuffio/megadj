@@ -5,24 +5,67 @@ import type { TimelineEvent } from "../shared/types";
 import { fmtWhen, fmtEventData } from "../shared/fmt";
 import { Icon } from "./icons";
 import { toast, apiPost } from "./toast";
+import { TabIntro } from "./InfoTip";
 
-/** Event kind → [icon, chip tone]. Everything unknown falls back to muted. */
-const KIND_STYLE: Record<string, [string, string]> = {
-  "job-done": ["check", "good"],
-  "job-failed": ["warn", "bad"],
-  "job-queued": ["clock", "info"],
-  "bitrot-suspect": ["warn", "bad"],
-  scan: ["scan", "info"],
-  mounted: ["usb", "good"],
-  "unmounted-dirty": ["warn", "warn"],
-  "first-seen": ["bolt", "info"],
-  rename: ["pencil", "muted"],
-  "photo-set": ["photo", "muted"],
-  benchmark: ["pulse", "info"],
-  checksum: ["shield", "info"],
-  verify: ["shield", "good"],
-  mirror: ["refresh", "info"],
-  "agent-note": ["bolt", "info"],
+/** Event kind → [icon, chip tone, one-line hover explanation]. Everything
+ *  unknown falls back to muted + a generic line — the UI never lies about
+ *  an event kind it doesn't recognize. */
+const KIND_STYLE: Record<string, [string, string, string]> = {
+  "job-done": ["check", "good", "A job finished successfully."],
+  "job-failed": [
+    "warn",
+    "bad",
+    "A job ran and failed — check JobsDock for the error and re-run.",
+  ],
+  "job-queued": [
+    "clock",
+    "info",
+    "A job was enqueued and is waiting for its turn.",
+  ],
+  "bitrot-suspect": [
+    "warn",
+    "bad",
+    "A file's bytes no longer match its checksum — possible silent corruption. Re-download or replace it.",
+  ],
+  scan: ["scan", "info", "The drive's library was read and a snapshot stored."],
+  mounted: ["usb", "good", "The drive was plugged in and recognized."],
+  "unmounted-dirty": [
+    "warn",
+    "warn",
+    "The drive vanished without a clean eject — re-scan before trusting its numbers.",
+  ],
+  "first-seen": [
+    "bolt",
+    "info",
+    "CrateDeck registered this drive permanently — it now has a history.",
+  ],
+  rename: ["pencil", "muted", "The drive's nickname changed."],
+  "photo-set": ["photo", "muted", "The drive's cover photo changed."],
+  benchmark: [
+    "pulse",
+    "info",
+    "Read-speed benchmark ran — see the Health tab.",
+  ],
+  checksum: [
+    "shield",
+    "info",
+    "Files were hashed into the corruption ledger — see Overview → Bitrot.",
+  ],
+  verify: [
+    "shield",
+    "good",
+    "The deep integrity audit ran — see the Verify tab for the full breakdown.",
+  ],
+  mirror: [
+    "refresh",
+    "info",
+    "The master's music was copied onto this mirror.",
+  ],
+  "agent-note": [
+    "bolt",
+    "info",
+    "A finding another agent (or you, via deckctl note) left for humans to read.",
+  ],
 };
 
 function dayKey(ts: number): string {
@@ -101,12 +144,20 @@ export function TimelineTab({
 
   return (
     <div>
+      <TabIntro
+        what="The drive's diary: every mount, job and finding, newest first."
+        how="Rows group by day. Each chip names the event kind — hover it for what that kind means. Agent notes (from deckctl note or MCP) render as dismissible cards."
+      />
       {groups.map(([day, evts]) => (
         <div key={day}>
           <div class="tl-day">{day}</div>
           <div class="tl">
             {evts.map((e) => {
-              const [icon, tone] = KIND_STYLE[e.kind] ?? ["dot", "muted"];
+              const [icon, tone, why] = KIND_STYLE[e.kind] ?? [
+                "dot",
+                "muted",
+                "An event kind this build doesn't label — details below.",
+              ];
               const detail = fmtEventData(e.data);
               // O88: agent notes render as a card — severity tone + dismiss
               const isNote = e.kind === "agent-note";
@@ -118,13 +169,13 @@ export function TimelineTab({
                 sev === "critical" ? "bad" : sev === "warn" ? "warn" : "info";
               const tone2 = isNote ? noteTone : tone;
               return (
-                <div class="row" key={e.id}>
+                <div class="row" key={e.id} title={why}>
                   <span class={`tico kc-${tone2}`}>
                     <Icon name={icon} size={13} />
                   </span>
                   <span class="t">{fmtWhen(e.at)}</span>
                   <span class="body">
-                    <span class={`kindchip kc-${tone2}`}>
+                    <span class={`kindchip kc-${tone2}`} title={why}>
                       {isNote
                         ? `agent note${sev && sev !== "info" ? ` · ${sev}` : ""}`
                         : e.kind}
