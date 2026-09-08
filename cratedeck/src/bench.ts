@@ -134,7 +134,10 @@ export async function hashFile(path: string): Promise<string> {
   return hashFileAsync(path);
 }
 
-/** Async variant so long hash runs never block the HTTP/SSE event loop. */
+/** Async variant so long hash runs never block the HTTP/SSE event loop.
+ *  Throws on cancellation — the caller must NOT persist a digest of the
+ *  partial bytes as the file's known-good fingerprint (a poisoned baseline
+ *  makes every future sweep report the healthy file as "changed"). */
 export async function hashFileAsync(
   path: string,
   signal?: { cancelled: boolean },
@@ -143,7 +146,7 @@ export async function hashFileAsync(
   const file = Bun.file(path);
   const stream = file.stream();
   for await (const chunk of stream) {
-    if (signal?.cancelled) break;
+    if (signal?.cancelled) throw new Error("cancelled");
     h.update(chunk as Buffer);
     // yield periodically — a full 8GB pass must not starve the server
     if ((hashedCounter++ & 0x3f) === 0)

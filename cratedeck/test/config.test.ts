@@ -31,4 +31,28 @@ describe("config", () => {
     );
     expect(() => loadConfig("/tmp/cratedeck-test-bad")).toThrow();
   });
+
+  it("keeps a # inside quoted values (API keys contain hashes)", () => {
+    // regression: the old parser stripped the inline comment BEFORE
+    // de-quoting, truncating key = "abc#def" to "abc
+    mkdirSync("/tmp/cratedeck-test-hash", { recursive: true });
+    writeFileSync(
+      "/tmp/cratedeck-test-hash/config.toml",
+      `[images]\nprovider = "exa"\nkey = "abc#def"\n\n[library]\nmaster_drive = "DJ #1"\n`,
+    );
+    const cfg = loadConfig("/tmp/cratedeck-test-hash");
+    expect(cfg.imageKey).toBe("abc#def");
+    expect(cfg.masterDrive).toBe("DJ #1");
+  });
+
+  it("still strips comments on unquoted values", () => {
+    mkdirSync("/tmp/cratedeck-test-cmt", { recursive: true });
+    writeFileSync(
+      "/tmp/cratedeck-test-cmt/config.toml",
+      `[library]\nmaster_drive = DJMASTER # mine\n[server]\nport = 8000 # debug\n`,
+    );
+    const cfg = loadConfig("/tmp/cratedeck-test-cmt");
+    expect(cfg.masterDrive).toBe("DJMASTER");
+    expect(cfg.serverPort).toBe(8000);
+  });
 });

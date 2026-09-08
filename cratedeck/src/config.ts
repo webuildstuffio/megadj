@@ -17,6 +17,13 @@ export interface CrateConfig {
   verifyTimeoutMin: number;
   /** Hard kill for a hung mirror sync (minutes; default 90). */
   mirrorTimeoutMin: number;
+  /** Hard wall-clock budget for ANY job, spawn-backed or not (minutes;
+   *  default 120). The last-resort bound: benchmark/checksum/scan legs that
+   *  have no subprocess timeout cannot hang past this. */
+  jobTimeoutMin: number;
+  /** Cancel a running job whose progress hasn't moved for this long
+   *  (minutes; default 10) — the "always spinning" killer. */
+  stallTimeoutMin: number;
   benchmarkMb: number;
   /** Auto light-scan a drive when it mounts (default: on). */
   autoScanOnMount: boolean;
@@ -60,13 +67,22 @@ function parseTomlSimple(src: string): TomlTable {
       }
       continue;
     }
+    // quoted strings FIRST: a "#" inside quotes is data, not a comment
+    // (API keys contain hashes: key = "abc#123"), and a quoted value is
+    // never a boolean/number candidate. The old single path stripped the
+    // comment before de-quoting, truncating every key at its first "#".
+    const kvQ = line.match(/^([A-Za-z0-9_]+)\s*=\s*"([^"]*)"\s*(?:#.*)?$/);
+    if (kvQ?.[1]) {
+      section[kvQ[1]!] = kvQ[2] ?? "";
+      continue;
+    }
     const kv = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.+?)\s*(?:#.*)?$/);
     if (kv?.[1] && kv[2]) {
-      let v: TomlValue = kv[2].replace(/^"(.*)"$/, "$1");
+      let v: TomlValue = kv[2];
       if (v === "true") v = true;
       else if (v === "false") v = false;
       else if (/^\d+$/.test(v)) v = parseInt(v, 10);
-      section[kv[1]] = v;
+      section[kv[1]!] = v;
     }
   }
   return out;
@@ -121,6 +137,14 @@ export function loadConfig(root: string): CrateConfig {
       typeof jobs.mirror_timeout_min === "number"
         ? jobs.mirror_timeout_min
         : 90,
+    jobTimeoutMin:
+      typeof jobs.job_timeout_min === "number" && jobs.job_timeout_min > 0
+        ? jobs.job_timeout_min
+        : 120,
+    stallTimeoutMin:
+      typeof jobs.stall_timeout_min === "number" && jobs.stall_timeout_min > 0
+        ? jobs.stall_timeout_min
+        : 15,
     benchmarkMb:
       typeof jobs.benchmark_mb === "number" ? jobs.benchmark_mb : 512,
     autoScanOnMount:

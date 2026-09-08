@@ -129,6 +129,47 @@ export async function resolveDrive(nameOrId: string): Promise<Drive | null> {
   );
 }
 
+/** One job-status poll with transient-failure tolerance. A job that is
+ *  RUNNING server-side must survive dropped polls (server busy mid-bench,
+ *  brief restart) — only `maxConsecutive` failures in a row give up.
+ *  Used by `waitForJob` (agents) and deckctl's `run --wait` loop (humans):
+ *  one implementation, so a killed CLI an hour into a verify can't recur.
+ *  `get` is injectable for tests; production passes nothing (real apiGet). */
+export async function pollJob(
+  jobId: string,
+  opts: {
+    timeoutMs?: number;
+    maxConsecutive?: number;
+    onGiveUp?: (msg: string) => void;
+    /** Retry backoff ms (default 1500); tests pass small values. */
+    retryDelayMs?: number;
+    get?: (path: string, timeoutMs?: number) => Promise<Response>;
+  } = {},
+): Promise<Job> {
+  const maxConsecutive = opts.maxConsecutive ?? 10;
+  const retryDelayMs = opts.retryDelayMs ?? 1500;
+  const get = opts.get ?? apiGet;
+  let transientErrors = 0;
+  const deadline = Date.now() + (opts.timeoutMs ?? 30 * 60 * 1000);
+  while (Date.now() < deadline) {
+    try {
+      const j = (await get(`/api/jobs/${jobId}`, 5_000).then((r) =>
+        r.json(),
+      )) as Job;
+      transientErrors = 0;
+      return j;
+    } catch (e) {
+      if (++transientErrors >= maxConsecutive) {
+        const msg = `job ${jobId} unreachable after ${maxConsecutive} consecutive polls: ${(e as Error).message}`;
+        opts.onGiveUp?.(msg);
+        throw new Error(msg);
+      }
+      await new Promise((r) => setTimeout(r, retryDelayMs));
+    }
+  }
+  throw new Error(`job ${jobId} timed out`);
+}
+
 /** Block until a job finishes; returns the final job record. */
 export async function waitForJob(
   jobId: string,
@@ -136,26 +177,11 @@ export async function waitForJob(
 ): Promise<Job> {
   const deadline = Date.now() + (opts.timeoutMs ?? 30 * 60 * 1000);
   let last = "";
-  let transientErrors = 0;
   while (Date.now() < deadline) {
-    let j: Job;
-    try {
-      j = (await apiGet(`/api/jobs/${jobId}`, 5_000).then((r) =>
-        r.json(),
-      )) as Job;
-      transientErrors = 0;
-    } catch (e) {
-      // the job is RUNNING on the server — a dropped poll (server busy in a
-      // benchmark, brief restart) must not fail the wait; only give up after
-      // repeated consecutive failures
-      if (++transientErrors >= 10) {
-        throw new Error(
-          `job ${jobId} unreachable after 10 consecutive polls: ${(e as Error).message}`,
-        );
-      }
-      await new Promise((r) => setTimeout(r, 1500));
-      continue;
-    }
+    // pollJob owns transient-failure tolerance (identical contract)
+    const j = await pollJob(jobId, {
+      timeoutMs: Math.max(deadline - Date.now(), 0),
+    });
     // dedupe on status+message: progress ticks fire every poll by design,
     // so including them would re-notify on each 3s poll while % moves
     const key = `${j.status}:${j.message}`;

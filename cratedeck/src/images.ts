@@ -59,6 +59,9 @@ export class ImageService {
           "X-Subscription-Token": this.cfg.imageKey!,
           Accept: "application/json",
         },
+        // every fetch gets a deadline: a hung provider must surface as a
+        // catchable failure, not a wedged route (repo fetch-deadline rule)
+        signal: AbortSignal.timeout(10_000),
       },
     );
     if (!res.ok) throw new Error(`brave ${res.status}`);
@@ -86,6 +89,7 @@ export class ImageService {
         type: "keyword",
         contents: { extras: { imageLinks: 4 }, text: false },
       }),
+      signal: AbortSignal.timeout(10_000), // deadline: see brave()
     });
     if (!res.ok) throw new Error(`exa ${res.status}`);
     const data = (await res.json()) as ExaResponse;
@@ -120,7 +124,11 @@ export class ImageService {
     const dir = join(this.cfg.imagesDir, driveId);
     const dest = join(dir, "photo");
     if (opts.url) {
-      const res = await fetch(opts.url);
+      const res = await fetch(opts.url, {
+        // 30s deadline: image hosts stall; without it the route hangs and
+        // the UI spin never resolves
+        signal: AbortSignal.timeout(30_000),
+      });
       if (!res.ok) throw new Error(`download failed ${res.status}`);
       const buf = new Uint8Array(await res.arrayBuffer());
       if (buf.length > 10 * 1024 * 1024) throw new Error("image > 10MB");
