@@ -7,44 +7,22 @@
 // when the archive DB is absent — same as the MCP tools.
 
 import { useEffect, useState } from "preact/hooks";
+import type {
+  ArchiveGridCrossCheck,
+  ArchiveIngestStatus,
+  ArchiveLowqQueue,
+  ArchiveMoodProfile,
+} from "../shared/types";
 import { api } from "./toast";
 import { Icon } from "./icons";
 
-interface IngestPayload {
-  available: boolean;
-  counts: Record<string, number>;
-  total: number;
-  recent_runs: {
-    started_at: string;
-    finished_at: string | null;
-    downloaded: number;
-    failed: number;
-    gone: number;
-  }[];
-  recent_tracks: { title: string; artist: string | null; status: string }[];
-}
-
-interface MoodPayload {
-  available: boolean;
-  analyzed: number;
-  avg: Record<string, number>;
-  extremes: Record<string, { title: string; video_id: string }[]>;
-}
-
-interface LowqPayload {
-  available: boolean;
-  tracks: { video_id: string; title: string; artist: string | null }[];
-}
-
-interface GridPayload {
-  available: boolean;
-  ledgered?: number;
-  checked?: number;
-  ok?: number;
-  /** real payload: off/octave are per-track arrays, not counts */
-  off?: { video_id: string; title: string | null }[];
-  octave?: { video_id: string; title: string | null }[];
-}
+// Payload types are DERIVED from ArchiveReader's return types
+// (shared/types.ts) — never re-declare server shapes locally. Local
+// duplicates drift silently; the Sep 7 rev shipped three of them.
+type IngestPayload = ArchiveIngestStatus;
+type MoodPayload = ArchiveMoodProfile;
+type LowqPayload = ArchiveLowqQueue;
+type GridPayload = ArchiveGridCrossCheck;
 
 function Stat(props: { v: string; l: string; icon: string }) {
   return (

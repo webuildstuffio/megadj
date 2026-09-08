@@ -322,3 +322,22 @@ export type {
   FleetDiff,
   DiffKind,
 } from "../src/fleet";
+
+// ---- archive reads (O82b): one SSOT for the JSON the archive routes serve ----
+//
+// Derived from `ArchiveReader`'s method return types (the actual producers)
+// so a web component that re-declares these shapes locally drifts straight
+// into a compile error instead of rendering `Invalid Date` / `undefined` in
+// production (the Sep 7 ArchiveTab bug class).
+export type ArchiveIngestStatus = ReturnType<
+  import("../src/archive").ArchiveReader["ingestStatus"]
+>;
+export type ArchiveLowqQueue = ReturnType<
+  import("../src/archive").ArchiveReader["lowqQueue"]
+>;
+export type ArchiveGridCrossCheck = ReturnType<
+  import("../src/archive").ArchiveReader["gridCrossCheck"]
+>;
+export type ArchiveMoodProfile = ReturnType<
+  import("../src/archive").ArchiveReader["moodProfile"]
+>;

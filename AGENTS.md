@@ -218,6 +218,22 @@ produces, regardless of the language used in the request.
   per running job — App coalesces `refreshJobs` to ≤1/s and DrivePage
   throttles its drive-scoped fetch to ≤1/2s, or a long verify hammers the
   server with thousands of redundant fetches.
+- **CrateDeck round-4 gotcha (Sep 7 2026, DOM-verified fix):** web
+  components must NOT re-declare server payload shapes as local
+  interfaces — a local duplicate drifts silently (TS can't see it) and
+  shipped three runtime bugs in one tab: `ArchiveTab.tsx` rendered
+  `Invalid Date` (epoch-multiplying an ISO `started_at`), `+undefined`
+  (`ingested` vs the real `downloaded/failed/gone`), and `[object
+  Object]` (grid `off`/`octave` are per-track ARRAYS, not counts). Fix
+  pattern: derive wire types from the producer via
+  `ReturnType<ArchiveReader["..."]>` re-exports in
+  `cratedeck/shared/types.ts` (`ArchiveIngestStatus`,
+  `ArchiveLowqQueue`, `ArchiveGridCrossCheck`, `ArchiveMoodProfile`)
+  and alias them in the component — any server shape change now fails
+  `bun run typecheck`, not the gig-night UI. Same lesson applies to
+  MCP route params: `archive_grid_cross_check`/`archive_mood_profile`
+  accepted `limit` but the routes dropped it (fixed — forwarded to
+  `archive.ts`).
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
   server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
   25 tools (pass-3 audit Sep 5 2026; rev 6/6.2 added the archive
