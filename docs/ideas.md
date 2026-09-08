@@ -708,7 +708,7 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
 82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves).** Live:
-    `cratedeck/src/mcp.ts` + `bun run mcp` — **21 tools**. CrateDeck
+    `cratedeck/src/mcp.ts` + `bun run mcp` — **22 tools**. CrateDeck
     half (14): `deck_status/drives/report/coverage/redundancy/diff/
 jobs/run/cancel/explain` + `deck_preflight` (B12), `deck_players`
     (N78), `deck_note`/`deck_notes` (O88). Archive half (O82b, 7):
@@ -736,7 +736,7 @@ source_diff/grid_cross_check/mood_profile` — readonly reads over
 
 85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
     installable Claude Code bundle: `.claude-plugin/plugin.json` +
-    `.mcp.json` (the 21-tool MCP server) + `hooks/hooks.json`
+    `.mcp.json` (the 22-tool MCP server) + `hooks/hooks.json`
     (SessionStart posts `deckctl status --json` into context) + the 3
     skills. `claude plugin validate` passes; dev-install with
     `claude --plugin-dir $PWD/plugin`. A published marketplace variant
@@ -813,7 +813,7 @@ coverage|redundancy|diff`; needs one scan per drive with rekordbox
   (ladder in `docs/fulltags-roadmap.md`).
 - **Phase 6 — agentified (§O):** O82 (both halves) + O86 rails + O87
   attribution + O83 core + **O88 notes feed + O85 plugin packaging ✅
-  SHIPPED 2026-09-05** (`bun run mcp` — 21 tools incl. `deck_note`;
+  SHIPPED 2026-09-05** (`bun run mcp` — 22 tools incl. `deck_note`;
   `plugin/` installs the whole surface). Open remainder: O84 inbox-agent;
   O83 optional `claude -p` digest wrapper.
 - **Phase 4 — the AI edge (reality gate says monthly+):** ~~I51 keys →

@@ -68,7 +68,7 @@ produces, regardless of the language used in the request.
 <folder> --json` = same completeness gate as `megadj audit`). megadj's
   modules are thin re-export shims — import surface unchanged. Idempotent
   (energy stamped as TXXX:ENERGY; re-run = no-op). 98 tests in
-  `fulltags/test/`. **Perf invariant:** `setFileTags`/`writePatchSync` is
+  `fulltags/test/` (11 files). **Perf invariant:** `setFileTags`/`writePatchSync` is
   sync — never bridge it to async code via a spawned `bun -e` (measured
   6.4× slowdown; there is a regression test). Roadmap **rev 3
   (2026-09-05, fact-checked twice — key via OpenKeyScan's analyzer
@@ -154,10 +154,20 @@ produces, regardless of the language used in the request.
   the `/drives/:id/export` dossier; served in the drive page's Health tab.
   Doc set status: `docs/cratedeck/acceptance.md`.
 - `deckctl` (`cratedeck/src/deckctl.ts`) is the agent/user CLI over CrateDeck:
-  `status|drives|report|run|coverage|redundancy|diff|jobs|cancel|stop|explain`,
+  `status|drives|report|run|coverage|redundancy|diff|jobs|cancel|stop|explain
+|preflight|players|prep|note|notes`,
   `--json` for machines, live spinner+ETA on `run`, exit code 3 = rekordbox
   interlock. Never bypass the interlock; auto-starts the server. Guide:
   `cratedeck/deckctl.md`, agent skill: `.claude/skills/cratedeck-deckctl/SKILL.md`.
+- **Surface parity (Sep 7 2026, `docs/surface-parity.md`):** every
+  capability exposed on one surface (deckctl CLI / MCP / web UI) must be
+  reachable on the others or carry an exemption row in that doc's §4
+  registry. Enforced by `cratedeck/test/surface-parity.test.ts`
+  (source-parsed census: verbs ↔ tools ↔ UI buttons ↔ doc table). New
+  capability = API route + spokes in the same PR, or doc §4 + test
+  exemption together. Same-day pass closed all 3 found gaps (UI Mirror
+  button role-gated to mirrors, `deck_prep` MCP twin, `deckctl
+  note|notes`).
 - **CrateDeck fleet superpowers**: `cratedeck/src/fleet.ts` is the pure query
   engine — `coverage()` (track × drive matrix + at-risk list), `redundancy()`
   (per-playlist pass/warn/fail with gap lists), `diff()` (added/removed/
@@ -209,8 +219,10 @@ produces, regardless of the language used in the request.
   server with thousands of redundant fetches.
 - **CrateDeck agent surface (Sep 5 2026):** `cratedeck/src/mcp.ts` is an MCP
   server (MCP 2025-06-18, stdio JSON-RPC) exposing the deckctl surface as
-  21 tools (pass-3 audit Sep 5 2026; rev 6/6.2 added the archive
-  `archive_grid_cross_check` + `archive_mood_profile` reads) — the
+  22 tools (pass-3 audit Sep 5 2026; rev 6/6.2 added the archive
+  `archive_grid_cross_check` + `archive_mood_profile` reads; the
+  2026-09-07 surface-parity audit added `deck_prep` and closed the
+  CLI notes gap) — the
   original 10 (`deck_status/drives/report/coverage/
 redundancy/diff/jobs/run/cancel/explain`) plus `deck_preflight` (B12),
   `deck_players` (N75/N78 hardware compat from measured dual-DB rows;

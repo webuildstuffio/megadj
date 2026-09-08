@@ -4,7 +4,9 @@ import type {
   Drive,
   DriveReport,
   HealthCheck,
+  OverallHealth,
   SnapshotData,
+  SyncVerdict,
 } from "../shared/types";
 import { fmtBytes, fmtPct } from "../shared/fmt";
 
@@ -306,7 +308,7 @@ export function legacySyncVerdict(
   isMirror: boolean,
   snapCount: number | undefined,
   masterCount: number | undefined,
-): { verdict: "in-sync" | "behind" | "unknown"; missing?: number } {
+): { verdict: SyncVerdict; missing?: number } {
   if (!isMirror) return { verdict: "unknown" };
   if (!masterCount || !snapCount) return { verdict: "unknown" };
   return snapCount >= masterCount
@@ -317,9 +319,7 @@ export function legacySyncVerdict(
 /** Overall verdict: worst status wins, but "unknown" is degraded-honest —
  *  a drive with all-unknown checks reports "unknown", never a fake "healthy".
  *  Warnings outweigh unknowns (attention), failures always win. */
-export function overall(
-  checks: HealthCheck[],
-): "healthy" | "attention" | "critical" | "unknown" {
+export function overall(checks: HealthCheck[]): OverallHealth {
   if (!checks.length) return "unknown";
   if (checks.some((c) => c.status === "fail")) return "critical";
   if (checks.some((c) => c.status === "warn")) return "attention";

@@ -5,7 +5,12 @@
 // `overall()` never calls a drive healthy on unknowns alone. Everything a
 // check needs comes from data cratedeck already measures — preflight is the
 // aggregated read, not a new measurement pass.
-import type { Drive, HealthCheck, SnapshotData } from "../shared/types";
+import type {
+  Drive,
+  HealthCheck,
+  PreflightVerdict,
+  SnapshotData,
+} from "../shared/types";
 import { fmtBytes } from "../shared/fmt";
 import { firmwareAdvisories, type PlayerSpec } from "./players";
 
@@ -31,7 +36,7 @@ export interface PreflightInput {
 
 export interface PreflightDriveResult {
   drive: Drive;
-  overall: "ready" | "attention" | "not-ready" | "unknown";
+  overall: PreflightVerdict;
   checks: HealthCheck[];
   /** show-stoppers — the reason a drive is not-ready, for the top line */
   blockers: string[];
@@ -41,7 +46,7 @@ export interface PreflightReport {
   generated_at: number;
   drives: PreflightDriveResult[];
   mountedCount: number;
-  overall: "ready" | "attention" | "not-ready" | "unknown";
+  overall: PreflightVerdict;
   /** one line a human reads before leaving for the gig */
   summary: string;
   /** N76: known firmware advisories from the player matrix (informational). */

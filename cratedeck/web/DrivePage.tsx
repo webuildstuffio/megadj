@@ -7,6 +7,7 @@ import type {
   InterlockState,
   Job,
   SnapshotData,
+  SyncVerdict,
   TimelineEvent,
   VerifyReport,
 } from "../shared/types";
@@ -33,7 +34,7 @@ type TabId = (typeof TABS)[number]["id"];
 interface Detail {
   drive: DriveReport["drive"];
   snapshot: SnapshotData | null;
-  sync: { verdict: string; missing?: number } | null;
+  sync: { verdict: SyncVerdict; missing?: number } | null;
   master_name: string;
 }
 
@@ -512,6 +513,22 @@ export function DrivePage(props: {
         >
           <Icon name="hash" size={14} /> Checksum
         </button>
+        {detail.drive.role === "mirror" && (
+          <button
+            type="button"
+            class="btn"
+            disabled={!detail.drive.mounted || locked || busy === "mirror"}
+            onClick={() => run("mirror")}
+            title={
+              locked
+                ? "rekordbox is running"
+                : "Copy master → this mirror (never writes the master)"
+            }
+          >
+            <Icon name="copy" size={14} />{" "}
+            {busy === "mirror" ? "Mirroring…" : "Mirror"}
+          </button>
+        )}
         <a class="btn" href={`/api/drives/${driveId}/export`} download>
           <Icon name="play" size={14} /> Export dossier
         </a>

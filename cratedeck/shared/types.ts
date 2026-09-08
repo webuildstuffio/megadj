@@ -4,6 +4,32 @@ export type DriveRole = "master" | "mirror" | "library" | "unknown";
 
 export type DriveState = "mounting" | "mounted" | "ghost";
 
+// ---- canonical verdict/status unions (one definition, imported everywhere) --
+
+/** Per-check verdict shared by HealthCheck and VerifyCheck. */
+export type CheckStatus = "pass" | "warn" | "fail" | "unknown";
+
+/** Aggregate drive verdict (preflight B12). Worst-status-wins. */
+export type PreflightVerdict = "ready" | "attention" | "not-ready" | "unknown";
+
+/** Aggregate drive verdict for the deep report Health tab. */
+export type OverallHealth = "healthy" | "attention" | "critical" | "unknown";
+
+/** Playlist redundancy verdict (fleet §B7). */
+export type RedundancyVerdict = "pass" | "warn" | "fail" | "unknown";
+
+/** Agent-note severity (O88), rendered as the card tone. Default "info". */
+export type NoteSeverity = "info" | "warn" | "critical";
+
+/** Master/mirror snapshot-count comparison (report + DrivePage). */
+export type SyncVerdict = "in-sync" | "behind" | "unknown";
+
+/** Subset of a Drive the preflight payload needs on the wire. */
+export type PreflightDriveInfo = Pick<
+  Drive,
+  "id" | "name" | "nickname" | "mounted"
+>;
+
 export interface Drive {
   id: string;
   volume_uuid: string | null;
@@ -197,7 +223,7 @@ export interface TimelineEvent {
 export interface HealthCheck {
   id: string;
   label: string;
-  status: "pass" | "warn" | "fail" | "unknown";
+  status: CheckStatus;
   detail: string;
   /** suggestion shown when status != pass */
   fix?: string;
@@ -274,7 +300,7 @@ export interface DriveReport {
   drive: Drive;
   snapshot: SnapshotData | null;
   checks: HealthCheck[];
-  sync: { verdict: string; missing?: number } | null;
+  sync: { verdict: SyncVerdict; missing?: number } | null;
   master_name: string;
   generated_at: number;
 }

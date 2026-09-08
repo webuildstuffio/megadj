@@ -1,18 +1,18 @@
 // DriveRail.tsx — the integrated left rail. Every known drive lives here
 // forever: mounted drives get a live health ring; ghosts stay dimmed. This
 // replaces the old drawer-open model — selecting a drive swaps the canvas.
-import type { DriveCardData } from "../shared/types";
+import type { DriveCardData, OverallHealth } from "../shared/types";
 import { fmtBytes, timeAgo } from "../shared/fmt";
 import { Icon } from "./icons";
 
-const VERDICT_COLOR: Record<string, string> = {
+const VERDICT_COLOR: Record<OverallHealth, string> = {
   healthy: "var(--accent)",
   attention: "var(--warn)",
   critical: "var(--bad)",
   unknown: "var(--muted)",
 };
 
-function HealthRing({ verdict, pct }: { verdict: string; pct: number }) {
+function HealthRing({ verdict, pct }: { verdict: OverallHealth; pct: number }) {
   const R = 19;
   const C = 2 * Math.PI * R;
   return (
@@ -54,7 +54,7 @@ function HealthRing({ verdict, pct }: { verdict: string; pct: number }) {
 
 export function DriveRail(props: {
   drives: DriveCardData[];
-  reports: Map<string, { overall?: string; pass_rate?: number }>;
+  reports: Map<string, { overall?: OverallHealth; pass_rate?: number }>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   ports: { port_key: string; drive_name: string | null; mounted: boolean }[];
@@ -122,7 +122,7 @@ export function DriveRail(props: {
 
 function RailCard(props: {
   drive: DriveCardData;
-  report?: { overall?: string; pass_rate?: number };
+  report?: { overall?: OverallHealth; pass_rate?: number };
   on: boolean;
   onSelect: () => void;
 }) {

@@ -2,10 +2,9 @@
  * mcp.ts — MCP (Model Context Protocol) server over CrateDeck.
  *
  * The principles say agents get the product 1:1 with humans: this exposes
- * everything deckctl does as MCP tools over stdio JSON-RPC, so Claude,
- * Cursor, or any MCP client can query drive health, fleet coverage, and
- * (with explicit confirmation) run verify/mirror — the rekordbox interlock
- * is enforced server-side and mirrored here in the tool layer.
+ * everything deckctl does as MCP tools over stdio JSON-RPC — drive health,
+ * fleet coverage, and (with confirmation) job runs; the rekordbox
+ * interlock is enforced server-side and mirrored here in the tool layer.
  *
  * Run: bun run cratedeck/src/mcp.ts   (add via your MCP client config)
  * Protocol: MCP 2025-06-18 (JSON-RPC 2.0, newline-delimited over stdio).
@@ -32,6 +31,7 @@
  *   archive_source_diff {a, b}  track-set diff between two sources
  *   archive_grid_cross_check    beat_this ledger vs RB BPM×duration verdicts
  *   archive_mood_profile        mood/dance/VA averages + extremes (roadmap #4)
+ *   deck_prep                   weekly digest markdown (O83, readonly)
  */
 import {
   apiGet,
@@ -105,20 +105,16 @@ const JOB_KINDS = [
 ] as const satisfies readonly JobKind[];
 
 /** O87 attribution: one id per MCP server process, stamped on mutating calls
- *  so jobs/timeline entries read "mcp:<short-id>" — an agent action is
- *  distinguishable from a human click without any client cooperation. */
+ *  so agent actions are distinguishable from human clicks. */
 const MCP_SESSION = `mcp:${crypto.randomUUID().slice(0, 8)}`;
 
 function str(args: Record<string, unknown>, key: string): string | undefined {
-  const v = args[key];
-  return typeof v === "string" ? v : undefined;
+  return typeof args[key] === "string" ? (args[key] as string) : undefined;
 }
-
 function num(args: Record<string, unknown>, key: string): number | undefined {
   const v = args[key];
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
-
 /** Resolve a drive or throw a clean param error. */
 async function needDrive(nameOrId: string | undefined): Promise<{
   id: string;
@@ -521,6 +517,27 @@ const TOOLS: Record<string, ToolDef> = {
       }
       const d = await needDrive(drive);
       return apiGet(`/api/drives/${d.id}/notes`).then((r) => r.json());
+    },
+  },
+
+  deck_prep: {
+    description:
+      "O83 weekly digest as a tool: renders the markdown gig-readiness digest (preflight verdicts → redundancy gaps → archive status + LOWQ queue) from the same reads `deckctl prep` uses. Read-only — it renders; it never writes.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+    run: async () => {
+      // same fetch-and-render seam as deckctl cmdPrep (one implementation,
+      // two spokes — surface-parity.md GAP-2 closed)
+      const { fetchWeeklyPrepInput, renderWeeklyPrep } = await import(
+        "./weekly_prep"
+      );
+      const getJson = <T>(path: string) =>
+        apiGet(path).then((r) => r.json() as Promise<T>);
+      const input = await fetchWeeklyPrepInput(getJson);
+      return { markdown: renderWeeklyPrep(input) };
     },
   },
 

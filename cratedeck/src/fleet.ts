@@ -11,6 +11,8 @@
 //   title+artist — fallback join when a track lives at different paths on
 //              different sticks (B6's "same track, different folder" case).
 
+import type { RedundancyVerdict } from "../shared/types";
+
 export interface TrackRow {
   drive_id: string;
   /** NFC-casefolded path relative to Contents/ (audio files only). */
@@ -215,14 +217,14 @@ export interface PlaylistRedundancy {
   /** tracks meeting the floor */
   protected_tracks: number;
   tracks: (TrackCoverage & { playlists: string[] })[];
-  verdict: "pass" | "warn" | "fail" | "unknown";
+  verdict: RedundancyVerdict;
   detail: string;
 }
 
 export interface RedundancyResult {
   playlists: PlaylistRedundancy[];
   /** fleet-wide verdict across all audited playlists */
-  overall: "pass" | "warn" | "fail" | "unknown";
+  overall: RedundancyVerdict;
   summary: string;
 }
 

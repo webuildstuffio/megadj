@@ -26,7 +26,7 @@ import {
   shouldAutoVerify,
   autoVerifyReason,
 } from "./auto_schedule";
-import type { Drive, JobKind, SnapshotData } from "../shared/types";
+import type { Drive, JobKind, NoteSeverity, SnapshotData } from "../shared/types";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
@@ -258,7 +258,7 @@ Bun.serve({
             let body: {
               note?: string;
               origin?: string;
-              severity?: "info" | "warn" | "critical";
+              severity?: NoteSeverity;
             };
             try {
               body = (await req.json()) as typeof body;

@@ -36,6 +36,8 @@ import type {
   InterlockState,
   RedundancyResult,
 } from "../shared/types";
+import type { PreflightReport } from "./preflight";
+import { cmdNote, cmdNotes, type NotePrintHooks } from "./deckctl_notes";
 
 // ---- output helpers ---------------------------------------------------------
 const JSON_MODE = process.argv.includes("--json");
@@ -45,6 +47,11 @@ const IS_TTY = process.stderr.isTTY ?? false;
 async function getJson<T>(p: string): Promise<T> {
   const res = await apiGet(p);
   return (await res.json()) as T;
+}
+
+/** Print hooks for the extracted notes commands (deckctl_notes.ts). */
+function noteHooks(): NotePrintHooks {
+  return { jsonMode: JSON_MODE, log, errOut, argv: process.argv, exit: process.exit };
 }
 
 type DriveWithBadges = Drive & {
@@ -128,35 +135,11 @@ async function cmdDrives(): Promise<void> {
 }
 
 // ---- preflight (B12): the one command to run before leaving for a gig -------
-interface PreflightPayload {
-  generated_at: number;
-  overall: "ready" | "attention" | "not-ready" | "unknown";
-  summary: string;
-  mountedCount: number;
-  firmware_advisories?: string[];
-  drives: {
-    drive: {
-      id: string;
-      name: string;
-      nickname: string | null;
-      mounted: boolean;
-    };
-    overall: "ready" | "attention" | "not-ready" | "unknown";
-    checks: {
-      id: string;
-      label: string;
-      status: "pass" | "warn" | "fail" | "unknown";
-      detail?: string;
-      fix?: string;
-    }[];
-    blockers: string[];
-  }[];
-}
 
 /** Exit codes carry the verdict: 0 ready · 1 attention/not-ready/unknown so
  *  cron + agents can gate on it without parsing JSON. */
 async function cmdPreflight(): Promise<void> {
-  const r = await getJson<PreflightPayload>("/api/preflight");
+  const r = await getJson<PreflightReport>("/api/preflight");
   if (JSON_MODE) {
     console.log(JSON.stringify(r, null, 2));
     if (r.overall !== "ready") process.exit(1);
@@ -561,35 +544,10 @@ async function cmdCancel(jobId: string): Promise<void> {
 
 // ---- prep (O83): the weekly digest — fetch, render, write -------------------
 async function cmdPrep(outPath: string | undefined): Promise<void> {
-  const [pf, redundancy, ingest, lowq] = await Promise.all([
-    getJson<PreflightPayload>("/api/preflight"),
-    getJson<{
-      playlists: {
-        playlist: string;
-        verdict: "pass" | "warn" | "fail" | "unknown";
-        tracks: { at_risk: boolean }[];
-      }[];
-    }>("/api/fleet/redundancy"),
-    getJson<import("./weekly_prep").IngestDigest>("/api/archive/ingest-status"),
-    getJson<import("./weekly_prep").LowqDigest>("/api/archive/lowq"),
-  ]);
-  // digest shape: only the fields the renderer reads; at_risk tracks are the
-  // per-playlist gap count
-  const digestIn: import("./weekly_prep").WeeklyPrepInput = {
-    preflight: pf,
-    redundancy: {
-      playlists: redundancy.playlists
-        .filter((p) => p.verdict !== "unknown")
-        .map((p) => ({
-          name: p.playlist,
-          verdict: p.verdict === "unknown" ? "warn" : p.verdict,
-          missing_count: p.tracks.filter((t) => t.at_risk).length,
-        })),
-    },
-    ingest,
-    lowq,
-  };
-  const { renderWeeklyPrep } = await import("./weekly_prep");
+  const { fetchWeeklyPrepInput, renderWeeklyPrep } = await import(
+    "./weekly_prep"
+  );
+  const digestIn = await fetchWeeklyPrepInput(getJson);
   const md = renderWeeklyPrep(digestIn);
   if (JSON_MODE) {
     console.log(JSON.stringify({ ...digestIn, markdown: md }, null, 2));
@@ -726,6 +684,10 @@ async function main(): Promise<void> {
           ? process.argv[process.argv.indexOf("--out") + 1]
           : undefined,
       );
+    case "note":
+      return cmdNote(noteHooks(), args[1] ?? usage(), (args[2] ?? "").trim() || usage());
+    case "notes":
+      return cmdNotes(noteHooks(), args[1]);
     case "report":
       return cmdReport(args[1] ?? usage());
     case "players":
@@ -777,6 +739,8 @@ function usage(): never {
       "  preflight                     gig-night pass/fail across all mounted drives (exit 1 if not ready)",
       "  players [drive]               which CDJs/XDJs can read each stick (measured dual-DB state)",
       "  prep [--out FILE]             weekly digest: fleet + redundancy + archive markdown",
+      "  note <drive> <text>           post a finding to the drive timeline (--severity info|warn|attention)",
+      "  notes [drive]                 active findings feed (omit drive = every drive)",
       "  diff <driveA> <driveB>        added / removed / changed between two drives",
       "  explain [kind]                what each job checks, typical duration, safety",
       "  jobs                          recent jobs",

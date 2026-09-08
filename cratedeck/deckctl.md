@@ -26,6 +26,8 @@ bun run deckctl <command> [--json]    # repo-root script (short form)
 | `preflight`              | **B12 gig-night gate**: pass/fail checklist over all mounted drives (dual-DB, grids, verify, speed, bitrot, space, parity, player compat) |
 | `players [drive]`        | **N78 hardware compat**: which CDJs/XDJs can read each stick, from measured dual-DB rows vs the N75 player matrix                            |
 | `prep [--out FILE]`      | **O83 weekly digest**: fleet + redundancy + archive markdown, written to `--out` when given                                                |
+| `note <drive> <text>`    | **O88 findings feed**: post a dismissable note to the drive timeline (`--severity info\|warn\|attention`)                                  |
+| `notes [drive]`          | **O88 findings feed**: active (undismissed) notes, one per line; omit drive = every drive                                                  |
 
 `<drive>` = volume name, nickname, or UUID.
 
@@ -126,12 +128,13 @@ Tools: `deck_status` · `deck_drives` · `deck_report {drive}` ·
 `deck_diff {a,b}` · `deck_jobs` · `deck_run {drive,kind,wait?}` ·
 `deck_cancel {job_id}` · `deck_explain {kind?}` · `deck_preflight` ·
 `deck_players {drive?}` · `deck_note {drive,note,severity?}` ·
-`deck_notes {drive?}` · `archive_search_tracks {q}` ·
+`deck_notes {drive?}` · `deck_prep` (the `prep` twin — renders the
+weekly digest markdown, readonly) · `archive_search_tracks {q}` ·
 `archive_track_stats {video_id}` · `archive_ingest_status` ·
 `archive_lowq_queue` · `archive_source_diff {a,b}` ·
 `archive_grid_cross_check {limit?}` (rev 6 beats-ledger grid verdicts) ·
 `archive_mood_profile {limit?}` (rev 6.2 mood-ledger picker data) —
-21 tools total.
+22 tools total.
 
 Agent findings (O88): `deck_note` lands an agent's conclusion on a drive's
 timeline as a dismissable card (600-char cap, severity tone). Confirm with

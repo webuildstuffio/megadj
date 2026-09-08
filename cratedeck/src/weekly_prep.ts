@@ -10,9 +10,17 @@
 // module is the pure renderer: data in → markdown out. `deckctl prep` runs
 // it (fetch + render + write); a cron/agent loop just calls that command.
 
+import type { RedundancyVerdict } from "../shared/types";
+import type { PreflightReport } from "./preflight";
+
+/** The weekly digest consumes the server's full PreflightReport directly —
+ *  one type from producer to renderer, no structural-minimum drift. */
+export type PreflightDigest = PreflightReport;
+
 /** Structural minimum of the preflight report (deckctl's wire payload is
- *  narrower than the server type — this accepts both). */
-export interface PreflightDigest {
+ *  narrower than the server type — this accepts both). Verdict fields keep
+ *  the canonical unions so callers can't feed garbage strings in. */
+export interface PreflightDigestStruct {
   generated_at: number;
   overall: string;
   summary: string;
@@ -31,7 +39,9 @@ export interface PreflightDigest {
 export interface RedundancyDigest {
   playlists: {
     name: string;
-    verdict: "pass" | "warn" | "fail";
+    /** Narrowed from RedundancyVerdict: "unknown" playlists are filtered
+     *  out by the caller before rendering. */
+    verdict: Exclude<RedundancyVerdict, "unknown">;
     missing_count: number;
   }[];
 }
@@ -71,6 +81,43 @@ const VERDICT_ICON: Record<string, string> = {
 
 function dateLine(now: number): string {
   return new Date(now).toISOString().slice(0, 10);
+}
+
+/** Fetch-and-render seam shared by `deckctl prep` and the `deck_prep` MCP
+ *  tool (surface-parity: one implementation, two spokes). Data comes from
+ *  the server's own reads — preflight, fleet redundancy, archive status. */
+export async function fetchWeeklyPrepInput(
+  getJson: <T>(path: string) => Promise<T>,
+): Promise<WeeklyPrepInput> {
+  const [pf, redundancy, ingest, lowq] = await Promise.all([
+    getJson<PreflightReport>("/api/preflight"),
+    getJson<{
+      playlists: {
+        playlist: string;
+        verdict: "pass" | "warn" | "fail" | "unknown";
+        tracks: { at_risk: boolean }[];
+      }[];
+    }>("/api/fleet/redundancy"),
+    getJson<IngestDigest>("/api/archive/ingest-status"),
+    getJson<LowqDigest>("/api/archive/lowq"),
+  ]);
+  return {
+    preflight: pf,
+    redundancy: {
+      playlists: redundancy.playlists
+        .filter((p) => p.verdict !== "unknown")
+        .map((p) => ({
+          name: p.playlist,
+          verdict: (p.verdict === "unknown" ? "warn" : p.verdict) as
+            | "pass"
+            | "warn"
+            | "fail",
+          missing_count: p.tracks.filter((t) => t.at_risk).length,
+        })),
+    },
+    ingest,
+    lowq,
+  };
 }
 
 /** The digest. Deterministic, markdown, one screen — built to be pasted into

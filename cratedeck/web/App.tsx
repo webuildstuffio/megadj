@@ -6,6 +6,7 @@ import type {
   DriveCardData,
   InterlockState,
   Job,
+  OverallHealth,
   PortInfo,
   SearchResult,
 } from "../shared/types";
@@ -29,7 +30,7 @@ export function App() {
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [ports, setPorts] = useState<PortInfo[]>([]);
   const [reports, setReports] = useState<
-    Map<string, { overall?: string; pass_rate?: number }>
+    Map<string, { overall?: OverallHealth; pass_rate?: number }>
   >(new Map());
   const searchRef = useRef<HTMLInputElement | null>(null);
   /** coalesces SSE `job` bursts into ≤1 jobs refresh per second (see below) */
@@ -42,7 +43,10 @@ export function App() {
       fetch("/api/reports").then(
         (r) =>
           r.json() as Promise<
-            Record<string, { overall?: string; checks: { status: string }[] }>
+            Record<
+              string,
+              { overall?: OverallHealth; checks: { status: string }[] }
+            >
           >,
       ),
     ]);

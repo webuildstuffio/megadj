@@ -188,6 +188,7 @@ MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
 - **Start here:** [docs/PRINCIPLES.md](docs/PRINCIPLES.md) ·
   [docs/FEATURES.md](docs/FEATURES.md) ·
   [docs/usb-sync.md](docs/usb-sync.md) ·
+  [docs/surface-parity.md](docs/surface-parity.md) ·
   [fulltags/README.md](fulltags/README.md) ·
   [cratedeck/deckctl.md](cratedeck/deckctl.md)
 - **Product briefs:** [docs/cratedeck/](docs/cratedeck/) —

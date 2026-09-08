@@ -27,7 +27,7 @@ projects have shipped cores:
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | GetDat    | `megadj sync` (YTM, 256k-first, rate-limited, SQLite state, `LOWQ` flag)                                                                                                                                                          | one source (YouTube Music); quality ratchet has no swap tool            |
 | FullTags  | `fulltags/` sub-project: one schema, one atomic writer (5 formats + gotchas), art ladder, conf-gated AI, `audit` gate; megadj = thin shims                                                                                        | no structure cues, no vocal density, no similarity embeddings — key, BPM, fingerprints, mood all SHIPPED; TBPM + genre writes stay gate-blocked           |
-| CrateDeck | v0.1: registry+ghosts, ANLZ hand-building, dual-DB verify, interlock, fleet superpowers (coverage/redundancy/diff), deckctl, auto-scan (B17), ⌘K global search (B9), **MCP server (O82)** — 21 tools, interlock in the tool layer, **B12 preflight + N75/N78 player verdict shipped** | gig mode (F35), export runbook (C18a), set intelligence, differential mirror (C21) |
+| CrateDeck | v0.1: registry+ghosts, ANLZ hand-building, dual-DB verify, interlock, fleet superpowers (coverage/redundancy/diff), deckctl, auto-scan (B17), ⌘K global search (B9), **MCP server (O82)** — 22 tools, interlock in the tool layer, **B12 preflight + N75/N78 player verdict shipped** | gig mode (F35), export runbook (C18a), set intelligence, differential mirror (C21) |
 
 Also true, from the acceptance doc: **four open items need real hardware**
 (mirror-badge ground truth, drive-detail vs known counts, 1440×900 one-screen
@@ -187,7 +187,7 @@ done  ▸ FullTags ladder: key (80.7% gate PASS, 88/88 written) ·
         fingerprints (88/88) · mood + energy 2.0 + MB harvest ·
         beats/mood/cues DB ledgers (BPM/genre writes gate-blocked) ·
         O82b archive MCP · O83 deckctl prep · O86 rails + O85 plugin
-now   ▸ the RB key gauntlet at next DJLIBRARYM mount — 30 s, do it FIRST
+now   ▸ the RB key gauntlet at the next drive mount — 30 s, do it FIRST
         (disable Key analysis, reload tags, verify TKEY survives)
 Weeks 1–2   §0 survival (0a–0d) + the RB gauntlet above
 Weeks 2–5   Move 1 finishers: C18a runbook → C21 differential mirror →

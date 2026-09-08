@@ -16,13 +16,15 @@ export const NOTE_MAX = 600;
 /** Longest attribution tag. */
 export const ORIGIN_MAX = 40;
 
+import type { NoteSeverity } from "../shared/types";
+
 export interface NoteInput {
   drive_id: string;
   note: string;
   /** Who wrote it — "mcp:<session>" or an agent's display name. */
   origin?: string;
   /** Optional severity, rendered as the card tone. Default "info". */
-  severity?: "info" | "warn" | "critical";
+  severity?: NoteSeverity;
 }
 
 export interface StoredNote {
@@ -30,7 +32,7 @@ export interface StoredNote {
   drive_id: string;
   note: string;
   origin: string;
-  severity: "info" | "warn" | "critical";
+  severity: NoteSeverity;
   at: number;
   /** Set when dismissed; dismissed notes leave the active feed. */
   dismissed_at: number | null;
@@ -44,7 +46,7 @@ export function normalizeNote(
   drive_id: string;
   note: string;
   origin: string;
-  severity: "info" | "warn" | "critical";
+  severity: NoteSeverity;
 } {
   const drive = input.drive_id?.trim();
   if (!drive) throw new Error("drive_id is required");
@@ -166,7 +168,7 @@ export function addAgentNote(
     drive_id: string;
     note: string;
     origin: string;
-    severity: "info" | "warn" | "critical";
+    severity: NoteSeverity;
   },
 ): void {
   store.event(input.drive_id, "agent-note", {

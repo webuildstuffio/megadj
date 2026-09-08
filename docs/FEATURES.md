@@ -88,7 +88,7 @@ architecture, build plan, acceptance).
 
 |                    |                                                                                                                                                                                                                      |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (21-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                                  |
+| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (22-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                                  |
 | **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                              |
 | **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                          |
 | **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads              |
@@ -102,13 +102,11 @@ architecture, build plan, acceptance).
 [USB pipeline](usb-sync.md) ·
 [the doc set](cratedeck/)
 
-> **Shipped since this table was written (Sep 5 2026):** B12 preflight
-> (`deckctl preflight`, worst-status-wins gig-night gate), N75/N78
-> hardware-compat verdict (`deckctl players`), O82 MCP server — now 21
-> tools incl. the archive half (search/stats/ingest/LOWQ/source-diff/
-> grid-cross-check/mood-profile), O83 weekly digest (`deckctl prep`),
-> O87 job attribution, O88 agent-notes feed, O85 plugin packaging,
-> FullTags beats + mood + cues ledgers (see the FullTags roadmap rev 6.2).
+> **Note:** the status row already includes the Sep 5 2026 additions — B12
+> preflight, N75/N78 player-compat verdicts, the 22-tool MCP server
+> (incl. the O82b archive half), O83 weekly digest, O87 job attribution,
+> O88 agent notes, O85 plugin packaging, and the FullTags beats + mood +
+> cues ledgers (FullTags roadmap rev 6.2).
 
 **Vibe:** mission control for a drawer full of identical-looking sticks.
 
@@ -137,7 +135,7 @@ Headline shape, in one line each (read the docs for the real list):
   [fulltags-roadmap.md](fulltags-roadmap.md) rev 6.2.)_
 - **Move 3 — The agentic layer:** archive-half MCP server (the CrateDeck
   half already ships via `bun run mcp`), then the headless weekly agent
-  loop. _(BOTH HALVES SHIPPED Sep 5 2026 — 21-tool MCP + `deckctl prep`;
+  loop. _(BOTH HALVES SHIPPED Sep 5 2026 — 22-tool MCP + `deckctl prep`;
   remaining: O84 inbox agent.)_
 - **The dream** — hit predictor & set-builder copilot, calibrated on what
   actually got played; proposes sequences, never auto-exports (§M64, M66).
