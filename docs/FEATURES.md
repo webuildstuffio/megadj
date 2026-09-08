@@ -88,7 +88,7 @@ architecture, build plan, acceptance).
 
 |                    |                                                                                                                                                                                                                      |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (22-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                                  |
+| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (24-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                                  |
 | **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                              |
 | **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                          |
 | **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads              |
@@ -135,7 +135,7 @@ Headline shape, in one line each (read the docs for the real list):
   [fulltags-roadmap.md](fulltags-roadmap.md) rev 6.2.)_
 - **Move 3 — The agentic layer:** archive-half MCP server (the CrateDeck
   half already ships via `bun run mcp`), then the headless weekly agent
-  loop. _(BOTH HALVES SHIPPED Sep 5 2026 — 22-tool MCP + `deckctl prep`;
+  loop. _(BOTH HALVES SHIPPED Sep 5 2026 — 24-tool MCP + `deckctl prep` + D30 sweep (Sep 7);
   remaining: O84 inbox agent.)_
 - **The dream** — hit predictor & set-builder copilot, calibrated on what
   actually got played; proposes sequences, never auto-exports (§M64, M66).

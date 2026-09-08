@@ -33,6 +33,7 @@
  *   archive_mood_profile        mood/dance/VA averages + extremes (roadmap #4)
  *   deck_prep                   weekly digest markdown (O83, readonly)
  *   deck_search {q}             global search: playlists + folders (B9, readonly)
+ *   archive_sweep               D30 bitrot/truncation sweep (readonly)
  */
 import { archiveTools } from "./archive_tools";
 import {

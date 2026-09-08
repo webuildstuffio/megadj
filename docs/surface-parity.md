@@ -24,8 +24,8 @@ capabilities. `cratedeck/test/surface-parity.test.ts` keeps it that way.
 | --- | --- | --- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 18 commands (17 + `--help`) |
 | deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 17 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 23 tools |
-| HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~30 routes |
+| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 24 tools |
+| HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~31 routes |
 | Web UI | `cratedeck/web/` (hash-routed pages) | 4 pages, ~22 actions |
 
 The server's HTTP API is the **fourth surface** and the seam everything
@@ -151,7 +151,9 @@ this table AND the enforcement test together (that's the point).
   scaffold config and check the local machine. No UI/MCP sense.
 - **A3 — archive read tools are agent-facing, not UI-facing.** The UI
   is drive-centric; archive browsing/query belongs to agents (MCP) and
-  operators (CLI). A future "library" page would revisit this.
+  operators (CLI). A future "library" page would revisit this. (The D30
+  sweep rides the same rule: `archive_sweep` MCP tool + the `deckctl
+  prep` digest section — no standalone UI card.)
 
 ## 5. Enforcement — how the parity rule can't rot
 

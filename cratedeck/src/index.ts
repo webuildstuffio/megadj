@@ -510,6 +510,23 @@ Bun.serve({
         if (route === "/archive/mood") {
           return json(archive.moodProfile());
         }
+        // D30 archive-integrity sweep: blake2b the music tree vs the archive
+        // DB + CrateDeck-side known-good ledger. READ-ONLY on both the tree
+        // and megadj's DB (findings only); the ledger upsert is CrateDeck's
+        // own db. Long enough (~15s / 88 files) that it must not block the
+        // event loop — the engine hashes file-by-file with await.
+        if (route === "/archive/sweep") {
+          const { sweepArchive, tracksForSweep } = await import(
+            "./archive_sweep"
+          );
+          const report = await sweepArchive(
+            cfg.musicDir,
+            tracksForSweep(archive),
+            db.archiveLedger(),
+            (row) => db.upsertArchiveLedger(row),
+          );
+          return json(report);
+        }
         if (route === "/images/search") {
           return json(await images.search(url.searchParams.get("q") ?? ""));
         }

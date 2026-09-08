@@ -163,5 +163,16 @@ export function archiveTools(): Record<string, unknown> {
         return res.json();
       },
     },
+
+    archive_sweep: {
+      description:
+        "[READ-ONLY] D30 archive-integrity sweep: blake2b-hash every downloaded archive file and compare against known-good hashes + the archive DB — reports bitrot, silent truncation, and missing files BEFORE they reach a drive. First run baselines; findings start on the second. ~15s on the real archive.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      run: async () => apiGet("/api/archive/sweep").then((r) => r.json()),
+    },
   };
 }

@@ -88,6 +88,22 @@ export class ArchiveReader {
     );
   }
 
+  /** D30 archive-integrity sweep input: every downloaded track's path +
+   *  size hint, for comparing the music tree against known-good hashes. */
+  downloadedForSweep(): {
+    file_path: string | null;
+    title: string | null;
+    artist: string | null;
+    size_hint: number | null;
+  }[] {
+    return this.rows(
+      `SELECT file_path, title, artist, file_size_bytes AS size_hint
+       FROM tracks
+       WHERE status = 'downloaded' AND file_path IS NOT NULL
+       ORDER BY file_path`,
+    );
+  }
+
   /** Ingest pipeline status: per-status counts, recent runs, newest files. */
   ingestStatus(): {
     available: boolean;

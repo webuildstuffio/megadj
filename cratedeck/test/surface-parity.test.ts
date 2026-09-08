@@ -96,6 +96,7 @@ const TOOL_EXEMPTIONS: Record<string, string> = {
   archive_source_diff: "A3",
   archive_grid_cross_check: "A3",
   archive_mood_profile: "A3",
+  archive_sweep: "A3 (also folded into deckctl prep via the D30 digest section)",
 };
 
 /** UI job buttons exempt from existing (none today; mirror closes GAP-1). */
@@ -109,10 +110,10 @@ describe("surface parity (docs/surface-parity.md)", () => {
     const verbs = deckctlVerbs();
     const tools = mcpTools();
     expect(verbs.length).toBeGreaterThanOrEqual(17);
-    expect(tools.length).toBeGreaterThanOrEqual(23);
+    expect(tools.length).toBeGreaterThanOrEqual(24);
     const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
     expect(doc).toContain("| 17 verbs |");
-    expect(doc).toContain("| 23 tools |");
+    expect(doc).toContain("| 24 tools |");
   });
 
   test("every deckctl verb has an MCP twin or a registered exemption", () => {

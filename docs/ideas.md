@@ -707,7 +707,7 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
 82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves).** Live:
-    `cratedeck/src/mcp.ts` + `bun run mcp` — **22 tools**. CrateDeck
+    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — **24 tools**. CrateDeck
     half (15): `deck_status/drives/report/coverage/redundancy/diff/
 jobs/run/cancel/explain` + `deck_preflight` (B12), `deck_players`
     (N78), `deck_note`/`deck_notes` (O88), `deck_prep` (O83). Archive
@@ -724,9 +724,12 @@ source_diff/grid_cross_check/mood_profile` — readonly reads over
     preflight verdict (B12) → redundancy gaps (B7) → archive status +
     LOWQ queue (O82b reads) — the agent writes _nothing_. `--out FILE`
     persists it; `--json` feeds an agent loop; cron-able as-is
-    (`deckctl prep --out ~/preps/$(date +%F).md`). Remaining optional:
-    wiring a `claude -p` wrapper + the D30 archive-integrity sweep into
-    the digest. Effort S.
+    (`deckctl prep --out ~/preps/$(date +%F).md`). **D30 sweep folded in
+    2026-09-07:** `archive_sweep.ts` blake2b-hashes the archive vs the
+    DB + known-good ledger — the digest's "Archive integrity" section
+    (first real run: 88/88 stale DB sizes caught; the artwork pass grows
+    files after ingest records them). Remaining optional: a `claude -p`
+    wrapper. Effort S.
 
 84. **Inbox-to-crate agent.** "Dump this folder/zip/URL list, get clean
     tagged files": combine `megadj drop` (K61) with an agent loop that
@@ -736,7 +739,7 @@ source_diff/grid_cross_check/mood_profile` — readonly reads over
 
 85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
     installable Claude Code bundle: `.claude-plugin/plugin.json` +
-    `.mcp.json` (the 22-tool MCP server) + `hooks/hooks.json`
+    `.mcp.json` (the 24-tool MCP server) + `hooks/hooks.json`
     (SessionStart posts `deckctl status --json` into context) + the 3
     skills. `claude plugin validate` passes; dev-install with
     `claude --plugin-dir $PWD/plugin`. A published marketplace variant
@@ -813,7 +816,7 @@ coverage|redundancy|diff`; needs one scan per drive with rekordbox
   (ladder in `docs/fulltags-roadmap.md`).
 - **Phase 6 — agentified (§O):** O82 (both halves) + O86 rails + O87
   attribution + O83 core + **O88 notes feed + O85 plugin packaging ✅
-  SHIPPED 2026-09-05** (`bun run mcp` — 22 tools incl. `deck_note`;
+  SHIPPED 2026-09-05** (`bun run mcp` — 24 tools incl. `deck_note` + the Sep 7 `deck_search`/`deck_prep`/`archive_sweep` additions;
   `plugin/` installs the whole surface). Open remainder: O84 inbox-agent;
   O83 optional `claude -p` digest wrapper.
 - **Phase 4 — the AI edge (reality gate says monthly+):** ~~I51 keys →

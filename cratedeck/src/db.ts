@@ -88,6 +88,10 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 CREATE INDEX IF NOT EXISTS jobs_drive ON jobs(drive_id, status);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value_json TEXT);
+CREATE TABLE IF NOT EXISTS archive_ledger (
+  file_path TEXT PRIMARY KEY, size_bytes INTEGER, blake2b TEXT NOT NULL,
+  checked_at INTEGER NOT NULL
+);
 `;
 
 /** Stable stringify: key-sorted at EVERY depth, arrays kept in order, every
@@ -220,6 +224,47 @@ export class DB {
          )`,
       )
       .run(max);
+  }
+
+  // ---- D30: archive-integrity ledger (known-good hashes, CrateDeck-side) --
+
+  /** All known-good archive hashes (file_path → row). */
+  archiveLedger(): Map<string, import("./archive_sweep").LedgerRow> {
+    const rows = this.sqlite
+      .query<{ file_path: string; size_bytes: number | null; blake2b: string; checked_at: number }, []>(
+        `SELECT file_path, size_bytes, blake2b, checked_at FROM archive_ledger`,
+      )
+      .all();
+    return new Map(
+      rows.map((r) => [
+        r.file_path,
+        {
+          file_path: r.file_path,
+          size_bytes: r.size_bytes,
+          blake2b: r.blake2b,
+          checked_at: r.checked_at,
+        },
+      ]),
+    );
+  }
+
+  /** Record/refresh one known-good hash (upsert; sweep findings only). */
+  upsertArchiveLedger(row: {
+    file_path: string;
+    size_bytes: number | null;
+    blake2b: string;
+    checked_at: number;
+  }): void {
+    this.sqlite
+      .query(
+        `INSERT INTO archive_ledger (file_path, size_bytes, blake2b, checked_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(file_path) DO UPDATE SET
+           size_bytes = excluded.size_bytes,
+           blake2b = excluded.blake2b,
+           checked_at = excluded.checked_at`,
+      )
+      .run(row.file_path, row.size_bytes, row.blake2b, row.checked_at);
   }
 
   // ---- fleet tables (ideas.md §B6/B7/B8) ------------------------------------

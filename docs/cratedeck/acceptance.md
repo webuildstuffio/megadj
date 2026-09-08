@@ -92,7 +92,7 @@ fixture server + Chrome DevTools Protocol DOM checks; screenshots reviewed.
 ## Agent surface (shipped 2026-09-05)
 
 - **MCP server** — `src/mcp.ts`: stdio JSON-RPC exposing deckctl's surface
-  — **22 tools** (`deck_status/drives/report/coverage/redundancy/diff/
+  — **24 tools** (`deck_status/drives/report/coverage/redundancy/diff/
 jobs/run/cancel/explain` + `deck_preflight` (B12), `deck_players` (N78),
   `deck_note`/`deck_notes` (O88), and the O82b archive half:
   `archive_search_tracks/track_stats/ingest_status/lowq_queue/

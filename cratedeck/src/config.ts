@@ -24,6 +24,8 @@ export interface CrateConfig {
   verifyIntervalDays: number;
   /** megadj's archive DB (O82b archive tools read it; never written). */
   archiveDbPath: string;
+  /** megadj's music tree (D30 sweep hashes it; never written). */
+  musicDir: string;
   /** Raw [players.players] section — name → "device" | "onelibrary" (N75). */
   extraPlayers: Record<string, string>;
 }
@@ -132,6 +134,8 @@ export function loadConfig(root: string): CrateConfig {
     archiveDbPath:
       process.env.MEGADJ_DB ??
       `${process.env.HOME}/.local/state/megadj/archive.db`,
+    musicDir:
+      process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/DJ-Imports`,
     // [players.players] MY-XDJ = "device" — user-added players for the N75
     // compatibility matrix (players.ts merges them with the vendor defaults).
     extraPlayers: (() => {

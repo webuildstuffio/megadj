@@ -134,8 +134,15 @@ remains is the archive half and the loops:
    `--json` feeds an agent loop. The agent writes nothing; it reads and
    reports. Supersedes the F39 weekly digest as the-proposed
    implementation. The cheapest reliability win in the entire backlog.
-   Remaining optional: a `claude -p` cron wrapper + the D30
-   archive-integrity sweep inside the digest.
+   **D30 archive-integrity sweep SHIPPED inside the digest (2026-09-07):**
+   `cratedeck/src/archive_sweep.ts` blake2b-hashes every downloaded
+   archive file vs known-good hashes + the archive DB — the digest gained
+   an "Archive integrity" section, the API route is
+   `GET /api/archive/sweep`, the MCP tool `archive_sweep` (readonly);
+   known-good ledger lives in CrateDeck's db (`archive_ledger` table),
+   never in megadj's DB. First real run caught 88/88 stale DB sizes (the
+   artwork pass grows files after ingest records them). Remaining
+   optional: a `claude -p` cron wrapper.
 3. **O84/O85 after the surface is stable** — inbox-to-crate agent on top of
    `megadj drop`; skill/plugin packaging (O85's Claude-Code plugin manifest
    now just points at the live MCP server instead of shipping one).

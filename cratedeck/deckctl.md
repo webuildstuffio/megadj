@@ -129,12 +129,15 @@ Tools: `deck_status` · `deck_drives` · `deck_report {drive}` ·
 `deck_cancel {job_id}` · `deck_explain {kind?}` · `deck_preflight` ·
 `deck_players {drive?}` · `deck_note {drive,note,severity?}` ·
 `deck_notes {drive?}` · `deck_prep` (the `prep` twin — renders the
-weekly digest markdown, readonly) · `archive_search_tracks {q}` ·
+weekly digest markdown, readonly) · `deck_search {q}` (global search,
+the ⌘K twin) · `archive_search_tracks {q}` ·
 `archive_track_stats {video_id}` · `archive_ingest_status` ·
 `archive_lowq_queue` · `archive_source_diff {a,b}` ·
 `archive_grid_cross_check {limit?}` (rev 6 beats-ledger grid verdicts) ·
-`archive_mood_profile {limit?}` (rev 6.2 mood-ledger picker data) —
-22 tools total.
+`archive_mood_profile {limit?}` (rev 6.2 mood-ledger picker data) ·
+`archive_sweep` (D30 bitrot/truncation sweep — also the "Archive
+integrity" section of `deckctl prep`) —
+24 tools total.
 
 Agent findings (O88): `deck_note` lands an agent's conclusion on a drive's
 timeline as a dismissable card (600-char cap, severity tone). Confirm with
