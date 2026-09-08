@@ -257,6 +257,26 @@ produces, regardless of the language used in the request.
   `SearchHit` with `entries: unknown[]` while the producer/web shared
   `SearchResult` with `entries?: number` — consolidated to shared re-exports
   (`PlayersPayload`, `StoredNote`, `SearchResult`, `FleetDiff`).
+- **Cycle-free shared/types (Sep 8 2026):** `shared/types.ts` is the LEAF
+  of the cratedeck graph — it may import nothing from `src/`. It used to
+  re-export producer types from `src/{fleet,notes,players,preflight}`
+  while those modules imported base types back — four cycles that made
+  the pre-commit circular-dependency check block ANY staged edit to
+  `types.ts` (forcing `GIT_SKIP_HOOKS` on ordinary commits). Fixed at the
+  root (`6d7e29e`): all cross-boundary wire types are DEFINED in
+  `shared/types.ts`; producers import them from there and re-export only
+  what legacy consumers still fetch (`fleet.ts` keeps
+  `TrackRow`/`PlaylistEntryRow`/`ManifestRow`; `players.ts` re-exports
+  `DriveCompat`/`PlayerSpec`; `preflight.ts` its report types). The
+  archive wire types stay type-only `import()`s — erased at runtime, no
+  cycle. Verify with
+  `bunx madge --circular --extensions ts,tsx cratedeck/src cratedeck/shared cratedeck/web`.
+  Also that day: `api()` gained an AbortController deadline
+  (`timeoutMs`, default 30s; `apiPost` forwards it) — client deadlines
+  must exist AND exceed the server leg (prep digest passes 75s vs the
+  60s sweep leg; Bun.serve `idleTimeout: 120` so the ~18s prep handler
+  isn't killed at the default 10s). `setNickname` trims and maps
+  blank-after-trim to null — a nickname can never be `''` or whitespace.
 - **Silent-fallback purge (Sep 7–8 2026):** zero bare `catch {}` in prod
   code — every catch must (a) surface to the user (toast / error state),
   (b) log at the boundary, or (c) be documented sanctioned resilience
