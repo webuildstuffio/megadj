@@ -200,6 +200,10 @@ MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
   [docs/roadmap-proposal.md](docs/roadmap-proposal.md),
   [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md),
   [docs/ideas.md](docs/ideas.md)
+- **Writeups:** [docs/learnings-2026-09-05-07.md](docs/learnings-2026-09-05-07.md)
+  (all learnings & findings from the Sep 5–7 build window) ·
+  [docs/product-state-2026-09-07.md](docs/product-state-2026-09-07.md)
+  (product & roadmap state, re-scored)
 - **Records:** [docs/docs-audit-2026-09-05.md](docs/docs-audit-2026-09-05.md)
   (docs audit log — the current record; `usb-sync-log.md` is local-only,
   gitignored)
