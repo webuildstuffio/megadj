@@ -25,12 +25,13 @@ everything and blocks everything else.
 ## §0 — Do now, before anything else
 
 Nothing in this document matters while these are open. §0 blocks §A–§O.
-**Tracked as GitHub issues** (that's where status lives; this doc keeps the
-why): [0a](https://github.com/webuildstuffio/megadj/issues/1) ·
+**Tracked as GitHub issues** — status lives there, this doc keeps the
+why: [0a](https://github.com/webuildstuffio/megadj/issues/1) ·
 [0b](https://github.com/webuildstuffio/megadj/issues/2) ·
 [0c](https://github.com/webuildstuffio/megadj/issues/3) ·
 [0d](https://github.com/webuildstuffio/megadj/issues/4) ·
-[0e incident log](https://github.com/webuildstuffio/megadj/issues/5)
+[0e incident log](https://github.com/webuildstuffio/megadj/issues/5) —
+all five open.
 
 0a. **Evacuate the dying SSD.** It has a hardware clock; every other item
 here has a calendar. This is item zero, full stop: copy to a healthy disk
@@ -46,11 +47,11 @@ all drives failing at once — the only failure that ends the archive.
 nowhere else. One session: adopt into master (via `megadj adopt` +
 ingest) or declare them dead in the sync log. Do it _before_ 0b so
 the cloud backup captures the decision, not the ambiguity.
-0d. **Build the redundancy audit (§B7) + coverage matrix (§B6).** The two
-cheapest items in the doc — pure queries over snapshots already
-collected — and the only ones that tell you the _actual_ damage
-radius of the next drive failure. If only four things ever ship from
-this doc, it's 0a–0d.
+0d. **Build the redundancy audit (§B7) + coverage matrix (§B6) — code
+SHIPPED 2026-09-04** (`fleet.ts`, `deckctl coverage|redundancy`);
+issue [#4](https://github.com/webuildstuffio/megadj/issues/4) stays
+open until every drive has one real scan feeding the matrices live
+data. If only four things ever ship from this doc, it's 0a–0d.
 
 0e. **Incident log (the missing input):** no record exists of what has
 actually gone wrong at a gig. Add one line per gig to the sync log
@@ -99,27 +100,24 @@ Discovered during the research pass; mapped to the ideas below:
 lives in `docs/fulltags-roadmap.md`):**
 
 - **BeatFM (ICME 2025)** — +4.1pt downbeat F1 over beat_this on paper,
-  **no public code or weights** (re-verified 2026-09-05 — the only GitHub
-  "BeatFM" is an unrelated 2022 JS radio player) → beat_this stays the
-  pick; revisit if weights ship. The paper-SOTA ≠ usable-SOTA trap P5
-  warns about.
-- **MusicFM (MIT code, CC-licensed FMA weights)** — dormant since the Feb
-  2024 checkpoint fix; no successor under that name (Sony's line moved to
-  SoniDo/Woosh research). Still the license-clean fallback, but the 2026
-  strength pick is **MuQ-MuLan** (Tencent, MIT code, CC-BY-NC weights):
-  SOTA zero-shot music tagging (MagnaTagATune AUC 79.3 vs CLAP 73.9–75.5),
-  beats MERT on the MARBLE benchmark. Personal-use OK per P9.
+  **no public code or weights** (re-verified — the only GitHub "BeatFM"
+  is an unrelated 2022 JS radio player) → beat_this stays the pick;
+  revisit if weights ship. The paper-SOTA ≠ usable-SOTA trap P5 warns of.
+- **MusicFM** — dormant since the Feb 2024 checkpoint fix; still the
+  license-clean fallback, but the 2026 strength pick is **MuQ-MuLan**
+  (Tencent, MIT code, CC-BY-NC weights): SOTA zero-shot music tagging
+  (MagnaTagATune AUC 79.3 vs CLAP 73.9–75.5), beats MERT on MARBLE.
+  Personal-use OK per P9.
 - **OpenKeyScan correction (rev 3):** the open-source repo
-  (`rekordcloud/openkeyscan-analyzer`, MIT, actively developed) speaks JSON
-  over stdin/stdout with CUDA>MPS>CPU auto-select; the localhost `:58721`
-  REST API documented at openkeyscan.com/api belongs to the **closed
-  desktop app**. Site accuracy claims (beats RB/MIK/Serato on 500 tracks)
-  are marketing figures — the ≥80% local gate stands.
+  (`rekordcloud/openkeyscan-analyzer`, MIT) speaks JSON over stdin/stdout
+  with CUDA>MPS>CPU auto-select; the localhost `:58721` REST API belongs
+  to the **closed desktop app**. Site accuracy claims are marketing
+  figures — the ≥80% local gate stands.
 - **License ledger (P9):** Essentia models CC BY-NC-SA · libKeyFinder
-  GPL · beat_this MIT · chromaprint LGPL · MERT/MuQ CC-BY-NC · MuQ-MuLan
-  MIT code + CC-BY-NC weights · OpenKeyScan MIT · dupsonic MIT ·
-  all-in-one-infer MIT. All offline/local. Track per-model licenses in
-  the model-cache manifest (roadmap risk #1).
+  GPL · beat_this MIT · chromaprint LGPL · MERT/MuQ CC-BY-NC ·
+  MuQ-MuLan MIT code + CC-BY-NC weights · OpenKeyScan MIT · dupsonic
+  MIT · all-in-one-infer MIT. All offline/local; track per-model
+  licenses in the model-cache manifest (roadmap risk #1).
 
 ---
 
@@ -818,11 +816,12 @@ coverage|redundancy|diff`; needs one scan per drive with rekordbox
   SHIPPED 2026-09-05** (`bun run mcp` — 21 tools incl. `deck_note`;
   `plugin/` installs the whole surface). Open remainder: O84 inbox-agent;
   O83 optional `claude -p` digest wrapper.
-- **Phase 4 — the AI edge (reality gate says monthly+):** I51 keys →
-  I45 moods → I46 sliced (cues first, tempo-curve later) → K61
-  `megadj drop`; M66/M67 after B11 history. Model gates: offline/local
-  (P9), EDM-verified (P7), license-ledgered, spot-checked before any
-  batch run.
+- **Phase 4 — the AI edge (reality gate says monthly+):** ~~I51 keys →
+  I45 moods →~~ ✅ shipped (rev 5–6.2: keys 80.7% gate PASS 88/88,
+  moods/energy 2.0 88/88, fingerprints 88/88). Remaining: I46 full
+  segment slice, vocal density, K61 `megadj drop`; M66/M67 after B11
+  history. Model gates: offline/local (P9), EDM-verified (P7),
+  license-ledgered, spot-checked before any batch run.
 - **Phase 5 — sources & irritants (whenever):** K57→K58→K59; M69–M74
   as S-effort palate cleansers.
 

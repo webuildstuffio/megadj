@@ -38,13 +38,10 @@ export const BASE = `http://127.0.0.1:${PORT}`;
 import {
   TERMINAL_JOB_STATUSES,
   type Drive,
-  type InterlockState,
   type Job,
-  type JobKind,
   type JobStatus,
 } from "../shared/types";
-export type { Drive, InterlockState, Job, JobKind, JobStatus };
-export type Interlock = InterlockState; // legacy alias (deckctl pre-SSOT)
+export type { Drive, Job, JobStatus };
 
 /** True when a job has reached a terminal state. */
 export function jobTerminal(status: JobStatus | string): boolean {
