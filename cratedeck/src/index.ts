@@ -487,6 +487,9 @@ Bun.serve({
         // ---- weekly prep digest (O83): the markdown brief, server-rendered
         if (route === "/fleet/prep") {
           try {
+            // self-fetch: the sweep leg can take ~15s — the caller-supplied
+            // timeoutMs is ignored here because fetch() has no external
+            // deadline; degrade-on-catch still applies per leg.
             const input = await fetchWeeklyPrepInput(async (p: string) => {
               const r = await fetch(`http://127.0.0.1:${cfg.serverPort}${p}`);
               if (!r.ok) throw new Error(`${p} → ${r.status}`);

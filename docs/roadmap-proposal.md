@@ -1,4 +1,4 @@
-# megadj — Future Roadmap Proposal
+# megadj, Future Roadmap Proposal
 
 _Proposal v3 · 2026-09-06 (v2 same-day-before the rev 4–6.2 burst; v3
 reconciles Move 2 and sequencing with what actually shipped + the failed
@@ -11,7 +11,7 @@ the repo: [PRINCIPLES.md](PRINCIPLES.md) (the arbiter), [FEATURES.md](FEATURES.m
 [fulltags/README.md](../fulltags/README.md), and the top-level README._
 
 **What this doc is:** the opinionated middle layer the repo was missing.
-`ideas.md` holds every idea; this doc holds the _proposal_ — what to build
+`ideas.md` holds every idea; this doc holds the _proposal_, what to build
 next, in what order, and **why**, grounded in the eleven product principles
 and the actual shipped state. When this doc and ideas.md disagree, this doc
 wins on ordering; ideas.md wins on detail.
@@ -26,8 +26,8 @@ projects have shipped cores:
 | Project   | Shipped core (evidence)                                                                                                                                                                                                           | The gap                                                                 |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | GetDat    | `megadj sync` (YTM, 256k-first, rate-limited, SQLite state, `LOWQ` flag)                                                                                                                                                          | one source (YouTube Music); quality ratchet has no swap tool            |
-| FullTags  | `fulltags/` sub-project: one schema, one atomic writer (5 formats + gotchas), art ladder, conf-gated AI, `audit` gate; megadj = thin shims                                                                                        | no structure cues, no vocal density, no similarity embeddings — key, BPM, fingerprints, mood all SHIPPED; TBPM + genre writes stay gate-blocked           |
-| CrateDeck | v0.1: registry+ghosts, ANLZ hand-building, dual-DB verify, interlock, fleet superpowers (coverage/redundancy/diff), deckctl, auto-scan (B17), ⌘K global search (B9), **MCP server (O82)** — 22 tools, interlock in the tool layer, **B12 preflight + N75/N78 player verdict shipped** | gig mode (F35), export runbook (C18a), set intelligence, differential mirror (C21) |
+| FullTags  | `fulltags/` sub-project: one schema, one atomic writer (5 formats + gotchas), art ladder, conf-gated AI, `audit` gate; megadj = thin shims                                                                                        | no structure cues, no vocal density, no similarity embeddings, key, BPM, fingerprints, mood all SHIPPED; TBPM + genre writes stay gate-blocked           |
+| CrateDeck | v0.1: registry+ghosts, ANLZ hand-building, dual-DB verify, interlock, fleet superpowers (coverage/redundancy/diff), deckctl, auto-scan (B17), ⌘K global search (B9), **MCP server (O82)**, 25 tools, interlock in the tool layer, **B12 preflight + N75/N78 player verdict shipped** | gig mode (F35), export runbook (C18a), set intelligence, differential mirror (C21) |
 
 Also true, from the acceptance doc: **four open items need real hardware**
 (mirror-badge ground truth, drive-detail vs known counts, 1440×900 one-screen
@@ -37,69 +37,69 @@ cold backup still gate all of it.**
 
 ---
 
-## 2. The proposal — three moves
+## 2. The proposal, three moves
 
 Everything in the backlog collapses into three consecutive moves. Each is
 independently shippable, each makes the next one cheaper, and each maps to a
 principle.
 
-### Move 1 — Harden the moat (CrateDeck v1.x) · _why: P6, minutes saved per gig_
+### Move 1, Harden the moat (CrateDeck v1.x) · _why: P6, minutes saved per gig_
 
 The fleet layer (coverage/redundancy/diff) shipped, but the _gig-day_ layer
 is still manual. This move finishes the "is this stick safe for tonight?"
 loop the product brief defines as CrateDeck's reason to exist:
 
-1. **B9 — global search across ghosts** — **✅ shipped 2026-09-05** (⌘K in
+1. **B9, global search across ghosts**, **✅ shipped 2026-09-05** (⌘K in
    the topbar → `/api/search` over every snapshot). The daily-use item is
    done; what remains of Move 1 is the gig-day checklist.
-2. **B12 + N76 — preflight with firmware notes.** One pass/fail checklist
+2. **B12 + N76, preflight with firmware notes.** One pass/fail checklist
    per drive: sync state, grid coverage, integrity, space, plus the
    firmware-aware "shows on player, playlists empty → check which library
    format that firmware prioritizes" rule (the CDJ-3000 v3.30 incident
    class). One click before every gig.
-3. **N75+77+78 — the player-compatibility verdict.** AlphaTheta's official
+3. **N75+77+78, the player-compatibility verdict.** AlphaTheta's official
    Device-vs-OneLibrary matrix as `players.toml`, combined with the measured
    dual-DB state we already compute → a per-drive "works on: XZ ✓, AZ ✗"
    badge. Rekordbox cannot tell you this; it is the single clearest
    expression of what megadj is for, and it falls out of data already
    collected (effort S, mostly data entry).
-4. **C18a — the assisted legacy-export runbook.** Priced honestly in the
+4. **C18a, the assisted legacy-export runbook.** Priced honestly in the
    audit as "the right buy": captures most of the value of pdb automation
    (no missed steps, auto-detected stage completion via pdb row counts and
    `playlists3*.sync` mtimes) at none of the risk. The dance runs a few
    times a month; this makes those times un-failable.
-5. **C21 + C22 — differential mirror + one-click "sync everything"** with
+5. **C21 + C22, differential mirror + one-click "sync everything"** with
    notifications, safe under the interlock. Weekly mirror goes from hours
    to minutes (checksum ledger as change detector).
 
 **Why now:** these are pure reads/jobs over data the scans already collect;
-no new analysis stack; every item is S–M effort. They compound — preflight
+no new analysis stack; every item is S–M effort. They compound, preflight
 consumes the compatibility verdict, which consumes the dual-DB gate that
 already ships.
 
-### Move 2 — Complete the metadata (FullTags v1.x) · _why: P8, AI does the labour_
+### Move 2, Complete the metadata (FullTags v1.x) · _why: P8, AI does the labour_
 
-**Largely shipped (rev 4–6.2, Sep 5–6 2026) — gates executed against the
+**Largely shipped (rev 4–6.2, Sep 5–6 2026), gates executed against the
 real 88-track archive, not just built.** Where each landed:
 
-1. **Harmonic key — ✅ SHIPPED.** OpenKeyScan analyzer (repo mode,
+1. **Harmonic key, ✅ SHIPPED.** OpenKeyScan analyzer (repo mode,
    stdin/stdout JSON) → `TKEY` + `TXXX:CAMELOT`, all 88 written. Gate:
-   **80.7% exact vs RB master.db** (71 exact + 8 near + 9 mismatch) —
+   **80.7% exact vs RB master.db** (71 exact + 8 near + 9 mismatch),
    PASS. Remaining: the RB gauntlet (disable Key analysis → Reload Tags
    at next drive mount) so RB doesn't overwrite the imports.
-2. **Real BPM + downbeats — 🔶 pivoted.** beat_this TBPM writes are
-   **gate-BLOCKED** (12/24 then 16/24 within 2% vs RB — a consistent
+2. **Real BPM + downbeats, 🔶 pivoted.** beat_this TBPM writes are
+   **gate-BLOCKED** (12/24 then 16/24 within 2% vs RB, a consistent
    ~2.2–2.6% beat-period lock). The valuable outputs shipped DB-side:
    `megadj beats` ledger (beat/downbeat arrays, never tags) + CrateDeck's
    independent `archive_grid_cross_check` verdicts.
-3. **Chromaprint fingerprint ledger — ✅ SHIPPED.** 88/88 stamped,
+3. **Chromaprint fingerprint ledger, ✅ SHIPPED.** 88/88 stamped,
    idempotent; consumers (D24 swap-verify, D25 dupe hunt, L63 mirror
    sampling) now unblocked and open.
-4. **Essentia ONNX heads — ✅ mood shipped, genre blocked.** `--mood` →
+4. **Essentia ONNX heads, ✅ mood shipped, genre blocked.** `--mood` →
    `TXXX:MOOD` + energy 2.0 blend + `megadj mood` DB ledger + CrateDeck
    mood profile. Genre head gate FAILED (saturated 0.87–1.0 on every
-   genre incl. Ambient) — writes stay blocked.
-5. **`megadj drop` (K61) — ✅ SHIPPED 2026-09-07.** One command:
+   genre incl. Ambient), writes stay blocked.
+5. **`megadj drop` (K61), ✅ SHIPPED 2026-09-07.** One command:
    `megadj drop <folder-or-url>` → download → ingest → beats → mood
    (model-gated) → cues → organize, with per-stage `--json` accounting
    and contained failures. The packaging win: drop a folder, get
@@ -108,44 +108,44 @@ real 88-track archive, not just built.** Where each landed:
 **What remains of Move 2:** the RB key gauntlet (operational, 30 s),
 vocal density, similarity embeddings. **Why the rest still
 earns its slot:** each step is verifiable against ground truth the repo
-already owns, each write goes through the one atomic writer (idempotent —
+already owns, each write goes through the one atomic writer (idempotent,
 re-running is safe), and the fields land where hardware actually reads them.
 
-### Move 3 — Agentify (the O layer) · _why: P1, agent-first is a principle_
+### Move 3, Agentify (the O layer) · _why: P1, agent-first is a principle_
 
 **Shipped since v1 (2026-09-05): the first half of this move.** O82's
-CrateDeck half and O86's rails are live — `cratedeck/src/mcp.ts` exposes 10
+CrateDeck half and O86's rails are live, `cratedeck/src/mcp.ts` exposes 10
 tools over stdio JSON-RPC (`deck_status/drives/report/coverage/redundancy/
 diff/jobs/run/cancel/explain`), readonly tools are annotation-marked,
 mutating ones (`deck_run`, `deck_cancel`) are flagged `[MUTATES DRIVE STATE]`
-and gated by the interlock check **inside the tool layer** — exactly where
+and gated by the interlock check **inside the tool layer**, exactly where
 O86 said it must live. `bun run mcp` from the repo root; registration
 snippet in [cratedeck/deckctl.md](../cratedeck/deckctl.md#mcp). What
 remains is the archive half and the loops:
 
-1. **O82b — megadj MCP server (archive half) — ✅ SHIPPED 2026-09-05.**
+1. **O82b, megadj MCP server (archive half), ✅ SHIPPED 2026-09-05.**
    `search_tracks`,
    `track_stats`, `ingest_status`, `playlist_diff`, `lowq_queue` over the
    archive DB + FullTags audit. Same pattern as the CrateDeck half: thin
    wrappers over existing functions, `--json` payloads already exist for
    most verbs.
-2. **O83 — headless weekly agent loop — ✅ core SHIPPED 2026-09-05**
+2. **O83, headless weekly agent loop, ✅ core SHIPPED 2026-09-05**
    (`deckctl prep`, `cratedeck/src/weekly_prep.ts`): one command renders
-   the markdown digest — preflight verdict (B12) → redundancy gaps (B7)
+   the markdown digest, preflight verdict (B12) → redundancy gaps (B7)
    → archive status + LOWQ queue (O82b reads). `--out FILE` persists it;
    `--json` feeds an agent loop. The agent writes nothing; it reads and
    reports. Supersedes the F39 weekly digest as the-proposed
    implementation. The cheapest reliability win in the entire backlog.
    **D30 archive-integrity sweep SHIPPED inside the digest (2026-09-07):**
    `cratedeck/src/archive_sweep.ts` blake2b-hashes every downloaded
-   archive file vs known-good hashes + the archive DB — the digest gained
+   archive file vs known-good hashes + the archive DB, the digest gained
    an "Archive integrity" section, the API route is
    `GET /api/archive/sweep`, the MCP tool `archive_sweep` (readonly);
    known-good ledger lives in CrateDeck's db (`archive_ledger` table),
    never in megadj's DB. First real run caught 88/88 stale DB sizes (the
    artwork pass grows files after ingest records them). Remaining
    optional: a `claude -p` cron wrapper.
-3. **O84/O85 after the surface is stable** — inbox-to-crate agent on top of
+3. **O84/O85 after the surface is stable**, inbox-to-crate agent on top of
    `megadj drop`; skill/plugin packaging (O85's Claude-Code plugin manifest
    now just points at the live MCP server instead of shipping one).
 
@@ -159,25 +159,25 @@ what keep agents inside P9/P11's idempotent, resumable discipline.
 ## 3. The AI model slate (chosen, with why + license + gate)
 
 Re-verified 2026-09-05 (see the research notes in ideas.md for the ledger).
-All local/offline — P9's zero-telemetry and §H's cloud non-goal hold.
+All local/offline, P9's zero-telemetry and §H's cloud non-goal hold.
 
 | Task            | Pick | Why this pick (and what was rejected) | License | Verification gate + result |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------ |
-| Key / Camelot   | OpenKeyScan analyzer — **open-source repo mode** (stdin/stdout JSON, device auto-select CUDA>MPS>CPU); the `:58721` REST server belongs to the _closed desktop app_, not the repo | CNN extending MusicalKeyCNN, GiantSteps-trained, Rekordcloud-maintained; site claims beat RB/MIK/Serato on a 500-track set (marketing figures — verify locally before trusting); `keyfinder-cli` rejected (not in homebrew-core) | MIT (code) | ≥80% vs RB: **80.7% — PASS, 88/88 written** |
+| Key / Camelot   | OpenKeyScan analyzer, **open-source repo mode** (stdin/stdout JSON, device auto-select CUDA>MPS>CPU); the `:58721` REST server belongs to the _closed desktop app_, not the repo | CNN extending MusicalKeyCNN, GiantSteps-trained, Rekordcloud-maintained; site claims beat RB/MIK/Serato on a 500-track set (marketing figures, verify locally before trusting); `keyfinder-cli` rejected (not in homebrew-core) | MIT (code) | ≥80% vs RB: **80.7%, PASS, 88/88 written** |
 | Key cross-check | Essentia `Key` algorithm | free second vote; disagreements → review queue | AGPL (code) | agreement tracking per batch |
-| BPM / downbeats | `beat_this` | ISMIR 2024 SOTA without DBN; MIT; pip + Rust/ONNX ports; v1.1.0 current. **BeatFM beats it on paper (+4.1pt downbeat F1) but ships no code/weights — rejected again**; watch `livechord-beat-refiner` as a downbeat post-processor | MIT | vs RB grids, >2% flag: **12/24, re-gate 16/24 — FAIL → TBPM blocked, beats ledger shipped instead** |
-| Structure/cues  | `all-in-one-infer` v3.x | functional segments + beats + demucs stems; **v3 rewrote NATTEN in pure PyTorch — installs on Apple Silicon with no compiler**; MLX port claims ~12.6× on AS (repo-reported). Labels pop-trained → map to drop/outro heuristically, verify on EDM first | MIT | 20-track EDM spot check before batch; **8-bar cue v0 shipped from the beats ledger (88/88)** |
-| Moods/genre/VA  | Essentia ONNX model zoo (MusiCNN etc.) | official ONNX exports run on ARM64 today; research-grade replaces hand-rolled RMS + LLM-only genre. **Models are CC BY-NC-SA — fine for a personal library per P9, re-review before any commercial release** | CC BY-NC-SA | **mood shipped 88/88 + energy 2.0; genre head saturated — writes blocked** |
+| BPM / downbeats | `beat_this` | ISMIR 2024 SOTA without DBN; MIT; pip + Rust/ONNX ports; v1.1.0 current. **BeatFM beats it on paper (+4.1pt downbeat F1) but ships no code/weights, rejected again**; watch `livechord-beat-refiner` as a downbeat post-processor | MIT | vs RB grids, >2% flag: **12/24, re-gate 16/24, FAIL → TBPM blocked, beats ledger shipped instead** |
+| Structure/cues  | `all-in-one-infer` v3.x | functional segments + beats + demucs stems; **v3 rewrote NATTEN in pure PyTorch, installs on Apple Silicon with no compiler**; MLX port claims ~12.6× on AS (repo-reported). Labels pop-trained → map to drop/outro heuristically, verify on EDM first | MIT | 20-track EDM spot check before batch; **8-bar cue v0 shipped from the beats ledger (88/88)** |
+| Moods/genre/VA  | Essentia ONNX model zoo (MusiCNN etc.) | official ONNX exports run on ARM64 today; research-grade replaces hand-rolled RMS + LLM-only genre. **Models are CC BY-NC-SA, fine for a personal library per P9, re-review before any commercial release** | CC BY-NC-SA | **mood shipped 88/88 + energy 2.0; genre head saturated, writes blocked** |
 | Energy          | danceability + DEAM arousal co-votes | replaces RMS-linear; keeps the 1–10 UI scale (Energy 2.0) | (via Essentia) | **shipped** (`0.5·RMS + 0.3·dance + 0.2·arousal`) |
-| Embeddings      | MUSE first → **MuQ-MuLan** as the strong step-up | MuQ-MuLan (~700M, Tencent, MIT code) is 2026 SOTA zero-shot music tagging (MagnaTagATune AUC 79.3 vs CLAP 73.9–75.5); **weights CC-BY-NC** — same personal-use carve-out; MERT effectively superseded; MusicFM dormant since 2024 | MIT (code) / CC-BY-NC (weights) | kNN sanity on "sounds like" queries |
-| Fingerprints    | chromaprint (`fpcalc`) | standard, one brew dep, AcoustID lookup free at 3 rps; chromaprint unchanged since 1.5.1 (2021) — stable and boring is good | LGPL | **shipped 88/88, idempotent** |
-| Dupe scanning   | dupsonic | **Rust, v0.2.5, first release Jul 2026, ships macOS-aarch64 prebuilt binaries** — chromaprint + LSH + SQLite cache, built for 100k+ libraries; `soundalike` (Go, mature) is the safe fallback | MIT | precision spot-check vs known dupes |
-| Vibe captions   | none (garnish only) | I50 verdict stands: you'd read them twice and never filter by them. `megadj drop` prints one line; no infrastructure | — | none — deliberately not built |
+| Embeddings      | MUSE first → **MuQ-MuLan** as the strong step-up | MuQ-MuLan (~700M, Tencent, MIT code) is 2026 SOTA zero-shot music tagging (MagnaTagATune AUC 79.3 vs CLAP 73.9–75.5); **weights CC-BY-NC**, same personal-use carve-out; MERT effectively superseded; MusicFM dormant since 2024 | MIT (code) / CC-BY-NC (weights) | kNN sanity on "sounds like" queries |
+| Fingerprints    | chromaprint (`fpcalc`) | standard, one brew dep, AcoustID lookup free at 3 rps; chromaprint unchanged since 1.5.1 (2021), stable and boring is good | LGPL | **shipped 88/88, idempotent** |
+| Dupe scanning   | dupsonic | **Rust, v0.2.5, first release Jul 2026, ships macOS-aarch64 prebuilt binaries**, chromaprint + LSH + SQLite cache, built for 100k+ libraries; `soundalike` (Go, mature) is the safe fallback | MIT | precision spot-check vs known dupes |
+| Vibe captions   | none (garnish only) | I50 verdict stands: you'd read them twice and never filter by them. `megadj drop` prints one line; no infrastructure |, | none, deliberately not built |
 | Voice memo → ID | mlx-whisper (M68, later) | 20–30× realtime on Metal; only after K59 mining exists (its trigger) | MIT | transcribe→resolve→queue E2E on 5 memos |
-| Source health   | yt-dlp SoundCloud/Bandcamp watch | SC works (DataDome 403s fixed by merged browser-impersonation, Feb 2026; DRM-wrapped go+/premium tracks 404 — unsupported upstream by design). **Bandcamp broken since 2026-08-21** (yt-dlp #17506, open) — keep yt-dlp on nightly + `curl_cffi`; sequence K58 after the fix lands | — | nightly smoke test before K57/K58 batch |
+| Source health   | yt-dlp SoundCloud/Bandcamp watch | SC works (DataDome 403s fixed by merged browser-impersonation, Feb 2026; DRM-wrapped go+/premium tracks 404, unsupported upstream by design). **Bandcamp broken since 2026-08-21** (yt-dlp #17506, open), keep yt-dlp on nightly + `curl_cffi`; sequence K58 after the fix lands |, | nightly smoke test before K57/K58 batch |
 
 **Model-gate rules (from P5/P7/P11, applied to ML):** paper-SOTA ≠
-usable-SOTA — no pick without runnable code/weights on macOS ARM; every
+usable-SOTA, no pick without runnable code/weights on macOS ARM; every
 model is tuned-for or verified-on electronic music before batch; spot-check
 verifications before any batch run; never batch >50 tracks without a sampled
 diff review (the year-trap generalization: every model output gets
@@ -186,7 +186,7 @@ confidence gate + verify pass + human diff, exactly like flash-lite's
 
 ---
 
-## 4. Sequencing — the gated 90-day line
+## 4. Sequencing, the gated 90-day line
 
 This is ideas.md's sequencing, made concrete. **§0 still gates it**: no
 commit of substance while the SSD evacuation (0a) is open.
@@ -212,7 +212,7 @@ Later       K57/K58 sources → K59 mining; O84 inbox agent
 
 **The reality gate still decides depth:** at monthly+ gig cadence, Moves 1–3
 run as written and the I46 cue work earns its month. At a-few-times-a-year,
-the honest build is: §0, FullTags P1 steps 1–3, O83, done — and M66/M67
+the honest build is: §0, FullTags P1 steps 1–3, O83, done, and M66/M67
 (set copilot, double-drop) stay parked until B11 history harvest exists to
 calibrate them.
 
@@ -230,19 +230,19 @@ running, freeze the rest.
 | Legacy-pdb writes (C18b/c)              | Gauntlet written down, priced, parked. Asymmetry (corrupted library at a venue vs deleting a few-times-a-month dance) is terrible at current frequency. The `fragmede/rekordbox-pdb` library makes it _possible_; the gauntlet keeps it _safe_, if ever |
 | Personal affinity model (I52)           | Deleted in the audit; bounded sibling M64 waits for B11 real history                                                                                                                                                                                    |
 | Synced lyrics (K56), setlist.fm (K60)   | No DJ-workflow payoff; triggers are "only if bored" / non-DJ gig mining                                                                                                                                                                                 |
-| Multi-machine realtime, cloud, accounts | P1/P9. Merge-key design note (E34) exists so it stays cheap _if ever_ — that's all                                                                                                                                                                      |
+| Multi-machine realtime, cloud, accounts | P1/P9. Merge-key design note (E34) exists so it stays cheap _if ever_, that's all                                                                                                                                                                      |
 | Stems as playback files                 | N81 keeps it analysis-side; CDJs can't play them. Explicitly parked, non-goal today                                                                                                                                                                     |
 
 ---
 
 ## 6. Risks & mitigations
 
-1. **License wall** — the best tag models are NC (Essentia CC BY-NC-SA, MERT/MuQ CC-BY-NC). Irrelevant at zero commercial intent (P9); a hard wall if FullTags ever ships as a product. _Mitigation:_ per-model license ledger in the model-cache manifest from day one; MusicFM as the clean fallback for embeddings.
+1. **License wall**, the best tag models are NC (Essentia CC BY-NC-SA, MERT/MuQ CC-BY-NC). Irrelevant at zero commercial intent (P9); a hard wall if FullTags ever ships as a product. _Mitigation:_ per-model license ledger in the model-cache manifest from day one; MusicFM as the clean fallback for embeddings.
 2. **Verifier scarcity** — key/BPM/structure models are only as good as the spot-checks. _Mitigation:_ labeled ground truth already identified (MIK output for key, the 294 fixed grids for BPM); batch caps + sampled diffs.
-3. **The year-trap, generalized** — flash-lite guesses 2023 for every year. _Mitigation:_ FullTags' idempotent writer makes re-runs safe; every model output gets confidence gate + verify pass + diff view.
-4. **Disk burn** — model caches (~1 GB Essentia zoo) + demucs temp stems on a 460 GB disk that runs hot. _Mitigation:_ cache to `~/.local/share/fulltags/`, stems to temp and deleted, and — first — actually do §0a (the SSD evacuation this whole list keeps deferring).
+3. **The year-trap, generalized**, flash-lite guesses 2023 for every year. _Mitigation:_ FullTags' idempotent writer makes re-runs safe; every model output gets confidence gate + verify pass + diff view.
+4. **Disk burn**, model caches (~1 GB Essentia zoo) + demucs temp stems on a 460 GB disk that runs hot. _Mitigation:_ cache to `~/.local/share/fulltags/`, stems to temp and deleted, and, first, do §0a (the SSD evacuation this whole list keeps deferring).
 5. **Hardware-truth drift** — everything here assumes the dual-DB gate stays honest. _Mitigation:_ the four open acceptance items need one real-hardware session; M6 resilience pass + `cratedeck-v0.1.0` tag closes the loop.
-6. **Solo-maintainer scope** — three projects, one human, finite evenings. _Mitigation:_ the cap rule (something ships or leaves before something new enters); the reality gate; this proposal's three moves instead of twelve parallel tracks.
+6. **Solo-maintainer scope**, three projects, one human, finite evenings. _Mitigation:_ the cap rule (something ships or leaves before something new enters); the reality gate; this proposal's three moves instead of twelve parallel tracks.
 
 ---
 

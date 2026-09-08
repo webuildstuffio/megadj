@@ -1,6 +1,6 @@
-# megadj — Product & Roadmap State
+# megadj, Product & Roadmap State
 
-**Status: ✅ CURRENT — the honest state of the whole product as of
+**Status: ✅ CURRENT, the honest state of the whole product as of
 2026-09-07, project by project, with the roadmap as it stands now (not as
 it was proposed). Companion to
 [learnings-2026-09-05-07.md](learnings-2026-09-05-07.md) (the lessons);
@@ -10,15 +10,15 @@ this page is the "where are we".**
 
 ## The one-paragraph answer
 
-megadj is a three-project pipeline — **GetDat** (download) → **FullTags**
-(enrich) → **CrateDeck** (organize/verify/sync) — run by one person on one
+megadj is a three-project pipeline, **GetDat** (download) → **FullTags**
+(enrich) → **CrateDeck** (organize/verify/sync), run by one person on one
 Mac, feeding a master + mirror pair of Pioneer-format DJ USBs. All three
 cores are shipped and *measured*: the archive's 88 tracks are fully
 ledgered (fingerprint, key, mood, energy in the files; beats, phrase cues,
 mood mirrors in the DB), the write-gate discipline has passed one ladder
 (key, 80.7%) and blocked two others (BPM phase-lock, saturated genre head)
-— which is the system working. CrateDeck finished its gig-night gate
-(preflight, player-compat verdicts) and its agent surface (22-tool MCP
+: which is the system working. CrateDeck finished its gig-night gate
+(preflight, player-compat verdicts) and its agent surface (25-tool MCP
 server, weekly digest, notes feed, plugin). What remains is deliberately
 sequenced: two operational tasks (the rekordbox key gauntlet, the §0
 backup/evacuation items) and a short list of next builds (memory-cue
@@ -32,31 +32,31 @@ download    perfect       organize, verify,     play on
 
 ## State by project
 
-### 🎧 GetDat — download & archive — **core shipped, single-source**
+### 🎧 GetDat, download & archive, **core shipped, single-source**
 
 - **Working today:** `megadj sync` from YouTube Music (liked songs,
-  playlists) — 256 kbps-first with graceful fallback, polite pacing,
+  playlists), 256 kbps-first with graceful fallback, polite pacing,
   permanent-failure classification, SQLite state so nothing ever
   re-downloads; `LOWQ` flag on <250 kbps. `megadj ingest` for external
   folders (probe/score/quarantine, zip expand-delete, MusicBrainz fill,
   WAV→AIFF conversion). Three fix-all rounds this window closed 21 bugs
   (sync/downloader, fetch/audit/artwork/enrich), each with a regression
   test.
-- **Measured state:** the archive DB is the pipeline's spine — tracks,
+- **Measured state:** the archive DB is the pipeline's spine, tracks,
   beats, mood, cues, and runs tables all live and populated; the audit
   gate (now requiring mood + energy) passes 88/88.
 - **The gap:** one source. SoundCloud is config work (yt-dlp impersonation
   landed upstream in Feb 2026); Bandcamp is blocked upstream (yt-dlp
-  #17506). The quality ratchet (`megadj upgrade`) is unstarted — the
+  #17506). The quality ratchet (`megadj upgrade`) is unstarted, the
   fingerprint ledger it needs now exists.
 
-### 🏷️ FullTags — enrich — **the analysis ladder executed; gates did their job**
+### 🏷️ FullTags, enrich, **the analysis ladder executed; gates did their job**
 
 - **Working today:** one schema (`FullTag`/`TagPatch`), one atomic writer
   (mp3/m4a/wav/flac/aiff, all format gotchas), file-first ground-truth
   readers, the full art ladder, four-vote genre ladder, AI conf-gated
   fallbacks with provenance stamps, standalone CLI + `audit --json`
-  gate — and the offline analysis stages: chromaprint fingerprints,
+  gate, and the offline analysis stages: chromaprint fingerprints,
   beat_this BPM, OpenKeyScan key, Essentia ONNX mood/dance/valence,
   energy 2.0 blend, MusicBrainz folksonomy harvest. 98 tests across 11
   files; megadj's commands are thin shims over it.
@@ -77,10 +77,10 @@ download    perfect       organize, verify,     play on
   exists upstream anyway). Both verdicts are wins of the gate system,
   and both fields already deliver their value DB-side.
 - **The gap:** structure labels (all-in-one-infer) and vocal density
-  (demucs) — the next analysis stages, both gated the same way;
+  (demucs), the next analysis stages, both gated the same way;
   similarity (sqlite-vec over the fingerprint ledger).
 
-### 📼 CrateDeck — organize, verify, sync — **v0.1 + gig-night gate + agent surface**
+### 📼 CrateDeck, organize, verify, sync, **v0.1 + gig-night gate + agent surface**
 
 - **Working today:** the dashboard (registry + ghosts, photos, ports,
   timeline, health reports, dossier export), the fleet superpowers
@@ -88,12 +88,12 @@ download    perfect       organize, verify,     play on
   (mount → light scan, weekly auto-verify), the deep verify gate
   (dual-DB agreement, audio existence, ANLZ-at-hash-path, grid math,
   playlist integrity, cross-drive parity), the rekordbox interlock
-  (exit code 3, enforced client + server side), `deckctl` CLI — and the
+  (exit code 3, enforced client + server side), `deckctl` CLI, and the
   new gig-night/agent layer: **B12 preflight** (worst-status-wins
   verdict, exit 1 for cron/agents), **N75/N78 player-compat verdicts**
   (public Pioneer matrix × measured dual-DB rows), **N76 firmware
   advisories**, **O83 weekly digest** (`deckctl prep`), the
-  **22-tool MCP server** (15 `deck_*` + 7 `archive_*`, readonly archive
+  **25-tool MCP server** (17 `deck_*` + 8 `archive_*`, readonly archive
   handle), **O87 attribution**, **O88 notes feed**, and the **O85
   plugin** packaging. Three fix-all rounds closed 14 CrateDeck bugs
   (progress/ETA/regexes/role-inference/SSE storms) with regression tests;
@@ -107,10 +107,10 @@ download    perfect       organize, verify,     play on
   legacy-export runbook and C21/C22 differential mirror + one-click sync
   are the remaining Move-1 builds.
 
-### 🤖 The agent surface — **first-class, both halves**
+### 🤖 The agent surface, **first-class, both halves**
 
-The O-layer goal — "agents are first-class operators" — is substantively
-done: `bun run mcp` exposes the whole product (22 tools) over stdio
+The O-layer goal, "agents are first-class operators", is substantively
+done: `bun run mcp` exposes the whole product (25 tools) over stdio
 JSON-RPC with readonly annotations, mutating-tool flags, and the interlock
 in the tool layer; the archive half reads megadj's own DB through a
 physically readonly handle; every job carries attribution; `deckctl prep`
@@ -127,25 +127,25 @@ The proposal's three moves, honestly re-scored after the window:
 
 | Move | Was proposed | Actually happened | What's left |
 | --- | --- | --- | --- |
-| **1 — Harden the moat** (CrateDeck v1.x) | preflight, player verdict, runbook, differential mirror | preflight ✅, player verdict ✅, firmware notes ✅, automation ✅, ⌘K ✅ | **C18a** assisted legacy-export runbook · **C21/C22** differential mirror + one-click sync · the 4 hardware-acceptance items |
-| **2 — Complete the metadata** (FullTags v1.x) | key → BPM → fingerprints → moods, gated | **all five P1 items executed**: key ✅ written, fingerprints ✅, mood ✅, BPM → pivoted to beats ledger ✅, MB genre harvest ✅ — two write-gates failed honestly and stayed blocked | structure labels (gated) · vocal density · similarity · **RB key gauntlet** (operational) |
-| **3 — Agentify** (the O layer) | MCP server, safety rails, weekly loop | **both MCP halves ✅** (22 tools), rails ✅, attribution ✅, notes ✅, prep ✅, plugin ✅ | **O84** inbox-agent · `claude -p` digest cron · (K61 `megadj drop` underneath it) |
+| **1, Harden the moat** (CrateDeck v1.x) | preflight, player verdict, runbook, differential mirror | preflight ✅, player verdict ✅, firmware notes ✅, automation ✅, ⌘K ✅ | **C18a** assisted legacy-export runbook · **C21/C22** differential mirror + one-click sync · the 4 hardware-acceptance items |
+| **2, Complete the metadata** (FullTags v1.x) | key → BPM → fingerprints → moods, gated | **all five P1 items executed**: key ✅ written, fingerprints ✅, mood ✅, BPM → pivoted to beats ledger ✅, MB genre harvest ✅, two write-gates failed honestly and stayed blocked | structure labels (gated) · vocal density · similarity · **RB key gauntlet** (operational) |
+| **3, Agentify** (the O layer) | MCP server, safety rails, weekly loop | **both MCP halves ✅** (25 tools), rails ✅, attribution ✅, notes ✅, prep ✅, plugin ✅ | **O84** inbox-agent · `claude -p` digest cron · (K61 `megadj drop` underneath it) |
 
 The original 90-day line collapsed: "Weeks 3–5" (key/BPM) and "Weeks 5–7"
 (fingerprints) happened in one evening once the gates were built, and
 "Weeks 10–13" (O82b/O83) shipped within the same window. The line is no
-longer time-boxed by the proposal — it's ordered by the queue below.
+longer time-boxed by the proposal, it's ordered by the queue below.
 
 ### The queue, in order
 
-1. **RB key gauntlet — next drive mount, do it FIRST** (30 s): disable
+1. **RB key gauntlet, next drive mount, do it FIRST** (30 s): disable
    Key analysis → Reload Tags → verify TKEY survives. Keys are in the
    files; this is what makes them durable. Everything else on drives
    waits for this.
 2. **§0 survival items** (they outrank all building, per ideas.md):
    0a SSD evacuation · 0c orphan verdict · 0b cold backup · 0d
    redundancy data (one real scan per drive closes issue #4 too).
-3. **rekordbox memory-cue WRITE pass** — phrase cues from the ledger
+3. **rekordbox memory-cue WRITE pass**, phrase cues from the ledger
    onto hardware, behind the interlock + gauntlet (the deliberate next
    gate).
 4. **Vocal density** (demucs-infer, ~3 s/track) → **similarity**
@@ -153,19 +153,19 @@ longer time-boxed by the proposal — it's ordered by the queue below.
    embedding step-up).
 5. **C18a runbook → C21 differential mirror → C22 one-click sync**
    (finishes Move 1).
-6. **O84 inbox-to-crate agent** on top of `megadj drop` (K61) — the
+6. **O84 inbox-to-crate agent** on top of `megadj drop` (K61), the
    last O-item that needs new code.
 7. **Palate cleansers whenever:** M69 format cmd, M70 litter clean,
    M71 port-speed badge, M74 playlist exporter.
 
 ### Parked / blocked (standing decisions, not open questions)
 
-- **TBPM writes** — blocked until the phase-lock class is fixed upstream
+- **TBPM writes**, blocked until the phase-lock class is fixed upstream
   (watch `livechord-beat-refiner`); the beats ledger already delivers the
   value.
-- **Genre-head writes** — blocked (saturated head, no ONNX export
+- **Genre-head writes**, blocked (saturated head, no ONNX export
   upstream); genres already come from SC/MB votes.
-- **C18b/c legacy-pdb writes** — parked with a written gauntlet; the
+- **C18b/c legacy-pdb writes**, parked with a written gauntlet; the
   asymmetry still says don't.
 - **Struck:** Engine DJ, Serato (P2: Pioneer only); I52 affinity model;
   synced lyrics; setlist.fm.
@@ -180,7 +180,7 @@ longer time-boxed by the proposal — it's ordered by the queue below.
 | --- | --- | --- |
 | Metadata completeness | 100% art/title/artist/album/genre/year | ✅ 88/88 under the upgraded audit gate (now also requires mood + energy) |
 | Key accuracy vs ground truth | ≥80% agreement | ✅ 80.7% measured on all 88 — and written |
-| Grid agreement | >98% | Independent cross-check shipped (46 ok / 40 off / 2 octave vs beat_this); the >98% bar properly applies to RB-native grids after re-analysis — honest: not yet measured |
+| Grid agreement | >98% | Independent cross-check shipped (46 ok / 40 off / 2 octave vs beat_this); the >98% bar properly applies to RB-native grids after re-analysis, honest: not yet measured |
 | Gig-day answer time | <60 s, one click | preflight ✅ shipped; latency unmeasured until the first real hardware session |
 | Mirror cost | weekly mirror in minutes | C21 unstarted |
 | Hands-off reliability | weekly digest, zero triggers | `deckctl prep` ✅; cron wrapper optional, not wired |
@@ -190,7 +190,7 @@ longer time-boxed by the proposal — it's ordered by the queue below.
 **Verdict:** Move 2 is functionally complete (with two honest blocks),
 Move 3 is functionally complete (with O84 left), Move 1 is two builds +
 one hardware session from done. The product's center of gravity has
-shifted from *building capabilities* to *operating them* — the next
+shifted from *building capabilities* to *operating them*, the next
 sessions are about hardware truth (gauntlet, acceptance items, real
 scans) and the last glue (C18a/C21, drop/O84).
 
