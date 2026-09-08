@@ -21,9 +21,43 @@ import { scanVolume } from "./scan";
 
 export type Emit = (channel: string, data: unknown) => void;
 
+/** Rolling ETA estimator (pure, clock-injected → testable). Sample window
+ *  advances on every call ≥1s after the last sample; rate = items/s over
+ *  that window; ETA = remaining / rate. Returns null while unprimed or
+ *  when the window observed no movement (honest "unknown", never a stale
+ *  guess — the old inline version pinned its baseline to the first sample
+ *  so the ETA froze after the first second and flapped as jobs sped up or
+ *  slowed down). */
+export function createEtaEstimator(): (
+  done: number,
+  total: number,
+  now: number,
+) => number | null {
+  let lastCount = 0;
+  let lastTime = -1;
+  let etaS: number | null = null;
+  return (done, total, now) => {
+    if (lastTime < 0) {
+      // first call: prime the window, no rate yet
+      lastCount = done;
+      lastTime = now;
+      return null;
+    }
+    if (now - lastTime >= 1_000) {
+      const rate = (done - lastCount) / ((now - lastTime) / 1000);
+      etaS = rate > 0 ? Math.max(0, Math.round((total - done) / rate)) : null;
+      lastCount = done;
+      lastTime = now;
+    }
+    return etaS;
+  };
+}
+
 interface RunHandle {
   proc?: Bun.Subprocess;
   cancelled: boolean;
+  /** the running job's id — lets the reaper's stall watchdog find the row */
+  jobId?: string;
   resolve?: () => void;
 }
 
@@ -33,6 +67,10 @@ export class JobEngine {
   private reaper: ReturnType<typeof setInterval> | null = null;
   /** last progress touch per job id — lets the reaper tell live from lost */
   private touched = new Map<string, number>();
+  /** last time a job's progress FRACTION changed — the stall watchdog reads
+   *  this, not `touched` (log lines keep `touched` fresh even when nothing
+   *  actually moves, which is exactly the wedge we must catch). */
+  private progressAt = new Map<string, number>();
 
   constructor(
     private cfg: CrateConfig,
@@ -64,6 +102,34 @@ export class JobEngine {
       }
       if (orphans.length)
         console.log(`cratedeck: reaped ${orphans.length} phantom job(s)`);
+
+      // Stall watchdog: a LIVE job whose progress hasn't moved for
+      // cfg.stallTimeoutMin is wedged (hung subprocess stdout, dead NFS
+      // mount, deadlock) — its own 5s liveness heartbeat hides it from the
+      // reaper above forever, and the UI spins on it forever. Kill it so
+      // the normal catch path records a terminal state.
+      const stallCutoff = Date.now() - this.cfg.stallTimeoutMin * 60_000;
+      for (const handle of this.running.values()) {
+        const job = handle.jobId ? this.db.getJob(handle.jobId) : null;
+        if (!job || job.status !== "running") continue;
+        const lastMove = Math.max(
+          this.progressAt.get(job.id) ?? 0,
+          job.started_at ?? 0,
+        );
+        if (lastMove > 0 && lastMove < stallCutoff && !handle.cancelled) {
+          console.log(
+            `cratedeck: job ${job.id.slice(0, 8)} (${job.kind}) stalled ` +
+              `${Math.round((Date.now() - lastMove) / 60_000)}m without progress — cancelling`,
+          );
+          // visible trail: the unwind path keeps this error unless the
+          // throw carries a more specific one
+          this.db.updateJob(job.id, {
+            error: `stalled — no progress for ${this.cfg.stallTimeoutMin} min; auto-cancelled`,
+          });
+          handle.cancelled = true;
+          handle.proc?.kill();
+        }
+      }
     }, 30_000);
   }
 
@@ -177,7 +243,7 @@ export class JobEngine {
       return;
     }
 
-    const handle: RunHandle = { cancelled: false };
+    const handle: RunHandle = { cancelled: false, jobId: job.id };
     this.running.set(job.drive_id, handle);
     this.db.updateJob(job.id, { status: "running", started_at: Date.now() });
     this.emit("job", this.db.getJob(job.id));
@@ -186,9 +252,7 @@ export class JobEngine {
     // rolling ETA from observed throughput. Keeps SSE + UI live without
     // hammering SQLite.
     let lastWrite = 0;
-    let lastCount = 0;
-    let lastTime = 0;
-    let etaS: number | null = null;
+    const eta = createEtaEstimator();
     const tick = (
       done: number,
       total: number,
@@ -197,17 +261,17 @@ export class JobEngine {
       force = false,
     ) => {
       const now = Date.now();
-      const p = total > 0 ? Math.min(1, done / total) : 0;
+      const p = total > 0 ? Math.min(1, Math.max(0, done / total)) : 0;
+      // remember when the fraction last INCREASED — feeds the stall
+      // watchdog (equal p on every tick = not moving, exactly the wedge).
+      const prevP = this.progressAt.get(`${job.id}:p`);
+      if (prevP === undefined || p > prevP) {
+        this.progressAt.set(`${job.id}:p`, p);
+        this.progressAt.set(job.id, now);
+      }
       if (!force && now - lastWrite < 250) return;
-      if (lastCount > 0 && now > lastTime) {
-        const rate = (done - lastCount) / ((now - lastTime) / 1000);
-        if (rate > 0) etaS = Math.round((total - done) / rate);
-      }
       lastWrite = now;
-      if (lastCount === 0 || now - lastTime > 1000) {
-        lastCount = done;
-        lastTime = now;
-      }
+      const etaS = eta(done, total, now);
       this.db.setJobProgress(job.id, {
         progress: p,
         message,
@@ -237,7 +301,10 @@ export class JobEngine {
       }
       this.db.updateJob(job.id, {
         status: handle.cancelled ? "cancelled" : "done",
-        progress: 1,
+        // cancelled jobs keep their real last progress — forcing 1 drew a
+        // full green bar over a job that never finished (a lie the dock
+        // then had to contradict with the status chip).
+        ...(handle.cancelled ? {} : { progress: 1 }),
         finished_at: Date.now(),
         result_json: JSON.stringify(result ?? null),
       });
@@ -248,18 +315,28 @@ export class JobEngine {
       });
     } catch (e) {
       const msg = (e as Error).message;
+      // A watchdog pre-stamps its reason (stall/budget) via updateJob; the
+      // unwind error here is usually the generic "cancelled" — don't let it
+      // wipe the useful trail.
+      const cur = this.db.getJob(job.id);
+      const error =
+        handle.cancelled && cur?.error && !cur.error.startsWith("cancel")
+          ? cur.error
+          : msg;
       this.db.updateJob(job.id, {
         status: handle.cancelled ? "cancelled" : "failed",
-        error: msg,
+        error,
         finished_at: Date.now(),
       });
       this.db.event(job.drive_id, "job-failed", {
         kind: job.kind,
         origin: job.origin,
-        error: msg,
+        error,
       });
     } finally {
       this.running.delete(job.drive_id);
+      this.progressAt.delete(`${job.id}:p`);
+      this.progressAt.delete(job.id);
       this.emit("job", this.db.getJob(job.id));
     }
   }
@@ -290,6 +367,12 @@ export class JobEngine {
       const p = progressFromLine(text);
       const now = Date.now();
       const isHeading = /^#{1,3} |===|^### /.test(text);
+      // stdout progress = life: a subprocess leg (verify/mirror) can sit on
+      // one phase for 20+ real minutes of copying/hashing, and a HEALTHY
+      // run keeps printing. A wedged one stops. Feeding the stall watchdog
+      // from log output (not just fraction movement) keeps it from
+      // false-killing a slow mirror mid-copy.
+      if (!isHeading) this.progressAt.set(job.id, now);
       if (p !== null || isHeading || now - lastMsg > 400) {
         lastMsg = now;
         this.db.setJobProgress(job.id, {
@@ -300,7 +383,33 @@ export class JobEngine {
       }
     };
     try {
-      return await this.executeInner(job, mountPoint, handle, tick, log);
+      // Hard wall-clock budget for the whole job (default 120m, config
+      // override [jobs] job_timeout_min). Verify/mirror already carry their
+      // own shorter spawn timeouts; benchmark/checksum/scan had NONE — a
+      // wedged read spun forever, and the liveness heartbeat below actively
+      // hid it from the phantom reaper. Budget expiry cancels the handle
+      // (the normal cancellation paths honor it) and throws a clear error.
+      let budget: ReturnType<typeof setTimeout> | null = null;
+      const budgetMs = this.cfg.jobTimeoutMin * 60_000;
+      const budgetHit = new Promise<never>((_, reject) => {
+        budget = setTimeout(() => {
+          handle.cancelled = true;
+          handle.proc?.kill();
+          reject(
+            new Error(
+              `job exceeded its ${this.cfg.jobTimeoutMin} min wall-clock budget — cancelled`,
+            ),
+          );
+        }, budgetMs);
+      });
+      try {
+        return await Promise.race([
+          this.executeInner(job, mountPoint, handle, tick, log),
+          budgetHit,
+        ]);
+      } finally {
+        if (budget) clearTimeout(budget);
+      }
     } finally {
       clearInterval(heartbeat);
       this.touched.delete(job.id);
