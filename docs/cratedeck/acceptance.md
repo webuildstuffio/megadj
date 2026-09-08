@@ -92,9 +92,10 @@ fixture server + Chrome DevTools Protocol DOM checks; screenshots reviewed.
 ## Agent + gig-night surface (shipped 2026-09-05–07)
 
 - **MCP server** — `src/mcp.ts`: stdio JSON-RPC exposing deckctl's surface
-  — **25 tools** (17 `deck_*`: status/drives/report/coverage/redundancy/
+  — **27 tools** (19 `deck_*`: status/drives/report/coverage/redundancy/
   diff/jobs/run/cancel/explain + `deck_preflight`, `deck_players`,
-  `deck_note`/`deck_notes`, `deck_prep`, `deck_search`, `deck_rename`;
+  `deck_note`/`deck_notes`, `deck_prep`, `deck_search`, `deck_rename`,
+  `deck_help`, `deck_dismiss`;
   8 `archive_*`: search_tracks/track_stats/ingest_status/lowq_queue/
   source_diff/grid_cross_check/mood_profile/sweep). Readonly tools carry
   `readOnlyHint: true`; mutating tools flagged `destructive`; the

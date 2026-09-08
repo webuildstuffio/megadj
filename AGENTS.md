@@ -43,7 +43,7 @@ mirror pair of DJ USB drives. Volume names are user-specific — examples use
 - **CrateDeck** (`cratedeck/`) — Bun + Preact dashboard over the drives'
   rekordbox libraries (Python seam: `cratedeck/python/rb_read.py`). Driven
   via `deckctl` (guide: `cratedeck/deckctl.md`) and the MCP server
-  (`bun run mcp`, 25 tools). Surface registry: `docs/surface-parity.md`.
+  (`bun run mcp`, 27 tools). Surface registry: `docs/surface-parity.md`.
   Idea backlog: `docs/ideas.md` (§0 = do-now gate → one GitHub issue each).
 
 **Agent-first contract (enforced by `src/commands/json-summary.test.ts`):**
@@ -58,7 +58,9 @@ human logs suppressed, exit code still meaningful.
   Pipeline + safety rules: `.claude/skills/rekordbox-usb-sync/SKILL.md`.
 - CrateDeck's verify job audits exactly these failure modes (dual-DB
   agreement, file existence, ANLZ at hashed paths, grid sanity, playlist
-  integrity, parity); `deckctl explain` documents every job type.
+  integrity, parity); `deckctl explain` documents every job type and
+  `deckctl help [term]` serves the UI glossary/tour (same SSOT as the
+  tooltips — `cratedeck/shared/help.ts`, also `deck_help` over MCP).
 - RB never reads art in WAVs (RIFF INFO has no art field) — ingest converts
   new WAVs → AIFF (`src/commands/wav-to-aiff.ts`); legacy WAVs are
   pointer-fixed via `tools/rb_art.py`. RB renders covers from
@@ -97,8 +99,30 @@ Architecture + wire-shape rules:
 - The SSE stream needs a heartbeat (Bun kills idle streams ~10s — this once
   stranded a finished verify as "running 0%" forever) + a phantom-job
   reaper for stale `running` rows.
+- **A running job must never spin forever (Sep 8 "always spinning" sweep,
+  regression-tested in `cratedeck/test/jobs-progress.test.ts`):** four
+  independent defects each froze or lied about live jobs — (1) the ETA
+  sampler pinned its rate baseline to the FIRST sample, so the ETA froze
+  after 1s and flapped (fixed: `createEtaEstimator` re-bases the window
+  every ≥1s sample; stalled window → `null`, honest unknown); (2)
+  benchmark/checksum/scan legs had NO wall-clock bound and their 5s
+  liveness heartbeat HID a wedged job from the phantom reaper forever
+  (fixed: whole-job budget `job_timeout_min` + a stall watchdog in the
+  reaper loop that watches the progress FRACTION — not `touched`, which
+  log lines keep fresh — and kills a job stuck >`stall_timeout_min`);
+  (3) the unwind forced `progress: 1` on cancelled jobs — a full green
+  bar over unfinished work; (4) the dock treated every queued/running row
+  as healthy live work — spinning header for a parked queue, a spinner
+  with zero staleness signal, machine phase strings (`phase-2`), and
+  `fmtEta` misused as "time ago". The dock now measures each row's
+  staleness client-side (`_received` stamp set by `App`'s jobs fetch),
+  warns amber before the server acts, and only spins while a job is
+  genuinely `running`. Rule: **a watchdog fed by activity logs cannot
+  catch a wedge that keeps logging — watch the progress fraction**.
 - SSE `job` events fire up to ~4/s — `App` coalesces `refreshJobs` to ≤1/s,
-  `DrivePage` throttles drive fetches to ≤1/2s.
+  `DrivePage` throttles drive fetches to ≤1/2s. Jobs-refresh failures
+  toast at most once per 30s (an outage would otherwise re-toast every
+  second off the poll + reconnect loops).
 - Disk-burn guards: snapshots capped 20/drive, events 2000/drive (agent
   notes ARE events — the cap bounds them automatically).
 - `setNickname` trims and maps blank-after-trim to null — a nickname is

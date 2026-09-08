@@ -154,6 +154,43 @@ describe("mcp stdio protocol", () => {
     expect(otherText).not.toBe(text);
   }, 30_000);
 
+  it("tools/list exposes the full deckctl surface incl. help + dismiss (rev 4)", async () => {
+    const res = await rpc("tools/list", {});
+    const tools = (
+      res.result as {
+        tools?: { name: string; annotations?: { readOnlyHint?: boolean } }[];
+      }
+    )?.tools;
+    expect(Array.isArray(tools)).toBeTrue();
+    const byName = new Map((tools ?? []).map((t) => [t.name as string, t]));
+    // the new rev-4 twins exist…
+    expect(byName.has("deck_help")).toBe(true);
+    expect(byName.has("deck_dismiss")).toBe(true);
+    // …and carry the right safety hints: help readonly, dismiss not
+    expect(byName.get("deck_help")?.annotations?.readOnlyHint).toBe(true);
+    expect(byName.get("deck_dismiss")?.annotations?.readOnlyHint).toBe(false);
+    // census parity: every deckctl verb with a tool twin is present
+    const names = new Set(byName.keys());
+    for (const verb of [
+      "status",
+      "drives",
+      "report",
+      "search",
+      "note",
+      "notes",
+      "dismiss",
+      "help",
+      "rename",
+      "prep",
+      "preflight",
+      "players",
+    ]) {
+      expect(names.has(`deck_${verb}`), `deck_${verb} in tools/list`).toBe(
+        true,
+      );
+    }
+  }, 15_000);
+
   it("notifications (no id) never produce an error response", async () => {
     const before = pending.length;
     proc.stdin.write(

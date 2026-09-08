@@ -22,12 +22,21 @@ const read = (p: string) =>
 
 // ---- census: derive each surface from source -----------------------------
 
-/** deckctl verb set: the switch in main(), e.g. `case "status":`. */
+/** deckctl verb set: the switch in main(), e.g. `case "status":`, plus the
+ *  PRE_SERVER_VERBS list (help works before the server boots — still a
+ *  first-class verb, documented in usage). */
 function deckctlVerbs(): string[] {
-  const verbs = read("cratedeck/src/deckctl.ts")
+  const src = read("cratedeck/src/deckctl.ts");
+  const verbs = src
     .map((l) => l.match(/^\s*case "([a-z-]+)":/))
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
+  const pre = src
+    .find((l) => l.includes("PRE_SERVER_VERBS = ["))
+    ?.match(/\[([^\]]*)\]/)?.[1];
+  if (pre)
+    for (const v of pre.split(",").map((s) => s.trim().replace(/['"]/g, "")))
+      if (v) verbs.push(v);
   return [...new Set(verbs)].sort();
 }
 
@@ -109,12 +118,13 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // keep this file and the doc honest about each other
     const verbs = deckctlVerbs();
     const tools = mcpTools();
-    expect(verbs.length).toBeGreaterThanOrEqual(18);
-    // 17 deck_* + 8 archive_* (source census; mcpTools() dedupes).
-    expect(tools.length).toBeGreaterThanOrEqual(25);
+    // 20 verbs (help + dismiss joined rev 4); 19 deck_* + 8 archive_*
+    // = 27 MCP tools (source census; mcpTools() dedupes).
+    expect(verbs.length).toBeGreaterThanOrEqual(20);
+    expect(tools.length).toBeGreaterThanOrEqual(27);
     const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
-    expect(doc).toContain("| 18 verbs |");
-    expect(doc).toContain("| 25 tools |");
+    expect(doc).toContain("| 20 verbs |");
+    expect(doc).toContain("| 27 tools |");
   });
 
   test("every deckctl verb has an MCP twin or a registered exemption", () => {
@@ -164,6 +174,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
       "deck_cancel",
       "deck_note",
       "deck_rename",
+      "deck_dismiss",
     ]) {
       const def = src.split(`${tool}: {`)[1]?.split(/\n\s{2}\}/)[0] ?? "";
       expect(def.length, `${tool} definition found`).toBeGreaterThan(0);
@@ -173,6 +184,43 @@ describe("surface parity (docs/surface-parity.md)", () => {
     }
     // the mutating surface runs the interlock guard before enqueue
     expect(src).toContain("await interlockGuard()");
+  });
+
+  test("the help SSOT is reachable from every surface", () => {
+    // UI: shared/help.ts feeds the tooltips + Welcome tour (Onboard/JobsDock)
+    const ui = ["cratedeck/web/Onboard.tsx", "cratedeck/web/JobsDock.tsx"]
+      .map((f) => readFileSync(join(ROOT, f), "utf8"))
+      .join("\n");
+    expect(ui).toContain('../shared/help"');
+    // server: GET /api/help serves the same content
+    const server = readFileSync(join(ROOT, "cratedeck/src/index.ts"), "utf8");
+    expect(server).toContain('"/help"');
+    // CLI: deckctl help [topic]
+    expect(deckctlVerbs()).toContain("help");
+    // MCP: deck_help {term?}
+    expect(mcpTools()).toContain("deck_help");
+    // every surface imports the SAME SSOT module — wording can't fork
+    // (deckctl's help leg lives in deckctl_help.ts, the extraction)
+    const deckctlHelp = readFileSync(
+      join(ROOT, "cratedeck/src/deckctl_help.ts"),
+      "utf8",
+    );
+    expect(deckctlHelp).toContain('../shared/help"');
+    const mcp = readFileSync(join(ROOT, "cratedeck/src/mcp.ts"), "utf8");
+    expect(mcp).toContain('../shared/help"');
+  });
+
+  test("note dismissal is reachable from the UI and the agent surfaces", () => {
+    // UI: the timeline card dismiss button
+    const timeline = readFileSync(
+      join(ROOT, "cratedeck/web/TimelineTab.tsx"),
+      "utf8",
+    );
+    expect(timeline).toContain("/dismiss");
+    // CLI: deckctl dismiss
+    expect(deckctlVerbs()).toContain("dismiss");
+    // MCP: deck_dismiss
+    expect(mcpTools()).toContain("deck_dismiss");
   });
 
   test("archive tools stay readonly (the sqlite handle never opens rw)", () => {

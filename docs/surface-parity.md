@@ -7,18 +7,22 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 3 · 2026-09-07 · census taken from source the same day (every count
-below re-derived from `src/cli.ts`, `cratedeck/src/deckctl.ts`,
+Rev 4 · 2026-09-08 · the in-app help SSOT (`shared/help.ts`, served at
+`GET /api/help`) and note dismissal got their CLI/MCP twins (`deckctl
+help|dismiss` + `deck_help`/`deck_dismiss`), closing the last two true
+gaps the Sep 8 UI help pass created. **Rev 3** (2026-09-07) took its
+census from source the same day (every count below re-derived from
+`src/cli.ts`, `cratedeck/src/deckctl.ts`,
 `cratedeck/src/mcp.ts` + `archive_tools.ts`, `cratedeck/src/index.ts`,
-`cratedeck/web/*.tsx`). **Rev 2** closed GAP-1/2/3 (UI Mirror button,
+`cratedeck/web/*.tsx`) and closed every remaining closeable exemption:
+D1 (`report --dossier` + `deck_report {format: "dossier"}`),
+D2-rename (`deckctl rename` + `deck_rename`), G2 (Fleet ⌗ Prep tab),
+A3 (Fleet ⌗ Archive tab). Rev 2 closed GAP-1/2/3 (UI Mirror button,
 `deck_prep` tool, `deckctl note|notes` verbs), G1 (Fleet ⌗ Preflight
-tab), F2 (`deckctl search` + `deck_search`). **Rev 3 closed every
-remaining closeable exemption:** D1 (`report --dossier` +
-`deck_report {format: "dossier"}`), D2-rename (`deckctl rename` +
-`deck_rename`), G2 (Fleet ⌗ Prep tab), A3 (Fleet ⌗ Archive tab). What
-remains in §4 is physically principled — host process control, photo
-upload, and archive mutation safety rails. `cratedeck/test/
-surface-parity.test.ts` keeps it that way.
+tab), F2 (`deckctl search` + `deck_search`). What remains in §4 is
+physically principled — host process control, photo upload, and archive
+mutation safety rails. `cratedeck/test/surface-parity.test.ts` keeps it
+that way.
 
 ---
 
@@ -27,8 +31,8 @@ surface-parity.test.ts` keeps it that way.
 | Surface | Entry points | Count |
 | --- | --- | --- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 19 commands + `--help` |
-| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 18 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 25 tools |
+| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 20 verbs |
+| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 27 tools |
 | HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~33 routes |
 | Web UI | `cratedeck/web/` (hash-routed pages) | 4 pages, ~22 actions |
 
@@ -58,6 +62,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Cancel job | `cancel <id>` ✅ | `deck_cancel` ✅ | JobsDock cancel ✅ | — |
 | Stop server | `stop` ✅ | ⛔ §4-P1 (clients don't kill hosts) | ⛔ §4-P2 | — |
 | Verify doc (explain) | `explain [kind]` ✅ | `deck_explain` ✅ | VerifyTab help ✅ | — |
+| In-app help (glossary/tour) | `help [term]` ✅ | `deck_help {term?}` ✅ | tooltips + Welcome tour ✅ | — (GAP-10 closed rev 4) |
 | Export dossier | `report --dossier [--out F]` ✅ | `deck_report {format:"dossier"}` ✅ | Export button ✅ | — (D1 closed rev 3) |
 
 ### 2b. Fleet queries
@@ -78,6 +83,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Player compat | `players [d]` ✅ | `deck_players` ✅ | Preflight tab (per-drive expand) ✅ | — (G1 closed) |
 | Weekly digest | `prep [--out]` ✅ | `deck_prep` ✅ (markdown; `--out` stays CLI) | Fleet ⌗ Prep tab ✅ | — (G2 closed rev 3) |
 | Agent notes feed | `note`/`notes` ✅ | `deck_note`/`deck_notes` ✅ | Timeline cards ✅ | — (GAP-3 closed) |
+| Note dismissal | `dismiss <d> <id>` ✅ | `deck_dismiss` ✅ (rev 4) | Timeline dismiss ✅ | — (GAP-11 closed rev 4) |
 | Job attribution (O87) | jobs show `[origin]` ✅ | stamps `mcp:<session>` ✅ | timeline chips ✅ | — |
 
 ### 2d. Archive (GetDat/FullTags) operations
@@ -122,6 +128,16 @@ spoke landing over the shared API route:
 - **GAP-9 (rev 3, was A3, CLOSED)** — Fleet ⌗ Archive tab (ingest
   status, mood profile, LOWQ queue, grid cross-check) over the same
   four readonly routes the MCP archive tools read.
+- **GAP-10 (rev 4, CLOSED)** — the Sep 8 UI help pass shipped
+  `shared/help.ts` (glossary, job explainers, surface tour) to the UI
+  and `GET /api/help` only. Now every surface reads the same SSOT:
+  `deckctl help [term|kind]` + `deck_help {term?}` import the module
+  directly (they work with the server down, too).
+- **GAP-11 (rev 4, CLOSED)** — note dismissal was UI-only (timeline
+  button) while the notes themselves landed from every surface — the
+  feed an agent fills had no agent-side off-ramp. `deckctl dismiss
+  <drive> <noteId>` + `deck_dismiss {drive, note_id}` close it
+  (mutating, confirm-first; history kept).
 
 ## 4. Deliberate exemptions (the whitelist)
 
@@ -172,8 +188,11 @@ honest, in order of strength:
    - every deckctl verb has an MCP twin **or** an exemption-tagged skip;
    - every job kind in `deck_run`'s enum is enqueueable from the UI
      (mirror closes GAP-1; the test is why it can't quietly regress);
+   - the help SSOT and note dismissal are reachable from all three
+     surfaces (GAP-10/11 can't quietly reopen);
    - every mutating MCP tool keeps `destructive: true` + interlock
-     guard (source scan for `deck_run`/`deck_cancel`/`deck_note`);
+     guard (source scan for `deck_run`/`deck_cancel`/`deck_note`/
+     `deck_rename`/`deck_dismiss`);
    - every `archive_*` tool source keeps the `readonly` DB handle;
    - census numbers match this doc's §1 table (the doc and the code
      can't drift apart silently).

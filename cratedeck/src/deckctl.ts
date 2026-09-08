@@ -25,6 +25,7 @@ import {
   apiGet,
   apiPost,
   ensureServer,
+  pollJob,
   resolveDrive,
   jobTerminal,
   type Job,
@@ -34,7 +35,6 @@ import type {
   CoverageResponse,
   FleetDiff,
   InterlockState,
-  PlayersPayload,
   RedundancyResult,
 } from "../shared/types";
 import type { PreflightReport } from "./preflight";
@@ -46,6 +46,9 @@ import {
 } from "./deckctl_notes";
 import { cmdReport, type ReportPrintHooks } from "./deckctl_report";
 import { cmdSearch, type SearchPrintHooks } from "./deckctl_search";
+import { collectPlayers } from "./deckctl_players";
+import { KIND_DOCS, printKindDoc } from "./deckctl_docs";
+import { cmdHelp, cmdDismiss, type HelpPrintHooks } from "./deckctl_help";
 
 // ---- output helpers ---------------------------------------------------------
 const JSON_MODE = process.argv.includes("--json");
@@ -76,6 +79,16 @@ function reportHooks(): ReportPrintHooks {
 /** Print hooks for the extracted search command (deckctl_search.ts). */
 function searchHooks(): SearchPrintHooks {
   return { jsonMode: JSON_MODE, log, errOut, exit: process.exit };
+}
+
+/** Print hooks for the extracted help/dismiss commands (deckctl_help.ts). */
+function helpHooks(): HelpPrintHooks {
+  return {
+    jsonMode: JSON_MODE,
+    log,
+    errOut,
+    exit: process.exit,
+  };
 }
 
 type DriveWithBadges = Drive & {
@@ -210,20 +223,24 @@ async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
       >("/api/drives")),
     );
   }
-  const payloads: PlayersPayload[] = [];
-  for (const d of drives) {
-    try {
-      payloads.push(
-        await getJson<PlayersPayload>(`/api/drives/${d.id}/players`),
-      );
-    } catch {
-      /* drive disappeared mid-loop — skip */
-    }
-  }
+  const { players: payloads, skipped } = await collectPlayers(drives, getJson);
   if (JSON_MODE) {
-    console.log(JSON.stringify(nameOrId ? payloads[0] : payloads, null, 2));
+    if (nameOrId) {
+      // single drive asked for by name: a skipped lookup is a real failure
+      if (!payloads[0]) {
+        errOut(
+          `players lookup failed for ${nameOrId}: ${skipped[0]?.reason ?? "no payload"}`,
+        );
+        process.exit(1);
+      }
+      console.log(JSON.stringify(payloads[0], null, 2));
+    } else {
+      console.log(JSON.stringify({ players: payloads, skipped }, null, 2));
+    }
     return;
   }
+  for (const s of skipped)
+    log(`⚠ ${s.drive}: players lookup failed (${s.reason}) — skipped`);
   for (const p of payloads) {
     if (p.unknown) {
       log(
@@ -293,13 +310,18 @@ async function cmdRun(
   const t0 = Date.now();
   let lastRender = 0;
   let frame = 0;
+  // pollJob owns transient-failure tolerance: a dropped poll (server busy
+  // mid-benchmark, brief restart) must not kill the CLI an hour into a
+  // verify — same contract waitForJob gives agents
+  const poll = (id: string): Promise<Job> =>
+    pollJob(id, {
+      onGiveUp: (msg) => errOut(msg),
+    });
   if (JSON_MODE) {
     // machine mode: emit a JSON line per poll (state-change friendly)
     let last = "";
     while (true) {
-      const j = (await apiGet(`/api/jobs/${job.id}`).then((r) =>
-        r.json(),
-      )) as Job;
+      const j = await poll(job.id);
       const key = `${j.status}:${j.progress}:${j.message}`;
       if (key !== last) {
         console.log(JSON.stringify(j));
@@ -313,9 +335,7 @@ async function cmdRun(
     }
   } else {
     while (true) {
-      const j = (await apiGet(`/api/jobs/${job.id}`).then((r) =>
-        r.json(),
-      )) as Job;
+      const j = await poll(job.id);
       const now = Date.now();
       if (terminal(j.status)) {
         clearLine();
@@ -562,40 +582,8 @@ async function cmdPrep(outPath: string | undefined): Promise<void> {
 }
 
 // ---- explain: what each job actually does, how long, why it matters ---------
-interface KindDoc {
-  what: string;
-  checks?: string[];
-  typical: string;
-  safe: string;
-  needs: string;
-}
-
-const KIND_DOCS: Record<string, KindDoc> = {
-  scan: {
-    what: "Inventory the drive. Walks every file (light) and reads the rekordbox device DB (full: tracks, playlists, beatgrid coverage, genres/BPM/artwork stats, free space).",
-    typical: "10–60s (scales with library size)",
-    safe: "Read-only. Always safe.",
-    needs: "drive mounted",
-  },
-  mirror: {
-    what: "Copy master → mirror so both USB drives are identical (files + both databases + ANLZ). Skips files that already match.",
-    typical: "minutes–1h+ depending on how much changed",
-    safe: "Writes ONLY to the mirror drive. Master is never written. rekordbox must be closed.",
-    needs: "both drives mounted, rekordbox NOT running",
-  },
-  benchmark: {
-    what: "Measure real read speed: sequential (big files) + random 4k. CDJ hardware needs sustained ≥30 MB/s or tracks stutter.",
-    typical: "~10–30s",
-    safe: "Read-only. Safe anytime.",
-    needs: "drive mounted",
-  },
-  checksum: {
-    what: "Hash every audio file into a corruption ledger. Later runs re-hash only files whose size/mtime changed and report any file whose CONTENT changed silently — that's bitrot/failing flash.",
-    typical: "first run ~1–5 min (hashes everything); later runs seconds–1 min",
-    safe: "Read-only (writes one small ledger DB on the host, never on the drive).",
-    needs: "drive mounted",
-  },
-};
+// KIND_DOCS + the pretty-printer live in deckctl_docs.ts (extracted, shared
+// with `help <kind>`); only the verify-rich rendering stays local.
 
 function cmdExplain(kind?: string): void {
   // verify gets the full treatment: rich shared doc from verify_help.ts
@@ -627,7 +615,7 @@ function cmdExplain(kind?: string): void {
     return;
   }
   if (!kind) {
-    for (const [k, d] of Object.entries(KIND_DOCS)) printKindDoc(k, d);
+    for (const [k, d] of Object.entries(KIND_DOCS)) printKindDoc(k, d, log);
     return;
   }
   const d = KIND_DOCS[kind];
@@ -637,29 +625,67 @@ function cmdExplain(kind?: string): void {
     );
     process.exit(2);
   }
-  printKindDoc(kind, d);
-}
-
-/** One KIND_DOCS entry as CLI prose (shared by the all-kinds + single-kind paths). */
-function printKindDoc(kind: string, d: (typeof KIND_DOCS)[string]): void {
-  log(`── ${kind} ──`);
-  log(d.what);
-  if (d.checks) {
-    log("");
-    log("checks:");
-    for (const c of d.checks) log(`  • ${c}`);
-  }
-  log("");
-  log(`typical time: ${d.typical}`);
-  log(`safety: ${d.safe}`);
-  log(`requires: ${d.needs}`);
-  log("");
+  printKindDoc(kind, d, log);
 }
 
 // ---- main -------------------------------------------------------------------
+// Verbs answered BEFORE the server boots: documentation never needs the
+// daemon — `help` reads shared/help.ts directly and works on a cold
+// machine, and `--help` must not spawn a server just to print usage.
+const PRE_SERVER_VERBS = ["help"] as const;
+
+function usageText(): string {
+  return [
+    "usage: deckctl <command> [args] [--json]",
+    "",
+    "  status                        rekordbox lock + all drives + active jobs",
+    "  drives                        list drives with badge verdicts",
+    "  report <drive>                health-check dossier (drive = name, nickname, or UUID; --dossier = full export bundle, --out FILE writes it)",
+    "  rename <drive> [nickname]     set/clear the display nickname (omit = clear)",
+    "  run <drive> <kind>            enqueue + follow a job (scan|verify|mirror|benchmark|checksum)",
+    "  coverage [min-copies]         which tracks live on which drives + at-risk list",
+    "  redundancy [min-copies]       per-playlist audit: every track on ≥N drives?",
+    "  preflight                     gig-night pass/fail across all mounted drives (exit 1 if not ready)",
+    "  players [drive]               which CDJs/XDJs can read each stick (measured dual-DB state)",
+    "  prep [--out FILE]             weekly digest: fleet + redundancy + archive markdown",
+    "  note <drive> <text>           post a finding to the drive timeline (--severity info|warn|critical)",
+    "  notes [drive]                 active findings feed (omit drive = every drive)",
+    "  search <query>                global search: playlists + folders across all drive snapshots",
+    "  diff <driveA> <driveB>        added / removed / changed between two drives",
+    "  explain [kind]                what each job checks, typical duration, safety",
+    "  help [term|kind]              glossary + job/surface tour (the UI's help cards, for agents)",
+    "  dismiss <drive> <noteId>      retire a note from the active feed (history kept)",
+    "  jobs                          recent jobs",
+    "  cancel <jobId>                cancel an active job",
+    "  stop                          stop the CrateDeck server",
+    "",
+    "--json  machine-readable output (single object, or one line per poll with run --wait)",
+    "--help  print this text and exit 0 (works with the server down)",
+  ].join("\n");
+}
+
+/** Bad invocation: usage goes to stderr with exit 2. */
+function usage(): never {
+  errOut(usageText());
+  process.exit(2);
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2).filter((a) => a !== "--json");
   const cmd = args[0];
+  const wantsHelp =
+    process.argv.includes("--help") || process.argv.includes("-h");
+  // `deckctl <anything> --help` documents, never executes — and must not
+  // boot the server just to print usage (megadj CLI's contract, mirrored).
+  // Explicit help goes to STDOUT with exit 0; bad usage goes to stderr
+  // with exit 2. Documentation is not an error.
+  if (wantsHelp) {
+    console.log(usageText());
+    process.exit(0);
+  }
+  if (cmd && (PRE_SERVER_VERBS as readonly string[]).includes(cmd)) {
+    if (cmd === "help") return cmdHelp(helpHooks(), args[1]);
+  }
   const up = await ensureServer();
   if (!up) {
     errOut("cratedeck server unreachable and could not be started");
@@ -714,6 +740,8 @@ async function main(): Promise<void> {
       return cmdDiff(args[1], args[2]);
     case "explain":
       return cmdExplain(args[1]);
+    case "dismiss":
+      return cmdDismiss(helpHooks(), args[1] ?? usage(), args[2] ?? usage());
     case "cancel":
       return cmdCancel(args[1] ?? usage());
     case "stop":
@@ -730,33 +758,5 @@ async function main(): Promise<void> {
     default:
       usage();
   }
-}
-function usage(): never {
-  errOut(
-    [
-      "usage: deckctl <command> [args] [--json]",
-      "",
-      "  status                        rekordbox lock + all drives + active jobs",
-      "  drives                        list drives with badge verdicts",
-      "  report <drive>                health-check dossier (drive = name, nickname, or UUID; --dossier = full export bundle, --out FILE writes it)",
-      "  rename <drive> [nickname]     set/clear the display nickname (omit = clear)",
-      "  run <drive> <kind>            enqueue + follow a job (scan|verify|mirror|benchmark|checksum)",
-      "  coverage [min-copies]         which tracks live on which drives + at-risk list",
-      "  redundancy [min-copies]       per-playlist audit: every track on ≥N drives?",
-      "  preflight                     gig-night pass/fail across all mounted drives (exit 1 if not ready)",
-      "  players [drive]               which CDJs/XDJs can read each stick (measured dual-DB state)",
-      "  prep [--out FILE]             weekly digest: fleet + redundancy + archive markdown",
-      "  note <drive> <text>           post a finding to the drive timeline (--severity info|warn|critical)",
-      "  notes [drive]                 active findings feed (omit drive = every drive)",
-      "  search <query>                global search: playlists + folders across all drive snapshots",
-      "  diff <driveA> <driveB>        added / removed / changed between two drives",
-      "  explain [kind]                what each job checks, typical duration, safety",
-      "  jobs                          recent jobs",
-      "  cancel <jobId>                cancel an active job",
-      "",
-      "--json  machine-readable output (single object, or one line per poll with run --wait)",
-    ].join("\n"),
-  );
-  process.exit(2);
 }
 await main();

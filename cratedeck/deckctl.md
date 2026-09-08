@@ -30,6 +30,8 @@ bun run deckctl <command> [--json]    # repo-root script (short form)
 | `notes [drive]`          | **O88 findings feed**: active (undismissed) notes, one per line; omit drive = every drive                                                  |
 | `rename <drive> [nick]`  | set/clear the display nickname shown in UI, CLI, and MCP (omit nickname = clear)                                                            |
 | `search <query>`         | global search: playlists + folders across all drive snapshots (the ⌘K twin)                                                                 |
+| `help [term\|kind]`      | the UI's help cards as a CLI: glossary (Ghost, Interlock, Dual-DB…), job explainers, surface tour; `help ghost` = one entry. Works offline |
+| `dismiss <drive> <noteId>` | retire an agent note from the active findings feed (the `deckctl note` off-ramp; history kept)                                              |
 
 `<drive>` = volume name, nickname, or UUID.
 
@@ -134,6 +136,10 @@ Tools: `deck_status` · `deck_drives` · `deck_report {drive,format?}` ·
 display nickname — mutating, confirm first) · `deck_prep` (the `prep`
 twin — renders the weekly digest markdown, readonly) ·
 `deck_search {q}` (global search, the ⌘K twin) ·
+`deck_help {term?}` (the glossary + job/surface explainers — the same
+wording the UI tooltips render; ask before acting) ·
+`deck_dismiss {drive,note_id}` (retire an agent note from the active
+feed — mutating, confirm first) ·
 `archive_search_tracks {q}` ·
 `archive_track_stats {video_id}` · `archive_ingest_status` ·
 `archive_lowq_queue` · `archive_source_diff {a,b}` ·
@@ -141,7 +147,7 @@ twin — renders the weekly digest markdown, readonly) ·
 `archive_mood_profile {limit?}` (rev 6.2 mood-ledger picker data) ·
 `archive_sweep` (D30 bitrot/truncation sweep — also the "Archive
 integrity" section of `deckctl prep`) —
-25 tools total. `deck_report {format:"dossier"}` returns the full
+27 tools total. `deck_report {format:"dossier"}` returns the full
 export bundle (drive + snapshot + sync + report + timeline +
 benchmarks) — the twin of `deckctl report --dossier` and the UI's
 Export button.
@@ -150,7 +156,9 @@ Agent findings (O88): `deck_note` lands an agent's conclusion on a drive's
 timeline as a dismissable card (600-char cap, severity tone). Confirm with
 the human before calling it — notes are human-visible annotations, not
 logs. `deck_notes` lists the active (non-dismissed) feed; dismissal
-happens in the UI timeline, which flips `dismissed_at` but keeps history.
+happens from the UI timeline's button or the agent twins
+(`deckctl dismiss <drive> <noteId>` / `deck_dismiss {drive,note_id}` —
+also confirm-first), which flip `dismissed_at` but keep history.
 
 Agent attribution (O87): jobs enqueued through MCP are stamped
 `origin = "mcp:<session-id>"` (deckctl → `"deckctl"`, the auto-scheduler →

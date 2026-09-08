@@ -34,6 +34,8 @@
  *   archive_mood_profile        mood/dance/VA averages + extremes (roadmap #4)
  *   deck_prep                   weekly digest markdown (O83, readonly)
  *   deck_search {q}             global search: playlists + folders (B9, readonly)
+ *   deck_help {term?}           glossary + job/surface explainers (readonly)
+ *   deck_dismiss {drive,note_id} retire an agent note from the active feed (mutating)
  *   archive_sweep               D30 bitrot/truncation sweep (readonly)
  */
 import { archiveTools } from "./archive_tools";
@@ -50,6 +52,7 @@ import {
   type Job,
 } from "./deckapi";
 import { VERIFY_HELP } from "./verify_help";
+import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
 import type {
   CoverageResponse,
   JobKind,
@@ -594,6 +597,70 @@ const TOOLS: Record<string, ToolDef> = {
       const q = str(args, "q")?.trim();
       if (!q) throw new RpcParamError("q is required");
       return apiGetJson(`/api/search?q=${encodeURIComponent(q)}`);
+    },
+  },
+
+  deck_help: {
+    description:
+      "CrateDeck's in-app help as a tool: the glossary (Master, Mirror, Ghost, Interlock, Dual-DB, Beatgrid, Bitrot, Preflight, Redundancy, Dossier, LOWQ, Snapshot), the five job explainers (what/when/safety/duration), and the UI surface tour. Call with term= a glossary word or job kind for one entry; omit it for everything. Read-only — use this to answer 'what does X mean' before acting.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        term: {
+          type: "string",
+          description:
+            "optional glossary term or job kind (e.g. 'ghost', 'verify') for a single entry",
+        },
+      },
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const topic = str(args, "term")?.trim().toLowerCase();
+      if (topic) {
+        // job kinds are canonical ids and win over same-named glossary
+        // terms (deck_help{term:"mirror"} = the mirror JOB, not the word)
+        const job = HELP_JOBS.find((x) => x.kind === topic);
+        const term = job
+          ? undefined
+          : (HELP_TERMS.find((x) => x.term.toLowerCase() === topic) ??
+            HELP_TERMS.find((x) => x.term.toLowerCase().startsWith(topic)));
+        if (term) return { term };
+        if (job) return { job };
+        throw new RpcParamError(
+          `no help entry for "${topic}" — glossary terms: ${HELP_TERMS.map((x) => x.term).join(", ")}; job kinds: ${HELP_JOBS.map((x) => x.kind).join(", ")}`,
+        );
+      }
+      return { terms: HELP_TERMS, jobs: HELP_JOBS, surfaces: HELP_SURFACES };
+    },
+  },
+
+  deck_dismiss: {
+    description:
+      "DISMISSES AN AGENT NOTE (mutating, confirm with the human): removes a finding from the active notes feed once it's handled — history is kept, the timeline card stays but reads as dismissed. Pass the note id exactly as returned by deck_note / deck_notes. Only agent notes can be dismissed.",
+    destructive: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        drive: DRIVE_PARAM(""),
+        note_id: {
+          type: "string",
+          description: "the note id from deck_note/deck_notes (row id)",
+        },
+      },
+      required: ["drive", "note_id"],
+      additionalProperties: false,
+    },
+    run: async (args) => {
+      const d = await needDrive(str(args, "drive"));
+      const noteId = str(args, "note_id");
+      if (!noteId) throw new RpcParamError("note_id is required");
+      const res = await apiPost(
+        `/api/drives/${d.id}/notes/${encodeURIComponent(noteId)}/dismiss`,
+      );
+      const body = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !body.ok)
+        throw new RpcParamError(body.error ?? `dismiss failed (${res.status})`);
+      return { ok: true, drive: d.nickname ?? d.name, id: noteId };
     },
   },
 
