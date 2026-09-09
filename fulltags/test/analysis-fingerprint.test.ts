@@ -7,7 +7,7 @@
  * Environment-gated: each describe-block skips with a clear note when its
  * dependency is missing (fpcalc) so the suite runs everywhere.
  */
-import { describe, test, expect, afterAll } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { $ } from "bun";
 import {
   fingerprintFile,
@@ -16,19 +16,7 @@ import {
 } from "../src/analysis";
 import { readStampGuard } from "./helpers/stamp";
 import { enrichTrack } from "../src/pipeline";
-
-const DIR = `/tmp/fulltags-analysis-test-${process.pid}`;
-
-afterAll(async () => {
-  await $`rm -rf ${DIR}`.quiet().nothrow();
-});
-
-async function makeFile(name: string, secs = 3): Promise<string> {
-  await $`mkdir -p ${DIR}`.quiet();
-  const p = `${DIR}/${name}`;
-  await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=${secs} ${p}`.quiet();
-  return p;
-}
+import { DIR, makeFile } from "./helpers/analysis";
 
 const hasFpcalc =
   Bun.spawnSync({ cmd: ["fpcalc", "-version"], stdout: "pipe" }).exitCode === 0;

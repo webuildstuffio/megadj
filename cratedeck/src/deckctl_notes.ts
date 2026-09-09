@@ -72,9 +72,34 @@ export async function cmdNotes(
       );
     const perDrive: { drive: string; notes: StoredNote[] }[] = [];
     for (const d of drives) {
+      // A failed notes fetch must NOT read as "no notes" in --json (the
+      // agent-first contract: corrupt/failed data can never read as an
+      // empty-but-valid answer). Surface the failure per drive.
       const notes = await getJson<StoredNote[]>(
         `/api/drives/${d.id}/notes`,
-      ).catch(() => [] as StoredNote[]);
+      ).catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!h.jsonMode)
+          h.log(`  ⚠ notes fetch failed for ${d.nickname ?? d.name}: ${msg}`);
+        return null;
+      });
+      if (notes === null) {
+        perDrive.push({
+          drive: d.nickname ?? d.name,
+          notes: [
+            {
+              drive_id: d.id,
+              id: "fetch-error",
+              note: "notes fetch failed — drive unreachable or server error",
+              origin: "deckctl",
+              severity: "warn",
+              at: 0,
+              dismissed_at: null,
+            },
+          ],
+        });
+        continue;
+      }
       perDrive.push({ drive: d.nickname ?? d.name, notes });
       if (!h.jsonMode)
         for (const n of notes)

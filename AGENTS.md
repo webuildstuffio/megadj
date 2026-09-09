@@ -13,11 +13,21 @@ covers invariants and traps only — product detail lives in `docs/`.
   decision is unclear, PRINCIPLES.md wins.
 - **No CI — ever.** `.github/workflows/` was deleted outright (one author,
   one Mac, hosted runners are shared infra). The gate is local: `bun run
-  check` && `bun test` before every push. Type coverage is a hard 100%
+check` && `bun test` before every push. Type coverage is a hard 100%
   (`bun run check:full`); nothing lands below it.
 - **Zero bare `catch {}` in prod code.** Every catch must (a) surface to the
   user (toast/error state), (b) log at the boundary, or (c) be documented
-  sanctioned resilience. Corrupt persisted JSON can never read as success.
+  sanctioned resilience. Corrupt persisted JSON can never read as success —
+  and never CRASH hot paths either: every `JSON.parse` of a persisted blob
+  (`last_snapshot_json`, `verify_report_json`, `data_json`) goes through a
+  guarded parser (`parseSnapshotJson` in `cratedeck/shared/badges.ts` for
+  snapshot blobs) whose failure is a _visible state_ (badge, `corrupt:true`
+  payload, logged boundary), because `driveBadges` runs on every
+  `/api/status` + `/api/drives` request — one unguarded parse 500s the
+  whole drive rail (regression-tested in `cratedeck/test/badges.test.ts`).
+  Also: no `.catch(() => {})` on fire-and-forget work (log instead), and
+  `Number(env)` at a boundary must be `Number.isFinite`-gated (`MEGADJ_ART_MAX=""`
+  → NaN → `slice(0, NaN)` processed nothing while "succeeding").
 - **Concurrent agents work this repo.** Never `git add -A` — stage only your
   own files; re-read immediately before editing; verify content landed via
   worktree-vs-HEAD diff, not commit hash (amends and swept-in staged files

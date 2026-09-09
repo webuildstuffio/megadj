@@ -133,4 +133,38 @@ describe("syncBadge", () => {
     const b = syncBadge(drive({ role: "mirror" }), masterSnap);
     expect(b?.key).toBe("unknown");
   });
+
+  // REGRESSION (fallback-slop pass): a corrupt snapshot blob used to throw
+  // inside driveBadges — one bad row 500'd every /api/status and /api/drives
+  // request (the whole drive rail). Corruption must surface as a badge.
+  it("corrupt snapshot blob → visible badge, not a throw", () => {
+    const d = drive({ last_snapshot_json: "{corrupt json" });
+    expect(() => driveBadges(d, {})).not.toThrow();
+    const badges = driveBadges(d, {});
+    expect(
+      badges.some((b) => b.key === "attn" && b.label === "snapshot corrupt"),
+    ).toBe(true);
+  });
+
+  it("snapshot blob parsing to a non-object → corrupt badge, not a throw", () => {
+    const d = drive({ last_snapshot_json: "null" });
+    expect(() => driveBadges(d, {})).not.toThrow();
+    expect(driveBadges(d, {}).some((b) => b.label === "snapshot corrupt")).toBe(
+      true,
+    );
+  });
+
+  it("syncBadge on corrupt blob → corrupt badge (never a false in-sync)", () => {
+    const b = syncBadge(
+      drive({ role: "mirror", last_snapshot_json: "garbage{" }),
+      masterSnap,
+    );
+    expect(b?.key).toBe("attn");
+    expect(b?.label).toBe("snapshot corrupt");
+  });
+
+  it("null blob is absent, not corrupt", () => {
+    const badges = driveBadges(drive(), {});
+    expect(badges.some((b) => b.label === "snapshot corrupt")).toBe(false);
+  });
 });

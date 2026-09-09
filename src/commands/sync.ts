@@ -10,7 +10,8 @@ import { $ } from "bun";
 import type { ArchiveState } from "../state";
 import type { RateLimiter } from "../ratelimit";
 import { withRetry } from "../ratelimit";
-import { Downloader } from "../downloader";
+import { Downloader, type DownloadResult } from "../downloader";
+import type { YtdlpInfo } from "../../fulltags/src/exports";
 import { commandLog } from "../progress";
 import {
   applyTags,
@@ -87,37 +88,47 @@ async function fetchPlaylist(
     .map((e) => ({ id: e.id as string, title: e.title ?? null }));
 }
 
-export async function sync(opts: SyncOptions): Promise<void> {
-  const log = commandLog(opts);
-  const downloader = new Downloader({
-    musicDir: opts.musicDir,
-    ytdlpBin: opts.ytdlpBin,
-    cookiesFromBrowser: opts.cookiesFromBrowser,
-    cookiesFile: opts.cookiesFile ?? null,
-  });
+export interface SyncTotals {
+  attempted: number;
+  downloaded: number;
+  gone: number;
+  failed: number;
+  notMusic: number;
+  bytes: number;
+}
 
+/** Fresh zeroed counters for one sync run. */
+function newTotals(): SyncTotals {
+  return {
+    attempted: 0,
+    downloaded: 0,
+    gone: 0,
+    failed: 0,
+    notMusic: 0,
+    bytes: 0,
+  };
+}
+
+interface PreparedSources {
+  queue: Array<{ video_id: string; title: string | null }>;
+}
+
+/** Phase 1-2: refresh playlist state (real run) or build the dry-run preview
+ *  (in memory only — a dry run must never write to the state DB). */
+async function prepareQueue(
+  opts: SyncOptions,
+  log: (msg: string) => void,
+  isDry: boolean,
+): Promise<PreparedSources> {
   const sources: PlaylistSource[] = opts.sources ?? [
     { id: "LM", label: "liked" },
   ];
-
-  const isDry = opts.dryRun === true;
-  // A dry run reports what WOULD happen — it must not write to the state DB
-  // (no playlist upserts, no run rows). The old dry-run recorded tracks and
-  // a finished run row, so "dry" mutated the archive's memory.
-  const runId = isDry ? null : opts.state.startRun();
-  // Dry-run preview of playlist entries (in-memory only; filled below).
   const pendingPreview: Array<{
     video_id: string;
     title: string | null;
     liked_position: number | null;
     status: string;
   }> = [];
-  let attempted = 0;
-  let downloaded = 0;
-  let gone = 0;
-  let failed = 0;
-  let notMusic = 0;
-  let bytes = 0;
 
   for (const source of sources) {
     log(`fetching playlist ${source.id} (${source.label})…`);
@@ -163,8 +174,105 @@ export async function sync(opts: SyncOptions): Promise<void> {
   if (opts.limit !== undefined && opts.limit >= 0) {
     queue = queue.slice(0, opts.limit);
   }
-  log(`${queue.length} track(s) to attempt this run`);
+  return { queue };
+}
 
+/** Music-only gate: reject anything YouTube doesn't categorize as Music. */
+function classifyMusic(result: YtdlpInfo, opts: SyncOptions): boolean {
+  if (!opts.musicOnly) return true;
+  const cats = result.categories ?? [];
+  const uploader = (result.uploader ?? result.channel ?? "").toLowerCase();
+  return (
+    cats.some((c) => c.toLowerCase() === "music") ||
+    uploader.includes(" - topic") ||
+    uploader.includes("- topic") ||
+    (result.artist !== undefined && result.artist !== null)
+  );
+}
+
+/** stat() can throw if yt-dlp's reported path vanished between the download
+ *  finishing and here (AV quarantine, race) — that must fail this one track,
+ *  not the whole run. */
+async function statSizeSafe(
+  filePath: string,
+  log: (msg: string) => void,
+): Promise<number> {
+  try {
+    return (await Bun.file(filePath).stat()).size;
+  } catch {
+    log(`  ⚠ landed file not statable: ${filePath}`);
+    return 0;
+  }
+}
+
+/** Handle one resolved download outcome (downloaded / gone / failed / no-path). */
+async function settleDownload(
+  opts: SyncOptions,
+  log: (msg: string) => void,
+  bar: ProgressBar,
+  totals: SyncTotals,
+  track: { video_id: string; title: string | null },
+  dl: DownloadResult,
+): Promise<void> {
+  const { state } = opts;
+  if (dl.status === "gone") {
+    totals.gone++;
+    state.markGone(track.video_id, "video unavailable");
+    log(`  ↳ gone (unavailable)`);
+    bar.update();
+    return;
+  }
+  if (dl.status === "failed") {
+    totals.failed++;
+    state.markFailed(track.video_id, dl.error ?? "unknown");
+    log(`  ↳ failed: ${dl.error?.slice(0, 120)}`);
+    bar.update();
+    return;
+  }
+  if (dl.filePath && dl.info) {
+    const meta = buildMetadata(dl.info);
+    await applyTags(dl.filePath, meta);
+    const fileSize = await statSizeSafe(dl.filePath, log);
+    totals.bytes += fileSize;
+    state.markDownloaded(track.video_id, {
+      title: meta.title,
+      artist: meta.artist,
+      album: meta.album,
+      genre: meta.genre,
+      formatId: dl.formatId ?? null,
+      bitrateKbps: Downloader.formatBitrateKbps(dl.formatId),
+      codec: "aac",
+      filePath: dl.filePath,
+      fileSizeBytes: fileSize,
+      durationS: dl.info.duration ?? null,
+    });
+    state.updateGenre(track.video_id, meta.genre);
+    totals.downloaded++;
+    log(`  ↳ downloaded → ${meta.title ?? track.video_id}`);
+    bar.update(1, fileSize);
+  } else {
+    // yt-dlp exited 0 but no usable path/info came back (output drift,
+    // odd filename): count the track and burn the attempt — silence
+    // here shrank every run summary while consuming retry budget.
+    totals.failed++;
+    state.markFailed(
+      track.video_id,
+      "download reported success but no file path was parsed",
+    );
+    log(`  ↳ failed: no file path parsed from downloader output`);
+    bar.update();
+  }
+}
+
+/** Phase 3: the per-track download loop. */
+async function processQueue(
+  opts: SyncOptions,
+  log: (msg: string) => void,
+  queue: Array<{ video_id: string; title: string | null }>,
+  downloader: Downloader,
+  isDry: boolean,
+  totals: SyncTotals,
+): Promise<void> {
   const bar = new ProgressBar(queue.length, "sync");
   for (const track of queue) {
     // Explicit !== undefined (not truthiness): --target-total 0 must mean
@@ -176,9 +284,11 @@ export async function sync(opts: SyncOptions): Promise<void> {
       log(`target of ${opts.targetTotal} downloaded reached — stopping`);
       break;
     }
-    attempted++;
+    totals.attempted++;
     if (isTty && !opts.json) process.stdout.write("\r\u001b[K");
-    log(`[${attempted}/${queue.length}] ${track.title ?? track.video_id}`);
+    log(
+      `[${totals.attempted}/${queue.length}] ${track.title ?? track.video_id}`,
+    );
 
     if (isDry) {
       log(`  ↳ would download (dry-run)`);
@@ -195,26 +305,13 @@ export async function sync(opts: SyncOptions): Promise<void> {
         { maxRetries: 2 },
       );
 
-      // Music-only gate: reject anything YouTube doesn't categorize as Music.
-      if (opts.musicOnly) {
+      if (!classifyMusic(result, opts)) {
         const cats = result.categories ?? [];
-        const uploader = (
-          result.uploader ??
-          result.channel ??
-          ""
-        ).toLowerCase();
-        const isMusic =
-          cats.some((c) => c.toLowerCase() === "music") ||
-          uploader.includes(" - topic") ||
-          uploader.includes("- topic") ||
-          (result.artist !== undefined && result.artist !== null);
-        if (!isMusic) {
-          notMusic++;
-          opts.state.markNotMusic(track.video_id, cats[0] ?? null);
-          log(`  ↳ skipped (not music: ${cats[0] ?? "no category"})`);
-          bar.update();
-          continue;
-        }
+        totals.notMusic++;
+        opts.state.markNotMusic(track.video_id, cats[0] ?? null);
+        log(`  ↳ skipped (not music: ${cats[0] ?? "no category"})`);
+        bar.update();
+        continue;
       }
 
       // Genre decides the destination folder for this download.
@@ -227,71 +324,15 @@ export async function sync(opts: SyncOptions): Promise<void> {
         result,
         downloadGenre,
       );
-      if (dl.status === "gone") {
-        gone++;
-        opts.state.markGone(track.video_id, "video unavailable");
-        log(`  ↳ gone (unavailable)`);
-        bar.update();
-        continue;
-      }
-      if (dl.status === "failed") {
-        failed++;
-        opts.state.markFailed(track.video_id, dl.error ?? "unknown");
-        log(`  ↳ failed: ${dl.error?.slice(0, 120)}`);
-        bar.update();
-        continue;
-      }
-
-      if (dl.filePath && dl.info) {
-        const meta = buildMetadata(dl.info);
-        await applyTags(dl.filePath, meta);
-        // stat() throws if yt-dlp's reported path vanished between the
-        // download finishing and here (AV quarantine, race) — that must
-        // fail this one track, not the whole run.
-        let fileSize = 0;
-        try {
-          fileSize = (await Bun.file(dl.filePath).stat()).size;
-        } catch {
-          log(`  ⚠ landed file not statable: ${dl.filePath}`);
-        }
-        bytes += fileSize;
-
-        opts.state.markDownloaded(track.video_id, {
-          title: meta.title,
-          artist: meta.artist,
-          album: meta.album,
-          genre: meta.genre,
-          formatId: dl.formatId ?? null,
-          bitrateKbps: Downloader.formatBitrateKbps(dl.formatId),
-          codec: "aac",
-          filePath: dl.filePath,
-          fileSizeBytes: fileSize,
-          durationS: dl.info.duration ?? null,
-        });
-        opts.state.updateGenre(track.video_id, meta.genre);
-        downloaded++;
-        log(`  ↳ downloaded → ${meta.title ?? track.video_id}`);
-        bar.update(1, fileSize);
-      } else {
-        // yt-dlp exited 0 but no usable path/info came back (output drift,
-        // odd filename): count the track and burn the attempt — silence
-        // here shrank every run summary while consuming retry budget.
-        failed++;
-        opts.state.markFailed(
-          track.video_id,
-          "download reported success but no file path was parsed",
-        );
-        log(`  ↳ failed: no file path parsed from downloader output`);
-        bar.update();
-      }
+      await settleDownload(opts, log, bar, totals, track, dl);
     } catch (error) {
       const message = (error as Error).message;
       if (message === "GONE") {
-        gone++;
+        totals.gone++;
         opts.state.markGone(track.video_id, "video unavailable");
         log(`  ↳ gone (unavailable)`);
       } else {
-        failed++;
+        totals.failed++;
         opts.state.markFailed(track.video_id, message.slice(0, 300));
         log(`  ↳ failed after retries: ${message.slice(0, 120)}`);
       }
@@ -299,17 +340,26 @@ export async function sync(opts: SyncOptions): Promise<void> {
     }
   }
   bar.close();
+}
+
+/** Phase 4: run row + human/JSON summary. */
+function finishRun(
+  opts: SyncOptions,
+  log: (msg: string) => void,
+  runId: number | null,
+  totals: SyncTotals,
+): void {
   if (runId !== null) {
     opts.state.finishRun(runId, {
-      attempted,
-      downloaded,
-      gone,
-      failed,
-      bytesDownloaded: bytes,
+      attempted: totals.attempted,
+      downloaded: totals.downloaded,
+      gone: totals.gone,
+      failed: totals.failed,
+      bytesDownloaded: totals.bytes,
     });
   }
   log(
-    `\nrun complete: ${downloaded} downloaded, ${notMusic} not-music, ${gone} gone, ${failed} failed, ${(bytes / 1e6).toFixed(1)} MB`,
+    `\nrun complete: ${totals.downloaded} downloaded, ${totals.notMusic} not-music, ${totals.gone} gone, ${totals.failed} failed, ${(totals.bytes / 1e6).toFixed(1)} MB`,
   );
   const counts = opts.state.statusCounts();
   log(
@@ -322,15 +372,15 @@ export async function sync(opts: SyncOptions): Promise<void> {
         command: "sync",
         dryRun: opts.dryRun ?? false,
         runId,
-        attempted,
-        downloaded,
-        notMusic,
-        gone,
-        failed,
-        bytesDownloaded: bytes,
+        attempted: totals.attempted,
+        downloaded: totals.downloaded,
+        notMusic: totals.notMusic,
+        gone: totals.gone,
+        failed: totals.failed,
+        bytesDownloaded: totals.bytes,
         // Dry runs only ever "would download" — give agents the queue size
         // a real run would have attempted.
-        wouldAttempt: opts.dryRun ? attempted : undefined,
+        wouldAttempt: opts.dryRun ? totals.attempted : undefined,
         archive: {
           downloaded: counts["downloaded"] ?? 0,
           gone: counts["gone"] ?? 0,
@@ -341,4 +391,27 @@ export async function sync(opts: SyncOptions): Promise<void> {
       }),
     );
   }
+}
+
+export async function sync(opts: SyncOptions): Promise<void> {
+  const log = commandLog(opts);
+  const downloader = new Downloader({
+    musicDir: opts.musicDir,
+    ytdlpBin: opts.ytdlpBin,
+    cookiesFromBrowser: opts.cookiesFromBrowser,
+    cookiesFile: opts.cookiesFile ?? null,
+  });
+
+  const isDry = opts.dryRun === true;
+  // A dry run reports what WOULD happen — it must not write to the state DB
+  // (no playlist upserts, no run rows). The old dry-run recorded tracks and
+  // a finished run row, so "dry" mutated the archive's memory.
+  const runId = isDry ? null : opts.state.startRun();
+
+  const { queue } = await prepareQueue(opts, log, isDry);
+  log(`${queue.length} track(s) to attempt this run`);
+
+  const totals = newTotals();
+  await processQueue(opts, log, queue, downloader, isDry, totals);
+  finishRun(opts, log, runId, totals);
 }

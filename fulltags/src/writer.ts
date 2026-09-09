@@ -261,6 +261,97 @@ const FFMPEG_KEY: Record<keyof TagPatch, string> = {
   mood: "MOOD",
 };
 
+/** One ID3 frame per known key (WAV/AIFF path). Unknown keys are skipped
+ *  (empty statement) — the filter drops them. */
+const WAV_ID3: Partial<Record<keyof TagPatch, string>> = {
+  title: "TIT2",
+  artist: "TPE1",
+  album: "TALB",
+  genre: "TCON",
+  composer: "TCOM",
+  label: "TPUB",
+  mixName: "TIT3",
+  key: "TKEY",
+};
+
+function wavId3Statement(k: keyof TagPatch, v: unknown): string {
+  const t = JSON.stringify(String(v));
+  switch (k) {
+    case "year":
+      return `a.tags.add(TDRC(encoding=3, text="${String(v)}"))`;
+    case "bpm":
+      return `a.tags.add(TBPM(encoding=3, text="${String(v)}"))`;
+    case "comment":
+      return `a.tags.add(COMM(encoding=3, lang="eng", desc="", text=${t}))`;
+    case "mbid":
+      return `a.tags.add(TXXX(encoding=3, desc="MusicBrainz Track Id", text=${t}))`;
+    case "energy":
+      return `a.tags.add(TXXX(encoding=3, desc="ENERGY", text=${t}))`;
+    case "fingerprint":
+      return `a.tags.add(TXXX(encoding=3, desc="ACOUSTID", text=${t}))`;
+    case "mood":
+      return `a.tags.add(TXXX(encoding=3, desc="MOOD", text=${t}))`;
+    case "camelot":
+      return `a.tags.add(TXXX(encoding=3, desc="CAMELOT", text=${t}))`;
+    case "aiGenre":
+      return `a.tags.add(TXXX(encoding=3, desc="AI-GENRE", text=${t}))`;
+    case "aiYear":
+      return `a.tags.add(TXXX(encoding=3, desc="AI-YEAR", text=${t}))`;
+    case "remixer":
+      return `a.tags.add(TXXX(encoding=3, desc="version", text=${t}))`;
+    case "albumArtist":
+      return `a.tags.add(TPE2(encoding=3, text=${t}))`;
+    case "grouping":
+      return `a.tags.add(TIT1(encoding=3, text=${t}))`;
+  }
+  const frame = WAV_ID3[k];
+  return frame ? `a.tags.add(${frame}(encoding=3, text=${t}))` : "";
+}
+
+/** MP4 freeform atom statement (----:com.apple.iTunes:<name>). */
+function mp4Freeform(name: string, v: unknown): string {
+  return `a["----:com.apple.iTunes:${name}"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
+}
+
+/** Fixed text atoms: key → iTunes atom code (bracket-quoted values). */
+const MP4_ATOMS: Partial<Record<keyof TagPatch, string>> = {
+  title: "\xa9nam",
+  artist: "\xa9ART",
+  albumArtist: "aART",
+  album: "\xa9alb",
+  genre: "\xa9gen",
+  year: "\xa9day",
+  composer: "\xa9wrt",
+  grouping: "\xa9grp",
+  comment: "\xa9cmt",
+};
+
+/** Freeform atoms: key → ----:com.apple.iTunes:<name> suffix. */
+const MP4_FREEFORM: Partial<Record<keyof TagPatch, string>> = {
+  remixer: "REMIXER",
+  mbid: "MusicBrainz Track Id",
+  energy: "ENERGY",
+  fingerprint: "ACOUSTID",
+  mood: "MOOD",
+  key: "initialkey",
+  camelot: "CAMELOT",
+  label: "LABEL",
+  mixName: "MIXNAME",
+  aiGenre: "AI-GENRE",
+  aiYear: "AI-YEAR",
+};
+
+/** One mutagen MP4 statement per known key. Unknown keys return "" and are
+ *  dropped by the filter — same skip semantics as before. */
+function mp4Statement(k: keyof TagPatch, v: unknown): string {
+  if (k === "bpm") return `a["tmpo"] = [${Math.round(Number(v))}]`;
+  const ff = MP4_FREEFORM[k];
+  if (ff) return mp4Freeform(ff, v);
+  const atom = MP4_ATOMS[k];
+  if (atom) return `a["${atom}"] = [${JSON.stringify(String(v))}]`;
+  return "";
+}
+
 /**
  * Sync tag write for ID3-in-container formats (WAV RIFF / AIFF ID3 chunk)
  * via mutagen. ffmpeg's wav/aiff muxers drop or mangle ID3 chunks, so
@@ -273,47 +364,8 @@ export function writePatchWav(filePath: string, patch: TagPatch): boolean {
     validatePatch(patch);
     const pairs = tagPairs(patch);
     if (!pairs.length) return true;
-    const WAV_ID3: Partial<Record<keyof TagPatch, string>> = {
-      title: "TIT2",
-      artist: "TPE1",
-      album: "TALB",
-      genre: "TCON",
-      composer: "TCOM",
-      label: "TPUB",
-      mixName: "TIT3",
-      key: "TKEY",
-    };
     const sets = pairs
-      .map(([k, v]) => {
-        if (k === "year") return `a.tags.add(TDRC(encoding=3, text="${v}"))`;
-        if (k === "comment")
-          return `a.tags.add(COMM(encoding=3, lang="eng", desc="", text=${JSON.stringify(String(v))}))`;
-        if (k === "mbid")
-          return `a.tags.add(TXXX(encoding=3, desc="MusicBrainz Track Id", text=${JSON.stringify(String(v))}))`;
-        if (k === "energy")
-          return `a.tags.add(TXXX(encoding=3, desc="ENERGY", text=${JSON.stringify(String(v))}))`;
-        if (k === "fingerprint")
-          return `a.tags.add(TXXX(encoding=3, desc="ACOUSTID", text=${JSON.stringify(String(v))}))`;
-        if (k === "mood")
-          return `a.tags.add(TXXX(encoding=3, desc="MOOD", text=${JSON.stringify(String(v))}))`;
-        if (k === "camelot")
-          return `a.tags.add(TXXX(encoding=3, desc="CAMELOT", text=${JSON.stringify(String(v))}))`;
-        if (k === "aiGenre")
-          return `a.tags.add(TXXX(encoding=3, desc="AI-GENRE", text=${JSON.stringify(String(v))}))`;
-        if (k === "aiYear")
-          return `a.tags.add(TXXX(encoding=3, desc="AI-YEAR", text=${JSON.stringify(String(v))}))`;
-        if (k === "remixer")
-          return `a.tags.add(TXXX(encoding=3, desc="version", text=${JSON.stringify(String(v))}))`;
-        if (k === "bpm") return `a.tags.add(TBPM(encoding=3, text="${v}"))`;
-        if (k === "albumArtist")
-          return `a.tags.add(TPE2(encoding=3, text=${JSON.stringify(String(v))}))`;
-        if (k === "grouping")
-          return `a.tags.add(TIT1(encoding=3, text=${JSON.stringify(String(v))}))`;
-        const frame = WAV_ID3[k];
-        return frame
-          ? `a.tags.add(${frame}(encoding=3, text=${JSON.stringify(String(v))}))`
-          : "";
-      })
+      .map(([k, v]) => wavId3Statement(k, v))
       .filter(Boolean)
       .join("\n");
     const script = `${id3Open(filePath)}
@@ -343,50 +395,7 @@ export function writePatchMp4(filePath: string, patch: TagPatch): boolean {
     const pairs = tagPairs(patch);
     if (!pairs.length) return true;
     const sets = pairs
-      .map(([k, v]) => {
-        if (k === "title")
-          return `a["\\xa9nam"] = [${JSON.stringify(String(v))}]`;
-        if (k === "artist")
-          return `a["\\xa9ART"] = [${JSON.stringify(String(v))}]`;
-        if (k === "albumArtist")
-          return `a["aART"] = [${JSON.stringify(String(v))}]`;
-        if (k === "album")
-          return `a["\\xa9alb"] = [${JSON.stringify(String(v))}]`;
-        if (k === "genre")
-          return `a["\\xa9gen"] = [${JSON.stringify(String(v))}]`;
-        if (k === "year")
-          return `a["\\xa9day"] = [${JSON.stringify(String(v))}]`;
-        if (k === "composer")
-          return `a["\\xa9wrt"] = [${JSON.stringify(String(v))}]`;
-        if (k === "grouping")
-          return `a["\\xa9grp"] = [${JSON.stringify(String(v))}]`;
-        if (k === "comment")
-          return `a["\\xa9cmt"] = [${JSON.stringify(String(v))}]`;
-        if (k === "bpm") return `a["tmpo"] = [${Math.round(Number(v))}]`;
-        if (k === "remixer")
-          return `a["----:com.apple.iTunes:REMIXER"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        if (k === "mbid")
-          return `a["----:com.apple.iTunes:MusicBrainz Track Id"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        if (k === "energy")
-          return `a["----:com.apple.iTunes:ENERGY"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        if (k === "fingerprint")
-          return `a["----:com.apple.iTunes:ACOUSTID"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        if (k === "mood")
-          return `a["----:com.apple.iTunes:MOOD"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        if (k === "key")
-          return `a["----:com.apple.iTunes:initialkey"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        if (k === "camelot")
-          return `a["----:com.apple.iTunes:CAMELOT"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        if (k === "label")
-          return `a["----:com.apple.iTunes:LABEL"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        if (k === "mixName")
-          return `a["----:com.apple.iTunes:MIXNAME"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        if (k === "aiGenre")
-          return `a["----:com.apple.iTunes:AI-GENRE"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        if (k === "aiYear")
-          return `a["----:com.apple.iTunes:AI-YEAR"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-        return "";
-      })
+      .map(([k, v]) => mp4Statement(k, v))
       .filter(Boolean)
       .join("\n");
     const script = `from mutagen.mp4 import MP4, MP4FreeForm

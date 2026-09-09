@@ -468,7 +468,12 @@ function appendQueue(queuePath: string, r: ArtRow): boolean {
         album: r.album ?? null,
         reason: "no-online-cover",
       }) + "\n",
-    ).catch(() => {});
+    ).catch((e: unknown) => {
+      // queue is best-effort (never fails the pipeline) but not silent:
+      // a failed append means the artwork-queue silently stays empty and
+      // the track never gets its AI cover — the operator needs to know.
+      console.error(`artwork queue append failed (${queuePath})`, e);
+    });
     return true;
   } catch {
     // queue is best-effort — never fail the pipeline over it

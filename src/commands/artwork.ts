@@ -80,12 +80,16 @@ function embedArtwork(filePath: string, artPath: string): Promise<boolean> {
   );
 }
 
-export async function artwork(opts: ArtworkOptions): Promise<void> {
-  const log = commandLog(opts);
-  const model = opts.model ?? DEFAULT_MODEL;
-  const max = opts.maxImages ?? Number(process.env.MEGADJ_ART_MAX ?? 20);
-  const apiKey = process.env.OPENROUTER_API_KEY;
+interface ArtworkCounters {
+  done: number;
+  failed: number;
+}
 
+/** Load + validate the artwork queue. Returns null (after logging) when
+ *  there is nothing to do or the environment can't generate. */
+async function loadQueue(
+  log: (msg: string) => void,
+): Promise<QueueEntry[] | null> {
   let entries: QueueEntry[] = [];
   try {
     const raw = await readFile(QUEUE_PATH(), "utf8");
@@ -100,13 +104,95 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
     log(
       "queue is empty — nothing to do (entries appear after `megadj ingest`)",
     );
-    return;
+    return null;
   }
-
   if (entries.length === 0) {
     log("queue is empty — nothing to do");
-    return;
+    return null;
   }
+  return entries;
+}
+
+/** Generate + embed art for one queue entry. Returns "embedded",
+ *  "skipped-ext", or "failed" — only embedded/skipped leave the queue. */
+async function processEntry(
+  log: (msg: string) => void,
+  client: {
+    generate(req: {
+      prompt: string;
+      model: string;
+      size: string;
+      output: string;
+      outputFormat: string;
+    }): Promise<{ cost?: number }>;
+  },
+  entry: QueueEntry,
+  coverDir: string,
+  model: string,
+  dryRun: boolean | undefined,
+  counters: ArtworkCounters,
+  doneLines: string[],
+): Promise<"embedded" | "skipped-ext" | "failed" | "pending"> {
+  if (!ARTWORK_EXTS.has(extname(entry.path).toLowerCase())) {
+    log(`  - skip (unsupported container): ${basename(entry.path)}`);
+    doneLines.push(JSON.stringify({ ...entry, result: "skipped-ext" }));
+    return "skipped-ext";
+  }
+  const prompt = buildPrompt(entry);
+  const coverPath = join(
+    coverDir,
+    `${basename(entry.path).replace(/\.[^.]+$/, "")}.png`,
+  );
+  log(`  ~ ${entry.title}${entry.artist ? ` — ${entry.artist}` : ""}`);
+  log(`    prompt: ${prompt.slice(0, 110)}…`);
+  if (dryRun) return "pending";
+
+  try {
+    const result = await client.generate({
+      prompt,
+      model,
+      size: "1024x1024",
+      output: coverPath,
+      outputFormat: "png",
+    });
+    const cost = result.cost;
+    log(
+      `    generated ${coverPath}${cost !== undefined ? ` ($${Number(cost).toFixed(3)})` : ""}`,
+    );
+    if (await embedArtwork(entry.path, coverPath)) {
+      log("    embedded ✓");
+      counters.done++;
+      doneLines.push(
+        JSON.stringify({ ...entry, result: "embedded", model, coverPath }),
+      );
+      return "embedded";
+    } else {
+      log("    embed FAILED — entry stays in queue");
+      counters.failed++;
+      return "failed";
+    }
+  } catch (err) {
+    log(
+      `    generation FAILED: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    counters.failed++;
+    return "failed";
+  }
+}
+
+export async function artwork(opts: ArtworkOptions): Promise<void> {
+  const log = commandLog(opts);
+  const model = opts.model ?? DEFAULT_MODEL;
+  // env parse at the boundary: MEGADJ_ART_MAX="" parses to NaN and
+  // slice(0, NaN) would process NOTHING while reporting success.
+  const envMax = Number(process.env.MEGADJ_ART_MAX ?? "");
+  const max =
+    opts.maxImages ??
+    (Number.isFinite(envMax) && envMax > 0 ? Math.floor(envMax) : 20);
+  const apiKey = process.env.OPENROUTER_API_KEY;
+
+  const entries = await loadQueue(log);
+  if (!entries) return;
   if (!apiKey && !opts.dryRun) {
     log("OPENROUTER_API_KEY not set — cannot generate. Export it and retry.");
     log(`queue (${entries.length} entries) is preserved at ${QUEUE_PATH()}`);
@@ -143,8 +229,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
   const coverDir = join(QUEUE_PATH(), "..", "artwork-covers");
   if (!opts.dryRun) await mkdir(coverDir, { recursive: true });
 
-  let done = 0;
-  let failed = 0;
+  const counters: ArtworkCounters = { done: 0, failed: 0 };
   const doneLines: string[] = [];
   // Which batch entries actually LEFT the queue: embedded, or skipped as
   // unsupported (no point queuing a container that can't hold art).
@@ -155,50 +240,18 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
 
   for (let i = 0; i < batch.length; i++) {
     const entry = batch[i]!;
-    if (!ARTWORK_EXTS.has(extname(entry.path).toLowerCase())) {
-      log(`  - skip (unsupported container): ${basename(entry.path)}`);
-      doneLines.push(JSON.stringify({ ...entry, result: "skipped-ext" }));
-      processedIdx.add(i);
-      continue;
-    }
-    const prompt = buildPrompt(entry);
-    const coverPath = join(
+    const outcome = await processEntry(
+      log,
+      client,
+      entry,
       coverDir,
-      `${basename(entry.path).replace(/\.[^.]+$/, "")}.png`,
+      model,
+      opts.dryRun,
+      counters,
+      doneLines,
     );
-    log(`  ~ ${entry.title}${entry.artist ? ` — ${entry.artist}` : ""}`);
-    log(`    prompt: ${prompt.slice(0, 110)}…`);
-    if (opts.dryRun) continue;
-
-    try {
-      const result = await client.generate({
-        prompt,
-        model,
-        size: "1024x1024",
-        output: coverPath,
-        outputFormat: "png",
-      });
-      const cost = result.cost;
-      log(
-        `    generated ${coverPath}${cost !== undefined ? ` ($${Number(cost).toFixed(3)})` : ""}`,
-      );
-      if (await embedArtwork(entry.path, coverPath)) {
-        log("    embedded ✓");
-        done++;
-        processedIdx.add(i);
-        doneLines.push(
-          JSON.stringify({ ...entry, result: "embedded", model, coverPath }),
-        );
-      } else {
-        log("    embed FAILED — entry stays in queue");
-        failed++;
-      }
-    } catch (err) {
-      log(
-        `    generation FAILED: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      failed++;
-    }
+    if (outcome === "embedded" || outcome === "skipped-ext")
+      processedIdx.add(i);
   }
 
   if (!opts.dryRun && doneLines.length > 0) {
@@ -216,6 +269,7 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
     );
   }
 
+  const { done, failed } = counters;
   if (opts.json) {
     // P1 (--json on every command): one summary object on stdout, last.
     console.log(

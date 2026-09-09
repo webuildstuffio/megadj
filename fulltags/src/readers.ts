@@ -57,7 +57,12 @@ function ffprobeJson(p: string): FfprobeJson {
         ["png", "mjpeg"].includes(s.codec_name ?? ""),
     );
     return { tags: j.format?.tags ?? {}, hasVideo };
-  } catch {
+  } catch (e) {
+    // Empty tags are legit (untagged file); a PARSE failure means ffprobe
+    // answered something we can't trust — that difference feeds the audit
+    // gate, so it must not read as "untagged". Log at the boundary; the
+    // empty result still degrades the same way downstream.
+    console.error(`ffprobe JSON unparsable for ${p}`, e);
     return { tags: {}, hasVideo: false };
   }
 }

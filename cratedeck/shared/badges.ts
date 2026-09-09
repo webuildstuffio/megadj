@@ -1,6 +1,27 @@
 // Badge rules — single source computed server-side, rendered client-side.
 import type { Badge, Drive, SnapshotData } from "./types";
 
+/** Parse a persisted snapshot blob WITHOUT the crash class: a corrupt blob
+ *  must surface as `corrupt: true` (callers render a badge), never throw —
+ *  `driveBadges` runs on every /api/status and /api/drives request, and one
+ *  bad row used to 500 the whole drive rail. */
+export function parseSnapshotJson(json: string | null): {
+  snap: SnapshotData | null;
+  corrupt: boolean;
+} {
+  if (!json) return { snap: null, corrupt: false };
+  try {
+    const parsed = JSON.parse(json) as SnapshotData | null;
+    // A blob that parses to a non-object (or null) is corruption too —
+    // `snap.junk` access on it would throw downstream.
+    if (!parsed || typeof parsed !== "object")
+      return { snap: null, corrupt: true };
+    return { snap: parsed, corrupt: false };
+  } catch {
+    return { snap: null, corrupt: true };
+  }
+}
+
 export function driveBadges(
   drive: Drive,
   opts: {
@@ -13,9 +34,12 @@ export function driveBadges(
     badges.push({ key: "ghost", label: "ghost", tone: "muted" });
     return badges;
   }
-  const snap: SnapshotData | null = drive.last_snapshot_json
-    ? JSON.parse(drive.last_snapshot_json)
-    : null;
+  const { snap, corrupt } = parseSnapshotJson(drive.last_snapshot_json);
+  if (corrupt) {
+    // Corrupt persisted JSON can never read as success (D30-class rule):
+    // show a real badge instead of crashing /drives or lying "no data yet".
+    badges.push({ key: "attn", label: "snapshot corrupt", tone: "bad" });
+  }
 
   // corruption / junk signals from the latest light scan
   if (snap?.junk) {
@@ -60,10 +84,11 @@ export function syncBadge(
   masterSnapshot: SnapshotData | null,
 ): Badge | null {
   if (drive.role !== "mirror" || !drive.mounted) return null;
-  if (!masterSnapshot?.file_count || !drive.last_snapshot_json) {
+  const { snap: mine, corrupt } = parseSnapshotJson(drive.last_snapshot_json);
+  if (corrupt) return { key: "attn", label: "snapshot corrupt", tone: "bad" };
+  if (!masterSnapshot?.file_count || !mine) {
     return { key: "unknown", label: "sync unknown", tone: "muted" };
   }
-  const mine: SnapshotData = JSON.parse(drive.last_snapshot_json);
   if (mine.file_count === undefined)
     return { key: "unknown", label: "sync unknown", tone: "muted" };
   if (mine.file_count >= masterSnapshot.file_count) {

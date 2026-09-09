@@ -13,7 +13,7 @@ import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
 import { ListHead } from "../../ui/ListHead";
 import { StatCard } from "../../ui/DrivePanels";
-import { SectionHead, ShareBar, Verdict } from "../shared";
+import { SectionHead, ShareBar, Verdict, TrackTitle } from "../shared";
 import { STATUS_LANG } from "../shared";
 
 type Track = ArchiveIngestStatus["recent_tracks"][number];
@@ -259,10 +259,11 @@ export function LibraryTab() {
             <div class="rows">
               {hits.slice(0, 40).map((t) => (
                 <div class="row" key={t.video_id}>
-                  <span class="arch-what-title">
-                    <b>{t.title ?? t.video_id}</b>
-                    {t.artist && <span class="covartist"> — {t.artist}</span>}
-                  </span>
+                  <TrackTitle
+                    title={t.title ?? t.video_id}
+                    videoId={t.video_id}
+                    artist={t.artist}
+                  />
                   <span class="muted" title={t.file_path ?? ""}>
                     {t.bitrate_kbps
                       ? `${t.bitrate_kbps} kbps ${t.codec ?? ""}`
@@ -295,10 +296,11 @@ export function LibraryTab() {
         <div class="rows">
           {lib.recent.map((t) => (
             <div class="row" key={t.video_id}>
-              <span class="arch-what-title">
-                <b>{t.title ?? t.video_id}</b>
-                {t.artist && <span class="covartist"> — {t.artist}</span>}
-              </span>
+              <TrackTitle
+                title={t.title ?? t.video_id}
+                videoId={t.video_id}
+                artist={t.artist}
+              />
               <span class="muted" title={artLang(t.artwork_status)}>
                 {t.year ?? "—"} · {artLang(t.artwork_status)}
               </span>

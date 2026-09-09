@@ -167,18 +167,11 @@ export function trackLocations(
 // ---- redundancy (B7) --------------------------------------------------------
 // (PlaylistRedundancy / RedundancyResult are defined in shared/types.ts.)
 
-/**
- * Redundancy audit per playlist: is every track on ≥ minCopies drives?
- * Playlists are unioned across drives (a playlist that exists on only some
- * drives still audits all of its known tracks), and every track's playlist
- * memberships ride along so the UI can show what else references a gap.
- */
-export function redundancy(
-  inventories: Map<string, TrackRow[]>,
-  playlistEntries: Map<string, PlaylistEntryRow[]>,
-  minCopies = 2,
-): RedundancyResult {
-  // playlist name (folded) → set of folded track paths
+/** playlist name (folded) → set of folded track paths, plus display names. */
+function indexPlaylists(playlistEntries: Map<string, PlaylistEntryRow[]>): {
+  plTracks: Map<string, Set<string>>;
+  plDisplay: Map<string, string>;
+} {
   const plTracks = new Map<string, Set<string>>();
   const plDisplay = new Map<string, string>();
   for (const [, rows] of playlistEntries) {
@@ -190,8 +183,15 @@ export function redundancy(
       );
     }
   }
+  return { plTracks, plDisplay };
+}
 
-  // folded path → { coverage row, memberships }
+/** folded path → coverage row + the playlists that reference it. */
+function buildTrackIndex(
+  inventories: Map<string, TrackRow[]>,
+  playlistEntries: Map<string, PlaylistEntryRow[]>,
+  minCopies: number,
+): Map<string, { cov: TrackCoverage; playlists: Set<string> }> {
   const trackIndex = new Map<
     string,
     { cov: TrackCoverage; playlists: Set<string> }
@@ -206,39 +206,65 @@ export function redundancy(
       if (entry) entry.playlists.add(e.playlist_name);
     }
   }
+  return trackIndex;
+}
 
+/** One playlist's redundancy audit: verdict, gap list, detail line. */
+function auditPlaylist(
+  plKey: string,
+  paths: Set<string>,
+  plDisplay: Map<string, string>,
+  trackIndex: Map<string, { cov: TrackCoverage; playlists: Set<string> }>,
+  minCopies: number,
+): PlaylistRedundancy {
+  const rows: (TrackCoverage & { playlists: string[] })[] = [];
+  for (const p of paths) {
+    const entry = trackIndex.get(p);
+    if (!entry) continue; // track row missing on every scanned drive
+    rows.push({ ...entry.cov, playlists: [...entry.playlists].sort() });
+  }
+  const gaps = rows.filter((r) => r.copies < minCopies);
+  const fails = gaps.filter((r) => r.copies <= 1).length;
+  const verdict: PlaylistRedundancy["verdict"] =
+    rows.length === 0
+      ? "unknown"
+      : fails > 0
+        ? "fail"
+        : gaps.length > 0
+          ? "warn"
+          : "pass";
+  return {
+    playlist: plDisplay.get(plKey) ?? plKey,
+    unique_tracks: rows.length,
+    protected_tracks: rows.length - gaps.length,
+    tracks: rows.sort((a, b) => a.copies - b.copies),
+    verdict,
+    detail:
+      rows.length === 0
+        ? "no track inventory on any scanned drive — run a scan"
+        : gaps.length === 0
+          ? `all ${rows.length} tracks on ≥${minCopies} drives`
+          : `${gaps.length} of ${rows.length} track(s) below ${minCopies} copies` +
+            (fails ? ` (${fails} on a single drive)` : ""),
+  };
+}
+
+/**
+ * Redundancy audit per playlist: is every track on ≥ minCopies drives?
+ * Playlists are unioned across drives (a playlist that exists on only some
+ * drives still audits all of its known tracks), and every track's playlist
+ * memberships ride along so the UI can show what else references a gap.
+ */
+export function redundancy(
+  inventories: Map<string, TrackRow[]>,
+  playlistEntries: Map<string, PlaylistEntryRow[]>,
+  minCopies = 2,
+): RedundancyResult {
+  const { plTracks, plDisplay } = indexPlaylists(playlistEntries);
+  const trackIndex = buildTrackIndex(inventories, playlistEntries, minCopies);
   const out: PlaylistRedundancy[] = [];
   for (const [plKey, paths] of plTracks) {
-    const rows: (TrackCoverage & { playlists: string[] })[] = [];
-    for (const p of paths) {
-      const entry = trackIndex.get(p);
-      if (!entry) continue; // track row missing on every scanned drive
-      rows.push({ ...entry.cov, playlists: [...entry.playlists].sort() });
-    }
-    const gaps = rows.filter((r) => r.copies < minCopies);
-    const fails = gaps.filter((r) => r.copies <= 1).length;
-    const verdict: PlaylistRedundancy["verdict"] =
-      rows.length === 0
-        ? "unknown"
-        : fails > 0
-          ? "fail"
-          : gaps.length > 0
-            ? "warn"
-            : "pass";
-    out.push({
-      playlist: plDisplay.get(plKey) ?? plKey,
-      unique_tracks: rows.length,
-      protected_tracks: rows.length - gaps.length,
-      tracks: rows.sort((a, b) => a.copies - b.copies),
-      verdict,
-      detail:
-        rows.length === 0
-          ? "no track inventory on any scanned drive — run a scan"
-          : gaps.length === 0
-            ? `all ${rows.length} tracks on ≥${minCopies} drives`
-            : `${gaps.length} of ${rows.length} track(s) below ${minCopies} copies` +
-              (fails ? ` (${fails} on a single drive)` : ""),
-    });
+    out.push(auditPlaylist(plKey, paths, plDisplay, trackIndex, minCopies));
   }
 
   out.sort((a, b) => {
@@ -326,36 +352,7 @@ export function diff(
   const bytesOf = (r?: DiffSource): number | undefined => r?.bytes;
 
   const matchedB = new Set<string>();
-  for (const [path, ra] of ia.byPath) {
-    let rb = ib.byPath.get(path);
-    if (!rb) {
-      // same track, different folder: join on artist - title
-      const m = metaKey(ra);
-      const cand = m ? ib.byMeta.get(m) : undefined;
-      if (cand) {
-        rb = cand;
-        matchedB.add(fold(cand.path));
-      }
-    }
-    if (rb) {
-      matchedB.add(path);
-      // bytes compare at each side's OWN path — cross-path matches would
-      // otherwise read b's manifest under a's path and miss (or invent) a
-      // "changed" verdict.
-      const ba = bytesOf(fa.byPath.get(path)) ?? bytesOf(ra);
-      const bb = bytesOf(fb.byPath.get(fold(rb.path))) ?? bytesOf(rb);
-      if (ba !== undefined && bb !== undefined && ba !== bb) {
-        changed.push({
-          ...rowOf(ra, rb),
-          kind: "changed",
-          bytes_a: ba,
-          bytes_b: bb,
-        });
-      }
-    } else {
-      removed.push({ ...rowOf(ra), kind: "removed" });
-    }
-  }
+  reconcileA(ia, ib, fa, fb, rowOf, bytesOf, matchedB, removed, changed);
   for (const [path, rb] of ib.byPath) {
     if (matchedB.has(path)) continue;
     const m = metaKey(rb);
@@ -379,4 +376,51 @@ export function diff(
     changed,
     summary: parts.length ? parts.join(" · ") : "identical inventories",
   };
+}
+
+type DiffRowOf = (r: DiffSource, tr?: DiffSource) => DiffRow;
+type BytesOf = (r?: DiffSource) => number | undefined;
+
+/** A-side reconcile pass: match by path, fall back to artist-title join,
+ *  then classify changed (byte drift) / removed. Bytes compare at each
+ *  side's OWN path — cross-path matches would otherwise read b's manifest
+ *  under a's path and miss (or invent) a "changed" verdict. */
+function reconcileA(
+  ia: { byPath: Map<string, DiffSource>; byMeta: Map<string, DiffSource> },
+  ib: { byPath: Map<string, DiffSource>; byMeta: Map<string, DiffSource> },
+  fa: { byPath: Map<string, DiffSource>; byMeta: Map<string, DiffSource> },
+  fb: { byPath: Map<string, DiffSource>; byMeta: Map<string, DiffSource> },
+  rowOf: DiffRowOf,
+  bytesOf: BytesOf,
+  matchedB: Set<string>,
+  removed: DiffRow[],
+  changed: DiffRow[],
+): void {
+  for (const [path, ra] of ia.byPath) {
+    let rb = ib.byPath.get(path);
+    if (!rb) {
+      // same track, different folder: join on artist - title
+      const m = metaKey(ra);
+      const cand = m ? ib.byMeta.get(m) : undefined;
+      if (cand) {
+        rb = cand;
+        matchedB.add(fold(cand.path));
+      }
+    }
+    if (rb) {
+      matchedB.add(path);
+      const ba = bytesOf(fa.byPath.get(path)) ?? bytesOf(ra);
+      const bb = bytesOf(fb.byPath.get(fold(rb.path))) ?? bytesOf(rb);
+      if (ba !== undefined && bb !== undefined && ba !== bb) {
+        changed.push({
+          ...rowOf(ra, rb),
+          kind: "changed",
+          bytes_a: ba,
+          bytes_b: bb,
+        });
+      }
+    } else {
+      removed.push({ ...rowOf(ra), kind: "removed" });
+    }
+  }
 }

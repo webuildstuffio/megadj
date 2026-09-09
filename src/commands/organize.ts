@@ -12,7 +12,7 @@
  */
 
 import { $ } from "bun";
-import type { ArchiveState } from "../state";
+import type { ArchiveState, TrackRow } from "../state";
 import { commandLog } from "../progress";
 import { sanitizeGenreFolder } from "../../fulltags/src/exports";
 
@@ -35,74 +35,94 @@ async function fileGenreTag(filePath: string): Promise<string | null> {
   return tag || null;
 }
 
+interface OrganizeCounters {
+  moved: number;
+  skipped: number;
+  missing: number;
+  movedFailed: number;
+}
+
+/** Per-track: resolve destination from genre, move without clobbering, and
+ *  only record the move when it actually happened. Returns true when the
+ *  file moved (caller counts it). */
+async function organizeOne(
+  opts: OrganizeOptions,
+  log: (msg: string) => void,
+  track: TrackRow,
+  counters: OrganizeCounters,
+): Promise<void> {
+  const filePath = track.file_path;
+  if (!filePath) return;
+  const file = Bun.file(filePath);
+  if (!(await file.exists())) {
+    counters.missing++;
+    log(`  ✗ missing on disk: ${filePath}`);
+    return;
+  }
+
+  const genre = track.genre ?? (await fileGenreTag(filePath)) ?? "Music";
+  const folder = sanitizeGenreFolder(genre);
+  const fileName = filePath.split("/").pop() ?? `${track.video_id}.m4a`;
+  const targetDir = `${opts.musicDir}/${folder}`;
+  const targetPath = `${targetDir}/${fileName}`;
+
+  if (filePath === targetPath) {
+    counters.skipped++;
+    return;
+  }
+
+  if (opts.dryRun) {
+    log(`  would move: ${fileName} → ${folder}/`);
+    return;
+  }
+
+  // nothrow: an unwritable parent must skip the track, not crash the run.
+  const mk = await $`mkdir -p ${targetDir}`.quiet().nothrow();
+  if (mk.exitCode !== 0) {
+    counters.movedFailed++;
+    log(`  ✗ cannot create ${folder}/ (skipping): ${filePath}`);
+    return;
+  }
+  // Never clobber: if the destination exists with different bytes it is a
+  // different rip of the same track — keep both, disambiguate the name.
+  let dest = targetPath;
+  if (await Bun.file(targetPath).exists()) {
+    const ext = fileName.match(/(\.[^.]+)$/)?.[1] ?? "";
+    const stem = ext ? fileName.slice(0, -ext.length) : fileName;
+    dest = `${targetDir}/${stem} [${track.video_id}]${ext}`;
+    log(`  ⚠ destination exists — moving as ${stem} [${track.video_id}]${ext}`);
+  }
+  // Only record the move when it actually happened. The old quiet+nothrow
+  // `mv` updated file_path unconditionally, so a failed move (EXDEV, disk
+  // full, permissions) left the DB pointing at a file that never existed —
+  // and every later pass treated the phantom path as ground truth.
+  const mv = await $`mv ${filePath} ${dest}`.quiet().nothrow();
+  if (mv.exitCode !== 0) {
+    counters.movedFailed++;
+    log(`  ✗ move failed (DB unchanged): ${filePath}`);
+    return;
+  }
+  opts.state.updateFilePath(track.video_id, dest);
+  counters.moved++;
+  log(`  → ${folder}/${dest.split("/").pop()}`);
+}
+
 export async function organize(opts: OrganizeOptions): Promise<void> {
   const log = commandLog(opts);
   const tracks = opts.state.downloadedWithFiles();
   log(`organizing ${tracks.length} downloaded track(s)`);
-  let moved = 0;
-  let skipped = 0;
-  let missing = 0;
-  let movedFailed = 0;
+  const counters: OrganizeCounters = {
+    moved: 0,
+    skipped: 0,
+    missing: 0,
+    movedFailed: 0,
+  };
 
   for (const track of tracks) {
-    const filePath = track.file_path;
-    if (!filePath) continue;
-    const file = Bun.file(filePath);
-    if (!(await file.exists())) {
-      missing++;
-      log(`  ✗ missing on disk: ${filePath}`);
-      continue;
-    }
-
-    const genre = track.genre ?? (await fileGenreTag(filePath)) ?? "Music";
-    const folder = sanitizeGenreFolder(genre);
-    const fileName = filePath.split("/").pop() ?? `${track.video_id}.m4a`;
-    const targetDir = `${opts.musicDir}/${folder}`;
-    const targetPath = `${targetDir}/${fileName}`;
-
-    if (filePath === targetPath) {
-      skipped++;
-      continue;
-    }
-
-    if (opts.dryRun) {
-      log(`  would move: ${fileName} → ${folder}/`);
-      continue;
-    }
-
-    // nothrow: an unwritable parent must skip the track, not crash the run.
-    const mk = await $`mkdir -p ${targetDir}`.quiet().nothrow();
-    if (mk.exitCode !== 0) {
-      movedFailed++;
-      log(`  ✗ cannot create ${folder}/ (skipping): ${filePath}`);
-      continue;
-    }
-    // Never clobber: if the destination exists with different bytes it is a
-    // different rip of the same track — keep both, disambiguate the name.
-    let dest = targetPath;
-    if (await Bun.file(targetPath).exists()) {
-      const ext = fileName.match(/(\.[^.]+)$/)?.[1] ?? "";
-      const stem = ext ? fileName.slice(0, -ext.length) : fileName;
-      dest = `${targetDir}/${stem} [${track.video_id}]${ext}`;
-      log(
-        `  ⚠ destination exists — moving as ${stem} [${track.video_id}]${ext}`,
-      );
-    }
-    // Only record the move when it actually happened. The old quiet+nothrow
-    // `mv` updated file_path unconditionally, so a failed move (EXDEV, disk
-    // full, permissions) left the DB pointing at a file that never existed —
-    // and every later pass treated the phantom path as ground truth.
-    const mv = await $`mv ${filePath} ${dest}`.quiet().nothrow();
-    if (mv.exitCode !== 0) {
-      movedFailed++;
-      log(`  ✗ move failed (DB unchanged): ${filePath}`);
-      continue;
-    }
-    opts.state.updateFilePath(track.video_id, dest);
-    moved++;
-    log(`  → ${folder}/${dest.split("/").pop()}`);
+    await organizeOne(opts, log, track, counters);
   }
 
+  const { moved, skipped, missing, movedFailed } = counters;
   log(
     `\norganize complete: ${moved} moved, ${skipped} already organized, ${missing} missing` +
       (movedFailed > 0 ? `, ${movedFailed} move-failed` : ""),

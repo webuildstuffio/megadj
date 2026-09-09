@@ -12,6 +12,7 @@ import type {
 } from "../shared/types";
 import { FleetStore } from "./fleet-db";
 import { LedgerQueries, migrateArchiveLedger } from "./db_ledger";
+import { BenchLedger } from "./db_bench";
 import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./fleet";
 /** Raw row shape as stored in the drives table (mounted is 0/1). */
 interface DriveRow extends Omit<Drive, "mounted"> {
@@ -127,6 +128,8 @@ export class DB {
   mirrorName = "DJMIRROR";
   /** D30 archive-integrity ledger queries (db_ledger.ts). */
   private ledger: LedgerQueries;
+  /** Benchmark + checksum-ledger queries (db_bench.ts). */
+  private benchStore: BenchLedger;
 
   constructor(dbPath: string) {
     mkdirSync(dirname(dbPath), { recursive: true });
@@ -137,6 +140,7 @@ export class DB {
     this.sqlite.exec("PRAGMA synchronous = NORMAL;");
     this.sqlite.exec("PRAGMA foreign_keys = ON;");
     this.ledger = new LedgerQueries(this.sqlite);
+    this.benchStore = new BenchLedger(this.sqlite);
     migrateArchiveLedger(this.sqlite);
     this.migrate();
   }
@@ -373,7 +377,15 @@ export class DB {
     if (!r?.verify_report_json) return null;
     try {
       return JSON.parse(r.verify_report_json) as VerifyReport;
-    } catch {
+    } catch (e) {
+      // A corrupt persisted verdict must NOT read as "never verified" —
+      // that flips the drive to the reassuring unknown state forever.
+      // Surface the corruption in the console (and as null, which the UI
+      // renders as "never verified" WITH this trace to explain why).
+      console.error(
+        `verify report for drive ${id} is corrupt — treating as never verified`,
+        e,
+      );
       return null;
     }
   }
@@ -415,8 +427,14 @@ export class DB {
         // canon() must recurse (see its doc): nested-only edits are real
         // library changes and must invalidate the dedupe.
         if (canon(strip(prev)) === canon(strip(snap))) return;
-      } catch {
-        // unparsable previous blob — fall through and write
+      } catch (e) {
+        // Unparsable previous blob: the dedupe guard can't run, so we fall
+        // through and write — but silently skipping the compare would mask
+        // HOW the blob got corrupt. Log it at the boundary.
+        console.error(
+          `previous snapshot blob for drive ${id} unparsable — rewriting`,
+          e,
+        );
       }
     }
     const json = JSON.stringify(snap);
@@ -700,25 +718,17 @@ export class DB {
     return r.changes;
   }
 
-  // ---- benchmarks + ledger ----------------------------------------------------
+  // ---- benchmarks + ledger (queries extracted to db_bench.ts at the
+  // file-length guard; delegated so call sites are unchanged) ----
+
   addBenchmark(driveId: string, seq: number, rand4k: number): void {
-    this.sqlite
-      .query(
-        "INSERT OR REPLACE INTO benchmarks (drive_id, ran_at, seq_mbps, rand4k_mbps) VALUES (?,?,?,?)",
-      )
-      .run(driveId, Date.now(), seq, rand4k);
+    this.benchStore.addBenchmark(driveId, seq, rand4k);
   }
 
   benchmarks(
     driveId: string,
   ): { ran_at: number; seq_mbps: number; rand4k_mbps: number }[] {
-    return this.sqlite
-      .query("SELECT * FROM benchmarks WHERE drive_id=? ORDER BY ran_at")
-      .all(driveId) as {
-      ran_at: number;
-      seq_mbps: number;
-      rand4k_mbps: number;
-    }[];
+    return this.benchStore.benchmarks(driveId);
   }
 
   ledgerPut(
@@ -728,46 +738,23 @@ export class DB {
     mtime: number,
     hash: string,
   ): void {
-    this.sqlite
-      .query(
-        `INSERT INTO ledger (drive_id, path, size, mtime, hash, last_ok)
-         VALUES (?,?,?,?,?,?) ON CONFLICT(drive_id, path)
-         DO UPDATE SET size=excluded.size, mtime=excluded.mtime,
-           hash=excluded.hash, last_ok=excluded.last_ok`,
-      )
-      .run(driveId, path, size, mtime, hash, Date.now());
+    this.benchStore.ledgerPut(driveId, path, size, mtime, hash);
   }
 
   ledgerGet(
     driveId: string,
     path: string,
   ): { hash: string; size: number; mtime: number } | null {
-    return (
-      (this.sqlite
-        .query(
-          "SELECT hash, size, mtime FROM ledger WHERE drive_id=? AND path=?",
-        )
-        .get(driveId, path) as {
-        hash: string;
-        size: number;
-        mtime: number;
-      } | null) ?? null
-    );
+    return this.benchStore.ledgerGet(driveId, path);
   }
 
   ledgerCount(driveId: string): number {
-    const r = this.sqlite
-      .query("SELECT COUNT(*) AS n FROM ledger WHERE drive_id=?")
-      .get(driveId) as { n: number } | null;
-    return r?.n ?? 0;
+    return this.benchStore.ledgerCount(driveId);
   }
 
   /** Days since the newest ledger entry (how fresh corruption tracking is). */
   ledgerAgeDays(driveId: string): number | null {
-    const r = this.sqlite
-      .query("SELECT MAX(last_ok) AS t FROM ledger WHERE drive_id=?")
-      .get(driveId) as { t: number | null } | null;
-    return r?.t ? (Date.now() - r.t) / 86_400_000 : null;
+    return this.benchStore.ledgerAgeDays(driveId);
   }
 
   close(): void {

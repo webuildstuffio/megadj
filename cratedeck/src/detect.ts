@@ -89,6 +89,44 @@ export async function listMountedVolumes(
   return out;
 }
 
+/** Whole-disk truth: virtual/physical + bus protocol, read from the parent
+ *  whole disk (strip the slice suffix: disk7s1 → disk7). The volume slice
+ *  alone cannot distinguish physical from image-backed — verified live:
+ *  image slices omit VirtualOrPhysical/BusProtocol, their whole disks carry
+ *  them. Image-backed volumes carry a root-only DeviceTreePath even when the
+ *  whole-disk probe is degraded — treated as virtual too. */
+function applyWholeDiskInfo(v: MountedVolume, treePath: string | null): void {
+  const whole = v.disk ? v.disk.replace(/s\d+$/, "") : null;
+  if (!whole) return;
+  const pw = Bun.spawnSync(["diskutil", "info", "-plist", whole], {
+    stdout: "pipe",
+  });
+  const winfo = parsePlist(pw.stdout.toString());
+  v.virtual =
+    winfo.VirtualOrPhysical === "Virtual"
+      ? true
+      : winfo.VirtualOrPhysical === "Physical"
+        ? false
+        : null;
+  v.busProtocol =
+    typeof winfo.BusProtocol === "string" ? winfo.BusProtocol : null;
+  if (v.internal === null && typeof winfo.Internal === "boolean")
+    v.internal = winfo.Internal;
+  if (treePath && /^IODeviceTree:\/?$/.test(treePath)) v.virtual = true;
+}
+
+/** diskutil info for the volume slice itself: device, uuid, fs, capacity. */
+function applyVolumeSliceInfo(
+  v: MountedVolume,
+  info: Record<string, unknown>,
+): void {
+  v.disk = (info.DeviceIdentifier as string | null) ?? null;
+  v.volumeUuid = (info.VolumeUUID as string | null) ?? null;
+  v.fs = (info.FileSystemType as string | null) ?? null;
+  v.capacityBytes = Number(info.TotalSize ?? 0);
+  v.internal = typeof info.Internal === "boolean" ? info.Internal : null;
+}
+
 export async function volumeDetail(
   name: string,
   mountPoint: string,
@@ -115,37 +153,10 @@ export async function volumeDetail(
       stdout: "pipe",
     });
     const info = parsePlist(p.stdout.toString());
-    v.disk = info.DeviceIdentifier ?? null;
-    v.volumeUuid = info.VolumeUUID ?? null;
-    v.fs = info.FileSystemType ?? null;
-    v.capacityBytes = Number(info.TotalSize ?? 0);
-    v.internal = typeof info.Internal === "boolean" ? info.Internal : null;
+    applyVolumeSliceInfo(v, info);
     mediaName = info["Device / Media Name"] ?? info.DeviceMediaName ?? null;
-    treePath = info.DeviceTreePath ?? null;
-    // Whole-disk truth lives on the parent whole disk (strip the slice
-    // suffix: disk7s1 → disk7). The volume slice alone cannot distinguish
-    // physical from image-backed — verified live: image slices omit
-    // VirtualOrPhysical/BusProtocol, their whole disks carry them.
-    const whole = v.disk ? v.disk.replace(/s\d+$/, "") : null;
-    if (whole) {
-      const pw = Bun.spawnSync(["diskutil", "info", "-plist", whole], {
-        stdout: "pipe",
-      });
-      const winfo = parsePlist(pw.stdout.toString());
-      v.virtual =
-        winfo.VirtualOrPhysical === "Virtual"
-          ? true
-          : winfo.VirtualOrPhysical === "Physical"
-            ? false
-            : null;
-      v.busProtocol =
-        typeof winfo.BusProtocol === "string" ? winfo.BusProtocol : null;
-      if (v.internal === null && typeof winfo.Internal === "boolean")
-        v.internal = winfo.Internal;
-      // Image-backed volumes carry a root-only DeviceTreePath even when the
-      // whole-disk probe is degraded — treat that as virtual too.
-      if (treePath && /^IODeviceTree:\/?$/.test(treePath)) v.virtual = true;
-    }
+    treePath = (info.DeviceTreePath ?? null) as string | null;
+    applyWholeDiskInfo(v, treePath);
   } catch (e) {
     // a volume whose diskutil probe fails still appears on the rail (name +
     // mountpoint are already set) — but the degraded identity is reported.

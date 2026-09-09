@@ -18,7 +18,6 @@
         "src/bench.ts",
         "src/mcp.ts",
         "test/*.test.ts",
-        "test/*-seed.ts",
         "shared/types.ts"
       ],
       "ignoreExportsUsedInFile": true

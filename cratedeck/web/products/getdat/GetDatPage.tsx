@@ -28,6 +28,7 @@ import {
   SectionHead,
   ShareBar,
   Verdict,
+  TrackTitle,
 } from "../shared";
 import { LibraryTab } from "./LibraryTab";
 import { fmtBytes } from "../../../shared/fmt";
@@ -344,10 +345,11 @@ function BacklogTab() {
               <div class="rows">
                 {quality.slice(0, 30).map((t) => (
                   <div class="row" key={t.video_id}>
-                    <span class="arch-what-title">
-                      <b>{t.title ?? t.video_id}</b>
-                      {t.artist && <span class="covartist"> — {t.artist}</span>}
-                    </span>
+                    <TrackTitle
+                      title={t.title ?? t.video_id}
+                      videoId={t.video_id}
+                      artist={t.artist}
+                    />
                     <span class="arch-pill muted">{t.reason}</span>
                   </div>
                 ))}
@@ -544,10 +546,11 @@ function DiffList(props: { title: string; rows: Track[]; empty: string }) {
         <div class="rows">
           {props.rows.slice(0, 25).map((t) => (
             <div class="row" key={t.video_id}>
-              <span class="arch-what-title">
-                <b>{t.title ?? t.video_id}</b>
-                {t.artist && <span class="covartist"> — {t.artist}</span>}
-              </span>
+              <TrackTitle
+                title={t.title ?? t.video_id}
+                videoId={t.video_id}
+                artist={t.artist}
+              />
             </div>
           ))}
           {props.rows.length > 25 && (

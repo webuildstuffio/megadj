@@ -7,26 +7,14 @@
  * Environment-gated: the key block skips with a clear note when the
  * analyzer clone is missing, so the suite runs everywhere.
  */
-import { describe, test, expect, afterAll } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { $ } from "bun";
 import { existsSync } from "node:fs";
 import { analyzeKey, analyzeKeys, keyscanDir } from "../src/analysis";
 import { writePatchSync } from "../src/writer";
 import { readStampGuard } from "./helpers/stamp";
 import { enrichTrack } from "../src/pipeline";
-
-const DIR = `/tmp/fulltags-analysis-test-${process.pid}`;
-
-afterAll(async () => {
-  await $`rm -rf ${DIR}`.quiet().nothrow();
-});
-
-async function makeFile(name: string, secs = 3): Promise<string> {
-  await $`mkdir -p ${DIR}`.quiet();
-  const p = `${DIR}/${name}`;
-  await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=${secs} ${p}`.quiet();
-  return p;
-}
+import { DIR, makeFile } from "./helpers/analysis";
 
 const hasKeyscan = existsSync(`${keyscanDir()}/openkeyscan_analyzer_server.py`);
 
