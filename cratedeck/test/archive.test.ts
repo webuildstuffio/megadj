@@ -557,6 +557,31 @@ describe("ArchiveReader (O82b)", () => {
     r.close();
   });
 
+  it("skipCensus totals never shrink when buckets exceed the limit", () => {
+    // regression: totals were computed by summing the LIMIT-clamped bucket
+    // list — a 13th reason shrank `skipped` below the truth.
+    seed
+      .query(
+        `INSERT INTO tracks (video_id, title, status, last_error, source,
+         first_seen_at, updated_at)
+         VALUES ('vxb1', 'B1', 'skipped_not_music', 'category: A', 'liked',
+                 '2026-09-01', '2026-09-05'),
+                ('vxb2', 'B2', 'skipped_not_music', 'category: B', 'liked',
+                 '2026-09-01', '2026-09-05'),
+                ('vxb3', 'B3', 'skipped_not_music', 'category: C', 'liked',
+                 '2026-09-01', '2026-09-05'),
+                ('vxb4', 'B4', 'skipped_not_music', 'category: D', 'liked',
+                 '2026-09-01', '2026-09-05')`,
+      )
+      .run();
+    const r = reader();
+    const s = r.skipCensus(2); // limit 2 buckets per kind
+    expect(s.buckets.filter((b) => b.kind === "skipped").length).toBe(2);
+    // but the total must still count ALL skipped rows
+    expect(s.skipped).toBe(4);
+    r.close();
+  });
+
   it("sourceCensus lists every source tag with playable split", () => {
     const r = reader();
     const c = r.sourceCensus();

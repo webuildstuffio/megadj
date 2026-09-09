@@ -116,8 +116,7 @@ export class ArchiveReader {
    * it holds the reason ("gone" set it to the YouTube error, the ingest
    * skipper set it to "category: …"). This read buckets them so the UI can
    * show "what the pipeline decided and why" without an agent pasting
-   * queries. GONE tracks surface first (they're the actionable ones —
-   * re-source or drop), then the biggest skip buckets.
+   * queries. GONE tracks surface first (they're the actionable ones).
    */
   skipCensus(limit = 12): {
     available: boolean;
@@ -132,6 +131,14 @@ export class ArchiveReader {
       buckets: [],
     };
     if (!this.handle()) return empty;
+    // Totals come from dedicated COUNT queries — NEVER from summing the
+    // bucket list, which is LIMIT-clamped (a 13th reason would silently
+    // shrink the reported totals).
+    const total = (kind: string): number =>
+      this.rows<{ n: number }>(
+        `SELECT COUNT(*) n FROM tracks WHERE status = ?`,
+        kind,
+      )[0]?.n ?? 0;
     const bucket = (kind: string): { reason: string; count: number }[] =>
       this.rows<{ reason: string; count: number }>(
         `SELECT COALESCE(NULLIF(TRIM(last_error), ''), 'unknown reason') reason,
@@ -141,18 +148,19 @@ export class ArchiveReader {
          GROUP BY 1 ORDER BY count DESC, reason LIMIT ?`,
         Math.min(Math.max(limit, 1), 50),
       );
-    // gone first (actionable), then the skip categories (bookkeeping with
-    // an explanation). "unknown reason" only appears when the row has no
-    // last_error at all — still honest, still counted.
-    const gone = bucket("gone");
-    const skipped = bucket("skipped_not_music");
+    // gone first (actionable), then the skip categories (bookkeeping).
+    const gone = total("gone");
+    const skipped = total("skipped_not_music");
     return {
       available: true,
-      skipped: skipped.reduce((s, b) => s + b.count, 0),
-      gone: gone.reduce((s, b) => s + b.count, 0),
+      skipped,
+      gone,
       buckets: [
-        ...gone.map((b) => ({ ...b, kind: "gone" })),
-        ...skipped.map((b) => ({ ...b, kind: "skipped" })),
+        ...bucket("gone").map((b) => ({ ...b, kind: "gone" })),
+        ...bucket("skipped_not_music").map((b) => ({
+          ...b,
+          kind: "skipped",
+        })),
       ],
     };
   }
