@@ -1,4 +1,4 @@
-# USB Sync Pipeline (master ⇄ mirror)
+# USB Sync Pipeline (shelf ⇄ master ⇄ mirror)
 
 megadj downloads music; this pipeline puts it on the DJ USB drives with full
 rekordbox integration (DB rows, BPM, beatgrids, waveforms) and keeps the two
@@ -7,6 +7,14 @@ drives byte-identical.
 The step-by-step runbook (including the ANLZ binary format reference and all
 gotchas) lives in `.claude/skills/rekordbox-usb-sync/SKILL.md`. This page is
 the what/why summary for humans.
+
+**The shelf tier (Sep 9 2026):** above both sticks sits the shelf master —
+the archive-grade HDD (`library.shelf_drive`, default `SHELF1`) that holds
+the strict byte-verified archive of every drive; rekordbox's master DB even
+lives on it. Gig sticks sync FROM the shelf, never the other way. New music
+reaches it via `megadj shelf-sync`; stray drives are swept in with
+`megadj shelf-archive <volume>` (additive, MD5-verified, junk-filtered —
+[usb-sync-log.md](usb-sync-log.md) Sep 9 entry is the worked example).
 
 Throughout this doc, **master** and **mirror** are your two drive volume
 names (defaults `DJMASTER`/`DJMIRROR`; every script takes them as arguments).

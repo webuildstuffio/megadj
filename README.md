@@ -77,6 +77,7 @@ tonight?_ — is one glance at the dashboard, or one `report`, away.
 ```bash
 bun run deck    # the dashboard: every drive, its health, its playlists
 bun run deckctl status | report | run | coverage | diff
+megadj shelf-archive <volume>   # archive a stray drive into the shelf, verified
 ```
 
 First run of the dashboard? Build the UI once: `cd cratedeck/web && bun
@@ -206,7 +207,6 @@ MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
   (current state, queue, scorecard) ·
   [docs/usb-sync-log.md](docs/usb-sync-log.md) (ops/incident log) ·
   [docs/runbooks/](docs/runbooks/) (§0 survival runbooks)
-  (product & roadmap state, re-scored)
 - **Runbooks:** [rekordbox-usb-sync](.claude/skills/rekordbox-usb-sync/SKILL.md),
   [new-music-intake](.claude/skills/new-music-intake/SKILL.md),
   [cratedeck-deckctl](.claude/skills/cratedeck-deckctl/SKILL.md)

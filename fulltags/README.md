@@ -70,7 +70,7 @@ fulltags/
     remix.ts             `X - Y (Z Remix)` detection
     pipeline.ts          enrichTrack / enrichAll — the orchestrator
     exports.ts           public import surface
-  test/                  98 tests across 12 files (schema, writer round-trips,
+  test/                  100 tests across 13 files (schema, writer round-trips,
                          pipeline, m4a/AIFF stamps, audit gate, CLI
                          subcommands, analysis + mood stages + label-order
                          pin — env-gated)

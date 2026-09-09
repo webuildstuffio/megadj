@@ -153,6 +153,8 @@ megadj sync                    # GetDat: pull new music
 megadj fetch && megadj audit   # FullTags: perfect the metadata
 megadj beats && megadj mood    # FullTags: beats + mood ledgers (DB-side)
 megadj years                   # FullTags: verify years vs SC page (kills AI 2023 guesses)
+megadj shelf-sync              # shelf: archive → shelf master (new music out)
+megadj shelf-archive <volume>  # shelf: drive → shelf master (stray-drive intake)
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 

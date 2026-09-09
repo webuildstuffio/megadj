@@ -1,6 +1,6 @@
 # megadj — Ideas & Future Backlog
 
-_Compiled 2026-09-04, revised through 2026-09-05 · grounded in the actual
+_Compiled 2026-09-04, revised through 2026-09-09 · grounded in the actual
 repo state (archive/ingest, rekordbox-usb-sync pipeline, CrateDeck v1,
 FullTags v0) plus the local operations log kept outside the repo.
 `docs/PRINCIPLES.md` is the arbiter: ideas that violate a principle get
@@ -44,6 +44,11 @@ exactly one physical device. B2 or R2 of `Contents/` + the archive DB via
 rclone (`rclone sync --backup-dir` for versioning) is read-only, violates
 no repo rule, and is a weekend. It's the only item that protects against
 all drives failing at once — the only failure that ends the archive.
+_Update 2026-09-09: SHELF1 (4 TB, 3.49 TB free) is now the strict
+byte-verified archive of every DJ drive (see
+[usb-sync-log.md](usb-sync-log.md)), which shrinks 0b's blast radius to
+"back up the shelf + the Mac-side DBs" — still not done, still the only
+all-drives-die protection._
 0c. **Orphan-drive verdict.** Files unique to an old backup drive exist
 nowhere else. One session: adopt into master (via `megadj adopt` +
 ingest) or declare them dead in the sync log. Do it _before_ 0b so

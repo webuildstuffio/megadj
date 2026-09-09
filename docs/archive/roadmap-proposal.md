@@ -9,7 +9,7 @@ the repo._
 next, in what order, and **why**, grounded in the eleven product principles
 and the actual shipped state. When this doc and ideas.md disagree, this doc
 wins on ordering; ideas.md wins on detail. The live re-scored state lives in
-[product-state-2026-09-07.md](product-state-2026-09-07.md).
+[product-state-2026-09-07.md](../product-state-2026-09-07.md).
 
 ---
 
@@ -17,9 +17,9 @@ wins on ordering; ideas.md wins on detail. The live re-scored state lives in
 
 The pipeline: **GetDat ─▶ FullTags ─▶ CrateDeck ─▶ the booth** — all three
 cores shipped (the per-project detail and its gaps live in
-[product-state-2026-09-07.md](product-state-2026-09-07.md) §State by
+[product-state-2026-09-07.md](../product-state-2026-09-07.md) §State by
 project). Standing caveats: **four open acceptance items need real
-hardware** ([acceptance.md](cratedeck/acceptance.md)), and ideas.md §0 —
+hardware** ([acceptance.md](../cratedeck/acceptance.md)), and ideas.md §0 —
 the SSD evacuation and the cold backup — outranks everything in this doc.
 
 ---
@@ -77,7 +77,7 @@ real 88-track archive, not just built:**
 
 **What remains of Move 2:** the RB key gauntlet (operational, 30 s),
 vocal density, similarity embeddings. Full per-stage detail (models,
-gates, gotchas): [fulltags-roadmap.md](fulltags-roadmap.md).
+gates, gotchas): [fulltags-roadmap.md](../fulltags-roadmap.md).
 
 ### Move 3 — Agentify (the O layer) · _why: P1, agent-first is a principle_
 
@@ -88,7 +88,7 @@ JSON-RPC — readonly tools annotation-marked, mutating ones flagged
 layer** (where O86 said it must live); the archive half reads megadj's DB
 through a physically readonly handle; O87 attribution rides every job; O88
 notes + O85 plugin packaging shipped. Full census:
-[cratedeck/deckctl.md](../cratedeck/deckctl.md#mcp).
+[cratedeck/deckctl.md](../../cratedeck/deckctl.md#mcp).
 
 **What remains:** **O84** (the inbox-to-crate agent on top of `megadj
 drop`) and the optional `claude -p` cron wrapper for the weekly digest.
@@ -137,7 +137,7 @@ confidence gate + verify pass + human diff, exactly like flash-lite's
 The 90-day time-box collapsed in the Sep 5–7 window — "Weeks 3–7" of
 work happened in one evening once the gates were built. What survives is
 the **order**, now owned by
-[product-state-2026-09-07.md](product-state-2026-09-07.md) §The queue
+[product-state-2026-09-07.md](../product-state-2026-09-07.md) §The queue
 (1 RB gauntlet → 2 §0 survival → 3 memory-cue writes → 4 vocal
 density + similarity → 5 C18a/C21/C22 → 6 O84, palate cleansers
 whenever). §0 still gates it: no commit of substance while the SSD
@@ -183,7 +183,7 @@ running, freeze the rest.
 
 Re-measured against the real archive after the Sep 5–7 window — the
 live scorecard (same eight metrics, now with measured verdicts) lives in
-[product-state-2026-09-07.md](product-state-2026-09-07.md) §Scorecard;
+[product-state-2026-09-07.md](../product-state-2026-09-07.md) §Scorecard;
 that page owns the numbers, this doc keeps the bar: **P6, verbatim —
 does it sound and look pro on the booth, and did it cost zero manual
 labour.**
@@ -192,8 +192,8 @@ labour.**
 
 ## 8. If you read only one more doc
 
-- Decide → [PRINCIPLES.md](PRINCIPLES.md)
-- Browse → [ideas.md](ideas.md) (§0 first)
-- Build AI features → [fulltags-roadmap.md](fulltags-roadmap.md)
-- Touch drives → [usb-sync.md](usb-sync.md) + the interlock rules
-- Trust status claims → [cratedeck/acceptance.md](cratedeck/acceptance.md)
+- Decide → [PRINCIPLES.md](../PRINCIPLES.md)
+- Browse → [ideas.md](../ideas.md) (§0 first)
+- Build AI features → [fulltags-roadmap.md](../fulltags-roadmap.md)
+- Touch drives → [usb-sync.md](../usb-sync.md) + the interlock rules
+- Trust status claims → [cratedeck/acceptance.md](../cratedeck/acceptance.md)
