@@ -37,7 +37,38 @@ cloud remote configured) ·
 0a. **Evacuate the dying SSD.** It has a hardware clock; every other item
 here has a calendar. This is item zero: copy to a healthy disk
 first, triage contents later (`rsync -av --progress`, then
-`usb_verify.py`-style hash spot-check on what matters).
+    `usb_verify.py`-style hash spot-check on what matters).
+
+0f. **SHELF1 dedupe pass (armed 2026-09-09) — stage 1-2 DONE, stage 3
+    awaiting OK.** `megadj shelf-dedupe` shipped with tests; the real
+    report on 568 twin pairs: **296 delete candidates** (byte-identical or
+    lower-quality re-encodes), **186 twin upgrades** (same fingerprint,
+    twin is higher quality — twin should REPLACE the original),
+    **86 keep-both** (different fingerprints: edits/remasters — data, not
+    dupes). Report saved at /tmp/shelf-dedupe-keep-list.json; `--apply`
+    moves losers to Contents/.dedupe-quarantine/ only after explicit OK.
+    Original plan: The shelf now carries ~624
+    `[drive]`-suffixed twins from the archive sweeps (390 `[bangers]` +
+    234 `[BACKUP2]`) — same song, different rip, kept on purpose. The
+    plan, in stages, **nothing deletes without explicit OK**:
+    1. **Byte stage (cheap):** MD5 every twin vs its shelf original.
+       Identical-hash twins are pure duplicates → safe-delete candidates
+       (the shelf DB references the original, never the twin).
+    2. **Fingerprint stage (the real filter):** for same-stem pairs that
+       differ in bytes, run `fpcalc -length 120` (chromaprint, ~0.2 s/file,
+       2,268 files ≈ 8 min single-threaded, parallelizes trivially) and
+       compare — **fingerprint equality + higher bitrate/format wins**;
+       the loser becomes a delete candidate. Different fingerprints =
+       genuinely different recordings (edit, remaster, wrong-tagged) →
+       keep BOTH, they are data, not dupes. This is idea #62's
+       cross-format consumer, finally fed.
+    3. **Decision stage (human gate):** emit a keep-list report
+       (per pair: sizes, bitrates, formats, fingerprint match %, the
+       proposed keeper + reason), review it, then apply with a
+       `--apply` run that moves losers to a quarantine folder first —
+       never in-place delete from the shelf.
+    Deliverable is the reusable command (`megadj shelf-dedupe --report`,
+    then `--apply` after OK), not a one-off script. Effort M.
 0b. **Cold backup of the master library.** _Promoted from §G40 in the
 audit_ — the cure for the disease §B7 diagnoses: some tracks exist on
 exactly one physical device. B2 or R2 of `Contents/` + the archive DB via

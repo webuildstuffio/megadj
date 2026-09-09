@@ -361,8 +361,10 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
       if (into) {
         dest = join(contents, into, n);
         let c = 2;
-        while (existsSync(dest))
-          ((dest = join(contents, into, `${stem}-${c}${ext}`)), c++);
+        while (existsSync(dest)) {
+          dest = join(contents, into, `${stem}-${c}${ext}`);
+          c++;
+        }
       } else if (sameSize.length > 0 || exactHits.length > 0) {
         let c = 1;
         let candidate = "";

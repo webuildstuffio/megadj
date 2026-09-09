@@ -182,6 +182,18 @@ function RailCard(props: {
               ? `${cap ?? "—"} · ${snap?.track_count?.toLocaleString() ?? snap?.file_count?.toLocaleString() ?? "?"} tracks`
               : `ghost · seen ${timeAgo(d.last_seen_at)}`}
           </div>
+          {d.shelf_sweep && (
+            <div
+              class={`sub sweepline${(d.shelf_sweep.ageDays ?? 0) > 30 || d.shelf_sweep.verdict === "failed" ? " stale" : ""}`}
+              title={`Last drive→shelf sweep: ${d.shelf_sweep.verdict}, ${d.shelf_sweep.files_seen.toLocaleString()} files (${d.shelf_sweep.copied} copied, ${d.shelf_sweep.preserved} preserved as twins)`}
+            >
+              shelf: {d.shelf_sweep.verdict} ·{" "}
+              {d.shelf_sweep.files_seen.toLocaleString()} files
+              {d.shelf_sweep.finished_at
+                ? ` · ${Math.floor(d.shelf_sweep.ageDays ?? 0)}d ago`
+                : " · running"}
+            </div>
+          )}
         </div>
       </div>
       {pctUsed !== null && (

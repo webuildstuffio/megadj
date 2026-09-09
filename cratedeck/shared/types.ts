@@ -62,6 +62,20 @@ export interface Drive {
   verify_report_json: string | null;
 }
 
+/** The megadj archive DB's shelf_sweeps ledger row, as surfaced on drive
+ *  cards (server joins by volume name; null when never swept / ledger off). */
+export interface ShelfSweepSummary {
+  drive: string;
+  verdict: string; // complete | preview | failed | running
+  files_seen: number;
+  copied: number;
+  preserved: number;
+  started_at: string;
+  finished_at: string | null;
+  /** days since finish — the UI ambers past ~30 */
+  ageDays: number | null;
+}
+
 export interface Badge {
   key:
     | "ready"
@@ -83,6 +97,8 @@ export interface Badge {
  *  counts cards actually use ride along as `snapshot_summary`. */
 export type DriveCardData = Omit<Drive, "last_snapshot_json"> & {
   badges: Badge[];
+  /** Latest drive→shelf sweep verdict from the megadj archive ledger. */
+  shelf_sweep: ShelfSweepSummary | null;
   snapshot_summary: {
     track_count?: number;
     file_count?: number;

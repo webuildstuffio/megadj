@@ -7,10 +7,22 @@
         "tools/fix_years.ts",
         "tools/prof_sweep.ts"
       ],
-      "ignore": ["fulltags/**"],
+      "ignore": [
+        "fulltags/**"
+      ],
       "ignoreExportsUsedInFile": true,
-      "ignoreBinaries": ["ditto", "ffprobe", "yt-dlp", "plutil", "wait"],
-      "ignoreDependencies": ["preact"]
+      "ignoreBinaries": [
+        "ditto",
+        "ffprobe",
+        "yt-dlp",
+        "plutil",
+        "wait",
+        "md5",
+        "fpcalc"
+      ],
+      "ignoreDependencies": [
+        "preact"
+      ]
     },
     "cratedeck": {
       "entry": [

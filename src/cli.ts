@@ -63,6 +63,9 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                divergent copies preserved (never overwritten)
   megadj shelf-sweeps [--json]                 DB ledger: every drive→shelf sweep, its
                                                verdict and counters (latest per drive)
+  megadj shelf-dedupe [--apply --yes] [--json] resolve [drive] twins: MD5 + fingerprint,
+                                               report first; --apply moves losers to
+                                               quarantine on the shelf (never deletes)
 
 cratedeck — the Crate: organize, sync & verify every DJ USB:
   megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)
@@ -338,6 +341,14 @@ async function main(): Promise<void> {
           dryRun,
           json,
         });
+        break;
+      }
+      case "shelf-dedupe": {
+        const apply = rest.includes("--apply");
+        const yes = rest.includes("--yes");
+        const json = rest.includes("--json");
+        const { shelfDedupe } = await import("./commands/shelf-dedupe");
+        await shelfDedupe({ apply, yes, json });
         break;
       }
       case "shelf-sweeps": {

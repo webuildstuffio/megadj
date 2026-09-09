@@ -9,6 +9,7 @@ import { Registry } from "./registry";
 import { JobEngine } from "./jobs";
 import { ImageService } from "./images";
 import { driveBadgesView } from "./badges_view";
+import { ShelfSweepReader } from "./shelf_sweep_reader";
 import { parseSnapshotJson } from "../shared/badges";
 import { buildReport, buildReportSummary, overall } from "./report";
 import { VERIFY_HELP } from "./verify_help";
@@ -51,6 +52,8 @@ const guard = new Guard(cfg);
 const webRoot = join(here, "web", "dist");
 // O82b archive tools: one shared readonly handle over megadj's archive DB
 const archive = new ArchiveReader(cfg.archiveDbPath);
+/** Read-only window into the megadj shelf_sweeps ledger (drive verdicts). */
+const shelfSweeps = new ShelfSweepReader(cfg.archiveDbPath);
 // N75: vendor matrix + user-added players from config.toml [players.players]
 const extraPlayers = () => playersFromConfig(cfg.extraPlayers);
 
@@ -715,6 +718,7 @@ async function fleetRoutes(route: string, url: URL): Promise<Response> {
  *  routes can never drift. */
 function driveListPayload(): Drive[] {
   const snaps = db.latestSnapshots();
+  const sweeps = shelfSweeps.latestPerDrive();
   return registry
     .list()
     .map((d) => ({
@@ -737,7 +741,11 @@ function driveListPayload(): Drive[] {
         ...driveBadgesView(db, d, snaps, cfg.masterDrive, cfg.mirrorDrive),
       ],
     }))
-    .map((d) => ({ ...d, last_snapshot_json: null }));
+    .map((d) => ({
+      ...d,
+      last_snapshot_json: null,
+      shelf_sweep: sweeps.get(d.name.toUpperCase()) ?? null,
+    }));
 }
 
 /** Shared deps for the report/preflight/dossier collectors

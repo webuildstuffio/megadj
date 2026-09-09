@@ -208,3 +208,13 @@
 .dcard .spacestrip .bar {
   height: 4px;
 }
+
+/* shelf sweep verdict line (from the megadj archive shelf_sweeps ledger) */
+.idbox .sweepline {
+  color: var(--pulse);
+  opacity: 0.85;
+}
+.idbox .sweepline.stale {
+  color: var(--warn);
+  opacity: 1;
+}
