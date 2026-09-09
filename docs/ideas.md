@@ -37,38 +37,48 @@ cloud remote configured) ·
 0a. **Evacuate the dying SSD.** It has a hardware clock; every other item
 here has a calendar. This is item zero: copy to a healthy disk
 first, triage contents later (`rsync -av --progress`, then
-    `usb_verify.py`-style hash spot-check on what matters).
+`usb_verify.py`-style hash spot-check on what matters).
+
+0g. **Whole-shelf acoustic dupescan (shipped 2026-09-09, report-only).**
+`megadj shelf-dupescan` fingerprints every shelf audio file (4,635
+scanned, fp cache in the archive DB so re-runs are fast) and groups
+identical recordings REGARDLESS of filename/folder — the class the
+twin pass can't see (e.g. the same ANOTR eSQUIRE remix under
+"ANOTR x 54 Ultra/" and "ANOTR, 54 Ultra/"). First real scan:
+969 dup groups, 1,271 redundant copies, 38.9 GB reclaimable —
+classified: 561 exact-byte pairs, 387 same-name dupes, 19 cross-folder
+(real finds like Billie Jean mashup in two MJ folders), 2 suspect
+fp-collisions on long mixes (first-120s hash limit — do NOT auto-delete
+those; verify tail-fingerprint before removal). Next: quarantine flow
+shared with shelf-dedupe + tail-fingerprint check for long files.
 
 0f. **SHELF1 dedupe pass (armed 2026-09-09) — stage 1-2 DONE, stage 3
-    awaiting OK.** `megadj shelf-dedupe` shipped with tests; the real
-    report on 568 twin pairs: **296 delete candidates** (byte-identical or
-    lower-quality re-encodes), **186 twin upgrades** (same fingerprint,
-    twin is higher quality — twin should REPLACE the original),
-    **86 keep-both** (different fingerprints: edits/remasters — data, not
-    dupes). Report saved at /tmp/shelf-dedupe-keep-list.json; `--apply`
-    moves losers to Contents/.dedupe-quarantine/ only after explicit OK.
-    Original plan: The shelf now carries ~624
-    `[drive]`-suffixed twins from the archive sweeps (390 `[bangers]` +
-    234 `[BACKUP2]`) — same song, different rip, kept on purpose. The
-    plan, in stages, **nothing deletes without explicit OK**:
-    1. **Byte stage (cheap):** MD5 every twin vs its shelf original.
-       Identical-hash twins are pure duplicates → safe-delete candidates
-       (the shelf DB references the original, never the twin).
-    2. **Fingerprint stage (the real filter):** for same-stem pairs that
-       differ in bytes, run `fpcalc -length 120` (chromaprint, ~0.2 s/file,
-       2,268 files ≈ 8 min single-threaded, parallelizes trivially) and
-       compare — **fingerprint equality + higher bitrate/format wins**;
-       the loser becomes a delete candidate. Different fingerprints =
-       genuinely different recordings (edit, remaster, wrong-tagged) →
-       keep BOTH, they are data, not dupes. This is idea #62's
-       cross-format consumer, finally fed.
-    3. **Decision stage (human gate):** emit a keep-list report
-       (per pair: sizes, bitrates, formats, fingerprint match %, the
-       proposed keeper + reason), review it, then apply with a
-       `--apply` run that moves losers to a quarantine folder first —
-       never in-place delete from the shelf.
-    Deliverable is the reusable command (`megadj shelf-dedupe --report`,
-    then `--apply` after OK), not a one-off script. Effort M.
+awaiting OK.** `megadj shelf-dedupe` shipped with tests; the real
+report on 568 twin pairs: **296 delete candidates** (byte-identical or
+lower-quality re-encodes), **186 twin upgrades** (same fingerprint,
+twin is higher quality — twin should REPLACE the original),
+**86 keep-both** (different fingerprints: edits/remasters — data, not
+dupes). Report saved at /tmp/shelf-dedupe-keep-list.json; `--apply`
+moves losers to Contents/.dedupe-quarantine/ only after explicit OK.
+Original plan: The shelf now carries ~624
+`[drive]`-suffixed twins from the archive sweeps (390 `[bangers]` +
+234 `[BACKUP2]`) — same song, different rip, kept on purpose. The
+plan, in stages, **nothing deletes without explicit OK**: 1. **Byte stage (cheap):** MD5 every twin vs its shelf original.
+Identical-hash twins are pure duplicates → safe-delete candidates
+(the shelf DB references the original, never the twin). 2. **Fingerprint stage (the real filter):** for same-stem pairs that
+differ in bytes, run `fpcalc -length 120` (chromaprint, ~0.2 s/file,
+2,268 files ≈ 8 min single-threaded, parallelizes trivially) and
+compare — **fingerprint equality + higher bitrate/format wins**;
+the loser becomes a delete candidate. Different fingerprints =
+genuinely different recordings (edit, remaster, wrong-tagged) →
+keep BOTH, they are data, not dupes. This is idea #62's
+cross-format consumer, finally fed. 3. **Decision stage (human gate):** emit a keep-list report
+(per pair: sizes, bitrates, formats, fingerprint match %, the
+proposed keeper + reason), review it, then apply with a
+`--apply` run that moves losers to a quarantine folder first —
+never in-place delete from the shelf.
+Deliverable is the reusable command (`megadj shelf-dedupe --report`,
+then `--apply` after OK), not a one-off script. Effort M.
 0b. **Cold backup of the master library.** _Promoted from §G40 in the
 audit_ — the cure for the disease §B7 diagnoses: some tracks exist on
 exactly one physical device. B2 or R2 of `Contents/` + the archive DB via
@@ -121,7 +131,7 @@ Discovered during the research pass; mapped to the ideas below:
 | [openmirlab/all-in-one-infer](https://github.com/openmirlab/all-in-one-infer/)                                                                                                                 | `pip install all-in-one-infer` — structure analysis (intro/verse/drop/outro), beats, downbeats, tempo + demucs stems, PyPI-only                                                                                                        | Structure-aware grids and auto cue placement (→ I46)                                                                                                                   |
 | [yizhilll/MERT](https://github.com/yizhilll/MERT) + [MU-LLaMA](https://github.com/shansongliu/MU-LLaMA)                                                                                        | Music understanding encoder (95M/330M); MERT+LLaMA music QA/captioning                                                                                                                                                                 | Embeddings for similarity/dedupe; LLM track captioning (→ I49, I50)                                                                                                    |
 | [mixxxdj/libkeyfinder](https://github.com/mixxxdj/libkeyfinder/)                                                                                                                               | The KeyFinder algorithm, GPL; 76% overall / **90% on dance music** vs rekordbox 7's 69% (Dubspot 2026 test)                                                                                                                            | Key detection that beats rekordbox → tag + DB injection (→ I51)                                                                                                        |
-| [scdl-org/scdl](https://github.com/scdl-org/scdl/)                                                                                                                                             | SoundCloud downloader — **as of v3 it is a yt-dlp wrapper**                                                                                                                                                                  | megadj already runs yt-dlp → SoundCloud sources are config work (→ K57)                                                                                                |
+| [scdl-org/scdl](https://github.com/scdl-org/scdl/)                                                                                                                                             | SoundCloud downloader — **as of v3 it is a yt-dlp wrapper**                                                                                                                                                                            | megadj already runs yt-dlp → SoundCloud sources are config work (→ K57)                                                                                                |
 | [acoustid/chromaprint](https://github.com/acoustid/chromaprint) + [dupsonic](https://github.com/zas/dupsonic/) / soundalike                                                                    | Acoustic fingerprinting; dupsonic = Rust single-binary incremental dupe scanner; soundalike = mature Go fpcalc-based scanner with built-in move/delete                                                                                 | Cross-format dedupe, LOWQ-upgrade verification, untagged-file ID (→ L62)                                                                                               |
 | [beetbox/beets](https://github.com/beetbox/beets) v2.4 + [beetcamp](https://github.com/snejus/beetcamp)                                                                                        | The music-tagger ecosystem; Bandcamp autotag/acquire plugin                                                                                                                                                                            | Borrow plugin ideas; Bandcamp source (→ J55, K58)                                                                                                                      |
 | [gmunumel/track-list-extractor](https://github.com/gmunumel/track-list-extractor) · [1001-tracklists-api](https://github.com/leandertolksdorf/1001-tracklists-api)                             | 1001tracklists scrapers (Python)                                                                                                                                                                                                       | Discovery: mine DJ sets → download queue (→ K59)                                                                                                                       |
@@ -163,15 +173,16 @@ lives in `docs/fulltags-roadmap.md`):**
 
 Everything here shipped or was promoted by 2026-09-04: the drive dossier +
 health report (→ §B1), the `tools/` consolidation (→ `tools/fetch_all.ts`
-+ `fulltags/`), WAV artwork in rekordbox
-([rekordbox-wav-artwork.md](rekordbox-wav-artwork.md); sliver: spot-check
-covers on the XDJ-XZ at the next export), the sync-log checklist gates
-(`usb_verify.py` + `usb_mirror.py --verify-only --hash-parity`, tracked in
-the local ops log), the orphan-drive verdict (→ §0c), and the acceptance
-doc ([cratedeck/acceptance.md](cratedeck/acceptance.md) — remaining ☐
-items are the real-hardware checks). Nothing left in flight; the live
-"what's next" list is [product-state-2026-09-07.md](product-state-2026-09-07.md)
-§The queue.
+
+- `fulltags/`), WAV artwork in rekordbox
+  ([rekordbox-wav-artwork.md](rekordbox-wav-artwork.md); sliver: spot-check
+  covers on the XDJ-XZ at the next export), the sync-log checklist gates
+  (`usb_verify.py` + `usb_mirror.py --verify-only --hash-parity`, tracked in
+  the local ops log), the orphan-drive verdict (→ §0c), and the acceptance
+  doc ([cratedeck/acceptance.md](cratedeck/acceptance.md) — remaining ☐
+  items are the real-hardware checks). Nothing left in flight; the live
+  "what's next" list is [product-state-2026-09-07.md](product-state-2026-09-07.md)
+  §The queue.
 
 ---
 
@@ -277,7 +288,7 @@ The PRD features that _only exist because the app sees all drives at once_
 ## D. megadj archive & ingest
 
 24. **LOWQ re-fetch queue — ✅ SHIPPED 2026-09-08.** `megadj upgrade
-    [--limit N] [--dry-run] [--json]` re-resolves below-floor video IDs at
+[--limit N] [--dry-run] [--json]` re-resolves below-floor video IDs at
     today's best format and swaps ONLY when both gates pass: fpcalc
     fingerprint identical to the incumbent (a live/remaster/wrong-upload is
     refused) and ffprobe bitrate ≥ the current row. Old file stays in place
@@ -625,11 +636,11 @@ Mac-DJ irritations nobody builds for.
     length checks built in. Effort S.
 66. **Set-builder copilot — ✅ SHIPPED 2026-09-08 (propose-only core).**
     `cratedeck/src/setbuild.ts` (pure engine) + `GET /api/archive/setbuild`
-    + MCP `archive_set_build` + the FullTags ⌗ Similar panel: target
-    minutes + an energy-arc preset (warm-up/peak/afterhours, N80's
-    envelopes) → an ordered chain gated by Camelot key compat, ±6% tempo,
-    and arc fit; unmixable leftovers land in an honest excluded-with-reason
-    list. Proposes only — never writes; drag-edit export is a future garnish.
+    - MCP `archive_set_build` + the FullTags ⌗ Similar panel: target
+      minutes + an energy-arc preset (warm-up/peak/afterhours, N80's
+      envelopes) → an ordered chain gated by Camelot key compat, ±6% tempo,
+      and arc fit; unmixable leftovers land in an honest excluded-with-reason
+      list. Proposes only — never writes; drag-edit export is a future garnish.
 67. **"Find the double-drop" detector.** Scan the library for pairs of
     tracks whose grids + keys align so well they can be layered (acapella
     over instrumental) — mashup hunting by embeddings + grid math instead

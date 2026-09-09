@@ -66,6 +66,9 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj shelf-dedupe [--apply --yes] [--json] resolve [drive] twins: MD5 + fingerprint,
                                                report first; --apply moves losers to
                                                quarantine on the shelf (never deletes)
+  megadj shelf-dupescan [--json]               fingerprint EVERY shelf audio file; group
+                                               identical recordings regardless of filename
+                                               or folder (cross-folder duplicate hunt)
 
 cratedeck — the Crate: organize, sync & verify every DJ USB:
   megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)
@@ -349,6 +352,12 @@ async function main(): Promise<void> {
         const json = rest.includes("--json");
         const { shelfDedupe } = await import("./commands/shelf-dedupe");
         await shelfDedupe({ apply, yes, json });
+        break;
+      }
+      case "shelf-dupescan": {
+        const json = rest.includes("--json");
+        const { shelfDupescan } = await import("./commands/shelf-dupescan");
+        await shelfDupescan({ json });
         break;
       }
       case "shelf-sweeps": {
