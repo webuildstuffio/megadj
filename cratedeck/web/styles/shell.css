@@ -1,0 +1,230 @@
+/* shell.css — the app frame: suite bar (topbar; the nav strip lives in
+   products.css). Search, interlock chip, per-product search tint. */
+
+/* ============ app frame ============ */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.frame {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---- topbar ---- */
+.topbar {
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--stroke);
+  background: rgba(16, 17, 20, 0.85);
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+  z-index: 40;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  user-select: none;
+  cursor: pointer;
+}
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: radial-gradient(
+    circle at 50% 50%,
+    #0a0b0d 0 3.5px,
+    var(--accent) 4px 8.5px,
+    #10241b 9px 13px,
+    transparent 13px
+  );
+  box-shadow: 0 0 12px rgba(56, 224, 164, 0.35);
+}
+.brand h1 {
+  font-size: 15.5px;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  background: linear-gradient(90deg, var(--text), #aebfd4);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.top-meta {
+  color: var(--faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.top-meta b {
+  color: var(--muted);
+  font-weight: 600;
+}
+.topbar .spacer {
+  flex: 1;
+}
+
+.search {
+  position: relative;
+}
+.search input {
+  background: var(--surface2);
+  border: 1px solid var(--stroke);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7.5px 34px 7.5px 34px;
+  width: 300px;
+  outline: none;
+  font-size: 13px;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    width 0.2s;
+}
+.search input:focus {
+  border-color: var(--info);
+  box-shadow: 0 0 0 3px var(--glow);
+  width: 360px;
+}
+.search .search-ico {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--faint);
+  pointer-events: none;
+  display: flex;
+}
+.search .search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--faint);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  border-radius: 50%;
+}
+.search .search-clear:hover {
+  color: var(--text);
+  background: var(--surface3);
+}
+
+.search-results {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--stroke2);
+  border-radius: var(--r-md);
+  z-index: 60;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 6px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+/* search stays neutral (it spans all products) — but its results drop shadow
+ * picks up a faint product tint so the layer feels coherent end to end */
+.app[data-prod="getdat"] .search-results {
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(97, 168, 255, 0.12);
+}
+.app[data-prod="fulltags"] .search-results {
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(177, 140, 255, 0.12);
+}
+.app[data-prod="fleet"] .search-results {
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(240, 182, 75, 0.1);
+}
+.sr-drive {
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.sr-drive:hover,
+.sr-drive.sel {
+  background: var(--surface2);
+}
+.sr-drive .hd {
+  font-weight: 600;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.sr-drive .hd .ghost-tag {
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 500;
+}
+.sr-match {
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 3px 10px 3px 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sr-match .sr-type {
+  color: var(--faint);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sr-empty {
+  color: var(--muted);
+  padding: 14px;
+  text-align: center;
+  font-size: 13px;
+}
+
+/* interlock chip in topbar */
+.lockchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 5px 12px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.lockchip.on {
+  color: var(--warn);
+  border-color: #6b5a20;
+  background: var(--warn-dim);
+}
+.lockchip.on .lockdot {
+  background: var(--warn);
+  animation: blink 1.4s ease infinite;
+}
+.lockchip.off {
+  color: var(--accent);
+  border-color: #1e4a37;
+  background: var(--accent-dim);
+}
+.lockdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}

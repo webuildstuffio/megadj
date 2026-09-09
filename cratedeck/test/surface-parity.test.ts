@@ -58,8 +58,8 @@ function mcpTools(): string[] {
 function uiJobKinds(): string[] {
   const kinds: string[] = [];
   for (const file of [
-    "cratedeck/web/DrivePage.tsx",
-    "cratedeck/web/VerifyTab.tsx",
+    "cratedeck/web/products/cratedeck/DrivePage.tsx",
+    "cratedeck/web/products/cratedeck/VerifyTab.tsx",
   ]) {
     for (const line of read(file)) {
       for (const m of line.matchAll(/run\("([a-z]+)"\)/g))
@@ -135,15 +135,15 @@ describe("surface parity (docs/surface-parity.md)", () => {
   test("the product tabs exist and are hash-routed (one route per product)", () => {
     // the web shell renders one top-level tab per product; the router
     // parses one route per product. The nav strip (App) and the product
-    // SSOT (ProductPage PRODUCTS) are the two surfaces, keyed by the
-    // router's Product union.
-    const app = read("cratedeck/web/App.tsx").join("\n");
+    // SSOT (products/shared.tsx PRODUCTS) are the two surfaces, keyed by
+    // the router's Product union.
+    const app = read("cratedeck/web/app/App.tsx").join("\n");
     for (const product of ["drives", "getdat", "fulltags", "fleet"])
       expect(app, `nav route for ${product}`).toContain(`"${product}"`);
-    const products = read("cratedeck/web/ProductPage.tsx").join("\n");
+    const products = read("cratedeck/web/products/shared.tsx").join("\n");
     for (const product of ["drives", "getdat", "fulltags"])
       expect(products, `nav tab for ${product}`).toContain(`id: "${product}"`);
-    const router = read("cratedeck/web/router.ts").join("\n");
+    const router = read("cratedeck/web/app/router.ts").join("\n");
     expect(router).toContain('"getdat"');
     expect(router).toContain('"fulltags"');
     // each product canvas is a page component wired into App
@@ -219,10 +219,10 @@ describe("surface parity (docs/surface-parity.md)", () => {
 
   test("the help SSOT is reachable from every surface", () => {
     // UI: shared/help.ts feeds the tooltips + Welcome tour (Onboard/JobsDock)
-    const ui = ["cratedeck/web/Onboard.tsx", "cratedeck/web/JobsDock.tsx"]
+    const ui = ["cratedeck/web/ui/Onboard.tsx", "cratedeck/web/ui/JobsDock.tsx"]
       .map((f) => readFileSync(join(ROOT, f), "utf8"))
       .join("\n");
-    expect(ui).toContain('../shared/help"');
+    expect(ui).toContain("../../shared/help");
     // server: GET /api/help serves the same content
     const server = readFileSync(join(ROOT, "cratedeck/src/index.ts"), "utf8");
     expect(server).toContain('"/help"');
@@ -244,7 +244,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
   test("note dismissal is reachable from the UI and the agent surfaces", () => {
     // UI: the timeline card dismiss button
     const timeline = readFileSync(
-      join(ROOT, "cratedeck/web/TimelineTab.tsx"),
+      join(ROOT, "cratedeck/web/products/cratedeck/TimelineTab.tsx"),
       "utf8",
     );
     expect(timeline).toContain("/dismiss");

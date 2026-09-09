@@ -7,14 +7,23 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 8 · 2026-09-08 — the header redesign: the suite brand is **megadj**
+Rev 9 · 2026-09-08 — the atomic web restructure: `web/` is now feature-
+foldered (`app/` entry + router, `ui/` shared components, `products/`
+SSOT + one folder per product, `styles/` split tokens/base/shell/rail/
+canvas/pages) — same surfaces, new paths (`web/app/App.tsx`,
+`web/products/shared.tsx`, …). Products gained educational ledes: a
+phase chip on the nav strip ("1 · the drives stay honest"), a
+`ProductIntro` band atop each canvas, and the Welcome route became the
+megadj pipeline story with three product launcher cards (all copy from
+the `products/shared.tsx` SSOT: `PRODUCTS` + `LEDE`). Rev 8 ·
+2026-09-08 — the header redesign: the suite brand is **megadj**
 (top-left), and the product nav moved to its own nav strip row with
 exactly three products — **CrateDeck** (the DJ USB drives + their fleet),
 **GetDat**, **FullTags**. Fleet is no longer presented as a fourth
 product: it's a CrateDeck scope tab (Drives | Fleet), with Fleet's six
 content tabs following it on the same strip when the Fleet route is
 active. The tab strips for nav + pages now come from one SSOT table
-(`web/ProductPage.tsx` `PRODUCTS` + `PRODUCT_TABS`); page canvases no
+(`web/products/shared.tsx` `PRODUCTS` + `PRODUCT_TABS`); page canvases no
 longer render their own identity header. Rev 7 · 2026-09-08 — the
 integration pass: the archive's own decision
 records became surfaces. Three new readonly reads with same-commit twins

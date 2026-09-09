@@ -1,0 +1,637 @@
+/* help.css — toaster, empty states, verify tab, plus the help layer
+   (InfoTip / TabIntro / glossary / onboarding). Split from styles.css at
+   the file-length cap; the jobs dock moved to jobs.css (main.tsx imports
+   both). */
+
+/* ---- toaster ---- */
+.toaster {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+.toast {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  background: var(--surface3);
+  border: 1px solid var(--stroke2);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 550;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  animation: toastin 0.18s ease;
+  max-width: 90vw;
+}
+.toast.ok .icon {
+  color: var(--accent);
+}
+.toast.err {
+  border-color: #57282b;
+}
+.toast.err .icon {
+  color: var(--bad);
+}
+.toast.info .icon {
+  color: var(--info);
+}
+@keyframes toastin {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+}
+
+/* ---- dot ---- */
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.dot.on {
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(56, 224, 164, 0.5);
+}
+.dot.off {
+  background: var(--muted);
+}
+
+/* ---- empty states / overview ---- */
+.welcome {
+  max-width: 620px;
+  margin: 10vh auto 0;
+  text-align: center;
+}
+/* the welcome glyph reuses the product-glyph chip language (big, mint —
+ * the Drives product color is the brand default) */
+.welcome .bigicon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid #1e4a37;
+}
+.welcome h2 {
+  font-size: 19px;
+  margin: 0 0 6px;
+}
+.welcome p {
+  color: var(--muted);
+  font-size: 13.5px;
+  margin: 0 0 18px;
+}
+
+/* photo picker */
+.photopick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.photopick img {
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 2px solid var(--stroke);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    transform 0.1s;
+  background: var(--surface3);
+}
+.photopick img:hover {
+  border-color: var(--info);
+  transform: translateY(-2px);
+}
+
+/* rename inline */
+.name-edit {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.name-edit input {
+  background: var(--surface2);
+  border: 1px solid var(--info);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 15px;
+  outline: none;
+  width: 220px;
+}
+
+/* responsive: rail collapses to overlay column on narrow screens */
+@media (max-width: 900px) {
+  .frame {
+    flex-direction: column;
+  }
+  .rail {
+    width: 100%;
+    max-height: 42vh;
+    border-right: none;
+    border-bottom: 1px solid var(--stroke);
+  }
+}
+
+/* ---- verify tab (granular check-by-check breakdown) ---- */
+.verifytab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.vmeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text2);
+}
+.vmeta .good {
+  color: var(--accent);
+}
+.vmeta .bad {
+  color: var(--bad);
+}
+.vmeta .btn {
+  margin-left: auto;
+}
+.vnever {
+  background: var(--surface2);
+  border: 1px dashed var(--stroke);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.vnever ul {
+  margin: 10px 0 6px;
+  padding-left: 18px;
+}
+.vnever li {
+  margin: 5px 0;
+}
+.vgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vgroup h3 {
+  margin: 4px 0 2px;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.vgroup.vfail h3 {
+  color: var(--bad);
+}
+.vgroup.vpass h3 {
+  color: var(--accent);
+}
+.vcheck {
+  background: var(--surface2);
+  border: 1px solid var(--stroke);
+  border-left-width: 3px;
+  border-radius: var(--r-md);
+  padding: 11px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.vcheck.pass,
+.vcheck.ok {
+  border-left-color: var(--accent);
+}
+.vcheck.warn {
+  border-left-color: var(--warn);
+}
+.vcheck.fail {
+  border-left-color: var(--bad);
+}
+.vhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.vhead .chip {
+  margin-left: auto;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.chip.pass {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.chip.warn {
+  background: var(--warn-dim);
+  color: var(--warn);
+}
+.chip.fail {
+  background: var(--bad-dim);
+  color: var(--bad);
+}
+.chip.unknown {
+  background: var(--surface4);
+  color: var(--text2);
+}
+.vdetail {
+  font-size: 13px;
+  color: var(--text);
+}
+.vwhy {
+  font-size: 12.5px;
+  color: var(--text2);
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.vwhy .icon {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.vfix {
+  font-size: 12.5px;
+  color: var(--warn);
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.vfix .icon {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.vstats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.vstat {
+  background: var(--surface3);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.vstat b {
+  color: var(--text);
+}
+
+.jmsg.pass {
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ============ help layer: InfoTip / TabIntro / glossary / onboarding ==== */
+
+/* ---- InfoTip: (?) dot with a rich hover/focus card ---- */
+.infotip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--surface4);
+  color: var(--muted);
+  cursor: help;
+  flex-shrink: 0;
+  outline: none;
+  vertical-align: 1px;
+}
+.infotip:hover,
+.infotip:focus-visible {
+  background: var(--info);
+  color: #0a0b0d;
+}
+.infotip-dot {
+  display: inline-flex;
+  pointer-events: none;
+}
+.infotip-card {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: 290px;
+  background: var(--surface4);
+  border: 1px solid var(--stroke2);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 90;
+  pointer-events: none;
+  text-align: left;
+  font-weight: 400;
+}
+.infotip-card.right {
+  left: auto;
+  right: -6px;
+  transform: translateY(4px);
+}
+.infotip-card.below {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+.infotip:hover .infotip-card,
+.infotip:focus-visible .infotip-card {
+  display: flex;
+  transform: translateX(-50%) translateY(0);
+}
+.infotip:hover .infotip-card.right,
+.infotip:focus-visible .infotip-card.right {
+  transform: translateY(0);
+}
+.infotip:hover .infotip-card.below,
+.infotip:focus-visible .infotip-card.below {
+  transform: translateX(-50%) translateY(0);
+}
+.infotip-card b {
+  font-size: 12.5px;
+}
+.infotip-card > span {
+  color: var(--muted);
+}
+.infotip-why {
+  display: flex;
+  gap: 5px;
+  align-items: flex-start;
+  color: var(--info);
+  border-top: 1px solid var(--stroke);
+  padding-top: 5px;
+  margin-top: 2px;
+}
+.infotip-why .icon {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+/* section headings that carry a tip keep a hairline gap */
+.help-anchor {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.help-anchor .infotip {
+  margin-left: 2px;
+}
+
+/* ---- TabIntro: collapsible "what am I looking at" card ---- */
+details.tabintro {
+  background: var(--info-dim);
+  border: 1px solid rgba(97, 168, 255, 0.25);
+  border-radius: var(--r-md);
+  margin: 0 0 14px;
+  overflow: hidden;
+}
+details.tabintro summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: var(--info);
+  font-size: 13px;
+  user-select: none;
+}
+details.tabintro summary::-webkit-details-marker {
+  display: none;
+}
+details.tabintro summary b {
+  color: var(--text);
+  font-weight: 600;
+}
+details.tabintro summary::after {
+  content: "›";
+  margin-left: auto;
+  transform: rotate(90deg);
+  transition: transform 0.15s;
+  color: var(--muted);
+}
+details.tabintro[open] summary::after {
+  transform: rotate(-90deg);
+}
+.tabintro-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+.tabintro-body {
+  padding: 0 14px 11px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.tabintro-body p {
+  margin: 6px 0 0;
+  max-width: 78ch;
+}
+.tabintro-next {
+  color: var(--faint);
+}
+.tabintro-next a {
+  color: var(--info);
+  text-decoration: none;
+}
+.tabintro-next a:hover {
+  text-decoration: underline;
+}
+
+/* ---- GlossTerm: inline term chip with hover card (used in prose) ---- */
+.gloss {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dashed var(--stroke2);
+  cursor: help;
+  font-weight: 600;
+}
+.gloss .infotip-card {
+  left: 0;
+  transform: translateY(4px);
+  width: 320px;
+  display: none;
+}
+.gloss:hover .infotip-card {
+  display: flex;
+  transform: translateY(0);
+}
+/* the demo chip on the welcome page sits inline mid-sentence */
+.infotip.demo {
+  margin: 0 2px;
+}
+
+/* ---- Welcome onboarding: tour, job sheet, glossary wall ---- */
+.onboard {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 26px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ob-sec .sect {
+  margin-top: 18px;
+}
+.ob-lede {
+  color: var(--muted);
+  max-width: 78ch;
+  margin: 4px 0 10px;
+}
+.ob-steps {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  counter-reset: obstep;
+}
+.ob-steps li {
+  counter-increment: obstep;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  color: var(--muted);
+  font-size: 13.5px;
+  padding-left: 30px;
+  position: relative;
+}
+.ob-steps li::before {
+  content: counter(obstep);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface3);
+  border: 1px solid var(--stroke);
+  color: var(--text);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ob-steps b {
+  color: var(--text);
+}
+.ob-tour {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  margin-top: 8px;
+}
+.ob-tour-row {
+  display: grid;
+  grid-template-columns: 150px 200px 1fr;
+  gap: 12px;
+  padding: 10px 14px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--stroke);
+  background: var(--surface);
+  transition: background 0.12s;
+  align-items: baseline;
+}
+.ob-tour-row:last-child {
+  border-bottom: none;
+}
+.ob-tour-row:hover {
+  background: var(--surface2);
+}
+.ob-tour-row b {
+  color: var(--text);
+  font-size: 13px;
+}
+.ob-where {
+  color: var(--faint);
+  font-size: 12px;
+}
+.ob-q {
+  color: var(--muted);
+  font-size: 13px;
+}
+.ob-jobs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.ob-job {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ob-job-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
+}
+.ob-job-head .icon {
+  color: var(--info);
+}
+.ob-dur {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--faint);
+  background: var(--surface3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ob-job-what {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.ob-job-safety {
+  font-size: 11.5px;
+  color: var(--faint);
+}
+.ob-gloss {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 8px;
+}
+.ob-gloss .gloss {
+  font-size: 13px;
+}

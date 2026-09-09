@@ -1,0 +1,46 @@
+/* base.css — element defaults, the per-product room-lighting washes,
+   one focus system, reduced-motion. Loaded first after tokens. */
+
+/* ============ keyboard focus: one visible system ============ */
+/* The dark theme swallows the UA default ring on mid-grey surfaces; every
+ * interactive element draws its own halo. :focus-visible only = mouse
+ * clicks stay clean, Tab is always findable. */
+.btn:focus-visible,
+.tabs button:focus-visible,
+.dcard:focus-visible,
+.jobdock-head:focus-visible,
+.jobrow .cancel:focus-visible,
+.search-clear:focus-visible,
+.crumb:focus-visible,
+.pl-tools .seg button:focus-visible,
+.pl-tools input:focus-visible,
+.plsearch input:focus-visible,
+.plsearch .plsearch-clear:focus-visible,
+.fleetchip:focus-visible,
+.pf-head:focus-visible,
+.pl-link:focus-visible,
+.check-ico:focus-visible,
+.ob-tour-row:focus-visible,
+.infotip:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ============ reduced motion: honor the OS setting ============ */
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+  .ring .ring-arc,
+  .jobdock-head .chev,
+  .toast,
+  .dcard,
+  .btn,
+  .photopick img {
+    transition: none;
+  }
+  .toast {
+    animation: none;
+  }
+}

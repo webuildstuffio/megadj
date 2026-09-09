@@ -1,0 +1,206 @@
+/* rail.css — the left drive rail: rail frame, drive cards, role chips,
+   health rings. */
+
+/* ---- drive rail ---- */
+.rail {
+  width: var(--rail-w);
+  flex-shrink: 0;
+  border-right: 1px solid var(--stroke);
+  overflow-y: auto;
+  padding: 14px 12px 24px;
+  background: rgba(13, 14, 16, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 2px 6px 4px;
+}
+.rail-head h2 {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: var(--faint);
+  font-weight: 650;
+}
+.rail-head .count {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+/* ---- drive card ---- */
+.dcard {
+  position: relative;
+  background: var(--surface2);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  padding: 13px 14px 12px 16px;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  width: 100%;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.1s ease;
+  display: block;
+}
+.dcard:hover {
+  border-color: var(--stroke2);
+  background: var(--surface3);
+}
+.dcard:active {
+  transform: scale(0.99);
+}
+.dcard.on {
+  border-color: rgba(56, 224, 164, 0.55);
+  background: linear-gradient(
+    180deg,
+    rgba(56, 224, 164, 0.07),
+    var(--surface2) 60%
+  );
+}
+.dcard.on::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(56, 224, 164, 0.6);
+}
+.dcard.ghost {
+  opacity: 0.62;
+}
+.dcard-top {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+}
+.dcard .photo {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--surface4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--faint);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.dcard .photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dcard .idbox {
+  min-width: 0;
+  flex: 1;
+}
+.dcard .name {
+  font-weight: 650;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.dcard .sub {
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rolechip {
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.rolechip.master {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.rolechip.mirror {
+  color: var(--info);
+  background: var(--info-dim);
+}
+.rolechip.library {
+  color: var(--warn);
+  background: var(--warn-dim);
+}
+.rolechip.unknown {
+  color: var(--muted);
+  background: var(--surface4);
+}
+/* verdict tones (PreflightTab) reuse the chip — same words, same colors as
+ * check rows and pills everywhere else */
+.rolechip.pass {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.rolechip.warn {
+  color: var(--warn);
+  background: var(--warn-dim);
+}
+.rolechip.fail {
+  color: var(--bad);
+  background: var(--bad-dim);
+}
+
+/* health ring */
+.ring {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+}
+.ring svg {
+  display: block;
+}
+.ring .ring-track {
+  stroke: var(--surface4);
+}
+.ring .ring-arc {
+  transition:
+    stroke-dashoffset 0.6s ease,
+    stroke 0.3s;
+  stroke-linecap: round;
+}
+.ring .ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.dcard .badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+}
+.dcard .spacestrip {
+  margin-top: 10px;
+}
+.dcard .spacestrip .bar {
+  height: 4px;
+}

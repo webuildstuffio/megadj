@@ -1,0 +1,151 @@
+/* tokens.css — megadj design tokens: color, radii, layout vars. The dark
+   studio theme, one token block; every other stylesheet consumes these —
+   no file hardcodes a raw color that has a token. */
+
+:root {
+  /* surfaces (deep → raised) */
+  --bg: #0a0b0d;
+  --surface: #101114;
+  --surface2: #16181c;
+  --surface3: #1d2025;
+  --surface4: #242830;
+  --stroke: #23262c;
+  --stroke2: #31353d;
+  /* text */
+  --text: #ecedf0;
+  --muted: #9a9ea8;
+  --faint: #63666e;
+  /* accents */
+  --accent: #38e0a4;
+  --accent-dim: rgba(56, 224, 164, 0.14);
+  --info: #61a8ff;
+  --info-dim: rgba(97, 168, 255, 0.14);
+  --pulse: #b18cff;
+  --pulse-dim: rgba(177, 140, 255, 0.13);
+  --warn: #e9c35a;
+  --warn-dim: rgba(233, 195, 90, 0.13);
+  --bad: #f2555a;
+  --bad-dim: rgba(242, 85, 90, 0.14);
+  --glow: rgba(97, 168, 255, 0.12);
+  /* layout */
+  --rail-w: 316px;
+  --topbar-h: 56px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(
+      1100px 460px at 24% -12%,
+      rgba(56, 224, 164, 0.05),
+      transparent
+    ),
+    radial-gradient(
+      1100px 500px at 78% -14%,
+      rgba(97, 168, 255, 0.06),
+      transparent
+    ),
+    var(--bg);
+  color: var(--text);
+  font:
+    14px/1.5 -apple-system,
+    "SF Pro Text",
+    Inter,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* per-product atmosphere: the top wash re-tints to the active product's
+ * accent (kept faint — same dark studio, different room lighting) */
+.app[data-prod="drives"] body,
+body:has(.app[data-prod="drives"]) {
+  background:
+    radial-gradient(
+      1100px 460px at 24% -12%,
+      rgba(56, 224, 164, 0.05),
+      transparent
+    ),
+    radial-gradient(
+      1100px 500px at 78% -14%,
+      rgba(97, 168, 255, 0.06),
+      transparent
+    ),
+    var(--bg);
+}
+body:has(.app[data-prod="getdat"]) {
+  background:
+    radial-gradient(
+      1100px 460px at 24% -12%,
+      rgba(97, 168, 255, 0.06),
+      transparent
+    ),
+    radial-gradient(
+      1100px 500px at 78% -14%,
+      rgba(56, 224, 164, 0.04),
+      transparent
+    ),
+    var(--bg);
+}
+body:has(.app[data-prod="fulltags"]) {
+  background:
+    radial-gradient(
+      1100px 460px at 24% -12%,
+      rgba(177, 140, 255, 0.06),
+      transparent
+    ),
+    radial-gradient(
+      1100px 500px at 78% -14%,
+      rgba(97, 168, 255, 0.04),
+      transparent
+    ),
+    var(--bg);
+}
+body:has(.app[data-prod="fleet"]) {
+  background:
+    radial-gradient(
+      1100px 460px at 24% -12%,
+      rgba(240, 182, 75, 0.05),
+      transparent
+    ),
+    radial-gradient(
+      1100px 500px at 78% -14%,
+      rgba(242, 85, 90, 0.035),
+      transparent
+    ),
+    var(--bg);
+}
+
+::selection {
+  background: rgba(97, 168, 255, 0.3);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface3);
+  border-radius: 5px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--stroke2);
+}
+
+.icon {
+  flex-shrink: 0;
+  vertical-align: -2px;
+}
+
+button {
+  font-family: inherit;
+}
