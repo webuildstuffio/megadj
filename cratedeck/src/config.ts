@@ -12,6 +12,9 @@ export interface CrateConfig {
   volumesRoot: string;
   masterDrive: string;
   mirrorDrive: string;
+  /** The shelf/archive drive volume name (default "SHELF1") — the
+   *  archive-grade master master that gig sticks sync FROM. */
+  shelfDrive: string;
   imageProvider: "brave" | "exa" | null;
   imageKey: string | null;
   verifyTimeoutMin: number;
@@ -118,6 +121,8 @@ export function loadConfig(root: string): CrateConfig {
       typeof library.mirror_drive === "string"
         ? library.mirror_drive
         : "DJMIRROR",
+    shelfDrive:
+      typeof library.shelf_drive === "string" ? library.shelf_drive : "SHELF1",
     imageProvider:
       (typeof images.provider === "string"
         ? (images.provider as "brave" | "exa")

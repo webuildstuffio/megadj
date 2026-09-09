@@ -8,7 +8,7 @@
 // created four shared/types → src cycles (fleet/notes/players/preflight),
 // which made the pre-commit hook block any staged edit to types.ts.
 
-export type DriveRole = "master" | "mirror" | "library" | "unknown";
+export type DriveRole = "master" | "mirror" | "shelf" | "library" | "unknown";
 
 export type DriveState = "mounting" | "mounted" | "ghost";
 
@@ -438,8 +438,14 @@ export interface FleetDiff {
 // so a web component that re-declares these shapes locally drifts straight
 // into a compile error instead of rendering `Invalid Date` / `undefined` in
 // production (the Sep 7 ArchiveTab bug class).
-// These are type-only `import()`s — erased at runtime, so they add no
-// runtime edge and no cycle (src/archive does not import shared/types).
+// These are type-only `import()`s from src/archive.ts — an ACYCLIC edge by
+// audit (Sep 9 madge sweep): src/archive must never import shared/types.ts
+// back. Wire shapes whose producer chain reaches shared/types.ts (e.g.
+// anything importing db/fleet) must be DEFINED here instead — a type-only
+// derivation from those producers closes a real cycle (the DriveImage →
+// images → db → fleet-db → fleet → shared/types loop). Same rule for the
+// archive split modules: they type against the ArchiveQuery seam in
+// cratedeck/src/archive_types.ts, never against ArchiveReader itself.
 export type ArchiveIngestStatus = ReturnType<
   import("../src/archive").ArchiveReader["ingestStatus"]
 >;
@@ -463,11 +469,18 @@ export type ArchiveMoodProfile = ReturnType<
 >;
 
 // ---- drive cover photos: one image listed by GET /drives/:id/drive-images.
-// Derived from the producer (cratedeck/src/images.ts `listDriveImages`) so
-// the wire shape can't drift from the server.
-export type DriveImage = Awaited<
-  ReturnType<import("../src/images").ImageService["listDriveImages"]>
->[number];
+// DEFINED here canonically (like every wire type) — an earlier version
+// derived it from the producer (`src/images.ts listDriveImages`), but
+// images.ts type-imports db.ts → fleet-db.ts → fleet.ts → shared/types.ts,
+// so the type-only back-edge made madge report a real cycle (Sep 9 sweep).
+// The producer imports this shape instead.
+export interface DriveImage {
+  /** Path on the mounted volume, relative to the mount point. */
+  rel: string;
+  /** Served URL for the <img> preview. */
+  url: string;
+  bytes: number;
+}
 export type ArchiveCueStats = ReturnType<
   import("../src/archive").ArchiveReader["cueStats"]
 >;

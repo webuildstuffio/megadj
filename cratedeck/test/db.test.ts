@@ -399,6 +399,7 @@ describe("inferRole", () => {
   it("maps known volume names", () => {
     expect(inferRole("DJMASTER")).toBe("master");
     expect(inferRole("DJMIRROR")).toBe("mirror");
+    expect(inferRole("SHELF1")).toBe("shelf");
     expect(inferRole("CRATE_OF_DOOM")).toBe("library");
     expect(inferRole("SANDISK")).toBe("unknown");
   });
@@ -413,8 +414,14 @@ describe("inferRole", () => {
     expect(inferRole("DJBACKUP", "GigRig", "Backup")).toBe("library"); // prefix proximity must not match mirror
   });
 
+  it("honours the configured shelf volume name", () => {
+    expect(inferRole("BIGBOX", "GigRig", "Backup", "BigBox")).toBe("shelf");
+    expect(inferRole("SHELF1", "GigRig", "Backup", "BigBox")).toBe("unknown"); // doc default no longer magic
+  });
+
   it("matches configured names case-insensitively", () => {
     expect(inferRole("djmaster", "DJMaster", "DJMirror")).toBe("master");
+    expect(inferRole("shelf1", "DJMaster", "DJMirror", "Shelf1")).toBe("shelf");
   });
 });
 

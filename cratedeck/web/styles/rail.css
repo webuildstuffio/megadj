@@ -143,6 +143,10 @@
   color: var(--warn);
   background: var(--warn-dim);
 }
+.rolechip.shelf {
+  color: var(--pulse);
+  background: rgba(177, 140, 255, 0.14);
+}
 .rolechip.unknown {
   color: var(--muted);
   background: var(--surface4);

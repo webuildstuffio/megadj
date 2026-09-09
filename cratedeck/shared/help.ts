@@ -310,11 +310,13 @@ export const VERDICT_HELP: Record<string, string> = {
 /** What each drive role means (drive page chip + rail cards). */
 export const ROLE_HELP: Record<string, string> = {
   master:
-    "Master: the source of truth. New music lands here; mirrors are measured against it.",
+    "Master: the gig stick that new music lands on; mirrors are measured against it.",
   mirror:
     "Mirror: a deliberate second copy of the master. Parity checks keep it interchangeable.",
+  shelf:
+    "Shelf: the archive-grade master master (big HDD). Gig sticks sync FROM it — it never leaves the shelf.",
   library:
     "Library: a real drive with its own music — not part of a master/mirror pair.",
   unknown:
-    "Role unknown: the volume name didn't match your configured master/mirror names (config.toml).",
+    "Role unknown: the volume name didn't match your configured master/mirror/shelf names (config.toml).",
 };

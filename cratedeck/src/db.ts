@@ -121,11 +121,12 @@ function canon(v: unknown): string {
 
 export class DB {
   readonly sqlite: Database;
-  /** Configured master/mirror volume names — inferRole compares against
-   *  these, not just the DJMASTER/DJMIRROR doc defaults (config.toml's
-   *  library.master_drive/mirror_drive override them). */
+  /** Configured master/mirror/shelf volume names — inferRole compares
+   *  against these, not just the doc defaults (config.toml's
+   *  library.master_drive/mirror_drive/shelf_drive override them). */
   masterName = "DJMASTER";
   mirrorName = "DJMIRROR";
+  shelfName = "SHELF1";
   /** D30 archive-integrity ledger queries (db_ledger.ts). */
   private ledger: LedgerQueries;
   /** Benchmark + checksum-ledger queries (db_bench.ts). */
@@ -321,7 +322,13 @@ export class DB {
           d.vendor ?? null,
           d.model ?? null,
           d.usb_serial ?? null,
-          d.role ?? inferRole(d.name ?? "", this.masterName, this.mirrorName),
+          d.role ??
+            inferRole(
+              d.name ?? "",
+              this.masterName,
+              this.mirrorName,
+              this.shelfName,
+            ),
           now,
           now,
           d.last_port_key ?? null,
@@ -766,13 +773,16 @@ export function inferRole(
   volumeName: string,
   masterName = "DJMASTER",
   mirrorName = "DJMIRROR",
+  shelfName = "SHELF1",
 ): Drive["role"] {
   const n = volumeName.toUpperCase();
   // compare against the CONFIGURED volume names, not just the doc defaults —
-  // config.toml's library.master_drive/mirror_drive promise an override, and
-  // a drive that misses its role silently degrades parity checks + badges
+  // config.toml's library.master_drive/mirror_drive/shelf_drive promise an
+  // override, and a drive that misses its role silently degrades parity
+  // checks + badges
   if (n === masterName.toUpperCase()) return "master";
   if (n === mirrorName.toUpperCase()) return "mirror";
+  if (n === shelfName.toUpperCase()) return "shelf";
   if (n.startsWith("DJ") || n.startsWith("CRATE")) return "library";
   return "unknown";
 }

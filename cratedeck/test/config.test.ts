@@ -8,6 +8,7 @@ describe("config", () => {
     expect(cfg.serverPort).toBe(7742);
     expect(cfg.masterDrive).toBe("DJMASTER");
     expect(cfg.mirrorDrive).toBe("DJMIRROR");
+    expect(cfg.shelfDrive).toBe("SHELF1");
     expect(cfg.imageProvider).toBe(null);
   });
 
@@ -15,12 +16,13 @@ describe("config", () => {
     mkdirSync("/tmp/cratedeck-test-cfg", { recursive: true });
     writeFileSync(
       "/tmp/cratedeck-test-cfg/config.toml",
-      `[server]\nport = 9999\n\n[images]\nprovider = "brave"\nkey = "k-test"\n`,
+      `[server]\nport = 9999\n\n[images]\nprovider = "brave"\nkey = "k-test"\n\n[library]\nshelf_drive = "BIGBOX"\n`,
     );
     const cfg = loadConfig("/tmp/cratedeck-test-cfg");
     expect(cfg.serverPort).toBe(9999);
     expect(cfg.imageProvider).toBe("brave");
     expect(cfg.imageKey).toBe("k-test");
+    expect(cfg.shelfDrive).toBe("BIGBOX");
   });
 
   it("rejects unknown image providers", () => {

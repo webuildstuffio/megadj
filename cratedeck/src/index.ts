@@ -46,6 +46,7 @@ const db = new DB(cfg.dbPath);
 // otherwise get role "unknown" and silently lose parity checks + badges)
 db.masterName = cfg.masterDrive;
 db.mirrorName = cfg.mirrorDrive;
+db.shelfName = cfg.shelfDrive;
 const guard = new Guard(cfg);
 const webRoot = join(here, "web", "dist");
 // O82b archive tools: one shared readonly handle over megadj's archive DB
