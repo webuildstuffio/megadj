@@ -94,7 +94,7 @@ function reader() {
 }
 
 beforeEach(() => {
-  seed.exec("DELETE FROM tracks WHERE video_id = 'vx'");
+  seed.exec("DELETE FROM tracks WHERE video_id LIKE 'vx%'");
   // gridCrossCheck fixture rows — table exists only after its test creates
   // it, so guard for the earlier tests in this file.
   const hasBeats = seed
@@ -509,6 +509,127 @@ describe("ArchiveReader (O82b)", () => {
     expect(lib.genres).toEqual([]);
     expect(lib.codecs).toEqual([]);
     expect(lib.recent).toEqual([]);
+    r.close();
+    rmSync(oldDir, { recursive: true, force: true });
+  });
+
+  it("skipCensus buckets gone + skipped reasons, gone first", () => {
+    // self-contained gone/skipped fixtures (vx ids cleaned in beforeEach)
+    seed
+      .query(
+        `INSERT INTO tracks (video_id, title, status, last_error, source,
+         first_seen_at, updated_at)
+         VALUES ('vxg1', 'Gone One', 'gone', 'video unavailable', 'liked',
+                 '2026-09-01', '2026-09-05'),
+                ('vxg2', 'Gone Two', 'gone', 'video unavailable', 'liked',
+                 '2026-09-01', '2026-09-05'),
+                ('vxs1', 'Skip Podcast', 'skipped_not_music',
+                 'category: Comedy', 'liked', '2026-09-01', '2026-09-05'),
+                ('vxs2', 'Skip News', 'skipped_not_music',
+                 'category: News', 'liked', '2026-09-01', '2026-09-05'),
+                ('vxs3', 'Skip Other', 'skipped_not_music',
+                 'category: Comedy', 'liked', '2026-09-01', '2026-09-05')`,
+      )
+      .run();
+    const r = reader();
+    const s = r.skipCensus();
+    expect(s.available).toBe(true);
+    expect(s.gone).toBe(2);
+    expect(s.skipped).toBe(3);
+    // gone buckets come first (they're the actionable ones)
+    expect(s.buckets[0]!.kind).toBe("gone");
+    expect(s.buckets[0]!.reason).toBe("video unavailable");
+    expect(s.buckets[0]!.count).toBe(2);
+    // skipped buckets follow, biggest first
+    const skipBuckets = s.buckets.filter((b) => b.kind === "skipped");
+    expect(skipBuckets[0]!.reason).toBe("category: Comedy");
+    expect(skipBuckets[0]!.count).toBe(2);
+    r.close();
+  });
+
+  it("skipCensus degrades to zeros on a missing archive", () => {
+    const r = new ArchiveReader("/tmp/cratedeck-archive-does-not-exist.db");
+    const s = r.skipCensus();
+    expect(s.available).toBe(false);
+    expect(s.buckets).toEqual([]);
+    expect(s.gone).toBe(0);
+    expect(s.skipped).toBe(0);
+    r.close();
+  });
+
+  it("sourceCensus lists every source tag with playable split", () => {
+    const r = reader();
+    const c = r.sourceCensus();
+    expect(c.available).toBe(true);
+    const liked = c.sources.find((s) => s.source === "liked");
+    expect(liked).toBeTruthy();
+    // base fixtures (v1–v4, liked) + gridCrossCheck's v5/v6 + moodProfile's
+    // v7/v8 all use source 'liked' — count whatever exists, assert the
+    // playable split math instead of a brittle absolute.
+    expect(liked!.tracks).toBeGreaterThanOrEqual(3);
+    const failedLiked = (
+      seed
+        .query(
+          `SELECT COUNT(*) n FROM tracks WHERE source = 'liked' AND status = 'failed'`,
+        )
+        .all() as { n: number }[]
+    )[0]!.n;
+    expect(liked!.playable).toBe(liked!.tracks - failedLiked);
+    const zip = c.sources.find((s) => s.source === "PLzip123");
+    expect(zip!.tracks).toBe(1);
+    expect(zip!.playable).toBe(1);
+    // ordered biggest first
+    expect(c.sources[0]!.tracks).toBeGreaterThanOrEqual(
+      c.sources[c.sources.length - 1]!.tracks,
+    );
+    r.close();
+  });
+
+  it("analysisCoverage joins the playable archive against every ledger", () => {
+    // ledger tables already exist here (gridCrossCheck/moodProfile/cueStats
+    // created them); clear + seed exactly the rows this test asserts on.
+    seed.exec(`DELETE FROM beats; DELETE FROM mood; DELETE FROM cues;`);
+    const insBCov = seed.query(
+      `INSERT INTO beats (video_id, beats_json, downbeats_json, model, source_path, analyzed_at)
+       VALUES (?, '[]', '[]', 'cov-test', '', '2026-09-05')`,
+    );
+    insBCov.run("v1");
+    insBCov.run("v4");
+    const insMCov = seed.query(
+      `INSERT INTO mood (video_id, dance, aggressive, happy, electronic, party, valence, arousal, source_path, analyzed_at)
+       VALUES (?, 0.5, 0.5, 0.5, 0.5, 0.5, 5, 5, '', '2026-09-05')`,
+    );
+    insMCov.run("v1");
+    const insCCov = seed.query(
+      `INSERT INTO cues (video_id, cues_json, model, derived_at)
+       VALUES (?, '[]', 'cov-test', '2026-09-05')`,
+    );
+    insCCov.run("v4");
+    const r = reader();
+    const cov = r.analysisCoverage();
+    expect(cov.available).toBe(true);
+    expect(cov.tracks).toBeGreaterThan(0);
+    expect(cov.beats).toBe(2);
+    expect(cov.mood).toBe(1);
+    expect(cov.cues).toBe(1);
+    r.close();
+  });
+
+  it("analysisCoverage reports null for absent ledgers, not 0", () => {
+    const oldDir = mkdtempSync("/tmp/cratedeck-archive-nol ledger-");
+    const oldPath = join(oldDir, "archive.db");
+    const old = new Database(oldPath, { create: true });
+    old.exec(
+      `CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT)`,
+    );
+    old.close();
+    const r = new ArchiveReader(oldPath);
+    const cov = r.analysisCoverage();
+    expect(cov.available).toBe(true);
+    expect(cov.tracks).toBe(0);
+    expect(cov.beats).toBeNull();
+    expect(cov.mood).toBeNull();
+    expect(cov.cues).toBeNull();
     r.close();
     rmSync(oldDir, { recursive: true, force: true });
   });

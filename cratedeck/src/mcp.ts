@@ -34,6 +34,9 @@
  *   archive_mood_profile        mood/dance/VA averages + extremes (roadmap #4)
  *   archive_cue_ledger          8-bar phrase-cue ledger (readonly)
  *   archive_library_overview    FullTags mirror: genres/years/art/energy
+ *   archive_skip_census         why gone/skipped rows didn't land
+ *   archive_sources             source-tag census (pre-diff lookup)
+ *   archive_analysis_coverage   playable vs beats/mood/cues ledgers
  *   deck_prep                   weekly digest markdown (O83, readonly)
  *   deck_search {q}             global search: playlists + folders (B9, readonly)
  *   deck_help {term?}           glossary + job/surface explainers (readonly)

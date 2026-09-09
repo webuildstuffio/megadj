@@ -157,8 +157,8 @@ export function Meter(props: {
         style={{ width: `${pct}%` }}
       />
       <span class="ft-meter-label">
-        <b>{pct}%</b> {props.label} · {props.done.toLocaleString()}/
-        {props.total.toLocaleString()}
+        <b>{pct}%</b> {props.label && `${props.label} · `}
+        {props.done.toLocaleString()}/{props.total.toLocaleString()}
       </span>
     </div>
   );

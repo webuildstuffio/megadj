@@ -128,6 +128,16 @@ export const HELP_TERMS: HelpTerm[] = [
     def: "A measured pass/fail a batch tag write must clear before the engine touches files (key passed; BPM and genre are blocked).",
     why: "Bad mass-writes corrupt a whole library at once — the gate is the reason analysis lives in ledgers first.",
   },
+  {
+    term: "Skip census",
+    def: "The why behind non-downloaded archive rows: gone tracks record the YouTube failure, skipped rows record the ingest decision ('category: …').",
+    why: "It separates real backlog (gone — re-source it) from deliberate decisions (skipped a podcast) so the backlog never lies.",
+  },
+  {
+    term: "Analysis coverage",
+    def: "One progress picture: playable tracks vs rows in the beats/mood/cues ledgers.",
+    why: "Three separate meters can silently disagree — the strip on every FullTags tab reads one endpoint so they can't.",
+  },
 ];
 
 export const HELP_JOBS: HelpJob[] = [
@@ -223,13 +233,21 @@ export const HELP_SURFACES: HelpSurface[] = [
     route: "#/getdat/pipeline",
     label: "GetDat · Pipeline",
     where: "topbar GetDat tab → Pipeline",
-    question: "Is the download machine healthy — what's playable vs stuck?",
+    question:
+      "Is the download machine healthy — what's playable vs stuck, and why?",
   },
   {
     route: "#/getdat/backlog",
     label: "GetDat · Backlog",
     where: "GetDat → Backlog",
     question: "What downloads need a retry, and what's below the quality bar?",
+  },
+  {
+    route: "#/getdat/sources",
+    label: "GetDat · Sources",
+    where: "GetDat → Sources",
+    question:
+      "Which source tags exist, and did two of them drift apart? (click a chip to diff)",
   },
   {
     route: "#/getdat/library",

@@ -30,7 +30,7 @@ export function archiveRoutes(
 ): Promise<Response | null> | Response | null {
   const { archive, db, cfg } = deps;
   const match =
-    /\/archive\/(search|track|ingest-status|lowq|source-diff|grid-cross-check|mood|sweep|cues|library)$/.exec(
+    /\/archive\/(search|track|ingest-status|lowq|source-diff|grid-cross-check|mood|sweep|cues|library|skip-census|sources|analysis-coverage)$/.exec(
       route,
     );
   if (!match) return Promise.resolve(null);
@@ -52,6 +52,27 @@ export function archiveRoutes(
     }
     case "ingest-status":
       return Promise.resolve(json(archive.ingestStatus()));
+    // Skip-reason census: why gone/skipped rows didn't land ("category:
+    // …" buckets, YouTube errors) — the Pipeline tab's "what the pipeline
+    // decided" card.
+    case "skip-census": {
+      const limit = intParam(url.searchParams.get("limit"));
+      return Promise.resolve(
+        json(
+          limit !== undefined
+            ? archive.skipCensus(limit)
+            : archive.skipCensus(),
+        ),
+      );
+    }
+    // Source census: every source tag + playable split — the Sources
+    // tab's diff-form suggestions.
+    case "sources":
+      return Promise.resolve(json(archive.sourceCensus()));
+    // Unified analysis coverage: playable tracks vs beats/mood/cues
+    // ledgers in one read — FullTags' single progress picture.
+    case "analysis-coverage":
+      return Promise.resolve(json(archive.analysisCoverage()));
     case "lowq":
       return Promise.resolve(json(archive.lowqQueue()));
     case "source-diff": {

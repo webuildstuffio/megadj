@@ -7,7 +7,14 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 6 · 2026-09-08 — the product split: the web shell grew top-level
+Rev 7 · 2026-09-08 — the integration pass: the archive's own decision
+records became surfaces. Three new readonly reads with same-commit twins
+(`archive_skip_census` — why gone/skipped rows didn't land,
+`archive_sources` — the source census the Sources diff form suggests
+from, `archive_analysis_coverage` — one playable-vs-ledgers progress
+picture), `ingest_status` grew run throughput (attempted + bytes), and
+the GetDat/FullTags canvases render all of it (32 tools). Rev 6 ·
+2026-09-08 — the product split: the web shell grew top-level
 product tabs (Drives / **GetDat** / **FullTags** / Fleet), giving the
 archive's two sub-products their own canvases (GetDat: pipeline/backlog/
 sources/library; FullTags: beatgrids/mood/cues/tags) instead of one
@@ -43,7 +50,7 @@ that way.
 | --- | --- | --- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 19 commands + `--help` |
 | deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 20 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 29 tools |
+| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 32 tools |
 | HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~35 routes |
 | Web UI | `cratedeck/web/` (hash-routed pages) | 6 pages, ~22 actions |
 
@@ -114,6 +121,9 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Mood profile | `megadj mood` data ✅ | `archive_mood_profile` ✅ | FullTags ⌗ Mood ✅ | — (A3 closed rev 3; product split rev 6) |
 | Cue ledger | `megadj cues` data ✅ | `archive_cue_ledger` ✅ | FullTags ⌗ Cues ✅ | — (rev 6) |
 | Library overview (FullTags mirror) | `megadj fetch`/`audit` data ✅ | `archive_library_overview` ✅ | FullTags ⌗ Tags + GetDat ⌗ Library ✅ | — (rev 6) |
+| Skip census (why rows didn't land) | `megadj list` buckets ✅ | `archive_skip_census` ✅ | GetDat ⌗ Pipeline (decisions card) + Backlog ✅ | — (rev 7) |
+| Source census | `megadj list` sources ✅ | `archive_sources` ✅ | GetDat ⌗ Sources (tag chips feed the diff form) ✅ | — (rev 7) |
+| Analysis coverage | `megadj beats|mood|cues` counts ✅ | `archive_analysis_coverage` ✅ | FullTags header meters (one progress picture) ✅ | — (rev 7) |
 | Archive integrity sweep | Prep digest (`archive integrity` section) ✅ | `archive_sweep` ✅ | Fleet ⌗ Prep (digest section) ✅ | — (D30) |
 | Rename drive | `rename <d> [nick]` ✅ | `deck_rename` ✅ | inline rename ✅ | — (D2-rename closed rev 3) |
 | Set drive photo | — | ⛔ §4-D2 (human picks the art) | Photo tab ✅ | — |

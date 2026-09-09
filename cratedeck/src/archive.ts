@@ -110,6 +110,120 @@ export class ArchiveReader {
     );
   }
 
+  /**
+   * SKIP-REASON CENSUS (GetDat Pipeline/Backlog): why non-downloaded rows
+   * didn't land. Every track carries `last_error` — for gone/skipped rows
+   * it holds the reason ("gone" set it to the YouTube error, the ingest
+   * skipper set it to "category: …"). This read buckets them so the UI can
+   * show "what the pipeline decided and why" without an agent pasting
+   * queries. GONE tracks surface first (they're the actionable ones —
+   * re-source or drop), then the biggest skip buckets.
+   */
+  skipCensus(limit = 12): {
+    available: boolean;
+    skipped: number;
+    gone: number;
+    buckets: { reason: string; count: number; kind: string }[];
+  } {
+    const empty = {
+      available: this.handle() !== null,
+      skipped: 0,
+      gone: 0,
+      buckets: [],
+    };
+    if (!this.handle()) return empty;
+    const bucket = (kind: string): { reason: string; count: number }[] =>
+      this.rows<{ reason: string; count: number }>(
+        `SELECT COALESCE(NULLIF(TRIM(last_error), ''), 'unknown reason') reason,
+               COUNT(*) count
+         FROM tracks
+         WHERE status = '${kind === "gone" ? "gone" : "skipped_not_music"}'
+         GROUP BY 1 ORDER BY count DESC, reason LIMIT ?`,
+        Math.min(Math.max(limit, 1), 50),
+      );
+    // gone first (actionable), then the skip categories (bookkeeping with
+    // an explanation). "unknown reason" only appears when the row has no
+    // last_error at all — still honest, still counted.
+    const gone = bucket("gone");
+    const skipped = bucket("skipped_not_music");
+    return {
+      available: true,
+      skipped: skipped.reduce((s, b) => s + b.count, 0),
+      gone: gone.reduce((s, b) => s + b.count, 0),
+      buckets: [
+        ...gone.map((b) => ({ ...b, kind: "gone" })),
+        ...skipped.map((b) => ({ ...b, kind: "skipped" })),
+      ],
+    };
+  }
+
+  /**
+   * SOURCE CENSUS (GetDat Sources): every source tag with its track count,
+   * split playable vs not. The Sources tab's diff form needs to know what
+   * tags EXIST before it can ask "diff which two?" — until now the UI
+   * guessed with placeholder text. GONE/deleted rows still count (they
+   * describe the source's history), playable is the live half.
+   */
+  sourceCensus(): {
+    available: boolean;
+    sources: {
+      source: string;
+      tracks: number;
+      playable: number;
+    }[];
+  } {
+    const rows = this.rows<{
+      source: string;
+      tracks: number;
+      playable: number;
+    }>(
+      `SELECT COALESCE(NULLIF(TRIM(source), ''), 'unknown') source,
+              COUNT(*) tracks,
+              SUM(CASE WHEN status = 'downloaded' THEN 1 ELSE 0 END) playable
+       FROM tracks GROUP BY 1 ORDER BY tracks DESC, source LIMIT 50`,
+    );
+    return { available: this.handle() !== null, sources: rows };
+  }
+
+  /**
+   * ANALYSIS COVERAGE (FullTags): one read that joins every analysis
+   * ledger against the playable archive — how many downloaded tracks have
+   * beats / mood / cues, so the UI shows ONE progress picture instead of
+   * three separate "X of the archive" meters that can silently disagree.
+   * Degrades per-ledger on pre-ledger DBs (missing table → null).
+   */
+  analysisCoverage(): {
+    available: boolean;
+    tracks: number;
+    beats: number | null;
+    mood: number | null;
+    cues: number | null;
+  } {
+    const db = this.handle();
+    const tracks = db
+      ? (this.rows<{ n: number }>(
+          `SELECT COUNT(*) n FROM tracks WHERE status = 'downloaded'`,
+        )[0]?.n ?? 0)
+      : 0;
+    const ledger = (name: string): number | null => {
+      const has = this.rows<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`,
+        name,
+      );
+      if (!has.length) return null;
+      return (
+        this.rows<{ n: number }>(`SELECT COUNT(*) n FROM ${name}`)[0]?.n ?? 0
+      );
+    };
+    return {
+      available: db !== null,
+      tracks,
+      beats: ledger("beats"),
+      mood: ledger("mood"),
+      cues: ledger("cues"),
+    };
+  }
+
   /** Ingest pipeline status: per-status counts, recent runs, newest files. */
   ingestStatus(): {
     available: boolean;
@@ -118,9 +232,11 @@ export class ArchiveReader {
     recent_runs: {
       started_at: string;
       finished_at: string | null;
+      attempted: number | null;
       downloaded: number;
       failed: number;
       gone: number;
+      bytes_downloaded: number | null;
     }[];
     recent_tracks: ArchiveTrack[];
   } {
@@ -141,12 +257,15 @@ export class ArchiveReader {
     const runs = this.rows<{
       started_at: string;
       finished_at: string | null;
+      attempted: number | null;
       downloaded: number;
       failed: number;
       gone: number;
+      bytes_downloaded: number | null;
     }>(
-      `SELECT started_at, finished_at, downloaded, failed, gone FROM runs
-       ORDER BY id DESC LIMIT 5`,
+      `SELECT started_at, finished_at, attempted, downloaded, failed, gone,
+              bytes_downloaded
+       FROM runs ORDER BY id DESC LIMIT 5`,
     );
     const recent = this.rows<ArchiveTrack>(
       `SELECT ${TRACK_COLS} FROM tracks ORDER BY updated_at DESC LIMIT 10`,

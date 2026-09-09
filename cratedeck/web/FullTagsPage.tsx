@@ -12,6 +12,7 @@
 // READ-ONLY (§4-A1): analysis writes stay `megadj beats|mood|cues` CLI;
 // batch BPM/genre tag writes are BLOCKED by the roadmap gates — shown.
 import type {
+  ArchiveAnalysisCoverage,
   ArchiveCueStats,
   ArchiveGridCrossCheck,
   ArchiveLibraryOverview,
@@ -24,6 +25,73 @@ import { TabIntro } from "./InfoTip";
 import { ListHead } from "./ListHead";
 import { StatCard } from "./DrivePanels";
 import { ProductHead, Meter, SectionHead, Verdict } from "./ProductPage";
+
+/** One hook for the unified analysis-coverage read: playable tracks vs the
+ *  beats/mood/cues ledgers in a single picture. null ledger = pre-analysis
+ *  DB (table absent), rendered as "not run yet", never as 0-of-N. */
+function useCoverage(): ArchiveAnalysisCoverage | null {
+  const page = useFetched<ArchiveAnalysisCoverage>(
+    () => api<ArchiveAnalysisCoverage>("/api/archive/analysis-coverage"),
+    [],
+  );
+  return page.status === "ok" ? page.data : null;
+}
+
+/** The coverage strip: one meter per analysis ledger, shared by every
+ *  FullTags analysis tab so the three views can't disagree about progress. */
+function CoverageStrip(props: {
+  cov: ArchiveAnalysisCoverage | null;
+  active: "beats" | "mood" | "cues";
+}) {
+  const cov = props.cov;
+  if (!cov || !cov.available) return null;
+  const LEDGERS = [
+    { key: "beats", label: "beatgrids", cmd: "megadj beats" },
+    { key: "mood", label: "mood", cmd: "megadj mood" },
+    { key: "cues", label: "cues", cmd: "megadj cues" },
+  ] as const;
+  return (
+    <div class="card ft-coverage">
+      <div class="ft-coverage-head">
+        <Icon name="pulse" size={14} />
+        <b>Analysis coverage</b>
+        <span class="muted">{cov.tracks.toLocaleString()} playable tracks</span>
+      </div>
+      {LEDGERS.map((l) => {
+        const n = cov[l.key];
+        return (
+          <div class="ft-coverage-row" key={l.key}>
+            {n === null ? (
+              <>
+                <span class="ft-coverage-label">{l.label}</span>
+                <span class="ft-meter na">
+                  <span class="ft-meter-fill" style={{ width: "0%" }} />
+                  <span class="ft-meter-label">ledger not created</span>
+                </span>
+                <code class="ft-coverage-cmd">{l.cmd}</code>
+              </>
+            ) : (
+              <>
+                <span class="ft-coverage-label">{l.label}</span>
+                <Meter
+                  done={n}
+                  total={cov.tracks || n}
+                  label=""
+                  cls={
+                    n >= cov.tracks ? "ok" : props.active === l.key ? "" : "dim"
+                  }
+                />
+                <code class="ft-coverage-cmd">
+                  {n >= cov.tracks ? "complete" : l.cmd}
+                </code>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 const TABS = [
   {
@@ -68,6 +136,7 @@ export function FullTagsPage(props: { tab: string }) {
 // ---- beatgrids --------------------------------------------------------------
 
 function BeatgridsTab() {
+  const coverage = useCoverage();
   const page = useFetched<[ArchiveGridCrossCheck, ArchiveMoodProfile]>(
     () =>
       Promise.all([
@@ -100,6 +169,7 @@ function BeatgridsTab() {
         </div>
       ) : (
         <>
+          <CoverageStrip cov={coverage} active="beats" />
           <Verdict
             cls={syncRisk === 0 ? "ok" : "warn"}
             text={
@@ -218,6 +288,7 @@ const MOOD_GLOSS: Record<string, string> = {
 };
 
 function MoodTab() {
+  const coverage = useCoverage();
   const page = useFetched<ArchiveMoodProfile>(
     () => api<ArchiveMoodProfile>("/api/archive/mood"),
     [],
@@ -235,6 +306,7 @@ function MoodTab() {
 
   return (
     <div>
+      <CoverageStrip cov={coverage} active="mood" />
       <TabIntro
         what="The vibe map: what the mood models say the archive sounds like."
         how="Every archived track is scored by ONNX heads — danceability, party/aggressive/electronic mood, valence (sad → happy, 1–9) and arousal (calm → intense, 1–9). Averages describe the library's character; the extremes are set-planning lookups ('play something dark/hyped/smooth')."
@@ -336,6 +408,7 @@ function MoodTab() {
 // ---- cues -------------------------------------------------------------------
 
 function CuesTab() {
+  const coverage = useCoverage();
   const page = useFetched<ArchiveCueStats>(
     () => api<ArchiveCueStats>("/api/archive/cues"),
     [],
@@ -353,6 +426,7 @@ function CuesTab() {
 
   return (
     <div>
+      <CoverageStrip cov={coverage} active="cues" />
       <TabIntro
         what="Structure cues: 8-bar phrase markers derived from each track's downbeats."
         how="Phrase cues mark the natural section boundaries (every 8 bars) — the places a DJ mixes in and out. They're derived from the beats ledger and stored DB-side; pushing them to rekordbox memory cues is a separate gated step (not shipped)."

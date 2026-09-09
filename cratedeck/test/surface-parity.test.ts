@@ -106,6 +106,9 @@ const TOOL_EXEMPTIONS: Record<string, string> = {
   archive_mood_profile: "A3",
   archive_cue_ledger: "A3",
   archive_library_overview: "A3",
+  archive_skip_census: "A3",
+  archive_sources: "A3",
+  archive_analysis_coverage: "A3",
   archive_sweep:
     "A3 (also folded into deckctl prep via the D30 digest section)",
 };
@@ -120,13 +123,13 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // keep this file and the doc honest about each other
     const verbs = deckctlVerbs();
     const tools = mcpTools();
-    // 20 verbs (help + dismiss joined rev 4); 19 deck_* + 10 archive_*
-    // = 29 MCP tools (source census; mcpTools() dedupes).
+    // 20 verbs (help + dismiss joined rev 4); 19 deck_* + 13 archive_*
+    // = 32 MCP tools (source census; mcpTools() dedupes).
     expect(verbs.length).toBeGreaterThanOrEqual(20);
-    expect(tools.length).toBeGreaterThanOrEqual(29);
+    expect(tools.length).toBeGreaterThanOrEqual(32);
     const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
     expect(doc).toContain("| 20 verbs |");
-    expect(doc).toContain("| 29 tools |");
+    expect(doc).toContain("| 32 tools |");
   });
 
   test("the product tabs exist and are hash-routed (one route per product)", () => {

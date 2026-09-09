@@ -446,6 +446,15 @@ export type ArchiveIngestStatus = ReturnType<
 export type ArchiveLowqQueue = ReturnType<
   import("../src/archive").ArchiveReader["lowqQueue"]
 >;
+export type ArchiveSkipCensus = ReturnType<
+  import("../src/archive").ArchiveReader["skipCensus"]
+>;
+export type ArchiveSourceCensus = ReturnType<
+  import("../src/archive").ArchiveReader["sourceCensus"]
+>;
+export type ArchiveAnalysisCoverage = ReturnType<
+  import("../src/archive").ArchiveReader["analysisCoverage"]
+>;
 export type ArchiveGridCrossCheck = ReturnType<
   import("../src/archive").ArchiveReader["gridCrossCheck"]
 >;

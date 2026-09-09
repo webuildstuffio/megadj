@@ -10,7 +10,12 @@
 // READ-ONLY (§4-A1): this page describes work, it never writes — every
 // card names the megadj command that does the fixing.
 import { useCallback, useState } from "preact/hooks";
-import type { ArchiveIngestStatus, ArchiveLowqQueue } from "../shared/types";
+import type {
+  ArchiveIngestStatus,
+  ArchiveLowqQueue,
+  ArchiveSkipCensus,
+  ArchiveSourceCensus,
+} from "../shared/types";
 import { api } from "./toast";
 import { Icon } from "./icons";
 import { FetchedGate, useFetched } from "./useFetched";
@@ -19,6 +24,7 @@ import { ListHead } from "./ListHead";
 import { StatCard } from "./DrivePanels";
 import { ProductHead, SectionHead, ShareBar, Verdict } from "./ProductPage";
 import { LibraryTab } from "./LibraryTab";
+import { fmtBytes } from "../shared/fmt";
 
 type Track = ArchiveIngestStatus["recent_tracks"][number];
 
@@ -76,13 +82,17 @@ export const STATUS_LANG: Record<string, string> = {
 // ---- pipeline ---------------------------------------------------------------
 
 function PipelineTab() {
-  const page = useFetched<ArchiveIngestStatus>(
-    () => api<ArchiveIngestStatus>("/api/archive/ingest-status"),
+  const page = useFetched<[ArchiveIngestStatus, ArchiveSkipCensus]>(
+    () =>
+      Promise.all([
+        api<ArchiveIngestStatus>("/api/archive/ingest-status"),
+        api<ArchiveSkipCensus>("/api/archive/skip-census"),
+      ]),
     [],
   );
   if (page.status !== "ok")
     return <FetchedGate page={page} loading="loading pipeline status…" />;
-  const ingest = page.data;
+  const [ingest, skips] = page.data;
   const c = ingest.available ? ingest.counts : {};
   const entry = (k: string) => c[k] ?? 0;
   const inArchive = entry("downloaded");
@@ -183,27 +193,98 @@ function PipelineTab() {
             <div class="covtable">
               <div class="covrow head">
                 <span>when</span>
+                <span>attempted</span>
                 <span>landed</span>
-                <span>failed</span>
-                <span>gone</span>
+                <span>volume</span>
               </div>
-              {runs.map((r) => (
-                <div class="covrow" key={r.started_at}>
-                  <span class="covpath">
-                    {new Date(r.started_at).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                    {r.finished_at ? "" : " · running"}
-                  </span>
-                  <span class="n ok-text">+{r.downloaded}</span>
-                  <span class={`n ${r.failed ? "bad" : ""}`}>{r.failed}</span>
-                  <span class={`n ${r.gone ? "bad" : ""}`}>{r.gone}</span>
-                </div>
-              ))}
+              {runs.map((r) => {
+                const mins =
+                  r.finished_at && r.attempted
+                    ? Math.max(
+                        1,
+                        Math.round(
+                          (new Date(r.finished_at).getTime() -
+                            new Date(r.started_at).getTime()) /
+                            60000,
+                        ),
+                      )
+                    : null;
+                return (
+                  <div class="covrow" key={r.started_at}>
+                    <span class="covpath">
+                      {new Date(r.started_at).toLocaleString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      {r.finished_at ? "" : " · running"}
+                    </span>
+                    <span class="n muted">
+                      {r.attempted ?? "—"}
+                      {mins ? ` · ${mins}m` : ""}
+                    </span>
+                    <span class="n ok-text">
+                      +{r.downloaded}
+                      {r.failed ? (
+                        <span class="bad"> / {r.failed}✗</span>
+                      ) : null}
+                    </span>
+                    <span class="covdrives">
+                      {r.bytes_downloaded ? fmtBytes(r.bytes_downloaded) : "—"}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
+          )}
+
+          {skips.available && skips.buckets.length > 0 && (
+            <>
+              <SectionHead icon="doc" title="What the pipeline decided">
+                <span class="sect-n">{skips.buckets.length}</span>
+              </SectionHead>
+              <div class="card">
+                <ListHead
+                  icon="doc"
+                  title="Why rows didn't land"
+                  n={skips.gone + skips.skipped}
+                  hint="Every non-downloaded row records its reason. 'Gone from source' = the video vanished from YouTube Music (re-source it or drop it — those are Backlog work). 'Skipped (category: …)' = the ingest skipper deliberately passed on non-music (podcasts, news, trailers) — bookkeeping, not backlog."
+                  lines={skips.buckets.map(
+                    (b) =>
+                      `[${b.kind}] ${b.reason}: ${b.count} track${b.count === 1 ? "" : "s"}`,
+                  )}
+                />
+                <div class="chip-list">
+                  {skips.buckets.slice(0, 8).map((b) => (
+                    <span
+                      class="chip-row"
+                      key={b.kind + b.reason}
+                      title={`${b.kind}: ${b.reason}`}
+                    >
+                      <span
+                        class={`arch-pill ${b.kind === "gone" ? "bad" : "muted"}`}
+                      >
+                        {b.kind === "gone" ? "gone" : "skipped"}
+                      </span>
+                      <span class="chip-name">{b.reason}</span>
+                      <span class="chip-n">{b.count}</span>
+                    </span>
+                  ))}
+                  {skips.buckets.length > 8 && (
+                    <span class="fleet-note">
+                      …and {skips.buckets.length - 8} more buckets
+                    </span>
+                  )}
+                </div>
+                {skips.gone > 0 && (
+                  <div class="arch-fix">
+                    {skips.gone} gone from source — re-source or drop (see the
+                    Backlog tab)
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </>
       )}
@@ -323,8 +404,12 @@ function BacklogTab() {
 // ---- sources ----------------------------------------------------------------
 
 function SourcesTab() {
-  const page = useFetched<ArchiveIngestStatus>(
-    () => api<ArchiveIngestStatus>("/api/archive/ingest-status"),
+  const page = useFetched<[ArchiveIngestStatus, ArchiveSourceCensus]>(
+    () =>
+      Promise.all([
+        api<ArchiveIngestStatus>("/api/archive/ingest-status"),
+        api<ArchiveSourceCensus>("/api/archive/sources"),
+      ]),
     [],
   );
   const [a, setA] = useState("");
@@ -358,9 +443,7 @@ function SourcesTab() {
 
   if (page.status !== "ok")
     return <FetchedGate page={page} loading="loading sources…" />;
-  // The archive DB has no dedicated sources table — the source tags on
-  // tracks ARE the source census (liked list, playlist ids, ingest runs).
-  const ingest = page.data;
+  const [ingest, census] = page.data;
   if (!ingest.available)
     return (
       <div class="note-card">
@@ -368,17 +451,44 @@ function SourcesTab() {
         on this machine yet.
       </div>
     );
-  // source counts require the whole tracks table; ingest-status doesn't
-  // carry them, so derive the census from the source-diff endpoint per tag
-  // is overkill — the library overview recent list + the diff tool cover
-  // the actual question ("did my liked list and my playlist drift apart?").
+  const sources = census.available ? census.sources : [];
   return (
     <div>
       <TabIntro
         what="Where the archive's music comes from — and whether two sources drifted apart."
-        how="Every archived track carries its source tag: the liked list, a YouTube playlist id, or an ingest run. Diff any two to see which tracks live in one but not the other — the classic case is 'my liked list vs the playlist I curated'."
+        how="Every archived track carries its source tag: the liked list, a YouTube playlist id, or an ingest run. The chips below are the real census (click one to fill the form); diff any two to see which tracks live in one but not the other — the classic case is 'my liked list vs the playlist I curated'."
         next="Drift is normal (you unlike things); the diff tells you what a re-sync would add or drop."
       />
+      {sources.length > 0 && (
+        <div class="card">
+          <ListHead
+            icon="compass"
+            title="Source tags in the archive"
+            n={sources.length}
+            hint="Every source tag with its total and playable (downloaded) track counts. Click a chip to drop it into the diff form — 'playable' is what can actually be mixed; the gap is the source's history (gone/skipped/pending)."
+            lines={sources.map(
+              (s) => `${s.source}: ${s.tracks} tracked, ${s.playable} playable`,
+            )}
+          />
+          <div class="src-chips">
+            {sources.map((s) => (
+              <button
+                type="button"
+                class="src-chip"
+                key={s.source}
+                title={`${s.playable} playable of ${s.tracks} tracked — click to fill the form`}
+                onClick={() => {
+                  if (!a.trim()) setA(s.source);
+                  else if (!b.trim()) setB(s.source);
+                }}
+              >
+                {s.source}
+                <span class="src-chip-n">{s.playable}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div class="pl-tools">
         <input
           placeholder="source A (e.g. liked)"

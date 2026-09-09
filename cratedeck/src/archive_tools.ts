@@ -80,6 +80,50 @@ export function archiveTools(): Record<string, unknown> {
       run: async () => apiGet("/api/archive/lowq").then((r) => r.json()),
     },
 
+    archive_skip_census: {
+      description:
+        "[READ-ONLY] Why non-downloaded archive rows didn't land: buckets every gone/skipped track by its recorded reason (YouTube 'video unavailable', ingest 'category: …' skips, etc.). gone= actionables (re-source or drop); skipped= deliberate not-music skips. Answers 'what does the pipeline decide about my liked list'.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "max buckets per kind (default 12, max 50)",
+          },
+        },
+        additionalProperties: false,
+      },
+      run: async (args: Record<string, unknown>) => {
+        const res = await apiGet(
+          `/api/archive/skip-census?limit=${optLimit(args, 12, 50)}`,
+        );
+        return res.json();
+      },
+    },
+
+    archive_sources: {
+      description:
+        "[READ-ONLY] Source census of the archive: every source tag (liked list, playlist ids, 'ingest') with total and playable track counts — what exists before diffing two sources. Pair with archive_source_diff.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      run: async () => apiGet("/api/archive/sources").then((r) => r.json()),
+    },
+
+    archive_analysis_coverage: {
+      description:
+        "[READ-ONLY] Analysis coverage in one read: how many downloaded tracks exist vs how many carry beats / mood / cues ledger rows. null = that ledger doesn't exist yet (pre-analysis DB). The 'is the whole archive analyzed' gate for agents deciding whether to run megadj beats|mood|cues.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      run: async () =>
+        apiGet("/api/archive/analysis-coverage").then((r) => r.json()),
+    },
+
     archive_source_diff: {
       description:
         "Diff two archive sources (e.g. 'liked' vs 'PLxxxx…'): video ids only in one of them, and the shared count. Read-only.",
