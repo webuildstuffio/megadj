@@ -54,6 +54,8 @@ export interface DedupeResult {
   keepBoth: number;
   applied: boolean;
   moved: number;
+  /** keep-twin pairs applied: twin content now lives at the original path */
+  upgraded: number;
   errors: string[];
   ok: boolean;
 }
@@ -247,15 +249,42 @@ export async function shelfDedupe(
   }
 
   let moved = 0;
+  let upgraded = 0;
   const applied = apply && yes;
   if (applied) {
     mkdirSync(quarantine, { recursive: true });
     for (const pair of pairs) {
       if (!pair.loser) continue;
-      const dest = join(quarantine, basename(pair.loser));
       try {
-        renameSync(pair.loser, dest);
-        moved++;
+        if (pair.verdict === "keep-twin") {
+          // UPGRADE: the rekordbox DB references the ORIGINAL path, so the
+          // twin's (higher-quality) content must end up AT that path.
+          // Step 1: move the lower-quality original into quarantine under a
+          // name that can't collide with anything (suffix with the twin's
+          // volume tag already in the twin filename is ambiguous here, so
+          // prefix `.superseded-`).
+          const qName = `.superseded-${basename(pair.original)}`;
+          const qDest = join(quarantine, qName);
+          if (existsSync(qDest)) {
+            errors.push(`${pair.original}: quarantine already has ${qName}`);
+            continue;
+          }
+          renameSync(pair.original, qDest);
+          // Step 2: twin takes over the canonical path.
+          renameSync(pair.twin, pair.original);
+          upgraded++;
+          moved += 2;
+        } else {
+          const dest = join(quarantine, basename(pair.loser!));
+          if (existsSync(dest)) {
+            errors.push(
+              `${pair.loser}: quarantine already has ${basename(pair.loser!)}`,
+            );
+            continue;
+          }
+          renameSync(pair.loser!, dest);
+          moved++;
+        }
       } catch (e) {
         errors.push(`${pair.loser}: ${e instanceof Error ? e.message : e}`);
       }
@@ -276,6 +305,7 @@ export async function shelfDedupe(
           keepBoth,
           applied,
           moved,
+          upgraded,
           errors,
           ok,
           pairs: pairs.map((p) => ({
@@ -301,6 +331,7 @@ export async function shelfDedupe(
       keepBoth,
       applied,
       moved,
+      upgraded,
       errors,
       ok,
     };
@@ -320,7 +351,9 @@ export async function shelfDedupe(
     if (p.verdict !== "keep-both") log(`      vs ${p.twin}`);
   }
   if (applied) {
-    log(`applied: ${moved} file(s) moved to ${quarantine}`);
+    log(
+      `applied: ${moved} file(s) handled — ${upgraded} upgrades (twin content took the original path), rest moved to ${quarantine}`,
+    );
   } else if (apply && !yes) {
     log("apply requested but --yes missing — report only (safety gate)");
   } else {
@@ -340,6 +373,7 @@ export async function shelfDedupe(
     keepBoth,
     applied,
     moved,
+    upgraded,
     errors,
     ok,
   };
