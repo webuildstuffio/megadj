@@ -1,11 +1,20 @@
 // DrivePanels.tsx — presentational panels used by DrivePage: health-check
 // rows, space/extension/age visualizations, DJ analytics. Pure props → JSX;
-// no fetching, no polling.
+// no fetching, no polling. The bar lists and histogram render through the
+// shared kit (ui/data.tsx BarList, ui/charts.tsx Histogram) — the hand-rolled
+// .barrow/.extrow/.bpmhist implementations are gone.
 import { useState } from "preact/hooks";
 import type { HealthCheck, SnapshotData } from "../../shared/types";
 import { fmtBytes, fmtDur } from "../../shared/fmt";
 import { Icon } from "./icons";
 import { InfoTip } from "./InfoTip";
+import { BarList } from "./data";
+import { Histogram } from "./charts";
+
+// StatCard moved to ui/data.tsx (it gained tone/em support) — imported for
+// DjPanel and re-exported here so existing import sites keep working.
+import { StatCard } from "./data";
+export { StatCard };
 
 /** Two-step destructive-action button: first click arms it ("Sure?"), a
  *  second click within 3s fires, clicking away disarms. Kills accidental
@@ -171,29 +180,18 @@ export function SpaceBar({ snap }: { snap: SnapshotData }) {
 export function ExtBars({ snap }: { snap: SnapshotData }) {
   const byExt = snap.by_ext;
   if (!byExt?.length) return null;
-  // `|| 1` also covers a leading all-zero-byte extension (NaN width guard)
-  const max = byExt[0]?.bytes || 1;
-  const total = byExt.reduce((s, e) => s + e.bytes, 0);
   return (
-    <div
-      class="extbars"
-      title="Bytes on disk by file extension — audio formats vs artwork, DB and system files. '._' entries are macOS resource forks (junk)."
-    >
-      {byExt.slice(0, 8).map((e) => (
-        <div
-          class="extrow"
-          key={e.ext}
-          title={`${Math.round((e.bytes / (total || 1)) * 100)}% of bytes`}
-        >
-          <span class="ext">{e.ext}</span>
-          <span class="extbar">
-            <i style={{ width: `${Math.max(2, (e.bytes / max) * 100)}%` }} />
-          </span>
-          <span class="extn">
-            {fmtBytes(e.bytes)} · {e.files}
-          </span>
-        </div>
-      ))}
+    <div title="Bytes on disk by file extension — audio formats vs artwork, DB and system files. '._' entries are macOS resource forks (junk).">
+      <BarList
+        rows={byExt.slice(0, 8).map((e) => ({
+          key: e.ext,
+          name: e.ext,
+          value: e.bytes,
+          display: `${fmtBytes(e.bytes)} · ${e.files}`,
+          title: `${e.ext}: ${fmtBytes(e.bytes)} across ${e.files} files · ${Math.round((e.bytes / (byExt.reduce((s, x) => s + x.bytes, 0) || 1)) * 100)}% of bytes`,
+        }))}
+        tone="info"
+      />
     </div>
   );
 }
@@ -273,23 +271,14 @@ export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
         />
       </div>
       {!!dj.bpm_histogram?.length && (
-        <div
-          class="bpmhist"
-          title="Tracks per 10-BPM bucket — the shape of your library's tempo. Hover a bar for the exact count."
-        >
-          {(() => {
-            const max = Math.max(...dj.bpm_histogram.map((x) => x.count));
-            return dj.bpm_histogram.map((b) => (
-              <div
-                class="bpmcol"
-                key={b.bucket}
-                title={`${b.bucket} BPM: ${b.count} tracks`}
-              >
-                <i style={{ height: `${(b.count / max) * 100}%` }} />
-              </div>
-            ));
-          })()}
-        </div>
+        <Histogram
+          buckets={dj.bpm_histogram.map((b) => ({
+            label: `${b.bucket}`,
+            count: b.count,
+          }))}
+          labelEvery={5}
+          unit="tracks"
+        />
       )}
       {!!dj.genres?.length && <Bars title="Genres" rows={dj.genres} />}
       {!!dj.keys?.length && (
@@ -325,27 +314,8 @@ export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
   );
 }
 
-export function StatCard({
-  v,
-  l,
-  icon,
-  title,
-}: {
-  v: string;
-  l: string;
-  icon: string;
-  title?: string;
-}) {
-  return (
-    <div class="stat">
-      <div class="v" title={title}>
-        <Icon name={icon} size={13} /> {v}
-      </div>
-      <div class="l">{l}</div>
-    </div>
-  );
-}
-
+/** Genres/keys/artists — counts as bars with the share % in the right
+ *  column (was the hand-rolled .barrow JSX). */
 export function Bars({
   title,
   rows,
@@ -356,24 +326,20 @@ export function Bars({
   tip?: string;
 }) {
   const total = rows.reduce((s, r) => s + r.count, 0) || 1;
-  const max = Math.max(...rows.map((r) => r.count));
   return (
     <div>
       <h3 class="sect">
         {title} <span class="sect-n">{rows.length}</span>
         {tip && <InfoTip title={title} body={tip} align="right" />}
       </h3>
-      {rows.slice(0, 8).map((r) => (
-        <div class="barrow" key={r.name}>
-          <span class="barname" title={r.name}>
-            {r.name}
-          </span>
-          <span class="bartrack">
-            <i style={{ width: `${(r.count / max) * 100}%` }} />
-          </span>
-          <span class="barn">{Math.round((r.count / total) * 100)}%</span>
-        </div>
-      ))}
+      <BarList
+        rows={rows.slice(0, 8).map((r) => ({
+          key: r.name,
+          name: r.name,
+          value: r.count,
+          display: `${Math.round((r.count / total) * 100)}%`,
+        }))}
+      />
     </div>
   );
 }

@@ -113,7 +113,13 @@ export class EmbeddingsLedger {
 // ---------- I49 cosine similarity (module fn — pure, unit-tested) ----------
 
 /** Cosine similarity of two equal-length vectors. Returns 0 when either
- * norm is 0 (no direction — no similarity claim). */
+ * norm is 0 (no direction — no similarity claim).
+ *
+ * SSOT note: cratedeck's archive_similar.ts re-implements this byte-for-byte
+ * (jscpd-flagged). megadj cannot import cratedeck (cratedeck is a UI
+ * workspace over megadj's output, and src/ must stay dependency-free for
+ * the standalone CLI), so the duplication is sanctioned — keep the two
+ * implementations in sync if either changes. */
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0;
   let dot = 0;

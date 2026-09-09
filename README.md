@@ -191,18 +191,19 @@ MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
   [fulltags/README.md](fulltags/README.md) ·
   [cratedeck/deckctl.md](cratedeck/deckctl.md)
 - **Product briefs:** [docs/cratedeck/](docs/cratedeck/) —
-  [01 brief](docs/cratedeck/01-product-brief.md),
-  [02 PRD](docs/cratedeck/02-prd.md),
+  [02 PRD](docs/cratedeck/02-prd.md) (brief merged in),
   [03 architecture](docs/cratedeck/03-architecture.md),
-  [04 build plan](docs/cratedeck/04-build-plan.md),
   [acceptance](docs/cratedeck/acceptance.md)
 - **Reference:** [docs/fulltags-roadmap.md](docs/fulltags-roadmap.md),
-  [docs/roadmap-proposal.md](docs/roadmap-proposal.md),
+  [docs/archive/roadmap-proposal.md](docs/archive/roadmap-proposal.md) (executed Sep 6–8),
   [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md),
   [docs/ideas.md](docs/ideas.md)
 - **Writeups:** [docs/learnings-2026-09-05-07.md](docs/learnings-2026-09-05-07.md)
-  (all learnings & findings from the Sep 5–7 build window) ·
+  (durable lessons from the Sep 5–7 build window) ·
   [docs/product-state-2026-09-07.md](docs/product-state-2026-09-07.md)
+  (current state, queue, scorecard) ·
+  [docs/usb-sync-log.md](docs/usb-sync-log.md) (ops/incident log) ·
+  [docs/runbooks/](docs/runbooks/) (§0 survival runbooks)
   (product & roadmap state, re-scored)
 - **Runbooks:** [rekordbox-usb-sync](.claude/skills/rekordbox-usb-sync/SKILL.md),
   [new-music-intake](.claude/skills/new-music-intake/SKILL.md),

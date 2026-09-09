@@ -1,8 +1,7 @@
 // cueStats + libraryOverview — the FullTags-read-side halves of the archive
 // surface. Split from archive.ts for the file-length guard; ArchiveReader
 // delegates so the call sites (`archive.cueStats(...)`) are unchanged.
-import type { ArchiveReader } from "./archive";
-import type { ArchiveTrack } from "./archive";
+import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
 
 /**
  * STRUCTURE CUES ledger (roadmap "structure cues" slice): DJ phrase
@@ -12,7 +11,7 @@ import type { ArchiveTrack } from "./archive";
  * Degrades to available:false on pre-cues DBs (no `cues` table).
  */
 export function cueStats(
-  reader: ArchiveReader,
+  reader: ArchiveQuery,
   limit = 40,
 ): {
   available: boolean;
@@ -91,8 +90,8 @@ export function cueStats(
  * mirror of the file tags fulltags writes); read-only as always.
  */
 export function libraryOverview(
-  reader: ArchiveReader,
-  recentLimit = 12,
+  reader: ArchiveQuery,
+  recentLimit = 60,
 ): {
   available: boolean;
   tracks: number;

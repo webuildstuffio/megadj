@@ -95,6 +95,14 @@ export async function mood(opts: MoodOptions): Promise<void> {
     synced++;
   }
   needAnalysis.push(...needEmbedding);
+  // --limit caps the ONNX pass (help documents it); pass-1 stamp sync is
+  // cheap and stays whole-file so no stamp is left unsynced.
+  const analysisQueue =
+    opts.limit === undefined
+      ? needAnalysis
+      : needAnalysis.slice(0, Math.max(0, opts.limit));
+  needAnalysis.length = 0;
+  needAnalysis.push(...analysisQueue);
 
   // Pass 2 — analyze tracks with no (or malformed) file stamps.
   let analyzed = 0;

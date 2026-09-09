@@ -6,6 +6,7 @@ import { fmtBytes, timeAgo } from "../../../shared/fmt";
 import { ROLE_HELP } from "../../../shared/help";
 import { Icon } from "../../ui/icons";
 import { InfoTip } from "../../ui/InfoTip";
+import { Donut } from "../../ui/charts";
 
 const VERDICT_COLOR: Record<OverallHealth, string> = {
   healthy: "var(--accent)",
@@ -22,12 +23,18 @@ const RING_HELP: Record<OverallHealth, string> = {
   unknown: "No data yet — run a Scan (unknown never fakes healthy).",
 };
 
-function HealthRing({ verdict, pct }: { verdict: OverallHealth; pct: number }) {
-  const R = 19;
-  const C = 2 * Math.PI * R;
+function HealthRing({
+  verdict,
+  pct,
+  hasReport,
+}: {
+  verdict: OverallHealth;
+  pct: number;
+  /** A report exists (even one that scored 0) — distinct from no data. */
+  hasReport: boolean;
+}) {
   // no report yet = unknown data, not zero data — the indeterminate dashed
   // arc keeps "no data" visually distinct from "worst data" (0% pass)
-  const hasReport = pct > 0;
   const color = VERDICT_COLOR[verdict] ?? VERDICT_COLOR.unknown;
   return (
     <InfoTip
@@ -35,41 +42,19 @@ function HealthRing({ verdict, pct }: { verdict: OverallHealth; pct: number }) {
       title={verdict}
       body={`${RING_HELP[verdict]}${hasReport ? "" : " (dashed ring = no report yet)"}`}
     >
-      <div class="ring">
-        <svg width="46" height="46" viewBox="0 0 46 46">
-          <circle
-            class="ring-track"
-            cx="23"
-            cy="23"
-            r={R}
-            fill="none"
-            stroke-width="3.5"
-          />
-          <circle
-            class="ring-arc"
-            cx="23"
-            cy="23"
-            r={R}
-            fill="none"
-            stroke-width="3.5"
-            stroke={color}
-            stroke-dasharray={hasReport ? C : "3 6"}
-            stroke-dashoffset={
-              hasReport ? C * (1 - Math.max(0.04, Math.min(1, pct))) : 0
-            }
-            transform="rotate(-90 23 23)"
-          />
-        </svg>
-        <span class="ring-label" style={{ color: color }}>
-          {verdict === "healthy"
+      <Donut
+        pct={pct}
+        hasData={hasReport}
+        color={color}
+        title={`${verdict}${hasReport ? ` — ${Math.round(pct * 100)}% checks passed` : " — no report yet"}`}
+        label={
+          verdict === "healthy"
             ? "✓"
-            : verdict === "critical"
+            : verdict === "critical" || verdict === "attention"
               ? "!"
-              : verdict === "attention"
-                ? "!"
-                : "·"}
-        </span>
-      </div>
+              : "·"
+        }
+      />
     </InfoTip>
   );
 }
@@ -173,7 +158,11 @@ function RailCard(props: {
       onClick={props.onSelect}
     >
       <div class="dcard-top">
-        <HealthRing verdict={verdict} pct={ringPct} />
+        <HealthRing
+          verdict={verdict}
+          pct={ringPct}
+          hasReport={props.report !== undefined}
+        />
         <div class="idbox">
           <div class="name">
             <span

@@ -3,9 +3,21 @@
 // Extracted from mcp.ts (file-length guard): every archive_* tool is a
 // thin read over the server's /api/archive/* routes (which open megadj's
 // archive DB readonly — a bug here cannot corrupt archive state).
+// Schemas are built with the mcp_params helpers (obj/noArgs/s/n) instead
+// of hand-written JSON-Schema boilerplate.
 
 import { apiGet } from "./deckapi";
-import { str, num, optLimit, optNum, RpcParamError } from "./mcp_params";
+import {
+  str,
+  num,
+  optLimit,
+  optNum,
+  RpcParamError,
+  obj,
+  noArgs,
+  s,
+  n,
+} from "./mcp_params";
 
 /** The archive_* tool table (O82b, readonly reads over megadj's DB). */
 export function archiveTools(): Record<string, unknown> {
@@ -13,18 +25,13 @@ export function archiveTools(): Record<string, unknown> {
     archive_search_tracks: {
       description:
         "Search megadj's downloaded archive by artist/title/album/file path (case-insensitive substring, min 2 chars). Read-only.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          q: { type: "string", description: "search text (≥2 chars)" },
-          limit: {
-            type: "number",
-            description: "max rows (default 50, max 200)",
-          },
+      inputSchema: obj(
+        {
+          q: s("search text (≥2 chars)"),
+          limit: n("max rows (default 50, max 200)"),
         },
-        required: ["q"],
-        additionalProperties: false,
-      },
+        ["q"],
+      ),
       run: async (args: Record<string, unknown>) => {
         const q = str(args, "q");
         if (!q || q.trim().length < 2)
@@ -39,12 +46,7 @@ export function archiveTools(): Record<string, unknown> {
     archive_track_stats: {
       description:
         "Full archive row for one track by video id: status, bitrate/codec, genre, energy, file path, timestamps. Read-only.",
-      inputSchema: {
-        type: "object",
-        properties: { video_id: { type: "string" } },
-        required: ["video_id"],
-        additionalProperties: false,
-      },
+      inputSchema: obj({ video_id: s("") }, ["video_id"]),
       run: async (args: Record<string, unknown>) => {
         const id = str(args, "video_id");
         if (!id) throw new RpcParamError("video_id is required");
@@ -60,11 +62,7 @@ export function archiveTools(): Record<string, unknown> {
     archive_ingest_status: {
       description:
         "Ingest pipeline health: per-status track counts, last 5 sync runs (downloaded/failed/gone), 10 most recently updated tracks. Answers 'what did I ingest lately'. Read-only.",
-      inputSchema: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
+      inputSchema: noArgs(),
       run: async () =>
         apiGet("/api/archive/ingest-status").then((r) => r.json()),
     },
@@ -72,27 +70,16 @@ export function archiveTools(): Record<string, unknown> {
     archive_lowq_queue: {
       description:
         "D24 low-quality upgrade queue: downloaded tracks below the set-ready bitrate floor (lossy <256 kbps AAC or <320 kbps MP3), worst first. Read-only.",
-      inputSchema: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
+      inputSchema: noArgs(),
       run: async () => apiGet("/api/archive/lowq").then((r) => r.json()),
     },
 
     archive_skip_census: {
       description:
         "[READ-ONLY] Why non-downloaded archive rows didn't land: buckets every gone/skipped track by its recorded reason (YouTube 'video unavailable', ingest 'category: …' skips, etc.). gone= actionables (re-source or drop); skipped= deliberate not-music skips. Answers 'what does the pipeline decide about my liked list'.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          limit: {
-            type: "number",
-            description: "max buckets per kind (default 12, max 50)",
-          },
-        },
-        additionalProperties: false,
-      },
+      inputSchema: obj({
+        limit: n("max buckets per kind (default 12, max 50)"),
+      }),
       run: async (args: Record<string, unknown>) => {
         const res = await apiGet(
           `/api/archive/skip-census?limit=${optLimit(args, 12, 50)}`,
@@ -104,22 +91,14 @@ export function archiveTools(): Record<string, unknown> {
     archive_sources: {
       description:
         "[READ-ONLY] Source census of the archive: every source tag (liked list, playlist ids, 'ingest') with total and playable track counts — what exists before diffing two sources. Pair with archive_source_diff.",
-      inputSchema: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
+      inputSchema: noArgs(),
       run: async () => apiGet("/api/archive/sources").then((r) => r.json()),
     },
 
     archive_analysis_coverage: {
       description:
         "[READ-ONLY] Analysis coverage in one read: how many downloaded tracks exist vs how many carry beats / mood / cues ledger rows. null = that ledger doesn't exist yet (pre-analysis DB). The 'is the whole archive analyzed' gate for agents deciding whether to run megadj beats|mood|cues.",
-      inputSchema: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
+      inputSchema: noArgs(),
       run: async () =>
         apiGet("/api/archive/analysis-coverage").then((r) => r.json()),
     },
@@ -127,15 +106,10 @@ export function archiveTools(): Record<string, unknown> {
     archive_source_diff: {
       description:
         "Diff two archive sources (e.g. 'liked' vs 'PLxxxx…'): video ids only in one of them, and the shared count. Read-only.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          a: { type: "string", description: "first source tag" },
-          b: { type: "string", description: "second source tag" },
-        },
-        required: ["a", "b"],
-        additionalProperties: false,
-      },
+      inputSchema: obj(
+        { a: s("first source tag"), b: s("second source tag") },
+        ["a", "b"],
+      ),
       run: async (args: Record<string, unknown>) => {
         const a = str(args, "a");
         const b = str(args, "b");
@@ -151,16 +125,9 @@ export function archiveTools(): Record<string, unknown> {
     archive_grid_cross_check: {
       description:
         "[READ-ONLY] Independent beatgrid cross-check: beat_this beat arrays (megadj beats ledger) vs each track's rekordbox BPM × duration. Returns ok/off/octave verdicts and offender lists — 'off' = grid tempo >2% from RB, 'octave' = grid locked half/double tempo. Empty ledgered=0 means run `megadj beats` first.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          limit: {
-            type: "number",
-            description: "max tracks to check (default 200, max 500)",
-          },
-        },
-        additionalProperties: false,
-      },
+      inputSchema: obj({
+        limit: n("max tracks to check (default 200, max 500)"),
+      }),
       run: async (args: Record<string, unknown>) => {
         const res = await apiGet(
           `/api/archive/grid-cross-check?limit=${optLimit(args, 200, 500)}`,
@@ -172,16 +139,9 @@ export function archiveTools(): Record<string, unknown> {
     archive_mood_profile: {
       description:
         "[READ-ONLY] Mood / dance / valence profile of the archive (roadmap #4): ledger averages (danceability, valence, arousal, party, electronic, aggressive) + the highest/lowest tracks per axis — 'play me something dark/hyped/smooth' picker data from megadj's mood ledger (TXXX:MOOD mirror). analyzed=0 means run `megadj mood` first.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          limit: {
-            type: "number",
-            description: "extremes per axis, high+low each (default 5, max 25)",
-          },
-        },
-        additionalProperties: false,
-      },
+      inputSchema: obj({
+        limit: n("extremes per axis, high+low each (default 5, max 25)"),
+      }),
       run: async (args: Record<string, unknown>) => {
         const res = await apiGet(
           `/api/archive/mood?limit=${optLimit(args, 5, 25)}`,
@@ -193,18 +153,13 @@ export function archiveTools(): Record<string, unknown> {
     archive_similar_tracks: {
       description:
         "[READ-ONLY] I49 'sounds like': k nearest neighbours of one track by cosine similarity over megadj's embeddings ledger (effnet 1280-d audio embeddings written by `megadj mood --embeddings`). corpus=0 means no embeddings yet — run `megadj mood --embeddings` first.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          id: { type: "string", description: "video_id of the query track" },
-          k: {
-            type: "number",
-            description: "neighbours to return (default 10, max 50)",
-          },
+      inputSchema: obj(
+        {
+          id: s("video_id of the query track"),
+          k: n("neighbours to return (default 10, max 50)"),
         },
-        required: ["id"],
-        additionalProperties: false,
-      },
+        ["id"],
+      ),
       run: async (args: Record<string, unknown>) => {
         const id = str(args, "id");
         if (!id) throw new RpcParamError("id is required");
@@ -218,29 +173,16 @@ export function archiveTools(): Record<string, unknown> {
     archive_set_build: {
       description:
         "[READ-ONLY, PROPOSES ONLY] M66 set-builder copilot: proposes an ordered mix chain from the archive's measured data — beats-ledger BPM (±6% mixability window), file TKEY (Camelot wheel), mood-ledger arousal/dance shaped into an energy-arc preset (warmup/peak/afterhours). Writes nothing — proposals to accept into a playlist by hand. pool=0 means run `megadj beats` + `megadj mood` first.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          preset: {
-            type: "string",
-            enum: ["warmup", "peak", "afterhours"],
-            description: "energy-arc preset (default peak)",
-          },
-          minutes: {
-            type: "number",
-            description: "target set length in minutes (default 60, 10–240)",
-          },
-          opener: {
-            type: "string",
-            description: "optional video_id to force as the first track",
-          },
-          limit: {
-            type: "number",
-            description: "candidate pool cap (default 300, max 1000)",
-          },
+      inputSchema: obj({
+        preset: {
+          type: "string",
+          enum: ["warmup", "peak", "afterhours"],
+          description: "energy-arc preset (default peak)",
         },
-        additionalProperties: false,
-      },
+        minutes: n("target set length in minutes (default 60, 10–240)"),
+        opener: s("optional video_id to force as the first track"),
+        limit: n("candidate pool cap (default 300, max 1000)"),
+      }),
       run: async (args: Record<string, unknown>) => {
         const preset = str(args, "preset") ?? "peak";
         const q = new URLSearchParams({ preset });
@@ -259,16 +201,9 @@ export function archiveTools(): Record<string, unknown> {
     archive_cue_ledger: {
       description:
         "[READ-ONLY] Structure-cues ledger (roadmap 'structure cues'): 8-bar DJ phrase markers per track, derived from the beats ledger's downbeats by `megadj cues`. Returns per-track cue counts + the freshest tracks' first-cue positions. analyzed=0 means run `megadj cues` first.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          limit: {
-            type: "number",
-            description: "max tracks to list (default 40, max 200)",
-          },
-        },
-        additionalProperties: false,
-      },
+      inputSchema: obj({
+        limit: n("max tracks to list (default 40, max 200)"),
+      }),
       run: async (args: Record<string, unknown>) => {
         const res = await apiGet(
           `/api/archive/cues?limit=${optLimit(args, 40, 200)}`,
@@ -280,17 +215,9 @@ export function archiveTools(): Record<string, unknown> {
     archive_library_overview: {
       description:
         "[READ-ONLY] FullTags read side — what the enrichment engine has stamped across the playable archive: genre distribution, year coverage, energy stamps, artwork provenance (which art-ladder rung each track's cover came from), codec/size profile, and the freshest tag updates. Read-only mirror of the file tags; run `megadj fetch` / `megadj enrich` to fill gaps this shows.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          recent: {
-            type: "number",
-            description:
-              "recently-updated tracks to list (default 12, max 100)",
-          },
-        },
-        additionalProperties: false,
-      },
+      inputSchema: obj({
+        recent: n("recently-updated tracks to list (default 12, max 100)"),
+      }),
       run: async (args: Record<string, unknown>) => {
         const res = await apiGet(
           `/api/archive/library?recent=${optLimit(args, 12, 100)}`,
@@ -302,11 +229,7 @@ export function archiveTools(): Record<string, unknown> {
     archive_sweep: {
       description:
         "[READ-ONLY] D30 archive-integrity sweep: blake2b-hash every downloaded archive file and compare against known-good hashes + the archive DB — reports bitrot, silent truncation, and missing files BEFORE they reach a drive. First run baselines; findings start on the second. ~15s on the real archive.",
-      inputSchema: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
+      inputSchema: noArgs(),
       run: async () => apiGet("/api/archive/sweep").then((r) => r.json()),
     },
   };

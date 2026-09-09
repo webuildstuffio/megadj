@@ -169,27 +169,20 @@ export interface SetBuildInput {
   openerId?: string;
 }
 
-export interface SetBuildStep {
-  videoId: string;
-  title: string | null;
-  artist: string | null;
-  bpm: number | null;
-  key: string | null;
-  arousal: number | null;
-  /** cumulative minutes at the END of this track */
-  atMin: number;
-  /** transition score into this track (first track: null) */
-  transition: number | null;
+export interface SetBuildInput {
+  candidates: SetCandidate[];
+  preset: SetPreset;
+  /** Target set length in minutes; picks tracks until the budget fills. */
+  minutes: number;
+  /** Optional fixed opener (its videoId) — the arc starts from it. */
+  openerId?: string;
 }
 
-export interface SetBuildResult {
-  preset: string;
-  minutes: number;
-  steps: SetBuildStep[];
-  /** candidates excluded from the chain, with the reason — the honest
-   * "why isn't my track in here" list */
-  excluded: { videoId: string; title: string | null; reason: string }[];
-}
+// SetBuildStep + SetBuildResult (the wire shapes) are DEFINED in
+// shared/types.ts — the engine imports them back so the HTTP route and
+// the UI read the same contract with no drifting duplicate.
+import type { SetBuildResult, SetBuildStep } from "../shared/types";
+export type { SetBuildResult };
 
 /** Greedy chain: score every remaining candidate for each next slot, take
  * the best. O(n²) — fine at archive scale (thousands), trivially testable.

@@ -20,7 +20,17 @@ import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
-import { ListHead } from "../../ui/ListHead";
+import {
+  ListHead,
+  DataTable,
+  KVRows,
+  KVRow,
+  KVKey,
+  KVVal,
+  BarList,
+  Truncated,
+  CountStat,
+} from "../../ui/data";
 import { StatCard } from "../../ui/DrivePanels";
 import {
   PRODUCT_TABS,
@@ -31,7 +41,7 @@ import {
   TrackTitle,
 } from "../shared";
 import { LibraryTab } from "./LibraryTab";
-import { fmtBytes } from "../../../shared/fmt";
+import { errMessage, fmtBytes } from "../../../shared/fmt";
 
 type Track = ArchiveIngestStatus["recent_tracks"][number];
 
@@ -108,12 +118,12 @@ function PipelineTab() {
               l="in the archive — playable"
               icon="disc"
             />
-            <div class={`stat ${broken ? "bad" : ""}`}>
-              <div class="v">
-                <Icon name="warn" size={13} /> {broken.toLocaleString()}
-              </div>
-              <div class="l">failed + gone — the retry backlog</div>
-            </div>
+            <CountStat
+              n={broken}
+              l="failed + gone — the retry backlog"
+              icon="warn"
+              title="Failed downloads are retryable; gone-from-source needs a new source. Work it in the Backlog tab."
+            />
             <StatCard
               v={waiting.toLocaleString()}
               l="waiting to download"
@@ -166,53 +176,98 @@ function PipelineTab() {
               no active runs recorded yet — `megadj sync` makes one.
             </div>
           ) : (
-            <div class="covtable">
-              <div class="covrow head">
-                <span>when</span>
-                <span>attempted</span>
-                <span>landed</span>
-                <span>volume</span>
-              </div>
-              {runs.map((r) => {
-                const mins =
-                  r.finished_at && r.attempted
-                    ? Math.max(
-                        1,
-                        Math.round(
-                          (new Date(r.finished_at).getTime() -
-                            new Date(r.started_at).getTime()) /
-                            60000,
-                        ),
-                      )
-                    : null;
-                return (
-                  <div class="covrow" key={r.started_at}>
-                    <span class="covpath">
+            <DataTable
+              columns={[
+                {
+                  key: "when",
+                  head: "when",
+                  min: 150,
+                  cell: (r) => (
+                    <>
                       {new Date(r.started_at).toLocaleString(undefined, {
                         month: "short",
                         day: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
-                      {r.finished_at ? "" : " · running"}
-                    </span>
-                    <span class="n muted">
-                      {r.attempted ?? "—"}
-                      {mins ? ` · ${mins}m` : ""}
-                    </span>
-                    <span class="n ok-text">
-                      +{r.downloaded}
+                      {!r.finished_at && (
+                        <span class="arch-pill warn">running</span>
+                      )}
+                    </>
+                  ),
+                  sortValue: (r) => r.started_at,
+                },
+                {
+                  key: "attempted",
+                  head: "attempted",
+                  align: "end",
+                  min: 90,
+                  grow: 0,
+                  cell: (r) => <span class="dt-sub">{r.attempted ?? "—"}</span>,
+                  sortValue: (r) => r.attempted ?? -1,
+                },
+                {
+                  key: "mins",
+                  head: "took",
+                  align: "end",
+                  min: 56,
+                  grow: 0,
+                  cell: (r) =>
+                    r.finished_at && r.attempted
+                      ? `${Math.max(1, Math.round((new Date(r.finished_at).getTime() - new Date(r.started_at).getTime()) / 60000))}m`
+                      : "—",
+                  sortValue: (r) =>
+                    r.finished_at && r.attempted
+                      ? Math.max(
+                          1,
+                          Math.round(
+                            (new Date(r.finished_at).getTime() -
+                              new Date(r.started_at).getTime()) /
+                              60000,
+                          ),
+                        )
+                      : null,
+                },
+                {
+                  key: "landed",
+                  head: "landed",
+                  align: "end",
+                  min: 84,
+                  grow: 0,
+                  cell: (r) => (
+                    <>
+                      <span class="ok-text">+{r.downloaded}</span>
                       {r.failed ? (
                         <span class="bad"> / {r.failed}✗</span>
                       ) : null}
-                    </span>
-                    <span class="covdrives">
+                    </>
+                  ),
+                  sortValue: (r) => r.downloaded,
+                },
+                {
+                  key: "volume",
+                  head: "volume",
+                  align: "end",
+                  min: 70,
+                  grow: 0,
+                  cell: (r) => (
+                    <span class="dt-sub">
                       {r.bytes_downloaded ? fmtBytes(r.bytes_downloaded) : "—"}
                     </span>
-                  </div>
-                );
-              })}
-            </div>
+                  ),
+                  sortValue: (r) => r.bytes_downloaded ?? -1,
+                },
+              ]}
+              rows={runs}
+              ariaLabel="Recent runs"
+              copyName="Recent runs"
+              copyLines={(rows) =>
+                rows.map(
+                  (r) =>
+                    `${new Date(r.started_at).toISOString()} — attempted ${r.attempted ?? "?"}, +${r.downloaded}${r.failed ? ` / ${r.failed}✗` : ""}${r.bytes_downloaded ? `, ${fmtBytes(r.bytes_downloaded)}` : ""}`,
+                )
+              }
+            />
           )}
 
           {skips.available && skips.buckets.length > 0 && (
@@ -231,28 +286,16 @@ function PipelineTab() {
                       `[${b.kind}] ${b.reason}: ${b.count} track${b.count === 1 ? "" : "s"}`,
                   )}
                 />
-                <div class="chip-list">
-                  {skips.buckets.slice(0, 8).map((b) => (
-                    <span
-                      class="chip-row"
-                      key={b.kind + b.reason}
-                      title={`${b.kind}: ${b.reason}`}
-                    >
-                      <span
-                        class={`arch-pill ${b.kind === "gone" ? "bad" : "muted"}`}
-                      >
-                        {b.kind === "gone" ? "gone" : "skipped"}
-                      </span>
-                      <span class="chip-name">{b.reason}</span>
-                      <span class="chip-n">{b.count}</span>
-                    </span>
-                  ))}
-                  {skips.buckets.length > 8 && (
-                    <span class="fleet-note">
-                      …and {skips.buckets.length - 8} more buckets
-                    </span>
-                  )}
-                </div>
+                <BarList
+                  rows={skips.buckets.map((b) => ({
+                    key: b.kind + b.reason,
+                    name: b.reason,
+                    value: b.count,
+                    title: `${b.kind}: ${b.reason} — ${b.count} track${b.count === 1 ? "" : "s"}`,
+                  }))}
+                  cap={8}
+                  tone={skips.gone > 0 ? "warn" : "accent"}
+                />
                 {skips.gone > 0 && (
                   <div class="arch-fix">
                     {skips.gone} gone from source — re-source or drop (see the
@@ -342,23 +385,25 @@ function BacklogTab() {
                   (t) => `${t.title ?? t.video_id} — ${t.reason}`,
                 )}
               />
-              <div class="rows">
+              <KVRows>
                 {quality.slice(0, 30).map((t) => (
-                  <div class="row" key={t.video_id}>
-                    <TrackTitle
-                      title={t.title ?? t.video_id}
-                      videoId={t.video_id}
-                      artist={t.artist}
-                    />
-                    <span class="arch-pill muted">{t.reason}</span>
-                  </div>
+                  <KVRow key={t.video_id}>
+                    <KVKey>
+                      <TrackTitle
+                        title={t.title ?? t.video_id}
+                        videoId={t.video_id}
+                        artist={t.artist}
+                      />
+                    </KVKey>
+                    <KVVal>
+                      <span class="arch-pill muted">{t.reason}</span>
+                    </KVVal>
+                  </KVRow>
                 ))}
                 {quality.length > 30 && (
-                  <div class="fleet-note">
-                    showing 30 of {quality.length} — Copy has the full list
-                  </div>
+                  <Truncated shown={30} total={quality.length} />
                 )}
-              </div>
+              </KVRows>
               <div class="arch-fix">
                 fix: re-download from a better source, then{" "}
                 <code>megadj ingest</code>
@@ -412,7 +457,7 @@ function SourcesTab() {
         )) as NonNullable<typeof diff>,
       );
     } catch (e) {
-      setDiffErr(String((e as Error).message ?? e));
+      setDiffErr(errMessage(e));
     } finally {
       setBusy(false);
     }
@@ -543,20 +588,22 @@ function DiffList(props: { title: string; rows: Track[]; empty: string }) {
       {!props.rows.length ? (
         <div class="fleet-note">{props.empty}</div>
       ) : (
-        <div class="rows">
+        <KVRows>
           {props.rows.slice(0, 25).map((t) => (
-            <div class="row" key={t.video_id}>
-              <TrackTitle
-                title={t.title ?? t.video_id}
-                videoId={t.video_id}
-                artist={t.artist}
-              />
-            </div>
+            <KVRow key={t.video_id}>
+              <KVKey>
+                <TrackTitle
+                  title={t.title ?? t.video_id}
+                  videoId={t.video_id}
+                  artist={t.artist}
+                />
+              </KVKey>
+            </KVRow>
           ))}
           {props.rows.length > 25 && (
-            <div class="fleet-note">showing 25 of {props.rows.length}</div>
+            <Truncated shown={25} total={props.rows.length} full={false} />
           )}
-        </div>
+        </KVRows>
       )}
     </div>
   );

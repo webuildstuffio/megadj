@@ -33,6 +33,11 @@
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 16px;
+  /* type — --text2 (used 9× in help/fleet-tabs without ever being defined)
+   * and --mono (used by prep-md/covdelta) are REAL tokens now; a var() that
+   * doesn't exist silently inherits and lies. */
+  --text2: #b9bdc7;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 * {

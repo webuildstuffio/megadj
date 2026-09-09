@@ -9,9 +9,12 @@
 //   cosine        — unit-scale similarity, exported for tests
 import { existsSync } from "node:fs";
 import { groundTruth } from "../../fulltags/src/exports";
-import type { ArchiveReader } from "./archive";
+import type { ArchiveQuery } from "./archive_types";
 
-/** Unit-scale cosine similarity (module fn so tests can hit it directly). */
+/** Unit-scale cosine similarity (module fn so tests can hit it directly).
+ * Byte-identical twin of src/state_similar.ts `cosineSimilarity` (jscpd-
+ * flagged): cratedeck reads megadj's archive as a downstream UI and must
+ * not import megadj's CLI internals — keep the twins in sync. */
 export function cosine(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0;
   let dot = 0;
@@ -36,7 +39,7 @@ export function cosine(a: number[], b: number[]): number {
  * the ledger is empty or the query track has no embedding.
  */
 export function similarTracks(
-  reader: ArchiveReader,
+  reader: ArchiveQuery,
   videoId: string,
   k = 10,
 ): {
@@ -130,7 +133,7 @@ export function similarTracks(
  * never throw.
  */
 export function setCandidates(
-  reader: ArchiveReader,
+  reader: ArchiveQuery,
   limit = 400,
 ): {
   available: boolean;

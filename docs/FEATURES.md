@@ -90,13 +90,13 @@ architecture, build plan, acceptance).
 
 |                    |                                                                                                                                                                                                                      |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (27-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                                  |
+| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (34-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                                  |
 | **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                              |
 | **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                          |
 | **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads              |
 | **The verify**     | `usb_verify.py` deep gate: dual-DB agreement (OneLibrary vs legacy `export.pdb` live rows), audio existence, ANLZ-at-hash-path, grid math (duration × BPM ≈ beat count), playlist integrity, cross-drive hash parity |
 | **The interlock**  | rekordbox running? everything locks — exit code 3, red banner, no exceptions. Never bypassed.                                                                                                                        |
-| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: 20 verbs incl. `run/coverage/redundancy/diff/preflight/prep/note/rename/search/help/dismiss`, `--json` for agents) · `bun run mcp` (27-tool MCP server)                                                     |
+| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: 20 verbs incl. `run/coverage/redundancy/diff/preflight/prep/note/rename/search/help/dismiss`, `--json` for agents) · `bun run mcp` (34-tool MCP server)                                                     |
 
 **Commands:** `bun run deck`, `bun run cratedeck/src/deckctl.ts …`
 **Docs:** [cratedeck/README.md](../cratedeck/README.md) ·
@@ -105,7 +105,7 @@ architecture, build plan, acceptance).
 [the doc set](cratedeck/)
 
 > **Note:** the status row already includes the Sep 5–7 2026 additions —
-> B12 preflight, N75/N78 player-compat verdicts, the 26-tool MCP server
+> B12 preflight, N75/N78 player-compat verdicts, the 34-tool MCP server
 > (incl. the O82b archive half), O83 weekly digest (now also a Fleet ⌗
 > Prep tab), O87 job attribution, O88 agent notes, O85 plugin packaging,
 > the FullTags beats + mood + cues ledgers (FullTags roadmap rev 6.2),
@@ -120,11 +120,11 @@ architecture, build plan, acceptance).
 
 The roadmap lives in two places — this section restates neither:
 
-- **[roadmap-proposal.md](roadmap-proposal.md) is canon for ordering** —
-  the opinionated proposal: what to build next and why (three moves:
-  harden the moat → complete the metadata → agentify).
-- **[ideas.md](ideas.md) is canon for detail** — the full parking lot
-  (§A–§O), with §0 gating everything.
+- **[ideas.md](ideas.md) is canon for detail and ordering** — the full
+  parking lot (§A–§O), with §0 gating everything; the live queue is
+  [product-state-2026-09-07.md](product-state-2026-09-07.md) §The queue.
+  (The Sep 6 proposal was executed and is archived:
+  [archive/roadmap-proposal.md](archive/roadmap-proposal.md).)
 
 Headline shape (status inline; the docs own the detail):
 
@@ -133,7 +133,7 @@ Headline shape (status inline; the docs own the detail):
 - **Move 2 — FullTags v1.x:** ALL SHIPPED behind ground-truth gates
   (key 80.7% written; BPM + genre writes gate-FAILED → beats/mood/cues
   DB ledgers instead — [fulltags-roadmap.md](fulltags-roadmap.md) rev 6.2).
-- **Move 3 — the agentic layer:** SHIPPED (26-tool MCP + `deckctl prep`
+- **Move 3 — the agentic layer:** SHIPPED (34-tool MCP + `deckctl prep`
   + D30 sweep); remaining: O84 inbox agent.
 - **The dream** — hit predictor & set-builder copilot, calibrated on what
   actually got played; proposes sequences, never auto-exports (§M64, M66).

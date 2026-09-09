@@ -15,20 +15,17 @@ import { extname, join } from "node:path";
 import type { CrateConfig } from "./config";
 import type { Guard } from "./guard";
 import type { DB } from "./db";
+import type { DriveImage } from "../shared/types";
+
+// The wire shape is canonically defined in shared/types.ts; re-export keeps
+// every existing `from "./images"` import working unchanged.
+export type { DriveImage };
 
 export interface ImageHit {
   id: string;
   thumb: string;
   full: string;
   source: string;
-}
-
-export interface DriveImage {
-  /** Path on the mounted volume, relative to the mount point. */
-  rel: string;
-  /** Served URL for the <img> preview. */
-  url: string;
-  bytes: number;
 }
 
 /** Exact filename(s) CrateDeck writes: local copies may be extensionless

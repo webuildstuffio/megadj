@@ -10,10 +10,11 @@ struck (E31, E44), ideas that implement one get tagged (§I → P7/P8/P9,
 How to read: each idea lists **why now** (the specific repo fact that motivates
 it) and rough **effort** (S/M/L). Nothing here is committed scope — this is the
 parking lot. Hard non-goals from the product brief stay non-goals (see §H).
-**The opinionated ordering — what to build next and why — now lives in
-[roadmap-proposal.md](roadmap-proposal.md)** (2026-09-05: three moves —
-harden the moat, complete the metadata, agentify); this doc keeps the
-detail, that one keeps the decision.
+**The live build order — what to build next — lives in
+[product-state-2026-09-07.md](product-state-2026-09-07.md) §The queue**
+(the Sep 6 three-move proposal that ordered it was executed and archived at
+[archive/roadmap-proposal.md](archive/roadmap-proposal.md)); this doc keeps
+the detail, that one keeps the decision.
 
 **The deal (2026-09-04 audit):** this backlog is capped. A new idea goes in
 only when an old one comes out or ships — a 60+-item list is how planning
@@ -133,7 +134,8 @@ covers on the XDJ-XZ at the next export), the sync-log checklist gates
 the local ops log), the orphan-drive verdict (→ §0c), and the acceptance
 doc ([cratedeck/acceptance.md](cratedeck/acceptance.md) — remaining ☐
 items are the real-hardware checks). Nothing left in flight; the live
-"what's next" list is [roadmap-proposal.md](roadmap-proposal.md).
+"what's next" list is [product-state-2026-09-07.md](product-state-2026-09-07.md)
+§The queue.
 
 ---
 
@@ -712,9 +714,9 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 "agent-first, MCP-friendly, `--json` on every command" — with O86's rails
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
-82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 26 tools
+82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 34 tools
     after the Sep 7 parity revs).** Live:
-    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — **26 tools**. CrateDeck
+    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — **34 tools**. CrateDeck
     half (17): `deck_status/drives/report/coverage/redundancy/diff/
 jobs/run/cancel/explain` + `deck_preflight` (B12), `deck_players`
     (N78), `deck_note`/`deck_notes` (O88), `deck_prep` (O83),
@@ -747,7 +749,7 @@ source_diff/grid_cross_check/mood_profile/sweep` — readonly reads over
 
 85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
     installable Claude Code bundle: `.claude-plugin/plugin.json` +
-    `.mcp.json` (the 26-tool MCP server) + `hooks/hooks.json`
+    `.mcp.json` (the 34-tool MCP server) + `hooks/hooks.json`
     (SessionStart posts `deckctl status --json` into context) + the 3
     skills. `claude plugin validate` passes; dev-install with
     `claude --plugin-dir $PWD/plugin`. A published marketplace variant
@@ -803,9 +805,10 @@ source_diff/grid_cross_check/mood_profile/sweep` — readonly reads over
 
 ## Suggested sequencing (idea-level)
 
-> **Superseded:** the build order now lives in
-> [roadmap-proposal.md](roadmap-proposal.md) (three moves) and the live
-> queue in [product-state-2026-09-07.md](product-state-2026-09-07.md).
+> **Superseded:** the build order lives in the live queue in
+> [product-state-2026-09-07.md](product-state-2026-09-07.md) (the Sep 6
+> proposal that ordered it was executed and is archived at
+> [archive/roadmap-proposal.md](archive/roadmap-proposal.md)).
 > What remains binding here: **§0 gates everything**, and the **reality
 > gate** (gig frequency, see §0) decides depth. Nearly every Phase 2–6
 > item above shipped in the Sep 4–7 window (fleet, ⌘K, preflight,

@@ -17,33 +17,20 @@ import {
   cueStats as cueStatsImpl,
   libraryOverview as libraryOverviewImpl,
 } from "./archive_overview";
+import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
 
-/** Rows of megadj's `tracks` table (src/state.ts) — the fields agents ask
- *  about. Kept structurally compatible, not imported: the archive DB may be
- *  older/newer than this build. */
-export interface ArchiveTrack {
-  video_id: string;
-  title: string | null;
-  artist: string | null;
-  album: string | null;
-  status: string;
-  bitrate_kbps: number | null;
-  codec: string | null;
-  file_path: string | null;
-  duration_s: number | null;
-  genre: string | null;
-  energy: number | null;
-  source: string;
-  liked_position: number | null;
-  first_seen_at: string;
-  updated_at: string;
-}
+// ArchiveTrack is canonically defined in the leaf archive_types.ts (along
+// with the ArchiveQuery seam the split-out modules type against); re-export
+// keeps every existing `from "./archive"` import working unchanged.
+export type { ArchiveTrack } from "./archive_types";
+
+/** Rows of megadj's `tracks` table — see archive_types.ts. */
 
 const TRACK_COLS = `video_id, title, artist, album, status, bitrate_kbps,
   codec, file_path, duration_s, genre, energy, source, liked_position,
   first_seen_at, updated_at`;
 
-export class ArchiveReader {
+export class ArchiveReader implements ArchiveQuery {
   private db: Database | null = null;
   constructor(readonly path: string) {}
 
@@ -621,7 +608,7 @@ export class ArchiveReader {
    * actually stamped across the playable archive. Implementation lives in
    * archive_overview.ts (file-length guard); delegate keeps the surface.
    */
-  libraryOverview(recentLimit = 12): ReturnType<typeof libraryOverviewImpl> {
+  libraryOverview(recentLimit = 60): ReturnType<typeof libraryOverviewImpl> {
     return libraryOverviewImpl(this, recentLimit);
   }
 }

@@ -183,8 +183,7 @@ export function TimelineTab({
                     <span class="detail">{detail}</span>
                     {isNote && (
                       <button
-                        class="btn ghostbtn sm"
-                        style={{ marginLeft: "8px" }}
+                        class="btn ghostbtn sm dismiss-btn"
                         onClick={() => dismiss(driveId, e.id)}
                         title="Dismiss this note (stays in history)"
                       >

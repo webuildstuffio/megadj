@@ -4,7 +4,7 @@
 // functions: takes DB state + latest snapshot, returns verdicts. No I/O.
 import type { HealthCheck } from "../shared/types";
 import { fmtBytes, fmtPct } from "../shared/fmt";
-import type { ReportInput } from "./report";
+import type { ReportInput } from "./report_types";
 
 const DAY = 86_400_000;
 

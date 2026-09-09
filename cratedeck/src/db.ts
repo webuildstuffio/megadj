@@ -9,6 +9,7 @@ import type {
   SnapshotData,
   TimelineEvent,
   VerifyReport,
+  BenchRun,
 } from "../shared/types";
 import { FleetStore } from "./fleet-db";
 import { LedgerQueries, migrateArchiveLedger } from "./db_ledger";
@@ -732,9 +733,7 @@ export class DB {
     this.benchStore.addBenchmark(driveId, seq, rand4k);
   }
 
-  benchmarks(
-    driveId: string,
-  ): { ran_at: number; seq_mbps: number; rand4k_mbps: number }[] {
+  benchmarks(driveId: string): BenchRun[] {
     return this.benchStore.benchmarks(driveId);
   }
 

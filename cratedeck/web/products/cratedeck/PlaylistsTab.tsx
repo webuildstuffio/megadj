@@ -25,6 +25,8 @@ import { fmtDur } from "../../../shared/fmt";
 import { Icon } from "../../ui/icons";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
 import { copyList } from "../../ui/ListHead";
+import { Sparkline } from "../../ui/charts";
+import { fuzzyFilter, fuzzyMatch } from "../../ui/fuzzy";
 
 type SortKey = "entries" | "name";
 type CrateSortCol = "bpm" | "key" | "time";
@@ -149,26 +151,35 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
       return next;
     });
 
-  const all = useMemo(
-    () => (snap?.playlists ?? []).slice().sort((a, b) => b.entries - a.entries),
-    [snap],
-  );
+  const all = useMemo(() => {
+    // rekordbox can carry two rows with the same name AND parent (this library
+    // ships two root-level "YTMusic Liked") — as list rows they are byte-for-
+    // byte identical (the track index is keyed by name), and as React keys
+    // they collide: same key = lost/misrouted crate toggles. Keep the first.
+    const seen = new Set<string>();
+    return (snap?.playlists ?? [])
+      .slice()
+      .sort((a, b) => b.entries - a.entries)
+      .filter((pl) => {
+        const k = plKey(pl);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+  }, [snap]);
   const max = all[0]?.entries ?? 1;
 
   const q = filter.trim().toLowerCase();
   const fActive = q.length > 0;
 
   const shown = useMemo(() => {
+    // fuzzy (fuse.js): "dustin" finds "Dustin Zahn", transposed keys hit —
+    // the old includes()-only filter silently missed every typo
     const rows = fActive
-      ? all.filter(
-          (pl) =>
-            pl.name.toLowerCase().includes(q) ||
-            (pl.parent ?? "").toLowerCase().includes(q) ||
-            (tracksByPl.get(pl.name) ?? []).some(
-              (t) =>
-                t.title.toLowerCase().includes(q) ||
-                (t.artist ?? "").toLowerCase().includes(q),
-            ),
+      ? fuzzyFilter(all, q, ["name", "parent"]).filter((pl) =>
+          (tracksByPl.get(pl.name) ?? []).some(
+            (t) => fuzzyMatch(t.title, q) || fuzzyMatch(t.artist ?? "", q),
+          ),
         )
       : all;
     return rows
@@ -187,9 +198,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
       (s, pl) =>
         s +
         (tracksByPl.get(pl.name) ?? []).filter(
-          (t) =>
-            t.title.toLowerCase().includes(q) ||
-            (t.artist ?? "").toLowerCase().includes(q),
+          (t) => fuzzyMatch(t.title, q) || fuzzyMatch(t.artist ?? "", q),
         ).length,
       0,
     );
@@ -279,6 +288,9 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
           <Icon name="search" size={13} />
           <input
             ref={inputRef}
+            type="search"
+            name="playlist-filter"
+            aria-label="Filter playlists or tracks"
             placeholder={
               deep ? "Filter playlists or tracks…" : "Filter playlists…"
             }
@@ -408,8 +420,8 @@ function PlList({
     <div class="pllist">
       {pls.map((pl) => {
         const key = plKey(pl);
-        const nameHit = pl.name.toLowerCase().includes(q);
-        const parentHit = (pl.parent ?? "").toLowerCase().includes(q);
+        const nameHit = fuzzyMatch(pl.name, q);
+        const parentHit = fuzzyMatch(pl.parent ?? "", q);
         // search that only matches INSIDE the crate auto-opens it — the
         // "where did I file that remix" case; ≥2 chars keeps broad queries
         // from fanning every crate open at once
@@ -470,35 +482,16 @@ function fmtHuman(ms: number): string {
   return `${s}s`;
 }
 
-/** the crate's energy arc across original order — a glanceable polyline */
+/** the crate's energy arc across original order — the shared Sparkline */
 function BpmSpark({ bpms }: { bpms: number[] }) {
   if (bpms.length < 3) return null;
   const min = Math.min(...bpms);
   const max = Math.max(...bpms);
-  const span = max - min || 1;
-  const W = 110;
-  const H = 16;
-  const pts = bpms
-    .map(
-      (b, i) =>
-        `${((i / (bpms.length - 1)) * (W - 4) + 2).toFixed(1)},${(
-          H -
-          2 -
-          ((b - min) / span) * (H - 4)
-        ).toFixed(1)}`,
-    )
-    .join(" ");
   return (
-    <svg
-      class="bpmspark"
-      width={W}
-      height={H}
-      viewBox={`0 0 ${W} ${H}`}
-      aria-hidden
+    <Sparkline
+      values={bpms}
       title={`Energy arc across crate order (${Math.round(min)}–${Math.round(max)} BPM)`}
-    >
-      <polyline points={pts} />
-    </svg>
+    />
   );
 }
 

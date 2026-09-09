@@ -1,6 +1,6 @@
 # CrateDeck — Architecture
 
-v2 · 2026-09-03 · [Brief](01-product-brief.md) · [PRD](02-prd.md) → **Architecture** → [Build Plan](04-build-plan.md)
+v2 · 2026-09-03 · [PRD](02-prd.md) → **Architecture** → [Acceptance](acceptance.md)
 
 > v1→v2 changes: killed the TS ports of `pdb_live_rows`/ANLZ hashing (that's
 > the divergence bug class that bit us Aug-25 — one Python seam instead of

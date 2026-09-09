@@ -561,3 +561,45 @@ export interface StoredNote {
   /** Set when dismissed; dismissed notes leave the active feed. */
   dismissed_at: number | null;
 }
+
+// ---- set-builder (M66): the setbuild route's wire envelope. src/setbuild.ts
+// (the engine) imports SetBuildStep/SetBuildResult back; the HTTP envelope
+// (available/pool/excluded_total) wraps it in archive_routes.ts. SimilarTab
+// derives from here — a local duplicate drifted once and crashed the render.
+export interface SetBuildStep {
+  videoId: string;
+  title: string | null;
+  artist: string | null;
+  bpm: number | null;
+  key: string | null;
+  arousal: number | null;
+  /** cumulative minutes at the END of this track */
+  atMin: number;
+  /** transition score into this track (first track: null) */
+  transition: number | null;
+}
+
+export interface SetBuildResult {
+  preset: string;
+  minutes: number;
+  steps: SetBuildStep[];
+  /** candidates excluded from the chain, with the reason — the honest
+   * "why isn't my track in here" list */
+  excluded: { videoId: string; title: string | null; reason: string }[];
+}
+
+/** The GET /api/archive/setbuild response envelope. */
+export interface SetBuildPayload extends SetBuildResult {
+  available: boolean;
+  pool: number;
+  excluded_total: number;
+}
+
+// ---- benchmarks: one benchmark job's row (the /api/drives/:id/benchmarks
+// response rows). Defined here so HealthTab/DrivePage derive from the
+// producer's contract, not a consumer-side re-declaration.
+export interface BenchRun {
+  ran_at: number;
+  seq_mbps: number;
+  rand4k_mbps: number;
+}

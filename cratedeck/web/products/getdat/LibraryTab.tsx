@@ -6,12 +6,21 @@
 import { useCallback, useState } from "preact/hooks";
 import type { ArchiveLibraryOverview } from "../../../shared/types";
 import type { ArchiveIngestStatus } from "../../../shared/types";
-import { fmtBytes } from "../../../shared/fmt";
+import { errMessage, fmtBytes, timeAgo } from "../../../shared/fmt";
 import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
-import { ListHead } from "../../ui/ListHead";
+import {
+  ListHead,
+  BarList,
+  KVRows,
+  KVRow,
+  KVKey,
+  KVVal,
+  Truncated,
+  DataTable,
+} from "../../ui/data";
 import { StatCard } from "../../ui/DrivePanels";
 import { SectionHead, ShareBar, Verdict, TrackTitle } from "../shared";
 import { STATUS_LANG } from "../shared";
@@ -60,7 +69,7 @@ export function LibraryTab() {
         )) as Track[],
       );
     } catch (e) {
-      setSearchErr(String((e as Error).message ?? e));
+      setSearchErr(errMessage(e));
     } finally {
       setSearching(false);
     }
@@ -136,24 +145,24 @@ export function LibraryTab() {
               `range: ${lib.years.min ?? "—"} → ${lib.years.max ?? "—"}`,
             ]}
           />
-          <div class="rows">
-            <div class="row">
-              <span class="arch-what-title">known</span>
-              <span class="n ok-text">{lib.years.known.toLocaleString()}</span>
-            </div>
-            <div class="row">
-              <span class="arch-what-title">unknown</span>
-              <span class={`n ${lib.years.unknown ? "bad" : ""}`}>
+          <KVRows>
+            <KVRow>
+              <KVKey>known</KVKey>
+              <KVVal class="ok-text">{lib.years.known.toLocaleString()}</KVVal>
+            </KVRow>
+            <KVRow>
+              <KVKey>unknown</KVKey>
+              <KVVal class={lib.years.unknown ? "bad" : ""}>
                 {lib.years.unknown.toLocaleString()}
-              </span>
-            </div>
-            <div class="row">
-              <span class="arch-what-title">range</span>
-              <span class="muted">
+              </KVVal>
+            </KVRow>
+            <KVRow>
+              <KVKey>range</KVKey>
+              <KVVal>
                 {lib.years.min ?? "—"} → {lib.years.max ?? "—"}
-              </span>
-            </div>
-          </div>
+              </KVVal>
+            </KVRow>
+          </KVRows>
           <div class="arch-fix">
             fix: <code>tools/fix_years.ts</code> verifies AI-guessed years
           </div>
@@ -256,25 +265,25 @@ export function LibraryTab() {
           {hits.length === 0 ? (
             <div class="fleet-note">nothing matches — try fewer words</div>
           ) : (
-            <div class="rows">
+            <KVRows>
               {hits.slice(0, 40).map((t) => (
-                <div class="row" key={t.video_id}>
-                  <TrackTitle
-                    title={t.title ?? t.video_id}
-                    videoId={t.video_id}
-                    artist={t.artist}
-                  />
-                  <span class="muted" title={t.file_path ?? ""}>
+                <KVRow key={t.video_id}>
+                  <KVKey>
+                    <TrackTitle
+                      title={t.title ?? t.video_id}
+                      videoId={t.video_id}
+                      artist={t.artist}
+                    />
+                  </KVKey>
+                  <KVVal title={t.file_path ?? ""}>
                     {t.bitrate_kbps
                       ? `${t.bitrate_kbps} kbps ${t.codec ?? ""}`
                       : (t.codec ?? "")}
-                  </span>
-                </div>
+                  </KVVal>
+                </KVRow>
               ))}
-              {hits.length > 40 && (
-                <div class="fleet-note">showing 40 of {hits.length}</div>
-              )}
-            </div>
+              {hits.length > 40 && <Truncated shown={40} total={hits.length} />}
+            </KVRows>
           )}
         </div>
       )}
@@ -287,64 +296,109 @@ export function LibraryTab() {
           icon="history"
           title="Freshest tag/ingest updates"
           n={lib.recent.length}
-          hint="Newest by archive update time — recent ingests and enrichment passes surface here with their art rung."
+          hint="Newest by archive update time — recent ingests and enrichment passes surface here with their art rung. Filter to drill into an artist or status; pages keep the DOM small."
           lines={lib.recent.map(
             (t) =>
               `${t.title ?? t.video_id}${t.artist ? ` — ${t.artist}` : ""} [${STATUS_LANG[t.status] ?? t.status}] ${artLang(t.artwork_status)}`,
           )}
         />
-        <div class="rows">
-          {lib.recent.map((t) => (
-            <div class="row" key={t.video_id}>
-              <TrackTitle
-                title={t.title ?? t.video_id}
-                videoId={t.video_id}
-                artist={t.artist}
-              />
-              <span class="muted" title={artLang(t.artwork_status)}>
-                {t.year ?? "—"} · {artLang(t.artwork_status)}
-              </span>
-            </div>
-          ))}
-        </div>
+        <DataTable
+          columns={[
+            {
+              key: "track",
+              head: "track",
+              grow: 3,
+              rowKey: (t) => t.video_id,
+              cell: (t) => (
+                <TrackTitle
+                  title={t.title ?? t.video_id}
+                  videoId={t.video_id}
+                  artist={t.artist}
+                />
+              ),
+              sortValue: (t) => (t.title ?? t.video_id).toLowerCase(),
+            },
+            {
+              key: "year",
+              head: "year",
+              align: "end",
+              min: 48,
+              grow: 0,
+              cell: (t) => t.year ?? "—",
+              sortValue: (t) => t.year ?? null,
+            },
+            {
+              key: "status",
+              head: "status",
+              min: 86,
+              cell: (t) => STATUS_LANG[t.status] ?? t.status,
+              sortValue: (t) => t.status,
+            },
+            {
+              key: "art",
+              head: "artwork",
+              min: 110,
+              cell: (t) => (
+                <span title={t.artwork_status ?? ""}>
+                  {artLang(t.artwork_status)}
+                </span>
+              ),
+              sortValue: (t) => t.artwork_status ?? "",
+            },
+            {
+              key: "updated",
+              head: "updated",
+              align: "end",
+              min: 92,
+              grow: 0,
+              cell: (t) => (
+                <span title={t.updated_at}>
+                  {timeAgo(Date.parse(t.updated_at))}
+                </span>
+              ),
+              sortValue: (t) => t.updated_at,
+            },
+          ]}
+          rows={lib.recent}
+          filterable
+          paginate
+          pageSize={15}
+          copyName="Recently updated"
+          copyLines={(rows) =>
+            rows.map(
+              (t) =>
+                `${t.title ?? t.video_id}${t.artist ? ` — ${t.artist}` : ""} [${STATUS_LANG[t.status] ?? t.status}] ${artLang(t.artwork_status)}`,
+            )
+          }
+          ariaLabel="Recently updated archive tracks"
+        />
       </div>
     </div>
   );
 }
 
 function GenreBars(props: { rows: { name: string; count: number }[] }) {
-  if (!props.rows.length)
-    return <div class="fleet-note">no genres yet — run `megadj fetch`</div>;
-  const max = Math.max(...props.rows.map((r) => r.count));
   return (
-    <div class="chip-list">
-      {props.rows.slice(0, 10).map((r) => (
-        <span class="chip-row" key={r.name} title={`${r.name}: ${r.count}`}>
-          <span class="chip-name">{r.name}</span>
-          <span class="chip-bar">
-            <i style={{ width: `${Math.max(4, (r.count / max) * 100)}%` }} />
-          </span>
-          <span class="chip-n">{r.count}</span>
-        </span>
-      ))}
-      {props.rows.length > 10 && (
-        <span class="fleet-note">
-          …and {props.rows.length - 10} more — Copy has all
-        </span>
-      )}
-    </div>
+    <BarList
+      rows={props.rows.map((r) => ({
+        key: r.name,
+        name: r.name,
+        value: r.count,
+      }))}
+      cap={10}
+      empty={<div class="fleet-note">no genres yet — run `megadj fetch`</div>}
+    />
   );
 }
 
 function ChipListLite(props: { rows: { name: string; count: number }[] }) {
   return (
-    <div class="chip-list">
-      {props.rows.map((r) => (
-        <span class="chip-row" key={r.name}>
-          <span class="chip-name">{r.name}</span>
-          <span class="chip-n">{r.count.toLocaleString()}</span>
-        </span>
-      ))}
-    </div>
+    <BarList
+      rows={props.rows.map((r) => ({
+        key: r.name,
+        name: r.name,
+        value: r.count,
+      }))}
+    />
   );
 }

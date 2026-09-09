@@ -374,6 +374,26 @@ h3.sect .icon {
   font-weight: 500;
 }
 
+/* ---- card — the one card shell (ui/data.tsx <Card>) ----
+   `.card` was used 32× across 8 files with NO base rule — cards rendered
+   visually flat inside .archive-cols (the only place they got a border was
+   .archive-cols .card). This is the base every card inherits. */
+.card {
+  background: var(--surface2);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  margin: 8px 0;
+  min-width: 0;
+}
+
+/* ---- empty (FetchedGate / "nothing yet" inline states) ---- */
+.empty {
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 10px 2px;
+}
+
 /* stat cards */
 .statgrid {
   display: grid;

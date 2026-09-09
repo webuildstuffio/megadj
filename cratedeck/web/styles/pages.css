@@ -426,6 +426,10 @@ button.plh-btn:disabled {
 .tl .detail {
   color: var(--muted);
 }
+.dismiss-btn {
+  margin-left: 8px;
+  vertical-align: 1px;
+}
 .tl .kindchip {
   display: inline-flex;
   align-items: center;

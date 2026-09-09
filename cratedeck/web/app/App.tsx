@@ -23,6 +23,8 @@ import { Icon } from "../ui/icons";
 import { navigate, navigateProduct, useRoute } from "../app/router";
 import { errMessage } from "../../shared/fmt";
 import { Onboard } from "../ui/Onboard";
+import { Palette } from "../ui/Palette";
+import { bindGlobalKeys } from "../ui/keys";
 
 export function App() {
   const route = useRoute();
@@ -35,6 +37,7 @@ export function App() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [ports, setPorts] = useState<PortInfo[]>([]);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [reports, setReports] = useState<
     Map<string, { overall?: OverallHealth; pass_rate?: number }>
   >(new Map());
@@ -156,22 +159,23 @@ export function App() {
     // rail safety net: SSE drives events only fire on mount/unmount/first-seen,
     // so renames (and similar in-place changes) would never refresh the rail.
     const drivesPoll = setInterval(refresh, 10_000);
+    // keyboard map lives in ui/keys.ts (tinykeys) — ⌘K opens the command
+    // palette, the header search keeps its own Escape-to-blur below.
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
-      }
       if (e.key === "Escape" && document.activeElement === searchRef.current) {
         (document.activeElement as HTMLElement).blur();
       }
     };
     window.addEventListener("keydown", onKey);
+    const unbindKeys = bindGlobalKeys({
+      openPalette: () => setPaletteOpen(true),
+    });
     return () => {
       es.close();
       clearInterval(interlockPoll);
       clearInterval(drivesPoll);
       window.removeEventListener("keydown", onKey);
+      unbindKeys();
       if (jobRefreshTimer.current) clearTimeout(jobRefreshTimer.current);
     };
   }, [refresh, refreshJobs]);
@@ -302,12 +306,13 @@ export function App() {
         <div class="search">
           <span class="search-ico">
             <Icon name="search" size={15} />
-          </span>
+          </span>{" "}
           <input
             ref={searchRef}
             id="global-search"
+            name="global-search"
             placeholder="Search playlists, folders…"
-            title="Search every drive's playlists, folders and tracks — ⌘K focuses, Enter opens the top hit, Esc clears"
+            title="Search every drive's playlists, folders and tracks — Enter opens the top hit, Esc clears. ⌘K opens the command palette (navigate anywhere)."
             value={query}
             onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
             onKeyDown={(e) => {
@@ -357,6 +362,14 @@ export function App() {
             </div>
           )}
         </div>
+        <button
+          type="button"
+          class="btn ghostbtn palette-btn"
+          title="Command palette — jump to any drive, tab or fleet scope"
+          onClick={() => setPaletteOpen(true)}
+        >
+          <Icon name="chevronR" size={12} /> <kbd>⌘K</kbd>
+        </button>
       </header>
       <nav class="navstrip" aria-label="Products">
         {PRODUCTS.map((p) => (
@@ -466,6 +479,9 @@ export function App() {
         focusDrive={(id) => openDrive(id)}
       />
       <Toaster />
+      {paletteOpen && (
+        <Palette drives={drives} onClose={() => setPaletteOpen(false)} />
+      )}
     </div>
   );
 }

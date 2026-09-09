@@ -7,20 +7,18 @@
 // floor (≥30 MB/s sequential; below that high-bitrate playback can
 // stutter). The bench history is copyable so a dying-stick trend can be
 // handed to an agent in one paste.
-import type { Drive, SnapshotData } from "../../../shared/types";
+import type { Drive, SnapshotData, BenchRun } from "../../../shared/types";
 import { fmtBytes, shortSerial } from "../../../shared/fmt";
 import { Icon } from "../../ui/icons";
 import { StatCard } from "../../ui/DrivePanels";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
 import { ListHead, FixNote } from "../../ui/ListHead";
+import { BarList } from "../../ui/data";
+import { LineChart } from "../../ui/charts";
 
-// identical to DrivePage's local Bench — one shared shape (same producer)
-type Bench = {
-  ran_at: number;
-  seq_mbps: number;
-  rand4k_mbps: number;
-};
-export type HealthTabBench = Bench;
+// The bench row shape is DERIVED from shared/types.ts (BenchRun) — the
+// same producer contract DrivePage reads; no consumer-side re-declaration.
+export type HealthTabBench = BenchRun;
 
 export function HealthTab(props: {
   drive: Drive;
@@ -166,88 +164,38 @@ function BenchChart({
   bench: HealthTabBench[];
   lines: string[];
 }) {
-  const W = 640;
-  const H = 120;
-  const PAD = 6;
-  const max = Math.max(
-    ...bench.map((b) => Math.max(b.seq_mbps, b.rand4k_mbps)),
-    1,
-  );
-  const min = 0;
-  const x = (i: number) =>
-    PAD + (i / Math.max(1, bench.length - 1)) * (W - PAD * 2);
-  const y = (v: number) =>
-    H - PAD - ((v - min) / (max - min || 1)) * (H - PAD * 2);
-  const line = (sel: (b: Bench) => number) =>
-    bench
-      .map(
-        (b, i) =>
-          `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(sel(b)).toFixed(1)}`,
-      )
-      .join(" ");
-  const area = `${line((b) => b.seq_mbps)} L${x(bench.length - 1).toFixed(1)},${H - PAD} L${x(0)},${H - PAD} Z`;
   return (
     <div>
       <ListHead
         icon="pulse"
         title="Benchmark history"
         n={bench.length}
-        hint="Each run draws two lines: sequential MB/s (solid) and random-4k MB/s (dashed). Hover the dots for the exact readings and date. A sudden ~40% drop between consecutive runs is the classic dying-stick signature — preflight flags it automatically."
+        hint="Each run draws two lines: sequential MB/s (solid) and random-4k MB/s (dashed). Hover the dots for the exact readings and date. A sudden ~40% drop between consecutive runs is the classic dying-stick signature — preflight flags it automatically. Click a legend to isolate a series."
         lines={lines}
       />
       <div class="benchchart">
-        <div class="bench-legend">
-          <span
-            class="key"
-            title="Big-file read speed — the number for CDJ playback"
-          >
-            <span class="sw" style={{ background: "var(--info)" }} /> sequential
-            MB/s
-          </span>
-          <span
-            class="key"
-            title="Small-chunk speed — browsing, artwork, waveform seeks"
-          >
-            <span class="sw" style={{ background: "var(--accent)" }} /> random
-            4k MB/s
-          </span>
-          <span style={{ marginLeft: "auto" }}>
-            {bench.length} runs · peak {max} MB/s
-          </span>
-        </div>
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          width="100%"
-          height={H}
-          preserveAspectRatio="none"
-        >
-          <path d={area} fill="var(--info-dim)" stroke="none" />
-          <path
-            d={line((b) => b.seq_mbps)}
-            fill="none"
-            stroke="var(--info)"
-            stroke-width="2"
-            stroke-linejoin="round"
-          />
-          <path
-            d={line((b) => b.rand4k_mbps)}
-            fill="none"
-            stroke="var(--accent)"
-            stroke-width="1.6"
-            stroke-dasharray="4 3"
-          />
-          {bench.map((b, i) => (
-            <circle
-              key={b.ran_at}
-              cx={x(i)}
-              cy={y(b.seq_mbps)}
-              r="3"
-              fill="var(--info)"
-            >
-              <title>{`${new Date(b.ran_at).toLocaleString()} — seq ${b.seq_mbps} · 4k ${b.rand4k_mbps} MB/s`}</title>
-            </circle>
-          ))}
-        </svg>
+        <LineChart
+          series={[
+            {
+              name: "sequential MB/s",
+              color: "var(--info)",
+              area: "var(--info-dim)",
+              values: bench.map((b) => b.seq_mbps),
+              tip: (v, i) =>
+                `${new Date(bench[i]!.ran_at).toLocaleString()} — seq ${v} · 4k ${bench[i]!.rand4k_mbps} MB/s`,
+            },
+            {
+              name: "random 4k MB/s",
+              color: "var(--accent)",
+              dashed: true,
+              values: bench.map((b) => b.rand4k_mbps),
+              tip: (v, i) =>
+                `${new Date(bench[i]!.ran_at).toLocaleString()} — 4k ${v} · seq ${bench[i]!.seq_mbps} MB/s`,
+            },
+          ]}
+          height={130}
+          unit="MB/s"
+        />
       </div>
     </div>
   );
@@ -256,22 +204,16 @@ function BenchChart({
 function FolderBars({ snap }: { snap: SnapshotData | null }) {
   const folders = (snap?.folders ?? []).slice(0, 15);
   if (!folders.length) return null;
-  const max = Math.max(...folders.map((f) => f.bytes), 1);
   return (
-    <div>
-      {folders.map((f) => (
-        <div
-          class="barrow"
-          key={f.name}
-          title={`${f.files} files · ${fmtBytes(f.bytes)}`}
-        >
-          <span class="barname">{f.name}</span>
-          <span class="bartrack">
-            <i style={{ width: `${Math.max(2, (f.bytes / max) * 100)}%` }} />
-          </span>
-          <span class="barn">{fmtBytes(f.bytes)}</span>
-        </div>
-      ))}
-    </div>
+    <BarList
+      rows={folders.map((f) => ({
+        key: f.name,
+        name: f.name,
+        value: f.bytes,
+        display: fmtBytes(f.bytes),
+        title: `${f.name}: ${f.files} files · ${fmtBytes(f.bytes)}`,
+      }))}
+      tone="info"
+    />
   );
 }

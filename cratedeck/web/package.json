@@ -8,7 +8,11 @@
     "build": "vite build"
   },
   "dependencies": {
-    "preact": "^10.22.0"
+    "@tanstack/preact-table": "9.2.4",
+    "fuse.js": "7.5.0",
+    "lucide-preact": "1.40.0",
+    "preact": "^10.22.0",
+    "tinykeys": "4.0.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.6",

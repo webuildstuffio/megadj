@@ -22,8 +22,18 @@ import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
-import { ListHead } from "../../ui/ListHead";
-import { StatCard } from "../../ui/DrivePanels";
+import {
+  ListHead,
+  StatCard,
+  Card,
+  KVRows,
+  KVRow,
+  KVKey,
+  KVVal,
+  BarList,
+  CountStat,
+} from "../../ui/data";
+import { DataTable } from "../../ui/data";
 import { SimilarTab } from "./SimilarTab";
 import {
   PRODUCT_TABS,
@@ -32,8 +42,11 @@ import {
   SectionHead,
   Verdict,
   TrackTitle,
-  GridCheckRow,
+  beatSyncColumns,
+  beatSyncCopy,
   gridDeltaPct,
+  MOOD_GLOSS,
+  type GridBreaker,
 } from "../shared";
 
 /** One hook for the unified analysis-coverage read: playable tracks vs the
@@ -47,9 +60,29 @@ function useCoverage(): ArchiveAnalysisCoverage | null {
   return page.status === "ok" ? page.data : null;
 }
 
+/** Producer row → the shared GridBreaker render row (flat: delta precomputed,
+ *  verdict as a flag). Lives here because the wire type is archive-owned. */
+function mkBreaker(
+  t: {
+    video_id: string;
+    title: string | null;
+    ledgerBpm: number;
+    rbBpm: number;
+  },
+  isOct: boolean,
+): GridBreaker {
+  return {
+    videoId: t.video_id,
+    title: t.title,
+    isOct,
+    ledgerBpm: t.ledgerBpm,
+    rbBpm: t.rbBpm,
+    deltaPct: gridDeltaPct(t.ledgerBpm, t.rbBpm),
+  };
+}
+
 /** The coverage strip: one meter per analysis ledger, shared by every
- *  FullTags analysis tab so the three views can't disagree about progress. */
-function CoverageStrip(props: {
+ *  FullTags analysis tab so the three views can't disagree about progress. */ function CoverageStrip(props: {
   cov: ArchiveAnalysisCoverage | null;
   active: "beats" | "mood" | "cues";
 }) {
@@ -142,6 +175,12 @@ function BeatgridsTab() {
   const off = grid.available ? grid.off : [];
   const octave = grid.available ? grid.octave : [];
   const syncRisk = off.length + octave.length;
+  // octave rows first (they're the dangerous ones), then by delta desc —
+  // the sort IS the severity order; the table's own sort re-orders on click
+  const breakers: GridBreaker[] = [
+    ...octave.map((t) => mkBreaker(t, true)),
+    ...off.map((t) => mkBreaker(t, false)),
+  ];
   const ledgered = grid.available ? grid.ledgered : 0;
   const checked = grid.available ? grid.checked : 0;
   const inArchive = mood.available ? mood.analyzed : 0;
@@ -195,53 +234,28 @@ function BeatgridsTab() {
           )}
 
           {syncRisk > 0 && (
-            <div class="card">
+            <Card>
               <ListHead
                 icon="pulse"
                 title="Beat Sync breakers"
                 n={syncRisk}
-                hint="These tracks' independent beatgrid analysis disagrees with rekordbox's BPM — off by >2% tempo or locked an octave (half/double) out. They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the dangerous ones (Sync lands on the wrong pulse entirely)."
-                lines={[
-                  ...octave.map(
-                    (t) =>
-                      `${t.title ?? t.video_id} — grid ${t.ledgerBpm} vs RB ${Math.round(t.rbBpm * 10) / 10} BPM (OCTAVE)`,
-                  ),
-                  ...off.map(
-                    (t) =>
-                      `${t.title ?? t.video_id} — grid ${t.ledgerBpm} vs RB ${Math.round(t.rbBpm * 10) / 10} BPM`,
-                  ),
-                ]}
+                hint="These tracks' independent beatgrid analysis disagrees with rekordbox's BPM — off by >2% tempo or locked an octave (half/double) out. They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the dangerous ones (Sync lands on the wrong pulse entirely). Click a numeric header to sort."
+                lines={beatSyncCopy(breakers)}
               />
-              <div class="covtable">
-                <div class="covrow head gridcheck">
-                  <span>track</span>
-                  <span>verdict</span>
-                  <span>grid</span>
-                  <span>rekordbox</span>
-                  <span>delta</span>
-                </div>
-                {[...octave, ...off].slice(0, 40).map((t) => {
-                  const isOct = octave.includes(t);
-                  return (
-                    <GridCheckRow
-                      title={t.title}
-                      videoId={t.video_id}
-                      isOct={isOct}
-                      ledgerBpm={t.ledgerBpm}
-                      rbBpm={t.rbBpm}
-                      deltaPct={gridDeltaPct(t.ledgerBpm, t.rbBpm)}
-                    />
-                  );
-                })}
-                {syncRisk > 40 && (
-                  <div class="fleet-note">showing 40 of {syncRisk}</div>
-                )}
-              </div>
+              <DataTable
+                columns={beatSyncColumns()}
+                rows={breakers}
+                cap={40}
+                ariaLabel="Beat Sync breakers"
+                rowTone={(t) => (t.isOct ? "bad" : "")}
+                copyLines={beatSyncCopy}
+                copyName="Beat Sync breakers"
+              />
               <div class="arch-fix">
                 fix: <code>megadj beats --force</code> re-analyzes — batch BPM
                 tag writes stay gated (roadmap)
               </div>
-            </div>
+            </Card>
           )}
 
           {ledgered === 0 && (
@@ -259,14 +273,12 @@ function BeatgridsTab() {
 
 // ---- mood -------------------------------------------------------------------
 
-const MOOD_GLOSS: Record<string, string> = {
-  dance: "0–1 · how danceable",
-  valence: "1–9 · sad → happy",
-  arousal: "1–9 · calm → intense",
-  party: "0–1 · party vibe",
-  electronic: "0–1 · electronic vibe",
-  aggressive: "0–1 · aggressive vibe",
-};
+/** cue position seconds → "3:24" / "42s" (table + copy share it). */
+function fmtCueAt(s: number): string {
+  return s >= 60
+    ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`
+    : `${Math.round(s)}s`;
+}
 
 function MoodTab() {
   const coverage = useCoverage();
@@ -308,16 +320,17 @@ function MoodTab() {
           />
           <div class="statgrid">
             {Object.entries(mood.avg).map(([k, v]) => (
-              <div class="stat" key={k} title={MOOD_GLOSS[k] ?? k}>
-                <div class="v">
-                  {k === "valence" || k === "arousal"
+              <StatCard
+                key={k}
+                v={
+                  k === "valence" || k === "arousal"
                     ? v.toFixed(1)
-                    : v.toFixed(2)}
-                </div>
-                <div class="l">
-                  {k} <em>{(MOOD_GLOSS[k] ?? "").split("·")[1]?.trim()}</em>
-                </div>
-              </div>
+                    : v.toFixed(2)
+                }
+                l={k}
+                em={(MOOD_GLOSS[k] ?? "").split("·")[1]?.trim()}
+                title={MOOD_GLOSS[k] ?? k}
+              />
             ))}
           </div>
           <SectionHead
@@ -345,35 +358,41 @@ function MoodTab() {
                       ),
                     ]}
                   />
-                  <div class="rows">
+                  <KVRows>
                     {high.map((t) => (
-                      <div class="row" key={t.video_id}>
-                        <TrackTitle
-                          title={t.title ?? t.video_id}
-                          videoId={t.video_id}
-                          artist={t.artist}
-                        />
-                        <span class="arch-pill warn">
-                          {dim} {t.v}
-                        </span>
-                      </div>
+                      <KVRow key={t.video_id}>
+                        <KVKey>
+                          <TrackTitle
+                            title={t.title ?? t.video_id}
+                            videoId={t.video_id}
+                            artist={t.artist}
+                          />
+                        </KVKey>
+                        <KVVal>
+                          <span class="arch-pill warn">
+                            {dim} {t.v}
+                          </span>
+                        </KVVal>
+                      </KVRow>
                     ))}
                     {low.map((t) => (
-                      <div class="row" key={t.video_id}>
-                        <TrackTitle
-                          title={t.title ?? t.video_id}
-                          videoId={t.video_id}
-                          artist={t.artist}
-                        />
-                        <span class="muted">
+                      <KVRow key={t.video_id}>
+                        <KVKey>
+                          <TrackTitle
+                            title={t.title ?? t.video_id}
+                            videoId={t.video_id}
+                            artist={t.artist}
+                          />
+                        </KVKey>
+                        <KVVal>
                           {dim} {t.v}
-                        </span>
-                      </div>
+                        </KVVal>
+                      </KVRow>
                     ))}
                     {list.length === 0 && (
                       <div class="fleet-note">no scores on this axis</div>
                     )}
-                  </div>
+                  </KVRows>
                 </div>
               );
             })}
@@ -455,34 +474,57 @@ function CuesTab() {
                   `${t.title ?? t.video_id}${t.artist ? ` — ${t.artist}` : ""} · ${t.cue_count} cues`,
               )}
             />
-            <div class="covtable">
-              <div class="covrow head">
-                <span>track</span>
-                <span>cues</span>
-                <span>first at</span>
-                <span>model</span>
-              </div>
-              {cues.tracks.slice(0, 40).map((t) => (
-                <div class="covrow" key={t.video_id}>
-                  <span class="covpath">
-                    <b>{t.title ?? t.video_id}</b>
-                    {t.artist && <span class="covartist"> — {t.artist}</span>}
-                  </span>
-                  <span class="n">{t.cue_count}</span>
-                  <span class="covdrives">
-                    {t.first_cue_at >= 60
-                      ? `${Math.floor(t.first_cue_at / 60)}:${String(Math.round(t.first_cue_at % 60)).padStart(2, "0")}`
-                      : `${Math.round(t.first_cue_at)}s`}
-                  </span>
-                  <span class="covdrives">{t.model}</span>
-                </div>
-              ))}
-              {cues.tracks.length > 40 && (
-                <div class="fleet-note">
-                  showing 40 of {cues.tracks.length} — Copy has the full list
-                </div>
-              )}
-            </div>
+            <DataTable
+              columns={[
+                {
+                  key: "track",
+                  head: "track",
+                  grow: 1.6,
+                  cell: (t) => (
+                    <>
+                      <b>{t.title ?? t.video_id}</b>
+                      {t.artist && <span class="covartist"> — {t.artist}</span>}
+                    </>
+                  ),
+                  sortValue: (t) => (t.title ?? t.video_id).toLowerCase(),
+                },
+                {
+                  key: "cues",
+                  head: "cues",
+                  align: "end",
+                  min: 54,
+                  grow: 0,
+                  cell: (t) => t.cue_count,
+                  sortValue: (t) => t.cue_count,
+                },
+                {
+                  key: "first",
+                  head: "first at",
+                  align: "end",
+                  min: 64,
+                  grow: 0,
+                  cell: (t) => fmtCueAt(t.first_cue_at),
+                  sortValue: (t) => t.first_cue_at,
+                },
+                {
+                  key: "model",
+                  head: "model",
+                  min: 90,
+                  cell: (t) => <span class="dt-sub">{t.model}</span>,
+                  sortValue: (t) => t.model,
+                },
+              ]}
+              rows={cues.tracks}
+              cap={40}
+              ariaLabel="Cue ledger"
+              copyName="Cue ledger (newest first)"
+              copyLines={(rows) =>
+                rows.map(
+                  (t) =>
+                    `${t.title ?? t.video_id}${t.artist ? ` — ${t.artist}` : ""} · ${t.cue_count} cues`,
+                )
+              }
+            />
           </div>
         </>
       )}
@@ -529,18 +571,18 @@ function TagsTab() {
         meta={`${lib.artwork.embedded}/${lib.tracks} covers embedded`}
       />
       <div class="statgrid">
-        <div class={`stat ${yearGap ? "bad" : ""}`}>
-          <div class="v">
-            <Icon name="clock" size={13} /> {yearGap.toLocaleString()}
-          </div>
-          <div class="l">missing release year</div>
-        </div>
-        <div class={`stat ${energyGap ? "bad" : ""}`}>
-          <div class="v">
-            <Icon name="bolt" size={13} /> {energyGap.toLocaleString()}
-          </div>
-          <div class="l">missing energy stamp (TXXX:ENERGY)</div>
-        </div>
+        <CountStat
+          n={yearGap}
+          l="missing release year"
+          icon="clock"
+          title="Tracks with no year stamp — tools/fix_years.ts verifies AI-guessed years."
+        />
+        <CountStat
+          n={energyGap}
+          l="missing energy stamp (TXXX:ENERGY)"
+          icon="bolt"
+          title="Tracks with no energy stamp — megadj mood computes the RMS blend."
+        />
         <StatCard
           v={`${lib.artwork.embedded}/${lib.tracks}`}
           l="covers embedded (art ladder)"
@@ -552,7 +594,7 @@ function TagsTab() {
           icon="history"
         />
       </div>
-      <div class="card">
+      <Card>
         <ListHead
           icon="info"
           title="The completeness gate"
@@ -572,9 +614,9 @@ function TagsTab() {
           <code>fulltags audit &lt;folder&gt;</code>) — gaps fill with{" "}
           <code>megadj fetch</code> + <code>megadj mood</code>
         </div>
-      </div>
+      </Card>
       <SectionHead icon="hash" title="Genre map" />
-      <div class="card">
+      <Card>
         <ListHead
           icon="hash"
           title="Genres"
@@ -582,15 +624,18 @@ function TagsTab() {
           hint="Genre distribution across the playable archive — the ingest genre inference + MB harvest maintain it."
           lines={lib.genres.map((g) => `${g.name}: ${g.count}`)}
         />
-        <div class="rows">
-          {lib.genres.slice(0, 12).map((g) => (
-            <div class="row" key={g.name}>
-              <span class="arch-what-title">{g.name}</span>
-              <span class="n">{g.count}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+        <BarList
+          rows={lib.genres.map((g) => ({
+            key: g.name,
+            name: g.name,
+            value: g.count,
+          }))}
+          cap={12}
+          empty={
+            <div class="fleet-note">no genres yet — run `megadj fetch`</div>
+          }
+        />
+      </Card>
     </div>
   );
 }

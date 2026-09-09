@@ -32,7 +32,16 @@ check` && `bun test` before every push. Type coverage is a hard 100%
   own files; re-read immediately before editing; verify content landed via
   worktree-vs-HEAD diff, not commit hash (amends and swept-in staged files
   are normal). Long `bun test` runs can hang on in-flight churn — rerun
-  clean before declaring failure.
+  clean before declaring failure. Scratch-port `EADDRINUSE` when a dev
+  server restarts is usually another agent's instance winning the race —
+  check who owns the port before killing anything.
+- **Pre-commit hooks BLOCK, and their failure output can be truncated.**
+  Repo hook tuning lives in `.shell-config-hooks.conf` (per-file 800-line
+  cap, block-at-100%). Sanctioned bypass for a legitimately huge commit:
+  `GIT_SKIP_FILE_LENGTH_CHECK=1 GIT_ALLOW_LARGE_COMMIT=1` (say why in the
+  commit body). Because blocked-commit output can be cut off mid-stream, a
+  blocked commit can LOOK landed — after every commit confirm with
+  `git log --oneline -1` + `git status`, never trust the exit chatter.
 - **Prose passes:** preserve em dashes and punctuation in shipped docs.
 - **Scrub private identifiers before history-touching work.** When removing a
   private name (drive/volume/service) from the product, wipe every reference
@@ -60,7 +69,7 @@ mirror pair of DJ USB drives. Volume names are user-specific — examples use
 - **CrateDeck** (`cratedeck/`) — Bun + Preact dashboard over the drives'
   rekordbox libraries (Python seam: `cratedeck/python/rb_read.py`). Driven
   via `deckctl` (guide: `cratedeck/deckctl.md`) and the MCP server
-  (`bun run mcp`, 27 tools). Surface registry: `docs/surface-parity.md`.
+  (`bun run mcp`, 34 tools). Surface registry: `docs/surface-parity.md`.
   Idea backlog: `docs/ideas.md` (§0 = do-now gate → one GitHub issue each).
 
 **Agent-first contract (enforced by `src/commands/json-summary.test.ts`):**
@@ -96,6 +105,17 @@ Architecture + wire-shape rules:
   cross-boundary wire type and imports nothing from `src/` (cycles there
   once forced `GIT_SKIP_HOOKS` on every commit). Verify:
   `bunx madge --circular --extensions ts,tsx cratedeck/src cratedeck/shared cratedeck/web`.
+  **Madge follows type-only imports too — a type-only back-edge IS a cycle
+  (Sep 9 sweep found 6).** Two rules keep the graph a DAG: (1) a wire type
+  whose producer chain reaches `shared/types.ts` (anything importing
+  `db.ts`/`fleet.ts`) is DEFINED canonically in `shared/types.ts` and the
+  producer imports it back — never derived from that producer
+  (`DriveImage` was the offender); (2) split-out implementation modules
+  (`archive_similar.ts`, `archive_overview.ts`, `report_checks.ts`, …)
+  type their parent-class/parent-input parameters against a leaf seam
+  (`archive_types.ts` `ArchiveQuery`, `report_types.ts` `ReportInput`),
+  never against the parent module — `ArchiveReader implements ArchiveQuery`
+  verifies the seam at compile time.
 - Web components must NOT re-declare server payload shapes locally — a
   local duplicate drifts silently and ships runtime bugs (it did, three in
   one tab). Derive from the producer: `shared/types.ts` re-exports
@@ -153,9 +173,18 @@ Architecture + wire-shape rules:
   ETA in `setJobProgress` is tri-state (undefined = keep, null = clear);
   usb_verify phase markers are indented and `tick(from, to)` means
   done/total — pass spans as `tick(progress, 1)`.
+- **Census/aggregation totals must come from `COUNT`, never from summing
+  the displayed bucket list.** `skipCensus` once summed its LIMIT-clamped
+  buckets, so totals undercounted whenever there were more distinct reasons
+  than the limit (599 shown vs 602 true; regression-tested in
+  `cratedeck/test/archive.test.ts`).
 - Surface parity is enforced: a capability on one surface (deckctl / MCP /
   web) must exist on the others or carry an exemption row in
   `docs/surface-parity.md` §4 (`cratedeck/test/surface-parity.test.ts`).
+  The web shell is now a three-product suite: Drives / GetDat / FullTags
+  tabs under a megadj header, shared product chrome in
+  `web/products/shared.tsx` (Verdict banner / ShareBar / Meter), styles
+  split into per-concern sheets under `web/styles/`.
 
 ## FullTags invariants
 
@@ -180,13 +209,21 @@ Architecture + wire-shape rules:
 - Docs go through `/docs-audit` rounds (SSOT-merge, kill stale claims,
   verify against code) before pushes. Dated analysis/learnings docs are
   snapshots — check `docs/product-state-2026-09-07.md` for current state.
+- Hardware-gated GitHub issues close as executable runbooks, not chat
+  notes: `docs/runbooks/0*.md` carry the exact top-to-bottom commands to
+  run when the drive mounts (`docs/usb-sync-log.md` seeds real incidents).
+  "Open but armed" is a valid issue state when nothing code-side remains.
 - Tools take volume names/paths from config — never hardcoded literals.
 - Perf passes are QUANTIFIED: measure a baseline, then prove the saving
   (e.g. "≥20%") against it — never declare a pass done on vibes. Sep 8
   benchmark: full gate `bun run check:full` ~36s → 7.4s, `bun test` 385
   tests 32.3s → 6.5s (−80%) via `bun test --parallel=16` (workers
   subprocess-bound; 20 adds nothing) + splitting the
-  `fulltags/test/analysis.test.ts` monolith per roadmap stage.
+  `fulltags/test/analysis.test.ts` monolith per roadmap stage. On-disk
+  I/O tuning needs COLD-CACHE numbers: the archive fits the page cache,
+  so local harness reads measure cache at GB/s — 10× off real USB truth;
+  `sudo purge` needs a TTY password, so plan for it (or borrow a machine
+  where the drive data doesn't fit RAM).
 
 ## Local-only files
 

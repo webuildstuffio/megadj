@@ -7,12 +7,25 @@
 //                       + mood axes, shaped by an energy-arc preset
 //   Sounds like (I49) — nearest tracks by effnet-embedding cosine
 import { useState } from "preact/hooks";
-import type { ArchiveSimilar, ArchiveSearchHit } from "../../../shared/types";
+import type {
+  ArchiveSimilar,
+  ArchiveSearchHit,
+  SetBuildPayload,
+} from "../../../shared/types";
 import { api } from "../../ui/toast";
+import { errMessage } from "../../../shared/fmt";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
-import { ListHead } from "../../ui/ListHead";
+import {
+  ListHead,
+  DataTable,
+  KVRows,
+  KVRow,
+  KVKey,
+  KVVal,
+  Card,
+} from "../../ui/data";
 import { SectionHead, Verdict, TrackTitle } from "../shared";
 
 export function SimilarTab() {
@@ -62,34 +75,36 @@ export function SimilarTab() {
         search.data &&
         !picked &&
         query.trim().length >= 2 && (
-          <div class="card">
-            <div class="rows">
+          <Card>
+            <KVRows>
               {search.data.slice(0, 8).map((t) => (
                 <button
                   type="button"
-                  class="row ghostbtn"
-                  style={{ textAlign: "left", cursor: "pointer" }}
+                  class="kvrow kvrow-btn"
                   key={t.video_id}
                   onClick={() => {
                     setPicked(t);
                     setQuery("");
                   }}
                 >
-                  <TrackTitle
-                    title={t.title ?? t.video_id}
-                    videoId={t.video_id}
-                    artist={t.artist}
-                  />
+                  <KVKey>
+                    <TrackTitle
+                      title={t.title ?? t.video_id}
+                      videoId={t.video_id}
+                      artist={t.artist}
+                    />
+                  </KVKey>
+                  <KVVal>pick →</KVVal>
                 </button>
               ))}
               {search.data.length === 0 && (
                 <div class="fleet-note">no tracks match “{query}”</div>
               )}
-            </div>
-          </div>
+            </KVRows>
+          </Card>
         )}
       {picked && (
-        <div class="card">
+        <Card>
           <ListHead
             icon="compass"
             title={`Sounds like ${picked.title ?? picked.video_id}`}
@@ -107,17 +122,23 @@ export function SimilarTab() {
           {hits.status !== "ok" ? (
             <FetchedGate page={hits} loading="searching the embeddings…" />
           ) : hits.data && hits.data.corpus > 0 ? (
-            <div class="rows">
-              {hits.data.hits.map((h) => (
-                <div class="row" key={h.video_id}>
-                  <TrackTitle
-                    title={h.title ?? h.video_id}
-                    videoId={h.video_id}
-                    artist={h.artist}
-                  />
-                  <span class="arch-pill ok">{h.score.toFixed(3)}</span>
-                </div>
-              ))}
+            <>
+              <KVRows>
+                {hits.data.hits.map((h) => (
+                  <KVRow key={h.video_id}>
+                    <KVKey>
+                      <TrackTitle
+                        title={h.title ?? h.video_id}
+                        videoId={h.video_id}
+                        artist={h.artist}
+                      />
+                    </KVKey>
+                    <KVVal>
+                      <span class="arch-pill ok">{h.score.toFixed(3)}</span>
+                    </KVVal>
+                  </KVRow>
+                ))}
+              </KVRows>
               <button
                 type="button"
                 class="btn sm ghostbtn"
@@ -125,7 +146,7 @@ export function SimilarTab() {
               >
                 pick a different track
               </button>
-            </div>
+            </>
           ) : (
             <div class="note-card">
               <Icon name="bolt" size={20} />
@@ -133,32 +154,15 @@ export function SimilarTab() {
               them (same pass as the mood heads, no extra model).
             </div>
           )}
-        </div>
+        </Card>
       )}
     </div>
   );
 }
 
 // ---- set-builder (M66, propose-only) ----------------------------------------
-
-type SetBuildResult = {
-  available: boolean;
-  pool: number;
-  preset: string;
-  minutes: number;
-  steps: {
-    videoId: string;
-    title: string | null;
-    artist: string | null;
-    bpm: number | null;
-    key: string | null;
-    arousal: number | null;
-    atMin: number;
-    transition: number | null;
-  }[];
-  excluded: { videoId: string; title: string | null; reason: string }[];
-  excluded_total: number;
-};
+// The wire envelope (SetBuildPayload) is DERIVED from shared/types.ts —
+// never re-declare server shapes locally (a local duplicate drifted once).
 
 const fmtBpm = (bpm: number | null): string =>
   bpm === null ? "—" : String(Math.round(bpm * 10) / 10);
@@ -175,7 +179,7 @@ function SetBuildPanel() {
   );
   const [minutes, setMinutes] = useState(60);
   const [build, setBuild] = useState<{
-    data: SetBuildResult | null;
+    data: SetBuildPayload | null;
     loading: boolean;
     error: string | null;
   }>({ data: null, loading: false, error: null });
@@ -183,12 +187,12 @@ function SetBuildPanel() {
   const run = async () => {
     setBuild({ data: null, loading: true, error: null });
     try {
-      const data = await api<SetBuildResult>(
+      const data = await api<SetBuildPayload>(
         `/api/archive/setbuild?preset=${preset}&minutes=${minutes}`,
       );
       setBuild({ data, loading: false, error: null });
     } catch (e) {
-      setBuild({ data: null, loading: false, error: String(e) });
+      setBuild({ data: null, loading: false, error: errMessage(e) });
     }
   };
 
@@ -267,40 +271,74 @@ function SetBuildPanel() {
               icon="play"
               title="The chain"
               n={build.data.steps.length}
-              hint="Ordered mix proposal: key-compatible (Camelot), tempo within ±6%, energy following the arc. Copy hands it to an agent or your notes."
+              hint="Ordered mix proposal: key-compatible (Camelot), tempo within ±6%, energy following the arc. Copy hands it to an agent or your notes. Click a column to sort."
               lines={build.data.steps.map(
                 (s) =>
                   `${s.atMin}min  ${fmtBpm(s.bpm)} BPM ${s.key ?? ""}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}`,
               )}
             />
           )}
-          <div class="covtable">
-            <div class="covrow head">
-              <span>#</span>
-              <span>track</span>
-              <span>bpm</span>
-              <span>key</span>
-              <span>at</span>
-            </div>
-            {build.data.steps.slice(0, 40).map((s, i) => (
-              <div class="covrow" key={s.videoId}>
-                <span class="n">{i + 1}</span>
-                <span class="covpath">
-                  <b>{s.title ?? s.videoId}</b>
-                  {s.artist && <span class="covartist"> — {s.artist}</span>}
-                </span>
-                <span class="n">{fmtBpm(s.bpm)}</span>
-                <span class="n">{s.key ?? "—"}</span>
-                <span class="n">{s.atMin}m</span>
-              </div>
-            ))}
-            {build.data.steps.length > 40 && (
-              <div class="fleet-note">
-                showing 40 of {build.data.steps.length} — Copy has the full
-                chain
-              </div>
-            )}
-          </div>
+          <DataTable
+            columns={[
+              {
+                key: "pos",
+                head: "#",
+                align: "end",
+                min: 34,
+                grow: 0,
+                cell: (_s, i) => i + 1,
+              },
+              {
+                key: "track",
+                head: "track",
+                grow: 2,
+                cell: (s) => (
+                  <>
+                    <b>{s.title ?? s.videoId}</b>
+                    {s.artist && <span class="covartist"> — {s.artist}</span>}
+                  </>
+                ),
+                sortValue: (s) => (s.title ?? s.videoId).toLowerCase(),
+              },
+              {
+                key: "bpm",
+                head: "bpm",
+                align: "end",
+                min: 56,
+                grow: 0,
+                cell: (s) => fmtBpm(s.bpm),
+                sortValue: (s) => s.bpm,
+              },
+              {
+                key: "key",
+                head: "key",
+                align: "center",
+                min: 48,
+                grow: 0,
+                cell: (s) => s.key ?? "—",
+                sortValue: (s) => s.key,
+              },
+              {
+                key: "at",
+                head: "at",
+                align: "end",
+                min: 48,
+                grow: 0,
+                cell: (s) => `${s.atMin}m`,
+                sortValue: (s) => s.atMin,
+              },
+            ]}
+            rows={build.data.steps}
+            cap={40}
+            ariaLabel="Set builder chain"
+            copyName="The chain"
+            copyLines={(rows) =>
+              rows.map(
+                (s) =>
+                  `${s.atMin}min  ${fmtBpm(s.bpm)} BPM ${s.key ?? ""}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}`,
+              )
+            }
+          />
           {build.data.excluded_total > 0 && (
             <div class="arch-fix">
               {build.data.excluded_total} of {build.data.pool} candidates not in

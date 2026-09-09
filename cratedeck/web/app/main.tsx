@@ -10,6 +10,7 @@ import "../styles/canvas.css";
 import "../styles/pages.css";
 import "../styles/products.css";
 import "../styles/fleet-tabs.css";
+import "../styles/data.css";
 import "../styles/help.css";
 import "../styles/jobs.css";
 

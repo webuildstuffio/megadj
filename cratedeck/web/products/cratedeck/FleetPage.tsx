@@ -21,7 +21,8 @@ import { errMessage, fmtBytes } from "../../../shared/fmt";
 import { api, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { useFetched } from "../../ui/useFetched";
-import { StatCard } from "../../ui/DrivePanels";
+import { StatCard, CountStat, DataTable, SearchBar } from "../../ui/data";
+import { fuzzyFilter } from "../../ui/fuzzy";
 import { PreflightTab } from "./PreflightTab";
 import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
@@ -108,7 +109,6 @@ function CoverageTab() {
     );
   }
 
-  const shown = data.at_risk.slice(0, 200);
   // ---- the verdict: one line a human reads before anything else ---------
   const atRisk = data.at_risk.length;
   const verdict =
@@ -155,12 +155,12 @@ function CoverageTab() {
           l={`on ≥${data.min_copies} drives (safe)`}
           icon="check"
         />
-        <div class={`stat ${atRisk ? "bad" : ""}`}>
-          <div class="v">
-            <Icon name="warn" size={13} /> {atRisk.toLocaleString()}
-          </div>
-          <div class="l">single-drive tracks — gone if that drive dies</div>
-        </div>
+        <CountStat
+          n={atRisk}
+          l="single-drive tracks — gone if that drive dies"
+          icon="warn"
+          title="Tracks on fewer drives than the copy floor. Each one is one dead stick away from gone — the at-risk list below is the work queue."
+        />
         <StatCard
           v={`${data.drives.length}`}
           l="drives with a track inventory"
@@ -168,25 +168,16 @@ function CoverageTab() {
         />
       </div>
 
-      <div class="pl-tools">
-        <input
-          placeholder="Find a track across every crate (title, artist, or path)…"
-          value={query}
-          onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && query.trim()) lookup(query.trim());
-          }}
-        />
-        <button
-          type="button"
-          class="btn"
-          disabled={!query.trim() || searching}
-          onClick={() => lookup(query.trim())}
-          title="Search every known drive for this track"
-        >
-          <Icon name="search" size={14} /> Where is it?
-        </button>
-        {hit && (
+      <SearchBar
+        value={query}
+        onInput={setQuery}
+        onSearch={lookup}
+        buttonLabel="Where is it?"
+        placeholder="Find a track across every crate (title, artist, or path)…"
+        busy={searching}
+      />
+      {hit && (
+        <div class="pl-tools">
           <button
             type="button"
             class="btn ghostbtn"
@@ -195,8 +186,8 @@ function CoverageTab() {
           >
             <Icon name="x" size={13} /> Clear
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {lookupErr && (
         <div class="note bad">
@@ -233,38 +224,59 @@ function CoverageTab() {
             icon="warn"
             title="At-risk tracks"
             n={atRisk}
-            hint={`Tracks living on fewer than ${data.min_copies} drives — one dead stick away from gone. The fix is the ordinary mirror run: it converges master → mirror. Copy the list to hand it to an agent.`}
+            hint={`Tracks living on fewer than ${data.min_copies} drives — one dead stick away from gone. The fix is the ordinary mirror run: it converges master → mirror. Copy the list to hand it to an agent. Click a column to sort.`}
             lines={data.at_risk.map(
               (r) =>
                 `${r.identity.title ?? r.identity.path}${r.identity.artist ? ` — ${r.identity.artist}` : ""} (${r.copies} cop${r.copies === 1 ? "y" : "ies"}: ${r.drives.join(", ")})`,
             )}
           />
-          <div class="covtable">
-            <div class="covrow head">
-              <span>track</span>
-              <span>copies</span>
-              <span>on drives</span>
-            </div>
-            {shown.map((r) => (
-              <div class="covrow" key={r.identity.path}>
-                <span class="covpath" title={r.identity.path}>
-                  <b>{r.identity.title ?? r.identity.path}</b>
-                  {r.identity.artist && (
-                    <span class="covartist"> — {r.identity.artist}</span>
-                  )}
-                </span>
-                <span class={`n ${r.copies <= 1 ? "bad" : ""}`}>
-                  {r.copies}
-                </span>
-                <span class="covdrives">{r.drives.join(", ")}</span>
-              </div>
-            ))}
-            {atRisk > shown.length && (
-              <div class="fleet-note">
-                showing {shown.length} of {atRisk} — Copy has the full list
-              </div>
-            )}
-          </div>
+          <DataTable
+            columns={[
+              {
+                key: "track",
+                head: "track",
+                grow: 1,
+                cell: (r) => (
+                  <>
+                    <b>{r.identity.title ?? r.identity.path}</b>
+                    {r.identity.artist && (
+                      <span class="covartist"> — {r.identity.artist}</span>
+                    )}
+                  </>
+                ),
+                sortValue: (r) =>
+                  (r.identity.title ?? r.identity.path).toLowerCase(),
+              },
+              {
+                key: "copies",
+                head: "copies",
+                align: "center",
+                min: 64,
+                grow: 0,
+                cell: (r) => (
+                  <span class={r.copies <= 1 ? "bad" : ""}>{r.copies}</span>
+                ),
+                sortValue: (r) => r.copies,
+              },
+              {
+                key: "drives",
+                head: "on drives",
+                grow: 1.2,
+                cell: (r) => <span class="dt-sub">{r.drives.join(", ")}</span>,
+                sortValue: (r) => r.drives.join(", "),
+              },
+            ]}
+            rows={data.at_risk}
+            cap={200}
+            ariaLabel="At-risk tracks"
+            copyName="At-risk tracks"
+            copyLines={(rows) =>
+              rows.map(
+                (r) =>
+                  `${r.identity.title ?? r.identity.path}${r.identity.artist ? ` — ${r.identity.artist}` : ""} (${r.copies} cop${r.copies === 1 ? "y" : "ies"}: ${r.drives.join(", ")})`,
+              )
+            }
+          />
           <FixNote>
             run <code>Mirror</code> (topbar or <code>deckctl run mirror</code>)
             — it copies the master's new music to the mirror
@@ -500,14 +512,7 @@ function DiffTab() {
   const filtered = useMemo(() => {
     if (!result) return null;
     const f = (rows: FleetDiff["added"]) =>
-      q
-        ? rows.filter(
-            (r) =>
-              r.path.toLowerCase().includes(q) ||
-              (r.title ?? "").toLowerCase().includes(q) ||
-              (r.artist ?? "").toLowerCase().includes(q),
-          )
-        : rows;
+      q ? fuzzyFilter(rows, q, ["path", "title", "artist"]) : rows;
     return {
       added: f(result.added),
       removed: f(result.removed),
@@ -639,6 +644,7 @@ function DiffTab() {
             title="different bytes"
             rows={filtered.changed}
             empty="none — every shared file byte-identical"
+            extraHead="bytes"
             fix={
               <>
                 same path, different size — re-copy the file, or investigate
@@ -661,6 +667,8 @@ function DiffSection(props: {
   title: string;
   rows: FleetDiff["added"];
   empty: string;
+  /** optional header for the trailing detail column (e.g. "bytes") */
+  extraHead?: string;
   renderExtra?: (r: FleetDiff["added"][number]) => string;
   fix?: ComponentChildren;
 }) {
@@ -684,22 +692,41 @@ function DiffSection(props: {
       {!props.rows.length ? (
         <div class="fleet-note">{props.empty}</div>
       ) : (
-        <div class="covtable">
-          {props.rows.slice(0, 300).map((r) => (
-            <div class="covrow" key={r.kind + r.path}>
-              <span class="covpath" title={r.path}>
-                <b>{r.title ?? r.path}</b>
-                {r.artist && <span class="covartist"> — {r.artist}</span>}
-              </span>
-              <span class="covdrives">{props.renderExtra?.(r) ?? ""}</span>
-            </div>
-          ))}
-          {props.rows.length > 300 && (
-            <div class="fleet-note">
-              showing 300 of {props.rows.length} — Copy has the full list
-            </div>
-          )}
-        </div>
+        <DataTable
+          columns={[
+            {
+              key: "track",
+              head: "track",
+              grow: 1.6,
+              cell: (r) => (
+                <>
+                  <b>{r.title ?? r.path}</b>
+                  {r.artist && <span class="covartist"> — {r.artist}</span>}
+                </>
+              ),
+              sortValue: (r) => (r.title ?? r.path).toLowerCase(),
+            },
+            {
+              key: "extra",
+              head: props.extraHead ?? "",
+              grow: 1,
+              cell: (r) => (
+                <span class="dt-sub">{props.renderExtra?.(r) ?? ""}</span>
+              ),
+              sortValue: (r) => props.renderExtra?.(r) ?? "",
+            },
+          ]}
+          rows={props.rows}
+          cap={300}
+          ariaLabel={props.title}
+          copyName={props.title}
+          copyLines={(rows) =>
+            rows.map(
+              (r) =>
+                `${r.title ?? r.path}${r.artist ? ` — ${r.artist}` : ""}${props.renderExtra ? ` (${props.renderExtra(r)})` : ""}`,
+            )
+          }
+        />
       )}
       {props.fix && props.rows.length > 0 && <FixNote>{props.fix}</FixNote>}
     </div>

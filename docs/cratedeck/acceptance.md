@@ -61,72 +61,15 @@ stale rail nicknames (10s poll), `resolveMountPoint` respecting
 `CRATEDECK_VOLUMES`, plaintext-DB fallback in `rb_read.py`. Verified via
 fixture server + Chrome DevTools Protocol DOM checks; screenshots reviewed.
 
-## Fleet superpowers (shipped 2026-09-04 — ideas.md §B6/B7/B8)
+## Shipped-later surface (pointer)
 
-- **B6 coverage matrix** — `src/fleet.ts coverage()/trackLocations()` over
-  per-track fleet tables (`fleet_tracks`, refreshed by every scan in
-  `db.setSnapshot`; full-scan inventory from `python/rb_read.py`). UI:
-  Fleet page Coverage tab (`#/fleet/coverage`, Fleet button in the topbar);
-  API `GET /api/fleet/coverage` + `GET /api/fleet/track?q=`; CLI
-  `deckctl coverage [min]`.
-- **B7 redundancy audit** — `src/fleet.ts redundancy()`; per-playlist
-  pass/warn/fail with expandable gap lists. UI: Fleet → Redundancy tab;
-  API `GET /api/fleet/redundancy`; CLI `deckctl redundancy [min]`.
-- **B8 fleet diff** — `src/fleet.ts diff()`; added/removed from DB tracks,
-  byte-level changed from scan manifests, `artist - title` meta-join for
-  moved tracks. UI: Fleet → Diff tab; API `GET /api/fleet/diff?a=&b=`;
-  CLI `deckctl diff A B`.
-- Tests: `test/fleet.test.ts` (engine + DB round-trips). Data loads on the
-  next full scan of each drive with rekordbox closed.
-
-## Automation (shipped 2026-09-05 — ideas.md §B17, commit `aa64e04`)
-
-- **Auto light-scan on mount** — `src/auto_schedule.ts`
-  (`shouldAutoScan`: fresh mount + no fresh snapshot → enqueue scan);
-  config `[automation] auto_scan_on_mount` (default on).
-- **Weekly auto-verify** — `shouldAutoVerify`: never-verified, or last
-  verify older than `verify_interval_days` (default 7, 0 = off); results
-  feed the readiness badge. Max one auto-verify attempt per drive per
-  sweep; interlock applies as to every job.
-
-## Agent + gig-night surface (shipped 2026-09-05–07)
-
-- **MCP server** — `src/mcp.ts`: stdio JSON-RPC exposing deckctl's surface
-  — **27 tools** (19 `deck_*`: status/drives/report/coverage/redundancy/
-  diff/jobs/run/cancel/explain + `deck_preflight`, `deck_players`,
-  `deck_note`/`deck_notes`, `deck_prep`, `deck_search`, `deck_rename`,
-  `deck_help`, `deck_dismiss`;
-  8 `archive_*`: search_tracks/track_stats/ingest_status/lowq_queue/
-  source_diff/grid_cross_check/mood_profile/sweep). Readonly tools carry
-  `readOnlyHint: true`; mutating tools flagged `destructive`; the
-  rekordbox interlock is enforced client-side _and_ server-side (423 on
-  enqueue). Run: `bun run mcp`.
-- **Shared HTTP client** — `src/deckapi.ts`: server auto-start, drive
-  resolution, `waitForJob`; one source of truth for deckctl + mcp.
-- **B12 preflight** — `src/preflight.ts` + `deckctl preflight` +
-  `GET /api/preflight`: worst-status-wins verdict per drive
-  (not-ready/attention/unknown/ready); unknowns never fake ready;
-  exit 1 when not ready so cron/agents gate on the code. Includes the
-  N75 player-compat check and N76 firmware advisories.
-- **N75/N78 player-compat matrix** — `src/players.ts`, `deckctl players
-  [drive]`, `deck_players`: Device-vs-OneLibrary verdicts from MEASURED
-  dual-DB rows; user-extendable via config.toml `[players.players]`.
-- **O82b archive half** — `src/archive.ts` (opened `readonly: true`);
-  missing archive DB degrades to `available:false`.
-- **O83 weekly prep + D30 sweep** — `src/weekly_prep.ts`, `deckctl prep
-  [--out FILE] [--json]`: markdown digest over preflight + redundancy +
-  archive reads; `src/archive_sweep.ts` adds the blake2b archive-integrity
-  section (first run caught 88/88 stale DB sizes).
-- **O87 attribution + O88 agent notes** — `jobs.origin`
-  ("web"/"deckctl"/"auto"/"mcp:<session>") on job rows + timeline
-  events; `deck_note` lands dismissable severity-toned timeline cards
-  (`src/notes.ts`, 600-char cap, human dismissal flips `dismissed_at`).
-- **O85 plugin packaging** — `plugin/` bundles the MCP server +
-  SessionStart hook + skills as an installable Claude Code plugin
-  (`claude plugin validate` passes).
-- **CLI verification gates** — `megadj doctor [--json]` (exit 1 if any
-  required dependency/config check fails) and `megadj init` (scaffolds
-  `cratedeck/config.toml`, auto-filling drive names from mounted volumes).
+Fleet superpowers (B6/B7/B8), automation (B17), the MCP server + agent
+surface (B12 preflight, N75/N78 players, O82b archive reads, O83 prep,
+O85 plugin, O87 origin attribution, O88 agent notes), and the CLI gates
+are all shipped — status and evidence live in
+[product-state-2026-09-07.md](../product-state-2026-09-07.md),
+capability surface in [../surface-parity.md](../surface-parity.md), idea
+detail in [../ideas.md](../ideas.md) §B/§O.
 
 ## Test coverage
 

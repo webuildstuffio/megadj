@@ -13,6 +13,7 @@
 import type { ComponentChildren } from "preact";
 import type { Product } from "../app/router";
 import { Icon } from "../ui/icons";
+import type { DataTableColumn } from "../ui/data";
 
 export interface ProductMeta {
   id: Product;
@@ -222,6 +223,18 @@ export const STATUS_LANG: Record<string, string> = {
   skipped_not_music: "skipped (not music)",
 };
 
+/** Mood average keys → the gloss that says which end is which (0–1 heads
+ *  vs 1–9 VA). One copy — ArchiveTab and FullTagsPage's MoodTab both render
+ *  the averages and had drifted-able duplicates. */
+export const MOOD_GLOSS: Record<string, string> = {
+  dance: "0–1 · how danceable",
+  valence: "1–9 · sad → happy",
+  arousal: "1–9 · calm → intense",
+  party: "0–1 · party vibe",
+  electronic: "0–1 · electronic vibe",
+  aggressive: "0–1 · aggressive vibe",
+};
+
 /** A drive page's tab strip — lives in the product SSOT next to the other
  *  tab tables (PRODUCT_TABS), so every tab strip in the app has one shape. */
 export const DRIVE_TABS = [
@@ -263,15 +276,22 @@ export const DRIVE_TABS = [
   },
 ] as const;
 
-/** The one-line verdict a human reads before anything else. */
+/** The one-line verdict a human reads before anything else. `meta` accepts
+ *  a node (InfoTip, Copy button, multi-part counts) — the old string-only
+ *  signature is why 5 pages hand-rolled `arch-verdict` divs. */
 export function Verdict(props: {
   cls: "ok" | "warn" | "bad";
   text: string;
-  meta?: string;
+  meta?: ComponentChildren;
+  /** icon override (default check/warn by cls) */
+  icon?: string;
 }) {
   return (
     <div class={`arch-verdict ${props.cls}`}>
-      <Icon name={props.cls === "ok" ? "check" : "warn"} size={15} />
+      <Icon
+        name={props.icon ?? (props.cls === "ok" ? "check" : "warn")}
+        size={15}
+      />
       <span>{props.text}</span>
       {props.meta && <span class="arch-verdict-meta">{props.meta}</span>}
     </div>
@@ -370,48 +390,90 @@ export function TrackTitle(props: {
   );
 }
 
-/** One beat-grid cross-check row (FullTags "Beat Sync breakers" and the
- *  ArchiveTab grid card render the identical verdict table). */
-export function GridCheckRow(props: {
-  title: string | null;
-  videoId: string;
-  isOct: boolean;
-  ledgerBpm: number;
-  rbBpm: number;
-  deltaPct: number;
-}) {
-  const { isOct, deltaPct } = props;
-  return (
-    <div class={`covrow gridcheck ${isOct ? "row-oct" : ""}`}>
-      <span class="covpath">
-        <b>{props.title ?? props.videoId}</b>
-      </span>
-      <span>
-        {isOct ? (
-          <span class="arch-pill bad">octave</span>
-        ) : (
-          <span class="arch-pill warn">off</span>
-        )}
-      </span>
-      <span class="covdrives num">{props.ledgerBpm}</span>
-      <span class="covdrives num">{Math.round(props.rbBpm * 10) / 10}</span>
-      <span class="covdelta">
-        <i
-          class={isOct ? "bad" : "warn"}
-          style={{ width: `${Math.min(deltaPct * 8, 100)}%` }}
-        />
-        <em>{isOct ? "×2" : `${deltaPct}%`}</em>
-      </span>
-    </div>
-  );
-}
-
 /** delta % between the beat_this ledger BPM and rekordbox's BPM (1dp). */
 export function gridDeltaPct(ledgerBpm: number, rbBpm: number): number {
   return rbBpm > 0
     ? Math.round((Math.abs(ledgerBpm - rbBpm) / rbBpm) * 1000) / 10
     : 0;
 }
+
+/** One beat-grid cross-check track as a DataTable row spec. The ArchiveTab
+ *  and FullTagsPage "Beat Sync breakers" cards rendered byte-identical
+ *  markup — this is the ONE implementation (columns + rows + copy). */
+export function beatSyncColumns(): DataTableColumn<GridBreaker>[] {
+  return [
+    {
+      key: "track",
+      head: "track",
+      grow: 1.6,
+      cell: (t: GridBreaker) => <b>{t.title ?? t.videoId}</b>,
+      sortValue: (t: GridBreaker) => (t.title ?? t.videoId).toLowerCase(),
+    },
+    {
+      key: "verdict",
+      head: "verdict",
+      min: 72,
+      grow: 0,
+      cell: (t: GridBreaker) =>
+        t.isOct ? (
+          <span class="arch-pill bad">octave</span>
+        ) : (
+          <span class="arch-pill warn">off</span>
+        ),
+    },
+    {
+      key: "grid",
+      head: "grid",
+      align: "end",
+      min: 62,
+      grow: 0,
+      cell: (t: GridBreaker) => t.ledgerBpm,
+      sortValue: (t: GridBreaker) => t.ledgerBpm,
+    },
+    {
+      key: "rb",
+      head: "rekordbox",
+      align: "end",
+      min: 78,
+      grow: 0,
+      cell: (t: GridBreaker) => Math.round(t.rbBpm * 10) / 10,
+      sortValue: (t: GridBreaker) => t.rbBpm,
+    },
+    {
+      key: "delta",
+      head: "delta",
+      grow: 1,
+      cell: (t: GridBreaker) => (
+        <span class="covdelta">
+          <i
+            class={t.isOct ? "bad" : "warn"}
+            style={{ width: `${Math.min(t.deltaPct * 8, 100)}%` }}
+          />
+          <em>{t.isOct ? "×2" : `${t.deltaPct}%`}</em>
+        </span>
+      ),
+      sortValue: (t: GridBreaker) => t.deltaPct,
+    },
+  ];
+}
+
+/** The wire row shape flattened for beatSyncColumns — the producer maps
+ *  ArchiveGridCrossCheck rows through this (never a local re-declaration). */
+export interface GridBreaker {
+  videoId: string;
+  title: string | null;
+  isOct: boolean;
+  ledgerBpm: number;
+  rbBpm: number;
+  deltaPct: number;
+}
+
+/** Build the copy payload for a Beat Sync breakers table. */
+export const beatSyncCopy = (rows: GridBreaker[]): string[] =>
+  rows.map(
+    (t) =>
+      `${t.title ?? t.videoId} — grid ${t.ledgerBpm} vs RB ${Math.round(t.rbBpm * 10) / 10} BPM${t.isOct ? " (OCTAVE)" : ""}`,
+  );
 
 /** ProductIntro — the educational lede band at the top of each product
  *  canvas: phase chip + product voice + scope line. One component, three

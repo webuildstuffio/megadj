@@ -128,8 +128,11 @@ function numOpt(flags: ParsedFlags, key: string): number | undefined {
 }
 
 /** Non-negative numeric option with a hard error (`--limit 5`). Returns
- * undefined when absent; exits 2 when present but invalid. The beats/
- * mood/cues case blocks each hand-rolled this check 3× inline. */
+ * undefined when absent — AND undefined when present but invalid (after
+ * printing the error + exitCode 2), so callers can break out instead of
+ * letting NaN flow through as "unlimited" (NaN is falsy: it would skip
+ * every slice/stop guard downstream). The beats/mood/cues case blocks
+ * each hand-rolled this check 3× inline. */
 function nonNegOpt(
   flags: ParsedFlags,
   key: string,
@@ -137,19 +140,38 @@ function nonNegOpt(
 ): number | undefined {
   const raw = flags.strings.get(key);
   if (raw === undefined) return undefined;
-  const n = Number(raw);
+  // Strict raw check BEFORE Number(): Number("") is 0 and Number(" 5 ") is
+  // 5, but an empty/whitespace-only value is a typo, not a number — and
+  // NaN/Infinity must never slip through as a limit either.
+  const trimmed = raw.trim();
+  if (trimmed === "" || !/^\d+$/.test(trimmed)) {
+    console.error(
+      `${cmd}: --${key} must be a non-negative number (got "${raw}")`,
+    );
+    process.exitCode = 2;
+    return undefined;
+  }
+  const n = Number(trimmed);
   if (!Number.isFinite(n) || n < 0) {
     console.error(
       `${cmd}: --${key} must be a non-negative number (got "${raw}")`,
     );
     process.exitCode = 2;
+    return undefined;
   }
   return n;
+}
+
+/** First positional argument (skips flags and the command word itself). */
+function firstPositional(args: string[], cmd: string): string | undefined {
+  return args.find((a) => !a.startsWith("--") && a !== cmd);
 }
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const command = argv.find((a) => !a.startsWith("--")) ?? "help";
+  /** Everything after the command — every case below parses this. */
+  const rest = process.argv.slice(3);
 
   if (command === "help" || command === "--help" || command === "-h") {
     printHelp();
@@ -170,7 +192,7 @@ async function main(): Promise<void> {
   try {
     switch (command) {
       case "doctor": {
-        const flags = parseFlags(process.argv.slice(3), [], ["json"]);
+        const flags = parseFlags(rest, [], ["json"]);
         const { runDoctor, printDoctor, doctorJson } =
           await import("./commands/doctor");
         const results = runDoctor();
@@ -192,7 +214,7 @@ async function main(): Promise<void> {
       }
       case "sync": {
         const flags = parseFlags(
-          process.argv.slice(3),
+          rest,
           ["limit", "sources", "target-total"],
           ["dry-run", "music-only", "json"],
         );
@@ -208,26 +230,16 @@ async function main(): Promise<void> {
         // input is an error, never "unlimited" (NaN is falsy and would skip
         // every guard — a typo like --limit abc or --target-total 10o must
         // not start an UNBOUNDED download run). 0 = attempt nothing.
-        const intOpt = (key: string): { value?: number; error?: string } => {
-          const raw = flags.strings.get(key);
-          if (raw === undefined) return {};
-          const n = Number(raw);
-          if (!Number.isInteger(n) || n < 0)
-            return {
-              error: `sync: --${key} must be a whole number >= 0 (got "${raw}")`,
-            };
-          return { value: n };
-        };
-        const limit = intOpt("limit");
-        if (limit.error) {
-          console.error(limit.error);
-          process.exitCode = 1;
+        const limit = nonNegOpt(flags, "limit", "sync");
+        if (limit === undefined && flags.strings.get("limit") !== undefined) {
+          // nonNegOpt already set exitCode 2 + printed the error
           break;
         }
-        const targetTotal = intOpt("target-total");
-        if (targetTotal.error) {
-          console.error(targetTotal.error);
-          process.exitCode = 1;
+        const targetTotal = nonNegOpt(flags, "target-total", "sync");
+        if (
+          targetTotal === undefined &&
+          flags.strings.get("target-total") !== undefined
+        ) {
           break;
         }
         const dryRun = flags.bools.has("dry-run");
@@ -247,23 +259,22 @@ async function main(): Promise<void> {
           musicDir: MUSIC_DIR,
           cookiesFromBrowser: COOKIES || null,
           cookiesFile: COOKIES_FILE,
-          limit: limit.value,
+          limit: limit,
           dryRun,
           musicOnly,
-          targetTotal: targetTotal.value,
+          targetTotal: targetTotal,
           sources,
           json: flags.bools.has("json"),
         });
         break;
       }
       case "status": {
-        const json = process.argv.slice(3).includes("--json");
+        const json = rest.includes("--json");
         if (json) statusJson(state);
         else status(state);
         break;
       }
       case "list": {
-        const rest = process.argv.slice(3);
         const filter = rest.find((a) => !a.startsWith("--"));
         if (rest.includes("--json")) {
           listJson(state, filter);
@@ -276,7 +287,7 @@ async function main(): Promise<void> {
         // Failed tracks with attempts < 5 are already picked up by sync;
         // this resets the ladder for everything failed.
         state.resetFailures();
-        if (process.argv.slice(3).includes("--json")) {
+        if (rest.includes("--json")) {
           // P1 (--json on every command): one summary object on stdout.
           console.log(JSON.stringify({ command: "retry", reset: true }));
         } else {
@@ -287,11 +298,7 @@ async function main(): Promise<void> {
       case "organize":
       case "enrich": {
         // organize and enrich share the exact same option surface.
-        const flags = parseFlags(
-          process.argv.slice(3),
-          [],
-          ["dry-run", "json"],
-        );
+        const flags = parseFlags(rest, [], ["dry-run", "json"]);
         const mod: Record<
           "organize" | "enrich",
           (opts: OrganizeOptions) => Promise<void>
@@ -308,23 +315,20 @@ async function main(): Promise<void> {
       }
       case "adopt": {
         const { adopt } = await import("./commands/adopt");
-        const json = process.argv.slice(3).includes("--json");
+        const json = rest.includes("--json");
         await adopt({ state, musicDir: MUSIC_DIR, json });
         break;
       }
       case "ingest": {
         const flags = parseFlags(
-          process.argv.slice(3),
+          rest,
           // "min-duration" must be registered or parseFlags skips it and
           // its value falls through to the positional folder → walkAudio("90")
           ["ingest", "folder", "min-duration"],
           ["dry-run", "no-artwork", "json"],
         );
         const folder =
-          flags.strings.get("folder") ??
-          process.argv
-            .slice(3)
-            .find((a) => !a.startsWith("--") && a !== "ingest");
+          firstPositional(rest, "ingest") ?? flags.strings.get("folder");
         if (!folder) {
           console.error(
             "ingest: pass a folder — megadj ingest <folder> [--dry-run]",
@@ -355,15 +359,12 @@ async function main(): Promise<void> {
       }
       case "drop": {
         const flags = parseFlags(
-          process.argv.slice(3),
+          rest,
           ["drop", "target"],
           ["dry-run", "no-mood", "json"],
         );
         const target =
-          flags.strings.get("target") ??
-          process.argv
-            .slice(3)
-            .find((a) => !a.startsWith("--") && a !== "drop");
+          firstPositional(rest, "drop") ?? flags.strings.get("target");
         if (!target) {
           console.error(
             "drop: pass a folder or URL — megadj drop <folder-or-url> [--dry-run] [--no-mood]",
@@ -385,11 +386,7 @@ async function main(): Promise<void> {
         break;
       }
       case "artwork": {
-        const flags = parseFlags(
-          process.argv.slice(3),
-          ["model", "max"],
-          ["dry-run", "json"],
-        );
+        const flags = parseFlags(rest, ["model", "max"], ["dry-run", "json"]);
         const { artwork } = await import("./commands/artwork");
         await artwork({
           state,
@@ -402,7 +399,7 @@ async function main(): Promise<void> {
       }
       case "fetch": {
         const flags = parseFlags(
-          process.argv.slice(3),
+          rest,
           ["jobs"],
           ["art", "genres", "tags", "years", "all", "dry-run", "json"],
         );
@@ -419,10 +416,15 @@ async function main(): Promise<void> {
         break;
       }
       case "audit": {
-        const json = process.argv.slice(3).includes("--json");
+        const json = rest.includes("--json");
         const { auditArchive } = await import("./commands/fetch");
         const report = auditArchive(MUSIC_DIR);
         const gaps = report.rows.filter((r) => !r.complete);
+        const missing = (r: (typeof gaps)[number]): string =>
+          (Object.entries(r) as [string, unknown][])
+            .filter(([k, v]) => k !== "file" && k !== "complete" && !v)
+            .map(([k]) => k)
+            .join(",");
         if (json) {
           console.log(
             JSON.stringify(
@@ -432,9 +434,7 @@ async function main(): Promise<void> {
                 complete: report.complete,
                 incomplete: gaps.map((r) => ({
                   file: r.file,
-                  missing: (Object.entries(r) as [string, unknown][])
-                    .filter(([k, v]) => k !== "file" && k !== "complete" && !v)
-                    .map(([k]) => k),
+                  missing: missing(r),
                 })),
               },
               null,
@@ -450,11 +450,7 @@ async function main(): Promise<void> {
         if (gaps.length) {
           console.log(`\nincomplete:`);
           for (const r of gaps) {
-            const miss = (Object.entries(r) as [string, unknown][])
-              .filter(([k, v]) => k !== "file" && k !== "complete" && !v)
-              .map(([k]) => k)
-              .join(",");
-            console.log(`  [${miss}] ${r.file}`);
+            console.log(`  [${missing(r)}] ${r.file}`);
           }
           process.exitCode = 1;
         } else {
@@ -465,11 +461,7 @@ async function main(): Promise<void> {
       case "years": {
         // the fix_years pass, one entry point: verifies every track's year
         // against the SC page / yt-dlp timestamp (never the AI guess)
-        const flags = parseFlags(
-          process.argv.slice(3),
-          [],
-          ["dry-run", "json"],
-        );
+        const flags = parseFlags(rest, [], ["dry-run", "json"]);
         const { runFixYears } = await import("../tools/fix_years");
         await runFixYears({
           dryRun: flags.bools.has("dry-run"),
@@ -481,16 +473,24 @@ async function main(): Promise<void> {
         // Roadmap rev 5 §2/#2 pivot: beat_this → DB ledger, NEVER tags
         // (the tempo gate failed 12/24; arrays feed cues + grid checks).
         const flags = parseFlags(
-          process.argv.slice(3),
+          rest,
           ["limit", "jobs"],
           ["force", "dry-run", "json"],
         );
+        // Invalid numeric input must abort the case, never flow through
+        // (undefined-after-error means bail — same contract as sync).
+        const beatsLimit = nonNegOpt(flags, "limit", "beats");
+        if (
+          beatsLimit === undefined &&
+          flags.strings.get("limit") !== undefined
+        )
+          break;
         const { beats } = await import("./commands/beats");
         await beats({
           state,
           musicDir: MUSIC_DIR,
           jobs: numOpt(flags, "jobs"),
-          limit: nonNegOpt(flags, "limit", "beats"),
+          limit: beatsLimit,
           force: flags.bools.has("force"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
@@ -503,16 +503,19 @@ async function main(): Promise<void> {
         // --embeddings (I49): also mirror the effnet 1280-d embedding into
         // the `embeddings` ledger for "sounds like" queries.
         const flags = parseFlags(
-          process.argv.slice(3),
+          rest,
           ["limit", "jobs"],
           ["force", "dry-run", "json", "embeddings"],
         );
+        const moodLimit = nonNegOpt(flags, "limit", "mood");
+        if (moodLimit === undefined && flags.strings.get("limit") !== undefined)
+          break;
         const { mood } = await import("./commands/mood");
         await mood({
           state,
           musicDir: MUSIC_DIR,
           jobs: numOpt(flags, "jobs"),
-          limit: nonNegOpt(flags, "limit", "mood"),
+          limit: moodLimit,
           force: flags.bools.has("force"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
@@ -524,16 +527,9 @@ async function main(): Promise<void> {
         // Roadmap I49 "sounds like": cosine kNN over the embeddings
         // ledger. Pure read — the vectors come from `megadj mood
         // --embeddings` (same ONNX probe run as the mood heads).
-        const flags = parseFlags(
-          process.argv.slice(3),
-          ["similar", "k"],
-          ["json"],
-        );
+        const flags = parseFlags(rest, ["similar", "k"], ["json"]);
         const id =
-          flags.strings.get("similar") ??
-          process.argv
-            .slice(3)
-            .find((a) => !a.startsWith("--") && a !== "similar");
+          firstPositional(rest, "similar") ?? flags.strings.get("similar");
         if (!id) {
           console.error(
             "similar: pass a video id — `megadj similar <video_id> [--k N]`",
@@ -553,18 +549,20 @@ async function main(): Promise<void> {
         // Roadmap D24: re-fetch below-floor (LOWQ) tracks at best quality.
         // The swap is fingerprint-gated: a different recording is refused,
         // the old file never leaves until every gate passes.
-        const flags = parseFlags(
-          process.argv.slice(3),
-          ["limit"],
-          ["dry-run", "json"],
-        );
+        const flags = parseFlags(rest, ["limit"], ["dry-run", "json"]);
+        const upgradeLimit = nonNegOpt(flags, "limit", "upgrade");
+        if (
+          upgradeLimit === undefined &&
+          flags.strings.get("limit") !== undefined
+        )
+          break;
         const { upgrade } = await import("./commands/upgrade");
         await upgrade({
           state,
           musicDir: MUSIC_DIR,
           cookiesFromBrowser: COOKIES || null,
           cookiesFile: COOKIES_FILE,
-          limit: nonNegOpt(flags, "limit", "upgrade"),
+          limit: upgradeLimit,
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
         });
@@ -573,15 +571,14 @@ async function main(): Promise<void> {
       case "cues": {
         // Roadmap cues slice: DJ phrase markers (8-bar) from the beats
         // ledger's downbeats — DB-side only, no player writes.
-        const flags = parseFlags(
-          process.argv.slice(3),
-          ["limit"],
-          ["force", "dry-run", "json"],
-        );
+        const flags = parseFlags(rest, ["limit"], ["force", "dry-run", "json"]);
+        const cuesLimit = nonNegOpt(flags, "limit", "cues");
+        if (cuesLimit === undefined && flags.strings.get("limit") !== undefined)
+          break;
         const { cues } = await import("./commands/cues");
         await cues({
           state,
-          limit: nonNegOpt(flags, "limit", "cues"),
+          limit: cuesLimit,
           force: flags.bools.has("force"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),

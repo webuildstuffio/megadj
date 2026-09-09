@@ -25,8 +25,27 @@ import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
-import { ListHead } from "../../ui/ListHead";
-import { ShareBar, TrackTitle, GridCheckRow, gridDeltaPct } from "../shared";
+import {
+  ListHead,
+  DataTable,
+  KVRows,
+  KVRow,
+  KVKey,
+  KVVal,
+  StatCard,
+  Card,
+  Truncated,
+} from "../../ui/data";
+import {
+  ShareBar,
+  TrackTitle,
+  beatSyncColumns,
+  beatSyncCopy,
+  gridDeltaPct,
+  MOOD_GLOSS,
+  STATUS_LANG,
+  type GridBreaker,
+} from "../shared";
 
 // Payload types are DERIVED from ArchiveReader's return types
 // (shared/types.ts) — never re-declare server shapes locally. Local
@@ -37,19 +56,6 @@ type LowqPayload = ArchiveLowqQueue;
 type GridPayload = ArchiveGridCrossCheck;
 
 type ArchivePayload = [IngestPayload, MoodPayload, LowqPayload, GridPayload];
-
-/** Raw pipeline statuses → plain language. The DB tracks a download
- *  pipeline's bookkeeping, not music; the buckets a DJ can act on are
- *  "have / broken / waiting", and the rest is machinery. Keys not listed
- *  here (unknown future statuses) render through the same map fallback. */
-const STATUS_LANG: Record<string, string> = {
-  downloaded: "in the archive",
-  failed: "failed — retryable",
-  gone: "gone from source",
-  pending: "waiting to download",
-  deleted: "removed locally",
-  skipped_not_music: "skipped (not music)",
-};
 
 /** The pipeline pie: have vs broken vs waiting, in plain language. Shares
  *  the ShareBar pie+legend renderer with the other product pages. */
@@ -154,6 +160,27 @@ export function ArchiveTab() {
     (r) => r.downloaded + r.failed + r.gone > 0,
   );
   const newest = ingest.recent_tracks.slice(0, 8);
+  // octave rows first (the dangerous ones) — the shared table renders it
+  const breakers: GridBreaker[] = grid?.available
+    ? [
+        ...grid.octave.map((t) => ({
+          videoId: t.video_id,
+          title: t.title,
+          isOct: true,
+          ledgerBpm: t.ledgerBpm,
+          rbBpm: t.rbBpm,
+          deltaPct: gridDeltaPct(t.ledgerBpm, t.rbBpm),
+        })),
+        ...grid.off.map((t) => ({
+          videoId: t.video_id,
+          title: t.title,
+          isOct: false,
+          ledgerBpm: t.ledgerBpm,
+          rbBpm: t.rbBpm,
+          deltaPct: gridDeltaPct(t.ledgerBpm, t.rbBpm),
+        })),
+      ]
+    : [];
 
   const verdict =
     issues.length === 0
@@ -273,58 +300,33 @@ export function ArchiveTab() {
 
       {/* 1 — Beat Sync breakers: the highest-stakes list, with numbers */}
       {grid?.available && syncRisk > 0 && (
-        <div class="card">
+        <Card>
           <ListHead
             icon="pulse"
             title="Beat Sync breakers"
             n={syncRisk}
-            hint="These tracks' independent beatgrid analysis disagrees with rekordbox's BPM — off by >2% tempo or locked an octave (half/double) out. They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home."
-            lines={[
-              ...grid.octave.map(
-                (t) =>
-                  `${t.title ?? t.video_id} — grid ${t.ledgerBpm} vs RB ${Math.round(t.rbBpm * 10) / 10} BPM (OCTAVE)`,
-              ),
-              ...grid.off.map(
-                (t) =>
-                  `${t.title ?? t.video_id} — grid ${t.ledgerBpm} vs RB ${Math.round(t.rbBpm * 10) / 10} BPM`,
-              ),
-            ]}
+            hint="These tracks' independent beatgrid analysis disagrees with rekordbox's BPM — off by >2% tempo or locked an octave (half/double) out. They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Click a numeric header to sort."
+            lines={beatSyncCopy(breakers)}
           />
-          <div class="covtable">
-            <div class="covrow head gridcheck">
-              <span>track</span>
-              <span>verdict</span>
-              <span>grid</span>
-              <span>rekordbox</span>
-              <span>delta</span>
-            </div>
-            {[...grid.octave, ...grid.off].slice(0, 40).map((t) => {
-              const isOct = grid.octave.includes(t);
-              return (
-                <GridCheckRow
-                  title={t.title}
-                  videoId={t.video_id}
-                  isOct={isOct}
-                  ledgerBpm={t.ledgerBpm}
-                  rbBpm={t.rbBpm}
-                  deltaPct={gridDeltaPct(t.ledgerBpm, t.rbBpm)}
-                />
-              );
-            })}
-            {syncRisk > 40 && (
-              <div class="fleet-note">showing 40 of {syncRisk}</div>
-            )}
-          </div>
+          <DataTable
+            columns={beatSyncColumns()}
+            rows={breakers}
+            cap={40}
+            ariaLabel="Beat Sync breakers"
+            rowTone={(t) => (t.isOct ? "bad" : "")}
+            copyLines={beatSyncCopy}
+            copyName="Beat Sync breakers"
+          />
           <div class="arch-fix">
             fix: <code>megadj beats --force</code> re-analyzes — the write-gate
             on BPM tags is documented in the FullTags roadmap
           </div>
-        </div>
+        </Card>
       )}
 
       {/* 2 — LOWQ: quality upgrades, with the reason each track is flagged */}
       {lowq?.available && qualityDebt > 0 && (
-        <div class="card">
+        <Card>
           <ListHead
             icon="warn"
             title="Quality upgrades"
@@ -334,28 +336,28 @@ export function ArchiveTab() {
               (t) => `${t.title ?? t.video_id} — ${t.reason}`,
             )}
           />
-          <div class="rows">
+          <KVRows>
             {lowq.tracks.slice(0, 25).map((t) => (
-              <div class="row" key={t.video_id}>
-                <TrackTitle
-                  title={t.title ?? t.video_id}
-                  videoId={t.video_id}
-                  artist={t.artist}
-                />
-                <span class="arch-pill muted">{t.reason}</span>
-              </div>
+              <KVRow key={t.video_id}>
+                <KVKey>
+                  <TrackTitle
+                    title={t.title ?? t.video_id}
+                    videoId={t.video_id}
+                    artist={t.artist}
+                  />
+                </KVKey>
+                <KVVal>
+                  <span class="arch-pill muted">{t.reason}</span>
+                </KVVal>
+              </KVRow>
             ))}
-            {qualityDebt > 25 && (
-              <div class="fleet-note">
-                showing 25 of {qualityDebt} — Copy has the full list
-              </div>
-            )}
-          </div>
+            {qualityDebt > 25 && <Truncated shown={25} total={qualityDebt} />}
+          </KVRows>
           <div class="arch-fix">
             fix: re-download from a better source, then{" "}
             <code>megadj ingest</code>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* 3 — retry backlog: failed + gone in one actionable count */}
@@ -404,7 +406,17 @@ export function ArchiveTab() {
             />
             <div class="statgrid">
               {Object.entries(mood.avg).map(([k, v]) => (
-                <StatCardInline key={k} k={k} v={v} />
+                <StatCard
+                  key={k}
+                  v={
+                    k === "valence" || k === "arousal"
+                      ? v.toFixed(1)
+                      : v.toFixed(2)
+                  }
+                  l={k}
+                  em={MOOD_GLOSS[k]?.split("·")[1]?.trim()}
+                  title={MOOD_GLOSS[k] ?? k}
+                />
               ))}
             </div>
             <div class="arch-extremes">
@@ -440,20 +452,22 @@ export function ArchiveTab() {
           {newest.length === 0 ? (
             <div class="empty">nothing yet — run megadj sync</div>
           ) : (
-            <div class="rows">
+            <KVRows>
               {newest.map((t) => (
-                <div class="row" key={t.video_id}>
-                  <TrackTitle
-                    title={t.title ?? t.video_id}
-                    videoId={t.video_id}
-                    artist={t.artist}
-                  />
-                  <span class="muted arch-status" title={t.status}>
+                <KVRow key={t.video_id}>
+                  <KVKey>
+                    <TrackTitle
+                      title={t.title ?? t.video_id}
+                      videoId={t.video_id}
+                      artist={t.artist}
+                    />
+                  </KVKey>
+                  <KVVal title={t.status}>
                     {STATUS_LANG[t.status] ?? t.status}
-                  </span>
-                </div>
+                  </KVVal>
+                </KVRow>
               ))}
-            </div>
+            </KVRows>
           )}
           {activeRuns.length > 0 && (
             <div class="arch-fix">
@@ -473,31 +487,6 @@ export function ArchiveTab() {
             </div>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-/** One mood average as a stat + a one-word gloss. Averages are 0–1 for the
- *  mood heads and 1–9 for VA — the gloss says which end is which. */
-function StatCardInline(props: { k: string; v: number }) {
-  const gloss: Record<string, string> = {
-    dance: "0–1 · how danceable",
-    valence: "1–9 · sad → happy",
-    arousal: "1–9 · calm → intense",
-    party: "0–1 · party vibe",
-    electronic: "0–1 · electronic vibe",
-    aggressive: "0–1 · aggressive vibe",
-  };
-  const val =
-    props.k === "valence" || props.k === "arousal"
-      ? props.v.toFixed(1)
-      : props.v.toFixed(2);
-  return (
-    <div class="stat" title={gloss[props.k] ?? props.k}>
-      <div class="v">{val}</div>
-      <div class="l">
-        {props.k} <em>{gloss[props.k]?.split("·")[1]?.trim() ?? ""}</em>
       </div>
     </div>
   );

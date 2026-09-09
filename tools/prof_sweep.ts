@@ -19,7 +19,7 @@ const DIR =
   `${process.env.HOME}/Music/DJ-Imports`;
 
 async function walkCollect(dir: string, out: string[] = []): Promise<string[]> {
-  let entries;
+  let entries: import("node:fs").Dirent[];
   try {
     entries = await readdir(dir, { withFileTypes: true });
   } catch {

@@ -44,3 +44,64 @@ export function optNum(
 
 /** Invalid/missing tool argument — maps to JSON-RPC -32602. */
 export class RpcParamError extends Error {}
+
+// ---- input-schema builders --------------------------------------------------
+// One source of truth for the JSON-Schema boilerplate every tool repeats
+// (`{type:"object", properties, required?, additionalProperties:false}` and
+// the per-property `{type, description?}` wrappers). Keeps tool tables to
+// their substance: names, descriptions, run bodies.
+
+/** One object property. */
+export interface Prop {
+  type: "string" | "number" | "boolean";
+  description?: string;
+  enum?: readonly string[];
+}
+
+function prop(p: Prop): Record<string, unknown> {
+  const out: Record<string, unknown> = { type: p.type };
+  if (p.description) out.description = p.description;
+  if (p.enum) out.enum = [...p.enum];
+  return out;
+}
+
+/** Tool input schema: `obj({ drive: strProp(...), k: numProp(...) }, ["drive"])`. */
+export function obj(
+  properties: Record<string, Prop>,
+  required: string[] = [],
+): Record<string, unknown> {
+  const props: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(properties)) props[k] = prop(v);
+  const out: Record<string, unknown> = {
+    type: "object",
+    properties: props,
+    additionalProperties: false,
+  };
+  if (required.length) out.required = required;
+  return out;
+}
+
+/** The no-parameter schema shared by the readonly no-arg tools. */
+export function noArgs(): Record<string, unknown> {
+  return { type: "object", properties: {}, additionalProperties: false };
+}
+
+/** `s("text", "search text")` shorthand for a string property. */
+export function s(description: string): Prop {
+  return { type: "string", description };
+}
+
+/** Bare string property (no description) — for enum/case rows keep `s`. */
+export function sEnum(options: readonly string[], description?: string): Prop {
+  return { type: "string", enum: options, description };
+}
+
+/** Numeric property with optional description. */
+export function n(description?: string): Prop {
+  return { type: "number", description };
+}
+
+/** Boolean property with optional description. */
+export function b(description?: string): Prop {
+  return { type: "boolean", description };
+}

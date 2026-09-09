@@ -1,6 +1,6 @@
 # CrateDeck — PRD
 
-v1 · 2026-09-03 · [Brief](01-product-brief.md) → **PRD** → [Architecture](03-architecture.md) → [Build Plan](04-build-plan.md)
+v1 · 2026-09-03 · Brief merged into this doc (Sep 9 cleanup) · **PRD** → [Architecture](03-architecture.md) · [Acceptance](acceptance.md)
 
 **Status:** ✅ Core shipped (v0.1, 2026-09-04) — F1–F9 implemented in
 `cratedeck/` (registry, detection, images, rekordbox introspection via the
@@ -10,11 +10,65 @@ Acceptance evidence per feature: [acceptance.md](acceptance.md). Remaining
 v1.x items (gig mode, radar, dossiers UI) are tracked in
 [../../ideas.md](../ideas.md).
 
-This doc turns the brief into concrete, testable features. Every feature has
-an ID used by the architecture and build plan. All F1–F9 shipped in v0.1
-(2026-09-04) — every acceptance checkbox below carries its evidence in
-[acceptance.md](acceptance.md); the four still-manual items are real-hardware
-checks listed there.
+This doc is the product + feature SSOT for CrateDeck. Every feature has an
+ID used by the architecture and acceptance evidence. All F1–F9 shipped in
+v0.1 (2026-09-04) — every feature's acceptance evidence lives in
+[acceptance.md](acceptance.md); the four still-manual items are
+real-hardware checks listed there.
+
+---
+
+## The problem, honestly
+
+A working DJ owns a shelf of USB drives that carry gig-critical rekordbox
+libraries. Right now the only ways to answer "what's on this stick and is it
+healthy?" are:
+
+1. Plug it in, open Finder, squint.
+2. Open rekordbox (slow, and it mutates DBs just by looking).
+3. Ask an agent to run the megadj verify scripts by hand.
+
+None of these answer the real questions fast:
+
+- Which drive is this? (they all look the same in a drawer)
+- Is it in sync with the master library?
+- Does every track have a beatgrid, or will the XZ show nothing?
+- When did I last verify it? Did anything corrupt since?
+- Which physical port is it in, and does that matter?
+
+The megadj repo already solved the _hard_ half — byte-accurate rekordbox
+device-library reads, ANLZ validation, hardware-gate verification, mirror
+tooling. What's missing is a **face**: a single always-on page that turns
+that machinery into something you can glance at.
+
+## Vision
+
+> A local web page that shows every drive you've ever plugged in as a card —
+> with its photo, its name, its playlists, its health, its sync state, its
+> history — even when it's unplugged. Plug a stick in and it lights up.
+> Unplug it and it becomes a ghost that remembers everything.
+
+One command (`bun run deck`), one page, zero accounts, localhost only.
+
+## Who it's for
+
+**Primary user:** a working DJ — one person, multiple venues' worth of gear,
+values glanceability over configuration, allergic to busywork. This is not a
+SaaS; it's the cockpit of a one-DJ operation. Secondary: any visiting DJ who
+borrows a stick and needs to know what's on it in 5 seconds.
+
+## Personality & feel
+
+Playful-pro DJ tool, not enterprise storage admin. Drive cards feel like
+record crates: big photo, sticker-like badges (READY / STALE / GHOST / /!\
+ATTN), a "spinning" state while jobs run. Flat design, no gradients, dark
+default. Copy is terse and confident ("Last verified 2d ago — clean").
+Status colors: green ready, amber stale, red attention, gray ghost.
+
+## Kill criteria
+
+If the registry/ghost layer doesn't earn its keep within two real gig cycles
+(drives still getting mixed up), simplify to a verify-badge page only.
 
 ---
 
@@ -34,9 +88,8 @@ readiness badge as of last verify, "last seen 6d ago via port Left-rear".
 missing (cheap sticks): `name + capacity + fs`. Collisions resolve through a
 manual merge dialog ("is this the same drive as X?").
 
-**Acceptance:**
+**Acceptance:** evidence in [acceptance.md](acceptance.md).
 
-- [x] Plug a never-seen stick → card appears within 2s, persisted across
       restarts of the app and across unplug.
 - [x] Unplug it → card becomes ghost with last-known data + timestamp.
 - [x] Two identical empty sticks get distinct identities via UUID.
@@ -51,10 +104,8 @@ Physical port identity comes from the USB topology path
 (`AppleUSB20XHCIPort` / locationID) mapped to stable port names the user can
 label ("MBP left rear", "hub slot 2").
 
-**Acceptance:**
+**Acceptance:** evidence in [acceptance.md](acceptance.md).
 
-- [x] Mount/unmount reflected in UI ≤ 2s (poll interval 1s).
-- [x] Port map page shows a tree: Mac → bus → hub → labeled ports, drives
       in their current slots, history of which drive was where.
 - [x] Hub-attached sticks resolve to the hub port, not the Mac root.
 
@@ -72,9 +123,8 @@ photo. Sources:
 Images are downloaded, normalized (square thumb + original), stored under
 `cratedeck/data/images/<uuid>/`, and never re-fetched.
 
-**Acceptance:**
+**Acceptance:** evidence in [acceptance.md](acceptance.md).
 
-- [x] Search "SanDisk Ultra Fit 128GB" with a configured key → ≥ 8 results,
       click to confirm → photo persists on the card forever (offline OK).
 - [x] No API key → manual upload path fully works.
 - [x] Rename anytime; history keeps old names.
@@ -97,9 +147,8 @@ Images are downloaded, normalized (square thumb + original), stored under
 **What (ghost):** last cached snapshot with an "as of" stamp; a "rescan"
 button appears only when mounted.
 
-**Acceptance:**
+**Acceptance:** evidence in [acceptance.md](acceptance.md).
 
-- [x] Any drive's detail matches its known ground truth: track count,
       playlists, pdb vs OneLibrary delta.
 - [x] Zero writes to the drive during any scan (tests assert mtime/bytes
       unchanged).
@@ -117,9 +166,8 @@ button appears only when mounted.
 - ANLZ parity: hash spot-check sample + full option
 - verdict: `IN SYNC` / `BEHIND (n files)` / `DIVERGED` / `UNKNOWN (stale scan)`
 
-**Acceptance:**
+**Acceptance:** evidence in [acceptance.md](acceptance.md).
 
-- [x] the mirror reads IN SYNC or BEHIND with exact counts, matching a
       manual `usb_mirror.py --verify-only` run.
 - [x] Superset tolerance: extra mirror-only files don't fail the badge
       (configurable strictness).
@@ -142,9 +190,8 @@ check `pgrep rekordbox`; if running, the API refuses with
 Verify/mirror additionally refuse if the target drive is the wrong role
 (mirror run on master, etc.) unless overridden in config.
 
-**Acceptance:**
+**Acceptance:** evidence in [acceptance.md](acceptance.md).
 
-- [x] Job lifecycle: queued → running (progress %, MB/s, ETA) → done/failed
       with persisted log; survive page reloads; one job per drive at a time.
 - [x] With rekordbox running, every mutating job is refused at the API and
       rendered locked in UI. Read-only scans also refuse (they copy DBs —
@@ -166,9 +213,8 @@ Verify/mirror additionally refuse if the target drive is the wrong role
 - verdict badge: READY / STALE (verify old / changes since) / ATTN
   (corruption signals) / GHOST (unplugged)
 
-**Acceptance:**
+**Acceptance:** evidence in [acceptance.md](acceptance.md).
 
-- [x] A deliberately zero-byte'd file in a test fixture surfaces as ATTN
       with the exact path.
 - [x] Case-collision detector reproduces the Aug-25 phantom-missing-file
       class of bug on synthetic fixtures.
@@ -182,9 +228,8 @@ sync-state transitions. UI: per-drive timeline tab + global "recent activity"
 feed. Export: JSON dump button per drive (the "save details from last known
 time" requirement — ghosts are exportable).
 
-**Acceptance:**
+**Acceptance:** evidence in [acceptance.md](acceptance.md).
 
-- [x] Any question "what happened to this stick?" answerable from the
       timeline with timestamps.
 - [x] Export JSON re-imports on a fresh machine.
 
@@ -200,9 +245,8 @@ time" requirement — ghosts are exportable).
 - side: port map mini-tree; jobs tray with live progress
 - global search: tracks/playlists across all known drives incl. ghosts
 
-**Acceptance:**
+**Acceptance:** evidence in [acceptance.md](acceptance.md).
 
-- [x] All real drives visible on one screen at 1440×900 without scrolling
       (grid adapts).
 - [x] Search for a playlist name returns every drive holding it, ghost or not.
 - [x] Interlock banner appears within 2s of rekordbox launching; job buttons

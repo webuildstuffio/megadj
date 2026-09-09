@@ -3,28 +3,17 @@
 // The individual check builders live in report_checks.ts (file-length
 // guard); this module keeps the ReportInput contract + the aggregators.
 import type {
-  Drive,
   DriveReport,
   HealthCheck,
   OverallHealth,
-  SnapshotData,
   SyncVerdict,
 } from "../shared/types";
 import { BUILDERS } from "./report_checks";
+import type { ReportInput } from "./report_types";
 
-export interface ReportInput {
-  drive: Drive;
-  snapshot: SnapshotData | null;
-  latestVerify: { ran_at: number; ok: boolean } | null;
-  bench: { ran_at: number; seq_mbps: number }[];
-  ledgerFiles: number;
-  ledgerStaleDays: number | null;
-  masterSnapshot: SnapshotData | null;
-  masterName: string;
-  isMirror: boolean;
-  /** Newest checksum job verdict. null = never run (≠ a clean 0). */
-  latestChecksum: { ran_at: number; changed: number } | null;
-}
+// ReportInput is canonically defined in the leaf report_types.ts; re-export
+// keeps every existing `from "./report"` import working unchanged.
+export type { ReportInput } from "./report_types";
 
 export function buildChecks(input: ReportInput): HealthCheck[] {
   return BUILDERS.flatMap((build) => build(input) ?? []);
