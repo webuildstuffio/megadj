@@ -27,10 +27,11 @@ Nothing in this document matters while these are open. §0 blocks §A–§O.
 **Tracked as GitHub issues** — status lives there, this doc keeps the
 why: [0a](https://github.com/webuildstuffio/megadj/issues/1) ·
 [0b](https://github.com/webuildstuffio/megadj/issues/2) ·
-[0c](https://github.com/webuildstuffio/megadj/issues/3) ·
-[0d](https://github.com/webuildstuffio/megadj/issues/4) ·
-[0e incident log](https://github.com/webuildstuffio/megadj/issues/5) —
-all five open.
+[0c](https://github.com/webuildstuffio/megadj/issues/3) — open (all
+three blocked on hardware/user time: Extra + BACKUP2 unmounted, no
+cloud remote configured) ·
+[0d](https://github.com/webuildstuffio/megadj/issues/4) ✅ ·
+[0e incident log](https://github.com/webuildstuffio/megadj/issues/5) ✅.
 
 0a. **Evacuate the dying SSD.** It has a hardware clock; every other item
 here has a calendar. This is item zero: copy to a healthy disk
@@ -46,16 +47,17 @@ all drives failing at once — the only failure that ends the archive.
 nowhere else. One session: adopt into master (via `megadj adopt` +
 ingest) or declare them dead in the sync log. Do it _before_ 0b so
 the cloud backup captures the decision, not the ambiguity.
-0d. **Build the redundancy audit (§B7) + coverage matrix (§B6) — code
-SHIPPED 2026-09-04** (`fleet.ts`, `deckctl coverage|redundancy`);
-issue [#4](https://github.com/webuildstuffio/megadj/issues/4) stays
-open until every drive has one real scan feeding the matrices live
-data. If only four things ever ship from this doc, it's 0a–0d.
+0d. **Build the redundancy audit (§B7) + coverage matrix (§B6) — DONE
+2026-09-09** (code shipped 2026-09-04; both drives scanned — live
+matrices: 2,665 unique tracks, 2,609 fully redundant, 56 at-risk).
+Issue [#4](https://github.com/webuildstuffio/megadj/issues/4) closed.
+If only four things ever ship from this doc, it's 0a–0d.
 
-0e. **Incident log (the missing input):** no record exists of what has
-actually gone wrong at a gig. Add one line per gig to the sync log
-(`## YYYY-MM-DD gig — venue, what bit us`). One real incident outranks
-any idea in this file.
+0e. **Incident log (the missing input):** SEEDED 2026-09-09 — two real
+incidents from the Aug 2025 recovery (XML import bug; the NEVERMISSMI
+DB corruption) are now the first entries in
+`docs/usb-sync-log.md`. Keep appending one line per gig.
+Issue [#5](https://github.com/webuildstuffio/megadj/issues/5) closed.
 
 **Reality gate — the input that decides the rest of this doc:** how often
 do you play?
