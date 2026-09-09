@@ -53,10 +53,12 @@ check` && `bun test` before every push. Type coverage is a hard 100%
 
 ## What this repo is
 
-megadj is a YouTube Music archiver (Bun/TypeScript CLI) feeding a master +
-mirror pair of DJ USB drives. Volume names are user-specific — examples use
-`DJMASTER`/`DJMIRROR`; override via args, `config.toml`, or
-`USB_SYNC_MASTER`/`USB_SYNC_MIRROR`. Three named sub-projects (one-liners in
+megadj is a YouTube Music archiver (Bun/TypeScript CLI) feeding a shelf
+master (archive-grade HDD, `library.shelf_drive`, default `SHELF1`) plus a
+master + mirror pair of DJ USB drives that sync FROM the shelf. Volume
+names are user-specific — examples use `DJMASTER`/`DJMIRROR`; override via
+args, `config.toml`, or `USB_SYNC_MASTER`/`USB_SYNC_MIRROR`. Three named
+sub-projects (one-liners in
 `docs/FEATURES.md`; honest state in `docs/product-state-2026-09-07.md`):
 
 - **GetDat** — download + `megadj ingest` into the archive (MusicBrainz

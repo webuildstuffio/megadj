@@ -12,7 +12,8 @@ this page is the "where are we".**
 
 megadj is a three-project pipeline — **GetDat** (download) → **FullTags**
 (enrich) → **CrateDeck** (organize/verify/sync) — run by one person on one
-Mac, feeding a master + mirror pair of Pioneer-format DJ USBs. All three
+Mac, feeding a shelf master (the archive-grade HDD that never leaves the
+desk) plus a master + mirror pair of Pioneer-format DJ USBs. All three
 cores are shipped and *measured*: the archive's 88 tracks are fully
 ledgered (fingerprint, key, mood, energy in the files; beats, phrase cues,
 mood mirrors in the DB), the write-gate discipline has passed one ladder

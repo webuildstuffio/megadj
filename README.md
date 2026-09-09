@@ -61,7 +61,9 @@ megadj audit             # the completeness check across the whole library
 
 Every USB drive you own shows up in the dashboard as a card, with its
 playlists and its health. Unplug it and it stays in the sidebar — a quiet
-reminder of what's on it and when you last verified it.
+reminder of what's on it and when you last verified it. A shelf drive
+(the archive-grade master master) anchors the fleet: gig sticks sync
+from it, and it never leaves the desk.
 
 Sync puts new tracks onto your master drive, mirrors them to the backup,
 then verifies both down to the details players care about: the databases

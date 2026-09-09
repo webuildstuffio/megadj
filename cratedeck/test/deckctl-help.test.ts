@@ -70,6 +70,17 @@ describe("deckctl help + --help (work with the server down)", () => {
     expect(stdout).toContain("why it matters");
   });
 
+  it("help <shelf> resolves the shelf role glossary entry", async () => {
+    // regression: the shelf tier (archive-grade master master) shipped in
+    // DriveRole before the glossary — `deckctl help shelf` 404'd while the
+    // rail chip rendered, so CLI agents got no wording for the tier
+    const { code, stdout } = await runDeckctl(["help", "shelf"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("Shelf");
+    expect(stdout).toContain("master master");
+    expect(stdout).toContain("why it matters");
+  });
+
   it("help <kind> explains a job (verify)", async () => {
     const { code, stdout } = await runDeckctl(["help", "verify"]);
     expect(code).toBe(0);

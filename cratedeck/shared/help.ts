@@ -45,8 +45,13 @@ export interface HelpSurface {
 export const HELP_TERMS: HelpTerm[] = [
   {
     term: "Master",
-    def: "The drive you treat as the source of truth — new music lands here first.",
+    def: "The gig stick you treat as the working source of truth — new music lands here first.",
     why: "Every other copy (the mirror) is measured against it; parity checks compare a mirror to its master.",
+  },
+  {
+    term: "Shelf",
+    def: "The archive-grade master master: a big always-at-home HDD every gig stick syncs FROM.",
+    why: "It never leaves the shelf and never takes booth wear — sticks are disposable players, the shelf is the library itself.",
   },
   {
     term: "Mirror",
