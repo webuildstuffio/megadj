@@ -18,7 +18,8 @@ seed.exec(`
     attempts INTEGER NOT NULL DEFAULT 0, last_attempt_at TEXT,
     last_error TEXT, liked_position INTEGER,
     source TEXT NOT NULL DEFAULT 'liked', genre TEXT, energy INTEGER,
-    artwork_status TEXT, first_seen_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    artwork_status TEXT, year TEXT, first_seen_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
   );
   CREATE TABLE runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT NOT NULL,
@@ -365,5 +366,150 @@ describe("ArchiveReader (O82b)", () => {
     expect(p.extremes.valence).toEqual([]);
     expect(Number.isNaN(p.avg.dance)).toBe(false);
     r.close();
+  });
+
+  it("cueStats: per-track phrase-cue counts off the cues ledger", () => {
+    // cues table mirrors megadj's src/state.ts schema
+    seed.exec(`
+      CREATE TABLE IF NOT EXISTS cues (
+        video_id TEXT PRIMARY KEY, cues_json TEXT NOT NULL,
+        model TEXT NOT NULL, derived_at TEXT NOT NULL
+      );
+    `);
+    seed.exec("DELETE FROM cues");
+    const insC = seed.query(
+      `INSERT OR REPLACE INTO cues (video_id, cues_json, model, derived_at)
+       VALUES (?, ?, ?, ?)`,
+    );
+    const cueSet = (n: number): string =>
+      JSON.stringify(
+        Array.from({ length: n }, (_, i) => ({
+          index: i,
+          position: i * 16,
+          bar: i * 8 + 1,
+        })),
+      );
+    insC.run("v1", cueSet(12), "phrase-cues@1", "t"); // 12 cues, first at 0
+    insC.run("v2", cueSet(9), "phrase-cues@1", "t"); // 9 cues
+    const r = reader();
+    const c = r.cueStats();
+    expect(c.available).toBe(true);
+    expect(c.analyzed).toBe(2);
+    expect(c.total_cues).toBe(21);
+    expect(c.avg_cues).toBeCloseTo(10.5, 1);
+    expect(c.tracks[0]!.cue_count).toBe(12);
+    expect(c.tracks[0]!.first_cue_at).toBe(0);
+    expect(c.tracks[0]!.model).toBe("phrase-cues@1");
+    // corrupt JSON row → skipped, not crashed
+    insC.run("v2", "{not json", "m", "t");
+    const cBad = r.cueStats();
+    expect(cBad.analyzed).toBe(1);
+    expect(cBad.total_cues).toBe(12);
+    r.close();
+  });
+
+  it("cueStats degrades on a schema without cues", () => {
+    const oldDir = mkdtempSync("/tmp/cratedeck-archive-nocues-");
+    const oldPath = join(oldDir, "archive.db");
+    const old = new Database(oldPath, { create: true });
+    old.exec(
+      `CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT)`,
+    );
+    old.close();
+    const r = new ArchiveReader(oldPath);
+    const c = r.cueStats();
+    expect(c.available).toBe(true);
+    expect(c.analyzed).toBe(0);
+    expect(c.tracks).toEqual([]);
+    r.close();
+    rmSync(oldDir, { recursive: true, force: true });
+  });
+
+  it("libraryOverview: genres/years/artwork/energy/codec profile of the archive", () => {
+    // gridCrossCheck/moodProfile tests seeded extra downloaded tracks (v5–v8);
+    // pin the expectation to THIS test's own view: count distinct fixtures.
+    const r = reader();
+    const lib = r.libraryOverview();
+    expect(lib.available).toBe(true);
+    // every downloaded fixture row carries genre "Techno"
+    expect(lib.genres).toEqual([{ name: "Techno", count: lib.tracks }]);
+    // artwork_status is NULL on the fixtures unless the sibling test set it;
+    // embedded + queued + missing must always sum to tracks
+    expect(
+      lib.artwork.embedded + lib.artwork.queued + lib.artwork.missing,
+    ).toBe(lib.tracks);
+    expect(lib.energy.stamped <= lib.tracks).toBe(true);
+    // codec counts sum to the playable total, ordered worst-first by count
+    expect(lib.codecs.reduce((s, c) => s + c.count, 0)).toBe(lib.tracks);
+    for (let j = 1; j < lib.codecs.length; j++)
+      expect(lib.codecs[j]!.count <= lib.codecs[j - 1]!.count).toBe(true);
+    expect(lib.recent.length).toBeGreaterThan(0);
+    // recent rows carry the ArchiveTrack shape through (spot-check fields)
+    const first = lib.recent[0]!;
+    expect(typeof first.video_id).toBe("string");
+    expect("year" in first && "artwork_status" in first).toBe(true);
+    r.close();
+  });
+
+  it("libraryOverview counts artwork rungs, years and energy when stamped", () => {
+    // self-contained fixtures (own video ids, cleaned in this test) so the
+    // assertion doesn't depend on sibling tests' seeded rows. The shared
+    // base fixture stamps energy=7 on every row — normalize it first so
+    // "stamped" is exactly the v9 row below.
+    seed.exec(`UPDATE tracks SET energy = NULL WHERE video_id <> 'v9'`);
+    const insT9 = seed.query(
+      `INSERT INTO tracks (video_id, title, artist, status, bitrate_kbps, codec,
+       file_path, duration_s, genre, energy, source, liked_position,
+       first_seen_at, updated_at)
+       VALUES (?, ?, 'A', 'downloaded', 320, 'mp3', '/p9', 300,
+               'Techno', NULL, 'liked', 1, '2026-09-01', '2026-09-05')`,
+    );
+    insT9.run("v9", "Stamped");
+    insT9.run("va", "Queued Art");
+    insT9.run("vb", "Bare");
+    seed.exec(`
+      UPDATE tracks SET artwork_status = 'embedded:sc-page-1080', year = '2026',
+        energy = 7 WHERE video_id = 'v9';
+      UPDATE tracks SET artwork_status = 'queued' WHERE video_id = 'va';
+    `);
+    const r = reader();
+    const lib = r.libraryOverview();
+    expect(lib.artwork.embedded).toBe(1);
+    expect(lib.artwork.queued).toBe(1);
+    expect(
+      lib.artwork.embedded + lib.artwork.queued + lib.artwork.missing,
+    ).toBe(lib.tracks);
+    expect(lib.years.known).toBe(1);
+    expect(lib.years.min).toBe("2026");
+    expect(lib.years.max).toBe("2026");
+    expect(lib.years.unknown).toBe(lib.tracks - 1);
+    expect(lib.energy.stamped).toBe(1);
+    // recent rows carry the enrichment columns through
+    const v9 = lib.recent.find((t) => t.video_id === "v9");
+    expect(v9?.year).toBe("2026");
+    expect(v9?.artwork_status).toBe("embedded:sc-page-1080");
+    // put the fixtures back (restore the base fixture's energy stamp)
+    seed.exec(`DELETE FROM tracks WHERE video_id IN ('v9','va','vb')`);
+    seed.exec(`UPDATE tracks SET energy = 7`);
+    r.close();
+  });
+
+  it("libraryOverview degrades on an empty archive", () => {
+    const oldDir = mkdtempSync("/tmp/cratedeck-archive-nolib-");
+    const oldPath = join(oldDir, "archive.db");
+    const old = new Database(oldPath, { create: true });
+    old.exec(
+      `CREATE TABLE tracks (video_id TEXT PRIMARY KEY, title TEXT, status TEXT)`,
+    );
+    old.close();
+    const r = new ArchiveReader(oldPath);
+    const lib = r.libraryOverview();
+    expect(lib.available).toBe(true);
+    expect(lib.tracks).toBe(0);
+    expect(lib.genres).toEqual([]);
+    expect(lib.codecs).toEqual([]);
+    expect(lib.recent).toEqual([]);
+    r.close();
+    rmSync(oldDir, { recursive: true, force: true });
   });
 });

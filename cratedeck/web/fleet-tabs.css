@@ -1,17 +1,46 @@
 /* ---- fleet superpowers (§B6/B7/B8) ---- */
+/* Product identity header (GetDat / FullTags / Fleet — shared chrome).
+ * Each product carries its own accent (--prod-* set on .canvas by the
+ * page component): the glyph chip + active states + tab underline all
+ * read from it, so switching sites re-tints the layer in one variable. */
 .fleet-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--stroke);
+}
+.prod-glyph {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--prod, var(--accent));
+  background: color-mix(in srgb, var(--prod, var(--accent)) 12%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--prod, var(--accent)) 30%, transparent);
 }
 .fleet-head h2 {
   margin: 0;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 19px;
+  letter-spacing: 0.2px;
+}
+.fleet-head h2 .prod-name {
+  background: linear-gradient(
+    92deg,
+    var(--text) 30%,
+    color-mix(in srgb, var(--prod, var(--accent)) 65%, var(--text))
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
 }
 .fleet-sub {
   color: var(--faint);
@@ -22,6 +51,31 @@
 }
 .tabs.inline {
   margin: 0;
+}
+/* inline header tabs ride the product accent (default = Drives mint) */
+.tabs.inline button {
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+.tabs.inline button:hover {
+  color: var(--text);
+}
+.tabs.inline button.on {
+  color: color-mix(in srgb, var(--prod, var(--accent)) 80%, var(--text));
+  border-bottom-color: var(--prod, var(--accent));
+}
+
+/* per-product accents: Drives mint (default), GetDat pipeline blue,
+ * FullTags pulse violet, Fleet cross-check amber. Set on the product
+ * canvas, consumed by the header glyph, tab underline and topbar chip. */
+.canvas.getdat {
+  --prod: var(--info);
+}
+.canvas.fulltags {
+  --prod: var(--pulse);
+}
+.canvas.fleet {
+  --prod: #f0b64b;
 }
 .fleetchip {
   display: inline-flex;
@@ -410,6 +464,118 @@
   font-size: 13.5px;
   color: var(--text);
   line-height: 1.5;
+}
+/* ---- topbar product tabs (Drives/GetDat/FullTags/Fleet) ---------------- */
+.product-tabs {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  padding: 2px;
+}
+.product-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 650;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.product-tab:hover {
+  color: var(--text);
+}
+/* active tab wears its product's color: Drives mint, GetDat blue,
+ * FullTags violet, Fleet amber (kept in sync with the canvas accents). */
+.product-tab.on {
+  color: var(--tab-c, var(--accent));
+  background: color-mix(in srgb, var(--tab-c, var(--accent)) 14%, transparent);
+}
+.product-tab.on[data-prod="getdat"] {
+  --tab-c: var(--info);
+}
+.product-tab.on[data-prod="fulltags"] {
+  --tab-c: var(--pulse);
+}
+.product-tab.on[data-prod="fleet"] {
+  --tab-c: #f0b64b;
+}
+.product-tab:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
+/* ---- analysis coverage meter (FullTags) ---- */
+.ft-meter {
+  position: relative;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--surface3);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+.ft-meter-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent-dim);
+  border-right: 1px solid var(--accent);
+}
+.ft-meter-label {
+  position: relative;
+  z-index: 1;
+  font-size: 11.5px;
+  color: var(--text);
+  padding: 0 8px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* ---- key→count chip rows (genres, codecs, sources) ---- */
+.chip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.chip-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 160px) 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.chip-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface3);
+  overflow: hidden;
+  display: block;
+}
+.chip-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent-dim);
+  border-right: 1px solid var(--accent);
+}
+.chip-n {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 26px;
 }
 .arch-pill {
   display: inline-block;

@@ -27,6 +27,8 @@ const DEFAULT_SKIP_DIRS = new Set([
   ".Spotlight-V100",
   ".fseventsd",
   ".Trashes",
+  // CrateDeck's own app dir on a stick (drive cover photo) — not DJ data
+  "CrateDeck",
 ]);
 
 /** Depth-first walk. `relPath` is relative to `root`, "/"-separated. */

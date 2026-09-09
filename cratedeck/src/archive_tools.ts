@@ -146,6 +146,49 @@ export function archiveTools(): Record<string, unknown> {
       },
     },
 
+    archive_cue_ledger: {
+      description:
+        "[READ-ONLY] Structure-cues ledger (roadmap 'structure cues'): 8-bar DJ phrase markers per track, derived from the beats ledger's downbeats by `megadj cues`. Returns per-track cue counts + the freshest tracks' first-cue positions. analyzed=0 means run `megadj cues` first.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "max tracks to list (default 40, max 200)",
+          },
+        },
+        additionalProperties: false,
+      },
+      run: async (args: Record<string, unknown>) => {
+        const res = await apiGet(
+          `/api/archive/cues?limit=${optLimit(args, 40, 200)}`,
+        );
+        return res.json();
+      },
+    },
+
+    archive_library_overview: {
+      description:
+        "[READ-ONLY] FullTags read side — what the enrichment engine has stamped across the playable archive: genre distribution, year coverage, energy stamps, artwork provenance (which art-ladder rung each track's cover came from), codec/size profile, and the freshest tag updates. Read-only mirror of the file tags; run `megadj fetch` / `megadj enrich` to fill gaps this shows.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          recent: {
+            type: "number",
+            description:
+              "recently-updated tracks to list (default 12, max 100)",
+          },
+        },
+        additionalProperties: false,
+      },
+      run: async (args: Record<string, unknown>) => {
+        const res = await apiGet(
+          `/api/archive/library?recent=${optLimit(args, 12, 100)}`,
+        );
+        return res.json();
+      },
+    },
+
     archive_sweep: {
       description:
         "[READ-ONLY] D30 archive-integrity sweep: blake2b-hash every downloaded archive file and compare against known-good hashes + the archive DB — reports bitrot, silent truncation, and missing files BEFORE they reach a drive. First run baselines; findings start on the second. ~15s on the real archive.",

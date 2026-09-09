@@ -13,10 +13,13 @@ import type {
 import { DriveRail } from "./DriveRail";
 import { DrivePage } from "./DrivePage";
 import { FleetPage } from "./FleetPage";
+import { GetDatPage } from "./GetDatPage";
+import { FullTagsPage } from "./FullTagsPage";
+import { PRODUCTS } from "./ProductPage";
 import { JobsDock } from "./JobsDock";
 import { Toaster, api, toast } from "./toast";
 import { Icon } from "./icons";
-import { navigate, navigateFleet, useRoute } from "./router";
+import { navigate, navigateProduct, useRoute } from "./router";
 import { errMessage } from "../shared/fmt";
 import { Onboard } from "./Onboard";
 
@@ -219,12 +222,15 @@ export function App() {
   // unusable. Route words only (no per-drive fetches) — cheap and instant.
   useEffect(() => {
     const tab = route.tab.charAt(0).toUpperCase() + route.tab.slice(1);
-    document.title = route.fleet
-      ? `Fleet · ${tab} — CrateDeck`
-      : route.driveId
-        ? `${decodeURIComponent(route.driveId)} · ${tab} — CrateDeck`
-        : "CrateDeck — DJ USB library";
-  }, [route.driveId, route.fleet, route.tab]);
+    document.title =
+      route.product === "fleet"
+        ? `Fleet · ${tab} — CrateDeck`
+        : route.product === "drives" && route.driveId
+          ? `${decodeURIComponent(route.driveId)} · ${tab} — CrateDeck`
+          : route.product === "drives"
+            ? "CrateDeck — DJ USB library"
+            : `${route.product === "getdat" ? "GetDat" : "FullTags"} · ${tab} — CrateDeck`;
+  }, [route.driveId, route.product, route.tab]);
 
   const openDrive = (id: string, tab?: string) => {
     setQuery("");
@@ -237,7 +243,7 @@ export function App() {
   const ghosts = drives.length - mounted;
 
   return (
-    <div class="app">
+    <div class="app" data-prod={route.product}>
       <header class="topbar">
         <div class="brand" onClick={() => navigate(null)} title="CrateDeck">
           <span class="brand-mark" />
@@ -251,14 +257,23 @@ export function App() {
           {ghosts === 1 ? "" : "s"}
         </span>
         <div class="spacer" />
-        <button
-          type="button"
-          class={`fleetchip ${route.fleet ? "on" : ""}`}
-          onClick={() => navigateFleet("coverage")}
-          title="Fleet view: cross-drive coverage, playlist redundancy, diffs, the gig-night preflight gate, the archive and the weekly prep digest"
-        >
-          <Icon name="grid" size={13} /> Fleet
-        </button>
+        <nav class="product-tabs" aria-label="Products">
+          {PRODUCTS.map((p) => (
+            <button
+              type="button"
+              key={p.id}
+              class={`product-tab ${route.product === p.id ? "on" : ""}`}
+              data-prod={p.id}
+              onClick={() =>
+                route.product !== p.id &&
+                (p.id === "drives" ? navigate(null) : navigateProduct(p.id))
+              }
+              title={p.title}
+            >
+              <Icon name={p.icon} size={13} /> {p.label}
+            </button>
+          ))}
+        </nav>
         <span
           class={`lockchip ${locked ? "on" : "off"}`}
           title={
@@ -342,8 +357,12 @@ export function App() {
           class="canvas-wrap"
           style={{ flex: 1, minWidth: 0, display: "flex" }}
         >
-          {route.fleet ? (
+          {route.product === "fleet" ? (
             <FleetPage key="fleet" tab={route.tab} />
+          ) : route.product === "getdat" ? (
+            <GetDatPage key="getdat" tab={route.tab} />
+          ) : route.product === "fulltags" ? (
+            <FullTagsPage key="fulltags" tab={route.tab} />
           ) : route.driveId ? (
             <DrivePage
               key={route.driveId}

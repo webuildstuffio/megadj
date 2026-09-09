@@ -104,6 +104,8 @@ const TOOL_EXEMPTIONS: Record<string, string> = {
   archive_source_diff: "A3",
   archive_grid_cross_check: "A3",
   archive_mood_profile: "A3",
+  archive_cue_ledger: "A3",
+  archive_library_overview: "A3",
   archive_sweep:
     "A3 (also folded into deckctl prep via the D30 digest section)",
 };
@@ -118,13 +120,28 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // keep this file and the doc honest about each other
     const verbs = deckctlVerbs();
     const tools = mcpTools();
-    // 20 verbs (help + dismiss joined rev 4); 19 deck_* + 8 archive_*
-    // = 27 MCP tools (source census; mcpTools() dedupes).
+    // 20 verbs (help + dismiss joined rev 4); 19 deck_* + 10 archive_*
+    // = 29 MCP tools (source census; mcpTools() dedupes).
     expect(verbs.length).toBeGreaterThanOrEqual(20);
-    expect(tools.length).toBeGreaterThanOrEqual(27);
+    expect(tools.length).toBeGreaterThanOrEqual(29);
     const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
     expect(doc).toContain("| 20 verbs |");
-    expect(doc).toContain("| 27 tools |");
+    expect(doc).toContain("| 29 tools |");
+  });
+
+  test("the product tabs exist and are hash-routed (one route per product)", () => {
+    // the web shell renders one top-level tab per product; the router
+    // parses one route per product. Both lists live in exactly one place.
+    const app = read("cratedeck/web/App.tsx").join("\n");
+    for (const product of ["drives", "getdat", "fulltags", "fleet"])
+      expect(app, `topbar tab for ${product}`).toContain(`"${product}"`);
+    const router = read("cratedeck/web/router.ts").join("\n");
+    expect(router).toContain('"getdat"');
+    expect(router).toContain('"fulltags"');
+    // each product canvas is a page component wired into App
+    expect(app).toContain("<GetDatPage");
+    expect(app).toContain("<FullTagsPage");
+    expect(app).toContain("<FleetPage");
   });
 
   test("every deckctl verb has an MCP twin or a registered exemption", () => {

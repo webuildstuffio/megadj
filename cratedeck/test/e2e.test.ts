@@ -111,6 +111,24 @@ describe("cratedeck e2e", () => {
     expect(Array.isArray(body)).toBe(true);
   });
 
+  it("status endpoint returns the deckctl-status envelope", async () => {
+    // REST twin of `deckctl status --json` / deck_status: one read with
+    // interlock + drives + active jobs. Regression: this route 404'd, so
+    // agents/curl hitting /api/status got `{error:"not found"}`.
+    const { status, body } = await api<{
+      interlock: { rekordbox_running: unknown; pid: unknown };
+      drives: unknown[];
+      jobs: unknown[];
+    }>("/status");
+    expect(status).toBe(200);
+    expect(typeof body?.interlock.rekordbox_running).toBe("boolean");
+    expect(Array.isArray(body?.drives)).toBe(true);
+    expect(Array.isArray(body?.jobs)).toBe(true);
+    // drives leg matches GET /api/drives exactly (same builder, no drift)
+    const drives = await api<unknown[]>("/drives");
+    expect(body?.drives).toEqual(drives.body ?? undefined);
+  });
+
   it("serves the SPA shell", async () => {
     // dist/ is a gitignored build artifact (bun run cratedeck/web:build);
     // a fresh clone skips this assertion instead of failing on a 404

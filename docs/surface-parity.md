@@ -7,7 +7,18 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 4 · 2026-09-08 · the in-app help SSOT (`shared/help.ts`, served at
+Rev 6 · 2026-09-08 — the product split: the web shell grew top-level
+product tabs (Drives / **GetDat** / **FullTags** / Fleet), giving the
+archive's two sub-products their own canvases (GetDat: pipeline/backlog/
+sources/library; FullTags: beatgrids/mood/cues/tags) instead of one
+Archive card — and the two new readonly reads behind them
+(`archive_library_overview`, `archive_cue_ledger`) got their MCP twins in
+the same commit (29 tools). Rev 5 · 2026-09-08 — closed GAP-12: the
+combined status read
+(`GET /api/status`, the `deckctl status --json` envelope) 404'd because
+only `/api/interlock`, `/api/drives`, `/api/jobs` existed; deckctl and MCP
+assembled their status views client-side while the API hub had no single
+read. Rev 4 · 2026-09-08 · the in-app help SSOT (`shared/help.ts`, served at
 `GET /api/help`) and note dismissal got their CLI/MCP twins (`deckctl
 help|dismiss` + `deck_help`/`deck_dismiss`), closing the last two true
 gaps the Sep 8 UI help pass created. **Rev 3** (2026-09-07) took its
@@ -32,9 +43,9 @@ that way.
 | --- | --- | --- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 19 commands + `--help` |
 | deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 20 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 27 tools |
-| HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~33 routes |
-| Web UI | `cratedeck/web/` (hash-routed pages) | 4 pages, ~22 actions |
+| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 29 tools |
+| HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~35 routes |
+| Web UI | `cratedeck/web/` (hash-routed pages) | 6 pages, ~22 actions |
 
 The server's HTTP API is the **fourth surface** and the seam everything
 converges on: deckctl and MCP are HTTP clients of it, and the UI talks to
@@ -51,7 +62,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 
 | Capability | CLI (deckctl) | MCP | UI | Verdict |
 | --- | --- | --- | --- | --- |
-| List drives + state | `status` / `drives` ✅ | `deck_status`/`deck_drives` ✅ | rail ✅ | — |
+| List drives + state | `status` / `drives` ✅ | `deck_status`/`deck_drives` ✅ | rail ✅ | — (GAP-12 closed rev 5: `GET /api/status`) |
 | Drive report / health | `report` ✅ | `deck_report` ✅ | Health tab ✅ | — |
 | Run scan | `run <d> scan` ✅ | `deck_run` ✅ | Scan button ✅ | — |
 | Run verify | `run <d> verify` ✅ | `deck_run` ✅ | Verify button/tab ✅ | — |
@@ -95,12 +106,14 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | beats / mood / cues | ✅ | ⛔ §4-A1 | ⛔ §4-A1 | — |
 | organize | ✅ | ⛔ §4-A1 | ⛔ §4-A1 | — |
 | doctor / init | ✅ | ⛔ §4-A2 (host setup is human work) | ⛔ §4-A2 | — |
-| Archive search | `megadj list` ✅ | `archive_search_tracks` ✅ | ⌘K + Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
-| Track stats | `status`/`list` ✅ | `archive_track_stats` ✅ | Fleet ⌗ Archive (mood/grid cards) ✅ | — (A3 closed rev 3) |
-| Ingest status / LOWQ queue | `list LOWQ` ✅ | `archive_ingest_status`/`lowq_queue` ✅ | Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
-| Source diff | — | `archive_source_diff` ✅ | ⛔ §4-F3 (see note) | — |
-| Grid cross-check | `megadj beats` data ✅ | `archive_grid_cross_check` ✅ | Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
-| Mood profile | `megadj mood` data ✅ | `archive_mood_profile` ✅ | Fleet ⌗ Archive ✅ | — (A3 closed rev 3) |
+| Archive search | `megadj list` ✅ | `archive_search_tracks` ✅ | ⌘K + GetDat ⌗ Library ✅ | — (A3 closed rev 3) |
+| Track stats | `status`/`list` ✅ | `archive_track_stats` ✅ | FullTags ⌗ Beatgrids/Mood cards ✅ | — (A3 closed rev 3) |
+| Ingest status / LOWQ queue | `list LOWQ` ✅ | `archive_ingest_status`/`lowq_queue` ✅ | GetDat ⌗ Pipeline/Backlog ✅ | — (A3 closed rev 3; product split rev 6) |
+| Source diff | — | `archive_source_diff` ✅ | GetDat ⌗ Sources (rev 6 — F3's UI half is here; F3's MCP row below keeps its original rationale) | — |
+| Grid cross-check | `megadj beats` data ✅ | `archive_grid_cross_check` ✅ | FullTags ⌗ Beatgrids ✅ | — (A3 closed rev 3; product split rev 6) |
+| Mood profile | `megadj mood` data ✅ | `archive_mood_profile` ✅ | FullTags ⌗ Mood ✅ | — (A3 closed rev 3; product split rev 6) |
+| Cue ledger | `megadj cues` data ✅ | `archive_cue_ledger` ✅ | FullTags ⌗ Cues ✅ | — (rev 6) |
+| Library overview (FullTags mirror) | `megadj fetch`/`audit` data ✅ | `archive_library_overview` ✅ | FullTags ⌗ Tags + GetDat ⌗ Library ✅ | — (rev 6) |
 | Archive integrity sweep | Prep digest (`archive integrity` section) ✅ | `archive_sweep` ✅ | Fleet ⌗ Prep (digest section) ✅ | — (D30) |
 | Rename drive | `rename <d> [nick]` ✅ | `deck_rename` ✅ | inline rename ✅ | — (D2-rename closed rev 3) |
 | Set drive photo | — | ⛔ §4-D2 (human picks the art) | Photo tab ✅ | — |
@@ -138,6 +151,21 @@ spoke landing over the shared API route:
   feed an agent fills had no agent-side off-ramp. `deckctl dismiss
   <drive> <noteId>` + `deck_dismiss {drive, note_id}` close it
   (mutating, confirm-first; history kept).
+- **GAP-12 (rev 5, CLOSED)** — `GET /api/status` 404'd (agents/curl got
+  `{error: "not found"}`) because the status envelope only existed
+  client-side: `deckctl status` fetched `/api/interlock` +
+  `/api/drives` + `/api/jobs?active=1` and assembled it. The route now
+  serves that exact envelope in one read (drives leg shares the
+  `/api/drives` builder, so the two can't drift); regression-tested in
+  `cratedeck/test/e2e.test.ts`.
+- **GAP-13 (rev 6, CLOSED)** — the web shell exposed one product (the
+  drives) plus a Fleet page and a single Archive card; GetDat and
+  FullTags — two of megadj's three named sub-products — had no canvas.
+  Rev 6 split the shell into top-level product tabs (Drives / GetDat /
+  FullTags / Fleet), each hash-routed with its own tab strip, and gave
+  the two new readonly reads behind them (`/api/archive/library`,
+  `/api/archive/cues`) their MCP twins (`archive_library_overview`,
+  `archive_cue_ledger`) in the same commit.
 
 ## 4. Deliberate exemptions (the whitelist)
 
@@ -153,13 +181,20 @@ this table AND the enforcement test together (that's the point).
   {format: "dossier"}` now stream the same export bundle as the UI.
 - **D2 — photo half remains: a human picks cover art** (agents don't
   choose aesthetics; O86 rails). The rename half closed rev 3
-  (`deckctl rename` + `deck_rename`).
+  (`deckctl rename` + `deck_rename`). Rev 5 extended the photo
+  capability itself (drive cover photos now dual-save locally + on the
+  stick at `Contents/CrateDeck/`, can be picked from files already on
+  the drive, and re-sync at mount) — still UI-only under this same
+  exemption: it is aesthetic human choice, served by
+  `POST /api/drives/:id/photo` (multipart or `drive_rel`) and
+  `GET /api/drives/:id/drive-images`.
 - **F1 — track-locations detail rides `coverage`'s output**; no
   separate MCP tool (same data, one shape).
-- **F3 — source-diff has no UI card.** It's a two-argument diagnostic
-  (which YouTube sources diverged between two sync states) — agent/
-  operator-shaped, and its inputs surface in the Prep tab's archive
-  section. Revisit if a "sources" view ever ships.
+- **F3 — source-diff UI: CLOSED by rev 6's GetDat ⌗ Sources tab** (a
+  source-vs-source diff form rendering only-in-A / only-in-B / shared).
+  It had been exempted as a two-argument diagnostic; the product split
+  gave it a natural home. Kept here as the record; the §2d row now shows
+  the UI column covered.
 - **G2 — CLOSED (rev 3, GAP-8).** The Fleet ⌗ Prep tab renders the
   digest.
 - **A1 — archive mutation stays CLI-only.** `sync`/`ingest`/`fetch`/

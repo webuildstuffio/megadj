@@ -15,7 +15,14 @@ import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
 import { coverage, redundancy, diff, trackLocations } from "./fleet";
 import { fetchWeeklyPrepInput, renderWeeklyPrep } from "./weekly_prep";
 import { ArchiveReader } from "./archive";
-import { buildPreflight, type PreflightInput } from "./preflight";
+import { archiveRoutes } from "./archive_routes";
+import {
+  allPreflightInputs,
+  exportDossier,
+  reportInput,
+  type ReportDeps,
+} from "./report_inputs";
+import { buildPreflight } from "./preflight";
 import { driveCompatibility, playersFromConfig } from "./players";
 import {
   normalizeNote,
@@ -97,6 +104,10 @@ const registry = new Registry(cfg, db, emit);
 const images = new ImageService(cfg, db, guard);
 const jobs = new JobEngine(cfg, db, guard, emit);
 
+// deliberate, structured writes onto mounted sticks: the CrateDeck photo dir
+// (Contents/CrateDeck/photo.<ext>). Everything else stays inside dataDir.
+guard.allow(join(cfg.volumesRoot, "*", "Contents", "CrateDeck"));
+
 // boot hygiene: orphan jobs from a dead process, stale scratch
 const reaped = db.reapOrphanJobs();
 registry.sweepScratch();
@@ -108,6 +119,7 @@ async function reconcile(): Promise<void> {
   reconciling = true;
   try {
     registry.reconcile(await listMountedVolumes(cfg.volumesRoot));
+    await photoMountResync();
     autoSchedule();
   } catch (e) {
     console.error("reconcile:", (e as Error).message);
@@ -178,6 +190,21 @@ function autoSchedule(): void {
 function mountPointOf(driveName: string): string {
   return `${cfg.volumesRoot}/${driveName}`;
 }
+
+/** Drive-photo re-sync at mount time: every reconcile sweep, for each mounted
+ *  drive, make local copy and stick copy agree (cheap no-op when they do —
+ *  extension+size check, no hashing). Failures log, never break the sweep. */
+async function photoMountResync(): Promise<void> {
+  for (const d of db.allDrives()) {
+    if (!d.mounted) continue;
+    try {
+      await images.syncOnMount(d.id);
+    } catch (e) {
+      console.error(`photo mount re-sync failed for ${d.name}`, e);
+    }
+  }
+}
+
 const autoVerifyAttempts = new Map<string, number>();
 const watcher = watchVolumes(cfg.volumesRoot, reconcile);
 await reconcile(); // initial sweep
@@ -198,47 +225,29 @@ Bun.serve({
     if (path.startsWith("/api/")) {
       const route = path.slice(4); // /drives, /drives/:id/...
       try {
+        // deckctl status / deck_status REST twin — one read for the whole
+        // front page: interlock + drive list + active jobs. Wire shape is
+        // exactly what `deckctl status --json` prints.
+        if (route === "/status") {
+          return json({
+            // same shape as GET /api/interlock + deckctl status --json
+            interlock: (() => {
+              const lock = jobs.interlock();
+              return { rekordbox_running: lock.running, pid: lock.pid };
+            })(),
+            drives: driveListPayload(),
+            jobs: db.activeJobs(),
+          });
+        }
         if (route === "/drives") {
-          const snaps = db.latestSnapshots();
-          return json(
-            registry
-              .list()
-              .map((d) => ({
-                ...d,
-                // strip the raw snapshot blob from list responses: cards only
-                // need counts; the full snapshot goes MBs over the wire for
-                // nothing. Page detail fetches it on demand.
-                last_snapshot_json: null as string | null,
-                snapshot_summary: (() => {
-                  const s = snaps.get(d.id);
-                  return s
-                    ? {
-                        track_count: s.track_count,
-                        file_count: s.file_count,
-                        capacity_bytes: s.capacity_bytes,
-                        free_bytes: s.free_bytes,
-                      }
-                    : null;
-                })(),
-                badges: [
-                  ...driveBadgesView(
-                    db,
-                    d,
-                    snaps,
-                    cfg.masterDrive,
-                    cfg.mirrorDrive,
-                  ),
-                ],
-              }))
-              .map((d) => ({ ...d, last_snapshot_json: null })),
-          );
+          return json(driveListPayload());
         }
         if (route === "/reports") {
           // batched summaries for the rail: N report fetches → 1 request
           return json(
             Object.fromEntries(
               registry.list().map((d) => {
-                const r = buildReport(reportInput(d.id));
+                const r = buildReport(reportInput(reportDeps, d.id));
                 return [d.id, buildReportSummary(r.checks)];
               }),
             ),
@@ -246,7 +255,7 @@ Bun.serve({
         }
         // B12 preflight: the gig-night pass/fail across every mounted drive
         if (route === "/preflight") {
-          return json(buildPreflight(allPreflightInputs()));
+          return json(buildPreflight(allPreflightInputs(reportDeps)));
         }
         // in-app help SSOT: glossary + job/surface explainers (deckctl/MCP
         // can serve the same wording the UI tooltips use)
@@ -311,10 +320,14 @@ Bun.serve({
               ? json({ ok: true })
               : json({ error: "note not found" }, 404);
           }
-          if (sub === "/export") return exportDossier(id);
+          if (sub === "/export") {
+            const dossier = exportDossier(reportDeps, id);
+            if (!dossier) return json({ error: "unknown drive" }, 404);
+            return dossier;
+          }
           if (sub === "/report") {
             if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
-            const report = buildReport(reportInput(id));
+            const report = buildReport(reportInput(reportDeps, id));
             return json({ ...report, overall: overall(report.checks) });
           }
           // latest granular verify report (per-check pass/fail + meanings)
@@ -328,17 +341,44 @@ Bun.serve({
             return json(VERIFY_HELP);
           }
           if (sub === "/photo" && req.method === "POST") {
+            const ctype = req.headers.get("content-type") ?? "";
+            // multipart = a real file-picker upload from the Photo tab;
+            // JSON = url / drive_rel / clear as before
+            if (ctype.includes("multipart/form-data")) {
+              const form = await req.formData();
+              const file = form.get("file");
+              if (!(file instanceof File))
+                return json({ error: "file required" }, 400);
+              const dest = await images.choose(id, {
+                data: new Uint8Array(await file.arrayBuffer()),
+              });
+              return json({ ok: true, path: dest });
+            }
             const body = (await req.json()) as {
               url?: string;
               localPath?: string;
+              /** relative-to-volume path of an image picked FROM the drive */
+              drive_rel?: string;
               clear?: boolean;
             };
             if (body.clear) {
               images.clear(id);
               return json({ ok: true, cleared: true });
             }
-            const dest = await images.choose(id, body);
+            const dest = await images.choose(id, {
+              url: body.url,
+              localPath: body.localPath,
+              driveRel: body.drive_rel,
+            });
             return json({ ok: true, path: dest });
+          }
+          // images already ON this drive (Contents/CrateDeck + volume root)
+          if (sub === "/drive-images") {
+            const drive = db.getDrive(id);
+            if (!drive) return json({ error: "unknown drive" }, 404);
+            if (!drive.mounted)
+              return json({ error: "drive not mounted" }, 409);
+            return json(await images.listDriveImages(drive.name));
           }
           if (sub === "/name" && req.method === "POST") {
             const body = (await req.json()) as { nickname: string | null };
@@ -516,68 +556,14 @@ Bun.serve({
           }
         }
         // ---- archive reads (O82b): megadj's DB, readonly -----------------
-        if (route === "/archive/search") {
-          const q = (url.searchParams.get("q") ?? "").trim();
-          if (q.length < 2) return json({ error: "q must be ≥2 chars" }, 400);
-          return json(archive.searchTracks(q));
-        }
-        if (route === "/archive/track") {
-          const id = url.searchParams.get("id") ?? "";
-          const t = archive.trackStats(id);
-          return t ? json(t) : json({ error: "unknown video_id" }, 404);
-        }
-        if (route === "/archive/ingest-status") {
-          return json(archive.ingestStatus());
-        }
-        if (route === "/archive/lowq") {
-          return json(archive.lowqQueue());
-        }
-        if (route === "/archive/source-diff") {
-          const a = url.searchParams.get("a");
-          const b = url.searchParams.get("b");
-          if (!a || !b)
-            return json({ error: "a and b source names required" }, 400);
-          return json(archive.sourceDiff(a, b));
-        }
-        // Independent beatgrid cross-check (roadmap §2/#2): beat_this
-        // ledger vs RB BPM×duration. Read-only over the archive DB.
-        if (route === "/archive/grid-cross-check") {
-          const lim = url.searchParams.get("limit");
-          const limit = lim ? parseInt(lim, 10) : undefined;
-          return json(
-            Number.isFinite(limit)
-              ? archive.gridCrossCheck(limit)
-              : archive.gridCrossCheck(),
-          );
-        }
-        // Mood/dance/valence profile (roadmap #4): aggregate + extremes
-        // over the mood ledger. Read-only over the archive DB. `limit`
-        // (default 5, max 25) sizes the per-dimension extremes lists.
-        if (route === "/archive/mood") {
-          const lim = url.searchParams.get("limit");
-          const limit = lim ? parseInt(lim, 10) : undefined;
-          return json(
-            Number.isFinite(limit)
-              ? archive.moodProfile(limit)
-              : archive.moodProfile(),
-          );
-        }
-        // D30 archive-integrity sweep: blake2b the music tree vs the archive
-        // DB + CrateDeck-side known-good ledger. READ-ONLY on both the tree
-        // and megadj's DB (findings only); the ledger upsert is CrateDeck's
-        // own db. Long enough (~15s / 88 files) that it must not block the
-        // event loop — the engine hashes file-by-file with await.
-        if (route === "/archive/sweep") {
-          const { sweepArchive, tracksForSweep } =
-            await import("./archive_sweep");
-          const report = await sweepArchive(
-            cfg.musicDir,
-            tracksForSweep(archive),
-            db.archiveLedger(),
-            (row) => db.upsertArchiveLedger(row),
-          );
-          return json(report);
-        }
+        // Route family lives in archive_routes.ts (file-length guard);
+        // null = no archive route matched, fall through.
+        const archiveResp = await archiveRoutes(route, url, {
+          archive,
+          db,
+          cfg,
+        });
+        if (archiveResp) return archiveResp;
         if (route === "/images/search") {
           return json(await images.search(url.searchParams.get("q") ?? ""));
         }
@@ -624,6 +610,16 @@ Bun.serve({
       const p = images.photoPath(id);
       if (!p) return new Response("no photo", { status: 404 });
       return new Response(Bun.file(p));
+    }
+
+    // ---- a file ON a mounted drive (drive-image picker previews) ----------
+    const driveImgMatch = path.match(/^\/api\/drives\/([^/]+)\/drive-image$/);
+    if (driveImgMatch?.[1]) {
+      const vol = decodeURIComponent(driveImgMatch[1]);
+      const rel = url.searchParams.get("rel") ?? "";
+      const f = images.driveImageFile(vol, rel);
+      if (!f) return new Response("not found", { status: 404 });
+      return new Response(Bun.file(f));
     }
 
     // ---- static web -------------------------------------------------------
@@ -686,95 +682,39 @@ function driveNames(): Map<string, string> {
   return new Map(db.allDrives().map((d) => [d.id, d.nickname ?? d.name]));
 }
 
-function exportDossier(driveId: string): Response {
-  const detail = registry.detail(driveId);
-  if (!detail) return json({ error: "unknown drive" }, 404);
-  const dossier = {
-    exported_at: new Date().toISOString(),
-    drive: { ...detail.drive, last_snapshot_json: undefined },
-    snapshot: detail.snapshot,
-    sync: detail.sync,
-    report: buildReport(reportInput(driveId)),
-    timeline: db.timeline(driveId, 500),
-    benchmarks: db.benchmarks(driveId),
-  };
-  return new Response(JSON.stringify(dossier, null, 2), {
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="cratedeck-${detail.drive.name}.json"`,
-    },
-  });
-}
-
-/** Assemble DB state for the report builder. */
-function reportInput(driveId: string) {
-  const drive = db.getDrive(driveId);
-  if (!drive) throw new Error("unknown drive");
-  const snap: SnapshotData | null = drive.last_snapshot_json
-    ? JSON.parse(drive.last_snapshot_json)
-    : null;
-  const master = db.masterDrive();
-  const masterSnap: SnapshotData | null = master?.last_snapshot_json
-    ? JSON.parse(master.last_snapshot_json)
-    : null;
-  const isMirror =
-    drive.role === "mirror" ||
-    drive.name.toUpperCase() === cfg.mirrorDrive.toUpperCase();
-  // capacity: prefer live value; falls back to snapshot
-  const withCap: Drive = {
-    ...drive,
-    capacity_bytes: drive.capacity_bytes || snap?.capacity_bytes || 0,
-  };
-  if (snap && !snap.capacity_bytes && drive.capacity_bytes)
-    snap.capacity_bytes = drive.capacity_bytes;
-  return {
-    drive: withCap,
-    snapshot: snap,
-    latestVerify: db.latestVerify(driveId),
-    bench: db.benchmarks(driveId),
-    ledgerFiles: db.ledgerCount(driveId),
-    ledgerStaleDays: db.ledgerAgeDays(driveId),
-    masterSnapshot: masterSnap,
-    masterName: master ? (master.nickname ?? master.name) : cfg.masterDrive,
-    isMirror,
-    // real verdict from the newest finished checksum job (null = never run)
-    latestChecksum: db.latestChecksum(driveId),
-  };
-}
-
-/** B12 input collector: per mounted drive, gather only what preflight reads.
- *  Mirrors reportInput's data plumbing but stays fleet-wide. */
-function allPreflightInputs(): PreflightInput[] {
-  const master = db.masterDrive();
-  const masterSnap: SnapshotData | null = master?.last_snapshot_json
-    ? JSON.parse(master.last_snapshot_json)
-    : null;
+/** GET /api/drives + GET /api/status payload: the drive cards minus the MBs
+ *  snapshot blob (page detail fetches it on demand). One builder so the two
+ *  routes can never drift. */
+function driveListPayload(): Drive[] {
+  const snaps = db.latestSnapshots();
   return registry
     .list()
-    .filter((d) => d.mounted)
-    .map((d): PreflightInput => {
-      const snap: SnapshotData | null = d.last_snapshot_json
-        ? JSON.parse(d.last_snapshot_json)
-        : null;
-      if (snap && !snap.capacity_bytes && d.capacity_bytes)
-        snap.capacity_bytes = d.capacity_bytes;
-      return {
-        drive: d,
-        snapshot: snap,
-        latestVerify: db.latestVerify(d.id),
-        bench: db.benchmarks(d.id),
-        latestChecksum: db.latestChecksum(d.id),
-        ledgerFiles: db.ledgerCount(d.id),
-        masterSnapshot: d.id === master?.id ? null : masterSnap,
-        isMirror:
-          d.role === "mirror" ||
-          d.name.toUpperCase() === cfg.mirrorDrive.toUpperCase(),
-        // N78 rides on preflight: measured dual-DB rows → player verdict
-        players: driveCompatibility(snap, extraPlayers()),
-        now: Date.now(),
-      };
-    });
+    .map((d) => ({
+      ...d,
+      // strip the raw snapshot blob from list responses: cards only need
+      // counts; the full snapshot goes MBs over the wire for nothing.
+      last_snapshot_json: null as string | null,
+      snapshot_summary: (() => {
+        const s = snaps.get(d.id);
+        return s
+          ? {
+              track_count: s.track_count,
+              file_count: s.file_count,
+              capacity_bytes: s.capacity_bytes,
+              free_bytes: s.free_bytes,
+            }
+          : null;
+      })(),
+      badges: [
+        ...driveBadgesView(db, d, snaps, cfg.masterDrive, cfg.mirrorDrive),
+      ],
+    }))
+    .map((d) => ({ ...d, last_snapshot_json: null }));
 }
+
+/** Shared deps for the report/preflight/dossier collectors
+ *  (report_inputs.ts). */
+const reportDeps: ReportDeps = { db, cfg, registry, extraPlayers };
 
 console.log(
   `cratedeck: http://127.0.0.1:${cfg.serverPort} (reaped jobs: ${reaped})`,

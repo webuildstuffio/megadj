@@ -31,4 +31,25 @@ describe("guard", () => {
       /GUARD VIOLATION/,
     );
   });
+
+  it("allow() supports a single-* segment (per-volume stick dir)", () => {
+    const g = new Guard(testConfig);
+    g.allow("/vol/*/Contents/CrateDeck");
+    expect(() =>
+      g.assertAllowed("/vol/DJMASTER/Contents/CrateDeck/photo.png"),
+    ).not.toThrow();
+    expect(() =>
+      g.assertAllowed("/vol/DJMIRROR/Contents/CrateDeck/photo.png"),
+    ).not.toThrow();
+    // `*` matches exactly ONE segment — no deep escape, no sibling leak
+    expect(() =>
+      g.assertAllowed("/vol/DJMASTER/Contents/CrateDeck/extra/deep.png"),
+    ).not.toThrow(); // under the allowed dir is fine
+    expect(() => g.assertAllowed("/vol/Evil/Contents/Other/x")).toThrow(
+      /GUARD VIOLATION/,
+    );
+    expect(() => g.assertAllowed("/vol/x/Contents/CrateDeckEvil/y")).toThrow(
+      /GUARD VIOLATION/,
+    );
+  });
 });

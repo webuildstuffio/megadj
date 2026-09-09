@@ -23,6 +23,7 @@ import { OverviewTab } from "./OverviewTab";
 import { InfoTip } from "./InfoTip";
 import { HELP_JOBS, ROLE_HELP, VERDICT_HELP } from "../shared/help";
 import { PhotoTab, type PhotoHit } from "./PhotoTab";
+import type { DriveImage } from "../shared/types";
 
 const TABS = [
   {
@@ -148,6 +149,7 @@ export function DrivePage(props: {
   const [nameDraft, setNameDraft] = useState("");
   const [photoHits, setPhotoHits] = useState<PhotoHit[] | null>(null);
   const [photoQuery, setPhotoQuery] = useState("");
+  const [driveImages, setDriveImages] = useState<DriveImage[] | null>(null);
   const detailOrNull = page.status === "ok" ? page.detail : null;
   const loadError = page.status === "error" ? page.message : null;
   const locked = interlock.rekordbox_running;
@@ -359,7 +361,7 @@ export function DrivePage(props: {
   const choosePhoto = async (hit: PhotoHit) => {
     try {
       await apiPost(`/api/drives/${driveId}/photo`, { url: hit.full });
-      toast("Photo saved", "ok");
+      toast("Photo saved to Mac + drive", "ok");
       load().catch((e: unknown) =>
         console.error("post-save refresh failed", e),
       );
@@ -367,6 +369,61 @@ export function DrivePage(props: {
       /* toast already surfaced the failure */
     }
   };
+
+  /** Pick an image that already exists ON the drive. */
+  const chooseDriveImage = async (rel: string) => {
+    try {
+      await apiPost(`/api/drives/${driveId}/photo`, { drive_rel: rel });
+      toast("Cover set from the drive — saved to Mac too", "ok");
+      load().catch((e: unknown) =>
+        console.error("post-save refresh failed", e),
+      );
+    } catch {
+      /* toast already surfaced the failure */
+    }
+  };
+
+  /** Upload a file from the Mac (file-picker). */
+  const uploadPhoto = async (file: File) => {
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      await apiPost(`/api/drives/${driveId}/photo`, form);
+      toast("Photo saved to Mac + drive", "ok");
+      load().catch((e: unknown) =>
+        console.error("post-save refresh failed", e),
+      );
+    } catch {
+      /* toast already surfaced the failure */
+    }
+  };
+
+  /** Load the drive's own images when the Photo tab opens (mounted only). */
+  const loadDriveImages = useCallback(async () => {
+    if (page.status !== "ok" || !page.detail.drive.mounted) {
+      setDriveImages(null);
+      return;
+    }
+    try {
+      setDriveImages(
+        await api<DriveImage[]>(
+          `/api/drives/${encodeURIComponent(driveId)}/drive-images`,
+          { quiet: true },
+        ),
+      );
+    } catch (e) {
+      console.error(`drive-images load for ${driveId} failed`, e);
+      setDriveImages([]);
+    }
+  }, [driveId, page.status, detailOrNull?.drive.mounted]);
+
+  useEffect(() => {
+    if (props.tab === "photos") {
+      loadDriveImages().catch((e: unknown) =>
+        console.error("drive-images effect failed", e),
+      );
+    }
+  }, [props.tab, loadDriveImages]);
 
   const clearPhoto = async () => {
     // photo clearing = set nickname-style: dedicated endpoint keeps guard happy
@@ -693,6 +750,9 @@ export function DrivePage(props: {
           hits={photoHits}
           onChoose={choosePhoto}
           onClear={clearPhoto}
+          driveImages={driveImages}
+          onChooseDriveImage={chooseDriveImage}
+          onUploadFile={uploadPhoto}
         />
       )}
 

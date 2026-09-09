@@ -17,8 +17,9 @@
         "src/deckctl.ts",
         "src/bench.ts",
         "src/mcp.ts",
-        "shared/types.ts",
-        "test/*.test.ts"
+        "test/*.test.ts",
+        "test/*-seed.ts",
+        "shared/types.ts"
       ],
       "ignoreExportsUsedInFile": true
     },

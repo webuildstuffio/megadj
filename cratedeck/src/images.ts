@@ -1,6 +1,17 @@
 // images — provider search (brave | exa) proxied server-side; chosen images
 // cached forever under data/images/<drive>/.
-import { join } from "node:path";
+//
+// The photo lives in TWO places by design (dual-save):
+//   1. locally  — data/images/<driveId>/photo.<ext>  (canonical, always there
+//                 so ghost drives still render their cover)
+//   2. the stick — <mount>/Contents/CrateDeck/photo.<ext> (travels with the
+//                 hardware; visible when the drive is used standalone)
+// A mount-time re-sync pushes the local copy back onto a drive that lacks it
+// (or restores the local copy from the stick when the local side is gone) —
+// see syncOnMount. Scanners skip Contents/CrateDeck (walk.ts DEFAULT_SKIP_DIRS).
+import { readdirSync, statSync, existsSync } from "node:fs";
+import { readdir } from "node:fs/promises";
+import { extname, join } from "node:path";
 import type { CrateConfig } from "./config";
 import type { Guard } from "./guard";
 import type { DB } from "./db";
@@ -11,6 +22,28 @@ export interface ImageHit {
   full: string;
   source: string;
 }
+
+export interface DriveImage {
+  /** Path on the mounted volume, relative to the mount point. */
+  rel: string;
+  /** Served URL for the <img> preview. */
+  url: string;
+  bytes: number;
+}
+
+/** Exact filename(s) CrateDeck writes: local copies may be extensionless
+ *  (legacy uploads), stick copies keep their extension. */
+const PHOTO_BASENAME = /^photo(?:\.(?:png|jpe?g|gif|webp|avif))?$/i;
+/** Extensions accepted for cover photos. */
+const PHOTO_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif"]);
+
+/** Content-type → file extension for the photo download path. */
+function extFromMime(ctype: string): string | null {
+  const m = ctype.match(/image\/(png|jpeg|gif|webp|avif)/);
+  if (!m?.[1]) return null;
+  return m[1] === "jpeg" ? ".jpg" : `.${m[1]}`;
+}
+const MAX_BYTES = 10 * 1024 * 1024;
 
 /** Minimal response typing for the Brave image-search API. */
 interface BraveResponse {
@@ -39,6 +72,127 @@ export class ImageService {
     private db: DB,
     private guard: Guard,
   ) {}
+
+  /** The writable prefix on a mounted drive (guard.allow'ed at boot). */
+  static driveDirName(): string {
+    return "CrateDeck";
+  }
+
+  /** Absolute path of the on-stick photo dir for a mounted drive. */
+  private driveDir(volumeName: string): string {
+    return join(this.cfg.volumesRoot, volumeName, "Contents", "CrateDeck");
+  }
+
+  /** Absolute path of the local canonical copy for a drive. */
+  private localDir(driveId: string): string {
+    return join(this.cfg.imagesDir, driveId);
+  }
+
+  /** Current local canonical file, whatever its extension. */
+  private localPhoto(driveId: string): string | null {
+    const dir = this.localDir(driveId);
+    let names: string[];
+    try {
+      names = readdirSync(dir);
+    } catch {
+      return null;
+    }
+    const hit = names
+      .filter((n) => PHOTO_BASENAME.test(n))
+      .sort()
+      .at(-1);
+    return hit ? join(dir, hit) : null;
+  }
+
+  /** Current on-stick photo file for a mounted drive, absolute path. */
+  private drivePhoto(volumeName: string): string | null {
+    const dir = this.driveDir(volumeName);
+    let names: string[];
+    try {
+      names = readdirSync(dir);
+    } catch {
+      return null; // not mounted / dir absent
+    }
+    const hit = names
+      .filter((n) => PHOTO_BASENAME.test(n))
+      .sort()
+      .at(-1);
+    return hit ? join(dir, hit) : null;
+  }
+
+  /** Images on a mounted drive worth offering as the cover: the CrateDeck
+   *  dir first (canonical location), then the volume root — DJ sticks carry
+   *  cover art at the root (cover.jpg / folder art dropped next to mixes).
+   *  Capped + depth-1 outside CrateDeck: a walk here would touch every file
+   *  on a 1TB stick. */
+  async listDriveImages(volumeName: string): Promise<DriveImage[]> {
+    const root = join(this.cfg.volumesRoot, volumeName);
+    const out: DriveImage[] = [];
+    const seen = new Set<string>();
+    const push = (abs: string, rel: string): void => {
+      try {
+        const st = statSync(abs);
+        if (!st.isFile() || st.size > MAX_BYTES) return;
+        if (!PHOTO_EXT.has(extname(abs).toLowerCase())) return;
+        if (seen.has(`${rel}:${st.size}`)) return;
+        seen.add(`${rel}:${st.size}`);
+        out.push({
+          rel,
+          url: `/api/drives/${encodeURIComponent(volumeName)}/drive-image?rel=${encodeURIComponent(rel)}`,
+          bytes: st.size,
+        });
+      } catch {
+        // raced an unlink mid-list — skip the entry, not the whole listing
+      }
+    };
+    // 1 — Contents/CrateDeck/ (all of it; tiny, ours)
+    for (const f of this.dirFiles(
+      this.driveDir(volumeName),
+      `Contents/${ImageService.driveDirName()}`,
+    )) {
+      push(f.abs, f.rel);
+    }
+    // 2 — volume root, one level, image extensions only
+    let entries: import("node:fs").Dirent[];
+    try {
+      entries = await readdir(root, { withFileTypes: true });
+    } catch {
+      return out; // drive not mounted right now
+    }
+    for (const e of entries) {
+      if (!e.isFile()) continue;
+      if (!PHOTO_EXT.has(extname(e.name).toLowerCase())) continue;
+      push(join(root, e.name), e.name);
+    }
+    return out;
+  }
+
+  /** Serve one file from the mounted volume by relative path. Refuses
+   *  anything escaping the volume or outside the two allow-listed dirs. */
+  driveImageFile(volumeName: string, rel: string): string | null {
+    const root = join(this.cfg.volumesRoot, volumeName);
+    const abs = join(root, rel);
+    if (!abs.startsWith(root.endsWith("/") ? root : root + "/")) return null;
+    const inAppDir = rel.startsWith(`Contents/${ImageService.driveDirName()}/`);
+    const atRoot = !rel.includes("/");
+    if (!inAppDir && !atRoot) return null;
+    return existsSync(abs) ? abs : null;
+  }
+
+  private *dirFiles(
+    dir: string,
+    relPrefix: string,
+  ): Generator<{ abs: string; rel: string }> {
+    let names: string[];
+    try {
+      names = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const n of names) {
+      yield { abs: join(dir, n), rel: `${relPrefix}/${n}` };
+    }
+  }
 
   async search(q: string): Promise<{ provider: string; hits: ImageHit[] }> {
     if (!this.cfg.imageProvider || !this.cfg.imageKey) {
@@ -116,13 +270,24 @@ export class ImageService {
     return hits;
   }
 
-  /** Persist a chosen image for a drive (download URL or copy local path). */
+  /** Persist a chosen image for a drive: local canonical copy + on-stick
+   *  copy (when mounted). Source = downloaded URL, uploaded bytes, an
+   *  existing local file, or a file already on the drive. The source's
+   *  extension is preserved (photo.png / photo.jpg / …) so the stick copy
+   *  previews like a normal image file. */
   async choose(
     driveId: string,
-    opts: { url?: string; localPath?: string },
+    opts: {
+      url?: string;
+      localPath?: string;
+      data?: Uint8Array;
+      /** Original filename for uploads (derives the extension). */
+      name?: string;
+      /** Path relative to the drive root (a pick from listDriveImages). */
+      driveRel?: string;
+    },
   ): Promise<string> {
-    const dir = join(this.cfg.imagesDir, driveId);
-    const dest = join(dir, "photo");
+    const dir = this.localDir(driveId);
     if (opts.url) {
       const res = await fetch(opts.url, {
         // 30s deadline: image hosts stall; without it the route hangs and
@@ -131,25 +296,112 @@ export class ImageService {
       });
       if (!res.ok) throw new Error(`download failed ${res.status}`);
       const buf = new Uint8Array(await res.arrayBuffer());
-      if (buf.length > 10 * 1024 * 1024) throw new Error("image > 10MB");
-      this.guard.write(dest, buf);
+      if (buf.length > MAX_BYTES) throw new Error("image > 10MB");
+      const ext =
+        extFromMime(res.headers.get("content-type") ?? "") ??
+        this.extOf(opts.url) ??
+        ".jpg";
+      await this.guard.write(join(dir, `photo${ext}`), buf);
+    } else if (opts.data) {
+      if (opts.data.length > MAX_BYTES) throw new Error("image > 10MB");
+      const ext = this.extOf(opts.name) ?? ".jpg";
+      await this.guard.write(join(dir, `photo${ext}`), opts.data);
+    } else if (opts.driveRel) {
+      const drive = this.db.getDrive(driveId);
+      if (!drive?.mounted) throw new Error("drive not mounted");
+      const src = this.driveImageFile(drive.name, opts.driveRel);
+      if (!src) throw new Error("image not found on drive");
+      const ext = this.extOf(src) ?? ".jpg";
+      await this.guard.copy(src, join(dir, `photo${ext}`));
     } else if (opts.localPath) {
-      await this.guard.copy(opts.localPath, dest);
+      const ext = this.extOf(opts.localPath) ?? ".jpg";
+      await this.guard.copy(opts.localPath, join(dir, `photo${ext}`));
     } else {
       throw new Error("nothing to choose");
     }
-    this.db.setPhoto(driveId, dest);
+    await this.syncToDrive(driveId);
+    this.db.setPhoto(driveId, this.localPhoto(driveId) ?? join(dir, "photo"));
     this.db.event(driveId, "photo-set", {
-      source: opts.url ? "url" : "upload",
+      source: opts.url
+        ? "url"
+        : opts.data
+          ? "upload"
+          : opts.driveRel
+            ? "drive"
+            : "upload",
     });
-    return dest;
+    return this.localPhoto(driveId) ?? join(dir, "photo");
   }
 
+  /** Lowercased extension of a path/URL ("" → null). Query strings off. */
+  private extOf(p: string | undefined): string | null {
+    if (!p) return null;
+    const clean = p.split(/[?#]/)[0] ?? p;
+    const ext = extname(clean).toLowerCase();
+    return ext ? ext : null;
+  }
+
+  /** Copy the local canonical photo onto the mounted stick (when it isn't
+   *  already there, or differs). No-op when unmounted or nothing local. */
+  async syncToDrive(driveId: string): Promise<boolean> {
+    const local = this.localPhoto(driveId);
+    if (!local) return false;
+    const drive = this.db.getDrive(driveId);
+    if (!drive?.mounted || !drive.name) return false;
+    const onStick = this.drivePhoto(drive.name);
+    if (onStick && this.sameBytes(local, onStick)) return false;
+    const dest = join(this.driveDir(drive.name), `photo${extname(local)}`);
+    await this.guard.copy(local, dest);
+    return true;
+  }
+
+  /** Mount-time reconciliation: prefer whichever side has a photo and make
+   *  both agree. Drive → local when the local copy was lost; local → drive
+   *  when the stick never got it (picked while unmounted / older sync).
+   *  Never deletes: a stray extra file on either side is left alone. */
+  async syncOnMount(driveId: string): Promise<void> {
+    const drive = this.db.getDrive(driveId);
+    if (!drive?.mounted || !drive.name) return;
+    const local = this.localPhoto(driveId);
+    const onStick = this.drivePhoto(drive.name);
+    if (onStick && !local) {
+      // restore the local canonical copy from the stick
+      await this.guard.copy(onStick, join(this.localDir(driveId), "photo"));
+      this.db.setPhoto(driveId, join(this.localDir(driveId), "photo"));
+      this.db.event(driveId, "photo-restored", { from: "drive" });
+      return;
+    }
+    if (local && (!onStick || !this.sameBytes(local, onStick))) {
+      const dest = join(this.driveDir(drive.name), `photo${extname(local)}`);
+      await this.guard.copy(local, dest);
+      this.db.event(driveId, "photo-synced", { to: "drive" });
+    }
+  }
+
+  /** Extension+size equality — enough to decide "already synced" without
+   *  hashing a multi-MB image on every sweep. */
+  private sameBytes(a: string, b: string): boolean {
+    try {
+      const sa = statSync(a);
+      const sb = statSync(b);
+      return (
+        sa.size === sb.size &&
+        extname(a).toLowerCase() === extname(b).toLowerCase()
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /** The path to serve for /photos/:id — local first (works for ghosts),
+   *  falling back to the stick copy when only that exists. */
   photoPath(driveId: string): string | null {
-    return this.db.getDrive(driveId)?.photo_path ?? null;
+    return (
+      this.localPhoto(driveId) ?? this.db.getDrive(driveId)?.photo_path ?? null
+    );
   }
 
-  /** Remove a drive's cover photo (file + DB pointer). */
+  /** Remove a drive's cover photo (both copies + DB pointer). */
   clear(driveId: string): void {
     const p = this.photoPath(driveId);
     if (p) {
@@ -159,6 +411,18 @@ export class ImageService {
         // DB pointer is cleared regardless; a file that wouldn't delete
         // (permissions/AV) must be visible, not silently orphaned on disk.
         console.error(`photo rm failed for ${driveId} at ${p}`, e);
+      }
+    }
+    // the on-stick copy too — remove means remove from both
+    const drive = this.db.getDrive(driveId);
+    if (drive?.mounted && drive.name) {
+      const stick = this.drivePhoto(drive.name);
+      if (stick) {
+        try {
+          this.guard.rm(stick);
+        } catch (e) {
+          console.error(`photo rm failed (stick) for ${driveId}`, e);
+        }
       }
     }
     this.db.setPhoto(driveId, "");

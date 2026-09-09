@@ -20,7 +20,6 @@ import type {
 import { errMessage, fmtBytes } from "../shared/fmt";
 import { api, toast } from "./toast";
 import { Icon } from "./icons";
-import { navigateFleet } from "./router";
 import { useFetched } from "./useFetched";
 import { StatCard } from "./DrivePanels";
 import { PreflightTab } from "./PreflightTab";
@@ -28,6 +27,7 @@ import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
 import { TabIntro } from "./InfoTip";
 import { ListHead, FixNote, copyList } from "./ListHead";
+import { ProductHead } from "./ProductPage";
 
 const TABS = [
   {
@@ -85,29 +85,7 @@ export function FleetPage(props: { tab: string }) {
 
   return (
     <div class="canvas fleet">
-      <div class="fleet-head">
-        <h2>
-          <Icon name="grid" size={18} /> Fleet
-        </h2>
-        <span class="fleet-sub">
-          every drive, cross-checked — who has what, and what dies with a drive
-        </span>
-        <div class="spacer" />
-        <div class="tabs inline">
-          {TABS.map((t) => (
-            <button
-              type="button"
-              key={t.id}
-              class={tab === t.id ? "on" : ""}
-              onClick={() => navigateFleet(t.id)}
-              title={t.title}
-            >
-              <Icon name={t.icon} size={14} />
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <ProductHead product="fleet" tab={tab} tabs={[...TABS]} />
 
       {tab === "coverage" && <CoverageTab />}
       {tab === "redundancy" && <RedundancyTab />}

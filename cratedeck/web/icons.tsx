@@ -2,6 +2,7 @@
 // for every glyph in the UI (24×24 grid, stroke-based, currentColor).
 
 const P: Record<string, string> = {
+  /** The Icon component's `name` union — one source of truth. */
   search: "M10.5 3a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Zm5.6 13.1L21 21",
   folder:
     "M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.4h9A1.5 1.5 0 0 1 21 9.9v8.6a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5v-11Z",
@@ -40,10 +41,15 @@ const P: Record<string, string> = {
   download: "M12 3v11m0 0-4-4m4 4 4-4M4.5 19.5h15",
   chevD: "M5 9l7 7 7-7",
   chevU: "M5 15l7-7 7 7",
+  // product icons: download-pipeline tag + waveform marks
+  tag: "M4 4h7l9 9-7 7-9-9V4Zm4.5 6.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z",
+  wave: "M3 12h2.5l2-6 3 12 3-9 2 3H21",
 };
 
+export type IconName = keyof typeof P;
+
 export function Icon(props: {
-  name: keyof typeof P | string;
+  name: IconName | string;
   size?: number;
   class?: string;
 }) {

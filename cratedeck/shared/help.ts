@@ -103,6 +103,31 @@ export const HELP_TERMS: HelpTerm[] = [
     def: "The archive's low-quality queue — downloads flagged for re-fetch or replacement.",
     why: "Working the queue is how tracks graduate from 'downloaded' to 'gig-safe'.",
   },
+  {
+    term: "GetDat",
+    def: "The download + ingest half of megadj: YouTube Music → the local archive (sync, ingest, retry, sources).",
+    why: "The archive is where every track graduates from download to tag/analysis to the DJ drives — GetDat owns the first step.",
+  },
+  {
+    term: "FullTags",
+    def: "The enrichment engine: tags, art, keys, BPM/beatgrids, mood, structure cues — one schema, one writer.",
+    why: "Analysis lands in DB ledgers (beats/mood/cues) until write-gates pass; file stamps carry the passed fields.",
+  },
+  {
+    term: "Beats ledger",
+    def: "The archive DB's per-track analysis rows: raw + folded BPM, the full beat array, downbeats (from `megadj beats`).",
+    why: "It's the independent second opinion on tempo — the grid cross-check compares it to rekordbox's BPM × duration.",
+  },
+  {
+    term: "Phrase cue",
+    def: "A structure marker every 8 bars, derived from a track's downbeats — the natural mix in/out points.",
+    why: "Phrase cues are how you mix on phrase, not just on beat; they're DB-side until rekordbox cue writes ship.",
+  },
+  {
+    term: "Write gate",
+    def: "A measured pass/fail a batch tag write must clear before the engine touches files (key passed; BPM and genre are blocked).",
+    why: "Bad mass-writes corrupt a whole library at once — the gate is the reason analysis lives in ledgers first.",
+  },
 ];
 
 export const HELP_JOBS: HelpJob[] = [
@@ -193,6 +218,43 @@ export const HELP_SURFACES: HelpSurface[] = [
     label: "Fleet · Prep",
     where: "Fleet → Prep",
     question: "One-page weekly brief of everything worth knowing?",
+  },
+  {
+    route: "#/getdat/pipeline",
+    label: "GetDat · Pipeline",
+    where: "topbar GetDat tab → Pipeline",
+    question: "Is the download machine healthy — what's playable vs stuck?",
+  },
+  {
+    route: "#/getdat/backlog",
+    label: "GetDat · Backlog",
+    where: "GetDat → Backlog",
+    question: "What downloads need a retry, and what's below the quality bar?",
+  },
+  {
+    route: "#/getdat/library",
+    label: "GetDat · Library",
+    where: "GetDat → Library",
+    question: "What's in the archive — genres, years, artwork, search?",
+  },
+  {
+    route: "#/fulltags/beatgrids",
+    label: "FullTags · Beatgrids",
+    where: "topbar FullTags tab → Beatgrids",
+    question: "Do the independent beatgrids agree with rekordbox's BPM?",
+  },
+  {
+    route: "#/fulltags/mood",
+    label: "FullTags · Mood",
+    where: "FullTags → Mood",
+    question:
+      "What does the archive sound like — the vibe map and its extremes?",
+  },
+  {
+    route: "#/fulltags/cues",
+    label: "FullTags · Cues",
+    where: "FullTags → Cues",
+    question: "Where are the 8-bar phrase boundaries for mixing in and out?",
   },
 ];
 

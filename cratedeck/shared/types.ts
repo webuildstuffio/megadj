@@ -453,6 +453,19 @@ export type ArchiveMoodProfile = ReturnType<
   import("../src/archive").ArchiveReader["moodProfile"]
 >;
 
+// ---- drive cover photos: one image listed by GET /drives/:id/drive-images.
+// Derived from the producer (cratedeck/src/images.ts `listDriveImages`) so
+// the wire shape can't drift from the server.
+export type DriveImage = Awaited<
+  ReturnType<import("../src/images").ImageService["listDriveImages"]>
+>[number];
+export type ArchiveCueStats = ReturnType<
+  import("../src/archive").ArchiveReader["cueStats"]
+>;
+export type ArchiveLibraryOverview = ReturnType<
+  import("../src/archive").ArchiveReader["libraryOverview"]
+>;
+
 // ---- preflight (B12): the wire shapes are DEFINED here; src/preflight.ts
 // (the pure engine that produces them) imports them back. One source of
 // truth for web/deckctl/MCP without re-exporting the producer's module.

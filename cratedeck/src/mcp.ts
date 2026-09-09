@@ -32,6 +32,8 @@
  *   archive_source_diff {a, b}  track-set diff between two sources
  *   archive_grid_cross_check    beat_this ledger vs RB BPM×duration verdicts
  *   archive_mood_profile        mood/dance/VA averages + extremes (roadmap #4)
+ *   archive_cue_ledger          8-bar phrase-cue ledger (readonly)
+ *   archive_library_overview    FullTags mirror: genres/years/art/energy
  *   deck_prep                   weekly digest markdown (O83, readonly)
  *   deck_search {q}             global search: playlists + folders (B9, readonly)
  *   deck_help {term?}           glossary + job/surface explainers (readonly)
