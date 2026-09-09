@@ -9,6 +9,7 @@ import { Registry } from "./registry";
 import { JobEngine } from "./jobs";
 import { ImageService } from "./images";
 import { driveBadgesView } from "./badges_view";
+import { parseSnapshotJson } from "../shared/badges";
 import { buildReport, buildReportSummary, overall } from "./report";
 import { VERIFY_HELP } from "./verify_help";
 import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
@@ -35,12 +36,7 @@ import {
   shouldAutoVerify,
   autoVerifyReason,
 } from "./auto_schedule";
-import type {
-  Drive,
-  JobKind,
-  NoteSeverity,
-  SnapshotData,
-} from "../shared/types";
+import type { Drive, JobKind, NoteSeverity } from "../shared/types";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
@@ -220,390 +216,7 @@ Bun.serve({
   async fetch(req) {
     const url = new URL(req.url);
     const path = url.pathname;
-
-    // ---- API -------------------------------------------------------------
-    if (path.startsWith("/api/")) {
-      const route = path.slice(4); // /drives, /drives/:id/...
-      try {
-        // deckctl status / deck_status REST twin — one read for the whole
-        // front page: interlock + drive list + active jobs. Wire shape is
-        // exactly what `deckctl status --json` prints.
-        if (route === "/status") {
-          return json({
-            // same shape as GET /api/interlock + deckctl status --json
-            interlock: (() => {
-              const lock = jobs.interlock();
-              return { rekordbox_running: lock.running, pid: lock.pid };
-            })(),
-            drives: driveListPayload(),
-            jobs: db.activeJobs(),
-          });
-        }
-        if (route === "/drives") {
-          return json(driveListPayload());
-        }
-        if (route === "/reports") {
-          // batched summaries for the rail: N report fetches → 1 request
-          return json(
-            Object.fromEntries(
-              registry.list().map((d) => {
-                const r = buildReport(reportInput(reportDeps, d.id));
-                return [d.id, buildReportSummary(r.checks)];
-              }),
-            ),
-          );
-        }
-        // B12 preflight: the gig-night pass/fail across every mounted drive
-        if (route === "/preflight") {
-          return json(buildPreflight(allPreflightInputs(reportDeps)));
-        }
-        // in-app help SSOT: glossary + job/surface explainers (deckctl/MCP
-        // can serve the same wording the UI tooltips use)
-        if (route === "/help") {
-          return json({
-            terms: HELP_TERMS,
-            jobs: HELP_JOBS,
-            surfaces: HELP_SURFACES,
-          });
-        }
-        const driveMatch = route.match(/^\/drives\/([^/]+)(\/.*)?$/);
-        if (driveMatch?.[1]) {
-          // clients percent-encode fingerprint ids (fp%3A…); pathname keeps
-          // the encoding, so decode before DB lookups
-          const id: string = decodeURIComponent(driveMatch[1]);
-          const sub: string | undefined = driveMatch[2];
-          if (!sub) {
-            const d = registry.detail(id);
-            if (!d) return json({ error: "unknown drive" }, 404);
-            return json(d);
-          }
-          if (sub === "/timeline") return json(db.timeline(id));
-          // O88: agent findings feed — active notes as JSON + write/dismiss.
-          // Logic lives in notes.ts; db exposes the raw rows it needs.
-          if (sub === "/notes" && req.method === "GET")
-            return json(agentNotes(db, id));
-          if (sub === "/notes" && req.method === "POST") {
-            if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
-            // malformed JSON → 400 (client error), not the outer 500 catch
-            let body: {
-              note?: string;
-              origin?: string;
-              severity?: NoteSeverity;
-            };
-            try {
-              body = (await req.json()) as typeof body;
-            } catch {
-              return json({ error: "invalid JSON body" }, 400);
-            }
-            // normalizeNote throws a clean message on empty/oversized input;
-            // map validation errors to 400 explicitly here
-            let v: ReturnType<typeof normalizeNote>;
-            try {
-              v = normalizeNote({
-                drive_id: id,
-                note: body.note ?? "",
-                origin: body.origin,
-                severity: body.severity,
-              });
-            } catch (e) {
-              return json({ error: (e as Error).message }, 400);
-            }
-            const noteId = addAgentNote(db, v);
-            // O88: return the event id — deck_note / deckctl note --json
-            // promise {id} so callers can cite or dismiss the note later
-            return json({ ok: true, id: noteId });
-          }
-          const noteMatch = sub?.match(/^\/notes\/([^/]+)\/dismiss$/);
-          if (noteMatch?.[1] && req.method === "POST") {
-            const ok = dismissAgentNote(db, id, noteMatch[1]);
-            return ok
-              ? json({ ok: true })
-              : json({ error: "note not found" }, 404);
-          }
-          if (sub === "/export") {
-            const dossier = exportDossier(reportDeps, id);
-            if (!dossier) return json({ error: "unknown drive" }, 404);
-            return dossier;
-          }
-          if (sub === "/report") {
-            if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
-            const report = buildReport(reportInput(reportDeps, id));
-            return json({ ...report, overall: overall(report.checks) });
-          }
-          // latest granular verify report (per-check pass/fail + meanings)
-          if (sub === "/verify") {
-            if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
-            // null (not a stub) — the web tab renders a "never verified"
-            // state for null; a {ran_at:null} stub crashed `.checks.filter`.
-            return json(db.getVerifyReport(id));
-          }
-          if (sub === "/verify/help") {
-            return json(VERIFY_HELP);
-          }
-          if (sub === "/photo" && req.method === "POST") {
-            const ctype = req.headers.get("content-type") ?? "";
-            // multipart = a real file-picker upload from the Photo tab;
-            // JSON = url / drive_rel / clear as before
-            if (ctype.includes("multipart/form-data")) {
-              const form = await req.formData();
-              const file = form.get("file");
-              if (!(file instanceof File))
-                return json({ error: "file required" }, 400);
-              const dest = await images.choose(id, {
-                data: new Uint8Array(await file.arrayBuffer()),
-              });
-              return json({ ok: true, path: dest });
-            }
-            const body = (await req.json()) as {
-              url?: string;
-              localPath?: string;
-              /** relative-to-volume path of an image picked FROM the drive */
-              drive_rel?: string;
-              clear?: boolean;
-            };
-            if (body.clear) {
-              images.clear(id);
-              return json({ ok: true, cleared: true });
-            }
-            const dest = await images.choose(id, {
-              url: body.url,
-              localPath: body.localPath,
-              driveRel: body.drive_rel,
-            });
-            return json({ ok: true, path: dest });
-          }
-          // images already ON this drive (Contents/CrateDeck + volume root)
-          if (sub === "/drive-images") {
-            const drive = db.getDrive(id);
-            if (!drive) return json({ error: "unknown drive" }, 404);
-            if (!drive.mounted)
-              return json({ error: "drive not mounted" }, 409);
-            return json(await images.listDriveImages(drive.name));
-          }
-          if (sub === "/name" && req.method === "POST") {
-            const body = (await req.json()) as { nickname: string | null };
-            registry.rename(id, body.nickname);
-            return json({ ok: true });
-          }
-          if (sub === "/jobs" && req.method === "POST") {
-            const body = (await req.json()) as {
-              kind: JobKind;
-              origin?: string;
-            };
-            if (
-              !["scan", "verify", "mirror", "benchmark", "checksum"].includes(
-                body.kind,
-              )
-            ) {
-              return json({ error: "bad kind" }, 400);
-            }
-            const drive = db.getDrive(id);
-            if (!drive?.mounted)
-              return json({ error: "drive not mounted" }, 409);
-            const mountPoint = resolveMountPoint(cfg, drive.name);
-            // O87: callers may attribute the job ("mcp:xxxx", "deckctl").
-            // Sanitized to a short flat tag — it lands in JSON + UI labels.
-            const origin =
-              typeof body.origin === "string" && body.origin.trim()
-                ? body.origin
-                    .trim()
-                    .slice(0, 40)
-                    .replace(/[^\w:.-]/g, "")
-                : "web";
-            const job = jobs.enqueue(id, body.kind, mountPoint, origin);
-            return json(job);
-          }
-          if (sub === "/benchmarks") return json(db.benchmarks(id));
-          // N78: "which players will this stick actually work on?" —
-          // measured dual-DB rows mapped onto the vendor player matrix
-          if (sub === "/players") {
-            const drive = db.getDrive(id);
-            if (!drive) return json({ error: "unknown drive" }, 404);
-            const snap: SnapshotData | null = drive.last_snapshot_json
-              ? JSON.parse(drive.last_snapshot_json)
-              : null;
-            const compat = driveCompatibility(snap, extraPlayers());
-            return json({
-              drive: {
-                id: drive.id,
-                name: drive.name,
-                nickname: drive.nickname,
-              },
-              measured: {
-                pdb_live_rows: snap?.pdb_live_rows ?? null,
-                onelibrary_rows: snap?.onelibrary_rows ?? null,
-              },
-              ...compat,
-            });
-          }
-        }
-        if (route === "/ports") {
-          return json(portView());
-        }
-        if (route === "/jobs") {
-          const active = url.searchParams.get("active");
-          const drive = url.searchParams.get("drive");
-          if (drive) return json(db.jobsForDrive(drive, 20, !!active));
-          return json(active ? db.activeJobs() : db.jobsForDrive("*", 50));
-        }
-        const jobMatch = route.match(/^\/jobs\/([^/]+)(\/cancel)?$/);
-        if (jobMatch?.[1]) {
-          const id: string = jobMatch[1];
-          const cancel: string | undefined = jobMatch[2];
-          if (cancel && req.method === "POST")
-            return json({ ok: jobs.cancel(id) });
-          return json(db.getJob(id));
-        }
-        if (route === "/search") {
-          return json(registry.search(url.searchParams.get("q") ?? ""));
-        }
-        // ---- fleet superpowers (§B6 coverage / §B7 redundancy / §B8 diff) --
-        // Pure reads over fleet tables (refreshed by scans). Drive names in
-        // responses are display labels resolved here, once.
-        if (route === "/fleet/coverage") {
-          const minCopies = Math.max(
-            1,
-            parseInt(url.searchParams.get("min_copies") ?? "2", 10) || 2,
-          );
-          const names = driveNames();
-          const result = coverage(db.fleetInventories(), minCopies);
-          return json({
-            ...result,
-            drives: result.drives.map((d) => ({
-              ...d,
-              name: names.get(d.id) ?? d.id,
-            })),
-            rows: undefined, // full matrix is huge; at_risk + lookups cover the UI
-          });
-        }
-        if (route === "/fleet/track") {
-          const q = (url.searchParams.get("q") ?? "").trim();
-          if (!q) return json({ error: "q required" }, 400);
-          const names = driveNames();
-          const hit = trackLocations(db.fleetInventories(), q) ?? null;
-          return json(
-            hit
-              ? {
-                  ...hit,
-                  drives: hit.drives.map((id) => ({
-                    id,
-                    name: names.get(id) ?? id,
-                    mounted: !!db.getDrive(id)?.mounted,
-                  })),
-                }
-              : { identity: null, drives: [] },
-          );
-        }
-        if (route === "/fleet/redundancy") {
-          const minCopies = Math.max(
-            1,
-            parseInt(url.searchParams.get("min_copies") ?? "2", 10) || 2,
-          );
-          const names = driveNames();
-          const result = redundancy(
-            db.fleetInventories(),
-            db.fleetPlaylistEntries(),
-            minCopies,
-          );
-          return json({
-            ...result,
-            playlists: result.playlists.map((p) => ({
-              ...p,
-              tracks: p.tracks.map((t) => ({
-                ...t,
-                drives: t.drives.map((id) => ({
-                  id,
-                  name: names.get(id) ?? id,
-                })),
-              })),
-            })),
-          });
-        }
-        if (route === "/fleet/diff") {
-          const a = url.searchParams.get("a");
-          const b = url.searchParams.get("b");
-          if (!a || !b)
-            return json({ error: "a and b drive ids required" }, 400);
-          const da = db.getDrive(a);
-          const dbb = db.getDrive(b);
-          if (!da || !dbb) return json({ error: "unknown drive" }, 404);
-          const inv = db.fleetInventories([a, b]);
-          const mans = db.fleetManifests([a, b]);
-          const result = diff(
-            da.nickname ?? da.name,
-            inv.get(a) ?? [],
-            mans.get(a) ?? null,
-            dbb.nickname ?? dbb.name,
-            inv.get(b) ?? [],
-            mans.get(b) ?? null,
-          );
-          return json(result);
-        }
-        // ---- weekly prep digest (O83): the markdown brief, server-rendered
-        if (route === "/fleet/prep") {
-          try {
-            // self-fetch: the sweep leg can take ~15s — the caller-supplied
-            // timeoutMs is ignored here because fetch() has no external
-            // deadline; degrade-on-catch still applies per leg.
-            const input = await fetchWeeklyPrepInput(async (p: string) => {
-              const r = await fetch(`http://127.0.0.1:${cfg.serverPort}${p}`);
-              if (!r.ok) throw new Error(`${p} → ${r.status}`);
-              return r.json();
-            });
-            return json({ markdown: renderWeeklyPrep(input) });
-          } catch (e) {
-            return json({ error: String(e) }, 500);
-          }
-        }
-        // ---- archive reads (O82b): megadj's DB, readonly -----------------
-        // Route family lives in archive_routes.ts (file-length guard);
-        // null = no archive route matched, fall through.
-        const archiveResp = await archiveRoutes(route, url, {
-          archive,
-          db,
-          cfg,
-        });
-        if (archiveResp) return archiveResp;
-        if (route === "/images/search") {
-          return json(await images.search(url.searchParams.get("q") ?? ""));
-        }
-        if (route === "/interlock") {
-          const lock = jobs.interlock();
-          return json({ rekordbox_running: lock.running, pid: lock.pid });
-        }
-        // global help: what does each job kind do (human + agent readable)
-        if (route === "/help/jobs") {
-          return json(VERIFY_HELP); // verify-centric help; per-kind docs live in deckctl explain
-        }
-        if (route === "/stop" && req.method === "POST") {
-          // graceful: stop watcher + jobs, then exit (used by deckctl stop)
-          setTimeout(async () => {
-            watcher.stop();
-            await jobs.shutdown();
-            archive.close();
-            db.close();
-            process.exit(0);
-          }, 50);
-          return json({ ok: true });
-        }
-        if (
-          (route === "/events" || route === "/events/") &&
-          req.headers.get("accept")?.includes("event-stream")
-        ) {
-          return sse();
-        }
-        return json({ error: "not found" }, 404);
-      } catch (e) {
-        const msg = (e as Error).message;
-        const status =
-          msg.startsWith("REKORDBOX_RUNNING") ||
-          msg.startsWith("GUARD VIOLATION")
-            ? 423
-            : 500;
-        return json({ error: msg }, status);
-      }
-    }
-
+    if (path.startsWith("/api/")) return apiRequest(req, url);
     // ---- photo files ------------------------------------------------------
     if (path.startsWith("/photos/")) {
       const id = path.slice(8);
@@ -611,35 +224,7 @@ Bun.serve({
       if (!p) return new Response("no photo", { status: 404 });
       return new Response(Bun.file(p));
     }
-
-    // ---- a file ON a mounted drive (drive-image picker previews) ----------
-    const driveImgMatch = path.match(/^\/api\/drives\/([^/]+)\/drive-image$/);
-    if (driveImgMatch?.[1]) {
-      const vol = decodeURIComponent(driveImgMatch[1]);
-      const rel = url.searchParams.get("rel") ?? "";
-      const f = images.driveImageFile(vol, rel);
-      if (!f) return new Response("not found", { status: 404 });
-      return new Response(Bun.file(f));
-    }
-
-    // ---- static web -------------------------------------------------------
-    const file = path === "/" ? "/index.html" : path;
-    const f = Bun.file(join(webRoot, file));
-    if (await f.exists()) {
-      // hashed assets (index-<hash>.js) cache forever; everything else
-      // (index.html) must revalidate so new deploys are picked up.
-      const immutable = /assets\/.*-[A-Za-z0-9_-]+\.(js|css)$/.test(file);
-      return new Response(f, {
-        headers: {
-          "Cache-Control": immutable
-            ? "public, max-age=31536000, immutable"
-            : "no-cache",
-        },
-      });
-    }
-    return new Response(Bun.file(join(webRoot, "index.html")), {
-      headers: { "Cache-Control": "no-cache" },
-    }); // SPA fallback
+    return staticOrSpa(path);
   },
 });
 
@@ -648,6 +233,350 @@ function json(data: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/** ---- /api router: one handler per route family -------------------------- */
+
+/** Serve a file that lives ON a mounted drive (drive-image picker previews).
+ *  NOTE: was historically unreachable — it sat BELOW the /api/ block, which
+ *  always returns, so drive-image previews 404'd. Now a drive subroute. */
+function serveDriveImage(url: URL): Response {
+  // sub is already decoded by the router; rebuild the volume from the URL.
+  const m = url.pathname.match(/^\/api\/drives\/([^/]+)\/drive-image$/);
+  const vol = m?.[1] ? decodeURIComponent(m[1]) : "";
+  const rel = url.searchParams.get("rel") ?? "";
+  const f = images.driveImageFile(vol, rel);
+  if (!f) return new Response("not found", { status: 404 });
+  return new Response(Bun.file(f));
+}
+
+/** Static web + SPA fallback: hashed assets cache forever, index.html
+ *  revalidates so new deploys are picked up. */
+async function staticOrSpa(path: string): Promise<Response> {
+  const file = path === "/" ? "/index.html" : path;
+  const f = Bun.file(join(webRoot, file));
+  if (await f.exists()) {
+    const immutable = /assets\/.*-[A-Za-z0-9_-]+\.(js|css)$/.test(file);
+    return new Response(f, {
+      headers: {
+        "Cache-Control": immutable
+          ? "public, max-age=31536000, immutable"
+          : "no-cache",
+      },
+    });
+  }
+  return new Response(Bun.file(join(webRoot, "index.html")), {
+    headers: { "Cache-Control": "no-cache" },
+  }); // SPA fallback
+}
+
+/** The /api surface: dispatches to per-family handlers. Kept as one
+ *  function per family so any route's behavior has exactly one home. */
+async function apiRequest(req: Request, url: URL): Promise<Response> {
+  const path = url.pathname;
+  const route = path.slice(4); // /drives, /drives/:id/...
+  try {
+    // deckctl status / deck_status REST twin — one read for the whole
+    // front page: interlock + drive list + active jobs. Wire shape is
+    // exactly what `deckctl status --json` prints.
+    if (route === "/status") {
+      return json({
+        // same shape as GET /api/interlock + deckctl status --json
+        interlock: (() => {
+          const lock = jobs.interlock();
+          return { rekordbox_running: lock.running, pid: lock.pid };
+        })(),
+        drives: driveListPayload(),
+        jobs: db.activeJobs(),
+      });
+    }
+    if (route === "/drives") {
+      return json(driveListPayload());
+    }
+    if (route === "/reports") {
+      // batched summaries for the rail: N report fetches → 1 request
+      return json(
+        Object.fromEntries(
+          registry.list().map((d) => {
+            const r = buildReport(reportInput(reportDeps, d.id));
+            return [d.id, buildReportSummary(r.checks)];
+          }),
+        ),
+      );
+    }
+    // B12 preflight: the gig-night pass/fail across every mounted drive
+    if (route === "/preflight") {
+      return json(buildPreflight(allPreflightInputs(reportDeps)));
+    }
+    // in-app help SSOT: glossary + job/surface explainers (deckctl/MCP
+    // can serve the same wording the UI tooltips use)
+    if (route === "/help") {
+      return json({
+        terms: HELP_TERMS,
+        jobs: HELP_JOBS,
+        surfaces: HELP_SURFACES,
+      });
+    }
+    const driveMatch = route.match(/^\/drives\/([^/]+)(\/.*)?$/);
+    if (driveMatch?.[1]) {
+      const id: string = decodeURIComponent(driveMatch[1]);
+      const sub: string | undefined = driveMatch[2];
+      const resp = await driveSubroute(req, url, id, sub);
+      if (resp) return resp;
+      return json({ error: "unknown drive route" }, 404);
+    }
+    if (route === "/ports") {
+      return json(portView());
+    }
+    if (route === "/jobs") {
+      const active = url.searchParams.get("active");
+      const drive = url.searchParams.get("drive");
+      if (drive) return json(db.jobsForDrive(drive, 20, !!active));
+      return json(active ? db.activeJobs() : db.jobsForDrive("*", 50));
+    }
+    const jobMatch = route.match(/^\/jobs\/([^/]+)(\/cancel)?$/);
+    if (jobMatch?.[1]) {
+      const id: string = jobMatch[1];
+      const cancel: string | undefined = jobMatch[2];
+      if (cancel && req.method === "POST") return json({ ok: jobs.cancel(id) });
+      return json(db.getJob(id));
+    }
+    if (route === "/search") {
+      return json(registry.search(url.searchParams.get("q") ?? ""));
+    }
+    // ---- fleet superpowers (§B6/B7/B8 + O83 prep): one family, one handler
+    if (route.startsWith("/fleet/")) return fleetRoutes(route, url);
+    // ---- archive reads (O82b): megadj's DB, readonly -----------------
+    // Route family lives in archive_routes.ts (file-length guard);
+    // null = no archive route matched, fall through.
+    const archiveResp = await archiveRoutes(route, url, {
+      archive,
+      db,
+      cfg,
+    });
+    if (archiveResp) return archiveResp;
+    if (route === "/images/search") {
+      return json(await images.search(url.searchParams.get("q") ?? ""));
+    }
+    if (route === "/interlock") {
+      const lock = jobs.interlock();
+      return json({ rekordbox_running: lock.running, pid: lock.pid });
+    }
+    // global help: what does each job kind do (human + agent readable)
+    if (route === "/help/jobs") {
+      return json(VERIFY_HELP); // verify-centric help; per-kind docs live in deckctl explain
+    }
+    if (route === "/stop" && req.method === "POST") {
+      // graceful: stop watcher + jobs, then exit (used by deckctl stop)
+      setTimeout(async () => {
+        watcher.stop();
+        await jobs.shutdown();
+        archive.close();
+        db.close();
+        process.exit(0);
+      }, 50);
+      return json({ ok: true });
+    }
+    if (
+      (route === "/events" || route === "/events/") &&
+      req.headers.get("accept")?.includes("event-stream")
+    ) {
+      return sse();
+    }
+    return json({ error: "not found" }, 404);
+  } catch (e) {
+    const msg = (e as Error).message;
+    const status =
+      msg.startsWith("REKORDBOX_RUNNING") || msg.startsWith("GUARD VIOLATION")
+        ? 423
+        : 500;
+    return json({ error: msg }, status);
+  }
+}
+
+/** Per-drive subroutes under /api/drives/:id/* — returns null when no
+ *  subroute matched so the router can 404 honestly. */
+async function driveSubroute(
+  req: Request,
+  url: URL,
+  id: string,
+  sub: string | undefined,
+): Promise<Response | null> {
+  if (!sub) {
+    const d = registry.detail(id);
+    if (!d) return json({ error: "unknown drive" }, 404);
+    return json(d);
+  }
+  if (sub === "/timeline") return json(db.timeline(id));
+  // O88: agent findings feed — active notes as JSON + write/dismiss.
+  // Logic lives in notes.ts; db exposes the raw rows it needs.
+  if (sub === "/notes" && req.method === "GET") return json(agentNotes(db, id));
+  if (sub === "/notes" && req.method === "POST") {
+    if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
+    // malformed JSON → 400 (client error), not the outer 500 catch
+    let body: {
+      note?: string;
+      origin?: string;
+      severity?: NoteSeverity;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return json({ error: "invalid JSON body" }, 400);
+    }
+    // normalizeNote throws a clean message on empty/oversized input;
+    // map validation errors to 400 explicitly here
+    let v: ReturnType<typeof normalizeNote>;
+    try {
+      v = normalizeNote({
+        drive_id: id,
+        note: body.note ?? "",
+        origin: body.origin,
+        severity: body.severity,
+      });
+    } catch (e) {
+      return json({ error: (e as Error).message }, 400);
+    }
+    const noteId = addAgentNote(db, v);
+    // O88: return the event id — deck_note / deckctl note --json
+    // promise {id} so callers can cite or dismiss the note later
+    return json({ ok: true, id: noteId });
+  }
+  const noteMatch = sub.match(/^\/notes\/([^/]+)\/dismiss$/);
+  if (noteMatch?.[1] && req.method === "POST") {
+    const ok = dismissAgentNote(db, id, noteMatch[1]);
+    return ok ? json({ ok: true }) : json({ error: "note not found" }, 404);
+  }
+  if (sub === "/export") {
+    const dossier = exportDossier(reportDeps, id);
+    if (!dossier) return json({ error: "unknown drive" }, 404);
+    return dossier;
+  }
+  if (sub === "/report") {
+    if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
+    const report = buildReport(reportInput(reportDeps, id));
+    return json({ ...report, overall: overall(report.checks) });
+  }
+  // latest granular verify report (per-check pass/fail + meanings)
+  if (sub === "/verify") {
+    if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
+    // null (not a stub) — the web tab renders a "never verified"
+    // state for null; a {ran_at:null} stub crashed `.checks.filter`.
+    return json(db.getVerifyReport(id));
+  }
+  if (sub === "/verify/help") {
+    return json(VERIFY_HELP);
+  }
+  if (sub === "/photo" && req.method === "POST") {
+    return photoUpload(req, id);
+  }
+  // images already ON this drive (Contents/CrateDeck + volume root)
+  if (sub === "/drive-images") {
+    const drive = db.getDrive(id);
+    if (!drive) return json({ error: "unknown drive" }, 404);
+    if (!drive.mounted) return json({ error: "drive not mounted" }, 409);
+    return json(await images.listDriveImages(drive.name));
+  }
+  if (sub === "/name" && req.method === "POST") {
+    const body = (await req.json()) as { nickname: string | null };
+    registry.rename(id, body.nickname);
+    return json({ ok: true });
+  }
+  if (sub === "/jobs" && req.method === "POST") {
+    return enqueueDriveJob(req, id);
+  }
+  if (sub === "/benchmarks") return json(db.benchmarks(id));
+  // File ON the drive (drive-image picker preview; was unreachable when it
+  // lived below the /api/ block — see serveDriveImage comment).
+  if (sub === "/drive-image") {
+    return serveDriveImage(url);
+  }
+  // N78: "which players will this stick actually work on?" —
+  // measured dual-DB rows mapped onto the vendor player matrix
+  if (sub === "/players") {
+    const drive = db.getDrive(id);
+    if (!drive) return json({ error: "unknown drive" }, 404);
+    // parseSnapshotJson: a corrupt blob must surface in the response, not
+    // 500 the route (same crash class driveBadges had).
+    const { snap, corrupt } = parseSnapshotJson(drive.last_snapshot_json);
+    if (corrupt) return json({ error: "snapshot corrupt — run a scan" }, 409);
+    const compat = driveCompatibility(snap, extraPlayers());
+    return json({
+      drive: {
+        id: drive.id,
+        name: drive.name,
+        nickname: drive.nickname,
+      },
+      measured: {
+        pdb_live_rows: snap?.pdb_live_rows ?? null,
+        onelibrary_rows: snap?.onelibrary_rows ?? null,
+      },
+      ...compat,
+    });
+  }
+  return null;
+}
+
+/** POST /api/drives/:id/photo — multipart upload or JSON url/localPath/clear. */
+async function photoUpload(req: Request, id: string): Promise<Response> {
+  const ctype = req.headers.get("content-type") ?? "";
+  // multipart = a real file-picker upload from the Photo tab;
+  // JSON = url / drive_rel / clear as before
+  if (ctype.includes("multipart/form-data")) {
+    const form = await req.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) return json({ error: "file required" }, 400);
+    const dest = await images.choose(id, {
+      data: new Uint8Array(await file.arrayBuffer()),
+      // the upload's real name picks the extension (photo.png stays .png)
+      name: file instanceof File ? file.name : undefined,
+    });
+    return json({ ok: true, path: dest });
+  }
+  const body = (await req.json()) as {
+    url?: string;
+    localPath?: string;
+    /** relative-to-volume path of an image picked FROM the drive */
+    drive_rel?: string;
+    clear?: boolean;
+  };
+  if (body.clear) {
+    images.clear(id);
+    return json({ ok: true, cleared: true });
+  }
+  const dest = await images.choose(id, {
+    url: body.url,
+    localPath: body.localPath,
+    driveRel: body.drive_rel,
+  });
+  return json({ ok: true, path: dest });
+}
+
+/** POST /api/drives/:id/jobs — validate + enqueue a drive job. */
+async function enqueueDriveJob(req: Request, id: string): Promise<Response> {
+  const body = (await req.json()) as {
+    kind: JobKind;
+    origin?: string;
+  };
+  if (
+    !["scan", "verify", "mirror", "benchmark", "checksum"].includes(body.kind)
+  ) {
+    return json({ error: "bad kind" }, 400);
+  }
+  const drive = db.getDrive(id);
+  if (!drive?.mounted) return json({ error: "drive not mounted" }, 409);
+  const mountPoint = resolveMountPoint(cfg, drive.name);
+  // O87: callers may attribute the job ("mcp:xxxx", "deckctl").
+  // Sanitized to a short flat tag — it lands in JSON + UI labels.
+  const origin =
+    typeof body.origin === "string" && body.origin.trim()
+      ? body.origin
+          .trim()
+          .slice(0, 40)
+          .replace(/[^\w:.-]/g, "")
+      : "web";
+  const job = jobs.enqueue(id, body.kind, mountPoint, origin);
+  return json(job);
 }
 
 /** Where a drive's volume is mounted. Respects CRATEDECK_VOLUMES/config
@@ -680,6 +609,104 @@ function portView() {
 /** display labels for fleet responses: drive_id → nickname/name */
 function driveNames(): Map<string, string> {
   return new Map(db.allDrives().map((d) => [d.id, d.nickname ?? d.name]));
+}
+
+/** ---- /fleet/* family (§B6 coverage / §B7 redundancy / §B8 diff / O83
+ *  prep): pure reads over fleet tables (refreshed by scans). Drive names in
+ *  responses are display labels resolved here, once. */
+async function fleetRoutes(route: string, url: URL): Promise<Response> {
+  if (route === "/fleet/coverage") {
+    const minCopies = Math.max(
+      1,
+      parseInt(url.searchParams.get("min_copies") ?? "2", 10) || 2,
+    );
+    const names = driveNames();
+    const result = coverage(db.fleetInventories(), minCopies);
+    return json({
+      ...result,
+      drives: result.drives.map((d) => ({
+        ...d,
+        name: names.get(d.id) ?? d.id,
+      })),
+      rows: undefined, // full matrix is huge; at_risk + lookups cover the UI
+    });
+  }
+  if (route === "/fleet/track") {
+    const q = (url.searchParams.get("q") ?? "").trim();
+    if (!q) return json({ error: "q required" }, 400);
+    const names = driveNames();
+    const hit = trackLocations(db.fleetInventories(), q) ?? null;
+    return json(
+      hit
+        ? {
+            ...hit,
+            drives: hit.drives.map((id) => ({
+              id,
+              name: names.get(id) ?? id,
+              mounted: !!db.getDrive(id)?.mounted,
+            })),
+          }
+        : { identity: null, drives: [] },
+    );
+  }
+  if (route === "/fleet/redundancy") {
+    const minCopies = Math.max(
+      1,
+      parseInt(url.searchParams.get("min_copies") ?? "2", 10) || 2,
+    );
+    const names = driveNames();
+    const result = redundancy(
+      db.fleetInventories(),
+      db.fleetPlaylistEntries(),
+      minCopies,
+    );
+    return json({
+      ...result,
+      playlists: result.playlists.map((p) => ({
+        ...p,
+        tracks: p.tracks.map((t) => ({
+          ...t,
+          drives: t.drives.map((id) => ({
+            id,
+            name: names.get(id) ?? id,
+          })),
+        })),
+      })),
+    });
+  }
+  if (route === "/fleet/diff") {
+    const a = url.searchParams.get("a");
+    const b = url.searchParams.get("b");
+    if (!a || !b) return json({ error: "a and b drive ids required" }, 400);
+    const da = db.getDrive(a);
+    const dbb = db.getDrive(b);
+    if (!da || !dbb) return json({ error: "unknown drive" }, 404);
+    const inv = db.fleetInventories([a, b]);
+    const mans = db.fleetManifests([a, b]);
+    const result = diff(
+      da.nickname ?? da.name,
+      inv.get(a) ?? [],
+      mans.get(a) ?? null,
+      dbb.nickname ?? dbb.name,
+      inv.get(b) ?? [],
+      mans.get(b) ?? null,
+    );
+    return json(result);
+  }
+  // weekly prep digest (O83): the markdown brief, server-rendered. Self-
+  // fetch: the sweep leg can take ~15s — the caller-supplied timeoutMs is
+  // ignored here because fetch() has no external deadline; degrade-on-catch
+  // still applies per leg.
+  try {
+    const input = await fetchWeeklyPrepInput(async (p: string) => {
+      const r = await fetch(`http://127.0.0.1:${cfg.serverPort}${p}`);
+      if (!r.ok) throw new Error(`${p} → ${r.status}`);
+      return r.json();
+    });
+    return json({ markdown: renderWeeklyPrep(input) });
+  } catch (e) {
+    return json({ error: String(e) }, 500);
+  }
 }
 
 /** GET /api/drives + GET /api/status payload: the drive cards minus the MBs

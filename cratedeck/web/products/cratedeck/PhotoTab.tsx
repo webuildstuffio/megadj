@@ -46,7 +46,7 @@ export function PhotoTab(props: {
           </>
         )}
       </div>
-      {props.drive.photo_path && (
+      {props.drive.photo_path ? (
         <div
           style={{
             display: "flex",
@@ -56,11 +56,13 @@ export function PhotoTab(props: {
           }}
         >
           <img
-            src={`/photos/${props.driveId}?v=${props.drive.last_seen_at}`}
-            alt={props.name}
+            src={`/photos/${props.driveId}?v=${encodeURIComponent(
+              String(props.drive.last_seen_at ?? "") + ":" + Date.now(),
+            )}`}
+            alt={`${props.name} cover photo`}
             style={{
-              width: 140,
-              height: 105,
+              width: 240,
+              height: 180,
               objectFit: "cover",
               borderRadius: 12,
               border: "1px solid var(--stroke)",
@@ -72,6 +74,18 @@ export function PhotoTab(props: {
             hint="Deletes it from your Mac and from the drive"
             onConfirm={props.onClear}
           />
+        </div>
+      ) : (
+        <div
+          class="note-card"
+          style={{ margin: "8px 0", padding: "22px 16px" }}
+        >
+          <Icon name="photo" size={22} />
+          <b>No cover photo yet</b>
+          <span>
+            Upload one below, pick an image off the drive, or search the web —
+            it shows on this drive's card and travels on the stick.
+          </span>
         </div>
       )}
       <div class="pl-tools">

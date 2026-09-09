@@ -6,7 +6,12 @@ import { Icon } from "./icons";
 import type { JSX } from "preact";
 
 /** A small (?) affordance whose hover card carries a title + body. Render
- *  inline after a heading, stat label, or inside the `help-anchor` row. */
+ *  inline after a heading, stat label, or inside the `help-anchor` row.
+ *  `side` makes the card open to the RIGHT of the dot instead of above —
+ *  mandatory for anything inside the drive rail or near a screen edge,
+ *  where a centered/above card gets clipped by the overflow container.
+ *  `children` replaces the default (?) dot with a custom hover target
+ *  (a health ring, a badge) — the card behavior is identical. */
 export function InfoTip(props: {
   /** The card headline ("What is a beatgrid?"). */
   title: string;
@@ -16,19 +21,23 @@ export function InfoTip(props: {
   why?: string;
   align?: "left" | "right";
   below?: boolean;
+  side?: boolean;
+  children?: preact.JSX.Element;
 }) {
   return (
     <span
-      class="infotip"
+      class={`infotip ${props.children ? "has-target" : ""}`}
       tabIndex={0}
       role="note"
       aria-label={`${props.title} — ${props.body}`}
     >
-      <span class="infotip-dot" aria-hidden>
-        <Icon name="dot" size={9} />
-      </span>
+      {props.children ?? (
+        <span class="infotip-dot" aria-hidden>
+          <Icon name="dot" size={9} />
+        </span>
+      )}
       <span
-        class={`infotip-card ${props.below ? "below" : ""} ${props.align === "right" ? "right" : ""}`}
+        class={`infotip-card ${props.side ? "side" : ""} ${props.below ? "below" : ""} ${props.align === "right" ? "right" : ""}`}
       >
         <b>{props.title}</b>
         <span>{props.body}</span>

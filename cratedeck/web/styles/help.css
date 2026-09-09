@@ -300,6 +300,18 @@
   outline: none;
   vertical-align: 1px;
 }
+/* custom-target variant (health ring, badge wrapper): the box hugs the
+ * child instead of forcing the 15px (?) dot shape */
+.infotip.has-target {
+  width: auto;
+  height: auto;
+  background: none;
+  border-radius: var(--r-sm);
+}
+.infotip.has-target:hover,
+.infotip.has-target:focus-visible {
+  background: none;
+}
 .infotip:hover,
 .infotip:focus-visible {
   background: var(--info);
@@ -315,6 +327,7 @@
   left: 50%;
   transform: translateX(-50%) translateY(4px);
   width: 290px;
+  max-width: min(290px, 86vw);
   background: var(--surface4);
   border: 1px solid var(--stroke2);
   border-radius: var(--r-md);
@@ -326,10 +339,26 @@
   line-height: 1.45;
   color: var(--text);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  z-index: 90;
+  z-index: 500;
   pointer-events: none;
   text-align: left;
   font-weight: 400;
+}
+/* SIDE placement: the default for rail/edge contexts. The card hangs off
+ * the dot's right edge, vertically centered — it can never clip against
+ * the sidebar because it grows INTO the canvas, and the viewport boundary
+ * can't be hit on the left (rail) side. Use for anything near an edge. */
+.infotip-card.side {
+  bottom: auto;
+  top: 50%;
+  left: calc(100% + 10px);
+  transform: translateY(-50%);
+}
+/* side + below variant: for dots near the viewport top where a centered
+ * card would poke off-screen upward */
+.infotip-card.side.below {
+  top: calc(100% + 6px);
+  transform: none;
 }
 .infotip-card.right {
   left: auto;
@@ -343,6 +372,10 @@
 .infotip:hover .infotip-card,
 .infotip:focus-visible .infotip-card {
   display: flex;
+}
+/* hover transition: settle into place (the base rule carries +4px) */
+.infotip:hover .infotip-card:not(.side):not(.below):not(.right),
+.infotip:focus-visible .infotip-card:not(.side):not(.below):not(.right) {
   transform: translateX(-50%) translateY(0);
 }
 .infotip:hover .infotip-card.right,

@@ -100,7 +100,10 @@ export async function api<T = unknown>(
   return res.json() as Promise<T>;
 }
 
-/** JSON POST helper — body + Content-Type in one; returns api() parsed T. */
+/** JSON POST helper — body + Content-Type in one; returns api() parsed T.
+ *  Passing a FormData body skips JSON encoding entirely — the browser then
+ *  sets its own multipart boundary header (a manual Content-Type would
+ *  break it). */
 export function apiPost<T = unknown>(
   path: string,
   body: unknown,
@@ -112,11 +115,12 @@ export function apiPost<T = unknown>(
   // timeoutMs must be forwarded or long POSTs (dossier-style calls) inherit
   // the 30s default and abort mid-flight.
   const { quiet, timeoutMs, ...rest } = init ?? {};
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   return api<T>(path, {
     ...rest,
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    headers: isForm ? undefined : { "Content-Type": "application/json" },
+    body: isForm ? body : JSON.stringify(body),
     ...(quiet === undefined ? {} : { quiet }),
     ...(timeoutMs === undefined ? {} : { timeoutMs }),
   });

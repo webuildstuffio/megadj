@@ -5,6 +5,7 @@ import type { DriveCardData, OverallHealth } from "../../../shared/types";
 import { fmtBytes, timeAgo } from "../../../shared/fmt";
 import { ROLE_HELP } from "../../../shared/help";
 import { Icon } from "../../ui/icons";
+import { InfoTip } from "../../ui/InfoTip";
 
 const VERDICT_COLOR: Record<OverallHealth, string> = {
   healthy: "var(--accent)",
@@ -29,46 +30,47 @@ function HealthRing({ verdict, pct }: { verdict: OverallHealth; pct: number }) {
   const hasReport = pct > 0;
   const color = VERDICT_COLOR[verdict] ?? VERDICT_COLOR.unknown;
   return (
-    <div
-      class="ring"
-      title={`${verdict} — ${RING_HELP[verdict]}${
-        hasReport ? "" : " (dashed ring = no report yet)"
-      }`}
+    <InfoTip
+      side
+      title={verdict}
+      body={`${RING_HELP[verdict]}${hasReport ? "" : " (dashed ring = no report yet)"}`}
     >
-      <svg width="46" height="46" viewBox="0 0 46 46">
-        <circle
-          class="ring-track"
-          cx="23"
-          cy="23"
-          r={R}
-          fill="none"
-          stroke-width="3.5"
-        />
-        <circle
-          class="ring-arc"
-          cx="23"
-          cy="23"
-          r={R}
-          fill="none"
-          stroke-width="3.5"
-          stroke={color}
-          stroke-dasharray={hasReport ? C : "3 6"}
-          stroke-dashoffset={
-            hasReport ? C * (1 - Math.max(0.04, Math.min(1, pct))) : 0
-          }
-          transform="rotate(-90 23 23)"
-        />
-      </svg>
-      <span class="ring-label" style={{ color: color }}>
-        {verdict === "healthy"
-          ? "✓"
-          : verdict === "critical"
-            ? "!"
-            : verdict === "attention"
+      <div class="ring">
+        <svg width="46" height="46" viewBox="0 0 46 46">
+          <circle
+            class="ring-track"
+            cx="23"
+            cy="23"
+            r={R}
+            fill="none"
+            stroke-width="3.5"
+          />
+          <circle
+            class="ring-arc"
+            cx="23"
+            cy="23"
+            r={R}
+            fill="none"
+            stroke-width="3.5"
+            stroke={color}
+            stroke-dasharray={hasReport ? C : "3 6"}
+            stroke-dashoffset={
+              hasReport ? C * (1 - Math.max(0.04, Math.min(1, pct))) : 0
+            }
+            transform="rotate(-90 23 23)"
+          />
+        </svg>
+        <span class="ring-label" style={{ color: color }}>
+          {verdict === "healthy"
+            ? "✓"
+            : verdict === "critical"
               ? "!"
-              : "·"}
-      </span>
-    </div>
+              : verdict === "attention"
+                ? "!"
+                : "·"}
+        </span>
+      </div>
+    </InfoTip>
   );
 }
 
@@ -169,13 +171,15 @@ function RailCard(props: {
       type="button"
       class={`dcard${d.mounted ? "" : " ghost"}${props.on ? " on" : ""}`}
       onClick={props.onSelect}
-      title={`${d.name}${ROLE_HELP[d.role] ? ` — ${ROLE_HELP[d.role]}` : ""}`}
     >
       <div class="dcard-top">
         <HealthRing verdict={verdict} pct={ringPct} />
         <div class="idbox">
           <div class="name">
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+            <span
+              class="dcard-name"
+              title={`${name}${ROLE_HELP[d.role] ? ` — ${ROLE_HELP[d.role]}` : ""}`}
+            >
               {name}
             </span>
             {d.role !== "unknown" && (
@@ -202,40 +206,23 @@ function RailCard(props: {
         </div>
       )}
       {d.badges.length > 0 && (
-        <div
-          class="badges"
-          title={d.badges
-            .map(
-              (b) =>
-                `${b.label} — ${
-                  b.tone === "good"
-                    ? "good"
-                    : b.tone === "warn"
-                      ? "warning"
-                      : b.tone === "bad"
-                        ? "needs attention"
-                        : b.tone === "info"
-                          ? "info"
-                          : "neutral"
-                }`,
-            )
-            .join("\n")}
-        >
+        <div class="badges">
           {d.badges.slice(0, 3).map((b) => (
             <span class={`badge ${b.tone}`} key={b.key + b.label}>
               {b.label}
             </span>
           ))}
           {d.badges.length > 3 && (
-            <span
-              class="badge muted"
-              title={d.badges
+            <InfoTip
+              side
+              title={`+${d.badges.length - 3} more`}
+              body={d.badges
                 .slice(3)
                 .map((b) => b.label)
-                .join("\n")}
+                .join(" · ")}
             >
-              +{d.badges.length - 3}
-            </span>
+              <span class="badge muted">+{d.badges.length - 3}</span>
+            </InfoTip>
           )}
         </div>
       )}
