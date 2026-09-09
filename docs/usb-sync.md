@@ -15,6 +15,9 @@ lives on it. Gig sticks sync FROM the shelf, never the other way. New music
 reaches it via `megadj shelf-sync`; stray drives are swept in with
 `megadj shelf-archive <volume>` (additive, MD5-verified, junk-filtered —
 [usb-sync-log.md](usb-sync-log.md) Sep 9 entry is the worked example).
+Every sweep records a verdict row in the archive DB's `shelf_sweeps`
+ledger — `megadj shelf-sweeps` shows latest-per-drive — and the full
+process lives in [shelf-intake](../.claude/skills/shelf-intake/SKILL.md).
 
 Throughout this doc, **master** and **mirror** are your two drive volume
 names (defaults `DJMASTER`/`DJMIRROR`; every script takes them as arguments).

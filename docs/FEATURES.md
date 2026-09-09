@@ -155,6 +155,7 @@ megadj beats && megadj mood    # FullTags: beats + mood ledgers (DB-side)
 megadj years                   # FullTags: verify years vs SC page (kills AI 2023 guesses)
 megadj shelf-sync              # shelf: archive → shelf master (new music out)
 megadj shelf-archive <volume>  # shelf: drive → shelf master (stray-drive intake)
+megadj shelf-sweeps            # shelf: DB ledger — every sweep's verdict, latest per drive
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 

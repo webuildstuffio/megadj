@@ -39,11 +39,17 @@ The 4 TB shelf HDD (config `library.shelf_drive`, default `SHELF1`) is now
 the strict archive of every DJ drive: the master stick's full `Contents/` +
 `PIONEER/` analysis, plus the Sep 9 three-stick sweep (BANGERS library
 1,452/1,452 files byte-verified, 5 rescued mixes, one empty stick
-confirmed empty). Divergent rips are preserved as `[drive]`-suffixed twins
+confirmed empty) and the second Sep 9 sweep (BACKUP2: 2,259/2,259 — 2,023
+covered, 234 preserved as `[BACKUP2]` twins, 179 fresh, 4.87 GB;
+1GB Yellow confirmed empty). Divergent rips are preserved as
+`[drive]`-suffixed twins
 — dedupe is a later, human-gated pass. The sweep is now one command:
 `megadj shelf-archive [volume …] [--trashes] [--deep]` (additive,
 junk-filtered, MD5-verified, `--json` verdict; log:
-[usb-sync-log.md](usb-sync-log.md)). rekordbox's master DB lives on the
+[usb-sync-log.md](usb-sync-log.md)). Every sweep auto-records a
+`shelf_sweeps` row in the archive DB — `megadj shelf-sweeps` prints the
+latest verdict per drive — so coverage state is queryable, not just
+markdown. rekordbox's master DB lives on the
 shelf (`PIONEER/Master/master.db`) — SHELF1 must be attached for
 rekordbox to open.
 
