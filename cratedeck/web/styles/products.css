@@ -303,6 +303,20 @@
   white-space: nowrap;
   flex: none;
 }
+/* narrow screens: the phase text is the first luxury to go — the numbered
+ * step dot alone still tells the pipeline story */
+@media (max-width: 1080px) {
+  .phasechip {
+    padding: 4px 6px;
+    gap: 0;
+    font-size: 0;
+  }
+  .phasechip-step {
+    width: 20px;
+    height: 20px;
+    font-size: 10.5px;
+  }
+}
 .phasechip-step {
   width: 17px;
   height: 17px;
@@ -510,4 +524,9 @@
   font-size: 12px;
   font-weight: 650;
   color: var(--tab-c, var(--accent));
+}
+/* launcher cards get a left accent rail matching the ProductIntro band —
+ * the pipeline order reads at a glance even in peripheral vision */
+.wcard {
+  border-left: 3px solid var(--tab-c, var(--accent));
 }

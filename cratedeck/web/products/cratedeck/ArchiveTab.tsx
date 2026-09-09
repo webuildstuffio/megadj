@@ -26,6 +26,7 @@ import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
 import { ListHead } from "../../ui/ListHead";
+import { ShareBar, TrackTitle, GridCheckRow, gridDeltaPct } from "../shared";
 
 // Payload types are DERIVED from ArchiveReader's return types
 // (shared/types.ts) — never re-declare server shapes locally. Local
@@ -50,7 +51,8 @@ const STATUS_LANG: Record<string, string> = {
   skipped_not_music: "skipped (not music)",
 };
 
-/** The pipeline pie: have vs broken vs waiting, in plain language. */
+/** The pipeline pie: have vs broken vs waiting, in plain language. Shares
+ *  the ShareBar pie+legend renderer with the other product pages. */
 function PipelineBars(props: { ingest: IngestPayload }) {
   const c = props.ingest.counts;
   const sum = (keys: string[]) => keys.reduce((s, k) => s + (c[k] ?? 0), 0);
@@ -63,35 +65,35 @@ function PipelineBars(props: { ingest: IngestPayload }) {
     {
       n: have,
       cls: "have",
+      label: "have",
       title: "in the archive — playable, analyzable, gig-eligible",
     },
     {
       n: broken,
       cls: "broken",
+      label: "broken",
       title: "failed or gone from source — the re-download backlog",
     },
-    { n: waiting, cls: "waiting", title: "still in the download queue" },
+    {
+      n: waiting,
+      cls: "waiting",
+      label: "waiting",
+      title: "still in the download queue",
+    },
     {
       n: movedOn,
       cls: "moved",
+      label: "moved on",
       title:
         "removed locally or skipped as not-music — bookkeeping, not backlog",
     },
-  ].filter((s) => s.n > 0);
+  ];
   return (
     <div
-      class="arch-pie"
       role="img"
       aria-label={`${have} in the archive, ${broken} broken, ${waiting} waiting, ${movedOn} moved on, of ${props.ingest.total} total`}
     >
-      {segs.map((s) => (
-        <div
-          key={s.cls}
-          class={`arch-seg ${s.cls}`}
-          style={{ width: `${(s.n / total) * 100}%` }}
-          title={`${s.title}: ${s.n.toLocaleString()}`}
-        />
-      ))}
+      <ShareBar segs={segs} total={total} />
     </div>
   );
 }
@@ -289,27 +291,24 @@ export function ArchiveTab() {
             ]}
           />
           <div class="covtable">
-            <div class="covrow head">
+            <div class="covrow head gridcheck">
               <span>track</span>
+              <span>verdict</span>
               <span>grid</span>
               <span>rekordbox</span>
+              <span>delta</span>
             </div>
             {[...grid.octave, ...grid.off].slice(0, 40).map((t) => {
               const isOct = grid.octave.includes(t);
               return (
-                <div
-                  class="covrow"
-                  key={t.video_id + (isOct ? "-oct" : "-off")}
-                >
-                  <span class="covpath">
-                    <b>{t.title ?? t.video_id}</b>
-                    {isOct && <span class="arch-pill bad">octave</span>}
-                  </span>
-                  <span class="covdrives">{t.ledgerBpm} BPM</span>
-                  <span class="covdrives">
-                    {Math.round(t.rbBpm * 10) / 10} BPM
-                  </span>
-                </div>
+                <GridCheckRow
+                  title={t.title}
+                  videoId={t.video_id}
+                  isOct={isOct}
+                  ledgerBpm={t.ledgerBpm}
+                  rbBpm={t.rbBpm}
+                  deltaPct={gridDeltaPct(t.ledgerBpm, t.rbBpm)}
+                />
               );
             })}
             {syncRisk > 40 && (
@@ -338,10 +337,11 @@ export function ArchiveTab() {
           <div class="rows">
             {lowq.tracks.slice(0, 25).map((t) => (
               <div class="row" key={t.video_id}>
-                <span class="arch-what-title">
-                  <b>{t.title ?? t.video_id}</b>
-                  {t.artist && <span class="covartist"> — {t.artist}</span>}
-                </span>
+                <TrackTitle
+                  title={t.title ?? t.video_id}
+                  videoId={t.video_id}
+                  artist={t.artist}
+                />
                 <span class="arch-pill muted">{t.reason}</span>
               </div>
             ))}
@@ -443,10 +443,11 @@ export function ArchiveTab() {
             <div class="rows">
               {newest.map((t) => (
                 <div class="row" key={t.video_id}>
-                  <span class="arch-what-title">
-                    <b>{t.title ?? t.video_id}</b>
-                    {t.artist && <span class="covartist"> — {t.artist}</span>}
-                  </span>
+                  <TrackTitle
+                    title={t.title ?? t.video_id}
+                    videoId={t.video_id}
+                    artist={t.artist}
+                  />
                   <span class="muted arch-status" title={t.status}>
                     {STATUS_LANG[t.status] ?? t.status}
                   </span>

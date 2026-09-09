@@ -602,3 +602,52 @@
   color: var(--faint);
   margin-right: 8px;
 }
+
+/* ---- grid cross-check table (beatgrids breakers): 5-col with delta bar --
+ * The default .covrow is 3-col; the gridcheck variant carries verdict +
+ * grid vs RB columns and a proportional delta bar so severity is scannable
+ * without reading numbers. Octave rows tint red — those jump Sync's pulse. */
+.covrow.gridcheck {
+  grid-template-columns: minmax(0, 1.6fr) 72px 70px 78px minmax(90px, 1fr);
+  gap: 10px;
+}
+.covrow.gridcheck .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text);
+}
+.covrow.gridcheck.row-oct {
+  background: rgba(242, 85, 90, 0.045);
+}
+.covdelta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.covdelta i {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  min-width: 3px;
+  flex: none;
+}
+.covdelta i.warn {
+  background: linear-gradient(90deg, #6b5a20, var(--warn));
+}
+.covdelta i.bad {
+  background: linear-gradient(90deg, #6b2527, var(--bad));
+}
+.covdelta em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* the missing `bad` verdict tier (type allowed it, CSS never styled it) */
+.arch-verdict.bad {
+  color: var(--bad);
+  border-color: #6b2527;
+  background: var(--bad-dim);
+}

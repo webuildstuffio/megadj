@@ -30,6 +30,9 @@ import {
   ProductIntro,
   SectionHead,
   Verdict,
+  TrackTitle,
+  GridCheckRow,
+  gridDeltaPct,
 } from "../shared";
 
 /** One hook for the unified analysis-coverage read: playable tracks vs the
@@ -208,34 +211,24 @@ function BeatgridsTab() {
                 ]}
               />
               <div class="covtable">
-                <div class="covrow head">
+                <div class="covrow head gridcheck">
                   <span>track</span>
                   <span>verdict</span>
                   <span>grid</span>
                   <span>rekordbox</span>
+                  <span>delta</span>
                 </div>
                 {[...octave, ...off].slice(0, 40).map((t) => {
                   const isOct = octave.includes(t);
                   return (
-                    <div
-                      class="covrow"
-                      key={t.video_id + (isOct ? "-oct" : "-off")}
-                    >
-                      <span class="covpath">
-                        <b>{t.title ?? t.video_id}</b>
-                      </span>
-                      <span>
-                        {isOct ? (
-                          <span class="arch-pill bad">octave</span>
-                        ) : (
-                          <span class="arch-pill warn">off</span>
-                        )}
-                      </span>
-                      <span class="covdrives">{t.ledgerBpm} BPM</span>
-                      <span class="covdrives">
-                        {Math.round(t.rbBpm * 10) / 10} BPM
-                      </span>
-                    </div>
+                    <GridCheckRow
+                      title={t.title}
+                      videoId={t.video_id}
+                      isOct={isOct}
+                      ledgerBpm={t.ledgerBpm}
+                      rbBpm={t.rbBpm}
+                      deltaPct={gridDeltaPct(t.ledgerBpm, t.rbBpm)}
+                    />
                   );
                 })}
                 {syncRisk > 40 && (
@@ -353,12 +346,11 @@ function MoodTab() {
                   <div class="rows">
                     {high.map((t) => (
                       <div class="row" key={t.video_id}>
-                        <span class="arch-what-title">
-                          <b>{t.title ?? t.video_id}</b>
-                          {t.artist && (
-                            <span class="covartist"> — {t.artist}</span>
-                          )}
-                        </span>
+                        <TrackTitle
+                          title={t.title ?? t.video_id}
+                          videoId={t.video_id}
+                          artist={t.artist}
+                        />
                         <span class="arch-pill warn">
                           {dim} {t.v}
                         </span>
@@ -366,12 +358,11 @@ function MoodTab() {
                     ))}
                     {low.map((t) => (
                       <div class="row" key={t.video_id}>
-                        <span class="arch-what-title">
-                          <b>{t.title ?? t.video_id}</b>
-                          {t.artist && (
-                            <span class="covartist"> — {t.artist}</span>
-                          )}
-                        </span>
+                        <TrackTitle
+                          title={t.title ?? t.video_id}
+                          videoId={t.video_id}
+                          artist={t.artist}
+                        />
                         <span class="muted">
                           {dim} {t.v}
                         </span>

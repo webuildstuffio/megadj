@@ -65,35 +65,8 @@
   background: var(--muted);
 }
 
-/* ---- empty states / overview ---- */
-.welcome {
-  max-width: 620px;
-  margin: 10vh auto 0;
-  text-align: center;
-}
-/* the welcome glyph reuses the product-glyph chip language (big, mint —
- * the Drives product color is the brand default) */
-.welcome .bigicon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 16px;
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-  background: var(--accent-dim);
-  border: 1px solid #1e4a37;
-}
-.welcome h2 {
-  font-size: 19px;
-  margin: 0 0 6px;
-}
-.welcome p {
-  color: var(--muted);
-  font-size: 13.5px;
-  margin: 0 0 18px;
-}
+/* (the legacy `.welcome` empty-state block was removed — the Welcome page
+ * is now the `.welcome-page` pipeline story, styled in products.css) */
 
 /* photo picker */
 .photopick {

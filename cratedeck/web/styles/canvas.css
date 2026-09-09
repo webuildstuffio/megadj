@@ -49,6 +49,17 @@
   overflow-y: auto;
   padding: 22px 26px 120px;
 }
+/* readability cap: data-dense cards breathe, prose never runs 1900px wide.
+ * The rail + canvas already flex; this bounds the content column only. */
+.canvas > * {
+  max-width: 1240px;
+}
+/* full-bleed exception: the drive-page hero + tab strip can use the width
+ * (tables/benchmarks are wide by design) — everything else stays capped. */
+.canvas > .hero,
+.canvas > .tabs {
+  max-width: none;
+}
 
 /* hero header of a drive page */
 .hero {
