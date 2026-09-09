@@ -30,16 +30,14 @@ Read-only by construction: every disk write goes through `src/guard.ts`
 Beyond the core: **B12 preflight** (`deckctl preflight` — the gig-night
 pass/fail gate, exit 1 gates cron/agents), the **N75/N78 player-compat
 verdict** (`deckctl players`), the **O83 weekly digest** (`deckctl prep`),
-and the **agent surface** (`bun run mcp` — 21 tools, archive reads
+and the **agent surface** (`bun run mcp` — 34 tools, archive reads
 included).
 
 Agents: the same surface is exposed over MCP — `bun run mcp` (from the repo
 root) speaks stdio JSON-RPC; `deckctl --json` gives the same data one-shot.
 The rekordbox interlock is enforced in both.
 
-Docs: [product brief](../docs/cratedeck/01-product-brief.md) ·
-[PRD](../docs/cratedeck/02-prd.md) ·
+Docs: [PRD](../docs/cratedeck/02-prd.md) (brief merged in) ·
 [architecture](../docs/cratedeck/03-architecture.md) ·
-[build plan](../docs/cratedeck/04-build-plan.md) ·
 [acceptance](../docs/cratedeck/acceptance.md) ·
 [deckctl guide](deckctl.md)

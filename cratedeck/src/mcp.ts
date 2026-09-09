@@ -46,7 +46,18 @@
  *   archive_sweep               D30 bitrot/truncation sweep (readonly)
  */
 import { archiveTools } from "./archive_tools";
-import { str, num, RpcParamError } from "./mcp_params";
+import {
+  str,
+  num,
+  RpcParamError,
+  obj,
+  noArgs,
+  s,
+  sEnum,
+  n,
+  b,
+  type Prop,
+} from "./mcp_params";
 import {
   apiGet,
   apiGetJson,
@@ -58,6 +69,7 @@ import {
   jobTerminal,
   type Job,
 } from "./deckapi";
+import { KIND_DOCS } from "./deckctl_docs";
 import { VERIFY_HELP } from "./verify_help";
 import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
 import type {
@@ -125,8 +137,8 @@ const JOB_KINDS = [
 const MCP_SESSION = `mcp:${crypto.randomUUID().slice(0, 8)}`;
 
 /** The optional `drive` selector shared by every drive-scoped tool schema. */
-const DRIVE_PARAM = (omitNote: string) => ({
-  type: "string" as const,
+const DRIVE_PARAM = (omitNote: string): Prop => ({
+  type: "string",
   description: `volume name, nickname, or id${omitNote}`,
 });
 
@@ -169,11 +181,7 @@ const TOOLS: Record<string, ToolDef> = {
   deck_status: {
     description:
       "CrateDeck overview: rekordbox interlock state, every known drive with badge verdicts, and active jobs. Call this first.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
+    inputSchema: noArgs(),
     run: async () => {
       const [interlock, drives, jobs] = await Promise.all([
         apiGetJson("/api/interlock"),
@@ -187,34 +195,23 @@ const TOOLS: Record<string, ToolDef> = {
   deck_drives: {
     description:
       "List all known DJ USB drives with health badges (mounted, last verify, space).",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
+    inputSchema: noArgs(),
     run: async () => apiGetJson("/api/drives"),
   },
 
   deck_report: {
     description:
       "Full health dossier for one drive: dual-DB hardware gate, beatgrid coverage, bitrot (checksum ledger), space, mirror parity — with an overall verdict. format=dossier returns the export bundle (drive + snapshot + sync + report + timeline + benchmarks). Drive = volume name, nickname, or id.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        drive: {
-          type: "string",
-          description: "volume name, nickname, or drive id",
-        },
-        format: {
-          type: "string",
-          enum: ["report", "dossier"],
-          description:
-            "report (default) = health checks; dossier = full export bundle",
-        },
+    inputSchema: obj(
+      {
+        drive: s("volume name, nickname, or drive id"),
+        format: sEnum(
+          ["report", "dossier"],
+          "report (default) = health checks; dossier = full export bundle",
+        ),
       },
-      required: ["drive"],
-      additionalProperties: false,
-    },
+      ["drive"],
+    ),
     run: async (args) => {
       const d = await needDrive(str(args, "drive"));
       if (str(args, "format") === "dossier")
@@ -226,19 +223,12 @@ const TOOLS: Record<string, ToolDef> = {
   deck_coverage: {
     description:
       "Fleet coverage: which tracks live on which drives, plus the at-risk list (tracks below the redundancy floor).",
-    inputSchema: {
-      type: "object",
-      properties: {
-        min_copies: {
-          type: "number",
-          description: "redundancy floor (default: server default, usually 2)",
-        },
-      },
-      additionalProperties: false,
-    },
+    inputSchema: obj({
+      min_copies: n("redundancy floor (default: server default, usually 2)"),
+    }),
     run: async (args) => {
-      const n = num(args, "min_copies");
-      const qs = n && n > 0 ? `?min_copies=${n}` : "";
+      const nCopies = num(args, "min_copies");
+      const qs = nCopies && nCopies > 0 ? `?min_copies=${nCopies}` : "";
       return apiGetJson(
         `/api/fleet/coverage${qs}`,
       ) as Promise<CoverageResponse>;
@@ -248,16 +238,10 @@ const TOOLS: Record<string, ToolDef> = {
   deck_redundancy: {
     description:
       "Per-playlist redundancy audit: is every track in each playlist present on enough drives? Returns pass/warn/fail per playlist with gap lists.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        min_copies: { type: "number" },
-      },
-      additionalProperties: false,
-    },
+    inputSchema: obj({ min_copies: n() }),
     run: async (args) => {
-      const n = num(args, "min_copies");
-      const qs = n && n > 0 ? `?min_copies=${n}` : "";
+      const nCopies = num(args, "min_copies");
+      const qs = nCopies && nCopies > 0 ? `?min_copies=${nCopies}` : "";
       return apiGetJson(
         `/api/fleet/redundancy${qs}`,
       ) as Promise<RedundancyResult>;
@@ -267,18 +251,13 @@ const TOOLS: Record<string, ToolDef> = {
   deck_diff: {
     description:
       "Compare two drives: tracks added, missing, or byte-changed between them.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        a: {
-          type: "string",
-          description: "first drive (volume name, nickname, or id)",
-        },
-        b: { type: "string", description: "second drive" },
+    inputSchema: obj(
+      {
+        a: s("first drive (volume name, nickname, or id)"),
+        b: s("second drive"),
       },
-      required: ["a", "b"],
-      additionalProperties: false,
-    },
+      ["a", "b"],
+    ),
     run: async (args) => {
       const da = await needDrive(str(args, "a"));
       const dbb = await needDrive(str(args, "b"));
@@ -290,11 +269,7 @@ const TOOLS: Record<string, ToolDef> = {
 
   deck_jobs: {
     description: "Recent CrateDeck jobs with status/progress.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
+    inputSchema: noArgs(),
     run: async () => apiGetJson("/api/jobs"),
   },
 
@@ -302,26 +277,15 @@ const TOOLS: Record<string, ToolDef> = {
     description:
       "ENQUEUES A DRIVE JOB (mutating): scan (inventory) · verify (deep integrity audit) · mirror (copy master→mirror; writes the mirror) · benchmark (read speed) · checksum (hash ledger). Blocks until done when wait=true. Refuses while rekordbox is running. Mirror only ever writes to the mirror drive.",
     destructive: true,
-    inputSchema: {
-      type: "object",
-      properties: {
-        drive: {
-          type: "string",
-          description: "target drive (volume name, nickname, or id)",
-        },
-        kind: { type: "string", enum: [...JOB_KINDS] },
-        wait: {
-          type: "boolean",
-          description: "block until the job finishes (default true)",
-        },
-        timeout_minutes: {
-          type: "number",
-          description: "wait timeout (default 30)",
-        },
+    inputSchema: obj(
+      {
+        drive: s("target drive (volume name, nickname, or id)"),
+        kind: sEnum([...JOB_KINDS]),
+        wait: b("block until the job finishes (default true)"),
+        timeout_minutes: n("wait timeout (default 30)"),
       },
-      required: ["drive", "kind"],
-      additionalProperties: false,
-    },
+      ["drive", "kind"],
+    ),
     run: async (args) => {
       const kind = str(args, "kind") ?? "";
       if (!JOB_KINDS.includes(kind as (typeof JOB_KINDS)[number])) {
@@ -368,12 +332,7 @@ const TOOLS: Record<string, ToolDef> = {
   deck_cancel: {
     description: "Cancel an active job by id.",
     destructive: true,
-    inputSchema: {
-      type: "object",
-      properties: { job_id: { type: "string" } },
-      required: ["job_id"],
-      additionalProperties: false,
-    },
+    inputSchema: obj({ job_id: s("") }, ["job_id"]),
     run: async (args) => {
       const jobId = str(args, "job_id");
       if (!jobId) throw new RpcParamError("job_id is required");
@@ -385,42 +344,21 @@ const TOOLS: Record<string, ToolDef> = {
   deck_explain: {
     description:
       "Documentation as a tool: what each job type checks, typical duration, and safety guarantees. Kind omitted = all jobs.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        kind: {
-          type: "string",
-          enum: ["scan", "verify", "mirror", "benchmark", "checksum"],
-        },
-      },
-      additionalProperties: false,
-    },
+    inputSchema: obj({
+      kind: sEnum(["scan", "verify", "mirror", "benchmark", "checksum"]),
+    }),
     run: async (args) => {
+      // Derived from the KIND_DOCS SSOT (deckctl_docs.ts) — same words as
+      // `deckctl explain`, no hand-maintained twin to drift.
       const kind = str(args, "kind");
-      const others: Record<string, unknown> = {
-        scan: {
-          what: "Inventory the drive: file walk + rekordbox device DB read (tracks, playlists, grids, space).",
-          safety: "Read-only, always safe.",
-        },
-        mirror: {
-          what: "Copy master → mirror (files + both DBs + ANLZ). Skips matching files.",
-          safety:
-            "Writes ONLY the mirror drive; master untouched; requires rekordbox closed.",
-        },
-        benchmark: {
-          what: "Measure sequential + random-4k read speed (CDJs need sustained ≥30 MB/s).",
-          safety: "Read-only.",
-        },
-        checksum: {
-          what: "Hash audio files into a corruption ledger; later runs detect silent content changes (bitrot).",
-          safety: "Read-only on the drive; ledger DB lives on the host.",
-        },
-      };
-      if (!kind) return { verify: VERIFY_HELP, ...others };
+      if (!kind) {
+        return { verify: VERIFY_HELP, ...KIND_DOCS };
+      }
       if (kind === "verify") return { verify: VERIFY_HELP };
+      const d = KIND_DOCS[kind];
       return (
-        others[kind] ?? {
-          error: `unknown kind "${kind}" — one of: verify, ${Object.keys(others).join(", ")}`,
+        d ?? {
+          error: `unknown kind "${kind}" — one of: verify, ${Object.keys(KIND_DOCS).join(", ")}`,
         }
       );
     },
@@ -429,24 +367,14 @@ const TOOLS: Record<string, ToolDef> = {
   deck_preflight: {
     description:
       "B12 gig-night gate: aggregated pass/fail checklist over every mounted drive (dual-DB currency, grids, last verify, read speed, bitrot, space, mirror parity). Verdict is ready / attention / not-ready / unknown with per-check fixes. Read-only.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
+    inputSchema: noArgs(),
     run: async () => apiGetJson("/api/preflight"),
   },
 
   deck_players: {
     description:
       "N78 hardware compatibility: which Pioneer players (XDJ-XZ, CDJ-3000, XDJ-AZ, OPUS-QUAD…) can actually read a drive, derived from its MEASURED dual-DB state. Drive omitted = every known drive. Read-only.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        drive: DRIVE_PARAM(" (omit for all drives)"),
-      },
-      additionalProperties: false,
-    },
+    inputSchema: obj({ drive: DRIVE_PARAM(" (omit for all drives)") }),
     run: async (args) => {
       const drive = str(args, "drive");
       if (!drive) return apiGetJson("/api/drives");
@@ -459,23 +387,17 @@ const TOOLS: Record<string, ToolDef> = {
     description:
       "RECORDS A FINDING ON A DRIVE'S TIMELINE (mutating, human-visible): land a conclusion an agent reached about a drive (e.g. 'firmware 3.30 has the playlist-vanishing bug — stay on 3.22'). The note shows as a dismissable card on the drive page. Max 600 chars. Confirm with the human before calling.",
     destructive: true,
-    inputSchema: {
-      type: "object",
-      properties: {
-        drive: {
-          type: "string",
-          description: "volume name, nickname, or id",
-        },
-        note: { type: "string", description: "the finding (max 600 chars)" },
-        severity: {
-          type: "string",
-          enum: ["info", "warn", "critical"],
-          description: "card tone (default info)",
-        },
+    inputSchema: obj(
+      {
+        drive: s("volume name, nickname, or id"),
+        note: s("the finding (max 600 chars)"),
+        severity: sEnum(
+          ["info", "warn", "critical"],
+          "card tone (default info)",
+        ),
       },
-      required: ["drive", "note"],
-      additionalProperties: false,
-    },
+      ["drive", "note"],
+    ),
     run: async (args) => {
       const drive = str(args, "drive");
       const note = str(args, "note");
@@ -506,21 +428,13 @@ const TOOLS: Record<string, ToolDef> = {
     description:
       "RENAMES A DRIVE (mutating): set or clear the display nickname shown across the UI, deckctl, and MCP. Pass an empty string or omit nickname to clear. Confirm with the human before calling — this is a human-facing label.",
     destructive: true,
-    inputSchema: {
-      type: "object",
-      properties: {
-        drive: {
-          type: "string",
-          description: "volume name, nickname, or id",
-        },
-        nickname: {
-          type: "string",
-          description: "new display name (empty/omitted = clear)",
-        },
+    inputSchema: obj(
+      {
+        drive: s("volume name, nickname, or id"),
+        nickname: s("new display name (empty/omitted = clear)"),
       },
-      required: ["drive"],
-      additionalProperties: false,
-    },
+      ["drive"],
+    ),
     run: async (args) => {
       const d = await needDrive(str(args, "drive"));
       const nickname = str(args, "nickname")?.trim() || null;
@@ -538,13 +452,7 @@ const TOOLS: Record<string, ToolDef> = {
   deck_notes: {
     description:
       "Active agent findings for a drive (or all drives): notes landed via deck_note that a human has not dismissed. Read-only.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        drive: DRIVE_PARAM(" (omit for all drives)"),
-      },
-      additionalProperties: false,
-    },
+    inputSchema: obj({ drive: DRIVE_PARAM(" (omit for all drives)") }),
     run: async (args) => {
       const drive = str(args, "drive");
       if (!drive) {
@@ -569,11 +477,7 @@ const TOOLS: Record<string, ToolDef> = {
   deck_prep: {
     description:
       "O83 weekly digest as a tool: renders the markdown gig-readiness digest (preflight verdicts → redundancy gaps → archive status + LOWQ queue) from the same reads `deckctl prep` uses. Read-only — it renders; it never writes.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
+    inputSchema: noArgs(),
     run: async () => {
       // same fetch-and-render seam as deckctl cmdPrep (one implementation,
       // two spokes — surface-parity.md GAP-2 closed)
@@ -589,17 +493,10 @@ const TOOLS: Record<string, ToolDef> = {
   deck_search: {
     description:
       "B9 global search (the UI's ⌘K): case-insensitive substring match over playlists and folders in every drive snapshot. Returns per-drive match lists. Read-only.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        q: {
-          type: "string",
-          description: "search text (playlist or folder name substring)",
-        },
-      },
-      required: ["q"],
-      additionalProperties: false,
-    },
+    inputSchema: obj(
+      { q: s("search text (playlist or folder name substring)") },
+      ["q"],
+    ),
     run: async (args) => {
       const q = str(args, "q")?.trim();
       if (!q) throw new RpcParamError("q is required");
@@ -610,17 +507,11 @@ const TOOLS: Record<string, ToolDef> = {
   deck_help: {
     description:
       "CrateDeck's in-app help as a tool: the glossary (Master, Mirror, Ghost, Interlock, Dual-DB, Beatgrid, Bitrot, Preflight, Redundancy, Dossier, LOWQ, Snapshot), the five job explainers (what/when/safety/duration), and the UI surface tour. Call with term= a glossary word or job kind for one entry; omit it for everything. Read-only — use this to answer 'what does X mean' before acting.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        term: {
-          type: "string",
-          description:
-            "optional glossary term or job kind (e.g. 'ghost', 'verify') for a single entry",
-        },
-      },
-      additionalProperties: false,
-    },
+    inputSchema: obj({
+      term: s(
+        "optional glossary term or job kind (e.g. 'ghost', 'verify') for a single entry",
+      ),
+    }),
     run: async (args) => {
       const topic = str(args, "term")?.trim().toLowerCase();
       if (topic) {
@@ -645,18 +536,13 @@ const TOOLS: Record<string, ToolDef> = {
     description:
       "DISMISSES AN AGENT NOTE (mutating, confirm with the human): removes a finding from the active notes feed once it's handled — history is kept, the timeline card stays but reads as dismissed. Pass the note id exactly as returned by deck_note / deck_notes. Only agent notes can be dismissed.",
     destructive: true,
-    inputSchema: {
-      type: "object",
-      properties: {
+    inputSchema: obj(
+      {
         drive: DRIVE_PARAM(""),
-        note_id: {
-          type: "string",
-          description: "the note id from deck_note/deck_notes (row id)",
-        },
+        note_id: s("the note id from deck_note/deck_notes (row id)"),
       },
-      required: ["drive", "note_id"],
-      additionalProperties: false,
-    },
+      ["drive", "note_id"],
+    ),
     run: async (args) => {
       const d = await needDrive(str(args, "drive"));
       const noteId = str(args, "note_id");

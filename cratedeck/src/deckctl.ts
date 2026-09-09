@@ -38,17 +38,12 @@ import type {
   RedundancyResult,
 } from "../shared/types";
 import type { PreflightReport } from "./preflight";
-import {
-  cmdNote,
-  cmdNotes,
-  cmdRename,
-  type NotePrintHooks,
-} from "./deckctl_notes";
-import { cmdReport, type ReportPrintHooks } from "./deckctl_report";
-import { cmdSearch, type SearchPrintHooks } from "./deckctl_search";
+import { cmdNote, cmdNotes, cmdRename } from "./deckctl_notes";
+import { cmdReport } from "./deckctl_report";
+import { cmdSearch } from "./deckctl_search";
 import { collectPlayers } from "./deckctl_players";
 import { KIND_DOCS, printKindDoc } from "./deckctl_docs";
-import { cmdHelp, cmdDismiss, type HelpPrintHooks } from "./deckctl_help";
+import { cmdHelp, cmdDismiss } from "./deckctl_help";
 
 // ---- output helpers ---------------------------------------------------------
 const JSON_MODE = process.argv.includes("--json");
@@ -60,8 +55,10 @@ async function getJson<T>(p: string, timeoutMs?: number): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Print hooks for the extracted notes commands (deckctl_notes.ts). */
-function noteHooks(): NotePrintHooks {
+/** Base hooks shared by every extracted command module: the four hook
+ * interfaces (Note adds `argv`) differ only in name — one builder feeds
+ * them all (structural typing does the rest). */
+function baseHooks() {
   return {
     jsonMode: JSON_MODE,
     log,
@@ -70,26 +67,13 @@ function noteHooks(): NotePrintHooks {
     exit: process.exit,
   };
 }
-
+const noteHooks = baseHooks;
 /** Print hooks for the extracted report command (deckctl_report.ts). */
-function reportHooks(): ReportPrintHooks {
-  return { jsonMode: JSON_MODE, log, errOut, exit: process.exit };
-}
-
+const reportHooks = baseHooks;
 /** Print hooks for the extracted search command (deckctl_search.ts). */
-function searchHooks(): SearchPrintHooks {
-  return { jsonMode: JSON_MODE, log, errOut, exit: process.exit };
-}
-
+const searchHooks = baseHooks;
 /** Print hooks for the extracted help/dismiss commands (deckctl_help.ts). */
-function helpHooks(): HelpPrintHooks {
-  return {
-    jsonMode: JSON_MODE,
-    log,
-    errOut,
-    exit: process.exit,
-  };
-}
+const helpHooks = baseHooks;
 
 type DriveWithBadges = Drive & {
   badges?: { label: string; tone: string }[];
@@ -428,7 +412,7 @@ function finishLine(j: Job, driveName: string, elapsedS: number): void {
 }
 
 async function cmdJobs(): Promise<void> {
-  const jobs = (await apiGet("/api/jobs").then((r) => r.json())) as Job[];
+  const jobs = await getJson<Job[]>("/api/jobs");
   if (JSON_MODE) {
     console.log(JSON.stringify(jobs, null, 2));
     return;
@@ -458,9 +442,7 @@ async function cmdJobs(): Promise<void> {
 async function cmdCoverage(minCopies?: string): Promise<void> {
   const n = minCopies ? parseInt(minCopies, 10) : undefined;
   const qs = n && n > 0 ? `?min_copies=${n}` : "";
-  const r = (await apiGet(`/api/fleet/coverage${qs}`).then((res) =>
-    res.json(),
-  )) as CoverageResponse;
+  const r = await getJson<CoverageResponse>(`/api/fleet/coverage${qs}`);
   if (JSON_MODE) {
     console.log(JSON.stringify(r, null, 2));
     return;
@@ -487,9 +469,7 @@ async function cmdCoverage(minCopies?: string): Promise<void> {
 async function cmdRedundancy(minCopies?: string): Promise<void> {
   const n = minCopies ? parseInt(minCopies, 10) : undefined;
   const qs = n && n > 0 ? `?min_copies=${n}` : "";
-  const r = (await apiGet(`/api/fleet/redundancy${qs}`).then((res) =>
-    res.json(),
-  )) as RedundancyResult;
+  const r = await getJson<RedundancyResult>(`/api/fleet/redundancy${qs}`);
   if (JSON_MODE) {
     console.log(JSON.stringify(r, null, 2));
     return;
@@ -525,9 +505,9 @@ async function cmdDiff(a?: string, b?: string): Promise<void> {
     errOut(`unknown drive: ${b}`);
     process.exit(2);
   }
-  const r = (await apiGet(
+  const r = await getJson<FleetDiff>(
     `/api/fleet/diff?a=${encodeURIComponent(da.id)}&b=${encodeURIComponent(dbb.id)}`,
-  ).then((res) => res.json())) as FleetDiff;
+  );
   if (JSON_MODE) {
     console.log(JSON.stringify(r, null, 2));
     return;
@@ -672,6 +652,8 @@ function usage(): never {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2).filter((a) => a !== "--json");
+  // Positional arg or usage: `arg(1)` = args[1] ?? usage().
+  const arg = (i: number): string => args[i] ?? usage();
   const cmd = args[0];
   const wantsHelp =
     process.argv.includes("--help") || process.argv.includes("-h");
@@ -705,31 +687,19 @@ async function main(): Promise<void> {
           : undefined,
       );
     case "note":
-      return cmdNote(
-        noteHooks(),
-        args[1] ?? usage(),
-        (args[2] ?? "").trim() || usage(),
-      );
+      return cmdNote(noteHooks(), arg(1), (args[2] ?? "").trim() || usage());
     case "notes":
       return cmdNotes(noteHooks(), args[1]);
     case "search":
-      return cmdSearch(searchHooks(), args[1] ?? usage());
+      return cmdSearch(searchHooks(), arg(1));
     case "report":
-      return cmdReport(reportHooks(), args[1] ?? usage(), process.argv);
+      return cmdReport(reportHooks(), arg(1), process.argv);
     case "rename":
-      return cmdRename(
-        noteHooks(),
-        args[1] ?? usage(),
-        args.slice(2).join(" ") || null,
-      );
+      return cmdRename(noteHooks(), arg(1), args.slice(2).join(" ") || null);
     case "players":
       return cmdPlayers(args[1]);
     case "run":
-      return cmdRun(
-        args[1] ?? usage(),
-        args[2] ?? usage(),
-        !process.argv.includes("--no-wait"),
-      );
+      return cmdRun(arg(1), arg(2), !process.argv.includes("--no-wait"));
     case "jobs":
       return cmdJobs();
     case "coverage":
@@ -741,9 +711,9 @@ async function main(): Promise<void> {
     case "explain":
       return cmdExplain(args[1]);
     case "dismiss":
-      return cmdDismiss(helpHooks(), args[1] ?? usage(), args[2] ?? usage());
+      return cmdDismiss(helpHooks(), arg(1), arg(2));
     case "cancel":
-      return cmdCancel(args[1] ?? usage());
+      return cmdCancel(arg(1));
     case "stop":
       log("stopping server…");
       await apiPost("/api/stop").catch((e: unknown) => {

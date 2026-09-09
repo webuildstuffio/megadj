@@ -146,8 +146,14 @@ feed — mutating, confirm first) ·
 `archive_grid_cross_check {limit?}` (rev 6 beats-ledger grid verdicts) ·
 `archive_mood_profile {limit?}` (rev 6.2 mood-ledger picker data) ·
 `archive_sweep` (D30 bitrot/truncation sweep — also the "Archive
-integrity" section of `deckctl prep`) —
-27 tools total. `deck_report {format:"dossier"}` returns the full
+integrity" section of `deckctl prep`) ·
+`archive_skip_census` / `archive_sources` (why rows didn't land; the
+source census) · `archive_analysis_coverage` (playable-vs-ledgers
+progress) · `archive_library_overview` / `archive_cue_ledger`
+(FullTags-mirror reads) · `archive_similar_tracks {video_id}`
+(I49 sounds-like kNN) · `archive_set_build` (M66 propose-only chain
+builder) —
+34 tools total. `deck_report {format:"dossier"}` returns the full
 export bundle (drive + snapshot + sync + report + timeline +
 benchmarks) — the twin of `deckctl report --dossier` and the UI's
 Export button.
