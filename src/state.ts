@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { EmbeddingsLedger } from "./state_similar";
 import { Ledgers } from "./state_ledgers";
+import { ShelfSweeps } from "./shelf_sweeps";
 
 /**
  * Persistent archive state. Tracks every video ID ever seen from the
@@ -65,6 +66,9 @@ export class ArchiveState {
   /** Mood + cues ledger storage lives in state_ledgers.ts (file-length
    * guard); delegated here so the call surface is unchanged. */
   private readonly ledgers: Ledgers;
+  /** Drive → shelf sweep ledger (shelf_sweeps.ts): the queryable record of
+   * every shelf-archive run. */
+  readonly shelfSweeps: ShelfSweeps;
   constructor(dbPath: string) {
     const dir = dbPath.substring(0, dbPath.lastIndexOf("/"));
     this.dbDir = dir;
@@ -75,6 +79,7 @@ export class ArchiveState {
     this.db.exec("PRAGMA journal_mode = WAL;");
     this.embeddingsLedger = new EmbeddingsLedger(this.db, () => this.now());
     this.ledgers = new Ledgers(this.db, () => this.now());
+    this.shelfSweeps = new ShelfSweeps(this.db);
     this.migrate();
   }
 

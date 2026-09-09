@@ -209,6 +209,7 @@ MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
   [docs/runbooks/](docs/runbooks/) (§0 survival runbooks)
 - **Runbooks:** [rekordbox-usb-sync](.claude/skills/rekordbox-usb-sync/SKILL.md),
   [new-music-intake](.claude/skills/new-music-intake/SKILL.md),
+  [shelf-intake](.claude/skills/shelf-intake/SKILL.md),
   [cratedeck-deckctl](.claude/skills/cratedeck-deckctl/SKILL.md)
 
 ## License

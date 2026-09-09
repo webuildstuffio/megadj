@@ -50,6 +50,11 @@ import {
 } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { createHash } from "node:crypto";
+import { ArchiveState } from "../state";
+
+/** The archive DB (sweep ledger host). Env-overridable like cli.ts. */
+const DB_PATH =
+  process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
 
 export interface ShelfArchiveOptions {
   /** Drive mount roots to archive FROM, e.g. /Volumes/BANGERS. */
@@ -67,6 +72,9 @@ export interface ShelfArchiveOptions {
   dryRun?: boolean;
   json?: boolean;
   log?: (s: string) => void;
+  /** Sweep-ledger override (tests pass a temp DB; default = the archive DB).
+   *  Pass `null` to disable recording entirely. */
+  ledgerPath?: string | null;
 }
 
 interface DriveFile {
@@ -205,7 +213,25 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
     dryRun = false,
     json = false,
     log = (s) => console.log(s),
+    ledgerPath = DB_PATH,
   } = opts;
+
+  // Every sweep is recorded in the archive DB (megadj.state), preview or
+  // full — the "when did drive X last get archived, and what happened" is
+  // DB state, not markdown memory. The DB lives on this Mac, so a missing
+  // file is recorded as note, never a crash (the sweep itself is I/O work).
+  let sweeps: import("../shelf_sweeps").ShelfSweeps | null = null;
+  let state: ArchiveState | null = null;
+  if (ledgerPath !== null) {
+    try {
+      state = new ArchiveState(ledgerPath);
+      sweeps = state.shelfSweeps;
+    } catch (e) {
+      log(
+        `shelf-archive: (sweep ledger unavailable: ${e instanceof Error ? e.message : e})`,
+      );
+    }
+  }
 
   const contents = join(shelfVolume, "Contents");
   const shelfMounted = existsSync(contents);
@@ -279,6 +305,16 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
       res.stillMissing.push("(drive not mounted — nothing archived)");
       continue;
     }
+
+    const sweepId = sweeps
+      ? sweeps.start({
+          drive: basename(volume),
+          shelf: basename(shelfVolume),
+          deep,
+          trashes,
+          into: into ?? null,
+        })
+      : null;
 
     const files = walkDrive(volume, trashes);
     res.files = files.length;
@@ -369,9 +405,29 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
     }
 
     res.ok = res.failed === 0;
+    if (sweeps && sweepId !== null) {
+      const counts = {
+        filesSeen: res.files,
+        coveredExact: res.coveredExact,
+        preserved: res.preserved,
+        copied: res.copied,
+        bytesCopied: res.bytes,
+        failed: res.failed,
+      };
+      if (dryRun) sweeps.finishPreview(sweepId, counts);
+      else
+        sweeps.finish(
+          sweepId,
+          counts,
+          res.ok
+            ? undefined
+            : res.stillMissing.slice(0, 5).join("; ").slice(0, 500),
+        );
+    }
   }
 
   const allOk = results.every((r) => (r.mounted ? r.ok : true));
+  state?.close(); // flush + release the ledger DB before any exit path
   if (json) {
     console.log(
       JSON.stringify(

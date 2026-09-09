@@ -61,6 +61,8 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                pull everything from drive(s) INTO the
                                                shelf — additive, junk-filtered, MD5-verified,
                                                divergent copies preserved (never overwritten)
+  megadj shelf-sweeps [--json]                 DB ledger: every drive→shelf sweep, its
+                                               verdict and counters (latest per drive)
 
 cratedeck — the Crate: organize, sync & verify every DJ USB:
   megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)
@@ -336,6 +338,44 @@ async function main(): Promise<void> {
           dryRun,
           json,
         });
+        break;
+      }
+      case "shelf-sweeps": {
+        // The DB record of every drive → shelf sweep (queryable state, not
+        // markdown). `--json` = full history; text = one line per drive.
+        const json = rest.includes("--json");
+        const state2 = new ArchiveState(DB_PATH);
+        try {
+          const rows = state2.shelfSweeps.latestPerDrive();
+          const hist = state2.shelfSweeps.history();
+          if (json) {
+            console.log(
+              JSON.stringify(
+                { command: "shelf-sweeps", latest: rows, history: hist },
+                null,
+                2,
+              ),
+            );
+          } else {
+            console.log("shelf sweeps (latest per drive):");
+            for (const r of rows) {
+              const done = r.finished_at
+                ? r.finished_at.slice(0, 10)
+                : "running";
+              const gb = (r.bytes_copied / 1e9).toFixed(2);
+              console.log(
+                `  ${r.drive.padEnd(16)} ${r.verdict.padEnd(9)} ${done}  ` +
+                  `${r.files_seen} files · ${r.covered_exact} covered · ${r.preserved} preserved · ${r.copied} copied (${gb} GB)${r.failed ? ` · FAILED ${r.failed}` : ""}${r.deep ? " · deep" : ""}`,
+              );
+            }
+            if (rows.length === 0)
+              console.log(
+                "  (no sweeps recorded yet — run megadj shelf-archive)",
+              );
+          }
+        } finally {
+          state2.close();
+        }
         break;
       }
       case "list": {

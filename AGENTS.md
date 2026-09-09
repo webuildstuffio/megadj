@@ -99,7 +99,10 @@ preserved as `<name> [<volume>]` twins (never overwrite — the shelf's
 rekordbox DB references its own files), `--trashes --into F` for trash
 rescue, `--deep` to MD5 same-size pairs (one stick had 291 same-size
 different-bytes files — size alone is NOT coverage). Coverage rules:
-`PIONEER/` (device DBs) is never walked; `PIONEER REC/` is. Volume
+`PIONEER/` (device DBs) is never walked; `PIONEER REC/` is. Process +
+verification loop: `.claude/skills/shelf-intake/SKILL.md`; every sweep
+auto-records a verdict row in the archive DB (`shelf_sweeps` — query with
+`megadj shelf-sweeps`), so state lives in the DB, not just markdown. Volume
 names are user-specific — examples use `DJMASTER`/`DJMIRROR`; override via
 args, `config.toml`, or `USB_SYNC_MASTER`/`USB_SYNC_MIRROR`. Three named
 sub-projects (one-liners in

@@ -121,6 +121,7 @@ describe("principles P1: --json on every command", () => {
       "doctor",
       "shelf-sync",
       "shelf-archive",
+      "shelf-sweeps",
     ]) {
       const line = stdout.split("\n").find((l) => l.includes(`megadj ${cmd}`));
       expect(line, `help has an entry for ${cmd}`).toBeDefined();

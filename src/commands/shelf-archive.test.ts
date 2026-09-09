@@ -6,7 +6,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { shelfArchive } from "./shelf-archive";
 
 /**
@@ -35,6 +35,8 @@ const run = (opts: Partial<Parameters<typeof shelfArchive>[0]> = {}) =>
     volumes: [],
     shelfVolume: mkdtempSync("/tmp/megadj-sa-empty-"),
     log: () => {},
+    // ledger isolation: never touch the developer's real archive DB
+    ledgerPath: mkdtempSync("/tmp/megadj-sa-ledger-") + "/state.db",
     ...opts,
   } as Parameters<typeof shelfArchive>[0]);
 
@@ -199,6 +201,7 @@ describe("shelf-archive", () => {
         shelfVolume: shelf,
         json: true,
         log: () => {},
+        ledgerPath: null, // isolated: the --json test writes no ledger
       });
     } finally {
       console.log = orig;
@@ -218,5 +221,124 @@ describe("shelf-archive", () => {
     expect(parsed.drives[0]?.files).toBe(1);
     expect(parsed.drives[0]?.copied).toBe(1);
     expect(parsed.ok).toBe(true);
+  });
+});
+
+import { ShelfSweeps, type ShelfSweepRow } from "../shelf_sweeps";
+import { Database } from "bun:sqlite";
+
+describe("shelf sweep ledger", () => {
+  test("start → finish records a complete verdict with counters", () => {
+    const db = new Database(":memory:");
+    const sweeps = new ShelfSweeps(db);
+    const id = sweeps.start({
+      drive: "TESTDRIVE",
+      shelf: "SHELF1",
+      deep: true,
+      trashes: false,
+      into: null,
+    });
+    sweeps.finish(id, {
+      filesSeen: 100,
+      coveredExact: 90,
+      preserved: 7,
+      copied: 3,
+      bytesCopied: 12345678,
+      failed: 0,
+    });
+    const row = sweeps.latestPerDrive()[0]!;
+    expect(row.drive).toBe("TESTDRIVE");
+    expect(row.verdict).toBe("complete");
+    expect(row.deep).toBe(1);
+    expect(row.files_seen).toBe(100);
+    expect(row.finished_at).toBeString();
+  });
+
+  test("failures produce a failed verdict, never 'complete'", () => {
+    const db = new Database(":memory:");
+    const sweeps = new ShelfSweeps(db);
+    const id = sweeps.start({ drive: "X", shelf: "SHELF1" });
+    sweeps.finish(
+      id,
+      {
+        filesSeen: 10,
+        coveredExact: 8,
+        preserved: 0,
+        copied: 1,
+        bytesCopied: 1,
+        failed: 1,
+      },
+      "hash mismatch: a.mp3",
+    );
+    expect(sweeps.latestPerDrive()[0]?.verdict).toBe("failed");
+  });
+
+  test("dry runs record as preview, latestPerDrive keeps one row per drive", () => {
+    const db = new Database(":memory:");
+    const sweeps = new ShelfSweeps(db);
+    const a = sweeps.start({ drive: "A", shelf: "SHELF1" });
+    sweeps.finishPreview(a, {
+      filesSeen: 5,
+      coveredExact: 5,
+      preserved: 0,
+      copied: 0,
+      bytesCopied: 0,
+      failed: 0,
+    });
+    const b = sweeps.start({ drive: "B", shelf: "SHELF1" });
+    sweeps.finishPreview(b, {
+      filesSeen: 2,
+      coveredExact: 1,
+      preserved: 0,
+      copied: 1,
+      bytesCopied: 9,
+      failed: 0,
+    });
+    const latest: ShelfSweepRow[] = sweeps.latestPerDrive();
+    expect(latest).toHaveLength(2);
+    expect(latest.map((r) => r.drive).sort()).toEqual(["A", "B"]);
+    expect(latest.every((r) => r.verdict === "preview")).toBe(true);
+  });
+});
+
+describe("shelf sweep ledger wiring", () => {
+  test("a real sweep records a complete row in the ledger DB", async () => {
+    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-ledger2-"), {
+      "Contents/A/z.mp3": "z",
+    });
+    const shelf = makeShelf();
+    const ledgerDb = mkdtempSync("/tmp/megadj-sa-ledger3-") + "/state.db";
+    await shelfArchive({
+      volumes: [drive],
+      shelfVolume: shelf,
+      ledgerPath: ledgerDb,
+      log: () => {},
+    });
+    const db = new Database(ledgerDb, { readonly: true });
+    const rows = db.query("SELECT * FROM shelf_sweeps").all() as Array<{
+      drive: string;
+      verdict: string;
+      copied: number;
+    }>;
+    db.close();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.drive).toBe(basename(drive));
+    expect(rows[0]?.verdict).toBe("complete");
+    expect(rows[0]?.copied).toBe(1);
+  });
+
+  test("ledgerPath: null disables recording (no DB anywhere)", async () => {
+    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-noled-"), {
+      "Contents/A/w.mp3": "w",
+    });
+    const shelf = makeShelf();
+    // no ledgerPath → default would write the real DB; null disables
+    await shelfArchive({
+      volumes: [drive],
+      shelfVolume: shelf,
+      ledgerPath: null,
+      log: () => {},
+    });
+    expect(existsSync(join(shelf, "Contents", "A", "w.mp3"))).toBe(true);
   });
 });
