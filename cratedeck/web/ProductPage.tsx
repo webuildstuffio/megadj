@@ -1,31 +1,45 @@
-// ProductPage.tsx — the shared chrome for the top-level product canvases
-// (GetDat / FullTags / Fleet): the identity header row (glyph chip, name,
-// one-liner, tab strip) and the two primitives every tab of every product
-// uses — the verdict banner (`.arch-verdict`) and the pipeline pie/legend.
+// ProductPage.tsx — the product SSOT: PRODUCTS (the suite the megadj
+// dashboard covers) + PRODUCT_TABS (each product's tab strip — one table,
+// two surfaces: the header nav strip and the page canvases read the same
+// rows, so a tab can't exist on one surface only). Also home to the two
+// render primitives every product tab shares: the verdict banner and the
+// pipeline pie/legend.
 //
-// Extracted so the three products can't drift: same classes, same
-// TabIntro/InfoTip usage, same copyable-list CTA everywhere. PRODUCTS is
-// also the SSOT App's topbar tabs render from — one table, two surfaces,
-// zero drift.
-import type { ComponentChildren } from "preact";
-import { Icon } from "./icons";
-import type { IconName } from "./icons";
-import { navigateProduct, type Product } from "./router";
+// The three named sub-products (docs/PRINCIPLES.md / FEATURES.md):
+//   CrateDeck — the DJ USB drives + their fleet (this dashboard's origin)
+//   GetDat    — the download + ingest pipeline into the archive
+//   FullTags  — the enrichment engine (analysis ledgers + tag mirror)
+// Fleet is NOT a product — it's CrateDeck's cross-drive scope, so it lives
+// as a sibling scope tab of the individual drives inside CrateDeck's group.
+import type { Product } from "./router";
 
-export const PRODUCTS: {
+export interface ProductMeta {
   id: Product;
   label: string;
-  icon: IconName;
+  icon: string;
+  /** one-liner (nav strip + page voice) */
   sub: string;
-  /** topbar + header tooltip (the one-liner, product voice) */
+  /** longer tooltip line */
   title: string;
-}[] = [
+}
+
+export interface ProductTab {
+  id: string;
+  label: string;
+  icon: string;
+  title: string;
+}
+
+/** The suite, in reading order. App's header nav renders from this; the
+ *  route parser (router.ts) owns the matching Product union. */
+export const PRODUCTS: ProductMeta[] = [
   {
     id: "drives",
-    label: "Drives",
+    label: "CrateDeck",
     icon: "usb",
-    sub: "the DJ USB sticks — health, playlists, verify, parity",
-    title: "The DJ USB sticks — health, playlists, verify, parity",
+    sub: "the DJ USB sticks + their fleet — health, playlists, verify, parity",
+    title:
+      "CrateDeck — the DJ USB sticks and their fleet: health, playlists, verify, parity",
   },
   {
     id: "getdat",
@@ -42,49 +56,127 @@ export const PRODUCTS: {
     sub: "the enrichment engine — beatgrids, mood, cues, tags",
     title: "FullTags — the enrichment engine: beatgrids, mood, cues, tags",
   },
-  {
-    id: "fleet",
-    label: "Fleet",
-    icon: "grid",
-    sub: "every drive, cross-checked — coverage, redundancy, diffs, preflight",
-    title:
-      "Fleet view: cross-drive coverage, playlist redundancy, diffs, the gig-night preflight gate, and the weekly prep digest",
-  },
 ];
 
-export function ProductHead(props: {
-  product: Product;
-  tab: string;
-  tabs: { id: string; label: string; icon: string; title: string }[];
-}) {
-  const meta = PRODUCTS.find((p) => p.id === props.product)!;
-  return (
-    <div class="fleet-head">
-      <span class="prod-glyph" title={meta.title}>
-        <Icon name={meta.icon} size={17} />
-      </span>
-      <h2>
-        <span class="prod-name">{meta.label}</span>
-      </h2>
-      <span class="fleet-sub">{meta.sub}</span>
-      <div class="spacer" />
-      <div class="tabs inline">
-        {props.tabs.map((t) => (
-          <button
-            type="button"
-            key={t.id}
-            class={props.tab === t.id ? "on" : ""}
-            onClick={() => navigateProduct(props.product, t.id)}
-            title={t.title}
-          >
-            <Icon name={t.icon} size={14} />
-            {t.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
+/** Tab strip per product — the same rows the pages AND the header nav
+ *  strip switch on, so a tab can't exist on one surface only.
+ *  - "drives": CrateDeck's scope tabs — the crate shelf (id "" = no drive
+ *    selected) and Fleet, its cross-drive scope.
+ *  - "fleet": Fleet's own content tabs (FleetPage switches on these; the
+ *    header shows them while the Fleet route is active).
+ *  - getdat / fulltags: their content tabs. */
+export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
+  drives: [
+    {
+      id: "",
+      label: "Drives",
+      icon: "usb",
+      title:
+        "The crate shelf — every drive with its health ring, plug in and go",
+    },
+    {
+      id: "fleet",
+      label: "Fleet",
+      icon: "grid",
+      title:
+        "Fleet view: cross-drive coverage, playlist redundancy, diffs, the gig-night preflight gate, and the weekly prep digest",
+    },
+  ],
+  fleet: [
+    {
+      id: "coverage",
+      label: "Coverage",
+      icon: "grid",
+      title: "Which stick has this track — and the at-risk single-copy list",
+    },
+    {
+      id: "redundancy",
+      label: "Redundancy",
+      icon: "shield",
+      title:
+        "Per-playlist audit: is every track on enough drives to survive one dying?",
+    },
+    {
+      id: "diff",
+      label: "Diff",
+      icon: "sort",
+      title: "Two drives side by side: added, removed, changed",
+    },
+    {
+      id: "preflight",
+      label: "Preflight",
+      icon: "bolt",
+      title: "Gig-night gate: is every drive ready to play right now?",
+    },
+    {
+      id: "archive",
+      label: "Archive",
+      icon: "doc",
+      title: "The local archive: ingest queue, analysis state, integrity",
+    },
+    {
+      id: "prep",
+      label: "Prep",
+      icon: "doc",
+      title: "Weekly prep digest — everything worth knowing, one page",
+    },
+  ],
+  getdat: [
+    {
+      id: "pipeline",
+      label: "Pipeline",
+      icon: "refresh",
+      title: "The download machine: buckets, recent runs, throughput",
+    },
+    {
+      id: "backlog",
+      label: "Backlog",
+      icon: "warn",
+      title: "What needs work: retries and quality upgrades",
+    },
+    {
+      id: "sources",
+      label: "Sources",
+      icon: "compass",
+      title: "Where the archive's music comes from",
+    },
+    {
+      id: "library",
+      label: "Library",
+      icon: "disc",
+      title: "What's in the archive — searchable, newest first",
+    },
+  ],
+  fulltags: [
+    {
+      id: "beatgrids",
+      label: "Beatgrids",
+      icon: "pulse",
+      title: "The beats ledger + the independent grid cross-check vs rekordbox",
+    },
+    {
+      id: "mood",
+      label: "Mood",
+      icon: "bolt",
+      title: "The mood ledger: dance/valence/arousal averages and extremes",
+    },
+    {
+      id: "cues",
+      label: "Cues",
+      icon: "play",
+      title: "The phrase-cue ledger: 8-bar markers derived from downbeats",
+    },
+    {
+      id: "tags",
+      label: "Tags",
+      icon: "tag",
+      title:
+        "The tag mirror: genres, years, artwork, energy — file ground truth",
+    },
+  ],
+};
+
+import { Icon } from "./icons";
 
 /** The one-line verdict a human reads before anything else. */
 export function Verdict(props: {
@@ -167,7 +259,7 @@ export function Meter(props: {
 export function SectionHead(props: {
   icon: string;
   title: string;
-  children?: ComponentChildren;
+  children?: import("preact").ComponentChildren;
 }) {
   return (
     <h3 class="sect">

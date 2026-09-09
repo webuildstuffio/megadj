@@ -1,18 +1,20 @@
-// hash router — zero deps. Every surface is a top-level route with an
-// optional tab: #/drives/:id/:tab (drive canvas), #/fleet/:tab (fleet
-// superpowers), #/getdat/:tab (download pipeline) and #/fulltags/:tab
-// (enrichment engine) — one route per product, matching the topbar. The
-// rail and canvas both read/write the same hash, so deep-linking and
-// browser back/forward work for free.
+// hash router — zero deps. Top-level routes = the three products:
+// #/ (CrateDeck shelf), #/fleet/:tab (Fleet — CrateDeck's cross-drive
+// scope), #/getdat/:tab (download pipeline) and #/fulltags/:tab
+// (enrichment engine), plus #/drives/:id/:tab for one drive. The header
+// nav strip and the canvases read/write the same hash, so deep-linking
+// and browser back/forward work for free.
 import { useEffect, useState } from "preact/hooks";
 
 export type Product = "drives" | "fleet" | "getdat" | "fulltags";
 
 export interface Route {
-  /** which top-level product is on the canvas */
+  /** which product owns the canvas ("drives" = shelf or one drive) */
   product: Product;
   driveId: string | null;
   fleet: boolean; // convenience alias: product === "fleet"
+  /** The fleet scope-tab when product === "fleet"; the drive tab when a
+   *  drive is open; the product tab otherwise. */
   tab: string;
 }
 

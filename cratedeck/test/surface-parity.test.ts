@@ -134,10 +134,15 @@ describe("surface parity (docs/surface-parity.md)", () => {
 
   test("the product tabs exist and are hash-routed (one route per product)", () => {
     // the web shell renders one top-level tab per product; the router
-    // parses one route per product. Both lists live in exactly one place.
+    // parses one route per product. The nav strip (App) and the product
+    // SSOT (ProductPage PRODUCTS) are the two surfaces, keyed by the
+    // router's Product union.
     const app = read("cratedeck/web/App.tsx").join("\n");
     for (const product of ["drives", "getdat", "fulltags", "fleet"])
-      expect(app, `topbar tab for ${product}`).toContain(`"${product}"`);
+      expect(app, `nav route for ${product}`).toContain(`"${product}"`);
+    const products = read("cratedeck/web/ProductPage.tsx").join("\n");
+    for (const product of ["drives", "getdat", "fulltags"])
+      expect(products, `nav tab for ${product}`).toContain(`id: "${product}"`);
     const router = read("cratedeck/web/router.ts").join("\n");
     expect(router).toContain('"getdat"');
     expect(router).toContain('"fulltags"');
@@ -145,6 +150,12 @@ describe("surface parity (docs/surface-parity.md)", () => {
     expect(app).toContain("<GetDatPage");
     expect(app).toContain("<FullTagsPage");
     expect(app).toContain("<FleetPage");
+    // Fleet is a CrateDeck scope, not a product: the product list has
+    // exactly three rows, and Fleet rides the drives scope tabs.
+    expect(
+      (products.match(/id: "(?:drives|getdat|fulltags)",/g) ?? []).length,
+    ).toBe(3);
+    expect(products).toContain('id: "fleet"');
   });
 
   test("every deckctl verb has an MCP twin or a registered exemption", () => {

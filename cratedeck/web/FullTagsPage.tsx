@@ -24,7 +24,7 @@ import { FetchedGate, useFetched } from "./useFetched";
 import { TabIntro } from "./InfoTip";
 import { ListHead } from "./ListHead";
 import { StatCard } from "./DrivePanels";
-import { ProductHead, Meter, SectionHead, Verdict } from "./ProductPage";
+import { PRODUCT_TABS, Meter, SectionHead, Verdict } from "./ProductPage";
 
 /** One hook for the unified analysis-coverage read: playable tracks vs the
  *  beats/mood/cues ledgers in a single picture. null ledger = pre-analysis
@@ -93,38 +93,14 @@ function CoverageStrip(props: {
   );
 }
 
-const TABS = [
-  {
-    id: "beatgrids",
-    label: "Beatgrids",
-    icon: "pulse",
-    title: "The beats ledger + the independent grid cross-check vs rekordbox",
-  },
-  {
-    id: "mood",
-    label: "Mood",
-    icon: "bolt",
-    title: "The mood ledger: dance/valence/arousal averages and extremes",
-  },
-  {
-    id: "cues",
-    label: "Cues",
-    icon: "play",
-    title: "The phrase-cue ledger: 8-bar markers derived from downbeats",
-  },
-  {
-    id: "tags",
-    label: "Tags",
-    icon: "tag",
-    title: "The tag mirror: genres, years, artwork, energy — file ground truth",
-  },
-] as const;
+// the FullTags tab strip lives in the product SSOT (ProductPage
+// PRODUCT_TABS) — header nav strip and this canvas switch on the SAME rows.
+const TABS = PRODUCT_TABS.fulltags;
 
 export function FullTagsPage(props: { tab: string }) {
-  const tab = TABS.find((t) => t.id === props.tab)?.id ?? TABS[0].id;
+  const tab = TABS.find((t) => t.id === props.tab)?.id ?? TABS[0]!.id;
   return (
     <div class="canvas fleet fulltags">
-      <ProductHead product="fulltags" tab={tab} tabs={[...TABS]} />
       {tab === "beatgrids" && <BeatgridsTab />}
       {tab === "mood" && <MoodTab />}
       {tab === "cues" && <CuesTab />}

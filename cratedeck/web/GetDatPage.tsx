@@ -22,44 +22,20 @@ import { FetchedGate, useFetched } from "./useFetched";
 import { TabIntro } from "./InfoTip";
 import { ListHead } from "./ListHead";
 import { StatCard } from "./DrivePanels";
-import { ProductHead, SectionHead, ShareBar, Verdict } from "./ProductPage";
+import { PRODUCT_TABS, SectionHead, ShareBar, Verdict } from "./ProductPage";
 import { LibraryTab } from "./LibraryTab";
 import { fmtBytes } from "../shared/fmt";
 
 type Track = ArchiveIngestStatus["recent_tracks"][number];
 
-const TABS = [
-  {
-    id: "pipeline",
-    label: "Pipeline",
-    icon: "refresh",
-    title: "The download machine: buckets, recent runs, throughput",
-  },
-  {
-    id: "backlog",
-    label: "Backlog",
-    icon: "warn",
-    title: "What needs work: retries and quality upgrades",
-  },
-  {
-    id: "sources",
-    label: "Sources",
-    icon: "compass",
-    title: "Where the archive's music comes from",
-  },
-  {
-    id: "library",
-    label: "Library",
-    icon: "disc",
-    title: "What's in the archive — searchable, newest first",
-  },
-] as const;
+// the GetDat tab strip lives in the product SSOT (ProductPage
+// PRODUCT_TABS) — header nav strip and this canvas switch on the SAME rows.
+const TABS = PRODUCT_TABS.getdat;
 
 export function GetDatPage(props: { tab: string }) {
-  const tab = TABS.find((t) => t.id === props.tab)?.id ?? TABS[0].id;
+  const tab = TABS.find((t) => t.id === props.tab)?.id ?? TABS[0]!.id;
   return (
     <div class="canvas fleet getdat">
-      <ProductHead product="getdat" tab={tab} tabs={[...TABS]} />
       {tab === "pipeline" && <PipelineTab />}
       {tab === "backlog" && <BacklogTab />}
       {tab === "sources" && <SourcesTab />}

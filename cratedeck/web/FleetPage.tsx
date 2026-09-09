@@ -27,47 +27,12 @@ import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
 import { TabIntro } from "./InfoTip";
 import { ListHead, FixNote, copyList } from "./ListHead";
-import { ProductHead } from "./ProductPage";
+import { PRODUCT_TABS } from "./ProductPage";
 
-const TABS = [
-  {
-    id: "coverage",
-    label: "Coverage",
-    icon: "grid",
-    title: "Which stick has this track — and the at-risk single-copy list",
-  },
-  {
-    id: "redundancy",
-    label: "Redundancy",
-    icon: "shield",
-    title:
-      "Per-playlist audit: is every track on enough drives to survive one dying?",
-  },
-  {
-    id: "diff",
-    label: "Diff",
-    icon: "sort",
-    title: "Two drives side by side: added, removed, changed",
-  },
-  {
-    id: "preflight",
-    label: "Preflight",
-    icon: "bolt",
-    title: "Gig-night gate: is every drive ready to play right now?",
-  },
-  {
-    id: "archive",
-    label: "Archive",
-    icon: "doc",
-    title: "The local archive: ingest queue, analysis state, integrity",
-  },
-  {
-    id: "prep",
-    label: "Prep",
-    icon: "doc",
-    title: "Weekly prep digest — everything worth knowing, one page",
-  },
-] as const;
+// the fleet content tabs live in the product SSOT (ProductPage
+// PRODUCT_TABS) — the header nav strip and this canvas switch on the SAME
+// rows, so a tab can't exist on one surface only.
+const TABS = PRODUCT_TABS.fleet;
 
 type DriveRef = { id: string; name: string; mounted?: boolean };
 
@@ -81,12 +46,10 @@ interface TrackHit {
 }
 
 export function FleetPage(props: { tab: string }) {
-  const tab = TABS.find((t) => t.id === props.tab)?.id ?? TABS[0].id;
+  const tab = TABS.find((t) => t.id === props.tab)?.id ?? TABS[0]!.id;
 
   return (
     <div class="canvas fleet">
-      <ProductHead product="fleet" tab={tab} tabs={[...TABS]} />
-
       {tab === "coverage" && <CoverageTab />}
       {tab === "redundancy" && <RedundancyTab />}
       {tab === "diff" && <DiffTab />}

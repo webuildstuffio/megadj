@@ -28,14 +28,14 @@ export function Onboard() {
     <div class="onboard">
       <section class="ob-sec">
         <h3 class="sect">
-          <Icon name="compass" /> Start here — what CrateDeck does
+          <Icon name="compass" /> Start here — what megadj does
         </h3>
         <p class="ob-lede">
-          CrateDeck watches your DJ USB drives so the booth never surprises you:
-          it scans each stick's rekordbox library, audits it for the exact
-          failure modes that ruin a set (stale hardware library, missing
-          waveforms, silent file corruption, a mirror that drifted), and tells
-          you — in plain language — what to fix.
+          megadj is a toolkit for the DJ library, and CrateDeck is its
+          watchtower over your DJ USB drives: it scans each stick's rekordbox
+          library, audits it for the exact failure modes that ruin a set (stale
+          hardware library, missing waveforms, silent file corruption, a mirror
+          that drifted), and tells you — in plain language — what to fix.
         </p>
         <ol class="ob-steps">
           <li>

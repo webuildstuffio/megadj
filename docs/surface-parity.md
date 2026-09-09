@@ -7,7 +7,16 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 7 · 2026-09-08 — the integration pass: the archive's own decision
+Rev 8 · 2026-09-08 — the header redesign: the suite brand is **megadj**
+(top-left), and the product nav moved to its own nav strip row with
+exactly three products — **CrateDeck** (the DJ USB drives + their fleet),
+**GetDat**, **FullTags**. Fleet is no longer presented as a fourth
+product: it's a CrateDeck scope tab (Drives | Fleet), with Fleet's six
+content tabs following it on the same strip when the Fleet route is
+active. The tab strips for nav + pages now come from one SSOT table
+(`web/ProductPage.tsx` `PRODUCTS` + `PRODUCT_TABS`); page canvases no
+longer render their own identity header. Rev 7 · 2026-09-08 — the
+integration pass: the archive's own decision
 records became surfaces. Three new readonly reads with same-commit twins
 (`archive_skip_census` — why gone/skipped rows didn't land,
 `archive_sources` — the source census the Sources diff form suggests

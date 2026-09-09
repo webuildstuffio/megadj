@@ -15,7 +15,7 @@ import { DrivePage } from "./DrivePage";
 import { FleetPage } from "./FleetPage";
 import { GetDatPage } from "./GetDatPage";
 import { FullTagsPage } from "./FullTagsPage";
-import { PRODUCTS } from "./ProductPage";
+import { PRODUCT_TABS, PRODUCTS } from "./ProductPage";
 import { JobsDock } from "./JobsDock";
 import { Toaster, api, toast } from "./toast";
 import { Icon } from "./icons";
@@ -218,18 +218,22 @@ export function App() {
   }, []);
 
   // tab title mirrors the route: with many deep-linkable tabs open at once,
-  // identical "CrateDeck" titles make browser history/tab switchers
-  // unusable. Route words only (no per-drive fetches) — cheap and instant.
+  // identical titles make browser history/tab switchers unusable. Route
+  // words only (no per-drive fetches) — cheap and instant. Brand line is
+  // "megadj" (the suite); CrateDeck is the drives/fleet product.
   useEffect(() => {
     const tab = route.tab.charAt(0).toUpperCase() + route.tab.slice(1);
-    document.title =
+    const scope =
       route.product === "fleet"
-        ? `Fleet · ${tab} — CrateDeck`
-        : route.product === "drives" && route.driveId
-          ? `${decodeURIComponent(route.driveId)} · ${tab} — CrateDeck`
-          : route.product === "drives"
-            ? "CrateDeck — DJ USB library"
-            : `${route.product === "getdat" ? "GetDat" : "FullTags"} · ${tab} — CrateDeck`;
+        ? `Fleet · ${tab}`
+        : route.product === "getdat"
+          ? `GetDat · ${tab}`
+          : route.product === "fulltags"
+            ? `FullTags · ${tab}`
+            : route.driveId
+              ? `${decodeURIComponent(route.driveId)} · ${tab}`
+              : "CrateDeck · DJ USB library";
+    document.title = `${scope} — megadj`;
   }, [route.driveId, route.product, route.tab]);
 
   const openDrive = (id: string, tab?: string) => {
@@ -242,12 +246,32 @@ export function App() {
   const mounted = drives.filter((d) => d.mounted).length;
   const ghosts = drives.length - mounted;
 
+  // The header is two rows. Row 1 (suite bar): megadj brand, global search,
+  // interlock — everything that spans the whole suite. Row 2 (nav strip):
+  // the three products + the active one's scope tabs. Fleet is a scope of
+  // CrateDeck, not a fourth product: on the Fleet route the strip shows
+  // Drives | Fleet (Fleet lit) followed by Fleet's own content tabs.
+  const scopeTabs =
+    route.product === "fleet"
+      ? [...PRODUCT_TABS.drives, ...PRODUCT_TABS.fleet]
+      : PRODUCT_TABS[route.product];
+  const scopeOn =
+    route.product === "drives"
+      ? route.fleet
+        ? "fleet"
+        : "" // shelf, or a specific drive — the shelf tab stays lit
+      : route.tab;
+
   return (
     <div class="app" data-prod={route.product}>
       <header class="topbar">
-        <div class="brand" onClick={() => navigate(null)} title="CrateDeck">
+        <div
+          class="brand"
+          onClick={() => navigate(null)}
+          title="megadj — one toolkit for the DJ library"
+        >
           <span class="brand-mark" />
-          <h1>CrateDeck</h1>
+          <h1>megadj</h1>
         </div>
         <span
           class="top-meta"
@@ -257,23 +281,6 @@ export function App() {
           {ghosts === 1 ? "" : "s"}
         </span>
         <div class="spacer" />
-        <nav class="product-tabs" aria-label="Products">
-          {PRODUCTS.map((p) => (
-            <button
-              type="button"
-              key={p.id}
-              class={`product-tab ${route.product === p.id ? "on" : ""}`}
-              data-prod={p.id}
-              onClick={() =>
-                route.product !== p.id &&
-                (p.id === "drives" ? navigate(null) : navigateProduct(p.id))
-              }
-              title={p.title}
-            >
-              <Icon name={p.icon} size={13} /> {p.label}
-            </button>
-          ))}
-        </nav>
         <span
           class={`lockchip ${locked ? "on" : "off"}`}
           title={
@@ -344,6 +351,63 @@ export function App() {
           )}
         </div>
       </header>
+      <nav class="navstrip" aria-label="Products">
+        {PRODUCTS.map((p) => (
+          <button
+            type="button"
+            key={p.id}
+            // Fleet is CrateDeck's scope — the CrateDeck tab stays lit there
+            class={`product-tab ${
+              route.product === p.id ||
+              (p.id === "drives" && route.product === "fleet")
+                ? "on"
+                : ""
+            }`}
+            data-prod={p.id}
+            onClick={() =>
+              route.product !== p.id &&
+              (p.id === "drives" ? navigate(null) : navigateProduct(p.id))
+            }
+            title={p.title}
+          >
+            <Icon name={p.icon} size={13} /> {p.label}
+          </button>
+        ))}
+        <span class="navstrip-sep" aria-hidden />
+        {scopeTabs.map((t) => {
+          // on-state: the fleet scope tab stays lit across all fleet content
+          // tabs (coverage/redundancy/…) so CrateDeck's scope never dims
+          const on =
+            t.id === "fleet" && route.product === "fleet"
+              ? true
+              : scopeOn === t.id;
+          const onClick = () => {
+            if (route.product === "drives") {
+              // CrateDeck scopes: shelf ↔ fleet
+              if (t.id === "fleet") navigateProduct("fleet");
+              else if (route.fleet) navigate(null);
+            } else if (route.product === "fleet") {
+              // "fleet" scope row → back to the shelf; others → content tab
+              if (t.id === "fleet") navigate(null);
+              else if (route.tab !== t.id) navigateProduct("fleet", t.id);
+            } else if (route.tab !== t.id) {
+              navigateProduct(route.product, t.id);
+            }
+          };
+          return (
+            <button
+              type="button"
+              key={`${route.product}:${t.id || "shelf"}`}
+              class={`scope-tab ${on ? "on" : ""}`}
+              data-prod={route.product}
+              onClick={onClick}
+              title={t.title}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </nav>
 
       <div class="frame">
         <DriveRail

@@ -1,7 +1,8 @@
 /* ---- products.css — GetDat/FullTags/Fleet product chrome --------------------
- * Topbar product tabs, analysis-coverage strip + meters, key→count chips,
- * source chips, verdict pills. Split from fleet-tabs.css (rev 7) to keep
- * both sheets under the file-length guard; styles.css holds the design tokens.
+ * Header nav strip (product tabs + scope tabs), analysis-coverage strip +
+ * meters, key→count chips, source chips, verdict pills. Split from
+ * fleet-tabs.css (rev 7) to keep both sheets under the file-length guard;
+ * styles.css holds the design tokens.
  * -------------------------------------------------------------------------- */
 /* ---- FullTags unified analysis-coverage strip (rev 7) --------------------
  * One progress picture for beats/mood/cues across every analysis tab, so
@@ -87,14 +88,43 @@
   line-height: 16px;
 }
 
-/* ---- topbar product tabs (Drives/GetDat/FullTags/Fleet) ---------------- */
-.product-tabs {
-  display: inline-flex;
-  gap: 2px;
-  background: var(--bg);
-  border: 1px solid var(--stroke);
-  border-radius: 999px;
-  padding: 2px;
+/* ---- header nav strip (row 2 of the two-row header) ---------------------
+ * Row 1 (topbar) = the megadj suite brand + search + interlock. Row 2
+ * (navstrip) = the three products + the active product's scope tabs.
+ * Fleet is a scope tab inside CrateDeck, not a fourth product.
+ * Lives here (not styles.css) to keep that sheet under the file-length
+ * guard; the one token it needs rides with it. */
+:root {
+  --navstrip-h: 42px;
+}
+.navstrip {
+  height: var(--navstrip-h);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--stroke);
+  background: rgba(16, 17, 20, 0.65);
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+  z-index: 39;
+  overflow-x: auto;
+}
+/* thin separator between product tabs and scope tabs */
+.navstrip-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--stroke2);
+  margin: 0 8px;
+  flex: none;
+}
+/* the megadj wordmark shrinks on the navstrip pages (suite = row 1 brand) */
+.brand small {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--faint);
+  margin-left: 2px;
 }
 .product-tab {
   display: inline-flex;
@@ -115,8 +145,8 @@
 .product-tab:hover {
   color: var(--text);
 }
-/* active tab wears its product's color: Drives mint, GetDat blue,
- * FullTags violet, Fleet amber (kept in sync with the canvas accents). */
+/* active product wears its color: CrateDeck mint, GetDat blue,
+ * FullTags violet (kept in sync with the canvas accents). */
 .product-tab.on {
   color: var(--tab-c, var(--accent));
   background: color-mix(in srgb, var(--tab-c, var(--accent)) 14%, transparent);
@@ -127,12 +157,44 @@
 .product-tab.on[data-prod="fulltags"] {
   --tab-c: var(--pulse);
 }
-.product-tab.on[data-prod="fleet"] {
-  --tab-c: #f0b64b;
-}
 .product-tab:focus-visible {
   outline: 2px solid var(--info);
   outline-offset: 2px;
+}
+/* scope tabs: the active product's own tab strip (CrateDeck = Drives|Fleet,
+ * GetDat/FullTags = their content tabs). Underline style, riding the
+ * product accent. */
+.scope-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 10px 10px 8px;
+  cursor: pointer;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+.scope-tab:hover {
+  color: var(--text);
+}
+.scope-tab.on {
+  color: color-mix(in srgb, var(--tab-c, var(--accent)) 55%, var(--text));
+  border-bottom-color: var(--tab-c, var(--accent));
+}
+.scope-tab.on[data-prod="getdat"] {
+  --tab-c: var(--info);
+}
+.scope-tab.on[data-prod="fulltags"] {
+  --tab-c: var(--pulse);
+}
+.scope-tab:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: -4px;
 }
 
 /* ---- analysis coverage meter (FullTags) ---- */

@@ -104,6 +104,11 @@ export const HELP_TERMS: HelpTerm[] = [
     why: "Working the queue is how tracks graduate from 'downloaded' to 'gig-safe'.",
   },
   {
+    term: "megadj",
+    def: "The whole toolkit this dashboard belongs to: CrateDeck (drives + fleet), GetDat (download + ingest) and FullTags (enrichment) — one suite, three products.",
+    why: "The suite name sits in the header; the products live in the nav strip under it, each with its own tabs.",
+  },
+  {
     term: "GetDat",
     def: "The download + ingest half of megadj: YouTube Music → the local archive (sync, ingest, retry, sources).",
     why: "The archive is where every track graduates from download to tag/analysis to the DJ drives — GetDat owns the first step.",
@@ -196,7 +201,7 @@ export const HELP_SURFACES: HelpSurface[] = [
   {
     route: "#/fleet/coverage",
     label: "Fleet · Coverage",
-    where: "topbar Fleet button → Coverage tab",
+    where: "CrateDeck → Fleet → Coverage",
     question: "Which stick has this track — and what exists on only one?",
   },
   {
@@ -232,7 +237,7 @@ export const HELP_SURFACES: HelpSurface[] = [
   {
     route: "#/getdat/pipeline",
     label: "GetDat · Pipeline",
-    where: "topbar GetDat tab → Pipeline",
+    where: "GetDat (top nav) → Pipeline",
     question:
       "Is the download machine healthy — what's playable vs stuck, and why?",
   },
@@ -258,7 +263,7 @@ export const HELP_SURFACES: HelpSurface[] = [
   {
     route: "#/fulltags/beatgrids",
     label: "FullTags · Beatgrids",
-    where: "topbar FullTags tab → Beatgrids",
+    where: "FullTags (top nav) → Beatgrids",
     question: "Do the independent beatgrids agree with rekordbox's BPM?",
   },
   {
