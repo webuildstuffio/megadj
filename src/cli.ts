@@ -44,8 +44,11 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj years   [--dry-run] [--json]          verify years vs SC page/yt-dlp (kills AI 2023 guesses)
   megadj beats   [--limit N] [--jobs N] [--force] [--dry-run] [--json]
                                                beat_this → DB ledger (downbeats for cues/grid checks; no tag writes)
-  megadj mood    [--limit N] [--jobs N] [--force] [--dry-run] [--json]
+  megadj mood    [--limit N] [--jobs N] [--force] [--dry-run] [--json] [--embeddings]
                                                ONNX mood/dance/VA → DB ledger (syncs TXXX:MOOD stamps; analyzes unstamped)
+  megadj similar <video_id> [--k N] [--json]   "sounds like": cosine kNN over the embeddings ledger (read-only)
+  megadj upgrade [--limit N] [--dry-run] [--json]
+                                               re-fetch below-floor tracks at best quality (fingerprint-gated swap)
   megadj cues    [--limit N] [--force] [--dry-run] [--json]
                                                8-bar phrase cues from the beats ledger → DB (no player writes)
   megadj artwork [--model M] [--max N] [--dry-run] [--json]
@@ -497,10 +500,12 @@ async function main(): Promise<void> {
       case "mood": {
         // Roadmap rev 6.1 #4: ONNX mood/dance/valence → DB ledger. File
         // stamps (TXXX:MOOD) sync first; unstamped tracks analyze inline.
+        // --embeddings (I49): also mirror the effnet 1280-d embedding into
+        // the `embeddings` ledger for "sounds like" queries.
         const flags = parseFlags(
           process.argv.slice(3),
           ["limit", "jobs"],
-          ["force", "dry-run", "json"],
+          ["force", "dry-run", "json", "embeddings"],
         );
         const { mood } = await import("./commands/mood");
         await mood({
@@ -509,6 +514,57 @@ async function main(): Promise<void> {
           jobs: numOpt(flags, "jobs"),
           limit: nonNegOpt(flags, "limit", "mood"),
           force: flags.bools.has("force"),
+          dryRun: flags.bools.has("dry-run"),
+          json: flags.bools.has("json"),
+          embeddings: flags.bools.has("embeddings"),
+        });
+        break;
+      }
+      case "similar": {
+        // Roadmap I49 "sounds like": cosine kNN over the embeddings
+        // ledger. Pure read — the vectors come from `megadj mood
+        // --embeddings` (same ONNX probe run as the mood heads).
+        const flags = parseFlags(
+          process.argv.slice(3),
+          ["similar", "k"],
+          ["json"],
+        );
+        const id =
+          flags.strings.get("similar") ??
+          process.argv
+            .slice(3)
+            .find((a) => !a.startsWith("--") && a !== "similar");
+        if (!id) {
+          console.error(
+            "similar: pass a video id — `megadj similar <video_id> [--k N]`",
+          );
+          process.exit(1);
+        }
+        const { similar } = await import("./commands/similar");
+        await similar({
+          state,
+          videoId: id,
+          k: numOpt(flags, "k"),
+          json: flags.bools.has("json"),
+        });
+        break;
+      }
+      case "upgrade": {
+        // Roadmap D24: re-fetch below-floor (LOWQ) tracks at best quality.
+        // The swap is fingerprint-gated: a different recording is refused,
+        // the old file never leaves until every gate passes.
+        const flags = parseFlags(
+          process.argv.slice(3),
+          ["limit"],
+          ["dry-run", "json"],
+        );
+        const { upgrade } = await import("./commands/upgrade");
+        await upgrade({
+          state,
+          musicDir: MUSIC_DIR,
+          cookiesFromBrowser: COOKIES || null,
+          cookiesFile: COOKIES_FILE,
+          limit: nonNegOpt(flags, "limit", "upgrade"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
         });

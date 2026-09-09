@@ -32,6 +32,8 @@
  *   archive_source_diff {a, b}  track-set diff between two sources
  *   archive_grid_cross_check    beat_this ledger vs RB BPM×duration verdicts
  *   archive_mood_profile        mood/dance/VA averages + extremes (roadmap #4)
+ *   archive_similar_tracks {id, k?}  I49 "sounds like" cosine kNN (readonly)
+ *   archive_set_build {preset?, minutes?}  M66 set-builder proposal (readonly)
  *   archive_cue_ledger          8-bar phrase-cue ledger (readonly)
  *   archive_library_overview    FullTags mirror: genres/years/art/energy
  *   archive_skip_census         why gone/skipped rows didn't land
@@ -779,8 +781,12 @@ async function main(): Promise<void> {
       }
       // Not awaited: a long tool call (deck_run with wait) must not stall
       // the pipe — subsequent requests stay answerable. Replies are
-      // single-line stdout writes, so ordering interleaving is safe.
-      void handle(req).catch(() => {});
+      // single-line stdout writes, so ordering interleaving is safe. Write
+      // failure is logged: a silently-dead reply strands the caller until
+      // its client timeout with zero diagnostics.
+      void handle(req).catch((e: unknown) => {
+        console.error(`mcp: request ${req.method} failed`, e);
+      });
     }
   }
 }

@@ -25,7 +25,14 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { basename, dirname } from "node:path";
 import { lineReader } from "./stdio";
 
-const MODEL_DIR = `${process.env.HOME ?? ""}/.local/share/fulltags-models`;
+// Fail fast on a missing HOME: `?? ""` produced "/.local/share/…" which
+// failed much later with a confusing EACCES/ENOENT far from the cause.
+const HOME = process.env.HOME ?? process.env.HOMEDIR;
+if (!HOME)
+  throw new Error(
+    "fulltags mood: HOME is not set — cannot resolve the model directory (~/.local/share/fulltags-models). Export HOME and retry.",
+  );
+const MODEL_DIR = `${HOME}/.local/share/fulltags-models`;
 const MODEL_BASE = "https://essentia.upf.edu/models";
 
 export interface MoodResult {
@@ -38,6 +45,10 @@ export interface MoodResult {
   /** 1–9 DEAM scale — 5 is neutral. */
   valence: number;
   arousal: number;
+  /** I49 "sounds like": the effnet tower's 1280-d mean embedding. Only
+   * present when the caller asked (analyzeMoods withEmbedding: true) —
+   * round-tripped as plain numbers, 4dp-rounded (cosine noise floor). */
+  embedding?: number[];
 }
 
 const MODEL_FILES = {
@@ -159,7 +170,7 @@ def chunks_of(frames, size):
     n = (frames.shape[0] // size) * size
     return frames[:n].reshape(-1, size, frames.shape[1])
 
-def analyze(path):
+def analyze(path, want_embedding):
     audio = MonoLoader(filename=path, sampleRate=16000, resampleQuality=4)()
     # effnet tower: musiCNN melspec (512/256), 128-frame chunks
     mel = TensorflowInputMusiCNN()
@@ -169,6 +180,12 @@ def analyze(path):
     emb = effnet.run(["embeddings"], {"melspectrogram": batch})[0]
     emb1280 = emb.mean(axis=0).astype(np.float32)[np.newaxis, :]
     out = {}
+    if want_embedding:
+        # I49 "sounds like": the tower's own 1280-d mean embedding — one
+        # probe run already computes it; emitting it costs a JSON field.
+        # Rounded to 4dp (1e-4 in a unit-ish vector ~ noise floor for
+        # cosine ranking) to keep the wire/ledger rows compact.
+        out["embedding"] = [round(float(x), 4) for x in emb1280[0]]
     for name, sess in heads.items():
         act = sess.run(["activations"], {"embeddings": emb1280})[0].flatten()
         # label order from the model .json — POSITIVE FIRST for every head
@@ -197,17 +214,24 @@ for line in sys.stdin:
     line = line.strip()
     if not line: continue
     path = json.loads(line)
+    want_embedding = False
+    if isinstance(path, dict):
+        want_embedding = bool(path.get("embedding", False))
+        path = path["path"]
     try:
-        print(json.dumps({"path": path, "mood": analyze(path)}), flush=True)
+        print(json.dumps({"path": path, "mood": analyze(path, want_embedding)}), flush=True)
     except Exception as e:
         print(json.dumps({"path": path, "error": str(e)[:200]}), flush=True)
 `;
 
 /** Analyze a batch of files for mood/dance/valence. Returns a Map keyed by
  * the ORIGINAL path. Missing models → modelsEnsure first, or this returns
- * an empty map. Errors per-file are dropped (caller sees a short map). */
+ * an empty map. Errors per-file are dropped (caller sees a short map).
+ * withEmbedding: also emit the effnet 1280-d mean embedding per file
+ * (I49 "sounds like") — same single probe run, no extra model cost. */
 export async function analyzeMoods(
   paths: string[],
+  opts: { withEmbedding?: boolean } = {},
 ): Promise<Map<string, MoodResult>> {
   const out = new Map<string, MoodResult>();
   if (!paths.length || !moodModelsPresent()) return out;
@@ -234,7 +258,11 @@ export async function analyzeMoods(
   const readLine = (timeoutMs: number) => lr.next(timeoutMs);
   try {
     for (const p of paths)
-      proc.stdin.write(enc.encode(`${JSON.stringify(p)}\n`));
+      proc.stdin.write(
+        enc.encode(
+          `${JSON.stringify({ path: p, embedding: opts.withEmbedding === true })}\n`,
+        ),
+      );
     const expected = paths.length;
     while (out.size < expected) {
       const line = await readLine(180_000);

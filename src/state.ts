@@ -1,5 +1,7 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
+import { EmbeddingsLedger } from "./state_similar";
+import { Ledgers } from "./state_ledgers";
 
 /**
  * Persistent archive state. Tracks every video ID ever seen from the
@@ -57,7 +59,12 @@ export class ArchiveState {
   private db: Database;
   /** Directory holding the sqlite file — also hosts sidecar files. */
   readonly dbDir: string;
-
+  /** I49 embeddings ledger + similarity math live in state_similar.ts
+   * (file-length guard); delegated here so the call surface is unchanged. */
+  private readonly embeddingsLedger: EmbeddingsLedger;
+  /** Mood + cues ledger storage lives in state_ledgers.ts (file-length
+   * guard); delegated here so the call surface is unchanged. */
+  private readonly ledgers: Ledgers;
   constructor(dbPath: string) {
     const dir = dbPath.substring(0, dbPath.lastIndexOf("/"));
     this.dbDir = dir;
@@ -66,6 +73,8 @@ export class ArchiveState {
     }
     this.db = new Database(dbPath, { create: true });
     this.db.exec("PRAGMA journal_mode = WAL;");
+    this.embeddingsLedger = new EmbeddingsLedger(this.db, () => this.now());
+    this.ledgers = new Ledgers(this.db, () => this.now());
     this.migrate();
   }
 
@@ -160,6 +169,19 @@ export class ArchiveState {
         cues_json TEXT NOT NULL,
         model TEXT NOT NULL,
         derived_at TEXT NOT NULL
+      );
+    `);
+    // Embeddings ledger (roadmap I49 "sounds like"): the effnet tower's
+    // 1280-d mean embedding per track, stored as a compact JSON array.
+    // Cosine kNN happens in TS at query time — the doc explicitly blesses
+    // "blob + cosine at 3–10k tracks"; no sqlite-vec dependency.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS embeddings (
+        video_id TEXT PRIMARY KEY,
+        dim INTEGER NOT NULL,
+        vec_json TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        analyzed_at TEXT NOT NULL
       );
     `);
     this.db.exec(
@@ -570,7 +592,7 @@ export class ArchiveState {
     });
   }
 
-  // ---------- mood ledger (roadmap rev 6.1 #4) ----------
+  // ---------- mood + cues ledgers (delegated — see state_ledgers.ts) ----------
 
   /** Upsert one parsed mood result. Idempotent by video_id: a re-run
    * replaces the row (fresh timestamps). */
@@ -585,33 +607,7 @@ export class ArchiveState {
     arousal: number;
     sourcePath: string;
   }): void {
-    this.db
-      .query(
-        `INSERT INTO mood (video_id, dance, aggressive, happy, electronic, party, valence, arousal, source_path, analyzed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(video_id) DO UPDATE SET
-           dance = excluded.dance,
-           aggressive = excluded.aggressive,
-           happy = excluded.happy,
-           electronic = excluded.electronic,
-           party = excluded.party,
-           valence = excluded.valence,
-           arousal = excluded.arousal,
-           source_path = excluded.source_path,
-           analyzed_at = excluded.analyzed_at`,
-      )
-      .run(
-        rec.videoId,
-        rec.dance,
-        rec.aggressive,
-        rec.happy,
-        rec.electronic,
-        rec.party,
-        rec.valence,
-        rec.arousal,
-        rec.sourcePath,
-        this.now(),
-      );
+    this.ledgers.setMoodRecord(rec);
   }
 
   /** One mood record (by video id), null when never analyzed. */
@@ -627,36 +623,7 @@ export class ArchiveState {
     sourcePath: string;
     analyzedAt: string;
   } | null {
-    const row = this.db
-      .query(
-        `SELECT video_id, dance, aggressive, happy, electronic, party, valence, arousal, source_path, analyzed_at
-         FROM mood WHERE video_id = ?`,
-      )
-      .get(videoId) as {
-      video_id: string;
-      dance: number;
-      aggressive: number;
-      happy: number;
-      electronic: number;
-      party: number;
-      valence: number;
-      arousal: number;
-      source_path: string;
-      analyzed_at: string;
-    } | null;
-    if (!row) return null;
-    return {
-      videoId: row.video_id,
-      dance: row.dance,
-      aggressive: row.aggressive,
-      happy: row.happy,
-      electronic: row.electronic,
-      party: row.party,
-      valence: row.valence,
-      arousal: row.arousal,
-      sourcePath: row.source_path,
-      analyzedAt: row.analyzed_at,
-    };
+    return this.ledgers.moodRecord(videoId);
   }
 
   /** Aggregate mood/energy profile over all analyzed tracks — the CrateDeck
@@ -672,36 +639,8 @@ export class ArchiveState {
       electronic: number;
     };
   } {
-    const row = this.db
-      .query(
-        `SELECT COUNT(*) n,
-                AVG(dance) dance, AVG(valence) valence, AVG(arousal) arousal,
-                AVG(party) party, AVG(electronic) electronic
-         FROM mood`,
-      )
-      .get() as {
-      n: number;
-      dance: number | null;
-      valence: number | null;
-      arousal: number | null;
-      party: number | null;
-      electronic: number | null;
-    };
-    const r = (v: number | null): number => Math.round((v ?? 0) * 1000) / 1000;
-    return {
-      available: true,
-      analyzed: row.n,
-      avg: {
-        dance: r(row.dance),
-        valence: r(row.valence),
-        arousal: r(row.arousal),
-        party: r(row.party),
-        electronic: r(row.electronic),
-      },
-    };
+    return this.ledgers.moodSummary();
   }
-
-  // ---------- structure cues ledger (roadmap cues slice) ----------
 
   /** Upsert one derived cue set. Idempotent by video_id: a re-run replaces
    * the row (fresh timestamps). */
@@ -710,16 +649,7 @@ export class ArchiveState {
     cues: Array<{ index: number; position: number; bar: number }>;
     source: string;
   }): void {
-    this.db
-      .query(
-        `INSERT INTO cues (video_id, cues_json, model, derived_at)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(video_id) DO UPDATE SET
-           cues_json = excluded.cues_json,
-           model = excluded.model,
-           derived_at = excluded.derived_at`,
-      )
-      .run(rec.videoId, JSON.stringify(rec.cues), rec.source, this.now());
+    this.ledgers.setCueRecord(rec);
   }
 
   /** One cue record (by video id), null when never derived. */
@@ -729,34 +659,7 @@ export class ArchiveState {
     source: string;
     derivedAt: string;
   } | null {
-    const row = this.db
-      .query(
-        `SELECT video_id, cues_json, model, derived_at
-         FROM cues WHERE video_id = ?`,
-      )
-      .get(videoId) as {
-      video_id: string;
-      cues_json: string;
-      model: string;
-      derived_at: string;
-    } | null;
-    if (!row) return null;
-    let cues: Array<{ index: number; position: number; bar: number }> = [];
-    try {
-      cues = JSON.parse(row.cues_json) as Array<{
-        index: number;
-        position: number;
-        bar: number;
-      }>;
-    } catch {
-      return null; // corrupt JSON row — treat as absent so the pass re-derives
-    }
-    return {
-      videoId: row.video_id,
-      cues,
-      source: row.model,
-      derivedAt: row.derived_at,
-    };
+    return this.ledgers.cueRecord(videoId);
   }
 
   /** All cue records joined to their track rows (downloaded only). */
@@ -766,35 +669,31 @@ export class ArchiveState {
     cues: Array<{ index: number; position: number; bar: number }>;
     source: string;
   }> {
-    const rows = this.db
-      .query(
-        `SELECT c.video_id, t.title, c.cues_json, c.model
-         FROM cues c JOIN tracks t ON t.video_id = c.video_id
-         WHERE t.status = 'downloaded'`,
-      )
-      .all() as Array<{
-      video_id: string;
-      title: string | null;
-      cues_json: string;
-      model: string;
-    }>;
-    return rows.flatMap((r) => {
-      try {
-        return [
-          {
-            videoId: r.video_id,
-            title: r.title,
-            cues: JSON.parse(r.cues_json) as Array<{
-              index: number;
-              position: number;
-              bar: number;
-            }>,
-            source: r.model,
-          },
-        ];
-      } catch {
-        return []; // corrupt row — skip, never throw
-      }
-    });
+    return this.ledgers.cueAnalyzedTracks();
+  }
+
+  // ---------- embeddings ledger (roadmap I49 "sounds like") ----------
+  // Implementation lives in state_similar.ts (file-length guard); these
+  // delegates keep every call site (`state.setEmbeddingRecord(...)`,
+  // `state.embeddingCorpus()`) unchanged.
+
+  setEmbeddingRecord(rec: {
+    videoId: string;
+    vec: number[];
+    sourcePath: string;
+  }): void {
+    this.embeddingsLedger.setEmbeddingRecord(rec);
+  }
+
+  embeddingRecord(videoId: string) {
+    return this.embeddingsLedger.embeddingRecord(videoId);
+  }
+
+  embeddingCorpus() {
+    return this.embeddingsLedger.embeddingCorpus();
   }
 }
+
+// I49 cosine kNN — re-exported from state_similar.ts (the SSOT) so
+// existing `import { similarTracks } from "../state"` sites keep working.
+export { cosineSimilarity, similarTracks } from "./state_similar";

@@ -474,6 +474,13 @@ export type ArchiveCueStats = ReturnType<
 export type ArchiveLibraryOverview = ReturnType<
   import("../src/archive").ArchiveReader["libraryOverview"]
 >;
+export type ArchiveSimilar = ReturnType<
+  import("../src/archive").ArchiveReader["similarTracks"]
+>;
+/** The /api/archive/search wire row — derived from the producer. */
+export type ArchiveSearchHit = ReturnType<
+  import("../src/archive").ArchiveReader["searchTracks"]
+>[number];
 
 // ---- preflight (B12): the wire shapes are DEFINED here; src/preflight.ts
 // (the pure engine that produces them) imports them back. One source of

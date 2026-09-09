@@ -5,7 +5,7 @@
 // archive DB readonly — a bug here cannot corrupt archive state).
 
 import { apiGet } from "./deckapi";
-import { str, num, optLimit, RpcParamError } from "./mcp_params";
+import { str, num, optLimit, optNum, RpcParamError } from "./mcp_params";
 
 /** The archive_* tool table (O82b, readonly reads over megadj's DB). */
 export function archiveTools(): Record<string, unknown> {
@@ -185,6 +185,72 @@ export function archiveTools(): Record<string, unknown> {
       run: async (args: Record<string, unknown>) => {
         const res = await apiGet(
           `/api/archive/mood?limit=${optLimit(args, 5, 25)}`,
+        );
+        return res.json();
+      },
+    },
+
+    archive_similar_tracks: {
+      description:
+        "[READ-ONLY] I49 'sounds like': k nearest neighbours of one track by cosine similarity over megadj's embeddings ledger (effnet 1280-d audio embeddings written by `megadj mood --embeddings`). corpus=0 means no embeddings yet — run `megadj mood --embeddings` first.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "video_id of the query track" },
+          k: {
+            type: "number",
+            description: "neighbours to return (default 10, max 50)",
+          },
+        },
+        required: ["id"],
+        additionalProperties: false,
+      },
+      run: async (args: Record<string, unknown>) => {
+        const id = str(args, "id");
+        if (!id) throw new RpcParamError("id is required");
+        const res = await apiGet(
+          `/api/archive/similar?id=${encodeURIComponent(id)}&k=${optNum(args, "k", 10, 50)}`,
+        );
+        return res.json();
+      },
+    },
+
+    archive_set_build: {
+      description:
+        "[READ-ONLY, PROPOSES ONLY] M66 set-builder copilot: proposes an ordered mix chain from the archive's measured data — beats-ledger BPM (±6% mixability window), file TKEY (Camelot wheel), mood-ledger arousal/dance shaped into an energy-arc preset (warmup/peak/afterhours). Writes nothing — proposals to accept into a playlist by hand. pool=0 means run `megadj beats` + `megadj mood` first.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          preset: {
+            type: "string",
+            enum: ["warmup", "peak", "afterhours"],
+            description: "energy-arc preset (default peak)",
+          },
+          minutes: {
+            type: "number",
+            description: "target set length in minutes (default 60, 10–240)",
+          },
+          opener: {
+            type: "string",
+            description: "optional video_id to force as the first track",
+          },
+          limit: {
+            type: "number",
+            description: "candidate pool cap (default 300, max 1000)",
+          },
+        },
+        additionalProperties: false,
+      },
+      run: async (args: Record<string, unknown>) => {
+        const preset = str(args, "preset") ?? "peak";
+        const q = new URLSearchParams({ preset });
+        const minutes = num(args, "minutes");
+        if (minutes !== undefined)
+          q.set("minutes", String(Math.floor(minutes)));
+        const opener = str(args, "opener");
+        if (opener) q.set("opener", opener);
+        const res = await apiGet(
+          `/api/archive/setbuild?${q.toString()}&limit=${optLimit(args, 300, 1000)}`,
         );
         return res.json();
       },

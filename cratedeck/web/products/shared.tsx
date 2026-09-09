@@ -188,6 +188,12 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       title: "The mood ledger: dance/valence/arousal averages and extremes",
     },
     {
+      id: "similar",
+      label: "Similar",
+      icon: "compass",
+      title: "I49 sounds-like: nearest tracks by audio embedding similarity",
+    },
+    {
       id: "cues",
       label: "Cues",
       icon: "play",
@@ -346,6 +352,65 @@ export function SectionHead(props: {
       {props.children}
     </h3>
   );
+}
+
+/** TrackTitle — the "title — artist" lead fragment every track row uses.
+ *  Falls back to video_id when the title is missing; artist is optional.
+ *  One component so the row styling can't drift between product pages. */
+export function TrackTitle(props: {
+  title: string | null;
+  artist?: string | null;
+  videoId: string;
+}) {
+  return (
+    <span class="arch-what-title">
+      <b>{props.title ?? props.videoId}</b>
+      {props.artist && <span class="covartist"> — {props.artist}</span>}
+    </span>
+  );
+}
+
+/** One beat-grid cross-check row (FullTags "Beat Sync breakers" and the
+ *  ArchiveTab grid card render the identical verdict table). */
+export function GridCheckRow(props: {
+  title: string | null;
+  videoId: string;
+  isOct: boolean;
+  ledgerBpm: number;
+  rbBpm: number;
+  deltaPct: number;
+}) {
+  const { isOct, deltaPct } = props;
+  return (
+    <div class={`covrow gridcheck ${isOct ? "row-oct" : ""}`}>
+      <span class="covpath">
+        <b>{props.title ?? props.videoId}</b>
+      </span>
+      <span>
+        {isOct ? (
+          <span class="arch-pill bad">octave</span>
+        ) : (
+          <span class="arch-pill warn">off</span>
+        )}
+      </span>
+      <span class="covdrives num">{props.ledgerBpm}</span>
+      <span class="covdrives num">{Math.round(props.rbBpm * 10) / 10}</span>
+      <span class="covdelta">
+        <i
+          class={isOct ? "bad" : "warn"}
+          style={{ width: `${Math.min(deltaPct * 8, 100)}%` }}
+        />
+        <em>{isOct ? "×2" : `${deltaPct}%`}</em>
+      </span>
+    </div>
+  );
+}
+
+/** delta % between the beat_this ledger BPM and rekordbox's BPM (1dp). */
+export function gridDeltaPct(ledgerBpm: number, rbBpm: number): number {
+  return rbBpm > 0
+    ? Math.round((Math.abs(ledgerBpm - rbBpm) / rbBpm) * 1000) / 10
+    : 0;
 }
 
 /** ProductIntro — the educational lede band at the top of each product

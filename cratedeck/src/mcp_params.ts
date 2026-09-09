@@ -26,7 +26,18 @@ export function optLimit(
   def: number,
   max: number,
 ): number {
-  const v = num(args, "limit");
+  return optNum(args, "limit", def, max);
+}
+
+/** optLimit twin for a named (non-"limit") numeric param: same clamp
+ * semantics, caller picks the key. */
+export function optNum(
+  args: Record<string, unknown>,
+  key: string,
+  def: number,
+  max: number,
+): number {
+  const v = num(args, key);
   if (v === undefined) return def;
   return Math.min(Math.max(Math.floor(v), 1), max);
 }

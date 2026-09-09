@@ -24,6 +24,7 @@ import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
 import { ListHead } from "../../ui/ListHead";
 import { StatCard } from "../../ui/DrivePanels";
+import { SimilarTab } from "./SimilarTab";
 import {
   PRODUCT_TABS,
   Meter,
@@ -116,6 +117,7 @@ export function FullTagsPage(props: { tab: string }) {
       />
       {tab === "beatgrids" && <BeatgridsTab />}
       {tab === "mood" && <MoodTab />}
+      {tab === "similar" && <SimilarTab />}
       {tab === "cues" && <CuesTab />}
       {tab === "tags" && <TagsTab />}
     </div>

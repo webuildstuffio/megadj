@@ -238,11 +238,14 @@ The PRD features that _only exist because the app sees all drives at once_
 
 ## D. megadj archive & ingest
 
-24. **LOWQ re-fetch queue.** `megadj list` already flags <250 kbps tracks.
-    Add `megadj upgrade` — re-resolve those video IDs at today's best format
-    (256 AAC), verify via ffprobe, swap atomically, keep the old file until
-    hash-verified. Quality only ratchets up. (L62 adds fingerprint
-    verification that the replacement is the same track.)
+24. **LOWQ re-fetch queue — ✅ SHIPPED 2026-09-08.** `megadj upgrade
+    [--limit N] [--dry-run] [--json]` re-resolves below-floor video IDs at
+    today's best format and swaps ONLY when both gates pass: fpcalc
+    fingerprint identical to the incumbent (a live/remaster/wrong-upload is
+    refused) and ffprobe bitrate ≥ the current row. Old file stays in place
+    until every gate passes; the row's provenance updates on success. The
+    LOWQ queue surfaces (CrateDeck `archive_lowq_queue` + prep digest) are
+    now actionable.
 25. **Duplicate hunter across the whole estate.** One tool, three inputs:
     archive DB, master manifest, mirror manifest. Catches byte-variant rips
     at the same path (the Aug-25 class), same-track-different-title, and
@@ -399,14 +402,15 @@ re-verified in the research notes (2026-09-05).
     files themselves stay out of scope (CDJs can't play them); this is an
     analysis-side metric only.
 
-49. **Embeddings & "sounds like".** MUSE first (cheapest — reuse the
-    I45 embeddings), **MuQ-MuLan** as the strong step-up (MIT code /
-    CC-BY-NC weights, 2026 SOTA zero-shot tagging; MERT effectively
-    superseded; MusicFM = dormant license-clean fallback), per track →
-    kNN similarity in the archive DB → CrateDeck "find tracks like
-    this" + "never-played tracks closest to what you play."
-    sqlite-vec or blob + cosine at 3–10k tracks; the 88-fingerprint
-    ledger is the natural pilot. Effort M.
+49. **Embeddings & "sounds like" — ✅ SHIPPED 2026-09-08 (effnet tower).**
+    The mood pass's discogs-effnet 1280-d mean embedding is now emitted in
+    the same ONNX probe run (`megadj mood --embeddings` mirrors it into the
+    archive DB `embeddings` ledger; 88/88 executed) and queried via
+    `megadj similar <video_id> [--k N] [--json]`, MCP
+    `archive_similar_tracks`, and the FullTags ⌗ Similar tab — blob +
+    cosine at archive scale, exactly as planned. (MuQ-MuLan step-up remains
+    a future upgrade of the vector source; the query surface won't change.)
+    The 88-fingerprint ledger was the pilot, as suggested.
 
 50. **LLM track captioning (vibe notes).** Feed Essentia tags + structure
     labels + metadata to a local/small LLM → a one-line vibe description
@@ -581,11 +585,13 @@ Mac-DJ irritations nobody builds for.
     ingest normalizes to a strict `Artist - Title (Remixer)` convention,
     verified against MusicBrainz, diff view before apply, FAT32-safe
     length checks built in. Effort S.
-66. **Set-builder copilot.** Give it: target gig length, venue vibe, the
-    drive contents. It proposes ordered sequences using BPM/key-compat +
-    energy arcs (valence-arousal from I45), rendered as a CrateDeck panel
-    with drag edits. Never auto-exports; proposes only — and unlike I50 it
-    produces an artifact you act on. Effort M.
+66. **Set-builder copilot — ✅ SHIPPED 2026-09-08 (propose-only core).**
+    `cratedeck/src/setbuild.ts` (pure engine) + `GET /api/archive/setbuild`
+    + MCP `archive_set_build` + the FullTags ⌗ Similar panel: target
+    minutes + an energy-arc preset (warm-up/peak/afterhours, N80's
+    envelopes) → an ordered chain gated by Camelot key compat, ±6% tempo,
+    and arc fit; unmixable leftovers land in an honest excluded-with-reason
+    list. Proposes only — never writes; drag-edit export is a future garnish.
 67. **"Find the double-drop" detector.** Scan the library for pairs of
     tracks whose grids + keys align so well they can be layered (acapella
     over instrumental) — mashup hunting by embeddings + grid math instead

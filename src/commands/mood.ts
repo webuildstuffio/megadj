@@ -30,6 +30,9 @@ export interface MoodOptions {
   force?: boolean;
   dryRun?: boolean;
   json?: boolean;
+  /** I49 "sounds like": also emit + ledger the effnet 1280-d embedding
+   * per analyzed track (same probe run — no extra model cost). */
+  embeddings?: boolean;
   onProgress?: (msg: string) => void;
 }
 
@@ -57,11 +60,20 @@ export async function mood(opts: MoodOptions): Promise<void> {
       arousal: m.arousal,
       sourcePath: t.file_path!,
     });
+    if (opts.embeddings && m.embedding)
+      opts.state.setEmbeddingRecord({
+        videoId: t.video_id,
+        vec: m.embedding,
+        sourcePath: t.file_path!,
+      });
   };
 
   // Pass 1 — sync existing file stamps into the ledger (cheap, no ONNX).
+  // Embedding request rides along: every file visited here gets its vector
+  // computed in pass 2 anyway, so pass-1 files must not miss out (I49).
   let synced = 0;
   const needAnalysis: TrackRow[] = [];
+  const needEmbedding: TrackRow[] = [];
   for (const t of candidates) {
     const stamp = groundTruth(t.file_path!).mood;
     const m = stamp ? parseMoodStamp(stamp) : undefined;
@@ -69,16 +81,31 @@ export async function mood(opts: MoodOptions): Promise<void> {
       needAnalysis.push(t);
       continue;
     }
+    if (
+      opts.embeddings &&
+      !opts.dryRun &&
+      !opts.state.embeddingRecord(t.video_id)
+    ) {
+      // stamp exists but no embedding yet — queue for pass 2 (ONNX only)
+      needEmbedding.push(t);
+      continue;
+    }
     if (!opts.force && opts.state.moodRecord(t.video_id)) continue;
     record(t, m);
     synced++;
   }
+  needAnalysis.push(...needEmbedding);
 
   // Pass 2 — analyze tracks with no (or malformed) file stamps.
   let analyzed = 0;
   let failed = 0;
   if (needAnalysis.length) {
-    const results = await analyzeMoods(needAnalysis.map((t) => t.file_path!));
+    const results = await analyzeMoods(
+      needAnalysis.map((t) => t.file_path!),
+      {
+        withEmbedding: opts.embeddings === true,
+      },
+    );
     for (const t of needAnalysis) {
       const m = results.get(t.file_path!);
       if (!m) {
@@ -94,8 +121,11 @@ export async function mood(opts: MoodOptions): Promise<void> {
   }
 
   const total = opts.state.moodSummary().analyzed;
+  const embedded = opts.embeddings
+    ? opts.state.embeddingCorpus().length
+    : undefined;
   log(
-    `\nmood complete: ${synced} synced from file stamps, ${analyzed} analyzed, ${failed} failed, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}`,
+    `\nmood complete: ${synced} synced from file stamps, ${analyzed} analyzed, ${failed} failed, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}${embedded !== undefined ? `, ${embedded} embedded` : ""}`,
   );
   console.log(
     JSON.stringify({
@@ -104,6 +134,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
       analyzed,
       failed,
       ledgered: total,
+      ...(embedded !== undefined ? { embedded } : {}),
       dryRun: opts.dryRun === true,
     }),
   );

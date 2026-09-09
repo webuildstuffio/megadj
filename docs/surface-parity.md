@@ -31,7 +31,11 @@ records became surfaces. Three new readonly reads with same-commit twins
 `archive_sources` — the source census the Sources diff form suggests
 from, `archive_analysis_coverage` — one playable-vs-ledgers progress
 picture), `ingest_status` grew run throughput (attempted + bytes), and
-the GetDat/FullTags canvases render all of it (32 tools). Rev 6 ·
+the GetDat/FullTags canvases render all of it. Rev 8 · 2026-09-08 —
+I49 "sounds like" (`archive_similar_tracks`, cosine kNN over the
+`embeddings` ledger, UI: FullTags ⌗ Similar) and M66 set-builder
+copilot (`archive_set_build`, propose-only chain builder on the same
+rev) — 34 tools. Rev 6 ·
 2026-09-08 — the product split: the web shell grew top-level
 product tabs (Drives / **GetDat** / **FullTags** / Fleet), giving the
 archive's two sub-products their own canvases (GetDat: pipeline/backlog/
@@ -68,7 +72,7 @@ that way.
 | --- | --- | --- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 19 commands + `--help` |
 | deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 20 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 32 tools |
+| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 34 tools |
 | HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~35 routes |
 | Web UI | `cratedeck/web/` (hash-routed pages) | 6 pages, ~22 actions |
 
@@ -137,6 +141,8 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Source diff | — | `archive_source_diff` ✅ | GetDat ⌗ Sources (rev 6 — F3's UI half is here; F3's MCP row below keeps its original rationale) | — |
 | Grid cross-check | `megadj beats` data ✅ | `archive_grid_cross_check` ✅ | FullTags ⌗ Beatgrids ✅ | — (A3 closed rev 3; product split rev 6) |
 | Mood profile | `megadj mood` data ✅ | `archive_mood_profile` ✅ | FullTags ⌗ Mood ✅ | — (A3 closed rev 3; product split rev 6) |
+| Similar tracks (I49 sounds-like) | `megadj similar <id>` ✅ | `archive_similar_tracks` ✅ | FullTags ⌗ Similar (rev 8) ✅ | — (rev 8) |
+| Set-builder proposal (M66) | — (proposals render in the UI/agent surface; no write-back exists to expose) | `archive_set_build` ✅ (propose-only) | FullTags ⌗ Similar panel (rev 8) ✅ | — (rev 8; proposes, never writes) |
 | Cue ledger | `megadj cues` data ✅ | `archive_cue_ledger` ✅ | FullTags ⌗ Cues ✅ | — (rev 6) |
 | Library overview (FullTags mirror) | `megadj fetch`/`audit` data ✅ | `archive_library_overview` ✅ | FullTags ⌗ Tags + GetDat ⌗ Library ✅ | — (rev 6) |
 | Skip census (why rows didn't land) | `megadj list` buckets ✅ | `archive_skip_census` ✅ | GetDat ⌗ Pipeline (decisions card) + Backlog ✅ | — (rev 7) |

@@ -115,6 +115,9 @@ describe("principles P1: --json on every command", () => {
       "audit",
       "years",
       "artwork",
+      "mood",
+      "similar",
+      "upgrade",
       "doctor",
     ]) {
       const line = stdout.split("\n").find((l) => l.includes(`megadj ${cmd}`));
