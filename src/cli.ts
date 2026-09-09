@@ -55,6 +55,8 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                generate covers for queued tracks (last resort)
   megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz
   megadj organize [--dry-run] [--json]         move downloaded files into genre folders
+  megadj shelf-sync [--dry-run] [--json]       copy archive music onto the shelf master
+                                               (+ mounted sticks) — additive, resumable
 
 cratedeck — the Crate: organize, sync & verify every DJ USB:
   megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)
@@ -272,6 +274,27 @@ async function main(): Promise<void> {
         const json = rest.includes("--json");
         if (json) statusJson(state);
         else status(state);
+        break;
+      }
+      case "shelf-sync": {
+        // shelf master = the archive-grade HDD; sticks only mirror FROM it.
+        // Volume names come from config.toml [library] via env overrides —
+        // never hardcoded literals (AGENTS.md rule).
+        const json = rest.includes("--json");
+        const dryRun = rest.includes("--dry-run");
+        const shelfVolume = process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1";
+        const stickVolumes = [
+          process.env.USB_SYNC_MASTER ?? "DJMASTER",
+          process.env.USB_SYNC_MIRROR ?? "DJMIRROR",
+        ];
+        const { shelfSync } = await import("./commands/shelf-sync");
+        await shelfSync({
+          musicDir: MUSIC_DIR,
+          shelfVolume: `/Volumes/${shelfVolume}`,
+          stickVolumes: stickVolumes.map((v) => `/Volumes/${v}`),
+          dryRun,
+          json,
+        });
         break;
       }
       case "list": {
