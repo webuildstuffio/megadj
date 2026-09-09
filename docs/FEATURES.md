@@ -99,6 +99,9 @@ architecture, build plan, acceptance).
 | **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: 20 verbs incl. `run/coverage/redundancy/diff/preflight/prep/note/rename/search/help/dismiss`, `--json` for agents) · `bun run mcp` (34-tool MCP server)                                                     |
 
 **Commands:** `bun run deck`, `bun run cratedeck/src/deckctl.ts …`
+**Shelf intake:** `megadj shelf-archive [volume …]` pulls everything from any
+drive into the shelf master — additive, junk-filtered, MD5-verified, divergent
+copies preserved (see [usb-sync-log.md](usb-sync-log.md), Sep 9 2026).
 **Docs:** [cratedeck/README.md](../cratedeck/README.md) ·
 [deckctl guide](../cratedeck/deckctl.md) ·
 [USB pipeline](usb-sync.md) ·

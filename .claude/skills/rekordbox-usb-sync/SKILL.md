@@ -42,6 +42,13 @@ Working scratch: `/tmp/usb-sync/` (work_master.db is the live master copy).
   are often case-variants — compare with NFC + casefold keys.
 - Background `nohup` jobs on this machine get reaped unpredictably. Run
   long copies as foreground chunks with a timebox + resumable state file.
+- **Bulk file pulls from a stick → `megadj shelf-archive`, not rsync.**
+  rsync wedges on macOS's fskit exFAT driver; the command walks
+  `Contents/` + `PIONEER REC/` (never the device-DB tree), filters
+  AppleDouble junk, MD5-verifies every copy, and preserves divergent
+  same-name rips as `<name> [<volume>]` twins. `--trashes --into "DJ Sets
+  & Mixes"` rescues deleted recordings; `--deep` catches same-size
+  different-content files (a 2019 stick had 291).
 
 ## Pipeline steps
 

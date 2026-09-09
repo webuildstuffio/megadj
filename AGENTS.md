@@ -27,14 +27,27 @@ check` && `bun test` before every push. Type coverage is a hard 100%
   whole drive rail (regression-tested in `cratedeck/test/badges.test.ts`).
   Also: no `.catch(() => {})` on fire-and-forget work (log instead), and
   `Number(env)` at a boundary must be `Number.isFinite`-gated (`MEGADJ_ART_MAX=""`
-  → NaN → `slice(0, NaN)` processed nothing while "succeeding").
+  → NaN → `slice(0, NaN)` processed nothing while "succeeding"). CLI numeric
+  flags go through `nonNegOpt` — invalid input (`abc`, empty; `Number("")` is 0)
+  returns undefined so guards fire and the command exits 2 with zero work
+  (regression-tested in `src/commands/numeric-options.test.ts`).
 - **Concurrent agents work this repo.** Never `git add -A` — stage only your
   own files; re-read immediately before editing; verify content landed via
   worktree-vs-HEAD diff, not commit hash (amends and swept-in staged files
   are normal). Long `bun test` runs can hang on in-flight churn — rerun
   clean before declaring failure. Scratch-port `EADDRINUSE` when a dev
   server restarts is usually another agent's instance winning the race —
-  check who owns the port before killing anything.
+  check who owns the port before killing anything. When a staged file
+  requires another agent's still-untracked module (extraction moved a
+  function there), that module must ride along or HEAD breaks.
+- **One SSOT per shared surface artifact — never a hand-maintained twin.**
+  Every hand-copied twin drifted within days (MCP `deck_explain` truncating
+  `KIND_DOCS` without `typical`/`needs`; local `SetBuildResult`/`Bench`
+  re-declarations; two `STATUS_LANG` copies that formed a web import cycle;
+  stale tool/verb counts in README/deckctl.md). Rule: derive from the
+  producer (`shared/types.ts` re-export, `KIND_DOCS` import, census test),
+  and keep UI payload shapes, help text, and tool counts generated from
+  their SSOT modules.
 - **Pre-commit hooks BLOCK, and their failure output can be truncated.**
   Repo hook tuning lives in `.shell-config-hooks.conf` (per-file 800-line
   cap, block-at-100%). Sanctioned bypass for a legitimately huge commit:
@@ -42,6 +55,10 @@ check` && `bun test` before every push. Type coverage is a hard 100%
   commit body). Because blocked-commit output can be cut off mid-stream, a
   blocked commit can LOOK landed — after every commit confirm with
   `git log --oneline -1` + `git status`, never trust the exit chatter.
+  The hook also validates the whole worktree, not just the staged set —
+  a concurrent agent's mid-write WIP file (their TS error, a flaky MCP
+  test) can fail your commit even though your staged files typecheck
+  standalone; wait for their save to land and retry, don't debug their file.
 - **Prose passes:** preserve em dashes and punctuation in shipped docs.
 - **Scrub private identifiers before history-touching work.** When removing a
   private name (drive/volume/service) from the product, wipe every reference
@@ -50,12 +67,39 @@ check` && `bun test` before every push. Type coverage is a hard 100%
 - **Dependency bumps carry a ~5-day release-age floor** ("latest stable minus
   5 days") — too-fresh releases get held back to the next pass, and the gate
   is re-run fully after every bump.
+- **Ship DOM-verified UI, not API-verified.** Every UI change is verified in
+  the rendered DOM (CDP dump/screenshot against the live server) before
+  push — screenshots show stale `dist/` or `color-mix` quirks, so the DOM
+  dump is authoritative. Two-thirds UX law from the Sep 9 sweeps: data-heavy
+  cards open with a plain-language VERDICT banner, then the fix-first work
+  queue (worst first, each item names its `megadj`/`deckctl` fix command
+  with a Copy button for handing the list to an agent), then raw detail.
+  Every hand-rolled UX primitive was swapped for a headless lib:
+  `@tanstack/preact-table`, `virtua`, `lucide-preact` (icons.tsx is a typed
+  dispatcher), `fuse.js` (shared fuzzy module), `tinykeys` (⌘K palette);
+  `@tanstack/preact-virtual` DOESN'T EXIST — `virtua` is the Preact pick.
+  Web child content caps at 1240px for readable line lengths.
 
 ## What this repo is
 
 megadj is a YouTube Music archiver (Bun/TypeScript CLI) feeding a shelf
 master (archive-grade HDD, `library.shelf_drive`, default `SHELF1`) plus a
-master + mirror pair of DJ USB drives that sync FROM the shelf. Volume
+master + mirror pair of DJ USB drives that sync FROM the shelf. The shelf
+migration (Sep 9 2026) copied the full `Contents/` + `PIONEER/` analysis
+from the master stick — rsync WEDGES on macOS's fskit exFAT driver, so
+per-dir tar-pipes with file-count resume checks are the proven method
+(foreground slices; backgrounded runners get reaped and launchd is
+TCC-blocked from `/Volumes`) — and a byte-level audit proved the shelf a
+strict superset of both sticks (Unicode/case-compare artifacts produced
+false "missing" counts once). The three-stick sweep the same day
+(BANGERS + BOSEXY + empty) is now a command: **`megadj shelf-archive
+[volume …]`** — drive(s) → shelf, additive, `._*`/junk-filtered,
+NFC+casefold name matching, MD5-verified copies, divergent same-name rips
+preserved as `<name> [<volume>]` twins (never overwrite — the shelf's
+rekordbox DB references its own files), `--trashes --into F` for trash
+rescue, `--deep` to MD5 same-size pairs (one stick had 291 same-size
+different-bytes files — size alone is NOT coverage). Coverage rules:
+`PIONEER/` (device DBs) is never walked; `PIONEER REC/` is. Volume
 names are user-specific — examples use `DJMASTER`/`DJMIRROR`; override via
 args, `config.toml`, or `USB_SYNC_MASTER`/`USB_SYNC_MIRROR`. Three named
 sub-projects (one-liners in
@@ -98,6 +142,16 @@ human logs suppressed, exit code still meaningful.
   unless Key analysis is disabled (`docs/fulltags-roadmap.md` gauntlet).
 - Safety: quit rekordbox before DB edits; never write drive DBs in place;
   never delete source files.
+- **rekordbox's master DB now lives ON the shelf** (`/Volumes/SHELF1/PIONEER/
+  Master/master.db` via Advanced → Database Management) — rekordbox won't
+  open without SHELF1 attached, and exFAT + SQLite mid-write power-loss is
+  the corruption risk; dated library backups (`rekordbox_bak_*.zip` in
+  `~/Music/rekordbox/`) are treated as sacred. Bulk relink of relocated
+  audio is Collection view → ⌘A → right-click "Relocate Lost Files" (the
+  right-click is greyed in playlist/device views — the one-by-one trap).
+  The legacy `YTMusic Liked` dump folder overlaps the artist folders
+  (588 files; ~38% dupes) — dedupe is fingerprint-verified + move-to-
+  archive only, never delete without explicit OK.
 
 ## CrateDeck invariants (all regression-tested — re-read before touching)
 
@@ -175,6 +229,11 @@ Architecture + wire-shape rules:
   ETA in `setJobProgress` is tri-state (undefined = keep, null = clear);
   usb_verify phase markers are indented and `tick(from, to)` means
   done/total — pass spans as `tick(progress, 1)`.
+- `FleetStore.sync` inserts playlist entries `OR IGNORE` — one duplicate
+  row in a dirty drive snapshot (rekordbox can genuinely carry the same
+  track twice in one playlist) once crashed the whole INSERT transaction,
+  leaving all fleet tables permanently empty (regression-tested in
+  `fleet.test.ts`).
 - **Census/aggregation totals must come from `COUNT`, never from summing
   the displayed bucket list.** `skipCensus` once summed its LIMIT-clamped
   buckets, so totals undercounted whenever there were more distinct reasons
@@ -187,6 +246,28 @@ Architecture + wire-shape rules:
   tabs under a megadj header, shared product chrome in
   `web/products/shared.tsx` (Verdict banner / ShareBar / Meter), styles
   split into per-concern sheets under `web/styles/`.
+- `deckctl help [term|kind]` and `--help` work with the server DOWN —
+  `help` reads `shared/help.ts` directly and must dispatch BEFORE
+  `ensureServer`; `--help` prints to stdout with exit 0 (usage text is not
+  an error — `usage()` to stderr + exit 2 stays for bad invocations), and
+  an exact JOB-KIND match wins over a same-named glossary term
+  (`help mirror` = the mirror job). The usage-text-syncs-with-dispatch
+  census parses `PRE_SERVER_VERBS` too, and it already caught `stop`
+  missing from usage.
+- UI verification quirks: the Bun server serves the BUILT `web/dist` —
+  screenshots of un-rebuilt bundles show stale UI; headless `color-mix`
+  text can render all-accent while the DOM is correct (dump the DOM, don't
+  trust the pixels); servers/child processes spawned in one shell call get
+  reaped at call boundaries (relaunch via `deckctl status --json`'s
+  auto-start or an `osascript` escape, then poll across calls).
+- `apiPost` passes `FormData` through UNserialized (JSON.stringify of
+  FormData → `{}` + JSON content-type silently broke photo upload);
+  `InfoTip` has a `side` prop (right-placement) so rail tooltips don't
+  clip against `overflow-y` rails; a preview `<img>` cache-buster must key
+  off a save-changing value (`last_seen_at` never changes on photo save);
+  `Verdict` accepts `"bad"` and the CSS tier must exist (`arch-verdict.bad`
+  was a latent unstyled state); `Donut` takes `hasData` — "no report" and
+  "report ran, 0% passed" must not share one dashed arc.
 
 ## FullTags invariants
 
@@ -216,6 +297,13 @@ Architecture + wire-shape rules:
   run when the drive mounts (`docs/usb-sync-log.md` seeds real incidents).
   "Open but armed" is a valid issue state when nothing code-side remains.
 - Tools take volume names/paths from config — never hardcoded literals.
+- **No one-time scripts in the repo.** If an operation was done by hand
+  (ad-hoc python heredoc, /tmp script, throwaway merge loop), the deliverable
+  is the REUSABLE command + its tests + the doc/skill update — the one-off
+  is deleted, never committed. Sep 9 2026: the three-stick manual merge
+  became `megadj shelf-archive` + 10 tests; the scratch scripts were
+  removed the same day. If a sweep taught a trap, encode the trap in the
+  command (junk filter, --deep, --trashes), not in a comment.
 - Perf passes are QUANTIFIED: measure a baseline, then prove the saving
   (e.g. "≥20%") against it — never declare a pass done on vibes. Sep 8
   benchmark: full gate `bun run check:full` ~36s → 7.4s, `bun test` 385
@@ -226,6 +314,14 @@ Architecture + wire-shape rules:
   so local harness reads measure cache at GB/s — 10× off real USB truth;
   `sudo purge` needs a TTY password, so plan for it (or borrow a machine
   where the drive data doesn't fit RAM).
+- knip's "remove me" config hints LIE — its `ignoreBinaries`/
+  `ignoreDependencies` entries are load-bearing (removing them produces 6
+  real unlisted-dep findings). Verified and left byte-identical; don't
+  "fix" the config into a broken gate.
+- Hermetic CLI tests invoke `process.execPath` (real bun binary), not the
+  user's `bun` shell shim — the shim chokes on empty-string args
+  (`_bp_set: bad array subscript`), a local env artifact that once faked 2
+  test failures.
 
 ## Local-only files
 

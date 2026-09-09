@@ -132,6 +132,17 @@ Requires `OPENROUTER_API_KEY` (keep it in the keychain:
 
 Never hand-edit drive DBs; never let two writers touch a drive at once.
 
+### Onto the shelf master (the archive-grade HDD)
+
+New tracks reach the shelf via `megadj shelf-sync` (archive → shelf,
+additive). For stray drives full of unknown music (old sticks, a friend's
+library), the intake sweep is the mirror command: `megadj shelf-archive
+<volume> [--trashes] [--deep]` — pulls EVERYTHING into the shelf,
+additive and MD5-verified, preserving divergent copies as `<name>
+[<drive>]` twins instead of overwriting. The Sep 9 2026 three-stick sweep
+(BANGERS + BOSEXY + a dead stick) is the worked example in
+`docs/usb-sync-log.md`.
+
 ## Step 5 — Health checks
 
 ```bash

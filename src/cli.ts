@@ -57,6 +57,10 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj organize [--dry-run] [--json]         move downloaded files into genre folders
   megadj shelf-sync [--dry-run] [--json]       copy archive music onto the shelf master
                                                (+ mounted sticks) — additive, resumable
+  megadj shelf-archive [volume ...] [--into F] [--trashes] [--deep] [--json]
+                                               pull everything from drive(s) INTO the
+                                               shelf — additive, junk-filtered, MD5-verified,
+                                               divergent copies preserved (never overwritten)
 
 cratedeck — the Crate: organize, sync & verify every DJ USB:
   megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)
@@ -292,6 +296,43 @@ async function main(): Promise<void> {
           musicDir: MUSIC_DIR,
           shelfVolume: `/Volumes/${shelfVolume}`,
           stickVolumes: stickVolumes.map((v) => `/Volumes/${v}`),
+          dryRun,
+          json,
+        });
+        break;
+      }
+      case "shelf-archive": {
+        // The intake sweep: drive(s) → shelf, additive + verified. The
+        // generalization of the Sep 9 2026 three-stick manual merge.
+        // Volumes come from config.toml [library] defaults via env
+        // overrides — never hardcoded literals (AGENTS.md rule).
+        const json = rest.includes("--json");
+        const dryRun = rest.includes("--dry-run");
+        const deep = rest.includes("--deep");
+        const trashes = rest.includes("--trashes");
+        const intoEq = rest.find((a) => a.startsWith("--into="));
+        const into = intoEq ? decodeURIComponent(intoEq.slice(7)) : undefined;
+        const shelfVolume = process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1";
+        const suffixEq = rest.find((a) => a.startsWith("--suffix="));
+        const suffix = suffixEq ? suffixEq.slice(9) : undefined;
+        // positional volumes; default to the configured master+mirror when
+        // none are named (the "did both sticks fully land?" check)
+        const master = process.env.USB_SYNC_MASTER ?? "DJMASTER";
+        const mirror = process.env.USB_SYNC_MIRROR ?? "DJMIRROR";
+        const positionals = rest.filter(
+          (a) => !a.startsWith("--") && a !== "shelf-archive",
+        );
+        const volumes = positionals.length ? positionals : [master, mirror];
+        const { shelfArchive } = await import("./commands/shelf-archive");
+        await shelfArchive({
+          volumes: volumes.map((v) =>
+            v.startsWith("/Volumes/") ? v : `/Volumes/${v}`,
+          ),
+          shelfVolume: `/Volumes/${shelfVolume}`,
+          into,
+          trashes,
+          deep,
+          suffix,
           dryRun,
           json,
         });

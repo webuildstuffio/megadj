@@ -33,6 +33,20 @@ download    perfect       organize, verify,     play on
 
 ## State by project
 
+### 🗄️ The shelf master — **first full archive sweep complete (Sep 9 2026)**
+
+The 4 TB shelf HDD (config `library.shelf_drive`, default `SHELF1`) is now
+the strict archive of every DJ drive: the master stick's full `Contents/` +
+`PIONEER/` analysis, plus the Sep 9 three-stick sweep (BANGERS library
+1,452/1,452 files byte-verified, 5 rescued mixes, one empty stick
+confirmed empty). Divergent rips are preserved as `[drive]`-suffixed twins
+— dedupe is a later, human-gated pass. The sweep is now one command:
+`megadj shelf-archive [volume …] [--trashes] [--deep]` (additive,
+junk-filtered, MD5-verified, `--json` verdict; log:
+[usb-sync-log.md](usb-sync-log.md)). rekordbox's master DB lives on the
+shelf (`PIONEER/Master/master.db`) — SHELF1 must be attached for
+rekordbox to open.
+
 ### 🎧 GetDat — download & archive — **core shipped, single-source**
 
 - **Working today:** `megadj sync` from YouTube Music (liked songs,
@@ -139,24 +153,28 @@ longer time-boxed by the proposal — it's ordered by the queue below.
 
 ### The queue, in order
 
-1. **RB key gauntlet — next drive mount, do it FIRST** (30 s): disable
+1. **SHELF1 dedupe pass** (new, do it while the sticks are fresh in mind):
+   390 `[bangers]` twins + 291 same-size/different-bytes pairs await
+   fingerprint-verified verdicts — compare quality, keep one, move the
+   other to the archive. Never delete without explicit OK.
+2. **RB key gauntlet — next drive mount, do it FIRST** (30 s): disable
    Key analysis → Reload Tags → verify TKEY survives. Keys are in the
    files; this is what makes them durable. Everything else on drives
    waits for this.
-2. **§0 survival items** (they outrank all building, per ideas.md):
+3. **§0 survival items** (they outrank all building, per ideas.md):
    0a SSD evacuation · 0c orphan verdict · 0b cold backup · 0d
    redundancy data (one real scan per drive closes issue #4 too).
-3. **rekordbox memory-cue WRITE pass** — phrase cues from the ledger
+4. **rekordbox memory-cue WRITE pass** — phrase cues from the ledger
    onto hardware, behind the interlock + gauntlet (the deliberate next
    gate).
-4. **Vocal density** (demucs-infer, ~3 s/track) → **similarity**
+5. **Vocal density** (demucs-infer, ~3 s/track) → **similarity**
    (sqlite-vec over the 88-fingerprint ledger; MuQ-MuLan as the
    embedding step-up).
-5. **C18a runbook → C21 differential mirror → C22 one-click sync**
+6. **C18a runbook → C21 differential mirror → C22 one-click sync**
    (finishes Move 1).
-6. **O84 inbox-to-crate agent** on top of `megadj drop` (K61) — the
+7. **O84 inbox-to-crate agent** on top of `megadj drop` (K61) — the
    last O-item that needs new code.
-7. **Palate cleansers whenever:** M69 format cmd, M70 litter clean,
+8. **Palate cleansers whenever:** M69 format cmd, M70 litter clean,
    M71 port-speed badge, M74 playlist exporter.
 
 ### Parked / blocked (standing decisions, not open questions)
