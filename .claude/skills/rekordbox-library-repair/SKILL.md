@@ -66,6 +66,14 @@ Rows with no live match are reported, never touched.
 5. **File → Export → <drive>** — this rebuilds `export.pdb` and clears
    the OneLibrary ↔ pdb drift. Verify in app: File → Library size should
    match the DB row count.
+   **Nuclear option (proven Sep 10):** if the drive's device tree is a
+   half-migrated ghost (mangled identity, wrong-era counts), quit
+   rekordbox, back up the master DB, move `PIONEER/rekordbox/` to a
+   quarantine dir at the DRIVE ROOT (never inside `Contents/`), sweep
+   `._*` strays, reopen rekordbox and Export — it lays down a FRESH
+   device library from the current master. Keep `USBANLZ/` + `Artwork/`:
+   they are hash-keyed caches a fresh export reuses, saving hours of
+   re-analysis.
 6. Analyze any un-analyzed tracks (verify's `anlz` check counts them).
 7. `deckctl run <drive> verify` → all green (shelf drives: dual-db shows
    the informational archive-tier note). Then `deckctl run <drive>
