@@ -3,6 +3,7 @@
 // + the degrade-to-empty guarantee live in ArchiveLedgerReader (shared
 // with the shelf-sweeps ledger — one implementation, not two copies).
 import type { Finding, FindingKind, HygieneBadge } from "../shared/hygiene";
+import { hygieneWhere, HYGIENE_ORDER_SQL } from "../shared/hygiene";
 import { ArchiveLedgerReader } from "./archive_ledger_reader";
 
 export interface HygieneCounts {
@@ -71,27 +72,11 @@ export class HygieneReader extends ArchiveLedgerReader {
     kind?: string;
     severity?: string;
   }): Finding[] {
-    const where: string[] = [];
-    const params: string[] = [];
-    if (filter?.status) {
-      where.push("status = ?");
-      params.push(filter.status);
-    }
-    if (filter?.kind) {
-      where.push("kind = ?");
-      params.push(filter.kind);
-    }
-    if (filter?.severity) {
-      where.push("severity = ?");
-      params.push(filter.severity);
-    }
+    const { whereSql, params } = hygieneWhere(filter);
     const rows = this.query<Row>(
       `SELECT * FROM hygiene_findings
-       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-       ORDER BY CASE status
-           WHEN 'confirmed' THEN 0 WHEN 'open' THEN 1
-           WHEN 'failed' THEN 2 WHEN 'applied' THEN 3 ELSE 4 END,
-         severity, kind, created_at`,
+       ${whereSql}
+       ${HYGIENE_ORDER_SQL}`,
       ...params,
     );
     return rows.map(hydrate);

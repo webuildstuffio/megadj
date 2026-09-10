@@ -23,6 +23,7 @@ import {
 } from "node:fs";
 import { basename, join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { DupFpCache, groupByFingerprint } from "./dupescan_shared";
 
 const AUDIO = new Set([".mp3", ".wav", ".aif", ".aiff", ".m4a", ".flac"]);
 
@@ -88,34 +89,14 @@ function moveLoser(path: string, qDir: string, errors: string[]): boolean {
   }
 }
 
-/** Persistent fp cache — one row per file path (re-runs only decode new/changed files). */
-export class FpCache {
-  constructor(private db: Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS shelf_fingerprints (
-        path TEXT PRIMARY KEY,
-        size INTEGER NOT NULL,
-        fingerprint TEXT,
-        computed_at TEXT NOT NULL
-      )
-    `);
-  }
-  get(path: string, size: number): string | null | undefined {
-    const row = this.db
-      .query(
-        "SELECT fingerprint FROM shelf_fingerprints WHERE path = ? AND size = ?",
-      )
-      .get(path, size) as { fingerprint: string | null } | null;
-    return row ? row.fingerprint : undefined; // undefined = not cached
-  }
-  put(path: string, size: number, fp: string | null): void {
-    this.db
-      .query(
-        `INSERT INTO shelf_fingerprints (path, size, fingerprint, computed_at)
-         VALUES (?, ?, ?, datetime('now'))
-         ON CONFLICT(path) DO UPDATE SET size=excluded.size, fingerprint=excluded.fingerprint, computed_at=excluded.computed_at`,
-      )
-      .run(path, size, fp);
+/** Persistent fp cache — one row per file path (re-runs only decode
+ *  new/changed files). Table name keeps the shelf-cache namespace; the
+ *  class body is the shared DupFpCache (twin of dedupe-archive's, jscpd-
+ *  flagged, now one implementation). Kept exported — shelf-hygiene and
+ *  the dedupe tests re-use it. */
+export class FpCache extends DupFpCache {
+  constructor(db: Database) {
+    super(db, "shelf_fingerprints");
   }
 }
 
@@ -194,20 +175,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   await Promise.all(workers);
 
   // group by fingerprint (skip nulls/unfingerprintable)
-  const groups = new Map<string, Array<{ path: string; bytes: number }>>();
-  for (const f of files) {
-    let size = 0;
-    try {
-      size = statSync(f).size;
-    } catch {
-      continue;
-    }
-    const fp = cache.get(f, size);
-    if (!fp) continue;
-    const arr = groups.get(fp) ?? [];
-    arr.push({ path: f, bytes: size });
-    groups.set(fp, arr);
-  }
+  const groups = groupByFingerprint(files, cache);
 
   // a duplicate group = >=2 files with the same fingerprint
   const dupes: DupGroup[] = [];

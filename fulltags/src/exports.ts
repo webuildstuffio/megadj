@@ -50,7 +50,11 @@ export { detectRemix } from "./remix";
 export { wavToAiff } from "./convert";
 export { compareFingerprint, nameSimilarityTokens } from "./fingerprint-dedupe";
 export { playerCompat, isHiresOnly } from "./player-compat";
-export { boothTextCompat, type TextCompatResult } from "./booth-text";
+export {
+  boothTextCompat,
+  cp1252Bytes,
+  type TextCompatResult,
+} from "./booth-text";
 export { setBoothFleet, getBoothFleet } from "./player-compat";
 export { parseMoodStamp } from "./pipeline";
 export { fingerprintFile } from "./analysis";

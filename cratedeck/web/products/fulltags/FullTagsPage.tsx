@@ -42,8 +42,7 @@ import {
   SectionHead,
   Verdict,
   TrackTitle,
-  beatSyncColumns,
-  beatSyncCopy,
+  BeatSyncBreakersCard,
   gridDeltaPct,
   MOOD_GLOSS,
   type GridBreaker,
@@ -234,28 +233,17 @@ function BeatgridsTab() {
           )}
 
           {syncRisk > 0 && (
-            <Card>
-              <ListHead
-                icon="pulse"
-                title="Beat Sync breakers"
-                n={syncRisk}
-                hint="These tracks' independent beatgrid analysis disagrees with rekordbox's BPM — off by >2% tempo or locked an octave (half/double) out. They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the dangerous ones (Sync lands on the wrong pulse entirely). Click a numeric header to sort."
-                lines={beatSyncCopy(breakers)}
-              />
-              <DataTable
-                columns={beatSyncColumns()}
-                rows={breakers}
-                cap={40}
-                ariaLabel="Beat Sync breakers"
-                rowTone={(t) => (t.isOct ? "bad" : "")}
-                copyLines={beatSyncCopy}
-                copyName="Beat Sync breakers"
-              />
-              <div class="arch-fix">
-                fix: <code>megadj beats --force</code> re-analyzes — batch BPM
-                tag writes stay gated (roadmap)
-              </div>
-            </Card>
+            <BeatSyncBreakersCard
+              breakers={breakers}
+              syncRisk={syncRisk}
+              hint="These tracks' independent beatgrid analysis disagrees with rekordbox's BPM — off by >2% tempo or locked an octave (half/double) out. They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the dangerous ones (Sync lands on the wrong pulse entirely). Click a numeric header to sort."
+              fixNote={
+                <>
+                  <code>megadj beats --force</code> re-analyzes — batch BPM tag
+                  writes stay gated (roadmap)
+                </>
+              }
+            />
           )}
 
           {ledgered === 0 && (

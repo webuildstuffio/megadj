@@ -72,27 +72,41 @@ export interface FleetProfile {
   citations: Citation[];
 }
 
+/** Format/text blocks shared across the fleet profiles — declared once so
+ *  the spec table can't drift per-player (jscpd flagged the 21-line twin).
+ *  Every current profile plays AIFF/WAV/MP3/AAC/FLAC but not ALAC, and
+ *  none has emoji glyphs. */
+const FORMATS_FLEET: FleetProfile["formats"] = {
+  aiff: true,
+  wav: true,
+  mp3: true,
+  aac: true,
+  flac: true,
+  alac: false,
+};
+const TEXT_UNICODE_NO_EMOJI: FleetProfile["text"] = {
+  unicode: true,
+  emoji: false,
+  languageTable: false,
+};
+const LIMITS_FAT32 = (
+  maxFilesPerFolder: number | null,
+): FleetProfile["limits"] => ({
+  maxFolderDepth: 8,
+  maxFilesPerFolder,
+  maxFileSizeBytes: 4_294_967_296,
+});
+
 export const FLEET_PROFILES: FleetProfile[] = [
   {
     id: "xdj-xz",
     name: "XDJ-XZ",
     defaultOn: true,
-    formats: {
-      aiff: true,
-      wav: true,
-      mp3: true,
-      aac: true,
-      flac: true,
-      alac: false,
-    },
+    formats: FORMATS_FLEET,
     maxBitDepth: 24,
     maxSampleRate: 48000,
-    text: { unicode: true, emoji: false, languageTable: false },
-    limits: {
-      maxFolderDepth: 8,
-      maxFilesPerFolder: 10000,
-      maxFileSizeBytes: 4_294_967_296,
-    },
+    text: TEXT_UNICODE_NO_EMOJI,
+    limits: LIMITS_FAT32(10000),
     citations: [
       {
         claim: "24-bit/48 kHz ceiling, no ALAC, FAT16/32+HFS+ media",
@@ -121,22 +135,11 @@ export const FLEET_PROFILES: FleetProfile[] = [
     id: "cdj-3000",
     name: "CDJ-3000",
     defaultOn: true,
-    formats: {
-      aiff: true,
-      wav: true,
-      mp3: true,
-      aac: true,
-      flac: true,
-      alac: false,
-    },
+    formats: FORMATS_FLEET,
     maxBitDepth: 24,
     maxSampleRate: 96000,
-    text: { unicode: true, emoji: false, languageTable: false },
-    limits: {
-      maxFolderDepth: 8,
-      maxFilesPerFolder: null,
-      maxFileSizeBytes: 4_294_967_296,
-    },
+    text: TEXT_UNICODE_NO_EMOJI,
+    limits: LIMITS_FAT32(null),
     citations: [
       {
         claim: "FLAC/24-bit/96 kHz support, no ALAC",
@@ -164,22 +167,11 @@ export const FLEET_PROFILES: FleetProfile[] = [
     id: "cdj-2000nxs2",
     name: "CDJ-2000NXS2",
     defaultOn: true,
-    formats: {
-      aiff: true,
-      wav: true,
-      mp3: true,
-      aac: true,
-      flac: true,
-      alac: false,
-    },
+    formats: FORMATS_FLEET,
     maxBitDepth: 24,
     maxSampleRate: 96000,
-    text: { unicode: true, emoji: false, languageTable: false },
-    limits: {
-      maxFolderDepth: 8,
-      maxFilesPerFolder: null,
-      maxFileSizeBytes: 4_294_967_296,
-    },
+    text: TEXT_UNICODE_NO_EMOJI,
+    limits: LIMITS_FAT32(null),
     citations: [
       {
         claim: "FLAC added in firmware 1.30+; 24-bit/96 kHz AIFF/WAV; no ALAC",
@@ -218,11 +210,7 @@ export const FLEET_PROFILES: FleetProfile[] = [
     maxBitDepth: 24,
     maxSampleRate: 48000,
     text: { unicode: false, emoji: false, languageTable: true },
-    limits: {
-      maxFolderDepth: 8,
-      maxFilesPerFolder: null,
-      maxFileSizeBytes: 4_294_967_296,
-    },
+    limits: LIMITS_FAT32(null),
     citations: [
       {
         claim: "No FLAC; 24-bit AIFF/WAV at 44.1/48 kHz; AAC supported",

@@ -53,37 +53,11 @@ export interface DedupeArchiveResult {
   applied: boolean;
 }
 
-interface FpRow {
-  fingerprint: string | null;
-}
+import { DupFpCache, groupByFingerprint } from "./dupescan_shared";
 
-class FpCache {
-  constructor(private db: Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS file_archive_fingerprints (
-        path TEXT PRIMARY KEY,
-        size INTEGER NOT NULL,
-        fingerprint TEXT,
-        computed_at TEXT NOT NULL
-      )
-    `);
-  }
-  get(path: string, size: number): string | null | undefined {
-    const row = this.db
-      .query(
-        "SELECT fingerprint FROM file_archive_fingerprints WHERE path = ? AND size = ?",
-      )
-      .get(path, size) as FpRow | null;
-    return row ? row.fingerprint : undefined; // undefined = not cached
-  }
-  put(path: string, size: number, fp: string | null): void {
-    this.db
-      .query(
-        `INSERT INTO file_archive_fingerprints (path, size, fingerprint, computed_at)
-         VALUES (?, ?, ?, datetime('now'))
-         ON CONFLICT(path) DO UPDATE SET size=excluded.size, fingerprint=excluded.fingerprint, computed_at=excluded.computed_at`,
-      )
-      .run(path, size, fp);
+class FpCache extends DupFpCache {
+  constructor(db: Database) {
+    super(db, "file_archive_fingerprints");
   }
 }
 
@@ -141,20 +115,7 @@ export async function dedupeArchive(
   log(`fingerprints: ${res.cached} cached, ${res.fingerprinted} computed`);
 
   // ---- group by fingerprint ----------------------------------------------
-  const groups = new Map<string, Array<{ path: string; bytes: number }>>();
-  for (const f of files) {
-    let size = 0;
-    try {
-      size = statSync(f).size;
-    } catch {
-      continue;
-    }
-    const fp = cache.get(f, size);
-    if (!fp) continue;
-    const arr = groups.get(fp) ?? [];
-    arr.push({ path: f, bytes: size });
-    groups.set(fp, arr);
-  }
+  const groups = groupByFingerprint(files, cache);
   for (const [fp, arr] of groups) {
     if (arr.length < 2) continue;
     // keeper = biggest lossless-leaning pick: size is a good proxy inside

@@ -104,3 +104,38 @@ export interface HygieneBadge {
   review: number;
   info: number;
 }
+
+/** SQLite filter fragments shared by every hygiene_findings reader (the
+ *  engine's HygieneStore.list and CrateDeck's HygieneReader.list carried
+ *  byte-identical WHERE/ORDER BY blocks until jscpd flagged the clone).
+ *  HygieneReaders pass their filters here so the status priority (worst
+ *  first: confirmed → open → failed → applied → dismissed) and the
+ *  parameterized WHERE builder stay defined ONCE, next to the contract. */
+export function hygieneWhere(
+  filter: { status?: string; kind?: string; severity?: string } | undefined,
+): { whereSql: string; params: string[] } {
+  const where: string[] = [];
+  const params: string[] = [];
+  if (filter?.status) {
+    where.push("status = ?");
+    params.push(filter.status);
+  }
+  if (filter?.kind) {
+    where.push("kind = ?");
+    params.push(filter.kind);
+  }
+  if (filter?.severity) {
+    where.push("severity = ?");
+    params.push(filter.severity);
+  }
+  return {
+    whereSql: where.length ? `WHERE ${where.join(" AND ")}` : "",
+    params,
+  };
+}
+
+/** Worst-first status ordering for hygiene_findings queries (see hygieneWhere). */
+export const HYGIENE_ORDER_SQL = `ORDER BY CASE status
+    WHEN 'confirmed' THEN 0 WHEN 'open' THEN 1
+    WHEN 'failed' THEN 2 WHEN 'applied' THEN 3 ELSE 4 END,
+  severity, kind, created_at`;

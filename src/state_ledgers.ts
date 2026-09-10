@@ -1,5 +1,37 @@
 import type { Database } from "bun:sqlite";
 
+/** One mood-ledger row's numeric profile + provenance — the wire shape
+ *  shared by Ledgers and ArchiveState (was repeated inline in both
+ *  files; jscpd flagged the twin literal). */
+export interface MoodRecordInput {
+  videoId: string;
+  dance: number;
+  aggressive: number;
+  happy: number;
+  electronic: number;
+  party: number;
+  valence: number;
+  arousal: number;
+  sourcePath: string;
+}
+
+/** MoodRecordInput + its read-side timestamp. */
+export interface MoodRecord extends MoodRecordInput {
+  analyzedAt: string;
+}
+
+/** One cue set for a track + where it was derived from. */
+export interface CueRecordInput {
+  videoId: string;
+  cues: Array<{ index: number; position: number; bar: number }>;
+  source: string;
+}
+
+/** CueRecordInput + its read-side timestamp. */
+export interface CueRecord extends CueRecordInput {
+  derivedAt: string;
+}
+
 /**
  * Mood + structure-cues ledger storage (roadmap rev 6.1 #4 and the cues
  * slice). Extracted from state.ts for the file-length guard; ArchiveState
@@ -16,17 +48,7 @@ export class Ledgers {
 
   /** Upsert one parsed mood result. Idempotent by video_id: a re-run
    * replaces the row (fresh timestamps). */
-  setMoodRecord(rec: {
-    videoId: string;
-    dance: number;
-    aggressive: number;
-    happy: number;
-    electronic: number;
-    party: number;
-    valence: number;
-    arousal: number;
-    sourcePath: string;
-  }): void {
+  setMoodRecord(rec: MoodRecordInput): void {
     this.db
       .query(
         `INSERT INTO mood (video_id, dance, aggressive, happy, electronic, party, valence, arousal, source_path, analyzed_at)
@@ -57,18 +79,7 @@ export class Ledgers {
   }
 
   /** One mood record (by video id), null when never analyzed. */
-  moodRecord(videoId: string): {
-    videoId: string;
-    dance: number;
-    aggressive: number;
-    happy: number;
-    electronic: number;
-    party: number;
-    valence: number;
-    arousal: number;
-    sourcePath: string;
-    analyzedAt: string;
-  } | null {
+  moodRecord(videoId: string): MoodRecord | null {
     const row = this.db
       .query(
         `SELECT video_id, dance, aggressive, happy, electronic, party, valence, arousal, source_path, analyzed_at
@@ -147,11 +158,7 @@ export class Ledgers {
 
   /** Upsert one derived cue set. Idempotent by video_id: a re-run replaces
    * the row (fresh timestamps). */
-  setCueRecord(rec: {
-    videoId: string;
-    cues: Array<{ index: number; position: number; bar: number }>;
-    source: string;
-  }): void {
+  setCueRecord(rec: CueRecordInput): void {
     this.db
       .query(
         `INSERT INTO cues (video_id, cues_json, model, derived_at)
@@ -165,12 +172,7 @@ export class Ledgers {
   }
 
   /** One cue record (by video id), null when never derived. */
-  cueRecord(videoId: string): {
-    videoId: string;
-    cues: Array<{ index: number; position: number; bar: number }>;
-    source: string;
-    derivedAt: string;
-  } | null {
+  cueRecord(videoId: string): CueRecord | null {
     const row = this.db
       .query(
         `SELECT video_id, cues_json, model, derived_at

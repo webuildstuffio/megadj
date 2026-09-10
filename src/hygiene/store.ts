@@ -17,6 +17,10 @@ import type {
   Severity,
   ValidationReceipt,
 } from "./types";
+import {
+  hygieneWhere,
+  HYGIENE_ORDER_SQL,
+} from "../../cratedeck/shared/hygiene";
 
 interface Row {
   id: string;
@@ -232,28 +236,15 @@ export class HygieneStore {
     kind?: FindingKind;
     severity?: Severity;
   }): Finding[] {
-    const where: string[] = [];
-    const params: string[] = [];
-    if (filter?.status) {
-      where.push("status = ?");
-      params.push(filter.status);
-    }
-    if (filter?.kind) {
-      where.push("kind = ?");
-      params.push(filter.kind);
-    }
-    if (filter?.severity) {
-      where.push("severity = ?");
-      params.push(filter.severity);
-    }
+    // WHERE/ORDER fragments come from cratedeck/shared/hygiene — the
+    // wire contract module owns them so this query can't drift from
+    // CrateDeck's HygieneReader.list (jscpd flagged the twin).
+    const { whereSql, params } = hygieneWhere(filter);
     const rows = this.db
       .query(
         `SELECT * FROM hygiene_findings
-         ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-         ORDER BY CASE status
-             WHEN 'confirmed' THEN 0 WHEN 'open' THEN 1
-             WHEN 'failed' THEN 2 WHEN 'applied' THEN 3 ELSE 4 END,
-           severity, kind, created_at`,
+         ${whereSql}
+         ${HYGIENE_ORDER_SQL}`,
       )
       .all(...params) as Row[];
     return rows.map((r) => this.hydrate(r));

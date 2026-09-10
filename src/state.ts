@@ -2,6 +2,12 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { EmbeddingsLedger } from "./state_similar";
 import { Ledgers } from "./state_ledgers";
+import type {
+  MoodRecordInput,
+  MoodRecord,
+  CueRecordInput,
+  CueRecord,
+} from "./state_ledgers";
 import { ShelfSweeps } from "./shelf_sweeps";
 
 /**
@@ -601,33 +607,12 @@ export class ArchiveState {
 
   /** Upsert one parsed mood result. Idempotent by video_id: a re-run
    * replaces the row (fresh timestamps). */
-  setMoodRecord(rec: {
-    videoId: string;
-    dance: number;
-    aggressive: number;
-    happy: number;
-    electronic: number;
-    party: number;
-    valence: number;
-    arousal: number;
-    sourcePath: string;
-  }): void {
+  setMoodRecord(rec: MoodRecordInput): void {
     this.ledgers.setMoodRecord(rec);
   }
 
   /** One mood record (by video id), null when never analyzed. */
-  moodRecord(videoId: string): {
-    videoId: string;
-    dance: number;
-    aggressive: number;
-    happy: number;
-    electronic: number;
-    party: number;
-    valence: number;
-    arousal: number;
-    sourcePath: string;
-    analyzedAt: string;
-  } | null {
+  moodRecord(videoId: string): MoodRecord | null {
     return this.ledgers.moodRecord(videoId);
   }
 
@@ -649,21 +634,12 @@ export class ArchiveState {
 
   /** Upsert one derived cue set. Idempotent by video_id: a re-run replaces
    * the row (fresh timestamps). */
-  setCueRecord(rec: {
-    videoId: string;
-    cues: Array<{ index: number; position: number; bar: number }>;
-    source: string;
-  }): void {
+  setCueRecord(rec: CueRecordInput): void {
     this.ledgers.setCueRecord(rec);
   }
 
   /** One cue record (by video id), null when never derived. */
-  cueRecord(videoId: string): {
-    videoId: string;
-    cues: Array<{ index: number; position: number; bar: number }>;
-    source: string;
-    derivedAt: string;
-  } | null {
+  cueRecord(videoId: string): CueRecord | null {
     return this.ledgers.cueRecord(videoId);
   }
 

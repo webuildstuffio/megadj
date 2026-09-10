@@ -13,7 +13,7 @@
 import type { ComponentChildren } from "preact";
 import type { Product } from "../app/router";
 import { Icon } from "../ui/icons";
-import type { DataTableColumn } from "../ui/data";
+import { Card, ListHead, DataTable, type DataTableColumn } from "../ui/data";
 
 export interface ProductMeta {
   id: Product;
@@ -500,6 +500,40 @@ export const beatSyncCopy = (rows: GridBreaker[]): string[] =>
     (t) =>
       `${t.title ?? t.videoId} — grid ${t.ledgerBpm} vs RB ${Math.round(t.rbBpm * 10) / 10} BPM${t.isOct ? " (OCTAVE)" : ""}`,
   );
+
+/** BeatSyncBreakersCard — the whole "Beat Sync breakers" card (ListHead +
+ *  DataTable + fix footnote) as ONE shared component. The ArchiveTab and
+ *  FullTagsPage renders were byte-identical except the hint's tail and the
+ *  footnote copy — both now pass through as props so the card can't drift
+ *  again (jscpd flagged an 85-line clone here; this is the fix). */
+export function BeatSyncBreakersCard(props: {
+  breakers: GridBreaker[];
+  syncRisk: number;
+  hint: string;
+  fixNote: ComponentChildren;
+}) {
+  return (
+    <Card>
+      <ListHead
+        icon="pulse"
+        title="Beat Sync breakers"
+        n={props.syncRisk}
+        hint={props.hint}
+        lines={beatSyncCopy(props.breakers)}
+      />
+      <DataTable
+        columns={beatSyncColumns()}
+        rows={props.breakers}
+        cap={40}
+        ariaLabel="Beat Sync breakers"
+        rowTone={(t) => (t.isOct ? "bad" : "")}
+        copyLines={beatSyncCopy}
+        copyName="Beat Sync breakers"
+      />
+      <div class="arch-fix">fix: {props.fixNote}</div>
+    </Card>
+  );
+}
 
 /** ProductIntro — the educational lede band at the top of each product
  *  canvas: phase chip + product voice + scope line. One component, three
