@@ -9,7 +9,10 @@ fails the build on it.
 
 Rev 11 · 2026-09-10 — GetDat ⌗ Intake tab (live `megadj ingest` runs
 over the job engine, watch-folder + batch-folder allowlist, post-run
-audit verdict). Rev 10 · 2026-09-09 — I49 "sounds like" (`archive_similar_tracks`,
+audit verdict); census re-derived — 21 verbs + 35 tools (the booth
+fleet rev added `deck_booth` + the `booth` verb without bumping the
+§1 table; the census test now derives the doc strings from source, so
+this class of drift fails the build). Rev 10 · 2026-09-09 — I49 "sounds like" (`archive_similar_tracks`,
 cosine kNN over the `embeddings` ledger, UI: FullTags ⌗ Similar) and
 M66 set-builder copilot (`archive_set_build`, propose-only chain
 builder) — 34 tools. Rev 9 · 2026-09-08 — the atomic web restructure: `web/` is now feature-
@@ -72,8 +75,8 @@ that way.
 | Surface | Entry points | Count |
 | --- | --- | --- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 19 commands + `--help` |
-| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 20 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 34 tools |
+| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 21 verbs |
+| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 35 tools |
 | HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~35 routes |
 | Web UI | `cratedeck/web/` (hash-routed pages) | 6 pages, ~22 actions |
 

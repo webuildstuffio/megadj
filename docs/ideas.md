@@ -761,9 +761,9 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 "agent-first, MCP-friendly, `--json` on every command" — with O86's rails
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
-82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 34 tools
+82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 35 tools
     after the Sep 7 parity revs).** Live:
-    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — **34 tools**. CrateDeck
+    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — **35 tools**. CrateDeck
     half (17): `deck_status/drives/report/coverage/redundancy/diff/
 jobs/run/cancel/explain` + `deck_preflight` (B12), `deck_players`
     (N78), `deck_note`/`deck_notes` (O88), `deck_prep` (O83),
@@ -796,7 +796,7 @@ source_diff/grid_cross_check/mood_profile/sweep` — readonly reads over
 
 85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
     installable Claude Code bundle: `.claude-plugin/plugin.json` +
-    `.mcp.json` (the 34-tool MCP server) + `hooks/hooks.json`
+    `.mcp.json` (the 35-tool MCP server) + `hooks/hooks.json`
     (SessionStart posts `deckctl status --json` into context) + the 3
     skills. `claude plugin validate` passes; dev-install with
     `claude --plugin-dir $PWD/plugin`. A published marketplace variant

@@ -131,6 +131,7 @@ Tools: `deck_status` · `deck_drives` · `deck_report {drive,format?}` ·
 `deck_coverage {min_copies?}` · `deck_redundancy {min_copies?}` ·
 `deck_diff {a,b}` · `deck_jobs` · `deck_run {drive,kind,wait?}` ·
 `deck_cancel {job_id}` · `deck_explain {kind?}` · `deck_preflight` ·
+`deck_booth {ids?}` (Fleet → Booth profile selection; citations inline) ·
 `deck_players {drive?}` · `deck_note {drive,note,severity?}` ·
 `deck_notes {drive?}` · `deck_rename {drive,nickname?}` (set/clear the
 display nickname — mutating, confirm first) · `deck_prep` (the `prep`
@@ -153,7 +154,7 @@ progress) · `archive_library_overview` / `archive_cue_ledger`
 (FullTags-mirror reads) · `archive_similar_tracks {video_id}`
 (I49 sounds-like kNN) · `archive_set_build` (M66 propose-only chain
 builder) —
-34 tools total. `deck_report {format:"dossier"}` returns the full
+35 tools total. `deck_report {format:"dossier"}` returns the full
 export bundle (drive + snapshot + sync + report + timeline +
 benchmarks) — the twin of `deckctl report --dossier` and the UI's
 Export button.

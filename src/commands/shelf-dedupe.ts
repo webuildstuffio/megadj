@@ -23,11 +23,13 @@
 import {
   existsSync,
   mkdirSync,
+  readFileSync,
   readdirSync,
   renameSync,
   statSync,
 } from "node:fs";
 import { basename, join } from "node:path";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 
 export interface DedupePair {
@@ -90,11 +92,20 @@ function qualityRank(path: string): number {
   return rank;
 }
 
+/** MD5 in-process (node:crypto), NOT via the macOS `md5` CLI: under bun
+ *  test --parallel=16 the spawnSync can fail under process pressure and a
+ *  null hash silently reclassified byte-identical twins as keep-both
+ *  (flaky suite, flake reproduced twice). Identical bytes still mean the
+ *  same thing — we just compute the digest ourselves. */
 function md5(path: string): string | null {
-  const r = spawnSync("md5", ["-q", path]);
-  if (r.status !== 0) return null;
-  const h = r.stdout.toString().trim();
-  return h.length > 0 ? h : null;
+  try {
+    const h = createHash("md5");
+    h.update(readFileSync(path));
+    return h.digest("hex");
+  } catch {
+    // unreadable file: caller treats null as "cannot prove identical"
+    return null;
+  }
 }
 
 function fingerprint(path: string): string | null {

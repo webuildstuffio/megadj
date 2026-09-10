@@ -121,16 +121,33 @@ const UI_KIND_EXEMPTIONS: Record<string, string> = {};
 
 describe("surface parity (docs/surface-parity.md)", () => {
   test("census matches the doc's §1 table", () => {
-    // keep this file and the doc honest about each other
+    // keep this file and the doc honest about each other. The counts are
+    // DERIVED from source, and the doc strings the doc must carry are
+    // built from those counts — a bump that forgets the doc fails here
+    // (the booth fleet commit added deck_booth and every doc still said
+    // 34; a >= floor assertion can't catch a stale EXACT number).
     const verbs = deckctlVerbs();
     const tools = mcpTools();
-    // 20 verbs (help + dismiss joined rev 4); 19 deck_* + 15 archive_*
-    // = 34 MCP tools (source census; mcpTools() dedupes).
-    expect(verbs.length).toBeGreaterThanOrEqual(20);
-    expect(tools.length).toBeGreaterThanOrEqual(34);
+    // deck_* + archive_* split, for the drift post-mortem in the message
+    const deck = tools.filter((t) => t.startsWith("deck_")).length;
+    const archive = tools.length - deck;
+    expect(verbs.length).toBeGreaterThan(0);
+    expect(tools.length).toBeGreaterThan(0);
     const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
-    expect(doc).toContain("| 20 verbs |");
-    expect(doc).toContain("| 34 tools |");
+    expect(doc).toContain(`| ${verbs.length} verbs |`);
+    expect(doc).toContain(`| ${tools.length} tools |`);
+    // the dated-revs header must also carry the CURRENT tool count when
+    // it names one (rev entries may name a past count only if a LATER rev
+    // names the newer one — simplest honest rule: the doc must contain
+    // the derived count somewhere, which the two asserts above pin).
+    expect(doc).toContain(`${tools.length} tools`);
+    console.log(
+      `census: ${verbs.length} deckctl verbs (${[...verbs]
+        .slice(0, 3)
+        .join(
+          "/",
+        )}, …), ${tools.length} MCP tools (${deck} deck_* + ${archive} archive_*)`,
+    );
   });
 
   test("the product tabs exist and are hash-routed (one route per product)", () => {

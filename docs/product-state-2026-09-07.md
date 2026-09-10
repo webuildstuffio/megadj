@@ -19,7 +19,7 @@ ledgered (fingerprint, key, mood, energy in the files; beats, phrase cues,
 mood mirrors in the DB), the write-gate discipline has passed one ladder
 (key, 80.7%) and blocked two others (BPM phase-lock, saturated genre head)
 — which is the system working. CrateDeck finished its gig-night gate
-(preflight, player-compat verdicts) and its agent surface (34-tool MCP
+(preflight, player-compat verdicts) and its agent surface (35-tool MCP
 server, weekly digest, notes feed, plugin). What remains is deliberately
 sequenced: two operational tasks (the rekordbox key gauntlet, the §0
 backup/evacuation items) and a short list of next builds (memory-cue
@@ -114,7 +114,7 @@ rekordbox to open.
   verdict, exit 1 for cron/agents), **N75/N78 player-compat verdicts**
   (public Pioneer matrix × measured dual-DB rows), **N76 firmware
   advisories**, **O83 weekly digest** (`deckctl prep`), the
-  **34-tool MCP server** (19 `deck_*` + 15 `archive_*`, readonly archive
+  **35-tool MCP server** (20 `deck_*` + 15 `archive_*`, readonly archive
   handle), **O87 attribution**, **O88 notes feed**, and the **O85
   plugin** packaging. Three fix-all rounds closed 14 CrateDeck bugs
   (progress/ETA/regexes/role-inference/SSE storms) with regression tests;
@@ -131,7 +131,7 @@ rekordbox to open.
 ### 🤖 The agent surface — **first-class, both halves**
 
 The O-layer goal — "agents are first-class operators" — is substantively
-done: `bun run mcp` exposes the whole product (34 tools) over stdio
+done: `bun run mcp` exposes the whole product (35 tools) over stdio
 JSON-RPC with readonly annotations, mutating-tool flags, and the interlock
 in the tool layer; the archive half reads megadj's own DB through a
 physically readonly handle; every job carries attribution; `deckctl prep`
@@ -150,7 +150,7 @@ The proposal's three moves, honestly re-scored after the window:
 | --- | --- | --- | --- |
 | **1 — Harden the moat** (CrateDeck v1.x) | preflight, player verdict, runbook, differential mirror | preflight ✅, player verdict ✅, firmware notes ✅, automation ✅, ⌘K ✅ | **C18a** assisted legacy-export runbook · **C21/C22** differential mirror + one-click sync · the 4 hardware-acceptance items |
 | **2 — Complete the metadata** (FullTags v1.x) | key → BPM → fingerprints → moods, gated | **all five P1 items executed**: key ✅ written, fingerprints ✅, mood ✅, BPM → pivoted to beats ledger ✅, MB genre harvest ✅ — two write-gates failed honestly and stayed blocked | structure labels (gated) · vocal density · similarity · **RB key gauntlet** (operational) |
-| **3 — Agentify** (the O layer) | MCP server, safety rails, weekly loop | **both MCP halves ✅** (34 tools), rails ✅, attribution ✅, notes ✅, prep ✅, plugin ✅ | **O84** inbox-agent · `claude -p` digest cron · (K61 `megadj drop` underneath it) |
+| **3 — Agentify** (the O layer) | MCP server, safety rails, weekly loop | **both MCP halves ✅** (35 tools), rails ✅, attribution ✅, notes ✅, prep ✅, plugin ✅ | **O84** inbox-agent · `claude -p` digest cron · (K61 `megadj drop` underneath it) |
 
 The original 90-day line collapsed: "Weeks 3–5" (key/BPM) and "Weeks 5–7"
 (fingerprints) happened in one evening once the gates were built, and
