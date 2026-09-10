@@ -24,6 +24,27 @@
  */
 import { extname } from "node:path";
 import type { Probe } from "./probes";
+import { resolveFleet, DEFAULT_FLEET, fleetFloor } from "./fleet";
+import type { FleetProfile } from "./fleet";
+
+/** The configured booth fleet (player ids) — set once by the entrypoint
+ *  from config.toml [booth].fleet; defaults to the three always-on
+ *  players. Both gates (playerCompat + boothTextCompat) read this, so
+ *  the selection reflects everywhere the user actually plays. */
+let configuredFleet: readonly string[] = DEFAULT_FLEET;
+
+export function setBoothFleet(ids: readonly string[]): void {
+  configuredFleet = ids;
+}
+
+export function getBoothFleet(): readonly string[] {
+  return configuredFleet;
+}
+
+/** Resolved profiles for the current fleet selection. */
+export function boothFleetProfiles(): FleetProfile[] {
+  return resolveFleet(configuredFleet);
+}
 
 /** Lossless PCM codecs (uncompressed, per ffprobe codec_name). */
 const PCM_CODECS = new Set([
@@ -77,10 +98,19 @@ export function playerCompat(probe: Probe): CompatResult {
   const reasons: string[] = [];
   const codec = probe.codec ?? null;
   const rate = probe.sampleRate;
+  // The floor is the fleet intersection: with the default trio (XZ +
+  // 3000 + NXS2) hi-res stays "partial"; add CDJ-2000 and FLAC/hi-res
+  // become hard fails; drop the XZ and 96 kHz passes everywhere.
+  const floor = fleetFloor(boothFleetProfiles());
 
   // Container/codec gate. By the time a file reaches the archive it is
   // one of .wav/.aiff/.mp3/.flac/.m4a (FullTags walker's set), so this
   // keys off the ffprobe codec inside the container, not the extension.
+  const fleetSampleRates = new Set<number>([44100, 48000, 32000]);
+  if (floor.maxSampleRate >= 88200) {
+    fleetSampleRates.add(88200);
+    fleetSampleRates.add(96000);
+  }
   if (codec === "mp3") {
     const mp2 = mp3Reason(rate);
     if (mp2) reasons.push(mp2);
@@ -89,7 +119,7 @@ export function playerCompat(probe: Probe): CompatResult {
     // ffprobe reports profile via a different field — Probe carries only
     // codec_name, so anything Probe calls "aac" we treat as LC (ingest
     // sources never produce HE-AAC) but flag ultra-low rates.
-    if (rate !== null && !FLEET_SAMPLE_RATES.has(rate) && rate < 88200) {
+    if (rate !== null && !fleetSampleRates.has(rate) && rate < 88200) {
       reasons.push("aac-sample-rate-unsupported");
     }
   } else if (codec && PCM_CODECS.has(codec)) {
@@ -97,8 +127,8 @@ export function playerCompat(probe: Probe): CompatResult {
       reasons.push("float-pcm-unsupported");
     } else if (codec.includes("s32") || codec === "pcm_u8") {
       reasons.push("bit-depth-unsupported");
-    } else if (rate !== null && !FLEET_SAMPLE_RATES.has(rate)) {
-      // 16/24-bit PCM at 88.2/96 — plays on 3000/NXS2 only.
+    } else if (rate !== null && !fleetSampleRates.has(rate)) {
+      // 16/24-bit PCM at 88.2/96 — plays on the hi-res players only.
       reasons.push(
         HIRES_SAMPLE_RATES.has(rate)
           ? "sample-rate-hires"
@@ -106,16 +136,18 @@ export function playerCompat(probe: Probe): CompatResult {
       );
     }
   } else if (codec === "flac") {
-    if (rate !== null && !FLEET_SAMPLE_RATES.has(rate)) {
+    if (rate !== null && !fleetSampleRates.has(rate)) {
       reasons.push(
         HIRES_SAMPLE_RATES.has(rate)
           ? "sample-rate-hires"
           : "sample-rate-unsupported",
       );
     }
-    reasons.push("flac-not-universal"); // plain CDJ-2000 rejects FLAC
+    // FLAC is only universal when EVERY selected player takes it
+    // (the plain CDJ-2000 never does).
+    if (!floor.flac) reasons.push("flac-not-universal");
   } else if (codec === "alac") {
-    reasons.push("alac-not-universal"); // XDJ-XZ + CDJ-2000 reject ALAC
+    if (!floor.alac) reasons.push("alac-not-universal"); // no player takes ALAC
   } else if (codec && (codec.startsWith("adpcm") || codec.includes("_at3"))) {
     reasons.push("compressed-wav-unsupported");
   } else if (!codec) {
@@ -137,7 +169,7 @@ export function playerCompat(probe: Probe): CompatResult {
     reasons,
     detail: reasons.length
       ? `${codec ?? "unknown"} @ ${rate ?? "?"}Hz: ${reasons.join(", ")}`
-      : `${codec} @ ${rate}Hz — plays on all four players`,
+      : `${codec} @ ${rate}Hz — plays on the whole booth fleet`,
     partial,
   };
 }

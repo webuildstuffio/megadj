@@ -120,6 +120,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | --- | --- | --- | --- | --- |
 | Preflight verdict | `preflight` ✅ | `deck_preflight` ✅ | Fleet ⌗ Preflight tab ✅ | — (G1 closed) |
 | Player compat | `players [d]` ✅ | `deck_players` ✅ | Preflight tab (per-drive expand) ✅ | — (G1 closed) |
+| Booth fleet settings | `booth [set IDs]` ✅ | `deck_booth {ids?}` ✅ | Fleet ⌗ Booth tab ✅ (citations inline) | — |
 | Weekly digest | `prep [--out]` ✅ | `deck_prep` ✅ (markdown; `--out` stays CLI) | Fleet ⌗ Prep tab ✅ | — (G2 closed rev 3) |
 | Agent notes feed | `note`/`notes` ✅ | `deck_note`/`deck_notes` ✅ | Timeline cards ✅ | — (GAP-3 closed) |
 | Note dismissal | `dismiss <d> <id>` ✅ | `deck_dismiss` ✅ (rev 4) | Timeline dismiss ✅ | — (GAP-11 closed rev 4) |

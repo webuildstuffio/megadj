@@ -1,7 +1,6 @@
 // index.ts — wire-up: config → db → detector → jobs → HTTP+SSE. 127.0.0.1 only.
 import { join } from "node:path";
-import { readdirSync } from "node:fs";
-import { loadConfig, type CrateConfig } from "./config";
+import { loadConfig } from "./config";
 import { DB } from "./db";
 import { Guard } from "./guard";
 import { listMountedVolumes, watchVolumes } from "./detect";
@@ -38,7 +37,8 @@ import {
   shouldAutoVerify,
   autoVerifyReason,
 } from "./auto_schedule";
-import type { Drive, JobKind, NoteSeverity } from "../shared/types";
+import { intakeCandidateDirs, intakeWatchDir } from "./intake_run";
+import type { Drive, NoteSeverity } from "../shared/types";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
@@ -104,6 +104,16 @@ function emit(channel: string, data: unknown): void {
 const registry = new Registry(cfg, db, emit);
 const images = new ImageService(cfg, db, guard);
 const jobs = new JobEngine(cfg, db, guard, emit);
+
+// Bound once: the extracted handler (drive_job_routes.ts) closes over the
+// module-level services via this binding.
+const enqueueDriveJobFor = makeEnqueueDriveJob({
+  cfg,
+  images,
+  jobs,
+  getDrive: (id) => db.getDrive(id) ?? undefined,
+  json,
+});
 
 // deliberate, structured writes onto mounted sticks: the CrateDeck photo dir
 // (Contents/CrateDeck/photo.<ext>). Everything else stays inside dataDir.
@@ -240,6 +250,13 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+// Booth fleet payload + config persistence live in booth_routes.ts
+// (file-length guard; the /api/booth/fleet routes call these).
+import { photoUpload, makeEnqueueDriveJob } from "./drive_job_routes";
+
+const { boothFleetPayload, writeConfigBoothFleet, normalizeFleetSelection } =
+  await import("./booth_routes");
+
 /** ---- /api router: one handler per route family -------------------------- */
 
 /** Serve a file that lives ON a mounted drive (drive-image picker previews).
@@ -312,6 +329,27 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
     // B12 preflight: the gig-night pass/fail across every mounted drive
     if (route === "/preflight") {
       return json(buildPreflight(allPreflightInputs(reportDeps)));
+    }
+    // Booth fleet settings: which players the compat gates enforce. GET
+    // serves the catalog + current selection; POST persists the selection
+    // to config.toml [booth].fleet (atomic rewrite via the tmp+rename in
+    // writeConfigBoothFleet) and re-derives the floor server-side.
+    if (route === "/booth/fleet" && req.method === "GET") {
+      return json(boothFleetPayload(cfg.boothFleet));
+    }
+    if (route === "/booth/fleet" && req.method === "POST") {
+      const body = (await req.json().catch(() => null)) as {
+        selected?: unknown;
+      } | null;
+      const ids = Array.isArray(body?.selected)
+        ? (body!.selected as unknown[]).filter(
+            (x): x is string => typeof x === "string",
+          )
+        : [];
+      const next = normalizeFleetSelection(ids);
+      writeConfigBoothFleet(cfg.root, next);
+      cfg.boothFleet = next;
+      return json(boothFleetPayload(next));
     }
     // in-app help SSOT: glossary + job/surface explainers (deckctl/MCP
     // can serve the same wording the UI tooltips use)
@@ -387,6 +425,37 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
       req.headers.get("accept")?.includes("event-stream")
     ) {
       return sse();
+    }
+    // ---- archive intake (GetDat Intake tab) -----------------------------
+    if (route === "/intake/folders") {
+      return json({
+        watch: intakeWatchDir(cfg),
+        candidates: intakeCandidateDirs(cfg),
+      });
+    }
+    if (route === "/intake/start" && req.method === "POST") {
+      let body: { folder?: string };
+      try {
+        body = (await req.json()) as typeof body;
+      } catch {
+        return json({ error: "invalid JSON body" }, 400);
+      }
+      const folder = (body.folder ?? "").trim();
+      if (!folder) return json({ error: "folder is required" }, 400);
+      const candidates = intakeCandidateDirs(cfg);
+      const ok = candidates.some((c) => c.path === folder && c.exists);
+      if (!ok) {
+        return json(
+          {
+            error:
+              "folder not on the intake allowlist — pick one from /intake/folders",
+          },
+          403,
+        );
+      }
+      // Same job engine as drive jobs: interlock, one-at-a-time, SSE live.
+      const job = jobs.enqueue("local-archive", "ingest", folder, "web");
+      return json(job);
     }
     return json({ error: "not found" }, 404);
   } catch (e) {
@@ -473,7 +542,7 @@ async function driveSubroute(
     return json(VERIFY_HELP);
   }
   if (sub === "/photo" && req.method === "POST") {
-    return photoUpload(req, id);
+    return photoUpload(req, id, images, json);
   }
   // images already ON this drive (Contents/CrateDeck + volume root)
   if (sub === "/drive-images") {
@@ -488,9 +557,10 @@ async function driveSubroute(
     return json({ ok: true });
   }
   if (sub === "/jobs" && req.method === "POST") {
-    return enqueueDriveJob(req, id);
+    return enqueueDriveJobFor(req, id);
   }
   if (sub === "/benchmarks") return json(db.benchmarks(id));
+  if (sub === "/speedprobes") return json(db.speedProbes(id));
   // File ON the drive (drive-image picker preview; was unreachable when it
   // lived below the /api/ block — see serveDriveImage comment).
   if (sub === "/drive-image") {
@@ -523,80 +593,9 @@ async function driveSubroute(
 }
 
 /** POST /api/drives/:id/photo — multipart upload or JSON url/localPath/clear. */
-async function photoUpload(req: Request, id: string): Promise<Response> {
-  const ctype = req.headers.get("content-type") ?? "";
-  // multipart = a real file-picker upload from the Photo tab;
-  // JSON = url / drive_rel / clear as before
-  if (ctype.includes("multipart/form-data")) {
-    const form = await req.formData();
-    const file = form.get("file");
-    if (!(file instanceof File)) return json({ error: "file required" }, 400);
-    const dest = await images.choose(id, {
-      data: new Uint8Array(await file.arrayBuffer()),
-      // the upload's real name picks the extension (photo.png stays .png)
-      name: file instanceof File ? file.name : undefined,
-    });
-    return json({ ok: true, path: dest });
-  }
-  const body = (await req.json()) as {
-    url?: string;
-    localPath?: string;
-    /** relative-to-volume path of an image picked FROM the drive */
-    drive_rel?: string;
-    clear?: boolean;
-  };
-  if (body.clear) {
-    images.clear(id);
-    return json({ ok: true, cleared: true });
-  }
-  const dest = await images.choose(id, {
-    url: body.url,
-    localPath: body.localPath,
-    driveRel: body.drive_rel,
-  });
-  return json({ ok: true, path: dest });
-}
-
-/** POST /api/drives/:id/jobs — validate + enqueue a drive job. */
-async function enqueueDriveJob(req: Request, id: string): Promise<Response> {
-  const body = (await req.json()) as {
-    kind: JobKind;
-    origin?: string;
-  };
-  if (
-    !["scan", "verify", "mirror", "benchmark", "checksum"].includes(body.kind)
-  ) {
-    return json({ error: "bad kind" }, 400);
-  }
-  const drive = db.getDrive(id);
-  if (!drive?.mounted) return json({ error: "drive not mounted" }, 409);
-  const mountPoint = resolveMountPoint(cfg, drive.name);
-  // O87: callers may attribute the job ("mcp:xxxx", "deckctl").
-  // Sanitized to a short flat tag — it lands in JSON + UI labels.
-  const origin =
-    typeof body.origin === "string" && body.origin.trim()
-      ? body.origin
-          .trim()
-          .slice(0, 40)
-          .replace(/[^\w:.-]/g, "")
-      : "web";
-  const job = jobs.enqueue(id, body.kind, mountPoint, origin);
-  return json(job);
-}
-
-/** Where a drive's volume is mounted. Respects CRATEDECK_VOLUMES/config
- *  volumesRoot (tests, fixtures, non-standard hosts) instead of assuming
- *  /Volumes — and verifies the directory is really there right now. */
-function resolveMountPoint(cfg: CrateConfig, volumeName: string): string {
-  const candidate = join(cfg.volumesRoot, volumeName);
-  try {
-    readdirSync(candidate); // mounted + readable at this instant
-    return candidate;
-  } catch {
-    throw new Error(`drive volume not mounted at ${candidate}`);
-  }
-}
-
+/** GET /api/drives + GET /api/status payload: the drive cards minus the MBs
+ *  snapshot blob (page detail fetches it on demand). One builder so the two
+ *  routes can never drift. */
 function portView() {
   return db
     .allDrives()
@@ -610,15 +609,10 @@ function portView() {
       last_seen_at: d.last_seen_at,
     }));
 }
-
-/** display labels for fleet responses: drive_id → nickname/name */
 function driveNames(): Map<string, string> {
   return new Map(db.allDrives().map((d) => [d.id, d.nickname ?? d.name]));
 }
 
-/** ---- /fleet/* family (§B6 coverage / §B7 redundancy / §B8 diff / O83
- *  prep): pure reads over fleet tables (refreshed by scans). Drive names in
- *  responses are display labels resolved here, once. */
 async function fleetRoutes(route: string, url: URL): Promise<Response> {
   if (route === "/fleet/coverage") {
     const minCopies = Math.max(
@@ -714,9 +708,6 @@ async function fleetRoutes(route: string, url: URL): Promise<Response> {
   }
 }
 
-/** GET /api/drives + GET /api/status payload: the drive cards minus the MBs
- *  snapshot blob (page detail fetches it on demand). One builder so the two
- *  routes can never drift. */
 async function driveListPayload(): Promise<Drive[]> {
   const snaps = db.latestSnapshots();
   const sweeps = shelfSweeps.latestPerDrive();

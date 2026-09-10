@@ -53,6 +53,9 @@ export interface Drive {
   first_seen_at: number;
   last_seen_at: number;
   last_port_key: string | null;
+  /** Negotiated USB link rate in bits/s (ioreg UsbLinkSpeed; null = unknown).
+   *  Powers the USB 2.0 vs 3.0 flag — see usbLinkClass in src/detect.ts. */
+  link_bps: number | null;
   plug_count: number;
   mounted: boolean;
   state: DriveState; // derived, not stored
@@ -205,7 +208,14 @@ export interface DjStats {
   artwork_total?: number;
 }
 
-export type JobKind = "scan" | "verify" | "mirror" | "benchmark" | "checksum";
+export type JobKind =
+  | "scan"
+  | "verify"
+  | "mirror"
+  | "benchmark"
+  | "checksum"
+  | "ingest"
+  | "speedtest";
 export type JobStatus =
   | "queued"
   | "running"
@@ -264,6 +274,35 @@ export interface WireJob {
   created_at: number;
   started_at: number | null;
   finished_at: number | null;
+}
+
+/** Params of one archive-intake run (the `ingest` job kind). `folder` is
+ *  the source dump the user picked (or the watcher caught); it rides the
+ *  job row's mount_point slot (drive jobs carry a volume there). */
+export interface IntakeRun {
+  /** absolute source folder the files ingest FROM */
+  folder: string;
+}
+
+/** Result payload (job.result_json) of a finished ingest run — mirrors
+ *  megadj ingest's --json summary plus the audit verdict leg. */
+export interface IntakeResult {
+  files: number;
+  tagged: number;
+  artAdded: number;
+  artQueued: number;
+  wavConverted: number;
+  folderDupes: number;
+  archiveDupes: number;
+  upgrades: number;
+  broken: number;
+  compatRejected: number;
+  compatHires: number;
+  shortSkipped: number;
+  unchanged: number;
+  /** post-ingest archive audit totals (the verify leg) */
+  audit: { total: number; complete: number } | null;
+  auditErrors: Array<{ file: string; missing: string }>;
 }
 
 export interface TimelineEvent {
@@ -585,6 +624,42 @@ export type PlayersPayload = {
   measured: { pdb_live_rows: number | null; onelibrary_rows: number | null };
 } & DriveCompat;
 
+// ---- booth fleet settings: which players the compat gates enforce.
+// FLEET_PROFILES (fulltags/src/fleet.ts) is the SSOT for the profile
+// rows + citations; this is the wire envelope for GET/POST /api/booth/fleet.
+export interface BoothCitation {
+  claim: string;
+  publisher: string;
+  url: string;
+  section: string;
+}
+
+export interface BoothPlayerProfile {
+  id: string;
+  name: string;
+  defaultOn: boolean;
+  unicodeText: boolean;
+  emoji: boolean;
+  maxSampleRate: number;
+  maxBitDepth: number;
+  flac: boolean;
+  citations: BoothCitation[];
+}
+
+export type BoothFleetPayload = {
+  /** Currently selected ids (order-insensitive). */
+  selected: string[];
+  /** Full catalog with citations (settings UI renders this). */
+  profiles: BoothPlayerProfile[];
+  /** The audio floor the CURRENT selection produces (per player-compat). */
+  floor: {
+    flac: boolean;
+    maxSampleRate: number;
+    maxBitDepth: number;
+    unicodeText: boolean;
+  };
+};
+
 // ---- notes (O88): the feed's row type lives here; src/notes.ts (the
 // producer) imports it back so deckctl and any other consumer read the
 // same shape without a module cycle.
@@ -639,4 +714,13 @@ export interface BenchRun {
   ran_at: number;
   seq_mbps: number;
   rand4k_mbps: number;
+}
+
+/** Result of a `speedtest` job — the minimal ~10MB link-class probe. A tiny
+ *  companion to `BenchRun`: cheap enough to run on demand from the banner,
+ *  measuring only big-file sequential MB/s (what the USB2/3 gulf shows). */
+export interface SpeedProbe {
+  ran_at: number;
+  mbps: number;
+  bytes_read: number;
 }

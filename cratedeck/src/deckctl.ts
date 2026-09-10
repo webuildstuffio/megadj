@@ -32,6 +32,7 @@ import {
   type Drive,
 } from "./deckapi";
 import type {
+  BoothFleetPayload,
   CoverageResponse,
   FleetDiff,
   InterlockState,
@@ -561,6 +562,52 @@ async function cmdPrep(outPath: string | undefined): Promise<void> {
   if (outPath) log(`\nwritten: ${outPath}`);
 }
 
+// ---- booth-fleet: the players compat checks enforce -------------------------
+// GET /api/booth/fleet = show; `booth-fleet set xdj-xz cdj-3000 ...` = POST.
+// The SAME selection drives megadj audit/booth-fix (config.toml [booth]).
+
+async function cmdBoothFleet(
+  setCmd: string | undefined,
+  ids: string[] | undefined,
+): Promise<void> {
+  if (setCmd !== undefined && setCmd !== "set") {
+    errOut(`unknown booth subcommand "${setCmd}" — usage: booth [set ID ...]`);
+    process.exit(2);
+  }
+  if (setCmd === "set") {
+    if (!ids || ids.length === 0) {
+      errOut(
+        "booth set needs at least one player id (e.g. xdj-xz cdj-3000 cdj-2000nxs2)",
+      );
+      process.exit(2);
+    }
+    const res = await apiPost("/api/booth/fleet", { selected: ids });
+    if (!res.ok) {
+      errOut(`booth-fleet set failed: HTTP ${res.status}`);
+      process.exit(1);
+    }
+    reportFleet((await res.json()) as BoothFleetPayload);
+    return;
+  }
+  reportFleet(await getJson<BoothFleetPayload>("/api/booth/fleet"));
+}
+
+function reportFleet(d: BoothFleetPayload): void {
+  if (JSON_MODE) {
+    console.log(JSON.stringify(d, null, 2));
+    return;
+  }
+  log(`booth fleet: ${d.selected.join(", ")}`);
+  log(
+    `floor: ${d.floor.flac ? "FLAC ok" : "no FLAC"} · ${d.floor.maxBitDepth}-bit · ${d.floor.maxSampleRate / 1000} kHz · ${d.floor.unicodeText ? "Unicode" : "ASCII-only"} text`,
+  );
+  for (const p of d.profiles) {
+    const mark = d.selected.includes(p.id) ? "x" : " ";
+    log(`  [${mark}] ${p.name} (${p.id})${p.defaultOn ? " — default on" : ""}`);
+  }
+  log("set with: deckctl booth set <id ...>");
+}
+
 // ---- explain: what each job actually does, how long, why it matters ---------
 // KIND_DOCS + the pretty-printer live in deckctl_docs.ts (extracted, shared
 // with `help <kind>`); only the verify-rich rendering stays local.
@@ -627,6 +674,7 @@ function usageText(): string {
     "  redundancy [min-copies]       per-playlist audit: every track on ≥N drives?",
     "  preflight                     gig-night pass/fail across all mounted drives (exit 1 if not ready)",
     "  players [drive]               which CDJs/XDJs can read each stick (measured dual-DB state)",
+    "  booth [set ID ...]           the players compat checks enforce (no args = show; set persists)",
     "  prep [--out FILE]             weekly digest: fleet + redundancy + archive markdown",
     "  note <drive> <text>           post a finding to the drive timeline (--severity info|warn|critical)",
     "  notes [drive]                 active findings feed (omit drive = every drive)",
@@ -698,6 +746,11 @@ async function main(): Promise<void> {
       return cmdRename(noteHooks(), arg(1), args.slice(2).join(" ") || null);
     case "players":
       return cmdPlayers(args[1]);
+    case "booth":
+      return cmdBoothFleet(
+        args[1] === "set" ? "set" : undefined,
+        args[1] === "set" ? args.slice(2) : undefined,
+      );
     case "run":
       return cmdRun(arg(1), arg(2), !process.argv.includes("--no-wait"));
     case "jobs":

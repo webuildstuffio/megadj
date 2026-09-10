@@ -24,6 +24,7 @@ import { useFetched } from "../../ui/useFetched";
 import { StatCard, CountStat, DataTable, SearchBar } from "../../ui/data";
 import { fuzzyFilter } from "../../ui/fuzzy";
 import { PreflightTab } from "./PreflightTab";
+import { BoothSettings } from "./BoothSettings";
 import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
 import { TabIntro } from "../../ui/InfoTip";
@@ -59,6 +60,7 @@ export function FleetPage(props: { tab: string }) {
       {tab === "redundancy" && <RedundancyTab />}
       {tab === "diff" && <DiffTab />}
       {tab === "preflight" && <PreflightTab />}
+      {tab === "booth" && <BoothSettings />}
       {tab === "archive" && <ArchiveTab />}
       {tab === "prep" && <PrepTab />}
     </div>

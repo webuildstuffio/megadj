@@ -46,12 +46,19 @@ the remix's, not the original's.
 1. **Coverage + accuracy** — `megadj audit` is the ground-truth gate: art +
    title + artist + album + genre + year must be present _and correct_ on
    100% of tracks, verified by reading files (never trusting the DB). The
-   gate is also booth-safe: `player-compat` enforces the four-player audio
-   floor and `booth-text` flags what the players can't _display_ or
-   _export_ — emoji/CJK/Cyrillic outside the players' glyph tables, CP1252
+   gate is also booth-safe: `player-compat` enforces the audio floor of the
+   **configured booth fleet** (default XDJ-XZ + CDJ-3000 + CDJ-2000NXS2;
+   every profile carries triple citations — `fulltags/src/fleet.ts`) and
+   `booth-text` flags what the players can't _display_ or _export_ —
+   emoji/CJK/Cyrillic outside the players' glyph tables, CP1252
    double-encode mojibake, CP1251-as-Latin-1 debris, export-killing
-   filename characters (`;`, control bytes), over-long (>255 B) and
-   over-deep (>8 folder) paths.
+   filename characters (`;`, control bytes), over-long (>255 B) paths,
+   over-deep paths (fleet floor), and Windows-stripped trailing
+   dots/spaces. `megadj booth-fix [--apply --yes]` proposes (and applies)
+   the safe fixes: tag sanitization, mojibake re-decode, illegal-char
+   renames (DB path follows). The fleet is chosen on the web (Fleet →
+   Booth), CLI (`deckctl booth [set …]`), MCP (`deck_booth`), or
+   `config.toml [booth].fleet`.
 2. **Source-correct metadata** — a SoundCloud remix gets the SoundCloud
    artwork, the remix year (from the upload page's `display_date`, not a
    guessed "2023"), the SoundCloud genre tags. A hypeddit gateway track gets

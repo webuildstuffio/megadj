@@ -448,6 +448,28 @@
   opacity: 0.85;
   white-space: nowrap;
 }
+/* USB slow-link banner: pinned between the nav strip and the frame so it's
+ * visible on every product page until the drive is moved to a faster port */
+.usblink-banner {
+  margin: 0 18px 8px;
+  flex-wrap: wrap;
+}
+.usblink-banner .usblink-action {
+  margin-left: auto;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.usblink-banner .usblink-action:hover {
+  background: var(--warn-dim);
+}
 .arch-issues {
   display: flex;
   flex-wrap: wrap;
@@ -650,4 +672,82 @@
   color: var(--bad);
   border-color: #6b2527;
   background: var(--bad-dim);
+}
+
+/* ---- booth fleet settings (#/fleet/booth) -------------------------------- */
+
+.booth-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.booth-row {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel, rgba(255, 255, 255, 0.02));
+}
+
+.booth-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  flex-wrap: wrap;
+}
+
+.booth-row-name {
+  font-weight: 600;
+  min-width: 130px;
+}
+
+.booth-row-specs {
+  color: var(--dim, var(--text-2));
+  font-size: 12.5px;
+}
+
+.booth-cite-toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.booth-citations {
+  list-style: none;
+  margin: 0;
+  padding: 8px 14px 12px 40px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.booth-cite-claim {
+  font-size: 12.5px;
+}
+
+.booth-cite-src {
+  font-size: 12px;
+  color: var(--dim, var(--text-2));
+}
+
+.booth-cite-src a {
+  color: var(--accent);
+}
+
+.booth-lede,
+.booth-note {
+  font-size: 13px;
+  color: var(--dim, var(--text-2));
+  max-width: 1240px;
+}
+
+.booth-note {
+  margin-top: 10px;
 }

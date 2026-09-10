@@ -1,10 +1,17 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, beforeEach } from "bun:test";
 import {
   playerCompat,
   isHiresOnly,
+  setBoothFleet,
   type CompatResult,
 } from "../src/player-compat";
 import type { Probe } from "../src/probes";
+
+// Every test pins its fleet explicitly — the default trio (XZ/3000/NXS2)
+// differs from the four-player floor the older cases were written for.
+beforeEach(() => {
+  setBoothFleet(["xdj-xz", "cdj-3000", "cdj-2000nxs2", "cdj-2000"]);
+});
 
 function probe(over: Partial<Probe> = {}): Probe {
   return {
@@ -117,5 +124,37 @@ describe("playerCompat — degradation honesty", () => {
   test("CompatResult carries a human detail line", () => {
     const r: CompatResult = playerCompat(probe({ codec: "pcm_f32le" }));
     expect(r.detail).toContain("pcm_f32le");
+  });
+});
+
+describe("playerCompat — fleet selection", () => {
+  test("default trio: FLAC passes outright (3000+NXS2+XZ all take it)", () => {
+    setBoothFleet(["xdj-xz", "cdj-3000", "cdj-2000nxs2"]);
+    const r = playerCompat(
+      probe({ codec: "flac", sampleRate: 44100, bitrateKbps: 900 }),
+    );
+    expect(r.ok).toBe(true);
+    expect(r.reasons).toEqual([]);
+  });
+  test("adding CDJ-2000 makes 96 kHz a full-fleet fail... still partial", () => {
+    // 96 kHz plays on 3000+NXS2 only — partial regardless of the 2000,
+    // because partial means "some of the fleet", and the XZ caps at 48k.
+    setBoothFleet(["xdj-xz", "cdj-3000", "cdj-2000nxs2", "cdj-2000"]);
+    const r = playerCompat(probe({ sampleRate: 96000 }));
+    expect(r.reasons).toContain("sample-rate-hires");
+    expect(isHiresOnly(r)).toBe(true);
+  });
+  test("dropping the XZ lets 96 kHz pass everywhere", () => {
+    setBoothFleet(["cdj-3000", "cdj-2000nxs2"]);
+    const r = playerCompat(probe({ sampleRate: 96000 }));
+    expect(r.ok).toBe(true);
+    expect(r.reasons).toEqual([]);
+  });
+  test("an empty/unknown selection falls back to the default trio floor", () => {
+    setBoothFleet([]);
+    // resolveFleet drops unknowns; an empty selection must never widen
+    // the floor to "anything goes" — it re-derives DEFAULT_FLEET.
+    const r = playerCompat(probe({ sampleRate: 96000 }));
+    expect(r.reasons).toContain("sample-rate-hires"); // XZ back in the floor
   });
 });

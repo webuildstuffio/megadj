@@ -53,15 +53,18 @@ export class RpcParamError extends Error {}
 
 /** One object property. */
 export interface Prop {
-  type: "string" | "number" | "boolean";
+  type: "string" | "number" | "boolean" | "array";
   description?: string;
   enum?: readonly string[];
+  /** array-only: the items' schema */
+  items?: { type: "string" };
 }
 
 function prop(p: Prop): Record<string, unknown> {
   const out: Record<string, unknown> = { type: p.type };
   if (p.description) out.description = p.description;
   if (p.enum) out.enum = [...p.enum];
+  if (p.items) out.items = p.items;
   return out;
 }
 
@@ -104,4 +107,9 @@ export function n(description?: string): Prop {
 /** Boolean property with optional description. */
 export function b(description?: string): Prop {
   return { type: "boolean", description };
+}
+
+/** String-array property (e.g. booth fleet ids). */
+export function sArr(description: string): Prop {
+  return { type: "array", items: { type: "string" }, description };
 }

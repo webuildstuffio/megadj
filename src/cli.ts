@@ -138,6 +138,28 @@ async function main(): Promise<void> {
 
   assertMac();
 
+  // Fleet bootstrap: [booth].fleet from the shared config.toml (or
+  // MEGADJ_FLEET="xdj-xz,cdj-3000" override). Both gates — audio and
+  // text — key off this, so the audit answers for the players the user
+  // actually spins. Unknown ids fall back to the default trio.
+  try {
+    const { loadConfig } = await import("../cratedeck/src/config");
+    const cfg = loadConfig(
+      process.env.CRATEDECK_ROOT ?? import.meta.dir + "/../cratedeck",
+    );
+    const envFleet = process.env.MEGADJ_FLEET?.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const { setBoothFleet } = await import("../fulltags/src/exports");
+    setBoothFleet(envFleet && envFleet.length > 0 ? envFleet : cfg.boothFleet);
+  } catch (e) {
+    // No config / unreadable config → the default trio still guards the
+    // audit (logged, never silent — the AGENTS.md catch rule).
+    console.error(
+      `booth fleet: config.toml unreadable (${e instanceof Error ? e.message : String(e)}) — using default fleet`,
+    );
+  }
+
   const state = new ArchiveState(DB_PATH);
 
   try {
@@ -223,6 +245,36 @@ async function main(): Promise<void> {
         const json = rest.includes("--json");
         if (json) statusJson(state);
         else status(state);
+        break;
+      }
+      case "booth-fix": {
+        const flags = parseFlags(
+          rest,
+          ["booth-fix"],
+          ["apply", "yes", "dry-run", "json"],
+        );
+        const { boothFix } = await import("./commands/booth-fix");
+        const report = await boothFix({
+          state,
+          musicDir: MUSIC_DIR,
+          dryRun: flags.bools.has("dry-run"),
+          apply: flags.bools.has("apply") && flags.bools.has("yes"),
+          json: flags.bools.has("json"),
+          log: (m) => void console.log(m),
+        });
+        if (flags.bools.has("json")) {
+          console.log(JSON.stringify(report, null, 2));
+        } else {
+          console.log(
+            `booth-fix: ${report.checked} checked, ${report.fixable} fixable, ${report.applied} applied (fleet: ${report.fleet.join(", ")})`,
+          );
+          for (const r of report.rows) {
+            console.log(`  [${r.gate}: ${r.reasons.join(",")}] ${r.plan}`);
+            console.log(`    ${r.file}`);
+          }
+          if (report.rows.some((r) => r.action === "none"))
+            process.exitCode = 1;
+        }
         break;
       }
       case "shelf-sync": {

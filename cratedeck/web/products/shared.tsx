@@ -137,6 +137,13 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       title: "Gig-night gate: is every drive ready to play right now?",
     },
     {
+      id: "booth",
+      label: "Booth",
+      icon: "sliders",
+      title:
+        "Which players your checks enforce — pick the fleet, see the proof",
+    },
+    {
       id: "archive",
       label: "Archive",
       icon: "doc",
@@ -167,6 +174,12 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       label: "Sources",
       icon: "compass",
       title: "Where the archive's music comes from",
+    },
+    {
+      id: "intake",
+      label: "Intake",
+      icon: "download",
+      title: "Process a dump folder: tags, artwork, dedupe, verify — live",
     },
     {
       id: "library",

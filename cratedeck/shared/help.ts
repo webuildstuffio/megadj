@@ -191,6 +191,15 @@ export const HELP_JOBS: HelpJob[] = [
     duration: "~30 seconds",
   },
   {
+    kind: "speedtest",
+    label: "Speed probe",
+    icon: "zap",
+    what: "Reads ~10MB from the drive's biggest file and reports MB/s — a minimal check that flags a USB 2.0 vs 3.0 link without any writes.",
+    when: "Whenever the USB link flag shows USB 2.0, to confirm real throughput; cheap enough to run on demand.",
+    safety: "Read-only (a few MB). No interlock needed.",
+    duration: "under a second",
+  },
+  {
     kind: "checksum",
     label: "Checksum",
     icon: "hash",
@@ -226,6 +235,13 @@ export const HELP_SURFACES: HelpSurface[] = [
     label: "Fleet · Preflight",
     where: "Fleet → Preflight",
     question: "Is every drive ready to play right now — gig-night gate?",
+  },
+  {
+    route: "#/fleet/booth",
+    label: "Fleet · Booth",
+    where: "Fleet → Booth",
+    question:
+      "Which players do the compat checks enforce — pick the fleet, see the citations?",
   },
   {
     route: "#/fleet/archive",
@@ -264,6 +280,13 @@ export const HELP_SURFACES: HelpSurface[] = [
     label: "GetDat · Library",
     where: "GetDat → Library",
     question: "What's in the archive — genres, years, artwork, search?",
+  },
+  {
+    route: "#/getdat/intake",
+    label: "GetDat · Intake",
+    where: "GetDat → Intake",
+    question:
+      "Turn a dump folder into archive-ready tracks — tags, art, dedupe, audit, live?",
   },
   {
     route: "#/fulltags/beatgrids",

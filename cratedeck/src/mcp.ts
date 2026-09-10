@@ -22,6 +22,7 @@
  *   deck_explain {kind?}        what each job does, typical duration, safety
  *   deck_preflight              gig-night pass/fail across mounted drives (B12)
  *   deck_players {drive?}       which players can read each stick (N75/N78)
+ *   deck_booth {ids?}           the player set compat gates enforce + citations (ids = set)
  *   deck_note {drive, note}     RECORD a finding on a drive timeline (O88)
  *   deck_notes {drive?}         active agent findings (O88, readonly)
  *   deck_rename {drive, nickname?} set/clear the display nickname (mutating)
@@ -54,6 +55,7 @@ import {
   noArgs,
   s,
   sEnum,
+  sArr,
   n,
   b,
   type Prop,
@@ -130,6 +132,8 @@ const JOB_KINDS = [
   "mirror",
   "benchmark",
   "checksum",
+  "speedtest",
+  "ingest",
 ] as const satisfies readonly JobKind[];
 
 /** O87 attribution: one id per MCP server process, stamped on mutating calls
@@ -380,6 +384,25 @@ const TOOLS: Record<string, ToolDef> = {
       if (!drive) return apiGetJson("/api/drives");
       const d = await needDrive(drive);
       return apiGetJson(`/api/drives/${d.id}/players`);
+    },
+  },
+
+  deck_booth: {
+    description:
+      "The booth fleet: which Pioneer players the compat gates (megadj audit / booth-fix / ingest) enforce, each with its spec profile and triple citations. ids omitted = read-only show; ids given = SELECT that fleet (persists to config.toml [booth].fleet) — confirm with the human before setting. Empty selection re-applies the default trio.",
+    inputSchema: obj({
+      ids: sArr(
+        "player ids to enforce (xdj-xz, cdj-3000, cdj-2000nxs2, cdj-2000); omit to just show",
+      ),
+    }),
+    run: async (args) => {
+      const raw = (args as { ids?: unknown }).ids;
+      const ids = Array.isArray(raw)
+        ? raw.filter((x): x is string => typeof x === "string")
+        : [];
+      if (ids.length === 0) return apiGetJson("/api/booth/fleet");
+      const r = await apiPost("/api/booth/fleet", { selected: ids });
+      return (await r.json()) as unknown;
     },
   },
 

@@ -1,6 +1,7 @@
 // Config — config.toml + env, validated once at boot.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { FLEET_PROFILES, DEFAULT_FLEET } from "../../fulltags/src/fleet";
 
 export interface CrateConfig {
   root: string; // cratedeck/ dir
@@ -38,6 +39,11 @@ export interface CrateConfig {
   musicDir: string;
   /** Raw [players.players] section — name → "device" | "onelibrary" (N75). */
   extraPlayers: Record<string, string>;
+  /** [booth] fleet — player ids the user's checks must satisfy. Every
+   *  player in fulltags FLEET_PROFILES is selectable; XDJ-XZ/CDJ-3000/
+   *  CDJ-2000NXS2 default on. Audits + the web settings UI derive the
+   *  compat floor from this. */
+  boothFleet: string[];
 }
 
 /** Raw TOML value: what the tiny parser can produce. */
@@ -175,6 +181,23 @@ export function loadConfig(root: string): CrateConfig {
         if (reads === "device" || reads === "onelibrary") out[name] = reads;
       }
       return out;
+    })(),
+    // [booth] fleet = "xdj-xz", "cdj-3000", … — validated against
+    // fulltags FLEET_PROFILES; unknown ids fall back to the defaults
+    // rather than silently shrinking the safety floor.
+    boothFleet: (() => {
+      const booth = isTomlTable(file.booth) ? file.booth : {};
+      const raw = booth.fleet;
+      const ids = Array.isArray(raw)
+        ? raw.filter((x): x is string => typeof x === "string")
+        : [];
+      const known = new Set(FLEET_PROFILES.map((p) => p.id as string));
+      const valid = ids.filter((id) => known.has(id));
+      return valid.length > 0 || ids.length === 0
+        ? valid.length > 0
+          ? valid
+          : [...DEFAULT_FLEET]
+        : [...DEFAULT_FLEET];
     })(),
   };
   if (cfg.imageProvider && !["brave", "exa"].includes(cfg.imageProvider)) {

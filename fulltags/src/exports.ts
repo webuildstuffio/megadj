@@ -88,6 +88,21 @@ export {
   TEXT_FIELDS,
   type TextCompatResult,
 } from "./booth-text";
+export {
+  setBoothFleet,
+  getBoothFleet,
+  boothFleetProfiles,
+} from "./player-compat";
+export {
+  FLEET_PROFILES,
+  DEFAULT_FLEET,
+  resolveFleet,
+  fleetFloor,
+  type FleetProfile,
+  type PlayerId,
+  type Citation,
+  type FleetFloor,
+} from "./fleet";
 export { readAiStamps, parseMoodStamp } from "./pipeline";
 export {
   fingerprintFile,

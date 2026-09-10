@@ -25,6 +25,9 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run] [--json]
                                                enrichment pass: tags+genres+years+art
   megadj audit   [--json]                      ground-truth tag/art audit — exits 1 on any gap
+  megadj booth-fix [--apply --yes] [--dry-run] [--json]
+                                               fix what the booth can't read: sanitize emoji/mojibake
+                                               tags, rename illegal-char paths (renames follow the DB)
   megadj years   [--dry-run] [--json]          verify years vs SC page/yt-dlp (kills AI 2023 guesses)
   megadj beats   [--limit N] [--jobs N] [--force] [--dry-run] [--json]
                                                beat_this → DB ledger (downbeats for cues/grid checks; no tag writes)

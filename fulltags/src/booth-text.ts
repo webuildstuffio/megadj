@@ -69,6 +69,8 @@ const PATH_ILLEGAL = new RegExp("[;\\u0000-\\u001F\\u007F]");
 export const TEXT_FIELDS = ["title", "artist", "album", "genre"] as const;
 export type TextField = (typeof TEXT_FIELDS)[number];
 
+import { boothFleetProfiles } from "./player-compat";
+
 /** The display verdict for one file's metadata text. */
 export interface TextCompatResult {
   /** Safe to display on the whole fleet AND to export. */
@@ -192,8 +194,24 @@ export function boothTextCompat(input: {
   if (Buffer.byteLength(relPath, "utf8") > 255) {
     reasons.push("path-too-long");
   }
-  if (relPath.split("/").length - 1 >= 8) {
-    reasons.push("path-too-deep"); // XDJ-XZ: 8 folder levels browsable
+  // Fleet-aware depth: the floor of every selected player's browsable
+  // folder levels (XDJ-XZ manual table; others equal or looser).
+  const fleet = boothFleetProfiles();
+  const maxDepth =
+    fleet.length > 0
+      ? Math.min(...fleet.map((p) => p.limits.maxFolderDepth))
+      : 8;
+  if (relPath.split("/").length - 1 >= maxDepth) {
+    reasons.push("path-too-deep"); // files below the depth can't be played
+  }
+  // Windows-carried hazards: a trailing dot or space before the
+  // extension is stripped/mangled by Windows tools that later touch the
+  // export (rekordbox runs on Windows too) — the file silently renames
+  // and the booth's saved path dead-ends (E-8306 class).
+  const stem = relPath.replace(/\.[^.]+$/, "");
+  if (/[. ]$/.test(stem) && stem.length > 0) {
+    reasons.push("path-trailing-dot-or-space");
+    offenders.filename = stem.slice(-1);
   }
 
   return {
