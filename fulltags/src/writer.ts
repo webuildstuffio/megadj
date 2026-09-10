@@ -370,7 +370,7 @@ export function writePatchWav(filePath: string, patch: TagPatch): boolean {
       .join("\n");
     const script = `${id3Open(filePath)}
 from mutagen.id3 import ID3, TIT2, TIT3, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TKEY, TPUB, TXXX, COMM
-if not a.tags: a.add_tags()
+if a.tags is None: a.add_tags()
 if not isinstance(a.tags, ID3): a.tags = ID3()
 ${sets}
 a.save()
@@ -424,12 +424,9 @@ export function embedArt(p: string, bytes: Uint8Array): boolean {
     if (p.toLowerCase().endsWith(".wav") || /\.(aiff?|aif)$/i.test(p)) {
       const script = `${id3Open(p)}
 from mutagen.id3 import ID3, APIC
+if a.tags is None: a.add_tags()
 if a.tags and any(k.startswith("APIC") for k in a.tags.keys()):
     a.tags.delall("APIC")
-try:
-    a.add_tags()
-except Exception:
-    pass
 if not isinstance(a.tags, ID3):
     a.tags = ID3()
 a.tags.add(APIC(encoding=3, mime="image/jpeg", type=3, desc="Cover", data=open(${JSON.stringify(dump)}, "rb").read()))

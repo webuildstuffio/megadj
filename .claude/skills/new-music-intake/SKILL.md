@@ -53,13 +53,29 @@ after a successful copy into the archive the original in Downloads is
 removed, so nothing duplicates.
 
 **WAVs become AIFF:** rekordbox cannot read art embedded in WAVs, so ingest
-**converts every WAV to AIFF on the way in** (lossless stream copy; audio
-bit-identical, tags + art ride along via mutagen — ffmpeg's aiff muxer
-drops the ID3 chunk, so the converter copies ID3 frames back afterwards).
-AIFF covers show natively in rekordbox, CDJs and the XDJ-XZ — no
-`rb_art.py` DB surgery needed for anything ingested going forward.
-Legacy WAVs already in the archive still need the one-time `rb_art.py`
-pass once the drives are plugged in.
+**converts every WAV to AIFF on the way in**. AIFF covers show natively in
+rekordbox, CDJs and the XDJ-XZ — no `rb_art.py` DB surgery needed for
+anything ingested going forward. Legacy WAVs already in the archive still
+need the one-time `rb_art.py` pass once the drives are plugged in.
+
+**Conversion is a BE re-map, never `-c:a copy`:** WAVs are little-endian;
+stream-copying LE PCM into ffmpeg's `aiff` muxer emits a malformed
+AIFC-style COMM chunk inside a FORM declared plain `AIFF` — strict parsers
+(ffprobe: "could not find COMM tag") and booth players reject it. The
+converter re-maps to `pcm_s16be`/`pcm_s24be` (identical samples, spec
+container), floors 32-bit/float sources to 24-bit, and ffprobe-validates
+the output **before** deleting the source WAV. Regression:
+`fulltags/test/wav-to-aiff.test.ts`.
+
+**Player-compat gate (Sep 10 2026):** every intake file is checked against
+the strictest-fleet floor — XDJ-XZ + CDJ-3000 + CDJ-2000NXS2 + CDJ-2000
+(`fulltags/src/player-compat.ts`, enforced in ingest and `megadj audit`).
+Hard rejects (left in place, never ingested): 32-bit int/float PCM WAVs
+(DAW bounces), ADPCM WAVs, MPEG-2 MP3 rips (16/22.05/24 kHz), no-audio
+files. Hi-res warnings (ingest but flagged): 88.2/96 kHz. FLAC/ALAC are
+not universal either — the plain CDJ-2000 has no FLAC, the XDJ-XZ no
+ALAC. Audio compat ≠ art compat: WAV would play, but its art doesn't
+show — that's what the AIFF conversion is for.
 
 ## Step 3 — THE one command: `tools/fetch_all.ts`
 
@@ -147,6 +163,7 @@ additive and MD5-verified, preserving divergent copies as `<name>
 
 ```bash
 megadj audit                    # ground-truth file audit: art+title+artist+album+genre+year
+                                #   + mood+energy + player-compat (booth-playable)
 megadj fetch --dry-run          # what would still be done
 megadj years --dry-run          # verify years against real SC page dates
 ```

@@ -49,6 +49,7 @@ import {
   measureRms,
 } from "../../fulltags/src/exports";
 import { wavToAiff } from "./wav-to-aiff";
+import { playerCompat, isHiresOnly } from "../../fulltags/src/exports";
 import {
   fetchAndEmbedArtwork,
   flushArtworkQueue,
@@ -80,6 +81,10 @@ export interface IngestCounters {
   shortSkipped: number;
   unchanged: number;
   wavConverted: number;
+  /** Fleet-incompatible files refused at the gate (left in place). */
+  compatRejected: number;
+  /** Files that ingest but will NOT load on XDJ-XZ / CDJ-2000 (hi-res). */
+  compatHires: number;
 }
 
 function newCounters(): IngestCounters {
@@ -91,6 +96,8 @@ function newCounters(): IngestCounters {
     shortSkipped: 0,
     unchanged: 0,
     wavConverted: 0,
+    compatRejected: 0,
+    compatHires: 0,
   };
 }
 
@@ -387,9 +394,37 @@ async function ingestOne(
     if (aiff) {
       file = aiff;
       ext = ".aiff";
-      probe.hasArt = true; // tags+art already rode along via map_metadata
+      // Same PCM stream in a new container — codec/bit depth are the
+      // source's (s16le→s16be etc.), only art presence changes.
+      probe = { ...probe, hasArt: true };
       counters.wavConverted++;
       log(`  ⇄ wav→aiff: ${basename(aiff)}`);
+    }
+  }
+
+  // Player-compat gate — the file must PLAY on the whole booth fleet
+  // (XDJ-XZ / CDJ-3000 / CDJ-2000NXS2 / CDJ-2000). See
+  // fulltags/src/player-compat.ts for the spec table this enforces.
+  // Checked AFTER wav→aiff so a 96kHz WAV becomes a compliant 96kHz AIFF
+  // verdict on the same probe it will register with.
+  {
+    const compat = playerCompat(probe);
+    if (!compat.ok && !isHiresOnly(compat)) {
+      counters.compatRejected++;
+      log(
+        `  ⛔ player-incompatible (${compat.detail}): ${basename(file)} — left in place`,
+      );
+      // No DB row on purpose: same treatment as broken files. A `failed`
+      // row would be resurrected by `megadj retry` into the download
+      // queue; the refusal lives in this log + counter and, if the file
+      // ever lands in the archive anyway, the audit's playable gate.
+      return;
+    }
+    if (isHiresOnly(compat)) {
+      counters.compatHires++;
+      log(
+        `  ⚠ hires-only (${compat.detail}): ${basename(file)} — ingesting; will NOT load on XDJ-XZ / CDJ-2000`,
+      );
     }
   }
 
@@ -591,6 +626,12 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   log(
     `\ndone: ${counters.tagged} retagged, ${counters.artAdded} artwork embedded` +
       (counters.wavConverted ? `, ${counters.wavConverted} wav→aiff` : "") +
+      (counters.compatRejected
+        ? `, ${counters.compatRejected} PLAYER-INCOMPATIBLE (left in place)`
+        : "") +
+      (counters.compatHires
+        ? `, ${counters.compatHires} hires-only (no XDJ-XZ/CDJ-2000)`
+        : "") +
       (counters.artQueued
         ? `, ${counters.artQueued} artwork QUEUED for image-maker`
         : "") +
@@ -621,6 +662,8 @@ export async function ingest(opts: IngestOptions): Promise<void> {
         artAdded: counters.artAdded,
         artQueued: counters.artQueued,
         wavConverted: counters.wavConverted,
+        compatRejected: counters.compatRejected,
+        compatHires: counters.compatHires,
         shortSkipped: counters.shortSkipped,
         unchanged: counters.unchanged,
         folderDupes,

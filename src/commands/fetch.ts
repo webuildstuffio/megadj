@@ -9,7 +9,13 @@
  */
 import { join } from "node:path";
 import { existsSync } from "node:fs";
-import { groundTruth, walkAudioFiles } from "../../fulltags/src/exports";
+import {
+  groundTruth,
+  walkAudioFiles,
+  probeFile,
+  playerCompat,
+  isHiresOnly,
+} from "../../fulltags/src/exports";
 export interface FetchOptions {
   all?: boolean;
   only?: "art" | "genres" | "tags" | "years" | "all";
@@ -31,6 +37,10 @@ export interface AuditRow {
   mood: boolean;
   /** TXXX:ENERGY stamp present (the energy stage's output). */
   energy: boolean;
+  /** Plays on the whole booth fleet (XDJ-XZ/3000/2000NXS2/2000) —
+   *  player-compat gate; a tag-complete file the booth can't load is
+   *  still a gap. */
+  playable: boolean;
   complete: boolean;
 }
 
@@ -40,18 +50,24 @@ export interface AuditRow {
  * walker: same skip/extension rules as every other collect pass. */
 const walkArchive = walkAudioFiles;
 
-/** Ground-truth audit of every audio file in the archive. */
-export function auditArchive(musicDir: string): {
+/** Ground-truth audit of every audio file in the archive (player-compat
+ * included — the gate is async because the codec probe is a process). */
+export async function auditArchive(musicDir: string): Promise<{
   total: number;
   complete: number;
   rows: AuditRow[];
-} {
+}> {
   const files = walkArchive(musicDir);
   const rows: AuditRow[] = [];
   for (const p of files) {
     if (!existsSync(p)) continue;
     const t = groundTruth(p);
     const genreOk = !!t.genre && t.genre !== "Music";
+    // Player-compat needs codec + sample rate — a second probe per file.
+    // This is the audit's job: pay the ffprobe pass, catch what tags
+    // alone can't see (float WAVs, 96k, MPEG-2 rips).
+    const compat = playerCompat(await probeFile(p));
+    const playable = compat.ok || isHiresOnly(compat);
     const row: AuditRow = {
       file: p,
       art: t.art,
@@ -62,6 +78,7 @@ export function auditArchive(musicDir: string): {
       year: !!t.year,
       mood: !!t.mood,
       energy: t.energy !== null,
+      playable,
       complete: false,
     };
     row.complete =
@@ -72,7 +89,8 @@ export function auditArchive(musicDir: string): {
       row.genre &&
       row.year &&
       row.mood &&
-      row.energy;
+      row.energy &&
+      row.playable;
     rows.push(row);
   }
   return {

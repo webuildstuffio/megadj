@@ -549,13 +549,17 @@ async function main(): Promise<void> {
       case "audit": {
         const json = rest.includes("--json");
         const { auditArchive } = await import("./commands/fetch");
-        const report = auditArchive(MUSIC_DIR);
+        const report = await auditArchive(MUSIC_DIR);
         const gaps = report.rows.filter((r) => !r.complete);
         const missing = (r: (typeof gaps)[number]): string =>
           (Object.entries(r) as [string, unknown][])
-            .filter(([k, v]) => k !== "file" && k !== "complete" && !v)
+            .filter(
+              ([k, v]) =>
+                k !== "file" && k !== "complete" && k !== "playable" && !v,
+            )
             .map(([k]) => k)
             .join(",");
+        const unplayable = gaps.filter((r) => !r.playable);
         if (json) {
           console.log(
             JSON.stringify(
@@ -563,6 +567,7 @@ async function main(): Promise<void> {
                 ok: gaps.length === 0,
                 total: report.total,
                 complete: report.complete,
+                unplayable: unplayable.map((r) => r.file),
                 incomplete: gaps.map((r) => ({
                   file: r.file,
                   missing: missing(r),
@@ -576,16 +581,18 @@ async function main(): Promise<void> {
           break;
         }
         console.log(
-          `audit: ${report.complete}/${report.total} complete (art + title + artist + album + genre + year + mood + energy)`,
+          `audit: ${report.complete}/${report.total} complete (art + title + artist + album + genre + year + mood + energy + player-compatible)`,
         );
         if (gaps.length) {
           console.log(`\nincomplete:`);
           for (const r of gaps) {
-            console.log(`  [${missing(r)}] ${r.file}`);
+            console.log(
+              `  [${missing(r)}]${r.playable ? "" : " [player-compat]"} ${r.file}`,
+            );
           }
           process.exitCode = 1;
         } else {
-          console.log("✅ all tracks fully tagged");
+          console.log("✅ all tracks fully tagged + booth-playable");
         }
         break;
       }

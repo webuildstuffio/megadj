@@ -31,11 +31,11 @@ function fakeTrack(rel: string): void {
 }
 
 describe("auditArchive folder walk", () => {
-  test("finds tracks in genre subfolders, not just the top level", () => {
+  test("finds tracks in genre subfolders, not just the top level", async () => {
     fakeTrack("top.m4a");
     fakeTrack("House/organized.m4a");
     fakeTrack("Techno  Trance/deep-dive.m4a");
-    const report = auditArchive(dir);
+    const report = await auditArchive(dir);
     expect(report.total).toBe(3);
     // none are complete (fake files) — the audit must say so, not 0/0
     expect(report.complete).toBe(0);
@@ -48,15 +48,41 @@ describe("auditArchive folder walk", () => {
     );
   });
 
-  test("empty/missing dir reports zero without throwing", () => {
-    expect(auditArchive(join(dir, "nope")).total).toBe(0);
+  test("empty/missing dir reports zero without throwing", async () => {
+    expect((await auditArchive(join(dir, "nope"))).total).toBe(0);
   });
 
-  test("hidden dirs (ingest-duplicates quarantine) are skipped", () => {
+  test("hidden dirs (ingest-duplicates quarantine) are skipped", async () => {
     fakeTrack("real.m4a");
     fakeTrack(".ingest-duplicates/hidden.m4a");
-    const report = auditArchive(dir);
+    const report = await auditArchive(dir);
     expect(report.total).toBe(1);
+  });
+
+  test("32-bit float WAV is audit-flagged unplayable (player-compat gate)", async () => {
+    // The real trap: a DAW bounce that is tag-fine but won't LOAD on any
+    // booth player. Generate a genuine pcm_f32le WAV — ffprobe must see it.
+    const p = join(dir, "daw-bounce.wav");
+    const gen = Bun.spawnSync([
+      "ffmpeg",
+      "-y",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-f",
+      "lavfi",
+      "-i",
+      "sine=frequency=440:duration=0.1",
+      "-c:a",
+      "pcm_f32le",
+      p,
+    ]);
+    if (gen.exitCode !== 0) return; // no ffmpeg in env — skip, don't fail
+    const report = await auditArchive(dir);
+    const row = report.rows.find((r) => r.file === p);
+    expect(row).toBeDefined();
+    expect(row!.playable).toBe(false);
+    expect(row!.complete).toBe(false);
   });
 });
 

@@ -70,6 +70,13 @@ export {
 export { detectRemix, type RemixInfo } from "./remix";
 export { normalize, identityKey } from "./identity";
 export { wavToAiff } from "./convert";
+export {
+  playerCompat,
+  isHiresOnly,
+  FLEET_SAMPLE_RATES,
+  HIRES_SAMPLE_RATES,
+  type CompatResult,
+} from "./player-compat";
 export { readAiStamps, parseMoodStamp } from "./pipeline";
 export {
   fingerprintFile,

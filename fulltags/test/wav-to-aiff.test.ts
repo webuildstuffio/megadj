@@ -42,8 +42,10 @@ describe("wavToAiff", () => {
         format: { duration: string; tags?: Record<string, string> };
         streams: Array<{ codec_type: string; codec_name: string }>;
       };
-    // lossless stream copy
-    expect(probe.streams.some((s) => s.codec_name === "pcm_s16le")).toBe(true);
+    // Sep 10 2026 fix: AIFF REQUIRES big-endian PCM. The old `-c:a copy`
+    // kept LE (`pcm_s16le`) and produced a malformed AIFC-style COMM that
+    // strict parsers reject — assert the SPEC-CORRECT codec instead.
+    expect(probe.streams.some((s) => s.codec_name === "pcm_s16be")).toBe(true);
     expect(Number(probe.format.duration)).toBeGreaterThan(0.9);
     // ffmpeg drops the ID3 chunk on aiff muxing — mutagen must have copied it
     expect(probe.format.tags?.title).toBe("Test Track");
