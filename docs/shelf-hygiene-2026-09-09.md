@@ -1,5 +1,14 @@
 # Shelf Hygiene & Dedupe — Sep 9 2026 Session
 
+**Status: ✅ SHIPPED — §4/§5 (the CrateDeck findings-ledger feature) built
+and landed Sep 10 2026 (P2+P3, commit 7754756): `megadj shelf-hygiene`
+
+- `deckctl hygiene` + `deck_hygiene` + the Hygiene tab (the shelf-intake
+  skill's hygiene step is the one Phase-6 item still open). This page is
+  the session record + the spec that was executed; current state lives in
+  [product-state-2026-09-07.md](product-state-2026-09-07.md), surface rows
+  in [surface-parity.md](surface-parity.md).**
+
 Full record of everything done in this session: the data work on SHELF1,
 the commands shipped, the traps hit, and — most importantly — the spec for
 wiring this whole flow into CrateDeck as an **automated check + user
@@ -8,6 +17,7 @@ review/confirm/validate** feature instead of chat-driven scripts.
 ## 1. What this session actually did (chronological)
 
 ### 1.1 Whole-shelf acoustic duplicate scan
+
 - `megadj shelf-dupescan` fingerprinted **4,635 audio files** on SHELF1
   (fpcalc/chromaprint, 120s analysis window, results cached in the
   `shelf_fingerprints` ledger in the megadj archive DB).
@@ -16,6 +26,7 @@ review/confirm/validate** feature instead of chat-driven scripts.
   cross-folder matches, long-mix fingerprint collisions).
 
 ### 1.2 Quarantine-apply (byte-verified, human-gated)
+
 - Shipped `--quarantine --yes` (two-step safety) and `--only-identical`
   (restrict to md5-proven copies) on `shelf-dupescan`.
 - Applied: **955 byte-identical copies** moved into
@@ -27,6 +38,7 @@ review/confirm/validate** feature instead of chat-driven scripts.
   the quarantine dir were segregated into `_appledouble-junk/`.
 
 ### 1.3 YTMusic Liked cleanup (user-directed deletion)
+
 - Missing File Manager confusion resolved first: the 419 "missing" tracks
   were **stale DB pointers, not lost files** — audit proved every flagged
   track exists on disk (e.g. Faithless/Greece WAVs live under truncated
@@ -41,6 +53,7 @@ review/confirm/validate** feature instead of chat-driven scripts.
   Folder now: 37 clean files.
 
 ### 1.4 Artist-folder consolidation (per-case, manual, triple-checked)
+
 - Sweep 1 (token-set matching over 2,087 folders): **14 same-artist
   variant pairs** — `Robin S`/`Robin S_`, `SEGA x Young M.A`-style
   separator flips, a Unicode-hyphen `a‐ha`, `[unknown]`/`Unknown`, etc.
@@ -66,6 +79,7 @@ review/confirm/validate** feature instead of chat-driven scripts.
   re-download candidate alongside Eat Me Better).
 
 ### 1.5 File-level dedupe passes
+
 - Byte-twin pass: 379 same-size groups MD5'd → **55 suffix-twin losers**
   quarantined (6 identical-but-distinctly-named pairs kept deliberately).
 - Acoustic pass: 330 different-bytes same-size groups fingerprinted →
@@ -77,6 +91,7 @@ review/confirm/validate** feature instead of chat-driven scripts.
 - Quarantine total: **1,703 files / 35.1 GB**, fully recoverable.
 
 ### 1.6 End state
+
 - Shelf live audio: **3,748 files**, 2,087 folders, zero same-name
   variants, zero same-basename collisions, one YT folder.
 - Verify still red **only** on the known rekordbox desyncs (57 moved
@@ -84,15 +99,17 @@ review/confirm/validate** feature instead of chat-driven scripts.
 - Quarantine awaiting user "empty it" decision (~35 GB reclaim).
 
 ## 2. Issues filed
-| # | Subject |
-|---|---------|
-| [#7](https://github.com/webuildstuffio/megadj/issues/7) | Rekordbox reconcile runbook (57 dead rows, pdb drift, re-export) |
-| [#8](https://github.com/webuildstuffio/megadj/issues/8) | YT-folder consolidation state + execution record |
-| [#9](https://github.com/webuildstuffio/megadj/issues/9) | Truncated-name WAV twins (Faithless/Greece 2000) |
-| [#10](https://github.com/webuildstuffio/megadj/issues/10) | `shelf-restore` tool + trash-first deletes proposal |
-| [#11](https://github.com/webuildstuffio/megadj/issues/11) | Re-download "Eat Me Better" (nimino) |
+
+| #                                                         | Subject                                                          |
+| --------------------------------------------------------- | ---------------------------------------------------------------- |
+| [#7](https://github.com/webuildstuffio/megadj/issues/7)   | Rekordbox reconcile runbook (57 dead rows, pdb drift, re-export) |
+| [#8](https://github.com/webuildstuffio/megadj/issues/8)   | YT-folder consolidation state + execution record                 |
+| [#9](https://github.com/webuildstuffio/megadj/issues/9)   | Truncated-name WAV twins (Faithless/Greece 2000)                 |
+| [#10](https://github.com/webuildstuffio/megadj/issues/10) | `shelf-restore` tool + trash-first deletes proposal              |
+| [#11](https://github.com/webuildstuffio/megadj/issues/11) | Re-download "Eat Me Better" (nimino)                             |
 
 ## 3. Traps hit (encode these in the feature)
+
 1. **Stale snapshots lie.** The 14 MB dossier manifest predated cleanup and
    miscounted by 100+ files. Always re-walk the live volume before batch ops.
 2. **Same size ≠ same content** (291 BANGERS files proved it) and **same
@@ -113,12 +130,15 @@ review/confirm/validate** feature instead of chat-driven scripts.
 
 ## 4. THE FEATURE: wire this flow into CrateDeck
 
+> **✅ SHIPPED Sep 10 2026** (P2+P3, commit 7754756) — as specced below.
+
 Turn this session's ad-hoc flow into a first-class product surface:
 **Shelf Hygiene** — an automated check pipeline with user
 review/confirm/validate at every destructive step. Nothing is ever deleted
 without an explicit human confirm in the UI.
 
 ### 4.1 Architecture (follows repo invariants)
+
 - **Check engine** lives in megadj CLI (`src/commands/shelf-hygiene.ts`),
   driven by the same primitives as `shelf-dupescan`/`shelf-dedupe`
   (md5, fpcalc + `shelf_fingerprints` cache, NFC+casefold matching).
@@ -126,7 +146,7 @@ without an explicit human confirm in the UI.
   job (never blocking the server; obey job budget/stall watchdog rules).
 - **Findings ledger** in the archive DB: `hygiene_findings` table —
   `id, kind, severity, status, paths (json), sizes, md5s, fps, evidence,
-  proposed_action, keeper_path, created_at, decided_at, decided_by`.
+proposed_action, keeper_path, created_at, decided_at, decided_by`.
   Status machine: `open → confirmed → applied` or
   `open → dismissed`; `auto` flag marks provably-safe items.
 - **CrateDeck API** (`/api/hygiene/...`): list findings, confirm/dismiss,
@@ -136,22 +156,24 @@ without an explicit human confirm in the UI.
 - **Web UI**: a new tab/section on the shelf drive page — see 4.3.
 
 ### 4.2 The automated checks (each maps to work already proven this session)
-| Check | Auto-verdict rule | Human gate |
-|---|---|---|
-| `byte-twin` | same size + same md5 | none — auto-quarantine safe (loser has proven twin); still shown in a review feed |
-| `acoustic-twin` | same fp, different bytes | **required** — show quality compare (size/bitrate/waveform), user picks keeper |
-| `folder-variant` | token-set equality OR manual curation list (the 20 shipped this session) | required for anything beyond exact token match |
-| `spelling-typo` | edit distance ≤2, simple names only | **required** — never auto-merge; show both folders' albums/genres |
-| `truncated-name` | DB row basename ≈ disk file (fp match) | required — offers rename + DB-relink instructions |
-| `zero-byte/corrupt` | size 0 or unhashable | auto-flag, user confirms delete (they may want to re-download instead) |
-| `appledouble-junk` | `._`/`.DS_Store` | auto-clean, logged |
-| `stale-pointer` | DB rows whose exact path is gone but basename+fp exists elsewhere | informational → feeds the rekordbox relocate checklist |
-| `orphan-audio` | disk files with zero DB rows (like Faithless/Greece) | informational → import-or-ignore decision |
+
+| Check               | Auto-verdict rule                                                        | Human gate                                                                        |
+| ------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `byte-twin`         | same size + same md5                                                     | none — auto-quarantine safe (loser has proven twin); still shown in a review feed |
+| `acoustic-twin`     | same fp, different bytes                                                 | **required** — show quality compare (size/bitrate/waveform), user picks keeper    |
+| `folder-variant`    | token-set equality OR manual curation list (the 20 shipped this session) | required for anything beyond exact token match                                    |
+| `spelling-typo`     | edit distance ≤2, simple names only                                      | **required** — never auto-merge; show both folders' albums/genres                 |
+| `truncated-name`    | DB row basename ≈ disk file (fp match)                                   | required — offers rename + DB-relink instructions                                 |
+| `zero-byte/corrupt` | size 0 or unhashable                                                     | auto-flag, user confirms delete (they may want to re-download instead)            |
+| `appledouble-junk`  | `._`/`.DS_Store`                                                         | auto-clean, logged                                                                |
+| `stale-pointer`     | DB rows whose exact path is gone but basename+fp exists elsewhere        | informational → feeds the rekordbox relocate checklist                            |
+| `orphan-audio`      | disk files with zero DB rows (like Faithless/Greece)                     | informational → import-or-ignore decision                                         |
 
 Severity tiers: `safe` (byte-proven), `likely` (fp-proven), `review`
 (name-similar), `info`. **Only `safe` items can ever be auto-applied.**
 
 ### 4.3 UX: review → confirm → validate loop
+
 1. **Verdict banner** (two-thirds UX law): "Shelf hygiene: 1,271 duplicate
    copies found · 955 provably safe · 312 need your ear · 35 GB
    reclaimable" + a primary action per tier.
@@ -182,6 +204,7 @@ Severity tiers: `safe` (byte-proven), `likely` (fp-proven), `review`
    expected verify deltas, and a "re-run verify" button.
 
 ### 4.4 Guards (from this session's traps)
+
 - Fresh walk immediately before every apply; abort if the live volume
   changed since the findings were computed (mtime/count sentinel).
 - One finding = one decision record; batch apply requires a frozen
@@ -195,6 +218,7 @@ Severity tiers: `safe` (byte-proven), `likely` (fp-proven), `review`
   no markdown state.
 
 ### 4.5 Ship order
+
 1. `hygiene_findings` table + engine port (checks from 4.2, reusing
    proven code paths) + `megadj shelf-hygiene --json`.
 2. API + job integration (SSE progress, budget/watchdog rules).
@@ -206,6 +230,10 @@ Severity tiers: `safe` (byte-proven), `likely` (fp-proven), `review`
 ---
 
 ## 5. DETAILED IMPLEMENTATION PLAN
+
+> **✅ Executed Sep 10 2026** — kept as the build record; the landed
+> code is the truth (phase 6's doc/parity closeout is in
+> `docs/surface-parity.md` rev 12).
 
 A concrete, file-by-file build guide. Each phase ends with a green gate
 (`bun run check:full` + `bun test`) before the next starts. Roughly one
@@ -223,29 +251,36 @@ web are re-exported from `cratedeck/shared/types.ts` per the DAG rule).
 
 ```ts
 export type FindingKind =
-  | "byte-twin" | "acoustic-twin" | "folder-variant" | "spelling-typo"
-  | "truncated-name" | "zero-byte" | "appledouble-junk"
-  | "stale-pointer" | "orphan-audio" | "re-download";
+  | "byte-twin"
+  | "acoustic-twin"
+  | "folder-variant"
+  | "spelling-typo"
+  | "truncated-name"
+  | "zero-byte"
+  | "appledouble-junk"
+  | "stale-pointer"
+  | "orphan-audio"
+  | "re-download";
 
 export type Severity = "safe" | "likely" | "review" | "info";
 
 export type FindingStatus =
-  | "open"        // detected, undecided
-  | "confirmed"   // user said yes (pending apply)
-  | "dismissed"   // user said no — never re-surface unless evidence changes
-  | "applied"     // executed (moved to quarantine)
-  | "failed";     // apply attempted, errored (kept for inspection)
+  | "open" // detected, undecided
+  | "confirmed" // user said yes (pending apply)
+  | "dismissed" // user said no — never re-surface unless evidence changes
+  | "applied" // executed (moved to quarantine)
+  | "failed"; // apply attempted, errored (kept for inspection)
 
 export interface Finding {
-  id: string;              // uuid
+  id: string; // uuid
   kind: FindingKind;
   severity: Severity;
   status: FindingStatus;
   /** every path involved. [0] = keeper/proposal, rest = losers/sources */
   paths: string[];
-  bytes: number[];         // parallel to paths
+  bytes: number[]; // parallel to paths
   md5s: (string | null)[]; // computed lazily, cached here
-  fps: (string | null)[];  // fpcalc, cached from shelf_fingerprints
+  fps: (string | null)[]; // fpcalc, cached from shelf_fingerprints
   evidence: Record<string, unknown>; // check-specific: bitrate, token-set, editDist…
   proposedAction:
     | { type: "quarantine-loser" }
@@ -258,7 +293,7 @@ export interface Finding {
   keeperPath: string | null;
   /** volume sentinel at detection time — apply aborts if it changed */
   walkToken: string;
-  autoSafe: boolean;       // severity==="safe" && kind allows auto
+  autoSafe: boolean; // severity==="safe" && kind allows auto
   createdAt: string;
   decidedAt: string | null;
   appliedAt: string | null;
@@ -271,7 +306,7 @@ export interface ValidationReceipt {
   keepersMissing: string[];
   fpMismatches: string[];
   shelfDelta: { before: number; after: number; quarantined: number };
-  ok: boolean;             // all three consistent
+  ok: boolean; // all three consistent
 }
 ```
 
@@ -332,17 +367,17 @@ change-sentinel used to abort stale applies.
 `detect(volume, walk, ctx): Promise<Finding[]>` where
 `ctx = { md5(p), fp(p) (cached), dbRowLookups }`:
 
-| File | Reuses (proven this session) |
-|---|---|
-| `checks/byte-twin.ts` | same-size index → md5 groups (the `/tmp/same-size-cands.json` flow, now in-repo) |
-| `checks/acoustic-twin.ts` | fp comparison + quality rank (`qualityRank` from `shelf-dedupe.ts`) |
-| `checks/folder-variant.ts` | token-set matcher + the curated merge list from this session as seeds |
-| `checks/spelling-typo.ts` | edit-distance ≤2, simple names, **collab-marker exclusion regex** |
-| `checks/zero-byte.ts` | walk-time flag |
-| `checks/appledouble-junk.ts` | walk-time flag |
-| `checks/stale-pointer.ts` | device DB rows (via `cratedeck/python/rb_read.py` seam) vs walk |
-| `checks/orphan-audio.ts` | inverse of stale-pointer |
-| `checks/re-download.ts` | manual-entry + ledger-stale matches (issue #11 shape) |
+| File                         | Reuses (proven this session)                                                     |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `checks/byte-twin.ts`        | same-size index → md5 groups (the `/tmp/same-size-cands.json` flow, now in-repo) |
+| `checks/acoustic-twin.ts`    | fp comparison + quality rank (`qualityRank` from `shelf-dedupe.ts`)              |
+| `checks/folder-variant.ts`   | token-set matcher + the curated merge list from this session as seeds            |
+| `checks/spelling-typo.ts`    | edit-distance ≤2, simple names, **collab-marker exclusion regex**                |
+| `checks/zero-byte.ts`        | walk-time flag                                                                   |
+| `checks/appledouble-junk.ts` | walk-time flag                                                                   |
+| `checks/stale-pointer.ts`    | device DB rows (via `cratedeck/python/rb_read.py` seam) vs walk                  |
+| `checks/orphan-audio.ts`     | inverse of stale-pointer                                                         |
+| `checks/re-download.ts`      | manual-entry + ledger-stale matches (issue #11 shape)                            |
 
 Checks run **in priority order and short-circuit**: a file claimed by
 `byte-twin` is not re-reported by `acoustic-twin` (finder-seen set).
@@ -350,6 +385,7 @@ Each detector writes findings with `walkToken` and `autoSafe` computed
 centrally: `autoSafe = severity==="safe" && action is quarantine/clean`.
 
 **1.3 `src/commands/shelf-hygiene.ts`** — the command shell:
+
 - `shelf-hygiene` — detect + upsert findings, print summary JSON
   (`{ byKind, bySeverity, walkToken, newFindings, reopened }`).
 - `--apply --yes` — executes **only** `confirmed` findings (web/CLI sets
@@ -410,6 +446,7 @@ Tests: route contract tests with a fixture DB; parity census updates.
 
 **3.1 New product section** on the shelf drive page (component dir
 `cratedeck/web/products/cratedeck/hygiene/`):
+
 - `HygienePanel.tsx` — verdict banner (two-thirds law): counts by
   severity + GB reclaimable + one primary button per tier
   ("Review 312", "Apply 955 safe", "Open queue").
@@ -429,6 +466,7 @@ Tests: route contract tests with a fixture DB; parity census updates.
   amber on any mismatch with per-file links.
 
 **3.2 Behaviors**
+
 - All mutations via `apiPost` (FormData rule irrelevant here, but keep
   the 30s default timeout; scan/apply go through jobs, not requests).
 - Batch select with per-page "select all safe" — but apply always
@@ -449,14 +487,15 @@ DOM-dump verification documented in the PR.
 ### Phase 4 — Validation receipts + rekordbox handoff (1 day)
 
 **4.1 `src/hygiene/validate.ts`** — `validateApply(applied: Finding[])`:
+
 1. re-stat every keeper (exists, size matches receipt);
 2. re-fp every quarantined loser vs keeper (cache-busted live fpcalc on
    the quarantine copy) — any mismatch = `fpMismatches`;
 3. shelf file-count delta == `applied.length` — else `shelfDelta` fails;
 4. `ok = keepersMissing.empty && fpMismatches.empty && delta ok`.
-On `!ok`: findings flip to `failed`, an SSE toast fires, and the panel
-offers one-click **revert** (move losers back — quarantine layout makes
-this a rename).
+   On `!ok`: findings flip to `failed`, an SSE toast fires, and the panel
+   offers one-click **revert** (move losers back — quarantine layout makes
+   this a rename).
 
 **4.2 rekordbox handoff** — after any `applied` finding with path
 changes, the drive page shows the #7 runbook fragment (Missing File
@@ -474,25 +513,32 @@ against the pre-hygiene verify snapshot.
   records intent.)
 
 ### Phase 6 — Docs/skills/parity closeout (half a day)
+
+> **✅ Mostly done Sep 10 2026** — FEATURES/deckctl/parity all updated
+> (surface-parity rev 12); the shelf-intake skill's hygiene step is the
+> one Phase-6 item still open.
+
 - `.claude/skills/shelf-intake/SKILL.md` gains the hygiene step;
   `docs/usb-sync.md` pipeline section; `docs/FEATURES.md` one-liner;
   `cratedeck/deckctl.md` verb; surface-parity rows; this doc's §4/§5 get
   a "SHIPPED" stamp with deltas.
 
 ### Test matrix (all phases, run with `bun test --parallel=16`)
-| Suite | Covers |
-|---|---|
-| `src/hygiene/*.test.ts` | store, walk token, each check, apply, validate |
-| `cratedeck/test/hygiene-reader.test.ts` | corrupt/missing DB degrade |
-| `cratedeck/test/hygiene-api.test.ts` | routes, batch decide, restore |
-| `cratedeck/test/surface-parity.test.ts` | deckctl/MCP/web parity rows |
-| `src/commands/json-summary.test.ts` | `--json` contract census |
+
+| Suite                                   | Covers                                         |
+| --------------------------------------- | ---------------------------------------------- |
+| `src/hygiene/*.test.ts`                 | store, walk token, each check, apply, validate |
+| `cratedeck/test/hygiene-reader.test.ts` | corrupt/missing DB degrade                     |
+| `cratedeck/test/hygiene-api.test.ts`    | routes, batch decide, restore                  |
+| `cratedeck/test/surface-parity.test.ts` | deckctl/MCP/web parity rows                    |
+| `src/commands/json-summary.test.ts`     | `--json` contract census                       |
 
 ### Explicit non-goals
+
 - No auto-download of music (re-download = command generation only).
 - No writes to rekordbox DBs (handoff stays instructional; issue #7).
 - No background auto-apply without a human confirm — `safe` items
   auto-**quarantine** at most, and even that is a visible, reversible
   finding the user sees in the feed.
 - No second source of truth: findings/quarantine live in the archive DB
-  + filesystem, never in JSON exports that drift.
+  - filesystem, never in JSON exports that drift.

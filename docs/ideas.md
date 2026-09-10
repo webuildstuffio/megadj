@@ -763,22 +763,14 @@ keeping agents inside P9/P11's idempotent, resumable safety rules.
 
 82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 37 tools
     after the Sep 10 hygiene/fixes revs).** Live:
-    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — **37 tools** (census
-    derives from source; pinned by `surface-parity.test.ts`). CrateDeck
-    half (22): `deck_status/drives/report/coverage/redundancy/diff/
-jobs/run/cancel/explain` + `deck_preflight` (B12), `deck_players`
-    (N78), `deck_note`/`deck_notes` (O88), `deck_prep` (O83),
-    `deck_search`/`deck_rename` (parity rev 2/3), `deck_booth` +
-    `deck_dismiss` (parity revs), `deck_hygiene`/`deck_fixes` (rev 12).
-    Archive
-    half (O82b, 15): `archive_search_tracks/track_stats/ingest_status/lowq_queue/
-source_diff/grid_cross_check/mood_profile/sweep/skip_census/sources/
-analysis_coverage/library_overview/cue_ledger/similar_tracks/
-set_build` — readonly reads over
-    megadj's own DB (`cratedeck/src/archive.ts`, opened `readonly: true`;
-    missing DB degrades to `available:false`, never throws). Any MCP
-    client (Claude Code, Codex, Cursor) answers "what did I ingest last
-    week" as naturally as "what's on the XZ". Full tool census:
+    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` —
+    **37 tools** (22 `deck_*` + 15 `archive_*`; census derives from
+    source, pinned by `surface-parity.test.ts`). The archive half
+    (O82b) is readonly reads over megadj's own DB (`cratedeck/src/
+archive.ts`, opened `readonly: true`; missing DB degrades to
+    `available:false`, never throws). Any MCP client (Claude Code,
+    Codex, Cursor) answers "what did I ingest last week" as naturally
+    as "what's on the XZ". **Per-tool list lives once:**
     [cratedeck/deckctl.md](../cratedeck/deckctl.md#mcp--the-same-surface-for-ai-agents).
 83. **Weekly agent prep loop (headless) — ✅ core SHIPPED 2026-09-05
     (`deckctl prep`).** One command renders the markdown digest:
