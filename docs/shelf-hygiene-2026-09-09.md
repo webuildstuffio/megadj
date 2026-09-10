@@ -202,3 +202,297 @@ Severity tiers: `safe` (byte-proven), `likely` (fp-proven), `review`
    quarantine panel with restore.
 4. Post-apply validation receipts + verify handoff (#7 integration).
 5. `shelf-restore` (#10) + re-download queue (#11) as finding kinds.
+
+---
+
+## 5. DETAILED IMPLEMENTATION PLAN
+
+A concrete, file-by-file build guide. Each phase ends with a green gate
+(`bun run check:full` + `bun test`) before the next starts. Roughly one
+phase per sitting; phases 1–2 are pure backend (no UI risk), 3–4 are the
+product surface.
+
+### Phase 0 — Groundwork (half a day)
+
+**Goal:** the findings ledger exists and every check can be expressed as
+a pure function over it.
+
+**0.1 `src/hygiene/types.ts`** (new, leaf module — no `src/` imports, so
+CrateDeck can share it without import cycles; wire types that reach the
+web are re-exported from `cratedeck/shared/types.ts` per the DAG rule).
+
+```ts
+export type FindingKind =
+  | "byte-twin" | "acoustic-twin" | "folder-variant" | "spelling-typo"
+  | "truncated-name" | "zero-byte" | "appledouble-junk"
+  | "stale-pointer" | "orphan-audio" | "re-download";
+
+export type Severity = "safe" | "likely" | "review" | "info";
+
+export type FindingStatus =
+  | "open"        // detected, undecided
+  | "confirmed"   // user said yes (pending apply)
+  | "dismissed"   // user said no — never re-surface unless evidence changes
+  | "applied"     // executed (moved to quarantine)
+  | "failed";     // apply attempted, errored (kept for inspection)
+
+export interface Finding {
+  id: string;              // uuid
+  kind: FindingKind;
+  severity: Severity;
+  status: FindingStatus;
+  /** every path involved. [0] = keeper/proposal, rest = losers/sources */
+  paths: string[];
+  bytes: number[];         // parallel to paths
+  md5s: (string | null)[]; // computed lazily, cached here
+  fps: (string | null)[];  // fpcalc, cached from shelf_fingerprints
+  evidence: Record<string, unknown>; // check-specific: bitrate, token-set, editDist…
+  proposedAction:
+    | { type: "quarantine-loser" }
+    | { type: "merge-folders"; into: string; renames: Record<string, string> }
+    | { type: "rename"; to: string }
+    | { type: "delete-corrupt" }
+    | { type: "clean-junk" }
+    | { type: "info" }
+    | { type: "re-download"; query: string };
+  keeperPath: string | null;
+  /** volume sentinel at detection time — apply aborts if it changed */
+  walkToken: string;
+  autoSafe: boolean;       // severity==="safe" && kind allows auto
+  createdAt: string;
+  decidedAt: string | null;
+  appliedAt: string | null;
+  validation: ValidationReceipt | null;
+}
+
+export interface ValidationReceipt {
+  ranAt: string;
+  keepersPresent: number;
+  keepersMissing: string[];
+  fpMismatches: string[];
+  shelfDelta: { before: number; after: number; quarantined: number };
+  ok: boolean;             // all three consistent
+}
+```
+
+**0.2 `src/hygiene/store.ts`** — `HygieneStore` class over the archive DB
+(same DB as `ShelfSweeps`/`FpCache`; follow `src/shelf_sweeps.ts` for
+style — plain `bun:sqlite`, prepared statements, `close()`).
+
+```sql
+CREATE TABLE IF NOT EXISTS hygiene_findings (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  severity TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open',
+  paths TEXT NOT NULL,          -- json[]
+  bytes TEXT NOT NULL,          -- json[]
+  md5s TEXT,                    -- json[]
+  fps TEXT,                     -- json[]
+  evidence TEXT,                -- json object
+  proposed_action TEXT NOT NULL,
+  keeper_path TEXT,
+  walk_token TEXT NOT NULL,
+  auto_safe INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  decided_at TEXT,
+  applied_at TEXT,
+  validation TEXT               -- json ValidationReceipt | null
+);
+CREATE INDEX IF NOT EXISTS idx_hygiene_status ON hygiene_findings(status, kind);
+-- dedupe key so re-runs UPDATinstead of duplicating:
+CREATE UNIQUE INDEX IF NOT EXISTS idx_hygiene_natural
+  ON hygiene_findings(kind, keeper_path, json_extract(paths, '$[1]'));
+```
+
+API: `upsert(findings)`, `list({status?, kind?, severity?})`,
+`decide(id, confirm: boolean)`, `markApplied(id, receipt)`,
+`dismissWhereEvidenceChanged(...)`. Findings are **immutable evidence +
+mutable status** — if a re-run computes different evidence for the same
+natural key, it updates evidence and resets status to `open` (a dismissed
+finding only re-opens when its fingerprint set changed).
+
+Tests: in-memory DB roundtrip, status machine transitions, natural-key
+upsert dedupe, evidence-change re-open logic.
+
+### Phase 1 — Check engine: `megadj shelf-hygiene` (1–2 days)
+
+**Goal:** one command produces/refreshes findings; `--apply --yes`
+executes confirmed `safe` items; everything else waits.
+
+**1.1 `src/hygiene/walk.ts`** — extract the walk already duplicated in
+`shelf-dupescan.ts`/`shelf-archive.ts` into one shared module:
+`walkShelf(volume, { skip: [".dupescan-quarantine", "PIONEER*"] }) →
+AsyncIterable<ShelfFile>` where `ShelfFile = { path, bytes, mtimeMs }`.
+Excludes `._*`, `.DS_Store`, `PIONEER*`. Returns the **walk token**:
+`sha1(JSON.stringify({fileCount, totalBytes, maxMtime}))` — the
+change-sentinel used to abort stale applies.
+
+**1.2 Check modules** — one file per check, each exporting
+`detect(volume, walk, ctx): Promise<Finding[]>` where
+`ctx = { md5(p), fp(p) (cached), dbRowLookups }`:
+
+| File | Reuses (proven this session) |
+|---|---|
+| `checks/byte-twin.ts` | same-size index → md5 groups (the `/tmp/same-size-cands.json` flow, now in-repo) |
+| `checks/acoustic-twin.ts` | fp comparison + quality rank (`qualityRank` from `shelf-dedupe.ts`) |
+| `checks/folder-variant.ts` | token-set matcher + the curated merge list from this session as seeds |
+| `checks/spelling-typo.ts` | edit-distance ≤2, simple names, **collab-marker exclusion regex** |
+| `checks/zero-byte.ts` | walk-time flag |
+| `checks/appledouble-junk.ts` | walk-time flag |
+| `checks/stale-pointer.ts` | device DB rows (via `cratedeck/python/rb_read.py` seam) vs walk |
+| `checks/orphan-audio.ts` | inverse of stale-pointer |
+| `checks/re-download.ts` | manual-entry + ledger-stale matches (issue #11 shape) |
+
+Checks run **in priority order and short-circuit**: a file claimed by
+`byte-twin` is not re-reported by `acoustic-twin` (finder-seen set).
+Each detector writes findings with `walkToken` and `autoSafe` computed
+centrally: `autoSafe = severity==="safe" && action is quarantine/clean`.
+
+**1.3 `src/commands/shelf-hygiene.ts`** — the command shell:
+- `shelf-hygiene` — detect + upsert findings, print summary JSON
+  (`{ byKind, bySeverity, walkToken, newFindings, reopened }`).
+- `--apply --yes` — executes **only** `confirmed` findings (web/CLI sets
+  status first) whose `walkToken` matches a fresh walk; per finding:
+  re-md5 keeper+loser right before move (`rename` into
+  `.dupescan-quarantine/`, collision-suffixed), then
+  `validation = validateApply(...)` (Phase 4 function), status `applied`/
+  `failed`. Progress via the standard `tick(done, total)` convention.
+- `--kind X --severity Y` filters, `--json` contract (enforced by the
+  `json-summary.test.ts` census — add it there).
+- Sync-writes stay sync (FullTags perf rule): no `bun -e` bridges.
+
+Tests: hermetic shelf fixtures (the ffmpeg-tone trick from
+`shelf-dupescan.test.ts`), one per check: detection truth, apply moves +
+receipt, stale-walk abort, md5-mismatch abort, quarantine-collision
+suffixing.
+
+### Phase 2 — CrateDeck API + job (1 day)
+
+**Goal:** findings readable/drivable over HTTP; detection + apply run as
+regular jobs with SSE progress.
+
+**2.1 `cratedeck/src/hygiene_reader.ts`** — read-only window into
+`hygiene_findings` (pattern: `shelf_sweep_reader.ts` — dedicated
+readonly Database, degrade to empty on missing/corrupt, never 500).
+
+**2.2 API routes** in `cratedeck/src/index.ts` (follow existing route
+style, all JSON, all timeouts ≤30s — heavy work goes through jobs):
+
+```
+GET  /api/hygiene?status=&kind=&severity=   → Finding[] + counts
+POST /api/hygiene/scan                      → enqueue hygiene-scan job
+POST /api/hygiene/decide                    → {id, confirm} (batch: ids[])
+POST /api/hygiene/apply                     → enqueue hygiene-apply job (confirmed only)
+POST /api/hygiene/restore                   → {ids[]} quarantine → original path
+POST /api/hygiene/quarantine/empty          → {confirm:"DELETE"} literal
+```
+
+- `hygiene-scan` job kind: runs the Phase-1 detector, `tick(progress, 1)`
+  spans per check, emits SSE `job` events (existing pipeline gives the
+  dock staleness/ETA for free).
+- `hygiene-apply` job: Phase-1 apply path. Job budget + stall watchdog
+  apply automatically (they watch progress fraction — keep ticks honest).
+- Decisions are **synchronous small writes** (no job needed) — the frozen
+  selection is just `status='confirmed'` rows at enqueue time.
+
+**2.3 Wire-shape SSOT**: `Finding` re-exported in
+`cratedeck/shared/types.ts`; `driveListPayload` gains an optional
+`hygiene: { open: number, safe: number, review: number, info: number }`
+summary badge per shelf drive (parity: deckctl + MCP get
+`hygiene_summary` too, or an exemption row in `docs/surface-parity.md`).
+
+Tests: route contract tests with a fixture DB; parity census updates.
+
+### Phase 3 — Web UI (1–2 days)
+
+**Goal:** the review/confirm/validate loop, DOM-verified before push.
+
+**3.1 New product section** on the shelf drive page (component dir
+`cratedeck/web/products/cratedeck/hygiene/`):
+- `HygienePanel.tsx` — verdict banner (two-thirds law): counts by
+  severity + GB reclaimable + one primary button per tier
+  ("Review 312", "Apply 955 safe", "Open queue").
+- `FindingsQueue.tsx` — virtua-virtualized list, worst-severity first;
+  each row: kind badge, evidence chips (md5✓ / fp✓ / Δbytes / bitrate),
+  both paths truncated per truncation rules, Copy-button fix command.
+- `FindingDetail.tsx` — the confirm dialog:
+  - acoustic-twin: quality compare table (size, bitrate, fp-equal chip),
+    "keep A / keep B" radio, ear-review note;
+  - folder-merge: union-tree preview with collision renames before/after;
+  - re-download: the yt-dlp command + Copy;
+  - every dialog states the exact consequence ("moves 1 file to
+    quarantine — recoverable").
+- `QuarantinePanel.tsx` — N files / X GB, per-row restore, restore-all,
+  empty (type-DELETE confirm).
+- `ValidationReceipt.tsx` — the green "0 orphans" receipt component;
+  amber on any mismatch with per-file links.
+
+**3.2 Behaviors**
+- All mutations via `apiPost` (FormData rule irrelevant here, but keep
+  the 30s default timeout; scan/apply go through jobs, not requests).
+- Batch select with per-page "select all safe" — but apply always
+  re-verifies server-side (UI selection is never trusted for safety).
+- i18n/labels come from `shared/help.ts` additions (SSOT tooltips +
+  `deckctl help hygiene`) — deckctl gains a `hygiene` verb docs block so
+  `deckctl help` stays the same SSOT for the UI glossary (surface-parity
+  test enforced).
+
+**3.3 DOM verification (hard rule):** rebuild `web/dist`, drive the live
+server via CDP, dump DOM for: banner counts, one dialog open/confirm,
+apply → receipt render, restore flow. Screenshot secondary; DOM is
+authority (color-mix quirk).
+
+Tests: component smoke tests where the repo has patterns for them; else
+DOM-dump verification documented in the PR.
+
+### Phase 4 — Validation receipts + rekordbox handoff (1 day)
+
+**4.1 `src/hygiene/validate.ts`** — `validateApply(applied: Finding[])`:
+1. re-stat every keeper (exists, size matches receipt);
+2. re-fp every quarantined loser vs keeper (cache-busted live fpcalc on
+   the quarantine copy) — any mismatch = `fpMismatches`;
+3. shelf file-count delta == `applied.length` — else `shelfDelta` fails;
+4. `ok = keepersMissing.empty && fpMismatches.empty && delta ok`.
+On `!ok`: findings flip to `failed`, an SSE toast fires, and the panel
+offers one-click **revert** (move losers back — quarantine layout makes
+this a rename).
+
+**4.2 rekordbox handoff** — after any `applied` finding with path
+changes, the drive page shows the #7 runbook fragment (Missing File
+Manager → Relocate → re-export; counts must match) + a "Run verify"
+button that enqueues `deckctl run SHELF1 verify` and renders the delta
+against the pre-hygiene verify snapshot.
+
+### Phase 5 — Restore + re-download (from #10/#11) (1 day)
+
+- `shelf-restore` CLI + `/api/hygiene/restore`: quarantine path →
+  original path (stored in the finding), fp-verified on arrival.
+- `re-download` findings: kind `re-download` with `query`, surfaced in
+  the same queue; "copy yt-dlp command"; a `done` checkbox stores the
+  restored path. (Auto-downloading is out of scope — the archive DB only
+  records intent.)
+
+### Phase 6 — Docs/skills/parity closeout (half a day)
+- `.claude/skills/shelf-intake/SKILL.md` gains the hygiene step;
+  `docs/usb-sync.md` pipeline section; `docs/FEATURES.md` one-liner;
+  `cratedeck/deckctl.md` verb; surface-parity rows; this doc's §4/§5 get
+  a "SHIPPED" stamp with deltas.
+
+### Test matrix (all phases, run with `bun test --parallel=16`)
+| Suite | Covers |
+|---|---|
+| `src/hygiene/*.test.ts` | store, walk token, each check, apply, validate |
+| `cratedeck/test/hygiene-reader.test.ts` | corrupt/missing DB degrade |
+| `cratedeck/test/hygiene-api.test.ts` | routes, batch decide, restore |
+| `cratedeck/test/surface-parity.test.ts` | deckctl/MCP/web parity rows |
+| `src/commands/json-summary.test.ts` | `--json` contract census |
+
+### Explicit non-goals
+- No auto-download of music (re-download = command generation only).
+- No writes to rekordbox DBs (handoff stays instructional; issue #7).
+- No background auto-apply without a human confirm — `safe` items
+  auto-**quarantine** at most, and even that is a visible, reversible
+  finding the user sees in the feed.
+- No second source of truth: findings/quarantine live in the archive DB
+  + filesystem, never in JSON exports that drift.
