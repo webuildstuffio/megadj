@@ -247,27 +247,15 @@ function RailCard(props: {
       </div>
       {d.mounted &&
         snap &&
-        (snap.free_bytes ?? snap.live_free_bytes) != null &&
-        snap.capacity_bytes && (
+        free !== null &&
+        free !== undefined &&
+        totalBytes > 0 && (
           <div class="spacestrip">
             <div class="bar">
               <i
-                class={
-                  1 -
-                    (snap.free_bytes ?? snap.live_free_bytes)! /
-                      snap.capacity_bytes >
-                  0.85
-                    ? "hot"
-                    : ""
-                }
+                class={1 - free / totalBytes > 0.85 ? "hot" : ""}
                 style={{
-                  width: `${Math.min(
-                    100,
-                    (1 -
-                      ((snap.free_bytes ?? snap.live_free_bytes) as number) /
-                        snap.capacity_bytes) *
-                      100,
-                  )}%`,
+                  width: `${Math.min(100, (1 - free / totalBytes) * 100)}%`,
                 }}
               />
             </div>
