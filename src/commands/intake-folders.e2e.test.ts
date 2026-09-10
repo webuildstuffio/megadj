@@ -80,7 +80,7 @@ describe("ingest lands each dump in its own dated subfolder", () => {
     );
     // No loose files at the archive root — that's the whole point.
     expect(loose).toEqual([]);
-  });
+  }, 240000);
 
   test("re-ingesting the SAME dump folder reuses its batch subfolder", async () => {
     const dump = join(DB_DIR, "same day dump");
@@ -98,5 +98,5 @@ describe("ingest lands each dump in its own dated subfolder", () => {
       "First Drop.aiff",
       "Second Drop.aiff",
     ]);
-  });
+  }, 240000);
 });

@@ -166,6 +166,11 @@ async function dedupeWithinFolder(
         ? [rec, incumbent]
         : [incumbent, rec];
     byIdentity.set(keep.identity, keep);
+    // Remove the loser even when it was first-seen (it entered survivors
+    // earlier) — leaving it in meant Phase D tried to copy an already
+    // quarantined file (ENOENT mid-batch, Sep 10 2026).
+    const dropIdx = survivors.indexOf(drop);
+    if (dropIdx >= 0) survivors.splice(dropIdx, 1);
     if (!survivors.includes(keep)) survivors.push(keep);
     folderDupes++;
     log(
@@ -174,7 +179,69 @@ async function dedupeWithinFolder(
     );
     await quarantine(drop.file, quarantineDir, dryRun, log);
   }
+  // Content-hash pass over the survivors (Back To Friends trap, Sep 9
+  // 2026): a mislabeled "Extended Mix" was a byte-identical copy of the
+  // Radio Edit — different filename + title tag → different identity →
+  // both got ingested. Same size is the cheap trigger; MD5 confirms
+  // before anything quarantines. Different content at the same size is
+  // KEPT (size alone is not a dupe — AGENTS.md).
+  folderDupes += await dedupeByContent(survivors, quarantineDir, dryRun, log);
   return { survivors, folderDupes };
+}
+
+/** MD5-verified twin pass over the identity-dedupe survivors. */
+async function dedupeByContent(
+  survivors: Record_[],
+  quarantineDir: string,
+  dryRun: boolean | undefined,
+  log: (m: string) => void,
+): Promise<number> {
+  let contentDupes = 0;
+  const bySize = new Map<number, Record_[]>();
+  for (const rec of survivors) {
+    const list = bySize.get(rec.size) ?? [];
+    list.push(rec);
+    bySize.set(rec.size, list);
+  }
+  for (const group of bySize.values()) {
+    if (group.length < 2) continue;
+    const hashes = new Map<string, Record_>();
+    for (const rec of group) {
+      const digest = await md5File(rec.file);
+      const twin = hashes.get(digest);
+      if (!twin) {
+        hashes.set(digest, rec);
+        continue;
+      }
+      const [keep, drop] =
+        rec.score > twin.score ||
+        (rec.score === twin.score &&
+          basename(rec.file).length < basename(twin.file).length)
+          ? [rec, twin]
+          : [twin, rec];
+      contentDupes++;
+      log(
+        `  [dupe] ${basename(drop.file)} — byte-identical twin of ${basename(keep.file)} (md5)`,
+      );
+      const idx = survivors.indexOf(drop);
+      if (idx >= 0) survivors.splice(idx, 1);
+      await quarantine(drop.file, quarantineDir, dryRun, log);
+      if (hashes.get(digest) === drop) hashes.set(digest, keep);
+    }
+  }
+  return contentDupes;
+}
+
+async function md5File(path: string): Promise<string> {
+  const crypto = await import("node:crypto");
+  const { createReadStream } = await import("node:fs");
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash("md5");
+    createReadStream(path)
+      .on("data", (d: Buffer) => hash.update(d))
+      .on("end", () => resolve(hash.digest("hex")))
+      .on("error", reject);
+  });
 }
 
 /** Phase C: archive collision check — archive dupes quarantine unless the new

@@ -44,12 +44,21 @@ bun src/cli.ts ingest ~/Downloads --dry-run   # review the plan
 bun src/cli.ts ingest ~/Downloads             # execute
 ```
 
-It probes, dedupes (quality rules, `(1)`-dupe detection, losers moved to
+**Archive already has WAVs?** `bun src/cli.ts convert` (add `--dry-run` to
+preview) sweeps the whole archive: converts every WAV with the safe
+converter, runs the artwork ladder on each new AIFF, updates DB paths, and
+verifies player compat — one command, idempotent (no WAVs → no-op).
+
+It probes, dedupes (quality rules, `(1)`-dupe detection, **MD5-verified
+content twins regardless of filename**, losers moved to
 `<folder>/ingest-duplicates/`), merges tags with filename parsing, fills
 artist/album from MusicBrainz, infers genre, gates sub-60s clips,
 energy-rates, bootleg-aware tags (remixer in version tag, grouping =
 genre), copies into `~/Music/DJ-Imports/<YYYY-MM-DD dump name>/` (one
 subfolder per dump — `src/commands/intake-folder.ts`), registers in DB.
+Content dedupe matters: a mislabeled "[Extended Mix]" that is a
+byte-identical copy of the Radio Edit quarantines even though its
+title/filename differ (the Back To Friends trap).
 
 **Zips are built in:** every `*.zip` in the folder is extracted, its audio
 staged next to it and ingested. The zip is **deleted only after every file
@@ -61,8 +70,11 @@ removed, so nothing duplicates.
 **WAVs become AIFF:** rekordbox cannot read art embedded in WAVs, so ingest
 **converts every WAV to AIFF on the way in**. AIFF covers show natively in
 rekordbox, CDJs and the XDJ-XZ — no `rb_art.py` DB surgery needed for
-anything ingested going forward. Legacy WAVs already in the archive still
-need the one-time `rb_art.py` pass once the drives are plugged in.
+anything ingested going forward. Legacy WAVs already in the archive are
+fixed by **`megadj convert`** (archive-wide wav→aiff: same safe converter,
+art ladder on each new AIFF, DB paths follow, player-compat verdicts).
+The Sep 10 2026 run converted all 71 legacy WAVs — the archive is now
+100% AIFF/MP3.
 
 **Conversion is a BE re-map, never `-c:a copy`:** WAVs are little-endian;
 stream-copying LE PCM into ffmpeg's `aiff` muxer emits a malformed

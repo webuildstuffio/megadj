@@ -36,6 +36,10 @@ getdat — pull every track from everywhere:
 fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj ingest  <folder> [--dry-run] [--no-artwork] [--min-duration N] [--json]
                                                tag+art+dedupe downloads (zips too)
+  megadj convert [--dry-run] [--no-artwork] [--json]
+                                               archive-wide wav→aiff: every legacy wav
+                                               becomes art-capable, booth-verified aiff
+                                               (art ladder + DB paths follow)
   megadj drop    <folder-or-url> [--dry-run] [--no-mood] [--json]
                                                one-shot pipeline: download → ingest → beats → mood → cues → organize
   megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run] [--json]
@@ -448,6 +452,38 @@ async function main(): Promise<void> {
         const { adopt } = await import("./commands/adopt");
         const json = rest.includes("--json");
         await adopt({ state, musicDir: MUSIC_DIR, json });
+        break;
+      }
+      case "convert": {
+        const flags = parseFlags(
+          rest,
+          ["convert"],
+          ["dry-run", "no-artwork", "json"],
+        );
+        const { convertArchive } = await import("./commands/convert");
+        const report = await convertArchive({
+          state,
+          musicDir: MUSIC_DIR,
+          dryRun: flags.bools.has("dry-run"),
+          noArtwork: flags.bools.has("no-artwork"),
+          json: flags.bools.has("json"),
+        });
+        if (flags.bools.has("json")) {
+          console.log(JSON.stringify(report, null, 2));
+        } else {
+          console.log(
+            `convert: ${report.converted}/${report.total} wav→aiff` +
+              (report.artAdded ? `, ${report.artAdded} art embedded` : "") +
+              (report.artQueued ? `, ${report.artQueued} art queued` : "") +
+              (report.failed.length
+                ? `, ${report.failed.length} FAILED (wavs kept)`
+                : ""),
+          );
+          for (const f of report.failed)
+            console.log(`  ✗ ${f.reason}: ${f.file}`);
+          for (const w of report.hiresWarnings) console.log(`  ⚠ ${w}`);
+          if (report.failed.length) process.exitCode = 1;
+        }
         break;
       }
       case "ingest": {
