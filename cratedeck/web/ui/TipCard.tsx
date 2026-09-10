@@ -6,6 +6,12 @@
 // datatables, cards) and overflowed the viewport near edges and the top row
 // — portals escape all of that, and the placement math flips/clamps so the
 // card is always fully on screen. Hover AND focus (keyboard reachable).
+//
+// Placement detail: the final position goes through transform:translate3d,
+// NOT left/top — measurement needs the card parked at a known spot first,
+// and imperative style writes fight React-owned inline styles when both
+// target the same property (the card once rendered stuck at its offscreen
+// measuring spot). left/top stay 0 here; transform carries the position.
 import { createPortal } from "preact/compat";
 import {
   useCallback,
@@ -39,23 +45,20 @@ export function Tip(props: {
   const anchorRef = useRef<HTMLSpanElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ left: number; top: number; place: string }>({
-    left: 0,
-    top: 0,
-    place: "top",
-  });
+  const [pos, setPos] = useState<{
+    left: number;
+    top: number;
+    place: string;
+    ready: boolean;
+  }>({ left: 0, top: 0, place: "top", ready: false });
 
   const measure = useCallback(() => {
     const anchor = anchorRef.current;
     const card = cardRef.current;
     if (!anchor || !card) return;
     const ar = anchor.getBoundingClientRect();
-    // Measure at an offscreen fixed position with the card's own width so
-    // the wrap count (and thus height) matches what will actually render.
-    card.style.visibility = "hidden";
-    card.style.left = "-9999px";
-    card.style.top = "0px";
-    card.style.position = "fixed";
+    // The card rendered at left:0/top:0 (fixed) — its rect right now IS the
+    // true size (content wraps at its CSS width), so measure directly.
     const cr = card.getBoundingClientRect();
     const placed = placeCard(
       { left: ar.left, top: ar.top, width: ar.width, height: ar.height },
@@ -64,12 +67,17 @@ export function Tip(props: {
       props.request ?? "top",
       props.align,
     );
-    setPos({ left: placed.left, top: placed.top, place: placed.place });
+    setPos({
+      left: placed.left,
+      top: placed.top,
+      place: placed.place,
+      ready: true,
+    });
   }, [props.request, props.align]);
 
   useLayoutEffect(() => {
     if (open) measure();
-  }, [open, measure]);
+  }, [open, measure, props.title, props.body, props.why]);
 
   useEffect(() => {
     if (!open) return;
@@ -89,8 +97,9 @@ export function Tip(props: {
       class="infotip-card"
       ref={cardRef}
       data-place={pos.place}
+      data-ready={pos.ready ? "" : undefined}
       role="tooltip"
-      style={{ left: `${pos.left}px`, top: `${pos.top}px` }}
+      style={{ transform: `translate3d(${pos.left}px, ${pos.top}px, 0)` }}
     >
       <b>{props.title}</b>
       <span>{props.body}</span>

@@ -336,21 +336,25 @@
   display: inline-flex;
   pointer-events: none;
 }
-/* THE CARD: portal-rendered to document.body (TipCard.tsx) — position:fixed
- * coordinates come from ui/tipPlace.ts, which flips to whichever side fits
- * and clamps the fallback inside the viewport. Because the card is a body
- * child, NO overflow:hidden/auto ancestor (rail, canvas, datatables, cards)
- * can clip it and it can never hang off-screen — the bugs that made every
- * tooltip unreadable. Hidden until JS positions it (one frame at most). */
+/* THE CARD: portal-rendered to document.body (TipCard.tsx) — position:fixed,
+ * transform:translate3d carries the final coordinates from ui/tipPlace.ts,
+ * which flips to whichever side fits and clamps the fallback inside the
+ * viewport. Because the card is a body child, NO overflow:hidden/auto
+ * ancestor (rail, canvas, datatables, cards) can clip it and it can never
+ * hang off-screen — the bugs that made every tooltip unreadable. The card
+ * renders at left:0/top:0 (the measurement spot, visibility hidden) and
+ * gets [data-ready] once positioned. */
 .infotip-card {
   position: fixed;
+  left: 0;
+  top: 0;
   width: 290px;
   max-width: min(290px, calc(100vw - 16px));
   background: var(--surface4);
   border: 1px solid var(--stroke2);
   border-radius: var(--r-md);
   padding: 10px 12px;
-  display: none;
+  display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 12.5px;
@@ -361,21 +365,20 @@
   pointer-events: none;
   text-align: left;
   font-weight: 400;
+  visibility: hidden;
 }
-/* JS shows + places the card (inline left/top; visibility is only hidden
- * during measurement) */
-.infotip-card[data-place] {
-  display: flex;
+.infotip-card[data-ready] {
+  visibility: visible;
 }
 .infotip-card[data-place="top"] {
-  transform: translateY(-2px);
+  transform-origin: bottom center;
 }
 .infotip-card[data-place="bottom"] {
-  transform: translateY(2px);
+  transform-origin: top center;
 }
-/* settle-in micro motion (placement is already final — no translate hack) */
+/* settle-in micro fade (position is already final — no translate hack) */
 @media (prefers-reduced-motion: no-preference) {
-  .infotip-card[data-place] {
+  .infotip-card[data-ready] {
     animation: tipin 0.14s ease;
   }
 }

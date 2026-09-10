@@ -31,6 +31,10 @@ check` && `bun test` before every push. Type coverage is a hard 100%
   flags go through `nonNegOpt` — invalid input (`abc`, empty; `Number("")` is 0)
   returns undefined so guards fire and the command exits 2 with zero work
   (regression-tested in `src/commands/numeric-options.test.ts`).
+- **Strict tsconfig is live (`noUncheckedIndexedAccess` etc., Sep 10).** A
+  `Record<string, T>` lookup now yields `T | undefined` — fix with a literal-key
+  `as const satisfies Record<string, T>` table, total by construction
+  (preflight's `BUILDER_ID` is the template).
 - **Concurrent agents work this repo.** Never `git add -A` — stage only your
   own files; re-read immediately before editing; verify content landed via
   worktree-vs-HEAD diff, not commit hash (amends and swept-in staged files
@@ -51,7 +55,9 @@ check` && `bun test` before every push. Type coverage is a hard 100%
   source and assert exact equality — a `>= N` floor plus hardcoded
   strings passed while 9 files carried stale counts (root-fixed in
   `cratedeck/test/surface-parity.test.ts`; mutation-verify by reverting
-  one count and watching the census fail).
+  one count and watching the census fail). Assertions stay
+  whitespace-tolerant (`\|\s+N verbs\s+\|`) — a formatter padding the
+  markdown table cells once false-failed the census; the COUNT stays exact.
 - **Pre-commit hooks BLOCK, and their failure output can be truncated.**
   Repo hook tuning lives in `.shell-config-hooks.conf` (per-file 800-line
   cap, block-at-100%). Sanctioned bypass for a legitimately huge commit:

@@ -16,6 +16,7 @@ __pycache__/
 .ruff_cache/
 cratedeck/data/
 cratedeck/config.toml
+.local-screens/
 
 # real env (commit .env.example, never .env)
 .env
