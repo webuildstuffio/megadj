@@ -325,6 +325,12 @@ Architecture + wire-shape rules:
   user's `bun` shell shim — the shim chokes on empty-string args
   (`_bp_set: bad array subscript`), a local env artifact that once faked 2
   test failures.
+- Tests that exercise a command's sticky-exit path must reset
+  `process.exitCode` after the assertion — bun test reports the PROCESS
+  exit code, so leaving `exitCode = 1` set (shelf-archive's no-shelf
+  hard-error test did) made any suite including that file exit 1 with 0
+  failed tests, and the pre-commit hook blocked on a green suite
+  (documented + reset in `src/commands/shelf-archive.test.ts`).
 
 ## Local-only files
 
