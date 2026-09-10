@@ -333,6 +333,21 @@ async function dedupeAgainstArchive(
       toIngest.push(rec);
       continue;
     }
+    // SELF-MATCH GUARD: the "existing" row may point at THIS VERY FILE.
+    // Every batch folder lives inside musicDir, so last night's ingest of
+    // this folder registered rows whose file_path is the file we're now
+    // looking at. Quarantining here would rename the archive's only copy
+    // into ingest-duplicates and leave the row pointing at a missing path
+    // (the Sep 10 14:29 UI re-run did exactly that to 14 rows — the file
+    // survived in quarantine, but the archive pointer broke). A self-match
+    // means "already ingested, nothing to do": skip in place.
+    if (existing.file_path === rec.file) {
+      log(
+        `  [dupe] already in archive (self): ${basename(rec.file)} — unchanged`,
+      );
+      archiveDupes++;
+      continue;
+    }
     archiveDupes++;
     const existingProbe = await probeFile(existing.file_path);
     const existingScore = existingProbe.ok ? qualityScore(existingProbe) : -1;

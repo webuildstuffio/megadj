@@ -19,8 +19,13 @@ own subfolder** (named from the source folder + its dump date, e.g.
 `2026-09-09 new dump/`), so separate dumps never mix (genre still lives in
 the ID3 `genre` tag, not folders; rekordbox filters on it) — tagged,
 artworked, registered in megadj's DB. Re-running the same source folder
-reuses its batch folder; the pre-Sep-10 flat layout was migrated into
-`2026-09-05 batch import/` + `2026-09-09 batch import/`.
+reuses its batch folder, and re-processing an already-ingested batch is a
+safe no-op: Phase C treats a self-match (the existing DB row's `file_path`
+IS the file being walked) as "unchanged" — it never quarantines the
+archive's own copy (the Sep 10 UI re-run before this guard quarantined 14
+live files and left their rows pointing at missing paths; regression-tested
+in `src/commands/ingest-selfmatch.test.ts`). The pre-Sep-10 flat layout was
+migrated into `2026-09-05 batch import/` + `2026-09-09 batch import/`.
 
 ## Step 1 — Scan for downloads (loose files + zips)
 
