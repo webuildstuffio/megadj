@@ -20,6 +20,7 @@ import { createHash } from "node:crypto";
 import { stat, copyFile, mkdir, rename } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import { join, basename, extname } from "node:path";
+import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
 import type { ArchiveState, TrackRow } from "../state";
 import { commandLog } from "../progress";
 import {
@@ -242,16 +243,20 @@ async function copyIntoArchive(
   a: RegisterArgs,
   destPath: string,
   inArchive: boolean,
+  batchDir: string | null,
 ): Promise<string> {
   if (inArchive) return a.file;
   if (destPath === a.file) return destPath;
-  await mkdir(opts.musicDir, { recursive: true });
+  await mkdir(batchDir ?? opts.musicDir, { recursive: true });
   let finalDest = destPath;
   try {
     const destStat = await stat(destPath);
     if (destStat.size !== rec.size) {
+      // Different bytes under the same name: disambiguate INSIDE the batch
+      // folder (a flat-musicDir fallback would mix batches again).
+      const fallbackDir = batchDir ?? opts.musicDir;
       finalDest = join(
-        opts.musicDir,
+        fallbackDir,
         basename(a.file).replace(/(\.[^.]+)$/, " (ingest)$1"),
       );
     }
@@ -321,15 +326,22 @@ async function registerAndMove(
   rec: Record_,
   a: RegisterArgs,
   counters: IngestCounters,
+  batchDir: string | null,
 ): Promise<void> {
   const extId = `ext-${createHash("sha1").update(a.file).digest("hex").slice(0, 12)}`;
-  let destPath = join(opts.musicDir, basename(a.file));
+  // New layout: each ingest batch lands in its own subfolder
+  // (`<archive>/<batch>` — see intake-folder.ts) so dumps never mix.
+  // `inArchive` files (re-ingest of an archive member) keep their path.
+  let destPath =
+    batchDir && !a.file.startsWith(batchDir + "/")
+      ? join(batchDir, basename(a.file))
+      : join(opts.musicDir, basename(a.file));
   // Membership needs the separator: "/X/DJ-Imports-old/f" must NOT count
   // as inside "/X/DJ-Imports" (bare startsWith treats siblings as members
   // and then skips the copy).
   const inArchive =
     a.file === opts.musicDir || a.file.startsWith(opts.musicDir + "/");
-  destPath = await copyIntoArchive(opts, rec, a, destPath, inArchive);
+  destPath = await copyIntoArchive(opts, rec, a, destPath, inArchive, batchDir);
   opts.state.upsertTrackFromPlaylist(extId, 0, a.title, "ingest");
   opts.state.markDownloaded(extId, {
     title: a.title,
@@ -356,6 +368,7 @@ async function ingestOne(
   minDuration: number,
   queuedIdentity: Set<string>,
   queueEntries: QueueEntry[],
+  batchDir: string | null,
 ): Promise<void> {
   let { file, probe, parsed } = rec;
   let ext = extname(file).toLowerCase();
@@ -555,6 +568,7 @@ async function ingestOne(
       remixOf,
     },
     counters,
+    batchDir,
   );
 }
 
@@ -564,6 +578,18 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     opts.quarantineDir ?? join(opts.folder, "ingest-duplicates");
   const minDuration = opts.minDuration ?? 60;
   const queuedIdentity = new Set<string>();
+  // Per-batch destination folder: this run's imports land in
+  // `<archive>/<batch>` (e.g. "2026-09-09 new dump"), computed ONCE so all
+  // files of the run share it. Null when the source folder IS the archive
+  // (files already home — nothing to group) or a dry run (no writes).
+  const isSelfIngest =
+    opts.folder === opts.musicDir ||
+    opts.folder.startsWith(opts.musicDir + "/");
+  const batchDir =
+    opts.dryRun || isSelfIngest
+      ? null
+      : resolveIntakeDir(opts.musicDir, intakeFolderName(opts.folder));
+  if (batchDir) log(`intake folder: ${basename(batchDir)}/`);
   const files0 = await walkAudio(
     opts.folder,
     [],
@@ -615,6 +641,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
       minDuration,
       queuedIdentity,
       queueEntries,
+      batchDir,
     );
   }
 

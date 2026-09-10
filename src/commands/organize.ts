@@ -63,6 +63,20 @@ async function organizeOne(
   const genre = track.genre ?? (await fileGenreTag(filePath)) ?? "Music";
   const folder = sanitizeGenreFolder(genre);
   const fileName = filePath.split("/").pop() ?? `${track.video_id}.m4a`;
+  // Batch folders (`<YYYY-MM-DD slug>/` — per-dump intake groups) are
+  // already organized: moving their files into genre folders would destroy
+  // the per-dump grouping the archive layout is built around. Only loose
+  // root files get genre-foldered.
+  const firstSegment = filePath.startsWith(`${opts.musicDir}/`)
+    ? (filePath.slice(opts.musicDir.length + 1).split("/")[0] ?? "")
+    : "";
+  if (/^\d{4}-\d{2}-\d{2} /.test(firstSegment)) {
+    counters.skipped++;
+    log(
+      `  = in batch folder (kept): ${filePath.slice(opts.musicDir.length + 1)}`,
+    );
+    return;
+  }
   const targetDir = `${opts.musicDir}/${folder}`;
   const targetPath = `${targetDir}/${fileName}`;
 

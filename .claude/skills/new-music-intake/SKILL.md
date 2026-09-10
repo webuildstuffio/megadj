@@ -12,10 +12,15 @@ description: >-
 
 # New Music Intake → DJ Library
 
-Pipeline: **tag+dedupe locally (flat!) → `fetch_all` → USB**. Whatever the
-source, a track ends up in `~/Music/DJ-Imports` — **one flat folder, no genre
-subfolders** (genre lives in the ID3 `genre` tag; rekordbox filters on it) —
-tagged, artworked, registered in megadj's DB.
+Pipeline: **tag+dedupe locally (one subfolder per dump!) → `fetch_all` →
+USB**. Whatever the source, a track ends up in a dated batch folder under
+`~/Music/DJ-Imports/<YYYY-MM-DD dump name>/` — **every ingest run gets its
+own subfolder** (named from the source folder + its dump date, e.g.
+`2026-09-09 new dump/`), so separate dumps never mix (genre still lives in
+the ID3 `genre` tag, not folders; rekordbox filters on it) — tagged,
+artworked, registered in megadj's DB. Re-running the same source folder
+reuses its batch folder; the pre-Sep-10 flat layout was migrated into
+`2026-09-05 batch import/` + `2026-09-09 batch import/`.
 
 ## Step 1 — Scan for downloads (loose files + zips)
 
@@ -43,7 +48,8 @@ It probes, dedupes (quality rules, `(1)`-dupe detection, losers moved to
 `<folder>/ingest-duplicates/`), merges tags with filename parsing, fills
 artist/album from MusicBrainz, infers genre, gates sub-60s clips,
 energy-rates, bootleg-aware tags (remixer in version tag, grouping =
-genre), copies into `~/Music/DJ-Imports` flat, registers in DB.
+genre), copies into `~/Music/DJ-Imports/<YYYY-MM-DD dump name>/` (one
+subfolder per dump — `src/commands/intake-folder.ts`), registers in DB.
 
 **Zips are built in:** every `*.zip` in the folder is extracted, its audio
 staged next to it and ingested. The zip is **deleted only after every file

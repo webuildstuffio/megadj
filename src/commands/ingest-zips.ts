@@ -98,7 +98,8 @@ export async function expandZips(
 
 /**
  * Delete zips whose every staged file has left the source folder
- * (moved into the archive or quarantined). Returns log lines.
+ * (moved into the archive — any batch subfolder, or the root — or
+ * quarantined). Returns log lines.
  */
 export async function deleteFullyIngestedZips(
   folder: string,
@@ -106,6 +107,15 @@ export async function deleteFullyIngestedZips(
   quarantineDir: string,
   log: (m: string) => void,
 ): Promise<void> {
+  // Batch subfolders (`<YYYY-MM-DD slug>/`) are where ingest lands files
+  // now; a zip is only fully ingested when its staged files are SOMEWHERE
+  // under the archive (or quarantined) — not just at the archive root.
+  const archiveBatches = existsSync(musicDir)
+    ? (await readdir(musicDir, { withFileTypes: true }))
+        .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+        .map((e) => join(musicDir, e.name))
+        .concat(musicDir)
+    : [musicDir];
   for (const [zip, staged] of pendingZipDeletes) {
     // A zip that staged NOTHING is not "fully ingested" — it means staging
     // collapsed to dupes or was skipped; deletion here would be vacuous
@@ -117,7 +127,7 @@ export async function deleteFullyIngestedZips(
     const allHandled = staged.every(
       (name) =>
         !existsSync(join(folder, name)) &&
-        (existsSync(join(musicDir, name)) ||
+        (archiveBatches.some((dir) => existsSync(join(dir, name))) ||
           existsSync(join(quarantineDir, name))),
     );
     if (allHandled) {
