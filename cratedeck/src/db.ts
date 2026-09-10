@@ -1,4 +1,6 @@
 // db.ts — bun:sqlite, schema, migrations, and every query (one place).
+// Heavy query families live in their own modules (db_ledger.ts, db_bench.ts,
+// db_drives.ts); DB delegates so every call site is unchanged.
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -14,11 +16,13 @@ import type {
 import { FleetStore } from "./fleet-db";
 import { LedgerQueries, migrateArchiveLedger } from "./db_ledger";
 import { BenchLedger } from "./db_bench";
+import { DriveStore } from "./db_drives";
 import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./fleet";
-/** Raw row shape as stored in the drives table (mounted is 0/1). */
-interface DriveRow extends Omit<Drive, "mounted"> {
-  mounted: number;
-}
+
+// inferRole moved to db_drives.ts with its only runtime caller (upsertDrive);
+// re-exported so existing `from "./db"` import sites (tests, detectors) keep
+// working unchanged.
+export { inferRole } from "./db_drives";
 
 /** Raw row shape as stored in the events table. */
 interface EventRow {
@@ -29,8 +33,6 @@ interface EventRow {
   data_json: string | null;
 }
 
-/** Snapshot history is capped so years of scans can't eat the host disk. */
-const MAX_SNAPSHOTS_PER_DRIVE = 20;
 /** Timeline events trimmed at boot; cheap insurance against slow bloat. */
 const MAX_EVENTS_PER_DRIVE = 2000;
 
@@ -100,26 +102,6 @@ CREATE TABLE IF NOT EXISTS archive_ledger (
 );
 `;
 
-/** Stable stringify: key-sorted at EVERY depth, arrays kept in order, every
- *  key included. Used by the setSnapshot change-detector, which must SEE
- *  nested edits. The old `JSON.stringify(o, Object.keys(o).sort())` passed
- *  the top-level key list as the replacer — replacer arrays filter keys at
- *  ALL levels, so nested objects stringified as {} and any same-length
- *  nested change (track title/BPM edit, playlist membership swap) read as
- *  "unchanged" and was silently dropped (stale fleet tables + parity). */
-function canon(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(canon).join(",")}]`;
-  if (v !== null && typeof v === "object") {
-    const entries = Object.entries(v as Record<string, unknown>).sort(
-      ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
-    );
-    return `{${entries
-      .map(([k, val]) => `${JSON.stringify(k)}:${canon(val)}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(v) ?? "null";
-}
-
 export class DB {
   readonly sqlite: Database;
   /** Configured master/mirror/shelf volume names — inferRole compares
@@ -132,6 +114,8 @@ export class DB {
   private ledger: LedgerQueries;
   /** Benchmark + checksum-ledger queries (db_bench.ts). */
   private benchStore: BenchLedger;
+  /** Drives CRUD + snapshot store queries (db_drives.ts). */
+  private driveStore: DriveStore;
 
   constructor(dbPath: string) {
     mkdirSync(dirname(dbPath), { recursive: true });
@@ -143,6 +127,7 @@ export class DB {
     this.sqlite.exec("PRAGMA foreign_keys = ON;");
     this.ledger = new LedgerQueries(this.sqlite);
     this.benchStore = new BenchLedger(this.sqlite);
+    this.driveStore = new DriveStore(this.sqlite);
     migrateArchiveLedger(this.sqlite);
     this.migrate();
   }
@@ -186,7 +171,7 @@ export class DB {
     }
     // disk-burn guard: cap per-drive snapshot history (each full snapshot can
     // be ~MBs of JSON; unbounded growth would eat the host disk over months)
-    this.pruneSnapshots();
+    this.driveStore.pruneAll();
     // v5: negotiated USB link rate (bits/s) per drive — powers the USB2 vs
     // USB3 flag. New rows get it from the ioreg tree at reconcile time.
     if (
@@ -207,36 +192,6 @@ export class DB {
         .query("INSERT INTO meta (key, value) VALUES ('schema', '2')")
         .run();
     }
-  }
-
-  /** Keep the newest MAX_SNAPSHOTS_PER_DRIVE snapshots per drive. */
-  private pruneSnapshots(max = MAX_SNAPSHOTS_PER_DRIVE): void {
-    this.sqlite
-      .query(
-        `DELETE FROM snapshots WHERE drive_id IN (
-           SELECT DISTINCT drive_id FROM snapshots
-         ) AND taken_at NOT IN (
-           SELECT taken_at FROM snapshots s2
-           WHERE s2.drive_id = snapshots.drive_id
-           ORDER BY taken_at DESC LIMIT ?
-         )`,
-      )
-      .run(max);
-  }
-
-  /** Called after each setSnapshot so history never grows unbounded. */
-  private pruneSnapshotsFor(
-    driveId: string,
-    max = MAX_SNAPSHOTS_PER_DRIVE,
-  ): void {
-    this.sqlite
-      .query(
-        `DELETE FROM snapshots WHERE drive_id=? AND taken_at NOT IN (
-           SELECT taken_at FROM snapshots WHERE drive_id=?
-           ORDER BY taken_at DESC LIMIT ?
-         )`,
-      )
-      .run(driveId, driveId, max);
   }
 
   /** Trim timeline events at boot (they're capped per drive). */
@@ -280,218 +235,78 @@ export class DB {
     return this.fleet.manifests(driveIds);
   }
 
-  // ---- drives -------------------------------------------------------------
-  private normDrive(d: DriveRow): Drive {
-    return { ...d, mounted: !!d.mounted };
-  }
-
+  // ---- drives (CRUD in db_drives.ts — delegated so call sites unchanged) --
   /** The configured master drive (role tag or exact name), else null. */
   masterDrive(): Drive | null {
     return this.allDrives().find((d) => d.role === "master") ?? null;
   }
 
   getDrive(id: string): Drive | null {
-    const r = this.sqlite
-      .query("SELECT * FROM drives WHERE id = ?")
-      .get(id) as DriveRow | null;
-    return r ? this.normDrive(r) : null;
+    return this.driveStore.get(id);
   }
 
   getDriveByUuid(uuid: string): Drive | null {
-    const r = this.sqlite
-      .query("SELECT * FROM drives WHERE volume_uuid = ?")
-      .get(uuid) as DriveRow | null;
-    return r ? this.normDrive(r) : null;
+    return this.driveStore.getByUuid(uuid);
   }
 
   allDrives(): Drive[] {
-    return (
-      this.sqlite
-        .query(
-          "SELECT * FROM drives ORDER BY mounted DESC, nickname IS NULL, name",
-        )
-        .all() as DriveRow[]
-    ).map((r) => this.normDrive(r));
+    return this.driveStore.all();
   }
 
   upsertDrive(d: Partial<Drive> & { id: string }): void {
-    const cur = this.getDrive(d.id);
-    if (!cur) {
-      const now = Date.now();
-      this.sqlite
-        .query(
-          `INSERT INTO drives (id, volume_uuid, name, capacity_bytes, fs, vendor,
-             model, usb_serial, role, first_seen_at, last_seen_at,
-             last_port_key, plug_count, mounted, link_bps)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        )
-        .run(
-          d.id,
-          d.volume_uuid ?? null,
-          d.name ?? "",
-          d.capacity_bytes ?? 0,
-          d.fs ?? null,
-          d.vendor ?? null,
-          d.model ?? null,
-          d.usb_serial ?? null,
-          d.role ??
-            inferRole(
-              d.name ?? "",
-              this.masterName,
-              this.mirrorName,
-              this.shelfName,
-            ),
-          now,
-          now,
-          d.last_port_key ?? null,
-          1,
-          d.mounted ? 1 : 0,
-          d.link_bps ?? null,
-        );
-      return;
-    }
-    this.sqlite
-      .query(
-        `UPDATE drives SET name=COALESCE(?,name), capacity_bytes=COALESCE(?,capacity_bytes),
-           fs=COALESCE(?,fs), vendor=COALESCE(?,vendor), model=COALESCE(?,model),
-           usb_serial=COALESCE(?,usb_serial), role=COALESCE(?,role),
-           last_seen_at=?, last_port_key=COALESCE(?,last_port_key),
-           mounted=?, nickname=COALESCE(?,nickname),
-           link_bps=COALESCE(?,link_bps)
-         WHERE id=?`,
-      )
-      .run(
-        d.name ?? null,
-        d.capacity_bytes ?? null,
-        d.fs ?? null,
-        d.vendor ?? null,
-        d.model ?? null,
-        d.usb_serial ?? null,
-        d.role ?? null,
-        d.last_seen_at ?? Date.now(),
-        d.last_port_key ?? null,
-        d.mounted === undefined ? 1 : d.mounted ? 1 : 0,
-        d.nickname ?? null,
-        d.link_bps ?? null,
-        d.id,
-      );
+    this.driveStore.upsert(d, this.masterName, this.mirrorName, this.shelfName);
   }
 
   setMounted(id: string, mounted: boolean): void {
-    this.sqlite
-      .query("UPDATE drives SET mounted=?, last_seen_at=? WHERE id=?")
-      .run(mounted ? 1 : 0, Date.now(), id);
+    this.driveStore.setMounted(id, mounted);
   }
 
   /** Persist the latest verify report for a drive (or clear with null). */
   setVerifyReport(id: string, report: VerifyReport | null): void {
-    this.sqlite
-      .query("UPDATE drives SET verify_report_json=? WHERE id=?")
-      .run(report ? JSON.stringify(report) : null, id);
+    this.driveStore.setVerifyReport(id, report);
   }
 
   getVerifyReport(id: string): VerifyReport | null {
-    const r = this.sqlite
-      .query<{ verify_report_json: string | null }, [string]>(
-        "SELECT verify_report_json FROM drives WHERE id=?",
-      )
-      .get(id);
-    if (!r?.verify_report_json) return null;
-    try {
-      return JSON.parse(r.verify_report_json) as VerifyReport;
-    } catch (e) {
-      // A corrupt persisted verdict must NOT read as "never verified" —
-      // that flips the drive to the reassuring unknown state forever.
-      // Surface the corruption in the console (and as null, which the UI
-      // renders as "never verified" WITH this trace to explain why).
-      console.error(
-        `verify report for drive ${id} is corrupt — treating as never verified`,
-        e,
-      );
-      return null;
-    }
+    return this.driveStore.getVerifyReport(id);
   }
 
-  /** Increment at mount time (ghost → mounted flip). Called by registry. */
+  /** Increment at mount time (ghost → mounted flip). Called by registry.
+   *  Also stamps first_seen_at on first mount (count goes 0 → 1). */
   bumpPlugCount(id: string): void {
-    this.sqlite
-      .query("UPDATE drives SET plug_count = plug_count + 1 WHERE id=?")
-      .run(id);
+    const cur = this.getDrive(id);
+    const first = cur?.plug_count ? 0 : 1;
+    this.driveStore.bumpPlugCount(id);
+    if (first) this.driveStore.bumpFirstSeen(id);
   }
 
   setNickname(id: string, nickname: string | null): void {
-    // Whitespace/empty is not a name — callers mean "clear" (null) or sent
-    // garbage; storing "" or "   " renders as a blank label downstream.
-    const trimmed = nickname?.trim();
-    const value = trimmed ? trimmed : null;
-    this.sqlite.query("UPDATE drives SET nickname=? WHERE id=?").run(value, id);
+    this.driveStore.setNickname(id, nickname);
   }
 
   setPhoto(id: string, path: string): void {
-    this.sqlite
-      .query("UPDATE drives SET photo_path=? WHERE id=?")
-      .run(path, id);
+    this.driveStore.setPhoto(id, path);
   }
 
   setSnapshot(id: string, snap: SnapshotData): void {
     // Skip the write entirely when nothing changed apart from the timestamp:
     // every scan stamps `taken_at`, so a naive JSON compare never fired and a
     // re-scan of a stable drive rewrote ~MBs of identical JSON. Key-sorted
-    // stringify keeps the comparison key-order-insensitive.
-    const cur = this.getDrive(id);
-    if (cur?.last_snapshot_json) {
-      try {
-        const prev = JSON.parse(cur.last_snapshot_json) as SnapshotData;
-        const strip = (s: SnapshotData): Record<string, unknown> => {
-          const { taken_at: _takenAt, ...rest } = s;
-          return rest;
-        };
-        // canon() must recurse (see its doc): nested-only edits are real
-        // library changes and must invalidate the dedupe.
-        if (canon(strip(prev)) === canon(strip(snap))) return;
-      } catch (e) {
-        // Unparsable previous blob: the dedupe guard can't run, so we fall
-        // through and write — but silently skipping the compare would mask
-        // HOW the blob got corrupt. Log it at the boundary.
-        console.error(
-          `previous snapshot blob for drive ${id} unparsable — rewriting`,
-          e,
-        );
-      }
-    }
-    const json = JSON.stringify(snap);
-    this.sqlite
-      .query("UPDATE drives SET last_snapshot_json=? WHERE id=?")
-      .run(json, id);
-    this.sqlite
-      .query(
-        "INSERT OR REPLACE INTO snapshots (drive_id, taken_at, kind, data_json) VALUES (?,?,?,?)",
-      )
-      .run(id, snap.taken_at, snap.kind, json);
+    // stringify keeps the comparison key-order-insensitive (db_drives.ts
+    // snapshotUnchanged; corrupt prior blobs log + rewrite, never dedupe).
+    if (this.driveStore.snapshotUnchanged(id, snap)) return;
+    this.driveStore.putSnapshot(id, snap);
     // fleet tables ride along: per-track inventory + playlist entries +
     // manifest refresh wholesale on every persisted scan (§B6/B7/B8 input)
     this.fleet.sync(id, snap);
-    this.pruneSnapshotsFor(id); // disk-burn guard
+    this.driveStore.pruneFor(id); // disk-burn guard
   }
 
   latestSnapshots(): Map<string, SnapshotData> {
-    const rows = this.sqlite
-      .query(
-        `SELECT drive_id, data_json FROM snapshots s WHERE taken_at = (
-           SELECT MAX(taken_at) FROM snapshots WHERE drive_id = s.drive_id)`,
-      )
-      .all() as { drive_id: string; data_json: string }[];
-    return new Map(rows.map((r) => [r.drive_id, JSON.parse(r.data_json)]));
+    return this.driveStore.latestSnapshots();
   }
 
   snapshots(driveId: string): SnapshotData[] {
-    return (
-      this.sqlite
-        .query(
-          "SELECT data_json FROM snapshots WHERE drive_id=? ORDER BY taken_at",
-        )
-        .all(driveId) as { data_json: string }[]
-    ).map((r) => JSON.parse(r.data_json));
+    return this.driveStore.snapshots(driveId);
   }
 
   // ---- events (queries extracted to db_events.ts at the file-length
@@ -796,22 +611,4 @@ export class DB {
   close(): void {
     this.sqlite.close();
   }
-}
-
-export function inferRole(
-  volumeName: string,
-  masterName = "DJMASTER",
-  mirrorName = "DJMIRROR",
-  shelfName = "SHELF1",
-): Drive["role"] {
-  const n = volumeName.toUpperCase();
-  // compare against the CONFIGURED volume names, not just the doc defaults —
-  // config.toml's library.master_drive/mirror_drive/shelf_drive promise an
-  // override, and a drive that misses its role silently degrades parity
-  // checks + badges
-  if (n === masterName.toUpperCase()) return "master";
-  if (n === mirrorName.toUpperCase()) return "mirror";
-  if (n === shelfName.toUpperCase()) return "shelf";
-  if (n.startsWith("DJ") || n.startsWith("CRATE")) return "library";
-  return "unknown";
 }

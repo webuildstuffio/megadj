@@ -37,6 +37,7 @@ import {
   foldTempo,
 } from "./analysis";
 import { analyzeMoods, moodStamp, type MoodResult } from "./models";
+import { mbLookupCached } from "./mb_lookup";
 
 export interface TrackInput {
   /** Absolute path to the audio file. */
@@ -352,90 +353,6 @@ export async function enrichTrack(
   const after = wrote ? groundTruth(t.path) : truth;
   const { complete, missing } = completenessOf(after, t);
   return { path: t.path, notes, complete, missing };
-}
-
-// ---------- MusicBrainz (1 rps, in-process cache) ----------
-const mbCache = new Map<
-  string,
-  {
-    title: string | null;
-    artist: string | null;
-    album: string | null;
-    year: number | null;
-    mbid: string | null;
-  } | null
->();
-
-async function mbLookupCached(
-  artist: string | null,
-  title: string,
-): Promise<{
-  title: string | null;
-  artist: string | null;
-  album: string | null;
-  year: number | null;
-  mbid: string | null;
-} | null> {
-  const key = `${artist ?? ""}::${title.toLowerCase()}`;
-  if (mbCache.has(key)) return mbCache.get(key) ?? null;
-  const q = artist
-    ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
-    : `recording:"${encodeURIComponent(title)}"`;
-  try {
-    const res = await fetch(
-      `https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`,
-      {
-        headers: {
-          "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
-        },
-        signal: AbortSignal.timeout(8000),
-      },
-    );
-    let out: {
-      title: string | null;
-      artist: string | null;
-      album: string | null;
-      year: number | null;
-      mbid: string | null;
-    } | null = null;
-    if (res.ok) {
-      const data = (await res.json()) as {
-        recordings?: Array<{
-          title?: string;
-          id?: string;
-          "artist-credit"?: Array<{
-            name?: string;
-            artist?: { name?: string };
-          }>;
-          releases?: Array<{ title?: string; date?: string }>;
-        }>;
-      };
-      const rec = data.recordings?.[0];
-      if (rec) {
-        const date = rec.releases?.[0]?.date ?? null;
-        const year = date ? Number(date.match(/\d{4}/)?.[0]) : NaN;
-        out = {
-          title: rec.title ?? null,
-          artist:
-            rec["artist-credit"]?.[0]?.artist?.name ??
-            rec["artist-credit"]?.[0]?.name ??
-            null,
-          album: rec.releases?.[0]?.title ?? null,
-          year: Number.isInteger(year) && year > 1900 ? year : null,
-          mbid: rec.id ?? null,
-        };
-      }
-    }
-    mbCache.set(key, out);
-    // Be polite to MusicBrainz: 1 rps even for misses.
-    await new Promise((r) => setTimeout(r, 1050));
-    return out;
-  } catch (e) {
-    // MB fill is one optional hint among many (filename + SC tags come
-    // first); failure degrades to null but is logged, not swallowed.
-    console.error(`MusicBrainz lookup failed for ${key}`, e);
-    return null;
-  }
 }
 
 async function itunesArt(r: ArtRow): Promise<Uint8Array | null> {

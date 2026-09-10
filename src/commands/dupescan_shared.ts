@@ -3,7 +3,8 @@
 // class, two table names) and the group-by-fingerprint loop were
 // byte-identical across both commands until jscpd flagged them; both now
 // parameterize the table name / policy through this module instead.
-import { statSync } from "node:fs";
+import { statSync, existsSync, renameSync } from "node:fs";
+import { basename, join } from "node:path";
 import type { Database } from "bun:sqlite";
 
 /** Persistent fp cache — one row per file path (re-runs only decode
@@ -46,6 +47,35 @@ export class DupFpCache {
 export interface DupFile {
   path: string;
   bytes: number;
+}
+
+/** One duplicate group: keeper = largest (caller sorts), rest = losers. */
+export interface DupGroup {
+  fingerprint: string;
+  files: DupFile[];
+  keep: string;
+  reason: string;
+}
+
+/** Move one loser into quarantine. Returns true when the file moved.
+ *  Quarantine collisions abort THAT file, never the run. */
+export function moveLoser(
+  path: string,
+  qDir: string,
+  errors: string[],
+): boolean {
+  const dest = join(qDir, basename(path));
+  try {
+    if (existsSync(dest)) {
+      errors.push(`quarantine already has ${basename(path)} — skipped`);
+      return false;
+    }
+    renameSync(path, dest);
+    return true;
+  } catch (e) {
+    errors.push(`${path}: ${e instanceof Error ? e.message : e}`);
+    return false;
+  }
 }
 
 /** Group walked files by cached fingerprint (unfingerprintable → null →

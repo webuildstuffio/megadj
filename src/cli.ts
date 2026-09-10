@@ -5,13 +5,19 @@ import { RateLimiter } from "./ratelimit";
 import { sync } from "./commands/sync";
 import { status, listTracks, statusJson, listJson } from "./commands/status";
 import { printHelp as printHelpImpl } from "./usage";
+import { MUSIC_DIR, DB_PATH, COOKIES, COOKIES_FILE } from "./cli_env";
+import { parseFlags, numOpt, nonNegOpt, firstPositional } from "./cli_flags";
+import {
+  runShelfSync,
+  runShelfArchive,
+  runShelfSweeps,
+} from "./cli_shelf_cmds";
 
-const MUSIC_DIR =
-  process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/DJ-Imports`;
-const DB_PATH =
-  process.env.MEGADJ_DB ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
-const COOKIES = process.env.MEGADJ_COOKIES ?? "chrome";
-const COOKIES_FILE = process.env.MEGADJ_COOKIES_FILE ?? null;
+// Env constants + flag parsers moved to cli_env.ts / cli_flags.ts, and the
+// shelf-family case bodies to cli_shelf_cmds.ts (complexity guard) —
+// re-exported so existing `from "./cli"` import sites keep working.
+export { MUSIC_DIR, DB_PATH, COOKIES, COOKIES_FILE };
+export { parseFlags, numOpt, nonNegOpt, firstPositional };
 
 /** macOS-only by design (Principle 2) — fail fast with the reason. */
 function assertMac(): void {
@@ -25,97 +31,6 @@ function assertMac(): void {
 
 function printHelp(): void {
   void printHelpImpl();
-}
-
-/** Bun's util.parseArgs is broken (strict:true rejects known options,
- *  strict:false coerces string values to true), so parse manually. */
-interface ParsedFlags {
-  strings: Map<string, string>;
-  bools: Set<string>;
-}
-
-function parseFlags(
-  args: string[],
-  stringOpts: string[],
-  boolOpts: string[],
-): ParsedFlags {
-  const strings = new Map<string, string>();
-  const bools = new Set<string>();
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === undefined) continue;
-    if (arg === "--") break;
-    if (!arg.startsWith("--")) continue;
-    const eq = arg.indexOf("=");
-    if (eq > 0) {
-      const key = arg.slice(2, eq);
-      const val = arg.slice(eq + 1);
-      if (boolOpts.includes(key)) {
-        if (val !== "true" && val !== "false") continue;
-        if (val === "true") bools.add(key);
-      } else {
-        strings.set(key, val);
-      }
-      continue;
-    }
-    const key = arg.slice(2);
-    if (boolOpts.includes(key)) {
-      bools.add(key);
-    } else if (stringOpts.includes(key)) {
-      const next = args[i + 1];
-      if (next !== undefined && !next.startsWith("--")) {
-        strings.set(key, next);
-        i++;
-      }
-    }
-  }
-  return { strings, bools };
-}
-
-/** Numeric string option: `numOpt(flags, "jobs")` → number | undefined. */
-function numOpt(flags: ParsedFlags, key: string): number | undefined {
-  const raw = flags.strings.get(key);
-  return raw ? Number(raw) || undefined : undefined;
-}
-
-/** Non-negative numeric option with a hard error (`--limit 5`). Returns
- * undefined when absent — AND undefined when present but invalid (after
- * printing the error + exitCode 2), so callers can break out instead of
- * letting NaN flow through as "unlimited" (NaN is falsy: it would skip
- * every slice/stop guard downstream). The beats/mood/cues case blocks
- * each hand-rolled this check 3× inline. */
-function nonNegOpt(
-  flags: ParsedFlags,
-  key: string,
-  cmd: string,
-): number | undefined {
-  const raw = flags.strings.get(key);
-  if (raw === undefined) return undefined;
-  // Strict raw check BEFORE Number(): Number("") is 0 and Number(" 5 ") is
-  // 5, but an empty/whitespace-only value is a typo, not a number — and
-  // NaN/Infinity must never slip through as a limit either.
-  const trimmed = raw.trim();
-  if (trimmed === "" || !/^\d+$/.test(trimmed)) {
-    console.error(
-      `${cmd}: --${key} must be a non-negative number (got "${raw}")`,
-    );
-    process.exitCode = 2;
-    return undefined;
-  }
-  const n = Number(trimmed);
-  if (!Number.isFinite(n) || n < 0) {
-    console.error(
-      `${cmd}: --${key} must be a non-negative number (got "${raw}")`,
-    );
-    process.exitCode = 2;
-    return undefined;
-  }
-  return n;
-}
-
-/** First positional argument (skips flags and the command word itself). */
-function firstPositional(args: string[], cmd: string): string | undefined {
-  return args.find((a) => !a.startsWith("--") && a !== cmd);
 }
 
 async function main(): Promise<void> {
@@ -279,60 +194,12 @@ async function main(): Promise<void> {
       }
       case "shelf-sync": {
         // shelf master = the archive-grade HDD; sticks only mirror FROM it.
-        // Volume names come from config.toml [library] via env overrides —
-        // never hardcoded literals (AGENTS.md rule).
-        const json = rest.includes("--json");
-        const dryRun = rest.includes("--dry-run");
-        const shelfVolume = process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1";
-        const stickVolumes = [
-          process.env.USB_SYNC_MASTER ?? "DJMASTER",
-          process.env.USB_SYNC_MIRROR ?? "DJMIRROR",
-        ];
-        const { shelfSync } = await import("./commands/shelf-sync");
-        await shelfSync({
-          musicDir: MUSIC_DIR,
-          shelfVolume: `/Volumes/${shelfVolume}`,
-          stickVolumes: stickVolumes.map((v) => `/Volumes/${v}`),
-          dryRun,
-          json,
-        });
+        await runShelfSync(rest);
         break;
       }
       case "shelf-archive": {
-        // The intake sweep: drive(s) → shelf, additive + verified. The
-        // generalization of the Sep 9 2026 three-stick manual merge.
-        // Volumes come from config.toml [library] defaults via env
-        // overrides — never hardcoded literals (AGENTS.md rule).
-        const json = rest.includes("--json");
-        const dryRun = rest.includes("--dry-run");
-        const deep = rest.includes("--deep");
-        const trashes = rest.includes("--trashes");
-        const intoEq = rest.find((a) => a.startsWith("--into="));
-        const into = intoEq ? decodeURIComponent(intoEq.slice(7)) : undefined;
-        const shelfVolume = process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1";
-        const suffixEq = rest.find((a) => a.startsWith("--suffix="));
-        const suffix = suffixEq ? suffixEq.slice(9) : undefined;
-        // positional volumes; default to the configured master+mirror when
-        // none are named (the "did both sticks fully land?" check)
-        const master = process.env.USB_SYNC_MASTER ?? "DJMASTER";
-        const mirror = process.env.USB_SYNC_MIRROR ?? "DJMIRROR";
-        const positionals = rest.filter(
-          (a) => !a.startsWith("--") && a !== "shelf-archive",
-        );
-        const volumes = positionals.length ? positionals : [master, mirror];
-        const { shelfArchive } = await import("./commands/shelf-archive");
-        await shelfArchive({
-          volumes: volumes.map((v) =>
-            v.startsWith("/Volumes/") ? v : `/Volumes/${v}`,
-          ),
-          shelfVolume: `/Volumes/${shelfVolume}`,
-          into,
-          trashes,
-          deep,
-          suffix,
-          dryRun,
-          json,
-        });
+        // The intake sweep: drive(s) → shelf, additive + verified.
+        await runShelfArchive(rest);
         break;
       }
       case "shelf-dedupe": {
@@ -364,39 +231,7 @@ async function main(): Promise<void> {
       case "shelf-sweeps": {
         // The DB record of every drive → shelf sweep (queryable state, not
         // markdown). `--json` = full history; text = one line per drive.
-        const json = rest.includes("--json");
-        const state2 = new ArchiveState(DB_PATH);
-        try {
-          const rows = state2.shelfSweeps.latestPerDrive();
-          const hist = state2.shelfSweeps.history();
-          if (json) {
-            console.log(
-              JSON.stringify(
-                { command: "shelf-sweeps", latest: rows, history: hist },
-                null,
-                2,
-              ),
-            );
-          } else {
-            console.log("shelf sweeps (latest per drive):");
-            for (const r of rows) {
-              const done = r.finished_at
-                ? r.finished_at.slice(0, 10)
-                : "running";
-              const gb = (r.bytes_copied / 1e9).toFixed(2);
-              console.log(
-                `  ${r.drive.padEnd(16)} ${r.verdict.padEnd(9)} ${done}  ` +
-                  `${r.files_seen} files · ${r.covered_exact} covered · ${r.preserved} preserved · ${r.copied} copied (${gb} GB)${r.failed ? ` · FAILED ${r.failed}` : ""}${r.deep ? " · deep" : ""}`,
-              );
-            }
-            if (rows.length === 0)
-              console.log(
-                "  (no sweeps recorded yet — run megadj shelf-archive)",
-              );
-          }
-        } finally {
-          state2.close();
-        }
+        await runShelfSweeps(rest);
         break;
       }
       case "list": {

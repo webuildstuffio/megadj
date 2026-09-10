@@ -32,28 +32,25 @@
 import {
   ARCH,
   QUEUE,
-  canonGenre,
   db,
-  deezerArt,
-  fetchBestScArt,
-  fetchImage,
-  gatewayArt,
   groundTruth,
   archiveFiles,
-  itunesArtwork as itunesArtUrl,
-  pageOgImage,
   scSearch,
   setFileTags,
-  twinArt,
-  embedArt,
   type Row,
   type TagValues,
 } from "./fetch_lib";
-import { aiGenres, albumHeuristic } from "../fulltags/src/exports";
+import { aiGenres } from "../fulltags/src/exports";
 import { existsSync } from "node:fs";
-import { basename } from "node:path";
 import { appendFile } from "node:fs/promises";
 import { ProgressBar } from "../src/progress";
+import {
+  stageArt,
+  stageGenreYear,
+  stageTags,
+  type StageCtx,
+  type Stats,
+} from "./fetch_stages";
 
 /** Print a line without corrupting the live progress bar redraw. */
 let activeBar: ProgressBar | null = null;
@@ -97,20 +94,7 @@ interface Task {
   needYear: boolean;
   upgradeSc: boolean;
 }
-
-interface Stats {
-  tags: number;
-  genreSc: number;
-  genreAi: number;
-  artSc: number;
-  artScOrig: number;
-  artGateway: number;
-  artTwin: number;
-  artDeezer: number;
-  artItunes: number;
-  yearSc: number;
-  yearAi: number;
-}
+// Stats shape lives in fetch_stages.ts (the stage runners' shared currency).
 
 async function processTask(
   t: Task,
@@ -128,137 +112,34 @@ async function processTask(
   const name = `${r.artist ?? "?"} - ${r.title}`.slice(0, 56);
   const notes: string[] = [];
 
-  /** SC-path year stamp: file tag + DB row + stat + note, in one call
-   * (the art path and the direct year path were identical 8-liners). */
-  const markYear = (year: number): void => {
-    setFileTags(r.file_path, { year });
-    db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-      String(year),
-      r.video_id,
-    );
-    stats.yearSc++;
-    notes.push(`year:${year}`);
+  const ctx: StageCtx = {
+    row: r,
+    truth,
+    needTags: t.needTags,
+    needGenre: t.needGenre,
+    needArt: t.needArt,
+    needYear: t.needYear,
+    upgradeSc: t.upgradeSc,
+    dry: DRY,
+    stats,
+    notes,
+    aiGenreBatch,
+    aiYearBatch,
   };
 
   // ---- 1. tags (DB → file) ----
-  if (t.needTags && !DRY) {
-    const artist = truth.artist ?? r.artist ?? null;
-    const vals: TagValues = {};
-    if (!truth.title) vals.title = r.title;
-    if (!truth.artist && artist) vals.artist = artist;
-    if (!truth.album && artist)
-      vals.album = r.album ?? albumHeuristic(artist, basename(r.file_path));
-    if (!truth.genre && r.genre && r.genre !== "Music") vals.genre = r.genre;
-    if (Object.keys(vals).length && setFileTags(r.file_path, vals)) {
-      stats.tags++;
-      notes.push(`tags(${Object.keys(vals).join(",")})`);
-      db.query(
-        "UPDATE tracks SET title=?, artist=?, album=?, genre=? WHERE video_id=?",
-      ).run(
-        vals.title ?? truth.title ?? r.title,
-        vals.artist ?? artist,
-        vals.album ?? truth.album,
-        vals.genre ?? truth.genre,
-        r.video_id,
-      );
-    }
-  }
+  stageTags(ctx);
 
   // ---- 2+3+4. SC search feeds genre AND art AND year ----
   const wantsSc = t.needGenre || t.needArt || t.upgradeSc || t.needYear;
   const sc = wantsSc && !DRY ? scSearch(r) : null;
-  const best = sc?.[0];
+  const best = sc?.[0] ?? null;
 
-  if (t.needGenre && !DRY) {
-    if (best?.genre) {
-      const g = canonGenre(best.genre);
-      db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(g, r.video_id);
-      setFileTags(r.file_path, { genre: g });
-      stats.genreSc++;
-      notes.push(`genre:${g}`);
-    } else {
-      aiGenreBatch.push(r);
-    }
-  }
+  stageGenreYear(ctx, best);
 
-  if (t.needYear && !DRY) {
-    if (best?.year) {
-      markYear(best.year);
-    } else {
-      aiYearBatch.push(r);
-    }
-  }
-
-  if (t.needArt && !DRY) {
-    let artDone = false;
-    const markArt = (label: string, formatId?: string): void => {
-      db.query(
-        formatId
-          ? "UPDATE tracks SET artwork_status=?, format_id=? WHERE video_id=?"
-          : "UPDATE tracks SET artwork_status=? WHERE video_id=?",
-      ).run(`embedded:${label}`, ...(formatId ? [formatId] : []), r.video_id);
-    };
-
-    // 3a. SC search hit → original-res page art (best quality path)
-    if (best) {
-      const og = await pageOgImage(best.url);
-      const bytes = og
-        ? await fetchBestScArt(og)
-        : best.thumb
-          ? await fetchImage(best.thumb)
-          : null;
-      const isOrig = !!og?.includes("-original");
-      if (bytes && embedArt(r.file_path, bytes)) {
-        artDone = true;
-        if (isOrig) stats.artScOrig++;
-        else stats.artSc++;
-        notes.push(`art:sc${isOrig ? "-orig" : ""}`);
-        markArt(`sc${isOrig ? "-orig" : ""}`, `sc:${best.url}`);
-        if (best.genre && t.needGenre) {
-          const g = canonGenre(best.genre);
-          db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
-            g,
-            r.video_id,
-          );
-        }
-        if (best.year && t.needYear) {
-          markYear(best.year);
-        }
-      }
-    }
-    // 3b–3e. gateway → twin → deezer → itunes (first embed wins)
-    const fallbacks: Array<{
-      stat: keyof Stats;
-      label: string;
-      bytes: Uint8Array | null | Promise<Uint8Array | null>;
-    }> = [
-      {
-        stat: "artGateway",
-        label: "gateway",
-        bytes: gatewayArt(r).then((g) => g?.bytes ?? null),
-      },
-      { stat: "artTwin", label: "mp3-twin", bytes: twinArt(r) },
-      { stat: "artDeezer", label: "deezer", bytes: deezerArt(r) },
-      {
-        stat: "artItunes",
-        label: "itunes",
-        bytes: itunesArtUrl(r.artist ?? "", r.album ?? r.title).then((u) =>
-          u ? fetchImage(u) : null,
-        ),
-      },
-    ];
-    for (const fb of fallbacks) {
-      if (artDone) break;
-      const bytes = await fb.bytes;
-      if (bytes && embedArt(r.file_path, bytes)) {
-        artDone = true;
-        stats[fb.stat]++;
-        notes.push(`art:${fb.label}`);
-        markArt(fb.label);
-      }
-    }
-    if (!artDone) artless.push(r);
-  }
+  // ---- 3. artwork ladder (SC original-res first, then fallbacks) ----
+  const artDone = await stageArt(ctx, best);
+  if (t.needArt && !DRY && !artDone) artless.push(r);
 
   if (progress) {
     progress.update(1);

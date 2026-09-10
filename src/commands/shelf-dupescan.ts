@@ -14,16 +14,20 @@
  * as shelf-dedupe. Parallel worker pool; fp cache makes re-runs fast.
  */
 import { Database } from "bun:sqlite";
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  renameSync,
-  statSync,
-} from "node:fs";
-import { basename, join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { DupFpCache, groupByFingerprint } from "./dupescan_shared";
+import {
+  DupFpCache,
+  groupByFingerprint,
+  type DupGroup,
+} from "./dupescan_shared";
+import { applyDupGroups } from "./shelf_dupescan_apply";
+
+// md5sum / nameSimilarity (apply-stage probes) and moveLoser (quarantine
+// move) live in the leaf modules; re-exported for existing import sites.
+export { md5sum, nameSimilarity } from "./shelf_dupescan_apply";
+export { moveLoser, type DupGroup } from "./dupescan_shared";
 
 const AUDIO = new Set([".mp3", ".wav", ".aif", ".aiff", ".m4a", ".flac"]);
 
@@ -52,43 +56,6 @@ function fingerprint(path: string): string | null {
   return m?.[1] ?? null;
 }
 
-function md5sum(path: string): string | null {
-  const r = spawnSync("md5", ["-q", path]);
-  if (r.status !== 0) return null;
-  const h = r.stdout.toString().trim();
-  return h.length > 0 ? h : null;
-}
-
-function nameSimilarity(a: string, b: string): number {
-  // cheap similarity: lowercase, strip separators, difflib-style ratio via
-  // common-prefix + length delta (no deps). 1 = identical, 0 = unrelated.
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const x = norm(a);
-  const y = norm(b);
-  if (x === y) return 1;
-  if (x.length === 0 || y.length === 0) return 0;
-  let prefix = 0;
-  const max = Math.min(x.length, y.length);
-  while (prefix < max && x[prefix] === y[prefix]) prefix++;
-  return (2 * prefix) / (x.length + y.length);
-}
-
-/** Move one loser into quarantine. Returns true when the file moved. */
-function moveLoser(path: string, qDir: string, errors: string[]): boolean {
-  const dest = join(qDir, basename(path));
-  try {
-    if (existsSync(dest)) {
-      errors.push(`quarantine already has ${basename(path)} — skipped`);
-      return false;
-    }
-    renameSync(path, dest);
-    return true;
-  } catch (e) {
-    errors.push(`${path}: ${e instanceof Error ? e.message : e}`);
-    return false;
-  }
-}
-
 /** Persistent fp cache — one row per file path (re-runs only decode
  *  new/changed files). Table name keeps the shelf-cache namespace; the
  *  class body is the shared DupFpCache (twin of dedupe-archive's, jscpd-
@@ -98,13 +65,6 @@ export class FpCache extends DupFpCache {
   constructor(db: Database) {
     super(db, "shelf_fingerprints");
   }
-}
-
-export interface DupGroup {
-  fingerprint: string;
-  files: Array<{ path: string; bytes: number }>;
-  keep: string;
-  reason: string;
 }
 
 export interface DupScanOptions {
@@ -197,11 +157,8 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   );
 
   // ---- apply stage (only with --quarantine --yes) ----------------------
-  // Guards, in order: (1) every loser is re-verified md5-vs-keeper at apply
-  // time — a same-fingerprint group with DIFFERENT md5s but wildly
-  // different names is a possible long-mix collision and is skipped unless
-  // sizes also match (byte-equal); (2) losers move to quarantine, never
-  // deleted; (3) collisions in quarantine abort that file, not the run.
+  // Guards live in shelf_dupescan_apply.ts: md5 re-verify at apply time,
+  // quarantine-never-delete, per-file collision isolation.
   const qDir = join(shelfVolume, "Contents", ".dupescan-quarantine");
   const applied = quarantine && yes;
   let quarantined = 0;
@@ -209,39 +166,9 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   const errors: string[] = [];
   if (applied) {
     mkdirSync(qDir, { recursive: true });
-    for (const g of dupes) {
-      const keeper = g.files[0]!;
-      const keeperMd5 = md5sum(keeper.path);
-      // name similarity across the group decides how strict the checks are
-      const avgNameRatio =
-        g.files
-          .slice(1)
-          .reduce(
-            (s, f) =>
-              s + nameSimilarity(basename(keeper.path), basename(f.path)),
-            0,
-          ) /
-        (g.files.length - 1);
-      for (const loser of g.files.slice(1)) {
-        const sameSize = loser.bytes === keeper.bytes;
-        if (sameSize) {
-          // same fingerprint + same size: require byte-equality
-          const lm = md5sum(loser.path);
-          if (keeperMd5 && lm !== keeperMd5) {
-            errors.push(`md5 mismatch inside same-size group: ${loser.path}`);
-            skippedForReview++;
-            continue;
-          }
-        } else if (onlyIdentical || avgNameRatio < 0.5) {
-          // --only-identical: never touch same-fp/different-bytes files.
-          // different size + dissimilar names = possible long-mix fp
-          // collision — needs human/ear review, never auto-quarantined
-          skippedForReview++;
-          continue;
-        }
-        if (moveLoser(loser.path, qDir, errors)) quarantined++;
-      }
-    }
+    const tally = applyDupGroups(dupes, qDir, onlyIdentical, errors);
+    quarantined = tally.quarantined;
+    skippedForReview = tally.skippedForReview;
   }
 
   if (json) {

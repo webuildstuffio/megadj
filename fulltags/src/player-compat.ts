@@ -93,65 +93,102 @@ function mp3Reason(sampleRate: number | null): string | null {
  * known hardware killers are the ones enumerated below.
  */
 export function playerCompat(probe: Probe): CompatResult {
-  const reasons: string[] = [];
-  const codec = probe.codec ?? null;
-  const rate = probe.sampleRate;
   // The floor is the fleet intersection: with the default trio (XZ +
   // 3000 + NXS2) hi-res stays "partial"; add CDJ-2000 and FLAC/hi-res
   // become hard fails; drop the XZ and 96 kHz passes everywhere.
   const floor = fleetFloor(boothFleetProfiles());
+  const reasons = [
+    ...codecReasons(probe.codec ?? null, probe.sampleRate, floor),
+  ];
+  return verdict(probe, reasons);
+}
 
-  // Container/codec gate. By the time a file reaches the archive it is
-  // one of .wav/.aiff/.mp3/.flac/.m4a (FullTags walker's set), so this
-  // keys off the ffprobe codec inside the container, not the extension.
-  const fleetSampleRates = new Set<number>([44100, 48000, 32000]);
-  if (floor.maxSampleRate >= 88200) {
-    fleetSampleRates.add(88200);
-    fleetSampleRates.add(96000);
-  }
-  if (codec === "mp3") {
-    const mp2 = mp3Reason(rate);
-    if (mp2) reasons.push(mp2);
-  } else if (codec === "aac") {
-    // HE-AAC (SBR) is rejected by the players even in .m4a; LC is fine.
-    // ffprobe reports profile via a different field — Probe carries only
-    // codec_name, so anything Probe calls "aac" we treat as LC (ingest
-    // sources never produce HE-AAC) but flag ultra-low rates.
-    if (rate !== null && !fleetSampleRates.has(rate) && rate < 88200) {
-      reasons.push("aac-sample-rate-unsupported");
-    }
-  } else if (codec && PCM_CODECS.has(codec)) {
-    if (codec.includes("f32") || codec.includes("f64")) {
-      reasons.push("float-pcm-unsupported");
-    } else if (codec.includes("s32") || codec === "pcm_u8") {
-      reasons.push("bit-depth-unsupported");
-    } else if (rate !== null && !fleetSampleRates.has(rate)) {
-      // 16/24-bit PCM at 88.2/96 — plays on the hi-res players only.
-      reasons.push(
-        HIRES_SAMPLE_RATES.has(rate)
-          ? "sample-rate-hires"
-          : "sample-rate-unsupported",
-      );
-    }
-  } else if (codec === "flac") {
-    if (rate !== null && !fleetSampleRates.has(rate)) {
-      reasons.push(
-        HIRES_SAMPLE_RATES.has(rate)
-          ? "sample-rate-hires"
-          : "sample-rate-unsupported",
-      );
-    }
-    // FLAC is only universal when EVERY selected player takes it
-    // (the plain CDJ-2000 never does).
-    if (!floor.flac) reasons.push("flac-not-universal");
-  } else if (codec === "alac") {
-    if (!floor.alac) reasons.push("alac-not-universal"); // no player takes ALAC
-  } else if (codec && (codec.startsWith("adpcm") || codec.includes("_at3"))) {
-    reasons.push("compressed-wav-unsupported");
-  } else if (!codec) {
-    reasons.push("no-audio-stream");
-  }
+/** Per-codec gate rules. Container note: by the time a file reaches the
+ *  archive it is one of .wav/.aiff/.mp3/.flac/.m4a (FullTags walker's
+ *  set), so this keys off the ffprobe codec INSIDE the container. */
+function codecReasons(
+  codec: string | null,
+  rate: number | null,
+  floor: { maxSampleRate: number; flac: boolean; alac: boolean },
+): string[] {
+  // The universal set; hi-res rates join only when every player takes them.
+  const fleetRates = fleetSampleRates(floor.maxSampleRate);
+  if (codec === "mp3") return filterNulls([mp3Reason(rate)]);
+  if (codec === "aac") return aacReasons(rate, fleetRates);
+  if (codec && PCM_CODECS.has(codec))
+    return pcmReasons(codec, rate, fleetRates);
+  if (codec === "flac") return flacReasons(rate, fleetRates, floor.flac);
+  if (codec === "alac") return floor.alac ? [] : ["alac-not-universal"];
+  if (codec && (codec.startsWith("adpcm") || codec.includes("_at3")))
+    return ["compressed-wav-unsupported"];
+  if (!codec) return ["no-audio-stream"];
+  return [];
+}
 
+function filterNulls(xs: (string | null)[]): string[] {
+  return xs.filter((x): x is string => x !== null);
+}
+
+/** 44.1/48/32 kHz everywhere; 88.2/96 only on hi-res-capable fleets. */
+function fleetSampleRates(maxSampleRate: number): Set<number> {
+  const rates = new Set<number>([44100, 48000, 32000]);
+  if (maxSampleRate >= 88200) {
+    rates.add(88200);
+    rates.add(96000);
+  }
+  return rates;
+}
+
+function aacReasons(rate: number | null, fleetRates: Set<number>): string[] {
+  // HE-AAC (SBR) is rejected by the players even in .m4a; LC is fine.
+  // ffprobe reports profile via a different field — Probe carries only
+  // codec_name, so anything Probe calls "aac" we treat as LC (ingest
+  // sources never produce HE-AAC) but flag ultra-low rates.
+  if (rate !== null && !fleetRates.has(rate) && rate < 88200)
+    return ["aac-sample-rate-unsupported"];
+  return [];
+}
+
+function pcmReasons(
+  codec: string,
+  rate: number | null,
+  fleetRates: Set<number>,
+): string[] {
+  if (codec.includes("f32") || codec.includes("f64"))
+    return ["float-pcm-unsupported"];
+  if (codec.includes("s32") || codec === "pcm_u8")
+    return ["bit-depth-unsupported"];
+  if (rate !== null && !fleetRates.has(rate)) {
+    // 16/24-bit PCM at 88.2/96 — plays on the hi-res players only.
+    return [
+      HIRES_SAMPLE_RATES.has(rate)
+        ? "sample-rate-hires"
+        : "sample-rate-unsupported",
+    ];
+  }
+  return [];
+}
+
+function flacReasons(
+  rate: number | null,
+  fleetRates: Set<number>,
+  flacUniversal: boolean,
+): string[] {
+  const reasons: string[] = [];
+  if (rate !== null && !fleetRates.has(rate)) {
+    reasons.push(
+      HIRES_SAMPLE_RATES.has(rate)
+        ? "sample-rate-hires"
+        : "sample-rate-unsupported",
+    );
+  }
+  // FLAC is only universal when EVERY selected player takes it
+  // (the plain CDJ-2000 never does).
+  if (!flacUniversal) reasons.push("flac-not-universal");
+  return reasons;
+}
+
+function verdict(probe: Probe, reasons: string[]): CompatResult {
   const partial =
     reasons.length > 0 &&
     reasons.every((r) =>
@@ -166,8 +203,8 @@ export function playerCompat(probe: Probe): CompatResult {
     ok: reasons.length === 0,
     reasons,
     detail: reasons.length
-      ? `${codec ?? "unknown"} @ ${rate ?? "?"}Hz: ${reasons.join(", ")}`
-      : `${codec} @ ${rate}Hz — plays on the whole booth fleet`,
+      ? `${probe.codec ?? "unknown"} @ ${probe.sampleRate ?? "?"}Hz: ${reasons.join(", ")}`
+      : `${probe.codec} @ ${probe.sampleRate}Hz — plays on the whole booth fleet`,
     partial,
   };
 }
