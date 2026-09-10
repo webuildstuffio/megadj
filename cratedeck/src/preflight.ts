@@ -175,9 +175,24 @@ function gridsCheck(snap: SnapshotData | null): HealthCheck | null {
   };
 }
 
-function dualDbCheck(snap: SnapshotData | null): HealthCheck | null {
+function dualDbCheck(
+  snap: SnapshotData | null,
+  role?: string,
+): HealthCheck | null {
   if (snap?.onelibrary_rows === undefined || snap?.pdb_live_rows === undefined)
     return null;
+  // Shelf-tier drives are ARCHIVE storage — the master library lives there
+  // (rekordbox Database Management) and the legacy pdb is a vestigial copy
+  // of whatever stick tree was migrated over. pdb parity is a GIG-STICK
+  // concern; on a shelf it must never fail the preflight.
+  if (role === "shelf") {
+    return {
+      id: "dual-db",
+      label: "Hardware library current",
+      status: "pass",
+      detail: `archive tier — master library lives here (${snap.onelibrary_rows} tracks); legacy pdb (${snap.pdb_live_rows}) is vestigial and not read by players`,
+    };
+  }
   const match = snap.pdb_live_rows === snap.onelibrary_rows;
   return {
     id: "dual-db",
@@ -241,7 +256,7 @@ function playersCheck(players: PreflightInput["players"]): HealthCheck | null {
 export function preflightForDrive(input: PreflightInput): PreflightDriveResult {
   const { snapshot: snap } = input;
   const checks = [
-    dualDbCheck(snap),
+    dualDbCheck(snap, input.drive.role),
     gridsCheck(snap),
     verifyCheck(input.latestVerify, snap, input.now),
     benchCheck(input.bench),

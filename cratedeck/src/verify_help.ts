@@ -32,9 +32,9 @@ export const VERIFY_HELP: {
       id: "dual-db",
       label: "Hardware library matches rekordbox",
       what: "Compares track counts between export.pdb (what CDJs/XDJs read) and exportLibrary.db (what rekordbox reads).",
-      why: "Drives carry two libraries. Hardware players only ever read the legacy one.",
+      why: "Drives carry two libraries. Hardware players only ever read the legacy one. On archive-tier (shelf) drives the master library lives on the drive itself and the pdb is vestigial — parity there is informational, never a failure.",
       if_fail:
-        "The booth sees a different (usually older) library than your laptop does — tracks you added recently won't exist on the CDJs.",
+        "The booth sees a different (usually older) library than your laptop does — tracks you added recently won't exist on the CDJs. (Shelf drives: expected drift, no action.)",
       fix: "In rekordbox, re-run the USB export with the drive connected — it rebuilds export.pdb.",
     },
     {

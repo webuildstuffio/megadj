@@ -207,6 +207,14 @@ function RailCard(props: {
           <div class="sub" title={sub}>
             {sub}
           </div>
+          {d.role === "shelf" && d.mounted && (
+            <div
+              class="sub shelfline"
+              title="This drive IS the master library — rekordbox's Database Management points here (PIONEER/Master). USB sticks sync from it; players never read it directly, so device-library drift here is expected and harmless."
+            >
+              master library lives here · sticks sync from this
+            </div>
+          )}
           {d.mounted && snap?.track_count !== undefined && (
             <div class="sub">
               {snap.track_count.toLocaleString()} tracks

@@ -91,6 +91,21 @@ describe("parseVerifyReport", () => {
     expect(ids).toContain("audio-parity");
   });
 
+  it("shelf-tier drive: pdb/OneLibrary mismatch is informational, not a fail", () => {
+    const r = parseVerifyReport(
+      FAIL_OUTPUT,
+      false,
+      "FINAL: FAILED: 6 checks",
+      180,
+      "shelf",
+    );
+    const dual = r.checks.find((c) => c.id === "dual-db");
+    expect(dual?.status).toBe("pass");
+    expect(dual?.detail).toContain("archive tier");
+    // other genuine failures stay failures
+    expect(r.checks.find((c) => c.id === "audio-files")?.status).toBe("fail");
+  });
+
   it("anlz warn threshold: a few missing is warn, many is fail", () => {
     const few = PASS_OUTPUT.replace(
       "missing analysis: 0",

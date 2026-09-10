@@ -271,6 +271,13 @@
   opacity: 1;
 }
 
+/* "master library lives here" line on shelf-role drive cards */
+.idbox .shelfline {
+  color: var(--pulse);
+  opacity: 0.9;
+  font-size: 11px;
+}
+
 /* USB link class line (negotiated rate from the ioreg tree at mount) */
 .idbox .usblink {
   color: var(--accent);

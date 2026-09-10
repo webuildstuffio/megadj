@@ -93,6 +93,21 @@ describe("preflight (B12)", () => {
     expect(r.blockers.some((b) => b.startsWith("Hardware library"))).toBe(true);
   });
 
+  it("dual-db mismatch on a SHELF drive is informational, never a blocker", () => {
+    // the shelf hosts the master library itself; the vestigial pdb is a copy
+    // of a migrated stick tree and no player reads the shelf
+    const r = preflightForDrive(
+      input({
+        drive: drive({ name: "SHELF1", role: "shelf" }),
+        snapshot: snap({ pdb_live_rows: 3926, onelibrary_rows: 3053 }),
+      }),
+    );
+    const c = byId(r, "dual-db");
+    expect(c?.status).toBe("pass");
+    expect(c?.detail).toContain("archive tier");
+    expect(r.blockers).toEqual([]);
+  });
+
   it("failed verify is a blocker", () => {
     const r = preflightForDrive(
       input({ latestVerify: { ran_at: NOW - DAY, ok: false } }),

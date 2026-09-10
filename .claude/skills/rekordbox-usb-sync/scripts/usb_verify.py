@@ -130,8 +130,12 @@ def pdb_live_rows(pdb_path: str, table_type: int = 0) -> int:
     return live
 
 
-def verify_hardware_view(drive: str) -> list:
-    """What a legacy player (XDJ-XZ etc.) actually reads: export.pdb vs OneLibrary."""
+def verify_hardware_view(drive: str, shelf: bool = False) -> list:
+    """What a legacy player (XDJ-XZ etc.) actually reads: export.pdb vs OneLibrary.
+
+    Archive-tier (shelf) drives host the MASTER library itself — the pdb there
+    is a vestigial copy of whatever stick tree was migrated over, and no player
+    ever reads the shelf. Parity is informational for these drives."""
     vol = f"/Volumes/{drive}"
     fails = []
     J = VERIFY_JSON.setdefault("drives", {}).setdefault(drive, {})
@@ -143,6 +147,9 @@ def verify_hardware_view(drive: str) -> list:
     finally:
         db.close()
     if not os.path.exists(pdb_path):
+        if shelf:
+            print("  export.pdb missing — fine on an archive drive (no player reads it)")
+            return fails
         print("  export.pdb missing — legacy players will show NOTHING")
         fails.append(f"{drive}: no export.pdb")
         return fails
@@ -151,6 +158,11 @@ def verify_hardware_view(drive: str) -> list:
     J["pdb_tracks"] = n_pdb
     J["onelibrary_tracks"] = n_db
     if n_pdb != n_db:
+        if shelf:
+            print(
+                "  archive tier — pdb parity informational only (master library lives here)"
+            )
+            return fails
         delta = n_db - n_pdb
         if delta > 0:
             print(f"  MISMATCH — legacy players (XDJ-XZ, older CDJs) will not show the {delta} newer tracks")
@@ -297,6 +309,12 @@ def main() -> int:
     )
     ap.add_argument("--drives", nargs="+", default=["DJMASTER", "DJMIRROR"])
     ap.add_argument(
+        "--shelf-drives",
+        nargs="*",
+        default=[],
+        help="archive-tier drives: pdb/OneLibrary parity is informational, never a fail (master library lives on these)",
+    )
+    ap.add_argument(
         "--skip-hash-parity",
         action="store_true",
         help="skip full USBANLZ hash comparison (slow)",
@@ -309,7 +327,7 @@ def main() -> int:
     print("\n=== per-drive DB + disk + grid checks ===")
     for drive in args.drives:
         print(f"\n### {drive}")
-        fails += verify_hardware_view(drive)
+        fails += verify_hardware_view(drive, shelf=drive in args.shelf_drives)
         fails += verify_drive(drive)
 
     if len(args.drives) == 2:

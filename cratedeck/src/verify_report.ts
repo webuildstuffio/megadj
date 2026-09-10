@@ -69,6 +69,9 @@ export function parseVerifyReport(
   ok: boolean,
   finalLine: string | null,
   durationS: number | null,
+  /** Drive role (when known) — shelf-tier drives archive rather than gig,
+   *  so player-facing pdb parity is informational, never a failure. */
+  driveRole?: string,
 ): VerifyReport {
   // ---- structured payload first ------------------------------------------
   const jsonLine = out.split("\n").find((l) => l.startsWith("VERIFY_JSON: "));
@@ -213,19 +216,25 @@ export function parseVerifyReport(
     };
   };
 
-  // 1 — dual-DB agreement
+  // 1 — dual-DB agreement. Shelf-tier drives are ARCHIVE storage: the
+  // master library lives there (rekordbox Database Management) and the
+  // legacy pdb is a vestigial copy of a migrated stick tree. Parity is a
+  // gig-stick concern — on a shelf it's informational, never a fail.
   if (pdb !== null && odb !== null) {
+    const shelfTier = driveRole === "shelf";
     checks.push(
       mk(
         "dual-db",
-        pdb === odb ? "pass" : "fail",
+        pdb === odb || shelfTier ? "pass" : "fail",
         pdb === odb
           ? `${odb} tracks in both databases`
-          : `export.pdb ${pdb} vs OneLibrary ${odb} (${
-              odb > pdb
-                ? `${odb - pdb} newer tracks invisible to hardware`
-                : `${pdb - odb} stale rows hardware will show but rekordbox won't`
-            })`,
+          : shelfTier
+            ? `archive tier — master library lives here (${odb} tracks); legacy pdb (${pdb}) is vestigial and not read by players`
+            : `export.pdb ${pdb} vs OneLibrary ${odb} (${
+                odb > pdb
+                  ? `${odb - pdb} newer tracks invisible to hardware`
+                  : `${pdb - odb} stale rows hardware will show but rekordbox won't`
+              })`,
       ),
     );
   }

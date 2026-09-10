@@ -555,6 +555,7 @@ export class JobEngine {
           pass,
           finalLine ?? null,
           Math.round((Date.now() - startedAt) / 1000),
+          this.db.getDrive(job.drive_id)?.role,
         );
         return {
           verdict: pass ? "pass" : "fail",
