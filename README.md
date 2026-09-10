@@ -80,6 +80,23 @@ bun run deckctl status | report | run | coverage | diff
 megadj shelf-archive <volume>   # archive a stray drive into the shelf, verified
 ```
 
+### Dev loop
+
+The whole gate before any push — typecheck, lint (warnings deny), format,
+knip, tests (16 workers), type coverage — one command, parallel lanes:
+
+```bash
+bun run check        # fast trio (typecheck ∥ lint ∥ format), ~2s warm
+bun run check:full   # everything above + knip + tests + 100% typecov
+bun run check:watch  # tsc + oxlint watch modes while you edit
+bun run test:fast    # tests minus the e2e browser suite
+bun run test:watch   # bun test --watch
+```
+
+The dashboard UI is a separate Vite workspace: after web changes run
+`bun run web:build` (its deps install via `cd cratedeck/web && bun
+install --frozen-lockfile`).
+
 First run of the dashboard? Build the UI once: `cd cratedeck/web && bun
 install && bun run build`. Drives are matched by volume name — `megadj init`
 auto-detects mounted volumes and writes them into `cratedeck/config.toml`

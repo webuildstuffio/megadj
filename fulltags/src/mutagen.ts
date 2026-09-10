@@ -9,7 +9,7 @@ import { extname } from "node:path";
 
 /** Run a mutagen python script, return trimmed stdout ("" on failure).
  * Never throws — spawn errors (uv missing, ENOENT) read as failure. */
-export function runMutagen(script: string): string {
+function runMutagen(script: string): string {
   try {
     const pr = Bun.spawnSync({
       cmd: ["uv", "run", "--with", "mutagen", "python", "-c", script],

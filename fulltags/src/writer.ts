@@ -79,10 +79,6 @@ export function walkAudioFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-export function isLossless(p: string): boolean {
-  return [".wav", ".flac", ".aiff", ".aif"].includes(extname(p).toLowerCase());
-}
-
 /**
  * Write a legacy EnrichedMetadata (full-record replace semantics).
  * Thin wrapper kept for megadj ingest/sync compat.
@@ -359,7 +355,7 @@ function mp4Statement(k: keyof TagPatch, v: unknown): string {
  * (it also preserves embedded art). Sync API for the fetch-pipeline
  * workers; returns false on any failure (no throw).
  */
-export function writePatchWav(filePath: string, patch: TagPatch): boolean {
+function writePatchWav(filePath: string, patch: TagPatch): boolean {
   try {
     validatePatch(patch);
     const pairs = tagPairs(patch);
@@ -389,7 +385,7 @@ print("ok")`;
  * survives, stamps persist. Sync API matching writePatchWav; returns
  * false on any failure (no throw).
  */
-export function writePatchMp4(filePath: string, patch: TagPatch): boolean {
+function writePatchMp4(filePath: string, patch: TagPatch): boolean {
   try {
     validatePatch(patch);
     const pairs = tagPairs(patch);

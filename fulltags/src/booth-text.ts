@@ -225,11 +225,3 @@ export function boothTextCompat(input: {
     offenders,
   };
 }
-
-/** True when the verdict is about the hi-res-player-only class — i.e.
- * cosmetic on 3000/NXS2 but still a real fleet gap (parallel of
- * isHiresOnly in player-compat). Kept for audit symmetry; every text
- * reason here is fleet-relevant, so this is always false today. */
-export function isDisplayOnly(r: TextCompatResult): boolean {
-  return !r.ok && r.reasons.every((x) => x === "never");
-}

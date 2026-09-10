@@ -22,11 +22,9 @@
  * unreadable (RIFF has no art field) — that stays wavToAiff's job. This
  * module answers "will it PLAY"; convert.ts answers "will it SHOW".
  */
-import { extname } from "node:path";
 import type { Probe } from "./probes";
 import { resolveFleet, DEFAULT_FLEET, fleetFloor } from "./fleet";
 import type { FleetProfile } from "./fleet";
-
 /** The configured booth fleet (player ids) — set once by the entrypoint
  *  from config.toml [booth].fleet; defaults to the three always-on
  *  players. Both gates (playerCompat + boothTextCompat) read this, so
@@ -61,9 +59,9 @@ const PCM_CODECS = new Set([
   "pcm_u8",
 ]);
 
-/** Sample rates every player in the fleet accepts (XDJ-XZ/CDJ-2000 cap). */
-export const FLEET_SAMPLE_RATES = new Set([44100, 48000]);
-/** Sample rates the hi-res players add on top (CDJ-3000, CDJ-2000NXS2). */
+/** Sample rates the hi-res players add on top (CDJ-3000, CDJ-2000NXS2).
+ * The every-player set (44.1/48 kHz) is implicit — a probe below it never
+ * produces a sample-rate reason. */
 export const HIRES_SAMPLE_RATES = new Set([88200, 96000]);
 
 /** The fleet-floor verdict for one probed file. */
@@ -178,11 +176,3 @@ export function playerCompat(probe: Probe): CompatResult {
 export function isHiresOnly(r: CompatResult): boolean {
   return r.partial === true;
 }
-
-/** Convenience: extension-aware quick check used where only a path is at
- * hand (audit rows, shelf sweeps). Probing is the caller's job. */
-export function isLosslessExt(path: string): boolean {
-  return LOSSLESS_PLAYER_EXTS.has(extname(path).toLowerCase());
-}
-
-const LOSSLESS_PLAYER_EXTS = new Set([".wav", ".aiff", ".aif", ".flac"]);

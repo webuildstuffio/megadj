@@ -11,7 +11,7 @@ import { readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 
-export const UA = {
+const UA = {
   "User-Agent":
     "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/126.0 Safari/537.36",
 };
@@ -23,7 +23,7 @@ export interface ArtRow {
   file_path: string;
 }
 
-export function words(s: string): string[] {
+function words(s: string): string[] {
   return s
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")

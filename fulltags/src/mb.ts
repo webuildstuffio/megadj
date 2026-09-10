@@ -9,13 +9,6 @@
  */
 import { canonGenre } from "./schema";
 
-export interface MbGenreResult {
-  artist: string;
-  genre: string | null;
-  /** All raw folksonomy tags seen (for debugging/provenance). */
-  rawTags: string[];
-}
-
 interface MbArtistSearch {
   artists?: Array<{
     name?: string;
@@ -63,18 +56,6 @@ export async function mbGenreForArtist(artist: string): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-/** Batch: resolve genres for many artists (cache collapses repeats). */
-export async function mbGenresForArtists(
-  artists: string[],
-): Promise<Map<string, string | null>> {
-  const out = new Map<string, string | null>();
-  for (const a of artists) {
-    const key = a.toLowerCase().trim();
-    if (!out.has(key)) out.set(key, await mbGenreForArtist(a));
-  }
-  return out;
 }
 
 /** Reset the in-process cache (tests). */

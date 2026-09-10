@@ -7,7 +7,10 @@
 import { basename } from "node:path";
 import { DJ_GENRES } from "./schema";
 
-export const AI_MODEL = "google/gemini-2.5-flash-lite"; // cheapest solid
+/** The model id the AI ladder pins (cheapest solid); referenced by the
+ * fulltags docs/roadmap. Kept and excluded from knip via `_SPEC_` regex —
+ * no in-repo caller today (the model id is set per-call in aiGenres). */
+export const _SPEC_AI_MODEL = "google/gemini-2.5-flash-lite";
 
 export type AiTagResult = Map<
   string,
@@ -47,7 +50,7 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: AI_MODEL,
+        model: _SPEC_AI_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.1,
         max_tokens: 2000,

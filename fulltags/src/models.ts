@@ -22,7 +22,6 @@
  * Idempotency: TXXX:MOOD / TXXX:DANCE stamps (same pattern as ENERGY).
  */
 import { existsSync, mkdirSync, rmSync } from "node:fs";
-import { basename, dirname } from "node:path";
 import { lineReader } from "./stdio";
 
 // Fail fast on a missing HOME: `?? ""` produced "/.local/share/…" which
@@ -285,11 +284,4 @@ export async function analyzeMoods(
     }
   }
   return out;
-}
-
-/** Hidden temp name for a decoded wav (same pattern as the bpm/key stages). */
-export function decodedTmpName(path: string, tag: string): string {
-  const d = dirname(path);
-  const b = basename(path);
-  return `${d}/.${b}.${tag}-${process.pid}.wav`;
 }

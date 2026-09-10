@@ -7,7 +7,6 @@
         "tools/fix_years.ts",
         "tools/prof_sweep.ts"
       ],
-      "ignore": ["fulltags/**"],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
         "ditto",
@@ -20,7 +19,21 @@
         "pgrep",
         "uv"
       ],
-      "ignoreDependencies": ["preact"]
+      "ignoreDependencies": [
+        "preact"
+      ]
+    },
+    "fulltags": {
+      "entry": [
+        "src/index-all.ts",
+        "verify-key.ts",
+        "test/*.test.ts",
+        "test/helpers/*.ts"
+      ],
+      "ignoreBinaries": [
+        "ffmpeg"
+      ],
+      "ignoreExportsUsedInFile": true
     },
     "cratedeck": {
       "entry": [

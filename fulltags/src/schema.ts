@@ -50,7 +50,11 @@ export interface FullTag {
  * mood + energy joined rev 6.1 pass 2: both are real stamp fields written
  * by the analysis stages, the audit is the completeness gate, so a file
  * missing them IS a gap. */
-export const COMPLETENESS_FIELDS = [
+/** Spec: the audit-gate required fields (mood + energy joined rev 6.1
+ * pass 2: both are real stamp fields written by the analysis stages, the
+ * audit is the completeness gate, so a file missing them IS a gap).
+ * Excluded from knip via `_SPEC_` regex. */
+export const _SPEC_COMPLETENESS_FIELDS = [
   "art",
   "title",
   "artist",
@@ -66,7 +70,7 @@ export function completeness(tag: Partial<FullTag>): {
   complete: boolean;
   missing: string[];
 } {
-  const missing = COMPLETENESS_FIELDS.filter((f) => !tag[f]);
+  const missing = _SPEC_COMPLETENESS_FIELDS.filter((f) => !tag[f]);
   return { complete: missing.length === 0, missing };
 }
 

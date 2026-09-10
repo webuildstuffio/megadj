@@ -63,8 +63,3 @@ export function validatePatch(vals: TagPatch): void {
     }
   }
 }
-
-/** Compat alias: the fetch_lib-era name for the same rules (TagValues ⊂ TagPatch). */
-export function validateTagValues(vals: TagPatch): void {
-  validatePatch(vals);
-}

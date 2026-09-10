@@ -7,8 +7,6 @@ import { $ } from "bun";
 
 const MB_UA = "megadj/0.1 (https://github.com/megadj/megadj)";
 
-export const LOSSLESS = new Set([".wav", ".flac", ".aiff", ".aif"]);
-
 /** Shared audio-file probe shape (ffprobe result). */
 export interface Probe {
   ok: boolean;

@@ -3,4 +3,4 @@
  * tests so one import covers everything.
  */
 export * from "./exports";
-export { enrichAll, enrichTrack, listAudio } from "./pipeline";
+export { enrichAll, enrichTrack } from "./pipeline";

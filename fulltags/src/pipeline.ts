@@ -13,10 +13,9 @@
  *              mp3-twin → Deezer → iTunes → AI queue (last resort)
  *   energy   → ffmpeg RMS astats → 1–10 scale
  */
-import { existsSync, readdirSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename } from "node:path";
 import { groundTruth } from "./readers";
-import { embedArt, writePatch, isAudioFile } from "./writer";
+import { embedArt, writePatch } from "./writer";
 import { canonGenre, type TagPatch } from "./schema";
 import { mutagenJson } from "./mutagen";
 import {
@@ -641,14 +640,6 @@ export async function enrichAll(
     notes: results.filter((r) => r.notes.length).length,
     results,
   };
-}
-
-/** List audio files under a folder (non-recursive helper for the CLI). */
-export function listAudio(dir: string): string[] {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((f) => !f.startsWith(".") && isAudioFile(join(dir, f)))
-    .map((f) => join(dir, f));
 }
 
 /** Parse a TXXX:MOOD stamp ("dance=0.155; …; valence=4.04; arousal=4.61")
