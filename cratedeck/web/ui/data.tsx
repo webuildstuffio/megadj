@@ -334,7 +334,17 @@ export function DataTable<T extends RowData>(props: {
   const page = view;
   const shown = cap !== undefined ? page.slice(0, cap) : page;
   const overCap = cap !== undefined && page.length > shown.length;
-  const q = String(table.state.globalFilter as unknown ?? "").trim();
+  // table.state.globalFilter is `any` upstream (@tanstack/table-core declares
+  // `globalFilter: any`). Read it through a typed narrow instead of letting
+  // the any propagate; the state-hoisting refactor is tracked in the audit.
+  const rawState: unknown = table.state;
+  const rawFilter =
+    typeof rawState === "object" &&
+    rawState !== null &&
+    "globalFilter" in rawState
+      ? (rawState as { globalFilter?: unknown }).globalFilter
+      : undefined;
+  const q = String(typeof rawFilter === "string" ? rawFilter : "").trim();
 
   return (
     <div

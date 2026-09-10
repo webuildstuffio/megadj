@@ -14,5 +14,5 @@ export default defineConfig({
       "/photos": "http://127.0.0.1:7742",
     },
   },
-  build: { outDir: "../dist" },
+  build: { outDir: "../dist", emptyOutDir: true },
 });
