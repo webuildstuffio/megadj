@@ -215,7 +215,9 @@ export type JobKind =
   | "benchmark"
   | "checksum"
   | "ingest"
-  | "speedtest";
+  | "speedtest"
+  | "hygiene-scan"
+  | "hygiene-apply";
 export type JobStatus =
   | "queued"
   | "running"
@@ -724,3 +726,18 @@ export interface SpeedProbe {
   mbps: number;
   bytes_read: number;
 }
+
+// ---- shelf hygiene: wire types live in shared/hygiene.ts (file-length
+// guard) — re-exported here so every existing `../shared/types` import
+// keeps compiling; shared/hygiene.ts imports NOTHING (leaf of the leaf),
+// so the import graph stays a DAG.
+export type {
+  FindingKind,
+  Severity,
+  FindingStatus,
+  ProposedAction,
+  ValidationReceipt,
+  Finding,
+  HygienePayload,
+  HygieneBadge,
+} from "./hygiene";
