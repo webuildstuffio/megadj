@@ -43,6 +43,10 @@ import {
   walkAudio,
   type Record_,
 } from "./ingest-probe";
+import {
+  compareFingerprint,
+  nameSimilarityTokens,
+} from "../../fulltags/src/exports";
 import { identityKey } from "../../fulltags/src/identity";
 import {
   detectRemix,
@@ -186,6 +190,16 @@ async function dedupeWithinFolder(
   // before anything quarantines. Different content at the same size is
   // KEPT (size alone is not a dupe — AGENTS.md).
   folderDupes += await dedupeByContent(survivors, quarantineDir, dryRun, log);
+  // Acoustic pass (name-blind, the shelf-dupescan guarantee at intake):
+  // same recording re-rip under a different name/container/bitrate.
+  // fp-equal + name-similar → dupe; fp-equal + name-dissimilar → possible
+  // long-mix fp collision, kept for human review (never auto-quarantined).
+  folderDupes += await dedupeByFingerprint(
+    survivors,
+    quarantineDir,
+    dryRun,
+    log,
+  );
   return { survivors, folderDupes };
 }
 
@@ -242,6 +256,56 @@ async function md5File(path: string): Promise<string> {
       .on("end", () => resolve(hash.digest("hex")))
       .on("error", reject);
   });
+}
+
+/** Acoustic-fingerprint pass over the identity+MD5 survivors (name-blind
+ *  dupe class: same recording, different rip). fpcalc per file is ~1s, so
+ *  this runs only for pairs the cheaper passes couldn't resolve. Loser =
+ *  lower quality score, then longer name — same tiebreaks as everywhere. */
+async function dedupeByFingerprint(
+  survivors: Record_[],
+  quarantineDir: string,
+  dryRun: boolean | undefined,
+  log: (m: string) => void,
+): Promise<number> {
+  let fpDupes = 0;
+  const byFp = new Map<string, Record_>();
+  for (const rec of survivors) {
+    // One fpcalc call per file — compareFingerprint hashes the second file
+    // again; group sequentially so each file is hashed at most twice.
+    const v = await compareFingerprint(rec.file, rec.file);
+    if (!v.fp) continue;
+    const seen = byFp.get(v.fp);
+    if (!seen) {
+      byFp.set(v.fp, rec);
+      continue;
+    }
+    const similar =
+      nameSimilarityTokens(basename(rec.file), basename(seen.file)) >= 0.5;
+    if (!similar) {
+      // fp collision across dissimilar names → likely different recordings
+      // (long-mix), never auto-quarantine — surface it and keep both.
+      log(
+        `  [fp] same fingerprint, dissimilar names — kept for review: ${basename(rec.file)} ≈ ${basename(seen.file)}`,
+      );
+      continue;
+    }
+    const [keep, drop] =
+      rec.score > seen.score ||
+      (rec.score === seen.score &&
+        basename(rec.file).length < basename(seen.file).length)
+        ? [rec, seen]
+        : [seen, rec];
+    fpDupes++;
+    log(
+      `  [dupe] ${basename(drop.file)} — same recording as ${basename(keep.file)} (acoustic fingerprint)`,
+    );
+    const idx = survivors.indexOf(drop);
+    if (idx >= 0) survivors.splice(idx, 1);
+    await quarantine(drop.file, quarantineDir, dryRun, log);
+    if (byFp.get(v.fp) === drop) byFp.set(v.fp, keep);
+  }
+  return fpDupes;
 }
 
 /** Phase C: archive collision check — archive dupes quarantine unless the new
