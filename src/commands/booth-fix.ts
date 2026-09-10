@@ -66,8 +66,6 @@ export interface BoothFixOptions {
 // BoothFixRow/BoothFixResult are DEFINED in booth_fix_types.ts (the leaf
 // seam shared with booth_fix_text.ts — a split-out module must never import
 // its parent's types back: madge counts a type-only back-edge as a cycle).
-// Re-exported so existing `from "./booth-fix"` sites hold.
-export type { BoothFixRow, BoothFixResult } from "./booth_fix_types";
 
 /** Look up the track a file belongs to (booth-fix's DB follow). Scans
  * the in-memory track list — the archive is ~hundreds of rows, and this

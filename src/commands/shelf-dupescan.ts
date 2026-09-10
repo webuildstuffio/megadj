@@ -24,10 +24,9 @@ import {
 } from "./dupescan_shared";
 import { applyDupGroups } from "./shelf_dupescan_apply";
 
-// md5sum / nameSimilarity (apply-stage probes) and moveLoser (quarantine
-// move) live in the leaf modules; re-exported for existing import sites.
-export { md5sum, nameSimilarity } from "./shelf_dupescan_apply";
-export { moveLoser, type DupGroup } from "./dupescan_shared";
+// md5sum / nameSimilarity / moveLoser / DupGroup all live in the leaf
+// modules (shelf_dupescan_apply.ts / dupescan_shared.ts) — import from
+// there directly; re-exports from this module are dead surface (knip).
 
 const AUDIO = new Set([".mp3", ".wav", ".aif", ".aiff", ".m4a", ".flac"]);
 

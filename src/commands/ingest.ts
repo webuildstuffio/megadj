@@ -56,6 +56,10 @@ import {
   type ArtworkOutcome,
 } from "./ingest-art";
 import type { QueueEntry } from "./queue";
+// copyIntoArchive / queueArtworkFallback / registerAndMove (the archive-
+// landing half of Phase D) live in ingest_register.ts with narrow param
+// types — this module never imported back keeps madge at zero cycles.
+import { registerAndMove } from "./ingest_register";
 
 export interface IngestOptions {
   state: ArchiveState;
@@ -76,8 +80,6 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // IngestCounters is DEFINED in ingest_register.ts (the leaf seam shared
 // with the landing helpers — a split-out module must never import its
 // parent's types back: madge counts a type-only back-edge as a cycle).
-// Re-exported so existing `from "./ingest"` sites hold.
-export type { IngestCounters } from "./ingest_register";
 import type { IngestCounters } from "./ingest_register";
 
 function newCounters(): IngestCounters {
@@ -353,27 +355,6 @@ async function dedupeAgainstArchive(
   }
   return { toIngest, archiveDupes, upgrades };
 }
-
-interface RegisterArgs {
-  file: string;
-  title: string;
-  artist: string | null;
-  album: string | null;
-  genre: string;
-  probe: Record_["probe"];
-  energy: number | null;
-  queuedIdentity: Set<string>;
-  queueEntries: QueueEntry[];
-  art: ArtworkOutcome;
-  remixOf: ReturnType<typeof detectRemix>;
-}
-
-// copyIntoArchive / queueArtworkFallback / registerAndMove (the archive-
-// landing half of Phase D) live in ingest_register.ts with narrow param
-// types — this module never imported back keeps madge at zero cycles.
-export { registerAndMove } from "./ingest_register";
-import { registerAndMove } from "./ingest_register";
-export type { RegisterArgs };
 
 /** Phase D per-track work: tag + artwork + register + move into the archive. */
 async function ingestOne(

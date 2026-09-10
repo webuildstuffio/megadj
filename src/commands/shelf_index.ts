@@ -77,18 +77,6 @@ export class ShelfIndex {
   }
 }
 
-/** Verdict + landing-path decision for one drive file against the index. */
-export function classifyExact(
-  index: ShelfIndex,
-  dirKey: string,
-  nameKey: string,
-  bytes: number,
-): { rel: string; bytes: number }[] {
-  return (index.exact.get(`${dirKey}/${nameKey}`) ?? []).filter(
-    (e) => e.bytes === bytes,
-  );
-}
-
 /** Pick the landing path for a copy. Rules, in order:
  *  1. --into trash-rescue: flat under Contents/<into>/, "-2" on collision.
  *  2. Drive file shadows a shelf file (`shadowed`, from the caller's exact

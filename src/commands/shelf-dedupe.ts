@@ -28,9 +28,7 @@ import { judgePair, applyPairs } from "./shelf_dedupe_verdict";
 // DedupePair/DedupeResult are DEFINED in shelf_dedupe_types.ts (the leaf
 // seam shared with shelf_dedupe_verdict.ts — a split-out module must never
 // import its parent's types back: madge counts a type-only back-edge as a
-// cycle). Re-exported so existing `from "./shelf-dedupe"` sites hold.
-export type { DedupePair, DedupeResult } from "./shelf_dedupe_types";
-
+// cycle).
 export interface ShelfDedupeOptions {
   shelfVolume?: string;
   apply?: boolean;

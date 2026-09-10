@@ -1,6 +1,6 @@
 /**
  * prof_sweep.ts — cold/warm I/O profiler for the runtime hot paths the
- * perf plan targets (see plan.md at the repo root): tree walk + stat,
+ * perf plan targets (see docs/perf-plan.md): tree walk + stat,
  * full-tree read (sweep proxy), and blake2b hashing. Read-only.
  *
  * Usage: bun tools/prof_sweep.ts [dir]   (default: MEGADJ_MUSIC_DIR env or
