@@ -27,6 +27,12 @@ def walk(node, path, out):
                     "serial": serial.decode(errors="replace") if isinstance(serial, bytes) else serial,
                     "vendor": vendor.strip() if isinstance(vendor, str) else vendor,
                     "locationId": loc,
+                    # Negotiated link rate in bits/s (UsbLinkSpeed from ioreg:
+                    # 12M full, 480M high, 5G/10G/20G SuperSpeed+). The max
+                    # link USB2 speed is 480M — anything above is USB3-class.
+                    "linkBps": node.get("UsbLinkSpeed")
+                    if isinstance(node.get("UsbLinkSpeed"), int)
+                    else None,
                     "portKey": f"{'/'.join(path)}/{prod}@{loc:x}" if loc is not None else f"{'/'.join(path)}/{prod}",
                 }
             )

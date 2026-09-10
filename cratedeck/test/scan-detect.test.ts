@@ -101,6 +101,7 @@ describe("detect", () => {
       vendor: "USB C",
       locationId: 18022400,
       portKey: "adaptor@1130000",
+      linkBps: null,
     },
     {
       product: "USB2.0 Hub",
@@ -108,6 +109,7 @@ describe("detect", () => {
       vendor: null,
       locationId: 17825792,
       portKey: "hub@1100000",
+      linkBps: null,
     },
     {
       product: "SanDisk 3.2Gen1",
@@ -115,6 +117,7 @@ describe("detect", () => {
       vendor: "USB",
       locationId: 18874368,
       portKey: "hub@1100000/SanDisk@1200000",
+      linkBps: null,
     },
     {
       product: "USB2.0 Hub",
@@ -122,6 +125,7 @@ describe("detect", () => {
       vendor: null,
       locationId: 34603008,
       portKey: "hub2@2100000",
+      linkBps: null,
     },
     {
       product: "SanDisk 3.2Gen1",
@@ -129,6 +133,7 @@ describe("detect", () => {
       vendor: "USB",
       locationId: 34668544,
       portKey: "hub2@2100000/SanDisk@2110000",
+      linkBps: null,
     },
     {
       product: "Magic Keyboard",
@@ -136,6 +141,7 @@ describe("detect", () => {
       vendor: "Apple",
       locationId: 1261840,
       portKey: "k@134000",
+      linkBps: null,
     },
   ];
 

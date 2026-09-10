@@ -24,9 +24,33 @@ export function HealthTab(props: {
   drive: Drive;
   snap: SnapshotData | null;
   bench: HealthTabBench[];
+  probes: { ran_at: number; mbps: number }[];
 }) {
-  const { drive, snap, bench } = props;
+  const { drive, snap, bench, probes } = props;
   const last = bench.at(-1);
+  // ---- USB link class (negotiated rate from the ioreg tree at mount) -----
+  // The same thresholds as the rail badge + banner: <5G = USB2-class cap.
+  const link =
+    drive.link_bps === null || drive.link_bps === undefined
+      ? null
+      : drive.link_bps >= 10_000_000_000
+        ? {
+            cls: "ok",
+            label: "USB3 10G",
+            text: "10+ Gbps link — no bottleneck.",
+          }
+        : drive.link_bps >= 5_000_000_000
+          ? { cls: "ok", label: "USB 3.0", text: "5 Gbps link — gig-safe." }
+          : {
+              cls: "warn",
+              label: "USB 2.0",
+              text: `${(drive.link_bps / 1_000_000).toFixed(0)} Mbps link — caps copies/playback at ~35 MB/s. Move to a USB 3.0 port.`,
+            };
+  // speed-probe average (the minimal ~10MB probe) — one number for "how fast
+  // is this drive really", averaged across probes to smooth one-off spikes
+  const avgProbe = probes.length
+    ? Math.round(probes.reduce((s, p) => s + p.mbps, 0) / probes.length)
+    : null;
   // ---- the verdict: is this stick fast enough for the booth? ------------
   // CDJ floor: ~30 MB/s sequential (below that, playback can stutter on
   // high-bitrate files). ≥60 is comfortable, 30–59 usable, <30 replace it.
@@ -76,6 +100,15 @@ export function HealthTab(props: {
           <span class="arch-verdict-meta">{speed.label}</span>
         </div>
       )}
+      {link && (
+        <div class={`arch-verdict ${link.cls}`}>
+          <Icon name={link.cls === "ok" ? "usb" : "warn"} size={15} />
+          <span>
+            <b>{link.label} link.</b> {link.text}
+          </span>
+          <span class="arch-verdict-meta">{link.label}</span>
+        </div>
+      )}
       <div class="statgrid">
         <StatCard
           v={last ? `${last.seq_mbps} MB/s` : "—"}
@@ -83,6 +116,14 @@ export function HealthTab(props: {
           icon="pulse"
           title="Big-file read speed — what CDJ playback actually needs. Green ≥60, usable ≥30, below that replace the stick."
         />
+        {avgProbe !== null && (
+          <StatCard
+            v={`${avgProbe} MB/s`}
+            l={`speed probe avg (${probes.length})`}
+            icon="zap"
+            title="Average of the minimal ~10MB read probes — a quick, write-free sanity check of real throughput. Run 'Speed probe' from the header to add a sample."
+          />
+        )}
         <StatCard
           v={last ? `${last.rand4k_mbps} MB/s` : "—"}
           l="random 4k read (last)"

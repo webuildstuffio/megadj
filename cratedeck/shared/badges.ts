@@ -102,6 +102,21 @@ export function driveBadges(
       tone: snap.grid_coverage < 0.95 ? "warn" : "info",
     });
   }
+
+  // USB link class: a USB2 link is a real hardware cap (≈35 MB/s ceiling) —
+  // gig-safe only on USB3. Slow link = warn; unknown link = honest muted info
+  // (never faked healthy). One SSOT: server computes, web renders.
+  if (drive.link_bps !== null && drive.link_bps !== undefined) {
+    if (drive.link_bps >= 5_000_000_000) {
+      badges.push({
+        key: "ready",
+        label: drive.link_bps >= 10_000_000_000 ? "USB3 10G" : "USB3",
+        tone: "good",
+      });
+    } else {
+      badges.push({ key: "attn", label: "USB 2.0 link", tone: "warn" });
+    }
+  }
   return badges;
 }
 

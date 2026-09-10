@@ -243,6 +243,26 @@ function RailCard(props: {
                 : " · running"}
             </div>
           )}
+          {d.mounted && d.link_bps !== null && d.link_bps !== undefined && (
+            <div
+              class={`sub usblink${d.link_bps < 5_000_000_000 ? " slow" : ""}`}
+              title={
+                d.link_bps >= 10_000_000_000
+                  ? `Negotiated USB link: ${(d.link_bps / 1_000_000_000).toFixed(0)} Gbps — fast link, no bottleneck.`
+                  : d.link_bps >= 5_000_000_000
+                    ? "Negotiated USB link: 5 Gbps (USB 3.0). Good enough for playback and copies."
+                    : `Negotiated USB link: ${d.link_bps >= 480_000_000 ? "480 Mbps" : `${(d.link_bps / 1_000_000).toFixed(0)} Mbps`} — USB 2.0-class. Copies and playback cap around 35 MB/s; move to a USB 3.0 port or hub.`
+              }
+            >
+              {d.link_bps >= 10_000_000_000
+                ? "USB 10G"
+                : d.link_bps >= 5_000_000_000
+                  ? "USB 3.0"
+                  : "USB 2.0"}{" "}
+              link
+              {d.link_bps < 5_000_000_000 ? " — slow" : ""}
+            </div>
+          )}
         </div>
       </div>
       {d.mounted &&

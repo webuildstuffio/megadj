@@ -70,6 +70,12 @@ const JOB_BUTTONS: {
     hint: jobHint("benchmark"),
   },
   {
+    kind: "speedtest",
+    label: "Speed probe",
+    icon: "zap",
+    hint: jobHint("speedtest"),
+  },
+  {
     kind: "checksum",
     label: "Checksum",
     icon: "hash",
@@ -105,6 +111,7 @@ export function DrivePage(props: {
   >(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [bench, setBench] = useState<HealthTabBench[]>([]);
+  const [probes, setProbes] = useState<{ ran_at: number; mbps: number }[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [verify, setVerify] = useState<VerifyReport | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -120,7 +127,7 @@ export function DrivePage(props: {
   const load = useCallback(async () => {
     const enc = encodeURIComponent(driveId);
     try {
-      const [d, r, t, b, j, v] = await Promise.all([
+      const [d, r, t, b, sp, j, v] = await Promise.all([
         api<Detail>(`/api/drives/${enc}`, { quiet: true }),
         api<DriveReport & { overall?: string }>(`/api/drives/${enc}/report`, {
           quiet: true,
@@ -129,6 +136,10 @@ export function DrivePage(props: {
         api<HealthTabBench[]>(`/api/drives/${enc}/benchmarks`, {
           quiet: true,
         }),
+        api<{ ran_at: number; mbps: number }[]>(
+          `/api/drives/${enc}/speedprobes`,
+          { quiet: true },
+        ),
         api<Job[]>(`/api/jobs?drive=${enc}`, { quiet: true }),
         api<VerifyReport>(`/api/drives/${enc}/verify`, { quiet: true }),
       ]);
@@ -143,6 +154,7 @@ export function DrivePage(props: {
       setReport(r);
       setTimeline(t);
       setBench(b);
+      setProbes(sp);
       setJobs(j);
       setVerify(v);
     } catch (e) {
@@ -691,7 +703,12 @@ export function DrivePage(props: {
       {tabConf.id === "playlists" && <PlaylistsTab snap={snap} />}
 
       {tabConf.id === "health" && (
-        <HealthTab drive={detail.drive} snap={snap} bench={bench} />
+        <HealthTab
+          drive={detail.drive}
+          snap={snap}
+          bench={bench}
+          probes={probes}
+        />
       )}
 
       {tabConf.id === "verify" && (

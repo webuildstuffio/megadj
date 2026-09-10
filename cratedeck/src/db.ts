@@ -187,6 +187,17 @@ export class DB {
     // disk-burn guard: cap per-drive snapshot history (each full snapshot can
     // be ~MBs of JSON; unbounded growth would eat the host disk over months)
     this.pruneSnapshots();
+    // v5: negotiated USB link rate (bits/s) per drive — powers the USB2 vs
+    // USB3 flag. New rows get it from the ioreg tree at reconcile time.
+    if (
+      !this.sqlite
+        .query<{ name: string }, []>("PRAGMA table_info(drives)")
+        .all()
+        .map((c) => c.name)
+        .includes("link_bps")
+    ) {
+      this.sqlite.exec("ALTER TABLE drives ADD COLUMN link_bps INTEGER");
+    }
     this.pruneEvents();
     const v = this.sqlite
       .query<{ value: string }, []>("SELECT value FROM meta WHERE key='schema'")
@@ -311,8 +322,8 @@ export class DB {
         .query(
           `INSERT INTO drives (id, volume_uuid, name, capacity_bytes, fs, vendor,
              model, usb_serial, role, first_seen_at, last_seen_at,
-             last_port_key, plug_count, mounted)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+             last_port_key, plug_count, mounted, link_bps)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         )
         .run(
           d.id,
@@ -335,6 +346,7 @@ export class DB {
           d.last_port_key ?? null,
           1,
           d.mounted ? 1 : 0,
+          d.link_bps ?? null,
         );
       return;
     }
@@ -344,7 +356,8 @@ export class DB {
            fs=COALESCE(?,fs), vendor=COALESCE(?,vendor), model=COALESCE(?,model),
            usb_serial=COALESCE(?,usb_serial), role=COALESCE(?,role),
            last_seen_at=?, last_port_key=COALESCE(?,last_port_key),
-           mounted=?, nickname=COALESCE(?,nickname)
+           mounted=?, nickname=COALESCE(?,nickname),
+           link_bps=COALESCE(?,link_bps)
          WHERE id=?`,
       )
       .run(
@@ -359,6 +372,7 @@ export class DB {
         d.last_port_key ?? null,
         d.mounted === undefined ? 1 : d.mounted ? 1 : 0,
         d.nickname ?? null,
+        d.link_bps ?? null,
         d.id,
       );
   }
@@ -735,6 +749,22 @@ export class DB {
 
   benchmarks(driveId: string): BenchRun[] {
     return this.benchStore.benchmarks(driveId);
+  }
+
+  addSpeedProbe(driveId: string, mbps: number, bytesRead: number): void {
+    this.benchStore.addSpeedProbe(driveId, mbps, bytesRead);
+  }
+
+  speedProbes(driveId: string): { ran_at: number; mbps: number }[] {
+    return this.benchStore.speedProbes(driveId);
+  }
+
+  ledgerBiggest(driveId: string, limit: number): string[] {
+    return this.benchStore.ledgerBiggest(driveId, limit);
+  }
+
+  manifestBiggest(driveId: string, limit: number): string[] {
+    return this.benchStore.manifestBiggest(driveId, limit);
   }
 
   ledgerPut(

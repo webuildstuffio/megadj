@@ -243,6 +243,12 @@ export function App() {
   const locked = interlock.rekordbox_running;
   const mounted = drives.filter((d) => d.mounted).length;
   const ghosts = drives.length - mounted;
+  // USB link banner: flag mounted drives on a USB2-class link (≤480 Mbps).
+  // link_bps comes from the ioreg tree at reconcile time; null = unknown
+  // (drive plugged in before this feature, or ioreg didn't answer).
+  const slowLink = drives.filter(
+    (d) => d.mounted && d.link_bps !== null && d.link_bps < 5_000_000_000,
+  );
 
   // The header is two rows. Row 1 (suite bar): megadj brand, global search,
   // interlock — everything that spans the whole suite. Row 2 (nav strip):
@@ -434,6 +440,32 @@ export function App() {
           </span>
         )}
       </nav>
+
+      {slowLink.length > 0 && (
+        <div
+          class="arch-verdict warn usblink-banner"
+          role="alert"
+          title="The negotiated USB link rate is read from the Mac's USB tree when the drive mounts. USB 2.0 caps copies/playback at ~35 MB/s — move the cable to a USB 3.0 (blue) port or a faster hub. Run Health → Speed probe to measure real throughput."
+        >
+          <Icon name="warn" size={15} />
+          <span>
+            <b>Slow USB link:</b>{" "}
+            {slowLink.map((d) => d.nickname ?? d.name).join(", ")}{" "}
+            {slowLink.length === 1 ? "is" : "are"} on a USB 2.0-class link —
+            transfers will crawl. Try a USB 3.0 port or hub.
+          </span>
+          <button
+            type="button"
+            class="usblink-action"
+            onClick={() => {
+              const first = slowLink[0];
+              if (first) openDrive(first.id, "health");
+            }}
+          >
+            Check speed
+          </button>
+        </div>
+      )}
 
       <div class="frame">
         <DriveRail

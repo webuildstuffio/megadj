@@ -26,6 +26,55 @@ export class BenchLedger {
     }[];
   }
 
+  /** Record a minimal speed probe. Stored in the same benchmarks table with
+   *  rand4k_mbps = NULL so history/average treat it as seq-only — one store,
+   *  no parallel table to keep in sync. */
+  addSpeedProbe(driveId: string, mbps: number, bytesRead: number): void {
+    this.sqlite
+      .query(
+        "INSERT INTO benchmarks (drive_id, ran_at, seq_mbps, rand4k_mbps) VALUES (?,?,?,NULL)",
+      )
+      .run(driveId, Date.now(), mbps);
+    void bytesRead; // kept in the job result_json; table stays 4-column
+  }
+
+  /** Speed-probe history (seq-only rows): for the Health tab average + trend. */
+  speedProbes(driveId: string): { ran_at: number; mbps: number }[] {
+    return this.sqlite
+      .query(
+        "SELECT ran_at, seq_mbps AS mbps FROM benchmarks WHERE drive_id=? AND rand4k_mbps IS NULL ORDER BY ran_at",
+      )
+      .all(driveId) as { ran_at: number; mbps: number }[];
+  }
+
+  /** Biggest known file paths for a drive, from the checksum ledger (sizes
+   *  are exact — recorded at hash time). Lets the speed probe read a real
+   *  file WITHOUT walking the volume first: on a 4TB exFAT shelf the walk
+   *  dominates a minimal probe by orders of magnitude. */
+  ledgerBiggest(driveId: string, limit: number): string[] {
+    return (
+      this.sqlite
+        .query<{ path: string }, [string, number]>(
+          `SELECT path FROM ledger WHERE drive_id=? AND size IS NOT NULL
+           ORDER BY size DESC LIMIT ?`,
+        )
+        .all(driveId, limit) ?? []
+    ).map((r) => r.path);
+  }
+
+  /** Same idea against the fleet manifest (populated by every scan — wider
+   *  coverage than the checksum ledger, which only a checksum job fills). */
+  manifestBiggest(driveId: string, limit: number): string[] {
+    return (
+      this.sqlite
+        .query<{ path: string }, [string, number]>(
+          `SELECT path FROM fleet_manifest WHERE drive_id=?
+           ORDER BY bytes DESC LIMIT ?`,
+        )
+        .all(driveId, limit) ?? []
+    ).map((r) => r.path);
+  }
+
   ledgerPut(
     driveId: string,
     path: string,

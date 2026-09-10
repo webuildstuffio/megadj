@@ -8,7 +8,7 @@ import type { DB } from "./db";
 import type { Guard } from "./guard";
 import type { Job, JobKind, VerifyReport } from "../shared/types";
 import { fmtBytes } from "../shared/fmt";
-import { benchmarkDrive, checksumLedger } from "./bench";
+import { benchmarkDrive, checksumLedger, speedProbe } from "./bench";
 import { lastLines, parseVerifyReport, verifyDeltas } from "./verify_report";
 import {
   progressFromLine,
@@ -18,6 +18,15 @@ import {
   spawnVerify,
 } from "./rb";
 import { scanVolume } from "./scan";
+import {
+  intakeArgs,
+  intakePhaseFor,
+  megadjCliPath,
+  splitIntakeStdout,
+  INTAKE_FILE_LINE,
+  INTAKE_PHASES,
+} from "./intake_run";
+import type { IntakeResult } from "../shared/types";
 
 export type Emit = (channel: string, data: unknown) => void;
 
@@ -572,6 +581,133 @@ export class JobEngine {
         tick(1, 1, "mirror finished", "done", true);
         return { summary: lastLines(out, 20) };
       }
+      case "ingest": {
+        // mountPoint carries the SOURCE FOLDER for this kind (drive jobs
+        // carry a volume there — same slot, different payload).
+        const folder = mountPoint;
+        tick(0, 1, `intake from ${folder}`, INTAKE_PHASES[0]!.phase, true);
+        const proc = Bun.spawn(
+          ["bun", megadjCliPath(this.cfg.root), ...intakeArgs(folder)],
+          { stdout: "pipe", stderr: "pipe", cwd: this.cfg.root },
+        );
+        handle.proc = proc;
+        // Phase-driven progress off megadj's own log lines (same pattern
+        // as verify): markers only ever advance the phase index, so a
+        // repeated "[dupe]" can't rewind the bar. Within the enrich phase
+        // each per-file row ("  = ok:" / "  ~ f: …") nudges toward 0.9.
+        // The human log lands on STDERR in --json mode (progress.ts keeps
+        // stdout as the one summary object), so both streams are drained.
+        let phaseIdx = 0;
+        let enrichBase: number = INTAKE_PHASES[3]!.at;
+        let seen = 0;
+        const onLine = (l: string): void => {
+          log(l);
+          const m = intakePhaseFor(l, phaseIdx);
+          if (m) {
+            phaseIdx = m.nextIdx;
+            if (phaseIdx >= 3) enrichBase = m.progress;
+            tick(
+              m.progress,
+              1,
+              m.message,
+              INTAKE_PHASES[phaseIdx]!.phase,
+              true,
+            );
+            return;
+          }
+          // enrich-phase per-file rows: nudge the fraction forward
+          if (phaseIdx >= 3 && phaseIdx < 4 && INTAKE_FILE_LINE.test(l)) {
+            seen++;
+            tick(
+              Math.min(0.89, enrichBase + seen * 0.02),
+              1,
+              l.trim().slice(0, 120),
+              INTAKE_PHASES[3]!.phase,
+            );
+          }
+        };
+        const [res, errRes] = await Promise.all([
+          drain(proc, onLine, handle, this.cfg.jobTimeoutMin * 60_000),
+          drain(proc.stderr, onLine, handle),
+        ]);
+        await proc.exited;
+        if (handle.cancelled) throw new Error("cancelled");
+        const errText = errRes.out;
+        if (proc.exitCode !== 0) {
+          throw new Error(
+            `megadj ingest exited ${proc.exitCode}${
+              errText.trim() ? `: ${errText.trim().slice(-400)}` : ""
+            }`,
+          );
+        }
+        const { summary } = splitIntakeStdout(res.out);
+        const s = (summary ?? {}) as Partial<IntakeResult>;
+        // Verify leg: the post-run archive audit (ground truth over every
+        // file, not just this batch). Failures land in the result, not a
+        // failed job — ingest itself succeeded.
+        tick(
+          INTAKE_PHASES[5]!.at,
+          1,
+          "auditing the archive…",
+          INTAKE_PHASES[5]!.phase,
+          true,
+        );
+        let audit: IntakeResult["audit"] = null;
+        let auditErrors: IntakeResult["auditErrors"] = [];
+        const ap = Bun.spawn(
+          ["bun", megadjCliPath(this.cfg.root), "audit", "--json"],
+          { stdout: "pipe", stderr: "pipe", cwd: this.cfg.root },
+        );
+        const aOut = await new Response(ap.stdout).text();
+        await ap.exited;
+        try {
+          const a = JSON.parse(aOut) as {
+            total: number;
+            complete: number;
+            incomplete?: Array<{ file: string; missing: string }>;
+          };
+          audit = { total: a.total, complete: a.complete };
+          auditErrors = a.incomplete ?? [];
+        } catch {
+          // audit output unreadable — ingest verdict still stands; the
+          // summary names it so the UI can show "audit unavailable"
+          log("audit leg failed to report — see server log");
+        }
+        tick(
+          1,
+          1,
+          audit
+            ? `archive ${audit.complete}/${audit.total} complete`
+            : "intake done",
+          "done",
+          true,
+        );
+        const result: IntakeResult = {
+          files: Number(s.files ?? 0),
+          tagged: Number(s.tagged ?? 0),
+          artAdded: Number(s.artAdded ?? 0),
+          artQueued: Number(s.artQueued ?? 0),
+          wavConverted: Number(s.wavConverted ?? 0),
+          folderDupes: Number(s.folderDupes ?? 0),
+          archiveDupes: Number(s.archiveDupes ?? 0),
+          upgrades: Number(s.upgrades ?? 0),
+          broken: Number(s.broken ?? 0),
+          compatRejected: Number(s.compatRejected ?? 0),
+          compatHires: Number(s.compatHires ?? 0),
+          shortSkipped: Number(s.shortSkipped ?? 0),
+          unchanged: Number(s.unchanged ?? 0),
+          audit,
+          auditErrors,
+        };
+        this.db.event("local-archive", "intake", {
+          folder,
+          files: result.files,
+          tagged: result.tagged,
+          dupes: result.folderDupes + result.archiveDupes,
+          audit: result.audit,
+        });
+        return result;
+      }
       case "benchmark": {
         tick(0, 1, "reading largest files sequentially…", "bench-seq", true);
         // benchmarkDrive is now async + cancellation-aware: reads abort
@@ -626,6 +762,157 @@ export class JobEngine {
         );
         return r;
       }
+      case "speedtest": {
+        // Minimal ~10MB sequential read — measures real throughput without
+        // burning the disk or the bus (the full benchmark is the heavy
+        // sibling; this answers "is this link actually USB3?" in <1s).
+        // Read-only and tiny, so no interlock. Known-big paths come from
+        // the checksum ledger first, then the scan manifest — the walk
+        // fallback alone takes minutes on a 4TB exFAT volume.
+        tick(0, 1, "probing read speed (~10MB)…", "speedtest", true);
+        const ledgerPaths = this.db.ledgerBiggest(job.drive_id, 5);
+        const manifestPaths = this.db.manifestBiggest(job.drive_id, 5);
+        const r = await speedProbe(mountPoint, 10, handle, [
+          ...ledgerPaths,
+          ...manifestPaths,
+        ]);
+        this.db.addSpeedProbe(job.drive_id, r.mbps, r.bytes_read);
+        this.db.event(job.drive_id, "speedtest", {
+          mbps: r.mbps,
+          bytes_read: r.bytes_read,
+        });
+        tick(1, 1, `read ${r.mbps.toLocaleString()} MB/s`, "done", true);
+        return { mbps: r.mbps, bytes_read: r.bytes_read };
+      }
+      case "ingest": {
+        // mountPoint carries the SOURCE FOLDER for this kind (drive jobs
+        // carry a volume there — same slot, different payload).
+        const folder = mountPoint;
+        tick(0, 1, `intake from ${folder}`, INTAKE_PHASES[0]!.phase, true);
+        const proc = Bun.spawn(
+          ["bun", megadjCliPath(this.cfg.root), ...intakeArgs(folder)],
+          { stdout: "pipe", stderr: "pipe", cwd: this.cfg.root },
+        );
+        handle.proc = proc;
+        // Phase-driven progress off megadj's own log lines (same pattern
+        // as verify): markers only ever advance the phase index, so a
+        // repeated "[dupe]" can't rewind the bar. Within the enrich phase
+        // each per-file row ("  = ok:" / "  ~ f: …") nudges toward 0.9.
+        // The human log lands on STDERR in --json mode (progress.ts keeps
+        // stdout as the one summary object), so both streams are drained.
+        let phaseIdx = 0;
+        let enrichBase: number = INTAKE_PHASES[3]!.at;
+        let seen = 0;
+        const onLine = (l: string): void => {
+          log(l);
+          const m = intakePhaseFor(l, phaseIdx);
+          if (m) {
+            phaseIdx = m.nextIdx;
+            if (phaseIdx >= 3) enrichBase = m.progress;
+            tick(
+              m.progress,
+              1,
+              m.message,
+              INTAKE_PHASES[phaseIdx]!.phase,
+              true,
+            );
+            return;
+          }
+          // enrich-phase per-file rows: nudge the fraction forward
+          if (phaseIdx >= 3 && phaseIdx < 4 && INTAKE_FILE_LINE.test(l)) {
+            seen++;
+            tick(
+              Math.min(0.89, enrichBase + seen * 0.02),
+              1,
+              l.trim().slice(0, 120),
+              INTAKE_PHASES[3]!.phase,
+            );
+          }
+        };
+        const [res, errRes] = await Promise.all([
+          drain(proc, onLine, handle, this.cfg.jobTimeoutMin * 60_000),
+          drain(proc.stderr, onLine),
+        ]);
+        await proc.exited;
+        if (handle.cancelled) throw new Error("cancelled");
+        const errText = errRes.out;
+        if (proc.exitCode !== 0) {
+          throw new Error(
+            `megadj ingest exited ${proc.exitCode}${
+              errText.trim() ? `: ${errText.trim().slice(-400)}` : ""
+            }`,
+          );
+        }
+        const { summary } = splitIntakeStdout(res.out);
+        const s = (summary ?? {}) as Partial<IntakeResult>;
+        // Verify leg: the post-run archive audit (ground truth over every
+        // file, not just this batch). Failures land in the result, not a
+        // failed job — ingest itself succeeded.
+        tick(
+          INTAKE_PHASES[5]!.at,
+          1,
+          "auditing the archive…",
+          INTAKE_PHASES[5]!.phase,
+          true,
+        );
+        let audit: IntakeResult["audit"] = null;
+        let auditErrors: IntakeResult["auditErrors"] = [];
+        const ap = Bun.spawn(
+          ["bun", megadjCliPath(this.cfg.root), "audit", "--json"],
+          { stdout: "pipe", stderr: "pipe", cwd: this.cfg.root },
+        );
+        const aOut = await new Response(ap.stdout).text();
+        await ap.exited;
+        try {
+          const a = JSON.parse(aOut) as {
+            total: number;
+            complete: number;
+            incomplete?: Array<{ file: string; missing: string }>;
+          };
+          audit = { total: a.total, complete: a.complete };
+          auditErrors = a.incomplete ?? [];
+        } catch {
+          // audit output unreadable — ingest verdict still stands; the
+          // summary names it so the UI can show "audit unavailable"
+          log("audit leg failed to report — see server log");
+        }
+        tick(
+          1,
+          1,
+          audit
+            ? `archive ${audit.complete}/${audit.total} complete`
+            : "intake done",
+          "done",
+          true,
+        );
+        const result: IntakeResult = {
+          files: Number(s.files ?? 0),
+          tagged: Number(s.tagged ?? 0),
+          artAdded: Number(s.artAdded ?? 0),
+          artQueued: Number(s.artQueued ?? 0),
+          wavConverted: Number(s.wavConverted ?? 0),
+          folderDupes: Number(s.folderDupes ?? 0),
+          archiveDupes: Number(s.archiveDupes ?? 0),
+          upgrades: Number(s.upgrades ?? 0),
+          broken: Number(s.broken ?? 0),
+          compatRejected: Number(s.compatRejected ?? 0),
+          compatHires: Number(s.compatHires ?? 0),
+          shortSkipped: Number(s.shortSkipped ?? 0),
+          unchanged: Number(s.unchanged ?? 0),
+          audit,
+          auditErrors,
+        };
+        this.db.event("local-archive", "intake", {
+          folder,
+          files: result.files,
+          tagged: result.tagged,
+          dupes: result.folderDupes + result.archiveDupes,
+          audit: result.audit,
+        });
+        return result;
+      }
+      default:
+        return null;
     }
   }
 
@@ -635,26 +922,42 @@ export class JobEngine {
   }
 }
 
-/** Read a subprocess's stdout line-by-line (onLine per complete line) while
+/** Read a subprocess stream line-by-line (onLine per complete line) while
  *  capturing the full text. Exported for tests — the capture must contain
- *  every byte exactly once (a regression once duplicated every chunk). */
+ *  every byte exactly once (a regression once duplicated every chunk).
+ *  Accepts the raw stream form too (the intake job line-drains STDERR —
+ *  ingest --json routes its human log there, progress.ts) — pass the
+ *  stream directly and it shares the handle's cancelled flag for kill. */
 export async function drain(
-  proc: Bun.Subprocess,
+  proc: Bun.Subprocess | ReadableStream<Uint8Array> | number | undefined,
   onLine: (l: string) => void,
-  handle: RunHandle,
+  handle?: RunHandle,
   timeoutMs = 0,
 ): Promise<{ out: string }> {
+  const stream =
+    proc && typeof proc === "object" && "stdout" in proc
+      ? proc.stdout
+      : (proc as ReadableStream<Uint8Array> | number | undefined);
+  return drainStream(stream, onLine, handle, timeoutMs, proc);
+}
+
+async function drainStream(
+  stream: ReadableStream<Uint8Array> | number | undefined,
+  onLine: (l: string) => void,
+  handle: RunHandle | undefined,
+  timeoutMs: number,
+  proc: Bun.Subprocess | ReadableStream<Uint8Array> | number | undefined,
+): Promise<{ out: string }> {
   let out = "";
-  const stdout = proc.stdout;
-  if (!stdout || typeof stdout === "number") {
-    await proc.exited;
+  if (!stream || typeof stream === "number") {
+    if (proc && typeof proc === "object" && "exited" in proc) await proc.exited;
     return { out };
   }
-  const reader = stdout.getReader();
+  const reader = stream.getReader();
   const timer = timeoutMs
     ? setTimeout(() => {
-        handle.cancelled = true;
-        proc.kill();
+        if (handle) handle.cancelled = true;
+        if (proc && typeof proc === "object" && "kill" in proc) proc.kill();
       }, timeoutMs)
     : null;
   try {
@@ -676,8 +979,8 @@ export async function drain(
       // chunk arrived (the old `out += chunk` re-added it every iteration,
       // duplicating text through the whole captured output)
       out += text;
-      if (handle.cancelled) {
-        proc.kill();
+      if (handle?.cancelled) {
+        if (proc && typeof proc === "object" && "kill" in proc) proc.kill();
         break;
       }
     }
@@ -685,7 +988,7 @@ export async function drain(
     if (carry.trim()) onLine(carry); // flush the final partial line
   } finally {
     if (timer) clearTimeout(timer);
-    await proc.exited;
+    if (proc && typeof proc === "object" && "exited" in proc) await proc.exited;
   }
   return { out };
 }

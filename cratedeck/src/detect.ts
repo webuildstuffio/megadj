@@ -15,6 +15,8 @@ export interface MountedVolume {
   vendor: string | null;
   model: string | null;
   portKey: string | null;
+  /** Negotiated USB link rate (bits/s) from the ioreg tree; null = unknown. */
+  linkBps: number | null;
   /** Whole-disk truth from `diskutil info` on the parent whole disk:
    *  `false` = physical hardware, `true` = image-backed (virtual),
    *  `null` = probe failed / unavailable (fixtures, degraded hosts). */
@@ -89,6 +91,19 @@ export async function listMountedVolumes(
   return out;
 }
 
+/** USB link classification from the negotiated rate. The gulf that matters:
+ *  USB2 tops out at 480 Mbps (~40 MB/s theoretical, ~35 real) — a 4TB shelf
+ *  on a USB2 link takes 3× longer for the same copy than on USB3. Thresholds
+ *  match ioreg's UsbLinkSpeed values: 12M full, 480M high, 5G/10G/20G SS. */
+export function usbLinkClass(
+  linkBps: number | null,
+): "usb2-or-less" | "usb3" | "usb3-fast" | "unknown" {
+  if (linkBps === null || !Number.isFinite(linkBps)) return "unknown";
+  if (linkBps >= 10_000_000_000) return "usb3-fast"; // 10/20 Gbps
+  if (linkBps >= 5_000_000_000) return "usb3"; // 5 Gbps
+  return "usb2-or-less"; // 480M / 12M / odd values — flag it
+}
+
 /** Whole-disk truth: virtual/physical + bus protocol, read from the parent
  *  whole disk (strip the slice suffix: disk7s1 → disk7). The volume slice
  *  alone cannot distinguish physical from image-backed — verified live:
@@ -142,6 +157,7 @@ export async function volumeDetail(
     vendor: null,
     model: null,
     portKey: null,
+    linkBps: null,
     virtual: null,
     busProtocol: null,
     internal: null,
@@ -170,6 +186,7 @@ export async function volumeDetail(
       v.vendor = usb.vendor;
       v.model = usb.product;
       v.portKey = usb.portKey;
+      v.linkBps = usb.linkBps;
     }
   } catch (e) {
     console.error(`usb tree lookup failed for ${mountPoint}`, e);
@@ -183,6 +200,9 @@ export interface UsbDevice {
   vendor: string | null;
   locationId: number | null;
   portKey: string;
+  /** Negotiated USB link rate in bits/s (ioreg UsbLinkSpeed), or null when
+   *  ioreg didn't answer. Classify with usbLinkClass(). */
+  linkBps: number | null;
 }
 
 /** Parse the USB tree via the Python seam (python/usb_tree.py).

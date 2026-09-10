@@ -72,6 +72,7 @@ const P: Record<string, FunctionalComponent<LucideProps>> = {
   scan: Scan,
   shield: ShieldCheck,
   bolt: Zap,
+  zap: Zap,
   clock: Clock,
   hash: Hash,
   pencil: Pencil,

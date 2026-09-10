@@ -20,6 +20,59 @@ export interface BenchResult {
   bytes_read: number;
 }
 
+/** Minimal link-class probe: read ≤10MB sequentially from the biggest file.
+ *  Runs in well under a second on any USB3 link (~0.2s read + walk cost) and
+ *  reads a few MB at most — negligible battery/wear, unlike the 512MB bench.
+ *  Purpose: separate "USB 2.0 slow link" (~30-40 MB/s ceiling) from
+ *  "USB 3.0 healthy" (hundreds of MB/s) — the CDJ-relevant gulf. */
+export async function speedProbe(
+  mountPoint: string,
+  capMb = 10,
+  signal?: { cancelled: boolean },
+  /** Known-big file paths (from the checksum ledger) — when provided, the
+   *  probe reads one of these directly and skips the expensive full walk. */
+  knownPaths?: string[],
+): Promise<{ mbps: number; bytes_read: number }> {
+  let target: string | undefined;
+  if (knownPaths?.length) {
+    // first ledger path that still exists on disk wins (fast stat checks)
+    for (const p of knownPaths) {
+      try {
+        const st = await stat(p);
+        if (st.size > 1_000_000) {
+          target = p;
+          break;
+        }
+      } catch {
+        // file moved/deleted since hashing — try the next candidate
+      }
+    }
+  }
+  if (!target) {
+    const candidates = await biggestFiles(mountPoint, 1);
+    target = candidates[0];
+  }
+  if (!target) throw new Error("no audio files found to probe");
+  const cap = capMb * 1024 * 1024;
+  let bytes = 0;
+  const t0 = performance.now();
+  const file = Bun.file(target);
+  const reader = file.stream().getReader();
+  try {
+    for (;;) {
+      if (signal?.cancelled) throw new Error("cancelled");
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes >= cap) break;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const sec = (performance.now() - t0) / 1000;
+  return { mbps: round(bytes / 1024 / 1024 / sec), bytes_read: bytes };
+}
+
 export async function benchmarkDrive(
   mountPoint: string,
   capMb: number,

@@ -24,6 +24,7 @@ function drive(over: Partial<Drive> = {}): Drive {
     last_snapshot_json: null,
     predecessor_id: null,
     verify_report_json: null,
+    link_bps: null,
     ...over,
   };
 }
@@ -100,6 +101,29 @@ describe("badges", () => {
     expect(b.some((x) => x.key === "stale" && x.label === "grids 93%")).toBe(
       true,
     );
+  });
+
+  // USB link class badges (Sep 10 sweep: SHELF1's 6h relocate question)
+  it("USB3 link shows a good badge at 5G", () => {
+    const b = driveBadges(drive({ link_bps: 5_000_000_000 }));
+    expect(b.some((x) => x.label === "USB3" && x.tone === "good")).toBe(true);
+  });
+
+  it("10G link shows the fast label", () => {
+    const b = driveBadges(drive({ link_bps: 10_000_000_000 }));
+    expect(b.some((x) => x.label === "USB3 10G")).toBe(true);
+  });
+
+  it("USB2 link is a warn badge, not a silent pass", () => {
+    const b = driveBadges(drive({ link_bps: 480_000_000 }));
+    expect(b.some((x) => x.label === "USB 2.0 link" && x.tone === "warn")).toBe(
+      true,
+    );
+  });
+
+  it("no link data = no link badge (honest unknown)", () => {
+    const b = driveBadges(drive({ link_bps: null }));
+    expect(b.some((x) => x.label.includes("USB"))).toBe(false);
   });
 });
 

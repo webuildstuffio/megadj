@@ -20,6 +20,7 @@ function volPatch(
     model: vol.model,
     usb_serial: vol.usbSerial,
     last_port_key: vol.portKey,
+    link_bps: vol.linkBps,
   };
 }
 
@@ -71,7 +72,8 @@ export class Registry {
           drive.usb_serial !== vol.usbSerial ||
           drive.last_port_key !== vol.portKey ||
           drive.model !== vol.model ||
-          drive.vendor !== vol.vendor
+          drive.vendor !== vol.vendor ||
+          drive.link_bps !== vol.linkBps
         ) {
           this.db.upsertDrive({
             id: drive.id,

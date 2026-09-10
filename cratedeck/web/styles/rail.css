@@ -270,3 +270,13 @@
   color: var(--warn);
   opacity: 1;
 }
+
+/* USB link class line (negotiated rate from the ioreg tree at mount) */
+.idbox .usblink {
+  color: var(--accent);
+  opacity: 0.85;
+}
+.idbox .usblink.slow {
+  color: var(--warn);
+  opacity: 1;
+}

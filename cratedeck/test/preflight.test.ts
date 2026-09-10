@@ -31,6 +31,7 @@ function drive(over: Partial<Drive> = {}): Drive {
     last_snapshot_json: null,
     predecessor_id: null,
     verify_report_json: null,
+    link_bps: null,
     ...over,
   };
 }
