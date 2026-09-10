@@ -282,9 +282,10 @@ async function main(): Promise<void> {
       case "shelf-archive":
       case "shelf-dedupe":
       case "shelf-dupescan":
+      case "rb-fix-paths":
       case "shelf-hygiene": {
         // The shelf family lives in commands/shelf_cmds.ts (file-length
-        // guard) — one dispatcher, five verbs, same flag contracts.
+        // guard) — one dispatcher, six verbs, same flag contracts.
         if (!(await runShelfCommand(command, rest))) {
           console.error(`unhandled shelf command: ${command}`);
           process.exitCode = 2;

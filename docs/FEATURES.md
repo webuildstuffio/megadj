@@ -170,6 +170,7 @@ megadj years                   # FullTags: verify years vs SC page (kills AI 202
 megadj shelf-sync              # shelf: archive → shelf master (new music out)
 megadj shelf-archive <volume>  # shelf: drive → shelf master (stray-drive intake)
 megadj shelf-sweeps            # shelf: DB ledger — every sweep's verdict, latest per drive
+megadj rb-fix-paths <volume>   # shelf: repair stale rekordbox paths (dry-run first)
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 

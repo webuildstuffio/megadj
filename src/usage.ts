@@ -70,6 +70,12 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                [--confirm ID | --dismiss ID] decide one;
                                                [--apply --yes] executes CONFIRMED losers
                                                into the shelf quarantine (never deletes)
+  megadj rb-fix-paths [drive] [--apply --yes] [--json]
+                                               repair stale rekordbox paths after folder
+                                               moves/merges: dry-run reports broken rows
+                                               and fixes (dry first, ALWAYS); --apply
+                                               backs the DB up, refuses while rekordbox
+                                               runs, rewrites, then re-checks EVERY row
 
 cratedeck — the Crate: organize, sync & verify every DJ USB:
   megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)
