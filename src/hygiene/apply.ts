@@ -8,6 +8,9 @@
  *   - moves are same-volume renames; a quarantine name collision is
  *     suffixed, never overwritten
  *   - NOTHING is ever deleted (trap §3.5)
+ * The quarantine lives at the SHELF ROOT, never inside Contents/ —
+ * auto-relocate scans Contents/ and chases quarantined files into the
+ * master DB (the Sep 10 lesson; the shelf hosts that DB).
  *
  * Validate (§4.3 step 5): the post-apply audit the Sep 9 session ran by
  * hand — keepers present, losers still fingerprint-equal, shelf delta ==
@@ -69,7 +72,7 @@ export function applyFinding(
         error: `md5 mismatch at apply — keeper ${keeper} vs loser ${loser}`,
       };
   }
-  const qDir = join(volume, "Contents", QUARANTINE_DIR);
+  const qDir = join(volume, QUARANTINE_DIR);
   try {
     mkdirSync(qDir, { recursive: true });
     const dest = quarantineDest(qDir, loser);

@@ -6,11 +6,11 @@
  * groups only — cheap and decisive, exactly the shelf-dupescan rule.
  */
 import { basename } from "node:path";
-import type { CheckCtx, Finding, ShelfFile } from "../types";
+import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
 import { newFindingId } from "../types";
 import { nameSimilarity } from "./similarity";
 
-export const byteTwin = {
+export const byteTwin: CheckDef = {
   kind: "byte-twin" as const,
   defaultSeverity: "safe" as const,
   detect(files: ShelfFile[], ctx: CheckCtx): Finding[] {

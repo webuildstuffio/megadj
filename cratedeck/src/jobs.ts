@@ -2,31 +2,22 @@
 // and the rekordbox interlock (refuse everything while rekordbox runs).
 // Verify-output parsing lives in verify_report.ts (same job family, pure
 // functions) — re-exported here for import-path stability.
-import { basename } from "node:path";
 import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Guard } from "./guard";
 import type { Job, JobKind, VerifyReport } from "../shared/types";
 import { fmtBytes } from "../shared/fmt";
 import { benchmarkDrive, checksumLedger, speedProbe } from "./bench";
-import { lastLines, parseVerifyReport, verifyDeltas } from "./verify_report";
+import { lastLines, verifyDeltas } from "./verify_report";
+import { runVerify } from "./verify_job";
 import {
   progressFromLine,
   rbSnapshot,
   rekordboxRunning,
   spawnMirror,
-  spawnVerify,
 } from "./rb";
 import { scanVolume } from "./scan";
-import {
-  intakeArgs,
-  intakePhaseFor,
-  megadjCliPath,
-  splitIntakeStdout,
-  INTAKE_FILE_LINE,
-  INTAKE_PHASES,
-} from "./intake_run";
-import type { IntakeResult } from "../shared/types";
+import { runIntake } from "./intake_job";
 
 export type Emit = (channel: string, data: unknown) => void;
 
@@ -425,6 +416,42 @@ export class JobEngine {
     }
   }
 
+  /** The structural view hygiene_jobs.ts runs against (seam rule — the
+   *  legs stay decoupled from the class; drain is injected to avoid a
+   *  jobs.ts ← hygiene_jobs.ts import cycle). The legs get the LIVE tick
+   *  and log closures plus the run handle, so progress + cancellation
+   *  behave exactly like the in-file legs. */
+  private hygieneDeps(
+    job: Job,
+    tick: (
+      done: number,
+      total: number,
+      message: string,
+      phase: string,
+      force?: boolean,
+    ) => void,
+    log: (line: string, isError?: boolean) => void,
+    handle: RunHandle,
+  ) {
+    return {
+      cfg: this.cfg,
+      jobTimeoutMin: this.cfg.jobTimeoutMin,
+      cancelled: (): boolean =>
+        handle.cancelled || this.db.getJob(job.id)?.status !== "running",
+      killProc: (p: Bun.Subprocess): void => p.kill(),
+      log: (line: string): void => log(line),
+      tick,
+      drain: ((
+        stream: ReadableStream<Uint8Array>,
+        onLine: (l: string) => void,
+        h: { cancelled: boolean; proc?: Bun.Subprocess },
+        timeoutMs: number,
+      ) => drain(stream, onLine, h, timeoutMs)) as typeof drain,
+      drainText: (s: ReadableStream<Uint8Array> | undefined): Promise<string> =>
+        drainText(s),
+    };
+  }
+
   private async executeInner(
     job: Job,
     mountPoint: string,
@@ -488,79 +515,20 @@ export class JobEngine {
         return { light: true, full };
       }
       case "verify": {
-        const name = basename(mountPoint);
-        const startedAt = Date.now();
-        tick(
-          0,
-          1,
-          `verifying ${name} — opening rekordbox DB…`,
-          "1-databases",
-          true,
+        // leg extracted to verify_job.ts (file-length cap) — call site only
+        return runVerify(
+          {
+            cfg: this.cfg,
+            verifyTimeoutMin: this.cfg.verifyTimeoutMin,
+            driveRole: this.db.getDrive(job.drive_id)?.role,
+          },
+          mountPoint,
+          handle,
+          drain,
+          drainText,
+          tick,
+          log,
         );
-        const proc = spawnVerify(this.cfg, [name]);
-        handle.proc = proc;
-        // Phase-driven progress: the script prints deterministic section
-        // markers in a known order; verifyPhase() maps each to the ABSOLUTE
-        // progress it starts (the old inline version (a) required leading
-        // spaces on trimmed lines — the longest phase never matched — and
-        // (b) computed progress as from/to, i.e. 0.15/0.35 = 43%).
-        //   0.00–0.15 open DBs · 0.15–0.35 hardware view · 0.35–0.80 per-track
-        //   0.80–0.90 relations · 0.90–0.95 cross-drive · 0.95–0.99 hashing ·
-        //   0.99–1.00 verdict
-        let phaseIdx = 0;
-        const rawLine = (line: string) => {
-          const m = verifyPhase(line, phaseIdx);
-          if (m) {
-            phaseIdx = m.nextIdx;
-            tick(m.progress, 1, m.message, `phase-${phaseIdx}`, true);
-          }
-        };
-        const [verdict, errText] = await Promise.all([
-          drain(
-            proc,
-            (l) => {
-              log(l);
-              rawLine(l);
-            },
-            handle,
-            this.cfg.verifyTimeoutMin * 60_000,
-          ),
-          drainText(proc.stderr),
-        ]);
-        const out = verdict.out + (errText ? `\n[stderr]\n${errText}` : "");
-        // usb_verify.py prints `FINAL: ALL PASS` or `FINAL: FAILED: …`;
-        // trust that line over the exit code (uv can exit non-zero on
-        // warnings) but require the FINAL marker to exist at all.
-        const finalLine = verdict.out
-          .split("\n")
-          .find((l) => l.startsWith("FINAL:"));
-        const pass =
-          !!finalLine &&
-          /FINAL: ALL PASS/.test(finalLine) &&
-          proc.exitCode === 0;
-        tick(
-          1,
-          1,
-          pass
-            ? "verify passed"
-            : `verify FAILED — ${finalLine ?? "no FINAL line (crashed?)"}`.slice(
-                0,
-                200,
-              ),
-          "done",
-          true,
-        );
-        const report = parseVerifyReport(
-          out,
-          pass,
-          finalLine ?? null,
-          Math.round((Date.now() - startedAt) / 1000),
-          this.db.getDrive(job.drive_id)?.role,
-        );
-        return {
-          verdict: pass ? "pass" : "fail",
-          ...report,
-        };
       }
       case "mirror": {
         tick(0, 1, "mirroring to mirror drive…", "mirror", true);
@@ -584,130 +552,21 @@ export class JobEngine {
       }
       case "ingest": {
         // mountPoint carries the SOURCE FOLDER for this kind (drive jobs
-        // carry a volume there — same slot, different payload).
-        const folder = mountPoint;
-        tick(0, 1, `intake from ${folder}`, INTAKE_PHASES[0]!.phase, true);
-        const proc = Bun.spawn(
-          ["bun", megadjCliPath(this.cfg.root), ...intakeArgs(folder)],
-          { stdout: "pipe", stderr: "pipe", cwd: this.cfg.root },
+        // carry a volume there — same slot, different payload). The leg
+        // itself lives in intake_job.ts (file-length cap) — this is the
+        // engine's call site, nothing more.
+        return runIntake(
+          {
+            root: this.cfg.root,
+            jobTimeoutMin: this.cfg.jobTimeoutMin,
+            drain,
+            event: (driveId, kind, data) => this.db.event(driveId, kind, data),
+          },
+          mountPoint,
+          handle,
+          tick,
+          log,
         );
-        handle.proc = proc;
-        // Phase-driven progress off megadj's own log lines (same pattern
-        // as verify): markers only ever advance the phase index, so a
-        // repeated "[dupe]" can't rewind the bar. Within the enrich phase
-        // each per-file row ("  = ok:" / "  ~ f: …") nudges toward 0.9.
-        // The human log lands on STDERR in --json mode (progress.ts keeps
-        // stdout as the one summary object), so both streams are drained.
-        let phaseIdx = 0;
-        let enrichBase: number = INTAKE_PHASES[3]!.at;
-        let seen = 0;
-        const onLine = (l: string): void => {
-          log(l);
-          const m = intakePhaseFor(l, phaseIdx);
-          if (m) {
-            phaseIdx = m.nextIdx;
-            if (phaseIdx >= 3) enrichBase = m.progress;
-            tick(
-              m.progress,
-              1,
-              m.message,
-              INTAKE_PHASES[phaseIdx]!.phase,
-              true,
-            );
-            return;
-          }
-          // enrich-phase per-file rows: nudge the fraction forward
-          if (phaseIdx >= 3 && phaseIdx < 4 && INTAKE_FILE_LINE.test(l)) {
-            seen++;
-            tick(
-              Math.min(0.89, enrichBase + seen * 0.02),
-              1,
-              l.trim().slice(0, 120),
-              INTAKE_PHASES[3]!.phase,
-            );
-          }
-        };
-        const [res, errRes] = await Promise.all([
-          drain(proc, onLine, handle, this.cfg.jobTimeoutMin * 60_000),
-          drain(proc.stderr, onLine, handle),
-        ]);
-        await proc.exited;
-        if (handle.cancelled) throw new Error("cancelled");
-        const errText = errRes.out;
-        if (proc.exitCode !== 0) {
-          throw new Error(
-            `megadj ingest exited ${proc.exitCode}${
-              errText.trim() ? `: ${errText.trim().slice(-400)}` : ""
-            }`,
-          );
-        }
-        const { summary } = splitIntakeStdout(res.out);
-        const s = (summary ?? {}) as Partial<IntakeResult>;
-        // Verify leg: the post-run archive audit (ground truth over every
-        // file, not just this batch). Failures land in the result, not a
-        // failed job — ingest itself succeeded.
-        tick(
-          INTAKE_PHASES[5]!.at,
-          1,
-          "auditing the archive…",
-          INTAKE_PHASES[5]!.phase,
-          true,
-        );
-        let audit: IntakeResult["audit"] = null;
-        let auditErrors: IntakeResult["auditErrors"] = [];
-        const ap = Bun.spawn(
-          ["bun", megadjCliPath(this.cfg.root), "audit", "--json"],
-          { stdout: "pipe", stderr: "pipe", cwd: this.cfg.root },
-        );
-        const aOut = await new Response(ap.stdout).text();
-        await ap.exited;
-        try {
-          const a = JSON.parse(aOut) as {
-            total: number;
-            complete: number;
-            incomplete?: Array<{ file: string; missing: string }>;
-          };
-          audit = { total: a.total, complete: a.complete };
-          auditErrors = a.incomplete ?? [];
-        } catch {
-          // audit output unreadable — ingest verdict still stands; the
-          // summary names it so the UI can show "audit unavailable"
-          log("audit leg failed to report — see server log");
-        }
-        tick(
-          1,
-          1,
-          audit
-            ? `archive ${audit.complete}/${audit.total} complete`
-            : "intake done",
-          "done",
-          true,
-        );
-        const result: IntakeResult = {
-          files: Number(s.files ?? 0),
-          tagged: Number(s.tagged ?? 0),
-          artAdded: Number(s.artAdded ?? 0),
-          artQueued: Number(s.artQueued ?? 0),
-          wavConverted: Number(s.wavConverted ?? 0),
-          folderDupes: Number(s.folderDupes ?? 0),
-          archiveDupes: Number(s.archiveDupes ?? 0),
-          upgrades: Number(s.upgrades ?? 0),
-          broken: Number(s.broken ?? 0),
-          compatRejected: Number(s.compatRejected ?? 0),
-          compatHires: Number(s.compatHires ?? 0),
-          shortSkipped: Number(s.shortSkipped ?? 0),
-          unchanged: Number(s.unchanged ?? 0),
-          audit,
-          auditErrors,
-        };
-        this.db.event("local-archive", "intake", {
-          folder,
-          files: result.files,
-          tagged: result.tagged,
-          dupes: result.folderDupes + result.archiveDupes,
-          audit: result.audit,
-        });
-        return result;
       }
       case "benchmark": {
         tick(0, 1, "reading largest files sequentially…", "bench-seq", true);
@@ -784,6 +643,25 @@ export class JobEngine {
         });
         tick(1, 1, `read ${r.mbps.toLocaleString()} MB/s`, "done", true);
         return { mbps: r.mbps, bytes_read: r.bytes_read };
+      }
+      case "hygiene-scan": {
+        // mountPoint carries the SHELF VOLUME (same slot as drive jobs).
+        // Engine SSOT stays megadj's CLI — this module only renders phases.
+        const { runHygieneScan } = await import("./hygiene_jobs");
+        return runHygieneScan(
+          this.hygieneDeps(job, tick, log, handle),
+          mountPoint,
+          handle,
+        );
+      }
+      case "hygiene-apply": {
+        // CONFIRMED findings only (the confirm step IS the human gate).
+        const { runHygieneApply } = await import("./hygiene_jobs");
+        return runHygieneApply(
+          this.hygieneDeps(job, tick, log, handle),
+          mountPoint,
+          handle,
+        );
       }
       default:
         return null;

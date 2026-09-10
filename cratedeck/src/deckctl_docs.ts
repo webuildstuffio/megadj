@@ -21,6 +21,18 @@ export const KIND_DOCS: Record<string, KindDoc> = {
     safe: "Read-only. Always safe.",
     needs: "drive mounted",
   },
+  "hygiene-scan": {
+    what: "Shelf hygiene detection: walks the shelf master and runs the byte-twin / acoustic-twin / folder-variant / zero-byte / junk checks, writing every finding into the findings ledger (docs/shelf-hygiene-2026-09-09.md).",
+    typical: "1–10 min (fingerprinting dominates; cached between runs)",
+    safe: "Read-only + ledger writes on the host. Nothing on the shelf moves.",
+    needs: "shelf drive mounted",
+  },
+  "hygiene-apply": {
+    what: "Executes CONFIRMED hygiene findings: re-verifies every loser (md5 at apply time, stale-walk abort) and moves it into the shelf quarantine — never deletes. Validation receipts land on each applied row.",
+    typical: "seconds–minutes (moves are same-volume renames)",
+    safe: "Quarantine-only and reversible; unconfirmed findings are never touched.",
+    needs: "shelf drive mounted; confirmed findings in the ledger",
+  },
   mirror: {
     what: "Copy master → mirror so both USB drives are identical (files + both databases + ANLZ). Skips files that already match.",
     typical: "minutes–1h+ depending on how much changed",

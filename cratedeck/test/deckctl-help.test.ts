@@ -106,7 +106,7 @@ describe("deckctl help + --help (work with the server down)", () => {
       surfaces: unknown[];
     };
     expect(parsed.terms.length).toBeGreaterThan(5);
-    expect(parsed.jobs.length).toBe(6); // the six job kinds (incl. speedtest)
+    expect(parsed.jobs.length).toBe(8); // the job kinds (incl. speedtest + hygiene pair)
     expect(parsed.surfaces.length).toBeGreaterThan(3);
   });
 

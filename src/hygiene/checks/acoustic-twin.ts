@@ -9,7 +9,7 @@
  * is not re-reported here (claimed-set short-circuit at the call site).
  */
 import { basename } from "node:path";
-import type { CheckCtx, Finding, ShelfFile } from "../types";
+import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
 import { newFindingId } from "../types";
 import { nameSimilarity } from "./similarity";
 
@@ -24,7 +24,7 @@ function durationDelta(a: ShelfFile, b: ShelfFile): number {
   return hi === 0 ? 0 : (hi - lo) / hi;
 }
 
-export const acousticTwin = {
+export const acousticTwin: CheckDef = {
   kind: "acoustic-twin" as const,
   defaultSeverity: "likely" as const,
   detect(files: ShelfFile[], ctx: CheckCtx): Finding[] {

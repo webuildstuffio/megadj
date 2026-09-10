@@ -10,11 +10,11 @@
  * (walkShelf filters them; this check exists for the quarantine audit
  * path where the input is an arbitrary file list). Auto-clean severity.
  */
-import type { CheckCtx, Finding, ShelfFile } from "../types";
+import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
 import { newFindingId } from "../types";
 import { isJunkName } from "../walk";
 
-export const zeroByte = {
+export const zeroByte: CheckDef = {
   kind: "zero-byte" as const,
   defaultSeverity: "likely" as const,
   detect(files: ShelfFile[], ctx: CheckCtx): Finding[] {
@@ -46,7 +46,7 @@ export const zeroByte = {
   },
 };
 
-export const appledoubleJunk = {
+export const appledoubleJunk: CheckDef = {
   kind: "appledouble-junk" as const,
   defaultSeverity: "safe" as const,
   detect(files: ShelfFile[], ctx: CheckCtx): Finding[] {

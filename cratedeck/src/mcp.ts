@@ -134,6 +134,8 @@ const JOB_KINDS = [
   "checksum",
   "speedtest",
   "ingest",
+  "hygiene-scan",
+  "hygiene-apply",
 ] as const satisfies readonly JobKind[];
 
 /** O87 attribution: one id per MCP server process, stamped on mutating calls
@@ -345,11 +347,79 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
+  deck_hygiene: {
+    description:
+      "Shelf hygiene queue (docs/shelf-hygiene-2026-09-09.md): census of duplicate/junk findings on the shelf master. action=scan enqueues a detection job; action=apply executes CONFIRMED findings into the shelf quarantine (never deletes); action=confirm/dismiss decides one finding (required id). Bare call = read-only census.",
+    destructive: true,
+    inputSchema: obj(
+      {
+        action: sEnum(["scan", "apply", "confirm", "dismiss"]),
+        id: s("finding id (required for confirm/dismiss)"),
+        wait: b("block until a scan/apply job finishes (default true)"),
+        timeout_minutes: n("wait timeout (default 30)"),
+      },
+      [],
+    ),
+    run: async (args) => {
+      const action = str(args, "action");
+      if (!action) {
+        const r = await apiGetJson("/api/hygiene");
+        return {
+          counts: (r as { counts: unknown }).counts,
+          note: "confirm before apply — apply moves confirmed losers to quarantine (recoverable)",
+        };
+      }
+      if (action === "confirm" || action === "dismiss") {
+        const id = str(args, "id");
+        if (!id)
+          throw new RpcParamError(`action "${action}" requires a finding id`);
+        await interlockGuard();
+        const r = await apiPost("/api/hygiene/decide", {
+          id,
+          confirm: action === "confirm",
+          origin: `mcp:${MCP_SESSION}`,
+        });
+        const body = (await r.json()) as { ok?: boolean; error?: string };
+        if (!r.ok || !body.ok)
+          throw new Error(body.error ?? `decide failed (${r.status})`);
+        return { ok: true, id, action };
+      }
+      // scan | apply — enqueue + optionally wait (same shape as deck_run)
+      await interlockGuard();
+      const r = await apiPost(`/api/hygiene/${action}`, {
+        origin: `mcp:${MCP_SESSION}`,
+      });
+      if (r.status === 423)
+        throw new RpcParamError(
+          "rekordbox started mid-request — drive operations locked. Quit rekordbox and retry.",
+        );
+      const body = (await r.json()) as Job & { error?: string };
+      if (!r.ok) throw new Error(body.error ?? `enqueue failed (${r.status})`);
+      const wait = args["wait"] !== false;
+      if (!wait) return { job: body, action, status: body.status };
+      const timeoutMs = (num(args, "timeout_minutes") ?? 30) * 60 * 1000;
+      const final = await waitForJob(body.id, { timeoutMs });
+      return {
+        job: { ...final, result: await jobResult(final) },
+        action,
+        ok: final.status === "done",
+      };
+    },
+  },
+
   deck_explain: {
     description:
       "Documentation as a tool: what each job type checks, typical duration, and safety guarantees. Kind omitted = all jobs.",
     inputSchema: obj({
-      kind: sEnum(["scan", "verify", "mirror", "benchmark", "checksum"]),
+      kind: sEnum([
+        "scan",
+        "verify",
+        "mirror",
+        "benchmark",
+        "checksum",
+        "hygiene-scan",
+        "hygiene-apply",
+      ]),
     }),
     run: async (args) => {
       // Derived from the KIND_DOCS SSOT (deckctl_docs.ts) — same words as
@@ -398,7 +468,7 @@ const TOOLS: Record<string, ToolDef> = {
     run: async (args) => {
       const raw = (args as { ids?: unknown }).ids;
       const ids = Array.isArray(raw)
-        ? raw.filter((x): x is string => typeof x === "string")
+        ? (raw as unknown[]).filter((x): x is string => typeof x === "string")
         : [];
       if (ids.length === 0) return apiGetJson("/api/booth/fleet");
       const r = await apiPost("/api/booth/fleet", { selected: ids });

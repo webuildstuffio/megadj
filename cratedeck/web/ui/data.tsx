@@ -334,7 +334,7 @@ export function DataTable<T extends RowData>(props: {
   const page = view;
   const shown = cap !== undefined ? page.slice(0, cap) : page;
   const overCap = cap !== undefined && page.length > shown.length;
-  const q = (table.state.globalFilter as string | undefined)?.trim() ?? "";
+  const q = String(table.state.globalFilter as unknown ?? "").trim();
 
   return (
     <div

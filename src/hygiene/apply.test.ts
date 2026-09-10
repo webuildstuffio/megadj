@@ -57,7 +57,7 @@ describe("applyFinding", () => {
     const r = applyFinding(confirmedFinding(keeper, loser), v, ctx());
     expect(r.moved).toBe(true);
     expect(loser.startsWith(v)).toBe(true);
-    const qDir = join(v, "Contents", ".hygiene-quarantine");
+    const qDir = join(v, ".hygiene-quarantine");
     expect(r.dest?.startsWith(qDir)).toBe(true);
     // flattening preserves provenance
     expect(r.dest).toContain("Artist B · lose.mp3");
@@ -76,7 +76,7 @@ describe("applyFinding", () => {
 
   test("quarantine collision suffixes instead of overwriting", () => {
     const v = vol();
-    const qDir = join(v, "Contents", ".hygiene-quarantine");
+    const qDir = join(v, ".hygiene-quarantine");
     mkdirSync(qDir, { recursive: true });
     writeFileSync(join(qDir, "Artist B · lose.mp3"), "prev");
     const dest = quarantineDest(qDir, join(v, "Contents/Artist B/lose.mp3"));
@@ -92,7 +92,7 @@ describe("validateFinding", () => {
     const f = confirmedFinding(keeper, loser);
     const c = ctx();
     // after the move the loser lives in the quarantine; validate THERE
-    const q = seed(v, ".hygiene-quarantine/B · l.mp3", "abc");
+    const q = seed(v, "../.hygiene-quarantine/B · l.mp3", "abc");
     const receipt = validateFinding(f, 10, 9, c, q);
     expect(receipt.ok).toBe(true);
     expect(receipt.shelfDelta).toEqual({
@@ -107,7 +107,7 @@ describe("validateFinding", () => {
     const keeper = seed(v, "A/k.mp3", "abc");
     const loser = seed(v, "B/l.mp3", "abc");
     const f = confirmedFinding(keeper, loser);
-    const q = seed(v, ".hygiene-quarantine/B · l.mp3", "abc");
+    const q = seed(v, "../.hygiene-quarantine/B · l.mp3", "abc");
     const receipt = validateFinding(f, 10, 10, ctx(), q);
     expect(receipt.ok).toBe(false);
   });

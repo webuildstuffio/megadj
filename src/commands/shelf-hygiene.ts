@@ -23,18 +23,17 @@ import { FpCache } from "./shelf-dupescan";
 
 export interface ShelfHygieneOptions {
   shelfVolume?: string;
-  dbPath?: string;
-  /** confirm one finding by id (CLI-side single confirm; the web queue
-   *  is the primary confirm surface) */
-  confirm?: string;
-  /** dismiss one finding by id */
-  dismiss?: string;
+  dbPath?: string; /** confirm findings by id (CLI-side confirm; the web queue is the
+   *  primary confirm surface). Multiple ids = one call. */
+  confirm?: string[];
+  /** dismiss findings by id */
+  dismiss?: string[];
+  /** restrict detection to one check kind */
+  kind?: string;
   /** execute confirmed autoSafe findings after re-verification. Requires
    *  --yes (two-step safety, same as shelf-dupescan). */
   apply?: boolean;
   yes?: boolean;
-  /** restrict detection to one check kind */
-  kind?: string;
   json?: boolean;
   log?: (s: string) => void;
 }
@@ -46,8 +45,8 @@ export async function shelfHygiene(
     shelfVolume = `/Volumes/${process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1"}`,
     dbPath = process.env.MEGADJ_DB ??
       `${process.env.HOME}/.local/state/megadj/archive.db`,
-    confirm,
-    dismiss,
+    confirm = [],
+    dismiss = [],
     apply = false,
     yes = false,
     json = false,
@@ -74,35 +73,52 @@ export async function shelfHygiene(
   try {
     const store = new HygieneStore(db);
 
-    // ---- single-decision mode: confirm/dismiss by id ----------------
-    if (confirm || dismiss) {
-      const id = (confirm ?? dismiss) as string;
-      const ok = confirm ? store.decide(id, true) : store.decide(id, false);
-      if (!ok) {
-        fail(`finding ${id} not found or not open`);
-        return;
-      }
+    // ---- decision mode: confirm/dismiss by id(s) ---------------------
+    if (confirm.length || dismiss.length) {
+      const decided: string[] = [];
+      const failed: Array<{ id: string; why: string }> = [];
+      const run = (id: string, confirmIt: boolean): void => {
+        if (store.decide(id, confirmIt)) decided.push(id);
+        else failed.push({ id, why: "not found or not open" });
+      };
+      for (const id of confirm) run(id, true);
+      for (const id of dismiss) run(id, false);
       if (json)
         console.log(
           JSON.stringify({
             command: "shelf-hygiene",
-            decided: id,
-            confirmed: !!confirm,
+            decided,
+            failed,
           }),
         );
+      else
+        for (const f of failed)
+          console.error(`shelf-hygiene: ${f.id}: ${f.why}`);
+      if (failed.length) process.exitCode = 1;
       return;
     }
 
     // ---- detection pass ---------------------------------------------
-    const { files, walkToken } = walkShelf(shelfVolume);
+    const { files, walkToken, unreadable } = walkShelf(shelfVolume);
     log(`shelf-hygiene: ${files.length} files on ${shelfVolume}`);
+    for (const dir of unreadable)
+      log(`  WARNING: unreadable dir skipped — ${dir}`);
     const cache = new FpCache(db);
     const ctx: CheckCtx = {
       volume: shelfVolume,
       walkToken,
       md5: (p) => {
         const r = Bun.spawnSync(["md5", "-q", p]);
-        if (r.exitCode !== 0) return null;
+        if (r.exitCode !== 0) {
+          // boundary log: a null here silently drops the file from every
+          // same-size group — the caller must be able to see why
+          console.error(
+            `shelf-hygiene: md5 failed (${r.exitCode}) — ${p}: ${r.stderr
+              .toString()
+              .trim()}`,
+          );
+          return null;
+        }
         const h = r.stdout.toString().trim();
         return h.length > 0 ? h : null;
       },
@@ -138,11 +154,24 @@ export async function shelfHygiene(
         return;
       }
       const confirmed = store.list({ status: "confirmed" });
-      let before = -1;
+      // True shelf count at apply start (the fresh walk above) — the
+      // baseline every receipt's delta is measured from. Per-move
+      // arithmetic: after_i = start − moved_i. A fresh walk per finding
+      // is minutes on exFAT; the whole-shelf audit is the caller's leg.
+      const startCount = fresh.files.length;
+      let moved = 0;
       for (const f of confirmed) {
         if (f.walkToken !== walkToken) {
           applyErrors.push(`stale walkToken: ${f.id}`);
           failed++;
+          continue;
+        }
+        if (f.proposedAction.type !== "quarantine-loser") {
+          // never "executed" then lied about — the row keeps its status
+          // and the skip is visible (its human step hasn't been built)
+          applyErrors.push(
+            `${f.id}: ${f.proposedAction.type} has no executor yet — left confirmed`,
+          );
           continue;
         }
         const r = applyFinding(f, shelfVolume, ctx);
@@ -151,17 +180,14 @@ export async function shelfHygiene(
           failed++;
           continue;
         }
-        // shelf count delta for the receipt: before the FIRST move vs
-        // after this one (a fresh walk per finding is minutes on exFAT)
-        const afterCount = files.length - applied - 1;
+        moved++;
         const receipt = validateFinding(
           f,
-          before < 0 ? files.length : before,
-          afterCount,
+          startCount - moved + 1,
+          startCount - moved,
           ctx,
           r.dest,
         );
-        if (before < 0) before = files.length;
         store.markApplied(f.id, receipt);
         if (receipt.ok) applied++;
         else {
@@ -191,6 +217,7 @@ export async function shelfHygiene(
       applied,
       failed,
       applyErrors,
+      unreadableDirs: unreadable.length,
       dryRun: !apply,
     };
     if (json) {

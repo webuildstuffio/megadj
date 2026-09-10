@@ -287,6 +287,12 @@ export const DRIVE_TABS = [
     icon: "photo",
     title: "Pick the cover photo shown on this drive's card",
   },
+  {
+    id: "hygiene",
+    label: "Hygiene",
+    icon: "warn",
+    title: "Duplicate + junk findings on the shelf — review, confirm, apply",
+  },
 ] as const;
 
 /** The one-line verdict a human reads before anything else. `meta` accepts

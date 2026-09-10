@@ -9,7 +9,6 @@ export type {
   FindingKind,
   Severity,
   FindingStatus,
-  ProposedAction,
   ValidationReceipt,
   Finding,
 } from "../../cratedeck/shared/hygiene";
@@ -59,7 +58,9 @@ export interface CheckCtx {
 
 /** Every check detector implements this one shape. Deterministic, ordered
  *  by priority; dedupe between checks is `paths` bookkeeping at the call
- *  site (a file claimed by byte-twin is not re-reported by acoustic-twin). */
+ *  site (a file claimed by byte-twin is not re-reported by acoustic-twin).
+ *  Each check in ./checks annotates its export with this — the seam is
+ *  compile-verified at the definition sites. */
 export interface CheckDef {
   kind: FindingKind;
   defaultSeverity: Severity;

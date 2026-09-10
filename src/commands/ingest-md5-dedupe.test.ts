@@ -76,7 +76,7 @@ describe("ingest content-hash dedupe", () => {
     const quarantined = readdirSync(quarantine);
     expect(quarantined.length).toBe(1);
     expect(quarantined[0]).toMatch(/\.wav$/i);
-  });
+  }, 240000); // ffmpeg encode + fpcalc ingest — 5s default dies under load
 
   test("same size but DIFFERENT content keeps both (size is not a dupe)", async () => {
     const dump = join(DB_DIR, "diff dump");

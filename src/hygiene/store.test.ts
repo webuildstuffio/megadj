@@ -94,7 +94,6 @@ describe("HygieneStore", () => {
     expect(s.decide(f.id, false)).toBe(false);
     expect(s.decide("nope", true)).toBe(false);
   });
-
   test("markApplied requires confirmed status and stores the receipt", () => {
     const s = store();
     const f = finding();

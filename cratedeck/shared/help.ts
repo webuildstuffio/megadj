@@ -148,6 +148,16 @@ export const HELP_TERMS: HelpTerm[] = [
     def: "One progress picture: playable tracks vs rows in the beats/mood/cues ledgers.",
     why: "Three separate meters can silently disagree — the strip on every FullTags tab reads one endpoint so they can't.",
   },
+  {
+    term: "Hygiene findings",
+    def: "The review queue for shelf cleanup: every detected duplicate/junk/folder-variant as one row with its evidence (md5✓ / fp✓ / size delta) and a quarantine-first fix. Confirm to apply, dismiss to never see it again (unless its evidence changes).",
+    why: "Deletion destroyed a track once ('Eat Me Better') — the quarantine + confirm loop makes every destructive step reviewable and reversible.",
+  },
+  {
+    term: "Quarantine",
+    def: "Where hygiene-apply moves confirmed losers on the shelf (a dot-folder at the shelf root, outside Contents/). Byte-verified twins still exist on the shelf; restore is a rename.",
+    why: "Nothing is ever deleted without an explicit double-confirmed empty step — recovery stays one click away.",
+  },
 ];
 
 export const HELP_JOBS: HelpJob[] = [
@@ -160,6 +170,26 @@ export const HELP_JOBS: HelpJob[] = [
     safety:
       "Read-only. Allowed while the drive is mounted; no interlock needed.",
     duration: "seconds to ~1 minute",
+  },
+  {
+    kind: "hygiene-scan",
+    label: "Hygiene scan",
+    icon: "shield",
+    what: "Walks the shelf master hunting duplicates and junk: byte-identical twins, same-recording different-encode pairs, variant artist folders, zero-byte files, AppleDouble junk. Every result lands in a findings ledger for your review — nothing moves on its own.",
+    when: "After big ingest sweeps, or whenever you want to reclaim duplicate space on the shelf.",
+    safety:
+      "Read-only on the shelf + writes findings to the host ledger. Fingerprints are cached, so re-runs are fast.",
+    duration: "1–10 minutes (first run fingerprints everything)",
+  },
+  {
+    kind: "hygiene-apply",
+    label: "Hygiene apply",
+    icon: "check",
+    what: "Moves the findings you CONFIRMED into the shelf quarantine — byte-verified again at apply time, collision-safe, never deleted. A green receipt (0 orphans) follows every clean apply.",
+    when: "After you reviewed the queue and confirmed what should go.",
+    safety:
+      "Quarantine-only and reversible (restore anytime). Open/unconfirmed findings are never touched.",
+    duration: "seconds to minutes",
   },
   {
     kind: "verify",

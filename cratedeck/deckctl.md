@@ -10,28 +10,28 @@ bun run deckctl <command> [--json]    # repo-root script (short form)
 
 ## Commands
 
-| Command                  | What it does                                                                                                                   |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `status`                 | rekordbox lock state, every drive with badges, active jobs                                                                     |
-| `drives`                 | drive list with per-badge ✓/▲/✕ verdicts                                                                                       |
-| `report <drive>`         | full health dossier: every check, its detail, why it matters, and the fix. `--dossier` = the full export bundle (drive + snapshot + sync + report + timeline + benchmarks), `--out FILE` writes it |
-| `run <drive> <kind>`     | enqueue + **follow** a job live: spinner, %, current step, rolling ETA. Kinds: `scan` `verify` `mirror` `benchmark` `checksum` |
-| `coverage [min]`         | fleet coverage matrix: tracks per drive + at-risk list (tracks below `min` copies, default 2)                                  |
-| `redundancy [min]`       | per-playlist redundancy audit: every track on ≥`min` drives? pass/warn/fail per playlist                                       |
-| `diff <driveA> <driveB>` | drive-vs-drive inventory diff: added / removed / changed bytes                                                                 |
-| `jobs`                   | recent jobs with progress/messages                                                                                             |
-| `cancel <jobId>`         | cancel an active job                                                                                                           |
-| `stop`                   | stop the CrateDeck server                                                                                                      |
-| `explain [kind]`         | documentation as a tool: what each job type checks, typical duration, safety guarantees                                        |
-| `preflight`              | **B12 gig-night gate**: pass/fail checklist over all mounted drives (dual-DB, grids, verify, speed, bitrot, space, parity, player compat) |
-| `players [drive]`        | **N78 hardware compat**: which CDJs/XDJs can read each stick, from measured dual-DB rows vs the N75 player matrix                            |
-| `prep [--out FILE]`      | **O83 weekly digest**: fleet + redundancy + archive markdown, written to `--out` when given                                                |
-| `note <drive> <text>`    | **O88 findings feed**: post a dismissable note to the drive timeline (`--severity info\|warn\|critical`)                                  |
-| `notes [drive]`          | **O88 findings feed**: active (undismissed) notes, one per line; omit drive = every drive                                                  |
-| `rename <drive> [nick]`  | set/clear the display nickname shown in UI, CLI, and MCP (omit nickname = clear)                                                            |
-| `search <query>`         | global search: playlists + folders across all drive snapshots (the ⌘K twin)                                                                 |
-| `help [term\|kind]`      | the UI's help cards as a CLI: glossary (Ghost, Interlock, Dual-DB…), job explainers, surface tour; `help ghost` = one entry. Works offline |
-| `dismiss <drive> <noteId>` | retire an agent note from the active findings feed (the `deckctl note` off-ramp; history kept)                                              |
+| Command                    | What it does                                                                                                                                                                                       |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`                   | rekordbox lock state, every drive with badges, active jobs                                                                                                                                         |
+| `drives`                   | drive list with per-badge ✓/▲/✕ verdicts                                                                                                                                                           |
+| `report <drive>`           | full health dossier: every check, its detail, why it matters, and the fix. `--dossier` = the full export bundle (drive + snapshot + sync + report + timeline + benchmarks), `--out FILE` writes it |
+| `run <drive> <kind>`       | enqueue + **follow** a job live: spinner, %, current step, rolling ETA. Kinds: `scan` `verify` `mirror` `benchmark` `checksum`                                                                     |
+| `coverage [min]`           | fleet coverage matrix: tracks per drive + at-risk list (tracks below `min` copies, default 2)                                                                                                      |
+| `redundancy [min]`         | per-playlist redundancy audit: every track on ≥`min` drives? pass/warn/fail per playlist                                                                                                           |
+| `diff <driveA> <driveB>`   | drive-vs-drive inventory diff: added / removed / changed bytes                                                                                                                                     |
+| `jobs`                     | recent jobs with progress/messages                                                                                                                                                                 |
+| `cancel <jobId>`           | cancel an active job                                                                                                                                                                               |
+| `stop`                     | stop the CrateDeck server                                                                                                                                                                          |
+| `explain [kind]`           | documentation as a tool: what each job type checks, typical duration, safety guarantees                                                                                                            |
+| `preflight`                | **B12 gig-night gate**: pass/fail checklist over all mounted drives (dual-DB, grids, verify, speed, bitrot, space, parity, player compat)                                                          |
+| `players [drive]`          | **N78 hardware compat**: which CDJs/XDJs can read each stick, from measured dual-DB rows vs the N75 player matrix                                                                                  |
+| `prep [--out FILE]`        | **O83 weekly digest**: fleet + redundancy + archive markdown, written to `--out` when given                                                                                                        |
+| `note <drive> <text>`      | **O88 findings feed**: post a dismissable note to the drive timeline (`--severity info\|warn\|critical`)                                                                                           |
+| `notes [drive]`            | **O88 findings feed**: active (undismissed) notes, one per line; omit drive = every drive                                                                                                          |
+| `rename <drive> [nick]`    | set/clear the display nickname shown in UI, CLI, and MCP (omit nickname = clear)                                                                                                                   |
+| `search <query>`           | global search: playlists + folders across all drive snapshots (the ⌘K twin)                                                                                                                        |
+| `help [term\|kind]`        | the UI's help cards as a CLI: glossary (Ghost, Interlock, Dual-DB…), job explainers, surface tour; `help ghost` = one entry. Works offline                                                         |
+| `dismiss <drive> <noteId>` | retire an agent note from the active findings feed (the `deckctl note` off-ramp; history kept)                                                                                                     |
 
 `<drive>` = volume name, nickname, or UUID.
 

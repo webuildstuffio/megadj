@@ -297,3 +297,9 @@ if key in occupied:
 - Multi-origin merges can leave different rips of the same track on each
   drive. `usb_mirror.py --audio-parity` reconciles (master wins, mirror
   variants backed up first).
+
+## Library repair first
+
+If the library has missing tracks or the pdb drifted, repair BEFORE
+syncing: see `.claude/skills/rekordbox-library-repair/SKILL.md`
+(`megadj rb-fix-paths` → MFM cleanup → re-export → verify).

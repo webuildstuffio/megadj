@@ -111,9 +111,9 @@ describe("shelfDedupe", () => {
 
   test("json output carries the contract", async () => {
     const shelf = makeShelf({ stem: "j", origContent: "z", twinContent: "z" });
-    const orig = console.log;
+    const orig: typeof console.log = console.log;
     let out = "";
-    console.log = (s) => (out += s + "\n");
+    console.log = (s: string) => (out += s + "\n");
     try {
       await shelfDedupe({
         shelfVolume: shelf,

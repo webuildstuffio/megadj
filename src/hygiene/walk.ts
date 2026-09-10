@@ -10,7 +10,7 @@
  * that interleaves with fingerprint workers made resume accounting racy
  * once (dupescan's original pool design).
  */
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync, type Dirent } from "node:fs";
 import { join } from "node:path";
 import { walkTokenFor, type ShelfFile } from "./types";
 
@@ -48,15 +48,20 @@ export function isJunkName(name: string): boolean {
 export function walkShelf(volume: string): {
   files: ShelfFile[];
   walkToken: string;
+  /** dirs whose readdir failed — surfaced, never silent (a swallowed
+   *  readdir = a dropped subtree = findings that never existed) */
+  unreadable: string[];
 } {
   const root = join(volume, "Contents");
   const files: ShelfFile[] = [];
+  const unreadable: string[] = [];
   const walk = (dir: string): void => {
-    let entries;
+    let entries: Dirent[];
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch {
-      return; // unreadable subdir — logged by the caller leg, walk continues
+      unreadable.push(dir); // caller logs the boundary; walk continues
+      return;
     }
     for (const e of entries) {
       if (e.name.startsWith(".")) continue; // dotdirs + dotfiles
@@ -79,5 +84,5 @@ export function walkShelf(volume: string): {
     }
   };
   walk(root);
-  return { files, walkToken: walkTokenFor(files) };
+  return { files, walkToken: walkTokenFor(files), unreadable };
 }

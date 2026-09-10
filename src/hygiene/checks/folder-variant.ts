@@ -10,7 +10,7 @@
  * merged (a wrong merge renames real albums).
  */
 import { dirname, basename } from "node:path";
-import type { CheckCtx, Finding, ShelfFile } from "../types";
+import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
 import { newFindingId } from "../types";
 import { nameSimilarityTokens } from "./similarity";
 
@@ -23,7 +23,7 @@ function artistOf(path: string, volume: string): string {
   return parts[1] ?? basename(dirname(path));
 }
 
-export const folderVariant = {
+export const folderVariant: CheckDef = {
   kind: "folder-variant" as const,
   defaultSeverity: "likely" as const,
   detect(files: ShelfFile[], ctx: CheckCtx): Finding[] {

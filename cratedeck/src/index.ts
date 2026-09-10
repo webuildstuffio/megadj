@@ -5,11 +5,14 @@ import { DB } from "./db";
 import { Guard } from "./guard";
 import { listMountedVolumes, watchVolumes } from "./detect";
 import { freeBytes } from "./scan";
+import { buildDriveList } from "./drive_list";
 import { Registry } from "./registry";
 import { JobEngine } from "./jobs";
 import { ImageService } from "./images";
 import { driveBadgesView } from "./badges_view";
 import { ShelfSweepReader } from "./shelf_sweep_reader";
+import { HygieneReader } from "./hygiene_reader";
+import { makeHygieneRoutes } from "./hygiene_routes";
 import { parseSnapshotJson } from "../shared/badges";
 import { buildReport, buildReportSummary, overall } from "./report";
 import { VERIFY_HELP } from "./verify_help";
@@ -37,7 +40,11 @@ import {
   shouldAutoVerify,
   autoVerifyReason,
 } from "./auto_schedule";
-import { intakeCandidateDirs, intakeWatchDir } from "./intake_run";
+import {
+  intakeCandidateDirs,
+  intakeWatchDir,
+  megadjCliPath,
+} from "./intake_run";
 import type { Drive, NoteSeverity } from "../shared/types";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
@@ -55,6 +62,8 @@ const webRoot = join(here, "web", "dist");
 const archive = new ArchiveReader(cfg.archiveDbPath);
 /** Read-only window into the megadj shelf_sweeps ledger (drive verdicts). */
 const shelfSweeps = new ShelfSweepReader(cfg.archiveDbPath);
+/** Read-only window into the megadj hygiene_findings ledger (§5 P2). */
+const hygiene = new HygieneReader(cfg.archiveDbPath);
 // N75: vendor matrix + user-added players from config.toml [players.players]
 const extraPlayers = () => playersFromConfig(cfg.extraPlayers);
 
@@ -426,6 +435,14 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
     ) {
       return sse();
     }
+    // ---- shelf hygiene (docs/shelf-hygiene-2026-09-09.md §4) -----------
+    if (route === "/hygiene") return hygieneApi.list(url);
+    if (route === "/hygiene/scan" && req.method === "POST")
+      return hygieneApi.scan();
+    if (route === "/hygiene/apply" && req.method === "POST")
+      return hygieneApi.apply();
+    if (route === "/hygiene/decide" && req.method === "POST")
+      return hygieneApi.decide(req);
     // ---- archive intake (GetDat Intake tab) -----------------------------
     if (route === "/intake/folders") {
       return json({
@@ -709,67 +726,53 @@ async function fleetRoutes(route: string, url: URL): Promise<Response> {
 }
 
 async function driveListPayload(): Promise<Drive[]> {
-  const snaps = db.latestSnapshots();
-  const sweeps = shelfSweeps.latestPerDrive();
-  const drives = registry.list();
-  // one live `df` per MOUNTED drive: the rail shows "free of total", and a
-  // snapshot's free_bytes goes stale the moment anything writes to the disk
-  // (SHELF1's snapshot had no free_bytes at all → "4.0 TB" with no floor).
-  // Runs in parallel; df failure → null → UI falls back to snapshot truth.
-  const liveFree = new Map(
-    await Promise.all(
-      drives
-        .filter((d) => d.mounted)
-        .map(async (d) => {
-          const mountPoint = `/Volumes/${d.name}`;
-          try {
-            return [d.id, await freeBytes(mountPoint)] as const;
-          } catch (e) {
-            // a df that throws (volume yanked mid-request) is a logged
-            // boundary, not a payload-killer
-            console.error(`live free-space probe failed for ${d.name}`, e);
-            return [d.id, null] as const;
-          }
-        }),
-    ),
-  );
-  return drives
-    .map((d) => ({
-      ...d,
-      // strip the raw snapshot blob from list responses: cards only need
-      // counts; the full snapshot goes MBs over the wire for nothing.
-      last_snapshot_json: null as string | null,
-      snapshot_summary: (() => {
-        const s = snaps.get(d.id);
-        return s
-          ? {
-              track_count: s.track_count,
-              file_count: s.file_count,
-              capacity_bytes: s.capacity_bytes,
-              free_bytes: s.free_bytes,
-              live_free_bytes: d.mounted ? (liveFree.get(d.id) ?? null) : null,
-            }
-          : {
-              // never-scanned mounted drive: still show live free space
-              capacity_bytes: d.capacity_bytes || undefined,
-              free_bytes: null,
-              live_free_bytes: d.mounted ? (liveFree.get(d.id) ?? null) : null,
-            };
-      })(),
-      badges: [
-        ...driveBadgesView(db, d, snaps, cfg.masterDrive, cfg.mirrorDrive),
-      ],
-    }))
-    .map((d) => ({
-      ...d,
-      last_snapshot_json: null,
-      shelf_sweep: sweeps.get(d.name.toUpperCase()) ?? null,
-    }));
+  // builder extracted to drive_list.ts (file-length cap) — this is wiring
+  return buildDriveList({
+    registry,
+    latestSnapshots: () => db.latestSnapshots(),
+    sweeps: shelfSweeps,
+    badges: (drive, snaps, masterName, mirrorName) =>
+      driveBadgesView(
+        db,
+        drive,
+        snaps as Parameters<typeof driveBadgesView>[2],
+        masterName,
+        mirrorName,
+      ),
+    liveFree: freeBytes,
+    masterDrive: cfg.masterDrive,
+    mirrorDrive: cfg.mirrorDrive,
+    shelfDrive: cfg.shelfDrive,
+    hygieneBadge: () => hygiene.badge(),
+  });
 }
 
 /** Shared deps for the report/preflight/dossier collectors
  *  (report_inputs.ts). */
 const reportDeps: ReportDeps = { db, cfg, registry, extraPlayers };
+
+/** The /api/hygiene family: reader-backed reads + job enqueues + sync
+ *  decision writes through megadj's CLI (the engine SSOT). */
+const hygieneApi = makeHygieneRoutes({
+  reader: hygiene,
+  enqueue: (kind) => {
+    const shelf = registry.list().find((d) => d.role === "shelf" && d.mounted);
+    if (!shelf)
+      throw new Error("shelf drive not mounted — hygiene needs SHELF1");
+    return jobs.enqueue(shelf.id, kind, `/Volumes/${shelf.name}`, "web");
+  },
+  megadjCli: async (args) => {
+    const proc = Bun.spawn(["bun", megadjCliPath(cfg.root), ...args], {
+      stdout: "pipe",
+      stderr: "pipe",
+      cwd: cfg.root,
+    });
+    const stderr = await new Response(proc.stderr).text();
+    const code = await proc.exited;
+    return { code, stderr };
+  },
+  json,
+});
 
 console.log(
   `cratedeck: http://127.0.0.1:${cfg.serverPort} (reaped jobs: ${reaped})`,

@@ -189,7 +189,7 @@ export function loadConfig(root: string): CrateConfig {
       const booth = isTomlTable(file.booth) ? file.booth : {};
       const raw = booth.fleet;
       const ids = Array.isArray(raw)
-        ? raw.filter((x): x is string => typeof x === "string")
+        ? (raw as unknown[]).filter((x): x is string => typeof x === "string")
         : [];
       const known = new Set(FLEET_PROFILES.map((p) => p.id as string));
       const valid = ids.filter((id) => known.has(id));

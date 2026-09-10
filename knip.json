@@ -18,7 +18,9 @@
         "plutil",
         "wait",
         "md5",
-        "fpcalc"
+        "fpcalc",
+        "pgrep",
+        "uv"
       ],
       "ignoreDependencies": [
         "preact"

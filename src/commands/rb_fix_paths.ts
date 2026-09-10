@@ -20,7 +20,13 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  readdirSync,
+  statSync,
+  type Stats,
+} from "node:fs";
 import { basename, join } from "node:path";
 
 export interface RbFixPathsOptions {
@@ -120,7 +126,7 @@ function walkAudio(root: string, out: string[]): void {
   for (const e of entries) {
     if (e.startsWith(".")) continue; // junk/quarantine (shelf-root rule)
     const full = join(root, e);
-    let st;
+    let st: Stats;
     try {
       st = statSync(full);
     } catch {

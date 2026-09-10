@@ -27,8 +27,8 @@ async function run(
   opts: Record<string, unknown>,
 ): Promise<{ parsed: Record<string, unknown>; code: number }> {
   let out = "";
-  const orig = console.log;
-  console.log = (s) => (out += s + "\n");
+  const orig: typeof console.log = console.log;
+  console.log = (s: string) => (out += s + "\n");
   let code = 0;
   try {
     await shelfHygiene({
@@ -102,9 +102,63 @@ describe("shelf-hygiene command", () => {
     expect(existsSync(join(vol, "Contents", "Artist A", "song copy.mp3"))).toBe(
       false,
     );
-    expect(existsSync(join(vol, "Contents", ".hygiene-quarantine"))).toBe(true);
+    expect(existsSync(join(vol, ".hygiene-quarantine"))).toBe(true);
     expect(existsSync(join(vol, "Contents", "Artist A", "song.mp3"))).toBe(
       true,
+    );
+  });
+
+  test("MULTI-apply: every receipt is green with delta 1 (no cumulative drift)", async () => {
+    // two independent byte-twin pairs — the second receipt must measure
+    // its own move, not "everything moved so far"
+    const vol = mkdtempSync("/tmp/megadj-hygiene-multi-");
+    const w = (rel: string, c: string) => {
+      const abs = join(vol, "Contents", rel);
+      mkdirSync(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });
+      writeFileSync(abs, c);
+    };
+    w("Artist A/one.mp3", "PAIR-ONE");
+    w("Artist A/one copy.mp3", "PAIR-ONE");
+    w("Artist B/two.mp3", "PAIR-TWO");
+    w("Artist B/two copy.mp3", "PAIR-TWO");
+    w("Artist C/unique.mp3", "UNIQUE");
+    const db = mkdtempSync("/tmp/megadj-hygiene-multidb-") + "/archive.db";
+    await run({ shelfVolume: vol, dbPath: db });
+    const store = new HygieneStore(new Database(db));
+    const opens = store.list({ status: "open" });
+    expect(opens.length).toBe(2);
+    for (const f of opens) expect(store.decide(f.id, true)).toBe(true);
+    const { parsed } = await run({
+      shelfVolume: vol,
+      dbPath: db,
+      apply: true,
+      yes: true,
+    });
+    expect(parsed.applied).toBe(2);
+    expect(parsed.failed).toBe(0);
+    expect(parsed.applyErrors).toEqual([]);
+    for (const f of opens) {
+      const got = store.get(f.id)!;
+      expect(got.status).toBe("applied");
+      // BOTH receipts: exactly one file quarantined against the apply
+      // baseline — a cumulative count (quarantined: 2 on the second)
+      // fails this and flips the row to `failed`
+      expect(got.validation?.ok).toBe(true);
+      const d = got.validation!.shelfDelta;
+      expect(d.quarantined).toBe(1);
+      expect(d.after).toBe(d.before - 1);
+    }
+    // the two receipts tile the apply leg: one saw 5→4, the other 4→3
+    const deltas = opens
+      .map((f) => store.get(f.id)!.validation!.shelfDelta)
+      .sort((a, b) => a.before - b.before);
+    expect(deltas[0]).toEqual({ before: 4, after: 3, quarantined: 1 });
+    expect(deltas[1]).toEqual({ before: 5, after: 4, quarantined: 1 });
+    expect(existsSync(join(vol, "Contents", "Artist A", "one copy.mp3"))).toBe(
+      false,
+    );
+    expect(existsSync(join(vol, "Contents", "Artist B", "two copy.mp3"))).toBe(
+      false,
     );
   });
 

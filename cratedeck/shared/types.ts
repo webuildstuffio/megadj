@@ -120,6 +120,8 @@ export type DriveCardData = Omit<Drive, "last_snapshot_json"> & {
   badges: Badge[];
   /** Latest drive→shelf sweep verdict from the megadj archive ledger. */
   shelf_sweep: ShelfSweepSummary | null;
+  /** Shelf-hygiene census — shelf drive only, null elsewhere (§4.3). */
+  hygiene: import("./hygiene").HygieneBadge | null;
   snapshot_summary: {
     track_count?: number;
     file_count?: number;
