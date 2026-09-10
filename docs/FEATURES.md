@@ -58,7 +58,8 @@ the remix's, not the original's.
    the safe fixes: tag sanitization, mojibake re-decode, illegal-char
    renames (DB path follows). The fleet is chosen on the web (Fleet →
    Booth), CLI (`deckctl booth [set …]`), MCP (`deck_booth`), or
-   `config.toml [booth].fleet`.
+   `config.toml [booth].fleet`. The full pick → audit → fix → reload
+   loop is a skill: `.claude/skills/booth-check/SKILL.md`.
 2. **Source-correct metadata** — a SoundCloud remix gets the SoundCloud
    artwork, the remix year (from the upload page's `display_date`, not a
    guessed "2023"), the SoundCloud genre tags. A hypeddit gateway track gets
