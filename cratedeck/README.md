@@ -30,7 +30,7 @@ Read-only by construction: every disk write goes through `src/guard.ts`
 Beyond the core: **B12 preflight** (`deckctl preflight` — the gig-night
 pass/fail gate, exit 1 gates cron/agents), the **N75/N78 player-compat
 verdict** (`deckctl players`), the **O83 weekly digest** (`deckctl prep`),
-and the **agent surface** (`bun run mcp` — 35 tools, archive reads
+and the **agent surface** (`bun run mcp` — 37 tools, archive reads
 included).
 
 Agents: the same surface is exposed over MCP — `bun run mcp` (from the repo

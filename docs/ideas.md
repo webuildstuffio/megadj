@@ -761,16 +761,20 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 "agent-first, MCP-friendly, `--json` on every command" — with O86's rails
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
-82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 35 tools
-    after the Sep 7 parity revs).** Live:
-    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — **35 tools**. CrateDeck
-    half (17): `deck_status/drives/report/coverage/redundancy/diff/
+82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 37 tools
+    after the Sep 10 hygiene/fixes revs).** Live:
+    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — **37 tools** (census
+    derives from source; pinned by `surface-parity.test.ts`). CrateDeck
+    half (22): `deck_status/drives/report/coverage/redundancy/diff/
 jobs/run/cancel/explain` + `deck_preflight` (B12), `deck_players`
     (N78), `deck_note`/`deck_notes` (O88), `deck_prep` (O83),
-    `deck_search`/`deck_rename` (parity rev 2/3). Archive
-    half (O82b, 8):
-    `archive_search_tracks/track_stats/ingest_status/lowq_queue/
-source_diff/grid_cross_check/mood_profile/sweep` — readonly reads over
+    `deck_search`/`deck_rename` (parity rev 2/3), `deck_booth` +
+    `deck_dismiss` (parity revs), `deck_hygiene`/`deck_fixes` (rev 12).
+    Archive
+    half (O82b, 15): `archive_search_tracks/track_stats/ingest_status/lowq_queue/
+source_diff/grid_cross_check/mood_profile/sweep/skip_census/sources/
+analysis_coverage/library_overview/cue_ledger/similar_tracks/
+set_build` — readonly reads over
     megadj's own DB (`cratedeck/src/archive.ts`, opened `readonly: true`;
     missing DB degrades to `available:false`, never throws). Any MCP
     client (Claude Code, Codex, Cursor) answers "what did I ingest last
@@ -796,7 +800,7 @@ source_diff/grid_cross_check/mood_profile/sweep` — readonly reads over
 
 85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
     installable Claude Code bundle: `.claude-plugin/plugin.json` +
-    `.mcp.json` (the 35-tool MCP server) + `hooks/hooks.json`
+    `.mcp.json` (the 37-tool MCP server) + `hooks/hooks.json`
     (SessionStart posts `deckctl status --json` into context) + the 3
     skills. `claude plugin validate` passes; dev-install with
     `claude --plugin-dir $PWD/plugin`. A published marketplace variant

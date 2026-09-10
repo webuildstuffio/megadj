@@ -222,6 +222,8 @@ MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
   (durable lessons from the Sep 5–7 build window) ·
   [docs/product-state-2026-09-07.md](docs/product-state-2026-09-07.md)
   (current state, queue, scorecard) ·
+  [docs/shelf-hygiene-2026-09-09.md](docs/shelf-hygiene-2026-09-09.md)
+  (Sep 9 hygiene session: dupescan data + the CrateDeck findings-ledger spec) ·
   [docs/usb-sync-log.md](docs/usb-sync-log.md) (ops/incident log) ·
   [docs/runbooks/](docs/runbooks/) (§0 survival runbooks)
 - **Runbooks:** [rekordbox-usb-sync](.claude/skills/rekordbox-usb-sync/SKILL.md),

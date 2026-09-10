@@ -102,15 +102,15 @@ This is the USB-crate organization project, and it's a project in its own
 right. It has [its own doc set](../cratedeck/README.md) (brief, PRD,
 architecture, build plan, acceptance).
 
-|                    |                                                                                                                                                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (35-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                                  |
-| **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                              |
-| **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                          |
-| **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads              |
-| **The verify**     | `usb_verify.py` deep gate: dual-DB agreement (OneLibrary vs legacy `export.pdb` live rows), audio existence, ANLZ-at-hash-path, grid math (duration × BPM ≈ beat count), playlist integrity, cross-drive hash parity |
-| **The interlock**  | rekordbox running? everything locks — exit code 3, red banner, no exceptions. Never bypassed.                                                                                                                        |
-| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: 21 verbs incl. `run/coverage/redundancy/diff/preflight/prep/note/rename/search/help/dismiss/booth`, `--json` for agents) · `bun run mcp` (35-tool MCP server)                                                     |
+|                    |                                                                                                                                                                                                                                  |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (37-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                   |
+| **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                                          |
+| **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                                      |
+| **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads                          |
+| **The verify**     | `usb_verify.py` deep gate: dual-DB agreement (OneLibrary vs legacy `export.pdb` live rows), audio existence, ANLZ-at-hash-path, grid math (duration × BPM ≈ beat count), playlist integrity, cross-drive hash parity             |
+| **The interlock**  | rekordbox running? everything locks — exit code 3, red banner, no exceptions. Never bypassed.                                                                                                                                    |
+| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: 23 verbs incl. `run/coverage/redundancy/diff/preflight/players/hygiene/fixes/prep/note/rename/search/help/dismiss/booth`, `--json` for agents) · `bun run mcp` (37-tool MCP server) |
 
 **Commands:** `bun run deck`, `bun run cratedeck/src/deckctl.ts …`
 **Shelf intake:** `megadj shelf-archive [volume …]` pulls everything from any
@@ -122,12 +122,12 @@ copies preserved (see [usb-sync-log.md](usb-sync-log.md), Sep 9 2026).
 [the doc set](cratedeck/)
 
 > **Note:** the status row already includes the Sep 5–7 2026 additions —
-> B12 preflight, N75/N78 player-compat verdicts, the 35-tool MCP server
+> B12 preflight, N75/N78 player-compat verdicts, the 37-tool MCP server
 > (incl. the O82b archive half), O83 weekly digest (now also a Fleet ⌗
 > Prep tab), O87 job attribution, O88 agent notes, O85 plugin packaging,
 > the FullTags beats + mood + cues ledgers (FullTags roadmap rev 6.2),
 > and the Sep 7 surface-parity revs (Fleet ⌗ Archive tab, `deckctl
-> rename`/`report --dossier` + MCP twins).
+rename`/`report --dossier` + MCP twins).
 
 **Vibe:** mission control for a drawer full of identical-looking sticks.
 
@@ -150,8 +150,8 @@ Headline shape (status inline; the docs own the detail):
 - **Move 2 — FullTags v1.x:** ALL SHIPPED behind ground-truth gates
   (key 80.7% written; BPM + genre writes gate-FAILED → beats/mood/cues
   DB ledgers instead — [fulltags-roadmap.md](fulltags-roadmap.md) rev 6.2).
-- **Move 3 — the agentic layer:** SHIPPED (35-tool MCP + `deckctl prep`
-  + D30 sweep); remaining: O84 inbox agent.
+- **Move 3 — the agentic layer:** SHIPPED (37-tool MCP + `deckctl prep`
+  - D30 sweep); remaining: O84 inbox agent.
 - **The dream** — hit predictor & set-builder copilot, calibrated on what
   actually got played; proposes sequences, never auto-exports (§M64, M66).
 
