@@ -192,6 +192,26 @@ export const HELP_JOBS: HelpJob[] = [
     duration: "seconds to minutes",
   },
   {
+    kind: "fixes-scan",
+    label: "Booth fixes scan",
+    icon: "bolt",
+    what: "Dry-runs megadj booth-fix over the shelf Contents against your player fleet (Fleet → Booth): filenames the players can't carry, tags they can't display, audio they can't play. Produces the fix plan without touching anything.",
+    when: "After big ingest sweeps, or whenever the fleet changes.",
+    safety:
+      "Read-only — a dry run. Nothing is renamed or rewritten until you apply.",
+    duration: "5–12 minutes (walks every file's tags)",
+  },
+  {
+    kind: "fixes-apply",
+    label: "Booth fixes apply",
+    icon: "check",
+    what: "Executes the SAFE subset of the fix plan: filename renames (DB path follows) + tag rewrites to fleet-safe text. Proposal-only rows (float WAVs, intentional scripts) are never auto-executed.",
+    when: "After you reviewed the plan on the Fixes tab.",
+    safety:
+      "Renames + tag writes only, nothing deletes. Renames need one rekordbox pass: Collection → ⌘A → Relocate Lost Files, then re-sync sticks.",
+    duration: "minutes (a rescan follows to prove what's left)",
+  },
+  {
     kind: "verify",
     label: "Verify",
     icon: "shield",
@@ -372,7 +392,7 @@ export const ROLE_HELP: Record<string, string> = {
   mirror:
     "Mirror: a deliberate second copy of the master. Parity checks keep it interchangeable.",
   shelf:
-    "Shelf: the archive-grade master master (big HDD). Gig sticks sync FROM it — it never leaves the shelf.",
+    "Shelf: the archive-grade master master (big HDD). rekordbox's master library lives HERE; gig sticks sync FROM it; players never read it, so player-facing checks (pdb parity, grids, mirror, player-compat) don't apply.",
   library:
     "Library: a real drive with its own music — not part of a master/mirror pair.",
   unknown:

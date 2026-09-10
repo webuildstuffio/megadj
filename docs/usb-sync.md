@@ -18,9 +18,10 @@ reaches it via `megadj shelf-sync`; stray drives are swept in with
 Every sweep records a verdict row in the archive DB's `shelf_sweeps`
 ledger — `megadj shelf-sweeps` shows latest-per-drive — and the full
 process lives in [shelf-intake](../.claude/skills/shelf-intake/SKILL.md).
-Because players never read the shelf, its leftover `PIONEER/rekordbox/`
-device tree (the migrated old stick's `DJLIBRARYM` library) is vestigial:
-dual-db drift there is informational, never a failure (Sep 10).
+Because no player ever reads the shelf, its empty `PIONEER/rekordbox/`
+device tree needs NO export, and CrateDeck's checks are role-aware:
+gig-stick checks (pdb parity, grids, player-compat, mirror) are omitted
+on shelf-role drives — space, junk, checksums, and verify still apply.
 
 Throughout this doc, **master** and **mirror** are your two drive volume
 names (defaults `DJMASTER`/`DJMIRROR`; every script takes them as arguments).

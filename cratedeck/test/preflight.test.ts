@@ -108,6 +108,53 @@ describe("preflight (B12)", () => {
     expect(r.blockers).toEqual([]);
   });
 
+  it("SHELF drives OMIT gig-stick checks: empty device tree + no players is correct, not failing", () => {
+    // the real Sep 10 complaint: the shelf reported "NO player can read
+    // this drive" + grids 0% + mirror-behind — treating archive storage
+    // as a gig stick. Archive tier omits those checks entirely.
+    const r = preflightForDrive(
+      input({
+        drive: drive({ name: "SHELF1", role: "shelf" }),
+        snapshot: snap({
+          pdb_live_rows: 0,
+          onelibrary_rows: 0,
+          grid_coverage: 0,
+        }),
+        players: {
+          ok: [],
+          blocked: [
+            { player: { name: "XDJ-XZ" } as never, reason: "no db" },
+            { player: { name: "CDJ-3000" } as never, reason: "no db" },
+          ],
+          unknown: false,
+        },
+        masterSnapshot: snap({ file_count: 4311 }),
+        latestVerify: { ran_at: NOW - DAY, ok: false },
+      }),
+    );
+    expect(byId(r, "players")).toBeUndefined();
+    expect(byId(r, "grids")).toBeUndefined();
+    expect(byId(r, "mirror")).toBeUndefined();
+    expect(byId(r, "verify")).toBeUndefined();
+    // archive-relevant checks still run
+    expect(byId(r, "space")?.status).toBe("pass");
+    expect(r.blockers).toEqual([]);
+  });
+
+  it("non-shelf drives keep every check (matrix is shelf-only)", () => {
+    // a master stick with the same bad data still fails loudly
+    const r = preflightForDrive(
+      input({
+        snapshot: snap({
+          pdb_live_rows: 0,
+          onelibrary_rows: 0,
+          grid_coverage: 0,
+        }),
+      }),
+    );
+    expect(byId(r, "grids")?.status).toBe("fail");
+  });
+
   it("failed verify is a blocker", () => {
     const r = preflightForDrive(
       input({ latestVerify: { ran_at: NOW - DAY, ok: false } }),

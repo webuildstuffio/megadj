@@ -50,6 +50,13 @@ function driveOverall(checks: HealthCheck[]): PreflightDriveResult["overall"] {
   return "unknown";
 }
 
+/** Role-aware check matrix (Sep 10): a shelf is ARCHIVE storage — the
+ *  master library lives there, sticks sync FROM it, players never read it.
+ *  Gig-stick concerns (players, grids, mirror parity, device-db verify)
+ *  are meaningless on a shelf and must be OMITTED, not failed. Archive
+ *  concerns (bitrot ledger, space, checksums) apply to every tier. */
+const SHELF_OMITTED = new Set(["players", "grids", "mirror", "verify"]);
+
 function spaceCheck(snap: SnapshotData | null): HealthCheck | null {
   if (snap?.free_bytes == null) return null;
   const cap = snap.capacity_bytes ?? 0;
@@ -255,7 +262,14 @@ function playersCheck(players: PreflightInput["players"]): HealthCheck | null {
  *  unknown — never a fake ready. */
 export function preflightForDrive(input: PreflightInput): PreflightDriveResult {
   const { snapshot: snap } = input;
-  const checks = [
+  // Archive-tier (shelf) drives skip gig-stick checks entirely — an empty
+  // device tree is their CORRECT state, and "NO player can read this"
+  // would fail them forever for being exactly what they are.
+  const omitted =
+    input.drive.role === "shelf"
+      ? SHELF_OMITTED
+      : /* no other tier omits checks */ undefined;
+  const raw = [
     dualDbCheck(snap, input.drive.role),
     gridsCheck(snap),
     verifyCheck(input.latestVerify, snap, input.now),
@@ -264,7 +278,10 @@ export function preflightForDrive(input: PreflightInput): PreflightDriveResult {
     spaceCheck(snap),
     mirrorCheck(snap, input.masterSnapshot),
     playersCheck(input.players),
-  ].filter((c): c is HealthCheck => c !== null);
+  ];
+  const checks = raw.filter(
+    (c): c is HealthCheck => c !== null && !(omitted?.has(c.id) ?? false),
+  );
 
   const blockers = checks
     .filter((c) => c.status === "fail")

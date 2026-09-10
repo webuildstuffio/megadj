@@ -53,13 +53,16 @@ markdown. rekordbox's master DB lives on the
 shelf (`PIONEER/Master/master.db`) — SHELF1 must be attached for
 rekordbox to open.
 
-**Archive tier ≠ gig tier (Sep 10):** the shelf's `PIONEER/rekordbox/`
-device tree is the migrated old stick's library (its device identity is
-`DJLIBRARYM`, count and all) — no player ever reads the shelf, so
-pdb/OneLibrary drift there is expected and harmless. Verify + preflight
-treat shelf-role drives accordingly (dual-db is an informational pass);
-the Drives tab marks the card "master library lives here · sticks sync
-from this". Parity is a gig-stick concern only.
+**Archive tier ≠ gig tier (Sep 10, role-aware checks):** the shelf is
+STORAGE — players never read it, so its empty `PIONEER/rekordbox/`
+device tree is the correct state and no device export is needed. The
+whole check stack is now role-aware: preflight, drive reports, and rail
+badges OMIT gig-stick concerns (player compatibility, beatgrid/ANLZ
+coverage, mirror parity, pdb parity) on shelf-role drives instead of
+failing them. A shelf card shows only archive-relevant checks (space,
+junk, checksums, verify) and reads "master library lives here · sticks
+sync from this". Verify is still real on the shelf — it audits audio
+files + archives — and a FAILED verify shows on every tier until re-run.
 
 ### 🎧 GetDat — download & archive — **core shipped, single-source**
 

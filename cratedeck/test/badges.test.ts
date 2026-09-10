@@ -35,6 +35,67 @@ describe("badges", () => {
     expect(b[0]?.key).toBe("ghost");
   });
 
+  it("SHELF: verify-failed beats archive-ready; no grids badge; no changed-since", () => {
+    // the Sep 10 complaint: the shelf card showed "changed since verify"
+    // + "grids 0%" — gig-stick badges on archive storage
+    const snap: SnapshotData = {
+      kind: "light",
+      taken_at: 1,
+      file_count: 3550,
+      grid_coverage: 0,
+      db_mtime: 10_000, // changed long after verify
+      pdb_mtime: 10_000,
+    };
+    const b = driveBadges(
+      drive({
+        role: "shelf",
+        name: "SHELF1",
+        last_snapshot_json: JSON.stringify(snap),
+      }),
+      { latestVerify: { ran_at: 5_000, ok: false } },
+    );
+    expect(b.some((x) => x.key === "attn" && x.label === "verify failed")).toBe(
+      true,
+    );
+    expect(b.some((x) => x.label === "changed since verify")).toBe(false);
+    expect(b.some((x) => x.label.startsWith("grids"))).toBe(false);
+  });
+
+  it("SHELF: passing verify reads archive-ready regardless of db churn", () => {
+    const snap: SnapshotData = {
+      kind: "light",
+      taken_at: 1,
+      file_count: 3550,
+      db_mtime: 10_000,
+      pdb_mtime: 0,
+    };
+    const b = driveBadges(
+      drive({
+        role: "shelf",
+        name: "SHELF1",
+        last_snapshot_json: JSON.stringify(snap),
+      }),
+      { latestVerify: { ran_at: 5_000, ok: true } },
+    );
+    expect(b.some((x) => x.label === "archive ready")).toBe(true);
+    expect(b.some((x) => x.label === "changed since verify")).toBe(false);
+  });
+
+  it("gig sticks keep changed-since + grids badges (matrix is shelf-only)", () => {
+    const snap: SnapshotData = {
+      kind: "light",
+      taken_at: 1,
+      file_count: 3500,
+      grid_coverage: 0.9,
+      db_mtime: 10_000,
+    };
+    const b = driveBadges(drive({ last_snapshot_json: JSON.stringify(snap) }), {
+      latestVerify: { ran_at: 5_000, ok: true },
+    });
+    expect(b.some((x) => x.label === "changed since verify")).toBe(true);
+    expect(b.some((x) => x.label === "grids 90%")).toBe(true);
+  });
+
   it("attn on junk in latest scan", () => {
     const snap: SnapshotData = {
       kind: "light",

@@ -75,18 +75,25 @@ export function driveBadges(
   }
 
   // hardware-gate freshness: verified after last library change
+  // Archive tier (shelf): device-DB churn is player-side noise — the
+  // archive verdict is verify-FAILED vs verified, never "changed since".
+  // Grid coverage is a player-facing ANLZ concern; no player reads the
+  // shelf, so the grids badge is omitted there too (Sep 10 role matrix).
+  const shelfTier = drive.role === "shelf";
   const changedAt = Math.max(snap?.db_mtime ?? 0, snap?.pdb_mtime ?? 0);
   if (opts.latestVerify) {
-    if (changedAt > opts.latestVerify.ran_at) {
+    if (!opts.latestVerify.ok) {
+      badges.push({ key: "attn", label: "verify failed", tone: "bad" });
+    } else if (shelfTier) {
+      badges.push({ key: "ready", label: "archive ready", tone: "good" });
+    } else if (changedAt > opts.latestVerify.ran_at) {
       badges.push({
         key: "stale",
         label: "changed since verify",
         tone: "warn",
       });
-    } else if (opts.latestVerify.ok) {
-      badges.push({ key: "ready", label: "ready", tone: "good" });
     } else {
-      badges.push({ key: "attn", label: "verify failed", tone: "bad" });
+      badges.push({ key: "ready", label: "ready", tone: "good" });
     }
   } else if (snap) {
     badges.push({ key: "unknown", label: "never verified", tone: "warn" });
@@ -94,8 +101,12 @@ export function driveBadges(
     badges.push({ key: "scanning", label: "no data yet", tone: "info" });
   }
 
-  // grid coverage flag
-  if (snap?.grid_coverage !== undefined && snap.grid_coverage < 1) {
+  // grid coverage flag (gig tier only)
+  if (
+    !shelfTier &&
+    snap?.grid_coverage !== undefined &&
+    snap.grid_coverage < 1
+  ) {
     badges.push({
       key: "stale",
       label: `grids ${Math.round(snap.grid_coverage * 100)}%`,

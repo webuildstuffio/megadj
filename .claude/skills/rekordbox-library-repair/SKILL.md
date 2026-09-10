@@ -63,17 +63,22 @@ Rows with no live match are reported, never touched.
 3. Quit rekordbox. `megadj rb-fix-paths <mount> --apply --yes`.
 4. Reopen rekordbox → Missing File Manager. Expect only truly-dead rows
    (files you deleted on purpose). Select → Delete from Library.
-5. **File → Export → <drive>** — this rebuilds `export.pdb` and clears
-   the OneLibrary ↔ pdb drift. Verify in app: File → Library size should
+5. **File → Export → <drive>** — GIG STICKS ONLY. This rebuilds
+   `export.pdb` for hardware players. On a SHELF drive it is NOT needed:
+   no player reads the shelf, the empty device tree is the shelf's
+   correct state, and CrateDeck's checks are role-aware (player-facing
+   checks are omitted for shelf-role drives — Sep 10).
+   Verify in app: File → Library size should
    match the DB row count.
-   **Nuclear option (proven Sep 10):** if the drive's device tree is a
+   **Nuclear option (proven Sep 10):** if a drive's device tree is a
    half-migrated ghost (mangled identity, wrong-era counts), quit
    rekordbox, back up the master DB, move `PIONEER/rekordbox/` to a
    quarantine dir at the DRIVE ROOT (never inside `Contents/`), sweep
    `._*` strays, reopen rekordbox and Export — it lays down a FRESH
    device library from the current master. Keep `USBANLZ/` + `Artwork/`:
    they are hash-keyed caches a fresh export reuses, saving hours of
-   re-analysis.
+   re-analysis. (On a shelf this export is optional — the master DB is
+   what matters, and it stays put.)
 6. Analyze any un-analyzed tracks (verify's `anlz` check counts them).
 7. `deckctl run <drive> verify` → all green (shelf drives: dual-db shows
    the informational archive-tier note). Then `deckctl run <drive>
