@@ -47,11 +47,7 @@ check` && `bun test` before every push. Type coverage is a hard 100%
   stale tool/verb counts in README/deckctl.md). Rule: derive from the
   producer (`shared/types.ts` re-export, `KIND_DOCS` import, census test),
   and keep UI payload shapes, help text, and tool counts generated from
-  their SSOT modules. Census tests must DERIVE expected strings from
-  source and assert exact equality — a `>= N` floor plus hardcoded
-  strings passed while 9 files carried stale counts (root-fixed in
-  `cratedeck/test/surface-parity.test.ts`; mutation-verify by reverting
-  one count and watching the census fail).
+  their SSOT modules.
 - **Pre-commit hooks BLOCK, and their failure output can be truncated.**
   Repo hook tuning lives in `.shell-config-hooks.conf` (per-file 800-line
   cap, block-at-100%). Sanctioned bypass for a legitimately huge commit:
@@ -102,16 +98,7 @@ NFC+casefold name matching, MD5-verified copies, divergent same-name rips
 preserved as `<name> [<volume>]` twins (never overwrite — the shelf's
 rekordbox DB references its own files), `--trashes --into F` for trash
 rescue, `--deep` to MD5 same-size pairs (one stick had 291 same-size
-different-bytes files — size alone is NOT coverage). Sibling verbs:
-`shelf-sync`, `shelf-dedupe` (byte-MD5 first, then acoustic-fingerprint
-ladder; fingerprint-identical quality upgrades swap content in at the
-canonical path; different fingerprint = keep-both), `shelf-dupescan`
-(`--quarantine --yes` two-step apply), `shelf-sweeps`. Quarantine and
-staging dirs live at SHELF ROOT, never inside `Contents/` — auto-relocate
-scans `Contents/` and will chase quarantined files. fskit exFAT also
-loses files on whole-directory `shutil.move` across dirs (an empty dir
-arrived; 8 MD5-verified files gone) — per-file moves with destination
-MD5 re-verify only. Coverage rules:
+different-bytes files — size alone is NOT coverage). Coverage rules:
 `PIONEER/` (device DBs) is never walked; `PIONEER REC/` is. Process +
 verification loop: `.claude/skills/shelf-intake/SKILL.md`; every sweep
 auto-records a verdict row in the archive DB (`shelf_sweeps` — query with
@@ -167,51 +154,17 @@ human logs suppressed, exit code still meaningful.
   right-click is greyed in playlist/device views — the one-by-one trap).
   The legacy `YTMusic Liked` dump folder overlaps the artist folders
   (588 files; ~38% dupes) — dedupe is fingerprint-verified + move-to-
-  archive only, never delete without explicit OK. Auto-relocate RENUMBERS
-  and scatters dump files into artist dirs, so "dead row" lists built on
-  exact-numbering matching produce false kills — hunt renumbered/scattered
-  twins before declaring anything gone (real mixes were rescued that way).
-- **Prove which master DB you're touching.** The running app holds the
-  shelf DB — `lsof -p <rekordbox pid>` shows
-  `/Volumes/SHELF1/PIONEER/Master/master.db`; `~/Library/Pioneer/rekordbox/
-  master.db` is a stale pre-migration local copy. pyrekordbox
-  `Rekordbox6Database()` with NO args opens whatever its own config points
-  at — always pass the path positionally and confirm `db.session.bind.url`
-  before any UPDATE; never write while rekordbox runs (it holds a live
-  WAL, and pyrekordbox will warn).
-- **After ANY DB path rewrite, verify EVERY row's file exists on disk —
-  never just rows matching a prefix pattern.** A prefix-scoped post-check
-  hid 351 broken rewrites and produced two false "done" reports (Sep 10)
-  — that cost the user's trust; the final whole-table existence check
-  left only the rows genuinely gone from disk.
-- **Missing File Manager builds its list ONCE when opened** — stale after
-  out-of-band DB edits, so a landed fix looks like a no-op until the
-  dialog (or rekordbox) is reopened. Auto Relocate matches stale stored
-  paths first — a slow full-volume walk per unresolved row on exFAT (the
-  6-hour relocate) — while manual browse matches by filename anywhere and
-  is fast. Measure before blaming bandwidth: `/bin/dd` read SHELF1 at
-  62 MB/s (USB3-class; Homebrew `dd` is shim-blocked) — the slowness was
-  per-track scans plus a bad/USB-2.0 port, fixed by the user's port swap.
-- **Shelf-tier drives: pdb/OneLibrary parity is informational, never a
-  gate (Sep 10).** The shelf hosts the master library itself; its
-  `PIONEER/rekordbox/` device tree is the migrated old stick's library
-  (identity `DJLIBRARYM`, 3,926 rows) and NO player ever reads the shelf.
-  verify + preflight treat shelf-role drives accordingly (`--shelf-drives`
-  in usb_verify.py; role-aware dual-db in preflight.ts/verify_report.ts);
-  the Drives tab marks the card "master library lives here · sticks sync
-  from this". Parity is a GIG-STICK concern only.
-- **rekordbox "Synchronize" on the shelf's device entry is a decoy** —
-  it DID write (OneLibrary 3,053→3,926 = the legacy tree's count), which
-  looks wrong but is the tree reconciling to its old-stick identity. The
-  tree view's 3,053 was the true master count all along. Before chasing
-  any count, ask which DB/tree the number comes FROM.
-- **`megadj rb-fix-paths [drive]` is the reusable path-repair tool** —
-  matching ladder (exact → NFC+casefold → unique basename → strip `-N`
-  copy suffixes → 20-char prefix → largest twin), dry-run by default,
-  `--apply --yes` backs the DB up first and refuses while rekordbox runs,
-  and post-applies it re-checks EVERY row (see the whole-table rule
-  above). Encodes the Sep 9/10 repair saga; flow:
-  `.claude/skills/rekordbox-library-repair/SKILL.md`.
+  archive only, never delete without explicit OK.
+- **Archive tier ≠ gig tier — the check matrix is role-aware (Sep 10).**
+  The shelf's EMPTY `PIONEER/rekordbox/` device tree is its CORRECT
+  state: players never read it, so no device export is ever needed and
+  "Synchronize" on the shelf's device entry is meaningless. Preflight
+  (`SHELF_OMITTED`), report checks, and rail badges all OMIT gig-stick
+  concerns (players, grids/ANLZ, mirror parity, pdb parity, changed-
+  since-verify) on shelf-role drives instead of failing them; space,
+  junk, checksums, and verify still apply (a FAILED verify shows on
+  every tier until re-run). Regression-tested in preflight/badges/
+  report tests. Never "fix" a shelf card by exporting to it.
 
 ## CrateDeck invariants (all regression-tested — re-read before touching)
 
@@ -346,14 +299,6 @@ Architecture + wire-shape rules:
   never in tags, until a gate passes.
 - The audit gate requires mood + energy (`COMPLETENESS_FIELDS`); idempotent
   re-runs are no-ops.
-- Booth fleet gates live here as data: `fleet.ts` holds per-player hardware
-  profiles WITH citations (selected via `[booth].fleet` in config.toml /
-  `MEGADJ_FLEET`; default on = XDJ-XZ + CDJ-3000 + 2000NXS2, plain 2000
-  off), `player-compat.ts` floors codec/sample-rate to the selected fleet,
-  `booth-text.ts` flags emoji/tofu text, double-encoded mojibake, and
-  export-killing path chars. `megadj audit` enforces both gates;
-  `megadj booth-fix [--apply --yes]` proposes/applies fixes (dry by
-  default). Reusable workflow: `.claude/skills/booth-check/SKILL.md`.
 
 ## Process
 
@@ -390,13 +335,6 @@ Architecture + wire-shape rules:
   user's `bun` shell shim — the shim chokes on empty-string args
   (`_bp_set: bad array subscript`), a local env artifact that once faked 2
   test failures.
-- The local `uv` shim intercepts bare `python3` — `python3 -c` prints uv
-  usage instead of running the code — so one-liners need `/usr/bin/python3`
-  (or `uv run`).
-- "Do it yourself fully" = execute hands-on (no delegating hands-on file
-  ops to subagents), and when a fix fails say so plainly and root-cause
-  before re-reporting — false "done" reports read to the user as
-  "nothing you're doing is working".
 - Tests that exercise a command's sticky-exit path must reset
   `process.exitCode` after the assertion — bun test reports the PROCESS
   exit code, so leaving `exitCode = 1` set (shelf-archive's no-shelf
