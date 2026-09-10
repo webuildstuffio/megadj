@@ -69,6 +69,10 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj shelf-dupescan [--json]               fingerprint EVERY shelf audio file; group
                                                identical recordings regardless of filename
                                                or folder (cross-folder duplicate hunt)
+                                               [--quarantine --yes] moves group losers to
+                                               the shelf quarantine (never deletes)
+                                               [--only-identical] restricts quarantine to
+                                               byte-verified md5-equal copies
 
 cratedeck — the Crate: organize, sync & verify every DJ USB:
   megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)
@@ -356,8 +360,11 @@ async function main(): Promise<void> {
       }
       case "shelf-dupescan": {
         const json = rest.includes("--json");
+        const quarantine = rest.includes("--quarantine");
+        const yes = rest.includes("--yes");
+        const onlyIdentical = rest.includes("--only-identical");
         const { shelfDupescan } = await import("./commands/shelf-dupescan");
-        await shelfDupescan({ json });
+        await shelfDupescan({ json, quarantine, yes, onlyIdentical });
         break;
       }
       case "shelf-sweeps": {
