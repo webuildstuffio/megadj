@@ -15,13 +15,24 @@
  */
 import { Database } from "bun:sqlite";
 import { basename, join } from "node:path";
-import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
+import { statSync } from "node:fs";
 import {
   walkAudioFiles,
   fingerprintFile,
   nameSimilarityTokens,
 } from "../../fulltags/src/exports";
 import { commandLog } from "../progress";
+import {
+  DupFpCache,
+  groupByFingerprint,
+  type DupGroup as DupeGroup,
+} from "./dupescan_shared";
+import { applyArchiveGroups } from "./dedupe_archive_apply";
+
+// DupeGroup is the shared dupescan group shape (dupescan_shared.ts, the
+// leaf both this command and its apply stage import) — re-exported so
+// existing `from "./dedupe-archive"` sites hold.
+export type { DupGroup as DupeGroup } from "./dupescan_shared";
 
 export interface DedupeArchiveOptions {
   musicDir: string;
@@ -32,13 +43,6 @@ export interface DedupeArchiveOptions {
   yes?: boolean;
   json?: boolean;
   log?: (m: string) => void;
-}
-
-export interface DupeGroup {
-  fingerprint: string;
-  files: Array<{ path: string; bytes: number }>;
-  keep: string;
-  reason: string;
 }
 
 export interface DedupeArchiveResult {
@@ -53,19 +57,10 @@ export interface DedupeArchiveResult {
   applied: boolean;
 }
 
-import { DupFpCache, groupByFingerprint } from "./dupescan_shared";
-
 class FpCache extends DupFpCache {
   constructor(db: Database) {
     super(db, "file_archive_fingerprints");
   }
-}
-
-function md5sum(path: string): string | null {
-  const r = Bun.spawnSync(["md5", "-q", path]);
-  if (r.exitCode !== 0) return null;
-  const h = r.stdout.toString().trim();
-  return h.length > 0 ? h : null;
 }
 
 export async function dedupeArchive(
@@ -155,57 +150,19 @@ export async function dedupeArchive(
   }
 
   // ---- apply stage (only with --apply --yes) ------------------------------
+  // Safety rules live in dedupe_archive_apply.ts: md5 re-verify at apply
+  // time, name-similarity review gate, quarantine-never-delete.
   const applied = opts.apply === true && opts.yes === true;
   if (opts.apply && !opts.yes) {
     log("--apply requires --yes (two-step safety — nothing moved)");
   }
   if (applied) {
-    const qDir = join(opts.musicDir, ".dupescan-quarantine");
-    mkdirSync(qDir, { recursive: true });
-    for (const g of res.groups) {
-      const keeper = g.files[0]!;
-      const keeperMd5 = md5sum(keeper.path);
-      for (const loser of g.files.slice(1)) {
-        if (!existsSync(loser.path)) continue;
-        if (loser.bytes === keeper.bytes) {
-          // same fp + same size: require byte-equality before moving
-          const lm = md5sum(loser.path);
-          if (keeperMd5 && lm !== keeperMd5) {
-            res.errors.push(
-              `md5 mismatch inside same-size group: ${loser.path}`,
-            );
-            res.skippedForReview++;
-            continue;
-          }
-        } else {
-          // different size + fp-equal: only move when names agree (a real
-          // re-rip); dissimilar names = possible collision → review
-          const ratio = nameSimilarityTokens(
-            basename(loser.path),
-            basename(keeper.path),
-          );
-          if (ratio < 0.5) {
-            res.skippedForReview++;
-            continue;
-          }
-        }
-        const dest = join(qDir, basename(loser.path));
-        if (existsSync(dest)) {
-          res.errors.push(`quarantine name collision: ${loser.path}`);
-          res.skippedForReview++;
-          continue;
-        }
-        try {
-          renameSync(loser.path, dest);
-          res.quarantined++;
-          log(`  → quarantined: ${basename(loser.path)}`);
-        } catch (e) {
-          res.errors.push(
-            `move failed: ${loser.path} (${e instanceof Error ? e.message : e})`,
-          );
-        }
-      }
-    }
+    applyArchiveGroups(
+      res.groups,
+      join(opts.musicDir, ".dupescan-quarantine"),
+      res,
+      log,
+    );
   }
   res.applied = applied;
   db.close();

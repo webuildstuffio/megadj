@@ -15,19 +15,14 @@
  *     registered in the state DB so `organize` / USB sync pick them up.
  */
 
-import { $ } from "bun";
 import { createHash } from "node:crypto";
-import { stat, copyFile, mkdir, rename } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import { join, basename, extname } from "node:path";
 import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
 import type { ArchiveState, TrackRow } from "../state";
 import { commandLog } from "../progress";
-import {
-  applyTags,
-  inferGenre,
-  sanitizeGenreFolder,
-} from "../../fulltags/src/exports";
+import { applyTags, inferGenre } from "../../fulltags/src/exports";
 import {
   expandZips,
   deleteFullyIngestedZips,
@@ -78,19 +73,12 @@ export interface IngestOptions {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export interface IngestCounters {
-  tagged: number;
-  artAdded: number;
-  artQueued: number;
-  artSkippedWav: number;
-  shortSkipped: number;
-  unchanged: number;
-  wavConverted: number;
-  /** Fleet-incompatible files refused at the gate (left in place). */
-  compatRejected: number;
-  /** Files that ingest but will NOT load on XDJ-XZ / CDJ-2000 (hi-res). */
-  compatHires: number;
-}
+// IngestCounters is DEFINED in ingest_register.ts (the leaf seam shared
+// with the landing helpers — a split-out module must never import its
+// parent's types back: madge counts a type-only back-edge as a cycle).
+// Re-exported so existing `from "./ingest"` sites hold.
+export type { IngestCounters } from "./ingest_register";
+import type { IngestCounters } from "./ingest_register";
 
 function newCounters(): IngestCounters {
   return {
@@ -380,130 +368,12 @@ interface RegisterArgs {
   remixOf: ReturnType<typeof detectRemix>;
 }
 
-/** Copy the file into the music dir (unless already there) and return the
- *  final archive path. Sources are moved (not copied) once the copy into
- *  the archive succeeds, so Downloads doesn't fill with duplicate copies. */
-async function copyIntoArchive(
-  opts: IngestOptions,
-  rec: Record_,
-  a: RegisterArgs,
-  destPath: string,
-  inArchive: boolean,
-  batchDir: string | null,
-): Promise<string> {
-  if (inArchive) return a.file;
-  if (destPath === a.file) return destPath;
-  await mkdir(batchDir ?? opts.musicDir, { recursive: true });
-  let finalDest = destPath;
-  try {
-    const destStat = await stat(destPath);
-    if (destStat.size !== rec.size) {
-      // Different bytes under the same name: disambiguate INSIDE the batch
-      // folder (a flat-musicDir fallback would mix batches again).
-      const fallbackDir = batchDir ?? opts.musicDir;
-      finalDest = join(
-        fallbackDir,
-        basename(a.file).replace(/(\.[^.]+)$/, " (ingest)$1"),
-      );
-    }
-  } catch {
-    /* dest missing — normal path */
-  }
-  await copyFile(a.file, finalDest);
-  // success: remove the source so nothing is left duplicated
-  try {
-    await rename(a.file, `${a.file}.ingested`);
-    await $`rm -f ${`${a.file}.ingested`}`.quiet().nothrow();
-  } catch {
-    /* keep source if we can't even mark it — copy already succeeded */
-  }
-  return finalDest;
-}
-
-/** Artwork queue fallback: when nothing could be fetched (bootlegs/
- *  edits rarely exist on iTunes), persist a queue entry so an agent
- *  can generate cover art later via the image-maker CLI (square,
- *  nano-banana-2, ~$0.03-0.07/img). Written to
- *  ~/.local/state/megadj/artwork-queue.jsonl (one JSON per line). */
-function queueArtworkFallback(
-  opts: IngestOptions,
-  rec: Record_,
-  a: RegisterArgs,
-  extId: string,
-  destPath: string,
-  counters: IngestCounters,
-): void {
-  if (a.probe.hasArt || opts.noArtwork) return;
-  if (a.art.skipped) {
-    // format can't hold art — nothing to queue
-  } else if (a.queuedIdentity.has(rec.identity)) {
-    // already in queue from an earlier run/file
-  } else if (a.art.failedUrl) {
-    // artwork found but embedding failed — try again next run
-    a.queuedIdentity.add(rec.identity);
-    a.queueEntries.push({
-      path: destPath,
-      title: a.title,
-      artist: a.artist,
-      album: a.album,
-      reason: "embed-failed",
-      sourceUrl: a.art.failedUrl,
-    });
-    opts.state.updateArtworkStatus(extId, "queued");
-    counters.artQueued++;
-  } else if (a.art.queued || !a.art.source) {
-    a.queuedIdentity.add(rec.identity);
-    a.queueEntries.push({
-      path: destPath,
-      title: a.title,
-      artist: a.artist,
-      album: a.album,
-      reason: "no-source-found",
-      remixOf: a.remixOf?.original ?? null,
-    });
-    opts.state.updateArtworkStatus(extId, "queued");
-    counters.artQueued++;
-  }
-}
-
-/** Register in the DB + move into the music dir (unless already there). */
-async function registerAndMove(
-  opts: IngestOptions,
-  rec: Record_,
-  a: RegisterArgs,
-  counters: IngestCounters,
-  batchDir: string | null,
-): Promise<void> {
-  const extId = `ext-${createHash("sha1").update(a.file).digest("hex").slice(0, 12)}`;
-  // New layout: each ingest batch lands in its own subfolder
-  // (`<archive>/<batch>` — see intake-folder.ts) so dumps never mix.
-  // `inArchive` files (re-ingest of an archive member) keep their path.
-  let destPath =
-    batchDir && !a.file.startsWith(batchDir + "/")
-      ? join(batchDir, basename(a.file))
-      : join(opts.musicDir, basename(a.file));
-  // Membership needs the separator: "/X/DJ-Imports-old/f" must NOT count
-  // as inside "/X/DJ-Imports" (bare startsWith treats siblings as members
-  // and then skips the copy).
-  const inArchive =
-    a.file === opts.musicDir || a.file.startsWith(opts.musicDir + "/");
-  destPath = await copyIntoArchive(opts, rec, a, destPath, inArchive, batchDir);
-  opts.state.upsertTrackFromPlaylist(extId, 0, a.title, "ingest");
-  opts.state.markDownloaded(extId, {
-    title: a.title,
-    artist: a.artist,
-    album: a.album,
-    genre: sanitizeGenreFolder(a.genre),
-    formatId: null,
-    bitrateKbps: a.probe.bitrateKbps,
-    codec: a.probe.codec,
-    filePath: destPath,
-    fileSizeBytes: rec.size,
-    durationS: a.probe.durationS,
-    energy: a.energy,
-  });
-  queueArtworkFallback(opts, rec, a, extId, destPath, counters);
-}
+// copyIntoArchive / queueArtworkFallback / registerAndMove (the archive-
+// landing half of Phase D) live in ingest_register.ts with narrow param
+// types — this module never imported back keeps madge at zero cycles.
+export { registerAndMove } from "./ingest_register";
+import { registerAndMove } from "./ingest_register";
+export type { RegisterArgs };
 
 /** Phase D per-track work: tag + artwork + register + move into the archive. */
 async function ingestOne(
