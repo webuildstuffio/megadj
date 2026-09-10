@@ -6,6 +6,7 @@
 // One file, zero behavior: pure data + tiny lookup helpers. Every string is
 // a DJ-facing sentence, not doc-speak — the rule of thumb a person repeats
 // in the booth.
+import { TIER_EXPLANATION } from "./check_matrix";
 
 /** One glossary term: what it IS, and why a DJ should care. */
 export interface HelpTerm {
@@ -385,14 +386,15 @@ export const VERDICT_HELP: Record<string, string> = {
     "Not enough data to say anything. Run a Scan (and then Verify) to get a real verdict — unknown never fakes healthy.",
 };
 
-/** What each drive role means (drive page chip + rail cards). */
+/** What each drive role means (drive page chip + rail cards). The shelf
+ *  entry is DERIVED from the check-matrix SSOT's tier explanation so the
+ *  tooltip, the drive-page banner and the enforcement code can't drift. */
 export const ROLE_HELP: Record<string, string> = {
   master:
     "Master: the gig stick that new music lands on; mirrors are measured against it.",
   mirror:
     "Mirror: a deliberate second copy of the master. Parity checks keep it interchangeable.",
-  shelf:
-    "Shelf: the archive-grade master master (big HDD). rekordbox's master library lives HERE; gig sticks sync FROM it; players never read it, so player-facing checks (pdb parity, grids, mirror, player-compat) don't apply.",
+  shelf: `Shelf: the archive-grade master master (big HDD). ${TIER_EXPLANATION.archive}`,
   library:
     "Library: a real drive with its own music — not part of a master/mirror pair.",
   unknown:

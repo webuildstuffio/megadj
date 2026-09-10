@@ -1,5 +1,6 @@
 // Badge rules — single source computed server-side, rendered client-side.
 import type { Badge, Drive, SnapshotData } from "./types";
+import { checkApplies, driveTier } from "./check_matrix";
 
 /** The failure hierarchy. Cards rank badges by this order (server sorts, the
  *  web just renders), so the worst truths always surface first and the rail
@@ -74,17 +75,17 @@ export function driveBadges(
     if (bad) badges.push({ key: "attn", label: "attention", tone: "bad" });
   }
 
-  // hardware-gate freshness: verified after last library change
-  // Archive tier (shelf): device-DB churn is player-side noise — the
-  // archive verdict is verify-FAILED vs verified, never "changed since".
-  // Grid coverage is a player-facing ANLZ concern; no player reads the
-  // shelf, so the grids badge is omitted there too (Sep 10 role matrix).
-  const shelfTier = drive.role === "shelf";
+  // hardware-gate freshness. Tier semantics (shared/check_matrix.ts):
+  // "changed since verify" freshness is a GIG-tier signal — a shelf's
+  // device-DB mtimes churn for player-side reasons that don't touch the
+  // audio archive. On the archive tier the honest verdicts are binary:
+  // verify FAILED (bad) or verified (archive ready).
+  const isArchive = driveTier(drive.role) === "archive";
   const changedAt = Math.max(snap?.db_mtime ?? 0, snap?.pdb_mtime ?? 0);
   if (opts.latestVerify) {
     if (!opts.latestVerify.ok) {
       badges.push({ key: "attn", label: "verify failed", tone: "bad" });
-    } else if (shelfTier) {
+    } else if (isArchive) {
       badges.push({ key: "ready", label: "archive ready", tone: "good" });
     } else if (changedAt > opts.latestVerify.ran_at) {
       badges.push({
@@ -101,9 +102,9 @@ export function driveBadges(
     badges.push({ key: "scanning", label: "no data yet", tone: "info" });
   }
 
-  // grid coverage flag (gig tier only)
+  // grid coverage flag (gig tier only — role matrix)
   if (
-    !shelfTier &&
+    checkApplies("grids", drive.role) &&
     snap?.grid_coverage !== undefined &&
     snap.grid_coverage < 1
   ) {

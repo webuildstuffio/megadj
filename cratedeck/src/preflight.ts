@@ -12,6 +12,7 @@ import type {
   PreflightReport,
   SnapshotData,
 } from "../shared/types";
+import { checkApplies, type CheckId } from "../shared/check_matrix";
 import { fmtBytes } from "../shared/fmt";
 import { firmwareAdvisories, type PlayerSpec } from "./players";
 
@@ -50,12 +51,21 @@ function driveOverall(checks: HealthCheck[]): PreflightDriveResult["overall"] {
   return "unknown";
 }
 
-/** Role-aware check matrix (Sep 10): a shelf is ARCHIVE storage — the
- *  master library lives there, sticks sync FROM it, players never read it.
- *  Gig-stick concerns (players, grids, mirror parity, device-db verify)
- *  are meaningless on a shelf and must be OMITTED, not failed. Archive
- *  concerns (bitrot ledger, space, checksums) apply to every tier. */
-const SHELF_OMITTED = new Set(["players", "grids", "mirror", "verify"]);
+/** Role-aware check matrix (Sep 10, SSOT in shared/check_matrix.ts): a
+ *  shelf is ARCHIVE storage — the master library lives there, sticks sync
+ *  FROM it, players never read it. Gig-stick concerns are OMITTED there,
+ *  never failed. THIS module just declares which preflight check id each
+ *  builder emits so the filter can consult the matrix. */
+const BUILDER_ID = {
+  dualDb: "dual-db",
+  grids: "grids",
+  verify: "verify",
+  bench: "speed",
+  bitrot: "bitrot",
+  space: "space",
+  mirror: "mirror",
+  players: "players",
+} as const satisfies Record<string, CheckId>;
 
 function spaceCheck(snap: SnapshotData | null): HealthCheck | null {
   if (snap?.free_bytes == null) return null;
@@ -79,22 +89,36 @@ function verifyCheck(
   latestVerify: PreflightInput["latestVerify"],
   snap: SnapshotData | null,
   now: number,
+  role: PreflightInput["drive"]["role"],
 ): HealthCheck | null {
   if (!latestVerify) return null;
   const ageDays = (now - latestVerify.ran_at) / DAY;
   const changedSince = snap
     ? Math.max(snap.db_mtime ?? 0, snap.pdb_mtime ?? 0) > latestVerify.ran_at
     : false;
-  if (!latestVerify.ok || changedSince || ageDays > 7) {
+  // Tier semantics (shared/check_matrix.ts): verify applies to EVERY tier
+  // — a failed verify is a real integrity fact. Only the freshness
+  // sub-verdict is gig-specific: a shelf's device-DB mtimes churn for
+  // player-side reasons that don't touch the audio archive, so "changed
+  // since verify" would warn forever on correct state.
+  const archive = role === "shelf";
+  if (!latestVerify.ok) {
     return {
       id: "verify",
       label: "Last verify",
-      status: !latestVerify.ok ? "fail" : "warn",
-      detail: !latestVerify.ok
-        ? `last verify FAILED (${Math.round(ageDays)}d ago)`
-        : changedSince
-          ? "library changed since the last verify"
-          : `verified ${Math.round(ageDays)}d ago (weekly schedule)`,
+      status: "fail",
+      detail: `last verify FAILED (${Math.round(ageDays)}d ago)`,
+      fix: "Run Verify",
+    };
+  }
+  if (!archive && (changedSince || ageDays > 7)) {
+    return {
+      id: "verify",
+      label: "Last verify",
+      status: "warn",
+      detail: changedSince
+        ? "library changed since the last verify"
+        : `verified ${Math.round(ageDays)}d ago (weekly schedule)`,
       fix: "Run Verify before the gig (or wait for the weekly auto-run)",
     };
   }
@@ -262,26 +286,30 @@ function playersCheck(players: PreflightInput["players"]): HealthCheck | null {
  *  unknown — never a fake ready. */
 export function preflightForDrive(input: PreflightInput): PreflightDriveResult {
   const { snapshot: snap } = input;
-  // Archive-tier (shelf) drives skip gig-stick checks entirely — an empty
-  // device tree is their CORRECT state, and "NO player can read this"
-  // would fail them forever for being exactly what they are.
-  const omitted =
-    input.drive.role === "shelf"
-      ? SHELF_OMITTED
-      : /* no other tier omits checks */ undefined;
-  const raw = [
-    dualDbCheck(snap, input.drive.role),
-    gridsCheck(snap),
-    verifyCheck(input.latestVerify, snap, input.now),
-    benchCheck(input.bench),
-    bitrotCheck(input.ledgerFiles, input.latestChecksum),
-    spaceCheck(snap),
-    mirrorCheck(snap, input.masterSnapshot),
-    playersCheck(input.players),
-  ];
-  const checks = raw.filter(
-    (c): c is HealthCheck => c !== null && !(omitted?.has(c.id) ?? false),
-  );
+  const role = input.drive.role;
+  // The role matrix (shared/check_matrix.ts) decides applicability: a
+  // builder may still RUN (cheap), but its row is dropped when the check
+  // doesn't apply to this drive's tier — omitted ≠ failed.
+  const builders = [
+    { key: "dualDb", run: () => dualDbCheck(snap, role) },
+    { key: "grids", run: () => gridsCheck(snap) },
+    {
+      key: "verify",
+      run: () => verifyCheck(input.latestVerify, snap, input.now, role),
+    },
+    { key: "bench", run: () => benchCheck(input.bench) },
+    {
+      key: "bitrot",
+      run: () => bitrotCheck(input.ledgerFiles, input.latestChecksum),
+    },
+    { key: "space", run: () => spaceCheck(snap) },
+    { key: "mirror", run: () => mirrorCheck(snap, input.masterSnapshot) },
+    { key: "players", run: () => playersCheck(input.players) },
+  ] as const;
+  const checks = builders
+    .filter((b) => checkApplies(BUILDER_ID[b.key], role))
+    .map((b) => b.run())
+    .filter((c): c is HealthCheck => c !== null);
 
   const blockers = checks
     .filter((c) => c.status === "fail")

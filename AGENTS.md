@@ -182,13 +182,19 @@ human logs suppressed, exit code still meaningful.
 - **Archive tier ≠ gig tier — the check matrix is role-aware (Sep 10).**
   The shelf's EMPTY `PIONEER/rekordbox/` device tree is its CORRECT
   state: players never read it, so no device export is ever needed and
-  "Synchronize" on the shelf's device entry is meaningless. Preflight
-  (`SHELF_OMITTED`), report checks, and rail badges all OMIT gig-stick
+  "Synchronize" on the shelf's device entry is meaningless. The matrix
+  lives ONCE in `cratedeck/shared/check_matrix.ts` (`CHECK_APPLIES`,
+  `checkApplies`, `TIER_EXPLANATION`) — preflight, report checks, rail
+  badges, and the drive-page banner all DERIVE from it; a local
+  `role === "shelf"` string check or a hand-copied omission set is a
+  regression (it happened: a refactor dropped the `driveRole` arg and
+  the `--shelf-drives` flag and shelf drives silently re-failed — the
+  derived census in `check-matrix.test.ts` catches it). Gig-stick
   concerns (players, grids/ANLZ, mirror parity, pdb parity, changed-
-  since-verify) on shelf-role drives instead of failing them; space,
-  junk, checksums, and verify still apply (a FAILED verify shows on
-  every tier until re-run). Regression-tested in preflight/badges/
-  report tests. Never "fix" a shelf card by exporting to it.
+  since-verify, speed floor) are OMITTED on shelf-role drives, never
+  failed; space, junk, checksums, artwork, and verify still apply (a
+  FAILED verify shows on every tier until re-run — only its freshness
+  sub-verdict is gig-tier). Never "fix" a shelf card by exporting to it.
 - **After ANY DB path rewrite, verify EVERY row's file exists on disk —
   never just rows matching a prefix pattern.** A prefix-scoped post-check
   hid 351 broken rewrites and produced two false "done" reports (Sep 10)

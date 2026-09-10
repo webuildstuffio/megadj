@@ -3,6 +3,7 @@
 // check and returns its row(s), or null when not applicable. Pure
 // functions: takes DB state + latest snapshot, returns verdicts. No I/O.
 import type { HealthCheck } from "../shared/types";
+import { checkApplies } from "../shared/check_matrix";
 import { fmtBytes, fmtPct } from "../shared/fmt";
 import type { ReportInput } from "./report_types";
 
@@ -26,21 +27,10 @@ export const BUILDERS: CheckBuilder[] = [
 
 // ---- hardware gate: OneLibrary vs legacy pdb rows -------------------------
 function dualDbCheck(input: ReportInput): HealthCheck[] {
+  // Role matrix (shared/check_matrix.ts): pdb parity is a gig-tier
+  // concern — OMITTED on archive storage, never rendered as a fake pass.
+  if (!checkApplies("dual-db", input.drive.role)) return [];
   const snap = input.snapshot;
-  // Archive tier: the master library lives on the shelf itself; the pdb is
-  // a vestigial copy of a migrated stick tree and NO player reads the
-  // shelf — parity is informational there, never a fail (Sep 10).
-  if (input.drive.role === "shelf") {
-    if (!snap) return [];
-    return [
-      {
-        id: "dual-db",
-        label: "Device DB sync (OneLibrary ↔ legacy pdb)",
-        status: "pass",
-        detail: `archive tier — master library lives here (${snap.onelibrary_rows ?? "?"} tracks); legacy pdb (${snap.pdb_live_rows ?? "?"}) is vestigial, not read by players`,
-      },
-    ];
-  }
   if (snap?.onelibrary_rows !== undefined && snap.pdb_live_rows !== undefined) {
     const match = snap.pdb_live_rows === snap.onelibrary_rows;
     return [
@@ -72,9 +62,8 @@ function dualDbCheck(input: ReportInput): HealthCheck[] {
 
 // ---- beatgrid coverage ------------------------------------------------------
 function gridCheck(input: ReportInput): HealthCheck | null {
-  // Archive tier: ANLZ coverage is a player-facing concern; the shelf is
-  // never read by players (Sep 10 role matrix).
-  if (input.drive.role === "shelf") return null;
+  // Role matrix: ANLZ coverage matters only where hardware plays the drive.
+  if (!checkApplies("grids", input.drive.role)) return null;
   const snap = input.snapshot;
   if (snap?.grid_coverage === undefined) return null;
   const pct = Math.round(snap.grid_coverage * 100);
@@ -107,11 +96,12 @@ function verifyCheck(input: ReportInput): HealthCheck {
   const changedSince = snap
     ? Math.max(snap.db_mtime ?? 0, snap.pdb_mtime ?? 0) > verify.ran_at
     : false;
-  // Archive tier: device-DB mtimes churn for player-facing reasons that
-  // don't affect the audio archive. Only a FAILED verify can fail a shelf;
-  // staleness warns instead of failing (Sep 10 role matrix).
-  const shelfTier = input.drive.role === "shelf";
-  if (shelfTier && verify.ok) {
+  // Tier semantics (shared/check_matrix.ts): verify applies to EVERY tier
+  // — a FAILED verify is a real integrity fact about the archive. Only
+  // the freshness sub-verdict is gig-specific: a shelf's device-DB mtimes
+  // churn for player-side reasons that don't touch the audio.
+  const archive = input.drive.role === "shelf";
+  if (archive && verify.ok) {
     return {
       id: "verify",
       label: "Data verification",
@@ -251,9 +241,9 @@ function artworkCheck(input: ReportInput): HealthCheck | null {
 
 // ---- mirror parity ---------------------------------------------------------------
 function mirrorCheck(input: ReportInput): HealthCheck | null {
-  // Archive tier is the TOP of the hierarchy — sticks mirror FROM it, so
-  // "behind the master" is inverted nonsense on a shelf (Sep 10).
-  if (!input.isMirror || input.drive.role === "shelf") return null;
+  // Role matrix: the archive IS the top of the hierarchy — sticks mirror
+  // FROM it, so "behind the master" is inverted nonsense there.
+  if (!input.isMirror || !checkApplies("mirror", input.drive.role)) return null;
   const snap = input.snapshot;
   const m = input.masterSnapshot;
   if (!m?.file_count || !snap?.file_count) {
@@ -280,6 +270,9 @@ function mirrorCheck(input: ReportInput): HealthCheck | null {
 
 // ---- benchmark --------------------------------------------------------------------
 function speedCheck(input: ReportInput): HealthCheck | null {
+  // Role matrix: the CDJ read-speed floor is a gig-night concern; nothing
+  // reads the archive live, so a slow shelf link is not a defect.
+  if (!checkApplies("speed", input.drive.role)) return null;
   if (!input.bench.length) return null;
   const last = input.bench.at(-1)!;
   return {

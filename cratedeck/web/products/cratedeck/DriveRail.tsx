@@ -12,6 +12,7 @@ import type {
   ReportSummary,
 } from "../../../shared/types";
 import { rankBadges } from "../../../shared/badges";
+import { TIER_EXPLANATION } from "../../../shared/check_matrix";
 import { fmtBytes, timeAgo } from "../../../shared/fmt";
 import { ROLE_HELP } from "../../../shared/help";
 import { Icon } from "../../ui/icons";
@@ -241,6 +242,11 @@ function RailCard(props: {
               {d.shelf_sweep.finished_at
                 ? ` · ${Math.floor(d.shelf_sweep.ageDays ?? 0)}d ago`
                 : " · running"}
+            </div>
+          )}
+          {d.role === "shelf" && d.mounted && (
+            <div class="sub shelfline" title={TIER_EXPLANATION.archive}>
+              master library lives here · sticks sync from this
             </div>
           )}
           {d.mounted && d.link_bps !== null && d.link_bps !== undefined && (

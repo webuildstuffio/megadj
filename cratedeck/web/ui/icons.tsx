@@ -46,6 +46,7 @@ import {
   ChevronDown,
   ChevronUp,
   Tag,
+  Database,
   CircleCheckBig,
   CircleAlert,
   CircleX,
@@ -93,6 +94,7 @@ const P: Record<string, FunctionalComponent<LucideProps>> = {
   chevD: ChevronDown,
   chevU: ChevronUp,
   tag: Tag,
+  database: Database,
   // circular verdict glyphs — the status language of the redesigned rail:
   // a check INSIDE a filled circle reads at any size, unlike a bare "!"
   circleCheck: CircleCheckBig,

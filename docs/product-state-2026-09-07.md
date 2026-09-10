@@ -56,13 +56,17 @@ rekordbox to open.
 **Archive tier ≠ gig tier (Sep 10, role-aware checks):** the shelf is
 STORAGE — players never read it, so its empty `PIONEER/rekordbox/`
 device tree is the correct state and no device export is needed. The
-whole check stack is now role-aware: preflight, drive reports, and rail
-badges OMIT gig-stick concerns (player compatibility, beatgrid/ANLZ
-coverage, mirror parity, pdb parity) on shelf-role drives instead of
-failing them. A shelf card shows only archive-relevant checks (space,
-junk, checksums, verify) and reads "master library lives here · sticks
-sync from this". Verify is still real on the shelf — it audits audio
-files + archives — and a FAILED verify shows on every tier until re-run.
+whole check stack derives from one typed table,
+`cratedeck/shared/check_matrix.ts` (`CHECK_APPLIES`): preflight, drive
+reports, rail badges, and the drive page's archive-tier banner OMIT
+gig-stick concerns (player compatibility, beatgrid/ANLZ coverage,
+mirror parity, pdb parity, read-speed floor) on shelf-role drives
+instead of failing them. A shelf card shows only archive-relevant
+checks (space, junk, checksums, verify) and reads "master library
+lives here · sticks sync from this". Verify is still real on the
+shelf — it audits audio files + archives — and a FAILED verify shows
+on every tier until re-run (only its freshness sub-verdict is
+gig-tier).
 
 ### 🎧 GetDat — download & archive — **core shipped, single-source**
 

@@ -340,6 +340,20 @@
 .note.fail {
   color: var(--bad);
 }
+/* archive-tier explainer (drive page banner): the shelf's accent is the
+   amber/warm tier — informational, not a warning and not an error */
+.note.arch {
+  color: var(--warn);
+  opacity: 0.95;
+  background: color-mix(in oklab, var(--warn) 7%, transparent);
+  border: 1px solid color-mix(in oklab, var(--warn) 22%, transparent);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.note.arch strong {
+  color: var(--warn);
+  font-weight: 650;
+}
 .note.warn {
   color: var(--warn);
 }

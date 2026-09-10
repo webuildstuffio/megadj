@@ -13,6 +13,7 @@ import type {
   VerifyReport,
 } from "../../../shared/types";
 import { errMessage, fmtBytes, timeAgo } from "../../../shared/fmt";
+import { TIER_EXPLANATION } from "../../../shared/check_matrix";
 import { ApiError, api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { navigate } from "../../app/router";
@@ -92,9 +93,7 @@ interface Detail {
   master_name: string;
 }
 
-/** Page load state: a machine where every branch is named. Replaces the old
- *  `{ drive: null } as unknown as Detail` sentinel — the Detail type no
- *  longer lies about its own shape. */
+/** Page load state: a machine where every branch is named. */
 type PageState =
   | { status: "loading" }
   | { status: "error"; message: string }
@@ -125,8 +124,8 @@ export function DrivePage(props: {
   const detailOrNull = page.status === "ok" ? page.detail : null;
   const loadError = page.status === "error" ? page.message : null;
   const locked = interlock.rekordbox_running;
-  // hygiene + fixes ride only the shelf master (§4.3) — the same condition
-  // the server uses for the drive-list badge, so the two can't disagree
+  // hygiene + fixes ride only the shelf master (§4.3) — same condition the
+  // server uses for the drive-list badge, so the two can't disagree
   const isShelf = detailOrNull?.drive.role === "shelf";
   const tabs = isShelf
     ? DRIVE_TABS
@@ -137,13 +136,9 @@ export function DrivePage(props: {
     try {
       const [d, r, t, b, sp, j, v] = await Promise.all([
         api<Detail>(`/api/drives/${enc}`, { quiet: true }),
-        api<DriveReport & { overall?: string }>(`/api/drives/${enc}/report`, {
-          quiet: true,
-        }),
+        api<DriveReport>(`/api/drives/${enc}/report`, { quiet: true }),
         api<TimelineEvent[]>(`/api/drives/${enc}/timeline`, { quiet: true }),
-        api<HealthTabBench[]>(`/api/drives/${enc}/benchmarks`, {
-          quiet: true,
-        }),
+        api<HealthTabBench[]>(`/api/drives/${enc}/benchmarks`, { quiet: true }),
         api<{ ran_at: number; mbps: number }[]>(
           `/api/drives/${enc}/speedprobes`,
           { quiet: true },
@@ -457,7 +452,6 @@ export function DrivePage(props: {
   };
   const failing = checks.filter((c) => c.status === "fail").length;
   const warning = checks.filter((c) => c.status === "warn").length;
-
   return (
     <div class="canvas">
       <button type="button" class="crumb" onClick={() => navigate(null)}>
@@ -485,9 +479,8 @@ export function DrivePage(props: {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     // empty draft + Enter = cancel, never "clear the name" —
-                    // wiping your drive's name with one stray keypress is a
-                    // trap; explicit clearing is a deliberate Save on empty
-                    // only when the drive already had a nickname
+                    // explicit clearing is a deliberate Save when a nickname
+                    // already exists
                     if (!nameDraft.trim()) setRenaming(false);
                     else rename(nameDraft.trim());
                   }
@@ -683,6 +676,12 @@ export function DrivePage(props: {
         <div class="note">
           <Icon name="history" size={14} /> Ghost view — data from the last
           scan. Plug it in to refresh.
+        </div>
+      )}
+      {detail.drive.role === "shelf" && (
+        <div class="note arch">
+          <Icon name="database" size={14} /> <strong>Archive tier</strong> —
+          storage, not a gig stick. {TIER_EXPLANATION.archive}
         </div>
       )}
 

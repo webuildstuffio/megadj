@@ -93,18 +93,16 @@ describe("preflight (B12)", () => {
     expect(r.blockers.some((b) => b.startsWith("Hardware library"))).toBe(true);
   });
 
-  it("dual-db mismatch on a SHELF drive is informational, never a blocker", () => {
-    // the shelf hosts the master library itself; the vestigial pdb is a copy
-    // of a migrated stick tree and no player reads the shelf
+  it("dual-db is OMITTED on a shelf (matrix), never rendered at all", () => {
+    // the shelf hosts the master library itself; pdb parity is a gig-stick
+    // concern — the matrix OMITS the check, it doesn't fake a pass
     const r = preflightForDrive(
       input({
         drive: drive({ name: "SHELF1", role: "shelf" }),
         snapshot: snap({ pdb_live_rows: 3926, onelibrary_rows: 3053 }),
       }),
     );
-    const c = byId(r, "dual-db");
-    expect(c?.status).toBe("pass");
-    expect(c?.detail).toContain("archive tier");
+    expect(byId(r, "dual-db")).toBeUndefined();
     expect(r.blockers).toEqual([]);
   });
 
@@ -129,19 +127,31 @@ describe("preflight (B12)", () => {
           unknown: false,
         },
         masterSnapshot: snap({ file_count: 4311 }),
-        latestVerify: { ran_at: NOW - DAY, ok: false },
+        latestVerify: { ran_at: NOW - DAY, ok: true }, // passing: only freshness is gig-tier
       }),
     );
     expect(byId(r, "players")).toBeUndefined();
     expect(byId(r, "grids")).toBeUndefined();
     expect(byId(r, "mirror")).toBeUndefined();
-    expect(byId(r, "verify")).toBeUndefined();
+    // verify applies to EVERY tier — a passing shelf verify just passes
+    expect(byId(r, "verify")?.status).toBe("pass");
     // archive-relevant checks still run
     expect(byId(r, "space")?.status).toBe("pass");
     expect(r.blockers).toEqual([]);
   });
 
-  it("non-shelf drives keep every check (matrix is shelf-only)", () => {
+  it("SHELF: a FAILED verify still fails (integrity applies to every tier)", () => {
+    const r = preflightForDrive(
+      input({
+        drive: drive({ name: "SHELF1", role: "shelf" }),
+        latestVerify: { ran_at: NOW - DAY, ok: false },
+      }),
+    );
+    expect(byId(r, "verify")?.status).toBe("fail");
+    expect(r.overall).toBe("not-ready");
+  });
+
+  it("gig sticks keep every check (matrix is shelf-only)", () => {
     // a master stick with the same bad data still fails loudly
     const r = preflightForDrive(
       input({
