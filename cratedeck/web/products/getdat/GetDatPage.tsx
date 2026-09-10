@@ -41,6 +41,7 @@ import {
   TrackTitle,
 } from "../shared";
 import { LibraryTab } from "./LibraryTab";
+import { IntakeTab } from "./IntakeTab";
 import { errMessage, fmtBytes } from "../../../shared/fmt";
 
 type Track = ArchiveIngestStatus["recent_tracks"][number];
@@ -60,6 +61,7 @@ export function GetDatPage(props: { tab: string }) {
       {tab === "pipeline" && <PipelineTab />}
       {tab === "backlog" && <BacklogTab />}
       {tab === "sources" && <SourcesTab />}
+      {tab === "intake" && <IntakeTab />}
       {tab === "library" && <LibraryTab />}
     </div>
   );

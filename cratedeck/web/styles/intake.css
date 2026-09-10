@@ -1,0 +1,228 @@
+/* intake.css — the GetDat Intake tab: folder picker, pipeline step rail,
+ * live run progress and the verify table. Display tokens only — all color
+ * comes from tokens.css. */
+
+/* ---- folder picker ------------------------------------------------------ */
+.intake-setup .intake-watch-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--faint);
+}
+.intake-watch-hint code {
+  font-family: var(--mono);
+  color: var(--text2);
+}
+
+.intake-folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.intake-folder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    transform 0.1s;
+}
+.intake-folder:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+.intake-folder.on {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.intake-folder.missing {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.intake-folder-label {
+  font-weight: 600;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.intake-folder-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* ---- start row ----------------------------------------------------------- */
+.intake-startrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+.intake-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--accent), #23b986);
+  color: #06281c;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    filter 0.15s,
+    transform 0.1s;
+}
+.intake-go:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.intake-go:disabled {
+  filter: grayscale(0.6) brightness(0.7);
+  cursor: not-allowed;
+}
+.intake-startrow .arch-verdict {
+  flex: 1;
+  margin: 0;
+}
+
+/* ---- pipeline step rail --------------------------------------------------- */
+.intake-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.intake-step {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.02);
+}
+.intake-step-dot {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--faint);
+}
+.intake-step-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.intake-step-what {
+  font-size: 11px;
+  color: var(--faint);
+  line-height: 1.35;
+}
+.intake-step.done {
+  border-color: rgba(56, 224, 164, 0.35);
+}
+.intake-step.done .intake-step-dot {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.intake-step.active {
+  border-color: var(--info);
+  background: var(--info-dim);
+}
+.intake-step.active .intake-step-dot {
+  background: var(--info-dim);
+  color: var(--info);
+}
+.intake-step.failed {
+  border-color: var(--bad);
+  background: var(--bad-dim);
+}
+.intake-step.failed .intake-step-dot {
+  background: var(--bad-dim);
+  color: var(--bad);
+}
+
+.intake-progress-num {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text2);
+}
+
+/* ---- errors + stats -------------------------------------------------------- */
+.intake-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--bad-dim);
+  color: var(--bad);
+  font-size: 13px;
+}
+
+.intake-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.intake-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.03);
+}
+.intake-stat b {
+  font-size: 22px;
+  font-family: var(--mono);
+}
+.intake-stat span {
+  font-size: 11px;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---- verify table ------------------------------------------------------------ */
+.intake-verify {
+  margin-top: 16px;
+}
+.intake-verify-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+  color: var(--warn);
+}
+.intake-verify-row code {
+  font-family: var(--mono);
+  color: var(--text);
+}
+.intake-verify-why {
+  color: var(--faint);
+  font-size: 12px;
+}
+.intake-verify-row.more {
+  color: var(--faint);
+}

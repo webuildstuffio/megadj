@@ -102,14 +102,17 @@ export class ProgressBar {
 
 /** The standard command log function (P1 --json contract): human progress
  * goes to stdout via console.log normally; in --json mode stdout carries
- * exactly one summary object, so logs go silent (unless the caller
- * injected onProgress, which owns routing). Every command's
- * `const log = ...` preamble was this exact three-liner — now one call. */
+ * exactly one summary object, so the human log moves to STDERR (never
+ * silent — the CrateDeck intake job streams these lines as its live phase
+ * progress, and a swallowed log made a run look frozen at 0%).
+ * `onProgress` still owns routing when the caller injected one. Every
+ * command's `const log = ...` preamble was this exact three-liner — now
+ * one call. */
 export function commandLog(opts: {
   json?: boolean;
   onProgress?: (msg: string) => void;
 }): (msg: string) => void {
   if (opts.onProgress) return opts.onProgress;
-  if (opts.json) return () => {};
+  if (opts.json) return (m) => process.stderr.write(`${m}\n`);
   return (m: string) => console.log(m);
 }

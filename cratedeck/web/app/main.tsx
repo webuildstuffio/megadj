@@ -13,5 +13,6 @@ import "../styles/fleet-tabs.css";
 import "../styles/data.css";
 import "../styles/help.css";
 import "../styles/jobs.css";
+import "../styles/intake.css";
 
 render(<App />, document.getElementById("app")!);
