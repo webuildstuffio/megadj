@@ -37,7 +37,11 @@ export async function cmdFixes(
       const res = await apiGet("/api/fixes");
       const p = (await res.json()) as FixesPayload | null;
       if (!p || !p.scannedPath) {
-        h.log("no fixes scan yet — run: deckctl fixes scan");
+        if (h.jsonMode) {
+          console.log(JSON.stringify({ scanned: false, fixable: 0 }, null, 2));
+        } else {
+          h.log("no fixes scan yet — run: deckctl fixes scan");
+        }
         return;
       }
       if (h.jsonMode) {

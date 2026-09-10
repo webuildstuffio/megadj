@@ -49,13 +49,16 @@ function actionLabel(action: FixRow["action"]): string {
 }
 
 export function FixesTab(_props: { driveId: string; driveName: string }) {
-  const [payload, setPayload] = useState<FixesPayload | null>(null);
+  // tri-state: undefined = fetch in flight, null = fetched, never scanned
+  const [payload, setPayload] = useState<FixesPayload | null | undefined>(
+    undefined,
+  );
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setPayload(await api<FixesPayload>("/api/fixes", { quiet: true }));
+      setPayload(await api<FixesPayload | null>("/api/fixes", { quiet: true }));
       setLoadErr(null);
     } catch (e) {
       const m = errMessage(e);
@@ -92,14 +95,14 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
     }
   };
 
-  if (loadErr && !payload) {
+  if (loadErr && payload === undefined) {
     return (
       <div class="note bad">
         <Icon name="warn" size={14} /> Fixes audit unavailable: {loadErr}
       </div>
     );
   }
-  if (!payload) {
+  if (payload === undefined) {
     return (
       <div class="note">
         <Icon name="clock" size={14} /> Loading the fixes plan…
@@ -107,28 +110,33 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
     );
   }
 
-  const fixRows = payload.rows
-    .filter((r) => r.action !== "none")
-    .sort((a, b) => rank(a) - rank(b));
-  const manualRows = payload.rows
-    .filter((r) => r.action === "none")
-    .sort((a, b) => rank(a) - rank(b));
+  // payload may be null (fetched, never scanned) — the banner below owns
+  // that state; narrow the row views to the scanned case up front.
+  const fixRows =
+    payload?.rows
+      .filter((r) => r.action !== "none")
+      .sort((a, b) => rank(a) - rank(b)) ?? [];
+  const manualRows =
+    payload?.rows
+      .filter((r) => r.action === "none")
+      .sort((a, b) => rank(a) - rank(b)) ?? [];
   const boothTerm = HELP_TERMS.find((t) => t.term === "Booth fleet");
 
-  const banner = !payload.scannedPath
-    ? {
-        cls: "ok" as const,
-        text: "No booth audit yet — run a scan to check the shelf against your player fleet.",
-      }
-    : payload.fixable === 0
+  const banner =
+    payload === null || !payload.scannedPath
       ? {
           cls: "ok" as const,
-          text: `All clear — ${payload.checked.toLocaleString()} files checked, nothing needs fixing.`,
+          text: "No booth audit yet — run a scan to check the shelf against your player fleet.",
         }
-      : {
-          cls: "warn" as const,
-          text: `${payload.fixable} file${payload.fixable === 1 ? "" : "s"} need${payload.fixable === 1 ? "s" : ""} fixing (of ${payload.checked.toLocaleString()} checked) — ${manualRows.length} more need your call.`,
-        };
+      : payload.fixable === 0
+        ? {
+            cls: "ok" as const,
+            text: `All clear — ${payload.checked.toLocaleString()} files checked, nothing needs fixing.`,
+          }
+        : {
+            cls: "warn" as const,
+            text: `${payload.fixable} file${payload.fixable === 1 ? "" : "s"} need${payload.fixable === 1 ? "s" : ""} fixing (of ${payload.checked.toLocaleString()} checked) — ${manualRows.length} more need your call.`,
+          };
 
   return (
     <>
@@ -192,7 +200,7 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
                     {r.plan ? ` — ${r.plan}` : ""}
                   </span>
                   <code class="hyg-cmd">
-                    MEGADJ_MUSIC_DIR={payload.scannedPath ?? "<shelf>"} megadj
+                    MEGADJ_MUSIC_DIR={payload?.scannedPath ?? "<shelf>"} megadj
                     booth-fix --apply --yes
                   </code>
                 </span>

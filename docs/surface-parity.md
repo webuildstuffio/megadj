@@ -75,13 +75,13 @@ that way.
 
 ## 1. The three surfaces, as they stand
 
-| Surface | Entry points | Count |
-| --- | --- | --- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 19 commands + `--help` |
-| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 23 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 37 tools |
-| HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~35 routes |
-| Web UI | `cratedeck/web/` (hash-routed pages) | 6 pages, ~22 actions |
+| Surface    | Entry points                                                | Count                  |
+| ---------- | ----------------------------------------------------------- | ---------------------- |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 19 commands + `--help` |
+| deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
+| MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 37 tools               |
+| HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | ~35 routes             |
+| Web UI     | `cratedeck/web/` (hash-routed pages)                        | 6 pages, ~22 actions   |
 
 The server's HTTP API is the **fourth surface** and the seam everything
 converges on: deckctl and MCP are HTTP clients of it, and the UI talks to
@@ -96,71 +96,71 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 
 ### 2a. Drive operations
 
-| Capability | CLI (deckctl) | MCP | UI | Verdict |
-| --- | --- | --- | --- | --- |
-| List drives + state | `status` / `drives` ✅ | `deck_status`/`deck_drives` ✅ | rail ✅ | — (GAP-12 closed rev 5: `GET /api/status`) |
-| Drive report / health | `report` ✅ | `deck_report` ✅ | Health tab ✅ | — |
-| Run scan | `run <d> scan` ✅ | `deck_run` ✅ | Scan button ✅ | — |
-| Run verify | `run <d> verify` ✅ | `deck_run` ✅ | Verify button/tab ✅ | — |
-| Run benchmark | `run <d> benchmark` ✅ | `deck_run` ✅ | Benchmark button ✅ | — |
-| Run checksum | `run <d> checksum` ✅ | `deck_run` ✅ | Checksum button ✅ | — |
-| **Run mirror** | `run <d> mirror` ✅ | `deck_run` ✅ | Mirror button ✅ (role-gated) | — (GAP-1 closed) |
-| Job list / history | `jobs` ✅ | `deck_jobs` ✅ | JobsDock ✅ | — |
-| Cancel job | `cancel <id>` ✅ | `deck_cancel` ✅ | JobsDock cancel ✅ | — |
-| Stop server | `stop` ✅ | ⛔ §4-P1 (clients don't kill hosts) | ⛔ §4-P2 | — |
-| Verify doc (explain) | `explain [kind]` ✅ | `deck_explain` ✅ | VerifyTab help ✅ | — |
-| In-app help (glossary/tour) | `help [term]` ✅ | `deck_help {term?}` ✅ | tooltips + Welcome tour ✅ | — (GAP-10 closed rev 4) |
-| Export dossier | `report --dossier [--out F]` ✅ | `deck_report {format:"dossier"}` ✅ | Export button ✅ | — (D1 closed rev 3) |
+| Capability                  | CLI (deckctl)                   | MCP                                 | UI                            | Verdict                                    |
+| --------------------------- | ------------------------------- | ----------------------------------- | ----------------------------- | ------------------------------------------ |
+| List drives + state         | `status` / `drives` ✅          | `deck_status`/`deck_drives` ✅      | rail ✅                       | — (GAP-12 closed rev 5: `GET /api/status`) |
+| Drive report / health       | `report` ✅                     | `deck_report` ✅                    | Health tab ✅                 | —                                          |
+| Run scan                    | `run <d> scan` ✅               | `deck_run` ✅                       | Scan button ✅                | —                                          |
+| Run verify                  | `run <d> verify` ✅             | `deck_run` ✅                       | Verify button/tab ✅          | —                                          |
+| Run benchmark               | `run <d> benchmark` ✅          | `deck_run` ✅                       | Benchmark button ✅           | —                                          |
+| Run checksum                | `run <d> checksum` ✅           | `deck_run` ✅                       | Checksum button ✅            | —                                          |
+| **Run mirror**              | `run <d> mirror` ✅             | `deck_run` ✅                       | Mirror button ✅ (role-gated) | — (GAP-1 closed)                           |
+| Job list / history          | `jobs` ✅                       | `deck_jobs` ✅                      | JobsDock ✅                   | —                                          |
+| Cancel job                  | `cancel <id>` ✅                | `deck_cancel` ✅                    | JobsDock cancel ✅            | —                                          |
+| Stop server                 | `stop` ✅                       | ⛔ §4-P1 (clients don't kill hosts) | ⛔ §4-P2                      | —                                          |
+| Verify doc (explain)        | `explain [kind]` ✅             | `deck_explain` ✅                   | VerifyTab help ✅             | —                                          |
+| In-app help (glossary/tour) | `help [term]` ✅                | `deck_help {term?}` ✅              | tooltips + Welcome tour ✅    | — (GAP-10 closed rev 4)                    |
+| Export dossier              | `report --dossier [--out F]` ✅ | `deck_report {format:"dossier"}` ✅ | Export button ✅              | — (D1 closed rev 3)                        |
 
 ### 2b. Fleet queries
 
-| Capability | CLI | MCP | UI | Verdict |
-| --- | --- | --- | --- | --- |
-| Coverage matrix | `coverage` ✅ | `deck_coverage` ✅ | Fleet page ✅ | — |
-| Redundancy audit | `redundancy` ✅ | `deck_redundancy` ✅ | Fleet page ✅ | — |
-| Fleet diff | `diff A B` ✅ | `deck_diff` ✅ | Fleet page ✅ | — |
-| Track locations | `coverage` output ✅ | via `deck_coverage` ⛔ §4-F1 | Fleet page ✅ | — |
-| Global search | `search <q>` ✅ | `deck_search {q}` ✅ | ⌘K ✅ | — (F2 closed) |
+| Capability       | CLI                  | MCP                          | UI            | Verdict       |
+| ---------------- | -------------------- | ---------------------------- | ------------- | ------------- |
+| Coverage matrix  | `coverage` ✅        | `deck_coverage` ✅           | Fleet page ✅ | —             |
+| Redundancy audit | `redundancy` ✅      | `deck_redundancy` ✅         | Fleet page ✅ | —             |
+| Fleet diff       | `diff A B` ✅        | `deck_diff` ✅               | Fleet page ✅ | —             |
+| Track locations  | `coverage` output ✅ | via `deck_coverage` ⛔ §4-F1 | Fleet page ✅ | —             |
+| Global search    | `search <q>` ✅      | `deck_search {q}` ✅         | ⌘K ✅         | — (F2 closed) |
 
 ### 2c. Gig-night + agent layer
 
-| Capability | CLI | MCP | UI | Verdict |
-| --- | --- | --- | --- | --- |
-| Preflight verdict | `preflight` ✅ | `deck_preflight` ✅ | Fleet ⌗ Preflight tab ✅ | — (G1 closed) |
-| Player compat | `players [d]` ✅ | `deck_players` ✅ | Preflight tab (per-drive expand) ✅ | — (G1 closed) |
-| Booth fleet settings | `booth [set IDs]` ✅ | `deck_booth {ids?}` ✅ | Fleet ⌗ Booth tab ✅ (citations inline) | — |
-| Booth fixes queue | `fixes [scan\|apply]` ✅ (rev 12) | `deck_fixes {action?}` ✅ (rev 12) | Drive ⌗ Fixes tab ✅ (rev 12) | — |
-| Hygiene queue | `hygiene [scan\|apply\|confirm\|dismiss]` ✅ (rev 12) | `deck_hygiene {action?}` ✅ (rev 12) | Drive ⌗ Hygiene tab ✅ (rev 12) | — |
-| Weekly digest | `prep [--out]` ✅ | `deck_prep` ✅ (markdown; `--out` stays CLI) | Fleet ⌗ Prep tab ✅ | — (G2 closed rev 3) |
-| Agent notes feed | `note`/`notes` ✅ | `deck_note`/`deck_notes` ✅ | Timeline cards ✅ | — (GAP-3 closed) |
-| Note dismissal | `dismiss <d> <id>` ✅ | `deck_dismiss` ✅ (rev 4) | Timeline dismiss ✅ | — (GAP-11 closed rev 4) |
-| Job attribution (O87) | jobs show `[origin]` ✅ | stamps `mcp:<session>` ✅ | timeline chips ✅ | — |
+| Capability            | CLI                                                   | MCP                                          | UI                                      | Verdict                 |
+| --------------------- | ----------------------------------------------------- | -------------------------------------------- | --------------------------------------- | ----------------------- |
+| Preflight verdict     | `preflight` ✅                                        | `deck_preflight` ✅                          | Fleet ⌗ Preflight tab ✅                | — (G1 closed)           |
+| Player compat         | `players [d]` ✅                                      | `deck_players` ✅                            | Preflight tab (per-drive expand) ✅     | — (G1 closed)           |
+| Booth fleet settings  | `booth [set IDs]` ✅                                  | `deck_booth {ids?}` ✅                       | Fleet ⌗ Booth tab ✅ (citations inline) | —                       |
+| Booth fixes queue     | `fixes [scan\|apply]` ✅ (rev 12)                     | `deck_fixes {action?}` ✅ (rev 12)           | Drive ⌗ Fixes tab ✅ (rev 12)           | —                       |
+| Hygiene queue         | `hygiene [scan\|apply\|confirm\|dismiss]` ✅ (rev 12) | `deck_hygiene {action?}` ✅ (rev 12)         | Drive ⌗ Hygiene tab ✅ (rev 12)         | —                       |
+| Weekly digest         | `prep [--out]` ✅                                     | `deck_prep` ✅ (markdown; `--out` stays CLI) | Fleet ⌗ Prep tab ✅                     | — (G2 closed rev 3)     |
+| Agent notes feed      | `note`/`notes` ✅                                     | `deck_note`/`deck_notes` ✅                  | Timeline cards ✅                       | — (GAP-3 closed)        |
+| Note dismissal        | `dismiss <d> <id>` ✅                                 | `deck_dismiss` ✅ (rev 4)                    | Timeline dismiss ✅                     | — (GAP-11 closed rev 4) |
+| Job attribution (O87) | jobs show `[origin]` ✅                               | stamps `mcp:<session>` ✅                    | timeline chips ✅                       | —                       |
 
 ### 2d. Archive (GetDat/FullTags) operations
 
-| Capability | CLI (megadj) | MCP | UI | Verdict |
-| --- | --- | --- | --- | --- |
-| sync / status / list / retry / adopt | ✅ | ⛔ §4-A1 (archive writes stay CLI) | ⛔ §4-A1 (Intake drives `ingest` only, as a CLI spawn) | — |
-| ingest / fetch / enrich / artwork / audit / years | ✅ | reads only (`archive_*`) ⛔ §4-A1 | ingest: GetDat ⌗ Intake ✅ (rev 11 — runs the CLI as a job); fetch/audit reads ✅ | — |
-| beats / mood / cues | ✅ | ⛔ §4-A1 | ⛔ §4-A1 | — |
-| organize | ✅ | ⛔ §4-A1 | ⛔ §4-A1 | — |
-| doctor / init | ✅ | ⛔ §4-A2 (host setup is human work) | ⛔ §4-A2 | — |
-| Archive search | `megadj list` ✅ | `archive_search_tracks` ✅ | ⌘K + GetDat ⌗ Library ✅ | — (A3 closed rev 3) |
-| Track stats | `status`/`list` ✅ | `archive_track_stats` ✅ | FullTags ⌗ Beatgrids/Mood cards ✅ | — (A3 closed rev 3) |
-| Ingest status / LOWQ queue | `list LOWQ` ✅ | `archive_ingest_status`/`lowq_queue` ✅ | GetDat ⌗ Pipeline/Backlog ✅ | — (A3 closed rev 3; product split rev 6) |
-| Source diff | — | `archive_source_diff` ✅ | GetDat ⌗ Sources (rev 6 — F3's UI half is here; F3's MCP row below keeps its original rationale) | — |
-| Grid cross-check | `megadj beats` data ✅ | `archive_grid_cross_check` ✅ | FullTags ⌗ Beatgrids ✅ | — (A3 closed rev 3; product split rev 6) |
-| Mood profile | `megadj mood` data ✅ | `archive_mood_profile` ✅ | FullTags ⌗ Mood ✅ | — (A3 closed rev 3; product split rev 6) |
-| Similar tracks (I49 sounds-like) | `megadj similar <id>` ✅ | `archive_similar_tracks` ✅ | FullTags ⌗ Similar (rev 10) ✅ | — (rev 10) |
-| Set-builder proposal (M66) | — (proposals render in the UI/agent surface; no write-back exists to expose) | `archive_set_build` ✅ (propose-only) | FullTags ⌗ Similar panel (rev 10) ✅ | — (rev 10; proposes, never writes) |
-| Cue ledger | `megadj cues` data ✅ | `archive_cue_ledger` ✅ | FullTags ⌗ Cues ✅ | — (rev 6) |
-| Library overview (FullTags mirror) | `megadj fetch`/`audit` data ✅ | `archive_library_overview` ✅ | FullTags ⌗ Tags + GetDat ⌗ Library ✅ | — (rev 6) |
-| Skip census (why rows didn't land) | `megadj list` buckets ✅ | `archive_skip_census` ✅ | GetDat ⌗ Pipeline (decisions card) + Backlog ✅ | — (rev 7) |
-| Source census | `megadj list` sources ✅ | `archive_sources` ✅ | GetDat ⌗ Sources (tag chips feed the diff form) ✅ | — (rev 7) |
-| Analysis coverage | `megadj beats|mood|cues` counts ✅ | `archive_analysis_coverage` ✅ | FullTags header meters (one progress picture) ✅ | — (rev 7) |
-| Archive integrity sweep | Prep digest (`archive integrity` section) ✅ | `archive_sweep` ✅ | Fleet ⌗ Prep (digest section) ✅ | — (D30) |
-| Rename drive | `rename <d> [nick]` ✅ | `deck_rename` ✅ | inline rename ✅ | — (D2-rename closed rev 3) |
-| Set drive photo | — | ⛔ §4-D2 (human picks the art) | Photo tab ✅ | — |
+| Capability                                        | CLI (megadj)                                                                 | MCP                                     | UI                                                                                               | Verdict                                  |
+| ------------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| sync / status / list / retry / adopt              | ✅                                                                           | ⛔ §4-A1 (archive writes stay CLI)      | ⛔ §4-A1 (Intake drives `ingest` only, as a CLI spawn)                                           | —                                        |
+| ingest / fetch / enrich / artwork / audit / years | ✅                                                                           | reads only (`archive_*`) ⛔ §4-A1       | ingest: GetDat ⌗ Intake ✅ (rev 11 — runs the CLI as a job); fetch/audit reads ✅                | —                                        |
+| beats / mood / cues                               | ✅                                                                           | ⛔ §4-A1                                | ⛔ §4-A1                                                                                         | —                                        |
+| organize                                          | ✅                                                                           | ⛔ §4-A1                                | ⛔ §4-A1                                                                                         | —                                        |
+| doctor / init                                     | ✅                                                                           | ⛔ §4-A2 (host setup is human work)     | ⛔ §4-A2                                                                                         | —                                        |
+| Archive search                                    | `megadj list` ✅                                                             | `archive_search_tracks` ✅              | ⌘K + GetDat ⌗ Library ✅                                                                         | — (A3 closed rev 3)                      |
+| Track stats                                       | `status`/`list` ✅                                                           | `archive_track_stats` ✅                | FullTags ⌗ Beatgrids/Mood cards ✅                                                               | — (A3 closed rev 3)                      |
+| Ingest status / LOWQ queue                        | `list LOWQ` ✅                                                               | `archive_ingest_status`/`lowq_queue` ✅ | GetDat ⌗ Pipeline/Backlog ✅                                                                     | — (A3 closed rev 3; product split rev 6) |
+| Source diff                                       | —                                                                            | `archive_source_diff` ✅                | GetDat ⌗ Sources (rev 6 — F3's UI half is here; F3's MCP row below keeps its original rationale) | —                                        |
+| Grid cross-check                                  | `megadj beats` data ✅                                                       | `archive_grid_cross_check` ✅           | FullTags ⌗ Beatgrids ✅                                                                          | — (A3 closed rev 3; product split rev 6) |
+| Mood profile                                      | `megadj mood` data ✅                                                        | `archive_mood_profile` ✅               | FullTags ⌗ Mood ✅                                                                               | — (A3 closed rev 3; product split rev 6) |
+| Similar tracks (I49 sounds-like)                  | `megadj similar <id>` ✅                                                     | `archive_similar_tracks` ✅             | FullTags ⌗ Similar (rev 10) ✅                                                                   | — (rev 10)                               |
+| Set-builder proposal (M66)                        | — (proposals render in the UI/agent surface; no write-back exists to expose) | `archive_set_build` ✅ (propose-only)   | FullTags ⌗ Similar panel (rev 10) ✅                                                             | — (rev 10; proposes, never writes)       |
+| Cue ledger                                        | `megadj cues` data ✅                                                        | `archive_cue_ledger` ✅                 | FullTags ⌗ Cues ✅                                                                               | — (rev 6)                                |
+| Library overview (FullTags mirror)                | `megadj fetch`/`audit` data ✅                                               | `archive_library_overview` ✅           | FullTags ⌗ Tags + GetDat ⌗ Library ✅                                                            | — (rev 6)                                |
+| Skip census (why rows didn't land)                | `megadj list` buckets ✅                                                     | `archive_skip_census` ✅                | GetDat ⌗ Pipeline (decisions card) + Backlog ✅                                                  | — (rev 7)                                |
+| Source census                                     | `megadj list` sources ✅                                                     | `archive_sources` ✅                    | GetDat ⌗ Sources (tag chips feed the diff form) ✅                                               | — (rev 7)                                |
+| Analysis coverage                                 | `megadj beats                                                                | mood                                    | cues` counts ✅                                                                                  | `archive_analysis_coverage` ✅           | FullTags header meters (one progress picture) ✅ | — (rev 7) |
+| Archive integrity sweep                           | Prep digest (`archive integrity` section) ✅                                 | `archive_sweep` ✅                      | Fleet ⌗ Prep (digest section) ✅                                                                 | — (D30)                                  |
+| Rename drive                                      | `rename <d> [nick]` ✅                                                       | `deck_rename` ✅                        | inline rename ✅                                                                                 | — (D2-rename closed rev 3)               |
+| Set drive photo                                   | —                                                                            | ⛔ §4-D2 (human picks the art)          | Photo tab ✅                                                                                     | —                                        |
 
 ## 3. True gaps (all closed — kept as the record)
 
@@ -193,7 +193,7 @@ spoke landing over the shared API route:
 - **GAP-11 (rev 4, CLOSED)** — note dismissal was UI-only (timeline
   button) while the notes themselves landed from every surface — the
   feed an agent fills had no agent-side off-ramp. `deckctl dismiss
-  <drive> <noteId>` + `deck_dismiss {drive, note_id}` close it
+<drive> <noteId>` + `deck_dismiss {drive, note_id}` close it
   (mutating, confirm-first; history kept).
 - **GAP-12 (rev 5, CLOSED)** — `GET /api/status` 404'd (agents/curl got
   `{error: "not found"}`) because the status envelope only existed
@@ -222,7 +222,7 @@ this table AND the enforcement test together (that's the point).
 - **P2 — UI can't stop itself** (same reasoning, explicit row so the
   test doesn't flag it from the other direction).
 - **D1 — CLOSED (rev 3, GAP-6).** `report --dossier` / `deck_report
-  {format: "dossier"}` now stream the same export bundle as the UI.
+{format: "dossier"}` now stream the same export bundle as the UI.
 - **D2 — photo half remains: a human picks cover art** (agents don't
   choose aesthetics; O86 rails). The rename half closed rev 3
   (`deckctl rename` + `deck_rename`). Rev 5 extended the photo
