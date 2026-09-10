@@ -46,6 +46,10 @@ import {
   ChevronDown,
   ChevronUp,
   Tag,
+  CircleCheckBig,
+  CircleAlert,
+  CircleX,
+  CircleDashed,
   type LucideProps,
 } from "lucide-preact";
 
@@ -88,6 +92,12 @@ const P: Record<string, FunctionalComponent<LucideProps>> = {
   chevD: ChevronDown,
   chevU: ChevronUp,
   tag: Tag,
+  // circular verdict glyphs — the status language of the redesigned rail:
+  // a check INSIDE a filled circle reads at any size, unlike a bare "!"
+  circleCheck: CircleCheckBig,
+  circleAlert: CircleAlert,
+  circleX: CircleX,
+  circleDashed: CircleDashed,
 };
 
 /** Any lucide glyph name. Call sites can name icons beyond the table when a

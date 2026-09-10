@@ -73,7 +73,11 @@
   height: 64px;
   border-radius: 16px;
   overflow: hidden;
-  background: var(--surface3);
+  background: repeating-conic-gradient(
+      var(--surface3) 0% 25%,
+      var(--surface4) 0% 50%
+    )
+    0 0 / 14px 14px;
   display: flex;
   align-items: center;
   justify-content: center;

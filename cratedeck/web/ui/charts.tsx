@@ -268,69 +268,6 @@ export function Histogram(props: {
   );
 }
 
-// ---- Donut --------------------------------------------------------------------
-
-/** Verdict donut ring — the drive health ring. pct=0 renders the honest
- *  dashed "no data" arc, never a fabricated zero. */
-export function Donut(props: {
-  /** 0..1 pass fraction */
-  pct: number;
-  /** Data exists? false = indeterminate dashed arc. Defaults to pct > 0
-   *  so a real measured 0 (a report that ran and passed nothing) stays
-   *  distinct from "no report yet" when the caller knows the difference. */
-  hasData?: boolean;
-  size?: number;
-  stroke?: number;
-  color: string;
-  label?: string;
-  title?: string;
-}) {
-  const size = props.size ?? 46;
-  const stroke = props.stroke ?? 3.5;
-  const R = (size - stroke) / 2 - 1;
-  const C = 2 * Math.PI * R;
-  const hasReport = props.hasData ?? props.pct > 0;
-  return (
-    <div class="ring" title={props.title}>
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        role="img"
-        aria-label={props.title ?? "status ring"}
-      >
-        <circle
-          class="ring-track"
-          cx={size / 2}
-          cy={size / 2}
-          r={R}
-          fill="none"
-          stroke-width={stroke}
-        />
-        <circle
-          class="ring-arc"
-          cx={size / 2}
-          cy={size / 2}
-          r={R}
-          fill="none"
-          stroke-width={stroke}
-          stroke={props.color}
-          stroke-dasharray={hasReport ? C : "3 6"}
-          stroke-dashoffset={
-            hasReport ? C * (1 - Math.max(0.04, Math.min(1, props.pct))) : 0
-          }
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </svg>
-      {props.label && (
-        <span class="ring-label" style={{ color: props.color }}>
-          {props.label}
-        </span>
-      )}
-    </div>
-  );
-}
-
 // ---- fmt ----------------------------------------------------------------------
 
 const fmtNum = (v: number): string =>

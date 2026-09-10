@@ -1,6 +1,32 @@
 // Badge rules — single source computed server-side, rendered client-side.
 import type { Badge, Drive, SnapshotData } from "./types";
 
+/** The failure hierarchy. Cards rank badges by this order (server sorts, the
+ *  web just renders), so the worst truths always surface first and the rail
+ *  never hides a failed verify behind "ready". Unknown order = keep as-is. */
+const BADGE_RANK: Record<string, number> = {
+  attn: 0, // failing checks / junk / corruption — fix first
+  stale: 1, // changed since verify, stale grids
+  unknown: 2, // never verified
+  behind: 3, // mirror behind master
+  scanning: 4, // no data yet
+  insync: 5,
+  ready: 6,
+  ghost: 7,
+};
+
+/** Sort badges worst-first, cap at `cap` (rail cards show 3), count the rest.
+ *  Stable for equal ranks (insertion order is the server's tiebreak). */
+export function rankBadges(
+  badges: Badge[],
+  cap: number,
+): { top: Badge[]; extra: Badge[] } {
+  const sorted = [...badges].sort(
+    (a, b) => (BADGE_RANK[a.key] ?? 99) - (BADGE_RANK[b.key] ?? 99),
+  );
+  return { top: sorted.slice(0, cap), extra: sorted.slice(cap) };
+}
+
 /** Parse a persisted snapshot blob WITHOUT the crash class: a corrupt blob
  *  must surface as `corrupt: true` (callers render a badge), never throw —
  *  `driveBadges` runs on every /api/status and /api/drives request, and one

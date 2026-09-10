@@ -7,8 +7,8 @@ import type {
   DriveCardData,
   InterlockState,
   Job,
-  OverallHealth,
   PortInfo,
+  ReportSummary,
   SearchResult,
 } from "../../shared/types";
 import { DriveRail } from "../products/cratedeck/DriveRail";
@@ -38,9 +38,7 @@ export function App() {
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [ports, setPorts] = useState<PortInfo[]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [reports, setReports] = useState<
-    Map<string, { overall?: OverallHealth; pass_rate?: number }>
-  >(new Map());
+  const [reports, setReports] = useState<Map<string, ReportSummary>>(new Map());
   const searchRef = useRef<HTMLInputElement | null>(null);
   /** coalesces SSE `job` bursts into ≤1 jobs refresh per second (see below) */
   const jobRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,12 +54,7 @@ export function App() {
     const [d, p, rep] = await Promise.all([
       api<DriveCardData[]>("/api/drives", { quiet: true }),
       api<PortInfo[]>("/api/ports", { quiet: true }),
-      api<
-        Record<
-          string,
-          { overall?: OverallHealth; checks: { status: string }[] }
-        >
-      >("/api/reports", { quiet: true }),
+      api<Record<string, ReportSummary>>("/api/reports", { quiet: true }),
     ]);
     setDrives(d);
     setPorts(p);
@@ -288,7 +281,7 @@ export function App() {
           class="top-meta"
           title="How many known drives are mounted now vs remembered-but-unplugged ('ghosts')."
         >
-          <b>{mounted}</b> mounted · <b>{ghosts}</b> ghost
+          <b>{mounted}</b> mounted · <span class="ghostn">{ghosts}</span> ghost
           {ghosts === 1 ? "" : "s"}
         </span>
         <div class="spacer" />

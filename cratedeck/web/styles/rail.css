@@ -1,5 +1,5 @@
-/* rail.css — the left drive rail: rail frame, drive cards, role chips,
-   health rings. */
+/* rail.css — the left drive rail: rail frame, drive cards (photo thumb +
+   circular verdict icon + check score), role chips, badges. */
 
 /* ---- drive rail ---- */
 .rail {
@@ -12,6 +12,19 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+/* thin scrollbar that matches the card radii (WebKit + Firefox) */
+.rail::-webkit-scrollbar {
+  width: 8px;
+}
+.rail::-webkit-scrollbar-thumb {
+  background: var(--surface4);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.rail::-webkit-scrollbar-track {
+  background: transparent;
 }
 .rail-head {
   display: flex;
@@ -26,10 +39,23 @@
   letter-spacing: 1.1px;
   color: var(--faint);
   font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .rail-head .count {
   color: var(--faint);
   font-size: 11px;
+}
+/* section header accent tick — tiny detail that makes the rail read as
+ * designed rather than default */
+.rail-head h2::before {
+  content: "";
+  width: 3px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.55;
 }
 
 /* ---- drive card ---- */
@@ -83,22 +109,57 @@
   gap: 11px;
   align-items: center;
 }
+/* Square photo thumb, cropped (`object-fit: cover`) so any source aspect
+ * ratio lands centered. The checkerboard shows through TRANSPARENT
+ * backgrounds (PNG/WebP alpha) instead of the page's dark surface eating
+ * the image. */
 .dcard .photo {
+  position: relative;
   width: 46px;
   height: 46px;
   border-radius: 12px;
-  background: var(--surface4);
+  border: 1px solid var(--stroke);
+  background: repeating-conic-gradient(
+      var(--surface3) 0% 25%,
+      var(--surface4) 0% 50%
+    )
+    0 0 / 12px 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--faint);
-  overflow: hidden;
+  overflow: visible;
   flex-shrink: 0;
 }
 .dcard .photo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 11px;
+  display: block;
+}
+/* the circular verdict glyph, pinned to the thumb's bottom-right corner */
+.dcard .photo .dcard-verdict {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--stroke2);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.dcard .photo .dcard-verdict svg {
+  width: 13px;
+  height: 13px;
+}
+/* dashed-circle state gets a solid backing so the dashes stay visible */
+.dcard .photo .dcard-verdict .lucide-circle-dashed {
+  opacity: 0.85;
 }
 .dcard .idbox {
   min-width: 0;
@@ -166,35 +227,8 @@
   background: var(--bad-dim);
 }
 
-/* health ring */
-.ring {
-  position: relative;
-  width: 46px;
-  height: 46px;
-  flex-shrink: 0;
-}
-.ring svg {
-  display: block;
-}
-.ring .ring-track {
-  stroke: var(--surface4);
-}
-.ring .ring-arc {
-  transition:
-    stroke-dashoffset 0.6s ease,
-    stroke 0.3s;
-  stroke-linecap: round;
-}
-.ring .ring-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--muted);
-}
+/* health ring — REMOVED: the rail's verdict is now the circular icon pinned
+ * to the photo thumb (.dcard-verdict); the ring markup left with Donut. */
 
 .dcard .badges {
   display: flex;
@@ -207,6 +241,24 @@
 }
 .dcard .spacestrip .bar {
   height: 4px;
+}
+/* the score line — "7 of 9 checks passed · 2 to fix". Denominator bold so
+ * the score reads as a fraction, not a percentage blur. */
+.idbox .scoreline {
+  color: var(--accent);
+}
+.idbox .scoreline.haswarn {
+  color: var(--muted);
+}
+.idbox .scoreline.haswarn b {
+  color: var(--text);
+}
+.idbox .scoreline .score-fails {
+  color: var(--bad);
+  font-weight: 650;
+}
+.idbox .scoreline .score-warns {
+  color: var(--warn);
 }
 
 /* shelf sweep verdict line (from the megadj archive shelf_sweeps ledger) */

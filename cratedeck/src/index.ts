@@ -5,6 +5,7 @@ import { loadConfig, type CrateConfig } from "./config";
 import { DB } from "./db";
 import { Guard } from "./guard";
 import { listMountedVolumes, watchVolumes } from "./detect";
+import { freeBytes } from "./scan";
 import { Registry } from "./registry";
 import { JobEngine } from "./jobs";
 import { ImageService } from "./images";
@@ -290,12 +291,12 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
           const lock = jobs.interlock();
           return { rekordbox_running: lock.running, pid: lock.pid };
         })(),
-        drives: driveListPayload(),
+        drives: await driveListPayload(),
         jobs: db.activeJobs(),
       });
     }
     if (route === "/drives") {
-      return json(driveListPayload());
+      return json(await driveListPayload());
     }
     if (route === "/reports") {
       // batched summaries for the rail: N report fetches → 1 request
@@ -716,11 +717,32 @@ async function fleetRoutes(route: string, url: URL): Promise<Response> {
 /** GET /api/drives + GET /api/status payload: the drive cards minus the MBs
  *  snapshot blob (page detail fetches it on demand). One builder so the two
  *  routes can never drift. */
-function driveListPayload(): Drive[] {
+async function driveListPayload(): Promise<Drive[]> {
   const snaps = db.latestSnapshots();
   const sweeps = shelfSweeps.latestPerDrive();
-  return registry
-    .list()
+  const drives = registry.list();
+  // one live `df` per MOUNTED drive: the rail shows "free of total", and a
+  // snapshot's free_bytes goes stale the moment anything writes to the disk
+  // (SHELF1's snapshot had no free_bytes at all → "4.0 TB" with no floor).
+  // Runs in parallel; df failure → null → UI falls back to snapshot truth.
+  const liveFree = new Map(
+    await Promise.all(
+      drives
+        .filter((d) => d.mounted)
+        .map(async (d) => {
+          const mountPoint = `/Volumes/${d.name}`;
+          try {
+            return [d.id, await freeBytes(mountPoint)] as const;
+          } catch (e) {
+            // a df that throws (volume yanked mid-request) is a logged
+            // boundary, not a payload-killer
+            console.error(`live free-space probe failed for ${d.name}`, e);
+            return [d.id, null] as const;
+          }
+        }),
+    ),
+  );
+  return drives
     .map((d) => ({
       ...d,
       // strip the raw snapshot blob from list responses: cards only need
@@ -734,8 +756,14 @@ function driveListPayload(): Drive[] {
               file_count: s.file_count,
               capacity_bytes: s.capacity_bytes,
               free_bytes: s.free_bytes,
+              live_free_bytes: d.mounted ? (liveFree.get(d.id) ?? null) : null,
             }
-          : null;
+          : {
+              // never-scanned mounted drive: still show live free space
+              capacity_bytes: d.capacity_bytes || undefined,
+              free_bytes: null,
+              live_free_bytes: d.mounted ? (liveFree.get(d.id) ?? null) : null,
+            };
       })(),
       badges: [
         ...driveBadgesView(db, d, snaps, cfg.masterDrive, cfg.mirrorDrive),

@@ -60,13 +60,9 @@ export function PhotoTab(props: {
               String(props.drive.last_seen_at ?? "") + ":" + Date.now(),
             )}`}
             alt={`${props.name} cover photo`}
-            style={{
-              width: 240,
-              height: 180,
-              objectFit: "cover",
-              borderRadius: 12,
-              border: "1px solid var(--stroke)",
-            }}
+            class="photo-preview"
+            width={192}
+            height={192}
           />
           <ConfirmButton
             label="Remove photo"

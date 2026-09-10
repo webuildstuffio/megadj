@@ -1,18 +1,37 @@
 // DriveRail.tsx — the integrated left rail. Every known drive lives here
-// forever: mounted drives get a live health ring; ghosts stay dimmed. This
-// replaces the old drawer-open model — selecting a drive swaps the canvas.
-import type { DriveCardData, OverallHealth } from "../../../shared/types";
+// forever: mounted drives show a status icon + a real check SCORE; ghosts
+// stay dimmed. This replaces the old drawer-open model — selecting a drive
+// swaps the canvas. Card anatomy, top to bottom: photo thumb (or the drive
+// icon), name + role chip, plain-language sub line (free of total when we
+// have capacity), the score line ("7 of 9 checks passed · 2 to fix"), the
+// shelf-sweep line when one exists, the space bar, and up to 3 badges
+// ranked worst-first (attn → stale → unknown → …) with a "+N" overflow.
+import type {
+  DriveCardData,
+  OverallHealth,
+  ReportSummary,
+} from "../../../shared/types";
+import { rankBadges } from "../../../shared/badges";
 import { fmtBytes, timeAgo } from "../../../shared/fmt";
 import { ROLE_HELP } from "../../../shared/help";
 import { Icon } from "../../ui/icons";
 import { InfoTip } from "../../ui/InfoTip";
-import { Donut } from "../../ui/charts";
 
 const VERDICT_COLOR: Record<OverallHealth, string> = {
   healthy: "var(--accent)",
   attention: "var(--warn)",
   critical: "var(--bad)",
   unknown: "var(--muted)",
+};
+
+/** The circular verdict glyph per state — a check/warn/x INSIDE a circle
+ *  reads at any size (the old bare "!" was ambiguous: missing icon? alert?
+ *  exclamation?). Dashed circle = no report yet, honest-unknown. */
+const VERDICT_ICON: Record<OverallHealth, string> = {
+  healthy: "circleCheck",
+  attention: "circleAlert",
+  critical: "circleX",
+  unknown: "circleDashed",
 };
 
 /** Ring hover copy — the verdict words mean the same thing everywhere. */
@@ -23,45 +42,36 @@ const RING_HELP: Record<OverallHealth, string> = {
   unknown: "No data yet — run a Scan (unknown never fakes healthy).",
 };
 
-function HealthRing({
-  verdict,
-  pct,
-  hasReport,
-}: {
+/** The verdict badge that rides the photo corner when a report exists:
+ *  the icon IS the verdict, the tooltip carries the words + score. */
+function VerdictChip(props: {
   verdict: OverallHealth;
-  pct: number;
-  /** A report exists (even one that scored 0) — distinct from no data. */
-  hasReport: boolean;
+  report?: ReportSummary;
 }) {
-  // no report yet = unknown data, not zero data — the indeterminate dashed
-  // arc keeps "no data" visually distinct from "worst data" (0% pass)
-  const color = VERDICT_COLOR[verdict] ?? VERDICT_COLOR.unknown;
   return (
     <InfoTip
       side
-      title={verdict}
-      body={`${RING_HELP[verdict]}${hasReport ? "" : " (dashed ring = no report yet)"}`}
+      title={props.verdict}
+      body={`${RING_HELP[props.verdict]}${props.report ? ` Score: ${props.report.passed} of ${props.report.checks} checks passed.` : " (dashed circle = no report yet)"}`}
     >
-      <Donut
-        pct={pct}
-        hasData={hasReport}
-        color={color}
-        title={`${verdict}${hasReport ? ` — ${Math.round(pct * 100)}% checks passed` : " — no report yet"}`}
-        label={
-          verdict === "healthy"
-            ? "✓"
-            : verdict === "critical" || verdict === "attention"
-              ? "!"
-              : "·"
+      <span
+        class="dcard-verdict"
+        style={{ color: VERDICT_COLOR[props.verdict] }}
+        title={
+          props.report
+            ? `${props.verdict} — ${props.report.passed}/${props.report.checks} checks`
+            : props.verdict
         }
-      />
+      >
+        <Icon name={VERDICT_ICON[props.verdict]} size={17} />
+      </span>
     </InfoTip>
   );
 }
 
 export function DriveRail(props: {
   drives: DriveCardData[];
-  reports: Map<string, { overall?: OverallHealth; pass_rate?: number }>;
+  reports: Map<string, ReportSummary>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   ports: { port_key: string; drive_name: string | null; mounted: boolean }[];
@@ -135,7 +145,7 @@ export function DriveRail(props: {
 
 function RailCard(props: {
   drive: DriveCardData;
-  report?: { overall?: OverallHealth; pass_rate?: number };
+  report?: ReportSummary;
   on: boolean;
   onSelect: () => void;
 }) {
@@ -143,13 +153,23 @@ function RailCard(props: {
   const name = d.nickname ?? d.name;
   const snap = d.snapshot_summary;
   const cap = d.capacity_bytes ? fmtBytes(d.capacity_bytes) : null;
-  const pctUsed =
-    snap?.capacity_bytes && (snap.free_bytes ?? -1) >= 0
-      ? 1 - (snap.free_bytes as number) / snap.capacity_bytes
-      : null;
-  const verdict = props.report?.overall ?? "unknown";
-  // undefined report = no data (dashed arc); a real 0 pass_rate stays solid
-  const ringPct = props.report?.pass_rate ?? 0;
+  const report = props.report;
+  const verdict = report?.overall ?? "unknown";
+  const badges = rankBadges(d.badges, 3);
+
+  // plain-language second line. Mounted drives show free of total when both
+  // sides are known ("142.8 GB free of 1.9 TB") — LIVE free space first
+  // (server measures at payload build), snapshot truth as fallback. Total
+  // comes from the snapshot when it has one, else the Drive row's diskutil
+  // capacity (legacy snapshots often lack it). The track count keeps its
+  // own line so neither gets truncated into meaninglessness.
+  const totalBytes = snap?.capacity_bytes || d.capacity_bytes;
+  const free = snap?.live_free_bytes ?? snap?.free_bytes;
+  const sub = d.mounted
+    ? free !== null && free !== undefined && totalBytes
+      ? `${fmtBytes(free)} free of ${fmtBytes(totalBytes)}`
+      : (cap ?? "—")
+    : `ghost · seen ${timeAgo(d.last_seen_at)}`;
 
   return (
     <button
@@ -158,11 +178,18 @@ function RailCard(props: {
       onClick={props.onSelect}
     >
       <div class="dcard-top">
-        <HealthRing
-          verdict={verdict}
-          pct={ringPct}
-          hasReport={props.report !== undefined}
-        />
+        <div class="photo">
+          {d.photo_path ? (
+            <img
+              src={`/photos/${d.id}?v=${d.last_seen_at}`}
+              alt=""
+              loading="lazy"
+            />
+          ) : (
+            <Icon name="usb" size={20} />
+          )}
+          <VerdictChip verdict={verdict} report={report} />
+        </div>
         <div class="idbox">
           <div class="name">
             <span
@@ -177,11 +204,33 @@ function RailCard(props: {
               </span>
             )}
           </div>
-          <div class="sub">
-            {d.mounted
-              ? `${cap ?? "—"} · ${snap?.track_count?.toLocaleString() ?? snap?.file_count?.toLocaleString() ?? "?"} tracks`
-              : `ghost · seen ${timeAgo(d.last_seen_at)}`}
+          <div class="sub" title={sub}>
+            {sub}
           </div>
+          {d.mounted && snap?.track_count !== undefined && (
+            <div class="sub">
+              {snap.track_count.toLocaleString()} tracks
+              {snap.file_count !== undefined &&
+                snap.file_count !== snap.track_count &&
+                ` · ${snap.file_count.toLocaleString()} files`}
+            </div>
+          )}
+          {report && report.checks > 0 && (
+            <div
+              class={`sub scoreline${report.failed > 0 || report.warned > 0 ? " haswarn" : ""}`}
+            >
+              <b>
+                {report.passed} of {report.checks}
+              </b>{" "}
+              checks passed
+              {report.failed > 0 && (
+                <span class="score-fails"> · {report.failed} to fix</span>
+              )}
+              {report.warned > 0 && (
+                <span class="score-warns"> · {report.warned} warnings</span>
+              )}
+            </div>
+          )}
           {d.shelf_sweep && (
             <div
               class={`sub sweepline${(d.shelf_sweep.ageDays ?? 0) > 30 || d.shelf_sweep.verdict === "failed" ? " stale" : ""}`}
@@ -196,33 +245,48 @@ function RailCard(props: {
           )}
         </div>
       </div>
-      {pctUsed !== null && (
-        <div class="spacestrip">
-          <div class="bar">
-            <i
-              class={pctUsed > 0.85 ? "hot" : ""}
-              style={{ width: `${Math.min(100, pctUsed * 100)}%` }}
-            />
+      {d.mounted &&
+        snap &&
+        (snap.free_bytes ?? snap.live_free_bytes) != null &&
+        snap.capacity_bytes && (
+          <div class="spacestrip">
+            <div class="bar">
+              <i
+                class={
+                  1 -
+                    (snap.free_bytes ?? snap.live_free_bytes)! /
+                      snap.capacity_bytes >
+                  0.85
+                    ? "hot"
+                    : ""
+                }
+                style={{
+                  width: `${Math.min(
+                    100,
+                    (1 -
+                      ((snap.free_bytes ?? snap.live_free_bytes) as number) /
+                        snap.capacity_bytes) *
+                      100,
+                  )}%`,
+                }}
+              />
+            </div>
           </div>
-        </div>
-      )}
-      {d.badges.length > 0 && (
+        )}
+      {(badges.top.length > 0 || badges.extra.length > 0) && (
         <div class="badges">
-          {d.badges.slice(0, 3).map((b) => (
+          {badges.top.map((b) => (
             <span class={`badge ${b.tone}`} key={b.key + b.label}>
               {b.label}
             </span>
           ))}
-          {d.badges.length > 3 && (
+          {badges.extra.length > 0 && (
             <InfoTip
               side
-              title={`+${d.badges.length - 3} more`}
-              body={d.badges
-                .slice(3)
-                .map((b) => b.label)
-                .join(" · ")}
+              title={`+${badges.extra.length} more`}
+              body={badges.extra.map((b) => b.label).join(" · ")}
             >
-              <span class="badge muted">+{d.badges.length - 3}</span>
+              <span class="badge muted">+{badges.extra.length}</span>
             </InfoTip>
           )}
         </div>

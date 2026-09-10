@@ -91,6 +91,24 @@ export interface Badge {
   tone: "good" | "warn" | "bad" | "muted" | "info";
 }
 
+/** Compact per-drive report row for the rail (/api/reports): verdict plus
+ *  a real SCORE ("8 of 10 checks passed"), never a binary yes/no. */
+export interface ReportSummary {
+  overall: OverallHealth;
+  /** weighted 0..1 quality (warn=0.6, unknown=0.3) — animates the state chip */
+  pass_rate: number;
+  /** checks that earned full credit — the numerator of the score line */
+  passed: number;
+  /** every check the report scored — the denominator */
+  checks: number;
+  /** failing checks — the "N to fix" count */
+  failed: number;
+  /** warning checks — the "N warnings" count */
+  warned: number;
+  /** checks with no verdict yet (honest unknowns, never faked healthy) */
+  unknown: number;
+}
+
 /** Wire shape for a drive card: the Drive row flattened with its computed
  *  badges (server spreads `{...drive, badges}`; web consumes it directly).
  *  `last_snapshot_json` is stripped on the wire (payload is MBs); the four
@@ -104,6 +122,9 @@ export type DriveCardData = Omit<Drive, "last_snapshot_json"> & {
     file_count?: number;
     capacity_bytes?: number;
     free_bytes?: number | null;
+    /** live `df` measurement taken at payload build (null = df failed /
+     *  volume gone — the UI falls back to snapshot truth, then to "—") */
+    live_free_bytes?: number | null;
   } | null;
 };
 

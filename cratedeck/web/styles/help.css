@@ -91,6 +91,21 @@
   border-color: var(--info);
   transform: translateY(-2px);
 }
+/* the current cover photo preview (Photo tab): a properly-sized SQUARE with
+ * center crop; the checkerboard shows through transparent PNG/WebP alpha */
+.photo-preview {
+  width: 192px;
+  height: 192px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: repeating-conic-gradient(
+      var(--surface3) 0% 25%,
+      var(--surface4) 0% 50%
+    )
+    0 0 / 16px 16px;
+  flex-shrink: 0;
+}
 
 /* rename inline */
 .name-edit {

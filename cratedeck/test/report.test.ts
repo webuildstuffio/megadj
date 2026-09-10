@@ -1,8 +1,13 @@
 import { afterAll, beforeAll, describe, it, expect } from "bun:test";
 import { ageBucket, freeBytes, nfcCasefold, scanVolume } from "../src/scan";
-import { buildChecks, overall } from "../src/report";
+import { buildChecks, buildReportSummary, overall } from "../src/report";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import type { Drive, SnapshotData } from "../shared/types";
+import type {
+  CheckStatus,
+  Drive,
+  HealthCheck,
+  SnapshotData,
+} from "../shared/types";
 
 const ROOT = `/tmp/cratedeck-scan-test-${process.pid}`;
 
@@ -238,5 +243,52 @@ describe("report checks", () => {
 
   it("unknown verdict with no checks", () => {
     expect(overall([])).toBe("unknown");
+  });
+});
+
+// ---- report summary (the rail's score line) -------------------------------
+
+describe("buildReportSummary", () => {
+  const checksOf = (statuses: CheckStatus[]): HealthCheck[] =>
+    statuses.map((status, i) => ({
+      id: `c${i}`,
+      label: `check ${i}`,
+      status,
+      detail: "",
+    }));
+
+  it("scores pass/warn/fail/unknown counts — not a binary yes/no", () => {
+    const s = buildReportSummary(
+      checksOf([
+        "pass",
+        "pass",
+        "pass",
+        "pass",
+        "pass",
+        "pass",
+        "pass",
+        "warn",
+        "fail",
+      ]),
+    );
+    expect(s.passed).toBe(7);
+    expect(s.checks).toBe(9);
+    expect(s.warned).toBe(1);
+    expect(s.failed).toBe(1);
+    expect(s.unknown).toBe(0);
+    expect(s.overall).toBe("critical");
+  });
+
+  it("weights the rate: pass=1, warn=0.6, unknown=0.3, fail=0", () => {
+    const s = buildReportSummary(checksOf(["pass", "warn", "unknown", "fail"]));
+    expect(s.checks).toBe(4);
+    expect(s.pass_rate).toBeCloseTo((1 + 0.6 + 0.3 + 0) / 4, 5);
+  });
+
+  it("empty check list scores zero across the board", () => {
+    const s = buildReportSummary([]);
+    expect(s.pass_rate).toBe(0);
+    expect(s.checks).toBe(0);
+    expect(s.overall).toBe("unknown");
   });
 });

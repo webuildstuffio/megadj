@@ -4,8 +4,10 @@
 // guard); this module keeps the ReportInput contract + the aggregators.
 import type {
   DriveReport,
+  CheckStatus,
   HealthCheck,
   OverallHealth,
+  ReportSummary,
   SyncVerdict,
 } from "../shared/types";
 import { BUILDERS } from "./report_checks";
@@ -30,12 +32,16 @@ export function buildReport(input: ReportInput): DriveReport {
   };
 }
 
-/** Compact per-drive row for list views (rail cards): verdict + pass rate.
- *  One call for all drives replaces the UI's N+1 report fetches. */
-export function buildReportSummary(checks: HealthCheck[]): {
-  overall: ReturnType<typeof overall>;
-  pass_rate: number;
-} {
+/** Compact per-drive row for list views (rail cards): verdict + score.
+ *  One call for all drives replaces the UI's N+1 report fetches. The score
+ *  is a real fraction ("7 of 9 checks passed"), not a binary yes/no —
+ *  warnings earn 0.6, honest unknowns 0.3, failures 0. */
+export function buildReportSummary(checks: HealthCheck[]): ReportSummary {
+  const tally = (s: CheckStatus) => checks.filter((c) => c.status === s).length;
+  const pass = tally("pass");
+  const warned = tally("warn");
+  const failed = tally("fail");
+  const unknown = tally("unknown");
   return {
     overall: overall(checks),
     pass_rate: checks.length
@@ -52,6 +58,11 @@ export function buildReportSummary(checks: HealthCheck[]): {
           0,
         ) / checks.length
       : 0,
+    passed: pass,
+    checks: checks.length,
+    failed,
+    warned,
+    unknown,
   };
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { driveBadges, syncBadge } from "../shared/badges";
-import type { Drive, SnapshotData } from "../shared/types";
+import { driveBadges, syncBadge, rankBadges } from "../shared/badges";
+import type { Badge, Drive, SnapshotData } from "../shared/types";
 
 function drive(over: Partial<Drive> = {}): Drive {
   return {
@@ -166,5 +166,42 @@ describe("syncBadge", () => {
   it("null blob is absent, not corrupt", () => {
     const badges = driveBadges(drive(), {});
     expect(badges.some((b) => b.label === "snapshot corrupt")).toBe(false);
+  });
+});
+
+describe("rankBadges", () => {
+  const b = (key: Badge["key"], label?: string): Badge => ({
+    key,
+    label: label ?? key,
+    tone: "muted",
+  });
+
+  it("ranks failures above warnings above ready — worst first", () => {
+    const { top } = rankBadges(
+      [b("ready"), b("attn", "verify failed"), b("stale"), b("insync")],
+      3,
+    );
+    expect(top.map((x) => x.key)).toEqual(["attn", "stale", "insync"]);
+  });
+
+  it("caps at 3 and counts the overflow", () => {
+    const r = rankBadges(
+      [b("attn"), b("stale"), b("unknown"), b("insync"), b("ready")],
+      3,
+    );
+    expect(r.top).toHaveLength(3);
+    expect(r.extra).toHaveLength(2);
+    expect(r.extra.map((x) => x.key)).toEqual(["insync", "ready"]);
+  });
+
+  it("equal ranks keep insertion order (stable)", () => {
+    const { top } = rankBadges([b("attn", "first"), b("attn", "second")], 3);
+    expect(top.map((x) => x.label)).toEqual(["first", "second"]);
+  });
+
+  it("fewer than cap → nothing dropped", () => {
+    const r = rankBadges([b("ready")], 3);
+    expect(r.top).toHaveLength(1);
+    expect(r.extra).toHaveLength(0);
   });
 });
