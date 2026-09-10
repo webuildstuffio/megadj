@@ -336,13 +336,16 @@
   display: inline-flex;
   pointer-events: none;
 }
+/* THE CARD: portal-rendered to document.body (TipCard.tsx) — position:fixed
+ * coordinates come from ui/tipPlace.ts, which flips to whichever side fits
+ * and clamps the fallback inside the viewport. Because the card is a body
+ * child, NO overflow:hidden/auto ancestor (rail, canvas, datatables, cards)
+ * can clip it and it can never hang off-screen — the bugs that made every
+ * tooltip unreadable. Hidden until JS positions it (one frame at most). */
 .infotip-card {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
+  position: fixed;
   width: 290px;
-  max-width: min(290px, 86vw);
+  max-width: min(290px, calc(100vw - 16px));
   background: var(--surface4);
   border: 1px solid var(--stroke2);
   border-radius: var(--r-md);
@@ -354,52 +357,32 @@
   line-height: 1.45;
   color: var(--text);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  z-index: 500;
+  z-index: 1000;
   pointer-events: none;
   text-align: left;
   font-weight: 400;
 }
-/* SIDE placement: the default for rail/edge contexts. The card hangs off
- * the dot's right edge, vertically centered — it can never clip against
- * the sidebar because it grows INTO the canvas, and the viewport boundary
- * can't be hit on the left (rail) side. Use for anything near an edge. */
-.infotip-card.side {
-  bottom: auto;
-  top: 50%;
-  left: calc(100% + 10px);
-  transform: translateY(-50%);
-}
-/* side + below variant: for dots near the viewport top where a centered
- * card would poke off-screen upward */
-.infotip-card.side.below {
-  top: calc(100% + 6px);
-  transform: none;
-}
-.infotip-card.right {
-  left: auto;
-  right: -6px;
-  transform: translateY(4px);
-}
-.infotip-card.below {
-  bottom: auto;
-  top: calc(100% + 8px);
-}
-.infotip:hover .infotip-card,
-.infotip:focus-visible .infotip-card {
+/* JS shows + places the card (inline left/top; visibility is only hidden
+ * during measurement) */
+.infotip-card[data-place] {
   display: flex;
 }
-/* hover transition: settle into place (the base rule carries +4px) */
-.infotip:hover .infotip-card:not(.side):not(.below):not(.right),
-.infotip:focus-visible .infotip-card:not(.side):not(.below):not(.right) {
-  transform: translateX(-50%) translateY(0);
+.infotip-card[data-place="top"] {
+  transform: translateY(-2px);
 }
-.infotip:hover .infotip-card.right,
-.infotip:focus-visible .infotip-card.right {
-  transform: translateY(0);
+.infotip-card[data-place="bottom"] {
+  transform: translateY(2px);
 }
-.infotip:hover .infotip-card.below,
-.infotip:focus-visible .infotip-card.below {
-  transform: translateX(-50%) translateY(0);
+/* settle-in micro motion (placement is already final — no translate hack) */
+@media (prefers-reduced-motion: no-preference) {
+  .infotip-card[data-place] {
+    animation: tipin 0.14s ease;
+  }
+}
+@keyframes tipin {
+  from {
+    opacity: 0;
+  }
 }
 .infotip-card b {
   font-size: 12.5px;
@@ -492,21 +475,10 @@ details.tabintro[open] summary::after {
 
 /* ---- GlossTerm: inline term chip with hover card (used in prose) ---- */
 .gloss {
-  position: relative;
   display: inline-block;
   border-bottom: 1px dashed var(--stroke2);
   cursor: help;
   font-weight: 600;
-}
-.gloss .infotip-card {
-  left: 0;
-  transform: translateY(4px);
-  width: 320px;
-  display: none;
-}
-.gloss:hover .infotip-card {
-  display: flex;
-  transform: translateY(0);
 }
 /* the demo chip on the welcome page sits inline mid-sentence */
 .infotip.demo {

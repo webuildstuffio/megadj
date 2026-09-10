@@ -1,6 +1,10 @@
 // Badge rules — single source computed server-side, rendered client-side.
+// The individual rules live in badge_rules.ts (one rule per hardware/sync
+// concern); driveBadges is the assembly (ghost short-circuit, corrupt-blob
+// surfacing, ordering).
 import type { Badge, Drive, SnapshotData } from "./types";
-import { checkApplies, driveTier } from "./check_matrix";
+import { driveTier } from "./check_matrix";
+import { junkBadge, verifyBadge, gridsBadge, linkBadge } from "./badge_rules";
 
 /** The failure hierarchy. Cards rank badges by this order (server sorts, the
  *  web just renders), so the worst truths always surface first and the rail
@@ -56,78 +60,24 @@ export function driveBadges(
     interlock?: boolean;
   } = {},
 ): Badge[] {
-  const badges: Badge[] = [];
   if (!drive.mounted) {
-    badges.push({ key: "ghost", label: "ghost", tone: "muted" });
-    return badges;
+    return [{ key: "ghost", label: "ghost", tone: "muted" }];
   }
   const { snap, corrupt } = parseSnapshotJson(drive.last_snapshot_json);
-  if (corrupt) {
-    // Corrupt persisted JSON can never read as success (D30-class rule):
-    // show a real badge instead of crashing /drives or lying "no data yet".
+  const badges: Badge[] = [];
+  // Corrupt persisted JSON can never read as success (D30-class rule):
+  // show a real badge instead of crashing /drives or lying "no data yet".
+  if (corrupt)
     badges.push({ key: "attn", label: "snapshot corrupt", tone: "bad" });
-  }
 
-  // corruption / junk signals from the latest light scan
-  if (snap?.junk) {
-    const bad =
-      snap.junk.zero_byte.length > 0 || snap.junk.case_collisions.length > 0;
-    if (bad) badges.push({ key: "attn", label: "attention", tone: "bad" });
-  }
-
-  // hardware-gate freshness. Tier semantics (shared/check_matrix.ts):
-  // "changed since verify" freshness is a GIG-tier signal — a shelf's
-  // device-DB mtimes churn for player-side reasons that don't touch the
-  // audio archive. On the archive tier the honest verdicts are binary:
-  // verify FAILED (bad) or verified (archive ready).
   const isArchive = driveTier(drive.role) === "archive";
-  const changedAt = Math.max(snap?.db_mtime ?? 0, snap?.pdb_mtime ?? 0);
-  if (opts.latestVerify) {
-    if (!opts.latestVerify.ok) {
-      badges.push({ key: "attn", label: "verify failed", tone: "bad" });
-    } else if (isArchive) {
-      badges.push({ key: "ready", label: "archive ready", tone: "good" });
-    } else if (changedAt > opts.latestVerify.ran_at) {
-      badges.push({
-        key: "stale",
-        label: "changed since verify",
-        tone: "warn",
-      });
-    } else {
-      badges.push({ key: "ready", label: "ready", tone: "good" });
-    }
-  } else if (snap) {
-    badges.push({ key: "unknown", label: "never verified", tone: "warn" });
-  } else {
-    badges.push({ key: "scanning", label: "no data yet", tone: "info" });
-  }
-
-  // grid coverage flag (gig tier only — role matrix)
-  if (
-    checkApplies("grids", drive.role) &&
-    snap?.grid_coverage !== undefined &&
-    snap.grid_coverage < 1
-  ) {
-    badges.push({
-      key: "stale",
-      label: `grids ${Math.round(snap.grid_coverage * 100)}%`,
-      tone: snap.grid_coverage < 0.95 ? "warn" : "info",
-    });
-  }
-
-  // USB link class: a USB2 link is a real hardware cap (≈35 MB/s ceiling) —
-  // gig-safe only on USB3. Slow link = warn; unknown link = honest muted info
-  // (never faked healthy). One SSOT: server computes, web renders.
-  if (drive.link_bps !== null && drive.link_bps !== undefined) {
-    if (drive.link_bps >= 5_000_000_000) {
-      badges.push({
-        key: "ready",
-        label: drive.link_bps >= 10_000_000_000 ? "USB3 10G" : "USB3",
-        tone: "good",
-      });
-    } else {
-      badges.push({ key: "attn", label: "USB 2.0 link", tone: "warn" });
-    }
+  for (const b of [
+    junkBadge(snap),
+    verifyBadge(opts.latestVerify ?? null, snap, isArchive),
+    gridsBadge(snap, drive.role),
+    linkBadge(drive),
+  ]) {
+    if (b) badges.push(b);
   }
   return badges;
 }

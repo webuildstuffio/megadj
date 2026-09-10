@@ -1,17 +1,21 @@
 // InfoTip.tsx — the in-app explainer primitives: `InfoTip` (a (?) dot with
 // a rich hover/focus card) and `TabIntro` (the one-card "what am I looking
-// at" header for a tab). Tooltips are CSS-rendered on hover AND on focus
-// (keyboard + touch reachable), positioned above by default.
-import { Icon } from "./icons";
+// at" header for a tab). The card is the shared portal primitive (ui/
+// TipCard.tsx): document.body + position:fixed + viewport-aware placement —
+// the old CSS-only card was clipped by overflow ancestors and off-screen at
+// edges; now no ancestor can clip it and it always fully fits on screen.
 import type { JSX } from "preact";
+import { Icon } from "./icons";
+import { Tip } from "./TipCard";
+import type { TipRequest } from "./tipPlace";
 
 /** A small (?) affordance whose hover card carries a title + body. Render
  *  inline after a heading, stat label, or inside the `help-anchor` row.
- *  `side` makes the card open to the RIGHT of the dot instead of above —
- *  mandatory for anything inside the drive rail or near a screen edge,
- *  where a centered/above card gets clipped by the overflow container.
- *  `children` replaces the default (?) dot with a custom hover target
- *  (a health ring, a badge) — the card behavior is identical. */
+ *  `side` requests the card open to the RIGHT of the dot — the preference
+ *  for the drive rail and other screen-edge contexts; the placement engine
+ *  flips/clamps if that doesn't fit. `below` requests below. `children`
+ *  replaces the default (?) dot with a custom hover target (a health ring,
+ *  a badge) — the card behavior is identical. */
 export function InfoTip(props: {
   /** The card headline ("What is a beatgrid?"). */
   title: string;
@@ -24,30 +28,27 @@ export function InfoTip(props: {
   side?: boolean;
   children?: preact.JSX.Element;
 }) {
+  const request: TipRequest = props.side
+    ? "side"
+    : props.below
+      ? "bottom"
+      : "top";
   return (
-    <span
+    <Tip
+      title={props.title}
+      body={props.body}
+      why={props.why}
+      request={request}
+      align={props.align}
       class={`infotip ${props.children ? "has-target" : ""}`}
-      tabIndex={0}
-      role="note"
-      aria-label={`${props.title} — ${props.body}`}
+      ariaLabel={`${props.title} — ${props.body}`}
     >
       {props.children ?? (
         <span class="infotip-dot" aria-hidden>
           <Icon name="dot" size={9} />
         </span>
       )}
-      <span
-        class={`infotip-card ${props.side ? "side" : ""} ${props.below ? "below" : ""} ${props.align === "right" ? "right" : ""}`}
-      >
-        <b>{props.title}</b>
-        <span>{props.body}</span>
-        {props.why && (
-          <span class="infotip-why">
-            <Icon name="bolt" size={10} /> {props.why}
-          </span>
-        )}
-      </span>
-    </span>
+    </Tip>
   );
 }
 

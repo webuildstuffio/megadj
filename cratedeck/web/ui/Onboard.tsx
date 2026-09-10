@@ -9,22 +9,24 @@ import {
   helpTerm,
 } from "../../shared/help";
 import { Icon } from "./icons";
+import { Tip } from "./TipCard";
 
-/** An inline glossary chip: hover card with the definition + the "why". */
+/** An inline glossary chip: hover card with the definition + the "why".
+ *  The card is the shared portal primitive — the old CSS-only card was
+ *  clipped by overflow ancestors exactly like the InfoTip dots were. */
 export function GlossTerm(props: { t: string }) {
   const hit = helpTerm(props.t);
   if (!hit) return <b>{props.t}</b>;
   return (
-    <span class="gloss">
+    <Tip
+      class="gloss"
+      title={hit.term}
+      body={hit.def}
+      why={hit.why}
+      ariaLabel={`${hit.term} — ${hit.def}`}
+    >
       <b>{props.t}</b>
-      <span class="infotip-card">
-        <b>{hit.term}</b>
-        <span>{hit.def}</span>
-        <span class="infotip-why">
-          <Icon name="bolt" size={10} /> {hit.why}
-        </span>
-      </span>
-    </span>
+    </Tip>
   );
 }
 
@@ -107,18 +109,15 @@ export function Onboard() {
         </h3>
         <p class="ob-lede">
           The words this app uses — every term below also appears as a{" "}
-          <span class="infotip demo">
+          <Tip
+            class="infotip demo"
+            title="hover cards like this"
+            body="look for the little dot anywhere in the app — it explains the thing it sits next to."
+          >
             <span class="infotip-dot" aria-hidden>
               <Icon name="dot" size={9} />
             </span>
-            <span class="infotip-card">
-              <b>hover cards like this</b>
-              <span>
-                look for the little dot anywhere in the app — it explains the
-                thing it sits next to.
-              </span>
-            </span>
-          </span>{" "}
+          </Tip>{" "}
           throughout the UI.
         </p>
         <div class="ob-gloss">
