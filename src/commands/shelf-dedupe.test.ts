@@ -113,7 +113,7 @@ describe("shelfDedupe", () => {
     const shelf = makeShelf({ stem: "j", origContent: "z", twinContent: "z" });
     const orig = console.log;
     let out = "";
-    console.log = (s) => (out += s + "\n");
+    console.log = (s: string) => (out += s + "\n");
     try {
       await shelfDedupe({
         shelfVolume: shelf,

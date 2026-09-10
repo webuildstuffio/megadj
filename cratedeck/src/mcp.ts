@@ -185,6 +185,35 @@ async function jobResult(job: Job): Promise<unknown> {
   }
 }
 
+/** Enqueue a job-producing POST (after the interlock guard), optionally
+ *  wait for it to finish, and shape the reply. The scan/apply tail of
+ *  deck_hygiene and deck_fixes was byte-identical (jscpd-flagged clone);
+ *  both tools now delegate here so the wait/timeout/423 contract is
+ *  defined once. */
+async function runJobAction(
+  action: string,
+  apiPath: string,
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  await interlockGuard();
+  const r = await apiPost(apiPath, { origin: MCP_SESSION });
+  if (r.status === 423)
+    throw new RpcParamError(
+      "rekordbox started mid-request — drive operations locked. Quit rekordbox and retry.",
+    );
+  const body = (await r.json()) as Job & { error?: string };
+  if (!r.ok) throw new Error(body.error ?? `enqueue failed (${r.status})`);
+  const wait = args["wait"] !== false;
+  if (!wait) return { job: body, action, status: body.status };
+  const timeoutMs = (num(args, "timeout_minutes") ?? 30) * 60 * 1000;
+  const final = await waitForJob(body.id, { timeoutMs });
+  return {
+    job: { ...final, result: await jobResult(final) },
+    action,
+    ok: final.status === "done",
+  };
+}
+
 const TOOLS: Record<string, ToolDef> = {
   deck_status: {
     description:
@@ -387,25 +416,7 @@ const TOOLS: Record<string, ToolDef> = {
         return { ok: true, id, action };
       }
       // scan | apply — enqueue + optionally wait (same shape as deck_run)
-      await interlockGuard();
-      const r = await apiPost(`/api/hygiene/${action}`, {
-        origin: `mcp:${MCP_SESSION}`,
-      });
-      if (r.status === 423)
-        throw new RpcParamError(
-          "rekordbox started mid-request — drive operations locked. Quit rekordbox and retry.",
-        );
-      const body = (await r.json()) as Job & { error?: string };
-      if (!r.ok) throw new Error(body.error ?? `enqueue failed (${r.status})`);
-      const wait = args["wait"] !== false;
-      if (!wait) return { job: body, action, status: body.status };
-      const timeoutMs = (num(args, "timeout_minutes") ?? 30) * 60 * 1000;
-      const final = await waitForJob(body.id, { timeoutMs });
-      return {
-        job: { ...final, result: await jobResult(final) },
-        action,
-        ok: final.status === "done",
-      };
+      return runJobAction(action, `/api/hygiene/${action}`, args);
     },
   },
 
@@ -434,25 +445,7 @@ const TOOLS: Record<string, ToolDef> = {
               : "no scan yet or nothing to fix — action=scan audits the shelf",
         };
       }
-      await interlockGuard();
-      const r = await apiPost(`/api/fixes/${action}`, {
-        origin: `mcp:${MCP_SESSION}`,
-      });
-      if (r.status === 423)
-        throw new RpcParamError(
-          "rekordbox started mid-request — drive operations locked. Quit rekordbox and retry.",
-        );
-      const body = (await r.json()) as Job & { error?: string };
-      if (!r.ok) throw new Error(body.error ?? `enqueue failed (${r.status})`);
-      const wait = args["wait"] !== false;
-      if (!wait) return { job: body, action, status: body.status };
-      const timeoutMs = (num(args, "timeout_minutes") ?? 30) * 60 * 1000;
-      const final = await waitForJob(body.id, { timeoutMs });
-      return {
-        job: { ...final, result: await jobResult(final) },
-        action,
-        ok: final.status === "done",
-      };
+      return runJobAction(action, `/api/fixes/${action}`, args);
     },
   },
 
@@ -516,10 +509,12 @@ const TOOLS: Record<string, ToolDef> = {
         "player ids to enforce (xdj-xz, cdj-3000, cdj-2000nxs2, cdj-2000); omit to just show",
       ),
     }),
-    run: async (args) => {
-      const raw = (args as { ids?: unknown }).ids;
+    run: async (args: Record<string, unknown>) => {
+      const raw = args.ids;
       const ids = Array.isArray(raw)
-        ? raw.filter((x): x is string => typeof x === "string")
+        ? (raw as unknown[]).filter(
+            (x: unknown): x is string => typeof x === "string",
+          )
         : [];
       if (ids.length === 0) return apiGetJson("/api/booth/fleet");
       const r = await apiPost("/api/booth/fleet", { selected: ids });

@@ -352,6 +352,15 @@ async function main(): Promise<void> {
         await shelfDupescan({ json, quarantine, yes, onlyIdentical });
         break;
       }
+      case "shelf-hygiene":
+      case "rb-fix-paths": {
+        // The maintenance family lives in commands/maintenance_cmds.ts
+        // (file-length guard), same seam shape as the old shelf_cmds.ts.
+        const { runMaintenanceCommand } =
+          await import("./commands/maintenance_cmds");
+        await runMaintenanceCommand(command, rest);
+        break;
+      }
       case "shelf-sweeps": {
         // The DB record of every drive → shelf sweep (queryable state, not
         // markdown). `--json` = full history; text = one line per drive.

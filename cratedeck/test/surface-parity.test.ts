@@ -134,8 +134,13 @@ describe("surface parity (docs/surface-parity.md)", () => {
     expect(verbs.length).toBeGreaterThan(0);
     expect(tools.length).toBeGreaterThan(0);
     const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
-    expect(doc).toContain(`| ${verbs.length} verbs |`);
-    expect(doc).toContain(`| ${tools.length} tools |`);
+    // Whitespace-tolerant on PURPOSE: formatters may pad table cells ("| 23
+    // verbs   |"), which must not read as a census drift. The COUNT itself
+    // stays exact — only the padding is flexible.
+    const censusCell = (n: number, unit: string): RegExp =>
+      new RegExp(`\\|\\s+${n} ${unit}\\s+\\|`);
+    expect(doc).toMatch(censusCell(verbs.length, "verbs"));
+    expect(doc).toMatch(censusCell(tools.length, "tools"));
     // the dated-revs header must also carry the CURRENT tool count when
     // it names one (rev entries may name a past count only if a LATER rev
     // names the newer one — simplest honest rule: the doc must contain
