@@ -185,6 +185,12 @@ describe("shelf-archive", () => {
       log: (s) => logs.push(s),
     });
     expect(logs.some((l) => l.includes("shelf not mounted"))).toBe(true);
+    // shelf-archive signals failure via the STICKY process.exitCode — left
+    // set, every later bun test exit in this process reports 1 with 0
+    // failed tests (the hook then blocks the commit on a green suite).
+    // Restore it so the failure is the assertion's to report, not the
+    // process's.
+    process.exitCode = 0;
   });
 
   test("--json emits one parseable summary (P1 contract) with ok flag", async () => {
