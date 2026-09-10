@@ -80,10 +80,20 @@ export function IntakeTab() {
   useEffect(() => {
     if (!runId) return;
     let alive = true;
+    // Poll failures surface at most once per 30s — a server outage would
+    // otherwise re-toast every second off this 1s poll (AGENTS.md rule).
+    let lastToastAt = 0;
     const tick = () => {
       api<Job>(`/api/jobs/${runId}`, { quiet: true })
         .then((j) => alive && setJob(j))
-        .catch(() => {});
+        .catch((e) => {
+          console.error("intake job poll failed", e);
+          const now = Date.now();
+          if (now - lastToastAt >= 30_000) {
+            lastToastAt = now;
+            toast(`intake progress unavailable: ${errMessage(e)}`, "err");
+          }
+        });
     };
     tick();
     const t = setInterval(tick, 1000);
@@ -109,7 +119,13 @@ export function IntakeTab() {
     if (!active || starting) return;
     setStarting(true);
     try {
-      const job = await apiPost<Job>("/api/intake/start", { folder: active });
+      // quiet: the caller owns the error message — a double toast (generic
+      // + specific) repeated the same refusal twice.
+      const job = await apiPost<Job>(
+        "/api/intake/start",
+        { folder: active },
+        { quiet: true },
+      );
       setRunId(job.id);
       toast("Intake started", "ok");
     } catch (e) {
@@ -152,7 +168,7 @@ export function IntakeTab() {
                 <span class="intake-folder-meta">
                   {c.exists
                     ? `${c.files} file${c.files === 1 ? "" : "s"}`
-                    : "not mounted"}
+                    : "missing"}
                 </span>
               </button>
             ))}

@@ -1,9 +1,19 @@
 import { describe, test, expect } from "bun:test";
+import { join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import {
   intakePhaseFor,
   splitIntakeStdout,
   intakeArgs,
   megadjCliPath,
+  ensureIntakeWatchDir,
   INTAKE_FILE_LINE,
 } from "../src/intake_run";
 
@@ -86,5 +96,41 @@ describe("argv builders", () => {
   });
   test("megadjCliPath resolves the repo CLI from cfg.root (cratedeck/)", () => {
     expect(megadjCliPath("/x/megadj/cratedeck")).toBe("/x/megadj/src/cli.ts");
+  });
+});
+
+describe("ensureIntakeWatchDir", () => {
+  test("creates a missing watch folder so the drop point exists", () => {
+    const base = mkdtempSync(join(tmpdir(), "intake-watch-"));
+    const musicDir = join(base, "archive");
+    mkdirSync(musicDir, { recursive: true });
+    const watch = ensureIntakeWatchDir({ musicDir });
+    expect(watch).toBe(join(musicDir, "..", "Downloads"));
+    expect(existsSync(watch)).toBe(true);
+    rmSync(base, { recursive: true, force: true });
+  });
+
+  test("is idempotent — existing folder stays untouched", () => {
+    const base = mkdtempSync(join(tmpdir(), "intake-watch-"));
+    const musicDir = join(base, "archive");
+    const watch = join(musicDir, "..", "Downloads");
+    mkdirSync(watch, { recursive: true });
+    writeFileSync(join(watch, "keep.wav"), "x");
+    ensureIntakeWatchDir({ musicDir });
+    expect(existsSync(join(watch, "keep.wav"))).toBe(true);
+    rmSync(base, { recursive: true, force: true });
+  });
+
+  test("MEGADJ_INTAKE_WATCH override is honored and created", () => {
+    const base = mkdtempSync(join(tmpdir(), "intake-watch-"));
+    process.env.MEGADJ_INTAKE_WATCH = join(base, "custom", "drop");
+    try {
+      const watch = ensureIntakeWatchDir({ musicDir: join(base, "archive") });
+      expect(watch).toBe(join(base, "custom", "drop"));
+      expect(existsSync(watch)).toBe(true);
+    } finally {
+      delete process.env.MEGADJ_INTAKE_WATCH;
+      rmSync(base, { recursive: true, force: true });
+    }
   });
 });

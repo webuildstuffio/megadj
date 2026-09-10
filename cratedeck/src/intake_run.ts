@@ -27,7 +27,7 @@
  * dashboard always drives the same code the user runs by hand.
  */
 import { join } from "node:path";
-import { readdirSync } from "node:fs";
+import { mkdirSync, readdirSync } from "node:fs";
 
 export interface IntakePhase {
   /** 0..1 absolute progress this phase STARTS at */
@@ -145,6 +145,22 @@ export function intakeWatchDir(cfg: { musicDir: string }): string {
   return configured || join(cfg.musicDir, "..", "Downloads");
 }
 
+/** The watch folder is the drop point ("there should be a watching
+ *  folder") — it must EXIST, not render as a dead row. Idempotent
+ *  recursive mkdir: a missing folder is created on first listing so the
+ *  user can drop files in immediately; a configured-but-uncreatable path
+ *  surfaces as exists:false instead of crashing the listing. */
+export function ensureIntakeWatchDir(cfg: { musicDir: string }): string {
+  const watch = intakeWatchDir(cfg);
+  try {
+    mkdirSync(watch, { recursive: true });
+  } catch (e) {
+    // visible at the listing boundary — never silently swallowed
+    console.error(`intake watch dir uncreatable at ${watch}:`, e);
+  }
+  return watch;
+}
+
 export interface IntakeCandidate {
   path: string;
   exists: boolean;
@@ -177,7 +193,7 @@ export function intakeCandidateDirs(cfg: {
     }
     out.push({ path, exists, files, label });
   };
-  const watch = intakeWatchDir(cfg);
+  const watch = ensureIntakeWatchDir(cfg);
   if (watch !== cfg.musicDir) add(watch, "watch folder");
   // batch folders already in the archive (re-ingest after a fix, mostly)
   try {

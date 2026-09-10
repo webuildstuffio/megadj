@@ -7,7 +7,9 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 10 · 2026-09-09 — I49 "sounds like" (`archive_similar_tracks`,
+Rev 11 · 2026-09-10 — GetDat ⌗ Intake tab (live `megadj ingest` runs
+over the job engine, watch-folder + batch-folder allowlist, post-run
+audit verdict). Rev 10 · 2026-09-09 — I49 "sounds like" (`archive_similar_tracks`,
 cosine kNN over the `embeddings` ledger, UI: FullTags ⌗ Similar) and
 M66 set-builder copilot (`archive_set_build`, propose-only chain
 builder) — 34 tools. Rev 9 · 2026-09-08 — the atomic web restructure: `web/` is now feature-
@@ -130,8 +132,8 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 
 | Capability | CLI (megadj) | MCP | UI | Verdict |
 | --- | --- | --- | --- | --- |
-| sync / status / list / retry / adopt | ✅ | ⛔ §4-A1 (archive writes stay CLI) | ⛔ §4-A1 | — |
-| ingest / fetch / enrich / artwork / audit / years | ✅ | reads only (`archive_*`) ⛔ §4-A1 | ⛔ §4-A1 | — |
+| sync / status / list / retry / adopt | ✅ | ⛔ §4-A1 (archive writes stay CLI) | ⛔ §4-A1 (Intake drives `ingest` only, as a CLI spawn) | — |
+| ingest / fetch / enrich / artwork / audit / years | ✅ | reads only (`archive_*`) ⛔ §4-A1 | ingest: GetDat ⌗ Intake ✅ (rev 11 — runs the CLI as a job); fetch/audit reads ✅ | — |
 | beats / mood / cues | ✅ | ⛔ §4-A1 | ⛔ §4-A1 | — |
 | organize | ✅ | ⛔ §4-A1 | ⛔ §4-A1 | — |
 | doctor / init | ✅ | ⛔ §4-A2 (host setup is human work) | ⛔ §4-A2 | — |
@@ -231,13 +233,16 @@ this table AND the enforcement test together (that's the point).
   the UI column covered.
 - **G2 — CLOSED (rev 3, GAP-8).** The Fleet ⌗ Prep tab renders the
   digest.
-- **A1 — archive mutation stays CLI-only.** `sync`/`ingest`/`fetch`/
+- **A1 — archive mutation stays CLI-shaped.** `sync`/`ingest`/`fetch`/
   `beats`/`mood`/`cues`/`organize`/`upgrade` are long-running,
   file-mutating pipeline stages; MCP's archive half is **readonly by
   design** (`readonly: true` sqlite handle — a bug there cannot corrupt
-  archive state). The UI has no archive mutation either (P1's "describe
-  & verify, don't create"). Agents drive archive work through `megadj`
-  CLI + skills, which is the P1 contract (`--json` everywhere).
+  archive state). The UI does not re-implement pipeline logic — the
+  GetDat ⌗ Intake tab (rev 11) SPAWNS `megadj ingest <folder> --json` as
+  a job, so the CLI remains the single implementation (the tab is a
+  remote control, not a second engine). Agents still drive archive work
+  through `megadj` CLI + skills, which is the P1 contract (`--json`
+  everywhere).
 - **A2 — doctor/init are host setup**, not library operations; they
   scaffold config and check the local machine. No UI/MCP sense.
 - **A3 — CLOSED (rev 3, GAP-9).** The Fleet ⌗ Archive tab serves the
