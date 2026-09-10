@@ -15,7 +15,12 @@ import {
   probeFile,
   playerCompat,
   isHiresOnly,
+  boothTextCompat,
 } from "../../fulltags/src/exports";
+import type { AuditRow } from "./audit-row";
+
+export type { AuditRow };
+
 export interface FetchOptions {
   all?: boolean;
   only?: "art" | "genres" | "tags" | "years" | "all";
@@ -23,25 +28,6 @@ export interface FetchOptions {
   dryRun?: boolean;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
   json?: boolean;
-}
-
-export interface AuditRow {
-  file: string;
-  art: boolean;
-  title: boolean;
-  artist: boolean;
-  album: boolean;
-  genre: boolean;
-  year: boolean;
-  /** TXXX:MOOD stamp present (roadmap #4 — mood/valence completeness). */
-  mood: boolean;
-  /** TXXX:ENERGY stamp present (the energy stage's output). */
-  energy: boolean;
-  /** Plays on the whole booth fleet (XDJ-XZ/3000/2000NXS2/2000) —
-   *  player-compat gate; a tag-complete file the booth can't load is
-   *  still a gap. */
-  playable: boolean;
-  complete: boolean;
 }
 
 /** Audio files under the archive, recursively — organize() moves tracks
@@ -68,6 +54,16 @@ export async function auditArchive(musicDir: string): Promise<{
     // alone can't see (float WAVs, 96k, MPEG-2 rips).
     const compat = playerCompat(await probeFile(p));
     const playable = compat.ok || isHiresOnly(compat);
+    // Booth-text gate rides the same ground-truth read: no extra probe,
+    // the display fields + filename are what the players actually show.
+    const text = boothTextCompat({
+      filename: p.split("/").pop() ?? p,
+      title: t.title,
+      artist: t.artist,
+      album: t.album,
+      genre: t.genre,
+      relPath: p.slice(musicDir.length + 1),
+    });
     const row: AuditRow = {
       file: p,
       art: t.art,
@@ -79,6 +75,8 @@ export async function auditArchive(musicDir: string): Promise<{
       mood: !!t.mood,
       energy: t.energy !== null,
       playable,
+      readable: text.ok,
+      unreadableReasons: text.reasons,
       complete: false,
     };
     row.complete =
@@ -90,7 +88,8 @@ export async function auditArchive(musicDir: string): Promise<{
       row.year &&
       row.mood &&
       row.energy &&
-      row.playable;
+      row.playable &&
+      row.readable;
     rows.push(row);
   }
   return {
