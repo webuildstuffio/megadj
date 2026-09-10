@@ -5,7 +5,6 @@ import { RateLimiter } from "./ratelimit";
 import { sync } from "./commands/sync";
 import { status, listTracks, statusJson, listJson } from "./commands/status";
 import { printHelp as printHelpImpl } from "./usage";
-import { runShelfCommand } from "./commands/shelf_cmds";
 
 const MUSIC_DIR =
   process.env.MEGADJ_MUSIC_DIR ?? `${process.env.HOME}/Music/DJ-Imports`;
@@ -278,18 +277,79 @@ async function main(): Promise<void> {
         }
         break;
       }
-      case "shelf-sync":
-      case "shelf-archive":
-      case "shelf-dedupe":
-      case "shelf-dupescan":
-      case "rb-fix-paths":
-      case "shelf-hygiene": {
-        // The shelf family lives in commands/shelf_cmds.ts (file-length
-        // guard) — one dispatcher, six verbs, same flag contracts.
-        if (!(await runShelfCommand(command, rest))) {
-          console.error(`unhandled shelf command: ${command}`);
-          process.exitCode = 2;
-        }
+      case "shelf-sync": {
+        // shelf master = the archive-grade HDD; sticks only mirror FROM it.
+        // Volume names come from config.toml [library] via env overrides —
+        // never hardcoded literals (AGENTS.md rule).
+        const json = rest.includes("--json");
+        const dryRun = rest.includes("--dry-run");
+        const shelfVolume = process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1";
+        const stickVolumes = [
+          process.env.USB_SYNC_MASTER ?? "DJMASTER",
+          process.env.USB_SYNC_MIRROR ?? "DJMIRROR",
+        ];
+        const { shelfSync } = await import("./commands/shelf-sync");
+        await shelfSync({
+          musicDir: MUSIC_DIR,
+          shelfVolume: `/Volumes/${shelfVolume}`,
+          stickVolumes: stickVolumes.map((v) => `/Volumes/${v}`),
+          dryRun,
+          json,
+        });
+        break;
+      }
+      case "shelf-archive": {
+        // The intake sweep: drive(s) → shelf, additive + verified. The
+        // generalization of the Sep 9 2026 three-stick manual merge.
+        // Volumes come from config.toml [library] defaults via env
+        // overrides — never hardcoded literals (AGENTS.md rule).
+        const json = rest.includes("--json");
+        const dryRun = rest.includes("--dry-run");
+        const deep = rest.includes("--deep");
+        const trashes = rest.includes("--trashes");
+        const intoEq = rest.find((a) => a.startsWith("--into="));
+        const into = intoEq ? decodeURIComponent(intoEq.slice(7)) : undefined;
+        const shelfVolume = process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1";
+        const suffixEq = rest.find((a) => a.startsWith("--suffix="));
+        const suffix = suffixEq ? suffixEq.slice(9) : undefined;
+        // positional volumes; default to the configured master+mirror when
+        // none are named (the "did both sticks fully land?" check)
+        const master = process.env.USB_SYNC_MASTER ?? "DJMASTER";
+        const mirror = process.env.USB_SYNC_MIRROR ?? "DJMIRROR";
+        const positionals = rest.filter(
+          (a) => !a.startsWith("--") && a !== "shelf-archive",
+        );
+        const volumes = positionals.length ? positionals : [master, mirror];
+        const { shelfArchive } = await import("./commands/shelf-archive");
+        await shelfArchive({
+          volumes: volumes.map((v) =>
+            v.startsWith("/Volumes/") ? v : `/Volumes/${v}`,
+          ),
+          shelfVolume: `/Volumes/${shelfVolume}`,
+          into,
+          trashes,
+          deep,
+          suffix,
+          dryRun,
+          json,
+        });
+        break;
+      }
+      case "shelf-dedupe": {
+        const apply = rest.includes("--apply");
+        const yes = rest.includes("--yes");
+        const json = rest.includes("--json");
+        const { shelfDedupe } = await import("./commands/shelf-dedupe");
+        await shelfDedupe({ apply, yes, json });
+        break;
+      }
+      case "shelf-dupescan": {
+        const json = rest.includes("--json");
+        const quarantine = rest.includes("--quarantine");
+        const yes = rest.includes("--yes");
+        const onlyIdentical = rest.includes("--only-identical");
+        const { shelfDupescan } = await import("./commands/shelf-dupescan");
+        await shelfDupescan({ json, quarantine, yes, onlyIdentical });
         break;
       }
       case "shelf-sweeps": {

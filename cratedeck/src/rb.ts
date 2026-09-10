@@ -131,11 +131,6 @@ export function spawnVerify(
   cfg: CrateConfig,
   driveNames: string[],
 ): Bun.Subprocess {
-  // Archive-tier (shelf) drives host the master library; pdb parity there is
-  // informational, never a fail (usb_verify.py --shelf-drives).
-  const shelfNames = driveNames.filter(
-    (n) => n.toUpperCase() === cfg.shelfDrive.toUpperCase(),
-  );
   return Bun.spawn(
     [
       UV,
@@ -155,7 +150,6 @@ export function spawnVerify(
       ),
       "--drives",
       ...driveNames,
-      ...(shelfNames.length ? ["--shelf-drives", ...shelfNames] : []),
     ],
     { stdout: "pipe", stderr: "pipe", cwd: cfg.root },
   );

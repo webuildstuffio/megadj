@@ -14,8 +14,8 @@
 // one implementation of "explain a job" across the help/explain verbs.
 
 import { HELP_JOBS, HELP_SURFACES, HELP_TERMS } from "../shared/help";
-import { KIND_DOCS, printKindDoc } from "./deckctl_docs";
 import { apiPost, resolveDrive } from "./deckapi";
+import { printKindDoc } from "./deckctl_docs";
 
 /** Print hooks shared with deckctl.ts (deckctl_notes.ts pattern). */
 export interface HelpPrintHooks {
@@ -54,14 +54,9 @@ export function cmdHelp(h: HelpPrintHooks, topic?: string): void {
         console.log(JSON.stringify({ job }, null, 2));
         return;
       }
-      // KIND_DOCS is the SSOT for job-kind docs — HELP_JOBS carries the
-      // friendlier one-liners, but what/typical/safe/needs must not be
-      // re-derived here (the hardcoded "rekordbox closed" default once
-      // lied about the hygiene kinds, which need the shelf, not RB quiet).
-      const doc = KIND_DOCS[job.kind];
       printKindDoc(
         job.kind,
-        doc ?? {
+        {
           what: job.what,
           typical: job.duration,
           safe: job.safety,

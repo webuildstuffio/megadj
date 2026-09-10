@@ -65,17 +65,6 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                archive: cross-batch duplicate hunt
                                                (--apply moves losers to the archive
                                                quarantine, never deletes)
-  megadj shelf-hygiene [--json]                the hygiene sweep: byte/fp/junk checks →
-                                               findings ledger (--json = census);
-                                               [--confirm ID | --dismiss ID] decide one;
-                                               [--apply --yes] executes CONFIRMED losers
-                                               into the shelf quarantine (never deletes)
-  megadj rb-fix-paths [drive] [--apply --yes] [--json]
-                                               repair stale rekordbox paths after folder
-                                               moves/merges: dry-run reports broken rows
-                                               and fixes (dry first, ALWAYS); --apply
-                                               backs the DB up, refuses while rekordbox
-                                               runs, rewrites, then re-checks EVERY row
 
 cratedeck — the Crate: organize, sync & verify every DJ USB:
   megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)

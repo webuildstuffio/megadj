@@ -5,7 +5,6 @@ import { DB } from "./db";
 import { Guard } from "./guard";
 import { listMountedVolumes, watchVolumes } from "./detect";
 import { freeBytes } from "./scan";
-import { buildDriveList } from "./drive_list";
 import { Registry } from "./registry";
 import { JobEngine } from "./jobs";
 import { ImageService } from "./images";
@@ -13,6 +12,7 @@ import { driveBadgesView } from "./badges_view";
 import { ShelfSweepReader } from "./shelf_sweep_reader";
 import { HygieneReader } from "./hygiene_reader";
 import { makeHygieneRoutes } from "./hygiene_routes";
+import { makeFixesRoutes } from "./fixes_routes";
 import { parseSnapshotJson } from "../shared/badges";
 import { buildReport, buildReportSummary, overall } from "./report";
 import { VERIFY_HELP } from "./verify_help";
@@ -266,6 +266,48 @@ import { photoUpload, makeEnqueueDriveJob } from "./drive_job_routes";
 const { boothFleetPayload, writeConfigBoothFleet, normalizeFleetSelection } =
   await import("./booth_routes");
 
+/** The /api/hygiene family: reader-backed reads + job enqueues + sync
+ *  decision writes through megadj's CLI (the engine SSOT). */
+const hygieneApi = makeHygieneRoutes({
+  reader: hygiene,
+  enqueue: (kind) => {
+    const shelf = registry.list().find((d) => d.role === "shelf" && d.mounted);
+    if (!shelf)
+      throw new Error("shelf drive not mounted — hygiene needs SHELF1");
+    return jobs.enqueue(shelf.id, kind, `/Volumes/${shelf.name}`, "web");
+  },
+  megadjCli: async (args) => {
+    const proc = Bun.spawn(["bun", megadjCliPath(cfg.root), ...args], {
+      stdout: "pipe",
+      stderr: "pipe",
+      cwd: cfg.root,
+    });
+    const stderr = await new Response(proc.stderr).text();
+    const code = await proc.exited;
+    return { code, stderr };
+  },
+  json,
+});
+
+/** The /api/fixes family: booth-fix plan cache + job enqueues. The music
+ *  dir is the SHELF's Contents (same slot hygiene uses for its volume). */
+const fixesMusicDir = (): string => {
+  const shelf = registry.list().find((d) => d.role === "shelf" && d.mounted);
+  if (!shelf) throw new Error("shelf drive not mounted — fixes needs SHELF1");
+  return `/Volumes/${shelf.name}/Contents`;
+};
+const fixesApi = makeFixesRoutes({
+  enqueue: (kind) => {
+    return jobs.enqueue(
+      registry.list().find((d) => d.role === "shelf" && d.mounted)!.id,
+      kind,
+      fixesMusicDir(),
+      "web",
+    );
+  },
+  json,
+});
+
 /** ---- /api router: one handler per route family -------------------------- */
 
 /** Serve a file that lives ON a mounted drive (drive-image picker previews).
@@ -443,6 +485,12 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
       return hygieneApi.apply();
     if (route === "/hygiene/decide" && req.method === "POST")
       return hygieneApi.decide(req);
+    // ---- booth fixes (Fleet→Booth fleet drives these checks) -----------
+    if (route === "/fixes") return fixesApi.list();
+    if (route === "/fixes/scan" && req.method === "POST")
+      return fixesApi.scan();
+    if (route === "/fixes/apply" && req.method === "POST")
+      return fixesApi.apply();
     // ---- archive intake (GetDat Intake tab) -----------------------------
     if (route === "/intake/folders") {
       return json({
@@ -726,53 +774,74 @@ async function fleetRoutes(route: string, url: URL): Promise<Response> {
 }
 
 async function driveListPayload(): Promise<Drive[]> {
-  // builder extracted to drive_list.ts (file-length cap) — this is wiring
-  return buildDriveList({
-    registry,
-    latestSnapshots: () => db.latestSnapshots(),
-    sweeps: shelfSweeps,
-    badges: (drive, snaps, masterName, mirrorName) =>
-      driveBadgesView(
-        db,
-        drive,
-        snaps as Parameters<typeof driveBadgesView>[2],
-        masterName,
-        mirrorName,
-      ),
-    liveFree: freeBytes,
-    masterDrive: cfg.masterDrive,
-    mirrorDrive: cfg.mirrorDrive,
-    shelfDrive: cfg.shelfDrive,
-    hygieneBadge: () => hygiene.badge(),
-  });
+  const snaps = db.latestSnapshots();
+  const sweeps = shelfSweeps.latestPerDrive();
+  const drives = registry.list();
+  // one live `df` per MOUNTED drive: the rail shows "free of total", and a
+  // snapshot's free_bytes goes stale the moment anything writes to the disk
+  // (SHELF1's snapshot had no free_bytes at all → "4.0 TB" with no floor).
+  // Runs in parallel; df failure → null → UI falls back to snapshot truth.
+  const liveFree = new Map(
+    await Promise.all(
+      drives
+        .filter((d) => d.mounted)
+        .map(async (d) => {
+          const mountPoint = `/Volumes/${d.name}`;
+          try {
+            return [d.id, await freeBytes(mountPoint)] as const;
+          } catch (e) {
+            // a df that throws (volume yanked mid-request) is a logged
+            // boundary, not a payload-killer
+            console.error(`live free-space probe failed for ${d.name}`, e);
+            return [d.id, null] as const;
+          }
+        }),
+    ),
+  );
+  return drives
+    .map((d) => ({
+      ...d,
+      // strip the raw snapshot blob from list responses: cards only need
+      // counts; the full snapshot goes MBs over the wire for nothing.
+      last_snapshot_json: null as string | null,
+      snapshot_summary: (() => {
+        const s = snaps.get(d.id);
+        return s
+          ? {
+              track_count: s.track_count,
+              file_count: s.file_count,
+              capacity_bytes: s.capacity_bytes,
+              free_bytes: s.free_bytes,
+              live_free_bytes: d.mounted ? (liveFree.get(d.id) ?? null) : null,
+            }
+          : {
+              // never-scanned mounted drive: still show live free space
+              capacity_bytes: d.capacity_bytes || undefined,
+              free_bytes: null,
+              live_free_bytes: d.mounted ? (liveFree.get(d.id) ?? null) : null,
+            };
+      })(),
+      badges: [
+        ...driveBadgesView(db, d, snaps, cfg.masterDrive, cfg.mirrorDrive),
+      ],
+    }))
+    .map((d) => ({
+      ...d,
+      last_snapshot_json: null,
+      shelf_sweep: sweeps.get(d.name.toUpperCase()) ?? null,
+      // hygiene census rides only the shelf drive (§4.3: the badge that
+      // opens the queue); null elsewhere so cards don't render it
+      hygiene:
+        d.role === "shelf" &&
+        d.name.toUpperCase() === cfg.shelfDrive.toUpperCase()
+          ? hygiene.badge()
+          : null,
+    }));
 }
 
 /** Shared deps for the report/preflight/dossier collectors
  *  (report_inputs.ts). */
 const reportDeps: ReportDeps = { db, cfg, registry, extraPlayers };
-
-/** The /api/hygiene family: reader-backed reads + job enqueues + sync
- *  decision writes through megadj's CLI (the engine SSOT). */
-const hygieneApi = makeHygieneRoutes({
-  reader: hygiene,
-  enqueue: (kind) => {
-    const shelf = registry.list().find((d) => d.role === "shelf" && d.mounted);
-    if (!shelf)
-      throw new Error("shelf drive not mounted — hygiene needs SHELF1");
-    return jobs.enqueue(shelf.id, kind, `/Volumes/${shelf.name}`, "web");
-  },
-  megadjCli: async (args) => {
-    const proc = Bun.spawn(["bun", megadjCliPath(cfg.root), ...args], {
-      stdout: "pipe",
-      stderr: "pipe",
-      cwd: cfg.root,
-    });
-    const stderr = await new Response(proc.stderr).text();
-    const code = await proc.exited;
-    return { code, stderr };
-  },
-  json,
-});
 
 console.log(
   `cratedeck: http://127.0.0.1:${cfg.serverPort} (reaped jobs: ${reaped})`,

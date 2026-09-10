@@ -7,11 +7,10 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 12 · 2026-09-10 — Shelf hygiene (docs/shelf-hygiene-2026-09-09.md):
-`deckctl hygiene [scan|apply|confirm ID|dismiss ID]` + `deck_hygiene`
-MCP tool + the Hygiene tab on the shelf drive page (all over the same
-`/api/hygiene*` routes); KIND_DOCS/help SSOT gained the hygiene-scan +
-hygiene-apply job docs; census re-derived — 22 verbs + 36 tools. Rev 11 · 2026-09-10 — GetDat ⌗ Intake tab (live `megadj ingest` runs
+Rev 12 · 2026-09-10 — shelf hygiene (P2+P3: `deckctl hygiene`,
+`deck_hygiene`, Hygiene tab over the findings ledger) and booth fixes
+(`deckctl fixes`, `deck_fixes`, Fixes tab over the booth-fix plan);
+census — 23 verbs + 37 tools. Rev 11 · 2026-09-10 — GetDat ⌗ Intake tab (live `megadj ingest` runs
 over the job engine, watch-folder + batch-folder allowlist, post-run
 audit verdict); census re-derived — 21 verbs + 35 tools (the booth
 fleet rev added `deck_booth` + the `booth` verb without bumping the
@@ -79,8 +78,8 @@ that way.
 | Surface | Entry points | Count |
 | --- | --- | --- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`) | 19 commands + `--help` |
-| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 22 verbs |
-| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 36 tools |
+| deckctl | `bun run cratedeck/src/deckctl.ts <verb>` | 23 verbs |
+| MCP | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 37 tools |
 | HTTP API | `cratedeck/src/index.ts` (localhost:7742) | ~35 routes |
 | Web UI | `cratedeck/web/` (hash-routed pages) | 6 pages, ~22 actions |
 
@@ -112,7 +111,6 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Verify doc (explain) | `explain [kind]` ✅ | `deck_explain` ✅ | VerifyTab help ✅ | — |
 | In-app help (glossary/tour) | `help [term]` ✅ | `deck_help {term?}` ✅ | tooltips + Welcome tour ✅ | — (GAP-10 closed rev 4) |
 | Export dossier | `report --dossier [--out F]` ✅ | `deck_report {format:"dossier"}` ✅ | Export button ✅ | — (D1 closed rev 3) |
-| Shelf hygiene queue (rev 12) | `hygiene [scan\|apply\|confirm\|dismiss]` ✅ | `deck_hygiene` ✅ | shelf drive ⌗ Hygiene tab ✅ | — |
 
 ### 2b. Fleet queries
 
@@ -131,6 +129,8 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Preflight verdict | `preflight` ✅ | `deck_preflight` ✅ | Fleet ⌗ Preflight tab ✅ | — (G1 closed) |
 | Player compat | `players [d]` ✅ | `deck_players` ✅ | Preflight tab (per-drive expand) ✅ | — (G1 closed) |
 | Booth fleet settings | `booth [set IDs]` ✅ | `deck_booth {ids?}` ✅ | Fleet ⌗ Booth tab ✅ (citations inline) | — |
+| Booth fixes queue | `fixes [scan\|apply]` ✅ (rev 12) | `deck_fixes {action?}` ✅ (rev 12) | Drive ⌗ Fixes tab ✅ (rev 12) | — |
+| Hygiene queue | `hygiene [scan\|apply\|confirm\|dismiss]` ✅ (rev 12) | `deck_hygiene {action?}` ✅ (rev 12) | Drive ⌗ Hygiene tab ✅ (rev 12) | — |
 | Weekly digest | `prep [--out]` ✅ | `deck_prep` ✅ (markdown; `--out` stays CLI) | Fleet ⌗ Prep tab ✅ | — (G2 closed rev 3) |
 | Agent notes feed | `note`/`notes` ✅ | `deck_note`/`deck_notes` ✅ | Timeline cards ✅ | — (GAP-3 closed) |
 | Note dismissal | `dismiss <d> <id>` ✅ | `deck_dismiss` ✅ (rev 4) | Timeline dismiss ✅ | — (GAP-11 closed rev 4) |

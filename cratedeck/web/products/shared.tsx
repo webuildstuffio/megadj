@@ -293,6 +293,13 @@ export const DRIVE_TABS = [
     icon: "warn",
     title: "Duplicate + junk findings on the shelf — review, confirm, apply",
   },
+  {
+    id: "fixes",
+    label: "Fixes",
+    icon: "bolt",
+    title:
+      "Booth compatibility fixes — audit, rename, retag against your fleet",
+  },
 ] as const;
 
 /** The one-line verdict a human reads before anything else. `meta` accepts

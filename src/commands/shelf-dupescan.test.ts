@@ -58,8 +58,8 @@ describe("shelf-dupescan", () => {
     });
     const ledger = mkdtempSync("/tmp/megadj-dupescan-db-") + "/state.db";
     let out = "";
-    const orig: typeof console.log = console.log;
-    console.log = (s: string) => (out += s + "\n");
+    const orig = console.log;
+    console.log = (s) => (out += s + "\n");
     try {
       await shelfDupescan({ shelfVolume: shelf, json: true, dbPath: ledger });
     } finally {

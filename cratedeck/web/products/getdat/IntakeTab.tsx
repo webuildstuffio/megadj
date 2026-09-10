@@ -86,7 +86,7 @@ export function IntakeTab() {
     const tick = () => {
       api<Job>(`/api/jobs/${runId}`, { quiet: true })
         .then((j) => alive && setJob(j))
-        .catch((e: unknown) => {
+        .catch((e) => {
           console.error("intake job poll failed", e);
           const now = Date.now();
           if (now - lastToastAt >= 30_000) {

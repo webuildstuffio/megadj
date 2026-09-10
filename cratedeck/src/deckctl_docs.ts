@@ -33,6 +33,18 @@ export const KIND_DOCS: Record<string, KindDoc> = {
     safe: "Quarantine-only and reversible; unconfirmed findings are never touched.",
     needs: "shelf drive mounted; confirmed findings in the ledger",
   },
+  "fixes-scan": {
+    what: "Booth compatibility dry run: megadj booth-fix over the shelf Contents against the selected fleet (deckctl booth) — filenames the players can't carry, tags they can't display, audio they can't play. Produces the fix plan without touching anything.",
+    typical: "5–12 min (reads every file's tags)",
+    safe: "Read-only — a dry run. Nothing is renamed or rewritten until you apply.",
+    needs: "shelf drive mounted",
+  },
+  "fixes-apply": {
+    what: "Executes the SAFE subset of the booth fix plan: filename renames (DB path follows) + tag rewrites to fleet-safe text. Proposal-only rows (float WAVs, intentional scripts) are never auto-executed.",
+    typical: "minutes (a rescan follows to prove what's left)",
+    safe: "Renames + tag writes only, nothing deletes. Renames need one rekordbox pass: Collection → ⌘A → Relocate Lost Files, then re-sync sticks.",
+    needs: "shelf drive mounted; a completed fixes-scan plan",
+  },
   mirror: {
     what: "Copy master → mirror so both USB drives are identical (files + both databases + ANLZ). Skips files that already match.",
     typical: "minutes–1h+ depending on how much changed",

@@ -46,6 +46,7 @@ import { collectPlayers } from "./deckctl_players";
 import { KIND_DOCS, printKindDoc } from "./deckctl_docs";
 import { cmdHelp, cmdDismiss } from "./deckctl_help";
 import { cmdHygiene } from "./deckctl_hygiene";
+import { cmdFixes } from "./deckctl_fixes";
 
 // ---- output helpers ---------------------------------------------------------
 const JSON_MODE = process.argv.includes("--json");
@@ -78,6 +79,8 @@ const searchHooks = baseHooks;
 const helpHooks = baseHooks;
 /** Print hooks for the extracted hygiene command (deckctl_hygiene.ts). */
 const hygieneHooks = baseHooks;
+/** Print hooks for the extracted fixes command (deckctl_fixes.ts). */
+const fixesHooks = baseHooks;
 
 type DriveWithBadges = Drive & {
   badges?: { label: string; tone: string }[];
@@ -685,6 +688,7 @@ function usageText(): string {
     "  diff <driveA> <driveB>        added / removed / changed between two drives",
     "  explain [kind]                what each job checks, typical duration, safety",
     "  hygiene [scan|apply|confirm ID|dismiss ID]  shelf hygiene queue: census + job enqueues + decisions",
+    "  fixes [scan|apply]            booth-fix queue: census + job enqueues (fleet from `deckctl booth`)",
     "  help [term|kind]              glossary + job/surface tour (the UI's help cards, for agents)",
     "  dismiss <drive> <noteId>      retire a note from the active feed (history kept)",
     "  jobs                          recent jobs",
@@ -769,6 +773,8 @@ async function main(): Promise<void> {
       return cmdExplain(args[1]);
     case "hygiene":
       return cmdHygiene(hygieneHooks(), args[1], args[2]);
+    case "fixes":
+      return cmdFixes(fixesHooks(), args[1]);
     case "dismiss":
       return cmdDismiss(helpHooks(), arg(1), arg(2));
     case "cancel":

@@ -1,10 +1,9 @@
 // hygiene_reader.ts — read-only window into the megadj archive DB's
-// `hygiene_findings` ledger (the shelf-hygiene feature's SSOT). Same
-// pattern as shelf_sweep_reader.ts: a dedicated readonly Database (it can
-// never write the archive), a missing/corrupt DB degrades to empty rows
-// — the /api/hygiene family this feeds must answer, never 500.
-import { Database } from "bun:sqlite";
+// `hygiene_findings` ledger (the shelf-hygiene feature's SSOT). Lifecycle
+// + the degrade-to-empty guarantee live in ArchiveLedgerReader (shared
+// with the shelf-sweeps ledger — one implementation, not two copies).
 import type { Finding, FindingKind, HygieneBadge } from "../shared/hygiene";
+import { ArchiveLedgerReader } from "./archive_ledger_reader";
 
 export interface HygieneCounts {
   open: number;
@@ -60,25 +59,11 @@ function hydrate(r: Row): Finding {
   } as Finding;
 }
 
-export class HygieneReader {
-  private db: Database | null = null;
-  private tried = false;
+export class HygieneReader extends ArchiveLedgerReader {
+  protected readonly label = "hygiene";
 
-  constructor(private readonly path: string) {}
-
-  private open(): Database | null {
-    if (this.tried) return this.db;
-    this.tried = true;
-    try {
-      this.db = new Database(this.path, { readonly: true, create: false });
-    } catch (e) {
-      console.error(
-        `hygiene: archive DB unavailable at ${this.path}`,
-        e instanceof Error ? e.message : e,
-      );
-      this.db = null;
-    }
-    return this.db;
+  constructor(path: string) {
+    super(path);
   }
 
   list(filter?: {
@@ -86,42 +71,30 @@ export class HygieneReader {
     kind?: string;
     severity?: string;
   }): Finding[] {
-    const db = this.open();
-    if (!db) return [];
-    try {
-      const where: string[] = [];
-      const params: string[] = [];
-      if (filter?.status) {
-        where.push("status = ?");
-        params.push(filter.status);
-      }
-      if (filter?.kind) {
-        where.push("kind = ?");
-        params.push(filter.kind);
-      }
-      if (filter?.severity) {
-        where.push("severity = ?");
-        params.push(filter.severity);
-      }
-      const rows = db
-        .query(
-          `SELECT * FROM hygiene_findings
-           ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-           ORDER BY CASE status
-               WHEN 'confirmed' THEN 0 WHEN 'open' THEN 1
-               WHEN 'failed' THEN 2 WHEN 'applied' THEN 3 ELSE 4 END,
-             severity, kind, created_at`,
-        )
-        .all(...params) as Row[];
-      return rows.map(hydrate);
-    } catch (e) {
-      // missing table (older archive DB) = "no data", logged, not fatal
-      console.error(
-        "hygiene: ledger query failed",
-        e instanceof Error ? e.message : e,
-      );
-      return [];
+    const where: string[] = [];
+    const params: string[] = [];
+    if (filter?.status) {
+      where.push("status = ?");
+      params.push(filter.status);
     }
+    if (filter?.kind) {
+      where.push("kind = ?");
+      params.push(filter.kind);
+    }
+    if (filter?.severity) {
+      where.push("severity = ?");
+      params.push(filter.severity);
+    }
+    const rows = this.query<Row>(
+      `SELECT * FROM hygiene_findings
+       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+       ORDER BY CASE status
+           WHEN 'confirmed' THEN 0 WHEN 'open' THEN 1
+           WHEN 'failed' THEN 2 WHEN 'applied' THEN 3 ELSE 4 END,
+         severity, kind, created_at`,
+      ...params,
+    );
+    return rows.map(hydrate);
   }
 
   /** The banner census + per-drive badge numbers. Zeros when unavailable. */
@@ -133,38 +106,26 @@ export class HygieneReader {
       review: 0,
       byKind: {},
     };
-    const db = this.open();
-    if (!db) return out;
-    try {
-      const rows = db
-        .query(
-          `SELECT status, kind, severity, auto_safe, COUNT(*) AS n
-           FROM hygiene_findings GROUP BY status, kind, severity, auto_safe`,
-        )
-        .all() as Array<{
-        status: string;
-        kind: string;
-        severity: string;
-        auto_safe: 0 | 1;
-        n: number;
-      }>;
-      for (const r of rows) {
-        if (r.status === "open") {
-          out.open += r.n;
-          if (r.auto_safe === 1) out.safe += r.n;
-          if (r.severity === "review") out.review += r.n;
-        }
-        if (r.status === "confirmed") out.confirmed += r.n;
-        out.byKind[r.kind] = (out.byKind[r.kind] ?? 0) + r.n;
+    const rows = this.query<{
+      status: string;
+      kind: string;
+      severity: string;
+      auto_safe: 0 | 1;
+      n: number;
+    }>(
+      `SELECT status, kind, severity, auto_safe, COUNT(*) AS n
+       FROM hygiene_findings GROUP BY status, kind, severity, auto_safe`,
+    );
+    for (const r of rows) {
+      if (r.status === "open") {
+        out.open += r.n;
+        if (r.auto_safe === 1) out.safe += r.n;
+        if (r.severity === "review") out.review += r.n;
       }
-      return out;
-    } catch (e) {
-      console.error(
-        "hygiene: counts query failed",
-        e instanceof Error ? e.message : e,
-      );
-      return out;
+      if (r.status === "confirmed") out.confirmed += r.n;
+      out.byKind[r.kind] = (out.byKind[r.kind] ?? 0) + r.n;
     }
+    return out;
   }
 
   badge(): HygieneBadge {
@@ -175,11 +136,5 @@ export class HygieneReader {
       review: c.review,
       info: 0, // info-severity checks (stale-pointer/orphan) ship later
     };
-  }
-
-  close(): void {
-    this.db?.close();
-    this.db = null;
-    this.tried = false;
   }
 }

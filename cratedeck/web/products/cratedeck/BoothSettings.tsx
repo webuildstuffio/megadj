@@ -93,7 +93,7 @@ export function BoothSettings() {
           setSel(res);
           toast(`Booth fleet saved: ${res.selected.join(", ")}`);
         })
-        .catch((e: unknown) => toast(`Save failed: ${String(e)}`));
+        .catch((e) => toast(`Save failed: ${String(e)}`));
     },
     [sel, d],
   );

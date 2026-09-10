@@ -136,6 +136,8 @@ const JOB_KINDS = [
   "ingest",
   "hygiene-scan",
   "hygiene-apply",
+  "fixes-scan",
+  "fixes-apply",
 ] as const satisfies readonly JobKind[];
 
 /** O87 attribution: one id per MCP server process, stamped on mutating calls
@@ -407,6 +409,53 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
+  deck_fixes: {
+    description:
+      "Booth compatibility fixes (the checks behind megadj booth-fix, fleet from deck_booth): action=scan enqueues a dry-run audit of the shelf Contents; action=apply executes the SAFE subset (filename renames + tag sanitization — never deletes; `none` rows are proposals only). Bare call = read-only census of the last scan.",
+    destructive: true,
+    inputSchema: obj(
+      {
+        action: sEnum(["scan", "apply"]),
+        wait: b("block until the job finishes (default true)"),
+        timeout_minutes: n("wait timeout (default 30)"),
+      },
+      [],
+    ),
+    run: async (args) => {
+      const action = str(args, "action");
+      if (!action) {
+        const r = await apiGetJson("/api/fixes");
+        const body = r as { fixable?: number; checked?: number } | null;
+        return {
+          payload: body,
+          note:
+            body && body.fixable
+              ? "apply executes the safe subset; renames need a rekordbox Relocate Lost Files pass afterwards"
+              : "no scan yet or nothing to fix — action=scan audits the shelf",
+        };
+      }
+      await interlockGuard();
+      const r = await apiPost(`/api/fixes/${action}`, {
+        origin: `mcp:${MCP_SESSION}`,
+      });
+      if (r.status === 423)
+        throw new RpcParamError(
+          "rekordbox started mid-request — drive operations locked. Quit rekordbox and retry.",
+        );
+      const body = (await r.json()) as Job & { error?: string };
+      if (!r.ok) throw new Error(body.error ?? `enqueue failed (${r.status})`);
+      const wait = args["wait"] !== false;
+      if (!wait) return { job: body, action, status: body.status };
+      const timeoutMs = (num(args, "timeout_minutes") ?? 30) * 60 * 1000;
+      const final = await waitForJob(body.id, { timeoutMs });
+      return {
+        job: { ...final, result: await jobResult(final) },
+        action,
+        ok: final.status === "done",
+      };
+    },
+  },
+
   deck_explain: {
     description:
       "Documentation as a tool: what each job type checks, typical duration, and safety guarantees. Kind omitted = all jobs.",
@@ -419,6 +468,8 @@ const TOOLS: Record<string, ToolDef> = {
         "checksum",
         "hygiene-scan",
         "hygiene-apply",
+        "fixes-scan",
+        "fixes-apply",
       ]),
     }),
     run: async (args) => {
@@ -468,7 +519,7 @@ const TOOLS: Record<string, ToolDef> = {
     run: async (args) => {
       const raw = (args as { ids?: unknown }).ids;
       const ids = Array.isArray(raw)
-        ? (raw as unknown[]).filter((x): x is string => typeof x === "string")
+        ? raw.filter((x): x is string => typeof x === "string")
         : [];
       if (ids.length === 0) return apiGetJson("/api/booth/fleet");
       const r = await apiPost("/api/booth/fleet", { selected: ids });

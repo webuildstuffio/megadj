@@ -219,7 +219,9 @@ export type JobKind =
   | "ingest"
   | "speedtest"
   | "hygiene-scan"
-  | "hygiene-apply";
+  | "hygiene-apply"
+  | "fixes-scan"
+  | "fixes-apply";
 export type JobStatus =
   | "queued"
   | "running"

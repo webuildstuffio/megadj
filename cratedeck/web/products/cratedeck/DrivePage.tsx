@@ -25,6 +25,7 @@ import { InfoTip } from "../../ui/InfoTip";
 import { HELP_JOBS, ROLE_HELP, VERDICT_HELP } from "../../../shared/help";
 import { PhotoTab, type PhotoHit } from "./PhotoTab";
 import { HygieneTab } from "./HygieneTab";
+import { FixesTab } from "./FixesTab";
 import { DRIVE_TABS } from "../shared";
 
 type TabId = (typeof DRIVE_TABS)[number]["id"];
@@ -124,12 +125,12 @@ export function DrivePage(props: {
   const detailOrNull = page.status === "ok" ? page.detail : null;
   const loadError = page.status === "error" ? page.message : null;
   const locked = interlock.rekordbox_running;
-  // hygiene rides only the shelf master (§4.3) — the same condition the
-  // server uses for the drive-list badge, so the two can't disagree
+  // hygiene + fixes ride only the shelf master (§4.3) — the same condition
+  // the server uses for the drive-list badge, so the two can't disagree
   const isShelf = detailOrNull?.drive.role === "shelf";
   const tabs = isShelf
     ? DRIVE_TABS
-    : DRIVE_TABS.filter((t) => t.id !== "hygiene");
+    : DRIVE_TABS.filter((t) => t.id !== "hygiene" && t.id !== "fixes");
 
   const load = useCallback(async () => {
     const enc = encodeURIComponent(driveId);
@@ -745,6 +746,10 @@ export function DrivePage(props: {
 
       {tabConf.id === "hygiene" && isShelf && (
         <HygieneTab driveId={driveId} driveName={name} />
+      )}
+
+      {tabConf.id === "fixes" && isShelf && (
+        <FixesTab driveId={driveId} driveName={name} />
       )}
 
       {/* recent jobs for this drive */}

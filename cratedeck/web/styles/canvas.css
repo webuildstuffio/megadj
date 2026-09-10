@@ -494,22 +494,6 @@ h3.sect .icon {
   gap: 6px;
   align-items: center;
 }
-/* hygiene tab: the per-finding agent fix command (two-thirds UX law) */
-.hyg-cmd {
-  font-family: var(--mono, ui-monospace, monospace);
-  font-size: 11px;
-  color: var(--info);
-  opacity: 0.85;
-  user-select: all;
-  margin-top: 2px;
-  overflow-wrap: anywhere;
-}
-.hyg-row-actions {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-shrink: 0;
-}
 .check.fail {
   border-color: #4a2224;
 }
