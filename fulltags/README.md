@@ -112,18 +112,23 @@ fulltags/
 | label / mix / ISRC | (Beatport-only fields) file → **Beatport catalog row** — never overwritten once present                                                    |
 | energy             | RMS 1–10 baseline; **energy 2.0**: `0.5·RMS + 0.3·dance + 0.2·arousal` when a MOOD stamp exists                                            |
 
-**Beatport ranking (rev 6.4):** second in every ladder, behind SoundCloud —
+**Beatport ranking (rev 6.4, hardened 6.5):** second in every ladder, behind SoundCloud —
 SC wins every field it covers (its tags reflect how tracks actually
 circulate), Beatport fills what SC misses and is the ONLY source of the
 DJ-canonical identity fields: record label, mix name, official remixer
 credit, and ISRC. Access is the v4 catalog API with the same anonymous
 client-credentials grant the official web embed player ships (no account,
-no scraping); every Beatport-filled field is stamped `TXXX:BP-FIELDS`
-("label=…; mix=…; isrc=…") so store-sourced values are always auditable.
-The genre rung accepts only canon-vocabulary hits ("Peak Time / Driving"
-still maps; "Electronica" junk is refused); the search is relevance-gated
-(artist must match — title+duration alone can't distinguish the store's
-same-name pack-fillers).
+no scraping; override via `MEGADJ_BP_CLIENT_ID` / `MEGADJ_BP_CLIENT_SECRET`
+if Beatport rotates); every Beatport-filled field is stamped
+`TXXX:BP-FIELDS` ("label=…; mix=…; isrc=…") so store-sourced values are
+always auditable, both in the single-file pipeline AND in the
+`megadj fetch`/`enrich` batch stage. The genre rung accepts only
+canon-vocabulary hits ("Peak Time / Driving" still maps; "Electronica"
+junk is refused); the search is relevance-gated (artist must match —
+title+duration alone can't distinguish the store's same-name
+pack-fillers) and duration-aware (±2 s/±10 s bonus from the file's
+ffprobe duration); transient catalog outages degrade to the next rung
+and are retried on the next lookup, never cached as misses.
 
 ## 🤖 AI provenance (trust in automation)
 

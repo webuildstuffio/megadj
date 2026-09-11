@@ -1,6 +1,19 @@
-# FullTags — Prioritized Roadmap (rev 6.4)
+# FullTags — Prioritized Roadmap (rev 6.5)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 6.5, 2026-09-11: **hardening + 1:1 parity pass over rev 6.4's
+Beatport integration** — the batch stage (`megadj fetch`/`enrich`) now
+stamps TXXX:BP-FIELDS and fills the official remixer credit exactly like
+the single-file pipeline (was: silent, unattributed writes); transient
+catalog failures are retried instead of cached as permanent misses; the
+BP client is env-overridable; bpStamp carries a 500-char budget; the
+scorer is duration-aware (ffprobe duration feeds the ±2 s/±10 s bonus);
+remixer reads back as ground truth (TXXX:version), and the mixName probe
+no longer mistakes a remixer-only file's credit for a mix name; the
+GetDat library UI phrases every art-ladder rung (census test derived
+from the producer source), and `fulltags audit` reports DJ-identity
+coverage (label/mix/isrc/remixer).
 
 _Rev 6.4, 2026-09-11: **Beatport integrated as the second source behind
 SoundCloud** in every ladder (genre / year / artwork) and the ONLY source
@@ -251,7 +264,7 @@ canonical map → MB folksonomy → AI (conf ≥ 0.7) — four votes, one
 writer. enrich's `GenreResolver`/`TagWriter` test seams preserved (all
 existing tests pass unmodified).
 
-### #6 — Beatport as the second source — **S — ✅ SHIPPED (rev 6.4, this pass)**
+### #6 — Beatport as the second source — **S — ✅ SHIPPED (rev 6.4; hardened rev 6.5)**
 
 **The decision:** second behind SoundCloud in every ladder. SC reflects
 how tracks actually circulate (uploader tags, upload-era years, page

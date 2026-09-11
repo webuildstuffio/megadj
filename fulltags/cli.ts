@@ -169,6 +169,13 @@ async function main(): Promise<void> {
       if (!t.year) missing.push("year");
       if (!t.mood) missing.push("mood");
       if (t.energy === null || t.energy === undefined) missing.push("energy");
+      // DJ identity fields (Beatport-sourced): audited, not gated — a gap
+      // here is enrichment headroom, not incompleteness (report-only).
+      const identity: string[] = [];
+      if (!t.label) identity.push("label");
+      if (!t.mixName) identity.push("mix");
+      if (!t.isrc) identity.push("isrc");
+      if (!t.remixer) identity.push("remixer");
       const aiFilled = [
         ai.aiGenre ? `genre←AI(${ai.aiGenre.split("|")[1] ?? "?"})` : null,
         ai.aiYear ? `year←AI(${ai.aiYear.split("|")[1] ?? "?"})` : null,
@@ -176,12 +183,14 @@ async function main(): Promise<void> {
       return {
         file: basename(f),
         missing,
+        identity,
         aiFilled,
         complete: missing.length === 0,
       };
     });
     const complete = rows.filter((r) => r.complete).length;
     const aiCount = rows.filter((r) => r.aiFilled.length).length;
+    const bpCount = rows.filter((r) => r.identity.length === 0).length;
     const gaps = rows.filter((r) => !r.complete);
     // Gate semantics (megadj audit parity): gaps → exit 1, in BOTH output
     // modes. Agents/CI consume --json and rely on the exit code as the gate.
@@ -201,6 +210,10 @@ async function main(): Promise<void> {
       if (aiCount)
         console.log(
           `  ${aiCount} track(s) carry AI-filled fields (genre←AI/year←AI with confidence)`,
+        );
+      if (bpCount)
+        console.log(
+          `  ${bpCount}/${rows.length} carry full DJ identity (label + mix + isrc + remixer)`,
         );
       if (gaps.length) {
         console.log("\nincomplete:");
