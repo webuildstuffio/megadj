@@ -32,6 +32,10 @@ export interface IngestCounters {
   compatRejected: number;
   /** Files that ingest but will NOT load on XDJ-XZ / CDJ-2000 (hi-res). */
   compatHires: number;
+  /** Per-file hard failures (tag-write throw etc.) — reported, never fatal
+   *  to the rest of the batch (Sep 11: one ffmpeg exit-234 killed a
+   *  373-file run mid-loop). */
+  writeFailed: number;
 }
 
 /** Narrow view of IngestOptions the landing helpers need. */

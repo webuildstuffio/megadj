@@ -136,7 +136,13 @@ function ffmpegTagPlan(
     args.push("-metadata", `${FFMPEG_KEY[k]}=${String(v)}`);
   const tagged = tmpLike(filePath, ".tagged");
   if (ext === ".mp3") {
-    args.push("-c:v", "copy", "-write_id3v2", "1", "-id3v2_version", "3");
+    // One -c:v decision, not two: the base plan sets mjpeg and this used to
+    // append a second `-c:v copy`, which ffmpeg resolves as LAST-WINS —
+    // copying whatever codec the embedded art already is (png/webp) into
+    // the ID3 APIC path and intermittently failing the mp3 muxer with
+    // "Invalid audio stream" (exit 234, Sep 11 intake crash). Re-encode to
+    // mjpeg always: ID3v2.3 APIC wants JPEG.
+    args.push("-write_id3v2", "1", "-id3v2_version", "3");
   }
   // FLAC keeps base video handling; unknown containers let ffmpeg infer
   // the muxer from the tmp extension.

@@ -93,6 +93,7 @@ function newCounters(): IngestCounters {
     wavConverted: 0,
     compatRejected: 0,
     compatHires: 0,
+    writeFailed: 0,
   };
 }
 
@@ -686,16 +687,27 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   const counters = newCounters();
   const queueEntries: QueueEntry[] = [];
   for (const rec of toIngest) {
-    await ingestOne(
-      opts,
-      log,
-      rec,
-      counters,
-      minDuration,
-      queuedIdentity,
-      queueEntries,
-      batchDir,
-    );
+    try {
+      await ingestOne(
+        opts,
+        log,
+        rec,
+        counters,
+        minDuration,
+        queuedIdentity,
+        queueEntries,
+        batchDir,
+      );
+    } catch (e) {
+      // One broken file must not kill a 373-file run (Sep 11: a single
+      // ffmpeg exit-234 aborted the whole batch mid-loop). Surface it,
+      // count it, keep going.
+      counters.writeFailed++;
+      const name = rec.file.split("/").pop() ?? rec.file;
+      log(
+        `  ✗ tag-write failed: ${name} — ${(e as Error).message?.slice(0, 90)}`,
+      );
+    }
   }
 
   await flushArtworkQueue(opts.state.dbDir, queueEntries, opts.dryRun);
@@ -729,6 +741,10 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     }, ${counters.unchanged} already clean` +
       `, ${folderDupes} in-folder dupes, ${archiveDupes} archive dupes (${upgrades} quality upgrades)${
         broken.length ? `, ${broken.length} BROKEN (left in place)` : ""
+      }${
+        counters.writeFailed
+          ? `, ${counters.writeFailed} TAG-WRITE FAILED (left in place, see ✗ lines)`
+          : ""
       }`,
   );
   if (opts.dryRun) log("(dry run — nothing written)");
@@ -756,6 +772,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
         archiveDupes,
         upgrades,
         broken: broken.length,
+        writeFailed: counters.writeFailed,
       }),
     );
   }

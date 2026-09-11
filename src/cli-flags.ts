@@ -47,13 +47,13 @@ export function parseFlags(
   return { strings, bools };
 }
 
-/** Numeric string option: `numOpt(flags, "jobs" + ` → number | undefined. */
+/** Numeric string option: `numOpt(flags, "jobs")` → number | undefined. */
 export function numOpt(flags: ParsedFlags, key: string): number | undefined {
   const raw = flags.strings.get(key);
   return raw ? Number(raw) || undefined : undefined;
 }
 
-/** Non-negative numeric option with a hard error (`)--limit 5`). Returns
+/** Non-negative numeric option with a hard error (`--limit 5`). Returns
  * undefined when absent — AND undefined when present but invalid (after
  * printing the error + exitCode 2), so callers can break out instead of
  * letting NaN flow through as "unlimited" (NaN is falsy: it would skip
