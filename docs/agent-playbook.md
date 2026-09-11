@@ -118,7 +118,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 
 - **Import-graph cycles once forced `GIT_SKIP_HOOKS` on every commit.**
   `shared/types.ts` is the leaf; verify with `bunx madge --circular
-  --extensions ts,tsx cratedeck/src cratedeck/shared cratedeck/web`. Madge
+--extensions ts,tsx cratedeck/src cratedeck/shared cratedeck/web`. Madge
   follows type-only imports too — a type-only back-edge IS a cycle (Sep 9
   sweep found 6). Wire type whose producer chain reaches `shared/types.ts`
   (anything importing `db.ts`/`fleet.ts`) is DEFINED canonically there and
@@ -170,7 +170,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   `ensureServer`; `--help` prints to stdout with exit 0 (usage text is not
   an error — `usage()` to stderr + exit 2 stays for bad invocations), and
   an exact JOB-KIND match wins over a same-named glossary term (`help
-  mirror` = the mirror job). The usage-text-syncs-with-dispatch census
+mirror` = the mirror job). The usage-text-syncs-with-dispatch census
   parses `PRE_SERVER_VERBS` too, and it already caught `stop` missing from
   usage.
 - **UI quirks.** `apiPost` passing `FormData` through UNserialized matters:
@@ -281,3 +281,75 @@ archive (~55h, three sessions). Gate numbers live in
   recording the class in AGENTS.md so the next agent inherits the scar
   tissue. Claims need provenance: "98 tests across 11 files" (verified) —
   the remembered draft said 94 across 12.
+
+## Transcript-mined findings (Sep 10 sweep)
+
+All 63 transcripts re-read with a TODO/findings lens (distinct from the
+memory pass). New issues: #24–#29. Already-shipped or already-tracked
+threads are not repeated here — dedup checked against issues #1–#23,
+`docs/ideas.md`, `docs/runbooks/`, and the usb-sync log.
+
+- **Verify blind spot predates the jobs fix** (b82aae0e, Sep 4): the
+  `usb_verify.py` leg sat at "0%" with no phase or current-file
+  visibility — user couldn't tell running from wedged. The Sep 8
+  jobs-progress sweep fixed ETA/stall _reporting_, but the verify leg
+  still doesn't stream per-phase ticks. → #27.
+- **Drive identity wants images, not just photos** (b82aae0e, Sep 3):
+  image-search → confirm picker → save local+drive → ghost shows
+  last-known details. The photo-upload feature covers the upload half
+  only. → #28.
+- **Crash-on-mount root cause, pre-lsof era** (de5a057e, ~Sep 5): the
+  dev server's `rb_read.py` leg crashed under the Xcode-bundled
+  Python 3.9 until pointed at a real Python — same failure class later
+  encoded as "hermetic tools pin their interpreter; the user's
+  `python3` is a shim". The fix rule is in AGENTS.md; the incident is
+  the earliest recorded instance.
+- **`shelf-hygiene` apply-loop receipt math was cumulative** (a60e6e7c,
+  Sep 10 branch audit): the Nth move's receipt reported `quarantined: N`
+  against a validate-1 contract, so multi-apply flipped every finding
+  after the first to `failed` — files moved, status lied. Fixed with
+  per-move deltas against a fresh pre-apply walk baseline + regression
+  test. Same shape as the census-sums-clamped-buckets bug: per-item
+  truth must not be derived from a running aggregate.
+- **Quarantine briefly lived INSIDE `Contents/`** (a60e6e7c): the
+  auto-relocate scan chases quarantined files into the master DB —
+  caught in review and moved to shelf root. The rule now stands in
+  AGENTS.md; this was the live catch that produced it.
+- **v0.2.0 was announced and never tagged** (82a37760, Sep 5): the
+  CHANGELOG shipped, the tag was deferred pending a word, no word ever
+  came. Zero tags exist local or remote. → #29.
+- **Complexity hotspots were lizard-ranked and top-down refactored**
+  (39ea1b81, Sep 10): `canon` (db.ts, CCN 75) and the next ~9 functions
+  were split across dedicated passes; db.ts is now 614 lines and
+  `canon` as a monolith is gone. Future audits should re-run lizard and
+  compare against that baseline rather than assume the old top-10.
+- **Cold-cache I/O truth still unmeasured** (f40fd72d, Sep 8): the
+  sweep-optimization plan (walk.ts serial stats, archive_sweep serial
+  hash) is blocked on a real cold-cache profile — the archive fits the
+  page cache, so local harness numbers are ~10× fiction. Tracked in
+  `docs/ideas.md` §0f; needs `sudo purge` (TTY) or a borrowed machine.
+  Related: `/bin/dd` measured SHELF1 at 62 MB/s — a bad USB port was
+  the real bottleneck once, not code.
+- **Shebang-less `bun` scripts die under launchd** (51549cd4): a
+  tooling-audit fix required explicit shebangs so launchd-spawned
+  invocations don't fall through to a foreign runtime. Generalizes the
+  launchd/TCC rule already in AGENTS.md.
+- **Hardware-gated user threads, still open, deliberately un-issued**
+  (c74579ab/d34d6f07, 3976f284, d47fde47): these are hands-on-keys
+  steps, not agent work — SHELF1 stale verify re-run after quitting
+  rekordbox; legacy `export.pdb`/OneLibrary drift fix on the sticks;
+  WAV-cover spot-check after the next dual-device export (checkbox in
+  `docs/usb-sync-log.md`); disable rekordbox Key analysis before the
+  next DJLIBRARYM mount (tracked in `docs/fulltags-roadmap.md`).
+  The runbook set (`docs/runbooks/0a–0d`) is where these belong when
+  the drives next mount.
+- **Xcode Python trap has a second face** (b82aae0e + de5a057e): both
+  the uv shim interception and the 3.9-system-Python JSON crash point
+  at the same root — `python3` on this Mac is never what a script
+  assumes. Pin interpreters explicitly everywhere; never trust PATH.
+- **Product insight, recurring across ≥6 transcripts**: the user's
+  trust breaks on _invisible progress_, not on errors — verify at 0%
+  (b82aae0e), dedupe scans with no plan preview (c4fca970), ingest
+  steps that "just happen" (4068cf2b). Every fix that landed explained
+  itself while running (phase ticks, dry-run-first, VERDICT banners).
+  Default to narrating work in the UI, even when the work is fine.
