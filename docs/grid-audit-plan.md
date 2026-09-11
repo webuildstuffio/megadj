@@ -2,8 +2,8 @@
 
 _2026-09-10. Supersedes the chat-plan v2. This file is the project SSOT for
 grid audit + auto-cue; `docs/ideas.md` I46/#47 and
-`docs/fulltags-roadmap.md` #2/P2 point here. The old root `plan.md` (perf
-plan, drive-gated) moved to [docs/perf-plan.md](docs/perf-plan.md)._
+`docs/fulltags-roadmap.md` #2/P2 point here. (The old root `plan.md`'s
+runtime-perf round now lives in [docs/ideas.md](ideas.md) §0f.)_
 
 Two systems sharing one analysis pass:
 
@@ -175,6 +175,12 @@ numbers, but enough to catch overfitting to your own 20 favourite records.
 
 ### GA-01 — Constant-tempo constraint for house
 
+**STATUS: SHIPPED 2026-09-10.** `fitConstantTempo` +
+`gridAudit` live in `fulltags/src/analysis.ts` (pure, tested in
+`fulltags/test/analysis-grid.test.ts`); `megadj beats` stores
+`bpm_fitted` + `bpm_residual_std` (columns auto-migrate); the CrateDeck
+grid cross-check derives its verdicts from the SAME functions — one SSOT.
+
 House is grid-locked by construction: fixed tempo, 4/4, machine-sequenced.
 Don't let a beat tracker's per-beat wobble through.
 
@@ -190,6 +196,13 @@ rounding error is exactly what produces drift over a 7-minute track. Ship
 in the first pass (accuracy ladder #1, effort S).
 
 ### GA-02 — DBN pass + genre tempo priors
+
+**STATUS: FLAG WIRED 2026-09-10** — `MEGADJ_DBN=1` flips
+`File2Beats(dbn=True)` and pulls the CPJKU madmom fork into the uv env
+on demand (non-commercial license honored; peak-picking stays the
+default). The per-genre `DBNBeatTrackingProcessor` priors below are still
+open — beat_this exposes no range knob, so our own postprocessor remains
+the real GA-02.
 
 - Install CPJKU madmom fork into the uv env (`--with-requirements` form —
   the per-package `--with` spelling resolves differently and hangs; known
@@ -288,6 +301,16 @@ Drift separates "shifted" from "broken": a constant 40 ms offset with
 zero drift is trivial; a 5 ms offset growing to 300 ms by the outro is a
 wrong BPM. This supersedes `gridCrossCheck`'s coarse ok/off/octave
 verdict — that one stays as the cheap DB-level smoke check.
+
+**STATUS: LEDGER-ONLY HALF SHIPPED 2026-09-10.** The `beats`-ledger
+cross-check now runs `gridAudit` (fit + RB-clock slide + wobble) and
+classifies TEMPO/DRIFT/CHAOS vs A-OK; the `drift` bucket is live in the
+API, deckctl help, and both web cards (DOM-verified). Anchor delta,
+phase, and confidence still need the ANLZ decode (GA-03) — SHIFT/PHASE
+stay unassigned until then, by design, not omission. First live pass on
+the archive (103 tracks): 99 DRIFT, 2 ok — RB stores integer BPMs (125)
+against fitted 124.00 grids, ~1.6 s of accumulated slide: exactly the
+predicted class.
 
 Deliverable: `megadj grid-audit --json` — one row per track, cached,
 resumable, feeding the CrateDeck surface (GA-05c).
@@ -478,6 +501,9 @@ tension, red = impact. You read color before text in a dark booth.
 **Memory cues** on every 32-bar phrase boundary plus all eight hot-cue
 positions (the `cues` ledger already computes the 8-bar phrase spine —
 extend to 32 for memory markers or keep 8-bar and render every 4th).
+**STATUS: spine SHIPPED 2026-09-10** — `phraseCues` now flags
+`memory: true` on bars 1/33/65… in the same array (source bumped to
+`phrase-cues@2`; re-derive with `megadj cues --force`).
 
 **Fallback:** when AC-04 gating fails, write cue A + memory cues every 32
 bars, no semantic labels. Honest phrase markers beat confidently wrong

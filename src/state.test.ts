@@ -160,6 +160,9 @@ describe("ArchiveState", () => {
       downbeats: [0, 1.84],
       model: "beat-this@1.1.0",
       sourcePath: "/tmp/bv1.m4a",
+      // GA-01 fitted tempo rides the same row
+      bpmFitted: 130.4348,
+      residualStd: 0.001,
     });
     const rec = state.beatRecord("bv1");
     expect(rec).not.toBeNull();
@@ -167,6 +170,8 @@ describe("ArchiveState", () => {
     expect(rec?.beats).toEqual([0, 0.46, 0.92]);
     expect(rec?.downbeats).toEqual([0, 1.84]);
     expect(rec?.model).toBe("beat-this@1.1.0");
+    expect(rec?.bpmFitted).toBeCloseTo(130.4348);
+    expect(rec?.residualStd).toBeCloseTo(0.001);
 
     // Re-run same model: replaces (fresh analyzed_at), not duplicates.
     state.setBeatRecord({

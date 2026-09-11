@@ -31,7 +31,7 @@
  *   archive_ingest_status       counts + recent runs + newest tracks
  *   archive_lowq_queue          below-bitrate upgrade queue (D24)
  *   archive_source_diff {a, b}  track-set diff between two sources
- *   archive_grid_cross_check    beat_this ledger vs RB BPM×duration verdicts
+ *   archive_grid_cross_check    fitted-grid verdicts: ok/off/octave/drift
  *   archive_mood_profile        mood/dance/VA averages + extremes (roadmap #4)
  *   archive_similar_tracks {id, k?}  I49 "sounds like" cosine kNN (readonly)
  *   archive_set_build {preset?, minutes?}  M66 set-builder proposal (readonly)
@@ -79,50 +79,15 @@ import type {
   JobKind,
   RedundancyResult,
 } from "../shared/types";
+import { serveMcp, type ToolDef } from "./mcp_server";
 
 // re-exported for tests (deckapi's terminal-status predicate)
 export { jobTerminal };
-
-// ---- JSON-RPC plumbing ------------------------------------------------------
-type JsonRpcId = string | number | null;
-interface RpcRequest {
-  jsonrpc: "2.0";
-  id?: JsonRpcId;
-  method: string;
-  params?: Record<string, unknown>;
-}
-
-function reply(id: JsonRpcId, result: unknown): void {
-  // EPIPE-safe: when the client closes the pipe (timeout, disconnect) the
-  // server must not crash — an unwritable stdout just means nobody listens.
-  try {
-    process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\n");
-  } catch {
-    /* client gone */
-  }
-}
-
-function replyError(id: JsonRpcId, code: number, message: string): void {
-  try {
-    process.stdout.write(
-      JSON.stringify({ jsonrpc: "2.0", id, error: { code, message } }) + "\n",
-    );
-  } catch {
-    /* client gone */
-  }
-}
-
-const ERR_PARAMS = -32602;
-const ERR_INTERNAL = -32603;
+export type { ToolDef } from "./mcp_server";
 
 // ---- tool definitions -------------------------------------------------------
-interface ToolDef {
-  description: string;
-  inputSchema: Record<string, unknown>;
-  /** readonly tools are safe; mutating ones require explicit user intent. */
-  destructive?: boolean;
-  run: (args: Record<string, unknown>) => Promise<unknown>;
-}
+// ToolDef lives in mcp_server.ts (the JSON-RPC half); this file owns the
+// tool TABLE only — descriptions, schemas, run functions.
 
 // compile-checked against the canonical JobKind union — adding a job kind
 // in shared/types.ts without updating this list is a type error
@@ -700,120 +665,12 @@ const TOOLS: Record<string, ToolDef> = {
   ...archiveTools(),
 };
 
-// ---- server loop ------------------------------------------------------------
-async function handle(req: RpcRequest): Promise<void> {
-  const id = req.id ?? null;
-  try {
-    switch (req.method) {
-      case "initialize":
-        reply(id, {
-          protocolVersion: "2025-06-18",
-          capabilities: { tools: {} },
-          serverInfo: {
-            name: "cratedeck",
-            title: "CrateDeck",
-            version: "0.1.0",
-          },
-        });
-        return;
-      case "notifications/initialized":
-        return; // notification — no response
-      case "ping":
-        reply(id, {});
-        return;
-      case "tools/list":
-        reply(id, {
-          tools: Object.entries(TOOLS).map(([name, t]) => ({
-            name,
-            description:
-              t.description + (t.destructive ? " [MUTATES DRIVE STATE]" : ""),
-            inputSchema: t.inputSchema,
-            annotations: {
-              title: name.replace(/^deck_/, "CrateDeck ").replace(/_/g, " "),
-              readOnlyHint:
-                !t.destructive && name !== "deck_run" && name !== "deck_cancel",
-            },
-          })),
-        });
-        return;
-      case "tools/call": {
-        const name = str(req.params ?? {}, "name");
-        if (!name || !TOOLS[name]) {
-          replyError(id, ERR_PARAMS, `unknown tool: ${name}`);
-          return;
-        }
-        // MCP spec: params key is "arguments" (not "args") — reading the
-        // wrong key silently dropped every argument from conforming clients.
-        const args =
-          ((req.params ?? {})["arguments"] as
-            Record<string, unknown> | undefined) ?? {};
-        const raw = await TOOLS[name].run(args);
-        const text = JSON.stringify(raw, null, 2);
-        reply(id, {
-          content: [{ type: "text", text }],
-          isError: false,
-        });
-        return;
-      }
-      default:
-        replyError(id, -32601, `method not found: ${req.method}`);
-    }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    replyError(id, e instanceof RpcParamError ? ERR_PARAMS : ERR_INTERNAL, msg);
-  }
-}
-
+// ---- server loop (plumbing lives in mcp_server.ts) --------------------------
 async function main(): Promise<void> {
   // Refuse to serve if the backend never comes up — but answer initialize
   // first so clients surface a clean error instead of hanging.
   const up = await ensureServer();
-  const reader = Bun.stdin.stream().getReader();
-  const dec = new TextDecoder();
-  let buf = "";
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    let nl: number;
-    while ((nl = buf.indexOf("\n")) >= 0) {
-      const line = buf.slice(0, nl).trim();
-      buf = buf.slice(nl + 1);
-      if (!line) continue;
-      let req: RpcRequest;
-      try {
-        req = JSON.parse(line) as RpcRequest;
-      } catch {
-        replyError(null, -32700, "parse error");
-        continue;
-      }
-      if (!up && req.method !== "initialize" && req.method !== "ping") {
-        if (req.id !== undefined && req.id !== null) {
-          replyError(req.id, ERR_INTERNAL, "cratedeck server unreachable");
-        }
-        // notifications stay silent even when the backend is down
-        continue;
-      }
-      // JSON-RPC 2.0: a message without an id is a notification — MUST NOT
-      // be answered (a stray id:null error can be mis-associated by
-      // strict clients).
-      if (req.id === undefined || req.id === null) {
-        if (!req.method.startsWith("notifications/")) {
-          console.error(`mcp: ignoring id-less ${req.method}`);
-        }
-        continue;
-      }
-      // Not awaited: a long tool call (deck_run with wait) must not stall
-      // the pipe — subsequent requests stay answerable. Replies are
-      // single-line stdout writes, so ordering interleaving is safe. Write
-      // failure is logged: a silently-dead reply strands the caller until
-      // its client timeout with zero diagnostics.
-      void handle(req).catch((e: unknown) => {
-        console.error(`mcp: request ${req.method} failed`, e);
-      });
-    }
-  }
+  await serveMcp(TOOLS, up);
 }
 
 await main();

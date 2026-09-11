@@ -423,9 +423,71 @@ export function gridDeltaPct(ledgerBpm: number, rbBpm: number): number {
     : 0;
 }
 
+/** Producer row → the shared GridBreaker render row (flat: delta precomputed,
+ *  verdict as a class). Lives here (products/shared) so ArchiveTab and
+ *  FullTagsPage can't drift; the wire type is archive-owned.
+ *  Drift rows (positional) and octave rows are both severity-"bad". */
+export function mkBreaker(
+  t: {
+    video_id: string;
+    title: string | null;
+    ledgerBpm: number;
+    rbBpm: number;
+    driftMs: number;
+  },
+  cls: GridBreaker["cls"],
+): GridBreaker {
+  return {
+    videoId: t.video_id,
+    title: t.title,
+    cls,
+    ledgerBpm: t.ledgerBpm,
+    rbBpm: t.rbBpm,
+    deltaPct: gridDeltaPct(t.ledgerBpm, t.rbBpm),
+    driftMs: t.driftMs,
+  };
+}
+
+/** Collect breakers from a grid-cross-check payload in severity order:
+ *  octave first (wrong pulse), then drift (positional slide), then
+ *  tempo-off — the shared table renders it in the given order. Accepts the
+ *  raw wire shape (octave/drift/off arrays) or `unavailable`. */
+export function collectBreakers(
+  grid:
+    | {
+        available: boolean;
+        octave: Parameters<typeof mkBreaker>[0][];
+        drift: Parameters<typeof mkBreaker>[0][];
+        off: Parameters<typeof mkBreaker>[0][];
+      }
+    | null
+    | undefined,
+): GridBreaker[] {
+  if (!grid?.available) return [];
+  return [
+    ...grid.octave.map((t) => mkBreaker(t, "octave")),
+    ...grid.drift.map((t) => mkBreaker(t, "drift")),
+    ...grid.off.map((t) => mkBreaker(t, "off")),
+  ];
+}
+
 /** One beat-grid cross-check track as a DataTable row spec. The ArchiveTab
  *  and FullTagsPage "Beat Sync breakers" cards rendered byte-identical
- *  markup — this is the ONE implementation (columns + rows + copy). */
+ *  markup — this is the ONE implementation (columns + rows + copy).
+ *  Verdict classes (plan GA-04/GA-05): octave > drift > off, severity
+ *  order for pill + row tone; `driftMs` is positional drift across the
+ *  track (the v1 card couldn't show it because the old verdict compared
+ *  counts, not positions). */
+export interface GridBreaker {
+  videoId: string;
+  title: string | null;
+  cls: "octave" | "drift" | "off";
+  ledgerBpm: number;
+  rbBpm: number;
+  deltaPct: number;
+  driftMs: number;
+}
+
 export function beatSyncColumns(): DataTableColumn<GridBreaker>[] {
   return [
     {
@@ -440,12 +502,13 @@ export function beatSyncColumns(): DataTableColumn<GridBreaker>[] {
       head: "verdict",
       min: 72,
       grow: 0,
-      cell: (t: GridBreaker) =>
-        t.isOct ? (
-          <span class="arch-pill bad">octave</span>
-        ) : (
-          <span class="arch-pill warn">off</span>
-        ),
+      cell: (t: GridBreaker) => {
+        if (t.cls === "octave")
+          return <span class="arch-pill bad">octave</span>;
+        if (t.cls === "drift") return <span class="arch-pill bad">drift</span>;
+        return <span class="arch-pill warn">off</span>;
+      },
+      sortValue: (t: GridBreaker) => (t.cls === "off" ? 1 : 0),
     },
     {
       key: "grid",
@@ -472,34 +535,35 @@ export function beatSyncColumns(): DataTableColumn<GridBreaker>[] {
       cell: (t: GridBreaker) => (
         <span class="covdelta">
           <i
-            class={t.isOct ? "bad" : "warn"}
+            class={t.cls === "off" ? "warn" : "bad"}
             style={{ width: `${Math.min(t.deltaPct * 8, 100)}%` }}
           />
-          <em>{t.isOct ? "×2" : `${t.deltaPct}%`}</em>
+          <em>
+            {t.cls === "octave"
+              ? "×2"
+              : t.cls === "drift"
+                ? `${Math.round(t.driftMs)} ms`
+                : `${t.deltaPct}%`}
+          </em>
         </span>
       ),
-      sortValue: (t: GridBreaker) => t.deltaPct,
+      sortValue: (t: GridBreaker) =>
+        t.cls === "drift" ? t.driftMs : t.deltaPct,
     },
   ];
 }
 
-/** The wire row shape flattened for beatSyncColumns — the producer maps
- *  ArchiveGridCrossCheck rows through this (never a local re-declaration). */
-export interface GridBreaker {
-  videoId: string;
-  title: string | null;
-  isOct: boolean;
-  ledgerBpm: number;
-  rbBpm: number;
-  deltaPct: number;
-}
-
 /** Build the copy payload for a Beat Sync breakers table. */
 export const beatSyncCopy = (rows: GridBreaker[]): string[] =>
-  rows.map(
-    (t) =>
-      `${t.title ?? t.videoId} — grid ${t.ledgerBpm} vs RB ${Math.round(t.rbBpm * 10) / 10} BPM${t.isOct ? " (OCTAVE)" : ""}`,
-  );
+  rows.map((t) => {
+    const tail =
+      t.cls === "octave"
+        ? " (OCTAVE)"
+        : t.cls === "drift"
+          ? ` (drift ${Math.round(t.driftMs)} ms)`
+          : "";
+    return `${t.title ?? t.videoId} — grid ${t.ledgerBpm} vs RB ${Math.round(t.rbBpm * 10) / 10} BPM${tail}`;
+  });
 
 /** BeatSyncBreakersCard — the whole "Beat Sync breakers" card (ListHead +
  *  DataTable + fix footnote) as ONE shared component. The ArchiveTab and
@@ -526,7 +590,7 @@ export function BeatSyncBreakersCard(props: {
         rows={props.breakers}
         cap={40}
         ariaLabel="Beat Sync breakers"
-        rowTone={(t) => (t.isOct ? "bad" : "")}
+        rowTone={(t) => (t.cls === "off" ? "" : "bad")}
         copyLines={beatSyncCopy}
         copyName="Beat Sync breakers"
       />

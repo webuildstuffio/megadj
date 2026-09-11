@@ -18,6 +18,11 @@ import {
   libraryOverview as libraryOverviewImpl,
 } from "./archive_overview";
 import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
+// The grid math is ONE SSOT (fulltags/src/analysis.ts): fitConstantTempo /
+// gridAudit are the same functions `megadj beats` computes with. A
+// hand-copied twin drifted once already (the v1 verdicts lived inline
+// here); the import keeps verdicts identical across surfaces.
+import { gridAudit, type GridAuditVerdict } from "../../fulltags/src/analysis";
 
 // ArchiveTrack is canonically defined in the leaf archive_types.ts (along
 // with the ArchiveQuery seam the split-out modules type against); re-export
@@ -365,15 +370,23 @@ export class ArchiveReader implements ArchiveQuery {
   }
 
   /**
-   * INDEPENDENT beatgrid cross-check (roadmap rev 5 §2/#2): beat_this's
-   * beat arrays (megadj `beats` ledger) vs the track's rekordbox BPM +
-   * duration. The verify pipeline's own grid check is self-referential
-   * (duration × BPM vs beat count from the SAME analysis) — this one
-   * compares a SECOND analyzer's grid against RB's numbers, so a drifted
-   * or octave-locked grid actually shows.
+   * INDEPENDENT beatgrid cross-check (roadmap rev 5 §2/#2 → plan.md
+   * GA-04/GA-05): beat_this's beat arrays (megadj `beats` ledger) vs the
+   * track's rekordbox BPM. The verify pipeline's own grid check is
+   * self-referential (duration × BPM vs beat count from the SAME
+   * analysis) — this one compares a SECOND analyzer's grid against RB's
+   * stored BPM, so a drifted or octave-locked grid actually shows.
    *
-   * Per-track verdict: ok | off (grid implies a tempo >2% from RB's) |
-   * octave (fold mismatch — grid locks half/double) | no-data.
+   * Verdicts come from the ONE grid-math SSOT (`gridAudit` in
+   * fulltags/src/analysis.ts — the same functions `megadj beats` fits
+   * with):
+   * - `off`    — fitted grid tempo >2% from RB (drift-in-waiting)
+   * - `octave` — grid locked half/double RB's tempo
+   * - `drift`  — grid drifts >15 ms monotonically (the real failure the
+   *              v1 shape couldn't see: it compared COUNTS, not POSITIONS)
+   * - `ok`     — within tolerance
+   * `aok` is the count of clean tracks; offender lists stay per-class so
+   * the UI keeps its fix-first ordering (octave > off > drift).
    */
   gridCrossCheck(limit = 200): {
     available: boolean;
@@ -385,12 +398,22 @@ export class ArchiveReader implements ArchiveQuery {
       title: string | null;
       rbBpm: number;
       ledgerBpm: number;
+      driftMs: number;
     }>;
     octave: Array<{
       video_id: string;
       title: string | null;
       rbBpm: number;
       ledgerBpm: number;
+      driftMs: number;
+    }>;
+    drift: Array<{
+      video_id: string;
+      title: string | null;
+      rbBpm: number;
+      ledgerBpm: number;
+      driftMs: number;
+      reason: string;
     }>;
   } {
     // Pre-ledger archive DBs have no `beats` table — degrade to an empty
@@ -406,6 +429,7 @@ export class ArchiveReader implements ArchiveQuery {
         ok: 0,
         off: [],
         octave: [],
+        drift: [],
       };
     }
     const rows = this.rows<{
@@ -421,18 +445,17 @@ export class ArchiveReader implements ArchiveQuery {
        ORDER BY t.updated_at DESC LIMIT ?`,
       Math.min(Math.max(limit, 1), 500),
     );
-    const off: {
+    type Offender = {
       video_id: string;
       title: string | null;
       rbBpm: number;
       ledgerBpm: number;
-    }[] = [];
-    const octave: {
-      video_id: string;
-      title: string | null;
-      rbBpm: number;
-      ledgerBpm: number;
-    }[] = [];
+      driftMs: number;
+      reason: string;
+    };
+    const off: Offender[] = [];
+    const octave: Offender[] = [];
+    const drift: Offender[] = [];
     const result = {
       available: this.handle() !== null,
       ledgered: rows.length,
@@ -440,6 +463,7 @@ export class ArchiveReader implements ArchiveQuery {
       ok: 0,
       off,
       octave,
+      drift,
     };
     for (const r of rows) {
       if (r.bpm_folded == null) continue;
@@ -447,54 +471,38 @@ export class ArchiveReader implements ArchiveQuery {
       try {
         beats = JSON.parse(r.beats_json) as number[];
       } catch {
-        continue;
+        continue; // corrupt ledger row — skip, never throw (hot path)
       }
       if (beats.length < 8 || !r.duration_s) continue;
-      result.checked++;
-      const gridSpan = beats[beats.length - 1]! - beats[0]!;
-      if (gridSpan <= 0) continue;
-      // Tempo the beat_this GRID implies, over its own wall-clock span.
-      const gridBpm = ((beats.length - 1) / gridSpan) * 60;
-      // Tempo RB's DB implies for the same track: its BPM × duration.
-      // The independent ruler is duration: how many beat_this beats fit
-      // in the track vs how many RB BPM beats SHOULD fit.
       const rbBpm = r.bpm_folded;
-      const expectedBeats = (r.duration_s / 60) * rbBpm;
-      const beatCountDev =
-        Math.abs(beats.length - expectedBeats) / expectedBeats;
-      const folded = (b: number): number => {
-        let x = b;
-        while (x < 70) x *= 2;
-        while (x > 180) x /= 2;
-        return x;
+      const v: GridAuditVerdict | null = gridAudit(beats, rbBpm);
+      if (!v) continue;
+      result.checked++;
+      const row = {
+        video_id: r.video_id,
+        title: r.title,
+        rbBpm,
+        // the FITTED grid tempo (bpmDelta = rb − fitted, so fitted = rb − Δ)
+        ledgerBpm: Math.round((rbBpm - v.bpmDelta) * 10) / 10,
+        driftMs: v.driftMs,
+        reason: v.reason,
       };
-      const gridFolded = folded(gridBpm);
-      const ratio = gridFolded / rbBpm;
-      // Octave lock: the grid counts half/double the beats RB expects.
-      const isOctave =
-        Math.abs(ratio - 2) < 0.06 ||
-        Math.abs(ratio - 0.5) < 0.03 ||
-        Math.abs(beats.length / expectedBeats - 2) < 0.06 ||
-        Math.abs(beats.length / expectedBeats - 0.5) < 0.03;
-      if (isOctave) {
-        octave.push({
-          video_id: r.video_id,
-          title: r.title,
-          rbBpm,
-          ledgerBpm: Math.round(gridFolded * 10) / 10,
-        });
-      } else if (beatCountDev > 0.02) {
-        off.push({
-          video_id: r.video_id,
-          title: r.title,
-          rbBpm,
-          ledgerBpm: Math.round(gridBpm * 10) / 10,
-        });
-      } else {
-        result.ok++;
+      switch (v.bucket) {
+        case "TEMPO":
+          octave.push(row); // half/double lock — the dangerous class
+          break;
+        case "DRIFT":
+        case "CHAOS":
+          drift.push(row);
+          break;
+        case "SHIFT":
+          off.push(row);
+          break;
+        default:
+          result.ok++;
       }
     }
-    result.ok = result.checked - off.length - octave.length;
+    result.ok = result.checked - off.length - octave.length - drift.length;
     return result;
   }
 

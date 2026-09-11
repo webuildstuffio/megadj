@@ -105,14 +105,37 @@ describe("phrase cues (cues slice)", () => {
     expect(cues.map((c) => c.bar)).toEqual([1, 9, 17, 25, 33]);
     expect(cues.map((c) => c.position)).toEqual([0, 16, 32, 48, 64]);
     expect(cues.map((c) => c.index)).toEqual([0, 1, 2, 3, 4]);
+    // the 32-bar memory spine rides the same array
+    expect(cues.filter((c) => c.memory).map((c) => c.bar)).toEqual([1, 33]);
   });
   test("fewer bars than one phrase → no cues; trailing partial phrase dropped", () => {
     expect(phraseCues([])).toEqual([]);
     expect(phraseCues([0, 2, 4, 6])).toEqual([]); // 4 bars < 8
-    // 10 bars: phrase at bar 1 only (bars 9–10 can't fill a phrase)
+    // 10 bars: phrase at bar 1 only (bars 9–10 can't fill a phrase);
+    // bar 1 is also a 32-bar memory marker (every 4th phrase)
     const cues = phraseCues([0, 2, 4, 6, 8, 10, 12, 14, 16, 18]);
     expect(cues.length).toBe(1);
-    expect(cues[0]).toEqual({ index: 0, position: 0, bar: 1 });
+    expect(cues[0]).toEqual({ index: 0, position: 0, bar: 1, memory: true });
+  });
+  test("memory spine: bars 1, 33, 65… carry memory=true, others false", () => {
+    const downbeats = Array.from({ length: 70 }, (_, i) => i * 0.5);
+    const cues = phraseCues(downbeats);
+    // 70 bars → phrases at bars 1..57 need 8-bar windows; last full
+    // phrase starts at bar 57 (57+8=65 ≤ 70… no: bars here are indices).
+    // Concretely: phrase starts at bar 1, 9, …, 57 → 8 phrases total
+    // (bar 65 would need downbeat index 64+7=71 > 69 available).
+    expect(cues.length).toBe(8);
+    expect(cues.map((c) => c.memory)).toEqual([
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+    ]);
+    expect(cues.filter((c) => c.memory).map((c) => c.bar)).toEqual([1, 33]);
   });
   test("cue ledger round-trips + skips corrupt JSON rows", () => {
     addDownloaded(state, "c1", "/c1.wav");

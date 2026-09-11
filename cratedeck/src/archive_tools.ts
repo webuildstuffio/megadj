@@ -124,7 +124,7 @@ export function archiveTools(): Record<string, unknown> {
 
     archive_grid_cross_check: {
       description:
-        "[READ-ONLY] Independent beatgrid cross-check: beat_this beat arrays (megadj beats ledger) vs each track's rekordbox BPM × duration. Returns ok/off/octave verdicts and offender lists — 'off' = grid tempo >2% from RB, 'octave' = grid locked half/double tempo. Empty ledgered=0 means run `megadj beats` first.",
+        "[READ-ONLY] Independent beatgrid cross-check: beat_this beat arrays (megadj beats ledger) fitted to a constant tempo and compared against each track's rekordbox BPM. Returns ok/off/octave/drift verdicts and offender lists — 'off' = grid tempo >2% from RB, 'octave' = grid locked half/double tempo, 'drift' = grid slides >15 ms positionally across the track (wrong tempo — the class count-based checks can't see). Empty ledgered=0 means run `megadj beats` first.",
       inputSchema: obj({
         limit: n("max tracks to check (default 200, max 500)"),
       }),

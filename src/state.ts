@@ -1,14 +1,14 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
-import { EmbeddingsLedger } from "./state_similar";
-import { Ledgers } from "./state_ledgers";
+import { EmbeddingsLedger } from "./state-similar";
+import { Ledgers } from "./state-ledgers";
 import type {
   MoodRecordInput,
   MoodRecord,
   CueRecordInput,
   CueRecord,
-} from "./state_ledgers";
-import { ShelfSweeps } from "./shelf_sweeps";
+} from "./state-ledgers";
+import { ShelfSweeps } from "./shelf-sweeps";
 
 /**
  * Persistent archive state. Tracks every video ID ever seen from the
@@ -66,13 +66,13 @@ export class ArchiveState {
   private db: Database;
   /** Directory holding the sqlite file — also hosts sidecar files. */
   readonly dbDir: string;
-  /** I49 embeddings ledger + similarity math live in state_similar.ts
+  /** I49 embeddings ledger + similarity math live in state-similar.ts
    * (file-length guard); delegated here so the call surface is unchanged. */
   private readonly embeddingsLedger: EmbeddingsLedger;
-  /** Mood + cues ledger storage lives in state_ledgers.ts (file-length
+  /** Mood + cues ledger storage lives in state-ledgers.ts (file-length
    * guard); delegated here so the call surface is unchanged. */
   private readonly ledgers: Ledgers;
-  /** Drive → shelf sweep ledger (shelf_sweeps.ts): the queryable record of
+  /** Drive → shelf sweep ledger (shelf-sweeps.ts): the queryable record of
    * every shelf-archive run. */
   readonly shelfSweeps: ShelfSweeps;
   constructor(dbPath: string) {
@@ -130,7 +130,7 @@ export class ArchiveState {
     );
     this.addColumnIfMissing("tracks", "genre", "TEXT");
     // `year` = release year of THIS file's version (see TagValues in
-    // tools/fetch_lib.ts). fetch_all + fix_years run plain
+    // tools/fetch-lib.ts). fetch-all + fix-years run plain
     // `UPDATE tracks SET year=?` — without this migration every
     // `megadj fetch`/`megadj years` write crashes a freshly created DB
     // with "no such column: year" (older DBs only worked via manual ALTER).
@@ -153,6 +153,12 @@ export class ArchiveState {
         analyzed_at TEXT NOT NULL
       );
     `);
+    // GA-01 (plan.md): the constant-tempo fit — a better tempo than the
+    // median inter-beat interval for grid-locked music, plus the residual
+    // that says whether "constant tempo" was the right assumption. Null
+    // on pre-GA-01 rows; consumers fall back to span math.
+    this.addColumnIfMissing("beats", "bpm_fitted", "REAL");
+    this.addColumnIfMissing("beats", "bpm_residual_std", "REAL");
     // Mood/dance/valence ledger (roadmap rev 6.1 #4): the parsed TXXX:MOOD
     // stamp per track — danceability, 4 mood heads, valence/arousal. The
     // FILE carries the stamp (ground truth); this is the queryable mirror
@@ -489,11 +495,14 @@ export class ArchiveState {
     downbeats: number[];
     model: string;
     sourcePath: string;
+    /** GA-01 fitted tempo + residual (null OK — pre-GA-01 callers). */
+    bpmFitted?: number | null;
+    residualStd?: number | null;
   }): void {
     this.db
       .query(
-        `INSERT INTO beats (video_id, bpm_raw, bpm_folded, beats_json, downbeats_json, model, source_path, analyzed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO beats (video_id, bpm_raw, bpm_folded, beats_json, downbeats_json, model, source_path, analyzed_at, bpm_fitted, bpm_residual_std)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(video_id) DO UPDATE SET
            bpm_raw = excluded.bpm_raw,
            bpm_folded = excluded.bpm_folded,
@@ -501,7 +510,9 @@ export class ArchiveState {
            downbeats_json = excluded.downbeats_json,
            model = excluded.model,
            source_path = excluded.source_path,
-           analyzed_at = excluded.analyzed_at`,
+           analyzed_at = excluded.analyzed_at,
+           bpm_fitted = excluded.bpm_fitted,
+           bpm_residual_std = excluded.bpm_residual_std`,
       )
       .run(
         rec.videoId,
@@ -512,6 +523,8 @@ export class ArchiveState {
         rec.model,
         rec.sourcePath,
         this.now(),
+        rec.bpmFitted ?? null,
+        rec.residualStd ?? null,
       );
   }
 
@@ -524,10 +537,12 @@ export class ArchiveState {
     model: string;
     sourcePath: string;
     analyzedAt: string;
+    bpmFitted: number | null;
+    residualStd: number | null;
   } | null {
     const row = this.db
       .query(
-        `SELECT video_id, bpm_raw, bpm_folded, beats_json, downbeats_json, model, source_path, analyzed_at
+        `SELECT video_id, bpm_raw, bpm_folded, beats_json, downbeats_json, model, source_path, analyzed_at, bpm_fitted, bpm_residual_std
          FROM beats WHERE video_id = ?`,
       )
       .get(videoId) as {
@@ -539,6 +554,8 @@ export class ArchiveState {
       model: string;
       source_path: string;
       analyzed_at: string;
+      bpm_fitted: number | null;
+      bpm_residual_std: number | null;
     } | null;
     if (!row) return null;
     let beats: number[] = [];
@@ -559,6 +576,8 @@ export class ArchiveState {
       model: row.model,
       sourcePath: row.source_path,
       analyzedAt: row.analyzed_at,
+      bpmFitted: row.bpm_fitted,
+      residualStd: row.bpm_residual_std,
     };
   }
 
@@ -569,10 +588,12 @@ export class ArchiveState {
     downbeats: number[];
     bpmRaw: number | null;
     bpmFolded: number | null;
+    bpmFitted: number | null;
+    residualStd: number | null;
   }> {
     const rows = this.db
       .query(
-        `SELECT t.*, b.beats_json, b.downbeats_json, b.bpm_raw, b.bpm_folded
+        `SELECT t.*, b.beats_json, b.downbeats_json, b.bpm_raw, b.bpm_folded, b.bpm_fitted, b.bpm_residual_std
          FROM tracks t JOIN beats b ON b.video_id = t.video_id
          WHERE t.status = 'downloaded'`,
       )
@@ -582,6 +603,8 @@ export class ArchiveState {
         downbeats_json: string;
         bpm_raw: number | null;
         bpm_folded: number | null;
+        bpm_fitted: number | null;
+        bpm_residual_std: number | null;
       }
     >;
     return rows.map((r) => {
@@ -599,11 +622,13 @@ export class ArchiveState {
         downbeats,
         bpmRaw: r.bpm_raw,
         bpmFolded: r.bpm_folded,
+        bpmFitted: r.bpm_fitted,
+        residualStd: r.bpm_residual_std,
       };
     });
   }
 
-  // ---------- mood + cues ledgers (delegated — see state_ledgers.ts) ----------
+  // ---------- mood + cues ledgers (delegated — see state-ledgers.ts) ----------
 
   /** Upsert one parsed mood result. Idempotent by video_id: a re-run
    * replaces the row (fresh timestamps). */
@@ -654,7 +679,7 @@ export class ArchiveState {
   }
 
   // ---------- embeddings ledger (roadmap I49 "sounds like") ----------
-  // Implementation lives in state_similar.ts (file-length guard); these
+  // Implementation lives in state-similar.ts (file-length guard); these
   // delegates keep every call site (`state.setEmbeddingRecord(...)`,
   // `state.embeddingCorpus()`) unchanged.
 
@@ -675,6 +700,6 @@ export class ArchiveState {
   }
 }
 
-// I49 cosine kNN — re-exported from state_similar.ts (the SSOT) so
+// I49 cosine kNN — re-exported from state-similar.ts (the SSOT) so
 // existing `import { similarTracks } from "../state"` sites keep working.
-export { cosineSimilarity, similarTracks } from "./state_similar";
+export { cosineSimilarity, similarTracks } from "./state-similar";

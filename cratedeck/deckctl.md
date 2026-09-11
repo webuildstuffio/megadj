@@ -144,7 +144,7 @@ feed — mutating, confirm first) ·
 `archive_search_tracks {q}` ·
 `archive_track_stats {video_id}` · `archive_ingest_status` ·
 `archive_lowq_queue` · `archive_source_diff {a,b}` ·
-`archive_grid_cross_check {limit?}` (rev 6 beats-ledger grid verdicts) ·
+`archive_grid_cross_check {limit?}` (fitted-grid verdicts: ok/off/octave/drift) ·
 `archive_mood_profile {limit?}` (rev 6.2 mood-ledger picker data) ·
 `archive_sweep` (D30 bitrot/truncation sweep — also the "Archive
 integrity" section of `deckctl prep`) ·

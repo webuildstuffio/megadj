@@ -81,10 +81,13 @@ export async function beats(opts: BeatsOptions): Promise<void> {
           downbeats: r.downbeats,
           model: MODEL,
           sourcePath: path,
+          // GA-01: constant-tempo fit lands in the same row (plan.md).
+          bpmFitted: r.bpmFitted,
+          residualStd: r.residualStd,
         });
         analyzed++;
         log(
-          `  [${my + 1}/${queue.length}] ${r.beats.length} beats · ${foldTempo(r.bpm).toFixed(1)} BPM (ledger) — ${basename(path)}`,
+          `  [${my + 1}/${queue.length}] ${r.beats.length} beats · ${foldTempo(r.bpm).toFixed(1)} BPM (ledger)${r.bpmFitted ? ` · fitted ${r.bpmFitted.toFixed(2)} (residual ${(r.residualStd ?? 0).toFixed(3)} beats)` : ""} — ${basename(path)}`,
         );
       } catch (err) {
         failed++;

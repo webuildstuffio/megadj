@@ -126,12 +126,12 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     term: "Beats ledger",
-    def: "The archive DB's per-track analysis rows: raw + folded BPM, the full beat array, downbeats (from `megadj beats`).",
-    why: "It's the independent second opinion on tempo — the grid cross-check compares it to rekordbox's BPM × duration.",
+    def: "The archive DB's per-track analysis rows: raw + folded BPM, the constant-tempo fit (GA-01), the full beat array, downbeats (from `megadj beats`).",
+    why: "It's the independent second opinion on tempo — the grid cross-check fits it to one BPM and compares against rekordbox's.",
   },
   {
     term: "Phrase cue",
-    def: "A structure marker every 8 bars, derived from a track's downbeats — the natural mix in/out points.",
+    def: "A structure marker every 8 bars, derived from a track's downbeats — every 32-bar boundary doubles as a memory marker (the CDJ waveform spine).",
     why: "Phrase cues are how you mix on phrase, not just on beat; they're DB-side until rekordbox cue writes ship.",
   },
   {

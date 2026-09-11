@@ -43,9 +43,8 @@ import {
   Verdict,
   TrackTitle,
   BeatSyncBreakersCard,
-  gridDeltaPct,
+  collectBreakers,
   MOOD_GLOSS,
-  type GridBreaker,
 } from "../shared";
 
 /** One hook for the unified analysis-coverage read: playable tracks vs the
@@ -59,26 +58,7 @@ function useCoverage(): ArchiveAnalysisCoverage | null {
   return page.status === "ok" ? page.data : null;
 }
 
-/** Producer row → the shared GridBreaker render row (flat: delta precomputed,
- *  verdict as a flag). Lives here because the wire type is archive-owned. */
-function mkBreaker(
-  t: {
-    video_id: string;
-    title: string | null;
-    ledgerBpm: number;
-    rbBpm: number;
-  },
-  isOct: boolean,
-): GridBreaker {
-  return {
-    videoId: t.video_id,
-    title: t.title,
-    isOct,
-    ledgerBpm: t.ledgerBpm,
-    rbBpm: t.rbBpm,
-    deltaPct: gridDeltaPct(t.ledgerBpm, t.rbBpm),
-  };
-}
+// ---- beatgrids --------------------------------------------------------------
 
 /** The coverage strip: one meter per analysis ledger, shared by every
  *  FullTags analysis tab so the three views can't disagree about progress. */ function CoverageStrip(props: {
@@ -173,13 +153,10 @@ function BeatgridsTab() {
   const [grid, mood] = page.data;
   const off = grid.available ? grid.off : [];
   const octave = grid.available ? grid.octave : [];
-  const syncRisk = off.length + octave.length;
-  // octave rows first (they're the dangerous ones), then by delta desc —
-  // the sort IS the severity order; the table's own sort re-orders on click
-  const breakers: GridBreaker[] = [
-    ...octave.map((t) => mkBreaker(t, true)),
-    ...off.map((t) => mkBreaker(t, false)),
-  ];
+  const drift = grid.available ? grid.drift : [];
+  const syncRisk = off.length + octave.length + drift.length;
+  // severity order (octave → drift → off) is owned by collectBreakers
+  const breakers = collectBreakers(grid);
   const ledgered = grid.available ? grid.ledgered : 0;
   const checked = grid.available ? grid.checked : 0;
   const inArchive = mood.available ? mood.analyzed : 0;
@@ -188,7 +165,7 @@ function BeatgridsTab() {
     <div>
       <TabIntro
         what="Beatgrids: the independent beat_this analysis vs what rekordbox wrote."
-        how="beat_this re-analyzes every track and its beat array is compared against rekordbox's BPM × duration. 'off' = the grids disagree by >2% tempo (Beat Sync will drift); 'octave' = the grid locked half/double tempo (Sync will jump). Everything else agreed."
+        how="beat_this re-analyzes every track; the beat array is fitted to one constant tempo (grid-locked music) and compared against rekordbox's BPM. 'off' = tempo disagrees by >2%; 'octave' = locked half/double (Sync jumps); 'drift' = the grid slides >15 ms across the track (wrong tempo, counted grids look fine). Everything else agreed."
         next="BPM tag writes stay BLOCKED until the bar-grid re-gate passes (roadmap) — the ledger is truth until then. Re-analyze with `megadj beats`."
       />
       {!grid.available ? (
@@ -210,7 +187,7 @@ function BeatgridsTab() {
             }
             meta={
               ledgered > 0
-                ? `${octave.length} octave · ${off.length} off · ${grid.ok} ok`
+                ? `${octave.length} octave · ${drift.length} drift · ${off.length} off · ${grid.ok} ok`
                 : undefined
             }
           />
@@ -236,7 +213,7 @@ function BeatgridsTab() {
             <BeatSyncBreakersCard
               breakers={breakers}
               syncRisk={syncRisk}
-              hint="These tracks' independent beatgrid analysis disagrees with rekordbox's BPM — off by >2% tempo or locked an octave (half/double) out. They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the dangerous ones (Sync lands on the wrong pulse entirely). Click a numeric header to sort."
+              hint="These tracks' independent beatgrid analysis disagrees with rekordbox — off by >2% tempo, locked an octave (half/double) out, or drifting positionally across the track (>15 ms). They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the worst (Sync lands on the wrong pulse entirely); drift rows slide out of phase as the track plays. Click a numeric header to sort."
               fixNote={
                 <>
                   <code>megadj beats --force</code> re-analyzes — batch BPM tag
@@ -563,7 +540,7 @@ function TagsTab() {
           n={yearGap}
           l="missing release year"
           icon="clock"
-          title="Tracks with no year stamp — tools/fix_years.ts verifies AI-guessed years."
+          title="Tracks with no year stamp — tools/fix-years.ts verifies AI-guessed years."
         />
         <CountStat
           n={energyGap}

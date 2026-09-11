@@ -196,7 +196,7 @@ describe("ArchiveReader (O82b)", () => {
     r.close();
   });
 
-  it("gridCrossCheck: ok / off / octave verdicts against the beats ledger", () => {
+  it("gridCrossCheck: ok / off / octave / drift verdicts against the beats ledger", () => {
     // beats table mirrors megadj's src/state.ts schema
     seed.exec(`
       CREATE TABLE IF NOT EXISTS beats (
@@ -213,7 +213,7 @@ describe("ArchiveReader (O82b)", () => {
       Array.from({ length: Math.floor((seconds / 60) * bpm) + 1 }, (_, i) =>
         Number((i * (60 / bpm)).toFixed(4)),
       );
-    // The grid rows join to tracks — seed v5/v6 tracks as downloaded
+    // The grid rows join to tracks — seed v5/v6/vd tracks as downloaded
     const insT5 = seed.query(
       `INSERT INTO tracks (video_id, title, artist, status, bitrate_kbps, codec,
        file_path, duration_s, genre, energy, source, liked_position,
@@ -223,6 +223,7 @@ describe("ArchiveReader (O82b)", () => {
     );
     insT5.run("v5");
     insT5.run("v6");
+    insT5.run("vd");
     // v1: RB says 128, grid agrees → ok (300 s ≈ 640 beats)
     insB.run(
       "v1",
@@ -234,12 +235,27 @@ describe("ArchiveReader (O82b)", () => {
       "p",
       "t",
     );
-    // v5: RB says 130, grid implies ~146 (>2% off, not octave) → off
+    // v5: RB says 130.4, grid truly at 146 → peak positional deviation
+    // grows monotonically way past 15 ms → DRIFT. (The v1 count-based
+    // check called this "off"; the positional verdict is strictly
+    // sharper: any real tempo gap over a minutes-long track IS drift.)
     insB.run(
       "v5",
       130.4,
       130.4,
       JSON.stringify(grid(146, 300)),
+      "[]",
+      "m",
+      "p",
+      "t",
+    );
+    // vd: mild version — 1.5% tempo gap over 300 s, still drifts far
+    // past tolerance. Pins that small tempo gaps classify as drift, not ok.
+    insB.run(
+      "vd",
+      129.9,
+      129.9,
+      JSON.stringify(grid(131.9, 300)),
       "[]",
       "m",
       "p",
@@ -259,12 +275,14 @@ describe("ArchiveReader (O82b)", () => {
     const r = reader();
     const g = r.gridCrossCheck();
     expect(g.available).toBe(true);
-    expect(g.checked).toBe(3);
+    expect(g.checked).toBe(4);
     expect(g.ok).toBe(1);
-    expect(g.off.map((o) => o.video_id)).toEqual(["v5"]);
+    expect(g.drift.map((o) => o.video_id).sort()).toEqual(["v5", "vd"]);
     expect(g.octave.map((o) => o.video_id)).toEqual(["v6"]);
     expect(g.octave[0]!.ledgerBpm).toBeGreaterThan(85);
     expect(g.octave[0]!.ledgerBpm).toBeLessThan(89);
+    // drift rows carry the positional number the UI renders
+    expect(g.drift.every((o) => Math.abs(o.driftMs) > 15)).toBe(true);
     r.close();
   });
 

@@ -39,10 +39,9 @@ import {
   ShareBar,
   TrackTitle,
   BeatSyncBreakersCard,
-  gridDeltaPct,
+  collectBreakers,
   MOOD_GLOSS,
   STATUS_LANG,
-  type GridBreaker,
 } from "../shared";
 
 // Payload types are DERIVED from ArchiveReader's return types
@@ -120,7 +119,9 @@ export function ArchiveTab() {
     return <FetchedGate page={page} loading="loading archive reads…" />;
 
   // ---- the verdict: one line a human reads before anything else ---------
-  const syncRisk = grid?.available ? grid.off.length + grid.octave.length : 0;
+  const syncRisk = grid?.available
+    ? grid.off.length + grid.octave.length + grid.drift.length
+    : 0;
   const qualityDebt = lowq?.available ? lowq.tracks.length : 0;
   const retryBacklog = ingest.available
     ? (ingest.counts["failed"] ?? 0) + (ingest.counts["gone"] ?? 0)
@@ -158,27 +159,7 @@ export function ArchiveTab() {
     (r) => r.downloaded + r.failed + r.gone > 0,
   );
   const newest = ingest.recent_tracks.slice(0, 8);
-  // octave rows first (the dangerous ones) — the shared table renders it
-  const breakers: GridBreaker[] = grid?.available
-    ? [
-        ...grid.octave.map((t) => ({
-          videoId: t.video_id,
-          title: t.title,
-          isOct: true,
-          ledgerBpm: t.ledgerBpm,
-          rbBpm: t.rbBpm,
-          deltaPct: gridDeltaPct(t.ledgerBpm, t.rbBpm),
-        })),
-        ...grid.off.map((t) => ({
-          videoId: t.video_id,
-          title: t.title,
-          isOct: false,
-          ledgerBpm: t.ledgerBpm,
-          rbBpm: t.rbBpm,
-          deltaPct: gridDeltaPct(t.ledgerBpm, t.rbBpm),
-        })),
-      ]
-    : [];
+  const breakers = collectBreakers(grid);
 
   const verdict =
     issues.length === 0
@@ -302,7 +283,7 @@ export function ArchiveTab() {
         <BeatSyncBreakersCard
           breakers={breakers}
           syncRisk={syncRisk}
-          hint="These tracks' independent beatgrid analysis disagrees with rekordbox's BPM — off by >2% tempo or locked an octave (half/double) out. They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Click a numeric header to sort."
+          hint="These tracks' independent beatgrid analysis disagrees with rekordbox — off by >2% tempo, locked an octave (half/double) out, or drifting positionally across the track (>15 ms). They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the worst (Sync lands on the wrong pulse entirely); drift rows slide out of phase as the track plays. Click a numeric header to sort."
           fixNote={
             <>
               <code>megadj beats --force</code> re-analyzes — the write-gate on
