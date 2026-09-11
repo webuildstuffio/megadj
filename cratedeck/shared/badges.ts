@@ -26,7 +26,7 @@ export function rankBadges(
   badges: Badge[],
   cap: number,
 ): { top: Badge[]; extra: Badge[] } {
-  const sorted = [...badges].sort(
+  const sorted = [...badges].toSorted(
     (a, b) => (BADGE_RANK[a.key] ?? 99) - (BADGE_RANK[b.key] ?? 99),
   );
   return { top: sorted.slice(0, cap), extra: sorted.slice(cap) };

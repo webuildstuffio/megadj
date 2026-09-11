@@ -32,14 +32,14 @@ import { placeCard, type TipRequest } from "./tipPlace";
 export function Tip(props: {
   title: string;
   body: string;
-  why?: string;
+  why?: string | undefined;
   /** Preferred opening: above (default), below, or beside (side). */
-  request?: TipRequest;
+  request?: TipRequest | undefined;
   /** Right-edge-align the card to the anchor (near-right-edge sites). */
-  align?: "left" | "right";
+  align?: "left" | "right" | undefined;
   /** Classes for the anchor span (`.infotip`, `.gloss`, …). */
-  class?: string;
-  ariaLabel?: string;
+  class?: string | undefined;
+  ariaLabel?: string | undefined;
   children: ComponentChildren;
 }) {
   const anchorRef = useRef<HTMLSpanElement | null>(null);

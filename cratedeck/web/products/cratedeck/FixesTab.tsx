@@ -71,11 +71,11 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
   const fixRows =
     scanned?.rows
       .filter((r) => r.action !== "none")
-      .sort((a, b) => rank(a) - rank(b)) ?? [];
+      .toSorted((a, b) => rank(a) - rank(b)) ?? [];
   const manualRows =
     scanned?.rows
       .filter((r) => r.action === "none")
-      .sort((a, b) => rank(a) - rank(b)) ?? [];
+      .toSorted((a, b) => rank(a) - rank(b)) ?? [];
   const boothTerm = HELP_TERMS.find((t) => t.term === "Booth fleet");
 
   const banner =

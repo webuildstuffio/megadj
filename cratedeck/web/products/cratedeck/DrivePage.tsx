@@ -447,7 +447,9 @@ export function DrivePage(props: {
   // unknown tab → overview; the hoisted conf kills per-tab casts in JSX
   const tabConf = DRIVE_TABS.find((t) => t.id === props.tab) ?? DRIVE_TABS[0];
   const counts: Partial<Record<TabId, number>> = {
-    playlists: snap?.playlists?.length,
+    ...(snap?.playlists?.length === undefined
+      ? {}
+      : { playlists: snap.playlists.length }),
     timeline: timeline.length,
   };
   const failing = checks.filter((c) => c.status === "fail").length;

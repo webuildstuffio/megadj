@@ -112,11 +112,11 @@ export type StatTone = "ok" | "warn" | "bad" | "";
 export function StatCard(props: {
   v: string;
   l: string;
-  icon?: IconName | string;
-  title?: string;
-  tone?: StatTone;
+  icon?: IconName | string | undefined;
+  title?: string | undefined;
+  tone?: StatTone | undefined;
   /** small muted suffix after the label (e.g. the mood gloss) */
-  em?: string;
+  em?: string | undefined;
 }) {
   return (
     <div class={`stat ${props.tone ?? ""}`} title={props.title}>
@@ -648,7 +648,7 @@ export function ListHead(props: {
   title: string;
   n: number;
   hint: string;
-  lines?: string[];
+  lines?: string[] | undefined;
 }) {
   return (
     <div class="ah-head">

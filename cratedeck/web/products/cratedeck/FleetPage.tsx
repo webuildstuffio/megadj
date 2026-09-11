@@ -317,7 +317,7 @@ function RedundancyTab() {
   // risky-first: at-risk playlists on top, unknowns pinned last — the order
   // IS the work queue (the first render was server order, whichever that was)
   const order = { fail: 0, warn: 1, pass: 2, unknown: 3 };
-  const sorted = [...data.playlists].sort(
+  const sorted = [...data.playlists].toSorted(
     (a, b) => order[a.verdict] - order[b.verdict],
   );
   const gapCount = data.playlists.reduce(

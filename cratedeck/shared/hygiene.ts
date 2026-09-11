@@ -112,7 +112,13 @@ export interface HygieneBadge {
  *  first: confirmed → open → failed → applied → dismissed) and the
  *  parameterized WHERE builder stay defined ONCE, next to the contract. */
 export function hygieneWhere(
-  filter: { status?: string; kind?: string; severity?: string } | undefined,
+  filter:
+    | {
+        status?: string | undefined;
+        kind?: string | undefined;
+        severity?: string | undefined;
+      }
+    | undefined,
 ): { whereSql: string; params: string[] } {
   const where: string[] = [];
   const params: string[] = [];

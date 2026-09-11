@@ -85,7 +85,7 @@ export function App() {
             jobShapeAt.current.set(j.id, { sig, at });
             return { ...j, _received: at };
           })
-          .sort(
+          .toSorted(
             (a, b) =>
               (b.started_at ?? b.created_at) - (a.started_at ?? a.created_at),
           ),

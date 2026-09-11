@@ -121,10 +121,10 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
         f.status === "confirmed" ||
         f.status === "failed",
     )
-    .sort((a, b) => rank(a) - rank(b));
+    .toSorted((a, b) => rank(a) - rank(b));
   const doneRows = findings
     .filter((f) => f.status === "applied" || f.status === "dismissed")
-    .sort((a, b) =>
+    .toSorted((a, b) =>
       (b.appliedAt ?? b.decidedAt ?? "").localeCompare(
         a.appliedAt ?? a.decidedAt ?? "",
       ),

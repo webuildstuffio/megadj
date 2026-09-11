@@ -47,7 +47,7 @@ const RING_HELP: Record<OverallHealth, string> = {
  *  the icon IS the verdict, the tooltip carries the words + score. */
 function VerdictChip(props: {
   verdict: OverallHealth;
-  report?: ReportSummary;
+  report?: ReportSummary | undefined;
 }) {
   return (
     <InfoTip
@@ -146,7 +146,7 @@ export function DriveRail(props: {
 
 function RailCard(props: {
   drive: DriveCardData;
-  report?: ReportSummary;
+  report?: ReportSummary | undefined;
   on: boolean;
   onSelect: () => void;
 }) {

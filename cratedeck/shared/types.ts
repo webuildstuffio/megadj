@@ -143,46 +143,52 @@ export interface SnapshotData {
   kind: "light" | "full";
   taken_at: number;
   // light scan
-  file_count?: number;
-  total_bytes?: number;
-  folders?: { name: string; files: number; bytes: number }[];
-  junk?: {
-    zero_byte: string[];
-    case_collisions: string[];
-    orphan_resource_forks: number;
-  };
+  file_count?: number | undefined;
+  total_bytes?: number | undefined;
+  folders?: { name: string; files: number; bytes: number }[] | undefined;
+  junk?:
+    | {
+        zero_byte: string[];
+        case_collisions: string[];
+        orphan_resource_forks: number;
+      }
+    | undefined;
   // space analysis
-  free_bytes?: number | null;
-  capacity_bytes?: number;
-  by_ext?: { ext: string; files: number; bytes: number }[];
-  largest?: { path: string; bytes: number }[];
-  age?: { fresh: number; recent: number; old: number; ancient: number };
+  free_bytes?: number | null | undefined;
+  capacity_bytes?: number | undefined;
+  by_ext?: { ext: string; files: number; bytes: number }[] | undefined;
+  largest?: { path: string; bytes: number }[] | undefined;
+  age?:
+    { fresh: number; recent: number; old: number; ancient: number } | undefined;
   // full (rekordbox) scan
-  track_count?: number;
-  total_duration_ms?: number;
-  playlists?: PlaylistInfo[];
-  grid_coverage?: number; // 0..1, ANLZ at hash path
-  pdb_live_rows?: number; // legacy export.pdb
-  onelibrary_rows?: number;
-  db_mtime?: number;
-  pdb_mtime?: number;
+  track_count?: number | undefined;
+  total_duration_ms?: number | undefined;
+  playlists?: PlaylistInfo[] | undefined;
+  grid_coverage?: number | undefined; // 0..1, ANLZ at hash path
+  pdb_live_rows?: number | undefined; // legacy export.pdb
+  onelibrary_rows?: number | undefined;
+  db_mtime?: number | undefined;
+  pdb_mtime?: number | undefined;
   // DJ metadata (rekordbox columns)
-  dj?: DjStats;
+  dj?: DjStats | undefined;
   // fleet superpowers (§B6/B7/B8 inputs; light scan gives manifest, full scan
   // adds tracks + playlist_entries; absent = not collected by older scans)
   /** Per-track inventory from the device DB (audio rows only). */
-  tracks?: {
-    path: string; // NFC-casefolded, Contents-relative
-    title: string | null;
-    artist: string | null;
-    bpm: number | null;
-    key: string | null;
-    duration_ms: number | null;
-  }[];
+  tracks?:
+    | {
+        path: string; // NFC-casefolded, Contents-relative
+        title: string | null;
+        artist: string | null;
+        bpm: number | null;
+        key: string | null;
+        duration_ms: number | null;
+      }[]
+    | undefined;
   /** Playlist membership: one row per (playlist, track). */
-  playlist_entries?: { playlist_name: string; track_path: string }[];
+  playlist_entries?:
+    { playlist_name: string; track_path: string }[] | undefined;
   /** Audio files from the walk — byte truth for fleet diffs. */
-  manifest?: { path: string; bytes: number; mtime_ms: number }[];
+  manifest?: { path: string; bytes: number; mtime_ms: number }[] | undefined;
 }
 
 /** DJ-library analytics from the rekordbox device DB. */
@@ -362,7 +368,7 @@ export interface HealthCheck {
   status: CheckStatus;
   detail: string;
   /** suggestion shown when status != pass */
-  fix?: string;
+  fix?: string | undefined;
 }
 
 /** One granular verify check — mirrors HealthCheck but for usb_verify output. */
@@ -373,11 +379,11 @@ export interface VerifyCheck {
   detail: string;
   /** Plain-English: why does this check matter for a DJ? */
   meaning: string;
-  fix?: string;
+  fix?: string | undefined;
   /** The offending track paths (capped) — exactly WHAT needs attention. */
-  offenders?: string[];
+  offenders?: string[] | undefined;
   /** How many offenders exist in total (offenders may be truncated). */
-  offender_count?: number;
+  offender_count?: number | undefined;
 }
 
 /** Per-check direction vs the previous run (fewer = improving). */

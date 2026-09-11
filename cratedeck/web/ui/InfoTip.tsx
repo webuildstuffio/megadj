@@ -22,11 +22,11 @@ export function InfoTip(props: {
   /** Card body — plain sentences; line breaks via <br /> if needed. */
   body: string;
   /** Optional "why it matters" footer line, visually emphasized. */
-  why?: string;
-  align?: "left" | "right";
-  below?: boolean;
-  side?: boolean;
-  children?: preact.JSX.Element;
+  why?: string | undefined;
+  align?: "left" | "right" | undefined;
+  below?: boolean | undefined;
+  side?: boolean | undefined;
+  children?: preact.JSX.Element | undefined;
 }) {
   const request: TipRequest = props.side
     ? "side"

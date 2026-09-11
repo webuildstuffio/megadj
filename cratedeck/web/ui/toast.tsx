@@ -60,7 +60,10 @@ export class ApiError extends Error {
 
 export async function api<T = unknown>(
   path: string,
-  init?: RequestInit & { quiet?: boolean; timeoutMs?: number },
+  // Partial (not `X & {...}`) — with exactOptionalPropertyTypes the fetch
+  // spread includes explicitly-undefined props (e.g. `headers: undefined`
+  // for FormData posts), and plain optionals reject undefined values.
+  init?: Partial<RequestInit & { quiet?: boolean; timeoutMs?: number }>,
 ): Promise<T> {
   // quiet = caller owns the surfacing (poll loops, probes, mapped verdicts).
   // The error still throws — quiet only suppresses the generic toast.
@@ -107,10 +110,14 @@ export async function api<T = unknown>(
 export function apiPost<T = unknown>(
   path: string,
   body: unknown,
-  init?: Omit<RequestInit, "method" | "body" | "headers"> & {
-    quiet?: boolean;
-    timeoutMs?: number;
-  },
+  init?:
+    | Partial<
+        Omit<RequestInit, "method" | "body" | "headers"> & {
+          quiet?: boolean;
+          timeoutMs?: number;
+        }
+      >
+    | undefined,
 ): Promise<T> {
   // timeoutMs must be forwarded or long POSTs (dossier-style calls) inherit
   // the 30s default and abort mid-flight.
@@ -119,7 +126,7 @@ export function apiPost<T = unknown>(
   return api<T>(path, {
     ...rest,
     method: "POST",
-    headers: isForm ? undefined : { "Content-Type": "application/json" },
+    ...(isForm ? {} : { headers: { "Content-Type": "application/json" } }),
     body: isForm ? body : JSON.stringify(body),
     ...(quiet === undefined ? {} : { quiet }),
     ...(timeoutMs === undefined ? {} : { timeoutMs }),
