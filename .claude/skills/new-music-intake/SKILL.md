@@ -25,7 +25,9 @@ IS the file being walked) as "unchanged" — it never quarantines the
 archive's own copy (the Sep 10 UI re-run before this guard quarantined 14
 live files and left their rows pointing at missing paths; regression-tested
 in `src/commands/ingest-selfmatch.test.ts`). The pre-Sep-10 flat layout was
-migrated into `2026-09-05 batch import/` + `2026-09-09 batch import/`.
+migrated into `2026-09-05 intake/` + `2026-09-09 intake/` (renamed Sep 11
+to the standard convention — "batch import" was an early hand-made name
+that the slugger would now render as "intake"; DB paths updated to match).
 
 ## Step 1 — Scan for downloads (loose files + zips)
 
@@ -39,7 +41,13 @@ Also peek at `~/Desktop`. DJ edits pile up loose in `~/Downloads` as WAVs
 named like `BLAH (DUER Remix) FINAL.wav`; pools ship zips.
 
 **Zip rule:** mp3+wav pairs = same song, take the WAV, copy the mp3's
-embedded art onto it (mutagen APIC), let ingest's dedupe quarantine the mp3.
+embedded art onto it (mutagen APIC), let ingest's dedupe quarantine the
+mp3. Since Sep 10 2026 this rule is ENFORCED in code: ingest's
+fingerprint pass quarantines any same-stem mp3 whose stem matches a
+lossless file in the same intake run (the lossless side wins even when
+the mp3's nominal bitrate scores higher — regression-tested in
+`src/commands/ingest-pair.test.ts`; the Sep 10 "Play Hard" pair slipped
+through before this existed).
 
 ## Step 2 — megadj ingest (the Picard pass)
 
@@ -55,8 +63,12 @@ converter, runs the artwork ladder on each new AIFF, updates DB paths, and
 verifies player compat — one command, idempotent (no WAVs → no-op).
 
 It probes, dedupes (quality rules, `(1)`-dupe detection, **MD5-verified
-content twins regardless of filename**, losers moved to
-`<folder>/ingest-duplicates/`), merges tags with filename parsing, fills
+content twins regardless of filename**, **same-stem mp3↔lossless pairs**,
+acoustic fingerprints), losers moved to
+`<archive>/.ingest-duplicates/` — a HIDDEN dot-folder at the archive ROOT
+(NOT inside the batch folder: people drag batch folders, and a visible
+duplicates folder inside one would get re-dragged back in as "new
+music"; dot-folders are skipped by every walker and by Finder), merges tags with filename parsing, fills
 artist/album from MusicBrainz, infers genre, gates sub-60s clips,
 energy-rates, bootleg-aware tags (remixer in version tag, grouping =
 genre), copies into `~/Music/DJ-Imports/<YYYY-MM-DD dump name>/` (one
@@ -148,6 +160,26 @@ found" usually ARE on SoundCloud under a different name/query — search the
 cover art) and use the pack cover. Never accept
 "untraceable" until you've tried the remixer's profile and pack pages.
 
+**Artwork hunt before AI (Sep 10 2026):** when only 1–2 covers are
+missing, do NOT jump to `megadj artwork` (spend). The automated SC search
+misses hits the manual ladder finds in seconds:
+
+1. `yt-dlp --flat-playlist --print "%(title).70s | %(webpage_url)s |
+%(uploader)s" "scsearch5:<remixer> <original title>"` — the ARTIST'S
+   OWN upload almost always has real cover art (Sep 10: Stayin' Alive
+   edit found on the remixer's profile after SC/Deezer/iTunes all
+   "missed").
+2. Upgrade the og:image thumb to original res: swap `-t500x500` for
+   `-t1080x1080` (then `-original`) in the sndcdn URL — 76 KB thumb →
+   336 KB real cover.
+3. **Pool gateways**: if the download came from hypeddit/hyperfollow,
+   revisit that gateway page in a browser — the release cover is there
+   even when DDG's cache misses it. Pool zips may also ship `Cover.jpg`
+   next to the audio (embed it directly).
+4. Only THEN queue AI (`megadj artwork`). Same rule for unidentified
+   "DJ tool" titles: try 4–5 query shapes (remixer+title, title+genre,
+   title+bpm, quoted phrases) before concluding anything.
+
 ## Step 3b — AI covers: last resort only
 
 Only tracks with **no online presence at all** (checked SC search, remixer
@@ -155,12 +187,14 @@ profile, pack pages, gateways) go to the queue:
 
 ```bash
 bun src/cli.ts artwork --dry-run        # preview prompts, no spend
-bun src/cli.ts artwork --max 10         # bounded batch (≈$0.034/img)
+OPENROUTER_API_KEY=$(security find-generic-password -a $USER -s megadj-openrouter-key -w) \
+  bun src/cli.ts artwork --max 10      # bounded batch (≈$0.034/img)
 ```
 
 Requires `OPENROUTER_API_KEY` (keep it in the keychain:
 `security add-generic-password -a $USER -s megadj-openrouter-key -w <key>`
-— the repo never hardcodes keys).
+— the repo never hardcodes keys; the command above pulls it from the
+keychain into the env for one run).
 
 ## Step 4 — Onto the USB drives
 
@@ -189,6 +223,10 @@ megadj audit                    # ground-truth file audit: art+title+artist+albu
                                 #   + mood+energy + player-compat (booth-playable)
 megadj fetch --dry-run          # what would still be done
 megadj years --dry-run          # verify years against real SC page dates
+megadj mood                     # ONNX mood → ledger (Sep 10 regression: flagless runs
+                                #   analyzed NOTHING — always confirm `analyzed > 0`
+                                #   on a fresh batch, or beats/cues rows go missing)
+megadj beats && megadj cues     # downbeats + 8-bar phrase cues → ledgers
 ```
 
 `megadj audit` exits 1 and lists every file with `[missing,fields]` if

@@ -82,7 +82,8 @@ export async function dedupeArchive(
   };
 
   const files = walkAudioFiles(opts.musicDir).filter(
-    (p) => !p.includes("/ingest-duplicates/"),
+    (p) =>
+      !p.includes("/ingest-duplicates/") && !p.includes("/.ingest-duplicates/"),
   );
   res.scanned = files.length;
   log(`dedupe-archive: ${files.length} files in ${basename(opts.musicDir)}/`);

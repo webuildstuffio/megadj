@@ -12,6 +12,10 @@ import {
   runShelfArchive,
   runShelfSweeps,
 } from "./cli-shelf-cmds";
+import {
+  MAINTENANCE_VERBS,
+  runMaintenanceCommand,
+} from "./commands/maintenance-cmds";
 
 // Env constants + flag parsers moved to cli-env.ts / cli-flags.ts, and the
 // shelf-family case bodies to cli-shelf-cmds.ts (complexity guard) —
@@ -78,6 +82,10 @@ async function main(): Promise<void> {
   const state = new ArchiveState(DB_PATH);
 
   try {
+    if ((MAINTENANCE_VERBS as readonly string[]).includes(command)) {
+      await runMaintenanceCommand(command, rest);
+      return;
+    }
     switch (command) {
       case "doctor": {
         const flags = parseFlags(rest, [], ["json"]);
@@ -217,17 +225,6 @@ async function main(): Promise<void> {
         const onlyIdentical = rest.includes("--only-identical");
         const { shelfDupescan } = await import("./commands/shelf-dupescan");
         await shelfDupescan({ json, quarantine, yes, onlyIdentical });
-        break;
-      }
-      case "shelf-hygiene":
-      case "rb-fix-paths":
-      case "rb-grid-triage":
-      case "rb-anlz-spike": {
-        // The maintenance family lives in commands/maintenance-cmds.ts
-        // (file-length guard), same seam shape as the old shelf-cmds.ts.
-        const { runMaintenanceCommand } =
-          await import("./commands/maintenance-cmds");
-        await runMaintenanceCommand(command, rest);
         break;
       }
       case "shelf-sweeps": {
@@ -484,6 +481,38 @@ async function main(): Promise<void> {
         } else {
           console.log("✅ all tracks fully tagged + booth-playable");
         }
+        break;
+      }
+      case "tag-check": {
+        // Corrupt-ID3 scanner (Sep 11 2026): structure-level tag health —
+        // unreadable containers, mojibake, control bytes, no-title/artist
+        // voids, fleet-text failures. Complements `audit` (which gates
+        // COMPLETENESS); this gates WELL-FORMEDNESS.
+        const flags = parseFlags(rest, [], ["json"]);
+        const { walkAudioFiles, tagHealth } =
+          await import("../fulltags/src/exports");
+        const files = walkAudioFiles(MUSIC_DIR);
+        const bad: Array<{ file: string; reasons: string[] }> = [];
+        for (const f of files) {
+          const h = tagHealth(f);
+          if (!h.ok) bad.push({ file: f, reasons: h.reasons });
+        }
+        if (flags.bools.has("json")) {
+          console.log(
+            JSON.stringify(
+              { ok: bad.length === 0, checked: files.length, bad },
+              null,
+              2,
+            ),
+          );
+        } else {
+          console.log(
+            `tag-check: ${files.length - bad.length}/${files.length} clean`,
+          );
+          for (const b of bad)
+            console.log(`  [${b.reasons.join(", ")}] ${b.file}`);
+        }
+        if (bad.length) process.exitCode = 1;
         break;
       }
       case "years": {

@@ -16,12 +16,11 @@
         "wait",
         "md5",
         "fpcalc",
+        "ffmpeg",
         "pgrep",
         "uv"
       ],
-      "ignoreDependencies": [
-        "preact"
-      ]
+      "ignoreDependencies": ["preact"]
     },
     "fulltags": {
       "entry": [
@@ -30,9 +29,7 @@
         "test/*.test.ts",
         "test/helpers/*.ts"
       ],
-      "ignoreBinaries": [
-        "ffmpeg"
-      ],
+      "ignoreBinaries": ["ffmpeg"],
       "ignoreExportsUsedInFile": true
     },
     "cratedeck": {

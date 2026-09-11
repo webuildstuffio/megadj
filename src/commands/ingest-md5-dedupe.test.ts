@@ -71,7 +71,7 @@ describe("ingest content-hash dedupe", () => {
     expect(files.length).toBe(1);
     // The twin was dropped in the dedupe phase — quarantined as-is (a WAV),
     // never converted/ingested.
-    const quarantine = join(dump, "ingest-duplicates");
+    const quarantine = join(ARCHIVE, ".ingest-duplicates");
     expect(existsSync(quarantine)).toBe(true);
     const quarantined = readdirSync(quarantine);
     expect(quarantined.length).toBe(1);

@@ -37,7 +37,7 @@ export interface IngestCounters {
 /** Narrow view of IngestOptions the landing helpers need. */
 export interface IngestOptsLike {
   musicDir: string;
-  noArtwork?: boolean;
+  noArtwork?: boolean | undefined;
   state: {
     updateArtworkStatus(extId: string, status: string): unknown;
     upsertTrackFromPlaylist(
@@ -47,6 +47,8 @@ export interface IngestOptsLike {
       src: string,
     ): unknown;
     markDownloaded(extId: string, row: Record<string, unknown>): unknown;
+    /** Existing downloaded row pointing at a path (upgrade replacement). */
+    trackByFilePath(filePath: string): { video_id: string } | null;
   };
 }
 
@@ -200,7 +202,18 @@ export async function registerAndMove(
   counters: IngestCounters,
   batchDir: string | null,
 ): Promise<void> {
-  const extId = extIdFor(a.file);
+  // UPGRADE REPLACEMENT (Sep 11 2026): when a quality upgrade lands on a
+  // file path that is already registered (self-ingest of the archive), the
+  // path-keyed ext- id would insert a SHADOW row next to the existing one —
+  // same file, two rows, the old one keeping all beats/mood/cues history
+  // while list/DB views see doubles. Reuse the existing row's id instead:
+  // markDownloaded then overwrites it in place and the ledger survives.
+  const existingRow = opts.state.trackByFilePath(
+    // match against the FINAL path (this file already lives in the archive
+    // on the self-ingest path; a fresh copy registers its own new row).
+    isInArchive(opts.musicDir, a.file) ? a.file : "",
+  );
+  const extId = existingRow?.video_id ?? extIdFor(a.file);
   const inArchive = isInArchive(opts.musicDir, a.file);
   let destPath = destPathFor(opts.musicDir, a.file, batchDir);
   destPath = await copyIntoArchive(opts, rec, a, destPath, inArchive, batchDir);

@@ -248,6 +248,14 @@ async function md5File(path: string): Promise<string> {
   });
 }
 
+/** Filename stem, lowercased and stripped to alphanumerics — the same-stem
+ *  pair key for the mp3↔lossless dupe pass. Pure — module-level. */
+const stemOf = (f: string): string =>
+  basename(f)
+    .replace(/\.[^.]+$/, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
 /** Acoustic-fingerprint pass over the identity+MD5 survivors (name-blind
  *  dupe class: same recording, different rip). fpcalc per file is ~1s, so
  *  this runs only for pairs the cheaper passes couldn't resolve. Loser =
@@ -260,6 +268,30 @@ async function dedupeByFingerprint(
 ): Promise<number> {
   let fpDupes = 0;
   const byFp = new Map<string, Record_>();
+  // SAME-STEM PAIR pass (the Play Hard trap, Sep 10 2026): pools ship
+  // mp3+wav pairs whose fingerprints differ slightly (lossy vs lossless
+  // decode), so the fp equality check below can never match them — and
+  // both copies ingested. A same-stem mp3↔lossless pair IS one recording
+  // by convention (the skill's zip rule); the lossless side always wins,
+  // regardless of what qualityScore says (an mp3's nominal bitrate must
+  // never beat the lossless file it shipped with).
+  const LOSSLESS_RE = /\.(wav|aiff?|flac)$/i;
+  const losslessStems = new Set<string>();
+  for (const rec of survivors) {
+    if (LOSSLESS_RE.test(rec.file)) losslessStems.add(stemOf(rec.file));
+  }
+  const mp3Losers = survivors.filter(
+    (rec) => /\.mp3$/i.test(rec.file) && losslessStems.has(stemOf(rec.file)),
+  );
+  for (const loser of mp3Losers) {
+    log(
+      `  [dupe] ${basename(loser.file)} — mp3 twin of the same-stem lossless copy`,
+    );
+    const idx = survivors.indexOf(loser);
+    if (idx >= 0) survivors.splice(idx, 1);
+    await quarantine(loser.file, quarantineDir, dryRun, log);
+    fpDupes++;
+  }
   for (const rec of survivors) {
     // One fpcalc call per file — compareFingerprint hashes the second file
     // again; group sequentially so each file is hashed at most twice.
@@ -296,6 +328,25 @@ async function dedupeByFingerprint(
     if (byFp.get(v.fp) === drop) byFp.set(v.fp, keep);
   }
   return fpDupes;
+}
+
+/** Phase B seam for tests (ingest-pair.test.ts): probe a folder's files
+ * and run the within-folder dedupe passes — no DB, no archive check. */
+export async function dedupeWithinFolderForTest(
+  folder: string,
+  quarantineDir: string,
+  dryRun: boolean | undefined,
+  log: (msg: string) => void,
+): Promise<{ survivors: Record_[]; dupes: number }> {
+  const files = await walkAudio(folder, [], [quarantineDir]);
+  const { records } = await probeAllFiles(files, log);
+  const { survivors, folderDupes } = await dedupeWithinFolder(
+    records,
+    quarantineDir,
+    dryRun,
+    log,
+  );
+  return { survivors, dupes: folderDupes };
 }
 
 /** Phase C: archive collision check — archive dupes quarantine unless the new
@@ -571,8 +622,13 @@ async function ingestOne(
 
 export async function ingest(opts: IngestOptions): Promise<void> {
   const log = commandLog(opts);
+  // Quarantine lives at the ARCHIVE ROOT as a dot-folder (Sep 10 2026:
+  // user request — "people will drag that folder", so a visible
+  // `ingest-duplicates/` INSIDE the batch folder risks its rejects being
+  // re-imported by a later folder drag). Dot-prefix → every walker (and
+  // Finder) skips it; archive-root → never travels with a batch folder.
   const quarantineDir =
-    opts.quarantineDir ?? join(opts.folder, "ingest-duplicates");
+    opts.quarantineDir ?? join(opts.musicDir, ".ingest-duplicates");
   const minDuration = opts.minDuration ?? 60;
   const queuedIdentity = new Set<string>();
   // Per-batch destination folder: this run's imports land in

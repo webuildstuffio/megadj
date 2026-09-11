@@ -69,15 +69,31 @@ export function buildPrompt(entry: QueueEntry): string {
     entry.remixOf ? `(remix of ${entry.remixOf})` : "",
     genreish ? `style: ${genreish}` : "",
     "bold graphic design, high contrast, club music aesthetic, no text, no words, no letters",
+    // User preference (Sep 10 2026): the artwork must be a full 1:1 square
+    // composition framed by a clean white border — looks intentional on
+    // the CDJ grid instead of bleeding to the edges.
+    "full square 1:1 composition with a clean solid white border frame around the entire image",
   ];
   return parts.filter(Boolean).join(". ");
 }
 
-/** Embed a generated cover file as the front cover (any container). */
-function embedArtwork(filePath: string, artPath: string): Promise<boolean> {
-  return fetchImage(artPath).then((bytes) =>
-    bytes ? embedArt(filePath, bytes) : false,
-  );
+/** Embed a generated cover file as the front cover (any container).
+ * The generated cover is a LOCAL path (artwork-covers/<name>.png) —
+ * read it from disk directly; `fetchImage` is http-only, so routing the
+ * local file through it failed every embed (Sep 10 2026: a generated
+ * cover sat unread while the queue reported "embed FAILED"). HTTP URLs
+ * still go through fetchImage (mp3-twin art, future remote sources). */
+async function embedArtwork(
+  filePath: string,
+  artPath: string,
+): Promise<boolean> {
+  const bytes = /^https?:\/\//i.test(artPath)
+    ? await fetchImage(artPath)
+    : await readFile(artPath).then(
+        (b) => new Uint8Array(b),
+        () => null,
+      );
+  return bytes ? embedArt(filePath, bytes) : false;
 }
 
 interface ArtworkCounters {

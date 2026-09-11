@@ -78,8 +78,8 @@ describe("ingest fingerprint dedupe", () => {
     const audio = kept.filter((f) => /\.(aiff|mp3)$/i.test(f));
     expect(audio.length).toBe(1);
     expect(audio[0]).toMatch(/\.aiff$/i); // lossless wins the score race
-    // The mp3 re-encode is in quarantine.
-    const q = readdirSync(join(dump, "ingest-duplicates"));
+    // The mp3 re-encode is in quarantine (archive-root dot-folder now).
+    const q = readdirSync(join(ARCHIVE, ".ingest-duplicates"));
     expect(q.some((f) => f.endsWith(".mp3"))).toBe(true);
   }, 240000);
 });

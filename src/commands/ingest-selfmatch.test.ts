@@ -73,7 +73,7 @@ describe("ingest self-match guard (re-run of an in-archive batch)", () => {
       minDuration: 10,
     });
 
-    const quarantine = join(BATCH, "ingest-duplicates");
+    const quarantine = join(ARCHIVE, ".ingest-duplicates");
     expect(existsSync(quarantine)).toBe(false);
     const afterFirst = readdirSync(BATCH).filter((f) =>
       f.endsWith(".aiff"),
@@ -99,8 +99,8 @@ describe("ingest self-match guard (re-run of an in-archive batch)", () => {
     // at their registered paths (the Sep 10 incident broke 14 rows here).
     expect(existsSync(quarantine)).toBe(false);
     const onDisk = readdirSync(BATCH).filter((f) => f.endsWith(".aiff"));
-    expect(onDisk.sort()).toEqual(
-      ["Self Match One.aiff", "Self Match Two.aiff"].sort(),
+    expect(onDisk.toSorted()).toEqual(
+      ["Self Match One.aiff", "Self Match Two.aiff"].toSorted(),
     );
   }, 240000); // ffmpeg encode ×2 + two full ingest passes
 });

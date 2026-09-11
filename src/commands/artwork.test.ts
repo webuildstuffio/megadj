@@ -16,6 +16,9 @@ describe("buildPrompt", () => {
     expect(p).toContain('"Savin Me"');
     expect(p).toContain("no text");
     expect(p).toContain("Square album cover art");
+    // User preference (Sep 10 2026): full 1:1 square with a white border
+    expect(p).toContain("1:1");
+    expect(p).toContain("white border");
   });
 
   test("mentions remix origin when present", () => {

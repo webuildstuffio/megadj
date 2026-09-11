@@ -97,10 +97,16 @@ export async function mood(opts: MoodOptions): Promise<void> {
   needAnalysis.push(...needEmbedding);
   // --limit caps the ONNX pass (help documents it); pass-1 stamp sync is
   // cheap and stays whole-file so no stamp is left unsynced.
-  const analysisQueue =
-    opts.limit === undefined
-      ? needAnalysis
-      : needAnalysis.slice(0, Math.max(0, opts.limit));
+  // BUGFIX (Sep 10 2026 "mood analyzes nothing"): when limit is undefined
+  // the ternary handed back the SAME array reference, and the unconditional
+  // `needAnalysis.length = 0` below then wiped the refill source too — the
+  // ONNX pass silently became a no-op on every flagless `megadj mood` run
+  // (the `--limit N` path took `slice()` and worked, hiding the defect).
+  // Copy first (`slice()` unconditionally), then truncate the original.
+  const analysisQueue = needAnalysis.slice(
+    0,
+    opts.limit === undefined ? needAnalysis.length : Math.max(0, opts.limit),
+  );
   needAnalysis.length = 0;
   needAnalysis.push(...analysisQueue);
 

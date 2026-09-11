@@ -42,11 +42,11 @@ export async function fetchAndEmbedArtwork(
   opts: {
     tags: Record<string, string>;
     hasArt: boolean;
-    noArtwork?: boolean;
+    noArtwork?: boolean | undefined;
     artist: string | null;
     album: string | null;
     title: string;
-    dryRun?: boolean;
+    dryRun?: boolean | undefined;
   },
 ): Promise<ArtworkOutcome> {
   const out: ArtworkOutcome = {

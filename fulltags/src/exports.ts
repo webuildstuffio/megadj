@@ -32,7 +32,7 @@ export {
   twinArt,
   scSearch,
 } from "./art-sources";
-export { aiGenres, albumHeuristic, _SPEC_AI_MODEL as AI_MODEL } from "./ai";
+export { aiGenres, albumHeuristic, AI_MODEL_PIN as AI_MODEL } from "./ai";
 export { groundTruth } from "./readers";
 export {
   energyFromLufs,
@@ -53,9 +53,11 @@ export { playerCompat, isHiresOnly } from "./player-compat";
 export {
   boothTextCompat,
   cp1252Bytes,
+  isMojibake,
   type TextCompatResult,
 } from "./booth-text";
 export { setBoothFleet, getBoothFleet } from "./player-compat";
 export { parseMoodStamp } from "./pipeline";
+export { tagHealth, type TagHealth } from "./tag-health";
 export { fingerprintFile } from "./analysis";
 export { analyzeMoods, type MoodResult } from "./models";

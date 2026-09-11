@@ -47,6 +47,8 @@ export interface TrackRow {
   energy: number | null;
   artwork_status: string | null;
   year: string | null;
+  /** blake2b256 hex of the file bytes — the gold-annotation join key. */
+  content_hash: string | null;
   first_seen_at: string;
   updated_at: string;
 }
@@ -137,6 +139,15 @@ export class ArchiveState {
     this.addColumnIfMissing("tracks", "year", "TEXT");
     this.addColumnIfMissing("tracks", "energy", "INTEGER");
     this.addColumnIfMissing("tracks", "artwork_status", "TEXT");
+    // content_hash: blake2b256 of the downloaded file's bytes — the join
+    // key for gold annotations (GA-00 keys them by content hash; file
+    // names lie, hashes don't). Cached here so `megadj gold-report`
+    // doesn't re-read the whole library's audio on every run (super-sure
+    // pass, Sep 10); the sweep fills it opportunistically.
+    this.addColumnIfMissing("tracks", "content_hash", "TEXT");
+    this.db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_tracks_content_hash ON tracks(content_hash)`,
+    );
     // Beats/downbeats ledger (roadmap rev 5 §2/#2 pivot): beat_this's
     // tempo FAILS the tag gate (12/24 within 2% vs rekordbox), but the
     // BEAT ARRAY is the valuable output — it feeds structure cues and
@@ -362,6 +373,24 @@ export class ArchiveState {
         `UPDATE tracks SET file_path = ?, updated_at = ? WHERE video_id = ?`,
       )
       .run(newFilePath, this.now(), videoId);
+  }
+
+  /** The downloaded row currently pointing at this exact file, if any.
+   *  Ingest's upgrade path uses this to REPLACE the existing registration
+   *  (same video_id → beats/mood/cues ledger history survives) instead of
+   *  inserting a path-keyed shadow row next to it (Sep 11 2026: five twin
+   *  rows appeared after an upgrade re-ingest — same file, two rows, the
+   *  older one carrying all the analysis history). */
+  trackByFilePath(filePath: string): TrackRow | null {
+    return (
+      (this.db
+        .query(
+          `SELECT * FROM tracks
+           WHERE file_path = ? AND status = 'downloaded'
+           LIMIT 1`,
+        )
+        .get(filePath) as TrackRow | undefined) ?? null
+    );
   }
 
   /** Mark an ingested file as too short for DJ use (kept out of the archive). */
@@ -626,6 +655,33 @@ export class ArchiveState {
         residualStd: r.bpm_residual_std,
       };
     });
+  }
+
+  /** Cache a file's blake2b256 content hash (the gold-annotation join
+   * key). Only fills NULLs via `setContentHashes` bulk paths normally;
+   * this single-row upsert is for tests and one-off fills. */
+  setContentHash(videoId: string, hash: string): void {
+    this.db
+      .query(
+        `UPDATE tracks SET content_hash = ?, updated_at = ? WHERE video_id = ?`,
+      )
+      .run(hash, this.now(), videoId);
+  }
+
+  /** (video_id, file_path) of every downloaded track whose content hash
+   * is still unknown — the gold-report backfill queue. */
+  tracksMissingContentHash(): Array<{
+    videoId: string;
+    filePath: string | null;
+  }> {
+    return (
+      this.db
+        .query(
+          `SELECT video_id, file_path FROM tracks
+           WHERE status = 'downloaded' AND content_hash IS NULL`,
+        )
+        .all() as Array<{ video_id: string; file_path: string | null }>
+    ).map((r) => ({ videoId: r.video_id, filePath: r.file_path }));
   }
 
   // ---------- mood + cues ledgers (delegated — see state-ledgers.ts) ----------
