@@ -221,6 +221,9 @@ additive and MD5-verified, preserving divergent copies as `<name>
 ```bash
 megadj audit                    # ground-truth file audit: art+title+artist+album+genre+year
                                 #   + mood+energy + player-compat (booth-playable)
+megadj tag-check                # corrupt-ID3 scanner (Sep 11): no-title/artist voids,
+                                #   mojibake (booth-text SSOT), control bytes, fleet-text.
+                                #   Found a real "Henández"→"Hernández" mojibake title.
 megadj fetch --dry-run          # what would still be done
 megadj years --dry-run          # verify years against real SC page dates
 megadj mood                     # ONNX mood → ledger (Sep 10 regression: flagless runs
@@ -228,6 +231,28 @@ megadj mood                     # ONNX mood → ledger (Sep 10 regression: flagl
                                 #   on a fresh batch, or beats/cues rows go missing)
 megadj beats && megadj cues     # downbeats + 8-bar phrase cues → ledgers
 ```
+
+**Queue order matters: beats → mood → cues.** Cues derive from the beats
+ledger, so re-running beats (any re-analysis) STALES every cue for those
+tracks — re-derive with `megadj cues --force` after a beats repair. Sep 11
+full-archive pass: beats+mood+cues for 8 new rows, then `cues --force`
+re-derived all 131 (2043 cues).
+
+**Genre-loss watch on upgrades:** the upgrade re-ingest path re-stamps
+tags from filename-only metadata and can CLOBBER SC genres fetched
+earlier (7 tracks lost `genre` in the Sep 11 sweep; `fetch --genres`
+refilled all 7 in 10s). After ANY upgrade re-ingest, run `megadj audit`
+and refill whatever it flags before declaring done.
+
+**Grid coherence (beatgrid QA):** a downbeat array is sane when its
+spacings sit on the folded-BPM bar grid (bar = 240/bpm seconds, ±6%,
+coherence ≥ 85% of inter-down gaps). Sep 11 census found 21 tracks with
+double-fire/mixed-spacing downbeats (transient-happy beat_this on
+trap/dubstep flips); they were snap-repaired by keeping downs that land
+on the bar grid, then re-deriving cues. Two half-time/double-time
+ambiguous tracks remain flagged but their cues are musically usable.
+`megadj grid-triage` (ANLZ-sidecar based) is the drive-mounted analogue
+— it needs a stick/shelf mounted.
 
 `megadj audit` exits 1 and lists every file with `[missing,fields]` if
 anything is incomplete — use it as the final gate after any batch. It reads
