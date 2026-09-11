@@ -60,7 +60,7 @@ and playlists import empty).
 
 ```bash
 # 1. New batch of megadj downloads -> master drive (probe, inject, BPM, ANLZ)
-uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
     --with librosa --with numpy \
     python .claude/skills/rekordbox-usb-sync/scripts/usb_sync.py \
     --db /tmp/work_master.db --drive /Volumes/DJMASTER \
@@ -74,7 +74,7 @@ uv run python .claude/skills/rekordbox-usb-sync/scripts/usb_mirror.py --verify-o
 Deep verification (per-drive DB/grid/playlist checks + cross-drive hashes):
 
 ```bash
-uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
     python .claude/skills/rekordbox-usb-sync/scripts/usb_verify.py
 ```
 

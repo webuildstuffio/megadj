@@ -75,19 +75,19 @@ same rules the repo already uses for any rekordbox touching (see below).
 
 ```bash
 # 0. inspect — read-only status: how many WAVs lack art in RB
-uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
     --with mutagen --with Pillow python tools/rb_art.py status
 
 # 1. dry-run — plan every write, touch nothing
-uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
     --with mutagen --with Pillow python tools/rb_art.py dry-run
 
 # 2. pilot — write 3 tracks only, then YOU open rekordbox and verify covers show
-uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
     --with mutagen --with Pillow python tools/rb_art.py pilot
 
 # 3. batch — all remaining WAVs
-uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
     --with mutagen --with Pillow python tools/rb_art.py batch
 ```
 
