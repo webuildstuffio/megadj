@@ -367,11 +367,7 @@ function IntakeStats({ r }: { r: IntakeResult }) {
     ["art", r.artAdded, "covers embedded"],
     ["wav→aiff", r.wavConverted, "booth-safe conversion"],
     ["dupes", r.folderDupes + r.archiveDupes, "quarantined, never deleted"],
-    [
-      "upgrades",
-      r.upgrades,
-      "better-quality copies swapped in (history kept)",
-    ],
+    ["upgrades", r.upgrades, "better-quality copies swapped in (history kept)"],
     [
       "verify",
       r.audit ? r.audit.complete : null,
