@@ -4,7 +4,7 @@ The only protection against all local drives failing at once — the one
 failure that ends the archive. B2 or R2 of `Contents/` + the archive DB
 via rclone; read-only on the drives, versioned on the cloud side.
 
-**Status: blocked on one user decision — the cloud target.** `rclone` is
+**Status:** 🟡 BLOCKED — one user decision remains: the cloud target. `rclone` is
 installed (`/opt/homebrew/bin/rclone`) but has zero remotes configured
 (`rclone listremotes` is empty). Pick one:
 

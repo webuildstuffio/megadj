@@ -1,10 +1,10 @@
 # Shelf Hygiene & Dedupe — Sep 9 2026 Session
 
-**Status: ✅ SHIPPED — the spec in this doc was built and landed Sep 10
+**Status:** ✅ SHIPPED — the spec in this doc was built and landed Sep 10
 2026 (P2+P3, commit 7754756): `megadj shelf-hygiene` + `deckctl hygiene` +
 `deck_hygiene` + the Hygiene tab (the shelf-intake skill's hygiene step is
 the one Phase-6 item still open). The landed code is the truth:
-`src/hygiene/` (engine/store/apply), `cratedeck/src/hygiene_*.ts` (API/job/
+`src/archive/hygiene/` (engine/store/apply), `cratedeck/src/hygiene_*.ts` (API/job/
 reader), parity pinned by `cratedeck/test/surface-parity.test.ts`; current
 state lives in [product-state-2026-09-07.md](product-state-2026-09-07.md),
 surface rows in [surface-parity.md](surface-parity.md).**
@@ -91,7 +91,7 @@ archive DB + filesystem.
 Same fingerprint ≠ same decision — a 0.2% tag difference and a 30%
 bitrate difference demand different levels of trust. Every acoustic-twin
 finding carries `evidence.subcategory` from
-`src/hygiene/subcategory.ts`:
+`src/archive/hygiene/subcategory.ts`:
 
 | subcategory     | size delta | meaning                                | batch-confirm? |
 | --------------- | ---------- | -------------------------------------- | -------------- |

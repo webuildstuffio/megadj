@@ -4,6 +4,8 @@ The SSD ("Extra") is dying (STATUS-FINAL.md: "evacuate when convenient").
 It is NOT mounted right now. This runbook is the whole job — when the drive
 is plugged in, execute top to bottom, then close issue #1.
 
+**Status:** 🟡 BLOCKED — the Extra volume is not currently mounted.
+
 ## 0. When the drive mounts
 
 ```sh

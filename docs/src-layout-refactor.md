@@ -1,6 +1,6 @@
 # src/ Layout Refactor — full proposal (v2)
 
-**Status: ✅ COMPLETE — shipped 2026-09-11.** Issue #23 is implemented: the
+**Status:** ✅ COMPLETE — shipped 2026-09-11. Issue #23 is implemented: the
 former flat `src/commands/` tree is now split by domain under `src/getdat/`,
 `src/fulltags/`, `src/rekordbox/`, `src/shelf/`, `src/archive/`, and
 `src/shared/`. The remainder of this document records the design and audit

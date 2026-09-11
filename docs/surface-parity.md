@@ -19,7 +19,7 @@ Rev 18 · 2026-09-11 — hygiene listen-first enforcement: Rev 16's
 proved `POST /api/hygiene/bucket-confirm {bucket:"quality-diff"}`
 silently confirmed 94 unreviewed findings (the guard existed only in
 the deckctl spoke, never the engine or route). The refusal now lives
-in the engine (`src/hygiene/subcategory.ts` `LISTEN_FIRST_BUCKETS` +
+in the engine (`src/archive/hygiene/subcategory.ts` `LISTEN_FIRST_BUCKETS` +
 `isListenFirst`, enforced by `shelf-hygiene --bucket`) and the route
 pre-checks the same rule; usage/help text and tests pin it at every
 layer. Rev 17 · 2026-09-11 — hygiene A/B compare: `GET /api/hygiene/audio` +
