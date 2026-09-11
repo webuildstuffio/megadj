@@ -141,6 +141,55 @@ describe("beatportLookup (seamed, offline)", () => {
       restore();
     }
   });
+
+  test("transient failure is NOT memoized — the next lookup retries", async () => {
+    let calls = 0;
+    const restore = setBeatportSearchImpl(async () => {
+      calls++;
+      if (calls === 1) throw new Error("HTTP 429 rate-limited");
+      return [hit()];
+    });
+    try {
+      const first = await beatportLookup({ artist: "Bicep", title: "Glue" });
+      expect(first).toBeNull(); // degraded…
+      const second = await beatportLookup({ artist: "Bicep", title: "Glue" });
+      expect(second).not.toBeNull(); // …but retried, not cached
+      expect(calls).toBe(2);
+    } finally {
+      restore();
+    }
+  });
+
+  test("genuine no-hit IS memoized (no repeated catalog hits)", async () => {
+    let calls = 0;
+    const restore = setBeatportSearchImpl(async () => {
+      calls++;
+      return [];
+    });
+    try {
+      await beatportLookup({ artist: "Bicep", title: "Glue" });
+      await beatportLookup({ artist: "Bicep", title: "Glue" });
+      expect(calls).toBe(1);
+    } finally {
+      restore();
+    }
+  });
+
+  test("short/absent artist: title-only score cannot clear the floor", () => {
+    // No artist → no artist points → 1-word title overlap (×4) + no
+    // duration match stays under BP_MIN_SCORE(4)... a title OVERLAP of 1.0
+    // (×4) reaches exactly the floor; the artist gate exists to keep
+    // same-title/different-artist rows OUT when an artist IS known. This
+    // pins that an unknown short artist simply skips the artist component
+    // without crashing the scorer.
+    const row = hit();
+    expect(scoreBpHit(row, { artist: null, title: "Glue" })).toBe(4);
+    expect(scoreBpHit(row, { artist: "DJ", title: "Glue" })).toBe(4);
+    // With a real artist, the gate fires: wrong artist = 0 outright.
+    expect(scoreBpHit(row, { artist: "Unrelated Artist", title: "Glue" })).toBe(
+      0,
+    );
+  });
 });
 
 describe("bpGenre", () => {

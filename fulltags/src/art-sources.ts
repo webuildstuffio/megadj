@@ -294,6 +294,24 @@ function cleanQuery(r: SearchRow): string {
 }
 
 export function scSearch(r: SearchRow): ScHit[] {
+  return scSearchImpl(r);
+}
+
+/** Test seam: swappable SC search implementation so pipeline tests stay
+ * offline (the real one shells to yt-dlp). Reset via the restore fn. */
+export let scSearchImpl: (r: SearchRow) => ScHit[] = scSearchReal;
+
+/** Install a test SC-search impl; returns the restore function. */
+export function setScSearchImpl(impl: (r: SearchRow) => ScHit[]): () => void {
+  const prev = scSearchImpl;
+  scSearchImpl = impl;
+  return () => {
+    scSearchImpl = prev;
+  };
+}
+
+/** The real yt-dlp SC search (sync, spawn + parse). */
+function scSearchReal(r: SearchRow): ScHit[] {
   const q = cleanQuery(r);
   if (!q) return [];
   let out = "";

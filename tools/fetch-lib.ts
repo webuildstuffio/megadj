@@ -51,6 +51,8 @@ export interface Truth {
   label: string | null;
   mixName: string | null;
   isrc: string | null;
+  remixer: string | null;
+  durationS: number | null;
 }
 
 /** Ground-truth file read — FullTags readers (WAV/MP3 via mutagen). */
@@ -85,6 +87,10 @@ export interface TagValues {
   label?: string;
   mixName?: string;
   isrc?: string;
+  /** Official remixer credit → TXXX:version (same frame fulltags uses). */
+  remixer?: string;
+  /** Beatport provenance stamp → TXXX:BP-FIELDS. */
+  beatport?: string;
   aiGenre?: string;
   aiYear?: string;
 }
@@ -114,4 +120,10 @@ export {
 } from "../fulltags/src/exports";
 
 // ---------- Beatport (second source, behind SC — fulltags/src/beatport.ts) ----------
-export { beatportLookup, bpGenre, type BpTrack } from "../fulltags/src/exports";
+export {
+  beatportArt,
+  beatportLookup,
+  bpGenre,
+  bpStamp,
+  type BpTrack,
+} from "../fulltags/src/exports";

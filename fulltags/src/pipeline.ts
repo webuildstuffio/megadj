@@ -93,8 +93,8 @@ export interface PipelineOptions {
   dryRun?: boolean;
   /** Re-embed existing SC art at original resolution. */
   upgradeScArt?: boolean;
-  /** Test seam: override the Beatport lookup (null = offline/noop).
-   * Default is the real catalog client (beatport.ts). */
+  /** Test seam: override the Beatport lookup. Default is the real
+   * catalog client (beatport.ts); pass a stub for offline tests. */
   beatportLookupFn?: BpLookupFn | undefined;
   /** CLI-provided hints (fulltags single <file> --title/--artist/--album):
    * fill in what the filename can't say. Only consulted when the file
@@ -203,7 +203,11 @@ export async function enrichTrack(
   if (wantBp) {
     const effTitle = patch.title ?? truth.title ?? t.title ?? basename(t.path);
     const effArtist = patch.artist ?? truth.artist ?? t.artist ?? null;
-    bpBest = await bpLookup({ artist: effArtist, title: effTitle });
+    bpBest = await bpLookup({
+      artist: effArtist,
+      title: effTitle,
+      durationS: truth.durationS ?? undefined,
+    });
   }
 
   if (needGenre) {
@@ -256,11 +260,13 @@ export async function enrichTrack(
     }
     if (
       !patch.remixer &&
+      !truth.remixer &&
       !detectRemix(titleGuess ?? "") &&
       bpBest.remixers.length > 0
     ) {
-      // Official remixer credit beats filename inference but never
-      // overwrites an already-written credit.
+      // Fills only when the file carries no credit AND the title suggests
+      // none (the filename inference above runs first in the ladder —
+      // see fulltags/README.md); never overwrites a written credit.
       patch.remixer = bpBest.remixers.join(", ");
       bpFields.push(["remixer", bpBest.remixers.join(", ")]);
     }

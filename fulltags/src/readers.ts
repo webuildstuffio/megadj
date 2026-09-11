@@ -32,11 +32,18 @@ export interface Truth {
   mixName: string | null;
   /** ISRC (TSRC / freeform ISRC) — store-grade recording identity. */
   isrc: string | null;
+  /** Official remixer credit (TXXX:version / freeform REMIXER) — read
+   * back so a credited file is never re-filled (idempotency). */
+  remixer: string | null;
+  /** Track duration in whole seconds (ffprobe format.duration) — the
+   * Beatport scorer's ±2 s / ±10 s signal. Null when unreadable. */
+  durationS: number | null;
 }
 
 interface FfprobeJson {
   tags: Record<string, string>;
   hasVideo: boolean;
+  durationS: number | null;
 }
 
 function ffprobeJson(p: string): FfprobeJson {
@@ -56,21 +63,27 @@ function ffprobeJson(p: string): FfprobeJson {
   try {
     const j = JSON.parse(new TextDecoder().decode(pr.stdout)) as {
       streams?: Array<{ codec_type?: string; codec_name?: string }>;
-      format?: { tags?: Record<string, string> };
+      format?: { tags?: Record<string, string>; duration?: string };
     };
     const hasVideo = (j.streams ?? []).some(
       (s) =>
         s.codec_type === "video" &&
         ["png", "mjpeg"].includes(s.codec_name ?? ""),
     );
-    return { tags: j.format?.tags ?? {}, hasVideo };
+    const durRaw = j.format?.duration ? Number(j.format.duration) : NaN;
+    return {
+      tags: j.format?.tags ?? {},
+      hasVideo,
+      durationS:
+        Number.isFinite(durRaw) && durRaw > 0 ? Math.round(durRaw) : null,
+    };
   } catch (e) {
     // Empty tags are legit (untagged file); a PARSE failure means ffprobe
     // answered something we can't trust — that difference feeds the audit
     // gate, so it must not read as "untagged". Log at the boundary; the
     // empty result still degrades the same way downstream.
     console.error(`ffprobe JSON unparsable for ${p}`, e);
-    return { tags: {}, hasVideo: false };
+    return { tags: {}, hasVideo: false, durationS: null };
   }
 }
 
@@ -158,8 +171,15 @@ export function groundTruth(p: string): Truth {
   const bpm = bpmRaw ? Number(bpmRaw.split(/[.,;]/)[0]) : NaN;
   const energyRaw = g("ENERGY");
   const energy = energyRaw ? Number(energyRaw) : NaN;
+  // ID3 renders TXXX:version as "version" through ffprobe; mutagen keeps
+  // the literal "TXXX:version" key. Both are the REMIXER frame (the
+  // writer's every path maps remixer → version) — never a mix name, so
+  // the mixName probe must not include it (a remixer-only file used to
+  // read its remixer string as mixName and block a Beatport mix fill).
+  const remixer = g("version", "REMIXER", "remixer");
   return {
     art,
+    durationS: ff.durationS,
     title: g("title"),
     artist: g("artist"),
     album: g("album"),
@@ -172,7 +192,8 @@ export function groundTruth(p: string): Truth {
     energy: Number.isFinite(energy) ? energy : null,
     // ID3 renders TPUB as "publisher" through ffprobe; flac keeps "TPUB".
     label: g("publisher", "TPUB", "tpub", "LABEL", "label"),
-    mixName: g("TIT3", "tit3", "MIXNAME", "mixname", "version"),
+    mixName: g("TIT3", "tit3", "MIXNAME", "mixname"),
+    remixer,
     isrc: g("TSRC", "tsrc", "ISRC", "isrc", "ISRC:", "isrc:"),
   };
 }
@@ -187,11 +208,11 @@ export function readFullTag(p: string): FullTag {
     album: t.album,
     genre: t.genre,
     year: t.year,
-    remixer: null,
+    remixer: t.remixer,
     grouping: null,
     composer: null,
-    label: null,
-    mixName: null,
+    label: t.label,
+    mixName: t.mixName,
     comment: t.comment,
     bpm: t.bpm,
     key: t.key,

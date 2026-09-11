@@ -128,6 +128,7 @@ async function processTask(
     aiGenreBatch,
     aiYearBatch,
     bpBest: null,
+    durationS: truth.durationS,
   };
 
   // ---- 1. tags (DB → file) ----
@@ -141,11 +142,13 @@ async function processTask(
     (t.needGenre ||
       t.needArt ||
       t.needYear ||
-      (t.needTags && (!truth.label || !truth.mixName || !truth.isrc)));
+      (t.needTags &&
+        (!truth.label || !truth.mixName || !truth.isrc || !truth.remixer)));
   ctx.bpBest = wantsBp
     ? await beatportLookup({
         artist: truth.artist ?? r.artist ?? null,
         title: truth.title ?? r.title,
+        durationS: truth.durationS ?? undefined,
       })
     : null;
 

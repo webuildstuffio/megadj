@@ -1,9 +1,16 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
 import { enrichTrack } from "../src/pipeline";
-import { setBeatportSearchImpl, beatportReset } from "../src/beatport";
+import {
+  setBeatportSearchImpl,
+  beatportReset,
+  bpStamp,
+  BP_STAMP_MAX,
+} from "../src/beatport";
+import { setScSearchImpl } from "../src/art-sources";
 import { groundTruth } from "../src/readers";
 import type { BpTrack } from "../src/beatport";
+import type { SearchRow, ScHit } from "../src/art-sources";
 
 const DIR = `/tmp/fulltags-bp-pipeline-test-${process.pid}`;
 
@@ -14,7 +21,9 @@ afterAll(async () => {
 async function makeFile(name: string): Promise<string> {
   await $`mkdir -p ${DIR}`.quiet();
   const p = `${DIR}/${name}`;
-  await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 ${p}`.quiet();
+  // 60 s duration matches the fixture hit's lengthMs → the ±2 s duration
+  // bonus fires (this exercises the durationS wiring end to end).
+  await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=60 ${p}`.quiet();
   return p;
 }
 
@@ -42,39 +51,45 @@ function hit(over: Partial<BpTrack> = {}): BpTrack {
   };
 }
 
-/** Wire the seam and guarantee restore even on assertion failure. */
+/** Wire BOTH seams (Beatport catalog + SoundCloud search) and guarantee
+ * restore even on assertion failure. The SC seam is what keeps these
+ * tests hermetic: the real scSearch shells out to yt-dlp. */
 async function withBp(
   impl: Parameters<typeof setBeatportSearchImpl>[0],
   fn: () => Promise<void>,
 ): Promise<void> {
-  const restore = setBeatportSearchImpl(impl);
+  const restoreBp = setBeatportSearchImpl(impl);
+  const restoreSc = setScSearchImpl((_r: SearchRow): ScHit[] => []);
   try {
     await fn();
   } finally {
-    restore();
+    restoreBp();
+    restoreSc();
     beatportReset();
   }
 }
 
 describe("enrichTrack × Beatport (second source, behind SC)", () => {
   test(
-    "fills label/mix/isrc + provenance stamp + year when the file lacks them",
+    "fills label/mix/isrc/remixer + provenance stamp + year when the file lacks them",
     async () => {
       await withBp(
-        async () => [hit()],
+        async () => [hit({ remixers: ["Official Remixer"], genre: "Techno" })],
         async () => {
           const p = await makeFile("fill.mp3");
           const res = await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },
-            // Only the stages Beatport feeds; SC search needs yt-dlp and
-            // MUST NOT fire in tests — genre/year here come from BP.
-            { only: ["tags", "year"], artworkQueue: null },
+            // Genre/year ride the BP ladder (SC seam returns no hits);
+            // identity fields ride the tags stage.
+            { only: ["tags", "year", "genre"], artworkQueue: null },
           );
           const t = groundTruth(p);
           expect(t.label).toBe("Ropeadope");
           expect(t.mixName).toBe("Club Mix");
           expect(t.isrc).toBe("US8JA1418001");
           expect(t.year).toBe("2017");
+          expect(t.remixer).toBe("Official Remixer");
+          expect(t.genre).toBe("Techno");
           expect(res.notes.some((n) => n.startsWith("bp:"))).toBe(true);
         },
       );
@@ -130,6 +145,27 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
   );
 
   test(
+    "file remixer credit present → BP remixer never overwrites it",
+    async () => {
+      await withBp(
+        async () => [hit({ remixers: ["Other Remixer"] })],
+        async () => {
+          const p = await makeFile("credited.mp3");
+          const { writePatch } = await import("../src/writer");
+          await writePatch(p, { remixer: "Existing Credit" });
+          await enrichTrack(
+            { path: p, title: "Signal", artist: "Test Artist" },
+            { only: ["tags"], artworkQueue: null },
+          );
+          const t = groundTruth(p);
+          expect(t.remixer).toBe("Existing Credit");
+        },
+      );
+    },
+    { timeout: 60_000 },
+  );
+
+  test(
     "SC hit present → BP still fills identity fields (never genre: SC wins)",
     async () => {
       await withBp(
@@ -148,6 +184,32 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
           expect(t.genre).toBe("House");
           expect(t.label).toBe("Ropeadope");
           expect(res.notes.some((n) => n.startsWith("genre:"))).toBe(false);
+        },
+      );
+    },
+    { timeout: 60_000 },
+  );
+
+  test(
+    "durationS feeds the scorer: a 60 s file matching a 60 s row scores via the ±2 s bonus",
+    async () => {
+      await withBp(
+        async () => [
+          // Title overlap alone (1 shared word ×4) sits BELOW the floor;
+          // only the ±2 s duration bonus (60 s file vs 60_000 ms row)
+          // pushes this row over BP_MIN_SCORE — proves duration wiring.
+          hit({ name: "Signal (Dub Plate Mix)" }),
+        ],
+        async () => {
+          const p = await makeFile("dur.mp3");
+          const res = await enrichTrack(
+            { path: p, title: "Signal", artist: "Test Artist" },
+            { only: ["tags"], artworkQueue: null },
+          );
+          const t = groundTruth(p);
+          expect(t.label).toBe("Ropeadope");
+          expect(t.isrc).toBe("US8JA1418001");
+          expect(res.notes.some((n) => n.startsWith("bp:"))).toBe(true);
         },
       );
     },
@@ -200,4 +262,28 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
     },
     { timeout: 60_000 },
   );
+});
+
+describe("bpStamp budget", () => {
+  test("stays under the TagPatch 500-char guard even for huge fields", () => {
+    const stamp = bpStamp([
+      ["label", "L".repeat(300)],
+      ["mix", "M".repeat(300)],
+      ["isrc", "US8JA1418001"],
+      ["remixer", "R".repeat(300)],
+    ]);
+    expect(stamp).not.toBeNull();
+    expect(stamp!.length).toBeLessThanOrEqual(BP_STAMP_MAX);
+    expect(stamp).toContain("+"); // records the cut honestly
+  });
+
+  test("null/empty fields never stamp", () => {
+    expect(
+      bpStamp([
+        ["label", null],
+        ["mix", ""],
+      ]),
+    ).toBeNull();
+    expect(bpStamp([])).toBeNull();
+  });
 });

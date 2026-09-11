@@ -32,9 +32,12 @@ import { canonGenre, SC_GENRE_CANON } from "./schema";
 
 /** The embed player's public OAuth client (fetched from its own public JS
  * bundle — account.beatport.com/o/token/ accepts it with client_credentials
- * and no user interaction). */
-const BP_CLIENT_ID = "2tiTbKxmQFwnbFjMONU4k7njMRZmV3ZMwRBndiZs";
+ * and no user interaction). Overridable via MEGADJ_BP_CLIENT_ID / _SECRET
+ * so a Beatport-side rotation is a config change, never a code change. */
+const BP_CLIENT_ID =
+  process.env.MEGADJ_BP_CLIENT_ID ?? "2tiTbKxmQFwnbFjMONU4k7njMRZmV3ZMwRBndiZs";
 const BP_CLIENT_SECRET =
+  process.env.MEGADJ_BP_CLIENT_SECRET ??
   "RDUJyAk4zFEGtQ8rsTmylDSfxmALRNBn3D1BsRr7MKi3oa1TL9Mq9QxqUPK7loiumXolEWbJcWa4IGAhtwnTz1cSXClGJ1tkkNCNWwRwjxIKTZJKOJxbwaNt0Rm3WG0v";
 const TOKEN_URL = "https://account.beatport.com/o/token/";
 const SEARCH_URL = "https://api.beatport.com/v4/catalog/search/";
@@ -222,14 +225,16 @@ function parseTrack(raw: BpRaw): BpTrack | null {
   };
 }
 
-/** Resolve the anonymous bearer token then run one catalog search. Swapped
- * wholesale in tests (beatportSearchImpl). */
+/** Resolve the anonymous bearer token then run one catalog search.
+ * THROWS on transport failure (non-OK status, network error) so the cache
+ * layer can distinguish "no such track" from "catalog unreachable" —
+ * only the former is memoized. */
 async function searchViaApi(
   query: string,
   perPage: number,
 ): Promise<BpTrack[]> {
   const token = await beatportToken();
-  if (!token) return [];
+  if (!token) throw new Error("beatport: no token (auth flow failed)");
   const res = await fetch(
     `${SEARCH_URL}?q=${encodeURIComponent(query)}&type=tracks&per_page=${perPage}`,
     {
@@ -241,13 +246,9 @@ async function searchViaApi(
     // Token expired/revoked mid-life: drop the cache once and let the next
     // call re-auth (the ladder degrades gracefully meanwhile).
     beatportTokenReset();
-    console.error("beatport search → HTTP 401 (token cache dropped)");
-    return [];
+    throw new Error("beatport search → HTTP 401 (token cache dropped)");
   }
-  if (!res.ok) {
-    console.error(`beatport search → HTTP ${res.status}`);
-    return [];
-  }
+  if (!res.ok) throw new Error(`beatport search → HTTP ${res.status}`);
   const data = (await res.json()) as { tracks?: BpRaw[] };
   const out: BpTrack[] = [];
   for (const raw of data.tracks ?? []) {
@@ -334,7 +335,7 @@ function titleOverlap(a: string, b: string): number {
 export function scoreBpHit(t: BpTrack, q: BpQuery): number {
   const artist0 = (q.artist ?? "").split(/[,&]/)[0]?.trim().toLowerCase() ?? "";
   let score = 0;
-  if (artist0.length > 2) {
+  if (artist0.length >= BP_ARTIST_MIN_LEN) {
     const hitArtist = t.artists
       .map((a) => a.toLowerCase())
       .find((a) => a === artist0 || a.includes(artist0));
@@ -362,18 +363,30 @@ export function scoreBpHit(t: BpTrack, q: BpQuery): number {
  * same guard at overlap ≥ 1. */
 export const BP_MIN_SCORE = 4;
 
+/** Artist gate floor: shorter strings can't separate one artist from
+ * another ("DJ" matches half the catalog), so below this the artist
+ * component is skipped — and with no artist points available, a title
+ * overlap alone (≤ 4) cannot clear BP_MIN_SCORE. The floor therefore
+ * holds even for artist-less queries. */
+const BP_ARTIST_MIN_LEN = 3;
+
 /** Cached search: artist+title → scored hits or null (no credible hit).
  * Memoized for the process lifetime (misses included) so batch runs and
- * re-runs don't re-hit the catalog for the same file. */
+ * re-runs don't re-hit the catalog for the same file. Transient transport
+ * failures are NOT memoized (see the catch below) — an outage or 429 at
+ * batch start must not turn into a permanent per-track skip. */
 const searchCache = new Map<string, BpTrack | null>();
 
 /** Beatport lookup for one track: cleaned query, scored, floor-gated.
- * Returns the best row or null. Never throws. */
+ * Returns the best row or null. Never throws — a transient catalog
+ * failure logs at this boundary and degrades to the next ladder rung,
+ * WITHOUT poisoning the memoization cache. */
 export async function beatportLookup(q: BpQuery): Promise<BpTrack | null> {
   const key = `${(q.artist ?? "").toLowerCase()}::${q.title.toLowerCase()}::${q.durationS ?? ""}`;
   if (searchCache.has(key)) return searchCache.get(key) ?? null;
   const query = cleanQuery(q);
   let best: BpTrack | null = null;
+  let transient = false;
   if (query) {
     try {
       const hits = await beatportSearchImpl(query, 5);
@@ -388,12 +401,15 @@ export async function beatportLookup(q: BpQuery): Promise<BpTrack | null> {
       if (best && bestScore < BP_MIN_SCORE) best = null;
     } catch (e) {
       // Search failure must never fail the pipeline — log at the boundary
-      // and degrade to the next ladder rung.
+      // and degrade to the next ladder rung. NOT memoized: an outage or
+      // rate-limit at batch start must not permanently skip BP for this
+      // track; the next lookup retries.
+      transient = true;
       console.error(`beatport search failed for "${query}"`, e);
       best = null;
     }
   }
-  searchCache.set(key, best);
+  if (!transient) searchCache.set(key, best);
   return best;
 }
 
@@ -414,6 +430,13 @@ export async function beatportArt(t: BpTrack): Promise<Uint8Array | null> {
 
 // ---------- provenance stamps ----------
 
+/** The TXXX:BP-FIELDS value budget — validatePatch throws >500 on any
+ * string field, so the composite stamp MUST stay under it: a long label +
+ * multi-remixer join would otherwise throw away the entire write for that
+ * track. Overflow drops the LOWEST-priority fields tail-first and records
+ * the cut ("+N more") so the stamp never lies about being complete. */
+export const BP_STAMP_MAX = 500;
+
 /** "field=value; field=value" provenance payload for one filled field —
  * mirrors the AI "value|confidence" discipline: a Beatport-filled value is
  * always identifiable. Returns the TXXX value or null when nothing to
@@ -427,7 +450,25 @@ export function bpStamp(
       return v !== null && String(v).trim().length > 0;
     })
     .map(([k, v]) => `${k}=${String(v)}`);
-  return parts.length ? parts.join("; ") : null;
+  if (!parts.length) return null;
+  let out = parts.join("; ");
+  if (out.length > BP_STAMP_MAX) {
+    // Priority = array order: identity fields are pushed first. Drop from
+    // the tail until it fits, then note the cut honestly.
+    const kept: string[] = [];
+    let dropped = 0;
+    for (const p of parts) {
+      const candidate = [...kept, p].join("; ");
+      if (candidate.length + 20 > BP_STAMP_MAX) {
+        dropped = parts.length - kept.length;
+        break;
+      }
+      kept.push(p);
+    }
+    out = kept.join("; ");
+    if (dropped > 0) out += `; +${dropped} more`;
+  }
+  return out;
 }
 
 /** The canonical genre vote: Beatport store genre + subgenre through the

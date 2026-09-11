@@ -61,5 +61,34 @@ describe("Beatport identity fields round-trip", () => {
       },
       { timeout: 60_000 },
     );
+
+    test(
+      `remixer + mixName together on ${ext}: separate frames, no collision`,
+      async () => {
+        // Regression pin: remixer → TXXX:version, mixName → TIT3 (ID3
+        // family). A both-fields write must land BOTH values verbatim —
+        // and the mixName read probe must NOT pick up the remixer's
+        // "version" frame (that collision existed in an earlier probe
+        // set and would have blocked a Beatport mix fill on
+        // remixer-only files).
+        const p = await makeFile(ext);
+        await writePatch(p, {
+          remixer: "RemixGuy Remix",
+          mixName: "Club Mix",
+        });
+        const t = groundTruth(p);
+        expect(t.remixer).toBe("RemixGuy Remix");
+        expect(t.mixName).toBe("Club Mix");
+
+        // Remixer-only write: mixName must read NULL (never the remixer
+        // string), so a later Beatport mixName fill is not blocked.
+        const q = await makeFile(`remixer-only-${ext}`);
+        await writePatch(q, { remixer: "Solo Credit" });
+        const tq = groundTruth(q);
+        expect(tq.remixer).toBe("Solo Credit");
+        expect(tq.mixName).toBeNull();
+      },
+      { timeout: 60_000 },
+    );
   }
 });

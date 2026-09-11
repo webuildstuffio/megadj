@@ -36,14 +36,18 @@ function artLang(status: string | null): string {
   const rung = status.slice("embedded:".length);
   const langs: Record<string, string> = {
     sc: "SoundCloud search",
+    "sc-orig": "SoundCloud (original res)",
     "sc-page": "SoundCloud page",
     "sc-page-1080": "SoundCloud page (1080)",
     "sc-pack": "SoundCloud pack",
     beatport: "Beatport release",
+    gateway: "hype gateway scrape",
     itunes: "iTunes",
     deezer: "Deezer",
     caa: "Cover Art Archive",
     soundcloud: "SoundCloud",
+    twin: "mp3 twin",
+    "mp3-twin": "mp3 twin",
     "mp3-twin-zip": "mp3 twin (zip)",
     "ai-generated": "AI-generated",
   };
@@ -173,7 +177,7 @@ export function LibraryTab() {
             icon="photo"
             title="Artwork provenance"
             n={lib.tracks}
-            hint="Where each track's embedded cover came from — the art ladder's rungs (SoundCloud page at 1080, Beatport release master, Deezer, iTunes, Cover Art Archive, AI queue). Every track has art; the rung tells you its quality story."
+            hint="Where each track's embedded cover came from — the art ladder's rungs (SoundCloud page at original res or 1080, Beatport release master, hype-gateway scrape, mp3 twin, Deezer, iTunes, Cover Art Archive, AI queue). Every track has art; the rung tells you its quality story."
             lines={[
               `embedded: ${lib.artwork.embedded}`,
               `queued for AI art: ${lib.artwork.queued}`,

@@ -6,7 +6,9 @@
 // stages mutate; the orchestration order stays in fetch-all.ts.
 
 import {
+  beatportArt,
   bpGenre,
+  bpStamp,
   canonGenre,
   db,
   deezerArt,
@@ -56,6 +58,7 @@ export interface StageCtx {
     label: string | null;
     mixName: string | null;
     isrc: string | null;
+    remixer: string | null;
   };
   needTags: boolean;
   needGenre: boolean;
@@ -70,6 +73,8 @@ export interface StageCtx {
   /** Beatport hit for this track (second source behind SC) — filled by
    * processTask's fan-out when any Beatport-fed field is needed. */
   bpBest: BpTrack | null;
+  /** Track duration in seconds (ffprobe) — the BP scorer's signal. */
+  durationS: number | null;
 }
 
 /** SC search result shape (first hit feeds genre + year + art). */
@@ -131,7 +136,13 @@ export function stageTags(t: StageCtx): void {
 /** SC-path year stamp: file tag + DB row + stat + note, in one call (the
  *  art path and the direct year path were identical 8-liners). */
 export function markYear(t: StageCtx, year: number): void {
-  setFileTags(t.row.file_path, { year });
+  // Tag write first: the DB row only records a value that reached the
+  // file — a failed write leaves the field "still missing" for the next
+  // run instead of a DB row lying about the file.
+  if (!setFileTags(t.row.file_path, { year })) {
+    t.notes.push("year:WRITE-FAILED");
+    return;
+  }
   db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
     String(year),
     t.row.video_id,
@@ -177,13 +188,18 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
       // Beatport store genre is the vote BETWEEN SC and AI.
       const g = bpGenre(t.bpBest);
       if (g) {
-        db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
-          g,
-          t.row.video_id,
-        );
-        setFileTags(t.row.file_path, { genre: g });
-        t.stats.genreBp++;
-        t.notes.push(`genre:${g} (bp)`);
+        // Tag write first, DB row only on success — the DB never claims
+        // a genre the file doesn't carry (mirrors markYear's discipline).
+        if (setFileTags(t.row.file_path, { genre: g })) {
+          db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
+            g,
+            t.row.video_id,
+          );
+          t.stats.genreBp++;
+          t.notes.push(`genre:${g} (bp)`);
+        } else {
+          t.notes.push("genre:WRITE-FAILED (bp)");
+        }
       } else {
         t.aiGenreBatch.push(t.row);
       }
@@ -197,13 +213,17 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
     } else if (t.bpBest?.year) {
       // Beatport publish date = official release year (SC's upload
       // timestamp is preferred for remixes; bp fills when SC missed).
-      setFileTags(t.row.file_path, { year: t.bpBest.year });
-      db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-        String(t.bpBest.year),
-        t.row.video_id,
-      );
-      t.stats.yearBp++;
-      t.notes.push(`year:${t.bpBest.year} (bp)`);
+      // Same write-first discipline as markYear.
+      if (setFileTags(t.row.file_path, { year: t.bpBest.year })) {
+        db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
+          String(t.bpBest.year),
+          t.row.video_id,
+        );
+        t.stats.yearBp++;
+        t.notes.push(`year:${t.bpBest.year} (bp)`);
+      } else {
+        t.notes.push("year:WRITE-FAILED (bp)");
+      }
     } else {
       t.aiYearBatch.push(t.row);
     }
@@ -212,15 +232,16 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
 
 /** Stage 2.5 — Beatport identity fields (label / mix name / ISRC /
  * official remixer) straight into the file. Only what NO other source
- * carries, only when the file lacks it (ground truth), provenance stamp
- * rides along so a bp-filled field is always identifiable. */
+ * carries, only when the file lacks it (ground truth). The TXXX:BP-FIELDS
+ * provenance stamp rides along so a bp-filled field is always
+ * identifiable — 1:1 with the fulltags single-file pipeline. */
 export function stageBeatportIdentity(t: StageCtx): void {
   if (t.dry || !t.needTags || !t.bpBest) return;
   const vals: TagValues = {};
-  const fields: string[] = [];
+  const bpFields: Array<[string, string | number]> = [];
   if (!t.truth.label && t.bpBest.label) {
     vals.label = t.bpBest.label;
-    fields.push(`label=${t.bpBest.label}`);
+    bpFields.push(["label", t.bpBest.label]);
   }
   if (
     !t.truth.mixName &&
@@ -228,19 +249,26 @@ export function stageBeatportIdentity(t: StageCtx): void {
     !/^original mix$/i.test(t.bpBest.mixName)
   ) {
     vals.mixName = t.bpBest.mixName;
-    fields.push(`mix=${t.bpBest.mixName}`);
+    bpFields.push(["mix", t.bpBest.mixName]);
   }
   if (!t.truth.isrc && t.bpBest.isrc) {
     vals.isrc = t.bpBest.isrc;
-    fields.push(`isrc=${t.bpBest.isrc}`);
+    bpFields.push(["isrc", t.bpBest.isrc]);
+  }
+  if (!t.truth.remixer && t.bpBest.remixers.length > 0) {
+    const credit = t.bpBest.remixers.join(", ");
+    vals.remixer = credit;
+    bpFields.push(["remixer", credit]);
   }
   if (!Object.keys(vals).length) return;
+  const stamp = bpStamp(bpFields);
+  if (stamp) vals.beatport = stamp;
   if (!setFileTags(t.row.file_path, vals)) {
     t.notes.push("bp-identity:WRITE-FAILED");
     return;
   }
   t.stats.bpIdentity++;
-  t.notes.push(`bp:${fields.join(",")}`);
+  t.notes.push(`bp:${bpFields.map(([k]) => k).join(",")}`);
 }
 
 /** Stage 3a — SC art: page og:image at original resolution, thumb fallback. */
@@ -295,11 +323,7 @@ async function fallbackArt(t: StageCtx): Promise<boolean> {
     {
       stat: "artBeatport",
       label: "beatport",
-      bytes: (async () => {
-        if (!t.bpBest) return null;
-        const { beatportArt } = await import("../fulltags/src/exports");
-        return beatportArt(t.bpBest);
-      })(),
+      bytes: t.bpBest ? beatportArt(t.bpBest) : null,
     },
     {
       stat: "artGateway",
