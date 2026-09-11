@@ -41,6 +41,7 @@ export {
   parseFilename,
   probeFile,
   qualityScore,
+  trueContainerExt,
   type ParsedName,
   type Probe,
 } from "./media-probe";

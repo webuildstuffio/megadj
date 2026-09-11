@@ -24,18 +24,37 @@ export interface BeatsOptions {
   dryRun?: boolean | undefined;
   json?: boolean | undefined;
   onProgress?: ((msg: string) => void) | undefined;
+  /** Skip beat analysis for tracks longer than this many seconds
+   *  (default 900 = 15min; 0 disables). */
+  maxSeconds?: number | undefined;
 }
 
 const MODEL = "beat-this@1.1.0";
+/** Tracks longer than this many seconds skip beat analysis by default —
+ *  beat_this cost scales with runtime and a 40-minute long-mix can dominate
+ *  a batch (user request, Sep 11). 0 disables the cap. */
+const DEFAULT_MAX_BEAT_SECONDS = 15 * 60;
 
 export async function beats(opts: BeatsOptions): Promise<void> {
   const log = commandLog(opts);
   const jobs = Math.max(1, opts.jobs ?? 2);
 
   const candidates = opts.state.downloadedWithFiles();
+  const maxBeatSeconds =
+    opts.maxSeconds === undefined ? DEFAULT_MAX_BEAT_SECONDS : opts.maxSeconds;
   const todo: TrackRow[] = [];
+  let tooLong = 0;
   for (const t of candidates) {
     if (!opts.force && opts.state.beatRecord(t.video_id)) continue;
+    // Length cap: a long-mix costs minutes of beat_this and adds nothing a
+    // DJ needs from the grid — skipped (visible in the log), not failed.
+    if (maxBeatSeconds > 0 && (t.duration_s ?? 0) > maxBeatSeconds) {
+      tooLong++;
+      log(
+        `  ⏭ over ${Math.round(maxBeatSeconds / 60)}min cap (${Math.round((t.duration_s ?? 0) / 60)}min) — beats skipped: ${basename(t.file_path ?? "")}`,
+      );
+      continue;
+    }
     todo.push(t);
   }
   const limit = opts.limit ?? todo.length;
@@ -116,7 +135,7 @@ export async function beats(opts: BeatsOptions): Promise<void> {
     );
   } else {
     log(
-      `\nbeats complete: ${analyzed} analyzed, ${failed} failed, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}`,
+      `\nbeats complete: ${analyzed} analyzed, ${failed} failed, ${tooLong} over length cap, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}`,
     );
   }
   // Exactly one JSON object on stdout in json mode — the P1 contract.
@@ -125,6 +144,7 @@ export async function beats(opts: BeatsOptions): Promise<void> {
       command: "beats",
       analyzed,
       failed,
+      overLengthCap: tooLong,
       ledgered: total,
       dryRun: opts.dryRun === true,
     }),

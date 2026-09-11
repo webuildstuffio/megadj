@@ -14,6 +14,8 @@ export interface Probe {
   codec: string | null;
   hasArt: boolean;
   tags: Record<string, string>;
+  /** ffprobe format_name split on commas (e.g. ["mov","mp4","m4a",…]). */
+  container?: string[];
 }
 
 /** DJ energy 1–10 from integrated loudness (Mixed In Key style baseline).
@@ -95,6 +97,7 @@ export async function probeFile(path: string): Promise<Probe> {
       duration?: string;
       bit_rate?: string;
       tags?: Record<string, string>;
+      format_name?: string;
     };
     streams?: {
       codec_type?: string;
@@ -121,7 +124,27 @@ export async function probeFile(path: string): Promise<Probe> {
     codec: audio?.codec_name ?? null,
     hasArt: streams.some((s) => s.codec_type === "video"),
     tags,
+    // Container truth vs extension: pool rips ship AAC audio in MP4
+    // containers wearing a `.mp3` name (Sep 11: 14 rescue files). ffmpeg's
+    // mp3 muxer rejects non-MP3 audio with exit 234, and Pioneer hardware
+    // chokes on the mislabel too — the writer and ingest both need the
+    // real container, not the filename's claim.
+    container: data.format?.format_name?.split(",").map((s) => s.trim()) ?? [],
   };
+}
+
+/** The real audio container implied by ffprobe's format_name — the caller
+ *  compares against the file's extension and renames only on mismatch
+ *  (`.mp3` in → `.mp3` out is the honest-file case). Null when the container
+ *  isn't one we can name confidently — never guess a rename. */
+export function trueContainerExt(p: Probe): string | null {
+  const fmt = p.container ?? [];
+  if (fmt.includes("mp3")) return ".mp3";
+  if (fmt.includes("mov")) return ".m4a"; // mov,mp4,m4a,3gp,3g2,mj2 family
+  if (fmt.includes("flac")) return ".flac";
+  if (fmt.includes("aiff")) return ".aiff";
+  if (fmt.includes("wav")) return ".wav";
+  return null;
 }
 
 /** Higher = better. Lossless dominates, then bitrate, then length. */

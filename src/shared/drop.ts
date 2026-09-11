@@ -31,6 +31,9 @@ export interface DropOptions {
   /** Opt-in AI genre/year fallback inside the fetch stage (SC + Beatport
    *  stay primary; AI covers only what both miss). Off by default. */
   aiFallback?: boolean;
+  /** Beat-analysis length cap in seconds (default 900 = 15min; 0 disables) —
+   *  longer tracks skip the beats stage (grid cost scales with runtime). */
+  maxBeatSeconds?: number | undefined;
   /** Machine-readable summary (P1). Human logs still go to stderr. */
   json?: boolean;
   /** Cookies/env plumbing for the URL-download stage. */
@@ -220,7 +223,8 @@ export async function drop(opts: DropOptions): Promise<void> {
     }
   } else stages.push({ stage: "years", status: "skipped" });
 
-  // Stage 2 — beats ledger (beat_this → DB; no tag writes).
+  // Stage 2 — beats ledger (beat_this → DB; no tag writes). Tracks over
+  // maxBeatSeconds (default 15min) skip the grid — cost scales with runtime.
   if (ok)
     ok = await runStage(
       "beats",
@@ -230,6 +234,7 @@ export async function drop(opts: DropOptions): Promise<void> {
           musicDir: opts.musicDir,
           dryRun: opts.dryRun,
           json: true,
+          maxSeconds: opts.maxBeatSeconds,
         }),
       stages,
       log,

@@ -13,6 +13,7 @@ export {
   qualityScore,
   firstTag,
   mbRecording,
+  trueContainerExt,
 } from "../../../fulltags/src/exports";
 import type { ParsedName, Probe } from "../../../fulltags/src/exports";
 export type { ParsedName, Probe };

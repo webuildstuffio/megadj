@@ -17,6 +17,7 @@
 
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
+import { existsSync, renameSync } from "node:fs";
 import type { Stats } from "node:fs";
 import { join, basename, extname } from "node:path";
 import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
@@ -35,6 +36,7 @@ import {
   probeFile,
   qualityScore,
   quarantine,
+  trueContainerExt,
   walkAudio,
   type Record_,
 } from "./ingest-probe";
@@ -99,7 +101,11 @@ function newCounters(): IngestCounters {
 
 /** Phase A: probe every file; broken/zero-byte files are reported, never moved.
  *  A file that vanishes between walk and stat is skipped — one ENOENT must
- *  not kill the whole pass (same hardening `sync` got for its byte counter). */
+ *  not kill the whole pass (same hardening `sync` got for its byte counter).
+ *  Also repairs mislabeled containers: pool rips ship AAC-in-MP4 wearing
+ *  `.mp3` names; the mp3 muxer (and Pioneer hardware) rejects those, so the
+ *  file is renamed to its true extension BEFORE dedupe/tagging (Sep 11: 14
+ *  rescue files all failed tag-write with ffmpeg exit 234 for this). */
 async function probeAllFiles(
   files: string[],
   log: (msg: string) => void,
@@ -120,13 +126,38 @@ async function probeAllFiles(
       log(`  ✗ broken/zero-byte: ${basename(file)}`);
       continue;
     }
-    const parsed = parseFilename(basename(file));
+    // Container-truth rename: extension says mp3, container says MP4 →
+    // rename in place (collision-safe), then continue with the real name.
+    let livePath = file;
+    const truth = trueContainerExt(probe);
+    const ext = extname(file).toLowerCase();
+    if (truth && truth !== ext && truth !== ".aiff") {
+      const fixedPath = file.slice(0, -ext.length) + truth;
+      if (!existsSync(fixedPath)) {
+        try {
+          renameSync(file, fixedPath);
+          livePath = fixedPath;
+          log(
+            `  [fix] mislabeled container renamed: ${basename(file)} → ${basename(fixedPath)} (audio untouched)`,
+          );
+        } catch (e) {
+          log(
+            `  ✗ rename failed, keeping original: ${basename(file)} — ${(e as Error).message?.slice(0, 60)}`,
+          );
+        }
+      } else {
+        log(
+          `  ⚠ truth-name exists, keeping both for review: ${basename(file)}`,
+        );
+      }
+    }
+    const parsed = parseFilename(basename(livePath));
     const tagTitle = firstTag(probe.tags, ["title"]);
     const tagArtist = firstTag(probe.tags, ["artist"]);
     const title = tagTitle || parsed.title;
     const artist = tagArtist || parsed.artist;
     records.push({
-      file,
+      file: livePath,
       size: st.size,
       probe,
       parsed,

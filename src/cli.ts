@@ -392,9 +392,15 @@ async function main(): Promise<void> {
       case "drop": {
         const flags = parseFlags(
           rest,
-          ["drop", "target"],
+          ["drop", "target", "max-beat-seconds"],
           ["dry-run", "no-mood", "no-fetch", "ai-fallback", "json"],
         );
+        const maxBeatSeconds = nonNegOpt(flags, "max-beat-seconds", "drop");
+        if (
+          maxBeatSeconds === undefined &&
+          flags.strings.get("max-beat-seconds") !== undefined
+        )
+          break;
         const target =
           firstPositional(rest, "drop") ?? flags.strings.get("target");
         if (!target) {
@@ -413,6 +419,7 @@ async function main(): Promise<void> {
           noMood: flags.bools.has("no-mood"),
           noFetch: flags.bools.has("no-fetch"),
           aiFallback: flags.bools.has("ai-fallback"),
+          maxBeatSeconds,
           json: flags.bools.has("json"),
           cookiesFromBrowser: COOKIES || null,
           cookiesFile: COOKIES_FILE,
@@ -567,7 +574,7 @@ async function main(): Promise<void> {
         // (the tempo gate failed 12/24; arrays feed cues + grid checks).
         const flags = parseFlags(
           rest,
-          ["limit", "jobs"],
+          ["limit", "jobs", "max-seconds"],
           ["force", "dry-run", "json"],
         );
         // Invalid numeric input must abort the case, never flow through
@@ -576,6 +583,12 @@ async function main(): Promise<void> {
         if (
           beatsLimit === undefined &&
           flags.strings.get("limit") !== undefined
+        )
+          break;
+        const maxBeatSeconds = nonNegOpt(flags, "max-seconds", "beats");
+        if (
+          maxBeatSeconds === undefined &&
+          flags.strings.get("max-seconds") !== undefined
         )
           break;
         const { beats } = await import("./fulltags/beats");
@@ -587,6 +600,7 @@ async function main(): Promise<void> {
           force: flags.bools.has("force"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
+          maxSeconds: maxBeatSeconds,
         });
         break;
       }
