@@ -23,6 +23,9 @@ mechanics/war-stories behind each rule in `docs/agent-playbook.md`.
 - **Strict tsconfig is live (`noUncheckedIndexedAccess`).** A
   `Record<string, T>` lookup yields `T | undefined` — fix with a literal-key
   `as const satisfies Record<string, T>` table (preflight's `BUILDER_ID`).
+  Also on: `exactOptionalPropertyTypes` (optional props in `*Options`
+  interfaces need explicit `| undefined`), `noUncheckedSideEffectImports`,
+  `allowUnreachableCode:false`, plus oxlint (`.oxlintrc.json`) in the gate.
 - **Concurrent agents work this repo.** Never `git add -A`; re-read before
   editing; verify content landed via worktree-vs-HEAD diff, not commit hash.
   `EADDRINUSE` on a dev-server restart is usually another agent winning the
@@ -119,7 +122,10 @@ place; never delete source files; dated backups
   mid-write power-loss is the corruption risk. Always pass the DB path
   positionally to pyrekordbox and confirm `db.session.bind.url`;
   `~/Library/Pioneer/rekordbox/master.db` is a stale local copy; never
-  write while rekordbox runs (live WAL).
+  write while rekordbox runs (live WAL). CrateDeck snapshots read a scratch
+  COPY of `exportLibrary.db` and refuse while rekordbox runs
+  (`REKORDBOX_RUNNING` interlock) — DB changes show in the dashboard only
+  after a fresh snapshot/verify, never live.
 - **Archive tier ≠ gig tier.** The role-aware check matrix lives ONCE in
   `cratedeck/shared/check_matrix.ts` — preflight, checks, badges, banner
   all DERIVE from it; a local `role === "shelf"` string check is a
@@ -144,6 +150,11 @@ place; never delete source files; dated backups
   thumbnails. **TKEY is read on AIFF/MP3 only**, and RB overwrites imported
   keys on analysis unless Key analysis is disabled. Research:
   `docs/rekordbox-wav-artwork.md`.
+- **Import order into rekordbox: `megadj shelf-sync` FIRST, then drag from
+  the shelf volume** (`/Volumes/SHELF1/Contents/…`), never from a local
+  staging folder — dragging locals registers Mac paths, skips the shelf,
+  and breaks stick parity. Canonical answer is the "Import to shelf"
+  glossary term (`cratedeck/shared/help.ts`).
 - Verify job + help SSOT: `deckctl explain` documents job types; `deckctl
   help [term]` serves the UI glossary/tooltips (`cratedeck/shared/help.ts`).
 

@@ -60,6 +60,44 @@ function artistFolder(rel: string): string {
     : "[unknown]";
 }
 
+/** Index of every audio file already on the shelf: basename → sizes. A file
+ *  counts as "already there" when ANY shelf copy of the same name has the
+ *  same size — the shelf is artist-foldered while the archive keeps its
+ *  batch folders, so the raw relative-path destination is only ONE of the
+ *  places the file may legitimately live. Without this, a regrouped shelf
+ *  re-copies the whole archive into dated folders (the Sep 11 discovery). */
+function shelfAudioIndex(contents: string): Map<string, number[]> {
+  const AudioRe = /\.(mp3|m4a|wav|aiff?|flac|ogg|opus)$/i;
+  const idx = new Map<string, number[]>();
+  const walk = (dir: string) => {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return; // unreadable subtree — skip, never crash the sync
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith(".") || entry.name === "$RECYCLE.BIN") continue;
+      const abs = join(dir, entry.name);
+      if (entry.isDirectory()) walk(abs);
+      else if (AudioRe.test(entry.name)) {
+        // fskit exFAT hands back NFD; the archive side is NFC. Key the index
+        // on NFC so the Unicode forms can never split one file into two.
+        const key = entry.name.normalize("NFC");
+        const sizes = idx.get(key) ?? [];
+        try {
+          sizes.push(statSync(abs).size);
+        } catch {
+          // vanished mid-walk — skip this entry
+        }
+        idx.set(key, sizes);
+      }
+    }
+  };
+  walk(contents);
+  return idx;
+}
+
 /** Byte-size equality pre-check: same size = "already there". Checksums are
  *  the real truth (checksum jobs audit that); this keeps the walk fast. */
 function sameSize(a: string, b: string): boolean {
@@ -107,9 +145,16 @@ function syncToVolume(
     failed: 0,
   };
   if (!res.mounted) return res;
+  const shelfIndex = shelfAudioIndex(contents);
   for (const p of plans) {
     const dest = join(contents, artistFolder(p.rel), basename(p.rel));
-    if (existsSync(dest) && sameSize(p.src, dest)) {
+    const onShelfSomewhere = shelfIndex
+      .get(basename(p.rel).normalize("NFC"))
+      ?.includes(p.bytes);
+    if (
+      (existsSync(dest) && sameSize(p.src, dest)) ||
+      (onShelfSomewhere && !existsSync(dest))
+    ) {
       res.skipped++;
       continue;
     }

@@ -82,4 +82,53 @@ describe("shelf-sync", () => {
     expect(parsed.volumes[0]?.copied).toBe(2);
     expect(parsed.ok).toBe(true);
   });
+
+  test("regrouped shelf: file under a DIFFERENT artist folder counts as already there", async () => {
+    // The Sep 11 discovery: the shelf was regrouped into per-artist folders
+    // while the archive keeps its batch folders — shelf-sync must not
+    // re-copy everything into dated folders. Same basename + same size
+    // anywhere under Contents/ = already synced.
+    const src = mkdtempSync("/tmp/megadj-shelf-batch-");
+    mkdirSync(join(src, "2026-09-11 intake"), { recursive: true });
+    writeFileSync(join(src, "2026-09-11 intake", "song.aiff"), "xyz");
+
+    const vol = mkdtempSync("/tmp/megadj-shelf-regroup-");
+    mkdirSync(join(vol, "Contents", "The Artist"), { recursive: true });
+    writeFileSync(join(vol, "Contents", "The Artist", "song.aiff"), "xyz");
+
+    const logs: string[] = [];
+    await shelfSync({
+      musicDir: src,
+      shelfVolume: vol,
+      stickVolumes: [],
+      log: (s) => logs.push(s),
+    });
+    // nothing new copied into Contents/2026-09-11 intake/
+    expect(existsSync(join(vol, "Contents", "2026-09-11 intake"))).toBe(false);
+    expect(logs.some((l) => l.includes("already there 1"))).toBe(true);
+  });
+
+  test("regrouped shelf: NFD on-disk names match NFC archive names (fskit exFAT)", async () => {
+    const src = mkdtempSync("/tmp/megadj-shelf-nfc-");
+    mkdirSync(join(src, "batch"), { recursive: true });
+    const accented = "Nina Simone - Sinnerman (Ignacio Herna\u0301ndez).aiff"; // NFD á
+    writeFileSync(join(src, "batch", accented), "data");
+
+    const vol = mkdtempSync("/tmp/megadj-shelf-nfc-vol-");
+    mkdirSync(join(vol, "Contents", "Nina Simone"), { recursive: true });
+    // write the shelf copy NFC (as the archive/mac would produce)
+    writeFileSync(
+      join(vol, "Contents", "Nina Simone", accented.normalize("NFC")),
+      "data",
+    );
+
+    const logs: string[] = [];
+    await shelfSync({
+      musicDir: src,
+      shelfVolume: vol,
+      stickVolumes: [],
+      log: (s) => logs.push(s),
+    });
+    expect(logs.some((l) => l.includes("already there 1"))).toBe(true);
+  });
 });
