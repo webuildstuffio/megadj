@@ -1,23 +1,31 @@
 # FullTags
 
 **One pass, every field.** FullTags is the megadj sub-project that takes any
-`mp3 / m4a / wav / flac / aiff` and fully enriches it: title, artist, album,
-album artist, genre, year (of _this version_ — remix year for edits), remix
-credit, producer credits, grouping, source URL, energy, embedded artwork,
-MusicBrainz MBID — plus offline analysis stages shipped Sep 5 2026:
-**acoustic fingerprint** (chromaprint → `TXXX:ACOUSTID`),
-**real BPM** (beat_this → `TBPM`, half/double-tempo folded into the 70–180
-DJ window), **harmonic key** (OpenKeyScan analyzer → `TKEY` +
-`TXXX:CAMELOT`), and **mood/dance/valence** (Essentia ONNX heads on
-onnxruntime → `TXXX:MOOD`, which also drives the energy 2.0 blend). All
-idempotent via existing-stamp detection; missing envs degrade to a skip
-note, never a failure.
-
-Ground-truth driven: the **file** is the truth, the DB is a cache. Every
-write is atomic (tmp + rename, audio stream-copied — never re-encoded).
-Idempotent: run it twice, the second pass changes nothing.
+`mp3 / m4a / wav / flac / aiff` and fully enriches it — and it ships
+standalone: one schema, one atomic writer, its own CLI + gate.
 
 ```
+messy file ──▶ FullTags ──▶ tagged · artworked · fingerprinted · beatgridded · keyed · mood-mapped
+```
+
+- ✅ **Every field:** title, artist, album, album artist, genre, year (of
+  _this version_ — remix year for edits), remix credit, producer credits,
+  grouping, source URL, energy, embedded artwork, MusicBrainz MBID.
+- 🎼 **Offline analysis** (shipped Sep 5 2026): **acoustic fingerprint**
+  (chromaprint → `TXXX:ACOUSTID`), **real BPM** (beat_this → `TBPM`,
+  half/double-tempo folded into the 70–180 DJ window), **harmonic key**
+  (OpenKeyScan → `TKEY` + `TXXX:CAMELOT`), **mood/dance/valence** (Essentia
+  ONNX heads → `TXXX:MOOD`, which also drives the energy 2.0 blend).
+- 🔁 **Idempotent** via existing-stamp detection — run it twice, the second
+  pass changes nothing. Missing envs degrade to a skip note, never a
+  failure.
+- 📖 **Ground-truth driven:** the **file** is the truth, the DB is a cache.
+  Every write is atomic (tmp + rename, audio stream-copied — never
+  re-encoded).
+
+## 🚀 Quick start
+
+```bash
 fulltags <file-or-folder>            fill every missing field
 fulltags audit <folder> [--json]     completeness gate (same gate as `megadj audit`)
 fulltags <folder> --fingerprint      chromaprint fingerprint → TXXX:ACOUSTID (brew install chromaprint)
@@ -34,9 +42,7 @@ Tags in RB, then run `verify-key.ts` against tracks with existing MIK/RB
 keys — require ≥80% exact agreement. BPM stage: compare against
 rekordbox-reanalyzed grids; flag disagreements > 2%.
 
----
-
-## Why a sub-project
+## 🧩 Why a sub-project
 
 megadj grew enrichment logic across five files (`src/metadata.ts`,
 `src/commands/{energy,embed,remix,wav-to-aiff}.ts`, `tools/fetch-lib.ts`,
@@ -48,11 +54,12 @@ were deleted once no importer needed them — import
 `fulltags/src/exports` directly (atomic migration —
 `git log --follow` keeps the history).
 
-## Layout
+## 📁 Layout
 
 ```
 fulltags/
   cli.ts                 CLI entry (enrich + audit + single + ensure-models subcommands)
+  verify-key.ts          the key gauntlet gate (≥80% vs existing MIK/RB keys)
   src/
     schema.ts            FullTag / TagPatch types, genre canon + vocabulary
     schema-guards.ts     validatePatch (runtime guards before any write)
@@ -61,22 +68,34 @@ fulltags/
     readers.ts           groundTruth / readFullTag — file-first reads
     probes.ts            ffprobe, filename parsing, MB lookup, RMS energy
     metadata-build.ts    yt-dlp info → EnrichedMetadata (cleanTitle, credits)
+    identity.ts          MB recording lookup + the audit ground-truth row
     art-sources.ts       SC search + every artwork source (the art ladder)
     ai.ts                OpenRouter genre/year fallback (conf ≥ 0.7)
     analysis.ts          chromaprint / beat_this / OpenKeyScan stages
+    anlz.ts              ANLZ/PQTZ grid analysis + triage helpers
     models.ts            ONNX mood/dance/valence (essentia melspec + onnxruntime)
     mb.ts                MusicBrainz folksonomy genre harvest (1 rps)
+    mb_lookup.ts         MB recording/artist resolution used by identity
+    fingerprint-dedupe.ts  acoustic-twin detection over the fingerprint ledger
+    gold.ts              gold-set scoring (megadj gold-report's engine)
+    fleet.ts             booth player profiles WITH citations (the compat SSOT)
+    player-compat.ts     codec/sample-rate floors for the selected fleet
+    booth-text.ts        emoji/mojibake/path-char display + export checks
+    mutagen.ts           the python mutagen bridge (AIFF/WAV/m4a writes)
     convert.ts           WAV → AIFF (rekordbox covers)
     remix.ts             `X - Y (Z Remix)` detection
+    tag-health.ts        tag-quality lint (encoding, truncation, garbage)
+    index-all.ts         batch driver: full analysis pass over a folder
+    stdio.ts             child-process helpers (line-by-line streams)
     pipeline.ts          enrichTrack / enrichAll — the orchestrator
     exports.ts           public import surface
-  test/                  100 tests across 13 files (schema, writer round-trips,
+  test/                  195 tests across 20 files (schema, writer round-trips,
                          pipeline, m4a/AIFF stamps, audit gate, CLI
                          subcommands, analysis + mood stages + label-order
                          pin — env-gated)
 ```
 
-## The ladders (first success wins)
+## 🪜 The ladders (first success wins)
 
 | Field    | Order                                                                                                |
 | -------- | ---------------------------------------------------------------------------------------------------- |
@@ -87,7 +106,7 @@ fulltags/
 | remixer  | title/filename `(Remixer Remix/Flip/Edit)` pattern                                                   |
 | energy   | RMS 1–10 baseline; **energy 2.0**: `0.5·RMS + 0.3·dance + 0.2·arousal` when a MOOD stamp exists      |
 
-## AI provenance (trust in automation)
+## 🤖 AI provenance (trust in automation)
 
 AI-filled genre/year are stamped into the file as `TXXX:AI-GENRE` /
 `TXXX:AI-YEAR` with the classifier's confidence — `Techno|0.92` — so an
@@ -95,7 +114,7 @@ AI-filled field is always identifiable and auditable, never silently
 indistinguishable from a human/SC-sourced one. `fulltags audit` reports
 them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
 
-## Format gotchas (why there's one writer)
+## ⚠️ Format gotchas (why there's one writer)
 
 - **AIFF**: ffmpeg's aiff muxer **drops the ID3 chunk** — AIFF tag writes go
   through mutagen, editing the chunk in place (embedded art survives).
@@ -130,7 +149,7 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
   emomusic reads **(valence, arousal) on a 1–9 scale**; vggish wants
   400/200 frames → 96-frame patches transposed to (64, 96).
 
-## Usage
+## 🧪 Usage
 
 ```bash
 bun run fulltags/cli.ts <folder-or-file>               # enrich (folder or single file)
@@ -151,7 +170,7 @@ append to `~/.local/state/megadj/artwork-queue.jsonl` so the existing
 `~/.local/share/fulltags-models` (MTG/UPF exports, CC BY-NC-SA — personal
 use).
 
-## Relationship to megadj commands
+## 🔗 Relationship to megadj commands
 
 | megadj command  | What it does now                                                                             |
 | --------------- | -------------------------------------------------------------------------------------------- |

@@ -78,8 +78,11 @@ sticks sync from this"; a FAILED verify shows on every tier until re-run.
   gate (now requiring mood + energy) passes 123/123 on the Sep intake.
 - **The gap:** one source. SoundCloud is config work (yt-dlp impersonation
   landed upstream in Feb 2026); Bandcamp is blocked upstream (yt-dlp
-  #17506). The quality ratchet (`megadj upgrade`) is unstarted — the
-  fingerprint ledger it needs now exists.
+  #17506). The quality ratchet is real: `megadj upgrade` (D24) re-fetches
+  below-floor (LOWQ) tracks at best quality and swaps ONLY when the new
+  file probes at the expected bitrate AND carries the same acoustic
+  fingerprint — a different recording is refused, the old file never
+  leaves on failure (regression-tested in `src/commands/upgrade.test.ts`).
 
 ### 🏷️ FullTags — enrich — **the analysis ladder executed; gates did their job**
 
@@ -94,14 +97,14 @@ sticks sync from this"; a FAILED verify shows on every tier until re-run.
 - **Measured state (the real archive — 131 ledgered tracks; the audit
   gate currently covers the 123-track Sep intake at 123/123):**
 
-  | Ledger / field              | Where                | Coverage                        |
-  | --------------------------- | -------------------- | ------------------------------- |
-  | Fingerprint (TXXX:ACOUSTID) | in files             | 131/131, idempotent             |
-  | Key (TKEY + TXXX:CAMELOT)   | in files             | 131/131, gate-passed 80.7%      |
-  | Beats + downbeats           | archive DB `beats`   | 131/131                         |
-  | Mood/dance/VA (TXXX:MOOD)   | in files + DB mirror | 131/131, idempotent             |
-  | Energy 2.0 (TXXX:ENERGY)    | in files             | 131/131                         |
-  | Phrase cues (8-bar)         | archive DB `cues`    | 131/131 → 2,043 cues            |
+  | Ledger / field              | Where                | Coverage                   |
+  | --------------------------- | -------------------- | -------------------------- |
+  | Fingerprint (TXXX:ACOUSTID) | in files             | 131/131, idempotent        |
+  | Key (TKEY + TXXX:CAMELOT)   | in files             | 131/131, gate-passed 80.7% |
+  | Beats + downbeats           | archive DB `beats`   | 131/131                    |
+  | Mood/dance/VA (TXXX:MOOD)   | in files + DB mirror | 131/131, idempotent        |
+  | Energy 2.0 (TXXX:ENERGY)    | in files             | 131/131                    |
+  | Phrase cues (8-bar)         | archive DB `cues`    | 131/131 → 2,043 cues       |
 
 - **Blocked on purpose:** TBPM tag writes (beat_this phase-locks
   ~2.2–2.6% off RB; re-gate 16/24 < 80%) and genre-head writes
@@ -214,11 +217,11 @@ longer time-boxed by the proposal — it's ordered by the queue below.
 
 | Metric                       | Target                                 | Now                                                                                                                                                                     |
 | ---------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Metadata completeness        | 100% art/title/artist/album/genre/year | ✅ 123/123 on the Sep intake under the upgraded audit gate (also requires mood + energy); 131 ledgered total                        |
+| Metadata completeness        | 100% art/title/artist/album/genre/year | ✅ 123/123 on the Sep intake under the upgraded audit gate (also requires mood + energy); 131 ledgered total                                                            |
 | Key accuracy vs ground truth | ≥80% agreement                         | ✅ 80.7% measured on all 88 — and written                                                                                                                               |
 | Grid agreement               | >98%                                   | Independent cross-check shipped (46 ok / 40 off / 2 octave vs beat_this); the >98% bar properly applies to RB-native grids after re-analysis — honest: not yet measured |
 | Gig-day answer time          | <60 s, one click                       | preflight ✅ shipped; latency unmeasured until the first real hardware session                                                                                          |
-| Mirror cost                  | weekly mirror in minutes               | C21 unstarted                                                                                                                                                           |
+| Mirror cost                  | weekly mirror in minutes               | mirror + verify shipped (`usb_mirror.py`); C21's differential changed-only pass unstarted                                                                               |
 | Hands-off reliability        | weekly digest, zero triggers           | `deckctl prep` ✅; cron wrapper optional, not wired                                                                                                                     |
 | Redundancy                   | every gig playlist ≥2 drives           | engine ✅; live verdicts await real scans per drive                                                                                                                     |
 | Zero manual labour           | ingest→tagged→staged hands-free        | ✅ `megadj drop` shipped Sep 7 (download → ingest → beats → mood → cues → organize, one command)                                                                        |

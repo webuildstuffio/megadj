@@ -6,13 +6,13 @@ megadj operator toolkit without repo-local setup.
 
 ## What's inside
 
-| Component | Path | What it does |
-| --- | --- | --- |
-| Skills | `skills/cratedeck-deckctl` | Drive health, scans/verifies, gig readiness via `deckctl` |
-| | `skills/rekordbox-usb-sync` | The USB sync pipeline + safety rules |
-| | `skills/new-music-intake` | `megadj ingest` usage: tagging, art, dedupe |
-| MCP | `.mcp.json` → `cratedeck` | 25 tools: drive health, fleet, preflight, players, notes, rename, dossier export, archive reads (incl. grid cross-check + mood profile + sweep), `deck_note` |
-| Hook | `hooks/hooks.json` | SessionStart: drives + interlock status in context (async, 15s timeout) |
+| Component | Path                        | What it does                                                                                                                                                                                                                                         |
+| --------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Skills    | `skills/cratedeck-deckctl`  | Drive health, scans/verifies, gig readiness via `deckctl`                                                                                                                                                                                            |
+|           | `skills/rekordbox-usb-sync` | The USB sync pipeline + safety rules                                                                                                                                                                                                                 |
+|           | `skills/new-music-intake`   | `megadj ingest` usage: tagging, art, dedupe                                                                                                                                                                                                          |
+| MCP       | `.mcp.json` → `cratedeck`   | 37 tools (22 `deck_*` + 15 `archive_*`): drive health, fleet, preflight, players, notes, rename, dossier export, hygiene + booth fixes, booth fleet, search, prep digest, archive reads (incl. grid cross-check + mood profile + sweep), `deck_note` |
+| Hook      | `hooks/hooks.json`          | SessionStart: drives + interlock status in context (async, 15s timeout)                                                                                                                                                                              |
 
 **Skills are symlinks** into `../../.claude/skills/` — the in-repo skill
 directories are the single source of truth; editing a skill updates the
@@ -44,8 +44,10 @@ Or install into any session:
 
 - The rekordbox interlock is enforced **server-side** — the MCP surface
   cannot bypass it (prompts are suggestions, exit codes are law).
-- `deck_run`/`deck_cancel`/`deck_note`/`deck_rename` are the only mutating
-  tools, all annotation-flagged; `deck_note` is human-dismissable in the UI.
+- `deck_run`/`deck_cancel`/`deck_note`/`deck_rename`/`deck_dismiss`/
+  `deck_hygiene`/`deck_fixes` are the mutating tools (all
+  `destructive`-flagged; the `archive_*` half is readonly by
+  construction); `deck_note` is human-dismissable in the UI.
 - The hook is read-only (`deckctl status`).
 
 ## Roadmap note
