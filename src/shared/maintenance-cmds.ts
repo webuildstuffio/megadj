@@ -19,6 +19,7 @@ import { DB_PATH } from "../cli-env";
 import { parseFlags, nonNegOpt } from "../cli-flags";
 import { ArchiveState } from "../archive/state";
 import { resolveShelfVolume, volumePath } from "./volume";
+import { writeJson } from "./cli-output";
 
 /** Commands handled by this module; cli.ts and the parity census share it. */
 export const MAINTENANCE_VERBS = [
@@ -130,7 +131,7 @@ export async function runMaintenanceCommand(
         log: (s) => (json ? undefined : console.log(s)),
       });
       if (json) {
-        console.log(JSON.stringify(r));
+        await writeJson(r);
       } else {
         printRbFixReport(r, console.log);
       }
@@ -156,7 +157,7 @@ export async function runMaintenanceCommand(
         log: (s) => (json ? undefined : console.log(s)),
       });
       if (json) {
-        console.log(JSON.stringify(r));
+        await writeJson(r);
       } else {
         printRbUnmatchedReport(r, console.log);
       }
@@ -200,7 +201,7 @@ export async function runMaintenanceCommand(
         log: (s) => (json ? undefined : console.log(s)),
       });
       if (json) {
-        console.log(JSON.stringify(r));
+        await writeJson(r);
       } else {
         printRbImportReport(r, console.log);
       }
@@ -253,7 +254,7 @@ export async function runMaintenanceCommand(
         log: (s) => (json ? undefined : console.log(s)),
       });
       if (json) {
-        console.log(JSON.stringify(r));
+        await writeJson(r);
       } else {
         printSpikeReport(r, console.log);
       }
@@ -303,7 +304,7 @@ export async function runMaintenanceCommand(
           log: (s) => (json ? undefined : console.log(s)),
         });
         if (json) {
-          console.log(JSON.stringify(r));
+          await writeJson(r);
         } else {
           printGridTriageReport(r, console.log);
         }

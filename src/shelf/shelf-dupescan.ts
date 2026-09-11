@@ -27,6 +27,7 @@ import {
 } from "./dupescan-shared";
 import { applyDupGroups } from "./shelf-dupescan-apply";
 import { resolveShelfVolume } from "../shared/volume";
+import { writeJson } from "../shared/cli-output";
 
 // md5sum / nameSimilarity / moveLoser / DupGroup all live in the leaf
 // modules (shelf-dupescan-apply.ts / dupescan-shared.ts) — import from
@@ -108,7 +109,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
 
   const contents = join(shelfVolume, "Contents");
   if (!existsSync(contents)) {
-    if (json) console.log(JSON.stringify({ error: "shelf not mounted" }));
+    if (json) await writeJson({ error: "shelf not mounted" });
     else log(`shelf not mounted: ${shelfVolume}`);
     process.exitCode = 1;
     return;

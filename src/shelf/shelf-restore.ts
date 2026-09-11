@@ -14,6 +14,7 @@ import { HygieneStore } from "../archive/hygiene/store";
 import { QUARANTINE_DIR } from "../archive/hygiene/apply";
 import type { Finding } from "../archive/hygiene/types";
 import { resolveShelfVolume } from "../shared/volume";
+import { writeJson } from "../shared/cli-output";
 
 export interface ShelfRestoreOptions {
   input: string;
@@ -96,8 +97,10 @@ export async function shelfRestore(
   const dbPath =
     opts.dbPath ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
   const log = opts.log ?? ((message: string) => console.error(message));
-  const result = (value: ShelfRestoreResult): ShelfRestoreResult => {
-    if (opts.json) console.log(JSON.stringify(value, null, 2));
+  const result = async (
+    value: ShelfRestoreResult,
+  ): Promise<ShelfRestoreResult> => {
+    if (opts.json) await writeJson(value);
     else if (!value.ok)
       log(`shelf-restore: ${value.error ?? "restore failed"}`);
     else log(`shelf-restore: restored ${value.source} → ${value.destination}`);
@@ -105,7 +108,7 @@ export async function shelfRestore(
   };
 
   if (!existsSync(join(shelfVolume, "Contents")))
-    return result({
+    return await result({
       command: "shelf-restore",
       ok: false,
       findingId: null,
@@ -120,7 +123,7 @@ export async function shelfRestore(
   const owner = crypto.randomUUID();
   if (!store.acquireOperation(owner)) {
     db.close();
-    return result({
+    return await result({
       command: "shelf-restore",
       ok: false,
       findingId: null,
@@ -140,7 +143,7 @@ export async function shelfRestore(
           matchesInput(candidate.f, opts.input, candidate.source),
       );
     if (!match?.source)
-      return result({
+      return await result({
         command: "shelf-restore",
         ok: false,
         findingId: null,
@@ -151,7 +154,7 @@ export async function shelfRestore(
       });
     const destination = destinationFor(match.f, opts.into);
     if (!destination)
-      return result({
+      return await result({
         command: "shelf-restore",
         ok: false,
         findingId: match.f.id,
@@ -161,7 +164,7 @@ export async function shelfRestore(
         error: "ledger finding has no restorable loser path",
       });
     if (existsSync(destination))
-      return result({
+      return await result({
         command: "shelf-restore",
         ok: false,
         findingId: match.f.id,
@@ -172,7 +175,7 @@ export async function shelfRestore(
       });
     const sourceMd5 = md5(match.source);
     if (!sourceMd5)
-      return result({
+      return await result({
         command: "shelf-restore",
         ok: false,
         findingId: match.f.id,
@@ -185,7 +188,7 @@ export async function shelfRestore(
     if (keeper && existsSync(keeper)) {
       const keeperMd5 = md5(keeper);
       if (keeperMd5 && keeperMd5 !== sourceMd5)
-        return result({
+        return await result({
           command: "shelf-restore",
           ok: false,
           findingId: match.f.id,
@@ -200,7 +203,7 @@ export async function shelfRestore(
     const destinationMd5 = md5(destination);
     if (destinationMd5 !== sourceMd5) {
       if (existsSync(destination)) unlinkSync(destination);
-      return result({
+      return await result({
         command: "shelf-restore",
         ok: false,
         findingId: match.f.id,
@@ -210,7 +213,7 @@ export async function shelfRestore(
         error: "MD5 verification failed after copy",
       });
     }
-    return result({
+    return await result({
       command: "shelf-restore",
       ok: true,
       findingId: match.f.id,

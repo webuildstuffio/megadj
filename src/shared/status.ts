@@ -1,4 +1,5 @@
 import type { ArchiveState } from "../archive/state";
+import { writeJson } from "./cli-output";
 
 /** One archive summary — both the human and --json renderers read this,
  * so the two surfaces can never drift apart. */
@@ -43,21 +44,15 @@ export function status(state: ArchiveState): void {
   }
 }
 
-export function statusJson(state: ArchiveState): void {
+export async function statusJson(state: ArchiveState): Promise<void> {
   const s = summary(state);
-  console.log(
-    JSON.stringify(
-      {
-        total_tracks: s.total,
-        by_status: s.counts,
-        archive_bytes: s.bytes,
-        high_quality: { count: s.highQ, of: s.downloadedCount },
-        recent_runs: s.runs,
-      },
-      null,
-      2,
-    ),
-  );
+  await writeJson({
+    total_tracks: s.total,
+    by_status: s.counts,
+    archive_bytes: s.bytes,
+    high_quality: { count: s.highQ, of: s.downloadedCount },
+    recent_runs: s.runs,
+  });
 }
 
 function filterTracks(state: ArchiveState, filter?: string) {
@@ -94,7 +89,10 @@ export function listTracks(state: ArchiveState, filter?: string): void {
   console.log(`\n${tracks.length} track(s)`);
 }
 
-export function listJson(state: ArchiveState, filter?: string): void {
+export async function listJson(
+  state: ArchiveState,
+  filter?: string,
+): Promise<void> {
   const tracks = filterTracks(state, filter);
-  console.log(JSON.stringify({ count: tracks.length, tracks }, null, 2));
+  await writeJson({ count: tracks.length, tracks });
 }

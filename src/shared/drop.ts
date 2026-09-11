@@ -16,6 +16,7 @@ import { cues } from "../fulltags/cues";
 import { organize } from "../getdat/commands/organize";
 import type { ArchiveState } from "../archive/state";
 import { commandLog } from "../progress";
+import { writeJson } from "./cli-output";
 
 export interface DropOptions {
   state: ArchiveState;
@@ -361,7 +362,7 @@ export async function drop(opts: DropOptions): Promise<void> {
   if (opts.json) {
     // P1: one summary object as the LAST stdout line — compact, so the
     // rollup parses as a single line even with per-stage objects above it.
-    console.log(JSON.stringify(summary));
+    await writeJson(summary);
   } else {
     log("");
     log(ok ? "✓ drop complete" : "✗ drop incomplete — see stages above");

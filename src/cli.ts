@@ -167,7 +167,7 @@ async function main(): Promise<void> {
       }
       case "status": {
         const json = rest.includes("--json");
-        if (json) statusJson(state);
+        if (json) await statusJson(state);
         else status(state);
         break;
       }
@@ -246,7 +246,7 @@ async function main(): Promise<void> {
       case "list": {
         const filter = rest.find((a) => !a.startsWith("--"));
         if (rest.includes("--json")) {
-          listJson(state, filter);
+          await listJson(state, filter);
         } else {
           listTracks(state, filter);
         }

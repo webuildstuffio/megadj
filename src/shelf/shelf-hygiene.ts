@@ -27,6 +27,7 @@ import { fingerprintFileLength } from "../../fulltags/src/exports";
 import type { CheckCtx } from "../archive/hygiene/types";
 import { FpCache } from "./shelf-dupescan";
 import { resolveShelfVolume } from "../shared/volume";
+import { writeJson } from "../shared/cli-output";
 
 export interface ShelfHygieneOptions {
   shelfVolume?: string | undefined;
@@ -67,19 +68,19 @@ export async function shelfHygiene(
     log = (s) => console.error(s),
   } = opts;
 
-  const fail = (error: string): void => {
-    if (json) console.log(JSON.stringify({ command: "shelf-hygiene", error }));
+  const fail = async (error: string): Promise<void> => {
+    if (json) await writeJson({ command: "shelf-hygiene", error });
     else console.error(`shelf-hygiene: ${error}`);
     process.exitCode = 1;
   };
 
   if (apply && !yes) {
     // guard order: flag misuse fails BEFORE any disk/DB work
-    fail("--apply requires --yes (two-step safety — nothing executed)");
+    await fail("--apply requires --yes (two-step safety — nothing executed)");
     return;
   }
   if (!existsSync(shelfVolume)) {
-    fail(`shelf not mounted: ${shelfVolume}`);
+    await fail(`shelf not mounted: ${shelfVolume}`);
     return;
   }
 
@@ -105,7 +106,7 @@ export async function shelfHygiene(
       let bucketMatched = 0;
       if (bucket) {
         if (!(bucket in BUCKET_MEMBERSHIP)) {
-          fail(
+          await fail(
             `unknown bucket "${bucket}" — valid: ${Object.keys(BUCKET_MEMBERSHIP).join(", ")}`,
           );
           return;
@@ -115,7 +116,7 @@ export async function shelfHygiene(
         // refuses them instead of stamping "confirmed" over unreviewed
         // rows. Dismiss by id stays available for genuine junk.
         if (isListenFirst(bucket)) {
-          fail(
+          await fail(
             `bucket "${bucket}" is listen-first — its findings need an A/B listen before a keep decision (Hygiene tab → A/B compare). Batch-confirm only: metadata-diff, re-encode, safe-batch.`,
           );
           return;
@@ -202,13 +203,13 @@ export async function shelfHygiene(
     if (apply && yes) {
       const operationOwner = crypto.randomUUID();
       if (!store.acquireOperation(operationOwner)) {
-        fail("hygiene apply/restore already in flight");
+        await fail("hygiene apply/restore already in flight");
         return;
       }
       try {
         const fresh = walkShelf(shelfVolume);
         if (fresh.walkToken !== walkToken) {
-          fail("shelf changed during scan — re-run (stale-walk abort)");
+          await fail("shelf changed during scan — re-run (stale-walk abort)");
           return;
         }
         const confirmed = store.list({ status: "confirmed" });
@@ -282,7 +283,7 @@ export async function shelfHygiene(
       dryRun: !apply,
     };
     if (json) {
-      console.log(JSON.stringify(summary, null, 2));
+      await writeJson(summary);
     } else {
       log(
         `census: ${summary.open} open · ${summary.confirmed} confirmed · ${summary.applied} applied · ${summary.failed} failed`,

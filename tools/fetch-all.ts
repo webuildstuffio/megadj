@@ -52,6 +52,7 @@ import { aiGenres } from "../fulltags/src/exports";
 import { existsSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import { ProgressBar } from "../src/progress";
+import { writeJson } from "../src/shared/cli-output";
 import {
   cleanTitle,
   stageArt,
@@ -430,7 +431,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
   };
   if (jsonOut) {
     // P1 (--json on every command): one summary object on stdout, last.
-    console.log(JSON.stringify(summary));
+    await writeJson(summary);
   } else {
     progress?.close(
       `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
