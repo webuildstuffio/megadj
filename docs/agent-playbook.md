@@ -67,6 +67,12 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   auto-relocate scans `Contents/` and will chase quarantined files.
 - Divergent same-name rips are preserved as `<name> [<volume>]` twins, never
   overwritten — the shelf's rekordbox DB references its own files.
+- **shelf-sync is regroup-aware (Sep 11).** The archive keeps its batch
+  folders while the shelf is artist-foldered, so the skip check can't key
+  on the literal relative path: a same-basename same-size copy anywhere
+  under `Contents/` counts as synced, and the shelf index keys on NFC —
+  fskit exFAT hands back NFD names, which split one Nina Simone file into
+  a phantom re-copy. Regression-tested in `shelf-sync.test.ts`.
 
 ## Rekordbox detail
 

@@ -427,7 +427,7 @@ re-verified in the research notes (2026-09-05).
     `fulltags --mood` → `TXXX:MOOD` (dance/aggressive/happy/electronic/
     party + DEAM valence-arousal) via `fulltags/src/models.ts` ONNX towers;
     energy 2.0 blend; `megadj mood` mirrors stamps into the archive DB
-    `mood` ledger (88/88). CrateDeck surface: `archive_mood_profile` MCP +
+    `mood` ledger (131/131). CrateDeck surface: `archive_mood_profile` MCP +
     `/api/archive/mood`. Genre head gate FAILED (saturated) — genre writes
     blocked. Original spec, for reference:
     - mood classifiers: happy / party / aggressive / sad / relaxed /
@@ -441,7 +441,7 @@ re-verified in the research notes (2026-09-05).
 
 46. **Structure-aware grids & cues — 🔶 v0 SHIPPED (pass 3, rev 6.2).**
     `megadj cues` derives 8-bar phrase markers from the beats ledger's
-    downbeats into the `cues` table (88/88 tracks, 1366 cues, idempotent,
+    downbeats into the `cues` table (131/131 tracks, 2043 cues, idempotent,
     DB-side — the rekordbox memory-cue WRITE is the deliberate next gate).
     The full all-in-one-infer slice (functional segment labels intro/verse/
     drop/outro + demucs stems) remains the follow-on: _model note
@@ -476,7 +476,7 @@ re-verified in the research notes (2026-09-05).
 49. **Embeddings & "sounds like" — ✅ SHIPPED 2026-09-08 (effnet tower).**
     The mood pass's discogs-effnet 1280-d mean embedding is now emitted in
     the same ONNX probe run (`megadj mood --embeddings` mirrors it into the
-    archive DB `embeddings` ledger; 88/88 executed) and queried via
+    archive DB `embeddings` ledger; 87/131 executed) and queried via
     `megadj similar <video_id> [--k N] [--json]`, MCP
     `archive_similar_tracks`, and the FullTags ⌗ Similar tab — blob +
     cosine at archive scale, exactly as planned. (MuQ-MuLan step-up remains
@@ -617,7 +617,7 @@ extractors).
 
 ## L. Fingerprints, dedupe & identity
 
-62. **Acoustic fingerprint ledger — ✅ SHIPPED 2026-09-05 (rev 5, 88/88
+62. **Acoustic fingerprint ledger — ✅ SHIPPED 2026-09-05 (rev 5, 131/131
     executed).** `fulltags --fingerprint` → `TXXX:ACOUSTID` (chromaprint
     via `fpcalc`); idempotency verified across re-runs after the WAV
     stamp-read hole was fixed. Consumers still open (in value order):

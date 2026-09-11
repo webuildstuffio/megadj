@@ -75,13 +75,16 @@ the remix's, not the original's.
    cent per pass. AI does the web research and unstructured→structured
    conversion; humans do nothing.
 5. **Quality & spam filter** — dedupe on ingest (`(1)`-dupe detection,
-   quality rules, quarantine folder), zero-byte/corrupt probe before
+   same-stem mp3↔lossless pairs, quality rules; rejects go to the
+   archive-root hidden `.ingest-duplicates/`, never a visible folder
+   people drag back in), zero-byte/corrupt probe before
    anything poisons the library, sub-60s clip gating.
 
 **Commands:** `megadj ingest`, `megadj drop` (one-shot: download →
 ingest → beats → mood → cues → organize), `megadj fetch`, `megadj
-enrich`, `megadj artwork`, `megadj audit`, `megadj beats`, `megadj
-mood`, `megadj cues`
+enrich`, `megadj artwork`, `megadj audit`, `megadj tag-check` (tag
+structure + booth-text health), `megadj beats`, `megadj mood`,
+`megadj cues`
 **Also:** FullTags ships standalone in [`fulltags/`](../fulltags/README.md)
 — same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
 commands are thin wrappers over it.

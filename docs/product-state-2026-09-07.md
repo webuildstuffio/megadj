@@ -1,7 +1,7 @@
 # megadj — Product & Roadmap State
 
 **Status: ✅ CURRENT — the honest state of the whole product as of
-2026-09-09 (shelf sweep folded in), project by project, with the roadmap
+2026-09-11 (Sep 11 intake folded in), project by project, with the roadmap
 as it stands now (not as it was proposed). Durable meta-lessons from the
 Sep 5–7 build window live in [agent-playbook.md](agent-playbook.md)
 §Meta-lessons; this page is the "where are we".**
@@ -14,9 +14,11 @@ megadj is a three-project pipeline — **GetDat** (download) → **FullTags**
 (enrich) → **CrateDeck** (organize/verify/sync) — run by one person on one
 Mac, feeding a shelf master (the archive-grade HDD that never leaves the
 desk) plus a master + mirror pair of Pioneer-format DJ USBs. All three
-cores are shipped and _measured_: the archive's 88 tracks are fully
-ledgered (fingerprint, key, mood, energy in the files; beats, phrase cues,
-mood mirrors in the DB), the write-gate discipline has passed one ladder
+cores are shipped and _measured_: the archive's 131 ledgered tracks (the
+88-track original plus the three Sep 10/11 intake batches) are fully
+processed — fingerprint, key, mood, energy in the files; beats, phrase
+cues, mood mirrors in the DB (cues 2,043 markers); the write-gate
+discipline has passed one ladder
 (key, 80.7%) and blocked two others (BPM phase-lock, saturated genre head)
 — which is the system working. CrateDeck finished its gig-night gate
 (preflight, player-compat verdicts) and its agent surface (37-tool MCP
@@ -73,7 +75,7 @@ sticks sync from this"; a FAILED verify shows on every tier until re-run.
   test.
 - **Measured state:** the archive DB is the pipeline's spine — tracks,
   beats, mood, cues, and runs tables all live and populated; the audit
-  gate (now requiring mood + energy) passes 88/88.
+  gate (now requiring mood + energy) passes 123/123 on the Sep intake.
 - **The gap:** one source. SoundCloud is config work (yt-dlp impersonation
   landed upstream in Feb 2026); Bandcamp is blocked upstream (yt-dlp
   #17506). The quality ratchet (`megadj upgrade`) is unstarted — the
@@ -89,16 +91,17 @@ sticks sync from this"; a FAILED verify shows on every tier until re-run.
   beat_this BPM, OpenKeyScan key, Essentia ONNX mood/dance/valence,
   energy 2.0 blend, MusicBrainz folksonomy harvest. 98 tests across 11
   files; megadj's commands are thin shims over it.
-- **Measured state (the real 88-track archive):**
+- **Measured state (the real archive — 131 ledgered tracks; the audit
+  gate currently covers the 123-track Sep intake at 123/123):**
 
-  | Ledger / field              | Where                | Coverage                 |
-  | --------------------------- | -------------------- | ------------------------ |
-  | Fingerprint (TXXX:ACOUSTID) | in files             | 88/88, idempotent        |
-  | Key (TKEY + TXXX:CAMELOT)   | in files             | 88/88, gate-passed 80.7% |
-  | Beats + downbeats           | archive DB `beats`   | 88/88                    |
-  | Mood/dance/VA (TXXX:MOOD)   | in files + DB mirror | 88/88, idempotent        |
-  | Energy 2.0 (TXXX:ENERGY)    | in files             | 88/88                    |
-  | Phrase cues (8-bar)         | archive DB `cues`    | 88/88 → 1,366 cues       |
+  | Ledger / field              | Where                | Coverage                        |
+  | --------------------------- | -------------------- | ------------------------------- |
+  | Fingerprint (TXXX:ACOUSTID) | in files             | 131/131, idempotent             |
+  | Key (TKEY + TXXX:CAMELOT)   | in files             | 131/131, gate-passed 80.7%      |
+  | Beats + downbeats           | archive DB `beats`   | 131/131                         |
+  | Mood/dance/VA (TXXX:MOOD)   | in files + DB mirror | 131/131, idempotent             |
+  | Energy 2.0 (TXXX:ENERGY)    | in files             | 131/131                         |
+  | Phrase cues (8-bar)         | archive DB `cues`    | 131/131 → 2,043 cues            |
 
 - **Blocked on purpose:** TBPM tag writes (beat_this phase-locks
   ~2.2–2.6% off RB; re-gate 16/24 < 80%) and genre-head writes
@@ -211,7 +214,7 @@ longer time-boxed by the proposal — it's ordered by the queue below.
 
 | Metric                       | Target                                 | Now                                                                                                                                                                     |
 | ---------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Metadata completeness        | 100% art/title/artist/album/genre/year | ✅ 88/88 under the upgraded audit gate (now also requires mood + energy)                                                                                                |
+| Metadata completeness        | 100% art/title/artist/album/genre/year | ✅ 123/123 on the Sep intake under the upgraded audit gate (also requires mood + energy); 131 ledgered total                        |
 | Key accuracy vs ground truth | ≥80% agreement                         | ✅ 80.7% measured on all 88 — and written                                                                                                                               |
 | Grid agreement               | >98%                                   | Independent cross-check shipped (46 ok / 40 off / 2 octave vs beat_this); the >98% bar properly applies to RB-native grids after re-analysis — honest: not yet measured |
 | Gig-day answer time          | <60 s, one click                       | preflight ✅ shipped; latency unmeasured until the first real hardware session                                                                                          |

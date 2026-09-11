@@ -34,14 +34,14 @@ of 2026-09-10. Everything else in this doc is re-scoped around it.
 
 | Asset | Where | State |
 | --- | --- | --- |
-| Beat + downbeat arrays, whole archive | `megadj beats` → `beats` table (`src/commands/beats.ts`, `src/state.ts`) | 88/88 ledgered, idempotent. beat_this v1.1.0, MIT, **peak-picking (no DBN), device=cpu** |
+| Beat + downbeat arrays, whole archive | `megadj beats` → `beats` table (`src/commands/beats.ts`, `src/state.ts`) | 131/131 ledgered, idempotent. beat_this v1.1.0, MIT, **peak-picking (no DBN), device=cpu** |
 | Tempo readouts | `fulltags/src/analysis.ts` (`analyzeBeats`, median inter-beat; `tempoFromBeatGrid` bar-lag) | TBPM tag writes **blocked by gate** (12/24, re-gate 16/24 — the ~2.2–2.6% phase-lock); arrays are DB-only by decision |
-| 8-bar phrase cues | `megadj cues` → `cues` table (`src/commands/cues.ts`) | 88/88, 1,366 cues, DB-side only |
+| 8-bar phrase cues | `megadj cues` → `cues` table (`src/commands/cues.ts`) | 131/131, 2,043 cues, DB-side only |
 | Independent grid cross-check | `ArchiveReader.gridCrossCheck` (`cratedeck/src/archive.ts`), `GET /api/archive/grid-cross-check`, MCP `archive_grid_cross_check` | Coarse: BPM-level ok / off (>2%) / octave vs RB. **No anchor/drift/phase — that's the A2 gap** |
 | Drive verify grid check | `usb_verify.py` `anlz_consistency` → `cratedeck/src/verify_report.ts` | **Self-referential** (duration×BPM vs beat count from the same analysis). ANLZ existence + between-drive parity are real; independent grid correctness comes from the cross-check |
 | ANLZ hash-path math | `.claude/skills/rekordbox-usb-sync/scripts/anlz_paths.py` | The A1 drive-vs-collection byte compare can be built directly on this |
 | Compressed-audio decode seam | `analyzeBeats` ffmpeg→tmp-WAV | **S2 preprocessing already exists** for the beat path |
-| Key detection | OpenKeyScan, `fulltags --key` | **SHIPPED — 80.7% gate PASS, 88/88 written.** The v2 plan's "your pipeline doesn't do key at all" is stale. Remaining: the RB gauntlet (disable Key analysis → Reload Tags) at next mount |
+| Key detection | OpenKeyScan, `fulltags --key` | **SHIPPED — 80.7% gate PASS, 131/131 written.** The v2 plan's "your pipeline doesn't do key at all" is stale. Remaining: the RB gauntlet (disable Key analysis → Reload Tags) at next mount |
 | Safety scaffolding for DB writes | `megadj rb-fix-paths` pattern: backup → refuse-while-rekordbox-runs → whole-table post-check | A4/B7 reuse this pattern verbatim |
 | Gate discipline | `docs/fulltags-roadmap.md` §4.2 | No analysis stage writes without a measured agreement number — the whole plan runs on this rule |
 | pyrekordbox 0.4.4 seam | rb_read.py / rb-fix-paths | Reads master.db; shelf-hosted master DB realities already encoded in AGENTS.md |

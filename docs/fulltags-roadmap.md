@@ -1,15 +1,22 @@
-# FullTags — Prioritized Roadmap (rev 6.2)
+# FullTags — Prioritized Roadmap (rev 6.3)
 
-_Rev 6.2, 2026-09-05/06 (pass 3). Revision history in one line each:
-rev 4 shipped #1–#3 as pipeline stages; rev 5 executed the gates on the
-real archive (fingerprints DONE 88/88, key gate PASSED 80.7%, BPM gate
-FAILED 12/24 — TBPM writes blocked); rev 6 pivoted #2 into the beats
-ledger (`megadj beats`) + CrateDeck grid cross-check (re-gate 16/24,
-still blocked); rev 6.1 shipped #4 mood/dance/valence ONNX + #5 MB
-harvest (energy 2.0, dup-writer deleted) and executed the mood pass —
-label order was INVERTED on first run, caught + fixed + regression-
-pinned; rev 6.2 added the mood CrateDeck surface + `megadj cues` phrase
-ledger (88/88, 1366 cues) + the audit gate requiring mood + energy.
+_Rev 6.3, 2026-09-11: the Sep 10/11 intake rounds (123 tracks across three
+batches) exercised the pipeline end-to-end — `tag-check` structural
+scanner shipped, ingest quarantine moved to the archive-root hidden
+`.ingest-duplicates/`, same-stem mp3↔lossless pair dedupe, upgrade
+re-ingests now reuse the existing row (ledger survives), analysis-queue
+order documented, 21 beatgrids snap-repaired to bar coherence, genre-loss
+watch on re-ingests. Archive now 131 ledgered (beats/cues/mood 131/131,
+2,043 cues; audit gate 123/123 on the intake). Revision history in one
+line each: rev 4 shipped #1–#3 as pipeline stages; rev 5 executed the
+gates on the real archive (fingerprints DONE 88/88, key gate PASSED
+80.7%, BPM gate FAILED 12/24 — TBPM writes blocked); rev 6 pivoted #2
+into the beats ledger (`megadj beats`) + CrateDeck grid cross-check
+(re-gate 16/24, still blocked); rev 6.1 shipped #4 mood/dance/valence
+ONNX + #5 MB harvest (energy 2.0, dup-writer deleted) and executed the
+mood pass — label order was INVERTED on first run, caught + fixed +
+regression-pinned; rev 6.2 added the mood CrateDeck surface +
+`megadj cues` phrase ledger + the audit gate requiring mood + energy.
 Rev 3 re-verified external claims; rev 2 fact-checked + found the 6.4×
 write-path regression._
 

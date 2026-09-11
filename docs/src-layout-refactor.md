@@ -1,5 +1,9 @@
 # src/ Layout Refactor — full proposal (v2)
 
+**Status: 🧭 PROPOSED — not executed.** Issue #23 open, `src/commands/`
+still flat. Research snapshot from 2026-09-10; re-derive the file census
+before executing (concurrent agents move files daily).
+
 _2026-09-10. Tracking issue: [#23](https://github.com/webuildstuffio/megadj/issues/23).
 Research basis: two full-tree scans, import census, madge cycle check (clean),
 coupling-direction audit. Written while the snake→kebab rename was landing;
