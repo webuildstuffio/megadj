@@ -29,11 +29,51 @@ export async function cmdHygiene(
       );
       for (const [kind, n] of Object.entries(p.counts.byKind))
         h.log(`  ${kind}: ${n}`);
+      const bySub = p.counts.bySub ?? {};
+      if (Object.keys(bySub).length > 0) {
+        h.log("  acoustic buckets:");
+        for (const [bucketName, n] of Object.entries(bySub).toSorted(
+          (a, b) => b[1] - a[1],
+        ))
+          h.log(`    ${bucketName}: ${n}`);
+      }
       return;
     }
     case "scan":
     case "apply": {
       await enqueueAndFollow(h, "hygiene", sub);
+      return;
+    }
+    case "bucket": {
+      // `deckctl hygiene bucket <name>` — batch-confirm one acoustic
+      // subcategory bucket through the engine SSOT (same megadj CLI the
+      // web button uses). Accepts a composite bucket (safe-batch,
+      // ear-check) but ear-check exists for FILTERING only — the engine
+      // refuses batch-confirming the listen-first buckets.
+      if (!id) {
+        h.errOut(
+          "usage: deckctl hygiene bucket <metadata-diff|re-encode|safe-batch>",
+        );
+        h.exit(2);
+      }
+      const LISTEN_FIRST = new Set(["quality-diff", "oddball", "ear-check"]);
+      if (LISTEN_FIRST.has(id as string)) {
+        h.errOut(
+          `"${id}" needs your ears — no batch confirm. Filter the queue in the web UI or confirm ids individually.`,
+        );
+        h.exit(2);
+      }
+      const res = await apiPost("/api/hygiene/bucket-confirm", { bucket: id });
+      const body = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        raw?: string;
+      };
+      if (!res.ok || !body.ok) {
+        h.errOut(`bucket confirm failed: ${body.error ?? res.status}`);
+        h.exit(1);
+      }
+      if (!h.jsonMode) h.log(`bucket ${id}: confirmed — Apply to execute`);
       return;
     }
     case "confirm":
@@ -56,7 +96,7 @@ export async function cmdHygiene(
     }
     default:
       h.errOut(
-        "usage: deckctl hygiene [scan | apply | confirm <id> | dismiss <id>]",
+        "usage: deckctl hygiene [scan | apply | bucket <name> | confirm <id> | dismiss <id>]",
       );
       h.exit(2);
   }

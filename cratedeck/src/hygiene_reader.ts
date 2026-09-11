@@ -12,6 +12,11 @@ export interface HygieneCounts {
   safe: number; // open && autoSafe — the batch-apply candidate set
   review: number; // open && severity==="review"
   byKind: Record<string, number>;
+  /** open acoustic-twin findings grouped by their size-delta
+   *  subcategory (src/hygiene/subcategory.ts) — the bucket-filter +
+   *  batch-confirm UI reads this. Findings without a subcategory in
+   *  evidence (pre-dates the classifier) count under "unclassified". */
+  bySub: Record<string, number>;
 }
 
 interface Row {
@@ -86,22 +91,44 @@ export class HygieneReader extends ArchiveLedgerReader {
       safe: 0,
       review: 0,
       byKind: {},
+      bySub: {},
     };
     const rows = this.query<{
       status: string;
       kind: string;
       severity: string;
       auto_safe: 0 | 1;
+      evidence: string | null;
       n: number;
     }>(
-      `SELECT status, kind, severity, auto_safe, COUNT(*) AS n
-       FROM hygiene_findings GROUP BY status, kind, severity, auto_safe`,
+      `SELECT status, kind, severity, auto_safe, evidence, COUNT(*) AS n
+       FROM hygiene_findings GROUP BY status, kind, severity, auto_safe, evidence`,
     );
     for (const r of rows) {
       if (r.status === "open") {
         out.open += r.n;
         if (r.auto_safe === 1) out.safe += r.n;
         if (r.severity === "review") out.review += r.n;
+        // acoustic subcategory census (open rows only — applied ones are
+        // history, not decisions). Grouped in JS: evidence is free-form
+        // JSON, so SQLite can't group on the nested key.
+        if (r.kind === "acoustic-twin") {
+          let sub = "unclassified";
+          try {
+            const ev = r.evidence
+              ? (JSON.parse(r.evidence) as Record<string, unknown>)
+              : {};
+            if (typeof ev.subcategory === "string") sub = ev.subcategory;
+          } catch (e) {
+            // guarded parse (rule: corrupt ledger JSON is a visible
+            // "unclassified" bucket, never a 500)
+            console.error(
+              "hygiene: unparseable evidence JSON",
+              e instanceof Error ? e.message : e,
+            );
+          }
+          out.bySub[sub] = (out.bySub[sub] ?? 0) + r.n;
+        }
       }
       if (r.status === "confirmed") out.confirmed += r.n;
       out.byKind[r.kind] = (out.byKind[r.kind] ?? 0) + r.n;

@@ -485,6 +485,8 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
       return hygieneApi.apply();
     if (route === "/hygiene/decide" && req.method === "POST")
       return hygieneApi.decide(req);
+    if (route === "/hygiene/bucket-confirm" && req.method === "POST")
+      return hygieneApi.bucketConfirm(req);
     // ---- booth fixes (Fleet→Booth fleet drives these checks) -----------
     if (route === "/fixes") return fixesApi.list();
     if (route === "/fixes/scan" && req.method === "POST")

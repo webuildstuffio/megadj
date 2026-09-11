@@ -93,6 +93,10 @@ export interface HygienePayload {
     safe: number; // open && autoSafe — the auto-apply batch
     review: number; // open && severity==="review"
     byKind: Record<string, number>;
+    /** open acoustic-twin findings by size-delta subcategory
+     *  (metadata-diff | re-encode | quality-diff | oddball |
+     *  unclassified) — drives the bucket batch-confirm strip. */
+    bySub: Record<string, number>;
   };
   walkToken: string | null;
 }

@@ -112,11 +112,19 @@ describe("rb-anlz-spike flag forms (P1)", () => {
 
 describe("rb-grid-triage flag forms (P1)", () => {
   test("space form `--limit 20` parses (was: NaN → slice(0,NaN) → zero rows, fake success)", async () => {
-    // The shelf volume won't exist in CI, so the command should fail
-    // VISIBLY with "no master DB" — the point of this regression is
-    // that it must NOT succeed while doing zero work.
-    const a = await run(["rb-grid-triage", "--limit", "20", "--json"]);
-    const b = await run(["rb-grid-triage", "--limit=20", "--json"]);
+    // HERMETIC: MEGADJ_RB_MASTER points at a nonexistent DB so the
+    // command fails VISIBLY with "no master DB" regardless of whether
+    // the real shelf is mounted (this test broke the day SHELF1 was
+    // attached — the env override makes the fixture independent of the
+    // operator's hardware). The point of the regression: the command
+    // must NOT succeed while doing zero work.
+    const noDb = join(mkdtempSync("/tmp/megadj-maint-"), "absent.db");
+    const a = await run(["rb-grid-triage", "--limit", "20", "--json"], {
+      MEGADJ_RB_MASTER: noDb,
+    });
+    const b = await run(["rb-grid-triage", "--limit=20", "--json"], {
+      MEGADJ_RB_MASTER: noDb,
+    });
     expect(a.exitCode).toBe(1); // ok:false → exit 1, never a fake pass
     expect(b.exitCode).toBe(1);
     const ja = JSON.parse(

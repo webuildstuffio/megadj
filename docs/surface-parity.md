@@ -7,8 +7,13 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 15 · 2026-09-10 — HTTP route census now derives the exact API count
-from the dispatchers (58 routes), and the maintenance command family exports
+Rev 16 · 2026-09-11 — hygiene acoustic subcategories: the bucket
+batch-confirm route (`POST /api/hygiene/bucket-confirm`, 59 routes) rides
+the megadj CLI (`shelf-hygiene --bucket`) as its engine; `deckctl hygiene
+bucket <name>` is the CLI spoke; the Hygiene tab's bucket strip is the UI
+spoke. Listen-first buckets (quality-diff/oddball/ear-check) refuse
+batch-confirm on every surface — filtering only. Rev 15 · 2026-09-10 — HTTP route census now derives the exact API count
+from the dispatchers (59 routes), and the maintenance command family exports
 its verb list so CLI census and dispatch cannot drift. Rev 14 · 2026-09-10 — grid-audit build-out: three new megadj commands
 (`gold-report`, `rb-grid-triage`, `rb-anlz-spike`) —
 gold-standard metrics, ANLZ/PQTZ grid triage, and the write-path spike
@@ -116,7 +121,7 @@ Carry-overs from the rev 13 pass — each is a named gap, not a vibe:
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 34 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 37 tools               |
-| HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 58 routes              |
+| HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 59 routes              |
 | Web UI     | `cratedeck/web/` (hash-routed pages)                        | 6 pages, ~22 actions   |
 
 The server's HTTP API is the **fourth surface** and the seam everything

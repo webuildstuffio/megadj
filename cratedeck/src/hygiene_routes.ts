@@ -42,6 +42,7 @@ export function makeHygieneRoutes(deps: {
         safe: c.safe,
         review: c.review,
         byKind: c.byKind,
+        bySub: c.bySub,
       },
       walkToken: findings[0]?.walkToken ?? null,
     });
@@ -82,11 +83,42 @@ export function makeHygieneRoutes(deps: {
     return json(enqueue("hygiene-scan"));
   }
 
+  /** POST /api/hygiene/bucket-confirm {bucket} — batch-confirm every open
+   *  acoustic-twin finding in one subcategory bucket. Same engine SSOT as
+   *  decide(): megadj's CLI does the write, cratedeck never touches the
+   *  archive. Validated against the CLI's accepted bucket names. */
+  async function bucketConfirm(req: Request): Promise<Response> {
+    const body = (await req.json().catch(() => null)) as {
+      bucket?: string;
+    } | null;
+    const bucket = body?.bucket;
+    const VALID = [
+      "metadata-diff",
+      "re-encode",
+      "quality-diff",
+      "oddball",
+      "ear-check",
+      "safe-batch",
+    ];
+    if (!bucket || !VALID.includes(bucket))
+      return json({ error: `bucket must be one of ${VALID.join(", ")}` }, 400);
+    const r = await megadjCli([
+      "shelf-hygiene",
+      `--bucket=${bucket}`,
+      "--json",
+    ]);
+    if (r.code !== 0)
+      return json({ ok: false, stderr: r.stderr.slice(-400) }, 409);
+    // the CLI prints one JSON summary line — surface the count
+    const line = r.stderr; // engine logs go to stderr; stdout was the JSON
+    return json({ ok: true, bucket, raw: line.slice(-200) });
+  }
+
   /** POST /api/hygiene/apply — enqueue the apply job (confirmed rows
    *  only; the engine re-verifies every loser at apply time). */
   function apply(): Response {
     return json(enqueue("hygiene-apply"));
   }
 
-  return { list, decide, scan, apply };
+  return { list, decide, scan, bucketConfirm, apply };
 }

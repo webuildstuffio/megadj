@@ -73,7 +73,7 @@ export async function runMaintenanceCommand(
       // live in the archive DB — the SSOT every surface reads.
       const flags = parseFlags(
         rest,
-        ["kind", "shelf"],
+        ["kind", "shelf", "bucket"],
         ["json", "apply", "yes"],
       );
       const { shelfHygiene } = await import("./shelf-hygiene");
@@ -86,6 +86,7 @@ export async function runMaintenanceCommand(
         confirm: manyOf(rest, "confirm"),
         dismiss: manyOf(rest, "dismiss"),
         kind: flags.strings.get("kind"),
+        bucket: flags.strings.get("bucket"),
         shelfVolume: flags.strings.get("shelf"),
       });
       return;

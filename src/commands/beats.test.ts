@@ -86,8 +86,15 @@ describe("beats command (ledger, no tag writes)", () => {
       musicDir: dir,
       onProgress: (m) => logs.push(m),
     });
-    // nothing to do: queue was empty
-    expect(logs.some((m) => m.startsWith("beats: 0 track(s)"))).toBe(true);
+    // nothing to do: queue was empty (the no-op run explains itself —
+    // commit 6cad634 changed the zero-work message)
+    expect(
+      logs.some((m) =>
+        m.startsWith(
+          "beats: all 1 downloaded tracks are already ledgered — nothing to analyze",
+        ),
+      ),
+    ).toBe(true);
     // record untouched
     expect(state.beatRecord("m2")?.bpmRaw).toBeCloseTo(128);
   });

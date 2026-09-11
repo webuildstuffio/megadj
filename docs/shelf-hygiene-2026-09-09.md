@@ -85,3 +85,26 @@ Non-goals, unchanged from the spec: no auto-downloading music, no
 rekordbox DB writes (handoff stays instructional, #7), no background
 auto-apply without human confirm, no second source of truth outside the
 archive DB + filesystem.
+
+### 4.1 Acoustic subcategories (shipped Sep 11)
+
+Same fingerprint ≠ same decision — a 0.2% tag difference and a 30%
+bitrate difference demand different levels of trust. Every acoustic-twin
+finding carries `evidence.subcategory` from
+`src/hygiene/subcategory.ts`:
+
+| subcategory | size delta | meaning | batch-confirm? |
+| --- | --- | --- | --- |
+| `metadata-diff` | <0.5% | same rip; tag/art chunk differences | yes |
+| `re-encode` | 0.5–3% | transcoded once at similar bitrate | yes |
+| `quality-diff` | >3% | genuinely different encode/source | no — ears |
+| `oddball` | same size | different bytes — maybe another master | no — ears |
+
+Composite buckets: `safe-batch` (first two) and `ear-check` (last two).
+The classification NEVER changes severity or autoSafe — the human gate
+holds; buckets just let the boring confirmations batch and the real
+decisions surface. Surfaces: `megadj shelf-hygiene --bucket NAME`,
+`deckctl hygiene bucket <name>` (+ `bySub` in the census), and the
+Hygiene tab's bucket strip. First live pass (Sep 11, SHELF1): 108
+metadata-diff + 20 re-encode batch-confirmed + 2 byte-twins → 130
+applied, 0 failed, 130 green receipts.

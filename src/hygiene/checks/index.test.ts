@@ -89,6 +89,28 @@ describe("acoustic-twin", () => {
     expect(t.autoSafe).toBe(false);
     expect(t.paths[0]).toBe("/V/big.aiff"); // biggest = keeper
     expect(t.fps).toEqual(["fp1", "fp1"]);
+    // subcategory stamp: 10% delta = quality-diff bucket
+    expect(t.evidence.subcategory).toBe("quality-diff");
+  });
+
+  test("subcategory stamp: tiny delta = metadata-diff, same size = oddball", () => {
+    const tiny = runChecks(
+      [file("/V/a.mp3", 1000), file("/V/b.mp3", 1001)],
+      withMaps({}, { "/V/a.mp3": "fp2", "/V/b.mp3": "fp2" }),
+    );
+    expect(
+      tiny.find((r) => r.kind === "acoustic-twin")!.findings[0]!.evidence
+        .subcategory,
+    ).toBe("metadata-diff");
+
+    const odd = runChecks(
+      [file("/V/c.mp3", 1000), file("/V/d.mp3", 1000)],
+      withMaps({}, { "/V/c.mp3": "fp3", "/V/d.mp3": "fp3" }),
+    );
+    expect(
+      odd.find((r) => r.kind === "acoustic-twin")!.findings[0]!.evidence
+        .subcategory,
+    ).toBe("oddball");
   });
 
   test(">15% size delta flags a review note (fp-collision guard)", () => {

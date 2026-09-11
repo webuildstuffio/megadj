@@ -72,6 +72,10 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj shelf-hygiene [--json]                the hygiene sweep: byte/fp/junk checks →
                                                findings ledger (--json = census);
                                                [--confirm ID | --dismiss ID] decide one;
+                                               [--bucket NAME] batch-confirm one acoustic
+                                               subcategory (metadata-diff | re-encode |
+                                               quality-diff | oddball | ear-check |
+                                               safe-batch);
                                                [--apply --yes] executes CONFIRMED losers
                                                into the shelf quarantine (never deletes)
   megadj rb-fix-paths [drive] [--apply --yes] [--json]

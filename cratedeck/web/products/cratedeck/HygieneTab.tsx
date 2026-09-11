@@ -52,6 +52,47 @@ const KIND_LABEL: Record<string, string> = {
   "re-download": "Better source available",
 };
 
+/** Acoustic-twin subcategory buckets (src/hygiene/subcategory.ts). The
+ *  two safe-batch buckets share one boring action (keep the bigger file);
+ *  ear-check buckets genuinely need listening — their button only
+ *  pre-filters the queue, it does not batch-confirm. */
+const SUB_BUCKET_META: Record<
+  string,
+  { label: string; hint: string; canBatch: boolean }
+> = {
+  "metadata-diff": {
+    label: "metadata-only",
+    hint: "Same rip — tiny (<0.5%) tag/art size diffs. Safe to batch: keep the bigger file.",
+    canBatch: true,
+  },
+  "re-encode": {
+    label: "re-encode",
+    hint: "Transcoded once at a similar bitrate (0.5–3% size delta). Audibly identical — safe to batch.",
+    canBatch: true,
+  },
+  "quality-diff": {
+    label: "quality diff",
+    hint: "Genuinely different encodes (>3% size delta) — listen side-by-side before deciding.",
+    canBatch: false,
+  },
+  oddball: {
+    label: "same size, diff bytes",
+    hint: "Same size but different bytes — possibly a different master. Ear-check before deciding.",
+    canBatch: false,
+  },
+  unclassified: {
+    label: "unclassified",
+    hint: "Found before the subcategory classifier shipped — re-run the scan to classify.",
+    canBatch: false,
+  },
+};
+
+/** Which subcategory bucket a finding belongs to (for queue filtering). */
+function subOf(f: Finding): string {
+  const sub = (f.evidence as Record<string, unknown>).subcategory;
+  return typeof sub === "string" ? sub : "unclassified";
+}
+
 function actionLine(f: Finding): string {
   const a = f.proposedAction;
   switch (a.type) {
@@ -93,6 +134,8 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
       },
     });
   const [selected, setSelected] = useState<Decided>(new Set());
+  /** active subcategory filter (null = show all) */
+  const [subFilter, setSubFilter] = useState<string | null>(null);
 
   const decide = async (ids: string[], confirm: boolean) => {
     if (ids.length === 0) return;
@@ -109,17 +152,37 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
     });
   };
 
+  /** Batch-confirm one bucket through the engine SSOT (CLI) — only the
+   *  safe-batch buckets expose this in the UI. */
+  const batchConfirm = async (bucket: string) => {
+    await runAction(`batch:${bucket}`, async () => {
+      await apiPost<{ ok: boolean }>("/api/hygiene/bucket-confirm", {
+        bucket,
+      });
+      toast(`Bucket "${bucket}" confirmed — Apply to execute`, "ok");
+      setSubFilter(null);
+    });
+  };
+
   const scanned = payload as HygienePayload | null | undefined;
   const { findings, counts } = scanned ?? {
     findings: [],
-    counts: { open: 0, confirmed: 0, safe: 0, review: 0, byKind: {} },
+    counts: {
+      open: 0,
+      confirmed: 0,
+      safe: 0,
+      review: 0,
+      byKind: {},
+      bySub: {},
+    },
   };
   const openRows = findings
     .filter(
       (f) =>
-        f.status === "open" ||
-        f.status === "confirmed" ||
-        f.status === "failed",
+        (f.status === "open" ||
+          f.status === "confirmed" ||
+          f.status === "failed") &&
+        (subFilter === null || subOf(f) === subFilter),
     )
     .toSorted((a, b) => rank(a) - rank(b));
   const doneRows = findings
@@ -206,6 +269,61 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
 
       {counts.open + counts.confirmed === 0 ? null : (
         <>
+          {Object.keys(counts.bySub).length > 0 && (
+            <div class="bucketstrip">
+              {Object.entries(counts.bySub)
+                .toSorted((a, b) => b[1] - a[1])
+                .map(([sub, n]) => {
+                  const meta = SUB_BUCKET_META[sub] ?? {
+                    label: sub,
+                    hint: sub,
+                    canBatch: false,
+                  };
+                  const active = subFilter === sub;
+                  return (
+                    <div
+                      class={`bucket${active ? " active" : ""}${meta.canBatch ? "" : " manual"}`}
+                      key={sub}
+                    >
+                      <button
+                        type="button"
+                        class="bucket-filter"
+                        disabled={busy !== null}
+                        onClick={() => setSubFilter(active ? null : sub)}
+                        title={meta.hint}
+                      >
+                        <b>{n}</b> {meta.label}
+                      </button>
+                      {meta.canBatch && !active && (
+                        <button
+                          type="button"
+                          class="btn sm"
+                          disabled={busy !== null}
+                          onClick={() => batchConfirm(sub)}
+                          title={`${meta.hint}\n\nConfirms all ${n} — then Apply executes them (quarantine, never delete).`}
+                        >
+                          Confirm all
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              {subFilter !== null && (
+                <button
+                  type="button"
+                  class="btn sm ghostbtn"
+                  onClick={() => setSubFilter(null)}
+                >
+                  Show all
+                </button>
+              )}
+              <InfoTip
+                title="Duplicate buckets"
+                body="Duplicates are grouped by WHY the files differ: metadata-only diffs and re-encodes are safe to batch-confirm (the bigger file wins). Quality diffs and same-size oddballs need your ears first — those buttons only filter the queue."
+                why="Same fingerprint ≠ same decision: a 0.2% tag difference and a 30% bitrate difference demand different levels of trust."
+              />
+            </div>
+          )}
           <h3 class="sect">
             <Icon name="warn" /> Work queue — worst first
           </h3>
@@ -228,6 +346,19 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
                 >
                   {f.status === "confirmed" ? "confirmed" : f.severity}
                 </span>
+                {f.kind === "acoustic-twin" && f.status !== "confirmed" && (
+                  <span
+                    class="pill subpill"
+                    title={
+                      (f.evidence as Record<string, unknown>).subcategory ===
+                      undefined
+                        ? "No subcategory — re-run the scan"
+                        : (SUB_BUCKET_META[subOf(f)]?.hint ?? subOf(f))
+                    }
+                  >
+                    {SUB_BUCKET_META[subOf(f)]?.label ?? subOf(f)}
+                  </span>
+                )}
                 <span class="check-body">
                   <b>{KIND_LABEL[f.kind] ?? f.kind}</b>
                   <span class="check-detail" title={f.paths.join("\n")}>

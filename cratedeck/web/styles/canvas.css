@@ -450,6 +450,52 @@ h3.sect .icon {
   flex-direction: column;
   gap: 8px;
 }
+/* ---- hygiene bucket strip (acoustic subcategory batch actions) ---- */
+.bucketstrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0 2px;
+}
+.bucket {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  padding: 3px 6px 3px 4px;
+}
+.bucket.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.bucket.manual {
+  opacity: 0.85;
+}
+.bucket-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+.bucket-filter:hover {
+  background: var(--hover);
+}
+.subpill {
+  font-size: 11px;
+  opacity: 0.9;
+  border: 1px dashed var(--stroke);
+  background: transparent;
+}
 .check {
   display: flex;
   gap: 12px;

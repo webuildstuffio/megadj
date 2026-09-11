@@ -12,6 +12,7 @@ import { basename } from "node:path";
 import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
 import { newFindingId } from "../types";
 import { nameSimilarity } from "./similarity";
+import { classifyAcousticSub } from "../subcategory";
 
 /** Long-mix collision guard: fp-equal + wildly different durations are a
  *  different recording that happened to collide — reported at "review"
@@ -58,6 +59,11 @@ export const acousticTwin: CheckDef = {
           evidence: {
             nameSimilarity: sim,
             sizeDeltaBytes: keeper.bytes - loser.bytes,
+            // size-delta subcategory (docs §4.2 second slice): separates
+            // same-rip metadata noise from real quality differences so
+            // the queue can batch the boring ones
+            subcategory: classifyAcousticSub(keeper.bytes, loser.bytes)
+              .subcategory,
             ...(bigDelta
               ? { note: "size delta >15% — possible fp collision" }
               : {}),

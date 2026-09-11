@@ -17,6 +17,7 @@ import { basename } from "node:path";
 import { HygieneStore } from "../hygiene/store";
 import { walkShelf } from "../hygiene/walk";
 import { runChecks } from "../hygiene/checks";
+import { BUCKET_MEMBERSHIP, inBucket } from "../hygiene/subcategory";
 import { applyFinding, validateFinding } from "../hygiene/apply";
 import type { CheckCtx } from "../hygiene/types";
 import { FpCache } from "./shelf-dupescan";
@@ -32,6 +33,10 @@ export interface ShelfHygieneOptions {
   dismiss?: string[] | undefined;
   /** restrict detection to one check kind */
   kind?: string | undefined;
+  /** confirm every open finding whose acoustic subcategory falls in this
+   *  bucket (subcategory.ts). Acoustic-twin only; requires --yes with
+   *  --apply, or works standalone as a batch-confirm. */
+  bucket?: string | undefined;
   /** execute confirmed autoSafe findings after re-verification. Requires
    *  --yes (two-step safety, same as shelf-dupescan). */
   apply?: boolean | undefined;
@@ -49,6 +54,7 @@ export async function shelfHygiene(
       `${process.env.HOME}/.local/state/megadj/archive.db`,
     confirm = [],
     dismiss = [],
+    bucket,
     apply = false,
     yes = false,
     json = false,
@@ -76,7 +82,7 @@ export async function shelfHygiene(
     const store = new HygieneStore(db);
 
     // ---- decision mode: confirm/dismiss by id(s) ---------------------
-    if (confirm.length || dismiss.length) {
+    if (confirm.length || dismiss.length || bucket) {
       const decided: string[] = [];
       const failed: Array<{ id: string; why: string }> = [];
       const run = (id: string, confirmIt: boolean): void => {
@@ -85,17 +91,47 @@ export async function shelfHygiene(
       };
       for (const id of confirm) run(id, true);
       for (const id of dismiss) run(id, false);
+      // bucket batch-confirm: every OPEN acoustic-twin whose evidence
+      // subcategory falls in the requested bucket (composite buckets
+      // like safe-batch/ear-check match via BUCKET_MEMBERSHIP). Two-step
+      // safety still applies downstream: applying needs --apply --yes
+      // separately.
+      let bucketMatched = 0;
+      if (bucket) {
+        if (!(bucket in BUCKET_MEMBERSHIP)) {
+          fail(
+            `unknown bucket "${bucket}" — valid: ${Object.keys(BUCKET_MEMBERSHIP).join(", ")}`,
+          );
+          return;
+        }
+        const open = store.list({ status: "open", kind: "acoustic-twin" });
+        for (const f of open) {
+          const sub = (f.evidence as Record<string, unknown>).subcategory;
+          if (typeof sub !== "string" || !inBucket(sub, bucket)) continue;
+          if (store.decide(f.id, true)) {
+            decided.push(f.id);
+            bucketMatched++;
+          } else failed.push({ id: f.id, why: "bucket confirm race" });
+        }
+      }
       if (json)
         console.log(
           JSON.stringify({
             command: "shelf-hygiene",
             decided,
+            bucket: bucket ?? null,
+            bucketMatched,
             failed,
           }),
         );
-      else
+      else {
+        if (bucket)
+          console.error(
+            `shelf-hygiene: bucket ${bucket}: ${bucketMatched} confirmed`,
+          );
         for (const f of failed)
           console.error(`shelf-hygiene: ${f.id}: ${f.why}`);
+      }
       if (failed.length) process.exitCode = 1;
       return;
     }

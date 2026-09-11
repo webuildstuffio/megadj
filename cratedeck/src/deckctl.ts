@@ -718,7 +718,7 @@ function usageText(): string {
     "  search <query>                global search: playlists + folders across all drive snapshots",
     "  diff <driveA> <driveB>        added / removed / changed between two drives",
     "  explain [kind]                what each job checks, typical duration, safety",
-    "  hygiene [scan|apply|confirm ID|dismiss ID]  shelf hygiene queue: census + job enqueues + decisions",
+    "  hygiene [scan|apply|bucket NAME|confirm ID|dismiss ID]  shelf hygiene queue: census + jobs + batch-confirm + decisions",
     "  fixes [scan|apply]            booth-fix queue: census + job enqueues (fleet from `deckctl booth`)",
     "  help [term|kind]              glossary + job/surface tour (the UI's help cards, for agents)",
     "  dismiss <drive> <noteId>      retire a note from the active feed (history kept)",
