@@ -1,5 +1,6 @@
 // setbuild.test.ts — M66 set-builder copilot: the pure engine.
-// camelotOf / keyScore / bpmScore / buildSet — propose-only, no I/O.
+// camelotOf / keyScore / bpmScore / buildSet / parseSetbuildQuery —
+// propose-only, no I/O.
 import { describe, expect, test } from "bun:test";
 import {
   SET_PRESETS,
@@ -7,8 +8,10 @@ import {
   bpmScore,
   camelotOf,
   keyScore,
+  parseSetbuildQuery,
   type SetCandidate,
 } from "../src/setbuild";
+import { SET_PRESET_DEFS, SET_PRESET_IDS } from "../shared/types";
 
 const cand = (over: Partial<SetCandidate>): SetCandidate => ({
   videoId: "x",
@@ -170,5 +173,101 @@ describe("buildSet", () => {
     });
     expect(r.steps).toEqual([]);
     expect(r.excluded).toHaveLength(1);
+  });
+
+  test("ties break by videoId — the chain does not depend on pool row order", () => {
+    // two byte-identical candidates except the id: whichever wins must be
+    // decided by the id, not by which row the SQL happened to return first
+    const mk = (order: [string, string][]) =>
+      buildSet({
+        candidates: order.map(([videoId, key]) =>
+          cand({ videoId, key, bpm: 128 }),
+        ),
+        preset: SET_PRESETS.peak,
+        minutes: 11, // fits exactly two 5-min tracks
+      }).steps.map((s) => s.videoId);
+    // pool order reversed between the two calls — result must not flip
+    expect(
+      mk([
+        ["zz-tie", "8A"],
+        ["aa-tie", "8A"],
+      ]),
+    ).toEqual(
+      mk([
+        ["aa-tie", "8A"],
+        ["zz-tie", "8A"],
+      ]),
+    );
+    // lexicographically-smaller id wins the tie ("aa-tie" opener, "zz-tie" follows)
+    expect(
+      mk([
+        ["zz-tie", "8A"],
+        ["aa-tie", "8A"],
+      ]),
+    ).toEqual(["aa-tie", "zz-tie"]);
+  });
+
+  test("opener pick is deterministic under equal arc distance too", () => {
+    const pair = [
+      cand({ videoId: "b-eq", arousal: 6 }),
+      cand({ videoId: "a-eq", arousal: 6 }),
+    ];
+    const r = buildSet({
+      candidates: pair,
+      preset: SET_PRESETS.peak,
+      minutes: 5,
+    });
+    expect(r.steps[0]!.videoId).toBe("a-eq"); // localeCompare tie-break
+  });
+});
+
+describe("parseSetbuildQuery", () => {
+  test("defaults: absent preset/minutes → peak / 60", () => {
+    expect(parseSetbuildQuery({})).toEqual({ preset: "peak", minutes: 60 });
+    expect(parseSetbuildQuery({ preset: null, minutes: null })).toEqual({
+      preset: "peak",
+      minutes: 60,
+    });
+  });
+  test("minutes clamp into 10–240, default when non-numeric", () => {
+    expect(parseSetbuildQuery({ minutes: "999" })).toEqual({
+      preset: "peak",
+      minutes: 240,
+    });
+    expect(parseSetbuildQuery({ minutes: "1" })).toEqual({
+      preset: "peak",
+      minutes: 10,
+    });
+    expect(parseSetbuildQuery({ minutes: "banana" })).toEqual({
+      preset: "peak",
+      minutes: 60,
+    });
+    expect(parseSetbuildQuery({ minutes: "90" })).toEqual({
+      preset: "peak",
+      minutes: 90,
+    });
+  });
+  test("valid preset accepted", () => {
+    expect(parseSetbuildQuery({ preset: "afterhours" })).toEqual({
+      preset: "afterhours",
+      minutes: 60,
+    });
+  });
+  test("unknown preset → error, never a silent peak fallback", () => {
+    const r = parseSetbuildQuery({ preset: "wedding" });
+    expect("error" in r).toBe(true);
+    if ("error" in r) expect(r.error).toContain("warmup, peak, afterhours");
+  });
+});
+
+describe("SET_PRESETS registry census (derive, never hand-copy)", () => {
+  test("engine registry matches the shared SET_PRESET_DEFS table exactly", () => {
+    expect(Object.keys(SET_PRESETS).toSorted()).toEqual(
+      SET_PRESET_IDS.slice().toSorted(),
+    );
+    for (const def of SET_PRESET_DEFS) {
+      const derived = SET_PRESETS[def.id];
+      expect(derived).toBe(def); // same object — a true derivation
+    }
   });
 });

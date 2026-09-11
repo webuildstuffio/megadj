@@ -21,6 +21,12 @@
 // - "/" focuses the filter, Escape clears it
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { PlaylistInfo, SnapshotData } from "../../../shared/types";
+import {
+  camelotOf,
+  keyRelation,
+  keySortToken,
+  type CamelotPos,
+} from "../../../shared/camelot";
 import { fmtDur } from "../../../shared/fmt";
 import { Icon } from "../../ui/icons";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
@@ -72,36 +78,10 @@ function buildTrackIndex(snap: SnapshotData | null): Map<string, PlTrack[]> {
   return m;
 }
 
-/** Camelot/Open Key parse: "8A" → [8, 0]. Unparseable keys → null. */
-function camelot(k: string | null): [number, number] | null {
-  if (!k) return null;
-  const m = /^(\d{1,2})\s*([ABab])$/.exec(k.trim());
-  return m ? [parseInt(m[1]!, 10), m[2]!.toLowerCase() === "a" ? 0 : 1] : null;
-}
-
-/** zero-padded sort token so "10B" sorts after "8B" lexicographically */
-function keyToken(k: string | null): string | null {
-  const c = camelot(k);
-  return c ? `${String(c[0]).padStart(2, "0")}${c[1]}` : null;
-}
-
-/** how a track's key relates to the hovered one — the harmonic-mixing rule:
- *  same Camelot number (relative major/minor) or ±1 number, same letter.
- *  Returns "" (no class) when either key is missing/unknown. */
-function keyRelation(
-  k: string | null,
-  hover: [number, number],
-): "" | "k-same" | "k-compat" {
-  const c = camelot(k);
-  if (!c) return "";
-  if (c[0] === hover[0] && c[1] === hover[1]) return "k-same";
-  if (
-    c[0] === hover[0] ||
-    (Math.abs(c[0] - hover[0]) === 1 && c[1] === hover[1])
-  )
-    return "k-compat";
-  return "";
-}
+// Camelot parsing + key-relation glow come from the SHARED parser
+// (shared/camelot.ts). This file used to carry its own camelot() that only
+// read the "8A" notation form — a library whose TKEYs are open-key strings
+// ("Am") glowed ZERO compatible keys. The SSOT accepts both forms.
 
 /** highlight every occurrence of q (case-insensitive) inside text */
 function Hi(props: { text: string; q: string }) {
@@ -507,7 +487,7 @@ function PlTracks({
   q: string;
 }) {
   const [sort, setSort] = useState<CrateSort | null>(null);
-  const [hoverKey, setHoverKey] = useState<[number, number] | null>(null);
+  const [hoverKey, setHoverKey] = useState<CamelotPos | null>(null);
 
   const total = rows.length;
   const bpms = rows.map((t) => t.bpm).filter((b): b is number => b !== null);
@@ -523,7 +503,7 @@ function PlTracks({
         ? t.bpm
         : sort.k === "time"
           ? t.duration_ms
-          : keyToken(t.key);
+          : keySortToken(t.key);
     const nonNull = idx.filter((w) => val(w.t) !== null);
     const nulls = idx.filter((w) => val(w.t) === null);
     nonNull.sort((x, y) => {
@@ -649,7 +629,7 @@ function PlTracks({
           <div
             class="pltrack"
             key={`${i}/${t.title}`}
-            onMouseEnter={() => setHoverKey(camelot(t.key))}
+            onMouseEnter={() => setHoverKey(camelotOf(t.key))}
           >
             <span class="pltrack-i">{i + 1}</span>
             <span class="pltrack-name">
@@ -663,7 +643,13 @@ function PlTracks({
             <span class="pltrack-n">{t.bpm ? Math.round(t.bpm) : "—"}</span>
             <span
               class={`pltrack-k${
-                hoverKey ? ` ${keyRelation(t.key, hoverKey)}` : ""
+                hoverKey
+                  ? keyRelation(t.key, hoverKey) === "same"
+                    ? " k-same"
+                    : keyRelation(t.key, hoverKey) === "compat"
+                      ? " k-compat"
+                      : ""
+                  : ""
               }`}
             >
               {t.key ?? "—"}

@@ -72,10 +72,18 @@ export async function mood(opts: MoodOptions): Promise<void> {
   // Embedding request rides along: every file visited here gets its vector
   // computed in pass 2 anyway, so pass-1 files must not miss out (I49).
   let synced = 0;
+  let energySynced = 0;
   const needAnalysis: TrackRow[] = [];
   const needEmbedding: TrackRow[] = [];
   for (const t of candidates) {
-    const stamp = groundTruth(t.file_path!).mood;
+    const truth = groundTruth(t.file_path!);
+    // Energy stamp → DB column mirror (same idea as the mood ledger sync:
+    // the file is ground truth; the column feeds audit/complete checks).
+    if (truth.energy !== null && t.energy === null && !opts.dryRun) {
+      opts.state.updateEnergyColumn(t.video_id, truth.energy);
+      energySynced++;
+    }
+    const stamp = truth.mood;
     const m = stamp ? parseMoodStamp(stamp) : undefined;
     if (!m) {
       needAnalysis.push(t);
@@ -141,13 +149,19 @@ export async function mood(opts: MoodOptions): Promise<void> {
   // A zero-work run must read as SUCCESS (same contract as beats/cues):
   // "analyzed 0" once WAS a real bug (the queue reference defect), so
   // the summary now states why nothing ran.
-  if (synced === 0 && analyzed === 0 && failed === 0 && !opts.dryRun) {
+  if (
+    synced === 0 &&
+    analyzed === 0 &&
+    failed === 0 &&
+    energySynced === 0 &&
+    !opts.dryRun
+  ) {
     log(
       `\nmood complete: nothing to do — all ${total} tracks already ledgered (run with --force to re-analyze)`,
     );
   } else {
     log(
-      `\nmood complete: ${synced} synced from file stamps, ${analyzed} analyzed, ${failed} failed, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}${embedded !== undefined ? `, ${embedded} embedded` : ""}`,
+      `\nmood complete: ${synced} synced from file stamps, ${analyzed} analyzed, ${failed} failed, ${energySynced} energy columns synced, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}${embedded !== undefined ? `, ${embedded} embedded` : ""}`,
     );
   }
   console.log(
@@ -156,6 +170,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
       synced,
       analyzed,
       failed,
+      energySynced,
       ledgered: total,
       ...(embedded !== undefined ? { embedded } : {}),
       dryRun: opts.dryRun === true,

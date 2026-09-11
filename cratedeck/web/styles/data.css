@@ -98,6 +98,20 @@
 .dt-row.row-tone-bad:hover {
   background: rgba(242, 85, 90, 0.08);
 }
+/* the ok/warn tones (set-builder mix quality): green = clean transition,
+   amber = tight (usable, watch it) */
+.dt-row.row-tone-ok {
+  background: rgba(56, 224, 164, 0.045);
+}
+.dt-row.row-tone-ok:hover {
+  background: rgba(56, 224, 164, 0.08);
+}
+.dt-row.row-tone-warn {
+  background: rgba(233, 195, 90, 0.05);
+}
+.dt-row.row-tone-warn:hover {
+  background: rgba(233, 195, 90, 0.08);
+}
 .dt-row .btn {
   flex: none;
 }

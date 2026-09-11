@@ -3,15 +3,18 @@
 //
 // Two propose-only views over the measured ledgers (§4-A1: nothing here
 // writes anything):
+//   Sounds like (I49) — nearest tracks by effnet-embedding cosine
 //   Set builder (M66) — an ordered mix proposal from beats BPM + file TKEY
 //                       + mood axes, shaped by an energy-arc preset
-//   Sounds like (I49) — nearest tracks by effnet-embedding cosine
 import { useState } from "preact/hooks";
 import type {
   ArchiveSimilar,
   ArchiveSearchHit,
   SetBuildPayload,
+  SetPresetDef,
 } from "../../../shared/types";
+import { SET_PRESET_DEFS } from "../../../shared/types";
+import { camelotOf } from "../../../shared/camelot";
 import { api } from "../../ui/toast";
 import { errMessage } from "../../../shared/fmt";
 import { Icon } from "../../ui/icons";
@@ -25,7 +28,9 @@ import {
   KVKey,
   KVVal,
   Card,
+  SearchBar,
 } from "../../ui/data";
+import { Sparkline } from "../../ui/charts";
 import { SectionHead, Verdict, TrackTitle } from "../shared";
 
 export function SimilarTab() {
@@ -64,13 +69,12 @@ export function SimilarTab() {
         next="Empty corpus = embeddings not computed yet — run `megadj mood --embeddings`. Empty pool = run `megadj beats` too."
       />
       <SetBuildPanel />
-      <div class="pl-tools">
-        <input
-          placeholder="Pick a track — search by title or artist…"
-          value={query}
-          onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
-        />
-      </div>
+      <SectionHead icon="compass" title="Sounds like — nearest by embedding" />
+      <SearchBar
+        value={query}
+        onInput={(v) => setQuery(v)}
+        placeholder="Pick a track — search by title or artist…"
+      />
       {search.status === "ok" &&
         search.data &&
         !picked &&
@@ -162,20 +166,25 @@ export function SimilarTab() {
 
 // ---- set-builder (M66, propose-only) ----------------------------------------
 // The wire envelope (SetBuildPayload) is DERIVED from shared/types.ts —
-// never re-declare server shapes locally (a local duplicate drifted once).
+// never re-declare server shapes locally (a local duplicate drifted once
+// and crashed the render). The preset picker derives from the SAME
+// SET_PRESET_DEFS registry the engine scores against.
 
 const fmtBpm = (bpm: number | null): string =>
   bpm === null ? "—" : String(Math.round(bpm * 10) / 10);
 
-const SET_PRESET_LABELS: Record<string, string> = {
-  warmup: "Warm-up",
-  peak: "Peak time",
-  afterhours: "After hours",
-};
+/** preset id → human label, straight from the shared registry (unknown id
+ *  falls back to the raw id rather than lying). Module scope so the panel
+ *  doesn't recreate it per render. */
+const presetLabel = (id: string): string =>
+  SET_PRESET_DEFS.find((p) => p.id === id)?.label ?? id;
 
+/** "62.3m" cumulative clock + the ±6% window's key/tempo pills per step. */
 function SetBuildPanel() {
-  const [preset, setPreset] = useState<"warmup" | "peak" | "afterhours">(
-    "peak",
+  // the picker is keyed off the SHARED registry — preset ids, labels and
+  // arc descriptions render from SET_PRESET_DEFS, never a local twin
+  const [preset, setPreset] = useState<SetPresetDef>(
+    SET_PRESET_DEFS.find((p) => p.id === "peak") ?? SET_PRESET_DEFS[0]!,
   );
   const [minutes, setMinutes] = useState(60);
   const [build, setBuild] = useState<{
@@ -188,7 +197,7 @@ function SetBuildPanel() {
     setBuild({ data: null, loading: true, error: null });
     try {
       const data = await api<SetBuildPayload>(
-        `/api/archive/setbuild?preset=${preset}&minutes=${minutes}`,
+        `/api/archive/setbuild?preset=${preset.id}&minutes=${minutes}`,
       );
       setBuild({ data, loading: false, error: null });
     } catch (e) {
@@ -196,33 +205,36 @@ function SetBuildPanel() {
     }
   };
 
+  // the chain's BPM arc — the same energy-arc glance the crate browser has
+  const arcBpms =
+    build.data?.steps
+      .map((s) => s.bpm)
+      .filter((b): b is number => b !== null) ?? [];
+
   return (
-    <div class="card">
-      <SectionHead icon="compass" title="Set builder — propose a mix" />
-      <div
-        class="pl-tools"
-        style={{
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <select
-          value={preset}
-          onChange={(e) =>
-            setPreset((e.target as HTMLSelectElement).value as typeof preset)
-          }
-        >
-          {Object.entries(SET_PRESET_LABELS).map(([id, label]) => (
-            <option value={id} key={id}>
-              {label}
-            </option>
+    <Card class="setbuild">
+      <SectionHead
+        icon="compass"
+        title="Set builder — propose a mix"
+      ></SectionHead>
+      <div class="setbuild-controls">
+        <div class="seg" role="radiogroup" aria-label="Energy arc preset">
+          {SET_PRESET_DEFS.map((p) => (
+            <button
+              type="button"
+              key={p.id}
+              class={preset.id === p.id ? "on" : ""}
+              title={p.description}
+              aria-pressed={preset.id === p.id}
+              onClick={() => setPreset(p)}
+            >
+              {p.label}
+            </button>
           ))}
-        </select>
+        </div>
         <label
-          class="muted"
-          style={{ display: "flex", gap: 6, alignItems: "center" }}
+          class="muted setbuild-minutes"
+          title="Target set length — the chain fills until the budget is spent"
         >
           minutes
           <input
@@ -231,17 +243,15 @@ function SetBuildPanel() {
             max={240}
             value={minutes}
             style={{ width: 72 }}
-            onChange={(e) =>
+            aria-label="Target set length in minutes (10–240)"
+            onChange={(e) => {
+              const raw = Number((e.target as HTMLInputElement).value);
               setMinutes(
-                Math.min(
-                  240,
-                  Math.max(
-                    10,
-                    Number((e.target as HTMLInputElement).value) || 60,
-                  ),
-                ),
-              )
-            }
+                Number.isFinite(raw)
+                  ? Math.min(240, Math.max(10, Math.round(raw)))
+                  : 60,
+              );
+            }}
           />
         </label>
         <button
@@ -253,6 +263,7 @@ function SetBuildPanel() {
           <Icon name="play" size={12} />{" "}
           {build.loading ? "building…" : "Build proposal"}
         </button>
+        <span class="setbuild-desc">{preset.description}</span>
       </div>
       {build.error && <div class="arch-fix">build failed: {build.error}</div>}
       {build.data && (
@@ -262,7 +273,7 @@ function SetBuildPanel() {
             text={
               build.data.pool === 0
                 ? "No candidates — run `megadj beats` + `megadj mood` so the builder has BPM/mood data."
-                : `${build.data.steps.length}-track ${SET_PRESET_LABELS[build.data.preset] ?? build.data.preset} proposal from a ${build.data.pool}-track pool — ${build.data.minutes} min.`
+                : `${build.data.steps.length}-track ${presetLabel(build.data.preset)} proposal from a ${build.data.pool}-track pool — ${build.data.minutes} min.`
             }
             meta="propose-only — nothing is written; accept tracks into a playlist by hand"
           />
@@ -319,6 +330,29 @@ function SetBuildPanel() {
                 sortValue: (s) => s.key,
               },
               {
+                key: "mix",
+                head: "mix",
+                align: "center",
+                min: 44,
+                grow: 0,
+                cell: (s) =>
+                  s.transition === null ? (
+                    <span title="Opener — no transition into it">open</span>
+                  ) : (
+                    <span
+                      class={`arch-pill ${s.transition >= 0.75 ? "ok" : "muted"}`}
+                      title={`transition score into this track: ${s.transition.toFixed(3)} (tempo + key + arc fit)`}
+                    >
+                      {s.transition >= 0.75
+                        ? "clean"
+                        : s.transition >= 0.5
+                          ? "ok"
+                          : "tight"}
+                    </span>
+                  ),
+                sortValue: (s) => s.transition,
+              },
+              {
                 key: "at",
                 head: "at",
                 align: "end",
@@ -338,16 +372,58 @@ function SetBuildPanel() {
                   `${s.atMin}min  ${fmtBpm(s.bpm)} BPM ${s.key ?? ""}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}`,
               )
             }
+            rowTone={(s) => {
+              // first step has no transition — never tinted
+              if (s.transition === null) return "";
+              return s.transition >= 0.5 ? "ok" : "warn";
+            }}
           />
-          {build.data.excluded_total > 0 && (
-            <div class="arch-fix">
-              {build.data.excluded_total} of {build.data.pool} candidates not in
-              the chain —{" "}
-              {build.data.excluded[0]?.reason ?? "see the excluded list"}
+          {arcBpms.length >= 2 && (
+            <div class="setbuild-arc">
+              <span class="muted">bpm arc</span>
+              <Sparkline
+                values={arcBpms}
+                title={`Energy arc across the chain (${Math.round(Math.min(...arcBpms))}–${Math.round(Math.max(...arcBpms))} BPM)`}
+              />
+              <span class="muted">
+                {camelotOf(build.data.steps[0]?.key)?.n ?? "—"}
+                {" → "}
+                {(() => {
+                  const keys = build.data.steps
+                    .map((s) => camelotOf(s.key))
+                    .filter((k) => k !== null);
+                  return keys.length > 0
+                    ? `${keys[keys.length - 1]!.n}${keys[keys.length - 1]!.letter}`
+                    : "—";
+                })()}
+              </span>
             </div>
+          )}
+          {build.data.excluded_total > 0 && (
+            <details class="setbuild-excluded">
+              <summary>
+                {build.data.excluded_total} of {build.data.pool} candidates not
+                in the chain — why?
+              </summary>
+              <KVRows>
+                {build.data.excluded.slice(0, 40).map((e) => (
+                  <KVRow key={e.videoId}>
+                    <KVKey>{e.title ?? e.videoId}</KVKey>
+                    <KVVal>{e.reason}</KVVal>
+                  </KVRow>
+                ))}
+                {build.data.excluded_total > build.data.excluded.length && (
+                  <div class="fleet-note">
+                    …and{" "}
+                    {build.data.excluded_total - build.data.excluded.length}{" "}
+                    more
+                  </div>
+                )}
+              </KVRows>
+            </details>
           )}
         </>
       )}
-    </div>
+    </Card>
   );
 }

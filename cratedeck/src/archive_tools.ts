@@ -7,6 +7,8 @@
 // of hand-written JSON-Schema boilerplate.
 
 import { apiGet } from "./deckapi";
+import { parseSetbuildQuery } from "./setbuild";
+import { SET_PRESET_IDS } from "../shared/types";
 import {
   str,
   num,
@@ -176,7 +178,7 @@ export function archiveTools(): Record<string, unknown> {
       inputSchema: obj({
         preset: {
           type: "string",
-          enum: ["warmup", "peak", "afterhours"],
+          enum: SET_PRESET_IDS,
           description: "energy-arc preset (default peak)",
         },
         minutes: n("target set length in minutes (default 60, 10–240)"),
@@ -184,11 +186,15 @@ export function archiveTools(): Record<string, unknown> {
         limit: n("candidate pool cap (default 300, max 1000)"),
       }),
       run: async (args: Record<string, unknown>) => {
-        const preset = str(args, "preset") ?? "peak";
-        const q = new URLSearchParams({ preset });
-        const minutes = num(args, "minutes");
-        if (minutes !== undefined)
-          q.set("minutes", String(Math.floor(minutes)));
+        // same validation as the HTTP route (parseSetbuildQuery): unknown
+        // preset → RpcParamError, never a silent peak-time fallback.
+        const parsed = parseSetbuildQuery({
+          preset: str(args, "preset") ?? null,
+          minutes: num(args, "minutes") ?? null,
+        });
+        if ("error" in parsed) throw new RpcParamError(parsed.error);
+        const q = new URLSearchParams({ preset: parsed.preset });
+        q.set("minutes", String(parsed.minutes));
         const opener = str(args, "opener");
         if (opener) q.set("opener", opener);
         const res = await apiGet(

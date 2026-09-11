@@ -9,6 +9,17 @@
 //
 // Same shape as fleet.ts: pure functions in, plain data out, no I/O —
 // the API route / MCP tool / UI feed it and render it.
+import { camelotOf, keyCompatScore } from "../shared/camelot";
+import {
+  SET_MINUTES_DEFAULT,
+  SET_MINUTES_MAX,
+  SET_MINUTES_MIN,
+  SET_PRESET_DEFS,
+  SET_PRESET_IDS,
+  DEFAULT_SET_PRESET,
+  type SetPresetDef,
+  type SetPresetId,
+} from "../shared/types";
 
 export interface SetCandidate {
   videoId: string;
@@ -25,97 +36,68 @@ export interface SetCandidate {
   dance: number | null;
 }
 
-export interface SetPreset {
-  id: "warmup" | "peak" | "afterhours";
-  label: string;
-  description: string;
-  /** arousal envelope [start, end] on the 1–9 scale. */
-  arousal: [number, number];
-  /** danceability envelope [start, end] on the 0–1 scale. */
-  dance: [number, number];
-}
+// N80 energy-arc presets — DERIVED from the shared registry
+// (shared/types.ts SET_PRESET_DEFS), never hand-copied: the route, the UI
+// picker and this engine read the same table so a new preset lands
+// everywhere at once. SetPresetDef is the shared interface.
+export const SET_PRESETS: Record<SetPresetId, SetPresetDef> =
+  Object.fromEntries(SET_PRESET_DEFS.map((p) => [p.id, p])) as Record<
+    SetPresetId,
+    SetPresetDef
+  >;
+export type { SetPresetDef, SetPresetId };
+/** The preset type `buildSet` scores against (alias of the shared def —
+ *  the old local `SetPreset` interface name, kept for callers). */
+export type SetPreset = SetPresetDef;
 
-/** N80 energy-arc presets — designed to feed exactly this engine. */
-export const SET_PRESETS: Record<SetPreset["id"], SetPreset> = {
-  warmup: {
-    id: "warmup",
-    label: "Warm-up",
-    description: "Slow-burn opener arc — builds gently into the night.",
-    arousal: [2.5, 5.5],
-    dance: [0.4, 0.7],
-  },
-  peak: {
-    id: "peak",
-    label: "Peak time",
-    description: "High energy throughout, slight lift toward the end.",
-    arousal: [6, 8.5],
-    dance: [0.7, 0.95],
-  },
-  afterhours: {
-    id: "afterhours",
-    label: "After hours",
-    description: "Starts deep and hypnotic, drifts darker and slower.",
-    arousal: [5, 3],
-    dance: [0.75, 0.6],
-  },
-};
+/** Clamp + validate the setbuild query params in ONE place — the HTTP
+ *  route, the MCP tool and any future caller share it. Minutes fall back
+ *  to the default when missing/non-numeric and clamp to the documented
+ *  range (a caller can't smuggle `minutes=99999` past the UI's input
+ *  field); preset defaults when absent. `parseSetbuildQuery` distinguishes
+ *  "absent" from "invalid": an unknown preset id is a caller bug and
+ *  surfaces as an error string instead of silently re-scoring as peak. */
+export function parseSetbuildQuery(params: {
+  preset?: string | null;
+  minutes?: string | number | null;
+}): { preset: SetPresetId; minutes: number } | { error: string } {
+  const presetRaw = params.preset?.trim();
+  if (presetRaw) {
+    if (!(SET_PRESET_IDS as string[]).includes(presetRaw))
+      return {
+        error: `unknown preset "${presetRaw}" — expected one of: ${SET_PRESET_IDS.join(", ")}`,
+      };
+  }
+  const preset: SetPresetId = presetRaw
+    ? (presetRaw as SetPresetId)
+    : DEFAULT_SET_PRESET;
 
-/** Camelot wheel position of a key string. Accepts "8A", "8a", "8B" and
- * common open-key names ("Am", "C") by mapping through the standard
- * open-key-to-Camelot table. Returns null when unparsable — unparsable
- * keys never block the chain (they just lose key-score). */
-export function camelotOf(
-  key: string | null,
-): { n: number; letter: "A" | "B" } | null {
-  if (!key) return null;
-  const m = /^([1-9]|1[0-2])\s*([ABab])$/.exec(key.trim());
-  if (m)
-    return { n: parseInt(m[1]!, 10), letter: m[2]!.toUpperCase() as "A" | "B" };
-  const OPEN: Record<string, [number, "A" | "B"]> = {
-    "A#m": [1, "B"],
-    Ab: [1, "A"],
-    B: [1, "B"],
-    Bb: [6, "B"],
-    Bbm: [3, "A"],
-    C: [8, "B"],
-    "C#": [12, "B"],
-    "C#m": [12, "A"],
-    Cm: [5, "A"],
-    Db: [3, "B"],
-    D: [10, "B"],
-    Dm: [7, "A"],
-    Eb: [9, "B"],
-    Ebm: [2, "A"],
-    E: [12, "B"],
-    Em: [9, "A"],
-    F: [11, "B"],
-    "F#": [7, "B"],
-    "F#m": [11, "A"],
-    Fm: [4, "A"],
-    G: [9, "B"],
-    "G#m": [6, "A"],
-    Gb: [2, "B"],
-    Gbm: [2, "A"],
-    Gm: [6, "A"],
-    A: [11, "B"],
-    Am: [8, "A"],
+  const minutesRaw = params.minutes;
+  if (minutesRaw === null || minutesRaw === undefined || minutesRaw === "") {
+    return { preset, minutes: SET_MINUTES_DEFAULT };
+  }
+  const n =
+    typeof minutesRaw === "number" ? minutesRaw : Number(String(minutesRaw));
+  if (!Number.isFinite(n)) return { preset, minutes: SET_MINUTES_DEFAULT };
+  return {
+    preset,
+    minutes: Math.min(
+      SET_MINUTES_MAX,
+      Math.max(SET_MINUTES_MIN, Math.round(n)),
+    ),
   };
-  const hit = OPEN[key.trim()];
-  return hit ? { n: hit[0], letter: hit[1] } : null;
 }
 
-/** Camelot compatibility score 0..1: 1 = same wheel position or the four
- * classic moves (±1 number same letter, ±1 letter same number). 0 = clash.
- * Either side unparsable → neutral 0.5 (never blocks, never helps). */
+/** Key compat — re-exported from the shared Camelot SSOT so existing
+ *  engine-callers (tests, future engines) keep one import point. */
+export { camelotOf };
+
+/** Camelot compatibility score 0..1 between two candidates. 1 = same wheel
+ * position or the four classic moves (±1 number same letter, ±1 letter
+ * same number). 0 = clash. Either side unparsable → neutral 0.5 (never
+ * blocks, never helps). Thin wrapper over the shared keyCompatScore. */
 export function keyScore(a: SetCandidate, b: SetCandidate): number {
-  const ka = camelotOf(a.key);
-  const kb = camelotOf(b.key);
-  if (!ka || !kb) return 0.5;
-  if (ka.n === kb.n && ka.letter === kb.letter) return 1; // same key
-  if (ka.letter === kb.letter && Math.abs(ka.n - kb.n) === 1) return 1; // energy flow
-  if (ka.n === kb.n && ka.letter !== kb.letter) return 1; // mood lift
-  if (Math.abs(ka.n - kb.n) === 1 && ka.letter !== kb.letter) return 0.9; // diagonal
-  return 0; // clash
+  return keyCompatScore(camelotOf(a.key), camelotOf(b.key));
 }
 
 /** Tempo compatibility 0..1: 1 within ±2%, linearly down to 0 at ±6% —
@@ -182,7 +164,9 @@ const candidateDuration = (c: SetCandidate): number => c.durationS ?? 300;
 /** Greedy chain: score every remaining candidate for each next slot, take
  * the best. O(n²) — fine at archive scale (thousands), trivially testable.
  * Deterministic: ties break by (score, videoId) so the same input always
- * proposes the same set. */
+ * proposes the same set — the old `s > bestScore` scan kept the FIRST
+ * candidate on ties, which made the chain silently depend on the pool's
+ * `updated_at DESC` row order (re-ingesting reshuffled proposals). */
 export function buildSet(input: SetBuildInput): SetBuildResult {
   const { candidates, preset, minutes } = input;
   const budget = minutes * 60;
@@ -211,6 +195,7 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   };
 
   // opener: requested id, else the candidate closest to the arc's start
+  // (ties break by videoId — the opener pick must be deterministic too)
   let prev: SetCandidate | null = null;
   const opener =
     (input.openerId && pool.find((c) => c.videoId === input.openerId)) ||
@@ -243,11 +228,16 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
     const t = Math.min(1, elapsed / budget);
     let bestIdx = -1;
     let bestScore = -1;
+    let bestId = "";
     for (let i = 0; i < pool.length; i++) {
-      const s = transitionScore(prev!, pool[i]!, preset, t);
-      if (s > bestScore) {
+      const c = pool[i]!;
+      const s = transitionScore(prev, c, preset, t);
+      // strict > keeps scanning on ties; the (score, videoId) pair decides —
+      // lexicographically-smaller id wins a tie, independent of row order
+      if (s > bestScore || (s === bestScore && c.videoId < bestId)) {
         bestScore = s;
         bestIdx = i;
+        bestId = c.videoId;
       }
     }
     if (bestIdx < 0 || bestScore <= 0) {

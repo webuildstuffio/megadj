@@ -109,6 +109,22 @@ if p.lower().endswith(".wav"):
                 tags[k.split(":")[0]] = v
             except Exception:
                 pass
+elif p.lower().endswith((".m4a", ".m4b")):
+    # MP4 freeform atoms (----:com.apple.iTunes:MOOD etc.) carry the
+    # analysis stamps; ffprobe hides them behind opaque ©-keys, so the
+    # ground-truth reader must unwrap them here (Sep 11: 14 renamed
+    # rescue m4as read null mood/energy and re-analyzed forever).
+    from mutagen.mp4 import MP4
+    a = MP4(p)
+    if a.tags:
+        for k, v in a.tags.items():
+            try:
+                if k.startswith("----:"):
+                    tags[k.rsplit(":", 1)[-1]] = bytes(v[0]).decode("utf-8")
+                elif k in ("\\xa9nam", "\\xa9ART", "\\xa9alb", "\\xa9gen", "\\xa9day"):
+                    tags[{"\\xa9nam": "title", "\\xa9ART": "artist", "\\xa9alb": "album", "\\xa9gen": "genre", "\\xa9day": "date"}[k]] = str(v[0])
+            except Exception:
+                pass
 else:
     from mutagen.mp3 import MP3
     a = MP3(p)
@@ -145,10 +161,11 @@ export function groundTruth(p: string): Truth {
   const ext = extname(p).toLowerCase();
   const isWav = ext === ".wav";
   const isMp3 = ext === ".mp3";
+  const isM4a = ext === ".m4a" || ext === ".m4b";
   const ff = ffprobeJson(p);
   let art = ff.hasVideo;
   const merged: Record<string, string> = { ...ff.tags };
-  if (isWav || isMp3) {
+  if (isWav || isMp3 || isM4a) {
     const m = mutagenRead(p);
     if (m.art) art = true;
     for (const [k, v] of Object.entries(m.tags)) {

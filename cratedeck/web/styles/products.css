@@ -274,6 +274,12 @@
   color: var(--warn);
   background: var(--warn-dim);
 }
+.arch-pill.ok {
+  /* long-lived gap: SimilarTab used .arch-pill.ok before this rule existed,
+     so similarity scores rendered as bare text (no pill chrome) */
+  color: var(--accent);
+  background: var(--accent-dim);
+}
 .arch-pill.bad {
   color: var(--bad);
   background: var(--bad-dim);
@@ -281,6 +287,54 @@
 .arch-pill.muted {
   color: var(--muted);
   background: var(--surface4);
+}
+
+/* ---- set builder (M66, FullTags ⌗ Similar) ---------------------------------
+ * The propose-a-mix panel: preset segmented control + minutes + build CTA
+ * on one row; the arc sparkline and the excluded-with-reason list below. */
+.setbuild-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.setbuild-minutes {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+.setbuild-desc {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+.setbuild-arc {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 11.5px;
+}
+.setbuild-arc .muted {
+  color: var(--faint);
+}
+.setbuild-excluded {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.setbuild-excluded summary {
+  cursor: pointer;
+  color: var(--warn);
+  font-weight: 600;
+  user-select: none;
+}
+.setbuild-excluded[open] summary {
+  margin-bottom: 8px;
+}
+.setbuild-excluded .kvrows {
+  font-size: 12px;
 }
 
 /* ---- phase chip (nav strip, right edge) ---------------------------------

@@ -7,8 +7,7 @@
 // URL already sliced to the route part ("/archive/..."). Returns null when
 // no archive route matched so index.ts can fall through.
 import type { ArchiveReader } from "./archive";
-import { SET_PRESETS } from "./setbuild";
-import { buildSet } from "./setbuild";
+import { SET_PRESETS, buildSet, parseSetbuildQuery } from "./setbuild";
 import type { DB } from "./db";
 import type { CrateConfig } from "./config";
 
@@ -113,22 +112,32 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
     },
     // M66 set-builder copilot: propose an ordered mix chain from the
     // measured data (beats BPM + mood axes + file TKEY). Propose-only.
+    // Params validated by the engine's parseSetbuildQuery (shared with the
+    // MCP tool): unknown preset → 400, never a silent peak-time fallback;
+    // minutes clamp to 10–240; defaults live in shared/types.ts so every
+    // surface agrees.
     setbuild: (url, archive) => {
-      const presetId = (url.searchParams.get("preset") ?? "peak") as
-        "warmup" | "peak" | "afterhours";
-      const preset = SET_PRESETS[presetId] ?? SET_PRESETS.peak!;
-      const minutes = Math.min(
-        Math.max(intParam(url.searchParams.get("minutes")) ?? 60, 10),
-        240,
-      );
+      const parsed = parseSetbuildQuery({
+        preset: url.searchParams.get("preset"),
+        minutes: url.searchParams.get("minutes"),
+      });
+      if ("error" in parsed) return json({ error: parsed.error }, 400);
       const limit = intParam(url.searchParams.get("limit")) ?? 300;
       const opener = url.searchParams.get("opener") ?? undefined;
+      const preset = SET_PRESETS[parsed.preset];
       const { total, candidates } = archive.setCandidates(limit);
-      const built = buildSet({ candidates, preset, minutes, openerId: opener });
+      const built = buildSet({
+        candidates,
+        preset,
+        minutes: parsed.minutes,
+        openerId: opener,
+      });
       return json({
         available: archive.available(),
         pool: total,
-        preset: preset.id,
+        // the wire contract is the preset ID (SetBuildPayload.preset: string)
+        // — consumers resolve labels from the shared SET_PRESET_DEFS registry
+        preset: built.preset,
         minutes: built.minutes,
         steps: built.steps,
         excluded: built.excluded.slice(0, 40),

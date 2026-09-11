@@ -166,9 +166,10 @@ def track_inventory(db: Any, contents: list[Any]) -> list[dict[str, Any]]:
     """Per-track fleet rows (ideas.md §B6/B7/B8): path-keyed identity plus the
     metadata the coverage UI shows. Casefolded here so TS consumers never
     re-implement the fold. Only audio rows (fileType 4=mp3, 1=others)."""
-    from pyrekordbox.devicelib_plus.models import Artist
+    from pyrekordbox.devicelib_plus.models import Artist, Key
 
     artist_names = {a.artist_id: a.name for a in db.query(Artist).all()}
+    key_names = {k.key_id: k.name for k in db.query(Key).all()}
     out = []
     for c in contents:
         if c.fileType not in (4, 1) or not c.path:
@@ -184,7 +185,11 @@ def track_inventory(db: Any, contents: list[Any]) -> list[dict[str, Any]]:
                 "title": (title or "").strip() or None,
                 "artist": (artist or "").strip() or None,
                 "bpm": bpmx / 100.0 if bpmx else None,
-                "key": None,  # key name join is done in dj_stats; kept None here
+                # rekordbox's Key table name (e.g. "8A") — the crate
+                # browser's key sort/glow reads this. Was hardcoded None
+                # while dj_stats() already did the join, so every key
+                # column shipped dead.
+                "key": key_names.get(getattr(c, "key_id", None)),
                 "duration_ms": int(dur * 1000) if dur else None,
             }
         )

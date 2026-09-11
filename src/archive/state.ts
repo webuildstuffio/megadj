@@ -380,6 +380,16 @@ export class ArchiveState {
       .run(newFilePath, this.now(), videoId);
   }
 
+  /** Sync the energy column from a file's TXXX:ENERGY stamp. The column is
+   *  written at ingest, but stamps applied later (fulltags --energy) left
+   *  57 archive rows null while the FILE carried truth — this mirrors the
+   *  stamp into the DB the same way mood's ledger sync mirrors MOOD. */
+  updateEnergyColumn(videoId: string, energy: number): void {
+    this.db
+      .query(`UPDATE tracks SET energy = ?, updated_at = ? WHERE video_id = ?`)
+      .run(energy, this.now(), videoId);
+  }
+
   /** The downloaded row currently pointing at this exact file, if any.
    *  Ingest's upgrade path uses this to REPLACE the existing registration
    *  (same video_id → beats/mood/cues ledger history survives) instead of
