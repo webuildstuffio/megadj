@@ -66,6 +66,9 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
         temperature: 0.1,
         max_tokens: 2000,
       }),
+      // Bounded like every other network leg — a hung gateway request must
+      // not stall the pipeline (Sep 11 drop stall lesson).
+      signal: AbortSignal.timeout(45_000),
     });
     if (!res.ok) {
       console.error(`genre AI → HTTP ${res.status}`);

@@ -109,6 +109,10 @@ export async function soundcloudArtwork(
   try {
     const oembed = await fetch(
       `https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(pageUrl)}`,
+      // Every network leg needs a deadline: a stalled connection here hung
+      // a fetch-all worker forever (0% CPU, socket half-open) and a few
+      // stalls deadlocked the whole worker pool (Sep 11 drop stall).
+      { signal: AbortSignal.timeout(12000) },
     );
     if (oembed.ok) {
       const data = (await oembed.json()) as { thumbnail_url?: string };
@@ -119,6 +123,7 @@ export async function soundcloudArtwork(
     }
     const page = await fetch(pageUrl, {
       headers: { "User-Agent": UA["User-Agent"] },
+      signal: AbortSignal.timeout(12000),
     });
     if (page.ok) {
       const html = await page.text();
@@ -139,6 +144,7 @@ export async function itunesArtwork(
   try {
     const res = await fetch(
       `https://itunes.apple.com/search?term=${term}&entity=song&limit=1`,
+      { signal: AbortSignal.timeout(12000) },
     );
     if (!res.ok) {
       console.error(`itunes search → HTTP ${res.status}`);
@@ -162,6 +168,7 @@ export async function deezerArt(r: ArtRow): Promise<Uint8Array | null> {
     const d = (await (
       await fetch(`https://api.deezer.com/search?q=${q}&limit=3`, {
         headers: UA,
+        signal: AbortSignal.timeout(12000),
       })
     ).json()) as {
       data?: {
