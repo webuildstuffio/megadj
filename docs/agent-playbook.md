@@ -6,6 +6,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 
 ## Ground-rule mechanics
 
+- **Prose passes:** preserve em dashes and punctuation in shipped docs.
 - **Guarded JSON parsing.** `driveBadges` runs on every `/api/status` +
   `/api/drives` request — one unguarded `JSON.parse` of a persisted blob
   (`last_snapshot_json`, `verify_report_json`, `data_json`) 500s the whole
@@ -49,12 +50,13 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 ## Shelf & archive detail
 
 - **Shelf migration (Sep 9 2026)** copied the full `Contents/` + `PIONEER/`
-  analysis from the master stick. rsync WEDGES on macOS's fskit exFAT driver,
-  so per-dir tar-pipes with file-count resume checks are the proven method
-  (foreground slices; backgrounded runners get reaped and launchd is
-  TCC-blocked from `/Volumes`). A byte-level audit proved the shelf a strict
-  superset of both sticks — Unicode/case-compare artifacts had produced false
-  "missing" counts before.
+  analysis from the master stick and was pushed to origin the same day.
+  rsync WEDGES on macOS's fskit exFAT driver, so per-dir tar-pipes with
+  file-count resume checks are the proven method (foreground slices;
+  backgrounded runners get reaped and launchd is TCC-blocked from
+  `/Volumes`). A byte-level audit proved the shelf a strict superset of both
+  sticks — Unicode/case-compare artifacts had produced false "missing"
+  counts before.
 - **The three-stick sweep** the same day (BANGERS + BOSEXY + empty) became
   `megadj shelf-archive [volume …]`. `--deep` exists because one stick had
   291 same-size different-bytes files — size alone is NOT coverage.
@@ -66,15 +68,10 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 - Divergent same-name rips are preserved as `<name> [<volume>]` twins, never
   overwritten — the shelf's rekordbox DB references its own files.
 
-- **Prose passes:** preserve em dashes and punctuation in shipped docs.
-
 ## Rekordbox detail
 
 - **Master DB on the shelf.** rekordbox won't open without SHELF1 attached;
-  exFAT + SQLite mid-write power-loss is the corruption risk. Bulk relink of
-  relocated audio is Collection view → ⌘A → right-click "Relocate Lost
-  Files" (the right-click is greyed in playlist/device views — the
-  one-by-one trap).
+  exFAT + SQLite mid-write power-loss is the corruption risk.
 - **The `YTMusic Liked` dump** overlaps the artist folders (588 files; ~38%
   dupes) — dedupe is fingerprint-verified + move-to-archive only, never
   delete without explicit OK. Auto-relocate RENUMBERS and scatters dump
@@ -90,11 +87,12 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 - **Whole-table existence check.** A prefix-scoped post-check hid 351 broken
   rewrites and produced two false "done" reports (Sep 10) — that cost the
   user's trust; the final whole-table existence check left only the rows
-  genuinely gone from disk. Hence: after ANY DB path rewrite, verify EVERY
-  row's file exists on disk, never just rows matching a prefix pattern.
+  genuinely gone from disk. Hence the AGENTS.md rule: after ANY DB path
+  rewrite, verify EVERY row's file exists on disk, never just rows matching
+  a prefix pattern.
 - **The shelf device tree.** The shelf's `PIONEER/rekordbox/` tree is the
   migrated old stick's library (identity `DJLIBRARYM`, 3,926 rows) and NO
-  player ever reads the shelf — its EMPTY state is correct, "Synchronize" on
+  player ever reads the shelf — its EMPTY state is correct. "Synchronize" on
   the shelf's device entry is a decoy: it DID write (OneLibrary 3,053→3,926
   = the legacy tree's count), which looks wrong but is the tree reconciling
   to its old-stick identity. The tree view's 3,053 was the true master count
@@ -193,6 +191,9 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 - Analysis gates: key passed at 80.7%; BPM phase-lock and the genre head
   failed and are blocked — batch tag writes stay BLOCKED until re-gate.
 - Booth fleet defaults: on = XDJ-XZ + CDJ-3000 + 2000NXS2, plain 2000 off.
+
+## Process & environment detail
+
 - **No one-time scripts in the repo.** If an operation was done by hand
   (ad-hoc python heredoc, /tmp script, throwaway merge loop), the deliverable
   is the REUSABLE command + its tests + the doc/skill update — the one-off
@@ -200,9 +201,6 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   the command (junk filter, `--deep`, `--trashes`), not in a comment. The
   Sep 9 three-stick manual merge is the precedent: it became
   `megadj shelf-archive` + 10 tests, scratch scripts removed same day.
-
-## Process & environment detail
-
 - **Sep 8 perf benchmark:** full gate `bun run check:full` ~36s → 7.4s,
   `bun test` 385 tests 32.3s → 6.5s (−80%) via `bun test --parallel=16`
   (workers subprocess-bound; 20 adds nothing) + splitting the
@@ -218,10 +216,10 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 - **Hermetic CLI tests** invoke `process.execPath` (real bun binary), not
   the user's `bun` shell shim — the shim chokes on empty-string args
   (`_bp_set: bad array subscript`), a local env artifact that once faked 2
-  test failures. Tracked upstream in webuildstuffio/shell-config.
+  test failures. Tracked upstream in webuildstuffio/shell-config #300.
 - **The local `uv` shim intercepts bare `python3`** — `python3 -c` prints uv
   usage instead of running the code — so one-liners need `/usr/bin/python3`
-  (or `uv run`). Also tracked in webuildstuffio/shell-config.
+  (or `uv run`). Also tracked in webuildstuffio/shell-config #301.
 - **Sticky-exit tests** must reset `process.exitCode` after the assertion —
   bun test reports the PROCESS exit code, so leaving `exitCode = 1` set
   (shelf-archive's no-shelf hard-error test did) made any suite including

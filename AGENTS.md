@@ -44,9 +44,10 @@ mechanics/war-stories behind each rule in `docs/agent-playbook.md`.
 - **Dependency bumps carry a ~5-day release-age floor;** re-run the full
   gate after every bump.
 - **Ship DOM-verified UI, not API-verified** (CDP dump against the live
-  server — the DOM dump is authoritative). Two-thirds UX law: VERDICT banner
-  → fix-first work queue (worst first, each item names its `megadj`/
-  `deckctl` fix command with a Copy button) → raw detail. Headless libs only:
+  server — the DOM dump is authoritative; screenshots show stale `dist/`
+  and `color-mix` quirks). Two-thirds UX law: VERDICT banner → fix-first
+  work queue (worst first, each item names its `megadj`/`deckctl` fix
+  command with a Copy button) → raw detail. Headless libs only:
   `@tanstack/preact-table`, `virtua` (NOT `@tanstack/preact-virtual` —
   doesn't exist), `lucide-preact`, `fuse.js`, `tinykeys`. Web child content
   caps at 1240px.
@@ -64,8 +65,9 @@ and sweep history: `docs/agent-playbook.md`. Key commands and traps:
   `--trashes --into F`, `--deep` (same-size ≠ same-bytes). Siblings:
   `shelf-sync`, `shelf-dedupe`, `shelf-dupescan`, `shelf-sweeps`.
 - rsync WEDGES on fskit exFAT — per-dir tar-pipes + file-count resume
-  checks are the proven method (foreground slices only). Per-file moves
-  with destination MD5 re-verify only (whole-dir `shutil.move` loses
+  checks are the proven method (foreground slices only: backgrounded
+  runners get reaped, and launchd is TCC-blocked from `/Volumes`). Per-file
+  moves with destination MD5 re-verify only (whole-dir `shutil.move` loses
   files). Quarantine/staging dirs live at SHELF ROOT, never inside
   `Contents/`. `PIONEER/` (device DBs) is never walked; `PIONEER REC/` is.
 - Every sweep auto-records a verdict row in the archive DB
@@ -95,39 +97,50 @@ human logs suppressed, exit code still meaningful.
 
 ## Rekordbox realities
 
-- Dual-DB device libraries: OneLibrary `exportLibrary.db` (SQLCipher) +
+Safety first: quit rekordbox before DB edits; never write drive DBs in
+place; never delete source files; dated backups
+(`~/Music/rekordbox/rekordbox_bak_*.zip`) are sacred.
+
+- **Dual-DB device libraries.** OneLibrary `exportLibrary.db` (SQLCipher) +
   legacy `export.pdb`/`exportExt.pdb` older players read. A sync only
   happens when the export.pdb live-row count equals the OneLibrary count.
-  Safety: quit rekordbox before DB edits; never write drive DBs in place;
-  never delete source files. Pipeline:
-  `.claude/skills/rekordbox-usb-sync/SKILL.md`.
+  Pipeline: `.claude/skills/rekordbox-usb-sync/SKILL.md`.
 - **The master DB lives ON the shelf** (`/Volumes/SHELF1/PIONEER/Master/
-  master.db`) — rekordbox won't open without SHELF1. Always pass the DB
-  path positionally to pyrekordbox and confirm `db.session.bind.url`;
+  master.db`) — rekordbox won't open without SHELF1; exFAT + SQLite
+  mid-write power-loss is the corruption risk. Always pass the DB path
+  positionally to pyrekordbox and confirm `db.session.bind.url`;
   `~/Library/Pioneer/rekordbox/master.db` is a stale local copy; never
-  write while rekordbox runs (live WAL). Dated backups
-  (`~/Music/rekordbox/rekordbox_bak_*.zip`) are sacred.
+  write while rekordbox runs (live WAL).
 - **Archive tier ≠ gig tier.** The role-aware check matrix lives ONCE in
   `cratedeck/shared/check_matrix.ts` — preflight, checks, badges, banner
   all DERIVE from it; a local `role === "shelf"` string check is a
   regression (`check-matrix.test.ts` catches it). The shelf's EMPTY
   `PIONEER/rekordbox/` tree is CORRECT (no player reads the shelf);
-  "Synchronize" on the shelf's device entry is a decoy; pdb/OneLibrary
-  parity is informational on shelf tier, a gig-stick gate only. Never
-  "fix" a shelf card by exporting to it.
+  "Synchronize" on the shelf's device entry is a decoy (it writes the old
+  stick's identity back — see playbook before chasing counts); pdb/
+  OneLibrary parity is informational on shelf tier, a gig-stick gate only.
+  Never "fix" a shelf card by exporting to it.
 - **After ANY DB path rewrite, verify EVERY row's file exists on disk —
-  never just prefix-matched rows** (`megadj rb-fix-paths` encodes this +
-  the matching ladder; dry-run by default; flow:
-  `.claude/skills/rekordbox-library-repair/SKILL.md`).
+  never just prefix-matched rows** (a prefix-scoped check once hid 351
+  broken rewrites). `megadj rb-fix-paths` encodes this + the matching
+  ladder; dry-run by default; flow:
+  `.claude/skills/rekordbox-library-repair/SKILL.md`.
+- **rekordbox caches UI state.** Missing File Manager builds its list ONCE
+  when opened — reopen it (or rekordbox) after out-of-band DB edits, or a
+  landed fix looks like a no-op. Bulk relink: Collection view → ⌘A →
+  right-click "Relocate Lost Files" (greyed in playlist/device views).
+  Full mechanics: `.claude/skills/rekordbox-library-repair/SKILL.md`.
+- **RB never reads art in WAVs** — new WAVs convert → AIFF at ingest
+  (`src/commands/wav-to-aiff.ts`); covers render from `artwork_m/s.jpg`
+  thumbnails. **TKEY is read on AIFF/MP3 only**, and RB overwrites imported
+  keys on analysis unless Key analysis is disabled. Research:
+  `docs/rekordbox-wav-artwork.md`.
 - Verify job + help SSOT: `deckctl explain` documents job types; `deckctl
   help [term]` serves the UI glossary/tooltips (`cratedeck/shared/help.ts`).
-- RB never reads art in WAVs — new WAVs convert → AIFF at ingest
-  (`src/commands/wav-to-aiff.ts`); covers render from `artwork_m/s.jpg`
-  thumbnails. TKEY read on AIFF/MP3 only; RB overwrites imported keys on
-  analysis unless Key analysis is disabled. Research:
-  `docs/rekordbox-wav-artwork.md`.
 
 ## CrateDeck invariants (all regression-tested — re-read before touching)
+
+Architecture and wire shapes:
 
 - `shared/types.ts` is the **leaf** of the import graph (imports nothing
   from `src/`). Check cycles: `bunx madge --circular --extensions ts,tsx
@@ -144,37 +157,49 @@ human logs suppressed, exit code still meaningful.
 - Every fetch deadline exceeds its server leg (`api()` 30s; prep digest 75s
   vs 60s sweep leg; `Bun.serve` `idleTimeout: 120`). SSE needs a heartbeat
   + phantom-job reaper.
-- **A running job must never spin forever** (`cratedeck/test/
-  jobs-progress.test.ts`): ETA estimator re-bases every ≥1s; every job leg
-  has a wall-clock budget; the stall watchdog watches the progress FRACTION
-  (not log freshness); cancelled jobs never force `progress: 1`; the dock
-  only spins while a job is genuinely running. **A watchdog fed by activity
-  logs cannot catch a wedge that keeps logging — watch the progress
-  fraction.**
 - SSE `job` events fire up to ~4/s — `App` coalesces to ≤1/s, `DrivePage`
   ≤1/2s; jobs-refresh failures toast ≤ once/30s. Disk-burn guards:
   snapshots 20/drive, events 2000/drive.
-- `setNickname` maps blank-after-trim to null; empty rename cancels, never
-  wipes. `inferRole` compares CONFIGURED master/mirror names, never
-  hardcoded volumes. `setSnapshot` change-detector recurses; `drain()`
-  appends only new stdout bytes; ETA in `setJobProgress` is tri-state;
-  usb_verify `tick(progress, 1)` — pass spans as done/total.
 - `FleetStore.sync` inserts playlist entries `OR IGNORE` (a dirty snapshot
   once emptied all fleet tables). Census/aggregation totals come from
   `COUNT`, never from summing LIMIT-clamped buckets.
-- Surface parity is enforced (`cratedeck/test/surface-parity.test.ts`):
-  a capability on one surface exists on all or carries an exemption row in
-  `docs/surface-parity.md` §4. Web shell = three-product suite (Drives /
-  GetDat / FullTags) with shared chrome in `web/products/shared.tsx`.
+
+Jobs must never lie or spin forever (`cratedeck/test/jobs-progress.test.ts`):
+
+- ETA estimator re-bases every ≥1s; every job leg has a wall-clock budget;
+  the stall watchdog watches the progress FRACTION (not log freshness);
+  cancelled jobs never force `progress: 1`; the dock only spins while a job
+  is genuinely `running`. **A watchdog fed by activity logs cannot catch a
+  wedge that keeps logging — watch the progress fraction.**
+- `setJobProgress` ETA is tri-state (undefined = keep, null = clear);
+  `drain()` appends only new stdout bytes; usb_verify `tick(progress, 1)` —
+  pass spans as done/total.
+
+State and role handling:
+
+- `setNickname` maps blank-after-trim to null; empty rename cancels, never
+  wipes. `inferRole` compares CONFIGURED master/mirror names, never
+  hardcoded volumes. The `setSnapshot` change-detector must recurse.
+
+Surface parity and CLI help:
+
+- A capability on one surface (deckctl / MCP / web) exists on all or has an
+  exemption row in `docs/surface-parity.md` §4
+  (`cratedeck/test/surface-parity.test.ts`). Web shell = three-product
+  suite (Drives / GetDat / FullTags), shared chrome in
+  `web/products/shared.tsx`.
 - `deckctl help [term|kind]` and `--help` work with the server DOWN and
   dispatch BEFORE `ensureServer`; `--help` → stdout, exit 0; exact
   JOB-KIND match wins over a same-named glossary term.
-- UI gotchas: `apiPost` passes `FormData` through UNserialized; `InfoTip`
-  has a `side` prop; preview cache-busters key off save-changing values;
-  `Verdict` accepts `"bad"` (CSS tier must exist); `Donut` takes `hasData`.
-  Verify against the BUILT `web/dist`; servers spawned in one shell call
-  get reaped — relaunch via `deckctl status --json` auto-start, poll
-  across calls.
+
+UI gotchas (each one shipped a real bug — re-read before touching UI):
+
+- `apiPost` passes `FormData` through UNserialized; `InfoTip` has a `side`
+  prop; preview cache-busters key off save-changing values; `Verdict`
+  accepts `"bad"` (CSS tier must exist); `Donut` takes `hasData`. Verify
+  against the BUILT `web/dist`; servers spawned in one shell call get
+  reaped — relaunch via `deckctl status --json` auto-start, poll across
+  calls.
 
 ## FullTags invariants
 
@@ -211,7 +236,9 @@ human logs suppressed, exit code still meaningful.
   leave the config byte-identical.
 - Hermetic CLI tests invoke `process.execPath`, not the user's `bun` shim;
   `python3` one-liners need `/usr/bin/python3` (local `uv` shim). Both are
-  shell-config wrapper defects — see `docs/agent-playbook.md`.
+  shell-config wrapper defects — tracked upstream in
+  webuildstuffio/shell-config #300/#301; details in
+  `docs/agent-playbook.md`.
 - "Do it yourself fully" = hands-on, and a failed fix is reported as
   failed with root cause — false "done" reports are the cardinal sin.
 - Tests exercising sticky-exit paths reset `process.exitCode` after the
