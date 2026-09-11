@@ -112,7 +112,11 @@ findings cannot be batch-confirmed from any spoke.
   label per issue. Bug fixes require a reproducer/regression test, local
   verification, and an evidence-based close; docs issues close only when the
   documented outcome is live and cross-links validate.
-- Use `megamem search` for tracked Markdown discovery; do not manually
-  re-index after edits. Local index/artifacts and the ops log stay gitignored.
+- This repo is a MegaMem workspace (`megadj`): every tracked `*.md` is indexed
+  (stella-400m via the hub embed server) and auto-reindexed ~2s after edits —
+  use `megamem search "<query>"` (or MCP `search` with `workspace: "megadj"`)
+  before grepping docs by hand, and never re-index manually. Config:
+  `.megamem/megadj/search.toml` (gitignored); hub alias lives in the megamem
+  repo's `megamem.toml` — do not hand-edit either.
 - No one-off scripts in the repo. Encode safety in reusable commands, tests,
   and skills. Hardware-gated work ends as an executable runbook.
