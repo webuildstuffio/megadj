@@ -54,19 +54,12 @@ shelf (`PIONEER/Master/master.db`) — SHELF1 must be attached for
 rekordbox to open.
 
 **Archive tier ≠ gig tier (Sep 10, role-aware checks):** the shelf is
-STORAGE — players never read it, so its empty `PIONEER/rekordbox/`
-device tree is the correct state and no device export is needed. The
-whole check stack derives from one typed table,
-`cratedeck/shared/check_matrix.ts` (`CHECK_APPLIES`): preflight, drive
-reports, rail badges, and the drive page's archive-tier banner OMIT
-gig-stick concerns (player compatibility, beatgrid/ANLZ coverage,
-mirror parity, pdb parity, read-speed floor) on shelf-role drives
-instead of failing them. A shelf card shows only archive-relevant
-checks (space, junk, checksums, verify) and reads "master library
-lives here · sticks sync from this". Verify is still real on the
-shelf — it audits audio files + archives — and a FAILED verify shows
-on every tier until re-run (only its freshness sub-verdict is
-gig-tier).
+STORAGE — its empty `PIONEER/rekordbox/` tree is correct and no device
+export is ever needed. The check stack derives from one typed table,
+`cratedeck/shared/check_matrix.ts` (SSOT; mechanics and war story:
+[agent-playbook.md](agent-playbook.md) §Rekordbox detail). A shelf card
+shows only archive-relevant checks and reads "master library lives here ·
+sticks sync from this"; a FAILED verify shows on every tier until re-run.
 
 ### 🎧 GetDat — download & archive — **core shipped, single-source**
 
@@ -134,7 +127,7 @@ gig-tier).
   plugin** packaging. Three fix-all rounds closed 14 CrateDeck bugs
   (progress/ETA/regexes/role-inference/SSE storms) with regression tests;
   the knip gate now blocks dead exports.
-- **Measured state:** 27 server TS files, 21 MCP tools (census-verified),
+- **Measured state:** 27 server TS files, 37 MCP tools (census-verified),
   snapshots capped 20/drive, events 2000/drive; `overall()` never fakes
   healthy; bitrot verdicts come only from real checksum runs.
 - **The gap:** four acceptance items need one real-hardware session
