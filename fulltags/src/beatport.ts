@@ -180,7 +180,7 @@ const artistNames = (list?: BpArtist[]): string[] =>
 /** Parse one raw catalog row into BpTrack. Undefined numeric/string holes
  * degrade to nulls — the scoring layer decides whether the row is usable. */
 function parseTrack(raw: BpRaw): BpTrack | null {
-  const id = raw.id;
+  const { id } = raw;
   if (typeof id !== "number") return null;
   const yearNum = raw.publish_date
     ? Number(raw.publish_date.match(/\d{4}/)?.[0])
@@ -442,7 +442,7 @@ export const BP_STAMP_MAX = 500;
  * always identifiable. Returns the TXXX value or null when nothing to
  * record (null fields never stamp). */
 export function bpStamp(
-  fields: Array<[string, string | number | null]>,
+  fields: [string, string | number | null][],
 ): string | null {
   const parts = fields
     .filter((pair): pair is [string, string | number] => {

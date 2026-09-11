@@ -145,7 +145,7 @@ export async function itunesArtwork(
       return null;
     }
     const data = (await res.json()) as {
-      results?: Array<{ artworkUrl100?: string }>;
+      results?: { artworkUrl100?: string }[];
     };
     const url = data.results?.[0]?.artworkUrl100;
     if (!url) console.error(`itunes search → no artwork result`);
@@ -164,9 +164,9 @@ export async function deezerArt(r: ArtRow): Promise<Uint8Array | null> {
         headers: UA,
       })
     ).json()) as {
-      data?: Array<{
+      data?: {
         album?: { cover_xl?: string; cover_big?: string };
-      }>;
+      }[];
     };
     for (const hit of d.data ?? []) {
       const url = hit.album?.cover_xl ?? hit.album?.cover_big;

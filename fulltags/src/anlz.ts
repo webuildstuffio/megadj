@@ -41,7 +41,7 @@ export interface AnlzGrid {
  * files/fields change" view (tag → byte length). */
 export interface AnlzInventory {
   path: string;
-  sections: Array<{ tag: string; bytes: number }>;
+  sections: { tag: string; bytes: number }[];
 }
 
 const dec = new TextDecoder("utf-16be");
@@ -71,7 +71,7 @@ function tag(b: Uint8Array, off: number): string {
  */
 function walkContainer(data: Uint8Array): {
   path: string;
-  sections: Array<{ tag: string; off: number; total: number }>;
+  sections: { tag: string; off: number; total: number }[];
 } | null {
   if (data.length < 44) return null;
   if (tag(data, 0) !== "PMAI") return null;
@@ -84,7 +84,7 @@ function walkContainer(data: Uint8Array): {
   let end = raw.length;
   while (end > 0 && raw.charCodeAt(end - 1) === 0) end--;
   const path = raw.slice(0, end);
-  const sections: Array<{ tag: string; off: number; total: number }> = [];
+  const sections: { tag: string; off: number; total: number }[] = [];
   let off = 44 + plen;
   while (off < data.length) {
     if (off + 12 > data.length) return null;
@@ -106,7 +106,7 @@ export function parseAnlzGrid(data: Uint8Array): AnlzGrid | null {
   if (!c) return null;
   const pq = c.sections.find((s) => s.tag === "PQTZ");
   if (!pq) return null;
-  const off = pq.off;
+  const { off } = pq;
   // PQTZ: [tag 4][hdrLen 4 = 24][total 4][unknown1 4][unknown2 4][count 4]
   if (u32be(data, off + 4) !== 24) return null;
   const count = u32be(data, off + 20);
@@ -154,7 +154,7 @@ function utf16be(s: string): Uint8Array {
 export function buildAnlz(opts: {
   path: string;
   beats?: AnlzBeat[];
-  extraSections?: Array<{ tag: string; bytes: number }>;
+  extraSections?: { tag: string; bytes: number }[];
 }): Uint8Array {
   const pathBytes = utf16be(opts.path);
 

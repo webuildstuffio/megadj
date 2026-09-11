@@ -22,7 +22,7 @@
  * unreadable (RIFF has no art field) — that stays wavToAiff's job. This
  * module answers "will it PLAY"; convert.ts answers "will it SHOW".
  */
-import type { Probe } from "./probes";
+import type { Probe } from "./media-probe";
 import { resolveFleet, DEFAULT_FLEET, fleetFloor } from "./fleet";
 import type { FleetProfile } from "./fleet";
 /** The configured booth fleet (player ids) — set once by the entrypoint

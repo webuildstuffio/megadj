@@ -10,10 +10,10 @@
 import { canonGenre } from "./schema";
 
 interface MbArtistSearch {
-  artists?: Array<{
+  artists?: {
     name?: string;
     tags?: Array<{ name: string; count: number }>;
-  }>;
+  }[];
 }
 
 const artistCache = new Map<string, string | null>();

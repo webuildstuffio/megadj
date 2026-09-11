@@ -21,7 +21,7 @@ function runMutagen(script: string): string {
   }
 }
 
-/** Run a mutagen script that ends with `print("ok")` — true on ok. */
+/** Run a mutagen script that ends with `print("ok" + ` — true on ok. */
 export function mutagenOk(script: string): boolean {
   return runMutagen(script) === "ok";
 }

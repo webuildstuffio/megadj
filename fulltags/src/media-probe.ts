@@ -5,8 +5,6 @@
  */
 import { $ } from "bun";
 
-const MB_UA = "megadj/0.1 (https://github.com/megadj/megadj)";
-
 /** Shared audio-file probe shape (ffprobe result). */
 export interface Probe {
   ok: boolean;
@@ -98,11 +96,11 @@ export async function probeFile(path: string): Promise<Probe> {
       bit_rate?: string;
       tags?: Record<string, string>;
     };
-    streams?: Array<{
+    streams?: {
       codec_type?: string;
       codec_name?: string;
       sample_rate?: string;
-    }>;
+    }[];
   };
   const formatTags = data.format?.tags ?? {};
   const tags: Record<string, string> = {};
@@ -156,68 +154,4 @@ export function firstTag(
     if (v) return v;
   }
   return null;
-}
-
-/** MusicBrainz recording lookup — fills missing artist/album/date (1 rps). */
-export async function mbRecording(
-  artist: string | null,
-  title: string,
-): Promise<{
-  artist: string | null;
-  album: string | null;
-  date: string | null;
-  artistTags: string;
-  mbid: string | null;
-}> {
-  const q = artist
-    ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
-    : `recording:"${encodeURIComponent(title)}"`;
-  const url = `https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`;
-  try {
-    const res = await fetch(url, { headers: { "User-Agent": MB_UA } });
-    if (!res.ok)
-      return {
-        artist: null,
-        album: null,
-        date: null,
-        artistTags: "",
-        mbid: null,
-      };
-    const data = (await res.json()) as {
-      recordings?: Array<{
-        id?: string;
-        "artist-credit"?: Array<{
-          name?: string;
-          artist?: {
-            name?: string;
-            tags?: Array<{ name: string; count: number }>;
-          };
-        }>;
-        releases?: Array<{ title?: string; date?: string }>;
-      }>;
-    };
-    const rec = data.recordings?.[0];
-    const credit = rec?.["artist-credit"]?.[0];
-    const mbArtist = credit?.artist?.name ?? credit?.name ?? null;
-    const rel = rec?.releases?.[0];
-    const tags = (credit?.artist?.tags ?? [])
-      .toSorted((a, b) => b.count - a.count)
-      .map((t) => t.name)
-      .slice(0, 3);
-    return {
-      artist: mbArtist,
-      album: rel?.title ?? null,
-      date: rel?.date ?? null,
-      artistTags: tags.join(","),
-      mbid: rec?.id ?? null,
-    };
-  } catch {
-    return {
-      artist: null,
-      album: null,
-      date: null,
-      artistTags: "",
-      mbid: null,
-    };
-  }
 }

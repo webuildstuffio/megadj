@@ -28,7 +28,7 @@ import {
   twinArt,
   type ArtRow,
 } from "./art-sources";
-import { energyFromLufs, measureRms } from "./probes";
+import { energyFromLufs, measureRms } from "./media-probe";
 import { detectRemix } from "./remix";
 import {
   analyzeBeats,
@@ -128,7 +128,7 @@ export async function enrichTrack(
   let artWritten = false;
   const want = (s: Stage) => !opts.only || opts.only.includes(s);
   const truth = groundTruth(t.path);
-  const genreOk = !!truth.genre && truth.genre !== "Music";
+  const genreOk = Boolean(truth.genre) && truth.genre !== "Music";
   const patch: TagPatch = {};
 
   // ---------- remix credit (filename/title derived) ----------
@@ -240,7 +240,7 @@ export async function enrichTrack(
   // file-present values. Provenance stamp rides in TXXX:BP-FIELDS so a
   // Beatport-filled tag is always auditable.
   if (want("tags") && bpBest) {
-    const bpFields: Array<[string, string | number | null]> = [];
+    const bpFields: [string, string | number | null][] = [];
     if (!truth.label && !patch.label && bpBest.label) {
       patch.label = bpBest.label;
       bpFields.push(["label", bpBest.label]);
@@ -478,13 +478,13 @@ function appendQueue(queuePath: string, r: ArtRow): boolean {
       require("node:fs/promises") as typeof import("node:fs/promises");
     void appendFile(
       queuePath,
-      JSON.stringify({
+      `${JSON.stringify({
         path: r.file_path,
         title: r.title,
         artist: r.artist,
         album: r.album ?? null,
         reason: "no-online-cover",
-      }) + "\n",
+      })}\n`,
     ).catch((e: unknown) => {
       // queue is best-effort (never fails the pipeline) but not silent:
       // a failed append means the artwork-queue silently stays empty and

@@ -62,7 +62,7 @@ function ffprobeJson(p: string): FfprobeJson {
   });
   try {
     const j = JSON.parse(new TextDecoder().decode(pr.stdout)) as {
-      streams?: Array<{ codec_type?: string; codec_name?: string }>;
+      streams?: { codec_type?: string; codec_name?: string }[];
       format?: { tags?: Record<string, string>; duration?: string };
     };
     const hasVideo = (j.streams ?? []).some(

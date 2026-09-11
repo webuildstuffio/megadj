@@ -94,10 +94,11 @@ fulltags/
     stdio.ts             child-process helpers (line-by-line streams)
     pipeline.ts          enrichTrack / enrichAll — the orchestrator
     exports.ts           public import surface
-  test/                  195 tests across 20 files (schema, writer round-trips,
-                         pipeline, m4a/AIFF stamps, audit gate, CLI
-                         subcommands, analysis + mood stages + label-order
-                         pin — env-gated)
+  test/                  (schema, writer round-trips, pipeline, m4a/AIFF
+                         stamps, audit gate, CLI subcommands, analysis +
+                         mood stages + label-order pin — env-gated; the
+                         roadmap is the rev log, `bun test fulltags/` the
+                         live count — volatile numbers live in neither)
 ```
 
 ## 🪜 The ladders (first success wins)

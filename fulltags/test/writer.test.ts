@@ -66,9 +66,9 @@ describe("writePatch on freshly wav-converted AIFF (empty ID3 chunk trap)", () =
   test(
     "tags a fresh ffmpeg AIFF whose ID3 chunk exists but is empty — " +
       "ffmpeg's aiff muxer emits an empty ID3 chunk; mutagen's _IFFID3 " +
-      "is FALSY when frameless, so the old `if not a.tags: a.add_tags()` " +
+      "is FALSY when frameless, so the old `if not a.tags: a.add_tags( + ` " +
       "called add_tags() on an EXISTING chunk and mutagen threw " +
-      "`an ID3 tag already exists` — every wav→aiff ingest failed at " +
+      "`)an ID3 tag already exists` — every wav→aiff ingest failed at " +
       "first tag write (Sep 10 2026 fix: test `a.tags is None`).",
     async () => {
       await $`mkdir -p ${DIR}`.quiet();

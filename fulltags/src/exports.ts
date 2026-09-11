@@ -37,14 +37,14 @@ export { groundTruth } from "./readers";
 export {
   energyFromLufs,
   firstTag,
-  mbRecording,
   measureRms,
   parseFilename,
   probeFile,
   qualityScore,
   type ParsedName,
   type Probe,
-} from "./probes";
+} from "./media-probe";
+export { mbRecording } from "./mb_lookup";
 export { buildMetadata, type YtdlpInfo } from "./metadata-build";
 export { detectRemix } from "./remix";
 export { wavToAiff } from "./convert";
@@ -60,7 +60,19 @@ export {
 export { setBoothFleet, getBoothFleet } from "./player-compat";
 export { parseMoodStamp } from "./pipeline";
 export { tagHealth, type TagHealth } from "./tag-health";
-export { fingerprintFile } from "./analysis";
+export {
+  fingerprintFile,
+  fingerprintFileLength,
+  parseFpcalcOutput,
+} from "./analysis";
+export {
+  applyGateWritesSync,
+  GateSaturationError,
+  runRegate,
+  type GateDimension,
+  type GateObservation,
+  type GateResult,
+} from "./gates";
 export { analyzeMoods, type MoodResult } from "./models";
 export {
   beatportArt,

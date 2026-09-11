@@ -419,7 +419,7 @@ print("ok")`;
  * WAV → mutagen APIC; everything else → ffmpeg remux. Atomic.
  */
 export function embedArt(p: string, bytes: Uint8Array): boolean {
-  const dump = p + ".fa.jpg";
+  const dump = `${p}.fa.jpg`;
   writeFileSync(dump, bytes);
   try {
     // WAV and AIFF: mutagen edits the ID3 chunk in place. ffmpeg's remux

@@ -40,7 +40,7 @@ describe("wavToAiff", () => {
     const probe =
       (await $`ffprobe -hide_banner -show_format -show_streams -of json ${out}`.json()) as {
         format: { duration: string; tags?: Record<string, string> };
-        streams: Array<{ codec_type: string; codec_name: string }>;
+        streams: { codec_type: string; codec_name: string }[];
       };
     // Sep 10 2026 fix: AIFF REQUIRES big-endian PCM. The old `-c:a copy`
     // kept LE (`pcm_s16le`) and produced a malformed AIFC-style COMM that

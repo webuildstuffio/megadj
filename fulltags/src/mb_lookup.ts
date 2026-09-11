@@ -14,6 +14,74 @@ export interface MbTruth {
 
 const mbCache = new Map<string, MbTruth | null>();
 
+/** MusicBrainz recording lookup — fills missing artist/album/date (1 rps). */
+export async function mbRecording(
+  artist: string | null,
+  title: string,
+): Promise<{
+  artist: string | null;
+  album: string | null;
+  date: string | null;
+  artistTags: string;
+  mbid: string | null;
+}> {
+  const q = artist
+    ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
+    : `recording:"${encodeURIComponent(title)}"`;
+  try {
+    const res = await fetch(
+      `https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`,
+      {
+        headers: {
+          "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
+        },
+      },
+    );
+    if (!res.ok)
+      return {
+        artist: null,
+        album: null,
+        date: null,
+        artistTags: "",
+        mbid: null,
+      };
+    const data = (await res.json()) as {
+      recordings?: {
+        id?: string;
+        "artist-credit"?: Array<{
+          name?: string;
+          artist?: {
+            name?: string;
+            tags?: Array<{ name: string; count: number }>;
+          };
+        }>;
+        releases?: Array<{ title?: string; date?: string }>;
+      }[];
+    };
+    const rec = data.recordings?.[0];
+    const credit = rec?.["artist-credit"]?.[0];
+    const tags = (credit?.artist?.tags ?? [])
+      .toSorted((a, b) => b.count - a.count)
+      .map((t) => t.name)
+      .slice(0, 3);
+    return {
+      artist: credit?.artist?.name ?? credit?.name ?? null,
+      album: rec?.releases?.[0]?.title ?? null,
+      date: rec?.releases?.[0]?.date ?? null,
+      artistTags: tags.join(","),
+      mbid: rec?.id ?? null,
+    };
+  } catch {
+    return {
+      artist: null,
+      album: null,
+      date: null,
+      artistTags: "",
+      mbid: null,
+    };
+  }
+}
+
 /** Cached MusicBrainz recording lookup (artist + title → one truth row or
  *  null). Results (including verified misses) are memoized for the process
  *  lifetime; requests are rate-limited to ~1 rps so the public MB API stays
@@ -57,8 +125,8 @@ export async function mbLookupCached(
 interface MbRecording {
   title?: string;
   id?: string;
-  "artist-credit"?: Array<{ name?: string; artist?: { name?: string } }>;
-  releases?: Array<{ title?: string; date?: string }>;
+  "artist-credit"?: { name?: string; artist?: { name?: string } }[];
+  releases?: { title?: string; date?: string }[];
 }
 
 /** Parse one recording row from the MB search response. */

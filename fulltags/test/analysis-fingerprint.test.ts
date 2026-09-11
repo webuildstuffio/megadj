@@ -104,10 +104,10 @@ describe("chromaprint fingerprints (roadmap #1)", () => {
       // Re-spawn THIS bun with a PATH that has no fpcalc and import the
       // probe there — runs even on machines where fpcalc IS installed.
       const script = `
-const { fingerprintFile, fingerprintWithDuration } = await import(${JSON.stringify(import.meta.dir + "/../src/analysis.ts")});
-const r1 = fingerprintFile(${JSON.stringify(DIR + "/fp-t.mp3")});
+const { fingerprintFile, fingerprintWithDuration } = await import(${JSON.stringify(`${import.meta.dir}/../src/analysis.ts`)});
+const r1 = fingerprintFile(${JSON.stringify(`${DIR}/fp-t.mp3`)});
 if (r1 !== null) throw new Error("expected null, got " + r1);
-const r2 = fingerprintWithDuration(${JSON.stringify(DIR + "/fp-t.mp3")});
+const r2 = fingerprintWithDuration(${JSON.stringify(`${DIR}/fp-t.mp3`)});
 if (r2.fingerprint !== null || r2.durationS !== null) throw new Error("expected nulls");
 console.log("MISSING-ENV-OK");
 `;

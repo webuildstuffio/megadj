@@ -51,6 +51,43 @@ export function fingerprintFile(path: string): string | null {
   }
 }
 
+/**
+ * fingerprintFileLength — the dedupe-grade fingerprint (`fpcalc -length
+ * 120`, raw text output parsed here). THE one spawn+parse for every
+ * fingerprint pass in the repo (shelf-dupescan, shelf-dedupe,
+ * shelf-hygiene) — previously three hand-copies whose base64url parse
+ * regex omitted `-`/`_` and truncated at the first hyphen, colliding
+ * unrelated files into fake duplicate groups (the Sep 11 mass-collision,
+ * fixed in three places at once — this function exists so it can only be
+ * fixed in one). Returns null when fpcalc is missing/fails or the file is
+ * unreadable — degrade-to-null, never abort the caller's pass.
+ */
+export function fingerprintFileLength(path: string): string | null {
+  if (!existsSync(path)) return null;
+  let r: Bun.SyncSubprocess;
+  try {
+    r = Bun.spawnSync({
+      cmd: ["fpcalc", "-length", "120", path],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+  } catch {
+    return null; // fpcalc not installed
+  }
+  if (r.exitCode !== 0) return null;
+  return parseFpcalcOutput(new TextDecoder().decode(r.stdout));
+}
+
+/** Parse fpcalc's raw `-length` stdout into a fingerprint. Base64url
+ *  alphabet includes `-` and `_` — a char class without them truncates at
+ *  the first hyphen and every file whose fingerprint shares the prefix
+ *  collides into fake duplicate groups (the Sep 11 mass-collision;
+ *  regression-tested in shelf-dupescan.test.ts). */
+export function parseFpcalcOutput(stdout: string): string | null {
+  const m = stdout.match(/FINGERPRINT=([A-Za-z0-9+=/_-]+)/);
+  return m?.[1] ?? null;
+}
+
 /** Duration (s, rounded) as reported by fpcalc — cheap sanity companion
  * to the fingerprint. */
 export function fingerprintWithDuration(path: string): {
@@ -113,8 +150,8 @@ export function foldTempo(bpm: number, lo = 70, hi = 180): number {
  * skip (idempotent re-run). Spawns `uv run --with beat-this` so the
  * ~2 GB torch env lives in the uv cache, never the repo.
  *
- * beat_this v1.1 API: `File2Beats.__call__(path)` returns
- * `(beats, downbeats)` — arrays of timestamps in SECONDS. Track tempo is
+ * beat_this v1.1 API: `File2Beats.__call__(path + ` returns
+ * `)(beats, downbeats)` — arrays of timestamps in SECONDS. Track tempo is
  * derived from the median inter-beat interval (the package exposes no
  * tempo field on this path).
  *
@@ -467,7 +504,7 @@ export interface KeyResult {
  * (JSON over stdin/stdout; device auto-select CUDA > MPS > CPU).
  *
  * Spawns the server per batch — for library-wide runs prefer
- * `analyzeKeys(paths)` which amortizes the ~1.3 s model load. Null when
+ * `analyzeKeys(paths + ` which amortizes the ~1.3 s model load. Null when
  * the analyzer repo is missing (clone to KEYSCAN_DIR) or inference fails.
  *
  * GAUNTLET (roadmap #3, required or RB erases the work):
@@ -478,7 +515,7 @@ export interface KeyResult {
 export async function analyzeKeys(
   paths: string[],
 ): Promise<Map<string, KeyResult>> {
-  // Values are `KeyResult | null` WHILE the protocol loop runs: null marks
+  // Values are `)KeyResult | null` WHILE the protocol loop runs: null marks
   // a definitive per-path error so the loop can terminate instead of
   // waiting for responses that will never come. Placeholders are dropped
   // before return — the wire type stays honest (Map<string, KeyResult>).
@@ -544,7 +581,7 @@ const lineIsReady = (l: string): boolean => {
  *  lines (JSON.parse guarded — sanctioned resilience, returns false). */
 const lineHasId = (l: string): boolean => {
   try {
-    return !!(JSON.parse(l) as { id?: unknown }).id;
+    return Boolean((JSON.parse(l) as { id?: unknown }).id);
   } catch {
     return false;
   }

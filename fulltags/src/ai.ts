@@ -72,7 +72,7 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
       return out;
     }
     const json = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      choices?: { message?: { content?: string } }[];
     };
     const parsed: unknown = JSON.parse(
       json.choices?.[0]?.message?.content?.match(/\[[\s\S]*\]/)?.[0] ?? "[]",

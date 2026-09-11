@@ -13,10 +13,10 @@ import { $ } from "bun";
 import { readdirSync } from "node:fs";
 import { writePatch, writePatchSync } from "../src/writer";
 import { readAiStamps } from "../src/pipeline";
-import { qualityScore, probeFile } from "../src/probes";
+import { qualityScore, probeFile } from "../src/media-probe";
 
 const DIR = `/tmp/fulltags-bugfix-test-${process.pid}`;
-const REPO = import.meta.dir + "/../..";
+const REPO = `${import.meta.dir}/../..`;
 
 afterAll(async () => {
   await $`rm -rf ${DIR}`.quiet().nothrow();
@@ -176,7 +176,7 @@ describe("bug 5: `fulltags audit --json` exit gate", () => {
     expect(bad.exitCode).toBe(1);
     const report = JSON.parse(bad.stdout) as {
       ok: boolean;
-      rows: Array<{ file: string }>;
+      rows: { file: string }[];
     };
     expect(report.ok).toBe(false);
     expect(report.rows.some((r) => r.file === "gap.mp3")).toBe(true);

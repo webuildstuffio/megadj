@@ -6,7 +6,7 @@
  *   - audioset-vggish (128-d): emomusic valence-arousal head
  *
  * Models live in ~/.local/share/fulltags-models (downloaded on first run via
- * `modelsEnsure()`; MTG UPF model server, CC BY-NC-SA — personal use).
+ * `modelsEnsure( + `; MTG UPF model server, CC BY-NC-SA — personal use).
  *
  * I/O contracts (empirically probed, 2026-09-05):
  *   effnet:  essentia TensorflowInputMusiCNN melspec — FrameGenerator(512, 256)
@@ -24,7 +24,7 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { lineReader } from "./stdio";
 
-// Fail fast on a missing HOME: `?? ""` produced "/.local/share/…" which
+// Fail fast on a missing HOME: `)?? ""` produced "/.local/share/…" which
 // failed much later with a confusing EACCES/ENOENT far from the cause.
 const HOME = process.env.HOME ?? process.env.HOMEDIR;
 if (!HOME)

@@ -65,7 +65,7 @@ const COMPLETENESS_FIELDS = [
   "year",
   "mood",
   "energy",
-] as const satisfies ReadonlyArray<keyof FullTag>;
+] as const satisfies readonly (keyof FullTag)[];
 
 /** Which required fields are missing from a tag record. */
 export function completeness(tag: Partial<FullTag>): {
@@ -152,7 +152,7 @@ export function sanitizeGenreFolder(genre: string): string {
 
 // Word-bounded patterns only — substring matches put "Soulji Remix" in
 // R&B and "Sunset" in House.
-const GENRE_MAP: Array<[RegExp, string]> = [
+const GENRE_MAP: [RegExp, string][] = [
   [/\b(?:hip.?hop|rap|trap|drill)\b/i, "Hip-Hop"],
   [/\b(?:r&b|soul|neo.?soul)\b/i, "R&B / Soul"],
   [/\b(?:deep house|tech house|afro house|house|house music)\b/i, "House"],
@@ -172,7 +172,7 @@ const GENRE_MAP: Array<[RegExp, string]> = [
 
 /** Infer a canonical genre from free text (titles, channel names, MB tags). */
 export function inferGenre(
-  inputs: Array<string | null | undefined>,
+  inputs: (string | null | undefined)[],
 ): string | null {
   const blob = inputs.filter(Boolean).join(" ").toLowerCase();
   if (!blob) return null;
