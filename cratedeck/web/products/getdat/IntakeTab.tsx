@@ -101,7 +101,7 @@ export function IntakeTab() {
   if (folders.status !== "ok")
     return <FetchedGate page={folders} loading="loading intake folders…" />;
 
-  const candidates = folders.data.candidates;
+  const { candidates } = folders.data;
   const active =
     selected ??
     folders.data.candidates.find(
@@ -203,7 +203,7 @@ export function IntakeTab() {
 }
 
 function runRunning(j: Job | null): boolean {
-  return !!j && (j.status === "running" || j.status === "queued");
+  return Boolean(j) && (j?.status === "running" || j?.status === "queued");
 }
 
 function jobStatusFolder(_j: Job): string {
@@ -355,7 +355,7 @@ function IntakeRun(props: { job: Job; folder: string; onDone: () => void }) {
 }
 
 function IntakeStats({ r }: { r: IntakeResult }) {
-  const cells: Array<[string, number | null, string]> = [
+  const cells: [string, number | null, string][] = [
     ["files", r.files, "seen in the folder"],
     ["tagged", r.tagged, "stamped + renamed"],
     ["art", r.artAdded, "covers embedded"],

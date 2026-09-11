@@ -49,7 +49,7 @@ export class DriveStore {
   private normDrive(d: DriveRow): Drive {
     return {
       ...d,
-      mounted: !!d.mounted,
+      mounted: Boolean(d.mounted),
       // heal legacy crash rows at the one choke point every drive read
       // flows through (allDrives/get/getByUuid) — a stored report with no
       // FINAL verdict and no failing checks must never ride the wire

@@ -47,7 +47,7 @@ export class Guard {
     const ok = this.allowed.some(
       (p) =>
         path === p ||
-        path.startsWith(p.endsWith("/") ? p : p + "/") ||
+        path.startsWith(p.endsWith("/") ? p : `${p}/`) ||
         // single-`*` segment = exactly one path segment of anything (the
         // per-volume stick allowance: vol/*/Contents/CrateDeck). No other
         // globbing — this stays a prefix allow-list, not a pattern matcher.

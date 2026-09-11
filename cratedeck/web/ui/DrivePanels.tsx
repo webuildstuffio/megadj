@@ -221,6 +221,10 @@ export function AgeStrip({ snap }: { snap: SnapshotData }) {
 }
 
 export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
+  const bpmHistogram = dj.bpm_histogram ?? [];
+  const genres = dj.genres ?? [];
+  const keys = dj.keys ?? [];
+  const artistsTop = dj.artists_top ?? [];
   return (
     <>
       <h3 class="sect">
@@ -270,9 +274,9 @@ export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
           title="The marathon in the crate — longer tracks need reliable beatgrids to mix out of."
         />
       </div>
-      {!!dj.bpm_histogram?.length && (
+      {bpmHistogram.length > 0 && (
         <Histogram
-          buckets={dj.bpm_histogram.map((b) => ({
+          buckets={bpmHistogram.map((b) => ({
             label: `${b.bucket}`,
             count: b.count,
           }))}
@@ -280,17 +284,15 @@ export function DjPanel({ dj }: { dj: NonNullable<SnapshotData["dj"]> }) {
           unit="tracks"
         />
       )}
-      {!!dj.genres?.length && <Bars title="Genres" rows={dj.genres} />}
-      {!!dj.keys?.length && (
+      {genres.length > 0 && <Bars title="Genres" rows={genres} />}
+      {keys.length > 0 && (
         <Bars
           title="Keys"
-          rows={dj.keys}
+          rows={keys}
           tip="Harmonic mixing fuel — Camelot/Open Key notation from rekordbox analysis. Adjacent keys mix cleanest."
         />
       )}
-      {!!dj.artists_top?.length && (
-        <Bars title="Top artists" rows={dj.artists_top} />
-      )}
+      {artistsTop.length > 0 && <Bars title="Top artists" rows={artistsTop} />}
       {dj.bitrate && (
         <div
           class="brstrip"

@@ -68,7 +68,7 @@ async function rpc(
 ): Promise<JsonRpcResponse> {
   const id = nextId++;
   proc.stdin.write(
-    JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n",
+    `${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`,
   );
   await proc.stdin.flush();
   const deadline = Date.now() + 15_000;
@@ -191,14 +191,51 @@ describe("mcp stdio protocol", () => {
     }
   }, 15_000);
 
+  it("tools/list exposes GetDat intake tools with mutating schemas", async () => {
+    const res = await rpc("tools/list", {});
+    const tools =
+      (
+        res.result as {
+          tools?: {
+            name: string;
+            inputSchema?: {
+              required?: string[];
+              properties?: Record<string, unknown>;
+            };
+            annotations?: { readOnlyHint?: boolean };
+          }[];
+        }
+      )?.tools ?? [];
+    const byName = new Map(tools.map((tool) => [tool.name, tool]));
+    const ingest = byName.get("getdat_ingest");
+    const convert = byName.get("getdat_convert");
+    expect(ingest).toBeDefined();
+    expect(convert).toBeDefined();
+    expect(ingest?.annotations?.readOnlyHint).toBe(false);
+    expect(convert?.annotations?.readOnlyHint).toBe(false);
+    expect(ingest?.inputSchema?.required).toEqual(["folder"]);
+    expect(ingest?.inputSchema?.properties?.folder).toBeDefined();
+    expect(convert?.inputSchema?.properties?.dry_run).toBeDefined();
+    expect(convert?.inputSchema?.properties?.no_artwork).toBeDefined();
+  }, 15_000);
+
+  it("GetDat ingest validates its required folder before spawning", async () => {
+    const res = await rpc("tools/call", {
+      name: "getdat_ingest",
+      arguments: {},
+    });
+    expect(res.error?.code).toBe(-32602);
+    expect(res.error?.message).toContain("folder is required");
+  }, 15_000);
+
   it("notifications (no id) never produce an error response", async () => {
     const before = pending.length;
     proc.stdin.write(
-      JSON.stringify({
+      `${JSON.stringify({
         jsonrpc: "2.0",
         method: "notifications/cancelled",
         params: { requestId: 999 },
-      }) + "\n",
+      })}\n`,
     );
     await proc.stdin.flush();
     // Give the server a beat to (wrongly) reply; then assert nothing with
@@ -207,7 +244,7 @@ describe("mcp stdio protocol", () => {
     // drain whatever arrived without blocking forever
     // (readLine with short deadline)
     const line = await readLine(Date.now() + 700);
-    if (line) pending = line + "\n" + pending;
+    if (line) pending = `${line}\n${pending}`;
     const still = pending.slice(before);
     expect(still).not.toContain('"id":null');
   }, 10_000);

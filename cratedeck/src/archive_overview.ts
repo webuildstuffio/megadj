@@ -1,12 +1,12 @@
 // cueStats + libraryOverview — the FullTags-read-side halves of the archive
 // surface. Split from archive.ts for the file-length guard; ArchiveReader
-// delegates so the call sites (`archive.cueStats(...)`) are unchanged.
+// delegates so the call sites (`archive.cueStats(... + `) are unchanged.
 import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
 
 /**
  * STRUCTURE CUES ledger (roadmap "structure cues" slice): DJ phrase
  * markers (every 8 bars) derived from the beats ledger's downbeats by
- * `megadj cues`. DB-side only — rekordbox memory-cue writes are a
+ * `)megadj cues`. DB-side only — rekordbox memory-cue writes are a
  * separate gated surface, so this read describes the ledger as-is.
  * Degrades to available:false on pre-cues DBs (no `cues` table).
  */
@@ -55,7 +55,7 @@ export function cueStats(
   const tracks = rows.flatMap((r) => {
     // corrupt JSON row = absent ledger entry, not a crash (the pass that
     // owns the ledger treats it the same way)
-    let cues: Array<{ index: number; position: number; bar: number }> = [];
+    let cues: { index: number; position: number; bar: number }[] = [];
     try {
       cues = JSON.parse(r.cues_json) as typeof cues;
     } catch {

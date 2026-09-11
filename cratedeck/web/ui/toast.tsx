@@ -1,5 +1,5 @@
 // toast.tsx — tiny toast store. api() enqueues failures automatically;
-// components can also toast success/info explicitly via `toast()`.
+// components can also toast success/info explicitly via `toast( + `.
 import { useEffect, useState } from "preact/hooks";
 import { Icon } from "./icons";
 

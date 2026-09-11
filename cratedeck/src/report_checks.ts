@@ -154,10 +154,11 @@ function bitrotCheck(input: ReportInput): HealthCheck {
       ? `ledger has ${input.ledgerFiles} file(s) but no finished checksum run — verdict unknown`
       : (changed as number) > 0
         ? `${changed} file(s) differ from the ledger — silent corruption risk`
-        : `${input.ledgerFiles} file(s) watched, no corruption detected` +
-          (input.ledgerStaleDays !== null && input.ledgerStaleDays > 60
-            ? ` (ledger ${Math.round(input.ledgerStaleDays)}d old — re-run Checksum)`
-            : ""),
+        : `${input.ledgerFiles} file(s) watched, no corruption detected${
+            input.ledgerStaleDays !== null && input.ledgerStaleDays > 60
+              ? ` (ledger ${Math.round(input.ledgerStaleDays)}d old — re-run Checksum)`
+              : ""
+          }`,
     fix: noVerdict
       ? "Run Checksum to get a corruption verdict"
       : (changed as number) > 0
@@ -260,7 +261,7 @@ function mirrorCheck(input: ReportInput): HealthCheck | null {
     label: `Mirror parity vs ${input.masterName}`,
     status: missing <= 0 ? "pass" : missing > 20 ? "fail" : "warn",
     detail:
-      missing <= 0 ? "in sync (superset ok)" : `behind by ${missing} file(s)`,
+      missing <= 0 ? "in sync (superset ok)" : `behind by ${missing} file(s + `,
     fix:
       missing > 0
         ? "Run the mirror sync (usb_mirror.py) to converge"

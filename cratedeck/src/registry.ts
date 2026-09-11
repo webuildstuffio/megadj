@@ -60,7 +60,7 @@ export class Registry {
         });
         this.emit("drives", this.list());
       } else {
-        const wasMounted = !!drive.mounted;
+        const wasMounted = Boolean(drive.mounted);
         // No-op write guard: the reconcile sweep fires every few seconds; a
         // stable drive used to rewrite the full row each time (WAL churn).
         // `last_seen_at` is now only bumped on real changes or mount flips.
@@ -192,7 +192,7 @@ export class Registry {
         out.push({
           drive_id: drive.id,
           drive_name: label,
-          mounted: !!drive.mounted,
+          mounted: Boolean(drive.mounted),
           matches: matches.slice(0, 10),
         });
       }

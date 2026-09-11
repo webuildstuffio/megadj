@@ -93,8 +93,14 @@ sticks sync from this"; a FAILED verify shows on every tier until re-run.
   fallbacks with provenance stamps, standalone CLI + `audit --json`
   gate — and the offline analysis stages: chromaprint fingerprints,
   beat_this BPM, OpenKeyScan key, Essentia ONNX mood/dance/valence,
-  energy 2.0 blend, MusicBrainz folksonomy harvest. 98 tests across 11
-  files; megadj's commands are thin shims over it.
+  energy 2.0 blend, MusicBrainz folksonomy harvest. **Beatport is the
+  second source behind SoundCloud in every ladder** (rev 6.4/6.5) and
+  the only source of the DJ identity fields — label, mix name, official
+  remixer credit, ISRC — provenance-stamped `TXXX:BP-FIELDS`; the batch
+  stage (`megadj fetch`/`enrich`) and the single-file pipeline are 1:1,
+  and `fulltags audit` reports identity coverage. megadj's commands are
+  thin shims over it; the suite's tests gate it (see the roadmap for
+  rev-by-rev detail).
 - **Measured state (the real archive — 131 ledgered tracks; the audit
   gate currently covers the 123-track Sep intake at 123/123):**
 

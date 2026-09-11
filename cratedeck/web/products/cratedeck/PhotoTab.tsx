@@ -32,7 +32,7 @@ export function PhotoTab(props: {
   onUploadFile: (file: File) => void;
 }) {
   const fileInput = useRef<HTMLInputElement | null>(null);
-  const mounted = props.drive.mounted;
+  const { mounted } = props.drive;
   return (
     <div>
       <div class="note">
@@ -57,7 +57,7 @@ export function PhotoTab(props: {
         >
           <img
             src={`/photos/${props.driveId}?v=${encodeURIComponent(
-              String(props.drive.last_seen_at ?? "") + ":" + Date.now(),
+              `${String(props.drive.last_seen_at ?? "")}:${Date.now()}`,
             )}`}
             alt={`${props.name} cover photo`}
             class="photo-preview"

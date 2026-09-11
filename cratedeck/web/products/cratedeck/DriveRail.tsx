@@ -132,7 +132,7 @@ export function DriveRail(props: {
           <div class="portstrip">
             {props.ports.map((p) => (
               <span class="port" key={p.port_key}>
-                <span class={"dot " + (p.mounted ? "on" : "off")} />
+                <span class={`dot ${p.mounted ? "on" : "off"}`} />
                 <b>{p.drive_name ?? "unknown drive"}</b>
                 {!p.mounted && <span class="port-last">last</span>}
               </span>
@@ -154,7 +154,7 @@ function RailCard(props: {
   const name = d.nickname ?? d.name;
   const snap = d.snapshot_summary;
   const cap = d.capacity_bytes ? fmtBytes(d.capacity_bytes) : null;
-  const report = props.report;
+  const { report } = props;
   const verdict = report?.overall ?? "unknown";
   const badges = rankBadges(d.badges, 3);
 

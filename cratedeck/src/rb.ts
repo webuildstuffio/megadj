@@ -34,7 +34,7 @@ export function rekordboxRunning(opts?: { fresh?: boolean }): {
   const out = p.stdout.toString().trim();
   const pid = out ? parseInt(out.split("\n")[0] ?? "", 10) : null;
   const result = {
-    running: !!out,
+    running: Boolean(out),
     pid: pid !== null && !Number.isNaN(pid) ? pid : null,
   };
   interlockCache = { at: now, ...result };

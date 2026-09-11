@@ -2,7 +2,7 @@
 // functions over track inventories. No I/O: rows go in, verdicts come out.
 //
 //   coverage    — track × drive matrix: which stick has this track?
-//   redundancy  — "every track in playlist X is on ≥2 drives — PASS" + gaps
+//   redundancy  — `every track in playlist X is on ≥2 drives — PASS${gaps}`
 //   diff        — drive-vs-drive added/removed/changed (B8)
 //
 // Track identity (deliberately boring, matches how rekordbox copies files):
@@ -244,8 +244,9 @@ function auditPlaylist(
         ? "no track inventory on any scanned drive — run a scan"
         : gaps.length === 0
           ? `all ${rows.length} tracks on ≥${minCopies} drives`
-          : `${gaps.length} of ${rows.length} track(s) below ${minCopies} copies` +
-            (fails ? ` (${fails} on a single drive)` : ""),
+          : `${gaps.length} of ${rows.length} track(s) below ${minCopies} copies${
+              fails ? ` (${fails} on a single drive)` : ""
+            }`,
   };
 }
 
@@ -383,7 +384,7 @@ type DiffRowOf = (r: DiffSource, tr?: DiffSource) => DiffRow;
 type BytesOf = (r?: DiffSource) => number | undefined;
 
 /** True display meta comes from TrackRow; manifests only carry bytes.
- *  Pure over its inputs — module-level so `diff()` doesn't re-create it
+ *  Pure over its inputs — module-level so `diff( + ` doesn't re-create it
  *  per call (oxlint consistent-function-scoping). */
 const diffRowOf = (r: DiffSource, tr?: DiffSource): DiffRow => ({
   path: r.path,
@@ -394,7 +395,7 @@ const diffRowOf = (r: DiffSource, tr?: DiffSource): DiffRow => ({
 const diffBytesOf = (r?: DiffSource): number | undefined => r?.bytes;
 
 /** Playlist-diff row ordering: by display path. Captures nothing from
- *  `diff()` — module-level so it isn't re-created per call (oxlint
+ *  `)diff()` — module-level so it isn't re-created per call (oxlint
  *  consistent-function-scoping). */
 const byPathCompare = (x: DiffRow, y: DiffRow): number =>
   x.path.localeCompare(y.path);

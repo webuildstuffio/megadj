@@ -585,8 +585,8 @@ function DiffTab() {
             const missing = result.removed.length;
             const changed = result.changed.length;
             const added = result.added.length;
-            const a = result.a;
-            const b = result.b;
+            const { a } = result;
+            const { b } = result;
             const aIsMaster = /master/i.test(a);
             const healthyDirection =
               aIsMaster || (added > 0 && missing === 0 && changed === 0);

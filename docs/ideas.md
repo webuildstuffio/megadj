@@ -532,13 +532,17 @@ everything else reads it.
     `ingest` + `upgrade`:
     - `TBPM` (integer BPM, already), `TKEY` (Initial Key, from I51)
     - `TCOM` composer + `TIPL`/`IPLS` producer/remixer credits (MusicBrainz
-      relations — extends idea #26)
-    - `TPUB` label, `TMED` source (YTM/SoundCloud/Bandcamp/CD rips)
+      relations — extends idea #26; Beatport already supplies the official
+      remixer credit for store releases)
+    - `TPUB` label (**Beatport fills this now** — rev 6.4), `TMED` source
+      (YTM/SoundCloud/Bandcamp/CD rips)
     - `TXXX` custom: `MBID` (already embedded), `ACOUSTID` (L62),
       `ENERGY`, `VALENCE`, `AROUSAL`, `DANCEABILITY`, `VOCAL_DENSITY`,
       `SOURCE_URL`, `VIBE` (the I50 one-liner), `CAMELOT`
     - `COMM` comment = vibe line + camelot, so it shows on any player screen
-      Effort S. This is what "full tagging" means operationally.
+      Effort S. Label + remixer + ISRC have landed (Beatport identity
+      fields, rev 6.4/6.5); the remaining gap is composer/producer and
+      `TMED`.
 
 54. **Artwork standardization.** Extend FullTags' art stage
     (`fulltags/src/art-sources.ts` — the ladder's single home): target

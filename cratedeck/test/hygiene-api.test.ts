@@ -176,7 +176,7 @@ test("reader: filters (status/kind/severity) and confirmed-first order", () => {
 // -- 2. route contract --------------------------------------------------
 
 type Captured = {
-  enqueued: Array<"hygiene-scan" | "hygiene-apply">;
+  enqueued: ("hygiene-scan" | "hygiene-apply")[];
   cli: string[][];
 };
 
@@ -244,7 +244,7 @@ test("routes: GET /api/hygiene honors status filter + census envelope", async ()
   const { api } = harness(new HygieneReader(fixtureDb("route.db", 6)));
   const res = api.list(new URL("http://x/api/hygiene?status=confirmed"));
   const body = (await res.json()) as {
-    findings: Array<{ id: string }>;
+    findings: { id: string }[];
     counts: { open: number };
     walkToken: string | null;
   };

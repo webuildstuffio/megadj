@@ -65,7 +65,7 @@ function useCoverage(): ArchiveAnalysisCoverage | null {
   cov: ArchiveAnalysisCoverage | null;
   active: "beats" | "mood" | "cues";
 }) {
-  const cov = props.cov;
+  const { cov } = props;
   if (!cov || !cov.available) return null;
   const LEDGERS = [
     { key: "beats", label: "beatgrids", cmd: "megadj beats" },

@@ -2,7 +2,7 @@
 // drives. Pure functions: DB rows in, verdict out. No I/O.
 //
 // Verdict language mirrors report.ts: fail > warn > unknown > pass, and
-// `overall()` never calls a drive healthy on unknowns alone. Everything a
+// `overall( + ` never calls a drive healthy on unknowns alone. Everything a
 // check needs comes from data cratedeck already measures — preflight is the
 // aggregated read, not a new measurement pass.
 //
@@ -30,7 +30,7 @@ import {
 
 // PreflightDriveResult/PreflightReport (the B12 wire shapes) are DEFINED in
 // shared/types.ts — the dependency leaf — and imported above. Re-exported
-// here for existing `from "./preflight"` consumers (shared/types consumers
+// here for existing `)from "./preflight"` consumers (shared/types consumers
 // switched to the canonical definitions).
 export type { PreflightDriveResult, PreflightReport };
 
@@ -82,7 +82,7 @@ const BUILDER_ID = {
  *  unknown — never a fake ready. */
 export function preflightForDrive(input: PreflightInput): PreflightDriveResult {
   const { snapshot: snap } = input;
-  const role = input.drive.role;
+  const { role } = input.drive;
   // The role matrix (shared/check_matrix.ts) decides applicability: a
   // builder may still RUN (cheap), but its row is dropped when the check
   // doesn't apply to this drive's tier — omitted ≠ failed.

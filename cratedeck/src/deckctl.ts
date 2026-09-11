@@ -259,7 +259,7 @@ async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
       continue;
     }
     log(
-      `${p.drive.nickname ?? p.drive.name}: works on ${p.ok.length} player type(s)` +
+      `${p.drive.nickname ?? p.drive.name}: works on ${p.ok.length} player type(s + ` +
         ` · pdb ${p.measured.pdb_live_rows ?? "—"} · onelibrary ${p.measured.onelibrary_rows ?? "—"}`,
     );
     log(`  ✓ ${p.ok.map((x) => x.name).join(", ")}`);
@@ -290,7 +290,7 @@ async function cmdRun(
   }
   const interlock = await getJson<InterlockState>("/api/interlock");
   if (interlock.rekordbox_running) {
-    const pid = interlock.pid;
+    const { pid } = interlock;
     await errOut(
       `rekordbox is running (pid ${pid}) — operations locked to prevent library corruption. Quit rekordbox and retry.`,
     );
@@ -482,12 +482,14 @@ async function cmdCoverage(minCopies?: string): Promise<void> {
     return;
   }
   log(
-    `fleet coverage — ${r.totals.unique_tracks.toLocaleString()} unique tracks across ${r.drives.length} drive(s)`,
+    `fleet coverage — ${r.totals.unique_tracks.toLocaleString()} unique tracks across ${r.drives.length} drive(s + `,
   );
   for (const d of r.drives)
     log(`  ${d.name}: ${d.tracks.toLocaleString()} tracks`);
   if (!r.at_risk.length) {
-    log(`✓ no at-risk tracks — everything lives on ≥${r.min_copies} drive(s)`);
+    log(
+      `✓ no at-risk tracks — everything lives on ≥${r.min_copies} drive(s + `,
+    );
     return;
   }
   log(
@@ -586,7 +588,7 @@ async function cmdPrep(outPath: string | undefined): Promise<void> {
   const md = renderWeeklyPrep(digestIn);
   // --out must hold in JSON mode too (P1: agents write the file AND parse
   // the summary; ignoring the flag silently lost the artifact)
-  if (outPath) await Bun.write(outPath, md + "\n");
+  if (outPath) await Bun.write(outPath, `${md}\n`);
   if (JSON_MODE) {
     console.log(
       JSON.stringify({ ...digestIn, markdown: md, written: outPath }, null, 2),
@@ -739,12 +741,12 @@ function usage(): never {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2).filter((a) => a !== "--json");
-  // Positional arg or usage: `arg(1)` = args[1] ?? usage().
+  // Positional arg or usage: `arg(1 + ` = args[1] ?? usage().
   const arg = (i: number): string => args[i] ?? usage();
   const cmd = args[0];
   const wantsHelp =
     process.argv.includes("--help") || process.argv.includes("-h");
-  // `deckctl <anything> --help` documents, never executes — and must not
+  // `)deckctl <anything> --help` documents, never executes — and must not
   // boot the server just to print usage (megadj CLI's contract, mirrored).
   // Explicit help goes to STDOUT with exit 0; bad usage goes to stderr
   // with exit 2. Documentation is not an error.

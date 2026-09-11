@@ -587,7 +587,7 @@ export class JobEngine {
           .split("\n")
           .find((l) => l.startsWith("FINAL:"));
         const pass =
-          !!finalLine &&
+          finalLine !== undefined &&
           /FINAL: ALL PASS/.test(finalLine) &&
           proc.exitCode === 0;
         tick(
@@ -719,7 +719,7 @@ export class JobEngine {
           const a = JSON.parse(aOut) as {
             total: number;
             complete: number;
-            incomplete?: Array<{ file: string; missing: string }>;
+            incomplete?: { file: string; missing: string }[];
           };
           audit = { total: a.total, complete: a.complete };
           auditErrors = a.incomplete ?? [];

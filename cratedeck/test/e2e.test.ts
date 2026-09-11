@@ -40,7 +40,7 @@ beforeAll(async () => {
       CRATEDECK_DATA: DATA,
       CRATEDECK_PORT: String(PORT),
       CRATEDECK_ROOT: join(import.meta.dir, ".."),
-      CRATEDECK_VOLUMES: FIX_ROOT + "/vol",
+      CRATEDECK_VOLUMES: `${FIX_ROOT}/vol`,
     },
     stdin: "ignore",
     stdout: "pipe",

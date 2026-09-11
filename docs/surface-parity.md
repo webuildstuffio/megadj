@@ -9,6 +9,11 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
+Rev 19 · 2026-09-11 — `megadj shelf-restore <finding-id|path>` restores
+ledger-owned hygiene quarantine sources with MD5 verification, a shared
+mutation lease, and optional `--into` target. It is intentionally CLI-only:
+the source/destination operation is local filesystem work and has no safe
+deckctl/MCP/UI target yet; the explicit R1 exemption is recorded in §4.
 Rev 18 · 2026-09-11 — hygiene listen-first enforcement: Rev 16's
 "refuse batch-confirm" claim was doc-only — a super-sure live probe
 proved `POST /api/hygiene/bucket-confirm {bucket:"quality-diff"}`
@@ -116,7 +121,14 @@ that way.
 Carry-overs from the rev 13 pass — each is a named gap, not a vibe:
 
 1. **Resolved:** `speedtest` has a DrivePage button and a `KIND_DOCS` entry.
-2. **Resolved:** `deck_explain` documents `speedtest` through `KIND_DOCS`.
+2. **Resolved (rev 19, really this time):** `deck_explain` documents
+   `speedtest` through `KIND_DOCS` — a rev-15 live probe had proved the
+   earlier "Resolved" false (`deckctl explain speedtest` said `unknown
+   kind`; the MCP schema advertised a kind whose call errored).
+   `speedtest` + `ingest` KIND_DOCS rows landed, the deck_explain enum
+   derives from `KIND_DOCS` keys, and `cratedeck/test/kind-docs.test.ts`
+   pins KIND_DOCS ∪ {verify} === JOB_KINDS so this cannot silently
+   regress again.
 3. **Resolved:** the HTTP API route count is derived by the census test.
 4. **`archive_set_build` has no CLI verb.** §2d's CLI column renders
    proposals "in the UI/agent surface" — a `megadj setbuild [--preset
@@ -132,9 +144,9 @@ Carry-overs from the rev 13 pass — each is a named gap, not a vibe:
 
 | Surface    | Entry points                                                | Count                  |
 | ---------- | ----------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 35 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 37 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
-| MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 37 tools               |
+| MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 39 tools               |
 | HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 61 routes              |
 | Web UI     | `cratedeck/web/` (hash-routed pages)                        | 6 pages, ~22 actions   |
 
@@ -187,6 +199,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Booth fleet settings  | `booth [set IDs]` ✅                                  | `deck_booth {ids?}` ✅                       | Fleet ⌗ Booth tab ✅ (citations inline) | —                       |
 | Booth fixes queue     | `fixes [scan\|apply]` ✅ (rev 12)                     | `deck_fixes {action?}` ✅ (rev 12)           | Drive ⌗ Fixes tab ✅ (rev 12)           | —                       |
 | Hygiene queue         | `hygiene [scan\|apply\|confirm\|dismiss]` ✅ (rev 12) | `deck_hygiene {action?}` ✅ (rev 12)         | Drive ⌗ Hygiene tab ✅ (rev 12)         | —                       |
+| Restore hygiene quarantine | `megadj shelf-restore <finding-id\|path> [--into F]` ✅ (rev 19) | ⛔ §4-R1 | ⛔ §4-R1 | — |
 | Weekly digest         | `prep [--out]` ✅                                     | `deck_prep` ✅ (markdown; `--out` stays CLI) | Fleet ⌗ Prep tab ✅                     | — (G2 closed rev 3)     |
 | Agent notes feed      | `note`/`notes` ✅                                     | `deck_note`/`deck_notes` ✅                  | Timeline cards ✅                       | — (GAP-3 closed)        |
 | Note dismissal        | `dismiss <d> <id>` ✅                                 | `deck_dismiss` ✅ (rev 4)                    | Timeline dismiss ✅                     | — (GAP-11 closed rev 4) |
@@ -197,7 +210,8 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Capability                                        | CLI (megadj)                                                                 | MCP                                     | UI                                                                                               | Verdict                                  |
 | ------------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------- |
 | sync / status / list / retry / adopt              | ✅                                                                           | ⛔ §4-A1 (archive writes stay CLI)      | ⛔ §4-A1 (Intake drives `ingest` only, as a CLI spawn)                                           | —                                        |
-| ingest / fetch / enrich / artwork / audit / years | ✅                                                                           | reads only (`archive_*`) ⛔ §4-A1       | ingest: GetDat ⌗ Intake ✅ (rev 11 — runs the CLI as a job); fetch/audit reads ✅                | —                                        |
+| ingest / fetch / enrich / artwork / audit / years | ✅                                                                           | `getdat_ingest` ✅; reads only (`archive_*`) for the rest | ingest: GetDat ⌗ Intake ✅ (rev 11 — runs the CLI as a job); fetch/audit reads ✅                | —                                        |
+| archive WAV→AIFF conversion                      | `megadj convert` ✅                                                           | `getdat_convert` ✅ (async CLI seam; JSON summary) | GetDat ⌗ Intake / FullTags pipeline ✅                                                          | —                                        |
 | beats / mood / cues                               | ✅                                                                           | ⛔ §4-A1                                | ⛔ §4-A1                                                                                         | —                                        |
 | organize                                          | ✅                                                                           | ⛔ §4-A1                                | ⛔ §4-A1                                                                                         | —                                        |
 | doctor / init                                     | ✅                                                                           | ⛔ §4-A2 (host setup is human work)     | ⛔ §4-A2                                                                                         | —                                        |
@@ -314,6 +328,12 @@ this table AND the enforcement test together (that's the point).
 - **A3 — CLOSED (rev 3, GAP-9).** The Fleet ⌗ Archive tab serves the
   read tools' data (ingest status, mood profile, LOWQ, grid
   cross-check); ⌘K covers track search.
+- **R1 — hygiene quarantine restore is CLI-only (rev 19).** `shelf-restore`
+  copies only a source owned by an applied `hygiene_findings` ledger row,
+  verifies MD5 before and after the copy, refuses an existing destination,
+  and shares the hygiene mutation lease with `shelf-hygiene --apply`. A
+  remote/UI restore surface would need an explicit target-volume picker and
+  the same local-volume safety controls; until then, agents use the CLI.
 
 ## 5. Enforcement — how the parity rule can't rot
 

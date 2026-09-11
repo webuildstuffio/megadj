@@ -53,7 +53,7 @@ export class ShelfSweepReader {
            JOIN (SELECT drive, MAX(id) AS id FROM shelf_sweeps GROUP BY drive) m
              ON s.drive = m.drive AND s.id = m.id`,
         )
-        .all() as Array<Omit<ShelfSweepSummary, "ageDays">>;
+        .all() as Omit<ShelfSweepSummary, "ageDays">[];
       for (const r of rows) {
         out.set(r.drive.toUpperCase(), {
           ...r,

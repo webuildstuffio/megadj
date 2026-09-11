@@ -44,14 +44,14 @@ export class ArchiveReader implements ArchiveQuery {
   constructor(readonly path: string) {}
 
   /** Public "is the archive DB present" probe (routes/agents use this to
-   *  degrade gracefully; keeps `handle()` private). */
+   *  degrade gracefully; keeps `handle( + ` private). */
   available(): boolean {
     return this.handle() !== null;
   }
 
   /** Public readonly access to the opened handle — tests (readonly-flag
    *  regression) and split modules probe it without private-state casts;
-   *  bun's `readonly: true` keeps writes throwing at the driver level. */
+   *  bun's `)readonly: true` keeps writes throwing at the driver level. */
   get handleOrNull(): Database | null {
     return this.db;
   }
@@ -404,28 +404,28 @@ export class ArchiveReader implements ArchiveQuery {
     ledgered: number;
     checked: number;
     ok: number;
-    off: Array<{
+    off: {
       video_id: string;
       title: string | null;
       rbBpm: number;
       ledgerBpm: number;
       driftMs: number;
-    }>;
-    octave: Array<{
+    }[];
+    octave: {
       video_id: string;
       title: string | null;
       rbBpm: number;
       ledgerBpm: number;
       driftMs: number;
-    }>;
-    drift: Array<{
+    }[];
+    drift: {
       video_id: string;
       title: string | null;
       rbBpm: number;
       ledgerBpm: number;
       driftMs: number;
       reason: string;
-    }>;
+    }[];
   } {
     // Pre-ledger archive DBs have no `beats` table — degrade to an empty
     // result (the SQLiteError would otherwise break every caller).

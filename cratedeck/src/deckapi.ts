@@ -57,8 +57,8 @@ export async function apiGet(
   return fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
 }
 
-/** apiGet + typed JSON body — the one place an untyped `r.json()` is
- * allowed in callers. Response.json() returns `any`; pinning it to a
+/** apiGet + typed JSON body — the one place an untyped `r.json( + ` is
+ * allowed in callers. Response.json() returns `)any`; pinning it to a
  * caller-specified shape keeps the MCP tool layer off `any`. */
 export async function apiGetJson<T = unknown>(
   path: string,

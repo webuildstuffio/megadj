@@ -276,11 +276,9 @@ interface VerifyJsonLike {
 }
 
 function jsonOut(payload: VerifyJsonLike): string {
-  return (
-    "\n=== per-drive ===\n(human output present but parser prefers JSON)\nVERIFY_JSON: " +
-    JSON.stringify(payload) +
-    "\nFINAL: ALL PASS\n"
-  );
+  return `\n=== per-drive ===\n(human output present but parser prefers JSON)\nVERIFY_JSON: ${JSON.stringify(
+    payload,
+  )}\nFINAL: ALL PASS\n`;
 }
 
 describe("parseVerifyReport: structured payload", () => {

@@ -33,7 +33,7 @@ export async function cmdReport(
     const res = await apiGet(`/api/drives/${d.id}/export`);
     const text = await res.text();
     if (outFile) {
-      await Bun.write(outFile, text + "\n");
+      await Bun.write(outFile, `${text}\n`);
       if (h.jsonMode)
         console.log(
           JSON.stringify({

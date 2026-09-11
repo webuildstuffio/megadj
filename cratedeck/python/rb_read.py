@@ -19,6 +19,7 @@ import os
 import sys
 import time
 import unicodedata
+from typing import Any
 
 
 def casefold(s: str) -> str:
@@ -34,10 +35,15 @@ REPO = os.path.dirname(os.path.dirname(HERE))
 SKILL_SCRIPTS = os.path.join(REPO, ".claude", "skills", "rekordbox-usb-sync", "scripts")
 sys.path.insert(0, SKILL_SCRIPTS)
 
-from anlz_paths import compute_anlz_folder, folder_key
+# E402 sanctioned: the import below MUST follow the sys.path insertion —
+# anlz_paths lives in the skill's scripts dir, not on the default path.
+from anlz_paths import (  # type: ignore[import-not-found]  # noqa: E402
+    compute_anlz_folder,
+    folder_key,
+)
 
 
-def analyze_anlz_coverage(db, content_model, drive_root: str) -> float:
+def analyze_anlz_coverage(db: Any, content_model: Any, drive_root: str) -> float:
     """Fraction of tracks whose ANLZ exists at the hash-computed path."""
     usb_anlz = os.path.join(drive_root, "PIONEER", "USBANLZ")
     total = found = 0
@@ -56,7 +62,7 @@ def analyze_anlz_coverage(db, content_model, drive_root: str) -> float:
     return round(found / total, 4) if total else 0.0
 
 
-def _median(vals):
+def _median(vals: list[float]) -> float:
     s = sorted(vals)
     n = len(s)
     if not n:
@@ -65,7 +71,7 @@ def _median(vals):
     return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2
 
 
-def _top(counter: dict, n: int = 12):
+def _top(counter: dict[str, int], n: int = 12) -> list[dict[str, Any]]:
     return [
         {"name": k, "count": v}
         for k, v in sorted(counter.items(), key=lambda kv: -kv[1])[:n]
@@ -73,23 +79,23 @@ def _top(counter: dict, n: int = 12):
     ]
 
 
-def _bpm_bucket(bpm):
+def _bpm_bucket(bpm: float) -> str | None:
     if not bpm or bpm <= 0:
         return None
     return f"{int(bpm // 10) * 10}-{int(bpm // 10) * 10 + 9}"
 
 
-def dj_stats(db, contents) -> dict:
+def dj_stats(db: Any, contents: list[Any]) -> dict[str, Any]:
     """Genre/BPM/key/artist/duration/bitrate/artwork analytics from Content rows."""
-    from pyrekordbox.devicelib_plus.models import Genre, Key
+    from pyrekordbox.devicelib_plus.models import Genre, Key  # type: ignore[import-not-found]
 
     genre_names = {g.genre_id: g.name for g in db.query(Genre).all()}
     key_names = {k.key_id: k.name for k in db.query(Key).all()}
 
-    genres: dict = {}
-    keys: dict = {}
-    artists: dict = {}
-    bpm_hist: dict = {}
+    genres: dict[str, int] = {}
+    keys: dict[str, int] = {}
+    artists: dict[str, int] = {}
+    bpm_hist: dict[str, int] = {}
     bpms = []
     durations = []
     lossless = lossy_high = lossy = unknown_br = 0
@@ -156,7 +162,7 @@ def dj_stats(db, contents) -> dict:
     }
 
 
-def track_inventory(db, contents) -> list[dict]:
+def track_inventory(db: Any, contents: list[Any]) -> list[dict[str, Any]]:
     """Per-track fleet rows (ideas.md §B6/B7/B8): path-keyed identity plus the
     metadata the coverage UI shows. Casefolded here so TS consumers never
     re-implement the fold. Only audio rows (fileType 4=mp3, 1=others)."""
@@ -185,7 +191,7 @@ def track_inventory(db, contents) -> list[dict]:
     return out
 
 
-def playlist_membership(db) -> list[dict]:
+def playlist_membership(db: Any) -> list[dict[str, str]]:
     """One row per (playlist, track-path) so the redundancy audit can union
     playlists across drives. Folder nodes are skipped; paths casefolded to
     match track_inventory."""
@@ -204,15 +210,18 @@ def playlist_membership(db) -> list[dict]:
     return rows
 
 
-def open_device_db(db_path: str):
+def open_device_db(db_path: str) -> Any:
     """Open a device-library copy. Real rekordbox drives carry SQLCipher
     encryption (default key path); plaintext copies (dev fixtures, some
     tooling) fail the decrypt with 'file is not a database' — retry those
     with unlock=False before giving up. The failure surfaces on the FIRST
     QUERY, not the constructor (SQLCipher engines connect lazily), so we
     probe with a cheap SELECT and swap connections on failure."""
-    from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus
-    from sqlalchemy import text
+    # (single-line form required: mypy wants the ignore on the import's first
+    # line, ruff-isort wants one module per line — this shape satisfies both)
+    from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus as _DLP  # type: ignore[import-not-found] # noqa: I001
+    DeviceLibraryPlus = _DLP  # type: ignore[no-redef]
+    from sqlalchemy import text  # type: ignore[import-not-found]
 
     db = DeviceLibraryPlus(db_path)
     try:
@@ -227,9 +236,10 @@ def open_device_db(db_path: str):
         raise
 
 
-def snapshot(db_path: str, drive_root: str) -> dict:
+def snapshot(db_path: str, drive_root: str) -> dict[str, Any]:
     from pyrekordbox.devicelib_plus.models import Content, Playlist, PlaylistContent
-    from usb_verify import pdb_live_rows
+
+    from usb_verify import pdb_live_rows  # type: ignore[import-not-found]
 
     db = open_device_db(db_path)
     try:
@@ -238,7 +248,7 @@ def snapshot(db_path: str, drive_root: str) -> dict:
         entries = db.query(PlaylistContent).all()
 
         playlist_names = {p.playlist_id: p.name for p in playlists}
-        entry_counts: dict = {}
+        entry_counts: dict[Any, int] = {}
         parent_by_id = {p.playlist_id: p.playlist_id_parent for p in playlists}
         for e in entries:
             entry_counts[e.playlist_id] = entry_counts.get(e.playlist_id, 0) + 1
@@ -262,7 +272,7 @@ def snapshot(db_path: str, drive_root: str) -> dict:
         pdb_path = os.path.join(drive_root, "PIONEER", "rekordbox", "export.pdb")
         pdb_rows = pdb_live_rows(pdb_path) if os.path.exists(pdb_path) else None
 
-        def mtime(path):
+        def mtime(path: str) -> int | None:
             try:
                 return int(os.path.getmtime(path) * 1000)
             except OSError:
@@ -288,7 +298,7 @@ def snapshot(db_path: str, drive_root: str) -> dict:
     finally:
         try:
             db.session.close()
-        except Exception as exc:  # noqa: BLE001 — best-effort cleanup
+        except Exception as exc:
             print(f"warn: session close failed: {exc}", file=sys.stderr)
 
 
@@ -302,7 +312,7 @@ def main() -> int:
         return 1
     db_path, drive_root = sys.argv[1], sys.argv[2]
     try:
-        import pyrekordbox  # noqa: F401
+        import pyrekordbox  # type: ignore[import-not-found]  # noqa: F401
     except ImportError:
         print(
             json.dumps(
@@ -315,7 +325,7 @@ def main() -> int:
         return 1
     try:
         print(json.dumps({"ok": True, "snapshot": snapshot(db_path, drive_root)}))
-    except Exception as exc:  # noqa: BLE001 — bridge reports all failures as JSON
+    except Exception as exc:
         print(json.dumps({"ok": False, "error": f"{type(exc).__name__}: {exc}"}))
         return 1
     return 0

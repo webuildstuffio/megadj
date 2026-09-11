@@ -103,8 +103,8 @@ export function OverviewTab(props: {
       ) : (
         <div class="note">Run a scan to measure usage.</div>
       )}
-      {!!snap?.by_ext?.length && <ExtBars snap={snap} />}
-      {!!snap?.age && <AgeStrip snap={snap} />}
+      {snap && Boolean(snap.by_ext?.length) && <ExtBars snap={snap} />}
+      {snap && Boolean(snap.age) && <AgeStrip snap={snap} />}
 
       {dj && <DjPanel dj={dj} />}
     </div>

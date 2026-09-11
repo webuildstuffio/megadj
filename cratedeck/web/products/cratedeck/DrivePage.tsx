@@ -438,7 +438,7 @@ export function DrivePage(props: {
       </div>
     );
   // After the gate TS sees page as the ok branch — bind the narrowed detail.
-  const detail = page.detail;
+  const { detail } = page;
 
   const snap = detail.snapshot;
   const dj = snap?.dj ?? null;

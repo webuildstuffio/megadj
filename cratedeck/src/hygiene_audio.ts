@@ -98,7 +98,7 @@ export function audioStats(path: string): AudioStats {
     } else {
       const j = JSON.parse(r.stdout.toString()) as {
         format?: { duration?: string; bit_rate?: string };
-        streams?: Array<{ codec_name?: string; sample_rate?: string }>;
+        streams?: { codec_name?: string; sample_rate?: string }[];
       };
       const s = j.streams?.[0];
       out = {

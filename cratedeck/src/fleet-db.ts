@@ -3,7 +3,7 @@
 // FleetStore instance and delegates, keeping each file single-purpose.
 import type { Database } from "bun:sqlite";
 import type { SnapshotData } from "../shared/types";
-import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./fleet";
+import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./coverage";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS fleet_tracks (

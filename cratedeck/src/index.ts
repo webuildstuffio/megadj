@@ -17,7 +17,7 @@ import { parseSnapshotJson } from "../shared/badges";
 import { buildReport, buildReportSummary, overall } from "./report";
 import { VERIFY_HELP } from "./verify_help";
 import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
-import { coverage, redundancy, diff, trackLocations } from "./fleet";
+import { coverage, redundancy, diff, trackLocations } from "./coverage";
 import { fetchWeeklyPrepInput, renderWeeklyPrep } from "./weekly_prep";
 import { ArchiveReader } from "./archive";
 import { archiveRoutes } from "./archive_routes";
@@ -131,7 +131,7 @@ guard.allow(join(cfg.volumesRoot, "*", "Contents", "CrateDeck"));
 // boot hygiene: orphan jobs from a dead process, stale scratch
 const reaped = db.reapOrphanJobs();
 registry.sweepScratch();
-if (reaped) console.log(`cratedeck: reaped ${reaped} orphan job(s)`);
+if (reaped) console.log(`cratedeck: reaped ${reaped} orphan job(s + `);
 
 let reconciling = false;
 async function reconcile(): Promise<void> {
@@ -161,7 +161,7 @@ function autoSchedule(): void {
       const drive = db.getDrive(id);
       if (!drive?.mounted) continue;
       const snap = snaps.get(id);
-      const hasFresh = !!snap?.taken_at && now - snap.taken_at < 60_000;
+      const hasFresh = Boolean(snap?.taken_at) && now - snap!.taken_at < 60_000;
       if (
         shouldAutoScan(
           { mounted: true, justMounted: true, hasFreshSnapshot: hasFresh },
@@ -183,7 +183,7 @@ function autoSchedule(): void {
       const input = {
         mounted: true,
         lastVerifyAt: last?.ran_at ?? null,
-        hasActiveJob: !!db.activeJobOfKind(drive.id, "scan"),
+        hasActiveJob: Boolean(db.activeJobOfKind(drive.id, "scan")),
         now,
       };
       if (shouldAutoVerify(input, cfg.verifyIntervalDays)) {
@@ -428,7 +428,7 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
     if (route === "/jobs") {
       const active = url.searchParams.get("active");
       const drive = url.searchParams.get("drive");
-      if (drive) return json(db.jobsForDrive(drive, 20, !!active));
+      if (drive) return json(db.jobsForDrive(drive, 20, Boolean(active)));
       return json(active ? db.activeJobs() : db.jobsForDrive("*", 50));
     }
     const jobMatch = route.match(/^\/jobs\/([^/]+)(\/cancel)?$/);
@@ -677,7 +677,7 @@ function portView() {
       label: null,
       drive_id: d.id,
       drive_name: d.nickname ?? d.name,
-      mounted: !!d.mounted,
+      mounted: Boolean(d.mounted),
       last_seen_at: d.last_seen_at,
     }));
 }
@@ -714,7 +714,7 @@ async function fleetRoutes(route: string, url: URL): Promise<Response> {
             drives: hit.drives.map((id) => ({
               id,
               name: names.get(id) ?? id,
-              mounted: !!db.getDrive(id)?.mounted,
+              mounted: Boolean(db.getDrive(id)?.mounted),
             })),
           }
         : { identity: null, drives: [] },

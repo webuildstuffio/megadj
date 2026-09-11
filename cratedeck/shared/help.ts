@@ -120,6 +120,16 @@ export const HELP_TERMS: HelpTerm[] = [
     why: "Working the queue is how tracks graduate from 'downloaded' to 'gig-safe'.",
   },
   {
+    term: "Art ladder",
+    def: "Where each track's cover came from, best rung first: embedded → SoundCloud page (original res / 1080) → Beatport release master (1500²) → hype-gateway scrape → mp3 twin → Deezer → iTunes → Cover Art Archive → AI queue. The rung is stamped in the archive DB (tracks.artwork_status) and shown per track in GetDat ⌗ Library.",
+    why: "Every track has art; the rung tells you its quality story — a Beatport 1500² master and a gateway screenshot are not the same confidence.",
+  },
+  {
+    term: "DJ identity fields",
+    def: "Label (TPUB), mix name (TIT3), official remixer credit (TXXX:version) and ISRC (TSRC) — the store-grade fields only Beatport's catalog carries. Filled last in every ladder, only when the file lacks them, and stamped TXXX:BP-FIELDS so Beatport-sourced values are always auditable.",
+    why: "These are the fields a proper crate needs and no other source carries with authority — and the stamp keeps store data from silently blending into human tags.",
+  },
+  {
     term: "megadj",
     def: "The whole toolkit this dashboard belongs to: CrateDeck (drives + fleet), GetDat (download + ingest) and FullTags (enrichment) — one suite, three products.",
     why: "The suite name sits in the header; the products live in the nav strip under it, each with its own tabs.",

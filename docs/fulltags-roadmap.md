@@ -336,6 +336,20 @@ the OpenKeyScan SSOT decision (#3).
 
 ## 4. Gaps & risks (rev 5)
 
+### Re-gate harness (issue #18)
+
+`fulltags/src/gates.ts` is the shared verdict harness for BPM, genre, and
+effnet reference runs. It reports every track's relative offset, applies the
+80% pass bar (BPM's default tolerance is 2%), and rejects a detector whose
+non-null output is saturated to one value. A passing verdict is the only
+entry point to `applyGateWritesSync`, which delegates to the existing
+format-aware `writePatchSync`; failed and saturated runs cannot write tags.
+
+`megadj regate bpm --json` wires the existing content-hash-keyed gold and beat
+ledgers into that harness. Genre and effnet use the same pure API when their
+reference ledgers are available; the CLI reports them as unavailable until
+those ledgers are populated rather than manufacturing a pass.
+
 1. **The erasure risk is rekordbox, not the code — and now it's the
    ONLY thing standing between #3 being done and being durable.** Key
    tags are written into files; RB re-import (disable Key analysis →

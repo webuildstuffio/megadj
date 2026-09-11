@@ -113,7 +113,7 @@ export async function benchmarkDrive(
     if (!f) continue;
     if (signal?.cancelled) throw new Error("cancelled");
     const file = Bun.file(f);
-    const size = file.size;
+    const { size } = file;
     if (size > 4096) {
       const pos = Math.floor(Math.random() * (size - 4096));
       const buf = await file.slice(pos, pos + 4096).arrayBuffer();

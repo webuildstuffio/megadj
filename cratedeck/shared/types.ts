@@ -349,7 +349,7 @@ export interface IntakeResult {
   unchanged: number;
   /** post-ingest archive audit totals (the verify leg) */
   audit: { total: number; complete: number } | null;
-  auditErrors: Array<{ file: string; missing: string }>;
+  auditErrors: { file: string; missing: string }[];
 }
 
 /** One folder GET /api/intake/folders offers as a one-click intake source
@@ -625,7 +625,7 @@ export interface FleetDiff {
 // so a web component that re-declares these shapes locally drifts straight
 // into a compile error instead of rendering `Invalid Date` / `undefined` in
 // production (the Sep 7 ArchiveTab bug class).
-// These are type-only `import()`s from src/archive.ts — an ACYCLIC edge by
+// These are type-only `import( + `s from src/archive.ts — an ACYCLIC edge by
 // audit (Sep 9 madge sweep): src/archive must never import shared/types.ts
 // back. Wire shapes whose producer chain reaches shared/types.ts (e.g.
 // anything importing db/fleet) must be DEFINED here instead — a type-only
@@ -657,7 +657,7 @@ export type ArchiveMoodProfile = ReturnType<
 
 // ---- drive cover photos: one image listed by GET /drives/:id/drive-images.
 // DEFINED here canonically (like every wire type) — an earlier version
-// derived it from the producer (`src/images.ts listDriveImages`), but
+// derived it from the producer (`)src/images.ts listDriveImages`), but
 // images.ts type-imports db.ts → fleet-db.ts → fleet.ts → shared/types.ts,
 // so the type-only back-edge made madge report a real cycle (Sep 9 sweep).
 // The producer imports this shape instead.

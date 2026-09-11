@@ -123,6 +123,19 @@ export function splitIntakeStdout(out: string): {
   log: string;
   summary: Record<string, unknown> | null;
 } {
+  // convert --json emits JSON as the whole stdout payload; ingest may prefix
+  // that same object with human log lines.
+  const whole = out.trim();
+  if (whole.startsWith("{")) {
+    try {
+      return {
+        log: out.slice(0, out.indexOf("{")),
+        summary: JSON.parse(whole) as Record<string, unknown>,
+      };
+    } catch {
+      // Fall through to the mixed-log parser below.
+    }
+  }
   const idx = out.lastIndexOf("\n{");
   if (idx < 0) return { log: out, summary: null };
   try {

@@ -17,7 +17,7 @@ import { FleetStore } from "./fleet-db";
 import { LedgerQueries, migrateArchiveLedger } from "./db_ledger";
 import { BenchLedger } from "./db_bench";
 import { DriveStore } from "./db_drives";
-import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./fleet";
+import type { TrackRow, PlaylistEntryRow, ManifestRow } from "./coverage";
 
 // inferRole moved to db_drives.ts with its only runtime caller (upsertDrive);
 // re-exported so existing `from "./db"` import sites (tests, detectors) keep
@@ -121,6 +121,7 @@ export class DB {
     mkdirSync(dirname(dbPath), { recursive: true });
     this.sqlite = new Database(dbPath);
     this.sqlite.exec("PRAGMA journal_mode = WAL;");
+    this.sqlite.exec("PRAGMA busy_timeout = 5000;");
     // WAL + NORMAL is the SQLite-recommended combo: durable across app
     // crashes, skips fsync-on-every-commit (huge write-churn cut).
     this.sqlite.exec("PRAGMA synchronous = NORMAL;");
@@ -398,7 +399,7 @@ export class DB {
 
   /** Fine-grained progress update: fraction, human message, phase, ETA (s).
    *  ETA is tri-state: `undefined` = keep the current value (log-line updates
-   *  pass no ETA and must not wipe the one `tick()` computed), `null` =
+   *  pass no ETA and must not wipe the one `tick( + ` computed), `)null` =
    *  explicitly clear (unknown again), a number = set. */
   setJobProgress(
     id: string,

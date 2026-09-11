@@ -95,7 +95,7 @@ export function parseVerifyReport(
   const drives: NonNullable<VerifyJsonPayload["drives"]>[string][] = j?.drives
     ? (Object.values(j.drives).filter(
         (d): d is NonNullable<VerifyJsonPayload["drives"]>[string] =>
-          !!d && typeof d === "object",
+          Boolean(d) && typeof d === "object",
       ) as NonNullable<VerifyJsonPayload["drives"]>[string][])
     : [];
 

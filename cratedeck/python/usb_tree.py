@@ -12,9 +12,10 @@ import json
 import plistlib
 import subprocess
 import sys
+from typing import Any
 
 
-def walk(node, path, out):
+def walk(node: Any, path: list[str], out: list[dict[str, Any]]) -> None:
     if isinstance(node, dict):
         if "kUSBProductString" in node:
             prod = str(node["kUSBProductString"]).strip()
@@ -36,7 +37,7 @@ def walk(node, path, out):
                     "portKey": f"{'/'.join(path)}/{prod}@{loc:x}" if loc is not None else f"{'/'.join(path)}/{prod}",
                 }
             )
-            inner = path + [prod]
+            inner = [*path, prod]
         else:
             inner = path
         for key, val in node.items():
@@ -52,11 +53,11 @@ def main() -> int:
         ["ioreg", "-p", "IOUSB", "-a", "-l"], capture_output=True, check=False
     ).stdout
     tree = plistlib.loads(raw)
-    devices: list = []
+    devices: list[dict[str, Any]] = []
     walk(tree, [], devices)
-    print(json.dumps({"ok": True, "devices": devices}))
+    json.dump({"ok": True, "devices": devices}, sys.stdout)
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

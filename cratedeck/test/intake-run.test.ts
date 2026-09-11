@@ -88,6 +88,12 @@ describe("splitIntakeStdout", () => {
     const { summary } = splitIntakeStdout("just log lines\n");
     expect(summary).toBeNull();
   });
+
+  test("parses JSON-only CLI summaries", () => {
+    const { log, summary } = splitIntakeStdout('{"total":2,"converted":1}\n');
+    expect(log).toBe("");
+    expect(summary).toEqual({ total: 2, converted: 1 });
+  });
 });
 
 describe("argv builders", () => {

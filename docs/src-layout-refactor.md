@@ -1,8 +1,10 @@
 # src/ Layout Refactor — full proposal (v2)
 
-**Status: 🧭 PROPOSED — not executed.** Issue #23 open, `src/commands/`
-still flat. Research snapshot from 2026-09-10; re-derive the file census
-before executing (concurrent agents move files daily).
+**Status: ✅ COMPLETE — shipped 2026-09-11.** Issue #23 is implemented: the
+former flat `src/commands/` tree is now split by domain under `src/getdat/`,
+`src/fulltags/`, `src/rekordbox/`, `src/shelf/`, `src/archive/`, and
+`src/shared/`. The remainder of this document records the design and audit
+evidence for the shipped layout.
 
 _2026-09-10. Tracking issue: [#23](https://github.com/webuildstuffio/megadj/issues/23).
 Research basis: two full-tree scans, import census, madge cycle check (clean),

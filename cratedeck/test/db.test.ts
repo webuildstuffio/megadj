@@ -504,7 +504,7 @@ describe("agent notes (O88)", () => {
     // notes are ALSO timeline events — they render in the existing feed
     expect(db.timeline(UUID_A).some((e) => e.kind === "agent-note")).toBe(true);
     // dismiss the newest; it leaves the active feed but stays in history
-    const id = notes[0]!.id;
+    const { id } = notes[0]!;
     expect(dismissAgentNote(db, UUID_A, id)).toBe(true);
     expect(dismissAgentNote(db, UUID_A, id)).toBe(true); // idempotent
     expect(agentNotes(db, UUID_A).map((n) => n.note)).toEqual([

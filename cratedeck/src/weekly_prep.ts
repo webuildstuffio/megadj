@@ -202,8 +202,9 @@ function archiveSection(input: WeeklyPrepInput): string[] {
     const downloaded = ingest.counts["downloaded"] ?? 0;
     const failed = ingest.counts["failed"] ?? 0;
     lines.push(
-      `- ${downloaded} tracks downloaded of ${ingest.total} seen` +
-        (failed ? ` · **${failed} failed** (retry pending)` : ""),
+      `- ${downloaded} tracks downloaded of ${ingest.total} seen${
+        failed ? ` · **${failed} failed** (retry pending)` : ""
+      }`,
     );
     const recent = ingest.recent_tracks.slice(0, 5);
     if (recent.length) {

@@ -53,7 +53,7 @@ function megadjCommands(): string[] {
     .map((l) => l.match(/^\s*case "([a-z-]+)":/))
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
-  const maintenance = read("src/commands/maintenance-cmds.ts").join("\n");
+  const maintenance = read("src/shared/maintenance-cmds.ts").join("\n");
   const family = maintenance
     .match(/export const MAINTENANCE_VERBS = \[([\s\S]*?)\] as const/)?.[1]
     ?.matchAll(/"([a-z-]+)"/g);
@@ -97,7 +97,7 @@ function mcpTools(): string[] {
   const files = ["cratedeck/src/mcp.ts", "cratedeck/src/archive_tools.ts"];
   const tools = files
     .flatMap((f) =>
-      read(f).map((l) => l.match(/^\s{2,4}((?:deck|archive)_[a-z_]+):/)),
+      read(f).map((l) => l.match(/^\s{2,4}((?:deck|archive|getdat)_[a-z_]+):/)),
     )
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
@@ -246,6 +246,14 @@ describe("surface parity (docs/surface-parity.md)", () => {
         usage.includes(`megadj ${cmd} `) || usage.includes(`megadj ${cmd}\n`),
         `megadj command "${cmd}" is missing from src/usage.ts help text`,
       ).toBeTrue();
+  });
+
+  test("GetDat CLI intake commands have MCP twins", () => {
+    const tools = new Set(mcpTools());
+    expect(tools.has("getdat_ingest")).toBeTrue();
+    expect(tools.has("getdat_convert")).toBeTrue();
+    expect(megadjCommands()).toContain("ingest");
+    expect(megadjCommands()).toContain("convert");
   });
 
   test("the product tabs exist and are hash-routed (one route per product)", () => {

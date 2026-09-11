@@ -9,7 +9,7 @@ import {
   type TrackRow,
   type PlaylistEntryRow,
   type ManifestRow,
-} from "../src/fleet";
+} from "../src/coverage";
 import { DB } from "../src/db";
 import type { SnapshotData } from "../shared/types";
 

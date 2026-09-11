@@ -63,6 +63,18 @@ export const KIND_DOCS: Record<string, KindDoc> = {
     safe: "Read-only (writes one small ledger DB on the host, never on the drive).",
     needs: "drive mounted",
   },
+  speedtest: {
+    what: "Minimal link-class probe: reads ~10MB from the drive's biggest file and reports sequential MB/s — cheap enough to run on demand from the banner to confirm a suspected USB 2.0 vs 3.0 link. For the full sequential + random-4k picture use `benchmark`.",
+    typical: "under a second",
+    safe: "Read-only (a few MB). No interlock needed.",
+    needs: "drive mounted",
+  },
+  ingest: {
+    what: "The GetDat intake pipeline as a job (the Intake tab's engine): runs megadj ingest over a watch/batch folder — tag+art+dedupe downloads, MusicBrainz fill — then the post-run audit verdict.",
+    typical: "minutes (scales with batch size)",
+    safe: "Writes into the archive (music dir + DB). Batch folders land in their own fresh subfolder; zips expand only when fully ingested.",
+    needs: "archive reachable; a batch/watch folder",
+  },
 };
 
 /** One KIND_DOCS entry as CLI prose (shared by the all-kinds + single-kind

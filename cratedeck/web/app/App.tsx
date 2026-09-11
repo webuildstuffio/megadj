@@ -344,12 +344,12 @@ export function App() {
                   onClick={() => openDrive(r.drive_id)}
                 >
                   <div class="hd">
-                    <span class={"dot " + (r.mounted ? "on" : "off")} />
+                    <span class={`dot ${r.mounted ? "on" : "off"}`} />
                     {r.drive_name}
                     {!r.mounted && <span class="ghost-tag">ghost</span>}
                   </div>
                   {r.matches.map((m) => (
-                    <div class="sr-match" key={m.type + ":" + m.name}>
+                    <div class="sr-match" key={`${m.type}:${m.name}`}>
                       <span>
                         <span class="sr-type">{m.type}</span> {m.name}
                       </span>

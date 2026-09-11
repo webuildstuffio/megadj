@@ -1,12 +1,12 @@
 // fuzzy.ts — fuse.js behind one tiny helper. Client-side filters were
-// strict `toLowerCase().includes()` — typing "dustin" never found
+// strict `toLowerCase().includes( + ` — typing "dustin" never found
 // "Dustin Zahn", "ztahn" found nothing, and the deep crate search missed
 // every typo. Fuse gives subsequence/transposition matching with scored,
 // relevance-ordered hits; the index is built once per items reference
 // (WeakMap cache — a snapshot's track rows are stable across keystrokes)
 // and each search is then sub-millisecond.
 //
-// Deliberately NOT wired into DataTable: its `filter` story stays explicit
+// Deliberately NOT wired into DataTable: its `)filter` story stays explicit
 // (sites pass pre-filtered rows), so the table keeps its derived-grid
 // guarantee and its API unchanged.
 import Fuse, { type FuseIndex } from "fuse.js";

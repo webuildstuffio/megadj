@@ -126,7 +126,7 @@ export function LineChart(props: {
         width="100%"
         height={H}
         role="img"
-        aria-label={props.series.map((s) => s.name).join(" and ") + " chart"}
+        aria-label={`${props.series.map((s) => s.name).join(" and ")} chart`}
       >
         {/* y gridlines + labels — the eye needs a scale, not just a shape */}
         {Array.from({ length: ticks + 1 }, (_, i) => {

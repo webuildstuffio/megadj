@@ -31,6 +31,7 @@ Product references:
 
 - [FullTags roadmap](fulltags-roadmap.md)
 - [Grid audit plan](grid-audit-plan.md)
+- [CrateDeck product brief](cratedeck/01-product-brief.md)
 - [CrateDeck acceptance](cratedeck/acceptance.md)
 - [CrateDeck PRD](cratedeck/02-prd.md)
 - [CrateDeck architecture](cratedeck/03-architecture.md)

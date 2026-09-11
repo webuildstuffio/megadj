@@ -169,7 +169,7 @@ export class ImageService {
   driveImageFile(volumeName: string, rel: string): string | null {
     const root = join(this.cfg.volumesRoot, volumeName);
     const abs = join(root, rel);
-    if (!abs.startsWith(root.endsWith("/") ? root : root + "/")) return null;
+    if (!abs.startsWith(root.endsWith("/") ? root : `${root}/`)) return null;
     const inAppDir = rel.startsWith(`Contents/${ImageService.driveDirName()}/`);
     const atRoot = !rel.includes("/");
     if (!inAppDir && !atRoot) return null;
