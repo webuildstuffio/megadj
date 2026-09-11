@@ -523,6 +523,26 @@ export async function analyzeKeys(
   }
 }
 
+/** Does this analyzer stdout line announce readiness? Tolerant of partial
+ *  lines (JSON.parse guarded — sanctioned resilience, returns false). */
+const lineIsReady = (l: string): boolean => {
+  try {
+    return (JSON.parse(l) as { type?: unknown }).type === "ready";
+  } catch {
+    return false;
+  }
+};
+
+/** Does this analyzer stdout line carry a response id? Tolerant of partial
+ *  lines (JSON.parse guarded — sanctioned resilience, returns false). */
+const lineHasId = (l: string): boolean => {
+  try {
+    return !!(JSON.parse(l) as { id?: unknown }).id;
+  } catch {
+    return false;
+  }
+};
+
 async function runKeyServer(
   server: string,
   paths: string[],
@@ -564,20 +584,8 @@ async function runKeyServer(
       if (pred(line)) return line;
     }
   };
-  const isReady = (l: string) => {
-    try {
-      return (JSON.parse(l) as { type?: unknown }).type === "ready";
-    } catch {
-      return false;
-    }
-  };
-  const hasId = (l: string) => {
-    try {
-      return !!(JSON.parse(l) as { id?: unknown }).id;
-    } catch {
-      return false;
-    }
-  };
+  const isReady = lineIsReady;
+  const hasId = lineHasId;
   try {
     if (!(await readUntil(isReady, 90_000))) return out;
     for (const p of paths) {

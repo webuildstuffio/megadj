@@ -17,6 +17,7 @@ import {
   scoreGoldTrack,
   splitGoldSet,
   type GoldAnnotation,
+  type GoldTrackScore,
 } from "../src/gold";
 
 const valid: GoldAnnotation = {
@@ -109,7 +110,10 @@ describe("loadGoldSet", () => {
     const s = loadGoldSet(dir);
     expect(s.annotations.map((a) => a.hash[0])).toEqual(["b"]);
     expect(s.issues).toHaveLength(2);
-    expect(s.issues.map((i) => i.file).sort()).toEqual(["a.json", "c.json"]);
+    expect(s.issues.map((i) => i.file).toSorted()).toEqual([
+      "a.json",
+      "c.json",
+    ]);
     expect(s.issues[0]!.error).toBeTruthy();
     rmSync(dir, { recursive: true, force: true });
   });
@@ -241,25 +245,26 @@ describe("scoreGoldTrack", () => {
   });
 });
 
+const mkScore = (
+  anchor: number | null,
+  bpm: number | null,
+  ratio: number | null,
+): GoldTrackScore => ({
+  hash: "a".repeat(64),
+  branch: "house",
+  anchorDeltaMs: anchor,
+  bpmDelta: bpm,
+  bpmRatio: ratio,
+  phraseAligned: null,
+  cueAccepted: null,
+});
+
 describe("aggregateScores", () => {
   test("percentages over scored tracks only", () => {
-    const mk = (
-      anchor: number | null,
-      bpm: number | null,
-      ratio: number | null,
-    ) => ({
-      hash: "a".repeat(64),
-      branch: "house" as const,
-      anchorDeltaMs: anchor,
-      bpmDelta: bpm,
-      bpmRatio: ratio,
-      phraseAligned: null,
-      cueAccepted: null,
-    });
     const m = aggregateScores([
-      mk(2, 0.01, 1.0), // anchor ok, bpm ok
-      mk(50, 0.01, 1.0), // anchor miss
-      mk(null, null, null), // unscored
+      mkScore(2, 0.01, 1.0), // anchor ok, bpm ok
+      mkScore(50, 0.01, 1.0), // anchor miss
+      mkScore(null, null, null), // unscored
     ]);
     expect(m.tracks).toBe(3);
     expect(m.anchorScored).toBe(2);

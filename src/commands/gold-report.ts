@@ -4,8 +4,16 @@
  *
  * Runs after every pipeline change; same numbers, every time. Reads the
  * gold dir (default <MEGADJ_MUSIC_DIR>/_gold, override MEGADJ_GOLD_DIR)
- * and the archive DB — never tunes anything, never writes: this is the
- * measurement side of Part 0.
+ * and the archive DB — never tunes anything, never writes (except the
+ * content-hash backfill cache, below): this is the measurement side of
+ * Part 0.
+ *
+ * Join discipline: annotations are keyed by blake2b256 CONTENT hash —
+ * filenames lie, hashes don't. The hash is cached in
+ * `tracks.content_hash` so repeated reports don't re-read the whole
+ * library's audio (a super-sure fix, Sep 10: hashing every analyzed
+ * file per run cost GBs of I/O); unknown hashes are backfilled once,
+ * on-screen, capped.
  *
  * Measurement discipline is enforced structurally: the report is
  * computed per split (dev / holdout) with the SAME code path, and the
@@ -32,9 +40,9 @@ import {
   type GoldTrackScore,
 } from "../../fulltags/src/gold";
 
-/** blake2b256 hex of a file — the same fingerprint the archive sweep
- * records, and the join key between annotations and ledger rows. Null
- * when the file is missing (annotation can't be matched). */
+/** blake2b256 hex of a file — the same fingerprint the gold set keys
+ * annotations by. Null when the file is missing/unreadable (the track
+ * just stays hash-unknown; the report counts it as unmatched). */
 async function hashFile(absPath: string): Promise<string | null> {
   try {
     const bytes = new Uint8Array(await Bun.file(absPath).arrayBuffer());
@@ -52,6 +60,11 @@ export function predictedPhraseBars(downbeats: number[]): number[] {
   for (let i = 0; i + 32 <= downbeats.length; i += 32) bars.push(i + 1);
   return bars;
 }
+
+/** Backfill cap: a first run over a large library must not silently
+ * hash the world — surface progress, cap the cost, tell the user how
+ * many remain. 500 tracks ≈ a few minutes of disk I/O. */
+const HASH_BACKFILL_CAP = 500;
 
 export interface GoldReportOptions {
   state: ArchiveState;
@@ -71,6 +84,13 @@ export interface GoldReportResult {
   holdout: GoldMetrics;
   /** Tracks with a hash match in the beats ledger (of annotations). */
   matched: number;
+  /** Annotations whose hash isn't in the ledger (never analyzed, or
+   * backfill-capped this run — re-run to continue the fill). */
+  unmatched: number;
+  /** Tracks hashed this run (the backfill that landed). */
+  hashedNow: number;
+  /** Tracks still missing a cached hash after this run. */
+  hashMissing: number;
   ok: boolean;
   error?: string;
 }
@@ -91,6 +111,9 @@ export async function goldReport(
     dev: aggregateScores([]),
     holdout: aggregateScores([]),
     matched: 0,
+    unmatched: 0,
+    hashedNow: 0,
+    hashMissing: 0,
     ok: false,
     error: msg,
   });
@@ -104,13 +127,38 @@ export async function goldReport(
     return r;
   }
 
+  // Backfill the content-hash cache for downloaded tracks that lack one
+  // (first run after this change: capped; later runs: zero cost).
+  const missing = opts.state.tracksMissingContentHash();
+  let hashedNow = 0;
+  if (missing.length > 0) {
+    const capped = missing.slice(0, HASH_BACKFILL_CAP);
+    log(
+      `gold: hashing ${capped.length} unhashed tracks` +
+        (missing.length > capped.length
+          ? ` (${missing.length - capped.length} more after this run)`
+          : ""),
+    );
+    for (const t of capped) {
+      if (t.filePath === null) continue;
+      const h = await hashFile(t.filePath);
+      if (h) {
+        opts.state.setContentHash(t.videoId, h);
+        hashedNow++;
+      }
+    }
+    if (missing.length > capped.length)
+      log(
+        `gold: ${missing.length - capped.length} tracks still unhashed — re-run to continue`,
+      );
+  }
+
   // The beats ledger, indexed by content hash (the join key — filenames
   // lie, hashes don't; this is why GA-00 keys annotations by blake2b).
   const analyzed = opts.state.beatAnalyzedTracks();
   const byHash = new Map<string, (typeof analyzed)[number]>();
   for (const row of analyzed) {
-    const h = await hashFile(row.track.file_path ?? "");
-    if (h) byHash.set(h, row);
+    if (row.track.content_hash) byHash.set(row.track.content_hash, row);
   }
 
   const cueRows = new Map(
@@ -135,11 +183,10 @@ export async function goldReport(
     });
 
   const split = splitGoldSet(set);
+  const scored = [...split.dev, ...split.holdout];
   const dev = aggregateScores(score(split.dev));
   const holdout = aggregateScores(score(split.holdout));
-  const matched = [...split.dev, ...split.holdout].filter((a) =>
-    byHash.has(a.hash),
-  ).length;
+  const matched = scored.filter((a) => byHash.has(a.hash)).length;
 
   return {
     command: "gold-report",
@@ -150,14 +197,20 @@ export async function goldReport(
     dev,
     holdout,
     matched,
+    unmatched: scored.length - matched,
+    hashedNow,
+    hashMissing: opts.state.tracksMissingContentHash().length,
     ok: true,
   };
 }
 
+/** Format a nullable percent for the report line (— when unscored).
+ *  Pure — module-level, not re-created per `metricsLine` call. */
+const pctOrDash = (v: number | null): string =>
+  v === null ? "—" : `${v.toFixed(1)}%`;
+
 function metricsLine(name: string, m: GoldMetrics): string {
-  const f = (v: number | null): string =>
-    v === null ? "—" : `${v.toFixed(1)}%`;
-  return `${name}: ${m.tracks} tracks · anchor ${f(m.anchorPct)} (${m.anchorScored} scored) · bpm ${f(m.bpmPct)} (${m.bpmScored}, ${m.octaveOff} octave-off) · phrase ${f(m.phrasePct)} · cue ${f(m.cuePct)}`;
+  return `${name}: ${m.tracks} tracks · anchor ${pctOrDash(m.anchorPct)} (${m.anchorScored} scored) · bpm ${pctOrDash(m.bpmPct)} (${m.bpmScored}, ${m.octaveOff} octave-off) · phrase ${pctOrDash(m.phrasePct)} · cue ${pctOrDash(m.cuePct)}`;
 }
 
 /** Emit the human report (non-json mode). */
@@ -172,6 +225,13 @@ export function printGoldReport(
   log(metricsLine("dev    ", r.dev));
   log(metricsLine("holdout", r.holdout));
   log(
-    `matched ${r.matched}/${r.annotations} annotations to the beats ledger by content hash`,
+    `matched ${r.matched}/${r.annotations} annotations to the beats ledger by content hash` +
+      (r.unmatched > 0
+        ? ` · ${r.unmatched} unmatched (not analyzed, or hash backfill capped — re-run)`
+        : ""),
   );
+  if (r.hashedNow > 0)
+    log(
+      `hashed ${r.hashedNow} tracks this run; ${r.hashMissing} still uncached`,
+    );
 }

@@ -148,11 +148,11 @@ export async function scanVolume(mountPoint: string): Promise<SnapshotData> {
     free_bytes: await freeBytes(mountPoint),
     folders: [...folders.entries()]
       .map(([name, f]) => ({ name, ...f }))
-      .sort((a, b) => b.files - a.files)
+      .toSorted((a, b) => b.files - a.files)
       .slice(0, 100),
     by_ext: [...byExt.entries()]
       .map(([ext, f]) => ({ ext, ...f }))
-      .sort((a, b) => b.bytes - a.bytes)
+      .toSorted((a, b) => b.bytes - a.bytes)
       .slice(0, 20),
     largest: largest.slice(0, 15),
     age,

@@ -135,6 +135,7 @@ export function parseGoldAnnotation(raw: string, file: string): GoldAnnotation {
   } catch (e) {
     throw new TypeError(
       `${file}: not valid JSON (${e instanceof Error ? e.message : String(e)})`,
+      { cause: e },
     );
   }
   const err = goldSchemaError(v);
@@ -153,7 +154,7 @@ export function loadGoldSet(dir: string): GoldSet {
   if (!existsSync(dir)) return out;
   const files = readdirSync(dir)
     .filter((f) => f.endsWith(".json"))
-    .sort();
+    .toSorted();
   for (const f of files) {
     const path = join(dir, f);
     try {
@@ -183,7 +184,7 @@ export function splitGoldSet(set: GoldSet): GoldSplit {
   // Sorts by hash ITSELF: a caller can never reshape the dev/holdout
   // split by passing unsorted input; the same hash always lands on the
   // same side (measurement discipline, plan §0.3).
-  const sorted = [...set.annotations].sort((x, y) =>
+  const sorted = [...set.annotations].toSorted((x, y) =>
     x.hash < y.hash ? -1 : 1,
   );
   const n = sorted.length;
@@ -308,14 +309,17 @@ export interface GoldMetrics {
 const ANCHOR_TOLERANCE_MS = 10;
 const BPM_TOLERANCE = 0.05;
 
+/** Percentage with 1 decimal (null when the denominator is 0). Pure —
+ *  module-level, not re-created per `aggregateScores` call. */
+const pct = (hit: number, n: number): number | null =>
+  n === 0 ? null : Math.round((hit / n) * 1000) / 10;
+
 /** Aggregate per-track scores into the §0.2 metrics row. Pure. */
 export function aggregateScores(scores: GoldTrackScore[]): GoldMetrics {
   const anchor = scores.filter((s) => s.anchorDeltaMs !== null);
   const bpm = scores.filter((s) => s.bpmDelta !== null);
   const phrase = scores.filter((s) => s.phraseAligned !== null);
   const cue = scores.filter((s) => s.cueAccepted !== null);
-  const pct = (hit: number, n: number): number | null =>
-    n === 0 ? null : Math.round((hit / n) * 1000) / 10;
   return {
     tracks: scores.length,
     anchorPct: pct(

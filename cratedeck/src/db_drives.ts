@@ -16,6 +16,13 @@ interface DriveRow extends Omit<Drive, "mounted"> {
 /** Snapshot history is capped so years of scans can't eat the host disk. */
 const MAX_SNAPSHOTS_PER_DRIVE = 20;
 
+/** A snapshot blob minus `taken_at` — the field the setSnapshot dedupe
+ *  guard compares around. Pure — module-level, not re-created per call. */
+function snapshotWithoutTakenAt(s: SnapshotData): Record<string, unknown> {
+  const { taken_at: _takenAt, ...rest } = s;
+  return rest;
+}
+
 /** Role from the CONFIGURED volume names, not just the doc defaults —
  *  config.toml's library.master_drive/mirror_drive/shelf_drive promise an
  *  override, and a drive that misses its role silently degrades parity
@@ -217,11 +224,10 @@ export class DriveStore {
     if (!cur?.last_snapshot_json) return false;
     try {
       const prev = JSON.parse(cur.last_snapshot_json) as SnapshotData;
-      const strip = (s: SnapshotData): Record<string, unknown> => {
-        const { taken_at: _takenAt, ...rest } = s;
-        return rest;
-      };
-      return canon(strip(prev)) === canon(strip(snap));
+      return (
+        canon(snapshotWithoutTakenAt(prev)) ===
+        canon(snapshotWithoutTakenAt(snap))
+      );
     } catch (e) {
       // Unparsable previous blob: the dedupe guard can't run, so we fall
       // through and write — but silently skipping the compare would mask

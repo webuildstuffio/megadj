@@ -33,9 +33,9 @@ let nextId = 1;
 /** JSON-RPC response wire shape (typed alternative to Record<string, any>). */
 interface JsonRpcResponse {
   jsonrpc: "2.0";
-  id?: string | number | null;
+  id?: string | number | null | undefined;
   result?: unknown;
-  error?: { code: number; message: string };
+  error?: { code: number; message: string } | undefined;
 }
 
 /** Parse one stream line, tolerating non-JSON noise (null = skip). */

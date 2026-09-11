@@ -121,12 +121,12 @@ export function IntakeTab() {
     try {
       // quiet: the caller owns the error message — a double toast (generic
       // + specific) repeated the same refusal twice.
-      const job = await apiPost<Job>(
+      const started = await apiPost<Job>(
         "/api/intake/start",
         { folder: active },
         { quiet: true },
       );
-      setRunId(job.id);
+      setRunId(started.id);
       toast("Intake started", "ok");
     } catch (e) {
       toast(`intake refused: ${errMessage(e)}`, "err");
@@ -139,8 +139,8 @@ export function IntakeTab() {
     <div>
       <TabIntro
         what="Drop a folder of new music here and Process it: every file gets probed, deduped (quality, MD5, acoustic fingerprint), tagged, artworked, player-checked and audited — the same pipeline as `megadj ingest`, live."
-        how="Pick the watch folder or a specific batch. Processing moves files into a dated batch folder in the archive; duplicates go to ingest-duplicates, never deleted. One run at a time."
-        next="Anything red names the file and the fix — usually `megadj fetch` for missing art or `megadj convert` for straggler WAVs."
+        how="Pick the watch folder or a specific batch. Processing moves files into a dated batch folder in the archive; duplicates go to the hidden .ingest-duplicates folder at the archive root, never deleted; a better-quality re-download replaces the archive copy and keeps its history. One run at a time."
+        next="Anything red names the file and the fix — usually `megadj fetch` for missing art or genres, `megadj tag-check` for broken tags, or `megadj convert` for straggler WAVs."
       />
 
       <div class="card intake-setup">
@@ -367,6 +367,11 @@ function IntakeStats({ r }: { r: IntakeResult }) {
     ["art", r.artAdded, "covers embedded"],
     ["wav→aiff", r.wavConverted, "booth-safe conversion"],
     ["dupes", r.folderDupes + r.archiveDupes, "quarantined, never deleted"],
+    [
+      "upgrades",
+      r.upgrades,
+      "better-quality copies swapped in (history kept)",
+    ],
     [
       "verify",
       r.audit ? r.audit.complete : null,

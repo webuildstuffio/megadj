@@ -302,7 +302,7 @@ describe("shelf sweep ledger", () => {
     });
     const latest: ShelfSweepRow[] = sweeps.latestPerDrive();
     expect(latest).toHaveLength(2);
-    expect(latest.map((r) => r.drive).sort()).toEqual(["A", "B"]);
+    expect(latest.map((r) => r.drive).toSorted()).toEqual(["A", "B"]);
     expect(latest.every((r) => r.verdict === "preview")).toBe(true);
   });
 });

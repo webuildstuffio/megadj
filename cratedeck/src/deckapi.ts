@@ -68,6 +68,12 @@ export async function apiGetJson<T = unknown>(
   return (await res.json()) as T;
 }
 
+/** apiGet → parsed JSON — the `fetchWeeklyPrepInput` seam (also usable by
+ *  any caller that wants a plain generic GET-and-parse). Module-level so
+ *  tool run() bodies don't re-create it per call (oxlint scoping). */
+export const apiGetJsonT = <T>(path: string, timeoutMs?: number): Promise<T> =>
+  apiGet(path, timeoutMs ?? 10_000).then((r) => r.json() as Promise<T>);
+
 export async function apiPost(
   path: string,
   body?: unknown,
@@ -76,7 +82,7 @@ export async function apiPost(
   return fetch(`${BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     signal: AbortSignal.timeout(timeoutMs),
   });
 }
@@ -162,7 +168,7 @@ export async function pollJob(
       if (++transientErrors >= maxConsecutive) {
         const msg = `job ${jobId} unreachable after ${maxConsecutive} consecutive polls: ${(e as Error).message}`;
         opts.onGiveUp?.(msg);
-        throw new Error(msg);
+        throw new Error(msg, { cause: e });
       }
       await new Promise((r) => setTimeout(r, retryDelayMs));
     }

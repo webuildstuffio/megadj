@@ -29,6 +29,10 @@ import { gridAudit, type GridAuditVerdict } from "../../fulltags/src/analysis";
 // keeps every existing `from "./archive"` import working unchanged.
 export type { ArchiveTrack } from "./archive_types";
 
+/** Round to 3 decimals for wire payloads (null degrades to 0). Pure —
+ *  module-level, shared by moodRoster paths (oxlint scoping). */
+const r4 = (v: number | null): number => Math.round((v ?? 0) * 1000) / 1000;
+
 /** Rows of megadj's `tracks` table — see archive_types.ts. */
 
 const TRACK_COLS = `video_id, title, artist, album, status, bitrate_kbps,
@@ -567,7 +571,6 @@ export class ArchiveReader implements ArchiveQuery {
        FROM mood`,
     )[0];
     if (!agg || !agg.n) return empty;
-    const r4 = (v: number | null): number => Math.round((v ?? 0) * 1000) / 1000;
     const n = Math.min(Math.max(limit, 1), 25);
     const top = (col: string, dir: "DESC" | "ASC"): MoodExtreme[] =>
       this.rows<{

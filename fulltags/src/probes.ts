@@ -201,7 +201,7 @@ export async function mbRecording(
     const mbArtist = credit?.artist?.name ?? credit?.name ?? null;
     const rel = rec?.releases?.[0];
     const tags = (credit?.artist?.tags ?? [])
-      .sort((a, b) => b.count - a.count)
+      .toSorted((a, b) => b.count - a.count)
       .map((t) => t.name)
       .slice(0, 3);
     return {

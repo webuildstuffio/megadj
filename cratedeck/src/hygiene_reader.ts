@@ -63,14 +63,10 @@ function hydrate(r: Row): Finding {
 export class HygieneReader extends ArchiveLedgerReader {
   protected readonly label = "hygiene";
 
-  constructor(path: string) {
-    super(path);
-  }
-
   list(filter?: {
-    status?: string;
-    kind?: string;
-    severity?: string;
+    status?: string | undefined;
+    kind?: string | undefined;
+    severity?: string | undefined;
   }): Finding[] {
     const { whereSql, params } = hygieneWhere(filter);
     const rows = this.query<Row>(

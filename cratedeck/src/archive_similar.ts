@@ -31,6 +31,9 @@ export function cosine(a: number[], b: number[]): number {
   return dot / Math.sqrt(na * nb);
 }
 
+/** Round to 4 decimals for wire payloads. Pure — module-level. */
+const r4 = (v: number): number => Math.round(v * 10000) / 10000;
+
 /**
  * I49 "sounds like": cosine kNN over megadj's `embeddings` ledger
  * (effnet 1280-d mean embeddings, written by `megadj mood
@@ -105,7 +108,6 @@ export function similarTracks(
   }
   if (!queryVec) return empty(corpus.length);
   const kk = Math.min(Math.max(k, 1), 50);
-  const r4 = (v: number): number => Math.round(v * 10000) / 10000;
   const hits = corpus
     .filter((c) => c.vec.length === queryVec!.length)
     .map((c) => ({
@@ -114,7 +116,7 @@ export function similarTracks(
       artist: c.artist,
       score: r4(cosine(queryVec!, c.vec)),
     }))
-    .sort((a, b) => b.score - a.score)
+    .toSorted((a, b) => b.score - a.score)
     .slice(0, kk);
   return {
     available: true,

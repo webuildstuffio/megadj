@@ -62,7 +62,7 @@ export function coverage(
   const drives = [...inventories.entries()]
     .filter(([, rows]) => rows.length > 0)
     .map(([id, rows]) => ({ id, tracks: rows.length }))
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .toSorted((a, b) => a.id.localeCompare(b.id));
   const driveIds = new Set(drives.map((d) => d.id));
 
   // path-keyed index; the first sighting provides display metadata
@@ -100,7 +100,7 @@ export function coverage(
   }));
   const atRisk = rows
     .filter((r) => r.at_risk)
-    .sort(
+    .toSorted(
       (a, b) =>
         a.copies - b.copies || a.identity.path.localeCompare(b.identity.path),
     );
@@ -221,7 +221,7 @@ function auditPlaylist(
   for (const p of paths) {
     const entry = trackIndex.get(p);
     if (!entry) continue; // track row missing on every scanned drive
-    rows.push({ ...entry.cov, playlists: [...entry.playlists].sort() });
+    rows.push({ ...entry.cov, playlists: [...entry.playlists].toSorted() });
   }
   const gaps = rows.filter((r) => r.copies < minCopies);
   const fails = gaps.filter((r) => r.copies <= 1).length;
@@ -237,7 +237,7 @@ function auditPlaylist(
     playlist: plDisplay.get(plKey) ?? plKey,
     unique_tracks: rows.length,
     protected_tracks: rows.length - gaps.length,
-    tracks: rows.sort((a, b) => a.copies - b.copies),
+    tracks: rows.toSorted((a, b) => a.copies - b.copies),
     verdict,
     detail:
       rows.length === 0
@@ -342,28 +342,29 @@ export function diff(
   const added: DiffRow[] = [];
   const removed: DiffRow[] = [];
   const changed: DiffRow[] = [];
-  // true display meta comes from TrackRow; manifests only carry bytes.
-  const rowOf = (r: DiffSource, tr?: DiffSource): DiffRow => ({
-    path: r.path,
-    title: tr?.title ?? r.title ?? null,
-    artist: tr?.artist ?? r.artist ?? null,
-    kind: "added",
-  });
-  const bytesOf = (r?: DiffSource): number | undefined => r?.bytes;
 
   const matchedB = new Set<string>();
-  reconcileA(ia, ib, fa, fb, rowOf, bytesOf, matchedB, removed, changed);
+  reconcileA(
+    ia,
+    ib,
+    fa,
+    fb,
+    diffRowOf,
+    diffBytesOf,
+    matchedB,
+    removed,
+    changed,
+  );
   for (const [path, rb] of ib.byPath) {
     if (matchedB.has(path)) continue;
     const m = metaKey(rb);
     if (m && ia.byMeta.has(m)) continue; // caught on the a-side byMeta pass
-    added.push({ ...rowOf(rb), kind: "added" });
+    added.push({ ...diffRowOf(rb), kind: "added" });
   }
 
-  const byPathSort = (x: DiffRow, y: DiffRow) => x.path.localeCompare(y.path);
-  added.sort(byPathSort);
-  removed.sort(byPathSort);
-  changed.sort(byPathSort);
+  added.sort(byPathCompare);
+  removed.sort(byPathCompare);
+  changed.sort(byPathCompare);
   const parts: string[] = [];
   if (added.length) parts.push(`+${added.length} added`);
   if (removed.length) parts.push(`−${removed.length} removed`);
@@ -380,6 +381,23 @@ export function diff(
 
 type DiffRowOf = (r: DiffSource, tr?: DiffSource) => DiffRow;
 type BytesOf = (r?: DiffSource) => number | undefined;
+
+/** True display meta comes from TrackRow; manifests only carry bytes.
+ *  Pure over its inputs — module-level so `diff()` doesn't re-create it
+ *  per call (oxlint consistent-function-scoping). */
+const diffRowOf = (r: DiffSource, tr?: DiffSource): DiffRow => ({
+  path: r.path,
+  title: tr?.title ?? r.title ?? null,
+  artist: tr?.artist ?? r.artist ?? null,
+  kind: "added",
+});
+const diffBytesOf = (r?: DiffSource): number | undefined => r?.bytes;
+
+/** Playlist-diff row ordering: by display path. Captures nothing from
+ *  `diff()` — module-level so it isn't re-created per call (oxlint
+ *  consistent-function-scoping). */
+const byPathCompare = (x: DiffRow, y: DiffRow): number =>
+  x.path.localeCompare(y.path);
 
 /** A-side reconcile pass: match by path, fall back to artist-title join,
  *  then classify changed (byte drift) / removed. Bytes compare at each

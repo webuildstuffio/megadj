@@ -265,11 +265,10 @@ export function pickUsbDevice(
       // (0x10000) set (verified: 0x01200000→0x1200000, 0x02100000→0x2110000).
       // Hubs sit at the tree address exactly, so prefer non-hub devices:
       // a stick under a hub carries the +0x10000 bit or a deeper chain.
-      const isDev = (d: UsbDevice) => !/hub/i.test(d.product);
       const byLoc = pool.find(
         (d) =>
           d.locationId !== null &&
-          isDev(d) &&
+          !/hub/i.test(d.product) &&
           (d.locationId === treeAddr || d.locationId === (treeAddr | 0x10000)),
       );
       if (byLoc) return byLoc;

@@ -119,10 +119,10 @@ export function TimelineTab({
     return out;
   }, [events, dismissed]);
 
-  const dismiss = (driveId: string, id: string) => {
+  const dismiss = (noteDriveId: string, id: string) => {
     setDismissed((prev) => new Set(prev).add(id));
     apiPost(
-      `/api/drives/${encodeURIComponent(driveId)}/notes/${encodeURIComponent(id)}/dismiss`,
+      `/api/drives/${encodeURIComponent(noteDriveId)}/notes/${encodeURIComponent(id)}/dismiss`,
       undefined,
     ).catch(() => {
       toast("dismiss failed — reload and retry", "err");

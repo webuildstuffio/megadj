@@ -21,15 +21,16 @@ const SYNC_FS_APIS = [
 
 const FILES = ["walk.ts", "scan.ts", "bench.ts"];
 
-describe("async-only invariant for event-loop fs code", () => {
-  // Strip block and line comments so prose in headers can't trip the match.
-  function stripComments(src: string): string {
-    return src
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "")
-      .replace(/([^:])\/\/(?!\/).*/g, "$1");
-  }
+/** Strip block and line comments so prose in headers can't trip the match.
+ *  Module-level — captures nothing from the enclosing describe. */
+function stripComments(src: string): string {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "")
+    .replace(/([^:])\/\/(?!\/).*/g, "$1");
+}
 
+describe("async-only invariant for event-loop fs code", () => {
   for (const f of FILES) {
     it(`${f} contains no synchronous fs/spawn calls`, () => {
       const src = stripComments(

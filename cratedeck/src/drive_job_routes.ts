@@ -17,11 +17,11 @@ export async function photoUpload(
     choose(
       id: string,
       src: {
-        data?: Uint8Array;
-        name?: string;
-        url?: string;
-        localPath?: string;
-        driveRel?: string;
+        data?: Uint8Array | undefined;
+        name?: string | undefined;
+        url?: string | undefined;
+        localPath?: string | undefined;
+        driveRel?: string | undefined;
       },
     ): Promise<string>;
     clear(id: string): void;

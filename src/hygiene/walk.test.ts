@@ -35,7 +35,7 @@ describe("walkShelf", () => {
       "Artist A/notes.txt": "x",
     });
     const { files, walkToken } = walkShelf(vol);
-    const names = files.map((f) => f.path.slice(vol.length)).sort();
+    const names = files.map((f) => f.path.slice(vol.length)).toSorted();
     expect(names).toEqual([
       "/Contents/Artist A/Album/cover.aiff",
       "/Contents/Artist A/Album/song.mp3",

@@ -94,8 +94,8 @@ describe("anlzSpike", () => {
       buildAnlz({ path: "/y", beats: beats(8) }),
     );
     const c = anlzSpike({ mount, tag: "B", mode: "compare", log: () => {} });
-    expect(c.added).toEqual(["ANLZ0001.DAT"]);
-    expect(c.removed).toEqual(["ANLZ0000.DAT"]);
+    expect(c.added).toEqual(["collection/ANLZ0001.DAT"]);
+    expect(c.removed).toEqual(["collection/ANLZ0000.DAT"]);
   });
 
   test("compare without a baseline is a visible failure; unmounted too", () => {
@@ -125,5 +125,55 @@ describe("anlzSpike", () => {
     expect(s.ok).toBe(true);
     expect(s.undecodable).toBe(1);
     expect(s.tracked).toBe(0);
+  });
+
+  test("REGRESSION (super-sure Sep 10): nested stick sidecars are walked and keyed by RELATIVE path", () => {
+    // Real sticks nest sidecars per track at USBANLZ/<PXXX>/<HHHHHHHH>/ —
+    // a flat readdir saw zero files there; and every hash dir names its
+    // file ANLZ0000.DAT, so basename keying would false-join tracks.
+    const mount = fakeMount();
+    const h1 = join(mount, "PIONEER", "USBANLZ", "P001", "0000000A");
+    const h2 = join(mount, "PIONEER", "USBANLZ", "P001", "000000FF");
+    mkdirSync(h1, { recursive: true });
+    mkdirSync(h2, { recursive: true });
+    writeFileSync(
+      join(h1, "ANLZ0000.DAT"),
+      buildAnlz({ path: "/a", beats: beats(8) }),
+    );
+    writeFileSync(
+      join(h2, "ANLZ0000.DAT"),
+      buildAnlz({ path: "/b", beats: beats(8) }),
+    );
+    // one flat shelf sidecar too — both roots in one snapshot
+    writeSidecar(
+      mount,
+      "ANLZ0000.DAT",
+      buildAnlz({ path: "/s", beats: beats(8) }),
+    );
+    const s = anlzSpike({
+      mount,
+      tag: "nest",
+      mode: "snapshot",
+      log: () => {},
+    });
+    expect(s.ok).toBe(true);
+    expect(s.tracked).toBe(3);
+    const raw = JSON.parse(readFileSync(s.baselinePath!, "utf8")) as {
+      recs: Array<{ file: string }>;
+    };
+    const files = raw.recs.map((r) => r.file).toSorted();
+    expect(files).toContain("collection/ANLZ0000.DAT"); // flat, keyed by name
+    expect(files).toContain("usb/P001/0000000A/ANLZ0000.DAT"); // relative key
+    expect(files).toContain("usb/P001/000000FF/ANLZ0000.DAT");
+    // change ONE nested sidecar; the other must NOT join it by basename
+    writeFileSync(
+      join(h1, "ANLZ0000.DAT"),
+      buildAnlz({ path: "/a", beats: beats(8, 1000) }),
+    );
+    const c = anlzSpike({ mount, tag: "nest", mode: "compare", log: () => {} });
+    expect(c.ok).toBe(true);
+    expect(c.changed).toHaveLength(1);
+    expect(c.changed![0]!.file).toBe("usb/P001/0000000A/ANLZ0000.DAT");
+    expect(c.identical).toBe(2);
   });
 });

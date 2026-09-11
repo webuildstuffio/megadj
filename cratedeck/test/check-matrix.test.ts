@@ -57,10 +57,10 @@ describe("check matrix (tier SSOT)", () => {
   test("omittedChecks(archive) ∪ omittedChecks(gig) = all ids, disjoint", () => {
     const arch = omittedChecks("shelf");
     const gig = omittedChecks("master");
-    expect([...arch].sort()).toEqual(
-      ALL_IDS.filter((id) => !CHECK_APPLIES[id].archive).sort(),
+    expect([...arch].toSorted()).toEqual(
+      ALL_IDS.filter((id) => !CHECK_APPLIES[id].archive).toSorted(),
     );
-    expect([...gig].sort()).toEqual([]);
+    expect([...gig].toSorted()).toEqual([]);
     expect(new Set([...arch, ...gig]).size).toBe(arch.length + gig.length);
   });
 
@@ -140,7 +140,7 @@ describe("surfaces derive from the matrix (derived, not hardcoded)", () => {
         isMirror: false,
         now: Date.now(),
       });
-      const got = r.checks.map((c: HealthCheck) => c.id).sort();
+      const got = r.checks.map((c: HealthCheck) => c.id).toSorted();
       // preflight has no junk/dupes/artwork builders; mirror needs a master
       // snapshot (null here); players needs the players verdict (omitted
       // input); speed is quiet-when-fast (90 MB/s > CDJ floor) — intersect
@@ -157,7 +157,7 @@ describe("surfaces derive from the matrix (derived, not hardcoded)", () => {
               "speed",
             ].includes(id),
         )
-        .sort();
+        .toSorted();
       expect(got).toEqual(want);
     });
   }

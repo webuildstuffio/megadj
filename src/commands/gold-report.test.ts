@@ -28,6 +28,11 @@ const GOLD: GoldAnnotation = {
   hotCuesMs: [0],
 };
 
+/** Fresh ArchiveState under `dir` (each test owns its tmp dir).
+ *  Module-level — captures nothing from the enclosing describe. */
+const makeState = (dir: string): ArchiveState =>
+  new ArchiveState(join(dir, "archive.db"));
+
 describe("predictedPhraseBars", () => {
   test("one bar per 32 downbeats, 1-based", () => {
     // 64 downbeats → bars 1 and 33; 63 → none fit the second window.
@@ -42,10 +47,6 @@ describe("predictedPhraseBars", () => {
 });
 
 describe("goldReport command", () => {
-  function makeState(dir: string): ArchiveState {
-    return new ArchiveState(join(dir, "archive.db"));
-  }
-
   test("empty gold dir → ok:false with the GA-00 pointer (never a fake pass)", async () => {
     const dir = mkdtempSync("/tmp/megadj-goldrep-");
     const state = makeState(dir);

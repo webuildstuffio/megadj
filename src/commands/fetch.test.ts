@@ -39,12 +39,12 @@ describe("auditArchive folder walk", () => {
     expect(report.total).toBe(3);
     // none are complete (fake files) — the audit must say so, not 0/0
     expect(report.complete).toBe(0);
-    expect(report.rows.map((r) => r.file).sort()).toEqual(
+    expect(report.rows.map((r) => r.file).toSorted()).toEqual(
       [
         join(dir, "House/organized.m4a"),
         join(dir, "Techno  Trance/deep-dive.m4a"),
         join(dir, "top.m4a"),
-      ].sort(),
+      ].toSorted(),
     );
   });
 

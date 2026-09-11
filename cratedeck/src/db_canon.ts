@@ -16,7 +16,7 @@
 export function canon(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canon).join(",")}]`;
   if (v !== null && typeof v === "object") {
-    const entries = Object.entries(v as Record<string, unknown>).sort(
+    const entries = Object.entries(v as Record<string, unknown>).toSorted(
       ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
     );
     return `{${entries

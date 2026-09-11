@@ -166,16 +166,7 @@ export interface SetBuildInput {
   /** Target set length in minutes; picks tracks until the budget fills. */
   minutes: number;
   /** Optional fixed opener (its videoId) — the arc starts from it. */
-  openerId?: string;
-}
-
-export interface SetBuildInput {
-  candidates: SetCandidate[];
-  preset: SetPreset;
-  /** Target set length in minutes; picks tracks until the budget fills. */
-  minutes: number;
-  /** Optional fixed opener (its videoId) — the arc starts from it. */
-  openerId?: string;
+  openerId?: string | undefined;
 }
 
 // SetBuildStep + SetBuildResult (the wire shapes) are DEFINED in
@@ -183,6 +174,10 @@ export interface SetBuildInput {
 // the UI read the same contract with no drifting duplicate.
 import type { SetBuildResult, SetBuildStep } from "../shared/types";
 export type { SetBuildResult };
+
+/** Candidate duration with the 5:00 assumption when unknown. Pure —
+ *  module-level, not re-created per `buildSet` call (oxlint scoping). */
+const candidateDuration = (c: SetCandidate): number => c.durationS ?? 300;
 
 /** Greedy chain: score every remaining candidate for each next slot, take
  * the best. O(n²) — fine at archive scale (thousands), trivially testable.
@@ -196,7 +191,7 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   const steps: SetBuildStep[] = [];
   let elapsed = 0;
 
-  const dur = (c: SetCandidate): number => c.durationS ?? 300; // assume 5:00 when unknown
+  const dur = candidateDuration;
   const push = (c: SetCandidate, transition: number | null): void => {
     elapsed += dur(c);
     steps.push({
@@ -220,7 +215,7 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   const startArousal = preset.arousal[0]! / 9;
   const first =
     opener ??
-    [...pool].sort((a, b) => {
+    [...pool].toSorted((a, b) => {
       const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
       const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
       return fa - fb || a.videoId.localeCompare(b.videoId);

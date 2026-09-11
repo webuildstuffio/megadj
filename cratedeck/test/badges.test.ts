@@ -254,13 +254,15 @@ describe("syncBadge", () => {
   });
 });
 
-describe("rankBadges", () => {
-  const b = (key: Badge["key"], label?: string): Badge => ({
-    key,
-    label: label ?? key,
-    tone: "muted",
-  });
+/** Badge synth for rank tests. Module-level — captures nothing from the
+ *  enclosing describe. */
+const b = (key: Badge["key"], label?: string): Badge => ({
+  key,
+  label: label ?? key,
+  tone: "muted",
+});
 
+describe("rankBadges", () => {
   it("ranks failures above warnings above ready — worst first", () => {
     const { top } = rankBadges(
       [b("ready"), b("attn", "verify failed"), b("stale"), b("insync")],

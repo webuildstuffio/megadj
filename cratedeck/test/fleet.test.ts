@@ -16,6 +16,17 @@ import type { SnapshotData } from "../shared/types";
 const A = "drive-a";
 const B = "drive-b";
 
+/** Manifest row synth for diff byte-compare tests. Module-level —
+ *  captures nothing from the enclosing test. */
+function man(drive: string, path: string, bytes: number): ManifestRow {
+  return {
+    drive_id: drive,
+    path,
+    bytes,
+    mtime_ms: 1,
+  };
+}
+
 function tr(
   drive: string,
   path: string,
@@ -171,7 +182,7 @@ describe("redundancy", () => {
     const r = redundancy(rows, entries, 2);
     const party = r.playlists.find((p) => p.playlist === "Party")!;
     // thin.mp3 is on both, alone.mp3 only on A — the union is audited
-    expect(party.tracks.map((t) => t.copies).sort()).toEqual([1, 2, 2]);
+    expect(party.tracks.map((t) => t.copies).toSorted()).toEqual([1, 2, 2]);
   });
 
   it("unknown when no playlist data", () => {
@@ -197,12 +208,6 @@ describe("diff", () => {
   });
 
   it("detects byte changes from manifests", () => {
-    const man = (drive: string, path: string, bytes: number): ManifestRow => ({
-      drive_id: drive,
-      path,
-      bytes,
-      mtime_ms: 1,
-    });
     const r = diff(
       "A",
       [tr(A, "same.mp3"), tr(A, "diff.mp3")],
@@ -235,12 +240,6 @@ describe("diff", () => {
     // Regression: byte lookup used a's path against b's manifest, so a
     // meta-joined track at a different folder read b's bytes at the wrong
     // key — equal files reported "changed", real changes were missed.
-    const man = (drive: string, path: string, bytes: number): ManifestRow => ({
-      drive_id: drive,
-      path,
-      bytes,
-      mtime_ms: 1,
-    });
     const r = diff(
       "A",
       [tr(A, "old path/song.mp3", { title: "Song", artist: "Duo" })],

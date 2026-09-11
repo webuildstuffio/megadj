@@ -48,7 +48,7 @@ export async function mbGenreForArtist(artist: string): Promise<string | null> {
       return null;
     }
     // Folksonomy: highest-count tag wins through the canonical map.
-    const tags = (a.tags ?? []).slice().sort((x, y) => y.count - x.count);
+    const tags = (a.tags ?? []).slice().toSorted((x, y) => y.count - x.count);
     const raw = tags.map((t) => t.name).join(" ");
     const genre = canonGenre(raw) ?? null;
     artistCache.set(key, genre);

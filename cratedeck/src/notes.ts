@@ -27,9 +27,9 @@ export interface NoteInput {
   drive_id: string;
   note: string;
   /** Who wrote it — "mcp:<session>" or an agent's display name. */
-  origin?: string;
+  origin?: string | undefined;
   /** Optional severity, rendered as the card tone. Default "info". */
-  severity?: NoteSeverity;
+  severity?: NoteSeverity | undefined;
 }
 
 /** Validate + clamp a note. Throws RpcParamError-style Error on garbage —

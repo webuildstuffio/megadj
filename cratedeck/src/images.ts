@@ -96,7 +96,7 @@ export class ImageService {
     }
     const hit = names
       .filter((n) => PHOTO_BASENAME.test(n))
-      .sort()
+      .toSorted()
       .at(-1);
     return hit ? join(dir, hit) : null;
   }
@@ -112,7 +112,7 @@ export class ImageService {
     }
     const hit = names
       .filter((n) => PHOTO_BASENAME.test(n))
-      .sort()
+      .toSorted()
       .at(-1);
     return hit ? join(dir, hit) : null;
   }

@@ -12,10 +12,12 @@ import { moveLoser } from "./dupescan-shared";
 
 /** Cheap filename similarity: lowercase, strip separators, common-prefix
  *  ratio (no deps). 1 = identical, 0 = unrelated. */
+const normFlat = (s: string): string =>
+  s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
 export function nameSimilarity(a: string, b: string): number {
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const x = norm(a);
-  const y = norm(b);
+  const x = normFlat(a);
+  const y = normFlat(b);
   if (x === y) return 1;
   if (x.length === 0 || y.length === 0) return 0;
   let prefix = 0;

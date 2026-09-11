@@ -459,7 +459,7 @@ describe("job origin attribution (O87)", () => {
       db
         .jobsForDrive(UUID_A)
         .map((j) => j.origin)
-        .sort(),
+        .toSorted(),
     ).toEqual(["mcp:deadbeef", "web"]);
   });
 

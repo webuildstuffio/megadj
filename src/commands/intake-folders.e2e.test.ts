@@ -94,7 +94,7 @@ describe("ingest lands each dump in its own dated subfolder", () => {
       /^\d{4}-\d{2}-\d{2} same day dump$/.test(d),
     );
     expect(dated.length).toBe(1);
-    expect(readdirSync(join(ARCHIVE, dated[0]!)).sort()).toEqual([
+    expect(readdirSync(join(ARCHIVE, dated[0]!)).toSorted()).toEqual([
       "First Drop.aiff",
       "Second Drop.aiff",
     ]);

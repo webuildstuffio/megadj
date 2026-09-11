@@ -8,9 +8,9 @@ import { basename } from "node:path";
 import { DJ_GENRES } from "./schema";
 
 /** The model id the AI ladder pins (cheapest solid); referenced by the
- * fulltags docs/roadmap. Kept and excluded from knip via `_SPEC_` regex —
- * no in-repo caller today (the model id is set per-call in aiGenres). */
-export const _SPEC_AI_MODEL = "google/gemini-2.5-flash-lite";
+ * fulltags docs/roadmap. Re-exported as `AI_MODEL` by exports.ts — no
+ * in-repo caller of the model id itself (it is set per-call in aiGenres). */
+export const AI_MODEL_PIN = "google/gemini-2.5-flash-lite";
 
 export type AiTagResult = Map<
   string,
@@ -23,6 +23,17 @@ export interface AiRow {
   title: string;
   file_path: string;
 }
+
+interface AiItem {
+  id?: number;
+  genre?: string;
+  confidence?: number;
+  year?: number;
+}
+
+/** Type guard over one parsed AI JSON-array element. Pure — module-level,
+ *  not re-created per `aiGenres` call (oxlint consistent-function-scoping). */
+const isItem = (x: unknown): x is AiItem => typeof x === "object" && x !== null;
 
 /** OpenRouter classifier. With withYear=true, asks for the remix/edit year
  * (the year THIS version came out, not the original track's) alongside genre. */
@@ -50,7 +61,7 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: _SPEC_AI_MODEL,
+        model: AI_MODEL_PIN,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.1,
         max_tokens: 2000,
@@ -67,14 +78,6 @@ Respond with ONLY a JSON array: [{"id":<index>,"genre":"<genre>","confidence":0.
       json.choices?.[0]?.message?.content?.match(/\[[\s\S]*\]/)?.[0] ?? "[]",
     );
     if (!Array.isArray(parsed)) return out;
-    interface AiItem {
-      id?: number;
-      genre?: string;
-      confidence?: number;
-      year?: number;
-    }
-    const isItem = (x: unknown): x is AiItem =>
-      typeof x === "object" && x !== null;
     const items = parsed.filter(isItem);
     for (const item of items) {
       const row = batch[item.id ?? -1];

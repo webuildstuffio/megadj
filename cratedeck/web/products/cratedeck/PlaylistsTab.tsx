@@ -159,7 +159,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
     const seen = new Set<string>();
     return (snap?.playlists ?? [])
       .slice()
-      .sort((a, b) => b.entries - a.entries)
+      .toSorted((a, b) => b.entries - a.entries)
       .filter((pl) => {
         const k = plKey(pl);
         if (seen.has(k)) return false;
@@ -184,7 +184,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
       : all;
     return rows
       .slice()
-      .sort((a, b) =>
+      .toSorted((a, b) =>
         sort === "entries"
           ? b.entries - a.entries
           : a.name.localeCompare(b.name),
@@ -211,7 +211,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
       const k = pl.parent ?? "root playlists";
       (m.get(k) ?? m.set(k, []).get(k)!).push(pl);
     }
-    return [...m.entries()].sort((a, b) =>
+    return [...m.entries()].toSorted((a, b) =>
       a[0] === "root playlists"
         ? -1
         : b[0] === "root playlists"

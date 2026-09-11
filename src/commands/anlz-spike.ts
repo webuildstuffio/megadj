@@ -33,7 +33,8 @@ import {
   readdirSync,
   writeFileSync,
 } from "node:fs";
-import { basename, join } from "node:path";
+import type { Dirent } from "node:fs";
+import { join, basename } from "node:path";
 import { createHash } from "node:crypto";
 import { parseAnlzInventory } from "../../fulltags/src/anlz";
 
@@ -109,18 +110,58 @@ function baselinePath(mount: string, tag: string): string {
   );
 }
 
-/** Walk every ANLZ*.DAT under both possible sidecar roots. */
-function sidecarFiles(mount: string): string[] {
-  const roots = [
-    join(mount, "PIONEER", "Master", "share", "ANLZ"),
-    join(mount, "PIONEER", "USBANLZ"),
-  ];
+/** Walk every ANLZ*.DAT under both possible sidecar roots. RECURSIVE
+ * (bounded): the shelf's share/ANLZ is flat, but sticks nest sidecars
+ * per track at PIONEER/USBANLZ/<PXXX>/<HHHHHHHH>/ANLZ0000.DAT (the same
+ * hash-dir layout anlz_paths.py + rb-grid-triage join by) — a flat
+ * readdir saw zero sidecars on any real stick (super-sure fix, Sep 10).
+ * Returns keys of the form `<rootName>/<rel>` where rootName is
+ * "collection" (share/ANLZ) or "usb" (USBANLZ): every hash dir names its
+ * sidecar ANLZ0000.DAT, so basename keying would false-join distinct
+ * tracks' files into phantom "changed" rows, and the two roots can
+ * themselves hold same-named relative paths. Resolve with
+ * `resolveSidecar`. */
+const SPIKE_ROOTS: Array<{ name: string; sub: string[] }> = [
+  { name: "collection", sub: ["PIONEER", "Master", "share", "ANLZ"] },
+  { name: "usb", sub: ["PIONEER", "USBANLZ"] },
+];
+
+/** Map a recorded sidecar key back to its absolute path. */
+function resolveSidecar(mount: string, key: string): string {
+  const [rootName, ...rest] = key.split("/");
+  const root = SPIKE_ROOTS.find((r) => r.name === rootName);
+  return join(mount, ...(root ? root.sub : []), ...rest);
+}
+
+function sidecarKeys(mount: string): string[] {
   const out: string[] = [];
-  for (const root of roots) {
-    if (!existsSync(root)) continue;
-    for (const f of readdirSync(root).sort()) {
-      if (/^ANLZ.*\.DAT$/u.test(f)) out.push(join(root, f));
+  const MAX_DEPTH = 4; // root/PXXX/HHHHHHHH/file — generous
+  const walk = (dir: string, rel: string, depth: number): void => {
+    if (depth > MAX_DEPTH) return;
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch (e) {
+      // unreadable dir is a console-visible miss, not a crash — vs the
+      // baseline it reads as "removed", which is true on disk
+      console.error(
+        `rb-anlz-spike: unreadable dir ${rel || "."}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      return;
     }
+    for (const ent of entries.toSorted((a, b) => (a.name < b.name ? -1 : 1))) {
+      const childRel = rel ? `${rel}/${ent.name}` : ent.name;
+      if (ent.isDirectory()) {
+        walk(join(dir, ent.name), childRel, depth + 1);
+      } else if (/^ANLZ.*\.DAT$/u.test(ent.name)) {
+        out.push(childRel);
+      }
+    }
+  };
+  for (const root of SPIKE_ROOTS) {
+    const abs = join(mount, ...root.sub);
+    if (!existsSync(abs)) continue;
+    walk(abs, root.name, 0);
   }
   return out;
 }
@@ -133,16 +174,16 @@ function measure(mount: string): {
   const recs: SidecarRec[] = [];
   let scanned = 0;
   let undecodable = 0;
-  for (const f of sidecarFiles(mount)) {
+  for (const key of sidecarKeys(mount)) {
     scanned++;
-    const bytes = new Uint8Array(readFileSync(f));
+    const bytes = new Uint8Array(readFileSync(resolveSidecar(mount, key)));
     const inv = parseAnlzInventory(bytes);
     if (!inv) {
       undecodable++;
       continue; // tracked by hash anyway when it reappears
     }
     recs.push({
-      file: basename(f),
+      file: key,
       sha256: sha256(bytes),
       bytes: bytes.length,
       sections: inv.sections,

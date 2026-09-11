@@ -54,10 +54,10 @@ export class RpcParamError extends Error {}
 /** One object property. */
 export interface Prop {
   type: "string" | "number" | "boolean" | "array";
-  description?: string;
-  enum?: readonly string[];
+  description?: string | undefined;
+  enum?: readonly string[] | undefined;
   /** array-only: the items' schema */
-  items?: { type: "string" };
+  items?: { type: "string" } | undefined;
 }
 
 function prop(p: Prop): Record<string, unknown> {

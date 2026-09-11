@@ -236,4 +236,46 @@ describe("ArchiveState", () => {
     expect(joined[0]?.track.video_id).toBe("bv2");
     expect(joined[0]?.beats).toEqual([0, 0.47]);
   });
+
+  test("content-hash cache: tracksMissingContentHash + setContentHash (gold-report join key)", () => {
+    state.upsertTrackFromPlaylist("ch1", 0, "T1");
+    state.markDownloaded("ch1", {
+      title: "T1",
+      artist: null,
+      album: null,
+      formatId: null,
+      bitrateKbps: 256,
+      codec: "aac",
+      filePath: "/tmp/ch1.m4a",
+      fileSizeBytes: 1,
+      durationS: 100,
+    });
+    state.upsertTrackFromPlaylist("ch2", 1, "T2");
+    state.markDownloaded("ch2", {
+      title: "T2",
+      artist: null,
+      album: null,
+      formatId: null,
+      bitrateKbps: 256,
+      codec: "aac",
+      filePath: null, // never landed on disk
+      fileSizeBytes: 0,
+      durationS: 100,
+    });
+    // pending tracks never join the backfill queue
+    state.upsertTrackFromPlaylist("ch3", 2, "T3");
+    expect(state.tracksMissingContentHash().map((t) => t.videoId)).toEqual([
+      "ch1",
+      "ch2",
+    ]);
+    state.setContentHash("ch1", "ab".repeat(32));
+    expect(
+      state.allTracks().find((t) => t.video_id === "ch1")?.content_hash,
+    ).toBe("ab".repeat(32));
+    // idempotent: filled rows leave the queue; null-file rows stay (the
+    // reporter counts them as unmatched, never fakes a hash)
+    expect(state.tracksMissingContentHash().map((t) => t.videoId)).toEqual([
+      "ch2",
+    ]);
+  });
 });

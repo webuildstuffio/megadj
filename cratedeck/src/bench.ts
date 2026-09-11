@@ -228,7 +228,7 @@ async function biggestFiles(
     },
   });
   return out
-    .sort((a, b) => b.size - a.size)
+    .toSorted((a, b) => b.size - a.size)
     .slice(0, limit === Infinity ? out.length : limit)
     .map((x) => x.p);
 }

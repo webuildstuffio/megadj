@@ -249,15 +249,17 @@ describe("report checks", () => {
 
 // ---- report summary (the rail's score line) -------------------------------
 
-describe("buildReportSummary", () => {
-  const checksOf = (statuses: CheckStatus[]): HealthCheck[] =>
-    statuses.map((status, i) => ({
-      id: `c${i}`,
-      label: `check ${i}`,
-      status,
-      detail: "",
-    }));
+/** Health-check list synth for the summary scorer. Module-level —
+ *  captures nothing from the enclosing describe. */
+const checksOf = (statuses: CheckStatus[]): HealthCheck[] =>
+  statuses.map((status, i) => ({
+    id: `c${i}`,
+    label: `check ${i}`,
+    status,
+    detail: "",
+  }));
 
+describe("buildReportSummary", () => {
   it("scores pass/warn/fail/unknown counts — not a binary yes/no", () => {
     const s = buildReportSummary(
       checksOf([

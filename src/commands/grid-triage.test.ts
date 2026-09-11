@@ -102,6 +102,21 @@ describe("resolveCollectionAnlz", () => {
     ).toBe(join(shelf, "PIONEER/Master/share/ANLZ/A.DAT"));
     expect(resolveCollectionAnlz(shelf, "missing.DAT")).toBeNull();
   });
+
+  test("REGRESSION (super-sure Sep 10): absolute /Contents/share/ANLZ shape falls back to the shelf's share dir", () => {
+    // rekordbox stores AnalysisDataPath as an absolute /Contents/... path
+    // but the shelf keeps the file at PIONEER/Master/share/ANLZ/ — every
+    // absolute row read as NO-ANLZ before the basename fallback existed.
+    const { shelf, anlzDir } = fakeShelf();
+    writeFileSync(join(anlzDir, "B.DAT"), "y");
+    expect(resolveCollectionAnlz(shelf, "/Contents/share/ANLZ/B.DAT")).toBe(
+      join(anlzDir, "B.DAT"),
+    );
+    // truly-gone absolute paths still read as missing
+    expect(
+      resolveCollectionAnlz(shelf, "/Contents/share/ANLZ/GONE.DAT"),
+    ).toBeNull();
+  });
 });
 
 describe("buildLedgerIndex + ledgerBeatsFor", () => {

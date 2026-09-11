@@ -151,7 +151,7 @@ describe("shelf-hygiene command", () => {
     // the two receipts tile the apply leg: one saw 5→4, the other 4→3
     const deltas = opens
       .map((f) => store.get(f.id)!.validation!.shelfDelta)
-      .sort((a, b) => a.before - b.before);
+      .toSorted((a, b) => a.before - b.before);
     expect(deltas[0]).toEqual({ before: 4, after: 3, quarantined: 1 });
     expect(deltas[1]).toEqual({ before: 5, after: 4, quarantined: 1 });
     expect(existsSync(join(vol, "Contents", "Artist A", "one copy.mp3"))).toBe(

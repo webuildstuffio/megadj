@@ -33,6 +33,27 @@ const insT = seed.query(
      first_seen_at, updated_at)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 );
+
+/** Beat grid synth: `bpm` over `seconds` → beat timestamps. Module-level —
+ *  captures nothing from the enclosing test. */
+function grid(bpm: number, seconds: number): number[] {
+  return Array.from({ length: Math.floor((seconds / 60) * bpm) + 1 }, (_, i) =>
+    Number((i * (60 / bpm)).toFixed(4)),
+  );
+}
+
+/** Cue-set JSON synth: `n` evenly spaced cues. Module-level — captures
+ *  nothing from the enclosing test. */
+function cueSet(n: number): string {
+  return JSON.stringify(
+    Array.from({ length: n }, (_, i) => ({
+      index: i,
+      position: i * 16,
+      bar: i * 8 + 1,
+    })),
+  );
+}
+
 function ins(
   videoId: string,
   over: {
@@ -209,10 +230,6 @@ describe("ArchiveReader (O82b)", () => {
       `INSERT OR REPLACE INTO beats (video_id, bpm_raw, bpm_folded, beats_json, downbeats_json, model, source_path, analyzed_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     );
-    const grid = (bpm: number, seconds: number): number[] =>
-      Array.from({ length: Math.floor((seconds / 60) * bpm) + 1 }, (_, i) =>
-        Number((i * (60 / bpm)).toFixed(4)),
-      );
     // The grid rows join to tracks — seed v5/v6/vd tracks as downloaded
     const insT5 = seed.query(
       `INSERT INTO tracks (video_id, title, artist, status, bitrate_kbps, codec,
@@ -277,7 +294,7 @@ describe("ArchiveReader (O82b)", () => {
     expect(g.available).toBe(true);
     expect(g.checked).toBe(4);
     expect(g.ok).toBe(1);
-    expect(g.drift.map((o) => o.video_id).sort()).toEqual(["v5", "vd"]);
+    expect(g.drift.map((o) => o.video_id).toSorted()).toEqual(["v5", "vd"]);
     expect(g.octave.map((o) => o.video_id)).toEqual(["v6"]);
     expect(g.octave[0]!.ledgerBpm).toBeGreaterThan(85);
     expect(g.octave[0]!.ledgerBpm).toBeLessThan(89);
@@ -399,14 +416,6 @@ describe("ArchiveReader (O82b)", () => {
       `INSERT OR REPLACE INTO cues (video_id, cues_json, model, derived_at)
        VALUES (?, ?, ?, ?)`,
     );
-    const cueSet = (n: number): string =>
-      JSON.stringify(
-        Array.from({ length: n }, (_, i) => ({
-          index: i,
-          position: i * 16,
-          bar: i * 8 + 1,
-        })),
-      );
     insC.run("v1", cueSet(12), "phrase-cues@1", "t"); // 12 cues, first at 0
     insC.run("v2", cueSet(9), "phrase-cues@1", "t"); // 9 cues
     const r = reader();

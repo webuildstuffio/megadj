@@ -61,8 +61,8 @@ import {
   type Prop,
 } from "./mcp_params";
 import {
-  apiGet,
   apiGetJson,
+  apiGetJsonT,
   apiPost,
   ensureServer,
   resolveDrive,
@@ -571,9 +571,7 @@ const TOOLS: Record<string, ToolDef> = {
       // two spokes — surface-parity.md GAP-2 closed)
       const { fetchWeeklyPrepInput, renderWeeklyPrep } =
         await import("./weekly_prep");
-      const getJson = <T>(path: string, timeoutMs?: number) =>
-        apiGet(path, timeoutMs).then((r) => r.json() as Promise<T>);
-      const input = await fetchWeeklyPrepInput(getJson);
+      const input = await fetchWeeklyPrepInput(apiGetJsonT);
       return { markdown: renderWeeklyPrep(input) };
     },
   },

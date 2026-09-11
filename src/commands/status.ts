@@ -25,8 +25,8 @@ export function status(state: ArchiveState): void {
   console.log("megadj archive status");
   console.log("=====================");
   console.log(`total tracks tracked: ${s.total}`);
-  for (const [status, n] of Object.entries(s.counts)) {
-    console.log(`  ${status.padEnd(20)} ${n}`);
+  for (const [st, n] of Object.entries(s.counts)) {
+    console.log(`  ${st.padEnd(20)} ${n}`);
   }
   console.log(`\narchive size: ${(s.bytes / 1e9).toFixed(2)} GB`);
   console.log(
