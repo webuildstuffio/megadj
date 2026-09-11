@@ -120,7 +120,7 @@ function verifyCheck(input: ReportInput): HealthCheck {
           ? "warn"
           : "pass",
     detail: !verify.ok
-      ? "last verify FAILED"
+      ? `last verify FAILED${ageDays >= 1 ? ` (${Math.round(ageDays)}d ago)` : ""}`
       : changedSince
         ? "library changed since last verify"
         : `verified ${Math.round(ageDays)}d ago, all pass`,

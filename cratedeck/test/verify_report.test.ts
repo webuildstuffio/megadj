@@ -3,7 +3,12 @@
 // failing check carries a meaning + fix, passes are included (not silent),
 // and the check ids stay stable for the UI/CLI.
 import { describe, expect, it } from "bun:test";
-import { parseVerifyReport, verifyDeltas } from "../src/jobs";
+import {
+  parseVerifyReport,
+  sanitizeVerifyReport,
+  verifyDeltas,
+} from "../src/jobs";
+import type { VerifyReport } from "../shared/types";
 
 const PASS_OUTPUT = `
 === databases ===
@@ -137,6 +142,106 @@ describe("parseVerifyReport", () => {
     expect(ids).not.toContain("db-parity");
     expect(ids).not.toContain("anlz-parity");
     expect(ids).not.toContain("audio-parity");
+  });
+});
+
+// ---- crashed runs must read as crashes, not almost-passes -------------------
+
+// What a dead usb_verify.py actually leaves behind: no FINAL line, no
+// counts, just (part of) a traceback. The Sep 10 BANGERS/BOSEXY stored
+// reports were exactly this shape — and the old parser emitted a green
+// "all ? tracks have plausible BPM and length" fields check for them.
+const CRASH_OUTPUT = `
+Opening export.pdb… Traceback (most recent call last):
+  File "sqlalchemy/engine/base.py", line 1421, in _execute_context
+sqlalchemy.exc.OperationalError: database disk image is malformed
+`;
+
+describe("parseVerifyReport: crashed script", () => {
+  it("crash output yields an explicit script-failed check, not a fields pass", () => {
+    const r = parseVerifyReport(CRASH_OUTPUT, false, null, 9);
+    expect(r.ok).toBe(false);
+    expect(r.final).toBeNull();
+    const fields = r.checks.find((c) => c.id === "fields");
+    // the lie: a "pass" over zero measured tracks must not exist
+    expect(fields).toBeUndefined();
+    const crash = r.checks.find((c) => c.id === "script-failed");
+    expect(crash).toBeDefined();
+    expect(crash?.status).toBe("fail");
+    expect(crash?.fix).toBeTruthy();
+    expect(crash?.meaning).toBeTruthy();
+  });
+
+  it("script-failed check carries the tail of the crash output", () => {
+    const r = parseVerifyReport(CRASH_OUTPUT, false, null, 9);
+    const crash = r.checks.find((c) => c.id === "script-failed")!;
+    expect(crash.detail).toContain("crashed");
+    expect(crash.detail).toContain("malformed");
+  });
+
+  it("empty output still produces a script-failed check", () => {
+    const r = parseVerifyReport("", false, null, 0);
+    expect(r.checks.map((c) => c.id)).toContain("script-failed");
+  });
+
+  it("a completed run NEVER gets the script-failed check", () => {
+    const ok = parseVerifyReport(PASS_OUTPUT, true, "FINAL: ALL PASS", 10);
+    expect(ok.checks.map((c) => c.id)).not.toContain("script-failed");
+    const failed = parseVerifyReport(
+      FAIL_OUTPUT,
+      false,
+      "FINAL: FAILED: 6 checks",
+      10,
+    );
+    expect(failed.checks.map((c) => c.id)).not.toContain("script-failed");
+  });
+});
+
+// ---- sanitizeVerifyReport: legacy persisted crash rows heal on read -----------
+
+describe("sanitizeVerifyReport", () => {
+  it("legacy crash row (no final, no failing checks) gains script-failed", () => {
+    // byte-shape of what's actually sitting in the DB for BANGERS etc.
+    const legacy = {
+      ran_at: 1788980844151,
+      ok: false,
+      final: null,
+      duration_s: 9,
+      checks: [
+        {
+          id: "fields",
+          label: "BPM + duration sanity",
+          status: "pass",
+          detail: "all ? tracks have plausible BPM and length",
+          meaning: "These fields drive BPM sync and search-by-BPM.",
+        },
+      ],
+      stats: {},
+      summary:
+        "Traceback (most recent call last): sqlalchemy error at line 1421",
+    } as unknown as VerifyReport;
+    const s = sanitizeVerifyReport(legacy);
+    expect(s.ok).toBe(false);
+    const crash = s.checks.find((c) => c.id === "script-failed")!;
+    expect(crash.status).toBe("fail");
+    expect(crash.detail).toContain("crashed with an error");
+    // legacy completed runs pass through untouched
+    const done = sanitizeVerifyReport({
+      ...legacy,
+      final: "FINAL: ALL PASS",
+      ok: true,
+    });
+    expect(done.checks.find((c) => c.id === "script-failed")).toBeUndefined();
+    // a completed run with real failing checks is untouched
+    const doneFail = sanitizeVerifyReport({
+      ...legacy,
+      final: "FINAL: FAILED",
+      checks: [],
+    });
+    expect(doneFail).toBe(doneFail); // identity: no mutation path
+    expect(
+      doneFail.checks.find((c) => c.id === "script-failed"),
+    ).toBeUndefined();
   });
 });
 

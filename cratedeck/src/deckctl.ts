@@ -52,6 +52,24 @@ import { cmdFixes } from "./deckctl_fixes";
 const JSON_MODE = process.argv.includes("--json");
 const IS_TTY = process.stderr.isTTY ?? false;
 
+/**
+ * Emit the machine-readable payload to stdout — THE one JSON exit for CLI.
+ * console.log TRUNCATES large payloads when stdout is a pipe (the write is
+ * fire-and-forget; a consumer like a python json.load reading ~100KB gets
+ * a mid-string EOF → "Unterminated string" JSONDecodeError). Bun.write to
+ * the stdout stream completes before the promise resolves, and flushStdout
+ * below guarantees the bytes are drained before the process exits.
+ */
+async function emitJson(payload: unknown): Promise<void> {
+  await Bun.write(Bun.stdout, `${JSON.stringify(payload, null, 2)}\n`);
+}
+
+/** Drain pending stdout writes so piped consumers never see a truncated
+ *  stream. Awaited from main() before every exit path. */
+function flushStdout(): Promise<void> {
+  return Bun.write(Bun.stdout, "").then(() => undefined);
+}
+
 /** Typed JSON reader: `const d = await getJson<Drive[]>(res)`. */
 async function getJson<T>(p: string, timeoutMs?: number): Promise<T> {
   const res = await apiGet(p, timeoutMs);
@@ -99,8 +117,8 @@ function log(msg: string): void {
   if (JSON_MODE) return;
   console.log(msg);
 }
-function errOut(msg: string): void {
-  if (JSON_MODE) console.log(JSON.stringify({ error: msg }));
+async function errOut(msg: string): Promise<void> {
+  if (JSON_MODE) await emitJson({ error: msg });
   else console.error(msg);
 }
 
@@ -116,7 +134,7 @@ async function cmdStatus(): Promise<void> {
     getJson<Job[]>("/api/jobs?active=1"),
   ]);
   if (JSON_MODE) {
-    console.log(JSON.stringify({ interlock, drives, jobs }, null, 2));
+    await emitJson({ interlock, drives, jobs });
     return;
   }
   const il = interlock;
@@ -144,7 +162,7 @@ async function cmdStatus(): Promise<void> {
 async function cmdDrives(): Promise<void> {
   const drives = await getJson<DriveWithBadges[]>("/api/drives");
   if (JSON_MODE) {
-    console.log(JSON.stringify(drives, null, 2));
+    await emitJson(drives);
     return;
   }
   for (const d of drives) {
@@ -165,7 +183,7 @@ async function cmdDrives(): Promise<void> {
 async function cmdPreflight(): Promise<void> {
   const r = await getJson<PreflightReport>("/api/preflight");
   if (JSON_MODE) {
-    console.log(JSON.stringify(r, null, 2));
+    await emitJson(r);
     if (r.overall !== "ready") process.exit(1);
     return;
   }
@@ -203,7 +221,7 @@ async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
   if (nameOrId) {
     const d = await resolveDrive(nameOrId);
     if (!d) {
-      errOut(`unknown drive: ${nameOrId}`);
+      await errOut(`unknown drive: ${nameOrId}`);
       process.exit(2);
     }
     drives.push(d);
@@ -219,14 +237,14 @@ async function cmdPlayers(nameOrId: string | undefined): Promise<void> {
     if (nameOrId) {
       // single drive asked for by name: a skipped lookup is a real failure
       if (!payloads[0]) {
-        errOut(
+        await errOut(
           `players lookup failed for ${nameOrId}: ${skipped[0]?.reason ?? "no payload"}`,
         );
         process.exit(1);
       }
-      console.log(JSON.stringify(payloads[0], null, 2));
+      await emitJson(payloads[0]);
     } else {
-      console.log(JSON.stringify({ players: payloads, skipped }, null, 2));
+      await emitJson({ players: payloads, skipped });
     }
     return;
   }
@@ -255,22 +273,24 @@ async function cmdRun(
 ): Promise<void> {
   const kinds = ["scan", "verify", "mirror", "benchmark", "checksum"];
   if (!kinds.includes(kind)) {
-    errOut(`bad kind "${kind}" — one of: ${kinds.join(", ")}`);
+    await errOut(`bad kind "${kind}" — one of: ${kinds.join(", ")}`);
     process.exit(2);
   }
   const d = await resolveDrive(nameOrId);
   if (!d) {
-    errOut(`unknown drive: ${nameOrId}`);
+    await errOut(`unknown drive: ${nameOrId}`);
     process.exit(2);
   }
   if (!d.mounted) {
-    errOut(`drive ${d.nickname ?? d.name} is not mounted — plug it in first`);
+    await errOut(
+      `drive ${d.nickname ?? d.name} is not mounted — plug it in first`,
+    );
     process.exit(1);
   }
   const interlock = await getJson<InterlockState>("/api/interlock");
   if (interlock.rekordbox_running) {
     const pid = interlock.pid;
-    errOut(
+    await errOut(
       `rekordbox is running (pid ${pid}) — operations locked to prevent library corruption. Quit rekordbox and retry.`,
     );
     process.exit(3);
@@ -282,12 +302,12 @@ async function cmdRun(
   });
   const body = (await res.json()) as Job & { error?: string };
   if (!res.ok) {
-    errOut(`enqueue failed: ${body.error ?? res.status}`);
+    await errOut(`enqueue failed: ${body.error ?? res.status}`);
     process.exit(res.status === 423 ? 3 : 1);
   }
   const job = body;
   if (JSON_MODE && !wait) {
-    console.log(JSON.stringify(job, null, 2));
+    await emitJson(job);
     return;
   }
   log(
@@ -306,7 +326,7 @@ async function cmdRun(
   // verify — same contract waitForJob gives agents
   const poll = (id: string): Promise<Job> =>
     pollJob(id, {
-      onGiveUp: (msg) => errOut(msg),
+      onGiveUp: (msg) => void errOut(msg),
     });
   if (JSON_MODE) {
     // machine mode: emit a JSON line per poll (state-change friendly)
@@ -315,7 +335,7 @@ async function cmdRun(
       const j = await poll(job.id);
       const key = `${j.status}:${j.progress}:${j.message}`;
       if (key !== last) {
-        console.log(JSON.stringify(j));
+        await emitJson(j);
         last = key;
       }
       if (terminal(j.status)) break;
@@ -330,7 +350,7 @@ async function cmdRun(
       const now = Date.now();
       if (terminal(j.status)) {
         clearLine();
-        finishLine(j, d.name, (now - t0) / 1000);
+        await finishLine(j, d.name, (now - t0) / 1000);
         break;
       }
       if (now - lastRender > 500) {
@@ -360,7 +380,11 @@ function clearLine(): void {
   if (IS_TTY) process.stderr.write("\r\x1b[K");
 }
 
-function finishLine(j: Job, driveName: string, elapsedS: number): void {
+async function finishLine(
+  j: Job,
+  driveName: string,
+  elapsedS: number,
+): Promise<void> {
   if (j.status === "done") {
     log(`✓ ${j.kind} on ${driveName} finished in ${fmtEta(elapsedS)}`);
     let result: Record<string, unknown> | null = null;
@@ -414,14 +438,16 @@ function finishLine(j: Job, driveName: string, elapsedS: number): void {
     }
     process.exit(0);
   }
-  errOut(`✕ ${j.kind} on ${driveName} ${j.status}: ${j.error ?? "no details"}`);
+  await errOut(
+    `✕ ${j.kind} on ${driveName} ${j.status}: ${j.error ?? "no details"}`,
+  );
   process.exit(1);
 }
 
 async function cmdJobs(): Promise<void> {
   const jobs = await getJson<Job[]>("/api/jobs");
   if (JSON_MODE) {
-    console.log(JSON.stringify(jobs, null, 2));
+    await emitJson(jobs);
     return;
   }
   for (const j of jobs.slice(0, 15)) {
@@ -451,7 +477,7 @@ async function cmdCoverage(minCopies?: string): Promise<void> {
   const qs = n && n > 0 ? `?min_copies=${n}` : "";
   const r = await getJson<CoverageResponse>(`/api/fleet/coverage${qs}`);
   if (JSON_MODE) {
-    console.log(JSON.stringify(r, null, 2));
+    await emitJson(r);
     return;
   }
   log(
@@ -478,7 +504,7 @@ async function cmdRedundancy(minCopies?: string): Promise<void> {
   const qs = n && n > 0 ? `?min_copies=${n}` : "";
   const r = await getJson<RedundancyResult>(`/api/fleet/redundancy${qs}`);
   if (JSON_MODE) {
-    console.log(JSON.stringify(r, null, 2));
+    await emitJson(r);
     return;
   }
   log(`redundancy audit — ${r.summary}`);
@@ -499,24 +525,26 @@ async function cmdRedundancy(minCopies?: string): Promise<void> {
 
 async function cmdDiff(a?: string, b?: string): Promise<void> {
   if (!a || !b) {
-    errOut("usage: deckctl diff <driveA> <driveB>  (name, nickname, or UUID)");
+    await errOut(
+      "usage: deckctl diff <driveA> <driveB>  (name, nickname, or UUID)",
+    );
     process.exit(2);
   }
   const da = await resolveDrive(a);
   const dbb = await resolveDrive(b);
   if (!da) {
-    errOut(`unknown drive: ${a}`);
+    await errOut(`unknown drive: ${a}`);
     process.exit(2);
   }
   if (!dbb) {
-    errOut(`unknown drive: ${b}`);
+    await errOut(`unknown drive: ${b}`);
     process.exit(2);
   }
   const r = await getJson<FleetDiff>(
     `/api/fleet/diff?a=${encodeURIComponent(da.id)}&b=${encodeURIComponent(dbb.id)}`,
   );
   if (JSON_MODE) {
-    console.log(JSON.stringify(r, null, 2));
+    await emitJson(r);
     return;
   }
   log(`${r.a} → ${r.b}: ${r.summary}`);
@@ -577,19 +605,21 @@ async function cmdBoothFleet(
   ids: string[] | undefined,
 ): Promise<void> {
   if (setCmd !== undefined && setCmd !== "set") {
-    errOut(`unknown booth subcommand "${setCmd}" — usage: booth [set ID ...]`);
+    await errOut(
+      `unknown booth subcommand "${setCmd}" — usage: booth [set ID ...]`,
+    );
     process.exit(2);
   }
   if (setCmd === "set") {
     if (!ids || ids.length === 0) {
-      errOut(
+      await errOut(
         "booth set needs at least one player id (e.g. xdj-xz cdj-3000 cdj-2000nxs2)",
       );
       process.exit(2);
     }
     const res = await apiPost("/api/booth/fleet", { selected: ids });
     if (!res.ok) {
-      errOut(`booth-fleet set failed: HTTP ${res.status}`);
+      await errOut(`booth-fleet set failed: HTTP ${res.status}`);
       process.exit(1);
     }
     reportFleet((await res.json()) as BoothFleetPayload);
@@ -598,9 +628,9 @@ async function cmdBoothFleet(
   reportFleet(await getJson<BoothFleetPayload>("/api/booth/fleet"));
 }
 
-function reportFleet(d: BoothFleetPayload): void {
+async function reportFleet(d: BoothFleetPayload): Promise<void> {
   if (JSON_MODE) {
-    console.log(JSON.stringify(d, null, 2));
+    await emitJson(d);
     return;
   }
   log(`booth fleet: ${d.selected.join(", ")}`);
@@ -618,13 +648,13 @@ function reportFleet(d: BoothFleetPayload): void {
 // KIND_DOCS + the pretty-printer live in deckctl_docs.ts (extracted, shared
 // with `help <kind>`); only the verify-rich rendering stays local.
 
-function cmdExplain(kind?: string): void {
+async function cmdExplain(kind?: string): Promise<void> {
   // verify gets the full treatment: rich shared doc from verify_help.ts
   const showVerify = !kind || kind === "verify";
   if (showVerify) {
     const v = VERIFY_HELP;
     if (JSON_MODE && kind === "verify") {
-      console.log(JSON.stringify({ verify: v }, null, 2));
+      await emitJson({ verify: v });
       return;
     }
     log("── verify ──");
@@ -644,7 +674,7 @@ function cmdExplain(kind?: string): void {
     if (kind === "verify") return;
   }
   if (JSON_MODE) {
-    console.log(JSON.stringify(KIND_DOCS, null, 2));
+    await emitJson(KIND_DOCS);
     return;
   }
   if (!kind) {
@@ -653,7 +683,7 @@ function cmdExplain(kind?: string): void {
   }
   const d = KIND_DOCS[kind];
   if (!d) {
-    errOut(
+    await errOut(
       `unknown kind "${kind}" — one of: verify, ${Object.keys(KIND_DOCS).join(", ")}`,
     );
     process.exit(2);
@@ -702,7 +732,7 @@ function usageText(): string {
 
 /** Bad invocation: usage goes to stderr with exit 2. */
 function usage(): never {
-  errOut(usageText());
+  void errOut(usageText());
   process.exit(2);
 }
 
@@ -718,15 +748,20 @@ async function main(): Promise<void> {
   // Explicit help goes to STDOUT with exit 0; bad usage goes to stderr
   // with exit 2. Documentation is not an error.
   if (wantsHelp) {
-    console.log(usageText());
+    await Bun.write(Bun.stdout, `${usageText()}\n`);
+    await flushStdout();
     process.exit(0);
   }
   if (cmd && (PRE_SERVER_VERBS as readonly string[]).includes(cmd)) {
-    if (cmd === "help") return cmdHelp(helpHooks(), args[1]);
+    if (cmd === "help") {
+      await cmdHelp(helpHooks(), args[1]);
+      await flushStdout();
+      return;
+    }
   }
   const up = await ensureServer();
   if (!up) {
-    errOut("cratedeck server unreachable and could not be started");
+    await errOut("cratedeck server unreachable and could not be started");
     process.exit(4);
   }
   switch (cmd) {
@@ -793,5 +828,21 @@ async function main(): Promise<void> {
     default:
       usage();
   }
+  // The LAST thing before exit: drain pending stdout bytes. All JSON exits
+  // go through emitJson (awaited Bun.write), but human-mode console.log
+  // output and extracted command modules (report/notes/hygiene/…) still
+  // write via console.log — this drain guarantees a piped consumer
+  // (json.load, jq, grep) NEVER reads a truncated stream, the defect that
+  // surfaced as "Unterminated string" JSONDecodeError from status --json.
+  await flushStdout();
 }
-await main();
+// Top-level rejection guard: an unhandled rejection mid-output would kill
+// the process with stdio writes still pending — same truncated-stream
+// class, so it drains too and exits nonzero with the error on stderr.
+try {
+  await main();
+} catch (e) {
+  console.error(e instanceof Error ? (e.stack ?? e.message) : e);
+  await flushStdout();
+  process.exit(1);
+}

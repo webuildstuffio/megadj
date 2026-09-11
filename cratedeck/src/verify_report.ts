@@ -268,17 +268,22 @@ export function parseVerifyReport(
     );
   }
 
-  // 4 — field sanity (BPM / duration)
-  checks.push(
-    mk(
-      "fields",
-      noBpm + badLen === 0 ? "pass" : "warn",
-      noBpm + badLen === 0
-        ? `all ${tracks ?? "?"} tracks have plausible BPM and length`
-        : `${noBpm} without BPM, ${badLen} with implausible length`,
-      cap([...noBpmList, ...badLenList]),
-    ),
-  );
+  // 4 — field sanity (BPM / duration). Conditioned on tracks: previously
+  // unconditional, which turned a CRASHED verify into a green "all ? tracks
+  // have plausible BPM and length" line — the "?" was the tell that no
+  // measurement happened. A crash is not a measurement.
+  if (tracks !== null) {
+    checks.push(
+      mk(
+        "fields",
+        noBpm + badLen === 0 ? "pass" : "warn",
+        noBpm + badLen === 0
+          ? `all ${tracks} tracks have plausible BPM and length`
+          : `${noBpm} without BPM, ${badLen} with implausible length`,
+        cap([...noBpmList, ...badLenList]),
+      ),
+    );
+  }
 
   // 5 — grid plausibility
   if (tracks !== null) {
@@ -353,6 +358,30 @@ export function parseVerifyReport(
     }
   }
 
+  // Crash guard — LAST, after real checks: usb_verify.py that died mid-run
+  // (OOM, DB lock, uv/env failure — a SQLAlchemy traceback in the output)
+  // produces no counts and none of the checks above. The old shape returned
+  // ok:false with ZERO failing checks, which the UI rendered as
+  // "0 of 0 checks need attention" — a crash reading as verified.
+  // Corrupt verdicts never read as success.
+  if (finalLine === null) {
+    const tail = out
+      .split("\n")
+      .filter((l) => l.trim())
+      .slice(-3)
+      .join(" · ")
+      .slice(0, 300);
+    checks.push(
+      mk(
+        "script-failed",
+        "fail",
+        tail
+          ? `verify script crashed before producing a verdict — last output: ${tail}`
+          : "verify script crashed before producing any output",
+      ),
+    );
+  }
+
   return {
     ran_at: Date.now(),
     ok,
@@ -369,6 +398,48 @@ function grabNum(out: string, re: RegExp): number | null {
   if (!m?.[1]) return null;
   const v = parseInt(m[1], 10);
   return Number.isNaN(v) ? null : v;
+}
+
+/**
+ * Normalize a PERSISTED verify report to the honest shape.
+ *
+ * Legacy reports written before the crash guard can carry the defect this
+ * file exists to kill: a run that crashed mid-script stored ok:false with
+ * ZERO failing checks (or a green "all ? tracks" fields line, or a raw
+ * Python traceback as the summary). Those rows read as a real verdict to
+ * every consumer — UI "0 of 0 checks", badge logic, deltas — so a crash
+ * masqueraded as a measured (almost-healthy) drive. This pass re-marks
+ * them: no FINAL line + no failing checks ⇒ exactly one script-failed
+ * check, traceback stripped from the readable surface. Pure function —
+ * applied on read in db.getVerifyReport, so old rows heal in place
+ * without a migration.
+ */
+export function sanitizeVerifyReport(r: VerifyReport): VerifyReport {
+  if (r.final !== null) return r; // a completed run: trust it as stored
+  const failing = r.checks.filter((c) => c.status !== "pass");
+  if (failing.length > 0) return r; // already honest (or another failure mode)
+  const summary = r.summary ?? "";
+  const isTraceback = summary.includes("Traceback (most recent call last)");
+  const tail = isTraceback
+    ? "run crashed with an error (traceback in the job log)"
+    : "verify script crashed before producing a verdict";
+  const withCrash: VerifyReport = {
+    ...r,
+    ok: false,
+    checks: [
+      ...r.checks,
+      {
+        id: "script-failed",
+        label: "Verify script itself",
+        status: "fail",
+        detail: `${tail} — no checks were measured`,
+        meaning:
+          "A verify that crashes halfway measured nothing; the drive state is UNKNOWN, not almost-healthy. Re-run verify once the drive is mounted.",
+        fix: "Re-run verify with the drive mounted and rekordbox closed; if it crashes again, check the job log for the underlying error.",
+      },
+    ],
+  };
+  return withCrash;
 }
 
 function grab2Num(out: string, re: RegExp): [number, number] | null {

@@ -6,6 +6,7 @@
 import type { Database } from "bun:sqlite";
 import type { Drive, SnapshotData, VerifyReport } from "../shared/types";
 import { canon } from "./db_canon";
+import { sanitizeVerifyReport } from "./verify_report";
 
 /** Raw row shape as stored in the drives table (mounted is 0/1). */
 interface DriveRow extends Omit<Drive, "mounted"> {
@@ -39,7 +40,17 @@ export class DriveStore {
   constructor(private readonly sqlite: Database) {}
 
   private normDrive(d: DriveRow): Drive {
-    return { ...d, mounted: !!d.mounted };
+    return {
+      ...d,
+      mounted: !!d.mounted,
+      // heal legacy crash rows at the one choke point every drive read
+      // flows through (allDrives/get/getByUuid) — a stored report with no
+      // FINAL verdict and no failing checks must never ride the wire
+      // looking like a measured (almost-healthy) run.
+      verify_report_json: d.verify_report_json
+        ? JSON.stringify(sanitizeVerifyReport(JSON.parse(d.verify_report_json)))
+        : null,
+    };
   }
 
   get(id: string): Drive | null {
@@ -149,7 +160,12 @@ export class DriveStore {
       .get(id);
     if (!r?.verify_report_json) return null;
     try {
-      return JSON.parse(r.verify_report_json) as VerifyReport;
+      // sanitizeVerifyReport re-marks legacy crash rows (no FINAL line, no
+      // failing checks) as an explicit script-failed check — a corrupt
+      // verdict must not read as a measured (almost-healthy) drive.
+      return sanitizeVerifyReport(
+        JSON.parse(r.verify_report_json) as VerifyReport,
+      );
     } catch (e) {
       // A corrupt persisted verdict must NOT read as "never verified" —
       // that flips the drive to the reassuring unknown state forever.

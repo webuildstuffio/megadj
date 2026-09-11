@@ -103,5 +103,14 @@ export const VERIFY_HELP: {
       if_fail: "The same song may sound slightly different from each drive.",
       fix: "Copy the master's file over the mirror's for the listed tracks.",
     },
+    {
+      id: "script-failed",
+      label: "Verify script itself",
+      what: "Confirms usb_verify.py actually ran to completion and printed a FINAL verdict.",
+      why: "A verify that crashes halfway (database lock, environment failure) measured nothing — the drive state is UNKNOWN, not healthy and not broken.",
+      if_fail:
+        "The numbers above came from a run that never finished, so treat every verdict on this report as unreliable until verify completes.",
+      fix: "Re-run verify once the drive is mounted and rekordbox is closed; if it crashes again, read the tail of the report summary for the underlying error.",
+    },
   ],
 };

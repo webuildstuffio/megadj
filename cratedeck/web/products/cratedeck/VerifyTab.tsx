@@ -89,11 +89,20 @@ export function VerifyTab(props: {
               <span>· took {report.duration_s}s</span>
             )}
             <span class="sep">·</span>
-            <span class={report.ok ? "good" : "bad"}>
-              {report.ok
-                ? `all ${report.checks.length} checks passed`
-                : `${failed.length} of ${report.checks.length} checks need attention`}
-            </span>
+            {report.final === null ? (
+              // crash-shaped report: "N of M checks" understates it — the
+              // run never finished, so EVERY verdict on it is unreliable.
+              <span class="bad">
+                <Icon name="warn" size={12} /> verify never completed — run it
+                again for a real verdict
+              </span>
+            ) : (
+              <span class={report.ok ? "good" : "bad"}>
+                {report.ok
+                  ? `all ${report.checks.length} checks passed`
+                  : `${failed.length} of ${report.checks.length} checks need attention`}
+              </span>
+            )}
           </>
         ) : (
           <span class="muted">never verified on this drive yet</span>
@@ -195,6 +204,12 @@ export function VerifyTab(props: {
 function CheckCard(props: { c: VerifyCheck }) {
   const { c } = props;
   const ok = c.status === "pass";
+  // Legacy crash rows carry the tell: a green "all ? tracks" line over a
+  // run that never completed. The honest script-failed check sits right
+  // above it; the "?" pass is noise and erases itself here.
+  const legacyCrashPass =
+    ok && c.id === "fields" && c.detail.includes("all ? tracks");
+  if (legacyCrashPass) return null;
   return (
     <div class={`vcheck ${ok ? "ok" : c.status}`}>
       <div class="vhead">

@@ -986,7 +986,11 @@ async function drainText(
   }
 }
 
-export { parseVerifyReport, verifyDeltas } from "./verify_report";
+export {
+  parseVerifyReport,
+  sanitizeVerifyReport,
+  verifyDeltas,
+} from "./verify_report";
 
 /** Where a line belongs in usb_verify.py's phase order → absolute progress.
  *
