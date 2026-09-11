@@ -52,10 +52,27 @@ ExFAT rsync can wedge. Use the proven per-directory tar-pipe/file-count
 resume flow in the shelf-intake skill. Move files individually and verify the
 destination hash; whole-directory moves can lose files.
 
+Distrust extensions at intake: pool rips ship MP4/AAC audio wearing a
+`.mp3` name (tag writer picks the mp3 muxer → exit 234, and Pioneer
+chokes on the container). `drop`'s container-truth probe renames to the
+true `.m4a` before any writer runs. Per-file failures quarantine and
+report; one bad file never kills a batch run.
+
+`shelf-dupescan` judges duplicates by fingerprint, never by name; keep its
+fpcalc parser base64url-complete (`-`/`_`) — a truncating regex silently
+poisons the whole `shelf_fingerprints` cache with colliding prefixes.
+
 Ingest batches live inside the archive music directory. Re-ingesting the same
 batch is a safe no-op, and each dump gets its own fresh folder. The hygiene
 engine owns the listen-first guard: `quality-diff`, `oddball`, and `ear-check`
-findings cannot be batch-confirmed from any spoke.
+findings cannot be batch-confirmed from any spoke. RB auto-writes
+(`Write to master.db`) are `rb-import`'s job only: rekordbox closed, dated
+backup, whole-table verify — never hand-run while the app is open, and
+`Write to master.db` tool calls must refuse while rekordbox runs.
+Rekordbox is the source of truth for the collection, never for archive
+bytes: unreferenced files get fingerprint-proven and quarantined for
+review, not deleted. Rekordbox's Energy column is engine-computed and
+unwritable; only Comment carries derived energy, never BPM.
 
 ## Rekordbox and hardware safety
 
