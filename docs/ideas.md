@@ -106,6 +106,29 @@ DB corruption) are now the first entries in
 `docs/usb-sync-log.md`. Keep appending one line per gig.
 Issue [#5](https://github.com/webuildstuffio/megadj/issues/5) closed.
 
+0f. **Runtime perf pass (round 3) — deferred until a USB drive is
+mounted.** Rounds 1–2 (landed) took the dev gate 36s → 7.4s; this targets
+the runtime paths (scans, sweeps, CLI), which need a real volume to
+measure honestly — the internal-SSD archive fits the page cache, so warm
+numbers 50× the disk truth (`sudo purge` needs a TTY password). Harness:
+`tools/prof_sweep.ts` (read-only profiler; run cold on a fresh mount,
+then warm, compare serial vs pooled). Three targets, in order:
+1. `cratedeck/src/walk.ts` — parallel file stats per directory
+   (`Promise.all` over dirents; stay async-only, `walk-async.test.ts`
+   pins it). Expected 3–8× on the stat phase on HDD USB.
+2. `cratedeck/src/archive_sweep.ts` — fixed-width hashing pool (4–8
+   workers; ledger writes stay serialized on the coordinator; abort
+   still checked per file; verdicts byte-identical). Expected 3–6× on
+   the sweep leg — the long pole of `deckctl prep`.
+3. `bench.ts` random-read batching (optional, changes what the
+   benchmark measures — needs a deliberate product call).
+Non-targets (checked, already fast): CLI cold start 50–70ms,
+`fetchWeeklyPrepInput` (already fanned out), preflight/report/fleet
+(sub-ms, in-memory), rb_read.py (~1s = dual-DB read itself).
+Verification protocol: prof cold → apply target → re-run + its pinned
+tests → `bun run check:full` → e2e `deckctl run <drive> scan` +
+`deckctl prep` digest still includes D30.
+
 **Reality gate — the input that decides the rest of this doc:** how often
 do you play?
 

@@ -2,9 +2,9 @@
 
 **Status: ✅ CURRENT — the honest state of the whole product as of
 2026-09-09 (shelf sweep folded in), project by project, with the roadmap
-as it stands now (not as it was proposed). Companion to
-[learnings-2026-09-05-07.md](learnings-2026-09-05-07.md) (the lessons);
-this page is the "where are we".**
+as it stands now (not as it was proposed). Durable meta-lessons from the
+Sep 5–7 build window live in [agent-playbook.md](agent-playbook.md)
+§Meta-lessons; this page is the "where are we".**
 
 ---
 

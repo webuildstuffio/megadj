@@ -218,10 +218,10 @@ MCP — see [cratedeck/deckctl.md](cratedeck/deckctl.md) for the tool list.
   [docs/archive/roadmap-proposal.md](docs/archive/roadmap-proposal.md) (executed Sep 6–8),
   [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md),
   [docs/ideas.md](docs/ideas.md)
-- **Writeups:** [docs/learnings-2026-09-05-07.md](docs/learnings-2026-09-05-07.md)
-  (durable lessons from the Sep 5–7 build window) ·
-  [docs/product-state-2026-09-07.md](docs/product-state-2026-09-07.md)
+- **Writeups:** [docs/product-state-2026-09-07.md](docs/product-state-2026-09-07.md)
   (current state, queue, scorecard) ·
+  [docs/agent-playbook.md](docs/agent-playbook.md)
+  (invariant war-stories + durable meta-lessons) ·
   [docs/shelf-hygiene-2026-09-09.md](docs/shelf-hygiene-2026-09-09.md)
   (Sep 9 hygiene session: dupescan data + the CrateDeck findings-ledger spec) ·
   [docs/usb-sync-log.md](docs/usb-sync-log.md) (ops/incident log) ·

@@ -225,3 +225,59 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   (shelf-archive's no-shelf hard-error test did) made any suite including
   that file exit 1 with 0 failed tests, and the pre-commit hook blocked on a
   green suite (documented + reset in `src/commands/shelf-archive.test.ts`).
+
+## Meta-lessons (Sep 5–7 build window)
+
+The durable lessons of the first full analysis-ladder pass against the real
+archive (~55h, three sessions). Gate numbers live in
+`docs/fulltags-roadmap.md`; this section keeps the generalizable findings.
+
+- **Gates work in both directions.** No analysis stage writes to the library
+  without a measured agreement number. The BPM failure taught why: beat_this
+  (ISMIR-2024 SOTA) phase-locks a consistent ~2.2–2.6% beat-period offset vs
+  rekordbox on half the sample — invisible per-track, ruinous on every
+  sync/beatjump. **A model can be wrong in a way that is invisible per-sample
+  and systemic in aggregate.** The genre head taught the other flavor:
+  statistically "confident" everywhere while discriminating nothing — the
+  tell was the distribution, not the score. And a failed write gate doesn't
+  mean the analysis is worthless — it means the write target was wrong:
+  blocked TBPM writes produced the beats ledger, which CrateDeck's
+  `archive_grid_cross_check` uses as an independent second opinion on
+  rekordbox's grids (real-archive verdict: 46 ok / 40 off / 2 octave) — a
+  check the verify pipeline could never produce, because it compared an
+  analysis against itself.
+- **Model-output skepticism, generalized.** The family: flash-lite guessed
+  2023 for every release year; beat_this phase-locked 2.2–6% off; the effnet
+  genre head saturated; the mood head shipped label-inverted (every track
+  dance=0.00/party=1.00). A model's most dangerous failure mode is
+  confident, uniform, subtly-wrong output — saturated-constant output is
+  never believable. Defenses that held: ground truth read from files, never
+  our own DB; sampled-diff review before any batch; distribution checks,
+  not just accuracy checks; provenance stamps (`TXXX:AI-GENRE|0.92`); a
+  human-diff view before a batch changes anything.
+- **The archive is the highest-value test fixture we own.** Three real bugs
+  (WAV/AIFF stamp reads reading nothing, the art-embedded `-map 0:a` miss,
+  the mood label inversion) passed the entire synthetic test matrix and
+  surfaced only against the real 88-track library. Synthetic fixtures prove
+  the code does what we said; the real library proves what we said was
+  right. Execution passes against production data are a different test, not
+  a luxury.
+- **Two quiet bugs worth remembering:** `groundTruth` read TXXX:ENERGY as
+  hardcoded null — a verifier that doesn't read the real source is
+  decoration. And the TOCTOU enqueue re-check: a mutating agent tool must
+  re-check the interlock server-side at enqueue, not just client-side at
+  prompt time.
+- **Filter junk before diffing, or the diff lies.** 1,446 of the 1,449
+  "missing" files in the first naive BANGERS diff were `._*` AppleDouble
+  junk — on macOS-written FAT/exFAT drives that noise buries the signal.
+- **Ledgers beat tags for contested fields.** Tags are for what hardware
+  reads (and only where formats allow); the DB ledger holds everything else
+  — beats, downbeats, phrase-cues, fingerprints. The split: TKEY/genre/
+  year/energy in files; beats/cues DB-side; mood both (stamped + mirrored).
+- **Docs drift behind code in hours, not weeks.** Both audit passes of the
+  window were dominated by shipped-status staleness — the fix that held:
+  counted-and-census-verified claims (grep the code for the number), and
+  fix-all rounds with a regression test per bug (30+ closed that window),
+  recording the class in AGENTS.md so the next agent inherits the scar
+  tissue. Claims need provenance: "98 tests across 11 files" (verified) —
+  the remembered draft said 94 across 12.
