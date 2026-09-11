@@ -195,20 +195,36 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   };
 
   // opener: requested id, else the candidate closest to the arc's start
-  // (ties break by videoId — the opener pick must be deterministic too)
+  // (ties break by videoId — the opener pick must be deterministic too).
+  // Only tracks WITH a beats-ledger BPM can anchor the chain: the old
+  // arousal-only pick let one un-analyzed closest-fit track void the whole
+  // proposal (`first.bpm === null` → everything excluded) even when the
+  // rest of the pool was fully analyzed. A requested-but-unanalyzed
+  // opener is excluded honestly and the arc still builds.
   let prev: SetCandidate | null = null;
   const opener =
     (input.openerId && pool.find((c) => c.videoId === input.openerId)) ||
     undefined;
+  if (opener && opener.bpm === null) {
+    excluded.push({
+      videoId: opener.videoId,
+      title: opener.title,
+      reason: "requested opener has no beats-ledger BPM — run `megadj beats`",
+    });
+    pool.splice(pool.indexOf(opener), 1);
+  }
   const startArousal = preset.arousal[0]! / 9;
   const first =
-    opener ??
-    [...pool].toSorted((a, b) => {
-      const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
-      const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
-      return fa - fb || a.videoId.localeCompare(b.videoId);
-    })[0];
-  if (!first || first.bpm === null) {
+    opener && opener.bpm !== null
+      ? opener
+      : [...pool]
+          .filter((c) => c.bpm !== null)
+          .toSorted((a, b) => {
+            const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
+            const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
+            return fa - fb || a.videoId.localeCompare(b.videoId);
+          })[0];
+  if (!first) {
     return {
       preset: preset.id,
       minutes,
@@ -241,13 +257,20 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
       }
     }
     if (bestIdx < 0 || bestScore <= 0) {
-      // nothing mixable remains — the rest are excluded, not silently dropped
+      // nothing mixable remains — the rest are excluded, not silently
+      // dropped; the pool is drained HERE so the post-loop pass below
+      // can't re-exclude the same tracks under "budget filled" (that
+      // double-count shipped once: excluded_total 596 for 298 leftovers)
       for (const c of pool)
         excluded.push({
           videoId: c.videoId,
           title: c.title,
-          reason: "no compatible transition (key clash or tempo outside ±6%)",
+          reason:
+            c.bpm === null
+              ? "no beats-ledger BPM — run `megadj beats`"
+              : "no compatible transition (key clash or tempo outside ±6%)",
         });
+      pool.length = 0;
       break;
     }
     const next = pool[bestIdx]!;
@@ -259,7 +282,8 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
     // variable (elapsed is assigned by push() in this loop body).
     if (elapsed >= budget) break;
   }
-  // leftovers when the budget filled
+  // leftovers when the budget filled (pool is empty if the loop exited
+  // via the nothing-mixable branch — no double-exclusion)
   for (const c of pool)
     excluded.push({
       videoId: c.videoId,

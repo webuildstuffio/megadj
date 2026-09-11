@@ -165,6 +165,29 @@ describe("buildSet", () => {
       ).toBe(true);
     }
   });
+
+  test("no track is excluded twice — the nothing-mixable exit clears the pool", () => {
+    // regression: the nothing-mixable branch pushed every remaining
+    // candidate into `excluded` but left them in `pool`, so the post-loop
+    // budget pass re-excluded the SAME tracks under "set budget filled" —
+    // live probe showed excluded_total 596 for a 300-track pool.
+    const r = buildSet({
+      candidates: [
+        cand({ videoId: "a1", bpm: 128, key: "8A" }),
+        cand({ videoId: "a2", bpm: 128, key: "8A" }),
+        cand({ videoId: "clash", bpm: 71, key: "2B" }), // tempo 0 → unmixable
+      ],
+      preset: SET_PRESETS.peak,
+      minutes: 60,
+    });
+    const seen = new Set<string>();
+    for (const e of r.excluded) {
+      expect(seen.has(e.videoId)).toBe(false);
+      seen.add(e.videoId);
+    }
+    // and the count matches reality: chain + unique exclusions = pool
+    expect(r.steps.length + r.excluded.length).toBe(3);
+  });
   test("pool with no BPM at all → empty chain, all excluded honestly", () => {
     const r = buildSet({
       candidates: [cand({ videoId: "n1", bpm: null })],
@@ -218,6 +241,48 @@ describe("buildSet", () => {
       minutes: 5,
     });
     expect(r.steps[0]!.videoId).toBe("a-eq"); // localeCompare tie-break
+  });
+
+  test("un-analyzed closest-fit track no longer voids the proposal", () => {
+    // regression: the opener scan sorted by arousal-fit BEFORE the BPM
+    // check, so one un-analyzed closest-fit candidate returned an empty
+    // chain even when the rest of the pool was fully analyzed
+    const r = buildSet({
+      candidates: [
+        cand({ videoId: "noBpm-fit", arousal: 6, bpm: null }),
+        cand({ videoId: "hasBpm", arousal: 7, bpm: 128, key: "8A" }),
+        cand({ videoId: "hasBpm2", arousal: 6.5, bpm: 128, key: "8A" }),
+      ],
+      preset: SET_PRESETS.peak,
+      minutes: 11,
+    });
+    expect(r.steps.length).toBeGreaterThanOrEqual(2);
+    expect(r.steps[0]!.videoId).not.toBe("noBpm-fit");
+    expect(
+      r.excluded.some(
+        (e) => e.videoId === "noBpm-fit" && e.reason.includes("BPM"),
+      ),
+    ).toBe(true);
+  });
+
+  test("requested opener without BPM is excluded honestly, arc still builds", () => {
+    const r = buildSet({
+      candidates: [
+        cand({ videoId: "req", bpm: null }),
+        cand({ videoId: "a1", arousal: 6, bpm: 128, key: "8A" }),
+        cand({ videoId: "a2", arousal: 6.5, bpm: 128, key: "8A" }),
+      ],
+      openerId: "req",
+      preset: SET_PRESETS.peak,
+      minutes: 11,
+    });
+    expect(r.steps.length).toBeGreaterThanOrEqual(2);
+    expect(r.excluded).toContainEqual(
+      expect.objectContaining({
+        videoId: "req",
+        reason: expect.stringContaining("requested opener"),
+      }),
+    );
   });
 });
 
