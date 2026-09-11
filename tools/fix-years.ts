@@ -7,11 +7,7 @@
  * usage: as CLI → `bun tools/fix-years.ts [--dry-run]`
  *        as lib  → `runFixYears({ dryRun })` from `megadj years` (src/cli.ts)
  */
-import { Database } from "bun:sqlite";
-import { setFileTags, groundTruth, ARCH } from "./fetch-lib";
-
-const home = process.env.HOME!;
-const db = new Database(`${home}/.local/state/megadj/archive.db`);
+import { db, setFileTags, groundTruth, ARCH } from "./fetch-lib";
 const DRY = process.argv.includes("--dry-run");
 
 interface Row {

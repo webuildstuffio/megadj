@@ -21,7 +21,12 @@ import {
 export const home = process.env.HOME!;
 export const ARCH = process.env.MEGADJ_MUSIC_DIR ?? `${home}/Music/DJ-Imports`;
 export const QUEUE = `${home}/.local/state/megadj/artwork-queue.jsonl`;
-export const db = new Database(`${home}/.local/state/megadj/archive.db`);
+/** cli-env.ts is the SSOT for the DB path (MEGADJ_DB) — these tools used to
+ * hardcode the default, so a `MEGADJ_DB`-scoped run (tests, a second
+ * library) silently enriched the REAL archive. Same resolution, one rule. */
+export const DB_PATH =
+  process.env.MEGADJ_DB ?? `${home}/.local/state/megadj/archive.db`;
+export const db = new Database(DB_PATH);
 
 /** Audio files under the archive, recursively (genre subfolders included —
  * organize() moves tracks into them, so a top-level readdir skipped every
