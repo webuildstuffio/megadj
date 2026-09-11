@@ -131,9 +131,7 @@ export async function wavToAiff(wavPath: string): Promise<string | null> {
     `AIFF(${JSON.stringify(aiffPath)})`,
     'print("ok")',
   ].join("\n");
-  const wv = await $`uv run --with mutagen python -c ${walk}`
-    .quiet()
-    .nothrow();
+  const wv = await $`uv run --with mutagen python -c ${walk}`.quiet().nothrow();
   if (wv.exitCode !== 0 || !wv.stdout.toString().trim().includes("ok")) {
     await $`rm -f ${aiffPath}`.quiet().nothrow();
     return null;

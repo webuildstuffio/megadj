@@ -187,9 +187,8 @@ export async function runMaintenanceCommand(
         process.exitCode = 1;
         return;
       }
-      const { rbImport, printRbImportReport } = await import(
-        "../rekordbox/rb-import"
-      );
+      const { rbImport, printRbImportReport } =
+        await import("../rekordbox/rb-import");
       const json = flags.bools.has("json");
       const r = await rbImport({
         mount,
