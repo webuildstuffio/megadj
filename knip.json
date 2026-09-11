@@ -2,11 +2,7 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     ".": {
-      "entry": [
-        "tools/fetch-all.ts",
-        "tools/fix-years.ts",
-        "tools/prof-sweep.ts"
-      ],
+      "entry": ["tools/fetch-all.ts", "tools/prof-sweep.ts"],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
         "ditto",
