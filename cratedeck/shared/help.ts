@@ -169,6 +169,11 @@ export const HELP_TERMS: HelpTerm[] = [
     def: "Where hygiene-apply moves confirmed losers on the shelf (a dot-folder at the shelf root, outside Contents/). Byte-verified twins still exist on the shelf; restore is a rename.",
     why: "Nothing is ever deleted without an explicit double-confirmed empty step — recovery stays one click away.",
   },
+  {
+    term: "Booth fleet",
+    def: "The Pioneer players your booth actually runs (default XDJ-XZ + CDJ-3000 + CDJ-2000NXS2; the plain CDJ-2000 is opt-in). Every compat gate — audit, ingest, booth-fix — enforces the intersection: a track passes only when all selected units play it and can show its text. Managed on Fleet → Booth; the selection persists to config.toml [booth].",
+    why: "The floor is the strictest player, not the average one — a file that plays on the 3000 but blanks on the XZ text is a failed file.",
+  },
 ];
 
 export const HELP_JOBS: HelpJob[] = [

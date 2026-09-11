@@ -65,9 +65,9 @@ export const VERIFY_HELP: {
     },
     {
       id: "grids",
-      label: "Beatgrid plausibility",
-      what: "Sanity-checks generated grids against track length and BPM.",
-      why: "A grid that drifts looks fine but slowly slides off-beat.",
+      label: "ANLZ consistency",
+      what: "Checks that generated ANLZ beatgrid metadata is internally consistent with the rekordbox DB duration and BPM.",
+      why: "This catches malformed or mismatched ANLZ data; it is not an independent measure of beatgrid correctness.",
       if_fail: "Beat Sync drifts mid-track even though it looked locked.",
       fix: "Re-analyze the flagged tracks.",
     },
