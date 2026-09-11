@@ -141,13 +141,21 @@ export interface TagPatch {
   beatport?: string | undefined;
 }
 
-/** Genre → folder name safe for filesystems ("R&B / Soul" → "R&B Soul"). */
+/** Genre → folder name safe for filesystems ("R&B / Soul" → "R&B Soul").
+ *  Junk guard: a genre that is pure digits (unix timestamps baked into
+ *  scraped tags) or the placeholder "Music" is not a genre — callers use
+ *  it as a folder name and you get 278 one-file timestamp folders
+ *  (Sep 11). Maps those to "Unknown Genre" so organize keeps ONE bucket
+ *  until fetch fills a real genre. */
 export function sanitizeGenreFolder(genre: string): string {
-  return genre
+  const cleaned = genre
     .replace(/\s*\/\s*/g, " ")
     .replace(/[\\/:*?"<>|]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+  if (!cleaned || /^\d+$/.test(cleaned) || /^music$/i.test(cleaned))
+    return "Unknown Genre";
+  return cleaned;
 }
 
 // Word-bounded patterns only — substring matches put "Soulji Remix" in
