@@ -206,13 +206,12 @@ interface PyOut {
   errors: [string, string][];
 }
 
-export async function rbImport(
-  opts: RbImportOptions,
-): Promise<RbImportResult> {
+export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   const log = opts.log ?? (() => {});
   const mount = opts.mount.replace(/\/+$/u, "");
   const dbPath =
-    process.env.MEGADJ_RB_MASTER ?? join(mount, "PIONEER", "Master", "master.db");
+    process.env.MEGADJ_RB_MASTER ??
+    join(mount, "PIONEER", "Master", "master.db");
   const folder = opts.folder.replace(/\/+$/u, "");
   const playlist = opts.playlist ?? basename(folder);
   const group = opts.group ?? null;
@@ -310,7 +309,8 @@ export async function rbImport(
     backedUpTo = `${dbPath}.bak-${stamp}`;
     copyFileSync(dbPath, backedUpTo);
     for (const side of ["-wal", "-shm"]) {
-      if (existsSync(dbPath + side)) copyFileSync(dbPath + side, backedUpTo + side);
+      if (existsSync(dbPath + side))
+        copyFileSync(dbPath + side, backedUpTo + side);
     }
     log(`rb-import: DB backed up to ${backedUpTo}`);
   }
