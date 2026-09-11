@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { ArchiveState } from "./state";
-import { phraseCues } from "./commands/cues";
+import { ArchiveState } from "./archive/state";
+import { phraseCues } from "./fulltags/cues";
 import { tempState } from "./testutil";
 
 /** Roadmap rev 6.1 #4: the mood ledger — same contract family as the beats

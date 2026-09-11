@@ -52,7 +52,7 @@ export async function auditArchive(musicDir: string): Promise<{
   for (const p of files) {
     if (!existsSync(p)) continue;
     const t = groundTruth(p);
-    const genreOk = !!t.genre && t.genre !== "Music";
+    const genreOk = Boolean(t.genre) && t.genre !== "Music";
     // Player-compat needs codec + sample rate — a second probe per file.
     // This is the audit's job: pay the ffprobe pass, catch what tags
     // alone can't see (float WAVs, 96k, MPEG-2 rips).
@@ -71,12 +71,12 @@ export async function auditArchive(musicDir: string): Promise<{
     const row: AuditRow = {
       file: p,
       art: t.art,
-      title: !!t.title,
-      artist: !!t.artist,
-      album: !!t.album,
+      title: Boolean(t.title),
+      artist: Boolean(t.artist),
+      album: Boolean(t.album),
       genre: genreOk,
-      year: !!t.year,
-      mood: !!t.mood,
+      year: Boolean(t.year),
+      mood: Boolean(t.mood),
       energy: t.energy !== null,
       playable,
       readable: text.ok,

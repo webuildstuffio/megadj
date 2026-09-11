@@ -95,7 +95,7 @@ export class ProgressBar {
       parts.push(
         `(${fmtBytes(this.bytes)} at ${fmtBytes(this.bytes / Math.max(elapsed, 0.001))}/s)`,
       );
-    process.stderr.write(parts.join(" ") + "\n");
+    process.stderr.write(`${parts.join(" ")}\n`);
     if (summary) console.log(summary); // explicit caller-provided summary: stdout
   }
 }

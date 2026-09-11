@@ -1,6 +1,6 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { tempState } from "./testutil";
-import { ArchiveState } from "./state";
+import { ArchiveState } from "./archive/state";
 
 let dir: string;
 let state: ArchiveState;
@@ -131,9 +131,9 @@ describe("ArchiveState", () => {
     ).not.toThrow();
     // The migration is structural: a `year` COLUMN must exist on the
     // tracks table (PRAGMA truth, not a property probe on a typed row).
-    const cols = state.db.query("PRAGMA table_info(tracks)").all() as Array<{
+    const cols = state.db.query("PRAGMA table_info(tracks)").all() as {
       name: string;
-    }>;
+    }[];
     expect(cols.map((c) => c.name)).toContain("year");
     const row = state.db
       .query("SELECT year FROM tracks WHERE video_id = 'abc'")

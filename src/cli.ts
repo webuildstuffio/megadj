@@ -307,12 +307,13 @@ async function main(): Promise<void> {
           console.log(JSON.stringify(report, null, 2));
         } else {
           console.log(
-            `convert: ${report.converted}/${report.total} wav→aiff` +
-              (report.artAdded ? `, ${report.artAdded} art embedded` : "") +
-              (report.artQueued ? `, ${report.artQueued} art queued` : "") +
-              (report.failed.length
+            `convert: ${report.converted}/${report.total} wav→aiff${
+              report.artAdded ? `, ${report.artAdded} art embedded` : ""
+            }${report.artQueued ? `, ${report.artQueued} art queued` : ""}${
+              report.failed.length
                 ? `, ${report.failed.length} FAILED (wavs kept)`
-                : ""),
+                : ""
+            }`,
           );
           for (const f of report.failed)
             console.log(`  ✗ ${f.reason}: ${f.file}`);
@@ -339,11 +340,11 @@ async function main(): Promise<void> {
           console.log(JSON.stringify(report, null, 2));
         } else {
           console.log(
-            `dedupe-archive: ${report.groups.length} group(s), ` +
-              `${(report.redundantBytes / 1e9).toFixed(2)} GB redundant` +
-              (report.applied
+            `dedupe-archive: ${report.groups.length} group(s), ${(report.redundantBytes / 1e9).toFixed(2)} GB redundant${
+              report.applied
                 ? ` — quarantined ${report.quarantined}, review ${report.skippedForReview}`
-                : " (report only — add --apply --yes)"),
+                : " (report only — add --apply --yes)"
+            }`,
           );
           for (const e of report.errors) console.log(`  ✗ ${e}`);
           if (report.errors.length) process.exitCode = 1;
@@ -515,7 +516,7 @@ async function main(): Promise<void> {
         const { walkAudioFiles, tagHealth } =
           await import("../fulltags/src/exports");
         const files = walkAudioFiles(MUSIC_DIR);
-        const bad: Array<{ file: string; reasons: string[] }> = [];
+        const bad: { file: string; reasons: string[] }[] = [];
         for (const f of files) {
           const h = tagHealth(f);
           if (!h.ok) bad.push({ file: f, reasons: h.reasons });

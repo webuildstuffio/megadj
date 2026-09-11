@@ -307,7 +307,7 @@ export async function drop(opts: DropOptions): Promise<void> {
       async () => {
         const { walkAudioFiles, tagHealth } =
           await import("../../fulltags/src/exports");
-        const bad: Array<{ file: string; reasons: string[] }> = [];
+        const bad: { file: string; reasons: string[] }[] = [];
         for (const f of walkAudioFiles(opts.musicDir)) {
           const h = tagHealth(f);
           if (!h.ok) bad.push({ file: f, reasons: h.reasons });

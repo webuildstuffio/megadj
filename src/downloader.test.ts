@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Downloader } from "./downloader";
+import { Downloader } from "./getdat/downloader";
 
 function makeDownloader(): Downloader {
   return new Downloader({ musicDir: "/tmp/megadj-test" });

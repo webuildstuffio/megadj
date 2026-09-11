@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { RateLimiter, withRetry } from "./ratelimit";
+import { RateLimiter, withRetry } from "./getdat/ratelimit";
 
 const noSleep = async () => {};
 
