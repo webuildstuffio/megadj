@@ -4,13 +4,15 @@
 // button), then raw detail. The tab is a remote control: scan/apply
 // enqueue jobs over /api/fixes — megadj's booth-fix CLI stays the single
 // implementation (the fleet selected on Fleet → Booth drives every check).
-import { useCallback, useEffect, useState } from "preact/hooks";
 import type { FixRow, FixesPayload } from "../../../../cratedeck/shared/fixes";
-import { errMessage } from "../../../shared/fmt";
-import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { InfoTip } from "../../ui/InfoTip";
-import { Verdict } from "../shared";
+import {
+  Verdict,
+  useScanApply,
+  ScanApplyGate,
+  ScanApplyActions,
+} from "../shared";
 import { HELP_TERMS } from "../../../shared/help";
 
 /** Work-queue order: rows WITH a safe autofix first (rename, then tag
@@ -49,122 +51,70 @@ function actionLabel(action: FixRow["action"]): string {
 }
 
 export function FixesTab(_props: { driveId: string; driveName: string }) {
-  // tri-state: undefined = fetch in flight, null = fetched, never scanned
-  const [payload, setPayload] = useState<FixesPayload | null | undefined>(
-    undefined,
+  const { payload, loadErr, busy, enqueue } = useScanApply<FixesPayload | null>(
+    {
+      readPath: "/api/fixes",
+      actionPath: "/api/fixes",
+      label: {
+        thing: "fixes",
+        scanDone: "Booth audit queued",
+        applyDone: "Apply queued — safe fixes only, nothing deletes",
+      },
+    },
   );
-  const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      setPayload(await api<FixesPayload | null>("/api/fixes", { quiet: true }));
-      setLoadErr(null);
-    } catch (e) {
-      const m = errMessage(e);
-      console.error("fixes load failed", e);
-      setLoadErr(m);
-    }
-  }, []);
-
-  useEffect(() => {
-    load().catch((e: unknown) => console.error("fixes initial load failed", e));
-    const onJob = () => {
-      load().catch((e: unknown) =>
-        console.error("fixes job-event reload failed", e),
-      );
-    };
-    window.addEventListener("cratedeck:job", onJob);
-    return () => window.removeEventListener("cratedeck:job", onJob);
-  }, [load]);
-
-  const enqueue = async (kind: "scan" | "apply") => {
-    setBusy(kind);
-    try {
-      await apiPost(`/api/fixes/${kind}`, {});
-      toast(
-        kind === "scan"
-          ? "Booth audit queued"
-          : "Apply queued — safe fixes only, nothing deletes",
-        "ok",
-      );
-    } catch {
-      /* toast already surfaced the failure */
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  if (loadErr && payload === undefined) {
-    return (
-      <div class="note bad">
-        <Icon name="warn" size={14} /> Fixes audit unavailable: {loadErr}
-      </div>
-    );
-  }
-  if (payload === undefined) {
-    return (
-      <div class="note">
-        <Icon name="clock" size={14} /> Loading the fixes plan…
-      </div>
-    );
-  }
 
   // payload may be null (fetched, never scanned) — the banner below owns
   // that state; narrow the row views to the scanned case up front.
+  // The Gate handles undefined (in flight) / loadErr; everything below the
+  // Gate's guard is the scanned-or-never case, so `!` on scannedPath is safe.
+  const scanned = payload as FixesPayload | null | undefined;
   const fixRows =
-    payload?.rows
+    scanned?.rows
       .filter((r) => r.action !== "none")
       .sort((a, b) => rank(a) - rank(b)) ?? [];
   const manualRows =
-    payload?.rows
+    scanned?.rows
       .filter((r) => r.action === "none")
       .sort((a, b) => rank(a) - rank(b)) ?? [];
   const boothTerm = HELP_TERMS.find((t) => t.term === "Booth fleet");
 
   const banner =
-    payload === null || !payload.scannedPath
+    scanned == null || !scanned.scannedPath
       ? {
           cls: "ok" as const,
           text: "No booth audit yet — run a scan to check the shelf against your player fleet.",
         }
-      : payload.fixable === 0
+      : scanned.fixable === 0
         ? {
             cls: "ok" as const,
-            text: `All clear — ${payload.checked.toLocaleString()} files checked, nothing needs fixing.`,
+            text: `All clear — ${scanned.checked.toLocaleString()} files checked, nothing needs fixing.`,
           }
         : {
             cls: "warn" as const,
-            text: `${payload.fixable} file${payload.fixable === 1 ? "" : "s"} need${payload.fixable === 1 ? "s" : ""} fixing (of ${payload.checked.toLocaleString()} checked) — ${manualRows.length} more need your call.`,
+            text: `${scanned.fixable} file${scanned.fixable === 1 ? "" : "s"} need${scanned.fixable === 1 ? "s" : ""} fixing (of ${scanned.checked.toLocaleString()} checked) — ${manualRows.length} more need your call.`,
           };
 
   return (
-    <>
+    <ScanApplyGate
+      loadErr={loadErr}
+      payload={payload}
+      unavailable={`Fixes audit unavailable: ${loadErr ?? ""}`}
+      loading="Loading the fixes plan…"
+    >
       <Verdict cls={banner.cls} text={banner.text} />
 
       <div class="actions" style={{ marginTop: 10 }}>
-        <button
-          type="button"
-          class="btn"
-          disabled={busy !== null}
-          onClick={() => enqueue("scan")}
-          title="Dry-run megadj booth-fix over the shelf Contents (job)"
-        >
-          <Icon name="scan" size={14} />
-          {busy === "scan" ? "Scanning…" : "Scan shelf"}
-        </button>
-        <button
-          type="button"
-          class="btn primary"
-          disabled={busy !== null || fixRows.length === 0}
-          onClick={() => enqueue("apply")}
-          title="Apply the SAFE subset: renames + tag rewrites. After this, relink in rekordbox (Collection → ⌘A → Relocate Lost Files)."
-        >
-          <Icon name="check" size={14} />
-          {busy === "apply"
-            ? "Applying…"
-            : `Apply ${fixRows.length} safe fix${fixRows.length === 1 ? "" : "es"}`}
-        </button>
+        <ScanApplyActions
+          busy={busy}
+          applyDisabled={fixRows.length === 0}
+          scanTitle="Dry-run megadj booth-fix over the shelf Contents (job)"
+          applyTitle="Apply the SAFE subset: renames + tag rewrites. After this, relink in rekordbox (Collection → ⌘A → Relocate Lost Files)."
+          applyLabel={() =>
+            `Apply ${fixRows.length} safe fix${fixRows.length === 1 ? "" : "es"}`
+          }
+          onScan={() => enqueue("scan")}
+          onApply={() => enqueue("apply")}
+        />
         <InfoTip
           title="Booth fleet"
           body={
@@ -231,6 +181,6 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
           </div>
         </>
       )}
-    </>
+    </ScanApplyGate>
   );
 }

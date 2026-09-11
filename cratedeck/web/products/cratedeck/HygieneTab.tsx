@@ -5,16 +5,20 @@
 // raw detail + the quarantine explainer. The tab is a remote control:
 // scan/apply enqueue jobs over /api/hygiene, decisions are one-row CLI
 // writes — the engine stays the single implementation (§4.4).
-import { useCallback, useEffect, useState } from "preact/hooks";
+import { useState } from "preact/hooks";
 import type {
   Finding,
   HygienePayload,
 } from "../../../../cratedeck/shared/hygiene";
-import { errMessage } from "../../../shared/fmt";
-import { api, apiPost, toast } from "../../ui/toast";
+import { apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { InfoTip } from "../../ui/InfoTip";
-import { Verdict } from "../shared";
+import {
+  Verdict,
+  useScanApply,
+  ScanApplyGate,
+  ScanApplyActions,
+} from "../shared";
 import { HELP_TERMS } from "../../../shared/help";
 
 type Decided = Set<string>;
@@ -78,56 +82,21 @@ function fixCommand(
 }
 
 export function HygieneTab(_props: { driveId: string; driveName: string }) {
-  const [payload, setPayload] = useState<HygienePayload | null>(null);
-  const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const { payload, loadErr, busy, enqueue, runAction } =
+    useScanApply<HygienePayload | null>({
+      readPath: "/api/hygiene",
+      actionPath: "/api/hygiene",
+      label: {
+        thing: "hygiene",
+        scanDone: "Hygiene scan queued",
+        applyDone: "Apply queued — confirmed findings move to quarantine",
+      },
+    });
   const [selected, setSelected] = useState<Decided>(new Set());
-
-  const load = useCallback(async () => {
-    try {
-      setPayload(await api<HygienePayload>("/api/hygiene", { quiet: true }));
-      setLoadErr(null);
-    } catch (e) {
-      const m = errMessage(e);
-      console.error("hygiene load failed", e);
-      setLoadErr(m);
-    }
-  }, []);
-
-  useEffect(() => {
-    load().catch((e: unknown) =>
-      console.error("hygiene initial load failed", e),
-    );
-    const onJob = () => {
-      load().catch((e: unknown) =>
-        console.error("hygiene job-event reload failed", e),
-      );
-    };
-    window.addEventListener("cratedeck:job", onJob);
-    return () => window.removeEventListener("cratedeck:job", onJob);
-  }, [load]);
-
-  const enqueue = async (kind: "scan" | "apply") => {
-    setBusy(kind);
-    try {
-      await apiPost(`/api/hygiene/${kind}`, {});
-      toast(
-        kind === "scan"
-          ? "Hygiene scan queued"
-          : "Apply queued — confirmed findings move to quarantine",
-        "ok",
-      );
-    } catch {
-      /* toast already surfaced the failure */
-    } finally {
-      setBusy(null);
-    }
-  };
 
   const decide = async (ids: string[], confirm: boolean) => {
     if (ids.length === 0) return;
-    setBusy(confirm ? "confirm" : "dismiss");
-    try {
+    await runAction(confirm ? "confirm" : "dismiss", async () => {
       const r = await apiPost<{ ok: boolean; decided: number }>(
         "/api/hygiene/decide",
         { ids, confirm },
@@ -137,33 +106,14 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
         "ok",
       );
       setSelected(new Set());
-    } catch {
-      /* toast already surfaced the failure */
-    } finally {
-      setBusy(null);
-      load().catch((e: unknown) =>
-        console.error("post-decide reload failed", e),
-      );
-    }
+    });
   };
 
-  if (loadErr && !payload) {
-    return (
-      <div class="note bad">
-        <Icon name="warn" size={14} /> Hygiene ledger unavailable: {loadErr} —
-        the archive DB may not have been scanned yet.
-      </div>
-    );
-  }
-  if (!payload) {
-    return (
-      <div class="note">
-        <Icon name="clock" size={14} /> Loading the hygiene ledger…
-      </div>
-    );
-  }
-
-  const { findings, counts } = payload;
+  const scanned = payload as HygienePayload | null | undefined;
+  const { findings, counts } = scanned ?? {
+    findings: [],
+    counts: { open: 0, confirmed: 0, safe: 0, review: 0, byKind: {} },
+  };
   const openRows = findings
     .filter(
       (f) =>
@@ -203,32 +153,24 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
           };
 
   return (
-    <>
+    <ScanApplyGate
+      loadErr={loadErr}
+      payload={payload}
+      unavailable={`Hygiene ledger unavailable: ${loadErr ?? ""} — the archive DB may not have been scanned yet.`}
+      loading="Loading the hygiene ledger…"
+    >
       <Verdict cls={banner.cls} text={banner.text} />
 
       <div class="actions" style={{ marginTop: 10 }}>
-        <button
-          type="button"
-          class="btn"
-          disabled={busy !== null}
-          onClick={() => enqueue("scan")}
-          title="Re-walk the shelf and refresh every finding (job)"
-        >
-          <Icon name="scan" size={14} />
-          {busy === "scan" ? "Scanning…" : "Scan shelf"}
-        </button>
-        <button
-          type="button"
-          class="btn primary"
-          disabled={busy !== null || counts.confirmed === 0}
-          onClick={() => enqueue("apply")}
-          title="Execute confirmed findings — copies move to quarantine, the keepers stay untouched"
-        >
-          <Icon name="check" size={14} />
-          {busy === "apply"
-            ? "Applying…"
-            : `Apply ${counts.confirmed} confirmed`}
-        </button>
+        <ScanApplyActions
+          busy={busy}
+          applyDisabled={counts.confirmed === 0}
+          scanTitle="Re-walk the shelf and refresh every finding (job)"
+          applyTitle="Execute confirmed findings — copies move to quarantine, the keepers stay untouched"
+          applyLabel={() => `Apply ${counts.confirmed} confirmed`}
+          onScan={() => enqueue("scan")}
+          onApply={() => enqueue("apply")}
+        />
         {selCount > 0 && (
           <>
             <button
@@ -350,6 +292,6 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
           </div>
         </>
       )}
-    </>
+    </ScanApplyGate>
   );
 }
