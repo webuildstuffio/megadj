@@ -8,7 +8,15 @@ This file contains only rules and traps. Product detail belongs in
 
 - English only. Product decisions follow [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md).
 - macOS/Pioneer only; no CI. Before pushing: `bun run check && bun test`.
-  Type coverage is a hard 100%: `bun run check:full`.
+  Type coverage is a hard 100%: `bun run check:full`. `check` also runs knip
+  and the web vite build; `check:full` additionally runs the Python gates
+  (`lint:py` ruff + `typecheck:py` mypy strict over `cratedeck/python` and
+  `tools/*.py`) and coverage lives in `test:coverage`.
+- Pre-commit runs STAGED-SCOPED tests (`SC_HOOK_TEST_SCOPE=staged` in
+  `.shell-config-hooks.conf`): only test files in packages touched by the
+  staged paths. That makes untracked WIP test files from concurrent agents
+  invisible to your commit — the FULL suite is still the pre-push gate, so
+  run `bun test` before pushing.
 - Never use `git add -A`; preserve concurrent work. Re-read before editing and
   verify the worktree diff, not only a commit hash.
 - No bare production `catch {}` or `.catch(() => {})`. Boundary `JSON.parse`
