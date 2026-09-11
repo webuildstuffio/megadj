@@ -25,6 +25,9 @@ export interface DropOptions {
   dryRun?: boolean;
   /** Skip the ONNX mood stage even when models are present. */
   noMood?: boolean;
+  /** Skip the fast (no-key/bpm) stages of the fetch pass. Off by default —
+   *  the whole point of drop is "point at a folder, get finished tracks". */
+  noFetch?: boolean;
   /** Machine-readable summary (P1). Human logs still go to stderr. */
   json?: boolean;
   /** Cookies/env plumbing for the URL-download stage. */
@@ -162,6 +165,57 @@ export async function drop(opts: DropOptions): Promise<void> {
     });
   }
 
+  // Stage 1b — enrichment (fetch-all: tags/genre/art/year + energy,
+  // fingerprint, key stamps) and year verification against the real SC
+  // page dates. These are the stages the artist/comment/tag gaps of the
+  // early passes lived in — a drop that skips them re-creates those bugs.
+  // fetch runs the tools/fetch-all.ts subprocess (it owns its own progress
+  // bar + AI batching); years is the in-process verify pass.
+  if (ok) {
+    if (opts.noFetch) {
+      stages.push({
+        stage: "fetch",
+        status: "skipped",
+        detail: "no-fetch flag",
+      });
+    } else {
+      ok = await runStage(
+        "fetch",
+        async () => {
+          const { fetch } = await import("./fetch");
+          await fetch({
+            all: false,
+            only: "all",
+            dryRun: opts.dryRun,
+            json: true,
+          });
+        },
+        stages,
+        log,
+      );
+    }
+  } else stages.push({ stage: "fetch", status: "skipped" });
+
+  if (ok) {
+    if (opts.noFetch) {
+      stages.push({
+        stage: "years",
+        status: "skipped",
+        detail: "no-fetch flag",
+      });
+    } else {
+      ok = await runStage(
+        "years",
+        async () => {
+          const { runFixYears } = await import("../../tools/fix-years");
+          await runFixYears({ dryRun: opts.dryRun ?? false, json: true });
+        },
+        stages,
+        log,
+      );
+    }
+  } else stages.push({ stage: "years", status: "skipped" });
+
   // Stage 2 — beats ledger (beat_this → DB; no tag writes).
   if (ok)
     ok = await runStage(
@@ -238,6 +292,56 @@ export async function drop(opts: DropOptions): Promise<void> {
       log,
     );
   else stages.push({ stage: "organize", status: "skipped" });
+
+  // Stage 6 — tag-check gate (well-formedness: unreadable containers,
+  // mojibake, control bytes, no-title/artist voids — the "Unknown Artist
+  // in the booth" trap). Report-only here: drop reports, the operator
+  // fixes via booth-fix; a failed gate fails the run.
+  if (ok)
+    ok = await runStage(
+      "tag-check",
+      async () => {
+        const { walkAudioFiles, tagHealth } =
+          await import("../../fulltags/src/exports");
+        const bad: Array<{ file: string; reasons: string[] }> = [];
+        for (const f of walkAudioFiles(opts.musicDir)) {
+          const h = tagHealth(f);
+          if (!h.ok) bad.push({ file: f, reasons: h.reasons });
+        }
+        if (bad.length)
+          throw new Error(
+            `${bad.length} file(s) with broken tags: ${bad
+              .slice(0, 3)
+              .map((b) => `${b.file.split("/").pop()} [${b.reasons.join(",")}]`)
+              .join(
+                "; ",
+              )}${bad.length > 3 ? "; …" : ""} — megadj tag-check for the full list`,
+          );
+      },
+      stages,
+      log,
+    );
+  else stages.push({ stage: "tag-check", status: "skipped" });
+
+  // Stage 7 — final completeness gate (audit: art+tags+genre+year+mood+
+  // energy+player-compat+booth-text). Exits 1 on any gap; the summary's
+  // detail carries the gap count so --json consumers see it in one line.
+  if (ok)
+    ok = await runStage(
+      "audit",
+      async () => {
+        const { auditArchive } = await import("./fetch");
+        const report = await auditArchive(opts.musicDir);
+        const gaps = report.rows.filter((r) => !r.complete);
+        if (gaps.length)
+          throw new Error(
+            `${gaps.length}/${report.total} incomplete — megadj audit for the per-file list`,
+          );
+      },
+      stages,
+      log,
+    );
+  else stages.push({ stage: "audit", status: "skipped" });
 
   const summary: DropSummary = {
     command: "drop",

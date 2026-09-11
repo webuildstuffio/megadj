@@ -390,13 +390,13 @@ async function main(): Promise<void> {
         const flags = parseFlags(
           rest,
           ["drop", "target"],
-          ["dry-run", "no-mood", "json"],
+          ["dry-run", "no-mood", "no-fetch", "json"],
         );
         const target =
           firstPositional(rest, "drop") ?? flags.strings.get("target");
         if (!target) {
           console.error(
-            "drop: pass a folder or URL — megadj drop <folder-or-url> [--dry-run] [--no-mood]",
+            "drop: pass a folder or URL — megadj drop <folder-or-url> [--dry-run] [--no-mood] [--no-fetch]",
           );
           process.exitCode = 1;
           break;
@@ -408,6 +408,7 @@ async function main(): Promise<void> {
           target,
           dryRun: flags.bools.has("dry-run"),
           noMood: flags.bools.has("no-mood"),
+          noFetch: flags.bools.has("no-fetch"),
           json: flags.bools.has("json"),
           cookiesFromBrowser: COOKIES || null,
           cookiesFile: COOKIES_FILE,

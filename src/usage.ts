@@ -20,8 +20,12 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                archive-wide wav→aiff: every legacy wav
                                                becomes art-capable, booth-verified aiff
                                                (art ladder + DB paths follow)
-  megadj drop    <folder-or-url> [--dry-run] [--no-mood] [--json]
-                                               one-shot pipeline: download → ingest → beats → mood → cues → organize
+  megadj drop    <folder-or-url> [--dry-run] [--no-mood] [--no-fetch] [--json]
+                                               one-shot intake: download → ingest → fetch
+                                               (tags/genre/art/year/energy/fingerprint/key)
+                                               → years → beats → mood → cues → organize
+                                               → tag-check → audit — point at a folder,
+                                               get finished tracks; exits 1 on any gap
   megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run] [--json]
                                                enrichment pass: tags+genres+years+art
   megadj audit   [--json]                      ground-truth tag/art audit — exits 1 on any gap

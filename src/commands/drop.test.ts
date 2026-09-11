@@ -60,10 +60,14 @@ describe("megadj drop (K61 one-shot pipeline)", () => {
         parsed.stages.map((s) => [s.stage, s.status]),
       );
       expect(byStage.ingest).toBe("ok");
+      expect(byStage.fetch).toBe("ok");
+      expect(byStage.years).toBe("ok");
       expect(byStage.beats).toBe("ok");
       expect(byStage.mood).toBe("skipped"); // --no-mood
       expect(byStage.cues).toBe("ok");
       expect(byStage.organize).toBe("ok");
+      expect(byStage["tag-check"]).toBe("ok");
+      expect(byStage.audit).toBe("ok");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -90,7 +94,7 @@ describe("megadj drop (K61 one-shot pipeline)", () => {
       expect(parsed.stages[0]?.stage).toBe("download");
       expect(parsed.stages[0]?.status).toBe("failed");
       expect(parsed.stages.filter((s) => s.status === "skipped").length).toBe(
-        5,
+        9,
       );
     } finally {
       rmSync(dir, { recursive: true, force: true });
