@@ -63,7 +63,10 @@ and sweep history: `docs/agent-playbook.md`. Key commands and traps:
   `._*`/junk-filtered, NFC+casefold matching, MD5-verified, divergent
   same-name rips kept as `<name> [<volume>]` twins (never overwrite),
   `--trashes --into F`, `--deep` (same-size ≠ same-bytes). Siblings:
-  `shelf-sync`, `shelf-dedupe`, `shelf-dupescan`, `shelf-sweeps`.
+  `shelf-sync`, `shelf-dedupe`, `shelf-dupescan`, `shelf-sweeps`,
+  `shelf-hygiene` (byte-twin/acoustic-twin/folder-variant findings ledger:
+  scan → review → apply/confirm/dismiss, never bulk-apply unreviewed; 1:1
+  across deckctl, `deck_hygiene` MCP, and the Hygiene tab).
 - rsync WEDGES on fskit exFAT — per-dir tar-pipes + file-count resume
   checks are the proven method (foreground slices only: backgrounded
   runners get reaped, and launchd is TCC-blocked from `/Volumes`). Per-file
@@ -75,6 +78,12 @@ and sweep history: `docs/agent-playbook.md`. Key commands and traps:
   `.claude/skills/shelf-intake/SKILL.md`.
 - Volume names are user-specific — examples use `DJMASTER`/`DJMIRROR`;
   override via args, `config.toml`, or `USB_SYNC_MASTER`/`USB_SYNC_MIRROR`.
+- **Ingest self-match guard** (`src/commands/ingest-selfmatch.test.ts`):
+  batch folders live INSIDE the archive music dir, so re-ingesting a batch
+  must be a safe no-op — "existing row IS this file" is a self-match, never
+  a quarantine finding (a UI re-run once renamed 14 archive originals into
+  `ingest-duplicates`; all restored). Each dump ingests into its own fresh
+  subfolder — never mix dumps.
 
 Sub-projects (one-liners in `docs/FEATURES.md`; honest state in
 `docs/product-state-2026-09-07.md`):
@@ -191,6 +200,13 @@ Surface parity and CLI help:
 - `deckctl help [term|kind]` and `--help` work with the server DOWN and
   dispatch BEFORE `ensureServer`; `--help` → stdout, exit 0; exact
   JOB-KIND match wins over a same-named glossary term.
+- **`--json` exits must survive pipes** — `console.log` is a
+  fire-and-forget write; a ~97KB payload truncated mid-string made piped
+  consumers EOF with "Unterminated string". All JSON exits go through an
+  awaited `Bun.write(Bun.stdout)` + a final stdio drain before exit
+  (`cratedeck/src/deckctl.ts`). A crashed verify must read as a crash:
+  corrupt/missing `verify_report_json` is a visible state, never "almost
+  healthy".
 
 UI gotchas (each one shipped a real bug — re-read before touching UI):
 
@@ -200,6 +216,14 @@ UI gotchas (each one shipped a real bug — re-read before touching UI):
   against the BUILT `web/dist`; servers spawned in one shell call get
   reaped — relaunch via `deckctl status --json` auto-start, poll across
   calls.
+- **Hover cards are portal-rendered, never CSS-positioned.** CSS
+  `position:absolute` inside the anchor got clipped by ~40 `overflow`
+  ancestors and pushed off-screen at rail/edge sites — every tooltip in
+  the app was unreadable. All hover cards go through the `tipPlace.ts`
+  placement engine (portal to body, `position:fixed`, flip + clamp,
+  `data-ready` reveal); cards must measure after mount via
+  `transform:translate3d`, not React-owned `left/top` (imperative
+  measurement writes fight React styles → card parks offscreen).
 
 ## FullTags invariants
 
@@ -244,6 +268,14 @@ UI gotchas (each one shipped a real bug — re-read before touching UI):
 - Tests exercising sticky-exit paths reset `process.exitCode` after the
   assertion (bun test reports the PROCESS exit code — a green suite can
   still fail the hook).
+- Docs live in `docs/` — never a tracked root `plan.md`; dated session docs
+  get a status header + SHIPPED stamps when their spec lands, else they
+  read as open work forever. `/docs-audit` duplicates get merged into the
+  linked SSOT, never re-expanded.
+- A concurrent agent's mid-flight edit can strip a load-bearing safeguard
+  (a documented test timeout override once was) — restore the documented
+  value per concurrent-agent policy; don't debug their code or leave the
+  gate broken.
 
 ## Local-only files
 
