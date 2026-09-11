@@ -7,7 +7,18 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 12 · 2026-09-10 — shelf hygiene (P2+P3: `deckctl hygiene`,
+Rev 13 · 2026-09-10 — the re-audit: the megadj CLI surface was never
+censused (the test counted deckctl + MCP only), and the doc had drifted
+to "19 commands" while `src/cli.ts` carries 33 — the whole shelf family
+(`shelf-sync/archive/dedupe/dupescan/hygiene/sweeps`, `rb-fix-paths`),
+`booth-fix`, `dedupe-archive`, `drop`, `similar`, `upgrade`, `years`,
+`beats`, `mood`, `cues` landed uncensused. The census now covers all
+four surfaces (33 commands + 23 verbs + 37 tools); the job-kind SSOT
+(`shared/types.ts` `JOB_KINDS`/`DRIVE_JOB_KINDS`) replaced three
+hand-copied lists that had each already dropped a kind (`speedtest`
+fell out of deckctl run, `ingest` out of `deck_explain`'s enum); and
+every megadj command must appear in `src/usage.ts` (P1 help contract).
+§0 lists what's still open. Rev 12 · 2026-09-10 — shelf hygiene (P2+P3: `deckctl hygiene`,
 `deck_hygiene`, Hygiene tab over the findings ledger) and booth fixes
 (`deckctl fixes`, `deck_fixes`, Fixes tab over the booth-fix plan);
 census — 23 verbs + 37 tools. Rev 11 · 2026-09-10 — GetDat ⌗ Intake tab (live `megadj ingest` runs
@@ -73,11 +84,46 @@ that way.
 
 ---
 
+## 0. Do-next (the re-audit's open items, worst first)
+
+Carry-overs from the rev 13 pass — each is a named gap, not a vibe:
+
+1. **Run-speedtest has NO UI button.** `speedtest` is a `DRIVE_JOB_KIND`
+   the server accepts, but DrivePage/VerifyTab never post it — it
+   exists on 1.5 surfaces (API + deckctl run, invisible everywhere
+   else, undocumented in both help texts). Add the DrivePage button or
+   exempt it in §4 as benchmark's internal leg — decide, don't leave
+   it half a capability.
+2. **`deck_explain` has no doc for `speedtest`.** KIND_DOCS covers 9
+   kinds (verify rides VERIFY_HELP; ingest excluded by design — it's
+   the intake pipeline, not a drive job); speedtest is accepted by
+   `deck_run` yet unexplained, so "explain every kind" silently means
+   10 to the agent. Add the KIND_DOCS row (or exclude it beside ingest
+   with a comment saying why).
+3. **The §1 HTTP-API count is a vibe.** "~35 routes" — the real
+   dispatched count across `index.ts` + `archive_routes.ts` + the
+   fleet family is ~45 and nothing counts it. Derive the number in the
+   census test (route literals are parseable) or drop the row.
+4. **`archive_set_build` has no CLI verb.** §2d's CLI column renders
+   proposals "in the UI/agent surface" — a `megadj setbuild [--preset
+--minutes]` one-liner would close the last CLI-vs-MCP archive read
+   gap the same way `megadj similar` did. Low priority (readonly,
+   propose-only).
+5. **The maintenance dispatcher's verb list isn't exported.**
+   `rb-fix-paths` + `shelf-hygiene` resolve through
+   `maintenance-cmds.ts`; the census counts both cli.ts labels
+   (correct), but a third label added only in that module stays
+   invisible to the census — the module should export its verb list
+   for cli.ts to dispatch over (same shape as deckctl's
+   PRE_SERVER_VERBS).
+
+---
+
 ## 1. The three surfaces, as they stand
 
 | Surface    | Entry points                                                | Count                  |
 | ---------- | ----------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 19 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 33 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 37 tools               |
 | HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | ~35 routes             |
@@ -96,21 +142,22 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 
 ### 2a. Drive operations
 
-| Capability                  | CLI (deckctl)                   | MCP                                 | UI                            | Verdict                                    |
-| --------------------------- | ------------------------------- | ----------------------------------- | ----------------------------- | ------------------------------------------ |
-| List drives + state         | `status` / `drives` ✅          | `deck_status`/`deck_drives` ✅      | rail ✅                       | — (GAP-12 closed rev 5: `GET /api/status`) |
-| Drive report / health       | `report` ✅                     | `deck_report` ✅                    | Health tab ✅                 | —                                          |
-| Run scan                    | `run <d> scan` ✅               | `deck_run` ✅                       | Scan button ✅                | —                                          |
-| Run verify                  | `run <d> verify` ✅             | `deck_run` ✅                       | Verify button/tab ✅          | —                                          |
-| Run benchmark               | `run <d> benchmark` ✅          | `deck_run` ✅                       | Benchmark button ✅           | —                                          |
-| Run checksum                | `run <d> checksum` ✅           | `deck_run` ✅                       | Checksum button ✅            | —                                          |
-| **Run mirror**              | `run <d> mirror` ✅             | `deck_run` ✅                       | Mirror button ✅ (role-gated) | — (GAP-1 closed)                           |
-| Job list / history          | `jobs` ✅                       | `deck_jobs` ✅                      | JobsDock ✅                   | —                                          |
-| Cancel job                  | `cancel <id>` ✅                | `deck_cancel` ✅                    | JobsDock cancel ✅            | —                                          |
-| Stop server                 | `stop` ✅                       | ⛔ §4-P1 (clients don't kill hosts) | ⛔ §4-P2                      | —                                          |
-| Verify doc (explain)        | `explain [kind]` ✅             | `deck_explain` ✅                   | VerifyTab help ✅             | —                                          |
-| In-app help (glossary/tour) | `help [term]` ✅                | `deck_help {term?}` ✅              | tooltips + Welcome tour ✅    | — (GAP-10 closed rev 4)                    |
-| Export dossier              | `report --dossier [--out F]` ✅ | `deck_report {format:"dossier"}` ✅ | Export button ✅              | — (D1 closed rev 3)                        |
+| Capability                  | CLI (deckctl)                                 | MCP                                 | UI                            | Verdict                                    |
+| --------------------------- | --------------------------------------------- | ----------------------------------- | ----------------------------- | ------------------------------------------ |
+| List drives + state         | `status` / `drives` ✅                        | `deck_status`/`deck_drives` ✅      | rail ✅                       | — (GAP-12 closed rev 5: `GET /api/status`) |
+| Drive report / health       | `report` ✅                                   | `deck_report` ✅                    | Health tab ✅                 | —                                          |
+| Run scan                    | `run <d> scan` ✅                             | `deck_run` ✅                       | Scan button ✅                | —                                          |
+| Run verify                  | `run <d> verify` ✅                           | `deck_run` ✅                       | Verify button/tab ✅          | —                                          |
+| Run benchmark               | `run <d> benchmark` ✅                        | `deck_run` ✅                       | Benchmark button ✅           | —                                          |
+| Run speedtest               | `run <d> speedtest` ✅ (undocumented in help) | `deck_run` ✅                       | ⛔ §4-S1 (open — see §0 #1)   | ❌ → §0                                    |
+| Run checksum                | `run <d> checksum` ✅                         | `deck_run` ✅                       | Checksum button ✅            | —                                          |
+| **Run mirror**              | `run <d> mirror` ✅                           | `deck_run` ✅                       | Mirror button ✅ (role-gated) | — (GAP-1 closed)                           |
+| Job list / history          | `jobs` ✅                                     | `deck_jobs` ✅                      | JobsDock ✅                   | —                                          |
+| Cancel job                  | `cancel <id>` ✅                              | `deck_cancel` ✅                    | JobsDock cancel ✅            | —                                          |
+| Stop server                 | `stop` ✅                                     | ⛔ §4-P1 (clients don't kill hosts) | ⛔ §4-P2                      | —                                          |
+| Verify doc (explain)        | `explain [kind]` ✅                           | `deck_explain` ✅                   | VerifyTab help ✅             | —                                          |
+| In-app help (glossary/tour) | `help [term]` ✅                              | `deck_help {term?}` ✅              | tooltips + Welcome tour ✅    | — (GAP-10 closed rev 4)                    |
+| Export dossier              | `report --dossier [--out F]` ✅               | `deck_report {format:"dossier"}` ✅ | Export button ✅              | — (D1 closed rev 3)                        |
 
 ### 2b. Fleet queries
 
@@ -221,6 +268,9 @@ this table AND the enforcement test together (that's the point).
   obviously can't stop itself. Localhost operator only.
 - **P2 — UI can't stop itself** (same reasoning, explicit row so the
   test doesn't flag it from the other direction).
+- **S1 — speedtest UI button: OPEN (see §0 #1).** Not yet a decision —
+  either the button lands or this becomes a real exemption ("internal
+  leg of benchmark"); tracked in §0 so it can't hide.
 - **D1 — CLOSED (rev 3, GAP-6).** `report --dossier` / `deck_report
 {format: "dossier"}` now stream the same export bundle as the UI.
 - **D2 — photo half remains: a human picks cover art** (agents don't
@@ -267,9 +317,13 @@ honest, in order of strength:
    from the actual files (`case "..."` in `src/cli.ts` +
    `deckctl.ts`, tool keys in `mcp.ts`, `route ===`/`sub ===` literals
    in `index.ts`, `run("`/`api(` strings in `web/*.tsx`) and asserts:
+   - every megadj CLI command appears in `src/usage.ts`'s help (a
+     command the help can't show is half an agent surface — rev 13);
    - every deckctl verb has an MCP twin **or** an exemption-tagged skip;
-   - every job kind in `deck_run`'s enum is enqueueable from the UI
-     (mirror closes GAP-1; the test is why it can't quietly regress);
+   - every job kind in the `shared/types.ts` JOB_KINDS SSOT is
+     enqueueable from the UI (or exempt) — and deckctl/mcp derive
+     their kind lists FROM that SSOT (hand-copied lists are a
+     regression; they each dropped a kind once already);
    - the help SSOT and note dismissal are reachable from all three
      surfaces (GAP-10/11 can't quietly reopen);
    - every mutating MCP tool keeps `destructive: true` + interlock

@@ -74,12 +74,9 @@ import {
 import { KIND_DOCS } from "./deckctl_docs";
 import { VERIFY_HELP } from "./verify_help";
 import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
-import type {
-  CoverageResponse,
-  JobKind,
-  RedundancyResult,
-} from "../shared/types";
+import type { CoverageResponse, RedundancyResult } from "../shared/types";
 import { serveMcp, type ToolDef } from "./mcp_server";
+import { JOB_KINDS } from "../shared/types";
 
 // re-exported for tests (deckapi's terminal-status predicate)
 export { jobTerminal };
@@ -89,21 +86,11 @@ export type { ToolDef } from "./mcp_server";
 // ToolDef lives in mcp_server.ts (the JSON-RPC half); this file owns the
 // tool TABLE only — descriptions, schemas, run functions.
 
-// compile-checked against the canonical JobKind union — adding a job kind
-// in shared/types.ts without updating this list is a type error
-const JOB_KINDS = [
-  "scan",
-  "verify",
-  "mirror",
-  "benchmark",
-  "checksum",
-  "speedtest",
-  "ingest",
-  "hygiene-scan",
-  "hygiene-apply",
-  "fixes-scan",
-  "fixes-apply",
-] as const satisfies readonly JobKind[];
+// DERIVED from the canonical JobKind union in shared/types.ts (`as const
+// satisfies` there type-checks the array against the union) — a kind added
+// to the union flows into deck_run's schema or fails the build here. No
+// hand-copied twin (the old local list had already dropped `ingest` once).
+const RUNNABLE_KINDS = JOB_KINDS;
 
 /** O87 attribution: one id per MCP server process, stamped on mutating calls
  *  so agent actions are distinguishable from human clicks. */
@@ -282,7 +269,7 @@ const TOOLS: Record<string, ToolDef> = {
     inputSchema: obj(
       {
         drive: s("target drive (volume name, nickname, or id)"),
-        kind: sEnum([...JOB_KINDS]),
+        kind: sEnum([...JOB_KINDS], "job kind (see deck_explain)"),
         wait: b("block until the job finishes (default true)"),
         timeout_minutes: n("wait timeout (default 30)"),
       },
@@ -290,9 +277,9 @@ const TOOLS: Record<string, ToolDef> = {
     ),
     run: async (args) => {
       const kind = str(args, "kind") ?? "";
-      if (!JOB_KINDS.includes(kind as (typeof JOB_KINDS)[number])) {
+      if (!RUNNABLE_KINDS.includes(kind as (typeof RUNNABLE_KINDS)[number])) {
         throw new RpcParamError(
-          `bad kind "${kind}" — one of: ${JOB_KINDS.join(", ")}`,
+          `bad kind "${kind}" — one of: ${RUNNABLE_KINDS.join(", ")}`,
         );
       }
       const d = await needDrive(str(args, "drive"));
@@ -418,17 +405,14 @@ const TOOLS: Record<string, ToolDef> = {
     description:
       "Documentation as a tool: what each job type checks, typical duration, and safety guarantees. Kind omitted = all jobs.",
     inputSchema: obj({
-      kind: sEnum([
-        "scan",
-        "verify",
-        "mirror",
-        "benchmark",
-        "checksum",
-        "hygiene-scan",
-        "hygiene-apply",
-        "fixes-scan",
-        "fixes-apply",
-      ]),
+      // derived from the JobKind SSOT (shared/types.ts) — verify rides
+      // VERIFY_HELP (richer doc), ingest is the intake pipeline job with
+      // no KIND_DOCS entry (excluded, not forgotten — the old literal list
+      // silently omitted it)
+      kind: sEnum(
+        JOB_KINDS.filter((k) => k !== "verify" && k !== "ingest"),
+        "job kind (omit for every kind's docs)",
+      ),
     }),
     run: async (args) => {
       // Derived from the KIND_DOCS SSOT (deckctl_docs.ts) — same words as

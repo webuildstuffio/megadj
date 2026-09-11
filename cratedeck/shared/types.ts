@@ -222,6 +222,41 @@ export type JobKind =
   | "hygiene-apply"
   | "fixes-scan"
   | "fixes-apply";
+
+/** The JobKind list, derived — never a hand-copied twin. Every surface that
+ *  enumerates job kinds (deckctl run's validation, the MCP deck_run schema,
+ *  deckctl explain's coverage, the parity census) iterates this array, so a
+ *  kind added to the union above flows everywhere or fails to compile here
+ *  (`as const satisfies` pins the list to the union — an omission or a typo
+ *  is a type error in this one file, not a silent gap in five surfaces).
+ *  Surface-local subsets narrow it (deckctl run accepts only drive jobs;
+ *  intake ingest stays UI/job-engine-only). */
+export const JOB_KINDS = [
+  "scan",
+  "verify",
+  "mirror",
+  "benchmark",
+  "checksum",
+  "ingest",
+  "speedtest",
+  "hygiene-scan",
+  "hygiene-apply",
+  "fixes-scan",
+  "fixes-apply",
+] as const satisfies readonly JobKind[];
+
+/** Job kinds enqueued against a DRIVE (POST /api/drives/:id/jobs) — the
+ *  deckctl run / deck_run subset. The rest (ingest = local-archive job;
+ *  the hygiene and fixes family routes) have their own enqueue endpoints. */
+export const DRIVE_JOB_KINDS = [
+  "scan",
+  "verify",
+  "mirror",
+  "benchmark",
+  "checksum",
+  "speedtest",
+] as const satisfies readonly (typeof JOB_KINDS)[number][];
+
 export type JobStatus =
   | "queued"
   | "running"

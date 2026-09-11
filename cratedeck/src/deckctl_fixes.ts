@@ -1,31 +1,13 @@
 // deckctl_fixes.ts — `deckctl fixes [scan|apply]` (file-length guard:
 // deckctl.ts is near the cap). CLI surface of the booth-fixes queue: same
 // routes the web uses, same booth-fix engine underneath (no second SSOT).
-import { apiGet, apiPost, pollJob, jobTerminal, type Job } from "./deckapi";
+// The scan/apply enqueue+follow leg lives in deckctl_queue.ts (shared with
+// `hygiene` — was a byte-identical clone).
+import { apiGet } from "./deckapi";
+import { enqueueAndFollow, type QueueHooks } from "./deckctl_queue";
 import type { FixesPayload } from "../shared/fixes";
 
-export interface FixesHooks {
-  jsonMode: boolean;
-  log: (s: string) => void;
-  errOut: (s: string) => void;
-  exit: (c: number) => void;
-}
-
-/** Wait for a fixes job to finish (shared by scan/apply). */
-async function followJob(
-  jobId: string,
-  h: FixesHooks,
-): Promise<Record<string, unknown> | null> {
-  const res = await pollJob(jobId);
-  const job = res as Job;
-  if (jobTerminal(job.status)) {
-    if (job.status === "done")
-      return JSON.parse(job.result_json ?? "{}") as Record<string, unknown>;
-    h.errOut(`fixes job ${job.status}: ${job.error ?? "no error given"}`);
-    h.exit(1);
-  }
-  return null;
-}
+export type FixesHooks = QueueHooks;
 
 export async function cmdFixes(
   h: FixesHooks,
@@ -58,11 +40,7 @@ export async function cmdFixes(
     }
     case "scan":
     case "apply": {
-      const enq = await apiPost(`/api/fixes/${sub}`, {});
-      const { id } = (await enq.json()) as { id: string };
-      h.log(`${sub} queued (${id}) — waiting…`);
-      const result = await followJob(id, h);
-      if (result && h.jsonMode) console.log(JSON.stringify(result, null, 2));
+      await enqueueAndFollow(h, "fixes", sub);
       return;
     }
     default:

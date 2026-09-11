@@ -31,6 +31,7 @@ import {
   type Job,
   type Drive,
 } from "./deckapi";
+import { DRIVE_JOB_KINDS } from "../shared/types";
 import type {
   BoothFleetPayload,
   CoverageResponse,
@@ -271,7 +272,7 @@ async function cmdRun(
   kind: string,
   wait: boolean,
 ): Promise<void> {
-  const kinds = ["scan", "verify", "mirror", "benchmark", "checksum"];
+  const kinds: readonly string[] = DRIVE_JOB_KINDS; // derived from shared/types.ts SSOT
   if (!kinds.includes(kind)) {
     await errOut(`bad kind "${kind}" — one of: ${kinds.join(", ")}`);
     process.exit(2);
@@ -705,7 +706,7 @@ function usageText(): string {
     "  drives                        list drives with badge verdicts",
     "  report <drive>                health-check dossier (drive = name, nickname, or UUID; --dossier = full export bundle, --out FILE writes it)",
     "  rename <drive> [nickname]     set/clear the display nickname (omit = clear)",
-    "  run <drive> <kind>            enqueue + follow a job (scan|verify|mirror|benchmark|checksum)",
+    `  run <drive> <kind>            enqueue + follow a job (${DRIVE_JOB_KINDS.join("|")})`,
     "  coverage [min-copies]         which tracks live on which drives + at-risk list",
     "  redundancy [min-copies]       per-playlist audit: every track on ≥N drives?",
     "  preflight                     gig-night pass/fail across all mounted drives (exit 1 if not ready)",
