@@ -15,7 +15,6 @@
         "plutil",
         "wait",
         "md5",
-        "fpcalc",
         "ffmpeg",
         "pgrep",
         "uv"

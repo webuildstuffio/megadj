@@ -115,11 +115,11 @@ async function processTask(
   aiYearBatch: Row[],
   /** out-param: rows that exhausted every art source → megadj artwork queue */
   artless: Row[],
-  /** live progress bar; ticks instead of printing per-item logs */
-  progress?: ProgressBar | null,
   /** run-scoped flags (formerly module constants) */
-  dry = false,
-  aiFallback = false,
+  dry: boolean,
+  aiFallback: boolean,
+  /** live progress bar; ticks instead of printing per-item logs */
+  progress: ProgressBar | null,
 ): Promise<void> {
   const { row: r, truth } = t;
   const name = `${r.artist ?? "?"} - ${r.title}`.slice(0, 56);
@@ -287,9 +287,9 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
           aiGenreBatch,
           aiYearBatch,
           artless,
-          progress,
           dry,
           aiFallback,
+          progress,
         );
       } catch (err) {
         progressLog(
