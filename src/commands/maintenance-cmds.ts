@@ -1,9 +1,9 @@
 /**
- * maintenance_cmds.ts — the shelf-maintenance command cases for cli.ts
+ * maintenance-cmds.ts — the shelf-maintenance command cases for cli.ts
  * (file-length guard: cli.ts sits at the 800-line cap; these two cases
  * live here as one unit, same seam as the old shelf_cmds.ts). Pure
  * flag-parsing + dynamic import + delegation — all logic lives in
- * src/commands/shelf-hygiene.ts and rb_fix_paths.ts.
+ * src/commands/shelf-hygiene.ts and rb-fix-paths.ts.
  */
 
 export async function runMaintenanceCommand(
@@ -49,7 +49,7 @@ export async function runMaintenanceCommand(
           ? positional
           : `/Volumes/${positional}`
         : `/Volumes/${shelfVolume}`;
-      const { rbFixPaths, printRbFixReport } = await import("./rb_fix_paths");
+      const { rbFixPaths, printRbFixReport } = await import("./rb-fix-paths");
       const r = await rbFixPaths({
         mount,
         apply,

@@ -26,13 +26,13 @@ import {
   DupFpCache,
   groupByFingerprint,
   type DupGroup as DupeGroup,
-} from "./dupescan_shared";
-import { applyArchiveGroups } from "./dedupe_archive_apply";
+} from "./dupescan-shared";
+import { applyArchiveGroups } from "./dedupe-archive-apply";
 
-// DupeGroup is the shared dupescan group shape (dupescan_shared.ts, the
+// DupeGroup is the shared dupescan group shape (dupescan-shared.ts, the
 // leaf both this command and its apply stage import) — re-exported so
 // existing `from "./dedupe-archive"` sites hold.
-export type { DupGroup as DupeGroup } from "./dupescan_shared";
+export type { DupGroup as DupeGroup } from "./dupescan-shared";
 
 export interface DedupeArchiveOptions {
   musicDir: string;
@@ -150,7 +150,7 @@ export async function dedupeArchive(
   }
 
   // ---- apply stage (only with --apply --yes) ------------------------------
-  // Safety rules live in dedupe_archive_apply.ts: md5 re-verify at apply
+  // Safety rules live in dedupe-archive-apply.ts: md5 re-verify at apply
   // time, name-similarity review gate, quarantine-never-delete.
   const applied = opts.apply === true && opts.yes === true;
   if (opts.apply && !opts.yes) {

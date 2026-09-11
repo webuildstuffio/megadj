@@ -1,4 +1,4 @@
-// shelf_dedupe_probe.ts — the measurement primitives behind the dedupe
+// shelf-dedupe-probe.ts — the measurement primitives behind the dedupe
 // ladder (md5, fpcalc fingerprint, quality rank). Split from shelf-dedupe.ts
 // so the verdict logic and the probes read (and test) separately.
 import { readFileSync } from "node:fs";

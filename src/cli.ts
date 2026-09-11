@@ -5,16 +5,16 @@ import { RateLimiter } from "./ratelimit";
 import { sync } from "./commands/sync";
 import { status, listTracks, statusJson, listJson } from "./commands/status";
 import { printHelp as printHelpImpl } from "./usage";
-import { MUSIC_DIR, DB_PATH, COOKIES, COOKIES_FILE } from "./cli_env";
-import { parseFlags, numOpt, nonNegOpt, firstPositional } from "./cli_flags";
+import { MUSIC_DIR, DB_PATH, COOKIES, COOKIES_FILE } from "./cli-env";
+import { parseFlags, numOpt, nonNegOpt, firstPositional } from "./cli-flags";
 import {
   runShelfSync,
   runShelfArchive,
   runShelfSweeps,
-} from "./cli_shelf_cmds";
+} from "./cli-shelf-cmds";
 
-// Env constants + flag parsers moved to cli_env.ts / cli_flags.ts, and the
-// shelf-family case bodies to cli_shelf_cmds.ts (complexity guard) —
+// Env constants + flag parsers moved to cli-env.ts / cli-flags.ts, and the
+// shelf-family case bodies to cli-shelf-cmds.ts (complexity guard) —
 // re-exported so existing `from "./cli"` import sites keep working.
 export { MUSIC_DIR, DB_PATH, COOKIES, COOKIES_FILE };
 export { parseFlags, numOpt, nonNegOpt, firstPositional };
@@ -221,10 +221,10 @@ async function main(): Promise<void> {
       }
       case "shelf-hygiene":
       case "rb-fix-paths": {
-        // The maintenance family lives in commands/maintenance_cmds.ts
-        // (file-length guard), same seam shape as the old shelf_cmds.ts.
+        // The maintenance family lives in commands/maintenance-cmds.ts
+        // (file-length guard), same seam shape as the old shelf-cmds.ts.
         const { runMaintenanceCommand } =
-          await import("./commands/maintenance_cmds");
+          await import("./commands/maintenance-cmds");
         await runMaintenanceCommand(command, rest);
         break;
       }
@@ -485,10 +485,10 @@ async function main(): Promise<void> {
         break;
       }
       case "years": {
-        // the fix_years pass, one entry point: verifies every track's year
+        // the fix-years pass, one entry point: verifies every track's year
         // against the SC page / yt-dlp timestamp (never the AI guess)
         const flags = parseFlags(rest, [], ["dry-run", "json"]);
-        const { runFixYears } = await import("../tools/fix_years");
+        const { runFixYears } = await import("../tools/fix-years");
         await runFixYears({
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),

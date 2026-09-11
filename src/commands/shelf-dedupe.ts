@@ -22,11 +22,11 @@
 
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
-import type { DedupeResult } from "./shelf_dedupe_types";
-import { judgePair, applyPairs } from "./shelf_dedupe_verdict";
+import type { DedupeResult } from "./shelf-dedupe-types";
+import { judgePair, applyPairs } from "./shelf-dedupe-verdict";
 
-// DedupePair/DedupeResult are DEFINED in shelf_dedupe_types.ts (the leaf
-// seam shared with shelf_dedupe_verdict.ts — a split-out module must never
+// DedupePair/DedupeResult are DEFINED in shelf-dedupe-types.ts (the leaf
+// seam shared with shelf-dedupe-verdict.ts — a split-out module must never
 // import its parent's types back: madge counts a type-only back-edge as a
 // cycle).
 export interface ShelfDedupeOptions {

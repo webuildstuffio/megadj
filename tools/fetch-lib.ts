@@ -1,5 +1,5 @@
 /**
- * fetch_lib — megadj archive-side plumbing, now backed by FullTags.
+ * fetch-lib — megadj archive-side plumbing, now backed by FullTags.
  *
  * FullTags (fulltags/) owns the format logic: ground-truth reads, tag
  * writes, artwork sources, SC search, genre canon. What stays here is the

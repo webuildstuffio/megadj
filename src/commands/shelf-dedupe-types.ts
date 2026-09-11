@@ -1,6 +1,6 @@
-// shelf_dedupe_types.ts — the wire types for the shelf twin-dedupe pass.
+// shelf-dedupe-types.ts — the wire types for the shelf twin-dedupe pass.
 // Leaf seam (AGENTS.md split rule): shelf-dedupe.ts (the command) and
-// shelf_dedupe_verdict.ts (the split-out judge/apply) both use these; the
+// shelf-dedupe-verdict.ts (the split-out judge/apply) both use these; the
 // split-out module must never import its parent's types back — madge
 // counts a type-only back-edge as a cycle.
 

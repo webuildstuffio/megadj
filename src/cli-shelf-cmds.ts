@@ -1,10 +1,10 @@
-// cli_shelf_cmds.ts — the shelf-family CLI case bodies, extracted from
+// cli-shelf-cmds.ts — the shelf-family CLI case bodies, extracted from
 // cli.ts's main switch at the complexity guard. Each runner takes the
 // parsed rest-args and owns its dynamic import; main stays the dispatcher
 // (the usage census parses PRE_SERVER_VERBS in cli.ts, so the verbs
 // themselves never move).
 import { ArchiveState } from "./state";
-import { MUSIC_DIR, DB_PATH } from "./cli_env";
+import { MUSIC_DIR, DB_PATH } from "./cli-env";
 
 /** shelf-sync: shelf master → both sticks. Volume names come from
  *  config.toml [library] via env overrides — never hardcoded literals. */

@@ -4,7 +4,7 @@
  *   SC search → SC page og:image (original/t1080 res) → hype gateways
  *   (hypeddit/hyperfollow) → mp3-twin → Deezer → iTunes → AI queue (caller).
  *
- * Migrated from tools/fetch_lib.ts + src/commands/embed.ts; identical
+ * Migrated from tools/fetch-lib.ts + src/commands/embed.ts; identical
  * behavior, one home.
  */
 import { readdirSync } from "node:fs";

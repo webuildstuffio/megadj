@@ -1,4 +1,4 @@
-// shelf_dupescan_apply.ts — the apply stage for `shelf-dupescan --quarantine
+// shelf-dupescan-apply.ts — the apply stage for `shelf-dupescan --quarantine
 // --yes`, extracted from shelf-dupescan.ts at the complexity guard. Guards,
 // in order: (1) every loser is re-verified md5-vs-keeper at apply time — a
 // same-fingerprint group with DIFFERENT md5s but wildly different names is a
@@ -7,8 +7,8 @@
 // in quarantine abort that file, not the run.
 import { basename } from "node:path";
 import { spawnSync } from "node:child_process";
-import type { DupGroup } from "./dupescan_shared";
-import { moveLoser } from "./dupescan_shared";
+import type { DupGroup } from "./dupescan-shared";
+import { moveLoser } from "./dupescan-shared";
 
 /** Cheap filename similarity: lowercase, strip separators, common-prefix
  *  ratio (no deps). 1 = identical, 0 = unrelated. */

@@ -13,8 +13,7 @@ parking lot. Hard non-goals from the product brief stay non-goals (see §H).
 **The live build order — what to build next — lives in
 [product-state-2026-09-07.md](product-state-2026-09-07.md) §The queue**
 (the Sep 6 three-move proposal that ordered it was executed and archived at
-[archive/roadmap-proposal.md](archive/roadmap-proposal.md)); this doc keeps
-the detail, that one keeps the decision.
+[archive/roadmap-proposal.md](archive/roadmap-proposal.md)).
 
 **The deal (2026-09-04 audit):** this backlog is capped. A new idea goes in
 only when an old one comes out or ships — a 60+-item list is how planning

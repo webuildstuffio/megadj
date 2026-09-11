@@ -1,5 +1,5 @@
-// booth_fix_types.ts — the row/result wire types for the booth-fix gate.
-// Leaf seam (AGENTS.md split rule): booth-fix.ts and booth_fix_text.ts both
+// booth-fix-types.ts — the row/result wire types for the booth-fix gate.
+// Leaf seam (AGENTS.md split rule): booth-fix.ts and booth-fix-text.ts both
 // declare/use these; the split-out fixer must never import its parent's
 // types back — madge counts a type-only back-edge as a cycle.
 

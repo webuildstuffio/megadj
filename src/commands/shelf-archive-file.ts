@@ -1,4 +1,4 @@
-// shelf_archive_file.ts — the per-drive sweep for `shelf-archive`: classify
+// shelf-archive-file.ts — the per-drive sweep for `shelf-archive`: classify
 // every drive file against the shelf index (covered / preserved-twin /
 // copy) and land the copies. Split from shelf-archive.ts so the command
 // reads as orchestration (opts → sweeps ledger → JSON/human verdict) and
@@ -17,8 +17,8 @@ import {
 } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { createHash } from "node:crypto";
-import { ShelfIndex, landingPath } from "./shelf_index";
-import { isJunk, isJunkDir, key } from "./shelf_match";
+import { ShelfIndex, landingPath } from "./shelf-index";
+import { isJunk, isJunkDir, key } from "./shelf-match";
 
 /** One real (non-junk) file found on a drive. */
 export interface DriveFile {

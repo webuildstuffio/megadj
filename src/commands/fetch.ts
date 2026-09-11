@@ -1,5 +1,5 @@
 /**
- * fetch command — agent/user-facing wrapper around tools/fetch_all.ts.
+ * fetch command — agent/user-facing wrapper around tools/fetch-all.ts.
  * Runs the enrichment pipeline (tags + genres + years + artwork) in-process
  * with the same flags, so `megadj fetch --dry-run` etc. just work.
  *
@@ -100,7 +100,7 @@ export async function auditArchive(musicDir: string): Promise<{
 }
 
 export async function fetch(opts: FetchOptions): Promise<void> {
-  const script = join(import.meta.dir, "../../tools/fetch_all.ts");
+  const script = join(import.meta.dir, "../../tools/fetch-all.ts");
   const proc = Bun.spawn(["bun", script, ...fetchAllArgs(opts)], {
     stdout: "inherit",
     stderr: "inherit",
@@ -109,7 +109,7 @@ export async function fetch(opts: FetchOptions): Promise<void> {
   if (proc.exitCode !== 0) process.exitCode = proc.exitCode ?? 1;
 }
 
-/** Map FetchOptions to fetch_all.ts CLI args. Exported for tests — the
+/** Map FetchOptions to fetch-all.ts CLI args. Exported for tests — the
  * flags used to be parsed and then silently dropped (only --json made it
  * through), so `megadj fetch --art` ran the full pass. */
 export function fetchAllArgs(opts: FetchOptions): string[] {

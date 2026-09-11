@@ -21,11 +21,11 @@ import {
   DupFpCache,
   groupByFingerprint,
   type DupGroup,
-} from "./dupescan_shared";
-import { applyDupGroups } from "./shelf_dupescan_apply";
+} from "./dupescan-shared";
+import { applyDupGroups } from "./shelf-dupescan-apply";
 
 // md5sum / nameSimilarity / moveLoser / DupGroup all live in the leaf
-// modules (shelf_dupescan_apply.ts / dupescan_shared.ts) — import from
+// modules (shelf-dupescan-apply.ts / dupescan-shared.ts) — import from
 // there directly; re-exports from this module are dead surface (knip).
 
 const AUDIO = new Set([".mp3", ".wav", ".aif", ".aiff", ".m4a", ".flac"]);
@@ -156,7 +156,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   );
 
   // ---- apply stage (only with --quarantine --yes) ----------------------
-  // Guards live in shelf_dupescan_apply.ts: md5 re-verify at apply time,
+  // Guards live in shelf-dupescan-apply.ts: md5 re-verify at apply time,
   // quarantine-never-delete, per-file collision isolation.
   const qDir = join(shelfVolume, "Contents", ".dupescan-quarantine");
   const applied = quarantine && yes;

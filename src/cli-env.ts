@@ -1,4 +1,4 @@
-// cli_env.ts — the env-resolved constants cli.ts and its case modules
+// cli-env.ts — the env-resolved constants cli.ts and its case modules
 // share (music dir, DB path). Split from cli.ts so case runners can use
 // them without importing the dispatcher.
 export const MUSIC_DIR =

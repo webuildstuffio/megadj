@@ -57,7 +57,7 @@ export function isAudioFile(p: string): boolean {
 
 /** Recursively list audio files under `dir`, skipping hidden entries.
  * One shared walker for every "collect the archive" pass — fetch/audit,
- * fetch_lib's ground-truth set, adopt's intake — so skip rules and the
+ * fetch-lib's ground-truth set, adopt's intake — so skip rules and the
  * extension filter can never drift apart again. A missing/unreadable dir
  * returns [] (soft-fail: callers treat an absent music dir as empty, a
  * typoed path must not crash the pass). Sync on purpose: callers are
@@ -195,7 +195,7 @@ export async function writePatch(
 
 /**
  * Synchronous twin of writePatch's ffmpeg branch — same behavior, no
- * promise bridge. The sync API is what tools/fetch_all.ts's parallel
+ * promise bridge. The sync API is what tools/fetch-all.ts's parallel
  * workers need (its setFileTags contract is sync); the nested `bun -e`
  * bridge it used before measured 6.4× slower than direct ffmpeg.
  * WAV/AIFF go through the mutagen paths (natively sync).

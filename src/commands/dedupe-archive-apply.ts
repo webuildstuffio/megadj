@@ -1,4 +1,4 @@
-// dedupe_archive_apply.ts — the apply stage for `dedupe-archive --apply
+// dedupe-archive-apply.ts — the apply stage for `dedupe-archive --apply
 // --yes`, extracted from dedupe-archive.ts at the complexity guard. The
 // shelf-dupescan safety rules apply verbatim: fp-equal + same-size +
 // md5-equal → safe; fp-equal + dissimilar names + different sizes → left
@@ -7,8 +7,8 @@
 import { basename, join } from "node:path";
 import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { nameSimilarityTokens } from "../../fulltags/src/exports";
-import { md5sum } from "./shelf_dupescan_apply";
-import type { DupGroup } from "./dupescan_shared";
+import { md5sum } from "./shelf-dupescan-apply";
+import type { DupGroup } from "./dupescan-shared";
 
 /** Apply outcome appended onto the command's result object. */
 export interface ApplyOutcome {

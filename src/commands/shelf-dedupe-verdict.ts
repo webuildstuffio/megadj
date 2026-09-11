@@ -1,11 +1,11 @@
-// shelf_dedupe_verdict.ts — the per-pair verdict + apply steps for
+// shelf-dedupe-verdict.ts — the per-pair verdict + apply steps for
 // `shelf-dedupe`, extracted so the command reads as report/apply
 // orchestration and the three-stage ladder (md5 → fingerprint → keep-both)
 // is one named unit per concern.
 import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
-import type { DedupePair } from "./shelf_dedupe_types";
-import { md5, fingerprint, qualityRank } from "./shelf_dedupe_probe";
+import type { DedupePair } from "./shelf-dedupe-types";
+import { md5, fingerprint, qualityRank } from "./shelf-dedupe-probe";
 
 /** Verdict inputs for one twin pair. */
 export interface TwinPair {

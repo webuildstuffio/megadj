@@ -1,5 +1,5 @@
 /**
- * fetch_all.ts — THE one-shot fetch pipeline: metadata + genre + artwork for
+ * fetch-all.ts — THE one-shot fetch pipeline: metadata + genre + artwork for
  * every archive track. Ground-truth verified (reads files, not the DB),
  * parallel, idempotent — safe to re-run any time.
  *
@@ -15,18 +15,18 @@
  * One yt-dlp call per track feeds genre AND art AND year.
  *
  * usage:
- *   bun tools/fetch_all.ts                 # fill everything missing
- *   bun tools/fetch_all.ts --all           # + upgrade existing SC art to original res
- *   bun tools/fetch_all.ts --art           # artwork only
- *   bun tools/fetch_all.ts --genres        # genres only
- *   bun tools/fetch_all.ts --tags          # tags only
- *   bun tools/fetch_all.ts --years         # years only
- *   bun tools/fetch_all.ts --jobs 8        # workers (default 6)
- *   bun tools/fetch_all.ts --dry-run       # report what would happen
+ *   bun tools/fetch-all.ts                 # fill everything missing
+ *   bun tools/fetch-all.ts --all           # + upgrade existing SC art to original res
+ *   bun tools/fetch-all.ts --art           # artwork only
+ *   bun tools/fetch-all.ts --genres        # genres only
+ *   bun tools/fetch-all.ts --tags          # tags only
+ *   bun tools/fetch-all.ts --years         # years only
+ *   bun tools/fetch-all.ts --jobs 8        # workers (default 6)
+ *   bun tools/fetch-all.ts --dry-run       # report what would happen
  *
  * env: OPENROUTER_API_KEY (only needed for AI genre/year fallback + covers)
  *
- * Shared plumbing lives in tools/fetch_lib.ts; AI fallbacks come from
+ * Shared plumbing lives in tools/fetch-lib.ts; AI fallbacks come from
  * fulltags/src/ai.ts (via fulltags/src/exports).
  */
 import {
@@ -39,7 +39,7 @@ import {
   setFileTags,
   type Row,
   type TagValues,
-} from "./fetch_lib";
+} from "./fetch-lib";
 import { aiGenres } from "../fulltags/src/exports";
 import { existsSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
@@ -50,7 +50,7 @@ import {
   stageTags,
   type StageCtx,
   type Stats,
-} from "./fetch_stages";
+} from "./fetch-stages";
 
 /** Print a line without corrupting the live progress bar redraw. */
 let activeBar: ProgressBar | null = null;
@@ -94,7 +94,7 @@ interface Task {
   needYear: boolean;
   upgradeSc: boolean;
 }
-// Stats shape lives in fetch_stages.ts (the stage runners' shared currency).
+// Stats shape lives in fetch-stages.ts (the stage runners' shared currency).
 
 async function processTask(
   t: Task,
@@ -195,7 +195,7 @@ async function main() {
 
   if (!JSON_OUT) {
     console.log(
-      `fetch_all: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${JOBS}${ALL ? " [--all upgrade]" : ""}${DRY ? " [DRY RUN]" : ""}\n`,
+      `fetch-all: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${JOBS}${ALL ? " [--all upgrade]" : ""}${DRY ? " [DRY RUN]" : ""}\n`,
     );
   }
 

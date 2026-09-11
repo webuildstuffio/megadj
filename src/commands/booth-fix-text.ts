@@ -1,4 +1,4 @@
-// booth_fix_text.ts — the booth-text gate's fixer half (from booth-fix.ts):
+// booth-fix-text.ts — the booth-text gate's fixer half (from booth-fix.ts):
 // given one file's text verdict, build the rename and/or tag-repair row and
 // apply it when asked. Rename runs FIRST (paths), then tag text, so the DB
 // path update lands against the final name.
@@ -9,7 +9,7 @@ import {
   writePatchSync,
   type TextCompatResult,
 } from "../../fulltags/src/exports";
-import type { BoothFixRow } from "./booth_fix_types";
+import type { BoothFixRow } from "./booth-fix-types";
 
 /** One applied fix (counter + log line for the run summary). */
 export interface ApplySink {

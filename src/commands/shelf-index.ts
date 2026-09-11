@@ -1,11 +1,11 @@
-// shelf_index.ts — the shelf-side coverage index + per-file copy decision
+// shelf-index.ts — the shelf-side coverage index + per-file copy decision
 // for `shelf-archive`, split out so the sweep loop reads as orchestration
 // and each rule (exact match, variant twins, never-overwrite naming) is a
 // named unit. All keys are NFC+casefold (the only honest comparison on
 // exFAT).
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
-import { isJunk, key } from "./shelf_match";
+import { isJunk, key } from "./shelf-match";
 
 /** One indexed shelf file. */
 export interface ShelfEntry {

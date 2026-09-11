@@ -57,9 +57,9 @@ import {
 } from "./ingest-art";
 import type { QueueEntry } from "./queue";
 // copyIntoArchive / queueArtworkFallback / registerAndMove (the archive-
-// landing half of Phase D) live in ingest_register.ts with narrow param
+// landing half of Phase D) live in ingest-register.ts with narrow param
 // types — this module never imported back keeps madge at zero cycles.
-import { registerAndMove } from "./ingest_register";
+import { registerAndMove } from "./ingest-register";
 
 export interface IngestOptions {
   state: ArchiveState;
@@ -77,10 +77,10 @@ export interface IngestOptions {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// IngestCounters is DEFINED in ingest_register.ts (the leaf seam shared
+// IngestCounters is DEFINED in ingest-register.ts (the leaf seam shared
 // with the landing helpers — a split-out module must never import its
 // parent's types back: madge counts a type-only back-edge as a cycle).
-import type { IngestCounters } from "./ingest_register";
+import type { IngestCounters } from "./ingest-register";
 
 function newCounters(): IngestCounters {
   return {

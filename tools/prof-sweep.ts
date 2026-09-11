@@ -1,9 +1,9 @@
 /**
- * prof_sweep.ts — cold/warm I/O profiler for the runtime hot paths the
+ * prof-sweep.ts — cold/warm I/O profiler for the runtime hot paths the
  * perf plan targets (see docs/ideas.md §0f): tree walk + stat,
  * full-tree read (sweep proxy), and blake2b hashing. Read-only.
  *
- * Usage: bun tools/prof_sweep.ts [dir]   (default: MEGADJ_MUSIC_DIR env or
+ * Usage: bun tools/prof-sweep.ts [dir]   (default: MEGADJ_MUSIC_DIR env or
  * ~/Music/DJ-Imports — same resolution as cratedeck's config.ts).
  *
  * Warm-cache numbers overstate throughput: the page cache absorbs the

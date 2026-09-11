@@ -138,7 +138,7 @@ export function LibraryTab() {
             icon="clock"
             title="Years"
             n={lib.years.known}
-            hint="Release-year coverage. The year is THIS file's version (a 2026 edit of a 2003 original stamps 2026). Unknown years are a `tools/fix_years.ts` pass."
+            hint="Release-year coverage. The year is THIS file's version (a 2026 edit of a 2003 original stamps 2026). Unknown years are a `tools/fix-years.ts` pass."
             lines={[
               `known: ${lib.years.known}`,
               `unknown: ${lib.years.unknown}`,
@@ -164,7 +164,7 @@ export function LibraryTab() {
             </KVRow>
           </KVRows>
           <div class="arch-fix">
-            fix: <code>tools/fix_years.ts</code> verifies AI-guessed years
+            fix: <code>tools/fix-years.ts</code> verifies AI-guessed years
           </div>
         </div>
         <div class="card">

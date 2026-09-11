@@ -1,4 +1,4 @@
-// cli_flags.ts — Bun's util.parseArgs is broken (strict:true rejects known
+// cli-flags.ts — Bun's util.parseArgs is broken (strict:true rejects known
 // options, strict:false coerces string values to true), so the CLI parses
 // manually. Split from cli.ts at the complexity guard; the semantics are
 // load-bearing (numeric-options.test.ts pins nonNegOpt's contract).

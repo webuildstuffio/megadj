@@ -230,7 +230,7 @@ describe("shelf-archive", () => {
   });
 });
 
-import { ShelfSweeps, type ShelfSweepRow } from "../shelf_sweeps";
+import { ShelfSweeps, type ShelfSweepRow } from "../shelf-sweeps";
 import { Database } from "bun:sqlite";
 
 describe("shelf sweep ledger", () => {

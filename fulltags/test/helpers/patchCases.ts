@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { canonGenre, validatePatch } from "../../src/exports";
 
 /** Shared validatePatch scenario cases (used by schema.test.ts and
- *  compat-fetch_lib.test.ts — the compat shim delegates to validatePatch,
+ *  compat-fetch-lib.test.ts — the compat shim delegates to validatePatch,
  *  so both suites must prove the same behavior). */
 export function runValidatePatchCases(): void {
   test("accepts valid values", () => {
@@ -50,7 +50,7 @@ export function runValidatePatchCases(): void {
 }
 
 /** Shared canonGenre scenario cases (schema.test.ts owns the canon map
- *  coverage; compat-fetch_lib proves the shim delegates to the same impl). */
+ *  coverage; compat-fetch-lib proves the shim delegates to the same impl). */
 export function runCanonGenreCases(): void {
   test("maps known SC labels to canonical genres", () => {
     expect(canonGenre("Hip-Hop & Rap")).toBe("Hip-Hop");

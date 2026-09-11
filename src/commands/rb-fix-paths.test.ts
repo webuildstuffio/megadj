@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { rbFixPaths, printRbFixReport, __test } from "./rb_fix_paths";
+import { rbFixPaths, printRbFixReport, __test } from "./rb-fix-paths";
 
 /**
  * rb-fix-paths unit tests. The pyrekordbox leg is NOT exercised here (it

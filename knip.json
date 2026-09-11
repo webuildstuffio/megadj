@@ -3,9 +3,9 @@
   "workspaces": {
     ".": {
       "entry": [
-        "tools/fetch_all.ts",
-        "tools/fix_years.ts",
-        "tools/prof_sweep.ts"
+        "tools/fetch-all.ts",
+        "tools/fix-years.ts",
+        "tools/prof-sweep.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [

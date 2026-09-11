@@ -1,4 +1,4 @@
-// ingest_register.ts — the archive-landing half of Phase D, extracted from
+// ingest-register.ts — the archive-landing half of Phase D, extracted from
 // ingest.ts at the complexity guard: copy-into-archive (never clobber,
 // disambiguate inside the batch folder), the artwork queue fallback, and
 // the DB registration. ingest.ts keeps the tag/art/energy pipeline; these

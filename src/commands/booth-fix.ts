@@ -25,7 +25,7 @@
  * sanitization preserves the rest of the tag. --apply idempotence: a
  * second run finds nothing to fix (the sanitizer is a fixed point).
  *
- * The per-file text fixer lives in booth_fix_text.ts (rename + tag rows,
+ * The per-file text fixer lives in booth-fix-text.ts (rename + tag rows,
  * apply order); this module owns the walk, the gate input assembly, the
  * player-compat plan rows, and the DB path follow.
  */
@@ -40,17 +40,17 @@ import {
   boothTextCompat,
   type TextCompatResult,
 } from "../../fulltags/src/exports";
-import { fixBoothText } from "./booth_fix_text";
-import type { BoothFixRow, BoothFixResult } from "./booth_fix_types";
+import { fixBoothText } from "./booth-fix-text";
+import type { BoothFixRow, BoothFixResult } from "./booth-fix-types";
 import type { ArchiveState } from "../state";
 
-// Text sanitizers moved to booth_fix_text.ts with the fixer; re-exported so
+// Text sanitizers moved to booth-fix-text.ts with the fixer; re-exported so
 // existing `from "./booth-fix"` import sites (tests, CLI help) stay put.
 export {
   sanitizeDisplayText,
   sanitizeFilename,
   repairMojibake,
-} from "./booth_fix_text";
+} from "./booth-fix-text";
 
 export interface BoothFixOptions {
   state: ArchiveState;
@@ -63,8 +63,8 @@ export interface BoothFixOptions {
   log?: (m: string) => void;
 }
 
-// BoothFixRow/BoothFixResult are DEFINED in booth_fix_types.ts (the leaf
-// seam shared with booth_fix_text.ts — a split-out module must never import
+// BoothFixRow/BoothFixResult are DEFINED in booth-fix-types.ts (the leaf
+// seam shared with booth-fix-text.ts — a split-out module must never import
 // its parent's types back: madge counts a type-only back-edge as a cycle).
 
 /** Look up the track a file belongs to (booth-fix's DB follow). Scans

@@ -1,4 +1,4 @@
-// state_similar.ts — I49 "sounds like" persistence + similarity math,
+// state-similar.ts — I49 "sounds like" persistence + similarity math,
 // split out of state.ts (file-length guard). Same ArchiveState DB, same
 // ledger rules: corrupt rows read as ABSENT (never poison a ranking),
 // upserts are idempotent by video_id.
@@ -115,7 +115,7 @@ export class EmbeddingsLedger {
 /** Cosine similarity of two equal-length vectors. Returns 0 when either
  * norm is 0 (no direction — no similarity claim).
  *
- * SSOT note: cratedeck's archive_similar.ts re-implements this byte-for-byte
+ * SSOT note: cratedeck's archive-similar.ts re-implements this byte-for-byte
  * (jscpd-flagged). megadj cannot import cratedeck (cratedeck is a UI
  * workspace over megadj's output, and src/ must stay dependency-free for
  * the standalone CLI), so the duplication is sanctioned — keep the two

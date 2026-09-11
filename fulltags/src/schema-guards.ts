@@ -1,7 +1,7 @@
 /**
  * Runtime validation for TagPatch values — throws with a precise message on
  * bad input so a bad batch never half-writes files. Migrated verbatim from
- * tools/fetch_lib.ts validateTagValues (same rules, new field names).
+ * tools/fetch-lib.ts validateTagValues (same rules, new field names).
  */
 import type { TagPatch } from "./schema";
 

@@ -1,4 +1,4 @@
-// shelf_match.ts — the junk filter + NFC/casefold name key shared by the
+// shelf-match.ts — the junk filter + NFC/casefold name key shared by the
 // shelf sweep commands (shelf-archive's walk + index, shelf-dedupe's
 // scans). ExFAT traps live here: AppleDouble (._*) files, .DS_Store,
 // fseventsd, and case-insensitive name collisions.

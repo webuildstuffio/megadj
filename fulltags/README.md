@@ -39,7 +39,7 @@ rekordbox-reanalyzed grids; flag disagreements > 2%.
 ## Why a sub-project
 
 megadj grew enrichment logic across five files (`src/metadata.ts`,
-`src/commands/{energy,embed,remix,wav-to-aiff}.ts`, `tools/fetch_lib.ts`,
+`src/commands/{energy,embed,remix,wav-to-aiff}.ts`, `tools/fetch-lib.ts`,
 `tools/fetch_ai.ts`). Each had a hard-won format gotcha in it (AIFF drops
 ID3 chunks; WAV can't carry ffmpeg art; mp3 wants id3v2.3). FullTags
 consolidates all of it behind **one schema, one writer, one pipeline**.
@@ -109,7 +109,7 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
   ffmpeg (mjpeg + `attached_pic`).
 - **tmp files keep their extension** — ffmpeg infers the muxer from the
   filename; an extensionless `.fa` tmp fails with "Unable to choose an output
-  format" (a real bug this migration fixed in the old `fetch_lib` path).
+  format" (a real bug this migration fixed in the old `fetch-lib` path).
 - **failed writes clean up** — a corrupt input must never leave an orphan
   `.tagged` tmp in the folder (Bun's `$` throws on non-zero exit, so the
   unlink lives in `catch`, not after an exit-code check).

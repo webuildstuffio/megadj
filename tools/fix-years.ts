@@ -1,14 +1,14 @@
 /**
- * fix_years.ts — correct every track's year using the REAL upload date from
+ * fix-years.ts — correct every track's year using the REAL upload date from
  * its SoundCloud page (`display_date` in the page's JSON), falling back to
  * yt-dlp's %(timestamp)s, then AI as last resort. Overwrites the AI guess
  * of 2023 that flash-lite defaulted to.
  *
- * usage: as CLI → `bun tools/fix_years.ts [--dry-run]`
+ * usage: as CLI → `bun tools/fix-years.ts [--dry-run]`
  *        as lib  → `runFixYears({ dryRun })` from `megadj years` (src/cli.ts)
  */
 import { Database } from "bun:sqlite";
-import { setFileTags, groundTruth, ARCH } from "./fetch_lib";
+import { setFileTags, groundTruth, ARCH } from "./fetch-lib";
 
 const home = process.env.HOME!;
 const db = new Database(`${home}/.local/state/megadj/archive.db`);

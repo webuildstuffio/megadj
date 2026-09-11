@@ -39,8 +39,8 @@
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ArchiveState } from "../state";
-import { ShelfIndex } from "./shelf_index";
-import { sweepVolume, type DriveResult } from "./shelf_archive_file";
+import { ShelfIndex } from "./shelf-index";
+import { sweepVolume, type DriveResult } from "./shelf-archive-file";
 
 /** The archive DB (sweep ledger host). Env-overridable like cli.ts. */
 const DB_PATH =
@@ -84,7 +84,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
   // full — the "when did drive X last get archived, and what happened" is
   // DB state, not markdown memory. The DB lives on this Mac, so a missing
   // file is recorded as note, never a crash (the sweep itself is I/O work).
-  let sweeps: import("../shelf_sweeps").ShelfSweeps | null = null;
+  let sweeps: import("../shelf-sweeps").ShelfSweeps | null = null;
   let state: ArchiveState | null = null;
   if (ledgerPath !== null) {
     try {
@@ -113,7 +113,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
   }
 
   // Shelf index (exact + variant twins) — built and maintained by
-  // ShelfIndex (shelf_index.ts); just-created variants register as they
+  // ShelfIndex (shelf-index.ts); just-created variants register as they
   // land so multi-file sweeps and in-run re-runs stay idempotent.
   const shelf = new ShelfIndex(contents);
 

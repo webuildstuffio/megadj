@@ -2,7 +2,7 @@
  * FullTags AI — OpenRouter-backed genre + remix-year classification (the
  * last-resort rung when SoundCloud tags are missing). Confidence-gated
  * (≥ 0.7). Migrated from tools/fetch_ai.ts; flash-lite tends to guess 2023
- * for years — verify with the years stage / fix_years before trusting.
+ * for years — verify with the years stage / fix-years before trusting.
  */
 import { basename } from "node:path";
 import { DJ_GENRES } from "./schema";
