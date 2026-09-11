@@ -86,6 +86,14 @@ describe("rb-unmatched", () => {
     expect(r.twinNamed).toHaveLength(0);
   });
 
+  test("classifyUnmatched: NFC/NFD basename variants stay twin-named", () => {
+    const disk = ["/v/Contents/B/Cafe\u0301.mp3"];
+    const rows = ["/x/renamed/Caf\u00e9.MP3"];
+    const r = __test.classifyUnmatched(disk, rows);
+    expect(r.twinNamed).toEqual(disk);
+    expect(r.unknown).toHaveLength(0);
+  });
+
   test("topDir: census buckets resolve Contents' top-level folder", () => {
     expect(__test.topDir("/v/Contents/Abc/x/y.mp3")).toBe("Abc");
     expect(__test.topDir("/v/Contents/rootfile.mp3")).toBe("(root)");
@@ -161,6 +169,34 @@ describe("rb-unmatched", () => {
       const { existsSync } = await import("node:fs");
       expect(existsSync(first.moved[0]!.dest)).toBe(true);
       expect(existsSync(second.moved[0]!.dest)).toBe(true);
+    } finally {
+      rmSync(mount, { recursive: true, force: true });
+    }
+  });
+
+  test("quarantine runs in the same second keep separate manifests", async () => {
+    const { quarantineUnmatched } = await import("./rb-unmatched");
+    const mount = makeMount();
+    try {
+      const firstFile = join(
+        mount,
+        "Contents",
+        "UnknownArtist",
+        "01 Intro.mp3",
+      );
+      const secondFile = join(
+        mount,
+        "Contents",
+        "UnknownArtist",
+        "02 Backlog.mp3",
+      );
+      const first = await quarantineUnmatched([firstFile], mount, () => {});
+      writeFileSync(secondFile, "new");
+      const second = await quarantineUnmatched([secondFile], mount, () => {});
+      expect(second.manifestPath).not.toBe(first.manifestPath);
+      const { existsSync } = await import("node:fs");
+      expect(existsSync(first.manifestPath)).toBe(true);
+      expect(existsSync(second.manifestPath)).toBe(true);
     } finally {
       rmSync(mount, { recursive: true, force: true });
     }

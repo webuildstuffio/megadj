@@ -131,4 +131,28 @@ describe("shelf-sync", () => {
     });
     expect(logs.some((l) => l.includes("already there 1"))).toBe(true);
   });
+
+  test("preserves a divergent same-name destination instead of overwriting it", async () => {
+    const src = mkdtempSync("/tmp/megadj-shelf-divergent-src-");
+    mkdirSync(join(src, "Artist"), { recursive: true });
+    writeFileSync(join(src, "Artist", "track.mp3"), "archive version");
+
+    const vol = mkdtempSync("/tmp/megadj-shelf-divergent-vol-");
+    mkdirSync(join(vol, "Contents", "Artist"), { recursive: true });
+    writeFileSync(
+      join(vol, "Contents", "Artist", "track.mp3"),
+      "shelf version",
+    );
+
+    await shelfSync({ musicDir: src, shelfVolume: vol, log: () => {} });
+
+    expect(
+      await Bun.file(join(vol, "Contents", "Artist", "track.mp3")).text(),
+    ).toBe("shelf version");
+    expect(
+      await Bun.file(
+        join(vol, "Contents", "Artist", "track [archive].mp3"),
+      ).text(),
+    ).toBe("archive version");
+  });
 });

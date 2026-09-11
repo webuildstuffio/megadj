@@ -60,15 +60,15 @@ function artistFolder(rel: string): string {
     : "[unknown]";
 }
 
-/** Index of every audio file already on the shelf: basename → sizes. A file
+/** Index of every audio file already on the shelf: basename → paths. A file
  *  counts as "already there" when ANY shelf copy of the same name has the
- *  same size — the shelf is artist-foldered while the archive keeps its
+ *  same bytes — the shelf is artist-foldered while the archive keeps its
  *  batch folders, so the raw relative-path destination is only ONE of the
  *  places the file may legitimately live. Without this, a regrouped shelf
  *  re-copies the whole archive into dated folders (the Sep 11 discovery). */
-function shelfAudioIndex(contents: string): Map<string, number[]> {
+function shelfAudioIndex(contents: string): Map<string, string[]> {
   const AudioRe = /\.(mp3|m4a|wav|aiff?|flac|ogg|opus)$/i;
-  const idx = new Map<string, number[]>();
+  const idx = new Map<string, string[]>();
   const walk = (dir: string) => {
     let entries: import("node:fs").Dirent[];
     try {
@@ -84,13 +84,9 @@ function shelfAudioIndex(contents: string): Map<string, number[]> {
         // fskit exFAT hands back NFD; the archive side is NFC. Key the index
         // on NFC so the Unicode forms can never split one file into two.
         const key = entry.name.normalize("NFC");
-        const sizes = idx.get(key) ?? [];
-        try {
-          sizes.push(statSync(abs).size);
-        } catch {
-          // vanished mid-walk — skip this entry
-        }
-        idx.set(key, sizes);
+        const paths = idx.get(key) ?? [];
+        paths.push(abs);
+        idx.set(key, paths);
       }
     }
   };
@@ -98,14 +94,39 @@ function shelfAudioIndex(contents: string): Map<string, number[]> {
   return idx;
 }
 
-/** Byte-size equality pre-check: same size = "already there". Checksums are
- *  the real truth (checksum jobs audit that); this keeps the walk fast. */
-function sameSize(a: string, b: string): boolean {
+/** Compare bytes before declaring a shelf copy already present. A same-size
+ *  divergent rip must never be mistaken for the archive file. */
+function md5(path: string): string | null {
+  const result = Bun.spawnSync(["md5", "-q", path]);
+  if (result.exitCode !== 0) return null;
+  const value = result.stdout.toString().trim();
+  return value.length > 0 ? value : null;
+}
+
+function sameBytes(a: string, b: string): boolean {
   try {
-    return statSync(a).size === statSync(b).size;
+    if (statSync(a).size !== statSync(b).size) return false;
+    const left = md5(a);
+    const right = md5(b);
+    return left !== null && left === right;
   } catch {
     return false;
   }
+}
+
+function divergentDestination(contents: string, rel: string): string {
+  const artist = artistFolder(rel);
+  const name = basename(rel);
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  let i = 1;
+  let candidate = join(contents, artist, `${stem} [archive]${ext}`);
+  while (existsSync(candidate)) {
+    i++;
+    candidate = join(contents, artist, `${stem} [archive ${i}]${ext}`);
+  }
+  return candidate;
 }
 
 /** Every audio file under root, as CopyPlan relative paths. */
@@ -147,24 +168,23 @@ function syncToVolume(
   if (!res.mounted) return res;
   const shelfIndex = shelfAudioIndex(contents);
   for (const p of plans) {
-    const dest = join(contents, artistFolder(p.rel), basename(p.rel));
+    let dest = join(contents, artistFolder(p.rel), basename(p.rel));
     const onShelfSomewhere = shelfIndex
       .get(basename(p.rel).normalize("NFC"))
-      ?.includes(p.bytes);
-    if (
-      (existsSync(dest) && sameSize(p.src, dest)) ||
-      (onShelfSomewhere && !existsSync(dest))
-    ) {
+      ?.some((candidate) => sameBytes(p.src, candidate));
+    if ((existsSync(dest) && sameBytes(p.src, dest)) || onShelfSomewhere) {
       res.skipped++;
       continue;
     }
+    if (existsSync(dest)) dest = divergentDestination(contents, p.rel);
     if (!opts.dryRun) {
       try {
         mkdirSync(join(contents, artistFolder(p.rel)), { recursive: true });
         // copyFileSync (not Bun.write — its sync variant is fd-based) then a
         // size-check: a silent partial write must not read as done.
         copyFileSync(p.src, dest);
-        if (!sameSize(p.src, dest)) throw new Error("size mismatch after copy");
+        if (!sameBytes(p.src, dest))
+          throw new Error("byte mismatch after copy");
       } catch (e) {
         res.failed++;
         opts.log?.(`failed: ${p.rel} (${e instanceof Error ? e.message : e})`);

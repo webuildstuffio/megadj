@@ -123,14 +123,17 @@ export function classifyUnmatched(
   unknown: string[];
 } {
   const rowSet = new Set(rowPaths.map((p) => p.normalize("NFC").toLowerCase()));
-  const rowBase = new Set(rowPaths.map((p) => basename(p).toLowerCase()));
+  const rowBase = new Set(
+    rowPaths.map((p) => basename(p).normalize("NFC").toLowerCase()),
+  );
   const matched: string[] = [];
   const twinNamed: string[] = [];
   const unknown: string[] = [];
   for (const f of disk) {
     const key = f.normalize("NFC").toLowerCase();
     if (rowSet.has(key)) matched.push(f);
-    else if (rowBase.has(basename(f).toLowerCase())) twinNamed.push(f);
+    else if (rowBase.has(basename(f).normalize("NFC").toLowerCase()))
+      twinNamed.push(f);
     else unknown.push(f);
   }
   return { matched, twinNamed, unknown };
@@ -154,7 +157,10 @@ export async function quarantineUnmatched(
     .toISOString()
     .replace(/[-:T.]/gu, "")
     .slice(0, 14);
-  const manifestPath = join(qDir, `manifest-${stamp}.jsonl`);
+  const manifestPath = join(
+    qDir,
+    `manifest-${stamp}-${crypto.randomUUID()}.jsonl`,
+  );
   const planned = files.map((from) => ({
     from,
     dest: quarantineDest(qDir, from),
