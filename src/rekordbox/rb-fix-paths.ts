@@ -289,7 +289,14 @@ export async function rbFixPaths(
   }
 
   log(`rb-fix-paths: reading ${dbPath}`);
-  const rows = readRows(dbPath);
+  let rows: [number, string][];
+  try {
+    rows = readRows(dbPath);
+  } catch (e) {
+    const r = fail(e instanceof Error ? e.message : String(e));
+    log(r.error ?? "unknown failure");
+    return r;
+  }
   const idx = buildIndex(mount);
   log(
     `rb-fix-paths: ${rows.length} content rows · ${idx.byNorm.size} live audio files indexed`,

@@ -23,6 +23,24 @@ function makeMount(): string {
 }
 
 describe("rb-fix-paths", () => {
+  test("invalid master DB read returns an honest failure instead of throwing", async () => {
+    const mount = makeMount();
+    const dbPath = join(mount, "PIONEER", "Master", "master.db");
+    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
+    writeFileSync(dbPath, "not a rekordbox database");
+    const previous = process.env.MEGADJ_RB_MASTER;
+    process.env.MEGADJ_RB_MASTER = dbPath;
+    try {
+      const r = await rbFixPaths({ mount });
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain("pyrekordbox read failed");
+    } finally {
+      if (previous === undefined) delete process.env.MEGADJ_RB_MASTER;
+      else process.env.MEGADJ_RB_MASTER = previous;
+      rmSync(mount, { recursive: true, force: true });
+    }
+  });
+
   test("missing master DB is a visible failure, not a fake pass", async () => {
     const mount = makeMount();
     try {

@@ -106,6 +106,18 @@ export class HygieneStore {
     };
   }
 
+  private tryHydrate(r: Row): Finding | null {
+    try {
+      return this.hydrate(r);
+    } catch (e) {
+      console.error(
+        `hygiene finding ${r.id} has corrupt JSON — skipping`,
+        e instanceof Error ? e.message : e,
+      );
+      return null;
+    }
+  }
+
   private rowFor(f: Finding): Omit<Row, "id"> & { id: string } {
     return {
       id: f.id,
@@ -253,14 +265,17 @@ export class HygieneStore {
          ${HYGIENE_ORDER_SQL}`,
       )
       .all(...params) as Row[];
-    return rows.map((r) => this.hydrate(r));
+    return rows.flatMap((r) => {
+      const finding = this.tryHydrate(r);
+      return finding ? [finding] : [];
+    });
   }
 
   get(id: string): Finding | null {
     const r = this.db
       .query("SELECT * FROM hygiene_findings WHERE id = ?")
       .get(id) as Row | null;
-    return r ? this.hydrate(r) : null;
+    return r ? this.tryHydrate(r) : null;
   }
 
   /** open → confirmed | dismissed. Returns false when the id is unknown

@@ -104,6 +104,32 @@ describe("db drives", () => {
 });
 
 describe("db snapshots", () => {
+  it("skips corrupt snapshot rows without hiding valid fleet data", () => {
+    db.upsertDrive({
+      id: UUID_A,
+      volume_uuid: UUID_A,
+      name: "X",
+      mounted: true,
+    });
+    db.upsertDrive({
+      id: UUID_B,
+      volume_uuid: UUID_B,
+      name: "Y",
+      mounted: true,
+    });
+    db.setSnapshot(UUID_A, { kind: "light", taken_at: 1, file_count: 10 });
+    db.setSnapshot(UUID_B, { kind: "light", taken_at: 2, file_count: 20 });
+    db.sqlite
+      .query("UPDATE snapshots SET data_json=? WHERE drive_id=?")
+      .run("{broken", UUID_A);
+
+    expect(() => db.latestSnapshots()).not.toThrow();
+    expect(db.latestSnapshots().has(UUID_A)).toBe(false);
+    expect(db.latestSnapshots().get(UUID_B)?.file_count).toBe(20);
+    expect(() => db.snapshots(UUID_A)).not.toThrow();
+    expect(db.snapshots(UUID_A)).toEqual([]);
+  });
+
   it("stores and retrieves latest snapshot", () => {
     db.upsertDrive({
       id: UUID_A,

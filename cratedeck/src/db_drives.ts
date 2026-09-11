@@ -7,6 +7,7 @@ import type { Database } from "bun:sqlite";
 import type { Drive, SnapshotData, VerifyReport } from "../shared/types";
 import { canon } from "./db_canon";
 import { sanitizeVerifyReport } from "./verify_report";
+import { parseSnapshotJson } from "../shared/badges";
 
 /** Raw row shape as stored in the drives table (mounted is 0/1). */
 interface DriveRow extends Omit<Drive, "mounted"> {
@@ -15,6 +16,15 @@ interface DriveRow extends Omit<Drive, "mounted"> {
 
 /** Snapshot history is capped so years of scans can't eat the host disk. */
 const MAX_SNAPSHOTS_PER_DRIVE = 20;
+
+function decodeSnapshot(driveId: string, data: string): SnapshotData | null {
+  const parsed = parseSnapshotJson(data);
+  if (parsed.corrupt) {
+    console.error(`snapshot for drive ${driveId} is corrupt — skipping`);
+    return null;
+  }
+  return parsed.snap;
+}
 
 /** A snapshot blob minus `taken_at` — the field the setSnapshot dedupe
  *  guard compares around. Pure — module-level, not re-created per call. */
@@ -261,7 +271,12 @@ export class DriveStore {
            SELECT MAX(taken_at) FROM snapshots WHERE drive_id = s.drive_id)`,
       )
       .all() as { drive_id: string; data_json: string }[];
-    return new Map(rows.map((r) => [r.drive_id, JSON.parse(r.data_json)]));
+    const out = new Map<string, SnapshotData>();
+    for (const r of rows) {
+      const snapshot = decodeSnapshot(r.drive_id, r.data_json);
+      if (snapshot) out.set(r.drive_id, snapshot);
+    }
+    return out;
   }
 
   snapshots(driveId: string): SnapshotData[] {
@@ -271,7 +286,10 @@ export class DriveStore {
           "SELECT data_json FROM snapshots WHERE drive_id=? ORDER BY taken_at",
         )
         .all(driveId) as { data_json: string }[]
-    ).map((r) => JSON.parse(r.data_json));
+    ).flatMap((r) => {
+      const snapshot = decodeSnapshot(driveId, r.data_json);
+      return snapshot ? [snapshot] : [];
+    });
   }
 
   /** Keep the newest MAX_SNAPSHOTS_PER_DRIVE snapshots per drive. */

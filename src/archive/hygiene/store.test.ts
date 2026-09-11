@@ -32,6 +32,24 @@ function store(): HygieneStore {
 }
 
 describe("HygieneStore", () => {
+  test("corrupt JSON rows are skipped instead of crashing the ledger", () => {
+    const raw = new Database(":memory:");
+    const s = new HygieneStore(raw);
+    const good = finding();
+    s.upsert([good]);
+    raw.exec(
+      `INSERT INTO hygiene_findings
+       (id, kind, severity, status, paths, bytes, proposed_action,
+        keeper_path, walk_token, auto_safe, created_at)
+       VALUES ('bad', 'byte-twin', 'safe', 'open', '["/bad","/loser"]', '[1,1]',
+        '{broken', '/bad', 'tok', 1, 'now')`,
+    );
+
+    expect(() => s.list()).not.toThrow();
+    expect(s.list().map((f) => f.id)).toEqual([good.id]);
+    expect(s.get("bad")).toBeNull();
+  });
+
   test("roundtrips a finding losslessly", () => {
     const s = store();
     const f = finding({

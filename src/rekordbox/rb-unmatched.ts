@@ -219,7 +219,14 @@ export async function rbUnmatched(
     );
 
   log(`rb-unmatched: reading ${dbPath}`);
-  const rows = readRows(dbPath);
+  let rows: [number, string][];
+  try {
+    rows = readRows(dbPath);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    log(`rb-unmatched: ${message}`);
+    return fail(mount, dbPath, message);
+  }
   log(
     `rb-unmatched: ${rows.length} content row(s) · ${disk.length} disk audio file(s) in scope`,
   );
