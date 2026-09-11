@@ -7,6 +7,10 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
+Rev 17 · 2026-09-11 — hygiene A/B compare: `GET /api/hygiene/audio` +
+`GET /api/hygiene/stats` (61 routes) stream shelf audio + ffprobe
+sidecars for the ear-check queue's compare cards. The rail is
+shelf-root-only, audio-extension-only, no traversal (403 otherwise).
 Rev 16 · 2026-09-11 — hygiene acoustic subcategories: the bucket
 batch-confirm route (`POST /api/hygiene/bucket-confirm`, 59 routes) rides
 the megadj CLI (`shelf-hygiene --bucket`) as its engine; `deckctl hygiene
@@ -121,7 +125,7 @@ Carry-overs from the rev 13 pass — each is a named gap, not a vibe:
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 34 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 37 tools               |
-| HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 59 routes              |
+| HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 61 routes              |
 | Web UI     | `cratedeck/web/` (hash-routed pages)                        | 6 pages, ~22 actions   |
 
 The server's HTTP API is the **fourth surface** and the seam everything

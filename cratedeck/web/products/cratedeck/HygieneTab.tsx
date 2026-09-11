@@ -9,6 +9,7 @@ import { useState } from "preact/hooks";
 import type {
   Finding,
   HygienePayload,
+  HygieneAudioStats,
 } from "../../../../cratedeck/shared/hygiene";
 import { apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
@@ -93,6 +94,34 @@ function subOf(f: Finding): string {
   return typeof sub === "string" ? sub : "unclassified";
 }
 
+/** basename for the compare card labels */
+function baseName(p: string): string {
+  const i = p.lastIndexOf("/");
+  return i >= 0 ? p.slice(i + 1) : p;
+}
+
+/** The A/B compare card state for one finding. */
+interface CompareState {
+  stats: Record<number, HygieneAudioStats | null>; // by side index
+  loaded: boolean;
+}
+
+/** Duration delta badge: how far apart the two sides run. */
+function durationDelta(
+  a: HygieneAudioStats | null,
+  b: HygieneAudioStats | null,
+): string | null {
+  if (!a?.durationS || !b?.durationS) return null;
+  const hi = Math.max(a.durationS, b.durationS);
+  const lo = Math.min(a.durationS, b.durationS);
+  const pct = hi > 0 ? ((hi - lo) / hi) * 100 : 0;
+  if (pct < 0.5) return "same length";
+  const d = Math.abs(a.durationS - b.durationS);
+  return d < 2
+    ? `${d.toFixed(1)}s apart`
+    : `${Math.floor(d / 60)}:${String(Math.round(d % 60)).padStart(2, "0")} apart`;
+}
+
 function actionLine(f: Finding): string {
   const a = f.proposedAction;
   switch (a.type) {
@@ -136,6 +165,10 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
   const [selected, setSelected] = useState<Decided>(new Set());
   /** active subcategory filter (null = show all) */
   const [subFilter, setSubFilter] = useState<string | null>(null);
+  /** expanded A/B compare cards: finding id → per-side stats */
+  const [compares, setCompares] = useState<Record<string, CompareState>>({});
+  /** id of the single playing side ("<id>:<side>") — play one at a time */
+  const [playing, setPlaying] = useState<string | null>(null);
 
   const decide = async (ids: string[], confirm: boolean) => {
     if (ids.length === 0) return;
@@ -162,6 +195,32 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
       toast(`Bucket "${bucket}" confirmed — Apply to execute`, "ok");
       setSubFilter(null);
     });
+  };
+
+  /** Expand an A/B compare card: fetch both sides' stats. */
+  const openCompare = async (f: Finding) => {
+    if (compares[f.id]) {
+      setCompares(({ [f.id]: _drop, ...rest }) => rest);
+      return;
+    }
+    setCompares((m) => ({ ...m, [f.id]: { stats: {}, loaded: false } }));
+    const sides = f.paths.slice(0, 2);
+    const stats = await Promise.all(
+      sides.map(async (p) => {
+        try {
+          const r = await fetch(
+            `/api/hygiene/stats?path=${encodeURIComponent(p)}`,
+          );
+          if (!r.ok) return null;
+          return (await r.json()) as HygieneAudioStats;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    setCompares((m) =>
+      m[f.id] ? { ...m, [f.id]: { stats, loaded: true } } : m,
+    );
   };
 
   const scanned = payload as HygienePayload | null | undefined;
@@ -328,69 +387,169 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
             <Icon name="warn" /> Work queue — worst first
           </h3>
           <div class="checks">
-            {openRows.map((f) => (
-              <div class="check" key={f.id}>
-                <input
-                  type="checkbox"
-                  checked={selected.has(f.id)}
-                  onChange={(e) => {
-                    const next = new Set(selected);
-                    if ((e.target as HTMLInputElement).checked) next.add(f.id);
-                    else next.delete(f.id);
-                    setSelected(next);
-                  }}
-                  aria-label={`Select ${f.id}`}
-                />
-                <span
-                  class={`pill ${f.status === "confirmed" ? "ok" : f.severity === "review" ? "warn" : ""}`}
-                >
-                  {f.status === "confirmed" ? "confirmed" : f.severity}
-                </span>
-                {f.kind === "acoustic-twin" && f.status !== "confirmed" && (
+            {openRows.map((f) => {
+              const isTwin =
+                f.kind === "acoustic-twin" || f.kind === "byte-twin";
+              const cmp = compares[f.id];
+              const sA = cmp?.stats[0] ?? null;
+              const sB = cmp?.stats[1] ?? null;
+              const dDelta = isTwin ? durationDelta(sA, sB) : null;
+              return (
+                <div class="check" key={f.id}>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(f.id)}
+                    onChange={(e) => {
+                      const next = new Set(selected);
+                      if ((e.target as HTMLInputElement).checked)
+                        next.add(f.id);
+                      else next.delete(f.id);
+                      setSelected(next);
+                    }}
+                    aria-label={`Select ${f.id}`}
+                  />
                   <span
-                    class="pill subpill"
-                    title={
-                      (f.evidence as Record<string, unknown>).subcategory ===
-                      undefined
-                        ? "No subcategory — re-run the scan"
-                        : (SUB_BUCKET_META[subOf(f)]?.hint ?? subOf(f))
-                    }
+                    class={`pill ${f.status === "confirmed" ? "ok" : f.severity === "review" ? "warn" : ""}`}
                   >
-                    {SUB_BUCKET_META[subOf(f)]?.label ?? subOf(f)}
+                    {f.status === "confirmed" ? "confirmed" : f.severity}
                   </span>
-                )}
-                <span class="check-body">
-                  <b>{KIND_LABEL[f.kind] ?? f.kind}</b>
-                  <span class="check-detail" title={f.paths.join("\n")}>
-                    {f.keeperPath ?? f.paths[0]}
-                    {f.paths.length > 1 &&
-                      ` + ${f.paths.length - 1} more file${f.paths.length > 2 ? "s" : ""}`}
-                    {" — "}
-                    {actionLine(f)}
+                  {f.kind === "acoustic-twin" && f.status !== "confirmed" && (
+                    <span
+                      class="pill subpill"
+                      title={
+                        (f.evidence as Record<string, unknown>).subcategory ===
+                        undefined
+                          ? "No subcategory — re-run the scan"
+                          : (SUB_BUCKET_META[subOf(f)]?.hint ?? subOf(f))
+                      }
+                    >
+                      {SUB_BUCKET_META[subOf(f)]?.label ?? subOf(f)}
+                    </span>
+                  )}
+                  <span class="check-body">
+                    <b>{KIND_LABEL[f.kind] ?? f.kind}</b>
+                    <span class="check-detail" title={f.paths.join("\n")}>
+                      {baseName(f.keeperPath ?? f.paths[0] ?? "")}
+                      {f.paths.length > 1 &&
+                        ` vs ${baseName(f.paths[1] ?? "")}`}
+                      {" — "}
+                      {actionLine(f)}
+                    </span>
+                    <code class="hyg-cmd">{fixCommand(f)}</code>
                   </span>
-                  <code class="hyg-cmd">{fixCommand(f)}</code>
-                </span>
-                <span class="hyg-row-actions">
-                  <button
-                    type="button"
-                    class="btn sm"
-                    disabled={busy !== null}
-                    onClick={() => decide([f.id], true)}
-                    title={`deckctl hygiene confirm ${f.id}`}
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    type="button"
-                    class="btn sm ghostbtn"
-                    disabled={busy !== null}
-                    onClick={() => decide([f.id], false)}
-                  >
-                    Dismiss
-                  </button>
-                </span>
-              </div>
-            ))}
+                  <span class="hyg-row-actions">
+                    {isTwin && f.paths.length >= 2 && (
+                      <button
+                        type="button"
+                        class={`btn sm ${cmp ? "ghostbtn" : ""}`}
+                        disabled={busy !== null}
+                        onClick={() => openCompare(f)}
+                        title="Open the A/B compare: play both copies, see lengths + bitrates, keep either side"
+                      >
+                        {cmp ? "Close" : "A/B compare"}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      class="btn sm"
+                      disabled={busy !== null}
+                      onClick={() => decide([f.id], true)}
+                      title={`deckctl hygiene confirm ${f.id}`}
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      class="btn sm ghostbtn"
+                      disabled={busy !== null}
+                      onClick={() => decide([f.id], false)}
+                    >
+                      Dismiss
+                    </button>
+                  </span>
+                  {cmp && (
+                    <div class="abcompare">
+                      {dDelta && (
+                        <span
+                          class={`pill ${dDelta === "same length" ? "ok" : "warn"}`}
+                          title="Duration difference between the two copies — a big gap means different recordings/mixes, not just encodes"
+                        >
+                          {dDelta}
+                        </span>
+                      )}
+                      {[0, 1].map((side) => {
+                        const p = f.paths[side];
+                        if (!p) return null;
+                        const st = cmp.stats[side];
+                        const playKey = `${f.id}:${side}`;
+                        const keeper = f.keeperPath === p;
+                        return (
+                          <div class="abside" key={side}>
+                            <div class="abside-head">
+                              <b>
+                                {side === 0 ? "A" : "B"}
+                                {keeper ? " · current keeper" : ""}
+                              </b>
+                              <span class="abside-name" title={p}>
+                                {baseName(p)}
+                              </span>
+                            </div>
+                            <div class="abside-stats">
+                              {cmp.loaded
+                                ? st
+                                  ? [
+                                      st.durationS !== null &&
+                                        `${Math.floor(st.durationS / 60)}:${String(Math.round(st.durationS % 60)).padStart(2, "0")}`,
+                                      st.bitrateKbps !== null &&
+                                        `${st.bitrateKbps.toLocaleString()} kbps`,
+                                      st.codec &&
+                                        st.sampleRate !== null &&
+                                        `${st.codec} ${(st.sampleRate / 1000).toFixed(1).replace(/\.0$/, "")} kHz`,
+                                      `${(st.bytes / 1_048_576).toFixed(1)} MB`,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" · ") || "no metadata"
+                                  : "stats unavailable"
+                                : "…"}
+                            </div>
+                            <audio
+                              controls
+                              preload="none"
+                              src={`/api/hygiene/audio?path=${encodeURIComponent(p)}`}
+                              onPlay={() => setPlaying(playKey)}
+                              onPause={() =>
+                                setPlaying((cur) =>
+                                  cur === playKey ? null : cur,
+                                )
+                              }
+                              data-playing={playing === playKey}
+                            />
+                            <div class="abside-actions">
+                              <button
+                                type="button"
+                                class="btn sm"
+                                disabled={busy !== null || keeper}
+                                onClick={() => decide([f.id], true)}
+                                title="Confirm = this side's twin moves to quarantine, the keeper stays"
+                              >
+                                {keeper
+                                  ? "Keeper — keep this"
+                                  : "Keep the other (A) — confirm"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div class="abnote">
+                        Confirm quarantines the <b>non-keeper</b> copy — nothing
+                        is deleted, and you can restore it later. Dismiss keeps
+                        both files untouched.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </>
       )}

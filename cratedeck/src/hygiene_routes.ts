@@ -6,6 +6,12 @@
 // job; the only synchronous writes are one-row decisions (decide/confirm)
 // which go through megadj's CLI (the engine SSOT) and are fast.
 import type { HygieneReader } from "./hygiene_reader";
+import {
+  servableAudioPath,
+  audioStats,
+  audioResponse,
+  pruneStatsCache,
+} from "./hygiene_audio";
 
 /** The JSON body of POST /api/hygiene/decide. */
 export interface DecideBody {
@@ -22,6 +28,9 @@ export function makeHygieneRoutes(deps: {
   /** megadj CLI path for the sync decision writes (the engine is the
    *  SSOT for status transitions — cratedeck never writes the archive) */
   megadjCli: (args: string[]) => Promise<{ code: number; stderr: string }>;
+  /** the shelf volume mount — the audio/stats routes serve ONLY paths
+   *  under it (the A/B compare rail) */
+  shelfRoot: string;
   json: (data: unknown, status?: number) => Response;
 }) {
   const { reader, enqueue, megadjCli, json } = deps;
@@ -120,5 +129,23 @@ export function makeHygieneRoutes(deps: {
     return json(enqueue("hygiene-apply"));
   }
 
-  return { list, decide, scan, bucketConfirm, apply };
+  /** GET /api/hygiene/audio?path=… — stream one shelf audio file for the
+   *  A/B compare player. Guarded: shelf-root-only, audio-extension-only,
+   *  no traversal, must be a regular file. */
+  function audio(url: URL): Response {
+    const p = servableAudioPath(url.searchParams.get("path"), deps.shelfRoot);
+    if (!p) return json({ error: "not servable" }, 403);
+    return audioResponse(p);
+  }
+
+  /** GET /api/hygiene/stats?path=… — ffprobe sidecar (duration/bitrate/
+   *  codec/sample-rate) for the compare card. Same guard as audio. */
+  function stats(url: URL): Response {
+    const p = servableAudioPath(url.searchParams.get("path"), deps.shelfRoot);
+    if (!p) return json({ error: "not servable" }, 403);
+    pruneStatsCache();
+    return json(audioStats(p));
+  }
+
+  return { list, decide, scan, bucketConfirm, apply, audio, stats };
 }

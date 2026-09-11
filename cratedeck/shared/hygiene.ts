@@ -84,6 +84,20 @@ export interface Finding {
   validation: ValidationReceipt | null;
 }
 
+/** ffprobe sidecar for one side of an A/B compare (GET
+ *  /api/hygiene/stats). Nulls mean "unavailable", never zero. */
+export interface HygieneAudioStats {
+  path: string;
+  exists: boolean;
+  bytes: number;
+  /** seconds, 1 decimal */
+  durationS: number | null;
+  bitrateKbps: number | null;
+  codec: string | null;
+  sampleRate: number | null;
+  error?: string | undefined;
+}
+
 /** GET /api/hygiene response: rows plus the census the banner renders. */
 export interface HygienePayload {
   findings: Finding[];

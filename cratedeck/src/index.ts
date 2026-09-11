@@ -270,6 +270,9 @@ const { boothFleetPayload, writeConfigBoothFleet, normalizeFleetSelection } =
  *  decision writes through megadj's CLI (the engine SSOT). */
 const hygieneApi = makeHygieneRoutes({
   reader: hygiene,
+  // the A/B compare rail serves audio only from the shelf mount — the
+  // mount point (not Contents) since findings reference /Volumes/SHELF1/…
+  shelfRoot: `/Volumes/${cfg.shelfDrive}`,
   enqueue: (kind) => {
     const shelf = registry.list().find((d) => d.role === "shelf" && d.mounted);
     if (!shelf)
@@ -487,6 +490,8 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
       return hygieneApi.decide(req);
     if (route === "/hygiene/bucket-confirm" && req.method === "POST")
       return hygieneApi.bucketConfirm(req);
+    if (route === "/hygiene/audio") return hygieneApi.audio(url);
+    if (route === "/hygiene/stats") return hygieneApi.stats(url);
     // ---- booth fixes (Fleet→Booth fleet drives these checks) -----------
     if (route === "/fixes") return fixesApi.list();
     if (route === "/fixes/scan" && req.method === "POST")

@@ -10,7 +10,7 @@
 // CREATE TABLE (src/hygiene/store.ts) so the reader walks real rows.
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HygieneReader } from "../src/hygiene_reader";
@@ -110,6 +110,12 @@ function json(data: unknown, status = 200): Response {
   return Response.json(data, { status });
 }
 
+/** Build a hygiene audio/stats query URL (module scope: lint-consistent,
+ *  shared by both route forms in the guard test). */
+function hygieneUrl(base: string, q: string): URL {
+  return new URL(`${base}?path=${encodeURIComponent(q)}`);
+}
+
 // -- 1. degrade ---------------------------------------------------------
 
 test("reader: missing archive DB answers empty, never throws", () => {
@@ -121,6 +127,7 @@ test("reader: missing archive DB answers empty, never throws", () => {
     reader: r,
     enqueue: () => ({ id: "j0" }),
     megadjCli: async () => ({ code: 0, stderr: "" }),
+    shelfRoot: "/tmp",
     json,
   });
   const res = api.list(new URL("http://x/api/hygiene"));
@@ -180,6 +187,9 @@ function harness(reader: HygieneReader): {
   const cap: Captured = { enqueued: [], cli: [] };
   const api = makeHygieneRoutes({
     reader,
+    // the A/B guard tests point shelfRoot at a temp shelf; tests that
+    // don't touch audio routes use a path that can never resolve
+    shelfRoot: guardShelf ?? "/nonexistent-shelf-root",
     enqueue: (kind) => {
       cap.enqueued.push(kind);
       return { id: "job-1" };
@@ -192,6 +202,43 @@ function harness(reader: HygieneReader): {
   });
   return { api, cap };
 }
+
+/** Optional shelfRoot override for the audio-guard tests. */
+let guardShelf: string | undefined;
+
+test("routes: audio/stats guard — traversal, non-audio, outside-root are 403", () => {
+  // build a real mini-shelf so the "allowed" case has a file to serve
+  const root = mkdtempSync(join(tmpdir(), "megadj-hyg-route-"));
+  guardShelf = root;
+  const audioDir = join(root, "Contents", "A");
+  mkdirSync(audioDir, { recursive: true });
+  const song = join(audioDir, "song.mp3");
+  writeFileSync(song, "ID3x");
+
+  const { api } = harness(new HygieneReader(join(dir, "empty.db")));
+  const u = (q: string) => hygieneUrl("http://x/api/hygiene/audio", q);
+  // allowed: under root, audio ext, exists
+  expect(api.audio(u(song)).status).toBe(200);
+  // traversal
+  expect(api.audio(u(`${root}/Contents/../..`)).status).toBe(403);
+  // outside root
+  expect(api.audio(u("/etc/passwd")).status).toBe(403);
+  expect(api.audio(u("/Users/nick/track.mp3")).status).toBe(403);
+  // non-audio ext even under root
+  const dbFile = join(root, "master.db");
+  writeFileSync(dbFile, "x");
+  expect(api.audio(u(dbFile)).status).toBe(403);
+  // missing file under root
+  expect(api.audio(u(join(root, "Contents", "gone.mp3"))).status).toBe(403);
+  // stats route shares the guard
+  expect(api.stats(hygieneUrl("http://x/api/hygiene/stats", song)).status).toBe(
+    200,
+  );
+  expect(
+    api.stats(hygieneUrl("http://x/api/hygiene/stats", "/etc/passwd")).status,
+  ).toBe(403);
+  guardShelf = undefined;
+});
 
 test("routes: GET /api/hygiene honors status filter + census envelope", async () => {
   const { api } = harness(new HygieneReader(fixtureDb("route.db", 6)));
@@ -247,6 +294,7 @@ test("routes: decide rejects empty body; CLI failure surfaces 409 + stderr", asy
   const api = makeHygieneRoutes({
     reader: new HygieneReader(join(dir, "empty.db")),
     enqueue: () => ({ id: "j" }),
+    shelfRoot: "/nonexistent-shelf-root",
     megadjCli: async (args) => {
       cap.push(args);
       return fail
