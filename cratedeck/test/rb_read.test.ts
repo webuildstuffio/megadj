@@ -38,8 +38,9 @@ interface RbReadError {
 }
 const TMP = `/tmp/megadj-rbread-test-${process.pid}`;
 // The exact pin rb.ts uses in production — keeps the test seam identical.
+// Census rule: bump in lockstep with cratedeck/src/rb.ts.
 const PYREKORDBOX_PIN =
-  "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git";
+  "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0";
 
 let uvAvailable = false;
 beforeAll(() => {

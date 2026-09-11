@@ -8,7 +8,7 @@ Imports the skill's canonical implementations directly:
     usb_verify.pdb_live_rows                      (legacy export.pdb rows)
 
 Usage:
-    uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \\
+    uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \\
         python python/rb_read.py <db_copy> <drive_root>
 
 Output: {"ok": true, "snapshot": {...}} or {"ok": false, "error": "..."}
@@ -220,7 +220,7 @@ def open_device_db(db_path: str) -> Any:
     # (single-line form required: mypy wants the ignore on the import's first
     # line, ruff-isort wants one module per line — this shape satisfies both)
     from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus as _DLP  # type: ignore[import-not-found] # noqa: I001
-    DeviceLibraryPlus = _DLP  # type: ignore[no-redef]
+    DeviceLibraryPlus = _DLP
     from sqlalchemy import text  # type: ignore[import-not-found]
 
     db = DeviceLibraryPlus(db_path)

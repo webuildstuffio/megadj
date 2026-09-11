@@ -42,8 +42,12 @@ export function rekordboxRunning(opts?: { fresh?: boolean }): {
 }
 
 const UV = "uv";
+// Pinned to the audited upstream commit (f6955418, 2026-09-11) — a git-tip
+// dep would change snapshot output mid-week with no repo-side signal. Bump
+// deliberately: run the rb_read.test.ts round-trip, then update BOTH this
+// and cratedeck/test/rb_read.test.ts (census rule: keep the pin in lockstep).
 const PYREKORDBOX =
-  "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git";
+  "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0";
 
 /** Full rekordbox snapshot of a mounted drive. Throws on interlock or error. */
 export async function rbSnapshot(

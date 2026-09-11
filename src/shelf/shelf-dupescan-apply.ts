@@ -9,22 +9,7 @@ import { basename } from "node:path";
 import { spawnSync } from "node:child_process";
 import type { DupGroup } from "./dupescan-shared";
 import { moveLoser } from "./dupescan-shared";
-
-/** Cheap filename similarity: lowercase, strip separators, common-prefix
- *  ratio (no deps). 1 = identical, 0 = unrelated. */
-const normFlat = (s: string): string =>
-  s.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-export function nameSimilarity(a: string, b: string): number {
-  const x = normFlat(a);
-  const y = normFlat(b);
-  if (x === y) return 1;
-  if (x.length === 0 || y.length === 0) return 0;
-  let prefix = 0;
-  const max = Math.min(x.length, y.length);
-  while (prefix < max && x[prefix] === y[prefix]) prefix++;
-  return (2 * prefix) / (x.length + y.length);
-}
+import { nameSimilarity } from "../archive/hygiene/checks/similarity";
 
 /** md5 via the macOS `md5` CLI (apply-stage re-verify; the scan stage never
  *  hashes — fingerprints are the grouping key there). */
