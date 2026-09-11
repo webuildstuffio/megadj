@@ -48,11 +48,19 @@ export function walkAudio(root: string): string[] {
   return out;
 }
 
+/** Parse fpcalc stdout into a fingerprint. Base64url alphabet includes
+ *  `-` and `_` — a char class without them truncates at the first hyphen
+ *  and every file whose fingerprint shares the prefix collides into fake
+ *  duplicate groups (the Sep 11 mass-collision; regression-tested). */
+export function parseFpcalcOutput(stdout: string): string | null {
+  const m = stdout.match(/FINGERPRINT=([A-Za-z0-9+=/_-]+)/);
+  return m?.[1] ?? null;
+}
+
 function fingerprint(path: string): string | null {
   const r = spawnSync("fpcalc", ["-length", "120", path]);
   if (r.status !== 0) return null;
-  const m = r.stdout.toString().match(/FINGERPRINT=([A-Za-z0-9=/]+)/);
-  return m?.[1] ?? null;
+  return parseFpcalcOutput(r.stdout.toString());
 }
 
 /** Persistent fp cache — one row per file path (re-runs only decode

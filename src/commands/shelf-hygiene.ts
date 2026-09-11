@@ -180,7 +180,11 @@ export async function shelfHygiene(
         const fp = (() => {
           const r = Bun.spawnSync(["fpcalc", "-length", "120", p]);
           if (r.exitCode !== 0) return null;
-          const m = r.stdout.toString().match(/FINGERPRINT=([A-Za-z0-9=/]+)/);
+          // base64url: `-`/`_` are in the alphabet — a class without them
+          // truncates at the first hyphen (Sep 11 mass-collision regression)
+          const m = r.stdout
+            .toString()
+            .match(/FINGERPRINT=([A-Za-z0-9+=/_-]+)/);
           return m?.[1] ?? null;
         })();
         cache.put(p, size, fp);

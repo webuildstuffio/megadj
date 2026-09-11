@@ -21,11 +21,15 @@ export function md5(path: string): string | null {
   }
 }
 
-/** Chromaprint acoustic fingerprint (fpcalc -length 120). */
+/** Chromaprint acoustic fingerprint (fpcalc -length 120). The output is
+ *  base64url: `-` and `_` are PART of the alphabet — a char class without
+ *  them truncates at the first hyphen and unrelated files sharing the
+ *  prefix collide into fake duplicate groups (the Sep 11 mass-collision
+ *  regression; test pinned in shelf-dupescan.test.ts). */
 export function fingerprint(path: string): string | null {
   const r = spawnSync("fpcalc", ["-length", "120", path]);
   if (r.status !== 0) return null;
-  const m = r.stdout.toString().match(/FINGERPRINT=([A-Za-z0-9=/]+)/);
+  const m = r.stdout.toString().match(/FINGERPRINT=([A-Za-z0-9+=/_-]+)/);
   const fp = m?.[1];
   return fp ?? null;
 }

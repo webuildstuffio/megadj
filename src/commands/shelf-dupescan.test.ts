@@ -2,10 +2,44 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { shelfDupescan, FpCache } from "./shelf-dupescan";
+import { shelfDupescan, FpCache, parseFpcalcOutput } from "./shelf-dupescan";
 
-/** Generate one real 2-second mp3 with ffmpeg (deterministic sine tone). */
-function tone(file: string): void {
+/**
+ * Regression (Sep 11 mass-collision): the fingerprint parser's char
+ * class omitted `-` and `_`, so base64url fingerprints truncated at the
+ * first hyphen and unrelated files sharing the prefix collided into fake
+ * duplicate groups (29 fake groups over 3,061 files — one "matched"
+ * Missy Elliott with a Jason Derulo remix). Real fingerprints are 700+
+ * chars; truncated prefixes were 4–54.
+ */
+describe("fpcalc fingerprint parsing (base64url-safe)", () => {
+  test("keeps hyphens in the fingerprint body", () => {
+    const out =
+      "DURATION=239\nFINGERPRINT=AQADtE-WRYlS5DpO9DDx8FArHU_N4M2RHs\n";
+    const fp = parseFpcalcOutput(out);
+    expect(fp).toBe("AQADtE-WRYlS5DpO9DDx8FArHU_N4M2RHs");
+  });
+
+  test("keeps underscores and padded equals signs", () => {
+    const out = "FINGERPRINT=AbC_dE-F=";
+    expect(parseFpcalcOutput(out)).toBe("AbC_dE-F=");
+  });
+
+  test("does NOT truncate at the first hyphen (the regression)", () => {
+    const out = "FINGERPRINT=AQADtE-WRYlS5DpO\n";
+    const fp = parseFpcalcOutput(out)!;
+    expect(fp).toContain("-");
+    expect(fp.length).toBeGreaterThan("AQADtE".length);
+  });
+
+  test("absent fingerprint → null, not empty string", () => {
+    expect(parseFpcalcOutput("DURATION=239\n")).toBeNull();
+    expect(parseFpcalcOutput("")).toBeNull();
+  });
+});
+
+/** Generate one real 10-second mp3 with ffmpeg (deterministic sine tone). */
+function tone(file: string, freq = 440): void {
   const r = Bun.spawnSync([
     "ffmpeg",
     "-y",
@@ -14,7 +48,7 @@ function tone(file: string): void {
     "-f",
     "lavfi",
     "-i",
-    "sine=frequency=440:duration=10",
+    `sine=frequency=${freq}:duration=10`,
     "-b:a",
     "32k",
     file,
@@ -28,23 +62,7 @@ function makeShelf(files: Record<string, "tone" | "tone2">): string {
     const abs = join(shelf, "Contents", rel);
     mkdirSync(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });
     if (kind === "tone") tone(abs);
-    else {
-      // a DIFFERENT real tone (different frequency → different fingerprint)
-      const r = Bun.spawnSync([
-        "ffmpeg",
-        "-y",
-        "-v",
-        "quiet",
-        "-f",
-        "lavfi",
-        "-i",
-        "sine=frequency=880:duration=10",
-        "-b:a",
-        "32k",
-        abs,
-      ]);
-      if (!r.success) throw new Error("ffmpeg tone2 failed");
-    }
+    else tone(abs, 880); // a DIFFERENT tone → different fingerprint
   }
   return shelf;
 }
