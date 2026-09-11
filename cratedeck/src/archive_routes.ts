@@ -8,6 +8,7 @@
 // no archive route matched so index.ts can fall through.
 import type { ArchiveReader } from "./archive";
 import { SET_PRESETS, buildSet, parseSetbuildQuery } from "./setbuild";
+import { clampSetPool } from "../shared/setbuild";
 import type { DB } from "./db";
 import type { CrateConfig } from "./config";
 
@@ -122,7 +123,11 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         minutes: url.searchParams.get("minutes"),
       });
       if ("error" in parsed) return json({ error: parsed.error }, 400);
-      const limit = intParam(url.searchParams.get("limit")) ?? 300;
+      // shared clamp (SET_POOL_*) — the MCP tool documents "max 1000"; the
+      // route used to pass raw intParam through into per-file TKEY reads
+      const limit = clampSetPool(
+        intParam(url.searchParams.get("limit")) ?? null,
+      );
       const opener = url.searchParams.get("opener") ?? undefined;
       const preset = SET_PRESETS[parsed.preset];
       const { total, candidates } = archive.setCandidates(limit);

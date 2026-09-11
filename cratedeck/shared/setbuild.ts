@@ -87,3 +87,20 @@ export const DEFAULT_SET_PRESET: SetPresetId = "peak";
 export const SET_MINUTES_MIN = 10;
 export const SET_MINUTES_MAX = 240;
 export const SET_MINUTES_DEFAULT = 60;
+
+/** The candidate-pool cap (`?limit=`), shared by the HTTP route and the MCP
+ * tool — the MCP schema documents "max 1000" but the route never clamped,
+ * so ?limit=99999 sailed straight into per-file TKEY reads (400 sync file
+ * I/O calls per request). One clamp, both surfaces. */
+export const SET_POOL_MIN = 1;
+export const SET_POOL_MAX = 1000;
+export const SET_POOL_DEFAULT = 300;
+
+export function clampSetPool(raw: number | null | undefined): number {
+  // Number(null) is 0, NOT NaN — null/undefined must be checked before
+  // the coercion or an absent param clamps to 1 instead of the default.
+  if (raw === null || raw === undefined) return SET_POOL_DEFAULT;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return SET_POOL_DEFAULT;
+  return Math.min(SET_POOL_MAX, Math.max(SET_POOL_MIN, Math.round(n)));
+}

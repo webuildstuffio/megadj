@@ -8,7 +8,11 @@
 
 import { apiGet } from "./deckapi";
 import { parseSetbuildQuery } from "./setbuild";
-import { SET_PRESET_IDS } from "../shared/types";
+import {
+  SET_PRESET_IDS,
+  SET_POOL_DEFAULT,
+  SET_POOL_MAX,
+} from "../shared/types";
 import {
   str,
   num,
@@ -183,7 +187,9 @@ export function archiveTools(): Record<string, unknown> {
         },
         minutes: n("target set length in minutes (default 60, 10–240)"),
         opener: s("optional video_id to force as the first track"),
-        limit: n("candidate pool cap (default 300, max 1000)"),
+        limit: n(
+          `candidate pool cap (default ${SET_POOL_DEFAULT}, max ${SET_POOL_MAX})`,
+        ),
       }),
       run: async (args: Record<string, unknown>) => {
         // same validation as the HTTP route (parseSetbuildQuery): unknown

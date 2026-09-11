@@ -803,6 +803,10 @@ export {
   SET_MINUTES_MIN,
   SET_MINUTES_MAX,
   SET_MINUTES_DEFAULT,
+  SET_POOL_MIN,
+  SET_POOL_MAX,
+  SET_POOL_DEFAULT,
+  clampSetPool,
 } from "./setbuild";
 
 // ---- benchmarks: one benchmark job's row (the /api/drives/:id/benchmarks

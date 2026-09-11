@@ -11,7 +11,13 @@ import {
   parseSetbuildQuery,
   type SetCandidate,
 } from "../src/setbuild";
-import { SET_PRESET_DEFS, SET_PRESET_IDS } from "../shared/types";
+import {
+  SET_PRESET_DEFS,
+  SET_PRESET_IDS,
+  SET_POOL_DEFAULT,
+  SET_POOL_MAX,
+  clampSetPool,
+} from "../shared/types";
 
 const cand = (over: Partial<SetCandidate>): SetCandidate => ({
   videoId: "x",
@@ -284,6 +290,29 @@ describe("buildSet", () => {
       }),
     );
   });
+
+  test("placeholder BPM (0 / NaN) never anchors the chain", () => {
+    // regression: the gates only checked bpm !== null, so an aborted
+    // analysis run's 0-BPM row won the opener scan (arousal closest to the
+    // arc start) and dead-ended the chain after one step
+    const r = buildSet({
+      candidates: [
+        cand({ videoId: "zero", arousal: 6, bpm: 0, key: "8A" }),
+        cand({ videoId: "nan", arousal: 6.2, bpm: NaN, key: "8A" }),
+        cand({ videoId: "good1", arousal: 6.4, bpm: 128, key: "8A" }),
+        cand({ videoId: "good2", arousal: 6.6, bpm: 128, key: "8A" }),
+      ],
+      preset: SET_PRESETS.peak,
+      minutes: 11,
+    });
+    expect(r.steps.map((s) => s.videoId)).not.toContain("zero");
+    expect(r.steps.map((s) => s.videoId)).not.toContain("nan");
+    expect(r.steps.length).toBeGreaterThanOrEqual(2);
+    expect(r.steps[0]!.videoId).toBe("good1");
+    const exIds = r.excluded.map((e) => e.videoId);
+    expect(exIds).toContain("zero");
+    expect(exIds).toContain("nan");
+  });
 });
 
 describe("parseSetbuildQuery", () => {
@@ -334,5 +363,24 @@ describe("SET_PRESETS registry census (derive, never hand-copy)", () => {
       const derived = SET_PRESETS[def.id];
       expect(derived).toBe(def); // same object — a true derivation
     }
+  });
+});
+
+describe("clampSetPool (the ?limit= guard shared by route + MCP tool)", () => {
+  test("clamps into 1–1000, default when absent/non-finite", () => {
+    expect(clampSetPool(500)).toBe(500);
+    expect(clampSetPool(0)).toBe(1);
+    expect(clampSetPool(-5)).toBe(1);
+    expect(clampSetPool(99999)).toBe(1000);
+    expect(clampSetPool(12.7)).toBe(13);
+    expect(clampSetPool(null)).toBe(300);
+    expect(clampSetPool(undefined)).toBe(300);
+    expect(clampSetPool(Number.NaN)).toBe(300);
+  });
+  test("route + MCP surface agree on the documented caps", () => {
+    // the MCP schema text is derived from the same constants the route
+    // clamps with — they cannot drift apart again
+    expect(SET_POOL_DEFAULT).toBe(300);
+    expect(SET_POOL_MAX).toBe(1000);
   });
 });

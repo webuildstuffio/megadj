@@ -109,6 +109,13 @@ export function bpmScore(a: number, b: number): number {
   return 1 - (d - 0.02) / 0.04;
 }
 
+/** A BPM the engine can actually mix with: present, finite and positive.
+ * The beats ledger can carry placeholder rows (0 or NaN) from aborted
+ * analysis runs — those are NOT tempos, and gating only on `!== null` let
+ * a 0-BPM row be picked as opener and instantly dead-end the chain. */
+const mixableBpm = (c: SetCandidate): c is SetCandidate & { bpm: number } =>
+  c.bpm !== null && Number.isFinite(c.bpm) && c.bpm > 0;
+
 /** Arc position 0..1 → target arousal/dance for the preset (lerp). */
 function envelope(p: [number, number], t: number): number {
   return p[0]! + (p[1]! - p[0]!) * t;
@@ -123,7 +130,7 @@ function transitionScore(
   preset: SetPreset,
   t: number,
 ): number {
-  if (prev.bpm === null || c.bpm === null) return -1; // unmixable: no tempo
+  if (!mixableBpm(prev) || !mixableBpm(c)) return -1; // unmixable: no tempo
   const tempo = bpmScore(prev.bpm, c.bpm);
   if (tempo === 0) return -1;
   const key = keyScore(prev, c);
@@ -205,25 +212,24 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   const opener =
     (input.openerId && pool.find((c) => c.videoId === input.openerId)) ||
     undefined;
-  if (opener && opener.bpm === null) {
+  if (opener && !mixableBpm(opener)) {
     excluded.push({
       videoId: opener.videoId,
       title: opener.title,
-      reason: "requested opener has no beats-ledger BPM — run `megadj beats`",
+      reason:
+        "requested opener has no usable beats-ledger BPM — run `megadj beats`",
     });
     pool.splice(pool.indexOf(opener), 1);
   }
   const startArousal = preset.arousal[0]! / 9;
   const first =
-    opener && opener.bpm !== null
+    opener && mixableBpm(opener)
       ? opener
-      : [...pool]
-          .filter((c) => c.bpm !== null)
-          .toSorted((a, b) => {
-            const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
-            const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
-            return fa - fb || a.videoId.localeCompare(b.videoId);
-          })[0];
+      : [...pool].filter(mixableBpm).toSorted((a, b) => {
+          const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
+          const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
+          return fa - fb || a.videoId.localeCompare(b.videoId);
+        })[0];
   if (!first) {
     return {
       preset: preset.id,
@@ -265,10 +271,9 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
         excluded.push({
           videoId: c.videoId,
           title: c.title,
-          reason:
-            c.bpm === null
-              ? "no beats-ledger BPM — run `megadj beats`"
-              : "no compatible transition (key clash or tempo outside ±6%)",
+          reason: mixableBpm(c)
+            ? "no compatible transition (key clash or tempo outside ±6%)"
+            : "no beats-ledger BPM — run `megadj beats`",
         });
       pool.length = 0;
       break;
