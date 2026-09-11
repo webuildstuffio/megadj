@@ -63,9 +63,13 @@ the remix's, not the original's.
 2. **Source-correct metadata** — a SoundCloud remix gets the SoundCloud
    artwork, the remix year (from the upload page's `display_date`, not a
    guessed "2023"), the SoundCloud genre tags. A hypeddit gateway track gets
-   gateway art. The source it came from is the first source of truth.
+   gateway art. The source it came from is the first source of truth, and
+   Beatport is the second (rev 6.4): store-grade label / mix name /
+   official remixer / ISRC no other source carries, plus genre/year/art
+   rungs behind SC — every bp-filled field stamped TXXX:BP-FIELDS.
 3. **Highest quality, always** — the art ladder escalates: SoundCloud page
-   art at original resolution → hypeddit/hyperfollow gateways → mp3-twin →
+   art at original resolution → Beatport release master (1500²) →
+   hypeddit/hyperfollow gateways → mp3-twin →
    Deezer → iTunes → and only as a rare last resort, **AI-generated cover**
    (clearly queued, cheap model, human-reviewable). Same ratchet for audio:
    LOWQ tracks are re-fetch candidates.

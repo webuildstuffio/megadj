@@ -131,13 +131,19 @@ bun tools/fetch_all.ts --jobs 8    # workers (default 6)
 Per track it does, skipping whatever is already complete:
 
 1. **tags** — push DB values into the file (album heuristic for pack tracks).
+   Beatport adds the DJ identity fields when SC missed: record label
+   (TPUB), mix name (TIT3), official remixer credit, ISRC (TSRC) — every
+   bp-filled field stamped TXXX:BP-FIELDS.
 2. **genre** — SoundCloud tag from the same SC search → canonicalized
-   (Hip-Hop, EDM, Tech House, …) → OpenRouter classifier fallback
+   (Hip-Hop, EDM, Tech House, …) → **Beatport store genre** (canon-map
+   gate, second source behind SC) → OpenRouter classifier fallback
    (`google/gemini-2.5-flash-lite`, confidence ≥ 0.7 gate).
 3. **artwork**, in order:
    - **SC search → SC page `og:image` upgraded to `-original` / `-t1080x1080`**
      (the big one: plain t500x500 search hits get replaced by full-res page
      art; one yt-dlp call feeds genre AND permalink AND art).
+   - **Beatport release master (1500²)** — official store art, ahead of
+     the gateway scrape (v4 catalog API, `fulltags/src/beatport.ts`).
    - **hypeddit/hyperfollow gateways** (DDG → og:image scrape).
    - **mp3-twin** (same-named mp3's embedded art, for WAVs from pools —
      CHECK THE ZIP FIRST: pool zips ship mp3+wav pairs and the mp3 twin

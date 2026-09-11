@@ -1,13 +1,22 @@
-# FullTags — Prioritized Roadmap (rev 6.3)
+# FullTags — Prioritized Roadmap (rev 6.4)
 
-_Rev 6.3, 2026-09-11: the Sep 10/11 intake rounds (123 tracks across three
-batches) exercised the pipeline end-to-end — `tag-check` structural
-scanner shipped, ingest quarantine moved to the archive-root hidden
-`.ingest-duplicates/`, same-stem mp3↔lossless pair dedupe, upgrade
-re-ingests now reuse the existing row (ledger survives), analysis-queue
-order documented, 21 beatgrids snap-repaired to bar coherence, genre-loss
-watch on re-ingests. Archive now 131 ledgered (beats/cues/mood 131/131,
-2,043 cues; audit gate 123/123 on the intake). Revision history in one
+_Rev 6.4, 2026-09-11: **Beatport integrated as the second source behind
+SoundCloud** in every ladder (genre / year / artwork) and the ONLY source
+of the DJ identity fields no other source carries — record label (TPUB),
+mix name (TIT3), official remixer credit, ISRC (TSRC) — with provenance
+stamped TXXX:BP-FIELDS. Access is the v4 catalog API using the anonymous
+client-credentials grant the official web embed player ships in its
+public bundle (verified live: token → search → 1500² release art).
+Ground-truth read-back extended to label/mixName/isrc so bp-filled files
+stay idempotent. Rev 6.3, 2026-09-11: the Sep 10/11 intake rounds (123
+tracks across three batches) exercised the pipeline end-to-end —
+`tag-check` structural scanner shipped, ingest quarantine moved to the
+archive-root hidden `.ingest-duplicates/`, same-stem mp3↔lossless pair
+dedupe, upgrade re-ingests now reuse the existing row (ledger survives),
+analysis-queue order documented, 21 beatgrids snap-repaired to bar
+coherence, genre-loss watch on re-ingests. Archive now 131 ledgered
+(beats/cues/mood 131/131, 2,043 cues; audit gate 123/123 on the intake).
+Revision history in one
 line each: rev 4 shipped #1–#3 as pipeline stages; rev 5 executed the
 gates on the real archive (fingerprints DONE 88/88, key gate PASSED
 80.7%, BPM gate FAILED 12/24 — TBPM writes blocked); rev 6 pivoted #2
@@ -240,6 +249,51 @@ canonical map → MB folksonomy → AI (conf ≥ 0.7) — four votes, one
 writer. enrich's `GenreResolver`/`TagWriter` test seams preserved (all
 existing tests pass unmodified).
 
+### #6 — Beatport as the second source — **S — ✅ SHIPPED (rev 6.4, this pass)**
+
+**The decision:** second behind SoundCloud in every ladder. SC reflects
+how tracks actually circulate (uploader tags, upload-era years, page
+art at original res); Beatport is the store-grade authority on the DJ
+fields SC doesn't have: **label, mix name, official remixer credit,
+ISRC**. So: SC wins every field it covers; BP fills what SC missed and
+owns the identity fields outright (only when the file lacks them —
+ground truth is never overwritten).
+
+**Shipped:** `fulltags/src/beatport.ts` — v4 catalog client:
+client-credentials token (embed-player parity, cached, early-refresh,
+401 self-heal), relevance-scored search (artist-match HARD gate — the
+store's same-name pack-filler long tail makes title+duration matching
+unsafe), canon-vocabulary genre gate (subgenre first; "Electronica"
+junk refused), 1500² release-art fetch, `bpStamp` provenance. Pipeline
+wiring: genre rung 3 (SC → file → BP → AI), year rung 2 (SC remix-year
+→ BP release date → AI), art rung 2 (SC → BP → gateways…), identity
+stage gated on `want("tags")`. Writer/read-back: `isrc` joined
+`FullTag`/`TagPatch` (TSRC on ID3, freeform ISRC atom on m4a, vorbis on
+flac); `groundTruth` now reads back label/mixName/isrc — bp-filled
+files are idempotent. Provenance: every BP-filled field set records
+`TXXX:BP-FIELDS` ("label=…; mix=…; isrc=…").
+
+**Empirical notes (Sep 11 2026, live probed):** the anonymous grant is
+`grant_type=client_credentials` against `account.beatport.com/o/token/`
+with the embed player's public client id/secret (pulled from its own
+shipped JS — no account, no scraping, no Cloudflare HTML fight; the
+`www.beatport.com/search` SSR page and `api.beatport.com` unauth are
+both gated, yt-dlp's Beatport extractor is broken — "Unable to extract
+playables info"). Search rows carry bpm/key(camelot)/genre/subgenre/
+label/release/isrc/catalog_number/length_ms/publish_date + dynamic art
+URIs (`{w}x{h}` templates; 1500x1500 fills verified). Per-container tag
+probes: mp3 `TPUB`→ffprobe "publisher", `TIT3` survives, `TSRC` frame;
+flac keeps raw names; aiff/wav need the mutagen ID3 path (**TSRC must
+be in the python import line — the first test run caught exactly
+that**); m4a freeform atoms surface to ffprobe under their bare names.
+
+**Gates honored:** no batch write of BP data without the round-trip
+tests (`beatport-fields.test.ts`, 5 containers × read-back) and the
+relevance/pipeline gating tests (`beatport.test.ts`,
+`pipeline-beatport.test.ts`). TBPM/Camelot from BP rows are NOT written
+— the BPM write gate is still failed (rev 6), and BP key would fight
+the OpenKeyScan SSOT decision (#3).
+
 ## 3. P2 / P3 (unchanged in substance, resized by facts)
 
 - **Structure cues (all-in-one-infer v3 / -mlx)** — M–L. Still the 10x
@@ -416,6 +470,7 @@ parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
 | Fallback    | essentia `Key` / keyfinder-cli         | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
 | Adopt (#4)  | Essentia ONNX heads + onnxruntime      | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
 | Shipped #5  | MusicBrainz ws/2 artist search         | folksonomy tags 1 rps; shipped as fulltags/src/mb.ts + enrich fold (rev 6.1)                                                                                       |
+| Shipped #6  | Beatport v4 catalog (client-credentials) | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `fulltags/src/beatport.ts` (rev 6.4)                          |
 | Verified    | Dubspot 200-track test                 | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
 | Verified    | rekordbox tag matrix                   | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
 | Verified    | pyrekordbox 0.4.4 (local master.db)    | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                                                                          |

@@ -10,7 +10,8 @@ messy file ──▶ FullTags ──▶ tagged · artworked · fingerprinted · 
 
 - ✅ **Every field:** title, artist, album, album artist, genre, year (of
   _this version_ — remix year for edits), remix credit, producer credits,
-  grouping, source URL, energy, embedded artwork, MusicBrainz MBID.
+  grouping, source URL, energy, embedded artwork, MusicBrainz MBID,
+  record label / mix name / ISRC (the Beatport identity fields).
 - 🎼 **Offline analysis** (shipped Sep 5 2026): **acoustic fingerprint**
   (chromaprint → `TXXX:ACOUSTID`), **real BPM** (beat_this → `TBPM`,
   half/double-tempo folded into the 70–180 DJ window), **harmonic key**
@@ -76,6 +77,8 @@ fulltags/
     models.ts            ONNX mood/dance/valence (essentia melspec + onnxruntime)
     mb.ts                MusicBrainz folksonomy genre harvest (1 rps)
     mb_lookup.ts         MB recording/artist resolution used by identity
+    beatport.ts          Beatport v4 catalog source (2nd behind SC): identity
+                         fields, genre/year/art rungs, provenance stamps
     fingerprint-dedupe.ts  acoustic-twin detection over the fingerprint ledger
     gold.ts              gold-set scoring (megadj gold-report's engine)
     fleet.ts             booth player profiles WITH citations (the compat SSOT)
@@ -97,14 +100,28 @@ fulltags/
 
 ## 🪜 The ladders (first success wins)
 
-| Field    | Order                                                                                                |
-| -------- | ---------------------------------------------------------------------------------------------------- |
-| identity | file tags → filename parse → MusicBrainz recording (1 rps)                                           |
-| genre    | file → SoundCloud tags (via yt-dlp scsearch) → canonical map → MB folksonomy → AI (conf ≥ 0.7)       |
-| year     | file → SC upload timestamp (the **remix** year) → AI (verify: flash-lite guesses 2023)               |
-| artwork  | embedded → SC page og:image (original/t1080) → hype gateways → mp3-twin → Deezer → iTunes → AI queue |
-| remixer  | title/filename `(Remixer Remix/Flip/Edit)` pattern                                                   |
-| energy   | RMS 1–10 baseline; **energy 2.0**: `0.5·RMS + 0.3·dance + 0.2·arousal` when a MOOD stamp exists      |
+| Field              | Order                                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| identity           | file tags → filename parse → MusicBrainz recording (1 rps)                                                                                 |
+| genre              | file → SoundCloud tags (via yt-dlp scsearch) → canonical map → **Beatport store genre** → MB folksonomy → AI (conf ≥ 0.7)                  |
+| year               | file → SC upload timestamp (the **remix** year) → **Beatport release date** → AI (verify: flash-lite guesses 2023)                         |
+| artwork            | embedded → SC page og:image (original/t1080) → **Beatport release master (1500²)** → hype gateways → mp3-twin → Deezer → iTunes → AI queue |
+| remixer            | title/filename `(Remixer Remix/Flip/Edit)` pattern → **Beatport official remixers credit**                                                 |
+| label / mix / ISRC | (Beatport-only fields) file → **Beatport catalog row** — never overwritten once present                                                    |
+| energy             | RMS 1–10 baseline; **energy 2.0**: `0.5·RMS + 0.3·dance + 0.2·arousal` when a MOOD stamp exists                                            |
+
+**Beatport ranking (rev 6.4):** second in every ladder, behind SoundCloud —
+SC wins every field it covers (its tags reflect how tracks actually
+circulate), Beatport fills what SC misses and is the ONLY source of the
+DJ-canonical identity fields: record label, mix name, official remixer
+credit, and ISRC. Access is the v4 catalog API with the same anonymous
+client-credentials grant the official web embed player ships (no account,
+no scraping); every Beatport-filled field is stamped `TXXX:BP-FIELDS`
+("label=…; mix=…; isrc=…") so store-sourced values are always auditable.
+The genre rung accepts only canon-vocabulary hits ("Peak Time / Driving"
+still maps; "Electronica" junk is refused); the search is relevance-gated
+(artist must match — title+duration alone can't distinguish the store's
+same-name pack-fillers).
 
 ## 🤖 AI provenance (trust in automation)
 
