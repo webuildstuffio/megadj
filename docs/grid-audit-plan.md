@@ -50,15 +50,15 @@ of 2026-09-10. Everything else in this doc is re-scoped around it.
 
 | Gap | Ticket(s) |
 | --- | --- |
-| Gold standard set + metrics harness (Part 0) | GA-00 |
+| Gold standard set + metrics harness (Part 0) | GA-00, GA-00b — **harness SHIPPED**, annotation manual |
 | Constant-tempo fit (single-BPM regression + residual) on the ledger | GA-01 |
 | DBN pass + per-genre tempo priors | GA-02 |
 | Structure labels (SongFormer primary, allin1 second opinion) | AC-01 |
 | Demucs bass/drums stems + per-bar energy | AC-02 |
-| A1 triage: drive-vs-collection ANLZ byte compare per track | GA-03 |
-| A2 per-track grid diff (anchor / BPM ratio / drift / phase / confidence) | GA-04 |
+| A1 triage: drive-vs-collection ANLZ byte compare per track | GA-03 — **SHIPPED** (`megadj rb-grid-triage`) |
+| A2 per-track grid diff (anchor / BPM ratio / drift / phase / confidence) | GA-04 — **SHIPPED** (ledger + ANLZ halves) |
 | A3 bucketing + calibrated thresholds | GA-05 |
-| A4 grid repair writer + the write-path spike | GA-06, GA-07 |
+| A4 grid repair writer + the write-path spike | GA-06, GA-07 — spike **harness + runbook SHIPPED** (`megadj rb-anlz-spike`), experiments open |
 | B3 agreement gating, B5 cue layout, B7 cue writer, B8 validation gate | AC-03…AC-06 |
 | B10 feedback loop (cue-delta ledger) | AC-07 |
 
@@ -126,6 +126,15 @@ this table as issues are filed.
 
 ### GA-00 — Build the set
 
+**STATUS: HARNESS SHIPPED 2026-09-10** — schema, guards, loader, and the
+dev/holdout split live in `fulltags/src/gold.ts` (tested in
+`fulltags/test/gold-set.test.ts`); scoring runs via `megadj gold-report`
+(GA-00b). What remains is the manual half: annotate 30 tracks into
+`~/Music/DJ-Imports/_gold/` — one versioned JSON per track, shape
+enforced by `goldSchemaError` (blake2b hash key, first downbeat ms, BPM,
+32-bar phrase bars, ≤8 hot-cue times, house/trap/unknown branch). The
+loader surfaces corrupt files by name; it never fakes success.
+
 Hand-annotate 30 tracks. One evening; the highest-leverage thing here.
 
 - **20 house** — across subgenres you actually play, ≥3 known-awkward
@@ -143,6 +152,14 @@ repo. Annotation itself is manual; the loader, schema guards, and split
 logic are code (`fulltags/test/gold-set.test.ts`).
 
 ### GA-00b — Metrics harness
+
+**STATUS: SHIPPED 2026-09-10** — `megadj gold-report [--json]` loads the
+gold set, joins ledger rows to annotations BY CONTENT HASH (filenames
+lie), scores the plan §0.2 axes (anchor ≤10 ms, BPM ≤0.05 with the
+octave census counted separately, phrase within 1 bar, cues within
+50 ms), and reports dev and holdout rows — same numbers, every time.
+Exit 1 with a pointer at GA-00 when no annotations exist yet (an empty
+report must never read as a pass).
 
 Report after every pipeline change. Same numbers, every time.
 
@@ -263,6 +280,17 @@ this doc's execution log.
 
 ### GA-03 — Triage: sync problem or analysis problem
 
+**STATUS: SHIPPED 2026-09-10** — `megadj rb-grid-triage [drive]
+[--compare STICK] [--limit N]` reads the master DB via the python seam
+(rows + `anlz_paths.py` hash dirs), optionally byte-compares each
+track's collection sidecar against the stick's (`SYNC` issues get a
+re-export, never a re-analysis), decodes the collection PQTZ grid
+(`fulltags/src/anlz.ts`, spec-validated), and audits our fitted ledger
+grids via `gridAuditFull` — SHIFT/PHASE/TEMPO/DRIFT/CHAOS + A-OK, worst-
+first offender sample, read-only end to end. Gaps are visible classes
+(`NO-ANLZ`, `NO-GRID`, `NO-LEDGER`), never silent skips. The ANLZ
+hash-stability precondition stays GA-07 Q1.
+
 Before anything expensive: a large share of "grids misaligned after
 syncing" isn't a grid problem — the collection grid is correct and the
 drive's ANLZ sidecar is stale.
@@ -302,12 +330,15 @@ zero drift is trivial; a 5 ms offset growing to 300 ms by the outro is a
 wrong BPM. This supersedes `gridCrossCheck`'s coarse ok/off/octave
 verdict — that one stays as the cheap DB-level smoke check.
 
-**STATUS: LEDGER-ONLY HALF SHIPPED 2026-09-10.** The `beats`-ledger
-cross-check now runs `gridAudit` (fit + RB-clock slide + wobble) and
-classifies TEMPO/DRIFT/CHAOS vs A-OK; the `drift` bucket is live in the
-API, deckctl help, and both web cards (DOM-verified). Anchor delta,
-phase, and confidence still need the ANLZ decode (GA-03) — SHIFT/PHASE
-stay unassigned until then, by design, not omission. First live pass on
+**STATUS: LEDGER-ONLY HALF SHIPPED 2026-09-10; ANLZ HALF SHIPPED SAME
+DAY.** The `beats`-ledger cross-check runs `gridAudit` (fit + RB-clock
+slide + wobble) and classifies TEMPO/DRIFT/CHAOS vs A-OK; the `drift`
+bucket is live in the API, deckctl help, and both web cards. GA-03
+added the ANLZ half: `gridAuditFull` (same module) decodes the
+collection PQTZ grid and completes the plan's metric table — anchor
+delta, phase (whole-beat offset + sub-beat residual), and the SHIFT and
+PHASE buckets. Beat-confidence needs the activation array (AC-02's
+Audio2Frames leg) and stays open. First live pass on
 the archive (103 tracks): 99 DRIFT, 2 ok — RB stores integer BPMs (125)
 against fitted 124.00 grids, ~1.6 s of accumulated slide: exactly the
 predicted class.
@@ -369,6 +400,16 @@ whole-table existence rule, not a prefix-scoped post-check (that trap
 already cost two false "done" reports).
 
 ### GA-07 — WEEK-1 SPIKE: settle the write path
+
+**STATUS: HARNESS + RUNBOOK SHIPPED 2026-09-10** — `megadj
+rb-anlz-spike [drive] snapshot|compare --tag T` hashes every sidecar
+with a per-section byte inventory (PQTZ/PWAV/PPTH/…) into a dated
+baseline under `~/.local/state/megadj/spike/`, so each question below
+becomes "run these two commands, do the rekordbox action, read the
+diff". The step-by-step procedure — backup first, five sacrificial
+tracks, all four questions, and the execution-log table to fill — lives
+in `docs/runbooks/0d-write-path-spike.md`. The experiments themselves
+are hands-on (rekordbox UI); "open but armed" until run.
 
 This is the cheapest, most plan-invalidating experiment in the doc. Five
 sacrificial tracks, a full backup, and four questions answered in order:

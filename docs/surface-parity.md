@@ -7,7 +7,13 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 13 · 2026-09-10 — the re-audit: the megadj CLI surface was never
+Rev 14 · 2026-09-10 — grid-audit build-out: three new megadj commands
+(`gold-report`, `rb-grid-triage`, `rb-anlz-spike`) —
+gold-standard metrics, ANLZ/PQTZ grid triage, and the write-path spike
+harness (the shelf family's `shelf-sweeps` returned in the same pass,
+keeping the census at 33). All three are `--json` P1 reads; §4-A1
+extends to them (the triage reads the master DB read-only; the spike
+writes its baseline to `~/.local/state`, never the drive). Rev 13 · 2026-09-10 — the re-audit: the megadj CLI surface was never
 censused (the test counted deckctl + MCP only), and the doc had drifted
 to "19 commands" while `src/cli.ts` carries 33 — the whole shelf family
 (`shelf-sync/archive/dedupe/dupescan/hygiene/sweeps`, `rb-fix-paths`),

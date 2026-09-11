@@ -85,6 +85,16 @@ export const HELP_TERMS: HelpTerm[] = [
     why: "No ANLZ at the hashed path = no waveform, no Beat Sync, no Beat Jump on the CDJ.",
   },
   {
+    term: "Grid triage",
+    def: "Two-step verdict per track: SYNC (the drive's sidecar differs from the collection — re-export) vs analysis (the grid itself is wrong — SHIFT/PHASE/TEMPO/DRIFT/CHAOS buckets, `megadj rb-grid-triage`).",
+    why: "Conflating the two means re-analyzing tracks that were fine — the opposite fix, and it destroys manual grid edits.",
+  },
+  {
+    term: "Gold set",
+    def: "Your hand-annotated truth tracks (first downbeat, BPM, phrase bars, preferred cues) that every analysis change is scored against (`megadj gold-report`).",
+    why: "Without measured accuracy, 'the grid looks better' is a feeling. The report makes improvement a number.",
+  },
+  {
     term: "Bitrot",
     def: "Silent file corruption: bytes decay on disk with no error, no crash, no warning.",
     why: "Checksum jobs hash every audio file so a changed file is caught before it fails mid-set, not after.",

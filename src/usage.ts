@@ -38,6 +38,9 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                re-fetch below-floor tracks at best quality (fingerprint-gated swap)
   megadj cues    [--limit N] [--force] [--dry-run] [--json]
                                                8-bar phrase cues from the beats ledger → DB (no player writes)
+  megadj gold-report [--json]                  score ledgers vs the GA-00 gold set
+                                               (anchor/BPM/phrase/cue metrics, dev + holdout)
+                                               — exit 1 when no annotations exist yet
   megadj artwork [--model M] [--max N] [--dry-run] [--json]
                                                generate covers for queued tracks (last resort)
   megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz
@@ -76,6 +79,17 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                and fixes (dry first, ALWAYS); --apply
                                                backs the DB up, refuses while rekordbox
                                                runs, rewrites, then re-checks EVERY row
+  megadj rb-grid-triage [drive] [--compare D] [--limit N] [--json]
+                                               grid audit vs the ANLZ rekordbox wrote:
+                                               byte-compare vs a stick (--compare = SYNC
+                                               issues → re-export) then decode the PQTZ
+                                               grid + audit the ledger (SHIFT/PHASE/
+                                               TEMPO/DRIFT/CHAOS) — read-only
+  megadj rb-anlz-spike [drive] snapshot|compare --tag T [--json]
+                                               GA-07 write-path spike harness: hash +
+                                               inventory sidecars before/after a manual
+                                               rekordbox experiment (re-export, grid
+                                               nudge) — proves exactly what changes
 
 cratedeck — the Crate: organize, sync & verify every DJ USB:
   megadj doctor  [--json]                      one-shot dependency/env/config diagnostics (exit 1 if broken)

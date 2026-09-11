@@ -11,6 +11,7 @@
 import { existsSync, rmSync } from "node:fs";
 import { basename, dirname, extname } from "node:path";
 import { lineReader } from "./stdio";
+import type { AnlzBeat } from "./anlz";
 
 /** Where the OpenKeyScan analyzer repo is cloned (stdin/stdout JSON mode).
  * Override with FULLTAGS_KEYSCAN_DIR. Resolved lazily so tests/env can
@@ -364,6 +365,89 @@ export function gridAudit(
     driftMs: Math.round(driftMs * 10) / 10,
     driftMonotonic: Math.abs(driftMs) > 15 && residualMs <= 40,
     residualMs: Math.round(residualMs * 10) / 10,
+    bucket,
+    reason,
+  };
+}
+
+// ---------- GA-03/GA-04 full audit: ANLZ anchor + phase ----------
+
+/** Anchor tolerance (ms): |offset| under this is "the same grid" (the
+ * plan A3 A-OK signature). */
+export const ANCHOR_TOLERANCE_MS = 10;
+
+/** Extend the ledger-only verdict with the ANLZ-decoded truth: anchor
+ * delta (fixed offset), phase (wrong beat of the bar), and the SHIFT and
+ * PHASE buckets the ledger pass cannot assign. Pure. */
+export interface FullGridAudit extends GridAuditVerdict {
+  /** rb-ANLZ first downbeat − fitted-grid first downbeat, ms. */
+  anchorDeltaMs: number;
+  /** Anchor delta reduced mod 1 beat (ms, in [-halfBeat, halfBeat]) —
+   * sub-beat jitter after whole-beat removal. */
+  phaseMs: number;
+  /** Whole-beat count the phase shift represents (anchor mod beat). */
+  phaseBeats: number;
+}
+
+/**
+ * The GA-04 full audit: our fitted grid vs the ANLZ grid rekordbox
+ * actually wrote. Buckets per the plan A3 table — SHIFT (fixed offset),
+ * PHASE (whole-beat offset), TEMPO, DRIFT, CHAOS, A-OK — now ALL
+ * reachable. `ledgerAudit` supplies the ledger-only half (pass the
+ * `gridAudit` result when you have one; computed here when not).
+ */
+export function gridAuditFull(
+  ledgerBeats: number[],
+  anlzBeats: AnlzBeat[],
+  rbBpm: number,
+  ledger: GridAuditVerdict | null = gridAudit(ledgerBeats, rbBpm),
+): FullGridAudit | null {
+  if (!ledger || ledgerBeats.length < 8 || anlzBeats.length < 2) return null;
+  const fit = fitConstantTempo(ledgerBeats);
+  if (!fit) return null;
+  const beatMs = 60000 / fit.bpmFitted;
+
+  // Anchor: ANLZ's first downbeat (num===1) vs our first beat.
+  const anlzDown = anlzBeats.find((b) => b.num === 1) ?? anlzBeats[0]!;
+  const anchorDeltaMs = anlzDown.timeMs - ledgerBeats[0]! * 1000;
+
+  // Phase: remove whole beats from the anchor offset; what's left is
+  // sub-beat jitter. Round to the NEAREST beat count — a 0.9-beat offset
+  // is a 1-beat phase shift with -0.1 beat of jitter.
+  const rawBeats = anchorDeltaMs / beatMs;
+  const phaseBeats = Math.round(rawBeats);
+  const phaseMs = anchorDeltaMs - phaseBeats * beatMs;
+
+  let bucket: FullGridAudit["bucket"];
+  let reason: string;
+  if (ledger.bucket === "TEMPO" || ledger.bucket === "CHAOS") {
+    // Tempo-class problems dominate — a shifted grid at the wrong tempo
+    // is still a tempo repair first.
+    bucket = ledger.bucket;
+    reason = ledger.reason;
+  } else if (phaseBeats !== 0) {
+    // Whole-beat offset (plan A3 PHASE: "anchor ≈ ±1 or ±2 beats").
+    // phaseMs carries the residual jitter for GA-05 calibration.
+    bucket = "PHASE";
+    reason =
+      phaseBeats > 0
+        ? `RB grid starts ${phaseBeats} beat(s) late (+${Math.round(anchorDeltaMs)} ms, ${Math.round(Math.abs(phaseMs))} ms off the bar line)`
+        : `RB grid starts ${-phaseBeats} beat(s) early (${Math.round(anchorDeltaMs)} ms, ${Math.round(Math.abs(phaseMs))} ms off the bar line)`;
+  } else if (Math.abs(anchorDeltaMs) > ANCHOR_TOLERANCE_MS) {
+    // Sub-beat fixed offset with matched tempo (plan A3 SHIFT: "anchor
+    // > 10 ms, drift small, ratio ≈ 1" → anchor rewrite).
+    bucket = "SHIFT";
+    reason = `grids match in tempo but RB's anchor sits ${Math.round(anchorDeltaMs)} ms off ours — anchor rewrite`;
+  } else {
+    bucket = ledger.bucket;
+    reason = ledger.reason;
+  }
+
+  return {
+    ...ledger,
+    anchorDeltaMs: Math.round(anchorDeltaMs * 10) / 10,
+    phaseMs: Math.round(phaseMs * 10) / 10,
+    phaseBeats,
     bucket,
     reason,
   };

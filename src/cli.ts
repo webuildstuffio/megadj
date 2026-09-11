@@ -220,7 +220,9 @@ async function main(): Promise<void> {
         break;
       }
       case "shelf-hygiene":
-      case "rb-fix-paths": {
+      case "rb-fix-paths":
+      case "rb-grid-triage":
+      case "rb-anlz-spike": {
         // The maintenance family lives in commands/maintenance-cmds.ts
         // (file-length guard), same seam shape as the old shelf-cmds.ts.
         const { runMaintenanceCommand } =
@@ -609,6 +611,24 @@ async function main(): Promise<void> {
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
         });
+        break;
+      }
+      case "gold-report": {
+        // GA-00b: score the ledgers against the gold annotations — the
+        // §0.2 metrics table. Read-only; exit 1 when the set is empty.
+        const flags = parseFlags(rest, [], ["json"]);
+        const { goldReport, printGoldReport } =
+          await import("./commands/gold-report");
+        const r = await goldReport({
+          state,
+          json: flags.bools.has("json"),
+        });
+        if (flags.bools.has("json")) {
+          console.log(JSON.stringify(r));
+        } else {
+          printGoldReport(r, console.log);
+        }
+        if (!r.ok) process.exitCode = 1;
         break;
       }
       default:
