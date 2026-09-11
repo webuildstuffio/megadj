@@ -17,7 +17,7 @@ N76/O82b/O83/O85/O87/O88 evidence added).
 | M3 — Jobs, interlock, sync   | verify/mirror/bench/checksum      | ✅ shipped                                       |
 | M4 — Ports, timeline, search | port strip, timeline, search      | ✅ shipped                                       |
 | M5 — Polish, dossier, radar  | reports, dossier export           | ✅ shipped                                       |
-| M6 — Hardening & docs        | failure modes, rotation, docs     | 🔶 partial (docs shipped; kill -9 + tag pending) |
+| M6 — Hardening & docs        | failure modes, rotation, docs     | ✅ verified (SIGKILL recovery + retention caps; release tag tracked separately) |
 
 ## Evidence map (code)
 
@@ -87,5 +87,7 @@ superset/behind, artwork coverage, space/df, NFC+casefold).
 - [ ] PRD F4: drive detail vs known ground truth (track counts,
       playlists) after the latest export settles
 - [ ] PRD F9: all real drives on one screen at 1440×900 without scrolling
-- [ ] Build plan M6: kill -9 random-point resilience pass; SQLite/log
-      rotation check; tag `cratedeck-v0.1.0`
+- [x] Build plan M6: SIGKILL recovery is regression-tested against a real
+      child-process crash; snapshot/event retention is bounded on both the
+      write path and database reopen (`test/issue-33-crash-recovery.test.ts`).
+- [ ] Release: tag `cratedeck-v0.1.0` (tracked separately from M6 hardening)

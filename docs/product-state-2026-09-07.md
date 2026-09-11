@@ -136,9 +136,10 @@ sticks sync from this"; a FAILED verify shows on every tier until re-run.
 - **Measured state:** 27 server TS files, 37 MCP tools (census-verified),
   snapshots capped 20/drive, events 2000/drive; `overall()` never fakes
   healthy; bitrot verdicts come only from real checksum runs.
-- **The gap:** four acceptance items need one real-hardware session
-  (mirror-badge ground truth, detail-vs-known counts, 1440×900 one-screen,
-  M6 kill-9 resilience + the `cratedeck-v0.1.0` tag); C18a assisted
+- **The gap:** three acceptance items need one real-hardware session
+  (mirror-badge ground truth, detail-vs-known counts, 1440×900 one-screen);
+  M6 SIGKILL resilience and retention caps are now regression-tested, while
+  the `cratedeck-v0.1.0` tag remains a separate release task. C18a assisted
   legacy-export runbook and C21/C22 differential mirror + one-click sync
   are the remaining Move-1 builds.
 
