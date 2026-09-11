@@ -150,8 +150,8 @@ export function foldTempo(bpm: number, lo = 70, hi = 180): number {
  * skip (idempotent re-run). Spawns `uv run --with beat-this` so the
  * ~2 GB torch env lives in the uv cache, never the repo.
  *
- * beat_this v1.1 API: `File2Beats.__call__(path + ` returns
- * `)(beats, downbeats)` — arrays of timestamps in SECONDS. Track tempo is
+ * beat_this v1.1 API: `File2Beats.__call__(path)` returns
+ * `(beats, downbeats)` — arrays of timestamps in SECONDS. Track tempo is
  * derived from the median inter-beat interval (the package exposes no
  * tempo field on this path).
  *
@@ -504,7 +504,7 @@ export interface KeyResult {
  * (JSON over stdin/stdout; device auto-select CUDA > MPS > CPU).
  *
  * Spawns the server per batch — for library-wide runs prefer
- * `analyzeKeys(paths + ` which amortizes the ~1.3 s model load. Null when
+ * `analyzeKeys(paths)` which amortizes the ~1.3 s model load. Null when
  * the analyzer repo is missing (clone to KEYSCAN_DIR) or inference fails.
  *
  * GAUNTLET (roadmap #3, required or RB erases the work):
@@ -515,7 +515,7 @@ export interface KeyResult {
 export async function analyzeKeys(
   paths: string[],
 ): Promise<Map<string, KeyResult>> {
-  // Values are `)KeyResult | null` WHILE the protocol loop runs: null marks
+  // Values are `KeyResult | null` WHILE the protocol loop runs: null marks
   // a definitive per-path error so the loop can terminate instead of
   // waiting for responses that will never come. Placeholders are dropped
   // before return — the wire type stays honest (Map<string, KeyResult>).

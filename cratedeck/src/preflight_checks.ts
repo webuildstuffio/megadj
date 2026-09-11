@@ -237,7 +237,7 @@ export function mirrorCheck(
         id: "mirror",
         label: "Mirror parity",
         status: missing > 20 ? "fail" : "warn",
-        detail: `behind the master by ${missing} file(s + `,
+        detail: `behind the master by ${missing} file(s)`,
         fix: "Run the mirror sync to converge",
       };
 }

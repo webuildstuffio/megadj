@@ -261,7 +261,7 @@ function mirrorCheck(input: ReportInput): HealthCheck | null {
     label: `Mirror parity vs ${input.masterName}`,
     status: missing <= 0 ? "pass" : missing > 20 ? "fail" : "warn",
     detail:
-      missing <= 0 ? "in sync (superset ok)" : `behind by ${missing} file(s + `,
+      missing <= 0 ? "in sync (superset ok)" : `behind by ${missing} file(s)`,
     fix:
       missing > 0
         ? "Run the mirror sync (usb_mirror.py) to converge"

@@ -443,7 +443,7 @@ export function printGridTriageReport(
   for (const o of r.offenders.slice(0, 10)) {
     const nums =
       o.anchorDeltaMs !== undefined
-        ? ` anchor ${o.anchorDeltaMs} ms · phase ${o.phaseBeats ?? 0} beat(s + `
+        ? ` anchor ${o.anchorDeltaMs} ms · phase ${o.phaseBeats ?? 0} beat(s)`
         : "";
     log(`  ${o.cls}: ${o.path}${nums}`);
   }

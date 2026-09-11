@@ -89,12 +89,12 @@ export function noArgs(): Record<string, unknown> {
   return { type: "object", properties: {}, additionalProperties: false };
 }
 
-/** `s("text", "search text" + ` shorthand for a string property. */
+/** `s("text", "search text")` shorthand for a string property. */
 export function s(description: string): Prop {
   return { type: "string", description };
 }
 
-/** Bare string property (no description) — for enum/case rows keep `)s`. */
+/** Bare string property (no description) — for enum/case rows keep `s`. */
 export function sEnum(options: readonly string[], description?: string): Prop {
   return { type: "string", enum: options, description };
 }

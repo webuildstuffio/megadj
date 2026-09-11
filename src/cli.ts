@@ -447,12 +447,17 @@ async function main(): Promise<void> {
           ],
         );
         const { fetch } = await import("./fulltags/fetch");
+        const jobs = nonNegOpt(flags, "jobs", "fetch");
+        if (jobs === undefined && flags.strings.get("jobs") !== undefined) {
+          // nonNegOpt already set exitCode 2 + printed the error
+          break;
+        }
         await fetch({
           all: flags.bools.has("all"),
           only: (["art", "genres", "tags", "years"].find((k) =>
             flags.bools.has(k),
           ) ?? "all") as "art" | "genres" | "tags" | "years" | "all",
-          jobs: numOpt(flags, "jobs"),
+          jobs,
           aiFallback: flags.bools.has("ai-fallback"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),

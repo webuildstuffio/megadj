@@ -131,7 +131,7 @@ guard.allow(join(cfg.volumesRoot, "*", "Contents", "CrateDeck"));
 // boot hygiene: orphan jobs from a dead process, stale scratch
 const reaped = db.reapOrphanJobs();
 registry.sweepScratch();
-if (reaped) console.log(`cratedeck: reaped ${reaped} orphan job(s + `);
+if (reaped) console.log(`cratedeck: reaped ${reaped} orphan job(s)`);
 
 let reconciling = false;
 async function reconcile(): Promise<void> {

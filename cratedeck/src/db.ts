@@ -399,7 +399,7 @@ export class DB {
 
   /** Fine-grained progress update: fraction, human message, phase, ETA (s).
    *  ETA is tri-state: `undefined` = keep the current value (log-line updates
-   *  pass no ETA and must not wipe the one `tick( + ` computed), `)null` =
+   *  pass no ETA and must not wipe the one `tick()` computed), `null` =
    *  explicitly clear (unknown again), a number = set. */
   setJobProgress(
     id: string,
