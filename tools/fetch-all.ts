@@ -198,7 +198,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
   const only = opts.only ?? "all";
   const dry = opts.onlyDryRun ?? false;
   const aiFallback = opts.aiFallback ?? false;
-  const jobs = Math.max(1, opts.jobs ?? 6);
+  const jobs = Math.max(1, opts.jobs ?? 6); // 0 workers is meaningless → clamp to 1
   jsonOut = opts.json ?? false;
 
   const files = archiveFiles();

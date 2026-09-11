@@ -58,7 +58,7 @@ export async function apiGet(
 }
 
 /** apiGet + typed JSON body — the one place an untyped `r.json( + ` is
- * allowed in callers. Response.json() returns `)any`; pinning it to a
+ * allowed in callers. Response.json() returns `any`; pinning it to a
  * caller-specified shape keeps the MCP tool layer off `any`. */
 export async function apiGetJson<T = unknown>(
   path: string,

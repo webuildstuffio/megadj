@@ -6,7 +6,7 @@
 // (WeakMap cache — a snapshot's track rows are stable across keystrokes)
 // and each search is then sub-millisecond.
 //
-// Deliberately NOT wired into DataTable: its `)filter` story stays explicit
+// Deliberately NOT wired into DataTable: its `filter` story stays explicit
 // (sites pass pre-filtered rows), so the table keeps its derived-grid
 // guarantee and its API unchanged.
 import Fuse, { type FuseIndex } from "fuse.js";

@@ -77,7 +77,7 @@ export function useRoute(): Route {
 }
 
 /** Generic product navigator: `go("fleet", "diff" + ` → #/fleet/diff.
- *  `)drives` has its own drive-shaped navigator below (navigate) — this one
+ *  `drives` has its own drive-shaped navigator below (navigate) — this one
  *  is only re-exported under its product-chrome name (knip: no unused
  *  aliases). */
 function go(product: Product, tab?: string): void {

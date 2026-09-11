@@ -39,8 +39,8 @@ export interface CueRecord extends CueRecordInput {
 /**
  * Mood + structure-cues ledger storage (roadmap rev 6.1 #4 and the cues
  * slice). Extracted from state.ts for the file-length guard; ArchiveState
- * delegates to this so the call surface (`state.setMoodRecord(... + `,
- * `)state.cueAnalyzedTracks( + `) is unchanged.
+ * delegates to this so the call surface (`state.setMoodRecord(...)`,
+ * `state.cueAnalyzedTracks()`) is unchanged.
  */
 export class Ledgers {
   constructor(

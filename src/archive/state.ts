@@ -739,8 +739,8 @@ export class ArchiveState {
 
   // ---------- embeddings ledger (roadmap I49 "sounds like") ----------
   // Implementation lives in state-similar.ts (file-length guard); these
-  // delegates keep every call site (`state.setEmbeddingRecord(... + `,
-  // `)state.embeddingCorpus( + `) unchanged.
+  // delegates keep every call site (`state.setEmbeddingRecord(...)`,
+  // `state.embeddingCorpus()`) unchanged.
 
   setEmbeddingRecord(rec: {
     videoId: string;
@@ -760,5 +760,5 @@ export class ArchiveState {
 }
 
 // I49 cosine kNN — re-exported from state-similar.ts (the SSOT) so
-// existing `)import { similarTracks } from "../state"` sites keep working.
+// existing `import { similarTracks } from "../state"` sites keep working.
 export { cosineSimilarity, similarTracks } from "./similar";

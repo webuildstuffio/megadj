@@ -657,7 +657,7 @@ export type ArchiveMoodProfile = ReturnType<
 
 // ---- drive cover photos: one image listed by GET /drives/:id/drive-images.
 // DEFINED here canonically (like every wire type) — an earlier version
-// derived it from the producer (`)src/images.ts listDriveImages`), but
+// derived it from the producer (`src/images.ts listDriveImages`), but
 // images.ts type-imports db.ts → fleet-db.ts → fleet.ts → shared/types.ts,
 // so the type-only back-edge made madge report a real cycle (Sep 9 sweep).
 // The producer imports this shape instead.

@@ -30,7 +30,7 @@ import {
 
 // PreflightDriveResult/PreflightReport (the B12 wire shapes) are DEFINED in
 // shared/types.ts — the dependency leaf — and imported above. Re-exported
-// here for existing `)from "./preflight"` consumers (shared/types consumers
+// here for existing `from "./preflight"` consumers (shared/types consumers
 // switched to the canonical definitions).
 export type { PreflightDriveResult, PreflightReport };
 

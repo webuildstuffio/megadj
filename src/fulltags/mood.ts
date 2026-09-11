@@ -102,7 +102,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
   // `needAnalysis.length = 0` below then wiped the refill source too — the
   // ONNX pass silently became a no-op on every flagless `megadj mood` run
   // (the `--limit N` path took `slice( + ` and worked, hiding the defect).
-  // Copy first (`)slice( + ` unconditionally), then truncate the original.
+  // Copy first (`slice()` unconditionally), then truncate the original.
   const analysisQueue = needAnalysis.slice(
     0,
     opts.limit === undefined ? needAnalysis.length : Math.max(0, opts.limit),

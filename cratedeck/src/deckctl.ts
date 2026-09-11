@@ -487,9 +487,7 @@ async function cmdCoverage(minCopies?: string): Promise<void> {
   for (const d of r.drives)
     log(`  ${d.name}: ${d.tracks.toLocaleString()} tracks`);
   if (!r.at_risk.length) {
-    log(
-      `✓ no at-risk tracks — everything lives on ≥${r.min_copies} drive(s)`,
-    );
+    log(`✓ no at-risk tracks — everything lives on ≥${r.min_copies} drive(s)`);
     return;
   }
   log(

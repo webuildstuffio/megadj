@@ -51,7 +51,7 @@ export class ArchiveReader implements ArchiveQuery {
 
   /** Public readonly access to the opened handle — tests (readonly-flag
    *  regression) and split modules probe it without private-state casts;
-   *  bun's `)readonly: true` keeps writes throwing at the driver level. */
+   *  bun's `readonly: true` keeps writes throwing at the driver level. */
   get handleOrNull(): Database | null {
     return this.db;
   }

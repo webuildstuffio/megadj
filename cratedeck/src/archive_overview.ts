@@ -6,7 +6,7 @@ import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
 /**
  * STRUCTURE CUES ledger (roadmap "structure cues" slice): DJ phrase
  * markers (every 8 bars) derived from the beats ledger's downbeats by
- * `)megadj cues`. DB-side only — rekordbox memory-cue writes are a
+ * `megadj cues`. DB-side only — rekordbox memory-cue writes are a
  * separate gated surface, so this read describes the ledger as-is.
  * Degrades to available:false on pre-cues DBs (no `cues` table).
  */

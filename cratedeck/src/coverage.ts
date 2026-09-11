@@ -395,7 +395,7 @@ const diffRowOf = (r: DiffSource, tr?: DiffSource): DiffRow => ({
 const diffBytesOf = (r?: DiffSource): number | undefined => r?.bytes;
 
 /** Playlist-diff row ordering: by display path. Captures nothing from
- *  `)diff()` — module-level so it isn't re-created per call (oxlint
+ *  `diff()` — module-level so it isn't re-created per call (oxlint
  *  consistent-function-scoping). */
 const byPathCompare = (x: DiffRow, y: DiffRow): number =>
   x.path.localeCompare(y.path);
