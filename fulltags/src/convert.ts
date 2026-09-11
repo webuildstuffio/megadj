@@ -87,7 +87,12 @@ export async function wavToAiff(wavPath: string): Promise<string | null> {
     "if dst.tags is None: dst.add_tags()",
     "if dst.tags: dst.delete()",
     "for f in frames: dst.tags.add(f)",
-    "dst.save()",
+    // v2_version=3: mutagen's default save() on an AIFF whose source WAV
+    // carried a v2.4 tag re-writes it as ID3v2.4 — and the Sep 11 pool
+    // batch proved a v2.4 tag on these files can corrupt the container
+    // walk (InvalidChunk 'ID3\\x04'). v2.3 is the writer's house format
+    // everywhere else; keep the conversion on it too.
+    "dst.save(v2_version=3)",
     'print("ok")',
   ].join("\n");
   const py = await $`uv run --with mutagen python -c ${script}`
@@ -115,6 +120,21 @@ export async function wavToAiff(wavPath: string): Promise<string | null> {
       .quiet()
       .nothrow();
   if (check.exitCode !== 0 || !check.stdout.toString().trim()) {
+    await $`rm -f ${aiffPath}`.quiet().nothrow();
+    return null;
+  }
+  // mutagen-level validity gate: a FORM walk must succeed. This is the
+  // check that catches the Sep 11 header-destroyed outputs (file began
+  // with a raw ID3 chunk — ffprobe tolerated it, mutagen did not).
+  const walk = [
+    "from mutagen.aiff import AIFF",
+    `AIFF(${JSON.stringify(aiffPath)})`,
+    'print("ok")',
+  ].join("\n");
+  const wv = await $`uv run --with mutagen python -c ${walk}`
+    .quiet()
+    .nothrow();
+  if (wv.exitCode !== 0 || !wv.stdout.toString().trim().includes("ok")) {
     await $`rm -f ${aiffPath}`.quiet().nothrow();
     return null;
   }

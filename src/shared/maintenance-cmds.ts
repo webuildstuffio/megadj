@@ -25,6 +25,7 @@ export const MAINTENANCE_VERBS = [
   "shelf-restore",
   "rb-fix-paths",
   "rb-unmatched",
+  "rb-import",
   "rb-anlz-spike",
   "rb-grid-triage",
 ] as const;
@@ -164,6 +165,48 @@ export async function runMaintenanceCommand(
       // but a SUCCESSFUL apply (quarantine ran) leaves unknown == 0 and
       // must read as success; failing it would block automation loops
       if (!r.ok || (r.unknown > 0 && !r.appliedMode)) process.exitCode = 1;
+      return;
+    }
+    case "rb-import": {
+      // the SANCTIONED headless master-DB import (AGENTS.md: auto-writes
+      // are rb-import's job only). One playlist per intake folder under a
+      // parent group; dated backup + rekordbox-quit gate + whole-table
+      // verify. Dry-run by default; --apply --yes writes.
+      const flags = parseFlags(
+        rest,
+        ["playlist", "group"],
+        ["apply", "yes", "json"],
+      );
+      const args = positionalArgs(rest, []);
+      const mount = mountFrom(args[0]);
+      const folder = args[1];
+      if (!folder) {
+        console.error(
+          "rb-import: usage — megadj rb-import <mount> <folder> [--playlist NAME] [--group NAME] [--apply --yes]",
+        );
+        process.exitCode = 1;
+        return;
+      }
+      const { rbImport, printRbImportReport } = await import(
+        "../rekordbox/rb-import"
+      );
+      const json = flags.bools.has("json");
+      const r = await rbImport({
+        mount,
+        folder,
+        playlist: flags.strings.get("playlist"),
+        group: flags.strings.get("group"),
+        apply: flags.bools.has("apply"),
+        yes: flags.bools.has("yes"),
+        json,
+        log: (s) => (json ? undefined : console.log(s)),
+      });
+      if (json) {
+        console.log(JSON.stringify(r));
+      } else {
+        printRbImportReport(r, console.log);
+      }
+      if (!r.ok) process.exitCode = 1;
       return;
     }
     case "rb-anlz-spike": {

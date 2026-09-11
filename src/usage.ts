@@ -104,9 +104,19 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                Census classifies matched / twin-named
                                                (dupescan's queue) / unknown; exit 1 while
                                                unknown > 0 (dry first, ALWAYS);
-                                               [--quarantine --yes] moves ONLY unknown
+                                                [--quarantine --yes] moves ONLY unknown
                                                files to the shelf quarantine (never
                                                deletes; dated manifest beside them)
+  megadj rb-import [drive] <folder> [--playlist NAME] [--group NAME]
+                                               [--apply --yes] [--json]
+                                               the sanctioned headless master-DB
+                                               import: one playlist per intake
+                                               folder (nested under --group),
+                                               DjmdContent rows for every audio
+                                               file, dated DB backup, refuses
+                                               while rekordbox runs, whole-table
+                                               verify after write (dry first,
+                                               ALWAYS)
   megadj rb-grid-triage [drive] [--compare D] [--limit N] [--json]
                                                grid audit vs the ANLZ rekordbox wrote:
                                                byte-compare vs a stick (--compare = SYNC
