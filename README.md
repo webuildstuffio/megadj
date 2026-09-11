@@ -283,37 +283,10 @@ an agent, it doesn't exist), and CrateDeck speaks MCP — see
 
 ## 📚 Docs index
 
-- **Start here:** [docs/PRINCIPLES.md](docs/PRINCIPLES.md) ·
-  [docs/FEATURES.md](docs/FEATURES.md) ·
-  [docs/usb-sync.md](docs/usb-sync.md) ·
-  [docs/surface-parity.md](docs/surface-parity.md) ·
-  [fulltags/README.md](fulltags/README.md) ·
-  [cratedeck/deckctl.md](cratedeck/deckctl.md)
-- **Product briefs:** [docs/cratedeck/](docs/cratedeck/) —
-  [02 PRD](docs/cratedeck/02-prd.md) (brief merged in),
-  [03 architecture](docs/cratedeck/03-architecture.md),
-  [acceptance](docs/cratedeck/acceptance.md)
-- **Reference:** [docs/fulltags-roadmap.md](docs/fulltags-roadmap.md),
-  [docs/archive/roadmap-proposal.md](docs/archive/roadmap-proposal.md)
-  (executed Sep 6–8),
-  [docs/rekordbox-wav-artwork.md](docs/rekordbox-wav-artwork.md),
-  [docs/ideas.md](docs/ideas.md)
-- **Writeups:** [docs/product-state-2026-09-07.md](docs/product-state-2026-09-07.md)
-  (current state, queue, scorecard) ·
-  [docs/agent-playbook.md](docs/agent-playbook.md)
-  (invariant war-stories + durable meta-lessons) ·
-  [docs/shelf-hygiene-2026-09-09.md](docs/shelf-hygiene-2026-09-09.md)
-  (Sep 9 hygiene session: dupescan data + the findings-ledger spec) ·
-  [docs/usb-sync-log.md](docs/usb-sync-log.md) (ops/incident log) ·
-  [docs/runbooks/](docs/runbooks/) (§0 survival runbooks)
-- **Runbooks:** [rekordbox-usb-sync](.claude/skills/rekordbox-usb-sync/SKILL.md),
-  [new-music-intake](.claude/skills/new-music-intake/SKILL.md),
-  [shelf-intake](.claude/skills/shelf-intake/SKILL.md),
-  [cratedeck-deckctl](.claude/skills/cratedeck-deckctl/SKILL.md),
-  [rekordbox-library-repair](.claude/skills/rekordbox-library-repair/SKILL.md),
-  [booth-check](.claude/skills/booth-check/SKILL.md)
-- **Plugin:** [plugin/README.md](plugin/README.md) — the whole surface as an
-  installable Claude Code plugin
+The [documentation index](docs/README.md) is the canonical map. Start with
+[Principles](docs/PRINCIPLES.md), [Current state](docs/product-state-2026-09-07.md),
+or the [Agent playbook](docs/agent-playbook.md); operational runbooks and
+product-specific references are linked from there.
 
 ## License
 

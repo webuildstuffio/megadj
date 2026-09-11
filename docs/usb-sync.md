@@ -1,5 +1,7 @@
 # USB Sync Pipeline (shelf ⇄ master ⇄ mirror)
 
+**Status:** 📚 REFERENCE — current operational workflow.
+
 megadj downloads music; this pipeline puts it on the DJ USB drives with full
 rekordbox integration (DB rows, BPM, beatgrids, waveforms) and keeps the two
 drives byte-identical.

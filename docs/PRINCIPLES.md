@@ -1,5 +1,7 @@
 # megadj — Product Principles
 
+**Status:** ✅ CURRENT — decision authority.
+
 The rules we build by. When a decision is unclear, these win.
 
 ---

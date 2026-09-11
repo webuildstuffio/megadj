@@ -93,12 +93,12 @@ bitrate difference demand different levels of trust. Every acoustic-twin
 finding carries `evidence.subcategory` from
 `src/hygiene/subcategory.ts`:
 
-| subcategory | size delta | meaning | batch-confirm? |
-| --- | --- | --- | --- |
-| `metadata-diff` | <0.5% | same rip; tag/art chunk differences | yes |
-| `re-encode` | 0.5–3% | transcoded once at similar bitrate | yes |
-| `quality-diff` | >3% | genuinely different encode/source | no — ears |
-| `oddball` | same size | different bytes — maybe another master | no — ears |
+| subcategory     | size delta | meaning                                | batch-confirm? |
+| --------------- | ---------- | -------------------------------------- | -------------- |
+| `metadata-diff` | <0.5%      | same rip; tag/art chunk differences    | yes            |
+| `re-encode`     | 0.5–3%     | transcoded once at similar bitrate     | yes            |
+| `quality-diff`  | >3%        | genuinely different encode/source      | no — ears      |
+| `oddball`       | same size  | different bytes — maybe another master | no — ears      |
 
 Composite buckets: `safe-batch` (first two) and `ear-check` (last two).
 The classification NEVER changes severity or autoSafe — the human gate

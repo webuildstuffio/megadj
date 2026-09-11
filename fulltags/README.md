@@ -1,5 +1,7 @@
 # FullTags
 
+**Status:** ✅ SHIPPED — standalone enrichment engine with gated analysis.
+
 **One pass, every field.** FullTags is the megadj sub-project that takes any
 `mp3 / m4a / wav / flac / aiff` and fully enriches it — and it ships
 standalone: one schema, one atomic writer, its own CLI + gate.

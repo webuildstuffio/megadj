@@ -1,5 +1,7 @@
 # FullTags — Prioritized Roadmap (rev 6.4)
 
+**Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
 _Rev 6.4, 2026-09-11: **Beatport integrated as the second source behind
 SoundCloud** in every ladder (genre / year / artwork) and the ONLY source
 of the DJ identity fields no other source carries — record label (TPUB),
@@ -211,31 +213,31 @@ vggish wants 400/200 frames → 96-frame patches transposed to (64, 96);
 ONNX batch dims are fixed-128 on the bsdynamic export (edge-replicate
 padding). 9 regression tests in
 `fulltags/test/models.test.ts` (env-gated).
-  **Archive verdict (rev 6.1, 88 files):** mood pass 88/88 stamped,
-  converged idempotent (third run = 0 changed). Ledger mirror shipped:
-  `megadj mood` syncs TXXX:MOOD stamps into the archive DB `mood` table
-  (+ analyzes unstamped tracks inline) and exposes `moodSummary()` —
-  88/88 ledgered, avg dance 1.0 / party 0.99 / V 4.34 / A 4.98.
-  **Electronic genre head GATE FAILED**: saturated on this library
-  (0.87–1.0 across every genre incl. Ambient — zero discrimination),
-  so effnet genre writes stay BLOCKED (same pattern as
-  the TBPM gate). dance/happy/aggressive DO differentiate (happy 0.04–
-  0.99, aggressive 0.01–0.98).
-  **Rev 6.2 addendum — genre head ONNX availability + CrateDeck
-  surface:** Essentia ships **no ONNX export of the effnet genre head**
-  (the `genre_discogs400` head dir carries 7 ONNX files, all maest
-  variants; the effnet head is pb-only — the head's own `model_types`
-  lists `onnx`, but every onnx URL variant 404s). A conversion would
-  need tf2onnx + a fresh sampled gate, for a write whose value is near
-  zero on this library (genres already populated by SC/MB) —
-  **deferred indefinitely**. What DID ship in 6.2: CrateDeck's readonly
-  mood surface — `ArchiveReader.moodProfile()` (ledger averages +
-  per-axis extremes), `GET /api/archive/mood`, MCP tool
-  `archive_mood_profile` — "play me something dark/hyped/smooth" picker
-  data with zero audio touched. Energy 2.0 verified on the real
-  archive: 84/88 already carried the blend (the mood pass computes it),
-  the 4 misses were the art-embedded WAVs (§5b bug 8) — after the fix,
-  88/88 stamped, re-run 0 changed.
+**Archive verdict (rev 6.1, 88 files):** mood pass 88/88 stamped,
+converged idempotent (third run = 0 changed). Ledger mirror shipped:
+`megadj mood` syncs TXXX:MOOD stamps into the archive DB `mood` table
+(+ analyzes unstamped tracks inline) and exposes `moodSummary()` —
+88/88 ledgered, avg dance 1.0 / party 0.99 / V 4.34 / A 4.98.
+**Electronic genre head GATE FAILED**: saturated on this library
+(0.87–1.0 across every genre incl. Ambient — zero discrimination),
+so effnet genre writes stay BLOCKED (same pattern as
+the TBPM gate). dance/happy/aggressive DO differentiate (happy 0.04–
+0.99, aggressive 0.01–0.98).
+**Rev 6.2 addendum — genre head ONNX availability + CrateDeck
+surface:** Essentia ships **no ONNX export of the effnet genre head**
+(the `genre_discogs400` head dir carries 7 ONNX files, all maest
+variants; the effnet head is pb-only — the head's own `model_types`
+lists `onnx`, but every onnx URL variant 404s). A conversion would
+need tf2onnx + a fresh sampled gate, for a write whose value is near
+zero on this library (genres already populated by SC/MB) —
+**deferred indefinitely**. What DID ship in 6.2: CrateDeck's readonly
+mood surface — `ArchiveReader.moodProfile()` (ledger averages +
+per-axis extremes), `GET /api/archive/mood`, MCP tool
+`archive_mood_profile` — "play me something dark/hyped/smooth" picker
+data with zero audio touched. Energy 2.0 verified on the real
+archive: 84/88 already carried the blend (the mood pass computes it),
+the 4 misses were the art-embedded WAVs (§5b bug 8) — after the fix,
+88/88 stamped, re-run 0 changed.
 
 ### #5 — MBID provenance + MusicBrainz genre harvest — **S — ✅ SHIPPED (rev 6.1, this pass)**
 
@@ -372,16 +374,16 @@ a spawned interpreter is a perf trap — expose a native sync twin instead
 Pre-rev-4 audit of the shipped surface; all fixed same day with regression
 tests (engine in `fulltags/test/`). Rev 5's execution pass found two more.
 
-| #  | Bug + root cause | Fix |
-| -- | --- | --- |
-| 1 | `fulltags single <file>` misparsed the file as the target dir (`parseArgs` skipped only `audit`) | skip `single` too |
-| 2 | failed ffmpeg writes leaked the `.tagged` tmp (`Bun.$` throws before cleanup; sync path checked nothing) | try/catch unlink + explicit exitCode check |
-| 3 | m4a silently dropped bpm/energy/mbid/AI stamps and wiped freeform atoms (ffmpeg `ipod` muxer has no mapping) | m4a writes routed to mutagen (`writePatchMp4`); `readTxxx` parses m4a freeform + flac vorbis |
-| 4 | `qualityScore` treated AIFF/hi-res WAV as lossy (`.replace` matched only 16-bit LE WAV) | explicit `LOSSLESS_CODECS` set |
-| 5 | `audit --json` never exited 1 on gaps (gate only in the human branch) | gate applied to both branches |
-| 6 | WAV/AIFF stamp reads returned null → all 73 WAVs re-fingerprinted every re-run (`readTxxx` opened but never read) | one shared ID3-TXXX read loop; regression test pins WAV idempotency |
-| 7 | scoped runs wrote remix credits (`--fingerprint` stamped `TXXX:version`) | gated behind `want("tags")` |
-| 8 | art-embedded files got NO energy stamp — cover decodes as a bogus video stream, ffmpeg fed it into astats, command failed, `measureRms` returned null (rev 6.2) | `-map 0:a` on the astats command; regression test embeds an APIC cover first; 4 real archive WAVs repaired |
+| #   | Bug + root cause                                                                                                                                                | Fix                                                                                                        |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 1   | `fulltags single <file>` misparsed the file as the target dir (`parseArgs` skipped only `audit`)                                                                | skip `single` too                                                                                          |
+| 2   | failed ffmpeg writes leaked the `.tagged` tmp (`Bun.$` throws before cleanup; sync path checked nothing)                                                        | try/catch unlink + explicit exitCode check                                                                 |
+| 3   | m4a silently dropped bpm/energy/mbid/AI stamps and wiped freeform atoms (ffmpeg `ipod` muxer has no mapping)                                                    | m4a writes routed to mutagen (`writePatchMp4`); `readTxxx` parses m4a freeform + flac vorbis               |
+| 4   | `qualityScore` treated AIFF/hi-res WAV as lossy (`.replace` matched only 16-bit LE WAV)                                                                         | explicit `LOSSLESS_CODECS` set                                                                             |
+| 5   | `audit --json` never exited 1 on gaps (gate only in the human branch)                                                                                           | gate applied to both branches                                                                              |
+| 6   | WAV/AIFF stamp reads returned null → all 73 WAVs re-fingerprinted every re-run (`readTxxx` opened but never read)                                               | one shared ID3-TXXX read loop; regression test pins WAV idempotency                                        |
+| 7   | scoped runs wrote remix credits (`--fingerprint` stamped `TXXX:version`)                                                                                        | gated behind `want("tags")`                                                                                |
+| 8   | art-embedded files got NO energy stamp — cover decodes as a bogus video stream, ffmpeg fed it into astats, command failed, `measureRms` returned null (rev 6.2) | `-map 0:a` on the astats command; regression test embeds an APIC cover first; 4 real archive WAVs repaired |
 
 **Lesson recorded (generalized):** every container the writer touches needs
 a _round-trip_ test that reads back what it wrote through the ground-truth
@@ -462,21 +464,21 @@ parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
 
 ## Research base (rev 5 — rev 4 rows re-checked 2026-09-05)
 
-| Verdict     | Project                                | Status                                                                                                                                                             |
-| ----------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Adopt (#1)  | chromaprint/fpcalc + AcoustID          | verified: 3 rps, non-comm, 120s default; chromaprint 1.6.1 via brew; **88/88 executed**                                                                            |
-| Adopt (#2)  | beat_this (CPJKU)                      | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork. **Gate: 12/24 within 2% — TBPM writes blocked**                                                  |
-| Adopt (#3)  | OpenKeyScan analyzer (repo mode)       | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
-| Fallback    | essentia `Key` / keyfinder-cli         | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
-| Adopt (#4)  | Essentia ONNX heads + onnxruntime      | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
-| Shipped #5  | MusicBrainz ws/2 artist search         | folksonomy tags 1 rps; shipped as fulltags/src/mb.ts + enrich fold (rev 6.1)                                                                                       |
-| Shipped #6  | Beatport v4 catalog (client-credentials) | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `fulltags/src/beatport.ts` (rev 6.4)                          |
-| Verified    | Dubspot 200-track test                 | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
-| Verified    | rekordbox tag matrix                   | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
-| Verified    | pyrekordbox 0.4.4 (local master.db)    | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                                                                          |
-| Adopt (#1b) | dupsonic                               | verified: v0.2.5 (Jul 2026), Rust, macOS-aarch64 prebuilt, LSH + SQLite cache                                                                                      |
-| Adopt-up    | MuQ-MuLan                              | 2026 SOTA zero-shot tagging (AUC 79.3); MIT code / CC-BY-NC weights; supersedes MERT for embeddings                                                                |
-| Verified    | all-in-one-infer v3 / -mlx             | v3 pure-PyTorch NATTEN (no compiler on AS); mlx port ~12.6× (repo-reported)                                                                                        |
-| Watch       | livechord-beat-refiner, settag, BeatFM | refiner (May 2026) targets exactly the #2 BPM phase-lock failure; settag = competitor-as-reference; BeatFM weightless                                              |
-| Verified    | yt-dlp SC/Bandcamp (GetDat side)       | SC works (impersonation merged Feb 2026; DRM tracks 404 by design); Bandcamp broken since 2026-08-21 (#17506)                                                      |
-| Blueprint   | robertolupi/deep-cuts                  | ONNX + sqlite-vec local tagger architecture                                                                                                                        |
+| Verdict     | Project                                  | Status                                                                                                                                                             |
+| ----------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Adopt (#1)  | chromaprint/fpcalc + AcoustID            | verified: 3 rps, non-comm, 120s default; chromaprint 1.6.1 via brew; **88/88 executed**                                                                            |
+| Adopt (#2)  | beat_this (CPJKU)                        | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork. **Gate: 12/24 within 2% — TBPM writes blocked**                                                  |
+| Adopt (#3)  | OpenKeyScan analyzer (repo mode)         | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
+| Fallback    | essentia `Key` / keyfinder-cli           | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
+| Adopt (#4)  | Essentia ONNX heads + onnxruntime        | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
+| Shipped #5  | MusicBrainz ws/2 artist search           | folksonomy tags 1 rps; shipped as fulltags/src/mb.ts + enrich fold (rev 6.1)                                                                                       |
+| Shipped #6  | Beatport v4 catalog (client-credentials) | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `fulltags/src/beatport.ts` (rev 6.4)                           |
+| Verified    | Dubspot 200-track test                   | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
+| Verified    | rekordbox tag matrix                     | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
+| Verified    | pyrekordbox 0.4.4 (local master.db)      | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                                                                          |
+| Adopt (#1b) | dupsonic                                 | verified: v0.2.5 (Jul 2026), Rust, macOS-aarch64 prebuilt, LSH + SQLite cache                                                                                      |
+| Adopt-up    | MuQ-MuLan                                | 2026 SOTA zero-shot tagging (AUC 79.3); MIT code / CC-BY-NC weights; supersedes MERT for embeddings                                                                |
+| Verified    | all-in-one-infer v3 / -mlx               | v3 pure-PyTorch NATTEN (no compiler on AS); mlx port ~12.6× (repo-reported)                                                                                        |
+| Watch       | livechord-beat-refiner, settag, BeatFM   | refiner (May 2026) targets exactly the #2 BPM phase-lock failure; settag = competitor-as-reference; BeatFM weightless                                              |
+| Verified    | yt-dlp SC/Bandcamp (GetDat side)         | SC works (impersonation merged Feb 2026; DRM tracks 404 by design); Bandcamp broken since 2026-08-21 (#17506)                                                      |
+| Blueprint   | robertolupi/deep-cuts                    | ONNX + sqlite-vec local tagger architecture                                                                                                                        |

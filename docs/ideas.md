@@ -1,5 +1,7 @@
 # megadj — Ideas & Future Backlog
 
+**Status:** 🧭 ACTIVE — ordered backlog; GitHub issues are the execution tracker.
+
 _Compiled 2026-09-04, revised through 2026-09-09 · grounded in the actual
 repo state (archive/ingest, rekordbox-usb-sync pipeline, CrateDeck v1,
 FullTags v0) plus the local operations log kept outside the repo.
@@ -112,6 +114,7 @@ measure honestly — the internal-SSD archive fits the page cache, so warm
 numbers 50× the disk truth (`sudo purge` needs a TTY password). Harness:
 `tools/prof_sweep.ts` (read-only profiler; run cold on a fresh mount,
 then warm, compare serial vs pooled). Three targets, in order:
+
 1. `cratedeck/src/walk.ts` — parallel file stats per directory
    (`Promise.all` over dirents; stay async-only, `walk-async.test.ts`
    pins it). Expected 3–8× on the stat phase on HDD USB.
@@ -121,12 +124,12 @@ then warm, compare serial vs pooled). Three targets, in order:
    the sweep leg — the long pole of `deckctl prep`.
 3. `bench.ts` random-read batching (optional, changes what the
    benchmark measures — needs a deliberate product call).
-Non-targets (checked, already fast): CLI cold start 50–70ms,
-`fetchWeeklyPrepInput` (already fanned out), preflight/report/fleet
-(sub-ms, in-memory), rb_read.py (~1s = dual-DB read itself).
-Verification protocol: prof cold → apply target → re-run + its pinned
-tests → `bun run check:full` → e2e `deckctl run <drive> scan` +
-`deckctl prep` digest still includes D30.
+   Non-targets (checked, already fast): CLI cold start 50–70ms,
+   `fetchWeeklyPrepInput` (already fanned out), preflight/report/fleet
+   (sub-ms, in-memory), rb_read.py (~1s = dual-DB read itself).
+   Verification protocol: prof cold → apply target → re-run + its pinned
+   tests → `bun run check:full` → e2e `deckctl run <drive> scan` +
+   `deckctl prep` digest still includes D30.
 
 **Reality gate — the input that decides the rest of this doc:** how often
 do you play?

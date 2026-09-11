@@ -1,5 +1,7 @@
 # megadj plugin
 
+**Status:** ✅ SHIPPED — installable Claude Code plugin.
+
 The whole DJ-ops surface as an installable Claude Code plugin (ideas.md
 **O85**): skills + MCP server + hook, so any Claude Code instance gets the
 megadj operator toolkit without repo-local setup.

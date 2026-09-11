@@ -1,22 +1,23 @@
 # CrateDeck — Acceptance Status
 
+**Status:** 🟡 PARTIAL — code gates are verified; four hardware checks and one release tag remain.
+
 Tracks the PRD (F1–F10) and build-plan milestone acceptance items. Evidence
 here is **code-verified only** (file/route/test existence in `cratedeck/`).
 Items marked ☐ require real-hardware runs (gig drives) — those stay manual
 by design ("real gig drives stay manual — the Python tools already carry
-that trust", architecture §9). Last audited: 2026-09-06 (pass 3; B12/N75/
-N76/O82b/O83/O85/O87/O88 evidence added).
+that trust", architecture §9). Last audited: 2026-09-11.
 
 ## Milestones
 
-| Milestone                    | Scope                             | Status                                           |
-| ---------------------------- | --------------------------------- | ------------------------------------------------ |
-| M0 — Skeleton & spine        | registry, detection, ghosts, page | ✅ shipped                                       |
-| M1 — Photo & identity        | image search/confirm, rename      | ✅ shipped                                       |
-| M2 — Rekordbox introspection | Python seam, scan, playlists      | ✅ shipped                                       |
-| M3 — Jobs, interlock, sync   | verify/mirror/bench/checksum      | ✅ shipped                                       |
-| M4 — Ports, timeline, search | port strip, timeline, search      | ✅ shipped                                       |
-| M5 — Polish, dossier, radar  | reports, dossier export           | ✅ shipped                                       |
+| Milestone                    | Scope                             | Status                                                                          |
+| ---------------------------- | --------------------------------- | ------------------------------------------------------------------------------- |
+| M0 — Skeleton & spine        | registry, detection, ghosts, page | ✅ shipped                                                                      |
+| M1 — Photo & identity        | image search/confirm, rename      | ✅ shipped                                                                      |
+| M2 — Rekordbox introspection | Python seam, scan, playlists      | ✅ shipped                                                                      |
+| M3 — Jobs, interlock, sync   | verify/mirror/bench/checksum      | ✅ shipped                                                                      |
+| M4 — Ports, timeline, search | port strip, timeline, search      | ✅ shipped                                                                      |
+| M5 — Polish, dossier, radar  | reports, dossier export           | ✅ shipped                                                                      |
 | M6 — Hardening & docs        | failure modes, rotation, docs     | ✅ verified (SIGKILL recovery + retention caps; release tag tracked separately) |
 
 ## Evidence map (code)

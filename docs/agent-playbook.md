@@ -1,5 +1,7 @@
 # Agent Playbook — full detail behind AGENTS.md
 
+**Status:** 📚 REFERENCE — historical mechanics and failure evidence.
+
 `AGENTS.md` is the compressed, always-loaded invariant list. This file holds
 the full war stories, mechanics, and numbers behind each rule — nothing was
 dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.

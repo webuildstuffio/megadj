@@ -1,5 +1,7 @@
 # megadj — Features & Projects
 
+**Status:** 📚 REFERENCE — product map; live work is tracked in the current-state document and GitHub.
+
 megadj is not one tool; it's a small fleet of named projects, each with a
 vibe and a goal (see [PRINCIPLES.md](PRINCIPLES.md) §10). They chain together
 into one pipeline:

@@ -1,5 +1,7 @@
 # Surface Parity — CLI ↔ MCP ↔ UI
 
+**Status:** ✅ CURRENT — parity contract and census source of truth.
+
 **The rule ([PRINCIPLES.md](PRINCIPLES.md) §1, made testable):** every
 capability exposed on one surface must be reachable on the other two —
 CLI (`megadj` + `deckctl`), MCP (`bun run mcp`), and the web UI — **or

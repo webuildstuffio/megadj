@@ -1,10 +1,11 @@
 # megadj — Product & Roadmap State
 
-**Status: ✅ CURRENT — the honest state of the whole product as of
+**Status:** ✅ CURRENT — the honest state of the whole product as of
 2026-09-11 (Sep 11 intake folded in), project by project, with the roadmap
 as it stands now (not as it was proposed). Durable meta-lessons from the
 Sep 5–7 build window live in [agent-playbook.md](agent-playbook.md)
-§Meta-lessons; this page is the "where are we".**
+§Meta-lessons; this page is the "where are we". It owns current status and
+metrics; other docs should link here rather than duplicate them.
 
 ---
 

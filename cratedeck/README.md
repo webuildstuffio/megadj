@@ -1,5 +1,7 @@
 # CrateDeck
 
+**Status:** ✅ SHIPPED v0.1 — dashboard, CLI, fleet checks, and agent surface.
+
 Local dashboard for every DJ USB drive you own — mounted or not.
 Built with Bun + TypeScript inside the megadj repo.
 
