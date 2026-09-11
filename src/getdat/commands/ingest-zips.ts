@@ -9,11 +9,18 @@
  */
 import { $ } from "bun";
 import { readdir, stat, mkdir, rename, copyFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join, basename, extname } from "node:path";
 
 /** zip path → basenames staged from it. */
 export const pendingZipDeletes = new Map<string, string[]>();
+
+async function md5File(path: string): Promise<string> {
+  const hash = createHash("md5");
+  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  return hash.digest("hex");
+}
 
 export async function expandZips(
   folder: string,
@@ -67,7 +74,10 @@ export async function expandZips(
         if (existsSync(dest)) {
           const a = await stat(f);
           const b = await stat(dest);
-          if (a.size === b.size) {
+          if (
+            a.size === b.size &&
+            (await md5File(f)) === (await md5File(dest))
+          ) {
             log(`  ~ identical dupe, dropped: ${basename(f)}`);
             continue; // identical dupe — drop
           }

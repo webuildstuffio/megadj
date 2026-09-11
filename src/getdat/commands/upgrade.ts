@@ -11,7 +11,7 @@
 //
 // Agent-first contract: --json (one summary object), --dry-run, contained
 // per-file failures, meaningful exit code.
-import { existsSync, renameSync, rmSync, statSync, unlinkSync } from "node:fs";
+import { existsSync, renameSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import {
   applyTags,
@@ -92,6 +92,18 @@ function tmpPathFor(target: string): string {
   const b = basename(target);
   const ext = extname(target) || ".m4a";
   return join(d, `.${b}.upgrade-${process.pid}${ext}`);
+}
+
+/** Replace a validated incumbent with its staged upgrade. */
+export function replaceFileAtomically(
+  staged: string,
+  incumbent: string,
+  move: (from: string, to: string) => void = renameSync,
+): void {
+  // rename(2) replaces the incumbent atomically on the same filesystem.
+  // Never unlink first: a failed move must not turn a recoverable upgrade
+  // failure into permanent archive loss.
+  move(staged, incumbent);
 }
 
 export async function upgrade(opts: UpgradeOptions): Promise<void> {
@@ -231,8 +243,7 @@ export async function upgrade(opts: UpgradeOptions): Promise<void> {
           bpm: null,
         };
         await applyTags(tmp, oldMeta);
-        unlinkSync(oldPath);
-        renameSync(tmp, oldPath);
+        replaceFileAtomically(tmp, oldPath);
         const newFormatId = dl.formatId ?? null;
         const newSize = statSync(oldPath).size;
         opts.state.markDownloaded(c.video_id, {

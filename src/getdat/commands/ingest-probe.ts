@@ -5,7 +5,16 @@
  */
 import { basename, join } from "node:path";
 import { existsSync } from "node:fs";
-import { copyFile, mkdir, readdir, rename } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { createHash } from "node:crypto";
+import {
+  copyFile,
+  mkdir,
+  readdir,
+  rename,
+  stat,
+  unlink,
+} from "node:fs/promises";
 
 export {
   parseFilename,
@@ -17,6 +26,56 @@ export {
 } from "../../../fulltags/src/exports";
 import type { ParsedName, Probe } from "../../../fulltags/src/exports";
 export type { ParsedName, Probe };
+
+async function md5File(path: string): Promise<string> {
+  const hash = createHash("md5");
+  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  return hash.digest("hex");
+}
+
+/** Move a quarantine candidate, including the EXDEV fallback. */
+export async function moveQuarantineFile(
+  source: string,
+  dest: string,
+  move: typeof rename = rename,
+  copy: typeof copyFile = copyFile,
+  remove: typeof unlink = unlink,
+): Promise<void> {
+  try {
+    await move(source, dest);
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      (error as NodeJS.ErrnoException).code !== "EXDEV"
+    )
+      throw error;
+    await copy(source, dest);
+    const [sourceStat, destStat] = await Promise.all([
+      stat(source),
+      stat(dest),
+    ]);
+    const valid =
+      sourceStat.size === destStat.size &&
+      (await md5File(source)) === (await md5File(dest));
+    if (!valid) {
+      try {
+        await remove(dest);
+      } catch (cleanupError) {
+        console.error(
+          `quarantine cleanup failed: ${dest}`,
+          cleanupError instanceof Error ? cleanupError.message : cleanupError,
+        );
+      }
+      throw new Error(`quarantine copy verification failed: ${source}`, {
+        cause: error,
+      });
+    }
+    // Only remove the source after the fallback copy is byte-verified. This
+    // keeps the move idempotent without ever treating an unverified copy as
+    // a completed quarantine.
+    await remove(source);
+  }
+}
 
 /** One intake candidate: file + probe + parse + dedupe keys. */
 export interface Record_ {
@@ -46,9 +105,13 @@ export async function quarantine(
     return;
   }
   try {
-    await rename(file, dest);
-  } catch {
-    await copyFile(file, dest); // cross-device fallback; original left in place
+    await moveQuarantineFile(file, dest);
+  } catch (error) {
+    // A failed move/copy leaves the source in place for retry and is visible
+    // to the batch summary through the existing log channel.
+    log(
+      `  [dupe] quarantine failed: ${basename(file)} — ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
