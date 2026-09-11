@@ -3,6 +3,7 @@
 // so the verdict logic and the probes read (and test) separately.
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { fingerprintFileLength } from "../../fulltags/src/exports";
 
 /** MD5 in-process (node:crypto), NOT via the macOS `md5` CLI: under bun
