@@ -174,6 +174,21 @@ export const HELP_TERMS: HelpTerm[] = [
     def: "The Pioneer players your booth actually runs (default XDJ-XZ + CDJ-3000 + CDJ-2000NXS2; the plain CDJ-2000 is opt-in). Every compat gate — audit, ingest, booth-fix — enforces the intersection: a track passes only when all selected units play it and can show its text. Managed on Fleet → Booth; the selection persists to config.toml [booth].",
     why: "The floor is the strictest player, not the average one — a file that plays on the 3000 but blanks on the XZ text is a failed file.",
   },
+  {
+    term: "Tag check",
+    def: "The corrupt-ID3 scanner (`megadj tag-check`): reads every file's tag STRUCTURE — unreadable containers, double-encoded mojibake text, control bytes in frames, tracks with no title/artist at all — and flags what would garble or vanish on a player.",
+    why: "`megadj audit` gates completeness (does the tag exist); tag-check gates well-formedness (does the tag survive a read). A file can pass audit and still ship a broken title.",
+  },
+  {
+    term: "Grid coherence",
+    def: "How well a track's downbeat array sits on its own BPM's bar grid: a bar is 240 ÷ BPM seconds, and ≥85% of the gaps between downbeats should land on bar lines (±6%). Sep 11's census repaired 21 tracks where the analyzer double-fired on transients.",
+    why: "Phrase cues are placed every 8 downbeats — an incoherent grid puts cue markers between beats, and Beat Sync drifts. Re-run `megadj beats` then `megadj cues --force` after any repair.",
+  },
+  {
+    term: "Import to shelf",
+    def: "How new music reaches rekordbox: `megadj shelf-sync` copies new archive tracks onto the shelf master (Contents/<artist>/, additive, MD5-verified), THEN you import in rekordbox by dragging from the SHELF volume — the master DB lives on the shelf, so tracks must reference shelf paths, not Mac paths.",
+    why: "Dragging from the Mac folders into rekordbox registers the wrong paths — the sticks sync from the shelf, so those tracks would 'go missing' the moment the archive folder moves.",
+  },
 ];
 
 export const HELP_JOBS: HelpJob[] = [

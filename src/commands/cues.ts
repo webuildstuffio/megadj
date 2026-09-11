@@ -112,9 +112,17 @@ export async function cues(opts: CuesOptions): Promise<void> {
     );
   }
 
-  log(
-    `\ncues complete: ${derived} track(s) cued (${totalCues} cues), ${skipped} skipped${opts.dryRun ? " (dry run — nothing written)" : ""}`,
-  );
+  // A zero-work run must read as SUCCESS (same contract as beats/mood):
+  // "0 derived" once looked like a defect, so the summary states WHY.
+  if (derived === 0 && !opts.dryRun) {
+    log(
+      `\ncues complete: nothing to do — all ${rows.length} ledgered tracks already have phrase cues (run with --force to re-derive after a beats repair)`,
+    );
+  } else {
+    log(
+      `\ncues complete: ${derived} track(s) cued (${totalCues} cues), ${skipped} skipped${opts.dryRun ? " (dry run — nothing written)" : ""}`,
+    );
+  }
   console.log(
     JSON.stringify({
       command: "cues",

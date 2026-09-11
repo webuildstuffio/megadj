@@ -41,9 +41,19 @@ export async function beats(opts: BeatsOptions): Promise<void> {
   const limit = opts.limit ?? todo.length;
   const queue = todo.slice(0, Math.max(0, limit));
 
-  log(
-    `beats: ${queue.length} track(s) to analyze (${candidates.length} downloaded, ${candidates.length - todo.length} already ledgered)${opts.dryRun ? " · DRY RUN" : ""}`,
-  );
+  // A zero-work run must read as SUCCESS, not as a silent mystery —
+  // "analyzed 0" once read as a bug (it WAS a bug once, the mood queue
+  // reference defect) so the summary states WHY nothing was analyzed.
+  const already = candidates.length - todo.length;
+  if (queue.length === 0 && !opts.force) {
+    log(
+      `beats: all ${candidates.length} downloaded tracks are already ledgered — nothing to analyze (use --force to re-analyze)`,
+    );
+  } else {
+    log(
+      `beats: ${queue.length} track(s) to analyze (${candidates.length} downloaded, ${already} already ledgered)${opts.dryRun ? " · DRY RUN" : ""}`,
+    );
+  }
 
   let analyzed = 0;
   let failed = 0;
@@ -100,9 +110,15 @@ export async function beats(opts: BeatsOptions): Promise<void> {
   await Promise.all(Array.from({ length: jobs }, () => worker()));
 
   const total = opts.state.beatAnalyzedTracks().length;
-  log(
-    `\nbeats complete: ${analyzed} analyzed, ${failed} failed, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}`,
-  );
+  if (analyzed === 0 && failed === 0 && !opts.dryRun) {
+    log(
+      `\nbeats complete: nothing to do — ${total} already ledgered (run with --force to re-analyze)`,
+    );
+  } else {
+    log(
+      `\nbeats complete: ${analyzed} analyzed, ${failed} failed, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}`,
+    );
+  }
   // Exactly one JSON object on stdout in json mode — the P1 contract.
   console.log(
     JSON.stringify({

@@ -505,12 +505,19 @@ async function main(): Promise<void> {
               2,
             ),
           );
+        } else if (bad.length === 0) {
+          console.log(
+            `✅ tag-check: all ${files.length} files' tags parse clean (structure, text, booth display)`,
+          );
         } else {
           console.log(
-            `tag-check: ${files.length - bad.length}/${files.length} clean`,
+            `tag-check: ${bad.length} of ${files.length} files have broken/suspect tags:`,
           );
           for (const b of bad)
             console.log(`  [${b.reasons.join(", ")}] ${b.file}`);
+          console.log(
+            `\nwhat these mean: no-title-artist = identity frames empty; mojibake-* = double-encoded text (fix the spelling and re-stamp); control-bytes-* = invisible junk in frame text; booth-text:* = garbles on a CDJ/XDJ display (see \`megadj booth-fix --dry-run\`).`,
+          );
         }
         if (bad.length) process.exitCode = 1;
         break;

@@ -138,9 +138,18 @@ export async function mood(opts: MoodOptions): Promise<void> {
   const embedded = opts.embeddings
     ? opts.state.embeddingCorpus().length
     : undefined;
-  log(
-    `\nmood complete: ${synced} synced from file stamps, ${analyzed} analyzed, ${failed} failed, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}${embedded !== undefined ? `, ${embedded} embedded` : ""}`,
-  );
+  // A zero-work run must read as SUCCESS (same contract as beats/cues):
+  // "analyzed 0" once WAS a real bug (the queue reference defect), so
+  // the summary now states why nothing ran.
+  if (synced === 0 && analyzed === 0 && failed === 0 && !opts.dryRun) {
+    log(
+      `\nmood complete: nothing to do — all ${total} tracks already ledgered (run with --force to re-analyze)`,
+    );
+  } else {
+    log(
+      `\nmood complete: ${synced} synced from file stamps, ${analyzed} analyzed, ${failed} failed, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}${embedded !== undefined ? `, ${embedded} embedded` : ""}`,
+    );
+  }
   console.log(
     JSON.stringify({
       command: "mood",
