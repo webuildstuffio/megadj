@@ -70,6 +70,10 @@ export interface StageCtx {
   notes: string[];
   aiGenreBatch: Row[];
   aiYearBatch: Row[];
+  /** AI genre/year fallback gate (opt-in, --ai-fallback): when false the
+   *  batches are never populated — unresolved genre/year stays a note, and
+   *  the operator re-runs the bounded list explicitly. */
+  aiAllowed: boolean;
   /** Beatport hit for this track (second source behind SC) — filled by
    * processTask's fan-out when any Beatport-fed field is needed. */
   bpBest: BpTrack | null;
@@ -201,10 +205,12 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
           t.notes.push("genre:WRITE-FAILED (bp)");
         }
       } else {
-        t.aiGenreBatch.push(t.row);
+        if (t.aiAllowed) t.aiGenreBatch.push(t.row);
+        else t.notes.push("genre:UNRESOLVED (no SC/bp hit — AI fallback off)");
       }
     } else {
-      t.aiGenreBatch.push(t.row);
+      if (t.aiAllowed) t.aiGenreBatch.push(t.row);
+      else t.notes.push("genre:UNRESOLVED (no SC/bp hit — AI fallback off)");
     }
   }
   if (t.needYear) {
@@ -225,7 +231,8 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
         t.notes.push("year:WRITE-FAILED (bp)");
       }
     } else {
-      t.aiYearBatch.push(t.row);
+      if (t.aiAllowed) t.aiYearBatch.push(t.row);
+      else t.notes.push("year:UNRESOLVED (no SC/bp hit — AI fallback off)");
     }
   }
 }

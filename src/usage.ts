@@ -20,14 +20,17 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                archive-wide wav→aiff: every legacy wav
                                                becomes art-capable, booth-verified aiff
                                                (art ladder + DB paths follow)
-  megadj drop    <folder-or-url> [--dry-run] [--no-mood] [--no-fetch] [--json]
+  megadj drop    <folder-or-url> [--dry-run] [--no-mood] [--no-fetch] [--ai-fallback] [--json]
                                                one-shot intake: download → ingest → fetch
                                                (tags/genre/art/year/energy/fingerprint/key)
                                                → years → beats → mood → cues → organize
                                                → tag-check → audit — point at a folder,
                                                get finished tracks; exits 1 on any gap
-  megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run] [--json]
-                                               enrichment pass: tags+genres+years+art
+  megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--json]
+                          [--ai-fallback] [--dry-run]
+                                               enrichment pass: tags+genres+years+art from
+                                               SC/Beatport/gateways; AI genre+year only with
+                                               --ai-fallback (opt-in — verify years after)
   megadj audit   [--json]                      ground-truth tag/art audit — exits 1 on any gap
   megadj tag-check [--json]                    scan tag structure and booth text health
   megadj booth-fix [--apply --yes] [--dry-run] [--json]
@@ -46,6 +49,8 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj gold-report [--json]                  score ledgers vs the GA-00 gold set
                                                (anchor/BPM/phrase/cue metrics, dev + holdout)
                                                — exit 1 when no annotations exist yet
+  megadj regate bpm [--gold-dir F] [--json]    re-gate BPM ledger against gold (80% / 2% bar)
+                                               genre and effnet share the same fulltags harness
   megadj artwork [--model M] [--max N] [--dry-run] [--json]
                                                generate covers for queued tracks (last resort)
   megadj enrich  [--dry-run] [--json]          fill weak genres via MusicBrainz
@@ -84,6 +89,9 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                in the Hygiene tab);
                                                [--apply --yes] executes CONFIRMED losers
                                                into the shelf quarantine (never deletes)
+  megadj shelf-restore <finding-id|path> [--into F] [--json]
+                                               restore an applied ledger-owned quarantine
+                                               source; MD5-verified, never overwrites
   megadj rb-fix-paths [drive] [--apply --yes] [--json]
                                                repair stale rekordbox paths after folder
                                                moves/merges: dry-run reports broken rows

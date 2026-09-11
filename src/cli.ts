@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-import { ArchiveState } from "./state";
-import type { OrganizeOptions } from "./commands/organize";
-import { RateLimiter } from "./ratelimit";
-import { sync } from "./commands/sync";
-import { status, listTracks, statusJson, listJson } from "./commands/status";
+import { ArchiveState } from "./archive/state";
+import type { OrganizeOptions } from "./getdat/commands/organize";
+import { RateLimiter } from "./getdat/ratelimit";
+import { sync } from "./getdat/commands/sync";
+import { status, listTracks, statusJson, listJson } from "./shared/status";
 import { printHelp as printHelpImpl } from "./usage";
 import { MUSIC_DIR, DB_PATH, COOKIES, COOKIES_FILE } from "./cli-env";
 import { parseFlags, numOpt, nonNegOpt, firstPositional } from "./cli-flags";
@@ -11,11 +11,11 @@ import {
   runShelfSync,
   runShelfArchive,
   runShelfSweeps,
-} from "./cli-shelf-cmds";
+} from "./shelf/cli-shelf-cmds";
 import {
   MAINTENANCE_VERBS,
   runMaintenanceCommand,
-} from "./commands/maintenance-cmds";
+} from "./shared/maintenance-cmds";
 
 // Env constants + flag parsers moved to cli-env.ts / cli-flags.ts, and the
 // shelf-family case bodies to cli-shelf-cmds.ts (complexity guard) —
@@ -90,7 +90,7 @@ async function main(): Promise<void> {
       case "doctor": {
         const flags = parseFlags(rest, [], ["json"]);
         const { runDoctor, printDoctor, doctorJson } =
-          await import("./commands/doctor");
+          await import("./shared/doctor");
         const results = runDoctor();
         if (flags.bools.has("json")) {
           console.log(doctorJson(results));
@@ -104,7 +104,7 @@ async function main(): Promise<void> {
         break;
       }
       case "init": {
-        const { runInit } = await import("./commands/doctor");
+        const { runInit } = await import("./shared/doctor");
         process.exitCode = runInit();
         break;
       }
@@ -176,7 +176,7 @@ async function main(): Promise<void> {
           ["booth-fix"],
           ["apply", "yes", "dry-run", "json"],
         );
-        const { boothFix } = await import("./commands/booth-fix");
+        const { boothFix } = await import("./fulltags/booth-fix");
         const report = await boothFix({
           state,
           musicDir: MUSIC_DIR,
@@ -214,7 +214,7 @@ async function main(): Promise<void> {
         const apply = rest.includes("--apply");
         const yes = rest.includes("--yes");
         const json = rest.includes("--json");
-        const { shelfDedupe } = await import("./commands/shelf-dedupe");
+        const { shelfDedupe } = await import("./shelf/shelf-dedupe");
         await shelfDedupe({ apply, yes, json });
         break;
       }
@@ -232,7 +232,7 @@ async function main(): Promise<void> {
             if (v) scanDirs.push(v);
           }
         }
-        const { shelfDupescan } = await import("./commands/shelf-dupescan");
+        const { shelfDupescan } = await import("./shelf/shelf-dupescan");
         await shelfDupescan({ json, quarantine, yes, onlyIdentical, scanDirs });
         break;
       }
@@ -271,7 +271,9 @@ async function main(): Promise<void> {
           "organize" | "enrich",
           (opts: OrganizeOptions) => Promise<void>
         > = await import(
-          command === "organize" ? "./commands/organize" : "./commands/enrich"
+          command === "organize"
+            ? "./getdat/commands/organize"
+            : "./fulltags/enrich"
         );
         await mod[command]({
           state,
@@ -282,7 +284,7 @@ async function main(): Promise<void> {
         break;
       }
       case "adopt": {
-        const { adopt } = await import("./commands/adopt");
+        const { adopt } = await import("./getdat/commands/adopt");
         const json = rest.includes("--json");
         await adopt({ state, musicDir: MUSIC_DIR, json });
         break;
@@ -293,7 +295,7 @@ async function main(): Promise<void> {
           ["convert"],
           ["dry-run", "no-artwork", "json"],
         );
-        const { convertArchive } = await import("./commands/convert");
+        const { convertArchive } = await import("./fulltags/convert");
         const report = await convertArchive({
           state,
           musicDir: MUSIC_DIR,
@@ -325,7 +327,7 @@ async function main(): Promise<void> {
           ["dedupe-archive"],
           ["apply", "yes", "json"],
         );
-        const { dedupeArchive } = await import("./commands/dedupe-archive");
+        const { dedupeArchive } = await import("./shelf/dedupe-archive");
         const report = await dedupeArchive({
           musicDir: MUSIC_DIR,
           dbPath: DB_PATH,
@@ -374,7 +376,7 @@ async function main(): Promise<void> {
           process.exitCode = 1;
           break;
         }
-        const { ingest } = await import("./commands/ingest");
+        const { ingest } = await import("./getdat/commands/ingest");
         await ingest({
           state,
           musicDir: MUSIC_DIR,
@@ -390,18 +392,18 @@ async function main(): Promise<void> {
         const flags = parseFlags(
           rest,
           ["drop", "target"],
-          ["dry-run", "no-mood", "no-fetch", "json"],
+          ["dry-run", "no-mood", "no-fetch", "ai-fallback", "json"],
         );
         const target =
           firstPositional(rest, "drop") ?? flags.strings.get("target");
         if (!target) {
           console.error(
-            "drop: pass a folder or URL — megadj drop <folder-or-url> [--dry-run] [--no-mood] [--no-fetch]",
+            "drop: pass a folder or URL — megadj drop <folder-or-url> [--dry-run] [--no-mood] [--no-fetch] [--ai-fallback]",
           );
           process.exitCode = 1;
           break;
         }
-        const { drop } = await import("./commands/drop");
+        const { drop } = await import("./shared/drop");
         await drop({
           state,
           musicDir: MUSIC_DIR,
@@ -409,6 +411,7 @@ async function main(): Promise<void> {
           dryRun: flags.bools.has("dry-run"),
           noMood: flags.bools.has("no-mood"),
           noFetch: flags.bools.has("no-fetch"),
+          aiFallback: flags.bools.has("ai-fallback"),
           json: flags.bools.has("json"),
           cookiesFromBrowser: COOKIES || null,
           cookiesFile: COOKIES_FILE,
@@ -417,7 +420,7 @@ async function main(): Promise<void> {
       }
       case "artwork": {
         const flags = parseFlags(rest, ["model", "max"], ["dry-run", "json"]);
-        const { artwork } = await import("./commands/artwork");
+        const { artwork } = await import("./fulltags/artwork");
         await artwork({
           state,
           model: flags.strings.get("model"),
@@ -431,15 +434,25 @@ async function main(): Promise<void> {
         const flags = parseFlags(
           rest,
           ["jobs"],
-          ["art", "genres", "tags", "years", "all", "dry-run", "json"],
+          [
+            "art",
+            "genres",
+            "tags",
+            "years",
+            "all",
+            "ai-fallback",
+            "dry-run",
+            "json",
+          ],
         );
-        const { fetch } = await import("./commands/fetch");
+        const { fetch } = await import("./fulltags/fetch");
         await fetch({
           all: flags.bools.has("all"),
           only: (["art", "genres", "tags", "years"].find((k) =>
             flags.bools.has(k),
           ) ?? "all") as "art" | "genres" | "tags" | "years" | "all",
           jobs: numOpt(flags, "jobs"),
+          aiFallback: flags.bools.has("ai-fallback"),
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),
         });
@@ -447,8 +460,8 @@ async function main(): Promise<void> {
       }
       case "audit": {
         const json = rest.includes("--json");
-        const { auditArchive } = await import("./commands/fetch");
-        const { auditRowFlags } = await import("./commands/audit-row");
+        const { auditArchive } = await import("./fulltags/fetch");
+        const { auditRowFlags } = await import("./fulltags/audit-row");
         const report = await auditArchive(MUSIC_DIR);
         const gaps = report.rows.filter((r) => !r.complete);
         const unplayable = gaps.filter((r) => !r.playable);
@@ -559,7 +572,7 @@ async function main(): Promise<void> {
           flags.strings.get("limit") !== undefined
         )
           break;
-        const { beats } = await import("./commands/beats");
+        const { beats } = await import("./fulltags/beats");
         await beats({
           state,
           musicDir: MUSIC_DIR,
@@ -584,7 +597,7 @@ async function main(): Promise<void> {
         const moodLimit = nonNegOpt(flags, "limit", "mood");
         if (moodLimit === undefined && flags.strings.get("limit") !== undefined)
           break;
-        const { mood } = await import("./commands/mood");
+        const { mood } = await import("./fulltags/mood");
         await mood({
           state,
           musicDir: MUSIC_DIR,
@@ -610,7 +623,7 @@ async function main(): Promise<void> {
           );
           process.exit(1);
         }
-        const { similar } = await import("./commands/similar");
+        const { similar } = await import("./fulltags/similar");
         await similar({
           state,
           videoId: id,
@@ -630,7 +643,7 @@ async function main(): Promise<void> {
           flags.strings.get("limit") !== undefined
         )
           break;
-        const { upgrade } = await import("./commands/upgrade");
+        const { upgrade } = await import("./getdat/commands/upgrade");
         await upgrade({
           state,
           musicDir: MUSIC_DIR,
@@ -649,7 +662,7 @@ async function main(): Promise<void> {
         const cuesLimit = nonNegOpt(flags, "limit", "cues");
         if (cuesLimit === undefined && flags.strings.get("limit") !== undefined)
           break;
-        const { cues } = await import("./commands/cues");
+        const { cues } = await import("./fulltags/cues");
         await cues({
           state,
           limit: cuesLimit,
@@ -664,7 +677,7 @@ async function main(): Promise<void> {
         // §0.2 metrics table. Read-only; exit 1 when the set is empty.
         const flags = parseFlags(rest, [], ["json"]);
         const { goldReport, printGoldReport } =
-          await import("./commands/gold-report");
+          await import("./fulltags/gold-report");
         const r = await goldReport({
           state,
           json: flags.bools.has("json"),
@@ -673,6 +686,28 @@ async function main(): Promise<void> {
           console.log(JSON.stringify(r));
         } else {
           printGoldReport(r, console.log);
+        }
+        if (!r.ok) process.exitCode = 1;
+        break;
+      }
+      case "regate": {
+        const flags = parseFlags(rest, ["detector", "gold-dir"], ["json"]);
+        const dimension = firstPositional(rest, "regate") ?? "bpm";
+        const detector = flags.strings.get("detector") ?? "ledger";
+        const { regate } = await import("./fulltags/regate");
+        const r = regate(
+          state,
+          dimension,
+          detector,
+          flags.strings.get("gold-dir"),
+        );
+        if (flags.bools.has("json")) console.log(JSON.stringify(r));
+        else {
+          console.log(
+            `${r.detector}: ${r.gate.passPercent.toFixed(1)}% passed ` +
+              `(required ${r.gate.requiredPercent.toFixed(1)}%) — ${r.ok ? "PASS" : "FAIL"}`,
+          );
+          if (r.error) console.error(`error: ${r.error}`);
         }
         if (!r.ok) process.exitCode = 1;
         break;

@@ -23,6 +23,8 @@
  *   bun tools/fetch-all.ts --years         # years only
  *   bun tools/fetch-all.ts --jobs 8        # workers (default 6)
  *   bun tools/fetch-all.ts --dry-run       # report what would happen
+ *   bun tools/fetch-all.ts --ai-fallback   # + AI genre/year for what SC+BP miss
+ *                                          #   (opt-in: remix years default "2023")
  *
  * env: OPENROUTER_API_KEY (only needed for AI genre/year fallback + covers)
  *
@@ -72,6 +74,12 @@ let activeBarTotal = 0;
 const argv = process.argv.slice(2);
 const ALL = argv.includes("--all");
 const JSON_OUT = argv.includes("--json");
+// AI genre/year fallback is OPT-IN (Sep 11 2026): SC + Beatport resolve
+// nearly everything from a real release, and the flash-lite fallback has a
+// documented failure mode (remix years → "2023", genre = vibe-guess). The
+// operator turns it on for a bounded re-pass over a short unresolved list,
+// never as a silent part of every run.
+const AI_FALLBACK = argv.includes("--ai-fallback");
 const ONLY = (
   argv.includes("--art")
     ? "art"
@@ -127,6 +135,7 @@ async function processTask(
     notes,
     aiGenreBatch,
     aiYearBatch,
+    aiAllowed: AI_FALLBACK,
     bpBest: null,
     durationS: truth.durationS,
   };
@@ -277,6 +286,8 @@ async function main() {
   await Promise.all(Array.from({ length: JOBS }, () => worker()));
   activeBar = null;
   // ---- AI genre fallback (batched, after the parallel pass) ----
+  // OPT-IN: batches stay empty unless --ai-fallback was passed (the stage
+  // gate keeps them clean, so no filtering needed here).
   if (aiGenreBatch.length && !DRY) {
     progressLog(`AI genre fallback for ${aiGenreBatch.length}…`);
     for (let k = 0; k < aiGenreBatch.length; k += 20) {
@@ -356,6 +367,7 @@ async function main() {
   const summary = {
     command: "fetch",
     dryRun: DRY,
+    aiFallback: AI_FALLBACK,
     tracks: rows.length,
     tasks: tasks.length,
     tags: stats.tags,
@@ -374,13 +386,17 @@ async function main() {
     artDeezer: stats.artDeezer,
     artItunes: stats.artItunes,
     artQueued: artless.length,
+    /** Unresolved WITHOUT AI (SC+BP both missed) — the bounded list a
+     *  later `--ai-fallback` re-pass would cover. Visible in every mode. */
+    genreUnresolvedNoAi: AI_FALLBACK ? 0 : aiGenreBatch.length,
+    yearUnresolvedNoAi: AI_FALLBACK ? 0 : aiYearBatch.length,
   };
   if (JSON_OUT) {
     // P1 (--json on every command): one summary object on stdout, last.
     console.log(JSON.stringify(summary));
   } else {
     progress?.close(
-      `DONE${DRY ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}`,
+      `DONE${DRY ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${AI_FALLBACK ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
     );
   }
   db.close();
