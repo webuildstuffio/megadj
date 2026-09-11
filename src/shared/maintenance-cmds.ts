@@ -18,6 +18,7 @@
 import { DB_PATH } from "../cli-env";
 import { parseFlags, nonNegOpt } from "../cli-flags";
 import { ArchiveState } from "../archive/state";
+import { resolveShelfVolume, volumePath } from "./volume";
 
 /** Commands handled by this module; cli.ts and the parity census share it. */
 export const MAINTENANCE_VERBS = [
@@ -33,10 +34,8 @@ export const MAINTENANCE_VERBS = [
 /** Resolve the drive mount: first positional (`SHELF1` or an absolute
  * path) else the configured volume name. Shared by every case below. */
 function mountFrom(positional: string | undefined): string {
-  if (positional)
-    return positional.startsWith("/") ? positional : `/Volumes/${positional}`;
-  const shelfVolume = process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1";
-  return `/Volumes/${shelfVolume}`;
+  if (positional) return volumePath(positional);
+  return resolveShelfVolume();
 }
 
 /** Repeatable `--key=value` string options (shelf-hygiene's

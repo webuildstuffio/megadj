@@ -24,6 +24,7 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { DedupeResult } from "./shelf-dedupe-types";
 import { judgePair, applyPairs } from "./shelf-dedupe-verdict";
+import { resolveShelfVolume } from "../shared/volume";
 
 // DedupePair/DedupeResult are DEFINED in shelf-dedupe-types.ts (the leaf
 // seam shared with shelf-dedupe-verdict.ts — a split-out module must never
@@ -98,7 +99,7 @@ export async function shelfDedupe(
   opts: ShelfDedupeOptions = {},
 ): Promise<DedupeResult> {
   const {
-    shelfVolume = process.env.MEGADJ_SHELF ?? "/Volumes/SHELF1",
+    shelfVolume = resolveShelfVolume(),
     apply = false,
     yes = false,
     json = false,

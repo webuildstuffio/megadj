@@ -16,7 +16,11 @@ __pycache__/
 .ruff_cache/
 cratedeck/data/
 cratedeck/config.toml
+config.toml
 .local-screens/
+
+# local quarantine output from archive hygiene runs
+.archive-quarantine/
 
 # real env (commit .env.example, never .env)
 .env

@@ -82,7 +82,7 @@ Rows with no live match are reported, never touched.
 6. Analyze any un-analyzed tracks (verify's `anlz` check counts them).
 7. `deckctl run <drive> verify` → all green (shelf drives: dual-db shows
    the informational archive-tier note). Then `deckctl run <drive>
-   checksum` once to seed bitrot tracking.
+checksum` once to seed bitrot tracking.
 
 ## Gotchas (each one cost hours — don't relearn them)
 

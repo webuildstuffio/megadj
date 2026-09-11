@@ -21,6 +21,7 @@ import {
   statSync,
 } from "node:fs";
 import { basename, join, relative } from "node:path";
+import { resolveShelfVolume } from "../shared/volume";
 
 export interface ShelfSyncOptions {
   /** Archive root — new music lands here (megadj drop / organize output). */
@@ -200,7 +201,7 @@ function syncToVolume(
 export async function shelfSync(opts: ShelfSyncOptions): Promise<void> {
   const {
     musicDir,
-    shelfVolume = "/Volumes/SHELF1",
+    shelfVolume = resolveShelfVolume(),
     stickVolumes = [],
     dryRun = false,
     json = false,

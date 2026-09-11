@@ -26,6 +26,7 @@ import { applyFinding, validateFinding } from "../archive/hygiene/apply";
 import { fingerprintFileLength } from "../../fulltags/src/exports";
 import type { CheckCtx } from "../archive/hygiene/types";
 import { FpCache } from "./shelf-dupescan";
+import { resolveShelfVolume } from "../shared/volume";
 
 export interface ShelfHygieneOptions {
   shelfVolume?: string | undefined;
@@ -54,7 +55,7 @@ export async function shelfHygiene(
   opts: ShelfHygieneOptions = {},
 ): Promise<void> {
   const {
-    shelfVolume = `/Volumes/${process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1"}`,
+    shelfVolume = resolveShelfVolume(),
     dbPath = process.env.MEGADJ_DB ??
       `${process.env.HOME}/.local/state/megadj/archive.db`,
     confirm = [],

@@ -47,7 +47,7 @@ Working scratch: `/tmp/usb-sync/` (work_master.db is the live master copy).
   `Contents/` + `PIONEER REC/` (never the device-DB tree), filters
   AppleDouble junk, MD5-verifies every copy, and preserves divergent
   same-name rips as `<name> [<volume>]` twins. `--trashes --into "DJ Sets
-  & Mixes"` rescues deleted recordings; `--deep` catches same-size
+& Mixes"` rescues deleted recordings; `--deep` catches same-size
   different-content files (a 2019 stick had 291).
 
 ## Pipeline steps

@@ -5,13 +5,14 @@
 // themselves never move).
 import { ArchiveState } from "../archive/state";
 import { MUSIC_DIR, DB_PATH } from "../cli-env";
+import { resolveShelfVolume, volumePath } from "../shared/volume";
 
 /** shelf-sync: shelf master → both sticks. Volume names come from
  *  config.toml [library] via env overrides — never hardcoded literals. */
 export async function runShelfSync(rest: string[]): Promise<void> {
   const json = rest.includes("--json");
   const dryRun = rest.includes("--dry-run");
-  const shelfVolume = process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1";
+  const shelfVolume = resolveShelfVolume();
   const stickVolumes = [
     process.env.USB_SYNC_MASTER ?? "DJMASTER",
     process.env.USB_SYNC_MIRROR ?? "DJMIRROR",
@@ -19,8 +20,8 @@ export async function runShelfSync(rest: string[]): Promise<void> {
   const { shelfSync } = await import("./shelf-sync");
   await shelfSync({
     musicDir: MUSIC_DIR,
-    shelfVolume: `/Volumes/${shelfVolume}`,
-    stickVolumes: stickVolumes.map((v) => `/Volumes/${v}`),
+    shelfVolume,
+    stickVolumes: stickVolumes.map(volumePath),
     dryRun,
     json,
   });
@@ -35,7 +36,7 @@ export async function runShelfArchive(rest: string[]): Promise<void> {
   const trashes = rest.includes("--trashes");
   const intoEq = rest.find((a) => a.startsWith("--into="));
   const into = intoEq ? decodeURIComponent(intoEq.slice(7)) : undefined;
-  const shelfVolume = process.env.MEGADJ_SHELF_VOLUME ?? "SHELF1";
+  const shelfVolume = resolveShelfVolume();
   const suffixEq = rest.find((a) => a.startsWith("--suffix="));
   const suffix = suffixEq ? suffixEq.slice(9) : undefined;
   // positional volumes; default to the configured master+mirror when none
@@ -48,10 +49,8 @@ export async function runShelfArchive(rest: string[]): Promise<void> {
   const volumes = positionals.length ? positionals : [master, mirror];
   const { shelfArchive } = await import("./shelf-archive");
   await shelfArchive({
-    volumes: volumes.map((v) =>
-      v.startsWith("/Volumes/") ? v : `/Volumes/${v}`,
-    ),
-    shelfVolume: `/Volumes/${shelfVolume}`,
+    volumes: volumes.map((v) => volumePath(v)),
+    shelfVolume,
     into,
     trashes,
     deep,

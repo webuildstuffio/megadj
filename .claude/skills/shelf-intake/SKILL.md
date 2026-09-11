@@ -37,16 +37,16 @@ verdict object and exits 1 if anything failed. Multiple volumes in one run:
 
 ## What the command handles (so you never hand-roll it)
 
-| Trap | Handled how |
-| --- | --- |
-| AppleDouble/`.DS_Store`/fseventsd junk counted as "missing" | filtered before diffing (one stick: 1,446 of 1,449 false-missing were junk) |
-| exFAT case-insensitivity | NFC + casefold name keys |
-| Same name, different rip | drive version preserved as `<stem> [<volume>]<ext>` beside the shelf original — never overwrite |
-| Same size, different bytes (tag rewrites, bitrot) | `--deep` MD5s every same-size pair (one 2019 stick: 291 files) |
-| Deleted mixes in `.Trashes` | `--trashes --into F` lands them flat in `Contents/F/` |
-| Stick device DBs (`PIONEER/`) | NEVER walked — copying a stick's export.pdb toward the shelf's DB tree destroys libraries |
-| Silent partial copies | post-copy MD5 verify; failure = `failed` count + exit 1 |
-| Where the record lives | every sweep auto-inserts into the archive DB `shelf_sweeps` table (verdict, counters, timestamps) |
+| Trap                                                        | Handled how                                                                                       |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| AppleDouble/`.DS_Store`/fseventsd junk counted as "missing" | filtered before diffing (one stick: 1,446 of 1,449 false-missing were junk)                       |
+| exFAT case-insensitivity                                    | NFC + casefold name keys                                                                          |
+| Same name, different rip                                    | drive version preserved as `<stem> [<volume>]<ext>` beside the shelf original — never overwrite   |
+| Same size, different bytes (tag rewrites, bitrot)           | `--deep` MD5s every same-size pair (one 2019 stick: 291 files)                                    |
+| Deleted mixes in `.Trashes`                                 | `--trashes --into F` lands them flat in `Contents/F/`                                             |
+| Stick device DBs (`PIONEER/`)                               | NEVER walked — copying a stick's export.pdb toward the shelf's DB tree destroys libraries         |
+| Silent partial copies                                       | post-copy MD5 verify; failure = `failed` count + exit 1                                           |
+| Where the record lives                                      | every sweep auto-inserts into the archive DB `shelf_sweeps` table (verdict, counters, timestamps) |
 
 ## The verification step (mandatory after any real sweep)
 

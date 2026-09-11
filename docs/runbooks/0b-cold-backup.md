@@ -8,9 +8,9 @@ via rclone; read-only on the drives, versioned on the cloud side.
 installed (`/opt/homebrew/bin/rclone`) but has zero remotes configured
 (`rclone listremotes` is empty). Pick one:
 
-| option | setup | cost (123 GB class library) |
-| --- | --- | --- |
-| Backblaze B2 | `rclone config` → b2, app key from B2 console | ~$0.74/mo stored, pennies egress |
+| option        | setup                                                 | cost (123 GB class library)          |
+| ------------- | ----------------------------------------------------- | ------------------------------------ |
+| Backblaze B2  | `rclone config` → b2, app key from B2 console         | ~$0.74/mo stored, pennies egress     |
 | Cloudflare R2 | `rclone config` → s3 type with R2 S3URL + access keys | $0.015/GB/mo ≈ $1.85/mo, zero egress |
 
 Either works; R2's zero egress wins if a full restore is ever pulled.

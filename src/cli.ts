@@ -16,6 +16,7 @@ import {
   MAINTENANCE_VERBS,
   runMaintenanceCommand,
 } from "./shared/maintenance-cmds";
+import { writeJson, writeJsonText, drainStdout } from "./shared/cli-output";
 
 // Env constants + flag parsers moved to cli-env.ts / cli-flags.ts, and the
 // shelf-family case bodies to cli-shelf-cmds.ts (complexity guard) —
@@ -93,7 +94,7 @@ async function main(): Promise<void> {
           await import("./shared/doctor");
         const results = runDoctor();
         if (flags.bools.has("json")) {
-          console.log(doctorJson(results));
+          await writeJsonText(doctorJson(results));
           // --json keeps the same contract as text mode: exit 1 if any
           // required check is broken (usable as a script/local gate —
           // there is no CI by principle; PRINCIPLES.md §1)
@@ -186,7 +187,7 @@ async function main(): Promise<void> {
           log: (m) => void console.log(m),
         });
         if (flags.bools.has("json")) {
-          console.log(JSON.stringify(report, null, 2));
+          await writeJson(report);
         } else {
           console.log(
             `booth-fix: ${report.checked} checked, ${report.fixable} fixable, ${report.applied} applied (fleet: ${report.fleet.join(", ")})`,
@@ -257,7 +258,7 @@ async function main(): Promise<void> {
         state.resetFailures();
         if (rest.includes("--json")) {
           // P1 (--json on every command): one summary object on stdout.
-          console.log(JSON.stringify({ command: "retry", reset: true }));
+          await writeJson({ command: "retry", reset: true });
         } else {
           console.log("failure counters reset — run `megadj sync` to retry");
         }
@@ -304,7 +305,7 @@ async function main(): Promise<void> {
           json: flags.bools.has("json"),
         });
         if (flags.bools.has("json")) {
-          console.log(JSON.stringify(report, null, 2));
+          await writeJson(report);
         } else {
           console.log(
             `convert: ${report.converted}/${report.total} wav→aiff${
@@ -337,7 +338,7 @@ async function main(): Promise<void> {
           json: flags.bools.has("json"),
         });
         if (flags.bools.has("json")) {
-          console.log(JSON.stringify(report, null, 2));
+          await writeJson(report);
         } else {
           console.log(
             `dedupe-archive: ${report.groups.length} group(s), ${(report.redundantBytes / 1e9).toFixed(2)} GB redundant${
@@ -480,26 +481,20 @@ async function main(): Promise<void> {
         const unplayable = gaps.filter((r) => !r.playable);
         const unreadable = gaps.filter((r) => !r.readable);
         if (json) {
-          console.log(
-            JSON.stringify(
-              {
-                ok: gaps.length === 0,
-                total: report.total,
-                complete: report.complete,
-                unplayable: unplayable.map((r) => r.file),
-                unreadable: unreadable.map((r) => ({
-                  file: r.file,
-                  reasons: r.unreadableReasons,
-                })),
-                incomplete: gaps.map((r) => ({
-                  file: r.file,
-                  missing: auditRowFlags(r),
-                })),
-              },
-              null,
-              2,
-            ),
-          );
+          await writeJson({
+            ok: gaps.length === 0,
+            total: report.total,
+            complete: report.complete,
+            unplayable: unplayable.map((r) => r.file),
+            unreadable: unreadable.map((r) => ({
+              file: r.file,
+              reasons: r.unreadableReasons,
+            })),
+            incomplete: gaps.map((r) => ({
+              file: r.file,
+              missing: auditRowFlags(r),
+            })),
+          });
           if (gaps.length) process.exitCode = 1;
           break;
         }
@@ -703,7 +698,7 @@ async function main(): Promise<void> {
           json: flags.bools.has("json"),
         });
         if (flags.bools.has("json")) {
-          console.log(JSON.stringify(r));
+          await writeJson(r);
         } else {
           printGoldReport(r, console.log);
         }
@@ -721,7 +716,7 @@ async function main(): Promise<void> {
           detector,
           flags.strings.get("gold-dir"),
         );
-        if (flags.bools.has("json")) console.log(JSON.stringify(r));
+        if (flags.bools.has("json")) await writeJson(r);
         else {
           console.log(
             `${r.detector}: ${r.gate.passPercent.toFixed(1)}% passed ` +
@@ -743,3 +738,4 @@ async function main(): Promise<void> {
 }
 
 await main();
+await drainStdout();

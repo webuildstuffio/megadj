@@ -13,6 +13,7 @@ import { Database } from "bun:sqlite";
 import { HygieneStore } from "../archive/hygiene/store";
 import { QUARANTINE_DIR } from "../archive/hygiene/apply";
 import type { Finding } from "../archive/hygiene/types";
+import { resolveShelfVolume } from "../shared/volume";
 
 export interface ShelfRestoreOptions {
   input: string;
@@ -91,7 +92,7 @@ function matchesInput(f: Finding, input: string, source: string): boolean {
 export async function shelfRestore(
   opts: ShelfRestoreOptions,
 ): Promise<ShelfRestoreResult> {
-  const shelfVolume = opts.shelfVolume ?? "/Volumes/SHELF1";
+  const shelfVolume = resolveShelfVolume(opts.shelfVolume);
   const dbPath =
     opts.dbPath ?? `${process.env.HOME}/.local/state/megadj/archive.db`;
   const log = opts.log ?? ((message: string) => console.error(message));

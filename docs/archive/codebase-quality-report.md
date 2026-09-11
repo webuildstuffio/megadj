@@ -14,7 +14,7 @@ Tools: lizard 1.24.0 · jscpd 4.3.0 · knip 6.34.0 · oxlint 1.81.0 · type-cove
 > count stays exact/derived); `preflight.ts` `BUILDER_ID` made
 > index-total (`as const satisfies Record<string, CheckId>`) for the new
 > strict tsconfig; prettier applied to all stragglers. **Final: `bun run
-> check:full` green — 685 pass / 0 fail, 100.00% type coverage.** §1 below is
+check:full` green — 685 pass / 0 fail, 100.00% type coverage.** §1 below is
 > preserved as the point-in-time snapshot.
 
 > **Caveat — concurrent-agent WIP.** Several agents are working this repo right now
@@ -25,37 +25,37 @@ Tools: lizard 1.24.0 · jscpd 4.3.0 · knip 6.34.0 · oxlint 1.81.0 · type-cove
 
 ## 1. Static analysis suite
 
-| Gate | Result | Detail |
-|---|---|---|
-| `tsc --noEmit` | ❌ fail | 2 errors: `fulltags/src/exports.ts` exports drift (`validatePatch`), `src/commands/ingest-probe.ts` missing import (`qualityScore`) — both in concurrent-agent WIP |
-| `oxlint --deny-warnings` | ✅ pass | zero findings across all workspaces |
-| `prettier --check` | ❌ fail | 1 file misformatted: `src/commands/ingest-selfmatch.test.ts` (untracked WIP) |
-| `type-coverage --threshold 100` | ⚠️ 99.98% | 80719/80729 typed; all 10 untyped spots in `IntakeTab.tsx` (WIP). Repo floor is 100% |
-| `bun test --parallel=16` | ❌ 33 fail / 591 pass | 627 tests, 85 files. Failures cluster in CLI-contract suites (`json-summary`, `numeric-options`, help contract), e2e server boot (`:7823`), drop pipeline — consistent with in-flight `src/cli.ts`/`src/usage.ts` churn |
-| `bunx knip` | ✅ ran clean | 8 unused files, 22 unused exports, 4 unused types (§4) |
-| `bun audit` | ✅ pass | **No vulnerabilities found** |
+| Gate                            | Result                | Detail                                                                                                                                                                                                                  |
+| ------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tsc --noEmit`                  | ❌ fail               | 2 errors: `fulltags/src/exports.ts` exports drift (`validatePatch`), `src/commands/ingest-probe.ts` missing import (`qualityScore`) — both in concurrent-agent WIP                                                      |
+| `oxlint --deny-warnings`        | ✅ pass               | zero findings across all workspaces                                                                                                                                                                                     |
+| `prettier --check`              | ❌ fail               | 1 file misformatted: `src/commands/ingest-selfmatch.test.ts` (untracked WIP)                                                                                                                                            |
+| `type-coverage --threshold 100` | ⚠️ 99.98%             | 80719/80729 typed; all 10 untyped spots in `IntakeTab.tsx` (WIP). Repo floor is 100%                                                                                                                                    |
+| `bun test --parallel=16`        | ❌ 33 fail / 591 pass | 627 tests, 85 files. Failures cluster in CLI-contract suites (`json-summary`, `numeric-options`, help contract), e2e server boot (`:7823`), drop pipeline — consistent with in-flight `src/cli.ts`/`src/usage.ts` churn |
+| `bunx knip`                     | ✅ ran clean          | 8 unused files, 22 unused exports, 4 unused types (§4)                                                                                                                                                                  |
+| `bun audit`                     | ✅ pass               | **No vulnerabilities found**                                                                                                                                                                                            |
 
 ## 2. Complexity (lizard)
 
 First-party code: **2,447 functions, 35,627 NLOC, avg CCN 2.2** — healthy (target ≤ 3.0).
 38 functions at CCN ≥ 15, 26 at ≥ 20, **2 at ≥ 50 (P0)**.
 
-| CCN | Function | Location |
-|---|---|---|
-| 75 | `canon` | `cratedeck/src/db.ts:110-481` |
-| 66 | `processTask` | `tools/fetch_all.ts:115-275` |
-| 48 | `indexShelf` | `src/commands/shelf-archive.ts:266-429` |
-| 44 | `spaceCheck` | `cratedeck/src/preflight.ts:53-230` |
-| 38 | `boothFix` | `src/commands/booth-fix.ts:213-349` |
-| 33 | `main` | `src/cli.ts:121-269` |
-| 32 | `playerCompat` | `fulltags/src/player-compat.ts:97-178` |
-| 31 | `shelfDedupe` | `src/commands/shelf-dedupe.ts:182-391` |
-| 31 | `mbLookupCached` | `fulltags/src/pipeline.ts:370-440` |
-| 29 | `shelfDupescan` | `src/commands/shelf-dupescan.ts:143-316` |
-| 29 | `driveBadges` | `cratedeck/shared/badges.ts:51-144` |
-| 29 | `dedupeArchive` | `src/commands/dedupe-archive.ts:97-252` |
-| 29 | `copyIntoArchive` | `src/commands/ingest.ts:386-538` |
-| 27 | `rbFixPaths` | `src/commands/rb_fix_paths.ts:248-351` |
+| CCN | Function          | Location                                 |
+| --- | ----------------- | ---------------------------------------- |
+| 75  | `canon`           | `cratedeck/src/db.ts:110-481`            |
+| 66  | `processTask`     | `tools/fetch_all.ts:115-275`             |
+| 48  | `indexShelf`      | `src/commands/shelf-archive.ts:266-429`  |
+| 44  | `spaceCheck`      | `cratedeck/src/preflight.ts:53-230`      |
+| 38  | `boothFix`        | `src/commands/booth-fix.ts:213-349`      |
+| 33  | `main`            | `src/cli.ts:121-269`                     |
+| 32  | `playerCompat`    | `fulltags/src/player-compat.ts:97-178`   |
+| 31  | `shelfDedupe`     | `src/commands/shelf-dedupe.ts:182-391`   |
+| 31  | `mbLookupCached`  | `fulltags/src/pipeline.ts:370-440`       |
+| 29  | `shelfDupescan`   | `src/commands/shelf-dupescan.ts:143-316` |
+| 29  | `driveBadges`     | `cratedeck/shared/badges.ts:51-144`      |
+| 29  | `dedupeArchive`   | `src/commands/dedupe-archive.ts:97-252`  |
+| 29  | `copyIntoArchive` | `src/commands/ingest.ts:386-538`         |
+| 27  | `rbFixPaths`      | `src/commands/rb_fix_paths.ts:248-351`   |
 
 P0 refactors: `canon` (db.ts) and `processTask` (tools/fetch_all.ts). Note `canon` is a hot
 wire-shape normalizer — split carefully against the leaf-import rules in AGENTS.md.
@@ -66,18 +66,18 @@ wire-shape normalizer — split carefully against the leaf-import rules in AGENT
 
 Top clones by lines:
 
-| Lines | First | Second |
-|---|---|---|
-| 85 | `cratedeck/web/products/cratedeck/ArchiveTab.tsx:249` | `cratedeck/web/products/fulltags/FullTagsPage.tsx:223` |
-| 43 | `cratedeck/web/styles/shell.css:59` | `shell.css:18` (self-file) |
-| 33 | `cratedeck/src/jobs.ts:881` | `cratedeck/src/verify_job.ts:8` |
-| 30 | `src/commands/booth-fix.ts:142` | `fulltags/src/booth-text.ts:103` |
-| 27 | `cratedeck/src/intake_job.ts:133` | `cratedeck/src/jobs.ts:674` |
-| 21 | `fulltags/src/fleet.ts:165` | `fleet.ts:122` (self-file) |
-| 20 | `cratedeck/web/products/getdat/GetDatPage.tsx:344` | `GetDatPage.tsx:101` (self-file) |
-| 20 | `cratedeck/src/jobs.ts:534` | `cratedeck/src/verify_job.ts:105` |
-| 18 | `src/cli.ts:306` | `src/commands/shelf_cmds.ts:41` |
-| 17 | `src/hygiene/store.ts:233` | `cratedeck/src/hygiene_reader.ts:72` |
+| Lines | First                                                 | Second                                                 |
+| ----- | ----------------------------------------------------- | ------------------------------------------------------ |
+| 85    | `cratedeck/web/products/cratedeck/ArchiveTab.tsx:249` | `cratedeck/web/products/fulltags/FullTagsPage.tsx:223` |
+| 43    | `cratedeck/web/styles/shell.css:59`                   | `shell.css:18` (self-file)                             |
+| 33    | `cratedeck/src/jobs.ts:881`                           | `cratedeck/src/verify_job.ts:8`                        |
+| 30    | `src/commands/booth-fix.ts:142`                       | `fulltags/src/booth-text.ts:103`                       |
+| 27    | `cratedeck/src/intake_job.ts:133`                     | `cratedeck/src/jobs.ts:674`                            |
+| 21    | `fulltags/src/fleet.ts:165`                           | `fleet.ts:122` (self-file)                             |
+| 20    | `cratedeck/web/products/getdat/GetDatPage.tsx:344`    | `GetDatPage.tsx:101` (self-file)                       |
+| 20    | `cratedeck/src/jobs.ts:534`                           | `cratedeck/src/verify_job.ts:105`                      |
+| 18    | `src/cli.ts:306`                                      | `src/commands/shelf_cmds.ts:41`                        |
+| 17    | `src/hygiene/store.ts:233`                            | `cratedeck/src/hygiene_reader.ts:72`                   |
 
 Note the overlap with §4: `verify_job.ts`, `intake_job.ts`, and `shelf_cmds.ts` are all knip-flagged
 unused files **and** jscpd clone partners — a dead-code purge would remove several clones at once.
@@ -112,24 +112,24 @@ Cautions before deleting anything:
 
 ## 6. Structural metrics
 
-| Metric | Count | Note |
-|---|---|---|
-| TODO / FIXME / HACK | 0 | non-test, first-party |
-| `as any` casts | 0 | consistent with the 100% type-coverage policy |
-| `@ts-ignore` / `@ts-expect-error` | 0 | — |
-| bare `catch {}` | 0 | the only regex hit is a comment in `deckctl_players.ts` |
-| `lint-disable` comments | 2 | both `no-control-regex` (control-char detection — the rule's legit use case) |
-| `console.log` (non-test) | 247 | src 166 · cratedeck/src 54 · tools 22 · fulltags 2 · web 0 — expected for a CLI; `--json` mode suppresses human logs per the agent-first contract |
+| Metric                            | Count | Note                                                                                                                                              |
+| --------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TODO / FIXME / HACK               | 0     | non-test, first-party                                                                                                                             |
+| `as any` casts                    | 0     | consistent with the 100% type-coverage policy                                                                                                     |
+| `@ts-ignore` / `@ts-expect-error` | 0     | —                                                                                                                                                 |
+| bare `catch {}`                   | 0     | the only regex hit is a comment in `deckctl_players.ts`                                                                                           |
+| `lint-disable` comments           | 2     | both `no-control-regex` (control-char detection — the rule's legit use case)                                                                      |
+| `console.log` (non-test)          | 247   | src 166 · cratedeck/src 54 · tools 22 · fulltags 2 · web 0 — expected for a CLI; `--json` mode suppresses human logs per the agent-first contract |
 
 ## 7. Size
 
-| Area | Files | Lines |
-|---|---|---|
-| `src/` | 89 | 15,063 |
-| `cratedeck/` | 134 | 32,043 |
-| `fulltags/` | 44 | 6,914 |
-| `tools/` | 4 | 912 |
-| **Total** | **271** | **54,932** |
+| Area         | Files   | Lines      |
+| ------------ | ------- | ---------- |
+| `src/`       | 89      | 15,063     |
+| `cratedeck/` | 134     | 32,043     |
+| `fulltags/`  | 44      | 6,914      |
+| `tools/`     | 4       | 912        |
+| **Total**    | **271** | **54,932** |
 
 ## Summary
 

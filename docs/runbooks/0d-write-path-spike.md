@@ -118,12 +118,12 @@ cp /Volumes/SHELF1/PIONEER/Master/share/ANLZ/ANLZ0000.DAT $CP/
 
 ## Execution log
 
-| Date | Question | Verdict | Evidence |
-| --- | --- | --- | --- |
-| — | Q1 re-export stable | open | run the commands above, write the row |
-| — | Q2 nudge storage | open | |
-| — | Q3 XML overwrite | open | |
-| — | Q4 direct ANLZ edit | open (only if Q3 fails) | |
+| Date | Question            | Verdict                 | Evidence                              |
+| ---- | ------------------- | ----------------------- | ------------------------------------- |
+| —    | Q1 re-export stable | open                    | run the commands above, write the row |
+| —    | Q2 nudge storage    | open                    |                                       |
+| —    | Q3 XML overwrite    | open                    |                                       |
+| —    | Q4 direct ANLZ edit | open (only if Q3 fails) |                                       |
 
 Write the verdict into `docs/grid-audit-plan.md` §GA-07 and GA-06's
 route line in the same edit. "Open but armed" is a valid state when the

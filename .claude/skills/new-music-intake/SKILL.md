@@ -27,7 +27,7 @@ garbage names propagate:
 - Delete obvious junk: duplicates you downloaded twice, `(1)` copies,
   non-audio leftovers, 15-second previews.
 - Fix garbage filenames: `track01_final_FINAL.wav` → `Artist - Title
-  (Remix Name).mp3`. The `(Remix)` suffix matters — ingest derives the
+(Remix Name).mp3`. The `(Remix)` suffix matters — ingest derives the
   remixer credit (version/remixer tags) from it.
 - Zips: leave them. Drop extracts them and applies the mp3+wav pair rule
   (WAV wins, mp3's art rides along) in code.
@@ -44,18 +44,18 @@ downloads first via yt-dlp, then the same pipeline).
 
 ## What drop runs, in order
 
-| # | Stage | What it does |
-|---|-------|--------------|
-| 0 | download | URL only — yt-dlp best-audio into the music dir |
-| 1 | ingest | probe, dedupe (MD5 + fingerprint + mp3↔lossless pairs), WAV→AIFF, filename-parse tags, MusicBrainz fill, art ladder, player-compat gate, register + move into `<archive>/<YYYY-MM-DD dump name>/` |
-| 2 | fetch | SC search → genre + year + original-res art; Beatport → label/mix/remixer/ISRC + store art; gateways → Deezer → iTunes → mp3-twin; energy/fingerprint/key stamps. **AI genre/year is opt-in** (`--ai-fallback`) — SC+BP resolve real releases; the AI fallback has a documented remix-year failure mode ("2023") |
-| 3 | years | verify every year against the real SC page `display_date` (kills AI guesses and stale upload dates) |
-| 4 | beats | beat_this → BPM + downbeat ledger (DB, never tags) |
-| 5 | mood | ONNX heads → mood/dance/valence stamp + DB ledger (skipped when models absent or `--no-mood`) |
-| 6 | cues | 8-bar phrase cues derived from the beats ledger |
-| 7 | organize | file into genre folders; DB paths follow |
-| 8 | tag-check | structure gate: unreadable containers, mojibake, control bytes, no-title/artist voids |
-| 9 | audit | completeness gate: art + title + artist + album + genre + year + mood + energy + player-compat + booth-text. **Runs LAST on purpose** — a green gate certifies the final on-disk state, including the booth-text path check after organize's moves |
+| #   | Stage     | What it does                                                                                                                                                                                                                                                                                                     |
+| --- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | download  | URL only — yt-dlp best-audio into the music dir                                                                                                                                                                                                                                                                  |
+| 1   | ingest    | probe, dedupe (MD5 + fingerprint + mp3↔lossless pairs), WAV→AIFF, filename-parse tags, MusicBrainz fill, art ladder, player-compat gate, register + move into `<archive>/<YYYY-MM-DD dump name>/`                                                                                                                |
+| 2   | fetch     | SC search → genre + year + original-res art; Beatport → label/mix/remixer/ISRC + store art; gateways → Deezer → iTunes → mp3-twin; energy/fingerprint/key stamps. **AI genre/year is opt-in** (`--ai-fallback`) — SC+BP resolve real releases; the AI fallback has a documented remix-year failure mode ("2023") |
+| 3   | years     | verify every year against the real SC page `display_date` (kills AI guesses and stale upload dates)                                                                                                                                                                                                              |
+| 4   | beats     | beat_this → BPM + downbeat ledger (DB, never tags)                                                                                                                                                                                                                                                               |
+| 5   | mood      | ONNX heads → mood/dance/valence stamp + DB ledger (skipped when models absent or `--no-mood`)                                                                                                                                                                                                                    |
+| 6   | cues      | 8-bar phrase cues derived from the beats ledger                                                                                                                                                                                                                                                                  |
+| 7   | organize  | file into genre folders; DB paths follow                                                                                                                                                                                                                                                                         |
+| 8   | tag-check | structure gate: unreadable containers, mojibake, control bytes, no-title/artist voids                                                                                                                                                                                                                            |
+| 9   | audit     | completeness gate: art + title + artist + album + genre + year + mood + energy + player-compat + booth-text. **Runs LAST on purpose** — a green gate certifies the final on-disk state, including the booth-text path check after organize's moves                                                               |
 
 Every stage is idempotent; a re-run costs ~0 for finished tracks. Exit 1 +
 per-stage detail on any gap. `--json` prints one summary object (P1).

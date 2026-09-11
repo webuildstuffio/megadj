@@ -41,6 +41,7 @@ import { basename, join } from "node:path";
 import { ArchiveState } from "../archive/state";
 import { ShelfIndex } from "./shelf-index";
 import { sweepVolume, type DriveResult } from "./shelf-archive-file";
+import { resolveShelfVolume } from "../shared/volume";
 
 /** The archive DB (sweep ledger host). Env-overridable like cli.ts. */
 const DB_PATH =
@@ -70,7 +71,7 @@ export interface ShelfArchiveOptions {
 export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
   const {
     volumes,
-    shelfVolume = "/Volumes/SHELF1",
+    shelfVolume = resolveShelfVolume(),
     into,
     trashes = false,
     deep = false,

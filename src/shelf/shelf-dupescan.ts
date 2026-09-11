@@ -26,6 +26,7 @@ import {
   type DupGroup,
 } from "./dupescan-shared";
 import { applyDupGroups } from "./shelf-dupescan-apply";
+import { resolveShelfVolume } from "../shared/volume";
 
 // md5sum / nameSimilarity / moveLoser / DupGroup all live in the leaf
 // modules (shelf-dupescan-apply.ts / dupescan-shared.ts) — import from
@@ -93,7 +94,7 @@ export interface DupScanOptions {
 
 export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   const {
-    shelfVolume = process.env.MEGADJ_SHELF ?? "/Volumes/SHELF1",
+    shelfVolume = resolveShelfVolume(),
     jobs = 8,
     json = false,
     log = (s) => console.log(s),

@@ -106,29 +106,61 @@ interface Task {
   needYear: boolean;
   upgradeSc: boolean;
 }
+
+function emptyStats(): Stats {
+  return {
+    tags: 0,
+    genreSc: 0,
+    genreBp: 0,
+    genreAi: 0,
+    artSc: 0,
+    artScOrig: 0,
+    artBeatport: 0,
+    artGateway: 0,
+    artTwin: 0,
+    artDeezer: 0,
+    artItunes: 0,
+    yearSc: 0,
+    yearBp: 0,
+    yearAi: 0,
+    bpIdentity: 0,
+  };
+}
+
+interface ProcessTaskInput {
+  task: Task;
+  dry: boolean;
+  aiFallback: boolean;
+  progress: ProgressBar | null;
+}
+
+interface ProcessTaskResult {
+  stats: Stats;
+  aiGenreBatch: Row[];
+  aiYearBatch: Row[];
+  artless: Row[];
+  notes: string[];
+  name: string;
+  dry: boolean;
+}
 // Stats shape lives in fetch-stages.ts (the stage runners' shared currency).
 
-async function processTask(
-  t: Task,
-  i: number,
-  total: number,
-  stats: Stats,
-  aiGenreBatch: Row[],
-  aiYearBatch: Row[],
-  /** out-param: rows that exhausted every art source → megadj artwork queue */
-  artless: Row[],
-  /** run-scoped flags (formerly module constants) */
-  dry: boolean,
-  aiFallback: boolean,
-  /** live progress bar; ticks instead of printing per-item logs */
-  progress: ProgressBar | null,
-): Promise<void> {
+async function processTask({
+  task: t,
+  dry,
+  aiFallback,
+  progress,
+}: ProcessTaskInput): Promise<ProcessTaskResult> {
   const { row: r, truth } = t;
   const name = `${cleanArtist(r.artist) ?? "?"} - ${cleanTitle(r.title)}`.slice(
     0,
     56,
   );
   const notes: string[] = [];
+  const stats = emptyStats();
+  const aiGenreBatch: Row[] = [];
+  const aiYearBatch: Row[] = [];
+  const artless: Row[] = [];
 
   const ctx: StageCtx = {
     row: r,
@@ -183,16 +215,8 @@ async function processTask(
 
   if (progress) {
     progress.update(1);
-    return;
   }
-  if (jsonOut) return; // --json: no per-item milestones
-  // plain mode (no progress bar): keep the classic per-item output
-  if (notes.length)
-    console.log(`  [${i + 1}/${total}] ${notes.join(" ")} — ${name}`);
-  else if (dry)
-    console.log(
-      `  [${i + 1}/${total}] (dry) tags:${t.needTags} genre:${t.needGenre} art:${t.needArt} year:${t.needYear} — ${name}`,
-    );
+  return { stats, aiGenreBatch, aiYearBatch, artless, notes, name, dry };
 }
 
 /** Run the pipeline in-process. Owns no DB handle — fetch-lib's shared
@@ -249,23 +273,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     );
   }
 
-  const stats: Stats = {
-    tags: 0,
-    genreSc: 0,
-    genreBp: 0,
-    genreAi: 0,
-    artSc: 0,
-    artScOrig: 0,
-    artBeatport: 0,
-    artGateway: 0,
-    artTwin: 0,
-    artDeezer: 0,
-    artItunes: 0,
-    yearSc: 0,
-    yearBp: 0,
-    yearAi: 0,
-    bpIdentity: 0,
-  };
+  const stats = emptyStats();
   const aiGenreBatch: Row[] = [];
   const aiYearBatch: Row[] = [];
   const artless: Row[] = [];
@@ -284,18 +292,27 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
       const my = idx++;
       if (my >= tasks.length) break;
       try {
-        await processTask(
-          tasks[my]!,
-          my,
-          tasks.length,
-          stats,
-          aiGenreBatch,
-          aiYearBatch,
-          artless,
+        const result = await processTask({
+          task: tasks[my]!,
           dry,
           aiFallback,
           progress,
-        );
+        });
+        for (const key of Object.keys(stats) as (keyof Stats)[])
+          stats[key] += result.stats[key];
+        aiGenreBatch.push(...result.aiGenreBatch);
+        aiYearBatch.push(...result.aiYearBatch);
+        artless.push(...result.artless);
+        if (!progress && !jsonOut) {
+          if (result.notes.length)
+            console.log(
+              `  [${my + 1}/${tasks.length}] ${result.notes.join(" ")} — ${result.name}`,
+            );
+          else if (result.dry)
+            console.log(
+              `  [${my + 1}/${tasks.length}] (dry) tags:${tasks[my]!.needTags} genre:${tasks[my]!.needGenre} art:${tasks[my]!.needArt} year:${tasks[my]!.needYear} — ${result.name}`,
+            );
+        }
       } catch (err) {
         progressLog(
           `  ✗ [${my + 1}/${tasks.length}] error: ${(err as Error).message?.slice(0, 80)}`,

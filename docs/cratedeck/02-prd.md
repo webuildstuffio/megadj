@@ -91,6 +91,7 @@ manual merge dialog ("is this the same drive as X?").
 **Acceptance:** evidence in [acceptance.md](acceptance.md).
 
       restarts of the app and across unplug.
+
 - [x] Unplug it → card becomes ghost with last-known data + timestamp.
 - [x] Two identical empty sticks get distinct identities via UUID.
 - [x] Reformatting a stick (new UUID) creates a new drive; old card remains
@@ -107,6 +108,7 @@ label ("MBP left rear", "hub slot 2").
 **Acceptance:** evidence in [acceptance.md](acceptance.md).
 
       in their current slots, history of which drive was where.
+
 - [x] Hub-attached sticks resolve to the hub port, not the Mac root.
 
 ## F3 — Photo identification & naming
@@ -126,6 +128,7 @@ Images are downloaded, normalized (square thumb + original), stored under
 **Acceptance:** evidence in [acceptance.md](acceptance.md).
 
       click to confirm → photo persists on the card forever (offline OK).
+
 - [x] No API key → manual upload path fully works.
 - [x] Rename anytime; history keeps old names.
 
@@ -150,6 +153,7 @@ button appears only when mounted.
 **Acceptance:** evidence in [acceptance.md](acceptance.md).
 
       playlists, pdb vs OneLibrary delta.
+
 - [x] Zero writes to the drive during any scan (tests assert mtime/bytes
       unchanged).
 - [x] SQLCipher read works without the key present in any repo file
@@ -169,6 +173,7 @@ button appears only when mounted.
 **Acceptance:** evidence in [acceptance.md](acceptance.md).
 
       manual `usb_mirror.py --verify-only` run.
+
 - [x] Superset tolerance: extra mirror-only files don't fail the badge
       (configurable strictness).
 
@@ -193,6 +198,7 @@ Verify/mirror additionally refuse if the target drive is the wrong role
 **Acceptance:** evidence in [acceptance.md](acceptance.md).
 
       with persisted log; survive page reloads; one job per drive at a time.
+
 - [x] With rekordbox running, every mutating job is refused at the API and
       rendered locked in UI. Read-only scans also refuse (they copy DBs —
       technically safe but surprises kill drives; policy: all off).
@@ -216,6 +222,7 @@ Verify/mirror additionally refuse if the target drive is the wrong role
 **Acceptance:** evidence in [acceptance.md](acceptance.md).
 
       with the exact path.
+
 - [x] Case-collision detector reproduces the Aug-25 phantom-missing-file
       class of bug on synthetic fixtures.
 - [x] Badge rules documented and unit-tested (not vibes).
@@ -231,6 +238,7 @@ time" requirement — ghosts are exportable).
 **Acceptance:** evidence in [acceptance.md](acceptance.md).
 
       timeline with timestamps.
+
 - [x] Export JSON re-imports on a fresh machine.
 
 ## F9 — One-page cockpit UI
@@ -248,6 +256,7 @@ time" requirement — ghosts are exportable).
 **Acceptance:** evidence in [acceptance.md](acceptance.md).
 
       (grid adapts).
+
 - [x] Search for a playlist name returns every drive holding it, ghost or not.
 - [x] Interlock banner appears within 2s of rekordbox launching; job buttons
       disable instantly.
