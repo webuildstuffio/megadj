@@ -204,7 +204,7 @@ def verify_drive(drive: str) -> list:
     missing_anlz: list[str] = []
     no_bpm_list: list[str] = []
     bad_len_list: list[str] = []
-    bad_grid_list: list[str] = []
+    anlz_consistency_list: list[str] = []
     bad_grid = pioneer_variance = 0
     for c in rows:
         if not os.path.exists(vol + c.path):
@@ -226,12 +226,12 @@ def verify_drive(drive: str) -> list:
         parsed = walk_anlz(data)
         if parsed is None:
             bad_grid += 1
-            bad_grid_list.append(c.path)
+            anlz_consistency_list.append(c.path)
             continue
         pth, sections = parsed
         if pth != c.path:
             bad_grid += 1
-            bad_grid_list.append(c.path)
+            anlz_consistency_list.append(c.path)
             continue
         qt = next((s for s in sections if s[0] == "PQTZ"), None)
         is_generated = c.path.startswith("/Contents/YTMusic Liked/")
@@ -240,7 +240,7 @@ def verify_drive(drive: str) -> list:
             # PQTZ is only a problem if we generated it
             if is_generated and c.title not in FACTORY_SAMPLES:
                 bad_grid += 1
-                bad_grid_list.append(c.path)
+                anlz_consistency_list.append(c.path)
             elif c.title not in FACTORY_SAMPLES:
                 pioneer_variance += 1
             continue
@@ -253,7 +253,7 @@ def verify_drive(drive: str) -> list:
         if beats < 4:
             if is_generated and c.title not in FACTORY_SAMPLES:
                 bad_grid += 1
-                bad_grid_list.append(c.path)
+                anlz_consistency_list.append(c.path)
             else:
                 pioneer_variance += 1
         elif beat_off or bpm_off:
@@ -261,7 +261,7 @@ def verify_drive(drive: str) -> list:
             # (variable-BPM sections, rounding); only flag generated files
             if is_generated:
                 bad_grid += 1
-                bad_grid_list.append(c.path)
+                anlz_consistency_list.append(c.path)
             else:
                 pioneer_variance += 1
 
@@ -269,7 +269,7 @@ def verify_drive(drive: str) -> list:
         f"  missing audio: {no_file} | missing analysis: {no_anlz} | no BPM: {no_bpm} | bad length: {bad_len}"
     )
     print(
-        f"  bad grids (generated): {bad_grid} | pioneer-native variance (informational): {pioneer_variance}"
+        f"  ANLZ consistency failures (generated): {bad_grid} | pioneer-native variance (informational): {pioneer_variance}"
     )
     # structured offenders (only non-empty; keep the JSON line compact)
     if missing_files:
@@ -280,8 +280,10 @@ def verify_drive(drive: str) -> list:
         J["no_bpm"] = no_bpm_list
     if bad_len_list:
         J["bad_length"] = bad_len_list
-    if bad_grid_list:
-        J["bad_grids"] = bad_grid_list
+    if anlz_consistency_list:
+        # This is an internal-consistency check, not an independent grid
+        # correctness verdict; beat_this cross-checks provide that signal.
+        J["anlz_consistency"] = anlz_consistency_list
     if any([no_file, no_anlz, no_bpm, bad_len]):
         fails.append(f"{drive}: coverage/fields")
 

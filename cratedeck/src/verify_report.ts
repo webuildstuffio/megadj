@@ -29,6 +29,8 @@ interface VerifyJsonPayload {
       anlz_hash_missing?: string[];
       no_bpm?: string[];
       bad_length?: string[];
+      anlz_consistency?: string[];
+      /** Backward-compatible input from older usb_verify.py runs. */
       bad_grids?: string[];
     }
   >;
@@ -150,7 +152,7 @@ export function parseVerifyReport(
   const anlzHashList = allOff((d) => d.anlz_hash_missing);
   const noBpmList = allOff((d) => d.no_bpm);
   const badLenList = allOff((d) => d.bad_length);
-  const badGridList = allOff((d) => d.bad_grids);
+  const badGridList = allOff((d) => d.anlz_consistency ?? d.bad_grids);
 
   const missingAudio = useJson
     ? missingFiles.length
@@ -166,7 +168,9 @@ export function parseVerifyReport(
     : (grabNum(out, /bad length: (\d+)/) ?? 0);
   const badGrids = useJson
     ? badGridList.length
-    : (grabNum(out, /bad grids \(generated\): (\d+)/) ?? 0);
+    : (grabNum(out, /ANLZ consistency failures \(generated\): (\d+)/) ??
+      grabNum(out, /bad grids \(generated\): (\d+)/) ??
+      0);
   const anlzHash = useJson
     ? anlzHashList.length
     : (grabNum(out, /ANLZ missing at hash path AND at DB path: (\d+)/) ?? 0);
@@ -292,8 +296,8 @@ export function parseVerifyReport(
         "grids",
         badGrids === 0 ? "pass" : "warn",
         badGrids === 0
-          ? `all generated grids consistent with track length + BPM`
-          : `${badGrids} generated track(s) with grids that don't match length/BPM`,
+          ? `all generated grids pass the ANLZ-vs-DB consistency check`
+          : `${badGrids} generated track(s) failed the ANLZ-vs-DB consistency check`,
         cap(badGridList),
       ),
     );

@@ -38,7 +38,7 @@ of 2026-09-10. Everything else in this doc is re-scoped around it.
 | Tempo readouts | `fulltags/src/analysis.ts` (`analyzeBeats`, median inter-beat; `tempoFromBeatGrid` bar-lag) | TBPM tag writes **blocked by gate** (12/24, re-gate 16/24 — the ~2.2–2.6% phase-lock); arrays are DB-only by decision |
 | 8-bar phrase cues | `megadj cues` → `cues` table (`src/commands/cues.ts`) | 88/88, 1,366 cues, DB-side only |
 | Independent grid cross-check | `ArchiveReader.gridCrossCheck` (`cratedeck/src/archive.ts`), `GET /api/archive/grid-cross-check`, MCP `archive_grid_cross_check` | Coarse: BPM-level ok / off (>2%) / octave vs RB. **No anchor/drift/phase — that's the A2 gap** |
-| Drive verify grid check | `usb_verify.py` `bad_grids` → `cratedeck/src/verify_report.ts` | **Self-referential** (duration×BPM vs beat count from the same analysis). ANLZ existence + between-drive parity are real |
+| Drive verify grid check | `usb_verify.py` `anlz_consistency` → `cratedeck/src/verify_report.ts` | **Self-referential** (duration×BPM vs beat count from the same analysis). ANLZ existence + between-drive parity are real; independent grid correctness comes from the cross-check |
 | ANLZ hash-path math | `.claude/skills/rekordbox-usb-sync/scripts/anlz_paths.py` | The A1 drive-vs-collection byte compare can be built directly on this |
 | Compressed-audio decode seam | `analyzeBeats` ffmpeg→tmp-WAV | **S2 preprocessing already exists** for the beat path |
 | Key detection | OpenKeyScan, `fulltags --key` | **SHIPPED — 80.7% gate PASS, 88/88 written.** The v2 plan's "your pipeline doesn't do key at all" is stale. Remaining: the RB gauntlet (disable Key analysis → Reload Tags) at next mount |

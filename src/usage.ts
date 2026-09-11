@@ -25,6 +25,7 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj fetch   [--art|--genres|--tags|--years] [--all] [--jobs N] [--dry-run] [--json]
                                                enrichment pass: tags+genres+years+art
   megadj audit   [--json]                      ground-truth tag/art audit — exits 1 on any gap
+  megadj tag-check [--json]                    scan tag structure and booth text health
   megadj booth-fix [--apply --yes] [--dry-run] [--json]
                                                fix what the booth can't read: sanitize emoji/mojibake
                                                tags, rename illegal-char paths (renames follow the DB)

@@ -37,7 +37,7 @@ function deckctlVerbs(): string[] {
   if (pre)
     for (const v of pre.split(",").map((s) => s.trim().replace(/['"]/g, "")))
       if (v) verbs.push(v);
-  return [...new Set(verbs)].sort();
+  return [...new Set(verbs)].toSorted();
 }
 
 /** megadj CLI command set: the switch in src/cli.ts's main() — including
@@ -53,7 +53,41 @@ function megadjCommands(): string[] {
     .map((l) => l.match(/^\s*case "([a-z-]+)":/))
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
-  return [...new Set(verbs)].sort();
+  const maintenance = read("src/commands/maintenance-cmds.ts").join("\n");
+  const family = maintenance
+    .match(/export const MAINTENANCE_VERBS = \[([\s\S]*?)\] as const/)?.[1]
+    ?.matchAll(/"([a-z-]+)"/g);
+  if (family) for (const match of family) if (match[1]) verbs.push(match[1]);
+  return [...new Set(verbs)].toSorted();
+}
+
+/** HTTP API path census. Route literals are intentionally derived from the
+ * dispatchers: top-level paths from index.ts, drive subpaths get the
+ * /drives/:id prefix, and archive handlers come from archive_routes.ts. */
+function httpApiRoutes(): string[] {
+  const index = read("cratedeck/src/index.ts").join("\n");
+  const routes = new Set<string>();
+  for (const match of index.matchAll(/(route|sub) === "(\/[^"]+)"/g)) {
+    const path = match[2];
+    if (!path) continue;
+    const canonical = path === "/events/" ? "/events" : path;
+    routes.add(match[1] === "sub" ? `/drives/:id${canonical}` : canonical);
+  }
+  if (index.includes("jobMatch = route.match")) {
+    routes.add("/jobs/:id");
+    routes.add("/jobs/:id/cancel");
+  }
+  const archive = read("cratedeck/src/archive_routes.ts").join("\n");
+  const handlers = archive.match(
+    /function archiveHandlers\(\)[\s\S]*?return \{([\s\S]*?)\n  \};/,
+  );
+  for (const match of handlers?.[1]?.matchAll(
+    /^\s{4}(?:"([a-z-]+)"|([a-z-]+)):/gm,
+  ) ?? []) {
+    const name = match[1] ?? match[2];
+    if (name) routes.add(`/archive/${name}`);
+  }
+  return [...routes].toSorted();
 }
 
 /** MCP tool set: tool keys in mcp.ts's table + the extracted archive_tools
@@ -67,7 +101,7 @@ function mcpTools(): string[] {
     )
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
-  return [...new Set(tools)].sort();
+  return [...new Set(tools)].toSorted();
 }
 
 /** UI job-enqueue surface: every kind the web can POST to /jobs. The
@@ -100,7 +134,7 @@ function uiJobKinds(): string[] {
       if (line.includes("/api/intake/start")) kinds.push("ingest");
     }
   }
-  return [...new Set(kinds)].sort();
+  return [...new Set(kinds)].toSorted();
 }
 
 /** The canonical job-kind set: the JOB_KINDS table in shared/types.ts
@@ -118,7 +152,7 @@ function canonicalJobKinds(): string[] {
     .filter(Boolean);
   if (kinds.length === 0)
     throw new Error("JOB_KINDS table in shared/types.ts is empty");
-  return [...new Set(kinds)].sort();
+  return [...new Set(kinds)].toSorted();
 }
 
 // ---- the parity registry (mirror of docs/surface-parity.md §3/§4) --------
@@ -152,6 +186,11 @@ const TOOL_EXEMPTIONS: Record<string, string> = {
 /** UI job buttons exempt from existing (none today; mirror closes GAP-1). */
 const UI_KIND_EXEMPTIONS: Record<string, string> = {};
 
+/** Whitespace-tolerant census-cell matcher. Module-level — captures
+ *  nothing from the enclosing test. */
+const censusCell = (n: number, unit: string): RegExp =>
+  new RegExp(`\\|\\s+${n} ${unit}[^|]*\\|`);
+
 // ---- tests ----------------------------------------------------------------
 
 describe("surface parity (docs/surface-parity.md)", () => {
@@ -174,11 +213,12 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // Whitespace-tolerant on PURPOSE: formatters may pad table cells ("| 23
     // verbs   |"), which must not read as a census drift. The COUNT itself
     // stays exact — only the padding is flexible.
-    const censusCell = (n: number, unit: string): RegExp =>
-      new RegExp(`\\|\\s+${n} ${unit}[^|]*\\|`);
     expect(doc).toMatch(censusCell(verbs.length, "verbs"));
     expect(doc).toMatch(censusCell(tools.length, "tools"));
     expect(doc).toMatch(censusCell(megadj.length, "commands"));
+    const routes = httpApiRoutes();
+    expect(routes.length).toBeGreaterThan(0);
+    expect(doc).toMatch(censusCell(routes.length, "routes"));
     // the dated-revs header must also carry the CURRENT tool count when
     // it names one (rev entries may name a past count only if a LATER rev
     // names the newer one — simplest honest rule: the doc must contain

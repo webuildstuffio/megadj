@@ -262,6 +262,11 @@ export async function analyzeMoods(
           `${JSON.stringify({ path: p, embedding: opts.withEmbedding === true })}\n`,
         ),
       );
+    // EOF the python worker's stdin — without this the worker never exits
+    // when files FAIL (error replies don't count toward `expected`, and the
+    // readLine below would block the full 180s timeout per missing result).
+    // Sep 10 2026: found while regression-testing the mood queue fix.
+    proc.stdin.end();
     const expected = paths.length;
     while (out.size < expected) {
       const line = await readLine(180_000);
