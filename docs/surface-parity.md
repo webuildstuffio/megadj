@@ -130,7 +130,7 @@ Carry-overs from the rev 13 pass — each is a named gap, not a vibe:
 
 | Surface    | Entry points                                                | Count                  |
 | ---------- | ----------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 34 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 35 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 37 tools               |
 | HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 61 routes              |

@@ -140,7 +140,10 @@ function walkAudio(root: string, out: string[]): void {
   }
 }
 
-function buildIndex(mount: string): LiveIndex {
+/** Shared with rb-unmatched: the live-audio index (same roots, same junk
+ *  rules) and the pyrekordbox row reader. Exported, not duplicated — one
+ *  walker, one DB reader, two consumers. */
+export function buildIndex(mount: string): LiveIndex {
   const files: string[] = [];
   const contents = join(mount, "Contents");
   if (existsSync(contents)) walkAudio(contents, files);
@@ -225,8 +228,9 @@ function rekordboxRunning(): boolean {
   return r.status === 0;
 }
 
-/** Read (ID, FolderPath) for every content row via pyrekordbox. */
-function readRows(dbPath: string): Array<[number, string]> {
+/** Read (ID, FolderPath) for every content row via pyrekordbox. Shared
+ *  with rb-unmatched (read-only reuse — one DB reader, two consumers). */
+export function readRows(dbPath: string): Array<[number, string]> {
   const r = spawnSync(
     "uv",
     ["run", "--with", "pyrekordbox", "python", "-c", PY, dbPath],
@@ -388,7 +392,6 @@ export const __test = {
     matchLadder(broken, buildIndex(mount)),
   stripCopySuffix,
 };
-
 /** Emit the human report (non-json mode). */
 export function printRbFixReport(
   r: RbFixResult,

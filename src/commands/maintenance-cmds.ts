@@ -23,6 +23,7 @@ import { ArchiveState } from "../state";
 export const MAINTENANCE_VERBS = [
   "shelf-hygiene",
   "rb-fix-paths",
+  "rb-unmatched",
   "rb-anlz-spike",
   "rb-grid-triage",
 ] as const;
@@ -112,6 +113,35 @@ export async function runMaintenanceCommand(
         printRbFixReport(r, console.log);
       }
       if (!r.ok) process.exitCode = 1;
+      return;
+    }
+    case "rb-unmatched": {
+      // disk→DB reconcile half: audio files NO rekordbox row references.
+      // Read-only census by default; --quarantine --yes moves the unknown
+      // set to the shelf quarantine (never deletes, manifest kept). Safe
+      // while rekordbox runs — only row-less files move.
+      const flags = parseFlags(rest, ["ext"], ["json", "quarantine", "yes"]);
+      const mount = mountFrom(positionalArgs(rest, [])[0]);
+      const { rbUnmatched, printRbUnmatchedReport } =
+        await import("./rb-unmatched");
+      const json = flags.bools.has("json");
+      const r = await rbUnmatched({
+        mount,
+        ext: manyOf(rest, "ext"),
+        quarantine: flags.bools.has("quarantine"),
+        yes: flags.bools.has("yes"),
+        json,
+        log: (s) => (json ? undefined : console.log(s)),
+      });
+      if (json) {
+        console.log(JSON.stringify(r));
+      } else {
+        printRbUnmatchedReport(r, console.log);
+      }
+      // gate parity: an unresolved backlog is a visible failure state —
+      // but a SUCCESSFUL apply (quarantine ran) leaves unknown == 0 and
+      // must read as success; failing it would block automation loops
+      if (!r.ok || (r.unknown > 0 && !r.appliedMode)) process.exitCode = 1;
       return;
     }
     case "rb-anlz-spike": {

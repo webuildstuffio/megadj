@@ -86,6 +86,15 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                and fixes (dry first, ALWAYS); --apply
                                                backs the DB up, refuses while rekordbox
                                                runs, rewrites, then re-checks EVERY row
+  megadj rb-unmatched [drive] [--ext E] [--json]
+                                               the disk→DB reconcile half: audio files NO
+                                               rekordbox row points at (import backlog).
+                                               Census classifies matched / twin-named
+                                               (dupescan's queue) / unknown; exit 1 while
+                                               unknown > 0 (dry first, ALWAYS);
+                                               [--quarantine --yes] moves ONLY unknown
+                                               files to the shelf quarantine (never
+                                               deletes; dated manifest beside them)
   megadj rb-grid-triage [drive] [--compare D] [--limit N] [--json]
                                                grid audit vs the ANLZ rekordbox wrote:
                                                byte-compare vs a stick (--compare = SYNC
