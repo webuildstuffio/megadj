@@ -84,6 +84,30 @@ sqlite3 ~/.local/state/megadj/archive.db \
 The human log (`docs/usb-sync-log.md`) gets the story; the DB gets the
 state. Both, always — markdown for why, DB for what.
 
+## Post-archive hygiene scan (mandatory after a real sweep)
+
+Once the archive sweep proves 100% coverage, run the hygiene scanner to
+surface byte-twins, acoustic-twins, and folder-variants that may have
+landed alongside the new files:
+
+```bash
+# 1. Dry-run scan — populates the findings ledger, changes nothing:
+bun src/cli.ts shelf-hygiene --json
+
+# 2. Review the findings (CrateDeck Hygiene tab or --json output).
+#    NEVER bulk-apply unreviewed — each finding needs a human eye.
+
+# 3. Apply confirmed fixes only (one by one or in a confirmed batch):
+bun src/cli.ts shelf-hygiene --apply --yes --json
+```
+
+The discipline is the same two-step pattern as the archive sweep itself:
+**dry-run → review → apply**. Findings live in the archive DB (the SSOT
+every surface reads — CrateDeck Hygiene tab, `deckctl`, the MCP server).
+See `.claude/skills/` for the full hygiene skill flow and
+`docs/agent-playbook.md` for the war stories behind the byte-twin and
+acoustic-twin detection.
+
 ## After every sweep — the follow-ups
 
 1. **Log it**: one dated entry in `docs/usb-sync-log.md` (drive, census,
