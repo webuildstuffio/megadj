@@ -35,22 +35,29 @@ describe("issue #33: process-crash recovery", () => {
     restarted.sqlite.close();
   });
 
-  test("timeline event retention remains capped across a database restart", () => {
-    const dir = mkdtempSync(join(tmpdir(), "cratedeck-event-cap-"));
-    const dbPath = join(dir, "db.sqlite");
-    const db = new DB(dbPath);
-    db.upsertDrive({
-      id: DRIVE_ID,
-      volume_uuid: DRIVE_ID,
-      name: "CAP_TEST",
-      mounted: true,
-    });
-    for (let i = 0; i < 2_005; i++) db.event(DRIVE_ID, "scan", { i });
-    expect(db.timeline(DRIVE_ID, 3_000)).toHaveLength(2_000);
-    db.sqlite.close();
+  // 2005 event inserts + a restart can take >10 s under full-gate
+  // parallel load (passes in ~3 s isolated); the default 5 s budget is
+  // for unit work, not a 2000-row DB loop.
+  test(
+    "timeline event retention remains capped across a database restart",
+    () => {
+      const dir = mkdtempSync(join(tmpdir(), "cratedeck-event-cap-"));
+      const dbPath = join(dir, "db.sqlite");
+      const db = new DB(dbPath);
+      db.upsertDrive({
+        id: DRIVE_ID,
+        volume_uuid: DRIVE_ID,
+        name: "CAP_TEST",
+        mounted: true,
+      });
+      for (let i = 0; i < 2_005; i++) db.event(DRIVE_ID, "scan", { i });
+      expect(db.timeline(DRIVE_ID, 3_000)).toHaveLength(2_000);
+      db.sqlite.close();
 
-    const restarted = new DB(dbPath);
-    expect(restarted.timeline(DRIVE_ID, 3_000)).toHaveLength(2_000);
-    restarted.sqlite.close();
-  });
+      const restarted = new DB(dbPath);
+      expect(restarted.timeline(DRIVE_ID, 3_000)).toHaveLength(2_000);
+      restarted.sqlite.close();
+    },
+    { timeout: 30_000 },
+  );
 });
