@@ -210,7 +210,7 @@ async function main() {
       (!truth.title || !truth.artist || !truth.album || !genreOk);
     const needGenre = (ONLY === "all" || ONLY === "genres") && !genreOk;
     const needYear = (ONLY === "all" || ONLY === "years") && !truth.year;
-    const upgradeSc = ALL && !!r.format_id?.startsWith("sc:");
+    const upgradeSc = ALL && r.format_id?.startsWith("sc:") === true;
     const needArt =
       (ONLY === "all" || ONLY === "art") && (!truth.art || upgradeSc);
     if (needTags || needGenre || needArt || needYear)
@@ -360,7 +360,7 @@ async function main() {
           reason: "no-online-cover",
         }),
       );
-    if (lines.length) await appendFile(QUEUE, lines.join("\n") + "\n");
+    if (lines.length) await appendFile(QUEUE, `${lines.join("\n")}\n`);
   }
 
   // ---- summary ----

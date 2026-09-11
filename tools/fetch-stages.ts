@@ -245,7 +245,7 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
 export function stageBeatportIdentity(t: StageCtx): void {
   if (t.dry || !t.needTags || !t.bpBest) return;
   const vals: TagValues = {};
-  const bpFields: Array<[string, string | number]> = [];
+  const bpFields: [string, string | number][] = [];
   if (!t.truth.label && t.bpBest.label) {
     vals.label = t.bpBest.label;
     bpFields.push(["label", t.bpBest.label]);
@@ -288,7 +288,7 @@ async function scArt(t: StageCtx, best: ScHit): Promise<boolean> {
       : null;
   if (!bytes) return false;
   if (!embedArt(t.row.file_path, bytes)) return false;
-  const orig = !!og?.includes("-original");
+  const orig = og?.includes("-original") === true;
   markArt(t, `sc${orig ? "-orig" : ""}`, orig, `sc:${best.url}`);
   // SC hit can also fill genre/year when the cheap stage didn't run
   if (best.genre && t.needGenre) {
@@ -322,11 +322,11 @@ function recordArtWin(
  *  release master (1500²) beats a hype-page screenshot. */
 async function fallbackArt(t: StageCtx): Promise<boolean> {
   const r = t.row;
-  const ladder: Array<{
+  const ladder: {
     stat: keyof Stats;
     label: string;
     bytes: Promise<Uint8Array | null> | Uint8Array | null;
-  }> = [
+  }[] = [
     {
       stat: "artBeatport",
       label: "beatport",

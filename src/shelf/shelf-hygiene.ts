@@ -23,6 +23,7 @@ import {
   isListenFirst,
 } from "../archive/hygiene/subcategory";
 import { applyFinding, validateFinding } from "../archive/hygiene/apply";
+import { fingerprintFileLength } from "../../fulltags/src/exports";
 import type { CheckCtx } from "../archive/hygiene/types";
 import { FpCache } from "./shelf-dupescan";
 
@@ -177,16 +178,10 @@ export async function shelfHygiene(
       fp: (p, size) => {
         const hit = cache.get(p, size);
         if (hit !== undefined) return hit;
-        const fp = (() => {
-          const r = Bun.spawnSync(["fpcalc", "-length", "120", p]);
-          if (r.exitCode !== 0) return null;
-          // base64url: `-`/`_` are in the alphabet — a class without them
-          // truncates at the first hyphen (Sep 11 mass-collision regression)
-          const m = r.stdout
-            .toString()
-            .match(/FINGERPRINT=([A-Za-z0-9+=/_-]+)/);
-          return m?.[1] ?? null;
-        })();
+        // ONE fpcalc spawn+parse repo-wide (fulltags fingerprintFileLength
+        // — its base64url parse keeps `-`/`_`; the Sep 11 mass-collision
+        // regression is pinned against that single implementation)
+        const fp = fingerprintFileLength(p);
         cache.put(p, size, fp);
         return fp;
       },

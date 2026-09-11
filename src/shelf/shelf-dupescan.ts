@@ -16,7 +16,10 @@
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import {
+  fingerprintFileLength,
+  parseFpcalcOutput as fulltagsParseFpcalcOutput,
+} from "../../fulltags/src/exports";
 import {
   DupFpCache,
   groupByFingerprint,
@@ -48,19 +51,15 @@ export function walkAudio(root: string): string[] {
   return out;
 }
 
-/** Parse fpcalc stdout into a fingerprint. Base64url alphabet includes
- *  `-` and `_` — a char class without them truncates at the first hyphen
- *  and every file whose fingerprint shares the prefix collides into fake
- *  duplicate groups (the Sep 11 mass-collision; regression-tested). */
-export function parseFpcalcOutput(stdout: string): string | null {
-  const m = stdout.match(/FINGERPRINT=([A-Za-z0-9+=/_-]+)/);
-  return m?.[1] ?? null;
-}
+/** Parse fpcalc stdout into a fingerprint — re-exported from the FullTags
+ *  SSOT (fulltags/src/analysis.ts), where the spawn+parse lives as ONE
+ *  implementation (fingerprintFileLength) for every fingerprint pass in
+ *  the repo. The Sep 11 mass-collision parse fix now has exactly one
+ *  home; these regression tests pin it. */
+export const parseFpcalcOutput = fulltagsParseFpcalcOutput;
 
 function fingerprint(path: string): string | null {
-  const r = spawnSync("fpcalc", ["-length", "120", path]);
-  if (r.status !== 0) return null;
-  return parseFpcalcOutput(r.stdout.toString());
+  return fingerprintFileLength(path);
 }
 
 /** Persistent fp cache — one row per file path (re-runs only decode

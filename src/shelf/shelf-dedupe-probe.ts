@@ -3,7 +3,7 @@
 // so the verdict logic and the probes read (and test) separately.
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { fingerprintFileLength } from "../../fulltags/src/exports";
 
 /** MD5 in-process (node:crypto), NOT via the macOS `md5` CLI: under bun
  *  test --parallel=16 the spawnSync can fail under process pressure and a
@@ -21,17 +21,14 @@ export function md5(path: string): string | null {
   }
 }
 
-/** Chromaprint acoustic fingerprint (fpcalc -length 120). The output is
- *  base64url: `-` and `_` are PART of the alphabet — a char class without
- *  them truncates at the first hyphen and unrelated files sharing the
- *  prefix collide into fake duplicate groups (the Sep 11 mass-collision
- *  regression; test pinned in shelf-dupescan.test.ts). */
+/** Chromaprint acoustic fingerprint — the ONE spawn+parse lives in
+ *  FullTags (fingerprintFileLength, `fpcalc -length 120`). Its base64url
+ *  parse keeps `-`/`_`: a char class without them truncated at the first
+ *  hyphen and unrelated files sharing the prefix collided into fake
+ *  duplicate groups (the Sep 11 mass-collision; now regression-pinned in
+ *  shelf-dupescan.test.ts against the single implementation). */
 export function fingerprint(path: string): string | null {
-  const r = spawnSync("fpcalc", ["-length", "120", path]);
-  if (r.status !== 0) return null;
-  const m = r.stdout.toString().match(/FINGERPRINT=([A-Za-z0-9+=/_-]+)/);
-  const fp = m?.[1];
-  return fp ?? null;
+  return fingerprintFileLength(path);
 }
 
 /** Quality ladder for "which rip is the keeper" (higher wins). Extension

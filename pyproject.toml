@@ -1,0 +1,31 @@
+[project]
+name = "megadj-python"
+version = "0.1.0"
+description = "megadj Python seams (rekordbox bridge, art fetch) — pinned deps, strict mypy + ruff"
+requires-python = ">=3.11"
+dependencies = [
+  "mypy>=1.11",
+  "ruff>=0.6",
+  "mutagen>=1.47",
+]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+warn_unreachable = true
+pretty = true
+files = ["cratedeck/python", "tools"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["node_modules", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "RUF"]
+ignore = [
+  "E501", # line length — prettier doesn't own .py; keep readable long lines
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["anlz_paths", "usb_verify"]

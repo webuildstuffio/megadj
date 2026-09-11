@@ -36,8 +36,9 @@ import shutil
 import subprocess
 import sys
 import warnings
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 warnings.filterwarnings("ignore")
 
@@ -69,7 +70,7 @@ def check_prerequisites(need_db_write: bool) -> None:
 
 def backup_master_db(tag: str) -> Path:
     """Copy master.db + -shm + -wal to a dated backup folder."""
-    dest = BACKUP_ROOT / f"{datetime.now(timezone.utc):%Y%m%d-%H%M%S}-{tag}"
+    dest = BACKUP_ROOT / f"{datetime.now(UTC):%Y%m%d-%H%M%S}-{tag}"
     dest.mkdir(parents=True, exist_ok=True)
     copied = []
     for suffix in ("", "-shm", "-wal"):
@@ -81,28 +82,29 @@ def backup_master_db(tag: str) -> Path:
     return dest
 
 
-def open_db():
-    from pyrekordbox import Rekordbox6Database
-    from pyrekordbox.db6.tables import DjmdContent
+def open_db() -> tuple[Any, Any]:
+    from pyrekordbox import Rekordbox6Database  # type: ignore[import-not-found]
+    from pyrekordbox.db6.tables import DjmdContent  # type: ignore[import-not-found]
 
     try:
         db = Rekordbox6Database()
-    except Exception as exc:  # noqa: BLE001 — surface any unlock failure mode
+    except Exception as exc:
         fail(f"cannot unlock master.db: {exc}")
     return db, DjmdContent
 
 
 def wav_art_jpeg(path: str) -> bytes | None:
     """Extract the embedded cover (APIC) from a WAV file."""
-    from mutagen.wave import WAVE
+    from mutagen.wave import WAVE  # type: ignore[import-not-found,unused-ignore]
 
     try:
-        a = WAVE(path)
-        if not a.tags:
+        a: Any = WAVE(path)  # type: ignore[no-untyped-call]  # mutagen: no stubs
+        tags: Any = a.tags
+        if not tags:
             return None
-        for key in list(a.tags.keys()):
+        for key in list(tags.keys()):
             if key.startswith("APIC"):
-                frame = a.tags.get(key)
+                frame = tags.get(key)
                 data = bytes(getattr(frame, "data", b"") or b"")
                 if data[:3] == b"\xff\xd8\xff":  # JPEG magic
                     return data
@@ -113,7 +115,7 @@ def wav_art_jpeg(path: str) -> bytes | None:
         return None
 
 
-def collect_targets(db, DjmdContent) -> list[dict]:
+def collect_targets(db: Any, DjmdContent: Any) -> list[dict[str, Any]]:
     """All WAV rows in RB whose file exists in the archive and lacks ImagePath."""
     rows = db.query(DjmdContent).filter(DjmdContent.FileType == 11).all()
     targets = []
@@ -153,7 +155,7 @@ def ensure_artwork_file(art: bytes, row_id: str) -> str:
     import io
     import uuid as uuid_mod
 
-    from PIL import Image
+    from PIL import Image  # type: ignore[import-not-found]
 
     row_id = str(row_id)
     # shard = stable 3-hex dir; existing dirs use first 3 chars of a hex uuid.
@@ -180,12 +182,12 @@ def ensure_artwork_file(art: bytes, row_id: str) -> str:
                 t.save(tpath, "PNG")
             else:
                 t.save(tpath, "JPEG", quality=85)
-    except Exception as exc:  # noqa: BLE001 — thumbnails are best-effort
+    except Exception as exc:
         print(f"  ⚠ thumbnail generation failed for {shard}/{uid}: {exc}")
     return f"/PIONEER/Artwork/{shard}/{uid}/artwork.{ext}"
 
 
-def set_image_path(db, content, image_path: str) -> None:
+def set_image_path(db: Any, content: Any, image_path: str) -> None:
     content.ImagePath = image_path
     # keep RB's local-change bookkeeping consistent (cloud sync unused,
     # but rb_local_usn should still move like the app does)
@@ -211,7 +213,7 @@ def mode_status() -> int:
     return 0
 
 
-def plan(mode: str) -> list[dict]:
+def plan(mode: str) -> list[dict[str, Any]]:
     check_prerequisites(need_db_write=(mode in ("pilot", "batch")))
     if mode in ("pilot", "batch"):
         backup_master_db(mode)
@@ -246,7 +248,7 @@ def apply(mode: str) -> int:
             set_image_path(db, t["content"], image_path)
             ok += 1
             print(f"  ✓ {t['file'][:60]}")
-        except Exception as exc:  # noqa: BLE001 — keep batch going, log the failure
+        except Exception as exc:
             err += 1
             print(f"  ✗ {t['file'][:60]}: {exc}")
     close_db(targets)
@@ -257,7 +259,7 @@ def apply(mode: str) -> int:
     return 1 if err else 0
 
 
-def close_db(targets: list[dict]) -> None:
+def close_db(targets: list[dict[str, Any]]) -> None:
     """Close the session opened in plan() — content objects carry their engine."""
     try:
         eng = targets[0]["content"].session.bind if targets else None
