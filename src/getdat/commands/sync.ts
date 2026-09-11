@@ -56,6 +56,35 @@ interface PlaylistEntry {
   title: string | null;
 }
 
+/** Decode yt-dlp playlist output at the process boundary. */
+export function parsePlaylistOutput(stdout: string): PlaylistEntry[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout) as unknown;
+  } catch (error) {
+    throw new Error("playlist output was not valid JSON", { cause: error });
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("playlist output was not valid JSON");
+  }
+  const entries = (parsed as { entries?: unknown }).entries;
+  if (entries !== undefined && !Array.isArray(entries)) {
+    throw new Error("playlist output was not valid JSON");
+  }
+  return (entries ?? []).flatMap((entry): PlaylistEntry[] => {
+    if (entry === null || typeof entry !== "object") return [];
+    const row = entry as { id?: unknown; title?: unknown };
+    return typeof row.id === "string" && row.id.length > 0
+      ? [
+          {
+            id: row.id,
+            title: typeof row.title === "string" ? row.title : null,
+          },
+        ]
+      : [];
+  });
+}
+
 async function fetchPlaylist(
   playlistId: string,
   cookiesFile?: string | null,
@@ -80,12 +109,7 @@ async function fetchPlaylist(
       `playlist fetch failed (${playlistId}): ${new TextDecoder().decode(proc.stderr).slice(0, 300)}`,
     );
   }
-  const data = JSON.parse(new TextDecoder().decode(proc.stdout)) as {
-    entries?: { id?: string; title?: string }[];
-  };
-  return (data.entries ?? [])
-    .filter((e) => e.id)
-    .map((e) => ({ id: e.id as string, title: e.title ?? null }));
+  return parsePlaylistOutput(new TextDecoder().decode(proc.stdout));
 }
 
 export interface SyncTotals {
@@ -193,15 +217,16 @@ function classifyMusic(result: YtdlpInfo, opts: SyncOptions): boolean {
 /** stat() can throw if yt-dlp's reported path vanished between the download
  *  finishing and here (AV quarantine, race) — that must fail this one track,
  *  not the whole run. */
-async function statSizeSafe(
+export async function statSizeSafe(
   filePath: string,
   log: (msg: string) => void,
-): Promise<number> {
+): Promise<number | null> {
   try {
     return (await Bun.file(filePath).stat()).size;
-  } catch {
+  } catch (error) {
     log(`  ⚠ landed file not statable: ${filePath}`);
-    return 0;
+    void error;
+    return null;
   }
 }
 
@@ -233,6 +258,16 @@ async function settleDownload(
     const meta = buildMetadata(dl.info);
     await applyTags(dl.filePath, meta);
     const fileSize = await statSizeSafe(dl.filePath, log);
+    if (fileSize === null) {
+      totals.failed++;
+      state.markFailed(
+        track.video_id,
+        "downloaded file disappeared before verification",
+      );
+      log(`  ↳ failed: landed file disappeared before verification`);
+      bar.update();
+      return;
+    }
     totals.bytes += fileSize;
     state.markDownloaded(track.video_id, {
       title: meta.title,

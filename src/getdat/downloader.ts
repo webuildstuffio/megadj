@@ -26,6 +26,25 @@ export interface DownloaderOptions {
   minBitrateKbps?: number | undefined;
 }
 
+/** Decode yt-dlp metadata at the process boundary with a useful failure. */
+export function parseYtdlpInfo(stdout: string): YtdlpInfo {
+  try {
+    const parsed: unknown = JSON.parse(stdout);
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
+      throw new Error("metadata root is not an object");
+    }
+    return parsed as YtdlpInfo;
+  } catch (error) {
+    throw new Error("yt-dlp metadata output was not valid JSON", {
+      cause: error,
+    });
+  }
+}
+
 const GONE_PATTERNS = [
   /video unavailable/i,
   /account associated with this video has been terminated/i,
@@ -100,7 +119,7 @@ export class Downloader {
       if (kind === "gone") throw new Error("GONE");
       throw new Error(errText.split("\n").slice(-3).join(" ").slice(0, 300));
     }
-    return JSON.parse(new TextDecoder().decode(proc.stdout)) as YtdlpInfo;
+    return parseYtdlpInfo(new TextDecoder().decode(proc.stdout));
   }
 
   /** Bitrate by known YouTube format ID. */

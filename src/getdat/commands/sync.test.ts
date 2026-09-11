@@ -2,7 +2,12 @@ import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { ArchiveState } from "../../archive/state";
 import { RateLimiter } from "../ratelimit";
 import { Downloader } from "../downloader";
-import { sync, type SyncOptions } from "./sync";
+import {
+  parsePlaylistOutput,
+  statSizeSafe,
+  sync,
+  type SyncOptions,
+} from "./sync";
 import { tempState } from "../../testutil";
 
 /**
@@ -52,6 +57,25 @@ afterEach(() => {
 });
 
 describe("sync (GetDat pipeline)", () => {
+  test("missing landed file is not reported as a zero-byte success", async () => {
+    const logs: string[] = [];
+    const size = await statSizeSafe(
+      `${dir}/landed-file-that-does-not-exist.m4a`,
+      (message) => logs.push(message),
+    );
+    expect(size).toBeNull();
+    expect(logs[0]).toContain("not statable");
+  });
+
+  test("malformed playlist output is reported as a playlist parse failure", () => {
+    expect(() => parsePlaylistOutput("{not-json")).toThrow(
+      "playlist output was not valid JSON",
+    );
+    expect(() => parsePlaylistOutput("[]")).toThrow(
+      "playlist output was not valid JSON",
+    );
+  });
+
   // Probe failures go through withRetry (3 attempts × ~1.5s spawn resolution
   // of the intentionally-nonexistent binary) — give the tests room.
   test("dry-run writes nothing to the state DB", async () => {
