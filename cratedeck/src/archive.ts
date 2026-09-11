@@ -7,7 +7,7 @@
 //
 // READ-ONLY, by construction and by promise: opened with `readonly: true` so
 // a bug here physically cannot corrupt megadj's state (P9 safety rails).
-import { Database } from "bun:sqlite";
+import { Database, type SQLQueryBindings } from "bun:sqlite";
 import { existsSync } from "node:fs";
 import {
   similarTracks as similarTracksImpl,
@@ -43,6 +43,19 @@ export class ArchiveReader implements ArchiveQuery {
   private db: Database | null = null;
   constructor(readonly path: string) {}
 
+  /** Public "is the archive DB present" probe (routes/agents use this to
+   *  degrade gracefully; keeps `handle()` private). */
+  available(): boolean {
+    return this.handle() !== null;
+  }
+
+  /** Public readonly access to the opened handle — tests (readonly-flag
+   *  regression) and split modules probe it without private-state casts;
+   *  bun's `readonly: true` keeps writes throwing at the driver level. */
+  get handleOrNull(): Database | null {
+    return this.db;
+  }
+
   /** Lazily open readonly; missing DB → null (agents get a clean "no
    *  archive yet" result, not a stack trace). */
   private handle(): Database | null {
@@ -52,12 +65,6 @@ export class ArchiveReader implements ArchiveQuery {
     return this.db;
   }
 
-  /** Public "is the archive DB present" probe (routes/agents use this to
-   * degrade gracefully; keeps `handle()` private). */
-  available(): boolean {
-    return this.handle() !== null;
-  }
-
   close(): void {
     this.db?.close();
     this.db = null;
@@ -65,10 +72,10 @@ export class ArchiveReader implements ArchiveQuery {
 
   /** Public read access for the split-out modules (archive_similar.ts):
    * parameterised SELECT only — still read-only by construction. */
-  rows<T>(sql: string, ...params: unknown[]): T[] {
+  rows<T>(sql: string, ...params: SQLQueryBindings[]): T[] {
     const db = this.handle();
     if (!db) return [];
-    return db.query(sql).all(...(params as never[])) as T[];
+    return db.query(sql).all(...params) as T[];
   }
 
   /** The ArchiveTrack column list, shared by every query that returns

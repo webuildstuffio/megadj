@@ -48,6 +48,9 @@ export interface Truth {
   genre: string | null;
   year: string | null;
   comment: string | null;
+  label: string | null;
+  mixName: string | null;
+  isrc: string | null;
 }
 
 /** Ground-truth file read — FullTags readers (WAV/MP3 via mutagen). */
@@ -69,7 +72,9 @@ export function embedArt(p: string, bytes: Uint8Array): boolean {
 /** Tag fields the archive DB pipeline manages. `year` = release year of
  * THIS file's version (remixes: the remix year, NOT the original's).
  * `aiGenre`/`aiYear` are provenance stamps "value|confidence" (0–1) written
- * as TXXX:AI-GENRE / TXXX:AI-YEAR so AI-filled fields are always visible. */
+ * as TXXX:AI-GENRE / TXXX:AI-YEAR so AI-filled fields are always visible.
+ * `label`/`mixName`/`isrc` are the Beatport identity fields (TSRC /
+ * freeform atoms per container — see fulltags/src/writer.ts). */
 export interface TagValues {
   title?: string;
   artist?: string;
@@ -77,6 +82,9 @@ export interface TagValues {
   genre?: string;
   year?: number;
   comment?: string;
+  label?: string;
+  mixName?: string;
+  isrc?: string;
   aiGenre?: string;
   aiYear?: string;
 }
@@ -104,3 +112,6 @@ export {
   scSearch,
   twinArt,
 } from "../fulltags/src/exports";
+
+// ---------- Beatport (second source, behind SC — fulltags/src/beatport.ts) ----------
+export { beatportLookup, bpGenre, type BpTrack } from "../fulltags/src/exports";

@@ -202,18 +202,17 @@ describe("ArchiveReader (O82b)", () => {
 
   it("readonly handle cannot write", () => {
     const r = reader();
-    const db = (r as unknown as { db: Database | null }).db;
     // the handle is lazy — force it, then assert the flag held
     r.ingestStatus();
-    expect((r as unknown as { db: Database | null }).db).not.toBeNull();
+    const db = r.handleOrNull;
+    expect(db).not.toBeNull();
     let threw = false;
     try {
-      (r as unknown as { db: Database }).db!.query("DELETE FROM tracks").run();
+      db!.query("DELETE FROM tracks").run();
     } catch {
       threw = true;
     }
     expect(threw).toBe(true);
-    expect(db).toBeNull(); // silence unused-var lints while keeping the assert above
     r.close();
   });
 

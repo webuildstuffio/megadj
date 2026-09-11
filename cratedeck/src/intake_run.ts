@@ -28,6 +28,7 @@
  */
 import { join } from "node:path";
 import { mkdirSync, readdirSync } from "node:fs";
+import type { IntakeCandidate } from "../shared/types";
 
 export interface IntakePhase {
   /** 0..1 absolute progress this phase STARTS at */
@@ -159,14 +160,6 @@ export function ensureIntakeWatchDir(cfg: { musicDir: string }): string {
     console.error(`intake watch dir uncreatable at ${watch}:`, e);
   }
   return watch;
-}
-
-export interface IntakeCandidate {
-  path: string;
-  exists: boolean;
-  /** file count visible at the top level (cheap readdir, not a walk) */
-  files: number;
-  label: string;
 }
 
 /** Folders the Intake tab offers as one-click sources: the watch folder

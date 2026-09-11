@@ -352,6 +352,22 @@ export interface IntakeResult {
   auditErrors: Array<{ file: string; missing: string }>;
 }
 
+/** One folder GET /api/intake/folders offers as a one-click intake source
+ *  (the absolute-path allowlist the start route enforces). */
+export interface IntakeCandidate {
+  path: string;
+  exists: boolean;
+  /** file count visible at the top level (cheap readdir, not a walk) */
+  files: number;
+  label: string;
+}
+
+/** Wire shape of GET /api/intake/folders. */
+export interface IntakeFoldersResponse {
+  watch: string;
+  candidates: IntakeCandidate[];
+}
+
 export interface TimelineEvent {
   id: string;
   drive_id: string;
@@ -410,6 +426,33 @@ export interface VerifyReport {
   /** Comparison against the previous stored run, when one existed. */
   deltas?: VerifyDelta[];
   prev_ran_at?: number | null;
+}
+
+/** The "what does verify actually do" help doc — the SSOT is
+ *  cratedeck/src/verify_help.ts (VERIFY_HELP), served verbatim at
+ *  /help/jobs and /drives/:id/verify/help; deckctl explain and the web
+ *  VerifyTab consume this shape. Restated here so shared stays a leaf;
+ *  verify_help.ts's type is structurally identical (a census test would
+ *  flag drift — do not edit one side without the other). */
+export interface VerifyCheckDoc {
+  id: string;
+  label: string;
+  /** What the check does, mechanically. */
+  what: string;
+  /** Why a DJ should care. */
+  why: string;
+  /** What a failure means for gig night. */
+  if_fail: string;
+  /** Typical fix. */
+  fix: string;
+}
+
+/** Wire shape of the verify help endpoints above. */
+export interface VerifyHelpDoc {
+  intro: string;
+  duration: string;
+  safety: string;
+  checks: VerifyCheckDoc[];
 }
 
 export interface PortInfo {
@@ -514,6 +557,27 @@ export type CoverageResponse = Omit<CoverageResult, "drives" | "rows"> & {
   drives: { id: string; name: string; tracks: number }[];
   rows?: undefined;
 };
+
+/** Minimal drive reference used across fleet payloads (diff A/B pickers,
+ *  track-location hits) — id plus DISPLAY name, mounted when known. */
+export interface DriveRef {
+  id: string;
+  name: string;
+  mounted?: boolean | undefined;
+}
+
+/** Wire shape of GET /api/fleet/track — which drives carry one track
+ *  (identity null = the query matched nothing). Produced by the route in
+ *  src/index.ts from fleet.trackLocations + display-name merge; the web
+ *  coverage tab derives its hit type from here (never re-declares it). */
+export interface TrackLocationsResponse {
+  identity: {
+    path: string;
+    title: string | null;
+    artist: string | null;
+  } | null;
+  drives: DriveRef[];
+}
 
 /** Redundancy verdict for one playlist, with its gap detail. */
 export interface PlaylistRedundancy {

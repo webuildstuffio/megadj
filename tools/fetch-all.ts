@@ -37,6 +37,7 @@ import {
   archiveFiles,
   scSearch,
   setFileTags,
+  beatportLookup,
   type Row,
   type TagValues,
 } from "./fetch-lib";
@@ -46,6 +47,7 @@ import { appendFile } from "node:fs/promises";
 import { ProgressBar } from "../src/progress";
 import {
   stageArt,
+  stageBeatportIdentity,
   stageGenreYear,
   stageTags,
   type StageCtx,
@@ -125,10 +127,27 @@ async function processTask(
     notes,
     aiGenreBatch,
     aiYearBatch,
+    bpBest: null,
   };
 
   // ---- 1. tags (DB → file) ----
   stageTags(ctx);
+
+  // ---- Beatport lookup (second source, behind SC) ----
+  // One catalog search feeds genre AND year AND art AND identity. Runs
+  // when any Beatport-fed field is needed; SC wins every field it covers.
+  const wantsBp =
+    !DRY &&
+    (t.needGenre ||
+      t.needArt ||
+      t.needYear ||
+      (t.needTags && (!truth.label || !truth.mixName || !truth.isrc)));
+  ctx.bpBest = wantsBp
+    ? await beatportLookup({
+        artist: truth.artist ?? r.artist ?? null,
+        title: truth.title ?? r.title,
+      })
+    : null;
 
   // ---- 2+3+4. SC search feeds genre AND art AND year ----
   const wantsSc = t.needGenre || t.needArt || t.upgradeSc || t.needYear;
@@ -136,6 +155,7 @@ async function processTask(
   const best = sc?.[0] ?? null;
 
   stageGenreYear(ctx, best);
+  stageBeatportIdentity(ctx);
 
   // ---- 3. artwork ladder (SC original-res first, then fallbacks) ----
   const artDone = await stageArt(ctx, best);
@@ -202,15 +222,19 @@ async function main() {
   const stats: Stats = {
     tags: 0,
     genreSc: 0,
+    genreBp: 0,
     genreAi: 0,
     artSc: 0,
     artScOrig: 0,
+    artBeatport: 0,
     artGateway: 0,
     artTwin: 0,
     artDeezer: 0,
     artItunes: 0,
     yearSc: 0,
+    yearBp: 0,
     yearAi: 0,
+    bpIdentity: 0,
   };
   const aiGenreBatch: Row[] = [];
   const aiYearBatch: Row[] = [];
@@ -333,10 +357,15 @@ async function main() {
     tasks: tasks.length,
     tags: stats.tags,
     genreSc: stats.genreSc,
+    genreBp: stats.genreBp,
     genreAi: stats.genreAi,
     yearSc: stats.yearSc,
+    yearBp: stats.yearBp,
     yearAi: stats.yearAi,
+    bpIdentity: stats.bpIdentity,
     artSc: stats.artSc,
+    artScOrig: stats.artScOrig,
+    artBeatport: stats.artBeatport,
     artGateway: stats.artGateway,
     artTwin: stats.artTwin,
     artDeezer: stats.artDeezer,
@@ -348,7 +377,7 @@ async function main() {
     console.log(JSON.stringify(summary));
   } else {
     progress?.close(
-      `DONE${DRY ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + AI ${stats.yearAi} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}`,
+      `DONE${DRY ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}`,
     );
   }
   db.close();

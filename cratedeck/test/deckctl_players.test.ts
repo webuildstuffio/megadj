@@ -16,9 +16,24 @@ function payload(id: string): PlayersPayload {
   };
 }
 
-/** Generic getJson seam: `async <T>(path) => …` in production; tests pass
- *  a concretely-typed transport and cast at the seam. */
-type GetJson = <T>(path: string) => Promise<T>;
+/** Generic getJson seam: `async <T>(path) => …` in production; the fake
+ *  below satisfies it honestly (caller instantiates T at the call). */
+
+/** Honest generic transport for tests: the production seam is
+ *  `<T>(path) => Promise<T>` (the caller picks T when invoking). A test
+ *  fake satisfies that by deriving per-path payloads and letting the
+ *  caller instantiate T — no `as unknown as` cast needed. The id is the
+ *  third segment of `/api/drives/:id/players`. */
+function fakeGetJson(
+  byId: (id: string) => PlayersPayload,
+  failIds: ReadonlySet<string> = new Set(),
+): <T>(path: string) => Promise<T> {
+  return async <T>(path: string) => {
+    const id = path.split("/")[3]!; // "", api, drives, :id, players
+    if (failIds.has(id)) throw new Error("drive disappeared");
+    return byId(id) as T;
+  };
+}
 
 describe("collectPlayers (deckctl players)", () => {
   it("collects payloads for every healthy drive", async () => {
@@ -27,8 +42,7 @@ describe("collectPlayers (deckctl players)", () => {
         { id: "a", name: "A", nickname: null },
         { id: "b", name: "B", nickname: "Bee" },
       ],
-      (async (path: string) =>
-        payload(path.split("/")[2]!)) as unknown as GetJson,
+      fakeGetJson((id) => payload(id)),
     );
     expect(r.players.length).toBe(2);
     expect(r.skipped).toEqual([]);
@@ -40,10 +54,7 @@ describe("collectPlayers (deckctl players)", () => {
         { id: "a", name: "A", nickname: null },
         { id: "gone", name: "Gone", nickname: null },
       ],
-      (async (path: string) => {
-        if (path.includes("gone")) throw new Error("drive disappeared");
-        return payload("a");
-      }) as unknown as GetJson,
+      fakeGetJson((id) => payload(id), new Set(["gone"])),
     );
     expect(r.players.map((p) => p.drive.id)).toEqual(["a"]);
     expect(r.skipped).toEqual([{ drive: "Gone", reason: "drive disappeared" }]);
@@ -52,9 +63,9 @@ describe("collectPlayers (deckctl players)", () => {
   it("nickname wins in skipped.drive (matches the human output label)", async () => {
     const r = await collectPlayers(
       [{ id: "x", name: "XRAW", nickname: "Gig Stick" }],
-      (async () => {
+      fakeGetJson(() => {
         throw new Error("boom");
-      }) as unknown as GetJson,
+      }),
     );
     expect(r.skipped[0]!.drive).toBe("Gig Stick");
   });

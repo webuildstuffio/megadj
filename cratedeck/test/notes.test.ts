@@ -6,6 +6,7 @@ import {
   addAgentNote,
   agentNotes,
   NOTE_MAX,
+  type NotesStore,
 } from "../src/notes";
 
 describe("agent notes (O88)", () => {
@@ -122,7 +123,7 @@ describe("agent notes (O88)", () => {
       kind: string;
       data_json: string;
     }[] = [];
-    const store = {
+    const store: NotesStore = {
       event(driveId: string, kind: string, data: Record<string, unknown>) {
         const id = `row-${storeRows.length + 1}`;
         storeRows.push({
@@ -152,7 +153,7 @@ describe("agent notes (O88)", () => {
     });
     expect(id).toBe("row-1");
     // and the id round-trips through the reader (dismiss/feed key on it)
-    const feed = agentNotes(store as never, "d1");
+    const feed = agentNotes(store, "d1");
     expect(feed[0]?.id).toBe("row-1");
   });
 });

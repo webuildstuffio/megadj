@@ -36,6 +36,9 @@ export interface FullTag {
   energy: number | null;
   /** MusicBrainz recording MBID — metadata provenance. */
   mbid: string | null;
+  /** ISRC — the store-grade recording identity (Beatport rows carry it;
+   * written as TSRC on ID3, freeform ----:com.apple.iTunes:ISRC on m4a). */
+  isrc: string | null;
   /** Chromaprint fingerprint — content identity for dupes/upgrade
    * verification (TXXX:ACOUSTID). */
   fingerprint: string | null;
@@ -114,6 +117,8 @@ export interface TagPatch {
   mixName?: string | undefined;
   comment?: string | undefined;
   mbid?: string | undefined;
+  /** ISRC (TSRC on ID3, freeform ISRC atom on m4a, TXXX:ISRC elsewhere). */
+  isrc?: string | undefined;
   /** Written where the container supports it (mp3/flac + mutagen paths). */
   bpm?: number | undefined;
   /** Harmonic key — Camelot or traditional; TKEY/TXXX:CAMELOT. */
@@ -131,6 +136,9 @@ export interface TagPatch {
   aiYear?: string | undefined;
   /** Model mood/dance stamp, "k=v; …" → TXXX:MOOD (roadmap #4). */
   mood?: string | undefined;
+  /** Beatport provenance stamp, "label=X; mix=Y; …" → TXXX:BP-FIELDS —
+   * every Beatport-filled field is recorded here, never silently blended. */
+  beatport?: string | undefined;
 }
 
 /** Genre → folder name safe for filesystems ("R&B / Soul" → "R&B Soul"). */

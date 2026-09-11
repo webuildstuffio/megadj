@@ -9,7 +9,7 @@
  */
 import { describe, test, expect } from "bun:test";
 import { tagHealth } from "../src/tag-health";
-import { isMojibake } from "../src/booth-text";
+import { hasControlChars, isMojibake } from "../src/booth-text";
 
 describe("isMojibake (SSOT — tag-health depends on it)", () => {
   test("legit accented names pass", () => {
@@ -38,12 +38,12 @@ describe("tagHealth", () => {
   });
 
   test("control bytes inside a title are flagged (unit-level)", () => {
-    // The control-byte regex is the scanner's own — test it directly via
-    // a synthetic Truth-shaped read is not possible without a file, so
-    // pin the regex contract here instead.
-    // eslint-disable-next-line no-control-regex
-    const controlRe = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/;
-    expect(controlRe.test("ok title")).toBe(false);
-    expect(controlRe.test("bad\u0007title")).toBe(true);
+    // Control-byte detection is the booth-text SSOT (hasControlChars) —
+    // tag-health delegates to it, so the contract is pinned on the SSOT
+    // itself instead of a locally-disabled regex twin.
+    expect(hasControlChars("ok title")).toBe(false);
+    expect(hasControlChars("bad\u0007title")).toBe(true);
+    expect(hasControlChars("del\u007fx")).toBe(true);
+    expect(hasControlChars("c1\u0085x")).toBe(true);
   });
 });

@@ -1,13 +1,15 @@
 import { expect, test } from "bun:test";
-import { canonGenre, validatePatch } from "../../src/exports";
+import { canonGenre, validatePatchUntrusted } from "../../src/exports";
 
 /** Shared validatePatch scenario cases (used by schema.test.ts and
  *  compat-fetch-lib.test.ts — the compat shim delegates to validatePatch,
- *  so both suites must prove the same behavior). */
+ *  so both suites must prove the same behavior). Negative cases go through
+ *  validatePatchUntrusted: the runtime validator genuinely receives
+ *  unknown-typed values there, which is exactly what a bad batch is. */
 export function runValidatePatchCases(): void {
   test("accepts valid values", () => {
     expect(() =>
-      validatePatch({
+      validatePatchUntrusted({
         title: "T",
         artist: "A",
         album: "Al",
@@ -19,33 +21,35 @@ export function runValidatePatchCases(): void {
   });
 
   test("rejects out-of-range years", () => {
-    expect(() => validatePatch({ year: 1899 })).toThrow();
-    expect(() => validatePatch({ year: 2101 })).toThrow();
-    expect(() => validatePatch({ year: 20.5 as unknown as number })).toThrow();
-    expect(() => validatePatch({ year: NaN })).toThrow();
-    expect(() => validatePatch({ year: 1995 })).not.toThrow();
+    expect(() => validatePatchUntrusted({ year: 1899 })).toThrow();
+    expect(() => validatePatchUntrusted({ year: 2101 })).toThrow();
+    expect(() => validatePatchUntrusted({ year: 20.5 })).toThrow();
+    expect(() => validatePatchUntrusted({ year: NaN })).toThrow();
+    expect(() => validatePatchUntrusted({ year: 1995 })).not.toThrow();
   });
 
   test("rejects empty required strings", () => {
-    expect(() => validatePatch({ title: "  " })).toThrow(/non-empty/);
-    expect(() => validatePatch({ artist: "" })).toThrow(/non-empty/);
+    expect(() => validatePatchUntrusted({ title: "  " })).toThrow(/non-empty/);
+    expect(() => validatePatchUntrusted({ artist: "" })).toThrow(/non-empty/);
   });
 
   test("rejects wrong types", () => {
-    expect(() => validatePatch({ title: 42 as unknown as string })).toThrow(
+    expect(() => validatePatchUntrusted({ title: 42 })).toThrow(
       /must be a string/,
     );
-    expect(() => validatePatch({ year: "2020" as unknown as number })).toThrow(
+    expect(() => validatePatchUntrusted({ year: "2020" })).toThrow(
       /integer 1900–2100/,
     );
   });
 
   test("rejects overlong strings", () => {
-    expect(() => validatePatch({ title: "x".repeat(501) })).toThrow(/too long/);
+    expect(() => validatePatchUntrusted({ title: "x".repeat(501) })).toThrow(
+      /too long/,
+    );
   });
 
   test("allows undefined fields", () => {
-    expect(() => validatePatch({})).not.toThrow();
+    expect(() => validatePatchUntrusted({})).not.toThrow();
   });
 }
 

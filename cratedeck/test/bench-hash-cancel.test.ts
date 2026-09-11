@@ -28,10 +28,8 @@ function bigFile(dir: string, name: string, bytes: number): string {
   return p;
 }
 
-const STUB_GUARD = {
-  assertAllowed: () => {},
-  allow: () => {},
-} as never; // checksumLedger's write-root enforcement lives in its caller
+// checksumLedger takes no Guard (write-root enforcement lives in
+// db.ledgerPut's caller) — no stub needed here.
 
 describe("cancelled hashing never poisons the checksum ledger", () => {
   it("hashFileAsync throws 'cancelled' instead of returning a partial digest", async () => {
@@ -64,14 +62,7 @@ describe("cancelled hashing never poisons the checksum ledger", () => {
         signal.cancelled = true;
       }, 0);
       try {
-        await checksumLedger(
-          db,
-          STUB_GUARD,
-          "d1",
-          mount,
-          8 * 1024 * 1024 * 1024,
-          signal,
-        );
+        await checksumLedger(db, "d1", mount, 8 * 1024 * 1024 * 1024, signal);
       } catch (e) {
         expect((e as Error).message).toBe("cancelled");
       }
@@ -92,14 +83,9 @@ describe("cancelled hashing never poisons the checksum ledger", () => {
     const db = new DB(join(tmpDir(), "db.sqlite"));
     try {
       bigFile(mount, "big.wav", 4 * 1024 * 1024);
-      const r = await checksumLedger(
-        db,
-        STUB_GUARD,
-        "d1",
-        mount,
-        8 * 1024 * 1024 * 1024,
-        { cancelled: true },
-      );
+      const r = await checksumLedger(db, "d1", mount, 8 * 1024 * 1024 * 1024, {
+        cancelled: true,
+      });
       expect(r.hashed).toBe(0);
       expect(db.ledgerCount("d1")).toBe(0);
     } finally {
@@ -113,7 +99,7 @@ describe("cancelled hashing never poisons the checksum ledger", () => {
     const db = new DB(join(tmpDir(), "db.sqlite"));
     try {
       bigFile(mount, "ok.wav", 2 * 1024 * 1024);
-      const r = await checksumLedger(db, STUB_GUARD, "d1", mount);
+      const r = await checksumLedger(db, "d1", mount);
       expect(r.hashed).toBe(1);
       expect(r.changed).toEqual([]);
       expect(db.ledgerCount("d1")).toBe(1);

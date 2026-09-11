@@ -38,6 +38,20 @@ import {
 } from "./analysis";
 import { analyzeMoods, moodStamp, type MoodResult } from "./models";
 import { mbLookupCached } from "./mb_lookup";
+import {
+  beatportArt,
+  beatportLookup,
+  bpGenre,
+  bpStamp,
+  type BpTrack,
+} from "./beatport";
+
+/** Injectable Beatport lookup (tests swap this; null = skip the source). */
+export type BpLookupFn = (q: {
+  artist: string | null;
+  title: string;
+  durationS?: number | undefined;
+}) => Promise<BpTrack | null>;
 
 export interface TrackInput {
   /** Absolute path to the audio file. */
@@ -79,6 +93,9 @@ export interface PipelineOptions {
   dryRun?: boolean;
   /** Re-embed existing SC art at original resolution. */
   upgradeScArt?: boolean;
+  /** Test seam: override the Beatport lookup (null = offline/noop).
+   * Default is the real catalog client (beatport.ts). */
+  beatportLookupFn?: BpLookupFn | undefined;
   /** CLI-provided hints (fulltags single <file> --title/--artist/--album):
    * fill in what the filename can't say. Only consulted when the file
    * itself lacks the field. */
@@ -169,12 +186,34 @@ export async function enrichTrack(
       null;
   }
 
+  // ---------- Beatport vote (second in every ladder, behind SC) ----------
+  // One catalog search feeds label/mix/remixer identity, genre, year, ISRC
+  // AND art. Ranks SECOND behind SoundCloud everywhere: when SC produced a
+  // credible hit for a field, Beatport does not overwrite it — Beatport
+  // fills what SC missed and adds the DJ fields only it carries (label,
+  // mix name, remixers, ISRC). Explicit test seam; dry runs stay offline.
+  const bpLookup = opts.beatportLookupFn ?? beatportLookup;
+  let bpBest: BpTrack | null = null;
+  const wantBp =
+    !opts.dryRun &&
+    (needGenre ||
+      needYear ||
+      needArt ||
+      (want("tags") && (!truth.label || !truth.mixName || !truth.isrc)));
+  if (wantBp) {
+    const effTitle = patch.title ?? truth.title ?? t.title ?? basename(t.path);
+    const effArtist = patch.artist ?? truth.artist ?? t.artist ?? null;
+    bpBest = await bpLookup({ artist: effArtist, title: effTitle });
+  }
+
   if (needGenre) {
     const fileGenre =
       truth.genre && truth.genre !== "Music" ? truth.genre : null;
     const g =
       canonGenre(scBest?.genre ?? "") ||
-      (fileGenre && fileGenre !== "Music" ? fileGenre : null);
+      (fileGenre && fileGenre !== "Music" ? fileGenre : null) ||
+      // Beatport runs third: SC tag → file → Beatport store genre
+      (bpBest ? bpGenre(bpBest) : null);
     if (g) {
       patch.genre = g;
       notes.push(`genre:${g}`);
@@ -184,6 +223,52 @@ export async function enrichTrack(
   if (needYear && scBest?.year) {
     patch.year = scBest.year;
     notes.push(`year:${scBest.year}`);
+  }
+  // Beatport publish date = the official release year (fills when SC's
+  // upload timestamp missed — remixes still prefer the SC year above).
+  if (needYear && !scBest?.year && bpBest?.year) {
+    patch.year = bpBest.year;
+    notes.push(`year:${bpBest.year} (bp)`);
+  }
+
+  // ---------- Beatport identity fields (label / mix / remixer / ISRC) ----------
+  // Only fields NO other source carries — never overwrite SC-derived or
+  // file-present values. Provenance stamp rides in TXXX:BP-FIELDS so a
+  // Beatport-filled tag is always auditable.
+  if (want("tags") && bpBest) {
+    const bpFields: Array<[string, string | number | null]> = [];
+    if (!truth.label && !patch.label && bpBest.label) {
+      patch.label = bpBest.label;
+      bpFields.push(["label", bpBest.label]);
+    }
+    if (
+      !truth.mixName &&
+      !patch.mixName &&
+      bpBest.mixName &&
+      !/^original mix$/i.test(bpBest.mixName)
+    ) {
+      patch.mixName = bpBest.mixName;
+      bpFields.push(["mix", bpBest.mixName]);
+    }
+    if (!truth.isrc && !patch.isrc && bpBest.isrc) {
+      patch.isrc = bpBest.isrc;
+      bpFields.push(["isrc", bpBest.isrc]);
+    }
+    if (
+      !patch.remixer &&
+      !detectRemix(titleGuess ?? "") &&
+      bpBest.remixers.length > 0
+    ) {
+      // Official remixer credit beats filename inference but never
+      // overwrites an already-written credit.
+      patch.remixer = bpBest.remixers.join(", ");
+      bpFields.push(["remixer", bpBest.remixers.join(", ")]);
+    }
+    const stamp = bpStamp(bpFields);
+    if (stamp) {
+      patch.beatport = stamp;
+      notes.push(`bp:${stamp.split("; ").length} fields`);
+    }
   }
 
   if (patch.title) notes.push("title");
@@ -210,6 +295,12 @@ export async function enrichTrack(
           ? await fetchImage(scBest.thumb)
           : null;
       if (bytes) source = scBest.url.includes("-original") ? "sc-orig" : "sc";
+    }
+    // Beatport official release art at 1500² — second rung, before the
+    // hype-gateway scraping (store master beats a gateway screenshot).
+    if (!bytes && bpBest) {
+      bytes = await beatportArt(bpBest);
+      if (bytes) source = "beatport";
     }
     if (!bytes) {
       const gw = await gatewayArt(artRow);

@@ -57,12 +57,23 @@ const NON_FLEET_TEXT = new RegExp(
   "u",
 );
 
-/** Characters rekordbox's exporter rejects in a track path (the classic
- * export-roulette cause) plus raw control bytes. The control range is
- * the point of the check, not an accident — that's what a raw control
- * byte in a filename is. */
-// eslint-disable-next-line no-control-regex
-const PATH_ILLEGAL = new RegExp("[;\\u0000-\\u001F\\u007F]");
+/** Raw control bytes in a string — C0 (NUL, bell, escape…), DEL, C1. Built
+ *  from code-point tests instead of a literal control-char class: the
+ *  no-control-regex rule is right that a literal control char in a pattern
+ *  is usually a paste bug, and HERE the check is explicit, so it says so in
+ *  code — same verdict, zero suppression. */
+export function hasControlChars(s: string): boolean {
+  for (const ch of s) {
+    const cp = ch.codePointAt(0)!;
+    if (
+      (cp >= 0x00 && cp <= 0x1f) || // C0 controls
+      cp === 0x7f || // DEL
+      (cp >= 0x80 && cp <= 0x9f) // C1 controls
+    )
+      return true;
+  }
+  return false;
+}
 
 /** Text fields one file's display verdict is computed over. Comment is
  * excluded: it never shows in the booth and ingest writes stamps there. */
@@ -204,10 +215,9 @@ export function boothTextCompat(input: {
   }
 
   const relPath = input.relPath ?? input.filename;
-  const bad = firstMatch(relPath, PATH_ILLEGAL);
-  if (bad) {
+  if (relPath.includes(";") || hasControlChars(relPath)) {
     reasons.push("path-illegal-character");
-    offenders.filename = bad;
+    offenders.filename = relPath.includes(";") ? ";" : "control byte";
   }
   if (Buffer.byteLength(relPath, "utf8") > 255) {
     reasons.push("path-too-long");

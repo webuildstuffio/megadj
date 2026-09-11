@@ -121,8 +121,11 @@ describe("preflight (B12)", () => {
         players: {
           ok: [],
           blocked: [
-            { player: { name: "XDJ-XZ" } as never, reason: "no db" },
-            { player: { name: "CDJ-3000" } as never, reason: "no db" },
+            { player: { name: "XDJ-XZ", reads: "device" }, reason: "no db" },
+            {
+              player: { name: "CDJ-3000", reads: "onelibrary" },
+              reason: "no db",
+            },
           ],
           unknown: false,
         },

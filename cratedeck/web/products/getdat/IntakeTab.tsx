@@ -11,23 +11,17 @@
 // The folder allowlist is enforced server-side (/intake/start 403s
 // anything outside /intake/folders).
 import { useEffect, useState } from "preact/hooks";
-import type { Job, IntakeResult } from "../../../shared/types";
+import type {
+  Job,
+  IntakeResult,
+  IntakeFoldersResponse,
+} from "../../../shared/types";
 import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
 import { SectionHead, Verdict } from "../shared";
 import { errMessage } from "../../../shared/fmt";
-
-interface IntakeFolders {
-  watch: string;
-  candidates: Array<{
-    path: string;
-    exists: boolean;
-    files: number;
-    label: string;
-  }>;
-}
 
 /** The pipeline's visible steps — mirrors INTAKE_PHASES on the server
  *  (intake_run.ts) plus the audit leg. Kept as a display list; the job's
@@ -67,8 +61,8 @@ const STEPS = [
 ] as const;
 
 export function IntakeTab() {
-  const folders = useFetched<IntakeFolders>(
-    () => api<IntakeFolders>("/api/intake/folders"),
+  const folders = useFetched<IntakeFoldersResponse>(
+    () => api<IntakeFoldersResponse>("/api/intake/folders"),
     [],
   );
   const [selected, setSelected] = useState<string | null>(null);

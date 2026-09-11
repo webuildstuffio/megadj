@@ -34,12 +34,26 @@ export interface ArchiveTrack {
  *  availability probe, parameterised SELECT (read-only by construction in
  *  archive.ts), and the shared ArchiveTrack column list. Split modules
  *  accept this — not the concrete class — so the import graph stays a
- *  DAG (`ArchiveReader implements ArchiveQuery` in archive.ts). */
+ *  DAG (`ArchiveReader implements ArchiveQuery` in archive.ts).
+ *
+ *  This file imports NOTHING, including bun-types — the binding union is
+ *  restated structurally (it's the shape bun's Statement.all accepts), so
+ *  the leaf stays dependency-free and `implements` verifies equality. */
 export interface ArchiveQuery {
   /** Public "is the archive DB present" probe. */
   available(): boolean;
   /** Parameterised SELECT only — still read-only by construction. */
-  rows<T>(sql: string, ...params: unknown[]): T[];
+  rows<T>(
+    sql: string,
+    ...params: (
+      | string
+      | number
+      | bigint
+      | boolean
+      | null
+      | { [k: string]: string | number | bigint | boolean | null }
+    )[]
+  ): T[];
   /** The ArchiveTrack column list shared by every full-row query. */
   trackCols(): string;
 }

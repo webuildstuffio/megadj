@@ -784,7 +784,6 @@ export class JobEngine {
       case "checksum": {
         const r = await checksumLedger(
           this.db,
-          this.guard,
           job.drive_id,
           mountPoint,
           8 * 1024 * 1024 * 1024,

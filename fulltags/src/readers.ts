@@ -25,6 +25,13 @@ export interface Truth {
   mood: string | null;
   /** DJ energy 1–10 (TXXX:ENERGY) — null when absent. */
   energy: number | null;
+  /** Record label (TPUB / freeform LABEL) — filled by Beatport/MB writes.
+   * Read back so a label-carrying file is never re-filled (idempotency). */
+  label: string | null;
+  /** Mix name (TIT3 / freeform MIXNAME) — "Club Mix", "Original Mix". */
+  mixName: string | null;
+  /** ISRC (TSRC / freeform ISRC) — store-grade recording identity. */
+  isrc: string | null;
 }
 
 interface FfprobeJson {
@@ -163,6 +170,10 @@ export function groundTruth(p: string): Truth {
     key: g("TKEY", "initial_key", "initialkey", "CAMELOT"),
     mood: g("MOOD"),
     energy: Number.isFinite(energy) ? energy : null,
+    // ID3 renders TPUB as "publisher" through ffprobe; flac keeps "TPUB".
+    label: g("publisher", "TPUB", "tpub", "LABEL", "label"),
+    mixName: g("TIT3", "tit3", "MIXNAME", "mixname", "version"),
+    isrc: g("TSRC", "tsrc", "ISRC", "isrc", "ISRC:", "isrc:"),
   };
 }
 
@@ -188,6 +199,7 @@ export function readFullTag(p: string): FullTag {
     mbid: null,
     fingerprint: null,
     mood: t.mood,
+    isrc: t.isrc,
     art: t.art,
   };
 }

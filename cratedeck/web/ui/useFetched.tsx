@@ -2,7 +2,7 @@
 // payload on mount: loading → ok | error. Replaces the per-tab
 // data/err/alive/useEffect quartet (four copies existed). Failure is a
 // named branch the UI must render — never a silent null.
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { errMessage } from "../../shared/fmt";
 import { Icon } from "./icons";
 
@@ -16,9 +16,15 @@ export function useFetched<T>(
   deps: unknown[],
 ): Fetched<T> {
   const [page, setPage] = useState<Fetched<T>>({ status: "loading" });
+  // `load` is an inline closure at every call site — a fresh identity each
+  // render. The effect keys on the CALLER'S deps only; the closure itself
+  // is read through a ref so the deps rule is satisfied by construction
+  // (nothing in the effect body depends on a render-scoped binding).
+  const loadRef = useRef(load);
+  loadRef.current = load;
   useEffect(() => {
     let alive = true;
-    load().then(
+    loadRef.current().then(
       (data) => alive && setPage({ status: "ok", data }),
       (e: unknown) =>
         alive && setPage({ status: "error", message: errMessage(e) }),
@@ -26,7 +32,6 @@ export function useFetched<T>(
     return () => {
       alive = false;
     };
-    // oxlint-disable-next-line exhaustive-deps -- deps mirrors the caller's intent
   }, deps);
   return page;
 }

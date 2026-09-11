@@ -129,12 +129,16 @@ describe("ArchiveState", () => {
         durationS: 100,
       }),
     ).not.toThrow();
-    const cols =
-      (state.allTracks()[0] as unknown as Record<string, unknown>) ?? {};
-    // The migration is structural: a `year` property must exist on the row
-    // (null before any fetch run populates it).
-    expect(Object.keys(cols)).toContain("year");
-    expect(cols.year).toBeNull();
+    // The migration is structural: a `year` COLUMN must exist on the
+    // tracks table (PRAGMA truth, not a property probe on a typed row).
+    const cols = state.db.query("PRAGMA table_info(tracks)").all() as Array<{
+      name: string;
+    }>;
+    expect(cols.map((c) => c.name)).toContain("year");
+    const row = state.db
+      .query("SELECT year FROM tracks WHERE video_id = 'abc'")
+      .get() as { year: string | null };
+    expect(row.year).toBeNull();
   });
 
   test("beats ledger: upsert + round-trip + idempotent replace", () => {
@@ -187,13 +191,9 @@ describe("ArchiveState", () => {
     expect(again?.bpmRaw).toBeCloseTo(130.5);
     expect(state.beatAnalyzedTracks().length).toBe(1);
 
-    // Corrupt JSON row degrades to null (pass re-analyzes it).
-    const raw = (
-      state as unknown as {
-        db: { query: (q: string) => { run: (...a: unknown[]) => void } };
-      }
-    ).db;
-    raw
+    // Corrupt JSON row degrades to null (pass re-analyzes it) — written
+    // through the public readonly db seam.
+    state.db
       .query("UPDATE beats SET beats_json = '{corrupt' WHERE video_id = 'bv1'")
       .run();
     expect(state.beatRecord("bv1")).toBeNull();

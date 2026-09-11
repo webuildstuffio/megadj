@@ -52,17 +52,34 @@ const guard = new Guard(cfg);
 guard.allow(join(cfg.volumesRoot, "*", "Contents", "CrateDeck"));
 const images = new ImageService(cfg, db, guard);
 
-/** Register a fake mounted drive row. */
+/** Register a fake mounted drive row — the FULL Drive shape (a partial
+ *  with `as never` once slipped past the compiler and lied about what
+ *  upsertDrive actually requires). */
 function seedDrive(id: string, name: string, mounted: boolean): void {
+  const now = Date.now();
   db.upsertDrive({
     id,
     volume_uuid: id,
     name,
+    nickname: null,
+    photo_path: null,
     capacity_bytes: 1000,
+    fs: "exfat",
+    vendor: null,
+    model: null,
+    usb_serial: null,
+    role: "unknown",
+    first_seen_at: now,
+    last_seen_at: now,
+    last_port_key: null,
+    link_bps: null,
+    plug_count: 0,
     mounted,
-    first_seen_at: Date.now(),
-    last_seen_at: Date.now(),
-  } as never);
+    state: "ghost", // derived, not stored — any valid DriveState satisfies
+    last_snapshot_json: null,
+    predecessor_id: null,
+    verify_report_json: null,
+  });
 }
 
 const stickPhotoDir = () => join(VOL, "Contents", "CrateDeck");

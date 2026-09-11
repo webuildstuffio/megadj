@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { DB } from "../src/db";
 import { Registry } from "../src/registry";
+import { loadConfig } from "../src/config";
 import type { SnapshotData } from "../shared/types";
 
 let db: DB;
@@ -12,7 +13,14 @@ beforeEach(() => {
   db = new DB(
     `/tmp/cratedeck-test-${Date.now()}-${Math.random().toString(36).slice(2)}/db.sqlite`,
   );
-  reg = new Registry({} as never, db, () => {});
+  // Real default config (env untouched in CI-style sandboxes) — the paths
+  // this suite exercises never touch cfg beyond name comparisons, but a
+  // fully-typed default beats an `as never` lie.
+  reg = new Registry(
+    loadConfig("/tmp/cratedeck-test-nonexistent"),
+    db,
+    () => {},
+  );
 });
 
 function snapWith(over: Partial<SnapshotData>): SnapshotData {

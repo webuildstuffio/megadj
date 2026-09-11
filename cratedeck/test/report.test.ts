@@ -104,7 +104,7 @@ function drive(over: Partial<Drive> = {}): Drive {
   };
 }
 
-function snap(over: Partial<SnapshotData> = {}): SnapshotData {
+function snapFixture(over: Partial<SnapshotData> = {}): SnapshotData {
   return {
     kind: "full",
     taken_at: Date.now(),
@@ -120,7 +120,7 @@ function snap(over: Partial<SnapshotData> = {}): SnapshotData {
 
 const baseInput = {
   drive: drive(),
-  snapshot: snap(),
+  snapshot: snapFixture(),
   latestVerify: { ran_at: Date.now() - 1 * 86_400_000, ok: true },
   bench: [{ ran_at: 1, seq_mbps: 80 }],
   ledgerFiles: 10,
@@ -145,7 +145,7 @@ describe("report checks", () => {
   it("fails the hardware gate when pdb rows diverge", () => {
     const checks = buildChecks({
       ...baseInput,
-      snapshot: snap({ pdb_live_rows: 90 }),
+      snapshot: snapFixture({ pdb_live_rows: 90 }),
     });
     const dual = checks.find((c) => c.id === "dual-db")!;
     expect(dual.status).toBe("fail");
@@ -156,7 +156,7 @@ describe("report checks", () => {
   it("warns on low beatgrid coverage and low space", () => {
     const checks = buildChecks({
       ...baseInput,
-      snapshot: snap({ grid_coverage: 0.8, free_bytes: 4e9 }),
+      snapshot: snapFixture({ grid_coverage: 0.8, free_bytes: 4e9 }),
     });
     expect(checks.find((c) => c.id === "grids")!.status).toBe("fail");
     expect(checks.find((c) => c.id === "space")!.status).toBe("fail");
@@ -196,7 +196,7 @@ describe("report checks", () => {
     const checks = buildChecks({
       ...baseInput,
       isMirror: true,
-      masterSnapshot: snap({ file_count: 200 }),
+      masterSnapshot: snapFixture({ file_count: 200 }),
     });
     const mirror = checks.find((c) => c.id === "mirror")!;
     expect(mirror.status).toBe("fail");
@@ -207,7 +207,7 @@ describe("report checks", () => {
     const checks = buildChecks({
       ...baseInput,
       isMirror: true,
-      masterSnapshot: snap({ file_count: 50 }),
+      masterSnapshot: snapFixture({ file_count: 50 }),
     });
     expect(checks.find((c) => c.id === "mirror")!.status).toBe("pass");
   });
@@ -230,7 +230,7 @@ describe("report checks", () => {
   it("artwork coverage check from dj stats", () => {
     const checks = buildChecks({
       ...baseInput,
-      snapshot: snap({
+      snapshot: snapFixture({
         dj: {
           artwork_missing: 30,
           artwork_total: 100,

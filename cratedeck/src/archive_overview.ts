@@ -137,8 +137,8 @@ export function libraryOverview(
   const hasYear = has("year");
   const hasArt = has("artwork_status");
   const hasEnergy = has("energy");
-  const count = (sql: string, ...params: unknown[]): number =>
-    reader.rows<{ n: number }>(sql, ...params)[0]?.n ?? 0;
+  const count = (sql: string): number =>
+    reader.rows<{ n: number }>(sql)[0]?.n ?? 0;
   const tracks = count(
     `SELECT COUNT(*) n FROM tracks WHERE status = 'downloaded'`,
   );

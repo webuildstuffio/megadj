@@ -23,11 +23,11 @@ const ts = tempState("megadj-sync-test-");
 const fakeFetch = async () => [{ id: "v1", title: "Track One" }];
 
 function baseOpts(
-  state: ArchiveState,
+  st: ArchiveState,
   over: Partial<SyncOptions> = {},
 ): SyncOptions {
   return {
-    state,
+    state: st,
     limiter: new RateLimiter({ minIntervalMs: 0, baseBackoffMs: 0 }),
     musicDir: "/tmp/megadj-sync-test",
     cookiesFromBrowser: null,

@@ -27,7 +27,7 @@
  * gates identically.
  */
 import { groundTruth } from "./readers";
-import { boothTextCompat, isMojibake } from "./booth-text";
+import { boothTextCompat, hasControlChars, isMojibake } from "./booth-text";
 
 export interface TagHealth {
   ok: boolean;
@@ -62,9 +62,9 @@ export function tagHealth(path: string): TagHealth {
   ] as const) {
     if (v == null) continue;
     if (isMojibake(v)) reasons.push(`mojibake-${label}`);
-    // eslint-disable-next-line no-control-regex
-    if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(v))
-      reasons.push(`control-bytes-${label}`);
+    // Control-byte detection is booth-text's SSOT (hasControlChars) — same
+    // C0/DEL/C1 verdict the path check uses, one definition.
+    if (hasControlChars(v)) reasons.push(`control-bytes-${label}`);
   }
 
   // Class 3b: display-level text compat (tofu/mojibake/path chars) —

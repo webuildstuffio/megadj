@@ -16,6 +16,8 @@ import type {
   CoverageResult,
   RedundancyResult,
   FleetDiff,
+  DriveRef,
+  TrackLocationsResponse,
 } from "../../../shared/types";
 import { errMessage, fmtBytes } from "../../../shared/fmt";
 import { api, toast } from "../../ui/toast";
@@ -36,16 +38,11 @@ import { PRODUCT_TABS, ProductIntro } from "../shared";
 // rows, so a tab can't exist on one surface only.
 const TABS = PRODUCT_TABS.fleet;
 
-type DriveRef = { id: string; name: string; mounted?: boolean };
-
-interface TrackHit {
-  identity: {
-    path: string;
-    title: string | null;
-    artist: string | null;
-  } | null;
-  drives: DriveRef[];
-}
+// TrackHit + DriveRef are DERIVED from the wire SSOT (shared/types.ts) —
+// TrackLocationsResponse is what GET /api/fleet/track actually returns,
+// and DriveRef is the shared drive reference (a local duplicate drifted
+// once; the Sep 7 lesson).
+type TrackHit = TrackLocationsResponse;
 
 export function FleetPage(props: { tab: string }) {
   const tab = TABS.find((t) => t.id === props.tab)?.id ?? TABS[0]!.id;

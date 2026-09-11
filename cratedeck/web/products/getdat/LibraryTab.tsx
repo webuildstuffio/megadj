@@ -39,6 +39,7 @@ function artLang(status: string | null): string {
     "sc-page": "SoundCloud page",
     "sc-page-1080": "SoundCloud page (1080)",
     "sc-pack": "SoundCloud pack",
+    beatport: "Beatport release",
     itunes: "iTunes",
     deezer: "Deezer",
     caa: "Cover Art Archive",
@@ -172,7 +173,7 @@ export function LibraryTab() {
             icon="photo"
             title="Artwork provenance"
             n={lib.tracks}
-            hint="Where each track's embedded cover came from — the art ladder's rungs (SoundCloud page at 1080, Deezer, iTunes, Cover Art Archive, AI queue). Every track has art; the rung tells you its quality story."
+            hint="Where each track's embedded cover came from — the art ladder's rungs (SoundCloud page at 1080, Beatport release master, Deezer, iTunes, Cover Art Archive, AI queue). Every track has art; the rung tells you its quality story."
             lines={[
               `embedded: ${lib.artwork.embedded}`,
               `queued for AI art: ${lib.artwork.queued}`,

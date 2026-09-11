@@ -202,7 +202,9 @@ describe("parseVerifyReport: crashed script", () => {
 describe("sanitizeVerifyReport", () => {
   it("legacy crash row (no final, no failing checks) gains script-failed", () => {
     // byte-shape of what's actually sitting in the DB for BANGERS etc.
-    const legacy = {
+    // Typed annotation (not a cast) so the fixture stays honest: the
+    // literal "pass" narrows via contextual typing against VerifyReport.
+    const legacy: VerifyReport = {
       ran_at: 1788980844151,
       ok: false,
       final: null,
@@ -219,7 +221,7 @@ describe("sanitizeVerifyReport", () => {
       stats: {},
       summary:
         "Traceback (most recent call last): sqlalchemy error at line 1421",
-    } as unknown as VerifyReport;
+    };
     const s = sanitizeVerifyReport(legacy);
     expect(s.ok).toBe(false);
     const crash = s.checks.find((c) => c.id === "script-failed")!;

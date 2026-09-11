@@ -6,6 +6,7 @@
 // stages mutate; the orchestration order stays in fetch-all.ts.
 
 import {
+  bpGenre,
   canonGenre,
   db,
   deezerArt,
@@ -17,6 +18,7 @@ import {
   pageOgImage,
   setFileTags,
   twinArt,
+  type BpTrack,
   type Row,
   type TagValues,
 } from "./fetch-lib";
@@ -25,15 +27,20 @@ import {
 export interface Stats {
   tags: number;
   genreSc: number;
+  genreBp: number;
   genreAi: number;
   artSc: number;
   artScOrig: number;
+  artBeatport: number;
   artGateway: number;
   artTwin: number;
   artDeezer: number;
   artItunes: number;
   yearSc: number;
+  yearBp: number;
   yearAi: number;
+  /** Tracks where the Beatport vote filled ≥1 identity field. */
+  bpIdentity: number;
 }
 
 /** Per-task mutable state shared by the stage runners. */
@@ -46,6 +53,9 @@ export interface StageCtx {
     album: string | null;
     genre: string | null;
     year: string | null;
+    label: string | null;
+    mixName: string | null;
+    isrc: string | null;
   };
   needTags: boolean;
   needGenre: boolean;
@@ -57,6 +67,9 @@ export interface StageCtx {
   notes: string[];
   aiGenreBatch: Row[];
   aiYearBatch: Row[];
+  /** Beatport hit for this track (second source behind SC) — filled by
+   * processTask's fan-out when any Beatport-fed field is needed. */
+  bpBest: BpTrack | null;
 }
 
 /** SC search result shape (first hit feeds genre + year + art). */
@@ -160,6 +173,20 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
   if (t.needGenre) {
     if (best?.genre) {
       applyScGenre(t, best.genre);
+    } else if (t.bpBest) {
+      // Beatport store genre is the vote BETWEEN SC and AI.
+      const g = bpGenre(t.bpBest);
+      if (g) {
+        db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
+          g,
+          t.row.video_id,
+        );
+        setFileTags(t.row.file_path, { genre: g });
+        t.stats.genreBp++;
+        t.notes.push(`genre:${g} (bp)`);
+      } else {
+        t.aiGenreBatch.push(t.row);
+      }
     } else {
       t.aiGenreBatch.push(t.row);
     }
@@ -167,10 +194,53 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
   if (t.needYear) {
     if (best?.year) {
       markYear(t, best.year);
+    } else if (t.bpBest?.year) {
+      // Beatport publish date = official release year (SC's upload
+      // timestamp is preferred for remixes; bp fills when SC missed).
+      setFileTags(t.row.file_path, { year: t.bpBest.year });
+      db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
+        String(t.bpBest.year),
+        t.row.video_id,
+      );
+      t.stats.yearBp++;
+      t.notes.push(`year:${t.bpBest.year} (bp)`);
     } else {
       t.aiYearBatch.push(t.row);
     }
   }
+}
+
+/** Stage 2.5 — Beatport identity fields (label / mix name / ISRC /
+ * official remixer) straight into the file. Only what NO other source
+ * carries, only when the file lacks it (ground truth), provenance stamp
+ * rides along so a bp-filled field is always identifiable. */
+export function stageBeatportIdentity(t: StageCtx): void {
+  if (t.dry || !t.needTags || !t.bpBest) return;
+  const vals: TagValues = {};
+  const fields: string[] = [];
+  if (!t.truth.label && t.bpBest.label) {
+    vals.label = t.bpBest.label;
+    fields.push(`label=${t.bpBest.label}`);
+  }
+  if (
+    !t.truth.mixName &&
+    t.bpBest.mixName &&
+    !/^original mix$/i.test(t.bpBest.mixName)
+  ) {
+    vals.mixName = t.bpBest.mixName;
+    fields.push(`mix=${t.bpBest.mixName}`);
+  }
+  if (!t.truth.isrc && t.bpBest.isrc) {
+    vals.isrc = t.bpBest.isrc;
+    fields.push(`isrc=${t.bpBest.isrc}`);
+  }
+  if (!Object.keys(vals).length) return;
+  if (!setFileTags(t.row.file_path, vals)) {
+    t.notes.push("bp-identity:WRITE-FAILED");
+    return;
+  }
+  t.stats.bpIdentity++;
+  t.notes.push(`bp:${fields.join(",")}`);
 }
 
 /** Stage 3a — SC art: page og:image at original resolution, thumb fallback. */
@@ -212,7 +282,9 @@ function recordArtWin(
   );
 }
 
-/** Stage 3b — fallback ladder: gateway → mp3-twin → deezer → itunes. */
+/** Stage 3b — fallback ladder: beatport → gateway → mp3-twin → deezer →
+ *  itunes. Beatport outranks the gateway scrape: the store's official
+ *  release master (1500²) beats a hype-page screenshot. */
 async function fallbackArt(t: StageCtx): Promise<boolean> {
   const r = t.row;
   const ladder: Array<{
@@ -220,6 +292,15 @@ async function fallbackArt(t: StageCtx): Promise<boolean> {
     label: string;
     bytes: Promise<Uint8Array | null> | Uint8Array | null;
   }> = [
+    {
+      stat: "artBeatport",
+      label: "beatport",
+      bytes: (async () => {
+        if (!t.bpBest) return null;
+        const { beatportArt } = await import("../fulltags/src/exports");
+        return beatportArt(t.bpBest);
+      })(),
+    },
     {
       stat: "artGateway",
       label: "gateway",
@@ -252,5 +333,7 @@ export async function stageArt(
 ): Promise<boolean> {
   if (!t.needArt || t.dry) return true;
   if (best && (await scArt(t, best))) return true;
+  // Beatport official release art — second rung, ahead of the gateway
+  // scrape (its ladder slot is inside fallbackArt).
   return fallbackArt(t);
 }

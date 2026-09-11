@@ -5,9 +5,27 @@
  */
 import type { TagPatch } from "./schema";
 
-/** Runtime validator — throws with a precise message on bad input. */
+/** Runtime validator for TRUSTED input (typed `TagPatch` from in-process
+ *  callers). Throws with a precise message on bad input. */
 export function validatePatch(vals: TagPatch): void {
-  for (const [k, v] of Object.entries(vals) as [keyof TagPatch, unknown][]) {
+  validatePatchObject(vals as Record<string, unknown>);
+}
+
+/** Validate UNTRUSTED input (decoded JSON, CLI args, IPC payloads): values
+ *  arrive as `unknown`. Throws the same precise messages as validatePatch.
+ *  This is also the negative-test entry point — bad values are expressed
+ *  as what they are (unknown runtime data), never smuggled past the
+ *  compiler with `as unknown as` casts. Returns the input unchanged, typed
+ *  as TagPatch after validation held. */
+export function validatePatchUntrusted(
+  vals: Record<string, unknown>,
+): TagPatch {
+  validatePatchObject(vals);
+  return vals as TagPatch;
+}
+
+function validatePatchObject(vals: Record<string, unknown>): void {
+  for (const [k, v] of Object.entries(vals)) {
     if (v === undefined) continue;
     if (k === "year") {
       if (typeof v !== "number" || !Number.isInteger(v) || v < 1900 || v > 2100)

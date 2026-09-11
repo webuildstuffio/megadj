@@ -3,24 +3,14 @@
 // "why this matters", and (when failing) the fix. Includes the full
 // explainer for people (and agents) who don't know what verify is.
 import { useEffect, useState } from "preact/hooks";
-import type { VerifyCheck, VerifyReport } from "../../../shared/types";
+import type {
+  VerifyCheck,
+  VerifyReport,
+  VerifyHelpDoc,
+} from "../../../shared/types";
 import { timeAgo } from "../../../shared/fmt";
 import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
-
-interface HelpDoc {
-  intro: string;
-  duration: string;
-  safety: string;
-  checks: {
-    id: string;
-    label: string;
-    what: string;
-    why: string;
-    if_fail: string;
-    fix: string;
-  }[];
-}
 
 const STATUS_ICON: Record<VerifyCheck["status"], string> = {
   pass: "check",
@@ -34,11 +24,11 @@ export function VerifyTab(props: {
   report: VerifyReport | null;
 }) {
   const { driveId, report } = props;
-  const [help, setHelp] = useState<HelpDoc | null>(null);
+  const [help, setHelp] = useState<VerifyHelpDoc | null>(null);
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
-    api<HelpDoc>(`/api/drives/${driveId}/verify/help`, { quiet: true })
+    api<VerifyHelpDoc>(`/api/drives/${driveId}/verify/help`, { quiet: true })
       .then(setHelp)
       .catch((e: unknown) => {
         console.error(`verify help for ${driveId} failed`, e);

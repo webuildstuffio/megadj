@@ -245,6 +245,7 @@ const FFMPEG_KEY: Record<keyof TagPatch, string> = {
   remixer: "version",
   comment: "comment",
   mbid: "musicbrainz_trackid",
+  isrc: "TSRC",
   bpm: "TBPM",
   energy: "ENERGY",
   aiGenre: "AI-GENRE",
@@ -255,6 +256,7 @@ const FFMPEG_KEY: Record<keyof TagPatch, string> = {
   mixName: "TIT3",
   fingerprint: "ACOUSTID",
   mood: "MOOD",
+  beatport: "BP-FIELDS",
 };
 
 /** One ID3 frame per known key (WAV/AIFF path). Unknown keys are skipped
@@ -281,12 +283,16 @@ function wavId3Statement(k: keyof TagPatch, v: unknown): string {
       return `a.tags.add(COMM(encoding=3, lang="eng", desc="", text=${t}))`;
     case "mbid":
       return `a.tags.add(TXXX(encoding=3, desc="MusicBrainz Track Id", text=${t}))`;
+    case "isrc":
+      return `a.tags.add(TSRC(encoding=3, text=${t}))`;
     case "energy":
       return `a.tags.add(TXXX(encoding=3, desc="ENERGY", text=${t}))`;
     case "fingerprint":
       return `a.tags.add(TXXX(encoding=3, desc="ACOUSTID", text=${t}))`;
     case "mood":
       return `a.tags.add(TXXX(encoding=3, desc="MOOD", text=${t}))`;
+    case "beatport":
+      return `a.tags.add(TXXX(encoding=3, desc="BP-FIELDS", text=${t}))`;
     case "camelot":
       return `a.tags.add(TXXX(encoding=3, desc="CAMELOT", text=${t}))`;
     case "aiGenre":
@@ -326,6 +332,7 @@ const MP4_ATOMS: Partial<Record<keyof TagPatch, string>> = {
 const MP4_FREEFORM: Partial<Record<keyof TagPatch, string>> = {
   remixer: "REMIXER",
   mbid: "MusicBrainz Track Id",
+  isrc: "ISRC",
   energy: "ENERGY",
   fingerprint: "ACOUSTID",
   mood: "MOOD",
@@ -335,6 +342,7 @@ const MP4_FREEFORM: Partial<Record<keyof TagPatch, string>> = {
   mixName: "MIXNAME",
   aiGenre: "AI-GENRE",
   aiYear: "AI-YEAR",
+  beatport: "BP-FIELDS",
 };
 
 /** One mutagen MP4 statement per known key. Unknown keys return "" and are
@@ -365,7 +373,7 @@ function writePatchWav(filePath: string, patch: TagPatch): boolean {
       .filter(Boolean)
       .join("\n");
     const script = `${id3Open(filePath)}
-from mutagen.id3 import ID3, TIT2, TIT3, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TKEY, TPUB, TXXX, COMM
+from mutagen.id3 import ID3, TIT2, TIT3, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TKEY, TPUB, TXXX, TSRC, COMM
 if a.tags is None: a.add_tags()
 if not isinstance(a.tags, ID3): a.tags = ID3()
 ${sets}

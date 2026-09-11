@@ -189,9 +189,12 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   const pool = [...candidates];
   const excluded: SetBuildResult["excluded"] = [];
   const steps: SetBuildStep[] = [];
-  let elapsed = 0;
 
   const dur = candidateDuration;
+  /** Running arc clock, mutated ONLY by `commit` right below (the linter's
+   *  loop-condition analysis sees that mutation; the old indirect-mutate-
+   *  inside-push shape needed a file-scoped rule-off). */
+  let elapsed = 0;
   const push = (c: SetCandidate, transition: number | null): void => {
     elapsed += dur(c);
     steps.push({
@@ -236,7 +239,7 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   push(first, null);
   prev = first;
 
-  while (prev && elapsed < budget && pool.length) {
+  while (prev && pool.length) {
     const t = Math.min(1, elapsed / budget);
     let bestIdx = -1;
     let bestScore = -1;
@@ -261,6 +264,10 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
     pool.splice(bestIdx, 1);
     push(next, bestScore);
     prev = next;
+    // budget check AFTER the add — matches the old `elapsed < budget`
+    // pre-condition (fill until exceeded), stated on a visibly-mutated
+    // variable (elapsed is assigned by push() in this loop body).
+    if (elapsed >= budget) break;
   }
   // leftovers when the budget filled
   for (const c of pool)

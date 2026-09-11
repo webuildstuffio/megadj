@@ -9,7 +9,6 @@
 // streams + periodic yields keep the loop live, and cancellation aborts
 // the reads promptly instead of after the full pass.
 import type { DB } from "./db";
-import type { Guard } from "./guard";
 import { walkTree, extOf } from "./walk";
 import { AUDIO_EXT } from "./scan";
 import { stat } from "node:fs/promises";
@@ -139,14 +138,15 @@ export interface ChecksumResult {
 
 export async function checksumLedger(
   db: DB,
-  guard: Guard,
   driveId: string,
   mountPoint: string,
   maxBytes = 8 * 1024 * 1024 * 1024,
   signal?: { cancelled: boolean },
   onProgress?: (done: number, total: number, bytes: number) => void,
 ): Promise<ChecksumResult> {
-  void guard; // write-root enforcement happens inside db.ledgerPut's caller
+  // NOTE: write-root enforcement lives in db.ledgerPut's caller chain, not
+  // here — this function takes no Guard by design (a previous unused
+  // `guard: Guard` param forced every test to pass a `as never` stub).
   const files = await biggestFiles(mountPoint, Infinity, maxBytes);
   const changed: string[] = [];
   let hashed = 0;

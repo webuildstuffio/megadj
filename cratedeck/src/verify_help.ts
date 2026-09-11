@@ -1,26 +1,14 @@
 // verify_help.ts — SSOT for "what does verify actually do". Imported by the
 // server (served at /drives/:id/verify/help) and mirrored into deckctl's
-// explain output so humans and agents see the same wording.
+// explain output so humans and agents see the same wording. The SHAPE is
+// canonical in shared/types.ts (VerifyHelpDoc — the wire type web + deckctl
+// consume); this module derives from it so prose and shape can't fork.
 
-export interface VerifyCheckDoc {
-  id: string;
-  label: string;
-  /** What the check does, mechanically. */
-  what: string;
-  /** Why a DJ should care. */
-  why: string;
-  /** What a failure means for gig night. */
-  if_fail: string;
-  /** Typical fix. */
-  fix: string;
-}
+import type { VerifyHelpDoc } from "../shared/types";
 
-export const VERIFY_HELP: {
-  intro: string;
-  duration: string;
-  safety: string;
-  checks: VerifyCheckDoc[];
-} = {
+export type { VerifyHelpDoc };
+
+export const VERIFY_HELP: VerifyHelpDoc = {
   intro:
     "Verify opens the drive's two rekordbox databases and its file tree, then checks that everything rekordbox claims is actually there, consistent, and identical to the mirror drive. It reads only — nothing on the drive is modified.",
   duration:

@@ -478,9 +478,14 @@ export interface KeyResult {
 export async function analyzeKeys(
   paths: string[],
 ): Promise<Map<string, KeyResult>> {
-  const out = new Map<string, KeyResult>();
+  // Values are `KeyResult | null` WHILE the protocol loop runs: null marks
+  // a definitive per-path error so the loop can terminate instead of
+  // waiting for responses that will never come. Placeholders are dropped
+  // before return — the wire type stays honest (Map<string, KeyResult>).
+  const out = new Map<string, KeyResult | null>();
   const server = `${keyscanDir()}/openkeyscan_analyzer_server.py`;
-  if (!existsSync(server) || !paths.length) return out;
+  if (!existsSync(server) || !paths.length)
+    return out as Map<string, KeyResult>;
   // COMPRESSED-CONTAINER GOTCHA (same as analyzeBeats): the analyzer's
   // librosa/libsndfile loader can't demux m4a/mp3/aac. ffmpeg-decode any
   // compressed input to temp WAVs (beside the originals, cleaned up in
@@ -511,13 +516,15 @@ export async function analyzeKeys(
   });
   try {
     const results = await runKeyServer(server, prepared);
-    // Map tmp ids back to original paths.
+    // Map tmp ids back to original paths; null placeholders drop here so
+    // the returned map is the honest Map<string, KeyResult> wire type.
     for (const [tmp, orig] of decodeMap) {
       const r = results.get(tmp);
       results.delete(tmp);
       if (r) results.set(orig, r);
     }
-    return results;
+    for (const [k, v] of results) if (v === null) results.delete(k);
+    return results as Map<string, KeyResult>;
   } finally {
     for (const t of tmps) if (existsSync(t)) rmSync(t);
   }
@@ -546,8 +553,11 @@ const lineHasId = (l: string): boolean => {
 async function runKeyServer(
   server: string,
   paths: string[],
-): Promise<Map<string, KeyResult>> {
-  const out = new Map<string, KeyResult>();
+): Promise<Map<string, KeyResult | null>> {
+  // Same in-flight null-placeholder protocol as analyzeKeys: null = the
+  // analyzer reported a definitive error for that path. Placeholders are
+  // stripped by the caller before results reach any consumer.
+  const out = new Map<string, KeyResult | null>();
   if (!paths.length) return out;
   const proc = Bun.spawn({
     cmd: [
@@ -615,7 +625,7 @@ async function runKeyServer(
         // Definitive error for this path — record absence so the outer
         // loop can terminate instead of waiting for responses that will
         // never come.
-        out.set(String(msg.id), null as unknown as KeyResult);
+        out.set(String(msg.id), null);
       }
     }
   } finally {
@@ -625,9 +635,10 @@ async function runKeyServer(
       /* already dead */
     }
   }
-  // Drop error placeholders — callers key on success only.
-  for (const [k, v] of out) if (!v) out.delete(k);
-  return out;
+  // Drop error placeholders — callers key on success only. The early-return
+  // above hands back the same empty map typed through the promise.
+  for (const [k, v] of out) if (v === null) out.delete(k);
+  return out as Map<string, KeyResult>;
 }
 
 /** Convenience single-file wrapper over analyzeKeys. */

@@ -11,7 +11,7 @@ export {
   type EnrichedMetadata,
   type TagPatch,
 } from "./schema";
-export { validatePatch } from "./schema-guards";
+export { validatePatch, validatePatchUntrusted } from "./schema-guards";
 export {
   applyTags,
   embedArt,
@@ -53,6 +53,7 @@ export { playerCompat, isHiresOnly } from "./player-compat";
 export {
   boothTextCompat,
   cp1252Bytes,
+  hasControlChars,
   isMojibake,
   type TextCompatResult,
 } from "./booth-text";
@@ -61,3 +62,16 @@ export { parseMoodStamp } from "./pipeline";
 export { tagHealth, type TagHealth } from "./tag-health";
 export { fingerprintFile } from "./analysis";
 export { analyzeMoods, type MoodResult } from "./models";
+export {
+  beatportArt,
+  beatportLookup,
+  beatportToken,
+  beatportReset,
+  bpGenre,
+  bpStamp,
+  scoreBpHit,
+  BP_MIN_SCORE,
+  setBeatportSearchImpl,
+  type BpTrack,
+  type BpQuery,
+} from "./beatport";

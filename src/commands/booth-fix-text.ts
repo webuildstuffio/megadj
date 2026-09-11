@@ -9,6 +9,7 @@ import {
   writePatchSync,
   type TextCompatResult,
 } from "../../fulltags/src/exports";
+import { hasControlChars } from "../../fulltags/src/booth-text";
 import type { BoothFixRow } from "./booth-fix-types";
 
 /** One applied fix (counter + log line for the run summary). */
@@ -82,11 +83,21 @@ export function sanitizeDisplayText(text: string): string {
 /** Sanitize a filename: same repertoire as display text plus the path
  * separators and rekordbox's illegal set. */
 export function sanitizeFilename(name: string): string {
-  const cleaned = sanitizeDisplayText(name)
+  let cleaned = sanitizeDisplayText(name)
     .replace(/;/g, ",")
-    .replace(/[/\\]/g, "-")
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/[/\\]/g, "-");
+  // C1 bytes too (sanitizeDisplayText strips C0 + DEL inline; the C1 range
+  // is export-hostile on exFAT as well). Same code-point checks as the
+  // booth-text SSOT — no literal control chars in a pattern, no suppression.
+  if (hasControlChars(cleaned)) {
+    cleaned = Array.from(cleaned)
+      .filter((ch) => {
+        const cp = ch.codePointAt(0)!;
+        return !(cp <= 0x1f || cp === 0x7f || (cp >= 0x80 && cp <= 0x9f));
+      })
+      .join("");
+  }
+  cleaned = cleaned
     .replace(/[. ]+\./g, ".") // trailing dots/spaces before the extension
     .trim();
   return cleaned.length > 0 ? cleaned : "untitled";

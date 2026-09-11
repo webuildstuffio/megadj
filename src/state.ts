@@ -65,7 +65,11 @@ export interface RunRow {
 }
 
 export class ArchiveState {
-  private db: Database;
+  /** Raw sqlite handle — public readonly by design (same seam as
+   *  CrateDeck's DB.sqlite): migrations and tests need structural access
+   *  (PRAGMA table_info, corrupt-row fixtures) without `as unknown as`
+   *  casts into private state. */
+  readonly db: Database;
   /** Directory holding the sqlite file — also hosts sidecar files. */
   readonly dbDir: string;
   /** I49 embeddings ledger + similarity math live in state-similar.ts
