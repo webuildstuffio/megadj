@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   classifyAcousticSub,
   inBucket,
+  isListenFirst,
   ACOUSTIC_SUB_LABELS,
   BUCKET_MEMBERSHIP,
 } from "./subcategory";
@@ -72,5 +73,17 @@ describe("acoustic subcategory classifier", () => {
     expect(inBucket("quality-diff", "safe-batch")).toBe(false);
     expect(inBucket("oddball", "ear-check")).toBe(true);
     expect(inBucket("metadata-diff", "ear-check")).toBe(false);
+  });
+
+  test("listen-first buckets: exactly quality-diff, oddball, ear-check", () => {
+    // Sep 11 super-sure: batch-confirming these once confirmed 94 unreviewed
+    // findings — the guard set must stay exactly this trio.
+    expect(isListenFirst("quality-diff")).toBe(true);
+    expect(isListenFirst("oddball")).toBe(true);
+    expect(isListenFirst("ear-check")).toBe(true);
+    expect(isListenFirst("metadata-diff")).toBe(false);
+    expect(isListenFirst("re-encode")).toBe(false);
+    expect(isListenFirst("safe-batch")).toBe(false);
+    expect(isListenFirst("not-a-bucket")).toBe(false);
   });
 });

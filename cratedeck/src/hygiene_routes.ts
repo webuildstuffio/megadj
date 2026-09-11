@@ -95,22 +95,23 @@ export function makeHygieneRoutes(deps: {
   /** POST /api/hygiene/bucket-confirm {bucket} — batch-confirm every open
    *  acoustic-twin finding in one subcategory bucket. Same engine SSOT as
    *  decide(): megadj's CLI does the write, cratedeck never touches the
-   *  archive. Validated against the CLI's accepted bucket names. */
+   *  archive. Validated against the CLI's accepted bucket names AND the
+   *  listen-first refusal (the CLI owns the rule — this pre-check only
+   *  avoids spawning a process guaranteed to fail; a drift between the
+   *  two still surfaces as the CLI's 409). */
   async function bucketConfirm(req: Request): Promise<Response> {
     const body = (await req.json().catch(() => null)) as {
       bucket?: string;
     } | null;
     const bucket = body?.bucket;
-    const VALID = [
-      "metadata-diff",
-      "re-encode",
-      "quality-diff",
-      "oddball",
-      "ear-check",
-      "safe-batch",
-    ];
+    const VALID = ["metadata-diff", "re-encode", "safe-batch"];
     if (!bucket || !VALID.includes(bucket))
-      return json({ error: `bucket must be one of ${VALID.join(", ")}` }, 400);
+      return json(
+        {
+          error: `bucket must be one of ${VALID.join(", ")} — quality-diff/oddball/ear-check are listen-first: A/B compare them in the Hygiene tab instead`,
+        },
+        400,
+      );
     const r = await megadjCli([
       "shelf-hygiene",
       `--bucket=${bucket}`,

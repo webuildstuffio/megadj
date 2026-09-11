@@ -17,7 +17,11 @@ import { basename } from "node:path";
 import { HygieneStore } from "../hygiene/store";
 import { walkShelf } from "../hygiene/walk";
 import { runChecks } from "../hygiene/checks";
-import { BUCKET_MEMBERSHIP, inBucket } from "../hygiene/subcategory";
+import {
+  BUCKET_MEMBERSHIP,
+  inBucket,
+  isListenFirst,
+} from "../hygiene/subcategory";
 import { applyFinding, validateFinding } from "../hygiene/apply";
 import type { CheckCtx } from "../hygiene/types";
 import { FpCache } from "./shelf-dupescan";
@@ -101,6 +105,16 @@ export async function shelfHygiene(
         if (!(bucket in BUCKET_MEMBERSHIP)) {
           fail(
             `unknown bucket "${bucket}" — valid: ${Object.keys(BUCKET_MEMBERSHIP).join(", ")}`,
+          );
+          return;
+        }
+        // Listen-first buckets are FILTER-ONLY (subcategory.ts): their
+        // findings need ears before a keep decision, so batch-confirm
+        // refuses them instead of stamping "confirmed" over unreviewed
+        // rows. Dismiss by id stays available for genuine junk.
+        if (isListenFirst(bucket)) {
+          fail(
+            `bucket "${bucket}" is listen-first — its findings need an A/B listen before a keep decision (Hygiene tab → A/B compare). Batch-confirm only: metadata-diff, re-encode, safe-batch.`,
           );
           return;
         }

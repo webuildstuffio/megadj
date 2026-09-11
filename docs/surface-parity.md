@@ -7,7 +7,15 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 17 · 2026-09-11 — hygiene A/B compare: `GET /api/hygiene/audio` +
+Rev 18 · 2026-09-11 — hygiene listen-first enforcement: Rev 16's
+"refuse batch-confirm" claim was doc-only — a super-sure live probe
+proved `POST /api/hygiene/bucket-confirm {bucket:"quality-diff"}`
+silently confirmed 94 unreviewed findings (the guard existed only in
+the deckctl spoke, never the engine or route). The refusal now lives
+in the engine (`src/hygiene/subcategory.ts` `LISTEN_FIRST_BUCKETS` +
+`isListenFirst`, enforced by `shelf-hygiene --bucket`) and the route
+pre-checks the same rule; usage/help text and tests pin it at every
+layer. Rev 17 · 2026-09-11 — hygiene A/B compare: `GET /api/hygiene/audio` +
 `GET /api/hygiene/stats` (61 routes) stream shelf audio + ffprobe
 sidecars for the ear-check queue's compare cards. The rail is
 shelf-root-only, audio-extension-only, no traversal (403 otherwise).

@@ -99,3 +99,24 @@ export function inBucket(sub: string, bucket: string): boolean {
   const members = BUCKET_MEMBERSHIP[bucket as AcousticBucket];
   return members ? members.includes(sub as AcousticSubcategory) : false;
 }
+
+/**
+ * Buckets whose members genuinely need ears before a keep decision —
+ * batch-confirming them would stamp "confirmed" over 90+ rows the user
+ * never reviewed (exactly what the listen-first contract forbids; §4.2's
+ * human gate stays mandatory for every acoustic-twin). These buckets are
+ * FILTER-ONLY on every surface: the web strip filters by them, the CLI
+ * refuses to --confirm them. Sep 11 super-sure pass: a live probe proved
+ * `--bucket quality-diff` silently confirmed 94 unreviewed findings —
+ * this set is the guard that was missing.
+ */
+export const LISTEN_FIRST_BUCKETS: readonly AcousticBucket[] = [
+  "quality-diff",
+  "oddball",
+  "ear-check",
+];
+
+/** True when a bucket is listen-first — batch-confirm must refuse it. */
+export function isListenFirst(bucket: string): boolean {
+  return LISTEN_FIRST_BUCKETS.includes(bucket as AcousticBucket);
+}

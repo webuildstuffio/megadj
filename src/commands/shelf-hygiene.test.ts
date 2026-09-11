@@ -292,4 +292,54 @@ describe("shelf-hygiene command", () => {
     const store = new HygieneStore(new Database(db));
     expect(store.list({ status: "confirmed" }).length).toBe(0);
   });
+
+  // Sep 11 super-sure: a live probe proved `--bucket quality-diff` silently
+  // confirmed 94 UNREVIEWED findings — the listen-first refusal the docs
+  // promised never shipped. These tests pin the guard at the engine.
+  test("bucket confirm: listen-first buckets refuse with zero work", async () => {
+    const { vol, db } = shelf();
+    await run({ shelfVolume: vol, dbPath: db });
+    const now = Date.now();
+    const store0 = new HygieneStore(new Database(db));
+    for (const sub of ["quality-diff", "oddball"]) {
+      const name = `${sub}.mp3`;
+      store0.upsert([
+        {
+          id: `f-${sub}`,
+          kind: "acoustic-twin",
+          severity: "likely",
+          status: "open",
+          paths: [`/V/Contents/A/${name}`, `/V/Contents/A/${name} 2.mp3`],
+          bytes: [4_000_000, 4_010_000],
+          md5s: [null, null],
+          fps: ["fp", "fp"],
+          evidence: { subcategory: sub },
+          proposedAction: { type: "quarantine-loser" },
+          keeperPath: `/V/Contents/A/${name}`,
+          walkToken: "tok",
+          autoSafe: false,
+          createdAt: new Date(now).toISOString(),
+          decidedAt: null,
+          appliedAt: null,
+          validation: null,
+        },
+      ]);
+    }
+    for (const bucket of ["quality-diff", "oddball", "ear-check"]) {
+      const { parsed, code } = await run({
+        shelfVolume: vol,
+        dbPath: db,
+        bucket,
+      });
+      expect(code).toBe(1);
+      expect(parsed.error).toContain("listen-first");
+      // zero work — the ledger is byte-for-byte unchanged (the fixture's
+      // detection pass also leaves one open byte-twin row; refusal must
+      // not touch ANY status, not just acoustic ones)
+      const store = new HygieneStore(new Database(db));
+      expect(store.list({ status: "confirmed" }).length).toBe(0);
+      expect(store.list({ status: "open" }).length).toBe(3); // 2 seeded + 1 detected
+      expect(store.list({ status: "dismissed" }).length).toBe(0);
+    }
+  });
 });

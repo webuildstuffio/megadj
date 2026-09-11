@@ -261,6 +261,32 @@ test("routes: scan/apply enqueue only (zero work in the request leg)", () => {
   expect(cap.enqueued).toEqual(["hygiene-scan", "hygiene-apply"]);
 });
 
+test("routes: bucket-confirm refuses listen-first buckets before any CLI run", async () => {
+  // Sep 11 super-sure: a live probe proved the route happily spawned
+  // `--bucket quality-diff`, silently confirming 94 unreviewed findings.
+  const { api, cap } = harness(new HygieneReader(join(dir, "empty.db")));
+  for (const bucket of ["quality-diff", "oddball", "ear-check"]) {
+    const res = await api.bucketConfirm(
+      new Request("http://x/api/hygiene/bucket-confirm", {
+        method: "POST",
+        body: JSON.stringify({ bucket }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toContain("listen-first");
+  }
+  // safe bucket still passes validation and reaches the engine
+  const ok = await api.bucketConfirm(
+    new Request("http://x/api/hygiene/bucket-confirm", {
+      method: "POST",
+      body: JSON.stringify({ bucket: "safe-batch" }),
+    }),
+  );
+  expect(ok.status).toBe(200);
+  expect(cap.cli).toEqual([["shelf-hygiene", "--bucket=safe-batch", "--json"]]);
+});
+
 test("routes: decide fans out N ids into ONE megadj CLI call", async () => {
   const { api, cap } = harness(new HygieneReader(join(dir, "empty.db")));
   const res = await api.decide(
