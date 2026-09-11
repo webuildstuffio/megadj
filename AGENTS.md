@@ -70,6 +70,11 @@ and sweep history: `docs/agent-playbook.md`. Key commands and traps:
   `shelf-hygiene` (byte-twin/acoustic-twin/folder-variant findings ledger:
   scan → review → apply/confirm/dismiss, never bulk-apply unreviewed; 1:1
   across deckctl, `deck_hygiene` MCP, and the Hygiene tab).
+  Listen-first acoustic buckets (quality-diff/oddball/ear-check) refuse
+  batch-confirm — and the refusal must live in the ENGINE
+  (`subcategory.ts`), not a UI spoke: a spoke-only guard once let a route
+  probe batch-confirm 94 unreviewed findings while deckctl refused
+  correctly. Guard-at-SSOT, filter-only elsewhere).
 - rsync WEDGES on fskit exFAT — per-dir tar-pipes + file-count resume
   checks are the proven method (foreground slices only: backgrounded
   runners get reaped, and launchd is TCC-blocked from `/Volumes`). Per-file
