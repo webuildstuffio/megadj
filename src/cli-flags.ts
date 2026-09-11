@@ -28,6 +28,7 @@ export function parseFlags(
       if (boolOpts.includes(key)) {
         if (val !== "true" && val !== "false") continue;
         if (val === "true") bools.add(key);
+        else bools.delete(key);
       } else {
         strings.set(key, val);
       }
@@ -50,7 +51,9 @@ export function parseFlags(
 /** Numeric string option: `numOpt(flags, "jobs")` → number | undefined. */
 export function numOpt(flags: ParsedFlags, key: string): number | undefined {
   const raw = flags.strings.get(key);
-  return raw ? Number(raw) || undefined : undefined;
+  if (!raw) return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) && n !== 0 ? n : undefined;
 }
 
 /** Non-negative numeric option with a hard error (`--limit 5`). Returns

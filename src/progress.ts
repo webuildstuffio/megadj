@@ -9,18 +9,22 @@ const BAR_WIDTH = 24;
 const isTty = process.stderr.isTTY ?? false;
 
 export function fmtBytes(n: number): string {
+  if (!Number.isFinite(n)) return "—";
   const units = ["B", "KB", "MB", "GB", "TB"];
-  let v = n;
+  const sign = n < 0 ? "-" : "";
+  let v = Math.abs(n);
   let u = 0;
   while (v >= 1024 && u < units.length - 1) {
     v /= 1024;
     u++;
   }
-  return u === 0 ? `${Math.round(v)} B` : `${v.toFixed(1)} ${units[u]}`;
+  return u === 0
+    ? `${sign}${Math.round(v)} B`
+    : `${sign}${v.toFixed(1)} ${units[u]}`;
 }
 
 export function fmtDur(seconds: number): string {
-  const s = Math.max(0, Math.round(seconds));
+  const s = Math.max(0, Math.round(Number.isFinite(seconds) ? seconds : 0));
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;

@@ -7,6 +7,8 @@ describe("progress formatting", () => {
     expect(fmtBytes(2048)).toBe("2.0 KB");
     expect(fmtBytes(5 * 1024 * 1024)).toBe("5.0 MB");
     expect(fmtBytes(3 * 1024 ** 3)).toBe("3.0 GB");
+    expect(fmtBytes(-2048)).toBe("-2.0 KB");
+    expect(fmtBytes(Number.NaN)).toBe("—");
   });
 
   test("fmtDur formats", () => {
@@ -14,6 +16,8 @@ describe("progress formatting", () => {
     expect(fmtDur(59)).toBe("00:59");
     expect(fmtDur(65)).toBe("01:05");
     expect(fmtDur(3671)).toBe("1:01:11");
+    expect(fmtDur(Number.NaN)).toBe("00:00");
+    expect(fmtDur(Number.POSITIVE_INFINITY)).toBe("00:00");
   });
 });
 
