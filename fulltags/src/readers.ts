@@ -109,6 +109,24 @@ if p.lower().endswith(".wav"):
                 tags[k.split(":")[0]] = v
             except Exception:
                 pass
+elif p.lower().endswith((".aif", ".aiff", ".aifc")):
+    # AIFF is IFF-chunked: the ID3 tag lives in an ID3 chunk, not at byte
+    # 0 — ffprobe rarely surfaces APIC for it, so mutagen decides art
+    # presence here (Sep 11: 100+ AIFFs with embedded covers read as
+    # art-less and the fetch pass re-fetched art for known-good files).
+    from mutagen.aiff import AIFF
+    a = AIFF(p)
+    if a.tags:
+        for k in a.tags.keys():
+            try:
+                if k.startswith("APIC"):
+                    art = True
+                    continue
+                frame = a.tags.get(k)
+                v = str(frame.text[0]) if hasattr(frame, "text") and frame.text else str(frame)
+                tags[k.split(":")[0]] = v
+            except Exception:
+                pass
 elif p.lower().endswith((".m4a", ".m4b")):
     # MP4 freeform atoms (----:com.apple.iTunes:MOOD etc.) carry the
     # analysis stamps; ffprobe hides them behind opaque ©-keys, so the
@@ -162,10 +180,11 @@ export function groundTruth(p: string): Truth {
   const isWav = ext === ".wav";
   const isMp3 = ext === ".mp3";
   const isM4a = ext === ".m4a" || ext === ".m4b";
+  const isAiff = ext === ".aif" || ext === ".aiff" || ext === ".aifc";
   const ff = ffprobeJson(p);
   let art = ff.hasVideo;
   const merged: Record<string, string> = { ...ff.tags };
-  if (isWav || isMp3 || isM4a) {
+  if (isWav || isMp3 || isM4a || isAiff) {
     const m = mutagenRead(p);
     if (m.art) art = true;
     for (const [k, v] of Object.entries(m.tags)) {

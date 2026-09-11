@@ -41,6 +41,7 @@ import {
   db,
   groundTruth,
   archiveFiles,
+  cleanArtist,
   scSearch,
   setFileTags,
   beatportLookup,
@@ -52,6 +53,7 @@ import { existsSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import { ProgressBar } from "../src/progress";
 import {
+  cleanTitle,
   stageArt,
   stageBeatportIdentity,
   stageGenreYear,
@@ -122,7 +124,10 @@ async function processTask(
   progress: ProgressBar | null,
 ): Promise<void> {
   const { row: r, truth } = t;
-  const name = `${r.artist ?? "?"} - ${r.title}`.slice(0, 56);
+  const name = `${cleanArtist(r.artist) ?? "?"} - ${cleanTitle(r.title)}`.slice(
+    0,
+    56,
+  );
   const notes: string[] = [];
 
   const ctx: StageCtx = {
@@ -158,8 +163,8 @@ async function processTask(
         (!truth.label || !truth.mixName || !truth.isrc || !truth.remixer)));
   ctx.bpBest = wantsBp
     ? await beatportLookup({
-        artist: truth.artist ?? r.artist ?? null,
-        title: truth.title ?? r.title,
+        artist: cleanArtist(truth.artist) ?? cleanArtist(r.artist),
+        title: cleanTitle(truth.title ?? r.title),
         durationS: truth.durationS ?? undefined,
       })
     : null;

@@ -51,9 +51,20 @@ export interface ParsedName {
   title: string;
 }
 
-/** Parse `NNN - Artist - Title.ext` / `Artist - Title.ext` / `Title.ext`. */
+/** Parse `NNN - Artist - Title.ext` / `Artist - Title.ext` / `Title.ext`.
+ *  Recognizes quarantine-style junk prefixes first: a filename composed by
+ *  an upstream tool as `UnknownArtist · UnknownAlbum · <real rest>` (and
+ *  plain `UnknownArtist - ` variants) would otherwise parse "UnknownArtist"
+ *  as the ARTIST and bake it into tags + search keys — Sep 11: 13 pool
+ *  tracks searched SC for "UnknownArtist · UnknownAlbum · suspense of
+ *  seas", matched junk, and all embedded the same pool banner. The prefix
+ *  is stripped BEFORE the artist/title split so `<real rest>` parses. */
 export function parseFilename(basename: string): ParsedName {
-  const stem = basename.replace(/\.[^.]+$/, "");
+  let stem = basename.replace(/\.[^.]+$/, "");
+  stem = stem.replace(
+    /^(?:UnknownArtist\s*·\s*UnknownAlbum\s*·\s*|UnknownArtist\s*·\s*|UnknownArtist\s*-\s*|Unknown Artist\s*-\s*)/iu,
+    "",
+  );
   const numMatch = /^(\d{1,3})\s+-\s+(.+)$/.exec(stem);
   let rest = stem;
   let trackNo: number | null = null;
@@ -64,9 +75,11 @@ export function parseFilename(basename: string): ParsedName {
   const parts = rest.split(/\s+-\s+/);
   if (parts.length >= 2) {
     const artistPart = parts[0]?.trim();
+    const artistOk =
+      !!artistPart && !/^unknown(\s*artist)?$/iu.test(artistPart);
     return {
       trackNo,
-      artist: artistPart ? artistPart : null,
+      artist: artistOk ? artistPart : null,
       title: parts.slice(1).join(" - ").trim(),
     };
   }

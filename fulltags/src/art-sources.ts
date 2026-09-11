@@ -285,9 +285,26 @@ export interface SearchRow {
   file_path: string;
 }
 
+/** Junk prefix stripper for search inputs: "UnknownArtist · UnknownAlbum ·
+ *  Tvardovsky - Depths" must search as "Tvardovsky - Depths" (Sep 11: the
+ *  composed junk prefix poisoned every SC query and the uploader scorer —
+ *  13 tracks matched loose junk and embedded one shared pool banner). */
+export function cleanSearchParts(
+  artist: string | null,
+  title: string,
+): { artist: string | null; title: string } {
+  const junk =
+    /UnknownArtist\s*(?:·\s*UnknownAlbum\s*)?·\s*|Unknown\s*Artist\s*[-–—]\s*/giu;
+  return {
+    artist: artist?.replace(junk, "").trim() || null,
+    title: title.replace(junk, "").trim(),
+  };
+}
+
 function cleanQuery(r: SearchRow): string {
-  const artist0 = (r.artist ?? "").split(/[,&]/)[0]?.trim() ?? "";
-  const t = r.title
+  const { artist, title } = cleanSearchParts(r.artist, r.title);
+  const artist0 = (artist ?? "").split(/[,&]/)[0]?.trim() ?? "";
+  const t = title
     .replace(/\[[^\]]*\]/g, " ")
     .replace(/\([^)]*\)/g, " ")
     .replace(
@@ -340,9 +357,10 @@ function scSearchReal(r: SearchRow): ScHit[] {
     Bun.sleepSync(1200 * (attempt + 1));
   }
   const hits: ScHit[] = [];
-  const tWords = words(r.title);
+  const cleaned = cleanSearchParts(r.artist, r.title);
+  const tWords = words(cleaned.title);
   const artist0 =
-    (r.artist ?? "unknown").split(/[,&]/)[0]?.trim().toLowerCase() ?? "";
+    (cleaned.artist ?? "unknown").split(/[,&]/)[0]?.trim().toLowerCase() ?? "";
   for (const line of out.split("\n")) {
     if (!line.startsWith("COL|")) continue;
     const parts = line.slice(4).split("|");

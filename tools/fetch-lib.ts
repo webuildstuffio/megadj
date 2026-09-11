@@ -45,6 +45,27 @@ export interface Row {
   format_id: string | null;
 }
 
+/** Junk-artist detector + sanitizer. Upstream bugs used to bake composed
+ *  junk into DB rows/tags ("UnknownArtist · UnknownAlbum · Tvardovsky",
+ *  bare "UnknownArtist") — searching SC with those keys can only match
+ *  junk (Sep 11: 13 tracks embedded one pool banner that way). Returns
+ *  null for junk, the cleaned artist otherwise. */
+export function cleanArtist(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let a = raw.trim();
+  if (!a) return null;
+  // strip composed junk prefixes wherever they appear in the string
+  a = a.replace(
+    /(?:^|\s*·\s*)UnknownArtist(?:\s*·\s*UnknownAlbum)?(?:\s*·\s*|$)/giu,
+    " ",
+  );
+  a = a.replace(/^\s*Unknown\s+Artist\s*[-–—]\s*/iu, "");
+  a = a.replace(/\s+/gu, " ").trim();
+  if (!a) return null;
+  if (/^unknown(\s*artist)?$/iu.test(a)) return null;
+  return a;
+}
+
 export interface Truth {
   art: boolean;
   title: string | null;

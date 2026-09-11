@@ -10,6 +10,7 @@ import {
   bpGenre,
   bpStamp,
   canonGenre,
+  cleanArtist,
   db,
   deezerArt,
   embedArt,
@@ -97,7 +98,7 @@ function missingTagValues(
   artist: string | null,
 ): TagValues {
   const vals: TagValues = {};
-  if (!truth.title) vals.title = r.title;
+  if (!truth.title) vals.title = cleanTitle(r.title);
   if (!truth.artist && artist) vals.artist = artist;
   if (!truth.album && artist)
     vals.album = r.album ?? `${artist} - Unknown Album`;
@@ -105,20 +106,40 @@ function missingTagValues(
   return vals;
 }
 
+/** Strip a composed junk prefix from a DB title ("UnknownArtist ·
+ *  UnknownAlbum · real title" was baked in by the Sep 11 pool batch). */
+export function cleanTitle(raw: string): string {
+  return raw
+    .replace(/^UnknownArtist\s*(?:·\s*UnknownAlbum\s*)?·\s*/iu, "")
+    .trim();
+}
+
+/** Junk album detector: a literal "UnknownAlbum" carries no information. */
+function cleanAlbum(a: string | null): string | null {
+  if (!a) return null;
+  return /^unknown\s*album$/iu.test(a.trim()) ? null : a;
+}
+
 /** The DB-row refresh half of stageTags: each column takes the value we
- *  wrote, falling back to the truth it filled in for. */
+ *  wrote, falling back to the truth it filled in for. Junk-composed DB
+ *  values are repaired here too — refreshTrackRow is what UN-bakes the
+ *  "UnknownArtist · UnknownAlbum · X" rows from the Sep 11 pool batch. */
 function refreshTrackRow(
   r: Row,
   truth: StageCtx["truth"],
   artist: string | null,
   vals: TagValues,
 ): void {
+  // A literal "UnknownAlbum" carries no information — prefer the row's
+  // existing real album, else leave what we wrote (never store junk).
+  const junkAlbum = truth.album ? cleanAlbum(truth.album) : null;
+  const junkArtist = cleanArtist(artist);
   db.query(
     "UPDATE tracks SET title=?, artist=?, album=?, genre=? WHERE video_id=?",
   ).run(
-    vals.title ?? truth.title ?? r.title,
-    vals.artist ?? artist,
-    vals.album ?? truth.album,
+    vals.title ?? truth.title ?? cleanTitle(r.title),
+    vals.artist ?? junkArtist ?? cleanArtist(r.artist),
+    vals.album ?? junkAlbum,
     vals.genre ?? truth.genre,
     r.video_id,
   );
@@ -128,7 +149,9 @@ function refreshTrackRow(
 export function stageTags(t: StageCtx): void {
   if (!t.needTags || t.dry) return;
   const r = t.row;
-  const artist = t.truth.artist ?? r.artist ?? null;
+  // cleanArtist guards against DB rows carrying junk composed artist
+  // strings ("UnknownArtist · UnknownAlbum · X") — never write those.
+  const artist = cleanArtist(t.truth.artist) ?? cleanArtist(r.artist);
   const vals = missingTagValues(r, t.truth, artist);
   if (!Object.keys(vals).length) return;
   if (!setFileTags(r.file_path, vals)) return;
