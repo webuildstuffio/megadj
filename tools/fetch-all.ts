@@ -30,6 +30,10 @@
  *
  * Shared plumbing lives in tools/fetch-lib.ts; AI fallbacks come from
  * fulltags/src/ai.ts (via fulltags/src/exports).
+ *
+ * Callers: `megadj fetch` (src/fulltags/fetch.ts) runs runFetch() IN-PROCESS
+ * — the child-process spawn seam is gone (one Bun boot, no 6.4s overhead).
+ * The `bun tools/fetch-all.ts` CLI remains for direct operator runs.
  */
 import {
   ARCH,
@@ -56,10 +60,30 @@ import {
   type Stats,
 } from "./fetch-stages";
 
+/** Pipeline options — the former module-level argv constants. `megadj
+ * fetch` passes these from parsed FetchOptions; the CLI shim parses argv
+ * into the same shape, so there is one pipeline and two thin front doors. */
+export interface FetchAllOptions {
+  all?: boolean | undefined;
+  /** scope: one stage, or "all" (default) */
+  only?: "art" | "genres" | "tags" | "years" | "all" | undefined;
+  /** AI genre/year fallback — OPT-IN (Sep 11 2026): SC + Beatport resolve
+   * nearly everything from a real release, and the flash-lite fallback has
+   * a documented failure mode (remix years → "2023", genre = vibe-guess).
+   * The operator turns it on for a bounded re-pass over a short unresolved
+   * list, never as a silent part of every run. */
+  aiFallback?: boolean | undefined;
+  onlyDryRun?: boolean | undefined;
+  jobs?: number | undefined;
+  /** --json: stdout carries only the summary object (agent contract). */
+  json?: boolean | undefined;
+}
+
 /** Print a line without corrupting the live progress bar redraw. */
 let activeBar: ProgressBar | null = null;
+let jsonOut = false;
 function progressLog(line: string): void {
-  if (JSON_OUT) return; // --json: stdout carries only the summary object
+  if (jsonOut) return; // --json: stdout carries only the summary object
   if (!activeBar) {
     console.log(line);
     return;
@@ -70,30 +94,6 @@ function progressLog(line: string): void {
   activeBar.update(0);
 }
 let activeBarTotal = 0;
-
-const argv = process.argv.slice(2);
-const ALL = argv.includes("--all");
-const JSON_OUT = argv.includes("--json");
-// AI genre/year fallback is OPT-IN (Sep 11 2026): SC + Beatport resolve
-// nearly everything from a real release, and the flash-lite fallback has a
-// documented failure mode (remix years → "2023", genre = vibe-guess). The
-// operator turns it on for a bounded re-pass over a short unresolved list,
-// never as a silent part of every run.
-const AI_FALLBACK = argv.includes("--ai-fallback");
-const ONLY = (
-  argv.includes("--art")
-    ? "art"
-    : argv.includes("--genres")
-      ? "genres"
-      : argv.includes("--tags")
-        ? "tags"
-        : argv.includes("--years")
-          ? "years"
-          : "all"
-) as "art" | "genres" | "tags" | "years" | "all";
-const DRY = argv.includes("--dry-run");
-const jobsArg = argv.indexOf("--jobs");
-const JOBS = Math.max(1, Number(jobsArg !== -1 ? argv[jobsArg + 1] : 6) || 6);
 
 interface Task {
   row: Row;
@@ -117,6 +117,9 @@ async function processTask(
   artless: Row[],
   /** live progress bar; ticks instead of printing per-item logs */
   progress?: ProgressBar | null,
+  /** run-scoped flags (formerly module constants) */
+  dry = false,
+  aiFallback = false,
 ): Promise<void> {
   const { row: r, truth } = t;
   const name = `${r.artist ?? "?"} - ${r.title}`.slice(0, 56);
@@ -130,12 +133,12 @@ async function processTask(
     needArt: t.needArt,
     needYear: t.needYear,
     upgradeSc: t.upgradeSc,
-    dry: DRY,
+    dry,
     stats,
     notes,
     aiGenreBatch,
     aiYearBatch,
-    aiAllowed: AI_FALLBACK,
+    aiAllowed: aiFallback,
     bpBest: null,
     durationS: truth.durationS,
   };
@@ -147,7 +150,7 @@ async function processTask(
   // One catalog search feeds genre AND year AND art AND identity. Runs
   // when any Beatport-fed field is needed; SC wins every field it covers.
   const wantsBp =
-    !DRY &&
+    !dry &&
     (t.needGenre ||
       t.needArt ||
       t.needYear ||
@@ -163,7 +166,7 @@ async function processTask(
 
   // ---- 2+3+4. SC search feeds genre AND art AND year ----
   const wantsSc = t.needGenre || t.needArt || t.upgradeSc || t.needYear;
-  const sc = wantsSc && !DRY ? scSearch(r) : null;
+  const sc = wantsSc && !dry ? scSearch(r) : null;
   const best = sc?.[0] ?? null;
 
   stageGenreYear(ctx, best);
@@ -171,23 +174,33 @@ async function processTask(
 
   // ---- 3. artwork ladder (SC original-res first, then fallbacks) ----
   const artDone = await stageArt(ctx, best);
-  if (t.needArt && !DRY && !artDone) artless.push(r);
+  if (t.needArt && !dry && !artDone) artless.push(r);
 
   if (progress) {
     progress.update(1);
     return;
   }
-  if (JSON_OUT) return; // --json: no per-item milestones
+  if (jsonOut) return; // --json: no per-item milestones
   // plain mode (no progress bar): keep the classic per-item output
   if (notes.length)
     console.log(`  [${i + 1}/${total}] ${notes.join(" ")} — ${name}`);
-  else if (DRY)
+  else if (dry)
     console.log(
       `  [${i + 1}/${total}] (dry) tags:${t.needTags} genre:${t.needGenre} art:${t.needArt} year:${t.needYear} — ${name}`,
     );
 }
 
-async function main() {
+/** Run the pipeline in-process. Owns no DB handle — fetch-lib's shared
+ *  connection stays open for the process lifetime, exactly as before;
+ *  only the child-process seam around it is gone. */
+export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
+  const all = opts.all ?? false;
+  const only = opts.only ?? "all";
+  const dry = opts.onlyDryRun ?? false;
+  const aiFallback = opts.aiFallback ?? false;
+  const jobs = Math.max(1, opts.jobs ?? 6);
+  jsonOut = opts.json ?? false;
+
   const files = archiveFiles();
   const rows = (
     db
@@ -206,13 +219,13 @@ async function main() {
     const truth = groundTruth(r.file_path);
     const genreOk = truth.genre && truth.genre !== "Music";
     const needTags =
-      (ONLY === "all" || ONLY === "tags") &&
+      (only === "all" || only === "tags") &&
       (!truth.title || !truth.artist || !truth.album || !genreOk);
-    const needGenre = (ONLY === "all" || ONLY === "genres") && !genreOk;
-    const needYear = (ONLY === "all" || ONLY === "years") && !truth.year;
-    const upgradeSc = ALL && r.format_id?.startsWith("sc:") === true;
+    const needGenre = (only === "all" || only === "genres") && !genreOk;
+    const needYear = (only === "all" || only === "years") && !truth.year;
+    const upgradeSc = all && r.format_id?.startsWith("sc:") === true;
     const needArt =
-      (ONLY === "all" || ONLY === "art") && (!truth.art || upgradeSc);
+      (only === "all" || only === "art") && (!truth.art || upgradeSc);
     if (needTags || needGenre || needArt || needYear)
       tasks.push({
         row: r,
@@ -225,9 +238,9 @@ async function main() {
       });
   }
 
-  if (!JSON_OUT) {
+  if (!jsonOut) {
     console.log(
-      `fetch-all: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${JOBS}${ALL ? " [--all upgrade]" : ""}${DRY ? " [DRY RUN]" : ""}\n`,
+      `fetch-all: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${jobs}${all ? " [--all upgrade]" : ""}${dry ? " [DRY RUN]" : ""}\n`,
     );
   }
 
@@ -275,6 +288,8 @@ async function main() {
           aiYearBatch,
           artless,
           progress,
+          dry,
+          aiFallback,
         );
       } catch (err) {
         progressLog(
@@ -283,12 +298,12 @@ async function main() {
       }
     }
   }
-  await Promise.all(Array.from({ length: JOBS }, () => worker()));
+  await Promise.all(Array.from({ length: jobs }, () => worker()));
   activeBar = null;
   // ---- AI genre fallback (batched, after the parallel pass) ----
   // OPT-IN: batches stay empty unless --ai-fallback was passed (the stage
   // gate keeps them clean, so no filtering needed here).
-  if (aiGenreBatch.length && !DRY) {
+  if (aiGenreBatch.length && !dry) {
     progressLog(`AI genre fallback for ${aiGenreBatch.length}…`);
     for (let k = 0; k < aiGenreBatch.length; k += 20) {
       const batch = aiGenreBatch.slice(k, k + 20);
@@ -305,13 +320,13 @@ async function main() {
         stats.genreAi++;
       }
     }
-    if (!JSON_OUT)
+    if (!jsonOut)
       console.log(`  AI set: ${stats.genreAi}/${aiGenreBatch.length}`);
   }
 
   // ---- AI year fallback (single batched call: genre + year together) ----
-  if (aiYearBatch.length && !DRY) {
-    if (!JSON_OUT) console.log(`\nAI year fallback for ${aiYearBatch.length}…`);
+  if (aiYearBatch.length && !dry) {
+    if (!jsonOut) console.log(`\nAI year fallback for ${aiYearBatch.length}…`);
     for (let k = 0; k < aiYearBatch.length; k += 20) {
       const batch = aiYearBatch.slice(k, k + 20);
       const res = await aiGenres(batch, true);
@@ -340,7 +355,7 @@ async function main() {
         if (Object.keys(vals).length) setFileTags(row.file_path, vals);
       }
     }
-    if (!JSON_OUT) {
+    if (!jsonOut) {
       console.log(
         `  AI years set: ${stats.yearAi}/${aiYearBatch.length} (genres too where missing: +${stats.genreAi})`,
       );
@@ -348,7 +363,7 @@ async function main() {
   }
 
   // ---- AI cover queue append ----
-  if (artless.length && !DRY) {
+  if (artless.length && !dry) {
     const lines = artless
       .filter((r) => r.artist && r.title)
       .map((r) =>
@@ -366,8 +381,8 @@ async function main() {
   // ---- summary ----
   const summary = {
     command: "fetch",
-    dryRun: DRY,
-    aiFallback: AI_FALLBACK,
+    dryRun: dry,
+    aiFallback,
     tracks: rows.length,
     tasks: tasks.length,
     tags: stats.tags,
@@ -388,18 +403,47 @@ async function main() {
     artQueued: artless.length,
     /** Unresolved WITHOUT AI (SC+BP both missed) — the bounded list a
      *  later `--ai-fallback` re-pass would cover. Visible in every mode. */
-    genreUnresolvedNoAi: AI_FALLBACK ? 0 : aiGenreBatch.length,
-    yearUnresolvedNoAi: AI_FALLBACK ? 0 : aiYearBatch.length,
+    genreUnresolvedNoAi: aiFallback ? 0 : aiGenreBatch.length,
+    yearUnresolvedNoAi: aiFallback ? 0 : aiYearBatch.length,
   };
-  if (JSON_OUT) {
+  if (jsonOut) {
     // P1 (--json on every command): one summary object on stdout, last.
     console.log(JSON.stringify(summary));
   } else {
     progress?.close(
-      `DONE${DRY ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${AI_FALLBACK ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
+      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
     );
   }
-  db.close();
 }
 
-await main();
+// direct CLI entry (`megadj fetch` is the supported path; this shim stays
+// for direct operator runs). argv parsing here ONLY under import.meta.main
+// — importing this module must never read process.argv.
+if (import.meta.main) {
+  const argv = process.argv.slice(2);
+  const only = (
+    argv.includes("--art")
+      ? "art"
+      : argv.includes("--genres")
+        ? "genres"
+        : argv.includes("--tags")
+          ? "tags"
+          : argv.includes("--years")
+            ? "years"
+            : "all"
+  ) as "art" | "genres" | "tags" | "years" | "all";
+  const jobsArg = argv.indexOf("--jobs");
+  const jobsRaw = jobsArg !== -1 ? Number(argv[jobsArg + 1]) : NaN;
+  if ((jobsArg !== -1 && !Number.isFinite(jobsRaw)) || jobsRaw < 1) {
+    console.error(`fetch-all: bad --jobs value ${argv[jobsArg + 1] ?? ""}`);
+    process.exit(2);
+  }
+  await runFetch({
+    all: argv.includes("--all"),
+    only,
+    aiFallback: argv.includes("--ai-fallback"),
+    onlyDryRun: argv.includes("--dry-run"),
+    jobs: Number.isFinite(jobsRaw) ? jobsRaw : 6,
+    json: argv.includes("--json"),
+  });
+}

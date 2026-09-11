@@ -8,10 +8,7 @@
     "eslint/no-underscore-dangle": [
       "warn",
       {
-        "allow": [
-          "_received",
-          "__test"
-        ]
+        "allow": ["_received", "__test"]
       }
     ]
   }

@@ -550,7 +550,7 @@ async function main(): Promise<void> {
         // the fix-years pass, one entry point: verifies every track's year
         // against the SC page / yt-dlp timestamp (never the AI guess)
         const flags = parseFlags(rest, [], ["dry-run", "json"]);
-        const { runFixYears } = await import("../tools/fix-years");
+        const { runFixYears } = await import("./fulltags/years");
         await runFixYears({
           dryRun: flags.bools.has("dry-run"),
           json: flags.bools.has("json"),

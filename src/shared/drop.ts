@@ -172,8 +172,8 @@ export async function drop(opts: DropOptions): Promise<void> {
   // fingerprint, key stamps) and year verification against the real SC
   // page dates. These are the stages the artist/comment/tag gaps of the
   // early passes lived in — a drop that skips them re-creates those bugs.
-  // fetch runs the tools/fetch-all.ts subprocess (it owns its own progress
-  // bar + AI batching); years is the in-process verify pass.
+  // fetch runs the pipeline in-process via runFetch (it owns its own
+  // progress bar + AI batching); years is the in-process verify pass.
   if (ok) {
     if (opts.noFetch) {
       stages.push({
@@ -211,7 +211,7 @@ export async function drop(opts: DropOptions): Promise<void> {
       ok = await runStage(
         "years",
         async () => {
-          const { runFixYears } = await import("../../tools/fix-years");
+          const { runFixYears } = await import("../fulltags/years");
           await runFixYears({ dryRun: opts.dryRun ?? false, json: true });
         },
         stages,

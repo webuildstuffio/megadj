@@ -7,7 +7,6 @@
  * implementation — the file is the truth, and `megadj audit` and
  * `fulltags audit` must agree by construction).
  */
-import { join } from "node:path";
 import { existsSync } from "node:fs";
 import {
   groundTruth,
@@ -104,18 +103,24 @@ export async function auditArchive(musicDir: string): Promise<{
 }
 
 export async function fetch(opts: FetchOptions): Promise<void> {
-  const script = join(import.meta.dir, "../../tools/fetch-all.ts");
-  const proc = Bun.spawn(["bun", script, ...fetchAllArgs(opts)], {
-    stdout: "inherit",
-    stderr: "inherit",
+  // In-process run — the child-process spawn (bun tools/fetch-all.ts) is
+  // gone: one Bun boot, no interpreter-startup overhead per invocation.
+  // Same flag surface, verified by fetchAllArgs' forwarding tests.
+  const { runFetch } = await import("../../tools/fetch-all");
+  await runFetch({
+    all: opts.all ?? false,
+    only: opts.only ?? "all",
+    aiFallback: opts.aiFallback ?? false,
+    onlyDryRun: opts.dryRun ?? false,
+    jobs: opts.jobs ?? 6,
+    json: opts.json ?? false,
   });
-  await proc.exited;
-  if (proc.exitCode !== 0) process.exitCode = proc.exitCode ?? 1;
 }
 
-/** Map FetchOptions to fetch-all.ts CLI args. Exported for tests — the
- * flags used to be parsed and then silently dropped (only --json made it
- * through), so `megadj fetch --art` ran the full pass. */
+/** Map FetchOptions to the fetch-all flag surface. Exported for tests —
+ *  the flags used to be parsed and then silently dropped (only --json made
+ *  it through), so `megadj fetch --art` ran the full pass. The run is
+ *  in-process now; this pins the option→flag contract the CLI shim shares. */
 export function fetchAllArgs(opts: FetchOptions): string[] {
   const extra: string[] = [];
   if (opts.json) extra.push("--json");
