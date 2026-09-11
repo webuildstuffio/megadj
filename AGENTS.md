@@ -14,9 +14,12 @@ This file contains only rules and traps. Product detail belongs in
   `tools/*.py`) and coverage lives in `test:coverage`.
 - Pre-commit runs STAGED-SCOPED tests (`SC_HOOK_TEST_SCOPE=staged` in
   `.shell-config-hooks.conf`): only test files in packages touched by the
-  staged paths. That makes untracked WIP test files from concurrent agents
-  invisible to your commit — the FULL suite is still the pre-push gate, so
-  run `bun test` before pushing.
+  staged paths (root `src/`/`test/` → root tests; `cratedeck/*` → cratedeck
+  tests). That makes untracked WIP test files from concurrent agents
+  invisible to your commit. The full suite runs automatically at PRE-PUSH
+  (shell-config generic fallback: no `tests/run_all.sh` + bun repo →
+  `bun test --parallel=16`; failure blocks, timeout warns) — still run
+  `bun test` yourself before pushing if you want the result earlier.
 - Never use `git add -A`; preserve concurrent work. Re-read before editing and
   verify the worktree diff, not only a commit hash.
 - No bare production `catch {}` or `.catch(() => {})`. Boundary `JSON.parse`
