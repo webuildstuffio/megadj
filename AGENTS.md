@@ -259,6 +259,30 @@ UI gotchas (each one shipped a real bug — re-read before touching UI):
   chars. `megadj audit` enforces; `megadj booth-fix` proposes (dry by
   default). Flow: `.claude/skills/booth-check/SKILL.md`.
 
+## MegaMem search workspace
+
+This repo is a MegaMem workspace (`megadj`): all tracked `*.md` are indexed
+for BM25 + semantic search by the always-on hub service (:7823, launchd
+`com.nick.megamem`). Use it before grepping docs by hand.
+
+- **Use:** `megamem search "question"` (in-repo, workspace auto-resolves
+  from `megamem.toml` `[workspace]`), via MCP `search { "query", "workspace":
+  "megadj" }` from any agent, or HTTP POST `localhost:7823/search`.
+- **Corpus:** every git-tracked, non-ignored `*.md` at the repo root
+  (AGENTS.md, docs/, .claude/skills/**). Preview: `megamem corpus`;
+  what's skipped: `megamem corpus --excluded`.
+- **Auto-watch:** editing/adding/removing any `*.md` auto-reindexes within
+  ~2s (INF-177 watcher, no restart, no manual reindex). Don't re-index by
+  hand after doc edits — verify with `megamem status`.
+- **Config:** `megamem.toml` (committed: `[workspace]` + `[registry]`)
+  declares the workspace; the hub's own `megamem.toml` carries the
+  `megadj = "../megadj"` alias (written by `megamem init`, do not hand-edit).
+  Index + artifacts live in gitignored `.megamem/megadj/`.
+- **Rebuild from scratch:** `megamem index` (incremental) or delete
+  `.megamem/` then `megamem index` (full). Setup recipe:
+  `~/.cursor/skills/megamem-setup/SKILL.md`; full reference:
+  `~/github/megamem/docs/mcp-cli-reference.md`.
+
 ## Process
 
 - Docs go through `/docs-audit` rounds before pushes; dated docs are

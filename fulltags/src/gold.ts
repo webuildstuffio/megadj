@@ -96,27 +96,30 @@ export function goldSchemaError(v: unknown): string | null {
       return `${k} must be a finite number ≥ ${min}`;
   }
   if (typeof a.bpm !== "number" || a.bpm > 400) return "bpm must be ≤ 400";
-  if (
-    !Array.isArray(a.phraseBars) ||
-    !a.phraseBars.every((b) => Number.isInteger(b) && b >= 1)
-  )
+  if (!Array.isArray(a.phraseBars))
     return "phraseBars must be an array of 1-based bar integers ≥ 1";
-  const bars = a.phraseBars as number[];
-  for (let i = 1; i < bars.length; i++) {
-    if ((bars[i] as number) <= (bars[i - 1] as number))
+  const bars: unknown[] = a.phraseBars;
+  const bnums = bars.filter(
+    (b): b is number => typeof b === "number" && Number.isInteger(b) && b >= 1,
+  );
+  if (bnums.length !== bars.length)
+    return "phraseBars must be an array of 1-based bar integers ≥ 1";
+  for (let i = 1; i < bnums.length; i++) {
+    if (bnums[i]! <= bnums[i - 1]!)
       return "phraseBars must be strictly increasing";
   }
-  if (
-    !Array.isArray(a.hotCuesMs) ||
-    a.hotCuesMs.length > 8 ||
-    !a.hotCuesMs.every(
-      (t) => typeof t === "number" && Number.isFinite(t) && t >= 0,
-    )
-  )
+  if (!Array.isArray(a.hotCuesMs))
     return "hotCuesMs must be an array of ≤ 8 finite times (ms) ≥ 0";
-  const cues = a.hotCuesMs as number[];
-  for (let i = 1; i < cues.length; i++) {
-    if ((cues[i] as number) <= (cues[i - 1] as number))
+  if (a.hotCuesMs.length > 8)
+    return "hotCuesMs must be an array of ≤ 8 finite times (ms) ≥ 0";
+  const cues: unknown[] = a.hotCuesMs;
+  const cnums = cues.filter(
+    (t): t is number => typeof t === "number" && Number.isFinite(t) && t >= 0,
+  );
+  if (cnums.length !== cues.length)
+    return "hotCuesMs must be an array of ≤ 8 finite times (ms) ≥ 0";
+  for (let i = 1; i < cnums.length; i++) {
+    if (cnums[i]! <= cnums[i - 1]!)
       return "hotCuesMs must be strictly increasing";
   }
   if (a.note !== undefined && typeof a.note !== "string")

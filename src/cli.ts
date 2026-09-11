@@ -223,8 +223,17 @@ async function main(): Promise<void> {
         const quarantine = rest.includes("--quarantine");
         const yes = rest.includes("--yes");
         const onlyIdentical = rest.includes("--only-identical");
+        // repeatable --scan-dir DIR: extra absolute dirs fingerprinted
+        // alongside Contents/ (report lens — e.g. the unmatched quarantine)
+        const scanDirs: string[] = [];
+        for (let i = 0; i < rest.length; i++) {
+          if (rest[i] === "--scan-dir") {
+            const v = rest[i + 1];
+            if (v) scanDirs.push(v);
+          }
+        }
         const { shelfDupescan } = await import("./commands/shelf-dupescan");
-        await shelfDupescan({ json, quarantine, yes, onlyIdentical });
+        await shelfDupescan({ json, quarantine, yes, onlyIdentical, scanDirs });
         break;
       }
       case "shelf-sweeps": {

@@ -70,7 +70,7 @@ function shelfAudioIndex(contents: string): Map<string, number[]> {
   const AudioRe = /\.(mp3|m4a|wav|aiff?|flac|ogg|opus)$/i;
   const idx = new Map<string, number[]>();
   const walk = (dir: string) => {
-    let entries;
+    let entries: import("node:fs").Dirent[];
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch {

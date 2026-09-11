@@ -86,6 +86,10 @@ export interface DupScanOptions {
   yes?: boolean;
   /** quarantine ONLY byte-identical (same-size + md5-equal) losers */
   onlyIdentical?: boolean;
+  /** extra absolute dirs to fingerprint alongside Contents/ — e.g. the
+   *  quarantine's unmatched/ dir, so row-less files cross-check against
+   *  the library without moving anything back (report-only aid). */
+  scanDirs?: string[];
 }
 
 export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
@@ -99,6 +103,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
     quarantine = false,
     yes = false,
     onlyIdentical = false,
+    scanDirs = [],
   } = opts;
 
   const contents = join(shelfVolume, "Contents");
@@ -111,8 +116,20 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
 
   const db = new Database(dbPath);
   const cache = new FpCache(db);
-  const files = walkAudio(contents);
-  log(`shelf-dupescan: ${files.length} audio files on ${shelfVolume}`);
+  const files = [...walkAudio(contents)];
+  // extra scan dirs fingerprint INTO the same grouping (never into the
+  // quarantine-apply candidate set unless they group among themselves —
+  // the apply stage skips groups whose keeper lies outside Contents/).
+  for (const dir of scanDirs) {
+    if (!existsSync(dir)) {
+      log(`shelf-dupescan: scan dir missing, skipped: ${dir}`);
+      continue;
+    }
+    files.push(...walkAudio(dir));
+  }
+  log(
+    `shelf-dupescan: ${files.length} audio files on ${shelfVolume}${scanDirs.length ? ` (+${scanDirs.length} extra dir(s))` : ""}`,
+  );
 
   // compute missing fingerprints with a small parallel pool
   const missing = files.filter((f) => {
@@ -165,7 +182,12 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
 
   // ---- apply stage (only with --quarantine --yes) ----------------------
   // Guards live in shelf-dupescan-apply.ts: md5 re-verify at apply time,
-  // quarantine-never-delete, per-file collision isolation.
+  // quarantine-never-delete, per-file collision isolation. Groups whose
+  // KEEPER lies outside Contents/ (extra scan dirs) are never applied —
+  // an extra dir is a reporting lens, not a quarantine source.
+  const contentsInGroup = (g: DupGroup): boolean =>
+    g.files.some((f) => f.path.startsWith(contents + "/"));
+  const applyable = dupes.filter(contentsInGroup);
   const qDir = join(shelfVolume, "Contents", ".dupescan-quarantine");
   const applied = quarantine && yes;
   let quarantined = 0;
@@ -173,7 +195,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   const errors: string[] = [];
   if (applied) {
     mkdirSync(qDir, { recursive: true });
-    const tally = applyDupGroups(dupes, qDir, onlyIdentical, errors);
+    const tally = applyDupGroups(applyable, qDir, onlyIdentical, errors);
     quarantined = tally.quarantined;
     skippedForReview = tally.skippedForReview;
   }

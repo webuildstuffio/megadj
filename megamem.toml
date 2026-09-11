@@ -1,0 +1,13 @@
+# MegaMem repo registration (REG-1).
+# Declares the workspaces whose content + indexes live in this repo.
+# Per-workspace search tuning lives in .megamem/<ws>/search.toml (generated).
+
+[workspace]
+name = "megadj"
+
+
+[registry]
+workspaces = ["megadj"]
+
+[mcp]
+tier = "standard"
