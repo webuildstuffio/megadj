@@ -27,22 +27,22 @@ export interface SyncOptions {
   limiter: RateLimiter;
   musicDir: string;
   cookiesFromBrowser: string | null;
-  cookiesFile?: string | null;
-  limit?: number;
-  dryRun?: boolean;
-  sources?: PlaylistSource[];
+  cookiesFile?: string | null | undefined;
+  limit?: number | undefined;
+  dryRun?: boolean | undefined;
+  sources?: PlaylistSource[] | undefined;
   /** Only download tracks YouTube categorizes as Music. */
-  musicOnly?: boolean;
+  musicOnly?: boolean | undefined;
   /** Stop once this many tracks are downloaded in total. */
-  targetTotal?: number;
-  onProgress?: (msg: string) => void;
+  targetTotal?: number | undefined;
+  onProgress?: ((msg: string) => void) | undefined;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
-  json?: boolean;
+  json?: boolean | undefined;
   /** Injectable playlist fetcher for tests — defaults to the yt-dlp probe. */
-  fetchPlaylistFn?: typeof fetchPlaylist;
+  fetchPlaylistFn?: typeof fetchPlaylist | undefined;
   /** yt-dlp binary passed to the Downloader. Tests set a nonexistent path
    * so probes fail fast (exit 1, no network) — see sync.test.ts. */
-  ytdlpBin?: string;
+  ytdlpBin?: string | undefined;
 }
 
 /** A playlist source: id (e.g. "LM", "LL", "PL...") plus a label for state. */

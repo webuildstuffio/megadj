@@ -13,8 +13,8 @@ import { similarTracks } from "../state";
 export interface SimilarOptions {
   state: import("../state").ArchiveState;
   videoId: string;
-  k?: number;
-  json?: boolean;
+  k?: number | undefined;
+  json?: boolean | undefined;
 }
 
 export async function similar(opts: SimilarOptions): Promise<void> {

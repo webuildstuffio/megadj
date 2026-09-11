@@ -266,9 +266,9 @@ export interface ScHit {
   title: string;
   uploader: string | null;
   thumb: string | null;
-  genre?: string;
+  genre?: string | null;
   /** SC upload year — for edits/remixes this is the remix year */
-  year?: number;
+  year?: number | null;
   score: number;
 }
 
@@ -354,8 +354,8 @@ export function scSearch(r: SearchRow): ScHit[] {
         thumbsRaw?.match(
           /https:\/\/i1\.sndcdn\.com\/artworks[^\s',]+t500x500\.jpg/,
         )?.[0] ?? null,
-      genre: genre && genre !== "NA" ? genre : undefined,
-      year,
+      ...(genre && genre !== "NA" ? { genre } : {}),
+      ...(year === undefined ? {} : { year }),
       score: overlap * 2 + (uploaderOK ? 1 : 0),
     });
   }

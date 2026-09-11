@@ -141,7 +141,7 @@ export function classifyFile(
   f: DriveFile,
   o: {
     contents: string;
-    into?: string;
+    into?: string | undefined;
     suffix: string;
     deep: boolean;
   },
@@ -187,7 +187,7 @@ export async function sweepVolume(
   shelf: ShelfIndex,
   contents: string,
   opts: {
-    into?: string;
+    into?: string | undefined;
     trashes: boolean;
     deep: boolean;
     dryRun: boolean;

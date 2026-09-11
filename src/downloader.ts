@@ -9,21 +9,21 @@ import type { YtdlpInfo } from "../fulltags/src/exports";
 import { sanitizeGenreFolder } from "../fulltags/src/exports";
 export interface DownloadResult {
   status: "downloaded" | "already-had" | "gone" | "failed";
-  filePath?: string;
-  formatId?: string;
-  info?: YtdlpInfo;
-  error?: string;
+  filePath?: string | undefined;
+  formatId?: string | undefined;
+  info?: YtdlpInfo | undefined;
+  error?: string | undefined;
 }
 
 export interface DownloaderOptions {
   musicDir: string;
   /** yt-dlp binary to invoke (default "yt-dlp") — previously declared and
    * silently ignored; every spawn used a hardcoded "yt-dlp". */
-  ytdlpBin?: string;
-  cookiesFromBrowser?: string | null;
+  ytdlpBin?: string | undefined;
+  cookiesFromBrowser?: string | null | undefined;
   /** Cookie jar file (netscape format) — preferred over browser extraction. */
-  cookiesFile?: string | null;
-  minBitrateKbps?: number;
+  cookiesFile?: string | null | undefined;
+  minBitrateKbps?: number | undefined;
 }
 
 const GONE_PATTERNS = [
@@ -128,8 +128,8 @@ export class Downloader {
    * with "[" and must not shadow the printed filepath / format id.
    */
   static parseDownloadOutput(stdout: string): {
-    filePath?: string;
-    formatId?: string;
+    filePath?: string | undefined;
+    formatId?: string | undefined;
   } {
     const printed = stdout
       .trim()

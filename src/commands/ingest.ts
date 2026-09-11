@@ -65,14 +65,14 @@ export interface IngestOptions {
   state: ArchiveState;
   musicDir: string;
   folder: string;
-  dryRun?: boolean;
-  noArtwork?: boolean;
-  quarantineDir?: string;
+  dryRun?: boolean | undefined;
+  noArtwork?: boolean | undefined;
+  quarantineDir?: string | undefined;
   /** Tracks shorter than this many seconds are skipped (default 60). */
-  minDuration?: number;
-  onProgress?: (msg: string) => void;
+  minDuration?: number | undefined;
+  onProgress?: ((msg: string) => void) | undefined;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
-  json?: boolean;
+  json?: boolean | undefined;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

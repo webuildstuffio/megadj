@@ -12,12 +12,16 @@
  *   human confirm ever merges folders.
  */
 
+/** Lowercase and strip every non-alphanumeric (shared by the levenshtein
+ *  and token helpers). Pure — module-level, not re-created per call. */
+const normFlat = (s: string): string =>
+  s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
 /** Normalized levenshtein ratio 0..1 (1 = identical). O(n·m) on short
  *  basename strings only — files, never folder walks. */
 export function nameSimilarity(a: string, b: string): number {
-  const norm = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const x = norm(a);
-  const y = norm(b);
+  const x = normFlat(a);
+  const y = normFlat(b);
   if (x === y) return 1;
   if (x.length === 0 || y.length === 0) return 0;
   // normalized levenshtein over short basenames only (files, never walks)
@@ -43,15 +47,21 @@ export function nameSimilarity(a: string, b: string): number {
 /** Shared-token ratio over token sets (folders/artist folders). 1.0 when
  *  both names reduce to the same token set regardless of separators or
  *  order. Unicode-hyphen safe (folded by the [^a-z0-9] split). */
+/** Lowercase, strip extension, split to alphanumeric tokens (folders and
+ *  artist folders). Pure — module-level, not re-created per call. */
+const normTokens = (s: string): string[] =>
+  s
+    .toLowerCase()
+    .replace(/\.[^.]+$/, "")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+/** Shared-token ratio over token sets (folders/artist folders). 1.0 when
+ *  both names reduce to the same token set regardless of separators or
+ *  order. Unicode-hyphen safe (folded by the [^a-z0-9] split). */
 export function nameSimilarityTokens(a: string, b: string): number {
-  const norm = (s: string): string[] =>
-    s
-      .toLowerCase()
-      .replace(/\.[^.]+$/, "")
-      .split(/[^a-z0-9]+/)
-      .filter(Boolean);
-  const at = new Set(norm(a));
-  const bt = new Set(norm(b));
+  const at = new Set(normTokens(a));
+  const bt = new Set(normTokens(b));
   if (at.size === 0 || bt.size === 0) return 0;
   if (at.size === bt.size && [...at].every((t) => bt.has(t))) return 1;
   let shared = 0;

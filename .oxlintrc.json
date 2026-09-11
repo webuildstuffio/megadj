@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "eslint/no-underscore-dangle": [
+      "warn",
+      {
+        "allow": ["_received", "__test"]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "eslint/no-shadow": "off"
+      }
+    },
+    {
+      "files": ["cratedeck/src/setbuild.ts"],
+      "rules": {
+        "eslint/no-unmodified-loop-condition": "off"
+      }
+    }
+  ]
+}

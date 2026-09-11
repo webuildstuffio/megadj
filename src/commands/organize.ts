@@ -19,10 +19,10 @@ import { sanitizeGenreFolder } from "../../fulltags/src/exports";
 export interface OrganizeOptions {
   state: ArchiveState;
   musicDir: string;
-  dryRun?: boolean;
-  onProgress?: (msg: string) => void;
+  dryRun?: boolean | undefined;
+  onProgress?: ((msg: string) => void) | undefined;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
-  json?: boolean;
+  json?: boolean | undefined;
 }
 
 async function fileGenreTag(filePath: string): Promise<string | null> {

@@ -46,27 +46,27 @@ export interface Cue {
  * B5 32-bar marker spine. */
 export function phraseCues(downbeats: number[]): Cue[] {
   if (downbeats.length < BARS_PER_PHRASE) return [];
-  const cues: Cue[] = [];
+  const out: Cue[] = [];
   const step = BARS_PER_PHRASE; // bars per phrase
   for (let bar = 0; bar + step <= downbeats.length; bar += step) {
-    cues.push({
-      index: cues.length,
+    out.push({
+      index: out.length,
       position: Math.round(downbeats[bar]! * 1000) / 1000,
       bar: bar + 1,
       // 32-bar memory spine: bars 1, 33, 65… (every 4th phrase boundary)
       memory: (bar + 1) % BARS_PER_MEMORY === 1,
     });
   }
-  return cues;
+  return out;
 }
 
 export interface CuesOptions {
   state: ArchiveState;
-  limit?: number;
-  force?: boolean;
-  dryRun?: boolean;
-  json?: boolean;
-  onProgress?: (msg: string) => void;
+  limit?: number | undefined;
+  force?: boolean | undefined;
+  dryRun?: boolean | undefined;
+  json?: boolean | undefined;
+  onProgress?: ((msg: string) => void) | undefined;
 }
 
 export async function cues(opts: CuesOptions): Promise<void> {

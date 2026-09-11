@@ -50,21 +50,21 @@ export interface ShelfArchiveOptions {
   /** Drive mount roots to archive FROM, e.g. /Volumes/BANGERS. */
   volumes: string[];
   /** Shelf master mount root (volume), e.g. /Volumes/SHELF1. */
-  shelfVolume?: string;
+  shelfVolume?: string | undefined;
   /** Land every copied file flat under Contents/<into>/ (trash rescue). */
-  into?: string;
+  into?: string | undefined;
   /** Also walk <volume>/.Trashes — deleted files count as content. */
-  trashes?: boolean;
+  trashes?: boolean | undefined;
   /** Bracket suffix for preserved divergent copies (default: volume name). */
-  suffix?: string;
+  suffix?: string | undefined;
   /** MD5 every same-size pair; preserve divergent ones like size diffs. */
-  deep?: boolean;
-  dryRun?: boolean;
-  json?: boolean;
-  log?: (s: string) => void;
+  deep?: boolean | undefined;
+  dryRun?: boolean | undefined;
+  json?: boolean | undefined;
+  log?: ((s: string) => void) | undefined;
   /** Sweep-ledger override (tests pass a temp DB; default = the archive DB).
    *  Pass `null` to disable recording entirely. */
-  ledgerPath?: string | null;
+  ledgerPath?: string | null | undefined;
 }
 
 export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
@@ -133,7 +133,13 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
       volume,
       shelf,
       contents,
-      { into, trashes, deep, dryRun, suffix },
+      {
+        into: into === undefined ? undefined : into,
+        trashes,
+        deep,
+        dryRun,
+        suffix,
+      },
       log,
     );
     results.push(res);

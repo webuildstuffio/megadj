@@ -109,8 +109,8 @@ export class ProgressBar {
  * command's `const log = ...` preamble was this exact three-liner — now
  * one call. */
 export function commandLog(opts: {
-  json?: boolean;
-  onProgress?: (msg: string) => void;
+  json?: boolean | undefined;
+  onProgress?: ((msg: string) => void) | undefined;
 }): (msg: string) => void {
   if (opts.onProgress) return opts.onProgress;
   if (opts.json) return (m) => process.stderr.write(`${m}\n`);

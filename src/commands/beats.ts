@@ -18,12 +18,12 @@ import { commandLog } from "../progress";
 export interface BeatsOptions {
   state: ArchiveState;
   musicDir: string;
-  jobs?: number;
-  limit?: number;
-  force?: boolean;
-  dryRun?: boolean;
-  json?: boolean;
-  onProgress?: (msg: string) => void;
+  jobs?: number | undefined;
+  limit?: number | undefined;
+  force?: boolean | undefined;
+  dryRun?: boolean | undefined;
+  json?: boolean | undefined;
+  onProgress?: ((msg: string) => void) | undefined;
 }
 
 const MODEL = "beat-this@1.1.0";

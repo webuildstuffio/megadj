@@ -272,15 +272,15 @@ export class ArchiveState {
       title: string | null;
       artist: string | null;
       album: string | null;
-      genre?: string | null;
+      genre?: string | null | undefined;
       formatId: string | null;
       bitrateKbps: number | null;
       codec: string | null;
       filePath: string | null;
       fileSizeBytes: number | null;
       durationS: number | null;
-      energy?: number | null;
-      artworkStatus?: string | null;
+      energy?: number | null | undefined;
+      artworkStatus?: string | null | undefined;
     },
   ): void {
     const now = this.now();

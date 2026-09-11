@@ -35,7 +35,7 @@ export interface CheckResult {
   required: boolean;
   ok: boolean;
   detail: string;
-  fix?: string;
+  fix?: string | undefined;
 }
 
 const MUSIC_DIR =
@@ -388,23 +388,30 @@ export function detectVolumes(): string[] {
   try {
     return readdirSync("/Volumes")
       .filter((n) => n !== "Macintosh HD" && !n.startsWith("Macintosh HD "))
-      .sort();
+      .toSorted();
   } catch {
     return [];
   }
 }
 
 /** Rewrite the [library] drive names in a config.toml string. */
+/** Set one TOML key to a quoted value when present, else pass through.
+ *  Pure — module-level, not re-created per `applyDriveNames` call. */
+const setTomlKey = (c: string, key: string, val: string): string =>
+  new RegExp(`^\\s*${key}\\s*=`, "m").test(c)
+    ? c.replace(new RegExp(`^(\\s*${key}\\s*=\\s*).*$`, "m"), `$1"${val}"`)
+    : c;
+
 export function applyDriveNames(
   cfg: string,
   master: string,
   mirror: string,
 ): string {
-  const set = (c: string, key: string, val: string): string =>
-    new RegExp(`^\\s*${key}\\s*=`, "m").test(c)
-      ? c.replace(new RegExp(`^(\\s*${key}\\s*=\\s*).*$`, "m"), `$1"${val}"`)
-      : c;
-  return set(set(cfg, "master_drive", master), "mirror_drive", mirror);
+  return setTomlKey(
+    setTomlKey(cfg, "master_drive", master),
+    "mirror_drive",
+    mirror,
+  );
 }
 
 export function runInit(): number {

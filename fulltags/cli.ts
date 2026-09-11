@@ -62,7 +62,11 @@ interface CliArgs {
   archiveDir: string | null;
   artworkQueue: string | null;
   json: boolean;
-  hints: { title?: string; artist?: string; album?: string };
+  hints: {
+    title?: string | undefined;
+    artist?: string | undefined;
+    album?: string | undefined;
+  };
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -256,11 +260,11 @@ async function main(): Promise<void> {
     }
   }
   const summary = await enrichAll(hintFiles, {
-    only: args.stages ?? undefined,
+    ...(args.stages === null ? {} : { only: args.stages }),
     jobs: args.jobs,
     dryRun: args.dryRun,
     upgradeScArt: args.upgradeScArt,
-    archiveDir: args.archiveDir ?? undefined,
+    ...(args.archiveDir === null ? {} : { archiveDir: args.archiveDir }),
     artworkQueue: args.artworkQueue,
     hints: args.hints,
   });

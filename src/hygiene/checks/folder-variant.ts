@@ -38,7 +38,7 @@ export const folderVariant: CheckDef = {
         .toLowerCase()
         .split(/[^a-z0-9]+/)
         .filter((t) => t && t !== "x")
-        .sort()
+        .toSorted()
         .join("+");
       if (!sig) continue;
       const m = byTokens.get(sig);
@@ -48,7 +48,7 @@ export const folderVariant: CheckDef = {
     const out: Finding[] = [];
     for (const artists of byTokens.values()) {
       if (artists.size < 2) continue;
-      const names = [...artists.keys()].sort();
+      const names = [...artists.keys()].toSorted();
       const keeper = names[0]!;
       const renames: Record<string, string> = {};
       for (const v of names.slice(1)) renames[v] = keeper;
@@ -68,7 +68,7 @@ export const folderVariant: CheckDef = {
                 .toLowerCase()
                 .split(/[^a-z0-9]+/)
                 .filter(Boolean)
-                .sort()
+                .toSorted()
                 .join("+"),
             )
             .find((s): s is string => !!s),

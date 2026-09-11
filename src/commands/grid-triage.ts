@@ -40,11 +40,11 @@ export interface GridTriageOptions {
    * MEGADJ_RB_MASTER). */
   mount: string;
   /** Stick volume name/mount for the GA-03 byte-compare (optional). */
-  compareDrive?: string;
+  compareDrive?: string | undefined;
   state: ArchiveState;
-  limit?: number;
-  json?: boolean;
-  onProgress?: (msg: string) => void;
+  limit?: number | undefined;
+  json?: boolean | undefined;
+  onProgress?: ((msg: string) => void) | undefined;
   /** Plain log sink (non-json mode); default silent. */
   log?: (msg: string) => void;
   /** Test seam: inject master-DB rows, skipping the python spawn. */
@@ -93,7 +93,7 @@ export interface GridTriageResult {
   /** Worst-first sample (SYNC issues, then non-A-OK buckets), capped. */
   offenders: TriageRow[];
   ok: boolean;
-  error?: string;
+  error?: string | undefined;
 }
 
 const BUCKETS: BucketName[] = [
@@ -123,7 +123,7 @@ const PY_ROWS =
 /** Read every content row + its hash path (the python SSOT seam). */
 export function readMasterRows(
   dbPath: string,
-  skillScriptsDir: string,
+  scriptsDir: string,
 ): MasterRow[] {
   const r = spawnSync(
     "uv",
@@ -135,7 +135,7 @@ export function readMasterRows(
       "-c",
       PY_ROWS,
       dbPath,
-      skillScriptsDir,
+      scriptsDir,
     ],
     { encoding: "utf8", timeout: 180_000 },
   );
@@ -151,18 +151,28 @@ const norm = (s: string): string => s.normalize("NFC").toLowerCase();
 
 /** Resolve the collection ANLZ absolute path from the row's value
  * (shape varies across rekordbox versions: absolute, DB-relative, or
- * share-dir-relative). First existing candidate wins; null otherwise. */
+ * share-dir-relative). First existing candidate wins; null otherwise.
+ * Absolute values that name a file NOT under the mount still get the
+ * share/ANLZ-by-basename fallback: rekordbox writes
+ * `/Contents/share/ANLZ/ANLZ0000.DAT` while the shelf stores the file
+ * at `PIONEER/Master/share/ANLZ/` — without the fallback every
+ * absolute-shaped row read as NO-ANLZ (super-sure pass, Sep 10). */
 export function resolveCollectionAnlz(
   mount: string,
   anlzValue: string,
 ): string | null {
   if (!anlzValue) return null;
   const dbRoot = join(mount, "PIONEER", "Master");
+  const base = basename(anlzValue);
   const candidates = anlzValue.startsWith("/")
-    ? [mount + anlzValue, join(dbRoot, anlzValue)]
+    ? [
+        mount + anlzValue,
+        join(dbRoot, anlzValue),
+        join(dbRoot, "share", "ANLZ", base),
+      ]
     : [
         join(dbRoot, anlzValue),
-        join(dbRoot, "share", "ANLZ", basename(anlzValue)),
+        join(dbRoot, "share", "ANLZ", base),
         join(mount, anlzValue),
       ];
   return candidates.find((c) => existsSync(c)) ?? null;
@@ -206,7 +216,7 @@ export function ledgerBeatsFor(
  * actually enforces (per-beat tempo can step; the median is the clock). */
 export function anlzBpm(beats: { bpmx100: number }[]): number | null {
   if (beats.length === 0) return null;
-  const xs = beats.map((b) => b.bpmx100).sort((a, b) => a - b);
+  const xs = beats.map((b) => b.bpmx100).toSorted((a, b) => a - b);
   const mid = Math.floor(xs.length / 2);
   const med =
     xs.length % 2

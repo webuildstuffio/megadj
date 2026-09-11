@@ -22,12 +22,12 @@ import type { AuditRow } from "./audit-row";
 export type { AuditRow };
 
 export interface FetchOptions {
-  all?: boolean;
-  only?: "art" | "genres" | "tags" | "years" | "all";
-  jobs?: number;
-  dryRun?: boolean;
+  all?: boolean | undefined;
+  only?: "art" | "genres" | "tags" | "years" | "all" | undefined;
+  jobs?: number | undefined;
+  dryRun?: boolean | undefined;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
-  json?: boolean;
+  json?: boolean | undefined;
 }
 
 /** Audio files under the archive, recursively — organize() moves tracks

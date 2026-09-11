@@ -25,14 +25,14 @@ import { commandLog } from "../progress";
 export interface MoodOptions {
   state: ArchiveState;
   musicDir: string;
-  jobs?: number;
-  limit?: number;
-  force?: boolean;
-  dryRun?: boolean;
-  json?: boolean;
+  jobs?: number | undefined;
+  limit?: number | undefined;
+  force?: boolean | undefined;
+  dryRun?: boolean | undefined;
+  json?: boolean | undefined;
   /** I49 "sounds like": also emit + ledger the effnet 1280-d embedding
    * per analyzed track (same probe run — no extra model cost). */
-  embeddings?: boolean;
+  embeddings?: boolean | undefined;
   onProgress?: (msg: string) => void;
 }
 

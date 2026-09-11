@@ -22,20 +22,22 @@ import type { CheckCtx } from "../hygiene/types";
 import { FpCache } from "./shelf-dupescan";
 
 export interface ShelfHygieneOptions {
-  shelfVolume?: string;
-  dbPath?: string; /** confirm findings by id (CLI-side confirm; the web queue is the
+  shelfVolume?: string | undefined;
+  dbPath?:
+    | string
+    | undefined; /** confirm findings by id (CLI-side confirm; the web queue is the
    *  primary confirm surface). Multiple ids = one call. */
-  confirm?: string[];
+  confirm?: string[] | undefined;
   /** dismiss findings by id */
-  dismiss?: string[];
+  dismiss?: string[] | undefined;
   /** restrict detection to one check kind */
-  kind?: string;
+  kind?: string | undefined;
   /** execute confirmed autoSafe findings after re-verification. Requires
    *  --yes (two-step safety, same as shelf-dupescan). */
-  apply?: boolean;
-  yes?: boolean;
-  json?: boolean;
-  log?: (s: string) => void;
+  apply?: boolean | undefined;
+  yes?: boolean | undefined;
+  json?: boolean | undefined;
+  log?: ((s: string) => void) | undefined;
 }
 
 export async function shelfHygiene(

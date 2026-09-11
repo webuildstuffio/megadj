@@ -52,9 +52,8 @@ export interface FullTag {
  * missing them IS a gap. */
 /** Spec: the audit-gate required fields (mood + energy joined rev 6.1
  * pass 2: both are real stamp fields written by the analysis stages, the
- * audit is the completeness gate, so a file missing them IS a gap).
- * Excluded from knip via `_SPEC_` regex. */
-export const _SPEC_COMPLETENESS_FIELDS = [
+ * audit is the completeness gate, so a file missing them IS a gap). */
+const COMPLETENESS_FIELDS = [
   "art",
   "title",
   "artist",
@@ -70,7 +69,7 @@ export function completeness(tag: Partial<FullTag>): {
   complete: boolean;
   missing: string[];
 } {
-  const missing = _SPEC_COMPLETENESS_FIELDS.filter((f) => !tag[f]);
+  const missing = COMPLETENESS_FIELDS.filter((f) => !tag[f]);
   return { complete: missing.length === 0, missing };
 }
 
@@ -94,41 +93,44 @@ export interface EnrichedMetadata {
   mbid?: string | null;
 }
 
-/** A partial write: only these fields are merged into the file. */
+/** A partial write: only these fields are merged into the file.
+ *  Every optional is `| undefined` (exactOptionalPropertyTypes): callers
+ *  build patches from nullable source records with `?? undefined`, which
+ *  must be assignable. */
 export interface TagPatch {
-  title?: string;
-  artist?: string;
-  albumArtist?: string;
-  album?: string;
-  genre?: string;
+  title?: string | undefined;
+  artist?: string | undefined;
+  albumArtist?: string | undefined;
+  album?: string | undefined;
+  genre?: string | undefined;
   /** Release year of this version (integer, 1900–2100). */
-  year?: number;
-  composer?: string;
-  grouping?: string;
-  remixer?: string;
+  year?: number | undefined;
+  composer?: string | undefined;
+  grouping?: string | undefined;
+  remixer?: string | undefined;
   /** Record label (TPUB). */
-  label?: string;
+  label?: string | undefined;
   /** Mix name (TIT3). */
-  mixName?: string;
-  comment?: string;
-  mbid?: string;
+  mixName?: string | undefined;
+  comment?: string | undefined;
+  mbid?: string | undefined;
   /** Written where the container supports it (mp3/flac + mutagen paths). */
-  bpm?: number;
+  bpm?: number | undefined;
   /** Harmonic key — Camelot or traditional; TKEY/TXXX:CAMELOT. */
-  key?: string;
+  key?: string | undefined;
   /** Camelot mirror of `key` — TXXX:CAMELOT, container-independent. */
-  camelot?: string;
+  camelot?: string | undefined;
   /** DJ energy 1–10, written as TXXX:ENERGY where supported. */
-  energy?: number;
+  energy?: number | undefined;
   /** Chromaprint fingerprint, written as TXXX:ACOUSTID. */
-  fingerprint?: string;
+  fingerprint?: string | undefined;
   /** AI provenance stamp: "value|confidence" → TXXX:AI-GENRE (trust in
    * automation: an AI-filled field is always identifiable). */
-  aiGenre?: string;
+  aiGenre?: string | undefined;
   /** AI provenance stamp: "value|confidence" → TXXX:AI-YEAR. */
-  aiYear?: string;
+  aiYear?: string | undefined;
   /** Model mood/dance stamp, "k=v; …" → TXXX:MOOD (roadmap #4). */
-  mood?: string;
+  mood?: string | undefined;
 }
 
 /** Genre → folder name safe for filesystems ("R&B / Soul" → "R&B Soul"). */

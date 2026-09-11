@@ -829,19 +829,19 @@ async function main(): Promise<void> {
     default:
       usage();
   }
-  // The LAST thing before exit: drain pending stdout bytes. All JSON exits
-  // go through emitJson (awaited Bun.write), but human-mode console.log
-  // output and extracted command modules (report/notes/hygiene/…) still
-  // write via console.log — this drain guarantees a piped consumer
-  // (json.load, jq, grep) NEVER reads a truncated stream, the defect that
-  // surfaced as "Unterminated string" JSONDecodeError from status --json.
-  await flushStdout();
 }
 // Top-level rejection guard: an unhandled rejection mid-output would kill
 // the process with stdio writes still pending — same truncated-stream
 // class, so it drains too and exits nonzero with the error on stderr.
+// The drain after `await main()` covers the SUCCESS path: JSON exits go
+// through emitJson (awaited Bun.write), but human-mode console.log
+// output and extracted command modules (report/notes/hygiene/…) still
+// write via console.log — this drain guarantees a piped consumer
+// (json.load, jq, grep) NEVER reads a truncated stream, the defect that
+// surfaced as "Unterminated string" JSONDecodeError from status --json.
 try {
   await main();
+  await flushStdout();
 } catch (e) {
   console.error(e instanceof Error ? (e.stack ?? e.message) : e);
   await flushStdout();

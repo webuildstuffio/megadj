@@ -25,12 +25,12 @@ import { commandLog } from "../progress";
 export interface UpgradeOptions {
   state: ArchiveState;
   musicDir: string;
-  cookiesFromBrowser?: string | null;
-  cookiesFile?: string | null;
-  limit?: number;
-  dryRun?: boolean;
-  json?: boolean;
-  onProgress?: (msg: string) => void;
+  cookiesFromBrowser?: string | null | undefined;
+  cookiesFile?: string | null | undefined;
+  limit?: number | undefined;
+  dryRun?: boolean | undefined;
+  json?: boolean | undefined;
+  onProgress?: ((msg: string) => void) | undefined;
 }
 
 interface UpgradeCandidate {

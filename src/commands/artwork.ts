@@ -19,12 +19,12 @@ export type { QueueEntry };
 
 export interface ArtworkOptions {
   state: ArchiveState;
-  model?: string;
-  maxImages?: number;
-  dryRun?: boolean;
-  onProgress?: (msg: string) => void;
+  model?: string | undefined;
+  maxImages?: number | undefined;
+  dryRun?: boolean | undefined;
+  onProgress?: ((msg: string) => void) | undefined;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
-  json?: boolean;
+  json?: boolean | undefined;
 }
 
 const DEFAULT_MODEL = "nano-banana-2-lite"; // $0.034/img — "a few cents max"
