@@ -9,7 +9,14 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 19 · 2026-09-11 — `megadj shelf-restore <finding-id|path>` restores
+Rev 20 · 2026-09-11 — `megadj setbuild` closes §4 #4 (the last CLI-vs-MCP
+archive read gap): the M66 set-builder gets a CLI spoke over the SAME engine
++ parse/clamp seam the route and MCP tool share; pool-cap defaults unified on
+the shared `SET_POOL_*` constants (the loader's local 400 disagreed with the
+documented 300), a requested opener missing from the pool is now excluded
+loudly instead of silently ignored, and `drainStdout` no longer truncates
+piped `--json` output (an empty `Bun.write(fd,"")` discarded everything
+already buffered — every piped `writeJson` command was affected). Rev 19 · 2026-09-11 — `megadj shelf-restore <finding-id|path>` restores
 ledger-owned hygiene quarantine sources with MD5 verification, a shared
 mutation lease, and optional `--into` target. It is intentionally CLI-only:
 the source/destination operation is local filesystem work and has no safe
@@ -130,11 +137,11 @@ kind`; the MCP schema advertised a kind whose call errored).
    pins KIND_DOCS ∪ {verify} === JOB_KINDS so this cannot silently
    regress again.
 3. **Resolved:** the HTTP API route count is derived by the census test.
-4. **`archive_set_build` has no CLI verb.** §2d's CLI column renders
-   proposals "in the UI/agent surface" — a `megadj setbuild [--preset
---minutes]` one-liner would close the last CLI-vs-MCP archive read
-   gap the same way `megadj similar` did. Low priority (readonly,
-   propose-only).
+4. **Resolved (rev 20):** `megadj setbuild [--preset warmup|peak|afterhours]
+   [--minutes N] [--opener <video_id>] [--limit N] [--json]` closes the last
+   CLI-vs-MCP archive read gap — same engine, same `parseSetbuildQuery`
+   validation, same pool clamp as the route and the MCP tool (one SSOT seam,
+   `cratedeck/src/setbuild.ts`); the parity test now pins the twin pair.
 5. **Resolved:** `maintenance-cmds.ts` exports `MAINTENANCE_VERBS`, and
    `cli.ts` dispatches the family from that single list.
 
@@ -144,7 +151,7 @@ kind`; the MCP schema advertised a kind whose call errored).
 
 | Surface    | Entry points                                                | Count                  |
 | ---------- | ----------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 38 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 39 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 39 tools               |
 | HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 61 routes              |
@@ -222,7 +229,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Grid cross-check                                  | `megadj beats` data ✅                                                       | `archive_grid_cross_check` ✅                             | FullTags ⌗ Beatgrids ✅                                                                          | — (A3 closed rev 3; product split rev 6) |
 | Mood profile                                      | `megadj mood` data ✅                                                        | `archive_mood_profile` ✅                                 | FullTags ⌗ Mood ✅                                                                               | — (A3 closed rev 3; product split rev 6) |
 | Similar tracks (I49 sounds-like)                  | `megadj similar <id>` ✅                                                     | `archive_similar_tracks` ✅                               | FullTags ⌗ Similar (rev 10) ✅                                                                   | — (rev 10)                               |
-| Set-builder proposal (M66)                        | — (proposals render in the UI/agent surface; no write-back exists to expose) | `archive_set_build` ✅ (propose-only)                     | FullTags ⌗ Similar panel (rev 10) ✅                                                             | — (rev 10; proposes, never writes)       |
+| Set-builder proposal (M66)                        | `megadj setbuild [--preset --minutes --opener --limit]` ✅ (rev 20)          | `archive_set_build` ✅ (propose-only)                     | FullTags ⌗ Similar panel (rev 10) ✅                                                             | — (rev 20 CLI spoke; proposes, never writes) |
 | Cue ledger                                        | `megadj cues` data ✅                                                        | `archive_cue_ledger` ✅                                   | FullTags ⌗ Cues ✅                                                                               | — (rev 6)                                |
 | Library overview (FullTags mirror)                | `megadj fetch`/`audit` data ✅                                               | `archive_library_overview` ✅                             | FullTags ⌗ Tags + GetDat ⌗ Library ✅                                                            | — (rev 6)                                |
 | Skip census (why rows didn't land)                | `megadj list` buckets ✅                                                     | `archive_skip_census` ✅                                  | GetDat ⌗ Pipeline (decisions card) + Backlog ✅                                                  | — (rev 7)                                |

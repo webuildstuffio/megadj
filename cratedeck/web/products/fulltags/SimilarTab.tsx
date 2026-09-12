@@ -11,9 +11,14 @@ import type {
   ArchiveSimilar,
   ArchiveSearchHit,
   SetBuildPayload,
+  SetBuildStep,
   SetPresetDef,
 } from "../../../shared/types";
-import { SET_PRESET_DEFS } from "../../../shared/types";
+import {
+  SET_PRESET_DEFS,
+  SET_MINUTES_MAX,
+  SET_MINUTES_MIN,
+} from "../../../shared/types";
 import { camelotOf } from "../../../shared/camelot";
 import { api } from "../../ui/toast";
 import { errMessage } from "../../../shared/fmt";
@@ -33,12 +38,70 @@ import {
 import { Sparkline } from "../../ui/charts";
 import { SectionHead, Verdict, TrackTitle } from "../shared";
 
+/** The wire row a track-pick search deals in: the search endpoint returns
+ *  ArchiveTrack-shaped rows; the caller keeps (video_id, title, artist). */
+export interface TrackPick {
+  video_id: string;
+  title: string | null;
+  artist?: string | null;
+}
+
+/** Search + pick ONE track — the shared picker under both panels (the
+ *  sounds-like query track and the set-builder opener both need it; two
+ *  hand-rolled variants had already drifted once). Debounces nothing —
+ *  hits stream live from ≥2 chars; picking clears the query. */
+export function TrackPickSearch(props: {
+  query: string;
+  onQuery: (v: string) => void;
+  hits: ArchiveSearchHit[] | null;
+  hitsStatus: "ok" | "loading" | "error";
+  placeholder: string;
+  onPick: (t: TrackPick) => void;
+  /** optional footer note under the results (e.g. "no matches") */
+  emptyNote?: string;
+}) {
+  return (
+    <>
+      <SearchBar
+        value={props.query}
+        onInput={props.onQuery}
+        placeholder={props.placeholder}
+      />
+      {props.hitsStatus === "ok" &&
+        props.hits &&
+        props.query.trim().length >= 2 && (
+          <Card>
+            <KVRows>
+              {props.hits.slice(0, 8).map((t) => (
+                <button
+                  type="button"
+                  class="kvrow kvrow-btn"
+                  key={t.video_id}
+                  onClick={() => props.onPick(t)}
+                >
+                  <KVKey>
+                    <TrackTitle
+                      title={t.title ?? t.video_id}
+                      videoId={t.video_id}
+                      artist={t.artist}
+                    />
+                  </KVKey>
+                  <KVVal>pick →</KVVal>
+                </button>
+              ))}
+              {props.hits.length === 0 && props.emptyNote && (
+                <div class="fleet-note">{props.emptyNote}</div>
+              )}
+            </KVRows>
+          </Card>
+        )}
+    </>
+  );
+}
+
 export function SimilarTab() {
   const [query, setQuery] = useState("");
-  const [picked, setPicked] = useState<{
-    video_id: string;
-    title: string | null;
-  } | null>(null);
+  const [picked, setPicked] = useState<TrackPick | null>(null);
   const hits = useFetched<ArchiveSimilar | null>(
     () =>
       picked
@@ -70,43 +133,18 @@ export function SimilarTab() {
       />
       <SetBuildPanel />
       <SectionHead icon="compass" title="Sounds like — nearest by embedding" />
-      <SearchBar
-        value={query}
-        onInput={(v) => setQuery(v)}
+      <TrackPickSearch
+        query={query}
+        onQuery={setQuery}
+        hits={search.status === "ok" ? search.data : null}
+        hitsStatus={search.status}
         placeholder="Pick a track — search by title or artist…"
+        emptyNote={`no tracks match “${query.trim()}”`}
+        onPick={(t) => {
+          setPicked(t);
+          setQuery("");
+        }}
       />
-      {search.status === "ok" &&
-        search.data &&
-        !picked &&
-        query.trim().length >= 2 && (
-          <Card>
-            <KVRows>
-              {search.data.slice(0, 8).map((t) => (
-                <button
-                  type="button"
-                  class="kvrow kvrow-btn"
-                  key={t.video_id}
-                  onClick={() => {
-                    setPicked(t);
-                    setQuery("");
-                  }}
-                >
-                  <KVKey>
-                    <TrackTitle
-                      title={t.title ?? t.video_id}
-                      videoId={t.video_id}
-                      artist={t.artist}
-                    />
-                  </KVKey>
-                  <KVVal>pick →</KVVal>
-                </button>
-              ))}
-              {search.data.length === 0 && (
-                <div class="fleet-note">no tracks match “{query}”</div>
-              )}
-            </KVRows>
-          </Card>
-        )}
       {picked && (
         <Card>
           <ListHead
@@ -116,10 +154,7 @@ export function SimilarTab() {
             hint="Ranked by cosine similarity of the audio embeddings — 1.0 is identical, higher is more similar."
             lines={
               hits.status === "ok" && hits.data
-                ? hits.data.hits.map(
-                    (h) =>
-                      `${h.score.toFixed(4)}  ${h.artist ?? "?"} — ${h.title ?? h.video_id}`,
-                  )
+                ? hits.data.hits.map(similarHitLine)
                 : []
             }
           />
@@ -179,6 +214,74 @@ const fmtBpm = (bpm: number | null): string =>
 const presetLabel = (id: string): string =>
   SET_PRESET_DEFS.find((p) => p.id === id)?.label ?? id;
 
+/** ONE line shape for a sounds-like hit — the copy block and any future
+ *  consumer agree (mirrors `megadj similar`'s stdout rows). */
+const similarHitLine = (h: {
+  score: number;
+  artist: string | null;
+  title: string | null;
+  video_id: string;
+}): string =>
+  `${h.score.toFixed(4)}  ${h.artist ?? "?"} — ${h.title ?? h.video_id}`;
+
+/** ONE line-renderer for a chain step — the copy block, the ListHead lines
+ *  and the excluded cross-check all show the same shape (was two drifted
+ *  inline arrow pairs). */
+const stepLine = (s: SetBuildStep): string =>
+  `${s.atMin}min  ${fmtBpm(s.bpm)} BPM ${s.key ?? ""}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}`;
+
+/** minutes → the seconds since epoch the <input type=number> wants. */
+const clampMinutes = (raw: number): number =>
+  Number.isFinite(raw)
+    ? Math.min(SET_MINUTES_MAX, Math.max(SET_MINUTES_MIN, Math.round(raw)))
+    : 60;
+
+/** Set-builder opener: the first track, either auto-picked by the arc or
+ *  forced (the `opener` param every other surface takes). */
+function OpenerPicker(props: {
+  query: string;
+  onQuery: (v: string) => void;
+  hits: ArchiveSearchHit[] | null;
+  hitsStatus: "ok" | "loading" | "error";
+  opener: TrackPick | null;
+  onPick: (t: TrackPick | null) => void;
+}) {
+  if (props.opener)
+    return (
+      <span class="setbuild-opener" title="Forced opener — the arc starts here">
+        opener: <b>{props.opener.title ?? props.opener.video_id}</b>
+        <button
+          type="button"
+          class="plsearch-clear"
+          aria-label="Clear opener (auto-pick instead)"
+          title="Clear opener (auto-pick instead)"
+          onClick={() => props.onPick(null)}
+        >
+          <Icon name="x" size={11} />
+        </button>
+      </span>
+    );
+  return (
+    <details class="setbuild-opener-pick">
+      <summary title="Force the first track — the arc is built from it">
+        set opener…
+      </summary>
+      <TrackPickSearch
+        query={props.query}
+        onQuery={props.onQuery}
+        hits={props.hits}
+        hitsStatus={props.hitsStatus}
+        placeholder="Search for the opener — title or artist…"
+        emptyNote="no tracks match"
+        onPick={(t) => {
+          props.onPick(t);
+          props.onQuery("");
+        }}
+      />
+    </details>
+  );
+}
+
 /** "62.3m" cumulative clock + the ±6% window's key/tempo pills per step. */
 function SetBuildPanel() {
   // the picker is keyed off the SHARED registry — preset ids, labels and
@@ -187,6 +290,17 @@ function SetBuildPanel() {
     SET_PRESET_DEFS.find((p) => p.id === "peak") ?? SET_PRESET_DEFS[0]!,
   );
   const [minutes, setMinutes] = useState(60);
+  const [opener, setOpener] = useState<TrackPick | null>(null);
+  const [openerQuery, setOpenerQuery] = useState("");
+  const openerSearch = useFetched<ArchiveSearchHit[] | null>(
+    () =>
+      openerQuery.trim().length >= 2
+        ? api<ArchiveSearchHit[]>(
+            `/api/archive/search?q=${encodeURIComponent(openerQuery)}`,
+          )
+        : Promise.resolve(null),
+    [openerQuery],
+  );
   const [build, setBuild] = useState<{
     data: SetBuildPayload | null;
     loading: boolean;
@@ -196,27 +310,39 @@ function SetBuildPanel() {
   const run = async () => {
     setBuild({ data: null, loading: true, error: null });
     try {
-      const data = await api<SetBuildPayload>(
-        `/api/archive/setbuild?preset=${preset.id}&minutes=${minutes}`,
-      );
-      setBuild({ data, loading: false, error: null });
+      const q = new URLSearchParams({
+        preset: preset.id,
+        minutes: String(minutes),
+      });
+      if (opener) q.set("opener", opener.video_id);
+      setBuild({
+        data: await api<SetBuildPayload>(`/api/archive/setbuild?${q}`),
+        loading: false,
+        error: null,
+      });
     } catch (e) {
       setBuild({ data: null, loading: false, error: errMessage(e) });
     }
   };
 
   // the chain's BPM arc — the same energy-arc glance the crate browser has
-  const arcBpms =
-    build.data?.steps
-      .map((s) => s.bpm)
-      .filter((b): b is number => b !== null) ?? [];
+  const steps = build.data?.steps ?? [];
+  const arcBpms = steps
+    .map((s) => s.bpm)
+    .filter((b): b is number => b !== null);
+  // first→last Camelot glide, "8A → 5A" (null-safe at both ends; was a
+  // broken IIFE that printed only the number for the first step)
+  const keyGlide = (() => {
+    const parsed = steps.map((s) => camelotOf(s.key));
+    const first = parsed.find((k) => k !== null);
+    const last = parsed.findLast((k) => k !== null);
+    if (!first || !last) return null;
+    return `${first.n}${first.letter} → ${last.n}${last.letter}`;
+  })();
 
   return (
     <Card class="setbuild">
-      <SectionHead
-        icon="compass"
-        title="Set builder — propose a mix"
-      ></SectionHead>
+      <SectionHead icon="compass" title="Set builder — propose a mix" />
       <div class="setbuild-controls">
         <div class="seg" role="radiogroup" aria-label="Energy arc preset">
           {SET_PRESET_DEFS.map((p) => (
@@ -239,19 +365,16 @@ function SetBuildPanel() {
           minutes
           <input
             type="number"
-            min={10}
-            max={240}
+            min={SET_MINUTES_MIN}
+            max={SET_MINUTES_MAX}
             value={minutes}
             style={{ width: 72 }}
-            aria-label="Target set length in minutes (10–240)"
-            onChange={(e) => {
-              const raw = Number((e.target as HTMLInputElement).value);
+            aria-label={`Target set length in minutes (${SET_MINUTES_MIN}–${SET_MINUTES_MAX})`}
+            onChange={(e) =>
               setMinutes(
-                Number.isFinite(raw)
-                  ? Math.min(240, Math.max(10, Math.round(raw)))
-                  : 60,
-              );
-            }}
+                clampMinutes(Number((e.target as HTMLInputElement).value)),
+              )
+            }
           />
         </label>
         <button
@@ -263,6 +386,14 @@ function SetBuildPanel() {
           <Icon name="play" size={12} />{" "}
           {build.loading ? "building…" : "Build proposal"}
         </button>
+        <OpenerPicker
+          query={openerQuery}
+          onQuery={setOpenerQuery}
+          hits={openerSearch.status === "ok" ? openerSearch.data : null}
+          hitsStatus={openerSearch.status}
+          opener={opener}
+          onPick={setOpener}
+        />
         <span class="setbuild-desc">{preset.description}</span>
       </div>
       {build.error && <div class="arch-fix">build failed: {build.error}</div>}
@@ -277,16 +408,13 @@ function SetBuildPanel() {
             }
             meta="propose-only — nothing is written; accept tracks into a playlist by hand"
           />
-          {build.data.steps.length > 0 && (
+          {steps.length > 0 && (
             <ListHead
               icon="play"
               title="The chain"
-              n={build.data.steps.length}
+              n={steps.length}
               hint="Ordered mix proposal: key-compatible (Camelot), tempo within ±6%, energy following the arc. Copy hands it to an agent or your notes. Click a column to sort."
-              lines={build.data.steps.map(
-                (s) =>
-                  `${s.atMin}min  ${fmtBpm(s.bpm)} BPM ${s.key ?? ""}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}`,
-              )}
+              lines={steps.map(stepLine)}
             />
           )}
           <DataTable
@@ -362,16 +490,11 @@ function SetBuildPanel() {
                 sortValue: (s) => s.atMin,
               },
             ]}
-            rows={build.data.steps}
+            rows={steps}
             cap={40}
             ariaLabel="Set builder chain"
             copyName="The chain"
-            copyLines={(rows) =>
-              rows.map(
-                (s) =>
-                  `${s.atMin}min  ${fmtBpm(s.bpm)} BPM ${s.key ?? ""}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}`,
-              )
-            }
+            copyLines={(rows) => rows.map(stepLine)}
             rowTone={(s) => {
               // first step has no transition — never tinted
               if (s.transition === null) return "";
@@ -385,18 +508,7 @@ function SetBuildPanel() {
                 values={arcBpms}
                 title={`Energy arc across the chain (${Math.round(Math.min(...arcBpms))}–${Math.round(Math.max(...arcBpms))} BPM)`}
               />
-              <span class="muted">
-                {camelotOf(build.data.steps[0]?.key)?.n ?? "—"}
-                {" → "}
-                {(() => {
-                  const keys = build.data.steps
-                    .map((s) => camelotOf(s.key))
-                    .filter((k) => k !== null);
-                  return keys.length > 0
-                    ? `${keys[keys.length - 1]!.n}${keys[keys.length - 1]!.letter}`
-                    : "—";
-                })()}
-              </span>
+              {keyGlide && <span class="muted">{keyGlide}</span>}
             </div>
           )}
           {build.data.excluded_total > 0 && (

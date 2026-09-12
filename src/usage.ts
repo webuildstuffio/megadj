@@ -42,6 +42,13 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj mood    [--limit N] [--jobs N] [--force] [--dry-run] [--json] [--embeddings]
                                                ONNX mood/dance/VA → DB ledger (syncs TXXX:MOOD stamps; analyzes unstamped)
   megadj similar <video_id> [--k N] [--json]   "sounds like": cosine kNN over the embeddings ledger (read-only)
+  megadj setbuild [--preset warmup|peak|afterhours] [--minutes N] [--opener <video_id>]
+                 [--limit N] [--json]
+                                               set-builder (M66): propose an ordered mix chain
+                                               from the beats/mood ledgers + file keys — Camelot-
+                                               compatible, ±6% tempo, shaped by an energy-arc preset
+                                               (propose-only, nothing written; empty chain = run
+                                               \`megadj beats\` + \`megadj mood\` first)
   megadj upgrade [--limit N] [--dry-run] [--json]
                                                re-fetch below-floor tracks at best quality (fingerprint-gated swap)
   megadj cues    [--limit N] [--force] [--dry-run] [--json]

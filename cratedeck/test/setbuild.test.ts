@@ -291,6 +291,29 @@ describe("buildSet", () => {
     );
   });
 
+  test("requested opener missing from the pool is excluded loudly, never silently dropped", () => {
+    // regression: an openerId that matches no candidate (typo, or the
+    // track isn't playable) was silently ignored — the chain built without
+    // it and the caller had no way to tell why their track never appeared
+    const r = buildSet({
+      candidates: [
+        cand({ videoId: "a1", arousal: 6, bpm: 128, key: "8A" }),
+        cand({ videoId: "a2", arousal: 6.5, bpm: 128, key: "8A" }),
+      ],
+      openerId: "ghost",
+      preset: SET_PRESETS.peak,
+      minutes: 11,
+    });
+    expect(r.steps.length).toBeGreaterThanOrEqual(1);
+    expect(r.steps[0]!.videoId).not.toBe("ghost");
+    expect(r.excluded).toContainEqual(
+      expect.objectContaining({
+        videoId: "ghost",
+        reason: expect.stringContaining("requested opener"),
+      }),
+    );
+  });
+
   test("placeholder BPM (0 / NaN) never anchors the chain", () => {
     // regression: the gates only checked bpm !== null, so an aborted
     // analysis run's 0-BPM row won the opener scan (arousal closest to the

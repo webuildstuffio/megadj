@@ -203,8 +203,10 @@ export function archiveTools(): Record<string, unknown> {
         q.set("minutes", String(parsed.minutes));
         const opener = str(args, "opener");
         if (opener) q.set("opener", opener);
+        // pool cap from the shared constants — was a hand-copied (300, 1000)
+        // that could silently drift from the route's clamp contract
         const res = await apiGet(
-          `/api/archive/setbuild?${q.toString()}&limit=${optLimit(args, 300, 1000)}`,
+          `/api/archive/setbuild?${q.toString()}&limit=${optLimit(args, SET_POOL_DEFAULT, SET_POOL_MAX)}`,
         );
         return res.json();
       },

@@ -18,6 +18,7 @@ import {
   libraryOverview as libraryOverviewImpl,
 } from "./archive_overview";
 import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
+import { SET_POOL_DEFAULT } from "../shared/types";
 // The grid math is ONE SSOT (fulltags/src/analysis.ts): fitConstantTempo /
 // gridAudit are the same functions `megadj beats` computes with. A
 // hand-copied twin drifted once already (the v1 verdicts lived inline
@@ -617,7 +618,7 @@ export class ArchiveReader implements ArchiveQuery {
     return similarTracksImpl(this, videoId, k);
   }
 
-  setCandidates(limit = 400) {
+  setCandidates(limit = SET_POOL_DEFAULT) {
     return setCandidatesImpl(this, limit);
   }
 

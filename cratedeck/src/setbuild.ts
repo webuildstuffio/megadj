@@ -212,6 +212,18 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   const opener =
     (input.openerId && pool.find((c) => c.videoId === input.openerId)) ||
     undefined;
+  if (input.openerId && !opener) {
+    // a requested opener that ISN'T in the pool is a caller mistake (bad
+    // id, or the track isn't playable/analyzed) — excluded loudly, never
+    // silently ignored (the old shape just built without it and the
+    // caller couldn't tell why their track never showed up)
+    excluded.push({
+      videoId: input.openerId,
+      title: null,
+      reason:
+        "requested opener is not in the candidate pool (unknown id, or not downloaded/analyzed)",
+    });
+  }
   if (opener && !mixableBpm(opener)) {
     excluded.push({
       videoId: opener.videoId,

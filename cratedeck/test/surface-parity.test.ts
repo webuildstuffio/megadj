@@ -256,6 +256,28 @@ describe("surface parity (docs/surface-parity.md)", () => {
     expect(megadjCommands()).toContain("convert");
   });
 
+  test("archive reads with a CLI shape keep their megadj twins (setbuild/similar)", () => {
+    // these two were the doc §4's named CLI↔MCP gaps; each closed by the
+    // same-pattern `megadj <verb>` read. The twins must not rot apart
+    // again: drop either CLI command and this fails with the doc pointer.
+    const cmds = megadjCommands();
+    const tools = new Set(mcpTools());
+    for (const [cmd, tool] of [
+      ["similar", "archive_similar_tracks"],
+      ["setbuild", "archive_set_build"],
+    ] as const) {
+      expect(cmds).toContain(cmd);
+      expect(tools.has(tool)).toBeTrue();
+    }
+    // the CLI setbuild case must use the shared engine seam (no local
+    // re-parse — the whole point of the parity fix)
+    const cli = read("src/cli.ts").join("\n");
+    expect(cli).toMatch(/case "setbuild":/);
+    expect(read("src/fulltags/setbuild.ts").join("\n")).toContain(
+      'from "../../cratedeck/src/setbuild"',
+    );
+  });
+
   test("the product tabs exist and are hash-routed (one route per product)", () => {
     // the web shell renders one top-level tab per product; the router
     // parses one route per product. The nav strip (App) and the product

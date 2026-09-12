@@ -336,6 +336,43 @@
 .setbuild-excluded .kvrows {
   font-size: 12px;
 }
+/* forced-opener chip + its picker (rev 20: MCP's `opener` param reached the
+ * web at last — one more hand-rolled "type an id" avoided) */
+.setbuild-opener {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px dashed var(--stroke);
+  border-radius: 999px;
+  padding: 3px 10px;
+  max-width: 340px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.setbuild-opener b {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.setbuild-opener .plsearch-clear {
+  flex: none;
+}
+.setbuild-opener-pick {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.setbuild-opener-pick summary {
+  cursor: pointer;
+  color: var(--accent);
+  user-select: none;
+  width: fit-content;
+}
+.setbuild-opener-pick[open] summary {
+  margin-bottom: 6px;
+}
 
 /* ---- phase chip (nav strip, right edge) ---------------------------------
  * Names the active product's pipeline step — "1 · the drives stay honest".

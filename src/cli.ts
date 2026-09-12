@@ -647,6 +647,38 @@ async function main(): Promise<void> {
         });
         break;
       }
+      case "setbuild": {
+        // Roadmap M66: the set-builder CLI spoke — propose-only mix chain
+        // from the beats/mood ledgers + file keys. Same engine, same
+        // parse/clamp path as the web route and the MCP tool (SSOT);
+        // --json emits the full SetBuildPayload (steps + excluded).
+        const flags = parseFlags(
+          rest,
+          ["preset", "minutes", "opener", "limit"],
+          ["json"],
+        );
+        const setbuildMinutes = nonNegOpt(flags, "minutes", "setbuild");
+        if (
+          setbuildMinutes === undefined &&
+          flags.strings.get("minutes") !== undefined
+        )
+          break;
+        const setbuildLimit = nonNegOpt(flags, "limit", "setbuild");
+        if (
+          setbuildLimit === undefined &&
+          flags.strings.get("limit") !== undefined
+        )
+          break;
+        const { setbuild } = await import("./fulltags/setbuild");
+        await setbuild({
+          preset: flags.strings.get("preset"),
+          minutes: setbuildMinutes,
+          opener: flags.strings.get("opener"),
+          limit: setbuildLimit,
+          json: flags.bools.has("json"),
+        });
+        break;
+      }
       case "upgrade": {
         // Roadmap D24: re-fetch below-floor (LOWQ) tracks at best quality.
         // The swap is fingerprint-gated: a different recording is refused,

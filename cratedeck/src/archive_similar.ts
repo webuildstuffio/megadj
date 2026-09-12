@@ -9,6 +9,7 @@
 //   cosine        — unit-scale similarity, exported for tests
 import { existsSync } from "node:fs";
 import { groundTruth } from "../../fulltags/src/exports";
+import { SET_POOL_DEFAULT } from "../shared/types";
 import type { ArchiveQuery } from "./archive_types";
 
 /** Unit-scale cosine similarity (module fn so tests can hit it directly).
@@ -136,7 +137,9 @@ export function similarTracks(
  */
 export function setCandidates(
   reader: ArchiveQuery,
-  limit = 400,
+  // the shared pool cap (SET_POOL_*) — was a local 400 that disagreed
+  // with the route/MCP contract's documented default of 300
+  limit = SET_POOL_DEFAULT,
 ): {
   available: boolean;
   total: number;
