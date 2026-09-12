@@ -211,6 +211,8 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         missingFiles,
         duplicateFiles,
         relocatedFiles,
+        rekordboxKeyHits,
+        rekordboxBpmHits,
         keyReads,
         keyReadFailures,
         freshness,
@@ -223,6 +225,8 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         missing_files: missingFiles,
         duplicate_files: duplicateFiles,
         relocated_files: relocatedFiles,
+        rekordbox_key_hits: rekordboxKeyHits,
+        rekordbox_bpm_hits: rekordboxBpmHits,
         // how many files needed a live key read this request (cache
         // misses) — a slow first build is explainable, later ones are fast
         key_reads: keyReads,

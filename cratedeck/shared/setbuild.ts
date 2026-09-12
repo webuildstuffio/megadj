@@ -48,6 +48,10 @@ export interface SetBuildPayload extends SetBuildResult {
   duplicate_files: number;
   /** Unique files found under the mounted shelf after a stale import path. */
   relocated_files: number;
+  /** Candidate keys reused from the current Rekordbox master mirror. */
+  rekordbox_key_hits: number;
+  /** Candidate BPM values reused from the current Rekordbox master mirror. */
+  rekordbox_bpm_hits: number;
   /** File tags read because no path-valid key cache row existed. */
   key_reads: number;
   /** Key-tag reads that failed; affected tracks are scored without key. */

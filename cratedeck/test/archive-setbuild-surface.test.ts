@@ -234,6 +234,50 @@ describe("archive_set_build candidate-pool contract", () => {
     }
   });
 
+  test("Rekordbox metadata supplies key and BPM without probing the file", () => {
+    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-rb-source-"));
+    const audioPath = join(dir, "master-track.m4a");
+    writeFileSync(audioPath, "the file must not be decoded for known metadata");
+    const reader: ArchiveQuery = {
+      available: () => true,
+      rows: <T>() =>
+        [
+          {
+            video_id: "master-track",
+            title: "Master Track",
+            artist: "DJ",
+            duration_s: 300,
+            file_path: audioPath,
+            bpm_folded: null,
+            rekordbox_bpm: 127.5,
+            rekordbox_key: "8A",
+            valence: 5,
+            arousal: 6,
+            dance: 0.8,
+          },
+        ] as T[],
+      row: <T>(sql: string) =>
+        (sql.includes("sqlite_master")
+          ? { present: 1 }
+          : { beats_at: null, mood_at: null }) as T,
+      keyRecord: () => null,
+      rememberKeyRecord: () => undefined,
+      trackCols: () => "",
+    };
+
+    try {
+      const result = setCandidates(reader, 0);
+
+      expect(result.candidates[0]?.key).toBe("8A");
+      expect(result.candidates[0]?.bpm).toBe(127.5);
+      expect(result.rekordboxKeyHits).toBe(1);
+      expect(result.rekordboxBpmHits).toBe(1);
+      expect(result.keyReads).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("paths moved from DJ-Imports resolve under the mounted shelf", () => {
     const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-relocated-"));
     const path = join(dir, "archive.db");
@@ -256,6 +300,11 @@ describe("archive_set_build candidate-pool contract", () => {
         video_id TEXT PRIMARY KEY, valence REAL, arousal REAL, dance REAL,
         analyzed_at TEXT NOT NULL
       );
+      CREATE TABLE rekordbox_content (
+        content_id TEXT PRIMARY KEY, video_id TEXT NOT NULL,
+        folder_path TEXT NOT NULL, metadata_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
     `);
     db.query(`INSERT INTO tracks VALUES (?, ?, ?, ?, ?, 'downloaded', ?)`).run(
       "track",
@@ -277,6 +326,13 @@ describe("archive_set_build candidate-pool contract", () => {
       0.8,
       "2026-09-11",
     );
+    db.query(`INSERT INTO rekordbox_content VALUES (?, ?, ?, ?, ?)`).run(
+      "rb-track",
+      "track",
+      actualPath,
+      JSON.stringify({ BPM: 12_800, KeyName: "8A" }),
+      "2026-09-11",
+    );
     db.close();
 
     try {
@@ -288,6 +344,9 @@ describe("archive_set_build candidate-pool contract", () => {
       expect(result.duplicateFiles).toBe(0);
       expect(result.relocatedFiles).toBe(1);
       expect(result.candidates[0]?.filePath).toBe(actualPath);
+      expect(result.candidates[0]?.key).toBe("8A");
+      expect(result.rekordboxKeyHits).toBe(1);
+      expect(result.keyReads).toBe(0);
       reader.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });

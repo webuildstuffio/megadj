@@ -55,9 +55,10 @@ describe("FullTags Similar and Set Builder UX", () => {
     const html = render(<SimilarTab />);
     expect(html).toContain('aria-label="Set builder evidence"');
     expect(html).toContain("Entire downloaded archive DB");
-    expect(html).toContain("Beats ledger BPM");
+    expect(html).toContain("FullTags");
+    expect(html).toContain("beat/mood ledgers first");
+    expect(html).toContain("Rekordbox master BPM/key");
     expect(html).toContain("file key tags");
-    expect(html).toContain("Mood ledger energy");
     expect(html).toContain("±6% tempo");
     expect(html).toContain("Writes no tags or playlists");
   });

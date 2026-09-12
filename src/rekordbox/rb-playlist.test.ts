@@ -38,22 +38,20 @@ describe("rb-playlist gates", () => {
     expect(r.error).toContain("preset");
   });
 
-  test("dry-run on a live env never claims linked > 0", async () => {
-    // dev-env dependent (needs the real archive + SHELF1), so keep it
-    // honest-but-tolerant: in ANY environment a dry-run must report
-    // linked 0 / verified 0 / appliedMode false — writes are apply-only.
-    // Long budget: the chain build reads per-file keys + probes the
-    // encrypted master through uv/pyrekordbox (~35s cold in CI-like runs);
-    // since the set-builder pool went whole-library (rev 22) the pool can
-    // be ~530 rows, so the key-cache warm-up dominates — 5 min budget.
+  test("a missing master is rejected before the live archive is scanned", async () => {
+    // Regression: this nonexistent target used to build a whole-library
+    // chain first, spawning ffprobe once per archive file and stalling the
+    // full gate for minutes before returning the inevitable missing-DB error.
+    const started = performance.now();
     const r = await rbPlaylist({ mount: "/definitely-not-a-volume" });
+    expect(performance.now() - started).toBeLessThan(1_000);
     expect(r.appliedMode).toBe(false);
-    if (r.ok) {
-      expect(r.linked).toBe(0);
-      expect(r.verified).toBe(0);
-      expect(r.playlistId).toBeNull();
-    }
-  }, 300_000);
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("no master DB");
+    expect(r.linked).toBe(0);
+    expect(r.verified).toBe(0);
+    expect(r.playlistId).toBeNull();
+  });
 });
 
 describe("rb-playlist report contract", () => {

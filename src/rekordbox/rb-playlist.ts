@@ -13,11 +13,13 @@
  *
  * Safety gates (identical to rb-import):
  *   1. flags validated before any I/O (--apply requires --yes)
- *   2. the chain comes from the SAME engine (`buildSet`) the CLI/web use
- *   3. rekordbox must be QUIT (pgrep) — it holds a live WAL
- *   4. dated DB backup (+ WAL/SHM) next to the master before any write
- *   5. dry-run by default; --apply --yes to write
- *   6. post-verify: song-playlist row count == linked + TrackNo contiguity
+ *   2. set inputs validated by the SAME parser the CLI/web use
+ *   3. target master DB must exist before the archive is scanned
+ *   4. the chain comes from the SAME engine (`buildSet`) the CLI/web use
+ *   5. rekordbox must be QUIT (pgrep) — it holds a live WAL
+ *   6. dated DB backup (+ WAL/SHM) next to the master before any write
+ *   7. dry-run by default; --apply --yes to write
+ *   8. post-verify: song-playlist row count == linked + TrackNo contiguity
  */
 
 import { spawnSync } from "node:child_process";
@@ -28,6 +30,7 @@ import {
   buildSet,
   parseSetbuildQuery,
   SET_PRESETS,
+  type SetPresetId,
 } from "../../cratedeck/src/setbuild";
 import { clampSetPool } from "../../cratedeck/shared/types";
 import { DB_PATH } from "../cli-env";
@@ -210,14 +213,9 @@ interface ChainTrack {
  *  rows. One readonly archive pass; candidates carry file_path. */
 function buildChain(
   opts: RbPlaylistOptions,
+  parsed: { preset: SetPresetId; minutes: number },
 ):
   { chain: ChainTrack[]; preset: string; minutes: number } | { error: string } {
-  const parsed = parseSetbuildQuery({
-    preset: opts.preset ?? null,
-    minutes: opts.minutes ?? null,
-  });
-  if ("error" in parsed) return { error: parsed.error };
-
   const archive = new ArchiveReader(DB_PATH);
   try {
     if (!archive.available()) return { error: `no archive at ${DB_PATH}` };
@@ -287,8 +285,20 @@ export async function rbPlaylist(
   if (opts.apply && !opts.yes)
     return fail("--apply requires --yes (dry-run first, ALWAYS)");
 
-  // gate 2 — the chain (same engine as setbuild CLI/web)
-  const built = buildChain(opts);
+  // gate 2 — validate the shared set-builder inputs without touching either
+  // database. Invalid presets must still beat a missing-drive error.
+  const parsed = parseSetbuildQuery({
+    preset: opts.preset ?? null,
+    minutes: opts.minutes ?? null,
+  });
+  if ("error" in parsed) return fail(parsed.error);
+
+  // gate 3 — reject an absent master before scanning/probing every archive
+  // file. This is both the cheap failure path and a hardware safety boundary.
+  if (!existsSync(dbPath)) return fail(`no master DB at ${dbPath}`);
+
+  // gate 4 — the chain (same engine as setbuild CLI/web)
+  const built = buildChain(opts, parsed);
   if ("error" in built) return fail(built.error);
   const { chain, preset, minutes } = built;
   const noFile = chain.filter((c) => c.base === null).length;
@@ -302,9 +312,7 @@ export async function rbPlaylist(
     `rb-playlist: chain of ${chain.length} (${preset}, ${minutes} min) → "${playlist}" in "${group}" on ${dbPath}`,
   );
 
-  // gate 3 — DB present
-  if (!existsSync(dbPath)) return fail(`no master DB at ${dbPath}`);
-  // gate 4 — rekordbox quit
+  // gate 5 — rekordbox quit
   if (rekordboxRunning())
     return fail("rekordbox is running — quit it (live WAL) before rb-playlist");
 

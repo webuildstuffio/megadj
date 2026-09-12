@@ -1,5 +1,5 @@
-- Audience: a DJ planning a real set who needs to know the archive is available and the result is long enough.
-- One action: build and save one honest, playable set draft.
-- Five-second message: choose a familiar set length and energy journey; FullTags uses the mounted shelf and never calls a short fragment complete.
-- Steps today: 1. Choose an energy card. 2. Type minutes. 3. Pick an opener that may be unavailable. 4. Build. 5. Discover missing files, duplicates, or a short result afterward. 6. Copy manually.
-- Steps after: 1. Choose a common duration and energy journey. 2. Optionally choose an available opener. 3. Build only from the mounted shelf. 4. Review honest coverage/shortfall. 5. Save or export the draft.
+- Audience: a DJ planning a real set who needs a fast, trustworthy answer from the whole mounted collection.
+- One action: build one honest, playable set draft.
+- Five-second message: choose a familiar length and energy journey; FullTags checks the mounted shelf and shows exactly which analysis sources shaped the result.
+- Steps today: 1. Choose length and energy. 2. Optionally choose an opener. 3. Wait while every file key is re-read. 4. Build. 5. Decode the technical pool summary. 6. Save or export.
+- Steps after: 1. Choose length and energy. 2. Optionally choose an opener. 3. Build immediately from FullTags ledgers plus Rekordbox metadata, reading files only when neither source knows the key. 4. Review the plain-language source/coverage summary. 5. Save or export.

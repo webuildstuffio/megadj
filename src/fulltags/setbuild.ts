@@ -79,6 +79,8 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       missingFiles,
       duplicateFiles,
       relocatedFiles,
+      rekordboxKeyHits,
+      rekordboxBpmHits,
       candidates,
       keyReads,
       keyReadFailures,
@@ -101,6 +103,8 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       missing_files: missingFiles,
       duplicate_files: duplicateFiles,
       relocated_files: relocatedFiles,
+      rekordbox_key_hits: rekordboxKeyHits,
+      rekordbox_bpm_hits: rekordboxBpmHits,
       key_reads: keyReads,
       key_read_failures: keyReadFailures,
       preset: built.preset,
@@ -127,7 +131,7 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       // surface the ledger ages so "why isn't my new track in here" is
       // answerable without opening a DB shell
       log(
-        `setbuild: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} (checked ${sourceTotal} DB rows; ${total} unique actual files; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
+        `setbuild: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} (checked ${sourceTotal} DB rows; ${total} unique actual files; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
       );
       log(
         `  analysis freshness — beats: ${dayOf(payload.freshness.beatsAt)}, mood: ${dayOf(payload.freshness.moodAt)} (newer imports need \`megadj beats\` + \`megadj mood\`)`,

@@ -144,9 +144,11 @@ export function similarTracks(
  * `updated_at DESC LIMIT 300` cap silently hid 200+ analyzed tracks from
  * every proposal (and re-syncing reshuffled which ones). Missing paths are
  * counted but cannot enter a proposal: a stale `downloaded` row is not an
- * actual playable track. Existing files are read only on a valid track_keys
- * cache miss (~80 ms each: ffprobe + mutagen). This request never fills the
- * cache: the entire archive read surface stays physically readonly.
+ * actual playable track. Rekordbox's mirrored BPM/key metadata is the cheap
+ * fallback when a FullTags ledger value is absent; only tracks unknown to
+ * both sources need a live file read (~80 ms each: ffprobe + mutagen). This
+ * request never fills the persistent cache: the entire archive read surface
+ * stays physically readonly.
  */
 export function setCandidates(
   reader: ArchiveQuery,
@@ -164,6 +166,10 @@ export function setCandidates(
   duplicateFiles: number;
   /** Unique candidates resolved from a stale DJ-Imports path to the shelf. */
   relocatedFiles: number;
+  /** Missing FullTags keys supplied by the mirrored Rekordbox master. */
+  rekordboxKeyHits: number;
+  /** Missing FullTags BPM values supplied by the mirrored Rekordbox master. */
+  rekordboxBpmHits: number;
   /** How many candidates needed a live file read for their key (cache
    *  misses) — surfaced so a slow first request is explainable. */
   keyReads: number;
@@ -188,6 +194,25 @@ export function setCandidates(
     moodAt: string | null;
   };
 } {
+  const hasRekordboxContent =
+    reader.row<{ present: number }>(
+      `SELECT 1 AS present FROM sqlite_master
+       WHERE type = 'table' AND name = 'rekordbox_content'`,
+    )?.present === 1;
+  const rekordboxColumns = hasRekordboxContent
+    ? `CASE WHEN json_valid(rc.metadata_json)
+         THEN json_extract(rc.metadata_json, '$.KeyName') END AS rekordbox_key,
+       CASE WHEN json_valid(rc.metadata_json)
+         THEN CAST(json_extract(rc.metadata_json, '$.BPM') AS REAL) / 100.0
+         END AS rekordbox_bpm`
+    : `NULL AS rekordbox_key, NULL AS rekordbox_bpm`;
+  const rekordboxJoin = hasRekordboxContent
+    ? `LEFT JOIN rekordbox_content rc ON rc.rowid = (
+         SELECT rc2.rowid FROM rekordbox_content rc2
+         WHERE rc2.video_id = t.video_id
+         ORDER BY rc2.updated_at DESC, rc2.content_id DESC LIMIT 1
+       )`
+    : "";
   const rows = reader.rows<{
     video_id: string;
     title: string | null;
@@ -195,15 +220,19 @@ export function setCandidates(
     duration_s: number | null;
     file_path: string | null;
     bpm_folded: number | null;
+    rekordbox_bpm: number | null;
+    rekordbox_key: string | null;
     valence: number | null;
     arousal: number | null;
     dance: number | null;
   }>(
     `SELECT t.video_id, t.title, t.artist, t.duration_s, t.file_path,
-            b.bpm_folded, m.valence, m.arousal, m.dance
+            b.bpm_folded, ${rekordboxColumns},
+            m.valence, m.arousal, m.dance
      FROM tracks t
      LEFT JOIN beats b ON b.video_id = t.video_id
      LEFT JOIN mood m ON m.video_id = t.video_id
+     ${rekordboxJoin}
      WHERE t.status = 'downloaded'
      ORDER BY t.updated_at DESC
      ${limit !== undefined && limit > 0 ? "LIMIT ?" : ""}`,
@@ -231,6 +260,8 @@ export function setCandidates(
   });
   const duplicateFiles = existingRows.length - actualRows.length;
   const relocatedFiles = actualRows.filter((row) => row.relocated).length;
+  let rekordboxKeyHits = 0;
+  let rekordboxBpmHits = 0;
   let keyReads = 0;
   let keyReadFailures = 0;
   const candidates = actualRows.map((r) => {
@@ -241,6 +272,9 @@ export function setCandidates(
     const cached = reader.keyRecord(r.video_id, r.file_path);
     if (cached) {
       key = cached.key === "" ? null : cached.key;
+    } else if (r.rekordbox_key?.trim()) {
+      key = r.rekordbox_key.trim();
+      rekordboxKeyHits++;
     } else {
       keyReads++;
       try {
@@ -258,12 +292,20 @@ export function setCandidates(
         key = null; // unreadable file loses key-score, never throws
       }
     }
+    const rekordboxBpm =
+      r.rekordbox_bpm !== null &&
+      Number.isFinite(r.rekordbox_bpm) &&
+      r.rekordbox_bpm > 0
+        ? r.rekordbox_bpm
+        : null;
+    const bpm = r.bpm_folded ?? rekordboxBpm;
+    if (r.bpm_folded === null && rekordboxBpm !== null) rekordboxBpmHits++;
     return {
       videoId: r.video_id,
       title: r.title,
       artist: r.artist,
       durationS: r.duration_s,
-      bpm: r.bpm_folded,
+      bpm,
       key,
       valence: r.valence,
       arousal: r.arousal,
@@ -278,6 +320,8 @@ export function setCandidates(
     missingFiles,
     duplicateFiles,
     relocatedFiles,
+    rekordboxKeyHits,
+    rekordboxBpmHits,
     keyReads,
     keyReadFailures,
     candidates,

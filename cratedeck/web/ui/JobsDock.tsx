@@ -94,9 +94,11 @@ export function JobsDock(props: {
   drives: DriveCardData[];
   focusDrive: (id: string) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
   const active = props.jobs.filter((j) => ACTIVE.has(j.status));
   const history = props.jobs.filter((j) => HISTORY.has(j.status)).slice(0, 6);
+  // Finished history is useful on demand, but must not cover the page's
+  // current result/actions on every load. Active work still opens by default.
+  const [collapsed, setCollapsed] = useState(active.length === 0);
   if (!active.length && !history.length) return null;
 
   const driveName = (id: string) =>

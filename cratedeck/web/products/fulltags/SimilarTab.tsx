@@ -37,7 +37,7 @@ import {
 } from "../../ui/data";
 import { Sparkline } from "../../ui/charts";
 import { SectionHead, Verdict, TrackTitle } from "../shared";
-
+import { SetBuilderMethod } from "./SetBuilderMethod";
 /** The wire row a track-pick search deals in: the search endpoint returns
  *  ArchiveTrack-shaped rows; the caller keeps (video_id, title, artist). */
 export interface TrackPick {
@@ -45,7 +45,6 @@ export interface TrackPick {
   title: string | null;
   artist?: string | null;
 }
-
 /** Search + pick ONE track — the shared picker under both panels (the
  *  sounds-like query track and the set-builder opener both need it; two
  *  hand-rolled variants had already drifted once). Debounces nothing —
@@ -656,35 +655,7 @@ function SetBuildPanel() {
           <Icon name="play" size={12} /> {buildLabel}
         </button>
       </div>
-      <details class="setbuild-method">
-        <summary>
-          <span>How FullTags scores this proposal</span>
-          <small>read-only</small>
-        </summary>
-        <dl class="setbuild-evidence" aria-label="Set builder evidence">
-          <div>
-            <dt>Sources</dt>
-            <dd>
-              Entire downloaded archive DB · mounted shelf files · Beats ledger
-              BPM · file key tags · Mood ledger energy
-            </dd>
-          </div>
-          <div>
-            <dt>Checks</dt>
-            <dd>
-              File exists · duplicate paths collapse · ±6% tempo window ·
-              Camelot-compatible key moves · selected energy arc
-            </dd>
-          </div>
-          <div>
-            <dt>Output</dt>
-            <dd>
-              Writes no tags or playlists. Save downloads a local review draft;
-              export downloads an importable M3U8 without opening its database
-            </dd>
-          </div>
-        </dl>
-      </details>
+      <SetBuilderMethod />
       {build.stale && (
         <div class="setbuild-stale" role="status">
           <b>Proposal settings changed.</b> The chain below still shows the
@@ -696,7 +667,10 @@ function SetBuildPanel() {
         <div class="setbuild-loading" role="status" aria-live="polite">
           <span class="spin" aria-hidden="true" />
           Checking every downloaded DB row, then scoring actual files…
-          <span class="muted"> takes a moment (per-file key reads)</span>
+          <span class="muted">
+            {" "}
+            uses FullTags + Rekordbox; reads only unknown keys
+          </span>
         </div>
       )}
       {build.data && (
@@ -713,7 +687,7 @@ function SetBuildPanel() {
                   ? `Complete ${build.data.actualMinutes}-minute draft · ${build.data.steps.length} tracks · ${presetLabel(build.data.preset)} · ${build.data.source_total} DB rows checked.`
                   : `Partial draft · ${build.data.actualMinutes} of ${build.data.minutes} minutes · ${build.data.shortfallMinutes} minutes short.`
             }
-            meta={`${build.data.pool} actual files scored${build.data.missing_files > 0 ? ` · ${build.data.missing_files} missing skipped` : ""}${build.data.duplicate_files > 0 ? ` · ${build.data.duplicate_files} DB aliases collapsed` : ""}${build.data.relocated_files > 0 ? ` · ${build.data.relocated_files} found on the mounted shelf` : ""} · no tags or playlists written · ${build.data.key_reads} file key tag${build.data.key_reads === 1 ? "" : "s"} read${build.data.key_read_failures > 0 ? `, ${build.data.key_read_failures} failed and scored without key` : ""}`}
+            meta={`${build.data.pool} actual files scored${build.data.missing_files > 0 ? ` · ${build.data.missing_files} missing skipped` : ""}${build.data.duplicate_files > 0 ? ` · ${build.data.duplicate_files} DB aliases collapsed` : ""}${build.data.relocated_files > 0 ? ` · ${build.data.relocated_files} found on the mounted shelf` : ""} · analysis sources: FullTags ledgers first, ${build.data.rekordbox_bpm_hits} BPM + ${build.data.rekordbox_key_hits} key fallback${build.data.rekordbox_key_hits === 1 ? "" : "s"} from Rekordbox, ${build.data.key_reads} live file read${build.data.key_reads === 1 ? "" : "s"}${build.data.key_read_failures > 0 ? ` (${build.data.key_read_failures} failed and scored without key)` : ""} · propose-only; nothing written`}
           />
           {!build.data.complete && build.data.pool > 0 && (
             <div class="setbuild-shortfall" role="alert">
