@@ -18,29 +18,13 @@ import type {
   ValidationReceipt,
 } from "./types";
 import {
+  hydrateHygieneFinding,
   hygieneWhere,
   HYGIENE_ORDER_SQL,
 } from "../../../cratedeck/shared/hygiene";
+import type { HygieneFindingRow } from "../../../cratedeck/shared/hygiene";
 
-interface Row {
-  id: string;
-  kind: FindingKind;
-  severity: Severity;
-  status: FindingStatus;
-  paths: string; // json[]
-  bytes: string; // json[]
-  md5s: string | null; // json[]
-  fps: string | null; // json[]
-  evidence: string | null; // json object
-  proposed_action: string; // json ProposedAction
-  keeper_path: string | null;
-  walk_token: string;
-  auto_safe: 0 | 1;
-  created_at: string;
-  decided_at: string | null;
-  applied_at: string | null;
-  validation: string | null; // json ValidationReceipt | null
-}
+type Row = HygieneFindingRow;
 
 export class HygieneStore {
   constructor(private db: Database) {
@@ -78,37 +62,9 @@ export class HygieneStore {
     `);
   }
 
-  private hydrate(r: Row): Finding {
-    return {
-      id: r.id,
-      kind: r.kind,
-      severity: r.severity,
-      status: r.status,
-      paths: JSON.parse(r.paths) as string[],
-      bytes: JSON.parse(r.bytes) as number[],
-      md5s: r.md5s ? (JSON.parse(r.md5s) as (string | null)[]) : [],
-      fps: r.fps ? (JSON.parse(r.fps) as (string | null)[]) : [],
-      evidence: r.evidence
-        ? (JSON.parse(r.evidence) as Record<string, unknown>)
-        : {},
-      proposedAction: JSON.parse(
-        r.proposed_action,
-      ) as Finding["proposedAction"],
-      keeperPath: r.keeper_path,
-      walkToken: r.walk_token,
-      autoSafe: r.auto_safe === 1,
-      createdAt: r.created_at,
-      decidedAt: r.decided_at,
-      appliedAt: r.applied_at,
-      validation: r.validation
-        ? (JSON.parse(r.validation) as ValidationReceipt)
-        : null,
-    };
-  }
-
   private tryHydrate(r: Row): Finding | null {
     try {
-      return this.hydrate(r);
+      return hydrateHygieneFinding(r);
     } catch (e) {
       console.error(
         `hygiene finding ${r.id} has corrupt JSON — skipping`,

@@ -84,6 +84,63 @@ export interface Finding {
   validation: ValidationReceipt | null;
 }
 
+/** Database-shaped hygiene finding. Both archive readers receive these rows
+ * directly from SQLite, so their JSON-to-contract translation lives here. */
+export interface HygieneFindingRow {
+  id: string;
+  kind: FindingKind;
+  severity: string;
+  status: string;
+  paths: string;
+  bytes: string;
+  md5s: string | null;
+  fps: string | null;
+  evidence: string | null;
+  proposed_action: string;
+  keeper_path: string | null;
+  walk_token: string;
+  auto_safe: 0 | 1;
+  created_at: string;
+  decided_at: string | null;
+  applied_at: string | null;
+  validation: string | null;
+}
+
+/**
+ * Hydrate a persisted hygiene row into the wire contract.
+ *
+ * JSON.parse deliberately remains visible to callers: their ledger boundary
+ * catches corrupt rows and skips only the bad record, preserving the rest of
+ * the queue rather than turning a partial corrupt ledger into a failure.
+ */
+export function hydrateHygieneFinding(row: HygieneFindingRow): Finding {
+  return {
+    id: row.id,
+    kind: row.kind,
+    severity: row.severity as Finding["severity"],
+    status: row.status as Finding["status"],
+    paths: JSON.parse(row.paths) as string[],
+    bytes: JSON.parse(row.bytes) as number[],
+    md5s: row.md5s ? (JSON.parse(row.md5s) as (string | null)[]) : [],
+    fps: row.fps ? (JSON.parse(row.fps) as (string | null)[]) : [],
+    evidence: row.evidence
+      ? (JSON.parse(row.evidence) as Record<string, unknown>)
+      : {},
+    proposedAction: JSON.parse(
+      row.proposed_action,
+    ) as Finding["proposedAction"],
+    keeperPath: row.keeper_path,
+    walkToken: row.walk_token,
+    autoSafe: row.auto_safe === 1,
+    createdAt: row.created_at,
+    decidedAt: row.decided_at,
+    appliedAt: row.applied_at,
+    validation: row.validation
+      ? (JSON.parse(row.validation) as ValidationReceipt)
+      : null,
+  };
+}
+
 /** ffprobe sidecar for one side of an A/B compare (GET
  *  /api/hygiene/stats). Nulls mean "unavailable", never zero. */
 export interface HygieneAudioStats {

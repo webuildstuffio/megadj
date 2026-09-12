@@ -6,31 +6,11 @@
 //   similarTracks — I49 "sounds like": cosine kNN over the embeddings
 //                   ledger (written by `megadj mood --embeddings`)
 //   setCandidates — M66 set-builder candidate pool (beats + mood + TKEY)
-//   cosine        — unit-scale similarity, exported for tests
 import { existsSync } from "node:fs";
 import { groundTruth } from "../../fulltags/src/exports";
 import { SET_POOL_DEFAULT } from "../shared/types";
+import { cosineSimilarity } from "../shared/similarity";
 import type { ArchiveQuery } from "./archive_types";
-
-/** Unit-scale cosine similarity (module fn so tests can hit it directly).
- * Byte-identical twin of src/state_similar.ts `cosineSimilarity` (jscpd-
- * flagged): cratedeck reads megadj's archive as a downstream UI and must
- * not import megadj's CLI internals — keep the twins in sync. */
-export function cosine(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) return 0;
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let i = 0; i < a.length; i++) {
-    const x = a[i]!;
-    const y = b[i]!;
-    dot += x * y;
-    na += x * x;
-    nb += y * y;
-  }
-  if (na === 0 || nb === 0) return 0;
-  return dot / Math.sqrt(na * nb);
-}
 
 /** Round to 4 decimals for wire payloads. Pure — module-level. */
 const r4 = (v: number): number => Math.round(v * 10000) / 10000;
@@ -115,7 +95,7 @@ export function similarTracks(
       video_id: c.videoId,
       title: c.title,
       artist: c.artist,
-      score: r4(cosine(queryVec!, c.vec)),
+      score: r4(cosineSimilarity(queryVec!, c.vec)),
     }))
     .toSorted((a, b) => b.score - a.score)
     .slice(0, kk);

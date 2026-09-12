@@ -2,8 +2,16 @@
 // `hygiene_findings` ledger (the shelf-hygiene feature's SSOT). Lifecycle
 // + the degrade-to-empty guarantee live in ArchiveLedgerReader (shared
 // with the shelf-sweeps ledger — one implementation, not two copies).
-import type { Finding, FindingKind, HygieneBadge } from "../shared/hygiene";
-import { hygieneWhere, HYGIENE_ORDER_SQL } from "../shared/hygiene";
+import type {
+  Finding,
+  HygieneBadge,
+  HygieneFindingRow,
+} from "../shared/hygiene";
+import {
+  hydrateHygieneFinding,
+  hygieneWhere,
+  HYGIENE_ORDER_SQL,
+} from "../shared/hygiene";
 import { ArchiveLedgerReader } from "./archive_ledger_reader";
 
 export interface HygieneCounts {
@@ -19,52 +27,6 @@ export interface HygieneCounts {
   bySub: Record<string, number>;
 }
 
-interface Row {
-  id: string;
-  kind: FindingKind;
-  severity: string;
-  status: string;
-  paths: string;
-  bytes: string;
-  md5s: string | null;
-  fps: string | null;
-  evidence: string | null;
-  proposed_action: string;
-  keeper_path: string | null;
-  walk_token: string;
-  auto_safe: 0 | 1;
-  created_at: string;
-  decided_at: string | null;
-  applied_at: string | null;
-  validation: string | null;
-}
-
-function hydrate(r: Row): Finding {
-  return {
-    id: r.id,
-    kind: r.kind,
-    severity: r.severity as Finding["severity"],
-    status: r.status as Finding["status"],
-    paths: JSON.parse(r.paths) as string[],
-    bytes: JSON.parse(r.bytes) as number[],
-    md5s: r.md5s ? (JSON.parse(r.md5s) as (string | null)[]) : [],
-    fps: r.fps ? (JSON.parse(r.fps) as (string | null)[]) : [],
-    evidence: r.evidence
-      ? (JSON.parse(r.evidence) as Record<string, unknown>)
-      : {},
-    proposedAction: JSON.parse(r.proposed_action) as Finding["proposedAction"],
-    keeperPath: r.keeper_path,
-    walkToken: r.walk_token,
-    autoSafe: r.auto_safe === 1,
-    createdAt: r.created_at,
-    decidedAt: r.decided_at,
-    appliedAt: r.applied_at,
-    validation: r.validation
-      ? (JSON.parse(r.validation) as Finding["validation"])
-      : null,
-  } as Finding;
-}
-
 export class HygieneReader extends ArchiveLedgerReader {
   protected readonly label = "hygiene";
 
@@ -74,13 +36,23 @@ export class HygieneReader extends ArchiveLedgerReader {
     severity?: string | undefined;
   }): Finding[] {
     const { whereSql, params } = hygieneWhere(filter);
-    const rows = this.query<Row>(
+    const rows = this.query<HygieneFindingRow>(
       `SELECT * FROM hygiene_findings
        ${whereSql}
        ${HYGIENE_ORDER_SQL}`,
       ...params,
     );
-    return rows.map(hydrate);
+    return rows.flatMap((row) => {
+      try {
+        return [hydrateHygieneFinding(row)];
+      } catch (error) {
+        console.error(
+          `hygiene finding ${row.id} has corrupt JSON — skipping`,
+          error instanceof Error ? error.message : error,
+        );
+        return [];
+      }
+    });
   }
 
   /** The banner census + per-drive badge numbers. Zeros when unavailable. */

@@ -48,28 +48,15 @@ import { KIND_DOCS, printKindDoc } from "./deckctl_docs";
 import { cmdHelp, cmdDismiss } from "./deckctl_help";
 import { cmdHygiene } from "./deckctl_hygiene";
 import { cmdFixes } from "./deckctl_fixes";
+import { createDeckctlOutput } from "./deckctl_output";
 
 // ---- output helpers ---------------------------------------------------------
 const JSON_MODE = process.argv.includes("--json");
 const IS_TTY = process.stderr.isTTY ?? false;
 
-/**
- * Emit the machine-readable payload to stdout — THE one JSON exit for CLI.
- * console.log TRUNCATES large payloads when stdout is a pipe (the write is
- * fire-and-forget; a consumer like a python json.load reading ~100KB gets
- * a mid-string EOF → "Unterminated string" JSONDecodeError). Bun.write to
- * the stdout stream completes before the promise resolves, and flushStdout
- * below guarantees the bytes are drained before the process exits.
- */
-async function emitJson(payload: unknown): Promise<void> {
-  await Bun.write(Bun.stdout, `${JSON.stringify(payload, null, 2)}\n`);
-}
-
-/** Drain pending stdout writes so piped consumers never see a truncated
- *  stream. Awaited from main() before every exit path. */
-function flushStdout(): Promise<void> {
-  return Bun.write(Bun.stdout, "").then(() => undefined);
-}
+const { emitJson, flushStdout, log, errOut } = createDeckctlOutput({
+  jsonMode: JSON_MODE,
+});
 
 /** Typed JSON reader: `const d = await getJson<Drive[]>(res)`. */
 async function getJson<T>(p: string, timeoutMs?: number): Promise<T> {
@@ -114,15 +101,6 @@ function fmtEta(s: number): string {
   if (s < 5400) return `${Math.round(s / 60)}m`;
   return `${(s / 3600).toFixed(1)}h`;
 }
-function log(msg: string): void {
-  if (JSON_MODE) return;
-  console.log(msg);
-}
-async function errOut(msg: string): Promise<void> {
-  if (JSON_MODE) await emitJson({ error: msg });
-  else console.error(msg);
-}
-
 // ---- server boot / drive resolution ----------------------------------------
 // apiGet / ensureServer / resolveDrive / jobTerminal live in deckapi.ts —
 // one implementation shared with mcp.ts (the MCP server over these calls).

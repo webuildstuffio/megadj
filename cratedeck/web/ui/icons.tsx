@@ -103,6 +103,10 @@ const P: Record<string, FunctionalComponent<LucideProps>> = {
   circleDashed: CircleDashed,
 };
 
+/** Enumerates the registry for coverage tests and consumers that need a
+ * complete icon census rather than an open-ended IconName string. */
+export const ICON_NAMES = Object.freeze(Object.keys(P));
+
 /** Any lucide glyph name. Call sites can name icons beyond the table when a
  *  page needs something one-off (autocompleted, compile-checked, tree-shaken
  *  exactly like the table). */
