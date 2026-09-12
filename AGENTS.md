@@ -58,6 +58,14 @@ chokes on the container). `drop`'s container-truth probe renames to the
 true `.m4a` before any writer runs. Per-file failures quarantine and
 report; one bad file never kills a batch run.
 
+Distrust SoundCloud genres too: `yt-dlp` search metadata returns a
+numeric SC genre ID, never a name. Both write points (`art-sources.ts`
+hit filter, `applyScGenre`) refuse numeric/`Music` genres; ID→name
+resolution goes through the `sc_genre_ids` cache (track-page scrape).
+Every master.db write must hard-gate on rekordbox being closed — RB's
+in-memory state silently overwrites external edits on quit; verify with
+a delayed re-read, not just a successful commit.
+
 `shelf-dupescan` judges duplicates by fingerprint, never by name; keep its
 fpcalc parser base64url-complete (`-`/`_`) — a truncating regex silently
 poisons the whole `shelf_fingerprints` cache with colliding prefixes.
