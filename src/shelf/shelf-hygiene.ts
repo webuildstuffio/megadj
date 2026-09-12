@@ -50,6 +50,12 @@ export interface ShelfHygieneOptions {
   yes?: boolean | undefined;
   json?: boolean | undefined;
   log?: ((s: string) => void) | undefined;
+  /** Injectable output seam for callers that need the JSON object without
+   * replacing process-global stdout (parallel-safe tests and embedders). */
+  emitJson?: ((payload: unknown) => void | Promise<void>) | undefined;
+  /** Injectable exit seam for embedded callers; the CLI keeps process exit
+   * semantics by default. */
+  setExitCode?: ((code: number) => void) | undefined;
 }
 
 export async function shelfHygiene(
@@ -66,12 +72,16 @@ export async function shelfHygiene(
     yes = false,
     json = false,
     log = (s) => console.error(s),
+    emitJson = writeJson,
+    setExitCode = (code) => {
+      process.exitCode = code;
+    },
   } = opts;
 
   const fail = async (error: string): Promise<void> => {
-    if (json) await writeJson({ command: "shelf-hygiene", error });
+    if (json) await emitJson({ command: "shelf-hygiene", error });
     else console.error(`shelf-hygiene: ${error}`);
-    process.exitCode = 1;
+    setExitCode(1);
   };
 
   if (apply && !yes) {
@@ -132,15 +142,13 @@ export async function shelfHygiene(
         }
       }
       if (json)
-        console.log(
-          JSON.stringify({
-            command: "shelf-hygiene",
-            decided,
-            bucket: bucket ?? null,
-            bucketMatched,
-            failed,
-          }),
-        );
+        await emitJson({
+          command: "shelf-hygiene",
+          decided,
+          bucket: bucket ?? null,
+          bucketMatched,
+          failed,
+        });
       else {
         if (bucket)
           console.error(
@@ -149,7 +157,7 @@ export async function shelfHygiene(
         for (const f of failed)
           console.error(`shelf-hygiene: ${f.id}: ${f.why}`);
       }
-      if (failed.length) process.exitCode = 1;
+      if (failed.length) setExitCode(1);
       return;
     }
 
@@ -283,7 +291,7 @@ export async function shelfHygiene(
       dryRun: !apply,
     };
     if (json) {
-      await writeJson(summary);
+      await emitJson(summary);
     } else {
       log(
         `census: ${summary.open} open · ${summary.confirmed} confirmed · ${summary.applied} applied · ${summary.failed} failed`,

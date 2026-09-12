@@ -26,22 +26,21 @@ function shelf(): { vol: string; db: string } {
 async function run(
   opts: Record<string, unknown>,
 ): Promise<{ parsed: Record<string, unknown>; code: number }> {
-  let out = "";
-  const orig: typeof console.log = console.log;
-  console.log = (s: string) => (out += `${s}\n`);
+  let parsed: Record<string, unknown> | null = null;
   let code = 0;
-  try {
-    await shelfHygiene({
-      json: true,
-      log: () => {},
-      ...opts,
-    });
-  } finally {
-    console.log = orig;
-    code = typeof process.exitCode === "number" ? process.exitCode : 0;
-    process.exitCode = 0; // sticky-exit trap: reset or the SUITE exits 1
-  }
-  return { parsed: JSON.parse(out.trim()) as Record<string, unknown>, code };
+  await shelfHygiene({
+    json: true,
+    log: () => {},
+    emitJson: (payload) => {
+      parsed = payload as Record<string, unknown>;
+    },
+    setExitCode: (next) => {
+      code = next;
+    },
+    ...opts,
+  });
+  if (!parsed) throw new Error("shelf-hygiene did not emit its JSON summary");
+  return { parsed, code };
 }
 
 describe("shelf-hygiene command", () => {

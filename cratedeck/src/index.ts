@@ -21,6 +21,7 @@ import { coverage, redundancy, diff, trackLocations } from "./coverage";
 import { fetchWeeklyPrepInput, renderWeeklyPrep } from "./weekly_prep";
 import { ArchiveReader } from "./archive";
 import { archiveRoutes } from "./archive_routes";
+import { portView } from "./port_view";
 import {
   allPreflightInputs,
   exportDossier,
@@ -423,7 +424,7 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
       return json({ error: "unknown drive route" }, 404);
     }
     if (route === "/ports") {
-      return json(portView());
+      return json(portView(db.allDrives()));
     }
     if (route === "/jobs") {
       const active = url.searchParams.get("active");
@@ -668,19 +669,6 @@ async function driveSubroute(
 /** GET /api/drives + GET /api/status payload: the drive cards minus the MBs
  *  snapshot blob (page detail fetches it on demand). One builder so the two
  *  routes can never drift. */
-function portView() {
-  return db
-    .allDrives()
-    .filter((d) => d.last_port_key)
-    .map((d) => ({
-      port_key: d.last_port_key,
-      label: null,
-      drive_id: d.id,
-      drive_name: d.nickname ?? d.name,
-      mounted: Boolean(d.mounted),
-      last_seen_at: d.last_seen_at,
-    }));
-}
 function driveNames(): Map<string, string> {
   return new Map(db.allDrives().map((d) => [d.id, d.nickname ?? d.name]));
 }
