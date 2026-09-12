@@ -4,21 +4,17 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import type {
   DriveImage,
-  DriveReport,
   InterlockState,
   Job,
   JobKind,
-  SnapshotData,
-  TimelineEvent,
-  VerifyReport,
 } from "../../../shared/types";
-import { errMessage, fmtBytes, timeAgo } from "../../../shared/fmt";
+import { fmtBytes, timeAgo } from "../../../shared/fmt";
 import { TIER_EXPLANATION } from "../../../shared/check_matrix";
-import { ApiError, api, apiPost, toast } from "../../ui/toast";
+import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { navigate } from "../../app/router";
 import { PlaylistsTab } from "./PlaylistsTab";
-import { HealthTab, type HealthTabBench } from "./HealthTab";
+import { HealthTab } from "./HealthTab";
 import { TimelineTab } from "./TimelineTab";
 import { VerifyTab } from "./VerifyTab";
 import { OverviewTab } from "./OverviewTab";
@@ -28,6 +24,7 @@ import { PhotoTab, type PhotoHit } from "./PhotoTab";
 import { HygieneTab } from "./HygieneTab";
 import { FixesTab } from "./FixesTab";
 import { DRIVE_TABS } from "../shared";
+import { useDriveData, type DriveDetail } from "./useDriveData";
 
 type TabId = (typeof DRIVE_TABS)[number]["id"];
 
@@ -86,35 +83,22 @@ const JOB_BUTTONS: {
   },
 ];
 
-interface Detail {
-  drive: DriveReport["drive"];
-  snapshot: SnapshotData | null;
-  sync: DriveReport["sync"];
-  master_name: string;
-}
-
-/** Page load state: a machine where every branch is named. */
-type PageState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "not-found" }
-  | { status: "ok"; detail: Detail };
-
 export function DrivePage(props: {
   driveId: string;
   tab: string;
   interlock: InterlockState;
 }) {
   const { driveId, interlock } = props;
-  const [page, setPage] = useState<PageState>({ status: "loading" });
-  const [report, setReport] = useState<
-    (DriveReport & { overall?: string }) | null
-  >(null);
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
-  const [bench, setBench] = useState<HealthTabBench[]>([]);
-  const [probes, setProbes] = useState<{ ran_at: number; mbps: number }[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [verify, setVerify] = useState<VerifyReport | null>(null);
+  const {
+    page,
+    report,
+    timeline,
+    bench,
+    probes,
+    jobs,
+    verify,
+    refresh: load,
+  } = useDriveData(driveId);
   const [busy, setBusy] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -122,7 +106,6 @@ export function DrivePage(props: {
   const [photoQuery, setPhotoQuery] = useState("");
   const [driveImages, setDriveImages] = useState<DriveImage[] | null>(null);
   const detailOrNull = page.status === "ok" ? page.detail : null;
-  const loadError = page.status === "error" ? page.message : null;
   const locked = interlock.rekordbox_running;
   // hygiene + fixes ride only the shelf master (§4.3) — same condition the
   // server uses for the drive-list badge, so the two can't disagree
@@ -130,144 +113,6 @@ export function DrivePage(props: {
   const tabs = isShelf
     ? DRIVE_TABS
     : DRIVE_TABS.filter((t) => t.id !== "hygiene" && t.id !== "fixes");
-
-  const load = useCallback(async () => {
-    const enc = encodeURIComponent(driveId);
-    try {
-      const [d, r, t, b, sp, j, v] = await Promise.all([
-        api<Detail>(`/api/drives/${enc}`, { quiet: true }),
-        api<DriveReport>(`/api/drives/${enc}/report`, { quiet: true }),
-        api<TimelineEvent[]>(`/api/drives/${enc}/timeline`, { quiet: true }),
-        api<HealthTabBench[]>(`/api/drives/${enc}/benchmarks`, { quiet: true }),
-        api<{ ran_at: number; mbps: number }[]>(
-          `/api/drives/${enc}/speedprobes`,
-          { quiet: true },
-        ),
-        api<Job[]>(`/api/jobs?drive=${enc}`, { quiet: true }),
-        api<VerifyReport>(`/api/drives/${enc}/verify`, { quiet: true }),
-      ]);
-      if (!d?.drive) {
-        // unknown drive id (stale link / renamed registry) — api() only gets
-        // here on a real 200, so this is a deliberate soft-not-found shape.
-        setPage({ status: "not-found" });
-        return;
-      }
-      const fresh = d;
-      setPage({ status: "ok", detail: fresh });
-      setReport(r);
-      setTimeline(t);
-      setBench(b);
-      setProbes(sp);
-      setJobs(j);
-      setVerify(v);
-    } catch (e) {
-      // failed background refresh: keep the last good render visible, but the
-      // failure is surfaced (banner) instead of silently showing stale data.
-      console.error(`drive ${driveId} load failed`, e);
-      // A 404 on the drive itself is a verdict (stale link / removed from
-      // registry), not a transport failure — map only that to not-found;
-      // everything else (500, network) keeps the error banner honest.
-      if (e instanceof ApiError && e.status === 404) {
-        setPage({ status: "not-found" });
-        return;
-      }
-      const msg = errMessage(e);
-      setPage((prev) =>
-        prev.status === "ok" ? prev : { status: "error", message: msg },
-      );
-      return;
-    }
-  }, [driveId]);
-
-  useEffect(() => {
-    load().catch((e: unknown) => {
-      console.error(`initial load for ${driveId} failed`, e);
-    });
-    // adaptive cadence: 2s while jobs run (live progress), 10s idle. When a
-    // job looks stuck (running >90s with no progress change) do a full
-    // reload anyway — this is the self-heal for a lost SSE "done" event.
-    let iv: ReturnType<typeof setTimeout>;
-    let lastSnapshot = "";
-    let stuckCount = 0;
-    const loop = async () => {
-      try {
-        const active = await api<Job[]>(
-          `/api/jobs?drive=${encodeURIComponent(driveId)}&active=1`,
-          { quiet: true },
-        );
-        const n = Array.isArray(active) ? active.length : 0;
-        if (n > 0) {
-          // detect a stuck job: identical progress payload twice in a row
-          const sig = JSON.stringify(active.map((j) => [j.id, j.progress]));
-          stuckCount = sig === lastSnapshot ? stuckCount + 1 : 0;
-          lastSnapshot = sig;
-          // every job the server still calls active is authoritative — but
-          // if the server-side reaper already ended them, active=1 will
-          // stop returning them and we fall through to the idle path.
-          if (stuckCount >= 45) {
-            // ~90s frozen: force a full reload (also picks up final state)
-            stuckCount = 0;
-            lastSnapshot = "";
-            await load();
-          }
-        } else {
-          stuckCount = 0;
-          lastSnapshot = "";
-          // idle self-heal: the poll loop used to only refresh job state —
-          // if the FIRST full load failed (server busy/restarting), the
-          // "Loading failed" card stuck forever because nothing retried it
-          if (loadError) await load();
-        }
-        iv = setTimeout(loop, n > 0 ? 2000 : 10000);
-      } catch {
-        iv = setTimeout(loop, 10000);
-      }
-    };
-    loop();
-    return () => clearTimeout(iv);
-    // loadError rides along: the idle self-heal only retries after a failed
-    // load, and must see the flag flip false once the retry succeeds
-  }, [load, driveId, loadError]);
-
-  // SSE-driven job refreshes land in App; here we only need the drive's own
-  // jobs list to stay current between polls. `cratedeck:job` fires per SSE
-  // event (up to ~4/s while a job runs) — throttle to ≤1 fetch per 2s.
-  const refreshJobs = useCallback(async () => {
-    try {
-      setJobs(await api<Job[]>(`/api/jobs?drive=${driveId}`, { quiet: true }));
-    } catch (e) {
-      console.error(`jobs refresh for ${driveId} failed`, e);
-      toast("job list refresh failed — server unreachable", "err");
-    }
-  }, [driveId]);
-
-  useEffect(() => {
-    let last = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const onJob = () => {
-      const now = Date.now();
-      if (now - last < 2000) {
-        if (!timer) {
-          timer = setTimeout(
-            () => {
-              timer = null;
-              last = Date.now();
-              refreshJobs();
-            },
-            2000 - (now - last),
-          );
-        }
-        return;
-      }
-      last = now;
-      refreshJobs();
-    };
-    window.addEventListener("cratedeck:job", onJob);
-    return () => {
-      window.removeEventListener("cratedeck:job", onJob);
-      if (timer) clearTimeout(timer);
-    };
-  }, [driveId, refreshJobs]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -795,6 +640,6 @@ export function DrivePage(props: {
   );
 }
 
-function nameGuess(d: Detail | null): string {
+function nameGuess(d: DriveDetail | null): string {
   return d?.drive.nickname ?? d?.drive.name ?? "";
 }
