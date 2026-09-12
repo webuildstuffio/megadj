@@ -28,6 +28,7 @@ export const MAINTENANCE_VERBS = [
   "rb-fix-paths",
   "rb-unmatched",
   "rb-import",
+  "rb-playlist",
   "rb-anlz-spike",
   "rb-grid-triage",
 ] as const;
@@ -206,6 +207,57 @@ export async function runMaintenanceCommand(
         printRbImportReport(r, console.log);
       }
       if (!r.ok) process.exitCode = 1;
+      return;
+    }
+    case "rb-playlist": {
+      // set-builder chain → master-DB playlist. The write-side twin of
+      // `megadj setbuild`: NO new content rows, only playlist + links to
+      // rows the fullpush pipeline already imported (basename match).
+      // Same gates as rb-import: dated backup, rekordbox-quit gate,
+      // dry-run default, post-verify.
+      const flags = parseFlags(
+        rest,
+        ["playlist", "group", "preset", "minutes", "opener", "limit"],
+        ["apply", "yes", "json"],
+      );
+      const args = positionalArgs(rest, []);
+      const mount = mountFrom(args[0]);
+      const json = flags.bools.has("json");
+      const numOpt = (key: string): number | undefined => {
+        const raw = flags.strings.get(key);
+        if (raw === undefined) return undefined;
+        const n = Number(raw);
+        if (!Number.isFinite(n) || n < 0) {
+          console.error(`rb-playlist: --${key} must be a non-negative number`);
+          process.exitCode = 2;
+          return undefined;
+        }
+        return n;
+      };
+      const minutes = numOpt("minutes");
+      if (process.exitCode === 2) return;
+      const limit = numOpt("limit");
+      if (process.exitCode === 2) return;
+      const { rbPlaylist, printRbPlaylistReport } =
+        await import("../rekordbox/rb-playlist");
+      const r = await rbPlaylist({
+        mount,
+        preset: flags.strings.get("preset"),
+        minutes,
+        opener: flags.strings.get("opener"),
+        limit,
+        playlist: flags.strings.get("playlist"),
+        group: flags.strings.get("group"),
+        apply: flags.bools.has("apply"),
+        yes: flags.bools.has("yes"),
+        log: (s) => (json ? undefined : console.log(s)),
+      });
+      if (json) {
+        await writeJson(r);
+      } else {
+        printRbPlaylistReport(r, console.log);
+      }
+      if (!r.ok || r.unmatched.length > 0) process.exitCode = 1;
       return;
     }
     case "rb-anlz-spike": {

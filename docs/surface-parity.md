@@ -9,7 +9,15 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
-Rev 20 · 2026-09-11 — `megadj setbuild` closes §4 #4 (the last CLI-vs-MCP
+Rev 21 · 2026-09-11 — `megadj rb-playlist` (the set-build write-off): a
+set-builder chain becomes a playlist in the shelf master DB (`/PIONEER/
+Master/master.db`), linking EXISTING content rows by NFC-normalized
+filename — no new content rows, so the fullpush pipeline stays the only
+injection path. Same gate family as rb-import (dated backup, rekordbox-
+quit gate, dry-run default, post-verify with TrackNo contiguity) plus a
+read-only match probe so the dry-run predicts the link count honestly.
+Intentionally CLI-shaped under §4-A1 (long-running master-DB mutation,
+same as the rest of the rb family). Rev 20 · 2026-09-11 — `megadj setbuild` closes §4 #4 (the last CLI-vs-MCP
 archive read gap): the M66 set-builder gets a CLI spoke over the SAME engine
 + parse/clamp seam the route and MCP tool share; pool-cap defaults unified on
 the shared `SET_POOL_*` constants (the loader's local 400 disagreed with the
@@ -151,7 +159,7 @@ kind`; the MCP schema advertised a kind whose call errored).
 
 | Surface    | Entry points                                                | Count                  |
 | ---------- | ----------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 39 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 40 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 39 tools               |
 | HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 61 routes              |
@@ -230,6 +238,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Mood profile                                      | `megadj mood` data ✅                                                        | `archive_mood_profile` ✅                                 | FullTags ⌗ Mood ✅                                                                               | — (A3 closed rev 3; product split rev 6) |
 | Similar tracks (I49 sounds-like)                  | `megadj similar <id>` ✅                                                     | `archive_similar_tracks` ✅                               | FullTags ⌗ Similar (rev 10) ✅                                                                   | — (rev 10)                               |
 | Set-builder proposal (M66)                        | `megadj setbuild [--preset --minutes --opener --limit]` ✅ (rev 20)          | `archive_set_build` ✅ (propose-only)                     | FullTags ⌗ Similar panel (rev 10) ✅                                                             | — (rev 20 CLI spoke; proposes, never writes) |
+| Set-build → master playlist (rev 21)              | `megadj rb-playlist [drive] [--preset …] [--apply --yes]` ✅                 | ⛔ §4-A1 (master-DB mutation stays CLI)                   | ⛔ §4-A1                                                                                         | — (links existing content rows; dry-run predicts the link count) |
 | Cue ledger                                        | `megadj cues` data ✅                                                        | `archive_cue_ledger` ✅                                   | FullTags ⌗ Cues ✅                                                                               | — (rev 6)                                |
 | Library overview (FullTags mirror)                | `megadj fetch`/`audit` data ✅                                               | `archive_library_overview` ✅                             | FullTags ⌗ Tags + GetDat ⌗ Library ✅                                                            | — (rev 6)                                |
 | Skip census (why rows didn't land)                | `megadj list` buckets ✅                                                     | `archive_skip_census` ✅                                  | GetDat ⌗ Pipeline (decisions card) + Backlog ✅                                                  | — (rev 7)                                |

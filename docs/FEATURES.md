@@ -48,38 +48,27 @@ the remix's, not the original's.
 1. **Coverage + accuracy** — `megadj audit` is the ground-truth gate: art +
    title + artist + album + genre + year must be present _and correct_ on
    100% of tracks, verified by reading files (never trusting the DB). The
-   gate is also booth-safe: `player-compat` enforces the audio floor of the
-   **configured booth fleet** (default XDJ-XZ + CDJ-3000 + CDJ-2000NXS2;
-   every profile carries triple citations — `fulltags/src/fleet.ts`) and
-   `booth-text` flags what the players can't _display_ or _export_ —
-   emoji/CJK/Cyrillic outside the players' glyph tables, CP1252
-   double-encode mojibake, CP1251-as-Latin-1 debris, export-killing
-   filename characters (`;`, control bytes), over-long (>255 B) paths,
-   over-deep paths (fleet floor), and Windows-stripped trailing
-   dots/spaces. `megadj booth-fix [--apply --yes]` proposes (and applies)
-   the safe fixes: tag sanitization, mojibake re-decode, illegal-char
-   renames (DB path follows). The fleet is chosen on the web (Fleet →
-   Booth), CLI (`deckctl booth [set …]`), MCP (`deck_booth`), or
-   `config.toml [booth].fleet`. The full pick → audit → fix → reload
-   loop is a skill: `.claude/skills/booth-check/SKILL.md`.
-2. **Source-correct metadata** — a SoundCloud remix gets the SoundCloud
-   artwork, the remix year (from the upload page's `display_date`, not a
-   guessed "2023"), the SoundCloud genre tags. A hypeddit gateway track gets
-   gateway art. The source it came from is the first source of truth, and
-   Beatport is the second (rev 6.4): store-grade label / mix name /
-   official remixer / ISRC no other source carries, plus genre/year/art
-   rungs behind SC — every bp-filled field stamped TXXX:BP-FIELDS.
-3. **Highest quality, always** — the art ladder escalates: SoundCloud page
-   art at original resolution → Beatport release master (1500²) →
-   hypeddit/hyperfollow gateways → mp3-twin →
-   Deezer → iTunes → and only as a rare last resort, **AI-generated cover**
-   (clearly queued, cheap model, human-reviewable). Same ratchet for audio:
-   LOWQ tracks are re-fetch candidates.
-4. **AI fills the gaps — cheap and accurate** — deterministic sources first,
-   then OpenRouter flash-class models with confidence gates (≥ 0.7) for genre
-   classification, year estimation, credit parsing. It's a few tenths of a
-   cent per pass. AI does the web research and unstructured→structured
-   conversion; humans do nothing.
+   gate is also booth-safe: `player-compat` + `booth-text` enforce the
+   audio floor of the **configured booth fleet** and flag what the players
+   can't display or export (glyph tables, mojibake, illegal filename
+   characters, over-long paths). `megadj booth-fix [--apply --yes]`
+   proposes (and applies) the safe fixes. Fleet selection + citations:
+   `fulltags/src/fleet.ts`; the full pick → audit → fix → reload loop is
+   a skill: `.claude/skills/booth-check/SKILL.md`.
+2. **Source-correct metadata** — the source the track came from is the
+   first source of truth (SoundCloud page art, remix year from the upload
+   page, genre tags); Beatport is the second (rev 6.4) and the only
+   source of the DJ identity fields — label / mix name / official
+   remixer / ISRC — stamped TXXX:BP-FIELDS.
+3. **Highest quality, always** — the art ladder escalates rung by rung
+   (SC original-res → Beatport 1500² → gateways → mp3-twin → Deezer →
+   iTunes → AI-generated cover as the rare, queued last resort). Same
+   ratchet for audio: LOWQ tracks are re-fetch candidates. The
+   ladder's single home is `fulltags/src/art-sources.ts`.
+4. **AI fills the gaps — cheap and accurate** — deterministic sources
+   first, then OpenRouter flash-class models with confidence gates
+   (≥ 0.7) for genre/year/credits; `megadj years` verifies years against
+   the source page after any AI fallback.
 5. **Quality & spam filter** — dedupe on ingest (`(1)`-dupe detection,
    same-stem mp3↔lossless pairs, quality rules; rejects go to the
    archive-root hidden `.ingest-duplicates/`, never a visible folder
@@ -115,13 +104,13 @@ architecture, build plan, acceptance).
 
 |                    |                                                                                                                                                                                                                                  |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (39-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep, shelf hygiene + bench-anomaly + role-aware archive-tier checks) |
+| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep, shelf hygiene + bench-anomaly + role-aware archive-tier checks) |
 | **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                                          |
 | **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                                      |
 | **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads                          |
 | **The verify**     | `usb_verify.py` deep gate: dual-DB agreement (OneLibrary vs legacy `export.pdb` live rows), audio existence, ANLZ-at-hash-path, grid math (duration × BPM ≈ beat count), playlist integrity, cross-drive hash parity             |
 | **The interlock**  | rekordbox running? everything locks — exit code 3, red banner, no exceptions. Never bypassed.                                                                                                                                    |
-| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: 23 verbs incl. `run/coverage/redundancy/diff/preflight/players/hygiene/fixes/prep/note/rename/search/help/dismiss/booth`, `--json` for agents) · `bun run mcp` (39-tool MCP server) |
+| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI, `--json` for agents) · `bun run mcp` (MCP server) — every surface's census is derived from source and pinned in [surface-parity.md](surface-parity.md) §1 |
 
 **Commands:** `bun run deck`, `bun run cratedeck/src/deckctl.ts …`
 **Shelf intake:** `megadj shelf-archive [volume …]` pulls everything from any
@@ -133,14 +122,15 @@ copies preserved (see [usb-sync-log.md](usb-sync-log.md), Sep 9 2026).
 [the doc set](cratedeck/)
 
 > **Note:** the status row already includes the Sep 5–11 2026 additions —
-> B12 preflight, N75/N78 player-compat verdicts, the 39-tool MCP server
-> (incl. the O82b archive half and the `getdat_*` twins), O83 weekly digest (now also a Fleet ⌗
+> B12 preflight, N75/N78 player-compat verdicts, the MCP server's archive
+> half and `getdat_*` twins, O83 weekly digest (now also a Fleet ⌗
 > Prep tab), O87 job attribution, O88 agent notes, O85 plugin packaging,
 > the FullTags beats + mood + cues ledgers (FullTags roadmap rev 6.2),
 > the Sep 7 surface-parity revs (Fleet ⌗ Archive tab, `deckctl
 rename`/`report --dossier` + MCP twins), the Sep 10 shelf-hygiene engine
 + role-aware archive-tier checks, and the Sep 11 set-builder CLI spoke
-+ `megadj shelf-restore`.
++ `megadj shelf-restore`. Rev-by-rev detail lives once in
+[surface-parity.md](surface-parity.md).
 
 **Vibe:** mission control for a drawer full of identical-looking sticks.
 
@@ -148,28 +138,23 @@ rename`/`report --dossier` + MCP twins), the Sep 10 shelf-hygiene engine
 
 ## 🧭 Coming next (from the roadmap)
 
-The roadmap lives in two places — this section restates neither:
-
 - **[ideas.md](ideas.md) is canon for detail and ordering** — the full
   parking lot (§A–§O), with §0 gating everything; the live queue is
   [product-state-2026-09-07.md](product-state-2026-09-07.md) §The queue.
   (The Sep 6 proposal was executed and is archived:
   [archive/roadmap-proposal.md](archive/roadmap-proposal.md).)
 
-Headline shape (status inline; the docs own the detail):
+Headline shape (one line per move; product-state §The roadmap owns the
+re-scored table, ideas.md owns every detail):
 
-- **Move 1 — CrateDeck v1.x:** preflight ✅ + player verdict ✅ +
-  bench-anomaly rule ✅ + shelf hygiene engine ✅ shipped;
-  remaining: C18a runbook, C21/C22 differential mirror.
-- **Move 2 — FullTags v1.x:** ALL SHIPPED behind ground-truth gates
-  (key 80.7% written; BPM + genre writes gate-FAILED → beats/mood/cues
-  DB ledgers instead — [fulltags-roadmap.md](fulltags-roadmap.md) rev
-  6.5; Beatport identity fields rev 6.4).
-- **Move 3 — the agentic layer:** SHIPPED (39-tool MCP + `deckctl prep`
-  + D30 sweep); remaining: O84 inbox agent.
+- **Move 1 — CrateDeck v1.x:** shipped minus the C18a runbook and
+  C21/C22 differential mirror + one-click sync.
+- **Move 2 — FullTags v1.x:** ALL SHIPPED behind ground-truth gates —
+  [fulltags-roadmap.md](fulltags-roadmap.md) is the rev-by-rev record.
+- **Move 3 — the agentic layer:** SHIPPED; remaining: O84 inbox agent.
 - **The dream** — hit predictor calibrated on what actually got played
   (§M64, needs history); the set-builder half already shipped propose-only
-  (§M66, incl. the `megadj setbuild` CLI spoke).
+  (§M66).
 
 Do-now items live in [ideas.md §0](ideas.md#0--do-now-before-anything-else),
 which is now software-complete (issues #1–#5 closed; the two physical

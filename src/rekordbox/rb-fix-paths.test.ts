@@ -39,7 +39,7 @@ describe("rb-fix-paths", () => {
       else process.env.MEGADJ_RB_MASTER = previous;
       rmSync(mount, { recursive: true, force: true });
     }
-  });
+  }, 60_000); // uv cold-start under 16-way parallel workers needs > 5s
 
   test("missing master DB is a visible failure, not a fake pass", async () => {
     const mount = makeMount();

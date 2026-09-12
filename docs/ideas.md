@@ -47,28 +47,21 @@ committed; Extra stays unmounted until the run. Still item zero
 whenever a hardware session opens.
 
 0g. **Whole-shelf acoustic dupescan — ✅ SHIPPED + EXECUTED (2026-09-09/10).**
-`megadj shelf-dupescan` fingerprints every shelf audio file (4,635
-scanned, fp cache in the archive DB so re-runs are fast) and groups
+`megadj shelf-dupescan` fingerprints every shelf audio file and groups
 identical recordings REGARDLESS of filename/folder — the class the
-twin pass can't see (e.g. the same ANOTR eSQUIRE remix under
-"ANOTR x 54 Ultra/" and "ANOTR, 54 Ultra/"). First real scan:
-969 dup groups, 1,271 redundant copies, 38.9 GB reclaimable.
-The promised quarantine flow shipped (`--quarantine --yes`,
-`--only-identical` restricts to MD5-equal copies): 955 byte-identical
-copies moved to `Contents/.dupescan-quarantine/` with a 0-orphan
-post-apply audit; 312 left for human review. Recovery is
-[`megadj shelf-restore`](../src/shelf/shelf-restore.ts) (MD5-verified,
-ledger-owned). Full record:
+twin pass can't see (the same ANOTR eSQUIRE remix under two artist
+spellings). The quarantine flow shipped with it (`--quarantine --yes`,
+`--only-identical` for MD5-equal copies; recovery via
+[`megadj shelf-restore`](../src/shelf/shelf-restore.ts)). Scan and
+apply numbers live once:
 [shelf-hygiene-2026-09-09.md](shelf-hygiene-2026-09-09.md).
 
 0f. **SHELF1 dedupe pass — ✅ SUPERSEDED by the shipped hygiene engine
 (Sep 10).** `megadj shelf-hygiene` + `deckctl hygiene` + the Hygiene tab
-landed (P2+P3, commit 7754756) as the human-gated generalization of
-this plan: the engine hunts byte-twins, acoustic twins, folder variants
-and junk into a findings ledger; confirmed findings are MOVED to the
-shelf quarantine (never deleted) with a 0-orphan receipt; current
-ledger: 130 applied / 99 open. `megadj shelf-restore` recovers
-ledger-owned quarantines (MD5-verified). Full record:
+landed as the human-gated generalization of this plan: byte-twins,
+acoustic twins, folder variants and junk land in a findings ledger;
+confirmed findings are MOVED to the shelf quarantine (never deleted).
+Mechanics and current ledger state:
 [shelf-hygiene-2026-09-09.md](shelf-hygiene-2026-09-09.md).
 0b. **Cold backup of the master library — ✅ CLOSED (issue #2):
 runbook shipped, execution pending the rclone remote.**
@@ -83,14 +76,13 @@ archive of every DJ drive (see
 [usb-sync-log.md](usb-sync-log.md)), which shrinks 0b's blast radius to
 "back up the shelf + the Mac-side DBs"._
 0c. **Orphan-drive verdict — ✅ CLOSED (issue #3): BACKUP2 adopted.**
-The Sep 9 sweep verified 100% coverage of BACKUP2 into SHELF1
-(2,259 files seen; 2,023 covered, 234 preserved as `[BACKUP2]` twins,
-179 copied fresh, 0 failed — `megadj shelf-sweeps` id 14); the
-"unique to a dead drive" premise no longer holds. BACKUP2 stays
-retired-but-intact until a separate retirement decision.
+The Sep 9 `--deep` sweep verified 100% BACKUP2 coverage in SHELF1
+(verdict + counters: `megadj shelf-sweeps`); the "unique to a dead
+drive" premise no longer holds. BACKUP2 stays retired-but-intact until
+a separate retirement decision.
 0d. **Build the redundancy audit (§B7) + coverage matrix (§B6) — DONE
 2026-09-09** (code shipped 2026-09-04; both drives scanned — live
-matrices: 2,665 unique tracks, 2,609 fully redundant, 56 at-risk).
+matrix numbers read from `deckctl coverage`/`redundancy`, not docs).
 Issue [#4](https://github.com/webuildstuffio/megadj/issues/4) closed.
 If only four things ever ship from this doc, it's 0a–0d.
 
@@ -439,7 +431,7 @@ re-verified in the research notes (2026-09-05).
     `fulltags --mood` → `TXXX:MOOD` (dance/aggressive/happy/electronic/
     party + DEAM valence-arousal) via `fulltags/src/models.ts` ONNX towers;
     energy 2.0 blend; `megadj mood` mirrors stamps into the archive DB
-    `mood` ledger (534/534 after the Sep 11 catch-up pass). CrateDeck
+    `mood` ledger. CrateDeck
     surface: `archive_mood_profile` MCP + `/api/archive/mood`. Genre head
     gate FAILED (saturated) — genre writes blocked. Original spec, for
     reference:
@@ -454,9 +446,10 @@ re-verified in the research notes (2026-09-05).
 
 46. **Structure-aware grids & cues — 🔶 v0 SHIPPED (pass 3, rev 6.2); wave-2
     tooling SHIPPED 2026-09-10.** `megadj cues` derives 8-bar phrase
-    markers from the beats ledger's downbeats into the `cues` table (536
-    tracks → 14,449 cues, idempotent, DB-side — the rekordbox memory-cue
-    WRITE is the deliberate next gate). The grid-audit wave-2 tooling
+    markers from the beats ledger's downbeats into the `cues` table
+    (ledger counts live once: product-state's ledger table), idempotent,
+    DB-side — the rekordbox memory-cue WRITE is the deliberate next gate.
+    The grid-audit wave-2 tooling
     (`megadj gold-report`/`regate` gold-set harness, `megadj
     rb-grid-triage`, ANLZ write-path spike) is live — see C19 and
     [grid-audit-plan.md](grid-audit-plan.md), the SSOT for the remainder.
@@ -498,9 +491,9 @@ re-verified in the research notes (2026-09-05).
     `archive_similar_tracks`, and the FullTags ⌗ Similar tab — blob +
     cosine at archive scale, exactly as planned. (MuQ-MuLan step-up remains
     a future upgrade of the vector source; the query surface won't change.)
-    **Open garnish:** the embeddings ledger still holds the original 87
-    rows — re-run `megadj mood --embeddings` to backfill the Sep 9–11
-    intake (~447 tracks) so similarity sees the whole archive.
+    **Open garnish:** the embeddings ledger trails the archive (count in
+    product-state's ledger table) — re-run `megadj mood --embeddings` to
+    backfill the newest intake so similarity sees the whole library.
 
 50. **LLM track captioning (vibe notes).** Feed Essentia tags + structure
     labels + metadata to a local/small LLM → a one-line vibe description
@@ -654,9 +647,9 @@ extractors).
       catches the wrong-byte-variant-on-mirror class forever
       Reference: dupsonic (Rust, incremental, LSH) — use as-is or steal
       the incremental-scan design. Effort S-M.
-    **Stamp catch-up owed:** the Sep 9–11 intake batches ingested before
-    the fingerprint stage — 111/524 archive files carry ACOUSTID (run
-    `fulltags ~/Music/DJ-Imports --fingerprint` to close the gap).
+    **Stamp catch-up owed:** the newest intake batches ingested before
+    the fingerprint stage ran over them (exact coverage in product-state's
+    ledger table; `fulltags ~/Music/DJ-Imports --fingerprint` closes it).
 
 63. **Fingerprint the mirror.** Once #62 exists, a `--fingerprint-sample N`
     flag on `usb_mirror.py --verify-only` content-checks N random files per
@@ -814,11 +807,11 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 "agent-first, MCP-friendly, `--json` on every command" — with O86's rails
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
-82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 39 tools
-    after the Sep 10/11 hygiene, fixes and `getdat_*` revs).** Live:
+82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves).** Live:
     `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` —
-    **39 tools** (22 `deck_*` + 15 `archive_*` + 2 `getdat_*`; census derives from
-    source, pinned by `surface-parity.test.ts`). The archive half
+    the census (tool count + family breakdown) is derived from source and
+    pinned by `surface-parity.test.ts`; the doc census lives once in
+    [surface-parity.md](surface-parity.md) §1. The archive half
     (O82b) is readonly reads over megadj's own DB (`cratedeck/src/
 archive.ts`, opened `readonly: true`; missing DB degrades to
     `available:false`, never throws). Any MCP client (Claude Code,
@@ -831,11 +824,9 @@ archive.ts`, opened `readonly: true`; missing DB degrades to
     LOWQ queue (O82b reads) — the agent writes _nothing_. `--out FILE`
     persists it; `--json` feeds an agent loop; cron-able as-is
     (`deckctl prep --out ~/preps/$(date +%F).md`). **D30 sweep folded in
-    2026-09-07:** `archive_sweep.ts` blake2b-hashes the archive vs the
-    DB + known-good ledger — the digest's "Archive integrity" section
-    (first real run: 88/88 stale DB sizes caught; the artwork pass grows
-    files after ingest records them). Remaining optional: a `claude -p`
-    wrapper. Effort S.
+    2026-09-07:** the digest's "Archive integrity" section blake2b-hashes
+    the archive vs the DB + known-good ledger. Remaining optional: a
+    `claude -p` wrapper. Effort S.
 
 84. **Inbox-to-crate agent.** "Dump this folder/zip/URL list, get clean
     tagged files": combine `megadj drop` (K61) with an agent loop that
@@ -845,7 +836,7 @@ archive.ts`, opened `readonly: true`; missing DB degrades to
 
 85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
     installable Claude Code bundle: `.claude-plugin/plugin.json` +
-    `.mcp.json` (the 39-tool MCP server) + `hooks/hooks.json`
+    `.mcp.json` (the MCP server) + `hooks/hooks.json`
     (SessionStart posts `deckctl status --json` into context) + the 3
     skills. `claude plugin validate` passes; dev-install with
     `claude --plugin-dir $PWD/plugin`. A published marketplace variant

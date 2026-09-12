@@ -133,6 +133,9 @@ export function setCandidates(
     valence: number | null;
     arousal: number | null;
     dance: number | null;
+    /** Local archive path — internal only (route/MCP/CLI payloads omit
+     *  it); rb-playlist needs the FILENAME to match master content rows. */
+    filePath: string | null;
   }[];
   freshness: {
     beatsAt: string | null;
@@ -180,6 +183,7 @@ export function setCandidates(
       valence: r.valence,
       arousal: r.arousal,
       dance: r.dance,
+      filePath: r.file_path,
     };
   });
   return {

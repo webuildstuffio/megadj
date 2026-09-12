@@ -124,6 +124,14 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                while rekordbox runs, whole-table
                                                verify after write (dry first,
                                                ALWAYS)
+  megadj rb-playlist [drive] [--preset P] [--minutes N] [--opener ID]
+                                               [--playlist NAME] [--group NAME]
+                                               [--apply --yes] [--json]
+                                               set-builder chain → playlist in
+                                               the shelf master DB (no new
+                                               content rows — links existing
+                                               ones by filename; dry first,
+                                               same gates as rb-import)
   megadj rb-grid-triage [drive] [--compare D] [--limit N] [--json]
                                                grid audit vs the ANLZ rekordbox wrote:
                                                byte-compare vs a stick (--compare = SYNC

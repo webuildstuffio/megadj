@@ -15,19 +15,16 @@ megadj is a three-project pipeline — **GetDat** (download) → **FullTags**
 (enrich) → **CrateDeck** (organize/verify/sync) — run by one person on one
 Mac, feeding a shelf master (the archive-grade HDD that never leaves the
 desk) plus a master + mirror pair of Pioneer-format DJ USBs. All three
-cores are shipped and _measured_: the archive's 534 downloaded tracks
-(six intake batches, Sep 5 → Sep 11) are ledged — beats/cues/mood
-536/536/534 rows (14,449 phrase-cue markers); mood and the audit gate are
-caught up to the Sep 11 intake (audit 525/531; the 6 gaps are art/genre
-strays in the rescue batch), while fingerprint and key stamps await a
-catch-up pass on the newest batches (measured: 111/524 and 244/524 files
-— `fulltags --fingerprint|--key` closes it). The write-gate
+cores are shipped and _measured_: the archive is fully processed at
+archive scale (six intake batches, Sep 5 → Sep 11; exact ledger coverage
+lives in the FullTags table below — it is the only place these numbers
+live), the write-gate
 discipline has passed one ladder
 (key, 80.7%) and blocked two others (BPM phase-lock, saturated genre head)
 — which is the system working. CrateDeck finished its gig-night gate
-(preflight, player-compat verdicts), its agent surface (39-tool MCP
-server, weekly digest, notes feed, plugin), and the Sep 10 shelf-hygiene
-engine (findings ledger, quarantine-first apply, 0-orphan receipts).
+(preflight, player-compat verdicts), its agent surface, and the Sep 10
+shelf-hygiene engine. Surface census lives once in
+[surface-parity.md](surface-parity.md) §1.
 What remains is deliberately
 sequenced: two physical §0 tasks (evacuate Extra; create the rclone
 remote), the rekordbox key gauntlet, and a short list of next builds
@@ -94,20 +91,16 @@ sticks sync from this"; a FAILED verify shows on every tier until re-run.
 
 ### 🏷️ FullTags — enrich — **the analysis ladder executed; gates did their job**
 
-- **Working today:** one schema (`FullTag`/`TagPatch`), one atomic writer
-  (mp3/m4a/wav/flac/aiff, all format gotchas), file-first ground-truth
-  readers, the full art ladder, four-vote genre ladder, AI conf-gated
-  fallbacks with provenance stamps, standalone CLI + `audit --json`
-  gate — and the offline analysis stages: chromaprint fingerprints,
-  beat_this BPM, OpenKeyScan key, Essentia ONNX mood/dance/valence,
-  energy 2.0 blend, MusicBrainz folksonomy harvest. **Beatport is the
-  second source behind SoundCloud in every ladder** (rev 6.4/6.5) and
-  the only source of the DJ identity fields — label, mix name, official
-  remixer credit, ISRC — provenance-stamped `TXXX:BP-FIELDS`; the batch
-  stage (`megadj fetch`/`enrich`) and the single-file pipeline are 1:1,
-  and `fulltags audit` reports identity coverage. megadj's commands are
-  thin shims over it; the suite's tests gate it (see the roadmap for
-  rev-by-rev detail).
+- **Working today:** one schema, one atomic writer, file-first
+  ground-truth readers, the full art ladder, the four-vote genre ladder,
+  AI conf-gated fallbacks with provenance stamps, the offline analysis
+  stages (fingerprints, beats, key, mood/valence, energy 2.0, MB
+  harvest), Beatport as the second source + the DJ identity fields'
+  only owner, and `fulltags audit` reporting identity coverage —
+  megadj's commands are thin shims over it. **Mechanics, gate verdicts,
+  and rev history live once in
+  [fulltags-roadmap.md](fulltags-roadmap.md); this page owns only the
+  measured coverage table.**
 - **Measured state (the real archive — 534 downloaded tracks across six
   intake batches, Sep 5 → Sep 11; audit gate 525/531, gaps = art/genre
   strays in the Sep 11 rescue batch):**
@@ -145,8 +138,7 @@ sticks sync from this"; a FAILED verify shows on every tier until re-run.
   verdict, exit 1 for cron/agents), **N75/N78 player-compat verdicts**
   (public Pioneer matrix × measured dual-DB rows), **N76 firmware
   advisories**, **O83 weekly digest** (`deckctl prep`), the
-  **39-tool MCP server** (22 `deck_*` + 15 `archive_*` + 2 `getdat_*`,
-  readonly archive handle), **O87 attribution**, **O88 notes feed**, and
+  **39-tool MCP server**, **O87 attribution**, **O88 notes feed**, and
   the **O85
   plugin** packaging — plus the Sep 10 **shelf-hygiene engine** (hygiene
   scan/apply jobs, findings ledger, quarantine-first apply with 0-orphan
@@ -156,9 +148,10 @@ sticks sync from this"; a FAILED verify shows on every tier until re-run.
   Three fix-all rounds closed 14 CrateDeck bugs
   (progress/ETA/regexes/role-inference/SSE storms) with regression tests;
   the knip gate now blocks dead exports.
-- **Measured state:** 39 MCP tools (census-verified by
-  `surface-parity.test.ts`), 39 megadj CLI commands, 23 deckctl verbs,
-  snapshots capped 20/drive, events 2000/drive; `overall()` never fakes
+- **Measured state:** surface census (39 tools / commands / verbs /
+  routes) derives from source and lives once in
+  [surface-parity.md](surface-parity.md) §1; snapshots capped 20/drive,
+  events 2000/drive; `overall()` never fakes
   healthy; bitrot verdicts come only from real checksum runs.
 - **The gap:** three acceptance items need one real-hardware session
   (mirror-badge ground truth, detail-vs-known counts, 1440×900 one-screen);
@@ -170,7 +163,7 @@ sticks sync from this"; a FAILED verify shows on every tier until re-run.
 ### 🤖 The agent surface — **first-class, both halves**
 
 The O-layer goal — "agents are first-class operators" — is substantively
-done: `bun run mcp` exposes the whole product (39 tools) over stdio
+done: `bun run mcp` exposes the whole product over stdio
 JSON-RPC with readonly annotations, mutating-tool flags, and the interlock
 in the tool layer; the archive half reads megadj's own DB through a
 physically readonly handle; every job carries attribution; `deckctl prep`
@@ -185,11 +178,11 @@ and the optional `claude -p` cron wrapper for the weekly digest.
 
 The proposal's three moves, honestly re-scored after the window:
 
-| Move                                          | Was proposed                                            | Actually happened                                                                                                                                                                    | What's left                                                                                                                  |
+| Move                                          | Was proposed                                            | Actually happened (detail in the project sections above; Move-2 gates in [fulltags-roadmap.md](fulltags-roadmap.md))                                              | What's left                                                                                                                  |
 | --------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| **1 — Harden the moat** (CrateDeck v1.x)      | preflight, player verdict, runbook, differential mirror | preflight ✅, player verdict ✅, firmware notes ✅, automation ✅, ⌘K ✅, bench-anomaly ✅, shelf-hygiene engine ✅, role-aware archive tier ✅                                        | **C18a** assisted legacy-export runbook · **C21/C22** differential mirror + one-click sync · the 4 hardware-acceptance items |
-| **2 — Complete the metadata** (FullTags v1.x) | key → BPM → fingerprints → moods, gated                 | **all five P1 items executed**: key ✅ written, fingerprints ✅, mood ✅, BPM → pivoted to beats ledger ✅, MB genre harvest ✅ — two write-gates failed honestly and stayed blocked; similarity ✅ (Sep 8), set-builder ✅ (Sep 8/11), grid-audit wave-2 tooling ✅ (Sep 10) | structure labels (gated) · vocal density · stamp catch-up on the Sep 9–11 batches · **RB key gauntlet** (operational)        |
-| **3 — Agentify** (the O layer)                | MCP server, safety rails, weekly loop                   | **both MCP halves ✅** (39 tools), rails ✅, attribution ✅, notes ✅, prep ✅, plugin ✅                                                                                            | **O84** inbox-agent · `claude -p` digest cron · (K61 `megadj drop` underneath it)                                            |
+| **1 — Harden the moat** (CrateDeck v1.x)      | preflight, player verdict, runbook, differential mirror | all proposed items ✅ + bench-anomaly, shelf-hygiene engine, role-aware archive tiers                                                                                                 | **C18a** assisted legacy-export runbook · **C21/C22** differential mirror + one-click sync · the 4 hardware-acceptance items |
+| **2 — Complete the metadata** (FullTags v1.x) | key → BPM → fingerprints → moods, gated                 | **all five P1 items executed** (two write-gates failed honestly and stayed blocked); similarity ✅, set-builder ✅, grid-audit wave-2 tooling ✅                                      | structure labels (gated) · vocal density · stamp catch-up · **RB key gauntlet** (operational)                                |
+| **3 — Agentify** (the O layer)                | MCP server, safety rails, weekly loop                   | **both MCP halves ✅**, rails ✅, attribution ✅, notes ✅, prep ✅, plugin ✅                                                                                                       | **O84** inbox-agent · `claude -p` digest cron · (K61 `megadj drop` underneath it)                                            |
 
 The original 90-day line collapsed: "Weeks 3–5" (key/BPM) and "Weeks 5–7"
 (fingerprints) happened in one evening once the gates were built, and
@@ -206,13 +199,12 @@ longer time-boxed by the proposal — it's ordered by the queue below.
    Key analysis → Reload Tags → verify TKEY survives. Keys are in the
    files; this is what makes them durable. Everything else on drives
    waits for this.
-3. **Stamp catch-up on the Sep 9–11 intake** — `fulltags
-   ~/Music/DJ-Imports --fingerprint` then `--key` (measured gap: ACOUSTID
-   111/524, key 244/524, energy 439/524), then `megadj mood
-   --embeddings` to backfill the embeddings ledger (87 → ~524) so
+3. **Stamp catch-up + embeddings backfill** — `fulltags
+   ~/Music/DJ-Imports --fingerprint` then `--key`, then `megadj mood
+   --embeddings` (exact gaps: the FullTags ledger table above) so
    similarity sees the whole archive.
 4. **rekordbox memory-cue WRITE pass** — phrase cues from the ledger
-   (536 tracks, 14,449 markers) onto hardware, behind the interlock +
+   onto hardware, behind the interlock +
    gauntlet (the deliberate next gate).
 5. **Vocal density** (demucs-infer, ~3 s/track) → gold-set annotations
    for `megadj gold-report` (GA-00) so the re-gate harness can score
@@ -244,9 +236,9 @@ longer time-boxed by the proposal — it's ordered by the queue below.
 
 | Metric                       | Target                                 | Now                                                                                                                                                                     |
 | ---------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Metadata completeness        | 100% art/title/artist/album/genre/year | ✅ 525/531 under the upgraded audit gate (also requires mood + energy); the 6 gaps are art/genre strays in the Sep 11 rescue batch — 534 downloaded total                |
-| Key accuracy vs ground truth | ≥80% agreement                         | ✅ 80.7% measured on the 88-track reference — and written; catch-up run owed on the newest batches (244/524 stamped)                                                     |
-| Grid agreement               | >98%                                   | Independent cross-check shipped (46 ok / 40 off / 2 octave vs beat_this); grid-audit wave-2 tooling (gold harness, ANLZ triage) shipped Sep 10 — >98% bar awaits the gold set |
+| Metadata completeness        | 100% art/title/artist/album/genre/year | ✅ audit gate current run: 525/531 (live numbers: `megadj audit --json`; the FullTags ledger table owns the breakdown)                                                    |
+| Key accuracy vs ground truth | ≥80% agreement                         | ✅ 80.7% measured on the 88-track reference — and written ([fulltags-roadmap.md](fulltags-roadmap.md) #3 owns the gate detail)                                           |
+| Grid agreement               | >98%                                   | Cross-check shipped ([grid-audit-plan.md](grid-audit-plan.md) owns the plan) — the >98% bar awaits the gold set                                                           |
 | Gig-day answer time          | <60 s, one click                       | preflight ✅ shipped; latency unmeasured until the first real hardware session                                                                                          |
 | Mirror cost                  | weekly mirror in minutes               | mirror + verify shipped (`usb_mirror.py`); C21's differential changed-only pass unstarted                                                                               |
 | Hands-off reliability        | weekly digest, zero triggers           | `deckctl prep` ✅; cron wrapper optional, not wired                                                                                                                     |
