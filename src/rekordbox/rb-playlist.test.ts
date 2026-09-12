@@ -43,7 +43,9 @@ describe("rb-playlist gates", () => {
     // honest-but-tolerant: in ANY environment a dry-run must report
     // linked 0 / verified 0 / appliedMode false — writes are apply-only.
     // Long budget: the chain build reads per-file keys + probes the
-    // encrypted master through uv/pyrekordbox (~35s cold in CI-like runs)
+    // encrypted master through uv/pyrekordbox (~35s cold in CI-like runs);
+    // since the set-builder pool went whole-library (rev 22) the pool can
+    // be ~530 rows, so the key-cache warm-up dominates — 5 min budget.
     const r = await rbPlaylist({ mount: "/definitely-not-a-volume" });
     expect(r.appliedMode).toBe(false);
     if (r.ok) {
@@ -51,7 +53,7 @@ describe("rb-playlist gates", () => {
       expect(r.verified).toBe(0);
       expect(r.playlistId).toBeNull();
     }
-  }, 120_000);
+  }, 300_000);
 });
 
 describe("rb-playlist report contract", () => {

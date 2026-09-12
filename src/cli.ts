@@ -285,8 +285,19 @@ async function main(): Promise<void> {
         break;
       }
       case "adopt": {
-        const { adopt } = await import("./getdat/commands/adopt");
+        const { adopt, adoptFromShelf } =
+          await import("./getdat/commands/adopt");
         const json = rest.includes("--json");
+        if (rest.includes("--shelf")) {
+          await adoptFromShelf({
+            state,
+            musicDir: MUSIC_DIR,
+            json,
+            shelf: true,
+            dryRun: !rest.includes("--apply"),
+          });
+          break;
+        }
         await adopt({ state, musicDir: MUSIC_DIR, json });
         break;
       }

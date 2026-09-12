@@ -9,6 +9,15 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
+Rev 25 · 2026-09-12 — `megadj rb-adopt [drive] [--apply --yes]` mirrors
+every Rekordbox master `djmdContent` row into archive.db. The exact Content ID
+and complete scalar pyrekordbox payload live in the `rekordbox_content`
+cross-reference; archive source/YouTube IDs remain unchanged, and duplicate
+Content rows for one path link to one physical archive track. Apply mode backs
+archive.db up, runs transactionally, removes stale cross-links without deleting
+historical tracks, and verifies the full census. CLI-only under §4-A1 because
+it mutates archive state; the master database is read-only.
+
 Rev 24 · 2026-09-12 — FullTags set-builder recovery + handoff: proposals
 resolve stale `DJ-Imports` paths against the configured shelf, collapse DB
 aliases by physical path, and report requested versus actual runtime. The UI
@@ -185,7 +194,7 @@ kind`; the MCP schema advertised a kind whose call errored).
 
 | Surface    | Entry points                                                | Count                  |
 | ---------- | ----------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 41 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 42 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 39 tools               |
 | HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 61 routes              |
@@ -265,6 +274,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Similar tracks (I49 sounds-like)                  | `megadj similar <id>` ✅                                                     | `archive_similar_tracks` ✅                               | FullTags ⌗ Similar (rev 10) ✅                                                                   | — (rev 10)                               |
 | Set-builder proposal (M66)                        | `megadj setbuild [--preset --minutes --opener --limit]` ✅ (rev 20)          | `archive_set_build` ✅ (propose-only)                     | FullTags ⌗ Similar panel + saved draft/M3U8 download ✅ (rev 24)                                 | — (same read-only proposal; requested/actual duration stays explicit) |
 | Set-build → master playlist (rev 21)              | `megadj rb-playlist [drive] [--preset …] [--apply --yes]` ✅                 | ⛔ §4-A1 (master-DB mutation stays CLI)                   | ⛔ §4-A1                                                                                         | — (links existing content rows; dry-run predicts the link count) |
+| Rekordbox master → archive census (rev 25)         | `megadj rb-adopt [drive] [--apply --yes]` ✅                                | ⛔ §4-A1 (archive DB mutation stays CLI)                  | ⛔ §4-A1                                                                                         | — (master read-only; exact Content-ID cross-reference + full metadata mirror) |
 | Cue ledger                                        | `megadj cues` data ✅                                                        | `archive_cue_ledger` ✅                                   | FullTags ⌗ Cues ✅                                                                               | — (rev 6)                                |
 | Library overview (FullTags mirror)                | `megadj fetch`/`audit` data ✅                                               | `archive_library_overview` ✅                             | FullTags ⌗ Tags + GetDat ⌗ Library ✅                                                            | — (rev 6)                                |
 | Skip census (why rows didn't land)                | `megadj list` buckets ✅                                                     | `archive_skip_census` ✅                                  | GetDat ⌗ Pipeline (decisions card) + Backlog ✅                                                  | — (rev 7)                                |
@@ -356,7 +366,7 @@ this table AND the enforcement test together (that's the point).
 - **G2 — CLOSED (rev 3, GAP-8).** The Fleet ⌗ Prep tab renders the
   digest.
 - **A1 — archive mutation stays CLI-shaped.** `sync`/`ingest`/`fetch`/
-  `beats`/`mood`/`cues`/`organize`/`upgrade` are long-running,
+  `beats`/`mood`/`cues`/`organize`/`upgrade`/`rb-adopt` are long-running,
   file-mutating pipeline stages; MCP's archive half is **readonly by
   design** (`readonly: true` sqlite handle — a bug there cannot corrupt
   archive state). The UI does not re-implement pipeline logic — the

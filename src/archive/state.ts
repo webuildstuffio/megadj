@@ -834,6 +834,19 @@ export class ArchiveState {
   ): { key: string; analyzedAt: string } | null {
     return this.keysLedger.keyRecord(videoId, sourcePath);
   }
+
+  /** Re-point a cached key at the file's new path after a move (adopt
+   * --shelf). The key is intrinsic to the file bytes, so a path change
+   * alone must not force a re-read; content changes still invalidate
+   * through the mtime/analyzed_at check at read time. */
+  relabelKeySource(videoId: string, fromPath: string, toPath: string): void {
+    this.db
+      .query(
+        `UPDATE track_keys SET source_path = ?, analyzed_at = ?
+         WHERE video_id = ? AND source_path = ?`,
+      )
+      .run(toPath, this.now(), videoId, fromPath);
+  }
 }
 
 // I49 cosine kNN — re-exported from state-similar.ts (the SSOT) so

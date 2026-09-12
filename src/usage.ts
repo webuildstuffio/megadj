@@ -10,7 +10,9 @@ getdat — pull every track from everywhere:
                                                download from YouTube Music; resumable, rate-limited
   megadj status [--json]                       archive summary + recent runs
   megadj list    [filter] [--json]             list tracks (by status or text)
-  megadj adopt   [--json]                      register existing files in the DB
+  megadj adopt   [--shelf --apply] [--json]     register existing files in the DB;
+                                                --shelf repoints rows whose local file
+                                                moved to the shelf (dry-run by default)
   megadj retry   [--json]                      reset failure counters, then \`megadj sync\` to retry
 
 fulltags — 100% accuracy, 100% coverage, zero manual labour:
@@ -117,6 +119,13 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                 [--quarantine --yes] moves ONLY unknown
                                                files to the shelf quarantine (never
                                                deletes; dated manifest beside them)
+  megadj rb-adopt [drive] [--apply --yes] [--json]
+                                               mirror EVERY Rekordbox Content row into
+                                               archive.db with an exact Content-ID
+                                               cross-reference and full metadata JSON;
+                                               preserves YouTube/source IDs, dedupes one
+                                               physical file, backs archive.db up, and
+                                               verifies the complete census (dry first)
   megadj rb-import [drive] <folder> [--playlist NAME] [--group NAME]
                                                [--apply --yes] [--json]
                                                the sanctioned headless master-DB
