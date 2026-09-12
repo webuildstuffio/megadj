@@ -25,6 +25,7 @@ import { errMessage } from "../../shared/fmt";
 import { Onboard } from "../ui/Onboard";
 import { Palette } from "../ui/Palette";
 import { bindGlobalKeys } from "../ui/keys";
+import { useJobEvents } from "./useJobEvents";
 
 export function App() {
   const route = useRoute();
@@ -40,8 +41,6 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [reports, setReports] = useState<Map<string, ReportSummary>>(new Map());
   const searchRef = useRef<HTMLInputElement | null>(null);
-  /** coalesces SSE `job` bursts into ≤1 jobs refresh per second (see below) */
-  const jobRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** last fetch in which each job id actually CHANGED shape (progress /
    *  status / message / eta). JobsDock's stall warning keys off this — a
    *  re-fetch returning an identical row must NOT reset the clock, or the
@@ -64,98 +63,62 @@ export function App() {
   // jobs: load once on boot (the old code never did — the dock stayed empty
   // until the first SSE event) and whenever the server announces changes.
   const refreshJobs = useCallback(async () => {
-    try {
-      const [active, all] = await Promise.all([
-        api<Job[]>("/api/jobs?active=1", { quiet: true }),
-        api<Job[]>("/api/jobs", { quiet: true }),
-      ]);
-      // merge: active rows win over stale history rows with the same id
-      const byId = new Map<string, Job>(all.map((j) => [j.id, j]));
-      for (const j of active) byId.set(j.id, j);
-      const now = Date.now();
-      setJobs(
-        [...byId.values()]
-          .map((j) => {
-            // `_received` = when this row last CHANGED (client-side, shared
-            // types). Signature covers every field the dock renders; an
-            // identical re-fetch must not reset the staleness clock.
-            const sig = `${j.status}|${j.progress}|${j.phase}|${j.message}|${j.eta_seconds}|${j.error}`;
-            const prev = jobShapeAt.current.get(j.id);
-            const at = prev && prev.sig === sig ? prev.at : now;
-            jobShapeAt.current.set(j.id, { sig, at });
-            return { ...j, _received: at };
-          })
-          .toSorted(
-            (a, b) =>
-              (b.started_at ?? b.created_at) - (a.started_at ?? a.created_at),
-          ),
-      );
-    } catch (e) {
-      console.error("jobs refresh failed", e);
-      toast(`jobs unavailable: ${errMessage(e)}`, "err");
-    }
+    const [active, all] = await Promise.all([
+      api<Job[]>("/api/jobs?active=1", { quiet: true }),
+      api<Job[]>("/api/jobs", { quiet: true }),
+    ]);
+    // merge: active rows win over stale history rows with the same id
+    const byId = new Map<string, Job>(all.map((j) => [j.id, j]));
+    for (const j of active) byId.set(j.id, j);
+    const now = Date.now();
+    setJobs(
+      [...byId.values()]
+        .map((j) => {
+          // `_received` = when this row last CHANGED (client-side, shared
+          // types). Signature covers every field the dock renders; an
+          // identical re-fetch must not reset the staleness clock.
+          const sig = `${j.status}|${j.progress}|${j.phase}|${j.message}|${j.eta_seconds}|${j.error}`;
+          const prev = jobShapeAt.current.get(j.id);
+          const at = prev && prev.sig === sig ? prev.at : now;
+          jobShapeAt.current.set(j.id, { sig, at });
+          return { ...j, _received: at };
+        })
+        .toSorted(
+          (a, b) =>
+            (b.started_at ?? b.created_at) - (a.started_at ?? a.created_at),
+        ),
+    );
   }, []);
 
+  const refreshInterlock = useCallback(
+    () => api<InterlockState>("/api/interlock", { quiet: true }),
+    [],
+  );
+  const reportDrivesError = useCallback((error: unknown) => {
+    console.error("drive list refresh failed", error);
+    toast(`drive list unavailable: ${errMessage(error)}`, "err");
+  }, []);
+  const reportJobsError = useCallback((error: unknown) => {
+    toast(`jobs unavailable: ${errMessage(error)}`, "err");
+  }, []);
+
+  useJobEvents({
+    refreshDrives: refresh,
+    refreshJobs,
+    refreshInterlock,
+    reportDrivesError,
+    reportJobsError,
+    setInterlock,
+  });
+
   useEffect(() => {
-    refresh().catch((e: unknown) => {
-      console.error("drive list refresh failed", e);
-      toast(`drive list unavailable: ${errMessage(e)}`, "err");
-    });
-    refreshJobs();
-    const es = new EventSource("/api/events");
-    es.addEventListener("drives", () => refresh());
-    es.addEventListener("interlock", (ev) => {
-      try {
-        const data: unknown = JSON.parse(
-          (ev as MessageEvent<string>).data ?? "null",
-        );
-        if (
-          data &&
-          typeof data === "object" &&
-          typeof (data as { rekordbox_running?: unknown }).rekordbox_running ===
-            "boolean"
-        ) {
-          setInterlock(data as InterlockState);
-        } else {
-          console.error("interlock SSE payload failed shape check", data);
-        }
-      } catch (e) {
-        console.error("interlock SSE event was not valid JSON", e);
-      }
-    });
-    es.addEventListener("job", () => {
-      // the server emits `job` up to ~4/s per running job (progress ticks +
-      // log lines); a fetch each would hammer the server + SQLite. Coalesce
-      // bursts into one refresh per second (the trailing call wins).
-      if (jobRefreshTimer.current) return;
-      jobRefreshTimer.current = setTimeout(() => {
-        jobRefreshTimer.current = null;
-        refreshJobs();
-      }, 1000);
-      window.dispatchEvent(new CustomEvent("cratedeck:job"));
-    });
-    // SSE can silently die (proxy idle timeout, sleep/wake). EventSource
-    // auto-reconnects, but any job event that fired while dead is gone —
-    // so re-sync on every reconnect.
-    es.addEventListener("open", () => {
-      refreshJobs();
-    });
-    const interlockPoll = setInterval(async () => {
-      try {
-        const s = await api<InterlockState>("/api/interlock", { quiet: true });
-        setInterlock(s);
-      } catch {
-        // interlock poll is advisory (the SSE stream + server gate are the
-        // enforcement); transient fetch failures stay silent by design.
-      }
-    }, 3000);
-    // rail safety net: SSE drives events only fire on mount/unmount/first-seen,
-    // so renames (and similar in-place changes) would never refresh the rail.
-    const drivesPoll = setInterval(refresh, 10_000);
     // keyboard map lives in ui/keys.ts (tinykeys) — ⌘K opens the command
     // palette, the header search keeps its own Escape-to-blur below.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && document.activeElement === searchRef.current) {
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        event.key === "Escape" &&
+        document.activeElement === searchRef.current
+      ) {
         (document.activeElement as HTMLElement).blur();
       }
     };
@@ -164,14 +127,10 @@ export function App() {
       openPalette: () => setPaletteOpen(true),
     });
     return () => {
-      es.close();
-      clearInterval(interlockPoll);
-      clearInterval(drivesPoll);
       window.removeEventListener("keydown", onKey);
       unbindKeys();
-      if (jobRefreshTimer.current) clearTimeout(jobRefreshTimer.current);
     };
-  }, [refresh, refreshJobs]);
+  }, []);
 
   // debounce search; empty query closes the dropdown
   useEffect(() => {
