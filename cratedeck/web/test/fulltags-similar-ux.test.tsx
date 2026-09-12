@@ -64,18 +64,35 @@ describe("FullTags Similar and Set Builder UX", () => {
 
   test("preset buttons expose radio semantics and lock during a build", () => {
     const html = render(<SimilarTab />);
+    expect(html).toContain("1</span> Choose the energy journey");
+    expect(html.match(/setbuild-preset-option/g)).toHaveLength(3);
     expect(html).toContain('role="radio"');
     expect(html).toContain('aria-checked="true"');
+    expect(html).toContain('aria-labelledby="setbuild-preset-label"');
+    expect(html).toContain("Low");
+    expect(html).toContain("Maximum");
+    expect(html).toContain('class="setbuild-preset-arc"');
+    expect(html).toContain("Selected");
     expect(source).toContain("disabled={build.loading}");
     expect(source).toContain("busy={build.loading}");
   });
 
   test("settings changes invalidate an old proposal and promote the one CTA", () => {
     const html = render(<SimilarTab />);
-    expect(html).toContain('class="btn sm primary"');
+    expect(html).toContain("Build a mix from your whole archive");
+    expect(html).toContain("2</span> Set the length and build");
+    expect(html).toContain('class="btn primary setbuild-build"');
+    expect(html).toContain("Build 60-minute Peak time set");
+    expect(html).toContain("How FullTags scores this proposal");
     expect(html).toContain('aria-busy="false"');
     expect(source).toContain("invalidateProposal");
-    expect(source).toContain('build.stale ? "Update proposal"');
+    expect(source).toContain('build.stale ? "Update"');
     expect(source).toContain("Proposal settings changed");
+  });
+
+  test("minutes stay editable before normalizing to the supported range", () => {
+    expect(source).toContain('useState("60")');
+    expect(source).toContain("setMinutesInput(next)");
+    expect(source).toContain("onBlur={() => setMinutesInput(String(minutes))}");
   });
 });

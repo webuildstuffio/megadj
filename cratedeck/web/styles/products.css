@@ -290,20 +290,209 @@
 }
 
 /* ---- set builder (M66, FullTags ⌗ Similar) ---------------------------------
- * The propose-a-mix panel: preset segmented control + minutes + build CTA
- * on one row; the arc sparkline and the excluded-with-reason list below. */
-.setbuild-controls {
+ * One legible decision: choose the room's energy journey, then build. */
+.setbuild-lead {
+  max-width: 70ch;
+  margin: -2px 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.setbuild-preset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.setbuild-preset legend,
+.setbuild-setup-title {
   display: flex;
-  gap: 10px;
   align-items: center;
-  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 9px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 680;
+  letter-spacing: 0.01em;
+}
+.setbuild-preset legend > span,
+.setbuild-setup-title > span {
+  display: inline-grid;
+  width: 19px;
+  height: 19px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--surface);
+  background: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+}
+.setbuild-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 18px;
+}
+.setbuild-preset-option {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--surface2);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    transform 120ms ease;
+}
+.setbuild-preset-option:hover:not(:disabled) {
+  border-color: var(--muted);
+  background: var(--surface3);
+  transform: translateY(-1px);
+}
+.setbuild-preset-option.on {
+  border-color: var(--accent);
+  background: linear-gradient(145deg, var(--accent-dim), var(--surface2) 66%);
+  box-shadow: inset 0 0 0 1px rgba(56, 224, 164, 0.1);
+}
+.setbuild-preset-option:disabled {
+  cursor: wait;
+  opacity: 0.64;
+}
+.setbuild-preset-head,
+.setbuild-preset-range {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.setbuild-preset-head strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.setbuild-preset-selected {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.setbuild-preset-arc {
+  display: block;
+  width: 100%;
+  height: 36px;
+  overflow: visible;
+}
+.setbuild-preset-guide {
+  fill: none;
+  stroke: var(--stroke);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.setbuild-preset-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.setbuild-preset-arc circle {
+  fill: var(--accent);
+}
+.setbuild-preset-range {
+  color: var(--text2);
+  font-size: 10px;
+  font-weight: 650;
+}
+.setbuild-preset-range span:nth-child(2) {
+  color: var(--faint);
+  font-weight: 500;
+}
+.setbuild-preset-description {
+  color: var(--faint);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+.setbuild-setup-title {
+  margin-bottom: 8px;
+}
+.setbuild-controls {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.55fr) minmax(160px, 1fr) auto;
+  gap: 9px;
+  align-items: stretch;
   margin-bottom: 10px;
+}
+.setbuild-minutes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface2);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+.setbuild-minutes > span {
+  display: grid;
+  gap: 1px;
+}
+.setbuild-minutes small {
+  color: var(--faint);
+  font-size: 9.5px;
+  font-weight: 450;
+}
+.setbuild-minutes input {
+  width: 64px;
+  min-height: 30px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.setbuild-build {
+  justify-content: center;
+  min-width: 208px;
+  min-height: 48px;
+  padding-inline: 18px;
+  font-weight: 720;
+}
+.setbuild-method {
+  margin: 0 0 12px;
+  border-top: 1px solid var(--line);
+  color: var(--faint);
+  font-size: 11px;
+}
+.setbuild-method summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 2px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.setbuild-method summary small {
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .setbuild-evidence {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  margin: 2px 0 12px;
+  margin: 0 0 4px;
 }
 .setbuild-evidence > div {
   display: grid;
@@ -323,17 +512,6 @@
 }
 .setbuild-evidence dd {
   margin: 0;
-}
-.setbuild-minutes {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  font-size: 12px;
-}
-.setbuild-desc {
-  flex-basis: 100%;
-  font-size: 11.5px;
-  color: var(--faint);
 }
 .setbuild-fresh {
   font-size: 11.5px;
@@ -438,7 +616,7 @@
   flex: none;
 }
 .setbuild-opener-pick {
-  flex-basis: 100%;
+  align-self: center;
   font-size: 12px;
 }
 .setbuild-opener-pick summary {
@@ -451,7 +629,7 @@
   margin-bottom: 6px;
 }
 .setbuild-opener-disabled {
-  flex-basis: 100%;
+  align-self: center;
   color: var(--faint);
   font-size: 12px;
 }
@@ -461,8 +639,15 @@
 }
 
 @media (max-width: 720px) {
+  .setbuild-preset-grid,
   .setbuild-evidence {
     grid-template-columns: 1fr;
+  }
+  .setbuild-controls {
+    grid-template-columns: 1fr;
+  }
+  .setbuild-build {
+    width: 100%;
   }
 }
 

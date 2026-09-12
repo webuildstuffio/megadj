@@ -1,5 +1,5 @@
-- Audience: a DJ planning a playable set from a locally analyzed archive.
-- One action: build a trustworthy ordered mix proposal.
-- Five-second message: choose an energy arc and length; FullTags explains the measured sources and checks before proposing the chain.
-- Steps today: 1. Open Similar. 2. Decode the intro. 3. Choose preset/minutes. 4. Optionally hunt for an opener. 5. Build. 6. Infer which data was checked. 7. Notice manually when controls no longer match the result.
-- Steps after: 1. Open Similar. 2. Choose preset/minutes/opener in one control group. 3. Build or update. 4. Read the explicit source/check summary and inspect/copy the chain.
+- Audience: a DJ who wants a trustworthy set draft without learning the scoring engine first.
+- One action: build a playable ordered mix proposal from the whole archive.
+- Five-second message: choose how the room's energy should move; FullTags checks every actual file before proposing the set.
+- Steps today: 1. Open Similar. 2. Parse three evidence tiles. 3. Guess how the small preset tabs differ. 4. Set length/opener. 5. Build.
+- Steps after: 1. Choose a visibly graphed energy journey. 2. Set length and optional opener. 3. Build. 4. Inspect the result or expand the scoring evidence.

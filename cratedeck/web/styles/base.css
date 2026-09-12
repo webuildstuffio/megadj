@@ -21,7 +21,10 @@
 .pl-link:focus-visible,
 .check-ico:focus-visible,
 .ob-tour-row:focus-visible,
-.infotip:focus-visible {
+.infotip:focus-visible,
+.setbuild-preset-option:focus-visible,
+.setbuild-method summary:focus-visible,
+.setbuild-opener-pick summary:focus-visible {
   outline: 2px solid var(--info);
   outline-offset: 2px;
   border-radius: 8px;

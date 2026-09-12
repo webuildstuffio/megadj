@@ -290,6 +290,90 @@ const clampMinutes = (raw: number): number =>
     ? Math.min(SET_MINUTES_MAX, Math.max(SET_MINUTES_MIN, Math.round(raw)))
     : 60;
 
+const energyBand = (value: number): string =>
+  value < 3.5 ? "Low" : value < 6 ? "Medium" : value < 8 ? "High" : "Maximum";
+
+const arcY = (value: number): number => 30 - ((value - 1) / 8) * 22;
+
+function PresetOption(props: {
+  preset: SetPresetDef;
+  selected: boolean;
+  disabled: boolean;
+  index: number;
+  onSelect: (preset: SetPresetDef) => void;
+}) {
+  const { preset, selected } = props;
+  const descriptionId = `setbuild-preset-${preset.id}-description`;
+  const [start, end] = preset.arousal;
+  const rising = end >= start;
+
+  return (
+    <button
+      type="button"
+      class={`setbuild-preset-option${selected ? " on" : ""}`}
+      role="radio"
+      aria-checked={selected}
+      aria-describedby={descriptionId}
+      tabIndex={selected ? 0 : -1}
+      disabled={props.disabled}
+      onClick={() => props.onSelect(preset)}
+      onKeyDown={(event) => {
+        const last = SET_PRESET_DEFS.length - 1;
+        const nextIndex =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? last
+              : event.key === "ArrowRight" || event.key === "ArrowDown"
+                ? (props.index + 1) % SET_PRESET_DEFS.length
+                : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                  ? (props.index + last) % SET_PRESET_DEFS.length
+                  : null;
+        if (nextIndex === null) return;
+        event.preventDefault();
+        const next = SET_PRESET_DEFS[nextIndex];
+        if (!next) return;
+        props.onSelect(next);
+        event.currentTarget.parentElement
+          ?.querySelectorAll<HTMLElement>('[role="radio"]')
+          .item(nextIndex)
+          .focus();
+      }}
+    >
+      <span class="setbuild-preset-head">
+        <strong>{preset.label}</strong>
+        {selected && (
+          <span class="setbuild-preset-selected">
+            <Icon name="check" size={11} /> Selected
+          </span>
+        )}
+      </span>
+      <svg
+        class="setbuild-preset-arc"
+        viewBox="0 0 120 36"
+        role="img"
+        aria-label={`${preset.label} energy ${rising ? "rises" : "falls"} from ${energyBand(start)} to ${energyBand(end)}`}
+      >
+        <path class="setbuild-preset-guide" d="M4 30 H116" />
+        <path
+          class="setbuild-preset-line"
+          d={`M4 ${arcY(start)} C42 ${arcY(start)}, 78 ${arcY(end)}, 116 ${arcY(end)}`}
+        />
+        <circle cx="4" cy={arcY(start)} r="2.5" />
+        <circle cx="116" cy={arcY(end)} r="2.5" />
+      </svg>
+      <span class="setbuild-preset-range" aria-hidden="true">
+        <span>{energyBand(start)}</span>
+        <span>{rising ? "rises to" : "drifts to"}</span>
+        <span>{energyBand(end)}</span>
+      </span>
+      <span id={descriptionId} class="setbuild-preset-description">
+        {preset.description}
+      </span>
+    </button>
+  );
+}
+
 /** Set-builder opener: the first track, either auto-picked by the arc or
  *  forced (the `opener` param every other surface takes). */
 function OpenerPicker(props: {
@@ -351,7 +435,9 @@ function SetBuildPanel() {
   const [preset, setPreset] = useState<SetPresetDef>(
     SET_PRESET_DEFS.find((p) => p.id === "peak") ?? SET_PRESET_DEFS[0]!,
   );
-  const [minutes, setMinutes] = useState(60);
+  const [minutesInput, setMinutesInput] = useState("60");
+  const minutes =
+    minutesInput.trim() === "" ? 60 : clampMinutes(Number(minutesInput));
   const [opener, setOpener] = useState<TrackPick | null>(null);
   const [openerQuery, setOpenerQuery] = useState("");
   const openerSearch = useFetched<ArchiveSearchHit[] | null>(
@@ -416,111 +502,72 @@ function SetBuildPanel() {
     if (!first || !last) return null;
     return `${first.n}${first.letter} → ${last.n}${last.letter}`;
   })();
-  const readyBuildLabel = build.stale ? "Update proposal" : "Build proposal";
-  const buildLabel = build.loading ? "Building…" : readyBuildLabel;
+  const buildVerb = build.stale ? "Update" : "Build";
+  const buildLabel = build.loading
+    ? "Building your set…"
+    : `${buildVerb} ${minutes}-minute ${preset.label} set`;
 
   return (
     <Card class="setbuild">
-      <SectionHead icon="compass" title="Set builder — propose a mix" />
-      <dl class="setbuild-evidence" aria-label="Set builder evidence">
-        <div>
-          <dt>Sources</dt>
-          <dd>
-            Entire downloaded archive DB · Beats ledger BPM · file key tags ·
-            Mood ledger energy
-          </dd>
-        </div>
-        <div>
-          <dt>Checks</dt>
-          <dd>
-            File exists · ±6% tempo window · Camelot-compatible key moves ·
-            selected energy arc
-          </dd>
-        </div>
-        <div>
-          <dt>Output</dt>
-          <dd>
-            Writes no tags or playlists — review and accept tracks by hand
-          </dd>
-        </div>
-      </dl>
-      <div class="setbuild-controls">
-        <div class="seg" role="radiogroup" aria-label="Energy arc preset">
+      <SectionHead icon="compass" title="Build a mix from your whole archive" />
+      <p class="setbuild-lead">
+        Choose how the room's energy should move. FullTags checks every actual
+        file, then orders a playable proposal using tempo, key, and mood.
+      </p>
+      <fieldset class="setbuild-preset">
+        <legend id="setbuild-preset-label">
+          <span>1</span> Choose the energy journey
+        </legend>
+        <div
+          class="setbuild-preset-grid"
+          role="radiogroup"
+          aria-labelledby="setbuild-preset-label"
+        >
           {SET_PRESET_DEFS.map((p, index) => (
-            <button
-              type="button"
+            <PresetOption
               key={p.id}
-              class={preset.id === p.id ? "on" : ""}
-              title={p.description}
-              role="radio"
-              aria-checked={preset.id === p.id}
-              tabIndex={preset.id === p.id ? 0 : -1}
+              preset={p}
+              selected={preset.id === p.id}
               disabled={build.loading}
-              onClick={() => {
-                if (p.id === preset.id) return;
-                setPreset(p);
-                invalidateProposal();
-              }}
-              onKeyDown={(event) => {
-                const last = SET_PRESET_DEFS.length - 1;
-                const nextIndex =
-                  event.key === "Home"
-                    ? 0
-                    : event.key === "End"
-                      ? last
-                      : event.key === "ArrowRight" || event.key === "ArrowDown"
-                        ? (index + 1) % SET_PRESET_DEFS.length
-                        : event.key === "ArrowLeft" || event.key === "ArrowUp"
-                          ? (index + last) % SET_PRESET_DEFS.length
-                          : null;
-                if (nextIndex === null) return;
-                event.preventDefault();
-                const next = SET_PRESET_DEFS[nextIndex];
-                if (!next || next.id === preset.id) return;
+              index={index}
+              onSelect={(next) => {
+                if (next.id === preset.id) return;
                 setPreset(next);
                 invalidateProposal();
-                event.currentTarget.parentElement
-                  ?.querySelectorAll<HTMLElement>('[role="radio"]')
-                  .item(nextIndex)
-                  .focus();
               }}
-            >
-              {p.label}
-            </button>
+            />
           ))}
         </div>
+      </fieldset>
+      <div class="setbuild-setup-title">
+        <span>2</span> Set the length and build
+      </div>
+      <div class="setbuild-controls">
         <label
-          class="muted setbuild-minutes"
+          class="setbuild-minutes"
           title="Target set length — the chain fills until the budget is spent"
         >
-          minutes
+          <span>
+            Set length
+            <small>
+              {SET_MINUTES_MIN}–{SET_MINUTES_MAX} minutes
+            </small>
+          </span>
           <input
             type="number"
             min={SET_MINUTES_MIN}
             max={SET_MINUTES_MAX}
-            value={minutes}
-            style={{ width: 72 }}
+            value={minutesInput}
             aria-label={`Target set length in minutes (${SET_MINUTES_MIN}–${SET_MINUTES_MAX})`}
             disabled={build.loading}
-            onChange={(e) => {
-              const next = clampMinutes(
-                Number((e.target as HTMLInputElement).value),
-              );
-              if (next === minutes) return;
-              setMinutes(next);
+            onInput={(event) => {
+              const next = (event.target as HTMLInputElement).value;
+              setMinutesInput(next);
               invalidateProposal();
             }}
+            onBlur={() => setMinutesInput(String(minutes))}
           />
         </label>
-        <button
-          type="button"
-          class="btn sm primary"
-          onClick={run}
-          disabled={build.loading}
-          aria-busy={build.loading}
-        >
-          <Icon name="play" size={12} /> {buildLabel}
-        </button>
         <OpenerPicker
           query={openerQuery}
           onQuery={setOpenerQuery}
@@ -534,8 +581,44 @@ function SetBuildPanel() {
           }}
           busy={build.loading}
         />
-        <span class="setbuild-desc">{preset.description}</span>
+        <button
+          type="button"
+          class="btn primary setbuild-build"
+          onClick={run}
+          disabled={build.loading}
+          aria-busy={build.loading}
+        >
+          <Icon name="play" size={12} /> {buildLabel}
+        </button>
       </div>
+      <details class="setbuild-method">
+        <summary>
+          <span>How FullTags scores this proposal</span>
+          <small>read-only</small>
+        </summary>
+        <dl class="setbuild-evidence" aria-label="Set builder evidence">
+          <div>
+            <dt>Sources</dt>
+            <dd>
+              Entire downloaded archive DB · Beats ledger BPM · file key tags ·
+              Mood ledger energy
+            </dd>
+          </div>
+          <div>
+            <dt>Checks</dt>
+            <dd>
+              File exists · ±6% tempo window · Camelot-compatible key moves ·
+              selected energy arc
+            </dd>
+          </div>
+          <div>
+            <dt>Output</dt>
+            <dd>
+              Writes no tags or playlists — review and accept tracks by hand
+            </dd>
+          </div>
+        </dl>
+      </details>
       {build.stale && (
         <div class="setbuild-stale" role="status">
           <b>Proposal settings changed.</b> The chain below still shows the
