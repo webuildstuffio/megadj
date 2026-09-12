@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { DECK_MCP_SURFACES } from "../src/mcp_surfaces";
 
 /**
  * Surface-parity regression guard (docs/surface-parity.md).
@@ -101,7 +102,9 @@ function mcpTools(): string[] {
     )
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
-  return [...new Set(tools)].toSorted();
+  return [
+    ...new Set([...DECK_MCP_SURFACES.map((surface) => surface.tool), ...tools]),
+  ].toSorted();
 }
 
 /** UI job-enqueue surface: every kind the web can POST to /jobs. The
@@ -397,7 +400,12 @@ describe("surface parity (docs/surface-parity.md)", () => {
       "deck_rename",
       "deck_dismiss",
     ]) {
-      const def = src.split(`${tool}: {`)[1]?.split(/\n\s{2}\}/)[0] ?? "";
+      const verb = tool.slice("deck_".length);
+      const handlers =
+        src.split("const DECK_HANDLERS: Record<DeckMcpVerb, ToolDef> = {")[1] ??
+        "";
+      const def =
+        handlers.split(`\n  ${verb}: {`)[1]?.split(/\n\s{2}\}/)[0] ?? "";
       expect(def.length, `${tool} definition found`).toBeGreaterThan(0);
       expect(def, `${tool} must carry destructive: true`).toContain(
         "destructive: true",
@@ -472,5 +480,14 @@ describe("surface parity (docs/surface-parity.md)", () => {
         `stale UI-kind exemption: "${k}" is not a job kind`,
       ).toBe(true);
     }
+  });
+  test("deckctl and MCP derive their shared capability census from one map", () => {
+    const deckctlTwinVerbs = deckctlVerbs().filter((verb) => verb !== "stop");
+    expect(deckctlTwinVerbs).toEqual(
+      DECK_MCP_SURFACES.map((surface) => surface.verb).toSorted(),
+    );
+    expect(mcpTools().filter((tool) => tool.startsWith("deck_"))).toEqual(
+      DECK_MCP_SURFACES.map((surface) => surface.tool).toSorted(),
+    );
   });
 });

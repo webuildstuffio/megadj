@@ -49,6 +49,7 @@
  *   getdat_convert {dry_run?,no_artwork?}  run archive-wide WAV→AIFF conversion
  */
 import { archiveTools } from "./archive_tools";
+import { deriveDeckTools, type DeckMcpVerb } from "./mcp_surfaces";
 import {
   str,
   num,
@@ -200,8 +201,8 @@ async function runJobAction(
   };
 }
 
-const TOOLS: Record<string, ToolDef> = {
-  deck_status: {
+const DECK_HANDLERS: Record<DeckMcpVerb, ToolDef> = {
+  status: {
     description:
       "CrateDeck overview: rekordbox interlock state, every known drive with badge verdicts, and active jobs. Call this first.",
     inputSchema: noArgs(),
@@ -215,14 +216,14 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_drives: {
+  drives: {
     description:
       "List all known DJ USB drives with health badges (mounted, last verify, space).",
     inputSchema: noArgs(),
     run: async () => apiGetJson("/api/drives"),
   },
 
-  deck_report: {
+  report: {
     description:
       "Full health dossier for one drive: dual-DB hardware gate, beatgrid coverage, bitrot (checksum ledger), space, mirror parity — with an overall verdict. format=dossier returns the export bundle (drive + snapshot + sync + report + timeline + benchmarks). Drive = volume name, nickname, or id.",
     inputSchema: obj(
@@ -243,7 +244,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_coverage: {
+  coverage: {
     description:
       "Fleet coverage: which tracks live on which drives, plus the at-risk list (tracks below the redundancy floor).",
     inputSchema: obj({
@@ -258,7 +259,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_redundancy: {
+  redundancy: {
     description:
       "Per-playlist redundancy audit: is every track in each playlist present on enough drives? Returns pass/warn/fail per playlist with gap lists.",
     inputSchema: obj({ min_copies: n() }),
@@ -271,7 +272,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_diff: {
+  diff: {
     description:
       "Compare two drives: tracks added, missing, or byte-changed between them.",
     inputSchema: obj(
@@ -290,13 +291,13 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_jobs: {
+  jobs: {
     description: "Recent CrateDeck jobs with status/progress.",
     inputSchema: noArgs(),
     run: async () => apiGetJson("/api/jobs"),
   },
 
-  deck_run: {
+  run: {
     description:
       "ENQUEUES A DRIVE JOB (mutating): scan (inventory) · verify (deep integrity audit) · mirror (copy master→mirror; writes the mirror) · benchmark (read speed) · checksum (hash ledger). Blocks until done when wait=true. Refuses while rekordbox is running. Mirror only ever writes to the mirror drive.",
     destructive: true,
@@ -352,7 +353,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_cancel: {
+  cancel: {
     description: "Cancel an active job by id.",
     destructive: true,
     inputSchema: obj({ job_id: s("") }, ["job_id"]),
@@ -364,7 +365,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_hygiene: {
+  hygiene: {
     description:
       "Shelf hygiene queue (docs/shelf-hygiene-2026-09-09.md): census of duplicate/junk findings on the shelf master. action=scan enqueues a detection job; action=apply executes CONFIRMED findings into the shelf quarantine (never deletes); action=confirm/dismiss decides one finding (required id). Bare call = read-only census.",
     destructive: true,
@@ -406,7 +407,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_fixes: {
+  fixes: {
     description:
       "Booth compatibility fixes (the checks behind megadj booth-fix, fleet from deck_booth): action=scan enqueues a dry-run audit of the shelf Contents; action=apply executes the SAFE subset (filename renames + tag sanitization — never deletes; `none` rows are proposals only). Bare call = read-only census of the last scan.",
     destructive: true,
@@ -435,7 +436,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_explain: {
+  explain: {
     description:
       "Documentation as a tool: what each job type checks, typical duration, and safety guarantees. Kind omitted = all jobs.",
     inputSchema: obj({
@@ -466,14 +467,14 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_preflight: {
+  preflight: {
     description:
       "B12 gig-night gate: aggregated pass/fail checklist over every mounted drive (dual-DB currency, grids, last verify, read speed, bitrot, space, mirror parity). Verdict is ready / attention / not-ready / unknown with per-check fixes. Read-only.",
     inputSchema: noArgs(),
     run: async () => apiGetJson("/api/preflight"),
   },
 
-  deck_players: {
+  players: {
     description:
       "N78 hardware compatibility: which Pioneer players (XDJ-XZ, CDJ-3000, XDJ-AZ, OPUS-QUAD…) can actually read a drive, derived from its MEASURED dual-DB state. Drive omitted = every known drive. Read-only.",
     inputSchema: obj({ drive: DRIVE_PARAM(" (omit for all drives)") }),
@@ -485,7 +486,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_booth: {
+  booth: {
     description:
       "The booth fleet: which Pioneer players the compat gates (megadj audit / booth-fix / ingest) enforce, each with its spec profile and triple citations. ids omitted = read-only show; ids given = SELECT that fleet (persists to config.toml [booth].fleet) — confirm with the human before setting. Empty selection re-applies the default trio.",
     inputSchema: obj({
@@ -506,7 +507,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_note: {
+  note: {
     description:
       "RECORDS A FINDING ON A DRIVE'S TIMELINE (mutating, human-visible): land a conclusion an agent reached about a drive (e.g. 'firmware 3.30 has the playlist-vanishing bug — stay on 3.22'). The note shows as a dismissable card on the drive page. Max 600 chars. Confirm with the human before calling.",
     destructive: true,
@@ -547,7 +548,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_rename: {
+  rename: {
     description:
       "RENAMES A DRIVE (mutating): set or clear the display nickname shown across the UI, deckctl, and MCP. Pass an empty string or omit nickname to clear. Confirm with the human before calling — this is a human-facing label.",
     destructive: true,
@@ -572,7 +573,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_notes: {
+  notes: {
     description:
       "Active agent findings for a drive (or all drives): notes landed via deck_note that a human has not dismissed. Read-only.",
     inputSchema: obj({ drive: DRIVE_PARAM(" (omit for all drives)") }),
@@ -597,7 +598,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_prep: {
+  prep: {
     description:
       "O83 weekly digest as a tool: renders the markdown gig-readiness digest (preflight verdicts → redundancy gaps → archive status + LOWQ queue) from the same reads `deckctl prep` uses. Read-only — it renders; it never writes.",
     inputSchema: noArgs(),
@@ -611,7 +612,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_search: {
+  search: {
     description:
       "B9 global search (the UI's ⌘K): case-insensitive substring match over playlists and folders in every drive snapshot. Returns per-drive match lists. Read-only.",
     inputSchema: obj(
@@ -625,7 +626,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_help: {
+  help: {
     description:
       "CrateDeck's in-app help as a tool: the glossary (Master, Mirror, Ghost, Interlock, Dual-DB, Beatgrid, Bitrot, Preflight, Redundancy, Dossier, LOWQ, Snapshot), the five job explainers (what/when/safety/duration), and the UI surface tour. Call with term= a glossary word or job kind for one entry; omit it for everything. Read-only — use this to answer 'what does X mean' before acting.",
     inputSchema: obj({
@@ -653,7 +654,7 @@ const TOOLS: Record<string, ToolDef> = {
     },
   },
 
-  deck_dismiss: {
+  dismiss: {
     description:
       "DISMISSES AN AGENT NOTE (mutating, confirm with the human): removes a finding from the active notes feed once it's handled — history is kept, the timeline card stays but reads as dismissed. Pass the note id exactly as returned by deck_note / deck_notes. Only agent notes can be dismissed.",
     destructive: true,
@@ -677,7 +678,10 @@ const TOOLS: Record<string, ToolDef> = {
       return { ok: true, drive: d.nickname ?? d.name, id: noteId };
     },
   },
+};
 
+const TOOLS: Record<string, ToolDef> = {
+  ...deriveDeckTools(DECK_HANDLERS),
   getdat_ingest: {
     description:
       "GetDat intake (mutating): runs megadj ingest <folder> --json through the async CLI job seam and returns the CLI's own summary, including tagged, artwork, dedupe, conversion, and compatibility counts. dry_run defaults false. The call is bounded by the configured job timeout.",
