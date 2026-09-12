@@ -27,6 +27,7 @@ export const MAINTENANCE_VERBS = [
   "shelf-restore",
   "rb-fix-paths",
   "rb-unmatched",
+  "rb-adopt",
   "rb-import",
   "rb-playlist",
   "rb-anlz-spike",
@@ -166,6 +167,34 @@ export async function runMaintenanceCommand(
       // but a SUCCESSFUL apply (quarantine ran) leaves unknown == 0 and
       // must read as success; failing it would block automation loops
       if (!r.ok || (r.unknown > 0 && !r.appliedMode)) process.exitCode = 1;
+      return;
+    }
+    case "rb-adopt": {
+      // Collection census → archive cross-reference. This reads every
+      // master Content row but writes archive.db only: exact Rekordbox IDs
+      // live in rekordbox_content while source/YouTube IDs remain intact.
+      const flags = parseFlags(rest, [], ["json", "apply", "yes"]);
+      const mount = mountFrom(positionalArgs(rest, [])[0]);
+      const json = flags.bools.has("json");
+      const state = new ArchiveState(DB_PATH);
+      try {
+        const { rbAdopt, printRbAdoptReport } =
+          await import("../rekordbox/rb-adopt");
+        const result = rbAdopt({
+          state,
+          archiveDb: DB_PATH,
+          mount,
+          apply: flags.bools.has("apply"),
+          yes: flags.bools.has("yes"),
+          log: (message) => (json ? undefined : console.log(message)),
+        });
+        if (json) await writeJson(result);
+        else printRbAdoptReport(result, console.log);
+        if (!result.ok || (!result.appliedMode && result.missingFiles > 0))
+          process.exitCode = 1;
+      } finally {
+        state.close();
+      }
       return;
     }
     case "rb-import": {
