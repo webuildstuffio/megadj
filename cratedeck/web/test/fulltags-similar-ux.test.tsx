@@ -85,8 +85,10 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("Build 60-minute Peak time set");
     expect(html).toContain("How FullTags scores this proposal");
     expect(html).toContain('aria-busy="false"');
+    expect(html).toContain('aria-disabled="false"');
     expect(source).toContain("invalidateProposal");
     expect(source).toContain('build.stale ? "Update"');
+    expect(source).toContain("if (build.loading) return");
     expect(source).toContain("Proposal settings changed");
   });
 

@@ -584,8 +584,11 @@ function SetBuildPanel() {
         <button
           type="button"
           class="btn primary setbuild-build"
-          onClick={run}
-          disabled={build.loading}
+          onClick={() => {
+            if (build.loading) return;
+            void run();
+          }}
+          aria-disabled={build.loading}
           aria-busy={build.loading}
         >
           <Icon name="play" size={12} /> {buildLabel}
