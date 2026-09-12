@@ -56,7 +56,11 @@ Distrust extensions at intake: pool rips ship MP4/AAC audio wearing a
 `.mp3` name (tag writer picks the mp3 muxer → exit 234, and Pioneer
 chokes on the container). `drop`'s container-truth probe renames to the
 true `.m4a` before any writer runs. Per-file failures quarantine and
-report; one bad file never kills a batch run.
+report; one bad file never kills a batch run. AIFF tag writes are
+format-specific too: never `ID3(p).save()` on AIFF — it prepends a raw
+ID3 chunk over the FORM header (silent corruption). Use `AIFF(p)`; if a
+corrupt file surfaces, scan for the buried `FORM` offset and strip the
+junk prefix (audio bytes survive; the embedded ID3 chunk keeps tags).
 
 Distrust SoundCloud genres too: `yt-dlp` search metadata returns a
 numeric SC genre ID, never a name. Both write points (`art-sources.ts`
