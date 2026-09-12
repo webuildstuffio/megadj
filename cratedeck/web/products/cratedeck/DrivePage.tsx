@@ -13,18 +13,12 @@ import { TIER_EXPLANATION } from "../../../shared/check_matrix";
 import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { navigate } from "../../app/router";
-import { PlaylistsTab } from "./PlaylistsTab";
-import { HealthTab } from "./HealthTab";
-import { TimelineTab } from "./TimelineTab";
-import { VerifyTab } from "./VerifyTab";
-import { OverviewTab } from "./OverviewTab";
 import { InfoTip } from "../../ui/InfoTip";
 import { HELP_JOBS, ROLE_HELP, VERDICT_HELP } from "../../../shared/help";
-import { PhotoTab, type PhotoHit } from "./PhotoTab";
-import { HygieneTab } from "./HygieneTab";
-import { FixesTab } from "./FixesTab";
+import type { PhotoHit } from "./PhotoTab";
 import { DRIVE_TABS } from "../shared";
 import { useDriveData, type DriveDetail } from "./useDriveData";
+import { DriveContent } from "./DriveContent";
 
 type TabId = (typeof DRIVE_TABS)[number]["id"];
 
@@ -286,7 +280,6 @@ export function DrivePage(props: {
   const { detail } = page;
 
   const snap = detail.snapshot;
-  const dj = snap?.dj ?? null;
   const name = detail.drive.nickname ?? detail.drive.name;
   const checks = report?.checks ?? [];
   // unknown tab → overview; the hoisted conf kills per-tab casts in JSX
@@ -550,53 +543,27 @@ export function DrivePage(props: {
         ))}
       </div>
 
-      {tabConf.id === "overview" && (
-        <OverviewTab name={name} snap={snap} dj={dj} checks={checks} />
-      )}
-
-      {tabConf.id === "playlists" && <PlaylistsTab snap={snap} />}
-
-      {tabConf.id === "health" && (
-        <HealthTab
-          drive={detail.drive}
-          snap={snap}
-          bench={bench}
-          probes={probes}
-        />
-      )}
-
-      {tabConf.id === "verify" && (
-        <VerifyTab driveId={driveId} report={verify} />
-      )}
-
-      {tabConf.id === "timeline" && (
-        <TimelineTab events={timeline} driveId={driveId} />
-      )}
-
-      {tabConf.id === "photos" && (
-        <PhotoTab
-          drive={detail.drive}
-          driveId={driveId}
-          name={nameGuess(detail)}
-          photoQuery={photoQuery}
-          setPhotoQuery={setPhotoQuery}
-          onSearch={searchPhotos}
-          hits={photoHits}
-          onChoose={choosePhoto}
-          onClear={clearPhoto}
-          driveImages={driveImages}
-          onChooseDriveImage={chooseDriveImage}
-          onUploadFile={uploadPhoto}
-        />
-      )}
-
-      {tabConf.id === "hygiene" && isShelf && (
-        <HygieneTab driveId={driveId} driveName={name} />
-      )}
-
-      {tabConf.id === "fixes" && isShelf && (
-        <FixesTab driveId={driveId} driveName={name} />
-      )}
+      <DriveContent
+        tab={tabConf.id}
+        driveId={driveId}
+        detail={detail}
+        name={nameGuess(detail)}
+        report={report}
+        timeline={timeline}
+        bench={bench}
+        probes={probes}
+        verify={verify}
+        isShelf={isShelf}
+        photoQuery={photoQuery}
+        setPhotoQuery={setPhotoQuery}
+        photoHits={photoHits}
+        onSearchPhotos={searchPhotos}
+        onChoosePhoto={choosePhoto}
+        onClearPhoto={clearPhoto}
+        driveImages={driveImages}
+        onChooseDriveImage={chooseDriveImage}
+        onUploadPhoto={uploadPhoto}
+      />
 
       {/* recent jobs for this drive */}
       {jobs.length > 0 && (
