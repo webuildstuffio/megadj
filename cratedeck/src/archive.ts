@@ -19,7 +19,6 @@ import {
   libraryOverview as libraryOverviewImpl,
 } from "./archive_overview";
 import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
-import { SET_POOL_DEFAULT } from "../shared/types";
 // The grid math is ONE SSOT (fulltags/src/analysis.ts): fitConstantTempo /
 // gridAudit are the same functions `megadj beats` computes with. A
 // hand-copied twin drifted once already (the v1 verdicts lived inline
@@ -43,6 +42,11 @@ const TRACK_COLS = `video_id, title, artist, album, status, bitrate_kbps,
 
 export class ArchiveReader implements ArchiveQuery {
   private db: Database | null = null;
+  /** Lazily-opened WRITABLE companion for the track_keys read-cache only.
+   *  The main handle stays strictly readonly (the P9 promise); key rows are
+   *  derived data (re-derivable from files), so a separate handle that can
+   *  only ever run the two cache statements is the honest middle ground. */
+  private keysDb: Database | null = null;
   constructor(readonly path: string) {}
 
   /** Public "is the archive DB present" probe (routes/agents use this to
@@ -70,6 +74,8 @@ export class ArchiveReader implements ArchiveQuery {
   close(): void {
     this.db?.close();
     this.db = null;
+    this.keysDb?.close();
+    this.keysDb = null;
   }
 
   /** Public read access for the split-out modules (archive_similar.ts):
@@ -84,6 +90,61 @@ export class ArchiveReader implements ArchiveQuery {
    *  archive_types.ts. */
   row<T>(sql: string, ...params: SQLQueryBindings[]): T | undefined {
     return this.rows<T>(sql, ...params)[0];
+  }
+
+  // ---------- track_keys read-cache (writable companion handle) ----------
+
+  /** The cache handle: opens writable, ensures the table exists (a DB
+   *  created by an older build lacks it), and stays open for the reader's
+   *  lifetime. Null when the DB file itself is missing. */
+  private keysHandle(): Database | null {
+    if (this.keysDb) return this.keysDb;
+    if (!existsSync(this.path)) return null;
+    this.keysDb = new Database(this.path);
+    this.keysDb.exec(
+      `CREATE TABLE IF NOT EXISTS track_keys (
+        video_id TEXT PRIMARY KEY,
+        key TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        analyzed_at TEXT NOT NULL
+      )`,
+    );
+    return this.keysDb;
+  }
+
+  keyRecord(
+    videoId: string,
+    sourcePath: string,
+  ): { key: string; analyzedAt: string } | null {
+    const db = this.keysHandle();
+    if (!db) return null;
+    const row = db
+      .query(
+        `SELECT key, analyzed_at FROM track_keys
+         WHERE video_id = ? AND source_path = ?`,
+      )
+      .get(videoId, sourcePath) as {
+      key: string;
+      analyzed_at: string;
+    } | null;
+    return row ? { key: row.key, analyzedAt: row.analyzed_at } : null;
+  }
+
+  setKeyRecord(rec: {
+    videoId: string;
+    key: string;
+    sourcePath: string;
+  }): void {
+    const db = this.keysHandle();
+    if (!db) return;
+    db.query(
+      `INSERT INTO track_keys (video_id, key, source_path, analyzed_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(video_id) DO UPDATE SET
+         key = excluded.key,
+         source_path = excluded.source_path,
+         analyzed_at = excluded.analyzed_at`,
+    ).run(rec.videoId, rec.key, rec.sourcePath, new Date().toISOString());
   }
 
   /** The ArchiveTrack column list, shared by every query that returns
@@ -625,7 +686,7 @@ export class ArchiveReader implements ArchiveQuery {
     return similarTracksImpl(this, videoId, k);
   }
 
-  setCandidates(limit = SET_POOL_DEFAULT) {
+  setCandidates(limit?: number) {
     return setCandidatesImpl(this, limit);
   }
 

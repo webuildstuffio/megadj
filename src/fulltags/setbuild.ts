@@ -66,8 +66,8 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
     }
 
     const { total, candidates } = reader.setCandidates(
-      // shared clamp — --limit is bounded by the same contract as the
-      // route/MCP (1–1000, default 300)
+      // shared clamp — an explicit --limit is bounded by the same contract
+      // as the route/MCP (1–1000); absent → whole analyzed library
       clampSetPool(opts.limit ?? null),
     );
     const built = buildSet({

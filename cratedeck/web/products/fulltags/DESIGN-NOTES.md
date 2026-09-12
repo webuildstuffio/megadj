@@ -1,0 +1,5 @@
+- Audience: a DJ planning a playable set from a locally analyzed archive.
+- One action: build a trustworthy ordered mix proposal.
+- Five-second message: choose an energy arc and length; FullTags explains the measured sources and checks before proposing the chain.
+- Steps today: 1. Open Similar. 2. Decode the intro. 3. Choose preset/minutes. 4. Optionally hunt for an opener. 5. Build. 6. Infer which data was checked. 7. Notice manually when controls no longer match the result.
+- Steps after: 1. Open Similar. 2. Choose preset/minutes/opener in one control group. 3. Build or update. 4. Read the explicit source/check summary and inspect/copy the chain.

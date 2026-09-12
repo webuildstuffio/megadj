@@ -9,6 +9,15 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
+Rev 22 · 2026-09-11 — `megadj genre` (CLI-only under §4-A1): audio-derived
+genre inference — kNN vote in the effnet embedding space, seeded by
+trusted genre labels, sub-genres collapsed to families (deep house and
+progressive house both vote "house"), split neighbourhoods left
+untouched instead of guessed. Propose-only by default; `--apply` fills
+EMPTY genre columns via `COALESCE` (never clobbers). Same pass adds the
+`track_keys` TKEY read-cache (pool load 26s → 50ms warm) and removes the
+setbuild 300-cap: absent `?limit=` now means the WHOLE analyzed library.
+
 Rev 21 · 2026-09-11 — `megadj rb-playlist` (the set-build write-off): a
 set-builder chain becomes a playlist in the shelf master DB (`/PIONEER/
 Master/master.db`), linking EXISTING content rows by NFC-normalized
@@ -159,7 +168,7 @@ kind`; the MCP schema advertised a kind whose call errored).
 
 | Surface    | Entry points                                                | Count                  |
 | ---------- | ----------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 40 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 41 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 39 tools               |
 | HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 61 routes              |

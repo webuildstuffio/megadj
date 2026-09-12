@@ -806,6 +806,7 @@ export {
   SET_POOL_MIN,
   SET_POOL_MAX,
   SET_POOL_DEFAULT,
+  SET_POOL_UNLIMITED,
   clampSetPool,
 } from "./setbuild";
 

@@ -679,6 +679,41 @@ async function main(): Promise<void> {
         });
         break;
       }
+      case "genre": {
+        // Embedding-kNN genre inference (the "ID3 genre is unreliable"
+        // answer): audio-derived families voted from trusted seeds.
+        // PROPOSE-ONLY by default — --apply fills empty genre columns
+        // (COALESCE: never clobbers an existing label).
+        const flags = parseFlags(
+          rest,
+          ["k", "min-agreement"],
+          ["apply", "json"],
+        );
+        const genreK = nonNegOpt(flags, "k", "genre");
+        if (genreK === undefined && flags.strings.get("k") !== undefined) break;
+        const minAgreementRaw = flags.strings.get("min-agreement");
+        let minAgreement: number | undefined = undefined;
+        if (minAgreementRaw !== undefined) {
+          const n = Number(minAgreementRaw);
+          if (!Number.isFinite(n) || n <= 0 || n > 1) {
+            console.error(
+              `genre: --min-agreement must be a number in (0, 1], got "${minAgreementRaw}"`,
+            );
+            process.exitCode = 2;
+            break;
+          }
+          minAgreement = n;
+        }
+        const { genre } = await import("./fulltags/genre");
+        await genre({
+          state,
+          apply: flags.bools.has("apply"),
+          k: genreK,
+          minAgreement,
+          json: flags.bools.has("json"),
+        });
+        break;
+      }
       case "upgrade": {
         // Roadmap D24: re-fetch below-floor (LOWQ) tracks at best quality.
         // The swap is fingerprint-gated: a different recording is refused,

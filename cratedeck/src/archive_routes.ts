@@ -123,14 +123,14 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         minutes: url.searchParams.get("minutes"),
       });
       if ("error" in parsed) return json({ error: parsed.error }, 400);
-      // shared clamp (SET_POOL_*) — the MCP tool documents "max 1000"; the
-      // route used to pass raw intParam through into per-file TKEY reads
+      // shared clamp (SET_POOL_*) — an explicit ?limit= still can't smuggle
+      // 99999 into per-file key reads; absent → whole analyzed library
       const limit = clampSetPool(
         intParam(url.searchParams.get("limit")) ?? null,
       );
       const opener = url.searchParams.get("opener") ?? undefined;
       const preset = SET_PRESETS[parsed.preset];
-      const { total, candidates } = archive.setCandidates(limit);
+      const { total, candidates, keyReads } = archive.setCandidates(limit);
       const built = buildSet({
         candidates,
         preset,
@@ -140,6 +140,9 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
       return json({
         available: archive.available(),
         pool: total,
+        // how many files needed a live key read this request (cache
+        // misses) — a slow first build is explainable, later ones are fast
+        key_reads: keyReads,
         // ledger ages (newest beats/mood analysis) — the UI staleness
         // line derives from this, never a hand-copied clock read
         freshness: archive.freshness(),

@@ -67,6 +67,21 @@ export function TrackPickSearch(props: {
         onInput={props.onQuery}
         placeholder={props.placeholder}
       />
+      {props.query.trim().length === 1 && (
+        <div class="fleet-note" role="status" aria-live="polite">
+          Type 2 or more characters to search.
+        </div>
+      )}
+      {props.query.trim().length >= 2 && props.hitsStatus === "loading" && (
+        <div class="fleet-note" role="status" aria-live="polite">
+          Searching the archive…
+        </div>
+      )}
+      {props.query.trim().length >= 2 && props.hitsStatus === "error" && (
+        <div class="arch-fix" role="alert">
+          Search failed. Try again.
+        </div>
+      )}
       {props.hitsStatus === "ok" &&
         props.hits &&
         props.query.trim().length >= 2 && (
@@ -284,6 +299,7 @@ function OpenerPicker(props: {
   hitsStatus: "ok" | "loading" | "error";
   opener: TrackPick | null;
   onPick: (t: TrackPick | null) => void;
+  busy: boolean;
 }) {
   if (props.opener)
     return (
@@ -294,10 +310,17 @@ function OpenerPicker(props: {
           class="plsearch-clear"
           aria-label="Clear opener (auto-pick instead)"
           title="Clear opener (auto-pick instead)"
+          disabled={props.busy}
           onClick={() => props.onPick(null)}
         >
           <Icon name="x" size={11} />
         </button>
+      </span>
+    );
+  if (props.busy)
+    return (
+      <span class="setbuild-opener-disabled" aria-disabled="true">
+        set opener… <span>available after this build</span>
       </span>
     );
   return (
@@ -344,10 +367,19 @@ function SetBuildPanel() {
     data: SetBuildPayload | null;
     loading: boolean;
     error: string | null;
-  }>({ data: null, loading: false, error: null });
+    stale: boolean;
+  }>({ data: null, loading: false, error: null, stale: false });
+
+  const invalidateProposal = () => {
+    setBuild((current) =>
+      current.data && !current.loading && !current.stale
+        ? { ...current, stale: true }
+        : current,
+    );
+  };
 
   const run = async () => {
-    setBuild({ data: null, loading: true, error: null });
+    setBuild({ data: null, loading: true, error: null, stale: false });
     try {
       const q = new URLSearchParams({
         preset: preset.id,
@@ -358,9 +390,15 @@ function SetBuildPanel() {
         data: await api<SetBuildPayload>(`/api/archive/setbuild?${q}`),
         loading: false,
         error: null,
+        stale: false,
       });
     } catch (e) {
-      setBuild({ data: null, loading: false, error: errMessage(e) });
+      setBuild({
+        data: null,
+        loading: false,
+        error: errMessage(e),
+        stale: false,
+      });
     }
   };
 
@@ -378,20 +416,71 @@ function SetBuildPanel() {
     if (!first || !last) return null;
     return `${first.n}${first.letter} → ${last.n}${last.letter}`;
   })();
+  const readyBuildLabel = build.stale ? "Update proposal" : "Build proposal";
+  const buildLabel = build.loading ? "Building…" : readyBuildLabel;
 
   return (
     <Card class="setbuild">
       <SectionHead icon="compass" title="Set builder — propose a mix" />
+      <dl class="setbuild-evidence" aria-label="Set builder evidence">
+        <div>
+          <dt>Sources</dt>
+          <dd>Beats ledger BPM · file key tags · Mood ledger energy</dd>
+        </div>
+        <div>
+          <dt>Checks</dt>
+          <dd>
+            ±6% tempo window · Camelot-compatible key moves · selected energy
+            arc
+          </dd>
+        </div>
+        <div>
+          <dt>Output</dt>
+          <dd>
+            Writes nothing — this is a proposal to review and playlist by hand
+          </dd>
+        </div>
+      </dl>
       <div class="setbuild-controls">
         <div class="seg" role="radiogroup" aria-label="Energy arc preset">
-          {SET_PRESET_DEFS.map((p) => (
+          {SET_PRESET_DEFS.map((p, index) => (
             <button
               type="button"
               key={p.id}
               class={preset.id === p.id ? "on" : ""}
               title={p.description}
-              aria-pressed={preset.id === p.id}
-              onClick={() => setPreset(p)}
+              role="radio"
+              aria-checked={preset.id === p.id}
+              tabIndex={preset.id === p.id ? 0 : -1}
+              disabled={build.loading}
+              onClick={() => {
+                if (p.id === preset.id) return;
+                setPreset(p);
+                invalidateProposal();
+              }}
+              onKeyDown={(event) => {
+                const last = SET_PRESET_DEFS.length - 1;
+                const nextIndex =
+                  event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                      ? last
+                      : event.key === "ArrowRight" || event.key === "ArrowDown"
+                        ? (index + 1) % SET_PRESET_DEFS.length
+                        : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                          ? (index + last) % SET_PRESET_DEFS.length
+                          : null;
+                if (nextIndex === null) return;
+                event.preventDefault();
+                const next = SET_PRESET_DEFS[nextIndex];
+                if (!next || next.id === preset.id) return;
+                setPreset(next);
+                invalidateProposal();
+                event.currentTarget.parentElement
+                  ?.querySelectorAll<HTMLElement>('[role="radio"]')
+                  .item(nextIndex)
+                  .focus();
+              }}
             >
               {p.label}
             </button>
@@ -409,21 +498,25 @@ function SetBuildPanel() {
             value={minutes}
             style={{ width: 72 }}
             aria-label={`Target set length in minutes (${SET_MINUTES_MIN}–${SET_MINUTES_MAX})`}
-            onChange={(e) =>
-              setMinutes(
-                clampMinutes(Number((e.target as HTMLInputElement).value)),
-              )
-            }
+            disabled={build.loading}
+            onChange={(e) => {
+              const next = clampMinutes(
+                Number((e.target as HTMLInputElement).value),
+              );
+              if (next === minutes) return;
+              setMinutes(next);
+              invalidateProposal();
+            }}
           />
         </label>
         <button
           type="button"
-          class="btn sm"
+          class="btn sm primary"
           onClick={run}
           disabled={build.loading}
+          aria-busy={build.loading}
         >
-          <Icon name="play" size={12} />{" "}
-          {build.loading ? "building…" : "Build proposal"}
+          <Icon name="play" size={12} /> {buildLabel}
         </button>
         <OpenerPicker
           query={openerQuery}
@@ -431,11 +524,29 @@ function SetBuildPanel() {
           hits={openerSearch.status === "ok" ? openerSearch.data : null}
           hitsStatus={openerSearch.status}
           opener={opener}
-          onPick={setOpener}
+          onPick={(next) => {
+            if (next?.video_id === opener?.video_id) return;
+            setOpener(next);
+            invalidateProposal();
+          }}
+          busy={build.loading}
         />
         <span class="setbuild-desc">{preset.description}</span>
       </div>
+      {build.stale && (
+        <div class="setbuild-stale" role="status">
+          <b>Proposal settings changed.</b> The chain below still shows the
+          previous build. Update it before using or copying the result.
+        </div>
+      )}
       {build.error && <div class="arch-fix">build failed: {build.error}</div>}
+      {build.loading && (
+        <div class="setbuild-loading" role="status" aria-live="polite">
+          <span class="spin" aria-hidden="true" />
+          Scoring the pool — tempo windows, Camelot moves, energy arc…
+          <span class="muted"> takes a moment (per-file key reads)</span>
+        </div>
+      )}
       {build.data && (
         <>
           <Verdict

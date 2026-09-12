@@ -98,13 +98,16 @@ export const SET_MINUTES_DEFAULT = 60;
  * I/O calls per request). One clamp, both surfaces. */
 export const SET_POOL_MIN = 1;
 export const SET_POOL_MAX = 1000;
+/** Explicit numeric fallback retained for older callers and the MCP schema. */
 export const SET_POOL_DEFAULT = 300;
+/** Sentinel for an absent/invalid limit: load the whole analyzed library. */
+export const SET_POOL_UNLIMITED = 0;
 
 export function clampSetPool(raw: number | null | undefined): number {
   // Number(null) is 0, NOT NaN — null/undefined must be checked before
   // the coercion or an absent param clamps to 1 instead of the default.
-  if (raw === null || raw === undefined) return SET_POOL_DEFAULT;
+  if (raw === null || raw === undefined) return SET_POOL_UNLIMITED;
   const n = typeof raw === "number" ? raw : Number(raw);
-  if (!Number.isFinite(n)) return SET_POOL_DEFAULT;
+  if (!Number.isFinite(n)) return SET_POOL_UNLIMITED;
   return Math.min(SET_POOL_MAX, Math.max(SET_POOL_MIN, Math.round(n)));
 }

@@ -224,6 +224,7 @@ function buildChain(
     const { candidates } = archive.setCandidates(
       clampSetPool(opts.limit ?? null),
     );
+
     const built = buildSet({
       candidates,
       preset: SET_PRESETS[parsed.preset],

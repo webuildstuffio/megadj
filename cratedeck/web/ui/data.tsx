@@ -603,6 +603,7 @@ export function SearchBar(props: {
         <Icon name="search" size={13} />
         <input
           placeholder={props.placeholder}
+          aria-label={props.placeholder}
           value={props.value}
           onInput={(e) => props.onInput((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => {
@@ -618,6 +619,7 @@ export function SearchBar(props: {
           <button
             type="button"
             class="plsearch-clear"
+            aria-label="Clear search"
             title="Clear (Escape)"
             onClick={() => props.onInput("")}
           >

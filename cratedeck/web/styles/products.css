@@ -299,6 +299,31 @@
   flex-wrap: wrap;
   margin-bottom: 10px;
 }
+.setbuild-evidence {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 2px 0 12px;
+}
+.setbuild-evidence > div {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.setbuild-evidence dt {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+.setbuild-evidence dd {
+  margin: 0;
+}
 .setbuild-minutes {
   display: inline-flex;
   gap: 6px;
@@ -327,6 +352,40 @@
 }
 .setbuild-fresh .fresh-note code {
   font-size: 10.5px;
+}
+.setbuild-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--faint);
+  padding: 6px 10px;
+  border-left: 2px solid var(--accent);
+}
+.setbuild-loading .spin {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: setbuild-spin 0.8s linear infinite;
+  flex: none;
+}
+.setbuild-stale {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border-left: 2px solid var(--warn);
+  background: var(--warn-dim);
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.setbuild-stale b {
+  color: var(--warn);
+}
+@keyframes setbuild-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .setbuild-arc {
   display: flex;
@@ -390,6 +449,21 @@
 }
 .setbuild-opener-pick[open] summary {
   margin-bottom: 6px;
+}
+.setbuild-opener-disabled {
+  flex-basis: 100%;
+  color: var(--faint);
+  font-size: 12px;
+}
+.setbuild-opener-disabled > span {
+  margin-left: 4px;
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .setbuild-evidence {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---- phase chip (nav strip, right edge) ---------------------------------

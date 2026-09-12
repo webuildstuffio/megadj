@@ -336,6 +336,35 @@ describe("buildSet", () => {
     expect(exIds).toContain("zero");
     expect(exIds).toContain("nan");
   });
+
+  test("opener pick requires a livable tempo neighborhood (the 2-track warmup bug)", () => {
+    // regression: the warmup opener was picked by arousal-distance ALONE,
+    // landing on the pool's minimum-arousal track — a 73 BPM outlier in a
+    // 125 BPM library. Its ±6% window held ~3 tracks, so the chain
+    // dead-ended after 2 steps and all 298 others were excluded as "no
+    // compatible transition". The pick now requires ≥15 tracks within
+    // ±6% before a candidate may anchor the arc.
+    const candidates = [
+      // pool-min arousal, dead-end tempo — the old pick
+      cand({ videoId: "slow-outlier", arousal: 2.6, bpm: 73, key: null }),
+      // lively tempo neighborhood, slightly further from the arc start
+      ...Array.from({ length: 20 }, (_, i) =>
+        cand({
+          videoId: `lib-${String(i).padStart(2, "0")}`,
+          arousal: 4.4 + i * 0.05,
+          bpm: 124 + (i % 3),
+          key: "8A",
+        }),
+      ),
+    ];
+    const r = buildSet({
+      candidates,
+      preset: SET_PRESETS.warmup,
+      minutes: 30,
+    });
+    expect(r.steps.length).toBeGreaterThan(2);
+    expect(r.steps[0]!.videoId).not.toBe("slow-outlier");
+  });
 });
 
 describe("parseSetbuildQuery", () => {
@@ -390,15 +419,15 @@ describe("SET_PRESETS registry census (derive, never hand-copy)", () => {
 });
 
 describe("clampSetPool (the ?limit= guard shared by route + MCP tool)", () => {
-  test("clamps into 1–1000, default when absent/non-finite", () => {
+  test("clamps into 1–1000, unlimited when absent/non-finite", () => {
     expect(clampSetPool(500)).toBe(500);
     expect(clampSetPool(0)).toBe(1);
     expect(clampSetPool(-5)).toBe(1);
     expect(clampSetPool(99999)).toBe(1000);
     expect(clampSetPool(12.7)).toBe(13);
-    expect(clampSetPool(null)).toBe(300);
-    expect(clampSetPool(undefined)).toBe(300);
-    expect(clampSetPool(Number.NaN)).toBe(300);
+    expect(clampSetPool(null)).toBe(0);
+    expect(clampSetPool(undefined)).toBe(0);
+    expect(clampSetPool(Number.NaN)).toBe(0);
   });
   test("route + MCP surface agree on the documented caps", () => {
     // the MCP schema text is derived from the same constants the route

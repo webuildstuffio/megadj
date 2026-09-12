@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
-import { EmbeddingsLedger } from "./similar";
+import { EmbeddingsLedger, KeysLedger } from "./similar";
 import { Ledgers } from "./ledgers";
 import type {
   MoodRecordInput,
@@ -75,6 +75,8 @@ export class ArchiveState {
   /** I49 embeddings ledger + similarity math live in state-similar.ts
    * (file-length guard); delegated here so the call surface is unchanged. */
   private readonly embeddingsLedger: EmbeddingsLedger;
+  /** TKEY read-cache ledger (state-similar.ts) — see track_keys DDL. */
+  private readonly keysLedger: KeysLedger;
   /** Mood + cues ledger storage lives in state-ledgers.ts (file-length
    * guard); delegated here so the call surface is unchanged. */
   private readonly ledgers: Ledgers;
@@ -91,6 +93,7 @@ export class ArchiveState {
     this.db.exec("PRAGMA journal_mode = WAL;");
     this.db.exec("PRAGMA busy_timeout = 5000;");
     this.embeddingsLedger = new EmbeddingsLedger(this.db, () => this.now());
+    this.keysLedger = new KeysLedger(this.db, () => this.now());
     this.ledgers = new Ledgers(this.db, () => this.now());
     this.shelfSweeps = new ShelfSweeps(this.db);
     this.migrate();
@@ -213,6 +216,20 @@ export class ArchiveState {
         video_id TEXT PRIMARY KEY,
         dim INTEGER NOT NULL,
         vec_json TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        analyzed_at TEXT NOT NULL
+      );
+    `);
+    // Musical-key ledger: the FILE's TKEY (Camelot) cached at read time —
+    // groundTruth() spawns ffprobe+mutagen per file (~80ms), so the set
+    // builder re-reading every candidate's key per request was the real
+    // "building takes a while" cost and the reason the pool was capped at
+    // 300 of 534. Files are only read when the cache misses (missing row,
+    // or source_path no longer matches — a moved/re-ripped file).
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS track_keys (
+        video_id TEXT PRIMARY KEY,
+        key TEXT NOT NULL,
         source_path TEXT NOT NULL,
         analyzed_at TEXT NOT NULL
       );
@@ -424,6 +441,36 @@ export class ArchiveState {
         `UPDATE tracks SET genre = COALESCE(?, genre), updated_at = ? WHERE video_id = ?`,
       )
       .run(genre, this.now(), videoId);
+  }
+
+  /** Embedding-ledger split for `megadj genre`: embedded tracks WITH a
+   *  genre are the kNN seeds; embedded tracks WITHOUT are the queries.
+   *  vec_json is passed through raw (the engine parses it). */
+  genreSeeds(): {
+    seeds: { video_id: string; genre: string; vec_json: string }[];
+    queries: { video_id: string; title: string | null; vec_json: string }[];
+  } {
+    const seeds = this.db
+      .query(
+        `SELECT e.video_id, t.genre, e.vec_json
+         FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
+         WHERE t.status = 'downloaded'
+           AND t.genre IS NOT NULL AND t.genre != ''`,
+      )
+      .all() as { video_id: string; genre: string; vec_json: string }[];
+    const queries = this.db
+      .query(
+        `SELECT e.video_id, t.title, e.vec_json
+         FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
+         WHERE t.status = 'downloaded'
+           AND (t.genre IS NULL OR t.genre = '')`,
+      )
+      .all() as {
+      video_id: string;
+      title: string | null;
+      vec_json: string;
+    }[];
+    return { seeds, queries };
   }
 
   /** Persist artwork status: 'embedded' | 'queued' | 'none' | 'skipped:<ext>'. */
@@ -766,6 +813,26 @@ export class ArchiveState {
 
   embeddingCorpus() {
     return this.embeddingsLedger.embeddingCorpus();
+  }
+
+  // ---------- track_keys ledger (TKEY read-cache) ----------
+
+  /** Cache one file-read key. Idempotent by video_id. */
+  setKeyRecord(rec: {
+    videoId: string;
+    key: string;
+    sourcePath: string;
+  }): void {
+    this.keysLedger.setKeyRecord(rec);
+  }
+
+  /** Cached key valid only for the same file path (moved/re-ripped files
+   * invalidate their row lazily). */
+  keyRecord(
+    videoId: string,
+    sourcePath: string,
+  ): { key: string; analyzedAt: string } | null {
+    return this.keysLedger.keyRecord(videoId, sourcePath);
   }
 }
 

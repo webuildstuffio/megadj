@@ -310,6 +310,7 @@ export function App() {
             ref={searchRef}
             id="global-search"
             name="global-search"
+            aria-label="Search every drive's playlists, folders and tracks"
             placeholder="Search playlists, folders…"
             title="Search every drive's playlists, folders and tracks — Enter opens the top hit, Esc clears. ⌘K opens the command palette (navigate anywhere)."
             value={query}

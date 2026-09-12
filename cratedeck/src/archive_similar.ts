@@ -8,7 +8,6 @@
 //   setCandidates — M66 set-builder candidate pool (beats + mood + TKEY)
 import { existsSync } from "node:fs";
 import { groundTruth } from "../../fulltags/src/exports";
-import { SET_POOL_DEFAULT } from "../shared/types";
 import { cosineSimilarity } from "../shared/similarity";
 import type { ArchiveQuery } from "./archive_types";
 
@@ -110,19 +109,26 @@ export function similarTracks(
 
 /**
  * M66 set-builder: load the candidate pool (playable tracks joined with
- * beats + mood ledgers; TKEY read per-file at request time — a few
- * hundred ms for hundreds of files, bounded by `limit`). Feeds the pure
- * engine in setbuild.ts. Unparsable keys degrade to null (no key-score),
- * never throw.
+ * beats + mood ledgers + the cached TKEY ledger). Feeds the pure engine
+ * in setbuild.ts. Unparsable keys degrade to null (no key-score), never
+ * throw.
+ *
+ * The pool is the WHOLE analyzed library by default — the old
+ * `updated_at DESC LIMIT 300` cap silently hid 200+ analyzed tracks from
+ * every proposal (and re-syncing reshuffled which ones). Files are read
+ * only on a track_keys cache miss (~80 ms each: ffprobe + mutagen), so a
+ * cold full scan is one slow request that fills the cache; every request
+ * after it is a single indexed query.
  */
 export function setCandidates(
   reader: ArchiveQuery,
-  // the shared pool cap (SET_POOL_*) — was a local 400 that disagreed
-  // with the route/MCP contract's documented default of 300
-  limit = SET_POOL_DEFAULT,
+  limit?: number,
 ): {
   available: boolean;
   total: number;
+  /** How many candidates needed a live file read for their key (cache
+   *  misses) — surfaced so a slow first request is explainable. */
+  keyReads: number;
   candidates: {
     videoId: string;
     title: string | null;
@@ -159,18 +165,34 @@ export function setCandidates(
      LEFT JOIN beats b ON b.video_id = t.video_id
      LEFT JOIN mood m ON m.video_id = t.video_id
      WHERE t.status = 'downloaded' AND t.file_path IS NOT NULL
-     ORDER BY t.updated_at DESC LIMIT ?`,
-    limit,
+     ORDER BY t.updated_at DESC
+     ${limit !== undefined && limit > 0 ? "LIMIT ?" : ""}`,
+    ...(limit !== undefined && limit > 0 ? [limit] : []),
   );
+  let keyReads = 0;
   const candidates = rows.map((r) => {
-    // TKEY lives on the FILE (AIFF/MP3 only — WAV has no key field); a
-    // failed read means the candidate loses key-score, never throws.
+    // TKEY lives on the FILE (AIFF/MP3 only — WAV has no key field).
+    // Cache first (path-validated); a miss pays ONE groundTruth read and
+    // backfills the ledger so future requests never re-read the file.
+    // ABSENCE is cached too (key = "") — otherwise every keyless WAV
+    // re-paid a full ffprobe+mutagen read on every request (26 s pools).
     let key: string | null = null;
     if (r.file_path && existsSync(r.file_path)) {
-      try {
-        key = groundTruth(r.file_path).key;
-      } catch {
-        key = null;
+      const cached = reader.keyRecord(r.video_id, r.file_path);
+      if (cached) {
+        key = cached.key === "" ? null : cached.key;
+      } else {
+        try {
+          key = groundTruth(r.file_path).key;
+          reader.setKeyRecord({
+            videoId: r.video_id,
+            key: key ?? "",
+            sourcePath: r.file_path,
+          });
+          keyReads++;
+        } catch {
+          key = null; // unreadable file loses key-score, never throws
+        }
       }
     }
     return {
@@ -189,6 +211,7 @@ export function setCandidates(
   return {
     available: reader.available(),
     total: candidates.length,
+    keyReads,
     candidates,
     freshness: poolFreshness(reader),
   };

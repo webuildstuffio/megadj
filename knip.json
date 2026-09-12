@@ -7,6 +7,7 @@
         "tools/fix-years.ts",
         "tools/prof-sweep.ts"
       ],
+      "ignore": [".cursor/**"],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
         "ditto",

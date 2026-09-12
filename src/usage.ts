@@ -42,6 +42,8 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj mood    [--limit N] [--jobs N] [--force] [--dry-run] [--json] [--embeddings]
                                                ONNX mood/dance/VA → DB ledger (syncs TXXX:MOOD stamps; analyzes unstamped)
   megadj similar <video_id> [--k N] [--json]   "sounds like": cosine kNN over the embeddings ledger (read-only)
+  megadj genre    [--apply] [--k N] [--min-agreement F] [--json]
+                                               infer genres from audio embeddings (kNN vote over trusted seeds); propose-only by default
   megadj setbuild [--preset warmup|peak|afterhours] [--minutes N] [--opener <video_id>]
                  [--limit N] [--json]
                                                set-builder (M66): propose an ordered mix chain

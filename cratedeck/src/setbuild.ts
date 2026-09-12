@@ -234,14 +234,33 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
     pool.splice(pool.indexOf(opener), 1);
   }
   const startArousal = preset.arousal[0]! / 9;
-  const first =
+  // Opener pick must ALSO demand a livable tempo neighborhood: the old
+  // arousal-only sort landed on pool-min-arousal outliers (a 73 BPM track
+  // in a 125 BPM library) whose ±6% window holds 3 tracks — the chain
+  // dead-ended after 2 steps and every other candidate got excluded as
+  // "no compatible transition". Require ≥ OPENNER_MIN_NEIGHBORS tracks
+  // within ±6% before a candidate may anchor; fall back to the old
+  // behavior when nothing qualifies (tiny pools).
+  const OPENNER_MIN_NEIGHBORS = 15;
+  const mixable = [...pool].filter(mixableBpm);
+  const tempoNeighbors = (bpm: number): number =>
+    mixable.filter((c) => bpmScore(bpm, c.bpm) > 0).length;
+  const anchored =
     opener && mixableBpm(opener)
       ? opener
-      : [...pool].filter(mixableBpm).toSorted((a, b) => {
+      : (mixable
+          .filter((c) => tempoNeighbors(c.bpm) >= OPENNER_MIN_NEIGHBORS)
+          .toSorted((a, b) => {
+            const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
+            const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
+            return fa - fb || a.videoId.localeCompare(b.videoId);
+          })[0] ??
+        mixable.toSorted((a, b) => {
           const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
           const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
           return fa - fb || a.videoId.localeCompare(b.videoId);
-        })[0];
+        })[0]);
+  const first = anchored;
   if (!first) {
     return {
       preset: preset.id,
