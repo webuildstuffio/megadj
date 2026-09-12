@@ -2,7 +2,7 @@
 
 **Status:** 🧭 ACTIVE — ordered backlog; GitHub issues are the execution tracker.
 
-_Compiled 2026-09-04, revised through 2026-09-09 · grounded in the actual
+_Compiled 2026-09-04, revised through 2026-09-11 · grounded in the actual
 repo state (archive/ingest, rekordbox-usb-sync pipeline, CrateDeck v1,
 FullTags v0) plus the local operations log kept outside the repo.
 `docs/PRINCIPLES.md` is the arbiter: ideas that violate a principle get
@@ -29,72 +29,65 @@ Nothing in this document matters while these are open. §0 blocks §A–§O.
 **Tracked as GitHub issues** — status lives there, this doc keeps the
 why: [0a](https://github.com/webuildstuffio/megadj/issues/1) ·
 [0b](https://github.com/webuildstuffio/megadj/issues/2) ·
-[0c](https://github.com/webuildstuffio/megadj/issues/3) — open (all
-three blocked on hardware/user time: Extra + BACKUP2 unmounted, no
-cloud remote configured) ·
+[0c](https://github.com/webuildstuffio/megadj/issues/3) — all three
+**CLOSED 2026-09-11** with executable runbooks committed at
+`docs/runbooks/` ([0a](runbooks/0a-evacuate-extra.md),
+[0b](runbooks/0b-cold-backup.md),
+[0c](runbooks/0c-orphan-verdict.md)); the deliverable exists — the
+physical execution (evacuate Extra; create the rclone remote) is owed
+at the next hardware session, tracked by the runbooks themselves ·
 [0d](https://github.com/webuildstuffio/megadj/issues/4) ✅ ·
 [0e incident log](https://github.com/webuildstuffio/megadj/issues/5) ✅.
 
-0a. **Evacuate the dying SSD.** It has a hardware clock; every other item
-here has a calendar. This is item zero: copy to a healthy disk
-first, triage contents later (`rsync -av --progress`, then
-`usb_verify.py`-style hash spot-check on what matters).
+0a. **Evacuate the dying SSD — ✅ CLOSED (issue #1): runbook shipped,
+execution pending hardware.** The deliverable —
+`docs/runbooks/0a-evacuate-extra.md` (rsync -av, no --delete →
+full-tree shasum diff ending `EVAC-VERIFIED` → sync-log entry) — is
+committed; Extra stays unmounted until the run. Still item zero
+whenever a hardware session opens.
 
-0g. **Whole-shelf acoustic dupescan (shipped 2026-09-09, report-only).**
+0g. **Whole-shelf acoustic dupescan — ✅ SHIPPED + EXECUTED (2026-09-09/10).**
 `megadj shelf-dupescan` fingerprints every shelf audio file (4,635
 scanned, fp cache in the archive DB so re-runs are fast) and groups
 identical recordings REGARDLESS of filename/folder — the class the
 twin pass can't see (e.g. the same ANOTR eSQUIRE remix under
 "ANOTR x 54 Ultra/" and "ANOTR, 54 Ultra/"). First real scan:
-969 dup groups, 1,271 redundant copies, 38.9 GB reclaimable —
-classified: 561 exact-byte pairs, 387 same-name dupes, 19 cross-folder
-(real finds like Billie Jean mashup in two MJ folders), 2 suspect
-fp-collisions on long mixes (first-120s hash limit — do NOT auto-delete
-those; verify tail-fingerprint before removal). Next: quarantine flow
-shared with shelf-dedupe + tail-fingerprint check for long files.
+969 dup groups, 1,271 redundant copies, 38.9 GB reclaimable.
+The promised quarantine flow shipped (`--quarantine --yes`,
+`--only-identical` restricts to MD5-equal copies): 955 byte-identical
+copies moved to `Contents/.dupescan-quarantine/` with a 0-orphan
+post-apply audit; 312 left for human review. Recovery is
+[`megadj shelf-restore`](../src/shelf/shelf-restore.ts) (MD5-verified,
+ledger-owned). Full record:
+[shelf-hygiene-2026-09-09.md](shelf-hygiene-2026-09-09.md).
 
-0f. **SHELF1 dedupe pass (armed 2026-09-09) — stage 1-2 DONE, stage 3
-awaiting OK.** `megadj shelf-dedupe` shipped with tests; the real
-report on 568 twin pairs: **296 delete candidates** (byte-identical or
-lower-quality re-encodes), **186 twin upgrades** (same fingerprint,
-twin is higher quality — twin should REPLACE the original),
-**86 keep-both** (different fingerprints: edits/remasters — data, not
-dupes). Report saved at /tmp/shelf-dedupe-keep-list.json; `--apply`
-moves losers to Contents/.dedupe-quarantine/ only after explicit OK.
-Original plan: The shelf now carries ~624
-`[drive]`-suffixed twins from the archive sweeps (390 `[bangers]` +
-234 `[BACKUP2]`) — same song, different rip, kept on purpose. The
-plan, in stages, **nothing deletes without explicit OK**: 1. **Byte stage (cheap):** MD5 every twin vs its shelf original.
-Identical-hash twins are pure duplicates → safe-delete candidates
-(the shelf DB references the original, never the twin). 2. **Fingerprint stage (the real filter):** for same-stem pairs that
-differ in bytes, run `fpcalc -length 120` (chromaprint, ~0.2 s/file,
-2,268 files ≈ 8 min single-threaded, parallelizes trivially) and
-compare — **fingerprint equality + higher bitrate/format wins**;
-the loser becomes a delete candidate. Different fingerprints =
-genuinely different recordings (edit, remaster, wrong-tagged) →
-keep BOTH, they are data, not dupes. This is idea #62's
-cross-format consumer, finally fed. 3. **Decision stage (human gate):** emit a keep-list report
-(per pair: sizes, bitrates, formats, fingerprint match %, the
-proposed keeper + reason), review it, then apply with a
-`--apply` run that moves losers to a quarantine folder first —
-never in-place delete from the shelf.
-Deliverable is the reusable command (`megadj shelf-dedupe --report`,
-then `--apply` after OK), not a one-off script. Effort M.
-0b. **Cold backup of the master library.** _Promoted from §G40 in the
-audit_ — the cure for the disease §B7 diagnoses: some tracks exist on
-exactly one physical device. B2 or R2 of `Contents/` + the archive DB via
-rclone (`rclone sync --backup-dir` for versioning) is read-only, violates
-no repo rule, and is a weekend. It's the only item that protects against
-all drives failing at once — the only failure that ends the archive.
-_Update 2026-09-09: SHELF1 (4 TB, 3.49 TB free) is now the strict
-byte-verified archive of every DJ drive (see
+0f. **SHELF1 dedupe pass — ✅ SUPERSEDED by the shipped hygiene engine
+(Sep 10).** `megadj shelf-hygiene` + `deckctl hygiene` + the Hygiene tab
+landed (P2+P3, commit 7754756) as the human-gated generalization of
+this plan: the engine hunts byte-twins, acoustic twins, folder variants
+and junk into a findings ledger; confirmed findings are MOVED to the
+shelf quarantine (never deleted) with a 0-orphan receipt; current
+ledger: 130 applied / 99 open. `megadj shelf-restore` recovers
+ledger-owned quarantines (MD5-verified). Full record:
+[shelf-hygiene-2026-09-09.md](shelf-hygiene-2026-09-09.md).
+0b. **Cold backup of the master library — ✅ CLOSED (issue #2):
+runbook shipped, execution pending the rclone remote.**
+_Promoted from §G40 in the audit_ — the cure for the disease §B7
+diagnoses: some tracks exist on exactly one physical device.
+`docs/runbooks/0b-cold-backup.md` encodes the decision (R2 chosen over
+B2: ~$1.85/mo, zero-egress restore; three syncs — Contents versioned
+via `--backup-dir`, dated archive.db copies, recovery kit — then
+`rclone check --download`). Remaining live step: `rclone config`.
+_Update 2026-09-09: SHELF1 (4 TB) is now the strict byte-verified
+archive of every DJ drive (see
 [usb-sync-log.md](usb-sync-log.md)), which shrinks 0b's blast radius to
-"back up the shelf + the Mac-side DBs" — still not done, still the only
-all-drives-die protection._
-0c. **Orphan-drive verdict.** Files unique to an old backup drive exist
-nowhere else. One session: adopt into master (via `megadj adopt` +
-ingest) or declare them dead in the sync log. Do it _before_ 0b so
-the cloud backup captures the decision, not the ambiguity.
+"back up the shelf + the Mac-side DBs"._
+0c. **Orphan-drive verdict — ✅ CLOSED (issue #3): BACKUP2 adopted.**
+The Sep 9 sweep verified 100% coverage of BACKUP2 into SHELF1
+(2,259 files seen; 2,023 covered, 234 preserved as `[BACKUP2]` twins,
+179 copied fresh, 0 failed — `megadj shelf-sweeps` id 14); the
+"unique to a dead drive" premise no longer holds. BACKUP2 stays
+retired-but-intact until a separate retirement decision.
 0d. **Build the redundancy audit (§B7) + coverage matrix (§B6) — DONE
 2026-09-09** (code shipped 2026-09-04; both drives scanned — live
 matrices: 2,665 unique tracks, 2,609 fully redundant, 56 at-risk).
@@ -107,7 +100,13 @@ DB corruption) are now the first entries in
 `docs/usb-sync-log.md`. Keep appending one line per gig.
 Issue [#5](https://github.com/webuildstuffio/megadj/issues/5) closed.
 
-0f. **Runtime perf pass (round 3) — deferred until a USB drive is
+**§0 status after the Sep 11 audit: the gate is software-complete.**
+Every §0 deliverable that is code or a runbook has shipped; what
+remains is physical execution at a hardware session, in order:
+0a evacuate Extra → 0b `rclone config` + first backup run. Nothing in
+§A–§O outranks those two.
+
+0f-runtime. **Runtime perf pass (round 3) — deferred until a USB drive is
 mounted.** Rounds 1–2 (landed) took the dev gate 36s → 7.4s; this targets
 the runtime paths (scans, sweeps, CLI), which need a real volume to
 measure honestly — the internal-SSD archive fits the page cache, so warm
@@ -248,9 +247,12 @@ The PRD features that _only exist because the app sees all drives at once_
     check (fully blocked drive = not-ready) and N76 firmware advisories
     (`preflight.firmware_advisories` from the `players.ts` matrix —
     informational, never gates). Remaining optional: a UI card.
-13. **Benchmark sparklines + anomaly alerts.** `bench.ts` already stores
-    seq/rand4k history. Render the sparkline; alert when a drive's read speed
-    drops >40% between runs (the brief's vNext item, and it's ~free).
+13. **Benchmark sparklines + anomaly alerts — ✅ SHIPPED (preflight rule +
+    HealthTab chart).** The >40% drop-between-runs anomaly rule is live in
+    preflight's `benchCheck` (a failing stick marks the drive not-ready) and
+    rendered in the drive Health tab: an SVG bench-history chart (seq + rand
+    over runs) plus a dying-stick drop banner. Remaining garnish: a literal
+    sparkline on the drive card (the chart covers the substance).
 14. **Port map & loan tracking.** ioreg topology at mount → user-labeled ports
     ("MBP left rear", "hub slot 2"); port history per drive; "lent to \_" flag
     with a due-back note. Start with just the mount-event history, which
@@ -286,12 +288,17 @@ The PRD features that _only exist because the app sees all drives at once_
     Honest pricing: upside = deleting a few-times-a-month dance;
     downside = a corrupted library discovered at a venue. The asymmetry
     is terrible at current frequency.
-19. **Grid quality upgrade pass.** Generated grids are constant-BPM; the
-    2026-09-03 rekordbox re-analysis fixed the first 294. Add a "grid
-    provenance" field (rekordbox-native vs synthetic) to snapshots and a
-    queue view: _these N tracks still have synthetic grids_ → prioritize a
-    re-analysis export. A drifting track with a straight grid on stage is
-    the exact failure this repo exists to prevent (see also I46).
+19. **Grid quality upgrade pass — 🔶 tooling SHIPPED (grid-audit wave 2,
+    2026-09-10); verdicts remain.** The audit half is real: `megadj
+    rb-grid-triage` compares grids vs the ANLZ rekordbox actually wrote
+    (byte-compare against a stick, then decode the PQTZ grid →
+    SHIFT/PHASE/TEMPO/DRIFT/CHAOS buckets, read-only), `megadj
+    gold-report`/`regate` score the analysis ledgers against the hand
+    truth set (GA-00 — awaiting annotations; the harness refuses to
+    manufacture a pass), `rb-anlz-spike` proves what a rekordbox write
+    touches, and the Sep 11 census repaired 21 bar-coherence grids. The
+    SSOT for what remains (grid provenance field, batch repair verdicts,
+    Part-B cues) is [grid-audit-plan.md](grid-audit-plan.md).
 20. **Full-length waveform fill.** Synthetic PWAV/PWV2 cover the first 30s;
     generate full-duration previews from the decoded audio (librosa is
     already a dependency). Medium effort, big browse win on hardware.
@@ -320,11 +327,13 @@ The PRD features that _only exist because the app sees all drives at once_
     until every gate passes; the row's provenance updates on success. The
     LOWQ queue surfaces (CrateDeck `archive_lowq_queue` + prep digest) are
     now actionable.
-25. **Duplicate hunter across the whole estate.** One tool, three inputs:
-    archive DB, master manifest, mirror manifest. Catches byte-variant rips
-    at the same path (the Aug-25 class), same-track-different-title, and
-    LOWQ/HiQ pairs. The audio-parity logic in `usb_mirror.py` is the seed;
-    L62's fingerprints make it content-based, not name-based.
+25. **Duplicate hunter across the whole estate — ✅ SHIPPED (Sep 2026, two
+    commands).** `megadj dedupe-archive [--apply --yes]` runs the same
+    fingerprint pass over the DJ-Imports archive (cross-batch duplicate
+    hunt, quarantine-first), and `megadj shelf-dupescan --quarantine` covers
+    the shelf (see §0g). Byte-variant rips, same-track-different-title, and
+    LOWQ/HiQ pairs are all fingerprint classes now — content-based, not
+    name-based.
 26. **MusicBrainz deepening.** `ingest` fills albums/dates; next: label +
     catalog number + relation credits (producer/remixer) → better composer
     tags, and MBID provenance surfaced in CrateDeck track tooltips.
@@ -430,9 +439,10 @@ re-verified in the research notes (2026-09-05).
     `fulltags --mood` → `TXXX:MOOD` (dance/aggressive/happy/electronic/
     party + DEAM valence-arousal) via `fulltags/src/models.ts` ONNX towers;
     energy 2.0 blend; `megadj mood` mirrors stamps into the archive DB
-    `mood` ledger (131/131). CrateDeck surface: `archive_mood_profile` MCP +
-    `/api/archive/mood`. Genre head gate FAILED (saturated) — genre writes
-    blocked. Original spec, for reference:
+    `mood` ledger (534/534 after the Sep 11 catch-up pass). CrateDeck
+    surface: `archive_mood_profile` MCP + `/api/archive/mood`. Genre head
+    gate FAILED (saturated) — genre writes blocked. Original spec, for
+    reference:
     - mood classifiers: happy / party / aggressive / sad / relaxed /
       acoustic / electronic (MusiCNN + VGGish/YAMNet variants, pick by AUC)
     - `danceability` and `aggressiveness` scalar classifiers
@@ -442,10 +452,14 @@ re-verified in the research notes (2026-09-05).
       Effort M (Python side only). Replaces #27's hand-rolled RMS features
       with research-grade ones.
 
-46. **Structure-aware grids & cues — 🔶 v0 SHIPPED (pass 3, rev 6.2).**
-    `megadj cues` derives 8-bar phrase markers from the beats ledger's
-    downbeats into the `cues` table (131/131 tracks, 2043 cues, idempotent,
-    DB-side — the rekordbox memory-cue WRITE is the deliberate next gate).
+46. **Structure-aware grids & cues — 🔶 v0 SHIPPED (pass 3, rev 6.2); wave-2
+    tooling SHIPPED 2026-09-10.** `megadj cues` derives 8-bar phrase
+    markers from the beats ledger's downbeats into the `cues` table (536
+    tracks → 14,449 cues, idempotent, DB-side — the rekordbox memory-cue
+    WRITE is the deliberate next gate). The grid-audit wave-2 tooling
+    (`megadj gold-report`/`regate` gold-set harness, `megadj
+    rb-grid-triage`, ANLZ write-path spike) is live — see C19 and
+    [grid-audit-plan.md](grid-audit-plan.md), the SSOT for the remainder.
     The full all-in-one-infer slice (functional segment labels intro/verse/
     drop/outro + demucs stems) remains the follow-on: _model note
     (2026-09-05): BeatFM (ICME 2025) beats beat_this on downbeat F1 by
@@ -477,14 +491,16 @@ re-verified in the research notes (2026-09-05).
     analysis-side metric only.
 
 49. **Embeddings & "sounds like" — ✅ SHIPPED 2026-09-08 (effnet tower).**
-    The mood pass's discogs-effnet 1280-d mean embedding is now emitted in
+    The mood pass's discogs-effnet 1280-d mean embedding is emitted in
     the same ONNX probe run (`megadj mood --embeddings` mirrors it into the
-    archive DB `embeddings` ledger; 87/131 executed) and queried via
+    archive DB `embeddings` ledger) and queried via
     `megadj similar <video_id> [--k N] [--json]`, MCP
     `archive_similar_tracks`, and the FullTags ⌗ Similar tab — blob +
     cosine at archive scale, exactly as planned. (MuQ-MuLan step-up remains
     a future upgrade of the vector source; the query surface won't change.)
-    The 88-fingerprint ledger was the pilot, as suggested.
+    **Open garnish:** the embeddings ledger still holds the original 87
+    rows — re-run `megadj mood --embeddings` to backfill the Sep 9–11
+    intake (~447 tracks) so similarity sees the whole archive.
 
 50. **LLM track captioning (vibe notes).** Feed Essentia tags + structure
     labels + metadata to a local/small LLM → a one-line vibe description
@@ -624,20 +640,23 @@ extractors).
 
 ## L. Fingerprints, dedupe & identity
 
-62. **Acoustic fingerprint ledger — ✅ SHIPPED 2026-09-05 (rev 5, 131/131
-    executed).** `fulltags --fingerprint` → `TXXX:ACOUSTID` (chromaprint
-    via `fpcalc`); idempotency verified across re-runs after the WAV
-    stamp-read hole was fixed. Consumers still open (in value order):
-    - **cross-format dupe detection** — same recording at different
-      bitrate/format/path (the LOWQ/HiQ pair case, name-blind)
-    - **verify `megadj upgrade` swaps** (#24): re-fingerprint the new file,
-      confirm same recording, _then_ delete the old — no more trust-in-URL
+62. **Acoustic fingerprint ledger — ✅ SHIPPED 2026-09-05 (rev 5);
+    consumers shipped through Sep 11.** `fulltags --fingerprint` →
+    `TXXX:ACOUSTID` (chromaprint via `fpcalc`); idempotency verified
+    across re-runs after the WAV stamp-read hole was fixed. Consumer
+    scoreboard: cross-format dupe detection ✅ (`shelf-dupescan`,
+    `dedupe-archive`, `shelf-hygiene` acoustic-twin findings), verify
+    `megadj upgrade` swaps ✅ (the swap gate re-fingerprints before
+    replacing). Still open:
     - **untagged-file identification** via the free AcoustID lookup API
       (`megadj adopt` gets smarter)
     - drive-side audit: fingerprint sampled files on a stick vs archive —
       catches the wrong-byte-variant-on-mirror class forever
       Reference: dupsonic (Rust, incremental, LSH) — use as-is or steal
       the incremental-scan design. Effort S-M.
+    **Stamp catch-up owed:** the Sep 9–11 intake batches ingested before
+    the fingerprint stage — 111/524 archive files carry ACOUSTID (run
+    `fulltags ~/Music/DJ-Imports --fingerprint` to close the gap).
 
 63. **Fingerprint the mirror.** Once #62 exists, a `--fingerprint-sample N`
     flag on `usb_mirror.py --verify-only` content-checks N random files per
@@ -663,13 +682,18 @@ Mac-DJ irritations nobody builds for.
     ingest normalizes to a strict `Artist - Title (Remixer)` convention,
     verified against MusicBrainz, diff view before apply, FAT32-safe
     length checks built in. Effort S.
-66. **Set-builder copilot — ✅ SHIPPED 2026-09-08 (propose-only core).**
+66. **Set-builder copilot — ✅ SHIPPED (core Sep 8; CLI spoke Sep 11).**
     `cratedeck/src/setbuild.ts` (pure engine) + `GET /api/archive/setbuild`
-    - MCP `archive_set_build` + the FullTags ⌗ Similar panel: target
-      minutes + an energy-arc preset (warm-up/peak/afterhours, N80's
-      envelopes) → an ordered chain gated by Camelot key compat, ±6% tempo,
-      and arc fit; unmixable leftovers land in an honest excluded-with-reason
-      list. Proposes only — never writes; drag-edit export is a future garnish.
+    - MCP `archive_set_build` + `megadj setbuild [--preset
+      warmup|peak|afterhours] [--minutes N] [--opener <video_id>]` +
+      the FullTags ⌗ Similar panel + the `.claude/skills/set-builder`
+      skill: target minutes + an energy-arc preset (warm-up/peak/
+      afterhours, N80's envelopes) → an ordered chain gated by Camelot
+      key compat, ±6% tempo, and arc fit; unmixable leftovers land in an
+      honest excluded-with-reason list. All four surfaces share one
+      engine + parse/clamp seam (surface-parity rev 20 — the last
+      CLI-vs-MCP archive read gap closed). Proposes only — never writes;
+      drag-edit export is a future garnish.
 67. **"Find the double-drop" detector.** Scan the library for pairs of
     tracks whose grids + keys align so well they can be layered (acapella
     over instrumental) — mashup hunting by embeddings + grid math instead
@@ -790,10 +814,10 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 "agent-first, MCP-friendly, `--json` on every command" — with O86's rails
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
-82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 37 tools
-    after the Sep 10 hygiene/fixes revs).** Live:
+82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves; 39 tools
+    after the Sep 10/11 hygiene, fixes and `getdat_*` revs).** Live:
     `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` —
-    **37 tools** (22 `deck_*` + 15 `archive_*`; census derives from
+    **39 tools** (22 `deck_*` + 15 `archive_*` + 2 `getdat_*`; census derives from
     source, pinned by `surface-parity.test.ts`). The archive half
     (O82b) is readonly reads over megadj's own DB (`cratedeck/src/
 archive.ts`, opened `readonly: true`; missing DB degrades to
@@ -821,7 +845,7 @@ archive.ts`, opened `readonly: true`; missing DB degrades to
 
 85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
     installable Claude Code bundle: `.claude-plugin/plugin.json` +
-    `.mcp.json` (the 37-tool MCP server) + `hooks/hooks.json`
+    `.mcp.json` (the 39-tool MCP server) + `hooks/hooks.json`
     (SessionStart posts `deckctl status --json` into context) + the 3
     skills. `claude plugin validate` passes; dev-install with
     `claude --plugin-dir $PWD/plugin`. A published marketplace variant
@@ -883,9 +907,11 @@ archive.ts`, opened `readonly: true`; missing DB degrades to
 > [archive/roadmap-proposal.md](archive/roadmap-proposal.md)).
 > What remains binding here: **§0 gates everything**, and the **reality
 > gate** (gig frequency, see §0) decides depth. Nearly every Phase 2–6
-> item above shipped in the Sep 4–7 window (fleet, ⌘K, preflight,
-> players, fingerprints, keys, moods, O82–O88, drop) — the open
-> remainders are C18a/C21, O84, I46 full slice, K57–K59, and M69–M74.
+> item above shipped in the Sep 4–11 window (fleet, ⌘K, preflight,
+> players, fingerprints, keys, moods, O82–O88, drop, similarity,
+> set-builder, shelf hygiene/dedupe/dupescan, grid-audit wave 2) — the
+> open remainders are C18a/C21, O84, I46 full slice, K57–K59, M69–M74,
+> and the two §0 physical tasks (0a evacuation run, 0b rclone remote).
 
 **Deliberately unbuilt:** C18b/c (pdb write gauntlet — parked), I52
 (deleted), K56 (lyrics), K60 (setlist.fm), E31/E44 (struck 2026-09-05:

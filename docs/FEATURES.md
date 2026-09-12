@@ -86,11 +86,13 @@ the remix's, not the original's.
    people drag back in), zero-byte/corrupt probe before
    anything poisons the library, sub-60s clip gating.
 
-**Commands:** `megadj ingest`, `megadj drop` (one-shot: download →
-ingest → beats → mood → cues → organize), `megadj fetch`, `megadj
+**Commands:** `megadj ingest`, `megadj convert` (archive-wide WAV→AIFF),
+`megadj drop` (one-shot: download → ingest → fetch → years → beats →
+mood → cues → organize → tag-check → audit), `megadj fetch`, `megadj
 enrich`, `megadj artwork`, `megadj audit`, `megadj tag-check` (tag
-structure + booth-text health), `megadj beats`, `megadj mood`,
-`megadj cues`
+structure + booth-text health), `megadj years`, `megadj booth-fix`,
+`megadj beats`, `megadj mood`, `megadj cues`, `megadj similar`,
+`megadj setbuild`, `megadj gold-report`/`regate` (gold-set gate harness)
 **Also:** FullTags ships standalone in [`fulltags/`](../fulltags/README.md)
 — same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
 commands are thin wrappers over it.
@@ -113,13 +115,13 @@ architecture, build plan, acceptance).
 
 |                    |                                                                                                                                                                                                                                  |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (37-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep)                   |
+| **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (39-tool MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep, shelf hygiene + bench-anomaly + role-aware archive-tier checks) |
 | **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                                          |
 | **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                                      |
 | **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads                          |
 | **The verify**     | `usb_verify.py` deep gate: dual-DB agreement (OneLibrary vs legacy `export.pdb` live rows), audio existence, ANLZ-at-hash-path, grid math (duration × BPM ≈ beat count), playlist integrity, cross-drive hash parity             |
 | **The interlock**  | rekordbox running? everything locks — exit code 3, red banner, no exceptions. Never bypassed.                                                                                                                                    |
-| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: 23 verbs incl. `run/coverage/redundancy/diff/preflight/players/hygiene/fixes/prep/note/rename/search/help/dismiss/booth`, `--json` for agents) · `bun run mcp` (37-tool MCP server) |
+| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI: 23 verbs incl. `run/coverage/redundancy/diff/preflight/players/hygiene/fixes/prep/note/rename/search/help/dismiss/booth`, `--json` for agents) · `bun run mcp` (39-tool MCP server) |
 
 **Commands:** `bun run deck`, `bun run cratedeck/src/deckctl.ts …`
 **Shelf intake:** `megadj shelf-archive [volume …]` pulls everything from any
@@ -130,13 +132,15 @@ copies preserved (see [usb-sync-log.md](usb-sync-log.md), Sep 9 2026).
 [USB pipeline](usb-sync.md) ·
 [the doc set](cratedeck/)
 
-> **Note:** the status row already includes the Sep 5–7 2026 additions —
-> B12 preflight, N75/N78 player-compat verdicts, the 37-tool MCP server
-> (incl. the O82b archive half), O83 weekly digest (now also a Fleet ⌗
+> **Note:** the status row already includes the Sep 5–11 2026 additions —
+> B12 preflight, N75/N78 player-compat verdicts, the 39-tool MCP server
+> (incl. the O82b archive half and the `getdat_*` twins), O83 weekly digest (now also a Fleet ⌗
 > Prep tab), O87 job attribution, O88 agent notes, O85 plugin packaging,
 > the FullTags beats + mood + cues ledgers (FullTags roadmap rev 6.2),
-> and the Sep 7 surface-parity revs (Fleet ⌗ Archive tab, `deckctl
-rename`/`report --dossier` + MCP twins).
+> the Sep 7 surface-parity revs (Fleet ⌗ Archive tab, `deckctl
+rename`/`report --dossier` + MCP twins), the Sep 10 shelf-hygiene engine
++ role-aware archive-tier checks, and the Sep 11 set-builder CLI spoke
++ `megadj shelf-restore`.
 
 **Vibe:** mission control for a drawer full of identical-looking sticks.
 
@@ -154,18 +158,22 @@ The roadmap lives in two places — this section restates neither:
 
 Headline shape (status inline; the docs own the detail):
 
-- **Move 1 — CrateDeck v1.x:** preflight ✅ + player verdict ✅ shipped;
+- **Move 1 — CrateDeck v1.x:** preflight ✅ + player verdict ✅ +
+  bench-anomaly rule ✅ + shelf hygiene engine ✅ shipped;
   remaining: C18a runbook, C21/C22 differential mirror.
 - **Move 2 — FullTags v1.x:** ALL SHIPPED behind ground-truth gates
   (key 80.7% written; BPM + genre writes gate-FAILED → beats/mood/cues
-  DB ledgers instead — [fulltags-roadmap.md](fulltags-roadmap.md) rev 6.2).
-- **Move 3 — the agentic layer:** SHIPPED (37-tool MCP + `deckctl prep`
-  - D30 sweep); remaining: O84 inbox agent.
-- **The dream** — hit predictor & set-builder copilot, calibrated on what
-  actually got played; proposes sequences, never auto-exports (§M64, M66).
+  DB ledgers instead — [fulltags-roadmap.md](fulltags-roadmap.md) rev
+  6.5; Beatport identity fields rev 6.4).
+- **Move 3 — the agentic layer:** SHIPPED (39-tool MCP + `deckctl prep`
+  + D30 sweep); remaining: O84 inbox agent.
+- **The dream** — hit predictor calibrated on what actually got played
+  (§M64, needs history); the set-builder half already shipped propose-only
+  (§M66, incl. the `megadj setbuild` CLI spoke).
 
-Do-now items are tracked as GitHub issues, not just prose — see the issue
-links at the top of [ideas.md §0](ideas.md#0--do-now-before-anything-else).
+Do-now items live in [ideas.md §0](ideas.md#0--do-now-before-anything-else),
+which is now software-complete (issues #1–#5 closed; the two physical
+tasks — evacuate Extra, create the rclone remote — wait on hardware time).
 
 ---
 
@@ -179,6 +187,9 @@ megadj years                   # FullTags: verify years vs SC page (kills AI 202
 megadj shelf-sync              # shelf: archive → shelf master (new music out)
 megadj shelf-archive <volume>  # shelf: drive → shelf master (stray-drive intake)
 megadj shelf-sweeps            # shelf: DB ledger — every sweep's verdict, latest per drive
+megadj shelf-dupescan          # shelf: fingerprint dupes regardless of name/folder
+megadj similar <video_id>      # FullTags: sounds-like kNN over the embeddings ledger
+megadj setbuild --preset peak  # FullTags: propose a Camelot/energy-arc mix chain
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 
