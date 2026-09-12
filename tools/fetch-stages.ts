@@ -197,6 +197,9 @@ function markArt(
 
 /** One SC genre win: canonicalize → DB row + file tag + stat + note. */
 function applyScGenre(t: StageCtx, rawGenre: string): void {
+  // Junk gate: numeric genres (SC genre IDs leaked through yt-dlp) and the
+  // placeholder "Music" are not genres — refuse, never write them anywhere.
+  if (/^\d+$/.test(rawGenre) || rawGenre.toLowerCase() === "music") return;
   const g = canonGenre(rawGenre);
   db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(g, t.row.video_id);
   setFileTags(t.row.file_path, { genre: g });

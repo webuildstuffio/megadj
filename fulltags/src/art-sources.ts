@@ -397,7 +397,11 @@ function scSearchReal(r: SearchRow): ScHit[] {
         thumbsRaw?.match(
           /https:\/\/i1\.sndcdn\.com\/artworks[^\s',]+t500x500\.jpg/,
         )?.[0] ?? null,
-      ...(genre && genre !== "NA" ? { genre } : {}),
+      // SC flat-search `genre` is a numeric SoundCloud genre ID, not a name
+      // (when present at all). Numeric junk must never leave this function —
+      // Sep 11: numeric "genres" got written to files + DBs and took hours
+      // to purge. Non-numeric names pass through untouched.
+      ...(genre && genre !== "NA" && !/^\d+$/.test(genre) ? { genre } : {}),
       ...(year === undefined ? {} : { year }),
       score: overlap * 2 + (uploaderOK ? 1 : 0),
     });
