@@ -116,6 +116,30 @@ export function bpmScore(a: number, b: number): number {
 const mixableBpm = (c: SetCandidate): c is SetCandidate & { bpm: number } =>
   c.bpm !== null && Number.isFinite(c.bpm) && c.bpm > 0;
 
+/** First sorted index whose value is strictly greater than `target`. */
+function upperBound(sorted: number[], target: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = lo + Math.floor((hi - lo) / 2);
+    if (sorted[mid]! <= target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** First sorted index whose value is greater than or equal to `target`. */
+function lowerBound(sorted: number[], target: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = lo + Math.floor((hi - lo) / 2);
+    if (sorted[mid]! < target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
 /** Arc position 0..1 → target arousal/dance for the preset (lerp). */
 function envelope(p: [number, number], t: number): number {
   return p[0]! + (p[1]! - p[0]!) * t;
@@ -243,8 +267,15 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   // behavior when nothing qualifies (tiny pools).
   const OPENNER_MIN_NEIGHBORS = 15;
   const mixable = [...pool].filter(mixableBpm);
+  // `bpmScore(a, b) > 0` means the relative difference is strictly below
+  // 6%. Counting that neighborhood by rescanning every candidate for every
+  // possible opener made this selection O(n²) (20k synthetic tracks took
+  // ~1.6 s before the greedy chain even started). Sort once, then count the
+  // mathematically identical open interval (0.94×bpm, bpm/0.94) with two
+  // binary searches: O(n log n), preserving exact boundary semantics.
+  const sortedBpms = mixable.map((c) => c.bpm).toSorted((a, b) => a - b);
   const tempoNeighbors = (bpm: number): number =>
-    mixable.filter((c) => bpmScore(bpm, c.bpm) > 0).length;
+    lowerBound(sortedBpms, bpm / 0.94) - upperBound(sortedBpms, bpm * 0.94);
   const anchored =
     opener && mixableBpm(opener)
       ? opener

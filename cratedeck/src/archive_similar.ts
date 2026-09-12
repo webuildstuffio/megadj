@@ -113,22 +113,30 @@ export function similarTracks(
  * in setbuild.ts. Unparsable keys degrade to null (no key-score), never
  * throw.
  *
- * The pool is the WHOLE analyzed library by default — the old
+ * The source census is the WHOLE downloaded library by default — the old
  * `updated_at DESC LIMIT 300` cap silently hid 200+ analyzed tracks from
- * every proposal (and re-syncing reshuffled which ones). Files are read
- * only on a track_keys cache miss (~80 ms each: ffprobe + mutagen), so a
- * cold full scan is one slow request that fills the cache; every request
- * after it is a single indexed query.
+ * every proposal (and re-syncing reshuffled which ones). Missing paths are
+ * counted but cannot enter a proposal: a stale `downloaded` row is not an
+ * actual playable track. Existing files are read only on a valid track_keys
+ * cache miss (~80 ms each: ffprobe + mutagen). This request never fills the
+ * cache: the entire archive read surface stays physically readonly.
  */
 export function setCandidates(
   reader: ArchiveQuery,
   limit?: number,
 ): {
   available: boolean;
+  /** Downloaded DB rows inspected, including stale missing paths. */
+  sourceTotal: number;
+  /** Existing files that can actually enter the proposal. */
   total: number;
+  /** Downloaded DB rows rejected because their file is absent. */
+  missingFiles: number;
   /** How many candidates needed a live file read for their key (cache
    *  misses) — surfaced so a slow first request is explainable. */
   keyReads: number;
+  /** Live key-tag reads that failed; those tracks keep a neutral key score. */
+  keyReadFailures: number;
   candidates: {
     videoId: string;
     title: string | null;
@@ -164,35 +172,43 @@ export function setCandidates(
      FROM tracks t
      LEFT JOIN beats b ON b.video_id = t.video_id
      LEFT JOIN mood m ON m.video_id = t.video_id
-     WHERE t.status = 'downloaded' AND t.file_path IS NOT NULL
+     WHERE t.status = 'downloaded'
      ORDER BY t.updated_at DESC
      ${limit !== undefined && limit > 0 ? "LIMIT ?" : ""}`,
     ...(limit !== undefined && limit > 0 ? [limit] : []),
   );
+  const actualRows = rows.filter(
+    (row): row is typeof row & { file_path: string } =>
+      typeof row.file_path === "string" &&
+      row.file_path.length > 0 &&
+      existsSync(row.file_path),
+  );
+  const missingFiles = rows.length - actualRows.length;
   let keyReads = 0;
-  const candidates = rows.map((r) => {
+  let keyReadFailures = 0;
+  const candidates = actualRows.map((r) => {
     // TKEY lives on the FILE (AIFF/MP3 only — WAV has no key field).
-    // Cache first (path-validated); a miss pays ONE groundTruth read and
-    // backfills the ledger so future requests never re-read the file.
-    // ABSENCE is cached too (key = "") — otherwise every keyless WAV
-    // re-paid a full ffprobe+mutagen read on every request (26 s pools).
+    // Cache first (exact source path validated); a miss pays one groundTruth
+    // read without mutating the archive DB.
     let key: string | null = null;
-    if (r.file_path && existsSync(r.file_path)) {
-      const cached = reader.keyRecord(r.video_id, r.file_path);
-      if (cached) {
-        key = cached.key === "" ? null : cached.key;
-      } else {
-        try {
-          key = groundTruth(r.file_path).key;
-          reader.setKeyRecord({
-            videoId: r.video_id,
-            key: key ?? "",
-            sourcePath: r.file_path,
-          });
-          keyReads++;
-        } catch {
-          key = null; // unreadable file loses key-score, never throws
-        }
+    const cached = reader.keyRecord(r.video_id, r.file_path);
+    if (cached) {
+      key = cached.key === "" ? null : cached.key;
+    } else {
+      keyReads++;
+      try {
+        key = groundTruth(r.file_path).key;
+        reader.rememberKeyRecord({
+          videoId: r.video_id,
+          key: key ?? "",
+          sourcePath: r.file_path,
+        });
+      } catch (error) {
+        // The count is the public diagnostic; raw decoder errors may contain
+        // private local paths, so do not put their text on the wire.
+        void error;
+        keyReadFailures++;
+        key = null; // unreadable file loses key-score, never throws
       }
     }
     return {
@@ -210,8 +226,11 @@ export function setCandidates(
   });
   return {
     available: reader.available(),
+    sourceTotal: rows.length,
     total: candidates.length,
+    missingFiles,
     keyReads,
+    keyReadFailures,
     candidates,
     freshness: poolFreshness(reader),
   };

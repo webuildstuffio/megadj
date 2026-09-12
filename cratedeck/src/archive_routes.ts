@@ -125,12 +125,25 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
       if ("error" in parsed) return json({ error: parsed.error }, 400);
       // shared clamp (SET_POOL_*) — an explicit ?limit= still can't smuggle
       // 99999 into per-file key reads; absent → whole analyzed library
-      const limit = clampSetPool(
-        intParam(url.searchParams.get("limit")) ?? null,
-      );
+      const rawLimit = url.searchParams.get("limit");
+      let limit = clampSetPool(null);
+      if (rawLimit !== null) {
+        const parsedLimit = Number(rawLimit);
+        if (rawLimit.trim() === "" || !Number.isFinite(parsedLimit))
+          return json({ error: "limit must be a finite number" }, 400);
+        limit = clampSetPool(parsedLimit);
+      }
       const opener = url.searchParams.get("opener") ?? undefined;
       const preset = SET_PRESETS[parsed.preset];
-      const { total, candidates, keyReads } = archive.setCandidates(limit);
+      const {
+        sourceTotal,
+        total,
+        missingFiles,
+        candidates,
+        keyReads,
+        keyReadFailures,
+        freshness,
+      } = archive.setCandidates(limit);
       const built = buildSet({
         candidates,
         preset,
@@ -139,13 +152,16 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
       });
       return json({
         available: archive.available(),
+        source_total: sourceTotal,
         pool: total,
+        missing_files: missingFiles,
         // how many files needed a live key read this request (cache
         // misses) — a slow first build is explainable, later ones are fast
         key_reads: keyReads,
+        key_read_failures: keyReadFailures,
         // ledger ages (newest beats/mood analysis) — the UI staleness
         // line derives from this, never a hand-copied clock read
-        freshness: archive.freshness(),
+        freshness,
         // the wire contract is the preset ID (SetBuildPayload.preset: string)
         // — consumers resolve labels from the shared SET_PRESET_DEFS registry
         preset: built.preset,

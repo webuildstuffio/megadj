@@ -14,8 +14,8 @@ import {
 import {
   SET_PRESET_DEFS,
   SET_PRESET_IDS,
-  SET_POOL_DEFAULT,
   SET_POOL_MAX,
+  SET_POOL_UNLIMITED,
   clampSetPool,
 } from "../shared/types";
 
@@ -429,10 +429,8 @@ describe("clampSetPool (the ?limit= guard shared by route + MCP tool)", () => {
     expect(clampSetPool(undefined)).toBe(0);
     expect(clampSetPool(Number.NaN)).toBe(0);
   });
-  test("route + MCP surface agree on the documented caps", () => {
-    // the MCP schema text is derived from the same constants the route
-    // clamps with — they cannot drift apart again
-    expect(SET_POOL_DEFAULT).toBe(300);
+  test("the shared sentinel and explicit cap cannot describe a false default", () => {
+    expect(SET_POOL_UNLIMITED).toBe(0);
     expect(SET_POOL_MAX).toBe(1000);
   });
 });

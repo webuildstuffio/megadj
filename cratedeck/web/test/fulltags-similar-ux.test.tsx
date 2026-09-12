@@ -54,11 +54,12 @@ describe("FullTags Similar and Set Builder UX", () => {
   test("set builder names its evidence, checks, and write behavior", () => {
     const html = render(<SimilarTab />);
     expect(html).toContain('aria-label="Set builder evidence"');
+    expect(html).toContain("Entire downloaded archive DB");
     expect(html).toContain("Beats ledger BPM");
     expect(html).toContain("file key tags");
     expect(html).toContain("Mood ledger energy");
     expect(html).toContain("±6% tempo");
-    expect(html).toContain("Writes nothing");
+    expect(html).toContain("Writes no tags or playlists");
   });
 
   test("preset buttons expose radio semantics and lock during a build", () => {

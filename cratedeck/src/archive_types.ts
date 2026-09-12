@@ -68,15 +68,18 @@ export interface ArchiveQuery {
       | { [k: string]: string | number | bigint | boolean | null }
     )[]
   ): T | undefined;
-  /** Cached musical key (Camelot TKEY) for a track, valid only while the
-   *  file lives at `sourcePath`. Null when never cached (the caller may
-   *  then read the file and setKeyRecord). */
+  /** Cached musical key (Camelot TKEY), valid for this exact source path.
+   *  Null means read the actual file. */
   keyRecord(
     videoId: string,
     sourcePath: string,
   ): { key: string; analyzedAt: string } | null;
-  /** Cache a file-read key (idempotent by video id). */
-  setKeyRecord(rec: { videoId: string; key: string; sourcePath: string }): void;
+  /** Remember a live file read for this reader's lifetime only. */
+  rememberKeyRecord(rec: {
+    videoId: string;
+    key: string;
+    sourcePath: string;
+  }): void;
   /** The ArchiveTrack column list shared by every full-row query. */
   trackCols(): string;
 }

@@ -31,7 +31,16 @@ export interface SetBuildResult {
 /** The GET /api/archive/setbuild response envelope. */
 export interface SetBuildPayload extends SetBuildResult {
   available: boolean;
+  /** Downloaded DB rows inspected before filesystem validation. */
+  source_total: number;
+  /** Existing files eligible for scoring and proposal placement. */
   pool: number;
+  /** Stale downloaded rows whose file path no longer exists. */
+  missing_files: number;
+  /** File tags read because no path-valid key cache row existed. */
+  key_reads: number;
+  /** Key-tag reads that failed; affected tracks are scored without key. */
+  key_read_failures: number;
   excluded_total: number;
   /** Ledger ages for the newest beats/mood analysis — a stale pool is
    *  VISIBLE ("proposed from analysis older than your latest drops"),
@@ -92,15 +101,12 @@ export const SET_MINUTES_MIN = 10;
 export const SET_MINUTES_MAX = 240;
 export const SET_MINUTES_DEFAULT = 60;
 
-/** The candidate-pool cap (`?limit=`), shared by the HTTP route and the MCP
- * tool — the MCP schema documents "max 1000" but the route never clamped,
- * so ?limit=99999 sailed straight into per-file TKEY reads (400 sync file
- * I/O calls per request). One clamp, both surfaces. */
+/** An optional candidate-pool cap (`?limit=`), shared by HTTP, CLI and MCP.
+ * Omission means the whole downloaded DB census; an explicit value remains
+ * bounded so a typo cannot trigger unbounded per-file TKEY reads. */
 export const SET_POOL_MIN = 1;
 export const SET_POOL_MAX = 1000;
-/** Explicit numeric fallback retained for older callers and the MCP schema. */
-export const SET_POOL_DEFAULT = 300;
-/** Sentinel for an absent/invalid limit: load the whole analyzed library. */
+/** Sentinel for an absent limit: inspect the whole downloaded DB census. */
 export const SET_POOL_UNLIMITED = 0;
 
 export function clampSetPool(raw: number | null | undefined): number {

@@ -425,19 +425,22 @@ function SetBuildPanel() {
       <dl class="setbuild-evidence" aria-label="Set builder evidence">
         <div>
           <dt>Sources</dt>
-          <dd>Beats ledger BPM · file key tags · Mood ledger energy</dd>
+          <dd>
+            Entire downloaded archive DB · Beats ledger BPM · file key tags ·
+            Mood ledger energy
+          </dd>
         </div>
         <div>
           <dt>Checks</dt>
           <dd>
-            ±6% tempo window · Camelot-compatible key moves · selected energy
-            arc
+            File exists · ±6% tempo window · Camelot-compatible key moves ·
+            selected energy arc
           </dd>
         </div>
         <div>
           <dt>Output</dt>
           <dd>
-            Writes nothing — this is a proposal to review and playlist by hand
+            Writes no tags or playlists — review and accept tracks by hand
           </dd>
         </div>
       </dl>
@@ -543,7 +546,7 @@ function SetBuildPanel() {
       {build.loading && (
         <div class="setbuild-loading" role="status" aria-live="polite">
           <span class="spin" aria-hidden="true" />
-          Scoring the pool — tempo windows, Camelot moves, energy arc…
+          Checking every downloaded DB row, then scoring actual files…
           <span class="muted"> takes a moment (per-file key reads)</span>
         </div>
       )}
@@ -553,10 +556,13 @@ function SetBuildPanel() {
             cls={build.data.pool === 0 ? "warn" : "ok"}
             text={
               build.data.pool === 0
-                ? "No candidates — run `megadj beats` + `megadj mood` so the builder has BPM/mood data."
-                : `${build.data.steps.length}-track ${presetLabel(build.data.preset)} proposal from a ${build.data.pool}-track pool — ${build.data.minutes} min.`
+                ? build.data.source_total > 0 &&
+                  build.data.missing_files === build.data.source_total
+                  ? `No actual files found — all ${build.data.source_total} downloaded DB paths are missing. Run an archive sweep and repair the paths.`
+                  : "No mixable actual files — run `megadj beats` + `megadj mood` so the builder has BPM/mood data."
+                : `${build.data.steps.length}-track ${presetLabel(build.data.preset)} proposal from ${build.data.pool} actual files — ${build.data.source_total} downloaded DB rows checked${build.data.missing_files > 0 ? `, ${build.data.missing_files} missing files skipped` : ""} — ${build.data.minutes} min.`
             }
-            meta="propose-only — nothing is written; accept tracks into a playlist by hand"
+            meta={`propose-only — no tags or playlists written; ${build.data.key_reads} file key tag${build.data.key_reads === 1 ? "" : "s"} read${build.data.key_read_failures > 0 ? `, ${build.data.key_read_failures} failed and scored without key` : ""}`}
           />
           <FreshnessLine
             freshness={build.data.freshness}

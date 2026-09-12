@@ -65,7 +65,15 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       return;
     }
 
-    const { total, candidates } = reader.setCandidates(
+    const {
+      sourceTotal,
+      total,
+      missingFiles,
+      candidates,
+      keyReads,
+      keyReadFailures,
+      freshness,
+    } = reader.setCandidates(
       // shared clamp — an explicit --limit is bounded by the same contract
       // as the route/MCP (1–1000); absent → whole analyzed library
       clampSetPool(opts.limit ?? null),
@@ -78,19 +86,25 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
     });
     const payload: SetBuildPayload = {
       available: true,
+      source_total: sourceTotal,
       pool: total,
+      missing_files: missingFiles,
+      key_reads: keyReads,
+      key_read_failures: keyReadFailures,
       preset: built.preset,
       minutes: built.minutes,
       steps: built.steps,
       excluded: built.excluded.slice(0, 40),
       excluded_total: built.excluded.length,
-      freshness: reader.freshness(),
+      freshness,
     };
     if (built.steps.length === 0) {
       // empty proposal = a real finding (nothing analyzed / nothing
       // mixable), not a crash — same honesty as the web Verdict row
       log(
-        `setbuild: nothing mixable in a ${total}-track pool — run \`megadj beats\` + \`megadj mood\` first`,
+        total === 0 && sourceTotal > 0 && missingFiles === sourceTotal
+          ? `setbuild: checked ${sourceTotal} downloaded DB rows, but none of their files exist — run \`megadj status\`, then repair or resync those rows`
+          : `setbuild: nothing mixable in a ${total}-track actual-file pool — run \`megadj beats\` + \`megadj mood\` first`,
       );
       process.exitCode = 1;
     } else {
@@ -98,7 +112,7 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       // surface the ledger ages so "why isn't my new track in here" is
       // answerable without opening a DB shell
       log(
-        `setbuild: ${built.steps.length}-track ${built.preset} proposal, ${built.minutes} min (pool ${total}, excluded ${payload.excluded_total})`,
+        `setbuild: ${built.steps.length}-track ${built.preset} proposal, ${built.minutes} min (checked ${sourceTotal} DB rows; ${total} actual files; ${missingFiles} missing; excluded ${payload.excluded_total})`,
       );
       log(
         `  analysis freshness — beats: ${dayOf(payload.freshness.beatsAt)}, mood: ${dayOf(payload.freshness.moodAt)} (newer imports need \`megadj beats\` + \`megadj mood\`)`,

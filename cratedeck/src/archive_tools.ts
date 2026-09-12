@@ -8,11 +8,7 @@
 
 import { apiGet } from "./deckapi";
 import { parseSetbuildQuery } from "./setbuild";
-import {
-  SET_PRESET_IDS,
-  SET_POOL_DEFAULT,
-  SET_POOL_MAX,
-} from "../shared/types";
+import { clampSetPool, SET_PRESET_IDS, SET_POOL_MAX } from "../shared/types";
 import {
   str,
   num,
@@ -178,7 +174,7 @@ export function archiveTools(): Record<string, unknown> {
 
     archive_set_build: {
       description:
-        "[READ-ONLY, PROPOSES ONLY] M66 set-builder copilot: proposes an ordered mix chain from the archive's measured data — beats-ledger BPM (±6% mixability window), file TKEY (Camelot wheel), mood-ledger arousal/dance shaped into an energy-arc preset (warmup/peak/afterhours). Writes nothing — proposals to accept into a playlist by hand. pool=0 means run `megadj beats` + `megadj mood` first.",
+        "[READ-ONLY, PROPOSES ONLY] M66 set-builder copilot: audits every downloaded archive row, rejects missing files, then proposes an ordered mix chain from beats-ledger BPM (±6% mixability window), file TKEY (Camelot wheel), and mood-ledger arousal/dance shaped into an energy-arc preset. Writes nothing. Inspect source_total, pool, missing_files, key-read diagnostics, and freshness to explain the result.",
       inputSchema: obj({
         preset: {
           type: "string",
@@ -188,7 +184,7 @@ export function archiveTools(): Record<string, unknown> {
         minutes: n("target set length in minutes (default 60, 10–240)"),
         opener: s("optional video_id to force as the first track"),
         limit: n(
-          `candidate pool cap (default ${SET_POOL_DEFAULT}, max ${SET_POOL_MAX})`,
+          `optional candidate pool cap; omitted scans the whole downloaded archive DB (max ${SET_POOL_MAX})`,
         ),
       }),
       run: async (args: Record<string, unknown>) => {
@@ -203,11 +199,14 @@ export function archiveTools(): Record<string, unknown> {
         q.set("minutes", String(parsed.minutes));
         const opener = str(args, "opener");
         if (opener) q.set("opener", opener);
-        // pool cap from the shared constants — was a hand-copied (300, 1000)
-        // that could silently drift from the route's clamp contract
-        const res = await apiGet(
-          `/api/archive/setbuild?${q.toString()}&limit=${optLimit(args, SET_POOL_DEFAULT, SET_POOL_MAX)}`,
-        );
+        const rawLimit = args.limit;
+        if (rawLimit !== undefined) {
+          const parsedLimit = num(args, "limit");
+          if (parsedLimit === undefined)
+            throw new RpcParamError("limit must be a finite number");
+          q.set("limit", String(clampSetPool(parsedLimit)));
+        }
+        const res = await apiGet(`/api/archive/setbuild?${q.toString()}`);
         return res.json();
       },
     },

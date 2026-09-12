@@ -8,7 +8,7 @@
 // READ-ONLY, by construction and by promise: opened with `readonly: true` so
 // a bug here physically cannot corrupt megadj's state (P9 safety rails).
 import { Database, type SQLQueryBindings } from "bun:sqlite";
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import {
   poolFreshness,
   similarTracks as similarTracksImpl,
@@ -42,11 +42,14 @@ const TRACK_COLS = `video_id, title, artist, album, status, bitrate_kbps,
 
 export class ArchiveReader implements ArchiveQuery {
   private db: Database | null = null;
-  /** Lazily-opened WRITABLE companion for the track_keys read-cache only.
-   *  The main handle stays strictly readonly (the P9 promise); key rows are
-   *  derived data (re-derivable from files), so a separate handle that can
-   *  only ever run the two cache statements is the honest middle ground. */
-  private keysDb: Database | null = null;
+  private hasKeyCache: boolean | null = null;
+  /** Fresh file reads remembered for this reader's lifetime. This preserves
+   *  the strict DB-readonly contract without paying the same stale/missing
+   *  ledger miss on every set-builder request handled by the server. */
+  private liveKeys = new Map<
+    string,
+    { key: string; analyzedAt: string; size: number; mtimeMs: number }
+  >();
   constructor(readonly path: string) {}
 
   /** Public "is the archive DB present" probe (routes/agents use this to
@@ -74,8 +77,8 @@ export class ArchiveReader implements ArchiveQuery {
   close(): void {
     this.db?.close();
     this.db = null;
-    this.keysDb?.close();
-    this.keysDb = null;
+    this.hasKeyCache = null;
+    this.liveKeys.clear();
   }
 
   /** Public read access for the split-out modules (archive_similar.ts):
@@ -92,59 +95,82 @@ export class ArchiveReader implements ArchiveQuery {
     return this.rows<T>(sql, ...params)[0];
   }
 
-  // ---------- track_keys read-cache (writable companion handle) ----------
+  // ---------- track_keys read-cache (strictly readonly) ----------
 
-  /** The cache handle: opens writable, ensures the table exists (a DB
-   *  created by an older build lacks it), and stays open for the reader's
-   *  lifetime. Null when the DB file itself is missing. */
-  private keysHandle(): Database | null {
-    if (this.keysDb) return this.keysDb;
-    if (!existsSync(this.path)) return null;
-    this.keysDb = new Database(this.path);
-    this.keysDb.exec(
-      `CREATE TABLE IF NOT EXISTS track_keys (
-        video_id TEXT PRIMARY KEY,
-        key TEXT NOT NULL,
-        source_path TEXT NOT NULL,
-        analyzed_at TEXT NOT NULL
-      )`,
-    );
-    return this.keysDb;
+  private sourceIdentity(sourcePath: string): {
+    size: number;
+    mtimeMs: number;
+  } | null {
+    try {
+      const stat = statSync(sourcePath);
+      return stat.isFile() ? { size: stat.size, mtimeMs: stat.mtimeMs } : null;
+    } catch (error) {
+      // A file can vanish between the candidate census and this lookup. A
+      // missing identity must never validate a stale key record.
+      console.debug("archive key cache could not stat candidate", error);
+      return null;
+    }
   }
 
   keyRecord(
     videoId: string,
     sourcePath: string,
   ): { key: string; analyzedAt: string } | null {
-    const db = this.keysHandle();
-    if (!db) return null;
-    const row = db
-      .query(
-        `SELECT key, analyzed_at FROM track_keys
-         WHERE video_id = ? AND source_path = ?`,
-      )
-      .get(videoId, sourcePath) as {
+    const memoryKey = `${videoId}\0${sourcePath}`;
+    const identity = this.sourceIdentity(sourcePath);
+    if (!identity) return null;
+    const live = this.liveKeys.get(memoryKey);
+    if (
+      live &&
+      live.size === identity.size &&
+      live.mtimeMs === identity.mtimeMs
+    )
+      return live;
+    if (this.hasKeyCache === null) {
+      this.hasKeyCache =
+        this.row<{ present: number }>(
+          `SELECT 1 AS present FROM sqlite_master
+           WHERE type = 'table' AND name = 'track_keys'`,
+        ) !== undefined;
+    }
+    if (!this.hasKeyCache) return null;
+    const row = this.row<{
       key: string;
       analyzed_at: string;
-    } | null;
-    return row ? { key: row.key, analyzedAt: row.analyzed_at } : null;
+      track_updated_at: string;
+    }>(
+      `SELECT k.key, k.analyzed_at, t.updated_at AS track_updated_at
+       FROM track_keys k
+       JOIN tracks t ON t.video_id = k.video_id
+       WHERE k.video_id = ? AND k.source_path = ?`,
+      videoId,
+      sourcePath,
+    );
+    if (!row) return null;
+    const analyzedAt = Date.parse(row.analyzed_at);
+    const trackUpdatedAt = Date.parse(row.track_updated_at);
+    if (
+      !Number.isFinite(analyzedAt) ||
+      !Number.isFinite(trackUpdatedAt) ||
+      trackUpdatedAt > analyzedAt ||
+      identity.mtimeMs > analyzedAt
+    )
+      return null;
+    return { key: row.key, analyzedAt: row.analyzed_at };
   }
 
-  setKeyRecord(rec: {
+  rememberKeyRecord(rec: {
     videoId: string;
     key: string;
     sourcePath: string;
   }): void {
-    const db = this.keysHandle();
-    if (!db) return;
-    db.query(
-      `INSERT INTO track_keys (video_id, key, source_path, analyzed_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(video_id) DO UPDATE SET
-         key = excluded.key,
-         source_path = excluded.source_path,
-         analyzed_at = excluded.analyzed_at`,
-    ).run(rec.videoId, rec.key, rec.sourcePath, new Date().toISOString());
+    const identity = this.sourceIdentity(rec.sourcePath);
+    if (!identity) return;
+    this.liveKeys.set(`${rec.videoId}\0${rec.sourcePath}`, {
+      key: rec.key,
+      analyzedAt: new Date().toISOString(),
+      ...identity,
+    });
   }
 
   /** The ArchiveTrack column list, shared by every query that returns
