@@ -24,7 +24,6 @@ import { api, toast } from "../../ui/toast";
 import { errMessage } from "../../../shared/fmt";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
-import { TabIntro } from "../../ui/InfoTip";
 import {
   ListHead,
   DataTable,
@@ -36,8 +35,9 @@ import {
   SearchBar,
 } from "../../ui/data";
 import { Sparkline } from "../../ui/charts";
-import { SectionHead, Verdict, TrackTitle } from "../shared";
+import { SectionHead, TrackTitle } from "../shared";
 import { SetBuilderMethod } from "./SetBuilderMethod";
+import { SetBuilderResult } from "./SetBuilderResult";
 /** The wire row a track-pick search deals in: the search endpoint returns
  *  ArchiveTrack-shaped rows; the caller keeps (video_id, title, artist). */
 export interface TrackPick {
@@ -140,11 +140,6 @@ export function SimilarTab() {
 
   return (
     <div>
-      <TabIntro
-        what="Sounds like: nearest tracks by audio-embedding similarity, plus a set-builder that proposes an ordered mix."
-        how="Pick a track (search by name) and the effnet model's 1280-d audio embedding finds its nearest neighbours — 'find me more like this one'. The builder below proposes a mix chain from the beats/mood ledgers + file keys: Camelot-compatible, within a ±6% tempo window, shaped into an energy arc. Both are pure reads; nothing is written."
-        next="Empty corpus = embeddings not computed yet — run `megadj mood --embeddings`. Empty pool = run `megadj beats` too."
-      />
       <SetBuildPanel />
       <SectionHead icon="compass" title="Sounds like — nearest by embedding" />
       <TrackPickSearch
@@ -260,12 +255,6 @@ function FreshnessLine(props: {
     </div>
   );
 }
-
-/** preset id → human label, straight from the shared registry (unknown id
- *  falls back to the raw id rather than lying). Module scope so the panel
- *  doesn't recreate it per render. */
-const presetLabel = (id: string): string =>
-  SET_PRESET_DEFS.find((p) => p.id === id)?.label ?? id;
 
 /** ONE line shape for a sounds-like hit — the copy block and any future
  *  consumer agree (mirrors `megadj similar`'s stdout rows). */
@@ -414,8 +403,12 @@ function OpenerPicker(props: {
 }) {
   if (props.opener)
     return (
-      <span class="setbuild-opener" title="Forced opener — the arc starts here">
-        opener: <b>{props.opener.title ?? props.opener.video_id}</b>
+      <span
+        class="setbuild-opener"
+        title="Chosen opening track — the arc starts here"
+      >
+        <span>Opening track</span>
+        <b>{props.opener.title ?? props.opener.video_id}</b>
         <button
           type="button"
           class="plsearch-clear"
@@ -431,13 +424,14 @@ function OpenerPicker(props: {
   if (props.busy)
     return (
       <span class="setbuild-opener-disabled" aria-disabled="true">
-        set opener… <span>available after this build</span>
+        Opening track <span>Auto-picked for this build</span>
       </span>
     );
   return (
     <details class="setbuild-opener-pick">
-      <summary title="Force the first track — the arc is built from it">
-        set opener…
+      <summary title="Choose the first track — otherwise FullTags picks it">
+        <Icon name="search" size={12} /> Choose opening track
+        <span>optional · otherwise auto-picked</span>
       </summary>
       <TrackPickSearch
         query={props.query}
@@ -500,7 +494,9 @@ function SetBuildPanel() {
       });
       if (opener) q.set("opener", opener.video_id);
       setBuild({
-        data: await api<SetBuildPayload>(`/api/archive/setbuild?${q}`),
+        data: await api<SetBuildPayload>(`/api/archive/setbuild?${q}`, {
+          timeoutMs: 90_000,
+        }),
         loading: false,
         error: null,
         stale: false,
@@ -546,115 +542,125 @@ function SetBuildPanel() {
 
   return (
     <Card class="setbuild">
-      <SectionHead icon="compass" title="Build a mix from your whole archive" />
+      <SectionHead icon="compass" title="Build a set from your entire shelf" />
       <p class="setbuild-lead">
-        Pick a familiar set length and how the room's energy should move.
-        FullTags checks every downloaded DB row, keeps only mounted files, then
-        orders a playable draft using tempo, key, and mood.
+        Choose the room's energy and a familiar length. FullTags checks the
+        whole archive, removes missing files and duplicates, then orders a
+        playable draft using tempo, key, and mood.
       </p>
-      <fieldset class="setbuild-preset">
-        <legend id="setbuild-preset-label">
-          <span>1</span> Choose the energy journey
-        </legend>
-        <div
-          class="setbuild-preset-grid"
-          role="radiogroup"
-          aria-labelledby="setbuild-preset-label"
-        >
-          {SET_PRESET_DEFS.map((p, index) => (
-            <PresetOption
-              key={p.id}
-              preset={p}
-              selected={preset.id === p.id}
-              disabled={build.loading}
-              index={index}
-              onSelect={(next) => {
-                if (next.id === preset.id) return;
-                setPreset(next);
-                invalidateProposal();
-              }}
-            />
-          ))}
-        </div>
-      </fieldset>
-      <div class="setbuild-setup-title">
-        <span>2</span> Set the length and build
-      </div>
-      <div class="setbuild-duration">
-        <div
-          class="setbuild-duration-presets"
-          role="group"
-          aria-label="Common set lengths"
-        >
-          {SET_DURATION_PRESETS.map((duration) => (
-            <button
-              key={duration}
-              type="button"
-              class={`setbuild-duration-option${minutes === duration ? " on" : ""}`}
-              aria-pressed={minutes === duration}
-              disabled={build.loading}
-              onClick={() => {
-                setMinutesInput(String(duration));
-                invalidateProposal();
-              }}
+      <form
+        class="setbuild-form"
+        aria-label="Set builder settings"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!build.loading) void run();
+        }}
+      >
+        <fieldset class="setbuild-preset" disabled={build.loading}>
+          <legend id="setbuild-preset-label">
+            <span>1</span> Choose the energy journey
+          </legend>
+          <div
+            class="setbuild-preset-grid"
+            role="radiogroup"
+            aria-labelledby="setbuild-preset-label"
+          >
+            {SET_PRESET_DEFS.map((p, index) => (
+              <PresetOption
+                key={p.id}
+                preset={p}
+                selected={preset.id === p.id}
+                disabled={build.loading}
+                index={index}
+                onSelect={(next) => {
+                  if (next.id === preset.id) return;
+                  setPreset(next);
+                  invalidateProposal();
+                }}
+              />
+            ))}
+          </div>
+        </fieldset>
+        <fieldset class="setbuild-length" disabled={build.loading}>
+          <legend class="setbuild-setup-title">
+            <span>2</span> Choose the set length
+          </legend>
+          <div class="setbuild-duration">
+            <div
+              class="setbuild-duration-presets"
+              role="group"
+              aria-label="Common set lengths"
             >
-              {duration} min
-            </button>
-          ))}
-        </div>
-        <label
-          class="setbuild-minutes"
-          title="Enter a custom target between the supported limits"
-        >
-          <span>
-            Custom
-            <small>
-              {SET_MINUTES_MIN}–{SET_MINUTES_MAX} minutes
-            </small>
-          </span>
-          <input
-            type="number"
-            min={SET_MINUTES_MIN}
-            max={SET_MINUTES_MAX}
-            value={minutesInput}
-            aria-label={`Custom set length in minutes (${SET_MINUTES_MIN}–${SET_MINUTES_MAX})`}
-            disabled={build.loading}
-            onInput={(event) => {
-              const next = (event.target as HTMLInputElement).value;
-              setMinutesInput(next);
+              {SET_DURATION_PRESETS.map((duration) => (
+                <button
+                  key={duration}
+                  type="button"
+                  class={`setbuild-duration-option${minutes === duration ? " on" : ""}`}
+                  aria-pressed={minutes === duration}
+                  onClick={() => {
+                    setMinutesInput(String(duration));
+                    invalidateProposal();
+                  }}
+                >
+                  {duration} min
+                </button>
+              ))}
+            </div>
+            <label
+              class="setbuild-minutes"
+              title="Enter a custom target between the supported limits"
+            >
+              <span>
+                Custom
+                <small>
+                  {SET_MINUTES_MIN}–{SET_MINUTES_MAX} minutes
+                </small>
+              </span>
+              <input
+                type="number"
+                min={SET_MINUTES_MIN}
+                max={SET_MINUTES_MAX}
+                value={minutesInput}
+                aria-label={`Custom set length in minutes (${SET_MINUTES_MIN}–${SET_MINUTES_MAX})`}
+                onInput={(event) => {
+                  const next = (event.target as HTMLInputElement).value;
+                  setMinutesInput(next);
+                  invalidateProposal();
+                }}
+                onBlur={() => setMinutesInput(String(minutes))}
+              />
+            </label>
+          </div>
+        </fieldset>
+        <div class="setbuild-controls">
+          <OpenerPicker
+            query={openerQuery}
+            onQuery={setOpenerQuery}
+            hits={openerSearch.status === "ok" ? openerSearch.data : null}
+            hitsStatus={openerSearch.status}
+            opener={opener}
+            onPick={(next) => {
+              if (next?.video_id === opener?.video_id) return;
+              setOpener(next);
               invalidateProposal();
             }}
-            onBlur={() => setMinutesInput(String(minutes))}
+            busy={build.loading}
           />
-        </label>
-      </div>
-      <div class="setbuild-controls">
-        <OpenerPicker
-          query={openerQuery}
-          onQuery={setOpenerQuery}
-          hits={openerSearch.status === "ok" ? openerSearch.data : null}
-          hitsStatus={openerSearch.status}
-          opener={opener}
-          onPick={(next) => {
-            if (next?.video_id === opener?.video_id) return;
-            setOpener(next);
-            invalidateProposal();
-          }}
-          busy={build.loading}
-        />
-        <button
-          type="button"
-          class="btn primary setbuild-build"
-          onClick={() => {
-            if (build.loading) return;
-            void run();
-          }}
-          aria-disabled={build.loading}
-          aria-busy={build.loading}
-        >
-          <Icon name="play" size={12} /> {buildLabel}
-        </button>
-      </div>
+          <button
+            type="submit"
+            class="btn primary setbuild-build"
+            disabled={build.loading}
+            aria-busy={build.loading}
+          >
+            {build.loading ? (
+              <span class="spin" aria-hidden="true" />
+            ) : (
+              <Icon name="play" size={12} />
+            )}{" "}
+            {buildLabel}
+          </button>
+        </div>
+      </form>
       <SetBuilderMethod />
       {build.stale && (
         <div class="setbuild-stale" role="status">
@@ -662,33 +668,32 @@ function SetBuildPanel() {
           previous build. Update it before using or copying the result.
         </div>
       )}
-      {build.error && <div class="arch-fix">build failed: {build.error}</div>}
+      {build.error && (
+        <div class="arch-fix" role="alert">
+          Build failed: {build.error}
+        </div>
+      )}
       {build.loading && (
-        <div class="setbuild-loading" role="status" aria-live="polite">
+        <div
+          class="setbuild-loading"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           <span class="spin" aria-hidden="true" />
-          Checking every downloaded DB row, then scoring actual files…
-          <span class="muted">
-            {" "}
-            uses FullTags + Rekordbox; reads only unknown keys
+          <span>
+            <strong>Scanning the mounted shelf…</strong>
+            <small>
+              FullTags checks every downloaded row, uses Rekordbox for analysis
+              gaps, and reads only unknown file keys. This usually takes about
+              20 seconds.
+            </small>
           </span>
         </div>
       )}
       {build.data && (
         <>
-          <Verdict
-            cls={build.data.pool === 0 || !build.data.complete ? "warn" : "ok"}
-            text={
-              build.data.pool === 0
-                ? build.data.source_total > 0 &&
-                  build.data.missing_files === build.data.source_total
-                  ? `No actual files found — all ${build.data.source_total} downloaded DB paths are missing. Run an archive sweep and repair the paths.`
-                  : "No mixable actual files — run `megadj beats` + `megadj mood` so the builder has BPM/mood data."
-                : build.data.complete
-                  ? `Complete ${build.data.actualMinutes}-minute draft · ${build.data.steps.length} tracks · ${presetLabel(build.data.preset)} · ${build.data.source_total} DB rows checked.`
-                  : `Partial draft · ${build.data.actualMinutes} of ${build.data.minutes} minutes · ${build.data.shortfallMinutes} minutes short.`
-            }
-            meta={`${build.data.pool} actual files scored${build.data.missing_files > 0 ? ` · ${build.data.missing_files} missing skipped` : ""}${build.data.duplicate_files > 0 ? ` · ${build.data.duplicate_files} DB aliases collapsed` : ""}${build.data.relocated_files > 0 ? ` · ${build.data.relocated_files} found on the mounted shelf` : ""} · analysis sources: FullTags ledgers first, ${build.data.rekordbox_bpm_hits} BPM + ${build.data.rekordbox_key_hits} key fallback${build.data.rekordbox_key_hits === 1 ? "" : "s"} from Rekordbox, ${build.data.key_reads} live file read${build.data.key_reads === 1 ? "" : "s"}${build.data.key_read_failures > 0 ? ` (${build.data.key_read_failures} failed and scored without key)` : ""} · propose-only; nothing written`}
-          />
+          <SetBuilderResult data={build.data} />
           {!build.data.complete && build.data.pool > 0 && (
             <div class="setbuild-shortfall" role="alert">
               <Icon name="warn" size={16} />
@@ -708,17 +713,16 @@ function SetBuildPanel() {
             <div class="setbuild-actions" aria-label="Set draft actions">
               <button
                 type="button"
-                class="btn"
+                class="btn ghostbtn"
                 aria-label="Save draft as a local JSON file"
                 disabled={build.stale}
                 onClick={() => saveDraft(build.data!)}
               >
-                <Icon name="download" size={13} /> Save
-                {build.data.complete ? " draft" : " partial draft"}
+                <Icon name="download" size={13} /> Save JSON draft
               </button>
               {build.stale || exportHref === null ? (
                 <span class="btn ghostbtn" aria-disabled="true">
-                  <Icon name="download" size={13} /> Download Rekordbox playlist
+                  <Icon name="download" size={13} /> Export .m3u8 for Rekordbox
                 </span>
               ) : (
                 <a
@@ -727,13 +731,13 @@ function SetBuildPanel() {
                   download
                   title="Download a UTF-8 M3U8 playlist; this does not open or change Rekordbox"
                 >
-                  <Icon name="download" size={13} /> Download Rekordbox playlist
+                  <Icon name="download" size={13} /> Export .m3u8 for Rekordbox
                 </a>
               )}
               <span class="setbuild-actions-note">
-                Save keeps a JSON review draft. Import the .m3u8 through
-                Rekordbox File → Import → Playlist; this screen never opens or
-                changes its database.
+                Import the .m3u8 through Rekordbox File → Import → Playlist.
+                Save JSON keeps the full technical evidence. Neither action
+                opens or changes the Rekordbox database.
               </span>
             </div>
           )}

@@ -67,7 +67,7 @@
   border: 1px solid var(--stroke);
   background: var(--surface2);
   font-size: 12px;
-  color: var(--faint);
+  color: var(--muted);
   white-space: nowrap;
 }
 .top-meta b {
@@ -239,5 +239,23 @@
 @keyframes blink {
   50% {
     opacity: 0.3;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    gap: 9px;
+    padding: 0 12px;
+  }
+  .top-meta,
+  .topbar .search,
+  .topbar .palette-btn {
+    display: none;
+  }
+  .topbar .spacer {
+    min-width: 0;
+  }
+  .lockchip {
+    padding: 5px 9px;
   }
 }

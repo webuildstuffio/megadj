@@ -14,6 +14,8 @@ import {
   SET_MINUTES_DEFAULT,
   SET_MINUTES_MAX,
   SET_MINUTES_MIN,
+  SET_TRACK_MINUTES_MIN,
+  SET_TRACK_MINUTES_MAX,
   SET_PRESET_DEFS,
   SET_PRESET_IDS,
   DEFAULT_SET_PRESET,
@@ -190,7 +192,12 @@ export type { SetBuildResult };
 
 /** Candidate duration with the 5:00 assumption when unknown. Pure —
  *  module-level, not re-created per `buildSet` call (oxlint scoping). */
-const candidateDuration = (c: SetCandidate): number => c.durationS ?? 300;
+const candidateDuration = (c: SetCandidate): number => {
+  const seconds = c.durationS;
+  return seconds !== null && Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : 300;
+};
 
 /** Set-runtime precision shared by step clocks and the result summary. */
 const minutesAt = (seconds: number): number =>
@@ -205,11 +212,31 @@ const minutesAt = (seconds: number): number =>
 export function buildSet(input: SetBuildInput): SetBuildResult {
   const { candidates, preset, minutes } = input;
   const budget = minutes * 60;
-  const pool = [...candidates];
   const excluded: SetBuildResult["excluded"] = [];
   const steps: SetBuildStep[] = [];
 
   const dur = candidateDuration;
+  const requestedOpenerExists =
+    input.openerId !== undefined &&
+    candidates.some((candidate) => candidate.videoId === input.openerId);
+  const pool = candidates.filter((candidate) => {
+    const duration = dur(candidate);
+    if (duration < SET_TRACK_MINUTES_MIN * 60) {
+      excluded.push({
+        videoId: candidate.videoId,
+        title: candidate.title,
+        reason: `${Math.round(duration)}-second audio sample is below the ${SET_TRACK_MINUTES_MIN}-minute track floor`,
+      });
+      return false;
+    }
+    if (duration <= SET_TRACK_MINUTES_MAX * 60) return true;
+    excluded.push({
+      videoId: candidate.videoId,
+      title: candidate.title,
+      reason: `${minutesAt(duration)}-minute continuous mix exceeds the ${SET_TRACK_MINUTES_MAX}-minute track cap`,
+    });
+    return false;
+  });
   /** Running arc clock, mutated ONLY by `commit` right below (the linter's
    *  loop-condition analysis sees that mutation; the old indirect-mutate-
    *  inside-push shape needed a file-scoped rule-off). */
@@ -257,7 +284,7 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   const opener =
     (input.openerId && pool.find((c) => c.videoId === input.openerId)) ||
     undefined;
-  if (input.openerId && !opener) {
+  if (input.openerId && !opener && !requestedOpenerExists) {
     // a requested opener that ISN'T in the pool is a caller mistake (bad
     // id, or the track isn't playable/analyzed) — excluded loudly, never
     // silently ignored (the old shape just built without it and the

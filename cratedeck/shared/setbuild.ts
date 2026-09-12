@@ -115,6 +115,12 @@ export const DEFAULT_SET_PRESET: SetPresetId = "peak";
 export const SET_MINUTES_MIN = 10;
 export const SET_MINUTES_MAX = 240;
 export const SET_MINUTES_DEFAULT = 60;
+/** Ignore one-shots, loops and preview fragments: they are useful archive
+ * assets, but they are not standalone tracks in a DJ set proposal. */
+export const SET_TRACK_MINUTES_MIN = 1;
+/** Individual DJ tracks longer than this are continuous mixes, not one
+ * proposal slot. Kept beside the other set-builder limits for all surfaces. */
+export const SET_TRACK_MINUTES_MAX = 15;
 
 /** An optional candidate-pool cap (`?limit=`), shared by HTTP, CLI and MCP.
  * Omission means the whole downloaded DB census; an explicit value remains

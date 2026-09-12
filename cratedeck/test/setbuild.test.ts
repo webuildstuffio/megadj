@@ -219,6 +219,66 @@ describe("buildSet", () => {
     expect(r.complete).toBe(false);
   });
 
+  test("a continuous mix cannot satisfy a set target as one giant track", () => {
+    const r = buildSet({
+      candidates: [cand({ videoId: "three-hour-mix", durationS: 154 * 60 })],
+      preset: SET_PRESETS.warmup,
+      minutes: 64,
+    });
+
+    expect(r.steps).toEqual([]);
+    expect(r.actualMinutes).toBe(0);
+    expect(r.complete).toBe(false);
+    expect(r.excluded).toEqual([
+      {
+        videoId: "three-hour-mix",
+        title: "X",
+        reason: "154-minute continuous mix exceeds the 15-minute track cap",
+      },
+    ]);
+  });
+
+  test("a short audio sample cannot become a set track", () => {
+    const r = buildSet({
+      candidates: [cand({ videoId: "ten-second-sample", durationS: 10 })],
+      preset: SET_PRESETS.warmup,
+      minutes: 10,
+    });
+
+    expect(r.steps).toEqual([]);
+    expect(r.actualMinutes).toBe(0);
+    expect(r.complete).toBe(false);
+    expect(r.excluded).toEqual([
+      {
+        videoId: "ten-second-sample",
+        title: "X",
+        reason: "10-second audio sample is below the 1-minute track floor",
+      },
+    ]);
+  });
+
+  test("an overlong requested opener is rejected once and the arc still builds", () => {
+    const r = buildSet({
+      candidates: [
+        cand({ videoId: "long-opener", durationS: 90 * 60 }),
+        cand({ videoId: "normal-track", durationS: 5 * 60 }),
+      ],
+      preset: SET_PRESETS.warmup,
+      minutes: 5,
+      openerId: "long-opener",
+    });
+
+    expect(r.steps.map((step) => step.videoId)).toEqual(["normal-track"]);
+    expect(r.excluded).toEqual([
+      {
+        videoId: "long-opener",
+        title: "X",
+        reason: "90-minute continuous mix exceeds the 15-minute track cap",
+      },
+    ]);
+    expect(r.steps.length + r.excluded.length).toBe(2);
+  });
+
   test("ties break by videoId — the chain does not depend on pool row order", () => {
     // two byte-identical candidates except the id: whichever wins must be
     // decided by the id, not by which row the SQL happened to return first

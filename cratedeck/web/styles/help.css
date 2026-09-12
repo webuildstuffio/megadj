@@ -135,6 +135,14 @@
     border-right: none;
     border-bottom: 1px solid var(--stroke);
   }
+  /* Product tools work on the archive rather than one selected drive. The
+   * shelf rail consumed almost half a phone viewport before the tool itself. */
+  .app[data-prod="fulltags"] .rail {
+    display: none;
+  }
+  .app[data-prod="fulltags"] .canvas-wrap {
+    min-height: 0;
+  }
 }
 
 /* ---- verify tab (granular check-by-check breakdown) ---- */

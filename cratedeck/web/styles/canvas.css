@@ -61,6 +61,12 @@
   max-width: none;
 }
 
+@media (max-width: 720px) {
+  .canvas {
+    padding: 16px 12px 112px;
+  }
+}
+
 /* hero header of a drive page */
 .hero {
   display: flex;

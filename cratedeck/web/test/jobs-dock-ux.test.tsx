@@ -1,7 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import render from "preact-render-to-string";
 import type { Job } from "../../shared/types";
 import { JobsDock } from "../ui/JobsDock";
+
+const jobsCss = readFileSync(
+  join(import.meta.dir, "../styles/jobs.css"),
+  "utf8",
+);
 
 const job = (status: Job["status"]): Job => ({
   id: `job-${status}`,
@@ -32,6 +39,9 @@ describe("Recent jobs dock UX", () => {
 
     expect(html).toContain('class="jobdock collapsed"');
     expect(html).toContain("Recent jobs");
+    expect(jobsCss).toMatch(
+      /@media \(min-width: 901px\)[\s\S]*\.jobdock\.collapsed\s*\{[\s\S]*left: 12px;[\s\S]*width: calc\(var\(--rail-w\) - 24px\);/,
+    );
   });
 
   test("active work starts expanded so progress remains visible", () => {

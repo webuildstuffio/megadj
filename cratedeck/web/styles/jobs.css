@@ -45,6 +45,28 @@
 .jobdock.collapsed .jobdock-body {
   display: none;
 }
+
+/* A finished-history pill is navigation, not the current task. Keep it in
+ * the otherwise-unused drive rail so it never covers a page's primary CTA. */
+@media (min-width: 901px) {
+  .jobdock.collapsed {
+    right: auto;
+    left: 12px;
+    width: calc(var(--rail-w) - 24px);
+  }
+}
+
+@media (max-width: 900px) {
+  .jobdock.collapsed {
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    min-width: 156px;
+  }
+  .jobdock.collapsed .jobdock-head {
+    padding: 8px 10px;
+  }
+}
 .jobrow {
   background: var(--surface2);
   border: 1px solid var(--stroke);
