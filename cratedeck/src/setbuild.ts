@@ -192,6 +192,10 @@ export type { SetBuildResult };
  *  module-level, not re-created per `buildSet` call (oxlint scoping). */
 const candidateDuration = (c: SetCandidate): number => c.durationS ?? 300;
 
+/** Set-runtime precision shared by step clocks and the result summary. */
+const minutesAt = (seconds: number): number =>
+  Math.round((seconds / 60) * 10) / 10;
+
 /** Greedy chain: score every remaining candidate for each next slot, take
  * the best. O(n²) — fine at archive scale (thousands), trivially testable.
  * Deterministic: ties break by (score, videoId) so the same input always
@@ -219,10 +223,27 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
       bpm: c.bpm,
       key: c.key,
       arousal: c.arousal,
-      atMin: Math.round((elapsed / 60) * 10) / 10,
+      atMin: minutesAt(elapsed),
       transition:
         transition === null ? null : Math.round(transition * 1000) / 1000,
     });
+  };
+  /** Finish from the chain's real elapsed time. Whole-track selection can
+   *  overshoot the target; that is complete with zero shortfall. Empty or
+   *  exhausted pools report the remaining time instead of echoing intent. */
+  const result = (): SetBuildResult => {
+    const actualMinutes = minutesAt(elapsed);
+    const shortfallMinutes =
+      Math.round(Math.max(0, minutes - actualMinutes) * 10) / 10;
+    return {
+      preset: preset.id,
+      minutes,
+      actualMinutes,
+      shortfallMinutes,
+      complete: shortfallMinutes === 0,
+      steps,
+      excluded,
+    };
   };
 
   // opener: requested id, else the candidate closest to the arc's start
@@ -293,16 +314,14 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
         })[0]);
   const first = anchored;
   if (!first) {
-    return {
-      preset: preset.id,
-      minutes,
-      steps: [],
-      excluded: pool.map((c) => ({
+    excluded.push(
+      ...pool.map((c) => ({
         videoId: c.videoId,
         title: c.title,
         reason: "no beats-ledger BPM — run `megadj beats`",
       })),
-    };
+    );
+    return result();
   }
   pool.splice(pool.indexOf(first), 1);
   push(first, null);
@@ -358,5 +377,5 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
       reason: "set budget filled",
     });
 
-  return { preset: preset.id, minutes, steps, excluded };
+  return result();
 }

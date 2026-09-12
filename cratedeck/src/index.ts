@@ -60,7 +60,10 @@ db.shelfName = cfg.shelfDrive;
 const guard = new Guard(cfg);
 const webRoot = join(here, "web", "dist");
 // O82b archive tools: one shared readonly handle over megadj's archive DB
-const archive = new ArchiveReader(cfg.archiveDbPath);
+const archive = new ArchiveReader(
+  cfg.archiveDbPath,
+  join(cfg.volumesRoot, cfg.shelfDrive, "Contents"),
+);
 /** Read-only window into the megadj shelf_sweeps ledger (drive verdicts). */
 const shelfSweeps = new ShelfSweepReader(cfg.archiveDbPath);
 /** Read-only window into the megadj hygiene_findings ledger (§5 P2). */

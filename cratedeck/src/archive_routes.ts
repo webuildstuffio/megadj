@@ -32,6 +32,61 @@ type ArchiveHandler = (
   cfg: CrateConfig,
 ) => Response | Promise<Response>;
 
+/** Resolve the shared set-builder query and inspect the archive exactly once.
+ * JSON preview and M3U8 export use the same seam, so an export cannot drift
+ * from the proposal parameters the DJ just reviewed. */
+function resolveSetBuild(
+  url: URL,
+  archive: ArchiveReader,
+):
+  | { error: string }
+  | {
+      built: ReturnType<typeof buildSet>;
+      census: ReturnType<ArchiveReader["setCandidates"]>;
+    } {
+  const parsed = parseSetbuildQuery({
+    preset: url.searchParams.get("preset"),
+    minutes: url.searchParams.get("minutes"),
+  });
+  if ("error" in parsed) return parsed;
+
+  const rawLimit = url.searchParams.get("limit");
+  let limit = clampSetPool(null);
+  if (rawLimit !== null) {
+    const parsedLimit = Number(rawLimit);
+    if (rawLimit.trim() === "" || !Number.isFinite(parsedLimit))
+      return { error: "limit must be a finite number" };
+    limit = clampSetPool(parsedLimit);
+  }
+
+  const census = archive.setCandidates(limit);
+  return {
+    census,
+    built: buildSet({
+      candidates: census.candidates,
+      preset: SET_PRESETS[parsed.preset],
+      minutes: parsed.minutes,
+      openerId: url.searchParams.get("opener") ?? undefined,
+    }),
+  };
+}
+
+/** M3U comment fields are one physical line; strip control characters rather
+ * than allowing track metadata to inject playlist directives. Built from
+ * code points instead of a literal control-char class (no-control-regex). */
+const M3U_CONTROL_CHARS = new RegExp(
+  "[" +
+    String.fromCharCode(0x00) +
+    "-" +
+    String.fromCharCode(0x1f) +
+    String.fromCharCode(0x7f) +
+    "]+",
+  "g",
+);
+function m3uText(value: string | null, fallback: string): string {
+  return (value ?? fallback).replaceAll(M3U_CONTROL_CHARS, " ").trim();
+}
+
 /** One handler per /api/archive/* route. The regex dispatch above guarantees
  *  `sub` is a key here; each handler stays single-purpose and testable. */
 function archiveHandlers(): Record<string, ArchiveHandler> {
@@ -118,43 +173,56 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
     // minutes clamp to 10–240; defaults live in shared/types.ts so every
     // surface agrees.
     setbuild: (url, archive) => {
-      const parsed = parseSetbuildQuery({
-        preset: url.searchParams.get("preset"),
-        minutes: url.searchParams.get("minutes"),
-      });
-      if ("error" in parsed) return json({ error: parsed.error }, 400);
-      // shared clamp (SET_POOL_*) — an explicit ?limit= still can't smuggle
-      // 99999 into per-file key reads; absent → whole analyzed library
-      const rawLimit = url.searchParams.get("limit");
-      let limit = clampSetPool(null);
-      if (rawLimit !== null) {
-        const parsedLimit = Number(rawLimit);
-        if (rawLimit.trim() === "" || !Number.isFinite(parsedLimit))
-          return json({ error: "limit must be a finite number" }, 400);
-        limit = clampSetPool(parsedLimit);
+      const resolved = resolveSetBuild(url, archive);
+      if ("error" in resolved) return json({ error: resolved.error }, 400);
+      // A downloaded UTF-8 playlist is the safe Rekordbox bridge: import it
+      // through File → Import → Playlist. This format stays read-only and
+      // never opens or mutates master.db.
+      if (url.searchParams.get("format") === "m3u8") {
+        const byId = new Map(
+          resolved.census.candidates.map((candidate) => [
+            candidate.videoId,
+            candidate,
+          ]),
+        );
+        const lines = ["#EXTM3U"];
+        for (const step of resolved.built.steps) {
+          const candidate = byId.get(step.videoId);
+          if (!candidate?.filePath) continue;
+          const duration = Math.max(0, Math.round(candidate.durationS ?? 300));
+          const artist = m3uText(step.artist, "Unknown artist");
+          const title = m3uText(step.title, step.videoId);
+          const filePath = m3uText(candidate.filePath, "");
+          if (!filePath) continue;
+          lines.push(`#EXTINF:${duration},${artist} - ${title}`, filePath);
+        }
+        const actual = String(resolved.built.actualMinutes).replace(".", "-");
+        return new Response(`${lines.join("\n")}\n`, {
+          headers: {
+            "Cache-Control": "no-store",
+            "Content-Disposition": `attachment; filename="fulltags-${resolved.built.preset}-${actual}m.m3u8"`,
+            "Content-Type": "application/vnd.apple.mpegurl; charset=utf-8",
+          },
+        });
       }
-      const opener = url.searchParams.get("opener") ?? undefined;
-      const preset = SET_PRESETS[parsed.preset];
       const {
         sourceTotal,
         total,
         missingFiles,
-        candidates,
+        duplicateFiles,
+        relocatedFiles,
         keyReads,
         keyReadFailures,
         freshness,
-      } = archive.setCandidates(limit);
-      const built = buildSet({
-        candidates,
-        preset,
-        minutes: parsed.minutes,
-        openerId: opener,
-      });
+      } = resolved.census;
+      const { built } = resolved;
       return json({
         available: archive.available(),
         source_total: sourceTotal,
         pool: total,
         missing_files: missingFiles,
+        duplicate_files: duplicateFiles,
+        relocated_files: relocatedFiles,
         // how many files needed a live key read this request (cache
         // misses) — a slow first build is explainable, later ones are fast
         key_reads: keyReads,
@@ -166,6 +234,9 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         // — consumers resolve labels from the shared SET_PRESET_DEFS registry
         preset: built.preset,
         minutes: built.minutes,
+        actualMinutes: built.actualMinutes,
+        shortfallMinutes: built.shortfallMinutes,
+        complete: built.complete,
         steps: built.steps,
         excluded: built.excluded.slice(0, 40),
         excluded_total: built.excluded.length,

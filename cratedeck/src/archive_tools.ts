@@ -174,7 +174,7 @@ export function archiveTools(): Record<string, unknown> {
 
     archive_set_build: {
       description:
-        "[READ-ONLY, PROPOSES ONLY] M66 set-builder copilot: audits every downloaded archive row, rejects missing files, then proposes an ordered mix chain from beats-ledger BPM (±6% mixability window), file TKEY (Camelot wheel), and mood-ledger arousal/dance shaped into an energy-arc preset. Writes nothing. Inspect source_total, pool, missing_files, key-read diagnostics, and freshness to explain the result.",
+        "[READ-ONLY, PROPOSES ONLY] M66 set-builder copilot: audits every downloaded archive row, resolves moved DJ-Imports paths on the mounted shelf, collapses physical-file aliases, then proposes an ordered mix chain from beats-ledger BPM (±6% mixability window), file TKEY (Camelot wheel), and mood-ledger arousal/dance shaped into an energy-arc preset. Writes nothing. Inspect requested/actual minutes, completion/shortfall, source_total, pool, missing_files, duplicate_files, relocated_files, key-read diagnostics, and freshness to explain the result.",
       inputSchema: obj({
         preset: {
           type: "string",

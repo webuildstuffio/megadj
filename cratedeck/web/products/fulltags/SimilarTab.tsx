@@ -20,7 +20,7 @@ import {
   SET_MINUTES_MIN,
 } from "../../../shared/types";
 import { camelotOf } from "../../../shared/camelot";
-import { api } from "../../ui/toast";
+import { api, toast } from "../../ui/toast";
 import { errMessage } from "../../../shared/fmt";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
@@ -284,11 +284,39 @@ const similarHitLine = (h: {
 const stepLine = (s: SetBuildStep): string =>
   `${s.atMin}min  ${fmtBpm(s.bpm)} BPM ${s.key ?? ""}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}`;
 
+const SET_DURATION_PRESETS = [30, 60, 90, 120] as const;
+
 /** minutes → the seconds since epoch the <input type=number> wants. */
 const clampMinutes = (raw: number): number =>
   Number.isFinite(raw)
     ? Math.min(SET_MINUTES_MAX, Math.max(SET_MINUTES_MIN, Math.round(raw)))
     : 60;
+
+/** Save the proposal as a local review artifact. No API call and no library
+ * mutation: the browser downloads exactly the measured result on screen. */
+function saveDraft(data: SetBuildPayload): void {
+  const blob = new Blob(
+    [
+      JSON.stringify(
+        {
+          kind: "megadj-set-draft",
+          savedAt: new Date().toISOString(),
+          status: data.complete ? "complete" : "partial",
+          ...data,
+        },
+        null,
+        2,
+      ),
+    ],
+    { type: "application/json" },
+  );
+  const anchor = document.createElement("a");
+  anchor.href = URL.createObjectURL(blob);
+  anchor.download = `set-${data.preset}-${data.actualMinutes}min-${data.complete ? "draft" : "partial"}.json`;
+  anchor.click();
+  URL.revokeObjectURL(anchor.href);
+  toast(data.complete ? "Set draft saved" : "Partial set draft saved", "ok");
+}
 
 const energyBand = (value: number): string =>
   value < 3.5 ? "Low" : value < 6 ? "Medium" : value < 8 ? "High" : "Maximum";
@@ -506,13 +534,24 @@ function SetBuildPanel() {
   const buildLabel = build.loading
     ? "Building your set…"
     : `${buildVerb} ${minutes}-minute ${preset.label} set`;
+  const exportHref = (() => {
+    if (!build.data) return null;
+    const q = new URLSearchParams({
+      preset: build.data.preset,
+      minutes: String(build.data.minutes),
+    });
+    q.set("format", "m3u8");
+    if (opener) q.set("opener", opener.video_id);
+    return `/api/archive/setbuild?${q}`;
+  })();
 
   return (
     <Card class="setbuild">
       <SectionHead icon="compass" title="Build a mix from your whole archive" />
       <p class="setbuild-lead">
-        Choose how the room's energy should move. FullTags checks every actual
-        file, then orders a playable proposal using tempo, key, and mood.
+        Pick a familiar set length and how the room's energy should move.
+        FullTags checks every downloaded DB row, keeps only mounted files, then
+        orders a playable draft using tempo, key, and mood.
       </p>
       <fieldset class="setbuild-preset">
         <legend id="setbuild-preset-label">
@@ -542,13 +581,34 @@ function SetBuildPanel() {
       <div class="setbuild-setup-title">
         <span>2</span> Set the length and build
       </div>
-      <div class="setbuild-controls">
+      <div class="setbuild-duration">
+        <div
+          class="setbuild-duration-presets"
+          role="group"
+          aria-label="Common set lengths"
+        >
+          {SET_DURATION_PRESETS.map((duration) => (
+            <button
+              key={duration}
+              type="button"
+              class={`setbuild-duration-option${minutes === duration ? " on" : ""}`}
+              aria-pressed={minutes === duration}
+              disabled={build.loading}
+              onClick={() => {
+                setMinutesInput(String(duration));
+                invalidateProposal();
+              }}
+            >
+              {duration} min
+            </button>
+          ))}
+        </div>
         <label
           class="setbuild-minutes"
-          title="Target set length — the chain fills until the budget is spent"
+          title="Enter a custom target between the supported limits"
         >
           <span>
-            Set length
+            Custom
             <small>
               {SET_MINUTES_MIN}–{SET_MINUTES_MAX} minutes
             </small>
@@ -558,7 +618,7 @@ function SetBuildPanel() {
             min={SET_MINUTES_MIN}
             max={SET_MINUTES_MAX}
             value={minutesInput}
-            aria-label={`Target set length in minutes (${SET_MINUTES_MIN}–${SET_MINUTES_MAX})`}
+            aria-label={`Custom set length in minutes (${SET_MINUTES_MIN}–${SET_MINUTES_MAX})`}
             disabled={build.loading}
             onInput={(event) => {
               const next = (event.target as HTMLInputElement).value;
@@ -568,6 +628,8 @@ function SetBuildPanel() {
             onBlur={() => setMinutesInput(String(minutes))}
           />
         </label>
+      </div>
+      <div class="setbuild-controls">
         <OpenerPicker
           query={openerQuery}
           onQuery={setOpenerQuery}
@@ -603,21 +665,22 @@ function SetBuildPanel() {
           <div>
             <dt>Sources</dt>
             <dd>
-              Entire downloaded archive DB · Beats ledger BPM · file key tags ·
-              Mood ledger energy
+              Entire downloaded archive DB · mounted shelf files · Beats ledger
+              BPM · file key tags · Mood ledger energy
             </dd>
           </div>
           <div>
             <dt>Checks</dt>
             <dd>
-              File exists · ±6% tempo window · Camelot-compatible key moves ·
-              selected energy arc
+              File exists · duplicate paths collapse · ±6% tempo window ·
+              Camelot-compatible key moves · selected energy arc
             </dd>
           </div>
           <div>
             <dt>Output</dt>
             <dd>
-              Writes no tags or playlists — review and accept tracks by hand
+              Writes no tags or playlists. Save downloads a local review draft;
+              export downloads an importable M3U8 without opening its database
             </dd>
           </div>
         </dl>
@@ -639,21 +702,67 @@ function SetBuildPanel() {
       {build.data && (
         <>
           <Verdict
-            cls={build.data.pool === 0 ? "warn" : "ok"}
+            cls={build.data.pool === 0 || !build.data.complete ? "warn" : "ok"}
             text={
               build.data.pool === 0
                 ? build.data.source_total > 0 &&
                   build.data.missing_files === build.data.source_total
                   ? `No actual files found — all ${build.data.source_total} downloaded DB paths are missing. Run an archive sweep and repair the paths.`
                   : "No mixable actual files — run `megadj beats` + `megadj mood` so the builder has BPM/mood data."
-                : `${build.data.steps.length}-track ${presetLabel(build.data.preset)} proposal from ${build.data.pool} actual files — ${build.data.source_total} downloaded DB rows checked${build.data.missing_files > 0 ? `, ${build.data.missing_files} missing files skipped` : ""} — ${build.data.minutes} min.`
+                : build.data.complete
+                  ? `Complete ${build.data.actualMinutes}-minute draft · ${build.data.steps.length} tracks · ${presetLabel(build.data.preset)} · ${build.data.source_total} DB rows checked.`
+                  : `Partial draft · ${build.data.actualMinutes} of ${build.data.minutes} minutes · ${build.data.shortfallMinutes} minutes short.`
             }
-            meta={`propose-only — no tags or playlists written; ${build.data.key_reads} file key tag${build.data.key_reads === 1 ? "" : "s"} read${build.data.key_read_failures > 0 ? `, ${build.data.key_read_failures} failed and scored without key` : ""}`}
+            meta={`${build.data.pool} actual files scored${build.data.missing_files > 0 ? ` · ${build.data.missing_files} missing skipped` : ""}${build.data.duplicate_files > 0 ? ` · ${build.data.duplicate_files} DB aliases collapsed` : ""}${build.data.relocated_files > 0 ? ` · ${build.data.relocated_files} found on the mounted shelf` : ""} · no tags or playlists written · ${build.data.key_reads} file key tag${build.data.key_reads === 1 ? "" : "s"} read${build.data.key_read_failures > 0 ? `, ${build.data.key_read_failures} failed and scored without key` : ""}`}
           />
+          {!build.data.complete && build.data.pool > 0 && (
+            <div class="setbuild-shortfall" role="alert">
+              <Icon name="warn" size={16} />
+              <span>
+                <b>Partial draft — not a complete set.</b> FullTags found
+                {build.data.actualMinutes} of the requested {build.data.minutes}
+                minutes, leaving {build.data.shortfallMinutes} minutes short.
+                Review the exclusions or choose a shorter target before export.
+              </span>
+            </div>
+          )}
           <FreshnessLine
             freshness={build.data.freshness}
             pool={build.data.pool}
           />
+          {steps.length > 0 && (
+            <div class="setbuild-actions" aria-label="Set draft actions">
+              <button
+                type="button"
+                class="btn"
+                aria-label="Save draft as a local JSON file"
+                disabled={build.stale}
+                onClick={() => saveDraft(build.data!)}
+              >
+                <Icon name="download" size={13} /> Save
+                {build.data.complete ? " draft" : " partial draft"}
+              </button>
+              {build.stale || exportHref === null ? (
+                <span class="btn ghostbtn" aria-disabled="true">
+                  <Icon name="download" size={13} /> Download Rekordbox playlist
+                </span>
+              ) : (
+                <a
+                  class="btn ghostbtn"
+                  href={exportHref}
+                  download
+                  title="Download a UTF-8 M3U8 playlist; this does not open or change Rekordbox"
+                >
+                  <Icon name="download" size={13} /> Download Rekordbox playlist
+                </a>
+              )}
+              <span class="setbuild-actions-note">
+                Save keeps a JSON review draft. Import the .m3u8 through
+                Rekordbox File → Import → Playlist; this screen never opens or
+                changes its database.
+              </span>
+            </div>
+          )}
           {steps.length > 0 && (
             <ListHead
               icon="play"

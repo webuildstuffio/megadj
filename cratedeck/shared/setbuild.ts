@@ -21,7 +21,14 @@ export interface SetBuildStep {
 
 export interface SetBuildResult {
   preset: string;
+  /** Requested target duration. This is an intent, not the built runtime. */
   minutes: number;
+  /** Runtime of the selected whole-track chain, rounded to 0.1 minute. */
+  actualMinutes: number;
+  /** Unfilled target time, never negative, rounded to 0.1 minute. */
+  shortfallMinutes: number;
+  /** True when the selected chain meets or exceeds the requested target. */
+  complete: boolean;
   steps: SetBuildStep[];
   /** candidates excluded from the chain, with the reason — the honest
    * "why isn't my track in here" list */
@@ -37,6 +44,10 @@ export interface SetBuildPayload extends SetBuildResult {
   pool: number;
   /** Stale downloaded rows whose file path no longer exists. */
   missing_files: number;
+  /** Extra DB identities collapsed because they resolve to one physical file. */
+  duplicate_files: number;
+  /** Unique files found under the mounted shelf after a stale import path. */
+  relocated_files: number;
   /** File tags read because no path-valid key cache row existed. */
   key_reads: number;
   /** Key-tag reads that failed; affected tracks are scored without key. */

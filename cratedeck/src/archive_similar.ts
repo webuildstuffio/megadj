@@ -7,12 +7,39 @@
 //                   ledger (written by `megadj mood --embeddings`)
 //   setCandidates — M66 set-builder candidate pool (beats + mood + TKEY)
 import { existsSync } from "node:fs";
+import { resolve, sep } from "node:path";
 import { groundTruth } from "../../fulltags/src/exports";
 import { cosineSimilarity } from "../shared/similarity";
 import type { ArchiveQuery } from "./archive_types";
 
 /** Round to 4 decimals for wire payloads. Pure — module-level. */
 const r4 = (v: number): number => Math.round(v * 10000) / 10000;
+
+/** ExFAT is case-insensitive. Normalize separators, Unicode, and case so two
+ * archive rows cannot propose the same physical shelf file twice. */
+const physicalPathKey = (path: string): string =>
+  resolve(path).normalize("NFC").toLocaleLowerCase("en-US");
+
+/** Resolve a historical ~/Music/DJ-Imports path against the configured shelf
+ * Contents root. The archive DB remains untouched; callers receive the live
+ * path only when the rebased file actually exists. */
+function existingCandidatePath(
+  sourcePath: string | null,
+  shelfContents?: string,
+): { path: string; relocated: boolean } | null {
+  if (!sourcePath) return null;
+  if (existsSync(sourcePath)) return { path: sourcePath, relocated: false };
+  if (!shelfContents) return null;
+  const parts = resolve(sourcePath).split(sep);
+  const anchor = parts.findIndex(
+    (part, index) =>
+      part.toLocaleLowerCase("en-US") === "music" &&
+      parts[index + 1]?.toLocaleLowerCase("en-US") === "dj-imports",
+  );
+  if (anchor < 0 || anchor + 2 >= parts.length) return null;
+  const rebased = resolve(shelfContents, ...parts.slice(anchor + 2));
+  return existsSync(rebased) ? { path: rebased, relocated: true } : null;
+}
 
 /**
  * I49 "sounds like": cosine kNN over megadj's `embeddings` ledger
@@ -124,6 +151,7 @@ export function similarTracks(
 export function setCandidates(
   reader: ArchiveQuery,
   limit?: number,
+  shelfContents?: string,
 ): {
   available: boolean;
   /** Downloaded DB rows inspected, including stale missing paths. */
@@ -132,6 +160,10 @@ export function setCandidates(
   total: number;
   /** Downloaded DB rows rejected because their file is absent. */
   missingFiles: number;
+  /** Existing DB rows rejected because another id resolves to that file. */
+  duplicateFiles: number;
+  /** Unique candidates resolved from a stale DJ-Imports path to the shelf. */
+  relocatedFiles: number;
   /** How many candidates needed a live file read for their key (cache
    *  misses) — surfaced so a slow first request is explainable. */
   keyReads: number;
@@ -177,13 +209,28 @@ export function setCandidates(
      ${limit !== undefined && limit > 0 ? "LIMIT ?" : ""}`,
     ...(limit !== undefined && limit > 0 ? [limit] : []),
   );
-  const actualRows = rows.filter(
-    (row): row is typeof row & { file_path: string } =>
-      typeof row.file_path === "string" &&
-      row.file_path.length > 0 &&
-      existsSync(row.file_path),
-  );
-  const missingFiles = rows.length - actualRows.length;
+  const existingRows = rows.flatMap((row) => {
+    const resolvedPath = existingCandidatePath(row.file_path, shelfContents);
+    return resolvedPath
+      ? [
+          {
+            ...row,
+            file_path: resolvedPath.path,
+            relocated: resolvedPath.relocated,
+          },
+        ]
+      : [];
+  });
+  const missingFiles = rows.length - existingRows.length;
+  const seenFiles = new Set<string>();
+  const actualRows = existingRows.filter((row) => {
+    const key = physicalPathKey(row.file_path);
+    if (seenFiles.has(key)) return false;
+    seenFiles.add(key);
+    return true;
+  });
+  const duplicateFiles = existingRows.length - actualRows.length;
+  const relocatedFiles = actualRows.filter((row) => row.relocated).length;
   let keyReads = 0;
   let keyReadFailures = 0;
   const candidates = actualRows.map((r) => {
@@ -229,6 +276,8 @@ export function setCandidates(
     sourceTotal: rows.length,
     total: candidates.length,
     missingFiles,
+    duplicateFiles,
+    relocatedFiles,
     keyReads,
     keyReadFailures,
     candidates,

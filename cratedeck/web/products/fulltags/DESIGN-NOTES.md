@@ -1,5 +1,5 @@
-- Audience: a DJ who wants a trustworthy set draft without learning the scoring engine first.
-- One action: build a playable ordered mix proposal from the whole archive.
-- Five-second message: choose how the room's energy should move; FullTags checks every actual file before proposing the set.
-- Steps today: 1. Open Similar. 2. Parse three evidence tiles. 3. Guess how the small preset tabs differ. 4. Set length/opener. 5. Build.
-- Steps after: 1. Choose a visibly graphed energy journey. 2. Set length and optional opener. 3. Build. 4. Inspect the result or expand the scoring evidence.
+- Audience: a DJ planning a real set who needs to know the archive is available and the result is long enough.
+- One action: build and save one honest, playable set draft.
+- Five-second message: choose a familiar set length and energy journey; FullTags uses the mounted shelf and never calls a short fragment complete.
+- Steps today: 1. Choose an energy card. 2. Type minutes. 3. Pick an opener that may be unavailable. 4. Build. 5. Discover missing files, duplicates, or a short result afterward. 6. Copy manually.
+- Steps after: 1. Choose a common duration and energy journey. 2. Optionally choose an available opener. 3. Build only from the mounted shelf. 4. Review honest coverage/shortfall. 5. Save or export the draft.

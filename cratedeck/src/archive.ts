@@ -50,7 +50,10 @@ export class ArchiveReader implements ArchiveQuery {
     string,
     { key: string; analyzedAt: string; size: number; mtimeMs: number }
   >();
-  constructor(readonly path: string) {}
+  constructor(
+    readonly path: string,
+    private readonly shelfContents?: string,
+  ) {}
 
   /** Public "is the archive DB present" probe (routes/agents use this to
    *  degrade gracefully; keeps `handle( + ` private). */
@@ -713,7 +716,7 @@ export class ArchiveReader implements ArchiveQuery {
   }
 
   setCandidates(limit?: number) {
-    return setCandidatesImpl(this, limit);
+    return setCandidatesImpl(this, limit, this.shelfContents);
   }
 
   /** Newest beats/mood ledger timestamps — set-builder staleness UX.

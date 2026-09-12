@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
@@ -84,6 +84,55 @@ describe("archive_set_build candidate-pool contract", () => {
     });
   });
 
+  test("the Rekordbox export surface returns an importable read-only M3U8", async () => {
+    const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
+    const archive = {
+      setCandidates: () => ({
+        available: true,
+        sourceTotal: 1,
+        total: 1,
+        missingFiles: 0,
+        duplicateFiles: 0,
+        keyReads: 0,
+        keyReadFailures: 0,
+        freshness: { beatsAt: null, moodAt: null },
+        candidates: [
+          {
+            videoId: "track-1",
+            title: "Test Track",
+            artist: "Test Artist",
+            durationS: 300,
+            bpm: 128,
+            key: "8A",
+            valence: 5,
+            arousal: 6,
+            dance: 0.8,
+            filePath,
+          },
+        ],
+      }),
+    } as unknown as ArchiveReader;
+
+    const response = await archiveRoutes(
+      "/archive/setbuild",
+      new URL(
+        "http://localhost/api/archive/setbuild?preset=warmup&minutes=10&format=m3u8",
+      ),
+      {
+        archive,
+        db: {} as DB,
+        cfg: {} as CrateConfig,
+      },
+    );
+
+    expect(response?.status).toBe(200);
+    expect(response?.headers.get("content-type")).toContain("mpegurl");
+    expect(response?.headers.get("content-disposition")).toContain("5m.m3u8");
+    expect(await response?.text()).toBe(
+      `#EXTM3U\n#EXTINF:300,Test Artist - Test Track\n${filePath}\n`,
+    );
+  });
+
   test("the full DB is audited, but missing files cannot enter a proposal", () => {
     const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-pool-"));
     const existingPath = join(dir, "actual.m4a");
@@ -139,9 +188,107 @@ describe("archive_set_build candidate-pool contract", () => {
       expect(result.sourceTotal).toBe(3);
       expect(result.total).toBe(1);
       expect(result.missingFiles).toBe(2);
+      expect(result.duplicateFiles).toBe(0);
       expect(result.candidates.map((candidate) => candidate.videoId)).toEqual([
         "actual",
       ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("one physical file can enter the candidate pool only once", () => {
+    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-dedupe-"));
+    const audioPath = join(dir, "same-track.m4a");
+    writeFileSync(audioPath, "cached test fixture");
+    const dbRows = ["older-id", "newer-id"].map((video_id) => ({
+      video_id,
+      title: "Same track",
+      artist: "DJ",
+      duration_s: 300,
+      file_path: audioPath,
+      bpm_folded: 128,
+      valence: 5,
+      arousal: 6,
+      dance: 0.8,
+    }));
+    const reader: ArchiveQuery = {
+      available: () => true,
+      rows: <T>() => dbRows as T[],
+      row: <T>() => ({ beats_at: null, mood_at: null }) as T,
+      keyRecord: () => ({ key: "8A", analyzedAt: "2026-09-11" }),
+      rememberKeyRecord: () => undefined,
+      trackCols: () => "",
+    };
+
+    try {
+      const result = setCandidates(reader, 0);
+
+      expect(result.sourceTotal).toBe(2);
+      expect(result.total).toBe(1);
+      expect(result.missingFiles).toBe(0);
+      expect(result.duplicateFiles).toBe(1);
+      expect(result.candidates).toHaveLength(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("paths moved from DJ-Imports resolve under the mounted shelf", () => {
+    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-relocated-"));
+    const path = join(dir, "archive.db");
+    const shelfContents = join(dir, "SHELF1", "Contents");
+    const relative = join("2026-09-11 intake", "track.m4a");
+    const stalePath = join(dir, "Music", "DJ-Imports", relative);
+    const actualPath = join(shelfContents, relative);
+    mkdirSync(join(shelfContents, "2026-09-11 intake"), { recursive: true });
+    writeFileSync(actualPath, "actual shelf file");
+    const db = new Database(path, { create: true });
+    db.exec(`
+      CREATE TABLE tracks (
+        video_id TEXT PRIMARY KEY, title TEXT, artist TEXT, duration_s REAL,
+        file_path TEXT, status TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE beats (
+        video_id TEXT PRIMARY KEY, bpm_folded REAL, analyzed_at TEXT NOT NULL
+      );
+      CREATE TABLE mood (
+        video_id TEXT PRIMARY KEY, valence REAL, arousal REAL, dance REAL,
+        analyzed_at TEXT NOT NULL
+      );
+    `);
+    db.query(`INSERT INTO tracks VALUES (?, ?, ?, ?, ?, 'downloaded', ?)`).run(
+      "track",
+      "Track",
+      "DJ",
+      300,
+      stalePath,
+      "2026-09-11",
+    );
+    db.query(`INSERT INTO beats VALUES (?, ?, ?)`).run(
+      "track",
+      128,
+      "2026-09-11",
+    );
+    db.query(`INSERT INTO mood VALUES (?, ?, ?, ?, ?)`).run(
+      "track",
+      5,
+      6,
+      0.8,
+      "2026-09-11",
+    );
+    db.close();
+
+    try {
+      const reader = new ArchiveReader(path, shelfContents);
+      const result = reader.setCandidates(0);
+
+      expect(result.total).toBe(1);
+      expect(result.missingFiles).toBe(0);
+      expect(result.duplicateFiles).toBe(0);
+      expect(result.relocatedFiles).toBe(1);
+      expect(result.candidates[0]?.filePath).toBe(actualPath);
+      reader.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

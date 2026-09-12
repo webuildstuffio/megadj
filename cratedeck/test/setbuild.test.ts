@@ -204,6 +204,21 @@ describe("buildSet", () => {
     expect(r.excluded).toHaveLength(1);
   });
 
+  test("a short pool reports the minutes actually built and the shortfall", () => {
+    const r = buildSet({
+      candidates: [
+        cand({ videoId: "one", durationS: 300 }),
+        cand({ videoId: "two", durationS: 300 }),
+      ],
+      preset: SET_PRESETS.peak,
+      minutes: 60,
+    });
+
+    expect(r.actualMinutes).toBe(10);
+    expect(r.shortfallMinutes).toBe(50);
+    expect(r.complete).toBe(false);
+  });
+
   test("ties break by videoId — the chain does not depend on pool row order", () => {
     // two byte-identical candidates except the id: whichever wins must be
     // decided by the id, not by which row the SQL happened to return first

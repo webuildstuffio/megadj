@@ -97,4 +97,33 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(source).toContain("setMinutesInput(next)");
     expect(source).toContain("onBlur={() => setMinutesInput(String(minutes))}");
   });
+
+  test("common set lengths are one-click presets with an editable custom value", () => {
+    const html = render(<SimilarTab />);
+    expect(html).toContain('aria-label="Common set lengths"');
+    for (const minutes of [30, 60, 90, 120]) {
+      expect(html).toContain(`>${minutes} min</button>`);
+    }
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('aria-label="Custom set length in minutes');
+  });
+
+  test("short proposals are unmistakably partial and report the measured gap", () => {
+    expect(source).toContain("build.data.complete");
+    expect(source).toContain("build.data.actualMinutes");
+    expect(source).toContain("build.data.shortfallMinutes");
+    expect(source).toContain('role="alert"');
+    expect(source).toContain("Partial draft");
+    expect(source).toContain("minutes short");
+  });
+
+  test("post-build actions save locally and export through the read-only playlist endpoint", () => {
+    expect(source).toContain("saveDraft");
+    expect(source).toContain("Save draft");
+    expect(source).toContain('q.set("format", "m3u8")');
+    expect(source).toContain("/api/archive/setbuild?");
+    expect(source).toContain("Download Rekordbox playlist");
+    expect(source).toContain("Import the .m3u8");
+    expect(source).not.toContain("--apply");
+  });
 });

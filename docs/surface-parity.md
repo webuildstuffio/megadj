@@ -9,6 +9,23 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
+Rev 24 · 2026-09-12 — FullTags set-builder recovery + handoff: proposals
+resolve stale `DJ-Imports` paths against the configured shelf, collapse DB
+aliases by physical path, and report requested versus actual runtime. The UI
+adds common-duration presets, saves drafts locally, and downloads the reviewed
+chain as UTF-8 M3U8 for Rekordbox import. The download is another representation
+of the existing read-only proposal route; direct master-DB writes remain the
+gated `megadj rb-playlist --apply` CLI operation under §4-A1.
+
+Rev 23 · 2026-09-12 — `megadj adopt --shelf [--apply]`: when a folder reorg
+moves local archive files onto the shelf, downloaded rows keep stale local
+paths and every file-existence consumer (set-builder pool, rb-playlist
+chain) silently drops them. `--shelf` repoints those rows at the NFC+casefold
+basename match under `<shelf>/Contents/` (real filesystem walk, so files not
+yet imported into master.db still match). Dry-run by default; `--apply`
+rewrites `file_path` only — files never move, the shelf is never written.
+CLI-only under §4-A1 (archive DB writes stay CLI).
+
 Rev 22 · 2026-09-11 — `megadj genre` (CLI-only under §4-A1): audio-derived
 genre inference — kNN vote in the effnet embedding space, seeded by
 trusted genre labels, sub-genres collapsed to families (deep house and
@@ -233,7 +250,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 
 | Capability                                        | CLI (megadj)                                                                 | MCP                                                       | UI                                                                                               | Verdict                                  |
 | ------------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------- |
-| sync / status / list / retry / adopt              | ✅                                                                           | ⛔ §4-A1 (archive writes stay CLI)                        | ⛔ §4-A1 (Intake drives `ingest` only, as a CLI spawn)                                           | —                                        |
+| sync / status / list / retry / adopt              | ✅ `adopt --shelf [--apply]` repoints moved-file rows at shelf copies (rev 23; dry-run default) | ⛔ §4-A1 (archive writes stay CLI)                        | ⛔ §4-A1 (Intake drives `ingest` only, as a CLI spawn)                                           | —                                        |
 | ingest / fetch / enrich / artwork / audit / years | ✅                                                                           | `getdat_ingest` ✅; reads only (`archive_*`) for the rest | ingest: GetDat ⌗ Intake ✅ (rev 11 — runs the CLI as a job); fetch/audit reads ✅                | —                                        |
 | archive WAV→AIFF conversion                       | `megadj convert` ✅                                                          | `getdat_convert` ✅ (async CLI seam; JSON summary)        | GetDat ⌗ Intake / FullTags pipeline ✅                                                           | —                                        |
 | beats / mood / cues                               | ✅                                                                           | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                                         | —                                        |
@@ -246,7 +263,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Grid cross-check                                  | `megadj beats` data ✅                                                       | `archive_grid_cross_check` ✅                             | FullTags ⌗ Beatgrids ✅                                                                          | — (A3 closed rev 3; product split rev 6) |
 | Mood profile                                      | `megadj mood` data ✅                                                        | `archive_mood_profile` ✅                                 | FullTags ⌗ Mood ✅                                                                               | — (A3 closed rev 3; product split rev 6) |
 | Similar tracks (I49 sounds-like)                  | `megadj similar <id>` ✅                                                     | `archive_similar_tracks` ✅                               | FullTags ⌗ Similar (rev 10) ✅                                                                   | — (rev 10)                               |
-| Set-builder proposal (M66)                        | `megadj setbuild [--preset --minutes --opener --limit]` ✅ (rev 20)          | `archive_set_build` ✅ (propose-only)                     | FullTags ⌗ Similar panel (rev 10) ✅                                                             | — (rev 20 CLI spoke; proposes, never writes) |
+| Set-builder proposal (M66)                        | `megadj setbuild [--preset --minutes --opener --limit]` ✅ (rev 20)          | `archive_set_build` ✅ (propose-only)                     | FullTags ⌗ Similar panel + saved draft/M3U8 download ✅ (rev 24)                                 | — (same read-only proposal; requested/actual duration stays explicit) |
 | Set-build → master playlist (rev 21)              | `megadj rb-playlist [drive] [--preset …] [--apply --yes]` ✅                 | ⛔ §4-A1 (master-DB mutation stays CLI)                   | ⛔ §4-A1                                                                                         | — (links existing content rows; dry-run predicts the link count) |
 | Cue ledger                                        | `megadj cues` data ✅                                                        | `archive_cue_ledger` ✅                                   | FullTags ⌗ Cues ✅                                                                               | — (rev 6)                                |
 | Library overview (FullTags mirror)                | `megadj fetch`/`audit` data ✅                                               | `archive_library_overview` ✅                             | FullTags ⌗ Tags + GetDat ⌗ Library ✅                                                            | — (rev 6)                                |

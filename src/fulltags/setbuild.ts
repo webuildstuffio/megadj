@@ -10,7 +10,9 @@
 // Agent-first contract: --json (one summary object on stdout via
 // writeJson), human logs suppressed in json mode, meaningful exit codes
 // (1 = no archive / nothing mixable, 2 = bad flag input, 0 = proposal).
+import { join } from "node:path";
 import { ArchiveReader } from "../../cratedeck/src/archive";
+import { loadConfig } from "../../cratedeck/src/config";
 import { DB_PATH } from "../cli-env";
 import { commandLog } from "../progress";
 import { writeJson } from "../shared/cli-output";
@@ -39,7 +41,13 @@ export interface SetbuildOptions {
 
 export async function setbuild(opts: SetbuildOptions): Promise<void> {
   const log = commandLog(opts);
-  const archive = new ArchiveReader(DB_PATH);
+  const configRoot =
+    process.env.CRATEDECK_ROOT ?? join(import.meta.dir, "../../cratedeck");
+  const cfg = loadConfig(configRoot);
+  const archive = new ArchiveReader(
+    DB_PATH,
+    join(cfg.volumesRoot, cfg.shelfDrive, "Contents"),
+  );
 
   // same parse/validate path as the HTTP route + MCP tool (SSOT): unknown
   // preset is an error, minutes clamp to 10–240 — never silent fallbacks
@@ -69,6 +77,8 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       sourceTotal,
       total,
       missingFiles,
+      duplicateFiles,
+      relocatedFiles,
       candidates,
       keyReads,
       keyReadFailures,
@@ -89,10 +99,15 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       source_total: sourceTotal,
       pool: total,
       missing_files: missingFiles,
+      duplicate_files: duplicateFiles,
+      relocated_files: relocatedFiles,
       key_reads: keyReads,
       key_read_failures: keyReadFailures,
       preset: built.preset,
       minutes: built.minutes,
+      actualMinutes: built.actualMinutes,
+      shortfallMinutes: built.shortfallMinutes,
+      complete: built.complete,
       steps: built.steps,
       excluded: built.excluded.slice(0, 40),
       excluded_total: built.excluded.length,
@@ -112,7 +127,7 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       // surface the ledger ages so "why isn't my new track in here" is
       // answerable without opening a DB shell
       log(
-        `setbuild: ${built.steps.length}-track ${built.preset} proposal, ${built.minutes} min (checked ${sourceTotal} DB rows; ${total} actual files; ${missingFiles} missing; excluded ${payload.excluded_total})`,
+        `setbuild: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} (checked ${sourceTotal} DB rows; ${total} unique actual files; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
       );
       log(
         `  analysis freshness — beats: ${dayOf(payload.freshness.beatsAt)}, mood: ${dayOf(payload.freshness.moodAt)} (newer imports need \`megadj beats\` + \`megadj mood\`)`,
@@ -125,6 +140,7 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
         );
       }
       log(`  total ${at} min — propose-only, nothing written`);
+      if (!built.complete) process.exitCode = 1;
     }
     await writeJson(payload);
   } finally {
