@@ -48,6 +48,10 @@ Same capability, other surfaces:
   "pool": 300,            // candidates actually loaded (≤ limit)
   "preset": "peak",       // id — resolve labels from SET_PRESET_DEFS
   "minutes": 60,          // the clamped budget actually used
+  "freshness": {          // ledger ages — staleness is VISIBLE, not silent
+    "beatsAt": "2026-09-11T21:37:23.224Z",
+    "moodAt": "2026-09-11T23:36:54.641Z"
+  },
   "steps": [              // the ordered chain
     { "videoId": "…", "title": "…", "artist": "…", "bpm": 128.1,
       "key": "8A", "arousal": 6.2,
@@ -67,6 +71,10 @@ clash (0) can't be chained into, ±6% tempo is a hard window.
 ## 3. The honest failure modes (read these before claiming success)
 
 - `pool: 0` → ledgers empty: run `megadj beats` + `megadj mood`.
+- `freshness` older than your newest imports → the pool predates the new
+  tracks: re-run `megadj beats` + `megadj mood`, then re-propose (the
+  CLI prints the same ages; the web panel shows a freshness line with a
+  tone: ≤2d ok, ≤14d warn, older stale).
 - `steps: []` with `excluded_total > 0` → read the reasons: "no
   beats-ledger BPM" (analysis gap) vs "no compatible transition"
   (real musical dead-end — try a different preset/opener).

@@ -33,6 +33,10 @@ export interface SetBuildPayload extends SetBuildResult {
   available: boolean;
   pool: number;
   excluded_total: number;
+  /** Ledger ages for the newest beats/mood analysis — a stale pool is
+   *  VISIBLE ("proposed from analysis older than your latest drops"),
+   *  never silent. Null when that ledger is empty. */
+  freshness: { beatsAt: string | null; moodAt: string | null };
 }
 
 /** Set-builder energy-arc presets — the ONE registry all three surfaces

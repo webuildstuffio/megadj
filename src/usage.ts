@@ -47,8 +47,8 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                set-builder (M66): propose an ordered mix chain
                                                from the beats/mood ledgers + file keys — Camelot-
                                                compatible, ±6% tempo, shaped by an energy-arc preset
-                                               (propose-only, nothing written; empty chain = run
-                                               \`megadj beats\` + \`megadj mood\` first)
+                                               (propose-only, nothing written; prints ledger freshness;
+                                               empty chain = run \`megadj beats\` + \`megadj mood\` first)
   megadj upgrade [--limit N] [--dry-run] [--json]
                                                re-fetch below-floor tracks at best quality (fingerprint-gated swap)
   megadj cues    [--limit N] [--force] [--dry-run] [--json]

@@ -140,6 +140,9 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
       return json({
         available: archive.available(),
         pool: total,
+        // ledger ages (newest beats/mood analysis) — the UI staleness
+        // line derives from this, never a hand-copied clock read
+        freshness: archive.freshness(),
         // the wire contract is the preset ID (SetBuildPayload.preset: string)
         // — consumers resolve labels from the shared SET_PRESET_DEFS registry
         preset: built.preset,

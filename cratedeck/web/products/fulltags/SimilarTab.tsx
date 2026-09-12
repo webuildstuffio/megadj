@@ -208,6 +208,45 @@ export function SimilarTab() {
 const fmtBpm = (bpm: number | null): string =>
   bpm === null ? "—" : String(Math.round(bpm * 10) / 10);
 
+/** ISO timestamp → age in whole days (null input → null). Module scope —
+ *  unicorn(consistent-function-scoping) + shared by both surfaces. */
+const daysAgo = (iso: string | null): number | null =>
+  iso === null ? null : Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
+
+/** Days-since → display word ("never" / "today" / "3d ago"). */
+const ageWord = (d: number | null): string =>
+  d === null ? "never" : d <= 0 ? "today" : `${d}d ago`;
+
+/** Pool freshness: ledger ages under the proposal, so a stale pool is
+ *  VISIBLE instead of silently proposing from yesterday's analysis. Tone:
+ *  ok ≤2 days, warn ≤14 days, stale beyond — matches the archive's
+ *  living-library rhythm, not a fixed clock. */
+function FreshnessLine(props: {
+  freshness: { beatsAt: string | null; moodAt: string | null };
+  pool: number;
+}) {
+  if (props.pool === 0) return null;
+  const beats = daysAgo(props.freshness.beatsAt);
+  const mood = daysAgo(props.freshness.moodAt);
+  const worst = Math.max(
+    beats ?? Number.POSITIVE_INFINITY,
+    mood ?? Number.POSITIVE_INFINITY,
+  );
+  const cls = worst <= 2 ? "ok" : worst <= 14 ? "warn" : "stale";
+  return (
+    <div class={`setbuild-fresh ${cls}`}>
+      analysis freshness — beats {ageWord(beats)}, mood {ageWord(mood)}
+      {worst > 2 && (
+        <span class="fresh-note">
+          {" "}
+          — newer imports? run <code>megadj beats</code> +{" "}
+          <code>megadj mood</code>
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** preset id → human label, straight from the shared registry (unknown id
  *  falls back to the raw id rather than lying). Module scope so the panel
  *  doesn't recreate it per render. */
@@ -407,6 +446,10 @@ function SetBuildPanel() {
                 : `${build.data.steps.length}-track ${presetLabel(build.data.preset)} proposal from a ${build.data.pool}-track pool — ${build.data.minutes} min.`
             }
             meta="propose-only — nothing is written; accept tracks into a playlist by hand"
+          />
+          <FreshnessLine
+            freshness={build.data.freshness}
+            pool={build.data.pool}
           />
           {steps.length > 0 && (
             <ListHead

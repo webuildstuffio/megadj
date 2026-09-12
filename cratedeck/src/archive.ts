@@ -10,6 +10,7 @@
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 import { existsSync } from "node:fs";
 import {
+  poolFreshness,
   similarTracks as similarTracksImpl,
   setCandidates as setCandidatesImpl,
 } from "./archive_similar";
@@ -77,6 +78,12 @@ export class ArchiveReader implements ArchiveQuery {
     const db = this.handle();
     if (!db) return [];
     return db.query(sql).all(...params) as T[];
+  }
+
+  /** rows(...)[0] — undefined on empty. ArchiveQuery leaf contract; see
+   *  archive_types.ts. */
+  row<T>(sql: string, ...params: SQLQueryBindings[]): T | undefined {
+    return this.rows<T>(sql, ...params)[0];
   }
 
   /** The ArchiveTrack column list, shared by every query that returns
@@ -620,6 +627,12 @@ export class ArchiveReader implements ArchiveQuery {
 
   setCandidates(limit = SET_POOL_DEFAULT) {
     return setCandidatesImpl(this, limit);
+  }
+
+  /** Newest beats/mood ledger timestamps — set-builder staleness UX.
+   *  Implementation in archive_similar.ts (poolFreshness). */
+  freshness() {
+    return poolFreshness(this);
   }
 
   /**

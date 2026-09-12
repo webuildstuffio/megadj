@@ -54,6 +54,20 @@ export interface ArchiveQuery {
       | { [k: string]: string | number | bigint | boolean | null }
     )[]
   ): T[];
+  /** rows(...)[0] — undefined when the query matched nothing. Kept on
+   *  the leaf so single-row probes (freshness census) don't over-fetch
+   *  or lean on noUncheckedIndexedAccess gymnastics. */
+  row<T>(
+    sql: string,
+    ...params: (
+      | string
+      | number
+      | bigint
+      | boolean
+      | null
+      | { [k: string]: string | number | bigint | boolean | null }
+    )[]
+  ): T | undefined;
   /** The ArchiveTrack column list shared by every full-row query. */
   trackCols(): string;
 }

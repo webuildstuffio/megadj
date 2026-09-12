@@ -24,6 +24,11 @@ import {
   type SetBuildPayload,
 } from "../../cratedeck/shared/types";
 
+/** ISO timestamp → YYYY-MM-DD (null → "never"). Module scope — the
+ *  staleness line formats both ledger ages with one helper. */
+const dayOf = (iso: string | null): string =>
+  iso === null ? "never" : iso.slice(0, 10);
+
 export interface SetbuildOptions {
   preset?: string | undefined;
   minutes?: number | undefined;
@@ -79,8 +84,8 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       steps: built.steps,
       excluded: built.excluded.slice(0, 40),
       excluded_total: built.excluded.length,
+      freshness: reader.freshness(),
     };
-
     if (built.steps.length === 0) {
       // empty proposal = a real finding (nothing analyzed / nothing
       // mixable), not a crash — same honesty as the web Verdict row
@@ -89,8 +94,14 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       );
       process.exitCode = 1;
     } else {
+      // staleness UX: the pool is only as fresh as its newest analysis —
+      // surface the ledger ages so "why isn't my new track in here" is
+      // answerable without opening a DB shell
       log(
         `setbuild: ${built.steps.length}-track ${built.preset} proposal, ${built.minutes} min (pool ${total}, excluded ${payload.excluded_total})`,
+      );
+      log(
+        `  analysis freshness — beats: ${dayOf(payload.freshness.beatsAt)}, mood: ${dayOf(payload.freshness.moodAt)} (newer imports need \`megadj beats\` + \`megadj mood\`)`,
       );
       let at = 0;
       for (const s of built.steps) {

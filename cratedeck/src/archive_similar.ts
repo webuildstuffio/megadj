@@ -134,6 +134,10 @@ export function setCandidates(
     arousal: number | null;
     dance: number | null;
   }[];
+  freshness: {
+    beatsAt: string | null;
+    moodAt: string | null;
+  };
 } {
   const rows = reader.rows<{
     video_id: string;
@@ -182,5 +186,25 @@ export function setCandidates(
     available: reader.available(),
     total: candidates.length,
     candidates,
+    freshness: poolFreshness(reader),
+  };
+}
+
+/** Set-builder freshness: the newest `analyzed_at` in the beats/mood
+ *  ledgers (null when a ledger is empty). The UI/CLI surfaces this so a
+ *  stale pool is VISIBLE ("built from analysis older than your latest
+ *  drops") instead of silently proposing from yesterday's census. */
+export function poolFreshness(reader: ArchiveQuery): {
+  beatsAt: string | null;
+  moodAt: string | null;
+} {
+  const row = reader.row<{ beats_at: string | null; mood_at: string | null }>(
+    `SELECT
+       (SELECT MAX(analyzed_at) FROM beats) AS beats_at,
+       (SELECT MAX(analyzed_at) FROM mood) AS mood_at`,
+  );
+  return {
+    beatsAt: row?.beats_at ?? null,
+    moodAt: row?.mood_at ?? null,
   };
 }
