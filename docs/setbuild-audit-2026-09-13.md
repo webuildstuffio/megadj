@@ -1,4 +1,4 @@
-# Set Builder (M66) — Full Audit, 10-Project Comparison & Improvement Plan
+# Set Builder (M66 / MegaSet) — Full Audit, 10-Project Comparison & Improvement Plan
 
 **Status:** 🧭 ACTIVE — plan for the next build-out rounds. Not yet implemented.
 
@@ -6,7 +6,8 @@ _2026-09-13. Scope: `cratedeck/src/setbuild.ts` (engine), `cratedeck/src/archive
 (candidate pool), `cratedeck/shared/setbuild.ts` + `shared/camelot.ts` (wire SSOTs),
 `src/fulltags/setbuild.ts` (CLI), `cratedeck/src/archive_tools.ts` (MCP), `archive_routes.ts`
 (HTTP + M3U8), `web/products/fulltags/SimilarTab.tsx` (UI), `src/rekordbox/rb-playlist.ts`
-(master-DB write-off). Companion to [docs/fulltags-roadmap.md](fulltags-roadmap.md) and
+(master-DB write-off). Product home: [megaset-prd.md](megaset-prd.md).
+Companion to [docs/fulltags-roadmap.md](fulltags-roadmap.md) and
 [docs/PRINCIPLES.md](PRINCIPLES.md) (propose-only is a feature, not a gap).
 
 ---
@@ -195,7 +196,7 @@ Guiding rules: propose-only stays; every phase ships with tests + parity rows; n
 runtime deps without the release-age floor; algorithms stay pure functions in
 `cratedeck/src/setbuild.ts`; SSOT tables live in `shared/`.
 
-### Phase A — Bug fixes (no new features)
+### Phase A — Bug fixes (no new features) · 🔨 FIRST
 
 1. **B1 offline pool:** `setCandidates` gains `availability: "files" | "metadata"` —
    when files are absent but the rekordbox mirror covers a row (BPM+key present), admit it
@@ -217,7 +218,17 @@ runtime deps without the release-age floor; algorithms stay pure functions in
 5. **B11:** `SET_EXCLUDED_PREVIEW_MAX = 40` into `shared/setbuild.ts`; both surfaces import.
 6. **B9:** rename constant to `OPENER_MIN_NEIGHBORS`; docs pass on payload field names.
 
-### Phase B — Scoring depth (uses data we already have)
+**Added during PRD pass (Sep 13):**
+
+7. **B12 empty-pool UX:** the audit's live probe hit the worst case — pool 8, 3 steps,
+   "complete: false" with no human hint. When `pool` < a floor (say 10), the payload/UI
+   gains a `pool_hint` ("only 8 playable candidates — is the shelf mounted? FullTags
+   mirror covers 3,563 rows; run `megadj rb-mirror`") instead of a bare shortfall.
+8. **B13 excluded-reason consolidation:** the excluded list at 3,600-scale repeats the
+   same 3 reasons ~3,585 times; the payload should group by reason with representative
+   videoIds (`excluded_groups`), keeping the flat list for the 40-preview.
+
+### Phase B — Scoring depth (uses data we already have) · 🧭
 
 7. **B4 valence:** score it. `fit` becomes 3-axis distance (arousal, dance, valence with
    the preset gaining `valence: [start,end]`); afterhours gets a dark-valence envelope —
@@ -235,7 +246,7 @@ runtime deps without the release-age floor; algorithms stay pure functions in
     ledger row via ffmpeg `ebur128` (local, fast); scoring trims extremes (nothing mixes
     well across a 12-LU gap). Optional, off by default, like genre.
 
-### Phase C — Sequencing power (algorithms)
+### Phase C — Sequencing power (algorithms) · 🧭
 
 12. **Lookahead repair (2-opt):** after the greedy chain, one 2-opt pass (reverse any
     segment if total transition score improves, ≤N iterations, deterministic order) —
@@ -249,7 +260,7 @@ runtime deps without the release-age floor; algorithms stay pure functions in
 15. **Quality score:** a single 0–100 set-quality summary (mean transition + arc
     adherence + diversity + budget fit), so "Build 3" has something to rank by. Deterministic.
 
-### Phase D — The handoff layer (our differentiator)
+### Phase D — The handoff layer (our differentiator) · 🧭 THE bet
 
 16. **Phrase-aware transition points:** we hold 3,605 tracks × ~17-20 8-bar cues +
     downbeat grids — richer than anything in the comparison set except PulseGrid/cuefield.
@@ -265,10 +276,14 @@ runtime deps without the release-age floor; algorithms stay pure functions in
 
 | Phase | Ships | Size |
 |---|---|---|
-| A | B1,B2,B3,B7,B9,B11 + regressions | 1 focused session |
+| A | B1,B2,B3,B7,B9,B11,B12,B13 + regressions | 1 focused session |
 | B | 7–11 (10 and 11 independently flag-gated) | 1–2 sessions |
 | C | 12–15 | 1–2 sessions |
 | D | 16–18 (16 needs a cues-join + engine extension) | 2 sessions |
+
+Order rationale: A unblocks trust in every proposal (offline collapse is the #1 live
+failure); B and C compound on the same tests; D is the market differentiator and wants
+B's valence/energy work landed first so cue planning targets a stable arc.
 
 Each item lands through the standard gates (`bun run check:full`, staged tests, parity-doc
 row, MCP twin assertion where a param is added).

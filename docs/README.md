@@ -5,7 +5,8 @@
 Start here:
 
 - [Product state](product-state-2026-09-07.md) — current shipped state and queue.
-- [Features](FEATURES.md) — product-level map.
+- [Features](FEATURES.md) — product map (GetDat, FullTags, MegaSet, CrateDeck).
+- [MegaSet PRD](megaset-prd.md) — the set-builder product doc.
 - [Principles](PRINCIPLES.md) — decision authority.
 - [Agent playbook](agent-playbook.md) — detailed failure history behind `AGENTS.md`.
 - [Ideas](ideas.md) — ordered backlog; open work is tracked as GitHub issues.
@@ -31,6 +32,7 @@ Product references:
 
 - [FullTags roadmap](fulltags-roadmap.md)
 - [Grid audit plan](grid-audit-plan.md)
+- [MegaSet PRD](megaset-prd.md)
 - [Set builder audit & plan](setbuild-audit-2026-09-13.md)
 - [CrateDeck product brief](cratedeck/01-product-brief.md)
 - [CrateDeck acceptance](cratedeck/acceptance.md)

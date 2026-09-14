@@ -7,9 +7,9 @@ vibe and a goal (see [PRINCIPLES.md](PRINCIPLES.md) §10). They chain together
 into one pipeline:
 
 ```
-GetDat ──▶ FullTags ──▶ CrateDeck (the Crate) ──▶ the booth
-download    perfect       organize, verify,          play on
-& archive   metadata      sync DJ USB drives         Pioneer
+GetDat ──▶ FullTags ──▶ MegaSet ──▶ CrateDeck (the Crate) ──▶ the booth
+download    perfect       propose      organize, verify,      play on
+& archive   metadata      the mix      sync DJ USB drives     Pioneer
 ```
 
 Status: ✅ shipped · 🔨 in progress · 🧭 coming (roadmap in
@@ -136,6 +136,27 @@ rename`/`report --dossier` + MCP twins), the Sep 10 shelf-hygiene engine
 
 ---
 
+## 🎚️ MegaSet — _the set-builder co-pilot: propose the mix, keep the taste_
+
+**Goal:** turn the archive's measured data (beats, mood, key, embeddings,
+8-bar phrase cues) into an ordered, key-compatible mix proposal with a
+visible energy arc — deterministic, honest about its inputs, and
+propose-only: the DJ keeps every creative decision.
+
+|                    |                                                                                                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**         | 🔨 v0 shipped propose-only (Sep 11–12 2026): greedy Camelot/energy-arc engine, whole-library pool, CLI + web + MCP + M3U8 export, gated `megadj rb-playlist` write-off. v1 = the [audit plan](setbuild-audit-2026-09-13.md). |
+| **How it works**   | FullTags ledgers feed a pure scoring engine (`0.45·tempo + 0.3·key + 0.25·energy-fit`, ±6% tempo window, Camelot wheel); one preset registry (warmup/peak/afterhours) drives all surfaces; every exclusion is counted and explainable. |
+| **The write-off**  | `megadj rb-playlist` links a proposal into the rekordbox master as a real playlist — dry-run first, backup + rekordbox-quit gates on `--apply`.                           |
+| **Docs**           | [MegaSet PRD](megaset-prd.md) · [audit + 10-project comparison + plan](setbuild-audit-2026-09-13.md)                                                                      |
+
+**Commands:** `megadj setbuild --preset peak --minutes 60 [--opener <id>] [--json]` ·
+`megadj rb-playlist [drive] [--preset …] [--apply --yes]`
+**Vibe:** "the opener sells the night — MegaSet makes sure you never open
+with a 73-BPM track in a 128 room."
+
+---
+
 ## 🧭 Coming next (from the roadmap)
 
 - **[ideas.md](ideas.md) is canon for detail and ordering** — the full
@@ -153,8 +174,8 @@ re-scored table, ideas.md owns every detail):
   [fulltags-roadmap.md](fulltags-roadmap.md) is the rev-by-rev record.
 - **Move 3 — the agentic layer:** SHIPPED; remaining: O84 inbox agent.
 - **The dream** — hit predictor calibrated on what actually got played
-  (§M64, needs history); the set-builder half already shipped propose-only
-  (§M66).
+  (§M64, needs history); the set-builder half shipped propose-only as
+  **MegaSet** (§M66, [PRD](megaset-prd.md)).
 
 Do-now items live in [ideas.md §0](ideas.md#0--do-now-before-anything-else),
 which is now software-complete (issues #1–#5 closed; the two physical
@@ -174,7 +195,7 @@ megadj shelf-archive <volume>  # shelf: drive → shelf master (stray-drive inta
 megadj shelf-sweeps            # shelf: DB ledger — every sweep's verdict, latest per drive
 megadj shelf-dupescan          # shelf: fingerprint dupes regardless of name/folder
 megadj similar <video_id>      # FullTags: sounds-like kNN over the embeddings ledger
-megadj setbuild --preset peak  # FullTags: propose a Camelot/energy-arc mix chain
+megadj setbuild --preset peak  # MegaSet: propose a Camelot/energy-arc mix chain
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 
