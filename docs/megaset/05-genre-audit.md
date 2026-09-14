@@ -247,6 +247,12 @@ ground-truth philosophy unchanged.
 | Inference for unlabeled (k=5 pinned by eval) | exists | —                                   |
 | Cluster-proposed labels                      | M      | everything above, later             |
 
+**Tower note (Sep 14):** the kNN in this plan now has a measured, better
+engine — an effnet+musicnn ensemble lifts leave-one-out family agreement
+from 41.3% (single effnet) to **46.3%** on the same 80-track harness.
+Tower choice, numbers, and adoption plan:
+[06-embedding-models.md](06-embedding-models.md).
+
 ### 5c. Which source wins? (the "6 sources — do we take SoundCloud?" question)
 
 The candidate sources, ranked by **measured** audio-consistency (gated LOO)
