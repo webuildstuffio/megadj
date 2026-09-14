@@ -3,18 +3,37 @@
  * compare: changed/added/removed/identical must come out exact, and a
  * PQTZ-only byte change must be attributable to the grid section.
  */
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { anlzSpike } from "./anlz-spike";
 import { buildAnlz } from "../../fulltags/src/anlz";
 
+const TEST_ROOT = mkdtempSync(join(tmpdir(), "megadj-anlz-spike-test-"));
+const TEST_SPIKE_DIR = join(TEST_ROOT, "baselines");
+let mountId = 0;
+
+afterAll(() => rmSync(TEST_ROOT, { recursive: true, force: true }));
+
 function fakeMount(): string {
-  const mount = mkdtempSync("/tmp/megadj-spike-");
+  const mount = join(TEST_ROOT, `mount-${mountId++}`);
   mkdirSync(join(mount, "PIONEER", "Master", "share", "ANLZ"), {
     recursive: true,
   });
   return mount;
+}
+
+function runSpike(
+  opts: Omit<Parameters<typeof anlzSpike>[0], "spikeDir">,
+): ReturnType<typeof anlzSpike> {
+  return anlzSpike({ ...opts, spikeDir: TEST_SPIKE_DIR });
 }
 
 const beats = (n: number, startMs = 0) => {
@@ -38,13 +57,14 @@ describe("anlzSpike", () => {
       "ANLZ0000.DAT",
       buildAnlz({ path: "/x", beats: beats(64) }),
     );
-    const s = anlzSpike({
+    const s = runSpike({
       mount,
       tag: "A",
       mode: "snapshot",
       log: () => {},
     });
     expect(s.ok).toBe(true);
+    expect(s.baselinePath?.startsWith(`${TEST_SPIKE_DIR}/`)).toBe(true);
     expect(s.tracked).toBe(1);
     expect(s.undecodable).toBe(0);
     const raw = JSON.parse(readFileSync(s.baselinePath!, "utf8")) as {
@@ -60,7 +80,7 @@ describe("anlzSpike", () => {
       "ANLZ0000.DAT",
       buildAnlz({ path: "/x", beats: beats(64) }),
     );
-    anlzSpike({ mount, tag: "A", mode: "snapshot", log: () => {} });
+    runSpike({ mount, tag: "A", mode: "snapshot", log: () => {} });
 
     // simulate the rekordbox grid nudge: same file, shifted grid (+1 beat)
     writeSidecar(
@@ -68,7 +88,7 @@ describe("anlzSpike", () => {
       "ANLZ0000.DAT",
       buildAnlz({ path: "/x", beats: beats(64, Math.round(60000 / 128)) }),
     );
-    const c = anlzSpike({ mount, tag: "A", mode: "compare", log: () => {} });
+    const c = runSpike({ mount, tag: "A", mode: "compare", log: () => {} });
     expect(c.ok).toBe(true);
     expect(c.identical).toBe(0);
     expect(c.changed).toHaveLength(1);
@@ -83,28 +103,27 @@ describe("anlzSpike", () => {
       "ANLZ0000.DAT",
       buildAnlz({ path: "/x", beats: beats(8) }),
     );
-    anlzSpike({ mount, tag: "B", mode: "snapshot", log: () => {} });
+    runSpike({ mount, tag: "B", mode: "snapshot", log: () => {} });
     // remove one, add another (a fresh analysis pass)
     const dir = join(mount, "PIONEER", "Master", "share", "ANLZ");
-    const { rmSync } = require("node:fs") as typeof import("node:fs");
     rmSync(join(dir, "ANLZ0000.DAT"));
     writeSidecar(
       mount,
       "ANLZ0001.DAT",
       buildAnlz({ path: "/y", beats: beats(8) }),
     );
-    const c = anlzSpike({ mount, tag: "B", mode: "compare", log: () => {} });
+    const c = runSpike({ mount, tag: "B", mode: "compare", log: () => {} });
     expect(c.added).toEqual(["collection/ANLZ0001.DAT"]);
     expect(c.removed).toEqual(["collection/ANLZ0000.DAT"]);
   });
 
   test("compare without a baseline is a visible failure; unmounted too", () => {
     const mount = fakeMount();
-    const c = anlzSpike({ mount, tag: "nope", mode: "compare", log: () => {} });
+    const c = runSpike({ mount, tag: "nope", mode: "compare", log: () => {} });
     expect(c.ok).toBe(false);
     expect(c.error).toMatch(/no baseline/u);
-    const s = anlzSpike({
-      mount: "/tmp/never-mounted",
+    const s = runSpike({
+      mount: join(TEST_ROOT, "never-mounted"),
       tag: "A",
       mode: "snapshot",
       log: () => {},
@@ -116,7 +135,7 @@ describe("anlzSpike", () => {
   test("undecodable sidecars are counted, never crashing the scan", () => {
     const mount = fakeMount();
     writeSidecar(mount, "ANLZ0002.DAT", new Uint8Array([1, 2, 3, 4]));
-    const s = anlzSpike({
+    const s = runSpike({
       mount,
       tag: "C",
       mode: "snapshot",
@@ -150,7 +169,7 @@ describe("anlzSpike", () => {
       "ANLZ0000.DAT",
       buildAnlz({ path: "/s", beats: beats(8) }),
     );
-    const s = anlzSpike({
+    const s = runSpike({
       mount,
       tag: "nest",
       mode: "snapshot",
@@ -170,7 +189,12 @@ describe("anlzSpike", () => {
       join(h1, "ANLZ0000.DAT"),
       buildAnlz({ path: "/a", beats: beats(8, 1000) }),
     );
-    const c = anlzSpike({ mount, tag: "nest", mode: "compare", log: () => {} });
+    const c = runSpike({
+      mount,
+      tag: "nest",
+      mode: "compare",
+      log: () => {},
+    });
     expect(c.ok).toBe(true);
     expect(c.changed).toHaveLength(1);
     expect(c.changed![0]!.file).toBe("usb/P001/0000000A/ANLZ0000.DAT");

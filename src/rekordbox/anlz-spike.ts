@@ -38,11 +38,15 @@ import { join, basename } from "node:path";
 import { createHash } from "node:crypto";
 import { parseAnlzInventory } from "../../fulltags/src/anlz";
 
+export type AnlzSpikeMode = "snapshot" | "compare";
+
 export interface SpikeOptions {
   mount: string;
   tag: string;
   /** "snapshot" writes the baseline; "compare" diffs against it. */
-  mode: "snapshot" | "compare";
+  mode: AnlzSpikeMode;
+  /** Override the persistent baseline directory (tests and isolated probes). */
+  spikeDir?: string;
   json?: boolean;
   log?: (s: string) => void;
 }
@@ -57,7 +61,7 @@ interface SidecarRec {
 
 export interface SpikeSnapshot {
   command: "rb-anlz-spike";
-  mode: "snapshot" | "compare";
+  mode: AnlzSpikeMode;
   mount: string;
   tag: string;
   /** When the snapshot was taken (epoch ms) — compare reads it back. */
@@ -97,10 +101,12 @@ function fail(opts: SpikeOptions, mount: string, msg: string): SpikeSnapshot {
   };
 }
 
-/** Baseline JSON lives in the scratch dir under data/ (the only allowed
- * write root outside the archive; the drive is never written). */
-function baselinePath(mount: string, tag: string): string {
+/** Baseline JSON lives in persistent local state so snapshot and compare may
+ * happen across sessions. Tests and isolated probes inject a temporary root;
+ * the drive is never written. */
+function baselinePath(mount: string, tag: string, spikeDir?: string): string {
   const root =
+    spikeDir ??
     process.env.MEGADJ_SPIKE_DIR ??
     join(process.env.HOME ?? "/tmp", ".local", "state", "megadj", "spike");
   mkdirSync(root, { recursive: true });
@@ -209,7 +215,7 @@ export function anlzSpike(opts: SpikeOptions): SpikeSnapshot {
       scanned,
       tracked: recs.length,
       undecodable,
-      baselinePath: baselinePath(mount, opts.tag),
+      baselinePath: baselinePath(mount, opts.tag, opts.spikeDir),
       ok: true,
     };
     writeFileSync(snap.baselinePath!, JSON.stringify({ ...snap, recs }));
@@ -220,7 +226,7 @@ export function anlzSpike(opts: SpikeOptions): SpikeSnapshot {
   }
 
   // compare
-  const bp = baselinePath(mount, opts.tag);
+  const bp = baselinePath(mount, opts.tag, opts.spikeDir);
   if (!existsSync(bp))
     return fail(
       opts,
