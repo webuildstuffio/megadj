@@ -1,6 +1,12 @@
 import { describe, it, expect } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { loadConfig } from "../src/config";
+import {
+  parseBoothFleetRequest,
+  writeConfigBoothFleet,
+} from "../src/booth_routes";
 
 describe("config", () => {
   it("loads defaults with no config file", () => {
@@ -56,5 +62,23 @@ describe("config", () => {
     const cfg = loadConfig("/tmp/cratedeck-test-cmt");
     expect(cfg.masterDrive).toBe("DJMASTER");
     expect(cfg.serverPort).toBe(8000);
+  });
+
+  it("round-trips a saved non-default booth fleet", () => {
+    const root = mkdtempSync(join(tmpdir(), "cratedeck-config-"));
+    writeFileSync(join(root, "config.toml"), "[server]\nport = 7742\n");
+
+    writeConfigBoothFleet(root, ["cdj-2000"]);
+
+    expect(loadConfig(root).boothFleet).toEqual(["cdj-2000"]);
+  });
+
+  it("rejects malformed and unknown booth fleet requests", () => {
+    for (const value of [null, {}, { selected: "xdj-xz" }, { selected: [7] }])
+      expect(() => parseBoothFleetRequest(value)).toThrow("selected");
+    expect(() =>
+      parseBoothFleetRequest({ selected: ["not-a-player"] }),
+    ).toThrow("unknown player id");
+    expect(parseBoothFleetRequest({ selected: [] })).not.toEqual([]);
   });
 });

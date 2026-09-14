@@ -25,7 +25,9 @@ def walk(node: Any, path: list[str], out: list[dict[str, Any]]) -> None:
             out.append(
                 {
                     "product": prod,
-                    "serial": serial.decode(errors="replace") if isinstance(serial, bytes) else serial,
+                    "serial": serial.decode(errors="replace")
+                    if isinstance(serial, bytes)
+                    else serial,
                     "vendor": vendor.strip() if isinstance(vendor, str) else vendor,
                     "locationId": loc,
                     # Negotiated link rate in bits/s (UsbLinkSpeed from ioreg:
@@ -34,7 +36,9 @@ def walk(node: Any, path: list[str], out: list[dict[str, Any]]) -> None:
                     "linkBps": node.get("UsbLinkSpeed")
                     if isinstance(node.get("UsbLinkSpeed"), int)
                     else None,
-                    "portKey": f"{'/'.join(path)}/{prod}@{loc:x}" if loc is not None else f"{'/'.join(path)}/{prod}",
+                    "portKey": f"{'/'.join(path)}/{prod}@{loc:x}"
+                    if loc is not None
+                    else f"{'/'.join(path)}/{prod}",
                 }
             )
             inner = [*path, prod]

@@ -73,9 +73,7 @@ def _median(vals: list[float]) -> float:
 
 def _top(counter: dict[str, int], n: int = 12) -> list[dict[str, Any]]:
     return [
-        {"name": k, "count": v}
-        for k, v in sorted(counter.items(), key=lambda kv: -kv[1])[:n]
-        if k
+        {"name": k, "count": v} for k, v in sorted(counter.items(), key=lambda kv: -kv[1])[:n] if k
     ]
 
 
@@ -225,6 +223,7 @@ def open_device_db(db_path: str) -> Any:
     # (single-line form required: mypy wants the ignore on the import's first
     # line, ruff-isort wants one module per line — this shape satisfies both)
     from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus as _DLP  # type: ignore[import-not-found] # noqa: I001
+
     DeviceLibraryPlus = _DLP
     from sqlalchemy import text  # type: ignore[import-not-found]
 
@@ -295,9 +294,7 @@ def snapshot(db_path: str, drive_root: str) -> dict[str, Any]:
             "dj": dj_stats(db, contents),
             "tracks": track_inventory(db, contents),
             "playlist_entries": playlist_membership(db),
-            "db_mtime": mtime(
-                os.path.join(drive_root, "PIONEER", "rekordbox", "exportLibrary.db")
-            ),
+            "db_mtime": mtime(os.path.join(drive_root, "PIONEER", "rekordbox", "exportLibrary.db")),
             "pdb_mtime": mtime(pdb_path) if os.path.exists(pdb_path) else None,
         }
     finally:
@@ -309,11 +306,7 @@ def snapshot(db_path: str, drive_root: str) -> dict[str, Any]:
 
 def main() -> int:
     if len(sys.argv) < 3:
-        print(
-            json.dumps(
-                {"ok": False, "error": "usage: rb_read.py <db_copy> <drive_root>"}
-            )
-        )
+        print(json.dumps({"ok": False, "error": "usage: rb_read.py <db_copy> <drive_root>"}))
         return 1
     db_path, drive_root = sys.argv[1], sys.argv[2]
     try:

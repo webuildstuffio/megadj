@@ -7,6 +7,7 @@
 import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import type { BoothFleetPayload, BoothPlayerProfile } from "../shared/types";
+import { isUnknownArray } from "../shared/guards";
 import {
   FLEET_PROFILES,
   DEFAULT_FLEET,
@@ -50,6 +51,24 @@ export function normalizeFleetSelection(ids: readonly string[]): string[] {
   const known = new Set(FLEET_PROFILES.map((p) => p.id as string));
   const valid = ids.filter((id) => known.has(id));
   return valid.length > 0 ? valid : (DEFAULT_FLEET as string[]).slice();
+}
+
+export function parseBoothFleetRequest(value: unknown): string[] {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    !("selected" in value) ||
+    !isUnknownArray(value.selected) ||
+    !value.selected.every((id): id is string => typeof id === "string")
+  ) {
+    throw new Error("selected must be an array of player ids");
+  }
+  const known = new Set(FLEET_PROFILES.map((profile) => profile.id as string));
+  const unknown = value.selected.filter((id) => !known.has(id));
+  if (unknown.length > 0)
+    throw new Error(`unknown player id: ${unknown.join(", ")}`);
+  return normalizeFleetSelection(value.selected);
 }
 
 /** Persist [booth].fleet to config.toml — replace or append the section,

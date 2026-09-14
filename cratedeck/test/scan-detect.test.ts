@@ -4,6 +4,7 @@ import { nfcCasefold, scanVolume } from "../src/scan";
 import {
   pickUsbDevice,
   parseDiskutilJson,
+  parseUsbTreeJson,
   parsePlist,
   isPhysicalExternal,
   listMountedVolumes,
@@ -195,6 +196,23 @@ describe("detect", () => {
     }
     expect(errors.join("\n")).toContain("diskutil plist JSON");
     expect(errors.join("\n")).toContain("malformed");
+  });
+
+  it("rejects valid JSON that is not a diskutil object", () => {
+    for (const payload of ["null", "[]", '"disk4"', "42"]) {
+      expect(parseDiskutilJson(payload), payload).toEqual({});
+    }
+  });
+
+  it("validates every usb-tree device instead of trusting decoded JSON", () => {
+    const valid = JSON.stringify({ devices: [devices[2]] });
+    expect(parseUsbTreeJson(valid)).toEqual([devices[2]!]);
+    for (const payload of ["{}", '{"devices":{}}', '{"devices":[{}]}']) {
+      expect(parseUsbTreeJson(payload), payload).toEqual([]);
+    }
+    expect(
+      parseUsbTreeJson(JSON.stringify({ devices: [devices[2], {}] })),
+    ).toEqual([devices[2]!]);
   });
 });
 

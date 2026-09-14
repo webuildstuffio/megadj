@@ -2,6 +2,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { FLEET_PROFILES, DEFAULT_FLEET } from "../../fulltags/src/fleet";
+import { isUnknownArray } from "../shared/guards";
+
+export type ImageProvider = "brave" | "exa";
 
 export interface CrateConfig {
   root: string; // cratedeck/ dir
@@ -16,7 +19,7 @@ export interface CrateConfig {
   /** The shelf/archive drive volume name (default "SHELF1") — the
    *  archive-grade master master that gig sticks sync FROM. */
   shelfDrive: string;
-  imageProvider: "brave" | "exa" | null;
+  imageProvider: ImageProvider | null;
   imageKey: string | null;
   verifyTimeoutMin: number;
   /** Hard kill for a hung mirror sync (minutes; default 90). */
@@ -47,11 +50,11 @@ export interface CrateConfig {
 }
 
 /** Raw TOML value: what the tiny parser can produce. */
-type TomlValue = string | number | boolean | TomlTable;
+type TomlValue = string | string[] | number | boolean | TomlTable;
 type TomlTable = { [key: string]: TomlValue };
 
 function isTomlTable(v: TomlValue | undefined): v is TomlTable {
-  return typeof v === "object" && v !== null;
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 function parseTomlSimple(src: string): TomlTable {
@@ -85,6 +88,26 @@ function parseTomlSimple(src: string): TomlTable {
       section[kvQ[1]!] = kvQ[2] ?? "";
       continue;
     }
+    const kvArray = line.match(
+      /^([A-Za-z0-9_]+)\s*=\s*(\[[^\]]*\])\s*(?:#.*)?$/,
+    );
+    if (kvArray?.[1] && kvArray[2]) {
+      let value: unknown;
+      try {
+        value = JSON.parse(kvArray[2]);
+      } catch (error) {
+        throw new Error(`config: invalid string array for ${kvArray[1]}`, {
+          cause: error,
+        });
+      }
+      if (
+        !isUnknownArray(value) ||
+        !value.every((item) => typeof item === "string")
+      )
+        throw new Error(`config: ${kvArray[1]} must be a string array`);
+      section[kvArray[1]] = value;
+      continue;
+    }
     const kv = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.+?)\s*(?:#.*)?$/);
     if (kv?.[1] && kv[2]) {
       let v: TomlValue = kv[2];
@@ -107,6 +130,17 @@ export function loadConfig(root: string): CrateConfig {
   const images = isTomlTable(file.images) ? file.images : {};
   const jobs = isTomlTable(file.jobs) ? file.jobs : {};
   const automation = isTomlTable(file.automation) ? file.automation : {};
+  const rawImageProvider =
+    typeof images.provider === "string"
+      ? images.provider
+      : process.env.CRATEDECK_IMAGE_PROVIDER;
+  if (
+    rawImageProvider !== undefined &&
+    rawImageProvider !== "brave" &&
+    rawImageProvider !== "exa"
+  ) {
+    throw new Error(`config: unknown images.provider '${rawImageProvider}'`);
+  }
   const dataDir = process.env.CRATEDECK_DATA ?? join(root, "data");
   const cfg: CrateConfig = {
     root,
@@ -129,12 +163,7 @@ export function loadConfig(root: string): CrateConfig {
         : "DJMIRROR",
     shelfDrive:
       typeof library.shelf_drive === "string" ? library.shelf_drive : "SHELF1",
-    imageProvider:
-      (typeof images.provider === "string"
-        ? (images.provider as "brave" | "exa")
-        : undefined) ??
-      (process.env.CRATEDECK_IMAGE_PROVIDER as "brave" | "exa" | undefined) ??
-      null,
+    imageProvider: rawImageProvider ?? null,
     imageKey:
       (typeof images.key === "string" ? images.key : undefined) ??
       process.env.CRATEDECK_IMAGE_KEY ??
@@ -200,8 +229,5 @@ export function loadConfig(root: string): CrateConfig {
         : [...DEFAULT_FLEET];
     })(),
   };
-  if (cfg.imageProvider && !["brave", "exa"].includes(cfg.imageProvider)) {
-    throw new Error(`config: unknown images.provider '${cfg.imageProvider}'`);
-  }
   return cfg;
 }

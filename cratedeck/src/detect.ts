@@ -3,6 +3,7 @@
 import { readdirSync, watch } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { isFiniteNumber, isRecord, isUnknownArray } from "../shared/guards";
 
 export interface MountedVolume {
   name: string; // volume name
@@ -135,10 +136,15 @@ function applyVolumeSliceInfo(
   v: MountedVolume,
   info: Record<string, unknown>,
 ): void {
-  v.disk = (info.DeviceIdentifier as string | null) ?? null;
-  v.volumeUuid = (info.VolumeUUID as string | null) ?? null;
-  v.fs = (info.FileSystemType as string | null) ?? null;
-  const capacityBytes = Number(info.TotalSize ?? 0);
+  v.disk =
+    typeof info.DeviceIdentifier === "string" ? info.DeviceIdentifier : null;
+  v.volumeUuid = typeof info.VolumeUUID === "string" ? info.VolumeUUID : null;
+  v.fs = typeof info.FileSystemType === "string" ? info.FileSystemType : null;
+  const rawCapacity = info.TotalSize;
+  const capacityBytes =
+    typeof rawCapacity === "string" || typeof rawCapacity === "number"
+      ? Number(rawCapacity)
+      : 0;
   v.capacityBytes = Number.isFinite(capacityBytes) ? capacityBytes : 0;
   v.internal = typeof info.Internal === "boolean" ? info.Internal : null;
 }
@@ -171,8 +177,10 @@ export async function volumeDetail(
     });
     const info = parsePlist(p.stdout.toString());
     applyVolumeSliceInfo(v, info);
-    mediaName = info["Device / Media Name"] ?? info.DeviceMediaName ?? null;
-    treePath = (info.DeviceTreePath ?? null) as string | null;
+    const rawMediaName = info["Device / Media Name"] ?? info.DeviceMediaName;
+    mediaName = typeof rawMediaName === "string" ? rawMediaName : null;
+    treePath =
+      typeof info.DeviceTreePath === "string" ? info.DeviceTreePath : null;
     applyWholeDiskInfo(v, treePath);
   } catch (e) {
     // a volume whose diskutil probe fails still appears on the rail (name +
@@ -206,6 +214,45 @@ export interface UsbDevice {
   linkBps: number | null;
 }
 
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isNullableFiniteNumber(value: unknown): value is number | null {
+  return value === null || isFiniteNumber(value);
+}
+
+function isUsbDevice(value: unknown): value is UsbDevice {
+  return (
+    isRecord(value) &&
+    typeof value.product === "string" &&
+    isNullableString(value.serial) &&
+    isNullableString(value.vendor) &&
+    isNullableFiniteNumber(value.locationId) &&
+    typeof value.portKey === "string" &&
+    isNullableFiniteNumber(value.linkBps)
+  );
+}
+
+export function parseUsbTreeJson(out: string): UsbDevice[] {
+  try {
+    const value: unknown = JSON.parse(out);
+    if (!isRecord(value) || !isUnknownArray(value.devices)) {
+      console.error("usb_tree.py produced an invalid device payload");
+      return [];
+    }
+    const devices = value.devices.filter(isUsbDevice);
+    if (devices.length !== value.devices.length)
+      console.error(
+        `usb_tree.py skipped ${value.devices.length - devices.length} invalid device row(s)`,
+      );
+    return devices;
+  } catch (error) {
+    console.error("usb_tree.py produced invalid JSON", error);
+    return [];
+  }
+}
+
 /** Parse the USB tree via the Python seam (python/usb_tree.py).
  *  Result is cached briefly — the tree only changes on plug/unplug, and this
  *  used to spawn python3 on every volume detail (per poll). */
@@ -222,13 +269,7 @@ export function usbTree(): UsbDevice[] {
   );
   let devices: UsbDevice[] = [];
   if (p.exitCode === 0) {
-    try {
-      devices =
-        (JSON.parse(p.stdout.toString()) as { devices?: UsbDevice[] })
-          .devices ?? [];
-    } catch (e) {
-      console.error("usb_tree.py produced invalid JSON", e);
-    }
+    devices = parseUsbTreeJson(p.stdout.toString());
   } else {
     console.error(
       `usb_tree.py exited ${p.exitCode}: ${p.stderr.toString().slice(0, 200)}`,
@@ -297,21 +338,24 @@ function candidates_are_unique(pool: UsbDevice[]): boolean {
 
 /** Typed view of `diskutil info -plist` output (only the keys we read). */
 export interface DiskutilInfo {
-  DeviceIdentifier?: string;
-  VolumeUUID?: string;
-  FileSystemType?: string;
-  TotalSize?: string | number;
-  DeviceMediaName?: string;
-  "Device / Media Name"?: string;
-  DeviceTreePath?: string;
-  [key: string]: string | number | boolean | undefined;
+  DeviceIdentifier?: unknown;
+  VolumeUUID?: unknown;
+  FileSystemType?: unknown;
+  TotalSize?: unknown;
+  DeviceMediaName?: unknown;
+  "Device / Media Name"?: unknown;
+  DeviceTreePath?: unknown;
+  [key: string]: unknown;
 }
 
 /** Guard the JSON emitted by plutil. A malformed subprocess payload is a
  * degraded hardware probe, but it must remain observable to the operator. */
 export function parseDiskutilJson(out: string): DiskutilInfo {
   try {
-    return JSON.parse(out || "{}") as DiskutilInfo;
+    const value: unknown = JSON.parse(out || "{}");
+    if (isRecord(value)) return value;
+    console.error("diskutil plist JSON has an invalid object shape");
+    return {};
   } catch (error) {
     console.error("diskutil plist JSON is malformed", error);
     return {};

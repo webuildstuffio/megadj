@@ -275,7 +275,7 @@ function json(data: unknown, status = 200): Response {
 // (file-length guard; the /api/booth/fleet routes call these).
 import { photoUpload, makeEnqueueDriveJob } from "./drive_job_routes";
 
-const { boothFleetPayload, writeConfigBoothFleet, normalizeFleetSelection } =
+const { boothFleetPayload, parseBoothFleetRequest, writeConfigBoothFleet } =
   await import("./booth_routes");
 
 /** The /api/hygiene family: reader-backed reads + job enqueues + sync
@@ -404,15 +404,26 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
       return json(boothFleetPayload(cfg.boothFleet));
     }
     if (route === "/booth/fleet" && req.method === "POST") {
-      const body = (await req.json().catch(() => null)) as {
-        selected?: unknown;
-      } | null;
-      const ids = Array.isArray(body?.selected)
-        ? (body!.selected as unknown[]).filter(
-            (x): x is string => typeof x === "string",
-          )
-        : [];
-      const next = normalizeFleetSelection(ids);
+      let body: unknown;
+      try {
+        body = await req.json();
+      } catch (error) {
+        return json(
+          {
+            error: `invalid JSON body: ${error instanceof Error ? error.message : String(error)}`,
+          },
+          400,
+        );
+      }
+      let next: string[];
+      try {
+        next = parseBoothFleetRequest(body);
+      } catch (error) {
+        return json(
+          { error: error instanceof Error ? error.message : String(error) },
+          400,
+        );
+      }
       writeConfigBoothFleet(cfg.root, next);
       cfg.boothFleet = next;
       return json(boothFleetPayload(next));
