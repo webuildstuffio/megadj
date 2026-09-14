@@ -581,7 +581,7 @@ details.tabintro[open] summary::after {
   font-size: 13px;
 }
 .ob-where {
-  color: var(--faint);
+  color: var(--muted);
   font-size: 12px;
 }
 .ob-q {
@@ -615,7 +615,7 @@ details.tabintro[open] summary::after {
 .ob-dur {
   margin-left: auto;
   font-size: 11px;
-  color: var(--faint);
+  color: var(--muted);
   background: var(--surface3);
   padding: 2px 8px;
   border-radius: 999px;
@@ -628,7 +628,7 @@ details.tabintro[open] summary::after {
 }
 .ob-job-safety {
   font-size: 11.5px;
-  color: var(--faint);
+  color: var(--muted);
 }
 .ob-gloss {
   display: flex;

@@ -383,7 +383,7 @@ h3.sect {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--faint);
+  color: var(--muted);
   margin: 22px 0 9px;
   font-weight: 650;
   display: flex;
@@ -391,10 +391,10 @@ h3.sect {
   gap: 8px;
 }
 h3.sect .icon {
-  color: var(--faint);
+  color: var(--muted);
 }
 .sect-n {
-  color: var(--faint);
+  color: var(--muted);
   font-weight: 500;
 }
 

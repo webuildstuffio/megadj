@@ -17,7 +17,7 @@
   align-items: center;
   gap: 7px;
   font-size: 12px;
-  color: var(--faint);
+  color: var(--muted);
 }
 .ft-coverage-row {
   display: grid;
@@ -27,11 +27,11 @@
 }
 .ft-coverage-label {
   font-size: 12px;
-  color: var(--faint);
+  color: var(--muted);
 }
 .ft-coverage-cmd {
   font-size: 11px;
-  color: var(--faint);
+  color: var(--muted);
   background: none;
   border: none;
   padding: 0;

@@ -102,6 +102,11 @@
   box-shadow: 0 0 10px rgba(56, 224, 164, 0.6);
 }
 .dcard.ghost {
+  border-style: dashed;
+}
+.dcard.ghost .photo > img,
+.dcard.ghost .photo > .icon {
+  filter: grayscale(1);
   opacity: 0.62;
 }
 .dcard-top {

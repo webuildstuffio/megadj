@@ -6,7 +6,7 @@
 .intake-setup .intake-watch-hint {
   margin-left: auto;
   font-size: 11px;
-  color: var(--faint);
+  color: var(--muted);
 }
 .intake-watch-hint code {
   font-family: var(--mono);

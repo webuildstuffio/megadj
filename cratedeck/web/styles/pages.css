@@ -490,7 +490,7 @@ button.plh-btn:disabled {
   text-overflow: ellipsis;
 }
 .port .port-last {
-  color: var(--faint);
+  color: var(--muted);
   font-style: italic;
   margin-left: auto;
 }
