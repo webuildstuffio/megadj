@@ -67,6 +67,15 @@ function resolveSetBuild(
       preset: SET_PRESETS[parsed.preset],
       minutes: parsed.minutes,
       openerId: url.searchParams.get("opener") ?? undefined,
+      // A/B hook (E7): ?search=greedy|beam forces one strategy so the UI
+      // compare mode can diff them on the same pool; absent = pool-size
+      // rule decides. An unknown value falls back to the automatic pick
+      // rather than erroring — the knob is an explore control, not a
+      // contract param (unlike preset, which IS a contract and 400s).
+      searchOverride: (() => {
+        const raw = url.searchParams.get("search");
+        return raw === "greedy" || raw === "beam" ? raw : undefined;
+      })(),
     }),
   };
 }
@@ -244,6 +253,9 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         steps: built.steps,
         excluded: built.excluded.slice(0, 40),
         excluded_total: built.excluded.length,
+        // which sequencer ran (beam = deep search on small pools) — the
+        // UI and CLI quote this, never re-derive the threshold themselves
+        search: built.search,
       });
     },
     // FullTags read side (the enrichment engine's mirror columns):

@@ -4,6 +4,7 @@
 // (embeddings ledger) is similar.test.ts's job.
 import { describe, expect, test } from "bun:test";
 import {
+  evalLeaveOneOut,
   genreFamily,
   inferGenre,
   normalizeGenre,
@@ -211,5 +212,74 @@ describe("inferGenre (pure kNN vote)", () => {
   test("empty seeds / zero vector degrade to undecided, never throw", () => {
     expect(inferGenre([], houseVec).inferred).toBeNull();
     expect(inferGenre(seeds, [], 5).inferred).toBeNull();
+  });
+});
+
+describe("evalLeaveOneOut (the genre --eval harness)", () => {
+  // a coherent house cluster + a coherent techno cluster: LOO should
+  // recover nearly every row's own family
+  const cluster = (
+    prefix: string,
+    genre: string,
+    center: number[],
+    n: number,
+  ): GenreSeed[] =>
+    Array.from({ length: n }, (_, i) =>
+      seed(
+        `${prefix}${i}`,
+        genre,
+        center.map((c) => c + (i % 3) * 0.01 - 0.01),
+      ),
+    );
+  const pop = [
+    ...cluster("h", "house", [1, 0, 0], 9),
+    ...cluster("t", "techno", [0, 1, 0], 9),
+  ];
+
+  test("a clean library scores high agreement with low refusal", () => {
+    const r = evalLeaveOneOut(pop, 5, 0.6);
+    expect(r.evaluated).toBe(18);
+    expect(r.agreement).toBeGreaterThan(0.9);
+    expect(r.refusal).toBeLessThan(0.1);
+  });
+
+  test("mislabeled rows are counted as disagreements, not refusals", () => {
+    // one techno-labelled row living deep in the house cluster: LOO must
+    // find it (disagree), not dodge it (refuse)
+    const poisoned = [...pop, seed("liar", "techno", [0.99, 0.02, 0])];
+    const r = evalLeaveOneOut(poisoned, 5, 0.6);
+    expect(r.evaluated).toBe(19);
+    expect(r.disagree).toBeGreaterThanOrEqual(1);
+    expect(r.agreement).toBeLessThan(1);
+  });
+
+  test("the duration guard drops rows outside the measured 90–480 s band", () => {
+    // a DJ mix (long) and a snippet (short) leave the eval population…
+    const withDur = [
+      ...pop,
+      seed("mix", "house", [1, 0, 0]),
+      seed("snip", "techno", [0, 1, 0]),
+    ];
+    const durations = [
+      ...pop.map((s) => ({ videoId: s.videoId, durationS: 300 })),
+      { videoId: "mix", durationS: 3600 }, // 60-minute mix: out
+      { videoId: "snip", durationS: 45 }, // 45-second snippet: out
+    ];
+    const r = evalLeaveOneOut(withDur, 5, 0.6, durations);
+    expect(r.evaluated).toBe(18); // the two out-of-band rows are excluded
+    // …and an empty duration list keeps everyone (guard off)
+    const unguarded = evalLeaveOneOut(withDur, 5, 0.6, []);
+    expect(unguarded.evaluated).toBe(20);
+  });
+
+  test("empty population reports zeros honestly, never throws", () => {
+    const r = evalLeaveOneOut([], 5, 0.6);
+    expect(r.evaluated).toBe(0);
+    expect(r.agreement).toBe(0);
+    expect(r.refusal).toBe(0);
+  });
+
+  test("every LOO vote is deterministic — same input, same summary", () => {
+    expect(evalLeaveOneOut(pop, 5, 0.6)).toEqual(evalLeaveOneOut(pop, 5, 0.6));
   });
 });

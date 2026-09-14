@@ -191,6 +191,11 @@ product exists for.
    Phase C: when `pool < ~250` (configurable), run beam-B=8 instead of
    pure greedy — cost ≤0.2 s, attacks the measured 59% loss where it
    lives. Big pools keep greedy (measured: nothing to gain).
+   → **SHIPPED 2026-09-14** (see 10-findings): `SET_BEAM_POOL_MAX = 250` /
+   `SET_BEAM_WIDTH = 8` live in shared/setbuild.ts; the engine picks
+   automatically, reports `search: "greedy" | "beam"` on the wire, the
+   UI "Sequencer" row and CLI log surface it, and `?search=` (HTTP) /
+   the MCP `search` param force either strategy for A/B compares.
 4. **N-candidates compare gets a quality floor for free.** With beam in
    place, "Build 3" explores genuinely different chains instead of
    3 near-identical greedy runs.

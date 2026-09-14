@@ -33,6 +33,11 @@ export interface SetBuildResult {
   /** candidates excluded from the chain, with the reason — the honest
    * "why isn't my track in here" list */
   excluded: { videoId: string; title: string | null; reason: string }[];
+  /** Which sequencer path ran: "greedy" or "beam". Beam activates
+   * automatically for pools below SET_BEAM_POOL_MAX (the measured E7
+   * sparse-pool failure zone); surfaced so the deep search is visible,
+   * never a silent algorithm switch. */
+  search: "greedy" | "beam";
 }
 
 /** The GET /api/archive/setbuild response envelope. */
@@ -130,6 +135,16 @@ export const SET_POOL_MIN = 1;
 export const SET_POOL_MAX = 1000;
 /** Sentinel for an absent limit: inspect the whole downloaded DB census. */
 export const SET_POOL_UNLIMITED = 0;
+
+/** Beam-search activation threshold: pools BELOW this size run a beam
+ * continuation (width SET_BEAM_WIDTH) instead of pure greedy — the
+ * measured E7 result (docs/megaset/04-sequencing-benchmarks.md): sparse
+ * pools dead-end greedy ~59% short of the best chain and beam recovers it
+ * at ~0 ms. Big pools keep greedy (E2/E3: nothing to gain there). */
+export const SET_BEAM_POOL_MAX = 250;
+/** Beam width. Kept beside the threshold so the engine and every UX
+ * surface quote the same "deep search" contract, never a hand-copied twin. */
+export const SET_BEAM_WIDTH = 8;
 
 export function clampSetPool(raw: number | null | undefined): number {
   // Number(null) is 0, NOT NaN — null/undefined must be checked before

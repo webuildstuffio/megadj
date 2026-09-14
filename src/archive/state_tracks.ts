@@ -187,6 +187,31 @@ export class ArchiveTracks extends ArchiveCore {
     return { seeds, queries };
   }
 
+  /** Eval population for `genre --eval`: every embedded downloaded track
+   *  with a label AND its duration — the LOO harness applies the measured
+   *  90–480 s band itself (G5: hygiene, applied at eval time only, never
+   *  a data change). Reads the same rows `genreSeeds` sees plus
+   *  `duration_s` so one query keeps the two views identical. */
+  evalPopulation(): {
+    video_id: string;
+    genre: string;
+    duration_s: number | null;
+    vec_json: string;
+  }[] {
+    return this.db
+      .query(
+        `SELECT e.video_id, t.genre, t.duration_s, e.vec_json
+         FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
+         WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''`,
+      )
+      .all() as {
+      video_id: string;
+      genre: string;
+      duration_s: number | null;
+      vec_json: string;
+    }[];
+  }
+
   updateArtworkStatus(videoId: string, status: string): void {
     this.db
       .query(

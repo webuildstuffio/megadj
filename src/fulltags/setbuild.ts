@@ -116,6 +116,7 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       excluded: built.excluded.slice(0, 40),
       excluded_total: built.excluded.length,
       freshness,
+      search: built.search,
     };
     if (built.steps.length === 0) {
       // empty proposal = a real finding (nothing analyzed / nothing
@@ -131,7 +132,7 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       // surface the ledger ages so "why isn't my new track in here" is
       // answerable without opening a DB shell
       log(
-        `setbuild: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} (checked ${sourceTotal} DB rows; ${total} unique actual files; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
+        `setbuild: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search (checked ${sourceTotal} DB rows; ${total} unique actual files; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
       );
       log(
         `  analysis freshness — beats: ${dayOf(payload.freshness.beatsAt)}, mood: ${dayOf(payload.freshness.moodAt)} (newer imports need \`megadj beats\` + \`megadj mood\`)`,

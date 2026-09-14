@@ -432,6 +432,100 @@ describe("buildSet", () => {
     expect(r.steps.length).toBeGreaterThan(2);
     expect(r.steps[0]!.videoId).not.toBe("slow-outlier");
   });
+
+  test("sparse pools run the beam search and it beats greedy where greedy dead-ends (E7)", () => {
+    // E7's measured scenario: greedy's myopic first hop strands the chain.
+    // Wheel geometry: op=8A → decoy=9A is the classic ±1 move (score 1),
+    // and the chain tracks sit at 7A — compatible with the opener (±1)
+    // but a dist-2 CLASH from the decoy. Pure greedy steps onto the
+    // decoy (it wins the first hop on arc fit) and dies at 2 tracks;
+    // the beam prunes that doomed branch and chains the whole cluster.
+    const candidates = [
+      cand({ videoId: "op", bpm: 126, key: "8A", arousal: 6 }),
+      // greedy's pick: best first-hop score (closer to the arc target)…
+      cand({ videoId: "decoy", bpm: 126, key: "9A", arousal: 6.5 }),
+      // …but every chain track clashes with the decoy's key
+      ...Array.from({ length: 6 }, (_, i) =>
+        cand({
+          videoId: `chain-${i}`,
+          bpm: 126,
+          key: "7A",
+          arousal: 7 + i * 0.2,
+        }),
+      ),
+    ];
+    const greedy = buildSet({
+      candidates,
+      preset: SET_PRESETS.peak,
+      minutes: 60,
+      searchOverride: "greedy",
+    });
+    const beamed = buildSet({
+      candidates,
+      preset: SET_PRESETS.peak,
+      minutes: 60,
+      searchOverride: "beam",
+    });
+    // greedy takes the decoy and dies there (7A is a dist-2 wall from 9A)
+    expect(greedy.steps.map((s) => s.videoId).slice(0, 2)).toEqual([
+      "op",
+      "decoy",
+    ]);
+    expect(greedy.steps.length).toBe(2);
+    // beam skips the doomed branch and chains the whole cluster
+    expect(beamed.steps.length).toBeGreaterThan(2);
+    expect(beamed.steps.map((s) => s.videoId)).not.toContain("decoy");
+    // the automatic pick for this small pool IS the beam path, and the
+    // result reports which search ran (the deep search is never silent)
+    const auto = buildSet({
+      candidates,
+      preset: SET_PRESETS.peak,
+      minutes: 60,
+    });
+    expect(auto.search).toBe("beam");
+    expect(auto.steps.length).toBeGreaterThan(2);
+  });
+
+  test("archive-scale pools stay on greedy — the E2/E3 finding that big pools gain nothing", () => {
+    const candidates = Array.from({ length: 300 }, (_, i) =>
+      cand({
+        videoId: `big-${String(i).padStart(3, "0")}`,
+        bpm: 124 + (i % 3),
+        key: "8A",
+        arousal: 5 + (i % 4) * 0.8,
+      }),
+    );
+    const r = buildSet({ candidates, preset: SET_PRESETS.peak, minutes: 60 });
+    expect(r.search).toBe("greedy");
+    expect(r.steps.length).toBeGreaterThan(10);
+  });
+
+  test("every candidate lands in exactly one bucket — chain or excluded — on both paths", () => {
+    // the double-exclusion regression, now asserted for BOTH strategies
+    const mk = (n: number) =>
+      Array.from({ length: n }, (_, i) =>
+        cand({
+          videoId: `p${String(i).padStart(2, "0")}`,
+          bpm: 126,
+          key: "8A",
+        }),
+      );
+    for (const n of [8, 260]) {
+      const r = buildSet({
+        candidates: mk(n),
+        preset: SET_PRESETS.peak,
+        minutes: 8,
+      });
+      const ids = r.steps.map((s) => s.videoId);
+      const seen = new Set<string>();
+      for (const e of r.excluded) {
+        expect(seen.has(e.videoId)).toBe(false);
+        expect(ids).not.toContain(e.videoId);
+        seen.add(e.videoId);
+      }
+      expect(ids.length + seen.size).toBe(n);
+    }
+  });
 });
 
 describe("parseSetbuildQuery", () => {

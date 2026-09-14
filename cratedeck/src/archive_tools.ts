@@ -186,6 +186,12 @@ export function archiveTools(): Record<string, unknown> {
         limit: n(
           `optional candidate pool cap; omitted scans the whole downloaded archive DB (max ${SET_POOL_MAX})`,
         ),
+        search: {
+          type: "string",
+          enum: ["greedy", "beam"],
+          description:
+            "force a sequencer strategy (A/B compare); omitted = automatic (pools under 250 run the deep 'beam' search, larger keep greedy)",
+        },
       }),
       run: async (args: Record<string, unknown>) => {
         // same validation as the HTTP route (parseSetbuildQuery): unknown
@@ -199,6 +205,8 @@ export function archiveTools(): Record<string, unknown> {
         q.set("minutes", String(parsed.minutes));
         const opener = str(args, "opener");
         if (opener) q.set("opener", opener);
+        const searchOverride = str(args, "search");
+        if (searchOverride) q.set("search", searchOverride);
         const rawLimit = args.limit;
         if (rawLimit !== undefined) {
           const parsedLimit = num(args, "limit");

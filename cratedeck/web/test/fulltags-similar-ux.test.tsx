@@ -2,14 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import render from "preact-render-to-string";
-import { SimilarTab, TrackPickSearch } from "../products/fulltags/SimilarTab";
+import { SimilarTab } from "../products/fulltags/SimilarTab";
 import { SetBuilderResult } from "../products/fulltags/SetBuilderResult";
+import { TrackPickSearch } from "../products/fulltags/TrackPickSearch";
 import { SearchBar } from "../ui/data";
 import type { SetBuildPayload } from "../../shared/types";
 
 const noop = () => undefined;
 const source = readFileSync(
-  join(import.meta.dir, "../products/fulltags/SimilarTab.tsx"),
+  join(import.meta.dir, "../products/fulltags/SetBuildPanel.tsx"),
   "utf8",
 );
 const appSource = readFileSync(join(import.meta.dir, "../app/App.tsx"), "utf8");
@@ -177,6 +178,7 @@ describe("FullTags Similar and Set Builder UX", () => {
       key_read_failures: 0,
       excluded_total: 0,
       freshness: { beatsAt: null, moodAt: null },
+      search: "greedy",
     };
     const html = render(<SetBuilderResult data={data} />);
 

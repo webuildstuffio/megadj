@@ -12,14 +12,21 @@
 // Default is a DRY RUN (proposals only); --apply writes via
 // state.updateGenre, whose COALESCE means a track that already has a
 // genre is never overwritten — the column is fill-in, never clobber.
+// --eval runs the leave-one-out harness INSTEAD: it is the standing
+// regression gate for label hygiene (docs/megaset/05-genre-audit.md
+// §5b.3 step 4 — target: gated ≥65% after refold, baseline 62.7%).
 
 import { commandLog } from "../progress";
 import {
+  evalLeaveOneOut,
   inferGenre,
   parseEmbeddingVector,
   type GenreSeed,
 } from "../archive/similar";
 import type { ArchiveState } from "../archive/state";
+
+/** Share 0..1 → percentage string with one decimal (eval log lines). */
+const pct = (share: number): string => `${(share * 100).toFixed(1)}%`;
 
 export interface GenreOptions {
   state: ArchiveState;
@@ -29,6 +36,11 @@ export interface GenreOptions {
   k?: number | undefined;
   /** Min vote agreement to decide (0–1, default 0.6). */
   minAgreement?: number | undefined;
+  /** Run the leave-one-out eval harness instead of inference. */
+  eval?: boolean | undefined;
+  /** Apply the measured 90–480 s duration guard in --eval (default on,
+   * matching the audit's v3 methodology; --no-duration-guard disables). */
+  durationGuard?: boolean | undefined;
   json?: boolean | undefined;
 }
 
@@ -36,6 +48,53 @@ export async function genre(opts: GenreOptions): Promise<void> {
   const log = commandLog(opts);
   const k = opts.k ?? 5;
   const minAgreement = opts.minAgreement ?? 0.6;
+
+  if (opts.eval) {
+    // ---- eval mode: measure, never write ----
+    const pop = opts.state.evalPopulation();
+    const seeds: GenreSeed[] = [];
+    const durations: { videoId: string; durationS: number | null }[] = [];
+    for (const row of pop) {
+      seeds.push({
+        videoId: row.video_id,
+        genre: row.genre,
+        vec: parseEmbeddingVector(row.vec_json, `genre eval ${row.video_id}`),
+      });
+      durations.push({ videoId: row.video_id, durationS: row.duration_s });
+    }
+    const summary = evalLeaveOneOut(
+      seeds,
+      k,
+      minAgreement,
+      opts.durationGuard === false ? [] : durations,
+    );
+    // the audit's checkpoint: gated agreement — v3 target ≥65% post-refold
+    log(
+      `genre eval: ${summary.evaluated} evaluated · gated agreement ${pct(summary.agreement)} · refusal ${pct(summary.refusal)} · ungated ${pct(summary.ungatedAgreement)} (k=${k}, minAgreement ${minAgreement}${opts.durationGuard === false ? ", no duration guard" : ", 90–480s guard"})`,
+    );
+    log(
+      `  target (05-genre-audit §5b.3): gated ≥65% post-refold — ${summary.agreement >= 0.65 ? "PASS" : "below target (see audit for the refold plan)"}`,
+    );
+    console.log(
+      JSON.stringify({
+        command: "genre",
+        mode: "eval",
+        k,
+        minAgreement,
+        durationGuard: opts.durationGuard !== false,
+        evaluated: summary.evaluated,
+        agree: summary.agree,
+        disagree: summary.disagree,
+        refused: summary.refused,
+        agreement: Math.round(summary.agreement * 1000) / 1000,
+        refusal: Math.round(summary.refusal * 1000) / 1000,
+        ungated_agreement: Math.round(summary.ungatedAgreement * 1000) / 1000,
+        target: 0.65,
+        pass: summary.agreement >= 0.65,
+      }),
+    );
+    return;
+  }
 
   // seeds: embedded tracks WITH a trusted genre; queries: embedded
   // tracks WITHOUT one (COALESCE means we could also never clobber, but
@@ -88,6 +147,7 @@ export async function genre(opts: GenreOptions): Promise<void> {
   console.log(
     JSON.stringify({
       command: "genre",
+      mode: "infer",
       seeds: seeds.length,
       queries: rows.queries.length,
       inferred,

@@ -91,7 +91,11 @@ const setbuild: CliCommandHandler = async (rest) => {
 };
 
 const genre: CliCommandHandler = async (rest, { state }) => {
-  const flags = parseFlags(rest, ["k", "min-agreement"], ["apply", "json"]);
+  const flags = parseFlags(
+    rest,
+    ["k", "min-agreement"],
+    ["apply", "eval", "no-duration-guard", "json"],
+  );
   const k = nonNegOpt(flags, "k", "genre");
   if (k === undefined && flags.strings.get("k") !== undefined) return;
 
@@ -114,6 +118,8 @@ const genre: CliCommandHandler = async (rest, { state }) => {
     apply: flags.bools.has("apply"),
     k,
     minAgreement,
+    eval: flags.bools.has("eval"),
+    durationGuard: !flags.bools.has("no-duration-guard"),
     json: flags.bools.has("json"),
   });
 };

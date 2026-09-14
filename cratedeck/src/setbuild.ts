@@ -19,6 +19,8 @@ import {
   SET_PRESET_DEFS,
   SET_PRESET_IDS,
   DEFAULT_SET_PRESET,
+  SET_BEAM_POOL_MAX,
+  SET_BEAM_WIDTH,
   type SetPresetDef,
   type SetPresetId,
 } from "../shared/types";
@@ -182,6 +184,11 @@ export interface SetBuildInput {
   minutes: number;
   /** Optional fixed opener (its videoId) — the arc starts from it. */
   openerId?: string | undefined;
+  /** Override the automatic greedy/beam strategy pick (pool-size rule).
+   *  Test + A/B-compare hook: the N-candidates mode needs to build the
+   *  same pool under both searches to diff them honestly. Production
+   *  surfaces never set it — the pool-size rule decides. */
+  searchOverride?: "greedy" | "beam" | undefined;
 }
 
 // SetBuildStep + SetBuildResult (the wire shapes) are DEFINED in
@@ -203,12 +210,160 @@ const candidateDuration = (c: SetCandidate): number => {
 const minutesAt = (seconds: number): number =>
   Math.round((seconds / 60) * 10) / 10;
 
-/** Greedy chain: score every remaining candidate for each next slot, take
- * the best. O(n²) — fine at archive scale (thousands), trivially testable.
- * Deterministic: ties break by (score, videoId) so the same input always
- * proposes the same set — the old `s > bestScore` scan kept the FIRST
- * candidate on ties, which made the chain silently depend on the pool's
- * `updated_at DESC` row order (re-ingesting reshuffled proposals). */
+/** One committed proposal slot: the candidate plus the transition score
+ *  INTO it (null for the opener). Selection functions return these; the
+ *  single commit loop in buildSet turns them into wire steps. */
+interface PickedStep {
+  candidate: SetCandidate;
+  transition: number | null;
+}
+
+/** Why the chain stopped. "budget" = time target filled (leftovers are
+ *  excluded as "set budget filled"); "deadend" = nothing compatible
+ *  remained (leftovers keep the no-transition/no-BPM reasons);
+ *  "exhausted" = pool fully consumed (no leftovers to explain). */
+type StopCause = "budget" | "deadend" | "exhausted";
+
+/** Beam-search state: one partial chain with its running clock and score.
+ *  Module scope so the ranking helper stays pure (oxlint scoping). */
+interface BeamState {
+  chain: SetCandidate[];
+  transitions: (number | null)[];
+  elapsedS: number;
+  score: number;
+  /** Budget filled — terminal by completion, not by dead end. */
+  done: boolean;
+}
+
+/** Deterministic state signature for tie-breaks (never pool row order). */
+const chainSignature = (chain: readonly { videoId: string }[]): string =>
+  chain.map((c) => c.videoId).join(">");
+
+/** Best-state ranking: score desc, then longer chain, then signature asc.
+ *  Returns < 0 when `a` ranks before `b`. Doubles as the frontier sort so
+ *  beam pruning and final pick use ONE ordering. */
+const rankBeamState = (a: BeamState, b: BeamState): number =>
+  b.score - a.score ||
+  b.chain.length - a.chain.length ||
+  chainSignature(a.chain).localeCompare(chainSignature(b.chain));
+
+/** Greedy chain (the shipped sequencer): score every remaining candidate
+ *  for each next slot, take the best. O(n²) — fine at archive scale.
+ *  Deterministic: ties break by (score, videoId) so the same input always
+ *  proposes the same set — the old `s > bestScore` scan kept the FIRST
+ *  candidate on ties, which made the chain silently depend on the pool's
+ *  `updated_at DESC` row order (re-ingesting reshuffled proposals). */
+const greedyChain = (
+  opener: SetCandidate,
+  rest: readonly SetCandidate[],
+  preset: SetPreset,
+  budget: number,
+): { chain: PickedStep[]; stopCause: StopCause } => {
+  const remaining = [...rest];
+  const chain: PickedStep[] = [{ candidate: opener, transition: null }];
+  let elapsedS = candidateDuration(opener);
+  while (remaining.length > 0 && elapsedS < budget) {
+    const last = chain.at(-1)!.candidate;
+    const t = Math.min(1, elapsedS / budget);
+    let bestIdx = -1;
+    let bestScore = -1;
+    let bestId = "";
+    for (let i = 0; i < remaining.length; i++) {
+      const c = remaining[i]!;
+      const s = transitionScore(last, c, preset, t);
+      // strict > keeps scanning on ties; the (score, videoId) pair decides —
+      // lexicographically-smaller id wins a tie, independent of row order
+      if (s > bestScore || (s === bestScore && c.videoId < bestId)) {
+        bestScore = s;
+        bestIdx = i;
+        bestId = c.videoId;
+      }
+    }
+    if (bestIdx < 0 || bestScore <= 0) return { chain, stopCause: "deadend" };
+    const next = remaining.splice(bestIdx, 1)[0]!;
+    chain.push({ candidate: next, transition: bestScore });
+    elapsedS += candidateDuration(next);
+  }
+  return {
+    chain,
+    stopCause: elapsedS >= budget ? "budget" : "exhausted",
+  };
+};
+
+/** Beam continuation (the E7 fix, docs/megaset/04-sequencing-benchmarks.md):
+ *  keep the best SET_BEAM_WIDTH partial chains per slot instead of one.
+ *  Sparse pools (one genre family, pinned opener, heavy exclusions)
+ *  dead-end greedy ~59% short of the best chain because a locally-best
+ *  step can be globally fatal — a doomed branch dies while alternatives
+ *  survive. Deterministic: states rank by rankBeamState, never row order.
+ *  Cost ≈ width × pool per slot — ~0 ms at the ≤250-track pools that
+ *  trigger it. Returns the BEST chain built, budget-filled or not: a
+ *  partial chain that dies at slot k still beats a lone opener (the old
+ *  inline greedy kept its partial too — parity of honesty, not regression). */
+const beamChain = (
+  opener: SetCandidate,
+  rest: readonly SetCandidate[],
+  preset: SetPreset,
+  budget: number,
+): { chain: PickedStep[]; stopCause: StopCause } => {
+  const openerElapsed = candidateDuration(opener);
+  const start: BeamState = {
+    chain: [opener],
+    transitions: [null],
+    elapsedS: openerElapsed,
+    score: 0,
+    done: openerElapsed >= budget,
+  };
+  let best = start;
+  let frontier: BeamState[] = [start];
+  while (frontier.length > 0) {
+    const successors: BeamState[] = [];
+    for (const st of frontier) {
+      if (st.done) continue; // filled: terminal, kept in `best`
+      const last = st.chain.at(-1)!;
+      const t = Math.min(1, st.elapsedS / budget);
+      for (const c of rest) {
+        if (st.chain.includes(c)) continue;
+        const s = transitionScore(last, c, preset, t);
+        if (s <= 0) continue; // gated out — not a branch, a wall
+        const elapsedS = st.elapsedS + candidateDuration(c);
+        const next: BeamState = {
+          chain: [...st.chain, c],
+          transitions: [...st.transitions, s],
+          elapsedS,
+          score: st.score + s,
+          done: elapsedS >= budget,
+        };
+        successors.push(next);
+        if (rankBeamState(next, best) < 0) best = next;
+      }
+    }
+    if (successors.length === 0) break; // every live branch hit a wall
+    successors.sort(rankBeamState);
+    frontier = successors.slice(0, SET_BEAM_WIDTH);
+  }
+  // `best` is the highest-ranked chain reached (completed = filled budget
+  // mid-search; otherwise the deepest/partial leader at the final wall).
+  // Completed chains mean the budget filled; an un-completed best means
+  // the pool could not fill it — a real shortfall, reported honestly.
+  const stopCause: StopCause = best.done ? "budget" : "deadend";
+  return toPicked(best, stopCause);
+};
+
+/** Beam state → committable picked chain (the wire shape minus census). */
+function toPicked(
+  st: BeamState,
+  stopCause: StopCause,
+): { chain: PickedStep[]; stopCause: StopCause } {
+  return {
+    chain: st.chain.map((candidate, i) => ({
+      candidate,
+      transition: st.transitions[i] ?? null,
+    })),
+    stopCause,
+  };
+}
+
 export function buildSet(input: SetBuildInput): SetBuildResult {
   const { candidates, preset, minutes } = input;
   const budget = minutes * 60;
@@ -241,6 +396,9 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
    *  loop-condition analysis sees that mutation; the old indirect-mutate-
    *  inside-push shape needed a file-scoped rule-off). */
   let elapsed = 0;
+  // Which search path ran — assigned at the strategy pick below; early
+  // exits (no anchor) default to "greedy" since no deep search executed.
+  let search: SetBuildResult["search"] = "greedy";
   const push = (c: SetCandidate, transition: number | null): void => {
     elapsed += dur(c);
     steps.push({
@@ -270,6 +428,7 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
       complete: shortfallMinutes === 0,
       steps,
       excluded,
+      search,
     };
   };
 
@@ -280,7 +439,6 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   // proposal (`first.bpm === null` → everything excluded) even when the
   // rest of the pool was fully analyzed. A requested-but-unanalyzed
   // opener is excluded honestly and the arc still builds.
-  let prev: SetCandidate | null = null;
   const opener =
     (input.openerId && pool.find((c) => c.videoId === input.openerId)) ||
     undefined;
@@ -351,58 +509,52 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
     return result();
   }
   pool.splice(pool.indexOf(first), 1);
-  push(first, null);
-  prev = first;
 
-  while (prev && pool.length) {
-    const t = Math.min(1, elapsed / budget);
-    let bestIdx = -1;
-    let bestScore = -1;
-    let bestId = "";
-    for (let i = 0; i < pool.length; i++) {
-      const c = pool[i]!;
-      const s = transitionScore(prev, c, preset, t);
-      // strict > keeps scanning on ties; the (score, videoId) pair decides —
-      // lexicographically-smaller id wins a tie, independent of row order
-      if (s > bestScore || (s === bestScore && c.videoId < bestId)) {
-        bestScore = s;
-        bestIdx = i;
-        bestId = c.videoId;
-      }
-    }
-    if (bestIdx < 0 || bestScore <= 0) {
-      // nothing mixable remains — the rest are excluded, not silently
-      // dropped; the pool is drained HERE so the post-loop pass below
-      // can't re-exclude the same tracks under "budget filled" (that
-      // double-count shipped once: excluded_total 596 for 298 leftovers)
-      for (const c of pool)
-        excluded.push({
-          videoId: c.videoId,
-          title: c.title,
-          reason: mixableBpm(c)
-            ? "no compatible transition (key clash or tempo outside ±6%)"
-            : "no beats-ledger BPM — run `megadj beats`",
-        });
-      pool.length = 0;
-      break;
-    }
-    const next = pool[bestIdx]!;
-    pool.splice(bestIdx, 1);
-    push(next, bestScore);
-    prev = next;
-    // budget check AFTER the add — matches the old `elapsed < budget`
-    // pre-condition (fill until exceeded), stated on a visibly-mutated
-    // variable (elapsed is assigned by push() in this loop body).
-    if (elapsed >= budget) break;
+  // Strategy pick (E7, docs/megaset/04-sequencing-benchmarks.md): small
+  // pools get the beam continuation, big pools keep greedy — measured
+  // +59% chain length on sparse pools at ~0 ms. The sequencer's working
+  // pool (opener + post-duration-filter rest) is the size that decides;
+  // the chosen path is REPORTED (`search` on the wire), never a silent
+  // algorithm switch.
+  const rest = pool;
+  const useBeam =
+    input.searchOverride === "greedy" || input.searchOverride === "beam"
+      ? input.searchOverride === "beam"
+      : rest.length + 1 < SET_BEAM_POOL_MAX;
+  search = useBeam ? "beam" : "greedy";
+  const picked = useBeam
+    ? beamChain(first, rest, preset, budget)
+    : greedyChain(first, rest, preset, budget);
+
+  for (const step of picked.chain) push(step.candidate, step.transition);
+
+  // stop-cause honesty: leftovers get the reason that matches reality.
+  // The selection functions consumed chain members from an internal copy,
+  // so `rest` still lists them — skip picked ids, exclude only leftovers
+  // (each candidate is exactly once in the chain or in `excluded`).
+  const pickedIds = new Set(picked.chain.map((s) => s.candidate.videoId));
+  const leftover = rest.filter((c) => !pickedIds.has(c.videoId));
+  if (picked.stopCause === "deadend") {
+    // nothing mixable remains — the leftovers are excluded, not silently
+    // dropped (the old double-count shipped once: excluded_total 596 for
+    // 298 leftovers)
+    for (const c of leftover)
+      excluded.push({
+        videoId: c.videoId,
+        title: c.title,
+        reason: mixableBpm(c)
+          ? "no compatible transition (key clash or tempo outside ±6%)"
+          : "no beats-ledger BPM — run `megadj beats`",
+      });
+  } else if (picked.stopCause === "budget") {
+    for (const c of leftover)
+      excluded.push({
+        videoId: c.videoId,
+        title: c.title,
+        reason: "set budget filled",
+      });
   }
-  // leftovers when the budget filled (pool is empty if the loop exited
-  // via the nothing-mixable branch — no double-exclusion)
-  for (const c of pool)
-    excluded.push({
-      videoId: c.videoId,
-      title: c.title,
-      reason: "set budget filled",
-    });
+  // stopCause "exhausted": pool was fully consumed — nothing to explain
 
   return result();
 }

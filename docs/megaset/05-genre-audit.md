@@ -261,12 +261,16 @@ ground-truth philosophy unchanged.
    refusal for +5.1 pts). `--apply` fills empty columns only;
    disputed/no-quorum stay honest gaps. At 94.4% coverage the remaining
    upside is small — this step is cheap but not load-bearing.
-4. **Periodic `megadj genre --eval`** (new, small): re-runs the
+4. **Periodic `megadj genre --eval`** (SHIPPED 2026-09-14): re-runs the
    leave-one-out harness over the live DB and prints agreement +
    vote-strength distribution — the regression test for label hygiene.
    If refold/inference makes things worse, the number says so. Target
    (v3, set on the duration-guarded baseline): **LOO gated ≥65% after
-   refold** (baseline 62.7%), disputed share <10%.
+   refold** (baseline 62.7%), disputed share <10%. The shipped command
+   reproduces the v3 baseline exactly on the live DB (n=2,982, gated
+   62.6%, refusal 19.8%, ungated 56.3% — within rounding of the §5b.1
+   table). `--no-duration-guard` drops the 90–480 s band for an
+   ungated-population rerun; `--k`/`--min-agreement` retune the vote.
 5. **Embedding-neighborhood labels (later, the deep fix)**: cluster the
    3,415 vectors; coherent clusters _propose_ canonical labels from their
    members' consensus, reviewed by a human — new sub-genres enter the

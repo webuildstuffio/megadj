@@ -11,16 +11,16 @@ next steps.
 
 ### Set-builder engine ([04-sequencing-benchmarks](04-sequencing-benchmarks.md))
 
-| #   | Finding                                      | Number                                                 |
-| --- | -------------------------------------------- | ------------------------------------------------------ |
-| E1  | Greedy sequencing collapses in sparse pools  | −56 to −59% chain score vs beam                        |
-| E2  | Engine speed is a non-issue                  | 29 ms @ 3.6k tracks, 157 ms @ 20k                      |
-| E3  | 2-opt repair is worthless at scale           | +0.0% on real pools (only fragile chains)              |
-| E4  | The compatibility graph is sparse            | 12.3% of pairs pass both gates                         |
-| E5  | Exact solvers are infeasible                 | Held-Karp OOM at n=30                                  |
-| E6  | Score weights barely matter                  | 5 weight variants moved mean <0.006 → frozen constants |
-| E7  | **Beam search under ~250 tracks is the win** | +59% chain length at 0 ms cost (B=8)                   |
-| E8  | Arc adherence holds across presets           | warmup/peak/afterhours envelopes track                 |
+| #   | Finding                                      | Number                                                                                                          |
+| --- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| E1  | Greedy sequencing collapses in sparse pools  | −56 to −59% chain score vs beam                                                                                 |
+| E2  | Engine speed is a non-issue                  | 29 ms @ 3.6k tracks, 157 ms @ 20k                                                                               |
+| E3  | 2-opt repair is worthless at scale           | +0.0% on real pools (only fragile chains)                                                                       |
+| E4  | The compatibility graph is sparse            | 12.3% of pairs pass both gates                                                                                  |
+| E5  | Exact solvers are infeasible                 | Held-Karp OOM at n=30                                                                                           |
+| E6  | Score weights barely matter                  | 5 weight variants moved mean <0.006 → frozen constants                                                          |
+| E7  | **Beam search under ~250 tracks is the win** | +59% chain length at 0 ms cost (B=8) — **SHIPPED 2026-09-14: engine picks automatically, `search` on the wire** |
+| E8  | Arc adherence holds across presets           | warmup/peak/afterhours envelopes track                                                                          |
 
 ### Genre ([05-genre-audit](05-genre-audit.md) v3, [07-taxonomy](07-genre-taxonomy-sources.md))
 
@@ -72,22 +72,22 @@ next steps.
 
 ## 2. Critical bugs to fix (all known, none blocking today)
 
-| #   | Bug                                                                                                | Impact                                                     | Where                                                       |
-| --- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------- |
-| B1  | **`dance`→edm is a least-wrong mapping** — head says the 113 tracks are house 65/trance 17/bass 14 | soft: diversity guard slightly miscategorizes those tracks | refold should split via kNN dispute-flag pass               |
-| B2  | **`melodic house & techno` → house** (regex order)                                                 | soft: melodic-techno tracks vote house                     | family-map ordering; needs head-verified rule before change |
-| B3  | **Rekordbox dedup must remain fingerprint-proven**                                                 | name-only matching can quarantine distinct recordings      | shipped guardrails live in `megadj rb-dedup` tests          |
-| B4  | 206 unlabeled tracks (203 embedded)                                                                | coverage 94.4→99.9% available                              | `genre --apply` inference exists                            |
-| B5  | 389 slash-soup multi-genre rows unrefolded                                                         | Tier-1 display noise                                       | refold pipeline step 1                                      |
-| B6  | `genre --eval` harness not yet a command                                                           | hygiene regression gate missing                            | §5b.3 step 4 (S)                                            |
-| B7  | `hardtekk` family vote n=9 — fragile regex from tiny sample                                        | soft: misvotes possible                                    | revisit post-refold with bigger pop                         |
+| #   | Bug                                                                                                                                                                                                         | Impact                                                     | Where                                                       |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------- |
+| B1  | **`dance`→edm is a least-wrong mapping** — head says the 113 tracks are house 65/trance 17/bass 14                                                                                                          | soft: diversity guard slightly miscategorizes those tracks | refold should split via kNN dispute-flag pass               |
+| B2  | **`melodic house & techno` → house** (regex order)                                                                                                                                                          | soft: melodic-techno tracks vote house                     | family-map ordering; needs head-verified rule before change |
+| B3  | **Rekordbox dedup must remain fingerprint-proven**                                                                                                                                                          | name-only matching can quarantine distinct recordings      | shipped guardrails live in `megadj rb-dedup` tests          |
+| B4  | 206 unlabeled tracks (203 embedded)                                                                                                                                                                         | coverage 94.4→99.9% available                              | `genre --apply` inference exists                            |
+| B5  | 389 slash-soup multi-genre rows unrefolded                                                                                                                                                                  | Tier-1 display noise                                       | refold pipeline step 1                                      |
+| B6  | ~~`genre --eval` harness not yet a command~~ **SHIPPED 2026-09-14** — `megadj genre --eval` runs the LOO harness over the live DB; reproduces the v3 baseline exactly (n=2,982, gated 62.6%, refusal 19.8%) | hygiene regression gate now standing                       | §5b.3 step 4 — done                                         |
+| B7  | `hardtekk` family vote n=9 — fragile regex from tiny sample                                                                                                                                                 | soft: misvotes possible                                    | revisit post-refold with bigger pop                         |
 
 ## 3. Next 3–5 things (ordered, with why)
 
-1. **Run the genre refold for real** (`megadj genre --refold`, §5b.3 steps 1–2). _Why:_ everything downstream — B6 diversity guard, family-based pools, ranked secondaries, the disputed-flag pass, the eval harness — consumes its output, and it is S-sized with a measured target (105 labels → 90%).
-2. **Ship `genre --eval` + `--apply` as standing commands** (§5b.3 steps 3–4, B4/B6). _Why:_ the eval harness is the regression gate that makes step 1's effect measurable (target: gated ≥65%), and `--apply` converts the 203 embedded-but-unlabeled tracks into coverage honestly.
+1. **Run the genre refold for real** (`megadj genre --refold`, §5b.3 steps 1–2). _Why:_ everything downstream — B6 diversity guard, family-based pools, ranked secondaries, the disputed-flag pass, the (now shipped) eval harness — consumes its output, and it is S-sized with a measured target (105 labels → 90%).
+2. **`--apply` the 203 embedded-but-unlabeled tracks** (B4). _Why:_ the eval gate is now standing, so the fill's effect is measurable before/after; `--apply` converts the gap into coverage honestly (COALESCE never clobbers).
 3. **Ranked secondaries via the Discogs-400 head** (§5b.2 + 07 §2, T4). _Why:_ minutes of compute on cached embeddings buys per-track ranked styles for MegaSet's "deep end of the family" pools and the B6 family-union fix — the single biggest quality-per-hour item left.
-4. **Beam-search-under-250 in the set builder** (04, E7). _Why:_ +59% chain length at zero cost, already benchmarked; the highest-leverage engine change that doesn't touch data.
+4. ~~**Beam-search-under-250 in the set builder**~~ **SHIPPED 2026-09-14** (04, E7): `SET_BEAM_POOL_MAX=250`/`SET_BEAM_WIDTH=8` in shared/setbuild.ts; automatic pick, `search` reported on the wire (HTTP/CLI/MCP/UI), `?search=` forces either strategy for A/B. Regression-tested: greedy stranded at 2 where beam chains 7+ on the E7 fixture.
 5. **Execute the `setbuild → megaset` migration** (09). _Why:_ pure rename, fully planned, do it once the worktree is quiet so docs, code, and skill stop living under two names.
 
 **Not next** (deliberately): LLM residue pass (only after 1–3 shrink the unmapped set), second embedding ledger (M4 says no), any tower switch (gate closed), crowd-sourced co-occurrence, solver engines, cloud anything.

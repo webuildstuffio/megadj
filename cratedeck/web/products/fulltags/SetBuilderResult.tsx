@@ -15,6 +15,12 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
       ? `${data.relocated_files} found on the mounted shelf`
       : null,
   ].filter((note): note is string => note !== null);
+  // pool-size honesty (E7): say WHICH search ran, and why on small pools —
+  // the deep search is a visible behavior, never a silent algorithm switch
+  const searchNote =
+    data.search === "beam"
+      ? "deep search (small pool)"
+      : "standard search (large pool)";
 
   return (
     <section
@@ -80,6 +86,15 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
             <span>Archive database</span>
             <strong>{data.source_total.toLocaleString()} rows</strong>
             <small>{data.pool.toLocaleString()} mounted files considered</small>
+          </div>
+          <div>
+            <span>Sequencer</span>
+            <strong>{searchNote}</strong>
+            <small>
+              {data.search === "beam"
+                ? "explores past dead-ends on sparse pools"
+                : "greedy chain — plenty of alternatives at this size"}
+            </small>
           </div>
           <div>
             <span>FullTags analysis</span>

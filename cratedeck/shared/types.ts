@@ -762,6 +762,8 @@ export {
   SET_POOL_MIN,
   SET_POOL_MAX,
   SET_POOL_UNLIMITED,
+  SET_BEAM_POOL_MAX,
+  SET_BEAM_WIDTH,
   clampSetPool,
 } from "./setbuild";
 

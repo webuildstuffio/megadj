@@ -313,6 +313,78 @@ export function inferGenre(
   };
 }
 
+/** The numeric outcome of one leave-one-out evaluation pass. `agree` is
+ *  the headline family agreement (the audit's gated ≥65% target);
+ *  `refusal` the split-vote share the gate declined to guess on. */
+export interface EvalSummary {
+  /** Evaluable family-labeled queries (the LOO denominator). */
+  evaluated: number;
+  /** Queries where the gated kNN vote kept the row's own family. */
+  agree: number;
+  /** Queries where the gated vote picked a DIFFERENT family. */
+  disagree: number;
+  /** Family-evaluable rows the gate refused (split vote) — honest gaps. */
+  refused: number;
+  /** Gated agreement share 0..1 (agree / (agree + disagree)). */
+  agreement: number;
+  /** Refusal share 0..1 (refused / evaluated). */
+  refusal: number;
+  /** Ungated (plain majority) agreement 0..1 over the same population. */
+  ungatedAgreement: number;
+}
+
+/** Leave-one-out family-agreement harness over seed vectors — the genre
+ *  hygiene regression gate (docs/megaset/05-genre-audit.md §5b.3 step 4).
+ *  Every family-evaluable seed is held out in turn; the remaining seeds
+ *  vote on it (k nearest, gated at `minAgreement`). `durationGuard`
+ *  drops the short/long outliers (90–480 s measured band) when the
+ *  caller supplies durations — analysis hygiene, ~metric-neutral (G5).
+ *  Pure: the DB read happens in the caller (`genre --eval`). */
+export function evalLeaveOneOut(
+  seeds: GenreSeed[],
+  k = 5,
+  minAgreement = 0.6,
+  durationGuard: { videoId: string; durationS: number | null }[] = [],
+): EvalSummary {
+  const guard = new Map(durationGuard.map((d) => [d.videoId, d.durationS]));
+  const inBand = (id: string): boolean => {
+    const sec = guard.get(id);
+    // absent from the guard map = durations unknown = guard off for this
+    // row; an explicit null duration is also kept (unknown, not out-of-band)
+    if (sec === undefined || sec === null) return true;
+    return sec >= 90 && sec <= 480;
+  };
+  const pop = seeds.filter(
+    (s) => genreFamily(s.genre) !== null && inBand(s.videoId),
+  );
+  const summary: EvalSummary = {
+    evaluated: pop.length,
+    agree: 0,
+    disagree: 0,
+    refused: 0,
+    agreement: 0,
+    refusal: 0,
+    ungatedAgreement: 0,
+  };
+  let ungatedAgree = 0;
+  for (let i = 0; i < pop.length; i++) {
+    const held = pop[i]!;
+    const family = genreFamily(held.genre)!;
+    const rest = pop.toSpliced(i, 1);
+    const vote = inferGenre(rest, held.vec, k, minAgreement);
+    if (vote.inferred === null) summary.refused++;
+    else if (vote.inferred === family) summary.agree++;
+    else summary.disagree++;
+    // ungated twin: plain plurality, no gate
+    if (vote.genre === family) ungatedAgree++;
+  }
+  const gated = summary.agree + summary.disagree;
+  summary.agreement = gated > 0 ? summary.agree / gated : 0;
+  summary.refusal = pop.length > 0 ? summary.refused / pop.length : 0;
+  summary.ungatedAgreement = pop.length > 0 ? ungatedAgree / pop.length : 0;
+  return summary;
+}
+
 /**
  * Track_keys ledger — DEPRECATED shim retained only so the type stays
  * importable; the live cache implementation is ArchiveReader's
