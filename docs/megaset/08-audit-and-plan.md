@@ -72,120 +72,36 @@ freshness surfacing, preset-validation error path, all-24-key Camelot pins.
 
 ---
 
-## Part 2 — The 10 open-source comparators (in depth)
+## Part 2 — The 10 open-source comparators (condensed)
 
 > Deep comparison against commercial products (DJ.Studio, Mixed In Key, Djoid,
 > SetFlow, Lexicon, rekordbox/Serato/VirtualDJ/Engine DJ, MixMeister) and 10
 > dream/concept ideas now lives in
 > [30-comparator analysis](03-competitive-analysis.md),
 > together with the **re-ranked roadmap** that supersedes this doc's phase
-> ordering where they disagree (notably: quality score + N-candidates moved
-> ahead of the scoring-depth items; pool presets added).
+> ordering where they disagree. Full prose for each comparator below lives in
+> this section's git history (research pass 2026-09-13; stars/activity checked
+> then).
 
 Selection: closest functional neighbors across the feature space (sequencing
-algorithms, energy arcs, analysis, surfaces, write-off targets). Stars/activity
-checked 2026-09-13. All are small/hobby projects (0–9 stars) except Mixxx
-(reference implementation, not a set _planner_ — included for its AutoDJ contract).
+algorithms, energy arcs, analysis, surfaces, write-off targets). All are
+small/hobby projects (0–9 stars) except Mixxx (reference implementation,
+not a set _planner_ — included for its AutoDJ contract).
 
-### 2.1 [schoi80/djkr8](https://github.com/schoi80/djkr8) — CP-SAT constraint solver ⭐9, MIT, Python
+### 2.1–2.10 One verdict each
 
-The most rigorous sequencer found. **Reads Rekordbox 6/7 directly via pyrekordbox**
-(same library we use), optimizes with Google OR-Tools `AddCircuit`: binary
-`included[i]` + edge vars, longest-path objective, configurable strictness
-(STRICT/MODERATE/RELAXED harmonic levels), **energy-flow constraint** (non-decreasing,
-max +1 per step on a 1–5 scale), capped **energy-boost transitions** (+2 wheel hours,
-max 3/set), half/double-time BPM, transition-quality weights (1.0 perfect → 0.5
-"Armin variation"), Rekordbox XML/DB export. The gap vs us: no audio analysis of its
-own (consumes RB metadata), no embeddings, fixed 1–5 energy from RB's (coarse) field.
-
-### 2.2 [roneni/harmonic-flow](https://github.com/roneni/harmonic-flow) (HarmonySet) — Held-Karp TSP ⭐1, TS/Next.js
-
-Reorders an _existing_ playlist (Rekordbox XML/Serato CSV/Traktor TXT upload) via
-**Held-Karp exact DP ≤20 tracks**, greedy + **2-opt** local search beyond. Circle-of-fifths
-distance with relative maj/min bonuses; ramp-up/down/wave energy modes; 56+ key-format
-normalizer; quality score 0–100 + per-transition analysis + path visualization; 85 tests.
-Lesson: the **2-opt improvement pass** is cheap and would fix our B5 myopia without a
-solver dependency.
-
-### 2.3 [gnujoow/spotify-mixmaster](https://github.com/gnujoow/spotify-mixmaster) — beam search ⭐2, MIT, Python
-
-Sequences Spotify Liked Songs: **beam search** over Camelot moves (directional scoring:
-same/up1/relative/boost), ±6% BPM flow with half/double-time, **YAML-configurable energy
-curves** (classic late-peak / linear / wave / flat), 40-ish Beatport-style **genre
-buckets + DJ slot classification** (opener→closer), landmark tracks ("draft workflow":
-seed a few must-plays, fill around them), quality floor (ends short rather than pad),
-per-run seed = reproducible, `--candidates N` generates N alternatives to compare.
-Lessons: beam search breadth (fixes B5), **landmark/seed tracks**, **quality floor**,
-**N-candidates compare mode**, all-rules-in-YAML tunability.
-
-### 2.4 [darav-t/mcp-dj](https://github.com/darav-t/mcp-dj) — the closest philosophical twin ⭐4
-
-MCP server + FastAPI UI over a local Rekordbox library (pyrekordbox): Camelot scoring,
-**5 energy-arc profiles** (journey/build/peak/chill/wave), **MyTag-based candidate
-filtering**, natural-language set requests through Claude with **explainable reasoning**
-("which signals made this 'darker'"), Essentia ML analysis (BPM/key/mood/genre) merged
-into a JSONL library index, MIK energy import, `recommend_next_track` and
-`get_track_compatibility` tools, Rekordbox playlist export, Claude Code slash commands.
-Gap vs us: coarse energy (MIK 1–5 or BPM heuristic), no embeddings, no phrase/cue
-awareness, single-machine SQLite-free JSONL index. Confirms our MCP-first direction and
-the value of `explain` payloads.
-
-### 2.5 [fungiblemoose/digcrate](https://github.com/fungiblemoose/digcrate) — local analysis + LLM planning ⭐1, MIT, Python
-
-librosa-local analysis (beat-tracked BPM, chromagram + **Krumhansl-Kessler key**,
-RMS+spectral-centroid energy), then natural-language planning via OpenAI over the
-metadata catalog (audio never leaves). Transition score: **key 40% / BPM 35% / energy
-25%** with half-tempo detection; **gap finding**: flags weak transitions, suggests
-bridge-track profiles (target BPM/key/energy), optional Spotify discovery to fill them;
-M3U + **Rekordbox XML export**. Lessons: **bridge-track suggestion** (great UX for the
-excluded list), explicit scoring weights per dimension, honest "audio stays local" split.
-
-### 2.6 [raullee/open-crate](https://github.com/raullee/open-crate) — swappable-engine TS crate ⭐0, MIT
-
-Local-first vinyl+digital crate over plain JSON; `@open-crate/core` npm package with a
-**`SetGenerator` strategy interface** (default `greedy-harmonic` ships; maintainer's tuned
-generator stays private by design), Camelot scoring, smooth/adventurous modes, lock/swap/
-regenerate UX. Lesson: the **lock-and-regenerate interaction** (freeze tracks
-you like, regenerate around them) is the missing middle between our one-shot proposal and
-hand-building; also `mode: "adventurous"` as a scoring temperature.
-
-### 2.7 [ysy-ym/pulsegrid](https://github.com/ysy-ym/pulsegrid) — cue-aware handoff planning ⭐1, MIT
-
-Browser DJ workstation: analyzes structure (sections, double drops), plans **per-pair
-Cue 8 → Cue 5 handoff points**, EQ/filter/FX/crossfader automation per transition,
-**preview + transition audit before Auto Play**, everything visible/editable. The pitch:
-"AI doesn't just pick the next track, it builds the handoff." Lesson: our cues ledger
-(3,605 tracks × ~17-20 8-bar phrases each) is unused by setbuild — pairing planned
-**transition points**, not just track order, is the differentiator PulseGrid proves out.
-
-### 2.8 [SLYysl/cuefield-mineradio](https://github.com/SLYysl/cuefield-mineradio) — guarded recipe router ⭐0
-
-Explainable AutoMix: reads structural evidence (beat grids, downbeats, phrase candidates,
-energy windows, key, melody contour, vocals), **routes to one of 11 guarded transition
-recipes** (`structure-mix`, `late-contrast-rise`, `late-contrast-release`,
-`terminal-rescue`…), each recipe constrained where/how it may run; **fails closed** —
-unsafe overlap/vocal collision/stale state reject or downgrade to protected fallback;
-every decision logged as inspectable evidence. Lesson: **recipe taxonomy + fail-closed
-gating + decision logs** — the shape our rb-playlist write-gates would want if we ever
-automate handoffs.
-
-### 2.9 [caffettino87/auto-dj-ai](https://github.com/caffettino87/auto-dj-ai) — explainable browser automix ⭐1, MIT
-
-Essentia+librosa+Demucs analysis (BPM+confidence, 3-profile-majority key, EBU R128
-loudness, beat grid, vocal presence in intro/outro), then real dual-deck mixing: beatmatch,
-3-band EQ swap driven by spectral-band conflict, phrase-aligned starts, loudness
-normalization to −16 LUFS, **anti-vocal-clash next-track scoring**, octave BPM relations.
-Lesson: **loudness (LUFS) and vocal-occupancy as first-class scoring inputs** — our pool
-has neither; both are derivable (ffmpeg `ebur128`, Demucs optional).
-
-### 2.10 [mixxxdj/mixxx](https://github.com/mixxxdj/mixxx) — AutoDJ contract reference (mature, huge)
-
-Not a planner — a player. But its AutoDJ processor defines the _playlist-consumer
-contract_: fade modes (**Full Intro+Outro** uses marked intro/outro lengths as crossfade
-time; **Fade At Outro Start**; **Fade At Intro Start of next**), fixed transition seconds,
-queue manipulation, and now (PR #16063) **prerolled transitions for gapless playback**.
-Lesson: our M3U8/rb-playlist exports should carry the intro/outro cue windows so any
-consumer (CDJ, Mixxx, a future automix leg) can execute the handoff without re-analysis.
+| # | Comparator | What it is | The lesson we took |
+| - | ---------- | ---------- | ------------------ |
+| 2.1 | [djkr8](https://github.com/schoi80/djkr8) ⭐9 MIT | CP-SAT `AddCircuit` solver reading RB 6/7 via pyrekordbox; energy-flow constraint, half/double-time, XML/DB export | The rigor ceiling. Gap vs us: no own analysis, coarse 1–5 energy |
+| 2.2 | [harmonic-flow](https://github.com/roneni/harmonic-flow) ⭐1 | Held-Karp exact DP ≤20 + greedy/2-opt reordering of an uploaded playlist; quality score + per-transition analysis | The **2-opt pass** is cheap and would fix B5 myopia without a solver |
+| 2.3 | [spotify-mixmaster](https://github.com/gnujoow/spotify-mixmaster) ⭐2 MIT | Beam search over Camelot moves, YAML energy curves, genre buckets, per-run seed | Beam breadth (B5), **landmark seeds**, **quality floor**, **N-candidates** |
+| 2.4 | [mcp-dj](https://github.com/darav-t/mcp-dj) ⭐4 | MCP server + FastAPI over local RB; 5 arc profiles, MyTag filtering, NL requests with explainable reasoning | Closest philosophical twin; confirms MCP-first and `explain` payloads. Gap: coarse energy, no embeddings, no phrase awareness |
+| 2.5 | [digcrate](https://github.com/fungiblemoose/digcrate) ⭐1 MIT | librosa-local analysis + LLM planning (audio never leaves); key 40/BPM 35/energy 25 weights; gap finding | **Bridge-track suggestion** for the excluded list; explicit weights; honest local split |
+| 2.6 | [open-crate](https://github.com/raullee/open-crate) ⭐0 MIT | TS crate with a `SetGenerator` strategy interface; lock/swap/regenerate UX | **Lock-and-regenerate** — the missing middle between proposal and hand-building; `adventurous` as scoring temperature |
+| 2.7 | [pulsegrid](https://github.com/ysy-ym/pulsegrid) ⭐1 MIT | Plans per-pair Cue 8 → Cue 5 handoff points + transition automation, preview + audit before Auto Play | Our cues ledger is unused by setbuild — pairing planned **transition points**, not just order, is the proven differentiator |
+| 2.8 | [cuefield-mineradio](https://github.com/SLYysl/cuefield-mineradio) ⭐0 | Routes structural evidence to 11 guarded transition recipes; **fails closed**; decision logs | Recipe taxonomy + fail-closed gating — the shape our write-gates want if handoffs ever automate |
+| 2.9 | [auto-dj-ai](https://github.com/caffettino87/auto-dj-ai) ⭐1 MIT | Essentia+Demucs analysis, real dual-deck mixing, −16 LUFS, anti-vocal-clash scoring | **LUFS and vocal-occupancy as first-class inputs** — both derivable (ffmpeg `ebur128`, Demucs) |
+| 2.10 | [mixxx](https://github.com/mixxxdj/mixxx) | Not a planner — AutoDJ defines the playlist-consumer contract (fade modes, prerolled transitions) | Our M3U8/rb-playlist exports should carry intro/outro cue windows so any consumer can execute the handoff |
 
 ### 2.11 Feature matrix
 

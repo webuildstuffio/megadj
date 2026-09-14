@@ -64,56 +64,38 @@ of 2026-09-10. Everything else in this doc is re-scoped around it.
 | B3 agreement gating, B5 cue layout, B7 cue writer, B8 validation gate    | AC-03…AC-06                                                                                   |
 | B10 feedback loop (cue-delta ledger)                                     | AC-07                                                                                         |
 
-### 0.3 Corrections to v2 (research-verified 2026-09-10)
+### 0.3 Corrections to v2 (research-verified 2026-09-10 — the durable traps)
 
 1. **Key detection is done.** v2 listed it as a gap; OpenKeyScan passed its
    gate (80.7% vs RB ScaleName) and is written into all 88 files. Struck
    from S1; only the operational RB gauntlet remains.
 2. **beat_this's DBN has no tempo-range knob.** `File2Beats(dbn=True)` runs
-   madmom's defaults (55–215 BPM, 3/4+4/4). The S3 per-genre ranges need
-   our own wiring: `Audio2Frames` for framewise activations → a
-   `DBNBeatTrackingProcessor(min_bpm, max_bpm, fps=50)` we construct per
-   genre. madmom must be CPJKU's git fork (PyPI 0.16.1 is Python<3.10 /
-   numpy<1.20). Non-commercial is fine — madmom's models are CC BY-NC-SA.
-   Keep `dbn` a config flag; MIT-only path = current peak-picking.
-3. **SongFormer numbers corrected.** Actual SongFormBench-HarmonixSet
-   table: SongFormer (HX+E+H+G) **ACC 0.891 / HR.5F 0.690**; (HX-only)
-   0.848/0.675; allin1 baseline on the same bench 0.834/0.563; Gemini 2.5
-   Pro 0.806/0.412. License: code/datasets CC-BY-4.0 (repo shows "Other"
-   on GitHub; README states CC-BY-4.0 — re-verify the weights' model card
-   at install). Still the primary structure model; allin1 stays the
-   second opinion for gating.
-4. **The XML write path has a landmine: the reimport bug.** RB 5.6.1
-   through 7 do **not update existing tracks** on XML import. The
-   community workaround is two-step: right-click playlist → "Import to
-   Collection" (adds new), then select-all → "Import to Collection" again
-   (forces overwrite). Whether an imported `TEMPO` element actually
-   overwrites an _existing analyzed grid_ AND regenerates the collection's
-   local ANLZ files is **unverified — this is the week-1 spike (GA-07)**,
-   and it decides GA-06's implementation, not the other way round.
-5. **Grid fixes must reach the collection's ANLZ files, not just the DB.**
-   Players read ANLZ sidecars. Rekordbox regenerates drive ANLZ at USB
-   export _from the collection's analysis_ — if the collection sidecar
-   wasn't rewritten, the export faithfully copies the old wrong grid. So
-   the repair surface is: XML/master.db grid fields + the ANLZ files under
-   the collection's analysis dir. rbox (PyPI) claims ANLZ read+write;
-   pyrekordbox reads ANLZ but writing is "planned, not implemented."
-   Alternative fallback: direct ANLZ beatgrid edit via the
-   crate-digger/rekordcrate format specs, behind the rb-fix-paths safety
-   pattern. All of this is exactly what the GA-07 spike exists to settle.
-6. **Cue colors differ per write surface.** XML `POSITION_MARK` carries
-   `Red`/`Green`/`Blue` attributes (free RGB). master.db `djmdCue.Color`
-   is a palette **ID** (−1 = none), not RGB. XML route is primary; a DB
-   route must map to the palette. Cue times: XML takes seconds (float);
-   djmdCue takes InMsec + InFrame (1/150 s) + VBR/ABR fields
-   (`InMpegFrame`/`InMpegAbs`) — an MP3-VBR pain point pyrekordbox's own
-   author never finished. Another reason the XML route is primary.
-7. **Trap BPM convention is already half-decided by the repo.**
-   `foldTempo` folds to 70–180; the beats ledger stores raw + folded. For
-   trap we adopt: **store double-time (140, not 70)** in rekordbox-facing
-   surfaces, matching the ledger's folded value when it lands in-range.
-   The convention goes in one place (a shared constant + census test), not
-   sprinkled.
+   madmom's defaults (55–215 BPM, 3/4+4/4); per-genre ranges need our own
+   `Audio2Frames` → `DBNBeatTrackingProcessor(min_bpm, max_bpm, fps=50)`
+   wiring. madmom must be CPJKU's git fork (PyPI 0.16.1 is Python<3.10 /
+   numpy<1.20); models are CC BY-NC-SA. Keep `dbn` a config flag; MIT-only
+   path = current peak-picking.
+3. **SongFormer numbers corrected** (SongFormBench-HarmonixSet): best
+   config ACC 0.891 / HR.5F 0.690; allin1 baseline 0.834/0.563. License:
+   code/datasets CC-BY-4.0 — re-verify the weights' model card at install.
+   Still the primary structure model; allin1 stays the second opinion.
+4. **The XML write path landmine: the reimport bug.** RB 5.6.1–7 do **not
+   update existing tracks** on XML import; the community workaround is the
+   two-pass "Import to Collection". Whether an imported `TEMPO` overwrites
+   an existing analyzed grid AND regenerates ANLZ is **unverified — this
+   is the week-1 spike (GA-07)**, and it decides GA-06's implementation.
+5. **Grid fixes must reach the collection's ANLZ files, not just the DB**
+   — players read ANLZ sidecars, and USB export regenerates drive ANLZ
+   from the collection's analysis. Repair surface = master.db grid fields
+   + the collection's ANLZ files. rbox claims ANLZ read+write;
+   pyrekordbox's write is "planned"; fallback is a direct ANLZ edit behind
+   the rb-fix-paths safety pattern. GA-07 settles all of this.
+6. **Cue colors differ per write surface** (XML free RGB vs master.db
+   palette ID) and cue times differ too (XML seconds vs InMsec + InFrame +
+   VBR/ABR fields — an MP3-VBR pain point). The XML route is primary.
+7. **Trap BPM convention** — `foldTempo` folds to 70–180; for trap, store
+   double-time (140, not 70) in rekordbox-facing surfaces. The convention
+   goes in one place (shared constant + census test), not sprinkled.
 
 ### 0.4 Ticket numbering
 
@@ -667,18 +649,29 @@ that you cue drops one bar early. This can.
 
 ## Research base (verified 2026-09-10)
 
-| Claim                                                                                                                                                                                                               | Verdict                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| beat_this MIT; `--dbn` needs CPJKU madmom fork; madmom models CC BY-NC-SA; DBN params are madmom defaults (55–215, 3/4+4/4)                                                                                         | Verified (CPJKU README + madmom PyPI)                                                                                           |
-| `File2Beats(dbn=True)` exposes no tempo-range parameter                                                                                                                                                             | Verified — custom DBN wiring required for GA-02                                                                                 |
-| SongFormer: ASLP-lab; SongFormBench-HX ACC 0.891 / HR.5F 0.690 (best row); allin1 baseline 0.834/0.563; Gemini 2.5 Pro 0.806/0.412                                                                                  | Verified (repo README table) — v2's "0.703/0.807" was wrong                                                                     |
-| SongFormer license: code + datasets CC-BY-4.0 (GitHub API shows "Other"; README + HF state CC-BY-4.0)                                                                                                               | Verified; re-check model-card weights license at install                                                                        |
-| rekordbox XML: `TEMPO` (Inizio/Bpm/Metro/Battito, multi-segment) + `POSITION_MARK` (Name/Type/Start/End/Num, RGB attrs; hot 0–7, memory −1)                                                                         | Verified (Pioneer XML spec via pyrekordbox docs + rekordcrate)                                                                  |
-| XML reimport bug: existing tracks NOT updated on import; two-step "Import to Collection" workaround (RB 5.6.1 → 7)                                                                                                  | Verified (community-documented); whether TEMPO overwrites an analyzed grid + regenerates collection ANLZ = GA-07 Q3, unverified |
-| Rekordbox 6/7 grids live in ANLZ sidecars (`ANLZ*.DAT/.EXT/.2EX`), referenced by `djmdContent.AnalysisDataPath`; master.db `djmdCue` stores cues (InMsec/InFrame 1/150 s; VBR/ABR extra fields; Color = palette ID) | Verified (pyrekordbox docs)                                                                                                     |
-| pyrekordbox: ANLZ read yes, write "planned not implemented"; DjmdCue add/delete not in the supported-tables list                                                                                                    | Verified — rbox (PyPI) claims ANLZ read+write; test on sacrificial pair in GA-07 Q4                                             |
-| allin1 v3 Apple Silicon (pure-PyTorch NATTEN); MLX port ~12.6× (repo-reported)                                                                                                                                      | Already in research notes; verify speed claim on 3 tracks                                                                       |
-| Demucs htdemucs on MPS                                                                                                                                                                                              | Repo-adjacent (demucs-mlx precedent); measure on 3 tracks in AC-02                                                              |
+Condensed to the verdicts; full evidence rows live in the git history of
+this section (and §0.3 above carries the durable traps):
+
+- **beat_this** MIT; `--dbn` needs the CPJKU madmom fork (models CC
+  BY-NC-SA); DBN params are madmom defaults with no tempo-range knob —
+  custom DBN wiring required for GA-02. Verified.
+- **SongFormer** (ASLP-lab): SongFormBench-HX ACC 0.891 / HR.5F 0.690
+  best row; allin1 baseline 0.834/0.563 (v2's "0.703/0.807" was wrong);
+  code + datasets CC-BY-4.0 — re-check model-card weights license at
+  install. Verified.
+- **rekordbox XML**: `TEMPO` (multi-segment) + `POSITION_MARK` (hot 0–7,
+  memory −1, RGB attrs); XML reimport bug verified (existing tracks NOT
+  updated; two-step workaround) — whether TEMPO overwrites an analyzed
+  grid + regenerates collection ANLZ = GA-07 Q3, unverified. Verified.
+- **Grids/cues storage**: rekordbox 6/7 grids in ANLZ sidecars referenced
+  by `djmdContent.AnalysisDataPath`; `djmdCue` stores InMsec/InFrame +
+  VBR/ABR fields, Color = palette ID. Verified.
+- **pyrekordbox**: ANLZ read yes, write "planned not implemented";
+  DjmdCue add/delete unsupported — rbox claims ANLZ read+write; test on
+  a sacrificial pair in GA-07 Q4. Verified.
+- **allin1 v3** Apple Silicon (pure-PyTorch NATTEN; MLX port ~12.6×
+  repo-reported) and **demucs htdemucs on MPS** — measure on 3 tracks in
+  AC-01/AC-02.
 
 ## Execution log
 

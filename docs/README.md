@@ -37,10 +37,6 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   issue state lives on GitHub.
 - [Data stores and schemas](getdat/data-model.md) — database roles, schema producers,
   and migration ownership.
-- [GetDat](getdat/data-model.md) — ingest, shelf, and boundary contracts.
-- [FullTags](fulltags/fulltags-roadmap.md) — extraction and analysis gates.
-- [MegaSet](megaset/01-prd.md) — sequencing and set proposal contracts.
-- [CrateDeck](cratedeck/02-prd.md) — playlist, export, and booth-ready runtime.
 - [Surface parity](surface-parity.md) — live interface contract and exemptions.
 - [Agent playbook](agent-playbook.md) — failure history and reusable lessons.
 
@@ -94,8 +90,6 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 - [Architecture](cratedeck/03-architecture.md) — current runtime structure.
 - [Acceptance](cratedeck/acceptance.md) — verified code gates and remaining
   hardware checks.
-- [PRD](cratedeck/02-prd.md) owns the product summary (brief merged there), and
-  the runtime detail remains in the architecture/acceptance documents.
 
 ## Operations and incident references
 

@@ -338,12 +338,11 @@ threads are not repeated here — dedup checked against issues #1–#23,
   `canon` as a monolith is gone. Future audits should re-run lizard and
   compare against that baseline rather than assume the old top-10.
 - **Cold-cache I/O truth still unmeasured** (f40fd72d, Sep 8): the
-  sweep-optimization plan (walk.ts serial stats, archive_sweep serial
-  hash) is blocked on a real cold-cache profile — the archive fits the
-  page cache, so local harness numbers are ~10× fiction. Tracked in
-  `docs/ideas.md` §0f; needs `sudo purge` (TTY) or a borrowed machine.
-  Related: `/bin/dd` measured SHELF1 at 62 MB/s — a bad USB port was
-  the real bottleneck once, not code.
+  sweep-optimization plan is blocked on a real cold-cache profile — the
+  archive fits the page cache, so local harness numbers are ~10×
+  fiction. Tracked in `docs/ideas.md` §0f; needs `sudo purge` (TTY) or a
+  borrowed machine. Related: `/bin/dd` measured SHELF1 at 62 MB/s — a
+  bad USB port was the real bottleneck once, not code.
 - **Shebang-less `bun` scripts die under launchd** (51549cd4): a
   tooling-audit fix required explicit shebangs so launchd-spawned
   invocations don't fall through to a foreign runtime. Generalizes the

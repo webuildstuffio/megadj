@@ -166,7 +166,7 @@ unwritable; only Comment carries derived energy, never BPM.
   hot cue / `Num="-1"` = memory, but the collection DB `djmdCue.Kind` is
   `1` = hot cue, `0` = memory cue (pads read the DB side). Verify with a
   hand-authored reference before any cue write path ships. See
-[`docs/intake-cue-postmortem.md`](docs/fulltags/intake-cue-postmortem.md) F4/F1.
+[`docs/fulltags/intake-cue-postmortem.md`](docs/fulltags/intake-cue-postmortem.md) F4/F1.
 - Playlist rows (`djmdPlaylist`) and `masterPlaylists6.xml` are twins: write
   both or neither, through one seam. Missing XML nodes = "Playlist not found"
   warnings and playlists that vanish on RB rebuild.
