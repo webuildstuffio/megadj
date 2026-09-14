@@ -1,17 +1,19 @@
 # Postmortem & Master Improvement Plan — Sep 2026 intake/cue marathon
 
-**Status:** ACTIVE plan. **Date:** 2026-09-13 (rev 3: audited ALL 38
-transcripts since Wed Sep 9 + 19 open GitHub issues; added BUG-2 vector #0
-(the auto-relocate incident), the issue cross-reference table, status-first
-rule, session-fork cost row; marked Beatport durationS verified-fixed).
-Rev 2: transcript + code audit pass — added F8b, F12; quantified heredoc
-debt; confirmed rb-import dupe hole and XML-twin gap; recorded
-guard-triplication LOC cut. **Scope:** everything that went wrong or slow in
-the fulltags/rb-import/cue marathon (Sep 10–13) and the surrounding week's
-sessions, plus the two open bugs the user still sees (duplicate tracks;
-hot-cue pads not clickable). This is the working list to burn down. Product
-rules live in [PRINCIPLES.md](PRINCIPLES.md); this doc owns the *lessons +
-tickets*.
+**Status:** ACTIVE plan. **Date:** 2026-09-13 (rev 4: F4 spike EXECUTED —
+Kind semantics pinned with live RB7-written evidence (1=hot, 2=loop, 0 never
+written); exit gate defined via `megadj doctor` checks so every F-ticket has
+a mechanical done-when; cost table gained the session-fork and status-first
+rows). Rev 3: audited ALL 38 transcripts since Wed Sep 9 + 19 open GitHub
+issues; added BUG-2 vector #0, the issue cross-reference table,
+status-first rule. Rev 2: transcript + code audit pass — added F8b, F12;
+quantified heredoc debt; confirmed rb-import dupe hole and XML-twin gap;
+recorded guard-triplication LOC cut. **Scope:** everything that went wrong
+or slow in the fulltags/rb-import/cue marathon (Sep 10–13) and the
+surrounding week's sessions, plus the two open bugs the user still sees
+(duplicate tracks; hot-cue pads not clickable). This is the working list to
+burn down. Product rules live in [PRINCIPLES.md](PRINCIPLES.md); this doc
+owns the *lessons + tickets*.
 
 ---
 
@@ -47,13 +49,14 @@ ships.
   docstring correctly gates RB writes, but F3 has zero repo code to start
   from. F1's re-stamp must land as `src/rekordbox/rb-cues.ts` (shared by F1
   re-stamp and F3 command) or we re-commit the same bug via a third heredoc.
-- `Kind` semantics still undocumented in-repo. F4's spike output must include
-  a checked-in fixture: a tiny committed SQLite `djmdCue` sample (or a test
-  snapshot of one RB-written row) so the constant is regression-tested, not
-  folklore.
-- The cue rewrite also must set `ColorTableIndex` (currently written 0) and
-  `CueMicrosec`; pads show blank labels/colors otherwise — same class of
-  "wrote the row, surface ignores it".
+- `Kind` semantics — ✅ pinned (F4 rev 4): 1 = hot, 2 = loop, RB never writes
+  0. Regression-test the constant against a checked-in fixture: a tiny
+  committed SQLite `djmdCue` sample (or a test snapshot of one RB-written
+  row: `Kind=1, ColorTableIndex=0, Color=255, HotCue unset, Comment=label`)
+  so the constant can't silently drift again.
+- Label + color ride `Comment` (e.g. RB writes `'1.1Bars'`) and
+  `ColorTableIndex`; our rewrite must populate `Comment` with the semantic
+  label (`IN/BODY/DROP/OUT`) — pads show blank otherwise.
 
 ### BUG-2 — Duplicates still visible in rekordbox
 
@@ -123,14 +126,18 @@ both now feed F2.)
 Priority order. Each item: what + why + done-when.
 
 ### F1 — Fix hot-cue Kind (P0, blocks everything cue-related)
-Re-stamp semantic cues to `Kind=1`. Test in RB: pads clickable, labels/colors
-visible. Add `cue-kind` constant + regression test. **Done when:** user loads a
-track and 8 pads fire at IN/BODY/DROP/OUT positions.
+Re-stamp intake-written cues `Kind 0→1` (semantics now pinned: F4 ✅ — 1 =
+hot, 2 = loop, RB never writes 0). Test in RB: pads clickable, labels
+(`Comment`) visible. Add `HOT_CUE_KIND = 1` in `src/rekordbox/rb-cues.ts` +
+regression test asserting no writer emits 0. **Done when:** user loads a
+track and 8 pads fire at IN/BODY/DROP/OUT positions, and doctor's
+`checkCueKinds` is green.
 
 ### F2 — `megadj rb-dedup` command (P0, user still sees dupes)
 Fingerprint dupe sweep as reusable command (see §BUG-2). Rows-only triage mode
 (`--report`) + apply mode. **Done when:** user's RB shows zero same-audio
-dupes; command exits 0 on a clean DB and lists offenders otherwise.
+dupes; command exits 0 on a clean DB and lists offenders otherwise; doctor's
+`checkDupes` green.
 
 ### F3 — `megadj rb-cues write` command (P0)
 The cue engine exists only as a heredoc in a terminal log. Promote to a real
@@ -139,12 +146,29 @@ command: inputs = ledger + RB DB; layout = plan §AC-05; gate = §AC-06
 dry-run default. Refuse while RB runs; backup; verify. **Done when:** the
 Sep-12 heredoc reproduces byte-identical cue rows via the command.
 
-### F4 — Kind-semantics research spike (P0, 30 min, do FIRST)
-Before F1 ships: get one RB7-written reference DB (import 1 track, set 2 hot
-cues + 1 memory cue by hand, read `djmdCue` back) and pin down Kind /
-ColorTableIndex / CueMicrosec / HotCue index for pads. Write findings into
-[grid-audit-plan.md](grid-audit-plan.md) §0.3. **Done when:** the doc states
-the DB-side truth with evidence, and F1's stamp uses it.
+### F4 — Kind-semantics research spike — ✅ DONE (rev 4, evidence below)
+~~Before F1 ships~~ **Done Sep 13.** Read the RB7-written local
+`~/Library/Pioneer/rekordbox/master.db` (rekordbox closed; DB opened
+read-only via pyrekordbox with the deobfuscated key):
+
+- Kind distribution of RB-authored cue rows: **Kind=1: 2,081 · Kind=2: 6 ·
+  Kind=0: 0 (absent)**. RB never writes Kind 0.
+- Sample `Kind=1` row: `InMsec=138, InFrame=20, ColorTableIndex=0,
+  Color=255, ActiveLoop=0, HotCue=<unset>, Comment='1.1Bars'`.
+- So the DB-side truth is: **1 = hot cue (pad-clickable), 2 = loop cue**;
+  our heredoc's `Kind=0` rows are invisible to pads (BUG-1 confirmed at the
+  byte level). `ColorTableIndex=0` is what RB itself writes — leave it.
+  `Comment` is the pad label surface; `HotCue` stays unset on RB7 rows.
+- Caveat honestly stated: this pins Kind/Color/Comment. The pads' *label
+  index* mapping (pad #1..8 order) rides `InMsec` ordering in RB7 (no
+  explicit HotCue index on these rows) — F1's user verification on 3 tracks
+  confirms labels show correctly before any batch re-stamp.
+
+**F1 done-when (updated):** re-stamp `Kind 0→1` where the row came from our
+intake writes (rekordbox closed, dated backup, delayed re-read), verify 3
+tracks show clickable labeled pads in RB, then batch. The constant
+`HOT_CUE_KIND = 1` lives in `src/rekordbox/rb-cues.ts` with a regression
+test asserting no writer emits 0.
 
 ### F5 — Intake race + stale-count hygiene (P1)
 - One `megadj intake-status` census: files-in-Contents ↔ DB rows ↔ archive.db,
@@ -311,8 +335,8 @@ command.
 ## 3. Sequencing
 
 ```
-F4 (spike, 30 min)  →  F1+rb-cues.ts (re-stamp Kind)  →  user verifies pads
-F2 (rb-dedup)       →  user verifies collection clean
+F4 ✅ DONE (spike)   →  F1+rb-cues.ts (re-stamp Kind 0→1)  →  user verifies pads
+F2 (rb-dedup)        →  user verifies collection clean
 F3 (rb-cues cmd, absorbs F12 prototype)  →  F6 guard.ts + F7 XML verb
                      →  F5/F8/F8b/F9  →  F10/F11
 ```
@@ -321,10 +345,33 @@ Order note: F6's `guard.ts` lands *before* F1's re-stamp executes — the
 re-stamp should be its first customer, proving the seam on the very op that
 got burned.
 
+## 3b. Exit gate — the plan is done when `megadj doctor` says so
+
+`src/shared/doctor.ts` already exists (473 LOC, CheckResult pattern). The
+fix-list burn-down rides it instead of a new status surface:
+
+- **F5's census lands as doctor checks** (`checkCensus`: shelf files ↔
+  master.db rows ↔ archive.db ledger, NFC+casefold) — the "4,427 vs 3,369"
+  class of confusion becomes a red/green line item, not a session-long
+  debate. (Doctor currently checks tools/config only — no DB/state checks
+  yet; these are the first ones.)
+- **F1/F2/F3 completion gates become doctor checks**: `checkCueKinds` (zero
+  intake-written Kind=0 rows), `checkDupes` (zero same-fingerprint rows),
+  `checkPlaylistXml` (every djmdPlaylist row has its XML twin). Each starts
+  red, turns green when its F-ticket ships, and stays as a regression gate
+  forever.
+- Doctor refuses to run its RB checks while rekordbox is open (same
+  `guard.ts`), so the gate itself can't race the app.
+
+That converts this doc from "tickets" to a **mechanically checkable
+definition of done**.
+
 ## 4. Rules this doc adds to AGENTS.md (after F1 lands)
 
-- `djmdCue.Kind`: DB-side hot cue = 1, memory = 0 (verify in F4 first) — XML
-  `POSITION_MARK` is the OPPOSITE convention. Never mix the two.
+- `djmdCue.Kind`: DB-side hot cue = **1**, loop = **2**; rekordbox itself
+  never writes 0 (pinned with RB7-written evidence, F4 rev 4). XML
+  `POSITION_MARK` is the OPPOSITE convention (0..7 hot / −1 memory). Never
+  mix the two.
 - Playlist creation must update `masterPlaylists6.xml` + `djmdPlaylist`
   atomically via the seam.
 - ExFAT classification: never full-hash first; prefilter, then hash.
