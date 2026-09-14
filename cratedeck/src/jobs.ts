@@ -20,6 +20,13 @@ import { verifyDeltas } from "./verify_report";
 
 export type Emit = (channel: string, data: unknown) => void;
 
+export function ownsRunningJob(
+  job: Pick<Job, "id" | "status">,
+  handle: RunHandle | undefined,
+): handle is RunHandle {
+  return job.status === "running" && handle?.jobId === job.id;
+}
+
 /** Rolling ETA estimator (pure, clock-injected → testable). Sample window
  *  advances on every call ≥1s after the last sample; rate = items/s over
  *  that window; ETA = remaining / rate. Returns null while unprimed or
@@ -166,7 +173,7 @@ export class JobEngine {
     const job = this.db.getJob(jobId);
     if (!job) return false;
     const h = this.running.get(job.drive_id);
-    if (h && job.status === "running") {
+    if (ownsRunningJob(job, h)) {
       h.cancelled = true;
       h.proc?.kill();
       return true;
@@ -230,7 +237,7 @@ export class JobEngine {
       const p = total > 0 ? Math.min(1, Math.max(0, done / total)) : 0;
       // remember when the fraction last INCREASED — feeds the stall
       // watchdog (equal p on every tick = not moving, exactly the wedge).
-      recordProgressIncrease(this.progressAt, job.id, p, now);
+      recordProgressIncrease(this.progressAt, job.id, p, now, phase);
       if (!force && now - lastWrite < 250) return;
       lastWrite = now;
       const etaS = eta(done, total, now);
@@ -297,7 +304,9 @@ export class JobEngine {
       });
     } finally {
       this.running.delete(job.drive_id);
-      this.progressAt.delete(`${job.id}:p`);
+      for (const key of this.progressAt.keys()) {
+        if (key.startsWith(`${job.id}:p:`)) this.progressAt.delete(key);
+      }
       this.progressAt.delete(job.id);
       this.emit("job", this.db.getJob(job.id));
     }
@@ -322,6 +331,7 @@ export class JobEngine {
     this.markTouched(job.id);
     const heartbeat = setInterval(() => this.markTouched(job.id), 5_000);
     let lastMsg = 0;
+    let progressStage = 0;
     const log = (line: string, isError = false) => {
       const text = line.trim();
       if (!text) return;
@@ -329,9 +339,16 @@ export class JobEngine {
       const p = progressFromLine(text);
       const now = Date.now();
       const isHeading = /^#{1,3} |===|^### /.test(text);
+      if (isHeading) progressStage++;
       // Parsed progress is a real fraction signal. Ordinary log activity must
       // never refresh the stall clock: a wedged subprocess may keep logging.
-      recordProgressIncrease(this.progressAt, job.id, p, now);
+      recordProgressIncrease(
+        this.progressAt,
+        job.id,
+        p,
+        now,
+        `log-${progressStage}`,
+      );
       if (p !== null || isHeading || now - lastMsg > 400) {
         lastMsg = now;
         this.db.setJobProgress(job.id, {

@@ -11,7 +11,7 @@
 //      a job that never finished;
 //   4. phase strings were machine-speak ("phase-2") in a human dock.
 import { describe, it, expect } from "bun:test";
-import { createEtaEstimator, verifyPhase } from "../src/jobs";
+import { createEtaEstimator, ownsRunningJob, verifyPhase } from "../src/jobs";
 
 describe("createEtaEstimator", () => {
   it("returns null until a full sample window exists (primed, not frozen)", () => {
@@ -54,5 +54,21 @@ describe("verifyPhase", () => {
     const m = verifyPhase("  tracks: 3512", 0);
     expect(m).not.toBeNull();
     expect(m!.progress).toBe(0.35);
+  });
+});
+
+describe("running job ownership", () => {
+  it("does not let a stale database row cancel a different active job", () => {
+    const handle = { cancelled: false, jobId: "current-job" };
+
+    expect(ownsRunningJob({ id: "stale-job", status: "running" }, handle)).toBe(
+      false,
+    );
+    expect(
+      ownsRunningJob({ id: "current-job", status: "running" }, handle),
+    ).toBe(true);
+    expect(
+      ownsRunningJob({ id: "current-job", status: "queued" }, handle),
+    ).toBe(false);
   });
 });

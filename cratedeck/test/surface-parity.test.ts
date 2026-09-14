@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { JOB_KINDS } from "../shared/types";
 import { DECK_MCP_SURFACES } from "../src/mcp_surfaces";
 
 /**
@@ -149,22 +150,11 @@ function uiJobKinds(): string[] {
   return [...new Set(kinds)].toSorted();
 }
 
-/** The canonical job-kind set: the JOB_KINDS table in shared/types.ts
- *  (the SSOT — deckctl's run list derives from it too now, so parsing the
- *  old `const kinds = [...]` literal in deckctl.ts would find nothing). */
+/** The canonical job-kind set comes directly from the runtime SSOT. Importing
+ *  the producer avoids a text parser that can drift when its type declaration
+ *  changes — exactly the class of hand-maintained twin this test forbids. */
 function canonicalJobKinds(): string[] {
-  const src = read("cratedeck/shared/types.ts").join("\n");
-  const table = src.match(
-    /export const JOB_KINDS = \[([\s\S]*?)\] as const satisfies/,
-  )?.[1];
-  if (!table) throw new Error("could not parse JOB_KINDS from shared/types.ts");
-  const kinds = table
-    .split(",")
-    .map((s) => s.trim().replace(/['"]/g, ""))
-    .filter(Boolean);
-  if (kinds.length === 0)
-    throw new Error("JOB_KINDS table in shared/types.ts is empty");
-  return [...new Set(kinds)].toSorted();
+  return [...JOB_KINDS].toSorted();
 }
 
 // ---- the parity registry (mirror of docs/surface-parity.md §3/§4) --------
@@ -363,7 +353,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // regression — surfaces import JOB_KINDS / DRIVE_JOB_KINDS instead.
     const types = read("cratedeck/shared/types.ts").join("\n");
     expect(types).toMatch(
-      /export const JOB_KINDS = \[[\s\S]*?\] as const satisfies readonly JobKind\[\];/,
+      /export const JOB_KINDS = \[[\s\S]*?\] as const;\s+export type JobKind = \(typeof JOB_KINDS\)\[number\];/,
     );
     expect(types).toMatch(
       /export const DRIVE_JOB_KINDS = \[[\s\S]*?\] as const satisfies/,

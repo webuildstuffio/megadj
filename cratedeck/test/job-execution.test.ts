@@ -1,9 +1,29 @@
 import { describe, expect, it } from "bun:test";
 import {
   finiteJobNumber,
+  lastFinalLine,
   parseAuditSummary,
   parseIngestSummary,
+  requireSuccessfulExit,
 } from "../src/job_execution";
+
+describe("job subprocess completion", () => {
+  it("uses the last FINAL line when a verifier prints retries", () => {
+    expect(
+      lastFinalLine("FINAL: ALL PASS\nretrying\nFINAL: FAILED — 1 issue\n"),
+    ).toBe("FINAL: FAILED — 1 issue");
+  });
+
+  it("fails closed on non-zero and unknown subprocess exits", () => {
+    expect(() => requireSuccessfulExit("mirror", 0, "warning")).not.toThrow();
+    expect(() => requireSuccessfulExit("mirror", 2, "copy failed")).toThrow(
+      "mirror exited 2: copy failed",
+    );
+    expect(() => requireSuccessfulExit("mirror", null, "")).toThrow(
+      "mirror exited unknown",
+    );
+  });
+});
 
 describe("job summary numeric boundary", () => {
   it("accepts non-negative integer subprocess counters", () => {

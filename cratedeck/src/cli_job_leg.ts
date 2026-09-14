@@ -42,11 +42,20 @@ export interface CliJobSpec {
   env?: Record<string, string>;
 }
 
-/** A CLI JSON summary is an external boundary even when megadj produced it.
- * Malformed/missing counters render as zero, never NaN in progress text. */
+/** A CLI JSON summary is an external boundary even when megadj produced it. */
 export function summaryCount(raw: unknown): number {
-  const value = Number(raw ?? 0);
-  return Number.isFinite(value) && value >= 0 ? value : 0;
+  if (typeof raw !== "number" || !Number.isSafeInteger(raw) || raw < 0)
+    throw new Error("CLI summary count must be a safe non-negative integer");
+  return raw;
+}
+
+export function requireCliSummary(
+  summary: Record<string, unknown> | null,
+  label: string,
+): Record<string, unknown> {
+  if (summary === null)
+    throw new Error(`${label} returned a missing JSON summary`);
+  return summary;
 }
 
 /** Shared runner: spawn, drain stdout (logged) + stderr, exit-check
@@ -85,5 +94,5 @@ export async function runCliJob(
       }`,
     );
   const { summary } = splitIntakeStdout(res.out);
-  return summary ?? {};
+  return requireCliSummary(summary, spec.label);
 }

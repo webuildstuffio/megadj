@@ -22,6 +22,11 @@ import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
 import { SectionHead, Verdict } from "../shared";
 import { errMessage } from "../../../shared/fmt";
+import {
+  isFiniteNumber,
+  isRecord,
+  isUnknownArray,
+} from "../../../shared/guards";
 
 /** The pipeline's visible steps — mirrors INTAKE_PHASES on the server
  *  (intake_run.ts) plus the audit leg. Kept as a display list; the job's
@@ -226,33 +231,30 @@ const INTAKE_NUMBER_FIELDS = [
   "unchanged",
 ] as const satisfies readonly (keyof IntakeResult)[];
 
-function isIntakeResult(value: unknown): value is IntakeResult {
-  if (typeof value !== "object" || value === null) return false;
-  const row = value as Record<string, unknown>;
-  if (
-    !INTAKE_NUMBER_FIELDS.every(
-      (field) => typeof row[field] === "number" && Number.isFinite(row[field]),
-    )
-  )
-    return false;
+function isCount(value: unknown): value is number {
+  return isFiniteNumber(value) && Number.isSafeInteger(value) && value >= 0;
+}
+
+export function isIntakeResult(value: unknown): value is IntakeResult {
+  if (!isRecord(value)) return false;
+  const row = value;
+  if (!INTAKE_NUMBER_FIELDS.every((field) => isCount(row[field]))) return false;
   const audit = row.audit;
   if (
     audit !== null &&
-    (typeof audit !== "object" ||
-      typeof (audit as Record<string, unknown>).total !== "number" ||
-      !Number.isFinite((audit as Record<string, unknown>).total) ||
-      typeof (audit as Record<string, unknown>).complete !== "number" ||
-      !Number.isFinite((audit as Record<string, unknown>).complete))
+    (!isRecord(audit) ||
+      !isCount(audit.total) ||
+      !isCount(audit.complete) ||
+      audit.complete > audit.total)
   )
     return false;
   return (
-    Array.isArray(row.auditErrors) &&
+    isUnknownArray(row.auditErrors) &&
     row.auditErrors.every(
       (entry) =>
-        typeof entry === "object" &&
-        entry !== null &&
-        typeof (entry as Record<string, unknown>).file === "string" &&
-        typeof (entry as Record<string, unknown>).missing === "string",
+        isRecord(entry) &&
+        typeof entry.file === "string" &&
+        typeof entry.missing === "string",
     )
   );
 }

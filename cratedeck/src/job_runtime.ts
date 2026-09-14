@@ -23,6 +23,7 @@ export function recordProgressIncrease(
   jobId: string,
   fraction: number | null,
   now: number,
+  stage = "default",
 ): boolean {
   if (
     fraction === null ||
@@ -31,7 +32,7 @@ export function recordProgressIncrease(
     fraction > 1
   )
     return false;
-  const fractionKey = `${jobId}:p`;
+  const fractionKey = `${jobId}:p:${stage}`;
   const previous = progressAt.get(fractionKey);
   if (previous !== undefined && fraction <= previous) return false;
   progressAt.set(fractionKey, fraction);

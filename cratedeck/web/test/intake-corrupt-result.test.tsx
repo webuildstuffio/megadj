@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import render from "preact-render-to-string";
 import type { Job } from "../../shared/types";
-import { IntakeRun, IntakeVerdict } from "../products/getdat/IntakeTab";
+import {
+  IntakeRun,
+  IntakeVerdict,
+  isIntakeResult,
+} from "../products/getdat/IntakeTab";
 
 const corruptDoneJob: Job = {
   id: "intake-corrupt",
@@ -34,5 +38,34 @@ describe("Intake corrupt result UX", () => {
     expect(html).toContain("Result unreadable");
     expect(html).not.toContain(">100%</span>");
     expect(html).toContain("intake-step failed");
+  });
+
+  test("result counts must be safe non-negative integers with a valid audit", () => {
+    const valid = {
+      files: 1,
+      tagged: 1,
+      artAdded: 0,
+      artQueued: 0,
+      wavConverted: 0,
+      folderDupes: 0,
+      archiveDupes: 0,
+      upgrades: 0,
+      broken: 0,
+      compatRejected: 0,
+      compatHires: 0,
+      shortSkipped: 0,
+      unchanged: 0,
+      audit: { total: 1, complete: 1 },
+      auditErrors: [],
+    };
+    expect(isIntakeResult(valid)).toBe(true);
+    expect(isIntakeResult({ ...valid, files: -1 })).toBe(false);
+    expect(isIntakeResult({ ...valid, tagged: 0.5 })).toBe(false);
+    expect(
+      isIntakeResult({ ...valid, files: Number.MAX_SAFE_INTEGER + 1 }),
+    ).toBe(false);
+    expect(isIntakeResult({ ...valid, audit: { total: 1, complete: 2 } })).toBe(
+      false,
+    );
   });
 });

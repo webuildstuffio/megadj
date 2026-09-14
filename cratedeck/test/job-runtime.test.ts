@@ -51,4 +51,19 @@ describe("job stall progress clock", () => {
     expect(recordProgressIncrease(progressAt, "job-1", 0.5, 400)).toBe(true);
     expect(progressAt.get("job-1")).toBe(400);
   });
+
+  it("refreshes when a later stage restarts its own monotonic progress", () => {
+    const progressAt = new Map<string, number>();
+
+    expect(recordProgressIncrease(progressAt, "job-1", 1, 1_000, "copy")).toBe(
+      true,
+    );
+    expect(
+      recordProgressIncrease(progressAt, "job-1", 0.1, 2_000, "verify"),
+    ).toBe(true);
+    expect(
+      recordProgressIncrease(progressAt, "job-1", 0.2, 3_000, "verify"),
+    ).toBe(true);
+    expect(progressAt.get("job-1")).toBe(3_000);
+  });
 });

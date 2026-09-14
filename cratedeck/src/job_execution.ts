@@ -134,6 +134,22 @@ export function parseAuditSummary(
   };
 }
 
+export function lastFinalLine(output: string): string | undefined {
+  return output.split("\n").findLast((line) => line.startsWith("FINAL:"));
+}
+
+export function requireSuccessfulExit(
+  label: string,
+  exitCode: number | null,
+  stderr: string,
+): void {
+  if (exitCode === 0) return;
+  const detail = stderr.trim();
+  throw new Error(
+    `${label} exited ${exitCode ?? "unknown"}${detail ? `: ${detail.slice(-400)}` : ""}`,
+  );
+}
+
 export async function executeJob(args: LegArgs): Promise<unknown> {
   switch (args.job.kind) {
     case "scan":
@@ -235,9 +251,7 @@ async function runVerify({
     drainText(proc.stderr),
   ]);
   const out = verdict.out + (errText ? `\n[stderr]\n${errText}` : "");
-  const finalLine = verdict.out
-    .split("\n")
-    .find((line) => line.startsWith("FINAL:"));
+  const finalLine = lastFinalLine(verdict.out);
   const pass =
     finalLine !== undefined &&
     /FINAL: ALL PASS/.test(finalLine) &&
@@ -278,6 +292,8 @@ async function runMirror({ deps, handle, tick, log }: LegArgs) {
     drainText(proc.stderr),
   ]);
   const out = result.out + (errText ? `\n[stderr]\n${errText}` : "");
+  if (handle.cancelled) throw new Error("cancelled");
+  requireSuccessfulExit("mirror", proc.exitCode, errText);
   tick(1, 1, "mirror finished", "done", true);
   return { summary: lastLines(out, 20) };
 }
@@ -337,7 +353,12 @@ async function runIngest({
   }
   const { summary } = splitIntakeStdout(result.out);
   const counters = parseIngestSummary(summary);
-  const { audit, auditErrors } = await auditArchive(deps.cfg, tick, log);
+  const { audit, auditErrors } = await auditArchive(
+    deps.cfg,
+    handle,
+    tick,
+    log,
+  );
   const intake: IntakeResult = {
     ...counters,
     audit,
@@ -353,8 +374,9 @@ async function runIngest({
   return intake;
 }
 
-async function auditArchive(
+export async function auditArchive(
   cfg: CrateConfig,
+  handle: RunHandle,
   tick: JobTick,
   log: JobLog,
 ): Promise<Pick<IntakeResult, "audit" | "auditErrors">> {
@@ -370,11 +392,14 @@ async function auditArchive(
     stderr: "pipe",
     cwd: cfg.root,
   });
-  const [output, errorOutput] = await Promise.all([
-    new Response(proc.stdout).text(),
-    drainText(proc.stderr),
+  handle.proc = proc;
+  const [outputResult, errorResult] = await Promise.all([
+    drain(proc, (line) => log(line), handle, cfg.jobTimeoutMin * 60_000),
+    drain(proc.stderr, (line) => log(line, true), handle),
   ]);
-  await proc.exited;
+  if (handle.cancelled) throw new Error("cancelled");
+  const output = outputResult.out;
+  const errorOutput = errorResult.out;
   if (proc.exitCode !== 0 && proc.exitCode !== 1)
     throw new Error(
       `megadj audit exited ${proc.exitCode ?? "unknown"}${
