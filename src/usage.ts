@@ -48,8 +48,9 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                infer genres from audio embeddings (kNN vote over trusted seeds); propose-only by default;
                                                --eval runs the leave-one-out accuracy harness (target: gated ≥65%)
   megadj setbuild [--preset warmup|peak|afterhours] [--minutes N] [--opener <video_id>]
-                 [--limit N] [--json]
-                                               set-builder (M66): propose an ordered mix chain
+                 [--limit N] [--search greedy|beam] [--json]
+                                                set-builder (M66): propose an ordered mix chain; --search forces the
+                                                sequencer (A/B compare), omitted = pool size decides (deep search under 250)
                                                from the beats/mood ledgers + file keys — Camelot-
                                                compatible, ±6% tempo, shaped by an energy-arc preset
                                                (full archive by default; --limit adds an optional cap;

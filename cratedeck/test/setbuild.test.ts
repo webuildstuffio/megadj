@@ -16,6 +16,7 @@ import {
   SET_PRESET_IDS,
   SET_POOL_MAX,
   SET_POOL_UNLIMITED,
+  SET_BEAM_POOL_MAX,
   clampSetPool,
 } from "../shared/types";
 
@@ -498,6 +499,44 @@ describe("buildSet", () => {
     const r = buildSet({ candidates, preset: SET_PRESETS.peak, minutes: 60 });
     expect(r.search).toBe("greedy");
     expect(r.steps.length).toBeGreaterThan(10);
+  });
+
+  test("the pool-size rule is rest.length + 1 < SET_BEAM_POOL_MAX — exact at the boundary", () => {
+    // 300 uniform tracks fill any budget, so 8-minute requests make the
+    // chain length (not mixability) the observable; the strategy pick
+    // only sees the pool size, and every surface quotes the SAME two
+    // constants instead of hand-copied thresholds.
+    expect(SET_BEAM_POOL_MAX).toBe(250);
+    const mk = (n: number) =>
+      Array.from({ length: n }, (_, i) =>
+        cand({
+          videoId: `t${String(i).padStart(3, "0")}`,
+          bpm: 126,
+          key: "8A",
+        }),
+      );
+    // rest.length + 1 = 250 → 250 is NOT < 250 → greedy on the line
+    const atBoundary = buildSet({
+      candidates: mk(SET_BEAM_POOL_MAX),
+      preset: SET_PRESETS.peak,
+      minutes: 8,
+    });
+    expect(atBoundary.search).toBe("greedy");
+    // rest.length + 1 = 249 < 250 → beam one below the line
+    const below = buildSet({
+      candidates: mk(SET_BEAM_POOL_MAX - 1),
+      preset: SET_PRESETS.peak,
+      minutes: 8,
+    });
+    expect(below.search).toBe("beam");
+    // a forced override beats the pool-size rule at any size
+    const forced = buildSet({
+      candidates: mk(SET_BEAM_POOL_MAX),
+      preset: SET_PRESETS.peak,
+      minutes: 8,
+      searchOverride: "beam",
+    });
+    expect(forced.search).toBe("beam");
   });
 
   test("every candidate lands in exactly one bucket — chain or excluded — on both paths", () => {

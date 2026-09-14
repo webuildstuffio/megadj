@@ -143,7 +143,7 @@ propose-only: the DJ keeps every creative decision.
 | **The write-off** | `megadj rb-playlist` links a proposal into the rekordbox master as a real playlist — dry-run first; `--apply` requires rekordbox closed, backs up both collection surfaces, writes the DB row and `masterPlaylists6.xml` twin, then verifies both.                                      |
 | **Docs**          | [MegaSet doc set](megaset/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](megaset/08-audit-and-plan.md)                                                                                                                                                |
 
-**Commands:** `megadj setbuild --preset peak --minutes 60 [--opener <id>] [--json]` ·
+**Commands:** `megadj setbuild --preset peak --minutes 60 [--opener <id>] [--search greedy|beam] [--json]` ·
 `megadj rb-playlist [drive] [--preset …] [--apply --yes]`
 **Vibe:** "the opener sells the night — MegaSet makes sure you never open
 with a 73-BPM track in a 128 room."

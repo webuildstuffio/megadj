@@ -24,6 +24,7 @@ import {
 import {
   clampSetPool,
   type SetBuildPayload,
+  type SetSearchOverride,
 } from "../../cratedeck/shared/types";
 
 /** ISO timestamp → YYYY-MM-DD (null → "never"). Module scope — the
@@ -36,6 +37,8 @@ export interface SetbuildOptions {
   minutes?: number | undefined;
   opener?: string | undefined;
   limit?: number | undefined;
+  /** Force a sequencer strategy (A/B compare); undefined = automatic. */
+  search?: SetSearchOverride | undefined;
   json?: boolean | undefined;
 }
 
@@ -95,6 +98,7 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       preset: SET_PRESETS[parsed.preset],
       minutes: parsed.minutes,
       openerId: opts.opener,
+      searchOverride: opts.search,
     });
     const payload: SetBuildPayload = {
       available: true,

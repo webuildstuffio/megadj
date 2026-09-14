@@ -195,7 +195,8 @@ product exists for.
    `SET_BEAM_WIDTH = 8` live in shared/setbuild.ts; the engine picks
    automatically, reports `search: "greedy" | "beam"` on the wire, the
    UI "Sequencer" row and CLI log surface it, and `?search=` (HTTP) /
-   the MCP `search` param force either strategy for A/B compares.
+   `--search` (CLI) / the MCP `search` param force either strategy for
+   A/B compares.
 4. **N-candidates compare gets a quality floor for free.** With beam in
    place, "Build 3" explores genuinely different chains instead of
    3 near-identical greedy runs.

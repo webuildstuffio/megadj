@@ -40,8 +40,10 @@ docs/megaset/04-sequencing-benchmarks.md) — pools under
 greedy; the chosen path ships on the wire as `search: "greedy" | "beam"`
 on every surface (HTTP payload, `megadj setbuild` log + JSON, MCP
 `archive_set_build` description + param, UI Sequencer row), and
-`?search=greedy|beam` / the MCP `search` param force either strategy
-for A/B compares. (2) `megadj genre --eval` runs the leave-one-out
+`?search=greedy|beam` / `megadj setbuild --search greedy|beam` / the MCP
+`search` param force either strategy for A/B compares (HTTP degrades an
+unknown value to auto; CLI/MCP reject it with exit 2 / RpcParamError).
+(2) `megadj genre --eval` runs the leave-one-out
 family-agreement harness over the live DB — the 05-genre-audit §5b.3
 step-4 regression gate (`--no-duration-guard` drops the 90–480 s band,
 `--k`/`--min-agreement` retune the vote); measures, never writes.
@@ -295,7 +297,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Grid cross-check                                  | `megadj beats` data ✅                                                                          | `archive_grid_cross_check` ✅                                    | FullTags ⌗ Beatgrids ✅                                                                          | — (A3 closed rev 3; product split rev 6)                                      |
 | Mood profile                                      | `megadj mood` data ✅                                                                           | `archive_mood_profile` ✅                                        | FullTags ⌗ Mood ✅                                                                               | — (A3 closed rev 3; product split rev 6)                                      |
 | Similar tracks (I49 sounds-like)                  | `megadj similar <id>` ✅                                                                        | `archive_similar_tracks` ✅                                      | FullTags ⌗ Similar (rev 10) ✅                                                                   | — (rev 10)                                                                    |
-| MegaSet proposal                                  | `megadj setbuild [--preset --minutes --opener --limit]` ✅ (rev 20)                             | `archive_set_build` ✅ (propose-only; `search` A/B param rev 27) | FullTags ⌗ Similar panel + saved draft/M3U8 download ✅ (rev 24; Sequencer row rev 27)           | — (same read-only proposal; requested/actual duration stays explicit)         |
+| MegaSet proposal                                  | `megadj setbuild [--preset --minutes --opener --limit --search]` ✅ (rev 20; `--search` A/B hook rev 27) | `archive_set_build` ✅ (propose-only; `search` A/B param rev 27) | FullTags ⌗ Similar panel + saved draft/M3U8 download ✅ (rev 24; Sequencer row rev 27)           | — (same read-only proposal; requested/actual duration stays explicit)         |
 | Set-build → master playlist (rev 21)              | `megadj rb-playlist [drive] [--preset …] [--apply --yes]` ✅                                    | ⛔ §4-A1 (master-DB mutation stays CLI)                          | ⛔ §4-A1                                                                                         | — (links existing content rows; dry-run predicts the link count)              |
 | Rekordbox master → archive census (rev 25)        | `megadj rb-adopt [drive] [--apply --yes]` ✅                                                    | ⛔ §4-A1 (archive DB mutation stays CLI)                         | ⛔ §4-A1                                                                                         | — (master read-only; exact Content-ID cross-reference + full metadata mirror) |
 | Cue ledger                                        | `megadj cues` data ✅                                                                           | `archive_cue_ledger` ✅                                          | FullTags ⌗ Cues ✅                                                                               | — (rev 6)                                                                     |

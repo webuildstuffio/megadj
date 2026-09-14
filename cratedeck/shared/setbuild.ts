@@ -146,6 +146,20 @@ export const SET_BEAM_POOL_MAX = 250;
  * surface quote the same "deep search" contract, never a hand-copied twin. */
 export const SET_BEAM_WIDTH = 8;
 
+/** A forced sequencer strategy (the A/B-compare override). */
+export type SetSearchOverride = SetBuildResult["search"];
+
+/** Classify a raw `?search=` / `--search` / MCP `search` value: only the
+ * exact strategy names override the automatic pool-size pick; anything
+ * else (absent, typo) means "automatic". The HTTP route treats an
+ * unknown value as automatic (explore control, not a contract param —
+ * unlike preset, which IS a contract and 400s); stricter CLI/MCP callers
+ * pre-check with this predicate so a typo'd A/B compare fails loudly
+ * instead of silently comparing auto-vs-forced. */
+export const isSetSearchOverride = (
+  raw: string | null | undefined,
+): raw is SetSearchOverride => raw === "greedy" || raw === "beam";
+
 export function clampSetPool(raw: number | null | undefined): number {
   // Number(null) is 0, NOT NaN — null/undefined must be checked before
   // the coercion or an absent param clamps to 1 instead of the default.

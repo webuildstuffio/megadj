@@ -8,7 +8,7 @@
 // no archive route matched so index.ts can fall through.
 import type { ArchiveReader } from "./archive";
 import { SET_PRESETS, buildSet, parseSetbuildQuery } from "./setbuild";
-import { clampSetPool } from "../shared/setbuild";
+import { clampSetPool, isSetSearchOverride } from "../shared/setbuild";
 import type { DB } from "./db";
 import type { CrateConfig } from "./config";
 
@@ -74,7 +74,7 @@ function resolveSetBuild(
       // contract param (unlike preset, which IS a contract and 400s).
       searchOverride: (() => {
         const raw = url.searchParams.get("search");
-        return raw === "greedy" || raw === "beam" ? raw : undefined;
+        return isSetSearchOverride(raw) ? raw : undefined;
       })(),
     }),
   };

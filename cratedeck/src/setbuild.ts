@@ -19,8 +19,10 @@ import {
   SET_PRESET_DEFS,
   SET_PRESET_IDS,
   DEFAULT_SET_PRESET,
+  isSetSearchOverride,
   SET_BEAM_POOL_MAX,
   SET_BEAM_WIDTH,
+  type SetSearchOverride,
   type SetPresetDef,
   type SetPresetId,
 } from "../shared/types";
@@ -188,7 +190,7 @@ export interface SetBuildInput {
    *  Test + A/B-compare hook: the N-candidates mode needs to build the
    *  same pool under both searches to diff them honestly. Production
    *  surfaces never set it — the pool-size rule decides. */
-  searchOverride?: "greedy" | "beam" | undefined;
+  searchOverride?: SetSearchOverride | undefined;
 }
 
 // SetBuildStep + SetBuildResult (the wire shapes) are DEFINED in
@@ -517,10 +519,9 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   // the chosen path is REPORTED (`search` on the wire), never a silent
   // algorithm switch.
   const rest = pool;
-  const useBeam =
-    input.searchOverride === "greedy" || input.searchOverride === "beam"
-      ? input.searchOverride === "beam"
-      : rest.length + 1 < SET_BEAM_POOL_MAX;
+  const useBeam = isSetSearchOverride(input.searchOverride)
+    ? input.searchOverride === "beam"
+    : rest.length + 1 < SET_BEAM_POOL_MAX;
   search = useBeam ? "beam" : "greedy";
   const picked = useBeam
     ? beamChain(first, rest, preset, budget)

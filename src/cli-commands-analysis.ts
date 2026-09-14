@@ -1,5 +1,6 @@
 import type { CliCommandHandler } from "./cli-command";
 import { firstPositional, nonNegOpt, numOpt, parseFlags } from "./cli-flags";
+import { isSetSearchOverride } from "../cratedeck/shared/types";
 import { writeJson } from "./shared/cli-output";
 
 const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
@@ -72,7 +73,7 @@ const similar: CliCommandHandler = async (rest, { state }) => {
 const setbuild: CliCommandHandler = async (rest) => {
   const flags = parseFlags(
     rest,
-    ["preset", "minutes", "opener", "limit"],
+    ["preset", "minutes", "opener", "limit", "search"],
     ["json"],
   );
   const minutes = nonNegOpt(flags, "minutes", "setbuild");
@@ -80,12 +81,24 @@ const setbuild: CliCommandHandler = async (rest) => {
     return;
   const limit = nonNegOpt(flags, "limit", "setbuild");
   if (limit === undefined && flags.strings.get("limit") !== undefined) return;
+  // the A/B hook (E7): same contract as the HTTP ?search= / MCP search
+  // param — but a CLI typo must fail loudly (exit 2, zero work), not
+  // silently compare the automatic pick against itself
+  const searchRaw = flags.strings.get("search");
+  if (searchRaw !== undefined && !isSetSearchOverride(searchRaw)) {
+    console.error(
+      `setbuild: unknown --search "${searchRaw}" — expected greedy or beam`,
+    );
+    process.exitCode = 2;
+    return;
+  }
   const { setbuild: buildSet } = await import("./fulltags/setbuild");
   await buildSet({
     preset: flags.strings.get("preset"),
     minutes,
     opener: flags.strings.get("opener"),
     limit,
+    search: searchRaw,
     json: flags.bools.has("json"),
   });
 };

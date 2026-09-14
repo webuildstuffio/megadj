@@ -8,7 +8,13 @@
 
 import { apiGet } from "./deckapi";
 import { parseSetbuildQuery } from "./setbuild";
-import { clampSetPool, SET_PRESET_IDS, SET_POOL_MAX } from "../shared/types";
+import {
+  clampSetPool,
+  isSetSearchOverride,
+  SET_BEAM_POOL_MAX,
+  SET_PRESET_IDS,
+  SET_POOL_MAX,
+} from "../shared/types";
 import {
   str,
   num,
@@ -189,8 +195,7 @@ export function archiveTools(): Record<string, unknown> {
         search: {
           type: "string",
           enum: ["greedy", "beam"],
-          description:
-            "force a sequencer strategy (A/B compare); omitted = automatic (pools under 250 run the deep 'beam' search, larger keep greedy)",
+          description: `force a sequencer strategy (A/B compare); omitted = automatic (pools under ${SET_BEAM_POOL_MAX} run the deep 'beam' search, larger keep greedy)`,
         },
       }),
       run: async (args: Record<string, unknown>) => {
@@ -205,8 +210,14 @@ export function archiveTools(): Record<string, unknown> {
         q.set("minutes", String(parsed.minutes));
         const opener = str(args, "opener");
         if (opener) q.set("opener", opener);
-        const searchOverride = str(args, "search");
-        if (searchOverride) q.set("search", searchOverride);
+        // validate locally like limit: an unknown search value 400s here
+        // instead of silently degrading to the automatic pick mid-compare
+        const searchRaw = str(args, "search");
+        if (searchRaw !== undefined) {
+          if (!isSetSearchOverride(searchRaw))
+            throw new RpcParamError('search must be "greedy" or "beam"');
+          q.set("search", searchRaw);
+        }
         const rawLimit = args.limit;
         if (rawLimit !== undefined) {
           const parsedLimit = num(args, "limit");
