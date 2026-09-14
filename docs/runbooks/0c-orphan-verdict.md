@@ -1,10 +1,19 @@
 # 0c — Orphan-drive verdict (BACKUP2) — runbook
 
-BACKUP2 is the old backup drive whose DB (2025-08-14) saved the library
+**Status:** ✅ COMPLETE — BACKUP2 was adopted and issue #3 closed on
+2026-09-11; this procedure is retained as the decision record.
+
+**Outcome:** the deep shelf sweep proved all BACKUP2 audio covered or
+preserved on the shelf. Nothing unique remained, so BACKUP2 is retired but
+kept intact until the cold backup verifies. The authoritative sweep receipt is
+`megadj shelf-sweeps --json`.
+
+The procedure below records how the decision was reached. BACKUP2 is the old
+backup drive whose DB (2025-08-14) saved the library
 during the March 2025 NEVERMISSMI corruption. Its 1,910 unique files were
 already copied to Extra (dying SSD) during the Aug recovery
 (`backup2_only_paths.txt` in `~/Documents/rekordbox-recovery/`). One session
-on a day BACKUP2 is plugged in decides: adopt or declare dead. Order matters:
+on a day BACKUP2 is plugged in decided: adopt or declare dead. Order mattered:
 **before 0b**, so the cloud backup captures the decision, not the ambiguity.
 
 ## 0. Prerequisite

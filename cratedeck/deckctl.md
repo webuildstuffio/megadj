@@ -1,5 +1,8 @@
 # deckctl — CrateDeck CLI
 
+**Status:** ✅ CURRENT — operator command guide; exact surface counts live in
+[`docs/surface-parity.md`](../docs/surface-parity.md).
+
 Agent- and human-facing CLI for CrateDeck (the DJ USB dashboard). Talks to the
 CrateDeck server on `127.0.0.1:7742`; auto-starts the server if it isn't running.
 
@@ -163,7 +166,7 @@ feed — mutating, confirm first) ·
   (FullTags-mirror reads) · `archive_similar_tracks {video_id}`
   (I49 sounds-like kNN) · `archive_set_build` (M66 propose-only chain
   builder) —
-  37 tools total (22 `deck_*` + 15 `archive_*`; census derives from
+  39 tools total (22 `deck_*` + 2 `getdat_*` + 15 `archive_*`; census derives from
   source and is pinned by `cratedeck/test/surface-parity.test.ts`).
   `deck_report {format:"dossier"}` returns the full
   export bundle (drive + snapshot + sync + report + timeline +

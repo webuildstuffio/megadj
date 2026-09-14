@@ -1,6 +1,6 @@
 # CrateDeck
 
-**Status:** ✅ SHIPPED v0.1 — dashboard, CLI, fleet checks, and agent surface.
+**Status:** ✅ SHIPPED — v0.1 dashboard, CLI, fleet checks, and agent surface.
 
 Local dashboard for every DJ USB drive you own — mounted or not.
 Built with Bun + TypeScript inside the megadj repo.
@@ -53,9 +53,10 @@ sticks). Tests: `bun test cratedeck/`.
   drive the shelf findings ledger and the booth-fix queue (same engines as
   `megadj shelf-hygiene` / `megadj booth-fix`; apply is always the SAFE
   subset, dry by default, human-confirmed).
-- 🤖 **Agent surface** (`bun run mcp`) — **37 tools** (22 `deck_*` + 15
-  readonly `archive_*`); `deckctl --json` gives the same data one-shot.
-  The rekordbox interlock is enforced in both.
+- 🤖 **Agent surface** (`bun run mcp`) — `deckctl --json` gives the same data
+  one-shot. Exact counts derive from source and are pinned in
+  [surface parity](../docs/surface-parity.md); the rekordbox interlock is
+  enforced in both.
 
 Agents: the same surface is exposed over MCP — `bun run mcp` (from the
 repo root) speaks stdio JSON-RPC.

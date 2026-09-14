@@ -1,6 +1,8 @@
 # MegaSet — Sequencing Deep Dive & Benchmarks
 
-v1 · 2026-09-14 · **Benchmarks** → [PRD](01-prd.md) · [Analysis](03-competitive-analysis.md) · [Audit & plan](../setbuild-audit-2026-09-13.md)
+**Status:** ✅ COMPLETE — Sep 14 sequencing benchmark and co-occurrence design evidence.
+
+v1 · 2026-09-14 · **Benchmarks** → [PRD](01-prd.md) · [Analysis](03-competitive-analysis.md) · [Audit & plan](08-audit-and-plan.md)
 
 Two questions this doc answers with measurements, not vibes:
 
@@ -256,7 +258,7 @@ signal away. Consequence: keep the B10p embedding prior **small** (≤0.1),
 and treat embedding clusters as their own vocabulary — "embedding
 neighborhoods" may be better genre-family seeds than scraped genre strings.
 
-### 5.4 New FullTags passes worth precomputing (ahead of the set builder)
+### 5.4 New FullTags passes worth precomputing (ahead of MegaSet)
 
 | Pass                                      | Cost (measured)                                                   | Feeds                                                                       | Worth it?                                            |
 | ----------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------- |

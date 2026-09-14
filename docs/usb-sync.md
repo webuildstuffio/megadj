@@ -15,8 +15,10 @@ the archive-grade HDD (`library.shelf_drive`, default `SHELF1`) that holds
 the strict byte-verified archive of every drive; rekordbox's master DB even
 lives on it. Gig sticks sync FROM the shelf, never the other way. New music
 reaches it via `megadj shelf-sync`; stray drives are swept in with
-`megadj shelf-archive <volume>` (additive, MD5-verified, junk-filtered —
-[usb-sync-log.md](usb-sync-log.md) Sep 9 entry is the worked example).
+`megadj shelf-archive <volume>` (additive, MD5-verified, junk-filtered).
+The Sep 9 worked example lives in the intentionally gitignored local operator
+log at `docs/usb-sync-log.md`; live sweep receipts come from
+`megadj shelf-sweeps --json`.
 Every sweep records a verdict row in the archive DB's `shelf_sweeps`
 ledger — `megadj shelf-sweeps` shows latest-per-drive — and the full
 process lives in [shelf-intake](../.claude/skills/shelf-intake/SKILL.md).
@@ -113,7 +115,7 @@ skill's SKILL.md.
   thumbnail gotcha, and the legacy-WAV fix:
   [rekordbox-wav-artwork.md](rekordbox-wav-artwork.md).
 - **WAVs never carry RB-readable art** — new ingests convert to AIFF
-  (`src/commands/wav-to-aiff.ts`); see `docs/rekordbox-wav-artwork.md` for
+  (`src/fulltags/convert.ts`); see [rekordbox WAV artwork](rekordbox-wav-artwork.md) for
   the legacy-WAV research.
 - Long-running background jobs can get reaped; the tools are resumable for
   that reason.

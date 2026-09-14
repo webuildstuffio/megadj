@@ -1,5 +1,8 @@
 # Runbook 0d — Write-path spike (GA-07)
 
+**Status:** 🟡 BLOCKED — harness shipped; four rekordbox/hardware observations
+remain before the repair route can be selected.
+
 Settle where rekordbox grids truly live and which write route repairs
 them. This decides `GA-06`'s implementation — nothing in Part A repairs
 anything until this verdict exists.

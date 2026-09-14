@@ -6,6 +6,10 @@ former flat `src/commands/` tree is now split by domain under `src/getdat/`,
 `src/shared/`. The remainder of this document records the design and audit
 evidence for the shipped layout.
 
+> **Historical-path note:** Paths in the problem statement and before/after
+> tables intentionally name pre-refactor files. For current locations, use the
+> shipped tree in §4 or run `rg --files src`.
+
 _2026-09-10. Tracking issue: [#23](https://github.com/webuildstuffio/megadj/issues/23).
 Research basis: two full-tree scans, import census, madge cycle check (clean),
 coupling-direction audit. Written while the snake→kebab rename was landing;

@@ -1,5 +1,8 @@
 # megadj — Future Roadmap Proposal
 
+**Status:** 🗄️ ARCHIVED — executed proposal retained as decision evidence;
+current ordering lives in product docs and GitHub issues.
+
 _Proposal v3 · 2026-09-06 — reconciled with what shipped in the rev 4–6.2
 burst + the failed BPM/genre gates. Grounded in a full read of every doc in
 the repo._
@@ -88,7 +91,7 @@ JSON-RPC — readonly tools annotation-marked, mutating ones flagged
 layer** (where O86 said it must live); the archive half reads megadj's DB
 through a physically readonly handle; O87 attribution rides every job; O88
 notes + O85 plugin packaging shipped. Full census:
-[cratedeck/deckctl.md](../../cratedeck/deckctl.md#mcp).
+[cratedeck/deckctl.md](../../cratedeck/deckctl.md#mcp--the-same-surface-for-ai-agents).
 
 **What remains:** **O84** (the inbox-to-crate agent on top of `megadj
 drop`) and the optional `claude -p` cron wrapper for the weekly digest.

@@ -1,19 +1,24 @@
-# Set Builder (M66 / MegaSet) — Full Audit, Comparison & Improvement Plan
+# MegaSet — Full Audit, Comparison & Improvement Plan
 
-**Status:** 🧭 ACTIVE — plan for the next build-out rounds. Comparison superseded by the
-[30-comparator analysis](megaset/03-competitive-analysis.md) (10 OSS + 10 commercial +
+**Status:** 📚 REFERENCE — implementation audit and design sketches. The active roadmap is the
+[30-comparator analysis](03-competitive-analysis.md) (10 OSS + 10 commercial +
 10 dream ideas, with the re-ranked roadmap); sequencing-algorithm claims are now
-**measured** in [megaset/04-sequencing-benchmarks.md](megaset/04-sequencing-benchmarks.md)
-(E1–E5: greedy's 59% sparse-pool loss, 2-opt's +0.0% at scale, the beam-under-250 rule);
-this doc keeps the OSS deep-dives and the phase-level implementation detail.
+**measured** in [04-sequencing-benchmarks.md](04-sequencing-benchmarks.md)
+(E1–E8: greedy's 59% sparse-pool loss, 2-opt's +0.0% at scale, the beam-under-250 rule,
+weights frozen as engine constants); the embedding-tower question is measured in
+[06-embedding-models.md](06-embedding-models.md) (v2 rerun: effnet
+confirmed primary on both metrics; second-tower/fusion sweep settled — best ensemble +1.1 pt, not adopted).
+**Plan of record = the re-ranked roadmap** (03 §5); Part 3 below preserves the per-item
+implementation sketches, delta-pinned against the measured verdicts. Identifier
+renaming (`setbuild` → `megaset`) is planned in [09-migration-plan.md](09-migration-plan.md), not started.
 
 _2026-09-13. Scope: `cratedeck/src/setbuild.ts` (engine), `cratedeck/src/archive_similar.ts`
 (candidate pool), `cratedeck/shared/setbuild.ts` + `shared/camelot.ts` (wire SSOTs),
 `src/fulltags/setbuild.ts` (CLI), `cratedeck/src/archive_tools.ts` (MCP), `archive_routes.ts`
 (HTTP + M3U8), `web/products/fulltags/SimilarTab.tsx` (UI), `src/rekordbox/rb-playlist.ts`
-(master-DB write-off). Product home: [megaset/01-prd.md](megaset/01-prd.md).
-Companion to [docs/fulltags-roadmap.md](fulltags-roadmap.md) and
-[docs/PRINCIPLES.md](PRINCIPLES.md) (propose-only is a feature, not a gap).
+(master-DB write-off). Product home: [01-prd.md](01-prd.md).
+Companion to [docs/fulltags-roadmap.md](../fulltags-roadmap.md) and
+[docs/PRINCIPLES.md](../PRINCIPLES.md) (propose-only is a feature, not a gap).
 
 ---
 
@@ -70,7 +75,7 @@ freshness surfacing, preset-validation error path, all-24-key Camelot pins.
 > Deep comparison against commercial products (DJ.Studio, Mixed In Key, Djoid,
 > SetFlow, Lexicon, rekordbox/Serato/VirtualDJ/Engine DJ, MixMeister) and 10
 > dream/concept ideas now lives in
-> [megaset/03-competitive-analysis.md](megaset/03-competitive-analysis.md),
+> [30-comparator analysis](03-competitive-analysis.md),
 > together with the **re-ranked roadmap** that supersedes this doc's phase
 > ordering where they disagree (notably: quality score + N-candidates moved
 > ahead of the scoring-depth items; pool presets added).
@@ -138,7 +143,7 @@ excluded list), explicit scoring weights per dimension, honest "audio stays loca
 Local-first vinyl+digital crate over plain JSON; `@open-crate/core` npm package with a
 **`SetGenerator` strategy interface** (default `greedy-harmonic` ships; maintainer's tuned
 generator stays private by design), Camelot scoring, smooth/adventurous modes, lock/swap/
-regenerate set-builder UX. Lesson: the **lock-and-regenerate interaction** (freeze tracks
+regenerate UX. Lesson: the **lock-and-regenerate interaction** (freeze tracks
 you like, regenerate around them) is the missing middle between our one-shot proposal and
 hand-building; also `mode: "adventurous"` as a scoring temperature.
 
@@ -204,6 +209,30 @@ consumer (CDJ, Mixxx, a future automix leg) can execute the handoff without re-a
 ---
 
 ## Part 3 — Improvement plan (phased, house-style)
+
+> **Delta-pin (2026-09-14, post-benchmarks).** Part 3 predates E1–E8 and the
+> [embedding v2 rerun](06-embedding-models.md). Where they disagree,
+> the [re-ranked roadmap](03-competitive-analysis.md) + benchmark
+> verdicts win:
+>
+> - **A7 (B4 valence) is demoted** — mood-ledger triage (04 §5.1) measured
+>   valence stdev 0.12 (near-flat); it cannot order transitions. The fit-axis
+>   slot goes to **percentile-normalized `aggressive` + `happy`** — the only
+>   raw heads with real spread. `valence` stays stored (VGGish VA recompute),
+>   just never scored.
+> - **C12 (2-opt) repositioned** — measured +0.0% at archive scale (04 E3);
+>   ship as free polish. The real sparse-pool fix is **beam-B=8 when
+>   pool < ~250** (E7 validated: 2.9→4.5 chain length at n=12, 0 ms cost).
+> - **E6 froze the weights** — 0.45/0.3/0.25 stay engine constants; never a
+>   user parameter (weight sensitivity moved mean transition only 0.989–0.9945).
+> - **B10p embedding prior: effnet-only.** The v2 rerun (n=180, 0 fails)
+>   confirmed effnet leads on both LOO family agreement (0.444 vs 0.300
+>   musicnn) and retrieval coherence (0.362 vs 0.292). No second tower in
+>   the scoring path; fusion sweeps still running — the WIP gate lives in
+>   [06-embedding-models.md](06-embedding-models.md).
+>
+> Everything below is otherwise current: A-first ordering, B/C/D scoping,
+> non-goals, and the per-item sketches.
 
 Guiding rules: propose-only stays; every phase ships with tests + parity rows; no new
 runtime deps without the release-age floor; algorithms stay pure functions in

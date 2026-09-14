@@ -2,13 +2,12 @@
 
 v1 · 2026-09-03 · Brief merged into this doc (Sep 9 cleanup) · **PRD** → [Architecture](03-architecture.md) · [Acceptance](acceptance.md)
 
-**Status:** ✅ Core shipped (v0.1, 2026-09-04) — F1–F9 implemented in
+**Status:** ✅ SHIPPED — core v0.1 landed 2026-09-04; F1–F9 are implemented in
 `cratedeck/` (registry, detection, images, rekordbox introspection via the
 Python seam, jobs + interlock, health reports, timeline, search, cockpit UI);
-health report is the newest addition (`src/report.ts`, `GET /drives/:id/report`).
 Acceptance evidence per feature: [acceptance.md](acceptance.md). Remaining
-v1.x items (gig mode, radar, dossiers UI) are tracked in
-[../../ideas.md](../ideas.md).
+hardware checks live there; future product work is tracked in
+[Ideas](../ideas.md).
 
 This doc is the product + feature SSOT for CrateDeck. Every feature has an
 ID used by the architecture and acceptance evidence. All F1–F9 shipped in

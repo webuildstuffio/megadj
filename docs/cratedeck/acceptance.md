@@ -1,6 +1,6 @@
 # CrateDeck — Acceptance Status
 
-**Status:** 🟡 PARTIAL — code gates are verified; four hardware checks and one release tag remain.
+**Status:** 🟡 BLOCKED — code gates are verified; four hardware checks and one release tag remain.
 
 Tracks the PRD (F1–F10) and build-plan milestone acceptance items. Evidence
 here is **code-verified only** (file/route/test existence in `cratedeck/`).

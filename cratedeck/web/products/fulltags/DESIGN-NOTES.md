@@ -1,3 +1,7 @@
+# FullTags Set Builder — Design Notes
+
+**Status:** 📚 REFERENCE — implementation-facing product-design baseline.
+
 - Audience: a DJ planning a real set who needs a fast, trustworthy draft from the whole mounted collection.
 - One action: build one honest, playable set draft.
 - Five-second message: choose a length and energy journey; FullTags checks every playable shelf track and explains the result.

@@ -1,5 +1,8 @@
 # Codebase Quality Report — megadj
 
+**Status:** 🗄️ ARCHIVED — point-in-time quality snapshot from 2026-09-10;
+current gates and issue state supersede its counts.
+
 Date: 2026-09-10 · HEAD: `f69f8c0` (polish: typed globalFilter read, vite emptyOutDir, knip format)
 Scope: `src/`, `cratedeck/`, `fulltags/`, `tools/` (first-party TS/TSX; `node_modules` excluded)
 Tools: lizard 1.24.0 · jscpd 4.3.0 · knip 6.34.0 · oxlint 1.81.0 · type-coverage 2.30.1 · bun audit 1.3.14

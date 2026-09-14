@@ -25,85 +25,28 @@ replaces building. §0 comes before everything and blocks everything else.
 
 ## §0 — Do now, before anything else
 
-Nothing in this document matters while these are open. §0 blocks §A–§O.
-**Tracked as GitHub issues** — status lives there, this doc keeps the
-why: [0a](https://github.com/webuildstuffio/megadj/issues/1) ·
-[0b](https://github.com/webuildstuffio/megadj/issues/2) ·
-[0c](https://github.com/webuildstuffio/megadj/issues/3) — all three
-**CLOSED 2026-09-11** with executable runbooks committed at
-`docs/runbooks/` ([0a](runbooks/0a-evacuate-extra.md),
-[0b](runbooks/0b-cold-backup.md),
-[0c](runbooks/0c-orphan-verdict.md)); the deliverable exists — the
-physical execution (evacuate Extra; create the rclone remote) is owed
-at the next hardware session, tracked by the runbooks themselves ·
-[0d](https://github.com/webuildstuffio/megadj/issues/4) ✅ ·
-[0e incident log](https://github.com/webuildstuffio/megadj/issues/5) ✅.
+The software deliverables are complete. Two physical outcomes still outrank
+the rest of the backlog: evacuate Extra, then establish the first cold backup.
+Issue state lives on GitHub; this table only routes to the durable owner.
 
-0a. **Evacuate the dying SSD — ✅ CLOSED (issue #1): runbook shipped,
-execution pending hardware.** The deliverable —
-`docs/runbooks/0a-evacuate-extra.md` (rsync -av, no --delete →
-full-tree shasum diff ending `EVAC-VERIFIED` → sync-log entry) — is
-committed; Extra stays unmounted until the run. Still item zero
-whenever a hardware session opens.
+| ID  | State               | Durable owner / outcome                                                                        |
+| --- | ------------------- | ---------------------------------------------------------------------------------------------- |
+| 0a  | 🟡 hardware-blocked | [Evacuate Extra runbook](runbooks/0a-evacuate-extra.md); resumable copy plus full verification |
+| 0b  | 🟡 decision-blocked | [Cold-backup runbook](runbooks/0b-cold-backup.md); configure the remote, run, and verify       |
+| 0c  | ✅ complete         | [BACKUP2 verdict](runbooks/0c-orphan-verdict.md); adopted, covered, and retired intact         |
+| 0d  | ✅ shipped          | Coverage and redundancy engines; live state from `deckctl coverage`/`redundancy`               |
+| 0e  | ✅ shipped          | Incident logging convention; evidence remains in the local, gitignored `docs/usb-sync-log.md`  |
+| 0f  | ✅ superseded       | Generalized by the human-gated [shelf hygiene engine](shelf-hygiene-2026-09-09.md)             |
+| 0g  | ✅ shipped          | Whole-shelf fingerprint scan and quarantine-first restore path                                 |
 
-0g. **Whole-shelf acoustic dupescan — ✅ SHIPPED + EXECUTED (2026-09-09/10).**
-`megadj shelf-dupescan` fingerprints every shelf audio file and groups
-identical recordings REGARDLESS of filename/folder — the class the
-twin pass can't see (the same ANOTR eSQUIRE remix under two artist
-spellings). The quarantine flow shipped with it (`--quarantine --yes`,
-`--only-identical` for MD5-equal copies; recovery via
-[`megadj shelf-restore`](../src/shelf/shelf-restore.ts)). Scan and
-apply numbers live once:
-[shelf-hygiene-2026-09-09.md](shelf-hygiene-2026-09-09.md).
+### Deferred runtime performance pass
 
-0f. **SHELF1 dedupe pass — ✅ SUPERSEDED by the shipped hygiene engine
-(Sep 10).** `megadj shelf-hygiene` + `deckctl hygiene` + the Hygiene tab
-landed as the human-gated generalization of this plan: byte-twins,
-acoustic twins, folder variants and junk land in a findings ledger;
-confirmed findings are MOVED to the shelf quarantine (never deleted).
-Mechanics and current ledger state:
-[shelf-hygiene-2026-09-09.md](shelf-hygiene-2026-09-09.md).
-0b. **Cold backup of the master library — ✅ CLOSED (issue #2):
-runbook shipped, execution pending the rclone remote.**
-_Promoted from §G40 in the audit_ — the cure for the disease §B7
-diagnoses: some tracks exist on exactly one physical device.
-`docs/runbooks/0b-cold-backup.md` encodes the decision (R2 chosen over
-B2: ~$1.85/mo, zero-egress restore; three syncs — Contents versioned
-via `--backup-dir`, dated archive.db copies, recovery kit — then
-`rclone check --download`). Remaining live step: `rclone config`.
-_Update 2026-09-09: SHELF1 (4 TB) is now the strict byte-verified
-archive of every DJ drive (see
-[usb-sync-log.md](usb-sync-log.md)), which shrinks 0b's blast radius to
-"back up the shelf + the Mac-side DBs"._
-0c. **Orphan-drive verdict — ✅ CLOSED (issue #3): BACKUP2 adopted.**
-The Sep 9 `--deep` sweep verified 100% BACKUP2 coverage in SHELF1
-(verdict + counters: `megadj shelf-sweeps`); the "unique to a dead
-drive" premise no longer holds. BACKUP2 stays retired-but-intact until
-a separate retirement decision.
-0d. **Build the redundancy audit (§B7) + coverage matrix (§B6) — DONE
-2026-09-09** (code shipped 2026-09-04; both drives scanned — live
-matrix numbers read from `deckctl coverage`/`redundancy`, not docs).
-Issue [#4](https://github.com/webuildstuffio/megadj/issues/4) closed.
-If only four things ever ship from this doc, it's 0a–0d.
-
-0e. **Incident log (the missing input):** SEEDED 2026-09-09 — two real
-incidents from the Aug 2025 recovery (XML import bug; the NEVERMISSMI
-DB corruption) are now the first entries in
-`docs/usb-sync-log.md`. Keep appending one line per gig.
-Issue [#5](https://github.com/webuildstuffio/megadj/issues/5) closed.
-
-**§0 status after the Sep 11 audit: the gate is software-complete.**
-Every §0 deliverable that is code or a runbook has shipped; what
-remains is physical execution at a hardware session, in order:
-0a evacuate Extra → 0b `rclone config` + first backup run. Nothing in
-§A–§O outranks those two.
-
-0f-runtime. **Runtime perf pass (round 3) — deferred until a USB drive is
+**Blocked until a USB drive is
 mounted.** Rounds 1–2 (landed) took the dev gate 36s → 7.4s; this targets
 the runtime paths (scans, sweeps, CLI), which need a real volume to
 measure honestly — the internal-SSD archive fits the page cache, so warm
 numbers 50× the disk truth (`sudo purge` needs a TTY password). Harness:
-`tools/prof_sweep.ts` (read-only profiler; run cold on a fresh mount,
+`tools/prof-sweep.ts` (read-only profiler; run cold on a fresh mount,
 then warm, compare serial vs pooled). Three targets, in order:
 
 1. `cratedeck/src/walk.ts` — parallel file stats per directory
@@ -188,7 +131,7 @@ lives in `docs/fulltags-roadmap.md`):**
 ## A. Finish what's already in flight — ✅ ALL RESOLVED (kept as history)
 
 Everything here shipped or was promoted by 2026-09-04: the drive dossier +
-health report (→ §B1), the `tools/` consolidation (→ `tools/fetch_all.ts`
+health report (→ §B1), the `tools/` consolidation (→ `tools/fetch-all.ts`
 
 - `fulltags/`), WAV artwork in rekordbox
   ([rekordbox-wav-artwork.md](rekordbox-wav-artwork.md); sliver: spot-check
@@ -207,7 +150,7 @@ health report (→ §B1), the `tools/` consolidation (→ `tools/fetch_all.ts`
 The PRD features that _only exist because the app sees all drives at once_
 — the moat. Roughly in value order:
 
-6. **Coverage matrix — ✅ SHIPPED 2026-09-04.** `cratedeck/src/fleet.ts`
+6. **Coverage matrix — ✅ SHIPPED 2026-09-04.** `cratedeck/src/coverage.ts`
    (`coverage()` + `trackLocations()`) over per-track fleet tables
    (`fleet_tracks`/`fleet_playlist_entries`/`fleet_manifest`, refreshed by
    every scan). UI: Fleet page → Coverage tab; CLI `deckctl coverage`;
@@ -282,10 +225,10 @@ The PRD features that _only exist because the app sees all drives at once_
     is terrible at current frequency.
 19. **Grid quality upgrade pass — 🔶 tooling SHIPPED (grid-audit wave 2,
     2026-09-10); verdicts remain.** The audit half is real: `megadj
-    rb-grid-triage` compares grids vs the ANLZ rekordbox actually wrote
+rb-grid-triage` compares grids vs the ANLZ rekordbox actually wrote
     (byte-compare against a stick, then decode the PQTZ grid →
     SHIFT/PHASE/TEMPO/DRIFT/CHAOS buckets, read-only), `megadj
-    gold-report`/`regate` score the analysis ledgers against the hand
+gold-report`/`regate` score the analysis ledgers against the hand
     truth set (GA-00 — awaiting annotations; the harness refuses to
     manufacture a pass), `rb-anlz-spike` proves what a rekordbox write
     touches, and the Sep 11 census repaired 21 bar-coherence grids. The
@@ -451,7 +394,7 @@ re-verified in the research notes (2026-09-05).
     DB-side — the rekordbox memory-cue WRITE is the deliberate next gate.
     The grid-audit wave-2 tooling
     (`megadj gold-report`/`regate` gold-set harness, `megadj
-    rb-grid-triage`, ANLZ write-path spike) is live — see C19 and
+rb-grid-triage`, ANLZ write-path spike) is live — see C19 and
     [grid-audit-plan.md](grid-audit-plan.md), the SSOT for the remainder.
     The full all-in-one-infer slice (functional segment labels intro/verse/
     drop/outro + demucs stems) remains the follow-on: _model note
@@ -647,9 +590,9 @@ extractors).
       catches the wrong-byte-variant-on-mirror class forever
       Reference: dupsonic (Rust, incremental, LSH) — use as-is or steal
       the incremental-scan design. Effort S-M.
-    **Stamp catch-up owed:** the newest intake batches ingested before
-    the fingerprint stage ran over them (exact coverage in product-state's
-    ledger table; `fulltags ~/Music/DJ-Imports --fingerprint` closes it).
+      **Stamp catch-up owed:** the newest intake batches ingested before
+      the fingerprint stage ran over them (exact coverage in product-state's
+      ledger table; `fulltags ~/Music/DJ-Imports --fingerprint` closes it).
 
 63. **Fingerprint the mirror.** Once #62 exists, a `--fingerprint-sample N`
     flag on `usb_mirror.py --verify-only` content-checks N random files per
@@ -675,11 +618,11 @@ Mac-DJ irritations nobody builds for.
     ingest normalizes to a strict `Artist - Title (Remixer)` convention,
     verified against MusicBrainz, diff view before apply, FAT32-safe
     length checks built in. Effort S.
-66. **Set-builder copilot — ✅ SHIPPED (core Sep 8; CLI spoke Sep 11).**
+66. **MegaSet copilot — ✅ SHIPPED (core Sep 8; CLI spoke Sep 11).**
     `cratedeck/src/setbuild.ts` (pure engine) + `GET /api/archive/setbuild`
     - MCP `archive_set_build` + `megadj setbuild [--preset
-      warmup|peak|afterhours] [--minutes N] [--opener <video_id>]` +
-      the FullTags ⌗ Similar panel + the `.claude/skills/set-builder`
+warmup|peak|afterhours] [--minutes N] [--opener <video_id>]` +
+      the FullTags ⌗ Similar panel + the `.claude/skills/megaset`
       skill: target minutes + an energy-arc preset (warm-up/peak/
       afterhours, N80's envelopes) → an ordered chain gated by Camelot
       key compat, ±6% tempo, and arc fit; unmixable leftovers land in an
@@ -900,7 +843,7 @@ archive.ts`, opened `readonly: true`; missing DB degrades to
 > gate** (gig frequency, see §0) decides depth. Nearly every Phase 2–6
 > item above shipped in the Sep 4–11 window (fleet, ⌘K, preflight,
 > players, fingerprints, keys, moods, O82–O88, drop, similarity,
-> set-builder, shelf hygiene/dedupe/dupescan, grid-audit wave 2) — the
+> MegaSet, shelf hygiene/dedupe/dupescan, grid-audit wave 2) — the
 > open remainders are C18a/C21, O84, I46 full slice, K57–K59, M69–M74,
 > and the two §0 physical tasks (0a evacuation run, 0b rclone remote).
 
