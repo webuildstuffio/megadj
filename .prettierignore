@@ -1,6 +1,3 @@
-dist/
-node_modules/
-cratedeck/web/dist/
 package-lock.json
 bun.lock
 bun.lockb

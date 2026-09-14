@@ -1,34 +1,82 @@
+# Dependencies, builds, and coverage
 node_modules/
 dist/
+coverage/
+htmlcov/
 *.tsbuildinfo
-node_modules/.cache/
+.coverage
+.coverage.*
+
+# Python environments and tool caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local agent, search, and code-graph state
+.cursor/
+.tokensave/
+.megamem/
+# Legacy MegaMem layout; current indexes live in .megamem/
+workspace-megadj/
+.local-screens/
+
+# Runtime databases and private configuration
 *.db
 *.db-wal
 *.db-shm
-.DS_Store
-
-# scratch from agent runs
-*.webm
-*.part
-*.m4a
-*.mp4
-__pycache__/
-.ruff_cache/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
 cratedeck/data/
 cratedeck/config.toml
 config.toml
-.local-screens/
+.env
+.env.*
+!.env.example
 
-# local quarantine output from archive hygiene runs
+# Logs, scratch files, backups, and generated reports
+*.log
+nohup.out
+*.part
+*.tmp
+*.bak
+*.backup
+*.orig
+reports/
+docs/usb-sync-log.md
+/artifacts/
+/outputs/
+/logs/
+/tmp/
+/temp/
+/embeddings/
+
+# Experiment definitions/config stay tracked; only generated outputs above do.
+
+# Raw media belongs in the configured archive, never in Git
+*.aac
+*.aif
+*.aiff
+*.alac
+*.flac
+*.m4a
+*.m4b
+*.mp3
+*.mp4
+*.ogg
+*.opus
+*.wav
+*.webm
+
+# Local quarantine evidence; archive quarantine itself belongs on the shelf
 .archive-quarantine/
 
-# real env (commit .env.example, never .env)
-.env
-
-# local-only ops files (personal; never commit)
-docs/usb-sync-log.md
-reports/
-
-# MegaMem index artifacts
-.megamem/
-workspace-megadj/
+# OS metadata
+.DS_Store
+.AppleDouble
+._*
+.Spotlight-V100/
+.Trashes/
