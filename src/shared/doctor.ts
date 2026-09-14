@@ -27,6 +27,12 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { homedir, platform } from "node:os";
+import {
+  checkCueKinds,
+  checkDupes,
+  checkPlaylistXml,
+  masterDbPath,
+} from "./doctor-state";
 
 export interface CheckResult {
   id: string;
@@ -318,6 +324,7 @@ function checkMusicDir(): CheckResult {
 }
 
 export function runDoctor(): CheckResult[] {
+  const dbPath = masterDbPath(mountArg());
   return [
     checkPlatform(),
     checkBun(),
@@ -329,7 +336,18 @@ export function runDoctor(): CheckResult[] {
     checkCookies(),
     checkCrateConfig(),
     checkMusicDir(),
+    // postmortem §3b exit gates (state checks; skip honestly when the
+    // drive is unmounted or rekordbox is open)
+    checkCueKinds(dbPath),
+    checkDupes(dbPath),
+    checkPlaylistXml(dbPath),
   ];
+}
+
+/** The positional drive arg the user passed to doctor (SHELF1 or a path). */
+function mountArg(): string | undefined {
+  const argv = process.argv.slice(3).filter((a) => !a.startsWith("--"));
+  return argv[0];
 }
 
 // ---- output -----------------------------------------------------------------

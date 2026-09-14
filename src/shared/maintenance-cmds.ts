@@ -30,6 +30,8 @@ export const MAINTENANCE_VERBS = [
   "rb-adopt",
   "rb-import",
   "rb-playlist",
+  "rb-cues",
+  "rb-dedup",
   "rb-anlz-spike",
   "rb-grid-triage",
 ] as const;
@@ -238,7 +240,90 @@ export async function runMaintenanceCommand(
       if (!r.ok) process.exitCode = 1;
       return;
     }
+    case "rb-cues": {
+      // F1/F3 seam (docs/intake-cue-postmortem.md): the ONLY writer of
+      // djmdCue rows. Default: restamp census (Kind=0 → 1 dry-run).
+      // Hot-cue Kind=1 is pinned by the F4 spike; regression-tested.
+      const flags = parseFlags(
+        rest,
+        [],
+        ["restamp", "ledger", "force", "apply", "yes", "json"],
+      );
+      const args = positionalArgs(rest, []);
+      const mount = mountFrom(args[0]);
+      const { rbCues, printRbCuesReport } =
+        await import("../rekordbox/rb-cues");
+      const json = flags.bools.has("json");
+      const r = await rbCues({
+        mount,
+        restamp: flags.bools.has("restamp"),
+        fromLedger: flags.bools.has("ledger"),
+        force: flags.bools.has("force"),
+        apply: flags.bools.has("apply"),
+        yes: flags.bools.has("yes"),
+        json,
+        log: (s) => (json ? undefined : console.log(s)),
+      });
+      if (json) {
+        await writeJson(r);
+      } else {
+        printRbCuesReport(r, console.log);
+      }
+      if (!r.ok) process.exitCode = 1;
+      return;
+    }
+    case "rb-dedup": {
+      // F2 (BUG-2): fingerprint-ish dupe sweep over master.db. Report
+      // default; --apply --yes retires loser rows + quarantines files.
+      const flags = parseFlags(rest, [], ["report", "apply", "yes", "json"]);
+      const args = positionalArgs(rest, []);
+      const mount = mountFrom(args[0]);
+      const { rbDedup, printRbDedupReport } =
+        await import("../rekordbox/rb-dedup");
+      const json = flags.bools.has("json");
+      const r = await rbDedup({
+        mount,
+        report: flags.bools.has("report"),
+        apply: flags.bools.has("apply"),
+        yes: flags.bools.has("yes"),
+        json,
+        log: (s) => (json ? undefined : console.log(s)),
+      });
+      if (json) {
+        await writeJson(r);
+      } else {
+        printRbDedupReport(r, console.log);
+      }
+      if (!r.ok) process.exitCode = 1;
+      return;
+    }
     case "rb-playlist": {
+      // `megadj rb-playlist reconcile` — XML-twin healer (F7): diff
+      // djmdPlaylist rows vs masterPlaylists6.xml NODEs; apply adds
+      // missing NODEs. Anything else = the set-builder chain writer.
+      const restArgs = rest.filter((a) => a !== "reconcile");
+      if (rest.length !== restArgs.length) {
+        const flags = parseFlags(restArgs, [], ["apply", "yes", "json"]);
+        const args = positionalArgs(restArgs, []);
+        const mount = mountFrom(args[0]);
+        const { rbPlaylistReconcile, printReconcileReport } =
+          await import("../rekordbox/rb-playlist-reconcile");
+        const json = flags.bools.has("json");
+        const r = await rbPlaylistReconcile({
+          mount,
+          apply: flags.bools.has("apply"),
+          yes: flags.bools.has("yes"),
+          json,
+          log: (s) => (json ? undefined : console.log(s)),
+        });
+        if (json) {
+          await writeJson(r);
+        } else {
+          printReconcileReport(r, console.log);
+        }
+        if (!r.ok) process.exitCode = 1;
+        return;
+      }
       // set-builder chain → master-DB playlist. The write-side twin of
       // `megadj setbuild`: NO new content rows, only playlist + links to
       // rows the fullpush pipeline already imported (basename match).

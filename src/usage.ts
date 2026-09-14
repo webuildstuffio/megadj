@@ -136,6 +136,30 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                while rekordbox runs, whole-table
                                                verify after write (dry first,
                                                ALWAYS)
+  megadj rb-cues [drive] [--restamp] [--apply --yes] [--json]
+                                               THE djmdCue write seam (postmortem
+                                               F1/F3): dry-run counts non-clickable
+                                               Kind=0 cue rows (pads can't see them);
+                                               --apply --yes re-stamps them Kind=1
+                                               (hot) — RB never writes 0 (F4-pinned);
+                                               dated backup + re-read verify,
+                                               refuses while rekordbox runs
+  megadj rb-dedup [drive] [--apply --yes] [--json]
+                                               fingerprint-ish duplicate sweep over
+                                               the master DB (postmortem F2/BUG-2):
+                                               finds same-title ±2s / same-path twin
+                                               rows, keeps the Contents/ canonical,
+                                               deletes loser rows + quarantines loser
+                                               files with a receipt (never deletes);
+                                               report default, dry first
+  megadj rb-playlist [drive] reconcile [--apply --yes] [--json]
+                                               XML-twin healer (F7): find
+                                               djmdPlaylist rows missing their
+                                               masterPlaylists6.xml NODE (RB7
+                                               stores Ids as HEX — decimal
+                                               matches lie); apply adds the
+                                               missing NODEs with backups
+                                               (dry first)
   megadj rb-playlist [drive] [--preset P] [--minutes N] [--opener ID]
                                                [--playlist NAME] [--group NAME]
                                                [--apply --yes] [--json]

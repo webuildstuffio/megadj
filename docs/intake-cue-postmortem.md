@@ -205,6 +205,18 @@ another transcript heredoc. `rb-playlist.ts` already owns the DB side
 (526 LOC); extend it with the XML half (`reconcile` verb on the existing
 module), not a 7th `rb-*` command.
 
+**Rev 5 — CRITICAL format discovery (shipped in `rb-playlist-reconcile.ts`):**
+RB7's `masterPlaylists6.xml` stores NODE `Id`/`ParentId` as **HEX strings of
+the DB's decimal IDs** (`Id="30D40"` = DB id 200000). Every prior attempt to
+match DB rows against XML by string equality was comparing decimal to hex and
+finding "missing" twins that were actually present (live proof: naive match
+reported 156 missing; hex-aware match reports the true 19 — old user folders
+RB lazily syncs). Also: `ParentId` is hex too, internal smart folders carry no
+`Name` attribute and are DB-side by design (never "reconcile" them), and RB
+syncs folders to XML lazily on open/edit — a missing folder NODE is normal
+until RB next writes. Any XML write must: hex-encode ids, back up both files,
+and keep the DB row as the authority.
+
 ### F8 — Performance guards (P1)
 - Never full-hash an ExFAT volume for classification: size+duration prefilter,
   then hash only candidates. Encode in `shelf-dupescan`/dedup paths.
