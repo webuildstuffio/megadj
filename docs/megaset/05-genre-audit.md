@@ -123,6 +123,103 @@ all, only soft penalties and filters).
    space and see which clusters have coherent _unlabeled_ identity;
    propose new canonical labels from data, not from tag folklore.
 
+## 5b. Deep plan — multi-genre storage, inference evaluation & the FullTags-owned fix (Sep 14, measured)
+
+The question "can't FullTags just fix all this?" — mostly **yes**, because
+every fix lands in data FullTags already owns. What follows is the deeper
+plan plus the benchmark numbers that size each step.
+
+### 5b.1 Measured baselines (live archive, 2026-09-14)
+
+| Measure                                                 | Value                                                                                                                                                        |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Genre coverage by source                                | `rekordbox` 2,932/3,133 labeled · `ingest` 674/750 · `liked-videos` only **88/1,883**                                                                        |
+| Embedded + labeled (kNN-eligible)                       | 3,415                                                                                                                                                        |
+| Embedded, downloaded, **unlabeled** (inference targets) | 203 (+ 1,795 liked-videos without embeddings yet)                                                                                                            |
+| Labels covering 90% of rows                             | **105** — the alias table has a hard, small target                                                                                                           |
+| Junk-label mass (`music`, `edits / bootlegs`, …)        | 180 rows                                                                                                                                                     |
+| Multi-genre strings already in the wild                 | **389 rows** (`Electronic/House`, `Deep House/Indie Dance/Nu Disco`, `Techno (Peak Time / Driving)`) — the data is ALREADY multi-genre, stored as slash-soup |
+| **Leave-one-out kNN family agreement (label vs audio)** | **k=5: 76.5% · k=7: 72.2% · k=11: 70.6% · k=15: 66.6%**                                                                                                      |
+| Vote strength @k=7                                      | unanimous ≥6/7: 31% · majority 4–5: 53% · split ≤3: 16%                                                                                                      |
+| Agreement by source                                     | `rekordbox` (RB-analyzed) **62.2%** · `ingest` (pool) **58.7%**                                                                                              |
+
+Readings:
+
+1. **k=5 is measurably the right neighborhood** (76.5% vs 66.6% at k=15) —
+   smaller is sharper; `inferGenre`'s default is already 5. Keep.
+2. **Every label source is ~60–76% audio-consistent.** No source is truth;
+   the _consensus of neighbors_ outperforms any single label. This is the
+   argument for genre as **ranked, multi-valued** data rather than one
+   string.
+3. **16% of tracks sit in split neighborhoods** (≤3/7 agreement) — the
+   genuine genre-boundary tracks (melodic techno ↔ progressive house).
+   Forcing a label is lying; the existing ≥0.6 min-agreement gate correctly
+   refuses roughly this share. Gate stays.
+
+### 5b.2 Multi-genre: yes — as ranked secondary values in our DB, single-value in tags
+
+- **Files stay single-genre (TCON).** Tag-space multi-genre breaks Pioneer
+  browsers, rekordbox filters, and our equality checks; the comment format
+  (`Key · Energy · Mood`) is already the structured side-channel.
+- **`archive.db` gains a ranked list**: a `track_genres` side table or
+  `tracks.genres` JSON (`[{label, conf, src, as_of}, …]`). Ranked =
+  primary first; the canonical primary drives folders/filters, secondaries
+  stay queryable ("tech-house-adjacent house"). This kills the slash-soup
+  properly: `Electronic/House` becomes primary `electronic` + secondary
+  `house` instead of an unmatchable string.
+- **Family sets derive from the ranked list** (an afro-house track
+  genuinely belongs to `house` AND `groove`) — the B6 diversity guard
+  counts a family-run hit if ANY of a track's families continues the run;
+  softer and fairer than primary-only.
+
+### 5b.3 The FullTags-owned pipeline (what "FullTags fixes it" concretely means)
+
+All stages write to ledgers/DB FullTags owns; `--apply` gates and the
+ground-truth philosophy unchanged.
+
+1. **Refold** (§5, now with the measured target: **105 labels cover 90%**;
+   the alias table is small and finite). Split multi-label strings on
+   `/ , &` into ranked secondaries (389 rows healed here).
+2. **Demote-and-flag pass**: sources get trust weights from the measured
+   table (RB 0.62, ingest 0.59, SC free-text lowest); rows whose label
+   disagrees with a unanimous kNN consensus get `genre_flag='disputed'` —
+   NOT rewritten (a human decision), but excluded from inference seeding
+   so one bad label poisons fewer votes.
+3. **Inference for the unlabeled 203** (+ liked-videos as embeddings
+   land): existing `inferGenre` at k=5, minAgreement 0.6 — now
+   benchmark-validated (76.5% ceiling measured). `--apply` fills empty
+   columns only; disputed/no-quorum stay honest gaps.
+4. **Periodic `megadj genre --eval`** (new, small): re-runs the
+   leave-one-out harness over the live DB and prints agreement +
+   vote-strength distribution — the regression test for label hygiene.
+   If refold/inference makes things worse, the number says so. Targets:
+   LOO >80% after refold (from 76.5%), disputed share <10%.
+5. **Embedding-neighborhood labels (later, the deep fix)**: cluster the
+   3,415 vectors; coherent clusters _propose_ canonical labels from their
+   members' consensus, reviewed by a human — new sub-genres enter the
+   taxonomy from audio reality, not tag folklore.
+
+### 5b.4 What NOT to build
+
+- No `genre_raw` schema migration — the fetch ledger already preserves
+  provenance; a second copy invites drift (house rule: one source of truth).
+- No tag-space multi-genre (breaks hardware/interop, §5b.2).
+- No third-party genre APIs / LLM classification — measured consensus beats
+  both, locally and free.
+- No auto-relabeling of disputed rows — flagged-but-untouched is the honest
+  state; relabeling is a human decision.
+
+### 5b.5 Effort & order
+
+| Step                                         | Size   | Depends on                          |
+| -------------------------------------------- | ------ | ----------------------------------- |
+| Refold + alias SSOT + multi-label split      | S      | —                                   |
+| Ranked secondary storage (`track_genres`)    | S–M    | refold                              |
+| Disputed-flag pass + source trust weights    | S      | refold                              |
+| `--eval` harness as a reusable command       | S      | — (this doc's harness, productized) |
+| Inference for unlabeled (k=5 pinned by eval) | exists | —                                   |
+| Cluster-proposed labels                      | M      | everything above, later             |
+
 ## 6. Bonus: vocal display on the XDJ-XZ (the hardware question)
 
 The XDJ-XZ shows **memory-cue marks with rekordbox-set colors** on both
