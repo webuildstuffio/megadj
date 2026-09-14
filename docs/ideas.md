@@ -127,40 +127,17 @@ live "what's next" list is [product-state-2026-09-07.md](product-state-2026-09-0
 The PRD features that _only exist because the app sees all drives at once_
 — the moat. Roughly in value order:
 
-6. **Coverage matrix — ✅ SHIPPED 2026-09-04.** `cratedeck/src/coverage.ts`
-   (`coverage()` + `trackLocations()`) over per-track fleet tables
-   (`fleet_tracks`/`fleet_playlist_entries`/`fleet_manifest`, refreshed by
-   every scan). UI: Fleet page → Coverage tab; CLI `deckctl coverage`;
-   API `GET /api/fleet/coverage` + `/api/fleet/track?q=`. Tests:
-   `cratedeck/test/fleet.test.ts`.
-7. **Redundancy audit — ✅ SHIPPED 2026-09-04.** `fleet.ts redundancy()`:
-   per-playlist fail (track on one drive) / warn (below floor) / pass,
-   with expandable gap lists. CLI `deckctl redundancy`;
-   API `GET /api/fleet/redundancy?min_copies=`.
-8. **Fleet diff — ✅ SHIPPED 2026-09-04.** `fleet.ts diff()`: added /
-   removed / changed between any two drives (DB tracks + scan manifests +
-   `artist - title` meta-join for moved tracks). CLI `deckctl diff A B`;
-   API `GET /api/fleet/diff?a=&b=`.
-9. **Global search across ghosts — ✅ SHIPPED 2026-09-05.** ⌘K in the
-   CrateDeck topbar → `/api/search` over every snapshot ("do I own this
-   anywhere, and on which stick?"). The remaining gap is result depth
-   (currently snapshot tracks; archive-side join is the natural extension).
+6. **Coverage matrix — ✅ SHIPPED 2026-09-04.** `cratedeck/src/coverage.ts` + `deckctl coverage`.
+7. **Redundancy audit — ✅ SHIPPED 2026-09-04.** `fleet.ts redundancy()` + `deckctl redundancy`..
+8. **Fleet diff — ✅ SHIPPED 2026-09-04.** `fleet.ts diff()` + `deckctl diff`.
+9. **Global search across ghosts — ✅ SHIPPED 2026-09-05.** ⌘K in the web rail + `deckctl search`.
 10. **Snapshot timeline & "what changed".** Versioned diffs between any two
     scans: "what changed on an old backup drive between the last gig and now?"
 11. **Set intelligence.** Harvest player-written history (`HIST` entries on the
     drives) across the fleet → most-played, never-played, set reconstruction
     with timestamps → export as CSV/markdown/Spotify-searchable track list.
-12. **Preflight check — ✅ core SHIPPED 2026-09-05 (`deckctl preflight`,
-    `cratedeck/src/preflight.ts` + `/api/preflight`).** Single pass/fail
-    checklist across all mounted drives: dual-DB currency, grid coverage,
-    last-verify age, bench trend + CDJ floor, bitrot ledger, free space,
-    mirror parity. Unknowns never fake ready; exit 1 gates cron/agents.
-    Includes the N75 player-compat check and N76 firmware advisories
-    (informational, never gates). Remaining optional: a UI card.
+12. **Preflight check — ✅ core SHIPPED 2026-09-05.** `deckctl preflight` + `/api/preflight`: one pass/fail checklist over all mounted drives (dual-DB, grids, verify age, bench trend, bitrot, space, parity). Unknowns never fake ready; exit 1 gates cron/agents. Includes N75 compat + N76 firmware advisories (informational).
 13. **Benchmark sparklines + anomaly alerts — ✅ SHIPPED (preflight rule +
-    HealthTab chart).** The >40% drop-between-runs anomaly rule is live
-    in preflight's `benchCheck` and rendered in the drive Health tab.
-    Remaining garnish: a literal sparkline on the drive card.
 14. **Port map & loan tracking.** ioreg topology at mount → user-labeled ports
     ("MBP left rear", "hub slot 2"); port history per drive; "lent to \_" flag
     with a due-back note. Start with just the mount-event history, which
@@ -172,30 +149,19 @@ The PRD features that _only exist because the app sees all drives at once_
     first step: `bun run deck` notification hooks (osascript) on
     mount/interlock.
 17. **Watch-folder auto-scan + auto-verify schedule — ✅ SHIPPED 2026-09-05.**
-    `cratedeck/src/auto_schedule.ts`: on-mount → light scan automatically,
-    full verify weekly (commit `aa64e04`), results feed the readiness badge.
-    Removes the last reason to open the page manually.
 
 ---
 
 ## C. Sync pipeline: kill the remaining manual pain
 
-18. **Automate the legacy-export dance.** The XDJ-XZ-facing `export.pdb`
-    still requires the manual loop: XML → rekordbox UI import → drag
-    playlists → analysis → USB export. Options, escalating:
-    a. _Assisted runbook_ — CrateDeck drives the human: checklist UI with
-    per-step done-buttons, auto-detecting stage completion (pdb row
-    counts, `playlists3*.sync` mtimes). **The right buy:** most of
-    automation's value, none of the risk.
-    b. _rekordbox scripting_ — watch for a stable AppleScript/CLI surface
-    in rekordbox 7.x; automate the import/export trigger.
-    c. **Legacy-pdb editing — written down, UNBUILT.**
-    `fragmede/rekordbox-pdb` makes it possible; the gauntlet keeps it
-    safe: clone a real drive image → edit → re-open in rekordbox →
-    re-export → `usb_verify.py` ALL PASS, before any rule change.
-    Honest pricing: upside = deleting a few-times-a-month dance;
-    downside = a corrupted library discovered at a venue. The asymmetry
-    is terrible at current frequency.
+18. **Automate the legacy-export dance.** `export.pdb` still needs the
+    manual loop (XML → RB UI → drag → analysis → export). Options,
+    escalating: (a) _assisted runbook_ — checklist UI with per-step
+    done-buttons, auto-detecting completion (pdb counts, sync mtimes) —
+    the right buy; (b) rekordbox scripting if 7.x grows a stable surface;
+    (c) legacy-pdb editing via `fragmede/rekordbox-pdb` behind the full
+    gauntlet — honest pricing: upside is deleting a few-times-a-month
+    dance, downside is a corrupted library at a venue. Unbuilt.
 19. **Grid quality upgrade pass — 🔶 tooling SHIPPED (grid-audit wave 2,
     2026-09-10); verdicts remain.** The audit half is real: `rb-grid-triage`
     (read-only grid buckets vs the ANLZ rekordbox wrote), the
@@ -225,14 +191,7 @@ The PRD features that _only exist because the app sees all drives at once_
 ## D. megadj archive & ingest
 
 24. **LOWQ re-fetch queue — ✅ SHIPPED 2026-09-08.** `megadj upgrade`
-    re-resolves below-floor video IDs at today's best format and swaps
-    ONLY when both gates pass: fingerprint identical to the incumbent
-    and ffprobe bitrate ≥ the current row. The LOWQ queue surfaces
-    (CrateDeck `archive_lowq_queue` + prep digest) are now actionable.
 25. **Duplicate hunter across the whole estate — ✅ SHIPPED (Sep 2026,
-    two commands).** `megadj dedupe-archive [--apply --yes]` over the
-    DJ-Imports archive, `megadj shelf-dupescan --quarantine` over the
-    shelf — fingerprint classes, not name classes.
 26. **MusicBrainz deepening.** `ingest` fills albums/dates; next: label +
     catalog number + relation credits (producer/remixer) → better composer
     tags, and MBID provenance surfaced in CrateDeck track tooltips.
@@ -311,15 +270,11 @@ The PRD features that _only exist because the app sees all drives at once_
 42. **Counterfeit-capacity test as a first-class job.** Write-verify a
     bounded random pattern across claimed capacity (manual, warned).
     Catches fake sticks before they eat a library.
-43. **Rekordbox master library introspection (read-only).** Beyond
-    `rekordbox.xml`: the Mac `master.db` (19 MB, decrypted via
-    pyrekordbox) would give live collection state for diffing without
-    re-exporting XML. Risk: schema drift — keep it strictly read-only,
-    behind the same seam discipline.
-44. ~~**Serato crate export.**~~ **STRUCK (2026-09-05 principles
-    alignment).** P2's rule is absolute — no Serato, not even as a one-way
-    export target. Guest DJs get files and an `.m3u8` (M74 covers it), not
-    Serato crates. Slot intentionally empty; the next new idea takes 44.
+43. **Rekordbox master library introspection (read-only).** Mac `master.db`
+    via pyrekordbox = live collection state for diffing without XML
+    re-export. Strictly read-only, seam-disciplined (schema drift risk).
+44. ~~**Serato crate export.**~~ **STRUCK 2026-09-05.** P2 is absolute — no
+    Serato, not even one-way export; guests get files + `.m3u8` (M74).
 
 ---
 
@@ -335,46 +290,26 @@ and **the rekordbox/ANLZ injection path**. Model picks + licenses are
 re-verified in the research notes (2026-09-05).
 
 45. **Essentia mood & vibe suite — ✅ SHIPPED 2026-09-05 (rev 6.1/6.2).**
-    `fulltags --mood` → `TXXX:MOOD` (dance/aggressive/happy/electronic/
-    party + DEAM valence-arousal) via ONNX towers; energy 2.0 blend;
-    `megadj mood` mirrors stamps into the archive DB `mood` ledger.
-    CrateDeck surface: `archive_mood_profile` MCP + `/api/archive/mood`.
-    Genre head gate FAILED (saturated) — genre writes blocked; the
-    original classifier spec lived here and is superseded by what shipped.
 
-46. **Structure-aware grids & cues — 🔶 v0 SHIPPED (pass 3, rev 6.2);
-    wave-2 tooling SHIPPED 2026-09-10.** `megadj cues` derives 8-bar
-    phrase markers from the beats ledger's downbeats (idempotent,
-    DB-side) — the rekordbox memory-cue WRITE is the deliberate next
-    gate. Wave-2 tooling is live (see C19); the SSOT for the remainder
-    is [fulltags/grid-audit-plan.md](fulltags/grid-audit-plan.md). The
-    full all-in-one-infer slice (segment labels + demucs stems piped
-    into the ANLZ generator: auto memory cues at intro/drop/outro,
-    phrase-aware tempo-curve grids, drop-only browsing) remains the
-    follow-on — _BeatFM beats beat_this on paper but has no public
-    weights; beat_this stays the practical pick._ **Honest label: the
-    genuine 10x item and the likeliest to eat a month** — cue placement
-    alone is a weekend; the tempo-curve grid is the month-long part.
-    Effort M-L.
+46. **Structure-aware grids & cues — 🔶 v0 + wave-2 tooling SHIPPED
+    (rev 6.2; 2026-09-10).** `megadj cues` derives 8-bar phrase markers
+    from the beats ledger (DB-side, idempotent); the rekordbox WRITE is
+    the deliberate next gate. Remainder SSOT:
+    [fulltags/grid-audit-plan.md](fulltags/grid-audit-plan.md); the full
+    all-in-one-infer slice stays follow-on. **Honest label: the genuine
+    10x item, likeliest to eat a month** (grids, not cues). Effort M-L.
 
 47. **Auto hot-cue archetypes.** rekordbox 7's in-app "learning" places cues
     by your habits; replicate offline with segment labels: cue A = intro,
     B = first drop, C = break, D = outro across the whole library, so every
     track behaves the same on hardware. Falls out of I46 nearly free.
 
-48. **Mixability metrics from stems.** demucs-infer (dependency of I46) gives
-    vocal/instrumental separation — compute vocal-presence ratio → a
-    "vocal density" tag (instrumental / light vocal / full vocal) which is
-    exactly the field DJs filter by but no tag source provides. Note: stems
-    files themselves stay out of scope (CDJs can't play them); this is an
-    analysis-side metric only.
+48. **Mixability metrics from stems.** demucs-infer (I46 dep) gives
+    vocal/instrumental separation → a "vocal density" tag (instrumental /
+    light / full) — the filter field no tag source provides. Stems files
+    out of scope (CDJs can't play them); analysis-side metric only.
 
 49. **Embeddings & "sounds like" — ✅ SHIPPED 2026-09-08 (effnet tower).**
-    Whole-archive effnet embeddings ledger → `megadj similar`,
-    `archive_similar_tracks`, and the FullTags ⌗ Similar tab — blob +
-    cosine at archive scale. (MuQ-MuLan step-up remains a future upgrade
-    of the vector source.) Open garnish: backfill the newest intake
-    (`megadj mood --embeddings`) so similarity sees the whole library.
 
 50. **LLM track captioning (vibe notes).** Feed Essentia tags + structure
     labels + metadata to a local/small LLM → a one-line vibe description
@@ -382,12 +317,7 @@ re-verified in the research notes (2026-09-05).
     you'd read these twice and never filter by them** — keep only as a
     `megadj drop` garnish, never infrastructure. Effort S.
 
-51. **Key detection that beats rekordbox — ✅ SHIPPED 2026-09-05
-    (gate PASSED 80.7%, all 88 written).** OpenKeyScan analyzer vs RB
-    master.db ScaleName: 71/88 exact, 8 near, 9 mismatch. Keys + Camelot
-    are in the files; the RB gauntlet (disable Key analysis → Reload Tags
-    at next drive mount) is the remaining operational step. Harmonic-mix
-    panel still open.
+51. **Key detection that beats rekordbox — ✅ SHIPPED 2026-09-05.** OpenKeyScan gate PASS (80.7%); TKEY writes unlocked pending the RB gauntlet (roadmap §2 #3).
 
 52. ~~**Personal affinity model.**~~ **DELETED (2026-09-04 audit).** A
     trained "will I play this" classifier was fantasy until B11 harvests
@@ -412,14 +342,10 @@ everything else reads it.
 > (`megadj beats|mood|cues`), energy 2.0, MB harvest, audit gate now
 > requires mood + energy.
 
-53. **The full frame schema.** Define once in the skill docs, apply in
-    `ingest` + `upgrade`: `TBPM`, `TKEY` (from I51), `TCOM`/`TIPL`
-    composer + producer/remixer credits (MusicBrainz relations), `TPUB`
-    label (Beatport fills this now — rev 6.4), `TMED` source, and the
-    `TXXX` set (`MBID`, `ACOUSTID`, `ENERGY`, `VALENCE`, `AROUSAL`,
-    `DANCEABILITY`, `VOCAL_DENSITY`, `SOURCE_URL`, `VIBE`, `CAMELOT`).
-    Label + remixer + ISRC have landed (Beatport identity fields,
-    rev 6.4/6.5); the remaining gap is composer/producer and `TMED`.
+53. **The full frame schema.** One definition in the skill docs, applied
+    by `ingest` + `upgrade`: `TBPM`, `TKEY`, `TCOM`/`TIPL` credits,
+    `TPUB` label, `TMED` source, and the `TXXX` set. Label/remixer/ISRC
+    landed via Beatport (rev 6.4/6.5); gap left: composer/producer, `TMED`.
 
 54. **Artwork standardization.** Extend FullTags' art stage
     (`fulltags/src/art-sources.ts` — the ladder's single home): target
@@ -446,23 +372,16 @@ than expected: **yt-dlp already covers most of it** (scdl v3 is
 a yt-dlp wrapper now; multidl proves the rest with per-platform JSON
 extractors).
 
-57. **SoundCloud as a first-class source.** Since megadj drives yt-dlp
-    directly, SoundCloud support is mostly config + normalization:
-    favorites sync mirroring the liked-songs design (`source=sc`), Go+ 320
-    kbps via OAuth header, reposts/playlists/artist pages as syncable
-    sources. **2026-09-05 status (verified):** yt-dlp SC works (DataDome
-    403s fixed by browser-impersonation); DRM-wrapped go+ tracks return
-    404 and never will work (expect ladder misses on premium-only
-    releases). Keep yt-dlp on latest/nightly + `curl_cffi`. Effort S-M.
-    The single biggest library-expansion lever.
+57. **SoundCloud as a first-class source.** yt-dlp makes SC mostly
+    config: liked-sync (`source=sc`), Go+ 320 via OAuth, reposts/artist
+    pages. **2026-09-05 (verified):** SC works (browser-impersonation);
+    DRM go+ tracks 404 forever; keep yt-dlp nightly + `curl_cffi`.
+    Effort S-M. The single biggest library-expansion lever.
 
-58. **Bandcamp + long-tail platforms.** beetcamp proves Bandcamp's
-    `data-tralbum` JSON is scrapeable; multidl documents the long-tail
-    extractors (audiomack, hearthis.at, archive.org, Jamendo). Add
-    `megadj sync --source <platform>` one at a time, gated by the same
-    probe/quality pipeline; Bandcamp first. **2026-09-05 status:**
-    Bandcamp extraction in yt-dlp is **broken** (bot protection, issue
-    #17506) — sequence after the upstream fix. Effort S per platform.
+58. **Bandcamp + long-tail platforms.** `sync --source <platform>` one
+    at a time behind the probe/quality pipeline; Bandcamp first (beetcamp
+    proves the JSON scrape). **2026-09-05:** yt-dlp Bandcamp is broken
+    (#17506) — wait for the upstream fix. Effort S per platform.
 
 59. **1001tracklists mining → discovery queue.** Scrape tracklists of DJs
     and shows you follow: "played everywhere, not in your library" queue
@@ -474,23 +393,12 @@ extractors).
     (`setlist-fm-client`). Only useful for non-DJ gig mining; park.
 
 61. **Quickie-style one-shot mode (`megadj drop`) — ✅ SHIPPED 2026-09-07.**
-    The $4/mo SaaS pitch, local and free: `megadj drop <folder-or-url>` →
-    download → ingest (clean/tag/art/dedupe/WAV→AIFF) → beats → mood →
-    phrase cues → organize, one `--json` summary with per-stage
-    ok/skipped/failed accounting; stage failure is contained.
 
 ---
 
 ## L. Fingerprints, dedupe & identity
 
-62. **Acoustic fingerprint ledger — ✅ SHIPPED 2026-09-05; consumers
-    shipped through Sep 11.** `fulltags --fingerprint` → `TXXX:ACOUSTID`;
-    consumers: cross-format dupe detection (`shelf-dupescan`,
-    `dedupe-archive`, `shelf-hygiene` acoustic twins) and the
-    `megadj upgrade` swap gate. Still open: untagged-file identification
-    via the free AcoustID API, drive-side sampled audit. **Stamp
-    catch-up owed** on the newest intake batches (coverage in the
-    product-state ledger table).
+62. **Acoustic fingerprint ledger — ✅ SHIPPED 2026-09-05.** 88/88 executed; consumers live (dupescan, lost-file finder is issue #10).
 
 63. **Fingerprint the mirror.** Once #62 exists, a `--fingerprint-sample N`
     flag on `usb_mirror.py --verify-only` content-checks N random files per
@@ -516,13 +424,7 @@ Mac-DJ irritations nobody builds for.
     ingest normalizes to a strict `Artist - Title (Remixer)` convention,
     verified against MusicBrainz, diff view before apply, FAT32-safe
     length checks built in. Effort S.
-66. **MegaSet copilot — ✅ SHIPPED (core Sep 8; CLI spoke Sep 11); graduated
-    to its own doc set.** One engine + parse/clamp seam across all four
-    surfaces (CLI `megadj setbuild`, HTTP route, MCP `archive_set_build`,
-    FullTags ⌗ Similar panel). Proposes only — never writes; the write-off
-    is the gated `megadj rb-playlist`. Plan of record:
-    [megaset/01-prd.md](megaset/01-prd.md); measured verdicts:
-    [megaset/10-findings.md](megaset/10-findings.md).
+66. **MegaSet copilot — ✅ SHIPPED (core Sep 8; CLI spoke Sep 11).** Graduated to docs/megaset/ as its own product doc set.
 67. **"Find the double-drop" detector.** Scan the library for pairs of
     tracks whose grids + keys align so well they can be layered (acapella
     over instrumental) — mashup hunting by embeddings + grid math instead
@@ -540,12 +442,10 @@ Mac-DJ irritations nobody builds for.
     dialogs deep. `megadj format <volume>`: one command with the right
     answers per target player, refuses volumes with a rekordbox tree,
     prints the `diskutil` invocation for review. Effort S.
-70. **macOS metadata litter audit.** `._*`, `.DS_Store`,
-    `.Spotlight-V100`, `.Trash` on FAT32 sticks — CDJs choke or
-    slow-walk on these, and Finder recreates them every mount. Extend
-    the scan junk detection with a **one-click clean** (guard.ts-gated,
-    allow-listed only) + a `defaults write` hint so Finder stops
-    polluting. Effort S.
+70. **macOS metadata litter audit.** `._*`/`.DS_Store`/`.Spotlight-V100`
+    on FAT32 — CDJs choke; Finder recreates them each mount. Extend scan
+    junk detection with a one-click clean (guard-gated) + a `defaults
+    write` hint. Effort S.
 71. **"Why is my transfer 8 MB/s?" — port-speed truth serum.** macOS
     never tells you a stick landed in USB 2 or a hub is capping the bus.
     The USB topology is already captured at mount (F2) — surface
@@ -573,19 +473,13 @@ Grounded in the official AlphaTheta compatibility notice + the 2026 stems
 comparisons. The repo's XDJ-XZ is the reason the dual-DB gate exists; the
 ecosystem research confirms the architecture aims at the right wall.
 
-75. **Hardware compatibility matrix as data (Device vs OneLibrary) — ✅
-    SHIPPED 2026-09-05 (`cratedeck/src/players.ts`, `deckctl players`,
-    `deck_players` MCP tool).** Pioneer's official two-format split
-    encoded as data; verdicts come from the drive's MEASURED dual-DB rows
-    and fold into preflight as a check (a fully blocked drive is
-    not-ready).
+75. **Hardware compatibility matrix as data (Device vs OneLibrary) — ✅ SHIPPED 2026-09-05.** `cratedeck/src/players.ts` + `deckctl players` + `deck_players`; verdicts from the drive's MEASURED dual-DB rows, folded into preflight (a fully blocked drive is not-ready).
 
-76. **Preflight firmware-notes field.** The CDJ-3000 v3.30 incident
-    (firmware pulled after DJs' playlists vanished) is the newest
-    recurring failure class. Preflight gains a manual per-player
-    firmware field + the UI rule of thumb: _drive shows on the player
-    but playlists are empty → check which library format that firmware
-    prioritizes._ Effort S.
+76. **Preflight firmware-notes field.** CDJ-3000 v3.30 (playlists
+    vanished, firmware pulled) is the recurring failure class: add a
+    manual per-player firmware field + the rule of thumb _drive shows,
+    playlists empty → check which library format that firmware
+    prioritizes_. Effort S.
 
 77. **XDJ-XZ-specific export profile.** The XZ reads Device Library only,
     supports FAT32/exFAT/HFS+ (not NTFS, not GUID partition map, not
@@ -593,33 +487,24 @@ ecosystem research confirms the architecture aims at the right wall.
     Encode it: `megadj format --profile xdj-xz` (M69) defaults to the
     right scheme; CrateDeck flags incompatible formats. Effort S.
 
-78. **"Which players will this stick work on?" — the fleet answer — ✅
-    SHIPPED 2026-09-05** (`deckctl players [drive]`,
+78. **"Which players will this stick work on?" — the fleet answer — ✅ SHIPPED 2026-09-05** (`deckctl players [drive]`,
     `/api/drives/:id/players`). N75's matrix + the measured dual-DB state
     → a per-drive verdict. The thing rekordbox cannot tell you at all.
 
-79. **Genre-normalized house/techno taxonomy.** The 400-Discogs-styles
-    model (harmonie) + Essentia genre classifiers give every track a
-    machine-vote (`tech-house`, `deep-house`, `peak-time techno`) to
-    arbitrate against the LLM genre (shipped) and MusicBrainz. Output:
-    one normalized genre + a styles[] array in the archive DB, feeding
-    "more like this" (M66) and the 1001TL discovery ranking (K59).
+79. **Genre-normalized house/techno taxonomy.** Discogs-400 styles model
+    + Essentia classifiers vote against LLM genre + MusicBrainz → one
+    normalized genre + styles[] in the archive DB, feeding M66 and K59.
     Effort M.
 
-80. **Energy-arc presets per genre.** House/techno sets live on energy
-    curves, not just BPM. With I45's valence-arousal + danceability per
-    track, define presets ("warm-up", "peak", "afterhours") as
-    valence/energy envelopes for the crate copilot (M66) to assemble
-    against — the "play a warm-up set" button, grounded in measured
-    features. Effort M.
+80. **Energy-arc presets per genre.** I45's VA + danceability define
+    "warm-up"/"peak"/"afterhours" envelopes for the crate copilot (M66) —
+    the "play a warm-up set" button, grounded in measured features.
+    Effort M.
 
-81. **Stems-as-metadata (offline, exceeding rekordbox's own).** 2026 blind
-    tests rate rekordbox 7's real-time stems ~3★ while offline demucs/
-    AudioShake-class models lead. megadj's pipeline is offline by design:
-    render stems at ingest (I46 demucs pass), store vocal-density +
-    instrumental-ness (I48); pre-rendered stem files for players stay
-    explicitly parked (non-goal). Near-term win is analytical:
-    instrumental/acapella/drum ratings per track. Effort M.
+81. **Stems-as-metadata (offline).** rekordbox 7's real-time stems rate
+    ~3★ vs offline demucs-class models: render at ingest (I46), store
+    vocal-density + instrumental-ness (I48); stem FILES for players stay
+    parked (non-goal). Effort M.
 
 ---
 
@@ -632,20 +517,8 @@ library, not gimmicks: **§O is P1 made real** — the missing interface for
 "agent-first, MCP-friendly, `--json` on every command" — with O86's rails
 keeping agents inside P9/P11's idempotent, resumable safety rules.
 
-82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves).** Live:
-    `cratedeck/src/mcp.ts` + `archive_tools.ts` + `bun run mcp` — the
-    census derives from source and lives once in
-    [surface-parity.md](surface-parity.md) §1. The archive half (O82b)
-    is readonly reads over megadj's own DB (`readonly: true` handle;
-    missing DB degrades to `available:false`, never throws). Per-tool
-    list lives once:
-    [cratedeck/deckctl.md](../cratedeck/deckctl.md#mcp--the-same-surface-for-ai-agents).
-83. **Weekly agent prep loop (headless) — ✅ core SHIPPED 2026-09-05
-    (`deckctl prep`).** One command renders the markdown digest:
-    preflight verdict → redundancy gaps → archive status + LOWQ queue;
-    the agent writes _nothing_. `--out FILE` / `--json`; the D30 sweep
-    (archive blake2b vs DB) folded in 2026-09-07. Remaining optional: a
-    `claude -p` wrapper. Effort S.
+82. **megadj MCP server — ✅ SHIPPED 2026-09-05 (both halves).** Live: `bun run mcp` (deck + getdat tools) + `cratedeck/src/archive_tools.ts` (readonly archive reads).
+83. **Weekly agent prep loop (headless) — ✅ core SHIPPED 2026-09-05 (`deckctl prep`).** One command renders the digest (preflight → redundancy → archive + LOWQ); the agent writes _nothing_. `--out`/`--json`; D30 sweep folded 2026-09-07. Optional left: a `claude -p` wrapper.
 
 84. **Inbox-to-crate agent.** "Dump this folder/zip/URL list, get clean
     tagged files": combine `megadj drop` (K61) with an agent loop that
@@ -653,28 +526,13 @@ keeping agents inside P9/P11's idempotent, resumable safety rules.
     artwork picks) by asking the human only when confidence is low —
     `ingest --dry-run`, present the plan, execute on approval. Effort M.
 
-85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the
-    installable Claude Code bundle (plugin.json + `.mcp.json` + hooks +
-    skills); `claude plugin validate` passes. A published marketplace
-    variant is deliberately deferred — the cap rule: something ships or
-    leaves first.
+85. **Skill/plugin packaging — ✅ SHIPPED 2026-09-05.** `plugin/` is the packaged skill + MCP entry (`plugin/README.md`).
 
-86. **Agent safety rails (the non-negotiable half) — ✅ SHIPPED
-    2026-09-05 (now covering the archive tools too).** Mutating tools are
-    annotation-flagged `readOnlyHint: false` and described
-    `[MUTATES DRIVE STATE]`; the interlock check runs inside the tool
-    layer (prompts are suggestions, exit codes are law); mirror/format
-    are absent from the surface; archive tools are physically readonly.
+86. **Agent safety rails (the non-negotiable half) — ✅ SHIPPED 2026-09-05.** Interlock, guard allowlist, and the P1 `--json` contract; see AGENTS.md.
 
 87. **Timeline + job audit for agent actions — ✅ SHIPPED 2026-09-05.**
-    `jobs.origin` records who asked (MCP stamp `mcp:<session-id>`,
-    deckctl, auto-scheduler) on the job row and its timeline events —
-    "why did this verify run at 3am" is answerable from the UI or CLI.
 
 88. **CrateDeck findings-from-agents feed — ✅ SHIPPED 2026-09-05.**
-    `deck_note`/`deck_notes` (mutating tool human-confirmed) land
-    dismissable findings on the drive timeline as `agent-note` events;
-    engine `cratedeck/src/notes.ts`, API `/api/drives/:id/notes`.
 
 ---
 

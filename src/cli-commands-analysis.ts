@@ -1,5 +1,11 @@
 import type { CliCommandHandler } from "./cli-command";
-import { firstPositional, nonNegOpt, numOpt, parseFlags } from "./cli-flags";
+import {
+  firstPositional,
+  nonNegOpt,
+  nonNegOptInvalid,
+  numOpt,
+  parseFlags,
+} from "./cli-flags";
 import { isSetSearchOverride } from "../cratedeck/shared/types";
 import { writeJson } from "./shared/cli-output";
 
@@ -9,14 +15,10 @@ const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
     ["limit", "jobs", "max-seconds"],
     ["force", "dry-run", "json"],
   );
+  if (nonNegOptInvalid(flags, "limit")) return;
   const limit = nonNegOpt(flags, "limit", "beats");
-  if (limit === undefined && flags.strings.get("limit") !== undefined) return;
+  if (nonNegOptInvalid(flags, "max-seconds")) return;
   const maxSeconds = nonNegOpt(flags, "max-seconds", "beats");
-  if (
-    maxSeconds === undefined &&
-    flags.strings.get("max-seconds") !== undefined
-  )
-    return;
   const { beats: analyzeBeats } = await import("./fulltags/beats");
   await analyzeBeats({
     state,
@@ -36,8 +38,8 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
     ["limit", "jobs"],
     ["force", "dry-run", "json", "embeddings"],
   );
+  if (nonNegOptInvalid(flags, "limit")) return;
   const limit = nonNegOpt(flags, "limit", "mood");
-  if (limit === undefined && flags.strings.get("limit") !== undefined) return;
   const { mood: analyzeMood } = await import("./fulltags/mood");
   await analyzeMood({
     state,
@@ -76,11 +78,10 @@ const setbuild: CliCommandHandler = async (rest) => {
     ["preset", "minutes", "opener", "limit", "search"],
     ["json"],
   );
+  if (nonNegOptInvalid(flags, "minutes")) return;
   const minutes = nonNegOpt(flags, "minutes", "setbuild");
-  if (minutes === undefined && flags.strings.get("minutes") !== undefined)
-    return;
+  if (nonNegOptInvalid(flags, "limit")) return;
   const limit = nonNegOpt(flags, "limit", "setbuild");
-  if (limit === undefined && flags.strings.get("limit") !== undefined) return;
   // the A/B hook (E7): same contract as the HTTP ?search= / MCP search
   // param — but a CLI typo must fail loudly (exit 2, zero work), not
   // silently compare the automatic pick against itself
@@ -109,8 +110,8 @@ const genre: CliCommandHandler = async (rest, { state }) => {
     ["k", "min-agreement"],
     ["apply", "eval", "no-duration-guard", "json"],
   );
+  if (nonNegOptInvalid(flags, "k")) return;
   const k = nonNegOpt(flags, "k", "genre");
-  if (k === undefined && flags.strings.get("k") !== undefined) return;
 
   const minAgreementRaw = flags.strings.get("min-agreement");
   let minAgreement: number | undefined;
@@ -139,8 +140,8 @@ const genre: CliCommandHandler = async (rest, { state }) => {
 
 const cues: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["limit"], ["force", "dry-run", "json"]);
+  if (nonNegOptInvalid(flags, "limit")) return;
   const limit = nonNegOpt(flags, "limit", "cues");
-  if (limit === undefined && flags.strings.get("limit") !== undefined) return;
   const { cues: generateCues } = await import("./fulltags/cues");
   await generateCues({
     state,

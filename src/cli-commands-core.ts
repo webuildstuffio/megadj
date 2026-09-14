@@ -1,7 +1,12 @@
 import type { OrganizeOptions } from "./getdat/commands/organize";
 import { sync } from "./getdat/commands/sync";
 import { RateLimiter } from "./getdat/ratelimit";
-import { firstPositional, nonNegOpt, parseFlags } from "./cli-flags";
+import {
+  firstPositional,
+  nonNegOpt,
+  nonNegOptInvalid,
+  parseFlags,
+} from "./cli-flags";
 import type { CliCommandHandler } from "./cli-command";
 import { listJson, listTracks, status, statusJson } from "./shared/status";
 import { writeJson, writeJsonText } from "./shared/cli-output";
@@ -40,14 +45,10 @@ const syncCommand: CliCommandHandler = async (rest, context) => {
         `  (backoff #${attempt}: ${(ms / 1000).toFixed(1)}s — ${reason.slice(0, 60)})\n`,
       ),
   });
+  if (nonNegOptInvalid(flags, "limit")) return;
   const limit = nonNegOpt(flags, "limit", "sync");
-  if (limit === undefined && flags.strings.get("limit") !== undefined) return;
+  if (nonNegOptInvalid(flags, "target-total")) return;
   const targetTotal = nonNegOpt(flags, "target-total", "sync");
-  if (
-    targetTotal === undefined &&
-    flags.strings.get("target-total") !== undefined
-  )
-    return;
 
   const sources = (flags.strings.get("sources") ?? "LM")
     .split(",")
@@ -165,8 +166,8 @@ const ingest: CliCommandHandler = async (rest, { state, musicDir }) => {
 
 const upgrade: CliCommandHandler = async (rest, context) => {
   const flags = parseFlags(rest, ["limit"], ["dry-run", "json"]);
+  if (nonNegOptInvalid(flags, "limit")) return;
   const limit = nonNegOpt(flags, "limit", "upgrade");
-  if (limit === undefined && flags.strings.get("limit") !== undefined) return;
   const { upgrade: upgradeTracks } = await import("./getdat/commands/upgrade");
   await upgradeTracks({
     state: context.state,

@@ -91,6 +91,15 @@ export function nonNegOpt(
   return n;
 }
 
+/** The invalid-raw signal, shared with callers that must distinguish
+ *  "flag absent" (keep going with defaults) from "flag present but bad"
+ *  (loud exit 2, zero work). One seam so the guard pair
+ *  `if (v === undefined && flags.strings.get(k) !== undefined) return;`
+ *  — repeated at every numeric-flag call site — has one home. */
+export function nonNegOptInvalid(flags: ParsedFlags, key: string): boolean {
+  return flags.strings.has(key) && nonNegOpt(flags, key, "") === undefined;
+}
+
 /** First positional argument (skips flags and the command word itself). */
 export function firstPositional(
   args: string[],

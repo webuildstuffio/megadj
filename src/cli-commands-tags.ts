@@ -1,5 +1,11 @@
 import type { CliCommandHandler } from "./cli-command";
-import { firstPositional, nonNegOpt, numOpt, parseFlags } from "./cli-flags";
+import {
+  firstPositional,
+  nonNegOpt,
+  nonNegOptInvalid,
+  numOpt,
+  parseFlags,
+} from "./cli-flags";
 import { writeJson } from "./shared/cli-output";
 import { FETCH_TARGETS, type FetchTarget } from "./fulltags/fetch-target";
 
@@ -39,12 +45,8 @@ const drop: CliCommandHandler = async (rest, context) => {
     ["drop", "target", "max-beat-seconds"],
     ["dry-run", "no-mood", "no-fetch", "ai-fallback", "json"],
   );
+  if (nonNegOptInvalid(flags, "max-beat-seconds")) return;
   const maxBeatSeconds = nonNegOpt(flags, "max-beat-seconds", "drop");
-  if (
-    maxBeatSeconds === undefined &&
-    flags.strings.get("max-beat-seconds") !== undefined
-  )
-    return;
   const target = firstPositional(rest, "drop") ?? flags.strings.get("target");
   if (!target) {
     console.error(
@@ -87,8 +89,8 @@ const fetchCommand: CliCommandHandler = async (rest) => {
     ["jobs"],
     ["art", "genres", "tags", "years", "all", "ai-fallback", "dry-run", "json"],
   );
+  if (nonNegOptInvalid(flags, "jobs")) return;
   const jobs = nonNegOpt(flags, "jobs", "fetch");
-  if (jobs === undefined && flags.strings.get("jobs") !== undefined) return;
   const { fetch } = await import("./fulltags/fetch");
   const only: FetchTarget =
     FETCH_TARGETS.find(

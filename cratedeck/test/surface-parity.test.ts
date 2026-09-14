@@ -76,7 +76,15 @@ function megadjCommands(): string[] {
  * dispatchers: top-level paths from index.ts, drive subpaths get the
  * /drives/:id prefix, and archive handlers come from archive_routes.ts. */
 function httpApiRoutes(): string[] {
-  const index = read("cratedeck/src/index.ts").join("\n");
+  // route families live in their own modules since the #42 split; the
+  // census reads ALL of them so a literal can't hide in a new file
+  const index = [
+    "cratedeck/src/index.ts",
+    "cratedeck/src/drive_routes.ts",
+    "cratedeck/src/fleet_routes.ts",
+  ]
+    .map((f) => read(f).join("\n"))
+    .join("\n");
   const routes = new Set<string>();
   for (const match of index.matchAll(/(route|sub) === "(\/[^"]+)"/g)) {
     const path = match[2];

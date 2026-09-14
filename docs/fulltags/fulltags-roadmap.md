@@ -41,8 +41,7 @@ ONNX + #5 MB harvest (energy 2.0, dup-writer deleted) and executed the
 mood pass — label order was INVERTED on first run, caught + fixed +
 regression-pinned; rev 6.2 added the mood CrateDeck surface +
 `megadj cues` phrase ledger + the audit gate requiring mood + energy.
-Rev 3 re-verified external claims; rev 2 fact-checked + found the 6.4×
-write-path regression._
+Rev 3 re-verified external claims; rev 2 fact-checked + found the 6.4× write-path regression (detail: §5/§5b)._
 
 How to read: ranked by **value-per-effort** for a 3–10k track dance
 library on one Mac, offline-first. Effort: S <1d / M 1–3d / L >3d.
@@ -194,78 +193,28 @@ regardless of what RB reads.
    round happens next time DJLIBRARYM is plugged in; until then the keys
    exist in files only, which is the durable half.
 
-### #4 — Essentia ONNX heads: mood/dance/valence — **M — ✅ SHIPPED (rev 6.1, this pass)**
+### #4 — Essentia ONNX mood/dance/valence — **M — ✅ SHIPPED (rev 6.1)**
 
-**Shipped:** `fulltags/src/models.ts` — two ONNX towers on onnxruntime
-(the `uv --with onnxruntime` env, NOT brew and NOT essentia.tensorflow):
-discogs-effnet-bsdynamic embeddings (1280-d) feed the danceability +
-4 mood heads; audioset-vggish embeddings (128-d) feed the emomusic
-valence-arousal head. One python spawn per batch (stdin/stdout JSON
-lines, same pattern as the key server). Stage: `fulltags --mood` →
-`TXXX:MOOD` stamp `dance=…; aggressive=…; happy=…; electronic=…;
-party=…; valence=…; arousal=…` (idempotent by stamp presence).
-`fulltags ensure-models` pre-downloads the ~320 MB model set to
-`~/.local/share/fulltags-models` (CC BY-NC-SA — personal use).
-**Energy 2.0 (same pass):** with a MOOD stamp, energy blends
-`0.5·RMS + 0.3·dance + 0.2·arousal` (0–10 scaled) instead of raw RMS
-— verified 1.0 → 1.9 on a test tone, idempotent. Models absent → mood
-SKIPs, energy falls back to pure RMS.
-**Genre head NOT shipped** — deliberately deferred (see the verdict
-below): Discogs-EffNet genre labels are 400-way and pop-trained; they
-need label-mapping + a sampled gate before any write. Mood/dance/VA
-carry no such risk (new fields, nothing to clobber).
-**Env gotchas (empirically probed, rev 6.1, label order CORRECTED in
-the second pass):** effnet wants essentia's
-`TensorflowInputMusiCNN` melspec in **128-frame chunks of 96 bands**
-(`melspectrogram` → `embeddings`); the heads' positive class is
-**FIRST** in the softmax vector for every head except `mood_party`
-(`['non_party','party']` — every other head is positive-first). **The
-first archive pass shipped with this
-INVERTED** (`act[-1]` read the negative → every track stamped
-dance=0.00 party=1.00) — caught because saturated-constant output is
-never believable; stamps stripped, re-run 88/88 sane, regression test
-pins the order. emomusic outputs **(valence, arousal) on a 1–9 scale**;
-vggish wants 400/200 frames → 96-frame patches transposed to (64, 96);
-ONNX batch dims are fixed-128 on the bsdynamic export (edge-replicate
-padding). 9 regression tests in
-`fulltags/test/models.test.ts` (env-gated).
-**Archive verdict (rev 6.1, 88 files):** mood pass 88/88 stamped,
-converged idempotent (third run = 0 changed). Ledger mirror shipped:
-`megadj mood` syncs TXXX:MOOD stamps into the archive DB `mood` table
-(+ analyzes unstamped tracks inline) and exposes `moodSummary()` —
-88/88 ledgered, avg dance 1.0 / party 0.99 / V 4.34 / A 4.98.
-**Electronic genre head GATE FAILED**: saturated on this library
-(0.87–1.0 across every genre incl. Ambient — zero discrimination),
-so effnet genre writes stay BLOCKED (same pattern as
-the TBPM gate). dance/happy/aggressive DO differentiate (happy 0.04–
-0.99, aggressive 0.01–0.98).
-**Rev 6.2 addendum — genre head ONNX availability + CrateDeck
-surface:** Essentia ships **no ONNX export of the effnet genre head**
-(the `genre_discogs400` head dir carries 7 ONNX files, all maest
-variants; the effnet head is pb-only — the head's own `model_types`
-lists `onnx`, but every onnx URL variant 404s). A conversion would
-need tf2onnx + a fresh sampled gate, for a write whose value is near
-zero on this library (genres already populated by SC/MB) —
-**deferred indefinitely**. What DID ship in 6.2: CrateDeck's readonly
-mood surface — `ArchiveReader.moodProfile()` (ledger averages +
-per-axis extremes), `GET /api/archive/mood`, MCP tool
-`archive_mood_profile` — "play me something dark/hyped/smooth" picker
-data with zero audio touched. Energy 2.0 verified on the real
-archive: 84/88 already carried the blend (the mood pass computes it),
-the 4 misses were the art-embedded WAVs (§5b bug 8) — after the fix,
-88/88 stamped, re-run 0 changed.
+`fulltags/src/models.ts`: two ONNX towers (effnet-1280 → dance + 4 mood
+heads; vggish-128 → valence-arousal) under `uv --with onnxruntime`;
+`fulltags --mood` → `TXXX:MOOD` stamp; energy 2.0 blends
+`0.5·RMS + 0.3·dance + 0.2·arousal`. Archive verdict 88/88 stamped,
+idempotent, ledgered via `megadj mood`. **Load-bearing findings kept:**
+(1) the heads' positive class is FIRST in softmax for every head except
+`mood_party` — the first pass shipped INVERTED and was caught only
+because saturated-constant output is never believable (regression test
+pins the order); (2) the effnet GENRE head has no ONNX export and was
+saturated on this library anyway — genre writes stay BLOCKED, deferred
+indefinitely (rev 6.2 addendum); (3) CrateDeck's readonly mood surface
+(`archive_mood_profile` + `/api/archive/mood`) shipped 6.2. Full probe
+log: Git history (rev 6.1–6.2).
 
-### #5 — MBID provenance + MusicBrainz genre harvest — **S — ✅ SHIPPED (rev 6.1, this pass)**
+### #5 — MBID provenance + MusicBrainz genre harvest — **S — ✅ SHIPPED (rev 6.1)**
 
-**Shipped:** `fulltags/src/mb.ts` — MB artist folksonomy harvest, 1 rps
-token bucket, in-process cache, canonGenre-mapped. `megadj enrich`
-rewrote as a thin shim over it + the shared FullTags writer — **the
-last duplicate writer is deleted** (the old in-file ffmpeg remux with
-its art-dropping and tmp-leak history is gone; enrich now writes through
-`writePatch` like everything else). Genre ladder is now: SC tag →
-canonical map → MB folksonomy → AI (conf ≥ 0.7) — four votes, one
-writer. enrich's `GenreResolver`/`TagWriter` test seams preserved (all
-existing tests pass unmodified).
+`fulltags/src/mb.ts`: MB artist folksonomy harvest (1 rps, cached,
+canonGenre-mapped). `megadj enrich` is now a thin shim over it + the
+shared writer — the last duplicate ffmpeg writer is deleted; genre
+ladder = SC tag → canonical map → MB folksonomy → AI (conf ≥ 0.7).
 
 ### #6 — Beatport as the second source — **S — ✅ SHIPPED (rev 6.4; hardened rev 6.5)**
 
@@ -457,21 +406,16 @@ requirements.txt` hits the warm cached env; spelling the same pins as
 6. **chromaprint is octave-invariant**: two pure sines an octave apart
    fingerprint _identically_ (same chroma). Test dupe-matching with noise
    vs tone, not sine vs sine.
-7. **(rev 5) pyrekordbox 0.4.4 API:** master DB reference extraction is
-   `Rekordbox6Database` + `pyrekordbox.db6.{DjmdContent,DjmdKey}`;
-   key names are `DjmdKey.ScaleName` (traditional notation: "Ebm"), BPM is
-   `DjmdContent.BPM` **x100 fixed-point**, path join is
-   `FolderPath.startswith(archive_dir)`. The `Key`/`Content` names from
-   older blog posts don't exist — introspect `__table__.columns`.
+7. **(rev 5) pyrekordbox 0.4.4 API:** `Rekordbox6Database` +
+   `pyrekordbox.db6.{DjmdContent,DjmdKey}`; `DjmdKey.ScaleName`,
+   `DjmdContent.BPM` is **x100 fixed-point**, path join via
+   `FolderPath.startswith(archive_dir)`; older blog-post names don't
+   exist — introspect `__table__.columns`.
 8. **(rev 5) `fpcalc` exits 2 "Empty fingerprint" on sub-3-second audio**
    — test fixtures need ≥5 s tones.
 
-Gate results (2026-09-05, real archive, full detail in §0): key PASS
-(80.7% exact; mismatches cluster on relative major/minor + neighbor
-tones, no wild-class errors) — BPM FAIL (12/24 within 2%, the
-~2.2–2.6% phase-lock, lossless included). The RB gauntlet is the only
-thing left for #3; the bar-grid re-gate must clear 80% before any TBPM
-reconsideration.
+Gate results (2026-09-05, real archive): key PASS (80.7% exact) —
+BPM FAIL (12/24 within 2%). Full detail in §0; re-gate numbers in §2/#2.
 
 ## 7. Sequencing
 
