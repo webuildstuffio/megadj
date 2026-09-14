@@ -42,6 +42,15 @@ describe("beat_this BPM (roadmap #2)", () => {
         '{"bpm":128,"beats":[0,0.5,"bad",1.5],"downbeats":[0]}',
       ),
     ).toBeNull();
+    expect(parseBeatThisJson('{"bpm":128}')).toBeNull();
+    expect(parseBeatThisJson('{"bpm":128,"beats":[]}')).toBeNull();
+    expect(
+      parseBeatThisJson('{"bpm":128,"beats":[],"downbeats":[]}'),
+    ).toBeNull();
+    expect(
+      parseBeatThisJson('{"bpm":128,"beats":[0,0.5,1],"downbeats":[0]}'),
+    ).toBeNull();
+    expect(parseBeatThisJson('{"bpm":0,"beats":[],"downbeats":[]}')).toBeNull();
   });
 
   test.skipIf(!hasBeatThis)(

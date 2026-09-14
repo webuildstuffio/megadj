@@ -497,6 +497,15 @@ describe("ArchiveReader (O82b)", () => {
     const cBad = r.cueStats();
     expect(cBad.analyzed).toBe(1);
     expect(cBad.total_cues).toBe(12);
+    // valid JSON with the wrong schema must be rejected too; accepting {}
+    // previously produced undefined/NaN fields in the wire payload.
+    for (const wrongShape of ["{}", "[{}]", '[["not-a-cue"]]']) {
+      insC.run("v2", wrongShape, "m", "t");
+      const invalid = r.cueStats();
+      expect(invalid.analyzed, wrongShape).toBe(1);
+      expect(invalid.total_cues, wrongShape).toBe(12);
+      expect(Number.isFinite(invalid.avg_cues), wrongShape).toBe(true);
+    }
     r.close();
   });
 

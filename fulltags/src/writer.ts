@@ -14,9 +14,15 @@
  * Audio is always stream-copied (`-c:a copy`) — never re-encoded.
  */
 import { $ } from "bun";
-import { extname, join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { basename, dirname, extname, join } from "node:path";
 import {
+  closeSync,
+  copyFileSync,
   existsSync,
+  fsyncSync,
+  openSync,
+  readSync,
   readdirSync,
   renameSync,
   unlinkSync,
@@ -26,6 +32,35 @@ import type { Dirent } from "node:fs";
 import type { EnrichedMetadata, TagPatch } from "./schema";
 import { validatePatch } from "./schema-guards";
 import { id3Open, mutagenOk } from "./mutagen";
+
+export interface WriterAtomicOps {
+  copyFile(from: string, to: string): void;
+  writeFile(path: string, data: Uint8Array): void;
+  rename(from: string, to: string): void;
+  mutagenOk(script: string): boolean;
+  fsyncFile(path: string): void;
+}
+
+function fsyncFile(path: string): void {
+  const fd = openSync(path, "r");
+  try {
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+const DEFAULT_ATOMIC_OPS: WriterAtomicOps = {
+  copyFile: copyFileSync,
+  writeFile: writeFileSync,
+  rename: renameSync,
+  mutagenOk,
+  fsyncFile,
+};
+
+function atomicOps(overrides?: Partial<WriterAtomicOps>): WriterAtomicOps {
+  return { ...DEFAULT_ATOMIC_OPS, ...overrides };
+}
 
 /** Defined entries of a TagPatch — set fields only (year/bpm/energy are numeric). */
 type TagPair = [keyof TagPatch, string | number];
@@ -40,6 +75,67 @@ function tagPairs(patch: TagPatch): TagPair[] {
  * output format". Pattern: `track.m4a` → `track.m4a.fa.m4a`. */
 function tmpLike(p: string, suffix: string): string {
   return `${p}${suffix}${extname(p).toLowerCase()}`;
+}
+
+/** A unique same-directory lease whose final suffix remains the media type,
+ * so mutagen/ffmpeg infer the same container as the source. */
+function uniqueTempLike(p: string, purpose: string, extension = extname(p)) {
+  const ext = extension.toLowerCase();
+  const stem = basename(p, extname(p));
+  return join(dirname(p), `.${stem}.fulltags-${purpose}-${randomUUID()}${ext}`);
+}
+
+function unlinkIfPresent(path: string): void {
+  if (!existsSync(path)) return;
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    console.error(`fulltags temp cleanup failed for ${path}`, error);
+  }
+}
+
+function hasValidContainerHeader(path: string): boolean {
+  const ext = extname(path).toLowerCase();
+  const header = Buffer.alloc(12);
+  let fd: number | null = null;
+  try {
+    fd = openSync(path, "r");
+    if (readSync(fd, header, 0, header.length, 0) < header.length) return false;
+  } catch (error) {
+    void error;
+    return false;
+  } finally {
+    if (fd !== null) closeSync(fd);
+  }
+  const fourcc = (at: number): string => header.toString("ascii", at, at + 4);
+  if (ext === ".wav")
+    return ["RIFF", "RF64"].includes(fourcc(0)) && fourcc(8) === "WAVE";
+  if (ext === ".aiff" || ext === ".aif")
+    return fourcc(0) === "FORM" && ["AIFF", "AIFC"].includes(fourcc(8));
+  if (ext === ".m4a" || ext === ".m4b") return fourcc(4) === "ftyp";
+  return false;
+}
+
+function atomicMutagenWrite(
+  filePath: string,
+  scriptFor: (tempPath: string) => string,
+  overrides?: Partial<WriterAtomicOps>,
+): boolean {
+  const ops = atomicOps(overrides);
+  const temp = uniqueTempLike(filePath, "media");
+  try {
+    ops.copyFile(filePath, temp);
+    if (!ops.mutagenOk(scriptFor(temp))) return false;
+    if (!hasValidContainerHeader(temp)) return false;
+    ops.fsyncFile(temp);
+    ops.rename(temp, filePath);
+    return true;
+  } catch (error) {
+    void error;
+    return false;
+  } finally {
+    unlinkIfPresent(temp);
+  }
 }
 
 export const AUDIO_EXTS = new Set([
@@ -157,6 +253,7 @@ function ffmpegTagPlan(
 export async function writePatch(
   filePath: string,
   patch: TagPatch,
+  ops?: Partial<WriterAtomicOps>,
 ): Promise<void> {
   validatePatch(patch);
   const pairs = tagPairs(patch);
@@ -169,13 +266,13 @@ export async function writePatch(
   // AI-* keys — they are silently dropped, plus every remux wipes existing
   // freeform atoms. The mutagen paths exist precisely for this.
   if (ext === ".aiff" || ext === ".aif" || ext === ".wav") {
-    if (!writePatchWav(filePath, patch)) {
+    if (!writePatchWav(filePath, patch, ops)) {
       throw new Error(`mutagen tag write failed for ${filePath}`);
     }
     return;
   }
   if (ext === ".m4a" || ext === ".m4b") {
-    if (!writePatchMp4(filePath, patch)) {
+    if (!writePatchMp4(filePath, patch, ops)) {
       throw new Error(`mutagen tag write failed for ${filePath}`);
     }
     return;
@@ -206,7 +303,11 @@ export async function writePatch(
  * bridge it used before measured 6.4× slower than direct ffmpeg.
  * WAV/AIFF go through the mutagen paths (natively sync).
  */
-export function writePatchSync(filePath: string, patch: TagPatch): boolean {
+export function writePatchSync(
+  filePath: string,
+  patch: TagPatch,
+  ops?: Partial<WriterAtomicOps>,
+): boolean {
   try {
     validatePatch(patch);
     const pairs = tagPairs(patch);
@@ -214,10 +315,10 @@ export function writePatchSync(filePath: string, patch: TagPatch): boolean {
 
     const ext = extname(filePath).toLowerCase();
     if (ext === ".aiff" || ext === ".aif" || ext === ".wav") {
-      return writePatchWav(filePath, patch); // mutagen ID3-in-container
+      return writePatchWav(filePath, patch, ops); // mutagen ID3-in-container
     }
     if (ext === ".m4a" || ext === ".m4b") {
-      return writePatchMp4(filePath, patch); // mutagen MP4 atoms
+      return writePatchMp4(filePath, patch, ops); // mutagen MP4 atoms
     }
     const { args, tagged } = ffmpegTagPlan(filePath, pairs, true);
     const pr = Bun.spawnSync({
@@ -278,6 +379,32 @@ const WAV_ID3: Partial<Record<keyof TagPatch, string>> = {
   key: "TKEY",
 };
 
+const WAV_ID3_READ: Record<keyof TagPatch, string> = {
+  title: "TIT2",
+  artist: "TPE1",
+  albumArtist: "TPE2",
+  album: "TALB",
+  genre: "TCON",
+  year: "TDRC",
+  composer: "TCOM",
+  grouping: "TIT1",
+  remixer: "TXXX:version",
+  comment: "COMM::eng",
+  mbid: "TXXX:MusicBrainz Track Id",
+  isrc: "TSRC",
+  bpm: "TBPM",
+  energy: "TXXX:ENERGY",
+  aiGenre: "TXXX:AI-GENRE",
+  aiYear: "TXXX:AI-YEAR",
+  key: "TKEY",
+  camelot: "TXXX:CAMELOT",
+  label: "TPUB",
+  mixName: "TIT3",
+  fingerprint: "TXXX:ACOUSTID",
+  mood: "TXXX:MOOD",
+  beatport: "TXXX:BP-FIELDS",
+};
+
 function wavId3Statement(k: keyof TagPatch, v: unknown): string {
   const t = JSON.stringify(String(v));
   switch (k) {
@@ -314,6 +441,12 @@ function wavId3Statement(k: keyof TagPatch, v: unknown): string {
   }
   const frame = WAV_ID3[k];
   return frame ? `a.tags.add(${frame}(encoding=3, text=${t}))` : "";
+}
+
+function wavVerifyStatement(k: keyof TagPatch, v: unknown): string {
+  const key = WAV_ID3_READ[k];
+  const expected = JSON.stringify(String(v));
+  return `if str(a.tags.get(${JSON.stringify(key)}, "")) != ${expected}: raise RuntimeError(${JSON.stringify(`tag readback failed: ${String(k)}`)})`;
 }
 
 /** MP4 freeform atom statement (----:com.apple.iTunes:<name>). */
@@ -362,6 +495,19 @@ function mp4Statement(k: keyof TagPatch, v: unknown): string {
   return "";
 }
 
+function mp4VerifyStatement(k: keyof TagPatch, v: unknown): string {
+  if (k === "bpm") {
+    return `if int(a["tmpo"][0]) != ${Math.round(Number(v))}: raise RuntimeError("tag readback failed: bpm")`;
+  }
+  const ff = MP4_FREEFORM[k];
+  if (ff) {
+    const atom = `----:com.apple.iTunes:${ff}`;
+    return `if bytes(a[${JSON.stringify(atom)}][0]).decode("utf-8") != ${JSON.stringify(String(v))}: raise RuntimeError(${JSON.stringify(`tag readback failed: ${String(k)}`)})`;
+  }
+  const atom = MP4_ATOMS[k];
+  return `if str(a[${JSON.stringify(atom)}][0]) != ${JSON.stringify(String(v))}: raise RuntimeError(${JSON.stringify(`tag readback failed: ${String(k)}`)})`;
+}
+
 /**
  * Sync tag write for ID3-in-container formats (WAV RIFF / AIFF ID3 chunk)
  * via mutagen. ffmpeg's wav/aiff muxers drop or mangle ID3 chunks, so
@@ -369,7 +515,11 @@ function mp4Statement(k: keyof TagPatch, v: unknown): string {
  * (it also preserves embedded art). Sync API for the fetch-pipeline
  * workers; returns false on any failure (no throw).
  */
-function writePatchWav(filePath: string, patch: TagPatch): boolean {
+function writePatchWav(
+  filePath: string,
+  patch: TagPatch,
+  ops?: Partial<WriterAtomicOps>,
+): boolean {
   try {
     validatePatch(patch);
     const pairs = tagPairs(patch);
@@ -378,15 +528,22 @@ function writePatchWav(filePath: string, patch: TagPatch): boolean {
       .map(([k, v]) => wavId3Statement(k, v))
       .filter(Boolean)
       .join("\n");
-    const script = `${id3Open(filePath)}
+    const verifies = pairs.map(([k, v]) => wavVerifyStatement(k, v)).join("\n");
+    return atomicMutagenWrite(
+      filePath,
+      (tempPath) => `${id3Open(tempPath)}
 from mutagen.id3 import ID3, TIT2, TIT3, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TKEY, TPUB, TXXX, TSRC, COMM
 if a.tags is None: a.add_tags()
 if not isinstance(a.tags, ID3): a.tags = ID3()
 ${sets}
 a.save()
-print("ok")`;
-    return mutagenOk(script);
-  } catch {
+${id3Open(tempPath)}
+${verifies}
+print("ok")`,
+      ops,
+    );
+  } catch (error) {
+    void error;
     return false;
   }
 }
@@ -399,7 +556,11 @@ print("ok")`;
  * survives, stamps persist. Sync API matching writePatchWav; returns
  * false on any failure (no throw).
  */
-function writePatchMp4(filePath: string, patch: TagPatch): boolean {
+function writePatchMp4(
+  filePath: string,
+  patch: TagPatch,
+  ops?: Partial<WriterAtomicOps>,
+): boolean {
   try {
     validatePatch(patch);
     const pairs = tagPairs(patch);
@@ -408,14 +569,21 @@ function writePatchMp4(filePath: string, patch: TagPatch): boolean {
       .map(([k, v]) => mp4Statement(k, v))
       .filter(Boolean)
       .join("\n");
-    const script = `from mutagen.mp4 import MP4, MP4FreeForm
-a = MP4(${JSON.stringify(filePath)})
+    const verifies = pairs.map(([k, v]) => mp4VerifyStatement(k, v)).join("\n");
+    return atomicMutagenWrite(
+      filePath,
+      (tempPath) => `from mutagen.mp4 import MP4, MP4FreeForm
+a = MP4(${JSON.stringify(tempPath)})
 if a.tags is None: a.add_tags()
 ${sets}
 a.save()
-print("ok")`;
-    return mutagenOk(script);
-  } catch {
+a = MP4(${JSON.stringify(tempPath)})
+${verifies}
+print("ok")`,
+      ops,
+    );
+  } catch (error) {
+    void error;
     return false;
   }
 }
@@ -424,15 +592,23 @@ print("ok")`;
  * Embed a JPEG as the front cover (type-3 APIC / attached_pic).
  * WAV → mutagen APIC; everything else → ffmpeg remux. Atomic.
  */
-export function embedArt(p: string, bytes: Uint8Array): boolean {
-  const dump = `${p}.fa.jpg`;
-  writeFileSync(dump, bytes);
+export function embedArt(
+  p: string,
+  bytes: Uint8Array,
+  overrides?: Partial<WriterAtomicOps>,
+): boolean {
+  const ops = atomicOps(overrides);
+  const dump = uniqueTempLike(p, "art", ".jpg");
+  let remuxTemp: string | null = null;
   try {
+    ops.writeFile(dump, bytes);
     // WAV and AIFF: mutagen edits the ID3 chunk in place. ffmpeg's remux
     // (below) drops/rebuilds those containers' ID3 chunks — a re-embed
     // would wipe TXXX stamps (energy etc.) written by the tag pass.
     if (p.toLowerCase().endsWith(".wav") || /\.(aiff?|aif)$/i.test(p)) {
-      const script = `${id3Open(p)}
+      return atomicMutagenWrite(
+        p,
+        (tempPath) => `${id3Open(tempPath)}
 from mutagen.id3 import ID3, APIC
 if a.tags is None: a.add_tags()
 if a.tags and any(k.startswith("APIC") for k in a.tags.keys()):
@@ -441,10 +617,15 @@ if not isinstance(a.tags, ID3):
     a.tags = ID3()
 a.tags.add(APIC(encoding=3, mime="image/jpeg", type=3, desc="Cover", data=open(${JSON.stringify(dump)}, "rb").read()))
 a.save()
-print("ok")`;
-      return mutagenOk(script);
+${id3Open(tempPath)}
+expected_art = open(${JSON.stringify(dump)}, "rb").read()
+if not any(bytes(frame.data) == expected_art for frame in a.tags.getall("APIC")):
+    raise RuntimeError("art readback failed")
+print("ok")`,
+        overrides,
+      );
     }
-    const tmp = tmpLike(p, ".fa");
+    remuxTemp = uniqueTempLike(p, "art-media");
     const pr = Bun.spawnSync({
       cmd: [
         "ffmpeg",
@@ -466,15 +647,21 @@ print("ok")`;
         "mjpeg",
         "-disposition:v:0",
         "attached_pic",
-        tmp,
+        remuxTemp,
       ],
       stdout: "pipe",
     });
     const ok = pr.exitCode === 0;
-    if (ok) renameSync(tmp, p);
-    else if (existsSync(tmp)) unlinkSync(tmp);
+    if (ok) {
+      ops.fsyncFile(remuxTemp);
+      ops.rename(remuxTemp, p);
+    }
     return ok;
+  } catch (error) {
+    void error;
+    return false;
   } finally {
-    unlinkSync(dump);
+    unlinkIfPresent(dump);
+    if (remuxTemp) unlinkIfPresent(remuxTemp);
   }
 }

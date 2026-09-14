@@ -22,6 +22,7 @@
  * Idempotency: TXXX:MOOD / TXXX:DANCE stamps (same pattern as ENERGY).
  */
 import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
 import { lineReader } from "./stdio";
 
 // Fail fast on a missing HOME: `)?? ""` produced "/.local/share/…" which
@@ -33,6 +34,7 @@ if (!HOME)
   );
 const MODEL_DIR = `${HOME}/.local/share/fulltags-models`;
 const MODEL_BASE = "https://essentia.upf.edu/models";
+const EFFNET_EMBEDDING_DIM = 1280;
 
 export interface MoodResult {
   /** Probability 0–1 (head's "positive" class). */
@@ -62,14 +64,18 @@ function finiteNumberField(
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function boundedNumberField(
+  record: Record<string, unknown>,
+  field: string,
+  min: number,
+  max: number,
+): number | null {
+  const value = finiteNumberField(record, field);
+  return value !== null && value >= min && value <= max ? value : null;
+}
+
 function finiteNumberList(value: unknown): number[] | null {
-  if (!Array.isArray(value)) return null;
-  const result: number[] = [];
-  for (const item of value) {
-    if (typeof item !== "number" || !Number.isFinite(item)) return null;
-    result.push(item);
-  }
-  return result;
+  return isFiniteNumberArray(value) ? value : null;
 }
 
 /** Parse and validate one JSON line from the Python mood worker. The failure
@@ -99,13 +105,13 @@ export function parseMoodWorkerLine(line: string): MoodWorkerParseResult {
   if (mood === null || typeof mood !== "object" || Array.isArray(mood))
     return { ok: false, context, detail: `${path}: response has no mood` };
   const candidate = mood as Record<string, unknown>;
-  const danceability = finiteNumberField(candidate, "danceability");
-  const moodAggressive = finiteNumberField(candidate, "moodAggressive");
-  const moodHappy = finiteNumberField(candidate, "moodHappy");
-  const moodElectronic = finiteNumberField(candidate, "moodElectronic");
-  const moodParty = finiteNumberField(candidate, "moodParty");
-  const valence = finiteNumberField(candidate, "valence");
-  const arousal = finiteNumberField(candidate, "arousal");
+  const danceability = boundedNumberField(candidate, "danceability", 0, 1);
+  const moodAggressive = boundedNumberField(candidate, "moodAggressive", 0, 1);
+  const moodHappy = boundedNumberField(candidate, "moodHappy", 0, 1);
+  const moodElectronic = boundedNumberField(candidate, "moodElectronic", 0, 1);
+  const moodParty = boundedNumberField(candidate, "moodParty", 0, 1);
+  const valence = boundedNumberField(candidate, "valence", 1, 9);
+  const arousal = boundedNumberField(candidate, "arousal", 1, 9);
   if (
     danceability === null ||
     moodAggressive === null ||
@@ -127,7 +133,7 @@ export function parseMoodWorkerLine(line: string): MoodWorkerParseResult {
   };
   if (candidate.embedding !== undefined) {
     const embedding = finiteNumberList(candidate.embedding);
-    if (!embedding)
+    if (!embedding || embedding.length !== EFFNET_EMBEDDING_DIM)
       return { ok: false, context, detail: `${path}: invalid embedding` };
     result.embedding = embedding;
   }

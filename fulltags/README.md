@@ -47,15 +47,12 @@ rekordbox-reanalyzed grids; flag disagreements > 2%.
 
 ## 🧩 Why a sub-project
 
-megadj grew enrichment logic across five files (`src/metadata.ts`,
-`src/commands/{energy,embed,remix,wav-to-aiff}.ts`, `tools/fetch-lib.ts`,
-`tools/fetch_ai.ts`). Each had a hard-won format gotcha in it (AIFF drops
-ID3 chunks; WAV can't carry ffmpeg art; mp3 wants id3v2.3). FullTags
-consolidates all of it behind **one schema, one writer, one pipeline**.
-The `src/metadata.ts` / `src/commands/{remix,energy,identity}.ts` shims
-were deleted once no importer needed them — import
-`fulltags/src/exports` directly (atomic migration —
-`git log --follow` keeps the history).
+megadj originally spread enrichment across command and tool modules. Each
+carried a hard-won format gotcha (AIFF drops ID3 chunks; WAV cannot carry
+ffmpeg artwork; MP3 wants ID3v2.3). FullTags consolidated that history behind
+**one schema, one writer, and one pipeline**. Import
+`fulltags/src/exports.ts` directly; `git log --follow` retains the deleted
+shim history without keeping obsolete paths in current documentation.
 
 ## 📁 Layout
 
@@ -69,7 +66,7 @@ fulltags/
     writer.ts            ONE write surface: writePatch / applyTags / embedArt
                          (all format gotchas live here)
     readers.ts           groundTruth / readFullTag — file-first reads
-    probes.ts            ffprobe, filename parsing, MB lookup, RMS energy
+    media-probe.ts       bounded ffprobe/audio probing
     metadata-build.ts    yt-dlp info → EnrichedMetadata (cleanTitle, credits)
     identity.ts          MB recording lookup + the audit ground-truth row
     art-sources.ts       SC search + every artwork source (the art ladder)
@@ -200,7 +197,7 @@ use).
 | megadj command  | What it does now                                                                             |
 | --------------- | -------------------------------------------------------------------------------------------- |
 | `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims                          |
-| `megadj fetch`  | unchanged — `tools/fetch_all.ts` now writes through FullTags `writePatch`                    |
+| `megadj fetch`  | `tools/fetch-all.ts` writes through FullTags `writePatch`                                    |
 | `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                                      |
 | `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted)         |
 | `megadj mood`   | syncs `TXXX:MOOD` stamps into the archive DB `mood` ledger; analyzes unstamped tracks inline |

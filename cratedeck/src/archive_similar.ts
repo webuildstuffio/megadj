@@ -9,6 +9,7 @@
 import { existsSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { groundTruth } from "../../fulltags/src/exports";
+import { isFiniteNumberArray } from "../shared/guards";
 import { cosineSimilarity } from "../shared/similarity";
 import type {
   ArchiveFreshness,
@@ -96,14 +97,7 @@ export function similarTracks(
     let vec: number[];
     try {
       const parsed: unknown = JSON.parse(r.vec_json);
-      if (
-        !Array.isArray(parsed) ||
-        parsed.length === 0 ||
-        !parsed.every(
-          (value): value is number =>
-            typeof value === "number" && Number.isFinite(value),
-        )
-      ) {
+      if (!isFiniteNumberArray(parsed) || parsed.length === 0) {
         console.warn(`embedding ${r.video_id} has invalid vec_json — skipping`);
         continue;
       }

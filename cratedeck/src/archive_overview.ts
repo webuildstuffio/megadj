@@ -6,6 +6,31 @@ import type {
   ArchiveCueStats,
   ArchiveLibraryOverview,
 } from "../shared/archive-wire";
+import { isFiniteNumber, isRecord, isUnknownArray } from "../shared/guards";
+
+interface CuePoint {
+  index: number;
+  position: number;
+  bar: number;
+}
+
+function isCuePoint(value: unknown): value is CuePoint {
+  return (
+    isRecord(value) &&
+    isFiniteNumber(value.index) &&
+    isFiniteNumber(value.position) &&
+    isFiniteNumber(value.bar)
+  );
+}
+
+function parseCuePoints(raw: string): CuePoint[] | null {
+  try {
+    const value: unknown = JSON.parse(raw);
+    return isUnknownArray(value) && value.every(isCuePoint) ? value : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * STRUCTURE CUES ledger (roadmap "structure cues" slice): DJ phrase
@@ -43,13 +68,10 @@ export function cueStats(reader: ArchiveQuery, limit = 40): ArchiveCueStats {
   const tracks = rows.flatMap((r) => {
     // corrupt JSON row = absent ledger entry, not a crash (the pass that
     // owns the ledger treats it the same way)
-    let cues: { index: number; position: number; bar: number }[] = [];
-    try {
-      cues = JSON.parse(r.cues_json) as typeof cues;
-    } catch (e) {
+    const cues = parseCuePoints(r.cues_json);
+    if (cues === null) {
       console.error(
-        `cue row for ${r.video_id} has corrupt cues_json`,
-        e instanceof Error ? e.message : e,
+        `cue row for ${r.video_id} has invalid cues_json — skipping`,
       );
       return [];
     }

@@ -53,10 +53,13 @@ next action is a command you can run.**
 
 ## 0. What shipped (verified)
 
-- One `FullTag`/`TagPatch` schema, one atomic writer (mp3/m4a/wav/flac/
-  aiff), file-first ground-truth readers, full art ladder, AI genre/year
-  fallback, `fulltags` CLI (enrich + audit --json). megadj `ingest` /
-  `fetch` write through the same code via shims.
+- One `FullTag`/`TagPatch` schema, one format-specific atomic writer
+  (mp3/m4a/wav/flac/aiff), file-first ground-truth readers, full art ladder,
+  AI genre/year fallback, `fulltags` CLI (enrich + audit --json). megadj
+  `ingest` / `fetch` write through the same code via shims. Mutagen paths use
+  unique same-directory, media-extension-preserving copies; verify tags/art
+  and container headers; fsync; then rename. Failure preserves original bytes
+  and cleans temporary files.
 - Format matrix round-trip **verified on real files**: mp3/m4a/wav/aiff
   write+read-back, art embed+detect, WAV→AIFF with ID3 + APIC survival.
 - Analysis stages (`fulltags --fingerprint|--bpm|--key`): chromaprint →
@@ -148,8 +151,8 @@ conservative choice for display; nothing about the write-block changes.
 the LEAST valuable BPM output anyway. The valuable outputs — downbeats +
 beat grids — now live in the archive DB ledger, and that shipped:**
 
-1. `megadj beats` (`src/commands/beats.ts` + the `beats` table in
-   `src/state.ts`): beat_this over every downloaded track →
+1. `megadj beats` (`src/fulltags/beats.ts` + the `beats` schema in
+   `src/archive/state_core.ts`): beat_this over every downloaded track →
    `beats(video_id PK, bpm_raw, bpm_folded, beats_json, downbeats_json,
 model, source_path, analyzed_at)`. No tags are touched — ever.
    Idempotent (ledgered tracks skipped without `--force`), `--json` P1-
@@ -377,8 +380,8 @@ those ledgers are populated rather than manufacturing a pass.
    found today is the newest member of this family: a model can be
    _consistently, plausibly wrong_ at a rate no listener would notice in
    isolation but every sync would.
-7. **Old-code retirement** — `src/commands/enrich.ts` folds into #5's
-   genre-vote work; `tools/fix_years.ts` already folded into
+7. **Old-code retirement** — `src/fulltags/enrich.ts` owns #5's
+   genre-vote work; `tools/fix-years.ts` already folded into
    `megadj years` (Sep 5 2026).
 
 ## 5. Stress-test log (2026-09-05, v0 code)

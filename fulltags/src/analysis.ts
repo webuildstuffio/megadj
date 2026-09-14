@@ -10,15 +10,14 @@
  */
 import { existsSync, rmSync } from "node:fs";
 import { basename, dirname, extname } from "node:path";
+import { isFiniteNumberArray, isRecord } from "../../cratedeck/shared/guards";
 import { lineReader } from "./stdio";
 import type { AnlzBeat } from "./anlz";
 
 function parseJsonObject(raw: string): Record<string, unknown> | null {
   try {
     const value: unknown = JSON.parse(raw);
-    return value !== null && typeof value === "object" && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : null;
+    return isRecord(value) ? value : null;
   } catch (error) {
     // Parser callers expose corruption through their explicit null result.
     void error;
@@ -27,14 +26,7 @@ function parseJsonObject(raw: string): Record<string, unknown> | null {
 }
 
 function finiteNumberArray(raw: unknown): number[] | null {
-  if (raw === undefined) return [];
-  if (!Array.isArray(raw)) return null;
-  const result: number[] = [];
-  for (const item of raw) {
-    if (typeof item !== "number" || !Number.isFinite(item)) return null;
-    result.push(item);
-  }
-  return result;
+  return isFiniteNumberArray(raw) ? raw : null;
 }
 
 function optionalString(field: unknown): string | null {
@@ -298,11 +290,17 @@ export function parseBeatThisJson(stdout: string): BeatResult | null {
   const last = stdout.trim().split("\n").at(-1);
   if (!last) return null;
   const value = parseJsonObject(last);
-  if (!value || typeof value.bpm !== "number" || !Number.isFinite(value.bpm))
+  if (
+    !value ||
+    typeof value.bpm !== "number" ||
+    !Number.isFinite(value.bpm) ||
+    value.bpm <= 0
+  )
     return null;
   const beats = finiteNumberArray(value.beats);
   const downbeats = finiteNumberArray(value.downbeats);
-  if (!beats || !downbeats) return null;
+  if (!beats || beats.length < 4 || !downbeats || downbeats.length === 0)
+    return null;
   const fit = fitConstantTempo(beats);
   return {
     bpm: value.bpm,

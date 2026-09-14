@@ -1,4 +1,9 @@
 import type { Database } from "bun:sqlite";
+import {
+  isFiniteNumber,
+  isRecord,
+  isUnknownArray,
+} from "../../cratedeck/shared/guards";
 
 /** Round to 3 decimals for wire payloads (null degrades to 0). Pure —
  *  module-level, not re-created per call. */
@@ -36,6 +41,15 @@ export interface CueRecord extends CueRecordInput {
   derivedAt: string;
 }
 
+function isCue(value: unknown): value is CueRecordInput["cues"][number] {
+  return (
+    isRecord(value) &&
+    isFiniteNumber(value.index) &&
+    isFiniteNumber(value.position) &&
+    isFiniteNumber(value.bar)
+  );
+}
+
 function parseCueArray(
   cuesJson: string,
   context: string,
@@ -50,29 +64,12 @@ function parseCueArray(
       { cause: error },
     );
   }
-  if (
-    !Array.isArray(value) ||
-    !value.every(
-      (cue) =>
-        typeof cue === "object" &&
-        cue !== null &&
-        !Array.isArray(cue) &&
-        "index" in cue &&
-        typeof cue.index === "number" &&
-        Number.isFinite(cue.index) &&
-        "position" in cue &&
-        typeof cue.position === "number" &&
-        Number.isFinite(cue.position) &&
-        "bar" in cue &&
-        typeof cue.bar === "number" &&
-        Number.isFinite(cue.bar),
-    )
-  ) {
+  if (!isUnknownArray(value) || !value.every(isCue)) {
     throw new Error(
       `${context} has invalid cues_json: expected a cue array with finite index, position, and bar values`,
     );
   }
-  return value as CueRecordInput["cues"];
+  return value;
 }
 
 /**

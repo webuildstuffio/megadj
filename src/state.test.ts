@@ -199,7 +199,7 @@ describe("ArchiveState", () => {
     expect(state.beatRecord("bv1")).toBeNull();
   });
 
-  test("beatAnalyzedTracks joins downloaded tracks only, empty arrays on corrupt json", () => {
+  test("beatAnalyzedTracks joins only downloaded tracks with valid analysis", () => {
     state.upsertTrackFromPlaylist("bv2", 0, "Downloaded");
     state.markDownloaded("bv2", {
       title: "Downloaded",
@@ -235,6 +235,13 @@ describe("ArchiveState", () => {
     expect(joined.length).toBe(1);
     expect(joined[0]?.track.video_id).toBe("bv2");
     expect(joined[0]?.beats).toEqual([0, 0.47]);
+
+    state.db
+      .query(
+        "UPDATE beats SET downbeats_json = '{corrupt' WHERE video_id = 'bv2'",
+      )
+      .run();
+    expect(state.beatAnalyzedTracks()).toEqual([]);
   });
 
   test("content-hash cache: tracksMissingContentHash + setContentHash (gold-report join key)", () => {

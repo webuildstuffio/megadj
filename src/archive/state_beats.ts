@@ -1,6 +1,7 @@
 import { ArchiveTracks } from "./state_tracks";
 import { sqliteRowId } from "./sqlite-id";
 import type { RunRow, TrackRow } from "./state-types";
+import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
 
 function parseNumberArray(
   raw: string,
@@ -9,10 +10,7 @@ function parseNumberArray(
 ): number[] | null {
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (
-      Array.isArray(parsed) &&
-      parsed.every((value) => typeof value === "number")
-    ) {
+    if (isFiniteNumberArray(parsed)) {
       return parsed;
     }
     console.error(`beat record ${videoId} has invalid ${field}`);
@@ -174,21 +172,29 @@ export class ArchiveBeats extends ArchiveTracks {
       bpm_fitted: number | null;
       bpm_residual_std: number | null;
     })[];
-    return rows.map((row) => {
-      const beats =
-        parseNumberArray(row.beats_json, "beats_json", row.video_id) ?? [];
-      const downbeats =
-        parseNumberArray(row.downbeats_json, "downbeats_json", row.video_id) ??
-        [];
-      return {
-        track: row,
-        beats,
-        downbeats,
-        bpmRaw: row.bpm_raw,
-        bpmFolded: row.bpm_folded,
-        bpmFitted: row.bpm_fitted,
-        residualStd: row.bpm_residual_std,
-      };
+    return rows.flatMap((row) => {
+      const beats = parseNumberArray(
+        row.beats_json,
+        "beats_json",
+        row.video_id,
+      );
+      const downbeats = parseNumberArray(
+        row.downbeats_json,
+        "downbeats_json",
+        row.video_id,
+      );
+      if (!beats || !downbeats) return [];
+      return [
+        {
+          track: row,
+          beats,
+          downbeats,
+          bpmRaw: row.bpm_raw,
+          bpmFolded: row.bpm_folded,
+          bpmFitted: row.bpm_fitted,
+          residualStd: row.bpm_residual_std,
+        },
+      ];
     });
   }
 

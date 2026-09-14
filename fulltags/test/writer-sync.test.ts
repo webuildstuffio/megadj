@@ -1,9 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { groundTruth, writePatchSync } from "../src/index-all";
+import { embedArt, groundTruth, writePatchSync } from "../src/index-all";
+import type { WriterAtomicOps } from "../src/writer";
 
 const DIR = `/tmp/fulltags-wsync-test-${process.pid}`;
 
@@ -105,5 +112,56 @@ describe("writePatchSync", () => {
     const p = await makeFile(".mp3");
     expect(writePatchSync(p, {})).toBe(true);
     rmSync(p);
+  });
+
+  for (const ext of [".wav", ".aiff", ".m4a"]) {
+    test(`mutagen failure leaves ${ext} byte-identical with no temp files`, async () => {
+      const p = await makeFile(ext);
+      const before = readFileSync(p);
+      const ok = writePatchSync(p, { title: "must not land" }, {
+        mutagenOk: () => false,
+      } satisfies Partial<WriterAtomicOps>);
+      expect(ok).toBe(false);
+      expect(readFileSync(p)).toEqual(before);
+      expect(
+        readdirSync(DIR).filter((name) => name.includes(".fulltags-")),
+      ).toEqual([]);
+    });
+  }
+
+  for (const ext of [".wav", ".aiff"]) {
+    test(`art failure leaves ${ext} byte-identical with no temp files`, async () => {
+      const p = await makeFile(ext);
+      const artPath = join(DIR, `cover-${ext.slice(1)}.jpg`);
+      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc=size=32x32:duration=0.1 -frames:v 1 ${artPath}`.quiet();
+      const art = readFileSync(artPath);
+      const before = readFileSync(p);
+      const ok = embedArt(p, art, {
+        mutagenOk: () => false,
+      } satisfies Partial<WriterAtomicOps>);
+      expect(ok).toBe(false);
+      expect(readFileSync(p)).toEqual(before);
+      expect(
+        readdirSync(DIR).filter((name) => name.includes(".fulltags-")),
+      ).toEqual([]);
+    });
+  }
+
+  test("separate writer leases use unique same-directory media temp names", async () => {
+    const p = await makeFile(".wav");
+    const copies: string[] = [];
+    const ops = {
+      copyFile(from: string, to: string) {
+        copies.push(to);
+        copyFileSync(from, to);
+      },
+      mutagenOk: () => false,
+    } satisfies Partial<WriterAtomicOps>;
+    expect(writePatchSync(p, { title: "first" }, ops)).toBe(false);
+    expect(writePatchSync(p, { title: "second" }, ops)).toBe(false);
+    expect(copies).toHaveLength(2);
+    expect(new Set(copies).size).toBe(2);
+    expect(copies.every((temp) => temp.endsWith(".wav"))).toBe(true);
+    expect(copies.every((temp) => temp.startsWith(`${DIR}/`))).toBe(true);
   });
 });

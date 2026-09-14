@@ -38,6 +38,7 @@ import type {
 // hand-copied twin drifted once already (the v1 verdicts lived inline
 // here); the import keeps verdicts identical across surfaces.
 import { gridAudit, type GridAuditVerdict } from "../../fulltags/src/analysis";
+import { isFiniteNumberArray } from "../shared/guards";
 
 // ArchiveTrack is canonically defined in the leaf archive_types.ts (along
 // with the ArchiveQuery seam the split-out modules type against); re-export
@@ -535,13 +536,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
       let beats: number[] = [];
       try {
         const parsed: unknown = JSON.parse(r.beats_json);
-        if (
-          !Array.isArray(parsed) ||
-          !parsed.every(
-            (beat): beat is number =>
-              typeof beat === "number" && Number.isFinite(beat),
-          )
-        ) {
+        if (!isFiniteNumberArray(parsed)) {
           console.warn(
             `beat record ${r.video_id} has invalid beats_json — skipping`,
           );

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  energyFromLufs,
   parseFfprobeJson,
   trueContainerExt,
   type Probe,
@@ -24,7 +25,36 @@ describe("trueContainerExt", () => {
   test("malformed ffprobe JSON is an explicit parse failure", () => {
     expect(parseFfprobeJson("{not-json")).toBeNull();
     expect(parseFfprobeJson("null")).toBeNull();
+    expect(parseFfprobeJson("{}")).toBeNull();
+    expect(parseFfprobeJson('{"format":{},"streams":[]}')).toBeNull();
+    expect(
+      parseFfprobeJson(
+        '{"format":{"format_name":"mjpeg"},"streams":[{"codec_type":"video"}]}',
+      ),
+    ).toBeNull();
     expect(parseFfprobeJson('{"format":{"duration":123}}')).toBeNull();
+  });
+
+  test("accepts a minimal well-formed audio probe", () => {
+    expect(
+      parseFfprobeJson(
+        '{"format":{"format_name":"mp3"},"streams":[{"codec_type":"audio","codec_name":"mp3","sample_rate":"44100"}]}',
+      ),
+    ).toEqual({
+      format: {
+        duration: undefined,
+        bitRate: undefined,
+        tags: {},
+        formatName: "mp3",
+      },
+      streams: [{ codecType: "audio", codecName: "mp3", sampleRate: "44100" }],
+    });
+  });
+
+  test("non-finite loudness never becomes a confident energy score", () => {
+    expect(energyFromLufs(Number.NaN)).toBeNull();
+    expect(energyFromLufs(Number.POSITIVE_INFINITY)).toBeNull();
+    expect(energyFromLufs(Number.NEGATIVE_INFINITY)).toBeNull();
   });
 
   test("honest mp3 → .mp3 (caller compares, sees no mismatch, no rename)", () => {

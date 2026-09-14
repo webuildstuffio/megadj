@@ -68,43 +68,41 @@ export function parseFfprobeJson(stdout: string): FfprobeJson | null {
   }
   if (!isRecord(value)) return null;
   const formatRaw = value.format;
-  if (formatRaw !== undefined && !isRecord(formatRaw)) return null;
+  if (!isRecord(formatRaw)) return null;
   const streamsRaw = value.streams;
-  if (streamsRaw !== undefined && !Array.isArray(streamsRaw)) return null;
-  const rawStreams = streamsRaw ?? [];
-  if (!rawStreams.every(isRecord)) return null;
-  let format: FfprobeJson["format"] = null;
-  if (isRecord(formatRaw)) {
-    const tagsRaw = formatRaw.tags;
-    if (
-      (tagsRaw !== undefined && !isRecord(tagsRaw)) ||
-      !["duration", "bit_rate", "format_name"].every((field) =>
-        hasOptionalString(formatRaw, field),
-      )
-    )
-      return null;
-    format = {
-      duration: stringField(formatRaw, "duration"),
-      bitRate: stringField(formatRaw, "bit_rate"),
-      tags: tagsRaw ?? {},
-      formatName: stringField(formatRaw, "format_name"),
-    };
-  }
+  if (!Array.isArray(streamsRaw) || streamsRaw.length === 0) return null;
+  if (!streamsRaw.every(isRecord)) return null;
+  const tagsRaw = formatRaw.tags;
   if (
-    !rawStreams.every((stream) =>
+    (tagsRaw !== undefined && !isRecord(tagsRaw)) ||
+    !["duration", "bit_rate", "format_name"].every((field) =>
+      hasOptionalString(formatRaw, field),
+    )
+  )
+    return null;
+  const format: FfprobeJson["format"] = {
+    duration: stringField(formatRaw, "duration"),
+    bitRate: stringField(formatRaw, "bit_rate"),
+    tags: tagsRaw ?? {},
+    formatName: stringField(formatRaw, "format_name"),
+  };
+  if (
+    !streamsRaw.every((stream) =>
       ["codec_type", "codec_name", "sample_rate"].every((field) =>
         hasOptionalString(stream, field),
       ),
     )
   )
     return null;
+  const streams = streamsRaw.map((stream) => ({
+    codecType: stringField(stream, "codec_type"),
+    codecName: stringField(stream, "codec_name"),
+    sampleRate: stringField(stream, "sample_rate"),
+  }));
+  if (!streams.some((stream) => stream.codecType === "audio")) return null;
   return {
     format,
-    streams: rawStreams.map((stream) => ({
-      codecType: stringField(stream, "codec_type"),
-      codecName: stringField(stream, "codec_name"),
-      sampleRate: stringField(stream, "sample_rate"),
-    })),
+    streams,
   };
 }
 
@@ -123,7 +121,7 @@ function failedProbe(): Probe {
 /** DJ energy 1–10 from integrated loudness (Mixed In Key style baseline).
  * RMS dBFS typical range -25 (chill) .. -8 (banger), mapped linearly. */
 export function energyFromLufs(rmsDb: number | null): number | null {
-  if (rmsDb === null || Number.isNaN(rmsDb)) return null;
+  if (rmsDb === null || !Number.isFinite(rmsDb)) return null;
   const clamped = Math.min(-8, Math.max(-25, rmsDb));
   return Math.round((1 + ((clamped + 25) / 17) * 9) * 10) / 10;
 }

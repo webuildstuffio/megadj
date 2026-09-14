@@ -3,6 +3,7 @@
 // ledger rules: corrupt rows read as ABSENT (never poison a ranking),
 // upserts are idempotent by video_id.
 import type { Database } from "bun:sqlite";
+import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
 import { cosineSimilarity } from "../../cratedeck/shared/similarity";
 
 export { cosineSimilarity } from "../../cratedeck/shared/similarity";
@@ -27,13 +28,7 @@ export function parseEmbeddingVector(
       },
     );
   }
-  if (
-    !Array.isArray(value) ||
-    value.length === 0 ||
-    !value.every((entry) =>
-      typeof entry === "number" ? Number.isFinite(entry) : false,
-    )
-  ) {
+  if (!isFiniteNumberArray(value) || value.length === 0) {
     throw new Error(
       `${context} has invalid vec_json: expected a non-empty array of finite numbers`,
     );
@@ -207,8 +202,10 @@ export interface GenreSeed {
  * artifacts (`r\u0026b`-style `\uXXXX` sequences measured in the live
  * column — 19+ rows) before matching. */
 export function normalizeGenre(genre: string): string | null {
-  const unescaped = genre.replace(/\\u([0-9a-fA-F]{4})/g, (_m, h) =>
-    String.fromCharCode(Number.parseInt(h, 16)),
+  const unescaped = genre.replace(
+    /\\u([0-9a-fA-F]{4})/g,
+    (_match: string, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16)),
   );
   const base = unescaped
     .toLowerCase()

@@ -673,22 +673,22 @@ export function parseMoodStamp(s: string): MoodResult | null {
     if (!m?.[1] || !m[2]) return null;
     kv[m[1].toLowerCase()] = Number(m[2]);
   }
-  const need = (k: string): number => {
+  const need = (k: string, min: number, max: number): number => {
     const v = kv[k];
-    if (typeof v !== "number" || !Number.isFinite(v)) {
-      throw new Error(`missing ${k}`);
+    if (typeof v !== "number" || !Number.isFinite(v) || v < min || v > max) {
+      throw new Error(`invalid ${k}`);
     }
     return v;
   };
   try {
     return {
-      danceability: need("dance"),
-      moodAggressive: need("aggressive"),
-      moodHappy: need("happy"),
-      moodElectronic: need("electronic"),
-      moodParty: need("party"),
-      valence: need("valence"),
-      arousal: need("arousal"),
+      danceability: need("dance", 0, 1),
+      moodAggressive: need("aggressive", 0, 1),
+      moodHappy: need("happy", 0, 1),
+      moodElectronic: need("electronic", 0, 1),
+      moodParty: need("party", 0, 1),
+      valence: need("valence", 1, 9),
+      arousal: need("arousal", 1, 9),
     };
   } catch {
     return null;

@@ -58,6 +58,11 @@ describe("moodStamp / parseMoodStamp (pure, always run)", () => {
     expect(parseMoodStamp("garbage")).toBeNull();
     expect(parseMoodStamp("dance=0.1; party=oops")).toBeNull();
     expect(parseMoodStamp("dance=0.1")).toBeNull(); // missing fields
+    expect(
+      parseMoodStamp(
+        "dance=2; aggressive=0.1; happy=0.2; electronic=0.3; party=0.4; valence=5; arousal=5",
+      ),
+    ).toBeNull();
   });
 
   test("mood worker parser exposes malformed and invalid payloads", () => {
@@ -70,6 +75,73 @@ describe("moodStamp / parseMoodStamp (pure, always run)", () => {
         '{"path":"track.wav","mood":{"danceability":"high"}}',
       ),
     ).toMatchObject({ ok: false, context: "fulltags mood worker" });
+    for (const [field, value] of [
+      ["danceability", 999],
+      ["moodAggressive", -1],
+      ["moodHappy", 1.01],
+      ["moodElectronic", -0.01],
+      ["moodParty", 2],
+      ["valence", 9.01],
+      ["arousal", 0.99],
+    ] as const) {
+      const mood = {
+        danceability: 0.5,
+        moodAggressive: 0.5,
+        moodHappy: 0.5,
+        moodElectronic: 0.5,
+        moodParty: 0.5,
+        valence: 5,
+        arousal: 5,
+        [field]: value,
+      };
+      const result = parseMoodWorkerLine(
+        JSON.stringify({ path: "track.wav", mood }),
+      );
+      expect(result.ok, `${field}=${value}`).toBe(false);
+      if (result.ok) throw new Error(`expected ${field}=${value} to fail`);
+      expect(result.detail).toContain("invalid");
+    }
+    const validMood = {
+      danceability: 0.5,
+      moodAggressive: 0.5,
+      moodHappy: 0.5,
+      moodElectronic: 0.5,
+      moodParty: 0.5,
+      valence: 5,
+      arousal: 5,
+    };
+    for (const embedding of [[], Array(1279).fill(0), Array(1281).fill(0)]) {
+      const result = parseMoodWorkerLine(
+        JSON.stringify({
+          path: "track.wav",
+          mood: { ...validMood, embedding },
+        }),
+      );
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error("expected invalid embedding to fail");
+      expect(result.detail).toContain("embedding");
+    }
+    const validResult = parseMoodWorkerLine(
+      JSON.stringify({
+        path: "track.wav",
+        mood: { ...validMood, embedding: Array(1280).fill(0) },
+      }),
+    );
+    expect(validResult.ok).toBe(true);
+
+    const nonFiniteEmbedding = Array(1280).fill(0);
+    nonFiniteEmbedding[777] = null;
+    const nonFiniteResult = parseMoodWorkerLine(
+      JSON.stringify({
+        path: "track.wav",
+        mood: { ...validMood, embedding: nonFiniteEmbedding },
+      }),
+    );
+    expect(nonFiniteResult.ok).toBe(false);
+    if (nonFiniteResult.ok) {
+      throw new Error("expected a non-finite embedding element to fail");
+    }
+    expect(nonFiniteResult.detail).toContain("embedding");
   });
 });
 
