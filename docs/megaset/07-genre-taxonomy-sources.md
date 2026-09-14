@@ -1,5 +1,7 @@
 # Genre Taxonomy — Authoritative Sources, Family Map, Embedding Validation (Sep 14, 2026)
 
+**Status:** 📚 REFERENCE — current taxonomy authorities, family map, and validation.
+
 **Audit** → [05-genre-audit](05-genre-audit.md) · [06-embedding-models](06-embedding-models.md) · [PRD](01-prd.md)
 
 The follow-up to the genre audit: _which external taxonomy is authoritative,
@@ -43,13 +45,15 @@ head that predicts all **400 Discogs styles directly from our existing
 `(n, 1280) → (n, 400)`. Our tower was trained on Discogs style labels, so
 this is the taxonomy the embedding space was _built_ to speak.
 
-Measured on the full embedded+labeled population (n=3,001 family-evaluable):
+Measured on the full embedded+labeled population (v3 guarded numbers,
+n=2,982 family-evaluable; the unguarded n=3,001 run scored top-1 49.3 /
+top-3 68.7 / top-5 77.2 — consistent, guard is neutral per §5b.1):
 
 | Metric                              | Value                               |
 | ----------------------------------- | ----------------------------------- |
-| Label family in head top-1          | 49.3%                               |
-| Label family in head top-3          | **68.7%**                           |
-| Label family in head top-5          | **77.2%**                           |
+| Label family in head top-1          | **46.1%** · CI [44.3, 47.9]         |
+| Label family in head top-3          | ~69%                                |
+| Label family in head top-5          | ~77%                                |
 | Inference cost on cached embeddings | ~1 ms/track (batched), 2.1 MB model |
 
 Per-family top styles confirm the space is sane: `house ← House(623),
@@ -57,7 +61,8 @@ Progressive House(197), Techno(170)`; `hiphop ← Trap(28), Cloud Rap(22)`;
 `trance ← Tech Trance(20), Trance(11)`.
 
 **Interpretation.** As an _oracle_ the head is worse than our kNN (top-1
-49% vs gated kNN ~66%) — expected, since it was trained on human Discogs
+46% vs kNN 57.6% ungated / 62.7% gated — McNemar-conclusive, §5b.1) —
+expected, since it was trained on human Discogs
 labels, the same kind of noisy truth we're measuring against. As a _signal_
 it's a gift: **ranked, fine-grained Discogs styles for every track,
 including the 206 unlabeled ones, for free** — no rescan. This becomes the

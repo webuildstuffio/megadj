@@ -1,13 +1,16 @@
 # MegaSet / FullTags — Genre Audit & Inclusion Policy
 
+**Status:** 📚 REFERENCE — current genre inclusion and source-precedence policy.
+
 v3 · 2026-09-14 · **Audit** → [PRD](01-prd.md) · [Benchmarks](04-sequencing-benchmarks.md) · [Analysis](03-competitive-analysis.md) · [Taxonomy sources & family map](07-genre-taxonomy-sources.md)
 
-> v2: baselines refreshed post-`rb-comment-sync` (coverage 56%→94.4%),
-> LOO numbers corrected to full-population methodology (§5b.1 method note),
-> new §5c source-precedence ranking with measured file-tag round-trip
-> pollution. v3: family map upgraded to 93.4% coverage with audio-verified
-> placements (§7 of the taxonomy doc); escape-artifact repair shipped;
-> Discogs-400 head evaluated as the ranked-secondary source.
+> v2: baselines refreshed post-`rb-comment-sync`; LOO corrected to
+> full-population methodology; §5c source ranking. v3: **statistical
+> re-validation** — duration guards (90–480 s), full-population exact LOO,
+> bootstrap 95% CIs, McNemar tests, 6-cluster sub-genre survival (replaces
+> deep-house-only), §2-vs-5b discrepancy reconciled, §5c precedence
+> corrected to follow the measurement, junk-label criterion stated.
+> §5b.3 eval target updated to gated ≥65%.
 
 Questions this doc answers, with live data (`archive.db`, 3,458 genre-labeled
 of 3,664 downloaded rows, 2026-09-14):
@@ -15,7 +18,7 @@ of 3,664 downloaded rows, 2026-09-14):
 1. Can we trust our genre mapping? (No — measured.)
 2. Sub-genres: keep, alias, or rank? (Two-tier: labels for humans, families
    for math, embeddings for fine similarity.)
-3. How does genre enter the set builder? (Family-level diversity guard only.)
+3. How does genre enter MegaSet? (Family-level diversity guard only.)
 4. `deep house` vs `house` — which is "better"? (Neither is audio-real;
    measured below.)
 5. Six candidate sources — which wins? (§5c: audio consensus > curated pool
@@ -39,28 +42,39 @@ Sources are the usual suspects: SoundCloud free-text (artist-chosen, wildly
 inconsistent), plus tags from pool rips. The 88% duplicate rate means the
 first cleanup is mechanical, not intellectual.
 
-## 2. Do embeddings agree with genres? (the trust test)
+## 2. Do embeddings agree with genres? (the trust test — v3 corrected)
 
-kNN purity on real data (150 queries over 3,415 embedded+genre tracks):
-does a track's 5 nearest embedding-neighbors share its label?
+v3 re-measurement (full population, duration-guarded n=2,982, current
+93.4%-coverage family map; replaces the old 150-query sample whose 39%
+figure is explained in §5b.1):
 
-| Level                     | 5-NN majority agreement                                                |
-| ------------------------- | ---------------------------------------------------------------------- |
-| Raw label (`deep house`)  | **7%**                                                                 |
-| Family level (`house`)    | **39%**                                                                |
-| `deep house` specifically | **0 / 60** tracks keep the specific label; 31/60 agree at family level |
+| Level                                      | 5-NN keeps it                                          |
+| ------------------------------------------ | ------------------------------------------------------ |
+| Specific sub-genre label (`deep house`, …) | **3–27% survival across six clusters** (see below)     |
+| Family level                               | **57.6%** LOO ungated · 62.7% gated (95% CIs in §5b.1) |
 
-Reading: **audio does not encode our sub-genre labels.** A `deep house`
-track's nearest audio neighbors are labeled tech house, progressive house,
-melodic house & techno — the _labels_ differ but the _sound_ is one
-continuum. Family mapping recovers real structure (39% >> 7%); specific
-sub-genre labels are metadata folklore with ~zero audio reality. (Labels
-still carry _scene_ information — what the artist/label calls it — which
-audio can't know. Both are true; they answer different questions.)
+Sub-genre label survival by cluster (does a track's 5 nearest
+audio-neighbors share its SPECIFIC label?):
 
-**Verdict: we do NOT trust specific genre labels as audio truth, and never
-will at this label hygiene.** Families are weak-but-real; embeddings are
-the fine-grained similarity source.
+| Cluster             | Survival     |
+| ------------------- | ------------ |
+| `deep house`        | 3% (3/102)   |
+| `melodic techno`    | 0/10         |
+| `afro house`        | 12% (4/32)   |
+| `tech house`        | 18% (41/227) |
+| `progressive house` | 27% (30/112) |
+| `hardtekk`          | 44% (4/9)    |
+
+Reading: **audio almost never encodes our specific sub-genre labels — and
+this is now measured across six clusters, not one.** Niche scene labels
+(`hardtekk`) survive best (small coherent scenes); big-tent labels
+(`deep house`) survive least. Family mapping recovers real structure
+(~58% ≫ 3–27%). Labels still carry _scene_ information audio can't know —
+both are true; they answer different questions.
+
+**Verdict (corrected wording): specific labels get a 3–27% survival band —
+mostly folklore, occasionally real. Families are weak-but-real; embeddings
+are the fine-grained similarity source.**
 
 ## 3. The policy: two-tier genre
 
@@ -80,7 +94,7 @@ the fine-grained similarity source.
 ### Tier 2 — family (scoring)
 
 - `genreFamily()` (existing SSOT, 9 families: bass/house/techno/trance/
-  hiphop/edm/pop/groove/mood) is the ONLY genre signal the set builder
+  hiphop/edm/pop/groove/mood) is the ONLY genre signal MegaSet
   consumes. It already handles `deep house → house` via the regex chain,
   including the ordering traps (bass before house, melodic → techno).
 - **Do we filter `deep house` out of a `house` pool? No.** Pool filters
@@ -106,7 +120,7 @@ Both, at different tiers: **generic (family) is better for scoring**
 (human meaning). The one thing we must NOT do is score specificity —
 the 7% purity number says sub-genre distance is fiction.
 
-## 4. Inclusion in the set builder (this product)
+## 4. Inclusion in MegaSet (this product)
 
 | Use                                                 | Signal                 | Where                   |
 | --------------------------------------------------- | ---------------------- | ----------------------- |
@@ -138,48 +152,79 @@ The question "can't FullTags just fix all this?" — mostly **yes**, because
 every fix lands in data FullTags already owns. What follows is the deeper
 plan plus the benchmark numbers that size each step.
 
-### 5b.1 Measured baselines (live archive, 2026-09-14, post `rb-comment-sync`)
+### 5b.0 Do we need to re-run FullTags first? (measured answer: no)
 
-| Measure                                                          | Value                                                                                                                                                        |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Genre coverage (downloaded)                                      | **3,458/3,664 = 94.4%** (was 56% before `rb-comment-sync` filled file-tag genres into DB rows)                                                               |
-| Genre coverage by source                                         | `ingest` (pool rips) 526/531 = **99.1%** · `rekordbox` 2,932/3,133 = 93.6% · `liked-videos` pending 0/1,087 (unlabeled until downloaded)                     |
-| Unlabeled downloaded (inference targets)                         | **206** — of which **203 already embedded**, ready for kNN the moment we choose to fill them                                                                 |
-| Embedded + labeled (kNN-eligible)                                | 3,415                                                                                                                                                        |
-| Labels covering 90% of rows                                      | **105** — the alias table has a hard, small target                                                                                                           |
-| Distinct raw labels / casefolded                                 | 459 / 440 (unchanged — refold not yet run)                                                                                                                   |
-| Junk-label mass (`music`, `edits / bootlegs`, …)                 | 180 rows                                                                                                                                                     |
-| Multi-genre strings already in the wild                          | **389 rows** (`Electronic/House`, `Deep House/Indie Dance/Nu Disco`, `Techno (Peak Time / Driving)`) — the data is ALREADY multi-genre, stored as slash-soup |
-| Numeric SC genre IDs in DB                                       | **0** — the write-point guard holds (`1482891500`-style labels never enter `tracks.genre`)                                                                   |
-| **Leave-one-out kNN family agreement, ungated (label vs audio)** | **k=5: 60.8% · k=7: 61.3%** (full n=3,008 population)                                                                                                        |
-| Same, gated at ≥0.6 vote strength                                | k=5: 65.6% (n=2,482, refuses 17.5%) · k=7: 72.5% (n=1,633, refuses 45.7%)                                                                                    |
-| Vote strength @k=7                                               | unanimous ≥6/7: 31% · majority 4–5: 53% · split ≤3: 16%                                                                                                      |
-| Agreement by source (gated LOO sample)                           | `rekordbox` (RB-analyzed) **62.2%** · `ingest` (pool) **58.7%**                                                                                              |
+The worry: "most of the genre stuff is junk, we only ran FullTags on ~500
+recent imports — re-run everything, then re-embed, then clean up?" The
+ledgers say otherwise: `mood` 3,659/3,664, `beats` 3,610, `cues` 3,605,
+`embeddings` 3,618 — analysis is **library-wide** (3,531 rows analyzed on
+Sep 12 alone), not a 500-track batch. Genre labels are a _metadata_
+problem, not an _analysis_ problem: 94.4% coverage with a 30-row spot
+check finding zero placeholder labels. The refold pipeline (§5b.3)
+relabels from data we already have; **no FullTags re-run and no
+re-embedding is queued** — embeddings are tower-fixed (effnet stays) and
+re-embedding would change nothing about label quality. The post-refold
+`--eval` rerun is the checkpoint that would catch any surprise.
 
-> **Method note (Sep 14 correction):** the earlier "k=5: 76.5%" figure was
-> computed on the ≥0.6-gated _subset_ only (n=601 at k=7). The honest
-> full-population numbers are ~61% ungated / ~66–72% gated. Same
-> conclusions, smaller margin: k=5 stays (best gated coverage per refusal),
-> the 0.6 gate stays (gated ≫ ungated at k=7: +11.2 pts), and no single
-> label source is audio-truth. Eval targets updated: **LOO ≥70% gated**
-> post-refold (not 80% — that would require label quality the sources
-> don't have).
+### 5b.1 Measured baselines (v3, Sep 14: duration-guarded, full-population, with statistics)
 
-Readings:
+> **v3 methodology (supersedes the v2 table):** every number is computed on
+> the **duration-guarded population** (90–480 s: drops DJ mixes, edits,
+> shorts — 3,664 → 3,163 downloaded; 2,982 family-evaluable embedded) at
+> **k=5 full-population leave-one-out** (exact, no query sampling), with
+> **bootstrap 95% CIs** (2,000 resamples, track-blocked) and **McNemar's
+> test** where two methods are paired. The §2-vs-5b headline discrepancy is
+> reconciled below — sampling noise plus the old 88%-coverage family map,
+> not a second scoping bug.
 
-1. **k=5 is measurably the right neighborhood** — at k=5 the gate refuses
-   only 17.5% of tracks while keeping a +4.8-pt agreement lift; at k=7 it
-   refuses 45.7% for +11.2 pts. For _inference_ (filling 203 blanks) use
-   k=5 (more answers); for _dispute flagging_ use k=7 (more confidence
-   per answer). `inferGenre` keeps k=5 default.
-2. **Every label source is ~59–66% audio-consistent.** No source is truth;
-   the _consensus of neighbors_ outperforms any single label. This is the
-   argument for genre as **ranked, multi-valued** data rather than one
-   string.
-3. **16% of tracks sit in split neighborhoods** (≤3/7 agreement) — the
-   genuine genre-boundary tracks (melodic techno ↔ progressive house).
-   Forcing a label is lying; the existing ≥0.6 min-agreement gate correctly
-   refuses roughly this share. Gate stays.
+| Measure (guarded, n=2,982)                                        | Value                                                                                                    |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **LOO k=5 family agreement, ungated**                             | **57.6%** · 95% CI [55.8, 59.5]                                                                          |
+| **LOO k=5 gated ≥0.6**                                            | **62.7%** · CI [60.7, 64.6] · refuses 19.8%                                                              |
+| Old §2 methodology re-run (150-query sampled majority, 30 rounds) | 55.9% ±3.5 — consistent with full LOO once sampling is accounted for                                     |
+| Same at 750 queries                                               | 58.1% ±1.6                                                                                               |
+| **Duration-guard effect (same map, guarded vs unguarded)**        | **−0.2 pt — neutral.** Guard kept for analysis hygiene (mixes/edits poison TagData), not for this metric |
+| **Discogs-400 head family agreement (top-1)**                     | 46.1% · CI [44.3, 47.9]                                                                                  |
+| kNN vs head (paired, same population)                             | +11.6 pts for kNN · **McNemar p=2×10⁻³⁰ — conclusive**                                                   |
+| **Jaccard(kNN-top5-families, head-top5-families)**                | 0.486 — ~half-overlapping family sets; genuinely complementary signals                                   |
+| Genre coverage (downloaded)                                       | **3,458/3,664 = 94.4%**; 30-row spot check: 0 suspicious labels (real labels, not placeholders)          |
+| Coverage by source                                                | `ingest` 526/531 · `rekordbox` 2,932/3,133 · 206 unlabeled (203 embedded)                                |
+| Labels covering 90% of rows                                       | **105** — the alias table has a hard, small target                                                       |
+| Distinct raw labels / casefolded                                  | 459 / 440 (refold not yet run)                                                                           |
+| Multi-genre strings already in the wild                           | **389 rows** — the data is ALREADY multi-genre, stored as slash-soup                                     |
+| Numeric SC genre IDs in DB                                        | **0** — the write-point guard holds                                                                      |
+
+Readings (what changed vs v2, and why the two headline numbers now
+reconcile):
+
+1. **§2's "39% @150 queries" vs §5b's "61–66%" is explained, not a bug.**
+   Re-running the exact old methodology (150 sampled queries, plain 5-NN
+   majority) 30× gives 55.9% ±3.5 — statistically consistent with the
+   full-population 57.6%. The old 39% was depressed by small-sample noise
+   plus a family map that left 12% of labels unmapped (coverage is now
+   93.4%). §2 below is corrected to the same population and map.
+2. **Sub-genre label survival generalizes — `deep house` was not an
+   outlier.** The §2 claim rested on one sub-genre (0/60). Re-tested on
+   six clusters: deep house **3%** (3/102), afro house **12%** (4/32),
+   melodic techno **0/10**, tech house **18%** (41/227), progressive house
+   **27%** (30/112), hardtekk **44%** (4/9). Specific labels survive a
+   5-NN audio neighborhood 3–27% of the time across the board (niche
+   scene labels survive best). **The two-tier policy stands on broader
+   evidence; the "never will" language is corrected to a measured 3–27%
+   survival band.**
+3. **kNN beats the Discogs-400 head conclusively** (McNemar p=2×10⁻³⁰) —
+   kNN stays the inference oracle; the head stays the ranked-secondary
+   source (Jaccard 0.49 family overlap = complementary, not redundant).
+4. **No source is truth, now measured with CIs:** per-source LOO (guarded,
+   full population) — `rekordbox` **58.4%** CI [56.4, 60.2] (n=2,568) vs
+   `ingest` **53.1%** CI [48.6, 58.0] (n=414); difference +5.2 pts,
+   z=2.00, **p=0.046 — conclusive at 0.05**. §5c's precedence table is
+   corrected to follow the measurement (RB above ingest among label
+   sources) with the curation caveat stated explicitly.
+5. **k=5 and the 0.6 gate stay:** gated 62.7% vs ungated 57.6% (+5.1 pts
+   for 19.8% refusal). Eval target: **gated ≥65% post-refold** (baseline
+   62.7%). The 19.8% refusals are the split neighborhoods (melodic techno
+   ↔ progressive house) — refused, not guessed.
 
 ### 5b.2 Multi-genre: yes — as ranked secondary values in our DB, single-value in tags
 
@@ -211,18 +256,17 @@ ground-truth philosophy unchanged.
    NOT rewritten (a human decision), but excluded from inference seeding
    so one bad label poisons fewer votes.
 3. **Inference for the unlabeled 206** (203 already embedded): existing
-   `inferGenre` at k=5, minAgreement 0.6 — now benchmark-validated on the
-   full population (60.8% ungated → 65.6% gated; the gate trades 17.5%
-   refusal for +4.8 pts). `--apply` fills empty columns only;
+   `inferGenre` at k=5, minAgreement 0.6 — now benchmark-validated with
+   CIs (57.6% ungated → 62.7% gated; the gate trades 19.8%
+   refusal for +5.1 pts). `--apply` fills empty columns only;
    disputed/no-quorum stay honest gaps. At 94.4% coverage the remaining
    upside is small — this step is cheap but not load-bearing.
 4. **Periodic `megadj genre --eval`** (new, small): re-runs the
    leave-one-out harness over the live DB and prints agreement +
    vote-strength distribution — the regression test for label hygiene.
-   If refold/inference makes things worse, the number says so. Targets
-   (corrected Sep 14 against full-population baselines): **LOO gated
-   ≥70% after refold** (baseline 65.6% @k=5, 72.5% @k=7 — target the
-   k=5 number), disputed share <10%.
+   If refold/inference makes things worse, the number says so. Target
+   (v3, set on the duration-guarded baseline): **LOO gated ≥65% after
+   refold** (baseline 62.7%), disputed share <10%.
 5. **Embedding-neighborhood labels (later, the deep fix)**: cluster the
    3,415 vectors; coherent clusters _propose_ canonical labels from their
    members' consensus, reviewed by a human — new sub-genres enter the
@@ -249,29 +293,41 @@ ground-truth philosophy unchanged.
 | Inference for unlabeled (k=5 pinned by eval) | exists | —                                   |
 | Cluster-proposed labels                      | M      | everything above, later             |
 
-**Tower note (Sep 14):** musicnn is the measured genre candidate on the
-80-track harness (**53.8%** leave-one-out family agreement vs 41.3% for
-effnet). The tested effnet+musicnn ensemble improves effnet to 46.3% but
-trails musicnn, so there is no production switch until the repaired harness
-repeats the result on the larger post-refold set. Tower numbers and gate:
-[06-embedding-models.md](06-embedding-models.md).
+**Tower note (Sep 14, superseded):** the 80-track harness numbers that
+named musicnn the candidate were a broken-harness artifact. The repaired
+harness (n=180, 0 fails, v2 rerun in
+[06-embedding-models.md](06-embedding-models.md)) inverts it: effnet 0.444
+vs musicnn 0.300, ensemble best +1.1 pt — no production switch. See the
+full sweep (fusers × 6 towers, MERT variants) there.
 
-### 5c. Which source wins? (the "6 sources — do we take SoundCloud?" question)
+### 5c. Which source wins? (v3 — corrected to follow the measurement)
 
-The candidate sources, ranked by **measured** audio-consistency (gated LOO)
-and by role. Precedence rule that falls out: **audio consensus outranks
-every human/label source; among label sources, the curated pool outranks
-RB metadata outranks SC free-text; file TCON is never a source** — it's an
-_output_ we wrote.
+> **v3 correction:** v2's table ranked `ingest` above `rekordbox` citing
+> "curated releases carry real genre" while the measured column said the
+> opposite — a plausibility argument overriding the stated ranking
+> criterion. Fixed: the order now follows the numbers, and the curation
+> argument is kept only as a stated caveat where it still applies
+> (specificity of pool labels for display).
 
-| Rank | Source                                           | Audio-consistency                                                                                                                                                                                                                                                                                                               | Role in the pipeline                                                                                         |
-| ---- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 1    | **Embedding kNN consensus** (our own ONNX)       | the _reference_, not a claim                                                                                                                                                                                                                                                                                                    | Tie-breaker + inference + dispute flagging. Decides families; never invents sub-genre labels.                |
-| 2    | **Ingest pool tags** (Bandcamp/Hypeddit-quality) | 58.7% (n=443 sample)                                                                                                                                                                                                                                                                                                            | Highest-quality _human_ labels — curated releases carry real genre. Primary for Tier-1 display when fresh.   |
-| 3    | **Rekordbox mirror** (RB/artist-entered)         | 62.2% (n=793 sample)                                                                                                                                                                                                                                                                                                            | Bulk coverage (2,932 rows). Primary display only where pool didn't label; always family-scored.              |
-| 4    | **SoundCloud free-text** (artist-chosen)         | not directly measurable (numeric-ID guard blocks the worst); visible as the junk tail (`music`×154, `edits / bootlegs`)                                                                                                                                                                                                         | Lowest trust. Never primary; feeds the alias table only when ≥5 occurrences map cleanly.                     |
-| 5    | **File TCON tags**                               | **never a source** — round-trip pollution measured: numeric SC IDs _baked into files_ (`Jerome Isma-Ae · Smile…` carries TCON `1482891500`), Beatport tag-soup sentences (`…dance indie electronic electronic pop…`), slash-soup with embedded newlines. DB↔file exact agreement only 81% (55-tag sample); family agreement 70% | Output-only. `rb-comment-sync` writes it; readers must treat file TCON as a cache of the DB, never upstream. |
-| 6    | **Cluster-proposed labels** (future, §5b.3.5)    | n/a — derived from #1                                                                                                                                                                                                                                                                                                           | New canonical labels enter from audio reality; human-reviewed.                                               |
+Measured audio-consistency (duration-guarded full population, ungated LOO,
+95% CIs; §5b.1):
+
+| Rank | Source                                           | Audio-consistency (measured)                                                                                                                                                                   | Role in the pipeline                                                                                    |
+| ---- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 1    | **Embedding kNN consensus** (our own ONNX)       | the _reference_, not a claim                                                                                                                                                                   | Tie-breaker + inference + dispute flagging. Decides families; never invents sub-genre labels.           |
+| 2    | **Rekordbox mirror** (RB/artist-entered)         | **58.4%** CI [56.4, 60.2] (n=2,568)                                                                                                                                                            | Bulk coverage (2,932 rows). Primary display; always family-scored.                                      |
+| 3    | **Ingest pool tags** (Bandcamp/Hypeddit-quality) | **53.1%** CI [48.6, 58.0] (n=414) — statistically below RB (z=2.00, p=0.046). Caveat kept: pool labels carry richer _specificity_ for display, which consistency does not measure              | Secondarily primary for display specificity; never outranks RB for scoring.                             |
+| 4    | **SoundCloud free-text** (artist-chosen)         | not directly measurable (numeric-ID guard blocks the worst); visible as the junk tail (`music`×154, `edits / bootlegs`)                                                                        | Lowest trust. Never primary; feeds the alias table only when ≥5 occurrences map cleanly.                |
+| 5    | **File TCON tags**                               | **never a source** — round-trip pollution measured: numeric SC IDs _baked into files_, Beatport tag-soup sentences, slash-soup with newlines. DB↔file exact agreement only 81% (55-tag sample) | Output-only. `rb-comment-sync` writes it; readers treat file TCON as a cache of the DB, never upstream. |
+| 6    | **Cluster-proposed labels** (future, §5b.3.5)    | n/a — derived from #1                                                                                                                                                                          | New canonical labels enter from audio reality; human-reviewed.                                          |
+
+**Junk-label criterion (was implicit, now stated):** a label is junk (not
+mapped, excluded from the 105-label target) iff it is (a) a non-genre
+string — URL/JSON/escape artifact/artist name/status word (`premiere`,
+`vip mix`, `tutorial`) — or (b) a structural placeholder (`music`,
+`unknown`, `other`), or (c) deliberately unmapped (`edits / bootlegs`,
+`loop samples` — DJ-tool categories, not genres). Low frequency alone
+never disqualifies: singletons with clear genre meaning get aliases.
 
 **How precedence executes** (the disputed-flag pass, §5b.3.2, concretely):
 
@@ -294,9 +350,9 @@ ever raw-dogs the scoring path again.
 **Specificity at intake**: keep whatever specificity the source gave
 (`deep house` stays `deep house`, display-tier), map to family for math.
 Do NOT broaden at intake (`deep house → house` at the write point) — that
-destroys the display signal the 0/60-purity result says is folklore but
-humans still want, and refold can always broaden later; it can't recover
-what intake threw away.
+destroys the display signal (measured 3–27% survival band, §2) that humans
+still want, and refold can always broaden later; it can't recover what
+intake threw away.
 
 **Sub-genre handling**: ranked secondaries (§5b.2), not more primaries.
 `Deep House/Indie Dance/Nu Disco` → primary `deep house` + secondaries

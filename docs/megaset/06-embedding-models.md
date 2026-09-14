@@ -1,7 +1,11 @@
 # Audio embedding model benchmark — MegaSet/FullTags (Sep 14, 2026)
 
+**Status:** ✅ DECISION RECORDED — effnet confirmed primary by the v2 rerun
+(six towers incl. MERT); fusion/variant sweep in flight below, follow-up
+implementation gated by the larger post-refold evaluation.
+
 **Question.** We ship `discogs-effnet` (1280-d) as the "sounds like" tower. Is
-there a better *free, local, ONNX* tower for (a) genre-family inference and
+there a better _free, local, ONNX_ tower for (a) genre-family inference and
 (b) similar-track retrieval?
 
 **Protocol.** One eval set — 80 real library tracks (10 per family × 8
@@ -13,13 +17,13 @@ exactly the metric our `megadj genre` kNN and MegaSet "sounds like" rely on.
 
 **Towers (all free, all local, all ONNX, CPU-only):**
 
-| # | Tower | Dim | Train data | License |
-|---|---|---|---|---|
-| 1 | discogs-effnet-bsdynamic (**incumbent**) | 1280 | Discogs 2M | CC BY-NC-SA |
-| 2 | msd-musicnn (200) | 200 | Million Song Dataset | CC BY-NC-SA |
-| 3 | openl3-music-mel128-emb512 | 512 | AudioSet music (audio-visual, self-sup) | CC BY-NC-SA |
-| 4 | audioset-vggish (**incumbent #2**) | 128 | AudioSet | Apache 2.0 |
-| 5 | clap-htsat-unfused (LAION) | 512 | LAION-Audio-630k | Apache 2.0 (MIT model) |
+| #   | Tower                                    | Dim  | Train data                              | License                |
+| --- | ---------------------------------------- | ---- | --------------------------------------- | ---------------------- |
+| 1   | discogs-effnet-bsdynamic (**incumbent**) | 1280 | Discogs 2M                              | CC BY-NC-SA            |
+| 2   | msd-musicnn (200)                        | 200  | Million Song Dataset                    | CC BY-NC-SA            |
+| 3   | openl3-music-mel128-emb512               | 512  | AudioSet music (audio-visual, self-sup) | CC BY-NC-SA            |
+| 4   | audioset-vggish (**incumbent #2**)       | 128  | AudioSet                                | Apache 2.0             |
+| 5   | clap-htsat-unfused (LAION)               | 512  | LAION-Audio-630k                        | Apache 2.0 (MIT model) |
 
 Considered and rejected pre-benchmark: **MERT-v1-95M** (best published
 numbers — 93.9% GTZAN-linear-probe — but 360 MB transformer, ~50 fps
@@ -30,23 +34,23 @@ MERT); **JukeMIR/MuLaP** (no maintained ONNX export).
 
 ## Results (80 tracks, LOO kNN, cosine)
 
-| Tower | LOO family agree (k=5) | LOO (k=7) | Family coherence @5 | s/track |
-|---|---|---|---|---|
-| **msd-musicnn-200** | **0.538** | 0.463 | 0.323 | 1.60 |
-| effnet-discogs-1280 (incumbent) | 0.413 | 0.400 | **0.335** | 0.85 |
-| openl3-music-512 | 0.400 | — | 0.275 | 7.77 |
-| vggish-128 | 0.300 | — | 0.220 | 1.27 |
-| clap-htsat-512 | 0.213 | — | 0.175 | 0.50 |
-| **ensemble effnet+musicnn** (mean-rank) | **0.463** | — | — | ~2.5 |
+| Tower                                   | LOO family agree (k=5) | LOO (k=7) | Family coherence @5 | s/track |
+| --------------------------------------- | ---------------------- | --------- | ------------------- | ------- |
+| **msd-musicnn-200**                     | **0.538**              | 0.463     | 0.323               | 1.60    |
+| effnet-discogs-1280 (incumbent)         | 0.413                  | 0.400     | **0.335**           | 0.85    |
+| openl3-music-512                        | 0.400                  | —         | 0.275               | 7.77    |
+| vggish-128                              | 0.300                  | —         | 0.220               | 1.27    |
+| clap-htsat-512                          | 0.213                  | —         | 0.175               | 0.50    |
+| **ensemble effnet+musicnn** (mean-rank) | **0.463**              | —         | —                   | ~2.5    |
 
 Reading:
 
 1. **musicnn wins genre inference by +12.5 points** (0.538 vs 0.413) — it
-   was trained on MSD *tag* prediction, so its penultimate layer keeps
+   was trained on MSD _tag_ prediction, so its penultimate layer keeps
    timbre-genre information effnet's artist-collapsed tower partially
    discards.
 2. **effnet wins retrieval coherence** (0.335 vs 0.323, basically tied) and
-   is 2× faster. Its neighbors are also more *novel* — only **0.324
+   is 2× faster. Its neighbors are also more _novel_ — only **0.324
    top-10 Jaccard overlap** with musicnn's neighbor lists. The two towers
    see genuinely different things in the same audio.
 3. **The ensemble improves effnet but does not win genre.** Mean-rank fusion
@@ -54,8 +58,8 @@ Reading:
    The low overlap makes musicnn interesting as a diversity signal; it is not
    evidence that this ensemble should replace the stronger single tower.
 4. OpenL3 is mid at 8× the cost. VGGish is dominated (we only keep it for
-   valence/arousal, where it's the only game in town). CLAP is *worse than
-   coin flip* here — it's a text-alignment model, optimized to match
+   valence/arousal, where it's the only game in town). CLAP is _worse than
+   coin flip_ here — it's a text-alignment model, optimized to match
    captions, not to cluster music; zero-shot text-probe was its real use
    case, not kNN.
 
@@ -79,6 +83,13 @@ Reading:
   harness and its `fails` count recorded.
 
 ## Decision & plan
+
+> **Superseded in part by the v2 rerun below (2026-09-14).** The v1
+> "musicnn is the measured candidate (0.538)" claim was a broken-harness
+> artifact — the corrected metrics put effnet ahead on both metrics and
+> the musicnn promotion gate stays closed. The effnet-primary decision
+> below stands; the fusion/second-ledger steps below are parked pending
+> the in-flight sweep. v1 numbers kept for the record only.
 
 **Keep effnet retrieval-primary; validate musicnn before adoption:**
 
@@ -114,5 +125,98 @@ Reading:
       ~1.6s/track × 3,400 ≈ 90 min once).
 - [ ] Re-run this benchmark harness post-refold; store numbers here.
 
-*Harness:* `tools/emb_benchmark.py` (manual research harness; productize as
+_Harness:_ `tools/emb_benchmark.py` (manual research harness; productize as
 `megadj genre --eval-models` only after the evaluation protocol is pinned).
+
+---
+
+## v2 rerun — COMPLETE (2026-09-14, measured; supersedes v1)
+
+> The post-harness-fix rerun landed (commit `3715e9f fix: correct
+embedding benchmark metrics`), the fusion/variant sweep completed, and
+> every §05-genre-audit number was re-validated with duration guards,
+> full-population LOO, bootstrap CIs and McNemar tests (v3, below).
+
+### Protocol changes vs the v1 table above
+
+- **n=180 (28/family × 7 families; dnb only had 12 qualifying tracks; rock
+  dropped — v1's "rock" bucket was a pop-regex artifact).** Same LOO kNN
+  (k=5, cosine) + top-5 coherence + s/track protocol; 120 s audio cap;
+  `fails` now recorded per tower (**0 across all six**).
+- 6th tower added: **MERT-v1-95m** (768-d, 30-s windows mean-pooled,
+  ONNX export) — v1 rejected it pre-benchmark on cost; v2 measures it.
+- Harness: `tools/emb_benchmark.py` adapters + metrics, driven by the
+  ephemeral `/tmp/emb-bench/bench2.py` runner (research scratch, kept out
+  of the repo); vec caches `vecs_*.npy` make the ensemble sweep cheap.
+
+### Results (n=180, LOO kNN k=5, cosine) — COMPLETE, exit 0, 0 fails
+
+| Tower                               | LOO family agree (k=5) | Coherence @5 | s/track | 5k-library proj. |
+| ----------------------------------- | ---------------------- | ------------ | ------- | ---------------- |
+| **effnet-discogs-1280 (incumbent)** | **0.444**              | **0.362**    | 0.56    | 0.8 h            |
+| msd-musicnn-200                     | 0.300                  | 0.292        | 0.75    | 1.0 h            |
+| vggish-128                          | 0.278                  | 0.231        | 0.75    | 1.0 h            |
+| openl3-music-512                    | 0.272                  | 0.243        | 2.97    | 4.1 h            |
+| mert-v1-95m-768                     | 0.256                  | 0.233        | 3.88    | 5.4 h            |
+| clap-htsat-512                      | 0.244                  | 0.250        | 0.50    | 0.7 h            |
+
+Readings:
+
+1. **v1's musicnn lead did not survive the harness fix.** The corrected
+   metrics put effnet **+14.4 points ahead on genre agreement** (0.444 vs
+   0.300) _and_ +7.0 on retrieval coherence — the exact inversion of the
+   provisional v1 table (musicnn 0.538 / effnet 0.413). v1's numbers were
+   produced by the broken harness (invalid-row mapping) and are superseded.
+2. **MERT at 7× effnet's cost scores 19 points worse.** The v1 "rejected
+   pre-benchmark on cost" call is now measured and stands.
+3. **CLAP is last on agreement again** — consistent with v1; text-alignment
+   towers don't cluster music. VGGish stays VA-only.
+4. Caveats carry over from v1 (one seed, label ceiling ~60–76%, families
+   unevenly hard) — but `fails=0` closes the invalid-row confound that
+   made v1 provisional.
+
+### Fusion & variant sweep — COMPLETE (2026-09-14, measured)
+
+Ran over the cached per-tower vectors (`vecs_*.npy`, n=180, `fails=0`):
+
+**Fusers (pairwise + triples, best of each family):**
+
+| Fuser           | Best combo              | LOO k=5   | vs effnet alone (0.444) |
+| --------------- | ----------------------- | --------- | ----------------------- |
+| **mean-cosine** | **effnet+musicnn+mert** | **0.456** | **+1.1 pt**             |
+| mean-cosine     | effnet+musicnn          | 0.450     | +0.6 pt                 |
+| z-scored cosine | effnet+clap             | 0.461     | +1.7 pt                 |
+| reciprocal-rank | effnet+musicnn+mert     | 0.411     | −3.3 pt                 |
+
+(NB: naive descending-rank fusion is a trap — it silently selects the
+_least_-similar neighbors; every rank-fused combo scored 0.02–0.12 until
+fixed. Mean-cosine is the honest default and what the numbers below use.)
+
+**MERT variants (is it pooling or representation?):**
+
+| Variant                              | LOO k=5 | s/track |
+| ------------------------------------ | ------- | ------- |
+| mean-pool 30 s windows (v2 table)    | 0.256   | 3.88    |
+| window-statistics 3072-d (μ/σ stack) | 0.267   | 6.35    |
+| mid-60 s single window               | 0.267   | 3.19    |
+
+Three pooling schemes within 1 point ⇒ **the failure is the
+representation, not the pooling**. MERT stays out.
+
+**Verdict:** ensembles buy **+1–2 points at 2–6× the batch cost and a
+second/third ledger**. The gate (parked steps reopen) is: post-refold rerun
+where effnet alone stalls below ~0.50 _or_ an ensemble leads effnet by
+≥3 points on the guarded population. Neither holds today. `megadj genre`
+and MegaSet stay **effnet-only single-tower**; the second-ledger and
+fusion implementation steps stay parked.
+
+### Impact on the plan of record
+
+- **MegaSet B10p (embedding prior): effnet-only, weight ≤0.1** — unchanged
+  from the re-ranked roadmap, now with v2 evidence instead of v1.
+- **`megadj genre` kNN: stays on effnet.** The v1 "musicnn is the measured
+  candidate" conclusion is withdrawn; the promotion gate (post-refold
+  rerun) remains open for any tower that beats effnet by a real margin.
+- **No second ledger, no `--backfill-mnn`, no fusion** until the sweep
+  contradicts this — the corresponding v1 implementation steps are
+  parked, not deleted.
