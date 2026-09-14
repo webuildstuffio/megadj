@@ -1,6 +1,6 @@
 # MegaSet — PRD
 
-v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Audit & plan](../setbuild-audit-2026-09-13.md)
+v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Genre audit](05-genre-audit.md) · [Audit & plan](../setbuild-audit-2026-09-13.md)
 
 **Status:** ✅ graduated product (v0 shipped propose-only, Sep 11–12 2026; doc set
 since Sep 14) — greedy Camelot/energy-arc engine, whole-library pool, CLI + HTTP +
@@ -120,7 +120,15 @@ sit in the ledgers, unused by sequencing. MegaSet v1 plans the _handoff_:
 per-step `mixOutCue`/`mixInCue` at 8-bar boundaries, carried into M3U8
 comments and rb-playlist dry-run explain rows — turning an ordered list
 into an executable transition plan. Nothing in the 10-project comparison
-set has both this phrase data and a gated rekordbox write path.
+set has both this phrase data and a gated rekordbox write path. Measured
+readiness (benchmarks Part 4.2): mixout p50 = 14.5 s, zero new analysis.
+
+**Booth visibility (XDJ-XZ):** hardware waveforms show memory-cue marks
+_with rekordbox-set colors_ but no text (XDJ-AZ/CDJ-3000 add phrase
+display). The convention: memory-cue colors from our rb-cues seam —
+red = vocal section, blue = instrumental/drop, green = breakdown; hot
+cues A–H stay reserved for performance points. Details:
+[genre-audit §6](05-genre-audit.md).
 
 ---
 
