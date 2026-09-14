@@ -34,6 +34,30 @@ User verification still open for F1: load a track, confirm 8 pads fire at
 labeled IN/BODY/DROP/OUT positions (the doctor gate proves DB state; the pad
 feel is the human half).
 
+## 0b. Post-apply recovery + the missing sync half (Sep 14, later)
+
+**rb-dedup over-reach, caught and fixed:** the F2 apply's fingerprint pairs
+included 7 tracks whose "losers" were the only live copies (their renamed
+twins had been quarantined in an earlier chain pass). Found via a full
+files↔rows census (7 rows pointed at dead paths). 6 files restored from
+`Quarantine/rb-dedup-2026-09-14/` and re-imported with full metadata from
+the archive ledger; 1 (Habibi) was a true dupe with a live keeper. Doctor
+gates re-verified green after.
+
+**The comment gap explained and closed (`rb-comment-sync`, new command):**
+the "no comments" mystery was a sync-order bug — intake rows were imported
+into master.db BEFORE fulltags ever stamped comments, and nothing ever
+synced them. One pass reads the TXXX (CAMELOT/ENERGY/MOOD) already on the
+files + the archive.db mood ledger and writes the FullTags comment format,
+never clobbering existing comments. Library-wide apply: 2,865 comments
+written, coverage 12% → 99%, re-read verified, dated backup taken.
+Genre/year/album backfill from the ledger in the same session: genre 56% →
+90%, year 74% → 93%.
+
+**Census after everything (live):** 3,481 rows ↔ 3,481 live files (0 dead
+rows), comments 99%, genre 90%, year 93%, album 52%, artwork 62%. Doctor
+F1/F2/F7 all green.
+
 ---
 
 ## 0. The two live bugs (user-reported Sep 13)
