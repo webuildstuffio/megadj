@@ -10,6 +10,7 @@
  */
 
 import type { Database } from "bun:sqlite";
+import { sqliteRowId } from "./sqlite-id";
 
 export interface ShelfSweepRow {
   id: number;
@@ -95,7 +96,7 @@ export class ShelfSweeps {
         info.trashes ? 1 : 0,
         info.into ?? null,
       );
-    return Number(res.lastInsertRowid);
+    return sqliteRowId(res.lastInsertRowid);
   }
 
   /** Finish a sweep: counters + derived verdict. */

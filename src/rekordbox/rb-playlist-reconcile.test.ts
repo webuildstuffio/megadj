@@ -48,4 +48,15 @@ describe("rb-playlist-reconcile XML parsing (RB7 hex-id format)", () => {
     expect(nested).toContain('ParentId="7B"');
     expect(nested).toContain('Id="C8"');
   });
+
+  test("nodeLine preserves 64-bit playlist ids exactly", () => {
+    const line = nodeLine({
+      name: "Large ids",
+      id: "9007199254740993",
+      parentId: "9007199254740995",
+      attribute: 0,
+    });
+    expect(line).toContain('Id="20000000000001"');
+    expect(line).toContain('ParentId="20000000000003"');
+  });
 });

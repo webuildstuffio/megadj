@@ -172,8 +172,9 @@ async function processEntry(
       outputFormat: "png",
     });
     const { cost } = result;
+    const numericCost = Number(cost);
     log(
-      `    generated ${coverPath}${cost !== undefined ? ` ($${Number(cost).toFixed(3)})` : ""}`,
+      `    generated ${coverPath}${cost !== undefined && Number.isFinite(numericCost) ? ` ($${numericCost.toFixed(3)})` : ""}`,
     );
     if (await embedArtwork(entry.path, coverPath)) {
       log("    embedded ✓");

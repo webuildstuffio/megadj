@@ -137,9 +137,11 @@ export function parseXmlNodes(xml: string): {
     const tag = m[1] ?? "";
     const hexId = xmlAttr(tag, "Id");
     if (hexId === null) continue;
-    let id = "";
+    let id: string;
+    let parentId: string;
     try {
-      id = String(Number.parseInt(hexId, 16));
+      id = hexToDecimalId(hexId);
+      parentId = hexToDecimalId(xmlAttr(tag, "ParentId") ?? "0");
     } catch {
       continue;
     }
@@ -149,18 +151,27 @@ export function parseXmlNodes(xml: string): {
       name: xmlAttr(tag, "Name"),
       // ParentId is also hex in RB7 XML — convert so comparisons happen in
       // the DB's decimal id space end to end.
-      parentId: hexToDecimalId(xmlAttr(tag, "ParentId") ?? "0"),
-      attribute: Number(xmlAttr(tag, "Attribute") ?? "0"),
+      parentId,
+      attribute: (() => {
+        const value = Number(xmlAttr(tag, "Attribute") ?? "0");
+        return Number.isFinite(value) ? value : 0;
+      })(),
     });
   }
   return out;
 }
 
-/** RB7 XML stores ids as hex; the DB stores decimal. One converter, used
- *  everywhere (Number.parseInt never throws on garbage — returns NaN). */
+/** RB7 XML stores ids as hex; the DB stores decimal. Keep the full SQLite
+ * integer domain instead of rounding through JavaScript's 53-bit number. */
 export function hexToDecimalId(hex: string): string {
-  const n = Number.parseInt(hex, 16);
-  return Number.isFinite(n) ? String(n) : hex;
+  if (!/^[0-9a-f]+$/iu.test(hex)) throw new Error(`invalid hex id: ${hex}`);
+  return BigInt(`0x${hex}`).toString(10);
+}
+
+function decimalToHexId(decimal: string): string {
+  if (!/^\d+$/u.test(decimal))
+    throw new Error(`invalid decimal id: ${decimal}`);
+  return BigInt(decimal).toString(16).toUpperCase();
 }
 
 /** Build a NODE line matching RB7's own format: hex Id, Timestamp,
@@ -171,8 +182,8 @@ export function nodeLine(t: {
   parentId: string;
   attribute: number;
 }): string {
-  const hex = Number(t.id).toString(16).toUpperCase();
-  const parentHex = Number(t.parentId).toString(16).toUpperCase();
+  const hex = decimalToHexId(t.id);
+  const parentHex = decimalToHexId(t.parentId);
   const name = t.name === null ? "" : ` Name="${escapeXml(t.name)}"`;
   return `    <NODE${name} Id="${hex}" ParentId="${parentHex}" Attribute="${t.attribute}" Timestamp="${Date.now()}" Lib_Type="0" CheckType="0"/>`;
 }

@@ -277,8 +277,10 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
       { encoding: "utf8", timeout: 15_000 },
     );
     const lines = (probe.stdout ?? "").trim().split("\n");
-    const duration = Math.round(Number(lines[0]) || 0);
-    const bitrate = Math.round(Number(lines[1]) || 0);
+    const durationRaw = Number(lines[0]);
+    const bitrateRaw = Number(lines[1]);
+    const duration = Number.isFinite(durationRaw) ? Math.round(durationRaw) : 0;
+    const bitrate = Number.isFinite(bitrateRaw) ? Math.round(bitrateRaw) : 0;
     // tags come from the archive DB conventions: parse "Artist · Album · Title"
     const stem = fname.replace(/\.[^.]+$/u, "");
     const parts = stem.split(" · ");

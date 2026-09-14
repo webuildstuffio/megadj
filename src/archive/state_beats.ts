@@ -1,4 +1,5 @@
 import { ArchiveTracks } from "./state_tracks";
+import { sqliteRowId } from "./sqlite-id";
 import type { RunRow, TrackRow } from "./state-types";
 
 function parseNumberArray(
@@ -27,7 +28,7 @@ export class ArchiveBeats extends ArchiveTracks {
     const result = this.db
       .query("INSERT INTO runs (started_at) VALUES (?)")
       .run(this.now());
-    return Number(result.lastInsertRowid);
+    return sqliteRowId(result.lastInsertRowid);
   }
 
   finishRun(

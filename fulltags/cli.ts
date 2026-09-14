@@ -29,6 +29,7 @@ import {
 } from "./src/pipeline";
 import { groundTruth } from "./src/readers";
 import { isAudioFile } from "./src/writer";
+import { nonNegOpt, parseFlags } from "../src/cli-flags";
 
 /** Narrow a CLI word to a Stage (undefined = not a stage name). */
 function isStage(word: string): word is Stage {
@@ -57,6 +58,7 @@ interface CliArgs {
   target: string | null;
   stages: Stage[] | null;
   jobs: number;
+  valid: boolean;
   dryRun: boolean;
   upgradeScArt: boolean;
   archiveDir: string | null;
@@ -74,6 +76,7 @@ function parseArgs(argv: string[]): CliArgs {
     target: null,
     stages: null,
     jobs: 4,
+    valid: true,
     dryRun: false,
     upgradeScArt: false,
     archiveDir: null,
@@ -93,8 +96,17 @@ function parseArgs(argv: string[]): CliArgs {
     else if (a === "--upgrade-sc-art") args.upgradeScArt = true;
     else if (a === "--json") args.json = true;
     else if (a === "--no-queue") args.artworkQueue = null;
-    else if (a === "--jobs") args.jobs = Number(argv[++i]) || 4;
-    else if (a === "--archive-dir") args.archiveDir = argv[++i] ?? null;
+    else if (a === "--jobs" || a.startsWith("--jobs=")) {
+      const raw = a === "--jobs" ? argv[++i] : a.slice("--jobs=".length);
+      const flags = parseFlags([`--jobs=${raw ?? ""}`], ["jobs"], []);
+      const jobs = nonNegOpt(flags, "jobs", "fulltags");
+      if (jobs === undefined) args.valid = false;
+      else if (jobs === 0) {
+        console.error('fulltags: --jobs must be at least 1 (got "0")');
+        process.exitCode = 2;
+        args.valid = false;
+      } else args.jobs = jobs;
+    } else if (a === "--archive-dir") args.archiveDir = argv[++i] ?? null;
     else if (a === "--artwork-queue") args.artworkQueue = argv[++i] ?? null;
     else if (isStage(a.slice(2))) stages.add(a.slice(2) as Stage);
     else if (a === "--title") args.hints.title = argv[++i];
@@ -124,6 +136,7 @@ async function main(): Promise<void> {
     return;
   }
   const args = parseArgs(argv);
+  if (!args.valid) return;
 
   // `fulltags ensure-models`: pre-download the ONNX mood models so a later
   // --mood run never stalls on a 320 MB fetch mid-batch.

@@ -150,10 +150,17 @@ function main() {
       console.error(`--refs: file not found: ${p}`);
       process.exit(2);
     }
-    externalRefs = JSON.parse(readFileSync(p, "utf8")) as Record<
-      string,
-      string
-    >;
+    try {
+      externalRefs = JSON.parse(readFileSync(p, "utf8")) as Record<
+        string,
+        string
+      >;
+    } catch (error) {
+      console.error(
+        `--refs: invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      process.exit(2);
+    }
   }
 
   const refs = new Map<string, string | null>();
