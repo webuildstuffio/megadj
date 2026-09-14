@@ -22,6 +22,17 @@ export interface VerdictTally {
   keepBoth: number;
 }
 
+/** Narrow filesystem seam for deterministic rename-failure tests. */
+export interface DedupeApplyOps {
+  rename(from: string, to: string): void;
+}
+
+const DEFAULT_APPLY_OPS: DedupeApplyOps = { rename: renameSync };
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /** The three-stage ladder for one pair: byte-MD5 first, then the acoustic
  *  fingerprint; fingerprint-identical pairs upgrade to the higher-quality
  *  side, different fingerprints are genuinely different audio (keep both).
@@ -98,6 +109,7 @@ function applyUpgrade(
   pair: DedupePair,
   quarantine: string,
   errors: string[],
+  ops: DedupeApplyOps,
 ): number {
   const qName = `.superseded-${basename(pair.original)}`;
   const qDest = join(quarantine, qName);
@@ -105,8 +117,23 @@ function applyUpgrade(
     errors.push(`${pair.original}: quarantine already has ${qName}`);
     return 0;
   }
-  renameSync(pair.original, qDest);
-  renameSync(pair.twin, pair.original);
+  ops.rename(pair.original, qDest);
+  try {
+    ops.rename(pair.twin, pair.original);
+  } catch (replacementError) {
+    try {
+      ops.rename(qDest, pair.original);
+    } catch (rollbackError) {
+      throw new Error(
+        `upgrade replacement failed (${errorText(replacementError)}); ROLLBACK FAILED (${errorText(rollbackError)}); original remains quarantined at ${qDest}`,
+        { cause: rollbackError },
+      );
+    }
+    throw new Error(
+      `upgrade replacement failed (${errorText(replacementError)}); original restored`,
+      { cause: replacementError },
+    );
+  }
   return 2;
 }
 
@@ -115,6 +142,7 @@ function applyMove(
   pair: DedupePair,
   quarantine: string,
   errors: string[],
+  ops: DedupeApplyOps,
 ): number {
   const { loser } = pair;
   if (!loser) return 0;
@@ -123,7 +151,7 @@ function applyMove(
     errors.push(`${loser}: quarantine already has ${basename(loser)}`);
     return 0;
   }
-  renameSync(loser, dest);
+  ops.rename(loser, dest);
   return 1;
 }
 
@@ -134,6 +162,7 @@ export function applyPairs(
   pairs: DedupePair[],
   quarantine: string,
   errors: string[],
+  ops: DedupeApplyOps = DEFAULT_APPLY_OPS,
 ): { moved: number; upgraded: number } {
   mkdirSync(quarantine, { recursive: true });
   let moved = 0;
@@ -142,13 +171,14 @@ export function applyPairs(
     if (!pair.loser) continue;
     try {
       if (pair.verdict === "keep-twin") {
-        moved += applyUpgrade(pair, quarantine, errors);
-        upgraded++;
+        const applied = applyUpgrade(pair, quarantine, errors, ops);
+        moved += applied;
+        if (applied === 2) upgraded++;
       } else {
-        moved += applyMove(pair, quarantine, errors);
+        moved += applyMove(pair, quarantine, errors, ops);
       }
     } catch (e) {
-      errors.push(`${pair.loser}: ${e instanceof Error ? e.message : e}`);
+      errors.push(`${pair.loser}: ${errorText(e)}`);
     }
   }
   return { moved, upgraded };

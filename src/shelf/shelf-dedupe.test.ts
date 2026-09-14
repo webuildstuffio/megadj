@@ -4,10 +4,14 @@ import {
   mkdtempSync,
   writeFileSync,
   existsSync,
+  readFileSync,
   readdirSync,
+  renameSync,
 } from "node:fs";
 import { join } from "node:path";
 import { findTwinPairs, shelfDedupe } from "./shelf-dedupe";
+import { applyPairs } from "./shelf-dedupe-verdict";
+import type { DedupePair } from "./shelf-dedupe-types";
 
 function makeShelf(
   withPair: { stem: string; origContent: string; twinContent: string },
@@ -25,6 +29,20 @@ function makeShelf(
     writeFileSync(join(artistDir, name), content);
   }
   return shelf;
+}
+
+function upgradePair(shelf: string, stem: string): DedupePair {
+  const artist = join(shelf, "Contents", "Artist");
+  return {
+    original: join(artist, `${stem}.mp3`),
+    twin: join(artist, `${stem} [TESTDRIVE].mp3`),
+    bytesOriginal: 3,
+    bytesTwin: 4,
+    method: "fingerprint",
+    verdict: "keep-twin",
+    reason: "test quality upgrade",
+    loser: join(artist, `${stem}.mp3`),
+  };
 }
 
 describe("findTwinPairs", () => {
@@ -107,6 +125,59 @@ describe("shelfDedupe", () => {
     expect(existsSync(join(shelf, "Contents", "Artist", "dupe.mp3"))).toBe(
       true,
     );
+  });
+
+  test("upgrade restores the original when the twin replacement rename fails", () => {
+    const shelf = makeShelf({
+      stem: "upgrade-rollback",
+      origContent: "LOW",
+      twinContent: "HIGH",
+    });
+    const pair = upgradePair(shelf, "upgrade-rollback");
+    const quarantine = join(shelf, "Contents", ".dedupe-quarantine");
+    const errors: string[] = [];
+    let calls = 0;
+    const result = applyPairs([pair], quarantine, errors, {
+      rename(from, to) {
+        calls++;
+        if (calls === 2) throw new Error("injected replacement failure");
+        renameSync(from, to);
+      },
+    });
+
+    expect(result).toEqual({ moved: 0, upgraded: 0 });
+    expect(errors.join("\n")).toContain("injected replacement failure");
+    expect(readFileSync(pair.original, "utf8")).toBe("LOW");
+    expect(readFileSync(pair.twin, "utf8")).toBe("HIGH");
+    expect(
+      existsSync(
+        join(quarantine, `.superseded-${pair.original.split("/").pop()}`),
+      ),
+    ).toBe(false);
+  });
+
+  test("upgrade reports both replacement and rollback failures", () => {
+    const shelf = makeShelf({
+      stem: "upgrade-double-failure",
+      origContent: "LOW",
+      twinContent: "HIGH",
+    });
+    const pair = upgradePair(shelf, "upgrade-double-failure");
+    const quarantine = join(shelf, "Contents", ".dedupe-quarantine");
+    const errors: string[] = [];
+    let calls = 0;
+    const result = applyPairs([pair], quarantine, errors, {
+      rename(from, to) {
+        calls++;
+        if (calls === 2) throw new Error("injected replacement failure");
+        if (calls === 3) throw new Error("injected rollback failure");
+        renameSync(from, to);
+      },
+    });
+
+    expect(result).toEqual({ moved: 0, upgraded: 0 });
+    expect(errors.join("\n")).toContain("injected replacement failure");
+    expect(errors.join("\n")).toContain("injected rollback failure");
   });
 
   test("json output carries the contract", async () => {
