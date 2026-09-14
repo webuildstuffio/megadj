@@ -24,6 +24,7 @@ Ownership rules:
 Operational references:
 
 - [USB pipeline](usb-sync.md) and [USB sync log](usb-sync-log.md)
+- [Intake/cue postmortem](intake-cue-postmortem.md)
 - [Shelf hygiene snapshot](shelf-hygiene-2026-09-09.md)
 - [Runbooks](runbooks/)
 - [Rekordbox WAV artwork](rekordbox-wav-artwork.md)
