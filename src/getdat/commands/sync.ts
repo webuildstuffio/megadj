@@ -19,6 +19,7 @@ import {
   inferGenre,
 } from "../../../fulltags/src/exports";
 import { ProgressBar } from "../../progress";
+import { isRecord, isUnknownArray } from "../../../cratedeck/shared/guards";
 
 const isTty = process.stdout.isTTY ?? false;
 
@@ -64,11 +65,11 @@ export function parsePlaylistOutput(stdout: string): PlaylistEntry[] {
   } catch (error) {
     throw new Error("playlist output was not valid JSON", { cause: error });
   }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+  if (!isRecord(parsed)) {
     throw new Error("playlist output was not valid JSON");
   }
-  const entries = (parsed as { entries?: unknown }).entries;
-  if (entries !== undefined && !Array.isArray(entries)) {
+  const entries = parsed.entries;
+  if (entries !== undefined && !isUnknownArray(entries)) {
     throw new Error("playlist output was not valid JSON");
   }
   return (entries ?? []).flatMap((entry): PlaylistEntry[] => {

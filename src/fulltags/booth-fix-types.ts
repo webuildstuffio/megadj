@@ -2,14 +2,18 @@
 // Leaf seam (AGENTS.md split rule): booth-fix.ts and booth-fix-text.ts both
 // declare/use these; the split-out fixer must never import its parent's
 // types back — madge counts a type-only back-edge as a cycle.
+import type {
+  BoothFixAction,
+  BoothFixGate,
+} from "../../cratedeck/shared/fixes";
 
 /** One proposed/applied fix (one row per file per gate). */
 export interface BoothFixRow {
   file: string;
-  gate: "booth-text" | "player-compat";
+  gate: BoothFixGate;
   reasons: string[];
   /** What the fixer WILL do on --apply. */
-  action: "sanitize-tags" | "repair-tags" | "rename" | "relocate" | "none";
+  action: BoothFixAction;
   /** Human proposal — every non-applied row must name its command. */
   plan: string;
   /** Renames: old → new. */

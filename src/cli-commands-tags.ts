@@ -1,6 +1,7 @@
 import type { CliCommandHandler } from "./cli-command";
 import { firstPositional, nonNegOpt, numOpt, parseFlags } from "./cli-flags";
 import { writeJson } from "./shared/cli-output";
+import { FETCH_TARGETS, type FetchTarget } from "./fulltags/fetch-target";
 
 const boothFix: CliCommandHandler = async (rest, { state, musicDir }) => {
   const flags = parseFlags(
@@ -89,11 +90,13 @@ const fetchCommand: CliCommandHandler = async (rest) => {
   const jobs = nonNegOpt(flags, "jobs", "fetch");
   if (jobs === undefined && flags.strings.get("jobs") !== undefined) return;
   const { fetch } = await import("./fulltags/fetch");
+  const only: FetchTarget =
+    FETCH_TARGETS.find(
+      (target) => target !== "all" && flags.bools.has(target),
+    ) ?? "all";
   await fetch({
     all: flags.bools.has("all"),
-    only: (["art", "genres", "tags", "years"].find((key) =>
-      flags.bools.has(key),
-    ) ?? "all") as "art" | "genres" | "tags" | "years" | "all",
+    only,
     jobs,
     aiFallback: flags.bools.has("ai-fallback"),
     dryRun: flags.bools.has("dry-run"),

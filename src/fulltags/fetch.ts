@@ -17,12 +17,13 @@ import {
   boothTextCompat,
 } from "../../fulltags/src/exports";
 import type { AuditRow } from "./audit-row";
+import type { FetchTarget } from "./fetch-target";
 
 export type { AuditRow };
 
 export interface FetchOptions {
   all?: boolean | undefined;
-  only?: "art" | "genres" | "tags" | "years" | "all" | undefined;
+  only?: FetchTarget | undefined;
   jobs?: number | undefined;
   dryRun?: boolean | undefined;
   /** Opt-in AI genre/year fallback (SC+Beatport stay primary). Off by

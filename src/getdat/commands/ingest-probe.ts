@@ -29,7 +29,8 @@ export type { ParsedName, Probe };
 
 async function md5File(path: string): Promise<string> {
   const hash = createHash("md5");
-  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  const stream: AsyncIterable<Uint8Array> = createReadStream(path);
+  for await (const chunk of stream) hash.update(chunk);
   return hash.digest("hex");
 }
 
