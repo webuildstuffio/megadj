@@ -371,7 +371,7 @@ const DECK_HANDLERS: Record<DeckMcpVerb, ToolDef> = {
 
   hygiene: {
     description:
-      "Shelf hygiene queue (docs/shelf-hygiene-2026-09-09.md): census of duplicate/junk findings on the shelf master. action=scan enqueues a detection job; action=apply executes CONFIRMED findings into the shelf quarantine (never deletes); action=confirm/dismiss decides one finding (required id). Bare call = read-only census.",
+      "Shelf hygiene queue (docs/getdat/shelf-hygiene-2026-09-09.md): census of duplicate/junk findings on the shelf master. action=scan enqueues a detection job; action=apply executes CONFIRMED findings into the shelf quarantine (never deletes); action=confirm/dismiss decides one finding (required id). Bare call = read-only census.",
     destructive: true,
     inputSchema: obj(
       {

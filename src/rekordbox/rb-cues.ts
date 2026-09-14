@@ -1,7 +1,7 @@
 /**
  * megadj rb-cues — THE seam between the megadj cue ledger and the
  * rekordbox master DB (postmortem F1/F3; doc:
- * docs/intake-cue-postmortem.md). Every djmdCue write goes through here —
+ * docs/fulltags/intake-cue-postmortem.md). Every djmdCue write goes through here —
  * never hand-roll DjmdCue(...) in a script again (that's how pads got
  * Kind=0 non-clickable cues on Sep 12).
  *

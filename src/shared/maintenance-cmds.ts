@@ -243,7 +243,7 @@ export async function runMaintenanceCommand(
       return;
     }
     case "rb-cues": {
-      // F1/F3 seam (docs/intake-cue-postmortem.md): the ONLY writer of
+      // F1/F3 seam (docs/fulltags/intake-cue-postmortem.md): the ONLY writer of
       // djmdCue rows. Default: census of the provenance-pinned Sep 12
       // incident rows; legitimate Kind=0 memory cues are never restamped.
       const flags = parseFlags(

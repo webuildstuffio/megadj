@@ -22,7 +22,7 @@ export const KIND_DOCS: Record<string, KindDoc> = {
     needs: "drive mounted",
   },
   "hygiene-scan": {
-    what: "Shelf hygiene detection: walks the shelf master and runs the byte-twin / acoustic-twin / folder-variant / zero-byte / junk checks, writing every finding into the findings ledger (docs/shelf-hygiene-2026-09-09.md).",
+    what: "Shelf hygiene detection: walks the shelf master and runs the byte-twin / acoustic-twin / folder-variant / zero-byte / junk checks, writing every finding into the findings ledger (docs/getdat/shelf-hygiene-2026-09-09.md).",
     typical: "1–10 min (fingerprinting dominates; cached between runs)",
     safe: "Read-only + ledger writes on the host. Nothing on the shelf moves.",
     needs: "shelf drive mounted",

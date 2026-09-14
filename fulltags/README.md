@@ -205,4 +205,4 @@ use).
 
 The **roadmap** for what comes next (rekordbox cue writes, vocal density,
 similarity) lives in
-[docs/fulltags-roadmap.md](../docs/fulltags-roadmap.md).
+[docs/fulltags/fulltags-roadmap.md](../docs/fulltags/fulltags-roadmap.md).

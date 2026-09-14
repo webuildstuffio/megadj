@@ -1,5 +1,4 @@
-// HygieneTab.tsx — the shelf drive's Hygiene tab (docs/shelf-hygiene-
-// 2026-09-09.md §5 Phase 3). Two-thirds UX law: a plain-language VERDICT
+// HygieneTab.tsx — the shelf drive's Hygiene tab (docs/getdat/shelf-hygiene-2026-09-09.md §5 Phase 3). Two-thirds UX law: a plain-language VERDICT
 // banner first, then the fix-first work queue (worst first, each row
 // carries its `megadj`/`deckctl` fix command with a copy button), then
 // raw detail + the quarantine explainer. The tab is a remote control:

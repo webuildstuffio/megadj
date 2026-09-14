@@ -481,7 +481,7 @@ async function ingestOne(
 
   // WAV → AIFF lossless conversion (stream copy, tags ride along).
   // rekordbox cannot read embedded art from WAVs; AIFF is bit-identical
-  // audio with native art support. See docs/rekordbox-wav-artwork.md.
+  // audio with native art support. See docs/fulltags/rekordbox-wav-artwork.md.
   if (ext === ".wav" && !opts.dryRun) {
     const aiff = await wavToAiff(file);
     if (aiff) {

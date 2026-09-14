@@ -1,5 +1,5 @@
 // hygiene_audio.ts — the A/B compare backend for the Hygiene tab's
-// ear-check queue (docs/shelf-hygiene-2026-09-09.md §4.1). Two routes:
+// ear-check queue (docs/getdat/shelf-hygiene-2026-09-09.md §4.1). Two routes:
 //
 //   GET /api/hygiene/audio?path=…  → the audio file itself (streamed)
 //   GET /api/hygiene/stats?path=…  → ffprobe sidecar (duration/bitrate/

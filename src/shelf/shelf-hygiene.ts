@@ -1,6 +1,6 @@
 /**
  * shelf-hygiene — detect → ledger → review → apply → validate (the docs/
- * shelf-hygiene-2026-09-09.md §4 feature, CLI half).
+ * getdat/shelf-hygiene-2026-09-09.md §4 feature, CLI half).
  *
  * Default run: walk the shelf, run every check, upsert the findings
  * ledger (hygiene_findings in the archive DB), print the census. Findings

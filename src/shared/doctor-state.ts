@@ -3,7 +3,7 @@
  *
  * These are the STATE checks (doctor.ts owns tool/config checks): the
  * mechanically checkable definition of "the collection is healthy" from
- * docs/intake-cue-postmortem.md:
+ * docs/fulltags/intake-cue-postmortem.md:
  *   - checkCueKinds   (F1): zero provenance-matching broken intake cues
  *   - checkDupes      (F2): zero same-title ±2s duplicate content rows
  *   - checkPlaylistXml (F7): every named DB playlist has its XML twin

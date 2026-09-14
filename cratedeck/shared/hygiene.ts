@@ -1,5 +1,5 @@
 // shared/hygiene.ts — the shelf-hygiene findings wire contract (docs/
-// shelf-hygiene-2026-09-09.md §4/§5). Split from shared/types.ts (file-
+// getdat/shelf-hygiene-2026-09-09.md §4/§5). Split from shared/types.ts (file-
 // length cap): this file imports NOTHING (leaf of the leaf — same rule
 // types.ts obeys), and types.ts re-exports it so every existing
 // `../shared/types` import keeps compiling without drift.

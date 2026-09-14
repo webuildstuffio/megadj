@@ -20,7 +20,7 @@
  * 18-byte COMM and plays everywhere. Found via the Sep 9 2026 dump
  * (Chicane Offshore) when ingest crashed on its own converted file.
  *
- * Docs: docs/rekordbox-wav-artwork.md
+ * Docs: docs/fulltags/rekordbox-wav-artwork.md
  */
 import { $ } from "bun";
 import { basename, dirname, join } from "node:path";

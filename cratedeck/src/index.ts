@@ -503,7 +503,7 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
     ) {
       return sse();
     }
-    // ---- shelf hygiene (docs/shelf-hygiene-2026-09-09.md §4) -----------
+    // ---- shelf hygiene (docs/getdat/shelf-hygiene-2026-09-09.md §4) -----------
     if (route === "/hygiene") return hygieneApi.list(url);
     if (route === "/hygiene/scan" && req.method === "POST")
       return hygieneApi.scan();

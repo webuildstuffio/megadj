@@ -1,6 +1,6 @@
 /**
  * Subcategory classifier for acoustic-twin findings (docs/
- * shelf-hygiene-2026-09-09.md §4.2 + the Sep 9 session's "why are they
+ * shelf-hygiene-2026-09-09.md (now docs/getdat/shelf-hygiene-2026-09-09.md) §4.2 + the Sep 9 session's "why are they
  * slightly different" analysis). Two files with the SAME chromaprint can
  * still differ in bytes for very different reasons — the size-delta ratio
  * separates the actionable buckets:
