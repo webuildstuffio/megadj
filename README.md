@@ -1,5 +1,7 @@
 # megadj
 
+**Status:** ✅ CURRENT — repository overview and operator quick start.
+
 **Make people dance.** 🪩
 
 megadj handles the unglamorous half of DJing — the downloading, the tagging,
@@ -10,9 +12,9 @@ ready for the booth. No spreadsheets, no tag editors, no "I'll fix the
 artwork later".
 
 ```
-GetDat ──▶ FullTags ──▶ CrateDeck ──▶ the booth
-download    perfect       sync &       play on
-& archive   metadata      verify USBs   Pioneer
+GetDat ──▶ FullTags ──▶ MegaSet ──▶ CrateDeck ──▶ the booth
+download    perfect       propose      sync &       play on
+& archive   metadata      the mix      verify USBs   Pioneer
 ```
 
 [Principles](docs/PRINCIPLES.md) · [Features & roadmap](docs/FEATURES.md) ·
@@ -26,6 +28,7 @@ download    perfect       sync &       play on
 megadj sync                    # 🎧 pull new music
 megadj fetch && megadj audit   # 🏷️ perfect the metadata, then verify it
 megadj beats && megadj mood    # 🎼 beats + mood ledgers
+megadj setbuild --preset peak  # 🎚️ propose a measured mix
 megadj shelf-sync              # 🗄️ new music out to the shelf master
 bun run deck                   # 📼 dashboard: every drive, sync + verify
 ```
@@ -68,19 +71,20 @@ a track that dropped last month, or a generic cover on a remix you love.
   SoundCloud cover; the art ladder escalates SC → gateways → Deezer →
   iTunes → AI cover only as a last resort (queued + human-reviewable).
 - 🧠 **AI fills only the gaps** — cheap flash-class models, confidence-gated
-  (≥ 0.7), stamped `TXXX:AI-GENRE|0.92` into the file so an AI-filled field
-  is always identifiable.
-- 🎼 **Offline analysis, gated honestly** — acoustic fingerprint (88→131
-  ledgered), real BPM, harmonic key (OpenKeyScan, gate-passed 80.7%),
+  (≥ 0.7), with provenance in `TXXX:AI-GENRE`/`TXXX:AI-YEAR` so an AI-filled
+  field is always identifiable.
+- 🎼 **Offline analysis, gated honestly** — acoustic fingerprint, real BPM,
+  harmonic key (OpenKeyScan, gate-passed 80.7%),
   mood/dance/energy (Essentia ONNX), 8-bar phrase cues. Fields only reach
   tags when they pass a measured accuracy gate — the rest live in DB
   ledgers, by design.
 - 🕹️ **Booth-safe by construction** — `megadj audit` enforces the codec/text
   floor of your actual player fleet (XDJ-XZ + CDJ-3000 + 2000NXS2 default);
   `megadj booth-fix` proposes (never auto-applies) the safe fixes.
-- 📖 **The file is the truth** — ground-truth readers, one atomic writer
-  (tmp + rename, audio never re-encoded), idempotent passes. Also ships
-  standalone in [`fulltags/`](fulltags/README.md).
+- 📖 **The file is the truth** — ground-truth readers, one format-specific
+  atomic writer, and idempotent passes. Writes use a unique same-directory
+  copy, verify tags/art and the container header, fsync, then rename. Also
+  ships standalone in [`fulltags/`](fulltags/README.md).
 
 ```bash
 megadj ingest <folder>   # a messy downloads folder in, a clean one back
@@ -88,6 +92,28 @@ megadj fetch             # top up tags, genres, artwork and years
 megadj years             # verify years against the SC page (not the AI's 2023 guess)
 megadj audit             # the completeness check across the whole library
 ```
+
+### 🎚️ MegaSet — propose the mix, keep the taste
+
+MegaSet turns FullTags' measured BPM, key, mood, energy, and phrase data into
+an ordered mix proposal. It is deterministic and explainable: every exclusion
+is counted, every transition is scored, and nothing writes to rekordbox unless
+you explicitly cross the dry-run-first `rb-playlist` gate.
+
+- 🧭 **Three energy journeys** — warmup, peak, and after-hours presets share
+  one registry across CLI, web, and MCP.
+- 🎼 **Musically bounded** — Camelot compatibility, tempo gates, and an energy
+  arc choose the chain from the whole available pool.
+- 🧾 **Reviewable handoff** — inspect the proposal in the FullTags panel or
+  export M3U8; `megadj rb-playlist` is the separately gated write-off.
+
+```bash
+megadj setbuild --preset peak --minutes 60 --json
+megadj rb-playlist SHELF1 --preset peak        # dry-run by default
+```
+
+Product contract and measured roadmap:
+[MegaSet docs](docs/megaset/01-prd.md).
 
 ### 🗄️ The shelf master — the archive that never leaves the desk
 
@@ -128,8 +154,9 @@ reminder of what's on it and when you last verified it.
   agents can gate on the code alone.
 - 🧮 **Fleet superpowers** — coverage matrix (what dies with a drive?),
   per-playlist redundancy audit, drive-vs-drive diff, global search (⌘K).
-- 🤖 **Agent-first** — `deckctl --json` one-shot, and `bun run mcp` speaks
-  MCP: **37 tools** (22 `deck_*` + 15 readonly `archive_*`).
+- 🤖 **Agent-first** — `deckctl --json` is the one-shot surface and
+  `bun run mcp` exposes the same product over MCP. The exact census is derived
+  from source and pinned in [surface parity](docs/surface-parity.md).
 - ⏱️ **Automation** — mount triggers a light scan; each drive gets a weekly
   auto-verify; `deckctl prep` writes the weekly digest.
 
@@ -143,29 +170,27 @@ megadj shelf-archive <volume>   # archive a stray drive into the shelf, verified
 
 ## 🧭 Coming next
 
-- 🎛️ Gig mode + the assisted legacy-export runbook (C18a) + differential
-  mirror (C21/C22)
-- 🗣️ Vocal density (demucs) and structure labels — same gate discipline
-- 🎚️ rekordbox memory-cue writes from the phrase-cue ledger (behind the
-  interlock)
-- ☁️ SoundCloud / Bandcamp sources (yt-dlp already covers SoundCloud)
-- 🔮 The dream: hit predictor & set-builder copilot, calibrated on what
-  actually got played
-
-Full roadmap: [docs/FEATURES.md](docs/FEATURES.md) ·
-live queue: [docs/product-state-2026-09-07.md](docs/product-state-2026-09-07.md).
-Agents already talk to the whole thing over MCP: `bun run mcp`.
+The remaining work is deliberately gated: hardware backup/acceptance,
+rekordbox grid-write experiments, gold annotations for analysis gates, and
+MegaSet v1's measured sequencing improvements. The
+[current product state](docs/product-state-2026-09-07.md) owns that short
+outcome list; [Ideas](docs/ideas.md) owns backlog rationale; GitHub issues own
+execution priority. Agents already talk to the shipped surface over MCP with
+`bun run mcp`.
 
 ---
 
 ## 🛠️ Dev loop
 
-The whole gate before any push — typecheck, lint (warnings deny), format,
-knip, tests (16 workers), type coverage — one command, parallel lanes:
+The standard pre-push gate is `bun run check && bun test`. `check` runs
+TypeScript, lint, formatting, knip, and the web build in parallel;
+`check:full` adds the full test suite, 100% type coverage, and strict Python
+lint/type gates:
 
 ```bash
-bun run check        # fast trio (typecheck ∥ lint ∥ format), ~2s warm
-bun run check:full   # everything above + knip + tests + 100% typecov
+bun run check        # TS + lint + format + knip + web build
+bun test             # full suite, 16 workers
+bun run check:full   # check + tests + 100% typecov + Python gates
 bun run check:watch  # tsc + oxlint watch modes while you edit
 bun run test:fast    # tests minus the e2e browser suite
 bun run test:watch   # bun test --watch
@@ -216,7 +241,7 @@ in their Python dependencies automatically. AI fallbacks (genre, year,
 artwork) use an `OPENROUTER_API_KEY` — keep it in your keychain.
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/megadj.git
+git clone https://github.com/webuildstuffio/megadj.git
 cd megadj
 bun install
 megadj doctor   # check everything above in one shot — tells you exactly what's missing
@@ -285,7 +310,8 @@ an agent, it doesn't exist), and CrateDeck speaks MCP — see
 
 The [documentation index](docs/README.md) is the canonical map. Start with
 [Principles](docs/PRINCIPLES.md), [Current state](docs/product-state-2026-09-07.md),
-or the [Agent playbook](docs/agent-playbook.md); operational runbooks and
+[Data stores and schemas](docs/data-model.md), or the
+[Agent playbook](docs/agent-playbook.md); operational runbooks and
 product-specific references are linked from there.
 
 ## License

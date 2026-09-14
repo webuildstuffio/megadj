@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { assertRbClosed, fileExistsSafe, rekordboxRunning } from "./guard.js";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  assertRbClosed,
+  fileExistsSafe,
+  rekordboxRunning,
+  restoreMasterBackup,
+} from "./guard.js";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -28,5 +33,26 @@ describe("guard", () => {
     expect(fileExistsSafe(join(dir, "nope"))).toBe(false);
     expect(fileExistsSafe(dir)).toBe(false); // dir is not a file
     rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("restoreMasterBackup replaces the DB family and removes stale sidecars", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rb-guard-restore-"));
+    const db = join(dir, "master.db");
+    const backup = `${db}.bak-test`;
+    try {
+      writeFileSync(db, "mutated");
+      writeFileSync(db + "-wal", "stale-wal");
+      writeFileSync(db + "-shm", "stale-shm");
+      writeFileSync(backup, "original");
+      writeFileSync(backup + "-wal", "original-wal");
+
+      restoreMasterBackup(db, backup, "test restore");
+
+      expect(readFileSync(db, "utf8")).toBe("original");
+      expect(readFileSync(db + "-wal", "utf8")).toBe("original-wal");
+      expect(fileExistsSafe(db + "-shm")).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

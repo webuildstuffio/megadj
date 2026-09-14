@@ -1,13 +1,17 @@
 # MegaSet — PRD
 
-v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Genre audit](05-genre-audit.md) · [Audit & plan](../setbuild-audit-2026-09-13.md)
+v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Genre audit](05-genre-audit.md) · [Audit & plan](08-audit-and-plan.md)
 
-**Status:** ✅ graduated product (v0 shipped propose-only, Sep 11–12 2026; doc set
-since Sep 14) — greedy Camelot/energy-arc engine, whole-library pool, CLI + HTTP +
+**Status:** ✅ SHIPPED — v0 graduated propose-only on 2026-09-12; greedy
+Camelot/energy-arc engine, whole-library pool, CLI + HTTP +
 M3U8 export + MCP + web panel, gated `megadj rb-playlist` write-off. v1 plan = the
-[audit's re-ranked roadmap](03-competitive-analysis.md).
+[re-ranked roadmap](03-competitive-analysis.md#part-5--prioritized-roadmap-re-ranked-across-all-30)
+(plan of record); the [audit's Part 3](08-audit-and-plan.md) keeps the
+per-item sketches, delta-pinned to the measured verdicts. The
+`setbuild` → `megaset` identifier rename is planned in
+[09-migration-plan.md](09-migration-plan.md).
 
-MegaSet (internally `setbuild`, roadmap §M66) is the set-builder product:
+MegaSet (roadmap §M66) is the set-building product:
 it turns megadj's measured library data — beats-ledger BPM, mood-ledger
 valence/arousal/dance, file TKEY, effnet embeddings, 8-bar phrase cues —
 into an ordered mix proposal you can trust on a booth. **It proposes; it
@@ -78,7 +82,9 @@ tie-breaks, whole-track budget fill, and a complete `excluded[]` audit
 (capped preview, full count). Energy arcs come from the shared preset
 registry (warmup / peak / afterhours) derived by all three surfaces from
 one table. Phase A/B fixes: tempo-drift anchor (B2), arc segment control
-(B3), valence scoring (B4), half/double-time BPM (B8).
+(B3), fit-axis upgrade — percentile-normalized aggressive/happy replacing
+the demoted valence plan (B4, see benchmarks §5.1), half/double-time BPM
+(B8).
 
 ## F3 — Camelot SSOT (shipped v0)
 
@@ -90,20 +96,23 @@ Compat table: same/±1 same-letter = 1.0, diagonal = 0.9, mood-lift
 
 ## F4 — Surfaces, one engine (shipped v0)
 
-CLI (`megadj setbuild`), HTTP (`GET /api/archive/setbuild`, `?format=m3u8`
+CLI (`megadj setbuild`; MegaSet verb), HTTP (`GET /api/archive/setbuild`, `?format=m3u8`
 export), MCP (`archive_set_build`, propose-only declared in its
 description), and the FullTags web panel (segmented presets, arc sparkline,
 mix pills, filterable table, excluded cross-check, freshness line). One
 `parseSetbuildQuery` validates preset/minutes everywhere; unknown preset is
 an error, never a silent peak fallback. Parity pinned in
-[surface-parity.md](surface-parity.md) (rev 20–23).
+[surface parity](../surface-parity.md) (rev 20–23).
 
 ## F5 — The write-off: `megadj rb-playlist` (shipped v0)
 
 Turns a proposal into a rekordbox playlist by linking existing master-DB
-content rows — dry-run first (predicts the link count, writes nothing),
-`--apply --yes` requires rekordbox quit, backs the DB up, then verifies
-every row. The set builder itself never writes anything.
+content rows — dry-run first (predicts the link count, writes nothing).
+`--apply --yes` requires rekordbox quit, backs up `master.db` and
+`masterPlaylists6.xml`, writes the playlist's DB and XML twins through one
+compensating seam, then verifies both surfaces. A failed XML mutation restores
+both backups instead of leaving a DB-only playlist. MegaSet itself
+never writes anything.
 
 ## F6 — Quality, alternatives & landmarks (v1, Phase C)
 

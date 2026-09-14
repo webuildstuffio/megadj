@@ -20,9 +20,9 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   `slice(0, NaN)` processed nothing while "succeeding" — hence the
   `Number.isFinite` gate. `Number("")` is also `0`, so CLI numeric flags go
   through `nonNegOpt`: invalid input (`abc`, empty) returns undefined, guards
-  fire, command exits 2 with zero work (`src/commands/numeric-options.test.ts`).
+  fire, command exits 2 with zero work (`src/numeric-options.test.ts`).
 - **SSOT twins that drifted.** MCP `deck_explain` truncated `KIND_DOCS`
-  without `typical`/`needs`; local `SetBuildResult`/`Bench` re-declarations;
+  without `typical`/`needs`; local result-type re-declarations (the MegaSet engine lesson);
   two `STATUS_LANG` copies formed a web import cycle; stale tool/verb counts
   sat in README/deckctl.md across 9 files. Census tests must DERIVE expected
   strings from source and assert exact equality — a `>= N` floor plus
@@ -121,6 +121,11 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
 - **`rb-fix-paths` matching ladder:** exact → NFC+casefold → unique basename
   → strip `-N` copy suffixes → 20-char prefix → largest twin. Encodes the
   Sep 9/10 repair saga; flow: `.claude/skills/rekordbox-library-repair/SKILL.md`.
+- **Playlist IDs have two representations.** Keep `djmdPlaylist` IDs as
+  decimal strings across Python/JSON so JavaScript never rounds a 64-bit ID;
+  convert to uppercase hexadecimal only for `masterPlaylists6.xml`. Playlist
+  writers use the shared compensating DB/XML seam and verify both twins after
+  the delayed rekordbox-closed re-check.
 
 ## CrateDeck detail
 
@@ -212,7 +217,8 @@ mirror` = the mirror job). The usage-text-syncs-with-dispatch census
 - **Sep 8 perf benchmark:** full gate `bun run check:full` ~36s → 7.4s,
   `bun test` 385 tests 32.3s → 6.5s (−80%) via `bun test --parallel=16`
   (workers subprocess-bound; 20 adds nothing) + splitting the
-  `fulltags/test/analysis.test.ts` monolith per roadmap stage.
+  the former `fulltags/test/analysis.test.ts` monolith into the current
+  `analysis-{beats,fingerprint,key,grid,anlz}.test.ts` stage files.
 - **Cold-cache rule:** the archive fits the page cache, so local harness
   reads measure cache at GB/s — 10× off real USB truth; `sudo purge` needs a
   TTY password, so plan for it (or borrow a machine where the drive data
@@ -232,7 +238,7 @@ mirror` = the mirror job). The usage-text-syncs-with-dispatch census
   bun test reports the PROCESS exit code, so leaving `exitCode = 1` set
   (shelf-archive's no-shelf hard-error test did) made any suite including
   that file exit 1 with 0 failed tests, and the pre-commit hook blocked on a
-  green suite (documented + reset in `src/commands/shelf-archive.test.ts`).
+  green suite (documented + reset in `src/shelf/shelf-archive.test.ts`).
 
 ## Meta-lessons (Sep 5–7 build window)
 

@@ -9,6 +9,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import {
   printRbPlaylistReport,
   rbPlaylist,
+  __test,
   type RbPlaylistResult,
 } from "./rb-playlist";
 
@@ -119,7 +120,7 @@ describe("rb-playlist report contract", () => {
       chain: 5,
       linked: 5,
       unmatched: [],
-      playlistId: 12345,
+      playlistId: "12345",
       verified: 5,
       appliedMode: true,
       backedUpTo: "/Volumes/SHELF1/PIONEER/Master/master.db.bak-20260911200000",
@@ -133,16 +134,88 @@ describe("rb-playlist report contract", () => {
   });
 });
 
+describe("rb-playlist subprocess boundaries", () => {
+  test("write output preserves a 64-bit playlist id as decimal text", () => {
+    const id = "9007199254740993";
+    expect(
+      __test.parseWriteOutput(
+        JSON.stringify({
+          linked: 1,
+          unmatched: [],
+          playlistId: id,
+          parentId: "9007199254740995",
+          errors: [],
+        }),
+      ).playlistId,
+    ).toBe(id);
+    expect(__test.buildScript()).toContain('out["playlistId"] = str(pl.ID)');
+    expect(__test.buildScript()).toContain(
+      "import DjmdContent, DjmdPlaylist, DjmdSongPlaylist",
+    );
+  });
+
+  test("write, verify, and prediction parsers reject empty schemas", () => {
+    expect(() => __test.parseWriteOutput("{}")).toThrow("invalid result");
+    expect(() => __test.parseVerifyOutput("{}")).toThrow("invalid result");
+    expect(() => __test.parseMatchPrediction("{}")).toThrow("invalid result");
+  });
+
+  test("a failed or malformed dry-run probe is a hard error", () => {
+    expect(() =>
+      __test.parsePredictionProcess({
+        status: 2,
+        stdout: "",
+        stderr: "cannot open master",
+      }),
+    ).toThrow("match probe failed");
+    expect(() =>
+      __test.parsePredictionProcess({
+        status: 0,
+        stdout: "{}",
+        stderr: "",
+      }),
+    ).toThrow("invalid result");
+  });
+
+  test("verify counters and contiguity are strongly typed", () => {
+    expect(__test.parseVerifyOutput('{"rows":2,"contiguous":true}')).toEqual({
+      rows: 2,
+      contiguous: true,
+    });
+    expect(() =>
+      __test.parseVerifyOutput('{"rows":"2","contiguous":true}'),
+    ).toThrow();
+  });
+
+  test("the requested group is matched at the root only", () => {
+    const script = __test.buildScript();
+    expect(script).toContain("def find_playlist(name, attr, parent_id):");
+    expect(script).toContain("DjmdPlaylist.ParentID == parent_id");
+    expect(script).toContain("find_playlist(group_name, 1, 0)");
+    expect(script).toContain("find_playlist(playlist_name, 0, parent.ID)");
+  });
+});
+
 describe("rb-playlist chain→payload shape", () => {
-  test("chain payload carries bare filenames (the master join key)", () => {
-    // mirrors buildChain's basename-at-source contract: whatever buildSet
-    // orders, the bridge sends basename(filePath) — never a local path
+  test("chain payload carries case-folded exact paths plus the basename fallback", () => {
     const archivePath =
       "/Users/nick/Music/DJ-Imports/2026-09-11 378-shelf-rescue/Sous Sol · Deep Impressions, Vol. 4 · Gmaj Manuel Moreno-Taonga_Gmaj(Manuel Moreno.mp3";
     const base = archivePath.split("/").pop() ?? "";
     expect(base).not.toContain("/");
     expect(base.endsWith(".mp3")).toBe(true);
     expect(base.length).toBeGreaterThan(60); // clip-tolerance matters here
+    const script = __test.buildScript();
+    const prediction = __test.predictScript();
+    expect(script).toContain('path = path_key(track["path"])');
+    expect(script).toContain("return nfc(s).casefold()");
+    expect(script).toContain(
+      "expected_parent_id = parent.ID if parent is not None else 0",
+    );
+    expect(script).toContain("str(p.ParentID or 0) == str(expected_parent_id)");
+    expect(prediction).toContain("return nfc(s).casefold()");
+    expect(prediction).toContain('path = path_key(track["path"])');
+    expect(script).toContain("if cid is None and len(candidates) > 1:");
+    expect(script).not.toContain("first wins");
   });
 
   test("tmp workspace sanity (script contract is stable JSON)", async () => {
@@ -150,11 +223,14 @@ describe("rb-playlist chain→payload shape", () => {
     const p = join(dir, "payload.json");
     writeFileSync(
       p,
-      JSON.stringify({ chain: [{ base: "a.mp3", title: "A" }] }),
+      JSON.stringify({
+        chain: [{ path: "/archive/a.mp3", base: "a.mp3", title: "A" }],
+      }),
     );
     const parsed = JSON.parse(await Bun.file(p).text()) as {
-      chain: { base: string }[];
+      chain: { path: string; base: string }[];
     };
     expect(parsed.chain[0]?.base).toBe("a.mp3");
+    expect(parsed.chain[0]?.path).toBe("/archive/a.mp3");
   });
 });

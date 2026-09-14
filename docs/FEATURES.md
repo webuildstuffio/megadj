@@ -65,10 +65,10 @@ the remix's, not the original's.
    iTunes → AI-generated cover as the rare, queued last resort). Same
    ratchet for audio: LOWQ tracks are re-fetch candidates. The
    ladder's single home is `fulltags/src/art-sources.ts`.
-4. **AI fills the gaps — cheap and accurate** — deterministic sources
-   first, then OpenRouter flash-class models with confidence gates
-   (≥ 0.7) for genre/year/credits; `megadj years` verifies years against
-   the source page after any AI fallback.
+4. **AI fills the gaps — explicitly and measurably** — deterministic sources
+   first; `--ai-fallback` opts into OpenRouter genre/year proposals with a
+   ≥0.7 confidence gate. `megadj years` then verifies years against the source
+   page.
 5. **Quality & spam filter** — dedupe on ingest (`(1)`-dupe detection,
    same-stem mp3↔lossless pairs, quality rules; rejects go to the
    archive-root hidden `.ingest-duplicates/`, never a visible folder
@@ -99,56 +99,49 @@ kept byte-identical to its mirror, verified down to the byte-grid level, and
 answered in one glance: **is this stick safe for tonight?**
 
 This is the USB-crate organization project, and it's a project in its own
-right. It has [its own doc set](../cratedeck/README.md) (brief, PRD,
-architecture, build plan, acceptance).
+right. It has [its own doc set](../cratedeck/README.md) (PRD, architecture,
+acceptance, and the deckctl guide).
 
-|                    |                                                                                                                                                                                                                                  |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|                    |                                                                                                                                                                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Status**         | ✅ shipped (v0.1) — dashboard + CLI + fleet features + automation (auto-scan on mount, weekly auto-verify) + agent surface (MCP server, B12 preflight, N75/N78 player-compat verdict, O83 weekly prep, shelf hygiene + bench-anomaly + role-aware archive-tier checks) |
-| **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                                          |
-| **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                                      |
-| **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads                          |
-| **The verify**     | `usb_verify.py` deep gate: dual-DB agreement (OneLibrary vs legacy `export.pdb` live rows), audio existence, ANLZ-at-hash-path, grid math (duration × BPM ≈ beat count), playlist integrity, cross-drive hash parity             |
-| **The interlock**  | rekordbox running? everything locks — exit code 3, red banner, no exceptions. Never bypassed.                                                                                                                                    |
-| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI, `--json` for agents) · `bun run mcp` (MCP server) — every surface's census is derived from source and pinned in [surface-parity.md](surface-parity.md) §1 |
+| **The registry**   | every drive ever seen is a card with a photo and a name; unplug it and it becomes a **ghost** that remembers everything                                                                                                                                                |
+| **The fleet**      | cross-drive coverage matrix (which stick has this track?), per-playlist redundancy audit (what dies with a drive?), and drive-vs-drive diff                                                                                                                            |
+| **The sync**       | `usb_sync.py` injects new tracks into the rekordbox device DB (pyrekordbox), detects BPM (librosa), and **hand-builds ANLZ beatgrid/waveform files** at the hash-computed paths hardware actually reads                                                                |
+| **The verify**     | `usb_verify.py` deep gate: dual-DB agreement (OneLibrary vs legacy `export.pdb` live rows), audio existence, ANLZ-at-hash-path, grid math (duration × BPM ≈ beat count), playlist integrity, cross-drive hash parity                                                   |
+| **The interlock**  | rekordbox running? everything locks — exit code 3, red banner, no exceptions. Never bypassed.                                                                                                                                                                          |
+| **The interfaces** | `bun run deck` (dashboard) · `deckctl` (CLI, `--json` for agents) · `bun run mcp` (MCP server) — every surface's census is derived from source and pinned in [surface-parity.md](surface-parity.md) §1                                                                 |
 
 **Commands:** `bun run deck`, `bun run cratedeck/src/deckctl.ts …`
 **Shelf intake:** `megadj shelf-archive [volume …]` pulls everything from any
 drive into the shelf master — additive, junk-filtered, MD5-verified, divergent
-copies preserved (see [usb-sync-log.md](usb-sync-log.md), Sep 9 2026).
+copies preserved. Live receipts come from `megadj shelf-sweeps --json`; the
+local `docs/usb-sync-log.md` is intentionally gitignored operator evidence.
 **Docs:** [cratedeck/README.md](../cratedeck/README.md) ·
 [deckctl guide](../cratedeck/deckctl.md) ·
 [USB pipeline](usb-sync.md) ·
 [the doc set](cratedeck/)
 
-> **Note:** the status row already includes the Sep 5–11 2026 additions —
-> B12 preflight, N75/N78 player-compat verdicts, the MCP server's archive
-> half and `getdat_*` twins, O83 weekly digest (now also a Fleet ⌗
-> Prep tab), O87 job attribution, O88 agent notes, O85 plugin packaging,
-> the FullTags beats + mood + cues ledgers (FullTags roadmap rev 6.2),
-> the Sep 7 surface-parity revs (Fleet ⌗ Archive tab, `deckctl
-rename`/`report --dossier` + MCP twins), the Sep 10 shelf-hygiene engine
-+ role-aware archive-tier checks, and the Sep 11 set-builder CLI spoke
-+ `megadj shelf-restore`. Rev-by-rev detail lives once in
-[surface-parity.md](surface-parity.md).
+> Revision history and the exact surface census live once in
+> [surface parity](surface-parity.md).
 
 **Vibe:** mission control for a drawer full of identical-looking sticks.
 
 ---
 
-## 🎚️ MegaSet — _the set-builder co-pilot: propose the mix, keep the taste_
+## 🎚️ MegaSet — _the co-pilot: propose the mix, keep the taste_
 
 **Goal:** turn the archive's measured data (beats, mood, key, embeddings,
 8-bar phrase cues) into an ordered, key-compatible mix proposal with a
 visible energy arc — deterministic, honest about its inputs, and
 propose-only: the DJ keeps every creative decision.
 
-|                    |                                                                                                                                                                         |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | ✅ graduated product — v0 shipped propose-only (Sep 11–12 2026): greedy Camelot/energy-arc engine, whole-library pool, CLI + web + MCP + M3U8 export, gated `megadj rb-playlist` write-off; own doc set since Sep 14. v1 = the [re-ranked roadmap](megaset/03-competitive-analysis.md). |
-| **How it works**   | FullTags ledgers feed a pure scoring engine (`0.45·tempo + 0.3·key + 0.25·energy-fit`, ±6% tempo window, Camelot wheel); one preset registry (warmup/peak/afterhours) drives all surfaces; every exclusion is counted and explainable. |
-| **The write-off**  | `megadj rb-playlist` links a proposal into the rekordbox master as a real playlist — dry-run first, backup + rekordbox-quit gates on `--apply`.                           |
-| **Docs**           | [MegaSet doc set](megaset/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](setbuild-audit-2026-09-13.md)                                  |
+|                   |                                                                                                                                                                                                                                                                                         |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**        | ✅ graduated product — v0 shipped propose-only (Sep 11–12 2026): greedy Camelot/energy-arc engine, whole-library pool, CLI + web + MCP + M3U8 export, gated `megadj rb-playlist` write-off; own doc set since Sep 14. v1 = the [re-ranked roadmap](megaset/03-competitive-analysis.md). |
+| **How it works**  | FullTags ledgers feed a pure scoring engine (`0.45·tempo + 0.3·key + 0.25·energy-fit`, ±6% tempo window, Camelot wheel); one preset registry (warmup/peak/afterhours) drives all surfaces; every exclusion is counted and explainable.                                                  |
+| **The write-off** | `megadj rb-playlist` links a proposal into the rekordbox master as a real playlist — dry-run first; `--apply` requires rekordbox closed, backs up both collection surfaces, writes the DB row and `masterPlaylists6.xml` twin, then verifies both.                                      |
+| **Docs**          | [MegaSet doc set](megaset/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](megaset/08-audit-and-plan.md)                                                                                                                                                |
 
 **Commands:** `megadj setbuild --preset peak --minutes 60 [--opener <id>] [--json]` ·
 `megadj rb-playlist [drive] [--preset …] [--apply --yes]`
@@ -159,27 +152,10 @@ with a 73-BPM track in a 128 room."
 
 ## 🧭 Coming next (from the roadmap)
 
-- **[ideas.md](ideas.md) is canon for detail and ordering** — the full
-  parking lot (§A–§O), with §0 gating everything; the live queue is
-  [product-state-2026-09-07.md](product-state-2026-09-07.md) §The queue.
-  (The Sep 6 proposal was executed and is archived:
-  [archive/roadmap-proposal.md](archive/roadmap-proposal.md).)
-
-Headline shape (one line per move; product-state §The roadmap owns the
-re-scored table, ideas.md owns every detail):
-
-- **Move 1 — CrateDeck v1.x:** shipped minus the C18a runbook and
-  C21/C22 differential mirror + one-click sync.
-- **Move 2 — FullTags v1.x:** ALL SHIPPED behind ground-truth gates —
-  [fulltags-roadmap.md](fulltags-roadmap.md) is the rev-by-rev record.
-- **Move 3 — the agentic layer:** SHIPPED; remaining: O84 inbox agent.
-- **The dream** — hit predictor calibrated on what actually got played
-  (§M64, needs history); the set-builder half shipped propose-only as
-  **MegaSet** (§M66, [doc set](megaset/01-prd.md)).
-
-Do-now items live in [ideas.md §0](ideas.md#0--do-now-before-anything-else),
-which is now software-complete (issues #1–#5 closed; the two physical
-tasks — evacuate Extra, create the rclone remote — wait on hardware time).
+The [current product state](product-state-2026-09-07.md) owns the short ordered
+outcome list. [Ideas](ideas.md) owns backlog rationale, and GitHub issues own
+execution priority. The executed Sep 6 proposal is retained only as
+[archive evidence](archive/roadmap-proposal.md).
 
 ---
 

@@ -1,5 +1,7 @@
 # MegaSet — Architecture
 
+**Status:** 📚 REFERENCE — current data flow, variable inventory, and ownership.
+
 v2 · 2026-09-14 · **Architecture** → [PRD](01-prd.md) · [Analysis](03-competitive-analysis.md) · [Benchmarks](04-sequencing-benchmarks.md)
 
 v2 rewrite: adds the **complete variable inventory** (§2) — every variable we
@@ -125,8 +127,10 @@ duplicate, relocated, excluded_total) rides the payload.
    §2 are _documentation of_ that SSOT, not a second copy: when a default
    changes, the code changes and this doc follows.
 3. **Propose-only.** Nothing in the engine or any surface writes a playlist.
-   The only writer is `rb-playlist`, behind the full master-DB gate stack
-   (rekordbox closed, dated backup, verify, delayed re-read).
+   The only writer is `rb-playlist`, behind the full collection gate stack:
+   rekordbox closed; dated backups of `master.db` and
+   `masterPlaylists6.xml`; one DB/XML twin mutation seam; delayed re-read of
+   both; compensating restore if either half fails.
 4. **Honest payloads.** Every rejection is counted and classified;
    pool size and ledger freshness travel with every response.
 5. **Missing data is neutral, never fatal and never invented.** No BPM →
@@ -149,7 +153,7 @@ duplicate, relocated, excluded_total) rides the payload.
 | Embeddings (effnet 1280-d)        | embeddings ledger                             | similarity prior (B10p)                   |
 | LUFS                              | not yet stored                                | `megadj loudness` pass (B11p, optional)   |
 | Co-occurrence / rotation stats    | `setlist_edges` (planned, co-occur lane)      | sceneAffinity + rotationWeight soft terms |
-| Collection rows (DjmdContent)     | SHELF1 master.db via Python seam              | mirror fallback + rb-playlist write-off   |
+| Collection rows + playlist twins  | SHELF1 `master.db` + `masterPlaylists6.xml`   | mirror fallback + rb-playlist write-off   |
 
 MegaSet adds exactly one store of its own: nothing. All persistence stays in
 ledgers owned by their existing products (the co-occurrence ledger, when it

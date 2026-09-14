@@ -15,7 +15,13 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, statSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  renameSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 
 /** True while the rekordbox app is running (its live WAL silently
  *  overwrites external DB edits on quit — never write while open). */
@@ -44,6 +50,34 @@ export function backupMaster(dbPath: string): string {
     if (existsSync(dbPath + side)) copyFileSync(dbPath + side, dest + side);
   }
   return dest;
+}
+
+function restoreFileAtomic(source: string, destination: string): void {
+  const temporary = `${destination}.restore-${process.pid}-${crypto.randomUUID()}`;
+  try {
+    copyFileSync(source, temporary);
+    renameSync(temporary, destination);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+}
+
+/** Atomically restore a master DB and its WAL/SHM family from backup. */
+export function restoreMasterBackup(
+  dbPath: string,
+  backupPath: string,
+  what = "restoring the master DB backup",
+): void {
+  assertRbClosed(what);
+  if (!existsSync(backupPath))
+    throw new Error(`master DB backup not found at ${backupPath}`);
+  restoreFileAtomic(backupPath, dbPath);
+  for (const side of ["-wal", "-shm"]) {
+    const destination = dbPath + side;
+    rmSync(destination, { force: true });
+    if (existsSync(backupPath + side))
+      restoreFileAtomic(backupPath + side, destination);
+  }
 }
 
 export interface ReReadVerify {
@@ -105,6 +139,7 @@ print(json.dumps({"total": len(rows), "failures": failures[:50]}))
   const parsed = JSON.parse(line) as ReReadVerify;
   return { total: parsed.total, failures: parsed.failures };
 }
+void verifyReRead;
 
 /** stat helper that never throws — for row-exists checks in verify passes. */
 export function fileExistsSafe(p: string | null | undefined): boolean {

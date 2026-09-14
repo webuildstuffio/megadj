@@ -5,9 +5,9 @@
  * "Playlist … not found in masterPlaylists6.xml" warning and the playlist
  * vanishes on an RB rebuild (40+ hits during the Sep 11–13 intake).
  *
- * Report mode diffs both sides. Apply mode adds missing NODEs (with
- * correctly-encoded attributes) and reports XML-orphan nodes (present in
- * XML, absent in DB — RB tolerates them, we only flag).
+ * Report mode diffs both sides. Apply mode repairs missing or stale NODEs
+ * (with correctly encoded attributes) and reports XML-orphan nodes (present
+ * in XML, absent in DB — RB tolerates them, we only flag).
  *
  * Works on any RB7 master directory: <mount>/PIONEER/Master/ holding
  * master.db + masterPlaylists6.xml (SHELF1-style layout), or the local
@@ -15,9 +15,15 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { assertRbClosed, backupMaster } from "./guard.js";
+import { isRecord, isUnknownArray } from "../../cratedeck/shared/guards.js";
+import { assertRbClosed } from "./guard.js";
+import {
+  applyPlaylistTwinMutation,
+  parsePlaylistXmlNodes,
+  playlistNodeLine,
+} from "./rb-playlist-twin.js";
 
 export interface PlaylistTwin {
   id: string;
@@ -38,7 +44,7 @@ export interface ReconcileResult {
   missingXmlNodes: PlaylistTwin[];
   /** XML NODEs with no DB row (flagged, never touched) */
   orphanXmlNodes: { id: string; name: string }[];
-  /** nodes added to the XML in apply mode */
+  /** nodes repaired in the XML in apply mode (legacy field name) */
   added: number;
   appliedMode: boolean;
   backedUpTo: string | null;
@@ -100,20 +106,6 @@ print(json.dumps({"db": rows}))
 `;
 }
 
-/** Attribute grabber for one NODE tag string (`key="value"`). */
-const xmlAttr = (tag: string, key: string): string | null => {
-  const m = new RegExp(`${key}="([^"]*)"`, "u").exec(tag);
-  return m?.[1] ?? null;
-};
-
-/** XML entity escaper for attribute values. */
-const escapeXml = (s: string): string =>
-  s
-    .replace(/&/gu, "&amp;")
-    .replace(/</gu, "&lt;")
-    .replace(/>/gu, "&gt;")
-    .replace(/"/gu, "&quot;");
-
 /** XML-side parse: NODE entries from masterPlaylists6. RB7 stores `Id` as
  *  a HEX string of the DB's decimal ID (F4-rev4 spike finding, verified:
  *  151/156 local rows match when read as hex). `attribute`: 0 = playlist,
@@ -125,53 +117,10 @@ export function parseXmlNodes(xml: string): {
   parentId: string;
   attribute: number;
 }[] {
-  const out: {
-    id: string;
-    hexId: string;
-    name: string | null;
-    parentId: string;
-    attribute: number;
-  }[] = [];
-  const re = /<NODE\b([^>]*)>/gu;
-  for (const m of xml.matchAll(re)) {
-    const tag = m[1] ?? "";
-    const hexId = xmlAttr(tag, "Id");
-    if (hexId === null) continue;
-    let id: string;
-    let parentId: string;
-    try {
-      id = hexToDecimalId(hexId);
-      parentId = hexToDecimalId(xmlAttr(tag, "ParentId") ?? "0");
-    } catch {
-      continue;
-    }
-    out.push({
-      id,
-      hexId,
-      name: xmlAttr(tag, "Name"),
-      // ParentId is also hex in RB7 XML — convert so comparisons happen in
-      // the DB's decimal id space end to end.
-      parentId,
-      attribute: (() => {
-        const value = Number(xmlAttr(tag, "Attribute") ?? "0");
-        return Number.isFinite(value) ? value : 0;
-      })(),
-    });
-  }
-  return out;
-}
-
-/** RB7 XML stores ids as hex; the DB stores decimal. Keep the full SQLite
- * integer domain instead of rounding through JavaScript's 53-bit number. */
-export function hexToDecimalId(hex: string): string {
-  if (!/^[0-9a-f]+$/iu.test(hex)) throw new Error(`invalid hex id: ${hex}`);
-  return BigInt(`0x${hex}`).toString(10);
-}
-
-function decimalToHexId(decimal: string): string {
-  if (!/^\d+$/u.test(decimal))
-    throw new Error(`invalid decimal id: ${decimal}`);
-  return BigInt(decimal).toString(16).toUpperCase();
+  return parsePlaylistXmlNodes(xml).map((node) => ({
+    ...node,
+    hexId: BigInt(node.id).toString(16).toUpperCase(),
+  }));
 }
 
 /** Build a NODE line matching RB7's own format: hex Id, Timestamp,
@@ -182,10 +131,42 @@ export function nodeLine(t: {
   parentId: string;
   attribute: number;
 }): string {
-  const hex = decimalToHexId(t.id);
-  const parentHex = decimalToHexId(t.parentId);
-  const name = t.name === null ? "" : ` Name="${escapeXml(t.name)}"`;
-  return `    <NODE${name} Id="${hex}" ParentId="${parentHex}" Attribute="${t.attribute}" Timestamp="${Date.now()}" Lib_Type="0" CheckType="0"/>`;
+  return playlistNodeLine(t);
+}
+
+function parseTwinScanOutput(
+  raw: string,
+): Omit<PlaylistTwin, "inDb" | "inXml">[] {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw) as unknown;
+  } catch (error) {
+    throw new Error("playlist DB scan returned malformed JSON", {
+      cause: error,
+    });
+  }
+  if (!isRecord(value) || !isUnknownArray(value.db))
+    throw new Error("playlist DB scan returned an invalid payload");
+  return value.db.map((row) => {
+    if (
+      !isRecord(row) ||
+      typeof row.id !== "string" ||
+      !/^(?:0|[1-9]\d*)$/u.test(row.id) ||
+      typeof row.name !== "string" ||
+      typeof row.parentId !== "string" ||
+      !/^(?:0|[1-9]\d*)$/u.test(row.parentId) ||
+      !Number.isSafeInteger(row.attribute) ||
+      !Number.isSafeInteger(row.seq)
+    )
+      throw new Error("playlist DB scan returned an invalid row");
+    return {
+      id: row.id,
+      name: row.name,
+      parentId: row.parentId,
+      attribute: row.attribute as number,
+      seq: row.seq as number,
+    };
+  });
 }
 
 export async function rbPlaylistReconcile(opts: {
@@ -231,21 +212,32 @@ export async function rbPlaylistReconcile(opts: {
   );
   if (r.status !== 0 || !r.stdout)
     return mk(`DB scan failed: ${(r.stderr ?? "").slice(-200)}`);
-  const dbRows = (
-    JSON.parse(r.stdout.trim().split("\n").pop() ?? "{}") as {
-      db: PlaylistTwin[];
-    }
-  ).db;
+  let dbRows: Omit<PlaylistTwin, "inDb" | "inXml">[];
+  try {
+    dbRows = parseTwinScanOutput(r.stdout.trim().split("\n").pop() ?? "");
+  } catch (error) {
+    return mk(error instanceof Error ? error.message : String(error));
+  }
 
   const xmlRaw = readFileSync(xml, "utf8");
   const xmlNodes = parseXmlNodes(xmlRaw);
   // RB7 keeps RB-internal smart folders DB-side only by design (CUE
   // analysis playlist, per-key folders, etc.). Their tell: they carry no
   // Name in XML, or no XML NODE at all. We only reconcile NAMED DB rows
-  // missing their NODE — real user playlists that vanish on an RB rebuild.
+  // missing or disagreeing with their NODE — real user playlists that vanish
+  // on an RB rebuild or return under stale names/parents.
   const xmlById = new Map(xmlNodes.map((n) => [n.id, n]));
   const missingXmlNodes: PlaylistTwin[] = dbRows
-    .filter((p) => p.id !== "0" && !xmlById.has(p.id) && p.name.length > 0)
+    .filter((p) => {
+      if (p.id === "0" || p.name.length === 0) return false;
+      const xmlNode = xmlById.get(p.id);
+      return (
+        xmlNode === undefined ||
+        xmlNode.name !== p.name ||
+        xmlNode.parentId !== p.parentId ||
+        xmlNode.attribute !== p.attribute
+      );
+    })
     .map((p) => ({ ...p, inDb: true, inXml: false }));
   const dbIds = new Set(dbRows.map((p) => p.id));
   const orphanXmlNodes = xmlNodes
@@ -255,31 +247,31 @@ export async function rbPlaylistReconcile(opts: {
   let backedUpTo: string | null = null;
   let added = 0;
   if (apply && missingXmlNodes.length) {
-    backedUpTo = backupMaster(db);
-    // XML backup alongside (same stamp family)
-    copyFileSync(
-      xml,
-      `${xml}.bak-${new Date().toISOString().replace(/[-:T]/gu, "").slice(0, 15)}`,
-    );
-    // insert missing NODEs before the closing </PLAYLISTS>, after the last
-    // existing NODE line, using each row's real parent + attr
-    const lines = xmlRaw.split("\n");
-    const insertAt = lines.reduce(
-      (acc, l, i) => (l.includes("<NODE") ? i + 1 : acc),
-      0,
-    );
-    const newLines = missingXmlNodes.map((p) =>
-      nodeLine({
+    try {
+      const nodes = missingXmlNodes.map((p) => ({
         name: p.name,
         id: p.id,
         parentId: p.parentId,
         attribute: p.attribute,
-      }),
-    );
-    lines.splice(insertAt, 0, ...newLines);
-    writeFileSync(xml, lines.join("\n"));
-    added = newLines.length;
-    log(`reconcile: added ${added} missing NODE(s) to ${xml}`);
+      }));
+      const mutation = applyPlaylistTwinMutation({
+        dbPath: db,
+        what: "rb-playlist reconcile",
+        mutateDb: () => nodes,
+        nodes: (value) => value,
+        verifyDb: () => {},
+      });
+      backedUpTo = mutation.backedUpTo;
+    } catch (error) {
+      return {
+        ...mk(error instanceof Error ? error.message : String(error)),
+        missingXmlNodes,
+        orphanXmlNodes,
+        backedUpTo,
+      };
+    }
+    added = missingXmlNodes.length;
+    log(`reconcile: repaired ${added} missing or stale NODE(s) in ${xml}`);
   }
 
   return {
@@ -304,18 +296,21 @@ export function printReconcileReport(
     return;
   }
   log(
-    `twins: ${r.missingXmlNodes.length} DB playlist(s) missing their XML NODE · ${r.orphanXmlNodes.length} XML-only orphan(s)`,
+    `twins: ${r.missingXmlNodes.length} DB playlist(s) need XML repair · ${r.orphanXmlNodes.length} XML-only orphan(s)`,
   );
   for (const p of r.missingXmlNodes.slice(0, 15))
-    log(`  ✗ "${p.name}" (Id ${p.id}, attr ${p.attribute}) in DB, not in XML`);
+    log(
+      `  ✗ "${p.name}" (Id ${p.id}, attr ${p.attribute}) XML twin is missing or stale`,
+    );
   for (const o of r.orphanXmlNodes.slice(0, 5))
     log(
       `  ? XML node "${o.name}" (${o.id}) has no DB row (flagged, untouched)`,
     );
-  if (r.appliedMode) log(`applied: ${r.added} NODE(s) added · backups written`);
+  if (r.appliedMode)
+    log(`applied: ${r.added} NODE(s) repaired · backups written`);
   else if (r.missingXmlNodes.length)
     log(
-      `dry-run — re-run with --apply --yes (rekordbox quit) to add ${r.missingXmlNodes.length} NODE(s)`,
+      `dry-run — re-run with --apply --yes (rekordbox quit) to repair ${r.missingXmlNodes.length} NODE(s)`,
     );
   else log("clean — every DB playlist has its XML twin");
 }
