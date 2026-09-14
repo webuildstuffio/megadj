@@ -911,7 +911,6 @@
 }
 
 @media (max-width: 720px) {
-  .setbuild-preset-grid,
   .setbuild-evidence {
     grid-template-columns: 1fr;
   }
@@ -936,6 +935,9 @@
     grid-area: description;
   }
   .setbuild-controls {
+    grid-template-columns: 1fr;
+  }
+  .setbuild-preset-grid {
     grid-template-columns: 1fr;
   }
   .setbuild-duration {
