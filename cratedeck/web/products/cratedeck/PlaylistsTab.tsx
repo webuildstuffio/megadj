@@ -30,7 +30,7 @@ import {
 import { fmtDur } from "../../../shared/fmt";
 import { Icon } from "../../ui/icons";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
-import { copyList } from "../../ui/ListHead";
+import { copyList } from "../../ui/data";
 import { Sparkline } from "../../ui/charts";
 import { fuzzyFilter, fuzzyMatch } from "../../ui/fuzzy";
 

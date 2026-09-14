@@ -14,7 +14,7 @@ import {
   SpaceBar,
 } from "../../ui/DrivePanels";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
-import { copyList } from "../../ui/ListHead";
+import { copyList } from "../../ui/data";
 
 export function OverviewTab(props: {
   name: string;

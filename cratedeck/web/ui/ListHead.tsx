@@ -1,14 +1,12 @@
-// ListHead.tsx — list header + fix-note shims. The implementations moved to
-// ui/data.tsx (ListHead, copyList) so DataTable/BarList can share them
-// without page-level cycles; this file re-exports for the existing import
-// sites and keeps FixNote (page-voiced, one class).
+// ListHead.tsx — the page-voiced fix-note footer. ListHead/copyList live in
+// ui/data.tsx; consumers import that leaf directly so this helper cannot add
+// a re-export hop to every list dependency chain.
 //
 // Extracted from ArchiveTab's UX pass so Coverage/Redundancy/Diff reuse the
 // same pattern: every actionable list is copyable, because the fix is an
 // agent (or future-you) running a command — handing the list over is the
 // CTA.
 
-export { copyList, ListHead } from "./data";
 import type { ComponentChildren } from "preact";
 
 /** The "fix:" footer naming the command that clears the list — every work

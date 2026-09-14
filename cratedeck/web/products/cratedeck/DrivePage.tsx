@@ -15,10 +15,16 @@ import { Icon } from "../../ui/icons";
 import { navigate } from "../../app/router";
 import { InfoTip } from "../../ui/InfoTip";
 import { HELP_JOBS, ROLE_HELP, VERDICT_HELP } from "../../../shared/help";
-import type { PhotoHit } from "./PhotoTab";
+import { PhotoTab, type PhotoHit } from "./PhotoTab";
 import { DRIVE_TABS } from "../shared";
 import { useDriveData, type DriveDetail } from "./useDriveData";
-import { DriveContent } from "./DriveContent";
+import { FixesTab } from "./FixesTab";
+import { HealthTab } from "./HealthTab";
+import { HygieneTab } from "./HygieneTab";
+import { OverviewTab } from "./OverviewTab";
+import { PlaylistsTab } from "./PlaylistsTab";
+import { TimelineTab } from "./TimelineTab";
+import { VerifyTab } from "./VerifyTab";
 
 type TabId = (typeof DRIVE_TABS)[number]["id"];
 
@@ -292,6 +298,60 @@ export function DrivePage(props: {
   };
   const failing = checks.filter((c) => c.status === "fail").length;
   const warning = checks.filter((c) => c.status === "warn").length;
+  const content = (() => {
+    switch (tabConf.id) {
+      case "playlists":
+        return <PlaylistsTab snap={snap} />;
+      case "health":
+        return (
+          <HealthTab
+            drive={detail.drive}
+            snap={snap}
+            bench={bench}
+            probes={probes}
+          />
+        );
+      case "verify":
+        return <VerifyTab driveId={driveId} report={verify} />;
+      case "timeline":
+        return <TimelineTab events={timeline} driveId={driveId} />;
+      case "photos":
+        return (
+          <PhotoTab
+            drive={detail.drive}
+            driveId={driveId}
+            name={nameGuess(detail)}
+            photoQuery={photoQuery}
+            setPhotoQuery={setPhotoQuery}
+            onSearch={searchPhotos}
+            hits={photoHits}
+            onChoose={choosePhoto}
+            onClear={clearPhoto}
+            driveImages={driveImages}
+            onChooseDriveImage={chooseDriveImage}
+            onUploadFile={uploadPhoto}
+          />
+        );
+      case "hygiene":
+        return isShelf ? (
+          <HygieneTab driveId={driveId} driveName={nameGuess(detail)} />
+        ) : null;
+      case "fixes":
+        return isShelf ? (
+          <FixesTab driveId={driveId} driveName={nameGuess(detail)} />
+        ) : null;
+      case "overview":
+      default:
+        return (
+          <OverviewTab
+            name={nameGuess(detail)}
+            snap={snap}
+            dj={snap?.dj ?? null}
+            checks={checks}
+          />
+        );
+    }
+  })();
   return (
     <div class="canvas">
       <button type="button" class="crumb" onClick={() => navigate(null)}>
@@ -543,27 +603,7 @@ export function DrivePage(props: {
         ))}
       </div>
 
-      <DriveContent
-        tab={tabConf.id}
-        driveId={driveId}
-        detail={detail}
-        name={nameGuess(detail)}
-        report={report}
-        timeline={timeline}
-        bench={bench}
-        probes={probes}
-        verify={verify}
-        isShelf={isShelf}
-        photoQuery={photoQuery}
-        setPhotoQuery={setPhotoQuery}
-        photoHits={photoHits}
-        onSearchPhotos={searchPhotos}
-        onChoosePhoto={choosePhoto}
-        onClearPhoto={clearPhoto}
-        driveImages={driveImages}
-        onChooseDriveImage={chooseDriveImage}
-        onUploadPhoto={uploadPhoto}
-      />
+      {content}
 
       {/* recent jobs for this drive */}
       {jobs.length > 0 && (

@@ -30,7 +30,8 @@ import { BoothSettings } from "./BoothSettings";
 import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
 import { TabIntro } from "../../ui/InfoTip";
-import { ListHead, FixNote, copyList } from "../../ui/ListHead";
+import { FixNote } from "../../ui/ListHead";
+import { copyList, ListHead } from "../../ui/data";
 import { PRODUCT_TABS, ProductIntro } from "../shared";
 
 // the fleet content tabs live in the product SSOT (ProductPage
