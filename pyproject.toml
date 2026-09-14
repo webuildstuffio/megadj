@@ -14,11 +14,13 @@ strict = true
 python_version = "3.11"
 warn_unreachable = true
 pretty = true
+cache_dir = "node_modules/.cache/mypy"
 files = ["cratedeck/python", "tools"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+cache-dir = "node_modules/.cache/ruff"
 extend-exclude = ["node_modules", "dist"]
 
 [tool.ruff.lint]
