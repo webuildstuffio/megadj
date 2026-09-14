@@ -20,6 +20,7 @@ Usage:
     python tools/emb_benchmark.py --per-family 10 --k 5 \
     --towers msd-musicnn-200,effnet-discogs-1280
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,9 +50,7 @@ def sess() -> object:
 
 def load_eval_set(per_family: int) -> dict[str, list[str]]:
     """Load eval set from the cached JSON (files verified to exist)."""
-    by_fam: dict[str, list[str]] = json.loads(
-        (TMP / "eval_set.json").read_text()
-    )
+    by_fam: dict[str, list[str]] = json.loads((TMP / "eval_set.json").read_text())
     return {f: v[:per_family] for f, v in by_fam.items()}
 
 
@@ -70,8 +69,10 @@ def audio(path: str, rate: int = 16000) -> FloatArray:
 
 
 def frame_mel(
-    a: FloatArray, algo: Callable[[FloatArray], FloatArray],
-    frame_size: int, hop: int,
+    a: FloatArray,
+    algo: Callable[[FloatArray], FloatArray],
+    frame_size: int,
+    hop: int,
 ) -> FloatArray:
     from essentia.standard import FrameGenerator
 
@@ -83,6 +84,44 @@ def frame_mel(
 
 def normalize(v: FloatArray) -> FloatArray:
     return v / (float(np.linalg.norm(v)) + 1e-9)
+
+
+def embedding_metrics(
+    vectors: FloatArray, labels: NDArray[np.str_], k: int
+) -> tuple[int, float, float]:
+    """Return valid-row count, LOO agreement, and neighbor coherence.
+
+    Failed embeddings are zero rows.  Keep their source indices separate from
+    positions in the compact valid-row matrix so self-exclusion stays correct.
+    """
+    if k < 1:
+        raise ValueError("k must be at least 1")
+    if vectors.shape[0] != labels.shape[0]:
+        raise ValueError("vectors and labels must have the same row count")
+
+    valid = np.linalg.norm(vectors, axis=1) > 0
+    source_indices = np.flatnonzero(valid)
+    total = int(source_indices.size)
+    neighbor_count = min(k, max(0, total - 1))
+    if neighbor_count == 0:
+        return total, 0.0, 0.0
+
+    compact = vectors[valid]
+    agree = 0
+    coherence: list[float] = []
+    for compact_index, source_index in enumerate(source_indices):
+        similarities = compact @ compact[compact_index]
+        similarities[compact_index] = -np.inf
+        top_positions = np.argsort(-similarities)[:neighbor_count]
+        top_sources = source_indices[top_positions]
+        votes = Counter(labels[index] for index in top_sources)
+        if votes.most_common(1)[0][0] == labels[source_index]:
+            agree += 1
+        coherence.append(
+            float(np.mean([labels[index] == labels[source_index] for index in top_sources]))
+        )
+
+    return total, agree / total, float(np.mean(coherence))
 
 
 def run_embeddings(name: str, batch: FloatArray) -> FloatArray:
@@ -131,7 +170,9 @@ def emb_openl3(path: str) -> FloatArray:
             [
                 mb(s(w(fr)))
                 for fr in FrameGenerator(
-                    chunk, frameSize=2048, hopSize=242,
+                    chunk,
+                    frameSize=2048,
+                    hopSize=242,
                     validFrameThresholdRatio=0.5,
                 )
             ],
@@ -144,7 +185,7 @@ def emb_openl3(path: str) -> FloatArray:
     mels: list[FloatArray] = []
     for start in range(0, n - patch + 1, patch):
         m = mel_of(a[start : start + patch])
-        m = 10.0 * np.log10(np.maximum(amin, m))
+        m = np.asarray(10.0 * np.log10(np.maximum(amin, m)), dtype=np.float32)
         m -= 10.0 * np.log10(np.maximum(amin, db_ref))
         m = np.maximum(m, m.max() - d_range)
         m -= m.max()
@@ -159,9 +200,7 @@ def emb_openl3(path: str) -> FloatArray:
         if chunk.shape[0] < x_size:
             chunk = np.pad(chunk, ((0, x_size - chunk.shape[0]), (0, 0)))
         patches.append(chunk.T)  # (128, 199)
-    arr: FloatArray = np.asarray(patches, dtype=np.float32)[
-        ..., np.newaxis
-    ]  # (b,128,199,1)
+    arr: FloatArray = np.asarray(patches, dtype=np.float32)[..., np.newaxis]  # (b,128,199,1)
     return normalize(run_embeddings("openl3", arr).mean(axis=0))
 
 
@@ -198,18 +237,21 @@ def emb_clap(path: str) -> FloatArray:
     win = np.hanning(n_fft).astype(np.float32)
     spec = np.abs(np.fft.rfft(frames * win, axis=1)) ** 2
 
-    def hz2mel(hz: FloatArray) -> FloatArray:
-        return 2595 * np.log10(1 + hz / 700)
+    def hz2mel(hz: float) -> float:
+        return float(2595 * np.log10(1 + hz / 700))
 
-    def mel2hz(m: FloatArray) -> FloatArray:
-        return 700 * (10.0 ** (m / 2595) - 1)
+    def mel2hz(m: float) -> float:
+        return float(700 * (10.0 ** (m / 2595) - 1))
 
-    mels = np.linspace(hz2mel(np.float32(0)), hz2mel(np.float32(24000)),
-                       n_mels + 2)
+    mels: FloatArray = np.linspace(hz2mel(0), hz2mel(24000), n_mels + 2, dtype=np.float32)
     freqs = np.fft.rfftfreq(n_fft, 1 / 48000).astype(np.float32)
     fb = np.zeros((n_mels, len(freqs)), dtype=np.float32)
     for i in range(n_mels):
-        lo, mid, hi = mel2hz(mels[i]), mel2hz(mels[i + 1]), mel2hz(mels[i + 2])
+        lo, mid, hi = (
+            mel2hz(float(mels[i])),
+            mel2hz(float(mels[i + 1])),
+            mel2hz(float(mels[i + 2])),
+        )
         up = (freqs - lo) / (mid - lo + 1e-9)
         down = (hi - freqs) / (hi - mid + 1e-9)
         fb[i] = np.maximum(0, np.minimum(up, down))
@@ -226,7 +268,9 @@ def emb_clap(path: str) -> FloatArray:
 
 TOWERS: dict[str, tuple[Callable[[str], FloatArray], str, int]] = {
     "effnet-discogs-1280": (
-        emb_effnet, f"{MODEL_DIR}/discogs-effnet-bsdynamic-1.onnx", 1280,
+        emb_effnet,
+        f"{MODEL_DIR}/discogs-effnet-bsdynamic-1.onnx",
+        1280,
     ),
     "openl3-music-512": (emb_openl3, f"{TMP}/openl3.onnx", 512),
     "msd-musicnn-200": (emb_musicnn, f"{TMP}/msd-musicnn.onnx", 200),
@@ -242,6 +286,10 @@ def main() -> None:
     parser.add_argument("--k", type=int, default=5)
     parser.add_argument("--towers", default=",".join(TOWERS))
     args = parser.parse_args()
+    if args.per_family < 1:
+        parser.error("--per-family must be at least 1")
+    if args.k < 1:
+        parser.error("--k must be at least 1")
 
     import onnxruntime as ort
 
@@ -251,8 +299,7 @@ def main() -> None:
     tracks = [(fam, path) for fam, paths in eval_set.items() for path in paths]
     labels = np.array([fam for fam, _ in tracks])
     print(
-        f"eval set: {len(tracks)} tracks across {len(eval_set)} families: "
-        f"{dict(Counter(labels))}",
+        f"eval set: {len(tracks)} tracks across {len(eval_set)} families: {dict(Counter(labels))}",
         file=sys.stderr,
     )
 
@@ -261,8 +308,7 @@ def main() -> None:
             continue
         fn, model_path, dim = TOWERS[name]
         if not Path(model_path).exists():
-            print(f"[{name}] model missing, skipped: {model_path}",
-                  file=sys.stderr)
+            print(f"[{name}] model missing, skipped: {model_path}", file=sys.stderr)
             continue
         SESS[name] = ort.InferenceSession(model_path, providers=prov)
         CUR = name
@@ -279,40 +325,20 @@ def main() -> None:
                     print(f"[{name}] fail {fails}: {e!r:.200}", file=sys.stderr)
         elapsed = time.time() - t0
         X = np.stack(vecs)
-        valid = np.linalg.norm(X, axis=1) > 0
-
-        # LOO kNN family agreement (cosine; vectors pre-normalized)
-        agree = 0
-        total = int(valid.sum())
-        vidx = np.where(valid)[0]
-        for i in vidx:
-            sims = X[valid] @ X[i]
-            sims[i] = -2  # exclude self (index within valid-subset)
-            top = vidx[np.argsort(-sims)[: args.k]]
-            votes = Counter(labels[j] for j in top)
-            if votes.most_common(1)[0][0] == labels[i]:
-                agree += 1
-        loo = agree / total if total else 0.0
-
-        # top-k neighbor family coherence (retrieval-quality proxy)
-        coher: list[float] = []
-        for i in vidx:
-            sims = X[valid] @ X[i]
-            sims[i] = -2
-            top = vidx[np.argsort(-sims)[: args.k]]
-            coher.append(float(np.mean([labels[j] == labels[i] for j in top])))
-        coh = float(np.mean(coher)) if coher else 0.0
+        total, loo, coh = embedding_metrics(X, labels, args.k)
 
         print(
-            json.dumps({
-                "tower": name,
-                "dim": dim,
-                "n": total,
-                "fails": fails,
-                "loo_knn_agreement": round(loo, 4),
-                "family_coherence_atk": round(coh, 4),
-                "sec_per_track": round(elapsed / len(tracks), 3),
-            }),
+            json.dumps(
+                {
+                    "tower": name,
+                    "dim": dim,
+                    "n": total,
+                    "fails": fails,
+                    "loo_knn_agreement": round(loo, 4),
+                    "family_coherence_atk": round(coh, 4),
+                    "sec_per_track": round(elapsed / len(tracks), 3),
+                }
+            ),
             flush=True,
         )
         del SESS[name]

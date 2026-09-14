@@ -49,9 +49,10 @@ Reading:
    is 2× faster. Its neighbors are also more *novel* — only **0.324
    top-10 Jaccard overlap** with musicnn's neighbor lists. The two towers
    see genuinely different things in the same audio.
-3. **Ensembling the two towers beats either alone for genre** (0.463 vs
-   0.413) without giving up effnet's retrieval role. The overlap being low
-   is exactly why the ensemble helps.
+3. **The ensemble improves effnet but does not win genre.** Mean-rank fusion
+   reaches 0.463: +5.0 points over effnet, but **7.5 points below musicnn**.
+   The low overlap makes musicnn interesting as a diversity signal; it is not
+   evidence that this ensemble should replace the stronger single tower.
 4. OpenL3 is mid at 8× the cost. VGGish is dominated (we only keep it for
    valence/arousal, where it's the only game in town). CLAP is *worse than
    coin flip* here — it's a text-alignment model, optimized to match
@@ -62,7 +63,8 @@ Reading:
 
 - n=80, one seed of `ORDER BY RANDOM()` — family agreement has ±5-6pt
   error bars at this n. The musicnn > effnet gap (12.5pt) is at the edge of
-  significance; the ensemble result is the robust one.
+  significance; neither that ranking nor the weaker ensemble result is a
+  sufficient production-switch gate without a larger post-refold rerun.
 - Families are unevenly hard (hiphop/dnb/rock are easy; house/techno/trance
   boundary is genuinely fuzzy — that's the library, not the tower).
 - Genre labels are the noisy ground truth we have; §05-genre-audit measured
@@ -71,19 +73,23 @@ Reading:
   human eval later.
 - Speed numbers are single-threaded CPU with per-track session reuse; batch
   runners would amortize differently.
+- The historical table predates the harness fix that correctly maps failed
+  embeddings from source rows into the compact valid-row matrix. Treat these
+  numbers as provisional until the same eval set is rerun with the repaired
+  harness and its `fails` count recorded.
 
 ## Decision & plan
 
-**Adopt a two-tower ensemble, keep effnet as retrieval-primary:**
+**Keep effnet retrieval-primary; validate musicnn before adoption:**
 
-1. **Genre inference (`megadj genre`) switches to ensemble scoring:**
-   similarity = mean of rank-normalized cosine from effnet + musicnn
-   (measured 0.463 vs 0.413 single-tower). Musicnn model is 3.2 MB —
-   trivially bundled into `modelsEnsure`.
+1. **Genre inference (`megadj genre`) stays on its current tower** until a
+   larger post-refold rerun reproduces musicnn's lead. If it does, musicnn is
+   the measured candidate (0.538 here); rank fusion ships only if it also
+   beats musicnn, not merely the 0.413 effnet baseline.
 2. **"Sounds like" (MegaSet similar/set building) keeps effnet-primary**
-   with musicnn as a diversity re-ranker (interleave top-10 lists at 7:3;
-   both towers already cached per-track, ~1.6s extra per track on a cold
-   batch, 0 warm).
+   because it has the best measured retrieval coherence. Musicnn can be
+   evaluated as a diversity re-ranker, but the current results do not justify
+   a hard-coded interleave ratio.
 3. **Re-benchmark after refold** (05-genre-audit §5b): cleaner labels →
    tighter ceiling → re-measure; promote MERT only if the ensemble stalls
    below 0.55 AND the compute budget allows 10-30× slower batch runs.
@@ -92,17 +98,21 @@ Reading:
 
 ### Implementation steps
 
-- [ ] `fulltags/src/models.ts`: add `msd-musicnn-1.onnx` to MODEL_FILES
+- [ ] Re-run the repaired harness after the genre refold on a larger,
+      recorded eval set; require zero unexplained failures and report the
+      musicnn-vs-ensemble comparison directly.
+- [ ] If musicnn passes that gate, add `msd-musicnn-1.onnx` to MODEL_FILES
       (url `autotagging/msd/msd-musicnn-1.onnx`, 3.2 MB).
-- [ ] Python seam: second tower in the same worker process; emit
+- [ ] Python seam, after the gate: second tower in the same worker process; emit
       `embedding200` alongside `embedding` when `withEmbedding`.
 - [ ] `archive.db` ledger: `track_embeddings_mnn` table (mirror of the
       1280-d ledger; 200-d rows).
-- [ ] `megadj genre` + `similarTracks`: rank-fusion read of both ledgers;
-      fall back to single-tower when only one side is populated.
+- [ ] `megadj genre` selects the best validated genre tower; add rank fusion
+      only if the rerun shows it beating musicnn. `similarTracks` may use the
+      second ledger for a separately measured diversity re-rank.
 - [ ] Backfill command: `megadj genre --backfill-mnn` (batch, resumable,
       ~1.6s/track × 3,400 ≈ 90 min once).
 - [ ] Re-run this benchmark harness post-refold; store numbers here.
 
-*Harness:* `/tmp/emb-bench/emb_benchmark.py` (add to repo under
-`tools/` if we want it as `megadj genre --eval-models`).
+*Harness:* `tools/emb_benchmark.py` (manual research harness; productize as
+`megadj genre --eval-models` only after the evaluation protocol is pinned).
