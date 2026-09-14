@@ -6,9 +6,9 @@
  * Kind=0 non-clickable cues on Sep 12).
  *
  * DB-side truth (pinned by the Sep 13 F4 spike, RB7-written evidence):
- *   - Kind: 1 = hot cue (pad-clickable), 2 = loop cue. RB NEVER writes 0.
- *     (pyrekordbox's "Cue=0" docstring describes legacy CDJ types — ignore
- *     it for pad cues.)
+ *   - Kind: 0 = memory cue, 1 = hot cue (pad-clickable), 2 = loop cue.
+ *     The broken Sep 12 intake writer used 0 for intended hot cues; repair
+ *     only those provenance-pinned rows, never arbitrary memory cues.
  *   - ColorTableIndex=0 and Color=255 are what RB itself writes; label
  *     text rides `Comment` (RB writes e.g. '1.1Bars').
  *   - XML POSITION_MARK is the OPPOSITE convention (Num 0..7 = hot,
@@ -22,12 +22,15 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { isUnknownArray } from "../../cratedeck/shared/guards";
 import {
   assertRbClosed,
   backupMaster,
   fileExistsSafe,
-  verifyReRead,
+  restoreMasterBackup,
+  sleepSync,
 } from "./guard.js";
+import { incidentCuePredicatePython } from "./cue-incident.js";
 
 /** DB-side hot cue Kind — pinned by F4 (RB7-written rows: 1 only). */
 export const HOT_CUE_KIND = 1;
@@ -35,6 +38,8 @@ export const HOT_CUE_KIND = 1;
 export const LOOP_CUE_KIND = 2;
 /** Pads address hot cues 1..8; anything beyond is unreachable. */
 export const MAX_HOT_CUES = 8;
+
+export type RbCuesMode = "restamp" | "ledger";
 
 export interface RbCuesOptions {
   /** Drive mount root (master DB at <mount>/PIONEER/Master/master.db)
@@ -55,8 +60,8 @@ export interface RbCuesOptions {
 export interface RbCuesResult {
   command: "rb-cues";
   db: string;
-  mode: "restamp" | "ledger";
-  /** Cue rows inspected (restamp: Kind=0 rows found; ledger: tracks). */
+  mode: RbCuesMode;
+  /** Cue rows inspected (restamp: incident-matching rows; ledger: tracks). */
   found: number;
   /** Rows written / re-stamped (0 in dry-run). */
   written: number;
@@ -70,6 +75,196 @@ export interface RbCuesResult {
   error?: string;
 }
 
+interface RestampOutput {
+  found: number;
+  written: number;
+  protected: number;
+  writtenIds: string[];
+  errors: [string, string][];
+}
+
+interface CueVerifyOutput {
+  total: number;
+  matched: number;
+  remaining: number;
+  missing: string[];
+  mismatched: [string, number][];
+}
+
+interface CueCommandResult {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+interface RbCuesRuntime {
+  fileExists: (path: string) => boolean;
+  assertClosed: (what: string) => void;
+  backup: (path: string) => string;
+  restore: (dbPath: string, backupPath: string) => void;
+  sleep: (ms: number) => void;
+  spawn: (
+    command: string[],
+    timeoutMs: number,
+    input?: string,
+  ) => CueCommandResult;
+}
+
+const runtime: RbCuesRuntime = {
+  fileExists: fileExistsSafe,
+  assertClosed: assertRbClosed,
+  backup: backupMaster,
+  restore: restoreMasterBackup,
+  sleep: sleepSync,
+  spawn(command, timeoutMs, input) {
+    const executable = command[0];
+    if (executable === undefined) throw new Error("empty subprocess command");
+    const result = spawnSync(executable, command.slice(1), {
+      encoding: "utf8",
+      timeout: timeoutMs,
+      input,
+    });
+    return {
+      status: result.status,
+      stdout: result.stdout ?? "",
+      stderr: result.stderr ?? "",
+    };
+  },
+};
+
+const nonNegativeInteger = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  Number.isInteger(value) &&
+  value >= 0;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isErrorPair = (value: unknown): value is [string, string] =>
+  isUnknownArray(value) &&
+  value.length === 2 &&
+  value.every((part) => typeof part === "string");
+
+const isKindPair = (value: unknown): value is [string, number] =>
+  isUnknownArray(value) &&
+  value.length === 2 &&
+  typeof value[0] === "string" &&
+  nonNegativeInteger(value[1]);
+
+function parseJson(raw: string, context: string): unknown {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (error) {
+    throw new Error(`${context} returned malformed JSON`, { cause: error });
+  }
+}
+
+function parseRestampOutput(raw: string, apply: boolean): RestampOutput {
+  const value = parseJson(raw, "rb-cues restamp");
+  if (
+    !isRecord(value) ||
+    !nonNegativeInteger(value.found) ||
+    !nonNegativeInteger(value.written) ||
+    !nonNegativeInteger(value.protected) ||
+    !isUnknownArray(value.written_ids) ||
+    !value.written_ids.every((id) => typeof id === "string") ||
+    !isUnknownArray(value.errors) ||
+    !value.errors.every(isErrorPair)
+  ) {
+    throw new Error("rb-cues restamp returned an invalid result payload");
+  }
+  const output: RestampOutput = {
+    found: value.found,
+    written: value.written,
+    protected: value.protected,
+    writtenIds: value.written_ids,
+    errors: value.errors,
+  };
+  if (output.errors.length > 0)
+    throw new Error(
+      `rb-cues restamp transaction failed: ${output.errors.map(([id, detail]) => `${id}: ${detail}`).join("; ")}`,
+    );
+  if (apply && output.written !== output.found)
+    throw new Error(`rb-cues restamped ${output.written}/${output.found} rows`);
+  if (output.writtenIds.length !== output.written)
+    throw new Error("rb-cues write acknowledgements are incomplete");
+  if (!apply && output.written !== 0)
+    throw new Error("rb-cues census mode unexpectedly wrote rows");
+  if (
+    new Set(output.writtenIds).size !== output.writtenIds.length ||
+    output.writtenIds.some((id) => !/^(?:0|[1-9]\d*)$/u.test(id))
+  )
+    throw new Error("rb-cues returned invalid or duplicate cue ids");
+  return output;
+}
+
+function parseVerifyOutput(raw: string): CueVerifyOutput {
+  const value = parseJson(raw, "rb-cues verification");
+  if (
+    !isRecord(value) ||
+    !nonNegativeInteger(value.total) ||
+    !nonNegativeInteger(value.matched) ||
+    !nonNegativeInteger(value.remaining) ||
+    !isUnknownArray(value.missing) ||
+    !value.missing.every((id) => typeof id === "string") ||
+    !isUnknownArray(value.mismatched) ||
+    !value.mismatched.every(isKindPair)
+  ) {
+    throw new Error("rb-cues verification returned an invalid payload");
+  }
+  return {
+    total: value.total,
+    matched: value.matched,
+    remaining: value.remaining,
+    missing: value.missing,
+    mismatched: value.mismatched,
+  };
+}
+
+function validateVerification(
+  expectedIds: readonly string[],
+  result: CueVerifyOutput,
+): void {
+  if (result.total !== expectedIds.length)
+    throw new Error(
+      `cue verification read ${result.total}/${expectedIds.length} intended rows`,
+    );
+  if (result.missing.length > 0)
+    throw new Error(
+      `cue verification missing ids: ${result.missing.join(", ")}`,
+    );
+  if (result.mismatched.length > 0)
+    throw new Error(
+      `cue verification found non-hot ids: ${result.mismatched.map(([id]) => id).join(", ")}`,
+    );
+  if (result.matched !== expectedIds.length)
+    throw new Error(
+      `cue verification matched ${result.matched}/${expectedIds.length} intended rows`,
+    );
+  if (result.remaining !== 0)
+    throw new Error(`${result.remaining} Kind=0 rows survived the re-read`);
+}
+
+function cueVerifyScript(): string {
+  return `
+import json, sys
+from pyrekordbox.db6.database import deobfuscate, BLOB
+from pyrekordbox import db6
+from pyrekordbox.db6.tables import DjmdCue
+expected = [str(i) for i in json.load(sys.stdin)]
+db = db6.Rekordbox6Database(path=sys.argv[1], key=deobfuscate(BLOB))
+rows = db.query(DjmdCue).filter(DjmdCue.ID.in_([int(i) for i in expected])).all() if expected else []
+actual = {str(row.ID): int(row.Kind) for row in rows}
+remaining = sum(1 for i in expected if actual.get(i) == 0)
+db.close()
+missing = sorted(i for i in expected if i not in actual)
+mismatched = [[i, actual[i]] for i in expected if i in actual and actual[i] != 1]
+matched = sum(1 for i in expected if actual.get(i) == 1)
+print(json.dumps({"total": len(actual), "matched": matched, "remaining": remaining, "missing": missing, "mismatched": mismatched}))
+`;
+}
+
 function dbPathFor(mount: string): string {
   return (
     process.env.MEGADJ_RB_MASTER ??
@@ -80,7 +275,7 @@ function dbPathFor(mount: string): string {
 const fail = (
   opts: RbCuesOptions,
   dbPath: string,
-  mode: "restamp" | "ledger",
+  mode: RbCuesMode,
   msg: string,
 ): RbCuesResult => ({
   command: "rb-cues",
@@ -97,41 +292,71 @@ const fail = (
 });
 
 /**
- * The one-shot BUG-1 repair. Restamps EVERY Kind=0 cue row that belongs to
- * a content row whose file lives under the shelf Contents tree (our
- * intake scope) — RB itself never writes Kind 0, so all Kind=0 rows are
- * ours to fix. Kind 2 (loop) rows are left alone.
+ * The one-shot BUG-1 repair. Kind=0 is also the legitimate collection-DB
+ * value for memory cues, so a broad Kind=0 rewrite is unsafe. The broken
+ * Sep 12 intake writer left a provenance signature pinned from the sacred
+ * pre-repair backup: a 14-minute creation window, its semantic label/color
+ * vocabulary, NULL RB-authored cue fields, and a content path under this
+ * shelf's Contents tree. Only rows matching every part are candidates.
  */
 export function restampScript(): string {
   return `
-import json, sys
+import datetime, json, os, subprocess, sys
 from pyrekordbox.db6.database import deobfuscate, BLOB
 from pyrekordbox import db6
-from pyrekordbox.db6.tables import DjmdCue
+from pyrekordbox.db6.tables import DjmdContent, DjmdCue
 
 db_path = sys.argv[1]
 apply = sys.argv[2] == "apply"
+mount = os.path.abspath(sys.argv[3])
 db = db6.Rekordbox6Database(path=db_path, key=deobfuscate(BLOB))
-rows = db.query(DjmdCue).filter(DjmdCue.Kind == 0).all()
-out = {"found": len(rows), "written": 0, "errors": []}
+all_kind_zero = db.query(DjmdCue).filter(DjmdCue.Kind == 0).all()
+contents = os.path.normpath(os.path.join(mount, "Contents"))
+content_paths = {str(content.ID): content.FolderPath or "" for content in db.query(DjmdContent).all()}
+${incidentCuePredicatePython()}
+
+rows = [cue for cue in all_kind_zero if is_incident_cue(cue)]
+out = {"found": len(rows), "written": 0, "protected": len(all_kind_zero) - len(rows),
+       "written_ids": [], "errors": []}
 if apply:
-    for r in rows:
-        try:
+    try:
+        for r in rows:
             r.Kind = 1
-            db.session.commit()
-            out["written"] += 1
-        except Exception as e:
-            db.session.rollback()
-            out["errors"].append([str(r.ID), repr(e)[:120]])
+        if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:
+            raise RuntimeError("rekordbox reopened before cue commit")
+        db.session.commit()
+        out["written_ids"] = [str(r.ID) for r in rows]
+        out["written"] = len(out["written_ids"])
+    except Exception as e:
+        db.session.rollback()
+        out["errors"].append(["transaction", repr(e)[:200]])
 print(json.dumps(out))
 db.close()
 `;
 }
 
 export async function rbCues(opts: RbCuesOptions): Promise<RbCuesResult> {
+  return rbCuesWithRuntime(opts, runtime);
+}
+
+function gatedFor(protectedRows: number): { track: string; reason: string }[] {
+  return protectedRows === 0
+    ? []
+    : [
+        {
+          track: "collection",
+          reason: `${protectedRows} Kind=0 row(s) did not match the Sep 12 intake provenance signature and were preserved`,
+        },
+      ];
+}
+
+async function rbCuesWithRuntime(
+  opts: RbCuesOptions,
+  deps: RbCuesRuntime,
+): Promise<RbCuesResult> {
   const log = opts.log ?? (() => {});
   const dbPath = dbPathFor(opts.mount);
-  const mode: "restamp" | "ledger" = opts.fromLedger ? "ledger" : "restamp";
+  const mode: RbCuesMode = opts.fromLedger ? "ledger" : "restamp";
   const apply = opts.apply === true && opts.yes === true;
 
   if (opts.apply && !opts.yes)
@@ -150,11 +375,11 @@ export async function rbCues(opts: RbCuesOptions): Promise<RbCuesResult> {
     );
 
   try {
-    assertRbClosed("rb-cues");
+    deps.assertClosed("rb-cues");
   } catch (e) {
     return fail(opts, dbPath, mode, (e as Error).message);
   }
-  if (!fileExistsSafe(dbPath)) {
+  if (!deps.fileExists(dbPath)) {
     // master.db must exist; backupMaster re-checks
     return fail(
       opts,
@@ -164,47 +389,117 @@ export async function rbCues(opts: RbCuesOptions): Promise<RbCuesResult> {
     );
   }
 
-  let backedUpTo: string | null = null;
-  if (apply) backedUpTo = backupMaster(dbPath);
-
-  let found = 0;
-  let written = 0;
-  const errors: string[] = [];
   if (apply) {
-    const r = spawnSync(
-      "uv",
-      [
-        "run",
-        "--with",
-        "pyrekordbox",
-        "python",
-        "-c",
-        restampScript(),
-        dbPath,
-        "apply",
-      ],
-      { encoding: "utf8", timeout: 300_000 },
-    );
-    if (r.status !== 0 || !r.stdout)
+    let backedUpTo: string;
+    try {
+      backedUpTo = deps.backup(dbPath);
+    } catch (error) {
       return fail(
         opts,
         dbPath,
         mode,
-        `restamp failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(-300)}`,
+        error instanceof Error ? error.message : String(error),
       );
-    const out = JSON.parse(r.stdout.trim().split("\n").pop() ?? "{}") as {
-      found: number;
-      written: number;
-      errors: [string, string][];
+    }
+
+    const compensate = (error: unknown): RbCuesResult => {
+      const original = error instanceof Error ? error.message : String(error);
+      try {
+        deps.restore(dbPath, backedUpTo);
+        const detail = `${original}; restored backup ${backedUpTo}`;
+        return {
+          ...fail(opts, dbPath, mode, detail),
+          backedUpTo,
+          verifyFailures: [detail],
+        };
+      } catch (restoreError) {
+        const restoreDetail =
+          restoreError instanceof Error
+            ? restoreError.message
+            : String(restoreError);
+        const detail = `${original}; restoring backup ${backedUpTo} also failed: ${restoreDetail}`;
+        return {
+          ...fail(opts, dbPath, mode, detail),
+          backedUpTo,
+          verifyFailures: [detail],
+        };
+      }
     };
-    found = out.found;
-    written = out.written;
-    for (const [id, e] of out.errors) errors.push(`${id}: ${e}`);
-  } else {
-    // dry-run census via the same script in census-only mode
-    const r = spawnSync(
-      "uv",
+
+    try {
+      deps.assertClosed("rb-cues --apply");
+      const r = deps.spawn(
+        [
+          "uv",
+          "run",
+          "--with",
+          "pyrekordbox",
+          "python",
+          "-c",
+          restampScript(),
+          dbPath,
+          "apply",
+          opts.mount,
+        ],
+        300_000,
+      );
+      if (r.status !== 0 || !r.stdout)
+        throw new Error(
+          `restamp failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
+        );
+      const output = parseRestampOutput(
+        r.stdout.trim().split("\n").pop() ?? "",
+        true,
+      );
+      deps.sleep(250);
+      deps.assertClosed("rb-cues verification");
+      const zeroCheck = deps.spawn(
+        [
+          "uv",
+          "run",
+          "--with",
+          "pyrekordbox",
+          "python",
+          "-c",
+          cueVerifyScript(),
+          dbPath,
+        ],
+        120_000,
+        JSON.stringify(output.writtenIds),
+      );
+      if (zeroCheck.status !== 0 || !zeroCheck.stdout)
+        throw new Error(
+          `cue verification failed (exit ${String(zeroCheck.status)}): ${zeroCheck.stderr.slice(-300)}`,
+        );
+      const checked = parseVerifyOutput(
+        zeroCheck.stdout.trim().split("\n").pop() ?? "",
+      );
+      validateVerification(output.writtenIds, checked);
+      log(
+        `re-read: ${checked.matched}/${checked.total} intended cue rows, ${checked.remaining} Kind=0 remaining`,
+      );
+      return {
+        command: "rb-cues",
+        db: dbPath,
+        mode,
+        found: output.found,
+        written: output.written,
+        gated: gatedFor(output.protected),
+        verifyFailures: [],
+        appliedMode: true,
+        backedUpTo,
+        ok: true,
+      };
+    } catch (error) {
+      return compensate(error);
+    }
+  }
+
+  let result: CueCommandResult;
+  try {
+    result = deps.spawn(
       [
+        "uv",
         "run",
         "--with",
         "pyrekordbox",
@@ -213,70 +508,61 @@ export async function rbCues(opts: RbCuesOptions): Promise<RbCuesResult> {
         restampScript(),
         dbPath,
         "census",
+        opts.mount,
       ],
-      { encoding: "utf8", timeout: 120_000 },
+      120_000,
     );
-    if (r.status === 0 && r.stdout) {
-      const out = JSON.parse(r.stdout.trim().split("\n").pop() ?? "{}") as {
-        found: number;
-      };
-      found = out.found;
-    }
+  } catch (error) {
+    return fail(
+      opts,
+      dbPath,
+      mode,
+      error instanceof Error ? error.message : String(error),
+    );
   }
-
-  // delayed re-read verify: zero Kind=0 rows must remain after apply
-  let verifyFailures: string[] = [];
-  if (apply) {
-    try {
-      // re-read counts Kind=0 rows; any survivor is a failure
-      const v = verifyReRead(
-        dbPath,
-        "DjmdCue",
-        "[True] * len(rows)", // per-row predicate: presence check only
-      );
-      const zeroCheck = spawnSync(
-        "uv",
-        [
-          "run",
-          "--with",
-          "pyrekordbox",
-          "python",
-          "-c",
-          'import json,sys\nfrom pyrekordbox.db6.database import deobfuscate, BLOB\nfrom pyrekordbox import db6\nfrom pyrekordbox.db6.tables import DjmdCue\ndb = db6.Rekordbox6Database(path=sys.argv[1], key=deobfuscate(BLOB))\nn = db.query(DjmdCue).filter(DjmdCue.Kind == 0).count()\nprint(json.dumps({"remaining": n}))\ndb.close()',
-          dbPath,
-        ],
-        { encoding: "utf8", timeout: 120_000 },
-      );
-      const remaining = JSON.parse(
-        (zeroCheck.stdout ?? '{"remaining":-1}').trim().split("\n").pop() ??
-          '{"remaining":-1}',
-      ) as { remaining: number };
-      if (remaining.remaining !== 0)
-        verifyFailures.push(
-          `${remaining.remaining} Kind=0 rows survived the re-read`,
-        );
-      log(
-        `re-read: ${v.total} cue rows, ${remaining.remaining} Kind=0 remaining`,
-      );
-    } catch (e) {
-      verifyFailures.push((e as Error).message);
-    }
+  if (result.status !== 0 || !result.stdout)
+    return fail(
+      opts,
+      dbPath,
+      mode,
+      `census failed (exit ${String(result.status)}): ${result.stderr.slice(-300)}`,
+    );
+  let output: RestampOutput;
+  try {
+    output = parseRestampOutput(
+      result.stdout.trim().split("\n").pop() ?? "",
+      false,
+    );
+  } catch (error) {
+    return fail(
+      opts,
+      dbPath,
+      mode,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 
   return {
     command: "rb-cues",
     db: dbPath,
     mode,
-    found,
-    written,
-    gated: [],
-    verifyFailures,
-    appliedMode: apply,
-    backedUpTo,
-    ok: verifyFailures.length === 0 && errors.length === 0,
-    ...(errors.length ? { error: `${errors.length} row errors` } : {}),
+    found: output.found,
+    written: 0,
+    gated: gatedFor(output.protected),
+    verifyFailures: [],
+    appliedMode: false,
+    backedUpTo: null,
+    ok: true,
   };
 }
+
+export const __test = {
+  run: rbCuesWithRuntime,
+  parseRestampOutput,
+  parseVerifyOutput,
+  validateVerification,
+  cueVerifyScript,
+};
 
 export function printRbCuesReport(
   r: RbCuesResult,
@@ -293,11 +579,12 @@ export function printRbCuesReport(
     log(
       r.verifyFailures.length
         ? `VERIFY FAILED: ${r.verifyFailures.join("; ")}`
-        : `re-read verified: 0 Kind=0 rows remain`,
+        : `re-read verified: 0 incident Kind=0 rows remain`,
     );
   } else {
     log(
-      `dry-run — ${r.found} Kind=0 (non-clickable) cue rows found · re-run with --apply --yes (rekordbox quit) to fix`,
+      `dry-run — ${r.found} Sep 12 intake cues match the broken Kind=0 signature · re-run with --apply --yes (rekordbox quit) to fix`,
     );
+    for (const gate of r.gated) log(`protected: ${gate.reason}`);
   }
 }

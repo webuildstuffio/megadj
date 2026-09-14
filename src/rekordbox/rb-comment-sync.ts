@@ -10,16 +10,19 @@
  * marathon).
  *
  * Safety: report default; --apply --yes writes; RB-quit gate + dated
- * backup via guard.ts; per-row commit; re-read verify.
+ * backup via guard.ts; one transaction; exact delayed re-read; compensating
+ * DB-family restore on every post-backup failure.
  */
 
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { isUnknownArray } from "../../cratedeck/shared/guards";
 import {
   assertRbClosed,
   backupMaster,
   fileExistsSafe,
-  verifyReRead,
+  restoreMasterBackup,
+  sleepSync,
 } from "./guard.js";
 
 export interface RbCommentSyncOptions {
@@ -53,6 +56,209 @@ export interface RbCommentSyncResult {
   error?: string;
 }
 
+interface SyncOutput {
+  scanned: number;
+  eligible: number;
+  written: number;
+  alreadyHad: number;
+  skipped: [string, string][];
+  samples: [string, string][];
+  writes: [string, string][];
+  errors: [string, string][];
+}
+
+interface CommentVerifyOutput {
+  total: number;
+  matched: number;
+  missing: string[];
+  mismatched: [string, string, string][];
+}
+
+interface SyncCommandResult {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+interface RbCommentSyncRuntime {
+  exists: (path: string) => boolean;
+  fileExists: (path: string) => boolean;
+  assertClosed: (what: string) => void;
+  backup: (path: string) => string;
+  restore: (dbPath: string, backupPath: string) => void;
+  sleep: (ms: number) => void;
+  spawn: (
+    command: string[],
+    timeoutMs: number,
+    input?: string,
+  ) => SyncCommandResult;
+}
+
+const runtime: RbCommentSyncRuntime = {
+  exists: existsSync,
+  fileExists: fileExistsSafe,
+  assertClosed: assertRbClosed,
+  backup: backupMaster,
+  restore: restoreMasterBackup,
+  sleep: sleepSync,
+  spawn(command, timeoutMs, input) {
+    const executable = command[0];
+    if (executable === undefined) throw new Error("empty subprocess command");
+    const result = spawnSync(executable, command.slice(1), {
+      encoding: "utf8",
+      timeout: timeoutMs,
+      input,
+    });
+    return {
+      status: result.status,
+      stdout: result.stdout ?? "",
+      stderr: result.stderr ?? "",
+    };
+  },
+};
+
+const nonNegativeInteger = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  Number.isInteger(value) &&
+  value >= 0;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isStringPair = (value: unknown): value is [string, string] =>
+  isUnknownArray(value) &&
+  value.length === 2 &&
+  value.every((part) => typeof part === "string");
+
+const isStringTriple = (value: unknown): value is [string, string, string] =>
+  isUnknownArray(value) &&
+  value.length === 3 &&
+  value.every((part) => typeof part === "string");
+
+function parseJson(raw: string, context: string): unknown {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (error) {
+    throw new Error(`${context} returned malformed JSON`, { cause: error });
+  }
+}
+
+function parseSyncOutput(raw: string, apply: boolean): SyncOutput {
+  const value = parseJson(raw, "rb-comment-sync");
+  if (
+    !isRecord(value) ||
+    !nonNegativeInteger(value.scanned) ||
+    !nonNegativeInteger(value.eligible) ||
+    !nonNegativeInteger(value.written) ||
+    !nonNegativeInteger(value.alreadyHad) ||
+    !isUnknownArray(value.skipped) ||
+    !value.skipped.every(isStringPair) ||
+    !isUnknownArray(value.samples) ||
+    !value.samples.every(isStringPair) ||
+    !isUnknownArray(value.writes) ||
+    !value.writes.every(isStringPair) ||
+    !isUnknownArray(value.errors) ||
+    !value.errors.every(isStringPair)
+  ) {
+    throw new Error("rb-comment-sync returned an invalid result payload");
+  }
+  const out: SyncOutput = {
+    scanned: value.scanned,
+    eligible: value.eligible,
+    written: value.written,
+    alreadyHad: value.alreadyHad,
+    skipped: value.skipped,
+    samples: value.samples,
+    writes: value.writes,
+    errors: value.errors,
+  };
+  if (out.scanned !== out.eligible + out.alreadyHad + out.skipped.length)
+    throw new Error("rb-comment-sync returned inconsistent scan counters");
+  if (out.errors.length > 0)
+    throw new Error(
+      `rb-comment-sync transaction failed: ${out.errors.map(([id, detail]) => `${id}: ${detail}`).join("; ")}`,
+    );
+  if (apply && out.written !== out.eligible)
+    throw new Error(
+      `rb-comment-sync wrote ${out.written}/${out.eligible} eligible rows`,
+    );
+  if (out.writes.length !== out.written)
+    throw new Error("rb-comment-sync write acknowledgements are incomplete");
+  if (!apply && out.written !== 0)
+    throw new Error("rb-comment-sync report mode unexpectedly wrote rows");
+  const ids = out.writes.map(([id]) => id);
+  if (
+    new Set(ids).size !== ids.length ||
+    ids.some((id) => !/^(?:0|[1-9]\d*)$/u.test(id))
+  )
+    throw new Error(
+      "rb-comment-sync returned invalid or duplicate content ids",
+    );
+  return out;
+}
+
+function parseVerifyOutput(raw: string): CommentVerifyOutput {
+  const value = parseJson(raw, "rb-comment-sync verification");
+  if (
+    !isRecord(value) ||
+    !nonNegativeInteger(value.total) ||
+    !nonNegativeInteger(value.matched) ||
+    !isUnknownArray(value.missing) ||
+    !value.missing.every((id) => typeof id === "string") ||
+    !isUnknownArray(value.mismatched) ||
+    !value.mismatched.every(isStringTriple)
+  ) {
+    throw new Error("rb-comment-sync verification returned an invalid payload");
+  }
+  return {
+    total: value.total,
+    matched: value.matched,
+    missing: value.missing,
+    mismatched: value.mismatched,
+  };
+}
+
+function validateVerification(
+  expected: readonly (readonly [string, string])[],
+  result: CommentVerifyOutput,
+): void {
+  if (result.total !== expected.length)
+    throw new Error(
+      `comment verification read ${result.total}/${expected.length} intended rows`,
+    );
+  if (result.missing.length > 0)
+    throw new Error(
+      `comment verification missing ids: ${result.missing.join(", ")}`,
+    );
+  if (result.mismatched.length > 0)
+    throw new Error(
+      `comment verification mismatched ids: ${result.mismatched.map(([id]) => id).join(", ")}`,
+    );
+  if (result.matched !== expected.length)
+    throw new Error(
+      `comment verification matched ${result.matched}/${expected.length} intended rows`,
+    );
+}
+
+function commentVerifyScript(): string {
+  return `
+import json, sys
+from pyrekordbox.db6.database import deobfuscate, BLOB
+from pyrekordbox import db6
+from pyrekordbox.db6.tables import DjmdContent
+expected = {str(row[0]): str(row[1]) for row in json.load(sys.stdin)}
+db = db6.Rekordbox6Database(path=sys.argv[1], key=deobfuscate(BLOB))
+rows = db.query(DjmdContent).filter(DjmdContent.ID.in_([int(i) for i in expected])).all() if expected else []
+actual = {str(row.ID): str(row.Commnt or "") for row in rows}
+db.close()
+missing = sorted(i for i in expected if i not in actual)
+mismatched = [[i, expected[i], actual[i]] for i in expected if i in actual and actual[i] != expected[i]]
+matched = sum(1 for i in expected if actual.get(i) == expected[i])
+print(json.dumps({"total": len(actual), "matched": matched, "missing": missing, "mismatched": mismatched}))
+`;
+}
+
 /**
  * The sync script (all python-side, one spawn): for each master row with
  * an empty Comment and an existing file, read TXXX CAMELOT/ENERGY/MOOD
@@ -62,7 +268,7 @@ export interface RbCommentSyncResult {
  */
 export function commentSyncScript(): string {
   return `
-import json, os, sys, sqlite3
+import json, os, subprocess, sys, sqlite3
 
 db_path, ledger_path, apply, batch, limit = sys.argv[1], sys.argv[2], sys.argv[3] == "apply", sys.argv[4], int(sys.argv[5] or 0)
 from pyrekordbox.db6.database import deobfuscate, BLOB
@@ -115,7 +321,8 @@ def read_txxx(path):
         return None
 
 out = {"scanned": len(rows), "eligible": 0, "written": 0, "alreadyHad": 0,
-       "skipped": [], "samples": []}
+       "skipped": [], "samples": [], "writes": [], "errors": []}
+pending = []
 for c in rows:
     p = c.FolderPath or ""
     if (c.Commnt or "").strip():
@@ -151,9 +358,20 @@ for c in rows:
     if len(out["samples"]) < 5:
         out["samples"].append([p[-60:], comment])
     if apply:
-        c.Commnt = comment
+        pending.append((c, str(c.ID), comment))
+
+if apply:
+    try:
+        for c, _, comment in pending:
+            c.Commnt = comment
+        if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:
+            raise RuntimeError("rekordbox reopened before comment commit")
         db.session.commit()
-        out["written"] += 1
+        out["writes"] = [[cid, comment] for _, cid, comment in pending]
+        out["written"] = len(out["writes"])
+    except Exception as e:
+        db.session.rollback()
+        out["errors"].append(["transaction", repr(e)[:200]])
 
 print(json.dumps(out))
 db.close()
@@ -163,12 +381,22 @@ db.close()
 export async function rbCommentSync(
   opts: RbCommentSyncOptions,
 ): Promise<RbCommentSyncResult> {
+  return rbCommentSyncWithRuntime(opts, runtime);
+}
+
+async function rbCommentSyncWithRuntime(
+  opts: RbCommentSyncOptions,
+  deps: RbCommentSyncRuntime,
+): Promise<RbCommentSyncResult> {
   const dbPath =
     process.env.MEGADJ_RB_MASTER ??
     `${opts.mount.replace(/\/+$/u, "")}/PIONEER/Master/master.db`;
   const apply = opts.apply === true && opts.yes === true;
   const ledger = `${process.env.HOME}/.local/state/megadj/archive.db`;
-  const mk = (msg: string): RbCommentSyncResult => ({
+  const mk = (
+    msg: string,
+    details: Partial<RbCommentSyncResult> = {},
+  ): RbCommentSyncResult => ({
     command: "rb-comment-sync",
     db: dbPath,
     scanned: 0,
@@ -181,69 +409,153 @@ export async function rbCommentSync(
     verify: { ok: false, detail: "not run" },
     ok: false,
     error: msg,
+    ...details,
   });
 
   if (opts.apply && !opts.yes)
     return mk("--apply requires --yes (report first, ALWAYS)");
-  if (!fileExistsSafe(dbPath)) return mk(`no master DB at ${dbPath}`);
-  if (!existsSync(ledger)) return mk(`no archive ledger at ${ledger}`);
+  if (!deps.fileExists(dbPath)) return mk(`no master DB at ${dbPath}`);
+  if (!deps.exists(ledger)) return mk(`no archive ledger at ${ledger}`);
   try {
-    assertRbClosed("rb-comment-sync");
+    deps.assertClosed("rb-comment-sync");
   } catch (e) {
     return mk((e as Error).message);
   }
 
-  let backedUpTo: string | null = null;
-  if (apply) backedUpTo = backupMaster(dbPath);
-
-  const r = spawnSync(
-    "uv",
-    [
-      "run",
-      "--with",
-      "pyrekordbox,mutagen",
-      "python",
-      "-c",
-      commentSyncScript(),
-      dbPath,
-      ledger,
-      apply ? "apply" : "report",
-      opts.batch ?? "",
-      String(opts.limit ?? 0),
-    ],
-    { encoding: "utf8", timeout: 600_000 },
-  );
-  if (r.status !== 0 || !r.stdout)
-    return mk(
-      `sync failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(-300)}`,
-    );
-  const out = JSON.parse(r.stdout.trim().split("\n").pop() ?? "{}") as {
-    scanned: number;
-    eligible: number;
-    written: number;
-    alreadyHad: number;
-    skipped: [string, string][];
-    samples: [string, string][];
-  };
-
-  // re-read verify: count remaining empty comments among eligible scope
-  let verify = { ok: true, detail: "report mode — no write to verify" };
   if (apply) {
+    let backedUpTo: string;
     try {
-      const v = verifyReRead(
-        dbPath,
-        "DjmdContent",
-        "[bool(str(r.get('Commnt') or '').strip()) or True for r in rows]",
+      backedUpTo = deps.backup(dbPath);
+    } catch (error) {
+      return mk(error instanceof Error ? error.message : String(error));
+    }
+
+    const compensate = (error: unknown): RbCommentSyncResult => {
+      const original = error instanceof Error ? error.message : String(error);
+      try {
+        deps.restore(dbPath, backedUpTo);
+        const detail = `${original}; restored backup ${backedUpTo}`;
+        return mk(detail, {
+          backedUpTo,
+          verify: { ok: false, detail },
+        });
+      } catch (restoreError) {
+        const restoreDetail =
+          restoreError instanceof Error
+            ? restoreError.message
+            : String(restoreError);
+        const detail = `${original}; restoring backup ${backedUpTo} also failed: ${restoreDetail}`;
+        return mk(detail, {
+          backedUpTo,
+          verify: { ok: false, detail },
+        });
+      }
+    };
+
+    try {
+      deps.assertClosed("rb-comment-sync --apply");
+      const r = deps.spawn(
+        [
+          "uv",
+          "run",
+          "--with",
+          "pyrekordbox,mutagen",
+          "python",
+          "-c",
+          commentSyncScript(),
+          dbPath,
+          ledger,
+          "apply",
+          opts.batch ?? "",
+          String(opts.limit ?? 0),
+        ],
+        600_000,
       );
-      verify = {
-        ok: v.failures.length === 0,
-        detail: `re-read ${v.total} rows OK (${v.failures.length} anomalies)`,
+      if (r.status !== 0 || !r.stdout)
+        throw new Error(
+          `sync failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
+        );
+      const out = parseSyncOutput(
+        r.stdout.trim().split("\n").pop() ?? "",
+        true,
+      );
+      deps.sleep(250);
+      deps.assertClosed("rb-comment-sync verification");
+      const checked = deps.spawn(
+        [
+          "uv",
+          "run",
+          "--with",
+          "pyrekordbox",
+          "python",
+          "-c",
+          commentVerifyScript(),
+          dbPath,
+        ],
+        120_000,
+        JSON.stringify(out.writes),
+      );
+      if (checked.status !== 0 || !checked.stdout)
+        throw new Error(
+          `comment verification failed (exit ${String(checked.status)}): ${checked.stderr.slice(-300)}`,
+        );
+      const verified = parseVerifyOutput(
+        checked.stdout.trim().split("\n").pop() ?? "",
+      );
+      validateVerification(out.writes, verified);
+      return {
+        command: "rb-comment-sync",
+        db: dbPath,
+        scanned: out.scanned,
+        eligible: out.eligible,
+        written: out.written,
+        skipped: out.skipped.map(([path, reason]) => ({ path, reason })),
+        alreadyHad: out.alreadyHad,
+        appliedMode: true,
+        backedUpTo,
+        verify: {
+          ok: true,
+          detail: `re-read ${verified.matched}/${verified.total} intended comments exactly`,
+        },
+        ok: true,
       };
-    } catch (e) {
-      verify = { ok: false, detail: (e as Error).message };
+    } catch (error) {
+      return compensate(error);
     }
   }
 
+  let r: SyncCommandResult;
+  try {
+    r = deps.spawn(
+      [
+        "uv",
+        "run",
+        "--with",
+        "pyrekordbox,mutagen",
+        "python",
+        "-c",
+        commentSyncScript(),
+        dbPath,
+        ledger,
+        "report",
+        opts.batch ?? "",
+        String(opts.limit ?? 0),
+      ],
+      600_000,
+    );
+  } catch (error) {
+    return mk(error instanceof Error ? error.message : String(error));
+  }
+  if (r.status !== 0 || !r.stdout)
+    return mk(
+      `sync failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
+    );
+  let out: SyncOutput;
+  try {
+    out = parseSyncOutput(r.stdout.trim().split("\n").pop() ?? "", false);
+  } catch (error) {
+    return mk(error instanceof Error ? error.message : String(error));
+  }
   return {
     command: "rb-comment-sync",
     db: dbPath,
@@ -252,12 +564,20 @@ export async function rbCommentSync(
     written: out.written,
     skipped: out.skipped.map(([path, reason]) => ({ path, reason })),
     alreadyHad: out.alreadyHad,
-    appliedMode: apply,
-    backedUpTo,
-    verify,
-    ok: verify.ok,
+    appliedMode: false,
+    backedUpTo: null,
+    verify: { ok: true, detail: "report mode — no write to verify" },
+    ok: true,
   };
 }
+
+export const __test = {
+  run: rbCommentSyncWithRuntime,
+  parseSyncOutput,
+  parseVerifyOutput,
+  validateVerification,
+  commentVerifyScript,
+};
 
 export function printRbCommentSyncReport(
   r: RbCommentSyncResult,

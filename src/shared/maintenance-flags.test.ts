@@ -8,11 +8,17 @@
  * through cli-flags.ts and are pinned here, end-to-end on the real CLI
  * (P1: parse errors exit 2 with a clear stderr line, zero work).
  */
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildAnlz } from "../../fulltags/src/anlz";
+
+const TEST_ROOT = mkdtempSync(join(tmpdir(), "megadj-maintenance-test-"));
+const TEST_SPIKE_DIR = join(TEST_ROOT, "spike");
+
+afterAll(() => rmSync(TEST_ROOT, { recursive: true, force: true }));
 
 const beats = (n: number, startMs = 0) => {
   const step = 60000 / 128;
@@ -24,7 +30,7 @@ const beats = (n: number, startMs = 0) => {
 };
 
 function fakeMount(): string {
-  const mount = mkdtempSync("/tmp/megadj-maint-");
+  const mount = mkdtempSync(join(TEST_ROOT, "mount-"));
   const anlzDir = join(mount, "PIONEER", "Master", "share", "ANLZ");
   mkdirSync(anlzDir, { recursive: true });
   writeFileSync(
@@ -41,6 +47,7 @@ async function run(args: string[], extraEnv: Record<string, string> = {}) {
     .env({
       ...process.env,
       MEGADJ_DB: "/tmp/megadj-maint-nope.db",
+      MEGADJ_SPIKE_DIR: TEST_SPIKE_DIR,
       ...extraEnv,
     })
     .quiet()
@@ -94,9 +101,11 @@ describe("rb-anlz-spike flag forms (P1)", () => {
     const snap = JSON.parse(s.stdout.toString().trim()) as {
       ok: boolean;
       tracked: number;
+      baselinePath?: string;
     };
     expect(snap.ok).toBe(true);
     expect(snap.tracked).toBe(1);
+    expect(snap.baselinePath?.startsWith(`${TEST_SPIKE_DIR}/`)).toBe(true);
     const c = await run([
       "rb-anlz-spike",
       mount,
@@ -118,7 +127,7 @@ describe("rb-grid-triage flag forms (P1)", () => {
     // attached — the env override makes the fixture independent of the
     // operator's hardware). The point of the regression: the command
     // must NOT succeed while doing zero work.
-    const noDb = join(mkdtempSync("/tmp/megadj-maint-"), "absent.db");
+    const noDb = join(mkdtempSync(join(TEST_ROOT, "missing-db-")), "absent.db");
     const a = await run(["rb-grid-triage", "--limit", "20", "--json"], {
       MEGADJ_RB_MASTER: noDb,
     });

@@ -138,10 +138,11 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                ALWAYS)
   megadj rb-cues [drive] [--restamp] [--apply --yes] [--json]
                                                THE djmdCue write seam (postmortem
-                                               F1/F3): dry-run counts non-clickable
-                                               Kind=0 cue rows (pads can't see them);
-                                               --apply --yes re-stamps them Kind=1
-                                               (hot) — RB never writes 0 (F4-pinned);
+                                               F1/F3): dry-run counts only Sep 12
+                                               incident rows matching the proven
+                                               broken-hot-cue signature; --apply --yes
+                                               re-stamps those rows Kind=1 (hot),
+                                               preserving legitimate Kind=0 memory cues;
                                                dated backup + re-read verify,
                                                refuses while rekordbox runs
   megadj rb-dedup [drive] [--apply --yes] [--json]

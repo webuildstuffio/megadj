@@ -20,6 +20,7 @@ import { parseFlags, nonNegOpt } from "../cli-flags";
 import { ArchiveState } from "../archive/state";
 import { resolveShelfVolume, volumePath } from "./volume";
 import { writeJson } from "./cli-output";
+import type { AnlzSpikeMode } from "../rekordbox/anlz-spike";
 
 /** Commands handled by this module; cli.ts and the parity census share it. */
 export const MAINTENANCE_VERBS = [
@@ -243,8 +244,8 @@ export async function runMaintenanceCommand(
     }
     case "rb-cues": {
       // F1/F3 seam (docs/intake-cue-postmortem.md): the ONLY writer of
-      // djmdCue rows. Default: restamp census (Kind=0 → 1 dry-run).
-      // Hot-cue Kind=1 is pinned by the F4 spike; regression-tested.
+      // djmdCue rows. Default: census of the provenance-pinned Sep 12
+      // incident rows; legitimate Kind=0 memory cues are never restamped.
       const flags = parseFlags(
         rest,
         [],
@@ -411,7 +412,7 @@ export async function runMaintenanceCommand(
       const args = positionalArgs(rest, ["tag"]);
       const modeWord = args.find((a) => a === "snapshot" || a === "compare");
       const mountPos = args.find((a) => a !== "snapshot" && a !== "compare");
-      const mode: "snapshot" | "compare" =
+      const mode: AnlzSpikeMode =
         modeWord === "compare" ? "compare" : "snapshot";
       if (
         args.some((a) => a !== "snapshot" && a !== "compare" && a !== mountPos)

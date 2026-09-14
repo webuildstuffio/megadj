@@ -4,7 +4,7 @@
  * These are the STATE checks (doctor.ts owns tool/config checks): the
  * mechanically checkable definition of "the collection is healthy" from
  * docs/intake-cue-postmortem.md:
- *   - checkCueKinds   (F1): zero non-clickable Kind=0 cue rows in master
+ *   - checkCueKinds   (F1): zero provenance-matching broken intake cues
  *   - checkDupes      (F2): zero same-title ±2s duplicate content rows
  *   - checkPlaylistXml (F7): every named DB playlist has its XML twin
  *
@@ -15,14 +15,16 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { CheckResult } from "./doctor-types";
 import { rekordboxRunning } from "../rekordbox/guard";
+import { incidentCuePredicatePython } from "../rekordbox/cue-incident";
 
 interface StateProbe {
   ran: boolean;
   error?: string;
   /** F1 gate */ kindZero: number;
+  incidentKindZero: number;
   kinds: Record<string, number>;
   /** F2 gate */ dupePairs: number;
   contentRows: number;
@@ -48,12 +50,13 @@ export function masterDbPath(mount?: string): string {
 }
 
 const PROBE = `
-import json, sys, unicodedata
+import datetime, json, os, sys, unicodedata
 from pyrekordbox.db6.database import deobfuscate, BLOB
 from pyrekordbox import db6
 from pyrekordbox.db6.tables import DjmdCue, DjmdContent, DjmdPlaylist
 
 db = db6.Rekordbox6Database(path=sys.argv[1], key=deobfuscate(BLOB))
+contents = os.path.normpath(sys.argv[2])
 kinds = {}
 for k, n in db.query(DjmdCue.Kind).with_entities(DjmdCue.Kind).group_by(DjmdCue.Kind).all() if False else []:
     pass
@@ -61,6 +64,9 @@ kind_counts = {}
 for row in db.query(DjmdCue.Kind).all():
     k = str(row[0])
     kind_counts[k] = kind_counts.get(k, 0) + 1
+content_paths = {str(content.ID): content.FolderPath or "" for content in db.query(DjmdContent).all()}
+${incidentCuePredicatePython()}
+incident_kind_zero = sum(1 for cue in db.query(DjmdCue).filter(DjmdCue.Kind == 0).all() if is_incident_cue(cue))
 
 # dupe classifier: same NFC-casefold title, distinct paths, +/-2s len
 contents = [
@@ -88,7 +94,7 @@ for key, group in by_title.items():
 
 playlists = db.query(DjmdPlaylist).count()
 db.close()
-print(json.dumps({"kindZero": kind_counts.get("0", 0), "kinds": kind_counts,
+print(json.dumps({"kindZero": kind_counts.get("0", 0), "incidentKindZero": incident_kind_zero, "kinds": kind_counts,
                   "dupePairs": dupe_pairs, "contentRows": len(contents),
                   "playlistRows": playlists}))
 `;
@@ -119,6 +125,7 @@ function runStateProbe(dbPath: string): StateProbe {
   const empty: StateProbe = {
     ran: false,
     kindZero: 0,
+    incidentKindZero: 0,
     kinds: {},
     dupePairs: 0,
     contentRows: 0,
@@ -133,7 +140,16 @@ function runStateProbe(dbPath: string): StateProbe {
     };
   const r = spawnSync(
     "uv",
-    ["run", "--with", "pyrekordbox", "python", "-c", PROBE, dbPath],
+    [
+      "run",
+      "--with",
+      "pyrekordbox",
+      "python",
+      "-c",
+      PROBE,
+      dbPath,
+      join(dirname(dirname(dirname(dbPath))), "Contents"),
+    ],
     { encoding: "utf8", timeout: 180_000 },
   );
   if (r.status !== 0 || !r.stdout)
@@ -173,20 +189,23 @@ function runStateProbe(dbPath: string): StateProbe {
   return { ...p, ran: true, playlistsMissingXml: missingXml };
 }
 
-/** F1 gate: pads need Kind=1; Kind=0 rows are invisible to hardware. */
-export function checkCueKinds(dbPath?: string): CheckResult {
-  const p = runStateProbe(dbPath ?? masterDbPath());
-  if (!p.ran) {
+export function cueKindResult(
+  probe: Pick<
+    StateProbe,
+    "ran" | "error" | "kindZero" | "incidentKindZero" | "kinds"
+  >,
+): CheckResult {
+  if (!probe.ran) {
     return {
       id: "cue-kinds",
       label: "cue kinds (F1 gate)",
       required: false,
       ok: true, // unmountable drive is not a failure — skip honestly
-      detail: `skipped — ${p.error}`,
+      detail: `skipped — ${probe.error}`,
     };
   }
-  const ok = p.kindZero === 0;
-  const kinds = Object.entries(p.kinds)
+  const ok = probe.incidentKindZero === 0;
+  const kinds = Object.entries(probe.kinds)
     .map(([k, n]) => `Kind=${k}: ${n}`)
     .join(", ");
   return {
@@ -195,12 +214,17 @@ export function checkCueKinds(dbPath?: string): CheckResult {
     required: false,
     ok,
     detail: ok
-      ? `0 non-clickable rows (${kinds || "no cues"})`
-      : `${p.kindZero} Kind=0 rows — pads can't see them. fix: megadj rb-cues <drive> --restamp --apply --yes`,
+      ? `0 broken intake cues; ${probe.kindZero} legitimate memory cue(s) protected (${kinds || "no cues"})`
+      : `${probe.incidentKindZero} Sep 12 intake cue(s) still carry Kind=0. fix: megadj rb-cues <drive> --restamp --apply --yes`,
     fix: ok
       ? undefined
       : "run: megadj rb-cues <drive> --restamp --apply --yes (rekordbox quit)",
   };
+}
+
+/** F1 gate: only the provenance-proven incident rows should have been hot. */
+export function checkCueKinds(dbPath?: string): CheckResult {
+  return cueKindResult(runStateProbe(dbPath ?? masterDbPath()));
 }
 
 /** F2 gate: zero same-title ±2s duplicate content rows. */
