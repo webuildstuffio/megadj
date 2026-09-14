@@ -2,17 +2,25 @@
 // tree into the browser bundle. This walks relative imports from every ui
 // module, so a new indirect edge fails at the exact importing file.
 import { expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { extname, join, relative, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { extname, isAbsolute, join, relative, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..", "..");
-const uiRoot = join(root, "cratedeck/web/ui");
-const cliRoot = join(root, "src");
+const webRoot = join(root, "cratedeck/web");
+const sharedRoot = join(root, "cratedeck/shared");
+
+function isWithin(parent: string, path: string): boolean {
+  const rel = relative(parent, path);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
 
 function filesUnder(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) return filesUnder(path);
+    if (entry.isDirectory()) {
+      if (entry.name === "node_modules" || entry.name === "dist") return [];
+      return filesUnder(path);
+    }
     return [path];
   });
 }
@@ -26,7 +34,7 @@ function resolveImport(from: string, specifier: string): string {
     join(base, "index.ts"),
     join(base, "index.tsx"),
   ]) {
-    if (existsSync(candidate)) return candidate;
+    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
   }
   throw new Error(
     `unresolved relative runtime import ${specifier} from ${relative(root, from)}`,
@@ -48,8 +56,8 @@ function localImports(path: string): string[] {
     .map((specifier) => resolveImport(path, specifier));
 }
 
-test("#46: web ui dependency closure never reaches standalone src internals", () => {
-  const pending = filesUnder(uiRoot).filter((path) => {
+test("#46: the complete web dependency closure stays in web/shared leaves", () => {
+  const pending = filesUnder(webRoot).filter((path) => {
     const extension = extname(path);
     return extension === ".ts" || extension === ".tsx";
   });
@@ -59,7 +67,11 @@ test("#46: web ui dependency closure never reaches standalone src internals", ()
     const current = pending.pop()!;
     if (visited.has(current)) continue;
     visited.add(current);
-    expect(relative(cliRoot, current).startsWith("..")).toBe(true);
+    if (!isWithin(webRoot, current) && !isWithin(sharedRoot, current)) {
+      throw new Error(
+        `web dependency escaped browser-safe roots: ${relative(root, current)}`,
+      );
+    }
     pending.push(...localImports(current));
   }
 

@@ -2,33 +2,10 @@
 // plus the tiny read seam the split-out modules (archive_similar.ts /
 // archive_overview.ts) need from ArchiveReader.
 //
-// This file imports NOTHING. It exists so the split modules can type their
-// `reader` parameter without a back-edge into archive.ts — a type-only
-// import of ArchiveReader from archive.ts made `archive.ts →
-// archive_similar.ts → archive.ts` a real cycle in madge (Sep 9 sweep;
-// shared/types.ts additionally derives wire types from ArchiveReader, which
-// pulled src/ into the loop through the leaf itself).
-
-/** Rows of megadj's `tracks` table (src/state.ts) — the fields agents ask
- *  about. Kept structurally compatible, not imported: the archive DB may be
- *  older/newer than this build. */
-export interface ArchiveTrack {
-  video_id: string;
-  title: string | null;
-  artist: string | null;
-  album: string | null;
-  status: string;
-  bitrate_kbps: number | null;
-  codec: string | null;
-  file_path: string | null;
-  duration_s: number | null;
-  genre: string | null;
-  energy: number | null;
-  source: string;
-  liked_position: number | null;
-  first_seen_at: string;
-  updated_at: string;
-}
+// This server-only seam imports the browser-safe wire leaf, never the other
+// way around. That keeps ArchiveTrack single-sourced without recreating the
+// old shared → src back-edge.
+export type { ArchiveTrack } from "../shared/archive-wire";
 
 /** The read seam ArchiveReader exposes to the split-out modules:
  *  availability probe, parameterised SELECT (read-only by construction in

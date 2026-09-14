@@ -619,41 +619,22 @@ export interface FleetDiff {
   summary: string;
 }
 
-// ---- archive reads (O82b): one SSOT for the JSON the archive routes serve ----
-//
-// Derived from `ArchiveReader`'s method return types (the actual producers)
-// so a web component that re-declares these shapes locally drifts straight
-// into a compile error instead of rendering `Invalid Date` / `undefined` in
-// production (the Sep 7 ArchiveTab bug class).
-// These are type-only `import( + `s from src/archive.ts — an ACYCLIC edge by
-// audit (Sep 9 madge sweep): src/archive must never import shared/types.ts
-// back. Wire shapes whose producer chain reaches shared/types.ts (e.g.
-// anything importing db/fleet) must be DEFINED here instead — a type-only
-// derivation from those producers closes a real cycle (the DriveImage →
-// images → db → fleet-db → fleet → shared/types loop). Same rule for the
-// archive split modules: they type against the ArchiveQuery seam in
-// cratedeck/src/archive_types.ts, never against ArchiveReader itself.
-export type ArchiveIngestStatus = ReturnType<
-  import("../src/archive").ArchiveReader["ingestStatus"]
->;
-export type ArchiveLowqQueue = ReturnType<
-  import("../src/archive").ArchiveReader["lowqQueue"]
->;
-export type ArchiveSkipCensus = ReturnType<
-  import("../src/archive").ArchiveReader["skipCensus"]
->;
-export type ArchiveSourceCensus = ReturnType<
-  import("../src/archive").ArchiveReader["sourceCensus"]
->;
-export type ArchiveAnalysisCoverage = ReturnType<
-  import("../src/archive").ArchiveReader["analysisCoverage"]
->;
-export type ArchiveGridCrossCheck = ReturnType<
-  import("../src/archive").ArchiveReader["gridCrossCheck"]
->;
-export type ArchiveMoodProfile = ReturnType<
-  import("../src/archive").ArchiveReader["moodProfile"]
->;
+// ---- archive reads: one browser-safe contract for producers + consumers ---
+// The dedicated shared leaf owns the wire shapes. Server producers annotate
+// against it; the browser re-exports it from this established import surface.
+export type {
+  ArchiveAnalysisCoverage,
+  ArchiveCueStats,
+  ArchiveGridCrossCheck,
+  ArchiveIngestStatus,
+  ArchiveLibraryOverview,
+  ArchiveLowqQueue,
+  ArchiveMoodProfile,
+  ArchiveSearchHit,
+  ArchiveSimilar,
+  ArchiveSkipCensus,
+  ArchiveSourceCensus,
+} from "./archive-wire";
 
 // ---- drive cover photos: one image listed by GET /drives/:id/drive-images.
 // DEFINED here canonically (like every wire type) — an earlier version
@@ -668,20 +649,6 @@ export interface DriveImage {
   url: string;
   bytes: number;
 }
-export type ArchiveCueStats = ReturnType<
-  import("../src/archive").ArchiveReader["cueStats"]
->;
-export type ArchiveLibraryOverview = ReturnType<
-  import("../src/archive").ArchiveReader["libraryOverview"]
->;
-export type ArchiveSimilar = ReturnType<
-  import("../src/archive").ArchiveReader["similarTracks"]
->;
-/** The /api/archive/search wire row — derived from the producer. */
-export type ArchiveSearchHit = ReturnType<
-  import("../src/archive").ArchiveReader["searchTracks"]
->[number];
-
 // ---- preflight (B12): the wire shapes are DEFINED here; src/preflight.ts
 // (the pure engine that produces them) imports them back. One source of
 // truth for web/deckctl/MCP without re-exporting the producer's module.

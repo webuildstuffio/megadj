@@ -10,6 +10,11 @@ import { existsSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { groundTruth } from "../../fulltags/src/exports";
 import { cosineSimilarity } from "../shared/similarity";
+import type {
+  ArchiveFreshness,
+  ArchiveSetCandidates,
+  ArchiveSimilar,
+} from "../shared/archive-wire";
 import type { ArchiveQuery } from "./archive_types";
 
 /** Round to 4 decimals for wire payloads. Pure — module-level. */
@@ -52,18 +57,7 @@ export function similarTracks(
   reader: ArchiveQuery,
   videoId: string,
   k = 10,
-): {
-  available: boolean;
-  video_id: string;
-  title: string | null;
-  corpus: number;
-  hits: {
-    video_id: string;
-    title: string | null;
-    artist: string | null;
-    score: number;
-  }[];
-} {
+): ArchiveSimilar {
   const empty = (corpus = 0) => ({
     available: reader.available(),
     video_id: videoId,
@@ -154,46 +148,7 @@ export function setCandidates(
   reader: ArchiveQuery,
   limit?: number,
   shelfContents?: string,
-): {
-  available: boolean;
-  /** Downloaded DB rows inspected, including stale missing paths. */
-  sourceTotal: number;
-  /** Existing files that can actually enter the proposal. */
-  total: number;
-  /** Downloaded DB rows rejected because their file is absent. */
-  missingFiles: number;
-  /** Existing DB rows rejected because another id resolves to that file. */
-  duplicateFiles: number;
-  /** Unique candidates resolved from a stale DJ-Imports path to the shelf. */
-  relocatedFiles: number;
-  /** Missing FullTags keys supplied by the mirrored Rekordbox master. */
-  rekordboxKeyHits: number;
-  /** Missing FullTags BPM values supplied by the mirrored Rekordbox master. */
-  rekordboxBpmHits: number;
-  /** How many candidates needed a live file read for their key (cache
-   *  misses) — surfaced so a slow first request is explainable. */
-  keyReads: number;
-  /** Live key-tag reads that failed; those tracks keep a neutral key score. */
-  keyReadFailures: number;
-  candidates: {
-    videoId: string;
-    title: string | null;
-    artist: string | null;
-    durationS: number | null;
-    bpm: number | null;
-    key: string | null;
-    valence: number | null;
-    arousal: number | null;
-    dance: number | null;
-    /** Local archive path — internal only (route/MCP/CLI payloads omit
-     *  it); rb-playlist needs the FILENAME to match master content rows. */
-    filePath: string | null;
-  }[];
-  freshness: {
-    beatsAt: string | null;
-    moodAt: string | null;
-  };
-} {
+): ArchiveSetCandidates {
   const hasRekordboxContent =
     reader.row<{ present: number }>(
       `SELECT 1 AS present FROM sqlite_master
@@ -333,10 +288,7 @@ export function setCandidates(
  *  ledgers (null when a ledger is empty). The UI/CLI surfaces this so a
  *  stale pool is VISIBLE ("built from analysis older than your latest
  *  drops") instead of silently proposing from yesterday's census. */
-export function poolFreshness(reader: ArchiveQuery): {
-  beatsAt: string | null;
-  moodAt: string | null;
-} {
+export function poolFreshness(reader: ArchiveQuery): ArchiveFreshness {
   const row = reader.row<{ beats_at: string | null; mood_at: string | null }>(
     `SELECT
        (SELECT MAX(analyzed_at) FROM beats) AS beats_at,

@@ -19,6 +19,20 @@ import {
   libraryOverview as libraryOverviewImpl,
 } from "./archive_overview";
 import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
+import type {
+  ArchiveAnalysisCoverage,
+  ArchiveCueStats,
+  ArchiveFreshness,
+  ArchiveGridCrossCheck,
+  ArchiveIngestStatus,
+  ArchiveLibraryOverview,
+  ArchiveLowqQueue,
+  ArchiveMoodProfile,
+  ArchiveSetCandidates,
+  ArchiveSimilar,
+  ArchiveSkipCensus,
+  ArchiveSourceCensus,
+} from "../shared/archive-wire";
 // The grid math is ONE SSOT (fulltags/src/analysis.ts): fitConstantTempo /
 // gridAudit are the same functions `megadj beats` computes with. A
 // hand-copied twin drifted once already (the v1 verdicts lived inline
@@ -189,7 +203,7 @@ export class ArchiveReader implements ArchiveQuery {
    * (file-length guard); this delegate keeps the call surface unchanged.
    * Degrades to available:false on pre-cues DBs (no `cues` table).
    */
-  cueStats(limit = 40): ReturnType<typeof cueStatsImpl> {
+  cueStats(limit = 40): ArchiveCueStats {
     return cueStatsImpl(this, limit);
   }
 
@@ -246,12 +260,7 @@ export class ArchiveReader implements ArchiveQuery {
    * show "what the pipeline decided and why" without an agent pasting
    * queries. GONE tracks surface first (they're the actionable ones).
    */
-  skipCensus(limit = 12): {
-    available: boolean;
-    skipped: number;
-    gone: number;
-    buckets: { reason: string; count: number; kind: string }[];
-  } {
+  skipCensus(limit = 12): ArchiveSkipCensus {
     const empty = {
       available: this.handle() !== null,
       skipped: 0,
@@ -300,14 +309,7 @@ export class ArchiveReader implements ArchiveQuery {
    * guessed with placeholder text. GONE/deleted rows still count (they
    * describe the source's history), playable is the live half.
    */
-  sourceCensus(): {
-    available: boolean;
-    sources: {
-      source: string;
-      tracks: number;
-      playable: number;
-    }[];
-  } {
+  sourceCensus(): ArchiveSourceCensus {
     const rows = this.rows<{
       source: string;
       tracks: number;
@@ -328,13 +330,7 @@ export class ArchiveReader implements ArchiveQuery {
    * three separate "X of the archive" meters that can silently disagree.
    * Degrades per-ledger on pre-ledger DBs (missing table → null).
    */
-  analysisCoverage(): {
-    available: boolean;
-    tracks: number;
-    beats: number | null;
-    mood: number | null;
-    cues: number | null;
-  } {
+  analysisCoverage(): ArchiveAnalysisCoverage {
     const db = this.handle();
     const tracks = db
       ? (this.rows<{ n: number }>(
@@ -361,21 +357,7 @@ export class ArchiveReader implements ArchiveQuery {
   }
 
   /** Ingest pipeline status: per-status counts, recent runs, newest files. */
-  ingestStatus(): {
-    available: boolean;
-    counts: Record<string, number>;
-    total: number;
-    recent_runs: {
-      started_at: string;
-      finished_at: string | null;
-      attempted: number | null;
-      downloaded: number;
-      failed: number;
-      gone: number;
-      bytes_downloaded: number | null;
-    }[];
-    recent_tracks: ArchiveTrack[];
-  } {
+  ingestStatus(): ArchiveIngestStatus {
     const db = this.handle();
     if (!db) {
       return {
@@ -418,10 +400,7 @@ export class ArchiveReader implements ArchiveQuery {
 
   /** LOWQ upgrade queue (D24): downloaded tracks below the DJ quality bar —
    *  lossy codecs under bitrate floors. Duration NULLs excluded (unknown). */
-  lowqQueue(): {
-    available: boolean;
-    tracks: (ArchiveTrack & { reason: string })[];
-  } {
+  lowqQueue(): ArchiveLowqQueue {
     const rows = this.rows<ArchiveTrack>(
       `SELECT ${TRACK_COLS} FROM tracks
        WHERE status = 'downloaded' AND bitrate_kbps IS NOT NULL
@@ -497,34 +476,7 @@ export class ArchiveReader implements ArchiveQuery {
    * `aok` is the count of clean tracks; offender lists stay per-class so
    * the UI keeps its fix-first ordering (octave > off > drift).
    */
-  gridCrossCheck(limit = 200): {
-    available: boolean;
-    ledgered: number;
-    checked: number;
-    ok: number;
-    off: {
-      video_id: string;
-      title: string | null;
-      rbBpm: number;
-      ledgerBpm: number;
-      driftMs: number;
-    }[];
-    octave: {
-      video_id: string;
-      title: string | null;
-      rbBpm: number;
-      ledgerBpm: number;
-      driftMs: number;
-    }[];
-    drift: {
-      video_id: string;
-      title: string | null;
-      rbBpm: number;
-      ledgerBpm: number;
-      driftMs: number;
-      reason: string;
-    }[];
-  } {
+  gridCrossCheck(limit = 200): ArchiveGridCrossCheck {
     // Pre-ledger archive DBs have no `beats` table — degrade to an empty
     // result (the SQLiteError would otherwise break every caller).
     const hasBeats = this.rows<{ name: string }>(
@@ -623,23 +575,7 @@ export class ArchiveReader implements ArchiveQuery {
    * valence + arousal + danceability tracks for "play me something…".
    * Degrades to available:false on pre-mood DBs (no `mood` table).
    */
-  moodProfile(limit = 5): {
-    available: boolean;
-    analyzed: number;
-    avg: {
-      dance: number;
-      valence: number;
-      arousal: number;
-      party: number;
-      electronic: number;
-      aggressive: number;
-    };
-    extremes: {
-      valence: MoodExtreme[];
-      arousal: MoodExtreme[];
-      dance: MoodExtreme[];
-    };
-  } {
+  moodProfile(limit = 5): ArchiveMoodProfile {
     const empty = {
       available: this.handle() !== null,
       analyzed: 0,
@@ -711,17 +647,17 @@ export class ArchiveReader implements ArchiveQuery {
   // I49/M66 extensions live in archive_similar.ts (file-length guard);
   // these delegates keep the call sites (`archive.similarTracks(...)`)
   // unchanged while the implementations stay outside this file.
-  similarTracks(videoId: string, k = 10) {
+  similarTracks(videoId: string, k = 10): ArchiveSimilar {
     return similarTracksImpl(this, videoId, k);
   }
 
-  setCandidates(limit?: number) {
+  setCandidates(limit?: number): ArchiveSetCandidates {
     return setCandidatesImpl(this, limit, this.shelfContents);
   }
 
   /** Newest beats/mood ledger timestamps — set-builder staleness UX.
    *  Implementation in archive_similar.ts (poolFreshness). */
-  freshness() {
+  freshness(): ArchiveFreshness {
     return poolFreshness(this);
   }
 
@@ -730,7 +666,7 @@ export class ArchiveReader implements ArchiveQuery {
    * actually stamped across the playable archive. Implementation lives in
    * archive_overview.ts (file-length guard); delegate keeps the surface.
    */
-  libraryOverview(recentLimit = 60): ReturnType<typeof libraryOverviewImpl> {
+  libraryOverview(recentLimit = 60): ArchiveLibraryOverview {
     return libraryOverviewImpl(this, recentLimit);
   }
 }

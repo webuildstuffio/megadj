@@ -2,6 +2,10 @@
 // surface. Split from archive.ts for the file-length guard; ArchiveReader
 // delegates so the call sites (`archive.cueStats(... + `) are unchanged.
 import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
+import type {
+  ArchiveCueStats,
+  ArchiveLibraryOverview,
+} from "../shared/archive-wire";
 
 /**
  * STRUCTURE CUES ledger (roadmap "structure cues" slice): DJ phrase
@@ -10,23 +14,7 @@ import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
  * separate gated surface, so this read describes the ledger as-is.
  * Degrades to available:false on pre-cues DBs (no `cues` table).
  */
-export function cueStats(
-  reader: ArchiveQuery,
-  limit = 40,
-): {
-  available: boolean;
-  analyzed: number;
-  avg_cues: number;
-  total_cues: number;
-  tracks: {
-    video_id: string;
-    title: string | null;
-    artist: string | null;
-    cue_count: number;
-    first_cue_at: number;
-    model: string;
-  }[];
-} {
+export function cueStats(reader: ArchiveQuery, limit = 40): ArchiveCueStats {
   const empty = {
     available: reader.available(),
     analyzed: 0,
@@ -92,26 +80,7 @@ export function cueStats(
 export function libraryOverview(
   reader: ArchiveQuery,
   recentLimit = 60,
-): {
-  available: boolean;
-  tracks: number;
-  artwork: { embedded: number; missing: number; queued: number };
-  genres: { name: string; count: number }[];
-  years: {
-    known: number;
-    unknown: number;
-    min: string | null;
-    max: string | null;
-  };
-  energy: { stamped: number };
-  codecs: { codec: string; count: number }[];
-  sizes: { files: number; total_bytes: number };
-  recent: (ArchiveTrack & {
-    year: string | null;
-    artwork_status: string | null;
-    file_size_bytes: number | null;
-  })[];
-} {
+): ArchiveLibraryOverview {
   const empty = {
     available: reader.available(),
     tracks: 0,
