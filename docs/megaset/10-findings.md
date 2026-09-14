@@ -2,10 +2,22 @@
 
 **Status:** ✅ CURRENT — the single entry point for everything measured across
 the MegaSet doc set (2026-09-13/14). Deep dives live in the linked docs; this
-page holds the distilled verdicts, the critical-bug list, and the prioritized
-next steps.
+page holds the distilled verdicts, the critical-bug list, the prioritized
+next steps, and the glossary (§5).
 
 ---
+
+## 0. Read me first (what this product is, in one paragraph)
+
+MegaSet turns megadj's already-measured library data into an **ordered,
+playable mix proposal**: it pools the whole archive, drops dead/duplicate
+files, then chains tracks that agree on tempo (±6%), musical key (Camelot
+wheel), and energy (a preset's arousal arc). It is **propose-only** — it
+never writes tags, playlists, or the rekordbox DB without the gated
+`rb-playlist` write-off (rekordbox closed → dated backups → twin write →
+verify). The same engine serves four surfaces: the `megadj setbuild` CLI,
+the HTTP API (+ M3U8 export), the MCP tool for agents, and the FullTags
+web panel. Everything below is measured evidence for the design choices.
 
 ## 1. What we now know (every finding, one line each)
 
@@ -106,3 +118,70 @@ next steps.
 | [08-audit-and-plan](08-audit-and-plan.md)                 | Implementation audit + per-item sketches (reference)      | reference |
 | [09-migration-plan](09-migration-plan.md)                 | `setbuild → megaset` atomic rename plan                   | planned   |
 | [10-findings](10-findings.md)                             | **this page** — distilled verdicts + next actions         | current   |
+
+---
+
+## 5. Glossary — every acronym and term used across the doc set
+
+**Identifier systems used in these docs:** `E#` = engine benchmark experiment
+(04), `G#` = genre-audit finding (05), `T#` = taxonomy finding (07),
+`M#` = embedding-model finding (06) — _also_ M66-style numbers are idea-IDs
+from `docs/ideas.md` (M66 = the original set-builder idea row), `S#` = set
+variable (02 §2a), `T#` in 02 = song/track variable (02 §2b, separate
+numbering from 07's T#), `B#` = bug/plan items (08/audit Phase A–D),
+`F1–F7` = PRD feature list (01), `P#` = plan/parity findings (§1 here),
+`C#` = Phase-C items (08). Same letter, different doc = different series.
+
+**DJ & music theory:**
+
+| Term                          | Meaning                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BPM                           | Beats per minute — the tempo measurement from the beats ledger. The ±6% "tempo gate" means a transition's tempo distance must stay inside ±6% (1.0 score within ±2%, linear to 0 at ±6%).                                                                                                                                                                                                         |
+| Camelot / TKEY                | Two names for the same key system. **Camelot**: the Open-Key wheel notation where each key is `1–12` + `A` (minor) / `B` (major) — e.g. `8A`. **TKEY**: the tag/file-side key string we parse into Camelot (`shared/camelot.ts` is the single parser). Compatible "moves": same number ±1 same letter (1.0), the diagonal (0.9), or the relative major/minor "mood lift" (1.0); a clash scores 0. |
+| Arousal / valence / dance     | The three mood-ledger axes from the ONNX mood heads. Arousal = energy/intensity (1–9); valence = positivity (1–9); dance = danceability (0–1). Measured surprise: valence is nearly flat in this library (stdev 0.12) so it was demoted; `aggressive`/`happy` heads have real spread and are the promoted axes.                                                                                   |
+| Energy arc / preset           | The target arousal trajectory a set should follow. Three shipped presets: **warmup** (rises gently), **peak** (climbs to maximum), **afterhours** (drifts down). Registry: `SET_PRESET_DEFS` in `shared/setbuild.ts`.                                                                                                                                                                             |
+| Hot cue / memory cue          | Rekordbox cue types. Hot cues (A–H) are pad-triggered performance points; memory cues are plain markers. DB rule: `djmdCue.Kind = 1` hot, `0` memory (pads only read `Kind=1`).                                                                                                                                                                                                                   |
+| 8-bar phrase / mixout / mixIn | Phrases = structural boundaries every 8 bars (cue ledger rows). Mixout = where the playing track hands over (first cue past the intro); mixIn = where the next track's usable audio starts. Phase D's handoff layer plans these explicitly.                                                                                                                                                       |
+
+**Engine & algorithms:**
+
+| Term                   | Meaning                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Greedy                 | The shipped default sequencer: repeatedly take the highest-scoring next track. Fast (29 ms at 3.6k tracks) but myopic — a locally-best pick can strand the chain in sparse pools.                                                                                                                                                             |
+| Beam search / beam-B8  | A sequencer upgrade: keep the best B=8 partial chains per step instead of 1, so a doomed branch is pruned while alternatives survive. Measured +59% chain length in sparse pools at 0 ms cost. Ships automatically when the pool is < `SET_BEAM_POOL_MAX` (250); force either strategy with `?search=` / `--search` / the MCP `search` param. |
+| 2-opt                  | A repair pass: reverse any chain segment if the total transition score improves. Cheap; fixes ordering, never dead-ends (reversal adds no edges). Measured +0.0% on big pools — kept as free polish.                                                                                                                                          |
+| Held-Karp / DP         | The exact longest-path dynamic program: O(2ⁿ·n²). Reference-only in this doc set — it OOMs at n=30, which is why exact solvers are a non-goal.                                                                                                                                                                                                |
+| LOO (leave-one-out)    | Evaluation method: for each track, hide its label, let its k nearest audio-neighbors vote, and see if the vote agrees. The number (e.g. "LOO k=5 = 62.7%") is the share of tracks whose label survives its own neighbors — our genre/audio consistency metric.                                                                                |
+| kNN                    | k-nearest-neighbors: similarity search over embedding vectors (cosine). Powers both "sounds like" and the genre eval.                                                                                                                                                                                                                         |
+| Cosine / coherence     | Cosine = the similarity of two embedding vectors (1.0 = identical direction). Coherence @5 = the share of a track's top-5 neighbors sharing its family — the retrieval-quality metric.                                                                                                                                                        |
+| CI / McNemar / Jaccard | Statistics used in the genre audit v3. CI = 95% bootstrap confidence interval (resampling error bars). McNemar's = paired significance test for two methods on the same tracks (p < 0.05 = conclusive). Jaccard = set overlap,                                                                                                                | A∩B | /   | A∪B | (0.486 between kNN and head top-5 families = complementary signals). |
+| Duration guard         | The eval filter keeping tracks 90–480 s: drops DJ mixes, edits and shorts so metrics aren't skewed. Neutral on the headline metric (−0.2 pt); kept for hygiene.                                                                                                                                                                               |
+
+**Embeddings & models:**
+
+| Term                    | Meaning                                                                                                                                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tower                   | One embedding model ("audio tower"). Vectors = the fixed-length float arrays each tower produces (effnet: 1280-d).                                                                                                                                                     |
+| effnet / discogs-effnet | **The incumbent and measured winner**: Essentia's `discogs-effnet-bsdynamic`, 1280-d, trained on 2M Discogs releases. Best on both genre agreement (LOO 0.444) and retrieval coherence (0.362); 0.56 s/track.                                                          |
+| musicnn / MSD           | `msd-musicnn`, 200-d, trained on the Million Song Dataset tags. v1's claimed winner — exposed as a broken-harness artifact; measured 0.300 in v2.                                                                                                                      |
+| MERT                    | Music Entropy Representation Transformer (v1-95M): a 360 MB transformer tower. Measured 0.256–0.267 across three pooling schemes at 7× cost — representation failure, stays out.                                                                                       |
+| ONNX                    | Open Neural Network Exchange — the portable model format all towers run in locally (`onnxruntime`, CPU-only, no cloud).                                                                                                                                                |
+| Discogs-400 head        | A 2 MB Essentia classification head that predicts all 400 Discogs styles directly from our cached effnet embeddings (~1 ms/track). Not as good as kNN as an oracle (46.1% vs 62.7%), but free ranked sub-genre data for every track — the ranked-secondaries backbone. |
+| VGGish / CLAP / OpenL3  | The other measured towers. VGGish (128-d, AudioSet) — kept only for valence/arousal heads. CLAP (512-d) — a text-alignment model, worst at clustering music. OpenL3 (512-d) — mid, 8× cost.                                                                            |
+| LUF / LUFS / LRA        | Loudness Units Full Scale — the EBU R128 perceived-loudness measure (`ffmpeg ebur128`); LRA = loudness range. Planned optional pass (~50 min one-time) enabling a loudness-continuity penalty between transitions.                                                     |
+
+**Pipeline & infrastructure:**
+
+| Term                                   | Meaning                                                                                                                                                                                                                                                  |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| megadj / FullTags / GetDat / CrateDeck | The four products. **GetDat** ingests (YouTube Music, drops, scored intake). **FullTags** enriches (beats/mood/cues/key/embeddings/genre ledgers + writers). **MegaSet** proposes sets. **CrateDeck** stages and verifies drives (deckctl, web UI, MCP). |
+| archive.db / master.db                 | The two databases. `archive.db` = megadj's local pipeline ledger (analysis results, caches) — never a collection copy. `master.db` = the SHELF1 rekordbox collection DB (the SSOT for the collection); always gate writes on rekordbox being closed.     |
+| RB / rekordbox mirror                  | "RB" = rekordbox. The mirror = read-only rows extracted from the shelf master DB (BPM×100, KeyName) used when the beats/key ledgers lack a track.                                                                                                        |
+| MCP                                    | Model Context Protocol — how agents (Claude etc.) call tools like `archive_set_build`.                                                                                                                                                                   |
+| CLI / HTTP / web surfaces              | The three other ways to drive MegaSet: `megadj setbuild`, `GET /api/archive/setbuild` (+`?format=m3u8`), and the FullTags web panel. Parity is test-pinned in `docs/surface-parity.md`.                                                                  |
+| M3U8                                   | The UTF-8 playlist file format of the export path — a list (Phase D plans typed transition windows in comments) imported into rekordbox by hand; never auto-writes anything.                                                                             |
+| rb-playlist                            | The only writer: `megadj rb-playlist` links a proposal to existing master-DB content rows. Dry-run first; `--apply --yes` requires rekordbox quit + dated backups + whole-table verify.                                                                  |
+| Ledger / freshness                     | Ledger = a per-track results table in archive.db (beats, mood, cues, embeddings, track_keys). Freshness = the age of those ledger rows, surfaced in every payload so stale pools are visible.                                                            |
+| NFC / casefold                         | Unicode normalization (NFC) + case folding — the matching rule that collapses duplicate files and duplicate genre spellings.                                                                                                                             |
+| SSOT                                   | Single Source of Truth — one table/module owns a shared surface (presets, Camelot wheel, pool caps); everything else derives. The house answer to drift bugs.                                                                                            |
+| Propose-only                           | The product invariant: MegaSet never writes. Proposals are payloads on screen; humans (or the gated rb-playlist) act on them.                                                                                                                            |

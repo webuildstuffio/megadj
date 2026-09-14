@@ -4,6 +4,10 @@
 
 v2 · 2026-09-14 · **Architecture** → [PRD](01-prd.md) · [Analysis](03-competitive-analysis.md) · [Benchmarks](04-sequencing-benchmarks.md)
 
+> New here? Term glossary (Camelot, LOO, beam, effnet, SSOT, …) lives in
+> [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+> Read [01-prd](01-prd.md) for the product story first; this doc is the map.
+
 v2 rewrite: adds the **complete variable inventory** (§2) — every variable we
 compute or could compute, split into **set variables** (the request + engine
 knobs) and **song variables** (per-track data), each with type, default,
@@ -30,7 +34,9 @@ status (v0 uses / planned / rejected) and the exact order things are applied
         ├─▶ CLI        megadj setbuild (src/fulltags/setbuild.ts)
         ├─▶ HTTP       GET /api/archive/setbuild · ?format=m3u8 (archive_routes.ts)
         ├─▶ MCP        archive_set_build (cratedeck/src/archive_tools.ts)
-        ├─▶ Web        FullTags ⌗ Similar panel (SimilarTab.tsx)
+        ├─▶ Web        FullTags ⌗ Similar tab — SetBuildPanel.tsx (form +
+        │             proposal) · SimilarTab.tsx (tab shell) ·
+        │             TrackPickSearch.tsx (shared picker)
         └─▶ rb-playlist  megadj rb-playlist (src/rekordbox/rb-playlist.ts)
                          dry-run first · --apply --yes · rekordbox-quit gate
                          · dated backup · whole-table verify · delayed re-read
@@ -58,19 +64,20 @@ engine. If a variable isn't in these tables, the engine doesn't see it.
 | S9  | excluded preview cap     | `count`                              | 40 (`SET_EXCLUDED_PREVIEW_MAX`)         | engine const                  | ✅ v0                                   | full count always reported                                                                                        |
 | S10 | tie-break                | —                                    | `(score, videoId)` lexicographic        | engine const                  | ✅ v0                                   | determinism guarantee                                                                                             |
 | S11 | score weights            | `tempo/key/fit`                      | `0.45 / 0.30 / 0.25`                    | engine consts                 | ✅ v0, **deliberately not a param**     | E6: 5 variants moved meanTr 0.989↔0.9945 at archive scale — user-facing weights would be a knob that does nothing |
-| S12 | search strategy          | `"greedy" \| "beam"`                 | greedy; **beam-B8 when pool < ~250**    | benchmark-derived             | 🔨 planned                              | E7: beam +59% chain length in sparse pools, 0 ms cost there                                                       |
+| S12 | search strategy          | `"greedy" \| "beam"`                 | greedy; **beam-B8 when pool < ~250**    | benchmark-derived             | ✅ **shipped 2026-09-14**               | E7: beam +59% chain length in sparse pools, 0 ms cost; auto-picked, `search` on the wire, `?search=` forces A/B   |
 | S13 | `--track <id>` landmarks | `videoId[]`                          | none                                    | repeatable                    | 🔨 planned (C13)                        | must-plays sequenced at arc-right positions                                                                       |
 | S14 | `candidates N`           | `int`                                | 1                                       | 2–5 sensible                  | 🔨 planned (C14)                        | N alternatives + quality score to compare                                                                         |
 | S15 | lock/keep tracks         | `videoId[]`                          | none                                    | —                             | 🔨 planned (open-crate UX)              | regenerate around frozen picks                                                                                    |
-| S16 | beam width `B`           | `int`                                | 8 when active                           | 4–16                          | 🔨 planned (with S12)                   | cost ≈ B× greedy                                                                                                  |
+| S16 | beam width `B`           | `int`                                | 8 when active (`SET_BEAM_WIDTH`)        | 4–16                          | ✅ **shipped 2026-09-14**               | cost ≈ B× greedy; `SET_BEAM_POOL_MAX` sets the crossover                                                          |
 | S17 | diversity knobs          | thresholds                           | artist-adjacent = 0, family-run ≤3      | —                             | 🔨 planned (B6)                         | soft penalties, counters exposed                                                                                  |
 | S18 | `seed`                   | `int`                                | 0 (deterministic)                       | any                           | 🔮 later                                | only meaningful with S14 N-candidates                                                                             |
 | S19 | pool filter preset       | named rule                           | none                                    | e.g. "126–128 + family house" | 🔮 later                                | Smart-Crate-style saved pools                                                                                     |
 | S20 | `valence` envelope       | `[start,end] 0–1`                    | absent (arousal+dance only)             | per preset                    | 🔶 planned, **demoted** (Part 4 triage) | mood-stdev is 0.12 — valence reorders by noise; its budget goes to `aggressive`/`happy` (T17)                     |
 
 **Defaults from measurement** (benchmarks doc Parts 2–4): S11 weights are
-constants because E6 showed five blend variants move meanTr by <0.006; S12's
-~250 threshold is E7's beam crossover; S20 is demoted by the Part 4 triage.
+constants because E6 showed five blend variants move meanTr by <0.006; S12/S16
+shipped 2026-09-14 with E7's ~250 crossover (`SET_BEAM_POOL_MAX`/`SET_BEAM_WIDTH`
+in shared/setbuild.ts); S20 is demoted by the Part 4 triage.
 
 ### 2b. Song variables (per track, measured by FullTags)
 

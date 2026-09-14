@@ -4,6 +4,9 @@
 
 v1 · 2026-09-14 · **Benchmarks** → [PRD](01-prd.md) · [Analysis](03-competitive-analysis.md) · [Audit & plan](08-audit-and-plan.md)
 
+> Glossary for the jargon below (greedy, beam, 2-opt, Held-Karp, LOO, LUFS):
+> [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+
 Two questions this doc answers with measurements, not vibes:
 
 1. **How good is the sequencer, really?** Greedy pick is "good enough" folklore —

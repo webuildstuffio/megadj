@@ -12,6 +12,8 @@ confirmed primary on both metrics; second-tower/fusion sweep settled — best en
 implementation sketches, delta-pinned against the measured verdicts. Identifier
 renaming (`setbuild` → `megaset`) is planned in [09-migration-plan.md](09-migration-plan.md), not started.
 
+> Glossary: [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+
 _2026-09-13. Scope: `cratedeck/src/setbuild.ts` (engine), `cratedeck/src/archive_similar.ts`
 (candidate pool), `cratedeck/shared/setbuild.ts` + `shared/camelot.ts` (wire SSOTs),
 `src/fulltags/setbuild.ts` (CLI), `cratedeck/src/archive_tools.ts` (MCP), `archive_routes.ts`

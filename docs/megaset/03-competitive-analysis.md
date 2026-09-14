@@ -4,12 +4,22 @@
 
 v1 · 2026-09-14 · **Analysis** → [PRD](01-prd.md) · [Audit & plan](08-audit-and-plan.md)
 
+> Glossary: [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+
 Thirty comparators in three classes: **10 open-source** projects
 (feature-adjacent, small), **10 commercial** products (the market MegaSet
 would compete in), and **10 dream/concept ideas** (research, papers, and
 community concepts that show where the category is going). Status and
 pricing verified 2026-09-14. Sequencing-algorithm claims (greedy vs exact
 vs repair) are measured in [04-sequencing-benchmarks.md](04-sequencing-benchmarks.md).
+
+**Why compare at all?** Each comparator pins one design decision: OSS
+projects prove an algorithm is buildable at toy scale; commercial products
+show what the market pays for (and what it still gets wrong); dream ideas
+mark the category's direction. MegaSet's edge is deliberately **not** any
+single feature — it's the integration: measured local analysis, an agent
+surface, deterministic proposals, and a safety-gated write path, in one
+local-first pipeline nobody else combines (Part 4's matrix is the evidence).
 
 ---
 

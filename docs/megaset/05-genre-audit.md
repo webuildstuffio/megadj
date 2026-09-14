@@ -4,6 +4,9 @@
 
 v3 · 2026-09-14 · **Audit** → [PRD](01-prd.md) · [Benchmarks](04-sequencing-benchmarks.md) · [Analysis](03-competitive-analysis.md) · [Taxonomy sources & family map](07-genre-taxonomy-sources.md)
 
+> Glossary (LOO, CI, McNemar, Jaccard, kNN, duration guard):
+> [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+
 > v2: baselines refreshed post-`rb-comment-sync`; LOO corrected to
 > full-population methodology; §5c source ranking. v3: **statistical
 > re-validation** — duration guards (90–480 s), full-population exact LOO,

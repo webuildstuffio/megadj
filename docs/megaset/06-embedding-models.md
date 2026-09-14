@@ -4,6 +4,9 @@
 (six towers incl. MERT); fusion/variant sweep settled below, follow-up
 implementation gated by the larger post-refold evaluation.
 
+> Glossary (tower, LOO, coherence, effnet/musicnn/MERT, ONNX, 5k proj):
+> [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+
 **Reproduction (Sep 14, 2026, ~28 min, background).** Full 6-tower rerun
 on `eval_set_v2.json` (180 tracks, 120 s cap) matched the recorded table
 tower-for-tower to the fourth decimal (effnet 0.4444 / 0.3622; musicnn

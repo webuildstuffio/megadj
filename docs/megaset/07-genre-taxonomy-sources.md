@@ -4,6 +4,9 @@
 
 **Audit** → [05-genre-audit](05-genre-audit.md) · [06-embedding-models](06-embedding-models.md) · [PRD](01-prd.md)
 
+> Glossary (Discogs-400 head, Tier 1/2/3, kNN, tower):
+> [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+
 The follow-up to the genre audit: _which external taxonomy is authoritative,
 is our 9-family map right, how deep do sub-genres go, and is the embedding
 tower any good?_ Every claim below is measured on the live archive or
@@ -179,25 +182,44 @@ the shrinking residue the first two can't place.
 
 ## 7. Is the embedding model any good? (already benchmarked — recap)
 
-The full 5-tower benchmark lives in [06-embedding-models](06-embedding-models.md)
-(harness committed at `tools/emb_benchmark.py`). Short version:
+The full 6-tower benchmark lives in [06-embedding-models](06-embedding-models.md)
+(harness committed at `tools/emb_benchmark.py`). Short version — **v2 rerun
+(n=180, 120 s cap, 0 fails) is the verdict; the v1 table below it is kept
+for the record only**:
+
+| Tower                               | LOO family (k=5) | Retrieval coherence | s/track |
+| ----------------------------------- | ---------------- | ------------------- | ------- |
+| **discogs-effnet-1280 (v2 winner)** | **0.444**        | **0.362**           | 0.56    |
+| msd-musicnn-200                     | 0.300            | 0.292               | 0.75    |
+| vggish-128                          | 0.278            | 0.231               | 0.75    |
+| openl3-music-512                    | 0.272            | 0.243               | 2.97    |
+| mert-v1-95m-768                     | 0.256            | 0.233               | 3.88    |
+| clap-htsat-512                      | 0.244            | 0.250               | 0.50    |
+
+<details>
+<summary>v1 table (superseded — broken-harness artifact, kept for the record)</summary>
 
 | Tower                           | LOO family (k=5) | Retrieval coherence | s/track |
 | ------------------------------- | ---------------- | ------------------- | ------- |
 | msd-musicnn-200                 | **0.538**        | 0.323               | 1.60    |
 | discogs-effnet-1280 (incumbent) | 0.413            | **0.335**           | 0.85    |
-| **ensemble (effnet+musicnn)**   | **0.463**        | —                   | ~2.5    |
 | openl3-512                      | 0.400            | 0.275               | 7.77    |
 | vggish-128                      | 0.300            | 0.220               | 1.27    |
 | clap-htsat-512                  | 0.213            | 0.175               | 0.50    |
 
-Plan adopted there stands: **effnet stays retrieval-primary, musicnn joins
-for genre inference (rank-fused ensemble), MERT only if the ensemble
-stalls <0.55 post-refold.** How do we know it's good? Not by vendor
-numbers — by this library, this metric, re-run after every label-hygiene
-step. The eval harness is the answer to "have we tested it": it's a
-command now (`tools/emb_benchmark.py`), and §5b's `genre --eval` kNN
-harness is the standing regression gate.
+</details>
+
+**Plan of record (v2, measured): effnet stays the single tower for BOTH
+retrieval ("sounds like") and genre kNN.** The v1 "musicnn wins genre"
+lead was a harness artifact; the fusion sweep settled (best ensemble
++1.1 pt at 2–6× cost — not adopted); MERT measured 19 pts worse at 7×
+cost across three pooling schemes (representation failure). The
+promotion gate for any challenger: post-refold rerun where effnet
+stalls <0.50 or a tower leads by ≥3 pts on the guarded population. How
+do we know it's good? Not by vendor numbers — by this library, this
+metric, re-run after every label-hygiene step: §5b's `genre --eval` is
+the standing regression gate, and `tools/emb_benchmark.py` re-scores
+towers on demand.
 
 ## 8. What shipped vs what's queued
 
@@ -220,5 +242,7 @@ harness is the standing regression gate.
    cached embeddings in minutes, no rescan
 3. LLM residue pass (S, one-shot) — only for labels the first two can't
    place; OpenRouter, temp 0, vocabulary-constrained
-4. `genre --eval` harness as a command (S) — LOO + head-agreement printed
-   together; the standing hygiene gate
+4. ~~`genre --eval` harness as a command~~ **SHIPPED 2026-09-14** —
+   `megadj genre --eval` runs the LOO harness over the live DB (gated
+   62.6% vs the ≥65% post-refold target; exit code 1 below target so
+   scripts fail loudly). The standing hygiene gate.

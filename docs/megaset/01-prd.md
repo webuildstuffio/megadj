@@ -2,6 +2,10 @@
 
 v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Genre audit](05-genre-audit.md) · [Audit & plan](08-audit-and-plan.md)
 
+> First read of the doc set? Start here, then [10-findings](10-findings.md)
+> (distilled verdicts + the glossary for every acronym: Camelot, LOO, beam,
+> effnet, MCP, …).
+
 **Status:** ✅ SHIPPED — v0 graduated propose-only on 2026-09-12; greedy
 Camelot/energy-arc engine, whole-library pool, CLI + HTTP +
 M3U8 export + MCP + web panel, gated `megadj rb-playlist` write-off. v1 plan = the
