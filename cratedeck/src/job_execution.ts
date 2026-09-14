@@ -308,8 +308,9 @@ async function auditArchive(
     };
     audit = { total: parsed.total, complete: parsed.complete };
     auditErrors = parsed.incomplete ?? [];
-  } catch {
-    log("audit leg failed to report — see server log");
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    log(`audit leg failed to report: ${detail}`);
   }
   tick(
     1,

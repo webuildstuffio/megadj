@@ -134,7 +134,8 @@ export async function drainText(
   if (!stream || typeof stream === "number") return "";
   try {
     return await new Response(stream).text();
-  } catch {
+  } catch (error) {
+    console.error("failed to read subprocess stderr", error);
     return "";
   }
 }
