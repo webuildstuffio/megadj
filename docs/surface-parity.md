@@ -19,7 +19,9 @@ hex conversion is the whole bug class). All CLI-only under §4-A1 (master-DB
 mutation), all dry-run-first with dated backups + re-read verify, and all
 backed by `doctor` state gates (`checkCueKinds`/`checkDupes`/
 `checkPlaylistXml`) so "collection healthy" is mechanically checkable.
-Census: megadj CLI 42 → 44 commands.
+`megadj rb-comment-sync` backfills the master Comment column from FullTags
+tag data (EMPTY comments only, never clobbers; same gate family).
+Census: megadj CLI 42 → 45 commands.
 
 Rev 25 · 2026-09-12 — `megadj rb-adopt [drive] [--apply --yes]` mirrors
 every Rekordbox master `djmdContent` row into archive.db. The exact Content ID
@@ -206,7 +208,7 @@ kind`; the MCP schema advertised a kind whose call errored).
 
 | Surface    | Entry points                                                | Count                  |
 | ---------- | ----------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 44 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 45 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 39 tools               |
 | HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 61 routes              |

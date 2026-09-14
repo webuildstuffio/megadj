@@ -168,6 +168,14 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                content rows — links existing
                                                ones by filename; dry first,
                                                same gates as rb-import)
+  megadj rb-comment-sync [drive] [--limit N] [--apply --yes] [--json]
+                                               backfill the rekordbox Comment
+                                               column from FullTags tag data
+                                               (TXXX Camelot/Energy/Mood, ledger
+                                               fallback): only EMPTY comments
+                                               (never clobbers), dated backup +
+                                               re-read verify, refuses while
+                                               rekordbox runs (dry first)
   megadj rb-grid-triage [drive] [--compare D] [--limit N] [--json]
                                                grid audit vs the ANLZ rekordbox wrote:
                                                byte-compare vs a stick (--compare = SYNC
