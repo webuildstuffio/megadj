@@ -152,6 +152,14 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                deletes loser rows + quarantines loser
                                                files with a receipt (never deletes);
                                                report default, dry first
+  megadj rb-comment-sync [drive] [--batch TOKEN] [--apply --yes] [--json]
+                                               backfill rekordbox Comment from
+                                               the tags already on the files
+                                               (TXXX CAMELOT/ENERGY/MOOD) +
+                                               archive.db mood ledger, in the
+                                               FullTags Key-E-Moods format;
+                                               never clobbers non-empty comments
+                                               (dry first)
   megadj rb-playlist [drive] reconcile [--apply --yes] [--json]
                                                XML-twin healer (F7): find
                                                djmdPlaylist rows missing their

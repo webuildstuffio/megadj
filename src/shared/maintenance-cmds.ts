@@ -32,6 +32,7 @@ export const MAINTENANCE_VERBS = [
   "rb-playlist",
   "rb-cues",
   "rb-dedup",
+  "rb-comment-sync",
   "rb-anlz-spike",
   "rb-grid-triage",
 ] as const;
@@ -293,6 +294,32 @@ export async function runMaintenanceCommand(
         await writeJson(r);
       } else {
         printRbDedupReport(r, console.log);
+      }
+      if (!r.ok) process.exitCode = 1;
+      return;
+    }
+    case "rb-comment-sync": {
+      // fulltags → RB comment backfill: file TXXX (CAMELOT/ENERGY/MOOD)
+      // + archive.db mood ledger → Commnt in FullTags format. Never
+      // clobbers a non-empty comment. Dry-run default.
+      const flags = parseFlags(rest, ["batch"], ["apply", "yes", "json"]);
+      const args = positionalArgs(rest, ["batch"]);
+      const mount = mountFrom(args[0]);
+      const { rbCommentSync, printRbCommentSyncReport } =
+        await import("../rekordbox/rb-comment-sync");
+      const json = flags.bools.has("json");
+      const r = await rbCommentSync({
+        mount,
+        batch: flags.strings.get("batch"),
+        apply: flags.bools.has("apply"),
+        yes: flags.bools.has("yes"),
+        json,
+        log: (s) => (json ? undefined : console.log(s)),
+      });
+      if (json) {
+        await writeJson(r);
+      } else {
+        printRbCommentSyncReport(r, console.log);
       }
       if (!r.ok) process.exitCode = 1;
       return;
