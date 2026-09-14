@@ -99,6 +99,9 @@ unwritable; only Comment carries derived energy, never BPM.
   running. Shelf-tier empty `PIONEER/rekordbox/` is correct; do not export to
   the shelf. Role-aware checks come only from
   `cratedeck/shared/check_matrix.ts`.
+- The playing USB (`flip-master`) is user-managed: never sync, export, or
+  write playlists/DB state to it — agents touch only SHELF1; the user stages
+  USB content himself.
 - Import order is `megadj shelf-sync`, then drag from the shelf volume, never
   from local staging. WAV artwork is unsupported by rekordbox: ingest converts
   WAV → AIFF. TKEY is reliable on AIFF/MP3 and RB analysis can overwrite it.
@@ -152,3 +155,27 @@ unwritable; only Comment carries derived energy, never BPM.
   repo's `megamem.toml` — do not hand-edit either.
 - No one-off scripts in the repo. Encode safety in reusable commands, tests,
   and skills. Hardware-gated work ends as an executable runbook.
+- Cue surfaces have OPPOSITE conventions: XML `POSITION_MARK Num="0..7"` =
+  hot cue / `Num="-1"` = memory, but the collection DB `djmdCue.Kind` is
+  `1` = hot cue, `0` = memory cue (pads read the DB side). Verify with a
+  hand-authored reference before any cue write path ships. See
+  [`docs/intake-cue-postmortem.md`](docs/intake-cue-postmortem.md) F4/F1.
+- Playlist rows (`djmdPlaylist`) and `masterPlaylists6.xml` are twins: write
+  both or neither, through one seam. Missing XML nodes = "Playlist not found"
+  warnings and playlists that vanish on RB rebuild.
+- Classifying files on ExFAT: prefilter by size/duration/name BEFORE hashing.
+  A full-volume MD5 pass costs ~50 minutes; a prefiltered one, seconds.
+- Rekordbox playlist organization: ONE playlist per dated intake batch
+  (`YYYY-MM-DD intake`), all grouped under `DJ-Imports`; never genre
+  playlists.
+- Hot cues: max 8 per track (8 pads on supported gear), semantically placed
+  (phrase/chorus/drop); pads require clickable hot cues (`djmdCue.Kind = 1`).
+- Track genres come from real sources (SoundCloud/Beatport/Hypeddit); the AI
+  genre fallback stays opt-in, off by default — a missing genre remains an
+  honest gap, never a guess.
+- FullTags comment format is `Key · Energy · Mood` (Camelot key, E-score,
+  top ONNX moods); BPM never enters the comment — it has its own RB column.
+- Two DBs, two roles: the SHELF1 `master.db` is the collection SSOT;
+  `archive.db` is megadj's pipeline ledger (FullTags/mood/cue results,
+  `sc_genre_ids`, `shelf_fingerprints`), not a collection copy — never
+  present ledger coverage as library size.
