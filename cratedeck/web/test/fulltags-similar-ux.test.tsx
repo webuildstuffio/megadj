@@ -147,7 +147,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("the result separates the human verdict from source evidence", () => {
-    const data: SetBuildPayload = {
+    const baseData: SetBuildPayload = {
       available: true,
       preset: "warmup",
       minutes: 60,
@@ -180,7 +180,7 @@ describe("FullTags Similar and Set Builder UX", () => {
       freshness: { beatsAt: null, moodAt: null },
       search: "greedy",
     };
-    const html = render(<SetBuilderResult data={data} />);
+    const html = render(<SetBuilderResult data={baseData} />);
 
     expect(html).toContain("Ready to review");
     expect(html).toContain("62.4-minute Warm-up set draft");
@@ -191,6 +191,14 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("201 key reads");
     expect(html).toContain("93 missing skipped");
     expect(html).toContain("read-only · nothing written");
+    expect(html).toContain("standard greedy search");
+    expect(html).not.toContain("small pool");
+    expect(html).not.toContain("large pool");
+
+    const htmlBeam = render(
+      <SetBuilderResult data={{ ...baseData, search: "beam" }} />,
+    );
+    expect(htmlBeam).toContain("deep beam search");
   });
 
   test("FullTags stays usable on a phone before the archive rail", () => {

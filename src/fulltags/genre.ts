@@ -72,8 +72,9 @@ export async function genre(opts: GenreOptions): Promise<void> {
     log(
       `genre eval: ${summary.evaluated} evaluated · gated agreement ${pct(summary.agreement)} · refusal ${pct(summary.refusal)} · ungated ${pct(summary.ungatedAgreement)} (k=${k}, minAgreement ${minAgreement}${opts.durationGuard === false ? ", no duration guard" : ", 90–480s guard"})`,
     );
+    const pass = summary.agreement >= 0.65;
     log(
-      `  target (05-genre-audit §5b.3): gated ≥65% post-refold — ${summary.agreement >= 0.65 ? "PASS" : "below target (see audit for the refold plan)"}`,
+      `  target (05-genre-audit §5b.3): gated ≥65% post-refold — ${pass ? "PASS" : "below target (see audit for the refold plan)"}`,
     );
     console.log(
       JSON.stringify({
@@ -90,9 +91,10 @@ export async function genre(opts: GenreOptions): Promise<void> {
         refusal: Math.round(summary.refusal * 1000) / 1000,
         ungated_agreement: Math.round(summary.ungatedAgreement * 1000) / 1000,
         target: 0.65,
-        pass: summary.agreement >= 0.65,
+        pass,
       }),
     );
+    process.exitCode = pass ? 0 : 1;
     return;
   }
 

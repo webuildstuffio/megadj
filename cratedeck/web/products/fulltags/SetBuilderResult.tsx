@@ -18,9 +18,7 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
   // pool-size honesty (E7): say WHICH search ran, and why on small pools —
   // the deep search is a visible behavior, never a silent algorithm switch
   const searchNote =
-    data.search === "beam"
-      ? "deep search (small pool)"
-      : "standard search (large pool)";
+    data.search === "beam" ? "deep beam search" : "standard greedy search";
 
   return (
     <section

@@ -487,6 +487,50 @@ describe("buildSet", () => {
     expect(auto.steps.length).toBeGreaterThan(2);
   });
 
+  test("beam prefers a completed low-score chain over a high-score partial", () => {
+    // P1: the previous ranking used cumulative score only, which could make
+    // a partial chain outrank the only complete path. This scenario keeps the
+    // score-positive partial alive and confirms budget fill has priority.
+    const candidates = [
+      cand({
+        videoId: "opener",
+        durationS: 60,
+        bpm: 126,
+        key: "8A",
+        arousal: 6.4,
+        dance: 0.85,
+      }),
+      cand({
+        videoId: "long",
+        durationS: 900,
+        bpm: 126,
+        key: "9A",
+        arousal: 1.4,
+        dance: 0.1,
+      }),
+      ...Array.from({ length: 6 }, (_, i) =>
+        cand({
+          videoId: `short-${i}`,
+          durationS: 60,
+          bpm: 126,
+          key: "7A",
+          arousal: 6.8,
+          dance: 0.88,
+        }),
+      ),
+    ];
+    const beamed = buildSet({
+      candidates,
+      preset: SET_PRESETS.peak,
+      minutes: 10,
+      searchOverride: "beam",
+    });
+
+    expect(beamed.complete).toBe(true);
+    expect(beamed.actualMinutes).toBeGreaterThanOrEqual(10);
+    expect(beamed.steps.map((s) => s.videoId)).toEqual(["opener", "long"]);
+  });
+
   test("archive-scale pools stay on greedy — the E2/E3 finding that big pools gain nothing", () => {
     const candidates = Array.from({ length: 300 }, (_, i) =>
       cand({

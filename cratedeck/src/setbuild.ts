@@ -241,10 +241,11 @@ interface BeamState {
 const chainSignature = (chain: readonly { videoId: string }[]): string =>
   chain.map((c) => c.videoId).join(">");
 
-/** Best-state ranking: score desc, then longer chain, then signature asc.
- *  Returns < 0 when `a` ranks before `b`. Doubles as the frontier sort so
- *  beam pruning and final pick use ONE ordering. */
+/** Best-state ranking: prefer budget-complete chains first, then score,
+ *  chain length, then signature for deterministic tie-breaks.
+ *  Returns < 0 when `a` ranks before `b`. Used by frontier + final pick. */
 const rankBeamState = (a: BeamState, b: BeamState): number =>
+  (b.done ? 1 : 0) - (a.done ? 1 : 0) ||
   b.score - a.score ||
   b.chain.length - a.chain.length ||
   chainSignature(a.chain).localeCompare(chainSignature(b.chain));
@@ -319,7 +320,7 @@ const beamChain = (
   let best = start;
   let frontier: BeamState[] = [start];
   while (frontier.length > 0) {
-    const successors: BeamState[] = [];
+    const frontierNext: BeamState[] = [];
     for (const st of frontier) {
       if (st.done) continue; // filled: terminal, kept in `best`
       const last = st.chain.at(-1)!;
@@ -336,13 +337,13 @@ const beamChain = (
           score: st.score + s,
           done: elapsedS >= budget,
         };
-        successors.push(next);
+        if (!next.done) frontierNext.push(next);
         if (rankBeamState(next, best) < 0) best = next;
       }
     }
-    if (successors.length === 0) break; // every live branch hit a wall
-    successors.sort(rankBeamState);
-    frontier = successors.slice(0, SET_BEAM_WIDTH);
+    if (frontierNext.length === 0) break; // every live branch hit a wall
+    frontierNext.sort(rankBeamState);
+    frontier = frontierNext.slice(0, SET_BEAM_WIDTH);
   }
   // `best` is the highest-ranked chain reached (completed = filled budget
   // mid-search; otherwise the deepest/partial leader at the final wall).
