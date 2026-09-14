@@ -27,6 +27,7 @@
  * resets to the real impls.
  */
 import { canonGenre, SC_GENRE_CANON } from "./schema";
+import { cleanSearchQuery } from "./search-query";
 
 // ---------- token (client-credentials, embed-player parity) ----------
 
@@ -282,21 +283,6 @@ export function setBeatportSearchImpl(
 /** Same cleanup discipline as cleanQuery in art-sources (which we mirror):
  * strip bracketed/parenthesized annotations and version noise so
  * "Artist - Track (Flozone Flip)" searches as "Artist Track". */
-function cleanQuery(r: BpQuery): string {
-  const artist0 = (r.artist ?? "").split(/[,&]/)[0]?.trim() ?? "";
-  const t = r.title
-    .replace(/\[[^\]]*\]/g, " ")
-    .replace(/\([^)]*\)/g, " ")
-    .replace(
-      /\b(final|mstr|master|vip|full|cdq|extended|radio edit|feat\.?|ft\.?)\b/gi,
-      " ",
-    )
-    .replace(/\b\d+(\.\d+)+\b/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return `${artist0} ${t}`.split(" ").filter(Boolean).slice(0, 8).join(" ");
-}
-
 export interface BpQuery {
   artist: string | null;
   title: string;
@@ -384,7 +370,7 @@ const searchCache = new Map<string, BpTrack | null>();
 export async function beatportLookup(q: BpQuery): Promise<BpTrack | null> {
   const key = `${(q.artist ?? "").toLowerCase()}::${q.title.toLowerCase()}::${q.durationS ?? ""}`;
   if (searchCache.has(key)) return searchCache.get(key) ?? null;
-  const query = cleanQuery(q);
+  const query = cleanSearchQuery(q);
   let best: BpTrack | null = null;
   let transient = false;
   if (query) {

@@ -84,6 +84,23 @@ describe("scoreBpHit", () => {
 });
 
 describe("beatportLookup (seamed, offline)", () => {
+  test("shares composed-junk cleanup with SoundCloud queries", async () => {
+    const queries: string[] = [];
+    const restore = setBeatportSearchImpl(async (query) => {
+      queries.push(query);
+      return [];
+    });
+    try {
+      await beatportLookup({
+        artist: "UnknownArtist · UnknownAlbum · Bicep",
+        title: "UnknownArtist · UnknownAlbum · Glue (Extended Mix)",
+      });
+      expect(queries).toEqual(["Bicep Glue"]);
+    } finally {
+      restore();
+    }
+  });
+
   test("returns the best hit above the floor", async () => {
     const restore = setBeatportSearchImpl(async () => [
       hit({ name: "Glue (Edit)" }),

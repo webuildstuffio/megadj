@@ -10,6 +10,9 @@
 import { readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { cleanSearchParts, cleanSearchQuery } from "./search-query";
+
+export { cleanSearchParts } from "./search-query";
 
 const UA = {
   "User-Agent":
@@ -289,34 +292,6 @@ export interface SearchRow {
  *  Tvardovsky - Depths" must search as "Tvardovsky - Depths" (Sep 11: the
  *  composed junk prefix poisoned every SC query and the uploader scorer —
  *  13 tracks matched loose junk and embedded one shared pool banner). */
-export function cleanSearchParts(
-  artist: string | null,
-  title: string,
-): { artist: string | null; title: string } {
-  const junk =
-    /UnknownArtist\s*(?:·\s*UnknownAlbum\s*)?·\s*|Unknown\s*Artist\s*[-–—]\s*/giu;
-  return {
-    artist: artist?.replace(junk, "").trim() || null,
-    title: title.replace(junk, "").trim(),
-  };
-}
-
-function cleanQuery(r: SearchRow): string {
-  const { artist, title } = cleanSearchParts(r.artist, r.title);
-  const artist0 = (artist ?? "").split(/[,&]/)[0]?.trim() ?? "";
-  const t = title
-    .replace(/\[[^\]]*\]/g, " ")
-    .replace(/\([^)]*\)/g, " ")
-    .replace(
-      /\b(final|mstr|master|vip|full|cdq|extended|radio edit|feat\.?|ft\.?)\b/gi,
-      " ",
-    )
-    .replace(/\b\d+(\.\d+)+\b/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return `${artist0} ${t}`.split(" ").filter(Boolean).slice(0, 8).join(" ");
-}
-
 export function scSearch(r: SearchRow): ScHit[] {
   return scSearchImpl(r);
 }
@@ -336,7 +311,7 @@ export function setScSearchImpl(impl: (r: SearchRow) => ScHit[]): () => void {
 
 /** The real yt-dlp SC search (sync, spawn + parse). */
 function scSearchReal(r: SearchRow): ScHit[] {
-  const q = cleanQuery(r);
+  const q = cleanSearchQuery(r);
   if (!q) return [];
   let out = "";
   for (let attempt = 0; attempt < 2; attempt++) {
