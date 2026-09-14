@@ -1,21 +1,13 @@
 // DrivePage.tsx — the main canvas for one drive. Replaces the old drawer:
 // full-width sections, tabbed, deep-linkable via hash routing
 // (#/drives/:id/:tab). Polls the API and merges SSE job updates.
-import { useCallback, useEffect, useState } from "preact/hooks";
-import type {
-  DriveImage,
-  InterlockState,
-  Job,
-  JobKind,
-} from "../../../shared/types";
-import { fmtBytes, timeAgo } from "../../../shared/fmt";
+import { useEffect } from "preact/hooks";
+import type { InterlockState, JobKind } from "../../../shared/types";
 import { TIER_EXPLANATION } from "../../../shared/check_matrix";
-import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { navigate } from "../../app/router";
-import { InfoTip } from "../../ui/InfoTip";
-import { HELP_JOBS, ROLE_HELP, VERDICT_HELP } from "../../../shared/help";
-import { PhotoTab, type PhotoHit } from "./PhotoTab";
+import { HELP_JOBS } from "../../../shared/help";
+import { PhotoTab } from "./PhotoTab";
 import { DRIVE_TABS } from "../shared";
 import { useDriveData, type DriveDetail } from "./useDriveData";
 import { FixesTab } from "./FixesTab";
@@ -25,6 +17,8 @@ import { OverviewTab } from "./OverviewTab";
 import { PlaylistsTab } from "./PlaylistsTab";
 import { TimelineTab } from "./TimelineTab";
 import { VerifyTab } from "./VerifyTab";
+import { DriveHero, RecentDriveJobs } from "./DriveChrome";
+import { useDriveActions } from "./useDriveActions";
 
 type TabId = (typeof DRIVE_TABS)[number]["id"];
 
@@ -99,165 +93,50 @@ export function DrivePage(props: {
     verify,
     refresh: load,
   } = useDriveData(driveId);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [renaming, setRenaming] = useState(false);
-  const [nameDraft, setNameDraft] = useState("");
-  const [photoHits, setPhotoHits] = useState<PhotoHit[] | null>(null);
-  const [photoQuery, setPhotoQuery] = useState("");
-  const [driveImages, setDriveImages] = useState<DriveImage[] | null>(null);
   const detailOrNull = page.status === "ok" ? page.detail : null;
+  const {
+    busy,
+    renaming,
+    nameDraft,
+    photoHits,
+    photoQuery,
+    driveImages,
+    setRenaming,
+    setNameDraft,
+    setPhotoQuery,
+    run,
+    rename,
+    searchPhotos,
+    choosePhoto,
+    chooseDriveImage,
+    uploadPhoto,
+    clearPhoto,
+  } = useDriveActions({
+    driveId,
+    tab: props.tab,
+    mounted: detailOrNull?.drive.mounted ?? false,
+    photoFallbackName: nameGuess(detailOrNull),
+    refresh: load,
+  });
   const locked = interlock.rekordbox_running;
   // hygiene + fixes ride only the shelf master (§4.3) — same condition the
   // server uses for the drive-list badge, so the two can't disagree
   const isShelf = detailOrNull?.drive.role === "shelf";
   const tabs = isShelf
     ? DRIVE_TABS
-    : DRIVE_TABS.filter((t) => t.id !== "hygiene" && t.id !== "fixes");
+    : DRIVE_TABS.filter((tab) => tab.id !== "hygiene" && tab.id !== "fixes");
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      // Only leave the page for Escape when NOT typing (rename editor, photo
-      // search) — the input's own handler closes the editor; this global one
-      // must never fire for the same keypress (it races the renaming state
-      // re-bind and ejects the user to the welcome screen mid-edit).
+    const onKeyDown = (event: KeyboardEvent) => {
       const inEditor =
         renaming ||
         (document.activeElement instanceof HTMLInputElement &&
           document.activeElement.closest(".name-edit, .pl-tools, .search"));
-      if (e.key === "Escape" && !inEditor) navigate(null);
+      if (event.key === "Escape" && !inEditor) navigate(null);
     };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [renaming]);
-
-  const run = async (kind: string) => {
-    setBusy(kind);
-    try {
-      await apiPost<Job>(`/api/drives/${driveId}/jobs`, { kind });
-      toast(`${kind} queued`, "ok");
-    } catch {
-      /* toast already surfaced the failure */
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const rename = async (nickname: string | null) => {
-    try {
-      await apiPost(`/api/drives/${driveId}/name`, {
-        nickname: nickname || null,
-      });
-    } catch {
-      // api() already toasted the failure — stay in rename mode so the
-      // user can retry or Escape out.
-      return;
-    }
-    setRenaming(false);
-    toast(nickname ? "Drive renamed" : "Nickname cleared", "ok");
-    load().catch((e: unknown) =>
-      console.error("post-rename refresh failed", e),
-    );
-  };
-
-  const searchPhotos = async () => {
-    const q = photoQuery.trim() || nameGuess(detailOrNull);
-    try {
-      const res = await api<{ provider: string; hits: PhotoHit[] }>(
-        `/api/images/search?q=${encodeURIComponent(q)}`,
-      );
-      if (!res.hits.length) {
-        toast(
-          res.provider === "none"
-            ? "No image provider configured (config.toml → images)"
-            : "No images found",
-          "info",
-        );
-        return;
-      }
-      setPhotoHits(res.hits);
-    } catch (e) {
-      // api() already toasted the failure; the catch only stops propagation.
-      console.error("photo search failed", e);
-    }
-  };
-
-  const choosePhoto = async (hit: PhotoHit) => {
-    try {
-      await apiPost(`/api/drives/${driveId}/photo`, { url: hit.full });
-      toast("Photo saved to Mac + drive", "ok");
-      load().catch((e: unknown) =>
-        console.error("post-save refresh failed", e),
-      );
-    } catch {
-      /* toast already surfaced the failure */
-    }
-  };
-
-  /** Pick an image that already exists ON the drive. */
-  const chooseDriveImage = async (rel: string) => {
-    try {
-      await apiPost(`/api/drives/${driveId}/photo`, { drive_rel: rel });
-      toast("Cover set from the drive — saved to Mac too", "ok");
-      load().catch((e: unknown) =>
-        console.error("post-save refresh failed", e),
-      );
-    } catch {
-      /* toast already surfaced the failure */
-    }
-  };
-
-  /** Upload a file from the Mac (file-picker). */
-  const uploadPhoto = async (file: File) => {
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      await apiPost(`/api/drives/${driveId}/photo`, form);
-      toast("Photo saved to Mac + drive", "ok");
-      load().catch((e: unknown) =>
-        console.error("post-save refresh failed", e),
-      );
-    } catch {
-      /* toast already surfaced the failure */
-    }
-  };
-
-  /** Load the drive's own images when the Photo tab opens (mounted only). */
-  const loadDriveImages = useCallback(async () => {
-    if (page.status !== "ok" || !page.detail.drive.mounted) {
-      setDriveImages(null);
-      return;
-    }
-    try {
-      setDriveImages(
-        await api<DriveImage[]>(
-          `/api/drives/${encodeURIComponent(driveId)}/drive-images`,
-          { quiet: true },
-        ),
-      );
-    } catch (e) {
-      console.error(`drive-images load for ${driveId} failed`, e);
-      setDriveImages([]);
-    }
-  }, [driveId, page.status, detailOrNull?.drive.mounted]);
-
-  useEffect(() => {
-    if (props.tab === "photos") {
-      loadDriveImages().catch((e: unknown) =>
-        console.error("drive-images effect failed", e),
-      );
-    }
-  }, [props.tab, loadDriveImages]);
-
-  const clearPhoto = async () => {
-    // photo clearing = set nickname-style: dedicated endpoint keeps guard happy
-    try {
-      await apiPost(`/api/drives/${driveId}/photo`, { clear: true });
-      toast("Photo removed", "ok");
-      load();
-    } catch {
-      /* toast already surfaced the failure */
-    }
-  };
 
   if (page.status !== "ok")
     return (
@@ -358,169 +237,17 @@ export function DrivePage(props: {
         <Icon name="back" size={13} /> all drives
       </button>
 
-      <div class="hero">
-        <div class="photo">
-          {detail.drive.photo_path ? (
-            <img
-              src={`/photos/${driveId}?v=${detail.drive.last_seen_at}`}
-              alt={name}
-            />
-          ) : (
-            <Icon name="usb" size={26} />
-          )}
-        </div>
-        <div class="hid">
-          {renaming ? (
-            <span class="name-edit">
-              <input
-                value={nameDraft}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    // empty draft + Enter = cancel, never "clear the name" —
-                    // explicit clearing is a deliberate Save when a nickname
-                    // already exists
-                    if (!nameDraft.trim()) setRenaming(false);
-                    else rename(nameDraft.trim());
-                  }
-                  if (e.key === "Escape") {
-                    e.stopPropagation();
-                    setRenaming(false);
-                  }
-                }}
-                onInput={(e) =>
-                  setNameDraft((e.target as HTMLInputElement).value)
-                }
-              />
-              <button
-                type="button"
-                class="btn sm primary"
-                onClick={() =>
-                  nameDraft.trim()
-                    ? rename(nameDraft.trim())
-                    : setRenaming(false)
-                }
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                class="btn sm ghostbtn"
-                onClick={() => setRenaming(false)}
-              >
-                Cancel
-              </button>
-            </span>
-          ) : (
-            <h2>
-              {name}
-              {!detail.drive.mounted && (
-                <span
-                  class="badge muted"
-                  title="Ghost: not plugged in right now — everything below reads from the last snapshot."
-                >
-                  ghost
-                </span>
-              )}
-              <span class={`pill ${report?.overall ?? "unknown"}`}>
-                {report?.overall ?? "unknown"}
-              </span>
-              <InfoTip
-                title={`verdict: ${report?.overall ?? "unknown"}`}
-                body={
-                  VERDICT_HELP[report?.overall ?? "unknown"] ??
-                  "No report yet — run a scan."
-                }
-                why="Worst status wins: one failing check makes the whole drive critical — the failing rows just below say which."
-                below
-              />
-              <InfoTip
-                title={`role: ${detail.drive.role}`}
-                body={
-                  ROLE_HELP[detail.drive.role] ??
-                  "Role derived from the configured master/mirror volume names."
-                }
-              />
-              <button
-                type="button"
-                class="btn sm ghostbtn"
-                title="Rename drive"
-                onClick={() => {
-                  setRenaming(true);
-                  setNameDraft(detail.drive.nickname ?? detail.drive.name);
-                }}
-              >
-                <Icon name="pencil" size={13} />
-              </button>
-            </h2>
-          )}
-          <div class="hsub">
-            <span>{detail.drive.name}</span>
-            <span class="sep">·</span>
-            <span>
-              {detail.drive.capacity_bytes
-                ? fmtBytes(detail.drive.capacity_bytes)
-                : "—"}
-            </span>
-            {detail.drive.fs && (
-              <>
-                <span class="sep">·</span>
-                <span>{detail.drive.fs}</span>
-              </>
-            )}
-            <span class="sep">·</span>
-            <span>
-              {detail.drive.mounted
-                ? "mounted now"
-                : `last seen ${timeAgo(detail.drive.last_seen_at)}`}
-            </span>
-            {detail.sync && (
-              <>
-                <span class="sep">·</span>
-                <span>
-                  {detail.sync.verdict}
-                  {detail.sync.missing
-                    ? ` (${detail.sync.missing} files)`
-                    : ""}{" "}
-                  vs {detail.master_name}
-                </span>
-              </>
-            )}
-          </div>
-          {(detail.drive.vendor || detail.drive.model) && (
-            <div class="hsub hw">
-              <Icon name="usb" size={12} />
-              <span>
-                {[detail.drive.vendor, detail.drive.model]
-                  .filter(Boolean)
-                  .join(" ")}
-              </span>
-              {detail.drive.usb_serial && (
-                <>
-                  <span class="sep">·</span>
-                  <span class="hwserial" title={detail.drive.usb_serial}>
-                    S/N {detail.drive.usb_serial.slice(0, 10)}…
-                  </span>
-                </>
-              )}
-              {detail.drive.last_port_key && (
-                <>
-                  <span class="sep">·</span>
-                  <span title="Physical USB port (from ioreg location)">
-                    port {detail.drive.last_port_key.replace(/^\//, "")}
-                  </span>
-                </>
-              )}
-              <span class="sep">·</span>
-              <span>
-                {detail.drive.plug_count} plug
-                {detail.drive.plug_count === 1 ? "" : "s"}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
+      <DriveHero
+        detail={detail}
+        report={report}
+        driveId={driveId}
+        name={name}
+        renaming={renaming}
+        nameDraft={nameDraft}
+        setRenaming={setRenaming}
+        setNameDraft={setNameDraft}
+        rename={rename}
+      />
 
       <div class="actions">
         {JOB_BUTTONS.map((b) => (
@@ -605,48 +332,12 @@ export function DrivePage(props: {
 
       {content}
 
-      {/* recent jobs for this drive */}
-      {jobs.length > 0 && (
-        <>
-          <h3 class="sect">
-            <Icon name="clock" /> Recent jobs
-          </h3>
-          <div class="checks">
-            {jobs.slice(0, 5).map((j) => (
-              <div class="check" key={j.id}>
-                <span class={`jstat ${j.status}`}>{j.status}</span>
-                <span class="check-body">
-                  <b>{j.kind}</b>
-                  <span class="check-detail">
-                    {j.error ??
-                      j.message ??
-                      (j.finished_at
-                        ? new Date(j.finished_at).toLocaleString()
-                        : "…")}
-                  </span>
-                </span>
-                {j.status === "running" && (
-                  <span class="progressbar" style={{ alignSelf: "center" }}>
-                    <i style={{ width: `${Math.round(j.progress * 100)}%` }} />
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-          {(failing > 0 || warning > 0) && (
-            <div class="note" style={{ marginTop: 12 }}>
-              {failing > 0
-                ? `${failing} check${failing > 1 ? "s" : ""} failing`
-                : `${warning} warning${warning > 1 ? "s" : ""}`}{" "}
-              — see Overview.
-            </div>
-          )}
-        </>
-      )}
+      <RecentDriveJobs jobs={jobs} failing={failing} warning={warning} />
     </div>
   );
 }
 
+/** Identity and hardware summary, including the inline nickname editor. */
 function nameGuess(d: DriveDetail | null): string {
   return d?.drive.nickname ?? d?.drive.name ?? "";
 }

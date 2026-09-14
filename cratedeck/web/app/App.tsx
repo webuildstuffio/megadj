@@ -16,16 +16,14 @@ import { DrivePage } from "../products/cratedeck/DrivePage";
 import { FleetPage } from "../products/cratedeck/FleetPage";
 import { GetDatPage } from "../products/getdat/GetDatPage";
 import { FullTagsPage } from "../products/fulltags/FullTagsPage";
-import { PRODUCT_TABS, PRODUCTS, LEDE } from "../products/shared";
 import { JobsDock } from "../ui/JobsDock";
 import { Toaster, api, toast } from "../ui/toast";
-import { Icon } from "../ui/icons";
-import { navigate, navigateProduct, useRoute } from "../app/router";
+import { navigate, useRoute } from "../app/router";
 import { errMessage } from "../../shared/fmt";
-import { Onboard } from "../ui/Onboard";
 import { Palette } from "../ui/Palette";
 import { bindGlobalKeys } from "../ui/keys";
 import { useJobEvents } from "./useJobEvents";
+import { AppHeader, AppNav, Welcome } from "./AppChrome";
 
 export function App() {
   const route = useRoute();
@@ -200,232 +198,37 @@ export function App() {
   };
 
   const locked = interlock.rekordbox_running;
-  const mounted = drives.filter((d) => d.mounted).length;
-  const ghosts = drives.length - mounted;
-  // USB link banner: flag mounted drives on a USB2-class link (≤480 Mbps).
-  // link_bps comes from the ioreg tree at reconcile time; null = unknown
-  // (drive plugged in before this feature, or ioreg didn't answer).
-  const slowLink = drives.filter(
-    (d) => d.mounted && d.link_bps !== null && d.link_bps < 5_000_000_000,
+  const globalSearchInput = (
+    <input
+      ref={searchRef}
+      id="global-search"
+      name="global-search"
+      aria-label="Search every drive's playlists, folders and tracks"
+      placeholder="Search playlists, folders…"
+      title="Search every drive's playlists, folders and tracks — Enter opens the top hit, Esc clears. ⌘K opens the command palette (navigate anywhere)."
+      value={query}
+      onInput={(event) => setQuery((event.target as HTMLInputElement).value)}
+      onKeyDown={(event) => {
+        const first = results?.[0];
+        if (event.key === "Enter" && first) openDrive(first.drive_id);
+      }}
+    />
   );
-
-  // The header is two rows. Row 1 (suite bar): megadj brand, global search,
-  // interlock — everything that spans the whole suite. Row 2 (nav strip):
-  // the three products + the active one's scope tabs. Fleet is a scope of
-  // CrateDeck, not a fourth product: on the Fleet route the strip shows
-  // Drives | Fleet (Fleet lit) followed by Fleet's own content tabs.
-  const scopeTabs =
-    route.product === "fleet"
-      ? [...PRODUCT_TABS.drives, ...PRODUCT_TABS.fleet]
-      : PRODUCT_TABS[route.product];
-  const scopeOn =
-    route.product === "drives"
-      ? route.fleet
-        ? "fleet"
-        : "" // shelf, or a specific drive — the shelf tab stays lit
-      : route.tab;
-  // the active row of PRODUCTS (fleet maps to CrateDeck, phase 1) — drives
-  // the phase chip at the strip's right edge
-  const activeProduct =
-    route.product === "fleet"
-      ? PRODUCTS[0]
-      : PRODUCTS.find((p) => p.id === route.product);
 
   return (
     <div class="app" data-prod={route.product}>
-      <header class="topbar">
-        <div
-          class="brand"
-          onClick={() => navigate(null)}
-          title="megadj — one toolkit for the DJ library"
-        >
-          <span class="brand-mark" />
-          <h1>megadj</h1>
-        </div>
-        <span
-          class="top-meta"
-          title="How many known drives are mounted now vs remembered-but-unplugged ('ghosts')."
-        >
-          <b>{mounted}</b> mounted · <span class="ghostn">{ghosts}</span> ghost
-          {ghosts === 1 ? "" : "s"}
-        </span>
-        <div class="spacer" />
-        <span
-          class={`lockchip ${locked ? "on" : "off"}`}
-          title={
-            locked
-              ? `rekordbox is running (pid ${interlock.pid}) — the interlock refuses ALL drive jobs because rekordbox locks the same databases. Quit rekordbox to unlock.`
-              : "rekordbox is not running — the interlock allows drive jobs."
-          }
-        >
-          <span class="lockdot" />
-          {locked ? `rekordbox · pid ${interlock.pid}` : "ready"}
-        </span>
-        <div class="search">
-          <span class="search-ico">
-            <Icon name="search" size={15} />
-          </span>{" "}
-          <input
-            ref={searchRef}
-            id="global-search"
-            name="global-search"
-            aria-label="Search every drive's playlists, folders and tracks"
-            placeholder="Search playlists, folders…"
-            title="Search every drive's playlists, folders and tracks — Enter opens the top hit, Esc clears. ⌘K opens the command palette (navigate anywhere)."
-            value={query}
-            onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
-            onKeyDown={(e) => {
-              const first = results?.[0];
-              if (e.key === "Enter" && first) openDrive(first.drive_id);
-            }}
-          />
-          {query && (
-            <button
-              type="button"
-              class="search-clear"
-              onClick={() => {
-                setQuery("");
-                searchRef.current?.focus();
-              }}
-              aria-label="Clear search"
-            >
-              <Icon name="x" size={13} />
-            </button>
-          )}
-          {results && (
-            <div class="search-results">
-              {results.length === 0 && (
-                <div class="sr-empty">No matches in any crate.</div>
-              )}
-              {results.map((r) => (
-                <div
-                  key={r.drive_id}
-                  class="sr-drive"
-                  onClick={() => openDrive(r.drive_id)}
-                >
-                  <div class="hd">
-                    <span class={`dot ${r.mounted ? "on" : "off"}`} />
-                    {r.drive_name}
-                    {!r.mounted && <span class="ghost-tag">ghost</span>}
-                  </div>
-                  {r.matches.map((m) => (
-                    <div class="sr-match" key={`${m.type}:${m.name}`}>
-                      <span>
-                        <span class="sr-type">{m.type}</span> {m.name}
-                      </span>
-                      <span>{m.entries?.toLocaleString() ?? "—"}</span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          class="btn ghostbtn palette-btn"
-          title="Command palette — jump to any drive, tab or fleet scope"
-          onClick={() => setPaletteOpen(true)}
-        >
-          <Icon name="chevronR" size={12} /> <kbd>⌘K</kbd>
-        </button>
-      </header>
-      <nav class="navstrip" aria-label="Products">
-        {PRODUCTS.map((p) => (
-          <button
-            type="button"
-            key={p.id}
-            // Fleet is CrateDeck's scope — the CrateDeck tab stays lit there
-            class={`product-tab ${
-              route.product === p.id ||
-              (p.id === "drives" && route.product === "fleet")
-                ? "on"
-                : ""
-            }`}
-            data-prod={p.id}
-            onClick={() =>
-              route.product !== p.id &&
-              (p.id === "drives" ? navigate(null) : navigateProduct(p.id))
-            }
-            title={p.title}
-          >
-            <Icon name={p.icon} size={13} /> {p.label}
-          </button>
-        ))}
-        <span class="navstrip-sep" aria-hidden />
-        {scopeTabs.map((t) => {
-          // on-state: the fleet scope tab stays lit across all fleet content
-          // tabs (coverage/redundancy/…) so CrateDeck's scope never dims
-          const on =
-            t.id === "fleet" && route.product === "fleet"
-              ? true
-              : scopeOn === t.id;
-          const onClick = () => {
-            if (route.product === "drives") {
-              // CrateDeck scopes: shelf ↔ fleet
-              if (t.id === "fleet") navigateProduct("fleet");
-              else if (route.fleet) navigate(null);
-            } else if (route.product === "fleet") {
-              // "fleet" scope row → back to the shelf; others → content tab
-              if (t.id === "fleet") navigate(null);
-              else if (route.tab !== t.id) navigateProduct("fleet", t.id);
-            } else if (route.tab !== t.id) {
-              navigateProduct(route.product, t.id);
-            }
-          };
-          return (
-            <button
-              type="button"
-              key={`${route.product}:${t.id || "shelf"}`}
-              class={`scope-tab ${on ? "on" : ""}`}
-              data-prod={route.product}
-              onClick={onClick}
-              title={t.title}
-            >
-              {t.label}
-            </button>
-          );
-        })}
-        <span class="navstrip-spacer" aria-hidden />
-        {activeProduct && (
-          <span
-            class="phasechip"
-            data-prod={activeProduct.id}
-            title={activeProduct.title}
-          >
-            <span class="phasechip-step">
-              {PRODUCTS.indexOf(activeProduct) + 1}
-            </span>
-            {activeProduct.phase}
-          </span>
-        )}
-      </nav>
-
-      {slowLink.length > 0 && (
-        <div
-          class="arch-verdict warn usblink-banner"
-          role="alert"
-          title="The negotiated USB link rate is read from the Mac's USB tree when the drive mounts. USB 2.0 caps copies/playback at ~35 MB/s — move the cable to a USB 3.0 (blue) port or a faster hub. Run Health → Speed probe to measure real throughput."
-        >
-          <Icon name="warn" size={15} />
-          <span>
-            <b>Slow USB link:</b>{" "}
-            {slowLink.map((d) => d.nickname ?? d.name).join(", ")}{" "}
-            {slowLink.length === 1 ? "is" : "are"} on a USB 2.0-class link —
-            transfers will crawl. Try a USB 3.0 port or hub.
-          </span>
-          <button
-            type="button"
-            class="usblink-action"
-            onClick={() => {
-              const first = slowLink[0];
-              if (first) openDrive(first.id, "health");
-            }}
-          >
-            Check speed
-          </button>
-        </div>
-      )}
+      <AppHeader
+        drives={drives}
+        interlock={interlock}
+        query={query}
+        results={results}
+        searchRef={searchRef}
+        searchInput={globalSearchInput}
+        setQuery={setQuery}
+        openDrive={openDrive}
+        openPalette={() => setPaletteOpen(true)}
+      />
+      <AppNav route={route} />
 
       <div class="frame">
         <DriveRail
@@ -445,7 +248,7 @@ export function App() {
             <GetDatPage key="getdat" tab={route.tab} />
           ) : route.product === "fulltags" ? (
             <FullTagsPage key="fulltags" tab={route.tab} />
-          ) : route.driveId ? (
+          ) : route.product === "drives" && route.driveId ? (
             <DrivePage
               key={route.driveId}
               driveId={route.driveId}
@@ -471,85 +274,4 @@ export function App() {
   );
 }
 
-/** The empty-crate shelf (no drive selected): the megadj pipeline story —
- *  three product launcher cards in pipeline order — plus the health notes
- *  (failing drives, interlock) and the guided tour. Launchers come from the
- *  same SSOT as the nav strip (PRODUCTS + LEDE), so a new product can't
- *  exist on one surface only. */
-function Welcome(props: {
-  drives: DriveCardData[];
-  locked: boolean;
-  onPick: (id: string) => void;
-}) {
-  const failing = props.drives.filter((d) =>
-    d.badges.some((b) => b.tone === "bad"),
-  );
-  return (
-    <div class="canvas welcome-page">
-      <div class="wstory">
-        <div class="wbrand">
-          <span class="brand-mark big" />
-          <div>
-            <h2>megadj</h2>
-            <p class="wtag">
-              One toolkit for the DJ library: drives stay honest, the archive
-              fills, the tracks get smart.
-            </p>
-          </div>
-        </div>
-        <div class="wpipe">
-          {PRODUCTS.map((p, i) => (
-            <button
-              type="button"
-              key={p.id}
-              class="wcard"
-              data-prod={p.id}
-              onClick={() =>
-                p.id === "drives" ? navigate(null) : navigateProduct(p.id)
-              }
-            >
-              <span class="wphase" data-prod={p.id}>
-                <span class="wstep">{i + 1}</span>
-                {p.phase}
-              </span>
-              <span class="whd">
-                <Icon name={p.icon} size={17} /> {p.label}
-              </span>
-              <span class="wlede">{LEDE[p.id]}</span>
-              <span class="wgo">
-                Open {p.label} <Icon name="play" size={12} />
-              </span>
-            </button>
-          ))}
-        </div>
-        {props.drives.length === 0 && (
-          <div class="note" style={{ justifyContent: "center" }}>
-            <Icon name="usb" size={14} /> No drives yet — plug a DJ USB stick in
-            and it appears on the rail, health-checked automatically.
-          </div>
-        )}
-        {failing.length > 0 && (
-          <div class="note bad" style={{ justifyContent: "center" }}>
-            <Icon name="warn" size={14} />
-            {failing.length} drive{failing.length > 1 ? "s" : ""} flagged —
-            start with {failing[0]!.nickname ?? failing[0]!.name}.
-            <button
-              type="button"
-              class="btn sm"
-              onClick={() => props.onPick(failing[0]!.id)}
-            >
-              Open
-            </button>
-          </div>
-        )}
-        {props.locked && (
-          <div class="note bad" style={{ justifyContent: "center" }}>
-            <Icon name="warn" size={14} /> rekordbox is running — jobs are
-            locked until it quits.
-          </div>
-        )}
-      </div>
-      <Onboard />
-    </div>
-  );
-}
+/** Suite-wide status, search, and USB-link warning chrome. */
