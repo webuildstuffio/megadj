@@ -9,11 +9,21 @@ carry an explicit, recorded exemption** in §4 of this doc. A gap without
 an exemption row is a bug; `cratedeck/test/surface-parity.test.ts`
 fails the build on it.
 
+Rev 27 · 2026-09-14 — `megadj rb-playlist --apply` and `megadj rb-import`
+now create playlist rows and their `masterPlaylists6.xml` NODE twins through
+one compensating mutation seam. Both collection files are backed up first;
+XML is replaced atomically; delayed verification covers DB rows and XML
+nodes; either-half failure restores both. Rekordbox IDs cross the Python/JSON
+boundary as decimal strings to preserve 64-bit precision, then convert to
+uppercase hexadecimal only at the RB7 XML boundary.
+
 Rev 26 · 2026-09-14 — postmortem F1/F2/F3/F7 surface: `megadj rb-cues`
-(the only djmdCue writer; restamps pads-invisible Kind=0 rows to Kind=1 —
-semantics pinned by the F4 spike: RB never writes 0), `megadj rb-dedup`
-(same-path/same-title ±2s dupe sweep; keeper = Contents/ row, losers lose
-rows only, shared files never move), and `megadj rb-playlist reconcile`
+(the only djmdCue writer; restamps only the provenance-matching Sep 12
+incident rows from Kind=0 memory-cue semantics to Kind=1 hot-cue semantics),
+`megadj rb-dedup`
+(same-path twins or title/duration-prefiltered exact acoustic-fingerprint
+twins; keeper = Contents/ row, shared files never move), and `megadj
+rb-playlist reconcile`
 (the XML-twin healer; RB7 XML stores Ids as HEX of the DB decimal — the
 hex conversion is the whole bug class). All CLI-only under §4-A1 (master-DB
 mutation), all dry-run-first with dated backups + re-read verify, and all
@@ -32,7 +42,7 @@ archive.db up, runs transactionally, removes stale cross-links without deleting
 historical tracks, and verifies the full census. CLI-only under §4-A1 because
 it mutates archive state; the master database is read-only.
 
-Rev 24 · 2026-09-12 — FullTags set-builder recovery + handoff: proposals
+Rev 24 · 2026-09-12 — FullTags MegaSet recovery + handoff: proposals
 resolve stale `DJ-Imports` paths against the configured shelf, collapse DB
 aliases by physical path, and report requested versus actual runtime. The UI
 adds common-duration presets, saves drafts locally, and downloads the reviewed
@@ -42,7 +52,7 @@ gated `megadj rb-playlist --apply` CLI operation under §4-A1.
 
 Rev 23 · 2026-09-12 — `megadj adopt --shelf [--apply]`: when a folder reorg
 moves local archive files onto the shelf, downloaded rows keep stale local
-paths and every file-existence consumer (set-builder pool, rb-playlist
+paths and every file-existence consumer (MegaSet pool, rb-playlist
 chain) silently drops them. `--shelf` repoints those rows at the NFC+casefold
 basename match under `<shelf>/Contents/` (real filesystem walk, so files not
 yet imported into master.db still match). Dry-run by default; `--apply`
@@ -59,7 +69,7 @@ EMPTY genre columns via `COALESCE` (never clobbers). Same pass adds the
 setbuild 300-cap: absent `?limit=` now means the WHOLE analyzed library.
 
 Rev 21 · 2026-09-11 — `megadj rb-playlist` (the set-build write-off): a
-set-builder chain becomes a playlist in the shelf master DB (`/PIONEER/
+MegaSet chain becomes a playlist in the shelf master DB (`/PIONEER/
 Master/master.db`), linking EXISTING content rows by NFC-normalized
 filename — no new content rows, so the fullpush pipeline stays the only
 injection path. Same gate family as rb-import (dated backup, rekordbox-
@@ -67,140 +77,126 @@ quit gate, dry-run default, post-verify with TrackNo contiguity) plus a
 read-only match probe so the dry-run predicts the link count honestly.
 Intentionally CLI-shaped under §4-A1 (long-running master-DB mutation,
 same as the rest of the rb family). Rev 20 · 2026-09-11 — `megadj setbuild` closes §4 #4 (the last CLI-vs-MCP
-archive read gap): the M66 set-builder gets a CLI spoke over the SAME engine
-+ parse/clamp seam the route and MCP tool share; pool-cap defaults unified on
-the shared `SET_POOL_*` constants (the loader's local 400 disagreed with the
-documented 300), a requested opener missing from the pool is now excluded
-loudly instead of silently ignored, and `drainStdout` no longer truncates
-piped `--json` output (an empty `Bun.write(fd,"")` discarded everything
-already buffered — every piped `writeJson` command was affected). Rev 19 · 2026-09-11 — `megadj shelf-restore <finding-id|path>` restores
-ledger-owned hygiene quarantine sources with MD5 verification, a shared
-mutation lease, and optional `--into` target. It is intentionally CLI-only:
-the source/destination operation is local filesystem work and has no safe
-deckctl/MCP/UI target yet; the explicit R1 exemption is recorded in §4.
-Rev 18 · 2026-09-11 — hygiene listen-first enforcement: Rev 16's
-"refuse batch-confirm" claim was doc-only — a super-sure live probe
-proved `POST /api/hygiene/bucket-confirm {bucket:"quality-diff"}`
-silently confirmed 94 unreviewed findings (the guard existed only in
-the deckctl spoke, never the engine or route). The refusal now lives
-in the engine (`src/archive/hygiene/subcategory.ts` `LISTEN_FIRST_BUCKETS` +
-`isListenFirst`, enforced by `shelf-hygiene --bucket`) and the route
-pre-checks the same rule; usage/help text and tests pin it at every
-layer. Rev 17 · 2026-09-11 — hygiene A/B compare: `GET /api/hygiene/audio` +
-`GET /api/hygiene/stats` (61 routes) stream shelf audio + ffprobe
-sidecars for the ear-check queue's compare cards. The rail is
-shelf-root-only, audio-extension-only, no traversal (403 otherwise).
-Rev 16 · 2026-09-11 — hygiene acoustic subcategories: the bucket
-batch-confirm route (`POST /api/hygiene/bucket-confirm`, 59 routes) rides
-the megadj CLI (`shelf-hygiene --bucket`) as its engine; `deckctl hygiene
+archive read gap): the MegaSet copilot gets a CLI spoke over the SAME engine
+
+- parse/clamp seam the route and MCP tool share; pool-cap defaults unified on
+  the shared `SET_POOL_*` constants (the loader's local 400 disagreed with the
+  documented 300), a requested opener missing from the pool is now excluded
+  loudly instead of silently ignored, and `drainStdout` no longer truncates
+  piped `--json` output (an empty `Bun.write(fd,"")` discarded everything
+  already buffered — every piped `writeJson` command was affected). Rev 19 · 2026-09-11 — `megadj shelf-restore <finding-id|path>` restores
+  ledger-owned hygiene quarantine sources with MD5 verification, a shared
+  mutation lease, and optional `--into` target. It is intentionally CLI-only:
+  the source/destination operation is local filesystem work and has no safe
+  deckctl/MCP/UI target yet; the explicit R1 exemption is recorded in §4.
+  Rev 18 · 2026-09-11 — hygiene listen-first enforcement: Rev 16's
+  "refuse batch-confirm" claim was doc-only — a super-sure live probe
+  proved `POST /api/hygiene/bucket-confirm {bucket:"quality-diff"}`
+  silently confirmed 94 unreviewed findings (the guard existed only in
+  the deckctl spoke, never the engine or route). The refusal now lives
+  in the engine (`src/archive/hygiene/subcategory.ts` `LISTEN_FIRST_BUCKETS` +
+  `isListenFirst`, enforced by `shelf-hygiene --bucket`) and the route
+  pre-checks the same rule; usage/help text and tests pin it at every
+  layer. Rev 17 · 2026-09-11 — hygiene A/B compare: `GET /api/hygiene/audio` +
+  `GET /api/hygiene/stats` (61 routes) stream shelf audio + ffprobe
+  sidecars for the ear-check queue's compare cards. The rail is
+  shelf-root-only, audio-extension-only, no traversal (403 otherwise).
+  Rev 16 · 2026-09-11 — hygiene acoustic subcategories: the bucket
+  batch-confirm route (`POST /api/hygiene/bucket-confirm`, 59 routes) rides
+  the megadj CLI (`shelf-hygiene --bucket`) as its engine; `deckctl hygiene
 bucket <name>` is the CLI spoke; the Hygiene tab's bucket strip is the UI
-spoke. Listen-first buckets (quality-diff/oddball/ear-check) refuse
-batch-confirm on every surface — filtering only. Rev 15 · 2026-09-10 — HTTP route census now derives the exact API count
-from the dispatchers (59 routes), and the maintenance command family exports
-its verb list so CLI census and dispatch cannot drift. Rev 14 · 2026-09-10 — grid-audit build-out: three new megadj commands
-(`gold-report`, `rb-grid-triage`, `rb-anlz-spike`) —
-gold-standard metrics, ANLZ/PQTZ grid triage, and the write-path spike
-harness (the shelf family's `shelf-sweeps` returned in the same pass,
-keeping the census at 33). All three are `--json` P1 reads; §4-A1
-extends to them (the triage reads the master DB read-only; the spike
-writes its baseline to `~/.local/state`, never the drive). Rev 13 · 2026-09-10 — the re-audit: the megadj CLI surface was never
-censused (the test counted deckctl + MCP only), and the doc had drifted
-to "19 commands" while `src/cli.ts` carries 33 — the whole shelf family
-(`shelf-sync/archive/dedupe/dupescan/hygiene/sweeps`, `rb-fix-paths`),
-`booth-fix`, `dedupe-archive`, `drop`, `similar`, `upgrade`, `years`,
-`beats`, `mood`, `cues` landed uncensused. The census now covers all
-four surfaces (34 commands + 23 verbs + 37 tools); the job-kind SSOT
-(`shared/types.ts` `JOB_KINDS`/`DRIVE_JOB_KINDS`) replaced three
-hand-copied lists that had each already dropped a kind (`speedtest`
-fell out of deckctl run, `ingest` out of `deck_explain`'s enum); and
-every megadj command must appear in `src/usage.ts` (P1 help contract).
-§0 lists what's still open. Rev 12 · 2026-09-10 — shelf hygiene (P2+P3: `deckctl hygiene`,
-`deck_hygiene`, Hygiene tab over the findings ledger) and booth fixes
-(`deckctl fixes`, `deck_fixes`, Fixes tab over the booth-fix plan);
-census — 23 verbs + 37 tools. Rev 11 · 2026-09-10 — GetDat ⌗ Intake tab (live `megadj ingest` runs
-over the job engine, watch-folder + batch-folder allowlist, post-run
-audit verdict); census re-derived — 21 verbs + 35 tools (the booth
-fleet rev added `deck_booth` + the `booth` verb without bumping the
-§1 table; the census test now derives the doc strings from source, so
-this class of drift fails the build). Rev 10 · 2026-09-09 — I49 "sounds like" (`archive_similar_tracks`,
-cosine kNN over the `embeddings` ledger, UI: FullTags ⌗ Similar) and
-M66 set-builder copilot (`archive_set_build`, propose-only chain
-builder) — 34 tools. Rev 9 · 2026-09-08 — the atomic web restructure: `web/` is now feature-
-foldered (`app/` entry + router, `ui/` shared components, `products/`
-SSOT + one folder per product, `styles/` split tokens/base/shell/rail/
-canvas/pages) — same surfaces, new paths (`web/app/App.tsx`,
-`web/products/shared.tsx`, …). Products gained educational ledes: a
-phase chip on the nav strip ("1 · the drives stay honest"), a
-`ProductIntro` band atop each canvas, and the Welcome route became the
-megadj pipeline story with three product launcher cards (all copy from
-the `products/shared.tsx` SSOT: `PRODUCTS` + `LEDE`). Rev 8 ·
-2026-09-08 — the header redesign: the suite brand is **megadj**
-(top-left), and the product nav moved to its own nav strip row with
-exactly three products — **CrateDeck** (the DJ USB drives + their fleet),
-**GetDat**, **FullTags**. Fleet is no longer presented as a fourth
-product: it's a CrateDeck scope tab (Drives | Fleet), with Fleet's six
-content tabs following it on the same strip when the Fleet route is
-active. The tab strips for nav + pages now come from one SSOT table
-(`web/products/shared.tsx` `PRODUCTS` + `PRODUCT_TABS`); page canvases no
-longer render their own identity header. Rev 7 · 2026-09-08 — the
-integration pass: the archive's own decision
-records became surfaces. Three new readonly reads with same-commit twins
-(`archive_skip_census` — why gone/skipped rows didn't land,
-`archive_sources` — the source census the Sources diff form suggests
-from, `archive_analysis_coverage` — one playable-vs-ledgers progress
-picture), `ingest_status` grew run throughput (attempted + bytes), and
-the GetDat/FullTags canvases render all of it. Rev 6 ·
-2026-09-08 — the product split: the web shell grew top-level
-product tabs (Drives / **GetDat** / **FullTags** / Fleet), giving the
-archive's two sub-products their own canvases (GetDat: pipeline/backlog/
-sources/library; FullTags: beatgrids/mood/cues/tags) instead of one
-Archive card — and the two new readonly reads behind them
-(`archive_library_overview`, `archive_cue_ledger`) got their MCP twins in
-the same commit (29 tools). Rev 5 · 2026-09-08 — closed GAP-12: the
-combined status read
-(`GET /api/status`, the `deckctl status --json` envelope) 404'd because
-only `/api/interlock`, `/api/drives`, `/api/jobs` existed; deckctl and MCP
-assembled their status views client-side while the API hub had no single
-read. Rev 4 · 2026-09-08 · the in-app help SSOT (`shared/help.ts`, served at
-`GET /api/help`) and note dismissal got their CLI/MCP twins (`deckctl
+  spoke. Listen-first buckets (quality-diff/oddball/ear-check) refuse
+  batch-confirm on every surface — filtering only. Rev 15 · 2026-09-10 — HTTP route census now derives the exact API count
+  from the dispatchers (59 routes), and the maintenance command family exports
+  its verb list so CLI census and dispatch cannot drift. Rev 14 · 2026-09-10 — grid-audit build-out: three new megadj commands
+  (`gold-report`, `rb-grid-triage`, `rb-anlz-spike`) —
+  gold-standard metrics, ANLZ/PQTZ grid triage, and the write-path spike
+  harness (the shelf family's `shelf-sweeps` returned in the same pass,
+  keeping the census at 33). All three are `--json` P1 reads; §4-A1
+  extends to them (the triage reads the master DB read-only; the spike
+  writes its baseline to `~/.local/state`, never the drive). Rev 13 · 2026-09-10 — the re-audit: the megadj CLI surface was never
+  censused (the test counted deckctl + MCP only), and the doc had drifted
+  to "19 commands" while `src/cli.ts` carries 33 — the whole shelf family
+  (`shelf-sync/archive/dedupe/dupescan/hygiene/sweeps`, `rb-fix-paths`),
+  `booth-fix`, `dedupe-archive`, `drop`, `similar`, `upgrade`, `years`,
+  `beats`, `mood`, `cues` landed uncensused. The census now covers all
+  four surfaces (34 commands + 23 verbs + 37 tools); the job-kind SSOT
+  (`shared/types.ts` `JOB_KINDS`/`DRIVE_JOB_KINDS`) replaced three
+  hand-copied lists that had each already dropped a kind (`speedtest`
+  fell out of deckctl run, `ingest` out of `deck_explain`'s enum); and
+  every megadj command must appear in `src/usage.ts` (P1 help contract).
+  §0 lists what's still open. Rev 12 · 2026-09-10 — shelf hygiene (P2+P3: `deckctl hygiene`,
+  `deck_hygiene`, Hygiene tab over the findings ledger) and booth fixes
+  (`deckctl fixes`, `deck_fixes`, Fixes tab over the booth-fix plan);
+  census — 23 verbs + 37 tools. Rev 11 · 2026-09-10 — GetDat ⌗ Intake tab (live `megadj ingest` runs
+  over the job engine, watch-folder + batch-folder allowlist, post-run
+  audit verdict); census re-derived — 21 verbs + 35 tools (the booth
+  fleet rev added `deck_booth` + the `booth` verb without bumping the
+  §1 table; the census test now derives the doc strings from source, so
+  this class of drift fails the build). Rev 10 · 2026-09-09 — I49 "sounds like" (`archive_similar_tracks`,
+  cosine kNN over the `embeddings` ledger, UI: FullTags ⌗ Similar) and
+  MegaSet copilot (`archive_set_build`, propose-only chain
+  builder) — 34 tools. Rev 9 · 2026-09-08 — the atomic web restructure: `web/` is now feature-
+  foldered (`app/` entry + router, `ui/` shared components, `products/`
+  SSOT + one folder per product, `styles/` split tokens/base/shell/rail/
+  canvas/pages) — same surfaces, new paths (`web/app/App.tsx`,
+  `web/products/shared.tsx`, …). Products gained educational ledes: a
+  phase chip on the nav strip ("1 · the drives stay honest"), a
+  `ProductIntro` band atop each canvas, and the Welcome route became the
+  megadj pipeline story with three product launcher cards (all copy from
+  the `products/shared.tsx` SSOT: `PRODUCTS` + `LEDE`). Rev 8 ·
+  2026-09-08 — the header redesign: the suite brand is **megadj**
+  (top-left), and the product nav moved to its own nav strip row with
+  exactly three products — **CrateDeck** (the DJ USB drives + their fleet),
+  **GetDat**, **FullTags**. Fleet is no longer presented as a fourth
+  product: it's a CrateDeck scope tab (Drives | Fleet), with Fleet's six
+  content tabs following it on the same strip when the Fleet route is
+  active. The tab strips for nav + pages now come from one SSOT table
+  (`web/products/shared.tsx` `PRODUCTS` + `PRODUCT_TABS`); page canvases no
+  longer render their own identity header. Rev 7 · 2026-09-08 — the
+  integration pass: the archive's own decision
+  records became surfaces. Three new readonly reads with same-commit twins
+  (`archive_skip_census` — why gone/skipped rows didn't land,
+  `archive_sources` — the source census the Sources diff form suggests
+  from, `archive_analysis_coverage` — one playable-vs-ledgers progress
+  picture), `ingest_status` grew run throughput (attempted + bytes), and
+  the GetDat/FullTags canvases render all of it. Rev 6 ·
+  2026-09-08 — the product split: the web shell grew top-level
+  product tabs (Drives / **GetDat** / **FullTags** / Fleet), giving the
+  archive's two sub-products their own canvases (GetDat: pipeline/backlog/
+  sources/library; FullTags: beatgrids/mood/cues/tags) instead of one
+  Archive card — and the two new readonly reads behind them
+  (`archive_library_overview`, `archive_cue_ledger`) got their MCP twins in
+  the same commit (29 tools). Rev 5 · 2026-09-08 — closed GAP-12: the
+  combined status read
+  (`GET /api/status`, the `deckctl status --json` envelope) 404'd because
+  only `/api/interlock`, `/api/drives`, `/api/jobs` existed; deckctl and MCP
+  assembled their status views client-side while the API hub had no single
+  read. Rev 4 · 2026-09-08 · the in-app help SSOT (`shared/help.ts`, served at
+  `GET /api/help`) and note dismissal got their CLI/MCP twins (`deckctl
 help|dismiss` + `deck_help`/`deck_dismiss`), closing the last two true
-gaps the Sep 8 UI help pass created. **Rev 3** (2026-09-07) took its
-census from source the same day (every count below re-derived from
-`src/cli.ts`, `cratedeck/src/deckctl.ts`,
-`cratedeck/src/mcp.ts` + `archive_tools.ts`, `cratedeck/src/index.ts`,
-`cratedeck/web/*.tsx`) and closed every remaining closeable exemption:
-D1 (`report --dossier` + `deck_report {format: "dossier"}`),
-D2-rename (`deckctl rename` + `deck_rename`), G2 (Fleet ⌗ Prep tab),
-A3 (Fleet ⌗ Archive tab). Rev 2 closed GAP-1/2/3 (UI Mirror button,
-`deck_prep` tool, `deckctl note|notes` verbs), G1 (Fleet ⌗ Preflight
-tab), F2 (`deckctl search` + `deck_search`). What remains in §4 is
-physically principled — host process control, photo upload, and archive
-mutation safety rails. `cratedeck/test/surface-parity.test.ts` keeps it
-that way.
+  gaps the Sep 8 UI help pass created. **Rev 3** (2026-09-07) took its
+  census from source the same day (every count below re-derived from
+  `src/cli.ts`, `cratedeck/src/deckctl.ts`,
+  `cratedeck/src/mcp.ts` + `archive_tools.ts`, `cratedeck/src/index.ts`,
+  `cratedeck/web/*.tsx`) and closed every remaining closeable exemption:
+  D1 (`report --dossier` + `deck_report {format: "dossier"}`),
+  D2-rename (`deckctl rename` + `deck_rename`), G2 (Fleet ⌗ Prep tab),
+  A3 (Fleet ⌗ Archive tab). Rev 2 closed GAP-1/2/3 (UI Mirror button,
+  `deck_prep` tool, `deckctl note|notes` verbs), G1 (Fleet ⌗ Preflight
+  tab), F2 (`deckctl search` + `deck_search`). What remains in §4 is
+  physically principled — host process control, photo upload, and archive
+  mutation safety rails. `cratedeck/test/surface-parity.test.ts` keeps it
+  that way.
 
 ---
 
-## 0. Do-next (the re-audit's open items, worst first)
+## 0. Current parity status
 
-Carry-overs from the rev 13 pass — each is a named gap, not a vibe:
-
-1. **Resolved:** `speedtest` has a DrivePage button and a `KIND_DOCS` entry.
-2. **Resolved (rev 19, really this time):** `deck_explain` documents
-   `speedtest` through `KIND_DOCS` — a rev-15 live probe had proved the
-   earlier "Resolved" false (`deckctl explain speedtest` said `unknown
-kind`; the MCP schema advertised a kind whose call errored).
-   `speedtest` + `ingest` KIND_DOCS rows landed, the deck_explain enum
-   derives from `KIND_DOCS` keys, and `cratedeck/test/kind-docs.test.ts`
-   pins KIND_DOCS ∪ {verify} === JOB_KINDS so this cannot silently
-   regress again.
-3. **Resolved:** the HTTP API route count is derived by the census test.
-4. **Resolved (rev 20):** `megadj setbuild [--preset warmup|peak|afterhours]
-   [--minutes N] [--opener <video_id>] [--limit N] [--json]` closes the last
-   CLI-vs-MCP archive read gap — same engine, same `parseSetbuildQuery`
-   validation, same pool clamp as the route and the MCP tool (one SSOT seam,
-   `cratedeck/src/setbuild.ts`); the parity test now pins the twin pair.
-5. **Resolved:** `maintenance-cmds.ts` exports `MAINTENANCE_VERBS`, and
-   `cli.ts` dispatches the family from that single list.
+There are no unexempted gaps. Counts come from source and are pinned by
+`cratedeck/test/surface-parity.test.ts`; the current census is in §1 and the
+deliberate exemptions are in §4. Historical repair details belong in
+[the agent playbook](agent-playbook.md) and Git history, not a second backlog.
 
 ---
 
@@ -271,32 +267,32 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 
 ### 2d. Archive (GetDat/FullTags) operations
 
-| Capability                                        | CLI (megadj)                                                                 | MCP                                                       | UI                                                                                               | Verdict                                  |
-| ------------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------- |
-| sync / status / list / retry / adopt              | ✅ `adopt --shelf [--apply]` repoints moved-file rows at shelf copies (rev 23; dry-run default) | ⛔ §4-A1 (archive writes stay CLI)                        | ⛔ §4-A1 (Intake drives `ingest` only, as a CLI spawn)                                           | —                                        |
-| ingest / fetch / enrich / artwork / audit / years | ✅                                                                           | `getdat_ingest` ✅; reads only (`archive_*`) for the rest | ingest: GetDat ⌗ Intake ✅ (rev 11 — runs the CLI as a job); fetch/audit reads ✅                | —                                        |
-| archive WAV→AIFF conversion                       | `megadj convert` ✅                                                          | `getdat_convert` ✅ (async CLI seam; JSON summary)        | GetDat ⌗ Intake / FullTags pipeline ✅                                                           | —                                        |
-| beats / mood / cues                               | ✅                                                                           | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                                         | —                                        |
-| organize                                          | ✅                                                                           | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                                         | —                                        |
-| doctor / init                                     | ✅                                                                           | ⛔ §4-A2 (host setup is human work)                       | ⛔ §4-A2                                                                                         | —                                        |
-| Archive search                                    | `megadj list` ✅                                                             | `archive_search_tracks` ✅                                | ⌘K + GetDat ⌗ Library ✅                                                                         | — (A3 closed rev 3)                      |
-| Track stats                                       | `status`/`list` ✅                                                           | `archive_track_stats` ✅                                  | FullTags ⌗ Beatgrids/Mood cards ✅                                                               | — (A3 closed rev 3)                      |
-| Ingest status / LOWQ queue                        | `list LOWQ` ✅                                                               | `archive_ingest_status`/`lowq_queue` ✅                   | GetDat ⌗ Pipeline/Backlog ✅                                                                     | — (A3 closed rev 3; product split rev 6) |
-| Source diff                                       | —                                                                            | `archive_source_diff` ✅                                  | GetDat ⌗ Sources (rev 6 — F3's UI half is here; F3's MCP row below keeps its original rationale) | —                                        |
-| Grid cross-check                                  | `megadj beats` data ✅                                                       | `archive_grid_cross_check` ✅                             | FullTags ⌗ Beatgrids ✅                                                                          | — (A3 closed rev 3; product split rev 6) |
-| Mood profile                                      | `megadj mood` data ✅                                                        | `archive_mood_profile` ✅                                 | FullTags ⌗ Mood ✅                                                                               | — (A3 closed rev 3; product split rev 6) |
-| Similar tracks (I49 sounds-like)                  | `megadj similar <id>` ✅                                                     | `archive_similar_tracks` ✅                               | FullTags ⌗ Similar (rev 10) ✅                                                                   | — (rev 10)                               |
-| Set-builder proposal (M66)                        | `megadj setbuild [--preset --minutes --opener --limit]` ✅ (rev 20)          | `archive_set_build` ✅ (propose-only)                     | FullTags ⌗ Similar panel + saved draft/M3U8 download ✅ (rev 24)                                 | — (same read-only proposal; requested/actual duration stays explicit) |
-| Set-build → master playlist (rev 21)              | `megadj rb-playlist [drive] [--preset …] [--apply --yes]` ✅                 | ⛔ §4-A1 (master-DB mutation stays CLI)                   | ⛔ §4-A1                                                                                         | — (links existing content rows; dry-run predicts the link count) |
-| Rekordbox master → archive census (rev 25)         | `megadj rb-adopt [drive] [--apply --yes]` ✅                                | ⛔ §4-A1 (archive DB mutation stays CLI)                  | ⛔ §4-A1                                                                                         | — (master read-only; exact Content-ID cross-reference + full metadata mirror) |
-| Cue ledger                                        | `megadj cues` data ✅                                                        | `archive_cue_ledger` ✅                                   | FullTags ⌗ Cues ✅                                                                               | — (rev 6)                                |
-| Library overview (FullTags mirror)                | `megadj fetch`/`audit` data ✅                                               | `archive_library_overview` ✅                             | FullTags ⌗ Tags + GetDat ⌗ Library ✅                                                            | — (rev 6)                                |
-| Skip census (why rows didn't land)                | `megadj list` buckets ✅                                                     | `archive_skip_census` ✅                                  | GetDat ⌗ Pipeline (decisions card) + Backlog ✅                                                  | — (rev 7)                                |
-| Source census                                     | `megadj list` sources ✅                                                     | `archive_sources` ✅                                      | GetDat ⌗ Sources (tag chips feed the diff form) ✅                                               | — (rev 7)                                |
-| Analysis coverage                                 | `megadj beats                                                                | mood                                                      | cues` counts ✅                                                                                  | `archive_analysis_coverage` ✅           | FullTags header meters (one progress picture) ✅ | — (rev 7) |
-| Archive integrity sweep                           | Prep digest (`archive integrity` section) ✅                                 | `archive_sweep` ✅                                        | Fleet ⌗ Prep (digest section) ✅                                                                 | — (D30)                                  |
-| Rename drive                                      | `rename <d> [nick]` ✅                                                       | `deck_rename` ✅                                          | inline rename ✅                                                                                 | — (D2-rename closed rev 3)               |
-| Set drive photo                                   | —                                                                            | ⛔ §4-D2 (human picks the art)                            | Photo tab ✅                                                                                     | —                                        |
+| Capability                                        | CLI (megadj)                                                                                    | MCP                                                       | UI                                                                                               | Verdict                                                                       |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| sync / status / list / retry / adopt              | ✅ `adopt --shelf [--apply]` repoints moved-file rows at shelf copies (rev 23; dry-run default) | ⛔ §4-A1 (archive writes stay CLI)                        | ⛔ §4-A1 (Intake drives `ingest` only, as a CLI spawn)                                           | —                                                                             |
+| ingest / fetch / enrich / artwork / audit / years | ✅                                                                                              | `getdat_ingest` ✅; reads only (`archive_*`) for the rest | ingest: GetDat ⌗ Intake ✅ (rev 11 — runs the CLI as a job); fetch/audit reads ✅                | —                                                                             |
+| archive WAV→AIFF conversion                       | `megadj convert` ✅                                                                             | `getdat_convert` ✅ (async CLI seam; JSON summary)        | GetDat ⌗ Intake / FullTags pipeline ✅                                                           | —                                                                             |
+| beats / mood / cues                               | ✅                                                                                              | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                                         | —                                                                             |
+| organize                                          | ✅                                                                                              | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                                         | —                                                                             |
+| doctor / init                                     | ✅                                                                                              | ⛔ §4-A2 (host setup is human work)                       | ⛔ §4-A2                                                                                         | —                                                                             |
+| Archive search                                    | `megadj list` ✅                                                                                | `archive_search_tracks` ✅                                | ⌘K + GetDat ⌗ Library ✅                                                                         | — (A3 closed rev 3)                                                           |
+| Track stats                                       | `status`/`list` ✅                                                                              | `archive_track_stats` ✅                                  | FullTags ⌗ Beatgrids/Mood cards ✅                                                               | — (A3 closed rev 3)                                                           |
+| Ingest status / LOWQ queue                        | `list LOWQ` ✅                                                                                  | `archive_ingest_status`/`lowq_queue` ✅                   | GetDat ⌗ Pipeline/Backlog ✅                                                                     | — (A3 closed rev 3; product split rev 6)                                      |
+| Source diff                                       | —                                                                                               | `archive_source_diff` ✅                                  | GetDat ⌗ Sources (rev 6 — F3's UI half is here; F3's MCP row below keeps its original rationale) | —                                                                             |
+| Grid cross-check                                  | `megadj beats` data ✅                                                                          | `archive_grid_cross_check` ✅                             | FullTags ⌗ Beatgrids ✅                                                                          | — (A3 closed rev 3; product split rev 6)                                      |
+| Mood profile                                      | `megadj mood` data ✅                                                                           | `archive_mood_profile` ✅                                 | FullTags ⌗ Mood ✅                                                                               | — (A3 closed rev 3; product split rev 6)                                      |
+| Similar tracks (I49 sounds-like)                  | `megadj similar <id>` ✅                                                                        | `archive_similar_tracks` ✅                               | FullTags ⌗ Similar (rev 10) ✅                                                                   | — (rev 10)                                                                    |
+| MegaSet proposal                                  | `megadj setbuild [--preset --minutes --opener --limit]` ✅ (rev 20)                             | `archive_set_build` ✅ (propose-only)                     | FullTags ⌗ Similar panel + saved draft/M3U8 download ✅ (rev 24)                                 | — (same read-only proposal; requested/actual duration stays explicit)         |
+| Set-build → master playlist (rev 21)              | `megadj rb-playlist [drive] [--preset …] [--apply --yes]` ✅                                    | ⛔ §4-A1 (master-DB mutation stays CLI)                   | ⛔ §4-A1                                                                                         | — (links existing content rows; dry-run predicts the link count)              |
+| Rekordbox master → archive census (rev 25)        | `megadj rb-adopt [drive] [--apply --yes]` ✅                                                    | ⛔ §4-A1 (archive DB mutation stays CLI)                  | ⛔ §4-A1                                                                                         | — (master read-only; exact Content-ID cross-reference + full metadata mirror) |
+| Cue ledger                                        | `megadj cues` data ✅                                                                           | `archive_cue_ledger` ✅                                   | FullTags ⌗ Cues ✅                                                                               | — (rev 6)                                                                     |
+| Library overview (FullTags mirror)                | `megadj fetch`/`audit` data ✅                                                                  | `archive_library_overview` ✅                             | FullTags ⌗ Tags + GetDat ⌗ Library ✅                                                            | — (rev 6)                                                                     |
+| Skip census (why rows didn't land)                | `megadj list` buckets ✅                                                                        | `archive_skip_census` ✅                                  | GetDat ⌗ Pipeline (decisions card) + Backlog ✅                                                  | — (rev 7)                                                                     |
+| Source census                                     | `megadj list` sources ✅                                                                        | `archive_sources` ✅                                      | GetDat ⌗ Sources (tag chips feed the diff form) ✅                                               | — (rev 7)                                                                     |
+| Analysis coverage                                 | `megadj beats                                                                                   | mood                                                      | cues` counts ✅                                                                                  | `archive_analysis_coverage` ✅                                                | FullTags header meters (one progress picture) ✅ | — (rev 7) |
+| Archive integrity sweep                           | Prep digest (`archive integrity` section) ✅                                                    | `archive_sweep` ✅                                        | Fleet ⌗ Prep (digest section) ✅                                                                 | — (D30)                                                                       |
+| Rename drive                                      | `rename <d> [nick]` ✅                                                                          | `deck_rename` ✅                                          | inline rename ✅                                                                                 | — (D2-rename closed rev 3)                                                    |
+| Set drive photo                                   | —                                                                                               | ⛔ §4-D2 (human picks the art)                            | Photo tab ✅                                                                                     | —                                                                             |
 
 ## 3. True gaps (all closed — kept as the record)
 

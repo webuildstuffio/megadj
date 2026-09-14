@@ -2,13 +2,11 @@
 
 **Status:** 📚 REFERENCE — current architecture.
 
-v2 · 2026-09-03 · [PRD](02-prd.md) → **Architecture** → [Acceptance](acceptance.md)
+v3 · 2026-09-14 · [PRD](02-prd.md) → **Architecture** → [Acceptance](acceptance.md)
 
-> v1→v2 changes: killed the TS ports of `pdb_live_rows`/ANLZ hashing (that's
-> the divergence bug class that bit us Aug-25 — one Python seam instead of
-> two implementations), collapsed ~25 server files into 10, replaced the 1s
-> poll loop with FSEvents-on-/Volumes + lazy detail, merged detector into one
-> module and the Python boundary into one module.
+> v3 records the shipped domain-store, route, job-runtime, CLI-command, and
+> feature-folder splits. The stable façades remain small; executable schemas,
+> route registries, and interface censuses stay with their producers.
 
 ---
 
@@ -16,14 +14,8 @@ v2 · 2026-09-03 · [PRD](02-prd.md) → **Architecture** → [Acceptance](accep
 
 **One Bun process, one Python seam, one page.**
 
-_Note (2026-09-08 census): the server is now **34 TS files** in `src/` —
-the original ten below plus the health/fleet/agent layers (`report`,
-`images`, `fleet`+`fleet-db`, `deckctl`+`deckctl_{notes,report,search}`,
-`deckapi`, `auto_schedule`, `verify_help`, `walk`, `badges_view`,
-`players`, `preflight`, `notes`, `archive`+`archive_{sweep,tools}`,
-`weekly_prep`, `mcp`+`mcp_params`, `db_ledger`), plus
-`python/usb_tree.py`. The single-seam, guard, and downward-dependency
-rules are unchanged and still hold._
+The server is intentionally flat inside `src/`, but split by concern. File
+counts are not architecture and are therefore not recorded here.
 
 ```
 cratedeck/
@@ -47,36 +39,38 @@ implementations and are **imported directly** by the bridge — never ported,
 never duplicated. If a fast path ever needs one of them in TS, that's a bug
 in the design, not a task.
 
-## 2. The server files (+ the Python seam)
-
-_The original ten, still the load-bearing core:_
+## 2. Server ownership (+ the Python seam)
 
 ```
 src/
-  index.ts      wire-up: config → db → detect → jobs → http; static files
-  config.ts     config.toml + env, validated once at boot
-  db.ts         bun:sqlite: schema v1, migrations, every query (one place)
-  detect.ts     "what's plugged where" — volumes, USB, ports (one concern)
-  registry.ts   drive identity, ghosts, snapshots, timeline events
-  scan.ts       light scan: manifest, sizes, folders, space, junk (orphan ._*, zero-byte)
-  rb.ts         THE Python seam: rekordbox reads + verify/mirror job wrappers
-  bench.ts      benchmark + checksum ledger (pure TS, Bun.CryptoHasher)
-  jobs.ts       queue, progress, interlock (rekordbox running? → refuse)
-  verify_report.ts  usb_verify.py output → structured, explained verdicts (pure)
-  guard.ts      THE write allow-list — every disk write goes through it
+  index.ts            composition root + top-level HTTP dispatcher
+  *_routes.ts         archive, booth, fixes, hygiene, and drive-job routes
+  db.ts               stable persistence façade
+  db_core.ts          connection, base schema, migrations, retention
+  db_{activity,drives,library,bench,ledger}.ts
+                      domain-owned query stores
+  jobs.ts             stable job façade and queue state
+  job_{runtime,execution}.ts / *_jobs.ts
+                      execution legs, progress, cancellation, family jobs
+  detect.ts / registry.ts / scan.ts
+                      mount truth, drive identity, and read-only scans
+  rb.ts               THE Python seam for rekordbox reads and job wrappers
+  deckctl*.ts         one-way CLI command modules
+  mcp*.ts             MCP registration, schemas, and transport
+  guard.ts            allow-list for mounted-drive writes
 ```
 
-_The added files follow the same dependency rules: pure engines
-(`report`, `fleet`, `preflight`, `players`, `verify_report`,
-`verify_help`), persistence (`fleet-db`, `db_ledger`), the agent/CLI
-spokes (`deckctl*`, `deckapi`, `mcp*`, `notes`, `archive*`,
-`weekly_prep`), and shared infra (`walk`, `badges_view`, `images`,
-`auto_schedule`, `archive_sweep`). Every capability they add is
-registered in `docs/surface-parity.md` §4._
+Pure engines (`report*`, `coverage`, `preflight*`, `players`,
+`verify_report`, `verify_help`) sit below the HTTP/CLI/MCP spokes. Shared
+infrastructure (`walk`, `badges_view`, `images`, `auto_schedule`,
+`archive_sweep`) does not own product policy. Every capability is registered
+in [surface parity](../surface-parity.md) or carries an explicit exemption.
 
-Dependency direction is strictly downward: `index → {api-ish files} →
-domain files → db/guard`. `rb.ts` is the only file allowed to spawn
-processes. `guard.ts` is the only file allowed to write outside `data/`.
+Dependency direction is strictly downward: composition/transport → domain
+engines → persistence and guarded I/O. `rb.ts` owns the rekordbox Python
+seam. Mounted-drive writes go through `guard.ts`; local app state, explicit
+CLI exports, and the atomic booth-config rewrite are separate reviewed
+boundaries.
 
 ## 3. Detection: event-driven, not polled
 
@@ -116,40 +110,16 @@ truth, checked at the seam — not scattered through the UI.
 
 ## 5. Data model (bun:sqlite, WAL)
 
-```sql
-drives(id TEXT PK, volume_uuid TEXT UNIQUE, name TEXT, photo_path TEXT,
-       capacity_bytes INT, fs TEXT, vendor TEXT, model TEXT, usb_serial TEXT,
-       role TEXT,                       -- master|mirror|library|unknown
-       first_seen_at INT, last_seen_at INT, last_port_key TEXT,
-       plug_count INT, mounted INT, last_snapshot_json TEXT,  -- ghost fuel
-       predecessor_id TEXT)             -- reformat lineage
+The executable DDL and additive migrations live in `db_core.ts`; domain
+tables and queries live in the `db_*` stores behind the `db.ts` façade. The
+canonical schema map is [Data stores and schema ownership](../data-model.md).
 
-events(id TEXT PK, drive_id TEXT, at INT, kind TEXT, data_json TEXT)
-       -- mounted/unmounted(dirty?), port, scan, job-done, rename, photo...
+Design choices: ghost rendering reads the last snapshot stored with the drive;
+snapshot and event retention are bounded by producer constants; jobs carry
+their own result history; checksum rows use blake2b256. Exact columns are not
+copied into this document.
 
-snapshots(drive_id TEXT, taken_at INT, kind TEXT, data_json TEXT,
-          PRIMARY KEY(drive_id, taken_at))    -- 20/drive rolling window (disk-burn guard)
-
-benchmarks(drive_id TEXT, ran_at INT, seq_mbps REAL, rand4k_mbps REAL)
-ledger(drive_id TEXT, path TEXT, size INT, mtime INT, hash TEXT, last_ok INT,
-       PRIMARY KEY(drive_id, path))           -- bitrot detection
-
-jobs(id TEXT PK, drive_id TEXT, kind TEXT, status TEXT, progress REAL,
-     log_path TEXT, result_json TEXT, error TEXT,
-     created_at INT, started_at INT, finished_at INT)
-
-settings(key TEXT PK, value_json TEXT)
-```
-
-Design choices: ghost rendering reads `drives.last_snapshot_json` (one row,
-no join); full snapshot history is kept as a
-**20-per-drive rolling window** (`db.ts` `pruneSnapshots`, with events
-capped at 2000/drive) to bound disk burn; jobs double as verification
-history (`result_json` holds the verdict —
-no separate verifications table). Checksum = `Bun.CryptoHasher` blake2b256,
-zero deps.
-
-## 6. API (all under `/api`, one file)
+## 6. API (all under `/api`)
 
 ```
 GET  /drives                     cards (mounted + ghosts + badges)
@@ -164,9 +134,11 @@ GET  /images/search?q=           provider proxy
 GET  /events                     SSE: mounts, job progress, interlock
 ```
 
-_The full live route surface (fleet, preflight, archive, notes, sweep,
-parity-era additions) is catalogued in `docs/surface-parity.md`; this
-list is the original core shape._
+`index.ts` owns top-level dispatch; `archive_routes.ts`, `booth_routes.ts`,
+`drive_job_routes.ts`, `fixes_routes.ts`, and `hygiene_routes.ts` own cohesive
+route families. The list above is the stable core shape, not a route census.
+The exact live surface is derived and pinned in
+[surface parity](../surface-parity.md).
 
 Job dedupe: one queued/running job per (drive, kind).
 
@@ -180,15 +152,12 @@ never re-queried for that drive.
 
 ## 8. Frontend
 
-Preact + Vite. Two-pane layout driven by a **zero-dep hash router**
-(`web/router.ts`, `#/drives/:id/:tab`) — deep links and browser
-back/forward work with no router dependency. `DriveRail` (all drives,
-ghosts dimmed) → `DrivePage` (Overview / Playlists / Health / Timeline /
-Photo tabs: `PlaylistsTab`, `HealthTab`, `TimelineTab`) · `JobsDock` ·
-interlock banner · toast notifications (`toast.tsx`) · `icons.tsx`. SSE
-with auto-reconnect. Badge rules live in `shared/badges.ts`, computed
-server-side, rendered client-side — badge and data can never disagree.
-Dark, flat, crate-card metaphor; spinning state while a job runs.
+Preact + Vite. `web/app/` owns composition and the zero-dependency hash router;
+`web/products/` owns CrateDeck, GetDat, and FullTags canvases; `web/ui/` owns
+shared components; `web/styles/` owns per-concern stylesheets. Deep links and
+browser back/forward work without a router dependency. SSE reconnects and
+coalesces job updates. Badge rules live in `shared/badges.ts`, computed
+server-side and rendered client-side so badge and data cannot disagree.
 
 _(2026-09-04 audit note: original plan was a single page with a
 `DriveDrawer` drawer; shipped as rail + routed page, which scales better
@@ -222,9 +191,10 @@ with five tabs and deep-linkable drive state.)_
 
 ## 11. Security
 
-Bind 127.0.0.1 only. API key never leaves the server. Uploads size/type
-capped. Subprocess args are UUIDs from our DB, never user strings. The
-structural guarantee: `guard.ts` allow-lists every writable path (`data/`,
-scratch); a repo test fails if any file outside `guard.ts` performs a
-write. The app is incapable of writing to a gig drive except through one
-auditable, logged, user-initiated path.
+Bind `127.0.0.1` only. Non-loopback Host/Origin requests are rejected. API
+keys never leave the server. Uploads are body-limited, content-typed, decoded
+under bounded dimensions, and assigned server-owned destinations. Subprocess
+arguments are resolved identifiers or validated paths, never raw route text.
+`guard.ts` allow-lists mounted-drive writes; local SQLite/config/export writes
+remain explicit reviewed seams. No write path targets the user-managed playing
+USB.
