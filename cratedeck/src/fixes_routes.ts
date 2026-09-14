@@ -6,6 +6,9 @@
 // recordFixes() after a scan/apply (leaf import — no cycle; this module
 // imports only shared/fixes).
 import type { FixesPayload } from "../shared/fixes";
+import type { JobKind } from "../shared/types";
+
+type FixesJobKind = Extract<JobKind, "fixes-scan" | "fixes-apply">;
 
 /** Last completed fixes scan/apply payload (per process; null = never). */
 let lastFixes: FixesPayload | null = null;
@@ -17,7 +20,7 @@ export function recordFixes(p: FixesPayload): void {
 
 export function makeFixesRoutes(deps: {
   /** enqueue a fixes job ("fixes-scan" | "fixes-apply") */
-  enqueue: (kind: "fixes-scan" | "fixes-apply") => { id: string };
+  enqueue: (kind: FixesJobKind) => { id: string };
   json: (data: unknown, status?: number) => Response;
 }) {
   const { enqueue, json } = deps;

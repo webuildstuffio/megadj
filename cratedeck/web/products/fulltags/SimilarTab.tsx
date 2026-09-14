@@ -45,6 +45,8 @@ export interface TrackPick {
   title: string | null;
   artist?: string | null;
 }
+
+type HitsStatus = "ok" | "loading" | "error";
 /** Search + pick ONE track — the shared picker under both panels (the
  *  sounds-like query track and the set-builder opener both need it; two
  *  hand-rolled variants had already drifted once). Debounces nothing —
@@ -53,7 +55,7 @@ export function TrackPickSearch(props: {
   query: string;
   onQuery: (v: string) => void;
   hits: ArchiveSearchHit[] | null;
-  hitsStatus: "ok" | "loading" | "error";
+  hitsStatus: HitsStatus;
   placeholder: string;
   onPick: (t: TrackPick) => void;
   /** optional footer note under the results (e.g. "no matches") */
@@ -396,7 +398,7 @@ function OpenerPicker(props: {
   query: string;
   onQuery: (v: string) => void;
   hits: ArchiveSearchHit[] | null;
-  hitsStatus: "ok" | "loading" | "error";
+  hitsStatus: HitsStatus;
   opener: TrackPick | null;
   onPick: (t: TrackPick | null) => void;
   busy: boolean;

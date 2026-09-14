@@ -7,7 +7,7 @@
 import type { JSX } from "preact";
 import { Icon } from "./icons";
 import { Tip } from "./TipCard";
-import type { TipRequest } from "./tipPlace";
+import type { TipAlign, TipRequest } from "./tipPlace";
 
 /** A small (?) affordance whose hover card carries a title + body. Render
  *  inline after a heading, stat label, or inside the `help-anchor` row.
@@ -23,7 +23,7 @@ export function InfoTip(props: {
   body: string;
   /** Optional "why it matters" footer line, visually emphasized. */
   why?: string | undefined;
-  align?: "left" | "right" | undefined;
+  align?: TipAlign | undefined;
   below?: boolean | undefined;
   side?: boolean | undefined;
   children?: preact.JSX.Element | undefined;

@@ -27,29 +27,13 @@
 //                it live), speed floor (same reason).
 import type { DriveRole } from "./types";
 
-/** Which check a verdict row/badge belongs to. Kept as a string-literal
- *  union so a typo anywhere is a compile error, and so census tests can
- *  derive expected ids from CHECK_APPLIES instead of hardcoding. */
-export type CheckId =
-  | "dual-db"
-  | "grids"
-  | "verify"
-  | "bitrot"
-  | "junk"
-  | "space"
-  | "dupes"
-  | "artwork"
-  | "mirror"
-  | "speed"
-  | "players";
-
 /** The two behavioral tiers. DriveRole maps onto this via driveTier(). */
 export type DriveTier = "archive" | "gig";
 
 /** The one table. `true` = the check is judged on that tier; `false` =
  *  OMITTED entirely (never "auto-fail") — an empty device tree on a shelf
  *  is correct state, not a defect. */
-export const CHECK_APPLIES: Record<CheckId, Record<DriveTier, boolean>> = {
+export const CHECK_APPLIES = {
   // ---- every tier: data-integrity facts about the stored audio ----
   verify: { archive: true, gig: true },
   bitrot: { archive: true, gig: true },
@@ -65,7 +49,11 @@ export const CHECK_APPLIES: Record<CheckId, Record<DriveTier, boolean>> = {
   speed: { archive: false, gig: true }, // CDJ floor irrelevant — nothing
   //                                        reads the shelf live
   players: { archive: false, gig: true }, // no player reads a shelf, ever
-};
+} as const satisfies Record<string, Record<DriveTier, boolean>>;
+
+/** Which check a verdict row/badge belongs to, derived from the matrix so a
+ *  row can never exist without becoming part of every typed check surface. */
+export type CheckId = keyof typeof CHECK_APPLIES;
 
 /** Map a stored DriveRole to its behavioral tier. unknown/library drives
  *  are judged as gig: they may be real sticks; judge fully, skip nothing. */

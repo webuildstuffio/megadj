@@ -6,6 +6,7 @@
 // job; the only synchronous writes are one-row decisions (decide/confirm)
 // which go through megadj's CLI (the engine SSOT) and are fast.
 import type { HygieneReader } from "./hygiene_reader";
+import type { JobKind } from "../shared/types";
 import {
   servableAudioPath,
   audioStats,
@@ -20,11 +21,13 @@ export interface DecideBody {
   confirm?: boolean;
 }
 
+type HygieneJobKind = Extract<JobKind, "hygiene-scan" | "hygiene-apply">;
+
 export function makeHygieneRoutes(deps: {
   reader: HygieneReader;
   /** enqueue a hygiene job ("hygiene-scan" | "hygiene-apply"); the
    *  engine owns interlock + one-at-a-time + SSE. */
-  enqueue: (kind: "hygiene-scan" | "hygiene-apply") => { id: string };
+  enqueue: (kind: HygieneJobKind) => { id: string };
   /** megadj CLI path for the sync decision writes (the engine is the
    *  SSOT for status transitions — cratedeck never writes the archive) */
   megadjCli: (args: string[]) => Promise<{ code: number; stderr: string }>;

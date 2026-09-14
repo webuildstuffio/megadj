@@ -9,6 +9,7 @@
 
 export type TipRequest = "top" | "bottom" | "side";
 export type TipPlace = "top" | "bottom" | "right" | "left";
+export type TipAlign = Extract<TipPlace, "left" | "right">;
 
 export interface TipRect {
   left: number;
@@ -43,7 +44,7 @@ function alignLeft(
   anchor: TipRect,
   card: { width: number },
   place: TipPlace,
-  align?: "left" | "right",
+  align?: TipAlign,
 ): number {
   const centered = anchor.left + anchor.width / 2 - card.width / 2;
   if (place !== "top" && place !== "bottom") return centered;
@@ -57,7 +58,7 @@ function rawPlacement(
   anchor: TipRect,
   card: { width: number; height: number },
   place: TipPlace,
-  align?: "left" | "right",
+  align?: TipAlign,
 ): TipPlacement {
   if (place === "top" || place === "bottom") {
     return {
@@ -115,7 +116,7 @@ export function placeCard(
   card: { width: number; height: number },
   vp: TipViewport,
   request: TipRequest = "top",
-  align?: "left" | "right",
+  align?: TipAlign,
 ): TipPlacement {
   const order: Record<TipRequest, TipPlace[]> = {
     top: ["top", "bottom", "right", "left"],

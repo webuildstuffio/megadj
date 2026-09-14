@@ -66,8 +66,13 @@ export function camelotOf(key: string | null | undefined): CamelotPos | null {
   if (!key) return null;
   const trimmed = key.trim();
   const m = /^([1-9]|1[0-2])\s*([ABab])$/.exec(trimmed);
-  if (m)
-    return { n: parseInt(m[1]!, 10), letter: m[2]!.toUpperCase() as "A" | "B" };
+  if (m) {
+    const number = m[1];
+    const letter = m[2]?.toUpperCase();
+    if (number && (letter === "A" || letter === "B")) {
+      return { n: parseInt(number, 10), letter };
+    }
+  }
   const direct = OPEN_KEY_TO_CAMELOT[trimmed];
   if (direct) return direct;
   // Open Key notation ("7m", "6d"): mode letter m = minor / d = major

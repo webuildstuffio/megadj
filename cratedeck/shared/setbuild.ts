@@ -69,17 +69,17 @@ export interface SetBuildPayload extends SetBuildResult {
  *  UI renders the picker + descriptions from this table. Envelopes:
  *  arousal on the 1–9 mood scale, danceability on 0–1; [start, end] =
  *  the arc's target at the first/last slot. */
-export interface SetPresetDef {
-  id: "warmup" | "peak" | "afterhours";
+interface SetPresetShape {
+  id: string;
   label: string;
   description: string;
   /** arousal envelope [start, end] on the 1–9 scale. */
-  arousal: [number, number];
+  arousal: readonly [number, number];
   /** danceability envelope [start, end] on the 0–1 scale. */
-  dance: [number, number];
+  dance: readonly [number, number];
 }
 
-export const SET_PRESET_DEFS: SetPresetDef[] = [
+export const SET_PRESET_DEFS = [
   {
     id: "warmup",
     label: "Warm-up",
@@ -101,8 +101,9 @@ export const SET_PRESET_DEFS: SetPresetDef[] = [
     arousal: [5, 3],
     dance: [0.75, 0.6],
   },
-];
+] as const satisfies readonly SetPresetShape[];
 
+export type SetPresetDef = (typeof SET_PRESET_DEFS)[number];
 export type SetPresetId = SetPresetDef["id"];
 
 /** The `?preset=` guard rail: the engine clamps minutes, but an unknown

@@ -358,12 +358,8 @@ describe("buildSet", () => {
       minutes: 11,
     });
     expect(r.steps.length).toBeGreaterThanOrEqual(2);
-    expect(r.excluded).toContainEqual(
-      expect.objectContaining({
-        videoId: "req",
-        reason: expect.stringContaining("requested opener"),
-      }),
-    );
+    const excluded = r.excluded.find((row) => row.videoId === "req");
+    expect(excluded?.reason).toContain("requested opener");
   });
 
   test("requested opener missing from the pool is excluded loudly, never silently dropped", () => {
@@ -381,12 +377,8 @@ describe("buildSet", () => {
     });
     expect(r.steps.length).toBeGreaterThanOrEqual(1);
     expect(r.steps[0]!.videoId).not.toBe("ghost");
-    expect(r.excluded).toContainEqual(
-      expect.objectContaining({
-        videoId: "ghost",
-        reason: expect.stringContaining("requested opener"),
-      }),
-    );
+    const excluded = r.excluded.find((row) => row.videoId === "ghost");
+    expect(excluded?.reason).toContain("requested opener");
   });
 
   test("placeholder BPM (0 / NaN) never anchors the chain", () => {

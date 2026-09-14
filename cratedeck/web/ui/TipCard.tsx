@@ -22,7 +22,7 @@ import {
 } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import { Icon } from "./icons";
-import { placeCard, type TipRequest } from "./tipPlace";
+import { placeCard, type TipAlign, type TipRequest } from "./tipPlace";
 
 /** The hover card wrapped around `children` (the anchor). Portal-rendered
  *  while hovered/focused; placement prefers `request` and never leaves the
@@ -36,7 +36,7 @@ export function Tip(props: {
   /** Preferred opening: above (default), below, or beside (side). */
   request?: TipRequest | undefined;
   /** Right-edge-align the card to the anchor (near-right-edge sites). */
-  align?: "left" | "right" | undefined;
+  align?: TipAlign | undefined;
   /** Classes for the anchor span (`.infotip`, `.gloss`, …). */
   class?: string | undefined;
   ariaLabel?: string | undefined;

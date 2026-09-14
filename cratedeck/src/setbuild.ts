@@ -143,7 +143,7 @@ function lowerBound(sorted: number[], target: number): number {
 }
 
 /** Arc position 0..1 → target arousal/dance for the preset (lerp). */
-function envelope(p: [number, number], t: number): number {
+function envelope(p: readonly [number, number], t: number): number {
   return p[0]! + (p[1]! - p[0]!) * t;
 }
 
