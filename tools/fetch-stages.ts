@@ -195,14 +195,20 @@ function markArt(
   ).run(`embedded:${label}`, ...(formatId ? [formatId] : []), t.row.video_id);
 }
 
-/** One SC genre win: canonicalize → DB row + file tag + stat + note. */
+/** One SC genre win: canonicalize → file tag + DB row + stat + note. */
 function applyScGenre(t: StageCtx, rawGenre: string): void {
   // Junk gate: numeric genres (SC genre IDs leaked through yt-dlp) and the
   // placeholder "Music" are not genres — refuse, never write them anywhere.
   if (/^\d+$/.test(rawGenre) || rawGenre.toLowerCase() === "music") return;
   const g = canonGenre(rawGenre);
+  // Tag write first, DB row only on success — the DB never claims a genre
+  // the file doesn't carry (the discipline markYear and the BP path use;
+  // the SC path silently skipped it and could leave a lying DB row).
+  if (!setFileTags(t.row.file_path, { genre: g })) {
+    t.notes.push("genre:WRITE-FAILED");
+    return;
+  }
   db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(g, t.row.video_id);
-  setFileTags(t.row.file_path, { genre: g });
   t.stats.genreSc++;
   t.notes.push(`genre:${g}`);
 }
@@ -316,14 +322,11 @@ async function scArt(t: StageCtx, best: ScHit): Promise<boolean> {
   if (!embedArt(t.row.file_path, bytes)) return false;
   const orig = og?.includes("-original") === true;
   markArt(t, `sc${orig ? "-orig" : ""}`, orig, `sc:${best.url}`);
-  // SC hit can also fill genre/year when the cheap stage didn't run
-  if (best.genre && t.needGenre) {
-    const g = canonGenre(best.genre);
-    db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
-      g,
-      t.row.video_id,
-    );
-  }
+  // SC hit can also fill genre when the cheap stage didn't run. The same
+  // junk gate + write-first discipline as applyScGenre — a bare DB write
+  // here bypassed both (numeric IDs could land via this path, and the row
+  // could claim a genre the file never received).
+  if (best.genre && t.needGenre) applyScGenre(t, best.genre);
   if (best.year && t.needYear) markYear(t, best.year);
   return true;
 }
