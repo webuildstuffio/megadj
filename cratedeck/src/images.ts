@@ -9,9 +9,9 @@
 // A mount-time re-sync pushes the local copy back onto a drive that lacks it
 // (or restores the local copy from the stick when the local side is gone) —
 // see syncOnMount. Scanners skip Contents/CrateDeck (walk.ts DEFAULT_SKIP_DIRS).
-import { readdirSync, statSync, existsSync } from "node:fs";
+import { readdirSync, realpathSync, statSync } from "node:fs";
 import { readdir } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { CrateConfig } from "./config";
 import type { Guard } from "./guard";
 import type { DB } from "./db";
@@ -40,7 +40,46 @@ function extFromMime(ctype: string): string | null {
   if (!m?.[1]) return null;
   return m[1] === "jpeg" ? ".jpg" : `.${m[1]}`;
 }
-const MAX_BYTES = 10 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/** Read an image response without ever buffering beyond the configured cap. */
+export async function readBoundedImageBody(
+  response: Response,
+  maxBytes = MAX_IMAGE_BYTES,
+): Promise<Uint8Array> {
+  const tooLarge = (): Error =>
+    new Error(
+      maxBytes === MAX_IMAGE_BYTES
+        ? "image > 10MB"
+        : `image > ${maxBytes} bytes`,
+    );
+  const declared = response.headers.get("content-length");
+  if (declared !== null) {
+    const bytes = Number(declared);
+    if (Number.isFinite(bytes) && bytes > maxBytes) throw tooLarge();
+  }
+  if (!response.body) return new Uint8Array();
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw tooLarge();
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
 
 /** Minimal response typing for the Brave image-search API. */
 interface BraveResponse {
@@ -129,7 +168,7 @@ export class ImageService {
     const push = (abs: string, rel: string): void => {
       try {
         const st = statSync(abs);
-        if (!st.isFile() || st.size > MAX_BYTES) return;
+        if (!st.isFile() || st.size > MAX_IMAGE_BYTES) return;
         if (!PHOTO_EXT.has(extname(abs).toLowerCase())) return;
         if (seen.has(`${rel}:${st.size}`)) return;
         seen.add(`${rel}:${st.size}`);
@@ -167,13 +206,32 @@ export class ImageService {
   /** Serve one file from the mounted volume by relative path. Refuses
    *  anything escaping the volume or outside the two allow-listed dirs. */
   driveImageFile(volumeName: string, rel: string): string | null {
-    const root = join(this.cfg.volumesRoot, volumeName);
-    const abs = join(root, rel);
-    if (!abs.startsWith(root.endsWith("/") ? root : `${root}/`)) return null;
-    const inAppDir = rel.startsWith(`Contents/${ImageService.driveDirName()}/`);
-    const atRoot = !rel.includes("/");
-    if (!inAppDir && !atRoot) return null;
-    return existsSync(abs) ? abs : null;
+    const registered = this.db
+      .allDrives()
+      .some((drive) => drive.mounted && drive.name === volumeName);
+    if (!registered || !rel || rel.includes("\0")) return null;
+    try {
+      const root = realpathSync(join(this.cfg.volumesRoot, volumeName));
+      const abs = realpathSync(resolve(root, rel));
+      const canonicalRel = relative(root, abs);
+      if (
+        !canonicalRel ||
+        isAbsolute(canonicalRel) ||
+        canonicalRel === ".." ||
+        canonicalRel.startsWith(`..${sep}`)
+      )
+        return null;
+      const appPrefix = join("Contents", ImageService.driveDirName()).concat(
+        sep,
+      );
+      const inAppDir = canonicalRel.startsWith(appPrefix);
+      const atRoot = !canonicalRel.includes(sep);
+      if (!inAppDir && !atRoot) return null;
+      if (!PHOTO_EXT.has(extname(abs).toLowerCase())) return null;
+      return statSync(abs).isFile() ? abs : null;
+    } catch {
+      return null;
+    }
   }
 
   private *dirFiles(
@@ -286,22 +344,25 @@ export class ImageService {
   ): Promise<string> {
     const dir = this.localDir(driveId);
     if (opts.url) {
-      const res = await fetch(opts.url, {
+      const sourceUrl = new URL(opts.url);
+      if (sourceUrl.protocol !== "http:" && sourceUrl.protocol !== "https:")
+        throw new Error("image URL must use http or https");
+      const res = await fetch(sourceUrl, {
         // 30s deadline: image hosts stall; without it the route hangs and
         // the UI spin never resolves
         signal: AbortSignal.timeout(30_000),
       });
       if (!res.ok) throw new Error(`download failed ${res.status}`);
-      const buf = new Uint8Array(await res.arrayBuffer());
-      if (buf.length > MAX_BYTES) throw new Error("image > 10MB");
+      const buf = await readBoundedImageBody(res);
       const ext =
         extFromMime(res.headers.get("content-type") ?? "") ??
-        this.extOf(opts.url) ??
-        ".jpg";
+        this.extOf(opts.url);
+      if (!ext) throw new Error("unsupported image type");
       await this.guard.write(join(dir, `photo${ext}`), buf);
     } else if (opts.data) {
-      if (opts.data.length > MAX_BYTES) throw new Error("image > 10MB");
-      const ext = this.extOf(opts.name) ?? ".jpg";
+      if (opts.data.length > MAX_IMAGE_BYTES) throw new Error("image > 10MB");
+      const ext = opts.name ? this.extOf(opts.name) : ".jpg";
+      if (!ext) throw new Error("unsupported image type");
       await this.guard.write(join(dir, `photo${ext}`), opts.data);
     } else if (opts.driveRel) {
       const drive = this.db.getDrive(driveId);
@@ -311,7 +372,8 @@ export class ImageService {
       const ext = this.extOf(src) ?? ".jpg";
       await this.guard.copy(src, join(dir, `photo${ext}`));
     } else if (opts.localPath) {
-      const ext = this.extOf(opts.localPath) ?? ".jpg";
+      const ext = this.extOf(opts.localPath);
+      if (!ext) throw new Error("unsupported image type");
       await this.guard.copy(opts.localPath, join(dir, `photo${ext}`));
     } else {
       throw new Error("nothing to choose");
@@ -335,7 +397,7 @@ export class ImageService {
     if (!p) return null;
     const clean = p.split(/[?#]/)[0] ?? p;
     const ext = extname(clean).toLowerCase();
-    return ext ? ext : null;
+    return PHOTO_EXT.has(ext) ? ext : null;
   }
 
   /** Copy the local canonical photo onto the mounted stick (when it isn't

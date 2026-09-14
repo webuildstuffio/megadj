@@ -10,6 +10,7 @@ import {
   rmSync,
   readdirSync,
   existsSync,
+  symlinkSync,
 } from "node:fs";
 import { join } from "node:path";
 
@@ -23,7 +24,7 @@ process.env.CRATEDECK_DATA = DATA;
 process.env.CRATEDECK_VOLUMES = join(FIX, "vol");
 
 // static imports resolve before env is set — config reads env at call time
-const { ImageService } = await import("../src/images");
+const { ImageService, readBoundedImageBody } = await import("../src/images");
 const { Guard } = await import("../src/guard");
 const { DB } = await import("../src/db");
 const { loadConfig } = await import("../src/config");
@@ -95,6 +96,23 @@ afterAll(() => {
 });
 
 describe("drive cover photos (dual-save)", () => {
+  it("bounds remote image bodies while streaming, before full buffering", async () => {
+    await expect(
+      readBoundedImageBody(new Response(Uint8Array.of(1, 2, 3)), 2),
+    ).rejects.toThrow("image > 2 bytes");
+    await expect(
+      readBoundedImageBody(
+        new Response(Uint8Array.of(1), {
+          headers: { "Content-Length": "99" },
+        }),
+        2,
+      ),
+    ).rejects.toThrow("image > 2 bytes");
+    expect(
+      await readBoundedImageBody(new Response(Uint8Array.of(1, 2, 3)), 3),
+    ).toEqual(Uint8Array.of(1, 2, 3));
+  });
+
   it("choose() saves to BOTH the local dir and the stick", async () => {
     freshStick();
     seedDrive("d1", "DJPHOTO", true);
@@ -137,6 +155,19 @@ describe("drive cover photos (dual-save)", () => {
       images.driveImageFile("DJPHOTO", "Contents/Elsewhere/x.png"),
     ).toBeNull();
     expect(images.driveImageFile("DJPHOTO", "cover.jpg")).toBeTruthy();
+  });
+
+  it("driveImageFile refuses forged volumes, non-images, and symlink escapes", () => {
+    const outside = join(FIX, "outside");
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(outside, "secret.png"), PNG);
+    expect(images.driveImageFile("../outside", "secret.png")).toBeNull();
+
+    writeFileSync(join(VOL, "secret.txt"), "private");
+    expect(images.driveImageFile("DJPHOTO", "secret.txt")).toBeNull();
+
+    symlinkSync(join(outside, "secret.png"), join(VOL, "escape.png"));
+    expect(images.driveImageFile("DJPHOTO", "escape.png")).toBeNull();
   });
 
   it("syncOnMount pushes the local copy to a stick that lacks it", async () => {

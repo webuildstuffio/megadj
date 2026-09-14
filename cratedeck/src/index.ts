@@ -47,6 +47,7 @@ import {
   megadjCliPath,
 } from "./intake_run";
 import type { Drive, NoteSeverity } from "../shared/types";
+import { isTrustedMutationRequest, withSecurityHeaders } from "./http_security";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
@@ -244,15 +245,22 @@ Bun.serve({
   async fetch(req) {
     const url = new URL(req.url);
     const path = url.pathname;
-    if (path.startsWith("/api/")) return apiRequest(req, url);
-    // ---- photo files ------------------------------------------------------
-    if (path.startsWith("/photos/")) {
+    let response: Response;
+    if (path.startsWith("/api/")) {
+      response = isTrustedMutationRequest(req)
+        ? await apiRequest(req, url)
+        : json({ error: "cross-origin mutation refused" }, 403);
+      // ---- photo files ------------------------------------------------------
+    } else if (path.startsWith("/photos/")) {
       const id = path.slice(8);
       const p = images.photoPath(id);
-      if (!p) return new Response("no photo", { status: 404 });
-      return new Response(Bun.file(p));
+      response = p
+        ? new Response(Bun.file(p))
+        : new Response("no photo", { status: 404 });
+    } else {
+      response = await staticOrSpa(path);
     }
-    return staticOrSpa(path);
+    return withSecurityHeaders(response);
   },
 });
 
@@ -618,6 +626,7 @@ async function driveSubroute(
     return json(VERIFY_HELP);
   }
   if (sub === "/photo" && req.method === "POST") {
+    if (!db.getDrive(id)) return json({ error: "unknown drive" }, 404);
     return photoUpload(req, id, images, json);
   }
   // images already ON this drive (Contents/CrateDeck + volume root)
