@@ -145,10 +145,10 @@ propose-only: the DJ keeps every creative decision.
 
 |                    |                                                                                                                                                                         |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | 🔨 v0 shipped propose-only (Sep 11–12 2026): greedy Camelot/energy-arc engine, whole-library pool, CLI + web + MCP + M3U8 export, gated `megadj rb-playlist` write-off. v1 = the [audit plan](setbuild-audit-2026-09-13.md). |
+| **Status**         | ✅ graduated product — v0 shipped propose-only (Sep 11–12 2026): greedy Camelot/energy-arc engine, whole-library pool, CLI + web + MCP + M3U8 export, gated `megadj rb-playlist` write-off; own doc set since Sep 14. v1 = the [re-ranked roadmap](megaset/03-competitive-analysis.md). |
 | **How it works**   | FullTags ledgers feed a pure scoring engine (`0.45·tempo + 0.3·key + 0.25·energy-fit`, ±6% tempo window, Camelot wheel); one preset registry (warmup/peak/afterhours) drives all surfaces; every exclusion is counted and explainable. |
 | **The write-off**  | `megadj rb-playlist` links a proposal into the rekordbox master as a real playlist — dry-run first, backup + rekordbox-quit gates on `--apply`.                           |
-| **Docs**           | [MegaSet PRD](megaset-prd.md) · [audit + 10-project comparison + plan](setbuild-audit-2026-09-13.md)                                                                      |
+| **Docs**           | [MegaSet doc set](megaset/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](setbuild-audit-2026-09-13.md)                                  |
 
 **Commands:** `megadj setbuild --preset peak --minutes 60 [--opener <id>] [--json]` ·
 `megadj rb-playlist [drive] [--preset …] [--apply --yes]`
@@ -175,7 +175,7 @@ re-scored table, ideas.md owns every detail):
 - **Move 3 — the agentic layer:** SHIPPED; remaining: O84 inbox agent.
 - **The dream** — hit predictor calibrated on what actually got played
   (§M64, needs history); the set-builder half shipped propose-only as
-  **MegaSet** (§M66, [PRD](megaset-prd.md)).
+  **MegaSet** (§M66, [doc set](megaset/01-prd.md)).
 
 Do-now items live in [ideas.md §0](ideas.md#0--do-now-before-anything-else),
 which is now software-complete (issues #1–#5 closed; the two physical

@@ -1,12 +1,15 @@
-# Set Builder (M66 / MegaSet) — Full Audit, 10-Project Comparison & Improvement Plan
+# Set Builder (M66 / MegaSet) — Full Audit, Comparison & Improvement Plan
 
-**Status:** 🧭 ACTIVE — plan for the next build-out rounds. Not yet implemented.
+**Status:** 🧭 ACTIVE — plan for the next build-out rounds. Comparison superseded by the
+[30-comparator analysis](megaset/03-competitive-analysis.md) (10 OSS + 10 commercial +
+10 dream ideas, with the re-ranked roadmap); this doc keeps the OSS deep-dives and the
+phase-level implementation detail.
 
 _2026-09-13. Scope: `cratedeck/src/setbuild.ts` (engine), `cratedeck/src/archive_similar.ts`
 (candidate pool), `cratedeck/shared/setbuild.ts` + `shared/camelot.ts` (wire SSOTs),
 `src/fulltags/setbuild.ts` (CLI), `cratedeck/src/archive_tools.ts` (MCP), `archive_routes.ts`
 (HTTP + M3U8), `web/products/fulltags/SimilarTab.tsx` (UI), `src/rekordbox/rb-playlist.ts`
-(master-DB write-off). Product home: [megaset-prd.md](megaset-prd.md).
+(master-DB write-off). Product home: [megaset/01-prd.md](megaset/01-prd.md).
 Companion to [docs/fulltags-roadmap.md](fulltags-roadmap.md) and
 [docs/PRINCIPLES.md](PRINCIPLES.md) (propose-only is a feature, not a gap).
 
@@ -61,6 +64,14 @@ freshness surfacing, preset-validation error path, all-24-key Camelot pins.
 ---
 
 ## Part 2 — The 10 open-source comparators (in depth)
+
+> Deep comparison against commercial products (DJ.Studio, Mixed In Key, Djoid,
+> SetFlow, Lexicon, rekordbox/Serato/VirtualDJ/Engine DJ, MixMeister) and 10
+> dream/concept ideas now lives in
+> [megaset/03-competitive-analysis.md](megaset/03-competitive-analysis.md),
+> together with the **re-ranked roadmap** that supersedes this doc's phase
+> ordering where they disagree (notably: quality score + N-candidates moved
+> ahead of the scoring-depth items; pool presets added).
 
 Selection: closest functional neighbors across the feature space (sequencing
 algorithms, energy arcs, analysis, surfaces, write-off targets). Stars/activity

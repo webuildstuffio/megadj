@@ -1,10 +1,11 @@
 # MegaSet — PRD
 
-v1 · 2026-09-13 · **PRD** → [setbuild-audit-2026-09-13.md](setbuild-audit-2026-09-13.md) (audit + 10-project comparison + phased plan) · [Surface parity](surface-parity.md)
+v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Audit & plan](../setbuild-audit-2026-09-13.md)
 
-**Status:** 🔨 v0 shipped propose-only (Sep 11–12 2026) — greedy Camelot/energy-arc
-engine, whole-library pool, CLI + HTTP + M3U8 export + MCP + web panel, gated
-`megadj rb-playlist` write-off. v1 plan = the audit's four phases.
+**Status:** ✅ graduated product (v0 shipped propose-only, Sep 11–12 2026; doc set
+since Sep 14) — greedy Camelot/energy-arc engine, whole-library pool, CLI + HTTP +
+M3U8 export + MCP + web panel, gated `megadj rb-playlist` write-off. v1 plan = the
+[audit's re-ranked roadmap](03-competitive-analysis.md).
 
 MegaSet (internally `setbuild`, roadmap §M66) is the set-builder product:
 it turns megadj's measured library data — beats-ledger BPM, mood-ledger
