@@ -28,6 +28,12 @@ describe("intakeFolderName", () => {
   test("future month wraps to next year", () => {
     expect(intakeFolderName("/x/dump dec 20", NOW)).toBe("2026-12-20 dump");
   });
+  test("named-date year inference uses the supplied reference clock", () => {
+    const historicalNow = new Date("2024-09-10T12:00:00");
+    expect(intakeFolderName("/x/dump dec 20", historicalNow)).toBe(
+      "2024-12-20 dump",
+    );
+  });
 });
 
 describe("dumpDateFromName", () => {
@@ -35,6 +41,11 @@ describe("dumpDateFromName", () => {
     expect(dumpDateFromName("new dump sept 9")).toBe("2026-09-09");
     expect(dumpDateFromName("haul jan 3")).toBe("2026-01-03");
     expect(dumpDateFromName("aug 31 dump")).toBe("2026-08-31");
+  });
+  test("uses a supplied reference clock for year inference", () => {
+    expect(
+      dumpDateFromName("dump dec 20", new Date("2024-09-10T12:00:00")),
+    ).toBe("2024-12-20");
   });
   test("no month → null", () => {
     expect(dumpDateFromName(" assorted ")).toBeNull();

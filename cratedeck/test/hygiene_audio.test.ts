@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   servableAudioPath,
@@ -52,6 +52,32 @@ describe("hygiene audio guard (servableAudioPath)", () => {
     const dir = join(root, "Contents");
     writeFileSync(join(dir, "X.WAV"), "x");
     expect(servableAudioPath(join(dir, "X.WAV"), root)).not.toBeNull();
+  });
+
+  test("allows harmless double dots inside a filename", () => {
+    const { root } = shelf();
+    const path = join(root, "Contents", "Artist A", "mix..final.mp3");
+    writeFileSync(path, "ID3fakeaudio");
+    expect(servableAudioPath(path, root)).toBe(path);
+  });
+
+  test("rejects a symlink that escapes the shelf root", () => {
+    const { root } = shelf();
+    const outsideDir = mkdtempSync("/tmp/megadj-hyg-outside-");
+    const outside = join(outsideDir, "private.mp3");
+    const linked = join(root, "Contents", "Artist A", "linked.mp3");
+    writeFileSync(outside, "outside shelf");
+    symlinkSync(outside, linked);
+    expect(servableAudioPath(linked, root)).toBeNull();
+  });
+
+  test("rejects an audio-named symlink to a non-audio shelf file", () => {
+    const { root } = shelf();
+    const privateFile = join(root, "Contents", "private.db");
+    const linked = join(root, "Contents", "Artist A", "private.mp3");
+    writeFileSync(privateFile, "not audio");
+    symlinkSync(privateFile, linked);
+    expect(servableAudioPath(linked, root)).toBeNull();
   });
 
   test("audioStats degrades to nulls (never throws) on a non-audio file", () => {

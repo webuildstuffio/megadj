@@ -30,12 +30,23 @@ export function fmtPct(x: number): string {
   return `${Math.round(x * 100)}%`;
 }
 
+/** Split after rounding the total, so seconds always stay within 0..59. */
+function roundedDurationParts(s: number): {
+  minutes: number;
+  seconds: number;
+} {
+  const totalSeconds = Math.round(s);
+  return {
+    minutes: Math.floor(totalSeconds / 60),
+    seconds: totalSeconds % 60,
+  };
+}
+
 /** m:ss for durations given in seconds. */
 export function fmtDur(s: number): string {
   if (!Number.isFinite(s) || s <= 0) return "—";
-  const m = Math.floor(s / 60);
-  const r = Math.round(s % 60);
-  return `${m}:${String(r).padStart(2, "0")}`;
+  const { minutes, seconds } = roundedDurationParts(s);
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 /** 130-char macOS serials → readable head + tail. */
@@ -46,11 +57,10 @@ export function shortSerial(s: string): string {
 /** Human countdown from an ETA in seconds ("1m 20s"). Empty when unknown. */
 export function fmtEta(s: number | null | undefined): string {
   if (s === null || s === undefined || !Number.isFinite(s) || s < 0) return "";
-  if (s < 60) return `${Math.round(s)}s`;
-  const m = Math.floor(s / 60);
-  const r = Math.round(s % 60);
-  if (m < 60) return `${m}m ${r}s`;
-  return `${Math.floor(m / 60)}h ${m % 60}m`;
+  const { minutes, seconds } = roundedDurationParts(s);
+  if (minutes === 0) return `${seconds}s`;
+  if (minutes < 60) return `${minutes}m ${seconds}s`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
 /** "today 14:32" / "Sep 2, 13:04" — compact wall-clock for feeds. */

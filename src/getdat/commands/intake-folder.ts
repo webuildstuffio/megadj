@@ -32,7 +32,7 @@ export function intakeFolderName(
   const raw = basename(sourceFolder).replace(/\.+$/, "").trim();
   const slug =
     raw && !/^(downloads?|desktop|ingest|music)$/i.test(raw) ? raw : "intake";
-  const fromName = dumpDateFromNameParts(raw);
+  const fromName = dumpDateFromNameParts(raw, now);
   const date = fromName?.date ?? isoDate(now);
   const cleanSlug = (fromName ? fromName.rest || "intake" : slug).trim();
   return `${date} ${cleanSlug}`.replace(/\s+/g, " ").trim();
@@ -46,11 +46,14 @@ interface DateParts {
 
 /** Last month-name + day in a folder name ("new dump sept 9"). Null when no
  *  month is present. */
-export function dumpDateFromName(name: string): string | null {
-  return dumpDateFromNameParts(name)?.date ?? null;
+export function dumpDateFromName(
+  name: string,
+  now = new Date(),
+): string | null {
+  return dumpDateFromNameParts(name, now)?.date ?? null;
 }
 
-function dumpDateFromNameParts(name: string): DateParts | null {
+function dumpDateFromNameParts(name: string, now: Date): DateParts | null {
   const months = [
     "jan",
     "feb",
@@ -77,7 +80,7 @@ function dumpDateFromNameParts(name: string): DateParts | null {
       .replace(/[-–_\s]+/g, " ")
       .trim();
     return {
-      date: `${yearFor(i, day)}-${String(i + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+      date: `${yearFor(i, day, now)}-${String(i + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
       rest,
     };
   }
@@ -87,8 +90,7 @@ function dumpDateFromNameParts(name: string): DateParts | null {
 /** Same-year inference: a month/day in the future by ≤6 months is this
  *  year; more than 6 months in the future wraps to NEXT year ("dec 20"
  *  ingested in early January); anything else is this year. */
-function yearFor(monthIdx: number, day: number): number {
-  const now = new Date();
+function yearFor(monthIdx: number, day: number, now: Date): number {
   const year = now.getFullYear();
   const diffDays =
     (new Date(year, monthIdx, day).getTime() - now.getTime()) /

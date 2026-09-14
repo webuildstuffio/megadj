@@ -8,11 +8,13 @@
 //
 // SAFETY RAIL (this route hands arbitrary bytes to a browser tab):
 // a path is servable ONLY when it (a) resolves under the SHELF mount,
-// (b) has an audio extension, (c) does not contain a `..` segment, and
-// (d) exists as a regular file. Findings store absolute paths, so the
+// (b) has an audio extension, (c) does not contain a `..` segment, (d)
+// canonically remains under the SHELF mount, and (e) exists as a regular
+// audio file. Findings store absolute paths, so the
 // UI round-trips them — anything else is a 403, never a partial read.
-import { statSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import { extname, resolve, sep } from "node:path";
+import { fmtDur } from "../shared/fmt";
 
 const AUDIO_EXT = new Set([
   ".aiff",
@@ -43,7 +45,7 @@ export function servableAudioPath(
   raw: string | null,
   shelfRoot: string,
 ): string | null {
-  if (!raw || raw.includes("..")) return null;
+  if (!raw || raw.split(sep).includes("..")) return null;
   const ext = extname(raw).toLowerCase();
   if (!AUDIO_EXT.has(ext)) return null;
   let p: string;
@@ -52,10 +54,14 @@ export function servableAudioPath(
   } catch {
     return null;
   }
-  const root = resolve(shelfRoot) + sep;
-  if (!p.startsWith(root)) return null;
+  const root = resolve(shelfRoot);
+  if (!p.startsWith(root + sep)) return null;
   try {
-    if (!statSync(p).isFile()) return null;
+    const canonicalRoot = realpathSync(root);
+    const canonicalPath = realpathSync(p);
+    if (!canonicalPath.startsWith(canonicalRoot + sep)) return null;
+    if (!AUDIO_EXT.has(extname(canonicalPath).toLowerCase())) return null;
+    if (!statSync(canonicalPath).isFile()) return null;
   } catch {
     return null;
   }
@@ -177,9 +183,7 @@ export function statsLine(s: AudioStats): string {
   if (!s.exists) return "file missing";
   const parts: string[] = [];
   if (s.durationS !== null) {
-    const m = Math.floor(s.durationS / 60);
-    const sec = Math.round(s.durationS % 60);
-    parts.push(`${m}:${String(sec).padStart(2, "0")}`);
+    parts.push(fmtDur(s.durationS));
   }
   if (s.bitrateKbps !== null) parts.push(`${s.bitrateKbps} kbps`);
   if (s.codec) {
