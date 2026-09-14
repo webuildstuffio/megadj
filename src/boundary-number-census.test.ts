@@ -9,7 +9,6 @@ import {
 } from "./test-support/boundary-census";
 
 const repo = join(import.meta.dir, "..");
-
 const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
   "src/cli-commands-core.ts::ingest::Number(minDurationRaw)":
     "The option gate rejects non-finite values, while the undefined branch passes undefined rather than the NaN sentinel to ingest.",
@@ -23,10 +22,10 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "the optional value is a four-digit regex capture; absence becomes undefined.",
   "fulltags/src/writer.ts::mp4Statement::Number(v)":
     "the bpm branch receives a typed internal TagPatch number before serialization.",
+  "fulltags/src/writer.ts::mp4VerifyStatement::Number(v)":
+    "the verifier receives the same typed internal TagPatch BPM number before serialization.",
   "fulltags/src/pipeline.ts::parseMoodStamp::Number(m[2])":
     "m[2] is a digits-and-decimal-only regex capture and need() finite-checks every consumed value.",
-  "src/archive/sqlite-id.ts::sqliteRowId::Number(raw)":
-    "sqliteRowId rejects non-positive and non-safe integers before returning a JavaScript row id.",
   "src/fulltags/years.ts::parseScPageDates::Number(year)":
     "year is a four-digit regex capture.",
   "src/fulltags/years.ts::ytdlpYearsBatch::Number(uploadDate.slice(0, 4))":
@@ -54,10 +53,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    audited: 41,
-    guarded: 29,
+    audited: 40,
+    guarded: 28,
     sanctioned: 12,
-    digest: "94a3260b524563f7d20b726ef02bc74a829a4282bac461687f90c67ebe72b1ac",
+    digest: "b34f54c3581dba45e55de72198f2ce72403f7a193b20c6fe14283a38c85e885e",
   });
 });
 
@@ -67,28 +66,7 @@ test("Number() sanctions carry an audit reason", () => {
   ).toBe(true);
 });
 
-test("Number() census reports a new boundary with file and line", () => {
-  const [violation] = scanNumberSource(
-    "fixture.ts",
-    "const retries = Number(process.env.RETRIES);",
-  );
-  expect(violation).toMatchObject({ file: "fixture.ts", line: 1 });
-  expect(
-    formatCensusFailure("Number()", {
-      calls: [violation!],
-      violations: [violation!],
-      unusedAllowlist: [],
-      redundantAllowlist: [],
-      duplicateKeys: [],
-      audited: 1,
-      guarded: 0,
-      sanctioned: 0,
-      digest: "fixture",
-    }),
-  ).toContain("fixture.ts:1 Number(process.env.RETRIES)");
-});
-
-test("Number() scanner ignores prose and finds multiline calls", () => {
+test("Number() scanner reports locations and ignores prose", () => {
   const calls = scanNumberSource(
     "fixture.ts",
     `// Number(comment)
@@ -98,132 +76,112 @@ const retries = Number(
 );`,
   );
   expect(calls).toHaveLength(1);
-  expect(calls[0]).toMatchObject({ line: 3 });
+  expect(calls[0]).toMatchObject({ file: "fixture.ts", line: 3 });
+  expect(
+    formatCensusFailure("Number()", {
+      calls,
+      violations: calls,
+      unusedAllowlist: [],
+      redundantAllowlist: [],
+      duplicateKeys: [],
+      audited: 1,
+      guarded: 0,
+      sanctioned: 0,
+      digest: "fixture",
+    }),
+  ).toContain("fixture.ts:3 Number( process.env.RETRIES, )");
 });
 
-test("a later finite check does not bless an earlier unsafe use", () => {
-  const result = numberBoundaryCensusForSources(
-    {
-      "fixture.ts": `const n = Number(process.env.N);
-consume(n);
-if (Number.isFinite(n)) return;`,
-    },
-    {},
-  );
-  expect(result.violations).toHaveLength(1);
-});
+const CASES: readonly [name: string, source: string, violations: number][] = [
+  [
+    "later check cannot bless an earlier use",
+    "const n=Number(raw); consume(n); if(Number.isFinite(n)) return;",
+    1,
+  ],
+  [
+    "nested check cannot guard an outer conversion",
+    "const n=Number(raw); const later=()=>Number.isFinite(n); consume(n);",
+    1,
+  ],
+  [
+    "positive early return leaves the invalid path",
+    "const n=Number(raw); if(Number.isFinite(n)) return; consume(n);",
+    1,
+  ],
+  [
+    "negative early exit guards later use",
+    "const n=Number(raw); if(!Number.isFinite(n)) throw Error(); consume(n);",
+    0,
+  ],
+  [
+    "discarded predicate guards nothing",
+    "const n=Number(raw); Number.isFinite(n); consume(n);",
+    1,
+  ],
+  [
+    "invalid ternary arm cannot consume n",
+    "const n=Number(raw); consume(Number.isFinite(n) ? 0 : n);",
+    1,
+  ],
+  [
+    "finite ternary arm may consume n",
+    "const n=Number(raw); consume(Number.isFinite(n) && n>0 ? n : 0);",
+    0,
+  ],
+  [
+    "OR does not prove its true branch",
+    "const n=Number(raw); consume(Number.isFinite(n) || enabled ? n : 0);",
+    1,
+  ],
+  [
+    "positive if protects its branch",
+    "const n=Number(raw); if(Number.isFinite(n)) consume(n);",
+    0,
+  ],
+  [
+    "negative if cannot consume invalid n",
+    "const n=Number(raw); if(!Number.isFinite(n)) consume(n);",
+    1,
+  ],
+  [
+    "negative if protects its else",
+    "const n=Number(raw); if(!Number.isFinite(n)) noop(); else consume(n);",
+    0,
+  ],
+  [
+    "invalid use remains invalid before throw",
+    "const n=Number(raw); if(!Number.isFinite(n)){consume(n); throw Error();}",
+    1,
+  ],
+  [
+    "safe-integer validation proves finiteness",
+    "const n=Number(raw); if(!Number.isSafeInteger(n)) throw Error(); consume(n);",
+    0,
+  ],
+  [
+    "extra predicate argument is ignored by JavaScript",
+    "consume(Number.isFinite(0, Number(raw)));",
+    1,
+  ],
+  [
+    "post-guard reassignment invalidates proof",
+    "let n=Number(raw); if(!Number.isFinite(n)) throw Error(); n=Number.NaN; consume(n);",
+    1,
+  ],
+  [
+    "a discarded predicate does not hide a later guard",
+    "const n=Number(raw); Number.isFinite(n); if(!Number.isFinite(n)) throw Error(); consume(n);",
+    0,
+  ],
+];
 
-test("a nested finite check does not guard an outer conversion", () => {
-  const result = numberBoundaryCensusForSources(
-    {
-      "fixture.ts": `const n = Number(process.env.N);
-const checkLater = () => Number.isFinite(n);
-consume(n);`,
-    },
-    {},
-  );
-  expect(result.violations).toHaveLength(1);
-});
-
-test("a positive early-return check does not guard the invalid path", () => {
-  const result = numberBoundaryCensusForSources(
-    {
-      "fixture.ts": `const n = Number(process.env.N);
-if (Number.isFinite(n)) return;
-consume(n);`,
-    },
-    {},
-  );
-  expect(result.violations).toHaveLength(1);
-});
-
-test("an assigned conversion is guarded when its first use is a finite check", () => {
-  const result = numberBoundaryCensusForSources(
-    {
-      "fixture.ts": `const n = Number(process.env.N);
-if (!Number.isFinite(n)) throw new Error("bad N");
-consume(n);`,
-    },
-    {},
-  );
-  expect(result.violations).toHaveLength(0);
-  expect(result.guarded).toBe(1);
-});
-
-test("a discarded finite predicate does not guard later use", () => {
-  const result = numberBoundaryCensusForSources(
-    {
-      "fixture.ts": `const n = Number(process.env.N);
-Number.isFinite(n);
-consume(n);`,
-    },
-    {},
-  );
-  expect(result.violations).toHaveLength(1);
-});
-
-test("a ternary must not consume the conversion on the invalid branch", () => {
-  const result = numberBoundaryCensusForSources(
-    {
-      "fixture.ts": `const n = Number(process.env.N);
-consume(Number.isFinite(n) ? 0 : n);`,
-    },
-    {},
-  );
-  expect(result.violations).toHaveLength(1);
-});
-
-test("a ternary may consume the conversion only on its finite branch", () => {
-  const result = numberBoundaryCensusForSources(
-    {
-      "fixture.ts": `const n = Number(process.env.N);
-consume(Number.isFinite(n) && n > 0 ? n : 0);`,
-    },
-    {},
-  );
-  expect(result.violations).toHaveLength(0);
-  expect(result.guarded).toBe(1);
-});
-
-test("an OR condition does not prove its finite branch", () => {
-  const result = numberBoundaryCensusForSources(
-    {
-      "fixture.ts": `const n = Number(process.env.N);
-consume(Number.isFinite(n) || fallbackEnabled ? n : 0);`,
-    },
-    {},
-  );
-  expect(result.violations).toHaveLength(1);
-});
-
-test("an if must not consume the conversion on its invalid branch", () => {
-  for (const source of [
-    `const n = Number(process.env.N);
-if (Number.isFinite(n)) noop(); else consume(n);`,
-    `const n = Number(process.env.N);
-if (!Number.isFinite(n)) consume(n);`,
-    `const n = Number(process.env.N);
-if (!Number.isFinite(n)) { consume(n); throw new Error("bad"); }`,
-  ]) {
+for (const [name, source, violations] of CASES) {
+  test(name, () => {
     const result = numberBoundaryCensusForSources({ "fixture.ts": source }, {});
-    expect(result.violations, source).toHaveLength(1);
-  }
-});
-
-test("an if may consume the conversion only on its finite branch", () => {
-  for (const source of [
-    `const n = Number(process.env.N);
-if (Number.isFinite(n)) consume(n);`,
-    `const n = Number(process.env.N);
-if (!Number.isFinite(n)) noop(); else consume(n);`,
-    `const n = Number(process.env.N);
-if (!Number.isFinite(n)) throw new Error("bad");
-consume(n);`,
-  ]) {
-    const result = numberBoundaryCensusForSources({ "fixture.ts": source }, {});
-    expect(result.violations, source).toHaveLength(0);
-  }
-});
+    expect(result.violations).toHaveLength(violations);
+    expect(result.guarded).toBe(violations === 0 ? 1 : 0);
+  });
+}
 
 test("test and fixture paths are excluded from the production census", () => {
   expect(isProductionSourcePath("src/live.ts")).toBe(true);
@@ -234,7 +192,6 @@ test("test and fixture paths are excluded from the production census", () => {
     "src/fixtures/live.ts",
     "src/test-support/live.ts",
     "src/testutil.ts",
-  ]) {
+  ])
     expect(isProductionSourcePath(path), path).toBe(false);
-  }
 });

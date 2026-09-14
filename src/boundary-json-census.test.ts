@@ -8,50 +8,37 @@ import {
 } from "./test-support/boundary-census";
 
 const repo = join(import.meta.dir, "..");
-
-function reviewed(
+const reviewed = (
   reason: string,
   keys: readonly string[],
-): Readonly<Record<string, string>> {
-  return Object.fromEntries(keys.map((key) => [key, reason]));
-}
-
+): Readonly<Record<string, string>> =>
+  Object.fromEntries(keys.map((key) => [key, reason]));
 const HYGIENE_ROW_REASON =
   "hydrateHygieneFinding intentionally throws; both ledger readers catch per row, log the row id, and skip only corruption.";
 const CHECKED_SUBPROCESS_REASON =
   "The checked subprocess has already passed its exit/stdout gate; malformed success output throws through the command boundary and cannot become a false success.";
+const EXPLICIT_NULL_REASON =
+  "The parser returns null as an explicit failure value; its caller converts that value into a logged skip or a failed probe result.";
 const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
-  "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.paths)":
-    HYGIENE_ROW_REASON,
-  "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.bytes)":
-    HYGIENE_ROW_REASON,
-  "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.md5s)":
-    HYGIENE_ROW_REASON,
-  "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.fps)":
-    HYGIENE_ROW_REASON,
-  "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.evidence)":
-    HYGIENE_ROW_REASON,
-  "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse( row.proposed_action, )":
-    HYGIENE_ROW_REASON,
-  "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.validation)":
-    HYGIENE_ROW_REASON,
+  ...reviewed(HYGIENE_ROW_REASON, [
+    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.paths)",
+    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.bytes)",
+    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.md5s)",
+    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.fps)",
+    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.evidence)",
+    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse( row.proposed_action, )",
+    "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.validation)",
+  ]),
   'cratedeck/src/deckctl_queue.ts::enqueueAndFollow::JSON.parse(polled.result_json ?? "{}")':
     "deckctl consumes its own server job contract; invalid JSON terminates the command visibly.",
+  ...reviewed(EXPLICIT_NULL_REASON, [
+    "cratedeck/src/archive_overview.ts::parseCuePoints::JSON.parse(raw)",
+    "fulltags/src/analysis.ts::parseJsonObject::JSON.parse(raw)",
+    "fulltags/src/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
+  ]),
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "[]")',
     "src/rekordbox/guard.ts::verifyReRead::JSON.parse(line)",
-    'src/rekordbox/rb-comment-sync.ts::rbCommentSync::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "{}")',
-    'src/rekordbox/rb-cues.ts::rbCues::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "{}")#1',
-    'src/rekordbox/rb-cues.ts::rbCues::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "{}")#2',
-    'src/rekordbox/rb-cues.ts::rbCues::JSON.parse( (zeroCheck.stdout ?? \'{"remaining":-1}\').trim().split("\\n").pop() ?? \'{"remaining":-1}\', )',
-    'src/rekordbox/rb-dedup.ts::rbDedup::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "{}")',
-    'src/rekordbox/rb-dedup.ts::rbDedup::JSON.parse(rd.stdout.trim().split("\\n").pop() ?? "{}")',
-    "src/rekordbox/rb-import.ts::rbImport::JSON.parse(line)",
-    'src/rekordbox/rb-import.ts::rbImport::JSON.parse(rv.stdout.trim().split("\\n").pop() ?? "{}")',
-    'src/rekordbox/rb-playlist-reconcile.ts::rbPlaylistReconcile::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "{}")',
-    'src/rekordbox/rb-playlist.ts::rbPlaylist::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "{}")',
-    'src/rekordbox/rb-playlist.ts::rbPlaylist::JSON.parse(rv.stdout.trim().split("\\n").pop() ?? "{}")',
-    'src/rekordbox/rb-playlist.ts::predictMatches::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "{}")',
     'src/shared/doctor-state.ts::runStateProbe::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "{}")',
     'src/shared/doctor-state.ts::runStateProbe::JSON.parse(rx.stdout.trim().split("\\n").pop() ?? "{}")',
   ]),
@@ -74,10 +61,10 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    audited: 68,
-    guarded: 44,
-    sanctioned: 24,
-    digest: "09fee8f137d33bccb8781687c7b8c26ba1029dd1e3a7b33ae074635bd56239a0",
+    audited: 63,
+    guarded: 48,
+    sanctioned: 15,
+    digest: "b3a45760d997ff0de76297319c3f1601f65fe69d792f452dbf52fe63a2904ac6",
   });
 });
 
@@ -89,16 +76,22 @@ test("persisted JSON sanctions carry an audit reason", () => {
   ).toBe(true);
 });
 
-test("persisted JSON census reports a new raw parse with file and line", () => {
-  const [violation] = scanJsonSource(
+test("JSON scanner reports locations, follows aliases, and ignores prose", () => {
+  const calls = scanJsonSource(
     "fixture.ts",
-    "const result = JSON.parse(row.result_json);",
+    `// JSON.parse(comment)
+const prose = "JSON.parse(string)";
+const raw = row.result_json;
+const result = JSON.parse(
+  raw,
+);`,
   );
-  expect(violation).toMatchObject({ file: "fixture.ts", line: 1 });
+  expect(calls).toHaveLength(1);
+  expect(calls[0]).toMatchObject({ file: "fixture.ts", line: 4 });
   expect(
     formatCensusFailure("JSON.parse", {
-      calls: [violation!],
-      violations: [violation!],
+      calls,
+      violations: calls,
       unusedAllowlist: [],
       redundantAllowlist: [],
       duplicateKeys: [],
@@ -107,142 +100,65 @@ test("persisted JSON census reports a new raw parse with file and line", () => {
       sanctioned: 0,
       digest: "fixture",
     }),
-  ).toContain("fixture.ts:1 JSON.parse(row.result_json)");
+  ).toContain("fixture.ts:4 JSON.parse( raw, )");
 });
 
-test("persisted JSON census follows a local alias to the stored blob", () => {
-  const [violation] = scanJsonSource(
-    "fixture.ts",
-    "const raw = row.result_json;\nconst result = JSON.parse(raw);",
-  );
-  expect(violation).toMatchObject({ file: "fixture.ts", line: 2 });
-});
-
-test("transient subprocess JSON still requires a guard or sanction", () => {
+test("identical parses remain distinct review sites", () => {
   const result = persistedJsonCensusForSources(
-    { "fixture.ts": "const result = JSON.parse(stdout);" },
-    {},
-  );
-  expect(result.violations).toHaveLength(1);
-});
-
-test("identical persisted parses remain distinct review sites", () => {
-  const result = persistedJsonCensusForSources(
-    {
-      "fixture.ts": `function read(row: { result_json: string }) {
-  JSON.parse(row.result_json);
-  JSON.parse(row.result_json);
-}`,
-    },
+    { "fixture.ts": "function read(){ JSON.parse(raw); JSON.parse(raw); }" },
     {},
   );
   expect(result.violations).toHaveLength(2);
   expect(new Set(result.violations.map((call) => call.key)).size).toBe(2);
-  expect(result.violations.map((call) => call.line)).toEqual([2, 3]);
 });
 
-test("JSON scanner ignores prose and finds multiline calls", () => {
-  const calls = scanJsonSource(
-    "fixture.ts",
-    `// JSON.parse(comment)
-const prose = "JSON.parse(string)";
-const parsed = JSON.parse(
-  raw,
-);`,
-  );
-  expect(calls).toHaveLength(1);
-  expect(calls[0]).toMatchObject({ line: 3 });
-});
+function catchViolations(body: string): number {
+  const source = `let failures=0;
+declare const report:(message:string)=>void;
+function parse(){try{JSON.parse(row.result_json);}catch{${body}}}`;
+  return persistedJsonCensusForSources({ "fixture.ts": source }, {}).violations
+    .length;
+}
+
+const CATCH_CASES: readonly [name: string, body: string, violations: number][] =
+  [
+    ["comment is silent", "/* corrupt data */", 1],
+    [
+      "uncalled nested logger is silent",
+      "const later=()=>console.error('bad'); void later;",
+      1,
+    ],
+    [
+      "dead error-shaped local is silent",
+      "const ignored={error:'bad'}; void ignored;",
+      1,
+    ],
+    ["local counter is silent", "let bad=0; bad++;", 1],
+    ["local logger is silent", "const log=()=>{}; log('bad');", 1],
+    ["unrelated call is silent", "noop();", 1],
+    ["unrelated outer state is silent", "status='idle';", 1],
+    ["null fallback is silent", "return null;", 1],
+    ["array fallback is silent", "return [];", 1],
+    ["object fallback is silent", "return {};", 1],
+    ["false fallback is silent", "return false;", 1],
+    ["reporter substring in catalog is silent", "catalog();", 1],
+    ["reporter substring in invalidator is silent", "invalidateCache();", 1],
+    ["later warn-like catalog method is silent", "catalogWarns();", 1],
+    ["failure object is visible", "return {ok:false,error:'bad'};", 0],
+    ["outer reporter is visible", "report('corrupt payload');", 0],
+    ["outer failure counter is visible", "failures++;", 0],
+    ["console error is visible", "console.error('corrupt payload');", 0],
+  ];
+
+for (const [name, body, violations] of CATCH_CASES)
+  test(name, () => expect(catchViolations(body), body).toBe(violations));
 
 test("a sanction becomes stale once its catch is visibly guarded", () => {
-  const source = `try {
-  JSON.parse(row.result_json);
-} catch (error) {
-  console.error("corrupt result", error);
-}`;
+  const source = "try{JSON.parse(raw)}catch(error){console.error(error)}";
   const [call] = scanJsonSource("fixture.ts", source);
   const result = persistedJsonCensusForSources(
     { "fixture.ts": source },
-    { [call!.key]: "fixture is intentionally redundant for this test" },
+    { [call!.key]: "intentionally redundant fixture sanction" },
   );
   expect(result.redundantAllowlist).toEqual([call!.key]);
-});
-
-test("a silent catch comment does not count as visible failure", () => {
-  const result = persistedJsonCensusForSources(
-    {
-      "fixture.ts": `try {
-  JSON.parse(row.result_json);
-} catch {
-  // corrupt persisted data is ignored
-}`,
-    },
-    {},
-  );
-  expect(
-    result.violations,
-    formatCensusFailure("persisted JSON.parse", result),
-  ).toHaveLength(1);
-  expect(result.violations[0]).toMatchObject({ file: "fixture.ts", line: 2 });
-});
-
-test("an uncalled nested logger does not make a silent catch visible", () => {
-  const result = persistedJsonCensusForSources(
-    {
-      "fixture.ts": `try {
-  JSON.parse(row.result_json);
-} catch {
-  const reportLater = () => console.error("corrupt result");
-  void reportLater;
-}`,
-    },
-    {},
-  );
-  expect(result.violations).toHaveLength(1);
-});
-
-test("dead failure-shaped locals do not make a silent catch visible", () => {
-  for (const body of [
-    'const ignored = { error: "bad" }; void ignored;',
-    "let bad = 0; bad++;",
-    'const log = () => {}; log("bad");',
-    "noop();",
-    'status = "idle";',
-  ]) {
-    const result = persistedJsonCensusForSources(
-      {
-        "fixture.ts": `try {
-  JSON.parse(row.result_json);
-} catch {
-  ${body}
-}`,
-      },
-      {},
-    );
-    expect(result.violations, body).toHaveLength(1);
-  }
-});
-
-test("returned failures and outer reporters make a catch visible", () => {
-  for (const body of [
-    'return { ok: false, error: "bad" };',
-    'report("corrupt payload");',
-    "failures++;",
-  ]) {
-    const result = persistedJsonCensusForSources(
-      {
-        "fixture.ts": `let failures = 0;
-declare const report: (message: string) => void;
-function parse() {
-  try {
-    JSON.parse(row.result_json);
-  } catch {
-    ${body}
-  }
-}`,
-      },
-      {},
-    );
-    expect(result.violations, body).toHaveLength(0);
-  }
 });

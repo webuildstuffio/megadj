@@ -1,6 +1,6 @@
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { extname, join, relative } from "node:path";
-import { createHash } from "node:crypto";
 import * as ts from "typescript";
 
 export interface BoundaryCall {
@@ -39,36 +39,59 @@ const TEST_DIRECTORIES = new Set([
   "fixtures",
   "test-support",
 ]);
+const NUMBER_PREDICATES = new Set(["isFinite", "isInteger", "isSafeInteger"]);
+const FAILURE_WORD =
+  /^(?:bad|corrupt|errors?|fail(?:ure|ures)?|invalid|log|report(?:ed)?|unreadable|warn(?:ing|ings)?)$/u;
 
 export function isProductionSourcePath(path: string): boolean {
   const normalized = path.replaceAll("\\", "/");
   const parts = normalized.split("/");
   const basename = parts.at(-1) ?? "";
-  if (!SOURCE_EXTENSIONS.has(extname(basename))) return false;
-  if (parts.some((part) => TEST_DIRECTORIES.has(part))) return false;
-  if (/\.(?:test|spec)\.[cm]?tsx?$/u.test(basename)) return false;
-  if (/^test(?:util|[-_]?support)(?:\.|[-_])/u.test(basename)) return false;
-  return true;
+  return (
+    SOURCE_EXTENSIONS.has(extname(basename)) &&
+    !parts.some((part) => TEST_DIRECTORIES.has(part)) &&
+    !/\.(?:test|spec)\.[cm]?tsx?$/u.test(basename) &&
+    !/^test(?:util|[-_]?support)(?:\.|[-_])/u.test(basename)
+  );
 }
 
-function productionFiles(repo: string): string[] {
-  const files: string[] = [];
+function productionSources(repo: string): Record<string, string> {
+  const sources: Record<string, string> = {};
   const visit = (dir: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (
         entry.name === "node_modules" ||
         entry.name === "dist" ||
         TEST_DIRECTORIES.has(entry.name)
-      ) {
+      )
         continue;
-      }
       const path = join(dir, entry.name);
       if (entry.isDirectory()) visit(path);
-      else if (isProductionSourcePath(path)) files.push(path);
+      else if (isProductionSourcePath(path))
+        sources[relative(repo, path)] = readFileSync(path, "utf8");
     }
   };
   for (const root of PRODUCTION_ROOTS) visit(join(repo, root));
-  return files.toSorted();
+  return sources;
+}
+
+function parseSource(file: string, text: string): ts.SourceFile {
+  return ts.createSourceFile(
+    file,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+}
+
+function isFunctionBoundary(node: ts.Node): boolean {
+  return (
+    ts.isFunctionDeclaration(node) ||
+    ts.isMethodDeclaration(node) ||
+    ts.isArrowFunction(node) ||
+    ts.isFunctionExpression(node)
+  );
 }
 
 function ownerOf(node: ts.Node): string {
@@ -78,16 +101,14 @@ function ownerOf(node: ts.Node): string {
         ts.isMethodDeclaration(parent) ||
         ts.isFunctionExpression(parent)) &&
       parent.name
-    ) {
+    )
       return parent.name.getText();
-    }
     if (
       (ts.isArrowFunction(parent) || ts.isFunctionExpression(parent)) &&
       ts.isVariableDeclaration(parent.parent) &&
       ts.isIdentifier(parent.parent.name)
-    ) {
+    )
       return parent.parent.name.text;
-    }
   }
   return "<module>";
 }
@@ -108,126 +129,124 @@ function callSite(
   };
 }
 
-function parseSource(file: string, text: string): ts.SourceFile {
-  return ts.createSourceFile(
-    file,
-    text,
-    ts.ScriptTarget.Latest,
-    true,
-    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  );
+function identifierName(node: ts.Node): string | null {
+  if (ts.isIdentifier(node)) return node.text;
+  if (
+    (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) &&
+    ts.isIdentifier(node.name)
+  )
+    return node.name.text;
+  return null;
+}
+
+function nameWords(name: string): string[] {
+  return name
+    .replace(/([a-z0-9])([A-Z])/gu, "$1_$2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/u)
+    .filter(Boolean);
+}
+
+function isFailureName(name: string): boolean {
+  return nameWords(name).some((word) => FAILURE_WORD.test(word));
 }
 
 function hasFailureProperty(node: ts.Node): boolean {
-  let found = false;
-  const visit = (candidate: ts.Node): void => {
-    if (found) return;
-    if (
-      (ts.isPropertyAssignment(candidate) ||
-        ts.isShorthandPropertyAssignment(candidate)) &&
-      ts.isIdentifier(candidate.name) &&
-      /^(?:detail|error|errors|unreadable)$/u.test(candidate.name.text)
-    ) {
-      found = true;
+  if (!ts.isObjectLiteralExpression(node)) return false;
+  return node.properties.some((property) => {
+    const name = identifierName(property);
+    if (name === null) return false;
+    if (isFailureName(name)) return true;
+    return (
+      ts.isPropertyAssignment(property) &&
+      (name === "ok" || name === "success") &&
+      property.initializer.kind === ts.SyntaxKind.FalseKeyword
+    );
+  });
+}
+
+function isFailureExpression(node: ts.Expression): boolean {
+  return (
+    hasFailureProperty(node) ||
+    (ts.isIdentifier(node) && isFailureName(node.text)) ||
+    (ts.isNewExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "Error")
+  );
+}
+
+function localNames(block: ts.Block): ReadonlySet<string> {
+  const names = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if (node !== block && isFunctionBoundary(node)) {
+      if (ts.isFunctionDeclaration(node) && node.name)
+        names.add(node.name.text);
       return;
     }
-    ts.forEachChild(candidate, visit);
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name))
+      names.add(node.name.text);
+    ts.forEachChild(node, visit);
   };
-  visit(node);
-  return found;
+  visit(block);
+  return names;
+}
+
+function isVisibleReporter(
+  call: ts.CallExpression,
+  locals: ReadonlySet<string>,
+): boolean {
+  const callee = call.expression;
+  if (ts.isIdentifier(callee))
+    return !locals.has(callee.text) && isFailureName(callee.text);
+  if (!ts.isPropertyAccessExpression(callee)) return false;
+  const method = callee.name.text;
+  if (method !== "error" && method !== "warn") return false;
+  return (
+    !ts.isIdentifier(callee.expression) || !locals.has(callee.expression.text)
+  );
+}
+
+function isAssignment(kind: ts.SyntaxKind): boolean {
+  return (
+    kind >= ts.SyntaxKind.FirstAssignment &&
+    kind <= ts.SyntaxKind.LastAssignment
+  );
 }
 
 function catchHasVisibleFailure(block: ts.Block): boolean {
-  const localNames = new Set<string>();
-  const findLocals = (candidate: ts.Node): void => {
-    if (candidate !== block && ts.isFunctionLike(candidate)) {
-      if (ts.isFunctionDeclaration(candidate) && candidate.name)
-        localNames.add(candidate.name.text);
-      return;
-    }
-    if (ts.isVariableDeclaration(candidate) && ts.isIdentifier(candidate.name))
-      localNames.add(candidate.name.text);
-    ts.forEachChild(candidate, findLocals);
-  };
-  findLocals(block);
-
+  const locals = localNames(block);
   let visible = false;
-  const visit = (candidate: ts.Node): void => {
+  const visit = (node: ts.Node): void => {
     if (
-      candidate !== block &&
-      (ts.isFunctionDeclaration(candidate) ||
-        ts.isMethodDeclaration(candidate) ||
-        ts.isArrowFunction(candidate) ||
-        ts.isFunctionExpression(candidate) ||
-        ts.isClassDeclaration(candidate) ||
-        ts.isClassExpression(candidate))
-    ) {
+      visible ||
+      (node !== block && (isFunctionBoundary(node) || ts.isClassLike(node)))
+    )
       return;
-    }
-    if (ts.isThrowStatement(candidate)) {
+    if (ts.isThrowStatement(node)) visible = true;
+    else if (
+      ts.isReturnStatement(node) &&
+      node.expression !== undefined &&
+      isFailureExpression(node.expression)
+    )
       visible = true;
-      return;
-    }
-    if (
-      ts.isReturnStatement(candidate) &&
-      candidate.expression !== undefined &&
-      !(
-        ts.isIdentifier(candidate.expression) &&
-        candidate.expression.text === "undefined"
-      )
-    ) {
+    else if (ts.isCallExpression(node) && isVisibleReporter(node, locals))
       visible = true;
-      return;
-    }
-    if (
-      ts.isCallExpression(candidate) &&
-      ts.isPropertyAccessExpression(candidate.expression) &&
-      ts.isIdentifier(candidate.expression.expression) &&
-      candidate.expression.expression.text === "console" &&
-      (candidate.expression.name.text === "error" ||
-        candidate.expression.name.text === "warn")
-    ) {
+    else if (
+      ts.isBinaryExpression(node) &&
+      isAssignment(node.operatorToken.kind) &&
+      ts.isIdentifier(node.left) &&
+      !locals.has(node.left.text) &&
+      (isFailureName(node.left.text) || hasFailureProperty(node.right))
+    )
       visible = true;
-      return;
-    }
-    if (
-      ts.isCallExpression(candidate) &&
-      ts.isIdentifier(candidate.expression) &&
-      !localNames.has(candidate.expression.text) &&
-      /(?:corrupt|error|fail|invalid|log|report|unreadable|warn)/iu.test(
-        candidate.expression.text,
-      )
-    ) {
+    else if (
+      (ts.isPostfixUnaryExpression(node) || ts.isPrefixUnaryExpression(node)) &&
+      ts.isIdentifier(node.operand) &&
+      !locals.has(node.operand.text) &&
+      isFailureName(node.operand.text)
+    )
       visible = true;
-      return;
-    }
-    if (
-      ts.isBinaryExpression(candidate) &&
-      candidate.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
-      candidate.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
-      ts.isIdentifier(candidate.left) &&
-      !localNames.has(candidate.left.text) &&
-      (/(?:bad|corrupt|error|fail|invalid|unreadable|warn)/iu.test(
-        candidate.left.text,
-      ) ||
-        hasFailureProperty(candidate.right))
-    ) {
-      visible = true;
-      return;
-    }
-    if (
-      (ts.isPostfixUnaryExpression(candidate) ||
-        ts.isPrefixUnaryExpression(candidate)) &&
-      ts.isIdentifier(candidate.operand) &&
-      !localNames.has(candidate.operand.text) &&
-      /(?:bad|corrupt|error|fail|invalid|unreadable|warn)/iu.test(
-        candidate.operand.text,
-      )
-    ) {
-      visible = true;
-      return;
-    }
-    if (!visible) ts.forEachChild(candidate, visit);
+    else ts.forEachChild(node, visit);
   };
   visit(block);
   return visible;
@@ -235,322 +254,119 @@ function catchHasVisibleFailure(block: ts.Block): boolean {
 
 function hasVisibleCatch(node: ts.Node): boolean {
   for (let parent = node.parent; parent; parent = parent.parent) {
-    if (ts.isTryStatement(parent)) {
+    if (ts.isTryStatement(parent))
       return parent.catchClause
         ? catchHasVisibleFailure(parent.catchClause.block)
         : false;
-    }
-    if (
-      ts.isFunctionDeclaration(parent) ||
-      ts.isMethodDeclaration(parent) ||
-      ts.isArrowFunction(parent) ||
-      ts.isFunctionExpression(parent) ||
-      ts.isSourceFile(parent)
-    ) {
-      break;
-    }
+    if (isFunctionBoundary(parent) || ts.isSourceFile(parent)) break;
   }
   return false;
 }
 
-function directNumberGuard(node: ts.CallExpression): boolean {
-  const parent = node.parent;
-  return (
-    ts.isCallExpression(parent) &&
-    parent.arguments.includes(node) &&
-    ts.isPropertyAccessExpression(parent.expression) &&
-    ts.isIdentifier(parent.expression.expression) &&
-    parent.expression.expression.text === "Number" &&
-    (parent.expression.name.text === "isFinite" ||
-      parent.expression.name.text === "isInteger")
-  );
+function numberPredicate(
+  node: ts.Node,
+  identifier?: string,
+): ts.CallExpression | null {
+  if (
+    !ts.isCallExpression(node) ||
+    node.arguments.length !== 1 ||
+    !ts.isPropertyAccessExpression(node.expression) ||
+    !ts.isIdentifier(node.expression.expression) ||
+    node.expression.expression.text !== "Number" ||
+    !NUMBER_PREDICATES.has(node.expression.name.text)
+  )
+    return null;
+  const [argument] = node.arguments;
+  return identifier === undefined ||
+    (argument !== undefined &&
+      ts.isIdentifier(argument) &&
+      argument.text === identifier)
+    ? node
+    : null;
 }
 
 function enclosingScope(node: ts.Node): ts.Node {
-  for (let parent = node.parent; parent; parent = parent.parent) {
-    if (
-      ts.isFunctionDeclaration(parent) ||
-      ts.isMethodDeclaration(parent) ||
-      ts.isArrowFunction(parent) ||
-      ts.isFunctionExpression(parent) ||
-      ts.isSourceFile(parent)
-    ) {
-      return parent;
-    }
-  }
+  for (let parent = node.parent; parent; parent = parent.parent)
+    if (isFunctionBoundary(parent) || ts.isSourceFile(parent)) return parent;
   return node.getSourceFile();
 }
 
 function assignedIdentifier(node: ts.CallExpression): string | null {
   for (let parent = node.parent; parent; parent = parent.parent) {
-    if (ts.isVariableDeclaration(parent)) {
+    if (ts.isVariableDeclaration(parent))
       return ts.isIdentifier(parent.name) ? parent.name.text : null;
-    }
-    if (
-      ts.isStatement(parent) ||
-      ts.isFunctionDeclaration(parent) ||
-      ts.isMethodDeclaration(parent) ||
-      ts.isArrowFunction(parent) ||
-      ts.isFunctionExpression(parent)
-    ) {
-      return null;
-    }
+    if (ts.isStatement(parent) || isFunctionBoundary(parent)) return null;
   }
   return null;
 }
 
-function finiteGuardForIdentifier(
-  node: ts.Node,
-  name: string,
-): ts.CallExpression | null {
-  if (
-    ts.isCallExpression(node) &&
-    ts.isPropertyAccessExpression(node.expression) &&
-    ts.isIdentifier(node.expression.expression) &&
-    node.expression.expression.text === "Number" &&
-    (node.expression.name.text === "isFinite" ||
-      node.expression.name.text === "isInteger") &&
-    node.arguments.some(
-      (argument) => ts.isIdentifier(argument) && argument.text === name,
-    )
-  ) {
-    return node;
-  }
-  return null;
-}
-
-function statementAlwaysExits(statement: ts.Statement | undefined): boolean {
-  if (statement === undefined) return false;
-  if (ts.isReturnStatement(statement) || ts.isThrowStatement(statement))
-    return true;
-  return (
-    ts.isBlock(statement) && statementAlwaysExits(statement.statements.at(-1))
-  );
-}
-
-function containsNode(container: ts.Node, candidate: ts.Node): boolean {
+function contains(container: ts.Node, candidate: ts.Node): boolean {
   return (
     container.getStart() <= candidate.getStart() &&
     container.getEnd() >= candidate.getEnd()
   );
 }
 
-function isIdentifierPropertyName(candidate: ts.Identifier): boolean {
-  const { parent } = candidate;
+function ignoredIdentifier(node: ts.Identifier): boolean {
+  const parent = node.parent;
   return (
-    (ts.isPropertyAccessExpression(parent) && parent.name === candidate) ||
-    (ts.isPropertyAssignment(parent) && parent.name === candidate)
+    (ts.isPropertyAccessExpression(parent) && parent.name === node) ||
+    (ts.isPropertyAssignment(parent) && parent.name === node) ||
+    (ts.isVariableDeclaration(parent) && parent.name === node)
   );
 }
 
-function conditionalGuardProtectsUses(
-  guard: ts.CallExpression,
-  scope: ts.Node,
-  conversion: ts.CallExpression,
-  name: string,
-  negated: boolean,
-): boolean {
-  let conditional: ts.ConditionalExpression | null = null;
-  for (
-    let parent = guard.parent;
-    parent && parent !== scope;
-    parent = parent.parent
-  ) {
-    if (
-      ts.isConditionalExpression(parent) &&
-      containsNode(parent.condition, guard)
-    ) {
-      conditional = parent;
-      break;
-    }
-    if (ts.isStatement(parent)) return false;
-  }
-  if (conditional === null) return false;
-
-  const requiredOperator = negated
-    ? ts.SyntaxKind.BarBarToken
-    : ts.SyntaxKind.AmpersandAmpersandToken;
-  for (let child: ts.Node = guard; child !== conditional.condition;) {
-    const parent = child.parent;
-    if (
-      ts.isBinaryExpression(parent) &&
-      parent.operatorToken.kind !== requiredOperator
-    ) {
-      return false;
-    }
-    child = parent;
-  }
-
-  const safeArm = negated ? conditional.whenFalse : conditional.whenTrue;
-  let protectedUses = true;
-  const visit = (candidate: ts.Node): void => {
-    if (!protectedUses) return;
-    if (
-      candidate !== scope &&
-      (ts.isFunctionDeclaration(candidate) ||
-        ts.isMethodDeclaration(candidate) ||
-        ts.isArrowFunction(candidate) ||
-        ts.isFunctionExpression(candidate))
-    ) {
-      return;
-    }
-    if (
-      ts.isIdentifier(candidate) &&
-      candidate.text === name &&
-      !isIdentifierPropertyName(candidate) &&
-      candidate.getStart() > conversion.getEnd() &&
-      !containsNode(guard, candidate)
-    ) {
-      if (containsNode(safeArm, candidate)) return;
-      if (containsNode(conditional!.condition, candidate)) {
-        for (
-          let child: ts.Node = candidate;
-          child !== conditional!.condition;
-        ) {
-          const parent = child.parent;
-          if (
-            ts.isBinaryExpression(parent) &&
-            parent.operatorToken.kind === requiredOperator &&
-            containsNode(parent.left, guard) &&
-            containsNode(parent.right, candidate)
-          ) {
-            return;
-          }
-          child = parent;
-        }
-      }
-      protectedUses = false;
-      return;
-    }
-    ts.forEachChild(candidate, visit);
+function walkScope(scope: ts.Node, visit: (node: ts.Node) => void): void {
+  const walk = (node: ts.Node): void => {
+    if (node !== scope && isFunctionBoundary(node)) return;
+    visit(node);
+    ts.forEachChild(node, walk);
   };
-  visit(scope);
-  return protectedUses;
+  walk(scope);
 }
 
-function ifGuardProtectsUses(
-  guard: ts.CallExpression,
-  scope: ts.Node,
-  conversion: ts.CallExpression,
-  name: string,
-  negated: boolean,
-  statement: ts.IfStatement,
-): boolean {
-  const requiredOperator = negated
-    ? ts.SyntaxKind.BarBarToken
-    : ts.SyntaxKind.AmpersandAmpersandToken;
-  for (let child: ts.Node = guard; child !== statement.expression;) {
-    const parent = child.parent;
-    if (
-      ts.isBinaryExpression(parent) &&
-      parent.operatorToken.kind !== requiredOperator
-    )
-      return false;
-    child = parent;
-  }
-
-  const safeBranch = negated
-    ? statement.elseStatement
-    : statement.thenStatement;
-  const unsafeBranch = negated
-    ? statement.thenStatement
-    : statement.elseStatement;
-  const unsafeExits = statementAlwaysExits(unsafeBranch);
-  let protectedUses = true;
-  const visit = (candidate: ts.Node): void => {
-    if (!protectedUses) return;
-    if (
-      candidate !== scope &&
-      (ts.isFunctionDeclaration(candidate) ||
-        ts.isMethodDeclaration(candidate) ||
-        ts.isArrowFunction(candidate) ||
-        ts.isFunctionExpression(candidate))
-    )
-      return;
-    if (
-      ts.isIdentifier(candidate) &&
-      candidate.text === name &&
-      !isIdentifierPropertyName(candidate) &&
-      candidate.getStart() > conversion.getEnd() &&
-      !containsNode(guard, candidate)
-    ) {
-      if (safeBranch && containsNode(safeBranch, candidate)) return;
-      if (containsNode(statement.expression, candidate)) {
-        for (let child: ts.Node = candidate; child !== statement.expression;) {
-          const parent = child.parent;
-          if (
-            ts.isBinaryExpression(parent) &&
-            parent.operatorToken.kind === requiredOperator &&
-            containsNode(parent.left, guard) &&
-            containsNode(parent.right, candidate)
-          )
-            return;
-          child = parent;
-        }
-      }
-      if (unsafeExits && candidate.getStart() > statement.getEnd()) return;
-      protectedUses = false;
-      return;
-    }
-    ts.forEachChild(candidate, visit);
-  };
-  visit(scope);
-  return protectedUses;
+function statementAlwaysExits(statement: ts.Statement | undefined): boolean {
+  if (statement === undefined) return false;
+  if (ts.isReturnStatement(statement) || ts.isThrowStatement(statement))
+    return true;
+  if (ts.isBlock(statement))
+    return statementAlwaysExits(statement.statements.at(-1));
+  return (
+    ts.isIfStatement(statement) &&
+    statementAlwaysExits(statement.thenStatement) &&
+    statementAlwaysExits(statement.elseStatement)
+  );
 }
 
-function hasOrderedNumberGuard(node: ts.CallExpression): boolean {
-  if (directNumberGuard(node)) return true;
-  const name = assignedIdentifier(node);
-  if (name === null) return false;
+function isWrite(node: ts.Identifier): boolean {
+  const parent = node.parent;
+  return (
+    (ts.isBinaryExpression(parent) &&
+      parent.left === node &&
+      isAssignment(parent.operatorToken.kind)) ||
+    ((ts.isPrefixUnaryExpression(parent) ||
+      ts.isPostfixUnaryExpression(parent)) &&
+      parent.operand === node &&
+      (parent.operator === ts.SyntaxKind.PlusPlusToken ||
+        parent.operator === ts.SyntaxKind.MinusMinusToken))
+  );
+}
 
-  const scope = enclosingScope(node);
-  const guards: ts.CallExpression[] = [];
-  const findGuard = (candidate: ts.Node): void => {
-    if (
-      candidate !== scope &&
-      (ts.isFunctionDeclaration(candidate) ||
-        ts.isMethodDeclaration(candidate) ||
-        ts.isArrowFunction(candidate) ||
-        ts.isFunctionExpression(candidate))
-    ) {
-      return;
-    }
-    const guard = finiteGuardForIdentifier(candidate, name);
-    if (guard && guard.getStart() > node.getEnd()) guards.push(guard);
-    ts.forEachChild(candidate, findGuard);
-  };
-  findGuard(scope);
-  const guard = guards.toSorted((a, b) => a.getStart() - b.getStart())[0];
-  if (guard === undefined) return false;
-  const guardStart = guard.getStart();
-  let unsafeUseBeforeGuard = false;
-  const findPriorUse = (candidate: ts.Node): void => {
-    const isPropertyName =
-      candidate.parent !== undefined &&
-      ((ts.isPropertyAccessExpression(candidate.parent) &&
-        candidate.parent.name === candidate) ||
-        (ts.isPropertyAssignment(candidate.parent) &&
-          candidate.parent.name === candidate));
-    if (
-      ts.isIdentifier(candidate) &&
-      candidate.text === name &&
-      !isPropertyName &&
-      candidate.getStart() > node.getEnd() &&
-      candidate.getStart() < guardStart
-    ) {
-      unsafeUseBeforeGuard = true;
-      return;
-    }
-    if (!unsafeUseBeforeGuard) ts.forEachChild(candidate, findPriorUse);
-  };
-  findPriorUse(scope);
-  if (unsafeUseBeforeGuard) return false;
+function enclosingPredicate(node: ts.Node): ts.CallExpression | null {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    const predicate = numberPredicate(parent);
+    if (predicate) return predicate;
+    if (ts.isStatement(parent) || isFunctionBoundary(parent)) break;
+  }
+  return null;
+}
 
-  let guardIf: ts.IfStatement | null = null;
+function isNegatedBetween(node: ts.Node, ancestor: ts.Node): boolean {
+  if (node === ancestor) return false;
   let negated = false;
   for (
-    let parent = guard.parent;
-    parent && parent !== scope;
+    let parent: ts.Node | undefined = node.parent;
+    parent;
     parent = parent.parent
   ) {
     if (
@@ -558,18 +374,145 @@ function hasOrderedNumberGuard(node: ts.CallExpression): boolean {
       parent.operator === ts.SyntaxKind.ExclamationToken
     )
       negated = !negated;
-    if (
-      ts.isIfStatement(parent) &&
-      parent.expression.getStart() <= guardStart &&
-      parent.expression.getEnd() >= guard.getEnd()
-    ) {
-      guardIf = parent;
-      break;
-    }
+    if (parent === ancestor) break;
   }
-  if (guardIf === null)
-    return conditionalGuardProtectsUses(guard, scope, node, name, negated);
-  return ifGuardProtectsUses(guard, scope, node, name, negated, guardIf);
+  return negated;
+}
+
+function booleanPathValid(
+  guard: ts.Node,
+  condition: ts.Expression,
+  safeWhenTrue: boolean,
+): boolean {
+  const operator = safeWhenTrue
+    ? ts.SyntaxKind.AmpersandAmpersandToken
+    : ts.SyntaxKind.BarBarToken;
+  for (let child = guard; child !== condition; child = child.parent)
+    if (
+      ts.isBinaryExpression(child.parent) &&
+      child.parent.operatorToken.kind !== operator
+    )
+      return false;
+  return true;
+}
+
+function conditionUseIsProtected(
+  use: ts.Identifier,
+  guard: ts.CallExpression,
+  condition: ts.Expression,
+  safeWhenTrue: boolean,
+): boolean {
+  const operator = safeWhenTrue
+    ? ts.SyntaxKind.AmpersandAmpersandToken
+    : ts.SyntaxKind.BarBarToken;
+  for (let child: ts.Node = use; child !== condition; child = child.parent) {
+    const parent = child.parent;
+    if (
+      ts.isBinaryExpression(parent) &&
+      parent.operatorToken.kind === operator &&
+      contains(parent.left, guard) &&
+      contains(parent.right, use)
+    )
+      return true;
+  }
+  return false;
+}
+
+type GuardContext =
+  | { kind: "if"; node: ts.IfStatement }
+  | { kind: "ternary"; node: ts.ConditionalExpression };
+
+function guardContext(
+  guard: ts.CallExpression,
+  scope: ts.Node,
+): GuardContext | null {
+  for (let parent = guard.parent; parent !== scope; parent = parent.parent) {
+    if (ts.isIfStatement(parent) && contains(parent.expression, guard))
+      return { kind: "if", node: parent };
+    if (ts.isConditionalExpression(parent) && contains(parent.condition, guard))
+      return { kind: "ternary", node: parent };
+    if (ts.isStatement(parent)) return null;
+  }
+  return null;
+}
+
+function guardProtectsUses(
+  guard: ts.CallExpression,
+  conversion: ts.CallExpression,
+  scope: ts.Node,
+  name: string,
+): boolean {
+  const context = guardContext(guard, scope);
+  if (context === null) return false;
+  const condition =
+    context.kind === "if" ? context.node.expression : context.node.condition;
+  const safeWhenTrue = !isNegatedBetween(guard, condition);
+  if (!booleanPathValid(guard, condition, safeWhenTrue)) return false;
+
+  const safeBranch =
+    context.kind === "if"
+      ? safeWhenTrue
+        ? context.node.thenStatement
+        : context.node.elseStatement
+      : safeWhenTrue
+        ? context.node.whenTrue
+        : context.node.whenFalse;
+  const unsafeExits =
+    context.kind === "if" &&
+    statementAlwaysExits(
+      safeWhenTrue ? context.node.elseStatement : context.node.thenStatement,
+    );
+  let protectedUses = true;
+
+  walkScope(scope, (node) => {
+    if (
+      !protectedUses ||
+      !ts.isIdentifier(node) ||
+      node.text !== name ||
+      ignoredIdentifier(node) ||
+      node.getStart() <= conversion.getEnd() ||
+      contains(guard, node)
+    )
+      return;
+    const predicate = enclosingPredicate(node);
+    if (predicate && predicate !== guard) return;
+    if (isWrite(node)) {
+      protectedUses = false;
+      return;
+    }
+    if (node.getStart() < guard.getStart()) {
+      protectedUses = false;
+      return;
+    }
+    if (safeBranch && contains(safeBranch, node)) return;
+    if (
+      contains(condition, node) &&
+      conditionUseIsProtected(node, guard, condition, safeWhenTrue)
+    )
+      return;
+    if (
+      context.kind === "if" &&
+      unsafeExits &&
+      node.getStart() > context.node.getEnd()
+    )
+      return;
+    protectedUses = false;
+  });
+  return protectedUses;
+}
+
+function hasOrderedNumberGuard(node: ts.CallExpression): boolean {
+  const parentPredicate = numberPredicate(node.parent);
+  if (parentPredicate?.arguments[0] === node) return true;
+  const name = assignedIdentifier(node);
+  if (name === null) return false;
+  const scope = enclosingScope(node);
+  const guards: ts.CallExpression[] = [];
+  walkScope(scope, (candidate) => {
+    const guard = numberPredicate(candidate, name);
+    if (guard && guard.getStart() > node.getEnd()) guards.push(guard);
+  });
+  return guards.some((guard) => guardProtectsUses(guard, node, scope, name));
 }
 
 function isNumberCall(node: ts.CallExpression): boolean {
@@ -592,12 +535,11 @@ function disambiguateDuplicateKeys(calls: BoundaryCall[]): void {
     group.push(call);
     groups.set(call.key, group);
   }
-  for (const group of groups.values()) {
-    if (group.length < 2) continue;
-    group.forEach((call, index) => {
-      call.key = `${call.key}#${index + 1}`;
-    });
-  }
+  for (const group of groups.values())
+    if (group.length > 1)
+      group.forEach((call, index) => {
+        call.key += `#${index + 1}`;
+      });
 }
 
 function census(
@@ -616,7 +558,6 @@ function census(
   const sanctioned = calls.filter(
     (call) => !guardedKeys.has(call.key) && allowlist[call.key] !== undefined,
   ).length;
-  const keys = calls.map((call) => call.key).toSorted();
   return {
     calls: calls.toSorted((a, b) => a.key.localeCompare(b.key)),
     violations,
@@ -630,51 +571,25 @@ function census(
     audited: calls.length,
     guarded: guardedKeys.size,
     sanctioned,
-    digest: createHash("sha256").update(keys.join("\n")).digest("hex"),
+    digest: createHash("sha256")
+      .update(
+        calls
+          .map((call) => call.key)
+          .toSorted()
+          .join("\n"),
+      )
+      .digest("hex"),
   };
 }
 
-export function scanNumberSource(file: string, text: string): BoundaryCall[] {
-  const sourceFile = parseSource(file, text);
-  const calls: BoundaryCall[] = [];
-  const visit = (node: ts.Node): void => {
-    if (ts.isCallExpression(node) && isNumberCall(node)) {
-      calls.push(callSite(sourceFile, node, file));
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
-  return calls;
-}
+type CallPredicate = (node: ts.CallExpression) => boolean;
+type GuardPredicate = (node: ts.CallExpression, call: BoundaryCall) => boolean;
 
-export function scanJsonSource(file: string, text: string): BoundaryCall[] {
-  const sourceFile = parseSource(file, text);
-  const calls: BoundaryCall[] = [];
-  const visit = (node: ts.Node): void => {
-    if (ts.isCallExpression(node) && isJsonParse(node)) {
-      calls.push(callSite(sourceFile, node, file));
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
-  return calls;
-}
-
-export function numberBoundaryCensus(
-  repo: string,
-  allowlist: Readonly<Record<string, string>>,
-): CensusResult {
-  const sources: Record<string, string> = {};
-  for (const path of productionFiles(repo)) {
-    sources[relative(repo, path)] = readFileSync(path, "utf8");
-  }
-  return numberBoundaryCensusForSources(sources, allowlist);
-}
-
-export function numberBoundaryCensusForSources(
+function scanSources(
   sources: Readonly<Record<string, string>>,
-  allowlist: Readonly<Record<string, string>>,
-): CensusResult {
+  matches: CallPredicate,
+  guardedBy: GuardPredicate = () => false,
+): { calls: BoundaryCall[]; guarded: Set<BoundaryCall> } {
   const calls: BoundaryCall[] = [];
   const guarded = new Set<BoundaryCall>();
   for (const [file, text] of Object.entries(sources).toSorted(([a], [b]) =>
@@ -682,17 +597,48 @@ export function numberBoundaryCensusForSources(
   )) {
     const sourceFile = parseSource(file, text);
     const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node) && isNumberCall(node)) {
+      if (ts.isCallExpression(node) && matches(node)) {
         const call = callSite(sourceFile, node, file);
         calls.push(call);
-        if (hasOrderedNumberGuard(node)) {
-          guarded.add(call);
-        }
+        if (guardedBy(node, call)) guarded.add(call);
       }
       ts.forEachChild(node, visit);
     };
     visit(sourceFile);
   }
+  return { calls, guarded };
+}
+
+function scanOne(
+  file: string,
+  text: string,
+  matches: CallPredicate,
+): BoundaryCall[] {
+  return scanSources({ [file]: text }, matches).calls;
+}
+
+export function scanNumberSource(file: string, text: string): BoundaryCall[] {
+  return scanOne(file, text, isNumberCall);
+}
+
+export function scanJsonSource(file: string, text: string): BoundaryCall[] {
+  return scanOne(file, text, isJsonParse);
+}
+
+export function numberBoundaryCensus(
+  repo: string,
+  allowlist: Readonly<Record<string, string>>,
+): CensusResult {
+  return numberBoundaryCensusForSources(productionSources(repo), allowlist);
+}
+
+export function numberBoundaryCensusForSources(
+  sources: Readonly<Record<string, string>>,
+  allowlist: Readonly<Record<string, string>>,
+): CensusResult {
+  const { calls, guarded } = scanSources(sources, isNumberCall, (node) =>
+    hasOrderedNumberGuard(node),
+  );
   return census(calls, guarded, allowlist);
 }
 
@@ -700,35 +646,18 @@ export function persistedJsonCensus(
   repo: string,
   allowlist: Readonly<Record<string, string>>,
 ): CensusResult {
-  const sources: Record<string, string> = {};
-  for (const path of productionFiles(repo)) {
-    sources[relative(repo, path)] = readFileSync(path, "utf8");
-  }
-  return persistedJsonCensusForSources(sources, allowlist);
+  return persistedJsonCensusForSources(productionSources(repo), allowlist);
 }
 
 export function persistedJsonCensusForSources(
   sources: Readonly<Record<string, string>>,
   allowlist: Readonly<Record<string, string>>,
 ): CensusResult {
-  const calls: BoundaryCall[] = [];
-  const guarded = new Set<BoundaryCall>();
-  for (const [file, text] of Object.entries(sources).toSorted(([a], [b]) =>
-    a.localeCompare(b),
-  )) {
-    const sourceFile = parseSource(file, text);
-    const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node) && isJsonParse(node)) {
-        const call = callSite(sourceFile, node, file);
-        calls.push(call);
-        if (call.owner === "parseSnapshotJson" || hasVisibleCatch(node)) {
-          guarded.add(call);
-        }
-      }
-      ts.forEachChild(node, visit);
-    };
-    visit(sourceFile);
-  }
+  const { calls, guarded } = scanSources(
+    sources,
+    isJsonParse,
+    (node, call) => call.owner === "parseSnapshotJson" || hasVisibleCatch(node),
+  );
   return census(calls, guarded, allowlist);
 }
 
@@ -736,24 +665,16 @@ export function formatCensusFailure(
   kind: string,
   result: CensusResult,
 ): string {
-  const violations = result.violations.map(
-    (call) => `  ${call.file}:${call.line} ${call.source}`,
-  );
-  const stale = result.unusedAllowlist.map(
-    (key) => `  stale allowlist: ${key}`,
-  );
-  const redundant = result.redundantAllowlist.map(
-    (key) => `  redundant allowlist (now guarded): ${key}`,
-  );
-  const duplicates = result.duplicateKeys.map(
-    (key) => `  duplicate fingerprint: ${key}`,
-  );
   return [
     `${kind} boundary census failed`,
-    ...violations,
-    ...stale,
-    ...redundant,
-    ...duplicates,
+    ...result.violations.map(
+      (call) => `  ${call.file}:${call.line} ${call.source}`,
+    ),
+    ...result.unusedAllowlist.map((key) => `  stale allowlist: ${key}`),
+    ...result.redundantAllowlist.map(
+      (key) => `  redundant allowlist (now guarded): ${key}`,
+    ),
+    ...result.duplicateKeys.map((key) => `  duplicate fingerprint: ${key}`),
     `audited=${result.audited} guarded=${result.guarded} sanctioned=${result.sanctioned}`,
   ].join("\n");
 }
