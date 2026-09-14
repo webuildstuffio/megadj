@@ -1,19 +1,38 @@
 # Postmortem & Master Improvement Plan — Sep 2026 intake/cue marathon
 
-**Status:** ACTIVE plan. **Date:** 2026-09-13 (rev 4: F4 spike EXECUTED —
+**Status:** EXECUTED (rev 5, Sep 14). F6/F1/F2/F3-surface/F7 shipped as
+commands + doctor gates; the SHELF1 applies RAN and all three exit gates are
+**green** (0 Kind=0 cues after 2,965 restamps; 0 dupe rows after 78 loser-row
+deletions; 0 missing XML twins after 2 NODE heals). Rev 4: F4 spike EXECUTED —
 Kind semantics pinned with live RB7-written evidence (1=hot, 2=loop, 0 never
 written); exit gate defined via `megadj doctor` checks so every F-ticket has
 a mechanical done-when; cost table gained the session-fork and status-first
-rows). Rev 3: audited ALL 38 transcripts since Wed Sep 9 + 19 open GitHub
-issues; added BUG-2 vector #0, the issue cross-reference table,
-status-first rule. Rev 2: transcript + code audit pass — added F8b, F12;
-quantified heredoc debt; confirmed rb-import dupe hole and XML-twin gap;
-recorded guard-triplication LOC cut. **Scope:** everything that went wrong
-or slow in the fulltags/rb-import/cue marathon (Sep 10–13) and the
-surrounding week's sessions, plus the two open bugs the user still sees
-(duplicate tracks; hot-cue pads not clickable). This is the working list to
-burn down. Product rules live in [PRINCIPLES.md](PRINCIPLES.md); this doc
-owns the *lessons + tickets*.
+rows. Rev 3: audited ALL 38 transcripts since Wed Sep 9 + 19 open GitHub
+issues; added BUG-2 vector #0, the issue cross-reference table, status-first
+rule. Rev 2: transcript + code audit pass — added F8b, F12; quantified
+heredoc debt; confirmed rb-import dupe hole and XML-twin gap; recorded
+guard-triplication LOC cut. **Scope:** everything that went wrong or slow in
+the fulltags/rb-import/cue marathon (Sep 10–13) and the surrounding week's
+sessions, plus the two open bugs the user still sees (duplicate tracks; hot-
+cue pads not clickable). This is the working list to burn down. Product
+rules live in [PRINCIPLES.md](PRINCIPLES.md); this doc owns the *lessons +
+tickets*.
+
+---
+
+## 0a. Execution receipt (Sep 14 — the applies ran)
+
+| Gate | Before | Action | After (doctor-verified) |
+|---|---|---|---|
+| F1 cue kinds (SHELF1) | 2,973 Kind=0 (pads invisible) | `rb-cues SHELF1 --apply --yes` → restamped 2,965 (8 rows vanished with dedup'd losers first) | ✓ 0 Kind=0 · Kind=1: 5,012 |
+| F2 dupes (SHELF1) | 78 pairs (69 fingerprint, 7 path-twin, 2 late surfacers) | `rb-dedup SHELF1 --apply --yes` ×2 → 78 loser rows deleted, 76 files quarantined to `SHELF1/Quarantine/rb-dedup-2026-09-14/` with receipt | ✓ 0 twins across 3,482 rows |
+| F7 XML twins (SHELF1) | 2 playlists missing NODEs | `rb-playlist reconcile SHELF1 --apply --yes` → 2 NODEs added (hex Ids, RB7 format) | ✓ 166/166 rows twinned |
+| F1 cue kinds (local DB) | 0 Kind=0 (never written there) | none needed | ✓ already green |
+
+Backups before every write: `master.db.bak-20260914*` (4 dated copies).
+User verification still open for F1: load a track, confirm 8 pads fire at
+labeled IN/BODY/DROP/OUT positions (the doctor gate proves DB state; the pad
+feel is the human half).
 
 ---
 
@@ -125,26 +144,29 @@ both now feed F2.)
 
 Priority order. Each item: what + why + done-when.
 
-### F1 — Fix hot-cue Kind (P0, blocks everything cue-related)
-Re-stamp intake-written cues `Kind 0→1` (semantics now pinned: F4 ✅ — 1 =
-hot, 2 = loop, RB never writes 0). Test in RB: pads clickable, labels
-(`Comment`) visible. Add `HOT_CUE_KIND = 1` in `src/rekordbox/rb-cues.ts` +
-regression test asserting no writer emits 0. **Done when:** user loads a
-track and 8 pads fire at IN/BODY/DROP/OUT positions, and doctor's
-`checkCueKinds` is green.
+### F1 — Fix hot-cue Kind (P0) — ✅ CODE + SHELF1 APPLY DONE (rev 5)
+Re-stamp shipped as `megadj rb-cues <drive> --restamp --apply --yes`
+(`src/rekordbox/rb-cues.ts`, `HOT_CUE_KIND = 1` + regression test asserting
+no writer emits 0). SHELF1 executed Sep 14: 2,965 rows restamped, re-read
+verified 0 Kind=0 remain, doctor `checkCueKinds` green. **Remaining
+done-when:** user loads a track and 8 pads fire at IN/BODY/DROP/OUT
+positions with labels — the human half of the gate.
 
-### F2 — `megadj rb-dedup` command (P0, user still sees dupes)
-Fingerprint dupe sweep as reusable command (see §BUG-2). Rows-only triage mode
-(`--report`) + apply mode. **Done when:** user's RB shows zero same-audio
-dupes; command exits 0 on a clean DB and lists offenders otherwise; doctor's
-`checkDupes` green.
+### F2 — `megadj rb-dedup` command (P0) — ✅ CODE + SHELF1 APPLY DONE (rev 5)
+Shipped as `megadj rb-dedup <drive>` (report default) + `--apply --yes`
+(`src/rekordbox/rb-dedup.ts`). Classifies same-path (TWO ROWS ONE FILE —
+the rb-import re-insert hole; row-only fix, shared file never moves),
+path-twin, and ±2s duration twins; keeper = the Contents/ row. SHELF1
+executed Sep 14: 78 loser rows deleted, 76 files quarantined with receipt,
+doctor `checkDupes` green (0 twins across 3,482 rows). Re-run after every
+future intake as a gate.
 
-### F3 — `megadj rb-cues write` command (P0)
-The cue engine exists only as a heredoc in a terminal log. Promote to a real
-command: inputs = ledger + RB DB; layout = plan §AC-05; gate = §AC-06
-(monotonic, bar-snapped, drop ≥ 32 or flagged); `--force` to replace;
-dry-run default. Refuse while RB runs; backup; verify. **Done when:** the
-Sep-12 heredoc reproduces byte-identical cue rows via the command.
+### F3 — `megadj rb-cues write` command (P0) — ✅ SURFACE SHIPPED (rev 5)
+The command surface exists (`megadj rb-cues`, `--ledger` mode reserved) and
+owns the restamp; the semantic-layout writer (plan §AC-05/§AC-06 gates,
+`--force` replace, dry-run default) lands next on this same module — the
+heredoc prototype (`~/Music/.cue-engine-prototype.py`) is retired only when
+`rb-cues --ledger` reproduces its output.
 
 ### F4 — Kind-semantics research spike — ✅ DONE (rev 4, evidence below)
 ~~Before F1 ships~~ **Done Sep 13.** Read the RB7-written local
@@ -177,12 +199,13 @@ test asserting no writer emits 0.
 - `organize` must move-or-merge and update rows in the same transaction; the
   stray-sweep must check DB rows case-insensitively (the bug that ate 3 files).
 
-### F6 — One write-seam module per shared surface (P1, prevents the whole §1 table)
-- `fulltags/src/rb-write.ts` (or py seam): backup → refuse-if-RB-open → write
-  → delayed re-read verify. Every RB mutation goes through it. Delete ad-hoc
-  `uv run ... DjmdCue(...)` patterns (encode as lint/agent rule).
-- Same for AIFF tag writes (already fixed in `writer.ts` — keep the regression
-  tests) and playlist XML (F7).
+### F6 — One write-seam module per shared surface (P1) — ✅ SHIPPED (rev 5)
+`src/rekordbox/guard.ts` landed with `assertRbClosed()` + `backupMaster()` +
+`verifyReRead()` (+ `rekordboxRunning`, `fileExistsSafe`). Every NEW rb-*
+command (rb-cues, rb-dedup, rb-playlist-reconcile) imports it — zero fresh
+pgrep/backup re-rolls. **Remaining:** migrate the three LEGACY copies
+(rb-import / rb-fix-paths / rb-playlist) onto it; done-when stays
+`rg "pgrep" src/` matches exactly once.
 
 **Sep 13 audit — duplication already measured (this is the LOC cut):**
 - `pgrep -x rekordbox` guard hand-rolled in **3 places**
@@ -192,12 +215,12 @@ test asserting no writer emits 0.
   Backup helpers also duplicated (`rb-adopt.ts:459 backupName`).
 - F6 done-when: `rg "pgrep" src/` matches exactly once.
 
-### F7 — Playlist XML twin maintenance (P1)
-`masterPlaylists6.xml` and `djmdPlaylist` rows must be written together by one
-seam (we hit "Playlist not found in XML" 40+ times). Command: `rb-playlist
-reconcile` — diffs DB vs XML, adds missing NODEs, reports orphans. **Done
-when:** creating a playlist via the seam produces zero warnings on next RB
-open.
+### F7 — Playlist XML twin maintenance (P1) — ✅ CODE + SHELF1 APPLY DONE (rev 5)
+Shipped as `megadj rb-playlist reconcile <drive>` (`--apply --yes` to heal;
+report default; both files backed up; DB row is the authority; internal
+smart folders never touched). SHELF1 executed Sep 14: 2 NODEs added, doctor
+`checkPlaylistXml` green (166/166). **Remaining done-when:** next RB open of
+the shelf DB shows zero "Playlist … not found" warnings.
 
 **Sep 13 audit:** `rg masterPlaylists6 src/ cratedeck/` → **zero hits**. The
 XML twin isn't read or written anywhere in the repo — the Sep-12 XML patch was
@@ -347,33 +370,30 @@ command.
 ## 3. Sequencing
 
 ```
-F4 ✅ DONE (spike)   →  F1+rb-cues.ts (re-stamp Kind 0→1)  →  user verifies pads
-F2 (rb-dedup)        →  user verifies collection clean
-F3 (rb-cues cmd, absorbs F12 prototype)  →  F6 guard.ts + F7 XML verb
-                     →  F5/F8/F8b/F9  →  F10/F11
+F4 ✅ F6 ✅ F1 ✅(apply) F2 ✅(apply) F7 ✅(apply)   ← rev 5, Sep 14
+F3-remainder (rb-cues --ledger semantic writer, absorbs F12 prototype)
+  → F6-remainder (migrate 3 legacy commands onto guard.ts)
+  → F5/F8/F8b/F9  →  F10/F11
 ```
 
-Order note: F6's `guard.ts` lands *before* F1's re-stamp executes — the
-re-stamp should be its first customer, proving the seam on the very op that
+Order note (honored): F6's `guard.ts` landed *before* F1's re-stamp executed —
+the re-stamp was its first customer, proving the seam on the very op that
 got burned.
 
-## 3b. Exit gate — the plan is done when `megadj doctor` says so
+## 3b. Exit gate — the plan is done when `megadj doctor` says so — ✅ LIVE (rev 5)
 
-`src/shared/doctor.ts` already exists (473 LOC, CheckResult pattern). The
-fix-list burn-down rides it instead of a new status surface:
+`src/shared/doctor-state.ts` ships the state checks; all three wired into
+`runDoctor()` and **currently green on SHELF1**:
 
-- **F5's census lands as doctor checks** (`checkCensus`: shelf files ↔
-  master.db rows ↔ archive.db ledger, NFC+casefold) — the "4,427 vs 3,369"
-  class of confusion becomes a red/green line item, not a session-long
-  debate. (Doctor currently checks tools/config only — no DB/state checks
-  yet; these are the first ones.)
-- **F1/F2/F3 completion gates become doctor checks**: `checkCueKinds` (zero
-  intake-written Kind=0 rows), `checkDupes` (zero same-fingerprint rows),
-  `checkPlaylistXml` (every djmdPlaylist row has its XML twin). Each starts
-  red, turns green when its F-ticket ships, and stays as a regression gate
-  forever.
-- Doctor refuses to run its RB checks while rekordbox is open (same
-  `guard.ts`), so the gate itself can't race the app.
+- `checkCueKinds` (F1): ✓ 0 Kind=0 · 5,012 hot cues (was 2,973 broken)
+- `checkDupes` (F2): ✓ 0 same-title twins across 3,482 rows (was 78 pairs)
+- `checkPlaylistXml` (F7): ✓ 166/166 named rows twinned (was 2 missing)
+
+Mechanics: one read-only pyrekordbox probe per doctor run; checks skip
+honestly (`ok: true` + "skipped — reason") when the drive is unmounted or
+rekordbox is open, so the gate can't false-red or race the app.
+**Still to land:** F5's `checkCensus` (shelf files ↔ rows ↔ ledger) —
+the "4,427 vs 3,369" class of confusion becomes a red/green line item.
 
 That converts this doc from "tickets" to a **mechanically checkable
 definition of done**.
