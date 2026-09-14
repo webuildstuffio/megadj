@@ -228,7 +228,8 @@ consumer (CDJ, Mixxx, a future automix leg) can execute the handoff without re-a
 > - **B10p embedding prior: effnet-only.** The v2 rerun (n=180, 0 fails)
 >   confirmed effnet leads on both LOO family agreement (0.444 vs 0.300
 >   musicnn) and retrieval coherence (0.362 vs 0.292). No second tower in
->   the scoring path; fusion sweeps still running — the WIP gate lives in
+>   the scoring path; the fusion/variant sweep is **settled — not
+>   adopted** (+1.1 pt, below the bar); the gate and verdict live in
 >   [06-embedding-models.md](06-embedding-models.md).
 >
 > Everything below is otherwise current: A-first ordering, B/C/D scoping,
