@@ -41,19 +41,28 @@ function deckctlVerbs(): string[] {
   return [...new Set(verbs)].toSorted();
 }
 
-/** megadj CLI command set: the switch in src/cli.ts's main() — including
- *  the two-label cases (`case "organize": case "enrich":`) and the
- *  shelf-hygiene/rb-fix-paths dispatch into maintenance-cmds.ts. This
+/** megadj CLI command set: the family registries delegated by src/cli.ts,
+ *  plus the shelf-hygiene/rb-fix-paths dispatch into maintenance-cmds.ts. This
  *  surface was historically NOT censused (deckctl + MCP were), which is
  *  exactly how the doc drifted to "19 commands" while the code carried 30
  *  (the whole shelf family + booth-fix + similar + upgrade landed with no
  *  census to fail). */
 function megadjCommands(): string[] {
-  const src = read("src/cli.ts");
-  const verbs = src
-    .map((l) => l.match(/^\s*case "([a-z-]+)":/))
-    .map((m) => (m ? m[1] : undefined))
-    .filter((v): v is string => v !== undefined);
+  const verbs: string[] = [];
+  for (const file of [
+    "src/cli-commands-core.ts",
+    "src/cli-commands-shelf.ts",
+    "src/cli-commands-tags.ts",
+    "src/cli-commands-analysis.ts",
+  ]) {
+    const registry = read(file).join("\n").split("_COMMANDS:")[1] ?? "";
+    for (const match of registry.matchAll(
+      /^\s{2}(?:"([a-z-]+)"|([a-z]+))(?::|,)/gm,
+    )) {
+      const verb = match[1] ?? match[2];
+      if (verb) verbs.push(verb);
+    }
+  }
   const maintenance = read("src/shared/maintenance-cmds.ts").join("\n");
   const family = maintenance
     .match(/export const MAINTENANCE_VERBS = \[([\s\S]*?)\] as const/)?.[1]
@@ -274,8 +283,8 @@ describe("surface parity (docs/surface-parity.md)", () => {
     }
     // the CLI setbuild case must use the shared engine seam (no local
     // re-parse — the whole point of the parity fix)
-    const cli = read("src/cli.ts").join("\n");
-    expect(cli).toMatch(/case "setbuild":/);
+    const cli = read("src/cli-commands-analysis.ts").join("\n");
+    expect(cli).toMatch(/^\s{2}setbuild,$/m);
     expect(read("src/fulltags/setbuild.ts").join("\n")).toContain(
       'from "../../cratedeck/src/setbuild"',
     );

@@ -408,7 +408,8 @@ honest, in order of strength:
 
 1. **`cratedeck/test/surface-parity.test.ts` (shipped with this doc).**
    Source-parsed, zero fixtures: it re-derives each surface's census
-   from the actual files (`case "..."` in `src/cli.ts` +
+   from the actual files (the `*_COMMANDS` family registries delegated by
+   `src/cli.ts` +
    `deckctl.ts`, tool keys in `mcp.ts`, `route ===`/`sub ===` literals
    in `index.ts`, `run("`/`api(` strings in `web/*.tsx`) and asserts:
    - every megadj CLI command appears in `src/usage.ts`'s help (a
