@@ -4,11 +4,21 @@
  * plain params so the handlers stay pure orchestration over the real DB,
  * images and job services.
  */
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, realpathSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { CrateConfig } from "./config";
 import type { Drive, JobKind } from "../shared/types";
 import { MAX_IMAGE_BYTES } from "./images";
+
+function isContainedMount(root: string, candidate: string): boolean {
+  const rel = relative(root, candidate);
+  return (
+    rel.length > 0 &&
+    rel !== ".." &&
+    !rel.startsWith(`..${sep}`) &&
+    !isAbsolute(rel)
+  );
+}
 
 /** POST /api/drives/:id/photo — multipart upload or JSON url/rel/clear. */
 export async function photoUpload(
@@ -74,7 +84,25 @@ export function resolveMountPoint(
   cfg: CrateConfig,
   volumeName: string,
 ): string {
-  const candidate = join(cfg.volumesRoot, volumeName);
+  const configuredRoot = resolve(cfg.volumesRoot);
+  const outsideRoot = (): never => {
+    throw new Error(
+      `drive volume is outside configured volumes root: ${volumeName}`,
+    );
+  };
+  if (isAbsolute(volumeName)) outsideRoot();
+  const lexicalCandidate = resolve(configuredRoot, volumeName);
+  if (!isContainedMount(configuredRoot, lexicalCandidate)) outsideRoot();
+
+  let root: string;
+  let candidate: string;
+  try {
+    root = realpathSync(configuredRoot);
+    candidate = realpathSync(lexicalCandidate);
+  } catch {
+    throw new Error(`drive volume not mounted at ${lexicalCandidate}`);
+  }
+  if (!isContainedMount(root, candidate)) outsideRoot();
   try {
     readdirSync(candidate); // mounted + readable at this instant
     return candidate;

@@ -15,18 +15,46 @@ describe("CrateDeck HTTP browser boundary", () => {
     expect(isTrustedMutationRequest(req)).toBe(false);
   });
 
-  it("allows same-host UI mutations, including the Vite proxy port", () => {
-    for (const origin of [
-      "http://127.0.0.1:7742",
-      "http://127.0.0.1:7743",
-      "http://localhost:7743",
-    ]) {
+  it("allows only the request host and the configured Vite dev origin", () => {
+    for (const origin of ["http://127.0.0.1:7742", "http://localhost:7743"]) {
       const req = new Request("http://127.0.0.1:7742/api/drives/d1/jobs", {
         method: "POST",
         headers: { Origin: origin },
       });
       expect(isTrustedMutationRequest(req)).toBe(true);
     }
+  });
+
+  it("rejects mutations from arbitrary loopback ports", () => {
+    for (const origin of [
+      "http://localhost:9999",
+      "http://127.0.0.1:7743",
+      "http://127.0.0.1:9999",
+      "http://[::1]:9999",
+    ]) {
+      const req = new Request("http://127.0.0.1:7742/api/stop", {
+        method: "POST",
+        headers: { Origin: origin },
+      });
+      expect(isTrustedMutationRequest(req), origin).toBe(false);
+    }
+  });
+
+  it("does not trust a spoofed non-loopback request host", () => {
+    const req = new Request("http://attacker.example/api/stop", {
+      method: "POST",
+      headers: { Origin: "http://attacker.example" },
+    });
+    expect(isTrustedMutationRequest(req)).toBe(false);
+
+    const mismatchedHost = new Request("http://127.0.0.1:7742/api/stop", {
+      method: "POST",
+      headers: {
+        Host: "attacker.example",
+        Origin: "http://127.0.0.1:7742",
+      },
+    });
+    expect(isTrustedMutationRequest(mismatchedHost)).toBe(false);
   });
 
   it("keeps non-browser clients working and does not gate safe methods", () => {
