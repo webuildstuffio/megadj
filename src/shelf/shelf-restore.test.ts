@@ -6,6 +6,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { HygieneStore } from "../archive/hygiene/store";
@@ -23,19 +24,47 @@ function fixture(): { shelf: string; db: string; loser: string } {
   return { shelf, db, loser };
 }
 
+function fixtureMd5(path: string): string {
+  return createHash("md5").update(readFileSync(path)).digest("hex");
+}
+
 async function detectAndApply(f: ReturnType<typeof fixture>): Promise<string> {
-  await shelfHygiene({ shelfVolume: f.shelf, dbPath: f.db, log: () => {} });
-  const store = new HygieneStore(new Database(f.db));
-  const finding = store.list({ status: "open" })[0];
-  if (!finding) throw new Error("fixture did not produce a finding");
-  expect(store.decide(finding.id, true)).toBe(true);
   await shelfHygiene({
     shelfVolume: f.shelf,
     dbPath: f.db,
+    md5: fixtureMd5,
+    log: () => {},
+  });
+  const db = new Database(f.db);
+  const store = new HygieneStore(db);
+  const finding = store.list({ status: "open" })[0];
+  if (!finding) {
+    db.close();
+    throw new Error("fixture did not produce a finding");
+  }
+  try {
+    expect(store.decide(finding.id, true)).toBe(true);
+  } finally {
+    db.close();
+  }
+  await shelfHygiene({
+    shelfVolume: f.shelf,
+    dbPath: f.db,
+    md5: fixtureMd5,
     apply: true,
     yes: true,
     log: () => {},
   });
+  const verifyDb = new Database(f.db);
+  try {
+    const applied = new HygieneStore(verifyDb).get(finding.id);
+    if (applied?.status !== "applied")
+      throw new Error(
+        `fixture apply did not complete: ${applied?.status ?? "missing"}`,
+      );
+  } finally {
+    verifyDb.close();
+  }
   return finding.id;
 }
 
@@ -60,8 +89,10 @@ describe("shelf-restore command", () => {
   test("accepts the ledger-owned quarantine path and --into target", async () => {
     const f = fixture();
     await detectAndApply(f);
-    const store = new HygieneStore(new Database(f.db));
+    const db = new Database(f.db);
+    const store = new HygieneStore(db);
     const finding = store.get(store.list({ status: "applied" })[0]!.id)!;
+    db.close();
     const target = mkdtempSync("/tmp/megadj-restore-target-");
     const source = join(
       f.shelf,
@@ -98,16 +129,21 @@ describe("shelf-restore command", () => {
     expect(collision.error).toContain("destination exists");
     expect(readFileSync(f.loser, "utf8")).toBe("do not overwrite");
 
-    const store = new HygieneStore(new Database(f.db));
+    const db = new Database(f.db);
+    const store = new HygieneStore(db);
     expect(store.acquireOperation("test-owner")).toBe(true);
-    const refused = await shelfRestore({
-      input: id,
-      shelfVolume: f.shelf,
-      dbPath: f.db,
-      log: () => {},
-    });
-    expect(refused.ok).toBe(false);
-    expect(refused.error).toContain("already in flight");
-    store.releaseOperation("test-owner");
+    try {
+      const refused = await shelfRestore({
+        input: id,
+        shelfVolume: f.shelf,
+        dbPath: f.db,
+        log: () => {},
+      });
+      expect(refused.ok).toBe(false);
+      expect(refused.error).toContain("already in flight");
+    } finally {
+      store.releaseOperation("test-owner");
+      db.close();
+    }
   });
 });

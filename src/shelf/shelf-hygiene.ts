@@ -56,6 +56,9 @@ export interface ShelfHygieneOptions {
   /** Injectable exit seam for embedded callers; the CLI keeps process exit
    * semantics by default. */
   setExitCode?: ((code: number) => void) | undefined;
+  /** Deterministic hashing seam for tests; production keeps the streaming
+   * macOS `md5` subprocess so large shelf files are never buffered in RAM. */
+  md5?: ((path: string) => string | null) | undefined;
 }
 
 export async function shelfHygiene(
@@ -170,21 +173,23 @@ export async function shelfHygiene(
     const ctx: CheckCtx = {
       volume: shelfVolume,
       walkToken,
-      md5: (p) => {
-        const r = Bun.spawnSync(["md5", "-q", p]);
-        if (r.exitCode !== 0) {
-          // boundary log: a null here silently drops the file from every
-          // same-size group — the caller must be able to see why
-          console.error(
-            `shelf-hygiene: md5 failed (${r.exitCode}) — ${p}: ${r.stderr
-              .toString()
-              .trim()}`,
-          );
-          return null;
-        }
-        const h = r.stdout.toString().trim();
-        return h.length > 0 ? h : null;
-      },
+      md5:
+        opts.md5 ??
+        ((p) => {
+          const r = Bun.spawnSync(["md5", "-q", p]);
+          if (r.exitCode !== 0) {
+            // boundary log: a null here silently drops the file from every
+            // same-size group — the caller must be able to see why
+            console.error(
+              `shelf-hygiene: md5 failed (${r.exitCode}) — ${p}: ${r.stderr
+                .toString()
+                .trim()}`,
+            );
+            return null;
+          }
+          const h = r.stdout.toString().trim();
+          return h.length > 0 ? h : null;
+        }),
       fp: (p, size) => {
         const hit = cache.get(p, size);
         if (hit !== undefined) return hit;
