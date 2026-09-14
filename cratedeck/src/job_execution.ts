@@ -42,10 +42,96 @@ interface LegArgs {
   log: JobLog;
 }
 
-/** Numeric summaries cross a subprocess JSON boundary; reject NaN/Infinity. */
+/** Numeric summaries cross a subprocess JSON boundary; counts are integers. */
 export function finiteJobNumber(value: unknown): number {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
+    throw new Error("job summary count must be a safe non-negative integer");
+  return value;
+}
+
+type IntakeCounters = Omit<IntakeResult, "audit" | "auditErrors">;
+type AuditError = IntakeResult["auditErrors"][number];
+
+function isAuditError(entry: unknown): entry is AuditError {
+  return (
+    typeof entry === "object" &&
+    entry !== null &&
+    !Array.isArray(entry) &&
+    typeof (entry as Record<string, unknown>).file === "string" &&
+    typeof (entry as Record<string, unknown>).missing === "string"
+  );
+}
+
+export function parseIngestSummary(
+  summary: Record<string, unknown> | null,
+): IntakeCounters {
+  if (summary === null)
+    throw new Error("megadj ingest returned a missing JSON summary");
+  const count = (key: keyof IntakeCounters): number => {
+    try {
+      return finiteJobNumber(summary[key]);
+    } catch (error) {
+      throw new Error(
+        `megadj ingest summary ${key} is invalid: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
+    }
+  };
+  return {
+    files: count("files"),
+    tagged: count("tagged"),
+    artAdded: count("artAdded"),
+    artQueued: count("artQueued"),
+    wavConverted: count("wavConverted"),
+    folderDupes: count("folderDupes"),
+    archiveDupes: count("archiveDupes"),
+    upgrades: count("upgrades"),
+    broken: count("broken"),
+    compatRejected: count("compatRejected"),
+    compatHires: count("compatHires"),
+    shortSkipped: count("shortSkipped"),
+    unchanged: count("unchanged"),
+  };
+}
+
+export function parseAuditSummary(
+  output: string,
+): Pick<IntakeResult, "audit" | "auditErrors"> {
+  let value: unknown;
+  try {
+    value = JSON.parse(output);
+  } catch (error) {
+    throw new Error(
+      `malformed JSON: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    throw new Error("audit summary must be an object");
+  const row = value as Record<string, unknown>;
+  let total: number;
+  let complete: number;
+  try {
+    total = finiteJobNumber(row.total);
+  } catch {
+    throw new Error("audit summary total must be a safe non-negative integer");
+  }
+  try {
+    complete = finiteJobNumber(row.complete);
+  } catch {
+    throw new Error(
+      "audit summary complete must be a safe non-negative integer",
+    );
+  }
+  if (complete > total)
+    throw new Error("audit summary complete cannot exceed total");
+  const incomplete = row.incomplete ?? [];
+  if (!Array.isArray(incomplete) || !incomplete.every(isAuditError))
+    throw new Error("audit summary incomplete rows are invalid");
+  return {
+    audit: { total, complete },
+    auditErrors: incomplete,
+  };
 }
 
 export async function executeJob(args: LegArgs): Promise<unknown> {
@@ -250,22 +336,10 @@ async function runIngest({
     throw new Error(`megadj ingest exited ${proc.exitCode}${suffix}`);
   }
   const { summary } = splitIntakeStdout(result.out);
-  const partial = (summary ?? {}) as Partial<IntakeResult>;
+  const counters = parseIngestSummary(summary);
   const { audit, auditErrors } = await auditArchive(deps.cfg, tick, log);
   const intake: IntakeResult = {
-    files: finiteJobNumber(partial.files),
-    tagged: finiteJobNumber(partial.tagged),
-    artAdded: finiteJobNumber(partial.artAdded),
-    artQueued: finiteJobNumber(partial.artQueued),
-    wavConverted: finiteJobNumber(partial.wavConverted),
-    folderDupes: finiteJobNumber(partial.folderDupes),
-    archiveDupes: finiteJobNumber(partial.archiveDupes),
-    upgrades: finiteJobNumber(partial.upgrades),
-    broken: finiteJobNumber(partial.broken),
-    compatRejected: finiteJobNumber(partial.compatRejected),
-    compatHires: finiteJobNumber(partial.compatHires),
-    shortSkipped: finiteJobNumber(partial.shortSkipped),
-    unchanged: finiteJobNumber(partial.unchanged),
+    ...counters,
     audit,
     auditErrors,
   };
@@ -291,35 +365,43 @@ async function auditArchive(
     INTAKE_PHASES[5]!.phase,
     true,
   );
-  let audit: IntakeResult["audit"] = null;
-  let auditErrors: IntakeResult["auditErrors"] = [];
   const proc = Bun.spawn(["bun", megadjCliPath(cfg.root), "audit", "--json"], {
     stdout: "pipe",
     stderr: "pipe",
     cwd: cfg.root,
   });
-  const output = await new Response(proc.stdout).text();
+  const [output, errorOutput] = await Promise.all([
+    new Response(proc.stdout).text(),
+    drainText(proc.stderr),
+  ]);
   await proc.exited;
+  if (proc.exitCode !== 0 && proc.exitCode !== 1)
+    throw new Error(
+      `megadj audit exited ${proc.exitCode ?? "unknown"}${
+        errorOutput.trim() ? `: ${errorOutput.trim().slice(-400)}` : ""
+      }`,
+    );
+  let result: Pick<IntakeResult, "audit" | "auditErrors">;
   try {
-    const parsed = JSON.parse(output) as {
-      total: number;
-      complete: number;
-      incomplete?: { file: string; missing: string }[];
-    };
-    audit = { total: parsed.total, complete: parsed.complete };
-    auditErrors = parsed.incomplete ?? [];
+    result = parseAuditSummary(output);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     log(`audit leg failed to report: ${detail}`);
+    throw new Error(
+      `megadj audit returned an invalid JSON summary: ${detail}`,
+      {
+        cause: error,
+      },
+    );
   }
   tick(
     1,
     1,
-    audit ? `archive ${audit.complete}/${audit.total} complete` : "intake done",
+    `archive ${result.audit!.complete}/${result.audit!.total} complete`,
     "done",
     true,
   );
-  return { audit, auditErrors };
+  return result;
 }
 
 async function runBenchmark({ deps, job, mountPoint, handle, tick }: LegArgs) {

@@ -118,10 +118,64 @@ function parseSource(file: string, text: string): ts.SourceFile {
   );
 }
 
+function hasFailureProperty(node: ts.Node): boolean {
+  let found = false;
+  const visit = (candidate: ts.Node): void => {
+    if (found) return;
+    if (
+      (ts.isPropertyAssignment(candidate) ||
+        ts.isShorthandPropertyAssignment(candidate)) &&
+      ts.isIdentifier(candidate.name) &&
+      /^(?:detail|error|errors|unreadable)$/u.test(candidate.name.text)
+    ) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(candidate, visit);
+  };
+  visit(node);
+  return found;
+}
+
 function catchHasVisibleFailure(block: ts.Block): boolean {
+  const localNames = new Set<string>();
+  const findLocals = (candidate: ts.Node): void => {
+    if (candidate !== block && ts.isFunctionLike(candidate)) {
+      if (ts.isFunctionDeclaration(candidate) && candidate.name)
+        localNames.add(candidate.name.text);
+      return;
+    }
+    if (ts.isVariableDeclaration(candidate) && ts.isIdentifier(candidate.name))
+      localNames.add(candidate.name.text);
+    ts.forEachChild(candidate, findLocals);
+  };
+  findLocals(block);
+
   let visible = false;
   const visit = (candidate: ts.Node): void => {
+    if (
+      candidate !== block &&
+      (ts.isFunctionDeclaration(candidate) ||
+        ts.isMethodDeclaration(candidate) ||
+        ts.isArrowFunction(candidate) ||
+        ts.isFunctionExpression(candidate) ||
+        ts.isClassDeclaration(candidate) ||
+        ts.isClassExpression(candidate))
+    ) {
+      return;
+    }
     if (ts.isThrowStatement(candidate)) {
+      visible = true;
+      return;
+    }
+    if (
+      ts.isReturnStatement(candidate) &&
+      candidate.expression !== undefined &&
+      !(
+        ts.isIdentifier(candidate.expression) &&
+        candidate.expression.text === "undefined"
+      )
+    ) {
       visible = true;
       return;
     }
@@ -139,15 +193,24 @@ function catchHasVisibleFailure(block: ts.Block): boolean {
     if (
       ts.isCallExpression(candidate) &&
       ts.isIdentifier(candidate.expression) &&
-      /^(?:fail|log|report|replyError)$/u.test(candidate.expression.text)
+      !localNames.has(candidate.expression.text) &&
+      /(?:corrupt|error|fail|invalid|log|report|unreadable|warn)/iu.test(
+        candidate.expression.text,
+      )
     ) {
       visible = true;
       return;
     }
     if (
-      ts.isPropertyAssignment(candidate) &&
-      ts.isIdentifier(candidate.name) &&
-      /^(?:detail|error|errors|unreadable)$/u.test(candidate.name.text)
+      ts.isBinaryExpression(candidate) &&
+      candidate.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      candidate.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+      ts.isIdentifier(candidate.left) &&
+      !localNames.has(candidate.left.text) &&
+      (/(?:bad|corrupt|error|fail|invalid|unreadable|warn)/iu.test(
+        candidate.left.text,
+      ) ||
+        hasFailureProperty(candidate.right))
     ) {
       visible = true;
       return;
@@ -156,7 +219,10 @@ function catchHasVisibleFailure(block: ts.Block): boolean {
       (ts.isPostfixUnaryExpression(candidate) ||
         ts.isPrefixUnaryExpression(candidate)) &&
       ts.isIdentifier(candidate.operand) &&
-      /(?:bad|error|fail)/iu.test(candidate.operand.text)
+      !localNames.has(candidate.operand.text) &&
+      /(?:bad|corrupt|error|fail|invalid|unreadable|warn)/iu.test(
+        candidate.operand.text,
+      )
     ) {
       visible = true;
       return;
@@ -262,6 +328,176 @@ function statementAlwaysExits(statement: ts.Statement | undefined): boolean {
   );
 }
 
+function containsNode(container: ts.Node, candidate: ts.Node): boolean {
+  return (
+    container.getStart() <= candidate.getStart() &&
+    container.getEnd() >= candidate.getEnd()
+  );
+}
+
+function isIdentifierPropertyName(candidate: ts.Identifier): boolean {
+  const { parent } = candidate;
+  return (
+    (ts.isPropertyAccessExpression(parent) && parent.name === candidate) ||
+    (ts.isPropertyAssignment(parent) && parent.name === candidate)
+  );
+}
+
+function conditionalGuardProtectsUses(
+  guard: ts.CallExpression,
+  scope: ts.Node,
+  conversion: ts.CallExpression,
+  name: string,
+  negated: boolean,
+): boolean {
+  let conditional: ts.ConditionalExpression | null = null;
+  for (
+    let parent = guard.parent;
+    parent && parent !== scope;
+    parent = parent.parent
+  ) {
+    if (
+      ts.isConditionalExpression(parent) &&
+      containsNode(parent.condition, guard)
+    ) {
+      conditional = parent;
+      break;
+    }
+    if (ts.isStatement(parent)) return false;
+  }
+  if (conditional === null) return false;
+
+  const requiredOperator = negated
+    ? ts.SyntaxKind.BarBarToken
+    : ts.SyntaxKind.AmpersandAmpersandToken;
+  for (let child: ts.Node = guard; child !== conditional.condition;) {
+    const parent = child.parent;
+    if (
+      ts.isBinaryExpression(parent) &&
+      parent.operatorToken.kind !== requiredOperator
+    ) {
+      return false;
+    }
+    child = parent;
+  }
+
+  const safeArm = negated ? conditional.whenFalse : conditional.whenTrue;
+  let protectedUses = true;
+  const visit = (candidate: ts.Node): void => {
+    if (!protectedUses) return;
+    if (
+      candidate !== scope &&
+      (ts.isFunctionDeclaration(candidate) ||
+        ts.isMethodDeclaration(candidate) ||
+        ts.isArrowFunction(candidate) ||
+        ts.isFunctionExpression(candidate))
+    ) {
+      return;
+    }
+    if (
+      ts.isIdentifier(candidate) &&
+      candidate.text === name &&
+      !isIdentifierPropertyName(candidate) &&
+      candidate.getStart() > conversion.getEnd() &&
+      !containsNode(guard, candidate)
+    ) {
+      if (containsNode(safeArm, candidate)) return;
+      if (containsNode(conditional!.condition, candidate)) {
+        for (
+          let child: ts.Node = candidate;
+          child !== conditional!.condition;
+        ) {
+          const parent = child.parent;
+          if (
+            ts.isBinaryExpression(parent) &&
+            parent.operatorToken.kind === requiredOperator &&
+            containsNode(parent.left, guard) &&
+            containsNode(parent.right, candidate)
+          ) {
+            return;
+          }
+          child = parent;
+        }
+      }
+      protectedUses = false;
+      return;
+    }
+    ts.forEachChild(candidate, visit);
+  };
+  visit(scope);
+  return protectedUses;
+}
+
+function ifGuardProtectsUses(
+  guard: ts.CallExpression,
+  scope: ts.Node,
+  conversion: ts.CallExpression,
+  name: string,
+  negated: boolean,
+  statement: ts.IfStatement,
+): boolean {
+  const requiredOperator = negated
+    ? ts.SyntaxKind.BarBarToken
+    : ts.SyntaxKind.AmpersandAmpersandToken;
+  for (let child: ts.Node = guard; child !== statement.expression;) {
+    const parent = child.parent;
+    if (
+      ts.isBinaryExpression(parent) &&
+      parent.operatorToken.kind !== requiredOperator
+    )
+      return false;
+    child = parent;
+  }
+
+  const safeBranch = negated
+    ? statement.elseStatement
+    : statement.thenStatement;
+  const unsafeBranch = negated
+    ? statement.thenStatement
+    : statement.elseStatement;
+  const unsafeExits = statementAlwaysExits(unsafeBranch);
+  let protectedUses = true;
+  const visit = (candidate: ts.Node): void => {
+    if (!protectedUses) return;
+    if (
+      candidate !== scope &&
+      (ts.isFunctionDeclaration(candidate) ||
+        ts.isMethodDeclaration(candidate) ||
+        ts.isArrowFunction(candidate) ||
+        ts.isFunctionExpression(candidate))
+    )
+      return;
+    if (
+      ts.isIdentifier(candidate) &&
+      candidate.text === name &&
+      !isIdentifierPropertyName(candidate) &&
+      candidate.getStart() > conversion.getEnd() &&
+      !containsNode(guard, candidate)
+    ) {
+      if (safeBranch && containsNode(safeBranch, candidate)) return;
+      if (containsNode(statement.expression, candidate)) {
+        for (let child: ts.Node = candidate; child !== statement.expression;) {
+          const parent = child.parent;
+          if (
+            ts.isBinaryExpression(parent) &&
+            parent.operatorToken.kind === requiredOperator &&
+            containsNode(parent.left, guard) &&
+            containsNode(parent.right, candidate)
+          )
+            return;
+          child = parent;
+        }
+      }
+      if (unsafeExits && candidate.getStart() > statement.getEnd()) return;
+      protectedUses = false;
+      return;
+    }
+    ts.forEachChild(candidate, visit);
+  };
+  visit(scope);
+  return protectedUses;
+}
+
 function hasOrderedNumberGuard(node: ts.CallExpression): boolean {
   if (directNumberGuard(node)) return true;
   const name = assignedIdentifier(node);
@@ -331,36 +567,9 @@ function hasOrderedNumberGuard(node: ts.CallExpression): boolean {
       break;
     }
   }
-  if (guardIf === null) return true;
-
-  if (
-    (negated && statementAlwaysExits(guardIf.thenStatement)) ||
-    (!negated && statementAlwaysExits(guardIf.elseStatement))
-  )
-    return true;
-
-  let useAfterIf = false;
-  const findUseAfterIf = (candidate: ts.Node): void => {
-    if (
-      candidate !== scope &&
-      (ts.isFunctionDeclaration(candidate) ||
-        ts.isMethodDeclaration(candidate) ||
-        ts.isArrowFunction(candidate) ||
-        ts.isFunctionExpression(candidate))
-    )
-      return;
-    if (
-      ts.isIdentifier(candidate) &&
-      candidate.text === name &&
-      candidate.getStart() > guardIf!.getEnd()
-    ) {
-      useAfterIf = true;
-      return;
-    }
-    if (!useAfterIf) ts.forEachChild(candidate, findUseAfterIf);
-  };
-  findUseAfterIf(scope);
-  return !useAfterIf;
+  if (guardIf === null)
+    return conditionalGuardProtectsUses(guard, scope, node, name, negated);
+  return ifGuardProtectsUses(guard, scope, node, name, negated, guardIf);
 }
 
 function isNumberCall(node: ts.CallExpression): boolean {

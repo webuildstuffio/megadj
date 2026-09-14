@@ -11,6 +11,7 @@ import {
   createEtaEstimator,
   type JobLog,
   type JobTick,
+  recordProgressIncrease,
   type RunHandle,
   withJobBudget,
 } from "./job_runtime";
@@ -229,11 +230,7 @@ export class JobEngine {
       const p = total > 0 ? Math.min(1, Math.max(0, done / total)) : 0;
       // remember when the fraction last INCREASED — feeds the stall
       // watchdog (equal p on every tick = not moving, exactly the wedge).
-      const prevP = this.progressAt.get(`${job.id}:p`);
-      if (prevP === undefined || p > prevP) {
-        this.progressAt.set(`${job.id}:p`, p);
-        this.progressAt.set(job.id, now);
-      }
+      recordProgressIncrease(this.progressAt, job.id, p, now);
       if (!force && now - lastWrite < 250) return;
       lastWrite = now;
       const etaS = eta(done, total, now);
@@ -332,12 +329,9 @@ export class JobEngine {
       const p = progressFromLine(text);
       const now = Date.now();
       const isHeading = /^#{1,3} |===|^### /.test(text);
-      // stdout progress = life: a subprocess leg (verify/mirror) can sit on
-      // one phase for 20+ real minutes of copying/hashing, and a HEALTHY
-      // run keeps printing. A wedged one stops. Feeding the stall watchdog
-      // from log output (not just fraction movement) keeps it from
-      // false-killing a slow mirror mid-copy.
-      if (!isHeading) this.progressAt.set(job.id, now);
+      // Parsed progress is a real fraction signal. Ordinary log activity must
+      // never refresh the stall clock: a wedged subprocess may keep logging.
+      recordProgressIncrease(this.progressAt, job.id, p, now);
       if (p !== null || isHeading || now - lastMsg > 400) {
         lastMsg = now;
         this.db.setJobProgress(job.id, {

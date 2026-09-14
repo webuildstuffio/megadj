@@ -37,10 +37,6 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     HYGIENE_ROW_REASON,
   'cratedeck/src/deckctl_queue.ts::enqueueAndFollow::JSON.parse(polled.result_json ?? "{}")':
     "deckctl consumes its own server job contract; invalid JSON terminates the command visibly.",
-  "fulltags/src/analysis.ts::parseJsonObject::JSON.parse(raw)":
-    "The parser returns null on malformed analyzer output; every caller treats null as an explicit missing or invalid response.",
-  "fulltags/src/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)":
-    "The parser returns null on malformed ffprobe output and probeFile converts that result into an explicit ok:false probe failure.",
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "[]")',
     "src/rekordbox/guard.ts::verifyReRead::JSON.parse(line)",
@@ -79,9 +75,9 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     digest: result.digest,
   }).toEqual({
     audited: 68,
-    guarded: 42,
-    sanctioned: 26,
-    digest: "7debd472229e02f8f155d5e6409cb0b6aaeff33a8dde7d4e288ccd233cd75e94",
+    guarded: 44,
+    sanctioned: 24,
+    digest: "09fee8f137d33bccb8781687c7b8c26ba1029dd1e3a7b33ae074635bd56239a0",
   });
 });
 
@@ -188,4 +184,65 @@ test("a silent catch comment does not count as visible failure", () => {
     formatCensusFailure("persisted JSON.parse", result),
   ).toHaveLength(1);
   expect(result.violations[0]).toMatchObject({ file: "fixture.ts", line: 2 });
+});
+
+test("an uncalled nested logger does not make a silent catch visible", () => {
+  const result = persistedJsonCensusForSources(
+    {
+      "fixture.ts": `try {
+  JSON.parse(row.result_json);
+} catch {
+  const reportLater = () => console.error("corrupt result");
+  void reportLater;
+}`,
+    },
+    {},
+  );
+  expect(result.violations).toHaveLength(1);
+});
+
+test("dead failure-shaped locals do not make a silent catch visible", () => {
+  for (const body of [
+    'const ignored = { error: "bad" }; void ignored;',
+    "let bad = 0; bad++;",
+    'const log = () => {}; log("bad");',
+    "noop();",
+    'status = "idle";',
+  ]) {
+    const result = persistedJsonCensusForSources(
+      {
+        "fixture.ts": `try {
+  JSON.parse(row.result_json);
+} catch {
+  ${body}
+}`,
+      },
+      {},
+    );
+    expect(result.violations, body).toHaveLength(1);
+  }
+});
+
+test("returned failures and outer reporters make a catch visible", () => {
+  for (const body of [
+    'return { ok: false, error: "bad" };',
+    'report("corrupt payload");',
+    "failures++;",
+  ]) {
+    const result = persistedJsonCensusForSources(
+      {
+        "fixture.ts": `let failures = 0;
+declare const report: (message: string) => void;
+function parse() {
+  try {
+    JSON.parse(row.result_json);
+  } catch {
+    ${body}
+  }
+}`,
+      },
+      {},
+    );
+    expect(result.violations, body).toHaveLength(0);
+  }
 });

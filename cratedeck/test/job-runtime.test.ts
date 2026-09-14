@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { withJobBudget, type RunHandle } from "../src/job_runtime";
+import {
+  recordProgressIncrease,
+  withJobBudget,
+  type RunHandle,
+} from "../src/job_runtime";
 
 describe("job wall-clock budget", () => {
   it("cancels and kills whichever extracted leg owns the subprocess", async () => {
@@ -26,5 +30,25 @@ describe("job wall-clock budget", () => {
       withJobBudget(Promise.resolve("done"), handle, 1),
     ).resolves.toBe("done");
     expect(handle.cancelled).toBe(false);
+  });
+});
+
+describe("job stall progress clock", () => {
+  it("moves only when the observed progress fraction increases", () => {
+    const progressAt = new Map<string, number>();
+
+    expect(recordProgressIncrease(progressAt, "job-1", null, 50)).toBe(false);
+    expect(recordProgressIncrease(progressAt, "job-1", Number.NaN, 60)).toBe(
+      false,
+    );
+    expect(recordProgressIncrease(progressAt, "job-1", 1.01, 70)).toBe(false);
+    expect(progressAt.has("job-1")).toBe(false);
+    expect(recordProgressIncrease(progressAt, "job-1", 0.25, 100)).toBe(true);
+    expect(recordProgressIncrease(progressAt, "job-1", 0.25, 200)).toBe(false);
+    expect(recordProgressIncrease(progressAt, "job-1", 0.2, 300)).toBe(false);
+    expect(progressAt.get("job-1")).toBe(100);
+
+    expect(recordProgressIncrease(progressAt, "job-1", 0.5, 400)).toBe(true);
+    expect(progressAt.get("job-1")).toBe(400);
   });
 });

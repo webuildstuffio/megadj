@@ -1,16 +1,76 @@
 import { describe, expect, it } from "bun:test";
-import { finiteJobNumber } from "../src/job_execution";
+import {
+  finiteJobNumber,
+  parseAuditSummary,
+  parseIngestSummary,
+} from "../src/job_execution";
 
 describe("job summary numeric boundary", () => {
-  it("accepts finite subprocess counters", () => {
+  it("accepts non-negative integer subprocess counters", () => {
     expect(finiteJobNumber(12)).toBe(12);
-    expect(finiteJobNumber("7")).toBe(7);
+    expect(finiteJobNumber(0)).toBe(0);
   });
 
-  it("falls back to zero for missing and non-finite counters", () => {
-    expect(finiteJobNumber(undefined)).toBe(0);
-    expect(finiteJobNumber("not-a-number")).toBe(0);
-    expect(finiteJobNumber(Number.NaN)).toBe(0);
-    expect(finiteJobNumber(Number.POSITIVE_INFINITY)).toBe(0);
+  it("rejects missing, coerced, non-finite, fractional, and negative counts", () => {
+    for (const value of [
+      undefined,
+      "7",
+      "not-a-number",
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.MAX_SAFE_INTEGER + 1,
+      -1,
+      1.5,
+    ]) {
+      expect(() => finiteJobNumber(value), String(value)).toThrow(
+        "non-negative integer",
+      );
+    }
+  });
+
+  it("rejects a missing or incomplete ingest summary instead of storing zeros", () => {
+    expect(() => parseIngestSummary(null)).toThrow("missing JSON summary");
+    expect(() => parseIngestSummary({})).toThrow("files");
+  });
+
+  it("accepts the complete ingest counter contract", () => {
+    const counters = Object.fromEntries(
+      [
+        "files",
+        "tagged",
+        "artAdded",
+        "artQueued",
+        "wavConverted",
+        "folderDupes",
+        "archiveDupes",
+        "upgrades",
+        "broken",
+        "compatRejected",
+        "compatHires",
+        "shortSkipped",
+        "unchanged",
+      ].map((key) => [key, 0]),
+    );
+    expect(parseIngestSummary(counters)).toMatchObject(counters);
+  });
+
+  it("validates the post-ingest audit schema", () => {
+    expect(() => parseAuditSummary("{}")).toThrow("total");
+    expect(() => parseAuditSummary('{"total":2,"complete":null}')).toThrow(
+      "complete",
+    );
+    expect(() =>
+      parseAuditSummary(
+        '{"total":2,"complete":1,"incomplete":[{"file":7,"missing":"mood"}]}',
+      ),
+    ).toThrow("incomplete");
+    expect(
+      parseAuditSummary(
+        '{"total":2,"complete":1,"incomplete":[{"file":"a.mp3","missing":"mood"}]}',
+      ),
+    ).toEqual({
+      audit: { total: 2, complete: 1 },
+      auditErrors: [{ file: "a.mp3", missing: "mood" }],
+    });
   });
 });

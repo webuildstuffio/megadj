@@ -11,6 +11,8 @@ import {
 const repo = join(import.meta.dir, "..");
 
 const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
+  "src/cli-commands-core.ts::ingest::Number(minDurationRaw)":
+    "The option gate rejects non-finite values, while the undefined branch passes undefined rather than the NaN sentinel to ingest.",
   "cratedeck/src/bench.ts::biggestFiles::Number(st.size)":
     "Bun stat size is trusted filesystem metadata and practical drive sizes are safe integers.",
   "cratedeck/web/products/fulltags/SimilarTab.tsx::SetBuildPanel::Number(minutesInput)":
@@ -52,10 +54,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    audited: 42,
-    guarded: 31,
-    sanctioned: 11,
-    digest: "2fa2525e36cc87e1632e90fecc368614d8a068d8d8c3b97f65b81f6fc60da5ee",
+    audited: 41,
+    guarded: 29,
+    sanctioned: 12,
+    digest: "94a3260b524563f7d20b726ef02bc74a829a4282bac461687f90c67ebe72b1ac",
   });
 });
 
@@ -146,6 +148,81 @@ consume(n);`,
   );
   expect(result.violations).toHaveLength(0);
   expect(result.guarded).toBe(1);
+});
+
+test("a discarded finite predicate does not guard later use", () => {
+  const result = numberBoundaryCensusForSources(
+    {
+      "fixture.ts": `const n = Number(process.env.N);
+Number.isFinite(n);
+consume(n);`,
+    },
+    {},
+  );
+  expect(result.violations).toHaveLength(1);
+});
+
+test("a ternary must not consume the conversion on the invalid branch", () => {
+  const result = numberBoundaryCensusForSources(
+    {
+      "fixture.ts": `const n = Number(process.env.N);
+consume(Number.isFinite(n) ? 0 : n);`,
+    },
+    {},
+  );
+  expect(result.violations).toHaveLength(1);
+});
+
+test("a ternary may consume the conversion only on its finite branch", () => {
+  const result = numberBoundaryCensusForSources(
+    {
+      "fixture.ts": `const n = Number(process.env.N);
+consume(Number.isFinite(n) && n > 0 ? n : 0);`,
+    },
+    {},
+  );
+  expect(result.violations).toHaveLength(0);
+  expect(result.guarded).toBe(1);
+});
+
+test("an OR condition does not prove its finite branch", () => {
+  const result = numberBoundaryCensusForSources(
+    {
+      "fixture.ts": `const n = Number(process.env.N);
+consume(Number.isFinite(n) || fallbackEnabled ? n : 0);`,
+    },
+    {},
+  );
+  expect(result.violations).toHaveLength(1);
+});
+
+test("an if must not consume the conversion on its invalid branch", () => {
+  for (const source of [
+    `const n = Number(process.env.N);
+if (Number.isFinite(n)) noop(); else consume(n);`,
+    `const n = Number(process.env.N);
+if (!Number.isFinite(n)) consume(n);`,
+    `const n = Number(process.env.N);
+if (!Number.isFinite(n)) { consume(n); throw new Error("bad"); }`,
+  ]) {
+    const result = numberBoundaryCensusForSources({ "fixture.ts": source }, {});
+    expect(result.violations, source).toHaveLength(1);
+  }
+});
+
+test("an if may consume the conversion only on its finite branch", () => {
+  for (const source of [
+    `const n = Number(process.env.N);
+if (Number.isFinite(n)) consume(n);`,
+    `const n = Number(process.env.N);
+if (!Number.isFinite(n)) noop(); else consume(n);`,
+    `const n = Number(process.env.N);
+if (!Number.isFinite(n)) throw new Error("bad");
+consume(n);`,
+  ]) {
+    const result = numberBoundaryCensusForSources({ "fixture.ts": source }, {});
+    expect(result.violations, source).toHaveLength(0);
+  }
 });
 
 test("test and fixture paths are excluded from the production census", () => {

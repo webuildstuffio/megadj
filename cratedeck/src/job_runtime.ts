@@ -17,6 +17,28 @@ export type JobTick = (
 
 export type JobLog = (line: string, isError?: boolean) => void;
 
+/** Advance the stall clock only when the observed progress fraction rises. */
+export function recordProgressIncrease(
+  progressAt: Map<string, number>,
+  jobId: string,
+  fraction: number | null,
+  now: number,
+): boolean {
+  if (
+    fraction === null ||
+    !Number.isFinite(fraction) ||
+    fraction < 0 ||
+    fraction > 1
+  )
+    return false;
+  const fractionKey = `${jobId}:p`;
+  const previous = progressAt.get(fractionKey);
+  if (previous !== undefined && fraction <= previous) return false;
+  progressAt.set(fractionKey, fraction);
+  progressAt.set(jobId, now);
+  return true;
+}
+
 /** Rolling ETA estimator over the most recent complete sample window. */
 export function createEtaEstimator(): (
   done: number,
