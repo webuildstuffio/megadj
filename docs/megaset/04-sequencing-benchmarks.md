@@ -7,7 +7,7 @@ Two questions this doc answers with measurements, not vibes:
 1. **How good is the sequencer, really?** Greedy pick is "good enough" folklore —
    measured against what? (Part 1 walkthrough, Part 2 benchmarks, Part 3 verdicts.)
 2. **Can public tracklists give us the co-occurrence signal** VirtualDJ gets from
-   telemetry — and how much data would "useful" actually take? (Part 4.)
+   telemetry — and how much data would "useful" actually take? (Part 5.)
 
 Method note: all experiments run against the **real engine**
 (`cratedeck/src/setbuild.ts`) with deterministic synthetic pools (mixture of
@@ -198,7 +198,100 @@ product exists for.
 
 ---
 
-## Part 4 — Co-occurrence from public tracklists (the light-data design)
+## Part 4 — Variable triage on real library data (what else is worth doing)
+
+Run 2026-09-14 against the live `archive.db` (3,664 downloaded / 3,610 beats /
+3,659 mood / 3,605 cues / 3,415 embedded+genre). The question: _which candidate
+variables are actually useful here_ — measured, not assumed.
+
+### 5.1 The mood axes are nearly flat — this changes B4
+
+| Axis       | min–max   | mean | stdev    | verdict                                     |
+| ---------- | --------- | ---- | -------- | ------------------------------------------- |
+| valence    | 3.8–4.9   | 4.35 | **0.12** | 1.1-wide range on a 1–9 scale               |
+| arousal    | 4.1–5.8   | 4.95 | **0.18** | same — the effnet heads compress everything |
+| dance      | 0.00–1.00 | 0.99 | **0.07** | mean 0.99 — effectively binary/saturated    |
+| aggressive | 0.00–0.94 | 0.25 | 0.234    | **real spread — the widest axis**           |
+| happy      | 0.00–0.99 | 0.26 | 0.24     | real spread                                 |
+| electronic | 0.00–1.00 | 0.94 | 0.17     | near-saturated                              |
+| party      | 0.00–1.00 | 0.93 | 0.14     | near-saturated                              |
+
+Correlations: arousal↔valence r=0.67 (mostly redundant _in our library_);
+arousal↔BPM **r=0.10** (the mood model is NOT just tempo in disguise —
+genuinely additive signal); dance↔BPM r=0.02; happy↔valence r=−0.32.
+
+**Consequences:**
+
+1. **B4 (valence scoring) is demoted.** With stdev 0.12, valence can reorder
+   neighbors by noise. The 3-axis fit (B4) ships only if it uses z-scored
+   axes; otherwise it's decoration.
+2. **`aggressive` and `happy` are the underrated axes** — the only raw-head
+   scores with real spread. `aggressive` is a natural _hard-edge guard_
+   (penalize transitioning into a 0.8-aggressive track in an afterhours arc)
+   and `happy` separates the "euphoric" vs "dark" 126-BPM tracks that
+   arousal can't. Cheaper than any new analysis: **the data is already in
+   the mood ledger.**
+3. **Dance/arousal saturation explains the flat E6/E8 arcs** — the fit term
+   has little to push on. Future mood analysis should z-score or
+   percentile-rank the heads _before_ storing.
+
+### 5.2 Cue ledger: the handoff layer is ready NOW
+
+Phrase grid confirmed: 8-bar cues at bar 1/9/17/…, `position` in seconds.
+Coverage: **avg 22.5 cues/track; 3,496 tracks have ≥8; 2,568 have ≥16.**
+
+Mixout (first cue >0.5 s — end of the intro): **p10 = 1.1 s, p50 = 14.5 s,
+p90 = 16.0 s.** Half the library is mix-out-ready by ~15 s — a standard
+32-bar intro at 126 BPM is ~15.2 s. **Phase D's raw material needs no new
+analysis at all** — mixOut for ~3,600 tracks is one query away. This is the
+strongest empirical case in the doc for prioritizing Phase D.
+
+### 5.3 Embeddings: usable prior, not a genre oracle
+
+kNN family purity on real data (150 queries, 3,415 tracks, family-mapped
+genres): **top-1 = 48%, top-5-majority = 47%.** Embeddings know what
+"sounds like" at the _track_ level but genres are sub-genre fragmented
+(440 raw labels — `house` alone has 838 tracks); family mapping merges the
+signal away. Consequence: keep the B10p embedding prior **small** (≤0.1),
+and treat embedding clusters as their own vocabulary — "embedding
+neighborhoods" may be better genre-family seeds than scraped genre strings.
+
+### 5.4 New FullTags passes worth precomputing (ahead of the set builder)
+
+| Pass                                      | Cost (measured)                                                   | Feeds                                                                       | Worth it?                                            |
+| ----------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------- |
+| **LUFS + LRA** (`ffmpeg ebur128`)         | **348× realtime — ~1 s/track, ~50 min one-time** for 3,600 tracks | loudness-continuity penalty (T14); LRA also flags "wall-of-noise" masters   | ✅ cheapest new signal, independent of everything    |
+| **Intro RMS shape** (`astats` first 30 s) | ~1,292 RMS frames/30 s — tiny JSON per track                      | energy _shape_ of the intro (flat = safe mix-in, spiked = vocal/bdrop risk) | ✅ makes mixIn windows honest, pairs with 5.2        |
+| **Genre refold**                          | 16 case-variant rows + 440→~40 family map                         | B6 diversity guard prerequisite                                             | ✅ one-time `megadj genre --refold`, already planned |
+| Aggressive/happy percentile normalization | re-score of stored heads, no audio                                | fixed-arcs fit term (5.1)                                                   | ✅ tiny, unlocks the two healthy axes                |
+| `bpm_residual_std` backfill               | beats re-run only for pre-GA-01 rows                              | grid-quality guard (T13)                                                    | 🔶 later — only tracks that fail handoff audits      |
+| Vocal presence (Demucs)                   | minutes/track, heavy                                              | vocal-clash guard                                                           | ❌ for now — LUFS+RMS shape covers 80% cheaper       |
+
+### 5.5 Half/double-time (B8): measured — the urgency drops
+
+Only 72 tracks at 80–95 BPM and 59 at 160–185 in a 3,610-track library that
+is 79% 115–135 BPM. Octave pairs are **0.0%** of all pairs; ±6% pairs are
+55.7%. B8 is still correct to ship (it's 5 lines), but it's a latent-correctness
+fix, not a quality unlock for _this_ library — matches the audit's original
+"latent impact" note, now with numbers.
+
+### 5.6 Ranked answer: what's most useful, in order
+
+1. **Mixout/mixIn from existing cues** — zero new analysis, 3,600 tracks
+   ready today (5.2). Directly enables the Phase D bet.
+2. **Aggressive/happy into the fit term** (after percentile-normalizing) —
+   data already stored, the only axes with spread (5.1). Replaces the
+   demoted valence plan with something that will actually move chains.
+3. **LUFS+LRA pass** — 50 min one-time, fully independent signal, enables
+   loudness continuity (5.4).
+4. **Intro RMS shape** — tiny, makes handoff windows honest.
+5. **Genre refold** — unblocks B6, already planned.
+6. Embedding prior (small weight) and B8 — keep, but neither moves this
+   library much (5.3, 5.5).
+
+---
+
+## Part 5 — Co-occurrence from public tracklists (the light-data design)
 
 ### 4.1 Restating the stance
 
