@@ -1,6 +1,6 @@
 # MegaSet — PRD
 
-v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Audit & plan](../setbuild-audit-2026-09-13.md)
+v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Audit & plan](../setbuild-audit-2026-09-13.md)
 
 **Status:** ✅ graduated product (v0 shipped propose-only, Sep 11–12 2026; doc set
 since Sep 14) — greedy Camelot/energy-arc engine, whole-library pool, CLI + HTTP +

@@ -309,6 +309,18 @@ the re-rank moves items across phases.
 | 13  | **`pool_hint` + `excluded_groups`** (B12+B13)              | Honesty polish; rides along with #1                                                                                                                                                                                                                                                                                                                       | A                | S    |
 | 14  | **M3U8 executable windows** (18)                           | Completes the consumer contract; pair with #4                                                                                                                                                                                                                                                                                                             | D                | S    |
 
+- 04-sequencing-benchmarks: full engine walkthrough (graph, greedy,
+  exact/repair families), E1–E5 measurements (greedy 56% off optimum in
+  sparse pools; 2-opt +0.0% at scale — beam-B8 <250-pool rule added to
+  the roadmap; exact DP OOMs n=30 while greedy covers n=20k in 157 ms),
+  and the co-occurrence lane: public tracklists as light data
+  (~150 B/row), useful from ~10k matched rows, pair-steering never.
+- 02-architecture v2: complete variable inventory — 20 set variables
+  (request + engine knobs, each with type/default/status; weights and
+  gates stay constants per E6, beam default per E7) and 24 song
+  variables (used / planned / rejected, with the exact neutral defaults
+  for missing data), plus the single stated application order.
+
 **Deliberately not planned:** timeline transition editing (DJ.Studio's moat,
 huge surface, delegated to rekordbox by design); crowdsourced co-occurrence
 (VirtualDJ's data moat, ethically off); solver engines (djkr8's lane, n too

@@ -159,6 +159,25 @@ product exists for.
 
 ## Part 3 — Verdicts & plan deltas
 
+0. **Second-round experiments (E6–E8, Sep 14).** Three more angles, same
+   harness family:
+   - **E6 weight sensitivity** (n=3,664 replica greedy, 5 blend variants):
+     mean transition moved only 0.989↔0.9945 and the arc error was
+     _identical_ (0.022) across all five — at archive scale the gates, not
+     the weights, decide the chain. Replica opener matches the real engine
+     (v000044 = v000044). Consequence: **score weights stay engine
+     constants; they will not become a user parameter.**
+   - **E7 beam validation** (sparse pools, B=8): mean chain length
+     greedy→beam = 2.9→4.5 (n=12), 5.1→8.1 (n=20), 7.9→10.9 (n=30); beam
+     built the longer chain in 104/150, 119/150, 37/60 trials — at **0 ms**
+     per build. The S12 rule ("beam when pool < ~250") is validated, not
+     guessed.
+   - **E8 arc adherence** (real engine, all three presets): mean arc error
+     0.055 warmup / 0.039 peak / 0.018 afterhours on a 0–1 scale, zero
+     adjacent same-artist picks, and the mid-set probes read exactly like
+     the presets intend (peak: 124–125 BPM at arousal 6.4→6.9; afterhours
+     drifting 4.7→4.4). The arc machinery does what it claims.
+
 1. **Engine core: validated.** 29 ms at archive scale, deterministic,
    dead-end-free at n≥515. No solver, ever — exact DP OOMs at n=30 while
    greedy+repair covers n=20k in 157 ms.
