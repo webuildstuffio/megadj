@@ -42,6 +42,13 @@ export interface CliJobSpec {
   env?: Record<string, string>;
 }
 
+/** A CLI JSON summary is an external boundary even when megadj produced it.
+ * Malformed/missing counters render as zero, never NaN in progress text. */
+export function summaryCount(raw: unknown): number {
+  const value = Number(raw ?? 0);
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
 /** Shared runner: spawn, drain stdout (logged) + stderr, exit-check
  *  against the label, split off the trailing JSON summary. */
 export async function runCliJob(

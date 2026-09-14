@@ -8,6 +8,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { CrateConfig } from "./config";
 import type { Drive, JobKind } from "../shared/types";
+import { MAX_IMAGE_BYTES } from "./images";
 
 /** POST /api/drives/:id/photo — multipart upload or JSON url/rel/clear. */
 export async function photoUpload(
@@ -32,9 +33,14 @@ export async function photoUpload(
   // multipart = a real file-picker upload from the Photo tab;
   // JSON = url / drive_rel / clear as before
   if (ctype.includes("multipart/form-data")) {
+    const declared = Number(req.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES)
+      return json({ error: "image > 10MB" }, 413);
     const form = await req.formData();
     const file = form.get("file");
     if (!(file instanceof File)) return json({ error: "file required" }, 400);
+    if (file.size > MAX_IMAGE_BYTES)
+      return json({ error: "image > 10MB" }, 413);
     const dest = await images.choose(id, {
       data: new Uint8Array(await file.arrayBuffer()),
       // the upload's real name picks the extension (photo.png stays .png)

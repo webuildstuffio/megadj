@@ -94,6 +94,21 @@ describe("splitIntakeStdout", () => {
     expect(log).toBe("");
     expect(summary).toEqual({ total: 2, converted: 1 });
   });
+
+  test("malformed trailing JSON is reported with intake context", () => {
+    const errors: string[] = [];
+    const error = console.error;
+    console.error = (...args: unknown[]) => errors.push(args.join(" "));
+    try {
+      const { log, summary } = splitIntakeStdout("processing\n{broken");
+      expect(log).toBe("processing\n{broken");
+      expect(summary).toBeNull();
+    } finally {
+      console.error = error;
+    }
+    expect(errors.join("\n")).toContain("intake summary JSON");
+    expect(errors.join("\n")).toContain("malformed");
+  });
 });
 
 describe("argv builders", () => {

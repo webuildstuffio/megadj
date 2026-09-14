@@ -11,6 +11,7 @@ import type { PlayerSpec } from "../shared/types";
 import { buildReport } from "./report";
 import type { PreflightInput } from "./preflight";
 import type { Drive, SnapshotData } from "../shared/types";
+import { parseSnapshotJson } from "../shared/badges";
 
 export interface ReportDeps {
   db: DB;
@@ -21,7 +22,9 @@ export interface ReportDeps {
 }
 
 function parseSnap(json: string | null): SnapshotData | null {
-  return json ? (JSON.parse(json) as SnapshotData) : null;
+  const parsed = parseSnapshotJson(json);
+  if (parsed.corrupt) console.error("report snapshot is corrupt");
+  return parsed.snap;
 }
 
 /** Assemble DB state for the report builder. */

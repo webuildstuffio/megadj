@@ -95,11 +95,26 @@ export function similarTracks(
   for (const r of rows) {
     let vec: number[];
     try {
-      vec = JSON.parse(r.vec_json) as number[];
-    } catch {
-      continue; // corrupt row — skip, never poison the ranking
+      const parsed: unknown = JSON.parse(r.vec_json);
+      if (
+        !Array.isArray(parsed) ||
+        parsed.length === 0 ||
+        !parsed.every(
+          (value): value is number =>
+            typeof value === "number" && Number.isFinite(value),
+        )
+      ) {
+        console.warn(`embedding ${r.video_id} has invalid vec_json — skipping`);
+        continue;
+      }
+      vec = parsed;
+    } catch (error) {
+      console.warn(
+        `embedding ${r.video_id} has invalid vec_json — skipping`,
+        error,
+      );
+      continue;
     }
-    if (!Array.isArray(vec) || vec.length === 0) continue;
     if (r.video_id === videoId) {
       queryVec = vec;
       queryTitle = r.title;

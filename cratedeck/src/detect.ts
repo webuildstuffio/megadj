@@ -138,7 +138,8 @@ function applyVolumeSliceInfo(
   v.disk = (info.DeviceIdentifier as string | null) ?? null;
   v.volumeUuid = (info.VolumeUUID as string | null) ?? null;
   v.fs = (info.FileSystemType as string | null) ?? null;
-  v.capacityBytes = Number(info.TotalSize ?? 0);
+  const capacityBytes = Number(info.TotalSize ?? 0);
+  v.capacityBytes = Number.isFinite(capacityBytes) ? capacityBytes : 0;
   v.internal = typeof info.Internal === "boolean" ? info.Internal : null;
 }
 
@@ -306,6 +307,17 @@ export interface DiskutilInfo {
   [key: string]: string | number | boolean | undefined;
 }
 
+/** Guard the JSON emitted by plutil. A malformed subprocess payload is a
+ * degraded hardware probe, but it must remain observable to the operator. */
+export function parseDiskutilJson(out: string): DiskutilInfo {
+  try {
+    return JSON.parse(out || "{}") as DiskutilInfo;
+  } catch (error) {
+    console.error("diskutil plist JSON is malformed", error);
+    return {};
+  }
+}
+
 /** Robust plist reader: plutil converts JSON from stdin (node child_process
  *  delivers `input` reliably; Bun's spawnSync stdin pipe did not). No temp
  *  files — the old tmp-write+delete churn per volume per poll is gone. */
@@ -315,9 +327,16 @@ export function parsePlist(xml: string): DiskutilInfo {
       input: xml,
       encoding: "utf8",
     });
-    if (r.status !== 0) return {};
-    return JSON.parse(r.stdout || "{}") as DiskutilInfo;
-  } catch {
+    if (r.status !== 0) {
+      console.error(
+        `plutil could not convert diskutil plist (exit ${r.status ?? "unknown"})`,
+        r.stderr,
+      );
+      return {};
+    }
+    return parseDiskutilJson(r.stdout);
+  } catch (error) {
+    console.error("diskutil plist conversion failed", error);
     return {};
   }
 }

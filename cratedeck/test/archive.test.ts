@@ -3,6 +3,8 @@ import { Database } from "bun:sqlite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveReader } from "../src/archive";
+import { similarTracks } from "../src/archive_similar";
+import type { ArchiveQuery } from "../src/archive_types";
 
 // ArchiveReader must read megadj's REAL schema — tests build the same tables
 // src/state.ts creates, so a schema drift breaks here before it breaks agents.
@@ -300,6 +302,70 @@ describe("ArchiveReader (O82b)", () => {
     // drift rows carry the positional number the UI renders
     expect(g.drift.every((o) => Math.abs(o.driftMs) > 15)).toBe(true);
     r.close();
+  });
+
+  it("gridCrossCheck reports a corrupt persisted beat row before skipping it", () => {
+    ins("vx-corrupt-beats");
+    seed
+      .query(
+        `INSERT OR REPLACE INTO beats
+         (video_id, bpm_raw, bpm_folded, beats_json, downbeats_json, model, source_path, analyzed_at)
+         VALUES (?, 128, 128, ?, '[]', 'test', '/music/bad.aiff', '2026-09-05')`,
+      )
+      .run("vx-corrupt-beats", '{"not":"an array"}');
+    const warnings: string[] = [];
+    const warn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+    const r = reader();
+    try {
+      const result = r.gridCrossCheck();
+      expect(result.checked).toBe(0);
+    } finally {
+      r.close();
+      console.warn = warn;
+    }
+    expect(warnings.join("\n")).toContain("vx-corrupt-beats");
+    expect(warnings.join("\n")).toContain("invalid beats_json");
+  });
+
+  it("similarTracks reports a corrupt persisted embedding before skipping it", () => {
+    let queryCount = 0;
+    const query = {
+      available: () => true,
+      rows: <T>() => {
+        queryCount++;
+        return (
+          queryCount === 1
+            ? [{ name: "embeddings" }]
+            : [
+                {
+                  video_id: "bad-vector",
+                  title: "Bad",
+                  artist: "A",
+                  vec_json: '{"not":"an array"}',
+                },
+                {
+                  video_id: "query-vector",
+                  title: "Query",
+                  artist: "B",
+                  vec_json: "[1,0]",
+                },
+              ]
+        ) as T[];
+      },
+    } as unknown as ArchiveQuery;
+    const warnings: string[] = [];
+    const warn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+    try {
+      const result = similarTracks(query, "query-vector");
+      expect(result.title).toBe("Query");
+      expect(result.hits).toEqual([]);
+    } finally {
+      console.warn = warn;
+    }
+    expect(warnings.join("\n")).toContain("bad-vector");
+    expect(warnings.join("\n")).toContain("invalid vec_json");
   });
 
   it("gridCrossCheck degrades gracefully on a schema without beats", () => {

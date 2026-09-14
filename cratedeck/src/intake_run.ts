@@ -132,7 +132,11 @@ export function splitIntakeStdout(out: string): {
         log: out.slice(0, out.indexOf("{")),
         summary: JSON.parse(whole) as Record<string, unknown>,
       };
-    } catch {
+    } catch (error) {
+      console.error(
+        "intake summary JSON is malformed; trying mixed-log recovery",
+        error,
+      );
       // Fall through to the mixed-log parser below.
     }
   }
@@ -141,7 +145,8 @@ export function splitIntakeStdout(out: string): {
   try {
     const summary = JSON.parse(out.slice(idx + 1)) as Record<string, unknown>;
     return { log: out.slice(0, idx + 1), summary };
-  } catch {
+  } catch (error) {
+    console.error("intake summary JSON is malformed", error);
     return { log: out, summary: null };
   }
 }

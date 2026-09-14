@@ -54,7 +54,8 @@ const TRACK_COLS = `video_id, title, artist, album, status, bitrate_kbps,
   codec, file_path, duration_s, genre, energy, source, liked_position,
   first_seen_at, updated_at`;
 
-export class ArchiveReader implements ArchiveQuery {
+/** Read-only connection and key-cache query family. */
+class ArchiveReaderCore {
   private db: Database | null = null;
   private hasKeyCache: boolean | null = null;
   /** Fresh file reads remembered for this reader's lifetime. This preserves
@@ -66,7 +67,7 @@ export class ArchiveReader implements ArchiveQuery {
   >();
   constructor(
     readonly path: string,
-    private readonly shelfContents?: string,
+    protected readonly shelfContents?: string,
   ) {}
 
   /** Public "is the archive DB present" probe (routes/agents use this to
@@ -84,7 +85,7 @@ export class ArchiveReader implements ArchiveQuery {
 
   /** Lazily open readonly; missing DB → null (agents get a clean "no
    *  archive yet" result, not a stack trace). */
-  private handle(): Database | null {
+  protected handle(): Database | null {
     if (this.db) return this.db;
     if (!existsSync(this.path)) return null;
     this.db = new Database(this.path, { readonly: true });
@@ -195,7 +196,10 @@ export class ArchiveReader implements ArchiveQuery {
   trackCols(): string {
     return TRACK_COLS;
   }
+}
 
+/** Public archive-query facade over the read-only core. */
+export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   /**
    * STRUCTURE CUES ledger (roadmap "structure cues" slice): DJ phrase
    * markers (every 8 bars) derived from the beats ledger's downbeats by
@@ -530,9 +534,26 @@ export class ArchiveReader implements ArchiveQuery {
       if (r.bpm_folded == null) continue;
       let beats: number[] = [];
       try {
-        beats = JSON.parse(r.beats_json) as number[];
-      } catch {
-        continue; // corrupt ledger row — skip, never throw (hot path)
+        const parsed: unknown = JSON.parse(r.beats_json);
+        if (
+          !Array.isArray(parsed) ||
+          !parsed.every(
+            (beat): beat is number =>
+              typeof beat === "number" && Number.isFinite(beat),
+          )
+        ) {
+          console.warn(
+            `beat record ${r.video_id} has invalid beats_json — skipping`,
+          );
+          continue;
+        }
+        beats = parsed;
+      } catch (error) {
+        console.warn(
+          `beat record ${r.video_id} has invalid beats_json — skipping`,
+          error,
+        );
+        continue;
       }
       if (beats.length < 8 || !r.duration_s) continue;
       const rbBpm = r.bpm_folded;

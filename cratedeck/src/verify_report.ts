@@ -83,7 +83,11 @@ export function parseVerifyReport(
       j = JSON.parse(
         jsonLine.slice("VERIFY_JSON: ".length),
       ) as VerifyJsonPayload;
-    } catch {
+    } catch (error) {
+      console.warn(
+        "usb_verify.py VERIFY_JSON payload is malformed; using human-output fallback",
+        error,
+      );
       j = null; // malformed payload → regex fallback below
     }
   }
@@ -98,6 +102,11 @@ export function parseVerifyReport(
           Boolean(d) && typeof d === "object",
       ) as NonNullable<VerifyJsonPayload["drives"]>[string][])
     : [];
+  if (j !== null && drives.length === 0) {
+    console.warn(
+      "usb_verify.py VERIFY_JSON has no usable drive entries; using human-output fallback",
+    );
+  }
 
   // script may verify 1 or 2 drives; per-drive metrics aggregate when 2
   const sum = (

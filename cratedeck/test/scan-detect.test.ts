@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { nfcCasefold, scanVolume } from "../src/scan";
 import {
   pickUsbDevice,
+  parseDiskutilJson,
   parsePlist,
   isPhysicalExternal,
   listMountedVolumes,
@@ -181,6 +182,19 @@ describe("detect", () => {
     const info = parsePlist(xml);
     expect(info.VolumeUUID).toBe("ABC-123");
     expect(info.TotalSize).toBe(128000000000);
+  });
+
+  it("reports malformed diskutil JSON instead of silently returning unknowns", () => {
+    const errors: string[] = [];
+    const error = console.error;
+    console.error = (...args: unknown[]) => errors.push(args.join(" "));
+    try {
+      expect(parseDiskutilJson("{broken")).toEqual({});
+    } finally {
+      console.error = error;
+    }
+    expect(errors.join("\n")).toContain("diskutil plist JSON");
+    expect(errors.join("\n")).toContain("malformed");
   });
 });
 

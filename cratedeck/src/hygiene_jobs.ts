@@ -2,7 +2,7 @@
 // extracted from jobs.ts (file-length guard). The shared spawn/drain/
 // summary runner lives in cli_job_leg.ts (one implementation; this module
 // was its byte-twin until jscpd flagged it).
-import { runCliJob, type CliJobDeps } from "./cli_job_leg";
+import { runCliJob, summaryCount, type CliJobDeps } from "./cli_job_leg";
 
 /** Kept as a named alias — the deps shape is the shared CliJobDeps. */
 export type HygieneJobDeps = CliJobDeps;
@@ -35,9 +35,9 @@ async function runShelfHygiene(
     apply,
     handle,
   );
-  const detected = Number(summary?.detected ?? 0);
-  const applied = Number(summary?.applied ?? 0);
-  const failed = Number(summary?.failed ?? 0);
+  const detected = summaryCount(summary?.detected);
+  const applied = summaryCount(summary?.applied);
+  const failed = summaryCount(summary?.failed);
   tick(
     apply ? `applied ${applied}, failed ${failed}` : `${detected} findings`,
     "done",

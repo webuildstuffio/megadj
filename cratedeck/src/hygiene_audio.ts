@@ -70,6 +70,12 @@ export function servableAudioPath(
 
 const statsCache = new Map<string, AudioStats>();
 
+function finiteNumber(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
 /** ffprobe sidecar for one file. Cached per path for the server's
  *  lifetime — findings are stable between scans, so one probe is enough
  *  (a re-scan that changes the path changes the key). ffprobe is bound:
@@ -107,18 +113,16 @@ export function audioStats(path: string): AudioStats {
         streams?: { codec_name?: string; sample_rate?: string }[];
       };
       const s = j.streams?.[0];
+      const duration = finiteNumber(j.format?.duration);
+      const bitrate = finiteNumber(j.format?.bit_rate);
       out = {
         path,
         exists: true,
         bytes,
-        durationS: j.format?.duration
-          ? Math.round(Number(j.format.duration) * 10) / 10
-          : null,
-        bitrateKbps: j.format?.bit_rate
-          ? Math.round(Number(j.format.bit_rate) / 1000)
-          : null,
+        durationS: duration === null ? null : Math.round(duration * 10) / 10,
+        bitrateKbps: bitrate === null ? null : Math.round(bitrate / 1000),
         codec: s?.codec_name ?? null,
-        sampleRate: s?.sample_rate ? Number(s.sample_rate) : null,
+        sampleRate: finiteNumber(s?.sample_rate),
       };
     }
   } catch (e) {

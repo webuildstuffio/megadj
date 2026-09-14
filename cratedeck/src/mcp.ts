@@ -138,7 +138,11 @@ async function jobResult(job: Job): Promise<unknown> {
   if (!job.result_json) return null;
   try {
     return JSON.parse(job.result_json);
-  } catch {
+  } catch (e) {
+    console.error(
+      `job ${job.id} has corrupt result_json`,
+      e instanceof Error ? e.message : e,
+    );
     return null;
   }
 }

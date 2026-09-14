@@ -210,8 +210,73 @@ function jobStatusFolder(_j: Job): string {
   return ""; // folder is in the pick state; placeholder for row layout
 }
 
+const INTAKE_NUMBER_FIELDS = [
+  "files",
+  "tagged",
+  "artAdded",
+  "artQueued",
+  "wavConverted",
+  "folderDupes",
+  "archiveDupes",
+  "upgrades",
+  "broken",
+  "compatRejected",
+  "compatHires",
+  "shortSkipped",
+  "unchanged",
+] as const satisfies readonly (keyof IntakeResult)[];
+
+function isIntakeResult(value: unknown): value is IntakeResult {
+  if (typeof value !== "object" || value === null) return false;
+  const row = value as Record<string, unknown>;
+  if (
+    !INTAKE_NUMBER_FIELDS.every(
+      (field) => typeof row[field] === "number" && Number.isFinite(row[field]),
+    )
+  )
+    return false;
+  const audit = row.audit;
+  if (
+    audit !== null &&
+    (typeof audit !== "object" ||
+      typeof (audit as Record<string, unknown>).total !== "number" ||
+      !Number.isFinite((audit as Record<string, unknown>).total) ||
+      typeof (audit as Record<string, unknown>).complete !== "number" ||
+      !Number.isFinite((audit as Record<string, unknown>).complete))
+  )
+    return false;
+  return (
+    Array.isArray(row.auditErrors) &&
+    row.auditErrors.every(
+      (entry) =>
+        typeof entry === "object" &&
+        entry !== null &&
+        typeof (entry as Record<string, unknown>).file === "string" &&
+        typeof (entry as Record<string, unknown>).missing === "string",
+    )
+  );
+}
+
+function parseIntakeResult(json: string | null): {
+  result: IntakeResult | null;
+  unreadable: boolean;
+} {
+  if (!json) return { result: null, unreadable: true };
+  try {
+    const value: unknown = JSON.parse(json);
+    return isIntakeResult(value)
+      ? { result: value, unreadable: false }
+      : { result: null, unreadable: true };
+  } catch (error) {
+    // The caller renders this as a failed/unreadable result. Do not expose
+    // local job payloads or parser internals in the browser console.
+    void error;
+    return { result: null, unreadable: true };
+  }
+}
+
 /** The verdict banner — plain language, first thing a human reads. */
-function IntakeVerdict({ job }: { job: Job }) {
+export function IntakeVerdict({ job }: { job: Job }) {
   if (job.status === "queued")
     return (
       <Verdict
@@ -232,16 +297,12 @@ function IntakeVerdict({ job }: { job: Job }) {
       <Verdict cls="bad" text="Cancelled — already-written changes stay." />
     );
   if (job.status !== "done") return <Verdict cls="warn" text={job.status} />;
-  let r: IntakeResult | null = null;
-  try {
-    r = job.result_json ? (JSON.parse(job.result_json) as IntakeResult) : null;
-  } catch {
-    r = null;
-  }
-  if (!r)
+  const parsed = parseIntakeResult(job.result_json);
+  if (parsed.unreadable)
     return (
-      <Verdict cls="warn" text="Finished — result unreadable (deckctl jobs)." />
+      <Verdict cls="bad" text="Finished — result unreadable (deckctl jobs)." />
     );
+  const r = parsed.result!;
   const bad =
     r.broken +
     r.compatRejected +
@@ -266,27 +327,31 @@ function IntakeVerdict({ job }: { job: Job }) {
 }
 
 /** One live run: step rail + streaming log + final verify table. */
-function IntakeRun(props: { job: Job; folder: string; onDone: () => void }) {
+export function IntakeRun(props: {
+  job: Job;
+  folder: string;
+  onDone: () => void;
+}) {
   const { job } = props;
   const phaseIdx = Math.max(
     0,
     STEPS.findIndex((s) => s.id === job.phase),
   );
-  const done = job.status === "done";
-  const failed = job.status === "failed" || job.status === "cancelled";
-  let result: IntakeResult | null = null;
-  if (done && job.result_json) {
-    try {
-      result = JSON.parse(job.result_json) as IntakeResult;
-    } catch {
-      result = null;
-    }
-  }
+  const parsed =
+    job.status === "done"
+      ? parseIntakeResult(job.result_json)
+      : { result: null, unreadable: false };
+  const result = parsed.result;
+  const done = job.status === "done" && !parsed.unreadable;
+  const failed =
+    job.status === "failed" || job.status === "cancelled" || parsed.unreadable;
   return (
     <div class="card intake-run">
       <SectionHead icon="pulse" title="2 · Pipeline">
         <span class="intake-progress-num">
-          {Math.round(job.progress * 100)}%
+          {parsed.unreadable
+            ? "Result unreadable"
+            : `${Math.round(job.progress * 100)}%`}
         </span>
       </SectionHead>
       <div class="intake-steps">
@@ -330,6 +395,12 @@ function IntakeRun(props: { job: Job; folder: string; onDone: () => void }) {
       {job.error && (
         <div class="intake-error">
           <Icon name="warn" size={13} /> {job.error}
+        </div>
+      )}
+      {parsed.unreadable && (
+        <div class="intake-error">
+          <Icon name="warn" size={13} /> Completed job result is unreadable;
+          inspect <code>deckctl jobs</code> and the job log.
         </div>
       )}
       {result && <IntakeStats r={result} />}

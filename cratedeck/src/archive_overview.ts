@@ -46,7 +46,11 @@ export function cueStats(reader: ArchiveQuery, limit = 40): ArchiveCueStats {
     let cues: { index: number; position: number; bar: number }[] = [];
     try {
       cues = JSON.parse(r.cues_json) as typeof cues;
-    } catch {
+    } catch (e) {
+      console.error(
+        `cue row for ${r.video_id} has corrupt cues_json`,
+        e instanceof Error ? e.message : e,
+      );
       return [];
     }
     return [

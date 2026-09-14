@@ -17,6 +17,18 @@ interface DriveRow extends Omit<Drive, "mounted"> {
 /** Snapshot history is capped so years of scans can't eat the host disk. */
 const MAX_SNAPSHOTS_PER_DRIVE = 20;
 
+function decodeVerifyReport(driveId: string, raw: string): VerifyReport | null {
+  try {
+    return sanitizeVerifyReport(JSON.parse(raw) as VerifyReport);
+  } catch (e) {
+    console.error(
+      `verify report for drive ${driveId} is corrupt — treating as never verified`,
+      e instanceof Error ? e.message : e,
+    );
+    return null;
+  }
+}
+
 function decodeSnapshot(driveId: string, data: string): SnapshotData | null {
   const parsed = parseSnapshotJson(data);
   if (parsed.corrupt) {
@@ -57,6 +69,9 @@ export class DriveStore {
   constructor(private readonly sqlite: Database) {}
 
   private normDrive(d: DriveRow): Drive {
+    const verifyReport = d.verify_report_json
+      ? decodeVerifyReport(d.id, d.verify_report_json)
+      : null;
     return {
       ...d,
       mounted: Boolean(d.mounted),
@@ -64,9 +79,7 @@ export class DriveStore {
       // flows through (allDrives/get/getByUuid) — a stored report with no
       // FINAL verdict and no failing checks must never ride the wire
       // looking like a measured (almost-healthy) run.
-      verify_report_json: d.verify_report_json
-        ? JSON.stringify(sanitizeVerifyReport(JSON.parse(d.verify_report_json)))
-        : null,
+      verify_report_json: verifyReport ? JSON.stringify(verifyReport) : null,
     };
   }
 
@@ -176,24 +189,10 @@ export class DriveStore {
       )
       .get(id);
     if (!r?.verify_report_json) return null;
-    try {
-      // sanitizeVerifyReport re-marks legacy crash rows (no FINAL line, no
-      // failing checks) as an explicit script-failed check — a corrupt
-      // verdict must not read as a measured (almost-healthy) drive.
-      return sanitizeVerifyReport(
-        JSON.parse(r.verify_report_json) as VerifyReport,
-      );
-    } catch (e) {
-      // A corrupt persisted verdict must NOT read as "never verified" —
-      // that flips the drive to the reassuring unknown state forever.
-      // Surface the corruption in the console (and as null, which the UI
-      // renders as "never verified" WITH this trace to explain why).
-      console.error(
-        `verify report for drive ${id} is corrupt — treating as never verified`,
-        e,
-      );
-      return null;
-    }
+    // sanitizeVerifyReport re-marks legacy crash rows (no FINAL line, no
+    // failing checks) as an explicit script-failed check. decodeVerifyReport
+    // also exposes corrupt persisted JSON instead of crashing the drive list.
+    return decodeVerifyReport(id, r.verify_report_json);
   }
 
   /** Increment at mount time (ghost → mounted flip). Called by registry. */

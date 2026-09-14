@@ -123,7 +123,11 @@ function parseNoteRow(row: NoteEventRow): StoredNote | null {
   let data: Record<string, unknown> = {};
   try {
     data = JSON.parse(row.data_json) as Record<string, unknown>;
-  } catch {
+  } catch (e) {
+    console.error(
+      `agent note ${row.id} has corrupt data_json`,
+      e instanceof Error ? e.message : e,
+    );
     return null;
   }
   return noteFromEvent({
@@ -184,7 +188,11 @@ export function dismissAgentNote(
   let data: Record<string, unknown> = {};
   try {
     data = JSON.parse(row.data_json) as Record<string, unknown>;
-  } catch {
+  } catch (e) {
+    console.error(
+      `agent note ${row.id} has corrupt data_json`,
+      e instanceof Error ? e.message : e,
+    );
     return false;
   }
   if (typeof data["dismissed_at"] === "number") return true; // already

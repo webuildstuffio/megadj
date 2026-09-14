@@ -3,9 +3,19 @@ import { rmSync } from "node:fs";
 import type { CrateConfig } from "./config";
 import type { DB } from "./db";
 import type { Drive, SearchResult, SnapshotData } from "../shared/types";
+import { parseSnapshotJson } from "../shared/badges";
 import { legacySyncVerdict } from "./report";
 
 export type Emit = (channel: string, data: unknown) => void;
+
+function decodeSnapshot(
+  raw: string | null,
+  label: string,
+): SnapshotData | null {
+  const parsed = parseSnapshotJson(raw);
+  if (parsed.corrupt) console.error(`${label} snapshot is corrupt`);
+  return parsed.snap;
+}
 
 /** The drive-row fields that come straight off a mounted volume — both
  * upsert paths (first-seen and reconcile) write this same projection. */
@@ -124,16 +134,15 @@ export class Registry {
   } | null {
     const drive = this.db.getDrive(driveId);
     if (!drive) return null;
-    const snap: SnapshotData | null = drive.last_snapshot_json
-      ? JSON.parse(drive.last_snapshot_json)
-      : null;
+    const snap = decodeSnapshot(drive.last_snapshot_json, drive.id);
     const master = this.db.masterDrive();
     const isMirror =
       drive.role === "mirror" ||
       drive.name.toUpperCase() === this.cfg.mirrorDrive.toUpperCase();
-    const masterSnap: SnapshotData | null = master?.last_snapshot_json
-      ? JSON.parse(master.last_snapshot_json)
-      : null;
+    const masterSnap = decodeSnapshot(
+      master?.last_snapshot_json ?? null,
+      master?.id ?? "master",
+    );
     const sync: { verdict: string; missing?: number } | null = isMirror
       ? legacySyncVerdict(true, snap?.file_count, masterSnap?.file_count)
       : null;
@@ -163,9 +172,7 @@ export class Registry {
       const driveHit =
         drive.name.toLowerCase().includes(needle) ||
         (drive.nickname ?? "").toLowerCase().includes(needle);
-      const snap = drive.last_snapshot_json
-        ? (JSON.parse(drive.last_snapshot_json) as SnapshotData)
-        : null;
+      const snap = decodeSnapshot(drive.last_snapshot_json, drive.id);
       const matches: SearchResult["matches"] = [];
       for (const pl of snap?.playlists ?? []) {
         if (pl.name.toLowerCase().includes(needle)) {
