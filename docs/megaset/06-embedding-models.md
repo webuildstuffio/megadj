@@ -1,7 +1,7 @@
 # Audio embedding model benchmark — MegaSet/FullTags (Sep 14, 2026)
 
 **Status:** ✅ DECISION RECORDED — effnet confirmed primary by the v2 rerun
-(six towers incl. MERT); fusion/variant sweep in flight below, follow-up
+(six towers incl. MERT); fusion/variant sweep settled below, follow-up
 implementation gated by the larger post-refold evaluation.
 
 **Question.** We ship `discogs-effnet` (1280-d) as the "sounds like" tower. Is

@@ -1,50 +1,124 @@
 # megadj documentation
 
-**Status:** ✅ CURRENT — navigation index for repository documentation.
+**Status:** ✅ CURRENT — canonical navigation and documentation ownership map.
 
-Start here:
+This index lists every maintained document under `docs/`. Start with the
+[current product state](product-state-2026-09-07.md), then follow the owning
+document for the topic you are changing.
 
-- [Product state](product-state-2026-09-07.md) — current shipped state and queue.
-- [Features](FEATURES.md) — product map (GetDat, FullTags, MegaSet, CrateDeck).
-- [MegaSet](megaset/01-prd.md) — the set-builder product doc set (PRD · architecture · [30-comparator analysis](megaset/03-competitive-analysis.md)).
-- [Principles](PRINCIPLES.md) — decision authority.
-- [Agent playbook](agent-playbook.md) — detailed failure history behind `AGENTS.md`.
-- [Ideas](ideas.md) — ordered backlog; open work is tracked as GitHub issues.
+## Ownership and status
 
-Ownership rules:
+- `AGENTS.md` owns agent rules and safety invariants.
+- [Product principles](PRINCIPLES.md) own product decisions.
+- [Product state](product-state-2026-09-07.md) owns the qualitative shipped,
+  active, and blocked summary. Its dated filename is retained for stable
+  inbound links; the status header carries the actual as-of date.
+- [Features](FEATURES.md) owns the durable product map; [Ideas](ideas.md) owns
+  backlog rationale; GitHub issues own executable work and priority.
+- [Surface parity](surface-parity.md) owns exact CLI, HTTP, MCP, and UI census
+  numbers. Other docs link there instead of copying them.
+- [Data stores and schemas](data-model.md) owns schema navigation. Executable
+  schema definitions remain in their code producers.
+- [Agent playbook](agent-playbook.md) owns durable failure mechanics. The local
+  `docs/usb-sync-log.md` is append-only operator evidence and is intentionally
+  gitignored; it is not a repository link or a second status store.
 
-- `AGENTS.md` owns agent rules and invariants; this index owns navigation.
-- `PRINCIPLES.md` owns product decisions; product state owns current status
-  and metrics; GitHub issues own executable work.
-- `agent-playbook.md` owns durable failure mechanics; `usb-sync-log.md` is
-  append-only evidence. Do not copy either into other docs.
-- Avoid volatile file trees, machine-local paths, and session-only counts in
-  durable docs. Link to a command, test, DB ledger, or current-state entry.
+Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
+`ACTIVE`, 🟡 `BLOCKED`, and 🗄️ `ARCHIVED`.
 
-Operational references:
+## Product and decision references
 
-- [USB pipeline](usb-sync.md) and [USB sync log](usb-sync-log.md)
-- [Intake/cue postmortem](intake-cue-postmortem.md)
-- [Shelf hygiene snapshot](shelf-hygiene-2026-09-09.md)
-- [Runbooks](runbooks/)
-- [Rekordbox WAV artwork](rekordbox-wav-artwork.md)
+- [Product state](product-state-2026-09-07.md) — current product-level status
+  and the next safe outcomes.
+- [Features and projects](FEATURES.md) — GetDat, FullTags, MegaSet, and
+  CrateDeck responsibilities.
+- [Product principles](PRINCIPLES.md) — decision authority and non-goals.
+- [Ideas and future backlog](ideas.md) — rationale and parked possibilities;
+  issue state lives on GitHub.
+- [Data stores and schemas](data-model.md) — database roles, schema producers,
+  and migration ownership.
+- [Surface parity](surface-parity.md) — live interface contract and exemptions.
+- [Agent playbook](agent-playbook.md) — failure history and reusable lessons.
 
-Product references:
+## Product documentation
 
-- [FullTags roadmap](fulltags-roadmap.md)
-- [Grid audit plan](grid-audit-plan.md)
-- [MegaSet doc set](megaset/01-prd.md) — the set-builder product (PRD · architecture · 30-comparator analysis · [sequencing benchmarks](megaset/04-sequencing-benchmarks.md) · [genre audit](megaset/05-genre-audit.md) · [embedding model benchmark](megaset/06-embedding-models.md) · [taxonomy sources](megaset/07-genre-taxonomy-sources.md)).
-- [Set builder audit & plan](setbuild-audit-2026-09-13.md)
-- [CrateDeck product brief](cratedeck/01-product-brief.md)
-- [CrateDeck acceptance](cratedeck/acceptance.md)
-- [CrateDeck PRD](cratedeck/02-prd.md)
-- [CrateDeck architecture](cratedeck/03-architecture.md)
-- [Surface parity](surface-parity.md)
-- [Source-layout refactor](src-layout-refactor.md)
+### FullTags and analysis
 
-Project entry points:
+- [FullTags roadmap](fulltags-roadmap.md) — gate outcomes and analysis roadmap.
+- [Grid audit, repair, and auto-cue plan](grid-audit-plan.md) — active grid and
+  cue program.
+- [rekordbox WAV artwork](rekordbox-wav-artwork.md) — resolved format decision
+  retained as a reference.
 
-- [`cratedeck/README.md`](../cratedeck/README.md)
-- [`fulltags/README.md`](../fulltags/README.md)
-- [`plugin/README.md`](../plugin/README.md)
-- [Archived roadmap proposal](archive/roadmap-proposal.md)
+### MegaSet
+
+- [PRD](megaset/01-prd.md) — scope, shipped v0, and product contract.
+- [Architecture](megaset/02-architecture.md) — variables, ownership, and data
+  flow.
+- [Competitive analysis](megaset/03-competitive-analysis.md) — comparator
+  research and the re-ranked roadmap.
+- [Sequencing benchmarks](megaset/04-sequencing-benchmarks.md) — algorithm and
+  benchmark evidence.
+- [Genre audit](megaset/05-genre-audit.md) — inclusion and source-precedence
+  policy; v3 statistical revalidation (CIs, McNemar, duration guards).
+- [Embedding model benchmark](megaset/06-embedding-models.md) — tower
+  evaluation and decision; v2 rerun (effnet confirmed on both metrics),
+  fusion sweep settled (+1.1 pt — not adopted).
+- [Genre taxonomy sources](megaset/07-genre-taxonomy-sources.md) — external
+  authorities and the family map.
+- [**Consolidated findings & next steps**](megaset/10-findings.md) — every
+  measured verdict across the doc set, critical-bug list, prioritized next
+  3–5 actions.
+- [Migration plan](megaset/09-migration-plan.md) — setbuild → megaset
+  identifier rename (planned, atomic).
+- [Audit and plan](megaset/08-audit-and-plan.md) — per-item
+  implementation sketches, delta-pinned against the re-ranked roadmap;
+  current conclusions link to the owners above.
+
+### CrateDeck
+
+- [PRD](cratedeck/02-prd.md) — product requirements.
+- [Architecture](cratedeck/03-architecture.md) — current runtime structure.
+- [Acceptance](cratedeck/acceptance.md) — verified code gates and remaining
+  hardware checks.
+- [Merged product-brief redirect](cratedeck/01-product-brief.md) — compatibility
+  stub for old links; the brief now lives in the PRD.
+
+## Operations and incident references
+
+- [USB sync pipeline](usb-sync.md) — shelf/master/mirror workflow.
+- [Intake and cue postmortem](intake-cue-postmortem.md) — executed incident
+  analysis and remaining follow-up.
+- [Shelf hygiene snapshot](shelf-hygiene-2026-09-09.md) — shipped Sep 9–10
+  dedupe/hygiene record.
+- [Source-layout refactor](src-layout-refactor.md) — completed proposal and
+  migration receipt; historical paths in the proposal are labeled as such.
+
+### Hardware-gated runbooks
+
+- [0a — evacuate Extra](runbooks/0a-evacuate-extra.md) — blocked until the
+  volume mounts.
+- [0b — cold backup](runbooks/0b-cold-backup.md) — blocked on the cloud target.
+- [0c — BACKUP2 verdict](runbooks/0c-orphan-verdict.md) — completed decision;
+  procedure retained for evidence.
+- [0d — rekordbox write-path spike](runbooks/0d-write-path-spike.md) — harness
+  shipped; hardware observations remain.
+
+## Package entry points
+
+- [`README.md`](../README.md) — repository overview and setup.
+- [`cratedeck/README.md`](../cratedeck/README.md) and
+  [`deckctl.md`](../cratedeck/deckctl.md) — CrateDeck operator entry points.
+- [`fulltags/README.md`](../fulltags/README.md) — FullTags package reference.
+- [`plugin/README.md`](../plugin/README.md) — plugin packaging and symlinked
+  skill ownership.
+- CrateDeck UI implementation notes:
+  [`web/ui/DESIGN-NOTES.md`](../cratedeck/web/ui/DESIGN-NOTES.md) and
+  [`web/products/fulltags/DESIGN-NOTES.md`](../cratedeck/web/products/fulltags/DESIGN-NOTES.md).
+
+## Archive
+
+Archived files are historical evidence, not current instructions:
+
+- [Executed roadmap proposal](archive/roadmap-proposal.md)
+- [Codebase quality snapshot](archive/codebase-quality-report.md)
