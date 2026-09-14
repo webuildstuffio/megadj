@@ -27,6 +27,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { homedir, platform } from "node:os";
+import type { CheckResult } from "./doctor-types";
 import {
   checkCueKinds,
   checkDupes,
@@ -34,15 +35,7 @@ import {
   masterDbPath,
 } from "./doctor-state";
 
-export interface CheckResult {
-  id: string;
-  label: string;
-  /** required = toolkit unusable without it; optional = feature-scoped. */
-  required: boolean;
-  ok: boolean;
-  detail: string;
-  fix?: string | undefined;
-}
+export type { CheckResult } from "./doctor-types";
 
 const MUSIC_DIR =
   process.env.MEGADJ_MUSIC_DIR ?? `${homedir()}/Music/DJ-Imports`;

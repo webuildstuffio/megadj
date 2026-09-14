@@ -25,7 +25,9 @@ This file contains only rules and traps. Product detail belongs in
 - No bare production `catch {}` or `.catch(() => {})`. Boundary `JSON.parse`
   uses a guarded parser and exposes failure. Gate numeric boundaries with
   `Number.isFinite`; CLI numeric options use `nonNegOpt` (bad input: exit 2,
-  zero work).
+  zero work). Keep the reviewed inventories in
+  `src/boundary-number-census.test.ts` and
+  `src/boundary-json-census.test.ts` green when either call surface changes.
 - Strict TypeScript is live: `noUncheckedIndexedAccess`,
   `exactOptionalPropertyTypes`, `noUncheckedSideEffectImports`, and
   `allowUnreachableCode:false`. Oxlint and formatting are part of the gate.

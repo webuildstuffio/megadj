@@ -16,7 +16,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { CheckResult } from "./doctor";
+import type { CheckResult } from "./doctor-types";
 import { rekordboxRunning } from "../rekordbox/guard";
 
 interface StateProbe {
