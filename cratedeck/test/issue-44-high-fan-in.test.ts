@@ -80,6 +80,44 @@ test("#44: api failure reporting is injectable without importing the toast view"
   }
 });
 
+test("#44: api deadline stays armed while the response body is read", async () => {
+  globalThis.fetch = mockFetch(
+    async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const signal = init?.signal;
+      const response = Response.json({ ok: true });
+      Object.defineProperty(response, "json", {
+        value: () =>
+          new Promise((_resolve, reject) => {
+            signal?.addEventListener(
+              "abort",
+              () => {
+                const error = new Error("aborted response body");
+                error.name = "AbortError";
+                reject(error);
+              },
+              { once: true },
+            );
+          }),
+      });
+      return response;
+    },
+  );
+
+  const outcome = await Promise.race([
+    api("/api/stalled-body", { quiet: true, timeoutMs: 5 }).then(
+      () => "resolved",
+      (error: unknown) =>
+        error instanceof ApiError
+          ? `${error.status}:${error.message}`
+          : `raw:${String(error)}`,
+    ),
+    new Promise<string>((resolve) =>
+      setTimeout(() => resolve("still pending"), 30),
+    ),
+  ]);
+  expect(outcome).toBe("0:timed out after 0s — server busy; retry");
+});
+
 test("#44: deckctl output flushes complete JSON and never logs in JSON mode", async () => {
   const writes: string[] = [];
   const lines: string[] = [];

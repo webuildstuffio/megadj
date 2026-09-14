@@ -38,33 +38,40 @@ export async function api<T = unknown>(
   const { quiet, timeoutMs = 30_000, ...fetchInit } = init ?? {};
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  let res: Response;
+  let res: Response | undefined;
   try {
     res = await fetch(path, { ...fetchInit, signal: ctrl.signal });
+    if (!res.ok) {
+      let msg = `${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body?.error) msg = body.error;
+      } catch (error) {
+        // A deadline while consuming an error body is still a request
+        // timeout. Other parse failures retain the status-only fallback.
+        if ((error as Error).name === "AbortError") throw error;
+      }
+      if (res.status === 423) msg = `locked — ${msg}`;
+      if (!quiet) reportError?.(msg);
+      throw new ApiError(msg, res.status);
+    }
+    return (await res.json()) as T;
   } catch (e) {
-    clearTimeout(timer);
-    const msg =
-      (e as Error).name === "AbortError"
-        ? `timed out after ${Math.round(timeoutMs / 1000)}s — server busy; retry`
-        : `network error: ${(e as Error).message}`;
+    if (e instanceof ApiError) throw e;
+    if ((e as Error).name === "AbortError") {
+      const msg = `timed out after ${Math.round(timeoutMs / 1000)}s — server busy; retry`;
+      if (!quiet) reportError?.(msg);
+      throw new ApiError(msg, 0);
+    }
+    // Preserve the existing successful-response JSON contract: parse errors
+    // after headers arrive reject as-is. Only transport failures are wrapped.
+    if (res) throw e;
+    const msg = `network error: ${(e as Error).message}`;
     if (!quiet) reportError?.(msg);
     throw new ApiError(msg, 0);
+  } finally {
+    clearTimeout(timer);
   }
-  clearTimeout(timer);
-  if (!res.ok) {
-    let msg = `${res.status}`;
-    try {
-      const body = (await res.json()) as { error?: string };
-      if (body?.error) msg = body.error;
-    } catch {
-      // non-JSON error body (proxy/interlock plaintext) — the status code is
-      // still the message; res.ok already failed and we throw below.
-    }
-    if (res.status === 423) msg = `locked — ${msg}`;
-    if (!quiet) reportError?.(msg);
-    throw new ApiError(msg, res.status);
-  }
-  return res.json() as Promise<T>;
 }
 
 /** JSON POST helper — body + Content-Type in one; returns api() parsed T.
