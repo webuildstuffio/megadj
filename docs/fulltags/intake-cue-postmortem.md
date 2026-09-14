@@ -12,7 +12,7 @@ surrounding transcripts, issue set, and repeated failure mechanics.
 the fulltags/rb-import/cue marathon (Sep 10–13) and the surrounding week's
 sessions, plus the two open bugs the user still sees (duplicate tracks; hot-
 cue pads not clickable). This is the working list to burn down. Product
-rules live in [PRINCIPLES.md](PRINCIPLES.md); this doc owns the _lessons +
+rules live in [PRINCIPLES.md](../PRINCIPLES.md); this doc owns the _lessons +
 tickets_. Live collection counts belong to commands and DB receipts, not this
 header.
 

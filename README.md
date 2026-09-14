@@ -207,7 +207,7 @@ init` auto-detects mounted volumes and writes them into
 that file to change the names later. Each drive also carries a second,
 legacy database that older players like the XDJ-XZ read; a one-time
 rekordbox export per library generation keeps it current —
-[docs/usb-sync.md](docs/usb-sync.md) explains when and why.
+[docs/getdat/usb-sync.md](docs/getdat/usb-sync.md) explains when and why.
 
 ---
 
@@ -310,7 +310,7 @@ an agent, it doesn't exist), and CrateDeck speaks MCP — see
 
 The [documentation index](docs/README.md) is the canonical map. Start with
 [Principles](docs/PRINCIPLES.md), [Current state](docs/product-state-2026-09-07.md),
-[Data stores and schemas](docs/data-model.md), or the
+[Data stores and schemas](docs/getdat/data-model.md), or the
 [Agent playbook](docs/agent-playbook.md); operational runbooks and
 product-specific references are linked from there.
 

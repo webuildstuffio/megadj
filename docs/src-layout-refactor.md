@@ -30,7 +30,7 @@ Short answer: it started as the drive's nickname and got promoted to a
   `SHELF1` is just the current value (the same way `master_drive = "DJMASTER"`).
 - `cratedeck/shared/check_matrix.ts` encodes `DriveRole` value `"shelf"` and
   maps it to `DriveTier = "archive" | "gig"` — the product's own tier model.
-- Docs say "the shelf tier" (usb-sync.md), and AGENTS.md's rule is that
+- Docs say "the shelf tier" (getdat/usb-sync.md), and AGENTS.md's rule is that
   tools take volume names **from config** — none of the `shelf-*` commands
   hardcode SHELF1.
 
@@ -247,9 +247,9 @@ fulltags/src` (type-only back-edges count) → `bun run check:full` (100%
    `shelf-sweeps` across AGENTS.md, docs/, `.claude/skills/`,
    `cratedeck/deckctl.md`; update; the surface-parity census catches drift.
    Verified scope: 39 `src/commands/` references — AGENTS.md (2),
-   docs/agent-playbook.md (2), docs/usb-sync.md (1),
-   docs/grid-audit-plan.md, docs/rekordbox-wav-artwork.md,
-   docs/fulltags-roadmap.md, and `.claude/skills/{booth-check,
+   docs/agent-playbook.md (2), docs/getdat/usb-sync.md (1),
+   docs/fulltags/grid-audit-plan.md, docs/fulltags/rekordbox-wav-artwork.md,
+   docs/fulltags/fulltags-roadmap.md, and `.claude/skills/{booth-check,
 rekordbox-library-repair,new-music-intake}/SKILL.md`. Also verified:
    cratedeck's `intake_run.ts` spawns `src/cli.ts` by path (its test asserts
    that path) — unchanged, because cli.ts stays.

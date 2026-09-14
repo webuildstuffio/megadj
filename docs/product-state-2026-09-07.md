@@ -14,14 +14,14 @@ music       and audit    the mix      verify
 
 The shelf is the archive master beneath the whole flow. The rekordbox
 collection database lives on the configured shelf, while `archive.db` remains
-the pipeline ledger. See [Data stores and schema ownership](data-model.md).
+the pipeline ledger. See [Data stores and schema ownership](getdat/data-model.md).
 
 ## State by product
 
 | Product   | State                           | Shipped                                                                                                                                                               | Active or blocked outcome                                                                                           | Live truth                                                                  |
 | --------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | GetDat    | ✅ SHIPPED                      | YouTube Music sync, URL/folder drop, scored ingest, container-truth repair, dedupe/quarantine, quality upgrades, and archive-to-shelf sync                            | Additional download sources remain backlog items; AI genre fallback remains opt-in                                  | `megadj status --json`, `megadj audit --json`                               |
-| FullTags  | ✅ SHIPPED / 🧭 ACTIVE ANALYSIS | One schema, verified format-specific atomic writers, source-first metadata/artwork, Beatport identity fields, fingerprints, key/mood/energy analysis, and gated audit | BPM tag writes remain blocked; structure, vocal-density, and cue work continue through the grid plan                | `megadj audit --json`; [FullTags roadmap](fulltags-roadmap.md)              |
+| FullTags  | ✅ SHIPPED / 🧭 ACTIVE ANALYSIS | One schema, verified format-specific atomic writers, source-first metadata/artwork, Beatport identity fields, fingerprints, key/mood/energy analysis, and gated audit | BPM tag writes remain blocked; structure, vocal-density, and cue work continue through the grid plan                | `megadj audit --json`; [FullTags roadmap](fulltags/fulltags-roadmap.md)              |
 | MegaSet   | ✅ SHIPPED v0 / 🧭 ACTIVE v1    | Deterministic propose-only mix builder, whole-library pool, CLI/HTTP/MCP/web surfaces, M3U8 export, and DB/XML-twinned rekordbox playlist write-off                   | Re-ranked improvements include small-pool search, diversity, richer arcs, alternatives, and phrase-aware handoffs   | [PRD](megaset/01-prd.md), [benchmarks](megaset/04-sequencing-benchmarks.md) |
 | CrateDeck | ✅ SHIPPED v0.1                 | Drive registry/ghosts, scans, verify and preflight, fleet coverage, checksums, job orchestration, local web UI, deckctl, and MCP                                      | Four manual hardware checks and the release tag remain; differential mirror and assisted legacy export stay planned | `deckctl status --json`; [Acceptance](cratedeck/acceptance.md)              |
 
@@ -66,10 +66,10 @@ execution tracker and [Ideas](ideas.md) owns backlog rationale.
 - [Features and projects](FEATURES.md) — durable product responsibilities.
 - [Surface parity](surface-parity.md) — exact current interface census and
   exemptions.
-- [Data stores and schemas](data-model.md) — database roles and executable
+- [Data stores and schemas](getdat/data-model.md) — database roles and executable
   schema owners.
-- [FullTags roadmap](fulltags-roadmap.md) and
-  [grid/cue plan](grid-audit-plan.md) — analysis gates and remaining stages.
+- [FullTags roadmap](fulltags/fulltags-roadmap.md) and
+  [grid/cue plan](fulltags/grid-audit-plan.md) — analysis gates and remaining stages.
 - [MegaSet documentation](megaset/01-prd.md) — PRD, architecture, comparator
   research, benchmarks, genre policy, and embedding evidence.
 - [CrateDeck acceptance](cratedeck/acceptance.md) — completed and manual

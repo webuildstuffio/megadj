@@ -17,7 +17,7 @@ document for the topic you are changing.
   backlog rationale; GitHub issues own executable work and priority.
 - [Surface parity](surface-parity.md) owns exact CLI, HTTP, MCP, and UI census
   numbers. Other docs link there instead of copying them.
-- [Data stores and schemas](data-model.md) owns schema navigation. Executable
+- [Data stores and schemas](getdat/data-model.md) owns schema navigation. Executable
   schema definitions remain in their code producers.
 - [Agent playbook](agent-playbook.md) owns durable failure mechanics. The local
   `docs/usb-sync-log.md` is append-only operator evidence and is intentionally
@@ -35,19 +35,32 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 - [Product principles](PRINCIPLES.md) — decision authority and non-goals.
 - [Ideas and future backlog](ideas.md) — rationale and parked possibilities;
   issue state lives on GitHub.
-- [Data stores and schemas](data-model.md) — database roles, schema producers,
+- [Data stores and schemas](getdat/data-model.md) — database roles, schema producers,
   and migration ownership.
+- [GetDat](getdat/data-model.md) — ingest, shelf, and boundary contracts.
+- [FullTags](fulltags/fulltags-roadmap.md) — extraction and analysis gates.
+- [MegaSet](megaset/01-prd.md) — sequencing and set proposal contracts.
+- [CrateDeck](cratedeck/02-prd.md) — playlist, export, and booth-ready runtime.
 - [Surface parity](surface-parity.md) — live interface contract and exemptions.
 - [Agent playbook](agent-playbook.md) — failure history and reusable lessons.
 
 ## Product documentation
 
+### GetDat
+
+- [Data stores and schemas](getdat/data-model.md) — schema roles, ownership, and
+  producer boundaries.
+- [Playing USB boundary](getdat/usb-sync.md) — SHELF1-to-USB handoff rules and
+  user-managed export limits.
+- [Shelf hygiene snapshot](getdat/shelf-hygiene-2026-09-09.md) — Sep 9–10
+  detect/restore limits and current operator receipts.
+
 ### FullTags and analysis
 
-- [FullTags roadmap](fulltags-roadmap.md) — gate outcomes and analysis roadmap.
-- [Grid audit, repair, and auto-cue plan](grid-audit-plan.md) — active grid and
+- [FullTags roadmap](fulltags/fulltags-roadmap.md) — gate outcomes and analysis roadmap.
+- [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and
   cue program.
-- [rekordbox WAV artwork](rekordbox-wav-artwork.md) — resolved format decision
+- [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision
   retained as a reference.
 
 ### MegaSet
@@ -81,16 +94,16 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 - [Architecture](cratedeck/03-architecture.md) — current runtime structure.
 - [Acceptance](cratedeck/acceptance.md) — verified code gates and remaining
   hardware checks.
-- [Merged product-brief redirect](cratedeck/01-product-brief.md) — compatibility
-  stub for old links; the brief now lives in the PRD.
+- [PRD](cratedeck/02-prd.md) owns the product summary (brief merged there), and
+  the runtime detail remains in the architecture/acceptance documents.
 
 ## Operations and incident references
 
-- [Playing USB boundary](usb-sync.md) — SHELF1 preparation, user-owned export,
+- [Playing USB boundary](getdat/usb-sync.md) — SHELF1 preparation, user-owned export,
   and read-only verification.
-- [Intake and cue postmortem](intake-cue-postmortem.md) — executed incident
+- [Intake and cue postmortem](fulltags/intake-cue-postmortem.md) — executed incident
   analysis and remaining follow-up.
-- [Shelf hygiene snapshot](shelf-hygiene-2026-09-09.md) — Sep 9–10 record
+- [Shelf hygiene snapshot](getdat/shelf-hygiene-2026-09-09.md) — Sep 9–10 record
   with current detector and restore-surface limits.
 - [Source-layout refactor](src-layout-refactor.md) — completed proposal and
   migration receipt; historical paths in the proposal are labeled as such.

@@ -17,7 +17,7 @@ _2026-09-13. Scope: `cratedeck/src/setbuild.ts` (engine), `cratedeck/src/archive
 `src/fulltags/setbuild.ts` (CLI), `cratedeck/src/archive_tools.ts` (MCP), `archive_routes.ts`
 (HTTP + M3U8), `web/products/fulltags/SimilarTab.tsx` (UI), `src/rekordbox/rb-playlist.ts`
 (master-DB write-off). Product home: [01-prd.md](01-prd.md).
-Companion to [docs/fulltags-roadmap.md](../fulltags-roadmap.md) and
+Companion to [fulltags/fulltags-roadmap.md](../fulltags/fulltags-roadmap.md) and
 [docs/PRINCIPLES.md](../PRINCIPLES.md) (propose-only is a feature, not a gap).
 
 ---

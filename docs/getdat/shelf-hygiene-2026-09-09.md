@@ -6,8 +6,8 @@ overstated detector and restore-surface coverage. `megadj shelf-hygiene` +
 `megadj shelf-restore` is the CLI-only restore seam. The landed code is the truth:
 `src/archive/hygiene/` (engine/store/apply), `cratedeck/src/hygiene_*.ts` (API/job/
 reader), parity pinned by `cratedeck/test/surface-parity.test.ts`; current
-state lives in [product-state-2026-09-07.md](product-state-2026-09-07.md),
-surface rows in [surface-parity.md](surface-parity.md).**
+state lives in [product-state-2026-09-07.md](../product-state-2026-09-07.md),
+surface rows in [surface-parity.md](../surface-parity.md).**
 
 Full record of the Sep 9 data work on SHELF1, the traps hit, and the
 shipped spec. What was NOT kept: the §4/§5 phase-by-phase build guide and

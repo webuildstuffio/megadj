@@ -128,6 +128,6 @@ cp /Volumes/SHELF1/PIONEER/Master/share/ANLZ/ANLZ0000.DAT $CP/
 | —    | Q3 XML overwrite    | open                    |                                       |
 | —    | Q4 direct ANLZ edit | open (only if Q3 fails) |                                       |
 
-Write the verdict into `docs/grid-audit-plan.md` §GA-07 and GA-06's
+Write the verdict into `docs/fulltags/grid-audit-plan.md` §GA-07 and GA-06's
 route line in the same edit. "Open but armed" is a valid state when the
 hardware isn't at hand — the commands above ARE the armament.

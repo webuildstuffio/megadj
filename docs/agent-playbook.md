@@ -244,7 +244,7 @@ mirror` = the mirror job). The usage-text-syncs-with-dispatch census
 
 The durable lessons of the first full analysis-ladder pass against the real
 archive (~55h, three sessions). Gate numbers live in
-`docs/fulltags-roadmap.md`; this section keeps the generalizable findings.
+`docs/fulltags/fulltags-roadmap.md`; this section keeps the generalizable findings.
 
 - **Gates work in both directions.** No analysis stage writes to the library
   without a measured agreement number. The BPM failure taught why: beat_this
@@ -354,7 +354,7 @@ threads are not repeated here — dedup checked against issues #1–#23,
   rekordbox; legacy `export.pdb`/OneLibrary drift fix on the sticks;
   WAV-cover spot-check after the next dual-device export (checkbox in
   `docs/usb-sync-log.md`); disable rekordbox Key analysis before the
-  next DJLIBRARYM mount (tracked in `docs/fulltags-roadmap.md`).
+  next DJLIBRARYM mount (tracked in `docs/fulltags/fulltags-roadmap.md`).
   The runbook set (`docs/runbooks/0a–0d`) is where these belong when
   the drives next mount.
 - **Xcode Python trap has a second face** (b82aae0e + de5a057e): both

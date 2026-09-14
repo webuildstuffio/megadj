@@ -36,7 +36,7 @@ Issue state lives on GitHub; this table only routes to the durable owner.
 | 0c  | ✅ complete         | [BACKUP2 verdict](runbooks/0c-orphan-verdict.md); adopted, covered, and retired intact         |
 | 0d  | ✅ shipped          | Coverage and redundancy engines; live state from `deckctl coverage`/`redundancy`               |
 | 0e  | ✅ shipped          | Incident logging convention; evidence remains in the local, gitignored `docs/usb-sync-log.md`  |
-| 0f  | ✅ superseded       | Generalized by the human-gated [shelf hygiene engine](shelf-hygiene-2026-09-09.md)             |
+| 0f  | ✅ superseded       | Generalized by the human-gated [shelf hygiene engine](getdat/shelf-hygiene-2026-09-09.md)             |
 | 0g  | ✅ shipped          | Whole-shelf fingerprint scan and quarantine-first restore path                                 |
 
 ### Deferred runtime performance pass
@@ -104,7 +104,7 @@ Discovered during the research pass; mapped to the ideas below:
 | [settag](https://pypi.org/project/settag/) · [dupsonic](https://github.com/zas/dupsonic/) v0.2.5 · [livechord-beat-refiner](https://pypi.org/project/livechord-beat-refiner/) (2026 finds)     | settag: Essentia MAEST/Discogs-EffNet tagger for DJ libraries with staged writes + provenance tags; dupsonic shipped macOS-aarch64 binaries (Jul 2026); refiner post-processes beat_this downbeats + fixes bar confusion               | settag = the closest thing to a FullTags competitor — steal its provenance-tag pattern; dupsonic = L62 done for us; refiner = grid-QA candidate                        |
 
 **Best-models re-check (2026-09-05 verdicts only, full ladder
-lives in `docs/fulltags-roadmap.md`):**
+lives in `docs/fulltags/fulltags-roadmap.md`):**
 
 - **BeatFM (ICME 2025)** — +4.1pt downbeat F1 over beat_this on paper,
   **no public code or weights** (re-verified — the only GitHub "BeatFM"
@@ -134,7 +134,7 @@ Everything here shipped or was promoted by 2026-09-04: the drive dossier +
 health report (→ §B1), the `tools/` consolidation (→ `tools/fetch-all.ts`
 
 - `fulltags/`), WAV artwork in rekordbox
-  ([rekordbox-wav-artwork.md](rekordbox-wav-artwork.md); sliver: spot-check
+  ([fulltags/rekordbox-wav-artwork.md](fulltags/rekordbox-wav-artwork.md); sliver: spot-check
   covers on the XDJ-XZ at the next export), the sync-log checklist gates
   (`usb_verify.py` + `usb_mirror.py --verify-only --hash-parity`, tracked in
   the local ops log), the orphan-drive verdict (→ §0c), and the acceptance
@@ -233,7 +233,7 @@ gold-report`/`regate` score the analysis ledgers against the hand
     manufacture a pass), `rb-anlz-spike` proves what a rekordbox write
     touches, and the Sep 11 census repaired 21 bar-coherence grids. The
     SSOT for what remains (grid provenance field, batch repair verdicts,
-    Part-B cues) is [grid-audit-plan.md](grid-audit-plan.md).
+    Part-B cues) is [fulltags/grid-audit-plan.md](fulltags/grid-audit-plan.md).
 20. **Full-length waveform fill.** Synthetic PWAV/PWV2 cover the first 30s;
     generate full-duration previews from the decoded audio (librosa is
     already a dependency). Medium effort, big browse win on hardware.
@@ -395,7 +395,7 @@ re-verified in the research notes (2026-09-05).
     The grid-audit wave-2 tooling
     (`megadj gold-report`/`regate` gold-set harness, `megadj
 rb-grid-triage`, ANLZ write-path spike) is live — see C19 and
-    [grid-audit-plan.md](grid-audit-plan.md), the SSOT for the remainder.
+    [fulltags/grid-audit-plan.md](fulltags/grid-audit-plan.md), the SSOT for the remainder.
     The full all-in-one-infer slice (functional segment labels intro/verse/
     drop/outro + demucs stems) remains the follow-on: _model note
     (2026-09-05): BeatFM (ICME 2025) beats beat_this on downbeat F1 by
@@ -474,7 +474,7 @@ everything else reads it.
 > (`fulltags/` — standalone CLI + engine, megadj's modules are shims over
 > it). J53's schema is live (`fulltags/src/schema.ts`), the writer/readers
 > are consolidated, and the follow-on roadmap is
-> `docs/fulltags-roadmap.md` — **rev 6.2 (executed through pass 3)**:
+> `docs/fulltags/fulltags-roadmap.md` — **rev 6.2 (executed through pass 3)**:
 > fingerprints + keys shipped to files (gates measured: key 80.7% PASS),
 > BPM/mood/genre writes gate-blocked → beats/mood/cues DB ledgers
 > (`megadj beats|mood|cues`), energy 2.0, MB harvest, audit gate now

@@ -119,7 +119,7 @@ copies preserved. Live receipts come from `megadj shelf-sweeps --json`; the
 local `docs/usb-sync-log.md` is intentionally gitignored operator evidence.
 **Docs:** [cratedeck/README.md](../cratedeck/README.md) ·
 [deckctl guide](../cratedeck/deckctl.md) ·
-[USB pipeline](usb-sync.md) ·
+[USB pipeline](getdat/usb-sync.md) ·
 [the doc set](cratedeck/)
 
 > Revision history and the exact surface census live once in
@@ -175,6 +175,6 @@ megadj setbuild --preset peak  # MegaSet: propose a Camelot/energy-arc mix chain
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 
-Going deeper: [usb-sync.md](usb-sync.md) (pipeline what/why) ·
+Going deeper: [getdat/usb-sync.md](getdat/usb-sync.md) (pipeline what/why) ·
 [`fulltags/`](../fulltags/README.md) (the enrichment engine) ·
-[fulltags-roadmap.md](fulltags-roadmap.md) (what's next for tags)
+[fulltags/fulltags-roadmap.md](fulltags/fulltags-roadmap.md) (what's next for tags)

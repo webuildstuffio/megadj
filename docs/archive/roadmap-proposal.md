@@ -80,7 +80,7 @@ real 88-track archive, not just built:**
 
 **What remains of Move 2:** the RB key gauntlet (operational, 30 s),
 vocal density, similarity embeddings. Full per-stage detail (models,
-gates, gotchas): [fulltags-roadmap.md](../fulltags-roadmap.md).
+gates, gotchas): [fulltags/fulltags-roadmap.md](../fulltags/fulltags-roadmap.md).
 
 ### Move 3 — Agentify (the O layer) · _why: P1, agent-first is a principle_
 
@@ -197,6 +197,6 @@ labour.**
 
 - Decide → [PRINCIPLES.md](../PRINCIPLES.md)
 - Browse → [ideas.md](../ideas.md) (§0 first)
-- Build AI features → [fulltags-roadmap.md](../fulltags-roadmap.md)
-- Touch drives → [usb-sync.md](../usb-sync.md) + the interlock rules
+- Build AI features → [fulltags/fulltags-roadmap.md](../fulltags/fulltags-roadmap.md)
+- Touch drives → [getdat/usb-sync.md](../getdat/usb-sync.md) + the interlock rules
 - Trust status claims → [cratedeck/acceptance.md](../cratedeck/acceptance.md)

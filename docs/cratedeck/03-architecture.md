@@ -112,7 +112,7 @@ truth, checked at the seam — not scattered through the UI.
 
 The executable DDL and additive migrations live in `db_core.ts`; domain
 tables and queries live in the `db_*` stores behind the `db.ts` façade. The
-canonical schema map is [Data stores and schema ownership](../data-model.md).
+canonical schema map is [Data stores and schema ownership](../getdat/data-model.md).
 
 Design choices: ghost rendering reads the last snapshot stored with the drive;
 snapshot and event retention are bounded by producer constants; jobs carry

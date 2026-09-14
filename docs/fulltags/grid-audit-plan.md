@@ -4,8 +4,8 @@
 
 _2026-09-10. Supersedes the chat-plan v2. This file is the project SSOT for
 grid audit + auto-cue; `docs/ideas.md` I46/#47 and
-`docs/fulltags-roadmap.md` #2/P2 point here. (The old root `plan.md`'s
-runtime-perf round now lives in [docs/ideas.md](ideas.md) §0f.)_
+`fulltags-roadmap.md` #2/P2 point here. (The old root `plan.md`'s
+runtime-perf round now lives in [docs/ideas.md](../ideas.md) §0f.)_
 
 Two systems sharing one analysis pass:
 
@@ -45,7 +45,7 @@ of 2026-09-10. Everything else in this doc is re-scoped around it.
 | Compressed-audio decode seam          | `analyzeBeats` ffmpeg→tmp-WAV                                                                                                    | **S2 preprocessing already exists** for the beat path                                                                                                                                       |
 | Key detection                         | OpenKeyScan, `fulltags --key`                                                                                                    | **SHIPPED — 80.7% gate PASS, 131/131 written.** The v2 plan's "your pipeline doesn't do key at all" is stale. Remaining: the RB gauntlet (disable Key analysis → Reload Tags) at next mount |
 | Safety scaffolding for DB writes      | `megadj rb-fix-paths` pattern: backup → refuse-while-rekordbox-runs → whole-table post-check                                     | A4/B7 reuse this pattern verbatim                                                                                                                                                           |
-| Gate discipline                       | `docs/fulltags-roadmap.md` §4.2                                                                                                  | No analysis stage writes without a measured agreement number — the whole plan runs on this rule                                                                                             |
+| Gate discipline                       | `fulltags-roadmap.md` §4.2                                                                                                  | No analysis stage writes without a measured agreement number — the whole plan runs on this rule                                                                                             |
 | pyrekordbox 0.4.4 seam                | rb_read.py / rb-fix-paths                                                                                                        | Reads master.db; shelf-hosted master DB realities already encoded in AGENTS.md                                                                                                              |
 
 ### 0.2 Missing (the actual build)
@@ -686,4 +686,4 @@ _Append dated entries as stages land — gate numbers, spike verdicts,
 calibration tables. Nothing here is done until it has a dated row._
 
 - 2026-09-10 — plan written (v3); audit vs repo done; the old runtime
-  performance plan was consolidated into [Ideas §0f](ideas.md).
+  performance plan was consolidated into [Ideas §0f](../ideas.md).

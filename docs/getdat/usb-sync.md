@@ -41,9 +41,9 @@ same-name files are preserved rather than overwritten.
 
 For raw ExFAT evacuation work, use foreground, resumable per-directory
 tar-pipes with file-count checkpoints. Never use a whole-volume rsync. See
-[the Extra evacuation runbook](runbooks/0a-evacuate-extra.md).
+[the Extra evacuation runbook](../runbooks/0a-evacuate-extra.md).
 
 The agent-facing procedure is
-[`rekordbox-usb-sync`](../.claude/skills/rekordbox-usb-sync/SKILL.md). Its
+[`rekordbox-usb-sync`](../../.claude/skills/rekordbox-usb-sync/SKILL.md). Its
 remaining historical scripts are reference material, not authorization to
 write a playing USB.

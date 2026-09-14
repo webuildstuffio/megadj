@@ -21,7 +21,9 @@ This file contains only rules and traps. Product detail belongs in
   `bun test --parallel=16`; failure blocks, timeout warns) — still run
   `bun test` yourself before pushing if you want the result earlier.
 - Never use `git add -A`; preserve concurrent work. Re-read before editing and
-  verify the worktree diff, not only a commit hash.
+  verify the worktree diff, not only a commit hash. Before committing, check
+  for another agent's PRE-STAGED files — a mid-refactor staged snapshot that
+  rides along breaks the pushed build; rebuild the commit path-scoped if so.
 - No bare production `catch {}` or `.catch(() => {})`. Boundary `JSON.parse`
   uses a guarded parser and exposes failure. Gate numeric boundaries with
   `Number.isFinite`; CLI numeric options use `nonNegOpt` (bad input: exit 2,
@@ -122,8 +124,11 @@ unwritable; only Comment carries derived energy, never BPM.
   tri-state (`undefined` keep, `null` clear).
 - `deckctl help` works with the server down. `--help` is stdout/exit 0.
   `deckctl`/MCP/web capabilities need a twin or an explicit row in
-  [`docs/surface-parity.md`](docs/surface-parity.md). Hover cards are portal
-  rendered through `tipPlace.ts`, never clipped CSS descendants.
+  [`docs/surface-parity.md`](docs/surface-parity.md). Surface-parity census
+  strings and command/symbol names are test-pinned to source: rename
+  interface identifiers in docs and code in the SAME pass or tests break.
+  Hover cards are portal rendered through `tipPlace.ts`, never clipped CSS
+  descendants.
 
 ## FullTags invariants
 
@@ -161,7 +166,7 @@ unwritable; only Comment carries derived energy, never BPM.
   hot cue / `Num="-1"` = memory, but the collection DB `djmdCue.Kind` is
   `1` = hot cue, `0` = memory cue (pads read the DB side). Verify with a
   hand-authored reference before any cue write path ships. See
-  [`docs/intake-cue-postmortem.md`](docs/intake-cue-postmortem.md) F4/F1.
+[`docs/intake-cue-postmortem.md`](docs/fulltags/intake-cue-postmortem.md) F4/F1.
 - Playlist rows (`djmdPlaylist`) and `masterPlaylists6.xml` are twins: write
   both or neither, through one seam. Missing XML nodes = "Playlist not found"
   warnings and playlists that vanish on RB rebuild.
@@ -177,7 +182,14 @@ unwritable; only Comment carries derived energy, never BPM.
   honest gap, never a guess.
 - FullTags comment format is `Key · Energy · Mood` (Camelot key, E-score,
   top ONNX moods); BPM never enters the comment — it has its own RB column.
+- ID3 genre frames are unreliable and the pool ecosystem is worse: numeric
+  SC genre IDs leak into tags and junk like "edits/bootlegs" dominates
+  SoundCloud sourcing. Store curated genres in the archive ledger; never
+  trust the tag frame as a genre source.
 - Two DBs, two roles: the SHELF1 `master.db` is the collection SSOT;
   `archive.db` is megadj's pipeline ledger (FullTags/mood/cue results,
   `sc_genre_ids`, `shelf_fingerprints`), not a collection copy — never
-  present ledger coverage as library size.
+  present ledger coverage as library size. Disk-file counts on the shelf
+  (incl. quarantine/variants) always exceed rekordbox DB rows; explain
+  deltas by provenance (UnknownArtist residue, dedup orphans), never
+  report the two counts as the same population.
