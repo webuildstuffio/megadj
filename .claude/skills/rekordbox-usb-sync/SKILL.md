@@ -82,7 +82,7 @@ NNN = newest→oldest order).
 ### 3. DB injection (pyrekordbox)
 
 ```python
-uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" python ...
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" python ...
 ```
 
 - Copy `exportLibrary.db` from DJMASTER to `/tmp/usb-sync/work_master.db`.
@@ -178,7 +178,7 @@ Output looks like:
 ### 8. Verify (all must pass)
 
 ```bash
-uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
   python .claude/skills/rekordbox-usb-sync/scripts/usb_verify.py --drives DJMASTER DJMIRROR
 ```
 
@@ -239,7 +239,7 @@ Update `~/rekordbox-exports/STATUS-FINAL.md` with new counts.
   BPM detection → ANLZ generation. CLI args replace the old /tmp one-shots:
 
   ```bash
-  uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+  uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
       --with librosa --with numpy \
       python .claude/skills/rekordbox-usb-sync/scripts/usb_sync.py \
       --db /tmp/usb-sync/work_master.db --drive /Volumes/DJMASTER \
@@ -257,7 +257,7 @@ Update `~/rekordbox-exports/STATUS-FINAL.md` with new counts.
   (factory sample loops, variable-tempo grid drift ≤2%).
 
   ```bash
-  uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git" \
+  uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
       python .claude/skills/rekordbox-usb-sync/scripts/usb_verify.py [--drives DJMASTER DJMIRROR]
   ```
 

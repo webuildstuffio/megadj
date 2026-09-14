@@ -113,7 +113,7 @@ as `<name> [<volume>]` twins. See the `shelf-intake` skill.
 
 - **Re-running an already-ingested batch is a safe no-op** — "existing row
   IS this file" is a self-match, never a quarantine finding
-  (`src/commands/ingest-selfmatch.test.ts`). One subfolder per dump; dumps
+  (`src/getdat/commands/ingest-selfmatch.test.ts`). One subfolder per dump; dumps
   never mix.
 - **WAVs convert to AIFF at ingest** (BE re-map, art-capable,
   booth-verified; source deleted only after ffprobe validates the output).

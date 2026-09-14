@@ -33,7 +33,7 @@ shelf master or any drive whose master DB rekordbox manages.
 ## The tool: `megadj rb-fix-paths`
 
 Single reusable command (no one-off scripts). Dry-run by default. Shipped
-Sep 10 2026 (`src/commands/rb_fix_paths.ts`; reads the real encrypted
+Sep 10 2026 (`src/rekordbox/rb-fix-paths.ts`; reads the real encrypted
 master DB via pyrekordbox — the examples below are exactly what runs).
 
 ```bash
