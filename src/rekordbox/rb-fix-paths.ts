@@ -20,14 +20,15 @@
  */
 
 import { spawnSync } from "node:child_process";
-import {
-  copyFileSync,
-  existsSync,
-  readdirSync,
-  statSync,
-  type Stats,
-} from "node:fs";
+import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
 import { basename, join } from "node:path";
+import { isUnknownArray } from "../../cratedeck/shared/guards";
+import {
+  assertRbClosed,
+  backupMaster,
+  restoreMasterBackup,
+  sleepSync,
+} from "./guard.js";
 
 export interface RbFixPathsOptions {
   /** Drive mount root, e.g. /Volumes/SHELF1 — master DB lives at
@@ -40,7 +41,8 @@ export interface RbFixPathsOptions {
 }
 
 export interface RbFixRow {
-  id: number;
+  /** Decimal text preserves Rekordbox's 64-bit ID exactly across JSON. */
+  id: string;
   brokenPath: string;
   /** Proposed fix — null when no live match was found (reported only). */
   fixPath: string | null;
@@ -75,15 +77,30 @@ export interface RbFixResult {
   error?: string;
 }
 
+export interface RbFixPathsRuntime {
+  fileExists(path: string): boolean;
+  assertClosed(what: string): void;
+  backup(dbPath: string): string;
+  readRows(dbPath: string): [string, string][];
+  buildIndex(mount: string): LiveIndex;
+  rewrite(
+    dbPath: string,
+    rows: RbFixRow[],
+    log: (s: string) => void,
+  ): Promise<number>;
+  sleep(ms: number): void;
+  restore(dbPath: string, backupPath: string): void;
+}
+
 const PY =
   "import sys, json;from pyrekordbox import Rekordbox6Database as R\n" +
   "db=R(sys.argv[1])\n" +
-  'rows=[(c.ID,c.FolderPath or "") for c in db.get_content()]\n' +
+  'rows=[(str(c.ID),c.FolderPath or "") for c in db.get_content()]\n' +
   "print(json.dumps(rows));db.close()";
 
 /** The unique-path index: every audio file under <mount>/Contents (and
  *  PIONEER REC, the walked roots), keyed by the ladder's match keys. */
-interface LiveIndex {
+export interface LiveIndex {
   byNorm: Map<string, string>; // NFC+casefold abs path
   byBasename: Map<string, string[]>; // casefold basename → paths
   byStripped: Map<string, string[]>; // stripped-copy-suffix name → paths
@@ -191,7 +208,7 @@ function largest(paths: string[]): string {
 
 function matchLadder(broken: string, idx: LiveIndex): RbFixRow {
   const base: RbFixRow = {
-    id: 0,
+    id: "",
     brokenPath: broken,
     fixPath: null,
     via: "unresolved",
@@ -223,11 +240,6 @@ function matchLadder(broken: string, idx: LiveIndex): RbFixRow {
   return base; // genuinely dead — reported, never touched
 }
 
-function rekordboxRunning(): boolean {
-  const r = spawnSync("pgrep", ["-x", "rekordbox"]);
-  return r.status === 0;
-}
-
 function parseJsonResult(raw: string, operation: "read" | "rewrite"): unknown {
   try {
     return JSON.parse(raw) as unknown;
@@ -240,24 +252,26 @@ function parseJsonResult(raw: string, operation: "read" | "rewrite"): unknown {
   }
 }
 
-function parseReadRows(raw: string): [number, string][] {
+const DECIMAL_ID = /^(?:0|[1-9]\d*)$/u;
+
+function parseReadRows(raw: string): [string, string][] {
   const value = parseJsonResult(raw, "read");
   if (
-    !Array.isArray(value) ||
+    !isUnknownArray(value) ||
     !value.every(
-      (row) =>
-        Array.isArray(row) &&
+      (row): row is [string, string] =>
+        isUnknownArray(row) &&
         row.length === 2 &&
-        typeof row[0] === "number" &&
-        Number.isFinite(row[0]) &&
+        typeof row[0] === "string" &&
+        DECIMAL_ID.test(row[0]) &&
         typeof row[1] === "string",
     )
   ) {
     throw new Error(
-      "pyrekordbox read returned invalid rows: expected [finite numeric id, path][]",
+      "pyrekordbox read returned invalid rows: expected [decimal string id, path][]",
     );
   }
-  return value as [number, string][];
+  return value;
 }
 
 function parseRewriteResult(raw: string): number {
@@ -280,7 +294,7 @@ function parseRewriteResult(raw: string): number {
 
 /** Read (ID, FolderPath) for every content row via pyrekordbox. Shared
  *  with rb-unmatched (read-only reuse — one DB reader, two consumers). */
-export function readRows(dbPath: string): [number, string][] {
+export function readRows(dbPath: string): [string, string][] {
   const r = spawnSync(
     "uv",
     ["run", "--with", "pyrekordbox", "python", "-c", PY, dbPath],
@@ -299,12 +313,24 @@ export function readRows(dbPath: string): [number, string][] {
 
 export async function rbFixPaths(
   opts: RbFixPathsOptions,
+  overrides: Partial<RbFixPathsRuntime> = {},
 ): Promise<RbFixResult> {
   const log = opts.log ?? (() => {});
   const mount = opts.mount.replace(/\/+$/u, "");
   const dbPath =
     process.env.MEGADJ_RB_MASTER ??
     join(mount, "PIONEER", "Master", "master.db");
+  const runtime: RbFixPathsRuntime = {
+    fileExists: existsSync,
+    assertClosed: assertRbClosed,
+    backup: backupMaster,
+    readRows,
+    buildIndex,
+    rewrite: rewriteRows,
+    sleep: sleepSync,
+    restore: restoreMasterBackup,
+    ...overrides,
+  };
 
   const fail = (msg: string): RbFixResult => ({
     command: "rb-fix-paths",
@@ -324,34 +350,43 @@ export async function rbFixPaths(
     error: msg,
   });
 
-  if (!existsSync(dbPath)) {
+  if (opts.apply && !opts.yes) {
+    const r = fail("--apply requires --yes; no database work was performed");
+    log(r.error ?? "unknown failure");
+    return r;
+  }
+  if (!runtime.fileExists(dbPath)) {
     const r = fail(`no master DB at ${dbPath}`);
     log(r.error ?? "unknown failure");
     return r;
   }
-  if (opts.apply && rekordboxRunning()) {
-    const r = fail("rekordbox is running — quit it before --apply (live WAL)");
-    log(r.error ?? "unknown failure");
-    return r;
+  if (opts.apply) {
+    try {
+      runtime.assertClosed("rb-fix-paths --apply preflight");
+    } catch (error) {
+      const r = fail(error instanceof Error ? error.message : String(error));
+      log(r.error ?? "unknown failure");
+      return r;
+    }
   }
 
   log(`rb-fix-paths: reading ${dbPath}`);
-  let rows: [number, string][];
+  let rows: [string, string][];
   try {
-    rows = readRows(dbPath);
+    rows = runtime.readRows(dbPath);
   } catch (e) {
     const r = fail(e instanceof Error ? e.message : String(e));
     log(r.error ?? "unknown failure");
     return r;
   }
-  const idx = buildIndex(mount);
+  const idx = runtime.buildIndex(mount);
   log(
     `rb-fix-paths: ${rows.length} content rows · ${idx.byNorm.size} live audio files indexed`,
   );
 
   const brokenRows: RbFixRow[] = [];
   for (const [id, p] of rows) {
-    if (p && !existsSync(p)) {
+    if (p && !runtime.fileExists(p)) {
       const row = matchLadder(p, idx);
       row.id = id;
       brokenRows.push(row);
@@ -363,34 +398,8 @@ export async function rbFixPaths(
   let applied = 0;
   let backedUpTo: string | null = null;
   const appliedList: string[] = [];
-  if (opts.apply && opts.yes && fixable.length > 0) {
-    // dated backup of the DB (and WAL/SHM if present) — sacred per AGENTS
-    const stamp = new Date().toISOString().replace(/[-:T]/gu, "").slice(0, 15);
-    backedUpTo = `${dbPath}.bak-${stamp}`;
-    copyFileSync(dbPath, backedUpTo);
-    for (const side of ["-wal", "-shm"]) {
-      if (existsSync(dbPath + side))
-        copyFileSync(dbPath + side, backedUpTo + side);
-    }
-    log(`rb-fix-paths: DB backed up to ${backedUpTo}`);
-    applied = await rewriteRows(dbPath, fixable, log);
-    if (applied !== fixable.length) {
-      log(
-        `rb-fix-paths: WARNING applied ${applied}/${fixable.length} — check the report before trusting`,
-      );
-    }
-    for (const r of fixable) appliedList.push(`${r.brokenPath} → ${r.fixPath}`);
-  }
-
-  // FULL-TABLE re-verify (the rule that caught the prefix-scope lie):
-  // every row in the DB — not just the ones we meant to touch.
   let stillBroken = 0;
-  if (opts.apply && opts.yes) {
-    const re = readRows(dbPath);
-    for (const [, p] of re) if (p && !existsSync(p)) stillBroken++;
-  }
-
-  const result: RbFixResult = {
+  const result = (values: Partial<RbFixResult> = {}): RbFixResult => ({
     command: "rb-fix-paths",
     mount,
     db: dbPath,
@@ -405,8 +414,142 @@ export async function rbFixPaths(
     appliedMode: Boolean(opts.apply),
     backedUpTo,
     ok: true,
+    ...values,
+  });
+
+  const restoreAfterFailure = (
+    reason: string,
+    attempted: number,
+    measuredStillBroken: number,
+  ): RbFixResult => {
+    if (backedUpTo === null) {
+      return result({
+        ok: false,
+        error: reason,
+        applied: attempted,
+        stillBroken: measuredStillBroken,
+      });
+    }
+    try {
+      runtime.assertClosed("rb-fix-paths rollback");
+      runtime.restore(dbPath, backedUpTo);
+      runtime.sleep(250);
+      runtime.assertClosed("rb-fix-paths rollback verification");
+      const restored = runtime.readRows(dbPath);
+      if (!sameRows(rows, restored)) {
+        throw new Error("restored database does not match its pre-write rows");
+      }
+      return result({
+        ok: false,
+        error: `${reason}; backup restored and verified`,
+        applied: 0,
+        appliedList: [],
+        stillBroken: brokenRows.length,
+      });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return result({
+        ok: false,
+        error: `${reason}; ROLLBACK FAILED: ${detail}`,
+        applied: attempted,
+        appliedList: [],
+        stillBroken: measuredStillBroken,
+      });
+    }
   };
-  return result;
+
+  if (opts.apply && fixable.length > 0) {
+    try {
+      // The volume walk can be long. Re-check immediately before both the
+      // sacred backup and the mutation so rekordbox cannot open unnoticed.
+      runtime.assertClosed("rb-fix-paths --apply backup");
+      backedUpTo = runtime.backup(dbPath);
+      log(`rb-fix-paths: DB backed up to ${backedUpTo}`);
+      runtime.assertClosed("rb-fix-paths --apply mutation");
+      applied = await runtime.rewrite(dbPath, fixable, log);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      const failed = restoreAfterFailure(
+        `rewrite failed: ${detail}`,
+        applied,
+        brokenRows.length,
+      );
+      log(failed.error ?? "unknown failure");
+      return failed;
+    }
+    if (applied !== fixable.length) {
+      const failed = restoreAfterFailure(
+        `partial rewrite: applied ${applied}/${fixable.length}`,
+        applied,
+        brokenRows.length,
+      );
+      log(failed.error ?? "unknown failure");
+      return failed;
+    }
+  }
+
+  // FULL-TABLE delayed re-read in a fresh process — every row, not just the
+  // intended updates. A successful commit is not proof that paths survived.
+  if (opts.apply) {
+    let reread: [string, string][];
+    try {
+      runtime.sleep(250);
+      runtime.assertClosed("rb-fix-paths verification");
+      reread = runtime.readRows(dbPath);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      const failed = restoreAfterFailure(
+        `verification failed: ${detail}`,
+        applied,
+        brokenRows.length,
+      );
+      log(failed.error ?? "unknown failure");
+      return failed;
+    }
+
+    const byId = new Map(reread);
+    stillBroken = reread.reduce(
+      (count, [, path]) =>
+        path && !runtime.fileExists(path) ? count + 1 : count,
+      0,
+    );
+    const deadIds = new Set(dead.map((row) => row.id));
+    const unexpectedBroken = reread.filter(
+      ([id, path]) => path && !runtime.fileExists(path) && !deadIds.has(id),
+    );
+    const targetFailures = fixable.filter(
+      (row) =>
+        row.fixPath === null ||
+        byId.get(row.id) !== row.fixPath ||
+        !runtime.fileExists(row.fixPath),
+    );
+    if (
+      reread.length !== rows.length ||
+      targetFailures.length > 0 ||
+      unexpectedBroken.length > 0
+    ) {
+      const failed = restoreAfterFailure(
+        `verification failed: ${targetFailures.length} rewritten target(s) invalid, ${unexpectedBroken.length} unexpected broken row(s), row count ${reread.length}/${rows.length}`,
+        applied,
+        stillBroken,
+      );
+      log(failed.error ?? "unknown failure");
+      return failed;
+    }
+    for (const row of fixable)
+      appliedList.push(`${row.brokenPath} → ${row.fixPath}`);
+  }
+
+  return result();
+}
+
+function sameRows(
+  expected: [string, string][],
+  actual: [string, string][],
+): boolean {
+  if (actual.length !== expected.length) return false;
+  const actualById = new Map(actual);
+  return expected.every(([id, path]) => actualById.get(id) === path);
 }
 
 async function rewriteRows(
@@ -415,15 +558,7 @@ async function rewriteRows(
   log: (s: string) => void,
 ): Promise<number> {
   const payload = JSON.stringify(rows.map((r) => [r.id, r.fixPath]));
-  const script =
-    "import sys,json;from pyrekordbox import Rekordbox6Database as R\n" +
-    "db=R(sys.argv[1])\n" +
-    "updates=json.loads(sys.argv[2]);n=0\n" +
-    "for cid,path in updates:\n" +
-    "    c=db.get_content(ID=cid)\n" +
-    "    if c is not None:\n" +
-    "        c.FolderPath=path;db.session.commit();n+=1\n" +
-    'print(json.dumps({"applied":n}));db.close()';
+  const script = rewriteScript();
   const r = spawnSync(
     "uv",
     ["run", "--with", "pyrekordbox", "python", "-c", script, dbPath, payload],
@@ -440,6 +575,27 @@ async function rewriteRows(
   return parseRewriteResult(line);
 }
 
+function rewriteScript(): string {
+  return (
+    "import sys,json;from pyrekordbox import Rekordbox6Database as R\n" +
+    "db=R(sys.argv[1])\n" +
+    "updates=json.loads(sys.argv[2]);n=0\n" +
+    "try:\n" +
+    "    for cid,path in updates:\n" +
+    "        c=db.get_content(ID=int(cid))\n" +
+    "        if c is None:\n" +
+    '            raise RuntimeError(f"content row {cid} disappeared before rewrite")\n' +
+    "        c.FolderPath=path;n+=1\n" +
+    "    db.session.commit()\n" +
+    "except Exception:\n" +
+    "    db.session.rollback()\n" +
+    "    raise\n" +
+    "finally:\n" +
+    "    db.close()\n" +
+    'print(json.dumps({"applied":n}))'
+  );
+}
+
 /** Test seam: the matching ladder against a live index (no DB needed). */
 export const __test = {
   matchLadder: (broken: string, mount: string): RbFixRow =>
@@ -447,6 +603,14 @@ export const __test = {
   stripCopySuffix,
   parseReadRows,
   parseRewriteResult,
+  readScript: PY,
+  rewriteScript,
+  emptyIndex: (): LiveIndex => ({
+    byNorm: new Map(),
+    byBasename: new Map(),
+    byStripped: new Map(),
+    byPrefix20: new Map(),
+  }),
 };
 /** Emit the human report (non-json mode). */
 export function printRbFixReport(

@@ -219,7 +219,7 @@ export async function rbUnmatched(
     );
 
   log(`rb-unmatched: reading ${dbPath}`);
-  let rows: [number, string][];
+  let rows: [string, string][];
   try {
     rows = readRows(dbPath);
   } catch (e) {

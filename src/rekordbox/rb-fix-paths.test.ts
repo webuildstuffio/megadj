@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { rbFixPaths, printRbFixReport, __test } from "./rb-fix-paths";
+import {
+  rbFixPaths,
+  printRbFixReport,
+  buildIndex,
+  __test,
+  type RbFixPathsRuntime,
+} from "./rb-fix-paths";
 
 /**
  * rb-fix-paths unit tests. The pyrekordbox leg is NOT exercised here (it
@@ -52,15 +58,188 @@ describe("rb-fix-paths", () => {
     }
   });
 
-  test("--apply with rekordbox 'running' guard fires (pgrep mocked by env)", async () => {
-    // We can't easily fake pgrep; instead verify the DB-missing short-
-    // circuit takes precedence and the apply flag never mutates a real DB.
+  test("--apply fails when the shared rekordbox guard rejects preflight", async () => {
+    const r = await rbFixPaths(
+      { mount: "/fake", apply: true, yes: true },
+      {
+        fileExists: () => true,
+        assertClosed: () => {
+          throw new Error("rekordbox is running");
+        },
+        readRows: () => {
+          throw new Error("must not read after failed guard");
+        },
+      },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("rekordbox is running");
+    expect(r.applied).toBe(0);
+    expect(r.backedUpTo).toBeNull();
+  });
+
+  test("--apply without --yes fails before reading or walking", async () => {
+    const events: string[] = [];
+    const r = await rbFixPaths(
+      { mount: "/missing", apply: true },
+      {
+        fileExists: () => true,
+        assertClosed: () => events.push("closed"),
+        readRows: () => {
+          events.push("read");
+          return [];
+        },
+        buildIndex: () => {
+          events.push("walk");
+          return __test.emptyIndex();
+        },
+      },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("--apply requires --yes");
+    expect(events).toEqual([]);
+  });
+
+  test("successful apply rechecks closed around backup/mutation and delayed rereads", async () => {
     const mount = makeMount();
+    const dbPath = join(mount, "PIONEER", "Master", "master.db");
+    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
+    writeFileSync(dbPath, "stub");
+    const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
+    const livePath = join(mount, "Contents", "Artist B", "Old Track.mp3");
+    const events: string[] = [];
+    let reads = 0;
+    const deps: Partial<RbFixPathsRuntime> = {
+      fileExists: (path) => path === dbPath || path === livePath,
+      assertClosed: (what) => events.push(`closed:${what}`),
+      readRows: () => {
+        reads++;
+        events.push(reads === 1 ? "read:initial" : "read:verify");
+        return reads === 1 ? [["1", oldPath]] : [["1", livePath]];
+      },
+      buildIndex: (root) => {
+        events.push("walk");
+        return buildIndex(root);
+      },
+      backup: () => {
+        events.push("backup");
+        return `${dbPath}.bak`;
+      },
+      rewrite: async () => {
+        events.push("rewrite");
+        return 1;
+      },
+      sleep: () => events.push("sleep"),
+    };
     try {
-      const r = await rbFixPaths({ mount, apply: true, yes: true });
+      const r = await rbFixPaths({ mount, apply: true, yes: true }, deps);
+      expect(r.ok).toBe(true);
+      expect(r.applied).toBe(1);
+      expect(r.stillBroken).toBe(0);
+      expect(events).toEqual([
+        "closed:rb-fix-paths --apply preflight",
+        "read:initial",
+        "walk",
+        "closed:rb-fix-paths --apply backup",
+        "backup",
+        "closed:rb-fix-paths --apply mutation",
+        "rewrite",
+        "sleep",
+        "closed:rb-fix-paths verification",
+        "read:verify",
+      ]);
+    } finally {
+      rmSync(mount, { recursive: true, force: true });
+    }
+  });
+
+  test("partial rewrite is a failed result and restores the backup", async () => {
+    const mount = makeMount();
+    const dbPath = join(mount, "PIONEER", "Master", "master.db");
+    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
+    writeFileSync(dbPath, "stub");
+    const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
+    const livePath = join(mount, "Contents", "Artist B", "Old Track.mp3");
+    const restored: string[] = [];
+    try {
+      const r = await rbFixPaths(
+        { mount, apply: true, yes: true },
+        {
+          fileExists: (path) => path === dbPath || path === livePath,
+          assertClosed: () => {},
+          readRows: () => [["1", oldPath]],
+          backup: () => `${dbPath}.bak`,
+          rewrite: async () => 0,
+          restore: (db, backup) => restored.push(`${backup} -> ${db}`),
+        },
+      );
       expect(r.ok).toBe(false);
+      expect(r.error).toContain("partial rewrite");
       expect(r.applied).toBe(0);
-      expect(r.backedUpTo).toBeNull();
+      expect(restored).toEqual([`${dbPath}.bak -> ${dbPath}`]);
+    } finally {
+      rmSync(mount, { recursive: true, force: true });
+    }
+  });
+
+  test("a still-broken rewritten target fails delayed verification and restores", async () => {
+    const mount = makeMount();
+    const dbPath = join(mount, "PIONEER", "Master", "master.db");
+    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
+    writeFileSync(dbPath, "stub");
+    const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
+    let reads = 0;
+    let restored = false;
+    try {
+      const r = await rbFixPaths(
+        { mount, apply: true, yes: true },
+        {
+          fileExists: (path) => path === dbPath,
+          assertClosed: () => {},
+          readRows: () => {
+            reads++;
+            return [["1", oldPath]];
+          },
+          backup: () => `${dbPath}.bak`,
+          rewrite: async () => 1,
+          sleep: () => {},
+          restore: () => {
+            restored = true;
+          },
+        },
+      );
+      expect(reads).toBeGreaterThanOrEqual(2);
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain("verification");
+      expect(r.stillBroken).toBeGreaterThan(0);
+      expect(restored).toBe(true);
+    } finally {
+      rmSync(mount, { recursive: true, force: true });
+    }
+  });
+
+  test("rollback failure is loud and never reports success", async () => {
+    const mount = makeMount();
+    const dbPath = join(mount, "PIONEER", "Master", "master.db");
+    mkdirSync(join(mount, "PIONEER", "Master"), { recursive: true });
+    writeFileSync(dbPath, "stub");
+    const oldPath = "/Volumes/OLD/Contents/Artist B/Old Track.mp3";
+    const livePath = join(mount, "Contents", "Artist B", "Old Track.mp3");
+    try {
+      const r = await rbFixPaths(
+        { mount, apply: true, yes: true },
+        {
+          fileExists: (path) => path === dbPath || path === livePath,
+          assertClosed: () => {},
+          readRows: () => [["1", oldPath]],
+          backup: () => `${dbPath}.bak`,
+          rewrite: async () => 0,
+          restore: () => {
+            throw new Error("restore exploded");
+          },
+        },
+      );
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain("ROLLBACK FAILED: restore exploded");
     } finally {
       rmSync(mount, { recursive: true, force: true });
     }
@@ -143,6 +322,26 @@ describe("rb-fix-paths", () => {
   test("malformed read output includes the pyrekordbox boundary context", () => {
     expect(() => __test.parseReadRows("not-json")).toThrow(
       "pyrekordbox read returned malformed JSON",
+    );
+  });
+
+  test("content ids cross Python JSON as decimal strings without 64-bit rounding", () => {
+    const id = "9007199254740993";
+    expect(__test.parseReadRows(`[["${id}","/music/a.aiff"]]`)).toEqual([
+      [id, "/music/a.aiff"],
+    ]);
+    expect(() => __test.parseReadRows(`[[${id},"/music/a.aiff"]]`)).toThrow(
+      "decimal string id",
+    );
+    expect(__test.readScript).toContain("str(c.ID)");
+  });
+
+  test("generated rewrite script commits once and rolls back as one transaction", () => {
+    const script = __test.rewriteScript();
+    expect(script).toContain("db.session.rollback()");
+    expect(script.match(/db\.session\.commit\(\)/gu)).toHaveLength(1);
+    expect(script.indexOf("db.session.commit()")).toBeGreaterThan(
+      script.indexOf("for cid,path in updates"),
     );
   });
 });

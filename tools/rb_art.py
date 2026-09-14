@@ -1,283 +1,183 @@
 #!/usr/bin/env python3
-"""rb_art.py — give every WAV in the rekordbox library its cover art.
+"""Inspect WAV artwork coverage in an explicitly selected rekordbox DB.
 
-rekordbox cannot read embedded artwork from WAV files (RIFF INFO has no art
-field; the ID3 APIC chunk is ignored). rekordbox stores art in its own library:
-
-    ~/Library/Pioneer/rekordbox/share/PIONEER/Artwork/<shard>/<uuid>/artwork.jpg
-
-and each djmdContent row points there via ImagePath. This script automates
-exactly what the manual Artwork tab does:
-
-    1. extract the JPEG already embedded in the WAV (APIC frame)
-    2. write it into rekordbox's Artwork/ tree
-    3. set djmdContent.ImagePath via pyrekordbox (USN-managed commit)
-
-Safety rails (enforced):
-    - rekordbox must NOT be running (WAL corruption)
-    - master.db + -shm + -wal backed up before any write
-    - pilot mode writes only 3 tracks; verify in RB before `batch`
-    - idempotent: tracks with ImagePath already set are skipped
+The old version wrote the stale local
+``~/Library/Pioneer/rekordbox/master.db`` and its local Artwork tree. That
+database is not the collection source of truth, while a shelf DB has a
+different storage contract. Until artwork-file placement and DB updates are
+implemented through the shared shelf write seam, mutation is deliberately
+disabled.
 
 Usage:
-    uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
-        --with mutagen python tools/rb_art.py <status|dry-run|pilot|batch>
+    uv run --with pyrekordbox --with mutagen python tools/rb_art.py \
+        <status|dry-run> --db /Volumes/SHELF1/PIONEER/Master/master.db
 
-Modes:
-    status    read-only: how many RB WAVs lack art
-    dry-run   plan every write, touch nothing
-    pilot     backup + write 3 tracks (then verify in rekordbox)
-    batch     backup + write all remaining WAVs
+``MEGADJ_RB_MASTER`` may provide the DB path instead of ``--db``. An explicit
+``--db`` wins. ``pilot`` and ``batch`` are retained only to fail closed with a
+clear migration message; neither opens a DB nor writes artwork.
 """
+
 from __future__ import annotations
 
+import argparse
 import os
-import shutil
-import subprocess
 import sys
-import warnings
-from datetime import UTC, datetime
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-warnings.filterwarnings("ignore")
-
-HOME = Path.home()
-RB_DIR = HOME / "Library/Pioneer/rekordbox"
-MASTER_DB = RB_DIR / "master.db"
-ARTWORK_ROOT = RB_DIR / "share/PIONEER/Artwork"
-BACKUP_ROOT = RB_DIR / "backups"
-ARCHIVE = HOME / "Music/DJ-Imports"
-DB_ROOT_FOR_PATHS = RB_DIR / "share"  # ImagePath is relative to this ("share") root
-
-PILOT_N = 3
-ROLLBACK_DIR = ARTWORK_ROOT / "_megadj-rollback"
+MUTATING_MODES = frozenset({"pilot", "batch"})
+READ_ONLY_MODES = frozenset({"status", "dry-run"})
 
 
-def fail(msg: str) -> None:
-    print(f"✗ {msg}", file=sys.stderr)
-    sys.exit(1)
+def stale_local_db() -> Path:
+    """The known-stale rekordbox desktop DB, never a target for this tool."""
+    return (Path.home() / "Library/Pioneer/rekordbox/master.db").resolve(strict=False)
 
 
-def check_prerequisites(need_db_write: bool) -> None:
-    if not MASTER_DB.exists():
-        fail(f"master.db not found at {MASTER_DB}")
-    if need_db_write:
-        pr = subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True, check=False)
-        if pr.returncode == 0:
-            fail("rekordbox is RUNNING — quit it first (WAL corruption risk).")
+def resolve_db_path(explicit: Path | None, env: Mapping[str, str]) -> Path:
+    """Resolve the explicit/configured collection DB and reject the stale local DB."""
+    configured = env.get("MEGADJ_RB_MASTER")
+    if explicit is None and not configured:
+        raise ValueError("an explicit collection DB is required: --db or MEGADJ_RB_MASTER")
+    candidate = (explicit if explicit is not None else Path(configured or "")).expanduser()
+    resolved = candidate.resolve(strict=False)
+    if resolved == stale_local_db():
+        raise ValueError(
+            "refusing the stale local rekordbox DB; select the configured shelf collection DB"
+        )
+    if resolved.name != "master.db":
+        raise ValueError(f"collection DB must be a master.db file, got: {resolved}")
+    return resolved
 
 
-def backup_master_db(tag: str) -> Path:
-    """Copy master.db + -shm + -wal to a dated backup folder."""
-    dest = BACKUP_ROOT / f"{datetime.now(UTC):%Y%m%d-%H%M%S}-{tag}"
-    dest.mkdir(parents=True, exist_ok=True)
-    copied = []
-    for suffix in ("", "-shm", "-wal"):
-        src = Path(str(MASTER_DB) + suffix)
-        if src.exists():
-            shutil.copy2(src, dest / src.name)
-            copied.append(src.name)
-    print(f"  backup → {dest} ({', '.join(copied)})")
-    return dest
+def require_readable_db(db_path: Path) -> None:
+    if not db_path.is_file():
+        raise ValueError(f"master.db not found at {db_path}")
 
 
-def open_db() -> tuple[Any, Any]:
+def open_db(db_path: Path) -> tuple[Any, Any]:
+    """Open exactly the selected DB; never fall back to pyrekordbox defaults."""
     from pyrekordbox import Rekordbox6Database  # type: ignore[import-not-found]
     from pyrekordbox.db6.tables import DjmdContent  # type: ignore[import-not-found]
 
     try:
-        db = Rekordbox6Database()
+        db: Any = Rekordbox6Database(path=str(db_path))
     except Exception as exc:
-        fail(f"cannot unlock master.db: {exc}")
+        raise RuntimeError(f"cannot open collection DB {db_path}: {exc}") from exc
     return db, DjmdContent
 
 
-def wav_art_jpeg(path: str) -> bytes | None:
-    """Extract the embedded cover (APIC) from a WAV file."""
-    from mutagen.wave import WAVE  # type: ignore[import-not-found,unused-ignore]
+def close_db(db: Any) -> None:
+    try:
+        db.close()
+    except (AttributeError, OSError) as exc:
+        print(f"warning: could not close collection DB cleanly: {exc}", file=sys.stderr)
+
+
+def wav_art_image(path: Path) -> bytes | None:
+    """Extract an embedded JPEG/PNG cover from a WAV without modifying it."""
+    from mutagen.wave import WAVE
 
     try:
-        a: Any = WAVE(path)  # type: ignore[no-untyped-call]  # mutagen: no stubs
-        tags: Any = a.tags
+        audio: Any = WAVE(str(path))  # type: ignore[no-untyped-call]
+        tags: Any = audio.tags
         if not tags:
             return None
         for key in list(tags.keys()):
-            if key.startswith("APIC"):
-                frame = tags.get(key)
-                data = bytes(getattr(frame, "data", b"") or b"")
-                if data[:3] == b"\xff\xd8\xff":  # JPEG magic
-                    return data
-                if data[:8] == b"\x89PNG\r\n\x1a\n":
-                    return data  # RB accepts PNG too
-        return None
+            if not str(key).startswith("APIC"):
+                continue
+            frame = tags.get(key)
+            data = bytes(getattr(frame, "data", b"") or b"")
+            if data[:3] == b"\xff\xd8\xff" or data[:8] == b"\x89PNG\r\n\x1a\n":
+                return data
     except (OSError, ValueError, TypeError):
         return None
+    return None
 
 
-def collect_targets(db: Any, DjmdContent: Any) -> list[dict[str, Any]]:
-    """All WAV rows in RB whose file exists in the archive and lacks ImagePath."""
-    rows = db.query(DjmdContent).filter(DjmdContent.FileType == 11).all()
-    targets = []
-    archive_names = {p.name for p in ARCHIVE.iterdir() if p.suffix.lower() == ".wav"}
-    for c in rows:
-        if c.ImagePath:  # already has art
+def wav_rows(db: Any, content_type: Any) -> list[Any]:
+    return list(db.query(content_type).filter(content_type.FileType == 11).all())
+
+
+def collect_targets(db: Any, content_type: Any) -> list[dict[str, Any]]:
+    """Existing WAV rows without ImagePath, inspected read-only from their DB path."""
+    targets: list[dict[str, Any]] = []
+    for content in wav_rows(db, content_type):
+        if content.ImagePath:
             continue
-        fname = c.FileNameL or (os.path.basename(c.FolderPath or "") or "")
-        if not fname or fname not in archive_names:
+        path = Path(str(content.FolderPath or ""))
+        if path.suffix.lower() != ".wav" or not path.is_file():
             continue
-        fpath = ARCHIVE / fname
-        art = wav_art_jpeg(str(fpath))
         targets.append(
             {
-                "content": c,
-                "id": c.ID,
-                "file": fname,
-                "fpath": str(fpath),
-                "art": art,
+                "id": str(content.ID),
+                "file": path.name,
+                "path": path,
+                "has_embedded_art": wav_art_image(path) is not None,
             }
         )
-    targets.sort(key=lambda t: t["file"].lower())
+    targets.sort(key=lambda target: str(target["file"]).lower())
     return targets
 
 
-def ensure_artwork_file(art: bytes, row_id: str) -> str:
-    """Write art into RB's Artwork tree; return the ImagePath value.
-
-    Layout mirrors existing files:  Artwork/<3-hex>/<uuid>/
-        artwork.jpg    — full resolution
-        artwork_m.jpg  — medium thumbnail (RB renders the browser from these)
-        artwork_s.jpg  — small thumbnail
-    ImagePath is stored relative to the share/ root: /PIONEER/Artwork/...
-    RB-native dirs ALWAYS have all three; writing only the full-res makes
-    covers silently not render (pilot-verified 2026-09-04).
-    """
-    import io
-    import uuid as uuid_mod
-
-    from PIL import Image  # type: ignore[import-not-found]
-
-    row_id = str(row_id)
-    # shard = stable 3-hex dir; existing dirs use first 3 chars of a hex uuid.
-    shard = format(int(__import__("hashlib").sha1(row_id.encode()).hexdigest()[:6], 16) % 0xFFF, "03x")
-    uid = str(uuid_mod.uuid5(uuid_mod.NAMESPACE_URL, f"megadj-artwork-{row_id}"))
-    dest_dir = ARTWORK_ROOT / shard / uid
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    is_png = art[:8] == b"\x89PNG\r\n\x1a\n"
-    ext = "png" if is_png else "jpg"
-    dest = dest_dir / f"artwork.{ext}"
-    if not dest.exists() or dest.stat().st_size != len(art):
-        dest.write_bytes(art)
-    # thumbnails: always (re)generate if missing — cheap and idempotent
+def mode_status(db_path: Path) -> int:
+    db, content_type = open_db(db_path)
     try:
-        img = Image.open(io.BytesIO(art))
-        img.load()
-        for suffix, size in (("m", 250), ("s", 125)):
-            tpath = dest_dir / f"artwork_{suffix}.{ext}"
-            if tpath.exists():
-                continue
-            t = img.convert("RGB") if not is_png else img.copy()
-            t.thumbnail((size, size))
-            if is_png:
-                t.save(tpath, "PNG")
-            else:
-                t.save(tpath, "JPEG", quality=85)
-    except Exception as exc:
-        print(f"  ⚠ thumbnail generation failed for {shard}/{uid}: {exc}")
-    return f"/PIONEER/Artwork/{shard}/{uid}/artwork.{ext}"
+        rows = wav_rows(db, content_type)
+        with_art = sum(1 for content in rows if content.ImagePath)
+        existing = [content for content in rows if Path(str(content.FolderPath or "")).is_file()]
+        print(f"Collection DB: {db_path}")
+        print(
+            f"RB library WAVs: {len(rows)} (with art: {with_art}, without: {len(rows) - with_art})"
+        )
+        print(f"WAV rows with an existing source file: {len(existing)}")
+        return 0
+    finally:
+        close_db(db)
 
 
-def set_image_path(db: Any, content: Any, image_path: str) -> None:
-    content.ImagePath = image_path
-    # keep RB's local-change bookkeeping consistent (cloud sync unused,
-    # but rb_local_usn should still move like the app does)
+def mode_dry_run(db_path: Path) -> int:
+    db, content_type = open_db(db_path)
     try:
-        content.rb_local_usn = (content.rb_local_usn or 0) + 1
-    except (TypeError, AttributeError):
-        pass
-    db.commit()
-
-
-def mode_status() -> int:
-    check_prerequisites(need_db_write=False)
-    db, DjmdContent = open_db()
-    rows = db.query(DjmdContent).filter(DjmdContent.FileType == 11).all()
-    with_art = sum(1 for c in rows if c.ImagePath)
-    archive_names = {p.name for p in ARCHIVE.iterdir() if p.suffix.lower() == ".wav"}
-    ours = [c for c in rows if (c.FileNameL or "") in archive_names]
-    ours_no_art = [c for c in ours if not c.ImagePath]
-    with_our_art = sum(1 for f in archive_names if wav_art_jpeg(str(ARCHIVE / f)))
-    print(f"RB library WAVs: {len(rows)} (with art: {with_art}, without: {len(rows) - with_art})")
-    print(f"Archive WAVs:    {len(archive_names)} (embedded art: {with_our_art})")
-    print(f"Our tracks in RB without art: {len(ours_no_art)}")
+        targets = collect_targets(db, content_type)
+    finally:
+        close_db(db)
+    print(f"Collection DB: {db_path}")
+    print(f"dry-run — {len(targets)} WAV row(s) lack ImagePath; no writes are available")
+    for target in targets:
+        art = "embedded art present" if target["has_embedded_art"] else "no embedded art"
+        print(f"  {target['file']}: {art}")
     return 0
 
 
-def plan(mode: str) -> list[dict[str, Any]]:
-    check_prerequisites(need_db_write=(mode in ("pilot", "batch")))
-    if mode in ("pilot", "batch"):
-        backup_master_db(mode)
-    db, DjmdContent = open_db()
-    targets = collect_targets(db, DjmdContent)
-    for t in targets:
-        t["db"] = db  # carry the session so apply() can commit per-track
-    if mode == "pilot":
-        targets = targets[:PILOT_N]
-    print(f"{'MODE':<8} {mode} — {len(targets)} track(s) to update\n")
-    return targets
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description=__doc__)
+    result.add_argument("mode", choices=sorted(READ_ONLY_MODES | MUTATING_MODES))
+    result.add_argument("--db", type=Path, help="explicit shelf collection master.db")
+    return result
 
 
-def apply(mode: str) -> int:
-    targets = plan(mode)
-    if not targets:
-        print("Nothing to do — all WAVs already have art in RB.")
-        return 0
-    db = targets[0]["db"]  # Session opened in plan()
-    ok = no_art = err = 0
-    for t in targets:
-        if not t["art"]:
-            no_art += 1
-            print(f"  ⚠ no embedded art: {t['file'][:60]}")
-            continue
-        try:
-            if mode in ("dry-run",):
-                print(f"  would set ImagePath: {t['file'][:60]}")
-                ok += 1
-                continue
-            image_path = ensure_artwork_file(t["art"], t["id"])
-            set_image_path(db, t["content"], image_path)
-            ok += 1
-            print(f"  ✓ {t['file'][:60]}")
-        except Exception as exc:
-            err += 1
-            print(f"  ✗ {t['file'][:60]}: {exc}")
-    close_db(targets)
-    print(f"\n{mode}: ok={ok} no-art={no_art} errors={err}")
-    if mode == "pilot":
-        print("\nNEXT: open rekordbox → check these 3 tracks show covers →")
-        print("then run:  uv run python tools/rb_art.py batch")
-    return 1 if err else 0
-
-
-def close_db(targets: list[dict[str, Any]]) -> None:
-    """Close the session opened in plan() — content objects carry their engine."""
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    mode = str(args.mode)
+    if mode in MUTATING_MODES:
+        print(
+            "error: mutating artwork mode is disabled: the stale local DB/artwork "
+            "contract is unsafe; use status or dry-run with the configured shelf DB",
+            file=sys.stderr,
+        )
+        return 2
     try:
-        eng = targets[0]["content"].session.bind if targets else None
-        if eng is not None:
-            eng.dispose()
-    except (AttributeError, KeyError, IndexError):
-        pass
-
-
-def main() -> int:
-    mode = sys.argv[1] if len(sys.argv) > 1 else "status"
-    if mode not in ("status", "dry-run", "pilot", "batch"):
-        print(__doc__)
+        db_path = resolve_db_path(args.db, os.environ)
+        require_readable_db(db_path)
+        if mode == "status":
+            return mode_status(db_path)
+        return mode_dry_run(db_path)
+    except (RuntimeError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return 1
-    if mode == "status":
-        return mode_status()
-    return apply(mode)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
