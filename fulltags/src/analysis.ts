@@ -13,6 +13,54 @@ import { basename, dirname, extname } from "node:path";
 import { lineReader } from "./stdio";
 import type { AnlzBeat } from "./anlz";
 
+function parseJsonObject(raw: string): Record<string, unknown> | null {
+  try {
+    const value: unknown = JSON.parse(raw);
+    return value !== null && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
+  } catch (error) {
+    // Parser callers expose corruption through their explicit null result.
+    void error;
+    return null;
+  }
+}
+
+function finiteNumberArray(raw: unknown): number[] | null {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) return null;
+  const result: number[] = [];
+  for (const item of raw) {
+    if (typeof item !== "number" || !Number.isFinite(item)) return null;
+    result.push(item);
+  }
+  return result;
+}
+
+function optionalString(field: unknown): string | null {
+  return typeof field === "string" ? field : null;
+}
+
+/** Parse fpcalc's JSON boundary. Null is an explicit malformed/schema-failed
+ * result; callers preserve their documented degrade-to-null contract. */
+export function parseFpcalcJson(raw: string): {
+  fingerprint: string | null;
+  durationS: number | null;
+} | null {
+  const value = parseJsonObject(raw);
+  if (!value) return null;
+  const fingerprint =
+    typeof value.fingerprint === "string" ? value.fingerprint : null;
+  const duration = value.duration;
+  return {
+    fingerprint,
+    durationS:
+      typeof duration === "number" && Number.isFinite(duration)
+        ? Math.round(duration)
+        : null,
+  };
+}
+
 /** Where the OpenKeyScan analyzer repo is cloned (stdin/stdout JSON mode).
  * Override with FULLTAGS_KEYSCAN_DIR. Resolved lazily so tests/env can
  * set the variable at runtime. */
@@ -37,18 +85,14 @@ export function fingerprintFile(path: string): string | null {
       stdout: "pipe",
       stderr: "pipe",
     });
-  } catch {
+  } catch (error) {
+    void error;
     return null; // fpcalc not installed
   }
   if (pr.exitCode !== 0) return null;
-  try {
-    const j = JSON.parse(new TextDecoder().decode(pr.stdout)) as {
-      fingerprint?: string;
-    };
-    return j.fingerprint ?? null;
-  } catch {
-    return null;
-  }
+  return (
+    parseFpcalcJson(new TextDecoder().decode(pr.stdout))?.fingerprint ?? null
+  );
 }
 
 /**
@@ -71,7 +115,8 @@ export function fingerprintFileLength(path: string): string | null {
       stdout: "pipe",
       stderr: "pipe",
     });
-  } catch {
+  } catch (error) {
+    void error;
     return null; // fpcalc not installed
   }
   if (r.exitCode !== 0) return null;
@@ -102,22 +147,17 @@ export function fingerprintWithDuration(path: string): {
       stdout: "pipe",
       stderr: "pipe",
     });
-  } catch {
+  } catch (error) {
+    void error;
     return { fingerprint: null, durationS: null }; // fpcalc not installed
   }
   if (pr.exitCode !== 0) return { fingerprint: null, durationS: null };
-  try {
-    const j = JSON.parse(new TextDecoder().decode(pr.stdout)) as {
-      fingerprint?: string;
-      duration?: number;
-    };
-    return {
-      fingerprint: j.fingerprint ?? null,
-      durationS: j.duration != null ? Math.round(j.duration) : null,
-    };
-  } catch {
-    return { fingerprint: null, durationS: null };
-  }
+  return (
+    parseFpcalcJson(new TextDecoder().decode(pr.stdout)) ?? {
+      fingerprint: null,
+      durationS: null,
+    }
+  );
 }
 
 // ---------- beat_this (real BPM + downbeats) ----------
@@ -249,31 +289,28 @@ print(json.dumps({
     stderr: "pipe",
   });
   if (proc.exitCode !== 0) return null;
-  try {
-    const last = new TextDecoder()
-      .decode(proc.stdout)
-      .trim()
-      .split("\n")
-      .at(-1);
-    if (!last) return null;
-    const j = JSON.parse(last) as {
-      bpm?: number;
-      beats?: number[];
-      downbeats?: number[];
-    };
-    if (typeof j.bpm !== "number" || !Number.isFinite(j.bpm)) return null;
-    const beats = j.beats ?? [];
-    const fit = fitConstantTempo(beats);
-    return {
-      bpm: j.bpm,
-      beats,
-      downbeats: j.downbeats ?? [],
-      bpmFitted: fit?.bpmFitted ?? null,
-      residualStd: fit?.residualStd ?? null,
-    };
-  } catch {
+  return parseBeatThisJson(new TextDecoder().decode(proc.stdout));
+}
+
+/** Parse the last JSON line emitted by beat_this. Invalid JSON, non-finite
+ * numbers, and wrong-shaped arrays all return the explicit failed result. */
+export function parseBeatThisJson(stdout: string): BeatResult | null {
+  const last = stdout.trim().split("\n").at(-1);
+  if (!last) return null;
+  const value = parseJsonObject(last);
+  if (!value || typeof value.bpm !== "number" || !Number.isFinite(value.bpm))
     return null;
-  }
+  const beats = finiteNumberArray(value.beats);
+  const downbeats = finiteNumberArray(value.downbeats);
+  if (!beats || !downbeats) return null;
+  const fit = fitConstantTempo(beats);
+  return {
+    bpm: value.bpm,
+    beats,
+    downbeats,
+    bpmFitted: fit?.bpmFitted ?? null,
+    residualStd: fit?.residualStd ?? null,
+  };
 }
 
 // ---------- constant-tempo fit + grid audit (plan.md GA-01/GA-04) ----------
@@ -570,22 +607,37 @@ export async function analyzeKeys(
 /** Does this analyzer stdout line announce readiness? Tolerant of partial
  *  lines (JSON.parse guarded — sanctioned resilience, returns false). */
 const lineIsReady = (l: string): boolean => {
-  try {
-    return (JSON.parse(l) as { type?: unknown }).type === "ready";
-  } catch {
-    return false;
-  }
+  return parseJsonObject(l)?.type === "ready";
 };
 
 /** Does this analyzer stdout line carry a response id? Tolerant of partial
  *  lines (JSON.parse guarded — sanctioned resilience, returns false). */
 const lineHasId = (l: string): boolean => {
-  try {
-    return Boolean((JSON.parse(l) as { id?: unknown }).id);
-  } catch {
-    return false;
-  }
+  return parseKeyServerLine(l) !== null;
 };
+
+export interface KeyServerLine {
+  id: string;
+  status: string | null;
+  camelot: string | null;
+  openkey: string | null;
+  key: string | null;
+}
+
+/** Guard the key-analyzer protocol boundary. Log/noise lines and malformed
+ * replies become an explicit null and are ignored by the line reader. */
+export function parseKeyServerLine(line: string): KeyServerLine | null {
+  const value = parseJsonObject(line);
+  if (!value || typeof value.id !== "string" || value.id.length === 0)
+    return null;
+  return {
+    id: value.id,
+    status: optionalString(value.status),
+    camelot: optionalString(value.camelot),
+    openkey: optionalString(value.openkey),
+    key: optionalString(value.key),
+  };
+}
 
 async function runKeyServer(
   server: string,
@@ -645,15 +697,10 @@ async function runKeyServer(
     while (out.size < paths.length && Date.now() - t0 < 120_000) {
       const line = await readUntil(hasId, 120_000);
       if (line == null) break;
-      const msg = JSON.parse(line) as {
-        id?: string;
-        status?: string;
-        camelot?: string;
-        openkey?: string;
-        key?: string;
-      };
+      const msg = parseKeyServerLine(line);
+      if (!msg) continue;
       if (msg.status === "success" && msg.camelot) {
-        out.set(String(msg.id), {
+        out.set(msg.id, {
           camelot: msg.camelot,
           openkey: msg.openkey ?? "",
           key: msg.key ?? "",
@@ -662,14 +709,15 @@ async function runKeyServer(
         // Definitive error for this path — record absence so the outer
         // loop can terminate instead of waiting for responses that will
         // never come.
-        out.set(String(msg.id), null);
+        out.set(msg.id, null);
       }
     }
   } finally {
     try {
       proc.kill();
-    } catch {
-      /* already dead */
+    } catch (error) {
+      // Process exit can race cleanup; there is no recovery work to do.
+      void error;
     }
   }
   // Drop error placeholders — callers key on success only. The early-return

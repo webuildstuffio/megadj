@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { trueContainerExt, type Probe } from "../src/media-probe";
+import {
+  parseFfprobeJson,
+  trueContainerExt,
+  type Probe,
+} from "../src/media-probe";
 
 /** A well-formed probe (all fields present, mp3 by default). */
 function probe(over: Partial<Probe> = {}): Probe {
@@ -17,6 +21,12 @@ function probe(over: Partial<Probe> = {}): Probe {
 }
 
 describe("trueContainerExt", () => {
+  test("malformed ffprobe JSON is an explicit parse failure", () => {
+    expect(parseFfprobeJson("{not-json")).toBeNull();
+    expect(parseFfprobeJson("null")).toBeNull();
+    expect(parseFfprobeJson('{"format":{"duration":123}}')).toBeNull();
+  });
+
   test("honest mp3 → .mp3 (caller compares, sees no mismatch, no rename)", () => {
     expect(trueContainerExt(probe())).toBe(".mp3");
   });

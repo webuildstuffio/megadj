@@ -10,7 +10,7 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
 import { existsSync } from "node:fs";
-import { analyzeBeats } from "../src/analysis";
+import { analyzeBeats, parseBeatThisJson } from "../src/analysis";
 import { enrichTrack } from "../src/pipeline";
 
 const DIR = `/tmp/fulltags-analysis-test-${process.pid}`;
@@ -35,6 +35,15 @@ const hasBeatThis =
   }).exitCode === 0;
 
 describe("beat_this BPM (roadmap #2)", () => {
+  test("malformed and structurally invalid worker JSON returns null", () => {
+    expect(parseBeatThisJson("beat_this log noise\n{not-json")).toBeNull();
+    expect(
+      parseBeatThisJson(
+        '{"bpm":128,"beats":[0,0.5,"bad",1.5],"downbeats":[0]}',
+      ),
+    ).toBeNull();
+  });
+
   test.skipIf(!hasBeatThis)(
     "pipeline stage writes TBPM, folds half-time, idempotent",
     async () => {

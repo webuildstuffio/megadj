@@ -1,8 +1,24 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
 import { writePatch, embedArt, groundTruth } from "../src/index-all";
+import { parseMutagenJsonOutput } from "../src/mutagen";
 
 const DIR = `/tmp/fulltags-writer-test-${process.pid}`;
+
+test("mutagen JSON parser reports contextual failure instead of an ambiguous fallback", () => {
+  expect(parseMutagenJsonOutput("{not-json")).toMatchObject({
+    ok: false,
+    context: "fulltags mutagen subprocess",
+  });
+  expect(parseMutagenJsonOutput("\n")).toMatchObject({
+    ok: false,
+    context: "fulltags mutagen subprocess",
+  });
+  expect(parseMutagenJsonOutput("null")).toMatchObject({
+    ok: false,
+    context: "fulltags mutagen subprocess",
+  });
+});
 
 afterAll(async () => {
   await $`rm -rf ${DIR}`.quiet().nothrow();

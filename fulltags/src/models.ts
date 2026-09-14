@@ -50,6 +50,90 @@ export interface MoodResult {
   embedding?: number[];
 }
 
+export type MoodWorkerParseResult =
+  | { ok: true; path: string; mood: MoodResult }
+  | { ok: false; context: "fulltags mood worker"; detail: string };
+
+function finiteNumberField(
+  record: Record<string, unknown>,
+  field: string,
+): number | null {
+  const value = record[field];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function finiteNumberList(value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  const result: number[] = [];
+  for (const item of value) {
+    if (typeof item !== "number" || !Number.isFinite(item)) return null;
+    result.push(item);
+  }
+  return result;
+}
+
+/** Parse and validate one JSON line from the Python mood worker. The failure
+ * variant carries stable domain context so corruption cannot disappear as an
+ * ambiguous missing result. */
+export function parseMoodWorkerLine(line: string): MoodWorkerParseResult {
+  const context = "fulltags mood worker" as const;
+  let value: unknown;
+  try {
+    value = JSON.parse(line);
+  } catch (error) {
+    return {
+      ok: false,
+      context,
+      detail: `malformed JSON: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return { ok: false, context, detail: "response is not an object" };
+  const response = value as Record<string, unknown>;
+  const path = response.path;
+  if (typeof path !== "string" || path.length === 0)
+    return { ok: false, context, detail: "response has no path" };
+  if (typeof response.error === "string")
+    return { ok: false, context, detail: `${path}: ${response.error}` };
+  const mood = response.mood;
+  if (mood === null || typeof mood !== "object" || Array.isArray(mood))
+    return { ok: false, context, detail: `${path}: response has no mood` };
+  const candidate = mood as Record<string, unknown>;
+  const danceability = finiteNumberField(candidate, "danceability");
+  const moodAggressive = finiteNumberField(candidate, "moodAggressive");
+  const moodHappy = finiteNumberField(candidate, "moodHappy");
+  const moodElectronic = finiteNumberField(candidate, "moodElectronic");
+  const moodParty = finiteNumberField(candidate, "moodParty");
+  const valence = finiteNumberField(candidate, "valence");
+  const arousal = finiteNumberField(candidate, "arousal");
+  if (
+    danceability === null ||
+    moodAggressive === null ||
+    moodHappy === null ||
+    moodElectronic === null ||
+    moodParty === null ||
+    valence === null ||
+    arousal === null
+  )
+    return { ok: false, context, detail: `${path}: invalid mood payload` };
+  const result: MoodResult = {
+    danceability,
+    moodAggressive,
+    moodHappy,
+    moodElectronic,
+    moodParty,
+    valence,
+    arousal,
+  };
+  if (candidate.embedding !== undefined) {
+    const embedding = finiteNumberList(candidate.embedding);
+    if (!embedding)
+      return { ok: false, context, detail: `${path}: invalid embedding` };
+    result.embedding = embedding;
+  }
+  return { ok: true, path, mood: result };
+}
+
 const MODEL_FILES = {
   effnet: {
     onnx: "discogs-effnet-bsdynamic-1.onnx",
@@ -271,21 +355,16 @@ export async function analyzeMoods(
     while (out.size < expected) {
       const line = await readLine(180_000);
       if (line == null) break;
-      try {
-        const msg = JSON.parse(line) as {
-          path?: string;
-          mood?: MoodResult;
-        };
-        if (msg.path && msg.mood) out.set(msg.path, msg.mood);
-      } catch {
-        // malformed line — skip
-      }
+      const msg = parseMoodWorkerLine(line);
+      if (msg.ok) out.set(msg.path, msg.mood);
+      else console.error(`[${msg.context}] ${msg.detail}`);
     }
   } finally {
     try {
       proc.kill();
-    } catch {
-      /* already dead */
+    } catch (error) {
+      // Process exit can race cleanup; there is no recovery work to do.
+      void error;
     }
   }
   return out;

@@ -10,7 +10,12 @@
 import { describe, test, expect } from "bun:test";
 import { $ } from "bun";
 import { existsSync } from "node:fs";
-import { analyzeKey, analyzeKeys, keyscanDir } from "../src/analysis";
+import {
+  analyzeKey,
+  analyzeKeys,
+  keyscanDir,
+  parseKeyServerLine,
+} from "../src/analysis";
 import { writePatchSync } from "../src/writer";
 import { readStampGuard } from "./helpers/stamp";
 import { enrichTrack } from "../src/pipeline";
@@ -19,6 +24,18 @@ import { DIR, makeFile } from "./helpers/analysis";
 const hasKeyscan = existsSync(`${keyscanDir()}/openkeyscan_analyzer_server.py`);
 
 describe("OpenKeyScan key (roadmap #3)", () => {
+  test("key-server protocol parsing rejects malformed and unkeyed JSON", () => {
+    expect(parseKeyServerLine("{not-json")).toBeNull();
+    expect(
+      parseKeyServerLine('{"status":"success","camelot":"8A"}'),
+    ).toBeNull();
+    expect(
+      parseKeyServerLine(
+        '{"id":"track.wav","status":"success","camelot":"8A"}',
+      ),
+    ).toMatchObject({ id: "track.wav", status: "success", camelot: "8A" });
+  });
+
   test.skipIf(!hasKeyscan)(
     "pipeline stage writes TKEY+TXXX:CAMELOT, idempotent",
     async () => {

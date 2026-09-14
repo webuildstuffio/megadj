@@ -13,6 +13,7 @@ import {
   fingerprintFile,
   fingerprintWithDuration,
   foldTempo,
+  parseFpcalcJson,
 } from "../src/analysis";
 import { readStampGuard } from "./helpers/stamp";
 import { enrichTrack } from "../src/pipeline";
@@ -31,6 +32,17 @@ describe("foldTempo (DJ window folding)", () => {
 });
 
 describe("chromaprint fingerprints (roadmap #1)", () => {
+  test("malformed fpcalc JSON is an explicit parse failure", () => {
+    expect(parseFpcalcJson("{not-json")).toBeNull();
+    expect(parseFpcalcJson('{"fingerprint":"AQID","duration":null}')).toEqual({
+      fingerprint: "AQID",
+      durationS: null,
+    });
+    expect(
+      parseFpcalcJson('{"fingerprint":"AQID","duration":"Infinity"}'),
+    ).toEqual({ fingerprint: "AQID", durationS: null });
+  });
+
   test.skipIf(!hasFpcalc)(
     "same content different containers → identical fingerprint",
     async () => {

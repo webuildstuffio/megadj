@@ -5,6 +5,30 @@
  */
 import { $ } from "bun";
 
+function finiteNumber(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+function isRecord(item: unknown): item is Record<string, unknown> {
+  return item !== null && typeof item === "object" && !Array.isArray(item);
+}
+
+function stringField(
+  record: Record<string, unknown>,
+  field: string,
+): string | undefined {
+  return typeof record[field] === "string" ? record[field] : undefined;
+}
+
+function hasOptionalString(
+  record: Record<string, unknown>,
+  field: string,
+): boolean {
+  return record[field] === undefined || typeof record[field] === "string";
+}
+
 /** Shared audio-file probe shape (ffprobe result). */
 export interface Probe {
   ok: boolean;
@@ -16,6 +40,84 @@ export interface Probe {
   tags: Record<string, string>;
   /** ffprobe format_name split on commas (e.g. ["mov","mp4","m4a",…]). */
   container?: string[];
+}
+
+interface FfprobeJson {
+  format: {
+    duration: string | undefined;
+    bitRate: string | undefined;
+    tags: Record<string, unknown>;
+    formatName: string | undefined;
+  } | null;
+  streams: {
+    codecType: string | undefined;
+    codecName: string | undefined;
+    sampleRate: string | undefined;
+  }[];
+}
+
+/** Guard ffprobe's JSON subprocess boundary. Null means malformed JSON or a
+ * schema mismatch; probeFile exposes that as `ok: false`. */
+export function parseFfprobeJson(stdout: string): FfprobeJson | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(stdout);
+  } catch (error) {
+    void error;
+    return null;
+  }
+  if (!isRecord(value)) return null;
+  const formatRaw = value.format;
+  if (formatRaw !== undefined && !isRecord(formatRaw)) return null;
+  const streamsRaw = value.streams;
+  if (streamsRaw !== undefined && !Array.isArray(streamsRaw)) return null;
+  const rawStreams = streamsRaw ?? [];
+  if (!rawStreams.every(isRecord)) return null;
+  let format: FfprobeJson["format"] = null;
+  if (isRecord(formatRaw)) {
+    const tagsRaw = formatRaw.tags;
+    if (
+      (tagsRaw !== undefined && !isRecord(tagsRaw)) ||
+      !["duration", "bit_rate", "format_name"].every((field) =>
+        hasOptionalString(formatRaw, field),
+      )
+    )
+      return null;
+    format = {
+      duration: stringField(formatRaw, "duration"),
+      bitRate: stringField(formatRaw, "bit_rate"),
+      tags: tagsRaw ?? {},
+      formatName: stringField(formatRaw, "format_name"),
+    };
+  }
+  if (
+    !rawStreams.every((stream) =>
+      ["codec_type", "codec_name", "sample_rate"].every((field) =>
+        hasOptionalString(stream, field),
+      ),
+    )
+  )
+    return null;
+  return {
+    format,
+    streams: rawStreams.map((stream) => ({
+      codecType: stringField(stream, "codec_type"),
+      codecName: stringField(stream, "codec_name"),
+      sampleRate: stringField(stream, "sample_rate"),
+    })),
+  };
+}
+
+function failedProbe(): Probe {
+  return {
+    ok: false,
+    durationS: null,
+    bitrateKbps: null,
+    sampleRate: null,
+    codec: null,
+    hasArt: false,
+    tags: {},
+  };
 }
 
 /** DJ energy 1–10 from integrated loudness (Mixed In Key style baseline).
@@ -41,7 +143,7 @@ export async function measureRms(file: string): Promise<number | null> {
   if (proc.exitCode !== 0) return null;
   const out = proc.stderr.toString();
   const m = /RMS level dB:\s*(-?[\d.]+)/.exec(out);
-  return m?.[1] ? Number(m[1]) : null;
+  return finiteNumber(m?.[1]);
 }
 
 /** Structured result of `parseFilename`. */
@@ -69,7 +171,7 @@ export function parseFilename(basename: string): ParsedName {
   let rest = stem;
   let trackNo: number | null = null;
   if (numMatch) {
-    trackNo = Number(numMatch[1]);
+    trackNo = finiteNumber(numMatch[1]);
     rest = numMatch[2] ?? stem;
   }
   const parts = rest.split(/\s+-\s+/);
@@ -93,31 +195,12 @@ export async function probeFile(path: string): Promise<Probe> {
       .quiet()
       .nothrow();
   if (proc.exitCode !== 0) {
-    return {
-      ok: false,
-      durationS: null,
-      bitrateKbps: null,
-      sampleRate: null,
-      codec: null,
-      hasArt: false,
-      tags: {},
-    };
+    return failedProbe();
   }
   const stdout =
     typeof proc.stdout === "string" ? proc.stdout : proc.stdout.toString();
-  const data = JSON.parse(stdout) as {
-    format?: {
-      duration?: string;
-      bit_rate?: string;
-      tags?: Record<string, string>;
-      format_name?: string;
-    };
-    streams?: {
-      codec_type?: string;
-      codec_name?: string;
-      sample_rate?: string;
-    }[];
-  };
+  const data = parseFfprobeJson(stdout);
+  if (!data) return failedProbe();
   const formatTags = data.format?.tags ?? {};
   const tags: Record<string, string> = {};
   for (const k of Object.keys(formatTags)) {
@@ -125,24 +208,24 @@ export async function probeFile(path: string): Promise<Probe> {
     if (v == null) continue;
     tags[k.toLowerCase()] = String(v).trim();
   }
-  const streams = data.streams ?? [];
-  const audio = streams.find((s) => s.codec_type === "audio");
+  const streams = data.streams;
+  const audio = streams.find((s) => s.codecType === "audio");
+  const duration = finiteNumber(data.format?.duration);
+  const bitrate = finiteNumber(data.format?.bitRate);
   return {
     ok: true,
-    durationS: data.format?.duration ? Number(data.format.duration) : null,
-    bitrateKbps: data.format?.bit_rate
-      ? Math.round(Number(data.format.bit_rate) / 1000)
-      : null,
-    sampleRate: audio?.sample_rate ? Number(audio.sample_rate) : null,
-    codec: audio?.codec_name ?? null,
-    hasArt: streams.some((s) => s.codec_type === "video"),
+    durationS: duration,
+    bitrateKbps: bitrate === null ? null : Math.round(bitrate / 1000),
+    sampleRate: finiteNumber(audio?.sampleRate),
+    codec: audio?.codecName ?? null,
+    hasArt: streams.some((s) => s.codecType === "video"),
     tags,
     // Container truth vs extension: pool rips ship AAC audio in MP4
     // containers wearing a `.mp3` name (Sep 11: 14 rescue files). ffmpeg's
     // mp3 muxer rejects non-MP3 audio with exit 234, and Pioneer hardware
     // chokes on the mislabel too — the writer and ingest both need the
     // real container, not the filename's claim.
-    container: data.format?.format_name?.split(",").map((s) => s.trim()) ?? [],
+    container: data.format?.formatName?.split(",").map((s) => s.trim()) ?? [],
   };
 }
 

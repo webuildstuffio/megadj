@@ -13,6 +13,7 @@ import {
   analyzeMoods,
   moodModelsPresent,
   moodStamp,
+  parseMoodWorkerLine,
   type MoodResult,
 } from "../src/models";
 import { enrichTrack, parseMoodStamp } from "../src/pipeline";
@@ -57,6 +58,18 @@ describe("moodStamp / parseMoodStamp (pure, always run)", () => {
     expect(parseMoodStamp("garbage")).toBeNull();
     expect(parseMoodStamp("dance=0.1; party=oops")).toBeNull();
     expect(parseMoodStamp("dance=0.1")).toBeNull(); // missing fields
+  });
+
+  test("mood worker parser exposes malformed and invalid payloads", () => {
+    expect(parseMoodWorkerLine("{not-json")).toMatchObject({
+      ok: false,
+      context: "fulltags mood worker",
+    });
+    expect(
+      parseMoodWorkerLine(
+        '{"path":"track.wav","mood":{"danceability":"high"}}',
+      ),
+    ).toMatchObject({ ok: false, context: "fulltags mood worker" });
   });
 });
 
