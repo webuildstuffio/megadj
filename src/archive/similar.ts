@@ -7,6 +7,40 @@ import { cosineSimilarity } from "../../cratedeck/shared/similarity";
 
 export { cosineSimilarity } from "../../cratedeck/shared/similarity";
 
+/** Parse one persisted embedding vector. Syntactically valid JSON is not
+ * enough: every downstream cosine operation requires a non-empty vector of
+ * finite numbers. The caller supplies row context so corruption is
+ * actionable instead of disappearing behind a cast. */
+export function parseEmbeddingVector(
+  vecJson: string,
+  context: string,
+): number[] {
+  let value: unknown;
+  try {
+    value = JSON.parse(vecJson) as unknown;
+  } catch (error) {
+    const detail = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(
+      `${context} has invalid vec_json: malformed JSON${detail}`,
+      {
+        cause: error,
+      },
+    );
+  }
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    !value.every((entry) =>
+      typeof entry === "number" ? Number.isFinite(entry) : false,
+    )
+  ) {
+    throw new Error(
+      `${context} has invalid vec_json: expected a non-empty array of finite numbers`,
+    );
+  }
+  return value;
+}
+
 export class EmbeddingsLedger {
   constructor(
     private readonly db: Database,
@@ -59,19 +93,21 @@ export class EmbeddingsLedger {
       analyzed_at: string;
     } | null;
     if (!row) return null;
-    let vec: number[] = [];
     try {
-      vec = JSON.parse(row.vec_json) as number[];
-    } catch {
+      const vec = parseEmbeddingVector(
+        row.vec_json,
+        `embedding ${row.video_id}`,
+      );
+      return {
+        videoId: row.video_id,
+        vec,
+        sourcePath: row.source_path,
+        analyzedAt: row.analyzed_at,
+      };
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
       return null;
     }
-    if (!Array.isArray(vec) || vec.length === 0) return null;
-    return {
-      videoId: row.video_id,
-      vec,
-      sourcePath: row.source_path,
-      analyzedAt: row.analyzed_at,
-    };
   }
 
   /** All embeddings joined to their track rows (downloaded only) — the
@@ -96,8 +132,7 @@ export class EmbeddingsLedger {
     }[];
     return rows.flatMap((r) => {
       try {
-        const vec = JSON.parse(r.vec_json) as number[];
-        if (!Array.isArray(vec) || vec.length === 0) return [];
+        const vec = parseEmbeddingVector(r.vec_json, `embedding ${r.video_id}`);
         return [
           {
             videoId: r.video_id,
@@ -106,8 +141,9 @@ export class EmbeddingsLedger {
             vec,
           },
         ];
-      } catch {
-        return []; // corrupt row — skip, never throw
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : error);
+        return [];
       }
     });
   }

@@ -120,6 +120,31 @@ describe("embeddings ledger round-trip", () => {
       false,
     );
   });
+  test("structurally invalid vectors are rejected with the row id", () => {
+    track("bad-shape", "Bad shape");
+    const raw = new Database(join(dir, "archive.db"));
+    raw.exec(
+      `INSERT INTO embeddings (video_id, dim, vec_json, source_path, analyzed_at)
+       VALUES ('bad-shape', 3, '[1,"oops",3]', '/tmp/x', 'now')
+       ON CONFLICT(video_id) DO UPDATE SET vec_json = excluded.vec_json`,
+    );
+    raw.close();
+    const diagnostics: string[] = [];
+    const previous = console.error;
+    console.error = (...args: unknown[]) => diagnostics.push(args.join(" "));
+    try {
+      expect(state.embeddingRecord("bad-shape")).toBeNull();
+      expect(
+        state.embeddingCorpus().some((c) => c.videoId === "bad-shape"),
+      ).toBe(false);
+    } finally {
+      console.error = previous;
+    }
+    expect(diagnostics.some((line) => line.includes("bad-shape"))).toBe(true);
+    expect(diagnostics.some((line) => line.includes("finite numbers"))).toBe(
+      true,
+    );
+  });
   test("non-downloaded tracks stay out of the corpus", () => {
     state.upsertTrackFromPlaylist("gone", 0, "Gone", "test");
     state.setEmbeddingRecord({

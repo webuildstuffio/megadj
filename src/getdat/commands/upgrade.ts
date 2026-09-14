@@ -53,6 +53,39 @@ export function isLowq(row: {
   return false;
 }
 
+/** Parse ffprobe's JSON boundary with a path-bearing diagnostic. */
+export function parseFfprobeKbps(
+  output: string,
+  path: string,
+  report: (message: string) => void = console.warn,
+): number | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(output) as unknown;
+  } catch (error) {
+    const detail = error instanceof Error ? `: ${error.message}` : "";
+    report(`ffprobe returned malformed JSON for ${path}${detail}`);
+    return null;
+  }
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("format" in value) ||
+    typeof value.format !== "object" ||
+    value.format === null ||
+    !("bit_rate" in value.format)
+  ) {
+    report(`ffprobe returned no bitrate for ${path}`);
+    return null;
+  }
+  const bps = Number(value.format.bit_rate);
+  if (!Number.isFinite(bps) || bps <= 0) {
+    report(`ffprobe returned an invalid bitrate for ${path}`);
+    return null;
+  }
+  return Math.round(bps / 1000);
+}
+
 /** ffprobe the new file's bitrate (bits/s → kbps); null when unreadable. */
 function ffprobeKbps(path: string): number | null {
   let pr: Bun.SyncSubprocess;
@@ -74,15 +107,7 @@ function ffprobeKbps(path: string): number | null {
     return null;
   }
   if (pr.exitCode !== 0) return null;
-  try {
-    const j = JSON.parse(new TextDecoder().decode(pr.stdout)) as {
-      format?: { bit_rate?: string };
-    };
-    const bps = Number(j.format?.bit_rate);
-    return Number.isFinite(bps) && bps > 0 ? Math.round(bps / 1000) : null;
-  } catch {
-    return null; // corrupt probe output — treat as unreadable
-  }
+  return parseFfprobeKbps(new TextDecoder().decode(pr.stdout), path);
 }
 
 /** Unique temp path beside the target (keeps the extension — ffmpeg/yt-dlp

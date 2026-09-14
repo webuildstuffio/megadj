@@ -228,6 +228,56 @@ function rekordboxRunning(): boolean {
   return r.status === 0;
 }
 
+function parseJsonResult(raw: string, operation: "read" | "rewrite"): unknown {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (error) {
+    const detail = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(
+      `pyrekordbox ${operation} returned malformed JSON${detail}`,
+      { cause: error },
+    );
+  }
+}
+
+function parseReadRows(raw: string): [number, string][] {
+  const value = parseJsonResult(raw, "read");
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (row) =>
+        Array.isArray(row) &&
+        row.length === 2 &&
+        typeof row[0] === "number" &&
+        Number.isFinite(row[0]) &&
+        typeof row[1] === "string",
+    )
+  ) {
+    throw new Error(
+      "pyrekordbox read returned invalid rows: expected [finite numeric id, path][]",
+    );
+  }
+  return value as [number, string][];
+}
+
+function parseRewriteResult(raw: string): number {
+  const value = parseJsonResult(raw, "rewrite");
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("applied" in value) ||
+    typeof value.applied !== "number" ||
+    !Number.isFinite(value.applied) ||
+    !Number.isInteger(value.applied) ||
+    value.applied < 0
+  ) {
+    throw new Error(
+      "pyrekordbox rewrite returned invalid applied count: expected a non-negative finite integer",
+    );
+  }
+  return value.applied;
+}
+
 /** Read (ID, FolderPath) for every content row via pyrekordbox. Shared
  *  with rb-unmatched (read-only reuse — one DB reader, two consumers). */
 export function readRows(dbPath: string): [number, string][] {
@@ -244,10 +294,7 @@ export function readRows(dbPath: string): [number, string][] {
       `pyrekordbox read failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(0, 300)}`,
     );
   }
-  return JSON.parse(r.stdout.trim().split("\n").pop() ?? "[]") as [
-    number,
-    string,
-  ][];
+  return parseReadRows(r.stdout.trim().split("\n").pop() ?? "");
 }
 
 export async function rbFixPaths(
@@ -383,15 +430,14 @@ async function rewriteRows(
     { encoding: "utf8", timeout: 180_000 },
   );
   if (r.status !== 0) {
-    log(`rb-fix-paths: rewrite failed: ${(r.stderr ?? "").slice(0, 300)}`);
-    return 0;
+    const detail = (r.stderr ?? "").slice(0, 300);
+    log(`rb-fix-paths: rewrite failed: ${detail}`);
+    throw new Error(
+      `pyrekordbox rewrite failed (exit ${String(r.status)}): ${detail}`,
+    );
   }
   const line = (r.stdout ?? "").trim().split("\n").pop() ?? "{}";
-  try {
-    return (JSON.parse(line) as { applied: number }).applied;
-  } catch {
-    return 0;
-  }
+  return parseRewriteResult(line);
 }
 
 /** Test seam: the matching ladder against a live index (no DB needed). */
@@ -399,6 +445,8 @@ export const __test = {
   matchLadder: (broken: string, mount: string): RbFixRow =>
     matchLadder(broken, buildIndex(mount)),
   stripCopySuffix,
+  parseReadRows,
+  parseRewriteResult,
 };
 /** Emit the human report (non-json mode). */
 export function printRbFixReport(

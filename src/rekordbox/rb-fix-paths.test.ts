@@ -130,4 +130,19 @@ describe("rb-fix-paths", () => {
     expect(__test.stripCopySuffix("Old Track - 1.mp3")).toBe("Old Track.mp3");
     expect(__test.stripCopySuffix("Plain.mp3")).toBe("Plain.mp3");
   });
+
+  test("malformed rewrite output fails visibly after the write boundary", () => {
+    expect(() => __test.parseRewriteResult("not-json")).toThrow(
+      "pyrekordbox rewrite returned malformed JSON",
+    );
+    expect(() => __test.parseRewriteResult('{"applied":"2"}')).toThrow(
+      "invalid applied count",
+    );
+  });
+
+  test("malformed read output includes the pyrekordbox boundary context", () => {
+    expect(() => __test.parseReadRows("not-json")).toThrow(
+      "pyrekordbox read returned malformed JSON",
+    );
+  });
 });

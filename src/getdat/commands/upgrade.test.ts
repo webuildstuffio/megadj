@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { $ } from "bun";
 import { afterAll, describe, expect, test } from "bun:test";
 import { ArchiveState } from "../../archive/state";
-import { isLowq, replaceFileAtomically } from "./upgrade";
+import { isLowq, parseFfprobeKbps, replaceFileAtomically } from "./upgrade";
 
 async function runCli(args: string[], env: Record<string, string>) {
   const proc = await $`bun run ${join(import.meta.dir, "../../cli.ts")} ${args}`
@@ -33,6 +33,18 @@ describe("isLowq (the same floor rule as CrateDeck's lowqQueue)", () => {
 });
 
 describe("upgrade replacement", () => {
+  test("malformed ffprobe JSON is reported at the file boundary", () => {
+    const diagnostics: string[] = [];
+    expect(
+      parseFfprobeKbps("not-json", "/tmp/bad.m4a", (message) =>
+        diagnostics.push(message),
+      ),
+    ).toBeNull();
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toStartWith(
+      "ffprobe returned malformed JSON for /tmp/bad.m4a",
+    );
+  });
   test("keeps the incumbent when the staged rename fails", () => {
     const dir = mkdtempSync("/tmp/megadj-upgrade-swap-");
     const incumbent = join(dir, "track.m4a");

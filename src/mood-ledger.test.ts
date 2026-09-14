@@ -1,4 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { Database } from "bun:sqlite";
+import { join } from "node:path";
 import { ArchiveState } from "./archive/state";
 import { phraseCues } from "./fulltags/cues";
 import { tempState } from "./testutil";
@@ -151,5 +153,32 @@ describe("phrase cues (cues slice)", () => {
     state.setCueRecord({ videoId: "c1", cues: [], source: "x" });
     const all = state.cueAnalyzedTracks();
     expect(all.length).toBe(1); // empty array is valid, not corrupt
+  });
+
+  test("structurally invalid cue JSON is rejected with the row id", () => {
+    addDownloaded(state, "bad-cues", "/bad.wav");
+    state.setCueRecord({
+      videoId: "bad-cues",
+      cues: [{ index: 0, position: 0, bar: 1 }],
+      source: "phrase-cues@1",
+    });
+    const raw = new Database(join(dir, "archive.db"));
+    raw
+      .query("UPDATE cues SET cues_json = ? WHERE video_id = ?")
+      .run('{"not":"an array"}', "bad-cues");
+    raw.close();
+    const diagnostics: string[] = [];
+    const previous = console.warn;
+    console.warn = (...args: unknown[]) => diagnostics.push(args.join(" "));
+    try {
+      expect(state.cueRecord("bad-cues")).toBeNull();
+      expect(
+        state.cueAnalyzedTracks().some((row) => row.videoId === "bad-cues"),
+      ).toBe(false);
+    } finally {
+      console.warn = previous;
+    }
+    expect(diagnostics.some((line) => line.includes("bad-cues"))).toBe(true);
+    expect(diagnostics.some((line) => line.includes("cue array"))).toBe(true);
   });
 });

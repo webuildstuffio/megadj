@@ -36,6 +36,45 @@ export interface CueRecord extends CueRecordInput {
   derivedAt: string;
 }
 
+function parseCueArray(
+  cuesJson: string,
+  context: string,
+): CueRecordInput["cues"] {
+  let value: unknown;
+  try {
+    value = JSON.parse(cuesJson) as unknown;
+  } catch (error) {
+    const detail = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(
+      `${context} has invalid cues_json: malformed JSON${detail}`,
+      { cause: error },
+    );
+  }
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (cue) =>
+        typeof cue === "object" &&
+        cue !== null &&
+        !Array.isArray(cue) &&
+        "index" in cue &&
+        typeof cue.index === "number" &&
+        Number.isFinite(cue.index) &&
+        "position" in cue &&
+        typeof cue.position === "number" &&
+        Number.isFinite(cue.position) &&
+        "bar" in cue &&
+        typeof cue.bar === "number" &&
+        Number.isFinite(cue.bar),
+    )
+  ) {
+    throw new Error(
+      `${context} has invalid cues_json: expected a cue array with finite index, position, and bar values`,
+    );
+  }
+  return value as CueRecordInput["cues"];
+}
+
 /**
  * Mood + structure-cues ledger storage (roadmap rev 6.1 #4 and the cues
  * slice). Extracted from state.ts for the file-length guard; ArchiveState
@@ -188,22 +227,18 @@ export class Ledgers {
       derived_at: string;
     } | null;
     if (!row) return null;
-    let cues: { index: number; position: number; bar: number }[] = [];
     try {
-      cues = JSON.parse(row.cues_json) as {
-        index: number;
-        position: number;
-        bar: number;
-      }[];
-    } catch {
-      return null; // corrupt JSON row — treat as absent so the pass re-derives
+      const cues = parseCueArray(row.cues_json, `cue record ${row.video_id}`);
+      return {
+        videoId: row.video_id,
+        cues,
+        source: row.model,
+        derivedAt: row.derived_at,
+      };
+    } catch (error) {
+      console.warn(error instanceof Error ? error.message : error);
+      return null;
     }
-    return {
-      videoId: row.video_id,
-      cues,
-      source: row.model,
-      derivedAt: row.derived_at,
-    };
   }
 
   /** All cue records joined to their track rows (downloaded only). */
@@ -231,16 +266,13 @@ export class Ledgers {
           {
             videoId: r.video_id,
             title: r.title,
-            cues: JSON.parse(r.cues_json) as {
-              index: number;
-              position: number;
-              bar: number;
-            }[],
+            cues: parseCueArray(r.cues_json, `cue record ${r.video_id}`),
             source: r.model,
           },
         ];
-      } catch {
-        return []; // corrupt row — skip, never throw
+      } catch (error) {
+        console.warn(error instanceof Error ? error.message : error);
+        return [];
       }
     });
   }

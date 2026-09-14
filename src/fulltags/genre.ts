@@ -14,7 +14,11 @@
 // genre is never overwritten — the column is fill-in, never clobber.
 
 import { commandLog } from "../progress";
-import { inferGenre, type GenreSeed } from "../archive/similar";
+import {
+  inferGenre,
+  parseEmbeddingVector,
+  type GenreSeed,
+} from "../archive/similar";
 import type { ArchiveState } from "../archive/state";
 
 export interface GenreOptions {
@@ -40,7 +44,13 @@ export async function genre(opts: GenreOptions): Promise<void> {
   const seeds: GenreSeed[] = rows.seeds.map((s) => ({
     videoId: s.video_id,
     genre: s.genre!,
-    vec: JSON.parse(s.vec_json) as number[],
+    vec: parseEmbeddingVector(s.vec_json, `genre seed ${s.video_id}`),
+  }));
+  // Parse and validate every query before the first --apply write. A late
+  // corrupt row must never leave an earlier query partially committed.
+  const queries = rows.queries.map((q) => ({
+    ...q,
+    vec: parseEmbeddingVector(q.vec_json, `genre query ${q.video_id}`),
   }));
 
   let inferred = 0;
@@ -51,9 +61,8 @@ export async function genre(opts: GenreOptions): Promise<void> {
     genre: string;
     agreement: number;
   }[] = [];
-  for (const q of rows.queries) {
-    const vec = JSON.parse(q.vec_json) as number[];
-    const v = inferGenre(seeds, vec, k, minAgreement);
+  for (const q of queries) {
+    const v = inferGenre(seeds, q.vec, k, minAgreement);
     if (v.inferred === null) {
       split++;
       continue;
