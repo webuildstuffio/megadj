@@ -4,6 +4,17 @@
 (six towers incl. MERT); fusion/variant sweep settled below, follow-up
 implementation gated by the larger post-refold evaluation.
 
+**Reproduction (Sep 14, 2026, ~28 min, background).** Full 6-tower rerun
+on `eval_set_v2.json` (180 tracks, 120 s cap) matched the recorded table
+tower-for-tower to the fourth decimal (effnet 0.4444 / 0.3622; musicnn
+0.3000 / 0.2922; mert 0.2556 / 0.2333; openl3 0.2722 / 0.2433; vggish
+0.2778 / 0.2311; clap 0.2444 / 0.2500) — and the MERT window-statistics
+variant reproduced at 0.2667. The full mean-cosine ensemble sweep
+re-confirmed: best combo is `effnet+musicnn+mert` 0.4556 (+1.1 pt over
+effnet alone) — inside noise, gate still closed. (The run's raw
+rank-fusion ensemble block printed 0.02–0.12: that is the known
+descending-rank trap documented below, not a new result.)
+
 **Question.** We ship `discogs-effnet` (1280-d) as the "sounds like" tower. Is
 there a better _free, local, ONNX_ tower for (a) genre-family inference and
 (b) similar-track retrieval?
