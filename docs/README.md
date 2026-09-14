@@ -32,7 +32,7 @@ Product references:
 
 - [FullTags roadmap](fulltags-roadmap.md)
 - [Grid audit plan](grid-audit-plan.md)
-- [MegaSet doc set](megaset/01-prd.md) — the set-builder product (PRD · architecture · 30-comparator analysis · [sequencing benchmarks](megaset/04-sequencing-benchmarks.md) · [genre audit](megaset/05-genre-audit.md) · [embedding model benchmark](megaset/06-embedding-models.md)).
+- [MegaSet doc set](megaset/01-prd.md) — the set-builder product (PRD · architecture · 30-comparator analysis · [sequencing benchmarks](megaset/04-sequencing-benchmarks.md) · [genre audit](megaset/05-genre-audit.md) · [embedding model benchmark](megaset/06-embedding-models.md) · [taxonomy sources](megaset/07-genre-taxonomy-sources.md)).
 - [Set builder audit & plan](setbuild-audit-2026-09-13.md)
 - [CrateDeck product brief](cratedeck/01-product-brief.md)
 - [CrateDeck acceptance](cratedeck/acceptance.md)

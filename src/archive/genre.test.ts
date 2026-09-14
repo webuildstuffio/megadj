@@ -31,6 +31,12 @@ describe("normalizeGenre", () => {
     expect(normalizeGenre("")).toBeNull();
     expect(normalizeGenre("  ")).toBeNull();
   });
+  test("ingestion escape artifacts are repaired before matching", () => {
+    // measured in the live column: "hip-hop \u0026 rap" (×7), "r\u0026b" (×1)
+    expect(normalizeGenre("r\\u0026b")).toBe("r&b");
+    expect(genreFamily("hip-hop \\u0026 rap")).toBe("hiphop");
+    expect(genreFamily("r\\u0026b")).toBe("groove");
+  });
 });
 
 describe("genreFamily", () => {
@@ -47,6 +53,40 @@ describe("genreFamily", () => {
     expect(genreFamily("Big Room")).toBe("edm");
     expect(genreFamily("Synthpop")).toBe("pop");
     expect(genreFamily("Amapiano")).toBe("groove");
+  });
+  test("2026-09-14 audit additions — audio-verified placements", () => {
+    // each verified against the Discogs-400 head's placement (§7)
+    expect(genreFamily("Grime")).toBe("bass");
+    expect(genreFamily("Jersey Club")).toBe("bass");
+    expect(genreFamily("Donk")).toBe("bass");
+    expect(genreFamily("hardtekk")).toBe("techno");
+    expect(genreFamily("minimal / deep tech".replace(" / ", " x "))).toBe(
+      "techno",
+    ); // "minimal x deep tech" → techno; raw slash form needs refold split
+    expect(genreFamily("Minimal")).toBe("techno");
+    expect(genreFamily("eurodance")).toBe("edm");
+    expect(genreFamily("Nightcore")).toBe("edm");
+    expect(genreFamily("uptempo")).toBe("edm");
+    expect(genreFamily("IDM")).toBe("mood");
+    expect(genreFamily("chillwave")).toBe("mood");
+    expect(genreFamily("synthwave")).toBe("mood");
+    expect(genreFamily("country")).toBe("pop");
+  });
+  test("junk-URL and non-genre strings stay null", () => {
+    expect(genreFamily("https://djsoundtop.com")).toBeNull();
+    expect(genreFamily("djsoundtop.com")).toBeNull();
+    expect(genreFamily("premiere")).toBeNull();
+    expect(genreFamily("vip mix")).toBeNull();
+    expect(genreFamily("tuxedo")).toBeNull();
+  });
+  test("bare dance/groove map to audio-verified families (audit §7)", () => {
+    // head placement of the 113 'dance' rows: house 65 / trance 17 / bass 14;
+    // edm is the least-wrong family because 'dance' sits in the house-edm
+    // continuum — but the honest fix is refold + dispute-flag, noted in docs.
+    expect(genreFamily("dance")).toBe("edm");
+    expect(genreFamily("dance commercial/mainstream club")).toBe("edm");
+    expect(genreFamily("groove")).toBe("groove");
+    expect(genreFamily("hard dance / hardcore")).toBe("edm");
   });
   test("junk and off-genre labels never vote (null)", () => {
     expect(genreFamily("Music")).toBeNull();

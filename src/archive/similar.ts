@@ -167,9 +167,14 @@ export interface GenreSeed {
 /** Normalize a raw genre string into a comparable label: lowercase, first
  * comma-separated token, strip parenthetical. "Music"/"unknown"/"fixme"
  * and empty are unusable seeds (the genre column has "Music" ×99 — a
- * YouTube-tier label that must not vote). */
+ * YouTube-tier label that must not vote). Also repairs ingestion escape
+ * artifacts (`r\u0026b`-style `\uXXXX` sequences measured in the live
+ * column — 19+ rows) before matching. */
 export function normalizeGenre(genre: string): string | null {
-  const base = genre
+  const unescaped = genre.replace(/\\u([0-9a-fA-F]{4})/g, (_m, h) =>
+    String.fromCharCode(Number.parseInt(h, 16)),
+  );
+  const base = unescaped
     .toLowerCase()
     .split(",")[0]
     ?.trim()
@@ -186,23 +191,41 @@ export function normalizeGenre(genre: string): string | null {
  * embedding space actually clusters. Null = too niche/off-genre to vote.
  * Order matters: "bass house" / "bassline" are bass-music usage, so the
  * bass family is checked BEFORE house. The final mapping is mutually
- * exclusive by construction (tested). */
+ * exclusive by construction (tested).
+ *
+ * 2026-09-14 additions are audit-driven (05-genre-audit §7): labels found
+ * unmapped on the live library, each verified against the Discogs-400
+ * head's audio placement — grime/jersey club/donk cluster with bass
+ * music; minimal/deep-tech/hard-tekk are techno families; eurodance/
+ * nightcore sit in EDM; IDM/chillwave/synthwave in mood; country in pop.
+ * Junk-URL labels (djsoundtop.com) are explicitly unusable. */
 const GENRE_FAMILY: [RegExp, string][] = [
   [
-    /drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke/,
+    /drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke|grime|jersey club|donk|wall slappers/,
     "bass",
   ],
   [/(?<!bass |afro )house|disco|garage|boogie/, "house"],
-  [/techno|melodic/, "techno"],
-  [/trance|psy/, "trance"],
+  [/techno|melodic|minimal(?! \/)|deep tech|hardtekk|softtekk|tekk/, "techno"],
+  [/trance|psy(?![a-z])/, "trance"],
   [/hip ?[- ]?hop|rap|trap/, "hiphop"],
-  [/edm|electro|big ?room|future (?!bass)|hardstyle|bounce/, "edm"],
-  [/pop|rock|indie|alternative|punk|metal|folk|singer/, "pop"],
+  [
+    /edm|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore/,
+    "edm",
+  ],
+  [
+    /pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson/,
+    "pop",
+  ],
   [
     /r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae/,
     "groove",
   ],
-  [/jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack/, "mood"],
+  [
+    /jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial/,
+    "mood",
+  ],
+  [/\bgroove\b/, "groove"],
+  [/\bdance\b|mainstream club|loop samples|dj tools/, "edm"],
 ];
 
 /** Normalized genre → vote family. Null when no family claims it. */

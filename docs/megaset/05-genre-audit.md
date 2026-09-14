@@ -1,11 +1,13 @@
 # MegaSet / FullTags — Genre Audit & Inclusion Policy
 
-v2 · 2026-09-14 · **Audit** → [PRD](01-prd.md) · [Benchmarks](04-sequencing-benchmarks.md) · [Analysis](03-competitive-analysis.md)
+v3 · 2026-09-14 · **Audit** → [PRD](01-prd.md) · [Benchmarks](04-sequencing-benchmarks.md) · [Analysis](03-competitive-analysis.md) · [Taxonomy sources & family map](07-genre-taxonomy-sources.md)
 
-> v2 changes: baselines refreshed post-`rb-comment-sync` (coverage 56%→94.4%),
+> v2: baselines refreshed post-`rb-comment-sync` (coverage 56%→94.4%),
 > LOO numbers corrected to full-population methodology (§5b.1 method note),
 > new §5c source-precedence ranking with measured file-tag round-trip
-> pollution.
+> pollution. v3: family map upgraded to 93.4% coverage with audio-verified
+> placements (§7 of the taxonomy doc); escape-artifact repair shipped;
+> Discogs-400 head evaluated as the ranked-secondary source.
 
 Questions this doc answers, with live data (`archive.db`, 3,458 genre-labeled
 of 3,664 downloaded rows, 2026-09-14):
@@ -247,10 +249,11 @@ ground-truth philosophy unchanged.
 | Inference for unlabeled (k=5 pinned by eval) | exists | —                                   |
 | Cluster-proposed labels                      | M      | everything above, later             |
 
-**Tower note (Sep 14):** the kNN in this plan now has a measured, better
-engine — an effnet+musicnn ensemble lifts leave-one-out family agreement
-from 41.3% (single effnet) to **46.3%** on the same 80-track harness.
-Tower choice, numbers, and adoption plan:
+**Tower note (Sep 14):** musicnn is the measured genre candidate on the
+80-track harness (**53.8%** leave-one-out family agreement vs 41.3% for
+effnet). The tested effnet+musicnn ensemble improves effnet to 46.3% but
+trails musicnn, so there is no production switch until the repaired harness
+repeats the result on the larger post-refold set. Tower numbers and gate:
 [06-embedding-models.md](06-embedding-models.md).
 
 ### 5c. Which source wins? (the "6 sources — do we take SoundCloud?" question)
