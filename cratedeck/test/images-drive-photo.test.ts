@@ -9,6 +9,7 @@ import {
   writeFileSync,
   rmSync,
   readdirSync,
+  readFileSync,
   existsSync,
   symlinkSync,
 } from "node:fs";
@@ -43,6 +44,9 @@ const PNG = Uint8Array.of(
   0,
   0,
   13,
+);
+const PNG_ALT = Uint8Array.from(PNG, (byte, index) =>
+  index === PNG.length - 1 ? byte ^ 0xff : byte,
 );
 
 const cfg = loadConfig(FIX);
@@ -204,6 +208,66 @@ describe("drive cover photos (dual-save)", () => {
     images.clear("d6");
     expect(readdirSync(join(cfg.imagesDir, "d6")).length).toBe(0);
     expect(readdirSync(stickPhotoDir()).length).toBe(0);
+  });
+
+  it("changing extensions leaves one canonical photo on each side", async () => {
+    freshStick();
+    seedDrive("d7", "DJPHOTO", true);
+    await images.choose("d7", { data: PNG, name: "first.png" });
+    await images.choose("d7", { data: PNG_ALT, name: "second.jpg" });
+
+    expect(readdirSync(join(cfg.imagesDir, "d7"))).toEqual(["photo.jpg"]);
+    expect(readdirSync(stickPhotoDir())).toEqual(["photo.jpg"]);
+    expect(images.photoPath("d7")).toEndWith("photo.jpg");
+  });
+
+  it("syncs same-size same-extension content changes by bytes", async () => {
+    freshStick();
+    seedDrive("d8", "DJPHOTO", true);
+    await images.choose("d8", { data: PNG, name: "first.png" });
+    await images.choose("d8", { data: PNG_ALT, name: "second.png" });
+
+    expect(readFileSync(join(stickPhotoDir(), "photo.png"))).toEqual(
+      Buffer.from(PNG_ALT),
+    );
+  });
+
+  it("clear() removes every canonical and stale photo sibling", () => {
+    freshStick();
+    seedDrive("d9", "DJPHOTO", true);
+    const local = join(cfg.imagesDir, "d9");
+    mkdirSync(local, { recursive: true });
+    mkdirSync(stickPhotoDir(), { recursive: true });
+    for (const name of ["photo", "photo.jpg", "photo.png"]) {
+      writeFileSync(join(local, name), PNG);
+      writeFileSync(join(stickPhotoDir(), name), PNG);
+    }
+
+    images.clear("d9");
+
+    expect(readdirSync(local)).toEqual([]);
+    expect(readdirSync(stickPhotoDir())).toEqual([]);
+  });
+
+  it("keeps the old canonical photo when the replacement write fails", async () => {
+    freshStick();
+    seedDrive("d10", "DJPHOTO", false);
+    const local = join(cfg.imagesDir, "d10");
+    mkdirSync(local, { recursive: true });
+    writeFileSync(join(local, "photo.png"), PNG);
+    class RejectingGuard extends Guard {
+      override async write(path: string, data: Uint8Array | string) {
+        if (path.endsWith("photo.jpg")) throw new Error("injected write fail");
+        await super.write(path, data);
+      }
+    }
+    const failingImages = new ImageService(cfg, db, new RejectingGuard(cfg));
+
+    await expect(
+      failingImages.choose("d10", { data: PNG_ALT, name: "second.jpg" }),
+    ).rejects.toThrow("injected write fail");
+    expect(readdirSync(local)).toEqual(["photo.png"]);
+    expect(readFileSync(join(local, "photo.png"))).toEqual(Buffer.from(PNG));
   });
 
   it("scan's walker skips Contents/CrateDeck (not DJ data)", async () => {
