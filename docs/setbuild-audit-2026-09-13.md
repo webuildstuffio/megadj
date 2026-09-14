@@ -2,8 +2,10 @@
 
 **Status:** 🧭 ACTIVE — plan for the next build-out rounds. Comparison superseded by the
 [30-comparator analysis](megaset/03-competitive-analysis.md) (10 OSS + 10 commercial +
-10 dream ideas, with the re-ranked roadmap); this doc keeps the OSS deep-dives and the
-phase-level implementation detail.
+10 dream ideas, with the re-ranked roadmap); sequencing-algorithm claims are now
+**measured** in [megaset/04-sequencing-benchmarks.md](megaset/04-sequencing-benchmarks.md)
+(E1–E5: greedy's 59% sparse-pool loss, 2-opt's +0.0% at scale, the beam-under-250 rule);
+this doc keeps the OSS deep-dives and the phase-level implementation detail.
 
 _2026-09-13. Scope: `cratedeck/src/setbuild.ts` (engine), `cratedeck/src/archive_similar.ts`
 (candidate pool), `cratedeck/shared/setbuild.ts` + `shared/camelot.ts` (wire SSOTs),
@@ -19,16 +21,16 @@ Companion to [docs/fulltags-roadmap.md](fulltags-roadmap.md) and
 
 ### 1.1 Live numbers
 
-| Measure | Value |
-|---|---|
-| Downloaded rows | 3,664 (full-shelf mirror landed Sep 12) |
-| Beats ledger | 3,610 · Mood 3,659 · Cues 3,605 · Embeddings 3,618 |
-| `track_keys` cache | 534 (healed Sep 12; rest served by rekordbox mirror / live reads) |
-| Rekordbox mirror rows | 3,563 (BPM ×100 + KeyName JSON) |
-| Fully analyzed (beats+mood) | 3,602 |
-| Distinct genres (case-folded) | 440 — badly fragmented (`House`/`house` both present) |
-| Engine speed @3,600 candidates | **6 ms** (pure, 60-min peak build) |
-| Live endpoint | ~0.4 s warm; pool 515 on the pre-mirror census |
+| Measure                        | Value                                                             |
+| ------------------------------ | ----------------------------------------------------------------- |
+| Downloaded rows                | 3,664 (full-shelf mirror landed Sep 12)                           |
+| Beats ledger                   | 3,610 · Mood 3,659 · Cues 3,605 · Embeddings 3,618                |
+| `track_keys` cache             | 534 (healed Sep 12; rest served by rekordbox mirror / live reads) |
+| Rekordbox mirror rows          | 3,563 (BPM ×100 + KeyName JSON)                                   |
+| Fully analyzed (beats+mood)    | 3,602                                                             |
+| Distinct genres (case-folded)  | 440 — badly fragmented (`House`/`house` both present)             |
+| Engine speed @3,600 candidates | **6 ms** (pure, 60-min peak build)                                |
+| Live endpoint                  | ~0.4 s warm; pool 515 on the pre-mirror census                    |
 
 ### 1.2 What the engine does today
 
@@ -43,19 +45,19 @@ shared parse (`parseSetbuildQuery`), one preset registry, one Camelot SSOT
 
 ### 1.3 Bugs & defects found this audit (ranked)
 
-| # | Severity | Finding | Evidence |
-|---|---|---|---|
-| B1 | **HIGH** | **Drive-offline pool collapse.** 3,656/3,664 rows report `missing_files` when SHELF1 is unmounted → pool 8, 3-step sets. The rekordbox mirror (3,563 rows, BPM+key) could score offline, but `setCandidates` hard-filters on file existence. | live probe during audit (drive asleep) |
-| B2 | **HIGH** | **Unbounded tempo drift.** A ±6%-per-step greedy chain compounds: measured 100 → 187.9 BPM (1.88×) in one 12-step climb. No global tempo anchor or drift budget; a "warm-up" can wander two genres away. | probe: tempo ladder test |
-| B3 | **MED** | **Arc shape uncontrolled mid-set.** Peak measured `6,7,7,6` — rises then falls before the end; nothing enforces monotone approach/hold/peak placement. The envelope is sampled at slot `t` but nothing prevents local reversals when energy-fit ties. | probe: arc test |
-| B4 | **MED** | **`valence` is dead data.** Stored, transmitted, never scored. Either use it (mood-lift bonus / darker-arc presets) or drop from the candidate wire to save payload. | engine read |
-| B5 | **MED** | **Greedy myopia.** Each slot takes the locally best track; a high-scoring next step can strand the chain (documented probe: picking `b` leaves no successors while `c→d` continues). No lookahead/backtracking. | probe: dead-end test |
-| B6 | **LOW-MED** | **No artist/diversity guard.** Nothing prevents 3 tracks by one artist back-to-back beyond coincidence; no genre-família spread either (440 raw genres make bucketing unavailable today). | engine read |
-| B7 | **LOW** | **`parseSetbuildQuery("abc")` silently defaults minutes.** Unknown preset errors (correct) but non-numeric minutes falls back to 60 with no signal. Minor honesty gap vs the "never silent fallback" principle. | probe |
-| B8 | **LOW** | **Half/double-time BPM not honored.** 87 vs 174 DnB scores 0 today; every serious comparator (djkr8, mixmaster, digcrate, auto-dj-ai) treats 2×/½× as mixable. Currently the pool is house/techno-centric so impact is latent. | probe |
-| B9 | **COSMETIC** | `OPENNER_MIN_NEIGHBORS` typo (opener). `duplicate_files` naming vs `duplicateFiles` internal. `key_reads` counts probes, not reads, in some paths. | code |
-| B10 | **NOTE** | **M3U8 export writes `#EXTINF` lines only from steps** — fine for players, but lacks the per-transition scores that rb-playlist dry-run prints; the two exports tell slightly different stories. | route read |
-| B11 | **NOTE** | `excluded` slice(0,40) is duplicated in route + MCP with the same magic number — should be a shared constant next to `SET_POOL_*`. | route/tools |
+| #   | Severity     | Finding                                                                                                                                                                                                                                               | Evidence                               |
+| --- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| B1  | **HIGH**     | **Drive-offline pool collapse.** 3,656/3,664 rows report `missing_files` when SHELF1 is unmounted → pool 8, 3-step sets. The rekordbox mirror (3,563 rows, BPM+key) could score offline, but `setCandidates` hard-filters on file existence.          | live probe during audit (drive asleep) |
+| B2  | **HIGH**     | **Unbounded tempo drift.** A ±6%-per-step greedy chain compounds: measured 100 → 187.9 BPM (1.88×) in one 12-step climb. No global tempo anchor or drift budget; a "warm-up" can wander two genres away.                                              | probe: tempo ladder test               |
+| B3  | **MED**      | **Arc shape uncontrolled mid-set.** Peak measured `6,7,7,6` — rises then falls before the end; nothing enforces monotone approach/hold/peak placement. The envelope is sampled at slot `t` but nothing prevents local reversals when energy-fit ties. | probe: arc test                        |
+| B4  | **MED**      | **`valence` is dead data.** Stored, transmitted, never scored. Either use it (mood-lift bonus / darker-arc presets) or drop from the candidate wire to save payload.                                                                                  | engine read                            |
+| B5  | **MED**      | **Greedy myopia.** Each slot takes the locally best track; a high-scoring next step can strand the chain (documented probe: picking `b` leaves no successors while `c→d` continues). No lookahead/backtracking.                                       | probe: dead-end test                   |
+| B6  | **LOW-MED**  | **No artist/diversity guard.** Nothing prevents 3 tracks by one artist back-to-back beyond coincidence; no genre-família spread either (440 raw genres make bucketing unavailable today).                                                             | engine read                            |
+| B7  | **LOW**      | **`parseSetbuildQuery("abc")` silently defaults minutes.** Unknown preset errors (correct) but non-numeric minutes falls back to 60 with no signal. Minor honesty gap vs the "never silent fallback" principle.                                       | probe                                  |
+| B8  | **LOW**      | **Half/double-time BPM not honored.** 87 vs 174 DnB scores 0 today; every serious comparator (djkr8, mixmaster, digcrate, auto-dj-ai) treats 2×/½× as mixable. Currently the pool is house/techno-centric so impact is latent.                        | probe                                  |
+| B9  | **COSMETIC** | `OPENNER_MIN_NEIGHBORS` typo (opener). `duplicate_files` naming vs `duplicateFiles` internal. `key_reads` counts probes, not reads, in some paths.                                                                                                    | code                                   |
+| B10 | **NOTE**     | **M3U8 export writes `#EXTINF` lines only from steps** — fine for players, but lacks the per-transition scores that rb-playlist dry-run prints; the two exports tell slightly different stories.                                                      | route read                             |
+| B11 | **NOTE**     | `excluded` slice(0,40) is duplicated in route + MCP with the same magic number — should be a shared constant next to `SET_POOL_*`.                                                                                                                    | route/tools                            |
 
 Non-bugs (verified healthy): determinism (identical chains on repeat runs), O(n log n)
 opener guard, budget double-count fix, NFC/casefold dedupe, relocation honesty counters,
@@ -76,7 +78,7 @@ freshness surfacing, preset-validation error path, all-24-key Camelot pins.
 Selection: closest functional neighbors across the feature space (sequencing
 algorithms, energy arcs, analysis, surfaces, write-off targets). Stars/activity
 checked 2026-09-13. All are small/hobby projects (0–9 stars) except Mixxx
-(reference implementation, not a set *planner* — included for its AutoDJ contract).
+(reference implementation, not a set _planner_ — included for its AutoDJ contract).
 
 ### 2.1 [schoi80/djkr8](https://github.com/schoi80/djkr8) — CP-SAT constraint solver ⭐9, MIT, Python
 
@@ -91,7 +93,7 @@ own (consumes RB metadata), no embeddings, fixed 1–5 energy from RB's (coarse)
 
 ### 2.2 [roneni/harmonic-flow](https://github.com/roneni/harmonic-flow) (HarmonySet) — Held-Karp TSP ⭐1, TS/Next.js
 
-Reorders an *existing* playlist (Rekordbox XML/Serato CSV/Traktor TXT upload) via
+Reorders an _existing_ playlist (Rekordbox XML/Serato CSV/Traktor TXT upload) via
 **Held-Karp exact DP ≤20 tracks**, greedy + **2-opt** local search beyond. Circle-of-fifths
 distance with relative maj/min bonuses; ramp-up/down/wave energy modes; 56+ key-format
 normalizer; quality score 0–100 + per-transition analysis + path visualization; 85 tests.
@@ -171,8 +173,8 @@ has neither; both are derivable (ffmpeg `ebur128`, Demucs optional).
 
 ### 2.10 [mixxxdj/mixxx](https://github.com/mixxxdj/mixxx) — AutoDJ contract reference (mature, huge)
 
-Not a planner — a player. But its AutoDJ processor defines the *playlist-consumer
-contract*: fade modes (**Full Intro+Outro** uses marked intro/outro lengths as crossfade
+Not a planner — a player. But its AutoDJ processor defines the _playlist-consumer
+contract_: fade modes (**Full Intro+Outro** uses marked intro/outro lengths as crossfade
 time; **Fade At Outro Start**; **Fade At Intro Start of next**), fixed transition seconds,
 queue manipulation, and now (PR #16063) **prerolled transitions for gapless playback**.
 Lesson: our M3U8/rb-playlist exports should carry the intro/outro cue windows so any
@@ -180,24 +182,24 @@ consumer (CDJ, Mixxx, a future automix leg) can execute the handoff without re-a
 
 ### 2.11 Feature matrix
 
-| Capability | megadj setbuild | djkr8 | HarmonySet | mixmaster | mcp-dj | digcrate | open-crate | pulsegrid | cuefield | auto-dj-ai | Mixxx |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| Own audio analysis | ✅ effnet+ffprobe | — (RB) | — | — (APIs) | ✅ Essentia | ✅ librosa | — | ✅ | ✅ | ✅ Essentia/Demucs | ✅ |
-| Key data | ✅ TKEY+RB mirror | RB | upload | API | RB+Essentia+MIK | librosa | import | own | own | Essentia | RB/analyzed |
-| Camelot scoring | ✅ | ✅ 3 levels | ✅ circle-of-5ths | ✅ directional | ✅ | ✅ 40% | ✅ | ✅ | ✅ | ✅ | n/a |
-| Half/double BPM | ❌ B8 | ✅ | — | ✅ | — | ✅ | — | ✅ | ✅ 2×/½× | ✅ octaves | ✅ |
-| Energy arc | ✅ 3 presets | ✅ constraint | ✅ 3 modes | ✅ YAML curves | ✅ 5 profiles | ✅ 25% term | ✅ arc | ✅ | ✅ windows | ✅ RMS curve | ❌ |
-| Sequencer power | greedy | **CP-SAT** | **Held-Karp+2-opt** | **beam** | greedy | LLM+validate | greedy swappable | planner | recipe router | score pick | queue |
-| Lookahead/repair | ❌ B5 | ✅ global | ✅ 2-opt | ✅ beam | ❌ | — | ❌ | — | — | — | — |
-| Landmark/seed tracks | opener only | — | — | ✅ | — | — | ✅ lock | ✅ cues | — | — | queue |
-| N-candidates compare | ❌ | — | ✅ before/after | ✅ | — | — | ✅ regenerate | — | — | — | — |
-| Diversity guard | ❌ B6 | energy only | — | genre buckets | MyTags | — | — | sections | structure | vocal clash | — |
-| Phrase/cue awareness | ❌ (data exists!) | — | — | — | — | — | — | ✅✅ | ✅✅ | ✅ phrase grid | ✅ intro/outro |
-| LUFS / vocal checks | ❌ | — | — | — | — | — | — | — | ✅ fail-closed | ✅✅ | ✅ |
-| Explain payload | partial (counters) | ✅ scores | ✅ per-transition | ✅ transition log | ✅✅ NL explain | ✅ gaps | ✅ honest engine | ✅ audit | ✅✅ evidence | ✅ | — |
-| Write-off to RB | ✅ rb-playlist (gated) | ✅ XML/DB | ❌ CSV | ✅ Spotify | ✅ playlist | ✅ XML | ❌ | ❌ player | ❌ player | ❌ | player |
-| MCP surface | ✅ | — | — | agent-ready CLI | ✅✅ | — | — | — | — | — | — |
-| Determinism | ✅ | solver (seeded?) | — | ✅ seed | — | — | ✅ | — | — | — | — |
+| Capability           | megadj setbuild        | djkr8            | HarmonySet          | mixmaster         | mcp-dj          | digcrate     | open-crate       | pulsegrid | cuefield       | auto-dj-ai         | Mixxx          |
+| -------------------- | ---------------------- | ---------------- | ------------------- | ----------------- | --------------- | ------------ | ---------------- | --------- | -------------- | ------------------ | -------------- |
+| Own audio analysis   | ✅ effnet+ffprobe      | — (RB)           | —                   | — (APIs)          | ✅ Essentia     | ✅ librosa   | —                | ✅        | ✅             | ✅ Essentia/Demucs | ✅             |
+| Key data             | ✅ TKEY+RB mirror      | RB               | upload              | API               | RB+Essentia+MIK | librosa      | import           | own       | own            | Essentia           | RB/analyzed    |
+| Camelot scoring      | ✅                     | ✅ 3 levels      | ✅ circle-of-5ths   | ✅ directional    | ✅              | ✅ 40%       | ✅               | ✅        | ✅             | ✅                 | n/a            |
+| Half/double BPM      | ❌ B8                  | ✅               | —                   | ✅                | —               | ✅           | —                | ✅        | ✅ 2×/½×       | ✅ octaves         | ✅             |
+| Energy arc           | ✅ 3 presets           | ✅ constraint    | ✅ 3 modes          | ✅ YAML curves    | ✅ 5 profiles   | ✅ 25% term  | ✅ arc           | ✅        | ✅ windows     | ✅ RMS curve       | ❌             |
+| Sequencer power      | greedy                 | **CP-SAT**       | **Held-Karp+2-opt** | **beam**          | greedy          | LLM+validate | greedy swappable | planner   | recipe router  | score pick         | queue          |
+| Lookahead/repair     | ❌ B5                  | ✅ global        | ✅ 2-opt            | ✅ beam           | ❌              | —            | ❌               | —         | —              | —                  | —              |
+| Landmark/seed tracks | opener only            | —                | —                   | ✅                | —               | —            | ✅ lock          | ✅ cues   | —              | —                  | queue          |
+| N-candidates compare | ❌                     | —                | ✅ before/after     | ✅                | —               | —            | ✅ regenerate    | —         | —              | —                  | —              |
+| Diversity guard      | ❌ B6                  | energy only      | —                   | genre buckets     | MyTags          | —            | —                | sections  | structure      | vocal clash        | —              |
+| Phrase/cue awareness | ❌ (data exists!)      | —                | —                   | —                 | —               | —            | —                | ✅✅      | ✅✅           | ✅ phrase grid     | ✅ intro/outro |
+| LUFS / vocal checks  | ❌                     | —                | —                   | —                 | —               | —            | —                | —         | ✅ fail-closed | ✅✅               | ✅             |
+| Explain payload      | partial (counters)     | ✅ scores        | ✅ per-transition   | ✅ transition log | ✅✅ NL explain | ✅ gaps      | ✅ honest engine | ✅ audit  | ✅✅ evidence  | ✅                 | —              |
+| Write-off to RB      | ✅ rb-playlist (gated) | ✅ XML/DB        | ❌ CSV              | ✅ Spotify        | ✅ playlist     | ✅ XML       | ❌               | ❌ player | ❌ player      | ❌                 | player         |
+| MCP surface          | ✅                     | —                | —                   | agent-ready CLI   | ✅✅            | —            | —                | —         | —              | —                  | —              |
+| Determinism          | ✅                     | solver (seeded?) | —                   | ✅ seed           | —               | —            | ✅               | —         | —              | —                  | —              |
 
 ---
 
@@ -215,7 +217,7 @@ runtime deps without the release-age floor; algorithms stay pure functions in
    an honest freshness/staleness line ("proposing from mirror metadata; shelf asleep").
    Keys/BPM from mirror, durations fall back to 300 s. Drives nothing.
 2. **B2 tempo anchor:** opener pick sets `anchorBpm`; `transitionScore` gains a soft
-   `tempoDrift` term — distance of candidate BPM from the *arc-local target* (anchor
+   `tempoDrift` term — distance of candidate BPM from the _arc-local target_ (anchor
    lerped toward `preset.tempoTarget ?? anchor`), not just from `prev`. Hard drift budget:
    reject chains whose total drift exceeds ±2 half-steps of the anchor unless every step
    is a 2×/½× relation. Regression: ladder test pins max drift.
@@ -279,18 +281,18 @@ runtime deps without the release-age floor; algorithms stay pure functions in
     target overlap window) and print them in M3U8 (`#EXTREM` comments) + rb-playlist
     dry-run. This is planning, not playback — propose-only stands.
 17. **rb-playlist dry-run explain:** adopt cuefield's evidence shape — per-step
-    `{keyScore, tempoScore, fit, phrasePair}` rows so the dry run *shows the math*.
+    `{keyScore, tempoScore, fit, phrasePair}` rows so the dry run _shows the math_.
 18. **Consumer contract:** M3U8 comments carry `#EXTGENRE`-style intro/outro windows
     (Mixxx AutoDJ fade-mode semantics) so the export is executable, not just a list.
 
 ### Sequencing & estimates
 
-| Phase | Ships | Size |
-|---|---|---|
-| A | B1,B2,B3,B7,B9,B11,B12,B13 + regressions | 1 focused session |
-| B | 7–11 (10 and 11 independently flag-gated) | 1–2 sessions |
-| C | 12–15 | 1–2 sessions |
-| D | 16–18 (16 needs a cues-join + engine extension) | 2 sessions |
+| Phase | Ships                                           | Size              |
+| ----- | ----------------------------------------------- | ----------------- |
+| A     | B1,B2,B3,B7,B9,B11,B12,B13 + regressions        | 1 focused session |
+| B     | 7–11 (10 and 11 independently flag-gated)       | 1–2 sessions      |
+| C     | 12–15                                           | 1–2 sessions      |
+| D     | 16–18 (16 needs a cues-join + engine extension) | 2 sessions        |
 
 Order rationale: A unblocks trust in every proposal (offline collapse is the #1 live
 failure); B and C compound on the same tests; D is the market differentiator and wants
@@ -304,6 +306,6 @@ row, MCP twin assertion where a param is added).
 - No solver dependency (OR-Tools/Held-Karp) — greedy+2-opt is enough at n≈520-pool/3,600
   census and keeps the pure-TS no-native-deps shape.
 - No LLM in the scoring path (digcrate/mcp-dj style planning is available through the
-  agent surface anyway — MCP *is* our natural-language front end).
+  agent surface anyway — MCP _is_ our natural-language front end).
 - No playback/automix execution — propose-only, hardware-gated; rb-playlist remains the
   only writer, behind its existing gates.

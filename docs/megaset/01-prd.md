@@ -1,6 +1,6 @@
 # MegaSet — PRD
 
-v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Audit & plan](../setbuild-audit-2026-09-13.md)
+v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Audit & plan](../setbuild-audit-2026-09-13.md)
 
 **Status:** ✅ graduated product (v0 shipped propose-only, Sep 11–12 2026; doc set
 since Sep 14) — greedy Camelot/energy-arc engine, whole-library pool, CLI + HTTP +
@@ -25,7 +25,7 @@ A DJ prepping a set from a 3,600-track archive has three bad options:
    knows nothing about the actual files.
 3. Run a random playlist shuffler and hope the wheels don't clash.
 
-The library is already *measured* — FullTags analyzed every track for BPM,
+The library is already _measured_ — FullTags analyzed every track for BPM,
 mood, key, and phrase structure. What was missing is the brain that turns
 those measurements into an order, with every decision inspectable and
 nothing written behind the DJ's back.
@@ -116,7 +116,7 @@ DJ picks between good options instead of debugging one.
 ## F7 — The handoff layer (v1+, Phase D — the differentiator)
 
 3,605 tracks × ~17–20 8-bar phrase cues and full downbeat grids already
-sit in the ledgers, unused by sequencing. MegaSet v1 plans the *handoff*:
+sit in the ledgers, unused by sequencing. MegaSet v1 plans the _handoff_:
 per-step `mixOutCue`/`mixInCue` at 8-bar boundaries, carried into M3U8
 comments and rb-playlist dry-run explain rows — turning an ordered list
 into an executable transition plan. Nothing in the 10-project comparison
