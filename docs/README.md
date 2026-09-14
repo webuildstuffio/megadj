@@ -86,11 +86,12 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 
 ## Operations and incident references
 
-- [USB sync pipeline](usb-sync.md) — shelf/master/mirror workflow.
+- [Playing USB boundary](usb-sync.md) — SHELF1 preparation, user-owned export,
+  and read-only verification.
 - [Intake and cue postmortem](intake-cue-postmortem.md) — executed incident
   analysis and remaining follow-up.
-- [Shelf hygiene snapshot](shelf-hygiene-2026-09-09.md) — shipped Sep 9–10
-  dedupe/hygiene record.
+- [Shelf hygiene snapshot](shelf-hygiene-2026-09-09.md) — Sep 9–10 record
+  with current detector and restore-surface limits.
 - [Source-layout refactor](src-layout-refactor.md) — completed proposal and
   migration receipt; historical paths in the proposal are labeled as such.
 

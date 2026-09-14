@@ -88,10 +88,11 @@ separate — live DB writes never happen inside an automated pipeline:
    batch folder from the SHELF volume (`/Volumes/SHELF1/Contents/…`),
    **never from a local folder** — dragging locals registers Mac paths and
    breaks stick parity.
-4. Let rekordbox analyze; export to the sticks per the
-   `rekordbox-usb-sync` skill (pdb/OneLibrary parity gate).
+4. Let rekordbox analyze, then stop at the handoff: the user exports to the
+   playing USB. Agents never sync, mirror, or write that device.
 
-Full mechanics: `.claude/skills/rekordbox-usb-sync/SKILL.md`.
+The ownership boundary and read-only verification guidance live in
+`.claude/skills/rekordbox-usb-sync/SKILL.md`.
 
 ## Health checks after any intake
 

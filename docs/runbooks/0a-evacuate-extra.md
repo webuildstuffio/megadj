@@ -14,9 +14,8 @@ diskutil info /Volumes/Extra | grep -E "SMART|Mounted|File System"
 ```
 
 If it does not mount, or mounts read-only, STOP — the copy window may be
-closed; do not run tools against a drive that is dropping off the bus.
-(If it unmounts mid-copy: the rsync below is resumable — remount, re-run,
-it picks up where it left off.)
+closed; do not run tools against a drive that is dropping off the bus. If it
+unmounts mid-copy, remount and resume only the interrupted top-level item.
 
 ## 1. Copy first, triage later (the whole point of 0a)
 
@@ -24,38 +23,50 @@ Destination: a healthy disk with ≥ the Extra volume's used space. If a
 spare USB drive is the destination, use a NEW volume name (e.g. `EXTRA-EVAC`)
 so CrateDeck never registers it as the same drive.
 
-```sh
-# —dry-run first, then run for real. Never --delete. Archive mode keeps
-# everything (this is an evidence-preserving evacuation, not a sync).
-rsync -av --progress /Volumes/Extra/ /Volumes/<DEST>/
-```
-
-If the destination is a folder on the Mac instead:
+Do not use whole-volume rsync on ExFAT; it can wedge and make the shrinking
+copy window worse. Create a dedicated destination, then copy one directory
+under `Contents/` at a time with a foreground tar-pipe. Record source and
+destination file counts after every item so an interrupted run resumes at
+that item rather than restarting the entire music tree.
 
 ```sh
-rsync -av --progress /Volumes/Extra/ ~/Documents/extra-evac/
+mkdir -p /Volumes/EXTRA-EVAC
+mkdir -p /Volumes/EXTRA-EVAC/Contents
+
+# Inventory the immediate directories, then repeat the three commands below
+# for one exact name at a time (the example name is illustrative).
+fd --hidden --no-ignore --max-depth 1 --min-depth 1 -t d . /Volumes/Extra/Contents
+
+fd --hidden --no-ignore -t f . "/Volumes/Extra/Contents/Artist Folder" | wc -l
+(cd /Volumes/Extra/Contents && tar -cf - "Artist Folder") | \
+  (cd /Volumes/EXTRA-EVAC/Contents && tar -xpf -)
+fd --hidden --no-ignore -t f . "/Volumes/EXTRA-EVAC/Contents/Artist Folder" | wc -l
 ```
+
+Repeat that exact-name pattern for every immediate directory under
+`Contents/`. Copy loose files under `Contents/` and other top-level volume
+items individually with `cp -p`; for another directory tree, use the same
+one-directory tar-pipe pattern. Never combine the volume into one job. Keep
+the process attached to the foreground; background jobs may be reaped.
 
 ## 2. Hash spot-check (usb_verify.py-style — do not skip)
 
-The rsync exit code is NOT enough on a dying source. Verify what matters
+The copy exit code and file counts are NOT enough on a dying source. Verify what matters
 by content hash, in this order:
 
 ```sh
-# 1. the rekordbox libraries (the irreplaceable DBs)
-shasum -a 256 /Volumes/Extra/PIONEER/* /Volumes/Extra/Contents/library/* 2>/dev/null
-shasum -a 256 /Volumes/<DEST>/PIONEER/* /Volumes/<DEST>/Contents/library/* 2>/dev/null
-# → compare by hand; every line must match
-
-# 2. full-tree manifest diff (catches silent corruption anywhere)
-cd /Volumes/Extra    && find . -type f -exec shasum -a 256 {} + | sort -k 2 > /tmp/extra-src.sha
-cd /Volumes/<DEST>   && find . -type f -exec shasum -a 256 {} + | sort -k 2 > /tmp/extra-dst.sha
+# Full-tree manifests catch silent corruption anywhere. Run each command from
+# the volume root so both manifests contain the same relative path names.
+cd /Volumes/Extra && fd --hidden --no-ignore -0 -t f . . | \
+  sort -z | xargs -0 shasum -a 256 > /tmp/extra-src.sha
+cd /Volumes/EXTRA-EVAC && fd --hidden --no-ignore -0 -t f . . | \
+  sort -z | xargs -0 shasum -a 256 > /tmp/extra-dst.sha
 diff /tmp/extra-src.sha /tmp/extra-dst.sha && echo EVAC-VERIFIED
 ```
 
 `EVAC-VERIFIED` on the full diff = done. Any mismatch: re-copy that file
-(`rsync` again — it re-transfers mismatches), and note the file in the
-sync log — a file that will not verify on a dying drive may be already gone.
+individually, re-hash it, and note it in the sync log. A file that will not
+verify on a dying drive may already be gone.
 
 ## 3. Record the verdict
 

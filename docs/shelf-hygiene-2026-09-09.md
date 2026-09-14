@@ -1,9 +1,9 @@
 # Shelf Hygiene & Dedupe — Sep 9 2026 Session
 
-**Status:** ✅ SHIPPED — the spec in this doc was built and landed Sep 10
-2026 (P2+P3, commit 7754756): `megadj shelf-hygiene` + `deckctl hygiene` +
-`deck_hygiene` + the Hygiene tab (the shelf-intake skill's hygiene step is
-the one Phase-6 item still open). The landed code is the truth:
+**Status:** 🟡 PARTIAL — the Sep 10 core shipped, but this snapshot previously
+overstated detector and restore-surface coverage. `megadj shelf-hygiene` +
+`deckctl hygiene` + `deck_hygiene` + the Hygiene tab are live, and
+`megadj shelf-restore` is the CLI-only restore seam. The landed code is the truth:
 `src/archive/hygiene/` (engine/store/apply), `cratedeck/src/hygiene_*.ts` (API/job/
 reader), parity pinned by `cratedeck/test/surface-parity.test.ts`; current
 state lives in [product-state-2026-09-07.md](product-state-2026-09-07.md),
@@ -63,24 +63,31 @@ re-download "Eat Me Better".
    Cassian/Kassian are different artists; human review with album/genre
    context is mandatory for anything not byte/fp-proven.
 5. **`os.remove` bypasses the Trash** ("Eat Me Better" became
-   unrecoverable) — destructive ops default to recoverable quarantine;
-   empty-quarantine is the only true delete, double-confirmed.
+   unrecoverable) — destructive ops default to recoverable quarantine. No
+   empty-quarantine command or remote surface has shipped.
 6. **Deletions need a frozen keep-list approved BEFORE execution.**
 7. **exFAT materializes `._` AppleDouble forks lazily** — filter
    `._`/`.DS_Store` in every walk and quarantine dir.
 
-## 4. The shipped feature (what the spec became)
+## 4. Current implementation
 
-`megadj shelf-hygiene --json` computes findings into the
-`hygiene_findings` ledger (kinds: byte-twin, acoustic-twin, folder-variant,
-spelling-typo, truncated-name, zero-byte, appledouble-junk, stale-pointer,
-orphan-audio, re-download; severity safe/likely/review/info — **only
-`safe` ever auto-applies**, and auto-apply means quarantine). The status
-machine is `open → confirmed → applied` or `open → dismissed`; apply moves
-to quarantine with restore affordances; post-apply validation re-md5s
-keepers, re-fps losers, and checks the file-count delta before showing a
-receipt. The web surface follows the two-thirds UX law: verdict banner →
-fix-first queue with Copy-able fix commands → evidence confirm dialogs.
+`megadj shelf-hygiene --json` computes five live finding kinds into the
+`hygiene_findings` ledger: `appledouble-junk`, `byte-twin`, `acoustic-twin`,
+`folder-variant`, and `zero-byte`. The status machine is
+`open → confirmed → applied` or `open → dismissed`; **only `safe` findings
+ever auto-apply**, and apply means quarantine. Post-apply validation re-MD5s
+keepers, re-fingerprints losers, and checks the file-count delta before
+showing a receipt.
+
+`megadj shelf-restore <finding-id|path> [--into F]` restores a quarantined
+file through the ledger and hash gates. Restore is not implemented in the
+Hygiene tab, API, or MCP, and no empty-quarantine path exists. The planned
+`truncated-name`, `stale-pointer`, `orphan-audio`, and `re-download` detectors
+are not registered; the planned `spelling-typo` kind is also absent (the live
+`folder-variant` check handles token-set variants, not typo heuristics).
+
+The web surface provides the verdict, fix queue, and evidence-backed
+confirmation flow for the live checks.
 Non-goals, unchanged from the spec: no auto-downloading music, no
 rekordbox DB writes (handoff stays instructional, #7), no background
 auto-apply without human confirm, no second source of truth outside the

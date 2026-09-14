@@ -179,7 +179,7 @@ help|dismiss` + `deck_help`/`deck_dismiss`), closing the last two true
   census from source the same day (every count below re-derived from
   `src/cli.ts`, `cratedeck/src/deckctl.ts`,
   `cratedeck/src/mcp.ts` + `archive_tools.ts`, `cratedeck/src/index.ts`,
-  `cratedeck/web/*.tsx`) and closed every remaining closeable exemption:
+  `cratedeck/web/**/*.tsx`) and closed every remaining closeable exemption:
   D1 (`report --dossier` + `deck_report {format: "dossier"}`),
   D2-rename (`deckctl rename` + `deck_rename`), G2 (Fleet ⌗ Prep tab),
   A3 (Fleet ⌗ Archive tab). Rev 2 closed GAP-1/2/3 (UI Mirror button,
@@ -289,7 +289,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Library overview (FullTags mirror)                | `megadj fetch`/`audit` data ✅                                                                  | `archive_library_overview` ✅                             | FullTags ⌗ Tags + GetDat ⌗ Library ✅                                                            | — (rev 6)                                                                     |
 | Skip census (why rows didn't land)                | `megadj list` buckets ✅                                                                        | `archive_skip_census` ✅                                  | GetDat ⌗ Pipeline (decisions card) + Backlog ✅                                                  | — (rev 7)                                                                     |
 | Source census                                     | `megadj list` sources ✅                                                                        | `archive_sources` ✅                                      | GetDat ⌗ Sources (tag chips feed the diff form) ✅                                               | — (rev 7)                                                                     |
-| Analysis coverage                                 | `megadj beats                                                                                   | mood                                                      | cues` counts ✅                                                                                  | `archive_analysis_coverage` ✅                                                | FullTags header meters (one progress picture) ✅ | — (rev 7) |
+| Analysis coverage                                 | `megadj beats`, `mood`, and `cues` counts ✅                                                    | `archive_analysis_coverage` ✅                            | FullTags header meters (one progress picture) ✅                                                 | — (rev 7)                                                                     |
 | Archive integrity sweep                           | Prep digest (`archive integrity` section) ✅                                                    | `archive_sweep` ✅                                        | Fleet ⌗ Prep (digest section) ✅                                                                 | — (D30)                                                                       |
 | Rename drive                                      | `rename <d> [nick]` ✅                                                                          | `deck_rename` ✅                                          | inline rename ✅                                                                                 | — (D2-rename closed rev 3)                                                    |
 | Set drive photo                                   | —                                                                                               | ⛔ §4-D2 (human picks the art)                            | Photo tab ✅                                                                                     | —                                                                             |
@@ -407,7 +407,7 @@ honest, in order of strength:
    from the actual files (the `*_COMMANDS` family registries delegated by
    `src/cli.ts` +
    `deckctl.ts`, tool keys in `mcp.ts`, `route ===`/`sub ===` literals
-   in `index.ts`, `run("`/`api(` strings in `web/*.tsx`) and asserts:
+   in `index.ts`, `run("`/`api(` strings in `web/**/*.tsx`) and asserts:
    - every megadj CLI command appears in `src/usage.ts`'s help (a
      command the help can't show is half an agent surface — rev 13);
    - every deckctl verb has an MCP twin **or** an exemption-tagged skip;
@@ -417,9 +417,9 @@ honest, in order of strength:
      regression; they each dropped a kind once already);
    - the help SSOT and note dismissal are reachable from all three
      surfaces (GAP-10/11 can't quietly reopen);
-   - every mutating MCP tool keeps `destructive: true` + interlock
-     guard (source scan for `deck_run`/`deck_cancel`/`deck_note`/
-     `deck_rename`/`deck_dismiss`);
+   - every mutating MCP tool keeps `destructive: true` plus its required
+     server-side guard (source scan for `deck_run`/`deck_cancel`/
+     `deck_hygiene`/`deck_fixes`/`deck_note`/`deck_rename`/`deck_dismiss`);
    - every `archive_*` tool source keeps the `readonly` DB handle;
    - census numbers match this doc's §1 table (the doc and the code
      can't drift apart silently).

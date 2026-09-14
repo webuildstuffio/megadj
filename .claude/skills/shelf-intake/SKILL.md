@@ -131,6 +131,7 @@ bun src/cli.ts shelf-archive A B C --json              # the real thing
 bun src/cli.ts shelf-archive A B C --deep --dry-run --json  # prove
 ```
 
-Long drives (100+ GB) can outlive one tool call — run the command in the
-background and poll, or run per-volume. The sweep is resumable by nature
-(already-copied files classify as covered on the next run).
+Long drives (100+ GB) can outlive one tool call. Keep the process in the
+foreground and use resumable per-directory chunks with file-count checkpoints;
+background jobs on this machine may be reaped. Already copied files classify
+as covered on the next run.

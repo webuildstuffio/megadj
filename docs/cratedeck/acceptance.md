@@ -1,12 +1,13 @@
 # CrateDeck — Acceptance Status
 
-**Status:** 🟡 BLOCKED — code gates are verified; four hardware checks and one release tag remain.
+**Status:** 🟡 BLOCKED — code gates are verified; three hardware checks and the
+release-policy decision in issue #29 remain.
 
 Tracks the PRD (F1–F10) and build-plan milestone acceptance items. Evidence
 here is **code-verified only** (file/route/test existence in `cratedeck/`).
 Items marked ☐ require real-hardware runs (gig drives) — those stay manual
 by design ("real gig drives stay manual — the Python tools already carry
-that trust", architecture §9). Last audited: 2026-09-11.
+that trust", architecture §9). Last audited: 2026-09-14.
 
 ## Milestones
 
@@ -23,11 +24,11 @@ that trust", architecture §9). Last audited: 2026-09-11.
 ## Evidence map (code)
 
 - **F1 registry & ghosts** — `src/registry.ts`, `src/db.ts` (drives/events/
-  snapshots tables), ghost rendering in `web/App.tsx`
+  snapshots tables), ghost rendering in `web/app/App.tsx`
 - **F2 detection & ports** — `src/detect.ts` (FSEvents + diskutil), port
   route `GET /ports`, `python/usb_tree.py`
-- **F3 photo identity** — `src/images.ts`, picker in `web/`, cached under
-  `data/images/`
+- **F3 photo identity** — `src/images.ts`, picker in
+  `web/products/cratedeck/PhotoTab.tsx`, cached under `data/images/`
 - **F4 rekordbox introspection** — `src/rb.ts` (the seam) +
   `python/rb_read.py`, light scan in `src/scan.ts`
 - **F5 sync status** — master/mirror parity in `src/report.ts`
@@ -36,13 +37,14 @@ that trust", architecture §9). Last audited: 2026-09-11.
   interlock route + banner
 - **F7 health & corruption** — `src/report.ts` (dual-DB gate, grids, space,
   bitrot ledger, junk), junk detection in `src/scan.ts`
-- **F8 timeline** — events table + `GET /drives/:id/timeline`, `web/TimelineTab.tsx`
-  (day grouping, event icons, kind chips)
-- **F9 cockpit UI** — hash-routed two-pane UI: `web/router.ts` (deep
-  links), `web/DriveRail.tsx` (cards incl. ghosts), `web/DrivePage.tsx`
-  (tabs: `PlaylistsTab`, `HealthTab`, `TimelineTab`), `web/JobsDock.tsx`,
-  interlock banner, `toast.tsx`. No drawer — the rail is always visible and
-  the canvas is the drive page.
+- **F8 timeline** — events table + `GET /drives/:id/timeline`,
+  `web/products/cratedeck/TimelineTab.tsx` (day grouping, event icons, kind chips)
+- **F9 cockpit UI** — hash-routed two-pane UI: `web/app/router.ts` (deep
+  links), `web/products/cratedeck/DriveRail.tsx` (cards incl. ghosts),
+  `web/products/cratedeck/DrivePage.tsx` (tabs: `PlaylistsTab`, `HealthTab`,
+  `TimelineTab`), `web/ui/JobsDock.tsx`, interlock banner, and
+  `web/ui/toast.tsx`. No drawer — the rail is always visible and the canvas
+  is the drive page.
 - **F10 extras** — dossier export (`GET /drives/:id/export` incl. report),
   deckctl CLI (`cratedeck/src/deckctl.ts`, agent-facing with interlock
   exit codes); gig mode + new-music radar remain → [../ideas.md](../ideas.md) B/F
@@ -50,8 +52,8 @@ that trust", architecture §9). Last audited: 2026-09-11.
 ## Sep 2026 UI redesign (verified end-to-end)
 
 Drawer replaced by an always-visible left rail + main canvas, hash-routed
-(`web/router.ts`). Redesigned: SVG icon set (`web/icons.tsx`), design tokens
-(`web/styles.css`), drive rail cards (health ring, role chips, space bar,
+(`web/app/router.ts`). Redesigned: SVG icon set (`web/ui/icons.tsx`), design
+tokens (`web/styles/`), drive rail cards (health ring, role chips, space bar,
 ghost styling), Overview hero + grouped checks, Playlists browser (search/
 sort/folders), Health tab (SVG bench chart, stat cards, folder bars),
 Timeline (icons, day grouping, kind chips), Photo tab (search/clear),
@@ -91,4 +93,6 @@ superset/behind, artwork coverage, space/df, NFC+casefold).
 - [x] Build plan M6: SIGKILL recovery is regression-tested against a real
       child-process crash; snapshot/event retention is bounded on both the
       write path and database reopen (`test/issue-33-crash-recovery.test.ts`).
-- [ ] Release: tag `cratedeck-v0.1.0` (tracked separately from M6 hardening)
+- [ ] Release: decide and execute the release policy in issue #29. Packages
+      currently report `0.2.0`, while the repository has no release tag; this
+      checklist does not invent a tag.

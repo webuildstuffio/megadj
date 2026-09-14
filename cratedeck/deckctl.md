@@ -93,8 +93,11 @@ data reports `unknown` (exit 1) so a cron can schedule the missing scan.
 
 - Jobs are refused with exit 3 while rekordbox is open (pid included in the
   message). This is the interlock — never bypass it; quit rekordbox instead.
-- Everything except job execution is read-only. Scans/verifies/checksums never
-  write to the drive.
+- Read commands and scan/verify/checksum jobs do not write to the drive.
+  Notes, nicknames, dismissals, hygiene decisions, fixes, and job control do
+  mutate local state; their command/tool descriptions identify the boundary.
+- `mirror` is a legacy write job. Agents must not enqueue it for the
+  user-managed playing USB; that device is user-staged.
 - `verify` is slow (hashes every file, minutes). `scan` is ~10–60s.
   First `checksum` run hashes the whole library; later runs only hash files
   whose size/mtime changed.
@@ -187,11 +190,12 @@ Agent attribution (O87): jobs enqueued through MCP are stamped
 timeline events, so "why did this verify run at 3am" is answerable from
 `deckctl jobs` or the drive page.
 
-`deck_run`/`deck_cancel`/`deck_note` are the only mutating tools
-(`deck_cancel` is a
-push on an in-flight job; `deck_run` refuses while rekordbox is running —
-the interlock is enforced server-side too, belt _and_ suspenders, never a
-bypass). The `archive_*` tools are O82b: readonly reads over megadj's own
+The mutating `deck_*` tools are `deck_run`, `deck_cancel`, `deck_hygiene`,
+`deck_fixes`, `deck_note`, `deck_rename`, and `deck_dismiss`. The first four
+can enqueue or apply work; the latter three change human-visible state. Their
+destructive annotations and server-side guards are pinned by the parity
+tests. `deck_run` refuses while rekordbox is running; never bypass the
+interlock. The `archive_*` tools are O82b: readonly reads over megadj's own
 archive DB (`MEGADJ_DB`, opened `readonly: true` — a bug there physically
 cannot corrupt archive state).
 
