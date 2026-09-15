@@ -71,8 +71,11 @@ junk prefix (audio bytes survive; the embedded ID3 chunk keeps tags).
 
 Distrust SoundCloud genres too: `yt-dlp` search metadata returns a
 numeric SC genre ID, never a name. Both write points (`art-sources.ts`
-hit filter, `applyScGenre`) refuse numeric/`Music` genres; ID→name
-resolution goes through the `sc_genre_ids` cache (track-page scrape).
+hit filter, `applyScGenre`) refuse numeric/`Music` genres. (The
+`sc_genre_ids` ID→name cache table exists in archive.db but its
+writer was never committed — treat as orphaned data, see
+docs/fulltags/genre-pipeline.md §5, until a proper resolution command
+ships.)
 Every master.db write must hard-gate on rekordbox being closed — RB's
 in-memory state silently overwrites external edits on quit; verify with
 a delayed re-read, not just a successful commit.

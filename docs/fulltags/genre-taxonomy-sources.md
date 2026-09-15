@@ -33,6 +33,15 @@ niche labels that Beatport hasn't admitted yet, but it will never gain a
 new genre. SoundCloud fields are artist free-text: the _raw_ provenance of
 most of our mess.
 
+**Where the other fetch sources sit (full inventory in
+[genre-pipeline §2](genre-pipeline.md)):** MusicBrainz folksonomy tags
+(`megadj enrich`) are a community-curated gap-filler — same trust class
+as Discogs (community), artist-level granularity; not a display
+authority. Beatport store tags arrive twice: as lookup votes at fetch
+time (W3) and as curated file tags on pool rips at ingest (W6). Bandcamp
+is NOT yet a fetch arm (queued — audit §5b.3.6); today Bandcamp enters
+only via ingested rip tags.
+
 For your specific example: **`hip-hop` is the standard form** — Beatport
 (added 2025), Discogs (`Hip Hop`), and Every Noise all agree on the
 hip-hop/rap axis, and our library's dominant spellings (`hip-hop` 116,
@@ -146,7 +155,9 @@ is formatting, not semantics. Measured:
 - Multi-genre slash-soup (389 rows) that's real signal in the wrong shape
 
 That's a **sanitization problem, not a trust problem** — the 58.7%
-audio-consistency of ingest-pool labels vs 62.2% for RB shows no label
+audio-consistency of ingest-pool labels vs 62.2% for RB (v2 numbers,
+superseded by the v3 re-measure in [genre-audit](genre-audit.md) §5c:
+RB **58.4%** CI [56.4, 60.2] vs ingest **53.1%** CI [48.6, 58.0]) shows no label
 source is audio-truth anyway; SC free-text is just the _least formatted_
 of them.
 
@@ -269,3 +280,8 @@ towers on demand.
    the DJ choose Tier-1-only vs Tier-1+Tier-3 display. The DB stays the
    multi-value SSOT (ID3v2.3 TCON carries one slash-joined primary — file
    tags remain output-only).
+6. **`sc_genre_ids` orphan (S)** — the ID→name cache in archive.db (269
+   rows) has no committed writer/reader; either ship a proper
+   `megadj genre sc-resolve` command (track-page scrape, committed) or
+   drop the table and the AGENTS.md mention. Tracked in
+   [genre-pipeline §5](genre-pipeline.md).

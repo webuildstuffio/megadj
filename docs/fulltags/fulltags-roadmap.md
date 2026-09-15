@@ -1,4 +1,4 @@
-# FullTags — Prioritized Roadmap (rev 7.3)
+# FullTags — Prioritized Roadmap (rev 7.4)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
 
@@ -40,6 +40,17 @@ LIVE file read as ground truth beside both mirrors with the lossless
 rb payload expandable. Read-only throughout; census never touches
 files (null = "no claim", not a conflict — absence of evidence must
 not bury real differences)._
+
+_Rev 7.1, 2026-09-15: **genre docs alignment pass** — the three genre
+docs now tell ONE story: pipeline doc §2 is the full write-source
+inventory (7 paths, including `megadj ingest` W6 and MusicBrainz `megadj
+enrich` W5 that v1 missed); §5c audit table extended with MB + the
+getdat `Music` mint; stale claims corrected (`genre --report`,
+`genre-aliases.ts` — neither exists; superseded v2 per-source numbers
+annotated); `sc_genre_ids` cache identified as orphaned (no committed
+writer); label-legitimacy spot-check recorded (exa searches: the
+unmapped tail is ~⅔ real genres, ~⅓ correctly-refused junk). No code
+changes in this pass — docs only._
 
 _Rev 7.0, 2026-09-15: **the Sep 15 genre quality sprint closed and the
 roadmap re-ranked by its verdicts.** Shipped in one day: Tier-0
@@ -391,13 +402,21 @@ the OpenKeyScan SSOT decision (#3).
 > disagreements; umbrella block down to 250/78 and now abstaining).
 > Therefore the next genre queue is, in order: **#61 Music-placeholder
 > unstrand** (S, mechanical — 154 rows invisible to BOTH seeds and
-> inference), **#62 cluster-proposed labels** (M, the ONLY fix that
+> inference; note W1 still MINTS new `Music` rows at sync time —
+> pipeline doc §2 — so the fix must include the `?? "Music"` fallback
+> removal, not just the unstrand),
+> **#62 cluster-proposed labels** (M, the ONLY fix that
 > attacks the remaining error mass), **#63 ranked secondaries via head
 > top-3** (S–M, runs on cached embeddings), **#64 human-review UI for
 > the 96 disputed rows** (S, closes the flag loop), **#65 LLM residue
-> pass** (S, one-shot, for the ~6.6% unmapped tail). The multi-source
+> pass** (S, one-shot, for the ~6.6% unmapped tail — with the Sep 15
+> search spot-check showing the tail is ~⅔ real-but-unmapped labels:
+> phonk, EBM, new wave, D&B, merengue are REAL and mappable; the junk
+> third stays refused). The multi-source
 > vote ladder + Bandcamp arm stays M and follows once the label column
-> is clean enough to vote over.
+> is clean enough to vote over. **New S item — `sc_genre_ids` orphan:**
+> the ID→name cache has no committed writer (pipeline doc §5); commit a
+> resolution command or drop the table.
 
 - **Structure cues (all-in-one-infer v3 / -mlx)** — M–L. Still the 10x
   item; #2's beat/downbeat ledger (DB-side, not tags) is its anchor, so
