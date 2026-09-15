@@ -621,6 +621,9 @@ export type {
   ArchiveSimilar,
   ArchiveSkipCensus,
   ArchiveSourceCensus,
+  ArchiveTagCensus,
+  ArchiveTagCensusRow,
+  ArchiveTrackTagCompare,
 } from "./archive-wire";
 
 // ---- drive cover photos: one image listed by GET /drives/:id/drive-images.

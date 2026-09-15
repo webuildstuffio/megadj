@@ -78,7 +78,8 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 - [Genre pipeline architecture (Sep 15)](fulltags/genre-pipeline.md) —
   how the genre system processes a track end to end: write points,
   hygiene passes, inference discipline, scoring read path, the ≥65%
-  gate, invariants, and live state.
+  gate, the tag census/compare surfaces, 11 invariants, design
+  rationale, and live state.
 - [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and
   cue program.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision

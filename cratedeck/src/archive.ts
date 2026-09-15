@@ -18,6 +18,10 @@ import {
   cueStats as cueStatsImpl,
   libraryOverview as libraryOverviewImpl,
 } from "./archive_overview";
+import {
+  tagCensus as tagCensusImpl,
+  trackTagCompare as trackTagCompareImpl,
+} from "./archive_tagcensus";
 import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
 import type {
   ArchiveAnalysisCoverage,
@@ -32,6 +36,8 @@ import type {
   ArchiveSimilar,
   ArchiveSkipCensus,
   ArchiveSourceCensus,
+  ArchiveTagCensus,
+  ArchiveTrackTagCompare,
 } from "../shared/archive-wire";
 // The grid math is ONE SSOT (fulltags/src/analysis.ts): fitConstantTempo /
 // gridAudit are the same functions `megadj beats` computes with. A
@@ -684,6 +690,26 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
    */
   libraryOverview(recentLimit = 60): ArchiveLibraryOverview {
     return libraryOverviewImpl(this, recentLimit);
+  }
+
+  /**
+   * TAG CENSUS (FullTags ↔ rekordbox): which playable tracks' two DB
+   * mirrors disagree, on what. Pure-DB; files are never read on the
+   * census path. Implementation in archive_tagcensus.ts (file-length
+   * guard). Degrades to rekordboxMirror:false when rb-adopt never ran.
+   */
+  tagCensus(limit = 200): ArchiveTagCensus {
+    return tagCensusImpl(this, limit);
+  }
+
+  /**
+   * TAG COMPARE (one track, three sources): the LIVE file read (ground
+   * truth) + archive mirror + RB mirror, with the difference table
+   * precomputed. One ffprobe+mutagen read per request — census calls
+   * this never.
+   */
+  trackTagCompare(videoId: string): ArchiveTrackTagCompare {
+    return trackTagCompareImpl(this, videoId);
   }
 }
 

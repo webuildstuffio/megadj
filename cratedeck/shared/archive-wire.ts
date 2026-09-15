@@ -188,3 +188,122 @@ export interface ArchiveSetCandidates {
   candidates: ArchiveSetCandidate[];
   freshness: ArchiveFreshness;
 }
+
+// ---- tag census (fulltags vs rekordbox side-by-side) -----------------------
+// One archive-DB read joins the FullTags mirror columns with the
+// rb-adopt mirror (`rekordbox_content` metadata_json). FILE TAGS are NOT
+// read on the census path — the file is ground truth but a census
+// touching 3.5k files would pay a ffprobe+mutagen read per row; the
+// per-track endpoint reads the file live for the ONE track you inspect.
+
+/** Full per-track comparison: the archive DB's mirror columns, the
+ *  rb-adopt mirror row, and a LIVE ground-truth read of the physical
+ *  file's tags (the file is truth — one ffprobe+mutagen read per
+ *  request is the price of honesty here). */
+export interface ArchiveTrackFileTags {
+  readable: boolean;
+  title: string | null;
+  artist: string | null;
+  genre: string | null;
+  year: string | null;
+  bpm: number | null;
+  key: string | null;
+  label: string | null;
+  mixName: string | null;
+  remixer: string | null;
+  energy: number | null;
+  mood: string | null;
+  comment: string | null;
+  art: boolean;
+}
+
+export interface ArchiveTrackTagCompare {
+  available: boolean;
+  videoId: string;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  /** The physical file's tags, read at request time (null = file
+   *  missing/unreadable — the DB mirror is shown uncorrected). */
+  file: ArchiveTrackFileTags | null;
+  /** FullTags pipeline ledger data (genre_flag carries the demote-and-
+   *  flag pass verdict; valence/arousal from the mood ledger). */
+  pipeline: {
+    genre: string | null;
+    genreFlag: string | null;
+    energy: number | null;
+    bpmFolded: number | null;
+    /** Cached TKEY from track_keys (the key ledger). */
+    key: string | null;
+    valence: number | null;
+    arousal: number | null;
+    analyzedAt: string | null;
+  };
+  /** The rb-adopt mirror row (null = no rekordbox Content row linked
+   *  to this track — it was never imported into a rekordbox library). */
+  rekordbox: {
+    contentId: string;
+    title: string | null;
+    artist: string | null;
+    album: string | null;
+    genre: string | null;
+    key: string | null;
+    bpm: number | null;
+    year: string | null;
+    label: string | null;
+    comment: string | null;
+    /** Every scalar djmdContent column + resolved names (lossless). */
+    metadata: Record<string, unknown>;
+  } | null;
+  /** The headline disagreements, precomputed for sort/copy: identity
+   *  fields first (title/artist/genre/key/bpm/year), then enrichment. */
+  differences: {
+    field: string;
+    file: string | number | null;
+    archive: string | number | null;
+    rekordbox: string | number | null;
+  }[];
+}
+
+/** One row of the tag census: playable tracks joined with their RB
+ *  mirror, disagreement-counted. The census NEVER reads files — the
+ *  differ flags here compare the two DB mirrors only; the per-track
+ *  endpoint adds the live file read. */
+export interface ArchiveTagCensusRow {
+  videoId: string;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  /** FullTags mirror genre (tracks.genre). */
+  archiveGenre: string | null;
+  /** rb-adopt mirror genre (metadata_json GenreName). */
+  rekordboxGenre: string | null;
+  archiveKey: string | null;
+  rekordboxKey: string | null;
+  archiveBpm: number | null;
+  rekordboxBpm: number | null;
+  /** tracks.genre_flag ('disputed' = contradicts unanimous kNN). */
+  genreFlag: string | null;
+  /** Set on the row when the two mirrors disagree on ANY compared
+   *  field (genre/key/bpm/title/artist). */
+  differs: string[];
+  hasRekordboxRow: boolean;
+}
+
+export interface ArchiveTagCensus {
+  available: boolean;
+  /** Rows returned (post-filter, post-limit). */
+  returned: number;
+  /** Total playable tracks with an RB mirror row joined. */
+  matched: number;
+  /** Of those: how many disagree on ≥1 compared field. */
+  differing: number;
+  /** Playable tracks with NO rekordbox row (never imported). */
+  unmatched: number;
+  /** Disagreement counts per field, across the matched population. */
+  fieldCounts: { field: string; count: number }[];
+  rows: ArchiveTagCensusRow[];
+  /** Which mirrors exist in this DB (absent rekordbox_content table =
+   *  `megadj rb-adopt` never ran). */
+  rekordboxMirror: boolean;
+}

@@ -15,26 +15,16 @@ import type {
   ArchiveAnalysisCoverage,
   ArchiveCueStats,
   ArchiveGridCrossCheck,
-  ArchiveLibraryOverview,
   ArchiveMoodProfile,
 } from "../../../shared/types";
 import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
-import {
-  ListHead,
-  StatCard,
-  Card,
-  KVRows,
-  KVRow,
-  KVKey,
-  KVVal,
-  BarList,
-  CountStat,
-} from "../../ui/data";
+import { ListHead, StatCard, KVRows, KVRow, KVKey, KVVal } from "../../ui/data";
 import { DataTable } from "../../ui/data";
 import { SimilarTab } from "./SimilarTab";
+import { TagCompareTab } from "./TagCompareTab";
 import {
   PRODUCT_TABS,
   Meter,
@@ -131,7 +121,7 @@ export function FullTagsPage(props: { tab: string }) {
       {tab === "mood" && <MoodTab />}
       {tab === "similar" && <SimilarTab />}
       {tab === "cues" && <CuesTab />}
-      {tab === "tags" && <TagsTab />}
+      {tab === "tags" && <TagCompareTab />}
     </div>
   );
 }
@@ -493,114 +483,6 @@ function CuesTab() {
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-// ---- tags -------------------------------------------------------------------
-
-function TagsTab() {
-  const page = useFetched<ArchiveLibraryOverview>(
-    () => api<ArchiveLibraryOverview>("/api/archive/library"),
-    [],
-  );
-  if (page.status !== "ok")
-    return <FetchedGate page={page} loading="loading tag mirror…" />;
-  const lib = page.data;
-  if (!lib.available)
-    return (
-      <div class="note-card">
-        <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run
-        on this machine yet.
-      </div>
-    );
-  const yearGap = lib.years.unknown;
-  const energyGap = lib.tracks - lib.energy.stamped;
-  const moodGloss =
-    "The audit gate requires art, title, artist, album, genre, year, mood and energy on every file (fulltags COMPLETENESS_FIELDS).";
-
-  return (
-    <div>
-      <TabIntro
-        what="The tag mirror: what the enrichment engine has stamped, mirrored from the files into the archive DB."
-        how="Genre, year, energy and artwork-provenance columns mirror the file tags (the file is ground truth — this is the queryable view). Gaps here are enrichment backlog: the named commands fill them idempotently."
-        next="One pass fills most gaps: `megadj fetch` (art/genre/years) then `megadj mood` (mood+energy stamps). The audit gate: `megadj audit`."
-      />
-      <Verdict
-        cls={yearGap + energyGap === 0 ? "ok" : "warn"}
-        text={
-          yearGap + energyGap === 0
-            ? "Year and energy coverage complete."
-            : `${yearGap} tracks without a year · ${energyGap} without an energy stamp.`
-        }
-        meta={`${lib.artwork.embedded}/${lib.tracks} covers embedded`}
-      />
-      <div class="statgrid">
-        <CountStat
-          n={yearGap}
-          l="missing release year"
-          icon="clock"
-          title="Tracks with no year stamp — tools/fix-years.ts verifies AI-guessed years."
-        />
-        <CountStat
-          n={energyGap}
-          l="missing energy stamp (TXXX:ENERGY)"
-          icon="bolt"
-          title="Tracks with no energy stamp — megadj mood computes the RMS blend."
-        />
-        <StatCard
-          v={`${lib.artwork.embedded}/${lib.tracks}`}
-          l="covers embedded (art ladder)"
-          icon="photo"
-        />
-        <StatCard
-          v={`${lib.years.min ?? "—"}→${lib.years.max ?? "—"}`}
-          l="year range"
-          icon="history"
-        />
-      </div>
-      <Card>
-        <ListHead
-          icon="info"
-          title="The completeness gate"
-          n={8}
-          hint={moodGloss}
-          lines={[
-            "art — embedded cover (art ladder)",
-            "title / artist / album — core identity",
-            "genre — canonical map + MB harvest",
-            "year — this file's version",
-            "mood — TXXX:MOOD (analysis pass)",
-            "energy — TXXX:ENERGY (RMS blend)",
-          ]}
-        />
-        <div class="arch-fix">
-          gate check: <code>megadj audit</code> (or{" "}
-          <code>fulltags audit &lt;folder&gt;</code>) — gaps fill with{" "}
-          <code>megadj fetch</code> + <code>megadj mood</code>
-        </div>
-      </Card>
-      <SectionHead icon="hash" title="Genre map" />
-      <Card>
-        <ListHead
-          icon="hash"
-          title="Genres"
-          n={lib.genres.length}
-          hint="Genre distribution across the playable archive — the ingest genre inference + MB harvest maintain it."
-          lines={lib.genres.map((g) => `${g.name}: ${g.count}`)}
-        />
-        <BarList
-          rows={lib.genres.map((g) => ({
-            key: g.name,
-            name: g.name,
-            value: g.count,
-          }))}
-          cap={12}
-          empty={
-            <div class="fleet-note">no genres yet — run `megadj fetch`</div>
-          }
-        />
-      </Card>
     </div>
   );
 }

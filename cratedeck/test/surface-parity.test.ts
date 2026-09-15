@@ -189,6 +189,8 @@ const TOOL_EXEMPTIONS: Record<string, string> = {
   archive_skip_census: "A3",
   archive_sources: "A3",
   archive_analysis_coverage: "A3",
+  archive_tag_census: "A3 (FullTags ↔ rekordbox mirror census, readonly)",
+  archive_tag_compare: "A3 (per-track three-source tag read, readonly)",
   archive_sweep:
     "A3 (also folded into deckctl prep via the D30 digest section)",
 };

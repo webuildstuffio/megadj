@@ -36,6 +36,11 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "fulltags/src/analysis.ts::parseJsonObject::JSON.parse(raw)",
     "fulltags/src/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
   ]),
+  // rb-adopt mirror payload: the catch converts corrupt JSON into
+  // "no RB row" (the mirrors then stand alone; rb-adopt re-adopt
+  // rewrites the row) — the DB row itself is never touched.
+  "cratedeck/src/archive_tagcensus.ts::trackTagCompare::JSON.parse(rbMeta.metadata_json)":
+    "Corrupt mirror JSON is treated as no rekordbox row: the census shows the archive side alone, rb-adopt re-adopt rewrites the row; never a throw into the route.",
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "[]")',
     "src/rekordbox/guard.ts::verifyReRead::JSON.parse(line)",
@@ -61,10 +66,10 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    audited: 63,
+    audited: 64,
     guarded: 48,
-    sanctioned: 15,
-    digest: "b3a45760d997ff0de76297319c3f1601f65fe69d792f452dbf52fe63a2904ac6",
+    sanctioned: 16,
+    digest: "7964fc052eb6c9c7e9c921081b68c153a54f2787bdb29041086b8f610b0a8602",
   });
 });
 

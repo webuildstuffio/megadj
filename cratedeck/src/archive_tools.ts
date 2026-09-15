@@ -263,6 +263,38 @@ export function archiveTools(): Record<string, unknown> {
       },
     },
 
+    archive_tag_census: {
+      description:
+        "[READ-ONLY] FullTags ↔ rekordbox tag census: every playable track's DB mirrors compared (archive tracks.genre/track_keys/beats vs the rb-adopt rekordbox_content mirror — genre, key, BPM, title, artist, year, label). Returns per-track difference lists + per-field disagreement counts, worst first. Pure DB — files are NOT read on this path (per-file ground truth lives in archive_tag_compare). rekordboxMirror:false means `megadj rb-adopt` never ran.",
+      inputSchema: obj({
+        limit: n(
+          "rows to return (default 200; census totals are always full-population)",
+        ),
+      }),
+      run: async (args: Record<string, unknown>) => {
+        const res = await apiGet(
+          `/api/archive/tag-census?limit=${optLimit(args, 200, 2000)}`,
+        );
+        return res.json();
+      },
+    },
+
+    archive_tag_compare: {
+      description:
+        "[READ-ONLY] One track, three sources side by side: the physical FILE's live tags (ffprobe+mutagen ground truth), the archive DB mirror (FullTags genre/genre_flag/energy + beats BPM + mood), and the rekordbox mirror row (rb-adopt payload: Title/ArtistName/GenreName/KeyName/BPM/ReleaseYear/LabelName/Commnt + the lossless metadata dict). Returns each source's values plus a precomputed differences table. The per-track ground-truth read is the expensive twin of the census — call this for the ONE track you're auditing.",
+      inputSchema: obj({
+        id: s("video_id of the track (archive_search_tracks finds them)"),
+      }),
+      run: async (args: Record<string, unknown>) => {
+        const id = typeof args["id"] === "string" ? args["id"].trim() : "";
+        if (!id) throw new RpcParamError("id (video_id) is required");
+        const res = await apiGet(
+          `/api/archive/tag-compare?id=${encodeURIComponent(id)}`,
+        );
+        return res.json();
+      },
+    },
+
     archive_sweep: {
       description:
         "[READ-ONLY] D30 archive-integrity sweep: blake2b-hash every downloaded archive file and compare against known-good hashes + the archive DB — reports bitrot, silent truncation, and missing files BEFORE they reach a drive. First run baselines; findings start on the second. ~15s on the real archive.",

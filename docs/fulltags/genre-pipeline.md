@@ -3,6 +3,13 @@
 **Status:** 📚 REFERENCE — how the genre system processes a track, end to
 end. Every stage below ships and runs on the live archive.
 
+Reading order by question:
+- *"What happens to a track's genre, step by step?"* → §2 flow + §3 invariants.
+- *"Why is it built this way?"* → §7 design rationale.
+- *"What's still broken / missing?"* → §4 known residue (issue-linked).
+- *"What are the current numbers?"* → §5 live state.
+- *"Where is the code?"* → §6 module map.
+
 **Consumers** → [genre-audit](genre-audit.md) (policy + numbers) ·
 [genre-taxonomy-sources](genre-taxonomy-sources.md) (authorities + family
 map) · [tier0-diagnostics-2026-09-15](tier0-diagnostics-2026-09-15.md)
@@ -22,6 +29,12 @@ harness with a hard ≥65% ship gate. The file tag is OUTPUT-only — the DB
 row is the SSOT, and the DB never claims a genre the file doesn't carry.
 
 ## 2. Flow
+
+The pipeline is nine stages. Write points (W) put labels IN; the
+analysis stage (A) produces the vectors; hygiene passes (H) keep the
+column canonical and honest; inference (I) fills gaps; the scoring read
+path (R) is what every consumer runs; verification (V) is the standing
+gate; transparency surfaces (T) let a human see what any track claims.
 
 ```
  yt-dlp download (getdat sync)
@@ -86,6 +99,18 @@ row is the SSOT, and the DB never claims a genre the file doesn't carry.
  surfaces (one engine, three faces)
    CLI megadj genre · MCP archive_* tools · web (MegaSet genre columns,
    SimilarTab family coherence) — census strings test-pinned.
+ ▼
+ transparency surfaces (the tag census / compare, Sep 15)
+   [T1] tag census: ONE SQL join per page — archive mirror (genre/key/
+        beats-BPM/genre_flag) vs rb-adopt mirror (metadata_json), all
+        playable tracks, worst-first sort, per-field disagreement
+        counts. Files are NOT read here (3.5k ffprobe reads would be
+        the cost of a page view).
+   [T2] tag compare (one track, on demand): the file's OWN tags read
+        LIVE (ground truth — one ffprobe+mutagen read is the honest
+        price when you inspect a single track) beside both mirrors +
+        the pipeline ledger (genre_flag, valence/arousal). Differences
+        listed per field.
 ```
 
 ## 3. Invariants (the traps this architecture exists to avoid)
@@ -111,12 +136,15 @@ row is the SSOT, and the DB never claims a genre the file doesn't carry.
   stranded, tracked as issue #61.
 - **~6.6% of labels unmapped** by the 9-family map → mood/abstain; the
   LLM residue pass (one-shot, vocabulary-constrained) is queued for the
-  long tail.
+  long tail (#65).
 - **`edm` 299 rows** display as-is (hard-EDM mixed with umbrella
   use); scoring abstains via R3 — the display split waits for
-  cluster-proposed labels (§5b.3.5).
+  cluster-proposed labels (§5b.3.5, #62).
 - **241 distinct raw labels** vs the 105-label 90%-coverage target —
   the refold killed case-twins; alias depth is the remaining gap.
+- **96 disputed rows** await a human-review path (#64): the flags are
+  doing their seeding job today, but `--disputed` listing + agree/keep
+  verbs are what closes the loop.
 
 ## 5. Live state (measured 2026-09-15, `~/.local/state/megadj/archive.db`)
 
@@ -144,4 +172,31 @@ row is the SSOT, and the DB never claims a genre the file doesn't carry.
 | CLI wiring (`--eval/--refold/--flag/--diagnostics/…`) | `src/fulltags/genre.ts` |
 | Intake junk gate + canonGenre ladder | `tools/fetch-stages.ts` + `fulltags/src/schema.ts` |
 | Embedding producer (effnet via ONNX worker) | `fulltags/src/models.ts` (`analyzeMoods`) |
+| File ground-truth reader (TCON/TKEY/TBPM/… + art) | `fulltags/src/readers.ts` (`groundTruth`) |
+| Tag census + three-source compare (T1/T2) | `cratedeck/src/archive_tagcensus.ts` |
+| Wire types (census/compare payloads) | `cratedeck/shared/archive-wire.ts` |
 | Closed AI vocabulary | `DJ_GENRES` in `fulltags/src/schema.ts` |
+
+## 7. Design rationale — why the seams are where they are
+
+- **Why file reads live only on the per-track compare (T2), not the
+  census (T1):** the file is ground truth, but a census page over 3.5k
+  tracks would pay a ffprobe+mutagen spawn per row — seconds of I/O
+  for a table the user scans. The census compares the two mirrors
+  (cheap SQL); the compare endpoint pays the read for exactly one
+  track you're inspecting. Honesty where it's cheap, truth where it's
+  asked for.
+- **Why the flag pass never rewrites:** a rewritten label destroys the
+  evidence of why it was flagged. The flag does the harm-reduction
+  work (seeding exclusion) with zero information loss; the rewrite
+  stays a human act (#64 adds the verbs).
+- **Why umbrella abstention lives in a scoring wrapper (`scoringFamily`)
+  instead of editing `genreFamily`:** display and scoring are different
+  questions. The map stays one SSOT; the arbitration is a policy layer
+  you can A/B (`--eval --refold`) — and revert — without touching the
+  family table.
+- **Why inference fills only empty columns:** a genre from SC/Beatport
+  is a *source claim* with provenance; a kNN family is a *statistical
+  guess*. COALESCE at the write seam (plus the queries-side filter)
+  means the two can never overwrite each other, and re-running
+  inference is always safe.

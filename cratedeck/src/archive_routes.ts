@@ -274,6 +274,20 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
           : archive.libraryOverview(),
       );
     },
+    // FullTags ↔ rekordbox tag comparison: the census (DB mirrors only,
+    // cheap) and the per-track three-source read (live file truth).
+    "tag-census": (url, archive) => {
+      const limit = intParam(url.searchParams.get("limit"));
+      return json(
+        limit !== undefined ? archive.tagCensus(limit) : archive.tagCensus(),
+      );
+    },
+    "tag-compare": (url, archive) => {
+      const id = (url.searchParams.get("id") ?? "").trim();
+      if (!id) return json({ error: "id (video_id) required" }, 400);
+      const t = archive.trackTagCompare(id);
+      return t.available ? json(t) : json({ error: "archive DB absent" }, 503);
+    },
     // D30 archive-integrity sweep: blake2b the music tree vs the archive
     // DB + CrateDeck-side known-good ledger. READ-ONLY on both the tree
     // and megadj's DB (findings only); the ledger upsert is CrateDeck's
@@ -299,7 +313,7 @@ export function archiveRoutes(
 ): Promise<Response | null> | Response | null {
   const { archive, db, cfg } = deps;
   const match =
-    /\/archive\/(search|track|ingest-status|lowq|source-diff|grid-cross-check|mood|similar|setbuild|sweep|cues|library|skip-census|sources|analysis-coverage)$/.exec(
+    /\/archive\/(search|track|ingest-status|lowq|source-diff|grid-cross-check|mood|similar|setbuild|sweep|cues|library|skip-census|sources|analysis-coverage|tag-census|tag-compare)$/.exec(
       route,
     );
   if (!match) return Promise.resolve(null);

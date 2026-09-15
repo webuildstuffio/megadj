@@ -34,8 +34,8 @@ deliberate exemptions are in §4. Historical repair details belong in
 | ---------- | ----------------------------------------------------------- | ---------------------- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 45 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
-| MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 39 tools               |
-| HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 61 routes              |
+| MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 41 tools               |
+| HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 63 routes              |
 | Web UI     | `cratedeck/web/` (hash-routed pages)                        | 6 pages, ~22 actions   |
 
 The server's HTTP API is the **fourth surface** and the seam everything
@@ -118,6 +118,8 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Skip census (why rows didn't land)                | `megadj list` buckets ✅                                              | `archive_skip_census` ✅                                  | GetDat ⌗ Pipeline (decisions card) + Backlog ✅                         | —                                                                             |
 | Source census                                     | `megadj list` sources ✅                                              | `archive_sources` ✅                                      | GetDat ⌗ Sources (tag chips feed the diff form) ✅                      | —                                                                             |
 | Analysis coverage                                 | `megadj beats`, `mood`, and `cues` counts ✅                          | `archive_analysis_coverage` ✅                            | FullTags header meters (one progress picture) ✅                        | —                                                                             |
+| Tag census (FullTags ↔ rekordbox mirrors)         | `megadj audit` + `rb-adopt` data ✅                                   | `archive_tag_census` ✅                                   | FullTags ⌗ Tags ✅ (tab)                                                | — (DB mirrors only; files never read on the census path)                      |
+| Tag compare (one track, three sources)            | `megadj status <id>` + file tags ✅                                   | `archive_tag_compare` ✅ (live file ground truth)         | FullTags ⌗ Tags track view ✅                                           | — (file = truth; one ffprobe+mutagen read per request)                        |
 | Archive integrity sweep                           | Prep digest (`archive integrity` section) ✅                          | `archive_sweep` ✅                                        | Fleet ⌗ Prep (digest section) ✅                                        | — (D30)                                                                       |
 | Rename drive                                      | `rename <d> [nick]` ✅                                                | `deck_rename` ✅                                          | inline rename ✅                                                        | —(D2-rename closed)                                                           |
 | Set drive photo                                   | —                                                                     | ⛔ §4-D2 (human picks the art)                            | Photo tab ✅                                                            | —                                                                             |
