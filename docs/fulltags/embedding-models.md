@@ -1,11 +1,11 @@
-# Audio embedding model benchmark — MegaSet/FullTags (Sep 14, 2026)
+# FullTags — Audio embedding model benchmark (MegaSet §similarity consumer) (Sep 14, 2026)
 
 **Status:** ✅ DECISION RECORDED — effnet confirmed primary by the v2 rerun
 (six towers incl. MERT); fusion/variant sweep settled below, follow-up
 implementation gated by the larger post-refold evaluation.
 
 > Glossary (tower, LOO, coherence, effnet/musicnn/MERT, ONNX, 5k proj):
-> [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+> [10-findings §5](../megaset/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 **Reproduction (Sep 14, 2026, ~28 min, background).** Full 6-tower rerun
 on `eval_set_v2.json` (180 tracks, 120 s cap) matched the recorded table
@@ -85,8 +85,9 @@ Reading:
   sufficient production-switch gate without a larger post-refold rerun.
 - Families are unevenly hard (hiphop/dnb/rock are easy; house/techno/trance
   boundary is genuinely fuzzy — that's the library, not the tower).
-- Genre labels are the noisy ground truth we have; §05-genre-audit measured
-  them at ~60-76% audio-consistent. Any tower measured against them is
+- Genre labels are the noisy ground truth we have; the [genre
+  audit](genre-audit.md) measured them at ~60-76% audio-consistent. Any tower
+  measured against them is
   capped by that ceiling. Towers could be re-ranked by retrieval-quality
   human eval later.
 - Speed numbers are single-threaded CPU with per-track session reuse; batch
@@ -115,8 +116,9 @@ Reading:
    because it has the best measured retrieval coherence. Musicnn can be
    evaluated as a diversity re-ranker, but the current results do not justify
    a hard-coded interleave ratio.
-3. **Re-benchmark after refold** (05-genre-audit §5b): cleaner labels →
-   tighter ceiling → re-measure; promote MERT only if the ensemble stalls
+3. **Re-benchmark after refold** ([genre audit §5b](genre-audit.md)): cleaner
+   labels → tighter ceiling → re-measure; promote MERT only if the ensemble
+   stalls
    below 0.55 AND the compute budget allows 10-30× slower batch runs.
 4. **VGGish stays** for VA (no competitor at that price) and **CLAP stays
    out** (measured worst; text-probe niche is a different product).
@@ -148,8 +150,8 @@ _Harness:_ `tools/emb_benchmark.py` (manual research harness; productize as
 
 > The post-harness-fix rerun landed (commit `3715e9f fix: correct
 embedding benchmark metrics`), the fusion/variant sweep completed, and
-> every §05-genre-audit number was re-validated with duration guards,
-> full-population LOO, bootstrap CIs and McNemar tests (v3, below).
+> every [genre-audit](genre-audit.md) number was re-validated with duration
+> guards, full-population LOO, bootstrap CIs and McNemar tests (v3, below).
 
 ### Protocol changes vs the v1 table above
 

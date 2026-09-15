@@ -54,6 +54,15 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 ### FullTags and analysis
 
 - [FullTags roadmap](fulltags/fulltags-roadmap.md) — gate outcomes and analysis roadmap.
+- [Genre audit](fulltags/genre-audit.md) — inclusion and source-precedence
+  policy; v3 statistical revalidation (CIs, McNemar, duration guards).
+  MegaSet consumes it family-level only.
+- [Embedding model benchmark](fulltags/embedding-models.md) — tower
+  evaluation and decision; v2 rerun (effnet confirmed on both metrics),
+  fusion sweep settled (+1.1 pt — not adopted). Feeds MegaSet's similarity
+  prior (B10p).
+- [Genre taxonomy sources](fulltags/genre-taxonomy-sources.md) — external
+  authorities and the family map.
 - [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and
   cue program.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision
@@ -68,13 +77,6 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   research and the re-ranked roadmap.
 - [Sequencing benchmarks](megaset/04-sequencing-benchmarks.md) — algorithm and
   benchmark evidence.
-- [Genre audit](megaset/05-genre-audit.md) — inclusion and source-precedence
-  policy; v3 statistical revalidation (CIs, McNemar, duration guards).
-- [Embedding model benchmark](megaset/06-embedding-models.md) — tower
-  evaluation and decision; v2 rerun (effnet confirmed on both metrics),
-  fusion sweep settled (+1.1 pt — not adopted).
-- [Genre taxonomy sources](megaset/07-genre-taxonomy-sources.md) — external
-  authorities and the family map.
 - [**Consolidated findings & next steps**](megaset/10-findings.md) — every
   measured verdict across the doc set, critical-bug list, prioritized next
   3–5 actions.

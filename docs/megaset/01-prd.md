@@ -1,6 +1,6 @@
 # MegaSet — PRD
 
-v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Genre audit](05-genre-audit.md) · [Audit & plan](08-audit-and-plan.md)
+v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Genre audit](../fulltags/genre-audit.md) · [Audit & plan](08-audit-and-plan.md)
 
 > First read of the doc set? Start here, then [10-findings](10-findings.md)
 > (distilled verdicts + the glossary for every acronym: Camelot, LOO, beam,
@@ -141,7 +141,7 @@ _with rekordbox-set colors_ but no text (XDJ-AZ/CDJ-3000 add phrase
 display). The convention: memory-cue colors from our rb-cues seam —
 red = vocal section, blue = instrumental/drop, green = breakdown; hot
 cues A–H stay reserved for performance points. Details:
-[genre-audit §6](05-genre-audit.md).
+[genre-audit §6](../fulltags/genre-audit.md).
 
 ---
 

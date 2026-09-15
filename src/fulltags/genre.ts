@@ -13,7 +13,7 @@
 // state.updateGenre, whose COALESCE means a track that already has a
 // genre is never overwritten — the column is fill-in, never clobber.
 // --eval runs the leave-one-out harness INSTEAD: it is the standing
-// regression gate for label hygiene (docs/megaset/05-genre-audit.md
+// regression gate for label hygiene (docs/fulltags/genre-audit.md
 // §5b.3 step 4 — target: gated ≥65% after refold, baseline 62.7%).
 
 import { commandLog } from "../progress";
@@ -74,7 +74,7 @@ export async function genre(opts: GenreOptions): Promise<void> {
     );
     const pass = summary.agreement >= 0.65;
     log(
-      `  target (05-genre-audit §5b.3): gated ≥65% post-refold — ${pass ? "PASS" : "below target (see audit for the refold plan)"}`,
+      `  target (genre-audit §5b.3): gated ≥65% post-refold — ${pass ? "PASS" : "below target (see audit for the refold plan)"}`,
     );
     console.log(
       JSON.stringify({

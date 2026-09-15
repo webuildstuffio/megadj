@@ -1,11 +1,11 @@
-# MegaSet / FullTags — Genre Audit & Inclusion Policy
+# FullTags — Genre Audit & Inclusion Policy (MegaSet §genre consumer)
 
 **Status:** 📚 REFERENCE — current genre inclusion and source-precedence policy.
 
-v3 · 2026-09-14 · **Audit** → [PRD](01-prd.md) · [Benchmarks](04-sequencing-benchmarks.md) · [Analysis](03-competitive-analysis.md) · [Taxonomy sources & family map](07-genre-taxonomy-sources.md)
+v3 · 2026-09-14 · **Audit** → [PRD](../megaset/01-prd.md) · [Benchmarks](../megaset/04-sequencing-benchmarks.md) · [Analysis](../megaset/03-competitive-analysis.md) · [Taxonomy sources & family map](genre-taxonomy-sources.md)
 
 > Glossary (LOO, CI, McNemar, Jaccard, kNN, duration guard):
-> [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+> [10-findings §5](../megaset/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 > v2: baselines refreshed post-`rb-comment-sync`; LOO corrected to
 > full-population methodology; §5c source ranking. v3: **statistical
@@ -303,7 +303,7 @@ ground-truth philosophy unchanged.
 **Tower note (Sep 14, superseded):** the 80-track harness numbers that
 named musicnn the candidate were a broken-harness artifact. The repaired
 harness (n=180, 0 fails, v2 rerun in
-[06-embedding-models.md](06-embedding-models.md)) inverts it: effnet 0.444
+[embedding-models.md](embedding-models.md)) inverts it: effnet 0.444
 vs musicnn 0.300, ensemble best +1.1 pt — no production switch. See the
 full sweep (fusers × 6 towers, MERT variants) there.
 

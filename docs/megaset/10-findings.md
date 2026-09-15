@@ -34,7 +34,7 @@ web panel. Everything below is measured evidence for the design choices.
 | E7  | **Beam search under ~250 tracks is the win** | +59% chain length at 0 ms cost (B=8) — **SHIPPED 2026-09-14: engine picks automatically, `search` on the wire** |
 | E8  | Arc adherence holds across presets           | warmup/peak/afterhours envelopes track                                                                          |
 
-### Genre ([05-genre-audit](05-genre-audit.md) v3, [07-taxonomy](07-genre-taxonomy-sources.md))
+### Genre ([genre-audit](../fulltags/genre-audit.md) v3, [taxonomy sources](../fulltags/genre-taxonomy-sources.md))
 
 | #   | Finding                                                   | Number                                                                         |
 | --- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
@@ -52,7 +52,7 @@ web panel. Everything below is measured evidence for the design choices.
 | G12 | Family map v2 covers 93.4%                                | additions audio-verified via the head (grime→bass, tekk→techno, …)             |
 | G13 | Junk-label rule is now explicit                           | non-genre strings / placeholders / DJ-tool categories                          |
 
-### Taxonomy sources ([07](07-genre-taxonomy-sources.md))
+### Taxonomy sources ([genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md))
 
 | #   | Finding                                                                                                                                                                           |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -62,7 +62,7 @@ web panel. Everything below is measured evidence for the design choices.
 | T4  | Head as signal: top-3/top-5 ≈ 69/77% family recovery; Jaccard vs kNN 0.486 = complementary → ranked-secondaries backbone                                                          |
 | T5  | Deterministic LLM residue-pass design: ~459 labels, temp 0, vocabulary-constrained, validated before write — last resort after refold + head                                      |
 
-### Embedding towers ([06-embedding-models](06-embedding-models.md))
+### Embedding towers ([embedding-models](../fulltags/embedding-models.md))
 
 | #   | Finding                                                         | Number                                                                               |
 | --- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -112,9 +112,9 @@ web panel. Everything below is measured evidence for the design choices.
 | [02-architecture](02-architecture.md)                     | Engine shape, variable inventory (20 set + 24 song vars)  | current   |
 | [03-competitive-analysis](03-competitive-analysis.md)     | 30 comparators + re-ranked roadmap (plan of record)       | current   |
 | [04-sequencing-benchmarks](04-sequencing-benchmarks.md)   | E1–E8 measured engine claims                              | current   |
-| [05-genre-audit](05-genre-audit.md)                       | Genre policy + v3 statistical revalidation                | current   |
-| [06-embedding-models](06-embedding-models.md)             | Tower benchmark, fusion sweep, MERT verdict               | current   |
-| [07-genre-taxonomy-sources](07-genre-taxonomy-sources.md) | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design | current   |
+| [genre-audit](../fulltags/genre-audit.md) (was 05)        | Genre policy + v3 statistical revalidation (FullTags doc) | current   |
+| [embedding-models](../fulltags/embedding-models.md) (was 06) | Tower benchmark, fusion sweep, MERT verdict (FullTags doc) | current   |
+| [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07) | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc) | current   |
 | [08-audit-and-plan](08-audit-and-plan.md)                 | Implementation audit + per-item sketches (reference)      | reference |
 | [09-migration-plan](09-migration-plan.md)                 | `setbuild → megaset` atomic rename plan                   | planned   |
 | [10-findings](10-findings.md)                             | **this page** — distilled verdicts + next actions         | current   |
@@ -124,8 +124,13 @@ web panel. Everything below is measured evidence for the design choices.
 ## 5. Glossary — every acronym and term used across the doc set
 
 **Identifier systems used in these docs:** `E#` = engine benchmark experiment
-(04), `G#` = genre-audit finding (05), `T#` = taxonomy finding (07),
-`M#` = embedding-model finding (06) — _also_ M66-style numbers are idea-IDs
+(04), `G#` = genre-audit finding ([genre-audit](../fulltags/genre-audit.md)),
+`T#` = taxonomy finding
+([genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md)),
+`M#` = embedding-model finding
+([embedding-models](../fulltags/embedding-models.md)) — these three live in
+`docs/fulltags/` (FullTags owns the analysis stack; MegaSet consumes it) —
+_also_ M66-style numbers are idea-IDs
 from `docs/ideas.md` (M66 = the original set-builder idea row), `S#` = set
 variable (02 §2a), `T#` in 02 = song/track variable (02 §2b, separate
 numbering from 07's T#), `B#` = bug/plan items (08/audit Phase A–D),

@@ -226,7 +226,7 @@ export function normalizeGenre(genre: string): string | null {
  * bass family is checked BEFORE house. The final mapping is mutually
  * exclusive by construction (tested).
  *
- * 2026-09-14 additions are audit-driven (05-genre-audit §7): labels found
+ * 2026-09-14 additions are audit-driven (genre-audit §7): labels found
  * unmapped on the live library, each verified against the Discogs-400
  * head's audio placement — grime/jersey club/donk cluster with bass
  * music; minimal/deep-tech/hard-tekk are techno families; eurodance/
@@ -334,7 +334,7 @@ export interface EvalSummary {
 }
 
 /** Leave-one-out family-agreement harness over seed vectors — the genre
- *  hygiene regression gate (docs/megaset/05-genre-audit.md §5b.3 step 4).
+ *  hygiene regression gate (docs/fulltags/genre-audit.md §5b.3 step 4).
  *  Every family-evaluable seed is held out in turn; the remaining seeds
  *  vote on it (k nearest, gated at `minAgreement`). `durationGuard`
  *  drops the short/long outliers (90–480 s measured band) when the

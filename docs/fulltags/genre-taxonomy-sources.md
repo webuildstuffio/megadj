@@ -1,11 +1,11 @@
-# Genre Taxonomy — Authoritative Sources, Family Map, Embedding Validation (Sep 14, 2026)
+# FullTags — Genre Taxonomy: Authoritative Sources, Family Map, Embedding Validation (Sep 14, 2026)
 
 **Status:** 📚 REFERENCE — current taxonomy authorities, family map, and validation.
 
-**Audit** → [05-genre-audit](05-genre-audit.md) · [06-embedding-models](06-embedding-models.md) · [PRD](01-prd.md)
+**Audit** → [genre-audit](genre-audit.md) · [embedding-models](embedding-models.md) · [MegaSet PRD](../megaset/01-prd.md)
 
 > Glossary (Discogs-400 head, Tier 1/2/3, kNN, tower):
-> [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+> [10-findings §5](../megaset/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 The follow-up to the genre audit: _which external taxonomy is authoritative,
 is our 9-family map right, how deep do sub-genres go, and is the embedding
@@ -182,7 +182,7 @@ the shrinking residue the first two can't place.
 
 ## 7. Is the embedding model any good? (already benchmarked — recap)
 
-The full 6-tower benchmark lives in [06-embedding-models](06-embedding-models.md)
+The full 6-tower benchmark lives in [embedding-models](embedding-models.md)
 (harness committed at `tools/emb_benchmark.py`). Short version — **v2 rerun
 (n=180, 120 s cap, 0 fails) is the verdict; the v1 table below it is kept
 for the record only**:

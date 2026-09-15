@@ -6,7 +6,7 @@
 **measured** in [04-sequencing-benchmarks.md](04-sequencing-benchmarks.md)
 (E1–E8: greedy's 59% sparse-pool loss, 2-opt's +0.0% at scale, the beam-under-250 rule,
 weights frozen as engine constants); the embedding-tower question is measured in
-[06-embedding-models.md](06-embedding-models.md) (v2 rerun: effnet
+[embedding-models.md](../fulltags/embedding-models.md) (v2 rerun: effnet
 confirmed primary on both metrics; second-tower/fusion sweep settled — best ensemble +1.1 pt, not adopted).
 **Plan of record = the re-ranked roadmap** (03 §5); Part 3 below preserves the per-item
 implementation sketches, delta-pinned against the measured verdicts. Identifier
@@ -129,7 +129,7 @@ not a set _planner_ — included for its AutoDJ contract).
 ## Part 3 — Improvement plan (phased, house-style)
 
 > **Delta-pin (2026-09-14, post-benchmarks).** Part 3 predates E1–E8 and the
-> [embedding v2 rerun](06-embedding-models.md). Where they disagree,
+> [embedding v2 rerun](../fulltags/embedding-models.md). Where they disagree,
 > the [re-ranked roadmap](03-competitive-analysis.md) + benchmark
 > verdicts win:
 >
@@ -148,7 +148,7 @@ not a set _planner_ — included for its AutoDJ contract).
 >   musicnn) and retrieval coherence (0.362 vs 0.292). No second tower in
 >   the scoring path; the fusion/variant sweep is **settled — not
 >   adopted** (+1.1 pt, below the bar); the gate and verdict live in
->   [06-embedding-models.md](06-embedding-models.md).
+>   [embedding-models.md](../fulltags/embedding-models.md).
 >
 > Everything below is otherwise current: A-first ordering, B/C/D scoping,
 > non-goals, and the per-item sketches.

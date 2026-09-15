@@ -7,8 +7,8 @@ Towers (all free, local, ONNX, CPU):
   4. audioset-vggish (128-d)              ~/.local/share/fulltags-models
   5. clap-htsat-unfused (512-d)           /tmp/emb-bench/clap-htsat.onnx
 
-Eval protocol (mirrors docs/megaset/05-genre-audit.md SS5b.1 and the
-results table in docs/megaset/06-embedding-models.md):
+Eval protocol (mirrors docs/fulltags/genre-audit.md SS5b.1 and the
+results table in docs/fulltags/embedding-models.md):
   - eval set: tracks per genre family from archive.db (shelf files, human
     genre = label truth-of-record); cached to /tmp/emb-bench/eval_set.json
   - leave-one-out kNN family agreement per tower (cosine)
