@@ -1,14 +1,15 @@
-/** Python subprocess programs used by the Rekordbox duplicate workflow. */
+/** Python subprocess programs used by the Rekordbox duplicate workflow.
+ *  DB-open boilerplate comes from rb-script-kit (#78). */
+import { pyDbOpen, pyDbOpenImports } from "./rb-script-kit.js";
 
 /** Pull content rows and emit cheap duplicate candidates. */
 export function dedupScanScript(): string {
   return `
 import json, sys, os, unicodedata
-from pyrekordbox.db6.database import deobfuscate, BLOB
-from pyrekordbox import db6
+${pyDbOpenImports()}
 from pyrekordbox.db6.tables import DjmdContent
 
-db = db6.Rekordbox6Database(path=sys.argv[1], key=deobfuscate(BLOB))
+${pyDbOpen("sys.argv[1]")}
 rows = []
 for c in db.query(DjmdContent).all():
     path = c.FolderPath or ""
@@ -55,8 +56,7 @@ print(json.dumps({"scanned": len(rows), "pairs": pairs}))
 export function dedupDeleteScript(): string {
   return `
 import hashlib, json, sys
-from pyrekordbox.db6.database import deobfuscate, BLOB
-from pyrekordbox import db6
+${pyDbOpenImports()}
 from pyrekordbox.db6.tables import DjmdContent, DjmdCue, DjmdSongPlaylist
 
 cue_identity_fields = {
@@ -81,7 +81,7 @@ def cue_sig(cue):
     payload = json.dumps(values, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-db = db6.Rekordbox6Database(path=sys.argv[1], key=deobfuscate(BLOB))
+${pyDbOpen("sys.argv[1]")}
 mappings = json.loads(sys.argv[2])
 out = {"removed_ids": [], "errors": [], "associations": []}
 for cid, keep_id in mappings:
@@ -144,8 +144,7 @@ print(json.dumps(out))
 export function dedupVerifyScript(): string {
   return `
 import hashlib, json, sys
-from pyrekordbox.db6.database import deobfuscate, BLOB
-from pyrekordbox import db6
+${pyDbOpenImports()}
 from pyrekordbox.db6.tables import DjmdContent, DjmdCue, DjmdSongPlaylist
 
 cue_identity_fields = {
@@ -171,7 +170,7 @@ def cue_sig(cue):
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 ids = set(json.loads(sys.argv[2]))
-db = db6.Rekordbox6Database(path=sys.argv[1], key=deobfuscate(BLOB))
+${pyDbOpen("sys.argv[1]")}
 rows = []
 for c in db.query(DjmdContent).all():
     cid = str(c.ID)

@@ -27,6 +27,7 @@ import {
   rbPythonRun,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
+import { pyDbOpen, pyDbOpenImports } from "./rb-script-kit.js";
 import { errorText } from "../shared/error-text";
 import { commandLog } from "../progress";
 import {
@@ -75,11 +76,10 @@ export function masterDirFor(mount: string): { db: string; xml: string } {
 export function twinScanScript(): string {
   return `
 import json, sys
-from pyrekordbox.db6.database import deobfuscate, BLOB
-from pyrekordbox import db6
+${pyDbOpenImports()}
 from pyrekordbox.db6.tables import DjmdPlaylist
 
-db = db6.Rekordbox6Database(path=sys.argv[1], key=deobfuscate(BLOB))
+${pyDbOpen("sys.argv[1]")}
 rows = [
     {"id": str(p.ID), "name": p.Name or "", "parentId": str(p.ParentID or 0),
      "attribute": p.Attribute or 0, "seq": p.Seq or 0}

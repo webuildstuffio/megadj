@@ -41,6 +41,7 @@ import {
   type RbCommandResult,
   type RbCommandRuntime,
 } from "./rb-command-kit.js";
+import { pyDbOpen, pyDbOpenImports } from "./rb-script-kit.js";
 import { commandLog } from "../progress";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -203,11 +204,10 @@ function validateVerification(
 function cueVerifyScript(): string {
   return `
 import json, sys
-from pyrekordbox.db6.database import deobfuscate, BLOB
-from pyrekordbox import db6
+${pyDbOpenImports()}
 from pyrekordbox.db6.tables import DjmdCue
 expected = [str(i) for i in json.load(sys.stdin)]
-db = db6.Rekordbox6Database(path=sys.argv[1], key=deobfuscate(BLOB))
+${pyDbOpen("sys.argv[1]")}
 rows = db.query(DjmdCue).filter(DjmdCue.ID.in_([int(i) for i in expected])).all() if expected else []
 actual = {str(row.ID): int(row.Kind) for row in rows}
 remaining = sum(1 for i in expected if actual.get(i) == 0)
@@ -253,14 +253,13 @@ const fail = (
 export function restampScript(): string {
   return `
 import datetime, json, os, subprocess, sys
-from pyrekordbox.db6.database import deobfuscate, BLOB
-from pyrekordbox import db6
+${pyDbOpenImports()}
 from pyrekordbox.db6.tables import DjmdContent, DjmdCue
 
 db_path = sys.argv[1]
 apply = sys.argv[2] == "apply"
 mount = os.path.abspath(sys.argv[3])
-db = db6.Rekordbox6Database(path=db_path, key=deobfuscate(BLOB))
+${pyDbOpen("db_path")}
 all_kind_zero = db.query(DjmdCue).filter(DjmdCue.Kind == 0).all()
 contents = os.path.normpath(os.path.join(mount, "Contents"))
 content_paths = {str(content.ID): content.FolderPath or "" for content in db.query(DjmdContent).all()}

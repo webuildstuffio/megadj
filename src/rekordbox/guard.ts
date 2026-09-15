@@ -22,6 +22,7 @@ import {
   rmSync,
   statSync,
 } from "node:fs";
+import { pyDbOpenImports } from "./rb-script-kit.js";
 
 /** True while the rekordbox app is running (its live WAL silently
  *  overwrites external DB edits on quit — never write while open). */
@@ -108,8 +109,7 @@ export function verifyReRead(
 ): ReReadVerify {
   const script = `
 import json, sys
-from pyrekordbox.db6.database import deobfuscate, BLOB
-from pyrekordbox import db6
+${pyDbOpenImports()}
 import importlib
 db_path, table = sys.argv[1], sys.argv[2]
 key = deobfuscate(BLOB)
