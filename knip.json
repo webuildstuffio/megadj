@@ -5,6 +5,7 @@
       "entry": [
         "tools/fetch-all.ts",
         "tools/fix-years.ts",
+        "tools/loc-budget.ts",
         "tools/prof-sweep.ts"
       ],
       "ignoreExportsUsedInFile": true,

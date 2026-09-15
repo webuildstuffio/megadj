@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# =============================================================================
+# .githooks/pre-commit — repo-local LOC-budget gate CHAINED onto the shared
+# shell-config hook (core.hooksPath previously pointed straight at
+# ~/.githooks; it now points here, and everything else still runs).
+#
+# Policy (Sep 15 2026, canvas megadj-quality-trend): the tracked code census
+# (TS/TSX/Python, excluding root files, *.md, configs, lockfiles, dot-dirs)
+# hit ~95k in 24 days. Until it reaches 75,000, every commit must be a NET
+# REDUCTION of budgeted code. Details + bypass: `bun tools/loc-budget.ts`.
+#
+# NEVER blocks: the gate exits 0 unless it has PROVEN numbers showing net
+# growth. Probe failures (weird staged states, renames, unreadable census)
+# print an advisory warning and let the commit through.
+#
+# Bypass (deliberate, one-shot, audit-logged — requires you to type the
+# reason, so it cannot happen by accident):
+#   MEGADJ_LOC_BYPASS="reason: why" git commit …
+# (GIT_SKIP_HOOKS=1 keeps its existing shell-config meaning: skip non-
+# security checks — it also skips this gate.)
+# =============================================================================
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+
+# 1) Shared shell-config hook: full existing gate set, unchanged.
+"$HOME/.githooks/pre-commit" "$@"
+SHARED_RC=$?
+
+# 2) Repo gate: LOC budget (warn-or-block on its own, never masks the
+#    shared hook's verdict). Skipped when the shared hook was bypassed.
+if [[ $SHARED_RC -eq 0 && "${GIT_SKIP_HOOKS:-}" != "1" ]]; then
+    if command -v bun >/dev/null 2>&1; then
+        (cd "$REPO_ROOT" && bun tools/loc-budget.ts)
+        LOC_RC=$?
+        if [[ $LOC_RC -ne 0 ]]; then
+            echo "repo LOC-budget gate blocked the commit (see above)." >&2
+            exit 1
+        fi
+    else
+        echo "⚠️  loc-budget gate skipped: bun not found (advisory only)" >&2
+    fi
+fi
+
+exit $SHARED_RC
