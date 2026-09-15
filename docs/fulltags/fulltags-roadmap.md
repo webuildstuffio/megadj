@@ -1,4 +1,4 @@
-# FullTags — Prioritized Roadmap (rev 7.6)
+# FullTags — Prioritized Roadmap (rev 7.8)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
 
@@ -76,8 +76,10 @@ rb payload expandable. Read-only throughout; census never touches
 files (null = "no claim", not a conflict — absence of evidence must
 not bury real differences)._
 
-_Rev 7.3, 2026-09-15: **Bandcamp arm live + the name-matching SSOT +
-the top-3 low-hanging consolidation fixes.** (1) **W2b Bandcamp vote**
+_Rev 7.8, 2026-09-15 (supersedes the duplicate 7.3/7.2 numbering from the
+parallel workstreams; set-product revs keep their 7.x names): **Bandcamp
+arm live + the name-matching SSOT + the top-3 low-hanging consolidation
+fixes.** (1) **W2b Bandcamp vote**
 (`fulltags/src/bandcamp.ts`): when SC and BP both miss genre/year/label,
 fetch searches the Bandcamp catalog (official autocomplete API —
 yt-dlp's extractor stays dead), hard-artist-gates the hits, then fetches
@@ -99,7 +101,7 @@ rb-fix-paths/grid-triage/rb-unmatched inline variants all migrated;
 58→59 audited, Number 42→44/13→18 sanctioned) with an extra UI rung
 phrase (bandcamp) for the art-rung census. 1450 tests green._
 
-_Rev 7.2, 2026-09-15: **two Phase-0 genre correctness fixes shipped.**
+_Rev 7.7, 2026-09-15: **two Phase-0 genre correctness fixes shipped.**
 (1) W2 SC hard artist gate — `scoreScHits` (art-sources.ts) drops any
 hit whose uploader doesn't match the query artist (≥3 chars), mirroring
 Beatport's `scoreBpHit` gate; ends the wrong-artist genre write class.
@@ -112,7 +114,7 @@ numeric timestamp and was always refused; year was always undefined).
 Fixed + pinned in sc-artist-gate.test.ts. Legacy ~154 `Music` rows
 still queued (#61 remainder)._
 
-_Rev 7.1, 2026-09-15: **genre docs alignment pass** — the three genre
+_Rev 7.5, 2026-09-15: **genre docs alignment pass** — the three genre
 docs now tell ONE story: pipeline doc §2 is the full write-source
 inventory (7 paths, including `megadj ingest` W6 and MusicBrainz `megadj
 enrich` W5 that v1 missed); §5c audit table extended with MB + the

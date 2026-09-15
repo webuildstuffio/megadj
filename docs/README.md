@@ -79,10 +79,18 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   (+7.4 pts), ≥65% post-refold target PASS (§5b.3 step 1). Demote-and-flag
   (§5b.3 step 2) shipped: 96/2982 disputed labels flagged + excluded from
   seeding; Tier-0 battery re-ran clean post-flag.
-- [Genre pipeline architecture (Sep 15, rev 2)](fulltags/genre-pipeline.md) —
+- **Bandcamp arm (Sep 15, rev 7.8)** — the fetch ladder's third catalog
+  vote (`fulltags/src/bandcamp.ts`, W2b): hard-artist-gated search +
+  one page fetch voting genre/year/label/art, on the shared
+  name-matching SSOT (`fulltags/src/name-match.ts`). Same-day
+  consolidation: #66 masterDbPath (11/11 callers), #67 NFC+casefold
+  name key, #82 errorText SSOT — all pinned by tests; #67/#82/#75/#100
+  issues closed with evidence.
+- [Genre pipeline architecture (Sep 15, rev 4)](fulltags/genre-pipeline.md) —
   how the genre system processes a track end to end: **§2 is the full
   write-source inventory** (every path that can put a genre in the DB —
-  sync/fetch-SC/fetch-BP/AI/MusicBrainz/ingest/kNN — including the two
+  sync/fetch-SC/fetch-BP/fetch-Bandcamp/AI/MusicBrainz/ingest/kNN —
+  including the two
   commonly forgotten: `megadj enrich` and `megadj ingest`), then hygiene
   passes, inference discipline, scoring read path, the ≥65%
   gate, the tag census/compare surfaces, 11 invariants, design

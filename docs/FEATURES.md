@@ -25,9 +25,9 @@ nothing ever downloaded twice.
 
 |                    |                                                                                                                                                                         |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | 🔨 YouTube Music today; SoundCloud next                                                                                                                                 |
-| **Sources today**  | YouTube Music (liked songs, playlists)                                                                                                                                  |
-| **Sources coming** | SoundCloud (yt-dlp already covers it — it's config work), Bandcamp, 1001tracklists mining as a discovery queue                                                          |
+| **Status**         | 🔨 YouTube Music downloads today; SC/BP/Bandcamp enrichment live in the fetch ladder                                                                                    |
+| **Sources today**  | YouTube Music (liked songs, playlists); SoundCloud + Beatport + **Bandcamp (Sep 15)** vote genre/year/label/art at `megadj fetch` time                                  |
+| **Sources coming** | 1001tracklists mining as a discovery queue                                                                                                                              |
 | **How it works**   | `megadj sync` → yt-dlp at the best format available (256 kbps AAC first, graceful fallback); polite pacing and backoff, permanent failures classified and never retried |
 | **State**          | SQLite tracks every video ID: status, format, bitrate, path, attempt history. Nothing re-downloads.                                                                     |
 | **Flag**           | anything below 250 kbps is flagged `LOWQ` in `megadj list` — quality only ever ratchets up                                                                              |

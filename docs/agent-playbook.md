@@ -381,3 +381,33 @@ threads are not repeated here — dedup checked against issues #1–#23,
   steps that "just happen" (4068cf2b). Every fix that landed explained
   itself while running (phase ticks, dry-run-first, VERDICT banners).
   Default to narrating work in the UI, even when the work is fine.
+- **Census pins churn under concurrent sweeps** (e27b273, Sep 15): the
+  boundary censuses (`src/boundary-*-census.test.ts`) pin audited/
+  sanctioned COUNTS plus a content DIGEST — any refactor that adds,
+  removes, or moves a `Number()`/`JSON.parse` site invalidates another
+  agent's just-landed pin, and two agents re-pinning the same digest in
+  the same hour fight silently. Tripwire: a census failure whose only
+  diff is the digest/counts is CHURN, not a regression — recompute with
+  the census helper, re-pin once, and say so in the commit message.
+  Escape-level trap inside the same incident: a sanction key holding a
+  regex (`/\d{4}/`) must carry the scanner-verbatim string VALUE — in TS
+  source that means a double backslash (`\\d`); a single `\d` collapses
+  to `d` and the key silently stops matching.
+- **The LOC-budget gate + staged-scope hooks interact with concurrent
+  agents** (75dacb7, Sep 15): the pre-commit LOC gate blocks net code
+  growth with an audit-logged bypass (`MEGADJ_LOC_BYPASS`), while the
+  staged-scoped test hook validates the WORKTREE copy — a concurrent
+  agent's uncommitted WIP in DIFFERENT files can still fail your commit's
+  tsc/test legs. Sequence that worked: verify the merged tree green
+  (`bun run typecheck && bun test`) BEFORE committing, stage path-scoped,
+  bypass with an honest reason, and let the follow-up fix commit carry
+  the hook failures one at a time instead of `--no-verify` over another
+  agent's WIP.
+- **A concurrent commit can swallow your staged work — verify by bytes,
+  not by message** (e27b273, Sep 15): another agent's `git commit` swept
+  24 files of this agent's staged feature work into their refactor
+  commit. Recovery: `git show <their-commit>:<file> | diff - <file>` per
+  file; byte-identical = landed (per the workspace rule, an identical
+  diff standing in someone else's commit counts as landed); anything NOT
+  identical gets re-staged and committed separately. Never trust the
+  commit MESSAGE to tell you what's inside.
