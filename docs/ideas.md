@@ -435,7 +435,7 @@ Mac-DJ irritations nobody builds for.
     ingest normalizes to a strict `Artist - Title (Remixer)` convention,
     verified against MusicBrainz, diff view before apply, FAT32-safe
     length checks built in. Effort S.
-66. **MegaSet copilot — ✅ SHIPPED (core Sep 8; CLI spoke Sep 11).** Graduated to docs/megaset/ as its own product doc set.
+66. **Set copilot — ✅ SHIPPED (core Sep 8; CLI spoke Sep 11).** Graduated to docs/set/ as its own product doc set.
 67. **"Find the double-drop" detector.** Scan the library for pairs of
     tracks whose grids + keys align so well they can be layered (acapella
     over instrumental) — mashup hunting by embeddings + grid math instead
@@ -593,7 +593,7 @@ keeping agents inside P9/P11's idempotent, resumable safety rules.
     scores saturate at 0.90+ with junk hubs everywhere, whitened
     spreads 0.70→0.05 and demotes them; P100's 100-mix judgment
     decides adoption). Mean-centre, whiten (or
-    all-but-the-top), CSLS-correct the kNN in `megadj similar`/MegaSet.
+    all-but-the-top), CSLS-correct the kNN in `megadj similar`/Set.
     Flag-gated (`--space
 raw|whitened`) for A/B. Effort S.
 92. **Full-population LOO.** n=3,500 over the cached vectors instead of
@@ -604,7 +604,7 @@ raw|whitened`) for A/B. Effort S.
     hard negatives; improves genre AND retrieval simultaneously; one
     matmul at query time; a _derived view_ of the same vectors, so the
     single-ledger rule holds. Canonical ref: Lee et al., ICASSP 2020.
-    Minutes on CPU. Effort S-M. The actual MegaSet fix.
+    Minutes on CPU. Effort S-M. The actual Set fix.
 94. **`edm` umbrella arbitration.** ▲ PROMOTED to the top genre fix (Sep
     15 diagnostics: `edm→house` 276 + `house→edm` 84 = 360/896
     disagreements — the single biggest block, bigger than the whole
@@ -695,7 +695,7 @@ raw|whitened`) for A/B. Effort S.
 > gate** (gig frequency, see §0) decides depth. Nearly every Phase 2–6
 > item above shipped in the Sep 4–11 window (fleet, ⌘K, preflight,
 > players, fingerprints, keys, moods, O82–O88, drop, similarity,
-> MegaSet, shelf hygiene/dedupe/dupescan, grid-audit wave 2) — the
+> Set, shelf hygiene/dedupe/dupescan, grid-audit wave 2) — the
 > open remainders are C18a/C21, O84, I46 full slice, K57–K59, M69–M74,
 > and the two §0 physical tasks (0a evacuation run, 0b rclone remote).
 > **2026-09-14: the live queue's top block is the §P genre/readout

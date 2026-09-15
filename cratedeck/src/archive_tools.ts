@@ -185,7 +185,7 @@ export function archiveTools(): Record<string, unknown> {
 
     archive_set_build: {
       description:
-        "[READ-ONLY, PROPOSES ONLY] M66 set-builder copilot: audits every downloaded archive row, resolves moved DJ-Imports paths on the mounted shelf, collapses physical-file aliases, then proposes an ordered mix chain. It prefers FullTags beat/mood/key ledgers, fills missing BPM/key from the current Rekordbox master mirror, and reads a file key only when neither source knows it. Tempo uses a ±6% mixability window; Camelot and mood shape the selected energy arc. Writes nothing. Inspect requested/actual minutes, completion/shortfall, source_total, pool, missing_files, duplicate_files, relocated_files, source-hit/key-read diagnostics, and freshness to explain the result.",
+        "[READ-ONLY, PROPOSES ONLY] Set builder copilot: audits every downloaded archive row, resolves moved DJ-Imports paths on the mounted shelf, collapses physical-file aliases, then proposes an ordered mix chain. It prefers FullTags beat/mood/key ledgers, fills missing BPM/key from the current Rekordbox master mirror, and reads a file key only when neither source knows it. Tempo uses a ±6% mixability window; Camelot and mood shape the selected energy arc. Writes nothing. Inspect requested/actual minutes, completion/shortfall, source_total, pool, missing_files, duplicate_files, relocated_files, source-hit/key-read diagnostics, and freshness to explain the result.",
       inputSchema: obj({
         preset: {
           type: "string",

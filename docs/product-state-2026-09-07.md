@@ -7,7 +7,7 @@ commands and database ledgers, never this document.
 megadj is a four-product pipeline on one Mac for Pioneer hardware:
 
 ```text
-GetDat ──▶ FullTags ──▶ MegaSet ──▶ CrateDeck ──▶ the booth
+GetDat ──▶ FullTags ──▶ Set ──▶ CrateDeck ──▶ the booth
 archive     enrich       propose      stage and     play
 music       and audit    the mix      verify
 ```
@@ -22,7 +22,7 @@ the pipeline ledger. See [Data stores and schema ownership](getdat/data-model.md
 | --------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | GetDat    | ✅ SHIPPED                      | YouTube Music sync, URL/folder drop, scored ingest, container-truth repair, dedupe/quarantine, quality upgrades, and archive-to-shelf sync                            | Additional download sources remain backlog items; AI genre fallback remains opt-in                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `megadj status --json`, `megadj audit --json`                               |
 | FullTags  | ✅ SHIPPED / 🧭 ACTIVE ANALYSIS | One schema, verified format-specific atomic writers, source-first metadata/artwork, Beatport identity fields, fingerprints, key/mood/energy analysis, and gated audit | BPM tag writes remain blocked; structure, vocal-density, and cue work continue through the grid plan. **Sep 15: Tier-0 diagnostics ran live, the `edm` umbrella refold SHIPPED — LOO gated 61.7% → 69.2% (+7.4), ≥65% target PASS — the demote-and-flag pass flagged 96/2982 disputed labels (excluded from seeding), and the fetch ladder gained its third catalog vote: the Bandcamp arm (hard-artist-gated page fetch voting genre/year/label/art) on the shared name-matching SSOT — [verdicts](fulltags/tier0-diagnostics-2026-09-15.md), [refold](fulltags/genre-audit.md), [pipeline](fulltags/genre-pipeline.md)** | `megadj audit --json`; [FullTags roadmap](fulltags/fulltags-roadmap.md)     |
-| MegaSet   | ✅ SHIPPED v0 / 🧭 ACTIVE v1    | Deterministic propose-only mix builder, whole-library pool, CLI/HTTP/MCP/web surfaces, M3U8 export, and DB/XML-twinned rekordbox playlist write-off                   | Re-ranked improvements include small-pool search, diversity, richer arcs, alternatives, and phrase-aware handoffs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | [PRD](megaset/01-prd.md), [benchmarks](megaset/04-sequencing-benchmarks.md) |
+| Set   | ✅ SHIPPED v0 / 🧭 ACTIVE v1    | Deterministic propose-only mix builder, whole-library pool, CLI/HTTP/MCP/web surfaces, M3U8 export, and DB/XML-twinned rekordbox playlist write-off                   | Re-ranked improvements include small-pool search, diversity, richer arcs, alternatives, and phrase-aware handoffs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | [PRD](set/01-prd.md), [benchmarks](set/04-sequencing-benchmarks.md) |
 | CrateDeck | ✅ SHIPPED v0.1                 | Drive registry/ghosts, scans, verify and preflight, fleet coverage, checksums, job orchestration, local web UI, deckctl, and MCP                                      | Three manual hardware checks and the release-policy decision remain; differential mirror and assisted legacy export stay planned                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `deckctl status --json`; [Acceptance](cratedeck/acceptance.md)              |
 
 Exact interface counts are deliberately absent here. They are derived from
@@ -55,7 +55,7 @@ execution tracker and [Ideas](ideas.md) owns backlog rationale.
    gates; keep all unpassed writers blocked.
 4. Exercise CrateDeck's remaining acceptance checks on real gig hardware and
    resolve the release-policy decision in issue #29.
-5. Advance MegaSet v1 from measured evidence: small-pool search first, then
+5. Advance Set v1 from measured evidence: small-pool search first, then
    diversity/arc controls and phrase-aware handoffs.
 
 ## Canonical evidence
@@ -67,7 +67,7 @@ execution tracker and [Ideas](ideas.md) owns backlog rationale.
   schema owners.
 - [FullTags roadmap](fulltags/fulltags-roadmap.md) and
   [grid/cue plan](fulltags/grid-audit-plan.md) — analysis gates and remaining stages.
-- [MegaSet documentation](megaset/01-prd.md) — PRD, architecture, comparator
+- [Set documentation](set/01-prd.md) — PRD, architecture, comparator
   research, benchmarks, genre policy, and embedding evidence.
 - [CrateDeck acceptance](cratedeck/acceptance.md) — completed and manual
   acceptance checks.

@@ -167,7 +167,7 @@ feed — mutating, confirm first) ·
   source census) · `archive_analysis_coverage` (playable-vs-ledgers
   progress) · `archive_library_overview` / `archive_cue_ledger`
   (FullTags-mirror reads) · `archive_similar_tracks {video_id}`
-  (I49 sounds-like kNN) · `archive_set_build` (M66 propose-only chain
+  (I49 sounds-like kNN) · `archive_set_build` (propose-only chain
   builder) —
   39 tools total (22 `deck_*` + 2 `getdat_*` + 15 `archive_*`; census derives from
   source and is pinned by `cratedeck/test/surface-parity.test.ts`).

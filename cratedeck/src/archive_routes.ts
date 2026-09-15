@@ -185,7 +185,7 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
           : archive.similarTracks(id, 10, space),
       );
     },
-    // M66 set-builder copilot: propose an ordered mix chain from the
+    // Set-builder copilot: propose an ordered mix chain from the
     // measured data (beats BPM + mood axes + file TKEY). Propose-only.
     // Params validated by the engine's parseSetbuildQuery (shared with the
     // MCP tool): unknown preset → 400, never a silent peak-time fallback;
@@ -219,7 +219,7 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         return new Response(`${lines.join("\n")}\n`, {
           headers: {
             "Cache-Control": "no-store",
-            "Content-Disposition": `attachment; filename="fulltags-${resolved.built.preset}-${actual}m.m3u8"`,
+            "Content-Disposition": `attachment; filename="set-${resolved.built.preset}-${actual}m.m3u8"`,
             "Content-Type": "application/vnd.apple.mpegurl; charset=utf-8",
           },
         });

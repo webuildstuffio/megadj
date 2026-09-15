@@ -1,4 +1,4 @@
-// setbuild.test.ts — M66 set-builder copilot: the pure engine.
+// setbuild.test.ts — the set-builder copilot: the pure engine.
 // camelotOf / keyScore / bpmScore / buildSet / parseSetbuildQuery —
 // propose-only, no I/O.
 import { describe, expect, test } from "bun:test";

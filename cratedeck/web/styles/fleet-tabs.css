@@ -80,7 +80,7 @@
   --prod: var(--pulse);
 }
 .canvas.set {
-  --prod: #f0b64b;
+  --prod: var(--set, #e0a93f);
 }
 .fleetchip {
   display: inline-flex;

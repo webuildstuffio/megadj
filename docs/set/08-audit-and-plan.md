@@ -1,4 +1,4 @@
-# MegaSet — Full Audit, Comparison & Improvement Plan
+# Set — Full Audit, Comparison & Improvement Plan
 
 **Status:** 📚 REFERENCE — implementation audit and design sketches. The active roadmap is the
 [30-comparator analysis](03-competitive-analysis.md) (10 OSS + 10 commercial +
@@ -10,7 +10,7 @@ weights frozen as engine constants); the embedding-tower question is measured in
 confirmed primary on both metrics; second-tower/fusion sweep settled — best ensemble +1.1 pt, not adopted).
 **Plan of record = the re-ranked roadmap** (03 §5); Part 3 below preserves the per-item
 implementation sketches, delta-pinned against the measured verdicts. Identifier
-renaming (`setbuild` → `megaset`) is planned in [09-migration-plan.md](09-migration-plan.md), not started.
+renaming (`setbuild` → `set`) is planned in [09-migration-plan.md](09-migration-plan.md), not started.
 
 > Glossary: [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 

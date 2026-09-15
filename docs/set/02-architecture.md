@@ -1,4 +1,4 @@
-# MegaSet — Architecture
+# Set — Architecture
 
 **Status:** 📚 REFERENCE — current data flow, variable inventory, and ownership.
 
@@ -151,7 +151,7 @@ duplicate, relocated, excluded_total) rides the payload.
 
 ## 4. Data ownership
 
-| Data                              | Owner                                         | MegaSet role                              |
+| Data                              | Owner                                         | Set role                              |
 | --------------------------------- | --------------------------------------------- | ----------------------------------------- |
 | BPM, energy/arousal/dance/valence | FullTags beats + mood ledgers                 | scoring inputs                            |
 | Musical key                       | `track_keys` cache → TKEY; RB mirror fallback | hard gate                                 |
@@ -162,6 +162,6 @@ duplicate, relocated, excluded_total) rides the payload.
 | Co-occurrence / rotation stats    | `setlist_edges` (planned, co-occur lane)      | sceneAffinity + rotationWeight soft terms |
 | Collection rows + playlist twins  | SHELF1 `master.db` + `masterPlaylists6.xml`   | mirror fallback + rb-playlist write-off   |
 
-MegaSet adds exactly one store of its own: nothing. All persistence stays in
+Set adds exactly one store of its own: nothing. All persistence stays in
 ledgers owned by their existing products (the co-occurrence ledger, when it
 lands, belongs to the GetDat family).

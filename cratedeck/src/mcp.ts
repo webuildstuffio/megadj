@@ -34,7 +34,7 @@
  *   archive_grid_cross_check    fitted-grid verdicts: ok/off/octave/drift
  *   archive_mood_profile        mood/dance/VA averages + extremes (roadmap #4)
  *   archive_similar_tracks {id, k?}  I49 "sounds like" cosine kNN (readonly)
- *   archive_set_build {preset?, minutes?}  M66 set-builder proposal (readonly)
+ *   archive_set_build {preset?, minutes?}  set-builder proposal (readonly)
  *   archive_cue_ledger          8-bar phrase-cue ledger (readonly)
  *   archive_library_overview    FullTags mirror: genres/years/art/energy
  *   archive_skip_census         why gone/skipped rows didn't land

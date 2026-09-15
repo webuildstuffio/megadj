@@ -12,7 +12,7 @@ ready for the booth. No spreadsheets, no tag editors, no "I'll fix the
 artwork later".
 
 ```
-GetDat ──▶ FullTags ──▶ MegaSet ──▶ CrateDeck ──▶ the booth
+GetDat ──▶ FullTags ──▶ Set ──▶ CrateDeck ──▶ the booth
 download    perfect       propose      sync &       play on
 & archive   metadata      the mix      verify USBs   Pioneer
 ```
@@ -93,9 +93,9 @@ megadj years             # verify years against the SC page (not the AI's 2023 g
 megadj audit             # the completeness check across the whole library
 ```
 
-### 🎚️ MegaSet — propose the mix, keep the taste
+### 🎚️ Set — propose the mix, keep the taste
 
-MegaSet turns FullTags' measured BPM, key, mood, energy, and phrase data into
+Set turns FullTags' measured BPM, key, mood, energy, and phrase data into
 an ordered mix proposal. It is deterministic and explainable: every exclusion
 is counted, every transition is scored, and nothing writes to rekordbox unless
 you explicitly cross the dry-run-first `rb-playlist` gate.
@@ -104,8 +104,9 @@ you explicitly cross the dry-run-first `rb-playlist` gate.
   one registry across CLI, web, and MCP.
 - 🎼 **Musically bounded** — Camelot compatibility, tempo gates, and an energy
   arc choose the chain from the whole available pool.
-- 🧾 **Reviewable handoff** — inspect the proposal in the FullTags panel or
-  export M3U8; `megadj rb-playlist` is the separately gated write-off.
+- 🧾 **Reviewable handoff** — inspect the proposal in the Set product
+  (#/set) or export M3U8; `megadj rb-playlist` is the separately gated
+  write-off.
 
 ```bash
 megadj setbuild --preset peak --minutes 60 --json
@@ -113,7 +114,7 @@ megadj rb-playlist SHELF1 --preset peak        # dry-run by default
 ```
 
 Product contract and measured roadmap:
-[MegaSet docs](docs/megaset/01-prd.md).
+[Set docs](docs/set/01-prd.md).
 
 ### 🗄️ The shelf master — the archive that never leaves the desk
 
@@ -172,7 +173,7 @@ megadj shelf-archive <volume>   # archive a stray drive into the shelf, verified
 
 The remaining work is deliberately gated: hardware backup/acceptance,
 rekordbox grid-write experiments, gold annotations for analysis gates, and
-MegaSet v1's measured sequencing improvements. The
+Set v1's measured sequencing improvements. The
 [current product state](docs/product-state-2026-09-07.md) owns that short
 outcome list; [Ideas](docs/ideas.md) owns backlog rationale; GitHub issues own
 execution priority. Agents already talk to the shipped surface over MCP with

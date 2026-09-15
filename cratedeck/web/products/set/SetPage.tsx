@@ -15,7 +15,7 @@ export function SetPage(props: { tab: string }) {
     <div class="canvas set">
       <ProductIntro
         product="set"
-        sub="Turn the whole analyzed shelf into an ordered, mixable draft — tempo-gated, key-compatible, shaped by an energy arc. It proposes; nothing writes behind your back."
+        sub="Shape how the room should feel from first track to last, pick a length, and the whole analyzed shelf comes back as an ordered, mixable draft — tempo-gated, key-compatible. It proposes; nothing writes behind your back."
       />
       {tab === "build" && <SetBuildPanel />}
     </div>

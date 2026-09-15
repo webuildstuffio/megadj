@@ -1,4 +1,4 @@
-# MegaSet — Sequencing Deep Dive & Benchmarks
+# Set — Sequencing Deep Dive & Benchmarks
 
 **Status:** ✅ COMPLETE — Sep 14 sequencing benchmark and co-occurrence design evidence.
 
@@ -267,7 +267,7 @@ signal away. Consequence: keep the B10p embedding prior **small** (≤0.1),
 and treat embedding clusters as their own vocabulary — "embedding
 neighborhoods" may be better genre-family seeds than scraped genre strings.
 
-### 5.4 New FullTags passes worth precomputing (ahead of MegaSet)
+### 5.4 New FullTags passes worth precomputing (ahead of Set)
 
 | Pass                                      | Cost (measured)                                                   | Feeds                                                                       | Worth it?                                            |
 | ----------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------- |

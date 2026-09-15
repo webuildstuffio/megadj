@@ -1,4 +1,4 @@
-// setbuild.ts — M66 set-builder copilot: a PROPOSE-ONLY pure engine.
+// setbuild.ts — the set-builder copilot: a PROPOSE-ONLY pure engine.
 //
 // Input: the archive's measured data (beats ledger BPM, mood ledger
 // valence/arousal/dance, file TKEY via fulltags' ground-truth readers,
@@ -301,7 +301,7 @@ const greedyChain = (
   };
 };
 
-/** Beam continuation (the E7 fix, docs/megaset/04-sequencing-benchmarks.md):
+/** Beam continuation (the E7 fix, docs/set/04-sequencing-benchmarks.md):
  *  keep the best SET_BEAM_WIDTH partial chains per slot instead of one.
  *  Sparse pools (one genre family, pinned opener, heavy exclusions)
  *  dead-end greedy ~59% short of the best chain because a locally-best
@@ -524,7 +524,7 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   }
   pool.splice(pool.indexOf(first), 1);
 
-  // Strategy pick (E7, docs/megaset/04-sequencing-benchmarks.md): small
+  // Strategy pick (E7, docs/set/04-sequencing-benchmarks.md): small
   // pools get the beam continuation, big pools keep greedy — measured
   // +59% chain length on sparse pools at ~0 ms. The sequencer's working
   // pool (opener + post-duration-filter rest) is the size that decides;

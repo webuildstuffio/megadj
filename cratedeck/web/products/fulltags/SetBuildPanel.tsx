@@ -285,7 +285,11 @@ export function SetBuildPanel() {
         }}
       >
         <fieldset class="setbuild-preset" disabled={build.loading}>
-          <StepTitle n={1} title="Energy journey" />
+          <StepTitle
+            n={1}
+            title="Energy journey"
+            hint="how the room should feel from first track to last"
+          />
           <div
             class="setbuild-preset-grid"
             role="radiogroup"

@@ -379,7 +379,7 @@ issue.
 - `src/` domain layout refactor — shipped
   ([archive/src-layout-refactor.md](../archive/src-layout-refactor.md),
   ✅ COMPLETE).
-- MegaSet full-library pull + speed ("only 2 tracks? why 300 songs?") —
+- Set full-library pull + speed ("only 2 tracks? why 300 songs?") —
   `db3a66c`, `4b670ab`, `692111f`.
 
 **Open — live GitHub state checked 2026-09-14:**

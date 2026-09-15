@@ -7,7 +7,7 @@ vibe and a goal (see [PRINCIPLES.md](PRINCIPLES.md) §10). They chain together
 into one pipeline:
 
 ```
-GetDat ──▶ FullTags ──▶ MegaSet ──▶ CrateDeck (the Crate) ──▶ the booth
+GetDat ──▶ FullTags ──▶ Set ──▶ CrateDeck (the Crate) ──▶ the booth
 download    perfect       propose      organize, verify,      play on
 & archive   metadata      the mix      sync DJ USB drives     Pioneer
 ```
@@ -129,7 +129,7 @@ local `docs/usb-sync-log.md` is intentionally gitignored operator evidence.
 
 ---
 
-## 🎚️ MegaSet — _the co-pilot: propose the mix, keep the taste_
+## 🎚️ Set — _the co-pilot: propose the mix, keep the taste_
 
 **Goal:** turn the archive's measured data (beats, mood, key, embeddings,
 8-bar phrase cues) into an ordered, key-compatible mix proposal with a
@@ -138,14 +138,14 @@ propose-only: the DJ keeps every creative decision.
 
 |                   |                                                                                                                                                                                                                                                                                         |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**        | ✅ graduated product — v0 shipped propose-only (Sep 11–12 2026): greedy Camelot/energy-arc engine, whole-library pool, CLI + web + MCP + M3U8 export, gated `megadj rb-playlist` write-off; own doc set since Sep 14. v1 = the [re-ranked roadmap](megaset/03-competitive-analysis.md). |
+| **Status**        | ✅ graduated product — v0 shipped propose-only (Sep 11–12 2026): greedy Camelot/energy-arc engine, whole-library pool, CLI + web + MCP + M3U8 export, gated `megadj rb-playlist` write-off; own doc set since Sep 14. v1 = the [re-ranked roadmap](set/03-competitive-analysis.md). |
 | **How it works**  | FullTags ledgers feed a pure scoring engine (`0.45·tempo + 0.3·key + 0.25·energy-fit`, ±6% tempo window, Camelot wheel); one preset registry (warmup/peak/afterhours) drives all surfaces; every exclusion is counted and explainable.                                                  |
 | **The write-off** | `megadj rb-playlist` links a proposal into the rekordbox master as a real playlist — dry-run first; `--apply` requires rekordbox closed, backs up both collection surfaces, writes the DB row and `masterPlaylists6.xml` twin, then verifies both.                                      |
-| **Docs**          | [MegaSet doc set](megaset/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](megaset/08-audit-and-plan.md)                                                                                                                                                |
+| **Docs**          | [Set doc set](set/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](set/08-audit-and-plan.md)                                                                                                                                                |
 
 **Commands:** `megadj setbuild --preset peak --minutes 60 [--opener <id>] [--search greedy|beam] [--json]` ·
 `megadj rb-playlist [drive] [--preset …] [--apply --yes]`
-**Vibe:** "the opener sells the night — MegaSet makes sure you never open
+**Vibe:** "the opener sells the night — Set makes sure you never open
 with a 73-BPM track in a 128 room."
 
 ---
@@ -171,7 +171,7 @@ megadj shelf-archive <volume>  # shelf: drive → shelf master (stray-drive inta
 megadj shelf-sweeps            # shelf: DB ledger — every sweep's verdict, latest per drive
 megadj shelf-dupescan          # shelf: fingerprint dupes regardless of name/folder
 megadj similar <video_id>      # FullTags: sounds-like kNN over the embeddings ledger
-megadj setbuild --preset peak  # MegaSet: propose a Camelot/energy-arc mix chain
+megadj setbuild --preset peak  # Set: propose a Camelot/energy-arc mix chain
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 

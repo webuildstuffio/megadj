@@ -22,7 +22,7 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   through `nonNegOpt`: invalid input (`abc`, empty) returns undefined, guards
   fire, command exits 2 with zero work (`src/numeric-options.test.ts`).
 - **SSOT twins that drifted.** MCP `deck_explain` truncated `KIND_DOCS`
-  without `typical`/`needs`; local result-type re-declarations (the MegaSet engine lesson);
+  without `typical`/`needs`; local result-type re-declarations (the Set engine lesson);
   two `STATUS_LANG` copies formed a web import cycle; stale tool/verb counts
   sat in README/deckctl.md across 9 files. Census tests must DERIVE expected
   strings from source and assert exact equality — a `>= N` floor plus

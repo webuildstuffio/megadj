@@ -23,6 +23,10 @@
   --pulse: #b18cff;
   --pulse-dim: rgba(177, 140, 255, 0.13);
   --warn: #e9c35a;
+  /* Set (product 4) — the warm booth amber. One token, not three hexes:
+   * chrome (nav/pintro/phasechip), canvas, and setbuild styles all read
+   * this; the old #f0b64b/#d9a441 strays are retired. */
+  --set: #e0a93f;
   --warn-dim: rgba(233, 195, 90, 0.13);
   --bad: #f2555a;
   --bad-dim: rgba(242, 85, 90, 0.14);
@@ -120,6 +124,22 @@ body:has(.app[data-prod="fleet"]) {
     radial-gradient(
       1100px 460px at 24% -12%,
       rgba(240, 182, 75, 0.05),
+      transparent
+    ),
+    radial-gradient(
+      1100px 500px at 78% -14%,
+      rgba(242, 85, 90, 0.035),
+      transparent
+    ),
+    var(--bg);
+}
+/* Set's own room lighting: warm booth amber wash — "the library gets
+ * played" reads as a different time of day, not a different app. */
+body:has(.app[data-prod="set"]) {
+  background:
+    radial-gradient(
+      1100px 460px at 24% -12%,
+      rgba(224, 169, 63, 0.055),
       transparent
     ),
     radial-gradient(

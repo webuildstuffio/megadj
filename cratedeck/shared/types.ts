@@ -742,7 +742,7 @@ export interface StoredNote {
   dismissed_at: number | null;
 }
 
-// ---- set-builder (M66): moved entirely to shared/setbuild.ts (the
+// ---- set-builder: moved entirely to shared/setbuild.ts (the
 // set-builder wire seam — file-length split; this file had grown to the
 // 900-line guard). Re-exported here so existing `from "./types"`
 // consumers keep working with zero drift risk (re-export, never a twin).

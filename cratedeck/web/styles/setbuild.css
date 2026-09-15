@@ -1,8 +1,11 @@
-/* setbuild.css — the MegaSet set-builder styles (FullTags ⌗ Set), split out
- * of products.css (file-length guard). Loaded right after products.css so
- * the cascade order is unchanged. */
+/* setbuild.css — the Set builder's styles (#/set, the fourth product),
+ * split out of products.css (file-length guard). Loaded right after
+ * products.css so the cascade order is unchanged. The Set canvas wears
+ * the --set amber (tokens.css) — never CrateDeck's mint: chrome accents,
+ * loading explainer, CTA and journey arcs all read var(--set), while the
+ * MEASURED data lines (arc-chart arousal) stay mint, FullTags' color. */
 
-/* ---- set builder (M66, FullTags ⌗ Set) ---------------------------------
+/* ---- set builder -------------------------------------------------------
  * One legible decision: choose the room's energy journey, then build. */
 .setbuild-lead {
   max-width: 70ch;
@@ -35,7 +38,10 @@
   font-weight: 680;
   letter-spacing: 0.01em;
 }
-/* step number badge + title with its quiet "what this decides" sub-line */
+/* step number badge + title with its quiet "what this decides" sub-line.
+ * ONLY the first span is the badge — the old `.setbuild-preset legend`
+ * selector here also turned step 1's WHOLE title legend into a circle
+ * (steps 2/3 use .setbuild-length, so only step 1 doubled). */
 .setbuild-setup-text {
   display: grid;
   gap: 1px;
@@ -46,7 +52,6 @@
   font-weight: 480;
   letter-spacing: 0.01em;
 }
-.setbuild-preset legend,
 .setbuild-setup-title > span:first-child {
   display: inline-grid;
   width: 19px;
@@ -54,7 +59,7 @@
   place-items: center;
   border-radius: 50%;
   color: var(--surface);
-  background: var(--accent);
+  background: var(--set);
   font-size: 10px;
   font-weight: 800;
 }
@@ -86,9 +91,9 @@
   transform: translateY(-1px);
 }
 .setbuild-preset-option.on {
-  border-color: var(--accent);
+  border-color: var(--set);
   background: var(--surface3);
-  box-shadow: inset 0 0 0 1px rgba(56, 224, 164, 0.1);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--set) 10%, transparent);
 }
 .setbuild-preset-option:disabled {
   cursor: wait;
@@ -109,7 +114,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: var(--accent);
+  color: var(--set);
   font-size: 9px;
   font-weight: 750;
   letter-spacing: 0.05em;
@@ -129,12 +134,12 @@
 }
 .setbuild-preset-line {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--set);
   stroke-width: 2.5;
   stroke-linecap: round;
 }
 .setbuild-preset-arc circle {
-  fill: var(--accent);
+  fill: var(--set);
 }
 .setbuild-preset-range {
   color: var(--text2);
@@ -151,7 +156,11 @@
   line-height: 1.4;
 }
 .setbuild-setup-title {
-  margin-bottom: 8px;
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 680;
+  letter-spacing: 0.01em;
 }
 .setbuild-length {
   min-width: 0;
@@ -197,10 +206,10 @@
   background: var(--surface3);
 }
 .setbuild-duration-option.on {
-  border-color: var(--accent);
+  border-color: var(--set);
   color: var(--text);
   background: var(--surface3);
-  box-shadow: inset 0 0 0 1px rgba(56, 224, 164, 0.08);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--set) 8%, transparent);
 }
 .setbuild-duration-option:disabled {
   cursor: wait;
@@ -248,7 +257,7 @@
   min-height: 48px;
   padding-inline: 18px;
   font-weight: 720;
-  box-shadow: 0 8px 22px rgba(56, 224, 164, 0.12);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--set) 12%, transparent);
 }
 .setbuild-build:disabled {
   cursor: wait;
@@ -272,7 +281,7 @@
   user-select: none;
 }
 .setbuild-method summary small {
-  color: var(--accent);
+  color: var(--set);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -329,9 +338,9 @@
   color: var(--faint);
   padding: 13px 15px;
   margin: 2px 0;
-  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--stroke));
+  border: 1px solid color-mix(in srgb, var(--set) 38%, var(--stroke));
   border-radius: 9px;
-  background: color-mix(in srgb, var(--accent) 5%, var(--surface2));
+  background: color-mix(in srgb, var(--set) 5%, var(--surface2));
   animation: setbuild-fade-in 200ms ease;
 }
 .setbuild-loading .spin {
@@ -339,7 +348,7 @@
   height: 12px;
   margin-top: 2px;
   border: 2px solid var(--line);
-  border-top-color: var(--accent);
+  border-top-color: var(--set);
   border-radius: 50%;
   animation: setbuild-spin 0.8s linear infinite;
   flex: none;
@@ -357,7 +366,7 @@
 }
 /* the elapsed readout: tabular digits so it doesn't shimmer as it ticks */
 .setbuild-elapsed {
-  color: var(--accent);
+  color: var(--set);
   font-size: 11px;
   font-weight: 720;
   font-variant-numeric: tabular-nums;
@@ -376,7 +385,7 @@
   transition: color 240ms ease;
 }
 .setbuild-phases li.now {
-  color: var(--accent);
+  color: var(--set);
 }
 .setbuild-phases li.done {
   color: var(--muted);
@@ -403,11 +412,11 @@
   margin: 12px 0 8px;
   padding: 15px;
   border: 1px solid var(--stroke);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--set);
   border-radius: 10px;
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--accent) 7%, var(--surface2)),
+    color-mix(in srgb, var(--set) 7%, var(--surface2)),
     var(--surface2) 54%
   );
 }
@@ -437,7 +446,7 @@
   gap: 3px;
 }
 .setbuild-result-kicker {
-  color: var(--accent);
+  color: var(--set);
   font-size: 9.5px;
   font-weight: 760;
   letter-spacing: 0.08em;
@@ -513,7 +522,7 @@
   font-size: 11.5px;
 }
 .setbuild-source-head span {
-  color: var(--accent);
+  color: var(--set);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -784,7 +793,7 @@
 }
 .setbuild-arcchart .arc-envelope {
   fill: none;
-  stroke: var(--warn, #d9a441);
+  stroke: var(--set);
   stroke-width: 1.5;
   stroke-dasharray: 4 3;
   opacity: 0.75;
@@ -808,7 +817,7 @@
   pointer-events: all;
 }
 .setbuild-arcchart .arc-hit:hover {
-  fill: color-mix(in srgb, var(--accent) 12%, transparent);
+  fill: color-mix(in srgb, var(--set) 12%, transparent);
 }
 .setbuild-arcchart .arc-label {
   fill: var(--faint);
@@ -837,10 +846,10 @@
   border-top-style: solid;
 }
 .setbuild-arcchart .arc-sw.arousal {
-  border-top-color: var(--accent);
+  border-top-color: var(--set);
 }
 .setbuild-arcchart .arc-sw.envelope {
-  border-top-color: var(--warn, #d9a441);
+  border-top-color: var(--set);
   border-top-style: dashed;
 }
 .setbuild-arcchart .arc-sw.bpm {
@@ -925,7 +934,7 @@
 }
 /* resolved pool-cap echo + the last-build pool note inside the drawer */
 .setbuild-limit-hint {
-  color: var(--accent);
+  color: var(--set);
   font-size: 10px;
   animation: setbuild-fade-in 200ms ease;
 }

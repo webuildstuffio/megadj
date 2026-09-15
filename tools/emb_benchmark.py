@@ -1,4 +1,4 @@
-"""Embedding model benchmark harness — MegaSet/FullTags.
+"""Embedding model benchmark harness — Set/FullTags.
 
 Towers (all free, local, ONNX, CPU):
   1. discogs-effnet (incumbent, 1280-d)   ~/.local/share/fulltags-models

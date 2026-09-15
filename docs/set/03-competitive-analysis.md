@@ -1,4 +1,4 @@
-# MegaSet — Competitive Analysis
+# Set — Competitive Analysis
 
 **Status:** 📚 REFERENCE — 30-comparator analysis and measured v1 roadmap.
 
@@ -7,7 +7,7 @@ v1 · 2026-09-14 · **Analysis** → [PRD](01-prd.md) · [Audit & plan](08-audit
 > Glossary: [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 Thirty comparators in three classes: **10 open-source** projects
-(feature-adjacent, small), **10 commercial** products (the market MegaSet
+(feature-adjacent, small), **10 commercial** products (the market Set
 would compete in), and **10 dream/concept ideas** (research, papers, and
 community concepts that show where the category is going). Status and
 pricing verified 2026-09-14. Sequencing-algorithm claims (greedy vs exact
@@ -16,7 +16,7 @@ vs repair) are measured in [04-sequencing-benchmarks.md](04-sequencing-benchmark
 **Why compare at all?** Each comparator pins one design decision: OSS
 projects prove an algorithm is buildable at toy scale; commercial products
 show what the market pays for (and what it still gets wrong); dream ideas
-mark the category's direction. MegaSet's edge is deliberately **not** any
+mark the category's direction. Set's edge is deliberately **not** any
 single feature — it's the integration: measured local analysis, an agent
 surface, deterministic proposals, and a safety-gated write path, in one
 local-first pipeline nobody else combines (Part 4's matrix is the evidence).
@@ -127,7 +127,7 @@ often played after the current track (crowd-sourced co-occurrence, needs
 internet, up to 50 results); GeniusDJ layer adds similar-track suggestions
 and automix. **Parity check:** co-occurrence is a data source we don't have
 (and ethically won't scrape), but the UX — recommendation _while_ something
-plays — previews what a MegaSet "live mode" would feel like. Notably,
+plays — previews what a Set "live mode" would feel like. Notably,
 VirtualDJ never plans the whole set either.
 
 ### 2.9 [Engine DJ](https://enginedj.com) (Denon/InMusic) — Smartlists on hardware · ALIVE
@@ -135,7 +135,7 @@ VirtualDJ never plans the whole set either.
 OS layer for standalone players: **Smartlists** (rule-based lists synced to
 hardware), waveform/beatgrid analysis. No ordering intelligence. **Parity
 check:** the hardware-consumption end of the market; our M3U8 consumer
-contract (Phase D) is what would make a MegaSet export playable on Denon
+contract (Phase D) is what would make a Set export playable on Denon
 gear, not just CDJs.
 
 ### 2.10 [MixMeister](https://www.mixmeister.com) — the ancestor · END-OF-LIFE
@@ -146,7 +146,7 @@ product DJ.Studio openly calls its inspiration. Analysed tempo/key but **no
 arrangement suggestions**. Sold historically at $200–230 (Studio); got a
 2023 64-bit reprieve but is officially end-of-life with no feature updates.
 **Parity check:** the cautionary tale — timeline editing without smart
-ordering aged out. MegaSet's bet is the reverse: ordering intelligence first,
+ordering aged out. Set's bet is the reverse: ordering intelligence first,
 editing delegated to rekordbox itself.
 
 ---
@@ -154,7 +154,7 @@ editing delegated to rekordbox itself.
 ## Part 3 — Dream ideas, research & concepts
 
 These aren't products you can buy; they're the ideas the category keeps
-re-inventing. Each mapped to what MegaSet would steal.
+re-inventing. Each mapped to what Set would steal.
 
 ### 3.1 The "opening trifecta" heuristic
 
@@ -239,13 +239,13 @@ consume.
 
 ### 3.10 The library that plays back
 
-The terminal idea behind CrateDeck + MegaSet combined: the archive
+The terminal idea behind CrateDeck + Set combined: the archive
 constantly re-verifies itself (bitrot checks), re-analyzes new files, keeps
 every set proposal's labels fresh, and answers "what would I play tonight?"
 in one query. No product ships the whole loop; everyone owns a fragment
 (Lexicon: tags, SetFlow: order, MIK: analysis, rekordbox: playback).
 **Steal:** this is literally the megadj architecture — the analysis exists
-(FullTags), the verification exists (CrateDeck), MegaSet is the last
+(FullTags), the verification exists (CrateDeck), Set is the last
 proposal layer. The differentiator is integration, which none of the 30
 comparators have.
 
@@ -254,9 +254,9 @@ comparators have.
 ## Part 4 — Re-ranked feature matrix
 
 Combining all 30. Columns grouped; ✅ full · 🔶 partial/flagged · ❌ absent.
-MegaSet column shows **v0 shipped → v1 plan**.
+Set column shows **v0 shipped → v1 plan**.
 
-| Capability                    | **MegaSet**                | OSS best                   | Commercial best                 | Dream          |
+| Capability                    | **Set**                | OSS best                   | Commercial best                 | Dream          |
 | ----------------------------- | -------------------------- | -------------------------- | ------------------------------- | -------------- |
 | Own local audio analysis      | ✅ effnet+ffprobe          | digcrate, auto-dj-ai       | Mixed In Key (ref)              | —              |
 | Key/Camelot scoring           | ✅                         | djkr8 (3 levels)           | DJ.Studio Harmonize             | —              |
@@ -288,7 +288,7 @@ MegaSet column shows **v0 shipped → v1 plan**.
 
 † end-of-life Sep 2023 64-bit reprieve, no further features.
 
-**Read of the matrix:** MegaSet v0 already matches or beats every OSS
+**Read of the matrix:** Set v0 already matches or beats every OSS
 comparator on analysis depth, determinism, and write-off gating, and is the
 only planner with an agent surface. The commercial set (DJ.Studio, SetFlow,
 Djoid) leads on _editing UX_ and _packaging_, not intelligence — and every
@@ -344,5 +344,5 @@ huge surface, delegated to rekordbox by design); crowdsourced co-occurrence
 small to matter); cloud anything (position, not omission).
 
 Sequencing note: 1–3 land before the next real gig cycle; 4 is the
-graduation project that makes MegaSet categorically different from SetFlow
+graduation project that makes Set categorically different from SetFlow
 et al.; everything else is compound interest.

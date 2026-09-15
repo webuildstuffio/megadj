@@ -1,4 +1,4 @@
-// setbuild.ts — M66 set-builder CLI spoke (`megadj setbuild`).
+// setbuild.ts — the set-builder CLI spoke (`megadj setbuild`).
 //
 // Closes the last CLI-vs-MCP archive read gap (docs/surface-parity.md §4
 // item 4, the same way `megadj similar` closed I49's): the engine and the

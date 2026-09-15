@@ -1,6 +1,27 @@
-# FullTags — Prioritized Roadmap (rev 7.8)
+# FullTags — Prioritized Roadmap (rev 7.9)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 7.9, 2026-09-15: **Set UX pass 3 — the product skin, the doubled
+badge, and the MegaSet retirement completed.** The step-1 "double badge"
+fixed (a dead `.setbuild-preset legend` rule turned step 1's whole title
+into a second circle — steps 2/3 never doubled because they use a
+different fieldset class). The room-feel line is back: the intro reads
+"shape how the room should feel from first track to last" (ProductIntro)
+with the step-1 hint restored. Set now owns its accent end to end: one
+`--set` token (#e0a93f) replaces the three-amber drift
+(`var(--warn)`/`#f0b64b`/`#d9a441`), the panel's chrome (CTA glow,
+loading explainer, journey arcs, selection rings, badge) re-tints from
+CrateDeck mint to Set amber while the measured arc lines stay mint
+(FullTags' data), plus the per-product atmosphere wash and search-results
+tint every other product already had. The `ProductMeta.color` field
+(unread since Set landed) retired — accents live in CSS. MegaSet naming
+finished off everywhere: palette keywords de-twin, m3u8 export renamed
+`set-…m3u8` (was `fulltags-…`), MCP/deckctl "M66 copilot" → "Set builder
+copilot", CLI help de-numbered, and the whole doc set moved
+`docs/megaset/` → `docs/set/` with prose swept — issue #56's `setbuild →
+megaset` identifier rename is SUPERSEDED (the product is Set; the verb
+`megadj setbuild` stays, it's a command not a brand)._
 
 _Rev 7.6, 2026-09-15: **Set is its own product — the fourth nav-strip
 button.** The set builder left FullTags' tab strip entirely: it is now a
@@ -9,7 +30,7 @@ own nav button, Welcome launcher card, phase chip ("the library gets
 played"), ProductIntro, and warn-gold accent — promoted through the
 product SSOT (router Product union, PRODUCTS, LEDE, PRODUCT_TABS,
 palette entry renamed "Set", App canvas switch). Old `#/fulltags/set`
-deep links redirect. "MegaSet" naming is gone from user-facing surfaces —
+deep links redirect. "Set" naming is gone from user-facing surfaces —
 the product is called **Set**. Inside the panel the numbered steps
 dropped their redundant sub-lines ("how the room should feel…" repeated
 what the preset cards already say); titles are now terse: Energy journey
@@ -37,7 +58,7 @@ the suite). check:full green, 1386 pass, typecov 100%; DOM-verified live
 on the offline-shelf state (loading phases → "Shelf not mounted" kicker
 → grouped exclusions → repro line)._
 
-_Rev 7.3, 2026-09-15: **MegaSet panel parity + visual upgrade.** The
+_Rev 7.3, 2026-09-15: **Set panel parity + visual upgrade.** The
 Advanced drawer exposes every A/B knob the CLI/MCP already had — the
 `limit` pool cap (newest-N builds, "just this week's drops") plus the
 engine's real scoring evidence (±2%/±6% tempo curve, 0.45/0.3/0.25
@@ -52,7 +73,7 @@ constants are test-pinned (a silent drift would re-rank every proposal);
 `bpmScore`/weights now read the shared SSOT. check:full green, 1383
 pass, typecov 100%._
 
-_Rev 7.2, 2026-09-15: **MegaSet promoted to its own tab + the
+_Rev 7.2, 2026-09-15: **Set promoted to its own tab + the
 shelf-offline verdict.** The set builder moved from a panel inside
 FullTags ⌗ Similar to a dedicated FullTags ⌗ Set tab (palette entry +
 help term added; Similar keeps only sounds-like). The empty-pool

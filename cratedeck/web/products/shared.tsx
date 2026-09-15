@@ -7,7 +7,8 @@
 //   3. FullTags  — enrich the archive (tags, art, keys, beatgrids, mood)
 //   4. Set       — play it: order the shelf into a mixable draft
 // Each row carries its educational lede (the `ledes` array, DJ-voiced) and
-// its accent (`--prod` per canvas + phase chip). PRODUCT_TABS is the one
+// its accent (the [data-prod] CSS rules + per-product tokens in styles/).
+// PRODUCT_TABS is the one
 // table both the header nav strip and the page canvases switch on — a tab
 // can't exist on one surface only. Also home to the shared render
 // primitives (Verdict banner, ShareBar, Meter, SectionHead).
@@ -183,11 +184,10 @@ export interface ProductMeta {
   sub: string;
   /** longer tooltip line */
   title: string;
-  /** CSS accent for the phase chip / canvas tint (kept in sync with the
-   *  canvas --prod map in styles/products.css) */
-  color: string;
   /** the pipeline step this product owns, one line */
   phase: string;
+  // (accent lives in CSS — the `[data-prod]` rules + the `--set` token;
+  // a hex field here went unwritten when Set landed and was retired.)
 }
 
 export interface ProductTab {
@@ -207,7 +207,6 @@ export const PRODUCTS: ProductMeta[] = [
     sub: "the DJ USB sticks + their fleet — health, playlists, verify, parity",
     title:
       "CrateDeck — the DJ USB sticks and their fleet: health, playlists, verify, parity",
-    color: "var(--accent)",
     phase: "the drives stay honest",
   },
   {
@@ -217,7 +216,6 @@ export const PRODUCTS: ProductMeta[] = [
     sub: "the download pipeline — archive what's playable, work the backlog",
     title:
       "GetDat — the download pipeline: archive status, backlog, sources, library",
-    color: "var(--info)",
     phase: "the archive gets filled",
   },
   {
@@ -226,7 +224,6 @@ export const PRODUCTS: ProductMeta[] = [
     icon: "sliders",
     sub: "the enrichment engine — beatgrids, mood, cues, tags",
     title: "FullTags — the enrichment engine: beatgrids, mood, cues, tags",
-    color: "var(--pulse)",
     phase: "the archive gets enriched",
   },
   {
@@ -236,11 +233,9 @@ export const PRODUCTS: ProductMeta[] = [
     sub: "the mix builder — order the whole analyzed shelf into a playable set",
     title:
       "Set — build an ordered mix proposal from the whole analyzed shelf: energy arc, length, sequencer",
-    color: "var(--warn, #d9a441)",
     phase: "the library gets played",
   },
 ];
-
 /** Educational one-liners, in pipeline order — the sentence that teaches a
  *  first-time reader what megadj IS. Rendered by the nav strip's phase
  *  chips and the Welcome launcher. DJ-voiced, not doc-voiced. (Fleet

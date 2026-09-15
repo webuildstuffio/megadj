@@ -54,7 +54,7 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                --flag: demote-and-flag pass — labels contradicting unanimous kNN consensus get genre_flag='disputed' (not rewritten, excluded from seeding)
   megadj setbuild [--preset warmup|peak|afterhours] [--minutes N] [--opener <video_id>]
                  [--limit N] [--search greedy|beam] [--json]
-                                                set-builder (M66): propose an ordered mix chain; --search forces the
+                                                set-builder: propose an ordered mix chain; --search forces the
                                                 sequencer (A/B compare), omitted = pool size decides (deep search under 250)
                                                from the beats/mood ledgers + file keys — Camelot-
                                                compatible, ±6% tempo, shaped by an energy-arc preset

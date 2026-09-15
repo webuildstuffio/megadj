@@ -1,11 +1,12 @@
-// archive_similar.ts — the I49/M66 extensions to ArchiveReader, split out
+// archive_similar.ts — the I49 sounds-like + set-builder extensions to
+// ArchiveReader, split out
 // of archive.ts (file-length guard). Same readonly ArchiveReader handle,
 // same rules: pure reads over megadj's archive DB — a bug here cannot
 // corrupt archive state.
 //
 //   similarTracks — I49 "sounds like": cosine kNN over the embeddings
 //                   ledger (written by `megadj mood --embeddings`)
-//   setCandidates — M66 set-builder candidate pool (beats + mood + TKEY)
+//   setCandidates — set-builder candidate pool (beats + mood + TKEY)
 import { existsSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { groundTruth } from "../../fulltags/src/exports";
@@ -185,7 +186,7 @@ export function similarTracks(
 }
 
 /**
- * M66 set-builder: load the candidate pool (playable tracks joined with
+ * Set-builder: load the candidate pool (playable tracks joined with
  * beats + mood ledgers + the cached TKEY ledger). Feeds the pure engine
  * in setbuild.ts. Unparsable keys degrade to null (no key-score), never
  * throw.

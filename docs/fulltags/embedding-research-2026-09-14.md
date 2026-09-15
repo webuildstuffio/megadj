@@ -5,12 +5,12 @@ landscape + Apple-Silicon compute audit) integrated into the FullTags plan the
 same day. Verdicts below are cross-referenced against the measured docs; the
 living plan of record is
 [embedding-models](embedding-models.md) + [genre-audit](genre-audit.md) §5b +
-[10-findings](../megaset/10-findings.md) §3. This page is the dated evidence
+[10-findings](../set/10-findings.md) §3. This page is the dated evidence
 base and the full resource list — it does not drift; updates land in the live
 docs with a pointer back here.
 
 > Glossary (tower, LOO, kNN, probe, CSLS, hubness, SupCon):
-> [10-findings §5](../megaset/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+> [10-findings §5](../set/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 **Inputs treated as given:** the v2 tower rerun (n=180, 0 fails) and the
 fusion/variant sweep in [embedding-models](embedding-models.md); the v3 genre
@@ -252,7 +252,7 @@ on-device "sounds like" feature in CrateDeck.**
 | 8    | **Tempogram + BPM + rhythm-pattern concat**                                                                                                                                      | 1 day     | +3–7 pt on EDM families                                                | Med-High           |
 
 **The distinction our docs were missing:** `megadj genre` is
-_classification_ → the probe fixes it. MegaSet "sounds like" is _retrieval_ →
+_classification_ → the probe fixes it. Set "sounds like" is _retrieval_ →
 the probe does nothing; whitening/CSLS and the projection head do. Treating
 these as one problem measured by two correlated metrics is why the benchmark
 stalled.
@@ -308,7 +308,7 @@ scheduled.
 
 1. **Genre before set generation.** All of the above is ordered ahead of any
    further set-builder work — genre is the cheaper goal and the better input
-   to pools ([10-findings](../megaset/10-findings.md) §3 reorder).
+   to pools ([10-findings](../set/10-findings.md) §3 reorder).
 2. **Chunk-based similarity from cues** — the user's instinct, and it is J4:
    the cues ledger already stores 32-bar phrase boundaries (`src/fulltags/
 cues.ts`, `grid-audit-plan` §structure); the patch models already emit
@@ -350,7 +350,7 @@ cues.ts`, `grid-audit-plan` §structure); the patch models already emit
    `github.com/yizhilll/MERT`
 4. **Interpretable and Perceptually-Aligned Music Similarity with Pretrained
    Embeddings** — Vohra et al., Jan 2026. arXiv:2601.19109 — _most directly
-   relevant paper to MegaSet_
+   relevant paper to Set_
 5. **Deep Learning Based EDM Subgenre Classification using Mel-Spectrogram
    and Tempogram Features** — Hsu, Chen & Yang, Academia Sinica, 2021.
    arXiv:2110.08862 — _our exact problem, 60.6% on 30 classes_

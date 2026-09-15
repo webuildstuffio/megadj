@@ -38,21 +38,26 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "web/app/App.tsx": "historical rev line (rev-9 restructure note)",
     "web/products/shared.tsx": "historical rev line (rev-9 restructure note)",
   },
-  "docs/megaset/08-audit-and-plan.md": {
+  "docs/set/08-audit-and-plan.md": {
     // Dated 2026-09-13 scope block naming the setbuild-era layout; the
     // paths flip with #56's rename, not before.
     "web/products/fulltags/SimilarTab.tsx":
       "dated scope block (setbuild-era, flips with #56)",
   },
-  "docs/megaset/09-migration-plan.md": {
-    // The migration plan describes the CURRENT setbuild→megaset future
-    // state; its megaset paths are the plan's TARGETS, not staleness.
-    "cratedeck/src/megaset.ts": "migration plan target path (issue #56)",
-    "cratedeck/shared/megaset.ts": "migration plan target path (issue #56)",
-    "cratedeck/test/megaset.test.ts": "migration plan target path (issue #56)",
+  "docs/set/09-migration-plan.md": {
+    // SUPERSEDED 2026-09-15 (product named Set; the megaset rename was
+    // reversed). The plan's body describes the never-executed TARGET
+    // state; those paths are historical plan text, not staleness.
+    "cratedeck/src/megaset.ts":
+      "superseded migration plan target path (issue #56 reversed)",
+    "cratedeck/shared/megaset.ts":
+      "superseded migration plan target path (issue #56 reversed)",
+    "cratedeck/test/megaset.test.ts":
+      "superseded migration plan target path (issue #56 reversed)",
     "cratedeck/test/archive-megaset-surface.test.ts":
-      "migration plan target path (issue #56)",
-    "src/fulltags/megaset.ts": "migration plan target path (issue #56)",
+      "superseded migration plan target path (issue #56 reversed)",
+    "src/fulltags/megaset.ts":
+      "superseded migration plan target path (issue #56 reversed)",
     "fulltags/intake-cue-postmortem.md":
       "relative link inside the planned-docs table (resolves from docs/)",
   },
@@ -177,9 +182,9 @@ describe("docs paths census (issue #58 regression gate)", () => {
     const deckctl = readFileSync(join(ROOT, "cratedeck/deckctl.md"), "utf8");
     expect(deckctl).not.toMatch(/only mutating/u);
 
-    // megaset findings: no volatile concurrent-agent WIP status
+    // set findings: no volatile concurrent-agent WIP status
     const findings = readFileSync(
-      join(ROOT, "docs/megaset/10-findings.md"),
+      join(ROOT, "docs/set/10-findings.md"),
       "utf8",
     );
     expect(findings).not.toMatch(/do not touch; wait/u);

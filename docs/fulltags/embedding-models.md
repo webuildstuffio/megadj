@@ -1,11 +1,11 @@
-# FullTags — Audio embedding model benchmark (MegaSet §similarity consumer) (Sep 14, 2026)
+# FullTags — Audio embedding model benchmark (Set §similarity consumer) (Sep 14, 2026)
 
 **Status:** ✅ DECISION RECORDED — effnet confirmed primary by the v2 rerun
 (six towers incl. MERT); fusion/variant sweep settled below, follow-up
 implementation gated by the larger post-refold evaluation.
 
 > Glossary (tower, LOO, coherence, effnet/musicnn/MERT, ONNX, 5k proj):
-> [10-findings §5](../megaset/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+> [10-findings §5](../set/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 **Reproduction (Sep 14, 2026, ~28 min, background).** Full 6-tower rerun
 on `eval_set_v2.json` (180 tracks, 120 s cap) matched the recorded table
@@ -27,7 +27,7 @@ families: house, techno, trance, edm, hiphop, dnb, pop, rock), all with
 human labels from `archive.db`. Leave-one-out kNN family agreement
 (majority vote, cosine) + top-5 neighbor family coherence + wall clock per
 track on this M-series CPU. Same files, same splits, every tower. This is
-exactly the metric our `megadj genre` kNN and MegaSet "sounds like" rely on.
+exactly the metric our `megadj genre` kNN and Set "sounds like" rely on.
 
 **Towers (all free, all local, all ONNX, CPU-only):**
 
@@ -112,7 +112,7 @@ Reading:
    larger post-refold rerun reproduces musicnn's lead. If it does, musicnn is
    the measured candidate (0.538 here); rank fusion ships only if it also
    beats musicnn, not merely the 0.413 effnet baseline.
-2. **"Sounds like" (MegaSet similar/set building) keeps effnet-primary**
+2. **"Sounds like" (Set similar/set building) keeps effnet-primary**
    because it has the best measured retrieval coherence. Musicnn can be
    evaluated as a diversity re-ranker, but the current results do not justify
    a hard-coded interleave ratio.
@@ -227,12 +227,12 @@ representation, not the pooling**. MERT stays out.
 second/third ledger**. The gate (parked steps reopen) is: post-refold rerun
 where effnet alone stalls below ~0.50 _or_ an ensemble leads effnet by
 ≥3 points on the guarded population. Neither holds today. `megadj genre`
-and MegaSet stay **effnet-only single-tower**; the second-ledger and
+and Set stay **effnet-only single-tower**; the second-ledger and
 fusion implementation steps stay parked.
 
 ### Impact on the plan of record
 
-- **MegaSet B10p (embedding prior): effnet-only, weight ≤0.1** — unchanged
+- **Set B10p (embedding prior): effnet-only, weight ≤0.1** — unchanged
   from the re-ranked roadmap, now with v2 evidence instead of v1.
 - **`megadj genre` kNN: stays on effnet.** The v1 "musicnn is the measured
   candidate" conclusion is withdrawn; the promotion gate (post-refold
@@ -265,7 +265,7 @@ cost tables, licences, and the ranked ladder with adoption verdicts:
    top-2 output, and a hubness histogram — the diagnostics are the next
    work, ahead of any further tower work. **✅ SHIPPED Sep 15 (measured
    verdicts: [tier0-diagnostics-2026-09-15](tier0-diagnostics-2026-09-15.md)).**
-2. `megadj similar` / MegaSet retrieval gains a flag-gated
+2. `megadj similar` / Set retrieval gains a flag-gated
    `--space raw|whitened` (mean-centre + whiten + CSLS; ~10 lines) for A/B.
    **✅ SHIPPED Sep 15 (CLI + route + MCP; coherence proxy flat, A/B
    judgment pending).**

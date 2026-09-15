@@ -30,7 +30,7 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 
 - [Product state](product-state-2026-09-07.md) — current product-level status
   and the next safe outcomes.
-- [Features and projects](FEATURES.md) — GetDat, FullTags, MegaSet, and
+- [Features and projects](FEATURES.md) — GetDat, FullTags, Set, and
   CrateDeck responsibilities.
 - [Product principles](PRINCIPLES.md) — decision authority and non-goals.
 - [Ideas and future backlog](ideas.md) — rationale and parked possibilities;
@@ -60,10 +60,10 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   (`archive_tag_compare`); read-only, files never read on the census path.
 - [Genre audit](fulltags/genre-audit.md) — inclusion and source-precedence
   policy; v3 statistical revalidation (CIs, McNemar, duration guards).
-  MegaSet consumes it family-level only.
+  Set consumes it family-level only.
 - [Embedding model benchmark](fulltags/embedding-models.md) — tower
   evaluation and decision; v2 rerun (effnet confirmed on both metrics),
-  fusion sweep settled (+1.1 pt — not adopted). Feeds MegaSet's similarity
+  fusion sweep settled (+1.1 pt — not adopted). Feeds Set's similarity
   prior (B10p).
 - [Genre taxonomy sources](fulltags/genre-taxonomy-sources.md) — external
   authorities and the family map.
@@ -100,21 +100,22 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision
   retained as a reference.
 
-### MegaSet
+### Set
 
-- [PRD](megaset/01-prd.md) — scope, shipped v0, and product contract.
-- [Architecture](megaset/02-architecture.md) — variables, ownership, and data
+- [PRD](set/01-prd.md) — scope, shipped v0, and product contract.
+- [Architecture](set/02-architecture.md) — variables, ownership, and data
   flow.
-- [Competitive analysis](megaset/03-competitive-analysis.md) — comparator
+- [Competitive analysis](set/03-competitive-analysis.md) — comparator
   research and the re-ranked roadmap.
-- [Sequencing benchmarks](megaset/04-sequencing-benchmarks.md) — algorithm and
+- [Sequencing benchmarks](set/04-sequencing-benchmarks.md) — algorithm and
   benchmark evidence.
-- [**Consolidated findings & next steps**](megaset/10-findings.md) — every
+- [**Consolidated findings & next steps**](set/10-findings.md) — every
   measured verdict across the doc set, critical-bug list, prioritized next
   3–5 actions.
-- [Migration plan](megaset/09-migration-plan.md) — setbuild → megaset
-  identifier rename (planned, atomic).
-- [Audit and plan](megaset/08-audit-and-plan.md) — per-item
+- [Migration plan](set/09-migration-plan.md) — the considered `setbuild →
+  megaset` identifier rename (SUPERSEDED 2026-09-15 — the product is Set;
+  kept as a dated record).
+- [Audit and plan](set/08-audit-and-plan.md) — per-item
   implementation sketches, delta-pinned against the re-ranked roadmap;
   current conclusions link to the owners above.
 

@@ -162,6 +162,11 @@
     0 18px 50px rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(240, 182, 75, 0.1);
 }
+.app[data-prod="set"] .search-results {
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(224, 169, 63, 0.1);
+}
 .sr-drive {
   padding: 8px 10px;
   border-radius: var(--r-sm);

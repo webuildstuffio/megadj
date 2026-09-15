@@ -1,7 +1,7 @@
-# MegaSet / FullTags — Consolidated Findings, Learnings & Next Actions
+# Set / FullTags — Consolidated Findings, Learnings & Next Actions
 
 **Status:** ✅ CURRENT — the single entry point for everything measured across
-the MegaSet doc set (2026-09-13/14). Deep dives live in the linked docs; this
+the Set doc set (2026-09-13/14). Deep dives live in the linked docs; this
 page holds the distilled verdicts, the critical-bug list, the prioritized
 next steps, and the glossary (§5).
 
@@ -9,7 +9,7 @@ next steps, and the glossary (§5).
 
 ## 0. Read me first (what this product is, in one paragraph)
 
-MegaSet turns megadj's already-measured library data into an **ordered,
+Set turns megadj's already-measured library data into an **ordered,
 playable mix proposal**: it pools the whole archive, drops dead/duplicate
 files, then chains tracks that agree on tempo (±6%), musical key (Camelot
 wheel), and energy (a preset's arousal arc). It is **propose-only** — it
@@ -95,7 +95,7 @@ web panel. Everything below is measured evidence for the design choices.
 | --- | --------------------------------------------------------------------------- |
 | P1  | Full surface parity (CLI/MCP/web) + freshness payloads shipped for setbuild |
 | P2  | `rb-playlist` writes twinned rows through one seam, dry-run default         |
-| P3  | `setbuild → megaset` identifier migration fully planned (09), not started   |
+| P3  | ~~`setbuild → megaset` identifier migration~~ **SUPERSEDED 2026-09-15** — product named Set (commit `0aa95aa`); verb `megadj setbuild` stays (a command, not a brand). No rename ships. |
 
 ## 2. Critical bugs to fix (all known, none blocking today)
 
@@ -146,7 +146,7 @@ lost to kNN (item 3 below), so the readout thread is closed.**
    coverage honestly (COALESCE never clobbers).
 5. **Ranked secondaries via the Discogs-400 head** (§5b.2 + 07 §2, T4). _Why:_
    minutes of compute on cached embeddings buys per-track ranked styles for
-   MegaSet's "deep end of the family" pools and the B6 family-union fix — the
+   Set's "deep end of the family" pools and the B6 family-union fix — the
    single biggest quality-per-hour item left.
 6. **Multi-source genre vote ladder + Bandcamp arm + transition-window
    similarity** (genre-audit §5b.3.6–7) — the user-directed additions;
@@ -157,7 +157,7 @@ lost to kNN (item 3 below), so the readout thread is closed.**
    (HTTP/CLI/MCP/UI), `?search=` forces either strategy for A/B.
    Regression-tested: greedy stranded at 2 where beam chains 7+ on the E7
    fixture.
-8. **Execute the `setbuild → megaset` migration** (09). _Why:_ pure rename,
+8. **Execute the `setbuild → set` migration** (09). _Why:_ pure rename,
    fully planned, do it once the worktree is quiet so docs, code, and skill
    stop living under two names.
 
@@ -183,7 +183,7 @@ engines; cloud anything.
 | [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07)      | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc)                       | current   |
 | [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md) | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot  |
 | [08-audit-and-plan](08-audit-and-plan.md)                                     | Implementation audit + per-item sketches (reference)                                           | reference |
-| [09-migration-plan](09-migration-plan.md)                                     | `setbuild → megaset` atomic rename plan                                                        | planned   |
+| [09-migration-plan](09-migration-plan.md)                                     | `setbuild → megaset` atomic rename plan                                                        | superseded |
 | [tier0-diagnostics-2026-09-15](../fulltags/tier0-diagnostics-2026-09-15.md)   | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current   |
 | [10-findings](10-findings.md)                                                 | **this page** — distilled verdicts + next actions                                              | current   |
 
@@ -197,7 +197,7 @@ engines; cloud anything.
 ([genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md)),
 `M#` = embedding-model finding
 ([embedding-models](../fulltags/embedding-models.md)) — these three live in
-`docs/fulltags/` (FullTags owns the analysis stack; MegaSet consumes it) —
+`docs/fulltags/` (FullTags owns the analysis stack; Set consumes it) —
 _also_ M66-style numbers are idea-IDs
 from `docs/ideas.md` (M66 = the original set-builder idea row), `S#` = set
 variable (02 §2a), `T#` in 02 = song/track variable (02 §2b, separate
@@ -250,14 +250,14 @@ numbering from 07's T#), `B#` = bug/plan items (08/audit Phase A–D),
 
 | Term                                   | Meaning                                                                                                                                                                                                                                                  |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| megadj / FullTags / GetDat / CrateDeck | The four products. **GetDat** ingests (YouTube Music, drops, scored intake). **FullTags** enriches (beats/mood/cues/key/embeddings/genre ledgers + writers). **MegaSet** proposes sets. **CrateDeck** stages and verifies drives (deckctl, web UI, MCP). |
+| megadj / FullTags / GetDat / CrateDeck | The four products. **GetDat** ingests (YouTube Music, drops, scored intake). **FullTags** enriches (beats/mood/cues/key/embeddings/genre ledgers + writers). **Set** proposes sets. **CrateDeck** stages and verifies drives (deckctl, web UI, MCP). |
 | archive.db / master.db                 | The two databases. `archive.db` = megadj's local pipeline ledger (analysis results, caches) — never a collection copy. `master.db` = the SHELF1 rekordbox collection DB (the SSOT for the collection); always gate writes on rekordbox being closed.     |
 | RB / rekordbox mirror                  | "RB" = rekordbox. The mirror = read-only rows extracted from the shelf master DB (BPM×100, KeyName) used when the beats/key ledgers lack a track.                                                                                                        |
 | MCP                                    | Model Context Protocol — how agents (Claude etc.) call tools like `archive_set_build`.                                                                                                                                                                   |
-| CLI / HTTP / web surfaces              | The three other ways to drive MegaSet: `megadj setbuild`, `GET /api/archive/setbuild` (+`?format=m3u8`), and the FullTags web panel. Parity is test-pinned in `docs/surface-parity.md`.                                                                  |
+| CLI / HTTP / web surfaces              | The three other ways to drive Set: `megadj setbuild`, `GET /api/archive/setbuild` (+`?format=m3u8`), and the FullTags web panel. Parity is test-pinned in `docs/surface-parity.md`.                                                                  |
 | M3U8                                   | The UTF-8 playlist file format of the export path — a list (Phase D plans typed transition windows in comments) imported into rekordbox by hand; never auto-writes anything.                                                                             |
 | rb-playlist                            | The only writer: `megadj rb-playlist` links a proposal to existing master-DB content rows. Dry-run first; `--apply --yes` requires rekordbox quit + dated backups + whole-table verify.                                                                  |
 | Ledger / freshness                     | Ledger = a per-track results table in archive.db (beats, mood, cues, embeddings, track_keys). Freshness = the age of those ledger rows, surfaced in every payload so stale pools are visible.                                                            |
 | NFC / casefold                         | Unicode normalization (NFC) + case folding — the matching rule that collapses duplicate files and duplicate genre spellings.                                                                                                                             |
 | SSOT                                   | Single Source of Truth — one table/module owns a shared surface (presets, Camelot wheel, pool caps); everything else derives. The house answer to drift bugs.                                                                                            |
-| Propose-only                           | The product invariant: MegaSet never writes. Proposals are payloads on screen; humans (or the gated rb-playlist) act on them.                                                                                                                            |
+| Propose-only                           | The product invariant: Set never writes. Proposals are payloads on screen; humans (or the gated rb-playlist) act on them.                                                                                                                            |

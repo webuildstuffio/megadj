@@ -124,13 +124,11 @@ describe("FullTags Similar and Set Builder UX", () => {
 
   test("preset buttons expose radio semantics and lock during a build", () => {
     const html = render(<SetBuildPanel />);
-    // step titles are terse — the preset cards carry their own descriptions
+    // the step-1 hint carries the product's voice — the room, first to last
     expect(html).toContain("Energy journey");
+    expect(html).toContain("how the room should feel from first track to last");
     expect(html).toContain("Set length");
     expect(html).toContain("Sequencer");
-    expect(html).not.toContain(
-      "how the room should feel from first track to last",
-    );
     expect(html.match(/setbuild-preset-option/g)).toHaveLength(3);
     expect(html).toContain('role="radio"');
     expect(html).toContain('aria-checked="true"');

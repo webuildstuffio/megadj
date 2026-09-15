@@ -28,7 +28,7 @@ Reading order by question:
 **Consumers** → [genre-audit](genre-audit.md) (policy + numbers) ·
 [genre-taxonomy-sources](genre-taxonomy-sources.md) (authorities + family
 map) · [tier0-diagnostics-2026-09-15](tier0-diagnostics-2026-09-15.md)
-(measured verdicts) · [MegaSet PRD](../megaset/01-prd.md) (downstream).
+(measured verdicts) · [Set PRD](../set/01-prd.md) (downstream).
 
 ---
 
@@ -158,7 +158,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
    │        lost to kNN twice) · --refold A/B block
    ▼
  surfaces (one engine, three faces)
-   CLI megadj genre · MCP archive_* tools · web (MegaSet genre columns,
+   CLI megadj genre · MCP archive_* tools · web (Set genre columns,
    SimilarTab family coherence) — census strings test-pinned.
  ▼
  transparency surfaces (the tag census / compare, Sep 15)

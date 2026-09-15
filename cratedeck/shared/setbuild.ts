@@ -1,4 +1,4 @@
-// shared/setbuild.ts — the set-builder (M66) wire seam.
+// shared/setbuild.ts — the set-builder wire seam.
 //
 // Split from shared/types.ts (file-length guard) following the same
 // leaf-seam pattern as archive_types.ts / report_types.ts: the HTTP
@@ -175,7 +175,7 @@ export const SET_POOL_UNLIMITED = 0;
 
 /** Beam-search activation threshold: pools BELOW this size run a beam
  * continuation (width SET_BEAM_WIDTH) instead of pure greedy — the
- * measured E7 result (docs/megaset/04-sequencing-benchmarks.md): sparse
+ * measured E7 result (docs/set/04-sequencing-benchmarks.md): sparse
  * pools dead-end greedy ~59% short of the best chain and beam recovers it
  * at ~0 ms. Big pools keep greedy (E2/E3: nothing to gain there). */
 export const SET_BEAM_POOL_MAX = 250;

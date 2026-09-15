@@ -1,14 +1,14 @@
-# FullTags — Genre Audit & Inclusion Policy (MegaSet §genre consumer)
+# FullTags — Genre Audit & Inclusion Policy (Set §genre consumer)
 
 **Status:** 📚 REFERENCE — current genre inclusion and source-precedence policy.
 **Sep 15 pipeline walkthrough:** [genre-pipeline.md](genre-pipeline.md) —
 how a track's genre actually flows (write points → hygiene → inference →
 scoring → gate), with invariants and live state.
 
-v3 · 2026-09-14 · **Audit** → [PRD](../megaset/01-prd.md) · [Benchmarks](../megaset/04-sequencing-benchmarks.md) · [Analysis](../megaset/03-competitive-analysis.md) · [Taxonomy sources & family map](genre-taxonomy-sources.md)
+v3 · 2026-09-14 · **Audit** → [PRD](../set/01-prd.md) · [Benchmarks](../set/04-sequencing-benchmarks.md) · [Analysis](../set/03-competitive-analysis.md) · [Taxonomy sources & family map](genre-taxonomy-sources.md)
 
 > Glossary (LOO, CI, McNemar, Jaccard, kNN, duration guard):
-> [10-findings §5](../megaset/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+> [10-findings §5](../set/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 > v2: baselines refreshed post-`rb-comment-sync`; LOO corrected to
 > full-population methodology; §5c source ranking. v3: **statistical
@@ -24,7 +24,7 @@ of 3,664 downloaded rows, 2026-09-14):
 1. Can we trust our genre mapping? (No — measured.)
 2. Sub-genres: keep, alias, or rank? (Two-tier: labels for humans, families
    for math, embeddings for fine similarity.)
-3. How does genre enter MegaSet? (Family-level diversity guard only.)
+3. How does genre enter Set? (Family-level diversity guard only.)
 4. `deep house` vs `house` — which is "better"? (Neither is audio-real;
    measured below.)
 5. Six candidate sources — which wins? (§5c: audio consensus > curated pool
@@ -114,7 +114,7 @@ are the fine-grained similarity source.**
 ### Tier 2 — family (scoring)
 
 - `genreFamily()` (existing SSOT, 9 families: bass/house/techno/trance/
-  hiphop/edm/pop/groove/mood) is the ONLY genre signal MegaSet
+  hiphop/edm/pop/groove/mood) is the ONLY genre signal Set
   consumes. It already handles `deep house → house` via the regex chain,
   including the ordering traps (bass before house, melodic → techno).
 - **Do we filter `deep house` out of a `house` pool? No.** Pool filters
@@ -143,7 +143,7 @@ Both, at different tiers: **generic (family) is better for scoring**
 (human meaning). The one thing we must NOT do is score specificity —
 the 7% purity number says sub-genre distance is fiction.
 
-## 4. Inclusion in MegaSet (this product)
+## 4. Inclusion in Set (this product)
 
 | Use                                                 | Signal                 | Where                   |
 | --------------------------------------------------- | ---------------------- | ----------------------- |
