@@ -7,6 +7,22 @@ import {
   restampScript,
 } from "./rb-cues.js";
 
+/** Fake RbCommandRuntime with the green path stubbed; spread overrides in.
+ *  One factory instead of seven hand-copied hook objects (jscpd cluster). */
+function fakeRuntime(
+  overrides: Partial<Parameters<typeof __test.run>[1]> = {},
+): Parameters<typeof __test.run>[1] {
+  return {
+    fileExists: () => true,
+    assertClosed: () => {},
+    backup: () => "/tmp/master.db.bak",
+    restore: () => {},
+    sleep: () => {},
+    spawn: () => ({ status: 0, stdout: "", stderr: "" }),
+    ...overrides,
+  };
+}
+
 describe("rb-cues constants (F4-pinned semantics)", () => {
   test("HOT_CUE_KIND is 1 — DB-side truth from the Sep 13 F4 spike", () => {
     // The incident's intended hot cues must be Kind=1. Kind=0 remains the
@@ -60,14 +76,9 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
   test("failed dry-run subprocess fails closed", async () => {
     const result = await __test.run(
       { mount: "/Volumes/TEST" },
-      {
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
-        restore: () => {},
-        sleep: () => {},
+      fakeRuntime({
         spawn: () => ({ status: 9, stdout: "", stderr: "boom" }),
-      },
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("census failed (exit 9)");
@@ -76,12 +87,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
   test("reports non-incident Kind=0 memory cues as protected", async () => {
     const result = await __test.run(
       { mount: "/Volumes/TEST" },
-      {
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
-        restore: () => {},
-        sleep: () => {},
+      fakeRuntime({
         spawn: () => ({
           status: 0,
           stdout: JSON.stringify({
@@ -93,7 +99,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
           }),
           stderr: "",
         }),
-      },
+      }),
     );
     expect(result.ok).toBe(true);
     expect(result.found).toBe(1);
@@ -107,22 +113,19 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
     let restored = false;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        fileExists: () => true,
+      fakeRuntime({
         assertClosed: () => {
           checks++;
           if (checks === 2) throw new Error("rekordbox reopened");
         },
-        backup: () => "/tmp/master.db.bak",
         restore: () => {
           restored = true;
         },
-        sleep: () => {},
         spawn: () => {
           spawned = true;
           throw new Error("must not spawn");
         },
-      },
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("rekordbox reopened");
@@ -134,12 +137,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
     let call = 0;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
-        restore: () => {},
-        sleep: () => {},
+      fakeRuntime({
         spawn: () => {
           call++;
           return call === 1
@@ -156,7 +154,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
               }
             : { status: 0, stdout: "not json", stderr: "" };
         },
-      },
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.verifyFailures.join(" ")).toContain("malformed JSON");
@@ -167,14 +165,10 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
     let call = 0;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
+      fakeRuntime({
         restore: (dbPath, backupPath) => {
           restores.push([dbPath, backupPath]);
         },
-        sleep: () => {},
         spawn: () => {
           call++;
           return call === 1
@@ -191,7 +185,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
               }
             : { status: 0, stdout: "not json", stderr: "" };
         },
-      },
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("malformed JSON");
@@ -205,14 +199,10 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
     let call = 0;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
+      fakeRuntime({
         restore: () => {
           throw new Error("restore exploded");
         },
-        sleep: () => {},
         spawn: () => {
           call++;
           return call === 1
@@ -229,7 +219,7 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
               }
             : { status: 0, stdout: "not json", stderr: "" };
         },
-      },
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("malformed JSON");
@@ -240,16 +230,12 @@ describe("rb-cues constants (F4-pinned semantics)", () => {
     let restored = false;
     const result = await __test.run(
       { mount: "/Volumes/TEST", apply: true, yes: true },
-      {
-        fileExists: () => true,
-        assertClosed: () => {},
-        backup: () => "/tmp/master.db.bak",
+      fakeRuntime({
         restore: () => {
           restored = true;
         },
-        sleep: () => {},
         spawn: () => ({ status: 9, stdout: "", stderr: "boom" }),
-      },
+      }),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("restamp failed (exit 9)");

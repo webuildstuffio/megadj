@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import type { ArchiveState } from "../archive/state";
+import { backupStamp } from "./guard.js";
 
 export interface RekordboxContentRow {
   contentId: string;
@@ -457,10 +458,9 @@ function failure(
 }
 
 function backupName(dbPath: string): string {
-  const stamp = new Date().toISOString().replace(/[:.]/gu, "-");
   const ext = extname(dbPath) || ".db";
   const stem = basename(dbPath, ext);
-  return join(dirname(dbPath), `${stem}_bak_${stamp}${ext}`);
+  return join(dirname(dbPath), `${stem}_bak_${backupStamp()}${ext}`);
 }
 
 function snapshotArchive(state: ArchiveState, dbPath: string): string {

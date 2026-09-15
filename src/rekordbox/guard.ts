@@ -39,12 +39,18 @@ export function assertRbClosed(what: string): void {
     );
 }
 
+/** Shared backup timestamp: `YYYYMMDDTHHMMSS` UTC, sortable, filename-safe.
+ *  One stamp format for EVERY dated backup of the master DB family —
+ *  guard.ts and rb-adopt.ts used to stamp with two different formats (#83). */
+export function backupStamp(at: Date = new Date()): string {
+  return at.toISOString().replaceAll(/[-:]/gu, "").slice(0, 15);
+}
+
 /** Dated backup of the master DB (+ WAL/SHM siblings) next to the original.
  *  Returns the backup path. Throws if the DB is missing. */
 export function backupMaster(dbPath: string): string {
   if (!existsSync(dbPath)) throw new Error(`no master DB at ${dbPath}`);
-  const stamp = new Date().toISOString().replace(/[-:T]/gu, "").slice(0, 15);
-  const dest = `${dbPath}.bak-${stamp}`;
+  const dest = `${dbPath}.bak-${backupStamp()}`;
   copyFileSync(dbPath, dest);
   for (const side of ["-wal", "-shm"]) {
     if (existsSync(dbPath + side)) copyFileSync(dbPath + side, dest + side);
