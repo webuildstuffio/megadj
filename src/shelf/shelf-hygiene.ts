@@ -26,6 +26,7 @@ import { applyFinding, validateFinding } from "../archive/hygiene/apply";
 import { fingerprintFileLength } from "../../fulltags/src/exports";
 import type { CheckCtx } from "../archive/hygiene/types";
 import { FpCache } from "./shelf-dupescan";
+import { md5Cli } from "./md5-cli";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson } from "../shared/cli-output";
 
@@ -173,23 +174,10 @@ export async function shelfHygiene(
     const ctx: CheckCtx = {
       volume: shelfVolume,
       walkToken,
-      md5:
-        opts.md5 ??
-        ((p) => {
-          const r = Bun.spawnSync(["md5", "-q", p]);
-          if (r.exitCode !== 0) {
-            // boundary log: a null here silently drops the file from every
-            // same-size group — the caller must be able to see why
-            console.error(
-              `shelf-hygiene: md5 failed (${r.exitCode}) — ${p}: ${r.stderr
-                .toString()
-                .trim()}`,
-            );
-            return null;
-          }
-          const h = r.stdout.toString().trim();
-          return h.length > 0 ? h : null;
-        }),
+      // One md5 seam repo-wide (md5-cli.ts — its transient-failure retry is
+      // what keeps a loaded box from silently dropping a file out of twin
+      // detection mid-walk).
+      md5: opts.md5 ?? md5Cli,
       fp: (p, size) => {
         const hit = cache.get(p, size);
         if (hit !== undefined) return hit;
@@ -197,7 +185,10 @@ export async function shelfHygiene(
         // — its base64url parse keeps `-`/`_`; the Sep 11 mass-collision
         // regression is pinned against that single implementation)
         const fp = fingerprintFileLength(p);
-        cache.put(p, size, fp);
+        // Never cache a miss: a transient fpcalc failure would otherwise
+        // poison the ledger row permanently and drop the file out of
+        // every future acoustic pass (the Sep 11 poisoning trap class).
+        if (fp !== null) cache.put(p, size, fp);
         return fp;
       },
       now: () => new Date().toISOString(),

@@ -79,7 +79,11 @@ a delayed re-read, not just a successful commit.
 
 `shelf-dupescan` judges duplicates by fingerprint, never by name; keep its
 fpcalc parser base64url-complete (`-`/`_`) — a truncating regex silently
-poisons the whole `shelf_fingerprints` cache with colliding prefixes.
+poisons the whole `shelf_fingerprints` cache with colliding prefixes. One
+md5 seam repo-wide (`src/shelf/md5-cli.ts`, retries transient spawn
+failures); never hand-roll a second spawn of it. Never persist a null
+fingerprint: guard every `DupFpCache.put` on a non-null fp — a transient
+fpcalc miss written to the ledger poisons the row forever.
 
 Ingest batches live inside the archive music directory. Re-ingesting the same
 batch is a safe no-op, and each dump gets its own fresh folder. The hygiene

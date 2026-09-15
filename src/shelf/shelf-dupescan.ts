@@ -152,7 +152,11 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
         if (f === undefined) break;
         done++;
         const { size } = statSync(f);
-        cache.put(f, size, fingerprint(f));
+        const fp = fingerprint(f);
+        // Never cache a miss: a transient fpcalc failure would otherwise
+        // poison the row permanently and drop the file out of every
+        // future dupescan pass (the Sep 11 poisoning trap class).
+        if (fp !== null) cache.put(f, size, fp);
         if (done % 250 === 0) log(`  ${done}/${missing.length} fingerprints…`);
       }
     },

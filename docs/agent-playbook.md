@@ -75,6 +75,21 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   under `Contents/` counts as synced, and the shelf index keys on NFC —
   fskit exFAT hands back NFD names, which split one Nina Simone file into
   a phantom re-copy. Regression-tested in `shelf-sync.test.ts`.
+- **Single-shot spawns flake under load (Sep 15).** `md5 -q` and `fpcalc`
+  spawn failures are transient under a loaded box (concurrent agent test
+  runs hammering the machine): hygiene silently dropped a file from twin
+  detection (MULTI-apply `opens.length` 2→1) and shelf-sync mis-judged
+  "already there", and `DupFpCache.put(path, size, null)` wrote the
+  transient miss into `shelf_fingerprints` FOREVER — the file never
+  fingerprinted again (the Sep 11 poisoning trap class). Fixed by
+  consolidating both md5 spawn twins into one retrying seam
+  (`src/shelf/md5-cli.ts`: 1 call + 2 retries, 50 ms backoff, retries only
+  process-level resource errors) and guarding every `cache.put` on a
+  non-null fp. Regression-tested in `md5-cli.test.ts`. Rule: an external
+  binary spawn whose null silently degrades the caller either retries
+  transient failures at the seam, or the caller must surface the miss —
+  never persist the miss, never hand-roll a second spawn of the same
+  binary.
 
 ## Rekordbox detail
 

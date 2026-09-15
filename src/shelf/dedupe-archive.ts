@@ -103,7 +103,11 @@ export async function dedupeArchive(
       res.cached++;
       continue;
     }
-    cache.put(f, size, fingerprintFile(f));
+    const fp = fingerprintFile(f);
+    // Never cache a miss: a transient fpcalc failure would otherwise
+    // poison the row permanently and drop the file out of every future
+    // dedupe pass (the Sep 11 poisoning trap class).
+    if (fp !== null) cache.put(f, size, fp);
     res.fingerprinted++;
     if (res.fingerprinted % 25 === 0)
       log(`  ${res.fingerprinted} new fingerprints (${done}/${files.length})…`);
