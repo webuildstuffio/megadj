@@ -79,7 +79,6 @@ export async function runCliJobLeg(
   return runCliJob(deps, spec, apply, handle);
 }
 
-
 /** Shared runner: spawn, drain stdout (logged) + stderr, exit-check
  *  against the label, split off the trailing JSON summary. */
 export async function runCliJob(
