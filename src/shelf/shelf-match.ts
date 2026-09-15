@@ -20,6 +20,11 @@ export function isJunk(name: string): boolean {
   );
 }
 
+/** Dotfiles/junk entry filter shared by the shelf walkers (#99). */
+export function isSkippedName(name: string): boolean {
+  return name.startsWith(".") || isJunk(name);
+}
+
 /** Machine-generated dirs whose contents are cache/DB, never user music. */
 export function isJunkDir(name: string): boolean {
   return name === "USBANLZ" || name === "ARTWORK";

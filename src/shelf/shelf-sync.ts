@@ -63,6 +63,15 @@ function artistFolder(rel: string): string {
     : "[unknown]";
 }
 
+/** Shelf-sync's audio extension set — ONE regex for both walkers, wider
+ *  than dupescan/hygiene's on purpose (#69): ogg/opus must mirror. */
+const AudioRe = /\.(mp3|m4a|wav|aiff?|flac|ogg|opus)$/i;
+
+/** dotfiles + recycle bin — the two byte-identical walker lines merge (#99). */
+function isSkippedEntry(name: string): boolean {
+  return name.startsWith(".") || name === "$RECYCLE.BIN";
+}
+
 /** Index of every audio file already on the shelf: basename → paths. A file
  *  counts as "already there" when ANY shelf copy of the same name has the
  *  same bytes — the shelf is artist-foldered while the archive keeps its
@@ -70,7 +79,6 @@ function artistFolder(rel: string): string {
  *  places the file may legitimately live. Without this, a regrouped shelf
  *  re-copies the whole archive into dated folders (the Sep 11 discovery). */
 function shelfAudioIndex(contents: string): Map<string, string[]> {
-  const AudioRe = /\.(mp3|m4a|wav|aiff?|flac|ogg|opus)$/i;
   const idx = new Map<string, string[]>();
   const walk = (dir: string) => {
     let entries: import("node:fs").Dirent[];
@@ -80,7 +88,7 @@ function shelfAudioIndex(contents: string): Map<string, string[]> {
       return; // unreadable subtree — skip, never crash the sync
     }
     for (const entry of entries) {
-      if (entry.name.startsWith(".") || entry.name === "$RECYCLE.BIN") continue;
+      if (isSkippedEntry(entry.name)) continue;
       const abs = join(dir, entry.name);
       if (entry.isDirectory()) walk(abs);
       else if (AudioRe.test(entry.name)) {
@@ -129,10 +137,9 @@ function divergentDestination(contents: string, rel: string): string {
 /** Every audio file under root, as CopyPlan relative paths. */
 function walkArchive(root: string): CopyPlan[] {
   const out: CopyPlan[] = [];
-  const AudioRe = /\.(mp3|m4a|wav|aiff?|flac|ogg|opus)$/i;
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name.startsWith(".") || entry.name === "$RECYCLE.BIN") continue;
+      if (isSkippedEntry(entry.name)) continue;
       const abs = join(dir, entry.name);
       if (entry.isDirectory()) walk(abs);
       else if (AudioRe.test(entry.name))

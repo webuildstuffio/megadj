@@ -5,7 +5,7 @@
 // exFAT).
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
-import { isJunk, key } from "./shelf-match";
+import { isSkippedName, key } from "./shelf-match";
 
 /** One indexed shelf file. */
 export interface ShelfEntry {
@@ -36,7 +36,7 @@ export class ShelfIndex {
 
   private indexDir(dir: string): void {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name.startsWith(".") || isJunk(entry.name)) continue;
+      if (isSkippedName(entry.name)) continue;
       const abs = join(dir, entry.name);
       if (entry.isDirectory()) {
         this.indexDir(abs);

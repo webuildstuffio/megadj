@@ -15,7 +15,7 @@ import {
 import { basename, dirname, join, relative } from "node:path";
 import { md5FileChunked } from "../shared/hash";
 import { ShelfIndex, landingPath } from "./shelf-index";
-import { isJunk, isJunkDir, key } from "./shelf-match";
+import { isJunkDir, isSkippedName, key } from "./shelf-match";
 import { errorText } from "../shared/error-text";
 
 /** Chunked sync digest via the shared seam (issue #70) — same signature
@@ -77,7 +77,7 @@ function walkRoot(
   if (!existsSync(srcRoot)) return;
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name.startsWith(".") || isJunk(entry.name)) continue;
+      if (isSkippedName(entry.name)) continue;
       const abs = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (isJunkDir(entry.name)) continue;
@@ -108,7 +108,7 @@ export function walkDrive(volume: string, trashes: boolean): DriveFile[] {
       // folders that mean nothing once deleted)
       const walkFlat = (dir: string) => {
         for (const entry of readdirSync(dir, { withFileTypes: true })) {
-          if (entry.name.startsWith(".") || isJunk(entry.name)) continue;
+          if (isSkippedName(entry.name)) continue;
           const abs = join(dir, entry.name);
           if (entry.isDirectory()) walkFlat(abs);
           else out.push({ abs, rel: entry.name, bytes: statSync(abs).size });
