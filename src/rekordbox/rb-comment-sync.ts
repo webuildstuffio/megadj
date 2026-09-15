@@ -28,12 +28,14 @@ import {
   isStringTriple,
   parseJsonBoundary,
   printResult,
+  pyUvArgv,
   RB_CLOSED_PY_GUARD,
   rbCommandRuntime,
   type RbCommandResult,
   type RbCommandRuntime,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
+import { errorText } from "../shared/error-text";
 
 export interface RbCommentSyncOptions {
   mount: string;
@@ -402,7 +404,7 @@ async function rbCommentSyncWithRuntime(
     try {
       backedUpTo = deps.backup(dbPath);
     } catch (error) {
-      return mk(error instanceof Error ? error.message : String(error));
+      return mk(errorText(error));
     }
 
     const compensate = (error: unknown): RbCommentSyncResult => {
@@ -416,20 +418,17 @@ async function rbCommentSyncWithRuntime(
     try {
       deps.assertClosed("rb-comment-sync --apply");
       const r = deps.spawn(
-        [
-          "uv",
-          "run",
-          "--with",
-          "pyrekordbox,mutagen",
-          "python",
-          "-c",
-          commentSyncScript(),
-          dbPath,
-          ledger,
-          "apply",
-          opts.batch ?? "",
-          String(opts.limit ?? 0),
-        ],
+        pyUvArgv({
+          script: commentSyncScript(),
+          args: [
+            dbPath,
+            ledger,
+            "apply",
+            opts.batch ?? "",
+            String(opts.limit ?? 0),
+          ],
+          withPkg: "pyrekordbox,mutagen",
+        }),
         600_000,
       );
       if (r.status !== 0 || !r.stdout)
@@ -443,16 +442,7 @@ async function rbCommentSyncWithRuntime(
       deps.sleep(250);
       deps.assertClosed("rb-comment-sync verification");
       const checked = deps.spawn(
-        [
-          "uv",
-          "run",
-          "--with",
-          "pyrekordbox",
-          "python",
-          "-c",
-          commentVerifyScript(),
-          dbPath,
-        ],
+        pyUvArgv({ script: commentVerifyScript(), args: [dbPath] }),
         120_000,
         JSON.stringify(out.writes),
       );
@@ -480,24 +470,21 @@ async function rbCommentSyncWithRuntime(
   let r: SyncCommandResult;
   try {
     r = deps.spawn(
-      [
-        "uv",
-        "run",
-        "--with",
-        "pyrekordbox,mutagen",
-        "python",
-        "-c",
-        commentSyncScript(),
-        dbPath,
-        ledger,
-        "report",
-        opts.batch ?? "",
-        String(opts.limit ?? 0),
-      ],
+      pyUvArgv({
+        script: commentSyncScript(),
+        args: [
+          dbPath,
+          ledger,
+          "report",
+          opts.batch ?? "",
+          String(opts.limit ?? 0),
+        ],
+        withPkg: "pyrekordbox,mutagen",
+      }),
       600_000,
     );
   } catch (error) {
-    return mk(error instanceof Error ? error.message : String(error));
+    return mk(errorText(error));
   }
   if (r.status !== 0 || !r.stdout)
     return mk(
@@ -507,7 +494,7 @@ async function rbCommentSyncWithRuntime(
   try {
     out = parseSyncOutput(r.stdout.trim().split("\n").pop() ?? "", false);
   } catch (error) {
-    return mk(error instanceof Error ? error.message : String(error));
+    return mk(errorText(error));
   }
   return synced(out, {
     appliedMode: false,

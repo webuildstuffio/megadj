@@ -27,7 +27,11 @@ import {
   dedupVerifyScript,
 } from "./rb-dedup-scripts.js";
 import { inspectMutationPaths, pickKeeper } from "./rb-dedup-support.js";
-import { applyConfirmed, applyConfirmationRefusal } from "./rb-command-kit.js";
+import {
+  applyConfirmed,
+  applyConfirmationRefusal,
+  pyUvArgv,
+} from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 export { pickKeeper, printRbDedupReport } from "./rb-dedup-support.js";
 import { quarantineDest } from "../archive/hygiene/apply";
@@ -37,6 +41,7 @@ import {
   fileExistsSafe,
   restoreMasterBackup,
 } from "./guard.js";
+import { errorText } from "../shared/error-text";
 
 export interface RbDedupOptions {
   mount: string;
@@ -549,7 +554,7 @@ export async function rbDedup(
 
   const r = deps.spawn(
     "uv",
-    ["run", "--with", "pyrekordbox", "python", "-c", dedupScanScript(), dbPath],
+    pyUvArgv({ script: dedupScanScript(), args: [dbPath] }),
     { encoding: "utf8", timeout: 300_000 },
   );
   if (r.status !== 0 || !r.stdout)
@@ -562,11 +567,7 @@ export async function rbDedup(
   try {
     out = parseScanResult(r.stdout.trim().split("\n").pop() ?? "");
   } catch (error) {
-    return fail(
-      opts,
-      dbPath,
-      error instanceof Error ? error.message : String(error),
-    );
+    return fail(opts, dbPath, errorText(error));
   }
   const unique = buildDupePairs(out.pairs, deps.fingerprint);
 
@@ -591,20 +592,12 @@ export async function rbDedup(
     try {
       deps.assertClosed("rb-dedup --apply backup");
     } catch (error) {
-      return fail(
-        opts,
-        dbPath,
-        error instanceof Error ? error.message : String(error),
-      );
+      return fail(opts, dbPath, errorText(error));
     }
     try {
       backedUpTo = deps.backup(dbPath);
     } catch (error) {
-      return fail(
-        opts,
-        dbPath,
-        `backup failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      return fail(opts, dbPath, `backup failed: ${errorText(error)}`);
     }
     // 1. merge associations, then delete loser rows (one transaction/pair).
     const loseIds = unique.map((p) => p.loseId);
@@ -615,26 +608,19 @@ export async function rbDedup(
       deps.assertClosed("rb-dedup --apply delete");
     } catch (error) {
       return {
-        ...fail(
-          opts,
-          dbPath,
-          error instanceof Error ? error.message : String(error),
-        ),
+        ...fail(opts, dbPath, errorText(error)),
         backedUpTo,
       };
     }
     const rd = deps.spawn(
       "uv",
-      [
-        "run",
-        "--with",
-        "pyrekordbox",
-        "python",
-        "-c",
-        dedupDeleteScript(),
-        dbPath,
-        JSON.stringify(unique.map((pair) => [pair.loseId, pair.keepId])),
-      ],
+      pyUvArgv({
+        script: dedupDeleteScript(),
+        args: [
+          dbPath,
+          JSON.stringify(unique.map((pair) => [pair.loseId, pair.keepId])),
+        ],
+      }),
       { encoding: "utf8", timeout: 300_000 },
     );
     let del: DeleteResult = { removedIds: [], errors: [], associations: [] };
@@ -649,9 +635,7 @@ export async function rbDedup(
           loseIds,
         );
       } catch (error) {
-        mutationErrors.push(
-          error instanceof Error ? error.message : String(error),
-        );
+        mutationErrors.push(errorText(error));
       }
     }
     const removedIds = new Set(del.removedIds);
@@ -701,7 +685,7 @@ export async function rbDedup(
         moves.push({ source: p.losePath, destination: dest });
       } catch (error) {
         mutationErrors.push(
-          `quarantine failed for ${p.losePath}: ${error instanceof Error ? error.message : String(error)}`,
+          `quarantine failed for ${p.losePath}: ${errorText(error)}`,
         );
         break;
       }
@@ -719,16 +703,10 @@ export async function rbDedup(
       ];
       const verification = deps.spawn(
         "uv",
-        [
-          "run",
-          "--with",
-          "pyrekordbox",
-          "python",
-          "-c",
-          dedupVerifyScript(),
-          dbPath,
-          JSON.stringify(ids),
-        ],
+        pyUvArgv({
+          script: dedupVerifyScript(),
+          args: [dbPath, JSON.stringify(ids)],
+        }),
         { encoding: "utf8", timeout: 120_000 },
       );
       if (verification.status !== 0 || !verification.stdout) {
@@ -741,9 +719,7 @@ export async function rbDedup(
         );
       }
     } catch (error) {
-      mutationErrors.push(
-        `verification failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      mutationErrors.push(`verification failed: ${errorText(error)}`);
     }
     if (verifyRows) {
       const rowById = new Map(verifyRows.map((row) => [row.id, row]));
@@ -832,9 +808,7 @@ export async function rbDedup(
           ),
         );
       } catch (error) {
-        mutationErrors.push(
-          `receipt write failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        mutationErrors.push(`receipt write failed: ${errorText(error)}`);
       }
     }
 
@@ -848,7 +822,7 @@ export async function rbDedup(
         mutationErrors.push(`restored from backup ${backedUpTo}`);
       } catch (error) {
         mutationErrors.push(
-          `automatic DB restore failed; ${removed} loser row(s) remain absent: ${error instanceof Error ? error.message : String(error)}`,
+          `automatic DB restore failed; ${removed} loser row(s) remain absent: ${errorText(error)}`,
         );
       }
       if (restored) {
@@ -859,7 +833,7 @@ export async function rbDedup(
             if (index !== -1) quarantined.splice(index, 1);
           } catch (error) {
             mutationErrors.push(
-              `quarantine reversal failed; DB row was restored at ${move.source} but file remains at ${move.destination}: ${error instanceof Error ? error.message : String(error)}`,
+              `quarantine reversal failed; DB row was restored at ${move.source} but file remains at ${move.destination}: ${errorText(error)}`,
             );
           }
         }
@@ -869,7 +843,7 @@ export async function rbDedup(
           deps.remove(receipt);
         } catch (error) {
           mutationErrors.push(
-            `failed to remove compensated receipt ${receipt}: ${error instanceof Error ? error.message : String(error)}`,
+            `failed to remove compensated receipt ${receipt}: ${errorText(error)}`,
           );
         }
       }

@@ -77,6 +77,28 @@ export function parseJsonBoundary(raw: string, context: string): unknown {
   }
 }
 
+/** THE python-subprocess argv (#68): `["run","--with",pkg,"python","-c",
+ *  script, …args]` — every rb-* python spawn (direct rbPythonRun, DI
+ *  deps.spawn sites, runPyScript) assembles its command line HERE. The
+ *  `--with` package defaults to plain "pyrekordbox"; the pinned PYRK_TAG
+ *  fork spec rides as an explicit `withPkg`. A pyrekordbox API change is
+ *  a one-line edit, not a seven-site hunt. */
+export function pyUvArgv(opts: {
+  script: string;
+  args?: string[];
+  withPkg?: string;
+}): string[] {
+  return [
+    "run",
+    "--with",
+    opts.withPkg ?? "pyrekordbox",
+    "python",
+    "-c",
+    opts.script,
+    ...(opts.args ?? []),
+  ];
+}
+
 /** The ONE `uv run --with <pkg> python -c <script> [argv…]` spawn (#68).
  *  Nine rb-* sites hand-rolled this argv (and one later drifted to the
  *  pinned PYRK_TAG fork); every option variation they need — timeout,
@@ -96,24 +118,12 @@ export function rbPythonRun(opts: {
   /** Optional stdin payload. */
   input?: string;
 }): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync(
-    "uv",
-    [
-      "run",
-      "--with",
-      opts.withPkg ?? "pyrekordbox",
-      "python",
-      "-c",
-      opts.script,
-      ...(opts.args ?? []),
-    ],
-    {
-      encoding: "utf8",
-      timeout: opts.timeoutMs,
-      ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
-      ...(opts.input === undefined ? {} : { input: opts.input }),
-    },
-  );
+  const result = spawnSync("uv", pyUvArgv(opts), {
+    encoding: "utf8",
+    timeout: opts.timeoutMs,
+    ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
+    ...(opts.input === undefined ? {} : { input: opts.input }),
+  });
   return {
     status: result.status,
     stdout: result.stdout ?? "",
@@ -203,16 +213,11 @@ export function runPyScript(opts: {
   stderrTail?: number;
   stderrHead?: number;
 }): RbCommandResult {
-  const argv = [
-    "run",
-    "--with",
-    opts.tag ?? "pyrekordbox",
-    "python",
-    "-c",
-    opts.script,
-    opts.dbPath,
-    ...(opts.args ?? []).map((a) => a ?? ""),
-  ];
+  const argv = pyUvArgv({
+    script: opts.script,
+    args: [opts.dbPath, ...(opts.args ?? [])].map((a) => a ?? ""),
+    ...(opts.tag === undefined ? {} : { withPkg: opts.tag }),
+  });
   const raw = spawnSync("uv", argv, {
     encoding: "utf8",
     timeout: opts.timeoutMs,
@@ -297,6 +302,28 @@ export function applyConfirmationRefusal(opts: ApplyOptions): string | null {
  *  "confirmed" means. A dry-run (no flag) is NOT confirmed. */
 export function applyConfirmed(opts: ApplyOptions): boolean {
   return opts.apply === true && opts.yes === true;
+}
+
+/**
+ * THE zero-result builder factory (issue #68): every rb-* command
+ * hand-rolled a `fail(msg)` that spreads a typed all-zero result with
+ * `ok: false, error: msg` — 8 copies of the same factory shape, each
+ * drifting on its own (rb-import/rb-playlist take a details override,
+ * rb-adopt post-overrides `backedUpTo`, others are closed). One factory:
+ * the command supplies its per-command constant template; `makeFail`
+ * returns the closed `(msg) => Result` (or `(msg, details) => Result`
+ * for the commands that need the override hatch). `appliedMode` derives
+ * from the SAME `applyConfirmed`/opts the command already holds, so the
+ * dry-run bit can never contradict the refusal gate.
+ */
+export function makeFail<T>(template: (msg: string) => T): (msg: string) => T {
+  return (msg) => {
+    const r = template(msg);
+    const withError = r as { ok?: unknown; error?: unknown };
+    withError.ok = false;
+    withError.error = msg;
+    return r;
+  };
 }
 
 /** THE human-mode report preamble (issue #75): every `print*Report`

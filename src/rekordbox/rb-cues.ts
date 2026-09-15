@@ -34,8 +34,10 @@ import {
   isStringNumberPair,
   isStringPair,
   lastJsonLine,
+  makeFail,
   parseJsonBoundary,
   printResult,
+  pyUvArgv,
   RB_CLOSED_PY_GUARD,
   rbCommandRuntime,
   type RbCommandResult,
@@ -223,25 +225,6 @@ function dbPathFor(mount: string): string {
   return masterDbPath(mount);
 }
 
-const fail = (
-  opts: RbCuesOptions,
-  dbPath: string,
-  mode: RbCuesMode,
-  msg: string,
-): RbCuesResult => ({
-  command: "rb-cues",
-  db: dbPath,
-  mode,
-  found: 0,
-  written: 0,
-  gated: [],
-  verifyFailures: [],
-  appliedMode: Boolean(opts.apply),
-  backedUpTo: null,
-  ok: false,
-  error: msg,
-});
-
 /**
  * The one-shot BUG-1 repair. Kind=0 is also the legitimate collection-DB
  * value for memory cues, so a broad Kind=0 rewrite is unsafe. The broken
@@ -309,34 +292,35 @@ async function rbCuesWithRuntime(
   const mode: RbCuesMode = opts.fromLedger ? "ledger" : "restamp";
   const apply = applyConfirmed(opts);
 
+  const fail = makeFail((msg: string): RbCuesResult => ({
+    command: "rb-cues",
+    db: dbPath,
+    mode,
+    found: 0,
+    written: 0,
+    gated: [],
+    verifyFailures: [],
+    appliedMode: apply,
+    backedUpTo: null,
+    ok: false,
+    error: msg,
+  }));
+
   if (applyConfirmationRefusal(opts) !== null)
-    return fail(
-      opts,
-      dbPath,
-      mode,
-      applyConfirmationRefusal(opts) ?? "unreachable",
-    );
+    return fail(applyConfirmationRefusal(opts) ?? "unreachable");
   if (mode === "ledger")
     return fail(
-      opts,
-      dbPath,
-      mode,
       "ledger write mode lands with F3 (semantic engine port) — restamp is today's P0",
     );
 
   try {
     deps.assertClosed("rb-cues");
   } catch (e) {
-    return fail(opts, dbPath, mode, (e as Error).message);
+    return fail((e as Error).message);
   }
   if (!deps.fileExists(dbPath)) {
     // master.db must exist; backupMaster re-checks
-    return fail(
-      opts,
-      dbPath,
-      mode,
-      `no master DB at ${dbPath} (is the drive mounted?)`,
-    );
+    return fail(`no master DB at ${dbPath} (is the drive mounted?)`);
   }
 
   if (apply) {
@@ -344,13 +328,13 @@ async function rbCuesWithRuntime(
     try {
       backedUpTo = deps.backup(dbPath);
     } catch (error) {
-      return fail(opts, dbPath, mode, errorText(error));
+      return fail(errorText(error));
     }
 
     const compensate = (error: unknown): RbCuesResult => {
       const detail = compensateRestore(deps, dbPath, backedUpTo, error);
       return {
-        ...fail(opts, dbPath, mode, detail),
+        ...fail(detail),
         backedUpTo,
         verifyFailures: [detail],
       };
@@ -359,18 +343,10 @@ async function rbCuesWithRuntime(
     try {
       deps.assertClosed("rb-cues --apply");
       const r = deps.spawn(
-        [
-          "uv",
-          "run",
-          "--with",
-          "pyrekordbox",
-          "python",
-          "-c",
-          restampScript(),
-          dbPath,
-          "apply",
-          opts.mount,
-        ],
+        pyUvArgv({
+          script: restampScript(),
+          args: [dbPath, "apply", opts.mount],
+        }),
         300_000,
       );
       if (r.status !== 0 || !r.stdout)
@@ -381,16 +357,7 @@ async function rbCuesWithRuntime(
       deps.sleep(250);
       deps.assertClosed("rb-cues verification");
       const zeroCheck = deps.spawn(
-        [
-          "uv",
-          "run",
-          "--with",
-          "pyrekordbox",
-          "python",
-          "-c",
-          cueVerifyScript(),
-          dbPath,
-        ],
+        pyUvArgv({ script: cueVerifyScript(), args: [dbPath] }),
         120_000,
         JSON.stringify(output.writtenIds),
       );
@@ -423,35 +390,24 @@ async function rbCuesWithRuntime(
   let result: CueCommandResult;
   try {
     result = deps.spawn(
-      [
-        "uv",
-        "run",
-        "--with",
-        "pyrekordbox",
-        "python",
-        "-c",
-        restampScript(),
-        dbPath,
-        "census",
-        opts.mount,
-      ],
+      pyUvArgv({
+        script: restampScript(),
+        args: [dbPath, "census", opts.mount],
+      }),
       120_000,
     );
   } catch (error) {
-    return fail(opts, dbPath, mode, errorText(error));
+    return fail(errorText(error));
   }
   if (result.status !== 0 || !result.stdout)
     return fail(
-      opts,
-      dbPath,
-      mode,
       `census failed (exit ${String(result.status)}): ${result.stderr.slice(-300)}`,
     );
   let output: RestampOutput;
   try {
     output = parseRestampOutput(lastJsonLine(result.stdout), false);
   } catch (error) {
-    return fail(opts, dbPath, mode, errorText(error));
+    return fail(errorText(error));
   }
 
   return {
