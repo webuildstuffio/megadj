@@ -33,6 +33,7 @@ import {
   compensateRestore,
   isStringNumberPair,
   isStringPair,
+  lastJsonLine,
   parseJsonBoundary,
   printResult,
   RB_CLOSED_PY_GUARD,
@@ -377,10 +378,7 @@ async function rbCuesWithRuntime(
         throw new Error(
           `restamp failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
         );
-      const output = parseRestampOutput(
-        r.stdout.trim().split("\n").pop() ?? "",
-        true,
-      );
+      const output = parseRestampOutput(lastJsonLine(r.stdout), true);
       deps.sleep(250);
       deps.assertClosed("rb-cues verification");
       const zeroCheck = deps.spawn(
@@ -401,9 +399,7 @@ async function rbCuesWithRuntime(
         throw new Error(
           `cue verification failed (exit ${String(zeroCheck.status)}): ${zeroCheck.stderr.slice(-300)}`,
         );
-      const checked = parseVerifyOutput(
-        zeroCheck.stdout.trim().split("\n").pop() ?? "",
-      );
+      const checked = parseVerifyOutput(lastJsonLine(zeroCheck.stdout));
       validateVerification(output.writtenIds, checked);
       log(
         `re-read: ${checked.matched}/${checked.total} intended cue rows, ${checked.remaining} Kind=0 remaining`,
@@ -454,10 +450,7 @@ async function rbCuesWithRuntime(
     );
   let output: RestampOutput;
   try {
-    output = parseRestampOutput(
-      result.stdout.trim().split("\n").pop() ?? "",
-      false,
-    );
+    output = parseRestampOutput(lastJsonLine(result.stdout), false);
   } catch (error) {
     return fail(opts, dbPath, mode, errorText(error));
   }

@@ -21,7 +21,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
 import { basename, extname, join } from "node:path";
 import {
-  isFiniteNumber,
+  isNonNegativeInteger,
   isRecord,
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
@@ -30,6 +30,7 @@ import {
   applyConfirmationRefusal,
   isDecimalIdOrNull,
   isStringPair,
+  lastJsonLine,
   parseJsonBoundary,
   printResult,
 } from "./rb-command-kit.js";
@@ -255,10 +256,6 @@ interface VerifyOut {
   playlistExists: boolean;
 }
 
-function isNonNegativeInteger(value: unknown): value is number {
-  return isFiniteNumber(value) && Number.isInteger(value) && value >= 0;
-}
-
 function parseWriteOutput(raw: string): PyOut {
   const value = parseJsonBoundary(raw, "pyrekordbox write");
   if (
@@ -472,9 +469,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
             throw new Error(
               `pyrekordbox write failed (exit ${String(result.status)}): ${(result.stderr ?? "").slice(-400)}`,
             );
-          const value = parseWriteOutput(
-            result.stdout.trim().split("\n").pop() ?? "",
-          );
+          const value = parseWriteOutput(lastJsonLine(result.stdout));
           if (value.playlistId === null || value.errors.length > 0)
             throw new Error(
               value.errors[0]?.join(": ") ??
@@ -527,9 +522,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
             throw new Error(
               `pyrekordbox post-verify failed (exit ${String(result.status)}): ${(result.stderr ?? "").slice(-400)}`,
             );
-          const verify = parseVerifyOutput(
-            result.stdout.trim().split("\n").pop() ?? "",
-          );
+          const verify = parseVerifyOutput(lastJsonLine(result.stdout));
           verified = verify.hit;
           stillBroken = verify.broken;
           const failure = verificationError(payloadFiles.length, value, verify);

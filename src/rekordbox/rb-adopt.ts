@@ -8,14 +8,17 @@
  * file, so duplicate Rekordbox rows do not make FullTags analyze a file twice.
  */
 
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import type { ArchiveState } from "../archive/state";
 import { nameKey } from "../shared/name-key";
 import { backupStamp } from "./guard.js";
-import { applyConfirmationRefusal } from "./rb-command-kit.js";
+import {
+  applyConfirmationRefusal,
+  lastJsonLine,
+  rbPythonRun,
+} from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
 
@@ -567,17 +570,18 @@ export function printRbAdoptReport(
 }
 
 export function readRekordboxContent(dbPath: string): RekordboxContentRow[] {
-  const result = spawnSync(
-    "uv",
-    ["run", "--with", "pyrekordbox", "python", "-c", PY_READ_CONTENT, dbPath],
-    { encoding: "utf8", timeout: 300_000, maxBuffer: 64 * 1024 * 1024 },
-  );
+  const result = rbPythonRun({
+    script: PY_READ_CONTENT,
+    args: [dbPath],
+    timeoutMs: 300_000,
+    maxBuffer: 64 * 1024 * 1024,
+  });
   if (result.status !== 0 || !result.stdout) {
     throw new Error(
-      `pyrekordbox read failed (exit ${String(result.status)}): ${(result.stderr ?? "").slice(0, 500)}`,
+      `pyrekordbox read failed (exit ${String(result.status)}): ${result.stderr.slice(0, 500)}`,
     );
   }
-  const line = result.stdout.trim().split("\n").pop();
+  const line = lastJsonLine(result.stdout);
   if (!line) throw new Error("pyrekordbox returned no Content rows payload");
   let parsed: unknown;
   try {

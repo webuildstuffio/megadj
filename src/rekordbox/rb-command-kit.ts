@@ -77,6 +77,50 @@ export function parseJsonBoundary(raw: string, context: string): unknown {
   }
 }
 
+/** The ONE `uv run --with <pkg> python -c <script> [argv…]` spawn (#68).
+ *  Nine rb-* sites hand-rolled this argv (and one later drifted to the
+ *  pinned PYRK_TAG fork); every option variation they need — timeout,
+ *  maxBuffer, stdin payload — is a field here. Returns kit-normalized
+ *  status/stdout/stderr. DI tests keep `rbCommandRuntime.spawn`; this is
+ *  the direct-call convenience for plain python-seam commands. */
+export function rbPythonRun(opts: {
+  /** The inline python script (passed after `-c`). */
+  script: string;
+  /** Trailing argv after the script (dbPath, payloads…). */
+  args?: string[];
+  timeoutMs: number;
+  /** The `--with` package: plain "pyrekordbox" (default) or the pinned
+   *  PYRK_TAG spec used by rb-playlist's write path. */
+  withPkg?: string;
+  maxBuffer?: number;
+  /** Optional stdin payload. */
+  input?: string;
+}): { status: number | null; stdout: string; stderr: string } {
+  const result = spawnSync(
+    "uv",
+    [
+      "run",
+      "--with",
+      opts.withPkg ?? "pyrekordbox",
+      "python",
+      "-c",
+      opts.script,
+      ...(opts.args ?? []),
+    ],
+    {
+      encoding: "utf8",
+      timeout: opts.timeoutMs,
+      ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
+      ...(opts.input === undefined ? {} : { input: opts.input }),
+    },
+  );
+  return {
+    status: result.status,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  };
+}
+
 /** A pyrekordbox content/playlist id crosses the subprocess boundary as a
  *  decimal STRING (64-bit ids would lose precision as JS numbers). Null is
  *  the script's "absent" value, not a parse failure. */
@@ -123,6 +167,23 @@ export function isStringNumberPair(value: unknown): value is [string, number] {
     Number.isInteger(value[1]) &&
     value[1] >= 0
   );
+}
+
+/** string[] guard for subprocess payload arrays (#95: one SSOT, the
+ *  rb-playlist local twin removed). */
+export function isStringArray(value: unknown): value is string[] {
+  return isUnknownArray(value) && value.every((v) => typeof v === "string");
+}
+
+/** Last stdout line extractor — pyrekordbox scripts print progress noise
+ *  and put the JSON payload on the final line. One seam for the 20+
+ *  `stdout.trim().split("\n").pop()` call sites (#95). Scope: rb-*
+ *  commands only — `shared/doctor-state.ts` keeps its 2 inline sites
+ *  (generic→rb-kit would invert layering); `guard.ts` keeps its 1 site
+ *  (this kit already imports guard.js — a reverse edge would cycle). */
+export function lastJsonLine(stdout: string, fallback = ""): string {
+  const last = stdout.trim().split("\n").pop();
+  return last === undefined ? fallback : last;
 }
 
 /** Human message for an unknown throw value (kit-wide convention). */

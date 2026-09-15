@@ -34,6 +34,7 @@ import {
 import {
   applyConfirmationRefusal,
   DECIMAL_ID_RE,
+  lastJsonLine,
   parseJsonBoundary,
   printResult,
 } from "./rb-command-kit.js";
@@ -310,7 +311,7 @@ export function readRows(dbPath: string): [string, string][] {
       `pyrekordbox read failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(0, 300)}`,
     );
   }
-  return parseReadRows(r.stdout.trim().split("\n").pop() ?? "");
+  return parseReadRows(lastJsonLine(r.stdout));
 }
 
 export async function rbFixPaths(
@@ -571,7 +572,7 @@ async function rewriteRows(
       `pyrekordbox rewrite failed (exit ${String(r.status)}): ${detail}`,
     );
   }
-  const line = (r.stdout ?? "").trim().split("\n").pop() ?? "{}";
+  const line = lastJsonLine(r.stdout ?? "", "{}");
   return parseRewriteResult(line);
 }
 

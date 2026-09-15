@@ -22,7 +22,6 @@
  * unique casefold basename is the fallback.
  */
 
-import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { ArchiveState } from "../archive/state";
@@ -32,7 +31,7 @@ import { parseAnlzGrid } from "../../fulltags/src/anlz";
 import { MUSIC_DIR } from "../cli-env";
 import { nameKey } from "../shared/name-key";
 import { masterDbPath, normalizeMount } from "./master-path.js";
-import { printResult } from "./rb-command-kit.js";
+import { printResult, lastJsonLine, rbPythonRun } from "./rb-command-kit.js";
 import { errorText } from "../shared/error-text";
 
 /** The plan A3 bucket names (subset of GridAuditVerdict["bucket"]). */
@@ -129,26 +128,17 @@ export function readMasterRows(
   dbPath: string,
   scriptsDir: string,
 ): MasterRow[] {
-  const r = spawnSync(
-    "uv",
-    [
-      "run",
-      "--with",
-      "pyrekordbox",
-      "python",
-      "-c",
-      PY_ROWS,
-      dbPath,
-      scriptsDir,
-    ],
-    { encoding: "utf8", timeout: 180_000 },
-  );
+  const r = rbPythonRun({
+    script: PY_ROWS,
+    args: [dbPath, scriptsDir],
+    timeoutMs: 180_000,
+  });
   if (r.status !== 0) {
     throw new Error(
       `pyrekordbox read failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(0, 300)}`,
     );
   }
-  return JSON.parse(r.stdout.trim().split("\n").pop() ?? "[]") as MasterRow[];
+  return JSON.parse(lastJsonLine(r.stdout, "[]")) as MasterRow[];
 }
 
 const norm = (s: string): string => nameKey(s);

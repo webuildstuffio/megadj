@@ -33,15 +33,13 @@ import {
   type SetPresetId,
 } from "../../cratedeck/src/setbuild";
 import { clampSetPool } from "../../cratedeck/shared/types";
-import {
-  isFiniteNumber,
-  isRecord,
-  isUnknownArray,
-} from "../../cratedeck/shared/guards";
+import { isNonNegativeInteger, isRecord } from "../../cratedeck/shared/guards";
 import { DB_PATH } from "../cli-env";
 import {
   applyConfirmationRefusal,
   isDecimalIdOrNull,
+  isStringArray,
+  lastJsonLine,
   parseJsonBoundary,
   printResult,
 } from "./rb-command-kit.js";
@@ -237,16 +235,6 @@ interface PlaylistVerifyOut {
 interface MatchPrediction {
   hit: number;
   unmatched: string[];
-}
-
-function isNonNegativeInteger(value: unknown): value is number {
-  return isFiniteNumber(value) && Number.isInteger(value) && value >= 0;
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return (
-    isUnknownArray(value) && value.every((entry) => typeof entry === "string")
-  );
 }
 
 function parseWriteOutput(raw: string): PyOut {
@@ -468,9 +456,7 @@ export async function rbPlaylist(
             throw new Error(
               `pyrekordbox write failed (exit ${String(result.status)}): ${(result.stderr ?? "").slice(-400)}`,
             );
-          const value = parseWriteOutput(
-            result.stdout.trim().split("\n").pop() ?? "",
-          );
+          const value = parseWriteOutput(lastJsonLine(result.stdout));
           if (
             value.playlistId === null ||
             value.parentId === null ||
@@ -516,9 +502,7 @@ export async function rbPlaylist(
             throw new Error(
               `pyrekordbox playlist post-verify failed (exit ${String(result.status)}): ${(result.stderr ?? "").slice(-400)}`,
             );
-          const check = parseVerifyOutput(
-            result.stdout.trim().split("\n").pop() ?? "",
-          );
+          const check = parseVerifyOutput(lastJsonLine(result.stdout));
           verified = check.rows;
           if (!check.contiguous || verified !== value.linked)
             throw new Error(
@@ -684,7 +668,7 @@ function parsePredictionProcess(result: {
     );
   }
   try {
-    return parseMatchPrediction(result.stdout.trim().split("\n").pop() ?? "");
+    return parseMatchPrediction(lastJsonLine(result.stdout));
   } catch (error) {
     throw new Error(
       `rb-playlist match probe returned an invalid result: ${errorText(error)}`,

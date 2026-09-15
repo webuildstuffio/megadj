@@ -14,7 +14,6 @@
  * ~/Library/Pioneer/rekordbox when pointed at it explicitly.
  */
 
-import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { isRecord, isUnknownArray } from "../../cratedeck/shared/guards.js";
@@ -22,8 +21,10 @@ import { assertRbClosed } from "./guard.js";
 import {
   applyConfirmed,
   applyConfirmationRefusal,
+  lastJsonLine,
   parseJsonBoundary,
   printResult,
+  rbPythonRun,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -181,16 +182,16 @@ export async function rbPlaylistReconcile(opts: {
     return mk((e as Error).message);
   }
 
-  const r = spawnSync(
-    "uv",
-    ["run", "--with", "pyrekordbox", "python", "-c", twinScanScript(), db],
-    { encoding: "utf8", timeout: 120_000 },
-  );
+  const r = rbPythonRun({
+    script: twinScanScript(),
+    args: [db],
+    timeoutMs: 120_000,
+  });
   if (r.status !== 0 || !r.stdout)
-    return mk(`DB scan failed: ${(r.stderr ?? "").slice(-200)}`);
+    return mk(`DB scan failed: ${r.stderr.slice(-200)}`);
   let dbRows: Omit<PlaylistTwin, "inDb" | "inXml">[];
   try {
-    dbRows = parseTwinScanOutput(r.stdout.trim().split("\n").pop() ?? "");
+    dbRows = parseTwinScanOutput(lastJsonLine(r.stdout));
   } catch (error) {
     return mk(errorText(error));
   }
