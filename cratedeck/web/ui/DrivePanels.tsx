@@ -11,6 +11,13 @@ import { InfoTip } from "./InfoTip";
 import { BarList } from "./data";
 import { Histogram } from "./charts";
 
+export function countCheckVerdicts(checks: readonly HealthCheck[]) {
+  return {
+    failing: checks.filter((check) => check.status === "fail").length,
+    warning: checks.filter((check) => check.status === "warn").length,
+  };
+}
+
 // StatCard moved to ui/data.tsx (it gained tone/em support) — imported for
 // DjPanel and re-exported here so existing import sites keep working.
 import { StatCard } from "./data";
@@ -180,6 +187,7 @@ export function SpaceBar({ snap }: { snap: SnapshotData }) {
 export function ExtBars({ snap }: { snap: SnapshotData }) {
   const byExt = snap.by_ext;
   if (!byExt?.length) return null;
+  const totalBytes = byExt.reduce((sum, entry) => sum + entry.bytes, 0) || 1;
   return (
     <div title="Bytes on disk by file extension — audio formats vs artwork, DB and system files. '._' entries are macOS resource forks (junk).">
       <BarList
@@ -188,7 +196,7 @@ export function ExtBars({ snap }: { snap: SnapshotData }) {
           name: e.ext,
           value: e.bytes,
           display: `${fmtBytes(e.bytes)} · ${e.files}`,
-          title: `${e.ext}: ${fmtBytes(e.bytes)} across ${e.files} files · ${Math.round((e.bytes / (byExt.reduce((s, x) => s + x.bytes, 0) || 1)) * 100)}% of bytes`,
+          title: `${e.ext}: ${fmtBytes(e.bytes)} across ${e.files} files · ${Math.round((e.bytes / totalBytes) * 100)}% of bytes`,
         }))}
         tone="info"
       />

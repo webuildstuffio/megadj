@@ -15,6 +15,7 @@ import { QUARANTINE_DIR } from "../archive/hygiene/apply";
 import type { Finding } from "../archive/hygiene/types";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson } from "../shared/cli-output";
+import { md5Cli } from "./md5-cli";
 
 export interface ShelfRestoreOptions {
   input: string;
@@ -33,13 +34,6 @@ export interface ShelfRestoreResult {
   destination: string | null;
   md5: string | null;
   error?: string | undefined;
-}
-
-function md5(path: string): string | null {
-  const r = Bun.spawnSync(["md5", "-q", path]);
-  if (r.exitCode !== 0) return null;
-  const hash = r.stdout.toString().trim();
-  return hash.length > 0 ? hash : null;
 }
 
 function flattenedLoserPath(path: string): string {
@@ -173,7 +167,7 @@ export async function shelfRestore(
         md5: null,
         error: `destination exists: ${destination}`,
       });
-    const sourceMd5 = md5(match.source);
+    const sourceMd5 = md5Cli(match.source);
     if (!sourceMd5)
       return await result({
         command: "shelf-restore",
@@ -186,7 +180,7 @@ export async function shelfRestore(
       });
     const keeper = match.f.paths[0];
     if (keeper && existsSync(keeper)) {
-      const keeperMd5 = md5(keeper);
+      const keeperMd5 = md5Cli(keeper);
       if (keeperMd5 && keeperMd5 !== sourceMd5)
         return await result({
           command: "shelf-restore",
@@ -200,7 +194,7 @@ export async function shelfRestore(
     }
     mkdirSync(dirname(destination), { recursive: true });
     copyFileSync(match.source, destination);
-    const destinationMd5 = md5(destination);
+    const destinationMd5 = md5Cli(destination);
     if (destinationMd5 !== sourceMd5) {
       if (existsSync(destination)) unlinkSync(destination);
       return await result({

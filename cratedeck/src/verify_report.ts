@@ -163,24 +163,30 @@ export function parseVerifyReport(
   const badLenList = allOff((d) => d.bad_length);
   const badGridList = allOff((d) => d.anlz_consistency ?? d.bad_grids);
 
-  const missingAudio = useJson
+  const hasList = (
+    pick: (
+      d: NonNullable<VerifyJsonPayload["drives"]>[string],
+    ) => string[] | undefined,
+  ): boolean => useJson && drives.every((d) => Array.isArray(pick(d)));
+
+  const missingAudio = hasList((d) => d.missing_files)
     ? missingFiles.length
     : (grabNum(out, /missing audio: (\d+)/) ?? 0);
-  const missingAnlz = useJson
+  const missingAnlz = hasList((d) => d.missing_anlz)
     ? missingAnlzList.length
     : (grabNum(out, /missing analysis: (\d+)/) ?? 0);
-  const noBpm = useJson
+  const noBpm = hasList((d) => d.no_bpm)
     ? noBpmList.length
     : (grabNum(out, /no BPM: (\d+)/) ?? 0);
-  const badLen = useJson
+  const badLen = hasList((d) => d.bad_length)
     ? badLenList.length
     : (grabNum(out, /bad length: (\d+)/) ?? 0);
-  const badGrids = useJson
+  const badGrids = hasList((d) => d.anlz_consistency ?? d.bad_grids)
     ? badGridList.length
     : (grabNum(out, /ANLZ consistency failures \(generated\): (\d+)/) ??
       grabNum(out, /bad grids \(generated\): (\d+)/) ??
       0);
-  const anlzHash = useJson
+  const anlzHash = hasList((d) => d.anlz_hash_missing)
     ? anlzHashList.length
     : (grabNum(out, /ANLZ missing at hash path AND at DB path: (\d+)/) ?? 0);
 
@@ -477,11 +483,12 @@ export function verifyDeltas(
   for (const c of next.checks) {
     if (c.id === "pioneer-variance") continue; // informational, not tracked
     const p = prevBy.get(c.id);
+    if (!p && c.status === "pass") continue; // newly available healthy check
     const count = c.offender_count ?? 0;
     const prevCount =
       p?.offender_count ??
       // legacy reports had no offender_count — derive from detail via status
-      (p ? (p.status === "pass" ? 0 : NaN) : NaN);
+      (p ? (p.status === "pass" ? 0 : NaN) : 0);
     if (Number.isNaN(prevCount)) continue; // can't compare legacy fails
     if (count !== prevCount || p?.status !== c.status) {
       deltas.push({

@@ -374,6 +374,15 @@ describe("parseVerifyReport: structured payload", () => {
     }
     expect(warnings.join("\n")).toContain("no usable drive entries");
   });
+
+  it("partial JSON cannot erase a missing-audio count in human output", () => {
+    const out =
+      '  tracks: 10\n  missing audio: 2\nVERIFY_JSON: {"drives":{"MASTER":{"tracks":10}}}\nFINAL: FAILED\n';
+    const r = parseVerifyReport(out, false, "FINAL: FAILED", 2);
+    const audio = r.checks.find((c) => c.id === "audio-files");
+    expect(audio?.status).toBe("fail");
+    expect(audio?.detail).toContain("2 of 10");
+  });
 });
 
 // ---- deltas vs previous run -------------------------------------------------
@@ -415,5 +424,23 @@ describe("verifyDeltas", () => {
       5,
     );
     expect(verifyDeltas(null, next)).toEqual([]);
+  });
+
+  it("newly measured failed check appears as a delta", () => {
+    const next = parseVerifyReport(
+      jsonOut({
+        ...JSON_PAYLOAD,
+        drives: { MASTER: { tracks: 10, missing_files: ["a.wav", "b.wav"] } },
+      }),
+      false,
+      "FINAL: FAILED",
+      5,
+    );
+    const prev: VerifyReport = { ...next, checks: [] };
+    const audio = verifyDeltas(prev, next).find(
+      (d) => d.check_id === "audio-files",
+    );
+    expect(audio?.prev_status).toBeNull();
+    expect(audio?.delta).toBe(2);
   });
 });

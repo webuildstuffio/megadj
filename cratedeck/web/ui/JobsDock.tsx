@@ -101,10 +101,10 @@ export function JobsDock(props: {
   const [collapsed, setCollapsed] = useState(active.length === 0);
   if (!active.length && !history.length) return null;
 
-  const driveName = (id: string) =>
-    props.drives.find((d) => d.id === id)?.nickname ??
-    props.drives.find((d) => d.id === id)?.name ??
-    "…";
+  const driveName = (id: string) => {
+    const drive = props.drives.find((candidate) => candidate.id === id);
+    return drive?.nickname ?? drive?.name ?? "…";
+  };
 
   // header spinner only while something is genuinely RUNNING (a queue of
   // parked jobs used to spin the header too — spinning implies motion)

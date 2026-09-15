@@ -22,6 +22,7 @@ import {
 } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { resolveShelfVolume } from "../shared/volume";
+import { md5Cli } from "./md5-cli";
 
 export interface ShelfSyncOptions {
   /** Archive root — new music lands here (megadj drop / organize output). */
@@ -97,18 +98,11 @@ function shelfAudioIndex(contents: string): Map<string, string[]> {
 
 /** Compare bytes before declaring a shelf copy already present. A same-size
  *  divergent rip must never be mistaken for the archive file. */
-function md5(path: string): string | null {
-  const result = Bun.spawnSync(["md5", "-q", path]);
-  if (result.exitCode !== 0) return null;
-  const value = result.stdout.toString().trim();
-  return value.length > 0 ? value : null;
-}
-
 function sameBytes(a: string, b: string): boolean {
   try {
     if (statSync(a).size !== statSync(b).size) return false;
-    const left = md5(a);
-    const right = md5(b);
+    const left = md5Cli(a);
+    const right = md5Cli(b);
     return left !== null && left === right;
   } catch {
     return false;

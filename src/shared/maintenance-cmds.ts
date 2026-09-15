@@ -45,6 +45,13 @@ function mountFrom(positional: string | undefined): string {
   return resolveShelfVolume();
 }
 
+/** Keep progress messages off stdout when --json owns that channel. */
+function progressLog(json: boolean): (message: string) => void {
+  return (message) => {
+    if (!json) console.log(message);
+  };
+}
+
 /** Repeatable `--key=value` string options (shelf-hygiene's
  * confirm/dismiss lists). */
 function manyOf(rest: string[], key: string): string[] {
@@ -91,7 +98,7 @@ export async function runMaintenanceCommand(
         shelfVolume: mountFrom(undefined),
         dbPath: DB_PATH,
         json: flags.bools.has("json"),
-        log: (s) => (flags.bools.has("json") ? undefined : console.log(s)),
+        log: progressLog(flags.bools.has("json")),
       });
       if (!r.ok) process.exitCode = 1;
       return;
@@ -134,7 +141,7 @@ export async function runMaintenanceCommand(
         apply: flags.bools.has("apply"),
         yes: flags.bools.has("yes"),
         json,
-        log: (s) => (json ? undefined : console.log(s)),
+        log: progressLog(json),
       });
       if (json) {
         await writeJson(r);
@@ -160,7 +167,7 @@ export async function runMaintenanceCommand(
         quarantine: flags.bools.has("quarantine"),
         yes: flags.bools.has("yes"),
         json,
-        log: (s) => (json ? undefined : console.log(s)),
+        log: progressLog(json),
       });
       if (json) {
         await writeJson(r);
@@ -190,7 +197,7 @@ export async function runMaintenanceCommand(
           mount,
           apply: flags.bools.has("apply"),
           yes: flags.bools.has("yes"),
-          log: (message) => (json ? undefined : console.log(message)),
+          log: progressLog(json),
         });
         if (json) await writeJson(result);
         else printRbAdoptReport(result, console.log);
@@ -232,7 +239,7 @@ export async function runMaintenanceCommand(
         apply: flags.bools.has("apply"),
         yes: flags.bools.has("yes"),
         json,
-        log: (s) => (json ? undefined : console.log(s)),
+        log: progressLog(json),
       });
       if (json) {
         await writeJson(r);
@@ -264,7 +271,7 @@ export async function runMaintenanceCommand(
         apply: flags.bools.has("apply"),
         yes: flags.bools.has("yes"),
         json,
-        log: (s) => (json ? undefined : console.log(s)),
+        log: progressLog(json),
       });
       if (json) {
         await writeJson(r);
@@ -289,7 +296,7 @@ export async function runMaintenanceCommand(
         apply: flags.bools.has("apply"),
         yes: flags.bools.has("yes"),
         json,
-        log: (s) => (json ? undefined : console.log(s)),
+        log: progressLog(json),
       });
       if (json) {
         await writeJson(r);
@@ -315,7 +322,7 @@ export async function runMaintenanceCommand(
         apply: flags.bools.has("apply"),
         yes: flags.bools.has("yes"),
         json,
-        log: (s) => (json ? undefined : console.log(s)),
+        log: progressLog(json),
       });
       if (json) {
         await writeJson(r);
@@ -342,7 +349,7 @@ export async function runMaintenanceCommand(
           apply: flags.bools.has("apply"),
           yes: flags.bools.has("yes"),
           json,
-          log: (s) => (json ? undefined : console.log(s)),
+          log: progressLog(json),
         });
         if (json) {
           await writeJson(r);
@@ -392,7 +399,7 @@ export async function runMaintenanceCommand(
         group: flags.strings.get("group"),
         apply: flags.bools.has("apply"),
         yes: flags.bools.has("yes"),
-        log: (s) => (json ? undefined : console.log(s)),
+        log: progressLog(json),
       });
       if (json) {
         await writeJson(r);
@@ -445,7 +452,7 @@ export async function runMaintenanceCommand(
         tag,
         mode,
         json,
-        log: (s) => (json ? undefined : console.log(s)),
+        log: progressLog(json),
       });
       if (json) {
         await writeJson(r);
@@ -495,7 +502,7 @@ export async function runMaintenanceCommand(
           limit,
           compareDrive,
           json,
-          log: (s) => (json ? undefined : console.log(s)),
+          log: progressLog(json),
         });
         if (json) {
           await writeJson(r);

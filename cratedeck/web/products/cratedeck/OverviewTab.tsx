@@ -9,6 +9,7 @@ import { Icon } from "../../ui/icons";
 import {
   AgeStrip,
   CheckRow,
+  countCheckVerdicts,
   DjPanel,
   ExtBars,
   SpaceBar,
@@ -23,8 +24,7 @@ export function OverviewTab(props: {
   checks: NonNullable<DriveReport["checks"]>;
 }) {
   const { name, snap, dj, checks } = props;
-  const failing = checks.filter((c) => c.status === "fail").length;
-  const warning = checks.filter((c) => c.status === "warn").length;
+  const { failing, warning } = countCheckVerdicts(checks);
 
   return (
     <div>

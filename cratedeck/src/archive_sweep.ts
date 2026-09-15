@@ -120,6 +120,20 @@ export async function sweepArchive(
     const sizeChanged = trustedSize != null && trustedSize !== st.size;
     if (prior && trustedHash === hex) {
       unchanged++;
+      if (
+        typeof t.size_hint === "number" &&
+        Number.isFinite(t.size_hint) &&
+        t.size_hint > 0 &&
+        t.size_hint !== st.size
+      ) {
+        findings.push({
+          path: rel,
+          title: t.title,
+          artist: t.artist,
+          verdict: st.size < t.size_hint ? "truncated" : "grown",
+          detail: `disk ${st.size} B vs DB ${t.size_hint} B`,
+        });
+      }
       if (sizeChanged || prior?.flagged_at != null) {
         // known-good hash is back (or size caught up): clear the flag
         update({
@@ -158,6 +172,7 @@ export async function sweepArchive(
       });
       if (
         typeof t.size_hint === "number" &&
+        Number.isFinite(t.size_hint) &&
         t.size_hint > 0 &&
         t.size_hint !== st.size
       ) {

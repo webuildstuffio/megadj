@@ -71,6 +71,23 @@ describe("D30 sweepArchive", () => {
     }
   });
 
+  test("DB size mismatch remains visible on later sweeps", async () => {
+    const dir = fixtureDir();
+    try {
+      writeFileSync(join(dir, "short.wav"), "x".repeat(400));
+      const ledger = new Map<string, LedgerRow>();
+      const upd = (r: LedgerRow) => ledger.set(r.file_path, r);
+      const track = baseTrack("short.wav", 1000);
+      const first = await sweepArchive(dir, [track], ledger, upd);
+      expect(first.findings[0]?.verdict).toBe("truncated");
+      const second = await sweepArchive(dir, [track], ledger, upd);
+      expect(second.findings[0]?.verdict).toBe("truncated");
+      expect(second.findings[0]?.detail).toContain("disk 400 B vs DB 1000 B");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("bitrot (same size, different content) → changed", async () => {
     const dir = fixtureDir();
     try {

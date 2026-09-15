@@ -5,6 +5,7 @@ import { useEffect } from "preact/hooks";
 import type { InterlockState, JobKind } from "../../../shared/types";
 import { TIER_EXPLANATION } from "../../../shared/check_matrix";
 import { Icon } from "../../ui/icons";
+import { countCheckVerdicts } from "../../ui/DrivePanels";
 import { navigate } from "../../app/router";
 import { HELP_JOBS } from "../../../shared/help";
 import { PhotoTab } from "./PhotoTab";
@@ -175,8 +176,7 @@ export function DrivePage(props: {
       : { playlists: snap.playlists.length }),
     timeline: timeline.length,
   };
-  const failing = checks.filter((c) => c.status === "fail").length;
-  const warning = checks.filter((c) => c.status === "warn").length;
+  const { failing, warning } = countCheckVerdicts(checks);
   const content = (() => {
     switch (tabConf.id) {
       case "playlists":
