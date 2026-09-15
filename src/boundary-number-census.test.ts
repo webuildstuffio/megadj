@@ -69,10 +69,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // fulltags media seam (removed its 2 Number() sites); audited 42→44
     // and sanctioned 13→18 from the concurrent bandcamp ISO-duration +
     // fetch-stages stageBandcamp year work landing in the same worktree.
-    audited: 46,
-    guarded: 28,
+    audited: 44,
+    guarded: 26,
     sanctioned: 18,
-    digest: "9ea8b65ff1856b7b92b373c5bc2124c9f9d84ddb6e5e2780ae7d977502930e7e",
+    digest: "1a4bb97d9f7a61ff4451bc50d69fdce360a47c4c90e32362c3cdd34e9baf8a79",
   });
 });
 
