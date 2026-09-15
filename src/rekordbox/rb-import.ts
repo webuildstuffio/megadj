@@ -25,7 +25,9 @@ import {
   isRecord,
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
+import { probeMediaSync } from "../../fulltags/src/exports";
 import {
+  applyConfirmationRefusal,
   isDecimalIdOrNull,
   isStringPair,
   parseJsonBoundary,
@@ -360,8 +362,8 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   });
 
   // gate 1 — flags before any I/O
-  if (opts.apply && !opts.yes)
-    return fail("--apply requires --yes (dry-run first, ALWAYS)");
+  if (applyConfirmationRefusal(opts) !== null)
+    return fail(applyConfirmationRefusal(opts) ?? "unreachable");
   // gate 2 — DB present
   if (!existsSync(dbPath)) return fail(`no master DB at ${dbPath}`);
   // gate 3 — folder present with audio
@@ -386,31 +388,20 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   if (files.length === 0) return fail(`no audio files in ${folder}`);
 
   // probe durations/bitrate via ffprobe so rows carry real values
-  const payloadFiles = files.map(([full, fname]) => {
-    const probe = spawnSync(
-      "ffprobe",
-      [
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration,bit_rate",
-        "-of",
-        "default=noprint_wrappers=1:nokey=1",
-        full,
-      ],
-      { encoding: "utf8", timeout: 15_000 },
-    );
-    const lines = (probe.stdout ?? "").trim().split("\n");
-    const durationRaw = Number(lines[0]);
-    const bitrateRaw = Number(lines[1]);
-    const duration = Number.isFinite(durationRaw) ? Math.round(durationRaw) : 0;
-    const bitrate = Number.isFinite(bitrateRaw) ? Math.round(bitrateRaw) : 0;
+  // (THE media seam, #80 — one spawn style, guarded JSON boundary)
+  const payloadFiles: (
+    string | number | null
+  )[][] = [];
+  for (const [full, fname] of files) {
+    const probe = probeMediaSync(full);
+    const duration = probe?.durationS ?? 0;
+    const bitrate = probe?.bitrateKbps ?? 0;
     // tags come from the archive DB conventions: parse "Artist · Album · Title"
     const stem = fname.replace(/\.[^.]+$/u, "");
     const parts = stem.split(" · ");
     const title = parts[2] ?? parts[1] ?? stem;
     const artist = parts.length >= 3 ? (parts[0] ?? null) : (parts[0] ?? null);
-    return [
+    payloadFiles.push([
       full,
       fname,
       title,
@@ -422,8 +413,8 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
       bitrate,
       null,
       null,
-    ];
-  });
+    ]);
+  }
 
   log(
     `rb-import: ${payloadFiles.length} audio files → playlist "${playlist}"${group ? ` in group "${group}"` : ""} on ${dbPath}`,
