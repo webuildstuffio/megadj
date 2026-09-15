@@ -138,6 +138,41 @@ function atomicMutagenWrite(
   }
 }
 
+/**
+ * THE mutagen patch frame (jscpd, issue #99): `writePatchWav` and
+ * `writePatchMp4` were the same validate → pairs → empty-check →
+ * statement/verify build → atomic write → catch→false skeleton around
+ * ONE format-specific part each (the statement builders + the python
+ * open/save lines). The frame owns the skeleton; the caller owns the
+ * format language. Script text is byte-identical to the inlined form —
+ * writer.test.ts + writer-sync.test.ts pin both legs end-to-end.
+ */
+function mutagenPatchFrame(
+  filePath: string,
+  patch: TagPatch,
+  frame: {
+    sets: (pairs: TagPair[]) => string;
+    verifies: (pairs: TagPair[]) => string;
+    script: (tempPath: string, sets: string, verifies: string) => string;
+  },
+  ops?: Partial<WriterAtomicOps>,
+): boolean {
+  try {
+    validatePatch(patch);
+    const pairs = tagPairs(patch);
+    if (!pairs.length) return true;
+    return atomicMutagenWrite(
+      filePath,
+      (tempPath) =>
+        frame.script(tempPath, frame.sets(pairs), frame.verifies(pairs)),
+      ops,
+    );
+  } catch (error) {
+    void error;
+    return false;
+  }
+}
+
 export const AUDIO_EXTS = new Set([
   ".m4a",
   ".mp3",
@@ -520,18 +555,18 @@ function writePatchWav(
   patch: TagPatch,
   ops?: Partial<WriterAtomicOps>,
 ): boolean {
-  try {
-    validatePatch(patch);
-    const pairs = tagPairs(patch);
-    if (!pairs.length) return true;
-    const sets = pairs
-      .map(([k, v]) => wavId3Statement(k, v))
-      .filter(Boolean)
-      .join("\n");
-    const verifies = pairs.map(([k, v]) => wavVerifyStatement(k, v)).join("\n");
-    return atomicMutagenWrite(
-      filePath,
-      (tempPath) => `${id3Open(tempPath)}
+  return mutagenPatchFrame(
+    filePath,
+    patch,
+    {
+      sets: (pairs) =>
+        pairs
+          .map(([k, v]) => wavId3Statement(k, v))
+          .filter(Boolean)
+          .join("\n"),
+      verifies: (pairs) =>
+        pairs.map(([k, v]) => wavVerifyStatement(k, v)).join("\n"),
+      script: (tempPath, sets, verifies) => `${id3Open(tempPath)}
 from mutagen.id3 import ID3, TIT2, TIT3, TPE1, TPE2, TALB, TCON, TDRC, TCOM, TIT1, TBPM, TKEY, TPUB, TXXX, TSRC, COMM
 if a.tags is None: a.add_tags()
 if not isinstance(a.tags, ID3): a.tags = ID3()
@@ -540,12 +575,9 @@ a.save()
 ${id3Open(tempPath)}
 ${verifies}
 print("ok")`,
-      ops,
-    );
-  } catch (error) {
-    void error;
-    return false;
-  }
+    },
+    ops,
+  );
 }
 
 /**
@@ -561,18 +593,22 @@ function writePatchMp4(
   patch: TagPatch,
   ops?: Partial<WriterAtomicOps>,
 ): boolean {
-  try {
-    validatePatch(patch);
-    const pairs = tagPairs(patch);
-    if (!pairs.length) return true;
-    const sets = pairs
-      .map(([k, v]) => mp4Statement(k, v))
-      .filter(Boolean)
-      .join("\n");
-    const verifies = pairs.map(([k, v]) => mp4VerifyStatement(k, v)).join("\n");
-    return atomicMutagenWrite(
-      filePath,
-      (tempPath) => `from mutagen.mp4 import MP4, MP4FreeForm
+  return mutagenPatchFrame(
+    filePath,
+    patch,
+    {
+      sets: (pairs) =>
+        pairs
+          .map(([k, v]) => mp4Statement(k, v))
+          .filter(Boolean)
+          .join("\n"),
+      verifies: (pairs) =>
+        pairs.map(([k, v]) => mp4VerifyStatement(k, v)).join("\n"),
+      script: (
+        tempPath,
+        sets,
+        verifies,
+      ) => `from mutagen.mp4 import MP4, MP4FreeForm
 a = MP4(${JSON.stringify(tempPath)})
 if a.tags is None: a.add_tags()
 ${sets}
@@ -580,12 +616,9 @@ a.save()
 a = MP4(${JSON.stringify(tempPath)})
 ${verifies}
 print("ok")`,
-      ops,
-    );
-  } catch (error) {
-    void error;
-    return false;
-  }
+    },
+    ops,
+  );
 }
 
 /**
