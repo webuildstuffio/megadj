@@ -37,6 +37,7 @@ import {
 } from "./rb-command-kit.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 import { commandLog } from "../progress";
+import { errorText } from "../shared/error-text.js";
 import { masterDbPath } from "./master-path.js";
 
 export interface RbImportOptions {
@@ -509,7 +510,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
       py = mutation.value;
       backedUpTo = mutation.backedUpTo;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorText(error);
       return fail(message, {
         found: payloadFiles.length,
         inserted: py.inserted,
