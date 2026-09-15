@@ -310,6 +310,81 @@ describe("genre command JSON boundary", () => {
     expect((parsed as Record<string, unknown>).changes).toBe(2);
   });
 
+  test("umbrella SPLIT outcomes are canonicalized (case-twin leak, super-sure)", async () => {
+    const updates: { videoId: string; to: string }[] = [];
+    const state = {
+      labeledPopulation: () => [
+        // both tokens umbrella → resolves to bare "Dance"; the SPLIT is
+        // still canonicalization and must write (case-twin pair killed)
+        { video_id: "twin-a", genre: "Dance/electronic" },
+        { video_id: "twin-b", genre: "Dance/Electronic" },
+        // bare umbrella, no split, already-casing-canonical → kept honest
+        { video_id: "plain", genre: "Dance" },
+      ],
+      updateGenre: (videoId: string, to: string) =>
+        updates.push({ videoId, to }),
+    } as unknown as ArchiveState;
+    const logged: string[] = [];
+    const orig = console.log;
+    console.log = (line: string) => logged.push(String(line));
+    try {
+      await genre({ state, refold: true, apply: true });
+    } finally {
+      console.log = orig;
+    }
+    expect(updates).toEqual([
+      { videoId: "twin-a", to: "Dance" },
+      { videoId: "twin-b", to: "Dance" },
+    ]);
+    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    // bare "Dance" hits the label===input branch first (already canonical)
+    expect(parsed.umbrellaKept).toBe(0);
+    expect(parsed.alreadyCanonical).toBe(1);
+  });
+
+  test("--eval --refold gates on the ARBITRATION readout (post-refold semantics)", async () => {
+    // baseline arm: 2/4 gated agreement (50%) — would fail a baseline gate.
+    // arbitration arm: umbrella rows out, remaining population agrees.
+    const state = {
+      evalPopulation: () => [
+        { video_id: "a", genre: "House", vec_json: "[1,0]", duration_s: 300 },
+        { video_id: "b", genre: "House", vec_json: "[1,0]", duration_s: 300 },
+        {
+          video_id: "c",
+          genre: "House",
+          vec_json: "[0.99,0.02]",
+          duration_s: 300,
+        },
+        {
+          video_id: "u",
+          genre: "Dance",
+          vec_json: "[0,1]",
+          duration_s: 300,
+        },
+        {
+          video_id: "v",
+          genre: "House",
+          vec_json: "[0,1]",
+          duration_s: 300,
+        },
+      ],
+    } as unknown as ArchiveState;
+    const logged: string[] = [];
+    const orig = console.log;
+    console.log = (line: string) => logged.push(String(line));
+    try {
+      await genre({ state, eval: true, refold: true });
+    } finally {
+      console.log = orig;
+    }
+    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    const rf = parsed.refold as Record<string, unknown>;
+    // the arbitration arm must clear the bar even when the baseline cannot
+    expect(rf.agreement).toBeGreaterThanOrEqual(0.65);
+    expect(parsed.pass).toBe(true);
+    expect(process.exitCode).toBe(0);
+  });
+
   test("standalone --refold --apply writes only changed rows", async () => {
     const updates: { videoId: string; to: string }[] = [];
     const state = {

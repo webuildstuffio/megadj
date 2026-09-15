@@ -286,14 +286,17 @@ ground-truth philosophy unchanged.
    multi-label split with specific-outranks-umbrella ranking, casing
    collapse — killed the `House/House/house` ×3 and `EDM/edm` ×3 twins)
    + 71 casing-carried umbrella rows (`edm`→`EDM`, `DANCE`→`Dance`;
-   label VALUE preserved). Scoring half (`scoringFamily`): plain
-   EDM/Dance/Electronic/Mainstage EDM abstain from vote + population.
-   **Live A/B: baseline 62.6% → 70.3% with arbitration (+7.7 pts, n 2982→
-   2424, refusal 19.8%→12.6%) — TARGET ≥65% PASS.** Junk guards: URL
+   label VALUE preserved) + 43 umbrella split canonicalizations
+   (`Dance/Electronic`→`Dance`, kills the case-twin pair). Scoring half
+   (`scoringFamily`): plain EDM/Dance/Electronic/Mainstage EDM abstain
+   from vote + population. **Live A/B (reproducible, post-write):
+   baseline 61.7% → 69.2% with arbitration (+7.4 pts, n 2982→2424,
+   refusal 20.7%→13.0%) — TARGET ≥65% PASS; the `--eval` gate now
+   judges the refold arm when armed (exit 0).** Junk guards: URL
    spam, word soup (≥5 words), character sanity, and family-mapping
    requirement (`Edits / Bootlegs` proposes nothing — no fake labels).
-   Proposal census post-apply: 3411/3458 already canonical, 43 umbrella
-   kept honest, 0 changeable — idempotent.**
+   Proposal census post-apply: 3458/3458 canonical, 0 changeable,
+   0 casing twins in the whole column — idempotent.**
 2. **Demote-and-flag pass**: sources get trust weights from the measured
    table (RB 0.62, ingest 0.59, SC free-text lowest); rows whose label
    disagrees with a unanimous kNN consensus get `genre_flag='disputed'` —

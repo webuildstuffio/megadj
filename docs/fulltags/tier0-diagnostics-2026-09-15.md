@@ -55,13 +55,15 @@ and — with `--refold` — the arbitration A/B block `refold` (evaluated,
 abstained, agreement, deltaVsBaseline).
 
 **POST-REFOLD UPDATE (Sep 15, later the same day):** the #1 re-ranked fix
-SHIPPED and the headline numbers moved: baseline 62.6% → **70.3%** with
-the umbrella arbitration (+7.7 pts, n 2982→2424, refusal 19.8%→12.6%) —
-the ≥65% ship gate PASSES. Re-run this battery on the canonicalized
-labels before acting on the §0 verdicts below: with the 558 umbrella rows
-out of the scored population, the label-noise/artist-leakage/hubness
-verdicts should be re-measured (the disagreement mass they were computed
-from has shrunk by ~40%).
+SHIPPED and the headline numbers moved. Final reproducible state:
+baseline 61.7% → **69.2%** with the umbrella arbitration (+7.4 pts,
+n 2982→2424, refusal 20.7%→13.0%) — the ≥65% ship gate PASSES and
+`--eval --refold` exits 0 (the gate judges the refold arm). The data
+half is fully applied (3458/3458 canonical, 0 casing twins). §0 verdicts
+below were measured pre-refold and remain valid for the baseline
+population; the disagreement mass has since shrunk by ~40% (896 → 650
+disagreements), so re-run this battery before acting on marginal
+readouts (the probe's gate in particular).
 
 Engine: `src/fulltags/genre-diagnostics.ts` (pure),
 `src/fulltags/linear-probe.ts` (pure, deterministic zero-init

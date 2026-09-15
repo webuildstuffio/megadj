@@ -615,13 +615,16 @@ raw|whitened`) for A/B. Effort S.
     nightcore in `edm`, keep ALL Tier-1 sub-genre labels (hardtekk
     stays). Expected +6–12 pts alone. Effort S.
     **✅ SHIPPED Sep 15 (`genre --refold` / `--eval --refold`,
-    `src/fulltags/genre-refold.ts`): measured **+7.7 pts** (62.6% →
-    70.3% gated, refusal 19.8% → 12.6%) — inside the predicted band,
-    over the ≥65% ship gate. Data half applied live: 790 canonicalization
-    writes + 71 casing-only umbrella carries; census now idempotent
-    (3411/3458 canonical). Scoring arbitration stays a vote-time policy —
-    the collection column keeps `EDM` (a real source label), no
-    disputed-flag machinery needed for this step.**
+    `src/fulltags/genre-refold.ts`): measured **+7.4 pts** on the final
+    canonical data (61.7% → 69.2% gated, refusal 20.7% → 13.0%; the
+    pre-write A/B read 62.6% → 70.3% / +7.7 — same verdict) — inside
+    the predicted band, over the ≥65% ship gate, and `--eval --refold`
+    exits 0 (the gate judges the refold arm). Data half applied live:
+    790 canonicalization writes + 71 casing-only carries + 43 umbrella
+    split canonicalizations; census now FULLY idempotent (3458/3458
+    canonical, 0 changeable, 0 casing twins). Scoring arbitration stays
+    a vote-time policy — the collection column keeps `EDM` (a real
+    source label), no disputed-flag machinery needed for this step.**
 95. **Active-learned label refold.** 900 labels → probe → hand-label only
     the ~600 lowest-margin/disagreement tracks; concentrates human hours
     on the house/techno/trance boundary. Gated by P89(a): if label noise

@@ -273,7 +273,8 @@ cost tables, licences, and the ranked ladder with adoption verdicts:
    0.65–0.74 via probe + readout fixes, not a tower swap. **Sep 15: the
    probe lost to kNN (51.5% vs 62.6%) — the band must come from the
    `edm` refold + label fixes, not the probe. ✅ Then the refold SHIPPED:
-   70.3% gated (+7.7) — the gate is now met, and the aspiration band's
-   floor (0.65–0.74) is already reached WITHOUT a tower swap.**
+   69.2% gated on the final canonical data (+7.4; pre-write A/B read
+   70.3%/+7.7) — the gate is now met and the aspiration band's floor is
+   reached WITHOUT a tower swap.**
 4. MERT rejection: **provisional** — per-layer re-test queued before the
    verdict is quoted as final anywhere.

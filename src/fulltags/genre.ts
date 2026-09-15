@@ -117,13 +117,8 @@ export async function genre(opts: GenreOptions): Promise<void> {
       minAgreement,
       opts.durationGuard === false ? [] : durations,
     );
-    // the audit's checkpoint: gated agreement — v3 target ≥65% post-refold
     log(
       `genre eval: ${summary.evaluated} evaluated · gated agreement ${pct(summary.agreement)} · refusal ${pct(summary.refusal)} · ungated ${pct(summary.ungatedAgreement)} (k=${k}, minAgreement ${minAgreement}${opts.durationGuard === false ? ", no duration guard" : ", 90–480s guard"})`,
-    );
-    const pass = summary.agreement >= 0.65;
-    log(
-      `  target (genre-audit §5b.3): gated ≥65% post-refold — ${pass ? "PASS" : "below target (see audit for the refold plan)"}`,
     );
     let diagnostics: ReturnType<typeof tier0Diagnostics> | undefined;
     let artistDisjoint:
@@ -162,6 +157,17 @@ export async function genre(opts: GenreOptions): Promise<void> {
         `  refold (umbrella arbitration): ${rb.evaluated} scored (${abstained} plain-umbrella rows abstain) · gated ${pct(rb.agreement)} (Δ ${refold.deltaVsBaseline >= 0 ? "+" : ""}${pct(rb.agreement - summary.agreement)} vs baseline) · refusal ${pct(rb.refusal)}`,
       );
     }
+    // the audit's checkpoint: gated agreement — v3 target ≥65% POST-REFOLD.
+    // With --refold the gate judges the ARBITRATION readout (the shipped
+    // policy): the whole point of the refold is that plain-umbrella rows
+    // are unscorable, so the legacy-baseline number can never reach the
+    // bar. The baseline arm stays in the JSON for A/B either way.
+    const gatedValue =
+      refold !== undefined ? refold.agreement : summary.agreement;
+    const pass = gatedValue >= 0.65;
+    log(
+      `  target (genre-audit §5b.3): gated ≥65% post-refold — ${pass ? "PASS" : "below target (see audit for the refold plan)"} (${refold !== undefined ? `refold arm ${pct(refold.agreement)}` : `baseline ${pct(summary.agreement)}`})`,
+    );
     if (opts.diagnostics) {
       const famPop = summary.rows.map((row) => {
         const seed = seeds.find((s) => s.videoId === row.videoId)!;
@@ -262,10 +268,19 @@ export async function genre(opts: GenreOptions): Promise<void> {
       }
       if (isUmbrellaLabel(detail.label)) {
         // plain-umbrella rows keep their parent label (scoring arbitrates,
-        // not the column) — EXCEPT casing-only fixes: "edm" → "EDM",
-        // "DANCE" → "Dance" is display hygiene (kills the label twins
-        // that fragment group-by), not a genre rewrite. Propose it.
-        if (detail.label.toLowerCase() !== row.genre.trim().toLowerCase()) {
+        // not the column) — EXCEPT:
+        // 1. casing-only fixes: "edm" → "EDM", "DANCE" → "Dance" is
+        //    display hygiene (kills the label twins that fragment
+        //    group-by), not a genre rewrite. Propose it.
+        // 2. split outcomes: "Dance/Electronic" resolved to a bare
+        //    umbrella because BOTH tokens are parents — the refold's
+        //    canonicalization (one spelling, primary first) is still the
+        //    data half's job and kills the case-twin pair. The VALUE
+        //    class (umbrella) is preserved, so no genre knowledge is
+        //    invented.
+        const casingOnly =
+          detail.label.toLowerCase() === row.genre.trim().toLowerCase();
+        if (!detail.split && !casingOnly) {
           abstained++;
           continue;
         }
@@ -273,8 +288,8 @@ export async function genre(opts: GenreOptions): Promise<void> {
           video_id: row.video_id,
           from: row.genre,
           to: detail.label,
-          escaped: false,
-          split: false,
+          escaped: detail.escaped,
+          split: detail.split,
           aliased: true,
         });
         continue;
