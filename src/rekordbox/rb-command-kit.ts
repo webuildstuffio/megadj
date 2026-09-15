@@ -96,13 +96,19 @@ export function isStringTriple(
   );
 }
 
-/** [string, number] pair guard (cue Kind mismatch rows). */
+/** [string, number] pair guard where the number is a count/Kind — it must
+ *  be a finite non-negative INTEGER, not merely a number (rb-cues cue
+ *  Kind mismatch rows; weakened guards would admit fractional/negative
+ *  junk from a subprocess payload). */
 export function isStringNumberPair(value: unknown): value is [string, number] {
   return (
     isUnknownArray(value) &&
     value.length === 2 &&
     typeof value[0] === "string" &&
-    typeof value[1] === "number"
+    typeof value[1] === "number" &&
+    Number.isFinite(value[1]) &&
+    Number.isInteger(value[1]) &&
+    value[1] >= 0
   );
 }
 
