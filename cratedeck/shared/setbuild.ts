@@ -183,6 +183,11 @@ export const SET_BEAM_POOL_MAX = 250;
  * surface quote the same "deep search" contract, never a hand-copied twin. */
 export const SET_BEAM_WIDTH = 8;
 
+/** The excluded-reasons preview cap on the wire (`excluded[]`), shared by
+ * the HTTP route, the CLI spoke and the web panel; `excluded_total` always
+ * carries the full count. One constant so every surface says "first N". */
+export const SET_EXCLUDED_PREVIEW_MAX = 40;
+
 /** A forced sequencer strategy (the A/B-compare override). */
 export type SetSearchOverride = SetBuildResult["search"];
 

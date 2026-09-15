@@ -5,6 +5,11 @@ import render from "preact-render-to-string";
 import { SetBuildPanel } from "../products/fulltags/SetBuildPanel";
 import { SetArcChart } from "../products/fulltags/SetArcChart";
 import { SetBuilderResult } from "../products/fulltags/SetBuilderResult";
+import {
+  SetBuildLoading,
+  ReproLine,
+  ExcludedBreakdown,
+} from "../products/fulltags/SetBuildStatus";
 import { SET_PRESET_DEFS } from "../../shared/types";
 import { TrackPickSearch } from "../products/fulltags/TrackPickSearch";
 import { SearchBar } from "../ui/data";
@@ -101,7 +106,8 @@ describe("FullTags Similar and Set Builder UX", () => {
 
   test("preset buttons expose radio semantics and lock during a build", () => {
     const html = render(<SetBuildPanel />);
-    expect(html).toContain("1</span> Choose the energy journey");
+    expect(html).toContain("Choose the energy journey");
+    expect(html).toContain("how the room should feel from first track to last");
     expect(html.match(/setbuild-preset-option/g)).toHaveLength(3);
     expect(html).toContain('role="radio"');
     expect(html).toContain('aria-checked="true"');
@@ -117,7 +123,8 @@ describe("FullTags Similar and Set Builder UX", () => {
   test("settings changes invalidate an old proposal and promote the one CTA", () => {
     const html = render(<SetBuildPanel />);
     expect(html).toContain("Build a set from your entire shelf");
-    expect(html).toContain("2</span> Choose the set length");
+    expect(html).toContain("Choose the set length");
+    expect(html).toContain("FullTags picks tracks until this target is filled");
     expect(html).toContain('aria-label="Set builder settings"');
     expect(html).toContain('type="submit"');
     expect(html).toContain('class="btn primary setbuild-build"');
@@ -145,12 +152,97 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain('aria-label="Candidate pool cap, 1 to 1000');
     expect(html).toContain("empty = all");
     // the constants are quoted from the SHARED registry (derive, never twin)
-    expect(html).toContain("±6% window, full score within ±2%");
+    expect(html).toContain("beyond ±6% a track is unmixable");
     expect(html).toContain("tempo 0.45 · key 0.3 · arc fit 0.25");
     expect(html).toContain("1–15 min per track");
     expect(html).toContain("width 8");
+    // plain-language sequencer help + determinism guarantee
+    expect(html).toContain("same settings → the same chain");
     expect(source).toContain("clampSetPool(parsed)");
     expect(source).toContain('q.set("limit", String(poolLimit))');
+  });
+
+  test("the loading explainer shows the staged phases with an elapsed timer", () => {
+    const html = render(<SetBuildLoading startedAt={Date.now() - 7000} />);
+    expect(html).toContain("Building your set…");
+    expect(html).toContain("7s");
+    expect(html).toContain("reading the archive database");
+    expect(html).toContain("checking files on the shelf");
+    expect(html).toContain("sequencing the chain");
+    expect(html).toContain("Read-only: nothing is written");
+    expect(html).toContain("15–30 seconds");
+    // source wires the timer to a real start timestamp
+    expect(source).toContain("startedAt: Date.now()");
+    expect(source).toContain("build.startedAt !== null");
+  });
+
+  test("the excluded list groups by reason with examples and keeps the raw audit", () => {
+    const data: SetBuildPayload = {
+      ...baseData,
+      pool: 300,
+      excluded_total: 5,
+      excluded: [
+        { videoId: "1", title: "A", reason: "set budget filled" },
+        { videoId: "2", title: "B", reason: "set budget filled" },
+        { videoId: "3", title: null, reason: "set budget filled" },
+        {
+          videoId: "4",
+          title: "D",
+          reason: "no compatible transition (key clash or tempo outside ±6%)",
+        },
+        {
+          videoId: "5",
+          title: "E",
+          reason: "no compatible transition (key clash or tempo outside ±6%)",
+        },
+      ],
+    };
+    const html = render(<ExcludedBreakdown data={data} />);
+    // grouped buckets, biggest first, with example titles
+    expect(html).toContain("3 tracks");
+    expect(html).toContain("e.g. A, B, 3");
+    expect(html).toContain("2 tracks");
+    expect(html).toContain("e.g. D, E");
+    // raw per-track audit stays reachable
+    expect(html).toContain("every excluded track, one per line");
+    // and the truncation note when the wire preview is capped
+    const capped = render(
+      <ExcludedBreakdown
+        data={{
+          ...data,
+          excluded: data.excluded.slice(0, 4),
+          excluded_total: 260,
+        }}
+      />,
+    );
+    expect(capped).toContain("save the JSON draft for the full list");
+  });
+
+  test("the repro line reconstructs the exact CLI invocation of the current settings", () => {
+    const html = render(
+      <ReproLine
+        data={{ ...baseData, preset: "warmup", minutes: 45 }}
+        searchChoice="beam"
+        poolLimit={250}
+        openerId="yt-abc"
+      />,
+    );
+    expect(html).toContain("same build from the terminal:");
+    expect(html).toContain(
+      "megadj setbuild --preset warmup --minutes 45 --search beam --limit 250 --opener yt-abc",
+    );
+    // auto/absent knobs stay out of the line
+    const htmlMinimal = render(
+      <ReproLine
+        data={{ ...baseData, preset: "peak", minutes: 60 }}
+        searchChoice="auto"
+        poolLimit={null}
+        openerId={null}
+      />,
+    );
+    expect(htmlMinimal).toContain("megadj setbuild --preset peak --minutes 60");
+    expect(htmlMinimal).not.toContain("--search");
+    expect(htmlMinimal).not.toContain("--limit");
   });
 
   test("the export carries every A/B knob so it reproduces the chain on screen", () => {

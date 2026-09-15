@@ -17,7 +17,7 @@
 }
 .setbuild-form {
   display: grid;
-  gap: 0;
+  gap: 16px;
 }
 .setbuild-preset {
   min-width: 0;
@@ -25,7 +25,6 @@
   padding: 0;
   border: 0;
 }
-.setbuild-preset legend,
 .setbuild-setup-title {
   display: flex;
   align-items: center;
@@ -36,8 +35,19 @@
   font-weight: 680;
   letter-spacing: 0.01em;
 }
-.setbuild-preset legend > span,
-.setbuild-setup-title > span {
+/* step number badge + title with its quiet "what this decides" sub-line */
+.setbuild-setup-text {
+  display: grid;
+  gap: 1px;
+}
+.setbuild-setup-text small {
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 480;
+  letter-spacing: 0.01em;
+}
+.setbuild-preset legend,
+.setbuild-setup-title > span:first-child {
   display: inline-grid;
   width: 19px;
   height: 19px;
@@ -176,6 +186,11 @@
   font-size: 11.5px;
   font-weight: 680;
   cursor: pointer;
+  transition:
+    color 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
 }
 .setbuild-duration-option:hover:not(:disabled) {
   color: var(--text);
@@ -308,36 +323,79 @@
 }
 .setbuild-loading {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
   font-size: 12px;
   color: var(--faint);
-  padding: 12px 14px;
+  padding: 13px 15px;
+  margin: 2px 0;
   border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--stroke));
   border-radius: 9px;
   background: color-mix(in srgb, var(--accent) 5%, var(--surface2));
+  animation: setbuild-fade-in 200ms ease;
 }
 .setbuild-loading .spin {
   width: 12px;
   height: 12px;
+  margin-top: 2px;
   border: 2px solid var(--line);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: setbuild-spin 0.8s linear infinite;
   flex: none;
 }
-.setbuild-loading > span:last-child {
+.setbuild-loading-body {
   display: grid;
-  gap: 2px;
+  gap: 6px;
 }
 .setbuild-loading strong {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   color: var(--text);
   font-size: 12.5px;
 }
+/* the elapsed readout: tabular digits so it doesn't shimmer as it ticks */
+.setbuild-elapsed {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+}
+/* the staged phase list: what the build is doing right now */
+.setbuild-phases {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--faint);
+}
+.setbuild-phases li {
+  transition: color 240ms ease;
+}
+.setbuild-phases li.now {
+  color: var(--accent);
+}
+.setbuild-phases li.done {
+  color: var(--muted);
+  opacity: 0.75;
+}
 .setbuild-loading small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.45;
+}
+@keyframes setbuild-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .setbuild-result {
   display: grid;
@@ -864,4 +922,49 @@
   margin: 0;
   color: var(--muted);
   line-height: 1.4;
+}
+/* resolved pool-cap echo + the last-build pool note inside the drawer */
+.setbuild-limit-hint {
+  color: var(--accent);
+  font-size: 10px;
+  animation: setbuild-fade-in 200ms ease;
+}
+.setbuild-advanced-note {
+  margin: 0;
+  padding-top: 9px;
+  border-top: 1px dashed var(--line);
+  color: var(--faint);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+/* excluded view: grouped reason buckets with example tracks */
+.setbuild-excluded-examples {
+  color: var(--faint);
+}
+.setbuild-excluded-raw {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.setbuild-excluded-raw summary {
+  color: var(--faint);
+  font-weight: 450;
+}
+/* "same build from the terminal" — the deterministic repro line */
+.setbuild-repro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 10px;
+  padding: 8px 11px;
+  border: 1px dashed var(--stroke);
+  border-radius: 8px;
+  background: var(--surface2);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+.setbuild-repro code {
+  color: var(--muted);
+  font-size: 11px;
+  user-select: all;
 }

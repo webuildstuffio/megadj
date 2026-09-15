@@ -24,6 +24,7 @@ import {
 import {
   clampSetPool,
   isShelfOffline,
+  SET_EXCLUDED_PREVIEW_MAX,
   type SetBuildPayload,
   type SetSearchOverride,
 } from "../../cratedeck/shared/types";
@@ -118,7 +119,7 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       shortfallMinutes: built.shortfallMinutes,
       complete: built.complete,
       steps: built.steps,
-      excluded: built.excluded.slice(0, 40),
+      excluded: built.excluded.slice(0, SET_EXCLUDED_PREVIEW_MAX),
       excluded_total: built.excluded.length,
       freshness,
       search: built.search,

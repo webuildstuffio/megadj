@@ -19,36 +19,32 @@ import {
   SET_PRESET_DEFS,
   SET_MINUTES_MAX,
   SET_MINUTES_MIN,
-  SET_TRACK_MINUTES_MIN,
-  SET_TRACK_MINUTES_MAX,
-  SET_TEMPO_PERFECT,
-  SET_TEMPO_WINDOW,
-  SET_TRANSITION_WEIGHTS,
-  SET_POOL_MAX,
-  SET_BEAM_POOL_MAX,
-  SET_BEAM_WIDTH,
   isShelfOffline,
   clampSetPool,
 } from "../../../shared/types";
-import { camelotOf } from "../../../shared/camelot";
 import { api, toast } from "../../ui/toast";
 import { errMessage } from "../../../shared/fmt";
 import { Icon } from "../../ui/icons";
 import { useFetched } from "../../ui/useFetched";
-import {
-  ListHead,
-  DataTable,
-  KVRows,
-  KVRow,
-  KVKey,
-  KVVal,
-  Card,
-} from "../../ui/data";
+import { ListHead, DataTable, Card } from "../../ui/data";
 import { SectionHead } from "../shared";
 import { TrackPickSearch, type TrackPick } from "./TrackPickSearch";
 import { SetBuilderMethod } from "./SetBuilderMethod";
 import { SetBuilderResult } from "./SetBuilderResult";
 import { SetArcChart } from "./SetArcChart";
+import {
+  StepTitle,
+  PresetOption,
+  SequencerRow,
+  AdvancedDrawer,
+} from "./SetBuildForm";
+import {
+  SetBuildLoading,
+  FreshnessLine,
+  ExcludedBreakdown,
+  ReproLine,
+  keyGlideOf,
+} from "./SetBuildStatus";
 
 const SET_DURATION_PRESETS = [30, 60, 90, 120] as const;
 
@@ -60,15 +56,6 @@ const clampMinutes = (raw: number): number =>
 
 const fmtBpm = (bpm: number | null): string =>
   bpm === null ? "—" : String(Math.round(bpm * 10) / 10);
-
-/** ISO timestamp → age in whole days (null input → null). Module scope —
- *  unicorn(consistent-function-scoping) + shared by both surfaces. */
-const daysAgo = (iso: string | null): number | null =>
-  iso === null ? null : Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
-
-/** Days-since → display word ("never" / "today" / "3d ago"). */
-const ageWord = (d: number | null): string =>
-  d === null ? "never" : d <= 0 ? "today" : `${d}d ago`;
 
 /** ONE line-renderer for a chain step — the copy block, the ListHead lines
  *  and the excluded cross-check all show the same shape (was two drifted
@@ -100,120 +87,6 @@ function saveDraft(data: SetBuildPayload): void {
   anchor.click();
   URL.revokeObjectURL(anchor.href);
   toast(data.complete ? "Set draft saved" : "Partial set draft saved", "ok");
-}
-
-/** Pool freshness: ledger ages under the proposal, so a stale pool is
- *  VISIBLE instead of silently proposing from yesterday's analysis. Tone:
- *  ok ≤2 days, warn ≤14 days, stale beyond — matches the archive's
- *  living-library rhythm, not a fixed clock. */
-function FreshnessLine(props: {
-  freshness: { beatsAt: string | null; moodAt: string | null };
-  pool: number;
-}) {
-  if (props.pool === 0) return null;
-  const beats = daysAgo(props.freshness.beatsAt);
-  const mood = daysAgo(props.freshness.moodAt);
-  const worst = Math.max(
-    beats ?? Number.POSITIVE_INFINITY,
-    mood ?? Number.POSITIVE_INFINITY,
-  );
-  const cls = worst <= 2 ? "ok" : worst <= 14 ? "warn" : "stale";
-  return (
-    <div class={`setbuild-fresh ${cls}`}>
-      analysis freshness — beats {ageWord(beats)}, mood {ageWord(mood)}
-      {worst > 2 && (
-        <span class="fresh-note">
-          {" "}
-          — newer imports? run <code>megadj beats</code> +{" "}
-          <code>megadj mood</code>
-        </span>
-      )}
-    </div>
-  );
-}
-
-const energyBand = (value: number): string =>
-  value < 3.5 ? "Low" : value < 6 ? "Medium" : value < 8 ? "High" : "Maximum";
-
-const arcY = (value: number): number => 30 - ((value - 1) / 8) * 22;
-
-function PresetOption(props: {
-  preset: SetPresetDef;
-  selected: boolean;
-  disabled: boolean;
-  index: number;
-  onSelect: (preset: SetPresetDef) => void;
-}) {
-  const { preset, selected } = props;
-  const descriptionId = `setbuild-preset-${preset.id}-description`;
-  const [start, end] = preset.arousal;
-  const rising = end >= start;
-
-  return (
-    <button
-      type="button"
-      class={`setbuild-preset-option${selected ? " on" : ""}`}
-      role="radio"
-      aria-checked={selected}
-      aria-describedby={descriptionId}
-      tabIndex={selected ? 0 : -1}
-      disabled={props.disabled}
-      onClick={() => props.onSelect(preset)}
-      onKeyDown={(event) => {
-        const last = SET_PRESET_DEFS.length - 1;
-        const nextIndex =
-          event.key === "Home"
-            ? 0
-            : event.key === "End"
-              ? last
-              : event.key === "ArrowRight" || event.key === "ArrowDown"
-                ? (props.index + 1) % SET_PRESET_DEFS.length
-                : event.key === "ArrowLeft" || event.key === "ArrowUp"
-                  ? (props.index + last) % SET_PRESET_DEFS.length
-                  : null;
-        if (nextIndex === null) return;
-        event.preventDefault();
-        const next = SET_PRESET_DEFS[nextIndex];
-        if (!next) return;
-        props.onSelect(next);
-        event.currentTarget.parentElement
-          ?.querySelectorAll<HTMLElement>('[role="radio"]')
-          .item(nextIndex)
-          .focus();
-      }}
-    >
-      <span class="setbuild-preset-head">
-        <strong>{preset.label}</strong>
-        {selected && (
-          <span class="setbuild-preset-selected">
-            <Icon name="check" size={11} /> Selected
-          </span>
-        )}
-      </span>
-      <svg
-        class="setbuild-preset-arc"
-        viewBox="0 0 120 36"
-        role="img"
-        aria-label={`${preset.label} energy ${rising ? "rises" : "falls"} from ${energyBand(start)} to ${energyBand(end)}`}
-      >
-        <path class="setbuild-preset-guide" d="M4 30 H116" />
-        <path
-          class="setbuild-preset-line"
-          d={`M4 ${arcY(start)} C42 ${arcY(start)}, 78 ${arcY(end)}, 116 ${arcY(end)}`}
-        />
-        <circle cx="4" cy={arcY(start)} r="2.5" />
-        <circle cx="116" cy={arcY(end)} r="2.5" />
-      </svg>
-      <span class="setbuild-preset-range" aria-hidden="true">
-        <span>{energyBand(start)}</span>
-        <span>{rising ? "rises to" : "drifts to"}</span>
-        <span>{energyBand(end)}</span>
-      </span>
-      <span id={descriptionId} class="setbuild-preset-description">
-        {preset.description}
-      </span>
-    </button>
-  );
 }
 
 /** Set-builder opener: the first track, either auto-picked by the arc or
@@ -316,7 +189,16 @@ export function SetBuildPanel() {
     loading: boolean;
     error: string | null;
     stale: boolean;
-  }>({ data: null, loading: false, error: null, stale: false });
+    /** Date.now() when the current build started — the loading explainer
+     *  derives its elapsed timer + phase from this. */
+    startedAt: number | null;
+  }>({
+    data: null,
+    loading: false,
+    error: null,
+    stale: false,
+    startedAt: null,
+  });
 
   const invalidateProposal = () => {
     setBuild((current) =>
@@ -327,7 +209,13 @@ export function SetBuildPanel() {
   };
 
   const run = async () => {
-    setBuild({ data: null, loading: true, error: null, stale: false });
+    setBuild({
+      data: null,
+      loading: true,
+      error: null,
+      stale: false,
+      startedAt: Date.now(),
+    });
     try {
       const q = new URLSearchParams({
         preset: preset.id,
@@ -343,6 +231,7 @@ export function SetBuildPanel() {
         loading: false,
         error: null,
         stale: false,
+        startedAt: null,
       });
     } catch (e) {
       setBuild({
@@ -350,20 +239,15 @@ export function SetBuildPanel() {
         loading: false,
         error: errMessage(e),
         stale: false,
+        startedAt: null,
       });
     }
   };
 
-  // the chain's steps + first→last Camelot glide, "8A → 5A" (null-safe at
-  // both ends; was a broken IIFE that printed only the number for the first)
+  // the chain's steps + first→last Camelot glide (shared derivation in
+  // SetBuildStatus — the chart caption and the panel never drift apart)
   const steps = build.data?.steps ?? [];
-  const keyGlide = (() => {
-    const parsed = steps.map((s) => camelotOf(s.key));
-    const first = parsed.find((k) => k !== null);
-    const last = parsed.findLast((k) => k !== null);
-    if (!first || !last) return null;
-    return `${first.n}${first.letter} → ${last.n}${last.letter}`;
-  })();
+  const keyGlide = keyGlideOf(steps);
   const buildVerb = build.stale ? "Update" : "Build";
   const buildLabel = build.loading
     ? "Building your set…"
@@ -401,9 +285,11 @@ export function SetBuildPanel() {
         }}
       >
         <fieldset class="setbuild-preset" disabled={build.loading}>
-          <legend id="setbuild-preset-label">
-            <span>1</span> Choose the energy journey
-          </legend>
+          <StepTitle
+            n={1}
+            title="Choose the energy journey"
+            hint="how the room should feel from first track to last"
+          />
           <div
             class="setbuild-preset-grid"
             role="radiogroup"
@@ -426,9 +312,11 @@ export function SetBuildPanel() {
           </div>
         </fieldset>
         <fieldset class="setbuild-length" disabled={build.loading}>
-          <legend class="setbuild-setup-title">
-            <span>2</span> Choose the set length
-          </legend>
+          <StepTitle
+            n={2}
+            title="Choose the set length"
+            hint="FullTags picks tracks until this target is filled"
+          />
           <div class="setbuild-duration">
             <div
               class="setbuild-duration-presets"
@@ -477,108 +365,30 @@ export function SetBuildPanel() {
           </div>
         </fieldset>
         <fieldset class="setbuild-length" disabled={build.loading}>
-          <legend class="setbuild-setup-title">
-            <span>3</span> Sequencer
-          </legend>
-          <div
-            class="setbuild-duration-presets"
-            role="group"
-            aria-label="Sequencer strategy"
-          >
-            {(
-              [
-                ["auto", "Auto"],
-                ["beam", "Deep"],
-                ["greedy", "Standard"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                class={`setbuild-duration-option${searchChoice === value ? " on" : ""}`}
-                aria-pressed={searchChoice === value}
-                title={
-                  value === "auto"
-                    ? `Pool size decides: under ${SET_BEAM_POOL_MAX} tracks runs the deep search`
-                    : value === "beam"
-                      ? "Force the deep search — explores past dead-ends on sparse pools"
-                      : "Force the standard greedy chain — fastest at big pools"
-                }
-                onClick={() => {
-                  setSearchChoice(value);
-                  invalidateProposal();
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <details class="setbuild-advanced">
-            <summary>
-              <span>Advanced</span>
-              <small>
-                pool cap · scoring weights · the same knobs the CLI and API take
-              </small>
-            </summary>
-            <div class="setbuild-advanced-grid">
-              <label
-                class="setbuild-limit"
-                title={`Cap the candidate pool to the newest N imports (1–${SET_POOL_MAX}). Empty = the whole analyzed library.`}
-              >
-                <span>
-                  Pool cap
-                  <small>
-                    newest N of the library · 1–{SET_POOL_MAX} · empty = all
-                  </small>
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  max={SET_POOL_MAX}
-                  placeholder="all"
-                  value={poolLimitInput}
-                  aria-label={`Candidate pool cap, 1 to ${SET_POOL_MAX}; empty uses the whole library`}
-                  onInput={(event) => {
-                    setPoolLimitInput((event.target as HTMLInputElement).value);
-                    invalidateProposal();
-                  }}
-                  onBlur={() => setPoolLimitInput(String(poolLimit ?? ""))}
-                />
-              </label>
-              <dl class="setbuild-weights" aria-label="Scoring weights">
-                <div>
-                  <dt>tempo</dt>
-                  <dd>
-                    ±{Math.round(SET_TEMPO_WINDOW * 100)}% window, full score
-                    within ±{Math.round(SET_TEMPO_PERFECT * 100)}%
-                  </dd>
-                </div>
-                <div>
-                  <dt>weights</dt>
-                  <dd>
-                    tempo {SET_TRANSITION_WEIGHTS.tempo} · key{" "}
-                    {SET_TRANSITION_WEIGHTS.key} · arc fit{" "}
-                    {SET_TRANSITION_WEIGHTS.arcFit}
-                  </dd>
-                </div>
-                <div>
-                  <dt>track limits</dt>
-                  <dd>
-                    {SET_TRACK_MINUTES_MIN}–{SET_TRACK_MINUTES_MAX} min per
-                    track; deep search joins under {SET_BEAM_POOL_MAX} tracks
-                    (width {SET_BEAM_WIDTH})
-                  </dd>
-                </div>
-                <div>
-                  <dt>openers</dt>
-                  <dd>
-                    auto-pick needs ≥15 tempo-neighbors so the ±
-                    {Math.round(SET_TEMPO_WINDOW * 100)}% window never dead-ends
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </details>
+          <StepTitle
+            n={3}
+            title="Sequencer"
+            hint="how the engine walks from one compatible track to the next"
+          />
+          <SequencerRow
+            searchChoice={searchChoice}
+            onChoice={(value) => {
+              setSearchChoice(value);
+              invalidateProposal();
+            }}
+            disabled={build.loading}
+          />
+          <AdvancedDrawer
+            poolLimitInput={poolLimitInput}
+            onPoolLimitInput={(v) => {
+              setPoolLimitInput(v);
+              invalidateProposal();
+            }}
+            onPoolLimitBlur={() => setPoolLimitInput(String(poolLimit ?? ""))}
+            disabled={build.loading}
+            lastPool={build.data ? build.data.pool : null}
+            searchChoice={searchChoice}
+          />
         </fieldset>
         <div class="setbuild-controls">
           <OpenerPicker
@@ -621,23 +431,8 @@ export function SetBuildPanel() {
           Build failed: {build.error}
         </div>
       )}
-      {build.loading && (
-        <div
-          class="setbuild-loading"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          <span class="spin" aria-hidden="true" />
-          <span>
-            <strong>Scanning the mounted shelf…</strong>
-            <small>
-              FullTags checks every downloaded row, uses Rekordbox for analysis
-              gaps, and reads only unknown file keys. This usually takes about
-              20 seconds.
-            </small>
-          </span>
-        </div>
+      {build.loading && build.startedAt !== null && (
+        <SetBuildLoading startedAt={build.startedAt} />
       )}
       {build.data && (
         <>
@@ -789,28 +584,14 @@ export function SetBuildPanel() {
           {steps.length >= 2 && (
             <SetArcChart steps={steps} preset={preset} keyGlide={keyGlide} />
           )}
+          <ReproLine
+            data={build.data}
+            searchChoice={searchChoice}
+            poolLimit={poolLimit}
+            openerId={opener?.video_id ?? null}
+          />
           {build.data.excluded_total > 0 && (
-            <details class="setbuild-excluded">
-              <summary>
-                {build.data.excluded_total} of {build.data.pool} candidates not
-                in the chain — why?
-              </summary>
-              <KVRows>
-                {build.data.excluded.slice(0, 40).map((e) => (
-                  <KVRow key={e.videoId}>
-                    <KVKey>{e.title ?? e.videoId}</KVKey>
-                    <KVVal>{e.reason}</KVVal>
-                  </KVRow>
-                ))}
-                {build.data.excluded_total > build.data.excluded.length && (
-                  <div class="fleet-note">
-                    …and{" "}
-                    {build.data.excluded_total - build.data.excluded.length}{" "}
-                    more
-                  </div>
-                )}
-              </KVRows>
-            </details>
+            <ExcludedBreakdown data={build.data} />
           )}
         </>
       )}

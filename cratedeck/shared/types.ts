@@ -770,6 +770,7 @@ export {
   SET_POOL_UNLIMITED,
   SET_BEAM_POOL_MAX,
   SET_BEAM_WIDTH,
+  SET_EXCLUDED_PREVIEW_MAX,
   isSetSearchOverride,
   isShelfOffline,
   type SetSearchOverride,

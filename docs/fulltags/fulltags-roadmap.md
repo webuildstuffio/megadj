@@ -1,6 +1,28 @@
-# FullTags — Prioritized Roadmap (rev 7.4)
+# FullTags — Prioritized Roadmap (rev 7.5)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 7.4, 2026-09-15: **Set-builder UX pass 2 — the wait, the whys, and
+the way back to the terminal.** The build button's bare spinner became a
+staged loading explainer: elapsed timer plus a four-phase checklist
+(archive read → shelf walk → ledger joins → sequencing) with a
+read-only reassurance line, because a whole-shelf scan reads as hung
+when it is working. The flat 40-row excluded list became a grouped
+breakdown — reasons bucketed by count with example tracks, the raw
+per-track audit nested one level down — and the preview cap is now the
+shared `SET_EXCLUDED_PREVIEW_MAX` (route/CLI/panel derived; was a
+hardcoded 40 in three places). A new repro line prints the exact
+`megadj setbuild …` invocation for the chain on screen, so CLI parity is
+visible at the point of use. The Advanced drawer gained a pool-cap echo,
+a determinism note (same settings → same chain), plain-language rule
+text ("beyond ±6% a track is unmixable"), and a last-build note naming
+which sequencer ran and why. Step titles carry a quiet
+what-this-decides sub-line; option rows and panel transitions share one
+motion rhythm (140–240 ms). Panel split into SetBuildForm.tsx +
+SetBuildStatus.tsx for the file-length guard; 4 new UX tests (21 pass in
+the suite). check:full green, 1386 pass, typecov 100%; DOM-verified live
+on the offline-shelf state (loading phases → "Shelf not mounted" kicker
+→ grouped exclusions → repro line)._
 
 _Rev 7.3, 2026-09-15: **MegaSet panel parity + visual upgrade.** The
 Advanced drawer exposes every A/B knob the CLI/MCP already had — the

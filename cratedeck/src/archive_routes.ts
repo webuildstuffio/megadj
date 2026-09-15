@@ -8,7 +8,11 @@
 // no archive route matched so index.ts can fall through.
 import type { ArchiveReader } from "./archive";
 import { SET_PRESETS, buildSet, parseSetbuildQuery } from "./setbuild";
-import { clampSetPool, isSetSearchOverride } from "../shared/setbuild";
+import {
+  clampSetPool,
+  isSetSearchOverride,
+  SET_EXCLUDED_PREVIEW_MAX,
+} from "../shared/setbuild";
 import { isSimilarSpace } from "../shared/vector-space";
 import type { DB } from "./db";
 import type { CrateConfig } from "./config";
@@ -257,7 +261,9 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         shortfallMinutes: built.shortfallMinutes,
         complete: built.complete,
         steps: built.steps,
-        excluded: built.excluded.slice(0, 40),
+        // the excluded preview shares one cap with the CLI/panel
+        // (SET_EXCLUDED_PREVIEW_MAX); excluded_total keeps the full count
+        excluded: built.excluded.slice(0, SET_EXCLUDED_PREVIEW_MAX),
         excluded_total: built.excluded.length,
         // which sequencer ran (beam = deep search on small pools) — the
         // UI and CLI quote this, never re-derive the threshold themselves
