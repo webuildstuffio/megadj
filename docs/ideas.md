@@ -457,7 +457,9 @@ Mac-DJ irritations nobody builds for.
     on FAT32 — CDJs choke; Finder recreates them each mount. Extend scan
     junk detection with a one-click clean (guard-gated) + a `defaults
 write` hint. Effort S.
-71. **"Why is my transfer 8 MB/s?" — port-speed truth serum.** macOS
+71. **"Why is my transfer 8 MB/s?" — port-speed truth serum. ✅ SHIPPED** —
+    `usbLinkClass` (detect.ts), the drive-rail USB badge with slow-link
+    styling, and the `speedtest` job (DeckDrive.link_bps). macOS
     never tells you a stick landed in USB 2 or a hub is capping the bus.
     The USB topology is already captured at mount (F2) — surface
     negotiated speed as a card badge + a "4× faster in the other port"
@@ -724,6 +726,25 @@ raw|whitened`) for A/B. Effort S.
 > [#106](https://github.com/webuildstuffio/megadj/issues/106),
 > scoring depth →
 > [#107](https://github.com/webuildstuffio/megadj/issues/107).
+> **2026-09-15 (batch 2 — the next 10):** P100 →
+> [#125](https://github.com/webuildstuffio/megadj/issues/125), B10 →
+> [#126](https://github.com/webuildstuffio/megadj/issues/126), D29 →
+> [#127](https://github.com/webuildstuffio/megadj/issues/127), P96 →
+> [#128](https://github.com/webuildstuffio/megadj/issues/128), P93 →
+> [#129](https://github.com/webuildstuffio/megadj/issues/129), P97 →
+> [#130](https://github.com/webuildstuffio/megadj/issues/130), M65 →
+> [#131](https://github.com/webuildstuffio/megadj/issues/131), D30 →
+> [#132](https://github.com/webuildstuffio/megadj/issues/132), I47 →
+> [#133](https://github.com/webuildstuffio/megadj/issues/133), B13 →
+> [#134](https://github.com/webuildstuffio/megadj/issues/134), M74 →
+> [#135](https://github.com/webuildstuffio/megadj/issues/135), F39 →
+> [#136](https://github.com/webuildstuffio/megadj/issues/136), E32 →
+> [#137](https://github.com/webuildstuffio/megadj/issues/137), GA-02 →
+> [#138](https://github.com/webuildstuffio/megadj/issues/138), M70 →
+> [#139](https://github.com/webuildstuffio/megadj/issues/139).
+> M71 marked SHIPPED in place (usbLinkClass + drive badge + speedtest
+> verified in code); M70's detection half shipped via the hygiene engine,
+> the drive-side clean path is #139.
 
 **Deliberately unbuilt:** C18b/c (pdb write gauntlet — parked), I52
 (deleted), K56 (lyrics), K60 (setlist.fm), E31/E44 (struck 2026-09-05:
