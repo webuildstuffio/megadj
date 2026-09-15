@@ -94,6 +94,19 @@ describe("buildMetadata", () => {
     const meta = buildMetadata({ title: "Unknown Track" });
     expect(meta.title).toBe("Unknown Track");
     expect(meta.artist).toBeNull();
-    expect(meta.genre).toBe("Music");
+    // #61: no "Music" mint — an unknown genre stays null (honest gap;
+    // fetch fills it later from SC/Beatport).
+    expect(meta.genre).toBeNull();
+  });
+
+  test("keeps a real genre the regex table can't match", () => {
+    // The mint used to REPLACE genuine raw genres with "Music"; a raw
+    // non-"Music" genre must survive untouched.
+    expect(buildMetadata({ title: "X", genre: "Kuduro" }).genre).toBe("Kuduro");
+  });
+
+  test("refuses the literal Music placeholder", () => {
+    // YouTube-tier category "Music" is not a genre — must not pass through.
+    expect(buildMetadata({ title: "X", genre: "Music" }).genre).toBeNull();
   });
 });

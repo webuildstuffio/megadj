@@ -533,7 +533,12 @@ async function ingestOne(
       if (mb.mbid) mbidUsed = mb.mbid;
     }
   }
-  genre = inferGenre([genre, artist, album, title]) ?? "Music";
+  // No "Music" mint (#61): an unknown genre stays null (fetch fills it
+  // later). A real file tag the regex table can't match survives — the
+  // old `?? "Music"` replaced genuine tags with the placeholder.
+  genre =
+    inferGenre([genre, artist, album, title]) ??
+    (genre && genre.toLowerCase() !== "music" ? genre : null);
 
   const changes: string[] = [];
   if (firstTag(probe.tags, ["title"]) !== title) changes.push("title");

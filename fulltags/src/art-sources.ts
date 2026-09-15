@@ -10,7 +10,11 @@
 import { readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
-import { cleanSearchParts, cleanSearchQuery } from "./search-query";
+import {
+  cleanSearchParts,
+  cleanSearchQuery,
+  type SearchQueryParts,
+} from "./search-query";
 
 export { cleanSearchParts } from "./search-query";
 
@@ -296,6 +300,83 @@ export function scSearch(r: SearchRow): ScHit[] {
   return scSearchImpl(r);
 }
 
+/** Artist gate floor — same reasoning as beatport's BP_ARTIST_MIN_LEN:
+ *  shorter strings can't separate one artist from another ("DJ" matches
+ *  half of SoundCloud), so below this the uploader gate is skipped. */
+export const SC_ARTIST_MIN_LEN = 3;
+
+/** Parse + score raw yt-dlp `COL|` lines against a query. Pure (no I/O),
+ *  exported for offline tests. HARD ARTIST GATE (Sep 15, mirrors
+ *  scoreBpHit's `if (!hitArtist) return 0`): when the query names a real
+ *  artist (>= SC_ARTIST_MIN_LEN) and a hit's uploader doesn't match, the
+ *  hit is DROPPED entirely — uploader agreement used to be only a +1
+ *  score bonus, so a high title-overlap hit from an unrelated uploader
+ *  (a "Taylor Swift" query won by a compilation channel's dubstep remix)
+ *  could take the [0] slot and write its genre/year. Remixes still pass:
+ *  the gate checks the UPLOADER channel — legit remix uploads live on the
+ *  remixer's or label's own channel with the original artist in the TRACK
+ *  title, which the title-overlap term already credits. */
+export function scoreScHits(lines: string[], q: SearchQueryParts): ScHit[] {
+  const tWords = words(q.title);
+  const artist0 = (q.artist ?? "").split(/[,&]/)[0]?.trim().toLowerCase() ?? "";
+  const gateActive = artist0.length >= SC_ARTIST_MIN_LEN;
+  const hits: ScHit[] = [];
+  for (const line of lines) {
+    if (!line.startsWith("COL|")) continue;
+    const parts = line.slice(4).split("|");
+    // Real yt-dlp layout (verified live Sep 15): title|url|uploader|thumbs|
+    // genre|timestamp = 6 fields. The old destructure expected 7 (a phantom
+    // empty slot after uploader) so EVERY field shifted one left: thumbs
+    // got the genre (thumb match always failed), genre got the timestamp
+    // (numeric → always refused — why SC search "never had genres"), and
+    // tsRaw was always undefined (the SC year stage never fired). One
+    // misaligned tuple silently disabled three fields.
+    if (parts.length < 6) continue;
+    const [t, url, uploader, thumbsRaw, genre, tsRaw] = parts as [
+      string | undefined,
+      string | undefined,
+      string | undefined,
+      string | undefined,
+      string | undefined,
+      string | undefined,
+    ];
+    if (!url?.includes("soundcloud.com")) continue;
+    const hWords = words(t ?? "");
+    const overlap = tWords.filter((w) => hWords.includes(w)).length;
+    if (overlap < 1) continue; // relevance gate
+    const up = (uploader ?? "").toLowerCase();
+    const uploaderOK = artist0 !== "" && up.includes(artist0.slice(0, 8));
+    // HARD GATE: known artist, non-matching uploader → not this track.
+    if (gateActive && !uploaderOK) continue;
+    // SC upload year = the remix/edit's year (not the original's)
+    const ts = Number(tsRaw?.trim());
+    const year =
+      Number.isFinite(ts) &&
+      ts > 946_684_800 && // 2000-01-01 UTC
+      ts < 4_102_444_800 // 2100-01-01 UTC
+        ? new Date(ts * 1000).getUTCFullYear()
+        : undefined;
+    hits.push({
+      url,
+      title: t ?? "",
+      uploader: uploader || null,
+      thumb:
+        thumbsRaw?.match(
+          /https:\/\/i1\.sndcdn\.com\/artworks[^\s',]+t500x500\.jpg/,
+        )?.[0] ?? null,
+      // SC flat-search `genre` is a numeric SoundCloud genre ID, not a name
+      // (when present at all). Numeric junk must never leave this function —
+      // Sep 11: numeric "genres" got written to files + DBs and took hours
+      // to purge. Non-numeric names pass through untouched.
+      ...(genre && genre !== "NA" && !/^\d+$/.test(genre) ? { genre } : {}),
+      ...(year === undefined ? {} : { year }),
+      score: overlap * 2 + (uploaderOK ? 1 : 0),
+    });
+  }
+  hits.sort((a, b) => b.score - a.score);
+  return hits;
+}
+
 /** Test seam: swappable SC search implementation so pipeline tests stay
  * offline (the real one shells to yt-dlp). Reset via the restore fn. */
 export let scSearchImpl: (r: SearchRow) => ScHit[] = scSearchReal;
@@ -331,56 +412,5 @@ function scSearchReal(r: SearchRow): ScHit[] {
     if (out.split("\n").some((l) => l.startsWith("COL|"))) break;
     Bun.sleepSync(1200 * (attempt + 1));
   }
-  const hits: ScHit[] = [];
-  const cleaned = cleanSearchParts(r.artist, r.title);
-  const tWords = words(cleaned.title);
-  const artist0 =
-    (cleaned.artist ?? "unknown").split(/[,&]/)[0]?.trim().toLowerCase() ?? "";
-  for (const line of out.split("\n")) {
-    if (!line.startsWith("COL|")) continue;
-    const parts = line.slice(4).split("|");
-    if (parts.length < 5) continue;
-    const [t, url, uploader, , thumbsRaw, genre, tsRaw] = parts as [
-      string | undefined,
-      string | undefined,
-      string | undefined,
-      string,
-      string | undefined,
-      string | undefined,
-      string | undefined,
-    ];
-    if (!url?.includes("soundcloud.com")) continue;
-    const hWords = words(t ?? "");
-    const overlap = tWords.filter((w) => hWords.includes(w)).length;
-    if (overlap < 1) continue; // relevance gate
-    const uploaderOK = (uploader ?? "")
-      .toLowerCase()
-      .includes(artist0.slice(0, 8));
-    // SC upload year = the remix/edit's year (not the original's)
-    const ts = Number(tsRaw?.trim());
-    const year =
-      Number.isFinite(ts) &&
-      ts > 946_684_800 && // 2000-01-01 UTC
-      ts < 4_102_444_800 // 2100-01-01 UTC
-        ? new Date(ts * 1000).getUTCFullYear()
-        : undefined;
-    hits.push({
-      url,
-      title: t ?? "",
-      uploader: uploader || null,
-      thumb:
-        thumbsRaw?.match(
-          /https:\/\/i1\.sndcdn\.com\/artworks[^\s',]+t500x500\.jpg/,
-        )?.[0] ?? null,
-      // SC flat-search `genre` is a numeric SoundCloud genre ID, not a name
-      // (when present at all). Numeric junk must never leave this function —
-      // Sep 11: numeric "genres" got written to files + DBs and took hours
-      // to purge. Non-numeric names pass through untouched.
-      ...(genre && genre !== "NA" && !/^\d+$/.test(genre) ? { genre } : {}),
-      ...(year === undefined ? {} : { year }),
-      score: overlap * 2 + (uploaderOK ? 1 : 0),
-    });
-  }
-  hits.sort((a, b) => b.score - a.score);
-  return hits;
+  return scoreScHits(out.split("\n"), cleanSearchParts(r.artist, r.title));
 }

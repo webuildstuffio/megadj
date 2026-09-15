@@ -2,11 +2,14 @@
 
 **Status:** 📚 REFERENCE — how the genre system processes a track, end to
 end. Every stage below ships and runs on the live archive.
+**Rev 3 (Sep 15): W2 hard artist gate shipped (`scoreScHits`, mirrors
+Beatport's — wrong-uploader hits can no longer win the [0] slot); W1
+`Music` mint removed (#61 stop-new-damage half; unstrand of ~154 legacy
+rows still queued).**
 **Rev 2 (Sep 15): full write-source inventory (§2) — every path that can
 put a genre in the DB, including the two the v1 walkthrough missed
-(`megadj ingest` W6, `megadj enrich`/MusicBrainz W5); corrected W1
-(getdat sync DOES mint the `Music` placeholder); `sc_genre_ids` cache
-flagged as orphaned (§5).**
+(`megadj ingest` W6, `megadj enrich`/MusicBrainz W5); `sc_genre_ids`
+cache flagged as orphaned (§5).**
 
 Reading order by question:
 
@@ -44,8 +47,8 @@ that can put a genre into `tracks.genre` (search: `updateGenre` /
 
 | #   | Path                    | Command                         | Source of the claim                                                                                                        | Trust                        | Gate before write                                                                        |
 | --- | ----------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------- |
-| W1  | **GetDat sync**         | `megadj sync`                   | YouTube category / regex over title+channel (`fulltags/src/metadata-build.ts`) — **falls back to the `Music` placeholder** | lowest (category, not genre) | none at this path — this IS where new `Music` rows enter (issue #61)                     |
-| W2  | **SoundCloud search**   | `megadj fetch`                  | SC artist free-text via yt-dlp search hit                                                                                  | low (free-text; junk gate)   | numeric-ID / `Music` refuse → `canonGenre` → **tag write first**, DB only on tag success |
+| W1  | **GetDat sync**         | `megadj sync`                   | YouTube category / regex over title+channel (`fulltags/src/metadata-build.ts`) — unknown stays **null** since Sep 15 (no more `Music` mint) | lowest (category, not genre) | raw non-`Music` genre passes through; nothing else — this path no longer invents labels  |
+| W2  | **SoundCloud search**   | `megadj fetch`                  | SC artist free-text via yt-dlp search hit                                                                                  | low (free-text; junk gate)   | **hard artist gate (Sep 15)**: query artist ≥3 chars must match the hit's uploader, else the hit is dropped (mirrors Beatport's `scoreBpHit` gate; fixes wrong-artist genre writes — remixes still pass via remixer/label channels) + numeric-ID / `Music` refuse → `canonGenre` → **tag write first**, DB only on tag success |
 | W3  | **Beatport lookup**     | `megadj fetch` (when SC misses) | Beatport store genre (`bpGenre`)                                                                                           | medium-high (store taxonomy) | same tag-first discipline as W2                                                          |
 | W4  | **AI classifier**       | `megadj fetch` with `aiAllowed` | OpenRouter, closed `DJ_GENRES` vocabulary, conf ≥ 0.7                                                                      | medium                       | fires ONLY when SC AND Beatport both missed; **opt-in, off by default**                  |
 | W5  | **MusicBrainz harvest** | `megadj enrich`                 | MB artist folksonomy tags (`fulltags/src/mb.ts`)                                                                           | medium (community-curated)   | fills weak/missing only; tag-write-first                                                 |
@@ -54,11 +57,14 @@ that can put a genre into `tracks.genre` (search: `updateGenre` /
 
 Three facts people get wrong, corrected:
 
-1. **W1 mints `Music`.** `megadj sync` ends its genre resolution with
-   `?? "Music"` (`metadata-build.ts` + the folder-routing call in
-   `sync.ts`). The placeholder is born at download time, not only at
-   legacy intake. The W2 junk gate refuses to _propagate_ `Music`, but
-   W1 keeps creating new ones until #61 lands.
+1. **W1 minted `Music` — FIXED Sep 15 (#61 stop-new-damage half).** The
+   `?? "Music"` fallback is gone from `metadata-build.ts` and
+   `getdat/commands/ingest.ts`: an unknown genre now stays null (an
+   honest gap `fetch` fills later), and a real raw genre the regex table
+   can't match survives instead of being replaced by the placeholder.
+   `organize` routes null through `sanitizeGenreFolder` → the single
+   "Unknown Genre" bucket. The ~154 legacy `Music` rows still need the
+   unstrand pass (#61 remainder, not started).
 2. **Bandcamp is NOT a live ladder source.** It enters only as file tags
    via W6 (Bandcamp rips you ingest). The direct Bandcamp page-fetch arm
    is **queued** (audit §5b.3.6; yt-dlp's Bandcamp extractor broken
@@ -162,7 +168,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | #   | Invariant                                                                                                                                                                                               | Enforced at                                                                                    |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | 1   | Numeric SC genre IDs and the `Music` placeholder are never _propagated_ by fetch/enrich                                                                                                                 | `applyScGenre` junk gate (W2), enrich's weak-genre filter (W5), ingest's real-genre check (W6) |
-| 1a  | ⚠ KNOWN VIOLATION at W1: `megadj sync` still mints `Music` as fallback (issue #61) — the gate exists downstream, not at the source                                                                      | W1 (`metadata-build.ts` `?? "Music"`)                                                          |
+| 1a  | ✅ FIXED Sep 15: W1 no longer mints `Music` — the `?? "Music"` fallback is gone (`metadata-build.ts`, `ingest.ts`); unknown stays null, real raw genres survive. Legacy ~154 rows still queued (#61 remainder) | W1 fixed at source |
 | 2   | Tag write FIRST, DB row only on success — the DB never claims a genre the file doesn't carry                                                                                                            | W2/W3/W5                                                                                       |
 | 3   | File TCON is output-only cache of the DB, never upstream (round-trip pollution measured) — W6 is the one sanctioned intake exception (there is no DB row yet; the file tag is the only claim available) | readers (R1–R3)                                                                                |
 | 4   | Inference fills EMPTY columns only; a source label is never clobbered                                                                                                                                   | `updateGenre` COALESCE (I2)                                                                    |

@@ -145,10 +145,11 @@ export interface TagPatch {
  *  Junk guard: a genre that is pure digits (unix timestamps baked into
  *  scraped tags) or the placeholder "Music" is not a genre — callers use
  *  it as a folder name and you get 278 one-file timestamp folders
- *  (Sep 11). Maps those to "Unknown Genre" so organize keeps ONE bucket
- *  until fetch fills a real genre. */
-export function sanitizeGenreFolder(genre: string): string {
-  const cleaned = genre
+ *  (Sep 11). Maps those (and null — no mint anywhere, #61) to
+ *  "Unknown Genre" so organize keeps ONE bucket until fetch fills a real
+ *  genre. */
+export function sanitizeGenreFolder(genre: string | null): string {
+  const cleaned = (genre ?? "")
     .replace(/\s*\/\s*/g, " ")
     .replace(/[\\/:*?"<>|]/g, "")
     .replace(/\s+/g, " ")

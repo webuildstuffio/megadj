@@ -11,7 +11,6 @@ import { $ } from "bun";
 import { createHash } from "node:crypto";
 import { stat, copyFile, mkdir, rename } from "node:fs/promises";
 import { join, basename } from "node:path";
-import { sanitizeGenreFolder } from "../../../fulltags/src/exports";
 import type { Record_ } from "./ingest-probe";
 import type { ArtworkOutcome } from "./ingest-art";
 import type { QueueEntry } from "./queue";
@@ -62,7 +61,9 @@ export interface RegisterArgs {
   title: string;
   artist: string | null;
   album: string | null;
-  genre: string;
+  /** Null = honestly unknown (#61) — sanitizeGenreFolder maps it to the
+   *  "Unknown Genre" bucket; never the "Music" placeholder. */
+  genre: string | null;
   probe: Record_["probe"];
   energy: number | null;
   queuedIdentity: Set<string>;
@@ -226,7 +227,11 @@ export async function registerAndMove(
     title: a.title,
     artist: a.artist,
     album: a.album,
-    genre: sanitizeGenreFolder(a.genre),
+    // Raw genre, not the folder-sanitized form: the DB stores the label
+    // ("Drum & Bass"), the FILESYSTEM gets sanitizeGenreFolder. The old
+    // sanitize-here doubled as a "Music"-junk guard — with the mint gone
+    // (#61) a null stays null and junk never reaches this line.
+    genre: a.genre,
     formatId: null,
     bitrateKbps: a.probe.bitrateKbps,
     codec: a.probe.codec,

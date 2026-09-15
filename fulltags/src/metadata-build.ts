@@ -65,8 +65,16 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
     info.upload_date ||
     null;
   const composer = extractComposer(description_credits(info.description));
+  // Honest gap, never a guess (repo rule): when nothing infers, genre stays
+  // null for `fetch` to fill later. The old `?? "Music"` minted placeholder
+  // rows invisible to genreSeeds AND inference (#61). A non-"Music" raw
+  // genre from yt-dlp passes through untouched — the regex table can miss
+  // real genres ("Kuduro"), and replacing them with "Music" was strictly
+  // worse than keeping them.
+  const rawGenre =
+    info.genre && info.genre.toLowerCase() !== "music" ? info.genre : null;
   const genre =
-    inferGenre([info.genre, info.artist, info.album, info.title]) ?? "Music";
+    inferGenre([info.genre, info.artist, info.album, info.title]) ?? rawGenre;
   const albumArtist = artist && album ? artist : null;
 
   return {

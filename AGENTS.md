@@ -71,7 +71,15 @@ junk prefix (audio bytes survive; the embedded ID3 chunk keeps tags).
 
 Distrust SoundCloud genres too: `yt-dlp` search metadata returns a
 numeric SC genre ID, never a name. Both write points (`art-sources.ts`
-hit filter, `applyScGenre`) refuse numeric/`Music` genres. (The
+hit filter, `applyScGenre`) refuse numeric/`Music` genres. SC search
+hits also pass a HARD ARTIST GATE (`scoreScHits`, mirrors Beatport's
+`scoreBpHit`): query artist ≥3 chars must appear in the hit's uploader,
+or the hit is dropped — a title-overlap win from an unrelated channel
+wrote its genre once. Keep the yt-dlp `COL|` destructure aligned to the
+REAL 6-field layout (title|url|uploader|thumbs|genre|timestamp): a
+one-slot drift silently killed SC genre+year for months. Never mint a
+placeholder genre: `?? "Music"` is banned — unknown stays null (the
+~154 legacy `Music` rows are #61's unstrand remainder). (The
 `sc_genre_ids` ID→name cache table exists in archive.db but its
 writer was never committed — treat as orphaned data, see
 docs/fulltags/genre-pipeline.md §5, until a proper resolution command

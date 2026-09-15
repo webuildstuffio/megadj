@@ -63,6 +63,19 @@ rb payload expandable. Read-only throughout; census never touches
 files (null = "no claim", not a conflict — absence of evidence must
 not bury real differences)._
 
+_Rev 7.2, 2026-09-15: **two Phase-0 genre correctness fixes shipped.**
+(1) W2 SC hard artist gate — `scoreScHits` (art-sources.ts) drops any
+hit whose uploader doesn't match the query artist (≥3 chars), mirroring
+Beatport's `scoreBpHit` gate; ends the wrong-artist genre write class.
+(2) W1 `Music` mint removed — `?? "Music"` gone from metadata-build +
+ingest; unknown stays null (honest gap), real raw genres survive the
+regex table. BONUS FIX exposed by the new parser tests: the yt-dlp
+`COL|` destructure was misaligned by one field (phantom empty slot) —
+SC genre AND year from search hits were silently dead (genre got the
+numeric timestamp and was always refused; year was always undefined).
+Fixed + pinned in sc-artist-gate.test.ts. Legacy ~154 `Music` rows
+still queued (#61 remainder)._
+
 _Rev 7.1, 2026-09-15: **genre docs alignment pass** — the three genre
 docs now tell ONE story: pipeline doc §2 is the full write-source
 inventory (7 paths, including `megadj ingest` W6 and MusicBrainz `megadj
@@ -424,9 +437,8 @@ the OpenKeyScan SSOT decision (#3).
 > disagreements; umbrella block down to 250/78 and now abstaining).
 > Therefore the next genre queue is, in order: **#61 Music-placeholder
 > unstrand** (S, mechanical — 154 rows invisible to BOTH seeds and
-> inference; note W1 still MINTS new `Music` rows at sync time —
-> pipeline doc §2 — so the fix must include the `?? "Music"` fallback
-> removal, not just the unstrand),
+> inference; the `?? "Music"` fallback removal HALF shipped Sep 15 —
+> roadmap Rev 7.2 — only the unstrand remains),
 > **#62 cluster-proposed labels** (M, the ONLY fix that
 > attacks the remaining error mass), **#63 ranked secondaries via head
 > top-3** (S–M, runs on cached embeddings), **#64 human-review UI for

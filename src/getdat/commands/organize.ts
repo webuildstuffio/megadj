@@ -60,7 +60,10 @@ async function organizeOne(
     return;
   }
 
-  const genre = track.genre ?? (await fileGenreTag(filePath)) ?? "Music";
+  // Fallback to the literal "Music" placeholder is gone (#61): organize is
+  // a MOVES command — a wrong bucket is damage, an "Unknown Genre" folder
+  // (sanitizeGenreFolder already maps null through safely) is recoverable.
+  const genre = track.genre ?? (await fileGenreTag(filePath));
   const folder = sanitizeGenreFolder(genre);
   const fileName = filePath.split("/").pop() ?? `${track.video_id}.m4a`;
   // Batch folders (`<YYYY-MM-DD slug>/` — per-dump intake groups) are
