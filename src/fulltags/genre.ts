@@ -273,11 +273,27 @@ export async function genre(opts: GenreOptions): Promise<void> {
       split: boolean;
       aliased: boolean;
     }[] = [];
+    // Placeholder labels (pre-guard intake legacy: literal `Music` ×154,
+    // `unknown`, `fixme`) resolve to null via refoldDetail — they are NOT
+    // labels. Clear them so genreSeeds() re-enrolls the rows as QUERIES
+    // (#61): a non-empty value blocked both directions before.
+    const unstrand: { video_id: string; from: string }[] = [];
     let unchanged = 0;
     let abstained = 0;
     for (const row of labeled) {
       const detail = refoldDetail(row.genre);
-      if (detail.label === null || detail.label === row.genre) {
+      if (detail.label === null) {
+        const raw = row.genre.trim().toLowerCase();
+        if (raw === "music" || raw === "unknown" || raw === "fixme") {
+          unstrand.push({ video_id: row.video_id, from: row.genre });
+        } else {
+          // URL junk / empty-after-trim: visible in the census, but not
+          // mechanically deletable — a human decides those.
+          unchanged++;
+        }
+        continue;
+      }
+      if (detail.label === row.genre) {
         unchanged++;
         continue;
       }
@@ -319,7 +335,7 @@ export async function genre(opts: GenreOptions): Promise<void> {
       });
     }
     log(
-      `genre refold: ${changes.length} changeable of ${labeled.length} labeled (${abstained} umbrella rows kept honest, ${unchanged} already canonical) — ${opts.apply ? "WRITTEN" : "proposals only (use --apply to write)"}`,
+      `genre refold: ${changes.length} changeable of ${labeled.length} labeled (${abstained} umbrella rows kept honest, ${unchanged} already canonical, ${unstrand.length} placeholder rows to unstrand) — ${opts.apply ? "WRITTEN" : "proposals only (use --apply to write)"}`,
     );
     for (const c of changes.slice(0, 20))
       log(`  ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}`);
@@ -331,12 +347,15 @@ export async function genre(opts: GenreOptions): Promise<void> {
         changes: changes.length,
         umbrellaKept: abstained,
         alreadyCanonical: unchanged,
+        unstrand: unstrand.length,
         applied: opts.apply === true,
         samples: changes.slice(0, 40),
       }),
     );
-    if (opts.apply)
+    if (opts.apply) {
       for (const c of changes) opts.state.updateGenre(c.video_id, c.to);
+      for (const c of unstrand) opts.state.clearGenre(c.video_id);
+    }
     return;
   }
 

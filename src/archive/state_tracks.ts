@@ -166,6 +166,18 @@ export class ArchiveTracks extends ArchiveCore {
       .run(genre, this.now(), videoId);
   }
 
+  /** Explicitly clear a label (genre = NULL) so the row re-enters the
+   *  inference path as a QUERY (`genreSeeds` selects on `genre IS NULL`).
+   *  updateGenre's COALESCE makes a null a deliberate no-op — unstranding
+   *  placeholder rows (#61) needs a real clear. Idempotent by nature. */
+  clearGenre(videoId: string): void {
+    this.db
+      .query(
+        "UPDATE tracks SET genre = NULL, updated_at = ? WHERE video_id = ?",
+      )
+      .run(this.now(), videoId);
+  }
+
   /** Set/clear the dispute flag on one track. `flag` is the audited
    *  vocabulary ('disputed'); null clears. The label column is NEVER
    *  touched — flagging is metadata, a human decision stays human. */

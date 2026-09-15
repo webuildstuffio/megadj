@@ -285,4 +285,55 @@ describe("ArchiveState", () => {
       "ch2",
     ]);
   });
+
+  test("clearGenre unstrands a placeholder row into the query pool (#61)", () => {
+    const seeded = (id: string, genre: string | null): void => {
+      state.upsertTrackFromPlaylist(id, 0, `T ${id}`);
+      state.markDownloaded(id, {
+        title: `T ${id}`,
+        artist: null,
+        album: null,
+        formatId: null,
+        bitrateKbps: 256,
+        codec: "aac",
+        filePath: `/tmp/${id}.m4a`,
+        fileSizeBytes: 1000,
+        durationS: 200,
+      });
+      state.setEmbeddingRecord({
+        videoId: id,
+        vec: [1, 0, 0],
+        sourcePath: `/tmp/${id}.m4a`,
+      });
+      if (genre !== null) state.updateGenre(id, genre);
+    };
+    seeded("m1", "Music");
+    seeded("u1", "unknown");
+    seeded("k1", "Techno");
+    // COALESCE semantics: updateGenre(null) is a no-op, never a clear.
+    state.updateGenre("k1", null);
+    let labeled = state.labeledPopulation();
+    expect(labeled.map((r) => r.video_id).toSorted()).toEqual([
+      "k1",
+      "m1",
+      "u1",
+    ]);
+    expect(state.genreSeeds().queries.map((q) => q.video_id)).toEqual([]);
+
+    // The unstrand pass clears placeholders; real labels stay.
+    state.clearGenre("m1");
+    state.clearGenre("u1");
+    labeled = state.labeledPopulation();
+    expect(labeled.map((r) => r.video_id)).toEqual(["k1"]);
+    // Cleared rows re-enter as queries (embeddings present).
+    expect(
+      state
+        .genreSeeds()
+        .queries.map((q) => q.video_id)
+        .toSorted(),
+    ).toEqual(["m1", "u1"]);
+    // Idempotent: second clear is a no-op.
+    state.clearGenre("m1");
+    expect(state.labeledPopulation().map((r) => r.video_id)).toEqual(["k1"]);
+  });
 });
