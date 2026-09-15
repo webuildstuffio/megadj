@@ -624,7 +624,10 @@ raw|whitened`) for A/B. Effort S.
     split canonicalizations; census now FULLY idempotent (3458/3458
     canonical, 0 changeable, 0 casing twins). Scoring arbitration stays
     a vote-time policy — the collection column keeps `EDM` (a real
-    source label), no disputed-flag machinery needed for this step.**
+    source label). **Follow-up shipped Sep 15 (§5b.3 step 2): the
+    disputed-flag pass (`genre --flag`) flagged 96/2982 labels that
+    contradict a unanimous kNN consensus — never rewritten, excluded
+    from seeding; Tier-0 battery re-ran clean post-flag.**
 95. **Active-learned label refold.** 900 labels → probe → hand-label only
     the ~600 lowest-margin/disagreement tracks; concentrates human hours
     on the house/techno/trance boundary. Gated by P89(a): if label noise

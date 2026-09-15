@@ -39,8 +39,6 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   and migration ownership.
 - [Surface parity](surface-parity.md) — live interface contract and exemptions.
 - [Agent playbook](agent-playbook.md) — failure history and reusable lessons.
-- [Source-layout refactor receipt](archive/src-layout-refactor.md) — executed
-  incident analysis companion.
 
 ## Product documentation
 
@@ -152,4 +150,5 @@ Archived files are historical evidence, not current instructions:
 - [Executed roadmap proposal](archive/roadmap-proposal.md)
 - [Codebase quality snapshot](archive/codebase-quality-report.md)
 - [Source-layout refactor receipt](archive/src-layout-refactor.md) — moved
-  2026-09-14; old-path stub removed 2026-09-15, reference the archive path directly.
+  2026-09-14; the old-path redirect stub was removed 2026-09-15, so this
+  archive path is the only reference.

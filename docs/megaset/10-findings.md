@@ -80,9 +80,9 @@ web panel. Everything below is measured evidence for the design choices.
 | --- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | R1  | **0.444 is not embarrassing — we compared to the wrong benchmark**                                   | best published EDM-subgenre: **60.6%** @ 30 classes, 75K songs (arXiv:2110.08862); realistic target **0.65–0.75**, not 0.9 |
 | R2  | **Random-noise LOO ceiling ≈ 0.58** (p≈0.68 × 0.85) — effnet is at ~77% of it                        | ~14 pts of headroom in this basin; systematic (non-random) label errors ⇒ no ceiling — diagnostic 0.1 decides              |
-| R3  | **Frozen kNN is the weakest readout**; the literature probes linear heads on frozen features         | comparable towers hit 82–88% on GTZAN with a probe; expected +12–20 pts on genre                                           |
-| R4  | **Artist leakage unmeasured in our LOO** (effnet = Discogs-metadata tower, likeliest to fingerprint) | Sturm "horse" critique; >15% same-artist top-5 ⇒ rerun artist-disjoint                                                     |
-| R5  | **Hubness/anisotropy never corrected** (no mean-centre/whiten/CSLS)                                  | fix ≈ 10 lines; expected +3–8 pt coherence                                                                                 |
+| R3  | **Frozen kNN is the weakest readout**; the literature probes linear heads on frozen features         | comparable towers hit 82–88% on GTZAN with a probe; expected +12–20 pts on genre — **MEASURED OPPOSITE Sep 15: probe 51.5% vs kNN 62.6% — kNN stays (tier-0 §4)** |
+| R4  | **Artist leakage unmeasured in our LOO** (effnet = Discogs-metadata tower, likeliest to fingerprint) | Sturm "horse" critique; >15% same-artist top-5 ⇒ rerun artist-disjoint — **MEASURED ABSENT Sep 15: 4.2%, Δ −0.8**          |
+| R5  | **Hubness/anisotropy never corrected** (no mean-centre/whiten/CSLS)                                  | fix ≈ 10 lines; expected +3–8 pt coherence — **hub tail CONFIRMED Sep 15; whitened space shipped flag-gated**              |
 | R6  | **Fine-tuning is answered: frozen wins**                                                             | MuQ-Eval A1 (frozen) beats LoRA and full-FT (12 GB, didn't win); naive MERT full-FT examples are garbage                   |
 | R7  | **The projection-head recipe is published**                                                          | TuneJury: 2.8M MLP over frozen towers, pairwise-logistic, 17.5K prefs                                                      |
 | R8  | **Stems: +3.6 pt on MuQ, but CLAP got worse** — effnet is CLAP-side                                  | 86.8→90.4% (arXiv:2601.19109); gate any Demucs work behind a 200-track probe                                               |
@@ -101,19 +101,23 @@ web panel. Everything below is measured evidence for the design choices.
 
 | #   | Bug                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Impact                                                                                     | Where                                                       |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| B1  | **`dance`→edm is a least-wrong mapping** — head says the 113 tracks are house 65/trance 17/bass 14. **Extended Sep 14 (research review R2/B1-sibling): plain-`edm` itself (353 tracks) is the same bug one level up — an umbrella sitting as a sibling of house/techno/trance, forcing every plain-`edm` track into a guaranteed LOO error. Arbitrate both via the head+kNN dispute pass; keep hard-dance/eurodance/nightcore in `edm`, keep ALL Tier-1 sub-genre labels (hardtekk etc. stay).** | soft: diversity guard slightly miscategorizes those tracks; up to +6–12 pts LOO when fixed | refold dispute pass (§5b.3.1)                               |
+| B1  | ~~**`dance`→edm is a least-wrong mapping**~~ **FIXED Sep 15** — the refold's umbrella arbitration landed exactly as prescribed: scoring-family arbitration for plain `edm`/`Dance`/`Electronic` + umbrella-split canonicalizations, measured 61.7% → 69.2% gated LOO (+7.4, inside the predicted +6–12 band); the `dance`-family mapping and plain-`edm` arbitration both went through the head+kNN dispute pass. Hard-dance/eurodance/nightcore stayed in `edm`; ALL Tier-1 sub-genre labels (hardtekk etc.) kept. | RESOLVED: +7.4 pts realized | refold dispute pass (§5b.3.1) — **done**    |
 | B2  | **`melodic house & techno` → house** (regex order)                                                                                                                                                                                                                                                                                                                                                                                                                                               | soft: melodic-techno tracks vote house                                                     | family-map ordering; needs head-verified rule before change |
 | B3  | **Rekordbox dedup must remain fingerprint-proven**                                                                                                                                                                                                                                                                                                                                                                                                                                               | name-only matching can quarantine distinct recordings                                      | shipped guardrails live in `megadj rb-dedup` tests          |
 | B4  | 206 unlabeled tracks (203 embedded)                                                                                                                                                                                                                                                                                                                                                                                                                                                              | coverage 94.4→99.9% available                                                              | `genre --apply` inference exists                            |
-| B5  | 389 slash-soup multi-genre rows unrefolded                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Tier-1 display noise                                                                       | refold pipeline step 1                                      |
+| B5  | ~~389 slash-soup multi-genre rows unrefolded~~ **HEALED Sep 15** — the refold's multi-label split ranked secondaries on these rows (specific-outranks-umbrella) | resolved: Tier-1 display cleaned | refold pipeline step 1 — **done**                           |
 | B6  | ~~`genre --eval` harness not yet a command~~ **SHIPPED 2026-09-14** — `megadj genre --eval` runs the LOO harness over the live DB; reproduces the v3 baseline exactly (n=2,982, gated 62.6%, refusal 19.8%)                                                                                                                                                                                                                                                                                      | hygiene regression gate now standing                                                       | §5b.3 step 4 — done                                         |
-| B7  | `hardtekk` family vote n=9 — fragile regex from tiny sample                                                                                                                                                                                                                                                                                                                                                                                                                                      | soft: misvotes possible                                                                    | revisit post-refold with bigger pop                         |
+| B7  | `hardtekk` family vote n=9 — fragile regex from tiny sample                                                                                                                                                                                                                                                                                                                                                                                                                                      | soft: misvotes possible                                                                    | revisit with a bigger population — refold shipped; pop unchanged                         |
 
 ## 3. Next 3–5 things (ordered, with why)
 
 **Reordered Sep 14 (user call): genre/readout quality BEFORE any further
 set-generation work** — genre is the easier goal and the better input to
-every downstream pool.
+every downstream pool. **Sep 15 update: the refold (item 2) and the
+demote-and-flag pass SHIPPED (61.7% → 69.2% gated LOO, ≥65% target PASS;
+96/2982 labels flagged disputed — [genre-audit §5b.3](../fulltags/genre-audit.md),
+[tier-0 verdicts](../fulltags/tier0-diagnostics-2026-09-15.md)); the probe
+lost to kNN (item 3 below), so the readout thread is closed.**
 
 1. **Tier-0 diagnostics** (research review §5, ~4 h): label-error clustering
    by artist/imprint · artist-overlap rate in top-5 neighbours · hubness
@@ -128,15 +132,18 @@ every downstream pool.
    downstream — B6 diversity guard, family-based pools, ranked secondaries,
    the disputed-flag pass, the (now shipped) eval harness — consumes its
    output, and it is S-sized with a measured target (105 labels → 90%).
-3. **Full-population LOO + the probe experiment** (`genre --eval
---probe`, `--artist-disjoint`; n=3,500 instead of 180). _Why:_ error bars
-   ±6 → ~±1 (makes every earlier sub-3-pt result falsifiable), and the
-   linear probe is the literature-standard readout — expected +12–20 pts on
-   genre; if it lands ≥0.65 the whole tower-swap thread closes permanently.
-4. **`--apply` the 203 embedded-but-unlabeled tracks** (B4). _Why:_ the eval
-   gate is now standing, so the fill's effect is measurable before/after;
-   `--apply` converts the gap into coverage honestly (COALESCE never
-   clobbers).
+3. ~~**Full-population LOO + the probe experiment** (`genre --eval
+--probe`, `--artist-disjoint`; n=3,500 instead of 180)~~ **DONE Sep 15**
+   ([tier0-diagnostics](../fulltags/tier0-diagnostics-2026-09-15.md)):
+   ran live at full population (n=2,982); the probe **lost** to kNN
+   (51.5% vs 62.6%, Δ −11.1 — R3's literature prior does not hold
+   here) and artist leakage is absent (4.2%), so the tower-swap/probe
+   thread is closed, not opened. _Outcome:_ falsifiable error bars
+   delivered; the readout question answered against the probe.
+4. ~~**`--apply` the 203 embedded-but-unlabeled tracks** (B4)~~ — still
+   open, unchanged. _Why:_ the eval gate is now standing, so the fill's
+   effect is measurable before/after; `--apply` converts the gap into
+   coverage honestly (COALESCE never clobbers).
 5. **Ranked secondaries via the Discogs-400 head** (§5b.2 + 07 §2, T4). _Why:_
    minutes of compute on cached embeddings buys per-track ranked styles for
    MegaSet's "deep end of the family" pools and the B6 family-union fix — the
@@ -177,6 +184,7 @@ engines; cloud anything.
 | [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md) | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot  |
 | [08-audit-and-plan](08-audit-and-plan.md)                                     | Implementation audit + per-item sketches (reference)                                           | reference |
 | [09-migration-plan](09-migration-plan.md)                                     | `setbuild → megaset` atomic rename plan                                                        | planned   |
+| [tier0-diagnostics-2026-09-15](../fulltags/tier0-diagnostics-2026-09-15.md)   | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current   |
 | [10-findings](10-findings.md)                                                 | **this page** — distilled verdicts + next actions                                              | current   |
 
 ---
