@@ -9,7 +9,7 @@ import {
   unlinkSync,
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { Database } from "bun:sqlite";
+import { openLedger } from "../shared/sqlite-ledger";
 import { HygieneStore } from "../archive/hygiene/store";
 import { QUARANTINE_DIR } from "../archive/hygiene/apply";
 import type { Finding } from "../archive/hygiene/types";
@@ -112,7 +112,7 @@ export async function shelfRestore(
       error: `shelf not mounted: ${shelfVolume}`,
     });
 
-  const db = new Database(dbPath);
+  const db = openLedger(dbPath);
   const store = new HygieneStore(db);
   const owner = crypto.randomUUID();
   if (!store.acquireOperation(owner)) {

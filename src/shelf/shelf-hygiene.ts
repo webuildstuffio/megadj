@@ -11,7 +11,7 @@
  * human confirm the web queue (or `--confirm <id>`) provides. `--json`
  * obeys the agent-first contract: one summary object on stdout.
  */
-import { Database } from "bun:sqlite";
+import { openLedger } from "../shared/sqlite-ledger";
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { HygieneStore } from "../archive/hygiene/store";
@@ -99,7 +99,7 @@ export async function shelfHygiene(
     return;
   }
 
-  const db = new Database(dbPath);
+  const db = openLedger(dbPath);
   try {
     const store = new HygieneStore(db);
 

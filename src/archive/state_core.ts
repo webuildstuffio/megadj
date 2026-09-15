@@ -1,4 +1,5 @@
-import { Database } from "bun:sqlite";
+import { openLedger } from "../shared/sqlite-ledger";
+import type { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { Ledgers } from "./ledgers";
 import { EmbeddingsLedger, KeysLedger } from "./similar";
@@ -17,9 +18,7 @@ export class ArchiveCore {
     const dir = dbPath.substring(0, dbPath.lastIndexOf("/"));
     this.dbDir = dir;
     if (dir) mkdirSync(dir, { recursive: true });
-    this.db = new Database(dbPath, { create: true });
-    this.db.exec("PRAGMA journal_mode = WAL;");
-    this.db.exec("PRAGMA busy_timeout = 5000;");
+    this.db = openLedger(dbPath, { create: true });
     this.embeddingsLedger = new EmbeddingsLedger(this.db, () => this.now());
     this.keysLedger = new KeysLedger(this.db, () => this.now());
     this.ledgers = new Ledgers(this.db, () => this.now());

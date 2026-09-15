@@ -13,7 +13,7 @@
  * Fingerprints cache in the archive DB (file_archive_fingerprints) keyed
  * by path+size, so re-runs only compute new/changed files.
  */
-import { Database } from "bun:sqlite";
+import { openLedger } from "../shared/sqlite-ledger";
 import { basename, join } from "node:path";
 import { statSync } from "node:fs";
 import {
@@ -69,7 +69,7 @@ export async function dedupeArchive(
   opts: DedupeArchiveOptions,
 ): Promise<DedupeArchiveResult> {
   const log = commandLog(opts);
-  const db = new Database(opts.dbPath, { create: true });
+  const db = openLedger(opts.dbPath, { create: true });
   const cache = new DupFpCache(db, ARCHIVE_FINGERPRINTS_TABLE);
   const res: DedupeArchiveResult = {
     scanned: 0,

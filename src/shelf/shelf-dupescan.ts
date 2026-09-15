@@ -13,7 +13,7 @@
  * is intentionally absent: groups feed the same human-gated quarantine flow
  * as shelf-dedupe. Parallel worker pool; fp cache makes re-runs fast.
  */
-import { Database } from "bun:sqlite";
+import { openLedger } from "../shared/sqlite-ledger";
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -115,7 +115,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
     return;
   }
 
-  const db = new Database(dbPath);
+  const db = openLedger(dbPath);
   const cache = new FpCache(db, SHELF_FINGERPRINTS_TABLE);
   const files = [...walkAudio(contents)];
   // extra scan dirs fingerprint INTO the same grouping (never into the
