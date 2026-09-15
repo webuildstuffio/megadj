@@ -294,7 +294,9 @@ export function printRbUnmatchedReport(
     log(
       `${body.diskFiles} disk file(s) · ${body.dbRows} DB row(s) · ${body.matched} matched · ${body.twinNamed} twin-named (dupescan's queue) · ${body.unknown} unknown to rekordbox`,
     );
-    const dirs = Object.entries(body.unknownByDir).toSorted((a, b) => b[1] - a[1]);
+    const dirs = Object.entries(body.unknownByDir).toSorted(
+      (a, b) => b[1] - a[1],
+    );
     for (const [d, n] of dirs.slice(0, 10))
       log(`  ${String(n).padStart(5)}  Contents/${d}/`);
     if (dirs.length > 10) log(`  … ${dirs.length - 10} more folder(s)`);
