@@ -17,6 +17,7 @@ import {
   applyTags,
   fingerprintFile,
   type EnrichedMetadata,
+  probeMediaSync,
 } from "../../../fulltags/src/exports";
 import { Downloader, type DownloadResult } from "../downloader";
 import type { ArchiveState } from "../../archive/state";
@@ -86,28 +87,10 @@ export function parseFfprobeKbps(
   return Math.round(bps / 1000);
 }
 
-/** ffprobe the new file's bitrate (bits/s → kbps); null when unreadable. */
+/** ffprobe the new file's bitrate — THE media seam (probeMediaSync), one
+ *  spawn style + guarded boundary repo-wide (#80); null when unreadable. */
 function ffprobeKbps(path: string): number | null {
-  let pr: Bun.SyncSubprocess;
-  try {
-    pr = Bun.spawnSync({
-      cmd: [
-        "ffprobe",
-        "-v",
-        "quiet",
-        "-print_format",
-        "json",
-        "-show_format",
-        path,
-      ],
-      stdout: "pipe",
-      stderr: "ignore",
-    });
-  } catch {
-    return null;
-  }
-  if (pr.exitCode !== 0) return null;
-  return parseFfprobeKbps(new TextDecoder().decode(pr.stdout), path);
+  return probeMediaSync(path)?.bitrateKbps ?? null;
 }
 
 /** Unique temp path beside the target (keeps the extension — ffmpeg/yt-dlp
