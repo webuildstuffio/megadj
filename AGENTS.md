@@ -19,11 +19,18 @@ This file contains only rules and traps. Product detail belongs in
   invisible to your commit. The full suite runs automatically at PRE-PUSH
   (shell-config generic fallback: no `tests/run_all.sh` + bun repo →
   `bun test --parallel=16`; failure blocks, timeout warns) — still run
-  `bun test` yourself before pushing if you want the result earlier.
+  `bun test` yourself before pushing if you want the result earlier. The
+  LOC-budget pre-commit gate (`.githooks/pre-commit` + `tools/loc-budget.ts`)
+  requires every commit to be a net code REDUCTION in tracked code until 75k
+  LOC; it never blocks on self-error (advisory only) and bypass is deliberate
+  + audit-logged (`MEGADJ_LOC_BYPASS='reason'`).
 - Never use `git add -A`; preserve concurrent work. Re-read before editing and
   verify the worktree diff, not only a commit hash. Before committing, check
   for another agent's PRE-STAGED files — a mid-refactor staged snapshot that
   rides along breaks the pushed build; rebuild the commit path-scoped if so.
+  Concurrent-agent sweeps can silently revert landed refactors; the census
+  tests (`src/apply-gate-census.test.ts`, `src/boundary-*-census.test.ts`)
+  are the tripwire — a clobbered fix gets re-committed immediately.
 - No bare production `catch {}` or `.catch(() => {})`. Boundary `JSON.parse`
   uses a guarded parser and exposes failure. Gate numeric boundaries with
   `Number.isFinite`; CLI numeric options use `nonNegOpt` (bad input: exit 2,
