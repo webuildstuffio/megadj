@@ -745,6 +745,23 @@ raw|whitened`) for A/B. Effort S.
 > M71 marked SHIPPED in place (usbLinkClass + drive badge + speedtest
 > verified in code); M70's detection half shipped via the hygiene engine,
 > the drive-side clean path is #139.
+>
+> **2026-09-15 (batch 3 — the deepest backlog, product-categorized; the
+> full categorized index lives in [docs/roadmap-index.md](roadmap-index.md)):**
+> GA-07 run →
+> [#147](https://github.com/webuildstuffio/megadj/issues/147) (p0, gates
+> every repair), new-music radar (PRD F10) →
+> [#148](https://github.com/webuildstuffio/megadj/issues/148), age & wear
+> (PRD F10) → [#149](https://github.com/webuildstuffio/megadj/issues/149),
+> C18a assisted export runbook →
+> [#150](https://github.com/webuildstuffio/megadj/issues/150), G42 →
+> [#151](https://github.com/webuildstuffio/megadj/issues/151), M72 →
+> [#152](https://github.com/webuildstuffio/megadj/issues/152), F38 →
+> [#153](https://github.com/webuildstuffio/megadj/issues/153), B15 →
+> [#154](https://github.com/webuildstuffio/megadj/issues/154), alias
+> depth → [#155](https://github.com/webuildstuffio/megadj/issues/155),
+> P95 active labelling →
+> [#157](https://github.com/webuildstuffio/megadj/issues/157).
 
 **Deliberately unbuilt:** C18b/c (pdb write gauntlet — parked), I52
 (deleted), K56 (lyrics), K60 (setlist.fm), E31/E44 (struck 2026-09-05:
