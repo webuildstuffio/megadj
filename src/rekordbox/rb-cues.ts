@@ -41,6 +41,7 @@ import {
 } from "./rb-command-kit.js";
 import { commandLog } from "../progress";
 import { masterDbPath } from "./master-path.js";
+import { errorText } from "../shared/error-text";
 
 /** DB-side hot cue Kind — pinned by F4 (RB7-written rows: 1 only). */
 export const HOT_CUE_KIND = 1;
@@ -342,12 +343,7 @@ async function rbCuesWithRuntime(
     try {
       backedUpTo = deps.backup(dbPath);
     } catch (error) {
-      return fail(
-        opts,
-        dbPath,
-        mode,
-        error instanceof Error ? error.message : String(error),
-      );
+      return fail(opts, dbPath, mode, errorText(error));
     }
 
     const compensate = (error: unknown): RbCuesResult => {
@@ -446,12 +442,7 @@ async function rbCuesWithRuntime(
       120_000,
     );
   } catch (error) {
-    return fail(
-      opts,
-      dbPath,
-      mode,
-      error instanceof Error ? error.message : String(error),
-    );
+    return fail(opts, dbPath, mode, errorText(error));
   }
   if (result.status !== 0 || !result.stdout)
     return fail(
@@ -467,12 +458,7 @@ async function rbCuesWithRuntime(
       false,
     );
   } catch (error) {
-    return fail(
-      opts,
-      dbPath,
-      mode,
-      error instanceof Error ? error.message : String(error),
-    );
+    return fail(opts, dbPath, mode, errorText(error));
   }
 
   return {

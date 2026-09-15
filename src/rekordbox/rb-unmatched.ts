@@ -33,6 +33,7 @@ import { applyConfirmationRefusal } from "./rb-command-kit.js";
 import { QUARANTINE_DIR, quarantineDest } from "../archive/hygiene/apply";
 import { buildIndex, readRows } from "./rb-fix-paths";
 import { masterDbPath, normalizeMount } from "./master-path.js";
+import { errorText } from "../shared/error-text";
 import { commandLog } from "../progress";
 
 export interface RbUnmatchedOptions {
@@ -184,9 +185,7 @@ export async function quarantineUnmatched(
         throw new Error(`dest missing after move: ${p.dest}`);
       moved.push(p);
     } catch (e) {
-      log(
-        `rb-unmatched: move FAILED (${e instanceof Error ? e.message : String(e)}) — ${p.from}`,
-      );
+      log(`rb-unmatched: move FAILED (${errorText(e)}) — ${p.from}`);
     }
   }
   return { moved, manifestPath };
@@ -200,11 +199,21 @@ export async function rbUnmatched(
   const dbPath = masterDbPath(opts.mount);
 
   // flag validation precedes any I/O — bad invocation = exit-worthy, zero work
-  if (applyConfirmationRefusal({ apply: opts.quarantine, yes: opts.yes, flag: "--quarantine" }) !== null)
+  if (
+    applyConfirmationRefusal({
+      apply: opts.quarantine,
+      yes: opts.yes,
+      flag: "--quarantine",
+    }) !== null
+  )
     return fail(
       mount,
       dbPath,
-      applyConfirmationRefusal({ apply: opts.quarantine, yes: opts.yes, flag: "--quarantine" }) ?? "unreachable",
+      applyConfirmationRefusal({
+        apply: opts.quarantine,
+        yes: opts.yes,
+        flag: "--quarantine",
+      }) ?? "unreachable",
     );
   if (!existsSync(dbPath))
     return fail(mount, dbPath, `no master DB at ${dbPath}`);
@@ -224,7 +233,7 @@ export async function rbUnmatched(
   try {
     rows = readRows(dbPath);
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
+    const message = errorText(e);
     log(`rb-unmatched: ${message}`);
     return fail(mount, dbPath, message);
   }

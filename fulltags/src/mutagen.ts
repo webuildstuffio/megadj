@@ -5,6 +5,7 @@
  * One runner here means the uv invocation (warm-env form, version pin
  * policy) can never drift between the writer and the readers.
  */
+import { errMessage as errorText } from "../../cratedeck/shared/fmt";
 import { extname } from "node:path";
 
 /** Run a mutagen python script, return trimmed stdout ("" on failure).
@@ -62,7 +63,7 @@ export function parseMutagenJsonOutput<T = unknown>(
     return {
       ok: false,
       context,
-      detail: `malformed JSON: ${error instanceof Error ? error.message : String(error)}`,
+      detail: `malformed JSON: ${errorText(error)}`,
     };
   }
 }

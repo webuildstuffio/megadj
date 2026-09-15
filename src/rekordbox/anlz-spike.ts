@@ -34,6 +34,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { commandLog } from "../progress";
+import { errorText } from "../shared/error-text";
 import type { Dirent } from "node:fs";
 import { join, basename } from "node:path";
 import { createHash } from "node:crypto";
@@ -152,7 +153,7 @@ function sidecarKeys(mount: string): string[] {
       // unreadable dir is a console-visible miss, not a crash — vs the
       // baseline it reads as "removed", which is true on disk
       console.error(
-        `rb-anlz-spike: unreadable dir ${rel || "."}: ${e instanceof Error ? e.message : String(e)}`,
+        `rb-anlz-spike: unreadable dir ${rel || "."}: ${errorText(e)}`,
       );
       return;
     }
@@ -243,7 +244,7 @@ export function anlzSpike(opts: SpikeOptions): SpikeSnapshot {
     return fail(
       opts,
       mount,
-      `baseline unreadable (${e instanceof Error ? e.message : String(e)}) — re-snapshot`,
+      `baseline unreadable (${errorText(e)}) — re-snapshot`,
     );
   }
   const { recs, scanned, undecodable } = measure(mount);

@@ -17,6 +17,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { errMessage as errorText } from "../../cratedeck/shared/fmt";
 
 /** Current annotation schema version. Bump on breaking shape changes. */
 export const GOLD_SCHEMA_VERSION = 1;
@@ -136,10 +137,9 @@ export function parseGoldAnnotation(raw: string, file: string): GoldAnnotation {
   try {
     v = JSON.parse(raw);
   } catch (e) {
-    throw new TypeError(
-      `${file}: not valid JSON (${e instanceof Error ? e.message : String(e)})`,
-      { cause: e },
-    );
+    throw new TypeError(`${file}: not valid JSON (${errorText(e)})`, {
+      cause: e,
+    });
   }
   const err = goldSchemaError(v);
   if (err) throw new TypeError(`${file}: ${err}`);
@@ -165,7 +165,7 @@ export function loadGoldSet(dir: string): GoldSet {
     } catch (e) {
       out.issues.push({
         file: f,
-        error: e instanceof Error ? e.message : String(e),
+        error: errorText(e),
       });
     }
   }

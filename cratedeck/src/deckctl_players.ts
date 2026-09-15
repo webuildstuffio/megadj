@@ -5,6 +5,7 @@
 // once printed the literal "undefined" in --json mode, invalid JSON for
 // any agent parsing it (the Sep 7-8 silent-fallback purge class).
 import type { PlayersPayload } from "../shared/types";
+import { errMessage as errorText } from "../shared/fmt";
 
 export interface PlayerFleetPayload {
   players: PlayersPayload[];
@@ -28,7 +29,7 @@ export async function collectPlayers(
     } catch (e) {
       skipped.push({
         drive: d.nickname ?? d.name,
-        reason: e instanceof Error ? e.message : String(e),
+        reason: errorText(e),
       });
     }
   }

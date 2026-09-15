@@ -39,8 +39,13 @@ import {
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
 import { DB_PATH } from "../cli-env";
-import { applyConfirmationRefusal, isDecimalIdOrNull, parseJsonBoundary } from "./rb-command-kit.js";
+import {
+  applyConfirmationRefusal,
+  isDecimalIdOrNull,
+  parseJsonBoundary,
+} from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
+import { errorText } from "../shared/error-text";
 import { commandLog } from "../progress";
 import { rekordboxRunning } from "./guard.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
@@ -525,7 +530,7 @@ export async function rbPlaylist(
       py = mutation.value;
       backedUpTo = mutation.backedUpTo;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorText(error);
       return fail(message, {
         playlist,
         group,
@@ -555,7 +560,7 @@ export async function rbPlaylist(
         `rb-playlist: predict ${pred.hit}/${chain.length} chain tracks have master rows (read-only probe)`,
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorText(error);
       return fail(message, {
         playlist,
         group,
@@ -681,7 +686,7 @@ function parsePredictionProcess(result: {
     return parseMatchPrediction(result.stdout.trim().split("\n").pop() ?? "");
   } catch (error) {
     throw new Error(
-      `rb-playlist match probe returned an invalid result: ${error instanceof Error ? error.message : String(error)}`,
+      `rb-playlist match probe returned an invalid result: ${errorText(error)}`,
       { cause: error },
     );
   }

@@ -32,6 +32,7 @@ import { makeServerLifecycle } from "./server_lifecycle";
 import { makeFleetRoutes } from "./fleet_routes";
 import { makeDriveRoutes } from "./drive_routes";
 import { photoUpload, makeEnqueueDriveJob } from "./drive_job_routes";
+import { errMessage as errorText } from "../shared/fmt";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
@@ -313,7 +314,7 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
       } catch (error) {
         return json(
           {
-            error: `invalid JSON body: ${error instanceof Error ? error.message : String(error)}`,
+            error: `invalid JSON body: ${errorText(error)}`,
           },
           400,
         );
@@ -322,10 +323,7 @@ async function apiRequest(req: Request, url: URL): Promise<Response> {
       try {
         next = parseBoothFleetRequest(body);
       } catch (error) {
-        return json(
-          { error: error instanceof Error ? error.message : String(error) },
-          400,
-        );
+        return json({ error: errorText(error) }, 400);
       }
       writeConfigBoothFleet(cfg.root, next);
       cfg.boothFleet = next;

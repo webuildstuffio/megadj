@@ -1,6 +1,12 @@
 // fmt.ts — shared human formatters (server + web).
 
-/** Normalize any thrown value to its user-facing message. */
+/** THE `unknown → message` seam (issue #82): one implementation, every
+ *  tier. src/shared/error-text.ts re-exports this as `errorText`; the
+ *  fulltags leaf imports it directly from here (cratedeck/shared is the
+ *  sanctioned dependency leaf — src/ is NOT importable from fulltags).
+ *  One shared helper so caught unknowns render identically everywhere —
+ *  and so a future improvement (e.g. cause chains) lands in every error
+ *  path at once. */
 export function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }

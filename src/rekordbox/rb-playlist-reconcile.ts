@@ -19,8 +19,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { isRecord, isUnknownArray } from "../../cratedeck/shared/guards.js";
 import { assertRbClosed } from "./guard.js";
-import { applyConfirmed, applyConfirmationRefusal, parseJsonBoundary } from "./rb-command-kit.js";
+import {
+  applyConfirmed,
+  applyConfirmationRefusal,
+  parseJsonBoundary,
+} from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
+import { errorText } from "../shared/error-text";
 import { commandLog } from "../progress";
 import {
   applyPlaylistTwinMutation,
@@ -186,7 +191,7 @@ export async function rbPlaylistReconcile(opts: {
   try {
     dbRows = parseTwinScanOutput(r.stdout.trim().split("\n").pop() ?? "");
   } catch (error) {
-    return mk(error instanceof Error ? error.message : String(error));
+    return mk(errorText(error));
   }
 
   const xmlRaw = readFileSync(xml, "utf8");
@@ -234,7 +239,7 @@ export async function rbPlaylistReconcile(opts: {
       backedUpTo = mutation.backedUpTo;
     } catch (error) {
       return {
-        ...mk(error instanceof Error ? error.message : String(error)),
+        ...mk(errorText(error)),
         missingXmlNodes,
         orphanXmlNodes,
         backedUpTo,

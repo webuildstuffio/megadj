@@ -23,6 +23,7 @@
  */
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
+import { errMessage as errorText } from "../../cratedeck/shared/fmt";
 import { lineReader } from "./stdio";
 
 // Fail fast on a missing HOME: `)?? ""` produced "/.local/share/…" which
@@ -90,7 +91,7 @@ export function parseMoodWorkerLine(line: string): MoodWorkerParseResult {
     return {
       ok: false,
       context,
-      detail: `malformed JSON: ${error instanceof Error ? error.message : String(error)}`,
+      detail: `malformed JSON: ${errorText(error)}`,
     };
   }
   if (value === null || typeof value !== "object" || Array.isArray(value))

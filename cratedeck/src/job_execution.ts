@@ -26,6 +26,7 @@ import {
 import { rbSnapshot, spawnMirror, spawnVerify } from "./rb";
 import { scanVolume } from "./scan";
 import { lastLines, parseVerifyReport } from "./verify_report";
+import { errMessage as errorText } from "../shared/fmt";
 
 export interface JobExecutionDeps {
   cfg: CrateConfig;
@@ -72,7 +73,7 @@ export function parseIngestSummary(
       return finiteJobNumber(summary[key]);
     } catch (error) {
       throw new Error(
-        `megadj ingest summary ${key} is invalid: ${error instanceof Error ? error.message : String(error)}`,
+        `megadj ingest summary ${key} is invalid: ${errorText(error)}`,
         { cause: error },
       );
     }
@@ -101,10 +102,7 @@ export function parseAuditSummary(
   try {
     value = JSON.parse(output);
   } catch (error) {
-    throw new Error(
-      `malformed JSON: ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error },
-    );
+    throw new Error(`malformed JSON: ${errorText(error)}`, { cause: error });
   }
   if (typeof value !== "object" || value === null || Array.isArray(value))
     throw new Error("audit summary must be an object");
@@ -410,7 +408,7 @@ export async function auditArchive(
   try {
     result = parseAuditSummary(output);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = errorText(error);
     log(`audit leg failed to report: ${detail}`);
     throw new Error(
       `megadj audit returned an invalid JSON summary: ${detail}`,

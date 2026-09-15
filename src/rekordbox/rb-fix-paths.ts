@@ -31,8 +31,13 @@ import {
   restoreMasterBackup,
   sleepSync,
 } from "./guard.js";
-import { applyConfirmationRefusal, DECIMAL_ID_RE, parseJsonBoundary } from "./rb-command-kit.js";
+import {
+  applyConfirmationRefusal,
+  DECIMAL_ID_RE,
+  parseJsonBoundary,
+} from "./rb-command-kit.js";
 import { masterDbPath, normalizeMount } from "./master-path.js";
+import { errorText } from "../shared/error-text";
 
 export interface RbFixPathsOptions {
   /** Drive mount root, e.g. /Volumes/SHELF1 — master DB lives at
@@ -358,7 +363,7 @@ export async function rbFixPaths(
     try {
       runtime.assertClosed("rb-fix-paths --apply preflight");
     } catch (error) {
-      const r = fail(error instanceof Error ? error.message : String(error));
+      const r = fail(errorText(error));
       log(r.error ?? "unknown failure");
       return r;
     }
@@ -369,7 +374,7 @@ export async function rbFixPaths(
   try {
     rows = runtime.readRows(dbPath);
   } catch (e) {
-    const r = fail(e instanceof Error ? e.message : String(e));
+    const r = fail(errorText(e));
     log(r.error ?? "unknown failure");
     return r;
   }
@@ -441,7 +446,7 @@ export async function rbFixPaths(
         stillBroken: brokenRows.length,
       });
     } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
+      const detail = errorText(error);
       return result({
         ok: false,
         error: `${reason}; ROLLBACK FAILED: ${detail}`,
@@ -462,7 +467,7 @@ export async function rbFixPaths(
       runtime.assertClosed("rb-fix-paths --apply mutation");
       applied = await runtime.rewrite(dbPath, fixable, log);
     } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
+      const detail = errorText(error);
       const failed = restoreAfterFailure(
         `rewrite failed: ${detail}`,
         applied,
@@ -491,7 +496,7 @@ export async function rbFixPaths(
       runtime.assertClosed("rb-fix-paths verification");
       reread = runtime.readRows(dbPath);
     } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
+      const detail = errorText(error);
       const failed = restoreAfterFailure(
         `verification failed: ${detail}`,
         applied,

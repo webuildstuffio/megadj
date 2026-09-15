@@ -12,6 +12,7 @@
 
 import { apiGet, apiPost, resolveDrive } from "./deckapi";
 import type { StoredNote } from "./notes";
+import { errMessage as errorText } from "../shared/fmt";
 
 export interface NotePrintHooks {
   /** true when --json is on: emit one JSON object, no prose. */
@@ -78,7 +79,7 @@ export async function cmdNotes(
       const notes = await getJson<StoredNote[]>(
         `/api/drives/${d.id}/notes`,
       ).catch((e: unknown) => {
-        const msg = e instanceof Error ? e.message : String(e);
+        const msg = errorText(e);
         if (!h.jsonMode)
           h.log(`  ⚠ notes fetch failed for ${d.nickname ?? d.name}: ${msg}`);
         return null;

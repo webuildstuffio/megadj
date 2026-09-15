@@ -11,6 +11,7 @@ import {
   sep,
 } from "node:path";
 import type { CrateConfig } from "./config";
+import { errMessage as errorText } from "../shared/fmt";
 
 export class Guard {
   private allowed: string[]; // prefixes that may be written
@@ -89,9 +90,7 @@ export class Guard {
     } catch (error) {
       return this.violation(
         path,
-        `path ancestry could not be resolved: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `path ancestry could not be resolved: ${errorText(error)}`,
       );
     }
     return candidate;
