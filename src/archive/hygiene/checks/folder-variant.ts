@@ -11,7 +11,7 @@
  */
 import { dirname, basename } from "node:path";
 import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
-import { newFindingId } from "../types";
+import { baseFinding } from "../types";
 import { nameSimilarityTokens } from "./similarity";
 
 /** Artist folder = the path segment directly under Contents/Artist/…
@@ -27,7 +27,6 @@ export const folderVariant: CheckDef = {
   kind: "folder-variant" as const,
   defaultSeverity: "likely" as const,
   detect(files: ShelfFile[], ctx: CheckCtx): Finding[] {
-    const now = ctx.now();
     // group artists by their token signature. The collab marker "x" is a
     // SEPARATOR, not a token — "ANOTR x 54 Ultra" and "ANOTR, 54 Ultra"
     // are the same artist (the Sep 9 sweep merged exactly this class).
@@ -53,14 +52,10 @@ export const folderVariant: CheckDef = {
       const renames: Record<string, string> = {};
       for (const v of names.slice(1)) renames[v] = keeper;
       out.push({
-        id: newFindingId(),
-        kind: "folder-variant",
-        severity: "likely",
-        status: "open",
+        ...baseFinding(ctx, "folder-variant", "likely", false),
         paths: names.map((n) => joinVolume(ctx.volume, n)),
         bytes: names.map((n) => artists.get(n) ?? 0),
         md5s: [],
-        fps: [],
         evidence: {
           tokenSignature: names
             .map((n) =>
@@ -81,12 +76,6 @@ export const folderVariant: CheckDef = {
           renames,
         },
         keeperPath: joinVolume(ctx.volume, keeper),
-        walkToken: ctx.walkToken,
-        autoSafe: false, // folder merges are ALWAYS human-gated
-        createdAt: now,
-        decidedAt: null,
-        appliedAt: null,
-        validation: null,
       });
     }
     return out;

@@ -10,7 +10,7 @@
  */
 import { basename } from "node:path";
 import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
-import { newFindingId } from "../types";
+import { baseFinding } from "../types";
 import { nameSimilarity } from "./similarity";
 import { classifyAcousticSub } from "../subcategory";
 
@@ -38,7 +38,6 @@ export const acousticTwin: CheckDef = {
       else byFp.set(fp, [f]);
     }
     const out: Finding[] = [];
-    const now = ctx.now();
     for (const [fp, group] of byFp) {
       if (group.length < 2) continue;
       // keeper = biggest (lossless-leaning proxy inside one recording)
@@ -48,10 +47,12 @@ export const acousticTwin: CheckDef = {
         const sim = nameSimilarity(basename(keeper.path), basename(loser.path));
         const bigDelta = durationDelta(keeper, loser) > 0.15;
         out.push({
-          id: newFindingId(),
-          kind: "acoustic-twin",
-          severity: bigDelta ? "review" : "likely",
-          status: "open",
+          ...baseFinding(
+            ctx,
+            "acoustic-twin",
+            bigDelta ? "review" : "likely",
+            false,
+          ),
           paths: [keeper.path, loser.path],
           bytes: [keeper.bytes, loser.bytes],
           md5s: [null, null], // different bytes by definition of this class
@@ -70,12 +71,6 @@ export const acousticTwin: CheckDef = {
           },
           proposedAction: { type: "quarantine-loser" },
           keeperPath: keeper.path,
-          walkToken: ctx.walkToken,
-          autoSafe: false, // ALWAYS human-gated (§4.2: required review)
-          createdAt: now,
-          decidedAt: null,
-          appliedAt: null,
-          validation: null,
         });
       }
     }

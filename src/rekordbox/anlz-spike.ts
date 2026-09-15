@@ -296,13 +296,22 @@ export function anlzSpike(opts: SpikeOptions): SpikeSnapshot {
   log(
     `compare vs "${opts.tag}" (${new Date(base.takenAt ?? 0).toISOString()}): ${identical} identical · ${changed.length} changed · ${added.length} added · ${removed.length} removed`,
   );
+  logChangedRows(changed, log);
+  return snap;
+}
+
+/** The `CHANGED <file>: <tag> <was>→<now>B` log rows — written once,
+ *  shared by the compare runner and the human report. */
+function logChangedRows(
+  changed: NonNullable<SpikeSnapshot["changed"]>,
+  log: (s: string) => void,
+): void {
   for (const c of changed) {
     const secs = c.sections
       .map((s) => `${s.tag} ${s.was}→${s.now}B`)
       .join(", ");
     log(`  CHANGED ${c.file}: ${secs}`);
   }
-  return snap;
 }
 
 /** Human report (non-json mode) — thin over the log lines. */
@@ -323,12 +332,7 @@ export function printSpikeReport(
     log(
       `compare "${body.tag}": ${body.identical} identical · ${body.changed?.length ?? 0} changed · ${body.added?.length ?? 0} added · ${body.removed?.length ?? 0} removed`,
     );
-    for (const c of body.changed ?? []) {
-      const secs = c.sections
-        .map((s) => `${s.tag} ${s.was}→${s.now}B`)
-        .join(", ");
-      log(`  CHANGED ${c.file}: ${secs}`);
-    }
+    logChangedRows(body.changed ?? [], log);
     for (const a of body.added ?? []) log(`  ADDED ${a}`);
     for (const d of body.removed ?? []) log(`  REMOVED ${d}`);
   });

@@ -16,6 +16,7 @@ export type {
 import type {
   Finding,
   FindingKind,
+  FindingStatus,
   Severity,
 } from "../../../cratedeck/shared/hygiene";
 
@@ -71,4 +72,45 @@ export interface CheckDef {
  *  injectable in tests via the store). */
 export function newFindingId(): string {
   return crypto.randomUUID();
+}
+
+/** The invariant Finding fields, written once (#99): id/kind/severity/
+ *  status/walkToken/autoSafe/createdAt and the three null lifecycle
+ *  columns are identical at every check site — callers supply only what
+ *  actually varies (paths/bytes/md5s/fps/evidence/action/keeperPath).
+ *  `id` still comes from newFindingId() at build time; pass `autoSafe`
+ *  explicitly — it is a per-check safety DECISION, never a default. */
+export function baseFinding(
+  ctx: CheckCtx,
+  kind: FindingKind,
+  severity: Severity,
+  autoSafe: boolean,
+): {
+  id: string;
+  kind: FindingKind;
+  severity: Severity;
+  status: FindingStatus;
+  fps: (string | null)[];
+  keeperPath: null;
+  walkToken: string;
+  autoSafe: boolean;
+  createdAt: string;
+  decidedAt: null;
+  appliedAt: null;
+  validation: null;
+} {
+  return {
+    id: newFindingId(),
+    kind,
+    severity,
+    status: "open",
+    fps: [],
+    keeperPath: null,
+    walkToken: ctx.walkToken,
+    autoSafe,
+    createdAt: ctx.now(),
+    decidedAt: null,
+    appliedAt: null,
+    validation: null,
+  };
 }

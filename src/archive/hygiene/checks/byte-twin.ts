@@ -7,7 +7,7 @@
  */
 import { basename } from "node:path";
 import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
-import { newFindingId } from "../types";
+import { baseFinding } from "../types";
 import { nameSimilarity } from "./similarity";
 
 export const byteTwin: CheckDef = {
@@ -21,7 +21,6 @@ export const byteTwin: CheckDef = {
       else bySize.set(f.bytes, [f]);
     }
     const out: Finding[] = [];
-    const now = ctx.now();
     for (const group of bySize.values()) {
       if (group.length < 2) continue;
       const md5 = new Map<string, string | null>();
@@ -47,14 +46,10 @@ export const byteTwin: CheckDef = {
         const keeper = twins[0]!;
         for (const loser of twins.slice(1)) {
           out.push({
-            id: newFindingId(),
-            kind: "byte-twin",
-            severity: "safe",
-            status: "open",
+            ...baseFinding(ctx, "byte-twin", "safe", true),
             paths: [keeper.path, loser.path],
             bytes: [keeper.bytes, loser.bytes],
             md5s: [md5.get(keeper.path) ?? null, md5.get(loser.path) ?? null],
-            fps: [],
             evidence: {
               nameSimilarity: nameSimilarity(
                 basename(keeper.path),
@@ -63,12 +58,6 @@ export const byteTwin: CheckDef = {
             },
             proposedAction: { type: "quarantine-loser" },
             keeperPath: keeper.path,
-            walkToken: ctx.walkToken,
-            autoSafe: true,
-            createdAt: now,
-            decidedAt: null,
-            appliedAt: null,
-            validation: null,
           });
         }
       }

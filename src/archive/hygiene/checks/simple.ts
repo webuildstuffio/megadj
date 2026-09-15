@@ -11,7 +11,7 @@
  * path where the input is an arbitrary file list). Auto-clean severity.
  */
 import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
-import { newFindingId } from "../types";
+import { baseFinding } from "../types";
 import { isJunkName } from "../walk";
 
 export const zeroByte: CheckDef = {
@@ -19,27 +19,15 @@ export const zeroByte: CheckDef = {
   defaultSeverity: "likely" as const,
   detect(files: ShelfFile[], ctx: CheckCtx): Finding[] {
     const out: Finding[] = [];
-    const now = ctx.now();
     for (const f of files) {
       if (f.bytes !== 0) continue;
       out.push({
-        id: newFindingId(),
-        kind: "zero-byte",
-        severity: "likely",
-        status: "open",
+        ...baseFinding(ctx, "zero-byte", "likely", false),
         paths: [f.path],
         bytes: [0],
         md5s: [null],
-        fps: [],
         evidence: { sizeBytes: 0 },
         proposedAction: { type: "delete-corrupt" },
-        keeperPath: null,
-        walkToken: ctx.walkToken,
-        autoSafe: false, // user confirms — may re-download instead
-        createdAt: now,
-        decidedAt: null,
-        appliedAt: null,
-        validation: null,
       });
     }
     return out;
@@ -51,27 +39,15 @@ export const appledoubleJunk: CheckDef = {
   defaultSeverity: "safe" as const,
   detect(files: ShelfFile[], ctx: CheckCtx): Finding[] {
     const out: Finding[] = [];
-    const now = ctx.now();
     for (const f of files) {
       if (!isJunkName(f.path.split("/").pop() ?? "")) continue;
       out.push({
-        id: newFindingId(),
-        kind: "appledouble-junk",
-        severity: "safe",
-        status: "open",
+        ...baseFinding(ctx, "appledouble-junk", "safe", true),
         paths: [f.path],
         bytes: [f.bytes],
         md5s: [null],
-        fps: [],
         evidence: { junk: true },
         proposedAction: { type: "clean-junk" },
-        keeperPath: null,
-        walkToken: ctx.walkToken,
-        autoSafe: true,
-        createdAt: now,
-        decidedAt: null,
-        appliedAt: null,
-        validation: null,
       });
     }
     return out;

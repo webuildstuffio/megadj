@@ -165,19 +165,23 @@ export function probeLeaveOneOut(
       protocol: folds === 0 ? "loo" : `${folds}-fold-cv`,
     };
   let correct = 0;
+  /** One held-row outcome, shared by the LOO and k-fold legs: score the
+   *  prediction and append the per-row record. */
+  const record = (held: ProbeRow, predicted: string | null): void => {
+    if (predicted === held.label) correct++;
+    predictions.push({
+      videoId: held.videoId,
+      truth: held.label,
+      predicted,
+    });
+  };
   if (folds === 0 || rows.length <= folds) {
     // exact LOO: fit on the rest, predict the held row
     for (let i = 0; i < rows.length; i++) {
       const held = rows[i]!;
       const rest = rows.filter((_, j) => j !== i);
       const { fit } = fitProbe(rest);
-      const predicted = probePredict(fit, held.vec);
-      if (predicted === held.label) correct++;
-      predictions.push({
-        videoId: held.videoId,
-        truth: held.label,
-        predicted,
-      });
+      record(held, probePredict(fit, held.vec));
     }
     return {
       evaluated: rows.length,
@@ -206,13 +210,7 @@ export function probeLeaveOneOut(
     const test = rows.filter((r) => foldOf.get(r.videoId) === f);
     const { fit } = fitProbe(train);
     for (const held of test) {
-      const predicted = probePredict(fit, held.vec);
-      if (predicted === held.label) correct++;
-      predictions.push({
-        videoId: held.videoId,
-        truth: held.label,
-        predicted,
-      });
+      record(held, probePredict(fit, held.vec));
     }
   }
   return {
