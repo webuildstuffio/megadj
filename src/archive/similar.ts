@@ -356,26 +356,25 @@ export interface EvalSummary {
  *  `familyOf` injects the label→family map (defaults to the pinned
  *  `genreFamily`; `scoringFamily` = the refold's umbrella arbitration).
  *  Pure: the DB read happens in the caller (`genre --eval`). */
-export function evalLeaveOneOut(
-  seeds: GenreSeed[],
-  k = 5,
-  minAgreement = 0.6,
-  durationGuard: { videoId: string; durationS: number | null }[] = [],
-  familyOf: (genre: string) => string | null = genreFamily,
-): EvalSummary {
+
+/** Duration guard shared by both LOO harnesses (#99): absent from the
+ *  map = durations unknown = guard off for this row; an explicit null
+ *  duration is also kept (unknown, not out-of-band). Band: 90–480 s. */
+function evalDurationBand(
+  durationGuard: { videoId: string; durationS: number | null }[],
+): (id: string) => boolean {
   const guard = new Map(durationGuard.map((d) => [d.videoId, d.durationS]));
-  const inBand = (id: string): boolean => {
+  return (id: string): boolean => {
     const sec = guard.get(id);
-    // absent from the guard map = durations unknown = guard off for this
-    // row; an explicit null duration is also kept (unknown, not out-of-band)
     if (sec === undefined || sec === null) return true;
     return sec >= 90 && sec <= 480;
   };
-  const pop = seeds.filter(
-    (s) => familyOf(s.genre) !== null && inBand(s.videoId),
-  );
-  const summary: EvalSummary = {
-    evaluated: pop.length,
+}
+
+/** Fresh zeroed summary shared by both LOO harnesses (#99). */
+function newEvalSummary(evaluated: number): EvalSummary {
+  return {
+    evaluated,
     agree: 0,
     disagree: 0,
     refused: 0,
@@ -384,6 +383,34 @@ export function evalLeaveOneOut(
     ungatedAgreement: 0,
     rows: [],
   };
+}
+
+/** Closing ratios shared by both LOO harnesses (#99): gated agreement,
+ *  refusal share, ungated plurality agreement. Mutates + returns. */
+function closeEvalSummary(
+  s: EvalSummary,
+  popLen: number,
+  ungatedAgree: number,
+): EvalSummary {
+  const gated = s.agree + s.disagree;
+  s.agreement = gated > 0 ? s.agree / gated : 0;
+  s.refusal = popLen > 0 ? s.refused / popLen : 0;
+  s.ungatedAgreement = popLen > 0 ? ungatedAgree / popLen : 0;
+  return s;
+}
+
+export function evalLeaveOneOut(
+  seeds: GenreSeed[],
+  k = 5,
+  minAgreement = 0.6,
+  durationGuard: { videoId: string; durationS: number | null }[] = [],
+  familyOf: (genre: string) => string | null = genreFamily,
+): EvalSummary {
+  const inBand = evalDurationBand(durationGuard);
+  const pop = seeds.filter(
+    (s) => familyOf(s.genre) !== null && inBand(s.videoId),
+  );
+  const summary: EvalSummary = newEvalSummary(pop.length);
   let ungatedAgree = 0;
   for (let i = 0; i < pop.length; i++) {
     const held = pop[i]!;
@@ -421,11 +448,7 @@ export function evalLeaveOneOut(
       top2,
     });
   }
-  const gated = summary.agree + summary.disagree;
-  summary.agreement = gated > 0 ? summary.agree / gated : 0;
-  summary.refusal = pop.length > 0 ? summary.refused / pop.length : 0;
-  summary.ungatedAgreement = pop.length > 0 ? ungatedAgree / pop.length : 0;
-  return summary;
+  return closeEvalSummary(summary, pop.length, ungatedAgree);
 }
 
 /** Artist-disjoint LOO (Sturm's "horse" control, research review F2/0.2):
@@ -440,26 +463,12 @@ export function evalLeaveOneOutArtistDisjoint(
   minAgreement = 0.6,
   durationGuard: { videoId: string; durationS: number | null }[] = [],
 ): EvalSummary {
-  const guard = new Map(durationGuard.map((d) => [d.videoId, d.durationS]));
-  const inBand = (id: string): boolean => {
-    const sec = guard.get(id);
-    if (sec === undefined || sec === null) return true;
-    return sec >= 90 && sec <= 480;
-  };
+  const inBand = evalDurationBand(durationGuard);
   const pop = seeds.filter(
     (s) => genreFamily(s.genre) !== null && inBand(s.videoId),
   );
   const artistOf = (id: string): string => artists.get(id) ?? "";
-  const summary: EvalSummary = {
-    evaluated: pop.length,
-    agree: 0,
-    disagree: 0,
-    refused: 0,
-    agreement: 0,
-    refusal: 0,
-    ungatedAgreement: 0,
-    rows: [],
-  };
+  const summary: EvalSummary = newEvalSummary(pop.length);
   let ungatedAgree = 0;
   for (let i = 0; i < pop.length; i++) {
     const held = pop[i]!;
@@ -506,11 +515,7 @@ export function evalLeaveOneOutArtistDisjoint(
       top2,
     });
   }
-  const gated = summary.agree + summary.disagree;
-  summary.agreement = gated > 0 ? summary.agree / gated : 0;
-  summary.refusal = pop.length > 0 ? summary.refused / pop.length : 0;
-  summary.ungatedAgreement = pop.length > 0 ? ungatedAgree / pop.length : 0;
-  return summary;
+  return closeEvalSummary(summary, pop.length, ungatedAgree);
 }
 
 /**

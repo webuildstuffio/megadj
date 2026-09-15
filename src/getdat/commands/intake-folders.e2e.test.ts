@@ -20,7 +20,7 @@ afterAll(async () => {
 function makeWav(dir: string, name: string): string {
   mkdirSync(dir, { recursive: true });
   const p = join(dir, name);
-  Bun.spawnSync([
+  const proc = Bun.spawnSync([
     "ffmpeg",
     "-y",
     "-hide_banner",
@@ -36,6 +36,15 @@ function makeWav(dir: string, name: string): string {
     `title=${name}`,
     p,
   ]);
+  // Silent ffmpeg failure = the wav never exists = ingest registers
+  // nothing and the assertions read like an intake-folder bug. Fail
+  // loudly at the source instead (observed flake, Sep 15 2026: ffmpeg
+  // transient exit under parallel load).
+  if (proc.exitCode !== 0) {
+    throw new Error(
+      `ffmpeg failed (${proc.exitCode}) generating ${p}: ${proc.stderr.toString().slice(0, 400)}`,
+    );
+  }
   return p;
 }
 

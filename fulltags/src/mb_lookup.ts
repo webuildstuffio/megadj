@@ -14,6 +14,22 @@ export interface MbTruth {
 
 const mbCache = new Map<string, MbTruth | null>();
 
+/** One MB search-response recording row — the richer shape the
+ *  uncached enrichment path reads (tags included). Named interface
+ *  because Bun's transpiler mis-parses this nested-generic shape in an
+ *  `as { ... }` cast (Unexpected `>` at the `}>;` line). */
+interface MbTaggedRecording {
+  id?: string;
+  "artist-credit"?: Array<{
+    name?: string;
+    artist?: {
+      name?: string;
+      tags?: Array<{ name: string; count: number }>;
+    };
+  }>;
+  releases?: Array<{ title?: string; date?: string }>;
+}
+
 /** MusicBrainz recording lookup — fills missing artist/album/date (1 rps). */
 export async function mbRecording(
   artist: string | null,
@@ -25,6 +41,34 @@ export async function mbRecording(
   artistTags: string;
   mbid: string | null;
 }> {
+  const data = await mbFetchRecording(artist, title);
+  const wrapped = data as {
+    recordings?: MbTaggedRecording[] | null;
+  };
+  const rec = wrapped.recordings?.[0];
+  const credit = rec?.["artist-credit"]?.[0];
+  const tags = (credit?.artist?.tags ?? [])
+    .toSorted((a, b) => b.count - a.count)
+    .map((t) => t.name)
+    .slice(0, 3);
+  return {
+    artist: credit?.artist?.name ?? credit?.name ?? null,
+    album: rec?.releases?.[0]?.title ?? null,
+    date: rec?.releases?.[0]?.date ?? null,
+    artistTags: tags.join(","),
+    mbid: rec?.id ?? null,
+  };
+}
+
+/** The ONE MusicBrainz query+fetch block (#99): builds the Lucene query,
+ *  hits the ws/2 recording search with the UA header, degrades to null on
+ *  any non-OK/throw. `timeoutMs` bounds the cached variant (the uncached
+ *  enrichment path historically ran without an explicit signal). */
+async function mbFetchRecording(
+  artist: string | null,
+  title: string,
+  timeoutMs?: number,
+): Promise<{ recordings?: unknown } | null> {
   const q = artist
     ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
     : `recording:"${encodeURIComponent(title)}"`;
@@ -35,50 +79,15 @@ export async function mbRecording(
         headers: {
           "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
         },
+        ...(timeoutMs === undefined
+          ? {}
+          : { signal: AbortSignal.timeout(timeoutMs) }),
       },
     );
-    if (!res.ok)
-      return {
-        artist: null,
-        album: null,
-        date: null,
-        artistTags: "",
-        mbid: null,
-      };
-    const data = (await res.json()) as {
-      recordings?: {
-        id?: string;
-        "artist-credit"?: Array<{
-          name?: string;
-          artist?: {
-            name?: string;
-            tags?: Array<{ name: string; count: number }>;
-          };
-        }>;
-        releases?: Array<{ title?: string; date?: string }>;
-      }[];
-    };
-    const rec = data.recordings?.[0];
-    const credit = rec?.["artist-credit"]?.[0];
-    const tags = (credit?.artist?.tags ?? [])
-      .toSorted((a, b) => b.count - a.count)
-      .map((t) => t.name)
-      .slice(0, 3);
-    return {
-      artist: credit?.artist?.name ?? credit?.name ?? null,
-      album: rec?.releases?.[0]?.title ?? null,
-      date: rec?.releases?.[0]?.date ?? null,
-      artistTags: tags.join(","),
-      mbid: rec?.id ?? null,
-    };
+    if (!res.ok) return null;
+    return (await res.json()) as { recordings?: unknown };
   } catch {
-    return {
-      artist: null,
-      album: null,
-      date: null,
-      artistTags: "",
-      mbid: null,
-    };
+    return null;
   }
 }
 
@@ -93,22 +102,12 @@ export async function mbLookupCached(
 ): Promise<MbTruth | null> {
   const key = `${artist ?? ""}::${title.toLowerCase()}`;
   if (mbCache.has(key)) return mbCache.get(key) ?? null;
-  const q = artist
-    ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
-    : `recording:"${encodeURIComponent(title)}"`;
   try {
-    const res = await fetch(
-      `https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`,
-      {
-        headers: {
-          "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
-        },
-        signal: AbortSignal.timeout(8000),
-      },
-    );
+    const data = (await mbFetchRecording(artist, title, 8000)) as {
+      recordings?: MbRecording[];
+    } | null;
     let out: MbTruth | null = null;
-    if (res.ok) {
-      const data = (await res.json()) as { recordings?: MbRecording[] };
+    if (data) {
       const rec = data.recordings?.[0];
       if (rec) out = recordingToTruth(rec);
     }
