@@ -236,13 +236,16 @@ towers on demand.
 
 **Queued (in dependency order):**
 
-0. **Tier-0 diagnostics** (S, research review §5) — label-error clustering
-   by artist/imprint, artist-overlap rate in top-5, hubness histogram,
-   confusion matrix + top-2 in `genre --eval`. Decides everything below.
-1. `genre --refold` (S) — mechanical pass; absorbs the escape fixes at the
-   data layer, not just the read layer. **Now includes the plain-`edm`
-   umbrella arbitration** (keep hardtekk + all Tier-1 sub-genre labels; only
-   scoring-family arbitration changes).
+0. ~~**Tier-0 diagnostics**~~ **✅ SHIPPED + RUN LIVE 2026-09-15**
+   ([verdicts](tier0-diagnostics-2026-09-15.md)): label noise RANDOM,
+   no artist leakage, hub tail confirmed, `edm↔house` = the error
+   block, probe loses to kNN.
+1. ~~`genre --refold`~~ **✅ SHIPPED + APPLIED LIVE 2026-09-15** — data
+   half (escape repair, multi-label split, casing collapse) + scoring
+   half (plain-`edm` umbrella arbitration via `scoringFamily`): gated
+   LOO 61.7% → **69.2%**, ship gate PASS. The demote-and-flag pass
+   (`genre --flag`) followed same day: 96/2982 disputed labels flagged
+   (metadata only, excluded from seeding).
 2. Ranked secondaries via head top-3 (S–M) — the §2 pipeline; runs on
    cached embeddings in minutes, no rescan
 3. LLM residue pass (S, one-shot) — only for labels the first two can't
@@ -251,9 +254,13 @@ towers on demand.
    confirmations — harness-only, never a runtime ladder dependency**
 4. ~~`genre --eval` harness as a command~~ **SHIPPED 2026-09-14** —
    `megadj genre --eval` runs the LOO harness over the live DB (gated
-   62.6% vs the ≥65% post-refold target; exit code 1 below target so
-   scripts fail loudly). The standing hygiene gate. **Queued extensions:
-   `--probe`, `--artist-disjoint`, confusion matrix + top-2.**
+   61.7% baseline / 69.2% arbitration; the exit gate judges the CURRENT
+   readout — the refold arm when armed — and exits 0 at ≥65%, exit 1
+   below so scripts fail loudly). The standing hygiene gate.
+   ~~Queued extensions: `--probe`, `--artist-disjoint`, confusion
+   matrix + top-2~~ **ALL SHIPPED 2026-09-15** — one command:
+   `genre --eval --diagnostics --artist-disjoint --probe --json`
+   (verdicts: [tier0-diagnostics-2026-09-15](tier0-diagnostics-2026-09-15.md)).
 5. **Multi-source vote ladder + Bandcamp arm** (M) — the §5c disputed pass
    generalized to a weighted vote across RB / ingest pools / SC / Beatport
    / Bandcamp (direct page fetch; yt-dlp's BC extractor is broken upstream)

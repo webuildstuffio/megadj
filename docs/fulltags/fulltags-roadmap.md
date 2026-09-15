@@ -1,6 +1,20 @@
-# FullTags — Prioritized Roadmap (rev 6.9)
+# FullTags — Prioritized Roadmap (rev 7.0)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 7.0, 2026-09-15: **the Sep 15 genre quality sprint closed and the
+roadmap re-ranked by its verdicts.** Shipped in one day: Tier-0
+diagnostics (plan re-ranked), whitening+CSLS on all retrieval surfaces,
+the `edm` umbrella refold (+7.4 LOO, gate now judged on the arbitration
+arm), and the demote-and-flag pass (96/2982 disputed, seeding-excluded,
+self-healing). Key learnings (audit §5b.4): the biggest error block was
+a scoring-policy bug, not bad labels; unanimity keeps the dispute
+census reviewable; label hygiene cleaned provenance, not the score.
+Architecture walkthrough:
+[genre-pipeline.md](genre-pipeline.md). Next highest-value queue: #61
+(Music-placeholder unstrand), #62 (cluster-proposed labels — the only
+fix that attacks the remaining `house→techno` mass), #63 (ranked
+secondaries), then the multi-source vote ladder._
 
 _Rev 6.9, 2026-09-15: **demote-and-flag pass shipped and applied live**
 (genre-audit §5b.3 step 2): `megadj genre --flag` flags labels that
@@ -331,6 +345,20 @@ the OpenKeyScan SSOT decision (#3).
 > disagreements), not the triangle. Label noise being RANDOM also
 > upgrades P95/P96 (active-labelling + imprint prior): no systematic
 > corruption to hunt, so refold effort converts to points directly.
+>
+> **2026-09-15 late update (post-flag re-rank — issues #61–#65):** the
+> refold + flag work closed the scoring-policy bug AND verified the
+> remaining error mass is real sub-genre ambiguity (`house→techno` 100
+> disagreements; umbrella block down to 250/78 and now abstaining).
+> Therefore the next genre queue is, in order: **#61 Music-placeholder
+> unstrand** (S, mechanical — 154 rows invisible to BOTH seeds and
+> inference), **#62 cluster-proposed labels** (M, the ONLY fix that
+> attacks the remaining error mass), **#63 ranked secondaries via head
+> top-3** (S–M, runs on cached embeddings), **#64 human-review UI for
+> the 96 disputed rows** (S, closes the flag loop), **#65 LLM residue
+> pass** (S, one-shot, for the ~6.6% unmapped tail). The multi-source
+> vote ladder + Bandcamp arm stays M and follows once the label column
+> is clean enough to vote over.
 
 - **Structure cues (all-in-one-infer v3 / -mlx)** — M–L. Still the 10x
   item; #2's beat/downbeat ledger (DB-side, not tags) is its anchor, so

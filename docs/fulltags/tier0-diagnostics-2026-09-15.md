@@ -1,5 +1,9 @@
 # Tier-0 diagnostics — first live run (2026-09-15)
 
+**Status:** ✅ COMPLETE — implemented, run live, and re-run post-refold +
+post-flag the same day; the plan re-ranked by the verdicts (see §0 and
+the POST-REFOLD + POST-FLAG section below).
+
 The [research review](embedding-research-2026-09-14.md) §5 ranked the Tier-0
 diagnostics first ("they decide whether the rest of this page is worth 20
 points or 5"). They are now **implemented and run live** (n = 2982, the full
@@ -63,7 +67,8 @@ half is fully applied (3458/3458 canonical, 0 casing twins). §0 verdicts
 below were measured pre-refold and remain valid for the baseline
 population; the disagreement mass has since shrunk by ~40% (896 → 650
 disagreements), so re-run this battery before acting on marginal
-readouts (the probe's gate in particular).
+readouts (the probe's gate in particular). **→ That re-run HAPPENED
+same-day, post-flag: see the table at the bottom of this file.**
 
 Engine: `src/fulltags/genre-diagnostics.ts` (pure),
 `src/fulltags/linear-probe.ts` (pure, deterministic zero-init

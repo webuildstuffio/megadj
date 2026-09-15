@@ -1,6 +1,9 @@
 # FullTags — Genre Audit & Inclusion Policy (MegaSet §genre consumer)
 
 **Status:** 📚 REFERENCE — current genre inclusion and source-precedence policy.
+**Sep 15 pipeline walkthrough:** [genre-pipeline.md](genre-pipeline.md) —
+how a track's genre actually flows (write points → hygiene → inference →
+scoring → gate), with invariants and live state.
 
 v3 · 2026-09-14 · **Audit** → [PRD](../megaset/01-prd.md) · [Benchmarks](../megaset/04-sequencing-benchmarks.md) · [Analysis](../megaset/03-competitive-analysis.md) · [Taxonomy sources & family map](genre-taxonomy-sources.md)
 
@@ -457,6 +460,49 @@ Do NOT broaden at intake (`deep house → house` at the write point) — that
 destroys the display signal (measured 3–27% survival band, §2) that humans
 still want, and refold can always broaden later; it can't recover what
 intake threw away.
+
+### 5b.4 What the Sep 15 hygiene work taught us (learnings)
+
+The refold → flag → Tier-0 re-run cycle, executed in one day, produced
+measured lessons that shape everything queued next:
+
+1. **The biggest "error" was a policy bug, not a data bug.** The
+   confusion matrix's largest block (`edm→house` 250 + `house→edm` 78)
+   was never a mislabelling problem — it was plain-`edm` umbrella rows
+   being forced to score against sub-genre families. Arbitrating the
+   umbrella (abstain, don't reclassify) bought +7.4 LOO points in one
+   pass — more than any relabelling could have. *Lesson: re-score the
+   task before relabelling the data.*
+2. **Unanimity is the right evidence bar for disputes.** Requiring
+   agreement 1.0 (not just a gated majority) kept the flag count at a
+   reviewable 96/2982 (3.2%) — the near-miss majority votes (0.8–0.99)
+   flagged ZERO extra rows in testing but would have inflated the
+   census with sub-genre ambiguity, which is not a label error.
+3. **Flagging beats rewriting for medium-trust labels.** Rewriting the
+   96 disputed labels would have destroyed the evidence of WHY they
+   were flagged and closed the human-review door. Flagged rows now
+   stop seeding votes (the actual harm), and the pass self-heals: fix
+   a label, re-run, the flag clears.
+4. **Label hygiene moved nothing on its own — and that's a verdict.**
+   Post-refold+flag, baseline agreement held at 61.7%, label-noise
+   stayed RANDOM (top-10 artist share 8.6%), hubness was byte-identical
+   (vector geometry, not labels). The hygiene passes cleaned the
+   data's *provenance and future* (canonical labels, clean seeding),
+   not the current score. The remaining error mass (`house→techno` 100
+   disagreements) is genuine sub-genre ambiguity → only the
+   cluster-proposed-labels fix (§5b.3.5) attacks it.
+5. **Gates must judge the readout they name.** The first `--eval
+   --refold` gate judged the baseline arm and reported "below target"
+   while the arbitration arm passed — a gate-semantics bug caught in
+   verification. The gate now judges the refold arm when armed
+   (regression-pinned). *Lesson: a metric named "post-X" must be
+   computed post-X.*
+6. **Dry-by-default with reassess-everything semantics is the pattern
+   that made both passes idempotent.** Each run recomputes proposals
+   from the full population (not a delta log), so re-runs converge to
+   zero changes and stale fixes self-heal. Both passes verified
+   idempotent on the live DB (refold 3458/3458 canonical; flag stable
+   at 96 on re-run).
 
 **Sub-genre handling**: ranked secondaries (§5b.2), not more primaries.
 `Deep House/Indie Dance/Nu Disco` → primary `deep house` + secondaries

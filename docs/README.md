@@ -39,6 +39,8 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   and migration ownership.
 - [Surface parity](surface-parity.md) — live interface contract and exemptions.
 - [Agent playbook](agent-playbook.md) — failure history and reusable lessons.
+- [Source-layout refactor receipt](archive/src-layout-refactor.md) — executed
+  incident analysis companion.
 
 ## Product documentation
 
@@ -75,6 +77,10 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   (+7.4 pts), ≥65% post-refold target PASS (§5b.3 step 1). Demote-and-flag
   (§5b.3 step 2) shipped: 96/2982 disputed labels flagged + excluded from
   seeding; Tier-0 battery re-ran clean post-flag.
+- [Genre pipeline architecture (Sep 15)](fulltags/genre-pipeline.md) —
+  how the genre system processes a track end to end: write points,
+  hygiene passes, inference discipline, scoring read path, the ≥65%
+  gate, invariants, and live state.
 - [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and
   cue program.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision
@@ -146,4 +152,4 @@ Archived files are historical evidence, not current instructions:
 - [Executed roadmap proposal](archive/roadmap-proposal.md)
 - [Codebase quality snapshot](archive/codebase-quality-report.md)
 - [Source-layout refactor receipt](archive/src-layout-refactor.md) — moved
-  2026-09-14; a one-line redirect stub remains at the old path.
+  2026-09-14; old-path stub removed 2026-09-15, reference the archive path directly.
