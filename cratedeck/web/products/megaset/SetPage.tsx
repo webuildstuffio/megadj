@@ -4,7 +4,7 @@
 // nav strip's fourth button, same as CrateDeck/GetDat/FullTags. One
 // canvas, one flow (build → review → export), so the product has a
 // single tab row and the panel fills it.
-import { SetBuildPanel } from "../fulltags/SetBuildPanel";
+import { SetBuildPanel } from "../fulltags/MegasetPanel";
 import { PRODUCT_TABS, ProductIntro } from "../shared";
 
 const TABS = PRODUCT_TABS.set;

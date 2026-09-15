@@ -17,7 +17,7 @@ import type { SetBuildPayload } from "../../shared/types";
 
 const noop = () => undefined;
 const source = readFileSync(
-  join(import.meta.dir, "../products/fulltags/SetBuildPanel.tsx"),
+  join(import.meta.dir, "../products/fulltags/MegasetPanel.tsx"),
   "utf8",
 );
 const similarSource = readFileSync(
@@ -29,7 +29,7 @@ const pageSource = readFileSync(
   "utf8",
 );
 const setPageSource = readFileSync(
-  join(import.meta.dir, "../products/set/SetPage.tsx"),
+  join(import.meta.dir, "../products/megaset/SetPage.tsx"),
   "utf8",
 );
 const routerSource = readFileSync(
