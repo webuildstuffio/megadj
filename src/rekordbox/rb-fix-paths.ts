@@ -19,7 +19,6 @@
  *   - corrupt/missing DB is a visible failure, never a fake pass
  */
 
-import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
 import { basename, join } from "node:path";
 import { commandLog } from "../progress";
@@ -38,6 +37,7 @@ import {
   lastJsonLine,
   parseJsonBoundary,
   printResult,
+  rbPythonRun,
 } from "./rb-command-kit.js";
 import { masterDbPath, normalizeMount } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -287,17 +287,10 @@ function parseRewriteResult(raw: string): number {
 /** Read (ID, FolderPath) for every content row via pyrekordbox. Shared
  *  with rb-unmatched (read-only reuse — one DB reader, two consumers). */
 export function readRows(dbPath: string): [string, string][] {
-  const r = spawnSync(
-    "uv",
-    ["run", "--with", "pyrekordbox", "python", "-c", PY, dbPath],
-    {
-      encoding: "utf8",
-      timeout: 120_000,
-    },
-  );
+  const r = rbPythonRun({ script: PY, args: [dbPath], timeoutMs: 120_000 });
   if (r.status !== 0 || !r.stdout) {
     throw new Error(
-      `pyrekordbox read failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(0, 300)}`,
+      `pyrekordbox read failed (exit ${String(r.status)}): ${r.stderr.slice(0, 300)}`,
     );
   }
   return parseReadRows(lastJsonLine(r.stdout));
@@ -549,13 +542,13 @@ async function rewriteRows(
 ): Promise<number> {
   const payload = JSON.stringify(rows.map((r) => [r.id, r.fixPath]));
   const script = rewriteScript();
-  const r = spawnSync(
-    "uv",
-    ["run", "--with", "pyrekordbox", "python", "-c", script, dbPath, payload],
-    { encoding: "utf8", timeout: 180_000 },
-  );
+  const r = rbPythonRun({
+    script,
+    args: [dbPath, payload],
+    timeoutMs: 180_000,
+  });
   if (r.status !== 0) {
-    const detail = (r.stderr ?? "").slice(0, 300);
+    const detail = r.stderr.slice(0, 300);
     log(`rb-fix-paths: rewrite failed: ${detail}`);
     throw new Error(
       `pyrekordbox rewrite failed (exit ${String(r.status)}): ${detail}`,
