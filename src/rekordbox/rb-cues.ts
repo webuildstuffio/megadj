@@ -32,6 +32,7 @@ import {
   isStringNumberPair,
   isStringPair,
   parseJsonBoundary,
+  RB_CLOSED_PY_GUARD,
   rbCommandRuntime,
   type RbCommandResult,
   type RbCommandRuntime,
@@ -268,7 +269,7 @@ if apply:
     try:
         for r in rows:
             r.Kind = 1
-        if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:
+        ${RB_CLOSED_PY_GUARD}
             raise RuntimeError("rekordbox reopened before cue commit")
         db.session.commit()
         out["written_ids"] = [str(r.ID) for r in rows]

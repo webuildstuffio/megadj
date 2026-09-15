@@ -25,6 +25,7 @@ import {
   isStringPair,
   isStringTriple,
   parseJsonBoundary,
+  RB_CLOSED_PY_GUARD,
   rbCommandRuntime,
   type RbCommandResult,
   type RbCommandRuntime,
@@ -317,7 +318,7 @@ if apply:
     try:
         for c, _, comment in pending:
             c.Commnt = comment
-        if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:
+        ${RB_CLOSED_PY_GUARD}
             raise RuntimeError("rekordbox reopened before comment commit")
         db.session.commit()
         out["writes"] = [[cid, comment] for _, cid, comment in pending]

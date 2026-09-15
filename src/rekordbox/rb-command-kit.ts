@@ -117,6 +117,14 @@ export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** The pre-commit rekordbox re-check, interpolated into every generated
+ *  python script immediately before `db.session.commit()`. Python-side
+ *  twin of `assertRbClosed` (guard.ts): the TS gate runs at command start,
+ *  this one shrinks the check-to-write window to ~nothing. ONE constant so
+ *  the two gates can never drift apart (process list, flags, semantics). */
+export const RB_CLOSED_PY_GUARD =
+  'if subprocess.run(["pgrep", "-x", "rekordbox"], capture_output=True).returncode == 0:';
+
 /** Compensating restore: put the backup family back after a post-backup
  *  failure. Returns the failure detail either way — a failed RESTORE is
  *  surfaced as "restoring backup … also failed", never swallowed. Both
