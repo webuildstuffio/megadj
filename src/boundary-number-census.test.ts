@@ -14,7 +14,7 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "The option gate rejects non-finite values, while the undefined branch passes undefined rather than the NaN sentinel to ingest.",
   "cratedeck/src/bench.ts::biggestFiles::Number(st.size)":
     "Bun stat size is trusted filesystem metadata and practical drive sizes are safe integers.",
-  "cratedeck/web/products/fulltags/MegasetPanel.tsx::SetBuildPanel::Number(minutesInput)":
+  "cratedeck/web/products/fulltags/MegasetPanel.tsx::MegasetPanel::Number(minutesInput)":
     "clampMinutes finite-checks the converted form value and supplies the default.",
   "cratedeck/web/ui/JobsDock.tsx::phaseLabel::Number(m[1])":
     "m[1] is a digits-only phase regex capture and array lookup has an explicit fallback.",
@@ -72,7 +72,9 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     audited: 44,
     guarded: 26,
     sanctioned: 18,
-    digest: "7f1786bb521f5ac72dcc5ad63ab1231a465be20a1dee2921bafc0e196ce48617",
+    // Sep 15 evening: megaset rename churn — the sanctioned site moved
+    // files (setbuild.*→megaset.*), shifting the digest; counts unchanged.
+    digest: "a9ffed391b4d409f9cbfefef4fd967bf95b40d502d54c6218ffa2591c27ad369",
   });
 });
 

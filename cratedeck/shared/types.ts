@@ -742,40 +742,40 @@ export interface StoredNote {
   dismissed_at: number | null;
 }
 
-// ---- set-builder: moved entirely to shared/setbuild.ts (the
+// ---- set-builder: moved entirely to shared/megaset.ts (the
 // set-builder wire seam — file-length split; this file had grown to the
 // 900-line guard). Re-exported here so existing `from "./types"`
 // consumers keep working with zero drift risk (re-export, never a twin).
 export type {
-  SetBuildStep,
-  SetBuildResult,
-  SetBuildPayload,
-  SetPresetDef,
-  SetPresetId,
-} from "./setbuild";
+  MegasetStep,
+  MegasetResult,
+  MegasetPayload,
+  MegasetPresetDef,
+  MegasetPresetId,
+} from "./megaset";
 export {
-  SET_PRESET_DEFS,
-  SET_PRESET_IDS,
-  DEFAULT_SET_PRESET,
-  SET_MINUTES_MIN,
-  SET_MINUTES_MAX,
-  SET_MINUTES_DEFAULT,
-  SET_TRACK_MINUTES_MIN,
-  SET_TRACK_MINUTES_MAX,
-  SET_TEMPO_PERFECT,
-  SET_TEMPO_WINDOW,
-  SET_TRANSITION_WEIGHTS,
-  SET_POOL_MIN,
-  SET_POOL_MAX,
-  SET_POOL_UNLIMITED,
-  SET_BEAM_POOL_MAX,
-  SET_BEAM_WIDTH,
-  SET_EXCLUDED_PREVIEW_MAX,
-  isSetSearchOverride,
+  MEGASET_PRESET_DEFS,
+  MEGASET_PRESET_IDS,
+  DEFAULT_MEGASET_PRESET,
+  MEGASET_MINUTES_MIN,
+  MEGASET_MINUTES_MAX,
+  MEGASET_MINUTES_DEFAULT,
+  MEGASET_TRACK_MINUTES_MIN,
+  MEGASET_TRACK_MINUTES_MAX,
+  MEGASET_TEMPO_PERFECT,
+  MEGASET_TEMPO_WINDOW,
+  MEGASET_TRANSITION_WEIGHTS,
+  MEGASET_POOL_MIN,
+  MEGASET_POOL_MAX,
+  MEGASET_POOL_UNLIMITED,
+  MEGASET_BEAM_POOL_MAX,
+  MEGASET_BEAM_WIDTH,
+  MEGASET_EXCLUDED_PREVIEW_MAX,
+  isMegasetSearchOverride,
   isShelfOffline,
   type SetSearchOverride,
-  clampSetPool,
-} from "./setbuild";
+  clampMegasetPool,
+} from "./megaset";
 
 // ---- benchmarks: one benchmark job's row (the /api/drives/:id/benchmarks
 // response rows). Defined here so HealthTab/DrivePage derive from the

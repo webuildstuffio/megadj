@@ -1,12 +1,12 @@
-// shared/setbuild.ts — the set-builder wire seam.
+// shared/megaset.ts — the set-builder wire seam.
 //
 // Split from shared/types.ts (file-length guard) following the same
 // leaf-seam pattern as archive_types.ts / report_types.ts: the HTTP
-// envelope (archive_routes.ts), the pure engine (src/setbuild.ts) and
+// envelope (archive_routes.ts), the pure engine (src/megaset.ts) and
 // the UI panel (web SimilarTab) all derive from THIS file — never a
 // local twin (a local duplicate drifted once and crashed the render).
 
-export interface SetBuildStep {
+export interface MegasetStep {
   videoId: string;
   title: string | null;
   artist: string | null;
@@ -19,7 +19,7 @@ export interface SetBuildStep {
   transition: number | null;
 }
 
-export interface SetBuildResult {
+export interface MegasetResult {
   preset: string;
   /** Requested target duration. This is an intent, not the built runtime. */
   minutes: number;
@@ -29,12 +29,12 @@ export interface SetBuildResult {
   shortfallMinutes: number;
   /** True when the selected chain meets or exceeds the requested target. */
   complete: boolean;
-  steps: SetBuildStep[];
+  steps: MegasetStep[];
   /** candidates excluded from the chain, with the reason — the honest
    * "why isn't my track in here" list */
   excluded: { videoId: string; title: string | null; reason: string }[];
   /** Which sequencer path ran: "greedy" or "beam". Beam activates
-   * automatically for pools below SET_BEAM_POOL_MAX (the measured E7
+   * automatically for pools below MEGASET_BEAM_POOL_MAX (the measured E7
    * sparse-pool failure zone); surfaced so the deep search is visible,
    * never a silent algorithm switch. */
   search: "greedy" | "beam";
@@ -46,12 +46,12 @@ export interface SetBuildResult {
  *  exist) — not that the library is small or unanalyzed. Derived, never
  *  a server flag: the client classifies from the same census numbers the
  *  engine measured, so a drifted wire field cannot lie twice. The steps
- *  param only needs a length — full SetBuildResult and bare test
+ *  param only needs a length — full MegasetResult and bare test
  *  doubles both satisfy it structurally. */
 export function isShelfOffline(
   result: { steps: readonly unknown[] },
   census: Pick<
-    SetBuildPayload,
+    MegasetPayload,
     "source_total" | "pool" | "missing_files" | "relocated_files"
   >,
 ): boolean {
@@ -63,8 +63,8 @@ export function isShelfOffline(
   );
 }
 
-/** The GET /api/archive/setbuild response envelope. */
-export interface SetBuildPayload extends SetBuildResult {
+/** The GET /api/archive/megaset response envelope. */
+export interface MegasetPayload extends MegasetResult {
   available: boolean;
   /** Downloaded DB rows inspected before filesystem validation. */
   source_total: number;
@@ -92,7 +92,7 @@ export interface SetBuildPayload extends SetBuildResult {
 }
 
 /** Set-builder energy-arc presets — the ONE registry all three surfaces
- *  derive from: the engine (src/setbuild.ts) scores against these
+ *  derive from: the engine (src/megaset.ts) scores against these
  *  envelopes, the route validates `?preset=` against these ids, and the
  *  UI renders the picker + descriptions from this table. Envelopes:
  *  arousal on the 1–9 mood scale, danceability on 0–1; [start, end] =
@@ -107,7 +107,7 @@ interface SetPresetShape {
   dance: readonly [number, number];
 }
 
-export const SET_PRESET_DEFS = [
+export const MEGASET_PRESET_DEFS = [
   {
     id: "warmup",
     label: "Warm-up",
@@ -131,35 +131,35 @@ export const SET_PRESET_DEFS = [
   },
 ] as const satisfies readonly SetPresetShape[];
 
-export type SetPresetDef = (typeof SET_PRESET_DEFS)[number];
-export type SetPresetId = SetPresetDef["id"];
+export type MegasetPresetDef = (typeof MEGASET_PRESET_DEFS)[number];
+export type MegasetPresetId = MegasetPresetDef["id"];
 
 /** The `?preset=` guard rail: the engine clamps minutes, but an unknown
  *  preset id is a caller bug — surfaced, never silently re-scored as
  *  peak-time (the old `SET_PRESETS[bad] ?? peak` fallback hid it). */
-export const SET_PRESET_IDS: SetPresetId[] = SET_PRESET_DEFS.map((p) => p.id);
+export const MEGASET_PRESET_IDS: MegasetPresetId[] = MEGASET_PRESET_DEFS.map((p) => p.id);
 
-export const DEFAULT_SET_PRESET: SetPresetId = "peak";
+export const DEFAULT_MEGASET_PRESET: MegasetPresetId = "peak";
 
-export const SET_MINUTES_MIN = 10;
-export const SET_MINUTES_MAX = 240;
-export const SET_MINUTES_DEFAULT = 60;
+export const MEGASET_MINUTES_MIN = 10;
+export const MEGASET_MINUTES_MAX = 240;
+export const MEGASET_MINUTES_DEFAULT = 60;
 /** Ignore one-shots, loops and preview fragments: they are useful archive
  * assets, but they are not standalone tracks in a DJ set proposal. */
-export const SET_TRACK_MINUTES_MIN = 1;
+export const MEGASET_TRACK_MINUTES_MIN = 1;
 /** Individual DJ tracks longer than this are continuous mixes, not one
  * proposal slot. Kept beside the other set-builder limits for all surfaces. */
-export const SET_TRACK_MINUTES_MAX = 15;
+export const MEGASET_TRACK_MINUTES_MAX = 15;
 
 /** Tempo-mixability curve (bpmScore): 1.0 within ±2%, linearly down to 0
  *  at ±6% — the classic DJ mixability window. Exported so every surface
  *  quotes the engine's real numbers, never a hand-copied twin. */
-export const SET_TEMPO_PERFECT = 0.02;
-export const SET_TEMPO_WINDOW = 0.06;
+export const MEGASET_TEMPO_PERFECT = 0.02;
+export const MEGASET_TEMPO_WINDOW = 0.06;
 
 /** Transition score weights: tempo + key are the mixable core, arc fit is
  *  the soft bonus. Exported for the surfaces' scoring-evidence panels. */
-export const SET_TRANSITION_WEIGHTS = {
+export const MEGASET_TRANSITION_WEIGHTS = {
   tempo: 0.45,
   key: 0.3,
   arcFit: 0.25,
@@ -168,28 +168,28 @@ export const SET_TRANSITION_WEIGHTS = {
 /** An optional candidate-pool cap (`?limit=`), shared by HTTP, CLI and MCP.
  * Omission means the whole downloaded DB census; an explicit value remains
  * bounded so a typo cannot trigger unbounded per-file TKEY reads. */
-export const SET_POOL_MIN = 1;
-export const SET_POOL_MAX = 1000;
+export const MEGASET_POOL_MIN = 1;
+export const MEGASET_POOL_MAX = 1000;
 /** Sentinel for an absent limit: inspect the whole downloaded DB census. */
-export const SET_POOL_UNLIMITED = 0;
+export const MEGASET_POOL_UNLIMITED = 0;
 
 /** Beam-search activation threshold: pools BELOW this size run a beam
- * continuation (width SET_BEAM_WIDTH) instead of pure greedy — the
+ * continuation (width MEGASET_BEAM_WIDTH) instead of pure greedy — the
  * measured E7 result (docs/set/04-sequencing-benchmarks.md): sparse
  * pools dead-end greedy ~59% short of the best chain and beam recovers it
  * at ~0 ms. Big pools keep greedy (E2/E3: nothing to gain there). */
-export const SET_BEAM_POOL_MAX = 250;
+export const MEGASET_BEAM_POOL_MAX = 250;
 /** Beam width. Kept beside the threshold so the engine and every UX
  * surface quote the same "deep search" contract, never a hand-copied twin. */
-export const SET_BEAM_WIDTH = 8;
+export const MEGASET_BEAM_WIDTH = 8;
 
 /** The excluded-reasons preview cap on the wire (`excluded[]`), shared by
  * the HTTP route, the CLI spoke and the web panel; `excluded_total` always
  * carries the full count. One constant so every surface says "first N". */
-export const SET_EXCLUDED_PREVIEW_MAX = 40;
+export const MEGASET_EXCLUDED_PREVIEW_MAX = 40;
 
 /** A forced sequencer strategy (the A/B-compare override). */
-export type SetSearchOverride = SetBuildResult["search"];
+export type SetSearchOverride = MegasetResult["search"];
 
 /** Classify a raw `?search=` / `--search` / MCP `search` value: only the
  * exact strategy names override the automatic pool-size pick; anything
@@ -198,15 +198,15 @@ export type SetSearchOverride = SetBuildResult["search"];
  * unlike preset, which IS a contract and 400s); stricter CLI/MCP callers
  * pre-check with this predicate so a typo'd A/B compare fails loudly
  * instead of silently comparing auto-vs-forced. */
-export const isSetSearchOverride = (
+export const isMegasetSearchOverride = (
   raw: string | null | undefined,
 ): raw is SetSearchOverride => raw === "greedy" || raw === "beam";
 
-export function clampSetPool(raw: number | null | undefined): number {
+export function clampMegasetPool(raw: number | null | undefined): number {
   // Number(null) is 0, NOT NaN — null/undefined must be checked before
   // the coercion or an absent param clamps to 1 instead of the default.
-  if (raw === null || raw === undefined) return SET_POOL_UNLIMITED;
+  if (raw === null || raw === undefined) return MEGASET_POOL_UNLIMITED;
   const n = typeof raw === "number" ? raw : Number(raw);
-  if (!Number.isFinite(n)) return SET_POOL_UNLIMITED;
-  return Math.min(SET_POOL_MAX, Math.max(SET_POOL_MIN, Math.round(n)));
+  if (!Number.isFinite(n)) return MEGASET_POOL_UNLIMITED;
+  return Math.min(MEGASET_POOL_MAX, Math.max(MEGASET_POOL_MIN, Math.round(n)));
 }

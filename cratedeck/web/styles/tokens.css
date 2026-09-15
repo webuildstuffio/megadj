@@ -135,7 +135,7 @@ body:has(.app[data-prod="fleet"]) {
 }
 /* Set's own room lighting: warm booth amber wash — "the library gets
  * played" reads as a different time of day, not a different app. */
-body:has(.app[data-prod="set"]) {
+body:has(.app[data-prod="megaset"]) {
   background:
     radial-gradient(
       1100px 460px at 24% -12%,

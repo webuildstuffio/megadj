@@ -360,7 +360,7 @@ export async function runMaintenanceCommand(
         return;
       }
       // set-builder chain → master-DB playlist. The write-side twin of
-      // `megadj setbuild`: NO new content rows, only playlist + links to
+      // `megadj megaset`: NO new content rows, only playlist + links to
       // rows the fullpush pipeline already imported (basename match).
       // Same gates as rb-import: dated backup, rekordbox-quit gate,
       // dry-run default, post-verify.

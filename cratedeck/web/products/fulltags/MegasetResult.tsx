@@ -1,10 +1,10 @@
 import {
-  SET_PRESET_DEFS,
+  MEGASET_PRESET_DEFS,
   isShelfOffline,
-  type SetBuildPayload,
+  type MegasetPayload,
 } from "../../../shared/types";
 
-export function SetBuilderResult(props: { data: SetBuildPayload }) {
+export function MegasetResult(props: { data: MegasetPayload }) {
   const { data } = props;
   const empty = data.pool === 0;
   // The all-missing signature = the shelf volume is offline (every DB
@@ -14,7 +14,9 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
   // merely on a sleeping drive.
   const shelfOffline = !data.complete && isShelfOffline(data, data);
   const tone = data.complete ? "ok" : shelfOffline ? "stale" : "warn";
-  const journey = SET_PRESET_DEFS.find((preset) => preset.id === data.preset);
+  const journey = MEGASET_PRESET_DEFS.find(
+    (preset) => preset.id === data.preset,
+  );
   const journeyLabel = journey?.label ?? data.preset;
   const libraryNotes = [
     data.missing_files > 0 && !shelfOffline
@@ -34,12 +36,12 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
 
   return (
     <section
-      class={`setbuild-result ${tone}`}
-      aria-labelledby="setbuild-result-title"
+      class={`megaset-result ${tone}`}
+      aria-labelledby="megaset-result-title"
       aria-live="polite"
     >
-      <div class="setbuild-result-head">
-        <span class="setbuild-result-kicker">
+      <div class="megaset-result-head">
+        <span class="megaset-result-kicker">
           {empty
             ? "Library needs attention"
             : data.complete
@@ -48,7 +50,7 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
                 ? "Shelf not mounted"
                 : "More compatible tracks needed"}
         </span>
-        <h4 id="setbuild-result-title">
+        <h4 id="megaset-result-title">
           {empty
             ? "No playable set could be built"
             : shelfOffline
@@ -68,7 +70,7 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
         </p>
       </div>
 
-      <dl class="setbuild-result-metrics" aria-label="Set draft summary">
+      <dl class="megaset-result-metrics" aria-label="Set draft summary">
         <div>
           <dt>Duration</dt>
           <dd>
@@ -92,12 +94,12 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
         </div>
       </dl>
 
-      <div class="setbuild-source-summary">
-        <div class="setbuild-source-head">
+      <div class="megaset-source-summary">
+        <div class="megaset-source-head">
           <strong>What FullTags checked</strong>
           <span>read-only · nothing written</span>
         </div>
-        <div class="setbuild-source-grid">
+        <div class="megaset-source-grid">
           <div>
             <span>Archive database</span>
             <strong>{data.source_total.toLocaleString()} rows</strong>
@@ -140,12 +142,12 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
           </div>
         </div>
         {libraryNotes.length > 0 && (
-          <p class="setbuild-library-notes">
+          <p class="megaset-library-notes">
             Library cleanup: {libraryNotes.join(" · ")}.
           </p>
         )}
         {shelfOffline && (
-          <p class="setbuild-library-notes">
+          <p class="megaset-library-notes">
             Shelf check: {data.missing_files.toLocaleString()} of{" "}
             {data.source_total.toLocaleString()} downloaded paths were
             unreadable during this build.

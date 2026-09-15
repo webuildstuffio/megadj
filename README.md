@@ -28,7 +28,7 @@ download    perfect       propose      sync &       play on
 megadj sync                    # 🎧 pull new music
 megadj fetch && megadj audit   # 🏷️ perfect the metadata, then verify it
 megadj beats && megadj mood    # 🎼 beats + mood ledgers
-megadj setbuild --preset peak  # 🎚️ propose a measured mix
+megadj megaset --preset peak  # 🎚️ propose a measured mix
 megadj shelf-sync              # 🗄️ new music out to the shelf master
 bun run deck                   # 📼 dashboard: every drive, sync + verify
 ```
@@ -93,9 +93,10 @@ megadj years             # verify years against the SC page (not the AI's 2023 g
 megadj audit             # the completeness check across the whole library
 ```
 
-### 🎚️ Set — propose the mix, keep the taste
+### 🎚️ MegaSet — propose the mix, keep the taste
 
-Set turns FullTags' measured BPM, key, mood, energy, and phrase data into
+MegaSet turns FullTags' measured BPM, key, mood, energy, and phrase data
+into
 an ordered mix proposal. It is deterministic and explainable: every exclusion
 is counted, every transition is scored, and nothing writes to rekordbox unless
 you explicitly cross the dry-run-first `rb-playlist` gate.
@@ -104,12 +105,12 @@ you explicitly cross the dry-run-first `rb-playlist` gate.
   one registry across CLI, web, and MCP.
 - 🎼 **Musically bounded** — Camelot compatibility, tempo gates, and an energy
   arc choose the chain from the whole available pool.
-- 🧾 **Reviewable handoff** — inspect the proposal in the Set product
-  (#/set) or export M3U8; `megadj rb-playlist` is the separately gated
+- 🧾 **Reviewable handoff** — inspect the proposal in the MegaSet product
+  (#/megaset) or export M3U8; `megadj rb-playlist` is the separately gated
   write-off.
 
 ```bash
-megadj setbuild --preset peak --minutes 60 --json
+megadj megaset --preset peak --minutes 60 --json
 megadj rb-playlist SHELF1 --preset peak        # dry-run by default
 ```
 

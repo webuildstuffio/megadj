@@ -157,7 +157,7 @@
 .product-tab.on[data-prod="fulltags"] {
   --tab-c: var(--pulse);
 }
-.product-tab.on[data-prod="set"] {
+.product-tab.on[data-prod="megaset"] {
   --tab-c: var(--set);
 }
 .product-tab:focus-visible {
@@ -195,7 +195,7 @@
 .scope-tab.on[data-prod="fulltags"] {
   --tab-c: var(--pulse);
 }
-.scope-tab.on[data-prod="set"] {
+.scope-tab.on[data-prod="megaset"] {
   --tab-c: var(--set);
 }
 .scope-tab:focus-visible {
@@ -347,7 +347,7 @@
 .phasechip[data-prod="fulltags"] {
   --tab-c: var(--pulse);
 }
-.phasechip[data-prod="set"] {
+.phasechip[data-prod="megaset"] {
   --tab-c: var(--set);
 }
 .phasechip[data-prod="fleet"] {
@@ -372,7 +372,7 @@
 .pintro[data-prod="fulltags"] {
   --tab-c: var(--pulse);
 }
-.pintro[data-prod="set"] {
+.pintro[data-prod="megaset"] {
   --tab-c: var(--set);
 }
 .pintro[data-prod="fleet"] {
@@ -500,7 +500,7 @@
 .wcard[data-prod="fulltags"] {
   --tab-c: var(--pulse);
 }
-.wcard[data-prod="set"] {
+.wcard[data-prod="megaset"] {
   --tab-c: var(--set);
 }
 .wphase {

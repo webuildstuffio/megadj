@@ -2,7 +2,7 @@
 // split out of FullTagsPage.tsx (file-length guard).
 //
 // The sounds-like view (I49): nearest tracks by effnet-embedding cosine
-// similarity. The set builder is its own product now (SetBuildPanel under
+// similarity. The set builder is its own product now (MegasetPanel under
 // #/set) — it outgrew this canvas.
 import { useState } from "preact/hooks";
 import type { ArchiveSimilar, ArchiveSearchHit } from "../../../shared/types";

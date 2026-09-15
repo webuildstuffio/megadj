@@ -1,8 +1,8 @@
 // TrackPickSearch.tsx — the shared "search + pick ONE track" picker used
 // by both panels on the Similar tab (sounds-like query track and set-builder
 // opener): two hand-rolled variants had already drifted once. Split out of
-// SimilarTab.tsx (file-length guard + no circular import: SetBuildPanel
-// imports the picker, SimilarTab imports SetBuildPanel).
+// SimilarTab.tsx (file-length guard + no circular import: MegasetPanel
+// imports the picker, SimilarTab imports MegasetPanel).
 import type { ArchiveSearchHit } from "../../../shared/types";
 import { Card, KVRows, KVKey, KVVal, SearchBar } from "../../ui/data";
 import { TrackTitle } from "../shared";

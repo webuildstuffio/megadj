@@ -1,5 +1,5 @@
-// SetArcChart.tsx — the set builder's two-lane arc chart, split out of
-// SetBuildPanel.tsx (file-length guard).
+// MegasetArcChart.tsx — the set builder's two-lane arc chart, split out of
+// MegasetPanel.tsx (file-length guard).
 //
 // The chain's energy lane: measured arousal riding the preset's target
 // envelope (dashed) above; BPM lane below. One glance answers "does this
@@ -7,16 +7,16 @@
 // the real cumulative set time (atMin), so a 5-minute opener is not
 // visually equal to a 30-minute stretch. Arousal 1–9 and the preset's
 // envelope share the top lane; the BPM lane scales to its own min/max.
-import type { SetBuildStep, SetPresetDef } from "../../../shared/types";
+import type { MegasetStep, MegasetPresetDef } from "../../../shared/types";
 import { linearScale } from "../../ui/charts";
 
 /** Arousal 1–9 → the band word used in hover evidence and elsewhere. */
 export const energyBand = (value: number): string =>
   value < 3.5 ? "Low" : value < 6 ? "Medium" : value < 8 ? "High" : "Maximum";
 
-export function SetArcChart(props: {
-  steps: SetBuildStep[];
-  preset: SetPresetDef;
+export function MegasetArcChart(props: {
+  steps: MegasetStep[];
+  preset: MegasetPresetDef;
   keyGlide: string | null;
 }) {
   const W = 560;
@@ -69,7 +69,7 @@ export function SetArcChart(props: {
   const bpmMax = bpms.length > 0 ? Math.round(Math.max(...bpms)) : 0;
   return (
     <figure
-      class="setbuild-arcchart"
+      class="megaset-arcchart"
       aria-label="Energy and BPM arc of the chain"
     >
       <svg

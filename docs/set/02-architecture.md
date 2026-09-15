@@ -31,7 +31,7 @@ status (v0 uses / planned / rejected) and the exact order things are applied
         ▼
    SetBuildPayload ── steps[] · excluded[] · pool/freshness counters
         │
-        ├─▶ CLI        megadj setbuild (src/fulltags/setbuild.ts)
+        ├─▶ CLI        megadj megaset (src/fulltags/megaset.ts; `setbuild` alias + shim)
         ├─▶ HTTP       GET /api/archive/setbuild · ?format=m3u8 (archive_routes.ts)
         ├─▶ MCP        archive_set_build (cratedeck/src/archive_tools.ts)
         ├─▶ Web        FullTags ⌗ Similar tab — SetBuildPanel.tsx (form +
@@ -151,7 +151,7 @@ duplicate, relocated, excluded_total) rides the payload.
 
 ## 4. Data ownership
 
-| Data                              | Owner                                         | Set role                              |
+| Data                              | Owner                                         | Set role                                  |
 | --------------------------------- | --------------------------------------------- | ----------------------------------------- |
 | BPM, energy/arousal/dance/valence | FullTags beats + mood ledgers                 | scoring inputs                            |
 | Musical key                       | `track_keys` cache → TKEY; RB mirror fallback | hard gate                                 |

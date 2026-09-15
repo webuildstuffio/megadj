@@ -2,18 +2,18 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import render from "preact-render-to-string";
-import { SetBuildPanel } from "../products/fulltags/SetBuildPanel";
-import { SetArcChart } from "../products/fulltags/SetArcChart";
-import { SetBuilderResult } from "../products/fulltags/SetBuilderResult";
+import { MegasetPanel } from "../products/fulltags/MegasetPanel";
+import { MegasetArcChart } from "../products/fulltags/MegasetArcChart";
+import { MegasetResult } from "../products/fulltags/MegasetResult";
 import {
-  SetBuildLoading,
+  MegasetLoading,
   ReproLine,
   ExcludedBreakdown,
-} from "../products/fulltags/SetBuildStatus";
-import { SET_PRESET_DEFS } from "../../shared/types";
+} from "../products/fulltags/MegasetStatus";
+import { MEGASET_PRESET_DEFS } from "../../shared/types";
 import { TrackPickSearch } from "../products/fulltags/TrackPickSearch";
 import { SearchBar } from "../ui/data";
-import type { SetBuildPayload } from "../../shared/types";
+import type { MegasetPayload } from "../../shared/types";
 
 const noop = () => undefined;
 const source = readFileSync(
@@ -28,8 +28,8 @@ const pageSource = readFileSync(
   join(import.meta.dir, "../products/fulltags/FullTagsPage.tsx"),
   "utf8",
 );
-const setPageSource = readFileSync(
-  join(import.meta.dir, "../products/megaset/SetPage.tsx"),
+const megasetPageSource = readFileSync(
+  join(import.meta.dir, "../products/megaset/MegasetPage.tsx"),
   "utf8",
 );
 const routerSource = readFileSync(
@@ -90,7 +90,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("set builder names its evidence, checks, and write behavior", () => {
-    const html = render(<SetBuildPanel />);
+    const html = render(<MegasetPanel />);
     expect(html).toContain('aria-label="Set builder evidence"');
     expect(html).toContain("Entire downloaded archive DB");
     expect(html).toContain("FullTags");
@@ -101,53 +101,56 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("Writes no tags or playlists");
   });
 
-  test("Set is its own top-level product, equal to CrateDeck/GetDat/FullTags", () => {
-    // product SSOT: Set is a Product union member, a nav-strip row with
-    // its own lede + launcher card, and its own canvas route (#/set)
+  test("MegaSet is its own top-level product, equal to CrateDeck/GetDat/FullTags", () => {
+    // product SSOT: MegaSet is a Product union member, a nav-strip row
+    // with its own lede + launcher card, and its own canvas route
+    // (#/megaset; legacy #/set + #/fulltags/set still resolve)
     expect(routerSource).toContain(
-      '"drives" | "fleet" | "getdat" | "fulltags" | "set"',
+      '"drives" | "fleet" | "getdat" | "fulltags" | "megaset"',
     );
-    expect(sharedSource).toContain('id: "set"');
-    expect(sharedSource).toContain('label: "Set"');
+    expect(sharedSource).toContain('id: "megaset"');
+    expect(sharedSource).toContain('label: "MegaSet"');
     expect(sharedSource).toContain("the library gets played");
-    expect(sharedSource).toContain("The payoff. Set turns every measurement");
-    // the canvas switch renders SetPage on the set route, and SetPage
-    // actually mounts the panel
-    expect(appSource).toContain('route.product === "set"');
-    expect(setPageSource).toContain("<SetBuildPanel />");
+    expect(sharedSource).toContain(
+      "The payoff. MegaSet turns every measurement",
+    );
+    // the canvas switch renders MegasetPage on the megaset route, and the
+    // page actually mounts the panel
+    expect(appSource).toContain('route.product === "megaset"');
+    expect(megasetPageSource).toContain("<MegasetPanel />");
     // legacy deep links keep working: #/fulltags/set redirects to the product
-    expect(routerSource).toMatch(/fulltags[\s\S]{0,200}product: "set"/);
+    expect(routerSource).toMatch(/fulltags[\s\S]{0,200}product: "megaset"/);
     // FullTags no longer owns the set tab or imports the panel
-    expect(pageSource).not.toContain('{tab === "set" && <SetBuildPanel />}');
-    expect(similarSource).not.toContain("import { SetBuildPanel }");
+    expect(pageSource).not.toContain('{tab === "set" && <MegasetPanel />}');
+    expect(similarSource).not.toContain("import { MegasetPanel }");
   });
 
   test("preset buttons expose radio semantics and lock during a build", () => {
-    const html = render(<SetBuildPanel />);
+    const html = render(<MegasetPanel />);
     // the step-1 hint carries the product's voice — the room, first to last
     expect(html).toContain("Energy journey");
     expect(html).toContain("how the room should feel from first track to last");
     expect(html).toContain("Set length");
     expect(html).toContain("Sequencer");
-    expect(html.match(/setbuild-preset-option/g)).toHaveLength(3);
+    expect(html.match(/megaset-preset-option/g)).toHaveLength(3);
     expect(html).toContain('role="radio"');
     expect(html).toContain('aria-checked="true"');
-    expect(html).toContain('aria-labelledby="setbuild-preset-label"');
+    expect(html).toContain('aria-labelledby="megaset-preset-label"');
     expect(html).toContain("Low");
     expect(html).toContain("Maximum");
-    expect(html).toContain('class="setbuild-preset-arc"');
+    expect(html).toContain('class="megaset-preset-arc"');
     expect(html).toContain("Selected");
     expect(source).toContain("disabled={build.loading}");
     expect(source).toContain("busy={build.loading}");
   });
 
   test("settings changes invalidate an old proposal and promote the one CTA", () => {
-    const html = render(<SetBuildPanel />);
+    const html = render(<MegasetPanel />);
     expect(html).toContain("Build a set from your entire shelf");
     expect(html).toContain("Set length");
     expect(html).toContain('aria-label="Set builder settings"');
     expect(html).toContain('type="submit"');
-    expect(html).toContain('class="btn primary setbuild-build"');
+    expect(html).toContain('class="btn primary megaset-build"');
     expect(html).toContain("Build 60-minute Peak time set");
     expect(html).toContain("How FullTags scores this proposal");
     expect(html).toContain('aria-busy="false"');
@@ -166,7 +169,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("the advanced drawer exposes the pool cap and the engine's real numbers", () => {
-    const html = render(<SetBuildPanel />);
+    const html = render(<MegasetPanel />);
     expect(html).toContain("Advanced");
     expect(html).toContain("pool cap · scoring weights");
     expect(html).toContain('aria-label="Candidate pool cap, 1 to 1000');
@@ -178,12 +181,12 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("width 8");
     // plain-language sequencer help + determinism guarantee
     expect(html).toContain("same settings → the same chain");
-    expect(source).toContain("clampSetPool(parsed)");
+    expect(source).toContain("clampMegasetPool(parsed)");
     expect(source).toContain('q.set("limit", String(poolLimit))');
   });
 
   test("the loading explainer shows the staged phases with an elapsed timer", () => {
-    const html = render(<SetBuildLoading startedAt={Date.now() - 7000} />);
+    const html = render(<MegasetLoading startedAt={Date.now() - 7000} />);
     expect(html).toContain("Building your set…");
     expect(html).toContain("7s");
     expect(html).toContain("reading the archive database");
@@ -197,7 +200,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("the excluded list groups by reason with examples and keeps the raw audit", () => {
-    const data: SetBuildPayload = {
+    const data: MegasetPayload = {
       ...baseData,
       pool: 300,
       excluded_total: 5,
@@ -305,13 +308,13 @@ describe("FullTags Similar and Set Builder UX", () => {
       },
     ];
     const html = render(
-      <SetArcChart
+      <MegasetArcChart
         steps={steps}
-        preset={SET_PRESET_DEFS[1]!}
+        preset={MEGASET_PRESET_DEFS[1]!}
         keyGlide="8A → 5A"
       />,
     );
-    expect(html).toContain('class="setbuild-arcchart"');
+    expect(html).toContain('class="megaset-arcchart"');
     expect(html).toContain('class="arc-envelope"');
     expect(html).toContain('class="arc-arousal"');
     expect(html).toContain('class="arc-bpm"');
@@ -334,7 +337,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("common set lengths are one-click presets with an editable custom value", () => {
-    const html = render(<SetBuildPanel />);
+    const html = render(<MegasetPanel />);
     expect(html).toContain('aria-label="Common set lengths"');
     for (const minutes of [30, 60, 90, 120]) {
       expect(html).toContain(`>${minutes} min</button>`);
@@ -364,7 +367,7 @@ describe("FullTags Similar and Set Builder UX", () => {
 
   /** Shared fixture: a healthy complete build (also the offline tests'
    *  base — they mutate the census numbers onto this shape). */
-  const baseData: SetBuildPayload = {
+  const baseData: MegasetPayload = {
     available: true,
     preset: "warmup",
     minutes: 60,
@@ -399,7 +402,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   };
 
   test("the result separates the human verdict from source evidence", () => {
-    const html = render(<SetBuilderResult data={baseData} />);
+    const html = render(<MegasetResult data={baseData} />);
 
     expect(html).toContain("Ready to review");
     expect(html).toContain("62.4-minute Warm-up set draft");
@@ -415,7 +418,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).not.toContain("large pool");
 
     const htmlBeam = render(
-      <SetBuilderResult data={{ ...baseData, search: "beam" }} />,
+      <MegasetResult data={{ ...baseData, search: "beam" }} />,
     );
     expect(htmlBeam).toContain("deep beam search");
   });
@@ -423,7 +426,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   test("an unmounted shelf gets an environment verdict, not a library scolding", () => {
     // the live failure signature: 3,664 DB rows, 8 sampler presets
     // mounted, everything else missing → the shelf volume is away
-    const offlineData: SetBuildPayload = {
+    const offlineData: MegasetPayload = {
       ...baseData,
       complete: false,
       actualMinutes: 0,
@@ -434,7 +437,7 @@ describe("FullTags Similar and Set Builder UX", () => {
       missing_files: 3656,
       relocated_files: 0,
     };
-    const html = render(<SetBuilderResult data={offlineData} />);
+    const html = render(<MegasetResult data={offlineData} />);
 
     expect(html).toContain("Shelf not mounted");
     expect(html).toContain("Connect the shelf volume, then build again");
@@ -450,7 +453,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(source).toContain("!isShelfOffline(build.data, build.data)");
 
     // a genuinely small analyzed pool KEEPS the honest partial wording
-    const smallPool: SetBuildPayload = {
+    const smallPool: MegasetPayload = {
       ...baseData,
       complete: false,
       actualMinutes: 22,
@@ -459,7 +462,7 @@ describe("FullTags Similar and Set Builder UX", () => {
       pool: 30,
       missing_files: 12,
     };
-    const htmlSmall = render(<SetBuilderResult data={smallPool} />);
+    const htmlSmall = render(<MegasetResult data={smallPool} />);
     expect(htmlSmall).toContain("More compatible tracks needed");
     expect(htmlSmall).toContain("22-minute Warm-up partial draft");
   });

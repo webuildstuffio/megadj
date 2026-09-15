@@ -1,27 +1,27 @@
 // setbuild.test.ts — the set-builder copilot: the pure engine.
-// camelotOf / keyScore / bpmScore / buildSet / parseSetbuildQuery —
+// camelotOf / keyScore / bpmScore / buildMegaset / parseMegasetQuery —
 // propose-only, no I/O.
 import { describe, expect, test } from "bun:test";
 import {
   SET_PRESETS,
-  buildSet,
+  buildMegaset,
   bpmScore,
   camelotOf,
   keyScore,
-  parseSetbuildQuery,
+  parseMegasetQuery,
   type SetCandidate,
-} from "../src/setbuild";
+} from "../src/megaset";
 import {
-  SET_PRESET_DEFS,
-  SET_PRESET_IDS,
-  SET_POOL_MAX,
-  SET_POOL_UNLIMITED,
-  SET_BEAM_POOL_MAX,
-  SET_TEMPO_PERFECT,
-  SET_TEMPO_WINDOW,
-  SET_TRANSITION_WEIGHTS,
+  MEGASET_PRESET_DEFS,
+  MEGASET_PRESET_IDS,
+  MEGASET_POOL_MAX,
+  MEGASET_POOL_UNLIMITED,
+  MEGASET_BEAM_POOL_MAX,
+  MEGASET_TEMPO_PERFECT,
+  MEGASET_TEMPO_WINDOW,
+  MEGASET_TRANSITION_WEIGHTS,
   isShelfOffline,
-  clampSetPool,
+  clampMegasetPool,
 } from "../shared/types";
 
 const cand = (over: Partial<SetCandidate>): SetCandidate => ({
@@ -89,7 +89,7 @@ describe("bpmScore", () => {
   });
 });
 
-describe("buildSet", () => {
+describe("buildMegaset", () => {
   const pool: SetCandidate[] = [
     cand({
       videoId: "opener",
@@ -133,7 +133,7 @@ describe("buildSet", () => {
     }),
   ];
   test("warmup arc: opener first, energy generally rises, budget respected", () => {
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: pool,
       preset: SET_PRESETS.warmup,
       minutes: 20,
@@ -147,12 +147,12 @@ describe("buildSet", () => {
     expect(r.steps[1]!.transition).not.toBeNull();
   });
   test("deterministic: same input → same chain", () => {
-    const a = buildSet({
+    const a = buildMegaset({
       candidates: pool,
       preset: SET_PRESETS.peak,
       minutes: 15,
     });
-    const b = buildSet({
+    const b = buildMegaset({
       candidates: pool,
       preset: SET_PRESETS.peak,
       minutes: 15,
@@ -162,7 +162,7 @@ describe("buildSet", () => {
     );
   });
   test("unmixable leftovers land in excluded with a reason — never dropped silently", () => {
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: pool,
       preset: SET_PRESETS.warmup,
       minutes: 10,
@@ -182,7 +182,7 @@ describe("buildSet", () => {
     // candidate into `excluded` but left them in `pool`, so the post-loop
     // budget pass re-excluded the SAME tracks under "set budget filled" —
     // live probe showed excluded_total 596 for a 300-track pool.
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: [
         cand({ videoId: "a1", bpm: 128, key: "8A" }),
         cand({ videoId: "a2", bpm: 128, key: "8A" }),
@@ -200,7 +200,7 @@ describe("buildSet", () => {
     expect(r.steps.length + r.excluded.length).toBe(3);
   });
   test("pool with no BPM at all → empty chain, all excluded honestly", () => {
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: [cand({ videoId: "n1", bpm: null })],
       preset: SET_PRESETS.peak,
       minutes: 30,
@@ -210,7 +210,7 @@ describe("buildSet", () => {
   });
 
   test("a short pool reports the minutes actually built and the shortfall", () => {
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: [
         cand({ videoId: "one", durationS: 300 }),
         cand({ videoId: "two", durationS: 300 }),
@@ -225,7 +225,7 @@ describe("buildSet", () => {
   });
 
   test("a continuous mix cannot satisfy a set target as one giant track", () => {
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: [cand({ videoId: "three-hour-mix", durationS: 154 * 60 })],
       preset: SET_PRESETS.warmup,
       minutes: 64,
@@ -244,7 +244,7 @@ describe("buildSet", () => {
   });
 
   test("a short audio sample cannot become a set track", () => {
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: [cand({ videoId: "ten-second-sample", durationS: 10 })],
       preset: SET_PRESETS.warmup,
       minutes: 10,
@@ -263,7 +263,7 @@ describe("buildSet", () => {
   });
 
   test("an overlong requested opener is rejected once and the arc still builds", () => {
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: [
         cand({ videoId: "long-opener", durationS: 90 * 60 }),
         cand({ videoId: "normal-track", durationS: 5 * 60 }),
@@ -288,7 +288,7 @@ describe("buildSet", () => {
     // two byte-identical candidates except the id: whichever wins must be
     // decided by the id, not by which row the SQL happened to return first
     const mk = (order: [string, string][]) =>
-      buildSet({
+      buildMegaset({
         candidates: order.map(([videoId, key]) =>
           cand({ videoId, key, bpm: 128 }),
         ),
@@ -321,7 +321,7 @@ describe("buildSet", () => {
       cand({ videoId: "b-eq", arousal: 6 }),
       cand({ videoId: "a-eq", arousal: 6 }),
     ];
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: pair,
       preset: SET_PRESETS.peak,
       minutes: 5,
@@ -333,7 +333,7 @@ describe("buildSet", () => {
     // regression: the opener scan sorted by arousal-fit BEFORE the BPM
     // check, so one un-analyzed closest-fit candidate returned an empty
     // chain even when the rest of the pool was fully analyzed
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: [
         cand({ videoId: "noBpm-fit", arousal: 6, bpm: null }),
         cand({ videoId: "hasBpm", arousal: 7, bpm: 128, key: "8A" }),
@@ -352,7 +352,7 @@ describe("buildSet", () => {
   });
 
   test("requested opener without BPM is excluded honestly, arc still builds", () => {
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: [
         cand({ videoId: "req", bpm: null }),
         cand({ videoId: "a1", arousal: 6, bpm: 128, key: "8A" }),
@@ -371,7 +371,7 @@ describe("buildSet", () => {
     // regression: an openerId that matches no candidate (typo, or the
     // track isn't playable) was silently ignored — the chain built without
     // it and the caller had no way to tell why their track never appeared
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: [
         cand({ videoId: "a1", arousal: 6, bpm: 128, key: "8A" }),
         cand({ videoId: "a2", arousal: 6.5, bpm: 128, key: "8A" }),
@@ -390,7 +390,7 @@ describe("buildSet", () => {
     // regression: the gates only checked bpm !== null, so an aborted
     // analysis run's 0-BPM row won the opener scan (arousal closest to the
     // arc start) and dead-ended the chain after one step
-    const r = buildSet({
+    const r = buildMegaset({
       candidates: [
         cand({ videoId: "zero", arousal: 6, bpm: 0, key: "8A" }),
         cand({ videoId: "nan", arousal: 6.2, bpm: NaN, key: "8A" }),
@@ -429,7 +429,7 @@ describe("buildSet", () => {
         }),
       ),
     ];
-    const r = buildSet({
+    const r = buildMegaset({
       candidates,
       preset: SET_PRESETS.warmup,
       minutes: 30,
@@ -459,13 +459,13 @@ describe("buildSet", () => {
         }),
       ),
     ];
-    const greedy = buildSet({
+    const greedy = buildMegaset({
       candidates,
       preset: SET_PRESETS.peak,
       minutes: 60,
       searchOverride: "greedy",
     });
-    const beamed = buildSet({
+    const beamed = buildMegaset({
       candidates,
       preset: SET_PRESETS.peak,
       minutes: 60,
@@ -482,7 +482,7 @@ describe("buildSet", () => {
     expect(beamed.steps.map((s) => s.videoId)).not.toContain("decoy");
     // the automatic pick for this small pool IS the beam path, and the
     // result reports which search ran (the deep search is never silent)
-    const auto = buildSet({
+    const auto = buildMegaset({
       candidates,
       preset: SET_PRESETS.peak,
       minutes: 60,
@@ -523,7 +523,7 @@ describe("buildSet", () => {
         }),
       ),
     ];
-    const beamed = buildSet({
+    const beamed = buildMegaset({
       candidates,
       preset: SET_PRESETS.peak,
       minutes: 10,
@@ -544,17 +544,17 @@ describe("buildSet", () => {
         arousal: 5 + (i % 4) * 0.8,
       }),
     );
-    const r = buildSet({ candidates, preset: SET_PRESETS.peak, minutes: 60 });
+    const r = buildMegaset({ candidates, preset: SET_PRESETS.peak, minutes: 60 });
     expect(r.search).toBe("greedy");
     expect(r.steps.length).toBeGreaterThan(10);
   });
 
-  test("the pool-size rule is rest.length + 1 < SET_BEAM_POOL_MAX — exact at the boundary", () => {
+  test("the pool-size rule is rest.length + 1 < MEGASET_BEAM_POOL_MAX — exact at the boundary", () => {
     // 300 uniform tracks fill any budget, so 8-minute requests make the
     // chain length (not mixability) the observable; the strategy pick
     // only sees the pool size, and every surface quotes the SAME two
     // constants instead of hand-copied thresholds.
-    expect(SET_BEAM_POOL_MAX).toBe(250);
+    expect(MEGASET_BEAM_POOL_MAX).toBe(250);
     const mk = (n: number) =>
       Array.from({ length: n }, (_, i) =>
         cand({
@@ -564,22 +564,22 @@ describe("buildSet", () => {
         }),
       );
     // rest.length + 1 = 250 → 250 is NOT < 250 → greedy on the line
-    const atBoundary = buildSet({
-      candidates: mk(SET_BEAM_POOL_MAX),
+    const atBoundary = buildMegaset({
+      candidates: mk(MEGASET_BEAM_POOL_MAX),
       preset: SET_PRESETS.peak,
       minutes: 8,
     });
     expect(atBoundary.search).toBe("greedy");
     // rest.length + 1 = 249 < 250 → beam one below the line
-    const below = buildSet({
-      candidates: mk(SET_BEAM_POOL_MAX - 1),
+    const below = buildMegaset({
+      candidates: mk(MEGASET_BEAM_POOL_MAX - 1),
       preset: SET_PRESETS.peak,
       minutes: 8,
     });
     expect(below.search).toBe("beam");
     // a forced override beats the pool-size rule at any size
-    const forced = buildSet({
-      candidates: mk(SET_BEAM_POOL_MAX),
+    const forced = buildMegaset({
+      candidates: mk(MEGASET_BEAM_POOL_MAX),
       preset: SET_PRESETS.peak,
       minutes: 8,
       searchOverride: "beam",
@@ -598,7 +598,7 @@ describe("buildSet", () => {
         }),
       );
     for (const n of [8, 260]) {
-      const r = buildSet({
+      const r = buildMegaset({
         candidates: mk(n),
         preset: SET_PRESETS.peak,
         minutes: 8,
@@ -615,51 +615,51 @@ describe("buildSet", () => {
   });
 });
 
-describe("parseSetbuildQuery", () => {
+describe("parseMegasetQuery", () => {
   test("defaults: absent preset/minutes → peak / 60", () => {
-    expect(parseSetbuildQuery({})).toEqual({ preset: "peak", minutes: 60 });
-    expect(parseSetbuildQuery({ preset: null, minutes: null })).toEqual({
+    expect(parseMegasetQuery({})).toEqual({ preset: "peak", minutes: 60 });
+    expect(parseMegasetQuery({ preset: null, minutes: null })).toEqual({
       preset: "peak",
       minutes: 60,
     });
   });
   test("minutes clamp into 10–240, default when non-numeric", () => {
-    expect(parseSetbuildQuery({ minutes: "999" })).toEqual({
+    expect(parseMegasetQuery({ minutes: "999" })).toEqual({
       preset: "peak",
       minutes: 240,
     });
-    expect(parseSetbuildQuery({ minutes: "1" })).toEqual({
+    expect(parseMegasetQuery({ minutes: "1" })).toEqual({
       preset: "peak",
       minutes: 10,
     });
-    expect(parseSetbuildQuery({ minutes: "banana" })).toEqual({
+    expect(parseMegasetQuery({ minutes: "banana" })).toEqual({
       preset: "peak",
       minutes: 60,
     });
-    expect(parseSetbuildQuery({ minutes: "90" })).toEqual({
+    expect(parseMegasetQuery({ minutes: "90" })).toEqual({
       preset: "peak",
       minutes: 90,
     });
   });
   test("valid preset accepted", () => {
-    expect(parseSetbuildQuery({ preset: "afterhours" })).toEqual({
+    expect(parseMegasetQuery({ preset: "afterhours" })).toEqual({
       preset: "afterhours",
       minutes: 60,
     });
   });
   test("unknown preset → error, never a silent peak fallback", () => {
-    const r = parseSetbuildQuery({ preset: "wedding" });
+    const r = parseMegasetQuery({ preset: "wedding" });
     expect("error" in r).toBe(true);
     if ("error" in r) expect(r.error).toContain("warmup, peak, afterhours");
   });
 });
 
 describe("SET_PRESETS registry census (derive, never hand-copy)", () => {
-  test("engine registry matches the shared SET_PRESET_DEFS table exactly", () => {
+  test("engine registry matches the shared MEGASET_PRESET_DEFS table exactly", () => {
     expect(Object.keys(SET_PRESETS).toSorted()).toEqual(
-      SET_PRESET_IDS.slice().toSorted(),
+      MEGASET_PRESET_IDS.slice().toSorted(),
     );
-    for (const def of SET_PRESET_DEFS) {
+    for (const def of MEGASET_PRESET_DEFS) {
       const derived = SET_PRESETS[def.id];
       expect(derived).toBe(def); // same object — a true derivation
     }
@@ -668,8 +668,8 @@ describe("SET_PRESETS registry census (derive, never hand-copy)", () => {
 
 describe("scoring constants are pinned — a silent drift would re-rank every proposal", () => {
   test("tempo window keeps the classic DJ mixability curve (±2% → ±6%)", () => {
-    expect(SET_TEMPO_PERFECT).toBe(0.02);
-    expect(SET_TEMPO_WINDOW).toBe(0.06);
+    expect(MEGASET_TEMPO_PERFECT).toBe(0.02);
+    expect(MEGASET_TEMPO_WINDOW).toBe(0.06);
     // the curve itself: full score inside the flat zone, zero beyond the
     // window (d = |a−b|/max), linear between (midpoint proves the slope)
     expect(bpmScore(120, 120 * 1.02)).toBe(1);
@@ -677,31 +677,31 @@ describe("scoring constants are pinned — a silent drift would re-rank every pr
     expect(bpmScore(128, 134)).toBeCloseTo(0.380597, 6); // ~4.7% off
   });
   test("transition weights keep tempo > key > arc-fit emphasis", () => {
-    expect(SET_TRANSITION_WEIGHTS.tempo).toBe(0.45);
-    expect(SET_TRANSITION_WEIGHTS.key).toBe(0.3);
-    expect(SET_TRANSITION_WEIGHTS.arcFit).toBe(0.25);
+    expect(MEGASET_TRANSITION_WEIGHTS.tempo).toBe(0.45);
+    expect(MEGASET_TRANSITION_WEIGHTS.key).toBe(0.3);
+    expect(MEGASET_TRANSITION_WEIGHTS.arcFit).toBe(0.25);
     expect(
-      SET_TRANSITION_WEIGHTS.tempo +
-        SET_TRANSITION_WEIGHTS.key +
-        SET_TRANSITION_WEIGHTS.arcFit,
+      MEGASET_TRANSITION_WEIGHTS.tempo +
+        MEGASET_TRANSITION_WEIGHTS.key +
+        MEGASET_TRANSITION_WEIGHTS.arcFit,
     ).toBeCloseTo(1, 10);
   });
 });
 
-describe("clampSetPool (the ?limit= guard shared by route + MCP tool)", () => {
+describe("clampMegasetPool (the ?limit= guard shared by route + MCP tool)", () => {
   test("clamps into 1–1000, unlimited when absent/non-finite", () => {
-    expect(clampSetPool(500)).toBe(500);
-    expect(clampSetPool(0)).toBe(1);
-    expect(clampSetPool(-5)).toBe(1);
-    expect(clampSetPool(99999)).toBe(1000);
-    expect(clampSetPool(12.7)).toBe(13);
-    expect(clampSetPool(null)).toBe(0);
-    expect(clampSetPool(undefined)).toBe(0);
-    expect(clampSetPool(Number.NaN)).toBe(0);
+    expect(clampMegasetPool(500)).toBe(500);
+    expect(clampMegasetPool(0)).toBe(1);
+    expect(clampMegasetPool(-5)).toBe(1);
+    expect(clampMegasetPool(99999)).toBe(1000);
+    expect(clampMegasetPool(12.7)).toBe(13);
+    expect(clampMegasetPool(null)).toBe(0);
+    expect(clampMegasetPool(undefined)).toBe(0);
+    expect(clampMegasetPool(Number.NaN)).toBe(0);
   });
   test("the shared sentinel and explicit cap cannot describe a false default", () => {
-    expect(SET_POOL_UNLIMITED).toBe(0);
-    expect(SET_POOL_MAX).toBe(1000);
+    expect(MEGASET_POOL_UNLIMITED).toBe(0);
+    expect(MEGASET_POOL_MAX).toBe(1000);
   });
 });
 

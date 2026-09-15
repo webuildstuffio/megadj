@@ -15,7 +15,7 @@
  *   1. flags validated before any I/O (--apply requires --yes)
  *   2. set inputs validated by the SAME parser the CLI/web use
  *   3. target master DB must exist before the archive is scanned
- *   4. the chain comes from the SAME engine (`buildSet`) the CLI/web use
+ *   4. the chain comes from the SAME engine (`buildMegaset`) the CLI/web use
  *   5. rekordbox must be QUIT (pgrep) — it holds a live WAL
  *   6. dated DB backup (+ WAL/SHM) next to the master before any write
  *   7. dry-run by default; --apply --yes to write
@@ -26,12 +26,12 @@ import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { ArchiveReader } from "../../cratedeck/src/archive";
 import {
-  buildSet,
-  parseSetbuildQuery,
+  buildMegaset,
+  parseMegasetQuery,
   SET_PRESETS,
-  type SetPresetId,
+  type MegasetPresetId,
 } from "../../cratedeck/src/megaset";
-import { clampSetPool } from "../../cratedeck/shared/types";
+import { clampMegasetPool } from "../../cratedeck/shared/types";
 import { isNonNegativeInteger, isRecord } from "../../cratedeck/shared/guards";
 import { DB_PATH } from "../cli-env";
 import {
@@ -306,17 +306,17 @@ interface ChainTrack {
  *  rows. One readonly archive pass; candidates carry file_path. */
 function buildChain(
   opts: RbPlaylistOptions,
-  parsed: { preset: SetPresetId; minutes: number },
+  parsed: { preset: MegasetPresetId; minutes: number },
 ):
   { chain: ChainTrack[]; preset: string; minutes: number } | { error: string } {
   const archive = new ArchiveReader(DB_PATH);
   try {
     if (!archive.available()) return { error: `no archive at ${DB_PATH}` };
     const { candidates } = archive.setCandidates(
-      clampSetPool(opts.limit ?? null),
+      clampMegasetPool(opts.limit ?? null),
     );
 
-    const built = buildSet({
+    const built = buildMegaset({
       candidates,
       preset: SET_PRESETS[parsed.preset],
       minutes: parsed.minutes,
@@ -378,7 +378,7 @@ export async function rbPlaylist(
 
   // gate 2 — validate the shared set-builder inputs without touching either
   // database. Invalid presets must still beat a missing-drive error.
-  const parsed = parseSetbuildQuery({
+  const parsed = parseMegasetQuery({
     preset: opts.preset ?? null,
     minutes: opts.minutes ?? null,
   });

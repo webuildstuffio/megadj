@@ -81,7 +81,7 @@ mood → cues → organize → tag-check → audit), `megadj fetch`, `megadj
 enrich`, `megadj artwork`, `megadj audit`, `megadj tag-check` (tag
 structure + booth-text health), `megadj years`, `megadj booth-fix`,
 `megadj beats`, `megadj mood`, `megadj cues`, `megadj similar`,
-`megadj setbuild`, `megadj gold-report`/`regate` (gold-set gate harness)
+`megadj megaset` (alias: `setbuild`), `megadj gold-report`/`regate` (gold-set gate harness)
 **Also:** FullTags ships standalone in [`fulltags/`](../fulltags/README.md)
 — same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
 commands are thin wrappers over it.
@@ -129,7 +129,7 @@ local `docs/usb-sync-log.md` is intentionally gitignored operator evidence.
 
 ---
 
-## 🎚️ Set — _the co-pilot: propose the mix, keep the taste_
+## 🎚️ MegaSet — _the co-pilot: propose the mix, keep the taste_
 
 **Goal:** turn the archive's measured data (beats, mood, key, embeddings,
 8-bar phrase cues) into an ordered, key-compatible mix proposal with a
@@ -143,7 +143,7 @@ propose-only: the DJ keeps every creative decision.
 | **The write-off** | `megadj rb-playlist` links a proposal into the rekordbox master as a real playlist — dry-run first; `--apply` requires rekordbox closed, backs up both collection surfaces, writes the DB row and `masterPlaylists6.xml` twin, then verifies both.                                  |
 | **Docs**          | [Set doc set](set/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](set/08-audit-and-plan.md)                                                                                                                                                        |
 
-**Commands:** `megadj setbuild --preset peak --minutes 60 [--opener <id>] [--search greedy|beam] [--json]` ·
+**Commands:** `megadj megaset --preset peak --minutes 60 [--opener <id>] [--search greedy|beam] [--json]` (`setbuild` legacy alias) ·
 `megadj rb-playlist [drive] [--preset …] [--apply --yes]`
 **Vibe:** "the opener sells the night — Set makes sure you never open
 with a 73-BPM track in a 128 room."
@@ -171,7 +171,7 @@ megadj shelf-archive <volume>  # shelf: drive → shelf master (stray-drive inta
 megadj shelf-sweeps            # shelf: DB ledger — every sweep's verdict, latest per drive
 megadj shelf-dupescan          # shelf: fingerprint dupes regardless of name/folder
 megadj similar <video_id>      # FullTags: sounds-like kNN over the embeddings ledger
-megadj setbuild --preset peak  # Set: propose a Camelot/energy-arc mix chain
+megadj megaset --preset peak  # MegaSet: propose a Camelot/energy-arc mix chain
 bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 

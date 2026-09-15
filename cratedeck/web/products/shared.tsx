@@ -5,7 +5,7 @@
 //      verify, parity, fleet)
 //   2. GetDat    — fill the archive (download + ingest pipeline)
 //   3. FullTags  — enrich the archive (tags, art, keys, beatgrids, mood)
-//   4. Set       — play it: order the shelf into a mixable draft
+//   4. MegaSet   — play it: order the shelf into a mixable draft
 // Each row carries its educational lede (the `ledes` array, DJ-voiced) and
 // its accent (the [data-prod] CSS rules + per-product tokens in styles/).
 // PRODUCT_TABS is the one
@@ -187,7 +187,7 @@ export interface ProductMeta {
   /** the pipeline step this product owns, one line */
   phase: string;
   // (accent lives in CSS — the `[data-prod]` rules + the `--set` token;
-  // a hex field here went unwritten when Set landed and was retired.)
+  // a hex field here went unwritten when MegaSet landed and was retired.)
 }
 
 export interface ProductTab {
@@ -227,12 +227,12 @@ export const PRODUCTS: ProductMeta[] = [
     phase: "the archive gets enriched",
   },
   {
-    id: "set",
-    label: "Set",
+    id: "megaset",
+    label: "MegaSet",
     icon: "compass",
     sub: "the mix builder — order the whole analyzed shelf into a playable set",
     title:
-      "Set — build an ordered mix proposal from the whole analyzed shelf: energy arc, length, sequencer",
+      "MegaSet — build an ordered mix proposal from the whole analyzed shelf: energy arc, length, sequencer",
     phase: "the library gets played",
   },
 ];
@@ -249,7 +249,8 @@ export const LEDE: Record<Product, string> = {
     "Tracks start here. GetDat pulls music into the local archive, records every download decision, and keeps the backlog honest so nothing silently disappears.",
   fulltags:
     "Then the archive gets smart. FullTags enriches every track — art, keys, beatgrids, mood, phrase cues — into DB ledgers, and only writes tags when a measured gate passes.",
-  set: "The payoff. Set turns every measurement — tempo, key, mood, energy — into an ordered, mixable draft of your whole shelf. You approve it; nothing writes behind your back.",
+  megaset:
+    "The payoff. MegaSet turns every measurement — tempo, key, mood, energy — into an ordered, mixable draft of your whole shelf. You approve it; nothing writes behind your back.",
 };
 
 /** Tab strip per product — the same rows the pages AND the header nav
@@ -387,7 +388,7 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
         "The tag mirror: genres, years, artwork, energy — file ground truth",
     },
   ],
-  set: [
+  megaset: [
     {
       id: "build",
       label: "Build",

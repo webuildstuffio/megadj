@@ -1,4 +1,4 @@
-# Set — PRD
+# MegaSet — PRD
 
 v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Genre audit](../fulltags/genre-audit.md) · [Audit & plan](08-audit-and-plan.md)
 

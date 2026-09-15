@@ -1,4 +1,4 @@
-// setbuild.ts — the set-builder copilot: a PROPOSE-ONLY pure engine.
+// megaset.ts — the set-builder copilot: a PROPOSE-ONLY pure engine.
 //
 // Input: the archive's measured data (beats ledger BPM, mood ledger
 // valence/arousal/dance, file TKEY via fulltags' ground-truth readers,
@@ -11,23 +11,23 @@
 // the API route / MCP tool / UI feed it and render it.
 import { camelotOf, keyCompatScore } from "../shared/camelot";
 import {
-  SET_MINUTES_DEFAULT,
-  SET_MINUTES_MAX,
-  SET_MINUTES_MIN,
-  SET_TRACK_MINUTES_MIN,
-  SET_TRACK_MINUTES_MAX,
-  SET_TEMPO_PERFECT,
-  SET_TEMPO_WINDOW,
-  SET_TRANSITION_WEIGHTS,
-  SET_PRESET_DEFS,
-  SET_PRESET_IDS,
-  DEFAULT_SET_PRESET,
-  isSetSearchOverride,
-  SET_BEAM_POOL_MAX,
-  SET_BEAM_WIDTH,
+  MEGASET_MINUTES_DEFAULT,
+  MEGASET_MINUTES_MAX,
+  MEGASET_MINUTES_MIN,
+  MEGASET_TRACK_MINUTES_MIN,
+  MEGASET_TRACK_MINUTES_MAX,
+  MEGASET_TEMPO_PERFECT,
+  MEGASET_TEMPO_WINDOW,
+  MEGASET_TRANSITION_WEIGHTS,
+  MEGASET_PRESET_DEFS,
+  MEGASET_PRESET_IDS,
+  DEFAULT_MEGASET_PRESET,
+  isMegasetSearchOverride,
+  MEGASET_BEAM_POOL_MAX,
+  MEGASET_BEAM_WIDTH,
   type SetSearchOverride,
-  type SetPresetDef,
-  type SetPresetId,
+  type MegasetPresetDef,
+  type MegasetPresetId,
 } from "../shared/types";
 
 export interface SetCandidate {
@@ -46,53 +46,53 @@ export interface SetCandidate {
 }
 
 // N80 energy-arc presets — DERIVED from the shared registry
-// (shared/types.ts SET_PRESET_DEFS), never hand-copied: the route, the UI
+// (shared/types.ts MEGASET_PRESET_DEFS), never hand-copied: the route, the UI
 // picker and this engine read the same table so a new preset lands
-// everywhere at once. SetPresetDef is the shared interface.
-export const SET_PRESETS: Record<SetPresetId, SetPresetDef> =
-  Object.fromEntries(SET_PRESET_DEFS.map((p) => [p.id, p])) as Record<
-    SetPresetId,
-    SetPresetDef
+// everywhere at once. MegasetPresetDef is the shared interface.
+export const SET_PRESETS: Record<MegasetPresetId, MegasetPresetDef> =
+  Object.fromEntries(MEGASET_PRESET_DEFS.map((p) => [p.id, p])) as Record<
+    MegasetPresetId,
+    MegasetPresetDef
   >;
-export type { SetPresetDef, SetPresetId };
-/** The preset type `buildSet` scores against (alias of the shared def —
+export type { MegasetPresetDef, MegasetPresetId };
+/** The preset type `buildMegaset` scores against (alias of the shared def —
  *  the old local `SetPreset` interface name, kept for callers). */
-export type SetPreset = SetPresetDef;
+export type SetPreset = MegasetPresetDef;
 
 /** Clamp + validate the setbuild query params in ONE place — the HTTP
  *  route, the MCP tool and any future caller share it. Minutes fall back
  *  to the default when missing/non-numeric and clamp to the documented
  *  range (a caller can't smuggle `minutes=99999` past the UI's input
- *  field); preset defaults when absent. `parseSetbuildQuery` distinguishes
+ *  field); preset defaults when absent. `parseMegasetQuery` distinguishes
  *  "absent" from "invalid": an unknown preset id is a caller bug and
  *  surfaces as an error string instead of silently re-scoring as peak. */
-export function parseSetbuildQuery(params: {
+export function parseMegasetQuery(params: {
   preset?: string | null;
   minutes?: string | number | null;
-}): { preset: SetPresetId; minutes: number } | { error: string } {
+}): { preset: MegasetPresetId; minutes: number } | { error: string } {
   const presetRaw = params.preset?.trim();
   if (presetRaw) {
-    if (!(SET_PRESET_IDS as string[]).includes(presetRaw))
+    if (!(MEGASET_PRESET_IDS as string[]).includes(presetRaw))
       return {
-        error: `unknown preset "${presetRaw}" — expected one of: ${SET_PRESET_IDS.join(", ")}`,
+        error: `unknown preset "${presetRaw}" — expected one of: ${MEGASET_PRESET_IDS.join(", ")}`,
       };
   }
-  const preset: SetPresetId = presetRaw
-    ? (presetRaw as SetPresetId)
-    : DEFAULT_SET_PRESET;
+  const preset: MegasetPresetId = presetRaw
+    ? (presetRaw as MegasetPresetId)
+    : DEFAULT_MEGASET_PRESET;
 
   const minutesRaw = params.minutes;
   if (minutesRaw === null || minutesRaw === undefined || minutesRaw === "") {
-    return { preset, minutes: SET_MINUTES_DEFAULT };
+    return { preset, minutes: MEGASET_MINUTES_DEFAULT };
   }
   const n =
     typeof minutesRaw === "number" ? minutesRaw : Number(String(minutesRaw));
-  if (!Number.isFinite(n)) return { preset, minutes: SET_MINUTES_DEFAULT };
+  if (!Number.isFinite(n)) return { preset, minutes: MEGASET_MINUTES_DEFAULT };
   return {
     preset,
     minutes: Math.min(
-      SET_MINUTES_MAX,
-      Math.max(SET_MINUTES_MIN, Math.round(n)),
+      MEGASET_MINUTES_MAX,
+      Math.max(MEGASET_MINUTES_MIN, Math.round(n)),
     ),
   };
 }
@@ -109,14 +109,14 @@ export function keyScore(a: SetCandidate, b: SetCandidate): number {
   return keyCompatScore(camelotOf(a.key), camelotOf(b.key));
 }
 
-/** Tempo compatibility 0..1: 1 within ±SET_TEMPO_PERFECT, linearly down to
- *  0 at ±SET_TEMPO_WINDOW — the classic DJ mixability window. The bounds
+/** Tempo compatibility 0..1: 1 within ±MEGASET_TEMPO_PERFECT, linearly down to
+ *  0 at ±MEGASET_TEMPO_WINDOW — the classic DJ mixability window. The bounds
  *  live in the shared registry so every surface quotes the same numbers. */
 export function bpmScore(a: number, b: number): number {
   const d = Math.abs(a - b) / Math.max(a, b);
-  if (d <= SET_TEMPO_PERFECT) return 1;
-  if (d >= SET_TEMPO_WINDOW) return 0;
-  return 1 - (d - SET_TEMPO_PERFECT) / (SET_TEMPO_WINDOW - SET_TEMPO_PERFECT);
+  if (d <= MEGASET_TEMPO_PERFECT) return 1;
+  if (d >= MEGASET_TEMPO_WINDOW) return 0;
+  return 1 - (d - MEGASET_TEMPO_PERFECT) / (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT);
 }
 
 /** A BPM the engine can actually mix with: present, finite and positive.
@@ -181,13 +181,13 @@ function transitionScore(
       (Math.abs(a - targetArousal / 9) + Math.abs(d - targetDance)) / 2,
     );
   return (
-    SET_TRANSITION_WEIGHTS.tempo * tempo +
-    SET_TRANSITION_WEIGHTS.key * key +
-    SET_TRANSITION_WEIGHTS.arcFit * fit
+    MEGASET_TRANSITION_WEIGHTS.tempo * tempo +
+    MEGASET_TRANSITION_WEIGHTS.key * key +
+    MEGASET_TRANSITION_WEIGHTS.arcFit * fit
   );
 }
 
-export interface SetBuildInput {
+export interface MegasetInput {
   candidates: SetCandidate[];
   preset: SetPreset;
   /** Target set length in minutes; picks tracks until the budget fills. */
@@ -201,14 +201,14 @@ export interface SetBuildInput {
   searchOverride?: SetSearchOverride | undefined;
 }
 
-// SetBuildStep + SetBuildResult (the wire shapes) are DEFINED in
+// MegasetStep + MegasetResult (the wire shapes) are DEFINED in
 // shared/types.ts — the engine imports them back so the HTTP route and
 // the UI read the same contract with no drifting duplicate.
-import type { SetBuildResult, SetBuildStep } from "../shared/types";
-export type { SetBuildResult };
+import type { MegasetResult, MegasetStep } from "../shared/types";
+export type { MegasetResult };
 
 /** Candidate duration with the 5:00 assumption when unknown. Pure —
- *  module-level, not re-created per `buildSet` call (oxlint scoping). */
+ *  module-level, not re-created per `buildMegaset` call (oxlint scoping). */
 const candidateDuration = (c: SetCandidate): number => {
   const seconds = c.durationS;
   return seconds !== null && Number.isFinite(seconds) && seconds > 0
@@ -222,7 +222,7 @@ const minutesAt = (seconds: number): number =>
 
 /** One committed proposal slot: the candidate plus the transition score
  *  INTO it (null for the opener). Selection functions return these; the
- *  single commit loop in buildSet turns them into wire steps. */
+ *  single commit loop in buildMegaset turns them into wire steps. */
 interface PickedStep {
   candidate: SetCandidate;
   transition: number | null;
@@ -302,7 +302,7 @@ const greedyChain = (
 };
 
 /** Beam continuation (the E7 fix, docs/set/04-sequencing-benchmarks.md):
- *  keep the best SET_BEAM_WIDTH partial chains per slot instead of one.
+ *  keep the best MEGASET_BEAM_WIDTH partial chains per slot instead of one.
  *  Sparse pools (one genre family, pinned opener, heavy exclusions)
  *  dead-end greedy ~59% short of the best chain because a locally-best
  *  step can be globally fatal — a doomed branch dies while alternatives
@@ -351,7 +351,7 @@ const beamChain = (
     }
     if (frontierNext.length === 0) break; // every live branch hit a wall
     frontierNext.sort(rankBeamState);
-    frontier = frontierNext.slice(0, SET_BEAM_WIDTH);
+    frontier = frontierNext.slice(0, MEGASET_BEAM_WIDTH);
   }
   // `best` is the highest-ranked chain reached (completed = filled budget
   // mid-search; otherwise the deepest/partial leader at the final wall).
@@ -375,11 +375,11 @@ function toPicked(
   };
 }
 
-export function buildSet(input: SetBuildInput): SetBuildResult {
+export function buildMegaset(input: MegasetInput): MegasetResult {
   const { candidates, preset, minutes } = input;
   const budget = minutes * 60;
-  const excluded: SetBuildResult["excluded"] = [];
-  const steps: SetBuildStep[] = [];
+  const excluded: MegasetResult["excluded"] = [];
+  const steps: MegasetStep[] = [];
 
   const dur = candidateDuration;
   const requestedOpenerExists =
@@ -387,19 +387,19 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
     candidates.some((candidate) => candidate.videoId === input.openerId);
   const pool = candidates.filter((candidate) => {
     const duration = dur(candidate);
-    if (duration < SET_TRACK_MINUTES_MIN * 60) {
+    if (duration < MEGASET_TRACK_MINUTES_MIN * 60) {
       excluded.push({
         videoId: candidate.videoId,
         title: candidate.title,
-        reason: `${Math.round(duration)}-second audio sample is below the ${SET_TRACK_MINUTES_MIN}-minute track floor`,
+        reason: `${Math.round(duration)}-second audio sample is below the ${MEGASET_TRACK_MINUTES_MIN}-minute track floor`,
       });
       return false;
     }
-    if (duration <= SET_TRACK_MINUTES_MAX * 60) return true;
+    if (duration <= MEGASET_TRACK_MINUTES_MAX * 60) return true;
     excluded.push({
       videoId: candidate.videoId,
       title: candidate.title,
-      reason: `${minutesAt(duration)}-minute continuous mix exceeds the ${SET_TRACK_MINUTES_MAX}-minute track cap`,
+      reason: `${minutesAt(duration)}-minute continuous mix exceeds the ${MEGASET_TRACK_MINUTES_MAX}-minute track cap`,
     });
     return false;
   });
@@ -409,7 +409,7 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   let elapsed = 0;
   // Which search path ran — assigned at the strategy pick below; early
   // exits (no anchor) default to "greedy" since no deep search executed.
-  let search: SetBuildResult["search"] = "greedy";
+  let search: MegasetResult["search"] = "greedy";
   const push = (c: SetCandidate, transition: number | null): void => {
     elapsed += dur(c);
     steps.push({
@@ -427,7 +427,7 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   /** Finish from the chain's real elapsed time. Whole-track selection can
    *  overshoot the target; that is complete with zero shortfall. Empty or
    *  exhausted pools report the remaining time instead of echoing intent. */
-  const result = (): SetBuildResult => {
+  const result = (): MegasetResult => {
     const actualMinutes = minutesAt(elapsed);
     const shortfallMinutes =
       Math.round(Math.max(0, minutes - actualMinutes) * 10) / 10;
@@ -485,13 +485,13 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   const OPENNER_MIN_NEIGHBORS = 15;
   const mixable = [...pool].filter(mixableBpm);
   // `bpmScore(a, b) > 0` means the relative difference is strictly below
-  // SET_TEMPO_WINDOW. Counting that neighborhood by rescanning every
+  // MEGASET_TEMPO_WINDOW. Counting that neighborhood by rescanning every
   // candidate for every possible opener made this selection O(n²) (20k
   // synthetic tracks took ~1.6 s before the greedy chain even started).
   // Sort once, then count the mathematically identical open interval
   // ((1-w)×bpm, bpm/(1-w)) with two binary searches: O(n log n),
   // preserving exact boundary semantics.
-  const windowFactor = 1 - SET_TEMPO_WINDOW;
+  const windowFactor = 1 - MEGASET_TEMPO_WINDOW;
   const sortedBpms = mixable.map((c) => c.bpm).toSorted((a, b) => a - b);
   const tempoNeighbors = (bpm: number): number =>
     lowerBound(sortedBpms, bpm / windowFactor) -
@@ -531,9 +531,9 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   // the chosen path is REPORTED (`search` on the wire), never a silent
   // algorithm switch.
   const rest = pool;
-  const useBeam = isSetSearchOverride(input.searchOverride)
+  const useBeam = isMegasetSearchOverride(input.searchOverride)
     ? input.searchOverride === "beam"
-    : rest.length + 1 < SET_BEAM_POOL_MAX;
+    : rest.length + 1 < MEGASET_BEAM_POOL_MAX;
   search = useBeam ? "beam" : "greedy";
   const picked = useBeam
     ? beamChain(first, rest, preset, budget)

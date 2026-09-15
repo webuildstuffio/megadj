@@ -112,7 +112,7 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 - [**Consolidated findings & next steps**](set/10-findings.md) — every
   measured verdict across the doc set, critical-bug list, prioritized next
   3–5 actions.
-- [Migration plan](set/09-migration-plan.md) — the considered `setbuild →
+- [Migration plan](set/09-migration-plan.md) — the executed `setbuild →
   megaset` identifier rename (SUPERSEDED 2026-09-15 — the product is Set;
   kept as a dated record).
 - [Audit and plan](set/08-audit-and-plan.md) — per-item

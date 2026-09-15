@@ -1,26 +1,26 @@
-// SetBuildPanel.tsx — the set-builder panel, the Set product's canvas
+// MegasetPanel.tsx — the set-builder panel, the Set product's canvas
 // (#/set, rendered by ../set/SetPage.tsx; formerly a FullTags tab, then
 // split out of SimilarTab.tsx for file length). The panel is the whole
 // product flow: preset/length/sequencer form + proposal view.
 //
 // Propose-only (§4-A1: nothing here writes anything): the wire envelope
-// (SetBuildPayload) is DERIVED from shared/types.ts — never re-declare
+// (MegasetPayload) is DERIVED from shared/types.ts — never re-declare
 // server shapes locally (a local duplicate drifted once and crashed the
-// render). The preset picker derives from the SAME SET_PRESET_DEFS
+// render). The preset picker derives from the SAME MEGASET_PRESET_DEFS
 // registry the engine scores against.
 import { useState } from "preact/hooks";
 import type {
   ArchiveSearchHit,
-  SetBuildPayload,
-  SetBuildStep,
-  SetPresetDef,
+  MegasetPayload,
+  MegasetStep,
+  MegasetPresetDef,
 } from "../../../shared/types";
 import {
-  SET_PRESET_DEFS,
-  SET_MINUTES_MAX,
-  SET_MINUTES_MIN,
+  MEGASET_PRESET_DEFS,
+  MEGASET_MINUTES_MAX,
+  MEGASET_MINUTES_MIN,
   isShelfOffline,
-  clampSetPool,
+  clampMegasetPool,
 } from "../../../shared/types";
 import { api, toast } from "../../ui/toast";
 import { errMessage } from "../../../shared/fmt";
@@ -29,29 +29,32 @@ import { useFetched } from "../../ui/useFetched";
 import { ListHead, DataTable, Card } from "../../ui/data";
 import { SectionHead } from "../shared";
 import { TrackPickSearch, type TrackPick } from "./TrackPickSearch";
-import { SetBuilderMethod } from "./SetBuilderMethod";
-import { SetBuilderResult } from "./SetBuilderResult";
-import { SetArcChart } from "./SetArcChart";
+import { MegasetMethod } from "./MegasetMethod";
+import { MegasetResult } from "./MegasetResult";
+import { MegasetArcChart } from "./MegasetArcChart";
 import {
   StepTitle,
   PresetOption,
   SequencerRow,
   AdvancedDrawer,
-} from "./SetBuildForm";
+} from "./MegasetForm";
 import {
-  SetBuildLoading,
+  MegasetLoading,
   FreshnessLine,
   ExcludedBreakdown,
   ReproLine,
   keyGlideOf,
-} from "./SetBuildStatus";
+} from "./MegasetStatus";
 
 const SET_DURATION_PRESETS = [30, 60, 90, 120] as const;
 
 /** minutes → clamped custom input (the <input type=number> bounds). */
 const clampMinutes = (raw: number): number =>
   Number.isFinite(raw)
-    ? Math.min(SET_MINUTES_MAX, Math.max(SET_MINUTES_MIN, Math.round(raw)))
+    ? Math.min(
+        MEGASET_MINUTES_MAX,
+        Math.max(MEGASET_MINUTES_MIN, Math.round(raw)),
+      )
     : 60;
 
 const fmtBpm = (bpm: number | null): string =>
@@ -60,12 +63,12 @@ const fmtBpm = (bpm: number | null): string =>
 /** ONE line-renderer for a chain step — the copy block, the ListHead lines
  *  and the excluded cross-check all show the same shape (was two drifted
  *  inline arrow pairs). */
-const stepLine = (s: SetBuildStep): string =>
+const stepLine = (s: MegasetStep): string =>
   `${s.atMin}min  ${fmtBpm(s.bpm)} BPM ${s.key ?? ""}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}`;
 
 /** Save the proposal as a local review artifact. No API call and no library
  * mutation: the browser downloads exactly the measured result on screen. */
-function saveDraft(data: SetBuildPayload): void {
+function saveDraft(data: MegasetPayload): void {
   const blob = new Blob(
     [
       JSON.stringify(
@@ -103,7 +106,7 @@ function OpenerPicker(props: {
   if (props.opener)
     return (
       <span
-        class="setbuild-opener"
+        class="megaset-opener"
         title="Chosen opening track — the arc starts here"
       >
         <span>Opening track</span>
@@ -122,12 +125,12 @@ function OpenerPicker(props: {
     );
   if (props.busy)
     return (
-      <span class="setbuild-opener-disabled" aria-disabled="true">
+      <span class="megaset-opener-disabled" aria-disabled="true">
         Opening track <span>Auto-picked for this build</span>
       </span>
     );
   return (
-    <details class="setbuild-opener-pick">
+    <details class="megaset-opener-pick">
       <summary title="Choose the first track — otherwise FullTags picks it">
         <Icon name="search" size={12} /> Choose opening track
         <span>optional · otherwise auto-picked</span>
@@ -148,11 +151,11 @@ function OpenerPicker(props: {
   );
 }
 
-export function SetBuildPanel() {
+export function MegasetPanel() {
   // the picker is keyed off the SHARED registry — preset ids, labels and
-  // arc descriptions render from SET_PRESET_DEFS, never a local twin
-  const [preset, setPreset] = useState<SetPresetDef>(
-    SET_PRESET_DEFS.find((p) => p.id === "peak") ?? SET_PRESET_DEFS[0]!,
+  // arc descriptions render from MEGASET_PRESET_DEFS, never a local twin
+  const [preset, setPreset] = useState<MegasetPresetDef>(
+    MEGASET_PRESET_DEFS.find((p) => p.id === "peak") ?? MEGASET_PRESET_DEFS[0]!,
   );
   const [minutesInput, setMinutesInput] = useState("60");
   const minutes =
@@ -171,7 +174,7 @@ export function SetBuildPanel() {
     if (trimmed === "") return null;
     const parsed = Number(trimmed);
     if (!Number.isFinite(parsed) || parsed <= 0) return null;
-    return clampSetPool(parsed);
+    return clampMegasetPool(parsed);
   })();
   const [opener, setOpener] = useState<TrackPick | null>(null);
   const [openerQuery, setOpenerQuery] = useState("");
@@ -185,7 +188,7 @@ export function SetBuildPanel() {
     [openerQuery],
   );
   const [build, setBuild] = useState<{
-    data: SetBuildPayload | null;
+    data: MegasetPayload | null;
     loading: boolean;
     error: string | null;
     stale: boolean;
@@ -225,7 +228,7 @@ export function SetBuildPanel() {
       if (poolLimit !== null) q.set("limit", String(poolLimit));
       if (opener) q.set("opener", opener.video_id);
       setBuild({
-        data: await api<SetBuildPayload>(`/api/archive/setbuild?${q}`, {
+        data: await api<MegasetPayload>(`/api/archive/setbuild?${q}`, {
           timeoutMs: 90_000,
         }),
         loading: false,
@@ -245,7 +248,7 @@ export function SetBuildPanel() {
   };
 
   // the chain's steps + first→last Camelot glide (shared derivation in
-  // SetBuildStatus — the chart caption and the panel never drift apart)
+  // MegasetStatus — the chart caption and the panel never drift apart)
   const steps = build.data?.steps ?? [];
   const keyGlide = keyGlideOf(steps);
   const buildVerb = build.stale ? "Update" : "Build";
@@ -271,31 +274,31 @@ export function SetBuildPanel() {
   return (
     <Card class="setbuild">
       <SectionHead icon="compass" title="Build a set from your entire shelf" />
-      <p class="setbuild-lead">
+      <p class="megaset-lead">
         Choose the room's energy and a familiar length. FullTags checks the
         whole archive, removes missing files and duplicates, then orders a
         playable draft using tempo, key, and mood.
       </p>
       <form
-        class="setbuild-form"
+        class="megaset-form"
         aria-label="Set builder settings"
         onSubmit={(event) => {
           event.preventDefault();
           if (!build.loading) void run();
         }}
       >
-        <fieldset class="setbuild-preset" disabled={build.loading}>
+        <fieldset class="megaset-preset" disabled={build.loading}>
           <StepTitle
             n={1}
             title="Energy journey"
             hint="how the room should feel from first track to last"
           />
           <div
-            class="setbuild-preset-grid"
+            class="megaset-preset-grid"
             role="radiogroup"
-            aria-labelledby="setbuild-preset-label"
+            aria-labelledby="megaset-preset-label"
           >
-            {SET_PRESET_DEFS.map((p, index) => (
+            {MEGASET_PRESET_DEFS.map((p, index) => (
               <PresetOption
                 key={p.id}
                 preset={p}
@@ -311,11 +314,11 @@ export function SetBuildPanel() {
             ))}
           </div>
         </fieldset>
-        <fieldset class="setbuild-length" disabled={build.loading}>
+        <fieldset class="megaset-length" disabled={build.loading}>
           <StepTitle n={2} title="Set length" />
-          <div class="setbuild-duration">
+          <div class="megaset-duration">
             <div
-              class="setbuild-duration-presets"
+              class="megaset-duration-presets"
               role="group"
               aria-label="Common set lengths"
             >
@@ -323,7 +326,7 @@ export function SetBuildPanel() {
                 <button
                   key={duration}
                   type="button"
-                  class={`setbuild-duration-option${minutes === duration ? " on" : ""}`}
+                  class={`megaset-duration-option${minutes === duration ? " on" : ""}`}
                   aria-pressed={minutes === duration}
                   onClick={() => {
                     setMinutesInput(String(duration));
@@ -335,21 +338,21 @@ export function SetBuildPanel() {
               ))}
             </div>
             <label
-              class="setbuild-minutes"
+              class="megaset-minutes"
               title="Enter a custom target between the supported limits"
             >
               <span>
                 Custom
                 <small>
-                  {SET_MINUTES_MIN}–{SET_MINUTES_MAX} minutes
+                  {MEGASET_MINUTES_MIN}–{MEGASET_MINUTES_MAX} minutes
                 </small>
               </span>
               <input
                 type="number"
-                min={SET_MINUTES_MIN}
-                max={SET_MINUTES_MAX}
+                min={MEGASET_MINUTES_MIN}
+                max={MEGASET_MINUTES_MAX}
                 value={minutesInput}
-                aria-label={`Custom set length in minutes (${SET_MINUTES_MIN}–${SET_MINUTES_MAX})`}
+                aria-label={`Custom set length in minutes (${MEGASET_MINUTES_MIN}–${MEGASET_MINUTES_MAX})`}
                 onInput={(event) => {
                   const next = (event.target as HTMLInputElement).value;
                   setMinutesInput(next);
@@ -360,7 +363,7 @@ export function SetBuildPanel() {
             </label>
           </div>
         </fieldset>
-        <fieldset class="setbuild-length" disabled={build.loading}>
+        <fieldset class="megaset-length" disabled={build.loading}>
           <StepTitle n={3} title="Sequencer" />
           <SequencerRow
             searchChoice={searchChoice}
@@ -382,7 +385,7 @@ export function SetBuildPanel() {
             searchChoice={searchChoice}
           />
         </fieldset>
-        <div class="setbuild-controls">
+        <div class="megaset-controls">
           <OpenerPicker
             query={openerQuery}
             onQuery={setOpenerQuery}
@@ -398,7 +401,7 @@ export function SetBuildPanel() {
           />
           <button
             type="submit"
-            class="btn primary setbuild-build"
+            class="btn primary megaset-build"
             disabled={build.loading}
             aria-busy={build.loading}
           >
@@ -411,9 +414,9 @@ export function SetBuildPanel() {
           </button>
         </div>
       </form>
-      <SetBuilderMethod />
+      <MegasetMethod />
       {build.stale && (
-        <div class="setbuild-stale" role="status">
+        <div class="megaset-stale" role="status">
           <b>Proposal settings changed.</b> The chain below still shows the
           previous build. Update it before using or copying the result.
         </div>
@@ -424,15 +427,15 @@ export function SetBuildPanel() {
         </div>
       )}
       {build.loading && build.startedAt !== null && (
-        <SetBuildLoading startedAt={build.startedAt} />
+        <MegasetLoading startedAt={build.startedAt} />
       )}
       {build.data && (
         <>
-          <SetBuilderResult data={build.data} />
+          <MegasetResult data={build.data} />
           {!build.data.complete &&
             build.data.pool > 0 &&
             !isShelfOffline(build.data, build.data) && (
-              <div class="setbuild-shortfall" role="alert">
+              <div class="megaset-shortfall" role="alert">
                 <Icon name="warn" size={16} />
                 <span>
                   <b>Partial draft — not a complete set.</b> FullTags found
@@ -449,7 +452,7 @@ export function SetBuildPanel() {
             pool={build.data.pool}
           />
           {steps.length > 0 && (
-            <div class="setbuild-actions" aria-label="Set draft actions">
+            <div class="megaset-actions" aria-label="Set draft actions">
               <button
                 type="button"
                 class="btn ghostbtn"
@@ -473,7 +476,7 @@ export function SetBuildPanel() {
                   <Icon name="download" size={13} /> Export .m3u8 for Rekordbox
                 </a>
               )}
-              <span class="setbuild-actions-note">
+              <span class="megaset-actions-note">
                 Import the .m3u8 through Rekordbox File → Import → Playlist.
                 Save JSON keeps the full technical evidence. Neither action
                 opens or changes the Rekordbox database.
@@ -574,7 +577,11 @@ export function SetBuildPanel() {
             }}
           />
           {steps.length >= 2 && (
-            <SetArcChart steps={steps} preset={preset} keyGlide={keyGlide} />
+            <MegasetArcChart
+              steps={steps}
+              preset={preset}
+              keyGlide={keyGlide}
+            />
           )}
           <ReproLine
             data={build.data}

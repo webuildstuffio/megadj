@@ -37,7 +37,7 @@ finished off everywhere: palette keywords de-twin, m3u8 export renamed
 copilot", CLI help de-numbered, and the whole doc set moved
 `docs/megaset/` → `docs/set/` with prose swept — issue #56's `setbuild →
 megaset` identifier rename is SUPERSEDED (the product is Set; the verb
-`megadj setbuild` stays, it's a command not a brand)._
+`megadj megaset` is the verb (the `setbuild` alias stays — muscle memory), it's a command not a brand)._
 
 _Rev 7.6, 2026-09-15: **Set is its own product — the fourth nav-strip
 button.** The set builder left FullTags' tab strip entirely: it is now a
@@ -62,7 +62,7 @@ breakdown — reasons bucketed by count with example tracks, the raw
 per-track audit nested one level down — and the preview cap is now the
 shared `SET_EXCLUDED_PREVIEW_MAX` (route/CLI/panel derived; was a
 hardcoded 40 in three places). A new repro line prints the exact
-`megadj setbuild …` invocation for the chain on screen, so CLI parity is
+`megadj megaset …` invocation for the chain on screen, so CLI parity is
 visible at the point of use. The Advanced drawer gained a pool-cap echo,
 a determinism note (same settings → same chain), plain-language rule
 text ("beyond ±6% a track is unmixable"), and a last-build note naming
@@ -99,7 +99,7 @@ not mounted"** with mount-first guidance — the old "More compatible
 tracks needed" framing misdiagnosed an unmounted SHELF1 as a thin
 library (live repro: 3,664 rows, 8 sampler presets mounted, 0-minute
 draft). Real shortages keep the partial-draft wording. CLI
-`megadj setbuild` prints the same diagnosis; the classifier is derived
+`megadj megaset` prints the same diagnosis; the classifier is derived
 from the census numbers, never a separate server flag._
 
 _Rev 7.1, 2026-09-15: **the tag-visibility surface shipped** — FullTags ⌗

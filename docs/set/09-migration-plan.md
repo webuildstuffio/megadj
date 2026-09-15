@@ -1,14 +1,14 @@
 # MegaSet — Full Atomic Migration Plan (setbuild → megaset)
 
-**Status:** ⛔ SUPERSEDED (2026-09-15) — **this rename was reversed before it
-started.** The user's product decision landed in commit `0aa95aa` and the
-roadmap rev 7.6: the product is named **Set**, not MegaSet, and "MegaSet" is
-retired from every user-facing surface. The CLI verb stays a command, not a
-brand: `megadj setbuild` (route `/api/archive/setbuild`, MCP
-`archive_set_build`, types `SetBuild*` — all unchanged). The living doc set
-is [docs/set/](01-prd.md). Kept only as a dated record of the considered
-`setbuild → megaset` identifier migration; do not execute. See
-[10-findings](10-findings.md) for the closed P3 row.
+**Status:** ✅ EXECUTED (2026-09-15, evening) — the full atomic migration
+shipped after the user re-decided: **MegaSet is the product name.** The
+earlier reversal (commit `0aa95aa`, roadmap rev 7.6) was itself reversed;
+this plan is now the receipt for the executed state: `megadj megaset`
+(route `/api/archive/megaset`, MCP `megaset_propose`, types `Megaset*`,
+engine `cratedeck/src/megaset.ts`, panel `MegasetPanel.tsx`, CSS
+`megaset-`). Compatibility shims kept the churn green mid-flight and were
+removed the same day. The living doc set is [docs/set/](01-prd.md). See
+[10-findings](10-findings.md) for the glossary.
 
 **Status at planning time:** 🧭 PLANNED — NOT STARTED. None of the code,
 command, route, tool, type, file, or CSS renames below have shipped.

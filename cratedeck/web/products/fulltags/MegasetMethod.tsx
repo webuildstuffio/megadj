@@ -1,13 +1,13 @@
 /** Read-only evidence panel for the set builder. Kept separate from the
  * interactive SimilarTab so source/check wording cannot bury its state flow. */
-export function SetBuilderMethod() {
+export function MegasetMethod() {
   return (
-    <details class="setbuild-method">
+    <details class="megaset-method">
       <summary>
         <span>How FullTags scores this proposal</span>
         <small>read-only</small>
       </summary>
-      <dl class="setbuild-evidence" aria-label="Set builder evidence">
+      <dl class="megaset-evidence" aria-label="Set builder evidence">
         <div>
           <dt>Sources</dt>
           <dd>

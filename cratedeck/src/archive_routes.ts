@@ -7,12 +7,12 @@
 // URL already sliced to the route part ("/archive/..."). Returns null when
 // no archive route matched so index.ts can fall through.
 import type { ArchiveReader } from "./archive";
-import { SET_PRESETS, buildSet, parseSetbuildQuery } from "./setbuild";
+import { SET_PRESETS, buildMegaset, parseMegasetQuery } from "./megaset";
 import {
-  clampSetPool,
-  isSetSearchOverride,
-  SET_EXCLUDED_PREVIEW_MAX,
-} from "../shared/setbuild";
+  clampMegasetPool,
+  isMegasetSearchOverride,
+  MEGASET_EXCLUDED_PREVIEW_MAX,
+} from "../shared/megaset";
 import { isSimilarSpace } from "../shared/vector-space";
 import type { DB } from "./db";
 import type { CrateConfig } from "./config";
@@ -46,28 +46,28 @@ function resolveSetBuild(
 ):
   | { error: string }
   | {
-      built: ReturnType<typeof buildSet>;
+      built: ReturnType<typeof buildMegaset>;
       census: ReturnType<ArchiveReader["setCandidates"]>;
     } {
-  const parsed = parseSetbuildQuery({
+  const parsed = parseMegasetQuery({
     preset: url.searchParams.get("preset"),
     minutes: url.searchParams.get("minutes"),
   });
   if ("error" in parsed) return parsed;
 
   const rawLimit = url.searchParams.get("limit");
-  let limit = clampSetPool(null);
+  let limit = clampMegasetPool(null);
   if (rawLimit !== null) {
     const parsedLimit = Number(rawLimit);
     if (rawLimit.trim() === "" || !Number.isFinite(parsedLimit))
       return { error: "limit must be a finite number" };
-    limit = clampSetPool(parsedLimit);
+    limit = clampMegasetPool(parsedLimit);
   }
 
   const census = archive.setCandidates(limit);
   return {
     census,
-    built: buildSet({
+    built: buildMegaset({
       candidates: census.candidates,
       preset: SET_PRESETS[parsed.preset],
       minutes: parsed.minutes,
@@ -79,7 +79,7 @@ function resolveSetBuild(
       // contract param (unlike preset, which IS a contract and 400s).
       searchOverride: (() => {
         const raw = url.searchParams.get("search");
-        return isSetSearchOverride(raw) ? raw : undefined;
+        return isMegasetSearchOverride(raw) ? raw : undefined;
       })(),
     }),
   };
@@ -187,11 +187,11 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
     },
     // Set-builder copilot: propose an ordered mix chain from the
     // measured data (beats BPM + mood axes + file TKEY). Propose-only.
-    // Params validated by the engine's parseSetbuildQuery (shared with the
+    // Params validated by the engine's parseMegasetQuery (shared with the
     // MCP tool): unknown preset → 400, never a silent peak-time fallback;
     // minutes clamp to 10–240; defaults live in shared/types.ts so every
     // surface agrees.
-    setbuild: (url, archive) => {
+    megaset: (url, archive) => {
       const resolved = resolveSetBuild(url, archive);
       if ("error" in resolved) return json({ error: resolved.error }, 400);
       // A downloaded UTF-8 playlist is the safe Rekordbox bridge: import it
@@ -253,8 +253,8 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         // ledger ages (newest beats/mood analysis) — the UI staleness
         // line derives from this, never a hand-copied clock read
         freshness,
-        // the wire contract is the preset ID (SetBuildPayload.preset: string)
-        // — consumers resolve labels from the shared SET_PRESET_DEFS registry
+        // the wire contract is the preset ID (MegasetPayload.preset: string)
+        // — consumers resolve labels from the shared MEGASET_PRESET_DEFS registry
         preset: built.preset,
         minutes: built.minutes,
         actualMinutes: built.actualMinutes,
@@ -262,8 +262,8 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         complete: built.complete,
         steps: built.steps,
         // the excluded preview shares one cap with the CLI/panel
-        // (SET_EXCLUDED_PREVIEW_MAX); excluded_total keeps the full count
-        excluded: built.excluded.slice(0, SET_EXCLUDED_PREVIEW_MAX),
+        // (MEGASET_EXCLUDED_PREVIEW_MAX); excluded_total keeps the full count
+        excluded: built.excluded.slice(0, MEGASET_EXCLUDED_PREVIEW_MAX),
         excluded_total: built.excluded.length,
         // which sequencer ran (beam = deep search on small pools) — the
         // UI and CLI quote this, never re-derive the threshold themselves
@@ -319,7 +319,7 @@ export function archiveRoutes(
 ): Promise<Response | null> | Response | null {
   const { archive, db, cfg } = deps;
   const match =
-    /\/archive\/(search|track|ingest-status|lowq|source-diff|grid-cross-check|mood|similar|setbuild|sweep|cues|library|skip-census|sources|analysis-coverage|tag-census|tag-compare)$/.exec(
+    /\/archive\/(search|track|ingest-status|lowq|source-diff|grid-cross-check|mood|similar|megaset|sweep|cues|library|skip-census|sources|analysis-coverage|tag-census|tag-compare)$/.exec(
       route,
     );
   if (!match) return Promise.resolve(null);

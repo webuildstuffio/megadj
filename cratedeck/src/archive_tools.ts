@@ -7,13 +7,13 @@
 // of hand-written JSON-Schema boilerplate.
 
 import { apiGet } from "./deckapi";
-import { parseSetbuildQuery } from "./setbuild";
+import { parseMegasetQuery } from "./megaset";
 import {
-  clampSetPool,
-  isSetSearchOverride,
-  SET_BEAM_POOL_MAX,
-  SET_PRESET_IDS,
-  SET_POOL_MAX,
+  clampMegasetPool,
+  isMegasetSearchOverride,
+  MEGASET_BEAM_POOL_MAX,
+  MEGASET_PRESET_IDS,
+  MEGASET_POOL_MAX,
 } from "../shared/types";
 import {
   str,
@@ -183,30 +183,30 @@ export function archiveTools(): Record<string, unknown> {
       },
     },
 
-    archive_set_build: {
+    megaset_propose: {
       description:
         "[READ-ONLY, PROPOSES ONLY] Set builder copilot: audits every downloaded archive row, resolves moved DJ-Imports paths on the mounted shelf, collapses physical-file aliases, then proposes an ordered mix chain. It prefers FullTags beat/mood/key ledgers, fills missing BPM/key from the current Rekordbox master mirror, and reads a file key only when neither source knows it. Tempo uses a ±6% mixability window; Camelot and mood shape the selected energy arc. Writes nothing. Inspect requested/actual minutes, completion/shortfall, source_total, pool, missing_files, duplicate_files, relocated_files, source-hit/key-read diagnostics, and freshness to explain the result.",
       inputSchema: obj({
         preset: {
           type: "string",
-          enum: SET_PRESET_IDS,
+          enum: MEGASET_PRESET_IDS,
           description: "energy-arc preset (default peak)",
         },
         minutes: n("target set length in minutes (default 60, 10–240)"),
         opener: s("optional video_id to force as the first track"),
         limit: n(
-          `optional candidate pool cap; omitted scans the whole downloaded archive DB (max ${SET_POOL_MAX})`,
+          `optional candidate pool cap; omitted scans the whole downloaded archive DB (max ${MEGASET_POOL_MAX})`,
         ),
         search: {
           type: "string",
           enum: ["greedy", "beam"],
-          description: `force a sequencer strategy (A/B compare); omitted = automatic (pools under ${SET_BEAM_POOL_MAX} run the deep 'beam' search, larger keep greedy)`,
+          description: `force a sequencer strategy (A/B compare); omitted = automatic (pools under ${MEGASET_BEAM_POOL_MAX} run the deep 'beam' search, larger keep greedy)`,
         },
       }),
       run: async (args: Record<string, unknown>) => {
-        // same validation as the HTTP route (parseSetbuildQuery): unknown
+        // same validation as the HTTP route (parseMegasetQuery): unknown
         // preset → RpcParamError, never a silent peak-time fallback.
-        const parsed = parseSetbuildQuery({
+        const parsed = parseMegasetQuery({
           preset: str(args, "preset") ?? null,
           minutes: num(args, "minutes") ?? null,
         });
@@ -219,7 +219,7 @@ export function archiveTools(): Record<string, unknown> {
         // instead of silently degrading to the automatic pick mid-compare
         const searchRaw = str(args, "search");
         if (searchRaw !== undefined) {
-          if (!isSetSearchOverride(searchRaw))
+          if (!isMegasetSearchOverride(searchRaw))
             throw new RpcParamError('search must be "greedy" or "beam"');
           q.set("search", searchRaw);
         }
@@ -228,9 +228,9 @@ export function archiveTools(): Record<string, unknown> {
           const parsedLimit = num(args, "limit");
           if (parsedLimit === undefined)
             throw new RpcParamError("limit must be a finite number");
-          q.set("limit", String(clampSetPool(parsedLimit)));
+          q.set("limit", String(clampMegasetPool(parsedLimit)));
         }
-        const res = await apiGet(`/api/archive/setbuild?${q.toString()}`);
+        const res = await apiGet(`/api/archive/megaset?${q.toString()}`);
         return res.json();
       },
     },

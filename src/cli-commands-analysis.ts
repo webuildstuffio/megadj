@@ -6,7 +6,7 @@ import {
   numOpt,
   parseFlags,
 } from "./cli-flags";
-import { isSetSearchOverride } from "../cratedeck/shared/types";
+import { isMegasetSearchOverride } from "../cratedeck/shared/types";
 import { writeJson } from "./shared/cli-output";
 import { isSimilarSpace } from "../cratedeck/shared/vector-space";
 
@@ -82,29 +82,29 @@ const similar: CliCommandHandler = async (rest, { state }) => {
   });
 };
 
-const setbuild: CliCommandHandler = async (rest) => {
+const megaset: CliCommandHandler = async (rest) => {
   const flags = parseFlags(
     rest,
     ["preset", "minutes", "opener", "limit", "search"],
     ["json"],
   );
   if (nonNegOptInvalid(flags, "minutes")) return;
-  const minutes = nonNegOpt(flags, "minutes", "setbuild");
+  const minutes = nonNegOpt(flags, "minutes", "megaset");
   if (nonNegOptInvalid(flags, "limit")) return;
-  const limit = nonNegOpt(flags, "limit", "setbuild");
+  const limit = nonNegOpt(flags, "limit", "megaset");
   // the A/B hook (E7): same contract as the HTTP ?search= / MCP search
   // param — but a CLI typo must fail loudly (exit 2, zero work), not
   // silently compare the automatic pick against itself
   const searchRaw = flags.strings.get("search");
-  if (searchRaw !== undefined && !isSetSearchOverride(searchRaw)) {
+  if (searchRaw !== undefined && !isMegasetSearchOverride(searchRaw)) {
     console.error(
-      `setbuild: unknown --search "${searchRaw}" — expected greedy or beam`,
+      `megaset: unknown --search "${searchRaw}" — expected greedy or beam`,
     );
     process.exitCode = 2;
     return;
   }
-  const { setbuild: buildSet } = await import("./fulltags/setbuild");
-  await buildSet({
+  const { megaset: buildMegaset } = await import("./fulltags/megaset");
+  await buildMegaset({
     preset: flags.strings.get("preset"),
     minutes,
     opener: flags.strings.get("opener"),
@@ -226,7 +226,11 @@ export const ANALYSIS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   beats,
   mood,
   similar,
-  setbuild,
+  megaset,
+  /** Deprecated alias: the pre-rename verb (`megadj setbuild` →
+   *  `megadj megaset`); docs/roadmap promised the old muscle memory
+   *  keeps working. Same handler, zero drift. */
+  setbuild: megaset,
   genre,
   cues,
   "gold-report": goldReport,

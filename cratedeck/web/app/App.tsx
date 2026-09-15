@@ -16,7 +16,7 @@ import { DrivePage } from "../products/cratedeck/DrivePage";
 import { FleetPage } from "../products/cratedeck/FleetPage";
 import { GetDatPage } from "../products/getdat/GetDatPage";
 import { FullTagsPage } from "../products/fulltags/FullTagsPage";
-import { SetPage } from "../products/set/SetPage";
+import { MegasetPage } from "../products/megaset/MegasetPage";
 import { JobsDock } from "../ui/JobsDock";
 import { Toaster, api, toast } from "../ui/toast";
 import { navigate, useRoute } from "../app/router";
@@ -247,8 +247,8 @@ export function App() {
             <FleetPage key="fleet" tab={route.tab} />
           ) : route.product === "getdat" ? (
             <GetDatPage key="getdat" tab={route.tab} />
-          ) : route.product === "set" ? (
-            <SetPage key="set" tab={route.tab} />
+          ) : route.product === "megaset" ? (
+            <MegasetPage key="megaset" tab={route.tab} />
           ) : route.product === "fulltags" ? (
             <FullTagsPage key="fulltags" tab={route.tab} />
           ) : route.product === "drives" && route.driveId ? (

@@ -1,4 +1,4 @@
-// setbuild.ts — the set-builder CLI spoke (`megadj setbuild`).
+// megaset.ts — the set-builder CLI spoke (`megadj megaset`; `setbuild` alias).
 //
 // Closes the last CLI-vs-MCP archive read gap (docs/surface-parity.md §4
 // item 4, the same way `megadj similar` closed I49's): the engine and the
@@ -17,15 +17,15 @@ import { DB_PATH } from "../cli-env";
 import { commandLog } from "../progress";
 import { writeJson } from "../shared/cli-output";
 import {
-  buildSet,
-  parseSetbuildQuery,
+  buildMegaset,
+  parseMegasetQuery,
   SET_PRESETS,
-} from "../../cratedeck/src/setbuild";
+} from "../../cratedeck/src/megaset";
 import {
-  clampSetPool,
+  clampMegasetPool,
   isShelfOffline,
-  SET_EXCLUDED_PREVIEW_MAX,
-  type SetBuildPayload,
+  MEGASET_EXCLUDED_PREVIEW_MAX,
+  type MegasetPayload,
   type SetSearchOverride,
 } from "../../cratedeck/shared/types";
 
@@ -34,7 +34,7 @@ import {
 const dayOf = (iso: string | null): string =>
   iso === null ? "never" : iso.slice(0, 10);
 
-export interface SetbuildOptions {
+export interface MegasetOptions {
   preset?: string | undefined;
   minutes?: number | undefined;
   opener?: string | undefined;
@@ -44,7 +44,7 @@ export interface SetbuildOptions {
   json?: boolean | undefined;
 }
 
-export async function setbuild(opts: SetbuildOptions): Promise<void> {
+export async function megaset(opts: MegasetOptions): Promise<void> {
   const log = commandLog(opts);
   const configRoot =
     process.env.CRATEDECK_ROOT ?? join(import.meta.dir, "../../cratedeck");
@@ -56,12 +56,12 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
 
   // same parse/validate path as the HTTP route + MCP tool (SSOT): unknown
   // preset is an error, minutes clamp to 10–240 — never silent fallbacks
-  const parsed = parseSetbuildQuery({
+  const parsed = parseMegasetQuery({
     preset: opts.preset ?? null,
     minutes: opts.minutes ?? null,
   });
   if ("error" in parsed) {
-    console.error(`setbuild: ${parsed.error}`);
+    console.error(`megaset: ${parsed.error}`);
     process.exitCode = 2;
     return;
   }
@@ -70,10 +70,10 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
   try {
     if (!reader.available()) {
       console.error(
-        `setbuild: no archive at ${DB_PATH} — run \`megadj sync\`/\`megadj drop\` first`,
+        `megaset: no archive at ${DB_PATH} — run \`megadj sync\`/\`megadj drop\` first`,
       );
       if (opts.json)
-        await writeJson({ command: "setbuild", error: "no archive" });
+        await writeJson({ command: "megaset", error: "no archive" });
       process.exitCode = 1;
       return;
     }
@@ -93,16 +93,16 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
     } = reader.setCandidates(
       // shared clamp — an explicit --limit is bounded by the same contract
       // as the route/MCP (1–1000); absent → whole analyzed library
-      clampSetPool(opts.limit ?? null),
+      clampMegasetPool(opts.limit ?? null),
     );
-    const built = buildSet({
+    const built = buildMegaset({
       candidates,
       preset: SET_PRESETS[parsed.preset],
       minutes: parsed.minutes,
       openerId: opts.opener,
       searchOverride: opts.search,
     });
-    const payload: SetBuildPayload = {
+    const payload: MegasetPayload = {
       available: true,
       source_total: sourceTotal,
       pool: total,
@@ -119,7 +119,7 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       shortfallMinutes: built.shortfallMinutes,
       complete: built.complete,
       steps: built.steps,
-      excluded: built.excluded.slice(0, SET_EXCLUDED_PREVIEW_MAX),
+      excluded: built.excluded.slice(0, MEGASET_EXCLUDED_PREVIEW_MAX),
       excluded_total: built.excluded.length,
       freshness,
       search: built.search,
@@ -137,10 +137,10 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       });
       log(
         offline
-          ? `setbuild: shelf volume is offline — all ${missingFiles} downloaded paths are unreadable. Mount the shelf drive, then build again (nothing is lost; the ledger is intact)`
+          ? `megaset: shelf volume is offline — all ${missingFiles} downloaded paths are unreadable. Mount the shelf drive, then build again (nothing is lost; the ledger is intact)`
           : total === 0 && sourceTotal > 0 && missingFiles === sourceTotal
-            ? `setbuild: checked ${sourceTotal} downloaded DB rows, but none of their files exist — run \`megadj status\`, then repair or resync those rows`
-            : `setbuild: nothing mixable in a ${total}-track actual-file pool — run \`megadj beats\` + \`megadj mood\` first`,
+            ? `megaset: checked ${sourceTotal} downloaded DB rows, but none of their files exist — run \`megadj status\`, then repair or resync those rows`
+            : `megaset: nothing mixable in a ${total}-track actual-file pool — run \`megadj beats\` + \`megadj mood\` first`,
       );
       process.exitCode = 1;
     } else {
@@ -148,7 +148,7 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
       // surface the ledger ages so "why isn't my new track in here" is
       // answerable without opening a DB shell
       log(
-        `setbuild: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search (checked ${sourceTotal} DB rows; ${total} unique actual files; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
+        `megaset: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search (checked ${sourceTotal} DB rows; ${total} unique actual files; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
       );
       log(
         `  analysis freshness — beats: ${dayOf(payload.freshness.beatsAt)}, mood: ${dayOf(payload.freshness.moodAt)} (newer imports need \`megadj beats\` + \`megadj mood\`)`,

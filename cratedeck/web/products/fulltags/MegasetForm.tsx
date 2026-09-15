@@ -1,5 +1,5 @@
-// SetBuildForm.tsx — the set builder's input widgets, split out of
-// SetBuildPanel.tsx (file-length guard): the preset cards, the length
+// MegasetForm.tsx — the set builder's input widgets, split out of
+// MegasetPanel.tsx (file-length guard): the preset cards, the length
 // row, the sequencer row + advanced drawer (pool cap + scoring evidence).
 //
 // Every limit/number on screen is DERIVED from the shared registry
@@ -7,17 +7,17 @@
 // schema and the engine quote. Help text is written for a DJ who has
 // never read the docs: what it does, when to touch it, what happens if
 // they don't.
-import type { SetPresetDef } from "../../../shared/types";
-import { SET_PRESET_DEFS } from "../../../shared/types";
+import type { MegasetPresetDef } from "../../../shared/types";
+import { MEGASET_PRESET_DEFS } from "../../../shared/types";
 import {
-  SET_TRACK_MINUTES_MIN,
-  SET_TRACK_MINUTES_MAX,
-  SET_TEMPO_PERFECT,
-  SET_TEMPO_WINDOW,
-  SET_TRANSITION_WEIGHTS,
-  SET_POOL_MAX,
-  SET_BEAM_POOL_MAX,
-  SET_BEAM_WIDTH,
+  MEGASET_TRACK_MINUTES_MIN,
+  MEGASET_TRACK_MINUTES_MAX,
+  MEGASET_TEMPO_PERFECT,
+  MEGASET_TEMPO_WINDOW,
+  MEGASET_TRANSITION_WEIGHTS,
+  MEGASET_POOL_MAX,
+  MEGASET_BEAM_POOL_MAX,
+  MEGASET_BEAM_WIDTH,
 } from "../../../shared/types";
 import { Icon } from "../../ui/icons";
 
@@ -31,9 +31,9 @@ const arcY = (value: number): number => 30 - ((value - 1) / 8) * 22;
  *  descriptions), so a per-step sub-line only repeated them. */
 export function StepTitle(props: { n: number; title: string; hint?: string }) {
   return (
-    <legend class="setbuild-setup-title">
+    <legend class="megaset-setup-title">
       <span>{props.n}</span>
-      <span class="setbuild-setup-text">
+      <span class="megaset-setup-text">
         {props.title}
         {props.hint && <small>{props.hint}</small>}
       </span>
@@ -42,21 +42,21 @@ export function StepTitle(props: { n: number; title: string; hint?: string }) {
 }
 
 export function PresetOption(props: {
-  preset: SetPresetDef;
+  preset: MegasetPresetDef;
   selected: boolean;
   disabled: boolean;
   index: number;
-  onSelect: (preset: SetPresetDef) => void;
+  onSelect: (preset: MegasetPresetDef) => void;
 }) {
   const { preset, selected } = props;
-  const descriptionId = `setbuild-preset-${preset.id}-description`;
+  const descriptionId = `megaset-preset-${preset.id}-description`;
   const [start, end] = preset.arousal;
   const rising = end >= start;
 
   return (
     <button
       type="button"
-      class={`setbuild-preset-option${selected ? " on" : ""}`}
+      class={`megaset-preset-option${selected ? " on" : ""}`}
       role="radio"
       aria-checked={selected}
       aria-describedby={descriptionId}
@@ -64,20 +64,20 @@ export function PresetOption(props: {
       disabled={props.disabled}
       onClick={() => props.onSelect(preset)}
       onKeyDown={(event) => {
-        const last = SET_PRESET_DEFS.length - 1;
+        const last = MEGASET_PRESET_DEFS.length - 1;
         const nextIndex =
           event.key === "Home"
             ? 0
             : event.key === "End"
               ? last
               : event.key === "ArrowRight" || event.key === "ArrowDown"
-                ? (props.index + 1) % SET_PRESET_DEFS.length
+                ? (props.index + 1) % MEGASET_PRESET_DEFS.length
                 : event.key === "ArrowLeft" || event.key === "ArrowUp"
-                  ? (props.index + last) % SET_PRESET_DEFS.length
+                  ? (props.index + last) % MEGASET_PRESET_DEFS.length
                   : null;
         if (nextIndex === null) return;
         event.preventDefault();
-        const next = SET_PRESET_DEFS[nextIndex];
+        const next = MEGASET_PRESET_DEFS[nextIndex];
         if (!next) return;
         props.onSelect(next);
         event.currentTarget.parentElement
@@ -86,34 +86,34 @@ export function PresetOption(props: {
           .focus();
       }}
     >
-      <span class="setbuild-preset-head">
+      <span class="megaset-preset-head">
         <strong>{preset.label}</strong>
         {selected && (
-          <span class="setbuild-preset-selected">
+          <span class="megaset-preset-selected">
             <Icon name="check" size={11} /> Selected
           </span>
         )}
       </span>
       <svg
-        class="setbuild-preset-arc"
+        class="megaset-preset-arc"
         viewBox="0 0 120 36"
         role="img"
         aria-label={`${preset.label} energy ${rising ? "rises" : "falls"} from ${energyBand(start)} to ${energyBand(end)}`}
       >
-        <path class="setbuild-preset-guide" d="M4 30 H116" />
+        <path class="megaset-preset-guide" d="M4 30 H116" />
         <path
-          class="setbuild-preset-line"
+          class="megaset-preset-line"
           d={`M4 ${arcY(start)} C42 ${arcY(start)}, 78 ${arcY(end)}, 116 ${arcY(end)}`}
         />
         <circle cx="4" cy={arcY(start)} r="2.5" />
         <circle cx="116" cy={arcY(end)} r="2.5" />
       </svg>
-      <span class="setbuild-preset-range" aria-hidden="true">
+      <span class="megaset-preset-range" aria-hidden="true">
         <span>{energyBand(start)}</span>
         <span>{rising ? "rises to" : "drifts to"}</span>
         <span>{energyBand(end)}</span>
       </span>
-      <span id={descriptionId} class="setbuild-preset-description">
+      <span id={descriptionId} class="megaset-preset-description">
         {preset.description}
       </span>
     </button>
@@ -127,7 +127,7 @@ export function SequencerRow(props: {
 }) {
   return (
     <div
-      class="setbuild-duration-presets"
+      class="megaset-duration-presets"
       role="group"
       aria-label="Sequencer strategy"
     >
@@ -149,7 +149,7 @@ export function SequencerRow(props: {
         <button
           key={value}
           type="button"
-          class={`setbuild-duration-option${props.searchChoice === value ? " on" : ""}`}
+          class={`megaset-duration-option${props.searchChoice === value ? " on" : ""}`}
           aria-pressed={props.searchChoice === value}
           title={why}
           disabled={props.disabled}
@@ -172,31 +172,31 @@ export function AdvancedDrawer(props: {
   searchChoice: "auto" | "greedy" | "beam";
 }) {
   return (
-    <details class="setbuild-advanced">
+    <details class="megaset-advanced">
       <summary>
         <span>Advanced</span>
         <small>
           pool cap · scoring weights · the same knobs the CLI and API take
         </small>
       </summary>
-      <div class="setbuild-advanced-grid">
+      <div class="megaset-advanced-grid">
         <label
-          class="setbuild-limit"
-          title={`Cap the candidate pool to the newest N imports (1–${SET_POOL_MAX}). Empty = the whole analyzed library.`}
+          class="megaset-limit"
+          title={`Cap the candidate pool to the newest N imports (1–${MEGASET_POOL_MAX}). Empty = the whole analyzed library.`}
         >
           <span>
             Pool cap
             <small>
-              newest N of the library · 1–{SET_POOL_MAX} · empty = all
+              newest N of the library · 1–{MEGASET_POOL_MAX} · empty = all
             </small>
           </span>
           <input
             type="number"
             min={1}
-            max={SET_POOL_MAX}
+            max={MEGASET_POOL_MAX}
             placeholder="all"
             value={props.poolLimitInput}
-            aria-label={`Candidate pool cap, 1 to ${SET_POOL_MAX}; empty uses the whole library`}
+            aria-label={`Candidate pool cap, 1 to ${MEGASET_POOL_MAX}; empty uses the whole library`}
             disabled={props.disabled}
             onInput={(event) =>
               props.onPoolLimitInput((event.target as HTMLInputElement).value)
@@ -204,43 +204,43 @@ export function AdvancedDrawer(props: {
             onBlur={props.onPoolLimitBlur}
           />
           {props.poolLimitInput.trim() !== "" && (
-            <small class="setbuild-limit-hint">
+            <small class="megaset-limit-hint">
               builds from the {props.poolLimitInput.trim()} newest imports —
               clear it to use the whole library
             </small>
           )}
         </label>
-        <dl class="setbuild-weights" aria-label="Scoring rules and limits">
+        <dl class="megaset-weights" aria-label="Scoring rules and limits">
           <div>
             <dt>tempo rule</dt>
             <dd>
-              within ±{Math.round(SET_TEMPO_PERFECT * 100)}% scores full; beyond
-              ±{Math.round(SET_TEMPO_WINDOW * 100)}% a track is unmixable and
-              never joins the chain
+              within ±{Math.round(MEGASET_TEMPO_PERFECT * 100)}% scores full;
+              beyond ±{Math.round(MEGASET_TEMPO_WINDOW * 100)}% a track is
+              unmixable and never joins the chain
             </dd>
           </div>
           <div>
             <dt>transition score</dt>
             <dd>
-              tempo {SET_TRANSITION_WEIGHTS.tempo} · key{" "}
-              {SET_TRANSITION_WEIGHTS.key} · arc fit{" "}
-              {SET_TRANSITION_WEIGHTS.arcFit} — key clashes and tempo misses are
-              hard gates, not soft penalties
+              tempo {MEGASET_TRANSITION_WEIGHTS.tempo} · key{" "}
+              {MEGASET_TRANSITION_WEIGHTS.key} · arc fit{" "}
+              {MEGASET_TRANSITION_WEIGHTS.arcFit} — key clashes and tempo misses
+              are hard gates, not soft penalties
             </dd>
           </div>
           <div>
             <dt>track limits</dt>
             <dd>
-              {SET_TRACK_MINUTES_MIN}–{SET_TRACK_MINUTES_MAX} min per track —
-              shorter are samples, longer are continuous mixes
+              {MEGASET_TRACK_MINUTES_MIN}–{MEGASET_TRACK_MINUTES_MAX} min per
+              track — shorter are samples, longer are continuous mixes
             </dd>
           </div>
           <div>
             <dt>deep search</dt>
             <dd>
-              joins automatically under {SET_BEAM_POOL_MAX} tracks (width{" "}
-              {SET_BEAM_WIDTH}); big pools keep the fast chain — measured, no
-              quality loss
+              joins automatically under {MEGASET_BEAM_POOL_MAX} tracks (width{" "}
+              {MEGASET_BEAM_WIDTH}); big pools keep the fast chain — measured,
+              no quality loss
             </dd>
           </div>
           <div>
@@ -259,9 +259,9 @@ export function AdvancedDrawer(props: {
           </div>
         </dl>
         {props.lastPool !== null && (
-          <p class="setbuild-advanced-note">
+          <p class="megaset-advanced-note">
             Last build scanned {props.lastPool.toLocaleString()} mounted tracks
-            {props.lastPool < SET_BEAM_POOL_MAX
+            {props.lastPool < MEGASET_BEAM_POOL_MAX
               ? ` — that is why it ran the deep search`
               : ` — above the deep-search threshold, so the fast chain ran`}
             .

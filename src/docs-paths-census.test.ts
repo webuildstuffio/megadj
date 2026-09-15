@@ -39,54 +39,37 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "web/products/shared.tsx": "historical rev line (rev-9 restructure note)",
   },
   "docs/set/08-audit-and-plan.md": {
-    // Dated 2026-09-13 scope block naming the pre-megaset-era layout; the
-    // paths flip with #56's rename, not before.
+    // Dated 2026-09-13 audit: names the setbuild.* layout as it was when
+    // written; the #56 rename executed 2026-09-15.
     "web/products/fulltags/SimilarTab.tsx":
-      "dated scope block (pre-megaset-era, flips with #56)",
-    // Pre-rename product name: the engine/wire/CLI files were `setbuild.*`
-    // when this dated audit was written; the #56 reversal kept `megaset`.
-    "cratedeck/src/setbuild.ts": "dated audit text (pre-rename product name)",
-    "cratedeck/shared/setbuild.ts":
-      "dated audit text (pre-rename product name)",
-    "src/fulltags/setbuild.ts": "dated audit text (pre-rename product name)",
+      "dated scope block (pre-rename layout, rename executed)",
+    "cratedeck/src/setbuild.ts": "dated audit text (rename executed)",
+    "cratedeck/shared/setbuild.ts": "dated audit text (rename executed)",
+    "src/fulltags/setbuild.ts": "dated audit text (rename executed)",
   },
   "docs/set/09-migration-plan.md": {
-    // SUPERSEDED 2026-09-15 (product named Set; the megaset rename was
-    // reversed). The plan's body describes the never-executed TARGET
-    // state; those paths are historical plan text, not staleness.
-    "cratedeck/src/megaset.ts":
-      "superseded migration plan target path (issue #56 reversed)",
-    "cratedeck/shared/megaset.ts":
-      "superseded migration plan target path (issue #56 reversed)",
-    "cratedeck/test/megaset.test.ts":
-      "superseded migration plan target path (issue #56 reversed)",
-    "cratedeck/test/archive-megaset-surface.test.ts":
-      "superseded migration plan target path (issue #56 reversed)",
-    "src/fulltags/megaset.ts":
-      "superseded migration plan target path (issue #56 reversed)",
-    "cratedeck/src/setbuild.ts":
-      "superseded migration plan source path (issue #56 reversed)",
-    "cratedeck/shared/setbuild.ts":
-      "superseded migration plan source path (issue #56 reversed)",
-    "src/fulltags/setbuild.ts":
-      "superseded migration plan source path (issue #56 reversed)",
-    "cratedeck/test/setbuild.test.ts":
-      "superseded migration plan source path (issue #56 reversed)",
+    // The dated migration plan names setbuild.* paths throughout; the
+    // rename EXECUTED 2026-09-15 (megaset is canonical), so the doc's
+    // old-name references are historical plan text, not staleness.
+    "cratedeck/src/setbuild.ts": "dated migration plan (rename executed)",
+    "cratedeck/shared/setbuild.ts": "dated migration plan (rename executed)",
+    "cratedeck/test/setbuild.test.ts": "dated migration plan (rename executed)",
     "cratedeck/test/archive-setbuild-surface.test.ts":
-      "superseded migration plan source path (issue #56 reversed)",
+      "dated migration plan (rename executed)",
+    "src/fulltags/setbuild.ts": "dated migration plan (rename executed)",
     "fulltags/intake-cue-postmortem.md":
       "relative link inside the planned-docs table (resolves from docs/)",
   },
   "docs/set/04-sequencing-benchmarks.md": {
-    "cratedeck/src/setbuild.ts": "dated benchmark doc (pre-rename engine path)",
+    "cratedeck/src/setbuild.ts": "dated benchmark doc (rename executed)",
   },
   "docs/set/02-architecture.md": {
-    // Dated architecture diagram naming the pre-rename layout (megadj
-    // setbuild / cratedeck setbuild) — historical structure text.
-    "cratedeck/src/setbuild.ts": "dated architecture diagram (pre-rename)",
+    // Dated architecture diagram naming the setbuild layout as it was
+    // when written — historical structure text.
+    "cratedeck/src/setbuild.ts": "dated architecture diagram (rename executed)",
     "cratedeck/shared/setbuild.ts":
-      "dated architecture diagram (pre-rename)",
-    "src/fulltags/setbuild.ts": "dated architecture diagram (pre-rename)",
+      "dated architecture diagram (rename executed)",
+    "src/fulltags/setbuild.ts": "dated architecture diagram (rename executed)",
   },
   "docs/README.md": {
     "fulltags/intake-cue-postmortem.md":

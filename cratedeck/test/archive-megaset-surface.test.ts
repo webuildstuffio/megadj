@@ -7,7 +7,7 @@ import { setCandidates } from "../src/archive_similar";
 import { archiveRoutes } from "../src/archive_routes";
 import { archiveTools } from "../src/archive_tools";
 import { ArchiveReader } from "../src/archive";
-import { isSetSearchOverride } from "../shared/types";
+import { isMegasetSearchOverride } from "../shared/types";
 import type { CrateConfig } from "../src/config";
 import type { DB } from "../src/db";
 import type { ArchiveQuery } from "../src/archive_types";
@@ -18,13 +18,13 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-type SetBuildTool = {
+type MegasetTool = {
   run(args: Record<string, unknown>): Promise<unknown>;
 };
 
 function captureSetBuildRequest(): {
   urls: URL[];
-  tool: SetBuildTool;
+  tool: MegasetTool;
 } {
   const urls: URL[] = [];
   globalThis.fetch = Object.assign(
@@ -36,18 +36,18 @@ function captureSetBuildRequest(): {
   );
   return {
     urls,
-    tool: archiveTools().archive_set_build as SetBuildTool,
+    tool: archiveTools().megaset_propose as MegasetTool,
   };
 }
 
-describe("archive_set_build candidate-pool contract", () => {
+describe("megaset_propose candidate-pool contract", () => {
   test("an absent limit requests the entire downloaded archive DB", async () => {
     const { urls, tool } = captureSetBuildRequest();
 
     await tool.run({});
 
     expect(urls).toHaveLength(1);
-    expect(urls[0]!.pathname).toBe("/api/archive/setbuild");
+    expect(urls[0]!.pathname).toBe("/api/archive/megaset");
     expect(urls[0]!.searchParams.has("limit")).toBe(false);
   });
 
@@ -87,8 +87,8 @@ describe("archive_set_build candidate-pool contract", () => {
 
   test("the HTTP surface rejects an invalid limit instead of silently scanning everything", async () => {
     const response = await archiveRoutes(
-      "/archive/setbuild",
-      new URL("http://localhost/api/archive/setbuild?limit=all"),
+      "/archive/megaset",
+      new URL("http://localhost/api/archive/megaset?limit=all"),
       {
         archive: {} as ArchiveReader,
         db: {} as DB,
@@ -133,8 +133,8 @@ describe("archive_set_build candidate-pool contract", () => {
     } as unknown as ArchiveReader;
 
     const response = await archiveRoutes(
-      "/archive/setbuild",
-      new URL("http://localhost/api/archive/setbuild?search=nope"),
+      "/archive/megaset",
+      new URL("http://localhost/api/archive/megaset?search=nope"),
       {
         archive,
         db: {} as DB,
@@ -150,12 +150,12 @@ describe("archive_set_build candidate-pool contract", () => {
   });
 
   test("?search=greedy|beam are the only accepted overrides (seam predicate)", () => {
-    expect(isSetSearchOverride("greedy")).toBe(true);
-    expect(isSetSearchOverride("beam")).toBe(true);
-    expect(isSetSearchOverride("auto")).toBe(false);
-    expect(isSetSearchOverride("")).toBe(false);
-    expect(isSetSearchOverride(null)).toBe(false);
-    expect(isSetSearchOverride(undefined)).toBe(false);
+    expect(isMegasetSearchOverride("greedy")).toBe(true);
+    expect(isMegasetSearchOverride("beam")).toBe(true);
+    expect(isMegasetSearchOverride("auto")).toBe(false);
+    expect(isMegasetSearchOverride("")).toBe(false);
+    expect(isMegasetSearchOverride(null)).toBe(false);
+    expect(isMegasetSearchOverride(undefined)).toBe(false);
   });
 
   test("the Rekordbox export surface returns an importable read-only M3U8", async () => {
@@ -188,9 +188,9 @@ describe("archive_set_build candidate-pool contract", () => {
     } as unknown as ArchiveReader;
 
     const response = await archiveRoutes(
-      "/archive/setbuild",
+      "/archive/megaset",
       new URL(
-        "http://localhost/api/archive/setbuild?preset=warmup&minutes=10&format=m3u8",
+        "http://localhost/api/archive/megaset?preset=warmup&minutes=10&format=m3u8",
       ),
       {
         archive,

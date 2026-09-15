@@ -1,5 +1,5 @@
-// SetBuildStatus.tsx — the set builder's non-form status widgets, split
-// out of SetBuildPanel.tsx (file-length guard): the staged loading
+// MegasetStatus.tsx — the set builder's non-form status widgets, split
+// out of MegasetPanel.tsx (file-length guard): the staged loading
 // explainer (elapsed timer + phase list), the freshness line, and the
 // excluded-reasons breakdown.
 //
@@ -7,7 +7,7 @@
 // wall-clock cost (thousands of existence checks + fallback reads). A
 // bare spinner reads as "hung"; a staged list with an elapsed timer
 // reads as "working, and here is the work".
-import type { SetBuildPayload } from "../../../shared/types";
+import type { MegasetPayload } from "../../../shared/types";
 import { camelotOf } from "../../../shared/camelot";
 import { KVRows, KVRow, KVKey, KVVal } from "../../ui/data";
 
@@ -30,7 +30,7 @@ const LOAD_PHASES = [
   "sequencing the chain",
 ] as const;
 
-export function SetBuildLoading(props: { startedAt: number }) {
+export function MegasetLoading(props: { startedAt: number }) {
   const elapsed = Math.max(
     0,
     Math.round((Date.now() - props.startedAt) / 1000),
@@ -47,17 +47,17 @@ export function SetBuildLoading(props: { startedAt: number }) {
           : LOAD_PHASES.length - 1;
   return (
     <div
-      class="setbuild-loading"
+      class="megaset-loading"
       role="status"
       aria-live="polite"
       aria-atomic="true"
     >
       <span class="spin" aria-hidden="true" />
-      <span class="setbuild-loading-body">
+      <span class="megaset-loading-body">
         <strong>
-          Building your set… <span class="setbuild-elapsed">{elapsed}s</span>
+          Building your set… <span class="megaset-elapsed">{elapsed}s</span>
         </strong>
-        <ol class="setbuild-phases">
+        <ol class="megaset-phases">
           {LOAD_PHASES.map((label, i) => (
             <li
               key={label}
@@ -93,7 +93,7 @@ export function FreshnessLine(props: {
   );
   const cls = worst <= 2 ? "ok" : worst <= 14 ? "warn" : "stale";
   return (
-    <div class={`setbuild-fresh ${cls}`}>
+    <div class={`megaset-fresh ${cls}`}>
       analysis freshness — beats {ageWord(beats)}, mood {ageWord(mood)}
       {worst > 2 && (
         <span class="fresh-note">
@@ -117,7 +117,7 @@ interface ExcludedBucket {
  * per-track (honest, sortable) but 40 rows of "budget filled" is noise;
  * the DJ wants the SHAPE of what was left out. Order: biggest first. */
 export function bucketExcluded(
-  excluded: SetBuildPayload["excluded"],
+  excluded: MegasetPayload["excluded"],
 ): ExcludedBucket[] {
   const byReason = new Map<string, ExcludedBucket>();
   for (const e of excluded) {
@@ -134,13 +134,13 @@ export function bucketExcluded(
 
 /** The excluded view: reason-shape summary on top (grouped, with example
  * tracks), the raw per-track list in a nested details for auditing. */
-export function ExcludedBreakdown(props: { data: SetBuildPayload }) {
+export function ExcludedBreakdown(props: { data: MegasetPayload }) {
   const { data } = props;
   if (data.excluded_total <= 0) return null;
   const buckets = bucketExcluded(data.excluded);
   const shown = data.excluded.length;
   return (
-    <details class="setbuild-excluded">
+    <details class="megaset-excluded">
       <summary>
         {data.excluded_total} of {data.pool.toLocaleString()} candidates not in
         the chain — why?
@@ -152,7 +152,7 @@ export function ExcludedBreakdown(props: { data: SetBuildPayload }) {
             <KVVal>
               {b.count.toLocaleString()} track{b.count === 1 ? "" : "s"}
               {b.examples.length > 0 && (
-                <span class="setbuild-excluded-examples">
+                <span class="megaset-excluded-examples">
                   {" "}
                   e.g. {b.examples.join(", ")}
                 </span>
@@ -166,7 +166,7 @@ export function ExcludedBreakdown(props: { data: SetBuildPayload }) {
           showing the first {shown} — save the JSON draft for the full list
         </div>
       )}
-      <details class="setbuild-excluded-raw">
+      <details class="megaset-excluded-raw">
         <summary>every excluded track, one per line</summary>
         <KVRows>
           {data.excluded.map((e) => (
@@ -184,7 +184,7 @@ export function ExcludedBreakdown(props: { data: SetBuildPayload }) {
 /** "Reproduce this build" — the exact CLI line for the chain on screen, so
  * the terminal is always one paste away from the same deterministic draft. */
 export function ReproLine(props: {
-  data: SetBuildPayload;
+  data: MegasetPayload;
   searchChoice: "auto" | "greedy" | "beam";
   poolLimit: number | null;
   openerId: string | null;
@@ -200,7 +200,7 @@ export function ReproLine(props: {
   if (props.openerId) parts.push(`--opener ${props.openerId}`);
   const cmd = parts.join(" ");
   return (
-    <div class="setbuild-repro">
+    <div class="megaset-repro">
       <span>same build from the terminal:</span>
       <code>{cmd}</code>
     </div>
@@ -209,7 +209,7 @@ export function ReproLine(props: {
 
 /** Camelot first→last glide, "8A → 5A" (null-safe at both ends). Lives
  * here so the panel and the chart caption never re-derive it apart. */
-export function keyGlideOf(steps: SetBuildPayload["steps"]): string | null {
+export function keyGlideOf(steps: MegasetPayload["steps"]): string | null {
   const parsed = steps.map((s) => camelotOf(s.key));
   const first = parsed.find((k) => k !== null);
   const last = parsed.findLast((k) => k !== null);
