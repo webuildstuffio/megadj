@@ -28,7 +28,9 @@ describe("ext drift #69: scanners see what shelf-sync copies", () => {
       "Artist/song.mp3": "x",
       "Artist/notes.txt": "x",
     });
-    const found = walkAudio(dir).map((p) => p.slice(dir.length)).toSorted();
+    const found = walkAudio(dir)
+      .map((p) => p.slice(dir.length))
+      .toSorted();
     expect(found).toEqual([
       "/Artist/live.opus",
       "/Artist/set.ogg",
@@ -45,7 +47,10 @@ describe("ext drift #69: scanners see what shelf-sync copies", () => {
     const names = walkShelf(vol)
       .files.map((f) => f.path.slice(vol.length))
       .toSorted();
-    expect(names).toEqual(["/Contents/Artist/live.opus", "/Contents/Artist/set.ogg"]);
+    expect(names).toEqual([
+      "/Contents/Artist/live.opus",
+      "/Contents/Artist/set.ogg",
+    ]);
   });
 
   test("shelf-sync's copy regex and the scanner set agree exactly", () => {
@@ -53,8 +58,16 @@ describe("ext drift #69: scanners see what shelf-sync copies", () => {
     // regex match must be a set member and vice versa — the drift class
     // this SSOT closes.
     for (const ext of [
-      ".mp3", ".m4a", ".wav", ".aif", ".aiff", ".flac",
-      ".ogg", ".opus", ".aac", ".alac",
+      ".mp3",
+      ".m4a",
+      ".wav",
+      ".aif",
+      ".aiff",
+      ".flac",
+      ".ogg",
+      ".opus",
+      ".aac",
+      ".alac",
     ]) {
       expect(AUDIO_EXTS_RE.test(`track${ext}`)).toBe(true);
     }
