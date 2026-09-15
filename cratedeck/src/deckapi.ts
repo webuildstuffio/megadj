@@ -135,6 +135,23 @@ export async function resolveDrive(nameOrId: string): Promise<Drive | null> {
   );
 }
 
+/** resolveDrive + the unknown-drive failure frame, written once (#99):
+ *  every deckctl verb did `resolveDrive → if (!d) errOut + exit(2)`.
+ *  Returns the drive or never-returns; `h` is structurally the
+ *  deckctl print-hooks shape ({ errOut, exit }) — both HelpPrintHooks
+ *  and NotePrintHooks satisfy it. */
+export async function resolveDriveOrExit(
+  h: { errOut: (s: string) => void; exit: (code: number) => never },
+  nameOrId: string,
+): Promise<Drive> {
+  const d = await resolveDrive(nameOrId);
+  if (!d) {
+    h.errOut(`unknown drive: ${nameOrId}`);
+    h.exit(2);
+  }
+  return d;
+}
+
 /** One job-status poll with transient-failure tolerance. A job that is
  *  RUNNING server-side must survive dropped polls (server busy mid-bench,
  *  brief restart) — only `maxConsecutive` failures in a row give up.

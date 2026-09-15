@@ -14,7 +14,7 @@
 // one implementation of "explain a job" across the help/explain verbs.
 
 import { HELP_JOBS, HELP_SURFACES, HELP_TERMS } from "../shared/help";
-import { apiPost, resolveDrive } from "./deckapi";
+import { apiPost, resolveDriveOrExit } from "./deckapi";
 import { printKindDoc } from "./deckctl_docs";
 
 /** Print hooks shared with deckctl.ts (deckctl_notes.ts pattern). */
@@ -104,11 +104,7 @@ export async function cmdDismiss(
   nameOrId: string,
   noteId: string,
 ): Promise<void> {
-  const d = await resolveDrive(nameOrId);
-  if (!d) {
-    h.errOut(`unknown drive: ${nameOrId}`);
-    h.exit(2);
-  }
+  const d = await resolveDriveOrExit(h, nameOrId);
   const res = await apiPost(
     `/api/drives/${d.id}/notes/${encodeURIComponent(noteId)}/dismiss`,
   );

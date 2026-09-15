@@ -63,17 +63,20 @@ export function keyscanDir(): string {
   );
 }
 
-/** Chromaprint fingerprint (raw fpcalc output, base64). Null when the
- * file is unreadable or fpcalc is missing (brew install chromaprint).
- * Throws are caught — Bun.spawnSync throws ENOENT when the binary is
- * absent from PATH, and the stage contract is degrade-to-null, never
- * abort the caller's pass. */
-export function fingerprintFile(path: string): string | null {
-  if (!existsSync(path)) return null;
+/** The shared fpcalc spawn + degrade contract (#99): run `fpcalc` with
+ *  `args` and parse its stdout; null on unreadable file, missing binary
+ *  (spawn throws ENOENT), or non-zero exit — degrade-to-null, never
+ *  abort the caller's pass. All three fpcalc call sites (json
+ *  fingerprint, `-length` dedupe fingerprint, duration companion) ride
+ *  this frame; only the arg vector and parser differ. */
+function runFpcalc<T>(
+  args: string[],
+  parse: (stdout: string) => T | null,
+): T | null {
   let pr: Bun.SyncSubprocess;
   try {
     pr = Bun.spawnSync({
-      cmd: ["fpcalc", "-json", path],
+      cmd: ["fpcalc", ...args],
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -82,9 +85,17 @@ export function fingerprintFile(path: string): string | null {
     return null; // fpcalc not installed
   }
   if (pr.exitCode !== 0) return null;
-  return (
-    parseFpcalcJson(new TextDecoder().decode(pr.stdout))?.fingerprint ?? null
-  );
+  return parse(new TextDecoder().decode(pr.stdout));
+}
+
+/** Chromaprint fingerprint (raw fpcalc output, base64). Null when the
+ * file is unreadable or fpcalc is missing (brew install chromaprint).
+ * Throws are caught — Bun.spawnSync throws ENOENT when the binary is
+ * absent from PATH, and the stage contract is degrade-to-null, never
+ * abort the caller's pass. */
+export function fingerprintFile(path: string): string | null {
+  if (!existsSync(path)) return null;
+  return runFpcalc(["-json", path], parseFpcalcJson)?.fingerprint ?? null;
 }
 
 /**
@@ -100,19 +111,7 @@ export function fingerprintFile(path: string): string | null {
  */
 export function fingerprintFileLength(path: string): string | null {
   if (!existsSync(path)) return null;
-  let r: Bun.SyncSubprocess;
-  try {
-    r = Bun.spawnSync({
-      cmd: ["fpcalc", "-length", "120", path],
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-  } catch (error) {
-    void error;
-    return null; // fpcalc not installed
-  }
-  if (r.exitCode !== 0) return null;
-  return parseFpcalcOutput(new TextDecoder().decode(r.stdout));
+  return runFpcalc(["-length", "120", path], parseFpcalcOutput);
 }
 
 /** Parse fpcalc's raw `-length` stdout into a fingerprint. Base64url
@@ -132,20 +131,8 @@ export function fingerprintWithDuration(path: string): {
   durationS: number | null;
 } {
   if (!existsSync(path)) return { fingerprint: null, durationS: null };
-  let pr: Bun.SyncSubprocess;
-  try {
-    pr = Bun.spawnSync({
-      cmd: ["fpcalc", "-json", path],
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-  } catch (error) {
-    void error;
-    return { fingerprint: null, durationS: null }; // fpcalc not installed
-  }
-  if (pr.exitCode !== 0) return { fingerprint: null, durationS: null };
   return (
-    parseFpcalcJson(new TextDecoder().decode(pr.stdout)) ?? {
+    runFpcalc(["-json", path], parseFpcalcJson) ?? {
       fingerprint: null,
       durationS: null,
     }

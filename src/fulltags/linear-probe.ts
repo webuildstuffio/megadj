@@ -175,6 +175,15 @@ export function probeLeaveOneOut(
       predicted,
     });
   };
+  /** The shared result shape (the two return literals below differ only
+   *  in protocol label). */
+  const summary = (protocol: string) => ({
+    evaluated: rows.length,
+    correct,
+    accuracy: correct / rows.length,
+    predictions,
+    protocol,
+  });
   if (folds === 0 || rows.length <= folds) {
     // exact LOO: fit on the rest, predict the held row
     for (let i = 0; i < rows.length; i++) {
@@ -183,13 +192,7 @@ export function probeLeaveOneOut(
       const { fit } = fitProbe(rest);
       record(held, probePredict(fit, held.vec));
     }
-    return {
-      evaluated: rows.length,
-      correct,
-      accuracy: correct / rows.length,
-      predictions,
-      protocol: "loo",
-    };
+    return summary("loo");
   }
   // stratified k-fold: group rows per class, interleave round-robin so
   // every fold sees every class in class proportion
@@ -213,11 +216,5 @@ export function probeLeaveOneOut(
       record(held, probePredict(fit, held.vec));
     }
   }
-  return {
-    evaluated: rows.length,
-    correct,
-    accuracy: correct / rows.length,
-    predictions,
-    protocol: `${folds}-fold-cv`,
-  };
+  return summary(`${folds}-fold-cv`);
 }

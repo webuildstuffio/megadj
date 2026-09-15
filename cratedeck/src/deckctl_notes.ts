@@ -10,7 +10,7 @@
 // ArchiveTab bug class: same-length local types hide server shape changes
 // until the UI renders `[object Object]`).
 
-import { apiGet, apiPost, resolveDrive } from "./deckapi";
+import { apiGet, apiPost, resolveDriveOrExit } from "./deckapi";
 import type { StoredNote } from "./notes";
 import { errMessage as errorText } from "../shared/fmt";
 
@@ -37,11 +37,7 @@ export async function cmdNote(
 ): Promise<void> {
   const sevIdx = h.argv.indexOf("--severity");
   const severity = sevIdx >= 0 ? h.argv[sevIdx + 1] : undefined;
-  const d = await resolveDrive(nameOrId);
-  if (!d) {
-    h.errOut(`unknown drive: ${nameOrId}`);
-    h.exit(2);
-  }
+  const d = await resolveDriveOrExit(h, nameOrId);
   const res = await apiPost(`/api/drives/${d.id}/notes`, {
     note: text,
     severity,
@@ -109,11 +105,7 @@ export async function cmdNotes(
     if (h.jsonMode) console.log(JSON.stringify({ notes: perDrive }, null, 2));
     return;
   }
-  const d = await resolveDrive(nameOrId);
-  if (!d) {
-    h.errOut(`unknown drive: ${nameOrId}`);
-    h.exit(2);
-  }
+  const d = await resolveDriveOrExit(h, nameOrId);
   const notes = await getJson<StoredNote[]>(`/api/drives/${d.id}/notes`);
   if (h.jsonMode) {
     console.log(JSON.stringify({ drive: d.name, notes }, null, 2));
@@ -132,11 +124,7 @@ export async function cmdRename(
   nameOrId: string,
   nickname: string | null,
 ): Promise<void> {
-  const d = await resolveDrive(nameOrId);
-  if (!d) {
-    h.errOut(`unknown drive: ${nameOrId}`);
-    h.exit(2);
-  }
+  const d = await resolveDriveOrExit(h, nameOrId);
   const res = await apiPost(`/api/drives/${d.id}/name`, {
     nickname: nickname?.trim() || null,
   });
