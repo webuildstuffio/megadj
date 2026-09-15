@@ -14,16 +14,21 @@
  * DB-family restore on every post-backup failure.
  */
 
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { isUnknownArray } from "../../cratedeck/shared/guards";
 import {
-  assertRbClosed,
-  backupMaster,
-  fileExistsSafe,
-  restoreMasterBackup,
-  sleepSync,
-} from "./guard.js";
+  isNonNegativeInteger,
+  isRecord,
+  isUnknownArray,
+} from "../../cratedeck/shared/guards";
+import {
+  compensateRestore,
+  isStringPair,
+  isStringTriple,
+  parseJsonBoundary,
+  rbCommandRuntime,
+  type RbCommandResult,
+  type RbCommandRuntime,
+} from "./rb-command-kit.js";
 
 export interface RbCommentSyncOptions {
   mount: string;
@@ -74,19 +79,10 @@ interface CommentVerifyOutput {
   mismatched: [string, string, string][];
 }
 
-interface SyncCommandResult {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-}
+type SyncCommandResult = RbCommandResult;
 
-interface RbCommentSyncRuntime {
+interface RbCommentSyncRuntime extends RbCommandRuntime {
   exists: (path: string) => boolean;
-  fileExists: (path: string) => boolean;
-  assertClosed: (what: string) => void;
-  backup: (path: string) => string;
-  restore: (dbPath: string, backupPath: string) => void;
-  sleep: (ms: number) => void;
   spawn: (
     command: string[],
     timeoutMs: number,
@@ -96,56 +92,13 @@ interface RbCommentSyncRuntime {
 
 const runtime: RbCommentSyncRuntime = {
   exists: existsSync,
-  fileExists: fileExistsSafe,
-  assertClosed: assertRbClosed,
-  backup: backupMaster,
-  restore: restoreMasterBackup,
-  sleep: sleepSync,
-  spawn(command, timeoutMs, input) {
-    const executable = command[0];
-    if (executable === undefined) throw new Error("empty subprocess command");
-    const result = spawnSync(executable, command.slice(1), {
-      encoding: "utf8",
-      timeout: timeoutMs,
-      input,
-    });
-    return {
-      status: result.status,
-      stdout: result.stdout ?? "",
-      stderr: result.stderr ?? "",
-    };
-  },
+  ...rbCommandRuntime,
 };
 
-const nonNegativeInteger = (value: unknown): value is number =>
-  typeof value === "number" &&
-  Number.isFinite(value) &&
-  Number.isInteger(value) &&
-  value >= 0;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isStringPair = (value: unknown): value is [string, string] =>
-  isUnknownArray(value) &&
-  value.length === 2 &&
-  value.every((part) => typeof part === "string");
-
-const isStringTriple = (value: unknown): value is [string, string, string] =>
-  isUnknownArray(value) &&
-  value.length === 3 &&
-  value.every((part) => typeof part === "string");
-
-function parseJson(raw: string, context: string): unknown {
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch (error) {
-    throw new Error(`${context} returned malformed JSON`, { cause: error });
-  }
-}
+const nonNegativeInteger = isNonNegativeInteger;
 
 function parseSyncOutput(raw: string, apply: boolean): SyncOutput {
-  const value = parseJson(raw, "rb-comment-sync");
+  const value = parseJsonBoundary(raw, "rb-comment-sync");
   if (
     !isRecord(value) ||
     !nonNegativeInteger(value.scanned) ||
@@ -199,7 +152,7 @@ function parseSyncOutput(raw: string, apply: boolean): SyncOutput {
 }
 
 function parseVerifyOutput(raw: string): CommentVerifyOutput {
-  const value = parseJson(raw, "rb-comment-sync verification");
+  const value = parseJsonBoundary(raw, "rb-comment-sync verification");
   if (
     !isRecord(value) ||
     !nonNegativeInteger(value.total) ||
@@ -411,6 +364,25 @@ async function rbCommentSyncWithRuntime(
     error: msg,
     ...details,
   });
+  /** Success result from one parsed sync output (applied/report modes). */
+  const synced = (
+    out: SyncOutput,
+    over: {
+      appliedMode: boolean;
+      backedUpTo: string | null;
+      verify: { ok: boolean; detail: string };
+    },
+  ): RbCommentSyncResult => ({
+    command: "rb-comment-sync",
+    db: dbPath,
+    scanned: out.scanned,
+    eligible: out.eligible,
+    written: out.written,
+    skipped: out.skipped.map(([path, reason]) => ({ path, reason })),
+    alreadyHad: out.alreadyHad,
+    ...over,
+    ok: true,
+  });
 
   if (opts.apply && !opts.yes)
     return mk("--apply requires --yes (report first, ALWAYS)");
@@ -431,25 +403,11 @@ async function rbCommentSyncWithRuntime(
     }
 
     const compensate = (error: unknown): RbCommentSyncResult => {
-      const original = error instanceof Error ? error.message : String(error);
-      try {
-        deps.restore(dbPath, backedUpTo);
-        const detail = `${original}; restored backup ${backedUpTo}`;
-        return mk(detail, {
-          backedUpTo,
-          verify: { ok: false, detail },
-        });
-      } catch (restoreError) {
-        const restoreDetail =
-          restoreError instanceof Error
-            ? restoreError.message
-            : String(restoreError);
-        const detail = `${original}; restoring backup ${backedUpTo} also failed: ${restoreDetail}`;
-        return mk(detail, {
-          backedUpTo,
-          verify: { ok: false, detail },
-        });
-      }
+      const detail = compensateRestore(deps, dbPath, backedUpTo, error);
+      return mk(detail, {
+        backedUpTo,
+        verify: { ok: false, detail },
+      });
     };
 
     try {
@@ -503,22 +461,14 @@ async function rbCommentSyncWithRuntime(
         checked.stdout.trim().split("\n").pop() ?? "",
       );
       validateVerification(out.writes, verified);
-      return {
-        command: "rb-comment-sync",
-        db: dbPath,
-        scanned: out.scanned,
-        eligible: out.eligible,
-        written: out.written,
-        skipped: out.skipped.map(([path, reason]) => ({ path, reason })),
-        alreadyHad: out.alreadyHad,
+      return synced(out, {
         appliedMode: true,
         backedUpTo,
         verify: {
           ok: true,
           detail: `re-read ${verified.matched}/${verified.total} intended comments exactly`,
         },
-        ok: true,
-      };
+      });
     } catch (error) {
       return compensate(error);
     }
@@ -556,19 +506,11 @@ async function rbCommentSyncWithRuntime(
   } catch (error) {
     return mk(error instanceof Error ? error.message : String(error));
   }
-  return {
-    command: "rb-comment-sync",
-    db: dbPath,
-    scanned: out.scanned,
-    eligible: out.eligible,
-    written: out.written,
-    skipped: out.skipped.map(([path, reason]) => ({ path, reason })),
-    alreadyHad: out.alreadyHad,
+  return synced(out, {
     appliedMode: false,
     backedUpTo: null,
     verify: { ok: true, detail: "report mode — no write to verify" },
-    ok: true,
-  };
+  });
 }
 
 export const __test = {

@@ -19,3 +19,13 @@ export function isFiniteNumber(value: unknown): value is number {
 export function isFiniteNumberArray(value: unknown): value is number[] {
   return isUnknownArray(value) && value.every(isFiniteNumber);
 }
+
+/** Finite non-negative integer (counts, lengths, IDs-as-numbers). */
+export function isNonNegativeInteger(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value >= 0
+  );
+}

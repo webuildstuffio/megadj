@@ -21,16 +21,21 @@
  *     cues in, ≤8 hot cues out, dry-run default, gates per §AC-06.
  */
 
-import { spawnSync } from "node:child_process";
-import { isUnknownArray } from "../../cratedeck/shared/guards";
 import {
-  assertRbClosed,
-  backupMaster,
-  fileExistsSafe,
-  restoreMasterBackup,
-  sleepSync,
-} from "./guard.js";
+  isNonNegativeInteger,
+  isRecord,
+  isUnknownArray,
+} from "../../cratedeck/shared/guards";
 import { incidentCuePredicatePython } from "./cue-incident.js";
+import {
+  compensateRestore,
+  isStringNumberPair,
+  isStringPair,
+  parseJsonBoundary,
+  rbCommandRuntime,
+  type RbCommandResult,
+  type RbCommandRuntime,
+} from "./rb-command-kit.js";
 
 /** DB-side hot cue Kind — pinned by F4 (RB7-written rows: 1 only). */
 export const HOT_CUE_KIND = 1;
@@ -91,77 +96,18 @@ interface CueVerifyOutput {
   mismatched: [string, number][];
 }
 
-interface CueCommandResult {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-}
+type CueCommandResult = RbCommandResult;
 
-interface RbCuesRuntime {
-  fileExists: (path: string) => boolean;
-  assertClosed: (what: string) => void;
-  backup: (path: string) => string;
-  restore: (dbPath: string, backupPath: string) => void;
-  sleep: (ms: number) => void;
-  spawn: (
-    command: string[],
-    timeoutMs: number,
-    input?: string,
-  ) => CueCommandResult;
-}
+type RbCuesRuntime = RbCommandRuntime;
 
-const runtime: RbCuesRuntime = {
-  fileExists: fileExistsSafe,
-  assertClosed: assertRbClosed,
-  backup: backupMaster,
-  restore: restoreMasterBackup,
-  sleep: sleepSync,
-  spawn(command, timeoutMs, input) {
-    const executable = command[0];
-    if (executable === undefined) throw new Error("empty subprocess command");
-    const result = spawnSync(executable, command.slice(1), {
-      encoding: "utf8",
-      timeout: timeoutMs,
-      input,
-    });
-    return {
-      status: result.status,
-      stdout: result.stdout ?? "",
-      stderr: result.stderr ?? "",
-    };
-  },
-};
+const runtime: RbCuesRuntime = rbCommandRuntime;
 
-const nonNegativeInteger = (value: unknown): value is number =>
-  typeof value === "number" &&
-  Number.isFinite(value) &&
-  Number.isInteger(value) &&
-  value >= 0;
+const nonNegativeInteger = isNonNegativeInteger;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isErrorPair = (value: unknown): value is [string, string] =>
-  isUnknownArray(value) &&
-  value.length === 2 &&
-  value.every((part) => typeof part === "string");
-
-const isKindPair = (value: unknown): value is [string, number] =>
-  isUnknownArray(value) &&
-  value.length === 2 &&
-  typeof value[0] === "string" &&
-  nonNegativeInteger(value[1]);
-
-function parseJson(raw: string, context: string): unknown {
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch (error) {
-    throw new Error(`${context} returned malformed JSON`, { cause: error });
-  }
-}
+const isKindPair = isStringNumberPair;
 
 function parseRestampOutput(raw: string, apply: boolean): RestampOutput {
-  const value = parseJson(raw, "rb-cues restamp");
+  const value = parseJsonBoundary(raw, "rb-cues restamp");
   if (
     !isRecord(value) ||
     !nonNegativeInteger(value.found) ||
@@ -170,7 +116,7 @@ function parseRestampOutput(raw: string, apply: boolean): RestampOutput {
     !isUnknownArray(value.written_ids) ||
     !value.written_ids.every((id) => typeof id === "string") ||
     !isUnknownArray(value.errors) ||
-    !value.errors.every(isErrorPair)
+    !value.errors.every(isStringPair)
   ) {
     throw new Error("rb-cues restamp returned an invalid result payload");
   }
@@ -200,7 +146,7 @@ function parseRestampOutput(raw: string, apply: boolean): RestampOutput {
 }
 
 function parseVerifyOutput(raw: string): CueVerifyOutput {
-  const value = parseJson(raw, "rb-cues verification");
+  const value = parseJsonBoundary(raw, "rb-cues verification");
   if (
     !isRecord(value) ||
     !nonNegativeInteger(value.total) ||
@@ -403,27 +349,12 @@ async function rbCuesWithRuntime(
     }
 
     const compensate = (error: unknown): RbCuesResult => {
-      const original = error instanceof Error ? error.message : String(error);
-      try {
-        deps.restore(dbPath, backedUpTo);
-        const detail = `${original}; restored backup ${backedUpTo}`;
-        return {
-          ...fail(opts, dbPath, mode, detail),
-          backedUpTo,
-          verifyFailures: [detail],
-        };
-      } catch (restoreError) {
-        const restoreDetail =
-          restoreError instanceof Error
-            ? restoreError.message
-            : String(restoreError);
-        const detail = `${original}; restoring backup ${backedUpTo} also failed: ${restoreDetail}`;
-        return {
-          ...fail(opts, dbPath, mode, detail),
-          backedUpTo,
-          verifyFailures: [detail],
-        };
-      }
+      const detail = compensateRestore(deps, dbPath, backedUpTo, error);
+      return {
+        ...fail(opts, dbPath, mode, detail),
+        backedUpTo,
+        verifyFailures: [detail],
+      };
     };
 
     try {

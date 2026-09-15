@@ -66,10 +66,10 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    audited: 64,
-    guarded: 48,
+    audited: 63,
+    guarded: 47,
     sanctioned: 16,
-    digest: "7964fc052eb6c9c7e9c921081b68c153a54f2787bdb29041086b8f610b0a8602",
+    digest: "f940b70001a0a7d6793523ff8a80062b1a0a2427e2daa5ee470112b14589643a",
   });
 });
 
