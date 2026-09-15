@@ -42,7 +42,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   "cratedeck/src/archive_tagcensus.ts::trackTagCompare::JSON.parse(rbMeta.metadata_json)":
     "Corrupt mirror JSON is treated as no rekordbox row: the census shows the archive side alone, rb-adopt re-adopt rewrites the row; never a throw into the route.",
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
-    'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "[]")',
+    'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(lastJsonLine(r.stdout, "[]"))',
     "src/rekordbox/guard.ts::verifyReRead::JSON.parse(line)",
     'src/shared/doctor-state.ts::runStateProbe::JSON.parse(r.stdout.trim().split("\\n").pop() ?? "{}")',
     'src/shared/doctor-state.ts::runStateProbe::JSON.parse(rx.stdout.trim().split("\\n").pop() ?? "{}")',
@@ -73,7 +73,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     audited: 59,
     guarded: 43,
     sanctioned: 16,
-    digest: "a6c29d8079b3c287a4344e5fbe4e6d6845c609f4bb859e234537ef6988bb4958",
+    digest: "6d00ec06d52f23adc4ab9de87ec6a0c806f0075061dea30c0cca037473bb74b9",
   });
 });
 

@@ -103,12 +103,18 @@ export async function goldReport(
   const dir = opts.dir ?? goldDir(MUSIC_DIR);
   const set = loadGoldSet(dir);
 
-  const fail = (msg: string): GoldReportResult => ({
-    command: "gold-report",
+  /** The shared result prefix (command/dir/set census + issueFiles) —
+   *  byte-identical in the fail and success projections (#99). */
+  const base = () => ({
+    command: "gold-report" as const,
     dir,
     annotations: set.annotations.length,
     issues: set.issues.length,
     issueFiles: set.issues.map((i) => `${i.file}: ${i.error}`),
+  });
+
+  const fail = (msg: string): GoldReportResult => ({
+    ...base(),
     dev: aggregateScores([]),
     holdout: aggregateScores([]),
     matched: 0,
@@ -191,11 +197,7 @@ export async function goldReport(
   const matched = scored.filter((a) => byHash.has(a.hash)).length;
 
   return {
-    command: "gold-report",
-    dir,
-    annotations: set.annotations.length,
-    issues: set.issues.length,
-    issueFiles: set.issues.map((i) => `${i.file}: ${i.error}`),
+    ...base(),
     dev,
     holdout,
     matched,
