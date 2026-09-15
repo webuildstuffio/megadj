@@ -342,6 +342,98 @@ describe("genre command JSON boundary", () => {
     expect(parsed.alreadyCanonical).toBe(1);
   });
 
+  test("--flag dry run writes nothing; --apply sets disputed + clears healthy", async () => {
+    const flags = new Map<string, string | null>();
+    // coherent house cluster + one mislabeled EDM row in it: its 3 house
+    // neighbours vote unanimously → disputed. k=2 keeps the vote small:
+    // the EDM row's 2 nearest are both house (agreement 1.0).
+    const state = {
+      evalPopulation: () => [
+        {
+          video_id: "bad",
+          genre: "EDM",
+          vec_json: "[1,0]",
+          duration_s: 300,
+        },
+        {
+          video_id: "h1",
+          genre: "House",
+          vec_json: "[1,0.01]",
+          duration_s: 300,
+        },
+        {
+          video_id: "h2",
+          genre: "House",
+          vec_json: "[1,0.02]",
+          duration_s: 300,
+        },
+        {
+          video_id: "h3",
+          genre: "House",
+          vec_json: "[0.99,0.03]",
+          duration_s: 300,
+        },
+        // far corner: split neighbourhood, no quorum
+        {
+          video_id: "mixed",
+          genre: "Bass",
+          vec_json: "[0,1]",
+          duration_s: 300,
+        },
+        {
+          video_id: "mixed2",
+          genre: "Techno",
+          vec_json: "[0,0.9]",
+          duration_s: 300,
+        },
+      ],
+      setGenreFlag: (videoId: string, flag: "disputed" | null) =>
+        flags.set(videoId, flag),
+    } as unknown as ArchiveState;
+
+    // dry: nothing written
+    const logged: string[] = [];
+    const orig = console.log;
+    console.log = (line: string) => logged.push(String(line));
+    try {
+      await genre({ state, flag: true, k: 2 });
+    } finally {
+      console.log = orig;
+    }
+    expect(flags.size).toBe(0);
+    let parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    expect(parsed.mode).toBe("flag");
+    expect(parsed.disputed).toBe(1);
+    expect(parsed.applied).toBe(false);
+
+    // apply: bad → disputed, the rest → cleared (null)
+    console.log = (line: string) => logged.push(String(line));
+    try {
+      await genre({ state, flag: true, apply: true, k: 2 });
+    } finally {
+      console.log = orig;
+    }
+    parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    expect(parsed.applied).toBe(true);
+    expect(flags.get("bad")).toBe("disputed");
+    expect(flags.get("h1")).toBeNull();
+    expect(flags.get("h2")).toBeNull();
+    expect(flags.get("h3")).toBeNull();
+    expect(flags.get("mixed")).toBeNull();
+    expect(flags.get("mixed2")).toBeNull();
+  });
+
+  test("--refold and --flag are mutually exclusive (exit 2, zero work)", async () => {
+    const state = {
+      evalPopulation: () => [],
+      updateGenre: () => {
+        throw new Error("must not write");
+      },
+    } as unknown as ArchiveState;
+    await genre({ state, refold: true, flag: true });
+    expect(process.exitCode).toBe(2);
+  });
+
   test("--eval --refold gates on the ARBITRATION readout (post-refold semantics)", async () => {
     // baseline arm: 2/4 gated agreement (50%) — would fail a baseline gate.
     // arbitration arm: umbrella rows out, remaining population agrees.

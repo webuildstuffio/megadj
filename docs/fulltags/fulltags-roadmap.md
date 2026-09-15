@@ -1,6 +1,15 @@
-# FullTags — Prioritized Roadmap (rev 6.8)
+# FullTags — Prioritized Roadmap (rev 6.9)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 6.9, 2026-09-15: **demote-and-flag pass shipped and applied live**
+(genre-audit §5b.3 step 2): `megadj genre --flag` flags labels that
+contradict a UNANIMOUS kNN consensus as `tracks.genre_flag='disputed'`
+(96/2982, 3.2% — never rewritten, excluded from seeding), then the full
+Tier-0 battery re-ran on the canonicalized+flagged column: arbitration
+69.2% holds, label-noise verdict still RANDOM, still no artist leakage,
+triangle 19.1% / top-2 77.4%, probe still loses. Post-flag verdict table:
+[tier0-diagnostics-2026-09-15.md](tier0-diagnostics-2026-09-15.md)._
 
 _Rev 6.7, 2026-09-15: **Tier-0 diagnostics implemented, run live, and
 the plan re-ranked by their verdicts**
@@ -85,6 +94,15 @@ next action is a command you can run.**
   gated LOO (+7.4 pts, n 2982→2424, refusal 20.7%→13.0%) — the ≥65%
   post-refold target PASSES.** Engine: `src/fulltags/genre-refold.ts`
   (pure, 21 tests); ideas.md #94 closed.
+- **Demote-and-flag (rev 6.9, Sep 15):** `megadj genre --flag`
+  (`--apply` to write; dry by default) — engine
+  `src/fulltags/genre-flag.ts` (`classifyDisputes` over the LOO rows,
+  4 tests), flag column `tracks.genre_flag` (migration), seeding
+  exclusion in `genreSeeds()`. Unanimity bar: gated prediction +
+  agreement 1.0 + family mismatch. **Applied live: 96 disputed of 2982
+  (3.2%), 273 upheld, labels untouched.** Each run reassesses and
+  self-heals (cleared when no longer disputed). Post-flag Tier-0 battery
+  re-ran clean (69.2% arbitration holds).
 - One `FullTag`/`TagPatch` schema, one format-specific atomic writer
   (mp3/m4a/wav/flac/aiff), file-first ground-truth readers, full art ladder,
   AI genre/year fallback, `fulltags` CLI (enrich + audit --json). megadj

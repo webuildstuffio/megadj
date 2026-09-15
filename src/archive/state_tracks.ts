@@ -166,15 +166,31 @@ export class ArchiveTracks extends ArchiveCore {
       .run(genre, this.now(), videoId);
   }
 
+  /** Set/clear the dispute flag on one track. `flag` is the audited
+   *  vocabulary ('disputed'); null clears. The label column is NEVER
+   *  touched — flagging is metadata, a human decision stays human. */
+  setGenreFlag(videoId: string, flag: "disputed" | null): void {
+    this.db
+      .query(
+        "UPDATE tracks SET genre_flag = ?, updated_at = ? WHERE video_id = ?",
+      )
+      .run(flag, this.now(), videoId);
+  }
+
   genreSeeds(): {
     seeds: { video_id: string; genre: string; vec_json: string }[];
     queries: { video_id: string; title: string | null; vec_json: string }[];
   } {
+    // flagged-disputed seeds cannot vote: one bad label poisons every
+    // neighbourhood it lands in, and the flag already says a unanimous
+    // audio consensus contradicts it (§5b.3 step 2). Excluded, not
+    // rewritten — the human decision remains open.
     const seeds = this.db
       .query(
         `SELECT e.video_id, t.genre, e.vec_json
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
-         WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''`,
+         WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''
+           AND (t.genre_flag IS NULL OR t.genre_flag != 'disputed')`,
       )
       .all() as { video_id: string; genre: string; vec_json: string }[];
     const queries = this.db

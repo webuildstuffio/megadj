@@ -29,6 +29,7 @@ import { l2normalize } from "../../cratedeck/shared/vector-space";
 import { tier0Diagnostics } from "./genre-diagnostics";
 import { probeLeaveOneOut, type ProbeRow } from "./linear-probe";
 import { isUmbrellaLabel, refoldDetail, scoringFamily } from "./genre-refold";
+import { classifyDisputes } from "./genre-flag";
 import type { ArchiveState } from "../archive/state";
 
 /** Share 0..1 → percentage string with one decimal (eval log lines). */
@@ -80,6 +81,12 @@ export interface GenreOptions {
    * propose data-half canonicalizations (escape repair, multi-label
    * split, casing) — dry by default, --apply writes them. */
   refold?: boolean | undefined;
+  /** Demote-and-flag pass (genre-audit §5b.3 step 2). Runs the LOO
+   * harness and flags rows whose label contradicts a UNANIMOUS kNN
+   * consensus as `genre_flag='disputed'` — never rewritten, but
+   * excluded from inference seeding. Dry by default; --apply writes
+   * flags. Requires embeddings; mutually exclusive with --refold. */
+  flag?: boolean | undefined;
   json?: boolean | undefined;
 }
 
@@ -87,6 +94,14 @@ export async function genre(opts: GenreOptions): Promise<void> {
   const log = commandLog(opts);
   const k = opts.k ?? 5;
   const minAgreement = opts.minAgreement ?? 0.6;
+
+  if (opts.refold && opts.flag) {
+    console.error(
+      "genre: --refold and --flag are separate passes — run one at a time",
+    );
+    process.exitCode = 2;
+    return;
+  }
 
   if (opts.eval) {
     // ---- eval mode: measure, never write ----
@@ -322,6 +337,56 @@ export async function genre(opts: GenreOptions): Promise<void> {
     );
     if (opts.apply)
       for (const c of changes) opts.state.updateGenre(c.video_id, c.to);
+    return;
+  }
+
+  // ---- --flag (standalone): the demote-and-flag pass (§5b.3 step 2).
+  // Runs the LOO harness; rows whose label contradicts a UNANIMOUS kNN
+  // consensus get genre_flag='disputed' — never rewritten, but excluded
+  // from inference seeding (state_tracks.genreSeeds filters them).
+  // Previously-flagged rows are REASSESSED from scratch each run: if a
+  // fixed label (or a changed neighbourhood) now agrees, the flag
+  // clears — the pass is idempotent and self-healing.
+  if (opts.flag) {
+    const pop = opts.state.evalPopulation();
+    const seeds: GenreSeed[] = [];
+    const durations: { videoId: string; durationS: number | null }[] = [];
+    for (const row of pop) {
+      seeds.push({
+        videoId: row.video_id,
+        genre: row.genre,
+        vec: parseEmbeddingVector(row.vec_json, `genre flag ${row.video_id}`),
+      });
+      durations.push({ videoId: row.video_id, durationS: row.duration_s });
+    }
+    const summary = evalLeaveOneOut(seeds, k, minAgreement, durations);
+    const result = classifyDisputes(summary);
+    const disputeIds = new Set(result.rows.map((r) => r.videoId));
+    // every embedded labeled row is reassessed: set the flag on new
+    // disputes, CLEAR it on rows no longer disputed (self-healing)
+    if (opts.apply)
+      for (const row of pop)
+        opts.state.setGenreFlag(
+          row.video_id,
+          disputeIds.has(row.video_id) ? "disputed" : null,
+        );
+    log(
+      `genre flag: ${result.disputed} disputed of ${result.evaluated} assessed (${result.upheld} upheld by unanimous consensus, ${result.noQuorum} no quorum) — ${opts.apply ? "FLAGS WRITTEN (labels untouched)" : "proposals only (use --apply to write flags)"}`,
+    );
+    for (const r of result.rows.slice(0, 15))
+      log(`  ${r.family} → consensus ${r.consensus}  (${r.videoId})`);
+    console.log(
+      JSON.stringify({
+        command: "genre",
+        mode: "flag",
+        evaluated: result.evaluated,
+        disputed: result.disputed,
+        upheld: result.upheld,
+        noQuorum: result.noQuorum,
+        applied: opts.apply === true,
+        samples: result.rows.slice(0, 40),
+      }),
+    );
     return;
   }
 

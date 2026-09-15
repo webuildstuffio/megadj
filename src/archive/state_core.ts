@@ -53,6 +53,7 @@ export class ArchiveCore {
       "TEXT NOT NULL DEFAULT 'liked'",
     );
     this.addColumnIfMissing("tracks", "genre", "TEXT");
+    this.addColumnIfMissing("tracks", "genre_flag", "TEXT");
     this.addColumnIfMissing("tracks", "year", "TEXT");
     this.addColumnIfMissing("tracks", "energy", "INTEGER");
     this.addColumnIfMissing("tracks", "artwork_status", "TEXT");

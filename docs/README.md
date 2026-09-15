@@ -72,7 +72,9 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   block, probe loses to kNN. Re-ranked the genre plan.
 - [Genre refold (Sep 15)](fulltags/genre-audit.md) — `edm` umbrella
   arbitration + label canonicalization SHIPPED: LOO gated 61.7% → 69.2%
-  (+7.4 pts), ≥65% post-refold target PASS (§5b.3 step 1).
+  (+7.4 pts), ≥65% post-refold target PASS (§5b.3 step 1). Demote-and-flag
+  (§5b.3 step 2) shipped: 96/2982 disputed labels flagged + excluded from
+  seeding; Tier-0 battery re-ran clean post-flag.
 - [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and
   cue program.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision

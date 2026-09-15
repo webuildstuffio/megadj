@@ -126,6 +126,7 @@ const genre: CliCommandHandler = async (rest, { state }) => {
       "artist-disjoint",
       "probe",
       "refold",
+      "flag",
       "json",
     ],
   );
@@ -167,6 +168,7 @@ const genre: CliCommandHandler = async (rest, { state }) => {
     artistDisjoint: flags.bools.has("artist-disjoint"),
     probe: flags.bools.has("probe"),
     refold: flags.bools.has("refold"),
+    flag: flags.bools.has("flag"),
     json: flags.bools.has("json"),
   });
 };

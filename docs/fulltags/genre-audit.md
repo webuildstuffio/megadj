@@ -302,6 +302,25 @@ ground-truth philosophy unchanged.
    disagrees with a unanimous kNN consensus get `genre_flag='disputed'` —
    NOT rewritten (a human decision), but excluded from inference seeding
    so one bad label poisons fewer votes.
+   **✅ IMPLEMENTED + APPLIED LIVE (Sep 15): `megadj genre --flag`
+   (+`--apply`), engine in `src/fulltags/genre-flag.ts`
+   (`classifyDisputes`), flag column `tracks.genre_flag` (migration),
+   seeding exclusion in `state_tracks.genreSeeds()`. Unanimity is the
+   evidence bar (gated prediction + agreement 1.0 + family mismatch);
+   split votes and refusals touch nothing. Each run REASSESSES every
+   embedded labeled row: disputes set the flag, rows no longer disputed
+   clear it — idempotent and self-healing. Live census (Sep 15, k=5):
+   96 disputed of 2982 assessed (3.2%) — top claimed-vs-consensus
+   blocks: EDM→house ×14, Electronic→house ×11, Techno→house ×9,
+   Pop→house/bass ×9, Dance→house ×9; 273 rows UPHELD by unanimous
+   consensus (labels the audio confirms), 2613 no-quorum. Labels are
+   never rewritten; the 96 stop seeding votes. Post-flag Tier-0 battery
+   (§0 numbers re-measured): baseline 61.7% / arbitration 69.2%
+   unchanged (the disputed 3.2% sat inside the refusal mass, not the
+   error mass), label-noise verdict still RANDOM (top-10 artist share
+   8.4%→8.6%), artist leakage still nil (4.2%, Δ −0.8), hub tail
+   unchanged (408/2643), triangle share 17.7%→19.1%, top-2 77.4%,
+   probe 51.2% (Δ −10.6), artist-disjoint 60.9% (Δ −0.8).**
 3. **Inference for the unlabeled 206** (203 already embedded): existing
    `inferGenre` at k=5, minAgreement 0.6 — now benchmark-validated with
    CIs (57.6% ungated → 62.7% gated; the gate trades 19.8%
@@ -412,7 +431,9 @@ string — URL/JSON/escape artifact/artist name/status word (`premiere`,
 `loop samples` — DJ-tool categories, not genres). Low frequency alone
 never disqualifies: singletons with clear genre meaning get aliases.
 
-**How precedence executes** (the disputed-flag pass, §5b.3.2, concretely):
+**How precedence executes** (the disputed-flag pass, §5b.3.2 — SHIPPED
+Sep 15 as `megadj genre --flag`; the k=5/0.6 production vote, unanimity
+bar: gated prediction + agreement 1.0 + family mismatch):
 
 1. Family from primary label (`genreFamily()` SSOT).
 2. Family from kNN consensus (k=7, ≥0.6 gate).

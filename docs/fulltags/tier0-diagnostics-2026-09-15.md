@@ -72,3 +72,30 @@ softmax + full-batch GD), `evalLeaveOneOutArtistDisjoint` in
 `cratedeck/shared/vector-space.ts` (all-but-the-top + CSLS, import-leaf
 clean — no cross-boundary imports). Refold engine:
 `src/fulltags/genre-refold.ts`.
+
+## POST-REFOLD + POST-FLAG RE-RUN (Sep 15, final for the day)
+
+The promised re-run, on the fully canonicalized + disputed-flagged label
+column (`genre --eval --refold --diagnostics --artist-disjoint --probe
+--json`; the flag pass flagged 96/2982 rows 'disputed' — 3.2% — which
+now stop seeding votes):
+
+| #    | Diagnostic                   | Pre-refold            | Post-refold+flag      | Verdict shift                        |
+| ---- | ---------------------------- | --------------------- | --------------------- | ------------------------------------ |
+| gate | baseline LOO / arbitration   | 62.6% / —             | 61.7% / **69.2%**     | ship gate PASSES on the refold arm   |
+| 0.1  | top-10 artist error share    | 8.4% (random)         | 8.6% (worst 3.4% `unknown`) | still RANDOM — relabel imprints buys nothing |
+| 0.2  | same-artist top-5 / disjoint | 4.2% / Δ −0.8         | 4.2% / 60.9% (Δ −0.8) | still NO ARTIST LEAKAGE              |
+| 0.3  | hubness                      | 408/2643, max 31      | 408/2643, max 31      | unchanged (vector-side, not labels)  |
+| 0.4  | triangle share / top-2       | 17.7% / 79.3%         | 19.1% / **77.4%**     | `edm→house` 250 + `house→edm` 78 still the biggest block |
+| probe | 5-fold CV                   | 51.5% (Δ −11.1)       | 51.2% (Δ −10.6)       | probe still loses; kNN stays readout |
+
+Reading: the refold did exactly what the diagnosis predicted — it removed
+the `edm` umbrella from the SCORING population (558 rows abstain, n
+2982→2424) rather than reclassifying anything; the disputed-flag pass
+removed another 96 known-bad seeds. Baseline agreement dips 62.6→61.7
+(the abstaining rows are gone from the denominator's easy wins) while
+the arbitration readout lands 69.2% — +7.4 over its own baseline, above
+the 65% gate. The confusion mass that remains is real sub-genre
+ambiguity (`house→techno` 100), which is the §5b.3.5 clustering fix, not
+a label-hygiene fix. Hubness is vector-geometry, untouched by any label
+work — the whitened+CSLS retrieval path remains the lever there.
