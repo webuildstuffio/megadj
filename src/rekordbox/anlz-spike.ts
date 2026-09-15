@@ -33,6 +33,7 @@ import {
   readdirSync,
   writeFileSync,
 } from "node:fs";
+import { commandLog } from "../progress";
 import type { Dirent } from "node:fs";
 import { join, basename } from "node:path";
 import { createHash } from "node:crypto";
@@ -199,7 +200,7 @@ function measure(mount: string): {
 }
 
 export function anlzSpike(opts: SpikeOptions): SpikeSnapshot {
-  const log = opts.log ?? (() => {});
+  const log = opts.log ?? commandLog({ json: opts.json });
   const mount = opts.mount.replace(/\/+$/u, "");
   if (!existsSync(mount)) return fail(opts, mount, `not mounted: ${mount}`);
   if (!opts.tag.trim()) return fail(opts, mount, "--tag is required");

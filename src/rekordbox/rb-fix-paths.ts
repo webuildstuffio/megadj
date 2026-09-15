@@ -22,6 +22,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
 import { basename, join } from "node:path";
+import { commandLog } from "../progress";
 import { isUnknownArray } from "../../cratedeck/shared/guards";
 import { nameKey } from "../shared/name-key";
 import {
@@ -310,7 +311,7 @@ export async function rbFixPaths(
   opts: RbFixPathsOptions,
   overrides: Partial<RbFixPathsRuntime> = {},
 ): Promise<RbFixResult> {
-  const log = opts.log ?? (() => {});
+  const log = opts.log ?? commandLog({ json: opts.json });
   const mount = normalizeMount(opts.mount);
   const dbPath = masterDbPath(opts.mount);
   const runtime: RbFixPathsRuntime = {

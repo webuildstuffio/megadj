@@ -21,6 +21,7 @@ import { isRecord, isUnknownArray } from "../../cratedeck/shared/guards.js";
 import { assertRbClosed } from "./guard.js";
 import { applyConfirmed, applyConfirmationRefusal, parseJsonBoundary } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
+import { commandLog } from "../progress";
 import {
   applyPlaylistTwinMutation,
   parsePlaylistXmlNodes,
@@ -145,7 +146,7 @@ export async function rbPlaylistReconcile(opts: {
   json?: boolean | undefined;
   log?: (s: string) => void;
 }): Promise<ReconcileResult> {
-  const log = opts.log ?? (() => {});
+  const log = opts.log ?? commandLog({ json: opts.json });
   const { db, xml } = masterDirFor(opts.mount);
   const apply = applyConfirmed(opts);
   const mk = (msg: string): ReconcileResult => ({

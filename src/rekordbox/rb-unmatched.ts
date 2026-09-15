@@ -33,6 +33,7 @@ import { applyConfirmationRefusal } from "./rb-command-kit.js";
 import { QUARANTINE_DIR, quarantineDest } from "../archive/hygiene/apply";
 import { buildIndex, readRows } from "./rb-fix-paths";
 import { masterDbPath, normalizeMount } from "./master-path.js";
+import { commandLog } from "../progress";
 
 export interface RbUnmatchedOptions {
   /** Drive mount root, e.g. /Volumes/SHELF1. */
@@ -194,7 +195,7 @@ export async function quarantineUnmatched(
 export async function rbUnmatched(
   opts: RbUnmatchedOptions,
 ): Promise<RbUnmatchedResult> {
-  const log = opts.log ?? (() => {});
+  const log = opts.log ?? commandLog({ json: opts.json });
   const mount = normalizeMount(opts.mount);
   const dbPath = masterDbPath(opts.mount);
 

@@ -41,6 +41,7 @@ import {
 import { DB_PATH } from "../cli-env";
 import { applyConfirmationRefusal, isDecimalIdOrNull, parseJsonBoundary } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
+import { commandLog } from "../progress";
 import { rekordboxRunning } from "./guard.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 
@@ -353,7 +354,7 @@ function buildChain(
 export async function rbPlaylist(
   opts: RbPlaylistOptions,
 ): Promise<RbPlaylistResult> {
-  const log = opts.log ?? (() => {});
+  const log = opts.log ?? commandLog({});
   const dbPath = masterDbPath(opts.mount);
   const group = opts.group ?? "DJ-Imports";
 

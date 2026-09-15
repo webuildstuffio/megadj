@@ -39,6 +39,7 @@ import {
   type RbCommandResult,
   type RbCommandRuntime,
 } from "./rb-command-kit.js";
+import { commandLog } from "../progress";
 import { masterDbPath } from "./master-path.js";
 
 /** DB-side hot cue Kind — pinned by F4 (RB7-written rows: 1 only). */
@@ -301,7 +302,7 @@ async function rbCuesWithRuntime(
   opts: RbCuesOptions,
   deps: RbCuesRuntime,
 ): Promise<RbCuesResult> {
-  const log = opts.log ?? (() => {});
+  const log = opts.log ?? commandLog({ json: opts.json });
   const dbPath = dbPathFor(opts.mount);
   const mode: RbCuesMode = opts.fromLedger ? "ledger" : "restamp";
   const apply = applyConfirmed(opts);

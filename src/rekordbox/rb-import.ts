@@ -31,6 +31,7 @@ import {
   parseJsonBoundary,
 } from "./rb-command-kit.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
+import { commandLog } from "../progress";
 
 export interface RbImportOptions {
   /** Drive mount root (master DB at <mount>/PIONEER/Master/master.db)
@@ -326,7 +327,7 @@ function verificationError(
 }
 
 export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
-  const log = opts.log ?? (() => {});
+  const log = opts.log ?? commandLog({ json: opts.json });
   const mount = opts.mount.replace(/\/+$/u, "");
   const dbPath =
     process.env.MEGADJ_RB_MASTER ??
