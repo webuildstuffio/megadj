@@ -98,3 +98,31 @@ export function artistGateFails(
   const a = primaryArtist(queryArtist);
   return a.length >= ARTIST_MIN_LEN && artistGate(a, candidates) === 0;
 }
+
+/** THE shared-token name similarity (issue #85): lowercase, strip the
+ *  file extension, split on non-alphanumerics, ratio of shared tokens
+ *  over the larger set. 1.0 fast-path when both names reduce to the
+ *  same token set (separator flips: "ANOTR x 54" vs "ANOTR, 54").
+ *  Unicode-hyphen safe (folded by the split). Used by hygiene's
+ *  folder-variant check AND fulltags' fingerprint-dedupe — the two
+ *  prior implementations tokenized identically (both strip ext; the
+ *  issue's behavior-delta premise was stale), so ONE body is safe.
+ *  Distinct from nameTokens() above: the search scorer drops ≤2-char
+ *  tokens; this similarity must keep every token. Pure — module-level
+ *  tokenizer, not re-created per call. */
+const similarityTokens = (s: string): string[] =>
+  s
+    .toLowerCase()
+    .replace(/\.[^.]+$/, "")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+export function sharedTokenRatio(a: string, b: string): number {
+  const at = new Set(similarityTokens(a));
+  const bt = new Set(similarityTokens(b));
+  if (at.size === 0 || bt.size === 0) return 0;
+  if (at.size === bt.size && [...at].every((t) => bt.has(t))) return 1;
+  let shared = 0;
+  for (const t of at) if (bt.has(t)) shared++;
+  return shared / Math.max(at.size, bt.size);
+}

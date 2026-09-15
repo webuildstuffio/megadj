@@ -11,6 +11,7 @@
  *  - fpcalc missing/fails → degrade to null, pass is a no-op
  */
 import { fingerprintFile } from "./analysis";
+import { sharedTokenRatio } from "./name-match";
 
 export interface FpVerdict {
   /** acoustic fingerprint, or null when fpcalc failed/missing */
@@ -21,25 +22,13 @@ export interface FpVerdict {
   suspicious: boolean;
 }
 
-/** Token-set normalizer for name similarity: lowercase, strip extension,
- *  collapse separators to single spaces. Pure — module-level. */
-const normTokens = (s: string): string =>
-  s
-    .toLowerCase()
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
 /** Cheap name similarity (0..1): shared-token ratio over token sets.
  * "Back To Friends (X Remix) [Radio Edit]" vs a mislabeled twin still
- * shares most tokens; an unrelated track shares few. */
+ * shares most tokens; an unrelated track shares few. Delegates to the
+ * ONE implementation (sharedTokenRatio in name-match.ts, issue #85) —
+ * the local body was its byte-equivalent twin. */
 export function nameSimilarityTokens(a: string, b: string): number {
-  const at = new Set(normTokens(a).split(" ").filter(Boolean));
-  const bt = new Set(normTokens(b).split(" ").filter(Boolean));
-  if (at.size === 0 || bt.size === 0) return 0;
-  let shared = 0;
-  for (const t of at) if (bt.has(t)) shared++;
-  return shared / Math.max(at.size, bt.size);
+  return sharedTokenRatio(a, b);
 }
 
 export async function compareFingerprint(

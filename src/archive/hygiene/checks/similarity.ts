@@ -11,6 +11,7 @@
  *   — exactly the trap). Threshold ≥0.5, and only token-equality + a
  *   human confirm ever merges folders.
  */
+import { sharedTokenRatio } from "../../../../fulltags/src/name-match";
 
 /** Lowercase and strip every non-alphanumeric (shared by the levenshtein
  *  and token helpers). Pure — module-level, not re-created per call. */
@@ -46,25 +47,9 @@ export function nameSimilarity(a: string, b: string): number {
 
 /** Shared-token ratio over token sets (folders/artist folders). 1.0 when
  *  both names reduce to the same token set regardless of separators or
- *  order. Unicode-hyphen safe (folded by the [^a-z0-9] split). */
-/** Lowercase, strip extension, split to alphanumeric tokens (folders and
- *  artist folders). Pure — module-level, not re-created per call. */
-const normTokens = (s: string): string[] =>
-  s
-    .toLowerCase()
-    .replace(/\.[^.]+$/, "")
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
-
-/** Shared-token ratio over token sets (folders/artist folders). 1.0 when
- *  both names reduce to the same token set regardless of separators or
- *  order. Unicode-hyphen safe (folded by the [^a-z0-9] split). */
+ *  order. Kept as the hygiene-tier name; the body is THE shared
+ *  implementation (sharedTokenRatio in fulltags name-match.ts, issue
+ *  #85) — this was its twin, now delegating. */
 export function nameSimilarityTokens(a: string, b: string): number {
-  const at = new Set(normTokens(a));
-  const bt = new Set(normTokens(b));
-  if (at.size === 0 || bt.size === 0) return 0;
-  if (at.size === bt.size && [...at].every((t) => bt.has(t))) return 1;
-  let shared = 0;
-  for (const t of at) if (bt.has(t)) shared++;
-  return shared / Math.max(at.size, bt.size);
+  return sharedTokenRatio(a, b);
 }
