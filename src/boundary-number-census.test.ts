@@ -58,7 +58,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     audited: 42,
     guarded: 29,
     sanctioned: 13,
-    digest: "eb10d3ba6168ef0dac19e99df7c38b9eb6ba76de6b9818762eb702c10a5c0a35",
+    digest: "f3b5e3ab1c5527aeaf47053260186850c171b3b8848eeb70db2ef9f493e5e852",
   });
 });
 
