@@ -17,7 +17,6 @@
  * to 60 chars, FileType by extension, FolderPath as the FULL path.
  */
 
-import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
 import { basename, extname, join } from "node:path";
 import {
@@ -26,6 +25,7 @@ import {
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
 import { probeMediaSync } from "../../fulltags/src/exports";
+import { rekordboxRunning } from "./guard.js";
 import {
   applyConfirmationRefusal,
   isDecimalIdOrNull,
@@ -33,6 +33,7 @@ import {
   lastJsonLine,
   parseJsonBoundary,
   printResult,
+  runPyScript,
 } from "./rb-command-kit.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 import { commandLog } from "../progress";
@@ -232,10 +233,6 @@ for f in files:
 print(json.dumps(out))
 db.close()
 `;
-}
-
-function rekordboxRunning(): boolean {
-  return spawnSync("pgrep", ["-x", "rekordbox"]).status === 0;
 }
 
 interface PyOut {
@@ -451,24 +448,13 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
           backedUpTo = db;
         },
         mutateDb: () => {
-          const result = spawnSync(
-            "uv",
-            [
-              "run",
-              "--with",
-              "pyrekordbox",
-              "python",
-              "-c",
-              buildScript(),
-              dbPath,
-              JSON.stringify({ files: payloadFiles, playlist, group }),
-            ],
-            { encoding: "utf8", timeout: 300_000 },
-          );
-          if (result.status !== 0 || !result.stdout)
-            throw new Error(
-              `pyrekordbox write failed (exit ${String(result.status)}): ${(result.stderr ?? "").slice(-400)}`,
-            );
+          const result = runPyScript({
+            script: buildScript(),
+            dbPath,
+            args: [JSON.stringify({ files: payloadFiles, playlist, group })],
+            timeoutMs: 300_000,
+            label: "pyrekordbox write",
+          });
           const value = parseWriteOutput(lastJsonLine(result.stdout));
           if (value.playlistId === null || value.errors.length > 0)
             throw new Error(
@@ -503,25 +489,16 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
         verifyDb: (value) => {
           if (value.playlistId === null)
             throw new Error("playlist mutation returned no playlist id");
-          const result = spawnSync(
-            "uv",
-            [
-              "run",
-              "--with",
-              "pyrekordbox",
-              "python",
-              "-c",
-              verifyScript,
-              dbPath,
+          const result = runPyScript({
+            script: verifyScript,
+            dbPath,
+            args: [
               JSON.stringify(payloadFiles.map((file) => file[0])),
               value.playlistId,
             ],
-            { encoding: "utf8", timeout: 120_000 },
-          );
-          if (result.status !== 0 || !result.stdout)
-            throw new Error(
-              `pyrekordbox post-verify failed (exit ${String(result.status)}): ${(result.stderr ?? "").slice(-400)}`,
-            );
+            timeoutMs: 120_000,
+            label: "pyrekordbox post-verify",
+          });
           const verify = parseVerifyOutput(lastJsonLine(result.stdout));
           verified = verify.hit;
           stillBroken = verify.broken;

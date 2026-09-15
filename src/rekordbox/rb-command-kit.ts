@@ -186,6 +186,54 @@ export function lastJsonLine(stdout: string, fallback = ""): string {
   return last === undefined ? fallback : last;
 }
 
+/** One pyrekordbox subprocess run (#95): the `uv run --with <tag> python
+ *  -c <script> <args…>` spawn plus the shared status/stdout gate — a
+ *  non-zero exit or empty stdout throws `<label> failed (exit N)` with
+ *  the caller's stderr window. Callers keep their own output parsers
+ *  (parseWriteOutput / parseVerifyOutput / …); only the spawn frame is
+ *  centralized. `stderrTail` preserves each historical slice window
+ *  (−400 / −200 / +300). */
+export function runPyScript(opts: {
+  script: string;
+  dbPath: string;
+  args?: (string | null)[];
+  timeoutMs: number;
+  tag?: string;
+  label: string;
+  stderrTail?: number;
+  stderrHead?: number;
+}): RbCommandResult {
+  const argv = [
+    "run",
+    "--with",
+    opts.tag ?? "pyrekordbox",
+    "python",
+    "-c",
+    opts.script,
+    opts.dbPath,
+    ...(opts.args ?? []).map((a) => a ?? ""),
+  ];
+  const raw = spawnSync("uv", argv, {
+    encoding: "utf8",
+    timeout: opts.timeoutMs,
+  });
+  const result: RbCommandResult = {
+    status: raw.status,
+    stdout: raw.stdout ?? "",
+    stderr: raw.stderr ?? "",
+  };
+  if (result.status !== 0 || !result.stdout) {
+    const detail =
+      opts.stderrHead !== undefined
+        ? result.stderr.slice(0, opts.stderrHead)
+        : result.stderr.slice(opts.stderrTail ?? -400);
+    throw new Error(
+      `${opts.label} failed (exit ${String(result.status)}): ${detail}`,
+    );
+  }
+  return result;
+}
+
 /** Human message for an unknown throw value (kit-wide convention). */
 export function errorMessage(error: unknown): string {
   return errorText(error);

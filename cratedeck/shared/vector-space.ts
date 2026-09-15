@@ -149,6 +149,15 @@ export function applySpace(model: SpaceModel, vec: number[]): number[] {
   return l2normalize(out);
 }
 
+/** Mean of the top-R cosine similarities, rounded to 4 dp — the shared
+ *  tail of cslsPenalties/cslsQueryPenalty (the only difference is which
+ *  similarity set feeds it: self-excluded refs vs the whole corpus). */
+function roundedMeanTop(sims: number[], r: number): number {
+  const top = sims.toSorted((a, b) => b - a).slice(0, Math.max(1, r));
+  const mean = top.reduce((acc, s) => acc + s, 0) / Math.max(1, top.length);
+  return Math.round(mean * 10000) / 10000;
+}
+
 /** CSLS penalty per candidate: the mean of its CSLS_R largest cosine
  * similarities to the (deterministically sampled) reference corpus,
  * self-excluded. Hubs — tracks near everyone — get the largest
@@ -162,13 +171,8 @@ export function cslsPenalties(vectors: number[][], r = CSLS_R): number[] {
   const refs: number[] = [];
   for (let i = 0; i < n; i += stride) refs.push(i);
   return vectors.map((vec, i) => {
-    const sims = refs
-      .filter((j) => j !== i)
-      .map((j) => dot(vec, vectors[j]!))
-      .toSorted((a, b) => b - a)
-      .slice(0, Math.max(1, r));
-    const mean = sims.reduce((acc, s) => acc + s, 0) / Math.max(1, sims.length);
-    return Math.round(mean * 10000) / 10000;
+    const sims = refs.filter((j) => j !== i).map((j) => dot(vec, vectors[j]!));
+    return roundedMeanTop(sims, r);
   });
 }
 
@@ -181,10 +185,6 @@ export function cslsQueryPenalty(
   corpusVecs: number[][],
   r = CSLS_R,
 ): number {
-  const sims = corpusVecs
-    .map((c) => dot(queryVec, c))
-    .toSorted((a, b) => b - a)
-    .slice(0, Math.max(1, r));
-  const mean = sims.reduce((acc, s) => acc + s, 0) / Math.max(1, sims.length);
-  return Math.round(mean * 10000) / 10000;
+  const sims = corpusVecs.map((c) => dot(queryVec, c));
+  return roundedMeanTop(sims, r);
 }
