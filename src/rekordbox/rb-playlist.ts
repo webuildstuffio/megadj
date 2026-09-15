@@ -39,6 +39,7 @@ import {
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
 import { DB_PATH } from "../cli-env";
+import { isDecimalIdOrNull, parseJsonBoundary } from "./rb-command-kit.js";
 import { rekordboxRunning } from "./guard.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 
@@ -230,8 +231,6 @@ interface MatchPrediction {
   unmatched: string[];
 }
 
-const DECIMAL_ID = /^(?:0|[1-9]\d*)$/u;
-
 function isNonNegativeInteger(value: unknown): value is number {
   return isFiniteNumber(value) && Number.isInteger(value) && value >= 0;
 }
@@ -242,29 +241,14 @@ function isStringArray(value: unknown): value is string[] {
   );
 }
 
-function parseJsonOutput(raw: string, context: string): unknown {
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch (error) {
-    throw new Error(`${context} returned malformed JSON`, { cause: error });
-  }
-}
-
 function parseWriteOutput(raw: string): PyOut {
-  const value = parseJsonOutput(raw, "pyrekordbox playlist write");
+  const value = parseJsonBoundary(raw, "pyrekordbox playlist write");
   if (
     !isRecord(value) ||
     !isNonNegativeInteger(value.linked) ||
     !isStringArray(value.unmatched) ||
-    !(
-      value.playlistId === null ||
-      (typeof value.playlistId === "string" &&
-        DECIMAL_ID.test(value.playlistId))
-    ) ||
-    !(
-      value.parentId === null ||
-      (typeof value.parentId === "string" && DECIMAL_ID.test(value.parentId))
-    ) ||
+    !isDecimalIdOrNull(value.playlistId) ||
+    !isDecimalIdOrNull(value.parentId) ||
     !isStringArray(value.errors)
   ) {
     throw new Error(
@@ -281,7 +265,7 @@ function parseWriteOutput(raw: string): PyOut {
 }
 
 function parseVerifyOutput(raw: string): PlaylistVerifyOut {
-  const value = parseJsonOutput(raw, "pyrekordbox playlist post-verify");
+  const value = parseJsonBoundary(raw, "pyrekordbox playlist post-verify");
   if (
     !isRecord(value) ||
     !isNonNegativeInteger(value.rows) ||
@@ -295,7 +279,7 @@ function parseVerifyOutput(raw: string): PlaylistVerifyOut {
 }
 
 function parseMatchPrediction(raw: string): MatchPrediction {
-  const value = parseJsonOutput(raw, "pyrekordbox playlist match probe");
+  const value = parseJsonBoundary(raw, "pyrekordbox playlist match probe");
   if (
     !isRecord(value) ||
     !isNonNegativeInteger(value.hit) ||

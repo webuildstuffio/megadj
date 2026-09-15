@@ -15,13 +15,15 @@ python_version = "3.11"
 warn_unreachable = true
 pretty = true
 cache_dir = "node_modules/.cache/mypy"
-files = ["cratedeck/python", "tools"]
+# tools/legacy is dormant (rb_art.py retired behind the WAV→AIFF intake
+# converter, issue #101) — gate-covered code is cratedeck/python only.
+files = ["cratedeck/python"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 cache-dir = "node_modules/.cache/ruff"
-extend-exclude = ["node_modules", "dist"]
+extend-exclude = ["node_modules", "dist", "tools/legacy"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "RUF"]

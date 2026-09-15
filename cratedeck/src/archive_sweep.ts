@@ -45,6 +45,37 @@ export interface SweepVerdict {
   detail: string;
 }
 
+/** The size-hint truncation detector, ONE body for both sweep branches
+ *  (unchanged-match and first-sighting): the DB's `size_hint` disagrees
+ *  with the bytes on disk. A fix to the rule (e.g. tolerance) must land
+ *  for every caller at once — issue #98. Call only after `sizeHintDiffers`. */
+function sizeHintFinding(
+  rel: string,
+  t: { title: string | null; artist: string | null; size_hint?: number | null },
+  diskSize: number,
+): SweepVerdict {
+  const sizeHint = t.size_hint;
+  if (typeof sizeHint !== "number" || !Number.isFinite(sizeHint))
+    throw new Error("sizeHintFinding called with a non-numeric size_hint");
+  return {
+    path: rel,
+    title: t.title,
+    artist: t.artist,
+    verdict: diskSize < sizeHint ? "truncated" : "grown",
+    detail: `disk ${diskSize} B vs DB ${sizeHint} B`,
+  };
+}
+
+/** Guard the optional hint once: finite, positive, and actually divergent. */
+function sizeHintDiffers(sizeHint: unknown, diskSize: number): boolean {
+  return (
+    typeof sizeHint === "number" &&
+    Number.isFinite(sizeHint) &&
+    sizeHint > 0 &&
+    sizeHint !== diskSize
+  );
+}
+
 export interface SweepReport {
   ran_at: number;
   available: boolean;
@@ -120,19 +151,8 @@ export async function sweepArchive(
     const sizeChanged = trustedSize != null && trustedSize !== st.size;
     if (prior && trustedHash === hex) {
       unchanged++;
-      if (
-        typeof t.size_hint === "number" &&
-        Number.isFinite(t.size_hint) &&
-        t.size_hint > 0 &&
-        t.size_hint !== st.size
-      ) {
-        findings.push({
-          path: rel,
-          title: t.title,
-          artist: t.artist,
-          verdict: st.size < t.size_hint ? "truncated" : "grown",
-          detail: `disk ${st.size} B vs DB ${t.size_hint} B`,
-        });
+      if (sizeHintDiffers(t.size_hint, st.size)) {
+        findings.push(sizeHintFinding(rel, t, st.size));
       }
       if (sizeChanged || prior?.flagged_at != null) {
         // known-good hash is back (or size caught up): clear the flag
@@ -170,19 +190,8 @@ export async function sweepArchive(
         known_good_blake2b: null,
         known_good_size_bytes: null,
       });
-      if (
-        typeof t.size_hint === "number" &&
-        Number.isFinite(t.size_hint) &&
-        t.size_hint > 0 &&
-        t.size_hint !== st.size
-      ) {
-        findings.push({
-          path: rel,
-          title: t.title,
-          artist: t.artist,
-          verdict: st.size < t.size_hint ? "truncated" : "grown",
-          detail: `disk ${st.size} B vs DB ${t.size_hint} B`,
-        });
+      if (sizeHintDiffers(t.size_hint, st.size)) {
+        findings.push(sizeHintFinding(rel, t, st.size));
       }
       continue;
     }

@@ -3,7 +3,8 @@
 **Status:** ✅ COMPLETE — all legacy WAVs got covers via Option A
 (pilot + batch, verified in rekordbox); new WAVs convert to
 AIFF at ingest so they never need this. This doc is kept as reference for the
-research, the decision, and the tooling (`tools/rb_art.py`).
+research, the decision, and the tooling (`tools/legacy/rb_art.py` —
+retired to legacy Sep 15 2026, see below).
 
 **Problem:** embedded artwork in WAV files never shows in rekordbox. MP3s
 display covers; WAVs never do — in the browser, on the CDJs, anywhere.
@@ -71,24 +72,27 @@ same rules the repo already uses for any rekordbox touching (see below).
 > Option A. Option A remains the one-time fix for legacy WAVs
 > already in the archive.
 
-**Tool:** `tools/rb_art.py` (see below). Modes:
+**Tool:** `tools/legacy/rb_art.py` (dormant — moved under `tools/legacy/`
+once the WAV→AIFF intake converter landed; excluded from the python gates.
+To revive: move back to `tools/`, re-add to the `typecheck:py`/`lint:py`
+globs, and restore `"tools"` to mypy `files` in `pyproject.toml`). Modes:
 
 ```bash
 # 0. inspect — read-only status: how many WAVs lack art in RB
 uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
-    --with mutagen --with Pillow python tools/rb_art.py status
+    --with mutagen --with Pillow python tools/legacy/rb_art.py status
 
 # 1. dry-run — plan every write, touch nothing
 uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
-    --with mutagen --with Pillow python tools/rb_art.py dry-run
+    --with mutagen --with Pillow python tools/legacy/rb_art.py dry-run
 
 # 2. pilot — write 3 tracks only, then YOU open rekordbox and verify covers show
 uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
-    --with mutagen --with Pillow python tools/rb_art.py pilot
+    --with mutagen --with Pillow python tools/legacy/rb_art.py pilot
 
 # 3. batch — all remaining WAVs
 uv run --with "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0" \
-    --with mutagen --with Pillow python tools/rb_art.py batch
+    --with mutagen --with Pillow python tools/legacy/rb_art.py batch
 ```
 
 ### Safety rails (non-negotiable, enforced by the script)
@@ -127,5 +131,6 @@ read the drive's `PIONEER/Artwork/`.
 ### Future ingests
 
 Not needed for WAVs anymore — `megadj ingest` converts them to AIFF (native
-covers). `rb_art.py` remains for any future legacy-WAV edge cases; re-run
-`batch` manually after ingesting one.
+covers). `rb_art.py` lives in `tools/legacy/` for any future legacy-WAV edge
+cases (excluded from the python gates while dormant); revive per the header
+note above if ever needed.

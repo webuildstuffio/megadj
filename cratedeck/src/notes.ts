@@ -119,10 +119,12 @@ interface NoteEventRow {
   data_json: string;
 }
 
-function parseNoteRow(row: NoteEventRow): StoredNote | null {
-  let data: Record<string, unknown> = {};
+/** ONE corrupt-data_json guard for every note reader (issue #98): parse,
+ *  log the row id with the parse error, and degrade to null — corruption
+ *  skips the row, it never throws into a route. */
+function parseNoteData(row: NoteEventRow): Record<string, unknown> | null {
   try {
-    data = JSON.parse(row.data_json) as Record<string, unknown>;
+    return JSON.parse(row.data_json) as Record<string, unknown>;
   } catch (e) {
     console.error(
       `agent note ${row.id} has corrupt data_json`,
@@ -130,6 +132,11 @@ function parseNoteRow(row: NoteEventRow): StoredNote | null {
     );
     return null;
   }
+}
+
+function parseNoteRow(row: NoteEventRow): StoredNote | null {
+  const data = parseNoteData(row);
+  if (data === null) return null;
   return noteFromEvent({
     id: row.id,
     drive_id: row.drive_id,
@@ -185,16 +192,8 @@ export function dismissAgentNote(
     .query("SELECT * FROM events WHERE id=? AND drive_id=?")
     .get(eventId, driveId) as NoteEventRow | undefined;
   if (!row || row.kind !== "agent-note") return false;
-  let data: Record<string, unknown> = {};
-  try {
-    data = JSON.parse(row.data_json) as Record<string, unknown>;
-  } catch (e) {
-    console.error(
-      `agent note ${row.id} has corrupt data_json`,
-      e instanceof Error ? e.message : e,
-    );
-    return false;
-  }
+  const data = parseNoteData(row);
+  if (data === null) return false;
   if (typeof data["dismissed_at"] === "number") return true; // already
   data["dismissed_at"] = Date.now();
   store.sqlite

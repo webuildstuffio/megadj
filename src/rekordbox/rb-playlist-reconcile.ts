@@ -19,6 +19,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isRecord, isUnknownArray } from "../../cratedeck/shared/guards.js";
 import { assertRbClosed } from "./guard.js";
+import { parseJsonBoundary } from "./rb-command-kit.js";
 import {
   applyPlaylistTwinMutation,
   parsePlaylistXmlNodes,
@@ -137,14 +138,7 @@ export function nodeLine(t: {
 function parseTwinScanOutput(
   raw: string,
 ): Omit<PlaylistTwin, "inDb" | "inXml">[] {
-  let value: unknown;
-  try {
-    value = JSON.parse(raw) as unknown;
-  } catch (error) {
-    throw new Error("playlist DB scan returned malformed JSON", {
-      cause: error,
-    });
-  }
+  const value = parseJsonBoundary(raw, "playlist DB scan");
   if (!isRecord(value) || !isUnknownArray(value.db))
     throw new Error("playlist DB scan returned an invalid payload");
   return value.db.map((row) => {

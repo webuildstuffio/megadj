@@ -76,6 +76,18 @@ export function parseJsonBoundary(raw: string, context: string): unknown {
   }
 }
 
+/** A pyrekordbox content/playlist id crosses the subprocess boundary as a
+ *  decimal STRING (64-bit ids would lose precision as JS numbers). Null is
+ *  the script's "absent" value, not a parse failure. */
+export function isDecimalIdOrNull(value: unknown): value is string | null {
+  return (
+    value === null || (typeof value === "string" && DECIMAL_ID_RE.test(value))
+  );
+}
+
+/** /^(?:0|[1-9]\d*)$/u — shared by every rb-* writer's id fields. */
+export const DECIMAL_ID_RE = /^(?:0|[1-9]\d*)$/u;
+
 /** [string, string] pair guard (error/skip/write rows). */
 export function isStringPair(value: unknown): value is [string, string] {
   return (

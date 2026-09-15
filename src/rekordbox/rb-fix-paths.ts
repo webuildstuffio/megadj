@@ -29,6 +29,7 @@ import {
   restoreMasterBackup,
   sleepSync,
 } from "./guard.js";
+import { DECIMAL_ID_RE, parseJsonBoundary } from "./rb-command-kit.js";
 
 export interface RbFixPathsOptions {
   /** Drive mount root, e.g. /Volumes/SHELF1 — master DB lives at
@@ -241,18 +242,10 @@ function matchLadder(broken: string, idx: LiveIndex): RbFixRow {
 }
 
 function parseJsonResult(raw: string, operation: "read" | "rewrite"): unknown {
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch (error) {
-    const detail = error instanceof Error ? `: ${error.message}` : "";
-    throw new Error(
-      `pyrekordbox ${operation} returned malformed JSON${detail}`,
-      { cause: error },
-    );
-  }
+  return parseJsonBoundary(raw, `pyrekordbox ${operation}`);
 }
 
-const DECIMAL_ID = /^(?:0|[1-9]\d*)$/u;
+const DECIMAL_ID = DECIMAL_ID_RE;
 
 function parseReadRows(raw: string): [string, string][] {
   const value = parseJsonResult(raw, "read");

@@ -119,7 +119,9 @@ describe("shelf volume census (issue #55 regression gate)", () => {
     // two are hermetic test defaults. A new EXECUTABLE default (argparse
     // `default=` / assignment) in prod Python is the bug class — strip
     // docstrings/comments and pin the executable count at zero.
-    const py = readFileSync(join(ROOT, "tools/rb_art.py"), "utf8");
+    // (rb_art.py retired to tools/legacy/ Sep 15 2026, issue #101 — the
+    // pin moves with it.)
+    const py = readFileSync(join(ROOT, "tools/legacy/rb_art.py"), "utf8");
     const noDocstrings = py
       .replace(/"""[\s\S]*?"""/gu, '""')
       .replace(/'''[\s\S]*?'''/gu, "''");
@@ -129,10 +131,13 @@ describe("shelf volume census (issue #55 regression gate)", () => {
     const hits = executable.filter((l) => /\/Volumes\/SHELF1/u.test(l));
     expect(
       hits,
-      "tools/rb_art.py must not gain an executable SHELF1 default",
+      "tools/legacy/rb_art.py must not gain an executable SHELF1 default",
     ).toEqual([]);
     // And the known test-file defaults cannot silently multiply.
-    const pyTest = readFileSync(join(ROOT, "tools/rb_art_test.py"), "utf8");
+    const pyTest = readFileSync(
+      join(ROOT, "tools/legacy/rb_art_test.py"),
+      "utf8",
+    );
     const testDoc = pyTest.replace(/"""[\s\S]*?"""/gu, '""');
     const testExecutable = testDoc.split("\n").filter((l) => !/^\s*#/u.test(l));
     const testHits = testExecutable.filter((l) => /\/Volumes\/SHELF1/u.test(l));

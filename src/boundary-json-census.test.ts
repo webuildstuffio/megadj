@@ -66,10 +66,15 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    audited: 63,
-    guarded: 47,
+    // Sep 15 (#95): rb-import/rb-playlist/rb-fix-paths/rb-playlist-reconcile
+    // hand-rolled guarded JSON parses collapsed onto the rb-command-kit
+    // `parseJsonBoundary` seam; (#98) notes.ts corrupt-data_json guard
+    // deduplicated to one `parseNoteData` — 5 audited/guarded sites removed
+    // (63→58, 47→42), zero new sites, zero behavior change (all tests green).
+    audited: 58,
+    guarded: 42,
     sanctioned: 16,
-    digest: "f940b70001a0a7d6793523ff8a80062b1a0a2427e2daa5ee470112b14589643a",
+    digest: "8717bdc5ede539d180f7df7153dcb58ccf8b6076576c9654f14673f5b16ffe74",
   });
 });
 

@@ -25,6 +25,11 @@ import {
   isRecord,
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
+import {
+  isDecimalIdOrNull,
+  isStringPair,
+  parseJsonBoundary,
+} from "./rb-command-kit.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 
 export interface RbImportOptions {
@@ -245,44 +250,21 @@ interface VerifyOut {
   playlistExists: boolean;
 }
 
-const DECIMAL_ID = /^(?:0|[1-9]\d*)$/u;
-
 function isNonNegativeInteger(value: unknown): value is number {
   return isFiniteNumber(value) && Number.isInteger(value) && value >= 0;
 }
 
-function parseJsonOutput(raw: string, context: string): unknown {
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch (error) {
-    throw new Error(`${context} returned malformed JSON`, { cause: error });
-  }
-}
-
 function parseWriteOutput(raw: string): PyOut {
-  const value = parseJsonOutput(raw, "pyrekordbox write");
+  const value = parseJsonBoundary(raw, "pyrekordbox write");
   if (
     !isRecord(value) ||
     !isNonNegativeInteger(value.inserted) ||
     !isNonNegativeInteger(value.already) ||
     !isNonNegativeInteger(value.linked) ||
-    !(
-      value.playlistId === null ||
-      (typeof value.playlistId === "string" &&
-        DECIMAL_ID.test(value.playlistId))
-    ) ||
-    !(
-      value.parentId === null ||
-      (typeof value.parentId === "string" && DECIMAL_ID.test(value.parentId))
-    ) ||
+    !isDecimalIdOrNull(value.playlistId) ||
+    !isDecimalIdOrNull(value.parentId) ||
     !isUnknownArray(value.errors) ||
-    !value.errors.every(
-      (entry): entry is [string, string] =>
-        isUnknownArray(entry) &&
-        entry.length === 2 &&
-        typeof entry[0] === "string" &&
-        typeof entry[1] === "string",
-    )
+    !value.errors.every(isStringPair)
   ) {
     throw new Error("pyrekordbox write returned an invalid result payload");
   }
@@ -297,7 +279,7 @@ function parseWriteOutput(raw: string): PyOut {
 }
 
 function parseVerifyOutput(raw: string): VerifyOut {
-  const value = parseJsonOutput(raw, "pyrekordbox post-verify");
+  const value = parseJsonBoundary(raw, "pyrekordbox post-verify");
   if (
     !isRecord(value) ||
     !isNonNegativeInteger(value.hit) ||
