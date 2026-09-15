@@ -40,6 +40,7 @@ export {
   measureRms,
   parseFilename,
   probeFile,
+  probeMediaSync,
   qualityScore,
   trueContainerExt,
   type ParsedName,

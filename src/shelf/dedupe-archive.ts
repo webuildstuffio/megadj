@@ -27,6 +27,10 @@ import {
   groupByFingerprint,
   type DupGroup as DupeGroup,
 } from "./dupescan-shared";
+import {
+  applyConfirmed,
+  applyConfirmationRefusal,
+} from "../rekordbox/rb-command-kit.js";
 import { applyArchiveGroups } from "./dedupe-archive-apply";
 
 // DupeGroup is the shared dupescan group shape (dupescan-shared.ts, the
@@ -155,9 +159,9 @@ export async function dedupeArchive(
   // ---- apply stage (only with --apply --yes) ------------------------------
   // Safety rules live in dedupe-archive-apply.ts: md5 re-verify at apply
   // time, name-similarity review gate, quarantine-never-delete.
-  const applied = opts.apply === true && opts.yes === true;
-  if (opts.apply && !opts.yes) {
-    log("--apply requires --yes (two-step safety — nothing moved)");
+  const applied = applyConfirmed(opts);
+  if (applyConfirmationRefusal(opts) !== null) {
+    log(applyConfirmationRefusal(opts) ?? "unreachable");
   }
   if (applied) {
     applyArchiveGroups(

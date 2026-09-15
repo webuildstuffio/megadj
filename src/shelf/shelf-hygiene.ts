@@ -25,6 +25,7 @@ import {
 import { applyFinding, validateFinding } from "../archive/hygiene/apply";
 import { fingerprintFileLength } from "../../fulltags/src/exports";
 import type { CheckCtx } from "../archive/hygiene/types";
+import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { FpCache, SHELF_FINGERPRINTS_TABLE } from "./shelf-dupescan";
 import { md5Cli } from "./md5-cli";
 import { resolveShelfVolume } from "../shared/volume";
@@ -88,9 +89,9 @@ export async function shelfHygiene(
     setExitCode(1);
   };
 
-  if (apply && !yes) {
+  if (applyConfirmationRefusal({ apply, yes }) !== null) {
     // guard order: flag misuse fails BEFORE any disk/DB work
-    await fail("--apply requires --yes (two-step safety — nothing executed)");
+    await fail(applyConfirmationRefusal({ apply, yes }) ?? "unreachable");
     return;
   }
   if (!existsSync(shelfVolume)) {

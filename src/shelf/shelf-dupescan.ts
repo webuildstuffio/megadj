@@ -26,6 +26,7 @@ import {
   type DupGroup,
 } from "./dupescan-shared";
 import { applyDupGroups } from "./shelf-dupescan-apply";
+import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson } from "../shared/cli-output";
 
@@ -193,6 +194,22 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
     g.files.some((f) => f.path.startsWith(`${contents}/`));
   const applyable = dupes.filter(contentsInGroup);
   const qDir = join(shelfVolume, "Contents", ".dupescan-quarantine");
+  if (
+    applyConfirmationRefusal({
+      apply: quarantine,
+      yes,
+      flag: "--quarantine",
+    }) !== null
+  ) {
+    // two-step gate via the SSOT — surface the refusal, degrade to report
+    log(
+      applyConfirmationRefusal({
+        apply: quarantine,
+        yes,
+        flag: "--quarantine",
+      }) ?? "unreachable",
+    );
+  }
   const applied = quarantine && yes;
   let quarantined = 0;
   let skippedForReview = 0;

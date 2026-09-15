@@ -23,6 +23,10 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { DedupeResult } from "./shelf-dedupe-types";
+import {
+  applyConfirmed,
+  applyConfirmationRefusal,
+} from "../rekordbox/rb-command-kit.js";
 import { judgePair, applyPairs } from "./shelf-dedupe-verdict";
 import { resolveShelfVolume } from "../shared/volume";
 
@@ -117,7 +121,7 @@ export async function shelfDedupe(
   const { byteDupes, fingerprintDupes, keepBoth } = tally;
 
   // Stage 3 (human gate already happened at the CLI): quarantine moves.
-  const applied = apply && yes;
+  const applied = applyConfirmed({ apply, yes });
   let moved = 0;
   let upgraded = 0;
   if (applied) {
@@ -190,8 +194,8 @@ export async function shelfDedupe(
     log(
       `applied: ${moved} file(s) handled — ${upgraded} upgrades (twin content took the original path), rest moved to ${quarantine}`,
     );
-  } else if (apply && !yes) {
-    log("apply requested but --yes missing — report only (safety gate)");
+  } else if (applyConfirmationRefusal({ apply, yes }) !== null) {
+    log(applyConfirmationRefusal({ apply, yes }) ?? "unreachable");
   } else {
     log("report only — re-run with --apply --yes to move losers to quarantine");
   }
