@@ -27,6 +27,7 @@ import {
   isStringPair,
   isStringTriple,
   parseJsonBoundary,
+  printResult,
   RB_CLOSED_PY_GUARD,
   rbCommandRuntime,
   type RbCommandResult,
@@ -527,20 +528,18 @@ export function printRbCommentSyncReport(
   r: RbCommentSyncResult,
   log: (s: string) => void,
 ): void {
-  if (r.error) {
-    log(`error: ${r.error}`);
-    return;
-  }
-  log(
-    `${r.scanned} rows scanned · ${r.eligible} eligible (file carries tag data) · ${r.alreadyHad} already had comments (kept) · ${r.skipped.length} skipped`,
-  );
-  if (r.appliedMode) {
+  printResult(log, r, (body) => {
     log(
-      `wrote ${r.written} comments · backup: ${r.backedUpTo ?? "none"} · ${r.verify.detail}`,
+      `${body.scanned} rows scanned · ${body.eligible} eligible (file carries tag data) · ${body.alreadyHad} already had comments (kept) · ${body.skipped.length} skipped`,
     );
-  } else {
-    log(
-      `dry-run — re-run with --apply --yes (rekordbox quit) to write ${r.eligible} comments`,
-    );
-  }
+    if (body.appliedMode) {
+      log(
+        `wrote ${body.written} comments · backup: ${body.backedUpTo ?? "none"} · ${body.verify.detail}`,
+      );
+    } else {
+      log(
+        `dry-run — re-run with --apply --yes (rekordbox quit) to write ${body.eligible} comments`,
+      );
+    }
+  });
 }

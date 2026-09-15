@@ -1,4 +1,5 @@
 import { isAbsolute, join, relative, sep } from "node:path";
+import { printResult } from "./rb-command-kit.js";
 
 interface MutationPair {
   keepId: string;
@@ -85,7 +86,7 @@ export function inspectMutationPaths(
 }
 
 interface DedupReport {
-  error?: string | undefined;
+  error?: string;
   scanned: number;
   pairs: (MutationPair & { title: string; durDelta: number })[];
   appliedMode: boolean;
@@ -99,28 +100,26 @@ export function printRbDedupReport(
   result: DedupReport,
   log: (message: string) => void,
 ): void {
-  if (result.error) {
-    log(`error: ${result.error}`);
-    return;
-  }
-  log(
-    `${result.scanned} content rows scanned · ${result.pairs.length} dupe pair(s)`,
-  );
-  for (const pair of result.pairs.slice(0, 20)) {
+  printResult(log, result, (body) => {
     log(
-      `  ♊ "${pair.title}" (${pair.basis}, Δ${pair.durDelta.toFixed(1)}s)\n     keep ${pair.keepPath}\n     lose ${pair.losePath}`,
+      `${body.scanned} content rows scanned · ${body.pairs.length} dupe pair(s)`,
     );
-  }
-  if (result.pairs.length > 20) log(`  … +${result.pairs.length - 20} more`);
-  if (result.appliedMode) {
-    log(
-      `applied: ${result.removed} loser rows deleted, ${result.quarantined.length} files quarantined, ${result.missingFiles.length} already missing · backup: ${result.backedUpTo ?? "none"}`,
-    );
-  } else if (result.pairs.length) {
-    log(
-      `dry-run — re-run with --apply --yes (rekordbox quit) to delete ${result.pairs.length} loser rows + quarantine files`,
-    );
-  } else {
-    log("clean — no same-title/duration twins found");
-  }
+    for (const pair of body.pairs.slice(0, 20)) {
+      log(
+        `  ♊ "${pair.title}" (${pair.basis}, Δ${pair.durDelta.toFixed(1)}s)\n     keep ${pair.keepPath}\n     lose ${pair.losePath}`,
+      );
+    }
+    if (body.pairs.length > 20) log(`  … +${body.pairs.length - 20} more`);
+    if (body.appliedMode) {
+      log(
+        `applied: ${body.removed} loser rows deleted, ${body.quarantined.length} files quarantined, ${body.missingFiles.length} already missing · backup: ${body.backedUpTo ?? "none"}`,
+      );
+    } else if (body.pairs.length) {
+      log(
+        `dry-run — re-run with --apply --yes (rekordbox quit) to delete ${body.pairs.length} loser rows + quarantine files`,
+      );
+    } else {
+      log("clean — no same-title/duration twins found");
+    }
+  });
 }

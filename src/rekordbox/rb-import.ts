@@ -31,6 +31,7 @@ import {
   isDecimalIdOrNull,
   isStringPair,
   parseJsonBoundary,
+  printResult,
 } from "./rb-command-kit.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 import { commandLog } from "../progress";
@@ -585,21 +586,19 @@ export function printRbImportReport(
   r: RbImportResult,
   log: (s: string) => void,
 ): void {
-  if (r.error) {
-    log(`error: ${r.error}`);
-    return;
-  }
-  log(
-    `${r.found} audio files · playlist "${r.playlist}"${r.group ? ` (in "${r.group}")` : ""} · ${r.inserted} inserted, ${r.already} already imported, ${r.errors.length} errors`,
-  );
-  for (const e of r.errors.slice(0, 10)) log(`  ✗ ${e}`);
-  if (r.appliedMode) {
+  printResult(log, r, (body) => {
     log(
-      `post-verify: ${r.verified}/${r.found} files referenced · whole-table missing rows: ${r.stillBroken}`,
+      `${body.found} audio files · playlist "${body.playlist}"${body.group ? ` (in "${body.group}")` : ""} · ${body.inserted} inserted, ${body.already} already imported, ${body.errors.length} errors`,
     );
-  } else {
-    log(
-      `dry-run — re-run with --apply --yes (rekordbox quit) to insert ${r.found} rows`,
-    );
-  }
+    for (const e of body.errors.slice(0, 10)) log(`  ✗ ${e}`);
+    if (body.appliedMode) {
+      log(
+        `post-verify: ${body.verified}/${body.found} files referenced · whole-table missing rows: ${body.stillBroken}`,
+      );
+    } else {
+      log(
+        `dry-run — re-run with --apply --yes (rekordbox quit) to insert ${body.found} rows`,
+      );
+    }
+  });
 }

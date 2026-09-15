@@ -32,6 +32,7 @@ import { parseAnlzGrid } from "../../fulltags/src/anlz";
 import { MUSIC_DIR } from "../cli-env";
 import { nameKey } from "../shared/name-key";
 import { masterDbPath, normalizeMount } from "./master-path.js";
+import { printResult } from "./rb-command-kit.js";
 import { errorText } from "../shared/error-text";
 
 /** The plan A3 bucket names (subset of GridAuditVerdict["bucket"]). */
@@ -96,7 +97,7 @@ export interface GridTriageResult {
   /** Worst-first sample (SYNC issues, then non-A-OK buckets), capped. */
   offenders: TriageRow[];
   ok: boolean;
-  error?: string | undefined;
+  error?: string;
 }
 
 const BUCKETS: BucketName[] = [
@@ -353,7 +354,7 @@ export async function gridTriage(
 
   const result = fail(""); // reused as the accumulator
   result.ok = true;
-  result.error = undefined;
+  delete result.error;
   result.total = todo.length;
   result.synced = stickMount ? 0 : null;
   result.syncIssues = stickMount ? 0 : null;
@@ -420,34 +421,34 @@ export function printGridTriageReport(
   r: GridTriageResult,
   log: (s: string) => void,
 ): void {
-  if (r.error) {
-    log(`error: ${r.error}`);
-    return;
-  }
-  const b = r.buckets;
-  log(
-    `${r.total} rows · ${r.audited} audited${
-      r.compareDrive ? ` · vs ${r.compareDrive}` : ""
-    }`,
-  );
-  if (r.compareDrive)
+  printResult(log, r, (body) => {
+    const b = body.buckets;
     log(
-      `sync: ${r.synced} identical · ${r.syncIssues} out-of-sync (SYNC issues get a re-export, NOT a re-analysis)`,
+      `${body.total} rows · ${body.audited} audited${
+        body.compareDrive ? ` · vs ${body.compareDrive}` : ""
+      }`,
     );
-  log(
-    `grids: ${b["A-OK"]} ok · ${b.SHIFT} shift · ${b.PHASE} phase · ${b.TEMPO} tempo · ${b.DRIFT} drift · ${b.CHAOS} chaos`,
-  );
-  if (r.noAnlz || r.noLedger || r.noGrid)
+    if (body.compareDrive)
+      log(
+        `sync: ${body.synced} identical · ${body.syncIssues} out-of-sync (SYNC issues get a re-export, NOT a re-analysis)`,
+      );
     log(
-      `gaps: ${r.noAnlz} no sidecar · ${r.noGrid} undecodable grid · ${r.noLedger} not in beats ledger`,
+      `grids: ${b["A-OK"]} ok · ${b.SHIFT} shift · ${b.PHASE} phase · ${b.TEMPO} tempo · ${b.DRIFT} drift · ${b.CHAOS} chaos`,
     );
-  for (const o of r.offenders.slice(0, 10)) {
-    const nums =
-      o.anchorDeltaMs !== undefined
-        ? ` anchor ${o.anchorDeltaMs} ms · phase ${o.phaseBeats ?? 0} beat(s)`
-        : "";
-    log(`  ${o.cls}: ${o.path}${nums}`);
-  }
-  if (r.offenders.length > 10)
-    log(`  … and ${r.offenders.length - 10} more (--json for the full sample)`);
+    if (body.noAnlz || body.noLedger || body.noGrid)
+      log(
+        `gaps: ${body.noAnlz} no sidecar · ${body.noGrid} undecodable grid · ${body.noLedger} not in beats ledger`,
+      );
+    for (const o of body.offenders.slice(0, 10)) {
+      const nums =
+        o.anchorDeltaMs !== undefined
+          ? ` anchor ${o.anchorDeltaMs} ms · phase ${o.phaseBeats ?? 0} beat(s)`
+          : "";
+      log(`  ${o.cls}: ${o.path}${nums}`);
+    }
+    if (body.offenders.length > 10)
+      log(
+        `  … and ${body.offenders.length - 10} more (--json for the full sample)`,
+      );
+  });
 }

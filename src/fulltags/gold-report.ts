@@ -27,6 +27,7 @@
 
 import type { ArchiveState } from "../archive/state";
 import { commandLog } from "../progress";
+import { printResult } from "../rekordbox/rb-command-kit";
 import { MUSIC_DIR } from "../cli-env";
 import { createHash } from "node:crypto";
 import {
@@ -219,21 +220,19 @@ export function printGoldReport(
   r: GoldReportResult,
   log: (s: string) => void,
 ): void {
-  if (r.error) {
-    log(`error: ${r.error}`);
-    return;
-  }
-  log(metricsLine("dev    ", r.dev));
-  log(metricsLine("holdout", r.holdout));
-  log(
-    `matched ${r.matched}/${r.annotations} annotations to the beats ledger by content hash${
-      r.unmatched > 0
-        ? ` · ${r.unmatched} unmatched (not analyzed, or hash backfill capped — re-run)`
-        : ""
-    }`,
-  );
-  if (r.hashedNow > 0)
+  printResult(log, r, (body) => {
+    log(metricsLine("dev    ", body.dev));
+    log(metricsLine("holdout", body.holdout));
     log(
-      `hashed ${r.hashedNow} tracks this run; ${r.hashMissing} still uncached`,
+      `matched ${body.matched}/${body.annotations} annotations to the beats ledger by content hash${
+        body.unmatched > 0
+          ? ` · ${body.unmatched} unmatched (not analyzed, or hash backfill capped — re-run)`
+          : ""
+      }`,
     );
+    if (body.hashedNow > 0)
+      log(
+        `hashed ${body.hashedNow} tracks this run; ${body.hashMissing} still uncached`,
+      );
+  });
 }
