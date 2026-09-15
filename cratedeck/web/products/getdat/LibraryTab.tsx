@@ -22,7 +22,13 @@ import {
   DataTable,
 } from "../../ui/data";
 import { StatCard } from "../../ui/DrivePanels";
-import { SectionHead, ShareBar, Verdict, TrackTitle } from "../shared";
+import {
+  ArchiveAbsentGate,
+  SectionHead,
+  ShareBar,
+  Verdict,
+  TrackTitle,
+} from "../shared";
 import { STATUS_LANG } from "../shared";
 
 type Track = ArchiveIngestStatus["recent_tracks"][number];
@@ -84,13 +90,7 @@ export function LibraryTab() {
   if (page.status !== "ok")
     return <FetchedGate page={page} loading="loading library…" />;
   const lib = page.data;
-  if (!lib.available)
-    return (
-      <div class="note-card">
-        <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run
-        on this machine yet.
-      </div>
-    );
+  if (!lib.available) return <ArchiveAbsentGate />;
 
   return (
     <div>

@@ -480,6 +480,20 @@ export const DRIVE_TABS = [
 /** The one-line verdict a human reads before anything else. `meta` accepts
  *  a node (InfoTip, Copy button, multi-part counts) — the old string-only
  *  signature is why 5 pages hand-rolled `arch-verdict` divs. */
+/** ArchiveAbsentGate — the "archive DB absent" note-card every GetDat
+ *  tab (and every future archive-DB page) shows when `available` is
+ *  false. One card, one copy string — the 4 hand-rolled clones in
+ *  GetDatPage/LibraryTab were byte-identical except for which flags
+ *  gated them (issue #90 item 2). */
+export function ArchiveAbsentGate() {
+  return (
+    <div class="note-card">
+      <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run on
+      this machine yet.
+    </div>
+  );
+}
+
 export function Verdict(props: {
   cls: "ok" | "warn" | "bad";
   text: string;

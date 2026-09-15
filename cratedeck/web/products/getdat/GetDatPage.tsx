@@ -33,6 +33,7 @@ import {
 } from "../../ui/data";
 import { StatCard } from "../../ui/DrivePanels";
 import {
+  ArchiveAbsentGate,
   PRODUCT_TABS,
   ProductIntro,
   SectionHead,
@@ -99,10 +100,7 @@ function PipelineTab() {
         next="The fix for a big backlog lives in the Backlog tab; adding music is `megadj sync` / `megadj ingest` (CLI by design)."
       />
       {!ingest.available ? (
-        <div class="note-card">
-          <Icon name="folder" size={20} />
-          archive DB absent — megadj hasn't run on this machine yet.
-        </div>
+        <ArchiveAbsentGate />
       ) : (
         <>
           <Verdict
@@ -342,10 +340,7 @@ function BacklogTab() {
         next="An empty backlog means every download in the archive is playable AND gig-safe on quality."
       />
       {!ingest.available && !lowq.available ? (
-        <div class="note-card">
-          <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run
-          on this machine yet.
-        </div>
+        <ArchiveAbsentGate />
       ) : (
         <>
           <Verdict
@@ -468,13 +463,7 @@ function SourcesTab() {
   if (page.status !== "ok")
     return <FetchedGate page={page} loading="loading sources…" />;
   const [ingest, census] = page.data;
-  if (!ingest.available)
-    return (
-      <div class="note-card">
-        <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run
-        on this machine yet.
-      </div>
-    );
+  if (!ingest.available) return <ArchiveAbsentGate />;
   const sources = census.available ? census.sources : [];
   return (
     <div>
