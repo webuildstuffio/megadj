@@ -310,26 +310,26 @@ export function printSpikeReport(
   r: SpikeSnapshot,
   log: (s: string) => void,
 ): void {
-  printResult(log, r, (r) => {
-    if (r.mode === "snapshot") {
+  printResult(log, r, (body) => {
+    if (body.mode === "snapshot") {
       log(
-        `snapshot "${r.tag}": ${r.tracked} sidecars (${r.scanned} scanned, ${r.undecodable} undecodable) → ${r.baselinePath}`,
+        `snapshot "${body.tag}": ${body.tracked} sidecars (${body.scanned} scanned, ${body.undecodable} undecodable) → ${body.baselinePath}`,
       );
       log(
-        `next: do the rekordbox experiment, then rb-anlz-spike ${r.mount} compare --tag=${r.tag}`,
+        `next: do the rekordbox experiment, then rb-anlz-spike ${body.mount} compare --tag=${body.tag}`,
       );
       return;
     }
     log(
-      `compare "${r.tag}": ${r.identical} identical · ${r.changed?.length ?? 0} changed · ${r.added?.length ?? 0} added · ${r.removed?.length ?? 0} removed`,
+      `compare "${body.tag}": ${body.identical} identical · ${body.changed?.length ?? 0} changed · ${body.added?.length ?? 0} added · ${body.removed?.length ?? 0} removed`,
     );
-    for (const c of r.changed ?? []) {
+    for (const c of body.changed ?? []) {
       const secs = c.sections
         .map((s) => `${s.tag} ${s.was}→${s.now}B`)
         .join(", ");
       log(`  CHANGED ${c.file}: ${secs}`);
     }
-    for (const a of r.added ?? []) log(`  ADDED ${a}`);
-    for (const d of r.removed ?? []) log(`  REMOVED ${d}`);
+    for (const a of body.added ?? []) log(`  ADDED ${a}`);
+    for (const d of body.removed ?? []) log(`  REMOVED ${d}`);
   });
 }

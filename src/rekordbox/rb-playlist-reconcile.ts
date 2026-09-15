@@ -267,23 +267,23 @@ export function printReconcileReport(
   r: ReconcileResult,
   log: (s: string) => void,
 ): void {
-  printResult(log, r, (r) => {
+  printResult(log, r, (body) => {
     log(
-      `twins: ${r.missingXmlNodes.length} DB playlist(s) need XML repair · ${r.orphanXmlNodes.length} XML-only orphan(s)`,
+      `twins: ${body.missingXmlNodes.length} DB playlist(s) need XML repair · ${body.orphanXmlNodes.length} XML-only orphan(s)`,
     );
-    for (const p of r.missingXmlNodes.slice(0, 15))
+    for (const p of body.missingXmlNodes.slice(0, 15))
       log(
         `  ✗ "${p.name}" (Id ${p.id}, attr ${p.attribute}) XML twin is missing or stale`,
       );
-    for (const o of r.orphanXmlNodes.slice(0, 5))
+    for (const o of body.orphanXmlNodes.slice(0, 5))
       log(
         `  ? XML node "${o.name}" (${o.id}) has no DB row (flagged, untouched)`,
       );
-    if (r.appliedMode)
-      log(`applied: ${r.added} NODE(s) repaired · backups written`);
-    else if (r.missingXmlNodes.length)
+    if (body.appliedMode)
+      log(`applied: ${body.added} NODE(s) repaired · backups written`);
+    else if (body.missingXmlNodes.length)
       log(
-        `dry-run — re-run with --apply --yes (rekordbox quit) to repair ${r.missingXmlNodes.length} NODE(s)`,
+        `dry-run — re-run with --apply --yes (rekordbox quit) to repair ${body.missingXmlNodes.length} NODE(s)`,
       );
     else log("clean — every DB playlist has its XML twin");
   });

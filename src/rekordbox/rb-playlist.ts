@@ -706,25 +706,26 @@ export function printRbPlaylistReport(
   r: RbPlaylistResult,
   log: (s: string) => void,
 ): void {
-  printResult(log, r, (r) => {
+  printResult(log, r, (body) => {
     log(
-      `chain ${r.chain} → linked ${r.linked} · playlist "${r.playlist}" (in "${r.group}") on ${r.db}`,
+      `chain ${body.chain} → linked ${body.linked} · playlist "${body.playlist}" (in "${body.group}") on ${body.db}`,
     );
-    for (const u of r.unmatched.slice(0, 10)) log(`  ? ${u.title} — ${u.reason}`);
-    if (r.unmatched.length > 10)
-      log(`  … and ${r.unmatched.length - 10} more unmatched`);
-    for (const e of r.errors.slice(0, 10)) log(`  ✗ ${e}`);
-    if (r.appliedMode) {
+    for (const u of body.unmatched.slice(0, 10))
+      log(`  ? ${u.title} — ${u.reason}`);
+    if (body.unmatched.length > 10)
+      log(`  … and ${body.unmatched.length - 10} more unmatched`);
+    for (const e of body.errors.slice(0, 10)) log(`  ✗ ${e}`);
+    if (body.appliedMode) {
       log(
-        `post-verify: ${r.verified}/${r.linked} rows linked${r.backedUpTo ? ` · backup ${r.backedUpTo}` : ""}`,
+        `post-verify: ${body.verified}/${body.linked} rows linked${body.backedUpTo ? ` · backup ${body.backedUpTo}` : ""}`,
       );
     } else {
       log(
-        `dry-run — re-run with --apply --yes (rekordbox quit) to create the playlist and link ${r.chain} tracks`,
+        `dry-run — re-run with --apply --yes (rekordbox quit) to create the playlist and link ${body.chain} tracks`,
       );
-      if (r.unmatched.length > 0) {
+      if (body.unmatched.length > 0) {
         log(
-          `${r.unmatched.length} chain track(s) have no master row yet — they will be skipped and reported`,
+          `${body.unmatched.length} chain track(s) have no master row yet — they will be skipped and reported`,
         );
       }
     }

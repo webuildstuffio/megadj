@@ -617,22 +617,22 @@ export function printRbFixReport(
   r: RbFixResult,
   log: (s: string) => void,
 ): void {
-  printResult(log, r, (r) => {
+  printResult(log, r, (body) => {
     log(
-      `${r.total} content rows · ${r.broken} broken · ${r.fixable} fixable · ${r.dead} dead (truly gone)`,
+      `${body.total} content rows · ${body.broken} broken · ${body.fixable} fixable · ${body.dead} dead (truly gone)`,
     );
-    for (const f of r.appliedList) log(`  fixed: ${f}`);
-    for (const d of r.deadList)
+    for (const f of body.appliedList) log(`  fixed: ${f}`);
+    for (const d of body.deadList)
       log(`  dead (use Missing File Manager to remove): ${d}`);
-    if (r.appliedMode)
+    if (body.appliedMode)
       log(
-        r.stillBroken === r.dead
-          ? `post-verify: only the ${r.dead} dead rows remain — clean`
-          : `post-verify: ${r.stillBroken - r.dead} UNEXPECTED still-broken rows — investigate`,
+        body.stillBroken === body.dead
+          ? `post-verify: only the ${body.dead} dead rows remain — clean`
+          : `post-verify: ${body.stillBroken - body.dead} UNEXPECTED still-broken rows — investigate`,
       );
     else
       log(
-        `dry-run — re-run with --apply --yes (rekordbox quit) to rewrite ${r.fixable} rows`,
+        `dry-run — re-run with --apply --yes (rekordbox quit) to rewrite ${body.fixable} rows`,
       );
   });
 }

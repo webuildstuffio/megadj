@@ -488,21 +488,21 @@ export function printRbCuesReport(
   r: RbCuesResult,
   log: (s: string) => void,
 ): void {
-  printResult(log, r, (r) => {
-    if (r.appliedMode) {
+  printResult(log, r, (body) => {
+    if (body.appliedMode) {
       log(
-        `restamped ${r.written}/${r.found} cue rows to Kind=1 (hot) · backup: ${r.backedUpTo ?? "none"}`,
+        `restamped ${body.written}/${body.found} cue rows to Kind=1 (hot) · backup: ${body.backedUpTo ?? "none"}`,
       );
       log(
-        r.verifyFailures.length
-          ? `VERIFY FAILED: ${r.verifyFailures.join("; ")}`
+        body.verifyFailures.length
+          ? `VERIFY FAILED: ${body.verifyFailures.join("; ")}`
           : `re-read verified: 0 incident Kind=0 rows remain`,
       );
     } else {
       log(
-        `dry-run — ${r.found} Sep 12 intake cues match the broken Kind=0 signature · re-run with --apply --yes (rekordbox quit) to fix`,
+        `dry-run — ${body.found} Sep 12 intake cues match the broken Kind=0 signature · re-run with --apply --yes (rekordbox quit) to fix`,
       );
-      for (const gate of r.gated) log(`protected: ${gate.reason}`);
+      for (const gate of body.gated) log(`protected: ${gate.reason}`);
     }
   });
 }
