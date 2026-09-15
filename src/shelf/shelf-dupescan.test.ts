@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { shelfDupescan, FpCache, parseFpcalcOutput } from "./shelf-dupescan";
+import {
+  shelfDupescan,
+  FpCache,
+  SHELF_FINGERPRINTS_TABLE,
+  parseFpcalcOutput,
+} from "./shelf-dupescan";
 
 /**
  * Regression (Sep 11 mass-collision): the fingerprint parser's char
@@ -143,7 +148,7 @@ describe("shelf-dupescan", () => {
 describe("FpCache", () => {
   test("put/get roundtrip and size change invalidation", () => {
     const db = new Database(":memory:");
-    const cache = new FpCache(db);
+    const cache = new FpCache(db, SHELF_FINGERPRINTS_TABLE);
     expect(cache.get("/a.mp3", 100)).toBeUndefined();
     cache.put("/a.mp3", 100, "FP1");
     expect(cache.get("/a.mp3", 100)).toBe("FP1");

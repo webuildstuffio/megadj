@@ -57,18 +57,16 @@ export interface DedupeArchiveResult {
   applied: boolean;
 }
 
-class FpCache extends DupFpCache {
-  constructor(db: Database) {
-    super(db, "file_archive_fingerprints");
-  }
-}
+/** The archive-tier fingerprint table (distinct from the shelf tier's
+ *  shelf_fingerprints — same DupFpCache, direct instantiation, issue #73). */
+const ARCHIVE_FINGERPRINTS_TABLE = "file_archive_fingerprints";
 
 export async function dedupeArchive(
   opts: DedupeArchiveOptions,
 ): Promise<DedupeArchiveResult> {
   const log = commandLog(opts);
   const db = new Database(opts.dbPath, { create: true });
-  const cache = new FpCache(db);
+  const cache = new DupFpCache(db, ARCHIVE_FINGERPRINTS_TABLE);
   const res: DedupeArchiveResult = {
     scanned: 0,
     fingerprinted: 0,

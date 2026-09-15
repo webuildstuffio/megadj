@@ -65,15 +65,14 @@ function fingerprint(path: string): string | null {
 }
 
 /** Persistent fp cache — one row per file path (re-runs only decode
- *  new/changed files). Table name keeps the shelf-cache namespace; the
- *  class body is the shared DupFpCache (twin of dedupe-archive's, jscpd-
- *  flagged, now one implementation). Kept exported — shelf-hygiene and
- *  the dedupe tests re-use it. */
-export class FpCache extends DupFpCache {
-  constructor(db: Database) {
-    super(db, "shelf_fingerprints");
-  }
-}
+ *  new/changed files). DupFpCache is instantiated DIRECTLY with its table
+ *  name (issue #73: the one-method FpCache subclass was a jscpd-flagged
+ *  twin of dedupe-archive's). This alias keeps the exported name that
+ *  shelf-hygiene and the dedupe tests import. */
+export const FpCache = DupFpCache;
+
+/** The shelf-tier fingerprint table (shelf-cache namespace). */
+export const SHELF_FINGERPRINTS_TABLE = "shelf_fingerprints";
 
 export interface DupScanOptions {
   shelfVolume?: string;
@@ -116,7 +115,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   }
 
   const db = new Database(dbPath);
-  const cache = new FpCache(db);
+  const cache = new FpCache(db, SHELF_FINGERPRINTS_TABLE);
   const files = [...walkAudio(contents)];
   // extra scan dirs fingerprint INTO the same grouping (never into the
   // quarantine-apply candidate set unless they group among themselves —

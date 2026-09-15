@@ -1,8 +1,10 @@
 // dupescan-shared.ts — the shared plumbing behind the archive dedupe
 // commands (dedupe-archive + shelf-dupescan). The FpCache twin (same
 // class, two table names) and the group-by-fingerprint loop were
-// byte-identical across both commands until jscpd flagged them; both now
-// parameterize the table name / policy through this module instead.
+// byte-identical across both commands until jscpd flagged them; the
+// group-by loop parameterizes policy here, and the twin subclass shells
+// are gone entirely (issue #73): both commands instantiate DupFpCache
+// directly with their table name.
 import { statSync, existsSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { Database } from "bun:sqlite";

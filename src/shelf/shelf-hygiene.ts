@@ -25,7 +25,7 @@ import {
 import { applyFinding, validateFinding } from "../archive/hygiene/apply";
 import { fingerprintFileLength } from "../../fulltags/src/exports";
 import type { CheckCtx } from "../archive/hygiene/types";
-import { FpCache } from "./shelf-dupescan";
+import { FpCache, SHELF_FINGERPRINTS_TABLE } from "./shelf-dupescan";
 import { md5Cli } from "./md5-cli";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson } from "../shared/cli-output";
@@ -170,7 +170,7 @@ export async function shelfHygiene(
     log(`shelf-hygiene: ${files.length} files on ${shelfVolume}`);
     for (const dir of unreadable)
       log(`  WARNING: unreadable dir skipped — ${dir}`);
-    const cache = new FpCache(db);
+    const cache = new FpCache(db, SHELF_FINGERPRINTS_TABLE);
     const ctx: CheckCtx = {
       volume: shelfVolume,
       walkToken,
