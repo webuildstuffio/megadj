@@ -35,6 +35,7 @@ import {
   applyConfirmationRefusal,
   DECIMAL_ID_RE,
   lastJsonLine,
+  makeFail,
   parseJsonBoundary,
   printResult,
   rbPythonRun,
@@ -315,7 +316,7 @@ export async function rbFixPaths(
     ...overrides,
   };
 
-  const fail = (msg: string): RbFixResult => ({
+  const fail = makeFail((msg: string): RbFixResult => ({
     command: "rb-fix-paths",
     mount,
     db: dbPath,
@@ -331,7 +332,7 @@ export async function rbFixPaths(
     backedUpTo: null,
     ok: false,
     error: msg,
-  });
+  }));
 
   if (applyConfirmationRefusal(opts) !== null) {
     const r = fail(applyConfirmationRefusal(opts) ?? "unreachable");

@@ -33,7 +33,7 @@ import {
   readdirSync,
   writeFileSync,
 } from "node:fs";
-import { printResult } from "./rb-command-kit.js";
+import { makeFail, printResult } from "./rb-command-kit.js";
 import { commandLog } from "../progress";
 import { errorText } from "../shared/error-text";
 import type { Dirent } from "node:fs";
@@ -89,20 +89,6 @@ export interface SpikeSnapshot {
 
 const sha256 = (b: Uint8Array): string =>
   createHash("sha256").update(b).digest("hex");
-
-function fail(opts: SpikeOptions, mount: string, msg: string): SpikeSnapshot {
-  return {
-    command: "rb-anlz-spike",
-    mode: opts.mode,
-    mount,
-    tag: opts.tag,
-    scanned: 0,
-    tracked: 0,
-    undecodable: 0,
-    ok: false,
-    error: msg,
-  };
-}
 
 /** Baseline JSON lives in persistent local state so snapshot and compare may
  * happen across sessions. Tests and isolated probes inject a temporary root;
@@ -204,8 +190,19 @@ function measure(mount: string): {
 export function anlzSpike(opts: SpikeOptions): SpikeSnapshot {
   const log = opts.log ?? commandLog({ json: opts.json });
   const mount = opts.mount.replace(/\/+$/u, "");
-  if (!existsSync(mount)) return fail(opts, mount, `not mounted: ${mount}`);
-  if (!opts.tag.trim()) return fail(opts, mount, "--tag is required");
+  const fail = makeFail((msg: string): SpikeSnapshot => ({
+    command: "rb-anlz-spike",
+    mode: opts.mode,
+    mount,
+    tag: opts.tag,
+    scanned: 0,
+    tracked: 0,
+    undecodable: 0,
+    ok: false,
+    error: msg,
+  }));
+  if (!existsSync(mount)) return fail(`not mounted: ${mount}`);
+  if (!opts.tag.trim()) return fail("--tag is required");
 
   if (opts.mode === "snapshot") {
     const { recs, scanned, undecodable } = measure(mount);
@@ -231,22 +228,14 @@ export function anlzSpike(opts: SpikeOptions): SpikeSnapshot {
   // compare
   const bp = baselinePath(mount, opts.tag, opts.spikeDir);
   if (!existsSync(bp))
-    return fail(
-      opts,
-      mount,
-      `no baseline for tag "${opts.tag}" — run snapshot first`,
-    );
+    return fail(`no baseline for tag "${opts.tag}" — run snapshot first`);
   let base: SpikeSnapshot & { recs: SidecarRec[] };
   try {
     base = JSON.parse(readFileSync(bp, "utf8")) as SpikeSnapshot & {
       recs: SidecarRec[];
     };
   } catch (e) {
-    return fail(
-      opts,
-      mount,
-      `baseline unreadable (${errorText(e)}) — re-snapshot`,
-    );
+    return fail(`baseline unreadable (${errorText(e)}) — re-snapshot`);
   }
   const { recs, scanned, undecodable } = measure(mount);
   const before = new Map(base.recs.map((r) => [r.file, r]));

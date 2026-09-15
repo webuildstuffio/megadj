@@ -39,6 +39,7 @@ import {
   isDecimalIdOrNull,
   isStringArray,
   lastJsonLine,
+  makeFail,
   parseJsonBoundary,
   printResult,
   runPyScript,
@@ -352,10 +353,7 @@ export async function rbPlaylist(
   const dbPath = masterDbPath(opts.mount);
   const group = opts.group ?? "DJ-Imports";
 
-  const fail = (
-    msg: string,
-    details: Partial<RbPlaylistResult> = {},
-  ): RbPlaylistResult => ({
+  const fail = makeFail((msg: string): RbPlaylistResult => ({
     command: "rb-playlist",
     db: dbPath,
     playlist: opts.playlist ?? "",
@@ -370,10 +368,9 @@ export async function rbPlaylist(
     appliedMode: Boolean(opts.apply),
     backedUpTo: null,
     errors: [],
-    ...details,
     ok: false,
     error: msg,
-  });
+  }));
 
   // gate 1 — flags before any I/O
   if (applyConfirmationRefusal(opts) !== null)
@@ -498,7 +495,8 @@ export async function rbPlaylist(
       backedUpTo = mutation.backedUpTo;
     } catch (error) {
       const message = errorText(error);
-      return fail(message, {
+      return {
+        ...fail(message),
         playlist,
         group,
         preset,
@@ -509,7 +507,7 @@ export async function rbPlaylist(
         playlistId: py.playlistId,
         backedUpTo,
         errors: [...py.errors, message],
-      });
+      };
     }
   }
 
@@ -528,14 +526,15 @@ export async function rbPlaylist(
       );
     } catch (error) {
       const message = errorText(error);
-      return fail(message, {
+      return {
+        ...fail(message),
         playlist,
         group,
         preset,
         minutes,
         chain: chain.length,
         errors: [message],
-      });
+      };
     }
   }
 

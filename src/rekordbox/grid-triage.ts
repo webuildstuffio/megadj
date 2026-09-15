@@ -31,7 +31,12 @@ import { parseAnlzGrid } from "../../fulltags/src/anlz";
 import { MUSIC_DIR } from "../cli-env";
 import { nameKey } from "../shared/name-key";
 import { masterDbPath, normalizeMount } from "./master-path.js";
-import { printResult, lastJsonLine, rbPythonRun } from "./rb-command-kit.js";
+import {
+  lastJsonLine,
+  makeFail,
+  printResult,
+  rbPythonRun,
+} from "./rb-command-kit.js";
 import { errorText } from "../shared/error-text";
 
 /** The plan A3 bucket names (subset of GridAuditVerdict["bucket"]). */
@@ -294,7 +299,7 @@ export async function gridTriage(
       : `/Volumes/${compareDrive}`
     : null;
 
-  const fail = (msg: string): GridTriageResult => ({
+  const fail = makeFail((msg: string): GridTriageResult => ({
     command: "rb-grid-triage",
     mount,
     db: dbPath,
@@ -313,7 +318,7 @@ export async function gridTriage(
     offenders: [],
     ok: false,
     error: msg,
-  });
+  }));
 
   if (!existsSync(dbPath)) {
     const r = fail(`no master DB at ${dbPath}`);

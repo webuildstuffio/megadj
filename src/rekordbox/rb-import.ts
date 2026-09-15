@@ -31,6 +31,7 @@ import {
   isDecimalIdOrNull,
   isStringPair,
   lastJsonLine,
+  makeFail,
   parseJsonBoundary,
   printResult,
   runPyScript,
@@ -335,10 +336,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   const playlist = opts.playlist ?? basename(folder);
   const group = opts.group ?? null;
 
-  const fail = (
-    msg: string,
-    details: Partial<RbImportResult> = {},
-  ): RbImportResult => ({
+  const fail = makeFail((msg: string): RbImportResult => ({
     command: "rb-import",
     db: dbPath,
     folder,
@@ -353,10 +351,9 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
     backedUpTo: null,
     playlistId: null,
     errors: [],
-    ...details,
     ok: false,
     error: msg,
-  });
+  }));
 
   // gate 1 — flags before any I/O
   if (applyConfirmationRefusal(opts) !== null)
@@ -511,7 +508,8 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
       backedUpTo = mutation.backedUpTo;
     } catch (error) {
       const message = errorText(error);
-      return fail(message, {
+      return {
+        ...fail(message),
         found: payloadFiles.length,
         inserted: py.inserted,
         already: py.already,
@@ -523,7 +521,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
           ...py.errors.map(([file, detail]) => `${file}: ${detail}`),
           message,
         ],
-      });
+      };
     }
   }
 
