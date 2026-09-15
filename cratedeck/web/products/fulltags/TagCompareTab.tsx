@@ -31,7 +31,7 @@ import {
   KVVal,
   DataTable,
 } from "../../ui/data";
-import { SectionHead } from "../shared";
+import { ArchiveAbsentGate, SectionHead } from "../shared";
 import { TrackPickSearch, type TrackPick } from "./TrackPickSearch";
 
 /** Pill classes per comparison outcome. */
@@ -79,13 +79,7 @@ export function TagCompareTab() {
   if (census.status !== "ok")
     return <FetchedGate page={census} loading="comparing the mirrors…" />;
   const c = census.data;
-  if (!c.available)
-    return (
-      <div class="note-card">
-        <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run
-        on this machine yet.
-      </div>
-    );
+  if (!c.available) return <ArchiveAbsentGate />;
   if (!c.rekordboxMirror)
     return (
       <div>

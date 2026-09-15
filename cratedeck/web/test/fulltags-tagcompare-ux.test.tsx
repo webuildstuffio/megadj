@@ -153,7 +153,9 @@ describe("FullTags tag-compare UX (Tags tab)", () => {
       "utf8",
     );
     expect(src).toContain("comparing the mirrors…");
-    expect(src).toContain("archive DB absent");
+    // the absent-copy lives ONCE in products/shared (ArchiveAbsentGate);
+    // the tab must render the gate, not a hand-rolled twin (#90)
+    expect(src).toContain("<ArchiveAbsentGate />");
     expect(src).toContain("megadj rb-adopt");
     expect(src).toContain("Disagreements");
     expect(src).toContain("Disputed flags");

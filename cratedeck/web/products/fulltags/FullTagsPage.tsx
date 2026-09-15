@@ -31,6 +31,7 @@ import {
   PRODUCT_TABS,
   Meter,
   ProductIntro,
+  ArchiveAbsentGate,
   SectionHead,
   Verdict,
   TrackTitle,
@@ -161,10 +162,7 @@ function BeatgridsTab() {
         next="BPM tag writes stay BLOCKED until the bar-grid re-gate passes (roadmap) — the ledger is truth until then. Re-analyze with `megadj beats`."
       />
       {!grid.available ? (
-        <div class="note-card">
-          <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run
-          on this machine yet.
-        </div>
+        <ArchiveAbsentGate />
       ) : (
         <>
           <CoverageStrip cov={coverage} active="beats" />
@@ -246,13 +244,7 @@ function MoodTab() {
   if (page.status !== "ok")
     return <FetchedGate page={page} loading="loading mood ledger…" />;
   const mood = page.data;
-  if (!mood.available)
-    return (
-      <div class="note-card">
-        <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run
-        on this machine yet.
-      </div>
-    );
+  if (!mood.available) return <ArchiveAbsentGate />;
 
   return (
     <div>
@@ -371,13 +363,7 @@ function CuesTab() {
   if (page.status !== "ok")
     return <FetchedGate page={page} loading="loading cues ledger…" />;
   const cues = page.data;
-  if (!cues.available)
-    return (
-      <div class="note-card">
-        <Icon name="folder" size={20} /> archive DB absent — megadj hasn't run
-        on this machine yet.
-      </div>
-    );
+  if (!cues.available) return <ArchiveAbsentGate />;
 
   return (
     <div>
