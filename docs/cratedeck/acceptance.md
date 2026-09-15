@@ -1,13 +1,14 @@
 # CrateDeck — Acceptance Status
 
-**Status:** 🟡 BLOCKED — code gates are verified; three hardware checks and the
-release-policy decision in issue #29 remain.
+**Status:** 🟡 BLOCKED — code gates are verified; three hardware checks remain.
+The release-policy decision in issue #29 closed 2026-09-15 with the `v0.2.0`
+tag pushed.
 
 Tracks the PRD (F1–F10) and build-plan milestone acceptance items. Evidence
 here is **code-verified only** (file/route/test existence in `cratedeck/`).
 Items marked ☐ require real-hardware runs (gig drives) — those stay manual
 by design ("real gig drives stay manual — the Python tools already carry
-that trust", architecture §9). Last audited: 2026-09-14.
+that trust", architecture §9). Last audited: 2026-09-15.
 
 ## Milestones
 
@@ -93,6 +94,7 @@ superset/behind, artwork coverage, space/df, NFC+casefold).
 - [x] Build plan M6: SIGKILL recovery is regression-tested against a real
       child-process crash; snapshot/event retention is bounded on both the
       write path and database reopen (`test/issue-33-crash-recovery.test.ts`).
-- [ ] Release: decide and execute the release policy in issue #29. Packages
-      currently report `0.2.0`, while the repository has no release tag; this
-      checklist does not invent a tag.
+- [x] Release: the policy in issue #29 was executed 2026-09-15 — packages
+      report `0.2.0` and the repository carries the matching `v0.2.0` tag
+      (pushed to origin; local `git tag -l` and `git ls-remote --tags`
+      both verified).

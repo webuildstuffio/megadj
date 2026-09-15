@@ -596,7 +596,10 @@ keeping agents inside P9/P11's idempotent, resumable safety rules.
     all-but-the-top), CSLS-correct the kNN in `megadj similar`/Set.
     Flag-gated (`--space
 raw|whitened`) for A/B. Effort S.
-92. **Full-population LOO.** n=3,500 over the cached vectors instead of
+92. **Full-population LOO.** ✅ SUBSUMED (Sep 15: the Tier-0 eval battery
+    runs the canonicalized+flagged population live — ~3,000 gated rows
+    per run — so the ±1 error bars this item sought are the default, not
+    an experiment). Was: n=3,500 over the cached vectors instead of
     n=180 — error bars ±6 → ~±1, making every sub-3-point claim
     falsifiable. 3,500² float32 ≈ 50 MB; seconds in numpy. Effort S.
 93. **Projection head (learned metric, not a tower swap).** 1280→256
@@ -701,6 +704,26 @@ raw|whitened`) for A/B. Effort S.
 > **2026-09-14: the live queue's top block is the §P genre/readout
 > ladder** (P89–P94 first, per the research review) — genre quality
 > before further set-generation work.
+> **2026-09-15: roadmap-sync audit — every open remainder re-tracked on
+> GitHub with code verification:** C21 →
+> [#117](https://github.com/webuildstuffio/megadj/issues/117), C22 →
+> [#118](https://github.com/webuildstuffio/megadj/issues/118), B10/B11
+> (HIST harvest) →
+> [#116](https://github.com/webuildstuffio/megadj/issues/116), K57 →
+> [#109](https://github.com/webuildstuffio/megadj/issues/109), K59 →
+> [#110](https://github.com/webuildstuffio/megadj/issues/110), M69/N77 →
+> [#119](https://github.com/webuildstuffio/megadj/issues/119), GA-00 →
+> [#111](https://github.com/webuildstuffio/megadj/issues/111),
+> AC-01/02 → [#112](https://github.com/webuildstuffio/megadj/issues/112),
+> P98 → [#113](https://github.com/webuildstuffio/megadj/issues/113),
+> J53/D26 remainder →
+> [#123](https://github.com/webuildstuffio/megadj/issues/123), Set B1 →
+> [#104](https://github.com/webuildstuffio/megadj/issues/104),
+> B2/B3/B7/B9 →
+> [#105](https://github.com/webuildstuffio/megadj/issues/105), Phase D →
+> [#106](https://github.com/webuildstuffio/megadj/issues/106),
+> scoring depth →
+> [#107](https://github.com/webuildstuffio/megadj/issues/107).
 
 **Deliberately unbuilt:** C18b/c (pdb write gauntlet — parked), I52
 (deleted), K56 (lyrics), K60 (setlist.fm), E31/E44 (struck 2026-09-05:

@@ -2,6 +2,22 @@
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
 
+_Rev 7.10, 2026-09-15: **roadmap-sync audit — every open item verified against
+code and re-tracked on GitHub.** Verified DONE and marked here: full-population
+LOO (P92 — subsumed by the Sep 15 Tier-0 run: the eval battery now covers the
+canonicalized+flagged population, making the ±1 error bars moot); Bandcamp
+genre arm live (rev 7.8, verified in `fulltags/src/bandcamp.ts`); B11
+`SET_EXCLUDED_PREVIEW_MAX` shared cap; `genre --flag` self-healing (96/2982).
+Re-tracked where the tracker had drifted: ranked secondaries stay on open
+issue #63 (no code has landed — the audit closed an accidental duplicate
+#114); the human-review loop stays on #64. The `sc_genre_ids` orphan is now
+issue [#108](https://github.com/webuildstuffio/megadj/issues/108) (resolve or
+drop, decide one way). P98 transition-window similarity is issue
+[#113](https://github.com/webuildstuffio/megadj/issues/113); GA-00 gold
+annotations [#111](https://github.com/webuildstuffio/megadj/issues/111);
+AC-01/02 [#112](https://github.com/webuildstuffio/megadj/issues/112). Set-side
+audit items land under #104–#107._
+
 _Rev 7.9, 2026-09-15: **Set UX pass 3 — the product skin, the doubled
 badge, and the MegaSet retirement completed.** The step-1 "double badge"
 fixed (a dead `.setbuild-preset legend` rule turned step 1's whole title
@@ -509,7 +525,8 @@ the OpenKeyScan SSOT decision (#3).
 > vote ladder + Bandcamp arm stays M and follows once the label column
 > is clean enough to vote over. **New S item — `sc_genre_ids` orphan:**
 > the ID→name cache has no committed writer (pipeline doc §5); commit a
-> resolution command or drop the table.
+> resolution command or drop the table. **2026-09-15: tracked as
+> [#108](https://github.com/webuildstuffio/megadj/issues/108).**
 
 - **Structure cues (all-in-one-infer v3 / -mlx)** — M–L. Still the 10x
   item; #2's beat/downbeat ledger (DB-side, not tags) is its anchor, so

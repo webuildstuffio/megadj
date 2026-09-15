@@ -27,7 +27,7 @@ nothing ever downloaded twice.
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Status**         | 🔨 YouTube Music downloads today; SC/BP/Bandcamp enrichment live in the fetch ladder                                                                                    |
 | **Sources today**  | YouTube Music (liked songs, playlists); SoundCloud + Beatport + **Bandcamp (Sep 15)** vote genre/year/label/art at `megadj fetch` time                                  |
-| **Sources coming** | 1001tracklists mining as a discovery queue                                                                                                                              |
+| **Sources coming** | SoundCloud as a download source (#109) · 1001tracklists mining as a discovery queue (#110) · Bandcamp downloads once yt-dlp's extractor recovers (#124 context)         |
 | **How it works**   | `megadj sync` → yt-dlp at the best format available (256 kbps AAC first, graceful fallback); polite pacing and backoff, permanent failures classified and never retried |
 | **State**          | SQLite tracks every video ID: status, format, bitrate, path, attempt history. Nothing re-downloads.                                                                     |
 | **Flag**           | anything below 250 kbps is flagged `LOWQ` in `megadj list` — quality only ever ratchets up                                                                              |
@@ -136,12 +136,12 @@ local `docs/usb-sync-log.md` is intentionally gitignored operator evidence.
 visible energy arc — deterministic, honest about its inputs, and
 propose-only: the DJ keeps every creative decision.
 
-|                   |                                                                                                                                                                                                                                                                                         |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|                   |                                                                                                                                                                                                                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Status**        | ✅ graduated product — v0 shipped propose-only (Sep 11–12 2026): greedy Camelot/energy-arc engine, whole-library pool, CLI + web + MCP + M3U8 export, gated `megadj rb-playlist` write-off; own doc set since Sep 14. v1 = the [re-ranked roadmap](set/03-competitive-analysis.md). |
-| **How it works**  | FullTags ledgers feed a pure scoring engine (`0.45·tempo + 0.3·key + 0.25·energy-fit`, ±6% tempo window, Camelot wheel); one preset registry (warmup/peak/afterhours) drives all surfaces; every exclusion is counted and explainable.                                                  |
-| **The write-off** | `megadj rb-playlist` links a proposal into the rekordbox master as a real playlist — dry-run first; `--apply` requires rekordbox closed, backs up both collection surfaces, writes the DB row and `masterPlaylists6.xml` twin, then verifies both.                                      |
-| **Docs**          | [Set doc set](set/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](set/08-audit-and-plan.md)                                                                                                                                                |
+| **How it works**  | FullTags ledgers feed a pure scoring engine (`0.45·tempo + 0.3·key + 0.25·energy-fit`, ±6% tempo window, Camelot wheel); one preset registry (warmup/peak/afterhours) drives all surfaces; every exclusion is counted and explainable.                                              |
+| **The write-off** | `megadj rb-playlist` links a proposal into the rekordbox master as a real playlist — dry-run first; `--apply` requires rekordbox closed, backs up both collection surfaces, writes the DB row and `masterPlaylists6.xml` twin, then verifies both.                                  |
+| **Docs**          | [Set doc set](set/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](set/08-audit-and-plan.md)                                                                                                                                                        |
 
 **Commands:** `megadj setbuild --preset peak --minutes 60 [--opener <id>] [--search greedy|beam] [--json]` ·
 `megadj rb-playlist [drive] [--preset …] [--apply --yes]`
