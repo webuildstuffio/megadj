@@ -1,5 +1,8 @@
 /**
- * md5-cli — THE md5 digest seam (one implementation, every caller).
+ * md5-cli — THE md5 digest SUBPROCESS seam (macOS `md5` CLI). For
+ * in-process needs (sync chunked / async stream), use
+ * `src/shared/hash.ts` — one implementation per execution style, never
+ * a new hand-roll (issue #70).
  *
  * Previously two hand-rolled twin spawns (shelf-restore/shelf-sync's
  * md5Cli and shelf-hygiene's inline closure) — jscpd-class drift, and

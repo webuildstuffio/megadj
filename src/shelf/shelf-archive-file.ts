@@ -4,21 +4,27 @@
 // reads as orchestration (opts → sweeps ledger → JSON/human verdict) and
 // the classification rules live here as named steps.
 import {
-  closeSync,
   copyFileSync,
   existsSync,
   mkdirSync,
-  openSync,
-  readSync,
   readdirSync,
   statSync,
   unlinkSync,
   utimesSync,
 } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
-import { createHash } from "node:crypto";
+import { md5FileChunked } from "../shared/hash";
 import { ShelfIndex, landingPath } from "./shelf-index";
 import { isJunk, isJunkDir, key } from "./shelf-match";
+import { errorText } from "../shared/error-text";
+
+/** Chunked sync digest via the shared seam (issue #70) — same signature
+ *  and throw-on-unreadable behavior this module's callers already own. */
+function md5File(path: string): string {
+  const digest = md5FileChunked(path);
+  if (digest === null) throw new Error(`unreadable: ${path}`);
+  return digest;
+}
 
 /** One real (non-junk) file found on a drive. */
 export interface DriveFile {
@@ -48,20 +54,7 @@ export interface DriveResult {
   ok: boolean;
 }
 
-/** MD5 in chunks (sync) — files can be 300 MB WAV sets; no full readFileSync. */
-export function md5File(path: string): string {
-  const h = createHash("md5");
-  const fd = openSync(path, "r");
-  try {
-    const buf = Buffer.alloc(1 << 20);
-    let n = 0;
-    while ((n = readSync(fd, buf, 0, buf.length, null)) > 0)
-      h.update(buf.subarray(0, n));
-  } finally {
-    closeSync(fd);
-  }
-  return h.digest("hex");
-}
+/** md5File is the shared chunked seam above (issue #70). */
 
 /** Copy preserving mtime, then verify the bytes actually landed. */
 function copyVerified(src: string, dest: string): void {
@@ -259,7 +252,7 @@ export async function sweepVolume(
       if (v.asVariant) res.preserved--;
       res.failed++;
       res.stillMissing.push(f.rel);
-      log(`failed: ${f.rel} (${e instanceof Error ? e.message : String(e)})`);
+      log(`failed: ${f.rel} (${errorText(e)})`);
       try {
         if (existsSync(v.dest)) unlinkSync(v.dest); // never leave a corrupt "copy"
       } catch {

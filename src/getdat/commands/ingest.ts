@@ -17,6 +17,7 @@
 
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
+import { md5FileStream } from "../../shared/hash";
 import { existsSync, renameSync } from "node:fs";
 import type { Stats } from "node:fs";
 import { join, basename, extname } from "node:path";
@@ -268,17 +269,7 @@ async function dedupeByContent(
   return contentDupes;
 }
 
-async function md5File(path: string): Promise<string> {
-  const crypto = await import("node:crypto");
-  const { createReadStream } = await import("node:fs");
-  return new Promise((resolve, reject) => {
-    const hash = crypto.createHash("md5");
-    createReadStream(path)
-      .on("data", (d: Buffer) => hash.update(d))
-      .on("end", () => resolve(hash.digest("hex")))
-      .on("error", reject);
-  });
-}
+const md5File = md5FileStream;
 
 /** Filename stem, lowercased and stripped to alphanumerics — the same-stem
  *  pair key for the mp3↔lossless dupe pass. Pure — module-level. */

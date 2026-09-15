@@ -6,18 +6,17 @@
 // (byte-equal); (2) losers move to quarantine, never deleted; (3) collisions
 // in quarantine abort that file, not the run.
 import { basename } from "node:path";
-import { spawnSync } from "node:child_process";
 import type { DupGroup } from "./dupescan-shared";
 import { moveLoser } from "./dupescan-shared";
 import { nameSimilarity } from "../archive/hygiene/checks/similarity";
+import { md5Cli } from "./md5-cli";
 
-/** md5 via the macOS `md5` CLI (apply-stage re-verify; the scan stage never
- *  hashes — fingerprints are the grouping key there). */
+/** Apply-stage re-verify routes through THE md5 subprocess seam
+ *  (`md5-cli`, retrying transient spawn pressure) — never a second
+ *  hand-rolled spawn (issue #70). The scan stage never hashes —
+ *  fingerprints are the grouping key there. */
 export function md5sum(path: string): string | null {
-  const r = spawnSync("md5", ["-q", path]);
-  if (r.status !== 0) return null;
-  const h = r.stdout.toString().trim();
-  return h.length > 0 ? h : null;
+  return md5Cli(path);
 }
 
 /** Outcome counters for one apply pass. */

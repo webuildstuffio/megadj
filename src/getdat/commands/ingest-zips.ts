@@ -9,19 +9,14 @@
  */
 import { $ } from "bun";
 import { readdir, stat, mkdir, rename, copyFile } from "node:fs/promises";
-import { createReadStream, existsSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { join, basename, extname } from "node:path";
+import { md5FileStream } from "../../shared/hash";
 
 /** zip path → basenames staged from it. */
 export const pendingZipDeletes = new Map<string, string[]>();
 
-async function md5File(path: string): Promise<string> {
-  const hash = createHash("md5");
-  const stream: AsyncIterable<Uint8Array> = createReadStream(path);
-  for await (const chunk of stream) hash.update(chunk);
-  return hash.digest("hex");
-}
+const md5File = md5FileStream;
 
 export async function expandZips(
   folder: string,

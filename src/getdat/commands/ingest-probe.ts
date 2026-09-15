@@ -5,8 +5,6 @@
  */
 import { basename, join } from "node:path";
 import { existsSync } from "node:fs";
-import { createReadStream } from "node:fs";
-import { createHash } from "node:crypto";
 import {
   copyFile,
   mkdir,
@@ -15,6 +13,7 @@ import {
   stat,
   unlink,
 } from "node:fs/promises";
+import { md5FileStream } from "../../shared/hash";
 
 export {
   parseFilename,
@@ -25,14 +24,10 @@ export {
   trueContainerExt,
 } from "../../../fulltags/src/exports";
 import type { ParsedName, Probe } from "../../../fulltags/src/exports";
+import { errorText } from "../../shared/error-text";
 export type { ParsedName, Probe };
 
-async function md5File(path: string): Promise<string> {
-  const hash = createHash("md5");
-  const stream: AsyncIterable<Uint8Array> = createReadStream(path);
-  for await (const chunk of stream) hash.update(chunk);
-  return hash.digest("hex");
-}
+const md5File = md5FileStream;
 
 /** Move a quarantine candidate, including the EXDEV fallback. */
 export async function moveQuarantineFile(
@@ -111,7 +106,7 @@ export async function quarantine(
     // A failed move/copy leaves the source in place for retry and is visible
     // to the batch summary through the existing log channel.
     log(
-      `  [dupe] quarantine failed: ${basename(file)} — ${error instanceof Error ? error.message : String(error)}`,
+      `  [dupe] quarantine failed: ${basename(file)} — ${errorText(error)}`,
     );
   }
 }
