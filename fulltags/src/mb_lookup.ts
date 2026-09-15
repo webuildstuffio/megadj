@@ -1,7 +1,11 @@
 // mb_lookup.ts — the MusicBrainz recording lookup (1 rps, in-process
-// cache), split from pipeline.ts at the complexity guard. The wire parse
-// (recordings[0] → {title, artist, album, year, mbid}) is one named unit;
-// pipeline just calls it.
+// cache), split from pipeline.ts at the complexity guard. ONE wire seam
+// below (mbFetchRecordings): query encode + UA + timeout + not-ok
+// degrade + guarded JSON parse, written once (issue #99) — the two
+// lookups used to carry byte-twin fetch blocks that had already drifted
+// (only the cached path bounded its request; an unbounded ad-hoc lookup
+// could stall an ingest batch on a dead connection). The wire parse
+// (recordings[0] → truth row) is recordingToTruth, also written once.
 
 /** The one-row truth shape an MB hit fills. */
 export interface MbTruth {
@@ -12,82 +16,47 @@ export interface MbTruth {
   mbid: string | null;
 }
 
-const mbCache = new Map<string, MbTruth | null>();
-
-/** One MB search-response recording row — the richer shape the
- *  uncached enrichment path reads (tags included). Named interface
- *  because Bun's transpiler mis-parses this nested-generic shape in an
- *  `as { ... }` cast (Unexpected `>` at the `}>;` line). */
-interface MbTaggedRecording {
-  id?: string;
-  "artist-credit"?: Array<{
-    name?: string;
-    artist?: {
-      name?: string;
-      tags?: Array<{ name: string; count: number }>;
-    };
-  }>;
-  releases?: Array<{ title?: string; date?: string }>;
-}
-
-/** MusicBrainz recording lookup — fills missing artist/album/date (1 rps). */
-export async function mbRecording(
-  artist: string | null,
-  title: string,
-): Promise<{
+/** The ingest row shape — ingest already knows title/year, so the
+ *  projection drops them and adds the artist's top genre tags. */
+interface MbIngestRow {
   artist: string | null;
   album: string | null;
   date: string | null;
   artistTags: string;
   mbid: string | null;
-}> {
-  const data = await mbFetchRecording(artist, title);
-  const wrapped = data as {
-    recordings?: MbTaggedRecording[] | null;
-  };
-  const rec = wrapped.recordings?.[0];
-  const credit = rec?.["artist-credit"]?.[0];
-  const tags = (credit?.artist?.tags ?? [])
-    .toSorted((a, b) => b.count - a.count)
-    .map((t) => t.name)
-    .slice(0, 3);
-  return {
-    artist: credit?.artist?.name ?? credit?.name ?? null,
-    album: rec?.releases?.[0]?.title ?? null,
-    date: rec?.releases?.[0]?.date ?? null,
-    artistTags: tags.join(","),
-    mbid: rec?.id ?? null,
-  };
 }
 
-/** The ONE MusicBrainz query+fetch block (#99): builds the Lucene query,
- *  hits the ws/2 recording search with the UA header, degrades to null on
- *  any non-OK/throw. `timeoutMs` bounds the cached variant (the uncached
- *  enrichment path historically ran without an explicit signal). */
-async function mbFetchRecording(
+/** The degraded "no MB truth" ingest row — same shape as a hit, empty. */
+const mbIngestMiss = (): MbIngestRow => ({
+  artist: null,
+  album: null,
+  date: null,
+  artistTags: "",
+  mbid: null,
+});
+
+const mbCache = new Map<string, MbTruth | null>();
+
+/** MusicBrainz recording lookup — fills missing artist/album/date (1 rps). */
+export async function mbRecording(
   artist: string | null,
   title: string,
-  timeoutMs?: number,
-): Promise<{ recordings?: unknown } | null> {
-  const q = artist
-    ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
-    : `recording:"${encodeURIComponent(title)}"`;
+): Promise<MbIngestRow> {
   try {
-    const res = await fetch(
-      `https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`,
-      {
-        headers: {
-          "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
-        },
-        ...(timeoutMs === undefined
-          ? {}
-          : { signal: AbortSignal.timeout(timeoutMs) }),
-      },
-    );
-    if (!res.ok) return null;
-    return (await res.json()) as { recordings?: unknown };
+    const rec = (await mbFetchRecordings(artist, title))?.[0];
+    if (!rec) return mbIngestMiss();
+    const t = recordingToTruth(rec);
+    return {
+      artist: t.artist,
+      album: t.album,
+      date: t.date,
+      artistTags: t.artistTags,
+      mbid: t.mbid,
+    };
   } catch {
-    return null;
+    // MB fill is one optional hint among many — degrade silently per row
+    // (console noise per track would drown the batch summary).
+    return mbIngestMiss();
   }
 }
 
@@ -102,43 +71,92 @@ export async function mbLookupCached(
 ): Promise<MbTruth | null> {
   const key = `${artist ?? ""}::${title.toLowerCase()}`;
   if (mbCache.has(key)) return mbCache.get(key) ?? null;
+  let out: MbTruth | null = null;
   try {
-    const data = (await mbFetchRecording(artist, title, 8000)) as {
-      recordings?: MbRecording[];
-    } | null;
-    let out: MbTruth | null = null;
-    if (data) {
-      const rec = data.recordings?.[0];
-      if (rec) out = recordingToTruth(rec);
-    }
-    mbCache.set(key, out);
-    // Be polite to MusicBrainz: 1 rps even for misses.
-    await new Promise((r) => setTimeout(r, 1050));
-    return out;
+    const rec = (await mbFetchRecordings(artist, title))?.[0];
+    if (rec) out = recordingToTruth(rec);
   } catch (e) {
     console.error(`MusicBrainz lookup failed for ${key}`, e);
-    return null;
   }
+  mbCache.set(key, out);
+  // Be polite to MusicBrainz: 1 rps even for misses.
+  await new Promise((r) => setTimeout(r, 1050));
+  return out;
 }
+
 /** One MB search-response recording row (only the fields we read). */
 interface MbRecording {
   title?: string;
   id?: string;
-  "artist-credit"?: { name?: string; artist?: { name?: string } }[];
+  "artist-credit"?: {
+    name?: string;
+    artist?: { name?: string; tags?: Array<{ name: string; count: number }> };
+  }[];
   releases?: { title?: string; date?: string }[];
 }
 
-/** Parse one recording row from the MB search response. */
-function recordingToTruth(rec: MbRecording): MbTruth {
+/** Bound every MB request — a dead connection must never stall a batch
+ *  pass (the drift this seam closes: only one twin used to bound it). */
+const MB_TIMEOUT_MS = 8_000;
+
+/** Guarded MB search-response boundary: malformed JSON on a 200 is a
+ *  protocol violation and THROWS with context (each caller's catch keeps
+ *  its own logging policy) — it can never become a silent false answer. */
+function parseMbResponse(raw: string): { recordings?: MbRecording[] } {
+  try {
+    return JSON.parse(raw) as { recordings?: MbRecording[] };
+  } catch (error) {
+    throw new Error("MusicBrainz search returned malformed JSON", {
+      cause: error,
+    });
+  }
+}
+
+/** THE MB wire seam (issue #99): query encoding, UA, fetch, 8 s timeout,
+ *  not-ok degrade, guarded parse. Null = "MB answered: nothing usable"
+ *  (HTTP error page); network failures and malformed bodies THROW so each
+ *  caller's catch keeps its own logging policy (per-row silence vs
+ *  pipeline log). */
+async function mbFetchRecordings(
+  artist: string | null,
+  title: string,
+): Promise<MbRecording[] | null> {
+  const q = artist
+    ? `artist:"${encodeURIComponent(artist)}" AND recording:"${encodeURIComponent(title)}"`
+    : `recording:"${encodeURIComponent(title)}"`;
+  const res = await fetch(
+    `https://musicbrainz.org/ws/2/recording/?query=${q}&fmt=json&limit=1`,
+    {
+      headers: {
+        "User-Agent": "megadj/0.1 (https://github.com/megadj/megadj)",
+      },
+      signal: AbortSignal.timeout(MB_TIMEOUT_MS),
+    },
+  );
+  if (!res.ok) return null;
+  return parseMbResponse(await res.text()).recordings ?? null;
+}
+
+/** The one wire parse: recording row → truth row (+ the ingest-only
+ *  date/artistTags projections). Previously assembled twice with drift. */
+function recordingToTruth(
+  rec: MbRecording,
+): MbTruth & { date: string | null; artistTags: string } {
   const first = rec.releases?.[0];
   const credit = rec["artist-credit"]?.[0];
   const date = first?.date ?? null;
   const yearNum = date ? Number(date.match(/\d\d\d\d/)?.[0]) : NaN;
+  const tags = (credit?.artist?.tags ?? [])
+    .toSorted((a, b) => b.count - a.count)
+    .map((t) => t.name)
+    .slice(0, 3);
   return {
     title: rec.title ?? null,
     artist: credit?.artist?.name ?? credit?.name ?? null,
     album: first?.title ?? null,
     year: Number.isInteger(yearNum) && yearNum > 1900 ? yearNum : null,
     mbid: rec.id ?? null,
+    date,
+    artistTags: tags.join(","),
   };
 }
