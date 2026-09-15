@@ -1,7 +1,7 @@
 /**
  * megadj rb-playlist — bridge a set-builder proposal into the shelf
  * master DB (rekordbox playlist). The write-side twin of `megadj
- * setbuild` (AGENTS.md: RB auto-writes are the rb-* seams' job only).
+ * megaset` (AGENTS.md: RB auto-writes are the rb-* seams' job only).
  *
  * Unlike rb-import this injects NO new DjmdContent rows: every chain
  * track was already imported by the fullpush pipeline — we only create
@@ -15,24 +15,23 @@
  *   1. flags validated before any I/O (--apply requires --yes)
  *   2. set inputs validated by the SAME parser the CLI/web use
  *   3. target master DB must exist before the archive is scanned
- *   4. the chain comes from the SAME engine (`buildSet`) the CLI/web use
+ *   4. the chain comes from the SAME engine (`buildMegaset`) the CLI/web use
  *   5. rekordbox must be QUIT (pgrep) — it holds a live WAL
  *   6. dated DB backup (+ WAL/SHM) next to the master before any write
  *   7. dry-run by default; --apply --yes to write
  *   8. post-verify: song-playlist row count == linked + TrackNo contiguity
  */
 
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { ArchiveReader } from "../../cratedeck/src/archive";
 import {
-  buildSet,
-  parseSetbuildQuery,
-  SET_PRESETS,
-  type SetPresetId,
-} from "../../cratedeck/src/setbuild";
-import { clampSetPool } from "../../cratedeck/shared/types";
+  buildMegaset,
+  parseMegasetQuery,
+  MEGASET_PRESETS,
+  type MegasetPresetId,
+} from "../../cratedeck/src/megaset";
+import { clampMegasetPool } from "../../cratedeck/shared/types";
 import { isNonNegativeInteger, isRecord } from "../../cratedeck/shared/guards";
 import { DB_PATH } from "../cli-env";
 import {
@@ -42,6 +41,7 @@ import {
   lastJsonLine,
   parseJsonBoundary,
   printResult,
+  runPyScript,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -53,12 +53,12 @@ export interface RbPlaylistOptions {
   /** Drive mount root (master DB at <mount>/PIONEER/Master/master.db)
    *  or explicit DB path via MEGADJ_RB_MASTER. */
   mount: string;
-  /** Same params as `megadj setbuild` — one engine, one validation. */
+  /** Same params as `megadj megaset` — one engine, one validation. */
   preset?: string | undefined;
   minutes?: number | undefined;
   opener?: string | undefined;
   limit?: number | undefined;
-  /** Playlist name (defaults to "setbuild <preset> <minutes>min <date>"). */
+  /** Playlist name (defaults to "megaset <preset> <minutes>min <date>"). */
   playlist?: string | undefined;
   /** Parent playlist group (defaults to the proven "DJ-Imports"). */
   group?: string | undefined;
@@ -305,19 +305,19 @@ interface ChainTrack {
  *  rows. One readonly archive pass; candidates carry file_path. */
 function buildChain(
   opts: RbPlaylistOptions,
-  parsed: { preset: SetPresetId; minutes: number },
+  parsed: { preset: MegasetPresetId; minutes: number },
 ):
   { chain: ChainTrack[]; preset: string; minutes: number } | { error: string } {
   const archive = new ArchiveReader(DB_PATH);
   try {
     if (!archive.available()) return { error: `no archive at ${DB_PATH}` };
     const { candidates } = archive.setCandidates(
-      clampSetPool(opts.limit ?? null),
+      clampMegasetPool(opts.limit ?? null),
     );
 
-    const built = buildSet({
+    const built = buildMegaset({
       candidates,
-      preset: SET_PRESETS[parsed.preset],
+      preset: MEGASET_PRESETS[parsed.preset],
       minutes: parsed.minutes,
       openerId: opts.opener,
     });
@@ -381,7 +381,7 @@ export async function rbPlaylist(
 
   // gate 2 — validate the shared set-builder inputs without touching either
   // database. Invalid presets must still beat a missing-drive error.
-  const parsed = parseSetbuildQuery({
+  const parsed = parseMegasetQuery({
     preset: opts.preset ?? null,
     minutes: opts.minutes ?? null,
   });
@@ -391,7 +391,7 @@ export async function rbPlaylist(
   // file. This is both the cheap failure path and a hardware safety boundary.
   if (!existsSync(dbPath)) return fail(`no master DB at ${dbPath}`);
 
-  // gate 4 — the chain (same engine as setbuild CLI/web)
+  // gate 4 — the chain (same engine as megaset CLI/web)
   const built = buildChain(opts, parsed);
   if ("error" in built) return fail(built.error);
   const { chain, preset, minutes } = built;
@@ -401,7 +401,7 @@ export async function rbPlaylist(
       `rb-playlist: ${noFile} chain tracks have no local file path — reported as unmatched`,
     );
   const playlist =
-    opts.playlist ?? `setbuild ${preset} ${minutes}min ${todayStamp()}`;
+    opts.playlist ?? `megaset ${preset} ${minutes}min ${todayStamp()}`;
   log(
     `rb-playlist: chain of ${chain.length} (${preset}, ${minutes} min) → "${playlist}" in "${group}" on ${dbPath}`,
   );
@@ -430,16 +430,10 @@ export async function rbPlaylist(
           backedUpTo = db;
         },
         mutateDb: () => {
-          const result = spawnSync(
-            "uv",
-            [
-              "run",
-              "--with",
-              PYRK_TAG,
-              "python",
-              "-c",
-              buildScript(),
-              dbPath,
+          const result = runPyScript({
+            script: buildScript(),
+            dbPath,
+            args: [
               JSON.stringify({
                 chain: chain.map((track) => ({
                   path: track.path ?? "",
@@ -450,12 +444,10 @@ export async function rbPlaylist(
                 group,
               }),
             ],
-            { encoding: "utf8", timeout: 300_000 },
-          );
-          if (result.status !== 0 || !result.stdout)
-            throw new Error(
-              `pyrekordbox write failed (exit ${String(result.status)}): ${(result.stderr ?? "").slice(-400)}`,
-            );
+            timeoutMs: 300_000,
+            tag: PYRK_TAG,
+            label: "pyrekordbox write",
+          });
           const value = parseWriteOutput(lastJsonLine(result.stdout));
           if (
             value.playlistId === null ||
@@ -484,24 +476,14 @@ export async function rbPlaylist(
         verifyDb: (value) => {
           if (value.playlistId === null)
             throw new Error("playlist mutation returned no playlist id");
-          const result = spawnSync(
-            "uv",
-            [
-              "run",
-              "--with",
-              PYRK_TAG,
-              "python",
-              "-c",
-              verifyScript(),
-              dbPath,
-              value.playlistId,
-            ],
-            { encoding: "utf8", timeout: 120_000 },
-          );
-          if (result.status !== 0 || !result.stdout)
-            throw new Error(
-              `pyrekordbox playlist post-verify failed (exit ${String(result.status)}): ${(result.stderr ?? "").slice(-400)}`,
-            );
+          const result = runPyScript({
+            script: verifyScript(),
+            dbPath,
+            args: [value.playlistId],
+            timeoutMs: 120_000,
+            tag: PYRK_TAG,
+            label: "pyrekordbox playlist post-verify",
+          });
           const check = parseVerifyOutput(lastJsonLine(result.stdout));
           verified = check.rows;
           if (!check.contiguous || verified !== value.linked)
@@ -634,16 +616,10 @@ function predictMatches(
   dbPath: string,
   chain: { path: string | null; base: string | null; title: string | null }[],
 ): { hit: number; unmatched: string[] } {
-  const r = spawnSync(
-    "uv",
-    [
-      "run",
-      "--with",
-      PYRK_TAG,
-      "python",
-      "-c",
-      predictScript(),
-      dbPath,
+  const result = runPyScript({
+    script: predictScript(),
+    dbPath,
+    args: [
       JSON.stringify({
         chain: chain.map((c) => ({
           path: c.path ?? "",
@@ -652,9 +628,12 @@ function predictMatches(
         })),
       }),
     ],
-    { encoding: "utf8", timeout: 120_000 },
-  );
-  return parsePredictionProcess(r);
+    timeoutMs: 120_000,
+    tag: PYRK_TAG,
+    label: "rb-playlist match probe",
+    stderrTail: -200,
+  });
+  return parsePredictionProcess(result);
 }
 
 function parsePredictionProcess(result: {
