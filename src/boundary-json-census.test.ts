@@ -66,14 +66,14 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    // Sep 15 (#80): the ffprobe consolidation routed dedupe-probe and
-    // rb-import bitrate probing through fulltags media-probe (no new
-    // JSON.parse sites); the audited delta 58→59 is the concurrent
-    // bandcamp.ts ld+json guarded parse landing in the same worktree.
-    audited: 59,
-    guarded: 43,
+    // Sep 15 (#95 retake): audited 59→60 / guarded 43→44 is the
+    // concurrent megaset-rename worktree churn adding one guarded
+    // parse; sanctioned 16 unchanged (grid-triage rekeyed to
+    // lastJsonLine this pass).
+    audited: 60,
+    guarded: 44,
     sanctioned: 16,
-    digest: "6d00ec06d52f23adc4ab9de87ec6a0c806f0075061dea30c0cca037473bb74b9",
+    digest: "9a69f878f8739bd7b5dad4cf9bc8989dce4c3618615d0d486eb4db515bcc5b39",
   });
 });
 
