@@ -5,6 +5,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   evalLeaveOneOut,
+  evalLeaveOneOutArtistDisjoint,
   genreFamily,
   inferGenre,
   normalizeGenre,
@@ -277,9 +278,94 @@ describe("evalLeaveOneOut (the genre --eval harness)", () => {
     expect(r.evaluated).toBe(0);
     expect(r.agreement).toBe(0);
     expect(r.refusal).toBe(0);
+    expect(r.rows).toEqual([]);
+  });
+
+  test("per-row outcomes match the aggregate counters", () => {
+    const r = evalLeaveOneOut(pop, 5, 0.6);
+    expect(r.rows.length).toBe(r.evaluated);
+    expect(r.rows.filter((x) => x.predicted === null).length).toBe(r.refused);
+    expect(r.rows.filter((x) => x.predicted === x.family).length).toBe(r.agree);
+    expect(
+      r.rows.filter((x) => x.predicted !== null && x.predicted !== x.family)
+        .length,
+    ).toBe(r.disagree);
+    // top-2 always contains the vote's winner when the gate decided
+    for (const row of r.rows)
+      if (row.predicted !== null) expect(row.top2).toContain(row.predicted);
   });
 
   test("every LOO vote is deterministic — same input, same summary", () => {
     expect(evalLeaveOneOut(pop, 5, 0.6)).toEqual(evalLeaveOneOut(pop, 5, 0.6));
+  });
+
+  test("per-row outcomes match the aggregate counters", () => {
+    const r = evalLeaveOneOut(pop, 5, 0.6);
+    expect(r.rows.length).toBe(r.evaluated);
+    expect(r.rows.filter((x) => x.predicted === null).length).toBe(r.refused);
+    expect(r.rows.filter((x) => x.predicted === x.family).length).toBe(r.agree);
+    expect(
+      r.rows.filter((x) => x.predicted !== null && x.predicted !== x.family)
+        .length,
+    ).toBe(r.disagree);
+    // top-2 always contains the vote's winner when the gate decided
+    for (const row of r.rows)
+      if (row.predicted !== null) expect(row.top2).toContain(row.predicted);
+  });
+});
+
+describe("evalLeaveOneOutArtistDisjoint (the leakage control)", () => {
+  const cluster = (
+    prefix: string,
+    genre: string,
+    center: number[],
+    n: number,
+  ): GenreSeed[] =>
+    Array.from({ length: n }, (_, i) =>
+      seed(
+        `${prefix}${i}`,
+        genre,
+        center.map((c) => c + (i % 3) * 0.01 - 0.01),
+      ),
+    );
+  const pop = [
+    ...cluster("h", "house", [1, 0, 0], 9),
+    ...cluster("t", "techno", [0, 1, 0], 9),
+  ];
+
+  // the clusters each mix THREE artists (h0,h3,h6→"a1"; h1,h4,h7→"a2"; …)
+  // so a held-out row still has plenty of same-family, DIFFERENT-artist
+  // neighbours: the disjoint rerun must reproduce the plain result
+  const mixedArtists = new Map(
+    pop.map((s) => {
+      const digit = Number(s.videoId.slice(1));
+      return [s.videoId, `artist-${digit % 3}`];
+    }),
+  );
+
+  test("multi-artist clusters: disjoint agrees with plain LOO", () => {
+    const plain = evalLeaveOneOut(pop, 5, 0.6);
+    const disjoint = evalLeaveOneOutArtistDisjoint(pop, mixedArtists, 5, 0.6);
+    expect(disjoint.evaluated).toBe(plain.evaluated);
+    expect(disjoint.agreement).toBeCloseTo(plain.agreement, 6);
+  });
+
+  test("single-artist clusters collapse: fingerprinting detected", () => {
+    // every row same artist ⇒ the disjoint pool is empty ⇒ all refuse
+    const artists = new Map(pop.map((s) => [s.videoId, "OnlyArtist"]));
+    const disjoint = evalLeaveOneOutArtistDisjoint(pop, artists, 5, 0.6);
+    expect(disjoint.refused).toBe(disjoint.evaluated);
+    expect(disjoint.agreement).toBe(0);
+  });
+
+  test("deterministic and honest on an empty population", () => {
+    const artists = new Map<string, string>();
+    expect(evalLeaveOneOutArtistDisjoint([], artists, 5, 0.6).evaluated).toBe(
+      0,
+    );
+    const popArtists = new Map(pop.map((s) => [s.videoId, s.videoId]));
+    expect(evalLeaveOneOutArtistDisjoint(pop, popArtists, 5, 0.6)).toEqual(
+      evalLeaveOneOutArtistDisjoint(pop, popArtists, 5, 0.6),
+    );
   });
 });

@@ -250,8 +250,8 @@ reconcile):
 All stages write to ledgers/DB FullTags owns; `--apply` gates and the
 ground-truth philosophy unchanged.
 
-0. **Tier-0 diagnostics (NEW, Sep 14 — run before/refold-adjacent; they
-   decide what the later steps are worth).** From the
+0. **Tier-0 diagnostics (run before/refold-adjacent; they decide what
+   the later steps are worth).** From the
    [external research review](embedding-research-2026-09-14.md) §4/§5:
    (a) **label-error clustering by artist/release/imprint** — if errors are
    systematic the 0.58 ceiling story is wrong and relabelling buys ~nothing;
@@ -261,7 +261,16 @@ ground-truth philosophy unchanged.
    (k-occurrence distribution — a few tracks at 40+ occurrences means
    whitening + CSLS is nearly-free retrieval points); (d) **confusion matrix
    - top-2 accuracy** in `genre --eval` (is the error mass the house/techno/
-     trance triangle — arguably not errors — or structural?). ~4 h total.
+     trance triangle — arguably not errors — or structural?).
+     **✅ IMPLEMENTED + RUN LIVE (Sep 15): one command —
+     `megadj genre --eval --diagnostics --artist-disjoint --probe --json`.
+     Measured verdicts (n = 2982): label noise RANDOM (top-10 artists hold
+     8.4% of disagreements), NO artist leakage (4.2% same-artist top-5;
+     disjoint Δ −0.8), hub tail CONFIRMED (408/2643 tracks in ≥10 lists),
+     triangle share 17.7% with `edm↔house` the single biggest error block
+     (confirms the umbrella arbitration below), probe 5-fold 51.5% (Δ −11.1
+     vs kNN — kNN stays the production readout). Full readout + plan
+     changes: [tier0-diagnostics-2026-09-15](tier0-diagnostics-2026-09-15.md).**
 1. **Refold** (§5, now with the measured target: **105 labels cover 90%**;
    the alias table is small and finite). Split multi-label strings on
    `/ , &` into ranked secondaries (389 rows healed here). **Extended per

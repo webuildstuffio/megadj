@@ -9,6 +9,7 @@
 import type { ArchiveReader } from "./archive";
 import { SET_PRESETS, buildSet, parseSetbuildQuery } from "./setbuild";
 import { clampSetPool, isSetSearchOverride } from "../shared/setbuild";
+import { isSimilarSpace } from "../shared/vector-space";
 import type { DB } from "./db";
 import type { CrateConfig } from "./config";
 
@@ -164,15 +165,20 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
       );
     },
     // I49 "sounds like": cosine kNN over the embeddings ledger
-    // (`megadj mood --embeddings` writes it). id required; k optional.
+    // (`megadj mood --embeddings` writes it). id required; k optional;
+    // space=raw|whitened (whitened = mean-centre + all-but-the-top +
+    // CSLS, the research review's retrieval corrections).
     similar: (url, archive) => {
       const id = (url.searchParams.get("id") ?? "").trim();
       if (!id) return json({ error: "id (video_id) required" }, 400);
       const k = intParam(url.searchParams.get("k"));
+      const space = url.searchParams.get("space") ?? "raw";
+      if (!isSimilarSpace(space))
+        return json({ error: "space must be raw or whitened" }, 400);
       return json(
         k !== undefined
-          ? archive.similarTracks(id, k)
-          : archive.similarTracks(id),
+          ? archive.similarTracks(id, k, space)
+          : archive.similarTracks(id, 10, space),
       );
     },
     // M66 set-builder copilot: propose an ordered mix chain from the

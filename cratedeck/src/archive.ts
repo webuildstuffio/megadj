@@ -663,8 +663,8 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   // I49/M66 extensions live in archive_similar.ts (file-length guard);
   // these delegates keep the call sites (`archive.similarTracks(...)`)
   // unchanged while the implementations stay outside this file.
-  similarTracks(videoId: string, k = 10): ArchiveSimilar {
-    return similarTracksImpl(this, videoId, k);
+  similarTracks(videoId: string, k = 10, space = "raw"): ArchiveSimilar {
+    return similarTracksImpl(this, videoId, k, space);
   }
 
   setCandidates(limit?: number): ArchiveSetCandidates {

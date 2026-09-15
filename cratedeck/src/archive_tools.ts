@@ -26,6 +26,7 @@ import {
   s,
   n,
 } from "./mcp_params";
+import { isSimilarSpace } from "../shared/vector-space";
 
 /** The archive_* tool table (O82b, readonly reads over megadj's DB). */
 export function archiveTools(): Record<string, unknown> {
@@ -160,19 +161,23 @@ export function archiveTools(): Record<string, unknown> {
 
     archive_similar_tracks: {
       description:
-        "[READ-ONLY] I49 'sounds like': k nearest neighbours of one track by cosine similarity over megadj's embeddings ledger (effnet 1280-d audio embeddings written by `megadj mood --embeddings`). corpus=0 means no embeddings yet — run `megadj mood --embeddings` first.",
+        "[READ-ONLY] I49 'sounds like': k nearest neighbours of one track by cosine similarity over megadj's embeddings ledger (effnet 1280-d audio embeddings written by `megadj mood --embeddings`). space=whitened applies the research review's retrieval corrections (mean-centre + all-but-the-top + CSLS). corpus=0 means no embeddings yet — run `megadj mood --embeddings` first.",
       inputSchema: obj(
         {
           id: s("video_id of the query track"),
           k: n("neighbours to return (default 10, max 50)"),
+          space: s("ranking space: raw (default) or whitened (CSLS-corrected)"),
         },
         ["id"],
       ),
       run: async (args: Record<string, unknown>) => {
         const id = str(args, "id");
         if (!id) throw new RpcParamError("id is required");
+        const space = args.space === undefined ? "raw" : String(args.space);
+        if (!isSimilarSpace(space))
+          throw new RpcParamError("space must be raw or whitened");
         const res = await apiGet(
-          `/api/archive/similar?id=${encodeURIComponent(id)}&k=${optNum(args, "k", 10, 50)}`,
+          `/api/archive/similar?id=${encodeURIComponent(id)}&k=${optNum(args, "k", 10, 50)}&space=${space}`,
         );
         return res.json();
       },

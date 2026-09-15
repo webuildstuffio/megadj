@@ -8,6 +8,7 @@ import {
 } from "./cli-flags";
 import { isSetSearchOverride } from "../cratedeck/shared/types";
 import { writeJson } from "./shared/cli-output";
+import { isSimilarSpace } from "../cratedeck/shared/vector-space";
 
 const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
   const flags = parseFlags(
@@ -54,20 +55,29 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
 };
 
 const similar: CliCommandHandler = async (rest, { state }) => {
-  const flags = parseFlags(rest, ["similar", "k"], ["json"]);
+  const flags = parseFlags(rest, ["similar", "k", "space"], ["json"]);
   const videoId =
     firstPositional(rest, "similar") ?? flags.strings.get("similar");
   if (!videoId) {
     console.error(
-      "similar: pass a video id — `megadj similar <video_id> [--k N]`",
+      "similar: pass a video id — `megadj similar <video_id> [--k N] [--space raw|whitened]`",
     );
     process.exit(1);
+  }
+  const spaceRaw = flags.strings.get("space");
+  if (spaceRaw !== undefined && !isSimilarSpace(spaceRaw)) {
+    console.error(
+      `similar: unknown --space "${spaceRaw}" — expected raw or whitened`,
+    );
+    process.exitCode = 2;
+    return;
   }
   const { similar: findSimilar } = await import("./fulltags/similar");
   await findSimilar({
     state,
     videoId,
     k: numOpt(flags, "k"),
+    space: spaceRaw,
     json: flags.bools.has("json"),
   });
 };
@@ -108,7 +118,15 @@ const genre: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(
     rest,
     ["k", "min-agreement"],
-    ["apply", "eval", "no-duration-guard", "json"],
+    [
+      "apply",
+      "eval",
+      "no-duration-guard",
+      "diagnostics",
+      "artist-disjoint",
+      "probe",
+      "json",
+    ],
   );
   if (nonNegOptInvalid(flags, "k")) return;
   const k = nonNegOpt(flags, "k", "genre");
@@ -126,6 +144,16 @@ const genre: CliCommandHandler = async (rest, { state }) => {
     }
     minAgreement = parsed;
   }
+  // the Tier-0 extensions are eval-mode measurements; on an inference run
+  // they are a typo — fail loudly (exit 2, zero work), never silently no-op
+  const evalOnly = (["diagnostics", "artist-disjoint", "probe"] as const).find(
+    (f) => flags.bools.has(f) && !flags.bools.has("eval"),
+  );
+  if (evalOnly !== undefined) {
+    console.error(`genre: --${evalOnly} requires --eval`);
+    process.exitCode = 2;
+    return;
+  }
   const { genre: inferGenre } = await import("./fulltags/genre");
   await inferGenre({
     state,
@@ -134,6 +162,9 @@ const genre: CliCommandHandler = async (rest, { state }) => {
     minAgreement,
     eval: flags.bools.has("eval"),
     durationGuard: !flags.bools.has("no-duration-guard"),
+    diagnostics: flags.bools.has("diagnostics"),
+    artistDisjoint: flags.bools.has("artist-disjoint"),
+    probe: flags.bools.has("probe"),
     json: flags.bools.has("json"),
   });
 };

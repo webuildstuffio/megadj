@@ -69,4 +69,132 @@ describe("genre command JSON boundary", () => {
 
     expect(process.exitCode).toBe(0);
   });
+
+  test("--eval --artist-disjoint adds the artist_disjoint block", async () => {
+    const state = {
+      evalPopulation: () => [
+        {
+          video_id: "a",
+          genre: "House",
+          vec_json: "[1,0]",
+          duration_s: 300,
+          artist: "X",
+        },
+        {
+          video_id: "b",
+          genre: "House",
+          vec_json: "[1,0]",
+          duration_s: 300,
+          artist: "Y",
+        },
+        {
+          video_id: "c",
+          genre: "House",
+          vec_json: "[1,0]",
+          duration_s: 300,
+          artist: "Z",
+        },
+      ],
+    } as unknown as ArchiveState;
+    // capture the JSON summary via console.log interception
+    const logged: string[] = [];
+    const orig = console.log;
+    console.log = (line: string) => logged.push(String(line));
+    try {
+      await genre({ state, eval: true, artistDisjoint: true });
+    } finally {
+      console.log = orig;
+    }
+    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    expect(parsed.command).toBe("genre");
+    expect(parsed.artist_disjoint).toBeDefined();
+    expect((parsed.artist_disjoint as Record<string, unknown>).evaluated).toBe(
+      3,
+    );
+  });
+
+  test("--eval --probe adds the probe block with delta vs kNN", async () => {
+    const state = {
+      evalPopulation: () => [
+        {
+          video_id: "a",
+          genre: "House",
+          vec_json: "[1,0]",
+          duration_s: 300,
+          artist: "X",
+        },
+        {
+          video_id: "b",
+          genre: "House",
+          vec_json: "[1,0]",
+          duration_s: 300,
+          artist: "Y",
+        },
+        {
+          video_id: "c",
+          genre: "Bass",
+          vec_json: "[0,1]",
+          duration_s: 300,
+          artist: "Z",
+        },
+      ],
+    } as unknown as ArchiveState;
+    const logged: string[] = [];
+    const orig = console.log;
+    console.log = (line: string) => logged.push(String(line));
+    try {
+      await genre({ state, eval: true, probe: true });
+    } finally {
+      console.log = orig;
+    }
+    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    expect(parsed.probe).toBeDefined();
+    const probe = parsed.probe as Record<string, unknown>;
+    expect(probe.evaluated).toBe(3);
+    expect(typeof probe.accuracy).toBe("number");
+    expect(typeof probe.deltaVsKnn).toBe("number");
+  });
+
+  test("--eval --diagnostics adds the Tier-0 block", async () => {
+    const state = {
+      evalPopulation: () => [
+        {
+          video_id: "a",
+          genre: "House",
+          vec_json: "[1,0]",
+          duration_s: 300,
+          artist: "X",
+        },
+        {
+          video_id: "b",
+          genre: "House",
+          vec_json: "[1,0]",
+          duration_s: 300,
+          artist: "X",
+        },
+        {
+          video_id: "c",
+          genre: "Bass",
+          vec_json: "[0,1]",
+          duration_s: 300,
+          artist: "Y",
+        },
+      ],
+    } as unknown as ArchiveState;
+    const logged: string[] = [];
+    const orig = console.log;
+    console.log = (line: string) => logged.push(String(line));
+    try {
+      await genre({ state, eval: true, diagnostics: true });
+    } finally {
+      console.log = orig;
+    }
+    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    const diag = parsed.diagnostics as Record<string, unknown>;
+    expect(diag).toBeDefined();
+    expect(diag.labelErrors).toBeDefined();
+    expect(diag.artistOverlap).toBeDefined();
+    expect(diag.hubness).toBeDefined();
+    expect(diag.confusion).toBeDefined();
+  });
 });

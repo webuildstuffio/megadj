@@ -1,6 +1,18 @@
-# FullTags — Prioritized Roadmap (rev 6.6)
+# FullTags — Prioritized Roadmap (rev 6.7)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 6.7, 2026-09-15: **Tier-0 diagnostics implemented, run live, and
+the plan re-ranked by their verdicts**
+([tier0-diagnostics-2026-09-15.md](tier0-diagnostics-2026-09-15.md)) —
+label noise is RANDOM (no systematic-corruption escape hatch), NO artist
+leakage (plain LOO numbers stand), the hub tail is real (whitening+CSLS
+shipped flag-gated on all retrieval surfaces), the `edm↔house` matrix
+block confirms the umbrella arbitration as the top genre fix, and the
+linear probe LOST to kNN (−11.1 pts — kNN stays the production readout;
+the probe gate fails). Diagnostics + probe + disjoint rerun are one
+command: `megadj genre --eval --diagnostics --artist-disjoint --probe
+--json`._
 
 _Rev 6.6, 2026-09-14: **genre/readout quality takes the queue** per the
 external research review
@@ -280,6 +292,18 @@ the OpenKeyScan SSOT decision (#3).
 > whitening+CSLS, projection head, transition-window similarity
 > (ideas.md §P89–P98) all come BEFORE any second tower or second ledger.
 > The embedding-research snapshot's §6 has the per-item verdicts.
+>
+> **2026-09-15 update (Tier-0 verdicts —
+> [tier0-diagnostics-2026-09-15.md](tier0-diagnostics-2026-09-15.md)):**
+> the ladder re-ordered again by measurement. ✅ whitening+CSLS SHIPPED
+> (flag-gated A/B, coherence proxy flat — P100's 100-mix judgment
+> decides). ❌ linear probe LOST (51.5% vs kNN 62.6% — P90's gate fails;
+> kNN stays production, re-test only after the `edm` refold). ▲
+> `edm` umbrella arbitration (P94) PROMOTED to the top genre fix — the
+> confusion matrix's biggest block is `edm↔house` (360/896
+> disagreements), not the triangle. Label noise being RANDOM also
+> upgrades P95/P96 (active-labelling + imprint prior): no systematic
+> corruption to hunt, so refold effort converts to points directly.
 
 - **Structure cues (all-in-one-infer v3 / -mlx)** — M–L. Still the 10x
   item; #2's beat/downbeat ledger (DB-side, not tags) is its anchor, so

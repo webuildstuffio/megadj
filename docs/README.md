@@ -66,6 +66,10 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 - [Embedding research review (Sep 14)](fulltags/embedding-research-2026-09-14.md)
   — external deep-read: tower landscape, probe/readout ladder, compute +
   licence audit, adoption verdicts.
+- [Tier-0 diagnostics, first live run (Sep 15)](fulltags/tier0-diagnostics-2026-09-15.md)
+  — the battery implemented + measured on the full library: random label
+  noise, no artist leakage, hub tail confirmed, `edm↔house` is the error
+  block, probe loses to kNN. Re-ranked the genre plan.
 - [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and
   cue program.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision

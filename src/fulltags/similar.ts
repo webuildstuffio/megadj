@@ -5,21 +5,46 @@
 // table when asked). This command is the query half: nearest neighbours of
 // one track, pure read over the DB.
 //
+// `--space whitened` applies the research review's retrieval corrections
+// (docs/fulltags/embedding-research-2026-09-14.md R5): mean-centre +
+// all-but-the-top whitening + CSLS penalties, fitted on the live corpus
+// per query (pure math, ~seconds at 3k). Raw stays the default until the
+// A/B (ideas.md P100) retires one of the two.
+//
 // Agent-first contract: --json (one summary object), human logs suppressed
 // in json mode, exit codes meaningful (1 = no such track / no embeddings).
 import { commandLog } from "../progress";
-import { similarTracks } from "../archive/state";
+import { similarTracks, cosineSimilarity } from "../archive/state";
+import {
+  applySpace,
+  cslsPenalties,
+  cslsQueryPenalty,
+  fitAllButTheTop,
+  isSimilarSpace,
+  type SimilarSpace,
+} from "../../cratedeck/shared/vector-space";
 
 export interface SimilarOptions {
   state: import("../archive/state").ArchiveState;
   videoId: string;
   k?: number | undefined;
+  /** Retrieval space: raw cosine (default) or whitened+CSLS. */
+  space?: string | undefined;
   json?: boolean | undefined;
 }
 
 export async function similar(opts: SimilarOptions): Promise<void> {
   const log = commandLog(opts);
   const k = opts.k ?? 10;
+  const space: SimilarSpace =
+    opts.space !== undefined && isSimilarSpace(opts.space) ? opts.space : "raw";
+  if (opts.space !== undefined && !isSimilarSpace(opts.space)) {
+    console.error(
+      `similar: unknown --space "${opts.space}" — expected raw or whitened`,
+    );
+    process.exitCode = 2;
+    return;
+  }
 
   const t = opts.state.allTracks().find((x) => x.video_id === opts.videoId);
   if (!t) {
@@ -43,9 +68,33 @@ export async function similar(opts: SimilarOptions): Promise<void> {
   }
 
   const corpus = opts.state.embeddingCorpus();
-  const hits = similarTracks(corpus, opts.videoId, q.vec, k);
+  const compatible = corpus.filter((c) => c.vec.length === q.vec.length);
+  let hits = similarTracks(corpus, opts.videoId, q.vec, k);
+  let cslsApplied = false;
+  if (space === "whitened" && compatible.length > 1) {
+    // fit on the corpus + query (the query must live in the same space),
+    // then rank by CSLS-corrected cosine: 2·cos(q,c) − r(q) − r(c)
+    const model = fitAllButTheTop([...compatible.map((c) => c.vec), q.vec], 2);
+    const queryVec = applySpace(model, q.vec);
+    const spaceVecs = compatible.map((c) => applySpace(model, c.vec));
+    const penalties = cslsPenalties(spaceVecs);
+    const queryPenalty = cslsQueryPenalty(queryVec, spaceVecs);
+    hits = compatible
+      .map((c, i) => ({
+        videoId: c.videoId,
+        title: c.title,
+        artist: c.artist,
+        score:
+          2 * cosineSimilarity(queryVec, spaceVecs[i]!) -
+          queryPenalty -
+          penalties[i]!,
+      }))
+      .toSorted((a, b) => b.score - a.score)
+      .slice(0, Math.max(0, k));
+    cslsApplied = true;
+  }
   log(
-    `similar to "${t.title ?? t.video_id}" — ${hits.length} of ${corpus.length - 1} embedded tracks:`,
+    `similar to "${t.title ?? t.video_id}" — ${hits.length} of ${corpus.length - 1} embedded tracks${space === "whitened" ? " (whitened+CSLS)" : ""}:`,
   );
   for (const h of hits)
     log(
@@ -57,6 +106,8 @@ export async function similar(opts: SimilarOptions): Promise<void> {
       video_id: opts.videoId,
       title: t.title,
       k,
+      space,
+      csls: cslsApplied,
       corpus: corpus.length - 1,
       hits: hits.map((h) => ({
         video_id: h.videoId,

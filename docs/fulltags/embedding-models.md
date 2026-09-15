@@ -263,10 +263,15 @@ cost tables, licences, and the ranked ladder with adoption verdicts:
 
 1. `genre --eval` gains `--probe`, `--artist-disjoint`, confusion-matrix +
    top-2 output, and a hubness histogram — the diagnostics are the next
-   work, ahead of any further tower work.
+   work, ahead of any further tower work. **✅ SHIPPED Sep 15 (measured
+   verdicts: [tier0-diagnostics-2026-09-15](tier0-diagnostics-2026-09-15.md)).**
 2. `megadj similar` / MegaSet retrieval gains a flag-gated
    `--space raw|whitened` (mean-centre + whiten + CSLS; ~10 lines) for A/B.
+   **✅ SHIPPED Sep 15 (CLI + route + MCP; coherence proxy flat, A/B
+   judgment pending).**
 3. Genre target: ship gate stays **gated ≥65%**; the _aspiration_ band is
-   0.65–0.74 via probe + readout fixes, not a tower swap.
+   0.65–0.74 via probe + readout fixes, not a tower swap. **Sep 15: the
+   probe lost to kNN (51.5% vs 62.6%) — the band must come from the
+   `edm` refold + label fixes, not the probe.**
 4. MERT rejection: **provisional** — per-layer re-test queued before the
    verdict is quoted as final anywhere.

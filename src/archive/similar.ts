@@ -313,6 +313,20 @@ export function inferGenre(
   };
 }
 
+/** One per-row LOO outcome — the handle the Tier-0 diagnostics and the
+ *  artist-disjoint rerun consume (the aggregate summary hides the rows
+ *  they need). `top2` is the vote's best-two families in rank order
+ *  (ties broken alphabetically, deterministic). */
+export interface LoORowOutcome {
+  videoId: string;
+  family: string;
+  /** Gated vote result (null = the gate refused). */
+  predicted: string | null;
+  agreement: number;
+  /** Best-two families by vote tally. */
+  top2: string[];
+}
+
 /** The numeric outcome of one leave-one-out evaluation pass. `agree` is
  *  the headline family agreement (the audit's gated ≥65% target);
  *  `refusal` the split-vote share the gate declined to guess on. */
@@ -331,6 +345,8 @@ export interface EvalSummary {
   refusal: number;
   /** Ungated (plain majority) agreement 0..1 over the same population. */
   ungatedAgreement: number;
+  /** Per-row outcomes, same order as the filtered population. */
+  rows: LoORowOutcome[];
 }
 
 /** Leave-one-out family-agreement harness over seed vectors — the genre
@@ -365,6 +381,7 @@ export function evalLeaveOneOut(
     agreement: 0,
     refusal: 0,
     ungatedAgreement: 0,
+    rows: [],
   };
   let ungatedAgree = 0;
   for (let i = 0; i < pop.length; i++) {
@@ -377,6 +394,116 @@ export function evalLeaveOneOut(
     else summary.disagree++;
     // ungated twin: plain plurality, no gate
     if (vote.genre === family) ungatedAgree++;
+    // per-row outcome (top-2 = the two largest tally buckets, ties
+    // alphabetical — deterministic). Recompute the tally cheaply: k
+    // neighbours, families only.
+    const nn = rest
+      .filter((s) => s.vec.length === held.vec.length)
+      .map((s) => ({
+        label: genreFamily(s.genre) ?? "",
+        score: cosineSimilarity(held.vec, s.vec),
+      }))
+      .toSorted((a, b) => b.score - a.score || a.label.localeCompare(b.label))
+      .slice(0, Math.min(Math.max(k, 1), rest.length));
+    const tally = new Map<string, number>();
+    for (const n of nn)
+      if (n.label) tally.set(n.label, (tally.get(n.label) ?? 0) + 1);
+    const top2 = [...tally.entries()]
+      .toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 2)
+      .map(([label]) => label);
+    summary.rows.push({
+      videoId: held.videoId,
+      family,
+      predicted: vote.inferred,
+      agreement: vote.agreement,
+      top2,
+    });
+  }
+  const gated = summary.agree + summary.disagree;
+  summary.agreement = gated > 0 ? summary.agree / gated : 0;
+  summary.refusal = pop.length > 0 ? summary.refused / pop.length : 0;
+  summary.ungatedAgreement = pop.length > 0 ? ungatedAgree / pop.length : 0;
+  return summary;
+}
+
+/** Artist-disjoint LOO (Sturm's "horse" control, research review F2/0.2):
+ *  the same harness, but any neighbour sharing the held-out row's artist
+ *  is excluded from the vote. If agreement holds, the kNN reads AUDIO;
+ *  if it collapses, the tower fingerprinted artists/metadata and every
+ *  plain-LOO number is inflated. Pure, like evalLeaveOneOut. */
+export function evalLeaveOneOutArtistDisjoint(
+  seeds: GenreSeed[],
+  artists: Map<string, string>,
+  k = 5,
+  minAgreement = 0.6,
+  durationGuard: { videoId: string; durationS: number | null }[] = [],
+): EvalSummary {
+  const guard = new Map(durationGuard.map((d) => [d.videoId, d.durationS]));
+  const inBand = (id: string): boolean => {
+    const sec = guard.get(id);
+    if (sec === undefined || sec === null) return true;
+    return sec >= 90 && sec <= 480;
+  };
+  const pop = seeds.filter(
+    (s) => genreFamily(s.genre) !== null && inBand(s.videoId),
+  );
+  const artistOf = (id: string): string => artists.get(id) ?? "";
+  const summary: EvalSummary = {
+    evaluated: pop.length,
+    agree: 0,
+    disagree: 0,
+    refused: 0,
+    agreement: 0,
+    refusal: 0,
+    ungatedAgreement: 0,
+    rows: [],
+  };
+  let ungatedAgree = 0;
+  for (let i = 0; i < pop.length; i++) {
+    const held = pop[i]!;
+    const family = genreFamily(held.genre)!;
+    const heldArtist = artistOf(held.videoId);
+    // the one difference from evalLeaveOneOut: same-artist seeds cannot vote
+    const rest = pop.filter(
+      (s, j) =>
+        j !== i &&
+        s.vec.length === held.vec.length &&
+        artistOf(s.videoId) !== heldArtist,
+    );
+    // gated plurality vote inline (the disjoint pool IS the pool: k counts
+    // usable seeds, same as inferGenre's contract)
+    const usable = rest
+      .map((s) => ({
+        family: genreFamily(s.genre),
+        score: cosineSimilarity(held.vec, s.vec),
+      }))
+      .filter((s): s is { family: string; score: number } => s.family !== null)
+      .toSorted((a, b) => b.score - a.score || a.family.localeCompare(b.family))
+      .slice(0, Math.min(Math.max(k, 1), rest.length));
+    const tally = new Map<string, number>();
+    for (const n of usable) tally.set(n.family, (tally.get(n.family) ?? 0) + 1);
+    const best = [...tally.entries()].toSorted(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+    )[0];
+    const agreement = usable.length > 0 && best ? best[1] / usable.length : 0;
+    const predicted =
+      best !== undefined && agreement >= minAgreement ? best[0] : null;
+    if (predicted === null) summary.refused++;
+    else if (predicted === family) summary.agree++;
+    else summary.disagree++;
+    if (best !== undefined && best[0] === family) ungatedAgree++;
+    const top2 = [...tally.entries()]
+      .toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 2)
+      .map(([label]) => label);
+    summary.rows.push({
+      videoId: held.videoId,
+      family,
+      predicted,
+      agreement: Math.round(agreement * 100) / 100,
+      top2,
+    });
   }
   const gated = summary.agree + summary.disagree;
   summary.agreement = gated > 0 ? summary.agree / gated : 0;

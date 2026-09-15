@@ -11,6 +11,13 @@ import { resolve, sep } from "node:path";
 import { groundTruth } from "../../fulltags/src/exports";
 import { isFiniteNumberArray } from "../shared/guards";
 import { cosineSimilarity } from "../shared/similarity";
+import {
+  applySpace,
+  cslsPenalties,
+  cslsQueryPenalty,
+  fitAllButTheTop,
+  isSimilarSpace,
+} from "../shared/vector-space";
 import type {
   ArchiveFreshness,
   ArchiveSetCandidates,
@@ -53,11 +60,19 @@ function existingCandidatePath(
  * --embeddings`). Pure read + TS-side cosine — the doc blesses
  * "blob + cosine at 3–10k tracks". Degrades to available:false when
  * the ledger is empty or the query track has no embedding.
+ *
+ * `space: "whitened"` applies the research review's retrieval
+ * corrections (mean-centre + all-but-the-top + CSLS, research review
+ * R5) fitted on the live corpus. The shared `isSimilarSpace` guard is
+ * the same one the CLI uses — an unknown value here is a programming
+ * error (route/MCP validate first), so it throws rather than silently
+ * ranking in the wrong space.
  */
 export function similarTracks(
   reader: ArchiveQuery,
   videoId: string,
   k = 10,
+  space = "raw",
 ): ArchiveSimilar {
   const empty = (corpus = 0) => ({
     available: reader.available(),
@@ -118,16 +133,48 @@ export function similarTracks(
   }
   if (!queryVec) return empty(corpus.length);
   const kk = Math.min(Math.max(k, 1), 50);
-  const hits = corpus
-    .filter((c) => c.vec.length === queryVec!.length)
-    .map((c) => ({
-      video_id: c.videoId,
-      title: c.title,
-      artist: c.artist,
-      score: r4(cosineSimilarity(queryVec!, c.vec)),
-    }))
-    .toSorted((a, b) => b.score - a.score)
-    .slice(0, kk);
+  const compatible = corpus.filter((c) => c.vec.length === queryVec!.length);
+  if (!isSimilarSpace(space))
+    throw new Error(`similarTracks: unknown space "${space}"`);
+  let hits: {
+    video_id: string;
+    title: string | null;
+    artist: string | null;
+    score: number;
+  }[];
+  if (space === "whitened" && compatible.length > 1) {
+    const model = fitAllButTheTop(
+      [...compatible.map((c) => c.vec), queryVec],
+      2,
+    );
+    const querySpaceVec = applySpace(model, queryVec);
+    const spaceVecs = compatible.map((c) => applySpace(model, c.vec));
+    const penalties = cslsPenalties(spaceVecs);
+    const queryPenalty = cslsQueryPenalty(querySpaceVec, spaceVecs);
+    hits = compatible
+      .map((c, i) => ({
+        video_id: c.videoId,
+        title: c.title,
+        artist: c.artist,
+        score: r4(
+          2 * cosineSimilarity(querySpaceVec, spaceVecs[i]!) -
+            queryPenalty -
+            penalties[i]!,
+        ),
+      }))
+      .toSorted((a, b) => b.score - a.score)
+      .slice(0, kk);
+  } else {
+    hits = compatible
+      .map((c) => ({
+        video_id: c.videoId,
+        title: c.title,
+        artist: c.artist,
+        score: r4(cosineSimilarity(queryVec!, c.vec)),
+      }))
+      .toSorted((a, b) => b.score - a.score)
+      .slice(0, kk);
+  }
   return {
     available: true,
     video_id: videoId,

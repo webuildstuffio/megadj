@@ -562,8 +562,10 @@ keeping agents inside P9/P11's idempotent, resumable safety rules.
 > (probe > kNN), retrieval geometry (whiten/CSLS), and taxonomy (the
 > `edm` umbrella), not from any tower swap.**
 
-89. **Tier-0 diagnostics battery.** Four cheap measurements that re-rank
-    everything else in this section: (a) cluster label errors by
+89. **Tier-0 diagnostics battery.** ✅ DONE (Sep 15,
+    [tier0-diagnostics-2026-09-15](fulltags/tier0-diagnostics-2026-09-15.md) —
+    implemented as `genre --eval --diagnostics --artist-disjoint --probe`).
+    Four cheap measurements that re-rank everything else in this section: (a) cluster label errors by
     artist/release/imprint (systematic ⇒ no ceiling, relabelling buys
     ~nothing; random ⇒ items 7/refold are worth points); (b) same-artist
     share of top-5 neighbours (effnet is the Discogs-metadata tower most
@@ -572,17 +574,27 @@ keeping agents inside P9/P11's idempotent, resumable safety rules.
     (k-occurrence skew — a few tracks at 40+ occurrences ⇒ P91 is
     nearly-free points); (d) confusion matrix + top-2 accuracy in
     `genre --eval` (is the error mass the house/techno/trance triangle —
-    arguably not errors — or structural?). ~4 h total. **Do first.**
-90. **Linear probe as the genre readout.** Logistic regression on the
+    arguably not errors — or structural?). **Measured: noise RANDOM,
+    leakage ABSENT (4.2%), hub tail REAL, `edm↔house` is the error
+    block (17.7% triangle only).**
+90. **Linear probe as the genre readout.** ❌ GATE FAILED (Sep 15: 5-fold
+    CV 51.5% vs kNN 62.6%, Δ −11.1 — the ≥3-pt win gate flips to a hard
+    loss; kNN stays the production readout; re-test only after the P94
+    refold changes the label distribution). Logistic regression on the
     cached 1280-d vectors — the literature-standard protocol nobody's
     benchmark headlines kNN instead; comparable towers gain 15–25 pts.
     `genre --eval --probe`; gate: beat the kNN vote by ≥3 pts on the
     guarded population before becoming production. **megadj genre is
     classification → the probe is the fix; "sounds like" is retrieval →
     P91/P93 are the fixes there.** Effort S.
-91. **Whitening + CSLS retrieval space.** Mean-centre, whiten (or
+91. **Whitening + CSLS retrieval space.** ✅ SHIPPED flag-gated (Sep 15:
+    `megadj similar --space whitened` + route + MCP; coherence proxy
+    flat 0.462 vs 0.454, but the qualitative A/B is decisive — raw
+    scores saturate at 0.90+ with junk hubs everywhere, whitened
+    spreads 0.70→0.05 and demotes them; P100's 100-mix judgment
+    decides adoption). Mean-centre, whiten (or
     all-but-the-top), CSLS-correct the kNN in `megadj similar`/MegaSet.
-    ~10 lines; expected +3–8 pts coherence. Flag-gated (`--space
+    Flag-gated (`--space
 raw|whitened`) for A/B. Effort S.
 92. **Full-population LOO.** n=3,500 over the cached vectors instead of
     n=180 — error bars ±6 → ~±1, making every sub-3-point claim
@@ -593,7 +605,10 @@ raw|whitened`) for A/B. Effort S.
     matmul at query time; a _derived view_ of the same vectors, so the
     single-ledger rule holds. Canonical ref: Lee et al., ICASSP 2020.
     Minutes on CPU. Effort S-M. The actual MegaSet fix.
-94. **`edm` umbrella arbitration.** `edm` is a parent of house/techno/
+94. **`edm` umbrella arbitration.** ▲ PROMOTED to the top genre fix (Sep
+    15 diagnostics: `edm→house` 276 + `house→edm` 84 = 360/896
+    disagreements — the single biggest block, bigger than the whole
+    house/techno/trance triangle). `edm` is a parent of house/techno/
     trance sitting as a sibling — every plain-`edm` track is a forced
     LOO error (the B1 `dance` bug one level up). Arbitrate via the
     head+kNN dispute pass in the refold; keep hard-dance/eurodance/

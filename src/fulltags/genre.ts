@@ -19,10 +19,15 @@
 import { commandLog } from "../progress";
 import {
   evalLeaveOneOut,
+  evalLeaveOneOutArtistDisjoint,
+  genreFamily,
   inferGenre,
   parseEmbeddingVector,
   type GenreSeed,
 } from "../archive/similar";
+import { l2normalize } from "../../cratedeck/shared/vector-space";
+import { tier0Diagnostics } from "./genre-diagnostics";
+import { probeLeaveOneOut, type ProbeRow } from "./linear-probe";
 import type { ArchiveState } from "../archive/state";
 
 /** Share 0..1 → percentage string with one decimal (eval log lines). */
@@ -41,6 +46,16 @@ export interface GenreOptions {
   /** Apply the measured 90–480 s duration guard in --eval (default on,
    * matching the audit's v3 methodology; --no-duration-guard disables). */
   durationGuard?: boolean | undefined;
+  /** --eval: also run the Tier-0 diagnostics battery (research review
+   * 0.1–0.4: label-error clustering, artist overlap, hubness, confusion
+   * matrix + top-2). Adds ~1 min at n≈3k. */
+  diagnostics?: boolean | undefined;
+  /** --eval: additionally run the artist-disjoint LOO (Sturm's "horse"
+   * control — same-artist neighbours cannot vote). */
+  artistDisjoint?: boolean | undefined;
+  /** --eval: additionally run the linear-probe LOO readout (frozen
+   * softmax regression over the same vectors). Slower: fits n probes. */
+  probe?: boolean | undefined;
   json?: boolean | undefined;
 }
 
@@ -54,13 +69,23 @@ export async function genre(opts: GenreOptions): Promise<void> {
     const pop = opts.state.evalPopulation();
     const seeds: GenreSeed[] = [];
     const durations: { videoId: string; durationS: number | null }[] = [];
+    const artists = new Map<string, string>();
+    const probeRows: ProbeRow[] = [];
     for (const row of pop) {
-      seeds.push({
-        videoId: row.video_id,
-        genre: row.genre,
-        vec: parseEmbeddingVector(row.vec_json, `genre eval ${row.video_id}`),
-      });
+      const vec = parseEmbeddingVector(
+        row.vec_json,
+        `genre eval ${row.video_id}`,
+      );
+      seeds.push({ videoId: row.video_id, genre: row.genre, vec });
       durations.push({ videoId: row.video_id, durationS: row.duration_s });
+      if (row.artist) artists.set(row.video_id, row.artist);
+      const family = genreFamily(row.genre);
+      if (family !== null)
+        probeRows.push({
+          videoId: row.video_id,
+          label: family,
+          vec: l2normalize(vec),
+        });
     }
     const summary = evalLeaveOneOut(
       seeds,
@@ -76,6 +101,64 @@ export async function genre(opts: GenreOptions): Promise<void> {
     log(
       `  target (genre-audit §5b.3): gated ≥65% post-refold — ${pass ? "PASS" : "below target (see audit for the refold plan)"}`,
     );
+    let diagnostics: ReturnType<typeof tier0Diagnostics> | undefined;
+    let artistDisjoint:
+      | { evaluated: number; agreement: number; refusal: number; delta: number }
+      | undefined;
+    let probe:
+      | {
+          protocol: string;
+          evaluated: number;
+          accuracy: number;
+          deltaVsKnn: number;
+        }
+      | undefined;
+    if (opts.diagnostics) {
+      const famPop = summary.rows.map((row) => {
+        const seed = seeds.find((s) => s.videoId === row.videoId)!;
+        return {
+          videoId: row.videoId,
+          genre: "",
+          vec: seed.vec,
+          artist: artists.get(row.videoId) ?? "unknown",
+          family: row.family,
+        };
+      });
+      diagnostics = tier0Diagnostics(famPop, summary.rows, k);
+      log(
+        `  diagnostics: label errors ${diagnostics.labelErrors.verdict} (top-10 artists hold ${pct(diagnostics.labelErrors.top10Share)} of disagreements) · same-artist top-5 ${pct(diagnostics.artistOverlap.meanTop5SameArtist)}${diagnostics.artistOverlap.rerunNeeded ? " — RERUN ARTIST-DISJOINT" : ""} · hubs≥10 ${diagnostics.hubness.hubs10}/${diagnostics.hubness.tracks} (max ${diagnostics.hubness.maxOccurrence}) · triangle share ${pct(diagnostics.confusion.triangleShare)} · top-2 ${pct(diagnostics.confusion.top2Accuracy)}`,
+      );
+    }
+    if (opts.artistDisjoint) {
+      const dj = evalLeaveOneOutArtistDisjoint(
+        seeds,
+        artists,
+        k,
+        minAgreement,
+        opts.durationGuard === false ? [] : durations,
+      );
+      artistDisjoint = {
+        evaluated: dj.evaluated,
+        agreement: Math.round(dj.agreement * 1000) / 1000,
+        refusal: Math.round(dj.refusal * 1000) / 1000,
+        delta: Math.round((dj.agreement - summary.agreement) * 1000) / 1000,
+      };
+      log(
+        `  artist-disjoint LOO: ${pct(dj.agreement)} (Δ ${artistDisjoint.delta >= 0 ? "+" : ""}${pct(dj.agreement - summary.agreement)} vs plain) — ${dj.agreement >= summary.agreement * 0.95 ? "audio-driven, plain LOO stands" : "artist fingerprinting suspected: plain LOO is inflated"}`,
+      );
+    }
+    if (opts.probe) {
+      const pr = probeLeaveOneOut(probeRows);
+      probe = {
+        protocol: pr.protocol,
+        evaluated: pr.evaluated,
+        accuracy: Math.round(pr.accuracy * 1000) / 1000,
+        deltaVsKnn: Math.round((pr.accuracy - summary.agreement) * 1000) / 1000,
+      };
+      log(
+        `  linear probe ${pr.protocol}: ${pct(pr.accuracy)} (Δ ${probe.deltaVsKnn >= 0 ? "+" : ""}${pct(pr.accuracy - summary.agreement)} vs kNN gate)${probe.deltaVsKnn >= 0.03 ? " — probe beats the gate by ≥3 pts: promote to production readout" : ""}`,
+      );
+    }
     console.log(
       JSON.stringify({
         command: "genre",
@@ -92,6 +175,11 @@ export async function genre(opts: GenreOptions): Promise<void> {
         ungated_agreement: Math.round(summary.ungatedAgreement * 1000) / 1000,
         target: 0.65,
         pass,
+        ...(diagnostics !== undefined ? { diagnostics } : {}),
+        ...(artistDisjoint !== undefined
+          ? { artist_disjoint: artistDisjoint }
+          : {}),
+        ...(probe !== undefined ? { probe } : {}),
       }),
     );
     process.exitCode = pass ? 0 : 1;

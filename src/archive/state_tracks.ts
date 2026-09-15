@@ -188,19 +188,22 @@ export class ArchiveTracks extends ArchiveCore {
   }
 
   /** Eval population for `genre --eval`: every embedded downloaded track
-   *  with a label AND its duration — the LOO harness applies the measured
-   *  90–480 s band itself (G5: hygiene, applied at eval time only, never
-   *  a data change). Reads the same rows `genreSeeds` sees plus
-   *  `duration_s` so one query keeps the two views identical. */
+   *  with a label AND its duration + artist — the LOO harness applies the
+   *  measured 90–480 s band itself (G5: hygiene, applied at eval time
+   *  only, never a data change); artist feeds the Tier-0 diagnostics and
+   *  the --artist-disjoint rerun (research review 0.1/0.2/F2). Reads the
+   *  same rows `genreSeeds` sees plus `duration_s`/`artist` so one query
+   *  keeps the views identical. */
   evalPopulation(): {
     video_id: string;
     genre: string;
     duration_s: number | null;
+    artist: string | null;
     vec_json: string;
   }[] {
     return this.db
       .query(
-        `SELECT e.video_id, t.genre, t.duration_s, e.vec_json
+        `SELECT e.video_id, t.genre, t.duration_s, t.artist, e.vec_json
          FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
          WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''`,
       )
@@ -208,6 +211,7 @@ export class ArchiveTracks extends ArchiveCore {
       video_id: string;
       genre: string;
       duration_s: number | null;
+      artist: string | null;
       vec_json: string;
     }[];
   }
