@@ -14,6 +14,7 @@ import { beats } from "../fulltags/beats";
 import { mood } from "../fulltags/mood";
 import { cues } from "../fulltags/cues";
 import { organize } from "../getdat/commands/organize";
+import { ytdlpCookieArgs } from "../getdat/ytdlp";
 import type { ArchiveState } from "../archive/state";
 import { commandLog } from "../progress";
 import { writeJson } from "./cli-output";
@@ -75,10 +76,9 @@ async function downloadUrl(
     "--no-warnings",
     "-o",
     `${musicDir}/%(title)s.%(ext)s`,
+    // #81: auth args via the shared builder (was a third inline twin).
+    ...ytdlpCookieArgs(opts.cookiesFile, opts.cookiesFromBrowser),
   ];
-  if (opts.cookiesFile) args.push("--cookies", opts.cookiesFile);
-  else if (opts.cookiesFromBrowser)
-    args.push("--cookies-from-browser", opts.cookiesFromBrowser);
   args.push(target);
   const proc = Bun.spawnSync({
     cmd: ["yt-dlp", ...args],
