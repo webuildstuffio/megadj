@@ -196,13 +196,19 @@ gate; transparency surfaces (T) let a human see what any track claims.
 - **154 `Music` placeholder rows + the W1 leak**: visible to neither
   seeds (family null) nor inference queries (`genre != ''`) — stranded,
   AND W1 keeps minting new ones at download time (issue #61).
-- **Orphaned `sc_genre_ids` cache**: the table exists in `archive.db`
-  (269 resolved IDs, last resolved 2026-09-12) but **no code in the
-  repo reads or writes it** — the one-off scraper that built it was
-  never committed (violates the no-one-off-scripts rule in hindsight).
-  AGENTS.md documents resolution "through the `sc_genre_ids` cache" as
-  if it were live. Either commit a proper `sc genre` resolution command
-  or drop the table + the AGENTS mention.
+- **Orphaned `sc_genre_ids` cache — DROPPED 2026-09-15 (issue #108)**:
+  the table existed in `archive.db` (269 resolved IDs, last resolved
+  2026-09-12) but **no code in the repo read or wrote it** — the one-off
+  scraper that built it was never committed (violates the
+  no-one-off-scripts rule in hindsight). Verdict: DROP, not resolve —
+  the label ladder (#61–#65) is served by the labels themselves, and a
+  resolution command would have owned a cache with no remaining
+  consumer. Dated backup:
+  `~/.local/state/megadj/archive-db-before-sc-genre-ids-drop-2026-09-15.db`
+  (+ `sc-genre-ids-dropped-rows-2026-09-15.csv`, 269 rows). The
+  `src/sc-genre-ids-census.test.ts` census keeps it dead: any code
+  reintroduction fails the suite. AGENTS.md's "orphaned data" trap is
+  retired with this verdict.
 - **~6.6% of labels unmapped** by the 9-family map → mood/abstain; the
   LLM residue pass (one-shot, vocabulary-constrained) is queued for the
   long tail (#65).

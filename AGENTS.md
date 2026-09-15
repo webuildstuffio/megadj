@@ -86,11 +86,9 @@ wrote its genre once. Keep the yt-dlp `COL|` destructure aligned to the
 REAL 6-field layout (title|url|uploader|thumbs|genre|timestamp): a
 one-slot drift silently killed SC genre+year for months. Never mint a
 placeholder genre: `?? "Music"` is banned — unknown stays null (the
-~154 legacy `Music` rows are #61's unstrand remainder). (The
-`sc_genre_ids` ID→name cache table exists in archive.db but its
-writer was never committed — treat as orphaned data, see
-docs/fulltags/genre-pipeline.md §5, until a proper resolution command
-ships.)
+~154 legacy `Music` rows are #61's unstrand remainder). The
+`sc_genre_ids` cache was dropped 2026-09-15 (#108 — ghost table, dated
+backup + census); never resurrect it without owning its writer.
 Every master.db write must hard-gate on rekordbox being closed — RB's
 in-memory state silently overwrites external edits on quit; verify with
 a delayed re-read, not just a successful commit.
@@ -218,7 +216,7 @@ unwritable; only Comment carries derived energy, never BPM.
   trust the tag frame as a genre source.
 - Two DBs, two roles: the SHELF1 `master.db` is the collection SSOT;
   `archive.db` is megadj's pipeline ledger (FullTags/mood/cue results,
-  `sc_genre_ids`, `shelf_fingerprints`), not a collection copy — never
+  `shelf_fingerprints`), not a collection copy — never
   present ledger coverage as library size. Disk-file counts on the shelf
   (incl. quarantine/variants) always exceed rekordbox DB rows; explain
   deltas by provenance (UnknownArtist residue, dedup orphans), never
