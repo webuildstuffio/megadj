@@ -305,9 +305,9 @@ describe("genre command JSON boundary", () => {
       { videoId: "lower", to: "EDM" },
       { videoId: "screaming", to: "Dance" },
     ]);
-    const parsed = JSON.parse(logged.at(-1)!);
-    expect((parsed as Record<string, unknown>).umbrellaKept).toBe(0);
-    expect((parsed as Record<string, unknown>).changes).toBe(2);
+    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    expect(parsed.umbrellaKept).toBe(0);
+    expect(parsed.changes).toBe(2);
   });
 
   test("umbrella SPLIT outcomes are canonicalized (case-twin leak, super-sure)", async () => {
