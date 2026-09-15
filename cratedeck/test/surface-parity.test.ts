@@ -116,7 +116,9 @@ function mcpTools(): string[] {
   const files = ["cratedeck/src/mcp.ts", "cratedeck/src/archive_tools.ts"];
   const tools = files
     .flatMap((f) =>
-      read(f).map((l) => l.match(/^\s{2,4}((?:deck|archive|getdat)_[a-z_]+):/)),
+      read(f).map((l) =>
+        l.match(/^\s{2,4}((?:deck|archive|getdat|megaset)_[a-z_]+):/),
+      ),
     )
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
@@ -268,7 +270,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     expect(megadjCommands()).toContain("convert");
   });
 
-  test("archive reads with a CLI shape keep their megadj twins (setbuild/similar)", () => {
+  test("archive reads with a CLI shape keep their megadj twins (megaset/similar)", () => {
     // these two were the doc §4's named CLI↔MCP gaps; each closed by the
     // same-pattern `megadj <verb>` read. The twins must not rot apart
     // again: drop either CLI command and this fails with the doc pointer.
@@ -276,17 +278,17 @@ describe("surface parity (docs/surface-parity.md)", () => {
     const tools = new Set(mcpTools());
     for (const [cmd, tool] of [
       ["similar", "archive_similar_tracks"],
-      ["setbuild", "archive_set_build"],
+      ["megaset", "megaset_propose"],
     ] as const) {
       expect(cmds).toContain(cmd);
       expect(tools.has(tool)).toBeTrue();
     }
-    // the CLI setbuild case must use the shared engine seam (no local
+    // the CLI megaset case must use the shared engine seam (no local
     // re-parse — the whole point of the parity fix)
     const cli = read("src/cli-commands-analysis.ts").join("\n");
-    expect(cli).toMatch(/^\s{2}setbuild,$/m);
-    expect(read("src/fulltags/setbuild.ts").join("\n")).toContain(
-      'from "../../cratedeck/src/setbuild"',
+    expect(cli).toMatch(/^\s{2}megaset,$/m);
+    expect(read("src/fulltags/megaset.ts").join("\n")).toContain(
+      'from "../../cratedeck/src/megaset"',
     );
   });
 
@@ -309,10 +311,12 @@ describe("surface parity (docs/surface-parity.md)", () => {
     expect(app).toContain("<FullTagsPage");
     expect(app).toContain("<FleetPage");
     // Fleet is a CrateDeck scope, not a product: the product list has
-    // exactly three rows, and Fleet rides the drives scope tabs.
+    // exactly four rows (MegaSet graduated from a FullTags tab), and
+    // Fleet rides the drives scope tabs.
     expect(
-      (products.match(/id: "(?:drives|getdat|fulltags)",/g) ?? []).length,
-    ).toBe(3);
+      (products.match(/id: "(?:drives|getdat|fulltags|megaset)",/g) ?? [])
+        .length,
+    ).toBe(4);
     expect(products).toContain('id: "fleet"');
   });
 

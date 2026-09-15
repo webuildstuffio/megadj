@@ -39,10 +39,16 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "web/products/shared.tsx": "historical rev line (rev-9 restructure note)",
   },
   "docs/set/08-audit-and-plan.md": {
-    // Dated 2026-09-13 scope block naming the setbuild-era layout; the
+    // Dated 2026-09-13 scope block naming the pre-megaset-era layout; the
     // paths flip with #56's rename, not before.
     "web/products/fulltags/SimilarTab.tsx":
-      "dated scope block (setbuild-era, flips with #56)",
+      "dated scope block (pre-megaset-era, flips with #56)",
+    // Pre-rename product name: the engine/wire/CLI files were `setbuild.*`
+    // when this dated audit was written; the #56 reversal kept `megaset`.
+    "cratedeck/src/setbuild.ts": "dated audit text (pre-rename product name)",
+    "cratedeck/shared/setbuild.ts":
+      "dated audit text (pre-rename product name)",
+    "src/fulltags/setbuild.ts": "dated audit text (pre-rename product name)",
   },
   "docs/set/09-migration-plan.md": {
     // SUPERSEDED 2026-09-15 (product named Set; the megaset rename was
@@ -58,8 +64,29 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       "superseded migration plan target path (issue #56 reversed)",
     "src/fulltags/megaset.ts":
       "superseded migration plan target path (issue #56 reversed)",
+    "cratedeck/src/setbuild.ts":
+      "superseded migration plan source path (issue #56 reversed)",
+    "cratedeck/shared/setbuild.ts":
+      "superseded migration plan source path (issue #56 reversed)",
+    "src/fulltags/setbuild.ts":
+      "superseded migration plan source path (issue #56 reversed)",
+    "cratedeck/test/setbuild.test.ts":
+      "superseded migration plan source path (issue #56 reversed)",
+    "cratedeck/test/archive-setbuild-surface.test.ts":
+      "superseded migration plan source path (issue #56 reversed)",
     "fulltags/intake-cue-postmortem.md":
       "relative link inside the planned-docs table (resolves from docs/)",
+  },
+  "docs/set/04-sequencing-benchmarks.md": {
+    "cratedeck/src/setbuild.ts": "dated benchmark doc (pre-rename engine path)",
+  },
+  "docs/set/02-architecture.md": {
+    // Dated architecture diagram naming the pre-rename layout (megadj
+    // setbuild / cratedeck setbuild) — historical structure text.
+    "cratedeck/src/setbuild.ts": "dated architecture diagram (pre-rename)",
+    "cratedeck/shared/setbuild.ts":
+      "dated architecture diagram (pre-rename)",
+    "src/fulltags/setbuild.ts": "dated architecture diagram (pre-rename)",
   },
   "docs/README.md": {
     "fulltags/intake-cue-postmortem.md":
