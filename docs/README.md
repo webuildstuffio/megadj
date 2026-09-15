@@ -104,8 +104,9 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   analysis and remaining follow-up.
 - [Shelf hygiene snapshot](getdat/shelf-hygiene-2026-09-09.md) — Sep 9–10 record
   with current detector and restore-surface limits.
-- [Source-layout refactor](src-layout-refactor.md) — completed proposal and
-  migration receipt; historical paths in the proposal are labeled as such.
+- [Source-layout refactor](archive/src-layout-refactor.md) — completed proposal
+  and migration receipt, archived 2026-09-14; historical paths in the proposal
+  are labeled as such.
 
 ### Hardware-gated runbooks
 
@@ -135,3 +136,5 @@ Archived files are historical evidence, not current instructions:
 
 - [Executed roadmap proposal](archive/roadmap-proposal.md)
 - [Codebase quality snapshot](archive/codebase-quality-report.md)
+- [Source-layout refactor receipt](archive/src-layout-refactor.md) — moved
+  2026-09-14; a one-line redirect stub remains at the old path.

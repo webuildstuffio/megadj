@@ -376,7 +376,8 @@ issue.
 - master→archive reconcile — `megadj rb-adopt` + `--shelf` repoint shipped
   (`c8f88d1`, `0c7e96e`); covers the playlist-gen session's "is our db out
   of sync" confusion. Census rule added to AGENTS.md (ledger ≠ library).
-- `src/` domain layout refactor — shipped (`docs/src-layout-refactor.md`,
+- `src/` domain layout refactor — shipped
+  ([archive/src-layout-refactor.md](../archive/src-layout-refactor.md),
   ✅ COMPLETE).
 - MegaSet full-library pull + speed ("only 2 tracks? why 300 songs?") —
   `db3a66c`, `4b670ab`, `692111f`.

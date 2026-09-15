@@ -30,16 +30,13 @@ source and pinned in [Surface parity](surface-parity.md) §1.
 
 ## Storage and safety state
 
-- The shelf is the archive master. `megadj shelf-archive` is additive,
-  junk-filtered, hash-verified, and preserves divergent same-name recordings.
-- The playing USB is user-managed. Agents and automated flows do not sync,
-  export, or write playlist/database state to it.
-- rekordbox must be closed before any `master.db` mutation. Every mutation
-  takes a dated backup and verifies the complete affected surface by re-read.
-- The shelf's `PIONEER/rekordbox/` tree may correctly be empty; shelf health
-  and gig-stick health use different checks from one role-aware matrix.
-- Hygiene, duplicate, and unreferenced-file decisions quarantine for review;
-  they do not delete archive bytes.
+The safety invariants — the shelf as archive master with additive,
+hash-verified intake, the user-managed playing USB, rekordbox-closed
+`master.db` writes with dated backups, role-aware health checks, and
+quarantine-over-delete — live once in [`AGENTS.md`](../AGENTS.md); the
+surface-by-surface write boundary lives in
+[the playing USB boundary](getdat/usb-sync.md). This page does not
+restate them.
 
 Operational evidence belongs in `archive.db`, CrateDeck state, command JSON,
 and the intentionally gitignored local `docs/usb-sync-log.md`. Durable failure

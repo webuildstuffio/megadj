@@ -63,14 +63,9 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "web/products/fulltags/DESIGN-NOTES.md":
       "cratedeck/web-scoped path (link is correct)",
   },
-  "docs/src-layout-refactor.md": {
-    // A completed refactor receipt: its proposal section cites the layout
-    // it REPLACED on purpose (header carries the historical-path note).
-    "src/commands/fetch.ts": "historical path in the superseded proposal half",
-    "src/shelf-sweeps.ts": "historical path in the superseded proposal half",
-    "cratedeck/src/fleet.ts": "historical pre-rename name in the audit half",
-    "fulltags/src/probes.ts": "historical pre-split name in the audit half",
-  },
+  // docs/archive/ is skipped by the walker, so the archived
+  // src-layout-refactor receipt needs no exemptions — its historical
+  // paths are out of census scope by design.
   "docs/usb-sync-log.md": {
     "cratedeck/src/fleet.ts": "dated log entry (Sep 8) — historical evidence",
   },

@@ -307,11 +307,11 @@ threads are not repeated here — dedup checked against issues #1–#23,
   `usb_verify.py` leg sat at "0%" with no phase or current-file
   visibility — user couldn't tell running from wedged. The Sep 8
   jobs-progress sweep fixed ETA/stall _reporting_, but the verify leg
-  still doesn't stream per-phase ticks. → #27.
+  still didn't stream per-phase ticks. Fixed: #27 (closed Sep 11).
 - **Drive identity wants images, not just photos** (b82aae0e, Sep 3):
   image-search → confirm picker → save local+drive → ghost shows
-  last-known details. The photo-upload feature covers the upload half
-  only. → #28.
+  last-known details. The photo-upload feature covered the upload half
+  only. Fixed: #28 (closed Sep 11).
 - **Crash-on-mount root cause, pre-lsof era** (de5a057e, ~Sep 5): the
   dev server's `rb_read.py` leg crashed under the Xcode-bundled
   Python 3.9 until pointed at a real Python — same failure class later
@@ -331,7 +331,7 @@ threads are not repeated here — dedup checked against issues #1–#23,
   AGENTS.md; this was the live catch that produced it.
 - **v0.2.0 was announced and never tagged** (82a37760, Sep 5): the
   CHANGELOG shipped, the tag was deferred pending a word, no word ever
-  came. Zero tags exist local or remote. → #29.
+  came. Zero tags exist local or remote. → #29 (still open).
 - **Complexity hotspots were lizard-ranked and top-down refactored**
   (39ea1b81, Sep 10): `canon` (db.ts, CCN 75) and the next ~9 functions
   were split across dedicated passes; db.ts is now 614 lines and
