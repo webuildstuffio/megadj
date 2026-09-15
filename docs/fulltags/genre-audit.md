@@ -280,6 +280,20 @@ ground-truth philosophy unchanged.
    dispute pass, keeping genuinely-hard-EDM (hard-dance/eurodance/nightcore)
    and ALL sub-genre labels — **hardtekk and friends are explicitly kept**
    as Tier-1 display; only the _scoring_ family arbitration changes.
+   **✅ IMPLEMENTED + APPLIED LIVE (Sep 15): `megadj genre --refold`
+   (+ `--eval --refold` A/B), engine in `src/fulltags/genre-refold.ts`.
+   Data half applied: 790 canonicalization writes (escape repair,
+   multi-label split with specific-outranks-umbrella ranking, casing
+   collapse — killed the `House/House/house` ×3 and `EDM/edm` ×3 twins)
+   + 71 casing-carried umbrella rows (`edm`→`EDM`, `DANCE`→`Dance`;
+   label VALUE preserved). Scoring half (`scoringFamily`): plain
+   EDM/Dance/Electronic/Mainstage EDM abstain from vote + population.
+   **Live A/B: baseline 62.6% → 70.3% with arbitration (+7.7 pts, n 2982→
+   2424, refusal 19.8%→12.6%) — TARGET ≥65% PASS.** Junk guards: URL
+   spam, word soup (≥5 words), character sanity, and family-mapping
+   requirement (`Edits / Bootlegs` proposes nothing — no fake labels).
+   Proposal census post-apply: 3411/3458 already canonical, 43 umbrella
+   kept honest, 0 changeable — idempotent.**
 2. **Demote-and-flag pass**: sources get trust weights from the measured
    table (RB 0.62, ingest 0.59, SC free-text lowest); rows whose label
    disagrees with a unanimous kNN consensus get `genre_flag='disputed'` —

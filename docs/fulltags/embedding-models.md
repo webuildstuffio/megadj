@@ -272,6 +272,8 @@ cost tables, licences, and the ranked ladder with adoption verdicts:
 3. Genre target: ship gate stays **gated ≥65%**; the _aspiration_ band is
    0.65–0.74 via probe + readout fixes, not a tower swap. **Sep 15: the
    probe lost to kNN (51.5% vs 62.6%) — the band must come from the
-   `edm` refold + label fixes, not the probe.**
+   `edm` refold + label fixes, not the probe. ✅ Then the refold SHIPPED:
+   70.3% gated (+7.7) — the gate is now met, and the aspiration band's
+   floor (0.65–0.74) is already reached WITHOUT a tower swap.**
 4. MERT rejection: **provisional** — per-layer re-test queued before the
    verdict is quoted as final anywhere.

@@ -614,6 +614,14 @@ raw|whitened`) for A/B. Effort S.
     head+kNN dispute pass in the refold; keep hard-dance/eurodance/
     nightcore in `edm`, keep ALL Tier-1 sub-genre labels (hardtekk
     stays). Expected +6–12 pts alone. Effort S.
+    **✅ SHIPPED Sep 15 (`genre --refold` / `--eval --refold`,
+    `src/fulltags/genre-refold.ts`): measured **+7.7 pts** (62.6% →
+    70.3% gated, refusal 19.8% → 12.6%) — inside the predicted band,
+    over the ≥65% ship gate. Data half applied live: 790 canonicalization
+    writes + 71 casing-only umbrella carries; census now idempotent
+    (3411/3458 canonical). Scoring arbitration stays a vote-time policy —
+    the collection column keeps `EDM` (a real source label), no
+    disputed-flag machinery needed for this step.**
 95. **Active-learned label refold.** 900 labels → probe → hand-label only
     the ~600 lowest-margin/disagreement tracks; concentrates human hours
     on the house/techno/trance boundary. Gated by P89(a): if label noise

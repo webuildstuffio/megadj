@@ -280,15 +280,20 @@ export interface GenreVote {
 
 /** kNN genre-family vote for one query vector. Neighbours with a usable
  * seed family vote; the plurality family wins ONLY at ≥ `minAgreement`
- * (0.6 default). Deterministic: ties break alphabetically. */
+ * (0.6 default). Deterministic: ties break alphabetically. `familyOf`
+ * injects the label→family map (defaults to the pinned `genreFamily`):
+ * the refold's scoring arbitration (`--eval --refold`) abstains umbrella
+ * labels by passing `scoringFamily` — the default path is byte-identical
+ * to the shipped baseline. */
 export function inferGenre(
   seeds: GenreSeed[],
   queryVec: number[],
   k = 5,
   minAgreement = 0.6,
+  familyOf: (genre: string) => string | null = genreFamily,
 ): GenreVote {
   const usable = seeds
-    .map((s) => ({ ...s, family: genreFamily(s.genre) }))
+    .map((s) => ({ ...s, family: familyOf(s.genre) }))
     .filter((s) => s.family !== null);
   if (!usable.length || queryVec.length === 0)
     return { genre: "", inferred: null, agreement: 0 };
@@ -355,12 +360,15 @@ export interface EvalSummary {
  *  vote on it (k nearest, gated at `minAgreement`). `durationGuard`
  *  drops the short/long outliers (90–480 s measured band) when the
  *  caller supplies durations — analysis hygiene, ~metric-neutral (G5).
+ *  `familyOf` injects the label→family map (defaults to the pinned
+ *  `genreFamily`; `scoringFamily` = the refold's umbrella arbitration).
  *  Pure: the DB read happens in the caller (`genre --eval`). */
 export function evalLeaveOneOut(
   seeds: GenreSeed[],
   k = 5,
   minAgreement = 0.6,
   durationGuard: { videoId: string; durationS: number | null }[] = [],
+  familyOf: (genre: string) => string | null = genreFamily,
 ): EvalSummary {
   const guard = new Map(durationGuard.map((d) => [d.videoId, d.durationS]));
   const inBand = (id: string): boolean => {
@@ -371,7 +379,7 @@ export function evalLeaveOneOut(
     return sec >= 90 && sec <= 480;
   };
   const pop = seeds.filter(
-    (s) => genreFamily(s.genre) !== null && inBand(s.videoId),
+    (s) => familyOf(s.genre) !== null && inBand(s.videoId),
   );
   const summary: EvalSummary = {
     evaluated: pop.length,
@@ -386,9 +394,9 @@ export function evalLeaveOneOut(
   let ungatedAgree = 0;
   for (let i = 0; i < pop.length; i++) {
     const held = pop[i]!;
-    const family = genreFamily(held.genre)!;
+    const family = familyOf(held.genre)!;
     const rest = pop.toSpliced(i, 1);
-    const vote = inferGenre(rest, held.vec, k, minAgreement);
+    const vote = inferGenre(rest, held.vec, k, minAgreement, familyOf);
     if (vote.inferred === null) summary.refused++;
     else if (vote.inferred === family) summary.agree++;
     else summary.disagree++;
@@ -400,7 +408,7 @@ export function evalLeaveOneOut(
     const nn = rest
       .filter((s) => s.vec.length === held.vec.length)
       .map((s) => ({
-        label: genreFamily(s.genre) ?? "",
+        label: familyOf(s.genre) ?? "",
         score: cosineSimilarity(held.vec, s.vec),
       }))
       .toSorted((a, b) => b.score - a.score || a.label.localeCompare(b.label))

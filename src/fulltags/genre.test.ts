@@ -197,4 +197,141 @@ describe("genre command JSON boundary", () => {
     expect(diag.hubness).toBeDefined();
     expect(diag.confusion).toBeDefined();
   });
+
+  test("--eval --refold adds the umbrella-arbitration A/B block", async () => {
+    // 'Dance' rows are umbrella (abstain under the refold); 'House' rows
+    // are a coherent cluster either way.
+    const state = {
+      evalPopulation: () => [
+        {
+          video_id: "a",
+          genre: "House",
+          vec_json: "[1,0]",
+          duration_s: 300,
+        },
+        {
+          video_id: "b",
+          genre: "House",
+          vec_json: "[1,0]",
+          duration_s: 300,
+        },
+        {
+          video_id: "c",
+          genre: "House",
+          vec_json: "[0.99,0.02]",
+          duration_s: 300,
+        },
+        {
+          video_id: "u",
+          genre: "Dance",
+          vec_json: "[1,0]",
+          duration_s: 300,
+        },
+        {
+          video_id: "v",
+          genre: "House",
+          vec_json: "[0,1]",
+          duration_s: 300,
+        },
+      ],
+    } as unknown as ArchiveState;
+    const logged: string[] = [];
+    const orig = console.log;
+    console.log = (line: string) => logged.push(String(line));
+    try {
+      await genre({ state, eval: true, refold: true });
+    } finally {
+      console.log = orig;
+    }
+    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    const rf = parsed.refold as Record<string, unknown>;
+    expect(rf).toBeDefined();
+    // baseline population 5; the one plain-'Dance' row abstains
+    expect(rf.evaluated).toBe(4);
+    expect(rf.abstained).toBe(1);
+    expect(typeof rf.agreement).toBe("number");
+    expect(typeof rf.deltaVsBaseline).toBe("number");
+  });
+
+  test("standalone --refold proposes canonicalizations and skips umbrella", async () => {
+    const updates: { videoId: string; to: string }[] = [];
+    const state = {
+      labeledPopulation: () => [
+        { video_id: "keep", genre: "House" },
+        { video_id: "split-me", genre: "Electronic/House" },
+        { video_id: "umbrella", genre: "EDM" },
+        { video_id: "junk", genre: "Music" },
+      ],
+      updateGenre: (videoId: string, to: string) =>
+        updates.push({ videoId, to }),
+    } as unknown as ArchiveState;
+    const logged: string[] = [];
+    const orig = console.log;
+    console.log = (line: string) => logged.push(String(line));
+    try {
+      await genre({ state, refold: true });
+    } finally {
+      console.log = orig;
+    }
+    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    expect(parsed.mode).toBe("refold");
+    expect(parsed.changes).toBe(1); // only split-me
+    expect(parsed.applied).toBe(false);
+    // dry run: nothing written
+    expect(updates).toEqual([]);
+  });
+
+  test("umbrella rows get casing-only fixes carried, value changes refused", async () => {
+    const updates: { videoId: string; to: string }[] = [];
+    const state = {
+      labeledPopulation: () => [
+        { video_id: "lower", genre: "edm" },
+        { video_id: "screaming", genre: "DANCE" },
+        // a real value change: EDM → House must NEVER happen here
+        { video_id: "value-ok", genre: "EDM" },
+      ],
+      updateGenre: (videoId: string, to: string) =>
+        updates.push({ videoId, to }),
+    } as unknown as ArchiveState;
+    const logged: string[] = [];
+    const orig = console.log;
+    console.log = (line: string) => logged.push(String(line));
+    try {
+      await genre({ state, refold: true, apply: true });
+    } finally {
+      console.log = orig;
+    }
+    expect(updates).toEqual([
+      { videoId: "lower", to: "EDM" },
+      { videoId: "screaming", to: "Dance" },
+    ]);
+    const parsed = JSON.parse(logged.at(-1)!);
+    expect((parsed as Record<string, unknown>).umbrellaKept).toBe(0);
+    expect((parsed as Record<string, unknown>).changes).toBe(2);
+  });
+
+  test("standalone --refold --apply writes only changed rows", async () => {
+    const updates: { videoId: string; to: string }[] = [];
+    const state = {
+      labeledPopulation: () => [
+        { video_id: "split-me", genre: "R&B/Soul" },
+        { video_id: "umbrella", genre: "edm" },
+      ],
+      updateGenre: (videoId: string, to: string) =>
+        updates.push({ videoId, to }),
+    } as unknown as ArchiveState;
+    const orig = console.log;
+    console.log = () => {};
+    try {
+      await genre({ state, refold: true, apply: true });
+    } finally {
+      console.log = orig;
+    }
+    // the umbrella row gets only its CASING carried ("edm" → "EDM"):
+    // display hygiene, not a genre rewrite — the label value is preserved
+    expect(updates).toEqual([
+      { videoId: "split-me", to: "R&B" },
+      { videoId: "umbrella", to: "EDM" },
+    ]);
+  });
 });

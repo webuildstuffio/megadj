@@ -1,4 +1,4 @@
-# FullTags — Prioritized Roadmap (rev 6.7)
+# FullTags — Prioritized Roadmap (rev 6.8)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
 
@@ -76,6 +76,13 @@ next action is a command you can run.**
 
 ## 0. What shipped (verified)
 
+- **Genre refold (rev 6.8, Sep 15):** `megadj genre --refold` (data half:
+  escape repair, multi-label split, casing collapse — applied live, 861
+  writes, label twins killed) + `--eval --refold` (scoring half: plain
+  EDM/Dance/Electronic umbrella abstention via injectable `scoringFamily`).
+  **Live A/B: 62.6% → 70.3% gated LOO (+7.7 pts, n 2982→2424, refusal
+  19.8%→12.6%) — the ≥65% post-refold target PASSES.** Engine:
+  `src/fulltags/genre-refold.ts` (pure, 18 tests); ideas.md #94 closed.
 - One `FullTag`/`TagPatch` schema, one format-specific atomic writer
   (mp3/m4a/wav/flac/aiff), file-first ground-truth readers, full art ladder,
   AI genre/year fallback, `fulltags` CLI (enrich + audit --json). megadj

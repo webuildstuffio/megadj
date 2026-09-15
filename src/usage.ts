@@ -46,10 +46,11 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
   megadj similar <video_id> [--k N] [--space raw|whitened] [--json]
                                                "sounds like": cosine kNN over the embeddings ledger (read-only);
                                                --space whitened adds mean-centre + all-but-the-top + CSLS (A/B vs raw)
-  megadj genre    [--apply] [--eval] [--k N] [--min-agreement F] [--json]
+  megadj genre    [--apply] [--eval] [--refold] [--k N] [--min-agreement F] [--json]
                                                infer genres from audio embeddings (kNN vote over trusted seeds); propose-only by default;
                                                --eval runs the leave-one-out accuracy harness (target: gated ≥65%);
-                                               --eval extras: --diagnostics (Tier-0 battery), --artist-disjoint (leakage control), --probe (linear readout)
+                                               --eval extras: --diagnostics (Tier-0 battery), --artist-disjoint (leakage control), --probe (linear readout);
+                                               --refold: label canonicalization proposals (with --eval: umbrella arbitration A/B vs baseline)
   megadj setbuild [--preset warmup|peak|afterhours] [--minutes N] [--opener <video_id>]
                  [--limit N] [--search greedy|beam] [--json]
                                                 set-builder (M66): propose an ordered mix chain; --search forces the

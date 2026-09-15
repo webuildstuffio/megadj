@@ -28,10 +28,28 @@ import {
 import { l2normalize } from "../../cratedeck/shared/vector-space";
 import { tier0Diagnostics } from "./genre-diagnostics";
 import { probeLeaveOneOut, type ProbeRow } from "./linear-probe";
+import { isUmbrellaLabel, refoldDetail, scoringFamily } from "./genre-refold";
 import type { ArchiveState } from "../archive/state";
 
 /** Share 0..1 → percentage string with one decimal (eval log lines). */
 const pct = (share: number): string => `${(share * 100).toFixed(1)}%`;
+
+/** The `--eval --refold` JSON block: the arbitration A/B against the
+ *  pinned baseline on the same population. */
+export interface RefoldEvalBlock {
+  /** Rows scored through the arbitration (umbrella rows excluded). */
+  evaluated: number;
+  /** Baseline-population rows the arbitration abstains (plain EDM/
+   * Dance/Electronic/Mainstage EDM). */
+  abstained: number;
+  agree: number;
+  disagree: number;
+  refused: number;
+  agreement: number;
+  refusal: number;
+  /** Arbitration gated agreement − baseline gated agreement. */
+  deltaVsBaseline: number;
+}
 
 export interface GenreOptions {
   state: ArchiveState;
@@ -56,6 +74,12 @@ export interface GenreOptions {
   /** --eval: additionally run the linear-probe LOO readout (frozen
    * softmax regression over the same vectors). Slower: fits n probes. */
   probe?: boolean | undefined;
+  /** Refold pass (genre-audit §5b.3 step 1, ideas.md #94). With --eval:
+   * score through the umbrella arbitration (`scoringFamily` — plain
+   * EDM/Dance/Electronic abstain) and report the baseline delta. Alone:
+   * propose data-half canonicalizations (escape repair, multi-label
+   * split, casing) — dry by default, --apply writes them. */
+  refold?: boolean | undefined;
   json?: boolean | undefined;
 }
 
@@ -113,6 +137,31 @@ export async function genre(opts: GenreOptions): Promise<void> {
           deltaVsKnn: number;
         }
       | undefined;
+    let refold: RefoldEvalBlock | undefined;
+    if (opts.refold) {
+      const rb = evalLeaveOneOut(
+        seeds,
+        k,
+        minAgreement,
+        opts.durationGuard === false ? [] : durations,
+        scoringFamily,
+      );
+      const abstained = summary.evaluated - rb.evaluated;
+      refold = {
+        evaluated: rb.evaluated,
+        abstained,
+        agree: rb.agree,
+        disagree: rb.disagree,
+        refused: rb.refused,
+        agreement: Math.round(rb.agreement * 1000) / 1000,
+        refusal: Math.round(rb.refusal * 1000) / 1000,
+        deltaVsBaseline:
+          Math.round((rb.agreement - summary.agreement) * 1000) / 1000,
+      };
+      log(
+        `  refold (umbrella arbitration): ${rb.evaluated} scored (${abstained} plain-umbrella rows abstain) · gated ${pct(rb.agreement)} (Δ ${refold.deltaVsBaseline >= 0 ? "+" : ""}${pct(rb.agreement - summary.agreement)} vs baseline) · refusal ${pct(rb.refusal)}`,
+      );
+    }
     if (opts.diagnostics) {
       const famPop = summary.rows.map((row) => {
         const seed = seeds.find((s) => s.videoId === row.videoId)!;
@@ -180,9 +229,84 @@ export async function genre(opts: GenreOptions): Promise<void> {
           ? { artist_disjoint: artistDisjoint }
           : {}),
         ...(probe !== undefined ? { probe } : {}),
+        ...(refold !== undefined ? { refold } : {}),
       }),
     );
     process.exitCode = pass ? 0 : 1;
+    return;
+  }
+
+  // ---- --refold (standalone): the DATA half — canonicalization
+  // proposals over the LABELED population, never the unlabeled one.
+  // Umbrella rows are explicitly NOT rewritten here (their refinement
+  // is a scoring decision, measured in --eval --refold); --apply only
+  // writes repaired/split/aliased rows that DIFFER. Runs before any
+  // seed loading — it needs labels only, never embeddings.
+  if (opts.refold) {
+    const labeled = opts.state.labeledPopulation();
+    const changes: {
+      video_id: string;
+      from: string;
+      to: string;
+      escaped: boolean;
+      split: boolean;
+      aliased: boolean;
+    }[] = [];
+    let unchanged = 0;
+    let abstained = 0;
+    for (const row of labeled) {
+      const detail = refoldDetail(row.genre);
+      if (detail.label === null || detail.label === row.genre) {
+        unchanged++;
+        continue;
+      }
+      if (isUmbrellaLabel(detail.label)) {
+        // plain-umbrella rows keep their parent label (scoring arbitrates,
+        // not the column) — EXCEPT casing-only fixes: "edm" → "EDM",
+        // "DANCE" → "Dance" is display hygiene (kills the label twins
+        // that fragment group-by), not a genre rewrite. Propose it.
+        if (detail.label.toLowerCase() !== row.genre.trim().toLowerCase()) {
+          abstained++;
+          continue;
+        }
+        changes.push({
+          video_id: row.video_id,
+          from: row.genre,
+          to: detail.label,
+          escaped: false,
+          split: false,
+          aliased: true,
+        });
+        continue;
+      }
+      changes.push({
+        video_id: row.video_id,
+        from: row.genre,
+        to: detail.label,
+        escaped: detail.escaped,
+        split: detail.split,
+        aliased: detail.aliased,
+      });
+    }
+    log(
+      `genre refold: ${changes.length} changeable of ${labeled.length} labeled (${abstained} umbrella rows kept honest, ${unchanged} already canonical) — ${opts.apply ? "WRITTEN" : "proposals only (use --apply to write)"}`,
+    );
+    for (const c of changes.slice(0, 20))
+      log(`  ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}`);
+    console.log(
+      JSON.stringify({
+        command: "genre",
+        mode: "refold",
+        labeled: labeled.length,
+        changes: changes.length,
+        umbrellaKept: abstained,
+        alreadyCanonical: unchanged,
+        applied: opts.apply === true,
+        samples: changes.slice(0, 40),
+      }),
+    );
+    if (opts.apply)
+      for (const c of changes) opts.state.updateGenre(c.video_id, c.to);
     return;
   }
 

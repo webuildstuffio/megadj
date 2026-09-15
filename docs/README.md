@@ -70,6 +70,9 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   — the battery implemented + measured on the full library: random label
   noise, no artist leakage, hub tail confirmed, `edm↔house` is the error
   block, probe loses to kNN. Re-ranked the genre plan.
+- [Genre refold (Sep 15)](fulltags/genre-audit.md) — `edm` umbrella
+  arbitration + label canonicalization SHIPPED: LOO gated 62.6% → 70.3%
+  (+7.7 pts), ≥65% post-refold target PASS (§5b.3 step 1).
 - [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and
   cue program.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision

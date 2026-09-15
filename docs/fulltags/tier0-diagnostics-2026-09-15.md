@@ -50,11 +50,23 @@ megadj genre --eval --diagnostics --artist-disjoint --probe --json
 ```
 
 JSON keys: `diagnostics.{labelErrors,artistOverlap,hubness,confusion}`,
-`artist_disjoint`, `probe` (with `protocol`: `5-fold-cv` or `loo`).
+`artist_disjoint`, `probe` (with `protocol`: `5-fold-cv` or `loo`),
+and — with `--refold` — the arbitration A/B block `refold` (evaluated,
+abstained, agreement, deltaVsBaseline).
+
+**POST-REFOLD UPDATE (Sep 15, later the same day):** the #1 re-ranked fix
+SHIPPED and the headline numbers moved: baseline 62.6% → **70.3%** with
+the umbrella arbitration (+7.7 pts, n 2982→2424, refusal 19.8%→12.6%) —
+the ≥65% ship gate PASSES. Re-run this battery on the canonicalized
+labels before acting on the §0 verdicts below: with the 558 umbrella rows
+out of the scored population, the label-noise/artist-leakage/hubness
+verdicts should be re-measured (the disagreement mass they were computed
+from has shrunk by ~40%).
 
 Engine: `src/fulltags/genre-diagnostics.ts` (pure),
 `src/fulltags/linear-probe.ts` (pure, deterministic zero-init
 softmax + full-batch GD), `evalLeaveOneOutArtistDisjoint` in
 `src/archive/similar.ts`. Shared retrieval space math:
 `cratedeck/shared/vector-space.ts` (all-but-the-top + CSLS, import-leaf
-clean — no cross-boundary imports).
+clean — no cross-boundary imports). Refold engine:
+`src/fulltags/genre-refold.ts`.

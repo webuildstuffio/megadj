@@ -32,6 +32,8 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "the enclosing branch first validates uploadDate as exactly eight digits.",
   "src/getdat/commands/intake-folder.ts::dumpDateFromNameParts::Number(m[1])":
     "m[1] is a digits-only date regex capture.",
+  "src/fulltags/genre-refold.ts::refoldDetail::Number(i)":
+    "i is a digits-only capture from the SENTINEL(\\d+)SENTINEL restore regex, and stash lookups use the same captured index.",
   "tools/fetch-all.ts::<module>::Number(argv[jobsArg + 1])":
     "the command rejects a non-finite or sub-one jobs value with process.exit(2) before constructing options.",
 };
@@ -53,10 +55,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    audited: 40,
+    audited: 41,
     guarded: 28,
-    sanctioned: 12,
-    digest: "c5d3be34fd6379bc2b8cc25861526f3497e7e2c4c435785f8aca0aa81a701dea",
+    sanctioned: 13,
+    digest: "8b45700f5e2985d36b1f1bab2dd2e3d1d59578655921b5795d745936e4f1d8c4",
   });
 });
 

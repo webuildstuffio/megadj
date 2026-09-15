@@ -216,6 +216,19 @@ export class ArchiveTracks extends ArchiveCore {
     }[];
   }
 
+  /** Every downloaded track WITH a label — embeddings NOT required. The
+   *  refold data half canonicalizes labels wherever they live (a track
+   *  analyzed before its embedding exists still deserves `edm` → `EDM`);
+   *  the scoring/eval half uses `evalPopulation` (vectors required). */
+  labeledPopulation(): { video_id: string; genre: string }[] {
+    return this.db
+      .query(
+        `SELECT video_id, genre FROM tracks
+         WHERE status = 'downloaded' AND genre IS NOT NULL AND genre != ''`,
+      )
+      .all() as { video_id: string; genre: string }[];
+  }
+
   updateArtworkStatus(videoId: string, status: string): void {
     this.db
       .query(
