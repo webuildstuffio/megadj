@@ -29,12 +29,11 @@ import { applyDupGroups } from "./shelf-dupescan-apply";
 import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson } from "../shared/cli-output";
+import { AUDIO_EXTS, audioExt } from "../shared/audio-exts";
 
 // md5sum / nameSimilarity / moveLoser / DupGroup all live in the leaf
 // modules (shelf-dupescan-apply.ts / dupescan-shared.ts) — import from
 // there directly; re-exports from this module are dead surface (knip).
-
-const AUDIO = new Set([".mp3", ".wav", ".aif", ".aiff", ".m4a", ".flac"]);
 
 export function walkAudio(root: string): string[] {
   const out: string[] = [];
@@ -43,11 +42,7 @@ export function walkAudio(root: string): string[] {
       if (e.name.startsWith("._") || e.name.startsWith(".")) continue;
       const abs = join(dir, e.name);
       if (e.isDirectory()) walk(abs);
-      else {
-        const dot = e.name.lastIndexOf(".");
-        const ext = dot > 0 ? e.name.slice(dot).toLowerCase() : "";
-        if (AUDIO.has(ext)) out.push(abs);
-      }
+      else if (AUDIO_EXTS.has(audioExt(e.name))) out.push(abs);
     }
   };
   walk(root);

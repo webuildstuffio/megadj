@@ -22,6 +22,7 @@ import {
 } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { nameKey } from "../shared/name-key";
+import { AUDIO_EXTS_RE } from "../shared/audio-exts";
 import { resolveShelfVolume } from "../shared/volume";
 import { md5Cli } from "./md5-cli";
 
@@ -63,9 +64,11 @@ function artistFolder(rel: string): string {
     : "[unknown]";
 }
 
-/** Shelf-sync's audio extension set — ONE regex for both walkers, wider
- *  than dupescan/hygiene's on purpose (#69): ogg/opus must mirror. */
-const AudioRe = /\.(mp3|m4a|wav|aiff?|flac|ogg|opus)$/i;
+/** Shelf-sync's audio match — the repo-wide SSOT regex
+ *  (src/shared/audio-exts.ts, issue #69). The scanner sets derive from
+ *  the same membership, so a copied file can never be invisible to
+ *  hygiene/dedupe/dupescan (the ogg/opus drift this closes). */
+const AudioRe = AUDIO_EXTS_RE;
 
 /** dotfiles + recycle bin — the two byte-identical walker lines merge (#99). */
 function isSkippedEntry(name: string): boolean {

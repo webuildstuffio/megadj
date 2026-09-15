@@ -13,15 +13,12 @@
 import { readdirSync, statSync, type Dirent } from "node:fs";
 import { join } from "node:path";
 import { walkTokenFor, type ShelfFile } from "./types";
+import { AUDIO_EXTS } from "../../shared/audio-exts";
 
-export const AUDIO_EXT = new Set([
-  ".mp3",
-  ".wav",
-  ".aif",
-  ".aiff",
-  ".m4a",
-  ".flac",
-]);
+/** Audio extensions the hygiene scan reports — the repo-wide SSOT
+ *  (src/shared/audio-exts.ts, issue #69). Re-exported under the name
+ *  this module's importers already use. */
+export const AUDIO_EXT: ReadonlySet<string> = AUDIO_EXTS;
 
 /** Never walked, never reported: AppleDouble forks + finder junk (exFAT
  *  materializes `._` lazily — trap §3.7), rekordbox device DBs (device-

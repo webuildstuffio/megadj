@@ -25,6 +25,7 @@ import { basename, join } from "node:path";
 import { commandLog } from "../progress";
 import { isUnknownArray } from "../../cratedeck/shared/guards";
 import { nameKey } from "../shared/name-key";
+import { AUDIO_EXTS as AUDIO_EXT } from "../shared/audio-exts";
 import {
   assertRbClosed,
   backupMaster,
@@ -117,18 +118,6 @@ export interface LiveIndex {
   byStripped: Map<string, string[]>; // stripped-copy-suffix name → paths
   byPrefix20: Map<string, string[]>; // 20-char prefix → paths
 }
-
-const AUDIO_EXT = new Set([
-  ".aiff",
-  ".aif",
-  ".mp3",
-  ".wav",
-  ".flac",
-  ".m4a",
-  ".aac",
-  ".alac",
-  ".ogg",
-]);
 
 function nfkc(s: string): string {
   return nameKey(s);

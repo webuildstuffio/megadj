@@ -29,6 +29,7 @@ import {
 } from "../rekordbox/rb-command-kit.js";
 import { judgePair, applyPairs } from "./shelf-dedupe-verdict";
 import { resolveShelfVolume } from "../shared/volume";
+import { AUDIO_EXTS } from "../shared/audio-exts";
 
 // DedupePair/DedupeResult are DEFINED in shelf-dedupe-types.ts (the leaf
 // seam shared with shelf-dedupe-verdict.ts — a split-out module must never
@@ -43,8 +44,6 @@ export interface ShelfDedupeOptions {
   /** test seam: skip fpcalc (byte stage only) */
   skipFingerprint?: boolean;
 }
-
-const AUDIO_EXTS = new Set([".mp3", ".wav", ".aif", ".aiff", ".m4a", ".flac"]);
 
 /** Walk the shelf Contents/, return every twin + its deduced original. */
 export function findTwinPairs(shelfVolume: string): {
