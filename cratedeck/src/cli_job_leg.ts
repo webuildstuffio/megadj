@@ -58,6 +58,28 @@ export function requireCliSummary(
   return summary;
 }
 
+/** The leg-wrapper half of the job pattern (issue #98): open the phase
+ *  with a forced tick, run the CLI leg, close it. Every CLI job leg's
+ *  tick closure + apply/scan phase names assemble here so the phase
+ *  vocabulary ("scan"|"apply"|"walk"… → "done") has one home. */
+export async function runCliJobLeg(
+  deps: CliJobDeps,
+  spec: CliJobSpec & {
+    /** Opening message + phase per mode. */
+    scan: { message: string; phase: string };
+    apply: { message: string; phase: string };
+  },
+  apply: boolean,
+  handle: { cancelled: boolean; proc?: Bun.Subprocess },
+): Promise<Record<string, unknown>> {
+  const tick = (m: string, phase: string): void =>
+    deps.tick(0, 1, m, phase, true);
+  const open = apply ? spec.apply : spec.scan;
+  tick(open.message, open.phase);
+  return runCliJob(deps, spec, apply, handle);
+}
+
+
 /** Shared runner: spawn, drain stdout (logged) + stderr, exit-check
  *  against the label, split off the trailing JSON summary. */
 export async function runCliJob(

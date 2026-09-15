@@ -2,25 +2,20 @@
 // extracted from jobs.ts (file-length guard). The shared spawn/drain/
 // summary runner lives in cli_job_leg.ts (one implementation; this module
 // was its byte-twin until jscpd flagged it).
-import { runCliJob, summaryCount, type CliJobDeps } from "./cli_job_leg";
+import { runCliJobLeg, summaryCount, type CliJobDeps } from "./cli_job_leg";
 
 /** Kept as a named alias — the deps shape is the shared CliJobDeps. */
 export type HygieneJobDeps = CliJobDeps;
 
-/** Shared runner for both legs. Returns the CLI's trailing JSON summary. */
+/** Shared runner for both legs. Returns the CLI's trailing JSON summary.
+ *  Phase open/close + tick assembly live in runCliJobLeg (#98). */
 async function runShelfHygiene(
   deps: HygieneJobDeps,
   shelfVolume: string,
   apply: boolean,
   handle: { cancelled: boolean; proc?: Bun.Subprocess },
 ): Promise<Record<string, unknown>> {
-  const tick = (m: string, phase: string): void =>
-    deps.tick(0, 1, m, phase, true);
-  tick(
-    apply ? "applying confirmed findings…" : "walking the shelf…",
-    apply ? "apply" : "walk",
-  );
-  const summary = await runCliJob(
+  const summary = await runCliJobLeg(
     deps,
     {
       command: "shelf-hygiene",
@@ -31,10 +26,14 @@ async function runShelfHygiene(
         "--shelf",
         shelfVolume,
       ],
+      scan: { message: "walking the shelf…", phase: "walk" },
+      apply: { message: "applying confirmed findings…", phase: "apply" },
     },
     apply,
     handle,
   );
+  const tick = (m: string, phase: string): void =>
+    deps.tick(0, 1, m, phase, true);
   const detected = summaryCount(summary?.detected);
   const applied = summaryCount(summary?.applied);
   const failed = summaryCount(summary?.failed);

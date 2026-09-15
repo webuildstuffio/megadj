@@ -3,36 +3,35 @@
 // this module was its byte-twin until jscpd flagged it). Scope: booth-fix
 // runs against the shelf Contents when mountPoint is a shelf volume
 // (MEGADJ_MUSIC_DIR).
-import { runCliJob, summaryCount, type CliJobDeps } from "./cli_job_leg";
+import { runCliJobLeg, summaryCount, type CliJobDeps } from "./cli_job_leg";
 
 /** Kept as a named alias — the deps shape is the shared CliJobDeps. */
 export type FixesJobDeps = CliJobDeps;
 
 /** Shared runner. apply=false is the dry-run (plan only); apply=true is
- *  booth-fix --apply --yes (the safe subset: renames + tag sanitization). */
+ *  booth-fix --apply --yes (the safe subset: renames + tag sanitization).
+ *  Phase open/close + tick assembly live in runCliJobLeg (#98). */
 async function runBoothFix(
   deps: FixesJobDeps,
   musicDir: string,
   apply: boolean,
   handle: { cancelled: boolean; proc?: Bun.Subprocess },
 ): Promise<Record<string, unknown>> {
-  const tick = (m: string, phase: string): void =>
-    deps.tick(0, 1, m, phase, true);
-  tick(
-    apply ? "applying safe fixes…" : "auditing booth compatibility…",
-    apply ? "apply" : "scan",
-  );
-  const summary = await runCliJob(
+  const summary = await runCliJobLeg(
     deps,
     {
       command: "booth-fix",
       label: "megadj booth-fix",
       argv: [...(apply ? ["--apply", "--yes"] : []), "--json"],
       env: { MEGADJ_MUSIC_DIR: musicDir },
+      scan: { message: "auditing booth compatibility…", phase: "scan" },
+      apply: { message: "applying safe fixes…", phase: "apply" },
     },
     apply,
     handle,
   );
+  const tick = (m: string, phase: string): void =>
+    deps.tick(0, 1, m, phase, true);
   const fixable = summaryCount(summary?.fixable);
   const applied = summaryCount(summary?.applied);
   tick(apply ? `applied ${applied} fix(es)` : `${fixable} fixable`, "done");
