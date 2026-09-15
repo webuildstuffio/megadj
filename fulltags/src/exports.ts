@@ -8,6 +8,7 @@ export {
   canonGenre,
   inferGenre,
   sanitizeGenreFolder,
+  completeness,
   type EnrichedMetadata,
   type TagPatch,
 } from "./schema";

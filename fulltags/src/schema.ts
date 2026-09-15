@@ -67,12 +67,22 @@ const COMPLETENESS_FIELDS = [
   "energy",
 ] as const satisfies readonly (keyof FullTag)[];
 
-/** Which required fields are missing from a tag record. */
+/** Which required fields are missing from a tag record. The genre dim
+ * carries the placeholder guard (issue #61/#97): a literal `Music` value
+ * is the intake placeholder, not a genre — it counts as missing so the
+ * gate never blesses legacy junk. THE completeness gate: `fulltags audit`
+ * and megadj's `auditArchive` both derive their dim lists from here, so
+ * a dim added to COMPLETENESS_FIELDS lights up in both gates at once. */
 export function completeness(tag: Partial<FullTag>): {
   complete: boolean;
   missing: string[];
 } {
-  const missing = COMPLETENESS_FIELDS.filter((f) => !tag[f]);
+  const missing = COMPLETENESS_FIELDS.filter((f) => {
+    const v = tag[f];
+    if (f === "genre")
+      return v === undefined || v === null || v === false || v === "Music";
+    return v === undefined || v === null || v === false;
+  });
   return { complete: missing.length === 0, missing };
 }
 

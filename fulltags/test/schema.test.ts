@@ -4,6 +4,7 @@ import {
   inferGenre,
   sanitizeGenreFolder,
   SC_GENRE_CANON,
+  type FullTag,
 } from "../src/schema";
 import { validatePatch } from "../src/schema-guards";
 import {
@@ -69,6 +70,38 @@ describe("schema: completeness", () => {
     });
     expect(r.complete).toBe(true);
     expect(r.missing).toEqual([]);
+  });
+  test("Music placeholder counts as a MISSING genre (#61 legacy guard)", () => {
+    const r = completeness({
+      art: true,
+      title: "T",
+      artist: "A",
+      album: "Al",
+      genre: "Music",
+      year: "2024",
+      mood: "dance=0.5",
+      energy: 7,
+    });
+    expect(r.missing).toEqual(["genre"]);
+    expect(r.complete).toBe(false);
+  });
+  test("both audit gates derive dims from THIS list (census, #97)", () => {
+    // The two audit surfaces — `fulltags audit <folder>` (fulltags/cli.ts)
+    // and megadj's auditArchive (src/fulltags/fetch.ts) — must not carry
+    // hand-copied dim arrays. Pin the full dim list here; any dim added
+    // to COMPLETENESS_FIELDS lights up in both gates via completeness().
+    const r = completeness({} as Partial<FullTag>);
+    expect(r.missing).toEqual([
+      "art",
+      "title",
+      "artist",
+      "album",
+      "genre",
+      "year",
+      "mood",
+      "energy",
+    ]);
+    expect(r.complete).toBe(false);
   });
 });
 

@@ -28,6 +28,7 @@ import {
   type Stage,
 } from "./src/pipeline";
 import { groundTruth } from "./src/readers";
+import { completeness } from "./src/schema";
 import { isAudioFile } from "./src/writer";
 import { nonNegOpt, parseFlags } from "../src/cli-flags";
 
@@ -173,15 +174,10 @@ async function main(): Promise<void> {
     const rows = files.map((f) => {
       const t = groundTruth(f);
       const ai = readAiStamps(f);
-      const missing: string[] = [];
-      if (!t.art) missing.push("art");
-      if (!t.title) missing.push("title");
-      if (!t.artist) missing.push("artist");
-      if (!t.album) missing.push("album");
-      if (!t.genre || t.genre === "Music") missing.push("genre");
-      if (!t.year) missing.push("year");
-      if (!t.mood) missing.push("mood");
-      if (t.energy === null || t.energy === undefined) missing.push("energy");
+      // Dim list derives from the schema SSOT (COMPLETENESS_FIELDS via
+      // completeness()) — issue #97: the two audit gates must agree by
+      // construction, not by hand-maintained twin arrays.
+      const { missing, complete } = completeness(t);
       // DJ identity fields (Beatport-sourced): audited, not gated — a gap
       // here is enrichment headroom, not incompleteness (report-only).
       const identity: string[] = [];
@@ -198,7 +194,7 @@ async function main(): Promise<void> {
         missing,
         identity,
         aiFilled,
-        complete: missing.length === 0,
+        complete,
       };
     });
     const complete = rows.filter((r) => r.complete).length;

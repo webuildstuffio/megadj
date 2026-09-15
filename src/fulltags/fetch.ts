@@ -15,6 +15,7 @@ import {
   playerCompat,
   isHiresOnly,
   boothTextCompat,
+  completeness,
 } from "../../fulltags/src/exports";
 import type { AuditRow } from "./audit-row";
 import type { FetchTarget } from "./fetch-target";
@@ -52,7 +53,10 @@ export async function auditArchive(musicDir: string): Promise<{
   for (const p of files) {
     if (!existsSync(p)) continue;
     const t = groundTruth(p);
-    const genreOk = Boolean(t.genre) && t.genre !== "Music";
+    // Tag dims derive from the schema SSOT (issue #97 — same gate as
+    // `fulltags audit` BY CONSTRUCTION; the Music placeholder counts as
+    // a missing genre inside completeness()).
+    const tagDims = completeness(t);
     // Player-compat needs codec + sample rate — a second probe per file.
     // This is the audit's job: pay the ffprobe pass, catch what tags
     // alone can't see (float WAVs, 96k, MPEG-2 rips).
@@ -68,32 +72,23 @@ export async function auditArchive(musicDir: string): Promise<{
       genre: t.genre,
       relPath: p.slice(musicDir.length + 1),
     });
+    const missing = new Set(tagDims.missing);
     const row: AuditRow = {
       file: p,
-      art: t.art,
-      title: Boolean(t.title),
-      artist: Boolean(t.artist),
-      album: Boolean(t.album),
-      genre: genreOk,
-      year: Boolean(t.year),
-      mood: Boolean(t.mood),
-      energy: t.energy !== null,
+      art: !missing.has("art"),
+      title: !missing.has("title"),
+      artist: !missing.has("artist"),
+      album: !missing.has("album"),
+      genre: !missing.has("genre"),
+      year: !missing.has("year"),
+      mood: !missing.has("mood"),
+      energy: !missing.has("energy"),
       playable,
       readable: text.ok,
       unreadableReasons: text.reasons,
       complete: false,
     };
-    row.complete =
-      row.art &&
-      row.title &&
-      row.artist &&
-      row.album &&
-      row.genre &&
-      row.year &&
-      row.mood &&
-      row.energy &&
-      row.playable &&
-      row.readable;
+    row.complete = tagDims.complete && row.playable && row.readable;
     rows.push(row);
   }
   return {
