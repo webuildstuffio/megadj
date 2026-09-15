@@ -60,19 +60,46 @@ export interface DupGroup {
 }
 
 /** Move one loser into quarantine. Returns true when the file moved.
- *  Quarantine collisions abort THAT file, never the run. */
+ *  Quarantine collisions abort THAT file, never the run.
+ *  THE quarantine move (issue #84): collision-check + never-overwrite +
+ *  rename + per-file error capture in ONE body — dedupe-archive-apply's
+ *  `quarantineLoser` and shelf-dedupe-verdict's `applyMove` were private
+ *  re-rolls of this loop. Hooks carry each caller's counters/logging;
+ *  the SAFETY (never overwrite, never throw out of a batch) lives here. */
+export interface MoveHooks {
+  /** Called after a successful rename (src → dest). */
+  onMoved?: (src: string, dest: string) => void;
+  /** Called when the quarantine already has a same-named file — the
+   *  caller decides whether that's a skip counter or a review flag. */
+  onCollision?: (src: string, dest: string) => void;
+  /** Rename seam for deterministic-failure tests (DedupeApplyOps twin);
+   *  defaults to the real renameSync. Throw out of here propagates —
+   *  callers that want per-file capture use the errors array instead. */
+  rename?: (from: string, to: string) => void;
+}
+
 export function moveLoser(
   path: string,
   qDir: string,
   errors: string[],
+  hooks?: MoveHooks,
 ): boolean {
   const dest = join(qDir, basename(path));
   try {
     if (existsSync(dest)) {
-      errors.push(`quarantine already has ${basename(path)} — skipped`);
+      if (hooks?.onCollision) {
+        hooks.onCollision(path, dest);
+      } else {
+        errors.push(`quarantine already has ${basename(path)} — skipped`);
+      }
       return false;
     }
-    renameSync(path, dest);
+    if (hooks?.rename) {
+      hooks.rename(path, dest);
+    } else {
+      renameSync(path, dest);
+    }
+    hooks?.onMoved?.(path, dest);
     return true;
   } catch (e) {
     errors.push(`${path}: ${e instanceof Error ? e.message : e}`);

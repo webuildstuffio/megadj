@@ -8,6 +8,7 @@ import {
   SHELF_FINGERPRINTS_TABLE,
   parseFpcalcOutput,
 } from "./shelf-dupescan";
+import { moveLoser } from "./dupescan-shared";
 
 /**
  * Regression (Sep 11 mass-collision): the fingerprint parser's char
@@ -153,5 +154,80 @@ describe("FpCache", () => {
     cache.put("/a.mp3", 100, "FP1");
     expect(cache.get("/a.mp3", 100)).toBe("FP1");
     expect(cache.get("/a.mp3", 200)).toBeUndefined(); // size changed → stale
+  });
+});
+
+/**
+ * Quarantine-move SSOT regression (issue #84): the three apply sites
+ * (dupescan, dedupe-archive-apply, shelf-dedupe-verdict) share ONE
+ * collision-check + never-overwrite + rename body. The hooks path must
+ * keep the never-overwrite guarantee and per-file isolation that
+ * `quarantineLoser`/`applyMove` used to hand-roll separately.
+ */
+describe("moveLoser quarantine-move SSOT (#84)", () => {
+  test("moves a loser and reports the destination through onMoved", () => {
+    const dir = mkdtempSync("/tmp/moveloser-ok-");
+    const src = join(dir, "loser.mp3");
+    mkdirSync(src, { recursive: true });
+    const qDir = join(dir, "q");
+    mkdirSync(qDir, { recursive: true });
+    const errors: string[] = [];
+    const moved: [string, string][] = [];
+    const ok = moveLoser(src, qDir, errors, {
+      onMoved: (s, d) => moved.push([s, d]),
+    });
+    expect(ok).toBe(true);
+    expect(moved).toHaveLength(1);
+    expect(moved[0]?.[1]).toBe(join(qDir, "loser.mp3"));
+    expect(existsSync(join(qDir, "loser.mp3"))).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+  test("NEVER overwrites — a quarantine collision aborts that file only", () => {
+    const dir = mkdtempSync("/tmp/moveloser-coll-");
+    const qDir = join(dir, "q");
+    mkdirSync(qDir, { recursive: true });
+    // pre-existing quarantine file that must survive untouched
+    const existing = join(qDir, "loser.mp3");
+    mkdirSync(existing, { recursive: true });
+    const src = join(dir, "loser.mp3");
+    mkdirSync(src, { recursive: true });
+    const collisions: [string, string][] = [];
+    const errors: string[] = [];
+    const ok = moveLoser(src, qDir, errors, {
+      onCollision: (s, d) => collisions.push([s, d]),
+    });
+    expect(ok).toBe(false);
+    expect(collisions).toHaveLength(1);
+    expect(collisions[0]?.[1]).toBe(existing);
+    expect(existsSync(src)).toBe(true); // source untouched
+  });
+
+  test("default collision path lands in errors (dupescan wording)", () => {
+    const dir = mkdtempSync("/tmp/moveloser-def-");
+    const qDir = join(dir, "q");
+    mkdirSync(qDir, { recursive: true });
+    mkdirSync(join(qDir, "loser.mp3"), { recursive: true });
+    const src = join(dir, "loser.mp3");
+    mkdirSync(src, { recursive: true });
+    const ok = moveLoser(src, qDir, []);
+    expect(ok).toBe(false);
+  });
+
+  test("rename seam propagates injected failures as per-file errors", () => {
+    const dir = mkdtempSync("/tmp/moveloser-fail-");
+    const src = join(dir, "loser.mp3");
+    mkdirSync(src, { recursive: true });
+    const qDir = join(dir, "q");
+    mkdirSync(qDir, { recursive: true });
+    const errors: string[] = [];
+    const ok = moveLoser(src, qDir, errors, {
+      rename: () => {
+        throw new Error("injected rename failure");
+      },
+    });
+    expect(ok).toBe(false);
+    expect(errors.join("\n")).toContain("injected rename failure");
+    expect(existsSync(src)).toBe(true);
   });
 });

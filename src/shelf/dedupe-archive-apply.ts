@@ -4,11 +4,11 @@
 // md5-equal → safe; fp-equal + dissimilar names + different sizes → left
 // for review. Losers move to quarantine, never deleted; collisions abort
 // that file, never the run.
-import { basename, join } from "node:path";
-import { existsSync, mkdirSync, renameSync } from "node:fs";
+import { basename } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
 import { nameSimilarityTokens } from "../../fulltags/src/exports";
 import { md5sum } from "./shelf-dupescan-apply";
-import type { DupGroup } from "./dupescan-shared";
+import { moveLoser, type DupGroup } from "./dupescan-shared";
 
 /** Apply outcome appended onto the command's result object. */
 export interface ApplyOutcome {
@@ -37,30 +37,25 @@ function loserSafe(
   );
 }
 
-/** Move one loser into the quarantine dir. Returns true when moved. */
+/** Move one loser into the quarantine dir — SAFETY lives in the shared
+ *  moveLoser (#84); this wrapper only projects the archive-apply counters
+ *  and log line through the hooks. */
 function quarantineLoser(
   loserPath: string,
   qDir: string,
   out: ApplyOutcome,
   log: (m: string) => void,
 ): boolean {
-  const dest = join(qDir, basename(loserPath));
-  if (existsSync(dest)) {
-    out.errors.push(`quarantine name collision: ${loserPath}`);
-    out.skippedForReview++;
-    return false;
-  }
-  try {
-    renameSync(loserPath, dest);
-    out.quarantined++;
-    log(`  → quarantined: ${basename(loserPath)}`);
-    return true;
-  } catch (e) {
-    out.errors.push(
-      `move failed: ${loserPath} (${e instanceof Error ? e.message : e})`,
-    );
-    return false;
-  }
+  return moveLoser(loserPath, qDir, out.errors, {
+    onMoved: () => {
+      out.quarantined++;
+      log(`  → quarantined: ${basename(loserPath)}`);
+    },
+    onCollision: () => {
+      out.errors.push(`quarantine name collision: ${loserPath}`);
+      out.skippedForReview++;
+    },
+  });
 }
 
 /** Apply every decided group (caller gates on --apply --yes BEFORE this).

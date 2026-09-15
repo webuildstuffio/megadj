@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { DedupePair } from "./shelf-dedupe-types";
 import { md5, fingerprint, qualityRank } from "./shelf-dedupe-probe";
+import { moveLoser } from "./dupescan-shared";
 
 /** Verdict inputs for one twin pair. */
 export interface TwinPair {
@@ -137,7 +138,10 @@ function applyUpgrade(
   return 2;
 }
 
-/** Plain quarantine move for the loser of a keep-original verdict. */
+/** Plain quarantine move for the loser of a keep-original verdict —
+ *  SAFETY + rename live in the shared moveLoser (#84); the DedupeApplyOps
+ *  rename seam threads through so deterministic-failure tests keep
+ *  working. A rename throw propagates (applyPairs catches per pair). */
 function applyMove(
   pair: DedupePair,
   quarantine: string,
@@ -146,13 +150,17 @@ function applyMove(
 ): number {
   const { loser } = pair;
   if (!loser) return 0;
-  const dest = join(quarantine, basename(loser));
-  if (existsSync(dest)) {
-    errors.push(`${loser}: quarantine already has ${basename(loser)}`);
-    return 0;
-  }
-  ops.rename(loser, dest);
-  return 1;
+  let moved = false;
+  const done = moveLoser(loser, quarantine, errors, {
+    rename: (from, to) => {
+      moved = true;
+      ops.rename(from, to);
+    },
+    onCollision: () => {
+      errors.push(`${loser}: quarantine already has ${basename(loser)}`);
+    },
+  });
+  return done && moved ? 1 : 0;
 }
 
 /** Apply every decided pair (callers gate on --apply --yes BEFORE this).
