@@ -35,6 +35,7 @@ import {
   applyConfirmationRefusal,
   DECIMAL_ID_RE,
   parseJsonBoundary,
+  printResult,
 } from "./rb-command-kit.js";
 import { masterDbPath, normalizeMount } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -616,24 +617,22 @@ export function printRbFixReport(
   r: RbFixResult,
   log: (s: string) => void,
 ): void {
-  if (r.error) {
-    log(`error: ${r.error}`);
-    return;
-  }
-  log(
-    `${r.total} content rows · ${r.broken} broken · ${r.fixable} fixable · ${r.dead} dead (truly gone)`,
-  );
-  for (const f of r.appliedList) log(`  fixed: ${f}`);
-  for (const d of r.deadList)
-    log(`  dead (use Missing File Manager to remove): ${d}`);
-  if (r.appliedMode)
+  printResult(log, r, (r) => {
     log(
-      r.stillBroken === r.dead
-        ? `post-verify: only the ${r.dead} dead rows remain — clean`
-        : `post-verify: ${r.stillBroken - r.dead} UNEXPECTED still-broken rows — investigate`,
+      `${r.total} content rows · ${r.broken} broken · ${r.fixable} fixable · ${r.dead} dead (truly gone)`,
     );
-  else
-    log(
-      `dry-run — re-run with --apply --yes (rekordbox quit) to rewrite ${r.fixable} rows`,
-    );
+    for (const f of r.appliedList) log(`  fixed: ${f}`);
+    for (const d of r.deadList)
+      log(`  dead (use Missing File Manager to remove): ${d}`);
+    if (r.appliedMode)
+      log(
+        r.stillBroken === r.dead
+          ? `post-verify: only the ${r.dead} dead rows remain — clean`
+          : `post-verify: ${r.stillBroken - r.dead} UNEXPECTED still-broken rows — investigate`,
+      );
+    else
+      log(
+        `dry-run — re-run with --apply --yes (rekordbox quit) to rewrite ${r.fixable} rows`,
+      );
+  });
 }

@@ -2,6 +2,11 @@
 
 **Status:** 📚 REFERENCE — how the genre system processes a track, end to
 end. Every stage below ships and runs on the live archive.
+**Rev 4 (Sep 15): Bandcamp is now a LIVE ladder source (W2b, third vote
+behind SC → BP) with the shared hard artist gate; W1's `Music` mint
+removed (#61 stop-new-damage half; unstrand of ~154 legacy rows still
+queued). The SC/BP/Bandcamp scorers share one name-matching seam
+(`fulltags/src/name-match.ts`).**
 **Rev 3 (Sep 15): W2 hard artist gate shipped (`scoreScHits`, mirrors
 Beatport's — wrong-uploader hits can no longer win the [0] slot); W1
 `Music` mint removed (#61 stop-new-damage half; unstrand of ~154 legacy
@@ -50,6 +55,7 @@ that can put a genre into `tracks.genre` (search: `updateGenre` /
 | W1  | **GetDat sync**         | `megadj sync`                   | YouTube category / regex over title+channel (`fulltags/src/metadata-build.ts`) — unknown stays **null** since Sep 15 (no more `Music` mint) | lowest (category, not genre) | raw non-`Music` genre passes through; nothing else — this path no longer invents labels  |
 | W2  | **SoundCloud search**   | `megadj fetch`                  | SC artist free-text via yt-dlp search hit                                                                                  | low (free-text; junk gate)   | **hard artist gate (Sep 15)**: query artist ≥3 chars must match the hit's uploader, else the hit is dropped (mirrors Beatport's `scoreBpHit` gate; fixes wrong-artist genre writes — remixes still pass via remixer/label channels) + numeric-ID / `Music` refuse → `canonGenre` → **tag write first**, DB only on tag success |
 | W3  | **Beatport lookup**     | `megadj fetch` (when SC misses) | Beatport store genre (`bpGenre`)                                                                                           | medium-high (store taxonomy) | same tag-first discipline as W2                                                          |
+| W2b | **Bandcamp vote**       | `megadj fetch` (when SC AND BP miss) | artist-entered tags on the bandcamp item page (`fulltags/src/bandcamp.ts`) — same junk gate as W2 | medium (artist-tagged, label-curated pages; junk rare) | **hard artist gate** (band/artist must contain the query artist) before the page fetch; one fetch votes genre + year (publish date) + label (publisher) + art (og:image) |
 | W4  | **AI classifier**       | `megadj fetch` with `aiAllowed` | OpenRouter, closed `DJ_GENRES` vocabulary, conf ≥ 0.7                                                                      | medium                       | fires ONLY when SC AND Beatport both missed; **opt-in, off by default**                  |
 | W5  | **MusicBrainz harvest** | `megadj enrich`                 | MB artist folksonomy tags (`fulltags/src/mb.ts`)                                                                           | medium (community-curated)   | fills weak/missing only; tag-write-first                                                 |
 | W6  | **Ingest file tags**    | `megadj ingest`                 | the FILE's own TCON (pool rips — Bandcamp/Hypeddit-quality), MB artist tags as fallback (`src/getdat/commands/ingest.ts`)  | medium (measured 53.1%)      | real-genre check (refuses `Music`) before adopting the file tag                          |
@@ -65,13 +71,15 @@ Three facts people get wrong, corrected:
    `organize` routes null through `sanitizeGenreFolder` → the single
    "Unknown Genre" bucket. The ~154 legacy `Music` rows still need the
    unstrand pass (#61 remainder, not started).
-2. **Bandcamp is NOT a live ladder source.** It enters only as file tags
-   via W6 (Bandcamp rips you ingest). The direct Bandcamp page-fetch arm
-   is **queued** (audit §5b.3.6; yt-dlp's Bandcamp extractor broken
-   upstream since Aug 2026). "Don't we use Bandcamp?" → planned, not
-   shipped. Same for the weighted multi-source vote ladder — the current
-   fetch behavior is first-win-writes (SC → BP → AI), and the vote
-   ladder that replaces it is issue-tracked, not live.
+2. **Bandcamp IS a live ladder source (since Rev 4).** W2b: when SC and
+   BP both leave genre/year/label unfilled, `megadj fetch` searches the
+   Bandcamp catalog (`fulltags/src/bandcamp.ts`, the official
+   autocomplete API — yt-dlp's extractor is still broken), applies the
+   SAME hard artist gate (band/artist must contain the query artist),
+   then fetches the item page once and votes genre (artist tags),
+   year (publish date), label (publisher), and art (og:image). The
+   weighted multi-source vote ladder that would supersede
+   first-win-writes remains issue-tracked, not live.
 3. **YouTube's category is "Music", not a genre.** yt-dlp gives every
    YT Music track the same `category: Music` — that is why W1's regex
    over title/artist/album exists, and why it so often ends in
@@ -100,6 +108,9 @@ gate; transparency surfaces (T) let a human see what any track claims.
    │        (SC_GENRE_CANON + title-case) → setFileTags FIRST,
    │        DB row only on tag success (ground truth)
    │  [W3] else Beatport store genre → same tag-first discipline
+   │  [W2b] else Bandcamp vote (search + artist-gated page fetch):
+   │        genre (artist tag) / year (publish date) / label
+   │        (publisher) — only when SC AND BP both missed the field
    │  [W4] else AI classifier (OPT-IN, off by default, conf ≥ 0.7,
    │        closed DJ_GENRES vocabulary) — a missing genre stays an
    │        honest gap, never a guess
@@ -228,7 +239,9 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | Tier-0 diagnostics engine                                                             | `src/fulltags/genre-diagnostics.ts`             |
 | Linear probe (informational readout)                                                  | `src/fulltags/linear-probe.ts`                  |
 | CLI wiring (`--eval/--refold/--flag/--diagnostics/…`)                                 | `src/fulltags/genre.ts`                         |
-| Fetch ladder (SC → BP → AI) + junk gate + tag-first writes                            | `tools/fetch-all.ts` + `tools/fetch-stages.ts`  |
+| Fetch ladder (SC → BP → BC → AI) + junk gate + tag-first writes                      | `tools/fetch-all.ts` + `tools/fetch-stages.ts`  |
+| Bandcamp arm (search + gated page fetch + genre/label/date/art)                      | `fulltags/src/bandcamp.ts`                      |
+| Name-matching SSOT (artist gate, title overlap, tokens)                              | `fulltags/src/name-match.ts`                    |
 | Intake vocabularies (`inferGenre` regex, `SC_GENRE_CANON`, `DJ_GENRES`, `canonGenre`) | `fulltags/src/schema.ts`                        |
 | YT metadata → tags (W1's `?? "Music"` lives here)                                     | `fulltags/src/metadata-build.ts`                |
 | Ingest file-tag adoption (W6)                                                         | `src/getdat/commands/ingest.ts`                 |

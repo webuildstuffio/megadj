@@ -89,3 +89,27 @@ export {
   type BpTrack,
   type BpQuery,
 } from "./beatport";
+export {
+  artUrlLarge,
+  bcFetchPage,
+  bcGenre,
+  bcHitPlausible,
+  bcQueryTerm,
+  bcSearch,
+  bcSearchRaw,
+  isoFromBcDate,
+  parseIsoDuration,
+  scoreBcHits,
+  BC_MIN_OVERLAP,
+  type BcPage,
+  type BcTrack,
+} from "./bandcamp";
+export {
+  artistGate,
+  artistGateFails,
+  hasTitleTokenOverlap,
+  nameTokens,
+  primaryArtist,
+  titleOverlap,
+  ARTIST_MIN_LEN,
+} from "./name-match";

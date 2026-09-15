@@ -34,6 +34,7 @@ import {
 } from "./rb-command-kit.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 import { commandLog } from "../progress";
+import { masterDbPath } from "./master-path.js";
 
 export interface RbImportOptions {
   /** Drive mount root (master DB at <mount>/PIONEER/Master/master.db)
@@ -330,10 +331,10 @@ function verificationError(
 
 export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   const log = opts.log ?? commandLog({ json: opts.json });
-  const mount = opts.mount.replace(/\/+$/u, "");
-  const dbPath =
-    process.env.MEGADJ_RB_MASTER ??
-    join(mount, "PIONEER", "Master", "master.db");
+  // Issue #66 SSOT: masterDbPath owns the env override + every layout
+  // form — rb-import was the last hand-rolled join, so MEGADJ_RB_MASTER
+  // was honored by every rb-* caller except this one until now.
+  const dbPath = masterDbPath(opts.mount);
   const folder = opts.folder.replace(/\/+$/u, "");
   const playlist = opts.playlist ?? basename(folder);
   const group = opts.group ?? null;
@@ -389,9 +390,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
 
   // probe durations/bitrate via ffprobe so rows carry real values
   // (THE media seam, #80 — one spawn style, guarded JSON boundary)
-  const payloadFiles: (
-    string | number | null
-  )[][] = [];
+  const payloadFiles: (string | number | null)[][] = [];
   for (const [full, fname] of files) {
     const probe = probeMediaSync(full);
     const duration = probe?.durationS ?? 0;

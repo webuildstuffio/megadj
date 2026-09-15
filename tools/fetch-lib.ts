@@ -153,3 +153,13 @@ export {
   bpStamp,
   type BpTrack,
 } from "../fulltags/src/exports";
+
+// ---------- Bandcamp (third source, behind SC + BP — fulltags/src/bandcamp.ts) ----------
+export {
+  artUrlLarge,
+  bcFetchPage,
+  bcGenre,
+  bcSearch,
+  type BcPage,
+  type BcTrack,
+} from "../fulltags/src/exports";

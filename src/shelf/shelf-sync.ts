@@ -21,6 +21,7 @@ import {
   statSync,
 } from "node:fs";
 import { basename, join, relative } from "node:path";
+import { nameKey } from "../shared/name-key";
 import { resolveShelfVolume } from "../shared/volume";
 import { md5Cli } from "./md5-cli";
 
@@ -84,8 +85,9 @@ function shelfAudioIndex(contents: string): Map<string, string[]> {
       if (entry.isDirectory()) walk(abs);
       else if (AudioRe.test(entry.name)) {
         // fskit exFAT hands back NFD; the archive side is NFC. Key the index
-        // on NFC so the Unicode forms can never split one file into two.
-        const key = entry.name.normalize("NFC");
+        // on the shared NFC+casefold name key (issue #67 SSOT) so Unicode
+        // forms AND case variants can never split one file into two.
+        const key = nameKey(entry.name);
         const paths = idx.get(key) ?? [];
         paths.push(abs);
         idx.set(key, paths);
@@ -165,7 +167,7 @@ function syncToVolume(
   for (const p of plans) {
     let dest = join(contents, artistFolder(p.rel), basename(p.rel));
     const onShelfSomewhere = shelfIndex
-      .get(basename(p.rel).normalize("NFC"))
+      .get(nameKey(basename(p.rel)))
       ?.some((candidate) => sameBytes(p.src, candidate));
     if ((existsSync(dest) && sameBytes(p.src, dest)) || onShelfSomewhere) {
       res.skipped++;

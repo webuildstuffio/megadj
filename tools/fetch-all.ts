@@ -45,6 +45,8 @@ import {
   scSearch,
   setFileTags,
   beatportLookup,
+  bcSearch,
+  bpGenre,
   type Row,
   type TagValues,
 } from "./fetch-lib";
@@ -57,6 +59,7 @@ import {
   cleanTitle,
   stageArt,
   stageBeatportIdentity,
+  stageBandcamp,
   stageGenreYear,
   stageTags,
   type StageCtx,
@@ -117,6 +120,7 @@ function emptyStats(): Stats {
     artSc: 0,
     artScOrig: 0,
     artBeatport: 0,
+    artBandcamp: 0,
     artGateway: 0,
     artTwin: 0,
     artDeezer: 0,
@@ -125,6 +129,9 @@ function emptyStats(): Stats {
     yearBp: 0,
     yearAi: 0,
     bpIdentity: 0,
+    genreBc: 0,
+    yearBc: 0,
+    bcFilled: 0,
   };
 }
 
@@ -178,6 +185,7 @@ async function processTask({
     aiYearBatch,
     aiAllowed: aiFallback,
     bpBest: null,
+    bcBest: null,
     durationS: truth.durationS,
   };
 
@@ -209,6 +217,30 @@ async function processTask({
 
   stageGenreYear(ctx, best);
   stageBeatportIdentity(ctx);
+
+  // ---- Bandcamp vote (third source, behind SC + BP) ----
+  // The page fetch is the expensive leg, so it only fires when SC and BP
+  // BOTH left a Bandcamp-readable field unfilled (genre/year/label).
+  // Search hits were artist-gated in bandcamp.ts (scoreBcHits).
+  const scGenreWon = Boolean(best?.genre);
+  const scYearWon = Boolean(best?.year);
+  const wantsBc =
+    !dry &&
+    ((t.needGenre && !scGenreWon && !(ctx.bpBest && bpGenre(ctx.bpBest))) ||
+      (t.needYear && !scYearWon && !ctx.bpBest?.year) ||
+      (t.needTags && !truth.label && !ctx.bpBest?.label));
+  if (wantsBc) {
+    ctx.bcBest = await bcSearch({
+      artist: cleanArtist(truth.artist) ?? cleanArtist(r.artist),
+      title: cleanTitle(truth.title ?? r.title),
+    });
+    await stageBandcamp(
+      ctx,
+      t.needGenre && !scGenreWon,
+      t.needYear && !scYearWon,
+      t.needTags && !truth.label,
+    );
+  }
 
   // ---- 3. artwork ladder (SC original-res first, then fallbacks) ----
   const artDone = await stageArt(ctx, best);
@@ -428,13 +460,17 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
      *  later `--ai-fallback` re-pass would cover. Visible in every mode. */
     genreUnresolvedNoAi: aiFallback ? 0 : aiGenreBatch.length,
     yearUnresolvedNoAi: aiFallback ? 0 : aiYearBatch.length,
+    genreBc: stats.genreBc,
+    yearBc: stats.yearBc,
+    bcFilled: stats.bcFilled,
+    artBandcamp: stats.artBandcamp,
   };
   if (jsonOut) {
     // P1 (--json on every command): one summary object on stdout, last.
     await writeJson(summary);
   } else {
     progress?.close(
-      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
+      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + BC ${stats.genreBc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + BC ${stats.yearBc} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | bandcamp filled: ${stats.bcFilled} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + bandcamp ${stats.artBandcamp} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
     );
   }
 }

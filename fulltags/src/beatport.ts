@@ -28,6 +28,12 @@
  */
 import { canonGenre, SC_GENRE_CANON } from "./schema";
 import { cleanSearchQuery } from "./search-query";
+import {
+  ARTIST_MIN_LEN,
+  nameTokens as words,
+  primaryArtist,
+  titleOverlap,
+} from "./name-match";
 
 // ---------- token (client-credentials, embed-player parity) ----------
 
@@ -292,24 +298,9 @@ export interface BpQuery {
 
 // ---------- scoring (relevance gate: which row is THIS track) ----------
 
-function words(s: string): string[] {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2);
-}
-
-/** Same shared-token similarity the dupe hunter trusts (independent
- * normalization here: the dedupe module's is over filenames). */
-function titleOverlap(a: string, b: string): number {
-  const aw = new Set(words(a));
-  const bw = new Set(words(b));
-  if (aw.size === 0 || bw.size === 0) return 0;
-  let shared = 0;
-  for (const w of aw) if (bw.has(w)) shared++;
-  return shared / Math.max(aw.size, bw.size);
-}
+/** The shared artist gate floor (name-match.ts). Alias kept so the
+ *  scorer's docs and tests read naturally in context. */
+const BP_ARTIST_MIN_LEN = ARTIST_MIN_LEN;
 
 /** Score one row against the query (higher = better). Components:
  *  artist full-match 6 / prefix-match 4, title overlap ×4, mix name ×2,
@@ -319,7 +310,7 @@ function titleOverlap(a: string, b: string): number {
  *  artists ("Nestle" by three dog-music channels), and title+duration
  *  alone cannot tell them apart. */
 export function scoreBpHit(t: BpTrack, q: BpQuery): number {
-  const artist0 = (q.artist ?? "").split(/[,&]/)[0]?.trim().toLowerCase() ?? "";
+  const artist0 = primaryArtist(q.artist);
   let score = 0;
   if (artist0.length >= BP_ARTIST_MIN_LEN) {
     const hitArtist = t.artists
@@ -348,13 +339,6 @@ export function scoreBpHit(t: BpTrack, q: BpQuery): number {
  * same name (the "Music for Pets" class of hit). The SC search runs the
  * same guard at overlap ≥ 1. */
 export const BP_MIN_SCORE = 4;
-
-/** Artist gate floor: shorter strings can't separate one artist from
- * another ("DJ" matches half the catalog), so below this the artist
- * component is skipped — and with no artist points available, a title
- * overlap alone (≤ 4) cannot clear BP_MIN_SCORE. The floor therefore
- * holds even for artist-less queries. */
-const BP_ARTIST_MIN_LEN = 3;
 
 /** Cached search: artist+title → scored hits or null (no credible hit).
  * Memoized for the process lifetime (misses included) so batch runs and

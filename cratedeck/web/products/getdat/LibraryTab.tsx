@@ -41,6 +41,7 @@ function artLang(status: string | null): string {
     "sc-page-1080": "SoundCloud page (1080)",
     "sc-pack": "SoundCloud pack",
     beatport: "Beatport release",
+    bandcamp: "Bandcamp release",
     gateway: "hype gateway scrape",
     itunes: "iTunes",
     deezer: "Deezer",

@@ -34,6 +34,7 @@ import {
   isStringNumberPair,
   isStringPair,
   parseJsonBoundary,
+  printResult,
   RB_CLOSED_PY_GUARD,
   rbCommandRuntime,
   type RbCommandResult,
@@ -487,23 +488,21 @@ export function printRbCuesReport(
   r: RbCuesResult,
   log: (s: string) => void,
 ): void {
-  if (r.error) {
-    log(`error: ${r.error}`);
-    return;
-  }
-  if (r.appliedMode) {
-    log(
-      `restamped ${r.written}/${r.found} cue rows to Kind=1 (hot) · backup: ${r.backedUpTo ?? "none"}`,
-    );
-    log(
-      r.verifyFailures.length
-        ? `VERIFY FAILED: ${r.verifyFailures.join("; ")}`
-        : `re-read verified: 0 incident Kind=0 rows remain`,
-    );
-  } else {
-    log(
-      `dry-run — ${r.found} Sep 12 intake cues match the broken Kind=0 signature · re-run with --apply --yes (rekordbox quit) to fix`,
-    );
-    for (const gate of r.gated) log(`protected: ${gate.reason}`);
-  }
+  printResult(log, r, (r) => {
+    if (r.appliedMode) {
+      log(
+        `restamped ${r.written}/${r.found} cue rows to Kind=1 (hot) · backup: ${r.backedUpTo ?? "none"}`,
+      );
+      log(
+        r.verifyFailures.length
+          ? `VERIFY FAILED: ${r.verifyFailures.join("; ")}`
+          : `re-read verified: 0 incident Kind=0 rows remain`,
+      );
+    } else {
+      log(
+        `dry-run — ${r.found} Sep 12 intake cues match the broken Kind=0 signature · re-run with --apply --yes (rekordbox quit) to fix`,
+      );
+      for (const gate of r.gated) log(`protected: ${gate.reason}`);
+    }
+  });
 }

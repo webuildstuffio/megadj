@@ -30,7 +30,9 @@ import { commandLog } from "../progress";
 import { gridAuditFull } from "../../fulltags/src/analysis";
 import { parseAnlzGrid } from "../../fulltags/src/anlz";
 import { MUSIC_DIR } from "../cli-env";
+import { nameKey } from "../shared/name-key";
 import { masterDbPath, normalizeMount } from "./master-path.js";
+import { errorText } from "../shared/error-text";
 
 /** The plan A3 bucket names (subset of GridAuditVerdict["bucket"]). */
 export type BucketName =
@@ -148,7 +150,7 @@ export function readMasterRows(
   return JSON.parse(r.stdout.trim().split("\n").pop() ?? "[]") as MasterRow[];
 }
 
-const norm = (s: string): string => s.normalize("NFC").toLowerCase();
+const norm = (s: string): string => nameKey(s);
 
 /** Resolve the collection ANLZ absolute path from the row's value
  * (shape varies across rekordbox versions: absolute, DB-relative, or
@@ -338,7 +340,7 @@ export async function gridTriage(
   try {
     rows = opts.rows ?? readMasterRows(dbPath, skillScriptsDir());
   } catch (e) {
-    const r = fail(e instanceof Error ? e.message : String(e));
+    const r = fail(errorText(e));
     log(r.error ?? "unknown failure");
     return r;
   }

@@ -15,6 +15,7 @@ import {
   cleanSearchQuery,
   type SearchQueryParts,
 } from "./search-query";
+import { nameTokens, primaryArtist } from "./name-match";
 
 export { cleanSearchParts } from "./search-query";
 
@@ -28,14 +29,6 @@ export interface ArtRow {
   title: string;
   album?: string | null;
   file_path: string;
-}
-
-function words(s: string): string[] {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2);
 }
 
 export async function fetchImage(url: string): Promise<Uint8Array | null> {
@@ -300,9 +293,9 @@ export function scSearch(r: SearchRow): ScHit[] {
   return scSearchImpl(r);
 }
 
-/** Artist gate floor — same reasoning as beatport's BP_ARTIST_MIN_LEN:
- *  shorter strings can't separate one artist from another ("DJ" matches
- *  half of SoundCloud), so below this the uploader gate is skipped. */
+/** Artist gate floor — the shared name-match SSOT (name-match.ts);
+ *  Beatport's BP_ARTIST_MIN_LEN aliases the same value. Kept exported
+ *  here for the SC tests/importers. */
 export const SC_ARTIST_MIN_LEN = 3;
 
 /** Parse + score raw yt-dlp `COL|` lines against a query. Pure (no I/O),
@@ -317,8 +310,8 @@ export const SC_ARTIST_MIN_LEN = 3;
  *  remixer's or label's own channel with the original artist in the TRACK
  *  title, which the title-overlap term already credits. */
 export function scoreScHits(lines: string[], q: SearchQueryParts): ScHit[] {
-  const tWords = words(q.title);
-  const artist0 = (q.artist ?? "").split(/[,&]/)[0]?.trim().toLowerCase() ?? "";
+  const tWords = nameTokens(q.title);
+  const artist0 = primaryArtist(q.artist);
   const gateActive = artist0.length >= SC_ARTIST_MIN_LEN;
   const hits: ScHit[] = [];
   for (const line of lines) {
@@ -341,7 +334,7 @@ export function scoreScHits(lines: string[], q: SearchQueryParts): ScHit[] {
       string | undefined,
     ];
     if (!url?.includes("soundcloud.com")) continue;
-    const hWords = words(t ?? "");
+    const hWords = nameTokens(t ?? "");
     const overlap = tWords.filter((w) => hWords.includes(w)).length;
     if (overlap < 1) continue; // relevance gate
     const up = (uploader ?? "").toLowerCase();

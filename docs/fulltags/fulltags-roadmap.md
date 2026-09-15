@@ -76,6 +76,29 @@ rb payload expandable. Read-only throughout; census never touches
 files (null = "no claim", not a conflict — absence of evidence must
 not bury real differences)._
 
+_Rev 7.3, 2026-09-15: **Bandcamp arm live + the name-matching SSOT +
+the top-3 low-hanging consolidation fixes.** (1) **W2b Bandcamp vote**
+(`fulltags/src/bandcamp.ts`): when SC and BP both miss genre/year/label,
+fetch searches the Bandcamp catalog (official autocomplete API —
+yt-dlp's extractor stays dead), hard-artist-gates the hits, then fetches
+the item page once: genre from artist tags (through the SAME
+numeric/`Music` junk gate), year from publish date, label from the
+ld+json publisher, art from og:image — slotted into the art ladder
+between Beatport and the gateway. Verified live: gated search, page
+parse, genre vote, Drumcode label identity. (2) **name-match SSOT**
+(`fulltags/src/name-match.ts`): the SC, BP, and Bandcamp scorers shared
+three near-copied tokenizers/gates (issue #85's twin class) — now one
+`artistGate`/`titleOverlap`/`nameTokens` seam. (3) **#66 finished**:
+rb-import was the last hand-rolled `MEGADJ_RB_MASTER ?? join(...)`
+(11-of-11 callers now honor the override; master-path.test.ts pins it);
+**#67 shipped**: `src/shared/name-key.ts` is the ONE NFC+casefold key —
+shelf-sync's NFC-only index keys (case still split) plus rb-adopt/
+rb-fix-paths/grid-triage/rb-unmatched inline variants all migrated;
+**#82 shipped**: `src/shared/error-text.ts` replaces all 50 inlined
+`instanceof Error ? … : String(…)` sites. Census tests re-pinned (JSON
+58→59 audited, Number 42→44/13→18 sanctioned) with an extra UI rung
+phrase (bandcamp) for the art-rung census. 1450 tests green._
+
 _Rev 7.2, 2026-09-15: **two Phase-0 genre correctness fixes shipped.**
 (1) W2 SC hard artist gate — `scoreScHits` (art-sources.ts) drops any
 hit whose uploader doesn't match the query artist (≥3 chars), mirroring

@@ -18,6 +18,7 @@ import {
   restoreMasterBackup,
   sleepSync,
 } from "./guard.js";
+import { errorText } from "../shared/error-text";
 
 /** One subprocess result — the raw spawn boundary every command inspects. */
 export interface RbCommandResult {
@@ -126,7 +127,7 @@ export function isStringNumberPair(value: unknown): value is [string, number] {
 
 /** Human message for an unknown throw value (kit-wide convention). */
 export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return errorText(error);
 }
 
 /** The pre-commit rekordbox re-check, interpolated into every generated
@@ -187,4 +188,21 @@ export function applyConfirmationRefusal(opts: ApplyOptions): string | null {
  *  "confirmed" means. A dry-run (no flag) is NOT confirmed. */
 export function applyConfirmed(opts: ApplyOptions): boolean {
   return opts.apply === true && opts.yes === true;
+}
+
+/** THE human-mode report preamble (issue #75): every `print*Report`
+ *  opened with the same 4 lines — error short-circuit, then the body.
+ *  One helper; the body callback keeps each command's layout. The
+ *  `--json` path is untouched (these are human-mode printers only).
+ *  Output bytes are identical to the inlined form. */
+export function printResult<T extends { error?: string }>(
+  log: (s: string) => void,
+  r: T,
+  body: (r: T) => void,
+): void {
+  if (r.error) {
+    log(`error: ${r.error}`);
+    return;
+  }
+  body(r);
 }

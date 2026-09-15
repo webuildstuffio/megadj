@@ -43,6 +43,7 @@ import {
   applyConfirmationRefusal,
   isDecimalIdOrNull,
   parseJsonBoundary,
+  printResult,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -705,29 +706,27 @@ export function printRbPlaylistReport(
   r: RbPlaylistResult,
   log: (s: string) => void,
 ): void {
-  if (r.error) {
-    log(`error: ${r.error}`);
-    return;
-  }
-  log(
-    `chain ${r.chain} → linked ${r.linked} · playlist "${r.playlist}" (in "${r.group}") on ${r.db}`,
-  );
-  for (const u of r.unmatched.slice(0, 10)) log(`  ? ${u.title} — ${u.reason}`);
-  if (r.unmatched.length > 10)
-    log(`  … and ${r.unmatched.length - 10} more unmatched`);
-  for (const e of r.errors.slice(0, 10)) log(`  ✗ ${e}`);
-  if (r.appliedMode) {
+  printResult(log, r, (r) => {
     log(
-      `post-verify: ${r.verified}/${r.linked} rows linked${r.backedUpTo ? ` · backup ${r.backedUpTo}` : ""}`,
+      `chain ${r.chain} → linked ${r.linked} · playlist "${r.playlist}" (in "${r.group}") on ${r.db}`,
     );
-  } else {
-    log(
-      `dry-run — re-run with --apply --yes (rekordbox quit) to create the playlist and link ${r.chain} tracks`,
-    );
-    if (r.unmatched.length > 0) {
+    for (const u of r.unmatched.slice(0, 10)) log(`  ? ${u.title} — ${u.reason}`);
+    if (r.unmatched.length > 10)
+      log(`  … and ${r.unmatched.length - 10} more unmatched`);
+    for (const e of r.errors.slice(0, 10)) log(`  ✗ ${e}`);
+    if (r.appliedMode) {
       log(
-        `${r.unmatched.length} chain track(s) have no master row yet — they will be skipped and reported`,
+        `post-verify: ${r.verified}/${r.linked} rows linked${r.backedUpTo ? ` · backup ${r.backedUpTo}` : ""}`,
       );
+    } else {
+      log(
+        `dry-run — re-run with --apply --yes (rekordbox quit) to create the playlist and link ${r.chain} tracks`,
+      );
+      if (r.unmatched.length > 0) {
+        log(
+          `${r.unmatched.length} chain track(s) have no master row yet — they will be skipped and reported`,
+        );
+      }
     }
-  }
+  });
 }

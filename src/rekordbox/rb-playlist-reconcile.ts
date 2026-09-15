@@ -23,6 +23,7 @@ import {
   applyConfirmed,
   applyConfirmationRefusal,
   parseJsonBoundary,
+  printResult,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -266,26 +267,24 @@ export function printReconcileReport(
   r: ReconcileResult,
   log: (s: string) => void,
 ): void {
-  if (r.error) {
-    log(`error: ${r.error}`);
-    return;
-  }
-  log(
-    `twins: ${r.missingXmlNodes.length} DB playlist(s) need XML repair · ${r.orphanXmlNodes.length} XML-only orphan(s)`,
-  );
-  for (const p of r.missingXmlNodes.slice(0, 15))
+  printResult(log, r, (r) => {
     log(
-      `  ✗ "${p.name}" (Id ${p.id}, attr ${p.attribute}) XML twin is missing or stale`,
+      `twins: ${r.missingXmlNodes.length} DB playlist(s) need XML repair · ${r.orphanXmlNodes.length} XML-only orphan(s)`,
     );
-  for (const o of r.orphanXmlNodes.slice(0, 5))
-    log(
-      `  ? XML node "${o.name}" (${o.id}) has no DB row (flagged, untouched)`,
-    );
-  if (r.appliedMode)
-    log(`applied: ${r.added} NODE(s) repaired · backups written`);
-  else if (r.missingXmlNodes.length)
-    log(
-      `dry-run — re-run with --apply --yes (rekordbox quit) to repair ${r.missingXmlNodes.length} NODE(s)`,
-    );
-  else log("clean — every DB playlist has its XML twin");
+    for (const p of r.missingXmlNodes.slice(0, 15))
+      log(
+        `  ✗ "${p.name}" (Id ${p.id}, attr ${p.attribute}) XML twin is missing or stale`,
+      );
+    for (const o of r.orphanXmlNodes.slice(0, 5))
+      log(
+        `  ? XML node "${o.name}" (${o.id}) has no DB row (flagged, untouched)`,
+      );
+    if (r.appliedMode)
+      log(`applied: ${r.added} NODE(s) repaired · backups written`);
+    else if (r.missingXmlNodes.length)
+      log(
+        `dry-run — re-run with --apply --yes (rekordbox quit) to repair ${r.missingXmlNodes.length} NODE(s)`,
+      );
+    else log("clean — every DB playlist has its XML twin");
+  });
 }

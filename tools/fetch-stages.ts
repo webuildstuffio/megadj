@@ -9,6 +9,9 @@ import {
   beatportArt,
   bpGenre,
   bpStamp,
+  bcFetchPage,
+  bcGenre,
+  artUrlLarge,
   canonGenre,
   cleanArtist,
   db,
@@ -21,6 +24,8 @@ import {
   pageOgImage,
   setFileTags,
   twinArt,
+  type BcPage,
+  type BcTrack,
   type BpTrack,
   type Row,
   type TagValues,
@@ -35,6 +40,7 @@ export interface Stats {
   artSc: number;
   artScOrig: number;
   artBeatport: number;
+  artBandcamp: number;
   artGateway: number;
   artTwin: number;
   artDeezer: number;
@@ -44,6 +50,10 @@ export interface Stats {
   yearAi: number;
   /** Tracks where the Beatport vote filled ≥1 identity field. */
   bpIdentity: number;
+  genreBc: number;
+  yearBc: number;
+  /** Tracks where the Bandcamp vote filled ≥1 field (genre/year/label). */
+  bcFilled: number;
 }
 
 /** Per-task mutable state shared by the stage runners. */
@@ -78,6 +88,10 @@ export interface StageCtx {
   /** Beatport hit for this track (second source behind SC) — filled by
    * processTask's fan-out when any Beatport-fed field is needed. */
   bpBest: BpTrack | null;
+  /** Bandcamp hit (third source behind SC + BP) — filled by processTask
+   * only when BOTH SC and BP missed the field Bandcamp is being asked
+   * for, so the extra page fetch leg stays rare. */
+  bcBest: BcTrack | null;
   /** Track duration in seconds (ffprobe) — the BP scorer's signal. */
   durationS: number | null;
 }
@@ -213,6 +227,72 @@ function applyScGenre(t: StageCtx, rawGenre: string): void {
   t.notes.push(`genre:${g}`);
 }
 
+/** The Bandcamp genre vote: canonicalize the page's best tag through the
+ *  SAME junk gates every other source funnels through (numeric refuse,
+ *  "Music" refuse — applyScGenre's guard class, inside bcGenre). Never
+ *  invents a label: an unmapped tag set returns null and the ladder
+ *  moves on. */
+function bcApplyGenre(t: StageCtx, page: BcPage): boolean {
+  const g = bcGenre(page, canonGenre);
+  if (!g) return false;
+  if (!setFileTags(t.row.file_path, { genre: g })) {
+    t.notes.push("genre:WRITE-FAILED (bc)");
+    return true; // consumed: stop the ladder even though the write failed
+  }
+  db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(g, t.row.video_id);
+  t.stats.genreBc++;
+  t.notes.push(`genre:${g} (bc)`);
+  return true;
+}
+
+/** Stage 2b — Bandcamp vote, THIRD in the ladder (behind SC and BP).
+ *  Only runs when SC and BP both missed the field, so the extra page
+ *  fetch stays rare; the search hit was already artist-gated in
+ *  processTask. Fills genre first (tag list), then year (publish date),
+ *  then label (the publisher field only BP also carries). Synchronous
+ *  DB/tag writes per the markYear discipline; page fetch is the one
+ *  async leg, done once per task and shared across the three fields. */
+export async function stageBandcamp(
+  t: StageCtx,
+  wantGenre: boolean,
+  wantYear: boolean,
+  wantLabel: boolean,
+): Promise<void> {
+  if (t.dry || !t.bcBest) return;
+  if (!wantGenre && !wantYear && !wantLabel) return;
+  const page = await bcFetchPage(t.bcBest.url);
+  if (!page) return;
+  let filled = false;
+  if (wantGenre && !t.truth.genre && bcApplyGenre(t, page)) filled = true;
+  if (
+    wantYear &&
+    !t.truth.year &&
+    page.datePublished &&
+    setFileTags(t.row.file_path, {
+      year: Number(page.datePublished.slice(0, 4)),
+    })
+  ) {
+    const y = page.datePublished.slice(0, 4);
+    db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
+      y,
+      t.row.video_id,
+    );
+    t.stats.yearBc++;
+    t.notes.push(`year:${y} (bc)`);
+    filled = true;
+  }
+  if (wantLabel && !t.truth.label && page.label) {
+    db.query("UPDATE tracks SET label=? WHERE video_id=?").run(
+      page.label,
+      t.row.video_id,
+    );
+    t.stats.bcFilled++;
+    t.notes.push(`label:${page.label} (bc)`);
+    filled = true;
+  }
+  if (filled) t.stats.bcFilled++;
+}
+
 /** Stage 2 — SC search hit → genre + year (the cheap half of the fan-out;
  *  original-res art needs the page fetch and lives in stage 3). */
 export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
@@ -346,9 +426,11 @@ function recordArtWin(
   );
 }
 
-/** Stage 3b — fallback ladder: beatport → gateway → mp3-twin → deezer →
- *  itunes. Beatport outranks the gateway scrape: the store's official
- *  release master (1500²) beats a hype-page screenshot. */
+/** Stage 3b — fallback ladder: beatport → bandcamp → gateway → mp3-twin →
+ *  deezer → itunes. Beatport outranks the gateway scrape: the store's
+ *  official release master (1500²) beats a hype-page screenshot. Bandcamp
+ *  sits behind Beatport (its og:image is the official cover art when the
+ *  artist-gated hit is the real release page). */
 async function fallbackArt(t: StageCtx): Promise<boolean> {
   const r = t.row;
   const ladder: {
@@ -360,6 +442,13 @@ async function fallbackArt(t: StageCtx): Promise<boolean> {
       stat: "artBeatport",
       label: "beatport",
       bytes: t.bpBest ? beatportArt(t.bpBest) : null,
+    },
+    {
+      stat: "artBandcamp",
+      label: "bandcamp",
+      bytes: t.bcBest?.artUrl
+        ? fetchImage(artUrlLarge(t.bcBest.artUrl) ?? t.bcBest.artUrl)
+        : null,
     },
     {
       stat: "artGateway",

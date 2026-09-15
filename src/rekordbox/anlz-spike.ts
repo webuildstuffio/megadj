@@ -33,6 +33,7 @@ import {
   readdirSync,
   writeFileSync,
 } from "node:fs";
+import { printResult } from "./rb-command-kit.js";
 import { commandLog } from "../progress";
 import { errorText } from "../shared/error-text";
 import type { Dirent } from "node:fs";
@@ -309,28 +310,26 @@ export function printSpikeReport(
   r: SpikeSnapshot,
   log: (s: string) => void,
 ): void {
-  if (r.error) {
-    log(`error: ${r.error}`);
-    return;
-  }
-  if (r.mode === "snapshot") {
+  printResult(log, r, (r) => {
+    if (r.mode === "snapshot") {
+      log(
+        `snapshot "${r.tag}": ${r.tracked} sidecars (${r.scanned} scanned, ${r.undecodable} undecodable) → ${r.baselinePath}`,
+      );
+      log(
+        `next: do the rekordbox experiment, then rb-anlz-spike ${r.mount} compare --tag=${r.tag}`,
+      );
+      return;
+    }
     log(
-      `snapshot "${r.tag}": ${r.tracked} sidecars (${r.scanned} scanned, ${r.undecodable} undecodable) → ${r.baselinePath}`,
+      `compare "${r.tag}": ${r.identical} identical · ${r.changed?.length ?? 0} changed · ${r.added?.length ?? 0} added · ${r.removed?.length ?? 0} removed`,
     );
-    log(
-      `next: do the rekordbox experiment, then rb-anlz-spike ${r.mount} compare --tag=${r.tag}`,
-    );
-    return;
-  }
-  log(
-    `compare "${r.tag}": ${r.identical} identical · ${r.changed?.length ?? 0} changed · ${r.added?.length ?? 0} added · ${r.removed?.length ?? 0} removed`,
-  );
-  for (const c of r.changed ?? []) {
-    const secs = c.sections
-      .map((s) => `${s.tag} ${s.was}→${s.now}B`)
-      .join(", ");
-    log(`  CHANGED ${c.file}: ${secs}`);
-  }
-  for (const a of r.added ?? []) log(`  ADDED ${a}`);
-  for (const d of r.removed ?? []) log(`  REMOVED ${d}`);
+    for (const c of r.changed ?? []) {
+      const secs = c.sections
+        .map((s) => `${s.tag} ${s.was}→${s.now}B`)
+        .join(", ");
+      log(`  CHANGED ${c.file}: ${secs}`);
+    }
+    for (const a of r.added ?? []) log(`  ADDED ${a}`);
+    for (const d of r.removed ?? []) log(`  REMOVED ${d}`);
+  });
 }

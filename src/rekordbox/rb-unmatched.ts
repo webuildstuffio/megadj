@@ -30,6 +30,7 @@
 import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { applyConfirmationRefusal } from "./rb-command-kit.js";
+import { printResult } from "./rb-command-kit.js";
 import { QUARANTINE_DIR, quarantineDest } from "../archive/hygiene/apply";
 import { buildIndex, readRows } from "./rb-fix-paths";
 import { masterDbPath, normalizeMount } from "./master-path.js";
@@ -289,34 +290,32 @@ export function printRbUnmatchedReport(
   r: RbUnmatchedResult,
   log: (s: string) => void,
 ): void {
-  if (r.error) {
-    log(`error: ${r.error}`);
-    return;
-  }
-  log(
-    `${r.diskFiles} disk file(s) · ${r.dbRows} DB row(s) · ${r.matched} matched · ${r.twinNamed} twin-named (dupescan's queue) · ${r.unknown} unknown to rekordbox`,
-  );
-  const dirs = Object.entries(r.unknownByDir).toSorted((a, b) => b[1] - a[1]);
-  for (const [d, n] of dirs.slice(0, 10))
-    log(`  ${String(n).padStart(5)}  Contents/${d}/`);
-  if (dirs.length > 10) log(`  … ${dirs.length - 10} more folder(s)`);
-  for (const u of r.unknownList.slice(0, HUMAN_LIST_CAP)) log(`    ${u}`);
-  if (r.unknownList.length > HUMAN_LIST_CAP)
+  printResult(log, r, (r) => {
     log(
-      `    … ${r.unknownList.length - HUMAN_LIST_CAP} more (--json for the full list)`,
+      `${r.diskFiles} disk file(s) · ${r.dbRows} DB row(s) · ${r.matched} matched · ${r.twinNamed} twin-named (dupescan's queue) · ${r.unknown} unknown to rekordbox`,
     );
-  if (r.quarantined)
-    log(
-      `quarantined ${r.quarantined} file(s); manifest: ${r.manifestPath ?? "?"} — nothing deleted, restore = move back`,
-    );
-  else if (r.unknown > 0)
-    log(
-      `dry-run — re-run with --quarantine --yes to move the ${r.unknown} unknown file(s) out of Contents/ (reversible, manifest kept)`,
-    );
-  if (r.twinNamed > 0)
-    log(
-      `${r.twinNamed} twin-named file(s) left in place — settle them with \`megadj shelf-dupescan\` (fingerprint-verified), never by name alone`,
-    );
+    const dirs = Object.entries(r.unknownByDir).toSorted((a, b) => b[1] - a[1]);
+    for (const [d, n] of dirs.slice(0, 10))
+      log(`  ${String(n).padStart(5)}  Contents/${d}/`);
+    if (dirs.length > 10) log(`  … ${dirs.length - 10} more folder(s)`);
+    for (const u of r.unknownList.slice(0, HUMAN_LIST_CAP)) log(`    ${u}`);
+    if (r.unknownList.length > HUMAN_LIST_CAP)
+      log(
+        `    … ${r.unknownList.length - HUMAN_LIST_CAP} more (--json for the full list)`,
+      );
+    if (r.quarantined)
+      log(
+        `quarantined ${r.quarantined} file(s); manifest: ${r.manifestPath ?? "?"} — nothing deleted, restore = move back`,
+      );
+    else if (r.unknown > 0)
+      log(
+        `dry-run — re-run with --quarantine --yes to move the ${r.unknown} unknown file(s) out of Contents/ (reversible, manifest kept)`,
+      );
+    if (r.twinNamed > 0)
+      log(
+        `${r.twinNamed} twin-named file(s) left in place — settle them with \`megadj shelf-dupescan\` (fingerprint-verified), never by name alone`,
+      );
+  });
 }
 
 /** Test seam: pure pieces without a DB. */

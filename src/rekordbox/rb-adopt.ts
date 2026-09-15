@@ -17,6 +17,7 @@ import { nameKey } from "../shared/name-key";
 import { backupStamp } from "./guard.js";
 import { applyConfirmationRefusal } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
+import { errorText } from "../shared/error-text";
 
 export interface RekordboxContentRow {
   contentId: string;
@@ -490,7 +491,7 @@ export function rbAdopt(opts: RbAdoptOptions): RbAdoptResult {
   try {
     rows = (opts.readContent ?? readRekordboxContent)(sourceDb);
   } catch (error) {
-    return fail(error instanceof Error ? error.message : String(error));
+    return fail(errorText(error));
   }
   opts.log?.(`rb-adopt: ${rows.length} master Content row(s)`);
 
@@ -500,9 +501,7 @@ export function rbAdopt(opts: RbAdoptOptions): RbAdoptResult {
       backedUpTo = snapshotArchive(opts.state, opts.archiveDb);
       opts.log?.(`rb-adopt: archive backed up to ${backedUpTo}`);
     } catch (error) {
-      return fail(
-        `archive backup failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      return fail(`archive backup failed: ${errorText(error)}`);
     }
   }
 
@@ -516,9 +515,7 @@ export function rbAdopt(opts: RbAdoptOptions): RbAdoptResult {
     });
   } catch (error) {
     return {
-      ...fail(
-        `archive reconciliation failed: ${error instanceof Error ? error.message : String(error)}`,
-      ),
+      ...fail(`archive reconciliation failed: ${errorText(error)}`),
       backedUpTo,
     };
   }
@@ -586,10 +583,9 @@ export function readRekordboxContent(dbPath: string): RekordboxContentRow[] {
   try {
     parsed = JSON.parse(line);
   } catch (error) {
-    throw new Error(
-      `pyrekordbox returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error },
-    );
+    throw new Error(`pyrekordbox returned invalid JSON: ${errorText(error)}`, {
+      cause: error,
+    });
   }
   if (!Array.isArray(parsed))
     throw new Error("pyrekordbox Content payload is not an array");
