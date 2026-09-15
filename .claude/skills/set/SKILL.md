@@ -1,4 +1,4 @@
-# MegaSet: propose a DJ mix from the measured ledgers
+# Set: propose a DJ mix from the measured ledgers
 
 One reusable workflow: pick the energy arc → run the proposal → read it →
 hand the chain to a human or an agent. Every step is a **read** — the
@@ -35,7 +35,8 @@ analyzed/mixable), 2 = bad flag input.
 Same capability, other surfaces:
 
 - MCP: `archive_set_build {preset, minutes, opener?, limit?}`
-- Web: FullTags ⌗ Similar → "MegaSet — propose a mix"
+- Web: the **Set** product (top-level nav button, `#/set` — no longer a
+  FullTags tab; old `#/fulltags/set` links redirect)
 - Engine SSOT: `cratedeck/src/setbuild.ts`; wire shapes:
   `cratedeck/shared/setbuild.ts` (re-exported from `shared/types.ts`).
   A parity twin test (`cratedeck/test/surface-parity.test.ts`) pins the

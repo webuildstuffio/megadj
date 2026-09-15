@@ -79,6 +79,9 @@
 .canvas.fleet.fulltags {
   --prod: var(--pulse);
 }
+.canvas.set {
+  --prod: #f0b64b;
+}
 .fleetchip {
   display: inline-flex;
   align-items: center;

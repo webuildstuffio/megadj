@@ -157,6 +157,9 @@
 .product-tab.on[data-prod="fulltags"] {
   --tab-c: var(--pulse);
 }
+.product-tab.on[data-prod="set"] {
+  --tab-c: var(--warn);
+}
 .product-tab:focus-visible {
   outline: 2px solid var(--info);
   outline-offset: 2px;
@@ -191,6 +194,9 @@
 }
 .scope-tab.on[data-prod="fulltags"] {
   --tab-c: var(--pulse);
+}
+.scope-tab.on[data-prod="set"] {
+  --tab-c: var(--warn);
 }
 .scope-tab:focus-visible {
   outline: 2px solid var(--info);
@@ -341,6 +347,9 @@
 .phasechip[data-prod="fulltags"] {
   --tab-c: var(--pulse);
 }
+.phasechip[data-prod="set"] {
+  --tab-c: var(--warn);
+}
 .phasechip[data-prod="fleet"] {
   --tab-c: var(--warn);
 }
@@ -362,6 +371,9 @@
 }
 .pintro[data-prod="fulltags"] {
   --tab-c: var(--pulse);
+}
+.pintro[data-prod="set"] {
+  --tab-c: var(--warn);
 }
 .pintro[data-prod="fleet"] {
   --tab-c: var(--warn);
@@ -487,6 +499,9 @@
 }
 .wcard[data-prod="fulltags"] {
   --tab-c: var(--pulse);
+}
+.wcard[data-prod="set"] {
+  --tab-c: var(--warn);
 }
 .wphase {
   display: inline-flex;

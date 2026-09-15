@@ -1,5 +1,5 @@
 // App.tsx — the megadj shell: suite bar (brand, search, interlock) + nav
-// strip (three products + scope tabs) + drive rail + canvas. The old modal
+// strip (four products + scope tabs) + drive rail + canvas. The old modal
 // drawer is gone: selecting a drive swaps the main canvas and the URL hash
 // (#/drives/:id/:tab), so back/forward and deep links work.
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
@@ -16,6 +16,7 @@ import { DrivePage } from "../products/cratedeck/DrivePage";
 import { FleetPage } from "../products/cratedeck/FleetPage";
 import { GetDatPage } from "../products/getdat/GetDatPage";
 import { FullTagsPage } from "../products/fulltags/FullTagsPage";
+import { SetPage } from "../products/set/SetPage";
 import { JobsDock } from "../ui/JobsDock";
 import { Toaster, api, toast } from "../ui/toast";
 import { navigate, useRoute } from "../app/router";
@@ -246,6 +247,8 @@ export function App() {
             <FleetPage key="fleet" tab={route.tab} />
           ) : route.product === "getdat" ? (
             <GetDatPage key="getdat" tab={route.tab} />
+          ) : route.product === "set" ? (
+            <SetPage key="set" tab={route.tab} />
           ) : route.product === "fulltags" ? (
             <FullTagsPage key="fulltags" tab={route.tab} />
           ) : route.product === "drives" && route.driveId ? (

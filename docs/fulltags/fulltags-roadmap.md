@@ -1,6 +1,19 @@
-# FullTags — Prioritized Roadmap (rev 7.5)
+# FullTags — Prioritized Roadmap (rev 7.6)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 7.6, 2026-09-15: **Set is its own product — the fourth nav-strip
+button.** The set builder left FullTags' tab strip entirely: it is now a
+top-level product (#/set) alongside CrateDeck/GetDat/FullTags, with its
+own nav button, Welcome launcher card, phase chip ("the library gets
+played"), ProductIntro, and warn-gold accent — promoted through the
+product SSOT (router Product union, PRODUCTS, LEDE, PRODUCT_TABS,
+palette entry renamed "Set", App canvas switch). Old `#/fulltags/set`
+deep links redirect. "MegaSet" naming is gone from user-facing surfaces —
+the product is called **Set**. Inside the panel the numbered steps
+dropped their redundant sub-lines ("how the room should feel…" repeated
+what the preset cards already say); titles are now terse: Energy journey
+/ Set length / Sequencer. 21-pass UX suite updated and green._
 
 _Rev 7.4, 2026-09-15: **Set-builder UX pass 2 — the wait, the whys, and
 the way back to the terminal.** The build button's bare spinner became a

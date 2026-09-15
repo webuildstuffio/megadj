@@ -26,14 +26,16 @@ const energyBand = (value: number): string =>
 
 const arcY = (value: number): number => 30 - ((value - 1) / 8) * 22;
 
-/** Step number + title + the quiet "what this decides" sub-line. */
-export function StepTitle(props: { n: number; title: string; hint: string }) {
+/** Step number badge + title. Kept terse: the widgets under each step are
+ *  self-describing (preset cards carry their own energy ranges and
+ *  descriptions), so a per-step sub-line only repeated them. */
+export function StepTitle(props: { n: number; title: string; hint?: string }) {
   return (
     <legend class="setbuild-setup-title">
       <span>{props.n}</span>
       <span class="setbuild-setup-text">
         {props.title}
-        <small>{props.hint}</small>
+        {props.hint && <small>{props.hint}</small>}
       </span>
     </legend>
   );

@@ -128,12 +128,12 @@ function commands(drives: DriveCardData[]): Cmd[] {
       run: () => navigateProduct("fulltags", "mood"),
     },
     {
-      id: "fulltags-set",
-      label: "FullTags — Set",
-      hint: "MegaSet: build a mix proposal",
+      id: "set",
+      label: "Set",
+      hint: "build a mix proposal from the whole shelf",
       icon: "compass",
-      keywords: "fulltags set megaset build setbuilder playlist proposal mix",
-      run: () => navigateProduct("fulltags", "set"),
+      keywords: "set build setbuilder playlist proposal mix megaset fulltags",
+      run: () => navigateProduct("set", "build"),
     },
     {
       id: "fulltags-similar",

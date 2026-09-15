@@ -1,10 +1,11 @@
 // shared.tsx — the product SSOT for the megadj web dashboard.
 //
-// megadj is the suite; the three PRODUCTS are its pipeline phases:
+// megadj is the suite; the four PRODUCTS are its pipeline phases:
 //   1. CrateDeck — keep the DJ USB drives honest (health, playlists,
 //      verify, parity, fleet)
 //   2. GetDat    — fill the archive (download + ingest pipeline)
 //   3. FullTags  — enrich the archive (tags, art, keys, beatgrids, mood)
+//   4. Set       — play it: order the shelf into a mixable draft
 // Each row carries its educational lede (the `ledes` array, DJ-voiced) and
 // its accent (`--prod` per canvas + phase chip). PRODUCT_TABS is the one
 // table both the header nav strip and the page canvases switch on — a tab
@@ -228,6 +229,16 @@ export const PRODUCTS: ProductMeta[] = [
     color: "var(--pulse)",
     phase: "the archive gets enriched",
   },
+  {
+    id: "set",
+    label: "Set",
+    icon: "compass",
+    sub: "the mix builder — order the whole analyzed shelf into a playable set",
+    title:
+      "Set — build an ordered mix proposal from the whole analyzed shelf: energy arc, length, sequencer",
+    color: "var(--warn, #d9a441)",
+    phase: "the library gets played",
+  },
 ];
 
 /** Educational one-liners, in pipeline order — the sentence that teaches a
@@ -243,6 +254,7 @@ export const LEDE: Record<Product, string> = {
     "Tracks start here. GetDat pulls music into the local archive, records every download decision, and keeps the backlog honest so nothing silently disappears.",
   fulltags:
     "Then the archive gets smart. FullTags enriches every track — art, keys, beatgrids, mood, phrase cues — into DB ledgers, and only writes tags when a measured gate passes.",
+  set: "The payoff. Set turns every measurement — tempo, key, mood, energy — into an ordered, mixable draft of your whole shelf. You approve it; nothing writes behind your back.",
 };
 
 /** Tab strip per product — the same rows the pages AND the header nav
@@ -361,13 +373,6 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       title: "The mood ledger: dance/valence/arousal averages and extremes",
     },
     {
-      id: "set",
-      label: "Set",
-      icon: "compass",
-      title:
-        "MegaSet: build an ordered mix proposal from the whole analyzed shelf — energy arc, length, sequencer",
-    },
-    {
       id: "similar",
       label: "Similar",
       icon: "grid",
@@ -385,6 +390,15 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       icon: "tag",
       title:
         "The tag mirror: genres, years, artwork, energy — file ground truth",
+    },
+  ],
+  set: [
+    {
+      id: "build",
+      label: "Build",
+      icon: "compass",
+      title:
+        "Build an ordered mix proposal from the whole analyzed shelf — energy arc, length, sequencer",
     },
   ],
 };

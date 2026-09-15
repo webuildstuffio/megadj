@@ -1,7 +1,7 @@
-// SetBuildPanel.tsx — the M66 set-builder panel (#/fulltags/set), split
-// out of SimilarTab.tsx (file-length guard) and promoted to its OWN tab:
-// the panel is its own product surface (preset/length/sequencer form +
-// proposal view), while SimilarTab keeps only the sounds-like view.
+// SetBuildPanel.tsx — the set-builder panel, the Set product's canvas
+// (#/set, rendered by ../set/SetPage.tsx; formerly a FullTags tab, then
+// split out of SimilarTab.tsx for file length). The panel is the whole
+// product flow: preset/length/sequencer form + proposal view.
 //
 // Propose-only (§4-A1: nothing here writes anything): the wire envelope
 // (SetBuildPayload) is DERIVED from shared/types.ts — never re-declare
@@ -285,11 +285,7 @@ export function SetBuildPanel() {
         }}
       >
         <fieldset class="setbuild-preset" disabled={build.loading}>
-          <StepTitle
-            n={1}
-            title="Choose the energy journey"
-            hint="how the room should feel from first track to last"
-          />
+          <StepTitle n={1} title="Energy journey" />
           <div
             class="setbuild-preset-grid"
             role="radiogroup"
@@ -312,11 +308,7 @@ export function SetBuildPanel() {
           </div>
         </fieldset>
         <fieldset class="setbuild-length" disabled={build.loading}>
-          <StepTitle
-            n={2}
-            title="Choose the set length"
-            hint="FullTags picks tracks until this target is filled"
-          />
+          <StepTitle n={2} title="Set length" />
           <div class="setbuild-duration">
             <div
               class="setbuild-duration-presets"
@@ -365,11 +357,7 @@ export function SetBuildPanel() {
           </div>
         </fieldset>
         <fieldset class="setbuild-length" disabled={build.loading}>
-          <StepTitle
-            n={3}
-            title="Sequencer"
-            hint="how the engine walks from one compatible track to the next"
-          />
+          <StepTitle n={3} title="Sequencer" />
           <SequencerRow
             searchChoice={searchChoice}
             onChoice={(value) => {

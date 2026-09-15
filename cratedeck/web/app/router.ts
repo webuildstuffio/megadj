@@ -6,7 +6,7 @@
 // and browser back/forward work for free.
 import { useEffect, useState } from "preact/hooks";
 
-export type Product = "drives" | "fleet" | "getdat" | "fulltags";
+export type Product = "drives" | "fleet" | "getdat" | "fulltags" | "set";
 
 export interface Route {
   /** which product owns the canvas ("drives" = shelf or one drive) */
@@ -25,6 +25,10 @@ const DEFAULT_TABS: Record<Product, string> = {
   getdat: "pipeline",
   // FullTags' first question: "what does the library sound like?"
   fulltags: "beatgrids",
+  // Set is one canvas: build → review → export. A single tab id keeps the
+  // nav strip's scope row non-empty (PRODUCT_TABS.set) without inventing
+  // fake sub-pages for a product that is one flow.
+  set: "build",
 };
 
 function parse(): Route {
@@ -43,6 +47,25 @@ function parse(): Route {
       driveId: null,
       fleet: false,
       tab: parts[1] || DEFAULT_TABS.getdat,
+    };
+  if (parts[0] === "set")
+    return {
+      product: "set",
+      driveId: null,
+      fleet: false,
+      tab: parts[1] || DEFAULT_TABS.set,
+    };
+  // legacy deep links: #/fulltags/set → the Set product (the tab moved up
+  // to its own product; old hashes keep working instead of 404-ing)
+  if (
+    parts[0] === "fulltags" &&
+    (parts[1] || DEFAULT_TABS.fulltags) === "set"
+  )
+    return {
+      product: "set",
+      driveId: null,
+      fleet: false,
+      tab: DEFAULT_TABS.set,
     };
   if (parts[0] === "fulltags")
     return {

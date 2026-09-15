@@ -28,6 +28,14 @@ const pageSource = readFileSync(
   join(import.meta.dir, "../products/fulltags/FullTagsPage.tsx"),
   "utf8",
 );
+const setPageSource = readFileSync(
+  join(import.meta.dir, "../products/set/SetPage.tsx"),
+  "utf8",
+);
+const routerSource = readFileSync(
+  join(import.meta.dir, "../app/router.ts"),
+  "utf8",
+);
 const sharedSource = readFileSync(
   join(import.meta.dir, "../products/shared.tsx"),
   "utf8",
@@ -93,21 +101,36 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("Writes no tags or playlists");
   });
 
-  test("the set builder is its own top-level tab, out of Similar", () => {
-    // tab strip SSOT: a dedicated "set" row between Mood and Similar
-    expect(sharedSource).toMatch(
-      /id: "mood"[\s\S]{0,240}id: "set"[\s\S]{0,240}id: "similar"/,
+  test("Set is its own top-level product, equal to CrateDeck/GetDat/FullTags", () => {
+    // product SSOT: Set is a Product union member, a nav-strip row with
+    // its own lede + launcher card, and its own canvas route (#/set)
+    expect(routerSource).toContain(
+      '"drives" | "fleet" | "getdat" | "fulltags" | "set"',
     );
-    expect(sharedSource).toContain("MegaSet: build an ordered mix proposal");
-    // the page canvas switches on it and SimilarTab no longer embeds it
-    expect(pageSource).toContain('{tab === "set" && <SetBuildPanel />}');
+    expect(sharedSource).toContain('id: "set"');
+    expect(sharedSource).toContain('label: "Set"');
+    expect(sharedSource).toContain("the library gets played");
+    expect(sharedSource).toContain("The payoff. Set turns every measurement");
+    // the canvas switch renders SetPage on the set route, and SetPage
+    // actually mounts the panel
+    expect(appSource).toContain('route.product === "set"');
+    expect(setPageSource).toContain("<SetBuildPanel />");
+    // legacy deep links keep working: #/fulltags/set redirects to the product
+    expect(routerSource).toMatch(/fulltags[\s\S]{0,200}product: "set"/);
+    // FullTags no longer owns the set tab or imports the panel
+    expect(pageSource).not.toContain('{tab === "set" && <SetBuildPanel />}');
     expect(similarSource).not.toContain("import { SetBuildPanel }");
   });
 
   test("preset buttons expose radio semantics and lock during a build", () => {
     const html = render(<SetBuildPanel />);
-    expect(html).toContain("Choose the energy journey");
-    expect(html).toContain("how the room should feel from first track to last");
+    // step titles are terse — the preset cards carry their own descriptions
+    expect(html).toContain("Energy journey");
+    expect(html).toContain("Set length");
+    expect(html).toContain("Sequencer");
+    expect(html).not.toContain(
+      "how the room should feel from first track to last",
+    );
     expect(html.match(/setbuild-preset-option/g)).toHaveLength(3);
     expect(html).toContain('role="radio"');
     expect(html).toContain('aria-checked="true"');
@@ -123,8 +146,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   test("settings changes invalidate an old proposal and promote the one CTA", () => {
     const html = render(<SetBuildPanel />);
     expect(html).toContain("Build a set from your entire shelf");
-    expect(html).toContain("Choose the set length");
-    expect(html).toContain("FullTags picks tracks until this target is filled");
+    expect(html).toContain("Set length");
     expect(html).toContain('aria-label="Set builder settings"');
     expect(html).toContain('type="submit"');
     expect(html).toContain('class="btn primary setbuild-build"');

@@ -228,7 +228,7 @@ export function AppNav({ route }: { route: Route }) {
 }
 
 /** The empty-crate shelf (no drive selected): the megadj pipeline story —
- *  three product launcher cards in pipeline order — plus the health notes
+ *  four product launcher cards in pipeline order — plus the health notes
  *  (failing drives, interlock) and the guided tour. Launchers come from the
  *  same SSOT as the nav strip (PRODUCTS + LEDE), so a new product can't
  *  exist on one surface only. */
