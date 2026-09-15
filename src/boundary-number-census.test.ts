@@ -36,6 +36,16 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "i is a digits-only capture from the SENTINEL(\\d+)SENTINEL restore regex, and stash lookups use the same captured index.",
   "tools/fetch-all.ts::<module>::Number(argv[jobsArg + 1])":
     "the command rejects a non-finite or sub-one jobs value with process.exit(2) before constructing options.",
+  "fulltags/src/bandcamp.ts::parseIsoDuration::Number(d)":
+    "d is a digits-only ISO-8601 duration capture (P…D group), truthiness-gated before use.",
+  "fulltags/src/bandcamp.ts::parseIsoDuration::Number(h)":
+    "h is a digits-only ISO-8601 duration capture (T…H group), truthiness-gated before use.",
+  "fulltags/src/bandcamp.ts::parseIsoDuration::Number(min)":
+    "min is a digits-only ISO-8601 duration capture (T…M group), truthiness-gated before use.",
+  "fulltags/src/bandcamp.ts::parseIsoDuration::Number(s)":
+    "s is a digits-or-decimal ISO-8601 duration capture (T…S group), truthiness-gated before use.",
+  "tools/fetch-stages.ts::stageBandcamp::Number(page.datePublished.slice(0, 4))":
+    "datePublished is DB JSON produced by the fetch pipeline's four-digit year regex; the slice is exactly four chars.",
 };
 
 test("boundary Number() calls are finite-gated or explicitly sanctioned", () => {
@@ -55,10 +65,14 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    audited: 42,
-    guarded: 29,
-    sanctioned: 13,
-    digest: "f3b5e3ab1c5527aeaf47053260186850c171b3b8848eeb70db2ef9f493e5e852",
+    // Sep 15 (#79/#80/#84 pass): rb-import payload probing moved to the
+    // fulltags media seam (removed its 2 Number() sites); audited 42→44
+    // and sanctioned 13→18 from the concurrent bandcamp ISO-duration +
+    // fetch-stages stageBandcamp year work landing in the same worktree.
+    audited: 46,
+    guarded: 28,
+    sanctioned: 18,
+    digest: "9ea8b65ff1856b7b92b373c5bc2124c9f9d84ddb6e5e2780ae7d977502930e7e",
   });
 });
 

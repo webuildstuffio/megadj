@@ -66,15 +66,14 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    // Sep 15 (#95): rb-import/rb-playlist/rb-fix-paths/rb-playlist-reconcile
-    // hand-rolled guarded JSON parses collapsed onto the rb-command-kit
-    // `parseJsonBoundary` seam; (#98) notes.ts corrupt-data_json guard
-    // deduplicated to one `parseNoteData` — 5 audited/guarded sites removed
-    // (63→58, 47→42), zero new sites, zero behavior change (all tests green).
-    audited: 58,
-    guarded: 42,
+    // Sep 15 (#80): the ffprobe consolidation routed dedupe-probe and
+    // rb-import bitrate probing through fulltags media-probe (no new
+    // JSON.parse sites); the audited delta 58→59 is the concurrent
+    // bandcamp.ts ld+json guarded parse landing in the same worktree.
+    audited: 59,
+    guarded: 43,
     sanctioned: 16,
-    digest: "8717bdc5ede539d180f7df7153dcb58ccf8b6076576c9654f14673f5b16ffe74",
+    digest: "a6c29d8079b3c287a4344e5fbe4e6d6845c609f4bb859e234537ef6988bb4958",
   });
 });
 
