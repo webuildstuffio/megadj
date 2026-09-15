@@ -250,9 +250,27 @@ reconcile):
 All stages write to ledgers/DB FullTags owns; `--apply` gates and the
 ground-truth philosophy unchanged.
 
+0. **Tier-0 diagnostics (NEW, Sep 14 — run before/refold-adjacent; they
+   decide what the later steps are worth).** From the
+   [external research review](embedding-research-2026-09-14.md) §4/§5:
+   (a) **label-error clustering by artist/release/imprint** — if errors are
+   systematic the 0.58 ceiling story is wrong and relabelling buys ~nothing;
+   (b) **artist-overlap rate in top-5 neighbours** (Sturm's "horse" check —
+   effnet is the tower most likely to win LOO by artist fingerprinting; >15%
+   overlap ⇒ add `--artist-disjoint` reruns); (c) **hubness histogram**
+   (k-occurrence distribution — a few tracks at 40+ occurrences means
+   whitening + CSLS is nearly-free retrieval points); (d) **confusion matrix
+   - top-2 accuracy** in `genre --eval` (is the error mass the house/techno/
+     trance triangle — arguably not errors — or structural?). ~4 h total.
 1. **Refold** (§5, now with the measured target: **105 labels cover 90%**;
    the alias table is small and finite). Split multi-label strings on
-   `/ , &` into ranked secondaries (389 rows healed here).
+   `/ , &` into ranked secondaries (389 rows healed here). **Extended per
+   the review + user call (Sep 14):** arbitrate the plain-`edm` umbrella
+   block (B1's sibling — `edm` is a parent of house/techno/trance, so every
+   plain-`edm` track is a forced LOO error) through the same head+kNN
+   dispute pass, keeping genuinely-hard-EDM (hard-dance/eurodance/nightcore)
+   and ALL sub-genre labels — **hardtekk and friends are explicitly kept**
+   as Tier-1 display; only the _scoring_ family arbitration changes.
 2. **Demote-and-flag pass**: sources get trust weights from the measured
    table (RB 0.62, ingest 0.59, SC free-text lowest); rows whose label
    disagrees with a unanimous kNN consensus get `genre_flag='disputed'` —
@@ -274,10 +292,37 @@ ground-truth philosophy unchanged.
    62.6%, refusal 19.8%, ungated 56.3% — within rounding of the §5b.1
    table). `--no-duration-guard` drops the 90–480 s band for an
    ungated-population rerun; `--k`/`--min-agreement` retune the vote.
+   **Queued additions (research review):** `--probe` (linear-probe readout
+   vs the kNN vote — literature-standard; promotion gate = beat kNN by
+   ≥3 pts on the guarded population), `--artist-disjoint` reruns,
+   confusion-matrix + top-2 output, and the calibration note that **0.65–0.75
+   is the realistic aspiration band** (best published EDM-subgenre result:
+   60.6% @ 30 classes, 75K songs), with ≥65% remaining the ship gate.
 5. **Embedding-neighborhood labels (later, the deep fix)**: cluster the
    3,415 vectors; coherent clusters _propose_ canonical labels from their
    members' consensus, reviewed by a human — new sub-genres enter the
    taxonomy from audio reality, not tag folklore.
+6. **Multi-source vote ladder (NEW, Sep 14 — user-directed).** The fetch
+   ladder is currently `SC → Beatport → AI(opt-in)` with first-win-writes.
+   Evolve to a **weighted vote** across the arms we already have — RB
+   mirror, ingest pool (Bandcamp/Hypeddit-quality), SC, Beatport,
+   Discogs-400 head, kNN consensus — with the measured trust weights (G6:
+   RB > ingest) and the §5c disputed-pass semantics (disagreement flags,
+   never clobbers). New arms: a **Bandcamp page-fetch arm** (yt-dlp's
+   Bandcamp extractor is broken upstream since Aug 2026, but album pages
+   expose publisher tags + label directly) and a **web-search research arm**
+   (exa/brave) used ONLY as a harness to confirm imprint→scene mappings for
+   the disputed residue (feeding the LLM pass) — never a runtime ladder
+   dependency. Replaces "first source wins" with "sources vote, consensus
+   writes, disputes flag".
+7. **Transition-window embeddings (NEW, Sep 14 — the user's chunking
+   instinct, and the cheapest basin jump).** DJs mix 32-bar sections, not
+   tracks. The Essentia patch towers already emit per-~3 s patch embeddings
+   before mean-pooling, and the cues ledger already stores 32-bar phrase
+   boundaries — so **intro/outro-window similarity** (pool only the first/
+   last-N-second patches; outro→intro "sounds like" index) is S–M with
+   **zero new models** and no Demucs bill. See the research review §5 J4
+   (its "days" estimate assumes new infrastructure; ours mostly exists).
 
 ### 5b.4 What NOT to build
 
@@ -291,14 +336,19 @@ ground-truth philosophy unchanged.
 
 ### 5b.5 Effort & order
 
-| Step                                         | Size   | Depends on                          |
-| -------------------------------------------- | ------ | ----------------------------------- |
-| Refold + alias SSOT + multi-label split      | S      | —                                   |
-| Ranked secondary storage (`track_genres`)    | S–M    | refold                              |
-| Disputed-flag pass + source trust weights    | S      | refold                              |
-| `--eval` harness as a reusable command       | S      | — (this doc's harness, productized) |
-| Inference for unlabeled (k=5 pinned by eval) | exists | —                                   |
-| Cluster-proposed labels                      | M      | everything above, later             |
+| Step                                         | Size   | Depends on                             |
+| -------------------------------------------- | ------ | -------------------------------------- |
+| Tier-0 diagnostics (0a–0d above)             | S      | — (run FIRST; they re-rank below)      |
+| Refold + alias SSOT + multi-label split      | S      | diagnostics (edm arbitration rides it) |
+| Ranked secondary storage (`track_genres`)    | S–M    | refold                                 |
+| Disputed-flag pass + source trust weights    | S      | refold                                 |
+| `--eval` harness as a reusable command       | S      | — (this doc's harness, productized)    |
+| `--eval` probe / artist-disjoint / confusion | S      | — (extends the shipped command)        |
+| Multi-source vote ladder + Bandcamp arm      | M      | disputed pass                          |
+| Transition-window similarity (intro/outro)   | S–M    | — (patch embeddings + cues exist)      |
+| Inference for unlabeled (k=5 pinned by eval) | exists | —                                      |
+| Whitening + CSLS retrieval space             | S      | hubness histogram                      |
+| Cluster-proposed labels                      | M      | everything above, later                |
 
 **Tower note (Sep 14, superseded):** the 80-track harness numbers that
 named musicnn the candidate were a broken-harness artifact. The repaired

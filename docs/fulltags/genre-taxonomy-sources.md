@@ -236,13 +236,29 @@ towers on demand.
 
 **Queued (in dependency order):**
 
+0. **Tier-0 diagnostics** (S, research review §5) — label-error clustering
+   by artist/imprint, artist-overlap rate in top-5, hubness histogram,
+   confusion matrix + top-2 in `genre --eval`. Decides everything below.
 1. `genre --refold` (S) — mechanical pass; absorbs the escape fixes at the
-   data layer, not just the read layer
+   data layer, not just the read layer. **Now includes the plain-`edm`
+   umbrella arbitration** (keep hardtekk + all Tier-1 sub-genre labels; only
+   scoring-family arbitration changes).
 2. Ranked secondaries via head top-3 (S–M) — the §2 pipeline; runs on
    cached embeddings in minutes, no rescan
 3. LLM residue pass (S, one-shot) — only for labels the first two can't
-   place; OpenRouter, temp 0, vocabulary-constrained
+   place; OpenRouter, temp 0, vocabulary-constrained; **now fed by a
+   web-search (exa/brave) research arm for disputed imprint→scene
+   confirmations — harness-only, never a runtime ladder dependency**
 4. ~~`genre --eval` harness as a command~~ **SHIPPED 2026-09-14** —
    `megadj genre --eval` runs the LOO harness over the live DB (gated
    62.6% vs the ≥65% post-refold target; exit code 1 below target so
-   scripts fail loudly). The standing hygiene gate.
+   scripts fail loudly). The standing hygiene gate. **Queued extensions:
+   `--probe`, `--artist-disjoint`, confusion matrix + top-2.**
+5. **Multi-source vote ladder + Bandcamp arm** (M) — the §5c disputed pass
+   generalized to a weighted vote across RB / ingest pools / SC / Beatport
+   / Bandcamp (direct page fetch; yt-dlp's BC extractor is broken upstream)
+   / Discogs-400 head / kNN consensus; deeper label wins for display when
+   sources agree, disputes flag, and a future **display-depth config** lets
+   the DJ choose Tier-1-only vs Tier-1+Tier-3 display. The DB stays the
+   multi-value SSOT (ID3v2.3 TCON carries one slash-joined primary — file
+   tags remain output-only).

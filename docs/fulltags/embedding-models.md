@@ -184,7 +184,11 @@ Readings:
    provisional v1 table (musicnn 0.538 / effnet 0.413). v1's numbers were
    produced by the broken harness (invalid-row mapping) and are superseded.
 2. **MERT at 7× effnet's cost scores 19 points worse.** The v1 "rejected
-   pre-benchmark on cost" call is now measured and stands.
+   pre-benchmark on cost" call is now measured and stands — **provisionally**:
+   all three variants varied time-pooling; layer depth (the axis MuQ's
+   layer-wise analysis shows matters for genre) was never varied, and the
+   95M was benchmarked where the literature uses the 330M. The per-layer
+   re-test is queued (research review F1) before the rejection is final.
 3. **CLAP is last on agreement again** — consistent with v1; text-alignment
    towers don't cluster music. VGGish stays VA-only.
 4. Caveats carry over from v1 (one seed, label ceiling ~60–76%, families
@@ -236,3 +240,33 @@ fusion implementation steps stay parked.
 - **No second ledger, no `--backfill-mnn`, no fusion** until the sweep
   contradicts this — the corresponding v1 implementation steps are
   parked, not deleted.
+
+### External research review (Sep 14, 2026) — readout & diagnostics added to the plan
+
+An external deep-read of the tower landscape (MuQ/MARBLE/TuneJury/
+EDM-subgenre literature, compute + licence audit) reviewed these v2
+conclusions. **The effnet-primary decision stands** — but the review adds
+items that change the _plan_, not the tower: Tier-0 diagnostics
+(artist-leakage check on the LOO itself, hubness histogram, confusion
+matrix + top-2, label-error clustering), a **linear-probe readout
+experiment** for genre (literature-standard; kNN-on-raw-cosine is the
+weakest readout), **whitening + CSLS** for the retrieval side, **target
+recalibration to 0.65–0.75** (best published EDM-subgenre result: 60.6% on
+30 classes with 75K songs), and a full-population LOO (error bars ±6 →
+~±1). Also flagged: our MERT rejection varied time-pooling but never layer
+depth (and used the 95M, not the 330M) — the rejection stays in force but
+is quoted as _provisional_ until the ~1 h per-layer re-test. Full findings,
+cost tables, licences, and the ranked ladder with adoption verdicts:
+[embedding-research-2026-09-14](embedding-research-2026-09-14.md).
+
+**Plan deltas (live):**
+
+1. `genre --eval` gains `--probe`, `--artist-disjoint`, confusion-matrix +
+   top-2 output, and a hubness histogram — the diagnostics are the next
+   work, ahead of any further tower work.
+2. `megadj similar` / MegaSet retrieval gains a flag-gated
+   `--space raw|whitened` (mean-centre + whiten + CSLS; ~10 lines) for A/B.
+3. Genre target: ship gate stays **gated ≥65%**; the _aspiration_ band is
+   0.65–0.74 via probe + readout fixes, not a tower swap.
+4. MERT rejection: **provisional** — per-layer re-test queued before the
+   verdict is quoted as final anywhere.

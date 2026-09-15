@@ -64,15 +64,30 @@ web panel. Everything below is measured evidence for the design choices.
 
 ### Embedding towers ([embedding-models](../fulltags/embedding-models.md))
 
-| #   | Finding                                                         | Number                                                                               |
-| --- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| M1  | **effnet-discogs-1280 is the measured best single tower**       | LOO 0.444, coherence 0.362, 0.56 s/track (0.8 h per 5k)                              |
-| M2  | v1's "musicnn wins" was a broken-harness artifact               | inverted: musicnn 0.300 vs effnet 0.444 at n=180                                     |
-| M3  | MERT-v1-95M fails on this library — representation, not pooling | 0.256–0.267 across 3 pooling schemes, at 7× cost                                     |
-| M4  | Ensembles buy almost nothing                                    | best +1.1 pt (mean-cos effnet+musicnn+mert) at 2–6× cost                             |
-| M5  | Rank-fusion is a silent trap                                    | descending-rank fusion selects _least_-similar neighbors                             |
-| M6  | CLAP is worst-in-class for music kNN                            | 0.244 — text-alignment towers don't cluster music                                    |
-| M7  | 5k-library projections (single pass)                            | effnet 0.8 h · musicnn 1.0 h · vggish 1.0 h · openl3 4.1 h · MERT 5.4 h · clap 0.7 h |
+| #   | Finding                                                         | Number                                                                                                            |
+| --- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| M1  | **effnet-discogs-1280 is the measured best single tower**       | LOO 0.444, coherence 0.362, 0.56 s/track (0.8 h per 5k)                                                           |
+| M2  | v1's "musicnn wins" was a broken-harness artifact               | inverted: musicnn 0.300 vs effnet 0.444 at n=180                                                                  |
+| M3  | MERT-v1-95M fails on this library — representation, not pooling | 0.256–0.267 across 3 pooling schemes, at 7× cost — **provisional: layer depth never varied** (research review F1) |
+| M4  | Ensembles buy almost nothing                                    | best +1.1 pt (mean-cos effnet+musicnn+mert) at 2–6× cost                                                          |
+| M5  | Rank-fusion is a silent trap                                    | descending-rank fusion selects _least_-similar neighbors                                                          |
+| M6  | CLAP is worst-in-class for music kNN                            | 0.244 — text-alignment towers don't cluster music                                                                 |
+| M7  | 5k-library projections (single pass)                            | effnet 0.8 h · musicnn 1.0 h · vggish 1.0 h · openl3 4.1 h · MERT 5.4 h · clap 0.7 h                              |
+
+### External research review (Sep 14 — [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md))
+
+| #   | Finding                                                                                              | Number / source                                                                                                            |
+| --- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| R1  | **0.444 is not embarrassing — we compared to the wrong benchmark**                                   | best published EDM-subgenre: **60.6%** @ 30 classes, 75K songs (arXiv:2110.08862); realistic target **0.65–0.75**, not 0.9 |
+| R2  | **Random-noise LOO ceiling ≈ 0.58** (p≈0.68 × 0.85) — effnet is at ~77% of it                        | ~14 pts of headroom in this basin; systematic (non-random) label errors ⇒ no ceiling — diagnostic 0.1 decides              |
+| R3  | **Frozen kNN is the weakest readout**; the literature probes linear heads on frozen features         | comparable towers hit 82–88% on GTZAN with a probe; expected +12–20 pts on genre                                           |
+| R4  | **Artist leakage unmeasured in our LOO** (effnet = Discogs-metadata tower, likeliest to fingerprint) | Sturm "horse" critique; >15% same-artist top-5 ⇒ rerun artist-disjoint                                                     |
+| R5  | **Hubness/anisotropy never corrected** (no mean-centre/whiten/CSLS)                                  | fix ≈ 10 lines; expected +3–8 pt coherence                                                                                 |
+| R6  | **Fine-tuning is answered: frozen wins**                                                             | MuQ-Eval A1 (frozen) beats LoRA and full-FT (12 GB, didn't win); naive MERT full-FT examples are garbage                   |
+| R7  | **The projection-head recipe is published**                                                          | TuneJury: 2.8M MLP over frozen towers, pairwise-logistic, 17.5K prefs                                                      |
+| R8  | **Stems: +3.6 pt on MuQ, but CLAP got worse** — effnet is CLAP-side                                  | 86.8→90.4% (arXiv:2601.19109); gate any Demucs work behind a 200-track probe                                               |
+| R9  | **MLX is a detour**: head training is an 18 MB CPU job; fine-tune = rent a GPU-hour                  | PyTorch-MPS beats MLX at training (arXiv:2501.14925)                                                                       |
+| R10 | **Licences: everything strong is NC**; only CLAP (CC0)/VGGish (Apache) are clean, both weak          | flag for any future CrateDeck monetization decision                                                                        |
 
 ### Sequencing-adjacent (08/09 plans)
 
@@ -84,40 +99,85 @@ web panel. Everything below is measured evidence for the design choices.
 
 ## 2. Critical bugs to fix (all known, none blocking today)
 
-| #   | Bug                                                                                                                                                                                                         | Impact                                                     | Where                                                       |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------- |
-| B1  | **`dance`→edm is a least-wrong mapping** — head says the 113 tracks are house 65/trance 17/bass 14                                                                                                          | soft: diversity guard slightly miscategorizes those tracks | refold should split via kNN dispute-flag pass               |
-| B2  | **`melodic house & techno` → house** (regex order)                                                                                                                                                          | soft: melodic-techno tracks vote house                     | family-map ordering; needs head-verified rule before change |
-| B3  | **Rekordbox dedup must remain fingerprint-proven**                                                                                                                                                          | name-only matching can quarantine distinct recordings      | shipped guardrails live in `megadj rb-dedup` tests          |
-| B4  | 206 unlabeled tracks (203 embedded)                                                                                                                                                                         | coverage 94.4→99.9% available                              | `genre --apply` inference exists                            |
-| B5  | 389 slash-soup multi-genre rows unrefolded                                                                                                                                                                  | Tier-1 display noise                                       | refold pipeline step 1                                      |
-| B6  | ~~`genre --eval` harness not yet a command~~ **SHIPPED 2026-09-14** — `megadj genre --eval` runs the LOO harness over the live DB; reproduces the v3 baseline exactly (n=2,982, gated 62.6%, refusal 19.8%) | hygiene regression gate now standing                       | §5b.3 step 4 — done                                         |
-| B7  | `hardtekk` family vote n=9 — fragile regex from tiny sample                                                                                                                                                 | soft: misvotes possible                                    | revisit post-refold with bigger pop                         |
+| #   | Bug                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Impact                                                                                     | Where                                                       |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| B1  | **`dance`→edm is a least-wrong mapping** — head says the 113 tracks are house 65/trance 17/bass 14. **Extended Sep 14 (research review R2/B1-sibling): plain-`edm` itself (353 tracks) is the same bug one level up — an umbrella sitting as a sibling of house/techno/trance, forcing every plain-`edm` track into a guaranteed LOO error. Arbitrate both via the head+kNN dispute pass; keep hard-dance/eurodance/nightcore in `edm`, keep ALL Tier-1 sub-genre labels (hardtekk etc. stay).** | soft: diversity guard slightly miscategorizes those tracks; up to +6–12 pts LOO when fixed | refold dispute pass (§5b.3.1)                               |
+| B2  | **`melodic house & techno` → house** (regex order)                                                                                                                                                                                                                                                                                                                                                                                                                                               | soft: melodic-techno tracks vote house                                                     | family-map ordering; needs head-verified rule before change |
+| B3  | **Rekordbox dedup must remain fingerprint-proven**                                                                                                                                                                                                                                                                                                                                                                                                                                               | name-only matching can quarantine distinct recordings                                      | shipped guardrails live in `megadj rb-dedup` tests          |
+| B4  | 206 unlabeled tracks (203 embedded)                                                                                                                                                                                                                                                                                                                                                                                                                                                              | coverage 94.4→99.9% available                                                              | `genre --apply` inference exists                            |
+| B5  | 389 slash-soup multi-genre rows unrefolded                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Tier-1 display noise                                                                       | refold pipeline step 1                                      |
+| B6  | ~~`genre --eval` harness not yet a command~~ **SHIPPED 2026-09-14** — `megadj genre --eval` runs the LOO harness over the live DB; reproduces the v3 baseline exactly (n=2,982, gated 62.6%, refusal 19.8%)                                                                                                                                                                                                                                                                                      | hygiene regression gate now standing                                                       | §5b.3 step 4 — done                                         |
+| B7  | `hardtekk` family vote n=9 — fragile regex from tiny sample                                                                                                                                                                                                                                                                                                                                                                                                                                      | soft: misvotes possible                                                                    | revisit post-refold with bigger pop                         |
 
 ## 3. Next 3–5 things (ordered, with why)
 
-1. **Run the genre refold for real** (`megadj genre --refold`, §5b.3 steps 1–2). _Why:_ everything downstream — B6 diversity guard, family-based pools, ranked secondaries, the disputed-flag pass, the (now shipped) eval harness — consumes its output, and it is S-sized with a measured target (105 labels → 90%).
-2. **`--apply` the 203 embedded-but-unlabeled tracks** (B4). _Why:_ the eval gate is now standing, so the fill's effect is measurable before/after; `--apply` converts the gap into coverage honestly (COALESCE never clobbers).
-3. **Ranked secondaries via the Discogs-400 head** (§5b.2 + 07 §2, T4). _Why:_ minutes of compute on cached embeddings buys per-track ranked styles for MegaSet's "deep end of the family" pools and the B6 family-union fix — the single biggest quality-per-hour item left.
-4. ~~**Beam-search-under-250 in the set builder**~~ **SHIPPED 2026-09-14** (04, E7): `SET_BEAM_POOL_MAX=250`/`SET_BEAM_WIDTH=8` in shared/setbuild.ts; automatic pick, `search` reported on the wire (HTTP/CLI/MCP/UI), `?search=` forces either strategy for A/B. Regression-tested: greedy stranded at 2 where beam chains 7+ on the E7 fixture.
-5. **Execute the `setbuild → megaset` migration** (09). _Why:_ pure rename, fully planned, do it once the worktree is quiet so docs, code, and skill stop living under two names.
+**Reordered Sep 14 (user call): genre/readout quality BEFORE any further
+set-generation work** — genre is the easier goal and the better input to
+every downstream pool.
 
-**Not next** (deliberately): LLM residue pass (only after 1–3 shrink the unmapped set), second embedding ledger (M4 says no), any tower switch (gate closed), crowd-sourced co-occurrence, solver engines, cloud anything.
+1. **Tier-0 diagnostics** (research review §5, ~4 h): label-error clustering
+   by artist/imprint · artist-overlap rate in top-5 neighbours · hubness
+   histogram · confusion matrix + top-2 in `genre --eval`. _Why:_ they decide
+   whether the label ceiling is real (random noise) or a story (systematic
+   mislabelling), and whether effnet's LOO lead is genre inference or artist
+   fingerprinting. Everything below is re-ranked by their output.
+2. **Run the genre refold for real** (`megadj genre --refold`, §5b.3 steps
+   1–2), now extended with the **plain-`edm` umbrella arbitration** (B1's
+   sibling: `edm` is a parent of house/techno/trance — every plain-`edm`
+   track is a forced LOO error; expected +6–12 pts alone). _Why:_ everything
+   downstream — B6 diversity guard, family-based pools, ranked secondaries,
+   the disputed-flag pass, the (now shipped) eval harness — consumes its
+   output, and it is S-sized with a measured target (105 labels → 90%).
+3. **Full-population LOO + the probe experiment** (`genre --eval
+--probe`, `--artist-disjoint`; n=3,500 instead of 180). _Why:_ error bars
+   ±6 → ~±1 (makes every earlier sub-3-pt result falsifiable), and the
+   linear probe is the literature-standard readout — expected +12–20 pts on
+   genre; if it lands ≥0.65 the whole tower-swap thread closes permanently.
+4. **`--apply` the 203 embedded-but-unlabeled tracks** (B4). _Why:_ the eval
+   gate is now standing, so the fill's effect is measurable before/after;
+   `--apply` converts the gap into coverage honestly (COALESCE never
+   clobbers).
+5. **Ranked secondaries via the Discogs-400 head** (§5b.2 + 07 §2, T4). _Why:_
+   minutes of compute on cached embeddings buys per-track ranked styles for
+   MegaSet's "deep end of the family" pools and the B6 family-union fix — the
+   single biggest quality-per-hour item left.
+6. **Multi-source genre vote ladder + Bandcamp arm + transition-window
+   similarity** (genre-audit §5b.3.6–7) — the user-directed additions;
+   queued right behind the refold/disputed pass they extend.
+7. ~~**Beam-search-under-250 in the set builder**~~ **SHIPPED 2026-09-14**
+   (04, E7): `SET_BEAM_POOL_MAX=250`/`SET_BEAM_WIDTH=8` in
+   shared/setbuild.ts; automatic pick, `search` reported on the wire
+   (HTTP/CLI/MCP/UI), `?search=` forces either strategy for A/B.
+   Regression-tested: greedy stranded at 2 where beam chains 7+ on the E7
+   fixture.
+8. **Execute the `setbuild → megaset` migration** (09). _Why:_ pure rename,
+   fully planned, do it once the worktree is quiet so docs, code, and skill
+   stop living under two names.
+
+**Not next** (deliberately): further set-generation work until the genre
+ladder above lands (user call, Sep 14); LLM residue pass (only after the
+refold + head shrink the unmapped set); second embedding ledger (M4 says
+no); any tower switch (gate closed; MERT rejection provisional pending the
+per-layer re-test); stems (R8: MuQ-specific gain, effnet is CLAP-side —
+200-track probe first); MuQ (no ONNX, no small base); MLX (R9: wrong tool
+at every layer of this problem); crowd-sourced co-occurrence; solver
+engines; cloud anything.
 
 ## 4. Doc map (what lives where)
 
-| Doc                                                       | Role                                                      | State     |
-| --------------------------------------------------------- | --------------------------------------------------------- | --------- |
-| [01-prd](01-prd.md)                                       | Product brief, kill criteria, F1–F7                       | current   |
-| [02-architecture](02-architecture.md)                     | Engine shape, variable inventory (20 set + 24 song vars)  | current   |
-| [03-competitive-analysis](03-competitive-analysis.md)     | 30 comparators + re-ranked roadmap (plan of record)       | current   |
-| [04-sequencing-benchmarks](04-sequencing-benchmarks.md)   | E1–E8 measured engine claims                              | current   |
-| [genre-audit](../fulltags/genre-audit.md) (was 05)        | Genre policy + v3 statistical revalidation (FullTags doc) | current   |
-| [embedding-models](../fulltags/embedding-models.md) (was 06) | Tower benchmark, fusion sweep, MERT verdict (FullTags doc) | current   |
-| [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07) | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc) | current   |
-| [08-audit-and-plan](08-audit-and-plan.md)                 | Implementation audit + per-item sketches (reference)      | reference |
-| [09-migration-plan](09-migration-plan.md)                 | `setbuild → megaset` atomic rename plan                   | planned   |
-| [10-findings](10-findings.md)                             | **this page** — distilled verdicts + next actions         | current   |
+| Doc                                                                           | Role                                                                                           | State     |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------- |
+| [01-prd](01-prd.md)                                                           | Product brief, kill criteria, F1–F7                                                            | current   |
+| [02-architecture](02-architecture.md)                                         | Engine shape, variable inventory (20 set + 24 song vars)                                       | current   |
+| [03-competitive-analysis](03-competitive-analysis.md)                         | 30 comparators + re-ranked roadmap (plan of record)                                            | current   |
+| [04-sequencing-benchmarks](04-sequencing-benchmarks.md)                       | E1–E8 measured engine claims                                                                   | current   |
+| [genre-audit](../fulltags/genre-audit.md) (was 05)                            | Genre policy + v3 statistical revalidation (FullTags doc)                                      | current   |
+| [embedding-models](../fulltags/embedding-models.md) (was 06)                  | Tower benchmark, fusion sweep, MERT verdict (FullTags doc)                                     | current   |
+| [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07)      | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc)                       | current   |
+| [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md) | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot  |
+| [08-audit-and-plan](08-audit-and-plan.md)                                     | Implementation audit + per-item sketches (reference)                                           | reference |
+| [09-migration-plan](09-migration-plan.md)                                     | `setbuild → megaset` atomic rename plan                                                        | planned   |
+| [10-findings](10-findings.md)                                                 | **this page** — distilled verdicts + next actions                                              | current   |
 
 ---
 
@@ -150,17 +210,20 @@ numbering from 07's T#), `B#` = bug/plan items (08/audit Phase A–D),
 
 **Engine & algorithms:**
 
-| Term                   | Meaning                                                                                                                                                                                                                                                                                                                                       |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Greedy                 | The shipped default sequencer: repeatedly take the highest-scoring next track. Fast (29 ms at 3.6k tracks) but myopic — a locally-best pick can strand the chain in sparse pools.                                                                                                                                                             |
-| Beam search / beam-B8  | A sequencer upgrade: keep the best B=8 partial chains per step instead of 1, so a doomed branch is pruned while alternatives survive. Measured +59% chain length in sparse pools at 0 ms cost. Ships automatically when the pool is < `SET_BEAM_POOL_MAX` (250); force either strategy with `?search=` / `--search` / the MCP `search` param. |
-| 2-opt                  | A repair pass: reverse any chain segment if the total transition score improves. Cheap; fixes ordering, never dead-ends (reversal adds no edges). Measured +0.0% on big pools — kept as free polish.                                                                                                                                          |
-| Held-Karp / DP         | The exact longest-path dynamic program: O(2ⁿ·n²). Reference-only in this doc set — it OOMs at n=30, which is why exact solvers are a non-goal.                                                                                                                                                                                                |
-| LOO (leave-one-out)    | Evaluation method: for each track, hide its label, let its k nearest audio-neighbors vote, and see if the vote agrees. The number (e.g. "LOO k=5 = 62.7%") is the share of tracks whose label survives its own neighbors — our genre/audio consistency metric.                                                                                |
-| kNN                    | k-nearest-neighbors: similarity search over embedding vectors (cosine). Powers both "sounds like" and the genre eval.                                                                                                                                                                                                                         |
-| Cosine / coherence     | Cosine = the similarity of two embedding vectors (1.0 = identical direction). Coherence @5 = the share of a track's top-5 neighbors sharing its family — the retrieval-quality metric.                                                                                                                                                        |
-| CI / McNemar / Jaccard | Statistics used in the genre audit v3. CI = 95% bootstrap confidence interval (resampling error bars). McNemar's = paired significance test for two methods on the same tracks (p < 0.05 = conclusive). Jaccard = set overlap,                                                                                                                | A∩B | /   | A∪B | (0.486 between kNN and head top-5 families = complementary signals). |
-| Duration guard         | The eval filter keeping tracks 90–480 s: drops DJ mixes, edits and shorts so metrics aren't skewed. Neutral on the headline metric (−0.2 pt); kept for hygiene.                                                                                                                                                                               |
+| Term                        | Meaning                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Greedy                      | The shipped default sequencer: repeatedly take the highest-scoring next track. Fast (29 ms at 3.6k tracks) but myopic — a locally-best pick can strand the chain in sparse pools.                                                                                                                                                                                                               |
+| Beam search / beam-B8       | A sequencer upgrade: keep the best B=8 partial chains per step instead of 1, so a doomed branch is pruned while alternatives survive. Measured +59% chain length in sparse pools at 0 ms cost. Ships automatically when the pool is < `SET_BEAM_POOL_MAX` (250); force either strategy with `?search=` / `--search` / the MCP `search` param.                                                   |
+| 2-opt                       | A repair pass: reverse any chain segment if the total transition score improves. Cheap; fixes ordering, never dead-ends (reversal adds no edges). Measured +0.0% on big pools — kept as free polish.                                                                                                                                                                                            |
+| Held-Karp / DP              | The exact longest-path dynamic program: O(2ⁿ·n²). Reference-only in this doc set — it OOMs at n=30, which is why exact solvers are a non-goal.                                                                                                                                                                                                                                                  |
+| LOO (leave-one-out)         | Evaluation method: for each track, hide its label, let its k nearest audio-neighbors vote, and see if the vote agrees. The number (e.g. "LOO k=5 = 62.7%") is the share of tracks whose label survives its own neighbors — our genre/audio consistency metric.                                                                                                                                  |
+| kNN                         | k-nearest-neighbors: similarity search over embedding vectors (cosine). Powers both "sounds like" and the genre eval.                                                                                                                                                                                                                                                                           |
+| Linear probe                | A logistic-regression (or small linear) classifier trained ON TOP of frozen embedding vectors. The literature-standard readout for genre benchmarks — learns which of the 1280 dims carry family information instead of weighting all equally like cosine kNN. Planned as `genre --eval --probe`; gate = beat the kNN vote by ≥3 pts.                                                           |
+| CSLS / hubness              | Hubness: in high-dim cosine spaces a few "hub" tracks appear in everyone's top-k, wrecking retrieval coherence. CSLS (Cross-domain Similarity Local Scaling) penalises each candidate by its own neighbourhood density, and mean-centring + whitening removes the few dominant directions that encode loudness/production instead of genre. Fix ≈ 10 lines; hubness histogram = the diagnostic. |
+| Classification vs retrieval | Two DIFFERENT problems sharing one tower: `megadj genre` is classification (a probe head fixes it); "sounds like" is retrieval (probe does nothing — whitening/CSLS and a projection head fix that). Measuring both with two correlated metrics stalled the benchmark (research review).                                                                                                        |
+| Cosine / coherence          | Cosine = the similarity of two embedding vectors (1.0 = identical direction). Coherence @5 = the share of a track's top-5 neighbors sharing its family — the retrieval-quality metric.                                                                                                                                                                                                          |
+| CI / McNemar / Jaccard      | Statistics used in the genre audit v3. CI = 95% bootstrap confidence interval (resampling error bars). McNemar's = paired significance test for two methods on the same tracks (p < 0.05 = conclusive). Jaccard = set overlap,                                                                                                                                                                  | A∩B | /   | A∪B | (0.486 between kNN and head top-5 families = complementary signals). |
+| Duration guard              | The eval filter keeping tracks 90–480 s: drops DJ mixes, edits and shorts so metrics aren't skewed. Neutral on the headline metric (−0.2 pt); kept for hygiene.                                                                                                                                                                                                                                 |
 
 **Embeddings & models:**
 
