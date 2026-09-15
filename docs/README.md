@@ -54,6 +54,10 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 ### FullTags and analysis
 
 - [FullTags roadmap](fulltags/fulltags-roadmap.md) — gate outcomes and analysis roadmap.
+- **Tags comparison surface (Sep 15)** — FullTags ⌗ Tags now shows
+  FullTags ↔ rekordbox ↔ live-file tag sources side by side: pure-DB
+  census (`archive_tag_census`) + per-track three-source read
+  (`archive_tag_compare`); read-only, files never read on the census path.
 - [Genre audit](fulltags/genre-audit.md) — inclusion and source-precedence
   policy; v3 statistical revalidation (CIs, McNemar, duration guards).
   MegaSet consumes it family-level only.

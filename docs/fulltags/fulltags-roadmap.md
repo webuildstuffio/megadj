@@ -1,6 +1,17 @@
-# FullTags — Prioritized Roadmap (rev 7.0)
+# FullTags — Prioritized Roadmap (rev 7.1)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 7.1, 2026-09-15: **the tag-visibility surface shipped** — FullTags ⌗
+Tags is now the FullTags ↔ rekordbox ↔ file comparison view. A pure-DB
+census (`/api/archive/tag-census`, MCP `archive_tag_census`) joins the
+enrichment mirror with the rb-adopt mirror and ranks disagreements
+(first live run: 3269/3563 differ, bpm 3132 · title 507 · genre 442 ·
+key 276 · artist 11); a per-track endpoint (`tag-compare`) adds the
+LIVE file read as ground truth beside both mirrors with the lossless
+rb payload expandable. Read-only throughout; census never touches
+files (null = "no claim", not a conflict — absence of evidence must
+not bury real differences)._
 
 _Rev 7.0, 2026-09-15: **the Sep 15 genre quality sprint closed and the
 roadmap re-ranked by its verdicts.** Shipped in one day: Tier-0
