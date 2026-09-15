@@ -129,6 +129,39 @@ describe("cratedeck e2e", () => {
     expect(body?.drives).toEqual(drives.body ?? undefined);
   });
 
+  it("tag-census degrades honestly without the archive DB", async () => {
+    // The e2e fixture env points MEGADJ_DB at an absent path — the route
+    // must answer 200 with available:false, never an error. (When a
+    // developer's real MEGADJ_DB leaks in, the assertion flips to the
+    // live contract: mirror present + rows shaped right.)
+    const { status, body } = await api<{
+      available: boolean;
+      rekordboxMirror: boolean;
+      rows?: unknown[];
+    }>("/archive/tag-census");
+    expect(status).toBe(200);
+    if (body?.available === false) {
+      expect(body.rekordboxMirror).toBe(false);
+    } else {
+      // live DB visible: the shape contract still holds
+      expect(Array.isArray(body?.rows)).toBe(true);
+    }
+  });
+
+  it("tag-compare requires an id (400) and answers for unknown ids", async () => {
+    const missing = await api<{ error: string }>("/archive/tag-compare");
+    expect(missing.status).toBe(400);
+    expect(missing.body?.error).toContain("id");
+    const { status, body } = await api<{
+      available: boolean;
+      videoId: string;
+      differences: unknown[];
+    }>("/archive/tag-compare?id=no-such-track");
+    expect(status).toBe(200);
+    expect(body?.videoId).toBe("no-such-track");
+    expect(Array.isArray(body?.differences)).toBe(true);
+  });
+
   it("serves the SPA shell", async () => {
     // dist/ is a gitignored build artifact (bun run cratedeck/web:build);
     // a fresh clone skips this assertion instead of failing on a 404

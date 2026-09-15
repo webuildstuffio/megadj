@@ -306,7 +306,7 @@ function CompareInline(props: { videoId: string }) {
 }
 
 /** The three-source comparison card (shared by search-pick + census rows). */
-function CompareCard(props: {
+export function CompareCard(props: {
   compare: Fetched<ArchiveTrackTagCompare>;
   picked: TrackPick;
 }) {
