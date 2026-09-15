@@ -1,9 +1,9 @@
-import type { Database } from "bun:sqlite";
 import {
   isFiniteNumber,
   isRecord,
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
+import { RecordLedger } from "./record-ledger";
 
 /** Round to 3 decimals for wire payloads (null degrades to 0). Pure —
  *  module-level, not re-created per call. */
@@ -78,34 +78,27 @@ function parseCueArray(
  * delegates to this so the call surface (`state.setMoodRecord(...)`,
  * `state.cueAnalyzedTracks()`) is unchanged.
  */
-export class Ledgers {
-  constructor(
-    private readonly db: Database,
-    private readonly now: () => string,
-  ) {}
-
+export class Ledgers extends RecordLedger {
   // ---------- mood ledger (roadmap rev 6.1 #4) ----------
 
   /** Upsert one parsed mood result. Idempotent by video_id: a re-run
-   * replaces the row (fresh timestamps). */
+   * replaces the row (fresh timestamps) — plumbing is RecordLedger's. */
   setMoodRecord(rec: MoodRecordInput): void {
-    this.db
-      .query(
-        `INSERT INTO mood (video_id, dance, aggressive, happy, electronic, party, valence, arousal, source_path, analyzed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(video_id) DO UPDATE SET
-           dance = excluded.dance,
-           aggressive = excluded.aggressive,
-           happy = excluded.happy,
-           electronic = excluded.electronic,
-           party = excluded.party,
-           valence = excluded.valence,
-           arousal = excluded.arousal,
-           source_path = excluded.source_path,
-           analyzed_at = excluded.analyzed_at`,
-      )
-      .run(
-        rec.videoId,
+    this.upsert(
+      "mood",
+      rec.videoId,
+      [
+        "dance",
+        "aggressive",
+        "happy",
+        "electronic",
+        "party",
+        "valence",
+        "arousal",
+        "source_path",
+        "analyzed_at",
+      ],
+      [
         rec.dance,
         rec.aggressive,
         rec.happy,
@@ -115,7 +108,8 @@ export class Ledgers {
         rec.arousal,
         rec.sourcePath,
         this.now(),
-      );
+      ],
+    );
   }
 
   /** One mood record (by video id), null when never analyzed. */
@@ -198,16 +192,12 @@ export class Ledgers {
   /** Upsert one derived cue set. Idempotent by video_id: a re-run replaces
    * the row (fresh timestamps). */
   setCueRecord(rec: CueRecordInput): void {
-    this.db
-      .query(
-        `INSERT INTO cues (video_id, cues_json, model, derived_at)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(video_id) DO UPDATE SET
-           cues_json = excluded.cues_json,
-           model = excluded.model,
-           derived_at = excluded.derived_at`,
-      )
-      .run(rec.videoId, JSON.stringify(rec.cues), rec.source, this.now());
+    this.upsert(
+      "cues",
+      rec.videoId,
+      ["cues_json", "model", "derived_at"],
+      [JSON.stringify(rec.cues), rec.source, this.now()],
+    );
   }
 
   /** One cue record (by video id), null when never derived. */
@@ -233,8 +223,12 @@ export class Ledgers {
         derivedAt: row.derived_at,
       };
     } catch (error) {
-      console.warn(error instanceof Error ? error.message : error);
-      return null;
+      // THE poison-row guard (#74): one home for the whole ledger family.
+      return this.absorbParseFailure(
+        error,
+        `cue record ${row.video_id}`,
+        console.warn,
+      );
     }
   }
 
@@ -268,7 +262,11 @@ export class Ledgers {
           },
         ];
       } catch (error) {
-        console.warn(error instanceof Error ? error.message : error);
+        this.absorbParseFailure(
+          error,
+          `cue record ${r.video_id}`,
+          console.warn,
+        );
         return [];
       }
     });

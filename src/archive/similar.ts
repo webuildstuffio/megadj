@@ -1,10 +1,11 @@
 // state-similar.ts — I49 "sounds like" persistence + similarity math,
 // split out of state.ts (file-length guard). Same ArchiveState DB, same
 // ledger rules: corrupt rows read as ABSENT (never poison a ranking),
-// upserts are idempotent by video_id.
-import type { Database } from "bun:sqlite";
+// upserts are idempotent by video_id — both contracts live in
+// RecordLedger (#74), the ledgers below only own their SQL + shapes.
 import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
 import { cosineSimilarity } from "../../cratedeck/shared/similarity";
+import { RecordLedger } from "./record-ledger";
 
 export { cosineSimilarity } from "../../cratedeck/shared/similarity";
 
@@ -36,36 +37,25 @@ export function parseEmbeddingVector(
   return value;
 }
 
-export class EmbeddingsLedger {
-  constructor(
-    private readonly db: Database,
-    private readonly now: () => string,
-  ) {}
-
+export class EmbeddingsLedger extends RecordLedger {
   /** Upsert one embedding. Idempotent by video_id: a re-run replaces the
-   * row (fresh timestamps). */
+   * row (fresh timestamps) — the SQL plumbing is RecordLedger's. */
   setEmbeddingRecord(rec: {
     videoId: string;
     vec: number[];
     sourcePath: string;
   }): void {
-    this.db
-      .query(
-        `INSERT INTO embeddings (video_id, dim, vec_json, source_path, analyzed_at)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(video_id) DO UPDATE SET
-           dim = excluded.dim,
-           vec_json = excluded.vec_json,
-           source_path = excluded.source_path,
-           analyzed_at = excluded.analyzed_at`,
-      )
-      .run(
-        rec.videoId,
+    this.upsert(
+      "embeddings",
+      rec.videoId,
+      ["dim", "vec_json", "source_path", "analyzed_at"],
+      [
         rec.vec.length,
         JSON.stringify(rec.vec),
         rec.sourcePath,
         this.now(),
-      );
+      ],
+    );
   }
 
   /** One embedding (by video id), null when never analyzed. Corrupt JSON
@@ -100,8 +90,12 @@ export class EmbeddingsLedger {
         analyzedAt: row.analyzed_at,
       };
     } catch (error) {
-      console.error(error instanceof Error ? error.message : error);
-      return null;
+      // THE poison-row guard (#74): one home for the whole ledger family.
+      return this.absorbParseFailure(
+        error,
+        `embedding ${row.video_id}`,
+        console.error,
+      );
     }
   }
 
@@ -137,7 +131,11 @@ export class EmbeddingsLedger {
           },
         ];
       } catch (error) {
-        console.error(error instanceof Error ? error.message : error);
+        this.absorbParseFailure(
+          error,
+          `embedding ${r.video_id}`,
+          console.error,
+        );
         return [];
       }
     });
@@ -524,29 +522,21 @@ export function evalLeaveOneOutArtistDisjoint(
  * Track_keys ledger — DEPRECATED shim retained only so the type stays
  * importable; the live cache implementation is ArchiveReader's
  * keyRecord/setKeyRecord (cratedeck/src/archive.ts). Do not extend here.
+ * Plumbing rides RecordLedger (#74) like every other ledger.
  */
-export class KeysLedger {
-  constructor(
-    private readonly db: Database,
-    private readonly now: () => string,
-  ) {}
-
+export class KeysLedger extends RecordLedger {
   /** Upsert one key. Idempotent by video_id: a re-read replaces the row. */
   setKeyRecord(rec: {
     videoId: string;
     key: string;
     sourcePath: string;
   }): void {
-    this.db
-      .query(
-        `INSERT INTO track_keys (video_id, key, source_path, analyzed_at)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(video_id) DO UPDATE SET
-           key = excluded.key,
-           source_path = excluded.source_path,
-           analyzed_at = excluded.analyzed_at`,
-      )
-      .run(rec.videoId, rec.key, rec.sourcePath, this.now());
+    this.upsert(
+      "track_keys",
+      rec.videoId,
+      ["key", "source_path", "analyzed_at"],
+      [rec.key, rec.sourcePath, this.now()],
+    );
   }
 
   /** Cached key (by video id), null when never cached. A cache hit is
