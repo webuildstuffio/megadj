@@ -66,14 +66,14 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    // Sep 15 (#95 retake): audited 59→60 / guarded 43→44 is the
-    // concurrent megaset-rename worktree churn adding one guarded
-    // parse; sanctioned 16 unchanged (grid-triage rekeyed to
-    // lastJsonLine this pass).
-    audited: 60,
-    guarded: 44,
+    // Sep 15 (#144): audited 60→59 / guarded 44→43 — the private
+    // parseJsonBoundary twin in rb-dedup.ts is gone; the parse module
+    // calls the rb-command-kit guarded seam, so one JSON.parse left
+    // the audited surface. sanctioned 16 unchanged.
+    audited: 59,
+    guarded: 43,
     sanctioned: 16,
-    digest: "9a69f878f8739bd7b5dad4cf9bc8989dce4c3618615d0d486eb4db515bcc5b39",
+    digest: "a4b398ba262f80cace38d6efa0d6ab6acaf2e5c15f07f26c8438d1f23daa85cc",
   });
 });
 

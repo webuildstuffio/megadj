@@ -20,13 +20,15 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { fingerprintFileLength } from "../../fulltags/src/exports";
 import {
   dedupDeleteScript,
   dedupScanScript,
   dedupVerifyScript,
 } from "./rb-dedup-scripts.js";
-import { inspectMutationPaths, pickKeeper } from "./rb-dedup-support.js";
+import { fingerprintFileLength } from "../../fulltags/src/exports";
+import type { DupePair } from "./rb-dedup-graph.js";
+import type { DeleteResult, ScanResult, VerifyRow } from "./rb-dedup-parse.js";
+import { inspectMutationPaths } from "./rb-dedup-support.js";
 import {
   applyConfirmed,
   applyConfirmationRefusal,
@@ -51,55 +53,6 @@ export interface RbDedupOptions {
   yes?: boolean | undefined;
   json?: boolean | undefined;
   log?: (s: string) => void;
-}
-
-export interface DupePair {
-  keepId: string;
-  keepPath: string;
-  loseId: string;
-  losePath: string;
-  title: string;
-  durDelta: number;
-  /** basis of the match: path-twin (same normalized path) or fingerprint */
-  basis: "same-path" | "path-twin" | "fingerprint";
-}
-
-export interface ScanRow {
-  id: string;
-  path: string;
-  title: string;
-  len: number;
-  size: number;
-  bitrate: number;
-}
-
-export interface ScanPair extends ScanRow {
-  other: ScanRow;
-  /** Duration/title are only a candidate prefilter, never a verdict. */
-  basis: "same-path" | "path-twin" | "candidate";
-}
-
-interface ScanResult {
-  scanned: number;
-  pairs: ScanPair[];
-}
-
-interface DeleteResult {
-  removedIds: string[];
-  errors: [string, string][];
-  associations: AssociationExpectation[];
-}
-
-interface AssociationExpectation {
-  keepId: string;
-  playlists: [string, number][];
-  cueSignatures: string[];
-}
-
-interface AssociationExpectationWire {
-  keep_id: string;
-  playlists: [string, number][];
-  cue_signatures: string[];
 }
 
 interface CommandResult {
@@ -163,361 +116,32 @@ export interface RbDedupResult {
   error?: string;
 }
 
-function parseJsonBoundary(
-  raw: string,
-  operation: "scan" | "delete" | "verification",
-): unknown {
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch (error) {
-    const detail = error instanceof Error ? `: ${error.message}` : "";
-    throw new Error(`rb-dedup ${operation} returned malformed JSON${detail}`, {
-      cause: error,
-    });
-  }
-}
-
-const finiteNonNegative = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value) && value >= 0;
-
-const isUnknownArray = (value: unknown): value is unknown[] =>
-  Array.isArray(value);
-
-function isScanRow(value: unknown): value is ScanRow {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "id" in value &&
-    typeof value.id === "string" &&
-    value.id.length > 0 &&
-    "path" in value &&
-    typeof value.path === "string" &&
-    "title" in value &&
-    typeof value.title === "string" &&
-    "len" in value &&
-    finiteNonNegative(value.len) &&
-    "size" in value &&
-    finiteNonNegative(value.size) &&
-    "bitrate" in value &&
-    finiteNonNegative(value.bitrate)
-  );
-}
-
-function isScanPair(value: unknown): value is ScanPair {
-  return (
-    isScanRow(value) &&
-    "other" in value &&
-    isScanRow(value.other) &&
-    "basis" in value &&
-    (value.basis === "same-path" ||
-      value.basis === "path-twin" ||
-      value.basis === "candidate")
-  );
-}
-
-export function parseScanResult(raw: string): ScanResult {
-  const value = parseJsonBoundary(raw, "scan");
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("scanned" in value) ||
-    !finiteNonNegative(value.scanned) ||
-    !Number.isInteger(value.scanned) ||
-    !("pairs" in value) ||
-    !isUnknownArray(value.pairs) ||
-    !value.pairs.every(isScanPair)
-  ) {
-    throw new Error(
-      "rb-dedup scan returned invalid JSON: expected a finite census and complete candidate rows",
-    );
-  }
-  return { scanned: value.scanned, pairs: value.pairs };
-}
-
-export function parseDeleteResult(
-  raw: string,
-  expectedIds?: readonly string[],
-): DeleteResult {
-  const value = parseJsonBoundary(raw, "delete");
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("removed_ids" in value) ||
-    !isUnknownArray(value.removed_ids) ||
-    !value.removed_ids.every(
-      (id): id is string => typeof id === "string" && id.length > 0,
-    ) ||
-    new Set(value.removed_ids).size !== value.removed_ids.length ||
-    !("errors" in value) ||
-    !isUnknownArray(value.errors) ||
-    !value.errors.every(
-      (entry): entry is [string, string] =>
-        isUnknownArray(entry) &&
-        entry.length === 2 &&
-        typeof entry[0] === "string" &&
-        typeof entry[1] === "string",
-    ) ||
-    !("associations" in value) ||
-    !isUnknownArray(value.associations) ||
-    !value.associations.every(
-      (association) =>
-        typeof association === "object" &&
-        association !== null &&
-        "keep_id" in association &&
-        typeof association.keep_id === "string" &&
-        association.keep_id.length > 0 &&
-        "playlists" in association &&
-        isUnknownArray(association.playlists) &&
-        association.playlists.every(
-          (membership: unknown) =>
-            isUnknownArray(membership) &&
-            membership.length === 2 &&
-            typeof membership[0] === "string" &&
-            membership[0].length > 0 &&
-            finiteNonNegative(membership[1]) &&
-            Number.isInteger(membership[1]),
-        ) &&
-        "cue_signatures" in association &&
-        isUnknownArray(association.cue_signatures) &&
-        association.cue_signatures.every(
-          (signature: unknown) =>
-            typeof signature === "string" && signature.length > 0,
-        ),
-    )
-  ) {
-    throw new Error(
-      "rb-dedup delete returned invalid JSON: expected removed ids, errors, and association proofs",
-    );
-  }
-  const result: DeleteResult = {
-    removedIds: value.removed_ids,
-    errors: value.errors,
-    associations: (value.associations as AssociationExpectationWire[]).map(
-      (association) => ({
-        keepId: association.keep_id,
-        playlists: association.playlists,
-        cueSignatures: association.cue_signatures,
-      }),
-    ),
-  };
-  // One keeper can absorb multiple losers from the same duplicate cluster,
-  // so keeper ids may repeat. The subprocess emits one proof per removed row
-  // in mapping order; only that one-to-one cardinality is required here.
-  if (result.associations.length !== result.removedIds.length) {
-    throw new Error(
-      "rb-dedup delete returned invalid JSON: association proofs do not match removed rows",
-    );
-  }
-  if (expectedIds) {
-    const expected = new Set(expectedIds);
-    const acknowledged = [
-      ...result.removedIds,
-      ...result.errors.map(([id]) => id),
-    ];
-    if (
-      acknowledged.length !== expected.size ||
-      new Set(acknowledged).size !== acknowledged.length ||
-      acknowledged.some((id) => !expected.has(id))
-    ) {
-      throw new Error(
-        "rb-dedup delete returned invalid JSON: acknowledgements do not match requested loser ids",
-      );
-    }
-  }
-  return result;
-}
-
-interface VerifyRow {
-  id: string;
-  path: string;
-  playlists: [string, number][];
-  cueSignatures: string[];
-  cueOwnersValid: boolean;
-}
-
-interface VerifyRowWire {
-  id: string;
-  path: string;
-  playlists: [string, number][];
-  cue_signatures: string[];
-  cue_owners_valid: boolean;
-}
-
-function parseVerifyRows(raw: string): VerifyRow[] {
-  const value = parseJsonBoundary(raw, "verification");
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("rows" in value) ||
-    !isUnknownArray(value.rows) ||
-    !value.rows.every(
-      (row): row is VerifyRowWire =>
-        typeof row === "object" &&
-        row !== null &&
-        "id" in row &&
-        typeof row.id === "string" &&
-        row.id.length > 0 &&
-        "path" in row &&
-        typeof row.path === "string" &&
-        "playlists" in row &&
-        isUnknownArray(row.playlists) &&
-        row.playlists.every(
-          (membership: unknown) =>
-            isUnknownArray(membership) &&
-            membership.length === 2 &&
-            typeof membership[0] === "string" &&
-            finiteNonNegative(membership[1]) &&
-            Number.isInteger(membership[1]),
-        ) &&
-        "cue_signatures" in row &&
-        isUnknownArray(row.cue_signatures) &&
-        row.cue_signatures.every(
-          (signature: unknown) =>
-            typeof signature === "string" && signature.length > 0,
-        ) &&
-        "cue_owners_valid" in row &&
-        typeof row.cue_owners_valid === "boolean",
-    ) ||
-    new Set(value.rows.map((row) => row.id)).size !== value.rows.length
-  ) {
-    throw new Error(
-      "rb-dedup verification returned invalid JSON: expected unique id/path rows",
-    );
-  }
-  return value.rows.map((row) => ({
-    id: row.id,
-    path: row.path,
-    playlists: row.playlists,
-    cueSignatures: row.cue_signatures,
-    cueOwnersValid: row.cue_owners_valid,
-  }));
-}
-
-function connectGraph(
-  graph: Map<string, Set<string>>,
-  first: string,
-  second: string,
-): void {
-  const firstEdges = graph.get(first) ?? new Set<string>();
-  firstEdges.add(second);
-  graph.set(first, firstEdges);
-  const secondEdges = graph.get(second) ?? new Set<string>();
-  secondEdges.add(first);
-  graph.set(second, secondEdges);
-}
-
-function graphComponentIds(
-  graph: Map<string, Set<string>>,
-  start: string,
-): Set<string> {
-  const found = new Set<string>();
-  const pending = [start];
-  while (pending.length > 0) {
-    const id = pending.pop();
-    if (id === undefined || found.has(id)) continue;
-    found.add(id);
-    for (const neighbor of graph.get(id) ?? []) pending.push(neighbor);
-  }
-  return found;
-}
-
-function compareStableIds(first: string, second: string): number {
-  if (/^\d+$/u.test(first) && /^\d+$/u.test(second)) {
-    const firstNumber = BigInt(first);
-    const secondNumber = BigInt(second);
-    if (firstNumber < secondNumber) return -1;
-    if (firstNumber > secondNumber) return 1;
-  }
-  return first.localeCompare(second);
-}
-
-/** Turn cheap scan candidates into mutation proposals. Distinct paths must
- * have identical, full fingerprints; null or mismatch always means keep
- * both. A loser appears once, while one canonical keeper may own a cluster. */
-export function buildDupePairs(
-  candidates: ScanPair[],
-  fingerprint: (path: string) => string | null = fingerprintFileLength,
-): DupePair[] {
-  const fingerprintCache = new Map<string, string | null>();
-  const getFingerprint = (path: string): string | null => {
-    if (!fingerprintCache.has(path))
-      fingerprintCache.set(path, fingerprint(path));
-    return fingerprintCache.get(path) ?? null;
-  };
-  const rows = new Map<string, ScanRow>();
-  const graph = new Map<string, Set<string>>();
-  const pathGraph = new Map<string, Set<string>>();
-
-  for (const candidate of candidates) {
-    if (candidate.basis === "candidate") {
-      const first = getFingerprint(candidate.path);
-      if (first === null) continue;
-      const second = getFingerprint(candidate.other.path);
-      if (second === null || second !== first) continue;
-    }
-    rows.set(candidate.id, rows.get(candidate.id) ?? candidate);
-    rows.set(
-      candidate.other.id,
-      rows.get(candidate.other.id) ?? candidate.other,
-    );
-    connectGraph(graph, candidate.id, candidate.other.id);
-    if (candidate.basis !== "candidate")
-      connectGraph(pathGraph, candidate.id, candidate.other.id);
-  }
-
-  const physicalComponents = new Map<string, string>();
-  for (const id of [...pathGraph.keys()].toSorted()) {
-    if (physicalComponents.has(id)) continue;
-    const component = [...graphComponentIds(pathGraph, id)].toSorted();
-    const label = component[0];
-    if (label === undefined) continue;
-    for (const member of component) physicalComponents.set(member, label);
-  }
-
-  const pairs: DupePair[] = [];
-
-  const visited = new Set<string>();
-  for (const start of [...graph.keys()].toSorted()) {
-    if (visited.has(start)) continue;
-    const ids = [...graphComponentIds(graph, start)].toSorted();
-    for (const id of ids) visited.add(id);
-    const componentRows = ids
-      .map((id) => rows.get(id))
-      .filter((row): row is ScanRow => row !== undefined);
-    const [first, ...rest] = componentRows;
-    if (first === undefined) continue;
-    const keep = rest.reduce((current, row) => {
-      if (
-        current.path === row.path &&
-        current.bitrate === row.bitrate &&
-        current.size === row.size
-      )
-        return compareStableIds(current.id, row.id) <= 0 ? current : row;
-      return pickKeeper(current, row) === "a" ? current : row;
-    }, first);
-
-    for (const lose of componentRows) {
-      if (lose.id === keep.id) continue;
-      const samePathComponent =
-        physicalComponents.get(keep.id) !== undefined &&
-        physicalComponents.get(keep.id) === physicalComponents.get(lose.id);
-      pairs.push({
-        keepId: keep.id,
-        keepPath: keep.path,
-        loseId: lose.id,
-        losePath: lose.path,
-        title: keep.title,
-        durDelta: Math.abs(keep.len - lose.len),
-        basis: samePathComponent
-          ? keep.path === lose.path
-            ? "same-path"
-            : "path-twin"
-          : "fingerprint",
-      });
-    }
-  }
-  return pairs;
-}
+export {
+  buildDupePairs,
+  compareStableIds,
+  connectGraph,
+  graphComponentIds,
+  type DupePair,
+} from "./rb-dedup-graph.js";
+export {
+  finiteNonNegative,
+  isUnknownArray,
+  parseDeleteResult,
+  parseScanResult,
+  parseVerifyRows,
+  type AssociationExpectation,
+  type DeleteResult,
+  type ScanResult,
+  type ScanPair,
+  type ScanRow,
+  type VerifyRow,
+} from "./rb-dedup-parse.js";
+import { buildDupePairs } from "./rb-dedup-graph.js";
+import {
+  parseDeleteResult,
+  parseScanResult,
+  parseVerifyRows,
+} from "./rb-dedup-parse.js";
 
 export async function rbDedup(
   opts: RbDedupOptions,
