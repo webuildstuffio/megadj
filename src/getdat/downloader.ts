@@ -7,6 +7,7 @@
 import { $ } from "bun";
 import type { YtdlpInfo } from "../../fulltags/src/exports";
 import { sanitizeGenreFolder } from "../../fulltags/src/exports";
+import { ytdlpCookieArgs } from "./ytdlp";
 export interface DownloadResult {
   status: "downloaded" | "already-had" | "gone" | "failed";
   filePath?: string | undefined;
@@ -87,12 +88,10 @@ export class Downloader {
     return "other";
   }
 
-  /** Common auth flags so probe and download see the same session. */
+  /** Common auth flags so probe and download see the same session —
+   *  the shared builder (issue #81); resolution order lives in ytdlp.ts. */
   private cookieArgs(): string[] {
-    if (this.opts.cookiesFile) return ["--cookies", this.opts.cookiesFile];
-    if (this.opts.cookiesFromBrowser)
-      return ["--cookies-from-browser", this.opts.cookiesFromBrowser];
-    return [];
+    return ytdlpCookieArgs(this.opts.cookiesFile, this.opts.cookiesFromBrowser);
   }
 
   /**

@@ -11,6 +11,7 @@ import type { ArchiveState } from "../../archive/state";
 import type { RateLimiter } from "../ratelimit";
 import { withRetry } from "../ratelimit";
 import { Downloader, type DownloadResult } from "../downloader";
+import { ytdlpCookieArgs } from "../ytdlp";
 import type { YtdlpInfo } from "../../../fulltags/src/exports";
 import { commandLog } from "../../progress";
 import {
@@ -92,16 +93,11 @@ async function fetchPlaylist(
   cookiesFromBrowser?: string | null,
 ): Promise<PlaylistEntry[]> {
   const url = `https://music.youtube.com/playlist?list=${playlistId}`;
-  // Cookie resolution order mirrors the downloader: explicit jar file first,
-  // then browser extraction. Skipping browser extraction here (the old
-  // behavior) made `megadj sync` fail playlist fetch for every default
-  // config (MEGADJ_COOKIES=chrome, no jar) — auth-required liked lists just
-  // 403'd even though the downloader could have seen the session.
-  const cookieArgs = cookiesFile
-    ? ["--cookies", cookiesFile]
-    : cookiesFromBrowser
-      ? ["--cookies-from-browser", cookiesFromBrowser]
-      : [];
+  // Cookie flags come from the shared builder (issue #81) — the order
+  // (jar first, then browser) lives in ONE place now. History: skipping
+  // browser extraction here (the old inline twin) made `megadj sync` 403
+  // every auth-required liked list while the downloader worked.
+  const cookieArgs = ytdlpCookieArgs(cookiesFile, cookiesFromBrowser);
   const proc = await $`yt-dlp ${[...cookieArgs, "--flat-playlist", "-J", url]}`
     .quiet()
     .nothrow();
