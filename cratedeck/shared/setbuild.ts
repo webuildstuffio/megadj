@@ -151,6 +151,20 @@ export const SET_TRACK_MINUTES_MIN = 1;
  * proposal slot. Kept beside the other set-builder limits for all surfaces. */
 export const SET_TRACK_MINUTES_MAX = 15;
 
+/** Tempo-mixability curve (bpmScore): 1.0 within ±2%, linearly down to 0
+ *  at ±6% — the classic DJ mixability window. Exported so every surface
+ *  quotes the engine's real numbers, never a hand-copied twin. */
+export const SET_TEMPO_PERFECT = 0.02;
+export const SET_TEMPO_WINDOW = 0.06;
+
+/** Transition score weights: tempo + key are the mixable core, arc fit is
+ *  the soft bonus. Exported for the surfaces' scoring-evidence panels. */
+export const SET_TRANSITION_WEIGHTS = {
+  tempo: 0.45,
+  key: 0.3,
+  arcFit: 0.25,
+} as const;
+
 /** An optional candidate-pool cap (`?limit=`), shared by HTTP, CLI and MCP.
  * Omission means the whole downloaded DB census; an explicit value remains
  * bounded so a typo cannot trigger unbounded per-file TKEY reads. */

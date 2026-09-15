@@ -16,6 +16,9 @@ import {
   SET_MINUTES_MIN,
   SET_TRACK_MINUTES_MIN,
   SET_TRACK_MINUTES_MAX,
+  SET_TEMPO_PERFECT,
+  SET_TEMPO_WINDOW,
+  SET_TRANSITION_WEIGHTS,
   SET_PRESET_DEFS,
   SET_PRESET_IDS,
   DEFAULT_SET_PRESET,
@@ -106,13 +109,14 @@ export function keyScore(a: SetCandidate, b: SetCandidate): number {
   return keyCompatScore(camelotOf(a.key), camelotOf(b.key));
 }
 
-/** Tempo compatibility 0..1: 1 within ±2%, linearly down to 0 at ±6% —
- * the classic DJ mixability window. */
+/** Tempo compatibility 0..1: 1 within ±SET_TEMPO_PERFECT, linearly down to
+ *  0 at ±SET_TEMPO_WINDOW — the classic DJ mixability window. The bounds
+ *  live in the shared registry so every surface quotes the same numbers. */
 export function bpmScore(a: number, b: number): number {
   const d = Math.abs(a - b) / Math.max(a, b);
-  if (d <= 0.02) return 1;
-  if (d >= 0.06) return 0;
-  return 1 - (d - 0.02) / 0.04;
+  if (d <= SET_TEMPO_PERFECT) return 1;
+  if (d >= SET_TEMPO_WINDOW) return 0;
+  return 1 - (d - SET_TEMPO_PERFECT) / (SET_TEMPO_WINDOW - SET_TEMPO_PERFECT);
 }
 
 /** A BPM the engine can actually mix with: present, finite and positive.
@@ -176,7 +180,11 @@ function transitionScore(
       1,
       (Math.abs(a - targetArousal / 9) + Math.abs(d - targetDance)) / 2,
     );
-  return 0.45 * tempo + 0.3 * key + 0.25 * fit;
+  return (
+    SET_TRANSITION_WEIGHTS.tempo * tempo +
+    SET_TRANSITION_WEIGHTS.key * key +
+    SET_TRANSITION_WEIGHTS.arcFit * fit
+  );
 }
 
 export interface SetBuildInput {
@@ -477,14 +485,17 @@ export function buildSet(input: SetBuildInput): SetBuildResult {
   const OPENNER_MIN_NEIGHBORS = 15;
   const mixable = [...pool].filter(mixableBpm);
   // `bpmScore(a, b) > 0` means the relative difference is strictly below
-  // 6%. Counting that neighborhood by rescanning every candidate for every
-  // possible opener made this selection O(n²) (20k synthetic tracks took
-  // ~1.6 s before the greedy chain even started). Sort once, then count the
-  // mathematically identical open interval (0.94×bpm, bpm/0.94) with two
-  // binary searches: O(n log n), preserving exact boundary semantics.
+  // SET_TEMPO_WINDOW. Counting that neighborhood by rescanning every
+  // candidate for every possible opener made this selection O(n²) (20k
+  // synthetic tracks took ~1.6 s before the greedy chain even started).
+  // Sort once, then count the mathematically identical open interval
+  // ((1-w)×bpm, bpm/(1-w)) with two binary searches: O(n log n),
+  // preserving exact boundary semantics.
+  const windowFactor = 1 - SET_TEMPO_WINDOW;
   const sortedBpms = mixable.map((c) => c.bpm).toSorted((a, b) => a - b);
   const tempoNeighbors = (bpm: number): number =>
-    lowerBound(sortedBpms, bpm / 0.94) - upperBound(sortedBpms, bpm * 0.94);
+    lowerBound(sortedBpms, bpm / windowFactor) -
+    upperBound(sortedBpms, bpm * windowFactor);
   const anchored =
     opener && mixableBpm(opener)
       ? opener

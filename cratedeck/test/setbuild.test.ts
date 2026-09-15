@@ -17,6 +17,9 @@ import {
   SET_POOL_MAX,
   SET_POOL_UNLIMITED,
   SET_BEAM_POOL_MAX,
+  SET_TEMPO_PERFECT,
+  SET_TEMPO_WINDOW,
+  SET_TRANSITION_WEIGHTS,
   isShelfOffline,
   clampSetPool,
 } from "../shared/types";
@@ -660,6 +663,28 @@ describe("SET_PRESETS registry census (derive, never hand-copy)", () => {
       const derived = SET_PRESETS[def.id];
       expect(derived).toBe(def); // same object — a true derivation
     }
+  });
+});
+
+describe("scoring constants are pinned — a silent drift would re-rank every proposal", () => {
+  test("tempo window keeps the classic DJ mixability curve (±2% → ±6%)", () => {
+    expect(SET_TEMPO_PERFECT).toBe(0.02);
+    expect(SET_TEMPO_WINDOW).toBe(0.06);
+    // the curve itself: full score inside the flat zone, zero beyond the
+    // window (d = |a−b|/max), linear between (midpoint proves the slope)
+    expect(bpmScore(120, 120 * 1.02)).toBe(1);
+    expect(bpmScore(128, 137)).toBe(0); // 7.03% off the max — window over
+    expect(bpmScore(128, 134)).toBeCloseTo(0.380597, 6); // ~4.7% off
+  });
+  test("transition weights keep tempo > key > arc-fit emphasis", () => {
+    expect(SET_TRANSITION_WEIGHTS.tempo).toBe(0.45);
+    expect(SET_TRANSITION_WEIGHTS.key).toBe(0.3);
+    expect(SET_TRANSITION_WEIGHTS.arcFit).toBe(0.25);
+    expect(
+      SET_TRANSITION_WEIGHTS.tempo +
+        SET_TRANSITION_WEIGHTS.key +
+        SET_TRANSITION_WEIGHTS.arcFit,
+    ).toBeCloseTo(1, 10);
   });
 });
 

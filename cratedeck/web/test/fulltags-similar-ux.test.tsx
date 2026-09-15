@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import render from "preact-render-to-string";
 import { SetBuildPanel } from "../products/fulltags/SetBuildPanel";
+import { SetArcChart } from "../products/fulltags/SetArcChart";
 import { SetBuilderResult } from "../products/fulltags/SetBuilderResult";
+import { SET_PRESET_DEFS } from "../../shared/types";
 import { TrackPickSearch } from "../products/fulltags/TrackPickSearch";
 import { SearchBar } from "../ui/data";
 import type { SetBuildPayload } from "../../shared/types";
@@ -134,6 +136,85 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(source).toContain('useState("60")');
     expect(source).toContain("setMinutesInput(next)");
     expect(source).toContain("onBlur={() => setMinutesInput(String(minutes))}");
+  });
+
+  test("the advanced drawer exposes the pool cap and the engine's real numbers", () => {
+    const html = render(<SetBuildPanel />);
+    expect(html).toContain("Advanced");
+    expect(html).toContain("pool cap · scoring weights");
+    expect(html).toContain('aria-label="Candidate pool cap, 1 to 1000');
+    expect(html).toContain("empty = all");
+    // the constants are quoted from the SHARED registry (derive, never twin)
+    expect(html).toContain("±6% window, full score within ±2%");
+    expect(html).toContain("tempo 0.45 · key 0.3 · arc fit 0.25");
+    expect(html).toContain("1–15 min per track");
+    expect(html).toContain("width 8");
+    expect(source).toContain("clampSetPool(parsed)");
+    expect(source).toContain('q.set("limit", String(poolLimit))');
+  });
+
+  test("the export carries every A/B knob so it reproduces the chain on screen", () => {
+    expect(source).toContain('q.set("search", searchChoice)');
+    expect(source).toContain('q.set("limit", String(poolLimit))');
+    expect(source).toContain('if (opener) q.set("opener", opener.video_id)');
+  });
+
+  test("the arc chart plots energy against the preset envelope over real time", () => {
+    const steps = [
+      {
+        videoId: "a",
+        title: "Opener",
+        artist: "DJ",
+        bpm: 120,
+        key: "8A",
+        arousal: 3,
+        atMin: 5,
+        transition: null,
+      },
+      {
+        videoId: "b",
+        title: "Riser",
+        artist: "DJ",
+        bpm: 126,
+        key: "8B",
+        arousal: 6,
+        atMin: 12,
+        transition: 0.8,
+      },
+      {
+        videoId: "c",
+        title: "Peak",
+        artist: "DJ",
+        bpm: 130,
+        key: "5A",
+        arousal: 8.5,
+        atMin: 30,
+        transition: 0.7,
+      },
+    ];
+    const html = render(
+      <SetArcChart
+        steps={steps}
+        preset={SET_PRESET_DEFS[1]!}
+        keyGlide="8A → 5A"
+      />,
+    );
+    expect(html).toContain('class="setbuild-arcchart"');
+    expect(html).toContain('class="arc-envelope"');
+    expect(html).toContain('class="arc-arousal"');
+    expect(html).toContain('class="arc-bpm"');
+    // per-step hover targets carry the evidence
+    expect((html.match(/arc-hit/g) ?? []).length).toBe(3);
+    expect(html).toContain("#3 DJ — Peak");
+    expect(html).toContain("30 min · 130 BPM · 5A · energy Maximum (8.5/9)");
+    expect(html).toContain("transition 0.70");
+    // caption: legend + glide + totals
+    expect(html).toContain("Peak time target");
+    expect(html).toContain("key glide 8A → 5A");
+    expect(html).toContain("3 tracks · 30 min");
+    // aria summary carries the journey + bpm range
+    expect(html).toContain('role="img"');
+    expect(html).toContain("120–130 BPM below");
   });
 
   test("whole-library builds outlive the generic API deadline", () => {

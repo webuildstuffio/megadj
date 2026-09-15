@@ -55,10 +55,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    audited: 41,
-    guarded: 28,
+    audited: 42,
+    guarded: 29,
     sanctioned: 13,
-    digest: "8b45700f5e2985d36b1f1bab2dd2e3d1d59578655921b5795d745936e4f1d8c4",
+    digest: "eb10d3ba6168ef0dac19e99df7c38b9eb6ba76de6b9818762eb702c10a5c0a35",
   });
 });
 

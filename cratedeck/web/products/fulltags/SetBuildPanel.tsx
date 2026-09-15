@@ -19,7 +19,16 @@ import {
   SET_PRESET_DEFS,
   SET_MINUTES_MAX,
   SET_MINUTES_MIN,
+  SET_TRACK_MINUTES_MIN,
+  SET_TRACK_MINUTES_MAX,
+  SET_TEMPO_PERFECT,
+  SET_TEMPO_WINDOW,
+  SET_TRANSITION_WEIGHTS,
+  SET_POOL_MAX,
+  SET_BEAM_POOL_MAX,
+  SET_BEAM_WIDTH,
   isShelfOffline,
+  clampSetPool,
 } from "../../../shared/types";
 import { camelotOf } from "../../../shared/camelot";
 import { api, toast } from "../../ui/toast";
@@ -35,11 +44,11 @@ import {
   KVVal,
   Card,
 } from "../../ui/data";
-import { Sparkline } from "../../ui/charts";
 import { SectionHead } from "../shared";
 import { TrackPickSearch, type TrackPick } from "./TrackPickSearch";
 import { SetBuilderMethod } from "./SetBuilderMethod";
 import { SetBuilderResult } from "./SetBuilderResult";
+import { SetArcChart } from "./SetArcChart";
 
 const SET_DURATION_PRESETS = [30, 60, 90, 120] as const;
 
@@ -280,6 +289,17 @@ export function SetBuildPanel() {
   const [searchChoice, setSearchChoice] = useState<"auto" | "greedy" | "beam">(
     "auto",
   );
+  // Candidate-pool cap (the `?limit=`/`--limit`/MCP `limit` knob): null =
+  // whole analyzed library (the default every surface shares); a number is
+  // the newest-N recent imports — the "just this week's drops" build.
+  const [poolLimitInput, setPoolLimitInput] = useState("");
+  const poolLimit: number | null = (() => {
+    const trimmed = poolLimitInput.trim();
+    if (trimmed === "") return null;
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return clampSetPool(parsed);
+  })();
   const [opener, setOpener] = useState<TrackPick | null>(null);
   const [openerQuery, setOpenerQuery] = useState("");
   const openerSearch = useFetched<ArchiveSearchHit[] | null>(
@@ -314,6 +334,7 @@ export function SetBuildPanel() {
         minutes: String(minutes),
       });
       if (searchChoice !== "auto") q.set("search", searchChoice);
+      if (poolLimit !== null) q.set("limit", String(poolLimit));
       if (opener) q.set("opener", opener.video_id);
       setBuild({
         data: await api<SetBuildPayload>(`/api/archive/setbuild?${q}`, {
@@ -333,13 +354,9 @@ export function SetBuildPanel() {
     }
   };
 
-  // the chain's BPM arc — the same energy-arc glance the crate browser has
+  // the chain's steps + first→last Camelot glide, "8A → 5A" (null-safe at
+  // both ends; was a broken IIFE that printed only the number for the first)
   const steps = build.data?.steps ?? [];
-  const arcBpms = steps
-    .map((s) => s.bpm)
-    .filter((b): b is number => b !== null);
-  // first→last Camelot glide, "8A → 5A" (null-safe at both ends; was a
-  // broken IIFE that printed only the number for the first step)
   const keyGlide = (() => {
     const parsed = steps.map((s) => camelotOf(s.key));
     const first = parsed.find((k) => k !== null);
@@ -359,6 +376,11 @@ export function SetBuildPanel() {
     });
     q.set("format", "m3u8");
     if (opener) q.set("opener", opener.video_id);
+    // the export must reproduce the chain ON SCREEN: a forced sequencer or
+    // a capped pool silently re-sequenced a different proposal (the m3u8
+    // endpoint re-runs the build), so every A/B knob travels with it
+    if (searchChoice !== "auto") q.set("search", searchChoice);
+    if (poolLimit !== null) q.set("limit", String(poolLimit));
     return `/api/archive/setbuild?${q}`;
   })();
 
@@ -477,7 +499,7 @@ export function SetBuildPanel() {
                 aria-pressed={searchChoice === value}
                 title={
                   value === "auto"
-                    ? "Pool size decides: under 250 tracks runs the deep search"
+                    ? `Pool size decides: under ${SET_BEAM_POOL_MAX} tracks runs the deep search`
                     : value === "beam"
                       ? "Force the deep search — explores past dead-ends on sparse pools"
                       : "Force the standard greedy chain — fastest at big pools"
@@ -491,6 +513,72 @@ export function SetBuildPanel() {
               </button>
             ))}
           </div>
+          <details class="setbuild-advanced">
+            <summary>
+              <span>Advanced</span>
+              <small>
+                pool cap · scoring weights · the same knobs the CLI and API take
+              </small>
+            </summary>
+            <div class="setbuild-advanced-grid">
+              <label
+                class="setbuild-limit"
+                title={`Cap the candidate pool to the newest N imports (1–${SET_POOL_MAX}). Empty = the whole analyzed library.`}
+              >
+                <span>
+                  Pool cap
+                  <small>
+                    newest N of the library · 1–{SET_POOL_MAX} · empty = all
+                  </small>
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={SET_POOL_MAX}
+                  placeholder="all"
+                  value={poolLimitInput}
+                  aria-label={`Candidate pool cap, 1 to ${SET_POOL_MAX}; empty uses the whole library`}
+                  onInput={(event) => {
+                    setPoolLimitInput((event.target as HTMLInputElement).value);
+                    invalidateProposal();
+                  }}
+                  onBlur={() => setPoolLimitInput(String(poolLimit ?? ""))}
+                />
+              </label>
+              <dl class="setbuild-weights" aria-label="Scoring weights">
+                <div>
+                  <dt>tempo</dt>
+                  <dd>
+                    ±{Math.round(SET_TEMPO_WINDOW * 100)}% window, full score
+                    within ±{Math.round(SET_TEMPO_PERFECT * 100)}%
+                  </dd>
+                </div>
+                <div>
+                  <dt>weights</dt>
+                  <dd>
+                    tempo {SET_TRANSITION_WEIGHTS.tempo} · key{" "}
+                    {SET_TRANSITION_WEIGHTS.key} · arc fit{" "}
+                    {SET_TRANSITION_WEIGHTS.arcFit}
+                  </dd>
+                </div>
+                <div>
+                  <dt>track limits</dt>
+                  <dd>
+                    {SET_TRACK_MINUTES_MIN}–{SET_TRACK_MINUTES_MAX} min per
+                    track; deep search joins under {SET_BEAM_POOL_MAX} tracks
+                    (width {SET_BEAM_WIDTH})
+                  </dd>
+                </div>
+                <div>
+                  <dt>openers</dt>
+                  <dd>
+                    auto-pick needs ≥15 tempo-neighbors so the ±
+                    {Math.round(SET_TEMPO_WINDOW * 100)}% window never dead-ends
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </details>
         </fieldset>
         <div class="setbuild-controls">
           <OpenerPicker
@@ -698,15 +786,8 @@ export function SetBuildPanel() {
               return s.transition >= 0.5 ? "ok" : "warn";
             }}
           />
-          {arcBpms.length >= 2 && (
-            <div class="setbuild-arc">
-              <span class="muted">bpm arc</span>
-              <Sparkline
-                values={arcBpms}
-                title={`Energy arc across the chain (${Math.round(Math.min(...arcBpms))}–${Math.round(Math.max(...arcBpms))} BPM)`}
-              />
-              {keyGlide && <span class="muted">{keyGlide}</span>}
-            </div>
+          {steps.length >= 2 && (
+            <SetArcChart steps={steps} preset={preset} keyGlide={keyGlide} />
           )}
           {build.data.excluded_total > 0 && (
             <details class="setbuild-excluded">

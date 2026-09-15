@@ -1,6 +1,21 @@
-# FullTags — Prioritized Roadmap (rev 7.2)
+# FullTags — Prioritized Roadmap (rev 7.3)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 7.3, 2026-09-15: **MegaSet panel parity + visual upgrade.** The
+Advanced drawer exposes every A/B knob the CLI/MCP already had — the
+`limit` pool cap (newest-N builds, "just this week's drops") plus the
+engine's real scoring evidence (±2%/±6% tempo curve, 0.45/0.3/0.25
+transition weights, 1–15 min track limits, beam threshold/width), all
+quoted from the shared registry, never hand-copied. The export link now
+carries `search`/`limit`/`opener` so the downloaded M3U8 reproduces the
+chain on screen (previously a forced deep search exported a re-sequenced
+different set). The flat BPM sparkline became a two-lane arc chart:
+measured arousal against the preset's dashed target envelope over real
+cumulative set time, BPM below, per-step hover evidence. Scoring
+constants are test-pinned (a silent drift would re-rank every proposal);
+`bpmScore`/weights now read the shared SSOT. check:full green, 1383
+pass, typecov 100%._
 
 _Rev 7.2, 2026-09-15: **MegaSet promoted to its own tab + the
 shelf-offline verdict.** The set builder moved from a panel inside
