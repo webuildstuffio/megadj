@@ -39,6 +39,7 @@ import {
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
 import { DB_PATH } from "../cli-env";
+import { rekordboxRunning } from "./guard.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 
 export interface RbPlaylistOptions {
@@ -209,10 +210,6 @@ contiguous = nos == list(range(1, len(nos) + 1))
 print(json.dumps({"rows": len(rows), "contiguous": contiguous}))
 db.close()
 `;
-}
-
-function rekordboxRunning(): boolean {
-  return spawnSync("pgrep", ["-x", "rekordbox"]).status === 0;
 }
 
 interface PyOut {
