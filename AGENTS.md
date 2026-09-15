@@ -33,6 +33,9 @@ This file contains only rules and traps. Product detail belongs in
 - Strict TypeScript is live: `noUncheckedIndexedAccess`,
   `exactOptionalPropertyTypes`, `noUncheckedSideEffectImports`, and
   `allowUnreachableCode:false`. Oxlint and formatting are part of the gate.
+  Never run repo-wide `oxlint --fix`/sed rewriters unattended: they have
+  corrupted template literals across the worktree (one run landed on
+  main) — scope the pass and diff the result before staging.
 - One source of truth per shared surface. Derive types, job lists, help,
   counts, and census strings from producers; never maintain hand-copied twins.
 - Do not commit private identifiers, local paths, stored state, or secrets.
@@ -109,6 +112,11 @@ unwritable; only Comment carries derived energy, never BPM.
 - Import order is `megadj shelf-sync`, then drag from the shelf volume, never
   from local staging. WAV artwork is unsupported by rekordbox: ingest converts
   WAV → AIFF. TKEY is reliable on AIFF/MP3 and RB analysis can overwrite it.
+- Every drive carries two rekordbox libraries: `export.pdb` (legacy — the
+  only one hardware players read) and the `OneLibrary` master. A green
+  master DB does not mean hardware sees the change: re-export after
+  imports/relocations, and read verify's dual-db mismatch as an export
+  gap (fail on gig sticks, informational on shelf tier).
 
 ## CrateDeck invariants
 

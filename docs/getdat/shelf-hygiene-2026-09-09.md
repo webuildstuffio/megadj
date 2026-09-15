@@ -75,9 +75,10 @@ re-download "Eat Me Better".
 `hygiene_findings` ledger: `appledouble-junk`, `byte-twin`, `acoustic-twin`,
 `folder-variant`, and `zero-byte`. The status machine is
 `open → confirmed → applied` or `open → dismissed`; **only `safe` findings
-ever auto-apply**, and apply means quarantine. Post-apply validation re-MD5s
-keepers, re-fingerprints losers, and checks the file-count delta before
-showing a receipt.
+ever auto-apply**, and apply means quarantine. The current per-finding receipt
+checks keeper presence and size, live MD5 equality for byte twins, and the
+file-count delta. It does not yet re-fingerprint quarantined acoustic twins or
+provide one-click revert; those remain in [issue #35](https://github.com/webuildstuffio/megadj/issues/35).
 
 `megadj shelf-restore <finding-id|path> [--into F]` restores a quarantined
 file through the ledger and hash gates. Restore is not implemented in the

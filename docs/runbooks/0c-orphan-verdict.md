@@ -8,18 +8,21 @@ preserved on the shelf. Nothing unique remained, so BACKUP2 is retired but
 kept intact until the cold backup verifies. The authoritative sweep receipt is
 `megadj shelf-sweeps --json`.
 
-The procedure below records how the decision was reached. BACKUP2 is the old
-backup drive whose DB (2025-08-14) saved the library
+The procedure below is the original adoption plan, retained for historical
+context; it was not the procedure used for the completed deep-sweep verdict.
+In particular, the Extra evacuation in step 0 remains blocked under issue #1.
+BACKUP2 is the old backup drive whose DB (2025-08-14) saved the library
 during the March 2025 NEVERMISSMI corruption. Its 1,910 unique files were
 already copied to Extra (dying SSD) during the Aug recovery
 (`backup2_only_paths.txt` in `~/Documents/rekordbox-recovery/`). One session
 on a day BACKUP2 is plugged in decided: adopt or declare dead. Order mattered:
 **before 0b**, so the cloud backup captures the decision, not the ambiguity.
 
-## 0. Prerequisite
+## 0. Original prerequisite (not executed)
 
-0a done: Extra evacuated and EVAC-VERIFIED (its copy of the BACKUP2-only
-files is the safety net while we decide).
+The original plan required 0a first: Extra evacuated and EVAC-VERIFIED.
+The completed verdict instead relied on the deep shelf sweep described above;
+do not treat this prerequisite as evidence that Extra has been evacuated.
 
 ## 1. Mount and inventory
 
