@@ -16,10 +16,11 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { isRecord, isUnknownArray } from "../../cratedeck/shared/guards.js";
 import { assertRbClosed } from "./guard.js";
-import { parseJsonBoundary } from "./rb-command-kit.js";
+import { applyConfirmed, applyConfirmationRefusal, parseJsonBoundary } from "./rb-command-kit.js";
+import { masterDbPath } from "./master-path.js";
 import {
   applyPlaylistTwinMutation,
   parsePlaylistXmlNodes,
@@ -54,38 +55,12 @@ export interface ReconcileResult {
 }
 
 export function masterDirFor(mount: string): { db: string; xml: string } {
-  // explicit master.db path (env) wins; else treat `mount` as a dir that
-  // may BE the master dir (local RB root holds master.db directly) or a
-  // drive root with the PIONEER/Master layout.
-  if (process.env.MEGADJ_RB_MASTER) {
-    const base = process.env.MEGADJ_RB_MASTER.replace(/\/master\.db$/u, "");
-    return {
-      db: join(base, "master.db"),
-      xml: join(base, "masterPlaylists6.xml"),
-    };
-  }
-  const base = mount.startsWith("/")
-    ? mount.replace(/\/+$/u, "")
-    : `/Volumes/${mount.replace(/\/+$/u, "")}`;
-  if (existsSync(join(base, "master.db")))
-    return {
-      db: join(base, "master.db"),
-      xml: join(base, "masterPlaylists6.xml"),
-    };
-  if (base.endsWith("/Master"))
-    return {
-      db: join(base, "master.db"),
-      xml: join(base, "masterPlaylists6.xml"),
-    };
-  if (base.endsWith("/PIONEER"))
-    return {
-      db: join(base, "Master", "master.db"),
-      xml: join(base, "Master", "masterPlaylists6.xml"),
-    };
-  return {
-    db: join(base, "PIONEER", "Master", "master.db"),
-    xml: join(base, "PIONEER", "Master", "masterPlaylists6.xml"),
-  };
+  // SSOT (issue #66): masterDbPath owns env override + all layout
+  // resolution (explicit .db path, Master dir, PIONEER dir, drive root,
+  // volume name). The XML twin always lives beside the DB.
+  const db = masterDbPath(mount);
+  const dir = dirname(db);
+  return { db, xml: join(dir, "masterPlaylists6.xml") };
 }
 
 /** DB-side playlist census (READ-ONLY python probe). */
@@ -172,7 +147,7 @@ export async function rbPlaylistReconcile(opts: {
 }): Promise<ReconcileResult> {
   const log = opts.log ?? (() => {});
   const { db, xml } = masterDirFor(opts.mount);
-  const apply = opts.apply === true && opts.yes === true;
+  const apply = applyConfirmed(opts);
   const mk = (msg: string): ReconcileResult => ({
     command: "rb-playlist-reconcile",
     db,
@@ -186,8 +161,8 @@ export async function rbPlaylistReconcile(opts: {
     error: msg,
   });
 
-  if (opts.apply && !opts.yes)
-    return mk("--apply requires --yes (report first, ALWAYS)");
+  if (applyConfirmationRefusal(opts) !== null)
+    return mk(applyConfirmationRefusal(opts) ?? "unreachable");
   if (!existsSync(db)) return mk(`no master DB at ${db}`);
   if (!existsSync(xml))
     return mk(

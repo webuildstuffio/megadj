@@ -13,7 +13,10 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import type { ArchiveState } from "../archive/state";
+import { nameKey } from "../shared/name-key";
 import { backupStamp } from "./guard.js";
+import { applyConfirmationRefusal } from "./rb-command-kit.js";
+import { masterDbPath } from "./master-path.js";
 
 export interface RekordboxContentRow {
   contentId: string;
@@ -143,7 +146,7 @@ finally:
 `;
 
 function normPath(path: string): string {
-  return path.normalize("NFC").toLowerCase();
+  return nameKey(path);
 }
 
 function identityPathKey(row: RekordboxContentRow): string {
@@ -473,14 +476,13 @@ function snapshotArchive(state: ArchiveState, dbPath: string): string {
 
 export function rbAdopt(opts: RbAdoptOptions): RbAdoptResult {
   const apply = Boolean(opts.apply);
-  const sourceDb =
-    process.env.MEGADJ_RB_MASTER ??
-    join(opts.mount.replace(/\/+$/u, ""), "PIONEER", "Master", "master.db");
+  const sourceDb = masterDbPath(opts.mount);
   const fail = (error: string): RbAdoptResult => ({
     ...failure({ state: opts.state, sourceDb, rows: [], apply }, error),
     backedUpTo: null,
   });
-  if (apply && !opts.yes) return fail("--apply requires --yes (dry-run first)");
+  if (applyConfirmationRefusal(opts) !== null)
+    return fail(applyConfirmationRefusal(opts) ?? "unreachable");
   if (!existsSync(sourceDb)) return fail(`no master DB at ${sourceDb}`);
 
   opts.log?.(`rb-adopt: reading every Content row from ${sourceDb}`);

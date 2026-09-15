@@ -19,7 +19,7 @@ import { dirname, join } from "node:path";
 import type { CheckResult } from "./doctor-types";
 import { rekordboxRunning } from "../rekordbox/guard";
 import { incidentCuePredicatePython } from "../rekordbox/cue-incident";
-import { resolveShelfVolume } from "./volume";
+import { masterDbPath } from "../rekordbox/master-path";
 
 interface StateProbe {
   ran: boolean;
@@ -33,24 +33,10 @@ interface StateProbe {
   playlistRows: number;
 }
 
-/** Resolve the master DB the same way rb-* commands do: explicit path /
- *  env wins; a Master dir, PIONEER dir, drive root, or volume name all
- *  resolve to the standard layout. The no-arg default routes through the
- *  shared `resolveShelfVolume` seam (issue #55) — never a hardcoded
- *  /Volumes/SHELF1 literal. */
-export function masterDbPath(mount?: string): string {
-  if (process.env.MEGADJ_RB_MASTER) return process.env.MEGADJ_RB_MASTER;
-  if (mount && mount.endsWith(".db")) return mount;
-  let base = mount
-    ? mount.startsWith("/")
-      ? mount.replace(/\/+$/u, "")
-      : `/Volumes/${mount}`
-    : resolveShelfVolume();
-  if (base.endsWith("/master.db")) base = base.replace(/\/master\.db$/u, "");
-  if (base.endsWith("/Master")) return `${base}/master.db`;
-  if (base.endsWith("/PIONEER")) return `${base}/Master/master.db`;
-  return `${base}/PIONEER/Master/master.db`;
-}
+/** Resolve the master DB the same way rb-* commands do — moved to
+ *  `rekordbox/master-path.ts` (issue #66 SSOT); re-exported so doctor's
+ *  public surface is unchanged. */
+export { masterDbPath } from "../rekordbox/master-path";
 
 const PROBE = `
 import datetime, json, os, sys, unicodedata

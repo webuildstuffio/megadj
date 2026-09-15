@@ -28,6 +28,8 @@ import {
 } from "../../cratedeck/shared/guards";
 import { incidentCuePredicatePython } from "./cue-incident.js";
 import {
+  applyConfirmed,
+  applyConfirmationRefusal,
   compensateRestore,
   isStringNumberPair,
   isStringPair,
@@ -37,6 +39,7 @@ import {
   type RbCommandResult,
   type RbCommandRuntime,
 } from "./rb-command-kit.js";
+import { masterDbPath } from "./master-path.js";
 
 /** DB-side hot cue Kind — pinned by F4 (RB7-written rows: 1 only). */
 export const HOT_CUE_KIND = 1;
@@ -213,10 +216,7 @@ print(json.dumps({"total": len(actual), "matched": matched, "remaining": remaini
 }
 
 function dbPathFor(mount: string): string {
-  return (
-    process.env.MEGADJ_RB_MASTER ??
-    `${mount.replace(/\/+$/u, "")}/PIONEER/Master/master.db`
-  );
+  return masterDbPath(mount);
 }
 
 const fail = (
@@ -304,14 +304,14 @@ async function rbCuesWithRuntime(
   const log = opts.log ?? (() => {});
   const dbPath = dbPathFor(opts.mount);
   const mode: RbCuesMode = opts.fromLedger ? "ledger" : "restamp";
-  const apply = opts.apply === true && opts.yes === true;
+  const apply = applyConfirmed(opts);
 
-  if (opts.apply && !opts.yes)
+  if (applyConfirmationRefusal(opts) !== null)
     return fail(
       opts,
       dbPath,
       mode,
-      "--apply requires --yes (dry-run first, ALWAYS)",
+      applyConfirmationRefusal(opts) ?? "unreachable",
     );
   if (mode === "ledger")
     return fail(

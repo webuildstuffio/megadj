@@ -23,13 +23,15 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
 import { basename, join } from "node:path";
 import { isUnknownArray } from "../../cratedeck/shared/guards";
+import { nameKey } from "../shared/name-key";
 import {
   assertRbClosed,
   backupMaster,
   restoreMasterBackup,
   sleepSync,
 } from "./guard.js";
-import { DECIMAL_ID_RE, parseJsonBoundary } from "./rb-command-kit.js";
+import { applyConfirmationRefusal, DECIMAL_ID_RE, parseJsonBoundary } from "./rb-command-kit.js";
+import { masterDbPath, normalizeMount } from "./master-path.js";
 
 export interface RbFixPathsOptions {
   /** Drive mount root, e.g. /Volumes/SHELF1 — master DB lives at
@@ -121,7 +123,7 @@ const AUDIO_EXT = new Set([
 ]);
 
 function nfkc(s: string): string {
-  return s.normalize("NFC").toLowerCase();
+  return nameKey(s);
 }
 
 /** "track - 1.mp3", "track - 1 2.mp3" → "track.mp3" — auto-relocate
@@ -309,10 +311,8 @@ export async function rbFixPaths(
   overrides: Partial<RbFixPathsRuntime> = {},
 ): Promise<RbFixResult> {
   const log = opts.log ?? (() => {});
-  const mount = opts.mount.replace(/\/+$/u, "");
-  const dbPath =
-    process.env.MEGADJ_RB_MASTER ??
-    join(mount, "PIONEER", "Master", "master.db");
+  const mount = normalizeMount(opts.mount);
+  const dbPath = masterDbPath(opts.mount);
   const runtime: RbFixPathsRuntime = {
     fileExists: existsSync,
     assertClosed: assertRbClosed,
@@ -343,8 +343,8 @@ export async function rbFixPaths(
     error: msg,
   });
 
-  if (opts.apply && !opts.yes) {
-    const r = fail("--apply requires --yes; no database work was performed");
+  if (applyConfirmationRefusal(opts) !== null) {
+    const r = fail(applyConfirmationRefusal(opts) ?? "unreachable");
     log(r.error ?? "unknown failure");
     return r;
   }

@@ -24,7 +24,7 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename } from "node:path";
 import { ArchiveReader } from "../../cratedeck/src/archive";
 import {
   buildSet,
@@ -39,7 +39,8 @@ import {
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
 import { DB_PATH } from "../cli-env";
-import { isDecimalIdOrNull, parseJsonBoundary } from "./rb-command-kit.js";
+import { applyConfirmationRefusal, isDecimalIdOrNull, parseJsonBoundary } from "./rb-command-kit.js";
+import { masterDbPath } from "./master-path.js";
 import { rekordboxRunning } from "./guard.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 
@@ -353,10 +354,7 @@ export async function rbPlaylist(
   opts: RbPlaylistOptions,
 ): Promise<RbPlaylistResult> {
   const log = opts.log ?? (() => {});
-  const mount = opts.mount.replace(/\/+$/u, "");
-  const dbPath =
-    process.env.MEGADJ_RB_MASTER ??
-    join(mount, "PIONEER", "Master", "master.db");
+  const dbPath = masterDbPath(opts.mount);
   const group = opts.group ?? "DJ-Imports";
 
   const fail = (
@@ -383,8 +381,8 @@ export async function rbPlaylist(
   });
 
   // gate 1 — flags before any I/O
-  if (opts.apply && !opts.yes)
-    return fail("--apply requires --yes (dry-run first, ALWAYS)");
+  if (applyConfirmationRefusal(opts) !== null)
+    return fail(applyConfirmationRefusal(opts) ?? "unreachable");
 
   // gate 2 — validate the shared set-builder inputs without touching either
   // database. Invalid presets must still beat a missing-drive error.

@@ -27,6 +27,8 @@ import {
   dedupVerifyScript,
 } from "./rb-dedup-scripts.js";
 import { inspectMutationPaths, pickKeeper } from "./rb-dedup-support.js";
+import { applyConfirmed, applyConfirmationRefusal } from "./rb-command-kit.js";
+import { masterDbPath } from "./master-path.js";
 export { pickKeeper, printRbDedupReport } from "./rb-dedup-support.js";
 import { quarantineDest } from "../archive/hygiene/apply";
 import {
@@ -534,13 +536,11 @@ export async function rbDedup(
   dependencyOverrides: Partial<RbDedupDeps> = {},
 ): Promise<RbDedupResult> {
   const deps: RbDedupDeps = { ...defaultDeps, ...dependencyOverrides };
-  const dbPath =
-    process.env.MEGADJ_RB_MASTER ??
-    `${opts.mount.replace(/\/+$/u, "")}/PIONEER/Master/master.db`;
-  const apply = opts.apply === true && opts.yes === true;
+  const dbPath = masterDbPath(opts.mount);
+  const apply = applyConfirmed(opts);
 
-  if (opts.apply && !opts.yes)
-    return fail(opts, dbPath, "--apply requires --yes (report first, ALWAYS)");
+  if (applyConfirmationRefusal(opts) !== null)
+    return fail(opts, dbPath, applyConfirmationRefusal(opts) ?? "unreachable");
   try {
     deps.assertClosed("rb-dedup");
   } catch (e) {

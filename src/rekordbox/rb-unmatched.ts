@@ -29,8 +29,10 @@
 
 import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import { applyConfirmationRefusal } from "./rb-command-kit.js";
 import { QUARANTINE_DIR, quarantineDest } from "../archive/hygiene/apply";
 import { buildIndex, readRows } from "./rb-fix-paths";
+import { masterDbPath, normalizeMount } from "./master-path.js";
 
 export interface RbUnmatchedOptions {
   /** Drive mount root, e.g. /Volumes/SHELF1. */
@@ -193,17 +195,15 @@ export async function rbUnmatched(
   opts: RbUnmatchedOptions,
 ): Promise<RbUnmatchedResult> {
   const log = opts.log ?? (() => {});
-  const mount = opts.mount.replace(/\/+$/u, "");
-  const dbPath =
-    process.env.MEGADJ_RB_MASTER ??
-    join(mount, "PIONEER", "Master", "master.db");
+  const mount = normalizeMount(opts.mount);
+  const dbPath = masterDbPath(opts.mount);
 
   // flag validation precedes any I/O — bad invocation = exit-worthy, zero work
-  if (opts.quarantine && !opts.yes)
+  if (applyConfirmationRefusal({ apply: opts.quarantine, yes: opts.yes, flag: "--quarantine" }) !== null)
     return fail(
       mount,
       dbPath,
-      "--quarantine requires --yes (two-step apply, dry-run first ALWAYS)",
+      applyConfirmationRefusal({ apply: opts.quarantine, yes: opts.yes, flag: "--quarantine" }) ?? "unreachable",
     );
   if (!existsSync(dbPath))
     return fail(mount, dbPath, `no master DB at ${dbPath}`);

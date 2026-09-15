@@ -156,3 +156,35 @@ export function compensateRestore(
     return `${original}; restoring backup ${backedUpTo} also failed: ${errorMessage(restoreError)}`;
   }
 }
+
+/** Options subset every two-step gate reads. */
+export interface ApplyOptions {
+  apply?: boolean | undefined;
+  yes?: boolean | undefined;
+  /** Mutating flag name for the refusal wording — `--apply` for most
+   *  verbs, `--quarantine` for rb-unmatched/shelf-dupescan. */
+  flag?: "--apply" | "--quarantine" | undefined;
+}
+
+/** THE two-step gate (issue #79): mutating verbs run dry-run unless BOTH
+ *  the apply flag and --yes are present. Returns null when the apply is
+ *  confirmed; otherwise the refusal message for the caller to project
+ *  through its own fail() builder — the RULE lives here, the wording
+ *  projection stays with each command's result shape. Semantics:
+ *  flag present + yes missing is the refusal case; --yes without the flag
+ *  is a harmless dry-run. Flag validation must precede any I/O (guard
+ *  order, per the hygiene precedent). */
+export function applyConfirmationRefusal(opts: ApplyOptions): string | null {
+  const flag = opts.flag ?? "--apply";
+  if (opts.apply && !opts.yes)
+    return `${flag} requires --yes (two-step safety — dry-run first, ALWAYS)`;
+  return null;
+}
+
+/** Positive form of the same rule: the mutation is confirmed to run —
+ *  the flag is present AND --yes backs it. One definition so `applied`
+ *  computations and refusal gates can never disagree about what
+ *  "confirmed" means. A dry-run (no flag) is NOT confirmed. */
+export function applyConfirmed(opts: ApplyOptions): boolean {
+  return opts.apply === true && opts.yes === true;
+}

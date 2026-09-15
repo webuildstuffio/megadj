@@ -30,6 +30,7 @@ import { commandLog } from "../progress";
 import { gridAuditFull } from "../../fulltags/src/analysis";
 import { parseAnlzGrid } from "../../fulltags/src/anlz";
 import { MUSIC_DIR } from "../cli-env";
+import { masterDbPath, normalizeMount } from "./master-path.js";
 
 /** The plan A3 bucket names (subset of GridAuditVerdict["bucket"]). */
 export type BucketName =
@@ -291,10 +292,8 @@ export async function gridTriage(
   opts: GridTriageOptions,
 ): Promise<GridTriageResult> {
   const log = opts.log ?? commandLog(opts);
-  const mount = opts.mount.replace(/\/+$/u, "");
-  const dbPath =
-    process.env.MEGADJ_RB_MASTER ??
-    join(mount, "PIONEER", "Master", "master.db");
+  const mount = normalizeMount(opts.mount);
+  const dbPath = masterDbPath(opts.mount);
   const compareDrive = opts.compareDrive ?? null;
   const stickMount = compareDrive
     ? compareDrive.startsWith("/Volumes/") || compareDrive.startsWith("/tmp/")

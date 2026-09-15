@@ -21,6 +21,8 @@ import {
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
 import {
+  applyConfirmed,
+  applyConfirmationRefusal,
   compensateRestore,
   isStringPair,
   isStringTriple,
@@ -30,6 +32,7 @@ import {
   type RbCommandResult,
   type RbCommandRuntime,
 } from "./rb-command-kit.js";
+import { masterDbPath } from "./master-path.js";
 
 export interface RbCommentSyncOptions {
   mount: string;
@@ -342,10 +345,8 @@ async function rbCommentSyncWithRuntime(
   opts: RbCommentSyncOptions,
   deps: RbCommentSyncRuntime,
 ): Promise<RbCommentSyncResult> {
-  const dbPath =
-    process.env.MEGADJ_RB_MASTER ??
-    `${opts.mount.replace(/\/+$/u, "")}/PIONEER/Master/master.db`;
-  const apply = opts.apply === true && opts.yes === true;
+  const dbPath = masterDbPath(opts.mount);
+  const apply = applyConfirmed(opts);
   const ledger = `${process.env.HOME}/.local/state/megadj/archive.db`;
   const mk = (
     msg: string,
@@ -385,8 +386,8 @@ async function rbCommentSyncWithRuntime(
     ok: true,
   });
 
-  if (opts.apply && !opts.yes)
-    return mk("--apply requires --yes (report first, ALWAYS)");
+  if (applyConfirmationRefusal(opts) !== null)
+    return mk(applyConfirmationRefusal(opts) ?? "unreachable");
   if (!deps.fileExists(dbPath)) return mk(`no master DB at ${dbPath}`);
   if (!deps.exists(ledger)) return mk(`no archive ledger at ${ledger}`);
   try {
