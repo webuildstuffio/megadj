@@ -768,6 +768,7 @@ export {
   SET_BEAM_POOL_MAX,
   SET_BEAM_WIDTH,
   isSetSearchOverride,
+  isShelfOffline,
   type SetSearchOverride,
   clampSetPool,
 } from "./setbuild";

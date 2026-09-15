@@ -648,6 +648,19 @@
     var(--surface2) 54%
   );
 }
+/* the shelf-offline verdict: distinct from a small-library warn — the
+   drive is away, nothing is wrong with the music */
+.setbuild-result.stale {
+  border-left-color: var(--bad, #d05555);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--bad, #d05555) 6%, var(--surface2)),
+    var(--surface2) 54%
+  );
+}
+.setbuild-result.stale .setbuild-result-kicker {
+  color: var(--bad, #d05555);
+}
 .setbuild-result-head {
   display: grid;
   gap: 3px;

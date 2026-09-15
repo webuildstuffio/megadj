@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import render from "preact-render-to-string";
-import { SimilarTab } from "../products/fulltags/SimilarTab";
+import { SetBuildPanel } from "../products/fulltags/SetBuildPanel";
 import { SetBuilderResult } from "../products/fulltags/SetBuilderResult";
 import { TrackPickSearch } from "../products/fulltags/TrackPickSearch";
 import { SearchBar } from "../ui/data";
@@ -11,6 +11,18 @@ import type { SetBuildPayload } from "../../shared/types";
 const noop = () => undefined;
 const source = readFileSync(
   join(import.meta.dir, "../products/fulltags/SetBuildPanel.tsx"),
+  "utf8",
+);
+const similarSource = readFileSync(
+  join(import.meta.dir, "../products/fulltags/SimilarTab.tsx"),
+  "utf8",
+);
+const pageSource = readFileSync(
+  join(import.meta.dir, "../products/fulltags/FullTagsPage.tsx"),
+  "utf8",
+);
+const sharedSource = readFileSync(
+  join(import.meta.dir, "../products/shared.tsx"),
   "utf8",
 );
 const appSource = readFileSync(join(import.meta.dir, "../app/App.tsx"), "utf8");
@@ -63,7 +75,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("set builder names its evidence, checks, and write behavior", () => {
-    const html = render(<SimilarTab />);
+    const html = render(<SetBuildPanel />);
     expect(html).toContain('aria-label="Set builder evidence"');
     expect(html).toContain("Entire downloaded archive DB");
     expect(html).toContain("FullTags");
@@ -74,8 +86,19 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("Writes no tags or playlists");
   });
 
+  test("the set builder is its own top-level tab, out of Similar", () => {
+    // tab strip SSOT: a dedicated "set" row between Mood and Similar
+    expect(sharedSource).toMatch(
+      /id: "mood"[\s\S]{0,240}id: "set"[\s\S]{0,240}id: "similar"/,
+    );
+    expect(sharedSource).toContain("MegaSet: build an ordered mix proposal");
+    // the page canvas switches on it and SimilarTab no longer embeds it
+    expect(pageSource).toContain('{tab === "set" && <SetBuildPanel />}');
+    expect(similarSource).not.toContain("import { SetBuildPanel }");
+  });
+
   test("preset buttons expose radio semantics and lock during a build", () => {
-    const html = render(<SimilarTab />);
+    const html = render(<SetBuildPanel />);
     expect(html).toContain("1</span> Choose the energy journey");
     expect(html.match(/setbuild-preset-option/g)).toHaveLength(3);
     expect(html).toContain('role="radio"');
@@ -90,7 +113,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("settings changes invalidate an old proposal and promote the one CTA", () => {
-    const html = render(<SimilarTab />);
+    const html = render(<SetBuildPanel />);
     expect(html).toContain("Build a set from your entire shelf");
     expect(html).toContain("2</span> Choose the set length");
     expect(html).toContain('aria-label="Set builder settings"');
@@ -118,7 +141,7 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("common set lengths are one-click presets with an editable custom value", () => {
-    const html = render(<SimilarTab />);
+    const html = render(<SetBuildPanel />);
     expect(html).toContain('aria-label="Common set lengths"');
     for (const minutes of [30, 60, 90, 120]) {
       expect(html).toContain(`>${minutes} min</button>`);
@@ -146,40 +169,43 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(source).not.toContain("--apply");
   });
 
+  /** Shared fixture: a healthy complete build (also the offline tests'
+   *  base — they mutate the census numbers onto this shape). */
+  const baseData: SetBuildPayload = {
+    available: true,
+    preset: "warmup",
+    minutes: 60,
+    actualMinutes: 62.4,
+    shortfallMinutes: 0,
+    complete: true,
+    steps: [
+      {
+        videoId: "track-1",
+        title: "Opening Track",
+        artist: "DJ Test",
+        bpm: 124,
+        key: "8A",
+        arousal: 4,
+        atMin: 5.2,
+        transition: null,
+      },
+    ],
+    excluded: [],
+    source_total: 3664,
+    pool: 3563,
+    missing_files: 93,
+    duplicate_files: 8,
+    relocated_files: 12,
+    rekordbox_key_hits: 3362,
+    rekordbox_bpm_hits: 3015,
+    key_reads: 201,
+    key_read_failures: 0,
+    excluded_total: 0,
+    freshness: { beatsAt: null, moodAt: null },
+    search: "greedy",
+  };
+
   test("the result separates the human verdict from source evidence", () => {
-    const baseData: SetBuildPayload = {
-      available: true,
-      preset: "warmup",
-      minutes: 60,
-      actualMinutes: 62.4,
-      shortfallMinutes: 0,
-      complete: true,
-      steps: [
-        {
-          videoId: "track-1",
-          title: "Opening Track",
-          artist: "DJ Test",
-          bpm: 124,
-          key: "8A",
-          arousal: 4,
-          atMin: 5.2,
-          transition: null,
-        },
-      ],
-      excluded: [],
-      source_total: 3664,
-      pool: 3563,
-      missing_files: 93,
-      duplicate_files: 8,
-      relocated_files: 12,
-      rekordbox_key_hits: 3362,
-      rekordbox_bpm_hits: 3015,
-      key_reads: 201,
-      key_read_failures: 0,
-      excluded_total: 0,
-      freshness: { beatsAt: null, moodAt: null },
-      search: "greedy",
-    };
     const html = render(<SetBuilderResult data={baseData} />);
 
     expect(html).toContain("Ready to review");
@@ -199,6 +225,50 @@ describe("FullTags Similar and Set Builder UX", () => {
       <SetBuilderResult data={{ ...baseData, search: "beam" }} />,
     );
     expect(htmlBeam).toContain("deep beam search");
+  });
+
+  test("an unmounted shelf gets an environment verdict, not a library scolding", () => {
+    // the live failure signature: 3,664 DB rows, 8 sampler presets
+    // mounted, everything else missing → the shelf volume is away
+    const offlineData: SetBuildPayload = {
+      ...baseData,
+      complete: false,
+      actualMinutes: 0,
+      shortfallMinutes: 60,
+      steps: [],
+      source_total: 3664,
+      pool: 8,
+      missing_files: 3656,
+      relocated_files: 0,
+    };
+    const html = render(<SetBuilderResult data={offlineData} />);
+
+    expect(html).toContain("Shelf not mounted");
+    expect(html).toContain("Connect the shelf volume, then build again");
+    expect(html).toContain("the shelf drive is offline");
+    expect(html).toContain("Nothing is lost; the library ledger is intact");
+    expect(html).toContain("shelf offline — no mounted files considered");
+    // the misleading old framing is gone for this state
+    expect(html).not.toContain("More compatible tracks needed");
+    expect(html).not.toContain("Partial draft");
+
+    // the panel suppresses the partial-draft alarm for this state (the
+    // guard is in source; the rendered form has no data yet)
+    expect(source).toContain("!isShelfOffline(build.data, build.data)");
+
+    // a genuinely small analyzed pool KEEPS the honest partial wording
+    const smallPool: SetBuildPayload = {
+      ...baseData,
+      complete: false,
+      actualMinutes: 22,
+      shortfallMinutes: 38,
+      source_total: 100,
+      pool: 30,
+      missing_files: 12,
+    };
+    const htmlSmall = render(<SetBuilderResult data={smallPool} />);
+    expect(htmlSmall).toContain("More compatible tracks needed");
+    expect(htmlSmall).toContain("22-minute Warm-up partial draft");
   });
 
   test("FullTags stays usable on a phone before the archive rail", () => {

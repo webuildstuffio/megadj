@@ -6,6 +6,8 @@
 // carry the passed fields. This surface renders what the engine knows:
 //   Beatgrids — the beats ledger + the independent grid cross-check
 //   Mood      — the mood ledger's vibe map (dance/valence/arousal/party)
+//   Set       — MegaSet: the ordered mix proposal from the whole shelf
+//   Similar   — embedding-nearest sounds-like
 //   Cues      — the 8-bar phrase-cue ledger
 //   Tags      — the tag mirror: genres/years/art/energy (ground truth: files)
 //
@@ -25,6 +27,7 @@ import { ListHead, StatCard, KVRows, KVRow, KVKey, KVVal } from "../../ui/data";
 import { DataTable } from "../../ui/data";
 import { SimilarTab } from "./SimilarTab";
 import { TagCompareTab } from "./TagCompareTab";
+import { SetBuildPanel } from "./SetBuildPanel";
 import {
   PRODUCT_TABS,
   Meter,
@@ -119,6 +122,7 @@ export function FullTagsPage(props: { tab: string }) {
       />
       {tab === "beatgrids" && <BeatgridsTab />}
       {tab === "mood" && <MoodTab />}
+      {tab === "set" && <SetBuildPanel />}
       {tab === "similar" && <SimilarTab />}
       {tab === "cues" && <CuesTab />}
       {tab === "tags" && <TagCompareTab />}

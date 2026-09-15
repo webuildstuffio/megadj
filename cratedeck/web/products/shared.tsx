@@ -361,9 +361,16 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       title: "The mood ledger: dance/valence/arousal averages and extremes",
     },
     {
+      id: "set",
+      label: "Set",
+      icon: "compass",
+      title:
+        "MegaSet: build an ordered mix proposal from the whole analyzed shelf — energy arc, length, sequencer",
+    },
+    {
       id: "similar",
       label: "Similar",
-      icon: "compass",
+      icon: "grid",
       title: "I49 sounds-like: nearest tracks by audio embedding similarity",
     },
     {

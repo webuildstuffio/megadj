@@ -23,6 +23,7 @@ import {
 } from "../../cratedeck/src/setbuild";
 import {
   clampSetPool,
+  isShelfOffline,
   type SetBuildPayload,
   type SetSearchOverride,
 } from "../../cratedeck/shared/types";
@@ -124,11 +125,21 @@ export async function setbuild(opts: SetbuildOptions): Promise<void> {
     };
     if (built.steps.length === 0) {
       // empty proposal = a real finding (nothing analyzed / nothing
-      // mixable), not a crash — same honesty as the web Verdict row
+      // mixable), not a crash — same honesty as the web Verdict row.
+      // The all-missing signature gets its own diagnosis: the shelf
+      // volume is away (paths cannot exist), not the library.
+      const offline = isShelfOffline(built, {
+        source_total: sourceTotal,
+        pool: total,
+        missing_files: missingFiles,
+        relocated_files: relocatedFiles,
+      });
       log(
-        total === 0 && sourceTotal > 0 && missingFiles === sourceTotal
-          ? `setbuild: checked ${sourceTotal} downloaded DB rows, but none of their files exist — run \`megadj status\`, then repair or resync those rows`
-          : `setbuild: nothing mixable in a ${total}-track actual-file pool — run \`megadj beats\` + \`megadj mood\` first`,
+        offline
+          ? `setbuild: shelf volume is offline — all ${missingFiles} downloaded paths are unreadable. Mount the shelf drive, then build again (nothing is lost; the ledger is intact)`
+          : total === 0 && sourceTotal > 0 && missingFiles === sourceTotal
+            ? `setbuild: checked ${sourceTotal} downloaded DB rows, but none of their files exist — run \`megadj status\`, then repair or resync those rows`
+            : `setbuild: nothing mixable in a ${total}-track actual-file pool — run \`megadj beats\` + \`megadj mood\` first`,
       );
       process.exitCode = 1;
     } else {

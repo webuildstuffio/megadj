@@ -1,6 +1,19 @@
-# FullTags — Prioritized Roadmap (rev 7.1)
+# FullTags — Prioritized Roadmap (rev 7.2)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 7.2, 2026-09-15: **MegaSet promoted to its own tab + the
+shelf-offline verdict.** The set builder moved from a panel inside
+FullTags ⌗ Similar to a dedicated FullTags ⌗ Set tab (palette entry +
+help term added; Similar keeps only sounds-like). The empty-pool
+diagnosis got honest: when every DB path fails the existence check
+(`isShelfOffline` in shared/setbuild.ts), the verdict is now **"Shelf
+not mounted"** with mount-first guidance — the old "More compatible
+tracks needed" framing misdiagnosed an unmounted SHELF1 as a thin
+library (live repro: 3,664 rows, 8 sampler presets mounted, 0-minute
+draft). Real shortages keep the partial-draft wording. CLI
+`megadj setbuild` prints the same diagnosis; the classifier is derived
+from the census numbers, never a separate server flag._
 
 _Rev 7.1, 2026-09-15: **the tag-visibility surface shipped** — FullTags ⌗
 Tags is now the FullTags ↔ rekordbox ↔ file comparison view. A pure-DB

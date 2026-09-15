@@ -393,6 +393,13 @@ export const HELP_SURFACES: HelpSurface[] = [
       "What does the archive sound like — the vibe map and its extremes?",
   },
   {
+    route: "#/fulltags/set",
+    label: "FullTags · Set",
+    where: "FullTags → Set",
+    question:
+      "How do I get an ordered mix proposal for tonight from the whole shelf?",
+  },
+  {
     route: "#/fulltags/cues",
     label: "FullTags · Cues",
     where: "FullTags → Cues",

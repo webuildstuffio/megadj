@@ -1,12 +1,9 @@
 // SimilarTab.tsx — the FullTags "Similar" canvas (#/fulltags/similar),
 // split out of FullTagsPage.tsx (file-length guard).
 //
-// Two propose-only views over the measured ledgers (§4-A1: nothing here
-// writes anything):
-//   Set builder (M66)  — an ordered mix proposal from beats BPM + file TKEY
-//                        + mood axes, shaped by an energy-arc preset
-//                        (SetBuildPanel.tsx)
-//   Sounds like (I49)  — nearest tracks by effnet-embedding cosine
+// The sounds-like view (I49): nearest tracks by effnet-embedding cosine
+// similarity. The set builder lives on its own "Set" tab (SetBuildPanel
+// under #/fulltags/set) — it outgrew this canvas.
 import { useState } from "preact/hooks";
 import type { ArchiveSimilar, ArchiveSearchHit } from "../../../shared/types";
 import { api } from "../../ui/toast";
@@ -15,7 +12,6 @@ import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { ListHead, KVRows, KVRow, KVKey, KVVal, Card } from "../../ui/data";
 import { SectionHead, TrackTitle } from "../shared";
 import { TrackPickSearch, type TrackPick } from "./TrackPickSearch";
-import { SetBuildPanel } from "./SetBuildPanel";
 
 /** ONE line shape for a sounds-like hit — the copy block and any future
  *  consumer agree (mirrors `megadj similar`'s stdout rows). */
@@ -54,8 +50,7 @@ export function SimilarTab() {
 
   return (
     <div>
-      <SetBuildPanel />
-      <SectionHead icon="compass" title="Sounds like — nearest by embedding" />
+      <SectionHead icon="grid" title="Sounds like — nearest by embedding" />
       <TrackPickSearch
         query={query}
         onQuery={setQuery}

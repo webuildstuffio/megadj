@@ -17,6 +17,7 @@ import {
   SET_POOL_MAX,
   SET_POOL_UNLIMITED,
   SET_BEAM_POOL_MAX,
+  isShelfOffline,
   clampSetPool,
 } from "../shared/types";
 
@@ -676,5 +677,38 @@ describe("clampSetPool (the ?limit= guard shared by route + MCP tool)", () => {
   test("the shared sentinel and explicit cap cannot describe a false default", () => {
     expect(SET_POOL_UNLIMITED).toBe(0);
     expect(SET_POOL_MAX).toBe(1000);
+  });
+});
+
+describe("isShelfOffline (the unmounted-shelf signature)", () => {
+  const offline = {
+    steps: [],
+    source_total: 3664,
+    pool: 8,
+    missing_files: 3656,
+    relocated_files: 0,
+  };
+  test("empty chain + every path missing → true (shelf volume is away)", () => {
+    expect(isShelfOffline(offline, offline)).toBe(true);
+  });
+  test("a partial pool is a library verdict, NOT an offline signature", () => {
+    const partial = { ...offline, steps: [{ atMin: 5 }], missing_files: 3000 };
+    expect(isShelfOffline(partial, partial)).toBe(false);
+  });
+  test("a normal build (some missing, chain built) → false", () => {
+    const ok = { ...offline, steps: [{ atMin: 60 }], pool: 3563 };
+    expect(isShelfOffline(ok, ok)).toBe(false);
+  });
+  test("relocated files prove the shelf IS mounted → false", () => {
+    const relocated = { ...offline, relocated_files: 12 };
+    expect(isShelfOffline(relocated, relocated)).toBe(false);
+  });
+  test("empty archive (0 rows) → false (a different 'needs attention')", () => {
+    const empty = { ...offline, source_total: 0, pool: 0, missing_files: 0 };
+    expect(isShelfOffline(empty, empty)).toBe(false);
+  });
+  test("steps/census split inputs (server result + census pair)", () => {
+    expect(isShelfOffline({ steps: [] }, offline)).toBe(true);
+    expect(isShelfOffline({ steps: [{ atMin: 1 }] }, offline)).toBe(false);
   });
 });

@@ -1,13 +1,25 @@
-import { SET_PRESET_DEFS, type SetBuildPayload } from "../../../shared/types";
+import {
+  SET_PRESET_DEFS,
+  isShelfOffline,
+  type SetBuildPayload,
+} from "../../../shared/types";
 
 export function SetBuilderResult(props: { data: SetBuildPayload }) {
   const { data } = props;
   const empty = data.pool === 0;
-  const tone = data.complete ? "ok" : "warn";
+  // The all-missing signature = the shelf volume is offline (every DB
+  // path points under /Volumes/<shelf>/ and none can exist). This is an
+  // environment state, not a library verdict — the old "more compatible
+  // tracks needed" framing sent the user hunting for tracks that are
+  // merely on a sleeping drive.
+  const shelfOffline = !data.complete && isShelfOffline(data, data);
+  const tone = data.complete ? "ok" : shelfOffline ? "stale" : "warn";
   const journey = SET_PRESET_DEFS.find((preset) => preset.id === data.preset);
   const journeyLabel = journey?.label ?? data.preset;
   const libraryNotes = [
-    data.missing_files > 0 ? `${data.missing_files} missing skipped` : null,
+    data.missing_files > 0 && !shelfOffline
+      ? `${data.missing_files} missing skipped`
+      : null,
     data.duplicate_files > 0
       ? `${data.duplicate_files} DB aliases collapsed`
       : null,
@@ -32,21 +44,27 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
             ? "Library needs attention"
             : data.complete
               ? "Ready to review"
-              : "More compatible tracks needed"}
+              : shelfOffline
+                ? "Shelf not mounted"
+                : "More compatible tracks needed"}
         </span>
         <h4 id="setbuild-result-title">
           {empty
             ? "No playable set could be built"
-            : `${data.actualMinutes}-minute ${journeyLabel} ${data.complete ? "set draft" : "partial draft"}`}
+            : shelfOffline
+              ? "Connect the shelf volume, then build again"
+              : `${data.actualMinutes}-minute ${journeyLabel} ${data.complete ? "set draft" : "partial draft"}`}
         </h4>
         <p>
           {empty
             ? data.source_total > 0 && data.missing_files === data.source_total
               ? `All ${data.source_total.toLocaleString()} downloaded database paths are missing. Repair the archive paths, then build again.`
               : "Run FullTags beats and mood analysis so the builder has enough tempo and energy data."
-            : data.complete
-              ? `FullTags reached the ${data.minutes}-minute target with ${data.steps.length} unique tracks.`
-              : `FullTags found ${data.actualMinutes} of ${data.minutes} minutes — ${data.shortfallMinutes} minutes short.`}
+            : shelfOffline
+              ? `Every one of the ${data.missing_files.toLocaleString()} archive paths is unreadable — the shelf drive is offline. Mount it (Finder or megadj), confirm the files are back, then build again. Nothing is lost; the library ledger is intact.`
+              : data.complete
+                ? `FullTags reached the ${data.minutes}-minute target with ${data.steps.length} unique tracks.`
+                : `FullTags found ${data.actualMinutes} of ${data.minutes} minutes — ${data.shortfallMinutes} minutes short.`}
         </p>
       </div>
 
@@ -83,7 +101,11 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
           <div>
             <span>Archive database</span>
             <strong>{data.source_total.toLocaleString()} rows</strong>
-            <small>{data.pool.toLocaleString()} mounted files considered</small>
+            <small>
+              {shelfOffline
+                ? "shelf offline — no mounted files considered"
+                : `${data.pool.toLocaleString()} mounted files considered`}
+            </small>
           </div>
           <div>
             <span>Sequencer</span>
@@ -120,6 +142,13 @@ export function SetBuilderResult(props: { data: SetBuildPayload }) {
         {libraryNotes.length > 0 && (
           <p class="setbuild-library-notes">
             Library cleanup: {libraryNotes.join(" · ")}.
+          </p>
+        )}
+        {shelfOffline && (
+          <p class="setbuild-library-notes">
+            Shelf check: {data.missing_files.toLocaleString()} of{" "}
+            {data.source_total.toLocaleString()} downloaded paths were
+            unreadable during this build.
           </p>
         )}
       </div>

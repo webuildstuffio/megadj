@@ -1,7 +1,7 @@
-// SetBuildPanel.tsx — the M66 set-builder panel (#/fulltags/similar),
-// split out of SimilarTab.tsx (file-length guard): the panel is its own
-// product surface (preset/length/sequencer form + proposal view), while
-// SimilarTab keeps the tab shell and the sounds-like view.
+// SetBuildPanel.tsx — the M66 set-builder panel (#/fulltags/set), split
+// out of SimilarTab.tsx (file-length guard) and promoted to its OWN tab:
+// the panel is its own product surface (preset/length/sequencer form +
+// proposal view), while SimilarTab keeps only the sounds-like view.
 //
 // Propose-only (§4-A1: nothing here writes anything): the wire envelope
 // (SetBuildPayload) is DERIVED from shared/types.ts — never re-declare
@@ -19,6 +19,7 @@ import {
   SET_PRESET_DEFS,
   SET_MINUTES_MAX,
   SET_MINUTES_MIN,
+  isShelfOffline,
 } from "../../../shared/types";
 import { camelotOf } from "../../../shared/camelot";
 import { api, toast } from "../../ui/toast";
@@ -553,17 +554,21 @@ export function SetBuildPanel() {
       {build.data && (
         <>
           <SetBuilderResult data={build.data} />
-          {!build.data.complete && build.data.pool > 0 && (
-            <div class="setbuild-shortfall" role="alert">
-              <Icon name="warn" size={16} />
-              <span>
-                <b>Partial draft — not a complete set.</b> FullTags found
-                {build.data.actualMinutes} of the requested {build.data.minutes}
-                minutes, leaving {build.data.shortfallMinutes} minutes short.
-                Review the exclusions or choose a shorter target before export.
-              </span>
-            </div>
-          )}
+          {!build.data.complete &&
+            build.data.pool > 0 &&
+            !isShelfOffline(build.data, build.data) && (
+              <div class="setbuild-shortfall" role="alert">
+                <Icon name="warn" size={16} />
+                <span>
+                  <b>Partial draft — not a complete set.</b> FullTags found
+                  {build.data.actualMinutes} of the requested{" "}
+                  {build.data.minutes}
+                  minutes, leaving {build.data.shortfallMinutes} minutes short.
+                  Review the exclusions or choose a shorter target before
+                  export.
+                </span>
+              </div>
+            )}
           <FreshnessLine
             freshness={build.data.freshness}
             pool={build.data.pool}

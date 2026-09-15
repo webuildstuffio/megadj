@@ -40,6 +40,29 @@ export interface SetBuildResult {
   search: "greedy" | "beam";
 }
 
+/** The all-missing signature: every DB row's file path failed the
+ *  existence check while rows exist at all. In practice this means the
+ *  shelf volume is NOT mounted (paths like /Volumes/SHELF1/... cannot
+ *  exist) — not that the library is small or unanalyzed. Derived, never
+ *  a server flag: the client classifies from the same census numbers the
+ *  engine measured, so a drifted wire field cannot lie twice. The steps
+ *  param only needs a length — full SetBuildResult and bare test
+ *  doubles both satisfy it structurally. */
+export function isShelfOffline(
+  result: { steps: readonly unknown[] },
+  census: Pick<
+    SetBuildPayload,
+    "source_total" | "pool" | "missing_files" | "relocated_files"
+  >,
+): boolean {
+  return (
+    result.steps.length === 0 &&
+    census.source_total > 0 &&
+    census.missing_files + census.pool === census.source_total &&
+    census.relocated_files === 0
+  );
+}
+
 /** The GET /api/archive/setbuild response envelope. */
 export interface SetBuildPayload extends SetBuildResult {
   available: boolean;
