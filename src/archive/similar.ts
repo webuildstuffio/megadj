@@ -49,12 +49,7 @@ export class EmbeddingsLedger extends RecordLedger {
       "embeddings",
       rec.videoId,
       ["dim", "vec_json", "source_path", "analyzed_at"],
-      [
-        rec.vec.length,
-        JSON.stringify(rec.vec),
-        rec.sourcePath,
-        this.now(),
-      ],
+      [rec.vec.length, JSON.stringify(rec.vec), rec.sourcePath, this.now()],
     );
   }
 
