@@ -30,6 +30,7 @@ import { inspectMutationPaths, pickKeeper } from "./rb-dedup-support.js";
 import {
   applyConfirmed,
   applyConfirmationRefusal,
+  makeFail,
   pyUvArgv,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
@@ -161,24 +162,6 @@ export interface RbDedupResult {
   ok: boolean;
   error?: string;
 }
-
-const fail = (
-  opts: RbDedupOptions,
-  db: string,
-  msg: string,
-): RbDedupResult => ({
-  command: "rb-dedup",
-  db,
-  scanned: 0,
-  pairs: [],
-  removed: 0,
-  quarantined: [],
-  missingFiles: [],
-  appliedMode: Boolean(opts.apply),
-  backedUpTo: null,
-  ok: false,
-  error: msg,
-});
 
 function parseJsonBoundary(
   raw: string,
@@ -544,12 +527,26 @@ export async function rbDedup(
   const dbPath = masterDbPath(opts.mount);
   const apply = applyConfirmed(opts);
 
+  const fail = makeFail((msg: string): RbDedupResult => ({
+    command: "rb-dedup",
+    db: dbPath,
+    scanned: 0,
+    pairs: [],
+    removed: 0,
+    quarantined: [],
+    missingFiles: [],
+    appliedMode: apply,
+    backedUpTo: null,
+    ok: false,
+    error: msg,
+  }));
+
   if (applyConfirmationRefusal(opts) !== null)
-    return fail(opts, dbPath, applyConfirmationRefusal(opts) ?? "unreachable");
+    return fail(applyConfirmationRefusal(opts) ?? "unreachable");
   try {
     deps.assertClosed("rb-dedup");
   } catch (e) {
-    return fail(opts, dbPath, (e as Error).message);
+    return fail((e as Error).message);
   }
 
   const r = deps.spawn(
@@ -559,15 +556,13 @@ export async function rbDedup(
   );
   if (r.status !== 0 || !r.stdout)
     return fail(
-      opts,
-      dbPath,
       `scan failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(-300)}`,
     );
   let out: ScanResult;
   try {
     out = parseScanResult(r.stdout.trim().split("\n").pop() ?? "");
   } catch (error) {
-    return fail(opts, dbPath, errorText(error));
+    return fail(errorText(error));
   }
   const unique = buildDupePairs(out.pairs, deps.fingerprint);
 
@@ -584,20 +579,16 @@ export async function rbDedup(
       deps.realpath,
     );
     if (pathInspection.errors.length)
-      return fail(
-        opts,
-        dbPath,
-        `unsafe mutation paths: ${pathInspection.errors.join("; ")}`,
-      );
+      return fail(`unsafe mutation paths: ${pathInspection.errors.join("; ")}`);
     try {
       deps.assertClosed("rb-dedup --apply backup");
     } catch (error) {
-      return fail(opts, dbPath, errorText(error));
+      return fail(errorText(error));
     }
     try {
       backedUpTo = deps.backup(dbPath);
     } catch (error) {
-      return fail(opts, dbPath, `backup failed: ${errorText(error)}`);
+      return fail(`backup failed: ${errorText(error)}`);
     }
     // 1. merge associations, then delete loser rows (one transaction/pair).
     const loseIds = unique.map((p) => p.loseId);
@@ -608,7 +599,7 @@ export async function rbDedup(
       deps.assertClosed("rb-dedup --apply delete");
     } catch (error) {
       return {
-        ...fail(opts, dbPath, errorText(error)),
+        ...fail(errorText(error)),
         backedUpTo,
       };
     }

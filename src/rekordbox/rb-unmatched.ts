@@ -29,7 +29,7 @@
 
 import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { applyConfirmationRefusal } from "./rb-command-kit.js";
+import { applyConfirmationRefusal, makeFail } from "./rb-command-kit.js";
 import { printResult } from "./rb-command-kit.js";
 import { QUARANTINE_DIR, quarantineDest } from "../archive/hygiene/apply";
 import { buildIndex, readRows } from "./rb-fix-paths";
@@ -80,27 +80,6 @@ export interface RbUnmatchedResult {
 }
 
 const HUMAN_LIST_CAP = 30;
-
-function fail(mount: string, dbPath: string, msg: string): RbUnmatchedResult {
-  return {
-    command: "rb-unmatched",
-    mount,
-    db: dbPath,
-    diskFiles: 0,
-    dbRows: 0,
-    matched: 0,
-    twinNamed: 0,
-    unknown: 0,
-    unknownByDir: {},
-    unknownList: [],
-    quarantined: 0,
-    quarantineLog: [],
-    manifestPath: null,
-    appliedMode: false,
-    ok: false,
-    error: msg,
-  };
-}
 
 /** Normalize a CLI --ext value ("mp3", ".MP3") to ".mp3". */
 function normExt(e: string): string {
@@ -199,6 +178,25 @@ export async function rbUnmatched(
   const mount = normalizeMount(opts.mount);
   const dbPath = masterDbPath(opts.mount);
 
+  const fail = makeFail((msg: string): RbUnmatchedResult => ({
+    command: "rb-unmatched",
+    mount,
+    db: dbPath,
+    diskFiles: 0,
+    dbRows: 0,
+    matched: 0,
+    twinNamed: 0,
+    unknown: 0,
+    unknownByDir: {},
+    unknownList: [],
+    quarantined: 0,
+    quarantineLog: [],
+    manifestPath: null,
+    appliedMode: false,
+    ok: false,
+    error: msg,
+  }));
+
   // flag validation precedes any I/O — bad invocation = exit-worthy, zero work
   if (
     applyConfirmationRefusal({
@@ -208,16 +206,13 @@ export async function rbUnmatched(
     }) !== null
   )
     return fail(
-      mount,
-      dbPath,
       applyConfirmationRefusal({
         apply: opts.quarantine,
         yes: opts.yes,
         flag: "--quarantine",
       }) ?? "unreachable",
     );
-  if (!existsSync(dbPath))
-    return fail(mount, dbPath, `no master DB at ${dbPath}`);
+  if (!existsSync(dbPath)) return fail(`no master DB at ${dbPath}`);
 
   const exts = opts.ext?.length ? new Set(opts.ext.map(normExt)) : null;
   const idx = buildIndex(mount);
@@ -236,7 +231,7 @@ export async function rbUnmatched(
   } catch (e) {
     const message = errorText(e);
     log(`rb-unmatched: ${message}`);
-    return fail(mount, dbPath, message);
+    return fail(message);
   }
   log(
     `rb-unmatched: ${rows.length} content row(s) · ${disk.length} disk audio file(s) in scope`,

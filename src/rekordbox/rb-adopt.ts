@@ -17,6 +17,7 @@ import { backupStamp } from "./guard.js";
 import {
   applyConfirmationRefusal,
   lastJsonLine,
+  makeFail,
   rbPythonRun,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
@@ -283,20 +284,37 @@ function buildPlan(
 export function reconcileRekordboxRows(
   opts: ReconcileRekordboxOptions,
 ): ReconcileRekordboxResult {
+  const failure = makeFail((error: string): ReconcileRekordboxResult => ({
+    command: "rb-adopt",
+    sourceDb: opts.sourceDb,
+    total: opts.rows.length,
+    uniqueFiles: 0,
+    matchedExisting: 0,
+    wouldCreate: 0,
+    duplicateContentPaths: 0,
+    missingFiles: 0,
+    linked: 0,
+    created: 0,
+    applied: 0,
+    staleLinksRemoved: 0,
+    appliedMode: opts.apply,
+    ok: false,
+    error,
+  }));
+
   if (opts.rows.length === 0)
-    return failure(opts, "master Content census is empty; refusing to prune");
+    return failure("master Content census is empty; refusing to prune");
   const duplicateIds = new Set<string>();
   const seenIds = new Set<string>();
   for (const row of opts.rows) {
     if (!row.contentId) {
-      return failure(opts, "master contains a Content row with an empty ID");
+      return failure("master contains a Content row with an empty ID");
     }
     if (seenIds.has(row.contentId)) duplicateIds.add(row.contentId);
     seenIds.add(row.contentId);
   }
   if (duplicateIds.size > 0)
     return failure(
-      opts,
       `master contains duplicate Content IDs: ${[...duplicateIds].slice(0, 5).join(", ")}`,
     );
 
@@ -441,29 +459,6 @@ function insertedCount(plan: PlanRow[]): number {
   ).size;
 }
 
-function failure(
-  opts: ReconcileRekordboxOptions,
-  error: string,
-): ReconcileRekordboxResult {
-  return {
-    command: "rb-adopt",
-    sourceDb: opts.sourceDb,
-    total: opts.rows.length,
-    uniqueFiles: 0,
-    matchedExisting: 0,
-    wouldCreate: 0,
-    duplicateContentPaths: 0,
-    missingFiles: 0,
-    linked: 0,
-    created: 0,
-    applied: 0,
-    staleLinksRemoved: 0,
-    appliedMode: opts.apply,
-    ok: false,
-    error,
-  };
-}
-
 function backupName(dbPath: string): string {
   const ext = extname(dbPath) || ".db";
   const stem = basename(dbPath, ext);
@@ -481,10 +476,24 @@ function snapshotArchive(state: ArchiveState, dbPath: string): string {
 export function rbAdopt(opts: RbAdoptOptions): RbAdoptResult {
   const apply = Boolean(opts.apply);
   const sourceDb = masterDbPath(opts.mount);
-  const fail = (error: string): RbAdoptResult => ({
-    ...failure({ state: opts.state, sourceDb, rows: [], apply }, error),
+  const fail = makeFail((error: string): RbAdoptResult => ({
+    command: "rb-adopt",
+    sourceDb,
+    total: 0,
+    uniqueFiles: 0,
+    matchedExisting: 0,
+    wouldCreate: 0,
+    duplicateContentPaths: 0,
+    missingFiles: 0,
+    linked: 0,
+    created: 0,
+    applied: 0,
+    staleLinksRemoved: 0,
+    appliedMode: apply,
+    ok: false,
+    error,
     backedUpTo: null,
-  });
+  }));
   if (applyConfirmationRefusal(opts) !== null)
     return fail(applyConfirmationRefusal(opts) ?? "unreachable");
   if (!existsSync(sourceDb)) return fail(`no master DB at ${sourceDb}`);
