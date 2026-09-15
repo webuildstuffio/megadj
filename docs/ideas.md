@@ -36,7 +36,7 @@ Issue state lives on GitHub; this table only routes to the durable owner.
 | 0c  | ✅ complete         | [BACKUP2 verdict](runbooks/0c-orphan-verdict.md); adopted, covered, and retired intact         |
 | 0d  | ✅ shipped          | Coverage and redundancy engines; live state from `deckctl coverage`/`redundancy`               |
 | 0e  | ✅ shipped          | Incident logging convention; evidence remains in the local, gitignored `docs/usb-sync-log.md`  |
-| 0f  | ✅ superseded       | Generalized by the human-gated [shelf hygiene engine](getdat/shelf-hygiene-2026-09-09.md)             |
+| 0f  | ✅ superseded       | Generalized by the human-gated [shelf hygiene engine](getdat/shelf-hygiene-2026-09-09.md)      |
 | 0g  | ✅ shipped          | Whole-shelf fingerprint scan and quarantine-first restore path                                 |
 
 ### Deferred runtime performance pass
@@ -50,12 +50,12 @@ then warm, compare serial vs pooled). Targets in order: walk.ts parallel
 stats (3–8×), archive_sweep fixed-width hashing pool (3–6×, the long
 pole of `deckctl prep`), optional bench.ts random-read batching (changes
 what the benchmark measures — needs a product call).
-   Non-targets (checked, already fast): CLI cold start 50–70ms,
-   `fetchWeeklyPrepInput` (already fanned out), preflight/report/fleet
-   (sub-ms, in-memory), rb_read.py (~1s = dual-DB read itself).
-   Verification protocol: prof cold → apply target → re-run + its pinned
-   tests → `bun run check:full` → e2e `deckctl run <drive> scan` +
-   `deckctl prep` digest still includes D30.
+Non-targets (checked, already fast): CLI cold start 50–70ms,
+`fetchWeeklyPrepInput` (already fanned out), preflight/report/fleet
+(sub-ms, in-memory), rb_read.py (~1s = dual-DB read itself).
+Verification protocol: prof cold → apply target → re-run + its pinned
+tests → `bun run check:full` → e2e `deckctl run <drive> scan` +
+`deckctl prep` digest still includes D30.
 
 **Reality gate — the input that decides the rest of this doc:** how often
 do you play?
@@ -310,6 +310,12 @@ re-verified in the research notes (2026-09-05).
     out of scope (CDJs can't play them); analysis-side metric only.
 
 49. **Embeddings & "sounds like" — ✅ SHIPPED 2026-09-08 (effnet tower).**
+    **2026-09-14 update:** tower re-validated by the v2 benchmark + an
+    external research review — effnet stays the single tower, but the
+    readout upgrades (linear probe for genre, whitening+CSLS for
+    retrieval, transition-window similarity) are the new queue: see
+    [fulltags/embedding-research-2026-09-14.md](fulltags/embedding-research-2026-09-14.md)
+    and §P below.
 
 50. **LLM track captioning (vibe notes).** Feed Essentia tags + structure
     labels + metadata to a local/small LLM → a one-line vibe description
@@ -382,6 +388,11 @@ extractors).
     at a time behind the probe/quality pipeline; Bandcamp first (beetcamp
     proves the JSON scrape). **2026-09-05:** yt-dlp Bandcamp is broken
     (#17506) — wait for the upstream fix. Effort S per platform.
+    **2026-09-14 addition:** Bandcamp is now ALSO the genre-ladder's next
+    arm — direct album-page fetches expose publisher tags + label without
+    yt-dlp (download and metadata are separate problems), feeding the
+    multi-source vote (§P75). K58 (download source) and P75 (genre arm)
+    share the fetcher.
 
 59. **1001tracklists mining → discovery queue.** Scrape tracklists of DJs
     and shows you follow: "played everywhere, not in your library" queue
@@ -445,7 +456,7 @@ Mac-DJ irritations nobody builds for.
 70. **macOS metadata litter audit.** `._*`/`.DS_Store`/`.Spotlight-V100`
     on FAT32 — CDJs choke; Finder recreates them each mount. Extend scan
     junk detection with a one-click clean (guard-gated) + a `defaults
-    write` hint. Effort S.
+write` hint. Effort S.
 71. **"Why is my transfer 8 MB/s?" — port-speed truth serum.** macOS
     never tells you a stick landed in USB 2 or a hub is capping the bus.
     The USB topology is already captured at mount (F2) — surface
@@ -492,9 +503,12 @@ ecosystem research confirms the architecture aims at the right wall.
     → a per-drive verdict. The thing rekordbox cannot tell you at all.
 
 79. **Genre-normalized house/techno taxonomy.** Discogs-400 styles model
-    + Essentia classifiers vote against LLM genre + MusicBrainz → one
-    normalized genre + styles[] in the archive DB, feeding M66 and K59.
-    Effort M.
+    - Essentia classifiers vote against LLM genre + MusicBrainz → one
+      normalized genre + styles[] in the archive DB, feeding M66 and K59.
+      Effort M. **2026-09-14:** this is now the live genre-audit pipeline
+      (§5b of the genre audit) — Discogs-400 head measured, ranked
+      secondaries queued; the multi-source _vote_ (not first-win) ladder is
+      the §P75 addition.
 
 80. **Energy-arc presets per genre.** I45's VA + danceability define
     "warm-up"/"peak"/"afterhours" envelopes for the crate copilot (M66) —
@@ -536,6 +550,96 @@ keeping agents inside P9/P11's idempotent, resumable safety rules.
 
 ---
 
+## P. Embedding readout & genre-quality addendum (2026-09-14 research review)
+
+> From the external deep-read snapshotted at
+> [fulltags/embedding-research-2026-09-14.md](fulltags/embedding-research-2026-09-14.md)
+> (9 papers + tower landscape + compute audit). Full measured context:
+> [fulltags/embedding-models.md](fulltags/embedding-models.md) +
+> [fulltags/genre-audit.md](fulltags/genre-audit.md) §5b. Numbering
+> continues from §O. The one-paragraph reframe: **our 0.444 is ~77% of the
+> random-noise LOO ceiling (~0.58) — the wins now come from readout
+> (probe > kNN), retrieval geometry (whiten/CSLS), and taxonomy (the
+> `edm` umbrella), not from any tower swap.**
+
+89. **Tier-0 diagnostics battery.** Four cheap measurements that re-rank
+    everything else in this section: (a) cluster label errors by
+    artist/release/imprint (systematic ⇒ no ceiling, relabelling buys
+    ~nothing; random ⇒ items 7/refold are worth points); (b) same-artist
+    share of top-5 neighbours (effnet is the Discogs-metadata tower most
+    likely to fingerprint artists — Sturm's "horse"; >15% ⇒ all LOO
+    numbers get an artist-disjoint rerun); (c) hubness histogram
+    (k-occurrence skew — a few tracks at 40+ occurrences ⇒ P91 is
+    nearly-free points); (d) confusion matrix + top-2 accuracy in
+    `genre --eval` (is the error mass the house/techno/trance triangle —
+    arguably not errors — or structural?). ~4 h total. **Do first.**
+90. **Linear probe as the genre readout.** Logistic regression on the
+    cached 1280-d vectors — the literature-standard protocol nobody's
+    benchmark headlines kNN instead; comparable towers gain 15–25 pts.
+    `genre --eval --probe`; gate: beat the kNN vote by ≥3 pts on the
+    guarded population before becoming production. **megadj genre is
+    classification → the probe is the fix; "sounds like" is retrieval →
+    P91/P93 are the fixes there.** Effort S.
+91. **Whitening + CSLS retrieval space.** Mean-centre, whiten (or
+    all-but-the-top), CSLS-correct the kNN in `megadj similar`/MegaSet.
+    ~10 lines; expected +3–8 pts coherence. Flag-gated (`--space
+raw|whitened`) for A/B. Effort S.
+92. **Full-population LOO.** n=3,500 over the cached vectors instead of
+    n=180 — error bars ±6 → ~±1, making every sub-3-point claim
+    falsifiable. 3,500² float32 ≈ 50 MB; seconds in numpy. Effort S.
+93. **Projection head (learned metric, not a tower swap).** 1280→256
+    linear map, SupCon/triplet on family labels with the 4/4-triangle
+    hard negatives; improves genre AND retrieval simultaneously; one
+    matmul at query time; a _derived view_ of the same vectors, so the
+    single-ledger rule holds. Canonical ref: Lee et al., ICASSP 2020.
+    Minutes on CPU. Effort S-M. The actual MegaSet fix.
+94. **`edm` umbrella arbitration.** `edm` is a parent of house/techno/
+    trance sitting as a sibling — every plain-`edm` track is a forced
+    LOO error (the B1 `dance` bug one level up). Arbitrate via the
+    head+kNN dispute pass in the refold; keep hard-dance/eurodance/
+    nightcore in `edm`, keep ALL Tier-1 sub-genre labels (hardtekk
+    stays). Expected +6–12 pts alone. Effort S.
+95. **Active-learned label refold.** 900 labels → probe → hand-label only
+    the ~600 lowest-margin/disagreement tracks; concentrates human hours
+    on the house/techno/trance boundary. Gated by P89(a): if label noise
+    is systematic, skip straight to crate co-occurrence. Effort S-M + ~5 h
+    human.
+96. **Imprint prior + LLM pre-labelling.** For EDM the label/imprint is
+    near-ground-truth (Drumcode→techno, Anjuna→trance). Auto-label with
+    confidence from archive.db metadata; human-verify only the
+    low-confidence tail; cuts listening hours 60%+. Feeds the refold and
+    the LLM residue pass. Effort S.
+97. **Tempogram/rhythm-feature concat.** All six towers are timbre
+    models; EDM subgenre is substantially rhythm. beat_this's beat grids
+    (already ledgered, roadmap #2) give rhythm features free — concatenate
+    or late-fuse. arXiv:2110.08862: tempogram fusion recovers
+    uplifting-trance misread as tech-trance — our exact fuzz. Effort M.
+98. **Transition-window embeddings (outro→intro index).** DJs mix 32-bar
+    sections, not tracks. The patch towers already emit per-~3 s patch
+    embeddings and the cues ledger stores 32-bar phrases — pool only
+    intro/outro windows; no new model, no Demucs bill. The "sounds like
+    the part I can actually mix" feature no product ships. Effort S-M.
+99. **Retrieve-then-rerank (dissolves the fusion gate).** Cheap effnet
+    recall top-50 → expensive tower reranks 50: the cost ratio that
+    killed fusion (2–6× corpus-wide) drops to 50/3,500. Also: re-verify
+    the RRF fusion row with the fixed comparator (descending-sort bug
+    lived there — the −3.3 pt number is unverified), and always
+    per-query normalize before fusing (the z-scored fuser winning is the
+    tell). Effort M.
+100.  **Ranking metrics + live A/B.** nDCG@10/MRR/Recall@k have lower
+      variance than binary agreement at the same n; and per the MegaMem
+      eval stance — genre labels at 60–76% audio-consistent IS the
+      no-ground-truth regime, so 100 A/B "which list would I actually
+      mix" judgments beat another 10K kNN evaluations. Effort S.
+101.  **Crate co-occurrence supervision (the biggest basin jump).**
+      Playlist membership, My Tags, play/set history → millions of
+      implicit similarity pairs encoding what we actually mix, not a
+      genre proxy; sidesteps the label ceiling entirely. Needs B11-style
+      history accumulation first — parked until it exists, exactly like
+      M64. Slaney et al. ISMIR'08 is the canonical recipe. Effort M.
+
+---
+
 ## H. Explicit non-goals (unchanged — say no)
 
 - ❌ Writing device DBs outside rekordbox (`export.pdb`/`exportLibrary.db`
@@ -565,6 +669,9 @@ keeping agents inside P9/P11's idempotent, resumable safety rules.
 > MegaSet, shelf hygiene/dedupe/dupescan, grid-audit wave 2) — the
 > open remainders are C18a/C21, O84, I46 full slice, K57–K59, M69–M74,
 > and the two §0 physical tasks (0a evacuation run, 0b rclone remote).
+> **2026-09-14: the live queue's top block is the §P genre/readout
+> ladder** (P89–P94 first, per the research review) — genre quality
+> before further set-generation work.
 
 **Deliberately unbuilt:** C18b/c (pdb write gauntlet — parked), I52
 (deleted), K56 (lyrics), K60 (setlist.fm), E31/E44 (struck 2026-09-05:

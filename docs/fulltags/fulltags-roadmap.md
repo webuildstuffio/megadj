@@ -1,6 +1,18 @@
-# FullTags — Prioritized Roadmap (rev 6.5)
+# FullTags — Prioritized Roadmap (rev 6.6)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 6.6, 2026-09-14: **genre/readout quality takes the queue** per the
+external research review
+([fulltags/embedding-research-2026-09-14.md](embedding-research-2026-09-14.md))
+— Tier-0 diagnostics (artist-leakage check, hubness histogram, confusion
+matrix), the linear-probe readout experiment, whitening+CSLS retrieval,
+the `edm` umbrella arbitration, and full-population LOO are the new top
+block (before any further set-generation work); MERT rejection marked
+provisional pending a per-layer re-test; multi-source genre vote ladder
+(+ Bandcamp arm) and transition-window similarity queued. Effnet stays
+the single tower — the review's core finding is that the wins are in
+readout/labels/taxonomy, not the encoder (ideas.md §P has the idea rows)._
 
 _Rev 6.5, 2026-09-11: **hardening + 1:1 parity pass over rev 6.4's
 Beatport integration** — the batch stage (`megadj fetch`/`enrich`) now
@@ -263,6 +275,12 @@ the OpenKeyScan SSOT decision (#3).
 
 ## 3. P2 / P3 (unchanged in substance, resized by facts)
 
+> **2026-09-14 re-rank (research review):** the old "Similarity (MUSE →
+> sqlite-vec)" step-up is superseded by the readout ladder — probe,
+> whitening+CSLS, projection head, transition-window similarity
+> (ideas.md §P89–P98) all come BEFORE any second tower or second ledger.
+> The embedding-research snapshot's §6 has the per-item verdicts.
+
 - **Structure cues (all-in-one-infer v3 / -mlx)** — M–L. Still the 10x
   item; #2's beat/downbeat ledger (DB-side, not tags) is its anchor, so
   nothing is lost by waiting. v3 installs on Apple Silicon with no
@@ -270,21 +288,36 @@ the OpenKeyScan SSOT decision (#3).
   (repo-reported — verify). MIT; labels pop-trained — verify on EDM
   before batch.
 - **Vocal density (demucs-infer, or `demucs-mlx`)** — M. ~3 s/track on
-  M4-class silicon; stems temp-only.
+  M4-class silicon; stems temp-only. **Research-review caveat: stems
+  helped MuQ but HURT CLAP (84.6→83.2) — effnet is architecturally
+  CLAP-side; gate any stem-similarity work behind a 200-track probe
+  before paying the 6–12 h Demucs bill (review §5 J3).**
+- **Transition-window similarity (NEW, S–M)** — outro→intro retrieval
+  over the existing patch embeddings + cues ledger (ideas.md P98; review
+  §5 J4). Cheapest genuinely-new retrieval quality: no new model, no
+  Demucs.
+- **Genre vote ladder + Bandcamp arm (NEW, M)** — weighted multi-source
+  vote (RB/ingest-pool/SC/BP/Bandcamp-page/Discogs-400 head/kNN
+  consensus) replacing first-win-writes (genre-audit §5b.3.6, ideas.md
+  P75/K58); imprint prior + LLM pre-labelling cuts human labelling ~60%
+  (ideas.md P96).
 - **Similarity (MUSE from #4 → sqlite-vec)** — M after #4. Step-up:
   **MuQ-MuLan** (Tencent, MIT code) — 2026 SOTA zero-shot music tagging
   (MagnaTagATune AUC 79.3 vs CLAP 73.9–75.5); weights CC-BY-NC
   (personal-use carve-out). MERT effectively superseded; MusicFM dormant
   since 2024 — both demoted to "if MUSE/MuQ disappoint". **Rev 5: the
   88-fingerprint ledger + D25 dupe hunt is the natural sqlite-vec
-  pilot** — same query shape, real data.
+  pilot** — same query shape, real data. **Rev 6.6: MuQ swap stays
+  parked behind the ONNX-export + ≥3 pt gates; retrieve-then-rerank
+  (P99) dissolves the cost objection for ANY second tower first.**
 - **Watch: settag** — Essentia MAEST genre + Discogs-EffNet moods,
   staged writes with provenance tags, built for DJ libraries specifically
   (2026). Direct feature overlap with FullTags — competitor-as-reference,
   not a dependency; steal the provenance-tag pattern.
 - **Parked (unchanged):** LLM captions (garnish-only), Whisper voice
   memos (S when triggered), set copilot + double-drop (need B11
-  history), hit predictor (needs B11).
+  history), hit predictor (needs B11). **Now also parked: crate
+  co-occurrence supervision (P101 — needs B11-style history too).**
 
 ## 4. Gaps & risks (rev 5)
 
@@ -438,21 +471,27 @@ parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
 
 ## Research base (rev 5 — rev 4 rows re-checked 2026-09-05)
 
-| Verdict     | Project                                  | Status                                                                                                                                                             |
-| ----------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Adopt (#1)  | chromaprint/fpcalc + AcoustID            | verified: 3 rps, non-comm, 120s default; chromaprint 1.6.1 via brew; **88/88 executed**                                                                            |
-| Adopt (#2)  | beat_this (CPJKU)                        | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork. **Gate: 12/24 within 2% — TBPM writes blocked**                                                  |
-| Adopt (#3)  | OpenKeyScan analyzer (repo mode)         | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
-| Fallback    | essentia `Key` / keyfinder-cli           | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
-| Adopt (#4)  | Essentia ONNX heads + onnxruntime        | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
-| Shipped #5  | MusicBrainz ws/2 artist search           | folksonomy tags 1 rps; shipped as fulltags/src/mb.ts + enrich fold (rev 6.1)                                                                                       |
-| Shipped #6  | Beatport v4 catalog (client-credentials) | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `fulltags/src/beatport.ts` (rev 6.4)                           |
-| Verified    | Dubspot 200-track test                   | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
-| Verified    | rekordbox tag matrix                     | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
-| Verified    | pyrekordbox 0.4.4 (local master.db)      | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                                                                          |
-| Adopt (#1b) | dupsonic                                 | verified: v0.2.5 (Jul 2026), Rust, macOS-aarch64 prebuilt, LSH + SQLite cache                                                                                      |
-| Adopt-up    | MuQ-MuLan                                | 2026 SOTA zero-shot tagging (AUC 79.3); MIT code / CC-BY-NC weights; supersedes MERT for embeddings                                                                |
-| Verified    | all-in-one-infer v3 / -mlx               | v3 pure-PyTorch NATTEN (no compiler on AS); mlx port ~12.6× (repo-reported)                                                                                        |
-| Watch       | livechord-beat-refiner, settag, BeatFM   | refiner (May 2026) targets exactly the #2 BPM phase-lock failure; settag = competitor-as-reference; BeatFM weightless                                              |
-| Verified    | yt-dlp SC/Bandcamp (GetDat side)         | SC works (impersonation merged Feb 2026; DRM tracks 404 by design); Bandcamp broken since 2026-08-21 (#17506)                                                      |
-| Blueprint   | robertolupi/deep-cuts                    | ONNX + sqlite-vec local tagger architecture                                                                                                                        |
+| Verdict     | Project                                        | Status                                                                                                                                                             |
+| ----------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Adopt (#1)  | chromaprint/fpcalc + AcoustID                  | verified: 3 rps, non-comm, 120s default; chromaprint 1.6.1 via brew; **88/88 executed**                                                                            |
+| Adopt (#2)  | beat_this (CPJKU)                              | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork. **Gate: 12/24 within 2% — TBPM writes blocked**                                                  |
+| Adopt (#3)  | OpenKeyScan analyzer (repo mode)               | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
+| Fallback    | essentia `Key` / keyfinder-cli                 | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
+| Adopt (#4)  | Essentia ONNX heads + onnxruntime              | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
+| Shipped #5  | MusicBrainz ws/2 artist search                 | folksonomy tags 1 rps; shipped as fulltags/src/mb.ts + enrich fold (rev 6.1)                                                                                       |
+| Shipped #6  | Beatport v4 catalog (client-credentials)       | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `fulltags/src/beatport.ts` (rev 6.4)                           |
+| Verified    | Dubspot 200-track test                         | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
+| Verified    | rekordbox tag matrix                           | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
+| Verified    | pyrekordbox 0.4.4 (local master.db)            | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                                                                          |
+| Adopt (#1b) | dupsonic                                       | verified: v0.2.5 (Jul 2026), Rust, macOS-aarch64 prebuilt, LSH + SQLite cache                                                                                      |
+| Adopt-up    | MuQ-MuLan                                      | 2026 SOTA zero-shot tagging (AUC 79.3); MIT code / CC-BY-NC weights; supersedes MERT for embeddings                                                                |
+| Verified    | all-in-one-infer v3 / -mlx                     | v3 pure-PyTorch NATTEN (no compiler on AS); mlx port ~12.6× (repo-reported)                                                                                        |
+| Watch       | livechord-beat-refiner, settag, BeatFM         | refiner (May 2026) targets exactly the #2 BPM phase-lock failure; settag = competitor-as-reference; BeatFM weightless                                              |
+| Verified    | yt-dlp SC/Bandcamp (GetDat side)               | SC works (impersonation merged Feb 2026; DRM tracks 404 by design); Bandcamp broken since 2026-08-21 (#17506)                                                      |
+| Blueprint   | robertolupi/deep-cuts                          | ONNX + sqlite-vec local tagger architecture                                                                                                                        |
+| Adopt-read  | **MARBLE probing protocol** (arXiv:2306.10548) | linear probe on frozen features = the benchmark standard; replaces kNN-on-raw-cosine as our genre readout (ideas.md P90)                                           |
+| Reference   | TuneJury (arXiv:2606.17006)                    | frozen towers + 2.8M MLP head + pairwise-logistic on 17.5K prefs — the validated recipe behind ideas.md P93                                                        |
+| Reference   | MuQ / MuQ-MuLan (arXiv:2501.01108)             | MARBLE 77.0 avg; beats MERT/MusicFM with 180× less data (Mel-RVQ target is the lever); no first-class ONNX → parked (J6)                                           |
+| Reference   | EDM subgenre (arXiv:2110.08862)                | 60.6% @ 30 classes / 75K songs = the honest calibration for our families; tempogram late-fusion fixes exactly our trance/tech-trance fuzz (ideas.md P97)           |
+| Reference   | Perceptual similarity (arXiv:2601.19109)       | stems 86.8→90.4% on MuQ but CLAP got worse; hubness + CSLS fix; ~330 ABX triplets fit the ridge (ideas.md P91, P98; §3 stems caveat)                               |
+| Snapshot    | **fulltags/embedding-research-2026-09-14.md**  | full external review: findings F1–F6, cost tables, licence ledger, ranked ladder, adoption verdicts §6                                                             |

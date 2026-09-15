@@ -63,6 +63,9 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   prior (B10p).
 - [Genre taxonomy sources](fulltags/genre-taxonomy-sources.md) — external
   authorities and the family map.
+- [Embedding research review (Sep 14)](fulltags/embedding-research-2026-09-14.md)
+  — external deep-read: tower landscape, probe/readout ladder, compute +
+  licence audit, adoption verdicts.
 - [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and
   cue program.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision
