@@ -272,3 +272,36 @@ export function firstTag(
   }
   return null;
 }
+
+/** THE ffprobe spawn (issue #80): one argument style (`-print_format json`
+ *  `-show_format`), one timeout, one guarded parse (parseFfprobeJson), one
+ *  null-degrade contract — null means "unprobed", never a guess. Sync on
+ *  purpose: the dedupe quality ladder calls it per-file inside a sync
+ *  judge; async callers (upgrade gate B, rb-import payload) await nothing
+ *  but keep the same boundary. Duration is rounded to whole seconds and
+ *  bitrate to kbps (both consumers' storage shapes).
+ *
+ *  History: the re-export in exports.ts landed (12c7d71) while this
+ *  definition survived only as an uncommitted worktree hunk — a clean
+ *  checkout was red (TS2305) until this landed. Third clobber of this
+ *  seam in one day; the definition now lives in a commit. */
+export function probeMediaSync(
+  path: string,
+  timeoutMs = 15_000,
+): { durationS: number | null; bitrateKbps: number | null } | null {
+  const proc = Bun.spawnSync(
+    ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", path],
+    { stdout: "pipe", stderr: "ignore", timeout: timeoutMs },
+  );
+  if (proc.exitCode !== 0) return null;
+  const stdout =
+    typeof proc.stdout === "string" ? proc.stdout : proc.stdout.toString();
+  const data = parseFfprobeJson(stdout);
+  if (!data) return null;
+  const durationS = finiteNumber(data.format?.duration);
+  const bitrate = finiteNumber(data.format?.bitRate);
+  return {
+    durationS: durationS === null ? null : Math.round(durationS),
+    bitrateKbps: bitrate === null ? null : Math.round(bitrate / 1000),
+  };
+}
