@@ -15,7 +15,7 @@
  *   1. flags validated before any I/O (--apply requires --yes)
  *   2. set inputs validated by the SAME parser the CLI/web use
  *   3. target master DB must exist before the archive is scanned
- *   4. the chain comes from the SAME engine (`buildMegaset`) the CLI/web use
+ *   4. the chain comes from the SAME engine (`buildSet`) the CLI/web use
  *   5. rekordbox must be QUIT (pgrep) — it holds a live WAL
  *   6. dated DB backup (+ WAL/SHM) next to the master before any write
  *   7. dry-run by default; --apply --yes to write
@@ -26,12 +26,12 @@ import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { ArchiveReader } from "../../cratedeck/src/archive";
 import {
-  buildMegaset,
-  parseMegasetQuery,
-  MEGASET_PRESETS,
-  type MegasetPresetId,
+  buildSet,
+  parseSetbuildQuery,
+  SET_PRESETS,
+  type SetPresetId,
 } from "../../cratedeck/src/megaset";
-import { clampMegasetPool } from "../../cratedeck/shared/types";
+import { clampSetPool } from "../../cratedeck/shared/types";
 import { isNonNegativeInteger, isRecord } from "../../cratedeck/shared/guards";
 import { DB_PATH } from "../cli-env";
 import {
@@ -306,19 +306,19 @@ interface ChainTrack {
  *  rows. One readonly archive pass; candidates carry file_path. */
 function buildChain(
   opts: RbPlaylistOptions,
-  parsed: { preset: MegasetPresetId; minutes: number },
+  parsed: { preset: SetPresetId; minutes: number },
 ):
   { chain: ChainTrack[]; preset: string; minutes: number } | { error: string } {
   const archive = new ArchiveReader(DB_PATH);
   try {
     if (!archive.available()) return { error: `no archive at ${DB_PATH}` };
     const { candidates } = archive.setCandidates(
-      clampMegasetPool(opts.limit ?? null),
+      clampSetPool(opts.limit ?? null),
     );
 
-    const built = buildMegaset({
+    const built = buildSet({
       candidates,
-      preset: MEGASET_PRESETS[parsed.preset],
+      preset: SET_PRESETS[parsed.preset],
       minutes: parsed.minutes,
       openerId: opts.opener,
     });
@@ -378,7 +378,7 @@ export async function rbPlaylist(
 
   // gate 2 — validate the shared set-builder inputs without touching either
   // database. Invalid presets must still beat a missing-drive error.
-  const parsed = parseMegasetQuery({
+  const parsed = parseSetbuildQuery({
     preset: opts.preset ?? null,
     minutes: opts.minutes ?? null,
   });
