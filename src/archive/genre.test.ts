@@ -3,12 +3,12 @@
 // vote honesty, and determinism. Pure-engine coverage; the DB round-trip
 // (embeddings ledger) is similar.test.ts's job.
 import { describe, expect, test } from "bun:test";
+import { normalizeGenre } from "../../fulltags/src/exports";
 import {
   evalLeaveOneOut,
   evalLeaveOneOutArtistDisjoint,
   genreFamily,
   inferGenre,
-  normalizeGenre,
   type GenreSeed,
 } from "./similar";
 

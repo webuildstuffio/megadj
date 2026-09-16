@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { genreFamily, inferGenre, normalizeGenre } from "./similar";
-
+import { normalizeGenre } from "../../fulltags/src/exports";
+import { genreFamily, inferGenre } from "./similar";
 describe("archive similarity genre voting", () => {
   test("normalizes and buckets common genre labels", () => {
     expect(normalizeGenre("Deep House (Club Mix), Electronic")).toBe(

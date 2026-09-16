@@ -6,6 +6,11 @@
 import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
 import { cosineSimilarity } from "../../cratedeck/shared/similarity";
 import { RecordLedger } from "./record-ledger";
+// The genre vocabulary (normalizeGenre, familyOf, repairEscapes) lives in
+// fulltags/src/genre-vocab.ts (#187 — one module owns every named map).
+// This file keeps the kNN inference engine; `familyOf` is the injected
+// label→family map.
+import { familyOf as defaultFamilyOf } from "../../fulltags/src/exports";
 
 export { cosineSimilarity } from "../../cratedeck/shared/similarity";
 
@@ -188,78 +193,12 @@ export interface GenreSeed {
   vec: number[];
 }
 
-/** Normalize a raw genre string into a comparable label: lowercase, first
- * comma-separated token, strip parenthetical. "Music"/"unknown"/"fixme"
- * and empty are unusable seeds (the genre column has "Music" ×99 — a
- * YouTube-tier label that must not vote). Also repairs ingestion escape
- * artifacts (`r\u0026b`-style `\uXXXX` sequences measured in the live
- * column — 19+ rows) before matching. */
-export function normalizeGenre(genre: string): string | null {
-  const unescaped = genre.replace(
-    /\\u([0-9a-fA-F]{4})/g,
-    (_match: string, hex: string) =>
-      String.fromCharCode(Number.parseInt(hex, 16)),
-  );
-  const base = unescaped
-    .toLowerCase()
-    .split(",")[0]
-    ?.trim()
-    .replace(/\(.*?\)/g, "")
-    .trim();
-  if (!base || base === "music" || base === "unknown" || base === "fixme")
-    return null;
-  return base;
-}
-
-/** Genre FAMILIES — the vote buckets. Raw ID3 labels fragment ("house" /
- * "deep house" / "progressive house" = three never-agreeing buckets), so
- * each normalized label collapses to the family that matches what the
- * embedding space actually clusters. Null = too niche/off-genre to vote.
- * Order matters: "bass house" / "bassline" are bass-music usage, so the
- * bass family is checked BEFORE house. The final mapping is mutually
- * exclusive by construction (tested).
- *
- * 2026-09-14 additions are audit-driven (genre-audit §7): labels found
- * unmapped on the live library, each verified against the Discogs-400
- * head's audio placement — grime/jersey club/donk cluster with bass
- * music; minimal/deep-tech/hard-tekk are techno families; eurodance/
- * nightcore sit in EDM; IDM/chillwave/synthwave in mood; country in pop.
- * Junk-URL labels (djsoundtop.com) are explicitly unusable. */
-const GENRE_FAMILY: [RegExp, string][] = [
-  [
-    /drum ?and ?bass|jungle|breakbeat|breaks|bass|dubstep|footwork|juke|grime|jersey club|donk|wall slappers/,
-    "bass",
-  ],
-  [/(?<!bass |afro )house|disco|garage|boogie/, "house"],
-  [/techno|melodic|minimal(?! \/)|deep tech|hardtekk|softtekk|tekk/, "techno"],
-  [/trance|psy(?![a-z])/, "trance"],
-  [/hip ?[- ]?hop|rap|trap/, "hiphop"],
-  [
-    /edm|electro|big ?room|future (?!bass)|hardstyle|bounce|eurodance|euro ?dance|nightcore|uptempo|hard dance|hardcore/,
-    "edm",
-  ],
-  [
-    /pop|rock|indie|alternative|punk|metal|folk|singer|country|top 40|chanson/,
-    "pop",
-  ],
-  [
-    /r ?& ?b|soul|funk|amapiano|afrobeat|afro ?house|reggaeton|latin|dancehall|reggae/,
-    "groove",
-  ],
-  [
-    /jazz|blues|ambient|downtempo|lofi|lo ?fi|classical|soundtrack|idm|chillwave|synthwave|world|spoken word|tutorial/,
-    "mood",
-  ],
-  [/\bgroove\b/, "groove"],
-  [/\bdance\b|mainstream club|loop samples|dj tools/, "edm"],
-];
-
-/** Normalized genre → vote family. Null when no family claims it. */
+/** Normalized genre → vote family. Null when no family claims it, and
+ *  for junk category labels ("loop samples", "dj tools" — intentionally
+ *  unmapped, #187). Delegates to the vocabulary SSOT
+ *  (fulltags/src/genre-vocab.ts `familyOf`). */
 export function genreFamily(genre: string): string | null {
-  const base = normalizeGenre(genre);
-  if (!base) return null;
-  for (const [re, fam] of GENRE_FAMILY) if (re.test(base)) return fam;
-  return null;
+  return defaultFamilyOf(genre);
 }
 
 export interface GenreVote {

@@ -27,15 +27,14 @@
 //
 // Pure — no DB, no IO; genre.ts wires it into `--refold` and `--eval`.
 
-import { genreFamily } from "../archive/similar";
-
-/** Escape-artifact repair: the ingestion layer measured `\uXXXX` soup in
- *  the live column (19+ rows, e.g. `Hip-hop \u0026 rap`). */
-export function repairEscapes(genre: string): string {
-  return genre.replace(/\\u([0-9a-fA-F]{4})/g, (_m: string, hex: string) =>
-    String.fromCharCode(Number.parseInt(hex, 16)),
-  );
-}
+// The shared vocabulary lives in genre-vocab.ts (#187): escape repair,
+// umbrella labels, and the family map are owned there — this file keeps
+// only the DATA canonicalization + the SCORING arbitration policy.
+import {
+  familyOf as genreFamily,
+  isUmbrellaLabel,
+  repairEscapes,
+} from "../../fulltags/src/exports";
 
 /** Established compound labels containing the `&` separator. Protected
  *  BEFORE splitting so "R&B" does not become "R" + "B". Measured against
@@ -49,15 +48,6 @@ const COMPOUNDS: string[] = [
   "hip hop & rap",
   "melodic house & techno",
 ];
-
-/** Labels that name a PARENT genre only. They abstain from the vote and
- *  the LOO population (`scoringFamily` → null); the column keeps them. */
-const UMBRELLA_LABELS: ReadonlySet<string> = new Set([
-  "edm",
-  "dance",
-  "electronic",
-  "mainstage edm",
-]);
 
 /** Casing/spelling irregulars that title-case would get wrong, plus the
  *  measured variant spellings worth collapsing ("hiphop" ×7, "nu disco"
@@ -184,7 +174,7 @@ export function refoldDetail(genre: string): RefoldOutcome {
   // is a parent-only label; among the rest, order is the stored rank.
   const isUmbrella = (token: string): boolean => {
     const canonicalToken = IRREGULARS[token];
-    return UMBRELLA_LABELS.has(
+    return isUmbrellaLabel(
       canonicalToken === undefined ? token : canonicalToken.toLowerCase(),
     );
   };
@@ -226,11 +216,6 @@ export function refoldDetail(genre: string): RefoldOutcome {
 /** Convenience wrapper — just the canonical label. */
 export function refoldLabel(genre: string): string | null {
   return refoldDetail(genre).label;
-}
-
-/** True when the (already canonical) label names a parent genre only. */
-export function isUmbrellaLabel(canonical: string): boolean {
-  return UMBRELLA_LABELS.has(canonical.toLowerCase());
 }
 
 /** The SCORING family map (genre-audit §5b.3 step 1, the "only the

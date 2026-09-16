@@ -1,6 +1,8 @@
 /**
  * FullTags schema — the single source of truth for what a "fully tagged"
- * audio file means, plus the genre vocabulary every source normalizes into.
+ * audio file means. The genre vocabulary lives in genre-vocab.ts (#187);
+ * this module owns the tag record, its completeness gate, and folder
+ * sanitization.
  *
  * A file is COMPLETE when it has all of: embedded art, title, artist, album,
  * a real genre (not "Music"), and a year. Everything else in FullTag is
@@ -169,72 +171,9 @@ export function sanitizeGenreFolder(genre: string | null): string {
   return cleaned;
 }
 
-// Word-bounded patterns only — substring matches put "Soulji Remix" in
-// R&B and "Sunset" in House.
-const GENRE_MAP: [RegExp, string][] = [
-  [/\b(?:hip.?hop|rap|trap|drill)\b/i, "Hip-Hop"],
-  [/\b(?:r&b|soul|neo.?soul)\b/i, "R&B / Soul"],
-  [/\b(?:deep house|tech house|afro house|house|house music)\b/i, "House"],
-  [/\b(?:techno|trance|hardstyle|psytrance)\b/i, "Techno / Trance"],
-  [
-    /\b(?:edm|electro|dubstep|bass|dnb|drum.?and.?bass|drum.?n.?bass)\b/i,
-    "EDM / Bass",
-  ],
-  [/\b(?:lofi|lo.?fi|chill|downtempo|ambient)\b/i, "Chill / Lo-Fi"],
-  [/\b(?:reggae|dancehall|afrobeat|afro beats?)\b/i, "Reggae / Afro"],
-  [/\b(?:rock|metal|punk|indie rock)\b/i, "Rock"],
-  [/\b(?:jazz|blues|soul jazz)\b/i, "Jazz / Blues"],
-  [/\b(?:country|folk|americana)\b/i, "Country / Folk"],
-  [/\b(?:classical|orchestra|symphony|piano solo)\b/i, "Classical"],
-  [/\bpop\b/i, "Pop"],
-];
-
-/** Infer a canonical genre from free text (titles, channel names, MB tags). */
-export function inferGenre(
-  inputs: (string | null | undefined)[],
-): string | null {
-  const blob = inputs.filter(Boolean).join(" ").toLowerCase();
-  if (!blob) return null;
-  // Channel "- Topic" uploads and explicit genre tags carry the most signal.
-  for (const [pattern, genre] of GENRE_MAP) {
-    if (pattern.test(blob)) return genre;
-  }
-  return null;
-}
-
-/** SoundCloud genre label → canonical megadj genre. */
-export const SC_GENRE_CANON: Record<string, string> = {
-  "hip-hop & rap": "Hip-Hop",
-  "hip hop": "Hip-Hop",
-  rap: "Hip-Hop",
-  "dance & edm": "EDM",
-  dance: "EDM",
-  electronic: "EDM",
-  edm: "EDM",
-  house: "House",
-  "deep house": "Deep House",
-  "tech house": "Tech House",
-  "bass house": "Bass House",
-  "progressive house": "Progressive House",
-  techno: "Techno",
-  "techno trance": "Trance",
-  trance: "Trance",
-  "drum & bass": "Drum & Bass",
-  dnb: "Drum & Bass",
-  "r&b": "R&B",
-  "r&b / soul": "R&B",
-  "r&b soul": "R&B",
-  soul: "R&B",
-  rock: "Rock",
-  alternative: "Rock",
-  pop: "Pop",
-};
-
-export function canonGenre(g: string): string {
-  const key = g.replace(/^#/, "").toLowerCase().trim();
-  return SC_GENRE_CANON[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
-}
-
-/** The closed genre vocabulary offered to the AI classifier (sources/ai). */
-export const DJ_GENRES =
-  "House, Tech House, Deep House, Progressive House, Afro House, Bass House, Techno, Trance, Drum & Bass, Dubstep, Trap, Future Bass, Garage, Hip-Hop, Pop, R&B, Soul, Funk, Disco, Nu-Disco, Rock, Edits / Bootlegs, Ambient, World";
+/** The genre vocabulary moved to genre-vocab.ts (#187 — one module owns
+ *  every named genre map). The two aliases below are a CONCURRENT-WORK
+ *  courtesy only: beatport.ts's in-flight #181 refactor still imports
+ *  `canonGenre`/`SC_GENRE_CANON` from here. Retire both aliases in the
+ *  same pass that lands #181 — no new consumers. */
+export { canonicalizeClaim as canonGenre, SC_GENRE_CANON } from "./genre-vocab";

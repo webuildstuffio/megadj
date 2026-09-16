@@ -16,7 +16,7 @@ import { writeJson } from "../../shared/cli-output";
 import {
   applyTags,
   buildMetadata,
-  inferGenre,
+  guessFromFreeText,
   type YtdlpInfo,
 } from "../../../fulltags/src/exports";
 import { isRecord, isUnknownArray } from "../../../cratedeck/shared/guards";
@@ -347,8 +347,12 @@ async function processQueue(
 
       // Genre decides the destination folder for this download.
       const downloadGenre =
-        inferGenre([result.genre, result.artist, result.album, result.title]) ??
-        "Music";
+        guessFromFreeText([
+          result.genre,
+          result.artist,
+          result.album,
+          result.title,
+        ]) ?? "Music";
 
       const dl = await downloader.download(
         track.video_id,

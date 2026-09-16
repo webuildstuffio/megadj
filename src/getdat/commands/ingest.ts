@@ -32,7 +32,7 @@ import {
   detectRemix,
   energyFromLufs,
   firstTag,
-  inferGenre,
+  guessFromFreeText,
   measureRms,
   mbRecording,
   nameSimilarityTokens,
@@ -532,7 +532,7 @@ async function ingestOne(
       if (!album && mb.album) album = mb.album;
       if (!date && mb.date) date = mb.date;
       if (!genre || genre === "Music")
-        genre = inferGenre([genre, mb.artistTags, artist]);
+        genre = guessFromFreeText([genre, mb.artistTags, artist]);
       if (mb.mbid) mbidUsed = mb.mbid;
     }
   }
@@ -540,7 +540,7 @@ async function ingestOne(
   // later). A real file tag the regex table can't match survives — the
   // old `?? "Music"` replaced genuine tags with the placeholder.
   genre =
-    inferGenre([genre, artist, album, title]) ??
+    guessFromFreeText([genre, artist, album, title]) ??
     (genre && genre.toLowerCase() !== "music" ? genre : null);
 
   const changes: string[] = [];

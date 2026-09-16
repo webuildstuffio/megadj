@@ -5,7 +5,7 @@
  * for years — verify with the years stage / fix-years before trusting.
  */
 import { basename } from "node:path";
-import { DJ_GENRES } from "./schema";
+import { AI_VOCAB } from "./genre-vocab";
 
 /** The model id the AI ladder pins (cheapest solid); referenced by the
  * fulltags docs/roadmap. Re-exported as `AI_MODEL` by exports.ts — no
@@ -48,7 +48,7 @@ export async function aiGenres(
     ? `\nAlso include "year": your best-estimate integer year this SPECIFIC version (remix/edit/bootleg) was released — the SoundCloud/YouTube upload era, NOT the original song's year. Always answer with an integer; use the filename's version markers (v4.51, MASTER dates, remix-era cues) to infer.`
     : "";
   const yearSchema = withYear ? `,"year":<int>` : "";
-  const prompt = `You are a DJ music genre classifier. Assign ONE genre per track from: ${DJ_GENRES}.
+  const prompt = `You are a DJ music genre classifier. Assign ONE genre per track from: ${AI_VOCAB}.
 Use "Edits / Bootlegs" for remixes/flips/edits/mashups of other artists' tracks. If genuinely unsure use "Unknown".${yearLine}
 Tracks:
 ${batch.map((r, i) => `${i}. file: ${basename(r.file_path)} | title: ${r.title} | artist: ${r.artist ?? "?"}`).join("\n")}

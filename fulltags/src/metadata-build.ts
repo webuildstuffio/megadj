@@ -3,7 +3,8 @@
  * EnrichedMetadata record. Migrated from src/metadata.ts (the yt-dlp +
  * description-credits + genre-inference pass).
  */
-import { inferGenre, type EnrichedMetadata } from "./schema";
+import { guessFromFreeText } from "./genre-vocab";
+import type { EnrichedMetadata } from "./schema";
 
 export interface YtdlpInfo {
   title?: string;
@@ -73,7 +74,8 @@ export function buildMetadata(info: YtdlpInfo): EnrichedMetadata {
   const rawGenre =
     info.genre && info.genre.toLowerCase() !== "music" ? info.genre : null;
   const genre =
-    inferGenre([info.genre, info.artist, info.album, info.title]) ?? rawGenre;
+    guessFromFreeText([info.genre, info.artist, info.album, info.title]) ??
+    rawGenre;
   const albumArtist = artist && album ? artist : null;
 
   return {

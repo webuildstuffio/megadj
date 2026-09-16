@@ -5,13 +5,22 @@
  * tests); internal-only helpers are exported from their own modules.
  */
 export {
+  // Compat alias — `canonGenre` is the old name of canonicalizeClaim.
+  // Kept ONLY for beatport.ts (#181 in flight) and tools/fetch-lib
+  // (#184 re-homing); both retire it in their own pass. No new consumers.
   canonGenre,
-  inferGenre,
   sanitizeGenreFolder,
   completeness,
   type EnrichedMetadata,
   type TagPatch,
 } from "./schema";
+export {
+  familyOf,
+  guessFromFreeText,
+  isUmbrellaLabel,
+  normalizeGenre,
+  repairEscapes,
+} from "./genre-vocab";
 export { validatePatch, validatePatchUntrusted } from "./schema-guards";
 export {
   applyTags,

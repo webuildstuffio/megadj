@@ -1,12 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { refoldDetail, refoldLabel, scoringFamily } from "./genre-refold";
 import {
+  familyOf as genreFamily,
   isUmbrellaLabel,
-  refoldDetail,
-  refoldLabel,
   repairEscapes,
-  scoringFamily,
-} from "./genre-refold";
-import { genreFamily } from "../archive/similar";
+} from "../../fulltags/src/exports";
 
 describe("repairEscapes", () => {
   test("decodes \\uXXXX artifacts", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { inferGenre } from "../src/schema";
+import { guessFromFreeText } from "../src/genre-vocab";
 import {
   buildMetadata,
   cleanTitle,
@@ -30,23 +30,23 @@ describe("cleanTitle", () => {
   });
 });
 
-describe("inferGenre", () => {
+describe("guessFromFreeText (the free-text regex guess)", () => {
   test("detects hip-hop", () => {
-    expect(inferGenre(["Juice WRLD - rap track"])).toBe("Hip-Hop");
+    expect(guessFromFreeText(["Juice WRLD - rap track"])).toBe("Hip-Hop");
   });
   test("detects house", () => {
-    expect(inferGenre(["Deep House Mix 2023"])).toBe("House");
+    expect(guessFromFreeText(["Deep House Mix 2023"])).toBe("House");
   });
   test("word-boundary match ignores substrings", () => {
     // "Soulji" must NOT match the soul pattern.
     expect(
-      inferGenre(["Karma Fields - You and Me (Soulji Remix) [House]"]),
+      guessFromFreeText(["Karma Fields - You and Me (Soulji Remix) [House]"]),
     ).toBe("House");
     // "Sunset" must not match "set"-based mix heuristics — no Mix genre now.
-    expect(inferGenre(["Chill Sunset Vibes"])).toBe("Chill / Lo-Fi");
+    expect(guessFromFreeText(["Chill Sunset Vibes"])).toBe("Chill / Lo-Fi");
   });
   test("returns null on no match", () => {
-    expect(inferGenre(["something random"])).toBeNull();
+    expect(guessFromFreeText(["something random"])).toBeNull();
   });
 });
 

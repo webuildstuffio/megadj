@@ -53,10 +53,10 @@ that can put a genre into `tracks.genre` (search: `updateGenre` /
 | #   | Path                    | Command                              | Source of the claim                                                                                                                         | Trust                                                  | Gate before write                                                                                                                                                                                                                                                                                                              |
 | --- | ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | W1  | **GetDat sync**         | `megadj sync`                        | YouTube category / regex over title+channel (`fulltags/src/metadata-build.ts`) — unknown stays **null** since Sep 15 (no more `Music` mint) | lowest (category, not genre)                           | raw non-`Music` genre passes through; nothing else — this path no longer invents labels                                                                                                                                                                                                                                        |
-| W2  | **SoundCloud search**   | `megadj fetch`                       | SC artist free-text via yt-dlp search hit                                                                                                   | low (free-text; junk gate)                             | **hard artist gate (Sep 15)**: query artist ≥3 chars must match the hit's uploader, else the hit is dropped (mirrors Beatport's `scoreBpHit` gate; fixes wrong-artist genre writes — remixes still pass via remixer/label channels) + numeric-ID / `Music` refuse → `canonGenre` → **tag write first**, DB only on tag success |
+| W2  | **SoundCloud search**   | `megadj fetch`                       | SC artist free-text via yt-dlp search hit                                                                                                   | low (free-text; junk gate)                             | **hard artist gate (Sep 15)**: query artist ≥3 chars must match the hit's uploader, else the hit is dropped (mirrors Beatport's `scoreBpHit` gate; fixes wrong-artist genre writes — remixes still pass via remixer/label channels) + numeric-ID / `Music` refuse → `canonicalizeClaim` → **tag write first**, DB only on tag success |
 | W3  | **Beatport lookup**     | `megadj fetch` (when SC misses)      | Beatport store genre (`bpGenre`)                                                                                                            | medium-high (store taxonomy)                           | same tag-first discipline as W2                                                                                                                                                                                                                                                                                                |
 | W2b | **Bandcamp vote**       | `megadj fetch` (when SC AND BP miss) | artist-entered tags on the bandcamp item page (`fulltags/src/bandcamp.ts`) — same junk gate as W2                                           | medium (artist-tagged, label-curated pages; junk rare) | **hard artist gate** (band/artist must contain the query artist) before the page fetch; one fetch votes genre + year (publish date) + label (publisher) + art (og:image)                                                                                                                                                       |
-| W4  | **AI classifier**       | `megadj fetch` with `aiAllowed`      | OpenRouter, closed `DJ_GENRES` vocabulary, conf ≥ 0.7                                                                                       | medium                                                 | fires ONLY when SC AND Beatport both missed; **opt-in, off by default**                                                                                                                                                                                                                                                        |
+| W4  | **AI classifier**       | `megadj fetch` with `aiAllowed`      | OpenRouter, closed `AI_VOCAB` vocabulary, conf ≥ 0.7                                                                                       | medium                                                 | fires ONLY when SC AND Beatport both missed; **opt-in, off by default**                                                                                                                                                                                                                                                        |
 | W5  | **MusicBrainz harvest** | `megadj enrich`                      | MB artist folksonomy tags (`fulltags/src/mb.ts`)                                                                                            | medium (community-curated)                             | fills weak/missing only; tag-write-first                                                                                                                                                                                                                                                                                       |
 | W6  | **Ingest file tags**    | `megadj ingest`                      | the FILE's own TCON (pool rips — Bandcamp/Hypeddit-quality), MB artist tags as fallback (`src/getdat/commands/ingest.ts`)                   | medium (measured 53.1%)                                | real-genre check (refuses `Music`) before adopting the file tag                                                                                                                                                                                                                                                                |
 | I1  | **kNN inference**       | `megadj genre`                       | embedding cosine k-NN family vote                                                                                                           | statistical, not a claim                               | EMPTY columns only (COALESCE); never clobbers W1–W6                                                                                                                                                                                                                                                                            |
@@ -105,7 +105,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
    ▼
  megadj fetch  (tools/fetch-all → fetch-stages)
    │  ladder, first-win-writes, per track:
-   │  [W2] SC search hit → junk gate (numeric/"Music") → canonGenre
+   │  [W2] SC search hit → junk gate (numeric/"Music") → canonicalizeClaim
    │        (SC_GENRE_CANON + title-case) → setFileTags FIRST,
    │        DB row only on tag success (ground truth)
    │  [W3] else Beatport store genre → same tag-first discipline
@@ -113,7 +113,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
    │        genre (artist tag) / year (publish date) / label
    │        (publisher) — only when SC AND BP both missed the field
    │  [W4] else AI classifier (OPT-IN, off by default, conf ≥ 0.7,
-   │        closed DJ_GENRES vocabulary) — a missing genre stays an
+   │        closed AI_VOCAB vocabulary) — a missing genre stays an
    │        honest gap, never a guess
    ▼
  megadj mood  (fulltags analyzeMoods)
@@ -143,8 +143,10 @@ gate; transparency surfaces (T) let a human see what any track claims.
    ▼
  scoring read path (every consumer, every surface)
    │  [R1] normalizeGenre: paren-stripping; music/unknown/fixme → null
-   │  [R2] genreFamily: 9 families (house/edm/techno/pop/bass/hiphop/
-   │        groove/trance/mood) — the SSOT map in archive/similar.ts
+   │  [R2] familyOf (genreFamily): 9 families (house/edm/techno/pop/bass/
+   │        hiphop/groove/trance/mood) — the SSOT map in
+   │        fulltags/src/genre-vocab.ts; junk categories ("loop samples",
+   │        "dj tools") abstain, never seed a family (#187)
    │  [R3] scoringFamily (refold): plain EDM/Dance/Electronic/Mainstage
    │        EDM ABSTAIN from scoring (parents, not genres); sub-genres
    │        and hard-EDM keep scoring
@@ -249,7 +251,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | Fetch ladder (SC → BP → BC → AI) + junk gate + tag-first writes                       | `tools/fetch-all.ts` + `tools/fetch-stages.ts`  |
 | Bandcamp arm (search + gated page fetch + genre/label/date/art)                       | `fulltags/src/bandcamp.ts`                      |
 | Name-matching SSOT (artist gate, title overlap, tokens)                               | `fulltags/src/name-match.ts`                    |
-| Intake vocabularies (`inferGenre` regex, `SC_GENRE_CANON`, `DJ_GENRES`, `canonGenre`) | `fulltags/src/schema.ts`                        |
+| Intake vocabularies (`guessFromFreeText` regex, `SC_GENRE_CANON`, `AI_VOCAB`, `canonicalizeClaim`, family map `FAMILIES`/`familyOf`, umbrella set) | `fulltags/src/genre-vocab.ts` (#187 — one module owns every named genre map; `canonGenre` remains a compat alias on `schema.ts`/`exports.ts` until #181/#184 land) |
 | YT metadata → tags (W1 — mint removed Sep 15; unknown stays null)                     | `fulltags/src/metadata-build.ts`                |
 | Ingest file-tag adoption (W6)                                                         | `src/getdat/commands/ingest.ts`                 |
 | MusicBrainz folksonomy harvest (W5)                                                   | `fulltags/src/mb.ts` + `src/fulltags/enrich.ts` |

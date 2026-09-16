@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
   completeness,
-  inferGenre,
   sanitizeGenreFolder,
   SC_GENRE_CANON,
   type FullTag,
 } from "../src/schema";
+import { guessFromFreeText } from "../src/genre-vocab";
 import { validatePatch } from "../src/schema-guards";
 import {
   runCanonGenreCases,
@@ -20,13 +20,13 @@ describe("schema: genre canon", () => {
   });
 });
 
-describe("schema: inferGenre + sanitize", () => {
+describe("schema: guessFromFreeText + sanitize", () => {
   test("word-boundary match ignores substrings", () => {
     expect(
-      inferGenre(["Karma Fields - You and Me (Soulji Remix) [House]"]),
+      guessFromFreeText(["Karma Fields - You and Me (Soulji Remix) [House]"]),
     ).toBe("House");
-    expect(inferGenre(["Chill Sunset Vibes"])).toBe("Chill / Lo-Fi");
-    expect(inferGenre(["something random"])).toBeNull();
+    expect(guessFromFreeText(["Chill Sunset Vibes"])).toBe("Chill / Lo-Fi");
+    expect(guessFromFreeText(["something random"])).toBeNull();
   });
 
   test("sanitizeGenreFolder is filesystem-safe", () => {

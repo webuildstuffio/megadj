@@ -29,7 +29,8 @@ import {
 import { l2normalize } from "../../cratedeck/shared/vector-space";
 import { tier0Diagnostics } from "./genre-diagnostics";
 import { probeLeaveOneOut, type ProbeRow } from "./linear-probe";
-import { isUmbrellaLabel, refoldDetail, scoringFamily } from "./genre-refold";
+import { refoldDetail, scoringFamily } from "./genre-refold";
+import { isUmbrellaLabel } from "../../fulltags/src/exports";
 import { classifyDisputes } from "./genre-flag";
 import type { ArchiveState } from "../archive/state";
 
