@@ -210,12 +210,14 @@ describe("FullTags Similar and Set Builder UX", () => {
         {
           videoId: "4",
           title: "D",
-          reason: "no compatible transition (key clash or tempo outside ±6%)",
+          reason:
+            "no compatible transition (key clash, tempo outside ±6%, or beyond the set's drift budget)",
         },
         {
           videoId: "5",
           title: "E",
-          reason: "no compatible transition (key clash or tempo outside ±6%)",
+          reason:
+            "no compatible transition (key clash, tempo outside ±6%, or beyond the set's drift budget)",
         },
       ],
     };

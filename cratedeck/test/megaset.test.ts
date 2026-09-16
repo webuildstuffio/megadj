@@ -9,9 +9,13 @@ import {
   camelotOf,
   keyScore,
   parseMegasetQuery,
+  withinAnchorBudget,
   type SetCandidate,
 } from "../src/megaset";
 import {
+  MEGASET_ANCHOR_WEIGHT,
+  MEGASET_AROUSAL_EPSILON,
+  MEGASET_DRIFT_BUDGET,
   MEGASET_PRESET_DEFS,
   MEGASET_PRESET_IDS,
   MEGASET_POOL_MAX,
@@ -495,6 +499,10 @@ describe("buildMegaset", () => {
     // P1: the previous ranking used cumulative score only, which could make
     // a partial chain outrank the only complete path. This scenario keeps the
     // score-positive partial alive and confirms budget fill has priority.
+    // (The 15-min closer sits LOW-arousal-but-not-arc-illegal: peak's
+    // final third is ascending, so its arousal must not fall below the
+    // chain by more than ε — 5.9 clears that wall while still losing
+    // the arc-fit race to the short tracks.)
     const candidates = [
       cand({
         videoId: "opener",
@@ -509,7 +517,11 @@ describe("buildMegaset", () => {
         durationS: 900,
         bpm: 126,
         key: "9A",
-        arousal: 1.4,
+        // far above the arc start (never wins the opener scan) yet
+        // arc-legal after the opener (moves WITH peak's rising first
+        // third) and a worse arc fit than the shorts — the low-score
+        // completion this test exists to prove
+        arousal: 7.9,
         dance: 0.1,
       }),
       ...Array.from({ length: 6 }, (_, i) =>
@@ -617,6 +629,125 @@ describe("buildMegaset", () => {
       expect(ids.length + seen.size).toBe(n);
     }
   });
+
+  // ---- issue #105 regression block -------------------------------------
+
+  test("B2: a compounding tempo ladder is budgeted — the chain cannot drift 1.88x from its anchor", () => {
+    // The audit's measured failure: a ±6%-per-step greedy climb took
+    // 100 → 187.9 BPM (1.88×) in 12 steps. Rebuild that ladder: each
+    // track is mixable with the PREVIOUS one but the run walks two
+    // genres away from the opener. The anchor budget must cap the
+    // chain near the opener's tempo no matter how many mixable hops
+    // exist.
+    const ladder = Array.from({ length: 40 }, (_, i) =>
+      cand({
+        videoId: `lad-${String(i).padStart(2, "0")}`,
+        bpm: 100 * 1.055 ** (i + 1), // each hop ≈ +5.5% (mixable with prev)
+        key: "8A",
+        arousal: 6,
+      }),
+    );
+    const r = buildMegaset({
+      candidates: [
+        cand({ videoId: "anchor", bpm: 100, arousal: 6 }),
+        ...ladder,
+      ],
+      preset: SET_PRESETS.peak,
+      minutes: 60,
+      searchOverride: "greedy",
+    });
+    expect(r.steps.length).toBeGreaterThan(1);
+    const maxBpm = Math.max(...r.steps.map((s) => s.bpm ?? 0));
+    // anchor 100 → the budget (±12%) allows ~112 direct; the ladder's
+    // far end (~200+) is unreachable even though every adjacent pair
+    // was individually mixable
+    expect(maxBpm).toBeLessThanOrEqual(100 * (1 + MEGASET_DRIFT_BUDGET) + 1);
+    // and the chain demonstrably extends (the budget didn't kill it):
+    // the near-anchor ladder rungs stay reachable
+    expect(r.steps.length).toBeGreaterThanOrEqual(3);
+    // far rungs are excluded honestly under the same reason umbrella
+    expect(r.excluded.some((e) => e.reason.includes("drift budget"))).toBe(
+      true,
+    );
+  });
+
+  test("B2: withinAnchorBudget — the direct lane and the 2x/0.5x branch lane", () => {
+    // direct: within ±12% of the anchor passes, beyond fails (test
+    // values stay off the exact boundary — ledger BPMs are floats)
+    expect(withinAnchorBudget(108, 100)).toBe(true);
+    expect(withinAnchorBudget(90, 100)).toBe(true);
+    expect(withinAnchorBudget(113, 100)).toBe(false);
+    expect(withinAnchorBudget(87, 100)).toBe(false);
+    // branch lane: ~2× and ~½× the anchor stay open (±6% each side)…
+    expect(withinAnchorBudget(196, 100)).toBe(true);
+    expect(withinAnchorBudget(50, 100)).toBe(true);
+    // …but not beyond the branch tolerance
+    expect(withinAnchorBudget(213, 100)).toBe(false);
+    expect(withinAnchorBudget(46, 100)).toBe(false);
+  });
+
+  test("B3: a peak arc never falls before the end — the dip is a wall, not a tie-winner", () => {
+    // The audit measured peak as `6,7,7,6`. Build a pool where the
+    // energy-fit ties would let the chain rise then dip, and confirm
+    // the monotone-in-segments gate holds the arc up.
+    const arcPool = [
+      cand({ videoId: "p0", arousal: 6.0, bpm: 126, key: "8A" }),
+      cand({ videoId: "p1", arousal: 7.4, bpm: 126, key: "8A" }),
+      // the mid-set dip candidate: same tempo/key, so ONLY the arc
+      // gate can keep it out once the chain has risen
+      cand({ videoId: "dip", arousal: 4.2, bpm: 126, key: "8A" }),
+      cand({ videoId: "p2", arousal: 7.9, bpm: 126, key: "8A" }),
+      cand({ videoId: "p3", arousal: 8.3, bpm: 126, key: "8A" }),
+      cand({ videoId: "p4", arousal: 8.4, bpm: 126, key: "8A" }),
+    ];
+    const r = buildMegaset({
+      candidates: arcPool,
+      preset: SET_PRESETS.peak,
+      minutes: 40,
+      searchOverride: "greedy",
+    });
+    const arousal = r.steps.map((s) => s.arousal ?? 5);
+    expect(arousal.length).toBeGreaterThanOrEqual(3);
+    expect(arousal.at(-1)!).toBeGreaterThanOrEqual(arousal[1]!);
+    // the dip candidate never lands mid-arc after the rise
+    const dipIdx = r.steps.findIndex((s) => s.videoId === "dip");
+    if (dipIdx > 0) expect(dipIdx).toBe(r.steps.length - 1);
+  });
+
+  test("B3: afterhours arousal never climbs back up beyond ε", () => {
+    const descentPool = [
+      cand({ videoId: "a0", arousal: 5.0, bpm: 122, key: "8A" }),
+      cand({ videoId: "a1", arousal: 4.4, bpm: 122, key: "8A" }),
+      // a mid-set bounce-back the old engine could pick on a tie
+      cand({ videoId: "up", arousal: 5.6, bpm: 122, key: "8A" }),
+      cand({ videoId: "a2", arousal: 4.0, bpm: 122, key: "8A" }),
+      cand({ videoId: "a3", arousal: 3.4, bpm: 122, key: "8A" }),
+    ];
+    const r = buildMegaset({
+      candidates: descentPool,
+      preset: SET_PRESETS.afterhours,
+      minutes: 30,
+      searchOverride: "greedy",
+    });
+    const arousal = r.steps.map((s) => s.arousal ?? 5);
+    for (let i = 1; i < arousal.length; i++) {
+      expect(arousal[i]!).toBeLessThanOrEqual(
+        arousal[i - 1]! + MEGASET_AROUSAL_EPSILON,
+      );
+    }
+  });
+
+  test("B2/B3 constants are pinned — silent retuning would re-rank every proposal", () => {
+    expect(MEGASET_ANCHOR_WEIGHT).toBe(0.15);
+    expect(MEGASET_DRIFT_BUDGET).toBeCloseTo(0.12, 10);
+    // preset tempo arcs: all start at the anchor, prescribed endpoints
+    for (const def of MEGASET_PRESET_DEFS) {
+      expect(def.tempoTarget[0]).toBe(1.0);
+    }
+    expect(SET_PRESETS.warmup.tempoTarget[1]).toBeCloseTo(1.06, 10);
+    expect(SET_PRESETS.peak.tempoTarget[1]).toBeCloseTo(1.02, 10);
+    expect(SET_PRESETS.afterhours.tempoTarget[1]).toBeCloseTo(0.96, 10);
+  });
 });
 
 describe("parseMegasetQuery", () => {
@@ -627,7 +758,7 @@ describe("parseMegasetQuery", () => {
       minutes: 60,
     });
   });
-  test("minutes clamp into 10–240, default when non-numeric", () => {
+  test("minutes clamp into 10–240; absent stays default, PRESENT-but-invalid errors (B7)", () => {
     expect(parseMegasetQuery({ minutes: "999" })).toEqual({
       preset: "peak",
       minutes: 240,
@@ -636,13 +767,26 @@ describe("parseMegasetQuery", () => {
       preset: "peak",
       minutes: 10,
     });
-    expect(parseMegasetQuery({ minutes: "banana" })).toEqual({
-      preset: "peak",
-      minutes: 60,
-    });
     expect(parseMegasetQuery({ minutes: "90" })).toEqual({
       preset: "peak",
       minutes: 90,
+    });
+    // a number delivered as a number is fine too (MCP surface)
+    expect(parseMegasetQuery({ minutes: 45 })).toEqual({
+      preset: "peak",
+      minutes: 45,
+    });
+    // B7 regression (issue #105): "banana" used to silently re-score as
+    // the 60-minute default; now it errors like the unknown-preset path
+    const bad = parseMegasetQuery({ minutes: "banana" });
+    expect("error" in bad && bad.error).toContain('got "banana"');
+    expect(parseMegasetQuery({ minutes: Number.NaN })).toEqual({
+      error: 'minutes must be a number (got "NaN")',
+    });
+    // empty string = absent → default (the UI's blank input)
+    expect(parseMegasetQuery({ minutes: "" })).toEqual({
+      preset: "peak",
+      minutes: 60,
     });
   });
   test("valid preset accepted", () => {

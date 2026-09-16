@@ -105,6 +105,12 @@ interface SetPresetShape {
   arousal: readonly [number, number];
   /** danceability envelope [start, end] on the 0–1 scale. */
   dance: readonly [number, number];
+  /** Tempo arc as RATIOS of the set's anchor BPM ([start, end], sampled
+   *  at the same slot clock as arousal/dance). The B2 fix steers the
+   *  chain back toward this target instead of only chasing the previous
+   *  track's BPM — warmup climbs gently, peak holds, afterhours winds
+   *  down. All presets start at 1.0: the opener IS the anchor. */
+  tempoTarget: readonly [number, number];
 }
 
 export const MEGASET_PRESET_DEFS = [
@@ -114,6 +120,7 @@ export const MEGASET_PRESET_DEFS = [
     description: "Slow-burn opener arc — builds gently into the night.",
     arousal: [2.5, 5.5],
     dance: [0.4, 0.7],
+    tempoTarget: [1.0, 1.06],
   },
   {
     id: "peak",
@@ -121,6 +128,7 @@ export const MEGASET_PRESET_DEFS = [
     description: "High energy throughout, slight lift toward the end.",
     arousal: [6, 8.5],
     dance: [0.7, 0.95],
+    tempoTarget: [1.0, 1.02],
   },
   {
     id: "afterhours",
@@ -128,6 +136,7 @@ export const MEGASET_PRESET_DEFS = [
     description: "Starts deep and hypnotic, drifts darker and slower.",
     arousal: [5, 3],
     dance: [0.75, 0.6],
+    tempoTarget: [1.0, 0.96],
   },
 ] as const satisfies readonly SetPresetShape[];
 
@@ -167,6 +176,25 @@ export const MEGASET_TRANSITION_WEIGHTS = {
   arcFit: 0.25,
 } as const;
 
+// ---- B2 tempo-anchor seam (issue #105): a ±6%-per-step chain COMPOUNDS
+// (measured 100 → 187.9 BPM in one 12-step climb) because each hop is
+// only judged against the previous track. The anchor gives the arc a
+// global reference: a soft term pulls candidates toward the preset's
+// arc-local target (anchor lerped along `tempoTarget`), a hard budget
+// caps total drift from the anchor.
+/** Soft weight of the anchor-distance term inside transitionScore. Kept
+ *  beside MEGASET_TRANSITION_WEIGHTS (frozen constants, E6 — no
+ *  user-tunable knobs); the three mixability weights stay untouched. */
+export const MEGASET_ANCHOR_WEIGHT = 0.15;
+/** Hard drift budget: max |candidate/anchor − 1| allowed ANYWHERE on the
+ *  chain (≈ ±2 half-steps at moderate BPM). Candidates beyond it are
+ *  unmixable for THIS set — mix-out branches (2×/½×, see bpmScore) are
+ *  exempt so half-time gear can still land a DnB closer. */
+export const MEGASET_DRIFT_BUDGET = 0.12;
+/** Half/double-time factor tolerance: a candidate within this relative
+ *  distance of 2×/½× the anchor passes the budget on the branch lane. */
+export const MEGASET_BRANCH_TOLERANCE = 0.06;
+
 /** An optional candidate-pool cap (`?limit=`), shared by HTTP, CLI and MCP.
  * Omission means the whole downloaded DB census; an explicit value remains
  * bounded so a typo cannot trigger unbounded per-file TKEY reads. */
@@ -184,6 +212,15 @@ export const MEGASET_BEAM_POOL_MAX = 250;
 /** Beam width. Kept beside the threshold so the engine and every UX
  * surface quote the same "deep search" contract, never a hand-copied twin. */
 export const MEGASET_BEAM_WIDTH = 8;
+
+/** B3 arc monotonicity (issue #105): the arc envelope is SAMPLED at slot
+ *  t but nothing stopped local reversals — peak measured `6,7,7,6`. The
+ *  fix: within each arc third (approach / hold / land), a candidate whose
+ *  arousal moves the chain MORE than this ε AGAINST its segment's
+ *  direction is penalized out of contention. On the 1–9 mood scale the
+ *  mood ledger's own noise floor is ≈0.25, so ε=0.6 forgives jitter but
+ *  not reversals. Held middle third is always directionless. */
+export const MEGASET_AROUSAL_EPSILON = 0.6;
 
 /** The excluded-reasons preview cap on the wire (`excluded[]`), shared by
  * the HTTP route, the CLI spoke and the web panel; `excluded_total` always

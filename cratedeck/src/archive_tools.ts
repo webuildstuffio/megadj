@@ -211,6 +211,13 @@ export function archiveTools(): Record<string, ToolDef> {
       run: async (args: Record<string, unknown>) => {
         // same validation as the HTTP route (parseMegasetQuery): unknown
         // preset → RpcParamError, never a silent peak-time fallback.
+        // B7 (#105): a PRESENT-but-non-numeric minutes errors too — the
+        // schema types minutes as a JSON number, so a string/NaN value
+        // is a caller bug, not an omission (absent still defaults 60).
+        if (args.minutes !== undefined && num(args, "minutes") === undefined)
+          throw new RpcParamError(
+            `minutes must be a finite number (got ${JSON.stringify(args.minutes)})`,
+          );
         const parsed = parseMegasetQuery({
           preset: str(args, "preset") ?? null,
           minutes: num(args, "minutes") ?? null,

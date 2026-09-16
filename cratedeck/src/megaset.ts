@@ -15,8 +15,12 @@ export type { MegasetPresetDef, MegasetPresetId } from "../shared/types";
 import {
   DEFAULT_MEGASET_PRESET,
   isMegasetSearchOverride,
+  MEGASET_ANCHOR_WEIGHT,
+  MEGASET_AROUSAL_EPSILON,
   MEGASET_BEAM_POOL_MAX,
   MEGASET_BEAM_WIDTH,
+  MEGASET_BRANCH_TOLERANCE,
+  MEGASET_DRIFT_BUDGET,
   MEGASET_MINUTES_DEFAULT,
   MEGASET_MINUTES_MAX,
   MEGASET_MINUTES_MIN,
@@ -63,10 +67,12 @@ export const SET_PRESETS: Record<MegasetPresetId, MegasetPresetDef> =
 export type SetPreset = MegasetPresetDef;
 
 /** Clamp + validate the megaset query params in ONE place — the HTTP
- *  route, the MCP tool and any future caller share it. Minutes fall back
- *  to the default when missing/non-numeric and clamp to the documented
- *  range (a caller can't smuggle `minutes=99999` past the UI's input
- *  field); preset defaults when absent. `parseMegasetQuery` distinguishes
+ *  route, the MCP tool and any future caller share it. Minutes are
+ *  absent→default-60, PRESENT-but-non-numeric→error (B7, issue #105 —
+ *  the old silent fallback let `?minutes=abc` re-score as a 60-minute
+ *  set the caller never asked for), and clamp to the documented range
+ *  (a caller can't smuggle `minutes=99999` past the UI's input field);
+ *  preset defaults when absent. `parseMegasetQuery` distinguishes
  *  "absent" from "invalid": an unknown preset id is a caller bug and
  *  surfaces as an error string instead of silently re-scoring as peak. */
 export function parseMegasetQuery(params: {
@@ -90,7 +96,15 @@ export function parseMegasetQuery(params: {
   }
   const n =
     typeof minutesRaw === "number" ? minutesRaw : Number(String(minutesRaw));
-  if (!Number.isFinite(n)) return { preset, minutes: MEGASET_MINUTES_DEFAULT };
+  // B7 (issue #105): non-numeric minutes used to silently re-score as the
+  // 60-minute default — a typo'd `?minutes=abc` or `--minutes abc` got a
+  // set the caller never asked for. Absent stays default-60; PRESENT but
+  // invalid is a caller bug and errors like the unknown-preset path.
+  if (!Number.isFinite(n)) {
+    return {
+      error: `minutes must be a number (got "${String(minutesRaw)}")`,
+    };
+  }
   return {
     preset,
     minutes: Math.min(
@@ -160,16 +174,70 @@ function envelope(p: readonly [number, number], t: number): number {
   return p[0]! + (p[1]! - p[0]!) * t;
 }
 
+/** B2: arc position 0..1 → the preset's tempo target as a RATIO of the
+ *  set's anchor BPM. Same slot clock as the arousal/dance envelopes —
+ *  the tempo arc rides beside them instead of chasing only `prev`. */
+function tempoTarget(preset: SetPreset, t: number): number {
+  const [from, to] = preset.tempoTarget;
+  return from + (to - from) * t;
+}
+
+/**
+ * B2 hard drift budget: is `bpm` mixable with THIS set's anchor? A
+ * ±6%-per-step chain compounds (measured 100 → 187.9 BPM in one
+ * 12-step climb) because each hop only sees the previous track; this
+ * gate sees the anchor, so drift cannot outrun ±MEGASET_DRIFT_BUDGET of
+ * the anchor no matter how many steps each one individually allows.
+ * Half/double-time mix-outs stay open: a candidate near 2×/½× the
+ * anchor passes on the branch lane (within MEGASET_BRANCH_TOLERANCE) —
+ * a 174 DnB closer on a 87 anchor is a feature, not drift. (Exported
+ * for the contract pins; the engine applies it inside transitionScore.)
+ */
+export function withinAnchorBudget(bpm: number, anchorBpm: number): boolean {
+  const drift = Math.abs(bpm / anchorBpm - 1);
+  if (drift <= MEGASET_DRIFT_BUDGET) return true;
+  for (const branch of [2, 0.5]) {
+    if (Math.abs(bpm / (anchorBpm * branch) - 1) <= MEGASET_BRANCH_TOLERANCE)
+      return true;
+  }
+  return false;
+}
+
+/**
+ * B3: which way does arc position `t` want arousal to move? Splits the
+ * envelope into thirds (approach / hold / land): warmup climbs
+ * (+1,+1,+1 with the slight final hold) — actually derived from the
+ * preset's own [start,end] slope per third, not hard-coded, so a future
+ * preset with a plateau or double-hump gets the right directions for
+ * free. Returns 0 where the third is directionless (held).
+ */
+function segmentDirection(preset: SetPreset, t: number): number {
+  const [start, end] = preset.arousal;
+  const third = (Math.min(Math.max(t, 0), 1) * 3) | 0; // 0,1,2
+  const at = (slot: number): number =>
+    start + (end - start) * (Math.min(slot, 3) / 3);
+  const d = at(third + 1) - at(third);
+  // a flat third is directionless; tiny slopes keep their sign
+  return Math.abs(d) < 1e-9 ? 0 : d > 0 ? 1 : -1;
+}
+
 /** Transition score: how well does candidate `c` continue FROM `prev`
  * given the arc position `t` (0..1)? Key + tempo are hard-ish filters,
- * energy fit is a soft bonus. */
+ * energy fit is a soft bonus. B2: also pulls toward the arc's ANCHORED
+ * tempo target (soft) so a chain cannot out-walk the set's tempo
+ * neighborhood one ±6% hop at a time. */
 function transitionScore(
   prev: SetCandidate,
   c: SetCandidate,
   preset: SetPreset,
   t: number,
+  anchorBpm: number,
+  lastArousal: number | null,
 ): number {
   if (!mixableBpm(prev) || !mixableBpm(c)) return -1; // unmixable: no tempo
+  // B2 hard gate: total drift from the anchor is budgeted per candidate
+  // (branch-lane exempt) — one hop's ±6% can no longer compound freely.
+  if (!withinAnchorBudget(c.bpm, anchorBpm)) return -1;
   const tempo = bpmScore(prev.bpm, c.bpm);
   if (tempo === 0) return -1;
   const key = keyScore(prev, c);
@@ -179,16 +247,38 @@ function transitionScore(
   const targetDance = envelope(preset.dance, t);
   const a = (c.arousal ?? 5) / 9;
   const d = c.dance ?? 0.6;
+  // B3 arc direction: a candidate that moves arousal AGAINST its
+  // segment's direction is a hard wall (score −1, same lane as a key
+  // clash) — the issue's contract is "may not move the chain opposite
+  // its segment's direction", not a soft nudge; the envelope keeps its
+  // shape mid-set instead of reversing wherever energy-fit ties.
+  // Held thirds impose no direction; jitter ≤ ε still fits.
+  const dir = segmentDirection(preset, t);
+  if (dir !== 0 && lastArousal !== null && c.arousal !== null) {
+    if ((c.arousal - lastArousal) * dir < -MEGASET_AROUSAL_EPSILON) return -1;
+  }
   const fit =
     1 -
     Math.min(
       1,
       (Math.abs(a - targetArousal / 9) + Math.abs(d - targetDance)) / 2,
     );
+  // B2 soft anchor term: distance from the arc-local tempo target
+  // (anchor lerped along preset.tempoTarget), scored on the same
+  // relative scale as bpmScore's perfect-window slope.
+  const anchor =
+    1 -
+    Math.min(
+      1,
+      Math.abs(c.bpm / (anchorBpm * tempoTarget(preset, t)) - 1) /
+        (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT) /
+        2,
+    );
   return (
     MEGASET_TRANSITION_WEIGHTS.tempo * tempo +
     MEGASET_TRANSITION_WEIGHTS.key * key +
-    MEGASET_TRANSITION_WEIGHTS.arcFit * fit
+    MEGASET_TRANSITION_WEIGHTS.arcFit * fit +
+    MEGASET_ANCHOR_WEIGHT * anchor
   );
 }
 
@@ -272,6 +362,9 @@ const greedyChain = (
   rest: readonly SetCandidate[],
   preset: SetPreset,
   budget: number,
+  /** B2: the set's global tempo anchor (the opener's BPM) — every
+   *  candidate is drift-budgeted against it, not just against `prev`. */
+  anchorBpm: number,
 ): { chain: PickedStep[]; stopCause: StopCause } => {
   const remaining = [...rest];
   const chain: PickedStep[] = [{ candidate: opener, transition: null }];
@@ -284,7 +377,7 @@ const greedyChain = (
     let bestId = "";
     for (let i = 0; i < remaining.length; i++) {
       const c = remaining[i]!;
-      const s = transitionScore(last, c, preset, t);
+      const s = transitionScore(last, c, preset, t, anchorBpm, last.arousal);
       // strict > keeps scanning on ties; the (score, videoId) pair decides —
       // lexicographically-smaller id wins a tie, independent of row order
       if (s > bestScore || (s === bestScore && c.videoId < bestId)) {
@@ -319,6 +412,9 @@ const beamChain = (
   rest: readonly SetCandidate[],
   preset: SetPreset,
   budget: number,
+  /** B2: the set's global tempo anchor — the budget gate runs on EVERY
+   *  branch extension, so beam branches cannot out-drift greedy. */
+  anchorBpm: number,
 ): { chain: PickedStep[]; stopCause: StopCause } => {
   const openerElapsed = candidateDuration(opener);
   const start: BeamState = {
@@ -338,7 +434,7 @@ const beamChain = (
       const t = Math.min(1, st.elapsedS / budget);
       for (const c of rest) {
         if (st.chain.includes(c)) continue;
-        const s = transitionScore(last, c, preset, t);
+        const s = transitionScore(last, c, preset, t, anchorBpm, last.arousal);
         if (s <= 0) continue; // gated out — not a branch, a wall
         const elapsedS = st.elapsedS + candidateDuration(c);
         const next: BeamState = {
@@ -482,10 +578,10 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   // arousal-only sort landed on pool-min-arousal outliers (a 73 BPM track
   // in a 125 BPM library) whose ±6% window holds 3 tracks — the chain
   // dead-ended after 2 steps and every other candidate got excluded as
-  // "no compatible transition". Require ≥ OPENNER_MIN_NEIGHBORS tracks
+  // "no compatible transition". Require ≥ OPENER_MIN_NEIGHBORS tracks
   // within ±6% before a candidate may anchor; fall back to the old
   // behavior when nothing qualifies (tiny pools).
-  const OPENNER_MIN_NEIGHBORS = 15;
+  const OPENER_MIN_NEIGHBORS = 15;
   const mixable = [...pool].filter(mixableBpm);
   // `bpmScore(a, b) > 0` means the relative difference is strictly below
   // MEGASET_TEMPO_WINDOW. Counting that neighborhood by rescanning every
@@ -503,7 +599,7 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
     opener && mixableBpm(opener)
       ? opener
       : (mixable
-          .filter((c) => tempoNeighbors(c.bpm) >= OPENNER_MIN_NEIGHBORS)
+          .filter((c) => tempoNeighbors(c.bpm) >= OPENER_MIN_NEIGHBORS)
           .toSorted((a, b) => {
             const fa = Math.abs((a.arousal ?? 5) / 9 - startArousal);
             const fb = Math.abs((b.arousal ?? 5) / 9 - startArousal);
@@ -527,6 +623,12 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   }
   pool.splice(pool.indexOf(first), 1);
 
+  // B2: the opener IS the anchor — every later candidate is drift-
+  // budgeted against this BPM for the rest of the set. (The opener
+  // neighborhood guard above already proved it has ≥15 neighbors, so
+  // the anchor starts in a livable tempo zone by construction.)
+  const anchorBpm = first.bpm;
+
   // Strategy pick (E7, docs/set/04-sequencing-benchmarks.md): small
   // pools get the beam continuation, big pools keep greedy — measured
   // +59% chain length on sparse pools at ~0 ms. The sequencer's working
@@ -539,8 +641,8 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
     : rest.length + 1 < MEGASET_BEAM_POOL_MAX;
   search = useBeam ? "beam" : "greedy";
   const picked = useBeam
-    ? beamChain(first, rest, preset, budget)
-    : greedyChain(first, rest, preset, budget);
+    ? beamChain(first, rest, preset, budget, anchorBpm)
+    : greedyChain(first, rest, preset, budget, anchorBpm);
 
   for (const step of picked.chain) push(step.candidate, step.transition);
 
@@ -559,7 +661,7 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
         videoId: c.videoId,
         title: c.title,
         reason: mixableBpm(c)
-          ? "no compatible transition (key clash or tempo outside ±6%)"
+          ? "no compatible transition (key clash, tempo outside ±6%, or beyond the set's drift budget)"
           : "no beats-ledger BPM — run `megadj beats`",
       });
   } else if (picked.stopCause === "budget") {

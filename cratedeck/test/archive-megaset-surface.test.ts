@@ -102,6 +102,33 @@ describe("megaset_propose candidate-pool contract", () => {
     });
   });
 
+  test("B7 (#105): a non-numeric minutes value 400s on the HTTP surface — never a silent 60", async () => {
+    const response = await archiveRoutes(
+      "/archive/megaset",
+      new URL("http://localhost/api/archive/megaset?minutes=abc"),
+      {
+        archive: {} as ArchiveReader,
+        db: {} as DB,
+        cfg: {} as CrateConfig,
+      },
+    );
+
+    expect(response?.status).toBe(400);
+    expect(await response?.json()).toEqual({
+      error: 'minutes must be a number (got "abc")',
+    });
+  });
+
+  test("B7 (#105): a non-numeric minutes value throws RpcParamError on the MCP surface", async () => {
+    const { urls, tool } = captureSetBuildRequest();
+
+    expect(tool.run({ minutes: "abc" })).rejects.toThrow(
+      'minutes must be a finite number (got "abc")',
+    );
+    // zero work before the failure — no API call was even attempted
+    expect(urls).toHaveLength(0);
+  });
+
   test("an unknown ?search= value falls back to the automatic pick (explore control, not a contract)", async () => {
     const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
     const archive = {
