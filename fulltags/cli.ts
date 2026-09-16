@@ -47,6 +47,8 @@ usage:
   fulltags audit <folder> [--json]       ground-truth completeness gate
   fulltags verify-key <folder> [--limit N] [--refs m.json] [--json]
                                          key gauntlet gate (≥80% required)
+  fulltags ensure-models                 pre-download the ONNX mood models
+  fulltags single <file> [flags]         one file with --title/--artist/--album hints
 
 stages: --tags --genre --art --year --energy --fingerprint --bpm --key --mood
         (default: all; analysis stages need fpcalc / beat-this / the
@@ -141,143 +143,143 @@ function collectFiles(target: string): string[] {
   });
 }
 
-async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
-  if (!argv.length || argv.includes("help") || argv.includes("--help")) {
-    printHelp();
+// ---- verb arms (the #90 dispatch table: main() is a thin runner) -----------
+
+/** Shared arm context: the parsed args plus raw argv (some verbs own
+ *  their flag grammar, e.g. verify-key). */
+interface CliCtx {
+  argv: string[];
+  args: CliArgs;
+}
+
+/** `ensure-models` — pre-download the ONNX mood models so a later --mood
+ *  run never stalls on a 320 MB fetch mid-batch. */
+async function cmdEnsureModels(): Promise<void> {
+  const { modelsEnsure, moodModelsPresent, modelDir } =
+    await import("./src/models");
+  try {
+    const got = modelsEnsure();
+    console.log(
+      got.length
+        ? `downloaded ${got.length} model file(s) to ${modelDir()}: ${got.join(", ")}`
+        : `all mood models already present in ${modelDir()}`,
+    );
+  } catch (e) {
+    console.error(`ensure-models failed: ${(e as Error).message}`);
+    process.exitCode = 1;
     return;
   }
-  const args = parseArgs(argv);
-  if (!args.valid) return;
+  if (!moodModelsPresent()) {
+    console.error("models still missing after download — check disk space");
+    process.exitCode = 1;
+  }
+}
 
-  // `fulltags ensure-models`: pre-download the ONNX mood models so a later
-  // --mood run never stalls on a 320 MB fetch mid-batch.
-  if (argv[0] === "ensure-models") {
-    const { modelsEnsure, moodModelsPresent, modelDir } =
-      await import("./src/models");
-    try {
-      const got = modelsEnsure();
-      console.log(
-        got.length
-          ? `downloaded ${got.length} model file(s) to ${modelDir()}: ${got.join(", ")}`
-          : `all mood models already present in ${modelDir()}`,
-      );
-    } catch (e) {
-      console.error(`ensure-models failed: ${(e as Error).message}`);
-      process.exitCode = 1;
-      return;
-    }
-    if (!moodModelsPresent()) {
-      console.error("models still missing after download — check disk space");
-      process.exitCode = 1;
-    }
+/** `verify-key` — the roadmap #3 gauntlet gate (#185): OpenKeyScan vs
+ *  existing tags, ≥80% exact agreement or exit 1 (no batch key write). */
+async function cmdVerifyKey({ argv }: CliCtx): Promise<void> {
+  const { parseVerifyKeyArgs, runVerifyKey, printVerifyKeyReport } =
+    await import("./src/verify-key");
+  const vk = parseVerifyKeyArgs(argv.slice(1));
+  if (vk.error || !vk.targets.length) {
+    if (vk.error) console.error(vk.error);
+    console.error(
+      "usage: fulltags verify-key <folder|files...> [--limit 20] [--refs map.json] [--json]",
+    );
+    process.exitCode = 2;
     return;
   }
-
-  // fulltags verify-key — the roadmap #3 gauntlet gate (#185): OpenKeyScan
-  // vs existing tags, ≥80% exact agreement or exit 1 (no batch key write).
-  if (argv[0] === "verify-key") {
-    const { parseVerifyKeyArgs, runVerifyKey, printVerifyKeyReport } =
-      await import("./src/verify-key");
-    const vk = parseVerifyKeyArgs(argv.slice(1));
-    if (vk.error || !vk.targets.length) {
-      if (vk.error) console.error(vk.error);
-      console.error(
-        "usage: fulltags verify-key <folder|files...> [--limit 20] [--refs map.json] [--json]",
-      );
-      process.exitCode = 2;
-      return;
-    }
-    let summary: Awaited<ReturnType<typeof runVerifyKey>> | null = null;
-    try {
-      summary = await runVerifyKey({
-        targets: vk.targets,
-        limit: vk.limit,
-        refsPath: vk.refsPath,
-      });
-      if (vk.json) console.log(JSON.stringify(summary, null, 2));
-      else printVerifyKeyReport(console.log, summary);
-    } catch (e) {
-      console.error((e as Error).message);
-      process.exitCode = 2;
-      return;
-    }
-    if (!summary.gatePass) process.exitCode = 1;
-    return;
-  }
-
-  if (argv[0] === "audit") {
-    const dir = args.target;
-    if (!dir || !existsSync(dir)) {
-      console.error("audit: pass an existing folder — fulltags audit <folder>");
-      process.exitCode = 1;
-      return;
-    }
-    const files = collectFiles(dir);
-    const rows = files.map((f) => {
-      const t = groundTruth(f);
-      const ai = readAiStamps(f);
-      // Dim list derives from the schema SSOT (COMPLETENESS_FIELDS via
-      // completeness()) — issue #97: the two audit gates must agree by
-      // construction, not by hand-maintained twin arrays.
-      const { missing, complete } = completeness(t);
-      // DJ identity fields (Beatport-sourced): audited, not gated — a gap
-      // here is enrichment headroom, not incompleteness (report-only).
-      const identity: string[] = [];
-      if (!t.label) identity.push("label");
-      if (!t.mixName) identity.push("mix");
-      if (!t.isrc) identity.push("isrc");
-      if (!t.remixer) identity.push("remixer");
-      const aiFilled = [
-        ai.aiGenre ? `genre←AI(${ai.aiGenre.split("|")[1] ?? "?"})` : null,
-        ai.aiYear ? `year←AI(${ai.aiYear.split("|")[1] ?? "?"})` : null,
-      ].filter((x): x is string => x !== null);
-      return {
-        file: basename(f),
-        missing,
-        identity,
-        aiFilled,
-        complete,
-      };
+  let summary: Awaited<ReturnType<typeof runVerifyKey>> | null = null;
+  try {
+    summary = await runVerifyKey({
+      targets: vk.targets,
+      limit: vk.limit,
+      refsPath: vk.refsPath,
     });
-    const complete = rows.filter((r) => r.complete).length;
-    const aiCount = rows.filter((r) => r.aiFilled.length).length;
-    const bpCount = rows.filter((r) => r.identity.length === 0).length;
-    const gaps = rows.filter((r) => !r.complete);
-    // Gate semantics (megadj audit parity): gaps → exit 1, in BOTH output
-    // modes. Agents/CI consume --json and rely on the exit code as the gate.
-    if (gaps.length) process.exitCode = 1;
-    if (args.json) {
-      console.log(
-        JSON.stringify(
-          { ok: gaps.length === 0, total: rows.length, complete, rows },
-          null,
-          2,
-        ),
-      );
-    } else {
-      console.log(
-        `audit: ${complete}/${rows.length} complete (art + title + artist + album + genre + year + mood + energy)`,
-      );
-      if (aiCount)
-        console.log(
-          `  ${aiCount} track(s) carry AI-filled fields (genre←AI/year←AI with confidence)`,
-        );
-      if (bpCount)
-        console.log(
-          `  ${bpCount}/${rows.length} carry full DJ identity (label + mix + isrc + remixer)`,
-        );
-      if (gaps.length) {
-        console.log("\nincomplete:");
-        for (const r of gaps)
-          console.log(`  [${r.missing.join(",")}] ${r.file}`);
-      } else {
-        console.log("✅ all tracks fully tagged");
-      }
-    }
+    if (vk.json) console.log(JSON.stringify(summary, null, 2));
+    else printVerifyKeyReport(console.log, summary);
+  } catch (e) {
+    console.error((e as Error).message);
+    process.exitCode = 2;
     return;
   }
+  if (!summary.gatePass) process.exitCode = 1;
+}
 
+/** `audit` — ground-truth completeness gate (gaps → exit 1, both modes). */
+async function cmdAudit({ args }: CliCtx): Promise<void> {
+  const dir = args.target;
+  if (!dir || !existsSync(dir)) {
+    console.error("audit: pass an existing folder — fulltags audit <folder>");
+    process.exitCode = 1;
+    return;
+  }
+  const files = collectFiles(dir);
+  const rows = files.map((f) => {
+    const t = groundTruth(f);
+    const ai = readAiStamps(f);
+    // Dim list derives from the schema SSOT (COMPLETENESS_FIELDS via
+    // completeness()) — issue #97: the two audit gates must agree by
+    // construction, not by hand-maintained twin arrays.
+    const { missing, complete } = completeness(t);
+    // DJ identity fields (Beatport-sourced): audited, not gated — a gap
+    // here is enrichment headroom, not incompleteness (report-only).
+    const identity: string[] = [];
+    if (!t.label) identity.push("label");
+    if (!t.mixName) identity.push("mix");
+    if (!t.isrc) identity.push("isrc");
+    if (!t.remixer) identity.push("remixer");
+    const aiFilled = [
+      ai.aiGenre ? `genre←AI(${ai.aiGenre.split("|")[1] ?? "?"})` : null,
+      ai.aiYear ? `year←AI(${ai.aiYear.split("|")[1] ?? "?"})` : null,
+    ].filter((x): x is string => x !== null);
+    return {
+      file: basename(f),
+      missing,
+      identity,
+      aiFilled,
+      complete,
+    };
+  });
+  const complete = rows.filter((r) => r.complete).length;
+  const aiCount = rows.filter((r) => r.aiFilled.length).length;
+  const bpCount = rows.filter((r) => r.identity.length === 0).length;
+  const gaps = rows.filter((r) => !r.complete);
+  // Gate semantics (megadj audit parity): gaps → exit 1, in BOTH output
+  // modes. Agents/CI consume --json and rely on the exit code as the gate.
+  if (gaps.length) process.exitCode = 1;
+  if (args.json) {
+    console.log(
+      JSON.stringify(
+        { ok: gaps.length === 0, total: rows.length, complete, rows },
+        null,
+        2,
+      ),
+    );
+  } else {
+    console.log(
+      `audit: ${complete}/${rows.length} complete (art + title + artist + album + genre + year + mood + energy)`,
+    );
+    if (aiCount)
+      console.log(
+        `  ${aiCount} track(s) carry AI-filled fields (genre←AI/year←AI with confidence)`,
+      );
+    if (bpCount)
+      console.log(
+        `  ${bpCount}/${rows.length} carry full DJ identity (label + mix + isrc + remixer)`,
+      );
+    if (gaps.length) {
+      console.log("\nincomplete:");
+      for (const r of gaps) console.log(`  [${r.missing.join(",")}] ${r.file}`);
+    } else {
+      console.log("✅ all tracks fully tagged");
+    }
+  }
+}
+
+/** The default arm — enrich every audio file under the target. Run only
+ *  after main()'s valid gate. */
+async function cmdEnrich({ args }: CliCtx): Promise<void> {
   if (!args.target || !existsSync(args.target)) {
     console.error("fulltags: pass an existing file or folder");
     printHelp();
@@ -336,6 +338,35 @@ async function main(): Promise<void> {
   console.log(
     `\nDONE — ${summary.complete}/${summary.total} complete · ${summary.notes} file(s) changed${args.dryRun ? " (dry run — nothing written)" : ""}`,
   );
+}
+
+/** The verb table — the dispatch SSOT (#90): `main()` is a thin runner
+ *  over it. The default (no verb) arm is cmdEnrich. */
+const FULLTAGS_COMMANDS: Record<string, (ctx: CliCtx) => Promise<void>> = {
+  "ensure-models": () => cmdEnsureModels(),
+  "verify-key": (ctx) => cmdVerifyKey(ctx),
+  audit: (ctx) => cmdAudit(ctx),
+};
+
+async function main(): Promise<void> {
+  const argv = process.argv.slice(2);
+  if (!argv.length || argv.includes("help") || argv.includes("--help")) {
+    printHelp();
+    return;
+  }
+  const args = parseArgs(argv);
+  if (!args.valid) {
+    process.exitCode = 2;
+    return;
+  }
+  const verb = argv[0];
+  const ctx: CliCtx = { argv, args };
+  const handler = verb === undefined ? undefined : FULLTAGS_COMMANDS[verb];
+  if (handler) {
+    await handler(ctx);
+    return;
+  }
+  await cmdEnrich(ctx);
 }
 
 await main();
