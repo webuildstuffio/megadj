@@ -116,25 +116,11 @@ export interface RbDedupResult {
   error?: string;
 }
 
+export { buildDupePairs, type DupePair } from "./rb-dedup-graph.js";
 export {
-  buildDupePairs,
-  compareStableIds,
-  connectGraph,
-  graphComponentIds,
-  type DupePair,
-} from "./rb-dedup-graph.js";
-export {
-  finiteNonNegative,
-  isUnknownArray,
   parseDeleteResult,
   parseScanResult,
-  parseVerifyRows,
-  type AssociationExpectation,
-  type DeleteResult,
-  type ScanResult,
   type ScanPair,
-  type ScanRow,
-  type VerifyRow,
 } from "./rb-dedup-parse.js";
 import { buildDupePairs } from "./rb-dedup-graph.js";
 import {
