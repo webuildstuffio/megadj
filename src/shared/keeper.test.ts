@@ -1,11 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { pickRbKeeper, pickScoredKeeper } from "./keeper";
 
-const byFile = (f: string, score: number) => ({ path: f, score });
-
-const decide = (rankOriginal: number, rankTwin: number): string =>
-  rankTwin > rankOriginal ? "keep-twin" : "keep-original";
-
 /**
  * Policy table for the keeper decision (#158). Every tier's ordering is
  * pinned here so a future edit cannot silently change which file
@@ -51,6 +46,7 @@ describe("keeper policy table (#158)", () => {
   });
 
   test("ingest tier: higher score, then shorter basename, then first-seen", () => {
+    const byFile = (f: string, score: number) => ({ path: f, score });
     // higher score wins regardless of name length
     expect(
       pickScoredKeeper(
@@ -87,6 +83,8 @@ describe("shelf-dedupe qualityRank policy (same table, rank form)", () => {
     // higher wins, tie keeps original. The policy lives in
     // shelf-dedupe-probe (ext ladder + probe bitrate); the DECISION shape
     // is pinned here so a flip cannot land silently.
+    const decide = (rankOriginal: number, rankTwin: number): string =>
+      rankTwin > rankOriginal ? "keep-twin" : "keep-original";
     expect(decide(4.032, 4.032)).toBe("keep-original"); // tie → original
     expect(decide(1.0, 4.032)).toBe("keep-twin"); // flac(320k) beats mp3
     expect(decide(4.032, 1.0)).toBe("keep-original");

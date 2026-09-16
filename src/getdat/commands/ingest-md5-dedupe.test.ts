@@ -26,7 +26,7 @@ function makeWavPair(dir: string): void {
   // writes the title into the LIST/INFO header, so two "same command, new
   // name" files differ in bytes AND size (metadata rides in the header).
   const first = join(dir, "Track [Radio Edit].wav");
-  Bun.spawnSync([
+  const enc = Bun.spawnSync([
     "ffmpeg",
     "-y",
     "-hide_banner",
@@ -42,6 +42,14 @@ function makeWavPair(dir: string): void {
     "title=Track",
     first,
   ]);
+  // A load-flake here (ffmpeg OOM/ENOSPC under parallel workers) used to
+  // surface as a confusing "expected 1 batch, got 0" assertion far away
+  // from the cause. Fail loudly at the source instead.
+  if (!enc.success || !existsSync(first)) {
+    throw new Error(
+      `ffmpeg fixture encode failed (exit ${enc.exitCode}): ${enc.stderr.toString().trim()} — environment problem, not a dedupe regression`,
+    );
+  }
   const { copyFileSync } = require("node:fs") as typeof import("node:fs");
   copyFileSync(first, join(dir, "Track [Extended Mix].wav"));
 }
@@ -85,7 +93,7 @@ describe("ingest content-hash dedupe", () => {
       ["A [Radio Edit].wav", "440"],
       ["A [Extended Mix].wav", "880"],
     ] as const) {
-      Bun.spawnSync([
+      const enc = Bun.spawnSync([
         "ffmpeg",
         "-y",
         "-hide_banner",
@@ -101,6 +109,13 @@ describe("ingest content-hash dedupe", () => {
         `title=${name}`,
         join(dump, name),
       ]);
+      // Same loud-failure contract as makeWavPair: an environment flake
+      // must not masquerade as a dedupe assertion failure downstream.
+      if (!enc.success) {
+        throw new Error(
+          `ffmpeg fixture encode failed for ${name} (exit ${enc.exitCode}): ${enc.stderr.toString().trim()} — environment problem, not a dedupe regression`,
+        );
+      }
     }
     const state = new ArchiveState(join(DB_DIR, "archive.db"));
     await ingest({
