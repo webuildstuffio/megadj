@@ -1,31 +1,22 @@
 import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
 import { HygieneStore } from "./store";
-import type { Finding } from "./types";
-import { newFindingId } from "./types";
+import { newFindingId, type Finding } from "./types";
+import { hygieneFinding } from "../../test-support/scan-rows";
 
-function finding(over: Partial<Finding> = {}): Finding {
-  return {
-    id: newFindingId(),
+const finding = (over: Partial<Finding> = {}): Finding =>
+  hygieneFinding({
     kind: "byte-twin",
     severity: "safe",
-    status: "open",
     paths: ["/V/Contents/A/keep.mp3", "/V/Contents/B/lose.mp3"],
     bytes: [100, 100],
     md5s: ["aa", "aa"],
     fps: [],
     evidence: { nameSimilarity: 1 },
-    proposedAction: { type: "quarantine-loser" },
     keeperPath: "/V/Contents/A/keep.mp3",
-    walkToken: "tok",
     autoSafe: true,
-    createdAt: "2026-09-10T00:00:00.000Z",
-    decidedAt: null,
-    appliedAt: null,
-    validation: null,
     ...over,
-  };
-}
+  });
 
 function store(): HygieneStore {
   return new HygieneStore(new Database(":memory:"));

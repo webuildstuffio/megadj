@@ -1,9 +1,10 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
-import { mkdtempSync, mkdirSync, readdirSync, existsSync } from "node:fs";
+import { mkdtempSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../archive/state";
 import { convertArchive } from "./convert";
+import { makeWav } from "../test-support/audio-fixtures";
 
 /**
  * megadj convert — archive-wide wav→aiff (legacy WAVs have no art on the
@@ -17,28 +18,6 @@ const ARCHIVE = join(DB_DIR, "DJ-Imports");
 afterAll(async () => {
   await $`rm -rf ${DB_DIR}`.quiet().nothrow();
 });
-
-function makeWav(dir: string, name: string, freq = "440"): string {
-  mkdirSync(dir, { recursive: true });
-  const p = join(dir, name);
-  Bun.spawnSync([
-    "ffmpeg",
-    "-y",
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-f",
-    "lavfi",
-    "-i",
-    `sine=frequency=${freq}:duration=65`,
-    "-c:a",
-    "pcm_s16le",
-    "-metadata",
-    `title=${name}`,
-    p,
-  ]);
-  return p;
-}
 
 describe("convertArchive", () => {
   test("converts wavs to aiff, removes sources, follows db paths", async () => {

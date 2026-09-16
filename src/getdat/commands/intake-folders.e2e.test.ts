@@ -1,9 +1,10 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
-import { mkdtempSync, mkdirSync, readdirSync } from "node:fs";
+import { mkdtempSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
+import { makeWav } from "../../test-support/audio-fixtures";
 
 /**
  * Per-batch intake folders (user request, Sep 10 2026): separate dumps must
@@ -17,36 +18,8 @@ afterAll(async () => {
   await $`rm -rf ${DB_DIR}`.quiet().nothrow();
 });
 
-function makeWav(dir: string, name: string): string {
-  mkdirSync(dir, { recursive: true });
-  const p = join(dir, name);
-  const proc = Bun.spawnSync([
-    "ffmpeg",
-    "-y",
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-f",
-    "lavfi",
-    "-i",
-    "sine=frequency=440:duration=65",
-    "-c:a",
-    "pcm_s16le",
-    "-metadata",
-    `title=${name}`,
-    p,
-  ]);
-  // Silent ffmpeg failure = the wav never exists = ingest registers
-  // nothing and the assertions read like an intake-folder bug. Fail
-  // loudly at the source instead (observed flake, Sep 15 2026: ffmpeg
-  // transient exit under parallel load).
-  if (proc.exitCode !== 0) {
-    throw new Error(
-      `ffmpeg failed (${proc.exitCode}) generating ${p}: ${proc.stderr.toString().slice(0, 400)}`,
-    );
-  }
-  return p;
-}
+// makeWav comes from test-support/audio-fixtures (its loud ffmpeg-failure
+// contract originated here — the shared builder keeps it).
 
 function archiveTopLevel(): { dirs: string[]; loose: string[] } {
   const entries = readdirSync(ARCHIVE, { withFileTypes: true });

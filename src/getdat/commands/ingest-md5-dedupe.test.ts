@@ -1,9 +1,10 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
-import { mkdtempSync, mkdirSync, readdirSync, existsSync } from "node:fs";
+import { mkdtempSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
+import { byteTwinPair, ffmpegTone } from "../../test-support/audio-fixtures";
 
 /**
  * MD5 twin dedupe (Back To Friends trap, Sep 9 2026): a byte-identical
@@ -19,45 +20,12 @@ afterAll(async () => {
   await $`rm -rf ${DB_DIR}`.quiet().nothrow();
 });
 
-/** Two WAVs: identical PCM, different metadata (so tags ≠ byte stream). */
-function makeWavPair(dir: string): void {
-  mkdirSync(dir, { recursive: true });
-  // Identical PCM: encode once, then copy with a different name — ffmpeg
-  // writes the title into the LIST/INFO header, so two "same command, new
-  // name" files differ in bytes AND size (metadata rides in the header).
-  const first = join(dir, "Track [Radio Edit].wav");
-  const enc = Bun.spawnSync([
-    "ffmpeg",
-    "-y",
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-f",
-    "lavfi",
-    "-i",
-    "sine=frequency=440:duration=65",
-    "-c:a",
-    "pcm_s16le",
-    "-metadata",
-    "title=Track",
-    first,
-  ]);
-  // A load-flake here (ffmpeg OOM/ENOSPC under parallel workers) used to
-  // surface as a confusing "expected 1 batch, got 0" assertion far away
-  // from the cause. Fail loudly at the source instead.
-  if (!enc.success || !existsSync(first)) {
-    throw new Error(
-      `ffmpeg fixture encode failed (exit ${enc.exitCode}): ${enc.stderr.toString().trim()} — environment problem, not a dedupe regression`,
-    );
-  }
-  const { copyFileSync } = require("node:fs") as typeof import("node:fs");
-  copyFileSync(first, join(dir, "Track [Extended Mix].wav"));
-}
-
 describe("ingest content-hash dedupe", () => {
   test("byte-identical twin under a different name quarantines", async () => {
     const dump = join(DB_DIR, "dump");
-    makeWavPair(dump);
+    byteTwinPair(dump, ["Track [Radio Edit].wav", "Track [Extended Mix].wav"], {
+      title: "Track",
+    });
 
     const state = new ArchiveState(join(DB_DIR, "archive.db"));
     await ingest({
@@ -88,34 +56,11 @@ describe("ingest content-hash dedupe", () => {
 
   test("same size but DIFFERENT content keeps both (size is not a dupe)", async () => {
     const dump = join(DB_DIR, "diff dump");
-    mkdirSync(dump, { recursive: true });
     for (const [name, freq] of [
-      ["A [Radio Edit].wav", "440"],
-      ["A [Extended Mix].wav", "880"],
+      ["A [Radio Edit].wav", 440],
+      ["A [Extended Mix].wav", 880],
     ] as const) {
-      const enc = Bun.spawnSync([
-        "ffmpeg",
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-f",
-        "lavfi",
-        "-i",
-        `sine=frequency=${freq}:duration=65`,
-        "-c:a",
-        "pcm_s16le",
-        "-metadata",
-        `title=${name}`,
-        join(dump, name),
-      ]);
-      // Same loud-failure contract as makeWavPair: an environment flake
-      // must not masquerade as a dedupe assertion failure downstream.
-      if (!enc.success) {
-        throw new Error(
-          `ffmpeg fixture encode failed for ${name} (exit ${enc.exitCode}): ${enc.stderr.toString().trim()} — environment problem, not a dedupe regression`,
-        );
-      }
+      ffmpegTone(join(dump, name), { freq, title: name });
     }
     const state = new ArchiveState(join(DB_DIR, "archive.db"));
     await ingest({

@@ -6,6 +6,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
+import { writeFakeAudio } from "../test-support/audio-fixtures";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
@@ -17,7 +18,7 @@ function fixture(): { shelf: string; db: string; loser: string } {
   const shelf = mkdtempSync("/tmp/megadj-restore-shelf-");
   const dir = join(shelf, "Contents", "Artist");
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "track.mp3"), "same bytes");
+  writeFakeAudio(join(dir, "track.mp3"), "same bytes");
   const loser = join(dir, "track copy.mp3");
   writeFileSync(loser, "same bytes");
   const db = join(mkdtempSync("/tmp/megadj-restore-db-"), "archive.db");

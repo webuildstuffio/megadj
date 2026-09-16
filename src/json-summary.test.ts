@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { join } from "node:path";
 import { mkdtempSync } from "node:fs";
+import { join } from "node:path";
+import { runCli, lastJsonLine, cliEnv } from "./test-support/cli-run";
 
 /**
  * P1 regression guard: every mutating/summary command must emit exactly one
@@ -10,30 +10,9 @@ import { mkdtempSync } from "node:fs";
  * throwaway MEGADJ_DB so no fixture library is needed.
  */
 
-async function runCli(args: string[], env: Record<string, string>) {
-  const proc = await $`bun run ${join(import.meta.dir, "./cli.ts")} ${args}`
-    .env({ ...process.env, ...env })
-    .quiet()
-    .nothrow();
-  return { code: proc.exitCode, stdout: new TextDecoder().decode(proc.stdout) };
-}
-
-function lastJsonLine(stdout: string): Record<string, unknown> {
-  const lines = stdout.trim().split("\n");
-  const last = lines[lines.length - 1] ?? "";
-  expect(() => JSON.parse(last)).not.toThrow();
-  const parsed = JSON.parse(last) as Record<string, unknown>;
-  expect(typeof parsed).toBe("object");
-  return parsed;
-}
-
 describe("principles P1: --json on every command", () => {
   const dir = mkdtempSync("/tmp/megadj-json-test-");
-  const env = {
-    MEGADJ_DB: join(dir, "archive.db"),
-    MEGADJ_MUSIC_DIR: join(dir, "music"),
-    MEGADJ_COOKIES: "", // never touch a real browser in tests
-  };
+  const env = cliEnv(dir);
 
   test("status --json stays parseable (baseline)", async () => {
     const { code } = await runCli(["status", "--json"], env);

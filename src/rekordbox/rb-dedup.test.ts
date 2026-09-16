@@ -11,38 +11,27 @@ import {
   type RbDedupDeps,
   type ScanPair,
 } from "./rb-dedup.js";
+import { scanRow, scanPair } from "../test-support/scan-rows";
 
+/**
+ * Pair builder (issue #146 builder 2): a ScanPair whose `other` defaults
+ * to a sibling row with the slightly-different len/size this suite's
+ * original fixtures used (181 s / 900 B) — per-field overrides still win.
+ */
 const candidate = (
   id: string,
   path: string,
   overrides: Partial<ScanPair> = {},
-): ScanPair => ({
-  id,
-  path,
-  title: "Same title",
-  len: 180,
-  size: 1_000,
-  bitrate: 256,
-  basis: "candidate",
-  other: {
-    id: `${id}-other`,
-    path: `${path}.other`,
-    title: "Same title",
-    len: 181,
-    size: 900,
-    bitrate: 256,
-  },
-  ...overrides,
-});
-
-const scanRow = (id: string, bitrate: number, size: number) => ({
-  id,
-  path: `/music/${id}.aiff`,
-  title: "Same title",
-  len: 180,
-  size,
-  bitrate,
-});
+): ScanPair =>
+  scanPair(id, {
+    path,
+    other: scanRow(`${id}-other`, {
+      path: `${path}.other`,
+      len: 181,
+      size: 900,
+    }),
+    ...overrides,
+  });
 
 const scanEdge = (
   first: ReturnType<typeof scanRow>,
@@ -53,14 +42,8 @@ const scanEdge = (
   other: second,
 });
 
-const samePathRow = (id: string) => ({
-  id,
-  path: "/music/shared.aiff",
-  title: "Same title",
-  len: 180,
-  size: 1_000,
-  bitrate: 320,
-});
+const samePathRow = (id: string): ReturnType<typeof scanRow> =>
+  scanRow(id, { path: "/music/shared.aiff", bitrate: 320 });
 
 const samePathEdge = (
   first: ReturnType<typeof samePathRow>,
@@ -140,24 +123,10 @@ describe("rb-dedup fingerprint judgment", () => {
 
   test("transitive duplicate edges collapse the whole component", () => {
     const ab = candidate("a", "/music/a.aiff", {
-      other: {
-        id: "b",
-        path: "/music/b.aiff",
-        title: "Same title",
-        len: 181,
-        size: 900,
-        bitrate: 256,
-      },
+      other: scanRow("b", { path: "/music/b.aiff", len: 181, size: 900 }),
     });
     const bc = candidate("b", "/music/b.aiff", {
-      other: {
-        id: "c",
-        path: "/music/c.aiff",
-        title: "Same title",
-        len: 182,
-        size: 800,
-        bitrate: 256,
-      },
+      other: scanRow("c", { path: "/music/c.aiff", len: 182, size: 800 }),
     });
     const result = buildDupePairs([ab, bc], () => "same-full-fingerprint");
     expect(result.map(({ keepId, loseId }) => [keepId, loseId])).toEqual([
@@ -168,34 +137,13 @@ describe("rb-dedup fingerprint judgment", () => {
 
   test("a three-row duplicate cluster keeps one canonical row and removes both losers", () => {
     const ab = candidate("a", "/music/a.aiff", {
-      other: {
-        id: "b",
-        path: "/music/b.aiff",
-        title: "Same title",
-        len: 181,
-        size: 900,
-        bitrate: 256,
-      },
+      other: scanRow("b", { path: "/music/b.aiff", len: 181, size: 900 }),
     });
     const ac = candidate("a", "/music/a.aiff", {
-      other: {
-        id: "c",
-        path: "/music/c.aiff",
-        title: "Same title",
-        len: 182,
-        size: 800,
-        bitrate: 256,
-      },
+      other: scanRow("c", { path: "/music/c.aiff", len: 182, size: 800 }),
     });
     const bc = candidate("b", "/music/b.aiff", {
-      other: {
-        id: "c",
-        path: "/music/c.aiff",
-        title: "Same title",
-        len: 182,
-        size: 800,
-        bitrate: 256,
-      },
+      other: scanRow("c", { path: "/music/c.aiff", len: 182, size: 800 }),
     });
 
     const result = buildDupePairs([ab, ac, bc], () => "same-fingerprint");
@@ -206,9 +154,9 @@ describe("rb-dedup fingerprint judgment", () => {
   });
 
   test("cluster keeper selection is global and independent of edge order", () => {
-    const a = scanRow("a", 128, 800);
-    const b = scanRow("b", 192, 900);
-    const c = scanRow("c", 320, 1_200);
+    const a = scanRow("a", { bitrate: 128, size: 800 });
+    const b = scanRow("b", { bitrate: 192, size: 900 });
+    const c = scanRow("c", { bitrate: 320, size: 1_200 });
 
     for (const edges of [
       [scanEdge(a, b), scanEdge(a, c), scanEdge(b, c)],
@@ -263,15 +211,10 @@ describe("rb-dedup subprocess boundaries", () => {
 });
 
 const applyPair = candidate("keep", "/mnt/Contents/Artist/keep.aiff", {
-  basis: "candidate",
-  other: {
-    id: "lose",
+  other: scanRow("lose", {
     path: "/mnt/Contents/Artist/lose.aiff",
-    title: "Same title",
-    len: 180,
     size: 900,
-    bitrate: 256,
-  },
+  }),
 });
 
 const commandResult = (stdout: string) => ({
@@ -296,9 +239,7 @@ function applyDeps(
     !Array.isArray(deleteValue.associations)
   ) {
     deleteValue.associations = removedIds.map((loseId) => {
-      const pair = pairs.find(
-        (scanPair) => scanPair.id === loseId || scanPair.other.id === loseId,
-      );
+      const pair = pairs.find((p) => p.id === loseId || p.other.id === loseId);
       return {
         keep_id:
           pair === undefined
@@ -384,14 +325,10 @@ describe("rb-dedup apply safety", () => {
       "/Volumes/flip-master/Contents/Artist/keep.aiff",
       {
         basis: "path-twin",
-        other: {
-          id: "inside-lose",
+        other: scanRow("inside-lose", {
           path: "/mnt/Contents/Artist/lose.aiff",
-          title: "Same title",
-          len: 180,
           size: 900,
-          bitrate: 256,
-        },
+        }),
       },
     );
     let backups = 0;
@@ -430,14 +367,10 @@ describe("rb-dedup apply safety", () => {
   test("casefold path twins retire only the duplicate row and never move shared bytes", async () => {
     const twin = candidate("keep-twin", "/mnt/Contents/Artist/Track.aiff", {
       basis: "path-twin",
-      other: {
-        id: "lose-twin",
+      other: scanRow("lose-twin", {
         path: "/mnt/Contents/artist/TRACK.aiff",
-        title: "Same title",
-        len: 180,
         size: 900,
-        bitrate: 256,
-      },
+      }),
     });
     let renames = 0;
     let receipts = 0;
@@ -703,24 +636,16 @@ describe("rb-dedup apply safety", () => {
 
   test("two same-basename losers receive collision-proof destinations", async () => {
     const first = candidate("keep-a", "/mnt/Contents/Artist A/keep.aiff", {
-      other: {
-        id: "lose-a",
+      other: scanRow("lose-a", {
         path: "/mnt/Contents/Artist A/same.aiff",
-        title: "Same title",
-        len: 180,
         size: 900,
-        bitrate: 256,
-      },
+      }),
     });
     const second = candidate("keep-b", "/mnt/Contents/Artist B/keep.aiff", {
-      other: {
-        id: "lose-b",
+      other: scanRow("lose-b", {
         path: "/mnt/Contents/Artist B/same.aiff",
-        title: "Same title",
-        len: 180,
         size: 900,
-        bitrate: 256,
-      },
+      }),
     });
     const destinations: string[] = [];
     const result = await rbDedup(
@@ -746,14 +671,10 @@ describe("rb-dedup apply safety", () => {
       "keep-rerun",
       join(mount, "Contents", "Artist", "keep.aiff"),
       {
-        other: {
-          id: "lose-rerun",
+        other: scanRow("lose-rerun", {
           path: join(mount, "Contents", "Artist", "same.aiff"),
-          title: "Same title",
-          len: 180,
           size: 900,
-          bitrate: 256,
-        },
+        }),
       },
     );
     const qdir = join(mount, "Quarantine", "rb-dedup-2026-09-14");

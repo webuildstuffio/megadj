@@ -1,15 +1,10 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import {
-  mkdirSync,
-  rmSync,
-  utimesSync,
-  writeFileSync,
-  unlinkSync,
-} from "node:fs";
+import { mkdirSync, rmSync, utimesSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../archive/state";
 import { adopt, adoptFromShelf } from "./adopt";
 import { tempState } from "../../testutil";
+import { writeFakeAudio } from "../../test-support/audio-fixtures";
 
 let dir: string;
 let state: ArchiveState;
@@ -37,8 +32,8 @@ describe("adopt (vanished-file resilience)", () => {
     // guarantee when the file disappears AFTER the walk.
     state.upsertTrackFromPlaylist("v1", 0, "Present Track");
     state.upsertTrackFromPlaylist("v2", 1, "Vanish Track");
-    writeFileSync(join(dir, "Present Track.m4a"), "audio");
-    writeFileSync(join(dir, "Vanish Track.m4a"), "audio");
+    writeFakeAudio(join(dir, "Present Track.m4a"), "audio");
+    writeFakeAudio(join(dir, "Vanish Track.m4a"), "audio");
     unlinkSync(join(dir, "Vanish Track.m4a"));
 
     const logs: string[] = [];
@@ -59,7 +54,7 @@ describe("adopt (vanished-file resilience)", () => {
 
   test("existing files are adopted and marked downloaded", async () => {
     state.upsertTrackFromPlaylist("v3", 0, "Real Track");
-    writeFileSync(join(dir, "Real Track.m4a"), "audio");
+    writeFakeAudio(join(dir, "Real Track.m4a"), "audio");
     await adopt({ state, musicDir: dir, onProgress: () => {} });
 
     const row = state.allTracks().find((t) => t.video_id === "v3");
@@ -98,7 +93,7 @@ describe("adoptFromShelf (--shelf repoint)", () => {
     // shelf copy with a decomposed (NFD) byte encoding of the same name —
     // macOS HFS+/APFS report NFD; the NFC+casefold index must still match.
     const nfdName = "Moved Track.m4a".normalize("NFD");
-    writeFileSync(join(shelfDir, "Contents/Artist/Album", nfdName), "audio");
+    writeFakeAudio(join(shelfDir, "Contents/Artist/Album", nfdName), "audio");
 
     const logs: string[] = [];
     await adoptFromShelf({
@@ -142,7 +137,7 @@ describe("adoptFromShelf (--shelf repoint)", () => {
     });
     s.setKeyRecord({ videoId: "m2", key: "8A", sourcePath: stalePath });
     const shelfFile = join(shelfDir, "Contents", "Cached Track.m4a");
-    writeFileSync(shelfFile, "audio");
+    writeFakeAudio(shelfFile, "audio");
     // Backdate the mtime so the reader's mtime<=analyzed_at freshness check
     // is deterministic (a just-written file can race the analyzed_at stamp).
     const past = new Date(Date.now() - 60_000);
@@ -170,7 +165,7 @@ describe("adoptFromShelf (--shelf repoint)", () => {
     s.upsertTrackFromPlaylist("h1", 0, "Healthy Track");
     s.upsertTrackFromPlaylist("g1", 1, "Ghost Track");
     const localPath = join(d, "Healthy Track.m4a");
-    writeFileSync(localPath, "audio");
+    writeFakeAudio(localPath, "audio");
     s.markDownloaded("h1", {
       title: "Healthy Track",
       artist: null,

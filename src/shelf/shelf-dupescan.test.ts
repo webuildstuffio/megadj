@@ -9,6 +9,7 @@ import {
   parseFpcalcOutput,
 } from "./shelf-dupescan";
 import { moveLoser } from "./dupescan-shared";
+import { ffmpegTone } from "../test-support/audio-fixtures";
 
 /**
  * Regression (Sep 11 mass-collision): the fingerprint parser's char
@@ -46,20 +47,8 @@ describe("fpcalc fingerprint parsing (base64url-safe)", () => {
 
 /** Generate one real 10-second mp3 with ffmpeg (deterministic sine tone). */
 function tone(file: string, freq = 440): void {
-  const r = Bun.spawnSync([
-    "ffmpeg",
-    "-y",
-    "-v",
-    "quiet",
-    "-f",
-    "lavfi",
-    "-i",
-    `sine=frequency=${freq}:duration=10`,
-    "-b:a",
-    "32k",
-    file,
-  ]);
-  if (!r.success) throw new Error("ffmpeg tone failed");
+  // 32k mp3, 10 s — the dupe/fp tiers the suite's assertions count on.
+  ffmpegTone(file, { freq, seconds: 10, codec: "libmp3lame", bitrate: "32k" });
 }
 
 function makeShelf(files: Record<string, "tone" | "tone2">): string {

@@ -3,18 +3,10 @@
 // (isLowq floor rule, dry-run shape) are what can regress silently.
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { $ } from "bun";
 import { afterAll, describe, expect, test } from "bun:test";
 import { ArchiveState } from "../../archive/state";
 import { isLowq, parseFfprobeKbps, replaceFileAtomically } from "./upgrade";
-
-async function runCli(args: string[], env: Record<string, string>) {
-  const proc = await $`bun run ${join(import.meta.dir, "../../cli.ts")} ${args}`
-    .env({ ...process.env, ...env })
-    .quiet()
-    .nothrow();
-  return { code: proc.exitCode, stdout: new TextDecoder().decode(proc.stdout) };
-}
+import { runCli } from "../../test-support/cli-run";
 
 describe("isLowq (the same floor rule as CrateDeck's lowqQueue)", () => {
   test("mp4a/aac below 256", () => {

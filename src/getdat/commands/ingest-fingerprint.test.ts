@@ -1,9 +1,10 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
-import { mkdtempSync, mkdirSync, readdirSync } from "node:fs";
+import { mkdtempSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
+import { ffmpegTone } from "../../../src/test-support/audio-fixtures";
 
 /**
  * Acoustic-fingerprint dedupe (name-blind): the same recording re-encoded
@@ -23,42 +24,17 @@ afterAll(async () => {
 describe("ingest fingerprint dedupe", () => {
   test("same recording as mp3 re-encode quarantines vs the wav original", async () => {
     const dump = join(DB_DIR, "dump");
-    mkdirSync(dump, { recursive: true });
-    const wav = join(dump, "Good Track [Radio Edit].wav");
-    Bun.spawnSync([
-      "ffmpeg",
-      "-y",
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-f",
-      "lavfi",
-      "-i",
-      "sine=frequency=440:duration=65",
-      "-c:a",
-      "pcm_s16le",
-      "-metadata",
-      "title=Good Track",
-      wav,
-    ]);
+    const wav = ffmpegTone(join(dump, "Good Track [Radio Edit].wav"), {
+      title: "Good Track",
+    });
     // Re-encode to mp3: different container, different bytes, different
     // size, different extension — but the SAME decoded recording.
-    Bun.spawnSync([
-      "ffmpeg",
-      "-y",
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-i",
-      wav,
-      "-c:a",
-      "libmp3lame",
-      "-b:a",
-      "320k",
-      "-metadata",
-      "title=Good Track (rip)",
-      join(dump, "good track rip.mp3"),
-    ]);
+    ffmpegTone(join(dump, "good track rip.mp3"), {
+      from: wav,
+      codec: "libmp3lame",
+      bitrate: "320k",
+      title: "Good Track (rip)",
+    });
 
     const state = new ArchiveState(join(DB_DIR, "archive.db"));
     await ingest({

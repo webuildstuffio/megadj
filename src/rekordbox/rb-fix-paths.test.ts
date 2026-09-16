@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { writeFakeAudio } from "../test-support/audio-fixtures";
 import { join } from "node:path";
 import {
   rbFixPaths,
@@ -22,9 +23,9 @@ function makeMount(): string {
   // live files with variant names the ladder must reconcile
   mkdirSync(join(dir, "Contents", "Artist A"), { recursive: true });
   mkdirSync(join(dir, "Contents", "Artist B"), { recursive: true });
-  writeFileSync(join(dir, "Contents", "Artist A", "Song One.aiff"), "x");
-  writeFileSync(join(dir, "Contents", "Artist A", "Song One 2.aiff"), "xx");
-  writeFileSync(join(dir, "Contents", "Artist B", "Old Track.mp3"), "x");
+  writeFakeAudio(join(dir, "Contents", "Artist A", "Song One.aiff"), "x");
+  writeFakeAudio(join(dir, "Contents", "Artist A", "Song One 2.aiff"), "xx");
+  writeFakeAudio(join(dir, "Contents", "Artist B", "Old Track.mp3"), "x");
   return dir;
 }
 

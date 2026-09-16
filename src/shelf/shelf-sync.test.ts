@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { writeFakeAudio } from "../test-support/audio-fixtures";
 import { join } from "node:path";
 import { shelfSync } from "./shelf-sync";
 
@@ -11,8 +12,8 @@ import { shelfSync } from "./shelf-sync";
 function makeArchive(): string {
   const root = mkdtempSync("/tmp/megadj-shelf-src-");
   mkdirSync(join(root, "Artist One", "Album"), { recursive: true });
-  writeFileSync(join(root, "Artist One", "Album", "track one.mp3"), "aaaa");
-  writeFileSync(join(root, "loose.mp3"), "bbbb");
+  writeFakeAudio(join(root, "Artist One", "Album", "track one.mp3"), "aaaa");
+  writeFakeAudio(join(root, "loose.mp3"), "bbbb");
   return root;
 }
 
@@ -90,11 +91,11 @@ describe("shelf-sync", () => {
     // anywhere under Contents/ = already synced.
     const src = mkdtempSync("/tmp/megadj-shelf-batch-");
     mkdirSync(join(src, "2026-09-11 intake"), { recursive: true });
-    writeFileSync(join(src, "2026-09-11 intake", "song.aiff"), "xyz");
+    writeFakeAudio(join(src, "2026-09-11 intake", "song.aiff"), "xyz");
 
     const vol = mkdtempSync("/tmp/megadj-shelf-regroup-");
     mkdirSync(join(vol, "Contents", "The Artist"), { recursive: true });
-    writeFileSync(join(vol, "Contents", "The Artist", "song.aiff"), "xyz");
+    writeFakeAudio(join(vol, "Contents", "The Artist", "song.aiff"), "xyz");
 
     const logs: string[] = [];
     await shelfSync({
@@ -135,7 +136,7 @@ describe("shelf-sync", () => {
   test("preserves a divergent same-name destination instead of overwriting it", async () => {
     const src = mkdtempSync("/tmp/megadj-shelf-divergent-src-");
     mkdirSync(join(src, "Artist"), { recursive: true });
-    writeFileSync(join(src, "Artist", "track.mp3"), "archive version");
+    writeFakeAudio(join(src, "Artist", "track.mp3"), "archive version");
 
     const vol = mkdtempSync("/tmp/megadj-shelf-divergent-vol-");
     mkdirSync(join(vol, "Contents", "Artist"), { recursive: true });

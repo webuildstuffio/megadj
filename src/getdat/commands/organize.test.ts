@@ -1,9 +1,10 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../archive/state";
 import { organize } from "./organize";
 import { tempState } from "../../testutil";
+import { writeFakeAudio } from "../../test-support/audio-fixtures";
 
 let dir: string;
 let musicDir: string;
@@ -21,7 +22,7 @@ afterEach(() => {
 });
 
 function seedDownloaded(videoId: string, title: string, filePath: string) {
-  writeFileSync(filePath, "fake audio");
+  writeFakeAudio(filePath, "fake audio");
   state.upsertTrackFromPlaylist(videoId, 0, title);
   state.markDownloaded(videoId, {
     title,

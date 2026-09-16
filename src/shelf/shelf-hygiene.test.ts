@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { HygieneStore } from "../archive/hygiene/store";
 import { shelfHygiene } from "./shelf-hygiene";
+import { hygieneFinding } from "../test-support/scan-rows";
 
 /** byte-twin fixture: two identical + one unique file, no fpcalc needed
  *  (byte-twin is md5-only — the whole suite runs without chromaprint). */
@@ -193,28 +194,14 @@ describe("shelf-hygiene command", () => {
     await run({ shelfVolume: vol, dbPath: db });
     // seed two acoustic-twin rows with different subcategories
     const store = new HygieneStore(new Database(db));
-    const now = new Date().toISOString();
     const mk = (sub: string, p: string) =>
       store.upsert([
-        {
+        hygieneFinding({
           id: `test-${sub}-${p.length}`,
-          kind: "acoustic-twin",
-          severity: "likely",
-          status: "open",
           paths: [`/V/Contents/A/${p}`, `/V/Contents/A/${p} 2.mp3`],
-          bytes: [4_000_000, 4_010_000],
-          md5s: [null, null],
-          fps: ["fp", "fp"],
           evidence: { subcategory: sub, sizeDeltaBytes: 10_000 },
-          proposedAction: { type: "quarantine-loser" },
           keeperPath: `/V/Contents/A/${p}`,
-          walkToken: "tok",
-          autoSafe: false,
-          createdAt: now,
-          decidedAt: null,
-          appliedAt: null,
-          validation: null,
-        },
+        }),
       ]);
     mk("metadata-diff", "m.mp3");
     mk("quality-diff", "q.mp3");
@@ -236,28 +223,14 @@ describe("shelf-hygiene command", () => {
     const { vol, db } = shelf();
     await run({ shelfVolume: vol, dbPath: db });
     const store = new HygieneStore(new Database(db));
-    const now = new Date().toISOString();
     const mk = (sub: string, name: string) =>
       store.upsert([
-        {
+        hygieneFinding({
           id: `sb-${sub}-${name}`,
-          kind: "acoustic-twin",
-          severity: "likely",
-          status: "open",
           paths: [`/V/Contents/A/${name}`, `/V/Contents/A/${name} 2.mp3`],
-          bytes: [4_000_000, 4_010_000],
-          md5s: [null, null],
-          fps: ["fp", "fp"],
           evidence: { subcategory: sub },
-          proposedAction: { type: "quarantine-loser" },
           keeperPath: `/V/Contents/A/${name}`,
-          walkToken: "tok",
-          autoSafe: false,
-          createdAt: now,
-          decidedAt: null,
-          appliedAt: null,
-          validation: null,
-        },
+        }),
       ]);
     mk("metadata-diff", "a.mp3");
     mk("re-encode", "b.mp3");
@@ -298,30 +271,16 @@ describe("shelf-hygiene command", () => {
   test("bucket confirm: listen-first buckets refuse with zero work", async () => {
     const { vol, db } = shelf();
     await run({ shelfVolume: vol, dbPath: db });
-    const now = Date.now();
     const store0 = new HygieneStore(new Database(db));
     for (const sub of ["quality-diff", "oddball"]) {
       const name = `${sub}.mp3`;
       store0.upsert([
-        {
+        hygieneFinding({
           id: `f-${sub}`,
-          kind: "acoustic-twin",
-          severity: "likely",
-          status: "open",
           paths: [`/V/Contents/A/${name}`, `/V/Contents/A/${name} 2.mp3`],
-          bytes: [4_000_000, 4_010_000],
-          md5s: [null, null],
-          fps: ["fp", "fp"],
           evidence: { subcategory: sub },
-          proposedAction: { type: "quarantine-loser" },
           keeperPath: `/V/Contents/A/${name}`,
-          walkToken: "tok",
-          autoSafe: false,
-          createdAt: new Date(now).toISOString(),
-          decidedAt: null,
-          appliedAt: null,
-          validation: null,
-        },
+        }),
       ]);
     }
     for (const bucket of ["quality-diff", "oddball", "ear-check"]) {

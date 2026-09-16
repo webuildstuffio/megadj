@@ -1,12 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { writeFakeAudio } from "../../test-support/audio-fixtures";
 import { join } from "node:path";
 import { expandZips, pendingZipDeletes } from "./ingest-zips";
 
@@ -27,8 +22,8 @@ describe("zip ingest safety", () => {
     const cd2 = join(source, "CD2");
     mkdirSync(cd1, { recursive: true });
     mkdirSync(cd2, { recursive: true });
-    writeFileSync(join(cd1, "01 - Track.mp3"), Buffer.from("AAAA"));
-    writeFileSync(join(cd2, "01 - Track.mp3"), Buffer.from("BBBB"));
+    writeFakeAudio(join(cd1, "01 - Track.mp3"), Buffer.from("AAAA"));
+    writeFakeAudio(join(cd2, "01 - Track.mp3"), Buffer.from("BBBB"));
     const zip = join(root, "multi-disc.zip");
     await $`ditto -c -k --sequesterRsrc --keepParent ${source} ${zip}`.quiet();
 

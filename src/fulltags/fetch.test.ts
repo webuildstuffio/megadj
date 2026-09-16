@@ -1,8 +1,9 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { auditArchive, fetchAllArgs } from "./fetch";
+import { writeFakeAudio, ffmpegTone } from "../test-support/audio-fixtures";
 
 /**
  * GetDat regression tests for the fetch/audit surface:
@@ -25,9 +26,7 @@ afterEach(() => {
 /** Minimal fake m4a: groundTruth just needs a readable file; fields will
  * read false, which is exactly what we assert on. */
 function fakeTrack(rel: string): void {
-  const p = join(dir, rel);
-  mkdirSync(join(p, ".."), { recursive: true });
-  writeFileSync(p, "not really audio, but exists");
+  writeFakeAudio(join(dir, rel), "not really audio, but exists");
 }
 
 describe("auditArchive folder walk", () => {
@@ -63,21 +62,11 @@ describe("auditArchive folder walk", () => {
     // The real trap: a DAW bounce that is tag-fine but won't LOAD on any
     // booth player. Generate a genuine pcm_f32le WAV — ffprobe must see it.
     const p = join(dir, "daw-bounce.wav");
-    const gen = Bun.spawnSync([
-      "ffmpeg",
-      "-y",
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-f",
-      "lavfi",
-      "-i",
-      "sine=frequency=440:duration=0.1",
-      "-c:a",
-      "pcm_f32le",
-      p,
-    ]);
-    if (gen.exitCode !== 0) return; // no ffmpeg in env — skip, don't fail
+    try {
+      ffmpegTone(p, { seconds: 0.1, codec: "pcm_f32le" });
+    } catch {
+      return; // no ffmpeg in env — skip, don't fail
+    }
     const report = await auditArchive(dir);
     const row = report.rows.find((r) => r.file === p);
     expect(row).toBeDefined();

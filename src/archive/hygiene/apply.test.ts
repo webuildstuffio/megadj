@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { writeFakeAudio } from "../../test-support/audio-fixtures";
 import { join } from "node:path";
 import { applyFinding, quarantineDest, validateFinding } from "./apply";
 import type { CheckCtx, Finding } from "./types";
@@ -12,7 +13,7 @@ function vol(): string {
 function seed(v: string, rel: string, content: string): string {
   const abs = join(v, "Contents", rel);
   mkdirSync(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });
-  writeFileSync(abs, content);
+  writeFakeAudio(abs, content);
   return abs;
 }
 
@@ -78,7 +79,7 @@ describe("applyFinding", () => {
     const v = vol();
     const qDir = join(v, ".hygiene-quarantine");
     mkdirSync(qDir, { recursive: true });
-    writeFileSync(join(qDir, "Artist B · lose.mp3"), "prev");
+    writeFakeAudio(join(qDir, "Artist B · lose.mp3"), "prev");
     const dest = quarantineDest(qDir, join(v, "Contents/Artist B/lose.mp3"));
     expect(dest).toContain("lose (2).mp3");
   });

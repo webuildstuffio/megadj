@@ -1,11 +1,6 @@
 import { describe, expect, test, afterAll } from "bun:test";
-import {
-  mkdtempSync,
-  mkdirSync,
-  writeFileSync,
-  rmSync,
-  readdirSync,
-} from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, readdirSync } from "node:fs";
+import { writeFakeAudio } from "../test-support/audio-fixtures";
 import { join } from "node:path";
 import { boothFix } from "./booth-fix";
 import { setBoothFleet } from "../../fulltags/src/exports";
@@ -22,8 +17,8 @@ mkdirSync(musicDir, { recursive: true });
 // minimal valid file for the ones we expect to pass and letting probeFile
 // report "no audio stream" for the rename-only target (the player-compat
 // row is expected and asserted below).
-writeFileSync(join(musicDir, "bad ;name .aiff"), Buffer.alloc(64));
-writeFileSync(join(musicDir, "track 🔥.aiff"), Buffer.alloc(64));
+writeFakeAudio(join(musicDir, "bad ;name .aiff"), Buffer.alloc(64));
+writeFakeAudio(join(musicDir, "track 🔥.aiff"), Buffer.alloc(64));
 
 afterAll(() => {
   rmSync(tmp, { recursive: true, force: true });

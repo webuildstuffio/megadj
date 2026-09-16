@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { $ } from "bun";
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { runCli, cliEnv } from "../test-support/cli-run";
 
 /**
  * K61 `megadj drop` — the one-shot pipeline. Regression guards:
@@ -11,29 +11,13 @@ import { join } from "node:path";
  * - dry-run never touches the archive DB state
  */
 
-async function runDrop(args: string[], env: Record<string, string>) {
-  const proc =
-    await $`bun run ${join(import.meta.dir, "../cli.ts")} drop ${args}`
-      .env({ ...process.env, ...env })
-      .quiet()
-      .nothrow();
-  return {
-    code: proc.exitCode,
-    stdout: new TextDecoder().decode(proc.stdout),
-    stderr: new TextDecoder().decode(proc.stderr),
-  };
+function runDrop(args: string[], env: Record<string, string>) {
+  return runCli(args, env, ["drop"]);
 }
 
 function freshEnv() {
   const dir = mkdtempSync("/tmp/megadj-drop-test-");
-  return {
-    dir,
-    env: {
-      MEGADJ_DB: join(dir, "archive.db"),
-      MEGADJ_MUSIC_DIR: join(dir, "music"),
-      MEGADJ_COOKIES: "",
-    },
-  };
+  return { dir, env: cliEnv(dir) };
 }
 
 describe("megadj drop (K61 one-shot pipeline)", () => {

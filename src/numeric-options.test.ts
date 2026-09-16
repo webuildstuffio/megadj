@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { $ } from "bun";
-import { join } from "node:path";
 import { mkdtempSync } from "node:fs";
+import { runCli, cliEnv } from "./test-support/cli-run";
 
 /**
  * Regression guard for the numeric-option contract: a non-numeric or
@@ -12,28 +11,9 @@ import { mkdtempSync } from "node:fs";
  * prints the validation error and exits 2 WITHOUT doing the work.
  */
 
-async function runCli(args: string[], env: Record<string, string>) {
-  // process.execPath = the real bun binary — NOT the `bun` name on PATH,
-  // which can be a shell shim that itself chokes on empty-string args.
-  const proc =
-    await $`${process.execPath} run ${join(import.meta.dir, "./cli.ts")} ${args}`
-      .env({ ...process.env, ...env })
-      .quiet()
-      .nothrow();
-  return {
-    code: proc.exitCode,
-    stdout: new TextDecoder().decode(proc.stdout),
-    stderr: new TextDecoder().decode(proc.stderr),
-  };
-}
-
 describe("numeric option validation: invalid input aborts, never runs", () => {
   const dir = mkdtempSync("/tmp/megadj-numopt-test-");
-  const env = {
-    MEGADJ_DB: join(dir, "archive.db"),
-    MEGADJ_MUSIC_DIR: join(dir, "music"),
-    MEGADJ_COOKIES: "",
-  };
+  const env = cliEnv(dir);
 
   for (const bad of ["abc", "-5", "10o", ""]) {
     test(`sync --limit ${JSON.stringify(bad)} refuses to start`, async () => {

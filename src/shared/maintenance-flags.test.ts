@@ -9,11 +9,11 @@
  * (P1: parse errors exit 2 with a clear stderr line, zero work).
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import { $ } from "bun";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildAnlz } from "../../fulltags/src/exports";
+import { runCli } from "../test-support/cli-run";
 
 const TEST_ROOT = mkdtempSync(join(tmpdir(), "megadj-maintenance-test-"));
 const TEST_SPIKE_DIR = join(TEST_ROOT, "spike");
@@ -40,18 +40,12 @@ function fakeMount(): string {
   return mount;
 }
 
-const cli = join(import.meta.dir, "../cli.ts");
-
-async function run(args: string[], extraEnv: Record<string, string> = {}) {
-  return $`bun run ${cli} ${args}`
-    .env({
-      ...process.env,
-      MEGADJ_DB: "/tmp/megadj-maint-nope.db",
-      MEGADJ_SPIKE_DIR: TEST_SPIKE_DIR,
-      ...extraEnv,
-    })
-    .quiet()
-    .nothrow();
+function run(args: string[], extraEnv: Record<string, string> = {}) {
+  return runCli(args, {
+    MEGADJ_DB: "/tmp/megadj-maint-nope.db",
+    MEGADJ_SPIKE_DIR: TEST_SPIKE_DIR,
+    ...extraEnv,
+  });
 }
 
 describe("rb-anlz-spike flag forms (P1)", () => {
@@ -59,33 +53,33 @@ describe("rb-anlz-spike flag forms (P1)", () => {
     const mount = fakeMount();
     const a = await run(["rb-anlz-spike", mount, "snapshot", "--tag", "q1"]);
     const b = await run(["rb-anlz-spike", mount, "snapshot", "--tag=q1"]);
-    expect(a.exitCode).toBe(0);
-    expect(b.exitCode).toBe(0);
+    expect(a.code).toBe(0);
+    expect(b.code).toBe(0);
     // both forms wrote baselines (dir is shared; the two tags differ so
     // assert via the file system rather than stdout)
-    expect(a.stderr.toString()).not.toMatch(/tag.*required/u);
-    expect(b.stderr.toString()).not.toMatch(/tag.*required/u);
+    expect(a.stderr).not.toMatch(/tag.*required/u);
+    expect(b.stderr).not.toMatch(/tag.*required/u);
   });
 
   test("`--tag=q1 snapshot` — mode after flag value still parses (value not eaten)", async () => {
     const mount = fakeMount();
     const r = await run(["rb-anlz-spike", mount, "--tag", "q2", "snapshot"]);
-    expect(r.exitCode).toBe(0);
-    expect(r.stderr.toString()).not.toMatch(/unknown mode/u);
+    expect(r.code).toBe(0);
+    expect(r.stderr).not.toMatch(/unknown mode/u);
   });
 
   test("unknown mode exits 2 with a clear error", async () => {
     const mount = fakeMount();
     const r = await run(["rb-anlz-spike", mount, "snaphot", "--tag=q"]);
-    expect(r.exitCode).toBe(2);
-    expect(r.stderr.toString()).toMatch(/snapshot\|compare/u);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/snapshot\|compare/u);
   });
 
   test("missing --tag exits 2 with zero work", async () => {
     const mount = fakeMount();
     const r = await run(["rb-anlz-spike", mount, "snapshot"]);
-    expect(r.exitCode).toBe(2);
-    expect(r.stderr.toString()).toMatch(/--tag/u);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/--tag/u);
   });
 
   test("--json emits exactly one parseable object (snapshot + compare round-trip)", async () => {
@@ -97,8 +91,8 @@ describe("rb-anlz-spike flag forms (P1)", () => {
       "--tag=j",
       "--json",
     ]);
-    expect(s.exitCode).toBe(0);
-    const snap = JSON.parse(s.stdout.toString().trim()) as {
+    expect(s.code).toBe(0);
+    const snap = JSON.parse(s.stdout.trim()) as {
       ok: boolean;
       tracked: number;
       baselinePath?: string;
@@ -113,8 +107,8 @@ describe("rb-anlz-spike flag forms (P1)", () => {
       "--tag=j",
       "--json",
     ]);
-    expect(c.exitCode).toBe(0);
-    const cmp = JSON.parse(c.stdout.toString().trim()) as { identical: number };
+    expect(c.code).toBe(0);
+    const cmp = JSON.parse(c.stdout.trim()) as { identical: number };
     expect(cmp.identical).toBe(1);
   });
 });
@@ -134,26 +128,22 @@ describe("rb-grid-triage flag forms (P1)", () => {
     const b = await run(["rb-grid-triage", "--limit=20", "--json"], {
       MEGADJ_RB_MASTER: noDb,
     });
-    expect(a.exitCode).toBe(1); // ok:false → exit 1, never a fake pass
-    expect(b.exitCode).toBe(1);
-    const ja = JSON.parse(
-      a.stdout.toString().trim().split("\n").pop() ?? "",
-    ) as {
+    expect(a.code).toBe(1); // ok:false → exit 1, never a fake pass
+    expect(b.code).toBe(1);
+    const ja = JSON.parse(a.stdout.trim().split("\n").pop() ?? "") as {
       total: number;
       error?: string;
     };
     expect(ja.total).toBe(0);
     expect(ja.error).toBeTruthy();
-    expect(a.stderr.toString()).not.toMatch(/--limit/u);
+    expect(a.stderr).not.toMatch(/--limit/u);
   });
 
   test("invalid --limit exits 2 in BOTH forms with a clear error", async () => {
     for (const form of [["--limit", "abc"], ["--limit=abc"], ["--limit="]]) {
       const r = await run(["rb-grid-triage", ...form, "--json"]);
-      expect(r.exitCode).toBe(2);
-      expect(r.stderr.toString()).toMatch(
-        /--limit must be a non-negative number/u,
-      );
+      expect(r.code).toBe(2);
+      expect(r.stderr).toMatch(/--limit must be a non-negative number/u);
     }
   });
 });

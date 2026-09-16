@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../archive/state";
 import { tempState } from "../testutil";
+import { writeFakeAudio } from "../test-support/audio-fixtures";
 
 /**
  * Regression for the Sep 10 2026 "mood analyzes nothing" bug: when
@@ -31,8 +31,10 @@ afterEach(() => {
 });
 
 function addDownloaded(videoId: string): string {
-  const p = join(dir, `)${videoId}.mp3`);
-  writeFileSync(p, "not audio — groundTruth reads no mood stamp from it");
+  const p = writeFakeAudio(
+    join(dir, `)${videoId}.mp3`),
+    "not audio — groundTruth reads no mood stamp from it",
+  );
   state.upsertTrackFromPlaylist(videoId, 1, "t");
   state.markDownloaded(videoId, {
     title: "t",

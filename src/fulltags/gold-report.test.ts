@@ -4,7 +4,6 @@
  * the phrase-bar projection, and the P1 --json contract on the real CLI.
  */
 import { describe, expect, test } from "bun:test";
-import { $ } from "bun";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../archive/state";
@@ -13,6 +12,7 @@ import {
   GOLD_SCHEMA_VERSION,
   type GoldAnnotation,
 } from "../../fulltags/src/exports";
+import { runCli, cliEnv } from "../test-support/cli-run";
 
 /**
  * A valid annotation used to exercise the corrupt/valid loader split in
@@ -82,20 +82,12 @@ describe("goldReport command", () => {
 
 describe("P1: gold-report --json on the real CLI", () => {
   const dir = mkdtempSync("/tmp/megadj-goldcli-");
-  const env = {
-    MEGADJ_DB: join(dir, "archive.db"),
-    MEGADJ_MUSIC_DIR: join(dir, "music"),
-    MEGADJ_COOKIES: "",
-  };
+  const env = cliEnv(dir);
 
   test("one parseable summary object; exit 1 with no annotations", async () => {
-    const proc =
-      await $`bun run ${join(import.meta.dir, "../cli.ts")} gold-report --json`
-        .env({ ...process.env, ...env })
-        .quiet()
-        .nothrow();
-    expect(proc.exitCode).toBe(1); // empty set is a visible failure
-    const lines = new TextDecoder().decode(proc.stdout).trim().split("\n");
+    const { code, stdout } = await runCli(["gold-report", "--json"], env);
+    expect(code).toBe(1); // empty set is a visible failure
+    const lines = stdout.trim().split("\n");
     const parsed = JSON.parse(lines[lines.length - 1] ?? "") as Record<
       string,
       unknown

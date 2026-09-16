@@ -11,6 +11,7 @@ import {
 import { join } from "node:path";
 import { findTwinPairs, shelfDedupe } from "./shelf-dedupe";
 import { applyPairs } from "./shelf-dedupe-verdict";
+import { dedupePair } from "../test-support/scan-rows";
 import type { DedupePair } from "./shelf-dedupe-types";
 
 function makeShelf(
@@ -33,16 +34,14 @@ function makeShelf(
 
 function upgradePair(shelf: string, stem: string): DedupePair {
   const artist = join(shelf, "Contents", "Artist");
-  return {
+  return dedupePair({
     original: join(artist, `${stem}.mp3`),
     twin: join(artist, `${stem} [TESTDRIVE].mp3`),
     bytesOriginal: 3,
     bytesTwin: 4,
-    method: "fingerprint",
-    verdict: "keep-twin",
     reason: "test quality upgrade",
     loser: join(artist, `${stem}.mp3`),
-  };
+  });
 }
 
 describe("findTwinPairs", () => {

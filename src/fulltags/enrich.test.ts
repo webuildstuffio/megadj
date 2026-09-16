@@ -1,9 +1,9 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../archive/state";
 import { enrich } from "./enrich";
 import { tempState } from "../testutil";
+import { writeFakeAudio } from "../test-support/audio-fixtures";
 
 let dir: string;
 let state: ArchiveState;
@@ -18,8 +18,7 @@ afterEach(() => {
 });
 
 function seedDownloaded(videoId: string, title: string, artist: string) {
-  const file = join(dir, `${title}.m4a`);
-  writeFileSync(file, "fake audio");
+  const file = writeFakeAudio(join(dir, `${title}.m4a`), "fake audio");
   state.upsertTrackFromPlaylist(videoId, 0, title);
   state.markDownloaded(videoId, {
     title,

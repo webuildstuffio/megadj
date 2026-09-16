@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { rbUnmatched, printRbUnmatchedReport, __test } from "./rb-unmatched";
+import { writeFakeAudio } from "../test-support/audio-fixtures";
 
 /**
  * rb-unmatched unit tests. The pyrekordbox leg is NOT exercised here (it
@@ -18,12 +19,12 @@ function makeMount(): string {
   mkdirSync(join(dir, "Contents", "Artist A"), { recursive: true });
   mkdirSync(join(dir, "Contents", "UnknownArtist"), { recursive: true });
   // matched: a row points exactly here
-  writeFileSync(join(dir, "Contents", "Artist A", "Song One.aiff"), "x");
+  writeFakeAudio(join(dir, "Contents", "Artist A", "Song One.aiff"), "x");
   // twin-named: no row points here, but a row carries this basename
-  writeFileSync(join(dir, "Contents", "Artist A", "Moved Copy.mp3"), "x");
+  writeFakeAudio(join(dir, "Contents", "Artist A", "Moved Copy.mp3"), "x");
   // unknown: no row, no basename anywhere
-  writeFileSync(join(dir, "Contents", "UnknownArtist", "01 Intro.mp3"), "x");
-  writeFileSync(join(dir, "Contents", "UnknownArtist", "02 Backlog.mp3"), "x");
+  writeFakeAudio(join(dir, "Contents", "UnknownArtist", "01 Intro.mp3"), "x");
+  writeFakeAudio(join(dir, "Contents", "UnknownArtist", "02 Backlog.mp3"), "x");
   return dir;
 }
 
