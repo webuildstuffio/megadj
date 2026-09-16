@@ -1,6 +1,6 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { tempState } from "./testutil";
-import { ArchiveState } from "./archive/state";
+import type { ArchiveState } from "./archive/state";
 
 let dir: string;
 let state: ArchiveState;

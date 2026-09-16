@@ -41,11 +41,15 @@ export class ProgressBar {
   private lastRender = 0;
   private lastPct = -1;
 
-  constructor(
-    private readonly total: number,
-    private readonly label: string,
-    private readonly unit = "tracks",
-  ) {}
+  private readonly total: number;
+  private readonly label: string;
+  private readonly unit: string;
+
+  constructor(total: number, label: string, unit = "tracks") {
+    this.total = total;
+    this.label = label;
+    this.unit = unit;
+  }
 
   update(n = 1, bytes = 0): void {
     this.done += n;

@@ -14,8 +14,10 @@ import {
   INTAKE_COUNTER_KEYS,
   type IntakeCounterKey,
 } from "../cratedeck/shared/types";
-import type { IngestCounters } from "./getdat/commands/ingest-register";
-import { counterSummary } from "./getdat/commands/ingest-register";
+import {
+  counterSummary,
+  type IngestCounters,
+} from "./getdat/commands/ingest-register";
 
 /** Every counter the producer can emit, keyed by the SSOT. TypeScript
  *  enforces the shape statically (counterSummary's mapped type); this

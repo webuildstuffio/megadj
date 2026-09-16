@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
-import { ArchiveState } from "./archive/state";
+import type { ArchiveState } from "./archive/state";
 import { phraseCues } from "./fulltags/cues";
 import { tempState } from "./testutil";
 

@@ -12,14 +12,18 @@
  * their own emit idioms (capture harnesses stringify by hand).
  */
 import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, type Stats } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOTS = ["src", "fulltags/src"] as const;
 const SKIP_DIRS = new Set(["node_modules", ".git", "test", "test-support"]);
+/** tools/ ships operator CLIs with the same --json contract; scan them too
+ *  but skip the intentional string fixtures (loc-budget writes raw text). */
+const EXTRA_ROOTS = ["tools"] as const;
+const EXTRA_SKIP = new Set(["legacy", "__pycache__"]);
 
 function* tsFiles(dir: string): Generator<string> {
-  let stats: import("node:fs").Stats;
+  let stats: Stats;
   try {
     stats = statSync(dir);
   } catch {
@@ -49,8 +53,11 @@ const RAW_EMIT = /console\.log\(\s*JSON\.stringify/u;
 describe("#159: one awaited JSON emit path (writeJson)", () => {
   test("no production file raw-prints JSON.stringify to stdout", () => {
     const offenders: string[] = [];
-    for (const root of ROOTS) {
+    const roots = [...ROOTS, ...EXTRA_ROOTS];
+    const skip = new Set([...SKIP_DIRS, ...EXTRA_SKIP]);
+    for (const root of roots) {
       for (const file of tsFiles(root)) {
+        if (file.split("/").some((segment) => skip.has(segment))) continue;
         const code = readFileSync(file, "utf8");
         if (RAW_EMIT.test(code)) offenders.push(relative(".", file));
       }
@@ -67,7 +74,7 @@ describe("#159: one awaited JSON emit path (writeJson)", () => {
     // "simplification" of the seam can't silently drop one.
     const { writeJson } = await import("./shared/cli-output");
     const orig = console.log;
-    let captured: string[] = [];
+    const captured: string[] = [];
     console.log = (s: string) => captured.push(s);
     try {
       await writeJson({ probe: true });
