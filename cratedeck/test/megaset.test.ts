@@ -544,7 +544,11 @@ describe("buildMegaset", () => {
         arousal: 5 + (i % 4) * 0.8,
       }),
     );
-    const r = buildMegaset({ candidates, preset: SET_PRESETS.peak, minutes: 60 });
+    const r = buildMegaset({
+      candidates,
+      preset: SET_PRESETS.peak,
+      minutes: 60,
+    });
     expect(r.search).toBe("greedy");
     expect(r.steps.length).toBeGreaterThan(10);
   });

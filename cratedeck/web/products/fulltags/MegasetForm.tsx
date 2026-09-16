@@ -3,7 +3,7 @@
 // row, the sequencer row + advanced drawer (pool cap + scoring evidence).
 //
 // Every limit/number on screen is DERIVED from the shared registry
-// (cratedeck/shared/setbuild.ts) — the same table the CLI help, the MCP
+// (cratedeck/shared/megaset.ts) — the same table the CLI help, the MCP
 // schema and the engine quote. Help text is written for a DJ who has
 // never read the docs: what it does, when to touch it, what happens if
 // they don't.

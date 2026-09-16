@@ -227,10 +227,6 @@ export const ANALYSIS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   mood,
   similar,
   megaset,
-  /** Deprecated alias: the pre-rename verb (`megadj setbuild` →
-   *  `megadj megaset`); docs/roadmap promised the old muscle memory
-   *  keeps working. Same handler, zero drift. */
-  setbuild: megaset,
   genre,
   cues,
   "gold-report": goldReport,

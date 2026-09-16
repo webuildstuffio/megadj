@@ -1,4 +1,4 @@
-/* setbuild.css — the Set builder's styles (#/set, the fourth product),
+/* megaset.css — the MegaSet builder's styles (#/megaset, the fourth product),
  * split out of products.css (file-length guard). Loaded right after
  * products.css so the cascade order is unchanged. The Set canvas wears
  * the --set amber (tokens.css) — never CrateDeck's mint: chrome accents,
@@ -14,7 +14,7 @@
   font-size: 13.5px;
   line-height: 1.6;
 }
-.setbuild > h3 {
+.megaset > h3 {
   color: var(--text);
   font-size: 16px;
 }

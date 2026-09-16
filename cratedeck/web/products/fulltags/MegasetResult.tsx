@@ -70,7 +70,7 @@ export function MegasetResult(props: { data: MegasetPayload }) {
         </p>
       </div>
 
-      <dl class="megaset-result-metrics" aria-label="Set draft summary">
+      <dl class="megaset-result-metrics" aria-label="MegaSet draft summary">
         <div>
           <dt>Duration</dt>
           <dd>

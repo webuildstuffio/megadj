@@ -53,7 +53,6 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                --refold: label canonicalization proposals (with --eval: umbrella arbitration A/B vs baseline);
                                                --flag: demote-and-flag pass — labels contradicting unanimous kNN consensus get genre_flag='disputed' (not rewritten, excluded from seeding)
   megadj megaset [--preset warmup|peak|afterhours] [--minutes N] [--opener <video_id>]
-  megadj setbuild …                    # deprecated alias of megaset
                  [--limit N] [--search greedy|beam] [--json]
                                                 set-builder: propose an ordered mix chain; --search forces the
                                                 sequencer (A/B compare), omitted = pool size decides (deep search under 250)

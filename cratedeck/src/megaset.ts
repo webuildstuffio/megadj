@@ -116,7 +116,10 @@ export function bpmScore(a: number, b: number): number {
   const d = Math.abs(a - b) / Math.max(a, b);
   if (d <= MEGASET_TEMPO_PERFECT) return 1;
   if (d >= MEGASET_TEMPO_WINDOW) return 0;
-  return 1 - (d - MEGASET_TEMPO_PERFECT) / (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT);
+  return (
+    1 -
+    (d - MEGASET_TEMPO_PERFECT) / (MEGASET_TEMPO_WINDOW - MEGASET_TEMPO_PERFECT)
+  );
 }
 
 /** A BPM the engine can actually mix with: present, finite and positive.

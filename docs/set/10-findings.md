@@ -1,7 +1,7 @@
-# Set / FullTags — Consolidated Findings, Learnings & Next Actions
+# MegaSet / FullTags — Consolidated Findings, Learnings & Next Actions
 
 **Status:** ✅ CURRENT — the single entry point for everything measured across
-the Set doc set (2026-09-13/14). Deep dives live in the linked docs; this
+the MegaSet doc set (2026-09-13/14). Deep dives live in the linked docs; this
 page holds the distilled verdicts, the critical-bug list, the prioritized
 next steps, and the glossary (§5).
 
@@ -9,19 +9,19 @@ next steps, and the glossary (§5).
 
 ## 0. Read me first (what this product is, in one paragraph)
 
-Set turns megadj's already-measured library data into an **ordered,
+MegaSet turns megadj's already-measured library data into an **ordered,
 playable mix proposal**: it pools the whole archive, drops dead/duplicate
 files, then chains tracks that agree on tempo (±6%), musical key (Camelot
 wheel), and energy (a preset's arousal arc). It is **propose-only** — it
 never writes tags, playlists, or the rekordbox DB without the gated
 `rb-playlist` write-off (rekordbox closed → dated backups → twin write →
-verify). The same engine serves four surfaces: the `megadj setbuild` CLI,
+verify). The same engine serves four surfaces: the `megadj megaset` CLI,
 the HTTP API (+ M3U8 export), the MCP tool for agents, and the FullTags
 web panel. Everything below is measured evidence for the design choices.
 
 ## 1. What we now know (every finding, one line each)
 
-### Set-builder engine ([04-sequencing-benchmarks](04-sequencing-benchmarks.md))
+### MegaSet-builder engine ([04-sequencing-benchmarks](04-sequencing-benchmarks.md))
 
 | #   | Finding                                      | Number                                                                                                          |
 | --- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -76,38 +76,38 @@ web panel. Everything below is measured evidence for the design choices.
 
 ### External research review (Sep 14 — [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md))
 
-| #   | Finding                                                                                              | Number / source                                                                                                            |
-| --- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| R1  | **0.444 is not embarrassing — we compared to the wrong benchmark**                                   | best published EDM-subgenre: **60.6%** @ 30 classes, 75K songs (arXiv:2110.08862); realistic target **0.65–0.75**, not 0.9 |
-| R2  | **Random-noise LOO ceiling ≈ 0.58** (p≈0.68 × 0.85) — effnet is at ~77% of it                        | ~14 pts of headroom in this basin; systematic (non-random) label errors ⇒ no ceiling — diagnostic 0.1 decides              |
+| #   | Finding                                                                                              | Number / source                                                                                                                                                   |
+| --- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | **0.444 is not embarrassing — we compared to the wrong benchmark**                                   | best published EDM-subgenre: **60.6%** @ 30 classes, 75K songs (arXiv:2110.08862); realistic target **0.65–0.75**, not 0.9                                        |
+| R2  | **Random-noise LOO ceiling ≈ 0.58** (p≈0.68 × 0.85) — effnet is at ~77% of it                        | ~14 pts of headroom in this basin; systematic (non-random) label errors ⇒ no ceiling — diagnostic 0.1 decides                                                     |
 | R3  | **Frozen kNN is the weakest readout**; the literature probes linear heads on frozen features         | comparable towers hit 82–88% on GTZAN with a probe; expected +12–20 pts on genre — **MEASURED OPPOSITE Sep 15: probe 51.5% vs kNN 62.6% — kNN stays (tier-0 §4)** |
-| R4  | **Artist leakage unmeasured in our LOO** (effnet = Discogs-metadata tower, likeliest to fingerprint) | Sturm "horse" critique; >15% same-artist top-5 ⇒ rerun artist-disjoint — **MEASURED ABSENT Sep 15: 4.2%, Δ −0.8**          |
-| R5  | **Hubness/anisotropy never corrected** (no mean-centre/whiten/CSLS)                                  | fix ≈ 10 lines; expected +3–8 pt coherence — **hub tail CONFIRMED Sep 15; whitened space shipped flag-gated**              |
-| R6  | **Fine-tuning is answered: frozen wins**                                                             | MuQ-Eval A1 (frozen) beats LoRA and full-FT (12 GB, didn't win); naive MERT full-FT examples are garbage                   |
-| R7  | **The projection-head recipe is published**                                                          | TuneJury: 2.8M MLP over frozen towers, pairwise-logistic, 17.5K prefs                                                      |
-| R8  | **Stems: +3.6 pt on MuQ, but CLAP got worse** — effnet is CLAP-side                                  | 86.8→90.4% (arXiv:2601.19109); gate any Demucs work behind a 200-track probe                                               |
-| R9  | **MLX is a detour**: head training is an 18 MB CPU job; fine-tune = rent a GPU-hour                  | PyTorch-MPS beats MLX at training (arXiv:2501.14925)                                                                       |
-| R10 | **Licences: everything strong is NC**; only CLAP (CC0)/VGGish (Apache) are clean, both weak          | flag for any future CrateDeck monetization decision                                                                        |
+| R4  | **Artist leakage unmeasured in our LOO** (effnet = Discogs-metadata tower, likeliest to fingerprint) | Sturm "horse" critique; >15% same-artist top-5 ⇒ rerun artist-disjoint — **MEASURED ABSENT Sep 15: 4.2%, Δ −0.8**                                                 |
+| R5  | **Hubness/anisotropy never corrected** (no mean-centre/whiten/CSLS)                                  | fix ≈ 10 lines; expected +3–8 pt coherence — **hub tail CONFIRMED Sep 15; whitened space shipped flag-gated**                                                     |
+| R6  | **Fine-tuning is answered: frozen wins**                                                             | MuQ-Eval A1 (frozen) beats LoRA and full-FT (12 GB, didn't win); naive MERT full-FT examples are garbage                                                          |
+| R7  | **The projection-head recipe is published**                                                          | TuneJury: 2.8M MLP over frozen towers, pairwise-logistic, 17.5K prefs                                                                                             |
+| R8  | **Stems: +3.6 pt on MuQ, but CLAP got worse** — effnet is CLAP-side                                  | 86.8→90.4% (arXiv:2601.19109); gate any Demucs work behind a 200-track probe                                                                                      |
+| R9  | **MLX is a detour**: head training is an 18 MB CPU job; fine-tune = rent a GPU-hour                  | PyTorch-MPS beats MLX at training (arXiv:2501.14925)                                                                                                              |
+| R10 | **Licences: everything strong is NC**; only CLAP (CC0)/VGGish (Apache) are clean, both weak          | flag for any future CrateDeck monetization decision                                                                                                               |
 
 ### Sequencing-adjacent (08/09 plans)
 
-| #   | Finding                                                                     |
-| --- | --------------------------------------------------------------------------- |
-| P1  | Full surface parity (CLI/MCP/web) + freshness payloads shipped for setbuild |
-| P2  | `rb-playlist` writes twinned rows through one seam, dry-run default         |
-| P3  | ~~`setbuild → megaset` identifier migration~~ **SUPERSEDED 2026-09-15** — product named Set (commit `0aa95aa`); verb `megadj setbuild` stays (a command, not a brand). No rename ships. |
+| #   | Finding                                                                                                                                                                                                                                  |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1  | Full surface parity (CLI/MCP/web) + freshness payloads shipped for megaset                                                                                                                                                               |
+| P2  | `rb-playlist` writes twinned rows through one seam, dry-run default                                                                                                                                                                      |
+| P3  | `setbuild → megaset` identifier migration **EXECUTED 2026-09-15** (evening) — the product is **MegaSet**; verb `megadj megaset`, route `/api/archive/megaset`, tool `megaset_propose`, `Megaset*` identifiers throughout. No alias kept. |
 
 ## 2. Critical bugs to fix (all known, none blocking today)
 
-| #   | Bug                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Impact                                                                                     | Where                                                       |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| B1  | ~~**`dance`→edm is a least-wrong mapping**~~ **FIXED Sep 15** — the refold's umbrella arbitration landed exactly as prescribed: scoring-family arbitration for plain `edm`/`Dance`/`Electronic` + umbrella-split canonicalizations, measured 61.7% → 69.2% gated LOO (+7.4, inside the predicted +6–12 band); the `dance`-family mapping and plain-`edm` arbitration both went through the head+kNN dispute pass. Hard-dance/eurodance/nightcore stayed in `edm`; ALL Tier-1 sub-genre labels (hardtekk etc.) kept. | RESOLVED: +7.4 pts realized | refold dispute pass (§5b.3.1) — **done**    |
-| B2  | **`melodic house & techno` → house** (regex order)                                                                                                                                                                                                                                                                                                                                                                                                                                               | soft: melodic-techno tracks vote house                                                     | family-map ordering; needs head-verified rule before change |
-| B3  | **Rekordbox dedup must remain fingerprint-proven**                                                                                                                                                                                                                                                                                                                                                                                                                                               | name-only matching can quarantine distinct recordings                                      | shipped guardrails live in `megadj rb-dedup` tests          |
-| B4  | 206 unlabeled tracks (203 embedded)                                                                                                                                                                                                                                                                                                                                                                                                                                                              | coverage 94.4→99.9% available                                                              | `genre --apply` inference exists                            |
-| B5  | ~~389 slash-soup multi-genre rows unrefolded~~ **HEALED Sep 15** — the refold's multi-label split ranked secondaries on these rows (specific-outranks-umbrella) | resolved: Tier-1 display cleaned | refold pipeline step 1 — **done**                           |
-| B6  | ~~`genre --eval` harness not yet a command~~ **SHIPPED 2026-09-14** — `megadj genre --eval` runs the LOO harness over the live DB; reproduces the v3 baseline exactly (n=2,982, gated 62.6%, refusal 19.8%)                                                                                                                                                                                                                                                                                      | hygiene regression gate now standing                                                       | §5b.3 step 4 — done                                         |
-| B7  | `hardtekk` family vote n=9 — fragile regex from tiny sample                                                                                                                                                                                                                                                                                                                                                                                                                                      | soft: misvotes possible                                                                    | revisit with a bigger population — refold shipped; pop unchanged                         |
+| #   | Bug                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Impact                                                | Where                                                            |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------- |
+| B1  | ~~**`dance`→edm is a least-wrong mapping**~~ **FIXED Sep 15** — the refold's umbrella arbitration landed exactly as prescribed: scoring-family arbitration for plain `edm`/`Dance`/`Electronic` + umbrella-split canonicalizations, measured 61.7% → 69.2% gated LOO (+7.4, inside the predicted +6–12 band); the `dance`-family mapping and plain-`edm` arbitration both went through the head+kNN dispute pass. Hard-dance/eurodance/nightcore stayed in `edm`; ALL Tier-1 sub-genre labels (hardtekk etc.) kept. | RESOLVED: +7.4 pts realized                           | refold dispute pass (§5b.3.1) — **done**                         |
+| B2  | **`melodic house & techno` → house** (regex order)                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | soft: melodic-techno tracks vote house                | family-map ordering; needs head-verified rule before change      |
+| B3  | **Rekordbox dedup must remain fingerprint-proven**                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | name-only matching can quarantine distinct recordings | shipped guardrails live in `megadj rb-dedup` tests               |
+| B4  | 206 unlabeled tracks (203 embedded)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | coverage 94.4→99.9% available                         | `genre --apply` inference exists                                 |
+| B5  | ~~389 slash-soup multi-genre rows unrefolded~~ **HEALED Sep 15** — the refold's multi-label split ranked secondaries on these rows (specific-outranks-umbrella)                                                                                                                                                                                                                                                                                                                                                     | resolved: Tier-1 display cleaned                      | refold pipeline step 1 — **done**                                |
+| B6  | ~~`genre --eval` harness not yet a command~~ **SHIPPED 2026-09-14** — `megadj genre --eval` runs the LOO harness over the live DB; reproduces the v3 baseline exactly (n=2,982, gated 62.6%, refusal 19.8%)                                                                                                                                                                                                                                                                                                         | hygiene regression gate now standing                  | §5b.3 step 4 — done                                              |
+| B7  | `hardtekk` family vote n=9 — fragile regex from tiny sample                                                                                                                                                                                                                                                                                                                                                                                                                                                         | soft: misvotes possible                               | revisit with a bigger population — refold shipped; pop unchanged |
 
 ## 3. Next 3–5 things (ordered, with why)
 
@@ -146,18 +146,18 @@ lost to kNN (item 3 below), so the readout thread is closed.**
    coverage honestly (COALESCE never clobbers).
 5. **Ranked secondaries via the Discogs-400 head** (§5b.2 + 07 §2, T4). _Why:_
    minutes of compute on cached embeddings buys per-track ranked styles for
-   Set's "deep end of the family" pools and the B6 family-union fix — the
+   MegaSet's "deep end of the family" pools and the B6 family-union fix — the
    single biggest quality-per-hour item left.
 6. **Multi-source genre vote ladder + Bandcamp arm + transition-window
    similarity** (genre-audit §5b.3.6–7) — the user-directed additions;
    queued right behind the refold/disputed pass they extend.
 7. ~~**Beam-search-under-250 in the set builder**~~ **SHIPPED 2026-09-14**
    (04, E7): `SET_BEAM_POOL_MAX=250`/`SET_BEAM_WIDTH=8` in
-   shared/setbuild.ts; automatic pick, `search` reported on the wire
+   shared/megaset.ts; automatic pick, `search` reported on the wire
    (HTTP/CLI/MCP/UI), `?search=` forces either strategy for A/B.
    Regression-tested: greedy stranded at 2 where beam chains 7+ on the E7
    fixture.
-8. **Execute the `setbuild → set` migration** (09). _Why:_ pure rename,
+8. **Execute the `setbuild → megaset` migration** (09) — ✅ done 2026-09-15. _Why:_ pure rename,
    fully planned, do it once the worktree is quiet so docs, code, and skill
    stop living under two names.
 
@@ -172,20 +172,20 @@ engines; cloud anything.
 
 ## 4. Doc map (what lives where)
 
-| Doc                                                                           | Role                                                                                           | State     |
-| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------- |
-| [01-prd](01-prd.md)                                                           | Product brief, kill criteria, F1–F7                                                            | current   |
-| [02-architecture](02-architecture.md)                                         | Engine shape, variable inventory (20 set + 24 song vars)                                       | current   |
-| [03-competitive-analysis](03-competitive-analysis.md)                         | 30 comparators + re-ranked roadmap (plan of record)                                            | current   |
-| [04-sequencing-benchmarks](04-sequencing-benchmarks.md)                       | E1–E8 measured engine claims                                                                   | current   |
-| [genre-audit](../fulltags/genre-audit.md) (was 05)                            | Genre policy + v3 statistical revalidation (FullTags doc)                                      | current   |
-| [embedding-models](../fulltags/embedding-models.md) (was 06)                  | Tower benchmark, fusion sweep, MERT verdict (FullTags doc)                                     | current   |
-| [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07)      | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc)                       | current   |
-| [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md) | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot  |
-| [08-audit-and-plan](08-audit-and-plan.md)                                     | Implementation audit + per-item sketches (reference)                                           | reference |
-| [09-migration-plan](09-migration-plan.md)                                     | `setbuild → megaset` atomic rename plan                                                        | superseded |
-| [tier0-diagnostics-2026-09-15](../fulltags/tier0-diagnostics-2026-09-15.md)   | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current   |
-| [10-findings](10-findings.md)                                                 | **this page** — distilled verdicts + next actions                                              | current   |
+| Doc                                                                           | Role                                                                                           | State                  |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------- |
+| [01-prd](01-prd.md)                                                           | Product brief, kill criteria, F1–F7                                                            | current                |
+| [02-architecture](02-architecture.md)                                         | Engine shape, variable inventory (20 set + 24 song vars)                                       | current                |
+| [03-competitive-analysis](03-competitive-analysis.md)                         | 30 comparators + re-ranked roadmap (plan of record)                                            | current                |
+| [04-sequencing-benchmarks](04-sequencing-benchmarks.md)                       | E1–E8 measured engine claims                                                                   | current                |
+| [genre-audit](../fulltags/genre-audit.md) (was 05)                            | Genre policy + v3 statistical revalidation (FullTags doc)                                      | current                |
+| [embedding-models](../fulltags/embedding-models.md) (was 06)                  | Tower benchmark, fusion sweep, MERT verdict (FullTags doc)                                     | current                |
+| [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07)      | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc)                       | current                |
+| [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md) | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot               |
+| [08-audit-and-plan](08-audit-and-plan.md)                                     | Implementation audit + per-item sketches (reference)                                           | reference              |
+| [09-migration-plan](09-migration-plan.md)                                     | `setbuild → megaset` atomic rename plan                                                        | ✅ executed 2026-09-15 |
+| [tier0-diagnostics-2026-09-15](../fulltags/tier0-diagnostics-2026-09-15.md)   | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current                |
+| [10-findings](10-findings.md)                                                 | **this page** — distilled verdicts + next actions                                              | current                |
 
 ---
 
@@ -197,7 +197,7 @@ engines; cloud anything.
 ([genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md)),
 `M#` = embedding-model finding
 ([embedding-models](../fulltags/embedding-models.md)) — these three live in
-`docs/fulltags/` (FullTags owns the analysis stack; Set consumes it) —
+`docs/fulltags/` (FullTags owns the analysis stack; MegaSet consumes it) —
 _also_ M66-style numbers are idea-IDs
 from `docs/ideas.md` (M66 = the original set-builder idea row), `S#` = set
 variable (02 §2a), `T#` in 02 = song/track variable (02 §2b, separate
@@ -212,7 +212,7 @@ numbering from 07's T#), `B#` = bug/plan items (08/audit Phase A–D),
 | BPM                           | Beats per minute — the tempo measurement from the beats ledger. The ±6% "tempo gate" means a transition's tempo distance must stay inside ±6% (1.0 score within ±2%, linear to 0 at ±6%).                                                                                                                                                                                                         |
 | Camelot / TKEY                | Two names for the same key system. **Camelot**: the Open-Key wheel notation where each key is `1–12` + `A` (minor) / `B` (major) — e.g. `8A`. **TKEY**: the tag/file-side key string we parse into Camelot (`shared/camelot.ts` is the single parser). Compatible "moves": same number ±1 same letter (1.0), the diagonal (0.9), or the relative major/minor "mood lift" (1.0); a clash scores 0. |
 | Arousal / valence / dance     | The three mood-ledger axes from the ONNX mood heads. Arousal = energy/intensity (1–9); valence = positivity (1–9); dance = danceability (0–1). Measured surprise: valence is nearly flat in this library (stdev 0.12) so it was demoted; `aggressive`/`happy` heads have real spread and are the promoted axes.                                                                                   |
-| Energy arc / preset           | The target arousal trajectory a set should follow. Three shipped presets: **warmup** (rises gently), **peak** (climbs to maximum), **afterhours** (drifts down). Registry: `SET_PRESET_DEFS` in `shared/setbuild.ts`.                                                                                                                                                                             |
+| Energy arc / preset           | The target arousal trajectory a set should follow. Three shipped presets: **warmup** (rises gently), **peak** (climbs to maximum), **afterhours** (drifts down). Registry: `MEGASET_PRESET_DEFS` in `shared/megaset.ts`.                                                                                                                                                                          |
 | Hot cue / memory cue          | Rekordbox cue types. Hot cues (A–H) are pad-triggered performance points; memory cues are plain markers. DB rule: `djmdCue.Kind = 1` hot, `0` memory (pads only read `Kind=1`).                                                                                                                                                                                                                   |
 | 8-bar phrase / mixout / mixIn | Phrases = structural boundaries every 8 bars (cue ledger rows). Mixout = where the playing track hands over (first cue past the intro); mixIn = where the next track's usable audio starts. Phase D's handoff layer plans these explicitly.                                                                                                                                                       |
 
@@ -250,14 +250,14 @@ numbering from 07's T#), `B#` = bug/plan items (08/audit Phase A–D),
 
 | Term                                   | Meaning                                                                                                                                                                                                                                                  |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| megadj / FullTags / GetDat / CrateDeck | The four products. **GetDat** ingests (YouTube Music, drops, scored intake). **FullTags** enriches (beats/mood/cues/key/embeddings/genre ledgers + writers). **Set** proposes sets. **CrateDeck** stages and verifies drives (deckctl, web UI, MCP). |
+| megadj / FullTags / GetDat / CrateDeck | The four products. **GetDat** ingests (YouTube Music, drops, scored intake). **FullTags** enriches (beats/mood/cues/key/embeddings/genre ledgers + writers). **MegaSet** proposes sets. **CrateDeck** stages and verifies drives (deckctl, web UI, MCP). |
 | archive.db / master.db                 | The two databases. `archive.db` = megadj's local pipeline ledger (analysis results, caches) — never a collection copy. `master.db` = the SHELF1 rekordbox collection DB (the SSOT for the collection); always gate writes on rekordbox being closed.     |
 | RB / rekordbox mirror                  | "RB" = rekordbox. The mirror = read-only rows extracted from the shelf master DB (BPM×100, KeyName) used when the beats/key ledgers lack a track.                                                                                                        |
 | MCP                                    | Model Context Protocol — how agents (Claude etc.) call tools like `archive_set_build`.                                                                                                                                                                   |
-| CLI / HTTP / web surfaces              | The three other ways to drive Set: `megadj setbuild`, `GET /api/archive/setbuild` (+`?format=m3u8`), and the FullTags web panel. Parity is test-pinned in `docs/surface-parity.md`.                                                                  |
+| CLI / HTTP / web surfaces              | The three other ways to drive MegaSet: `megadj megaset`, `GET /api/archive/megaset` (+`?format=m3u8`), and the FullTags web panel. Parity is test-pinned in `docs/surface-parity.md`.                                                                    |
 | M3U8                                   | The UTF-8 playlist file format of the export path — a list (Phase D plans typed transition windows in comments) imported into rekordbox by hand; never auto-writes anything.                                                                             |
 | rb-playlist                            | The only writer: `megadj rb-playlist` links a proposal to existing master-DB content rows. Dry-run first; `--apply --yes` requires rekordbox quit + dated backups + whole-table verify.                                                                  |
 | Ledger / freshness                     | Ledger = a per-track results table in archive.db (beats, mood, cues, embeddings, track_keys). Freshness = the age of those ledger rows, surfaced in every payload so stale pools are visible.                                                            |
 | NFC / casefold                         | Unicode normalization (NFC) + case folding — the matching rule that collapses duplicate files and duplicate genre spellings.                                                                                                                             |
 | SSOT                                   | Single Source of Truth — one table/module owns a shared surface (presets, Camelot wheel, pool caps); everything else derives. The house answer to drift bugs.                                                                                            |
-| Propose-only                           | The product invariant: Set never writes. Proposals are payloads on screen; humans (or the gated rb-playlist) act on them.                                                                                                                            |
+| Propose-only                           | The product invariant: MegaSet never writes. Proposals are payloads on screen; humans (or the gated rb-playlist) act on them.                                                                                                                            |

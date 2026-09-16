@@ -89,7 +89,10 @@ function saveDraft(data: MegasetPayload): void {
   anchor.download = `set-${data.preset}-${data.actualMinutes}min-${data.complete ? "draft" : "partial"}.json`;
   anchor.click();
   URL.revokeObjectURL(anchor.href);
-  toast(data.complete ? "Set draft saved" : "Partial set draft saved", "ok");
+  toast(
+    data.complete ? "MegaSet draft saved" : "Partial set draft saved",
+    "ok",
+  );
 }
 
 /** Set-builder opener: the first track, either auto-picked by the arc or
@@ -228,7 +231,7 @@ export function MegasetPanel() {
       if (poolLimit !== null) q.set("limit", String(poolLimit));
       if (opener) q.set("opener", opener.video_id);
       setBuild({
-        data: await api<MegasetPayload>(`/api/archive/setbuild?${q}`, {
+        data: await api<MegasetPayload>(`/api/archive/megaset?${q}`, {
           timeoutMs: 90_000,
         }),
         loading: false,
@@ -268,11 +271,11 @@ export function MegasetPanel() {
     // endpoint re-runs the build), so every A/B knob travels with it
     if (searchChoice !== "auto") q.set("search", searchChoice);
     if (poolLimit !== null) q.set("limit", String(poolLimit));
-    return `/api/archive/setbuild?${q}`;
+    return `/api/archive/megaset?${q}`;
   })();
 
   return (
-    <Card class="setbuild">
+    <Card class="megaset">
       <SectionHead icon="compass" title="Build a set from your entire shelf" />
       <p class="megaset-lead">
         Choose the room's energy and a familiar length. FullTags checks the
@@ -281,7 +284,7 @@ export function MegasetPanel() {
       </p>
       <form
         class="megaset-form"
-        aria-label="Set builder settings"
+        aria-label="MegaSet builder settings"
         onSubmit={(event) => {
           event.preventDefault();
           if (!build.loading) void run();
@@ -315,7 +318,7 @@ export function MegasetPanel() {
           </div>
         </fieldset>
         <fieldset class="megaset-length" disabled={build.loading}>
-          <StepTitle n={2} title="Set length" />
+          <StepTitle n={2} title="MegaSet length" />
           <div class="megaset-duration">
             <div
               class="megaset-duration-presets"
@@ -452,7 +455,7 @@ export function MegasetPanel() {
             pool={build.data.pool}
           />
           {steps.length > 0 && (
-            <div class="megaset-actions" aria-label="Set draft actions">
+            <div class="megaset-actions" aria-label="MegaSet draft actions">
               <button
                 type="button"
                 class="btn ghostbtn"
@@ -567,7 +570,7 @@ export function MegasetPanel() {
             ]}
             rows={steps}
             cap={40}
-            ariaLabel="Set builder chain"
+            ariaLabel="MegaSet builder chain"
             copyName="The chain"
             copyLines={(rows) => rows.map(stepLine)}
             rowTone={(s) => {

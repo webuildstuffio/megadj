@@ -7,7 +7,7 @@ export function MegasetMethod() {
         <span>How FullTags scores this proposal</span>
         <small>read-only</small>
       </summary>
-      <dl class="megaset-evidence" aria-label="Set builder evidence">
+      <dl class="megaset-evidence" aria-label="MegaSet builder evidence">
         <div>
           <dt>Sources</dt>
           <dd>

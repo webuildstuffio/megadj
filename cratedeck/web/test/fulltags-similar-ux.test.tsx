@@ -91,7 +91,7 @@ describe("FullTags Similar and Set Builder UX", () => {
 
   test("set builder names its evidence, checks, and write behavior", () => {
     const html = render(<MegasetPanel />);
-    expect(html).toContain('aria-label="Set builder evidence"');
+    expect(html).toContain('aria-label="MegaSet builder evidence"');
     expect(html).toContain("Entire downloaded archive DB");
     expect(html).toContain("FullTags");
     expect(html).toContain("beat/mood ledgers first");
@@ -130,7 +130,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     // the step-1 hint carries the product's voice — the room, first to last
     expect(html).toContain("Energy journey");
     expect(html).toContain("how the room should feel from first track to last");
-    expect(html).toContain("Set length");
+    expect(html).toContain("MegaSet length");
     expect(html).toContain("Sequencer");
     expect(html.match(/megaset-preset-option/g)).toHaveLength(3);
     expect(html).toContain('role="radio"');
@@ -147,8 +147,8 @@ describe("FullTags Similar and Set Builder UX", () => {
   test("settings changes invalidate an old proposal and promote the one CTA", () => {
     const html = render(<MegasetPanel />);
     expect(html).toContain("Build a set from your entire shelf");
-    expect(html).toContain("Set length");
-    expect(html).toContain('aria-label="Set builder settings"');
+    expect(html).toContain("MegaSet length");
+    expect(html).toContain('aria-label="MegaSet builder settings"');
     expect(html).toContain('type="submit"');
     expect(html).toContain('class="btn primary megaset-build"');
     expect(html).toContain("Build 60-minute Peak time set");
@@ -252,7 +252,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     );
     expect(html).toContain("same build from the terminal:");
     expect(html).toContain(
-      "megadj setbuild --preset warmup --minutes 45 --search beam --limit 250 --opener yt-abc",
+      "megadj megaset --preset warmup --minutes 45 --search beam --limit 250 --opener yt-abc",
     );
     // auto/absent knobs stay out of the line
     const htmlMinimal = render(
@@ -263,7 +263,7 @@ describe("FullTags Similar and Set Builder UX", () => {
         openerId={null}
       />,
     );
-    expect(htmlMinimal).toContain("megadj setbuild --preset peak --minutes 60");
+    expect(htmlMinimal).toContain("megadj megaset --preset peak --minutes 60");
     expect(htmlMinimal).not.toContain("--search");
     expect(htmlMinimal).not.toContain("--limit");
   });
@@ -359,7 +359,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(source).toContain("saveDraft");
     expect(source).toContain("Save JSON draft");
     expect(source).toContain('q.set("format", "m3u8")');
-    expect(source).toContain("/api/archive/setbuild?");
+    expect(source).toContain("/api/archive/megaset?");
     expect(source).toContain("Export .m3u8 for Rekordbox");
     expect(source).toContain("Import the .m3u8");
     expect(source).not.toContain("--apply");
@@ -406,7 +406,7 @@ describe("FullTags Similar and Set Builder UX", () => {
 
     expect(html).toContain("Ready to review");
     expect(html).toContain("62.4-minute Warm-up set draft");
-    expect(html).toContain('aria-label="Set draft summary"');
+    expect(html).toContain('aria-label="MegaSet draft summary"');
     expect(html).toContain("What FullTags checked");
     expect(html).toContain("3,664 rows");
     expect(html).toContain("3,015 BPM · 3,362 keys");

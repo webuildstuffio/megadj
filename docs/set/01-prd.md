@@ -11,12 +11,12 @@ Camelot/energy-arc engine, whole-library pool, CLI + HTTP +
 M3U8 export + MCP + web panel, gated `megadj rb-playlist` write-off. v1 plan = the
 [re-ranked roadmap](03-competitive-analysis.md#part-5--prioritized-roadmap-re-ranked-across-all-30)
 (plan of record); the [audit's Part 3](08-audit-and-plan.md) keeps the
-per-item sketches, delta-pinned to the measured verdicts. (An earlier plan
-to rename every identifier `setbuild → megaset` was superseded 2026-09-15:
-the product is **Set**, and the verb `megadj setbuild` stays — see
-[09-migration-plan.md](09-migration-plan.md)'s superseded header.)
+per-item sketches, delta-pinned to the measured verdicts. (The `setbuild → megaset` identifier
+rename EXECUTED 2026-09-15 — the product is **MegaSet** and the verb is
+`megadj megaset`; see [09-migration-plan.md](09-migration-plan.md)'s
+executed header.)
 
-Set (roadmap §M66) is the set-building product:
+MegaSet (roadmap §M66) is the set-building product:
 it turns megadj's measured library data — beats-ledger BPM, mood-ledger
 valence/arousal/dance, file TKEY, effnet embeddings, 8-bar phrase cues —
 into an ordered mix proposal you can trust on a booth. **It proposes; it
@@ -41,7 +41,7 @@ nothing written behind the DJ's back.
 
 ## Vision
 
-> Describe the set you need — `megadj setbuild --preset warmup --minutes 45`
+> Describe the set you need — `megadj megaset --preset warmup --minutes 45`
 > — and get an honest, deterministic, key-compatible chain with a visible
 > energy arc, a quality score you can compare across alternatives, and a
 > one-gate path into rekordbox. The DJ keeps every creative decision; the
@@ -63,7 +63,7 @@ rekordbox write path stays behind its dry-run-first gate, always.
 ## Kill criteria
 
 If after two real prep cycles the proposals still need track-by-track
-hand-fixing to be usable, demote Set to a compatibility browser (the
+hand-fixing to be usable, demote MegaSet to a compatibility browser (the
 crate hover-cards already glow mixing keys) and stop investing in ordering.
 
 ---
@@ -101,7 +101,7 @@ Compat table: same/±1 same-letter = 1.0, diagonal = 0.9, mood-lift
 
 ## F4 — Surfaces, one engine (shipped v0)
 
-CLI (`megadj setbuild`; Set verb), HTTP (`GET /api/archive/setbuild`, `?format=m3u8`
+CLI (`megadj megaset`; MegaSet verb), HTTP (`GET /api/archive/megaset`, `?format=m3u8`
 export), MCP (`archive_set_build`, propose-only declared in its
 description), and the FullTags web panel (segmented presets, arc sparkline,
 mix pills, filterable table, excluded cross-check, freshness line). One
@@ -116,7 +116,7 @@ content rows — dry-run first (predicts the link count, writes nothing).
 `--apply --yes` requires rekordbox quit, backs up `master.db` and
 `masterPlaylists6.xml`, writes the playlist's DB and XML twins through one
 compensating seam, then verifies both surfaces. A failed XML mutation restores
-both backups instead of leaving a DB-only playlist. Set itself
+both backups instead of leaving a DB-only playlist. MegaSet itself
 never writes anything.
 
 ## F6 — Quality, alternatives & landmarks (v1, Phase C)
@@ -130,7 +130,7 @@ DJ picks between good options instead of debugging one.
 ## F7 — The handoff layer (v1+, Phase D — the differentiator)
 
 3,605 tracks × ~17–20 8-bar phrase cues and full downbeat grids already
-sit in the ledgers, unused by sequencing. Set v1 plans the _handoff_:
+sit in the ledgers, unused by sequencing. MegaSet v1 plans the _handoff_:
 per-step `mixOutCue`/`mixInCue` at 8-bar boundaries, carried into M3U8
 comments and rb-playlist dry-run explain rows — turning an ordered list
 into an executable transition plan. Nothing in the 10-project comparison
@@ -158,5 +158,5 @@ cues A–H stay reserved for performance points. Details:
 
 ## Vibe
 
-> "The opener sells the night. Set just makes sure you never open with
+> "The opener sells the night. MegaSet just makes sure you never open with
 > a 73-BPM track in a 128 room."

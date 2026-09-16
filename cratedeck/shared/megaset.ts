@@ -137,7 +137,9 @@ export type MegasetPresetId = MegasetPresetDef["id"];
 /** The `?preset=` guard rail: the engine clamps minutes, but an unknown
  *  preset id is a caller bug — surfaced, never silently re-scored as
  *  peak-time (the old `SET_PRESETS[bad] ?? peak` fallback hid it). */
-export const MEGASET_PRESET_IDS: MegasetPresetId[] = MEGASET_PRESET_DEFS.map((p) => p.id);
+export const MEGASET_PRESET_IDS: MegasetPresetId[] = MEGASET_PRESET_DEFS.map(
+  (p) => p.id,
+);
 
 export const DEFAULT_MEGASET_PRESET: MegasetPresetId = "peak";
 

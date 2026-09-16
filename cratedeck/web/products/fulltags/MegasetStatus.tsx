@@ -190,7 +190,7 @@ export function ReproLine(props: {
   openerId: string | null;
 }) {
   const parts = [
-    "megadj setbuild",
+    "megadj megaset",
     `--preset ${props.data.preset}`,
     `--minutes ${props.data.minutes}`,
   ];

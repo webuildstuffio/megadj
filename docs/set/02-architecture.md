@@ -1,4 +1,4 @@
-# Set — Architecture
+# MegaSet — Architecture
 
 **Status:** 📚 REFERENCE — current data flow, variable inventory, and ownership.
 
@@ -25,14 +25,14 @@ status (v0 uses / planned / rejected) and the exact order things are applied
    setCandidates() ── pool census w/ honest counters (cratedeck/src/archive_similar.ts)
         │
         ▼
-   buildSet() ── pure engine, zero I/O (cratedeck/src/setbuild.ts)
+   buildMegaset() ── pure engine, zero I/O (cratedeck/src/megaset.ts)
         │          score = 0.45·tempo + 0.3·key + 0.25·energy-fit
         │          hard gates: ±6% tempo, Camelot clash, opener neighborhood
         ▼
    SetBuildPayload ── steps[] · excluded[] · pool/freshness counters
         │
-        ├─▶ CLI        megadj megaset (src/fulltags/megaset.ts; `setbuild` alias + shim)
-        ├─▶ HTTP       GET /api/archive/setbuild · ?format=m3u8 (archive_routes.ts)
+        ├─▶ CLI        megadj megaset (src/fulltags/megaset.ts; no alias kept)
+        ├─▶ HTTP       GET /api/archive/megaset · ?format=m3u8 (archive_routes.ts)
         ├─▶ MCP        archive_set_build (cratedeck/src/archive_tools.ts)
         ├─▶ Web        FullTags ⌗ Similar tab — SetBuildPanel.tsx (form +
         │             proposal) · SimilarTab.tsx (tab shell) ·
@@ -49,7 +49,7 @@ are chosen per request (by the human, the agent, or the preset registry);
 **song variables** are measured once by FullTags and read-only for the
 engine. If a variable isn't in these tables, the engine doesn't see it.
 
-### 2a. Set variables (request + engine knobs)
+### 2a. MegaSet variables (request + engine knobs)
 
 | #   | Variable                 | Type                                 | Default                                 | Range / values                | Status                                  | Notes                                                                                                             |
 | --- | ------------------------ | ------------------------------------ | --------------------------------------- | ----------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -77,7 +77,7 @@ engine. If a variable isn't in these tables, the engine doesn't see it.
 **Defaults from measurement** (benchmarks doc Parts 2–4): S11 weights are
 constants because E6 showed five blend variants move meanTr by <0.006; S12/S16
 shipped 2026-09-14 with E7's ~250 crossover (`SET_BEAM_POOL_MAX`/`SET_BEAM_WIDTH`
-in shared/setbuild.ts); S20 is demoted by the Part 4 triage.
+in shared/megaset.ts); S20 is demoted by the Part 4 triage.
 
 ### 2b. Song variables (per track, measured by FullTags)
 
@@ -128,7 +128,7 @@ duplicate, relocated, excluded_total) rides the payload.
 1. **The engine is pure.** `buildSet()` takes candidates in, returns a chain
    out — no file I/O, no clock, no randomness. Determinism (same inputs →
    byte-identical chain) is pinned by tests; tie-breaks are (score, videoId).
-2. **One wire SSOT.** `cratedeck/shared/setbuild.ts` owns presets, pool
+2. **One wire SSOT.** `cratedeck/shared/megaset.ts` owns presets, pool
    clamps, and the excluded-preview cap; `shared/camelot.ts` owns the wheel.
    CLI, HTTP, MCP, and web all derive — no hand-copied twins. The tables in
    §2 are _documentation of_ that SSOT, not a second copy: when a default
@@ -151,7 +151,7 @@ duplicate, relocated, excluded_total) rides the payload.
 
 ## 4. Data ownership
 
-| Data                              | Owner                                         | Set role                                  |
+| Data                              | Owner                                         | MegaSet role                              |
 | --------------------------------- | --------------------------------------------- | ----------------------------------------- |
 | BPM, energy/arousal/dance/valence | FullTags beats + mood ledgers                 | scoring inputs                            |
 | Musical key                       | `track_keys` cache → TKEY; RB mirror fallback | hard gate                                 |
@@ -162,6 +162,6 @@ duplicate, relocated, excluded_total) rides the payload.
 | Co-occurrence / rotation stats    | `setlist_edges` (planned, co-occur lane)      | sceneAffinity + rotationWeight soft terms |
 | Collection rows + playlist twins  | SHELF1 `master.db` + `masterPlaylists6.xml`   | mirror fallback + rb-playlist write-off   |
 
-Set adds exactly one store of its own: nothing. All persistence stays in
+MegaSet adds exactly one store of its own: nothing. All persistence stays in
 ledgers owned by their existing products (the co-occurrence ledger, when it
 lands, belongs to the GetDat family).

@@ -34,7 +34,7 @@ deliberate exemptions are in §4. Historical repair details belong in
 
 | Surface    | Entry points                                                | Count                  |
 | ---------- | ----------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 46 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 45 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 41 tools               |
 | HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 63 routes              |

@@ -24,7 +24,7 @@
   --pulse-dim: rgba(177, 140, 255, 0.13);
   --warn: #e9c35a;
   /* Set (product 4) — the warm booth amber. One token, not three hexes:
-   * chrome (nav/pintro/phasechip), canvas, and setbuild styles all read
+   * chrome (nav/pintro/phasechip), canvas, and megaset styles all read
    * this; the old #f0b64b/#d9a441 strays are retired. */
   --set: #e0a93f;
   --warn-dim: rgba(233, 195, 90, 0.13);

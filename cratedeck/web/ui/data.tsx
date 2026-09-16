@@ -4,7 +4,7 @@
 // truncation footer in the app renders through ONE of these so column
 // templates, numeric alignment, ARIA roles and the copy/CTA patterns can't
 // drift between products — and the three call sites whose cells wrapped
-// into implicit grid rows (Cues, Pipeline runs, Set builder) are structurally
+// into implicit grid rows (Cues, Pipeline runs, MegaSet builder) are structurally
 // impossible now: the grid template is DERIVED from the columns array.
 //
 // Rule (AGENTS.md): web components never re-declare server shapes — this
