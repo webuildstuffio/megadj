@@ -28,7 +28,7 @@ download    perfect       propose      sync &       play on
 megadj sync                    # 🎧 pull new music
 megadj fetch && megadj audit   # 🏷️ perfect the metadata, then verify it
 megadj beats && megadj mood    # 🎼 beats + mood ledgers
-megadj megaset --preset peak  # 🎚️ propose a measured mix
+megadj megaset --preset peak   # 🎚️ propose a measured mix
 megadj shelf-sync              # 🗄️ new music out to the shelf master
 bun run deck                   # 📼 dashboard: every drive, sync + verify
 ```
@@ -50,9 +50,12 @@ exists in, tonight.
   `LOWQ` — and `megadj upgrade` re-fetches it at best quality, swapping
   only when the new file carries the _same acoustic fingerprint_.
 - 📦 **`megadj ingest <folder>`** for external folders — probe, score,
-  quarantine, zip expand, MusicBrainz fill, WAV→AIFF conversion.
+  quarantine, zip expand, MusicBrainz fill, WAV→AIFF conversion. Distrust
+  the extension: MP4/AAC audio wearing a `.mp3` name gets renamed to its
+  true container before any tag writer runs.
 - 🤖 **`megadj drop <folder-or-url>`** — the whole chain in one command:
-  download → ingest → beats → mood → cues → organize, hands-free.
+  download → ingest → beats → mood → cues → organize, hands-free. One bad
+  file quarantines and reports; it never kills the batch.
 
 ```bash
 megadj sync                        # bring in everything new since last time
@@ -70,6 +73,12 @@ a track that dropped last month, or a generic cover on a remix you love.
 - 🎨 **Art from where the track came from** — a SoundCloud remix keeps its
   SoundCloud cover; the art ladder escalates SC → gateways → Deezer →
   iTunes → AI cover only as a last resort (queued + human-reviewable).
+- 📚 **Genres from real stores, not the tag soup.** The fetch ladder votes
+  SoundCloud, Beatport, and Bandcamp (hard artist gate on every search hit)
+  for genre/year/label/art; numeric junk IDs and placeholder genres are
+  refused at both write points. The statistical refold measurably lifted
+  gated genre accuracy 61.7% → 69.2% — and a missing genre stays an honest
+  gap, never an AI guess.
 - 🧠 **AI fills only the gaps** — cheap flash-class models, confidence-gated
   (≥ 0.7), with provenance in `TXXX:AI-GENRE`/`TXXX:AI-YEAR` so an AI-filled
   field is always identifiable.
@@ -81,6 +90,9 @@ a track that dropped last month, or a generic cover on a remix you love.
 - 🕹️ **Booth-safe by construction** — `megadj audit` enforces the codec/text
   floor of your actual player fleet (XDJ-XZ + CDJ-3000 + 2000NXS2 default);
   `megadj booth-fix` proposes (never auto-applies) the safe fixes.
+- ⌗ **Tags comparison surface** — the FullTags product shows FullTags ↔
+  rekordbox ↔ live-file tag sources side by side per track, read-only, so a
+  drift is visible instead of discovered mid-gig.
 - 📖 **The file is the truth** — ground-truth readers, one format-specific
   atomic writer, and idempotent passes. Writes use a unique same-directory
   copy, verify tags/art and the container header, fsync, then rename. Also
@@ -96,15 +108,21 @@ megadj audit             # the completeness check across the whole library
 ### 🎚️ MegaSet — propose the mix, keep the taste
 
 MegaSet turns FullTags' measured BPM, key, mood, energy, and phrase data
-into
-an ordered mix proposal. It is deterministic and explainable: every exclusion
-is counted, every transition is scored, and nothing writes to rekordbox unless
-you explicitly cross the dry-run-first `rb-playlist` gate.
+into an ordered mix proposal. It is deterministic and explainable: every
+exclusion is counted, every transition is scored, and nothing writes to
+rekordbox unless you explicitly cross the dry-run-first `rb-playlist` gate.
 
 - 🧭 **Three energy journeys** — warmup, peak, and after-hours presets share
   one registry across CLI, web, and MCP.
-- 🎼 **Musically bounded** — Camelot compatibility, tempo gates, and an energy
-  arc choose the chain from the whole available pool.
+- 🎼 **Musically bounded** — Camelot compatibility, tempo gates, and an
+  energy arc choose the chain from the whole analyzed pool (no silent
+  caps); a tempo-neighborhood warmup guard keeps the opener honest.
+- 🧵 **Beam search for sparse pools** — when candidates are thin, beam
+  search (width 8) keeps chains alive where greedy loses ~59% of chain
+  length.
+- 🎛️ **Phrase handoff windows** — mix-in/mix-out cue windows computed from
+  the phrases ledger (#106), shown on the CLI step lines and the product,
+  so the proposal says _where_ to blend, not just what's next.
 - 🧾 **Reviewable handoff** — inspect the proposal in the MegaSet product
   (#/megaset) or export M3U8; `megadj rb-playlist` is the separately gated
   write-off.
@@ -164,7 +182,7 @@ reminder of what's on it and when you last verified it.
 
 ```bash
 bun run deck                    # the dashboard: every drive, its health, its playlists
-bun run deckctl status | report | run | coverage | diff
+bun run deckctl status | preflight | report | coverage | diff
 megadj shelf-archive <volume>   # archive a stray drive into the shelf, verified
 ```
 
