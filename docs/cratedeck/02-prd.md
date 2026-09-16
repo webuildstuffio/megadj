@@ -118,7 +118,8 @@ photo. Sources:
 
 1. **Product image search** — type a model, get an image grid. Provider
    abstraction with two implementations: Brave Image Search and Exa; the
-   active provider + API key live in `cratedeck/config.toml` or env. No key?
+   active provider + API key live in `cratedeck/config.sample.toml` (copied
+   to a local, gitignored `config.toml`) or env. No key?
    UI says so and still allows manual.
 2. **Manual** — file picker, drag-drop, or paste URL.
 

@@ -72,22 +72,44 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       "dated architecture diagram (rename executed)",
     "src/fulltags/setbuild.ts": "dated architecture diagram (rename executed)",
   },
+  // docs/usb-sync-log.md is INTENTIONALLY GITIGNORED (.gitignore) — the
+  // local append-only operator evidence log. Docs reference it as a
+  // local-only store by design; the missing file is the convention, not
+  // staleness.
   "docs/README.md": {
     "fulltags/intake-cue-postmortem.md":
       "relative link — resolves correctly from docs/ to docs/fulltags/…",
     "web/ui/DESIGN-NOTES.md": "cratedeck/web-scoped path (link is correct)",
     "web/products/fulltags/DESIGN-NOTES.md":
       "cratedeck/web-scoped path (link is correct)",
+    "docs/usb-sync-log.md":
+      "intentionally gitignored local operator log (.gitignore)",
   },
-  // docs/archive/ is skipped by the walker, so the archived
-  // src-layout-refactor receipt needs no exemptions — its historical
-  // paths are out of census scope by design.
-  "docs/usb-sync-log.md": {
-    "cratedeck/src/fleet.ts": "dated log entry (Sep 8) — historical evidence",
+  "docs/FEATURES.md": {
+    "docs/usb-sync-log.md":
+      "intentionally gitignored local operator log (.gitignore)",
+  },
+  "docs/product-state-2026-09-07.md": {
+    "docs/usb-sync-log.md":
+      "intentionally gitignored local operator log (.gitignore)",
   },
   "docs/agent-playbook.md": {
+    "docs/usb-sync-log.md":
+      "intentionally gitignored local operator log (.gitignore)",
     "fulltags/test/analysis.test.ts":
       "past-tense perf note ('the former … monolith')",
+  },
+  "docs/runbooks/0a-evacuate-extra.md": {
+    "docs/usb-sync-log.md":
+      "intentionally gitignored local operator log (.gitignore)",
+  },
+  "docs/runbooks/0b-cold-backup.md": {
+    "docs/usb-sync-log.md":
+      "intentionally gitignored local operator log (.gitignore)",
+  },
+  "docs/runbooks/0c-orphan-verdict.md": {
+    "docs/usb-sync-log.md":
+      "intentionally gitignored local operator log (.gitignore)",
   },
 };
 
