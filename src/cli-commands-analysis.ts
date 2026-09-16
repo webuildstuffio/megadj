@@ -141,7 +141,7 @@ const megaset: CliCommandHandler = async (rest) => {
 const genre: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(
     rest,
-    ["k", "min-agreement"],
+    ["k", "min-agreement", "agree", "keep", "note"],
     [
       "apply",
       "eval",
@@ -151,6 +151,7 @@ const genre: CliCommandHandler = async (rest, { state }) => {
       "probe",
       "refold",
       "flag",
+      "disputes",
       "json",
     ],
   );
@@ -198,6 +199,10 @@ const genre: CliCommandHandler = async (rest, { state }) => {
     probe: flags.bools.has("probe"),
     refold: flags.bools.has("refold"),
     flag: flags.bools.has("flag"),
+    disputes: flags.bools.has("disputes"),
+    agree: flags.strings.get("agree"),
+    keep: flags.strings.get("keep"),
+    note: flags.strings.get("note"),
     json: flags.bools.has("json"),
   });
 };

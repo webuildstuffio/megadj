@@ -41,6 +41,8 @@ function runScenario(
   needGenre = true,
   needYear = true,
   dry = false,
+  rowLabel: string | null = null,
+  truthLabel: string | null = null,
 ): ScenarioResult {
   const dbPath = join(SCENARIO_DIR, `${crypto.randomUUID()}.db`);
   mkdirSync(SCENARIO_DIR, { recursive: true });
@@ -50,29 +52,29 @@ function runScenario(
     db.exec(\`
       CREATE TABLE tracks (
         video_id TEXT PRIMARY KEY, title TEXT, artist TEXT, album TEXT,
-        genre TEXT, year TEXT, file_path TEXT, format_id TEXT,
+        genre TEXT, year TEXT, label TEXT, file_path TEXT, format_id TEXT,
         artwork_status TEXT
       );
       INSERT INTO tracks VALUES
         ('vid1', 'Track One', 'Artist One', 'Album One', NULL, NULL,
-         '/nonexistent/track.mp3', NULL, NULL);
+         ${JSON.stringify(rowLabel)}, '/nonexistent/track.mp3', NULL, NULL);
     \`);
     const stages = await import(${JSON.stringify(join(REPO, "tools/fetch-stages.ts"))});
     const lib = await import(${JSON.stringify(join(REPO, "tools/fetch-lib.ts"))});
     const row = lib.db
-      .query("SELECT video_id, title, artist, album, genre, file_path, format_id FROM tracks WHERE video_id='vid1'")
+      .query("SELECT video_id, title, artist, album, genre, label, file_path, format_id FROM tracks WHERE video_id='vid1'")
       .get();
     const ctx = {
       row,
       truth: { art: false, title: null, artist: null, album: null,
-               genre: null, year: null, label: null, mixName: null,
+               genre: null, year: null, label: ${JSON.stringify(truthLabel)}, mixName: null,
                isrc: null, remixer: null },
       needTags: false, needGenre: ${needGenre}, needArt: false, needYear: ${needYear},
       upgradeSc: false, dry: ${dry},
       stats: { tags:0, genreSc:0, genreBp:0, genreAi:0, artSc:0,
                artScOrig:0, artBeatport:0, artGateway:0, artTwin:0,
                artDeezer:0, artItunes:0, yearSc:0, yearBp:0, yearAi:0,
-               bpIdentity:0 },
+               bpIdentity:0, genreBc:0, yearBc:0, bcFilled:0, genreImprint:0 },
       notes: [], aiGenreBatch: [], aiYearBatch: [], aiAllowed: false,
       bpBest: null, durationS: null,
     };
@@ -148,5 +150,37 @@ describe("stageGenreYear ladder (issue #54 stage tests)", () => {
     expect(res.notes).toEqual([]);
     expect(res.dbRow?.genre).toBeNull();
     expect(res.dbRow?.year).toBeNull();
+  });
+
+  test("#128 imprint rung: SC+BP miss but a Drumcode label votes techno", () => {
+    // tag write fails (file absent) → the write-first discipline keeps
+    // the DB honest: the vote happened but nothing was recorded. The
+    // note proves the rung fired; genreImprint stays 0 because the tag
+    // write (the gate) failed.
+    const res = runScenario(NO_HIT, true, false, false, "Drumcode", "Drumcode");
+    expect(res.notes).toContain("genre:WRITE-FAILED (imprint)");
+    expect(res.dbRow?.genre).toBeNull();
+  });
+
+  test("#128 imprint rung: unknown label abstains → falls through to AI gate", () => {
+    const res = runScenario(
+      NO_HIT,
+      true,
+      false,
+      false,
+      "Some Random Label",
+      "Some Random Label",
+    );
+    expect(res.notes).toContain(
+      "genre:UNRESOLVED (no SC/bp hit — AI fallback off)",
+    );
+    expect(res.dbRow?.genre).toBeNull();
+  });
+
+  test("#128 imprint rung: junk label (numeric) abstains, never votes", () => {
+    const res = runScenario(NO_HIT, true, false, false, "12345", "12345");
+    expect(res.notes).toContain(
+      "genre:UNRESOLVED (no SC/bp hit — AI fallback off)",
+    );
   });
 });

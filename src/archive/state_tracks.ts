@@ -189,6 +189,90 @@ export class ArchiveTracks extends ArchiveCore {
       .run(flag, this.now(), videoId);
   }
 
+  /** The disputed rows with their labels — the #64 review surface's
+   *  read half. Only flagged rows appear; embed evidence joins via the
+   *  disputeConsensus view when it exists. */
+  disputedRows(): {
+    video_id: string;
+    title: string | null;
+    artist: string | null;
+    genre: string;
+  }[] {
+    return this.db
+      .query(
+        `SELECT video_id, title, artist, genre FROM tracks
+         WHERE genre_flag = 'disputed' AND genre IS NOT NULL AND genre != ''
+         ORDER BY updated_at DESC`,
+      )
+      .all() as {
+      video_id: string;
+      title: string | null;
+      artist: string | null;
+      genre: string;
+    }[];
+  }
+
+  /** The CURRENT kNN consensus for (flagged) rows, computed over the
+   *  live embeddings: each flagged row is held out and the unflagged
+   *  seeded neighbours vote (same engine `--flag` uses; flagged rows
+   *  are excluded from the SEEDS, so a flagged row's verdict comes
+   *  from unflagged neighbours only). Null consensus = the
+   *  neighbourhood no longer agrees. Computed by genre-disputes.ts —
+   *  this accessor only supplies the raw rows (seeds + the flagged
+   *  queries), keeping the state layer engine-free. */
+  disputeVoteInputs(): {
+    flagged: {
+      video_id: string;
+      vec_json: string;
+      analyzed_at: string;
+    }[];
+    seeds: { video_id: string; genre: string; vec_json: string }[];
+  } {
+    const flagged = this.db
+      .query(
+        `SELECT e.video_id, e.vec_json, e.analyzed_at
+         FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
+         WHERE t.genre_flag = 'disputed' AND t.status = 'downloaded'`,
+      )
+      .all() as {
+      video_id: string;
+      vec_json: string;
+      analyzed_at: string;
+    }[];
+    const seeds = this.db
+      .query(
+        `SELECT e.video_id, t.genre, e.vec_json
+         FROM embeddings e JOIN tracks t ON t.video_id = e.video_id
+         WHERE t.status = 'downloaded' AND t.genre IS NOT NULL AND t.genre != ''
+           AND (t.genre_flag IS NULL OR t.genre_flag != 'disputed')`,
+      )
+      .all() as { video_id: string; genre: string; vec_json: string }[];
+    return { flagged, seeds };
+  }
+
+  /** The #64 "agree" verb: the human ratifies the AUDIO. Forces the
+   *  label (updateGenre's COALESCE would refuse an overwrite — this is
+   *  the deliberate exception, human-approved) and clears the flag so
+   *  the row re-enters seeding (self-heal). */
+  agreeDispute(videoId: string, genre: string): void {
+    this.db
+      .query(
+        "UPDATE tracks SET genre = ?, genre_flag = NULL, updated_at = ? WHERE video_id = ?",
+      )
+      .run(genre, this.now(), videoId);
+  }
+
+  /** Audit-trail note for a dispute resolution (#64 --note). Lives in
+   *  the flag column itself as a suffix — one column, no new table, and
+   *  the census can count resolutions without a join. */
+  setGenreFlagNote(videoId: string, note: string): void {
+    this.db
+      .query(
+        "UPDATE tracks SET genre_flag = 'resolved:' || ?, updated_at = ? WHERE video_id = ?",
+      )
+      .run(note.slice(0, 120), this.now(), videoId);
+  }
+
   genreSeeds(): {
     seeds: { video_id: string; genre: string; vec_json: string }[];
     queries: { video_id: string; title: string | null; vec_json: string }[];

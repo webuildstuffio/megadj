@@ -132,6 +132,7 @@ function emptyStats(): Stats {
     genreBc: 0,
     yearBc: 0,
     bcFilled: 0,
+    genreImprint: 0,
   };
 }
 
@@ -267,7 +268,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
   const rows = (
     db
       .query(
-        "SELECT video_id, title, artist, album, genre, file_path, format_id FROM tracks WHERE status='downloaded' AND file_path LIKE ?",
+        "SELECT video_id, title, artist, album, genre, label, file_path, format_id FROM tracks WHERE status='downloaded' AND file_path LIKE ?",
       )
       .all(`${ARCH}/%`) as Row[]
   ).filter(
@@ -444,6 +445,8 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     genreSc: stats.genreSc,
     genreBp: stats.genreBp,
     genreAi: stats.genreAi,
+    /** #128 imprint-prior votes that decided a genre (SC+BP both missed). */
+    genreImprint: stats.genreImprint,
     yearSc: stats.yearSc,
     yearBp: stats.yearBp,
     yearAi: stats.yearAi,
@@ -470,7 +473,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     await writeJson(summary);
   } else {
     progress?.close(
-      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + BC ${stats.genreBc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + BC ${stats.yearBc} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | bandcamp filled: ${stats.bcFilled} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + bandcamp ${stats.artBandcamp} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
+      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + imprint ${stats.genreImprint} + BC ${stats.genreBc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + BC ${stats.yearBc} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | bandcamp filled: ${stats.bcFilled} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + bandcamp ${stats.artBandcamp} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
     );
   }
 }

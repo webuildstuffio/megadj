@@ -32,6 +32,7 @@ import { probeLeaveOneOut, type ProbeRow } from "./linear-probe";
 import { refoldDetail, scoringFamily } from "./genre-refold";
 import { isUmbrellaLabel } from "../../fulltags/src/exports";
 import { classifyDisputes } from "./genre-flag";
+import { collectDisputes, resolveDispute } from "./genre-disputes";
 import type { ArchiveState } from "../archive/state";
 
 /** Share 0..1 → percentage string with one decimal (eval log lines). */
@@ -89,6 +90,16 @@ export interface GenreOptions {
    * excluded from inference seeding. Dry by default; --apply writes
    * flags. Requires embeddings; mutually exclusive with --refold. */
   flag?: boolean | undefined;
+  /** #64 dispute review: list flagged rows + live evidence (read-only). */
+  disputes?: boolean | undefined;
+  /** #64 resolution: ratify the audio on ONE flagged row (label :=
+   *  live consensus family, flag cleared, row re-enters seeding). */
+  agree?: string | undefined;
+  /** #64 resolution: vouch for the source on ONE flagged row (flag
+   *  cleared, label untouched). */
+  keep?: string | undefined;
+  /** #64 audit note riding with --agree/--keep (max ~120 chars). */
+  note?: string | undefined;
   json?: boolean | undefined;
 }
 
@@ -96,6 +107,86 @@ export async function genre(opts: GenreOptions): Promise<void> {
   const log = commandLog(opts);
   const k = opts.k ?? 5;
   const minAgreement = opts.minAgreement ?? 0.6;
+
+  // ---- #64 dispute review/resolution — runs before the other passes
+  // (review is read-only; the resolution verbs are the only writers).
+  // A bare --note without agree/keep is a usage error (exit 2, no work).
+  if (
+    opts.disputes ||
+    opts.note !== undefined ||
+    opts.agree !== undefined ||
+    opts.keep !== undefined
+  ) {
+    const resolutionCount =
+      (opts.agree !== undefined ? 1 : 0) + (opts.keep !== undefined ? 1 : 0);
+    if (resolutionCount > 1) {
+      await finishCommandError({
+        command: "genre",
+        json: opts.json === true,
+        error: "--agree and --keep resolve one row each — pass one, not both",
+        exitCode: 2,
+      });
+      return;
+    }
+    if (opts.note !== undefined && resolutionCount === 0) {
+      await finishCommandError({
+        command: "genre",
+        json: opts.json === true,
+        error:
+          "--note rides with --agree or --keep — nothing to note on its own",
+        exitCode: 2,
+      });
+      return;
+    }
+    if (opts.agree !== undefined || opts.keep !== undefined) {
+      const verb = opts.agree !== undefined ? "agree" : "keep";
+      const videoId = (opts.agree ?? opts.keep)!;
+      const result = resolveDispute(opts.state, {
+        videoId,
+        verb,
+        note: opts.note,
+      });
+      if (!result.ok) {
+        await finishCommandError({
+          command: "genre",
+          json: opts.json === true,
+          error: result.message,
+          exitCode: 1,
+        });
+        return;
+      }
+      log(result.message);
+      await writeJson({
+        command: "genre",
+        mode: "dispute-resolve",
+        video_id: videoId,
+        verb,
+        applied: true,
+        message: result.message,
+      });
+      return;
+    }
+    // read-only review
+    const review = collectDisputes(opts.state);
+    log(
+      `genre disputes: ${review.flagged} flagged (${review.alreadyAgree} already agree with live consensus — --keep resolves those)`,
+    );
+    for (const r of review.rows.slice(0, 30)) {
+      const evidence = r.consensus
+        ? `consensus ${r.consensus} @ ${(r.agreement ?? 0) * 100}% · embed ${r.embedAgeDays ?? "?"}d`
+        : "no live consensus (re-run --flag)";
+      log(`  ${r.videoId}  "${r.genre}"  — ${evidence}`);
+      log(`    ${r.artist ?? "?"} — ${r.title ?? "?"}`);
+    }
+    await writeJson({
+      command: "genre",
+      mode: "disputes",
+      flagged: review.flagged,
+      alreadyAgree: review.alreadyAgree,
+      rows: review.rows,
+    });
+    return;
+  }
 
   if (opts.refold && opts.flag) {
     await finishCommandError({

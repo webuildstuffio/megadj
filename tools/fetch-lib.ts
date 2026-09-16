@@ -39,6 +39,9 @@ export interface Row {
   artist: string | null;
   album: string | null;
   genre: string | null;
+  /** Imprint/publisher from the file's BP write or the Bandcamp vote —
+   *  the #128 imprint prior reads THIS through the vote rung. */
+  label: string | null;
   file_path: string;
   format_id: string | null;
 }

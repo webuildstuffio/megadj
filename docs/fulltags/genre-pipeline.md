@@ -46,7 +46,7 @@ the file doesn't carry.
 
 ## 2. Where genre comes from — EVERY write path (the full inventory)
 
-There is no hidden seventh source. These seven paths are the only code
+There is no hidden eighth source. These eight paths are the only code
 that can put a genre into `tracks.genre` (search: `updateGenre` /
 `UPDATE tracks SET genre`):
 
@@ -59,7 +59,8 @@ that can put a genre into `tracks.genre` (search: `updateGenre` /
 | W4  | **AI classifier**       | `megadj fetch` with `aiAllowed`      | OpenRouter, closed `AI_VOCAB` vocabulary, conf ≥ 0.7                                                                                       | medium                                                 | fires ONLY when SC AND Beatport both missed; **opt-in, off by default**                                                                                                                                                                                                                                                        |
 | W5  | **MusicBrainz harvest** | `megadj enrich`                      | MB artist folksonomy tags (`fulltags/src/mb.ts`)                                                                                            | medium (community-curated)                             | fills weak/missing only; tag-write-first                                                                                                                                                                                                                                                                                       |
 | W6  | **Ingest file tags**    | `megadj ingest`                      | the FILE's own TCON (pool rips — Bandcamp/Hypeddit-quality), MB artist tags as fallback (`src/getdat/commands/ingest.ts`)                   | medium (measured 53.1%)                                | real-genre check (refuses `Music`) before adopting the file tag                                                                                                                                                                                                                                                                |
-| I1  | **kNN inference**       | `megadj genre`                       | embedding cosine k-NN family vote                                                                                                           | statistical, not a claim                               | EMPTY columns only (COALESCE); never clobbers W1–W6                                                                                                                                                                                                                                                                            |
+| W7  | **Imprint prior**       | `megadj fetch` (when SC AND BP miss the genre) | the track's record label (Beatport-filled TPUB / Bandcamp publisher) mapped to a scene family via `IMPRINT_FAMILIES` (`src/fulltags/imprint-prior.ts`, every row cited with source + date) | metadata, not audio truth — near-ground-truth for SCENE on electronic imprints | fires only when SC AND BP both missed the genre; unknown/junk label = abstain (never a guess); every mapping's family must be a live scoring family (test-pinned); the ladder's arbitration point for kNN conflicts is `imprintStands` — the prior stands only when the audio has no contradicting consensus (issue #128) |
+| I1  | **kNN inference**       | `megadj genre`                       | embedding cosine k-NN family vote                                                                                                           | statistical, not a claim                               | EMPTY columns only (COALESCE); never clobbers W1–W7                                                                                                                                                                                                                                                                            |
 
 Three facts people get wrong, corrected:
 
@@ -220,9 +221,14 @@ gate; transparency surfaces (T) let a human see what any track claims.
   cluster-proposed labels (§5b.3.5, #62).
 - **241 distinct raw labels** vs the 105-label 90%-coverage target —
   the refold killed case-twins; alias depth is the remaining gap.
-- **96 disputed rows** await a human-review path (#64): the flags are
-  doing their seeding job today, but `--disputed` listing + agree/keep
-  verbs are what closes the loop.
+- **Disputed rows now have a review door (SHIPPED 2026-09-16, #64):**
+  `megadj genre --disputes` lists every flagged row with LIVE evidence
+  (recomputed consensus + agreement + embed age), and `--agree <id>`
+  (audio wins: label := consensus family, flag cleared, row re-enters
+  seeding) / `--keep <id>` (source wins: flag cleared, label untouched)
+  resolve one row at a time through `setGenreFlag`/`agreeDispute` only —
+  never bulk. `--note "…"` appends an audit trail (flag becomes
+  `resolved:<note>`).
 
 ## 6. Live state (measured 2026-09-15, `~/.local/state/megadj/archive.db`)
 
@@ -245,10 +251,12 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | Seeding exclusion + flag setter + labeled population                                  | `src/archive/state_tracks.ts`                   |
 | Refold engine (canonicalization + arbitration)                                        | `src/fulltags/genre-refold.ts`                  |
 | Dispute classifier                                                                    | `src/fulltags/genre-flag.ts`                    |
+| Dispute review surface (collect + agree/keep verbs, #64)                              | `src/fulltags/genre-disputes.ts`                |
+| Imprint prior vote rung (W7, cited label→family map, #128)                            | `src/fulltags/imprint-prior.ts`                 |
 | Tier-0 diagnostics engine                                                             | `src/fulltags/genre-diagnostics.ts`             |
 | Linear probe (informational readout)                                                  | `src/fulltags/linear-probe.ts`                  |
 | CLI wiring (`--eval/--refold/--flag/--diagnostics/…`)                                 | `src/fulltags/genre.ts`                         |
-| Fetch ladder (SC → BP → BC → AI) + junk gate + tag-first writes                       | `tools/fetch-all.ts` + `tools/fetch-stages.ts`  |
+| Fetch ladder (SC → BP → imprint → BC → AI) + junk gate + tag-first writes             | `tools/fetch-all.ts` + `tools/fetch-stages.ts`  |
 | Bandcamp arm (search + gated page fetch + genre/label/date/art)                       | `fulltags/src/bandcamp.ts`                      |
 | Name-matching SSOT (artist gate, title overlap, tokens)                               | `fulltags/src/name-match.ts`                    |
 | Intake vocabularies (`guessFromFreeText` regex, `SC_GENRE_CANON`, `AI_VOCAB`, `canonicalizeClaim`, family map `FAMILIES`/`familyOf`, umbrella set) | `fulltags/src/genre-vocab.ts` (#187 — one module owns every named genre map; `canonGenre` remains a compat alias on `schema.ts`/`exports.ts` until #181/#184 land) |

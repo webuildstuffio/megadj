@@ -30,6 +30,7 @@ import {
   type Row,
   type TagValues,
 } from "./fetch-lib";
+import { imprintVote } from "../src/fulltags/imprint-prior";
 
 /** Where the SC-art fallback ladder stops being tried (artless → queue). */
 export interface Stats {
@@ -54,6 +55,8 @@ export interface Stats {
   yearBc: number;
   /** Tracks where the Bandcamp vote filled ≥1 field (genre/year/label). */
   bcFilled: number;
+  /** Tracks where the #128 imprint prior cast the deciding genre vote. */
+  genreImprint: number;
 }
 
 /** Per-task mutable state shared by the stage runners. */
@@ -227,6 +230,30 @@ function applyScGenre(t: StageCtx, rawGenre: string): void {
   t.notes.push(`genre:${g}`);
 }
 
+/** The #128 imprint prior vote: the track's imprint (Beatport-filled
+ *  TPUB) maps to a scene family through the cited IMPRINT_FAMILIES
+ *  table. A VOTE, not a write-over: it fires only when both catalog
+ *  sources (SC + BP) missed the genre, and never when the file's own
+ *  label disagrees with the DB (stale row). Same write-first discipline
+ *  as the SC/BP paths. Returns true when it wrote a genre. */
+function applyImprintGenre(t: StageCtx): boolean {
+  const label = t.truth.label ?? t.row.label;
+  const vote = imprintVote(label);
+  if (!vote) return false;
+  // Tag write first, DB row only on success (the ladder discipline).
+  if (!setFileTags(t.row.file_path, { genre: vote.family })) {
+    t.notes.push("genre:WRITE-FAILED (imprint)");
+    return false;
+  }
+  db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
+    vote.family,
+    t.row.video_id,
+  );
+  t.stats.genreImprint++;
+  t.notes.push(`genre:${vote.family} (imprint:${vote.imprint})`);
+  return true;
+}
+
 /** The Bandcamp genre vote: canonicalize the page's best tag through the
  *  SAME junk gates every other source funnels through (numeric refuse,
  *  "Music" refuse — applyScGenre's guard class, inside bcGenre). Never
@@ -316,10 +343,16 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
         } else {
           t.notes.push("genre:WRITE-FAILED (bp)");
         }
+      } else if (applyImprintGenre(t)) {
+        // both catalog genres missed but Beatport matched the release —
+        // the #128 imprint prior votes from the label it carries
       } else {
         if (t.aiAllowed) t.aiGenreBatch.push(t.row);
         else t.notes.push("genre:UNRESOLVED (no SC/bp hit — AI fallback off)");
       }
+    } else if (applyImprintGenre(t)) {
+      // no BP hit at all, but a BP-filled label already on the row/file
+      // votes (e.g. a re-run after the identity stage landed)
     } else {
       if (t.aiAllowed) t.aiGenreBatch.push(t.row);
       else t.notes.push("genre:UNRESOLVED (no SC/bp hit — AI fallback off)");

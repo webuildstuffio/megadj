@@ -51,7 +51,8 @@ fulltags — 100% accuracy, 100% coverage, zero manual labour:
                                                --eval runs the leave-one-out accuracy harness (target: gated ≥65%);
                                                --eval extras: --diagnostics (Tier-0 battery), --artist-disjoint (leakage control), --probe (linear readout);
                                                --refold: label canonicalization proposals (with --eval: umbrella arbitration A/B vs baseline);
-                                               --flag: demote-and-flag pass — labels contradicting unanimous kNN consensus get genre_flag='disputed' (not rewritten, excluded from seeding)
+                                               --flag: demote-and-flag pass — labels contradicting unanimous kNN consensus get genre_flag='disputed' (not rewritten, excluded from seeding);
+                                               --disputes: review flagged rows + live evidence; resolve one: --agree <id> (audio wins) / --keep <id> (source wins), [--note "..."]
   megadj megaset [--preset warmup|peak|afterhours] [--minutes N] [--opener <video_id>]
                  [--limit N] [--search greedy|beam] [--json]
                                                 set-builder: propose an ordered mix chain; --search forces the
