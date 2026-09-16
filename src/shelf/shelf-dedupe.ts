@@ -29,6 +29,7 @@ import {
 } from "../rekordbox/rb-command-kit.js";
 import { judgePair, applyPairs } from "./shelf-dedupe-verdict";
 import { resolveShelfVolume } from "../shared/volume";
+import { writeJson } from "../shared/cli-output";
 import { AUDIO_EXTS } from "../shared/audio-exts";
 
 // DedupePair/DedupeResult are DEFINED in shelf-dedupe-types.ts (the leaf
@@ -145,33 +146,29 @@ export async function shelfDedupe(
     ok,
   };
   if (json) {
-    console.log(
-      JSON.stringify(
-        {
-          command: "shelf-dedupe",
-          shelf: shelfVolume,
-          quarantine,
-          scanned: raw.length,
-          byteDupes,
-          fingerprintDupes,
-          keepBoth,
-          applied,
-          moved,
-          upgraded,
-          errors,
-          ok,
-          pairs: pairs.map((p) => ({
-            original: p.original,
-            twin: p.twin,
-            verdict: p.verdict,
-            method: p.method,
-            reason: p.reason,
-          })),
-        },
-        null,
-        2,
-      ),
-    );
+    // P1: one summary object, awaited (writeJson = #53 pipe-EOF seam,
+    // compact shape per #159); the failure exit code stays summary-coupled.
+    await writeJson({
+      command: "shelf-dedupe",
+      shelf: shelfVolume,
+      quarantine,
+      scanned: raw.length,
+      byteDupes,
+      fingerprintDupes,
+      keepBoth,
+      applied,
+      moved,
+      upgraded,
+      errors,
+      ok,
+      pairs: pairs.map((p) => ({
+        original: p.original,
+        twin: p.twin,
+        verdict: p.verdict,
+        method: p.method,
+        reason: p.reason,
+      })),
+    });
     if (!ok) process.exitCode = 1;
     return result;
   }

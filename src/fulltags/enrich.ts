@@ -9,6 +9,7 @@
  */
 import type { ArchiveState } from "../archive/state";
 import { commandLog } from "../progress";
+import { writeJson } from "../shared/cli-output";
 import { writePatch } from "../../fulltags/src/exports";
 import { mbGenreForArtist } from "../../fulltags/src/exports";
 
@@ -101,15 +102,13 @@ export async function enrich(opts: EnrichOptions): Promise<void> {
     `\nenrich complete: ${upgraded} upgraded, ${unchanged} unchanged, ${writeFailed} write-failed (of ${tracks.length})`,
   );
   if (opts.json) {
-    console.log(
-      JSON.stringify({
-        command: "enrich",
-        dryRun: opts.dryRun ?? false,
-        considered: tracks.length,
-        upgraded,
-        unchanged,
-        writeFailed,
-      }),
-    );
+    await writeJson({
+      command: "enrich",
+      dryRun: opts.dryRun ?? false,
+      considered: tracks.length,
+      upgraded,
+      unchanged,
+      writeFailed,
+    });
   }
 }

@@ -1,5 +1,6 @@
 import type { ArchiveState } from "../archive/state";
 import { commandLog } from "../progress";
+import { writeJson } from "../shared/cli-output";
 
 /**
  * megadj cues — phrase cues derived from the beats ledger (DB-side, no
@@ -123,13 +124,13 @@ export async function cues(opts: CuesOptions): Promise<void> {
       `\ncues complete: ${derived} track(s) cued (${totalCues} cues), ${skipped} skipped${opts.dryRun ? " (dry run — nothing written)" : ""}`,
     );
   }
-  console.log(
-    JSON.stringify({
-      command: "cues",
-      derived,
-      skipped,
-      cues: totalCues,
-      dryRun: opts.dryRun === true,
-    }),
-  );
+  // Exactly one JSON object on stdout in json mode — the P1 contract,
+  // through the awaited seam (#159).
+  await writeJson({
+    command: "cues",
+    derived,
+    skipped,
+    cues: totalCues,
+    dryRun: opts.dryRun === true,
+  });
 }

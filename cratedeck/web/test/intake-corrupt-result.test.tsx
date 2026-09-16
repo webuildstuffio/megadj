@@ -55,6 +55,7 @@ describe("Intake corrupt result UX", () => {
       compatHires: 0,
       shortSkipped: 0,
       unchanged: 0,
+      writeFailed: 0,
       audit: { total: 1, complete: 1 },
       auditErrors: [],
     };

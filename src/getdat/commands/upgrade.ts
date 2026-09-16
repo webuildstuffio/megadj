@@ -22,6 +22,7 @@ import {
 import { Downloader, type DownloadResult } from "../downloader";
 import type { ArchiveState } from "../../archive/state";
 import { commandLog } from "../../progress";
+import { writeJson } from "../../shared/cli-output";
 
 export interface UpgradeOptions {
   state: ArchiveState;
@@ -306,13 +307,11 @@ export async function upgrade(opts: UpgradeOptions): Promise<void> {
   log(
     `upgrade done: ${totals.upgraded} upgraded, ${totals.refused} refused (different recording/no gain), ${totals.failed} failed${opts.dryRun ? " (dry run)" : ""}`,
   );
-  console.log(
-    JSON.stringify({
-      command: "upgrade",
-      candidates: candidates.length,
-      ...totals,
-      dryRun: opts.dryRun === true,
-      details,
-    }),
-  );
+  await writeJson({
+    command: "upgrade",
+    candidates: candidates.length,
+    ...totals,
+    dryRun: opts.dryRun === true,
+    details,
+  });
 }

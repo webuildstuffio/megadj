@@ -47,6 +47,38 @@ describe("principles P1: --json on every command", () => {
     expect(parsed.command).toBe("adopt");
   });
 
+  test("#159: every summary crosses the awaited writeJson seam", async () => {
+    // The emit path is census-guaranteed in-process
+    // (json-summary-census.test.ts bans raw console.log(JSON.stringify)).
+    // This end-to-end leg pins the runtime half: output must arrive as ONE
+    // COMPACT line — the awaited Bun.write path's exact shape. A
+    // fire-and-forget console.log(..., null, 2) re-landing would emit
+    // pretty-printed multi-line output and fail the single-line parse
+    // below (and reintroduce the #53 pipe-EOF class this seam exists for).
+    const { code, stdout } = await runCli(["status", "--json"], env);
+    expect(code).toBe(0);
+    const lines = stdout.trim().split("\n");
+    expect(lines.length, "exactly one stdout line (compact JSON)").toBe(1);
+    expect(() => JSON.parse(lines[0] ?? "")).not.toThrow();
+  });
+
+  test("#159: ingest emit keys match cratedeck's IntakeCounterKey SSOT", async () => {
+    // Both packages derive from INTAKE_COUNTER_KEYS; this pins the real
+    // CLI output to that list (empty-folder dry run = zero side effects).
+    const { INTAKE_COUNTER_KEYS } = await import("../cratedeck/shared/types");
+    await runCli(["ingest", dir, "--dry-run", "--json"], env);
+    const { stdout } = await runCli(
+      ["ingest", join(dir, "music"), "--dry-run", "--json"],
+      env,
+    );
+    const parsed = lastJsonLine(stdout);
+    expect(parsed.command).toBe("ingest");
+    for (const key of INTAKE_COUNTER_KEYS)
+      expect(typeof parsed[key], `ingest --json emits counter "${key}"`).toBe(
+        "number",
+      );
+  });
+
   test("organize --json --dry-run reports considered/moved/missing", async () => {
     const { code, stdout } = await runCli(
       ["organize", "--dry-run", "--json"],

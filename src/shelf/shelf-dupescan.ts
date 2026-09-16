@@ -207,25 +207,22 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   }
 
   if (json) {
-    console.log(
-      JSON.stringify(
-        {
-          command: "shelf-dupescan",
-          shelf: shelfVolume,
-          scanned: files.length,
-          duplicateGroups: dupes.length,
-          redundantFiles: dupes.reduce((s, g) => s + g.files.length - 1, 0),
-          redundantBytes,
-          applied,
-          quarantined,
-          skippedForReview,
-          errors,
-          groups: dupes,
-        },
-        null,
-        2,
-      ),
-    );
+    // P1: one summary object, awaited (writeJson = #53 pipe-EOF seam);
+    // compact shape is the repo-wide standard (#159 — the pretty-printed
+    // variant was the drift).
+    await writeJson({
+      command: "shelf-dupescan",
+      shelf: shelfVolume,
+      scanned: files.length,
+      duplicateGroups: dupes.length,
+      redundantFiles: dupes.reduce((s, g) => s + g.files.length - 1, 0),
+      redundantBytes,
+      applied,
+      quarantined,
+      skippedForReview,
+      errors,
+      groups: dupes,
+    });
   } else {
     log(
       `duplicate groups: ${dupes.length} (redundant copies: ${dupes.reduce((s, g) => s + g.files.length - 1, 0)}, ${(redundantBytes / 1e9).toFixed(2)} GB)`,

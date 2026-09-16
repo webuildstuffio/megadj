@@ -14,6 +14,7 @@
 // Agent-first contract: --json (one summary object), human logs suppressed
 // in json mode, exit codes meaningful (1 = no such track / no embeddings).
 import { commandLog } from "../progress";
+import { writeJson } from "../shared/cli-output";
 import { similarTracks, cosineSimilarity } from "../archive/state";
 import {
   applySpace,
@@ -50,9 +51,7 @@ export async function similar(opts: SimilarOptions): Promise<void> {
   if (!t) {
     console.error(`similar: no track ${opts.videoId}`);
     if (opts.json)
-      console.log(
-        JSON.stringify({ command: "similar", error: "unknown track" }),
-      );
+      await writeJson({ command: "similar", error: "unknown track" });
     process.exit(1);
   }
   const q = opts.state.embeddingRecord(opts.videoId);
@@ -61,9 +60,7 @@ export async function similar(opts: SimilarOptions): Promise<void> {
       `similar: ${opts.videoId} has no embedding — run \`megadj mood\` (mirrors embeddings) first`,
     );
     if (opts.json)
-      console.log(
-        JSON.stringify({ command: "similar", error: "no embedding" }),
-      );
+      await writeJson({ command: "similar", error: "no embedding" });
     process.exit(1);
   }
 
@@ -100,21 +97,19 @@ export async function similar(opts: SimilarOptions): Promise<void> {
     log(
       `  ${h.score.toFixed(4)}  ${h.artist ?? "?"} — ${h.title ?? h.videoId}`,
     );
-  console.log(
-    JSON.stringify({
-      command: "similar",
-      video_id: opts.videoId,
-      title: t.title,
-      k,
-      space,
-      csls: cslsApplied,
-      corpus: corpus.length - 1,
-      hits: hits.map((h) => ({
-        video_id: h.videoId,
-        title: h.title,
-        artist: h.artist,
-        score: Math.round(h.score * 10000) / 10000,
-      })),
-    }),
-  );
+  await writeJson({
+    command: "similar",
+    video_id: opts.videoId,
+    title: t.title,
+    k,
+    space,
+    csls: cslsApplied,
+    corpus: corpus.length - 1,
+    hits: hits.map((h) => ({
+      video_id: h.videoId,
+      title: h.title,
+      artist: h.artist,
+      score: Math.round(h.score * 10000) / 10000,
+    })),
+  });
 }

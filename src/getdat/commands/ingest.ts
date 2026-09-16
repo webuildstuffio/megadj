@@ -25,6 +25,8 @@ import { join, basename, extname } from "node:path";
 import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
 import type { ArchiveState, TrackRow } from "../../archive/state";
 import { commandLog } from "../../progress";
+import { writeJson } from "../../shared/cli-output";
+import type { IntakeCounterKey } from "../../../cratedeck/shared/types";
 import { applyTags, inferGenre } from "../../../fulltags/src/exports";
 import {
   expandZips,
@@ -63,7 +65,7 @@ import type { QueueEntry } from "./queue";
 // copyIntoArchive / queueArtworkFallback / registerAndMove (the archive-
 // landing half of Phase D) live in ingest-register.ts with narrow param
 // types — this module never imported back keeps madge at zero cycles.
-import { registerAndMove } from "./ingest-register";
+import { registerAndMove, counterSummary } from "./ingest-register";
 
 export interface IngestOptions {
   state: ArchiveState;
@@ -794,27 +796,28 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     log(`broken files:\n  ${broken.map((b) => basename(b)).join("\n  ")}`);
 
   if (opts.json) {
-    // P1 (--json on every command): one summary object on stdout, last.
-    console.log(
-      JSON.stringify({
-        command: "ingest",
-        dryRun: opts.dryRun ?? false,
-        files: files.length,
-        tagged: counters.tagged,
-        artAdded: counters.artAdded,
-        artQueued: counters.artQueued,
-        wavConverted: counters.wavConverted,
-        compatRejected: counters.compatRejected,
-        compatHires: counters.compatHires,
-        shortSkipped: counters.shortSkipped,
-        unchanged: counters.unchanged,
-        folderDupes,
-        archiveDupes,
-        upgrades,
-        broken: broken.length,
-        writeFailed: counters.writeFailed,
-      }),
-    );
+    // P1 (--json on every command): one summary object on stdout, LAST —
+    // keyed over THE counter list (cratedeck/shared/types.ts, issue #159)
+    // so a key added to IntakeResult fails typecheck here until produced,
+    // and cratedeck's parser needs no hand-copied twin list. Awaits the
+    // stdout seam (writeJson) — fire-and-forget console.log truncated
+    // piped output (#53's EOF class).
+    const summary = {
+      command: "ingest",
+      dryRun: opts.dryRun ?? false,
+      // run-derived counters (not in IngestCounters — computed above)
+      files: files.length,
+      folderDupes,
+      archiveDupes,
+      upgrades,
+      broken: broken.length,
+      // counter-backed keys, derived: IngestCounters ∩ INTAKE_COUNTER_KEYS
+      ...counterSummary(counters),
+    } satisfies {
+      command: string;
+      dryRun: boolean;
+    } & Record<IntakeCounterKey, number>;
+    await writeJson(summary);
   }
 
   // Zips: delete only when EVERY file staged from them has left the source

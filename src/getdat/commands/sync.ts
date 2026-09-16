@@ -14,6 +14,7 @@ import { Downloader, type DownloadResult } from "../downloader";
 import { ytdlpCookieArgs } from "../ytdlp";
 import type { YtdlpInfo } from "../../../fulltags/src/exports";
 import { commandLog } from "../../progress";
+import { writeJson } from "../../shared/cli-output";
 import {
   applyTags,
   buildMetadata,
@@ -375,12 +376,12 @@ async function processQueue(
 }
 
 /** Phase 4: run row + human/JSON summary. */
-function finishRun(
+async function finishRun(
   opts: SyncOptions,
   log: (msg: string) => void,
   runId: number | null,
   totals: SyncTotals,
-): void {
+): Promise<void> {
   if (runId !== null) {
     opts.state.finishRun(runId, {
       attempted: totals.attempted,
@@ -399,29 +400,27 @@ function finishRun(
   );
   if (opts.json) {
     // P1 (--json on every command): one summary object on stdout, last.
-    console.log(
-      JSON.stringify({
-        command: "sync",
-        dryRun: opts.dryRun ?? false,
-        runId,
-        attempted: totals.attempted,
-        downloaded: totals.downloaded,
-        notMusic: totals.notMusic,
-        gone: totals.gone,
-        failed: totals.failed,
-        bytesDownloaded: totals.bytes,
-        // Dry runs only ever "would download" — give agents the queue size
-        // a real run would have attempted.
-        wouldAttempt: opts.dryRun ? totals.attempted : undefined,
-        archive: {
-          downloaded: counts["downloaded"] ?? 0,
-          gone: counts["gone"] ?? 0,
-          failed: counts["failed"] ?? 0,
-          pending: counts["pending"] ?? 0,
-          skippedNotMusic: counts["skipped_not_music"] ?? 0,
-        },
-      }),
-    );
+    await writeJson({
+      command: "sync",
+      dryRun: opts.dryRun ?? false,
+      runId,
+      attempted: totals.attempted,
+      downloaded: totals.downloaded,
+      notMusic: totals.notMusic,
+      gone: totals.gone,
+      failed: totals.failed,
+      bytesDownloaded: totals.bytes,
+      // Dry runs only ever "would download" — give agents the queue size
+      // a real run would have attempted.
+      wouldAttempt: opts.dryRun ? totals.attempted : undefined,
+      archive: {
+        downloaded: counts["downloaded"] ?? 0,
+        gone: counts["gone"] ?? 0,
+        failed: counts["failed"] ?? 0,
+        pending: counts["pending"] ?? 0,
+        skippedNotMusic: counts["skipped_not_music"] ?? 0,
+      },
+    });
   }
 }
 
@@ -445,5 +444,5 @@ export async function sync(opts: SyncOptions): Promise<void> {
 
   const totals = newTotals();
   await processQueue(opts, log, queue, downloader, isDry, totals);
-  finishRun(opts, log, runId, totals);
+  await finishRun(opts, log, runId, totals);
 }

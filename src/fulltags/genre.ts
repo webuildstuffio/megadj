@@ -17,6 +17,7 @@
 // §5b.3 step 4 — target: gated ≥65% after refold, baseline 62.7%).
 
 import { commandLog } from "../progress";
+import { writeJson } from "../shared/cli-output";
 import {
   evalLeaveOneOut,
   evalLeaveOneOutArtistDisjoint,
@@ -229,30 +230,28 @@ export async function genre(opts: GenreOptions): Promise<void> {
         `  linear probe ${pr.protocol}: ${pct(pr.accuracy)} (Δ ${probe.deltaVsKnn >= 0 ? "+" : ""}${pct(pr.accuracy - summary.agreement)} vs kNN gate)${probe.deltaVsKnn >= 0.03 ? " — probe beats the gate by ≥3 pts: promote to production readout" : ""}`,
       );
     }
-    console.log(
-      JSON.stringify({
-        command: "genre",
-        mode: "eval",
-        k,
-        minAgreement,
-        durationGuard: opts.durationGuard !== false,
-        evaluated: summary.evaluated,
-        agree: summary.agree,
-        disagree: summary.disagree,
-        refused: summary.refused,
-        agreement: Math.round(summary.agreement * 1000) / 1000,
-        refusal: Math.round(summary.refusal * 1000) / 1000,
-        ungated_agreement: Math.round(summary.ungatedAgreement * 1000) / 1000,
-        target: 0.65,
-        pass,
-        ...(diagnostics !== undefined ? { diagnostics } : {}),
-        ...(artistDisjoint !== undefined
-          ? { artist_disjoint: artistDisjoint }
-          : {}),
-        ...(probe !== undefined ? { probe } : {}),
-        ...(refold !== undefined ? { refold } : {}),
-      }),
-    );
+    await writeJson({
+      command: "genre",
+      mode: "eval",
+      k,
+      minAgreement,
+      durationGuard: opts.durationGuard !== false,
+      evaluated: summary.evaluated,
+      agree: summary.agree,
+      disagree: summary.disagree,
+      refused: summary.refused,
+      agreement: Math.round(summary.agreement * 1000) / 1000,
+      refusal: Math.round(summary.refusal * 1000) / 1000,
+      ungated_agreement: Math.round(summary.ungatedAgreement * 1000) / 1000,
+      target: 0.65,
+      pass,
+      ...(diagnostics !== undefined ? { diagnostics } : {}),
+      ...(artistDisjoint !== undefined
+        ? { artist_disjoint: artistDisjoint }
+        : {}),
+      ...(probe !== undefined ? { probe } : {}),
+      ...(refold !== undefined ? { refold } : {}),
+    });
     process.exitCode = pass ? 0 : 1;
     return;
   }
@@ -339,19 +338,17 @@ export async function genre(opts: GenreOptions): Promise<void> {
     );
     for (const c of changes.slice(0, 20))
       log(`  ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}`);
-    console.log(
-      JSON.stringify({
-        command: "genre",
-        mode: "refold",
-        labeled: labeled.length,
-        changes: changes.length,
-        umbrellaKept: abstained,
-        alreadyCanonical: unchanged,
-        unstrand: unstrand.length,
-        applied: opts.apply === true,
-        samples: changes.slice(0, 40),
-      }),
-    );
+    await writeJson({
+      command: "genre",
+      mode: "refold",
+      labeled: labeled.length,
+      changes: changes.length,
+      umbrellaKept: abstained,
+      alreadyCanonical: unchanged,
+      unstrand: unstrand.length,
+      applied: opts.apply === true,
+      samples: changes.slice(0, 40),
+    });
     if (opts.apply) {
       for (const c of changes) opts.state.updateGenre(c.video_id, c.to);
       for (const c of unstrand) opts.state.clearGenre(c.video_id);
@@ -394,18 +391,16 @@ export async function genre(opts: GenreOptions): Promise<void> {
     );
     for (const r of result.rows.slice(0, 15))
       log(`  ${r.family} → consensus ${r.consensus}  (${r.videoId})`);
-    console.log(
-      JSON.stringify({
-        command: "genre",
-        mode: "flag",
-        evaluated: result.evaluated,
-        disputed: result.disputed,
-        upheld: result.upheld,
-        noQuorum: result.noQuorum,
-        applied: opts.apply === true,
-        samples: result.rows.slice(0, 40),
-      }),
-    );
+    await writeJson({
+      command: "genre",
+      mode: "flag",
+      evaluated: result.evaluated,
+      disputed: result.disputed,
+      upheld: result.upheld,
+      noQuorum: result.noQuorum,
+      applied: opts.apply === true,
+      samples: result.rows.slice(0, 40),
+    });
     return;
   }
 
@@ -457,18 +452,16 @@ export async function genre(opts: GenreOptions): Promise<void> {
       `  ${p.genre.padEnd(8)} ${(p.agreement * 100).toFixed(0)}%  ${p.title ?? p.video_id}`,
     );
 
-  console.log(
-    JSON.stringify({
-      command: "genre",
-      mode: "infer",
-      seeds: seeds.length,
-      queries: rows.queries.length,
-      inferred,
-      split,
-      applied: opts.apply === true,
-      proposals: proposals.slice(0, 40),
-    }),
-  );
+  await writeJson({
+    command: "genre",
+    mode: "infer",
+    seeds: seeds.length,
+    queries: rows.queries.length,
+    inferred,
+    split,
+    applied: opts.apply === true,
+    proposals: proposals.slice(0, 40),
+  });
   // an all-split run is a finding, not an error — embeddings may not
   // exist yet; say so and exit 0 (the JSON states the census)
   if (inferred === 0 && split === 0)

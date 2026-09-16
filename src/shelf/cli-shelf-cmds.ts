@@ -6,6 +6,7 @@
 import { ArchiveState } from "../archive/state";
 import { MUSIC_DIR, DB_PATH } from "../cli-env";
 import { resolveShelfVolume, volumePath } from "../shared/volume";
+import { writeJson } from "../shared/cli-output";
 
 /** shelf-sync: shelf master → both sticks. Volume names come from
  *  config.toml [library] via env overrides — never hardcoded literals. */
@@ -69,13 +70,8 @@ export async function runShelfSweeps(rest: string[]): Promise<void> {
     const rows = state.shelfSweeps.latestPerDrive();
     const hist = state.shelfSweeps.history();
     if (json) {
-      console.log(
-        JSON.stringify(
-          { command: "shelf-sweeps", latest: rows, history: hist },
-          null,
-          2,
-        ),
-      );
+      // P1 seam (#159): awaited stdout write, one parseable object.
+      await writeJson({ command: "shelf-sweeps", latest: rows, history: hist });
     } else {
       console.log("shelf sweeps (latest per drive):");
       for (const r of rows) {

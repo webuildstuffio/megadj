@@ -157,13 +157,8 @@ const tagCheck: CliCommandHandler = async (rest, { musicDir }) => {
     if (!health.ok) bad.push({ file, reasons: health.reasons });
   }
   if (flags.bools.has("json")) {
-    console.log(
-      JSON.stringify(
-        { ok: bad.length === 0, checked: files.length, bad },
-        null,
-        2,
-      ),
-    );
+    // P1 seam (#159): awaited stdout write, one parseable object.
+    await writeJson({ ok: bad.length === 0, checked: files.length, bad });
   } else if (bad.length === 0) {
     console.log(
       `✅ tag-check: all ${files.length} files' tags parse clean (structure, text, booth display)`,

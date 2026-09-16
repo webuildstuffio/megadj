@@ -3,6 +3,7 @@ import { basename } from "node:path";
 import type { FixesPayload } from "../shared/fixes";
 import { fmtBytes } from "../shared/fmt";
 import type { IntakeResult, Job } from "../shared/types";
+import { INTAKE_COUNTER_KEYS } from "../shared/types";
 import { benchmarkDrive, checksumLedger, speedProbe } from "./bench";
 import type { CrateConfig } from "./config";
 import type { DB } from "./db";
@@ -68,31 +69,21 @@ export function parseIngestSummary(
 ): IntakeCounters {
   if (summary === null)
     throw new Error("megadj ingest returned a missing JSON summary");
-  const count = (key: keyof IntakeCounters): number => {
-    try {
-      return finiteJobNumber(summary[key]);
-    } catch (error) {
-      throw new Error(
-        `megadj ingest summary ${key} is invalid: ${errorText(error)}`,
-        { cause: error },
-      );
-    }
-  };
-  return {
-    files: count("files"),
-    tagged: count("tagged"),
-    artAdded: count("artAdded"),
-    artQueued: count("artQueued"),
-    wavConverted: count("wavConverted"),
-    folderDupes: count("folderDupes"),
-    archiveDupes: count("archiveDupes"),
-    upgrades: count("upgrades"),
-    broken: count("broken"),
-    compatRejected: count("compatRejected"),
-    compatHires: count("compatHires"),
-    shortSkipped: count("shortSkipped"),
-    unchanged: count("unchanged"),
-  };
+  // Iterate THE key list (cratedeck/shared/types.ts SSOT, issue #159) —
+  // a counter added to IntakeResult is parsed automatically; a counter
+  // the producer stopped emitting fails HERE with its key named.
+  return Object.fromEntries(
+    INTAKE_COUNTER_KEYS.map((key) => {
+      try {
+        return [key, finiteJobNumber(summary[key])] as const;
+      } catch (error) {
+        throw new Error(
+          `megadj ingest summary ${key} is invalid: ${errorText(error)}`,
+          { cause: error },
+        );
+      }
+    }),
+  ) as IntakeCounters;
 }
 
 export function parseAuditSummary(

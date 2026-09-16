@@ -7,6 +7,7 @@ import {
 } from "../../fulltags/src/exports";
 import type { ArchiveState, TrackRow } from "../archive/state";
 import { commandLog } from "../progress";
+import { writeJson } from "../shared/cli-output";
 
 /**
  * megadj beats — beat_this analysis into the archive DB ledger.
@@ -152,15 +153,14 @@ export async function beats(opts: BeatsOptions): Promise<void> {
       `\nbeats complete: ${analyzed} analyzed, ${failed} failed, ${tooLong} over length cap, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}`,
     );
   }
-  // Exactly one JSON object on stdout in json mode — the P1 contract.
-  console.log(
-    JSON.stringify({
-      command: "beats",
-      analyzed,
-      failed,
-      overLengthCap: tooLong,
-      ledgered: total,
-      dryRun: opts.dryRun === true,
-    }),
-  );
+  // Exactly one JSON object on stdout in json mode — the P1 contract,
+  // through the awaited seam (#159).
+  await writeJson({
+    command: "beats",
+    analyzed,
+    failed,
+    overLengthCap: tooLong,
+    ledgered: total,
+    dryRun: opts.dryRun === true,
+  });
 }

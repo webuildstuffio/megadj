@@ -6,6 +6,7 @@ import {
   parseIngestSummary,
   requireSuccessfulExit,
 } from "../src/job_execution";
+import { INTAKE_COUNTER_KEYS } from "../shared/types";
 
 describe("job subprocess completion", () => {
   it("uses the last FINAL line when a verifier prints retries", () => {
@@ -54,22 +55,10 @@ describe("job summary numeric boundary", () => {
   });
 
   it("accepts the complete ingest counter contract", () => {
+    // Keys come from THE SSOT (cratedeck/shared/types.ts, #159) — was a
+    // hand-copied list that let `writeFailed` fall out of the contract.
     const counters = Object.fromEntries(
-      [
-        "files",
-        "tagged",
-        "artAdded",
-        "artQueued",
-        "wavConverted",
-        "folderDupes",
-        "archiveDupes",
-        "upgrades",
-        "broken",
-        "compatRejected",
-        "compatHires",
-        "shortSkipped",
-        "unchanged",
-      ].map((key) => [key, 0]),
+      INTAKE_COUNTER_KEYS.map((key) => [key, 0]),
     );
     expect(parseIngestSummary(counters)).toMatchObject(counters);
   });

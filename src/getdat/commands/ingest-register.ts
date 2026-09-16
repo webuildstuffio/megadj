@@ -15,6 +15,10 @@ import type { Record_ } from "./ingest-probe";
 import type { ArtworkOutcome } from "./ingest-art";
 import type { QueueEntry } from "./queue";
 import type { RemixInfo } from "../../../fulltags/src/remix";
+import {
+  INTAKE_COUNTER_KEYS,
+  type IntakeCounterKey,
+} from "../../../cratedeck/shared/types";
 
 /** Per-run ingest tallies (the --json summary's counters). Defined HERE —
  *  the leaf seam shared with ingest.ts — so this module never imports its
@@ -35,6 +39,25 @@ export interface IngestCounters {
    *  to the rest of the batch (Sep 11: one ffmpeg exit-234 killed a
    *  373-file run mid-loop). */
   writeFailed: number;
+}
+
+/** Build the counter-backed part of the `--json` summary, keyed over THE
+ *  counter list (cratedeck/shared/types.ts, issue #159). The mapped type
+ *  is the exhaustiveness guard: a key added to INTAKE_COUNTER_KEYS whose
+ *  counter IngestCounters doesn't carry (or vice versa — a counter that
+ *  stopped being emitted) fails typecheck HERE, not at job runtime. */
+export function counterSummary(counters: IngestCounters): {
+  [K in Extract<IntakeCounterKey, keyof IngestCounters>]: IngestCounters[K];
+} {
+  const keys = INTAKE_COUNTER_KEYS.filter(
+    (key): key is Extract<IntakeCounterKey, keyof IngestCounters> =>
+      key in counters,
+  );
+  // Every counter key is produced — the filter above is pure type
+  // narrowing; a missing key is the typecheck error, never a runtime hole.
+  return Object.fromEntries(keys.map((key) => [key, counters[key]])) as {
+    [K in Extract<IntakeCounterKey, keyof IngestCounters>]: IngestCounters[K];
+  };
 }
 
 /** Narrow view of IngestOptions the landing helpers need. */

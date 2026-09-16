@@ -13,6 +13,7 @@ import { normalize } from "../../../fulltags/src/identity";
 import type { ArchiveState } from "../../archive/state";
 import { commandLog } from "../../progress";
 import { resolveShelfVolume } from "../../shared/volume";
+import { writeJson } from "../../shared/cli-output";
 
 export interface AdoptOptions {
   state: ArchiveState;
@@ -158,20 +159,18 @@ export async function adoptFromShelf(opts: AdoptOptions): Promise<void> {
     log(`keys cached: ${keysCached}`);
   }
   if (opts.json) {
-    console.log(
-      JSON.stringify({
-        command: "adopt",
-        mode: "shelf",
-        shelf: shelfRoot,
-        inspected: stale.length,
-        repointed,
-        still_local: stillLocal,
-        nowhere,
-        keys_cached: keysCached,
-        dry_run: opts.dryRun === true,
-        ok: true,
-      }),
-    );
+    await writeJson({
+      command: "adopt",
+      mode: "shelf",
+      shelf: shelfRoot,
+      inspected: stale.length,
+      repointed,
+      still_local: stillLocal,
+      nowhere,
+      keys_cached: keysCached,
+      dry_run: opts.dryRun === true,
+      ok: true,
+    });
   }
 }
 
@@ -234,14 +233,12 @@ export async function adopt(opts: AdoptOptions): Promise<void> {
   );
   if (opts.json) {
     // P1 (--json on every command): one summary object on stdout, last.
-    console.log(
-      JSON.stringify({
-        command: "adopt",
-        scanned: files.length,
-        adopted,
-        unmatched: files.length - adopted,
-        vanished,
-      }),
-    );
+    await writeJson({
+      command: "adopt",
+      scanned: files.length,
+      adopted,
+      unmatched: files.length - adopted,
+      vanished,
+    });
   }
 }

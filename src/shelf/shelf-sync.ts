@@ -24,6 +24,7 @@ import { basename, join, relative } from "node:path";
 import { nameKey } from "../shared/name-key";
 import { AUDIO_EXTS_RE } from "../shared/audio-exts";
 import { resolveShelfVolume } from "../shared/volume";
+import { writeJson } from "../shared/cli-output";
 import { md5Cli } from "./md5-cli";
 
 export interface ShelfSyncOptions {
@@ -215,10 +216,7 @@ export async function shelfSync(opts: ShelfSyncOptions): Promise<void> {
   } = opts;
 
   if (!existsSync(musicDir)) {
-    if (json)
-      console.log(
-        JSON.stringify({ error: `archive dir missing: ${musicDir}` }),
-      );
+    if (json) await writeJson({ error: `archive dir missing: ${musicDir}` });
     else log(`shelf-sync: archive dir missing: ${musicDir}`);
     process.exitCode = 1;
     return;
@@ -231,20 +229,14 @@ export async function shelfSync(opts: ShelfSyncOptions): Promise<void> {
   ];
 
   if (json) {
-    console.log(
-      JSON.stringify(
-        {
-          command: "shelf-sync",
-          archive: musicDir,
-          tracked: plans.length,
-          dry_run: dryRun,
-          volumes: results,
-          ok: results.every((r) => (r.mounted ? r.failed === 0 : true)),
-        },
-        null,
-        2,
-      ),
-    );
+    await writeJson({
+      command: "shelf-sync",
+      archive: musicDir,
+      tracked: plans.length,
+      dry_run: dryRun,
+      volumes: results,
+      ok: results.every((r) => (r.mounted ? r.failed === 0 : true)),
+    });
     return;
   }
 

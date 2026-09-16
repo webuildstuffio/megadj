@@ -1,6 +1,7 @@
 /** Verify SoundCloud-sourced years from page metadata, then yt-dlp. */
 import { DB_PATH, MUSIC_DIR } from "../cli-env";
 import { ArchiveState } from "../archive/state";
+import { writeJson } from "../shared/cli-output";
 import { groundTruth, writePatchSync } from "../../fulltags/src/exports";
 
 interface Row {
@@ -146,18 +147,16 @@ export async function runFixYears(
   } finally {
     state.close();
   }
-  if (opts.json)
-    console.log(
-      JSON.stringify({
-        command: "years",
-        dryRun,
-        scPage,
-        ytdlp,
-        kept,
-        unresolved: failed.length,
-      }),
-    );
-  else
+  if (opts.json) {
+    await writeJson({
+      command: "years",
+      dryRun,
+      scPage,
+      ytdlp,
+      kept,
+      unresolved: failed.length,
+    });
+  } else
     console.log(
       `\n${dryRun ? "DRY " : ""}DONE — sc-page: ${scPage} | yt-dlp: ${ytdlp} | kept: ${kept} | unresolved: ${failed.length}`,
     );

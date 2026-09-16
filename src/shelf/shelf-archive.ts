@@ -42,6 +42,7 @@ import { ArchiveState } from "../archive/state";
 import { ShelfIndex } from "./shelf-index";
 import { sweepVolume, type DriveResult } from "./shelf-archive-file";
 import { resolveShelfVolume } from "../shared/volume";
+import { writeJson } from "../shared/cli-output";
 
 /** The archive DB (sweep ledger host). Env-overridable like cli.ts. */
 const DB_PATH =
@@ -105,9 +106,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
   if (!shelfMounted) {
     const msg = `shelf not mounted (no ${contents})`;
     if (json)
-      console.log(
-        JSON.stringify({ command: "shelf-archive", error: msg, ok: false }),
-      );
+      await writeJson({ command: "shelf-archive", error: msg, ok: false });
     else log(`shelf-archive: ${msg}`);
     process.exitCode = 1;
     return;
@@ -170,22 +169,16 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
   const allOk = results.every((r) => (r.mounted ? r.ok : true));
   state?.close(); // flush + release the ledger DB before any exit path
   if (json) {
-    console.log(
-      JSON.stringify(
-        {
-          command: "shelf-archive",
-          shelf: shelfVolume,
-          into: into ?? null,
-          trashes,
-          deep,
-          dry_run: dryRun,
-          drives: results,
-          ok: allOk,
-        },
-        null,
-        2,
-      ),
-    );
+    await writeJson({
+      command: "shelf-archive",
+      shelf: shelfVolume,
+      into: into ?? null,
+      trashes,
+      deep,
+      dry_run: dryRun,
+      drives: results,
+      ok: allOk,
+    });
     if (!allOk) process.exitCode = 1;
     return;
   }

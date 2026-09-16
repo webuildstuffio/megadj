@@ -8,6 +8,7 @@ import {
 } from "../../fulltags/src/exports";
 import type { ArchiveState, TrackRow } from "../archive/state";
 import { commandLog } from "../progress";
+import { writeJson } from "../shared/cli-output";
 
 /**
  * megadj mood — ONNX mood/dance/valence into the archive DB ledger.
@@ -164,16 +165,14 @@ export async function mood(opts: MoodOptions): Promise<void> {
       `\nmood complete: ${synced} synced from file stamps, ${analyzed} analyzed, ${failed} failed, ${energySynced} energy columns synced, ${total} ledgered total${opts.dryRun ? " (dry run — nothing written)" : ""}${embedded !== undefined ? `, ${embedded} embedded` : ""}`,
     );
   }
-  console.log(
-    JSON.stringify({
-      command: "mood",
-      synced,
-      analyzed,
-      failed,
-      energySynced,
-      ledgered: total,
-      ...(embedded !== undefined ? { embedded } : {}),
-      dryRun: opts.dryRun === true,
-    }),
-  );
+  await writeJson({
+    command: "mood",
+    synced,
+    analyzed,
+    failed,
+    energySynced,
+    ledgered: total,
+    ...(embedded !== undefined ? { embedded } : {}),
+    dryRun: opts.dryRun === true,
+  });
 }

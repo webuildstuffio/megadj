@@ -14,6 +14,7 @@
 import { $ } from "bun";
 import type { ArchiveState, TrackRow } from "../../archive/state";
 import { commandLog } from "../../progress";
+import { writeJson } from "../../shared/cli-output";
 import { sanitizeGenreFolder } from "../../../fulltags/src/exports";
 
 export interface OrganizeOptions {
@@ -147,16 +148,14 @@ export async function organize(opts: OrganizeOptions): Promise<void> {
   );
   if (opts.json) {
     // P1 (--json on every command): one summary object on stdout, last.
-    console.log(
-      JSON.stringify({
-        command: "organize",
-        dryRun: opts.dryRun ?? false,
-        considered: tracks.length,
-        moved,
-        alreadyOrganized: skipped,
-        missing,
-        moveFailed: movedFailed,
-      }),
-    );
+    await writeJson({
+      command: "organize",
+      dryRun: opts.dryRun ?? false,
+      considered: tracks.length,
+      moved,
+      alreadyOrganized: skipped,
+      missing,
+      moveFailed: movedFailed,
+    });
   }
 }

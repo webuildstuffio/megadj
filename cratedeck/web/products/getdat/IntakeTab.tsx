@@ -16,6 +16,7 @@ import type {
   IntakeResult,
   IntakeFoldersResponse,
 } from "../../../shared/types";
+import { INTAKE_COUNTER_KEYS } from "../../../shared/types";
 import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
@@ -215,21 +216,9 @@ function jobStatusFolder(_j: Job): string {
   return ""; // folder is in the pick state; placeholder for row layout
 }
 
-const INTAKE_NUMBER_FIELDS = [
-  "files",
-  "tagged",
-  "artAdded",
-  "artQueued",
-  "wavConverted",
-  "folderDupes",
-  "archiveDupes",
-  "upgrades",
-  "broken",
-  "compatRejected",
-  "compatHires",
-  "shortSkipped",
-  "unchanged",
-] as const satisfies readonly (keyof IntakeResult)[];
+// THE key list from the import leaf (issue #159) — was a third hand-copied
+// twin of the producer's emit list.
+const INTAKE_NUMBER_FIELDS = INTAKE_COUNTER_KEYS;
 
 function isCount(value: unknown): value is number {
   return isFiniteNumber(value) && Number.isSafeInteger(value) && value >= 0;

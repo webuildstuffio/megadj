@@ -14,6 +14,7 @@ import type { ArchiveState } from "../archive/state";
 import { embedArt, fetchImage, ARTWORK_EXTS } from "../../fulltags/src/exports";
 import type { QueueEntry } from "../getdat/commands/queue";
 import { commandLog } from "../progress";
+import { writeJson } from "../shared/cli-output";
 
 export type { QueueEntry };
 
@@ -287,18 +288,17 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
 
   const { done, failed } = counters;
   if (opts.json) {
-    // P1 (--json on every command): one summary object on stdout, last.
-    console.log(
-      JSON.stringify({
-        command: "artwork",
-        dryRun: opts.dryRun ?? false,
-        queued: entries.length,
-        processed: batch.length,
-        embedded: done,
-        failed,
-        leftInQueue: Math.max(0, entries.length - processedIdx.size),
-      }),
-    );
+    // P1 (--json on every command): one summary object on stdout, last,
+    // through the awaited seam (#159).
+    await writeJson({
+      command: "artwork",
+      dryRun: opts.dryRun ?? false,
+      queued: entries.length,
+      processed: batch.length,
+      embedded: done,
+      failed,
+      leftInQueue: Math.max(0, entries.length - processedIdx.size),
+    });
   } else {
     log(
       `\ndone: ${done} embedded, ${failed} failed${
