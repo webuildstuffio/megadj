@@ -22,6 +22,7 @@ import { resolveShelfVolume, volumePath } from "./volume";
 import {
   finishCommandError,
   finishCommandErrorSync,
+  setExit,
   writeJson,
 } from "./cli-output";
 import type { AnlzSpikeMode } from "../rekordbox/anlz-spike";
@@ -107,7 +108,7 @@ export async function runMaintenanceCommand(
         json: flags.bools.has("json"),
         log: progressLog(flags.bools.has("json")),
       });
-      if (!r.ok) process.exitCode = 1;
+      if (!r.ok) setExit(1);
       return;
     }
     case "shelf-hygiene": {
@@ -155,7 +156,7 @@ export async function runMaintenanceCommand(
       } else {
         printRbFixReport(r, console.log);
       }
-      if (!r.ok) process.exitCode = 1;
+      if (!r.ok) setExit(1);
       return;
     }
     case "rb-unmatched": {
@@ -184,7 +185,7 @@ export async function runMaintenanceCommand(
       // gate parity: an unresolved backlog is a visible failure state —
       // but a SUCCESSFUL apply (quarantine ran) leaves unknown == 0 and
       // must read as success; failing it would block automation loops
-      if (!r.ok || (r.unknown > 0 && !r.appliedMode)) process.exitCode = 1;
+      if (!r.ok || (r.unknown > 0 && !r.appliedMode)) setExit(1);
       return;
     }
     case "rb-adopt": {
@@ -209,7 +210,7 @@ export async function runMaintenanceCommand(
         if (json) await writeJson(result);
         else printRbAdoptReport(result, console.log);
         if (!result.ok || (!result.appliedMode && result.missingFiles > 0))
-          process.exitCode = 1;
+          setExit(1);
       } finally {
         state.close();
       }
@@ -254,7 +255,7 @@ export async function runMaintenanceCommand(
       } else {
         printRbImportReport(r, console.log);
       }
-      if (!r.ok) process.exitCode = 1;
+      if (!r.ok) setExit(1);
       return;
     }
     case "rb-cues": {
@@ -286,7 +287,7 @@ export async function runMaintenanceCommand(
       } else {
         printRbCuesReport(r, console.log);
       }
-      if (!r.ok) process.exitCode = 1;
+      if (!r.ok) setExit(1);
       return;
     }
     case "rb-dedup": {
@@ -311,7 +312,7 @@ export async function runMaintenanceCommand(
       } else {
         printRbDedupReport(r, console.log);
       }
-      if (!r.ok) process.exitCode = 1;
+      if (!r.ok) setExit(1);
       return;
     }
     case "rb-comment-sync": {
@@ -337,7 +338,7 @@ export async function runMaintenanceCommand(
       } else {
         printRbCommentSyncReport(r, console.log);
       }
-      if (!r.ok) process.exitCode = 1;
+      if (!r.ok) setExit(1);
       return;
     }
     case "rb-playlist": {
@@ -364,7 +365,7 @@ export async function runMaintenanceCommand(
         } else {
           printReconcileReport(r, console.log);
         }
-        if (!r.ok) process.exitCode = 1;
+        if (!r.ok) setExit(1);
         return;
       }
       // set-builder chain → master-DB playlist. The write-side twin of
@@ -417,7 +418,7 @@ export async function runMaintenanceCommand(
       } else {
         printRbPlaylistReport(r, console.log);
       }
-      if (!r.ok || r.unmatched.length > 0) process.exitCode = 1;
+      if (!r.ok || r.unmatched.length > 0) setExit(1);
       return;
     }
     case "rb-anlz-spike": {
@@ -475,7 +476,7 @@ export async function runMaintenanceCommand(
       } else {
         printSpikeReport(r, console.log);
       }
-      if (!r.ok) process.exitCode = 1;
+      if (!r.ok) setExit(1);
       return;
     }
     case "rb-grid-triage": {
@@ -528,7 +529,7 @@ export async function runMaintenanceCommand(
         } else {
           printGridTriageReport(r, console.log);
         }
-        if (!r.ok) process.exitCode = 1;
+        if (!r.ok) setExit(1);
       } finally {
         state.close();
       }

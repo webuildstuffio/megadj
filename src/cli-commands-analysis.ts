@@ -7,7 +7,7 @@ import {
   parseFlags,
 } from "./cli-flags";
 import { isMegasetSearchOverride } from "../cratedeck/shared/types";
-import { writeJson } from "./shared/cli-output";
+import { finishCommandError, writeJson } from "./shared/cli-output";
 import { isSimilarSpace } from "../cratedeck/shared/vector-space";
 
 const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
@@ -66,10 +66,11 @@ const similar: CliCommandHandler = async (rest, { state }) => {
   }
   const spaceRaw = flags.strings.get("space");
   if (spaceRaw !== undefined && !isSimilarSpace(spaceRaw)) {
-    console.error(
-      `similar: unknown --space "${spaceRaw}" — expected raw or whitened`,
-    );
-    process.exitCode = 2;
+    await finishCommandError({
+      command: "similar",
+      error: `unknown --space "${spaceRaw}" — expected raw or whitened`,
+      exitCode: 2,
+    });
     return;
   }
   const { similar: findSimilar } = await import("./fulltags/similar");
@@ -97,10 +98,11 @@ const megaset: CliCommandHandler = async (rest) => {
   // silently compare the automatic pick against itself
   const searchRaw = flags.strings.get("search");
   if (searchRaw !== undefined && !isMegasetSearchOverride(searchRaw)) {
-    console.error(
-      `megaset: unknown --search "${searchRaw}" — expected greedy or beam`,
-    );
-    process.exitCode = 2;
+    await finishCommandError({
+      command: "megaset",
+      error: `unknown --search "${searchRaw}" — expected greedy or beam`,
+      exitCode: 2,
+    });
     return;
   }
   const { megaset: buildMegaset } = await import("./fulltags/megaset");
@@ -138,10 +140,11 @@ const genre: CliCommandHandler = async (rest, { state }) => {
   if (minAgreementRaw !== undefined) {
     const parsed = Number(minAgreementRaw);
     if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1) {
-      console.error(
-        `genre: --min-agreement must be a number in (0, 1], got "${minAgreementRaw}"`,
-      );
-      process.exitCode = 2;
+      await finishCommandError({
+        command: "genre",
+        error: `--min-agreement must be a number in (0, 1], got "${minAgreementRaw}"`,
+        exitCode: 2,
+      });
       return;
     }
     minAgreement = parsed;
@@ -152,8 +155,11 @@ const genre: CliCommandHandler = async (rest, { state }) => {
     (f) => flags.bools.has(f) && !flags.bools.has("eval"),
   );
   if (evalOnly !== undefined) {
-    console.error(`genre: --${evalOnly} requires --eval`);
-    process.exitCode = 2;
+    await finishCommandError({
+      command: "genre",
+      error: `--${evalOnly} requires --eval`,
+      exitCode: 2,
+    });
     return;
   }
   const { genre: inferGenre } = await import("./fulltags/genre");

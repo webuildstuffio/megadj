@@ -60,3 +60,10 @@ export function finishCommandErrorSync(opts: {
   }
   process.exitCode = opts.exitCode ?? 1;
 }
+
+/** Set the process exit code for the current command run — the one
+ * mutation point (issue #160 ring 2). Exit codes: 0 success · 1 command
+ * reported failure · 2 bad usage/numeric input (zero work). */
+export function setExit(code: number): void {
+  process.exitCode = code;
+}
