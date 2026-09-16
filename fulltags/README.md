@@ -32,8 +32,7 @@ messy file ──▶ FullTags ──▶ tagged · artworked · fingerprinted · 
 fulltags <file-or-folder>            fill every missing field
 fulltags audit <folder> [--json]     completeness gate (same gate as `megadj audit`)
 fulltags <folder> --fingerprint      chromaprint fingerprint → TXXX:ACOUSTID (brew install chromaprint)
-fulltags <folder> --bpm              beat_this tempo → TBPM (uv-managed env; ~1 s/track CPU)
-fulltags <folder> --key              OpenKeyScan key → TKEY + TXXX:CAMELOT (clone the analyzer repo)
+fulltags <folder> --bpm              beat_this tempo → TBPM (uv-managed env; ~1 s/track CPU)fulltags <folder> --key              OpenKeyScan key → TKEY + TXXX:CAMELOT (clone the analyzer repo)
 fulltags <folder> --mood             Essentia ONNX mood/dance/valence → TXXX:MOOD (~320 MB models, auto-downloaded once)
 fulltags ensure-models               pre-download the mood model set (~320 MB → ~/.local/share/fulltags-models)
 bun run fulltags/verify-key.ts <folder> --limit 20   # key gauntlet gate: ≥80% vs existing tags
@@ -166,6 +165,15 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
   path directly. If a re-clone of the analyzer repo loses the darwin gate,
   the m4a key regression test fails loudly — re-apply the two-line gate
   flip.
+- **beat sessions amortize the env load** (`openBeatSession`, Sep 15
+  2026): a one-shot spawn pays uv resolve + torch import + model load
+  every call (~1.5–1.9 s/track measured); the session is a persistent
+  NDJSON worker (same script, single-flight per session — batches open
+  one per `--jobs` worker, as `megadj beats` does) and measured **61%
+  faster over 3 tracks** on the same files, byte-equal results.
+  A timed-out request kills the session so a late response can never be
+  misattributed to the next track; close() is idempotent and a dead
+  session degrades to null.
   OpenKeyScan treats **stdin EOF as shutdown** (never `stdin.end()` before
   responses land) and its stdout must be read line-by-line, never
   buffered-to-end; uv `--with-requirements` ≠ the same pins spelled as

@@ -10,7 +10,11 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
 import { existsSync } from "node:fs";
-import { analyzeBeats, parseBeatThisJson } from "../src/analysis";
+import {
+  analyzeBeats,
+  openBeatSession,
+  parseBeatThisJson,
+} from "../src/analysis";
 import { enrichTrack } from "../src/pipeline";
 
 const DIR = `/tmp/fulltags-analysis-test-${process.pid}`;
@@ -119,6 +123,31 @@ describe("beat_this BPM (roadmap #2)", () => {
         { only: ["bpm"], artworkQueue: null },
       );
       expect(r.notes.some((n) => n.startsWith("bpm:"))).toBe(true);
+    },
+    240_000,
+  );
+
+  test.skipIf(!hasBeatThis)(
+    "persistent session: repeated analyses match one-shot, close is idempotent",
+    async () => {
+      // The session amortizes uv resolve + torch import + model load;
+      // results must stay byte-equal to the one-shot path (same worker
+      // script, same decode). A dead session (post-close) degrades to
+      // null — never a throw.
+      const p = `${DIR}/bpm-s.m4a`;
+      await $`mkdir -p ${DIR}`.quiet();
+      await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i "sine=frequency=220:duration=20" -af "tremolo=f=4:d=0.9" -c:a aac ${p}`.quiet();
+      const oneShot = await analyzeBeats(p);
+      expect(oneShot).toBeTruthy();
+      const s = await openBeatSession();
+      expect(s).toBeTruthy();
+      const a = await s!.analyze(p);
+      const b = await s!.analyze(p);
+      expect(a).toEqual(oneShot);
+      expect(b).toEqual(oneShot);
+      s!.close();
+      s!.close(); // idempotent
+      expect(await s!.analyze(p)).toBeNull(); // dead session → null
     },
     240_000,
   );

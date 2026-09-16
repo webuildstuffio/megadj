@@ -183,32 +183,59 @@ export function foldTempo(bpm: number, lo = 70, hi = 180): number {
  * inside beat_this). Replaces the old ffmpeg-to-temp-WAV bridge
  * byte-for-byte on BPM/beats (A/B'd Sep 15 2026) with zero disk I/O.
  *
+ * SESSIONS: a one-shot spawn pays uv resolve + torch import + model load
+ * every call (~1.5–1.9 s measured). Batch callers pass a persistent
+ * `BeatSession` (openBeatSession) so that cost is paid once per worker;
+ * `session === undefined` keeps the session-of-one fallback, so every
+ * caller rides the same worker script either way.
+ *
  * VERIFY GATE (roadmap #2): compare against rekordbox's re-analyzed
  * grids before any batch run; flag disagreements > 2%. */
-export async function analyzeBeats(path: string): Promise<BeatResult | null> {
+export async function analyzeBeats(
+  path: string,
+  session: BeatSession | null = null,
+): Promise<BeatResult | null> {
   if (!existsSync(path)) return null;
-  return runBeatThis(path);
+  if (session) return session.analyze(path);
+  const s = await openBeatSession();
+  if (!s) return null;
+  try {
+    return await s.analyze(path);
+  } finally {
+    s.close();
+  }
 }
 
-async function runBeatThis(path: string): Promise<BeatResult | null> {
-  // GA-02: the DBN is opt-in (MADJ_DBN=1) and non-commercial (madmom's
-  // models are CC BY-NC-SA — the plan's licensing posture). beat_this's
-  // `dbn=True` exposes NO tempo-range knob (verified: madmom defaults
-  // 55–215 BPM), so per-genre priors will wire Audio2Frames → our own
-  // DBNBeatTrackingProcessor later; for now the flag just flips the
-  // postprocessor. Peak-picking (MIT, no madmom) stays the default.
-  const useDbn = process.env.MEGADJ_DBN === "1";
-  const script = `import json
-import warnings
+/** uv package set for the beat worker — one source of truth for the
+ * one-shot and persistent spawns (the DBN fork only when the flag is on). */
+function beatWorkerArgs(useDbn: boolean): string[] {
+  return [
+    "--with",
+    "beat-this",
+    // madmom must be CPJKU's git fork (PyPI 0.16.1 supports only
+    // Python<3.10 / numpy<1.20) — required only when the DBN flag is on.
+    ...(useDbn ? ["--with", "git+https://github.com/CPJKU/madmom.git"] : []),
+    "--with",
+    "soundfile", // beat_this's torchaudio fallback needs it for mp3/m4a
+    "--with",
+    "av", // PyAV — in-process decode of compressed containers
+  ];
+}
+
+/** The beat worker: decodes ANY container in-process (PyAV) and feeds
+ * sample arrays to `Audio2Beats`. Session mode — NDJSON over stdin/stdout
+ * ({"id",path} requests, {"id",bpm,beats,downbeats} or {"id",error}
+ * responses, {"type":"ready"} once the model is loaded). stdin EOF exits
+ * the loop, so closing our end reaps the worker naturally; the TS side
+ * kills() as a backstop. Single-threaded by design: each session is
+ * single-flight, batches parallelize by opening one session per worker. */
+function beatWorkerScript(useDbn: boolean): string {
+  return `import json, sys, warnings
 warnings.filterwarnings("ignore")
 import numpy as np
 import av
 from beat_this.inference import Audio2Beats
 
-# Decode ANY container in-process (mp3/m4a/aac included): PyAV speaks the
-# bundled FFmpeg, so beat_this's own loader (torchaudio→soundfile→madmom)
-# never sees a compressed file. Mono downmix, native sample rate —
-# Audio2Beats resamples to 22050 internally (soxr).
 def load_mono(path, sr=22050):
     c = av.open(path)
     res = av.AudioResampler(format="fltp", layout="mono", rate=sr)
@@ -222,45 +249,128 @@ def load_mono(path, sr=22050):
     return np.concatenate(arrs).astype("float64"), sr
 
 f = Audio2Beats(device="cpu", dbn=${useDbn ? "True" : "False"})
-signal, sr = load_mono(${JSON.stringify(path)})
-beats, downbeats = f(signal, sr)
-beats = np.asarray(beats, dtype=float)
-downbeats = np.asarray(downbeats, dtype=float)
-tempo = float(60.0 / np.median(np.diff(beats))) if len(beats) >= 4 else 0.0
-print(json.dumps({
-    "bpm": tempo,
-    "beats": beats.tolist(),
-    "downbeats": downbeats.tolist(),
-}))`;
-  // ASYNC spawn, not spawnSync: inference runs seconds per track, and a
-  // synchronous block freezes the event loop — the caller's --jobs worker
-  // pool degrades to serial. Awaited here, tracks genuinely parallelize.
+print(json.dumps({"type": "ready"}), flush=True)
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    rid = None
+    try:
+        req = json.loads(line)
+        if isinstance(req, dict):
+            rid = req.get("id")
+        signal, sr = load_mono(req["path"])
+        beats, downbeats = f(signal, sr)
+        beats = np.asarray(beats, dtype=float)
+        downbeats = np.asarray(downbeats, dtype=float)
+        tempo = float(60.0 / np.median(np.diff(beats))) if len(beats) >= 4 else 0.0
+        print(json.dumps({"id": rid, "bpm": tempo, "beats": beats.tolist(), "downbeats": downbeats.tolist()}), flush=True)
+    except Exception as exc:
+        print(json.dumps({"id": rid, "error": str(exc)[:200]}), flush=True)
+`;
+}
+
+/** Resolve the next stdout line matching `pred`, or null on timeout/EOF.
+ * Deterministic: consumes a buffered line or awaits exactly one read(). */
+async function readUntilLine(
+  lr: ReturnType<typeof lineReader>,
+  pred: (line: string) => boolean,
+  timeoutMs: number,
+): Promise<string | null> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return null;
+    const line = await lr.next(remaining);
+    if (line == null) return null;
+    if (pred(line)) return line;
+  }
+}
+
+export interface BeatSession {
+  /** Analyze one file. Null on missing file, analyzer error, or a dead
+   * session (a timed-out request kills the session — a late response
+   * could otherwise be misattributed to the next request). */
+  analyze(path: string): Promise<BeatResult | null>;
+  /** Kill the worker. Idempotent; also safe after natural EOF exit. */
+  close(): void;
+}
+
+const BEAT_READY_TIMEOUT_MS = 90_000;
+const BEAT_RESPONSE_TIMEOUT_MS = 180_000;
+
+/** Persistent beat_this worker (NDJSON protocol above). Null when the
+ * env is missing/fails the ready handshake — callers keep their
+ * degrade-to-null contract. Single-flight: one request in flight per
+ * session; batches open one session per parallel worker. */
+export async function openBeatSession(): Promise<BeatSession | null> {
+  // GA-02: the DBN is opt-in (MADJ_DBN=1) and non-commercial (madmom's
+  // models are CC BY-NC-SA — the plan's licensing posture).
+  const useDbn = process.env.MEGADJ_DBN === "1";
   const proc = Bun.spawn({
     cmd: [
       "uv",
       "run",
-      "--with",
-      "beat-this",
-      // madmom must be CPJKU's git fork (PyPI 0.16.1 supports only
-      // Python<3.10 / numpy<1.20) — required only when the DBN flag is on.
-      ...(useDbn ? ["--with", "git+https://github.com/CPJKU/madmom.git"] : []),
-      "--with",
-      "soundfile", // beat_this's torchaudio fallback needs it for mp3/m4a
-      "--with",
-      "av", // PyAV — in-process decode of compressed containers
+      ...beatWorkerArgs(useDbn),
       "python",
       "-c",
-      script,
+      beatWorkerScript(useDbn),
     ],
+    stdin: "pipe",
     stdout: "pipe",
-    stderr: "pipe",
+    stderr: "ignore",
   });
-  const [stdout, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    proc.exited,
-  ]);
-  if (exitCode !== 0) return null;
-  return parseBeatThisJson(stdout);
+  const lr = lineReader(proc.stdout as ReadableStream);
+  const enc = new TextEncoder();
+  const readyLine = await readUntilLine(
+    lr,
+    (l) => parseJsonObject(l)?.type === "ready",
+    BEAT_READY_TIMEOUT_MS,
+  );
+  let alive = readyLine !== null;
+  if (!alive) {
+    try {
+      proc.kill();
+    } catch (error) {
+      // Process exit can race cleanup; there is no recovery work to do.
+      void error;
+    }
+    return null;
+  }
+  const kill = () => {
+    if (!alive) return;
+    alive = false;
+    try {
+      proc.kill();
+    } catch (error) {
+      void error;
+    }
+  };
+  return {
+    async analyze(path: string): Promise<BeatResult | null> {
+      if (!alive || !existsSync(path)) return null;
+      proc.stdin.write(enc.encode(`${JSON.stringify({ id: path, path })}\n`));
+      const line = await readUntilLine(
+        lr,
+        (l) => {
+          const v = parseJsonObject(l);
+          return typeof v?.id === "string" && v.id.length > 0;
+        },
+        BEAT_RESPONSE_TIMEOUT_MS,
+      );
+      if (line == null) {
+        // Timeout/EOF desyncs the protocol — kill so a late response can
+        // never be misattributed to the next request.
+        kill();
+        return null;
+      }
+      const v = parseJsonObject(line);
+      if (!v || v.id !== path) return null;
+      // Error lines ({"id","error"}) fail the BeatResult schema → null.
+      return parseBeatThisJson(line);
+    },
+    close: kill,
+  };
 }
 
 /** Parse the last JSON line emitted by beat_this. Invalid JSON, non-finite
@@ -618,19 +728,8 @@ async function runKeyServer(
   /** Read lines until pred matches (or timeout/EOF). Deterministic: each
    * iteration either consumes a buffered line or awaits exactly one read()
    * — no polling race between a pump task and the caller. */
-  const readUntil = async (
-    pred: (line: string) => boolean,
-    timeoutMs: number,
-  ): Promise<string | null> => {
-    const deadline = Date.now() + timeoutMs;
-    for (;;) {
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) return null;
-      const line = await lr.next(remaining);
-      if (line == null) return null;
-      if (pred(line)) return line;
-    }
-  };
+  const readUntil = (pred: (line: string) => boolean, timeoutMs: number) =>
+    readUntilLine(lr, pred, timeoutMs);
   const isReady = lineIsReady;
   const hasId = lineHasId;
   try {

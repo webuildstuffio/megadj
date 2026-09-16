@@ -116,9 +116,11 @@ export {
 } from "./name-match";
 export {
   analyzeBeats,
+  openBeatSession,
   foldTempo,
   gridAuditFull,
   type BeatResult,
+  type BeatSession,
 } from "./analysis";
 export { mbGenreForArtist } from "./mb";
 export {

@@ -1,6 +1,10 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
-import { analyzeBeats, foldTempo } from "../../fulltags/src/exports";
+import {
+  analyzeBeats,
+  foldTempo,
+  openBeatSession,
+} from "../../fulltags/src/exports";
 import type { ArchiveState, TrackRow } from "../archive/state";
 import { commandLog } from "../progress";
 
@@ -11,6 +15,11 @@ import { commandLog } from "../progress";
  * (12/24 within 2% vs rekordbox), so no TBPM tags are ever written here.
  * The BEAT/DOWNBEAT ARRAYS are the payload — they feed structure cues
  * and CrateDeck's grid cross-check, and live in the `beats` table only.
+ *
+ * Each --jobs worker holds a PERSISTENT beat session (NDJSON to the same
+ * uv/beat-this env): the uv resolve + torch import + model load is paid
+ * once per worker instead of once per track (~1.5–1.9 s/track measured
+ * on the old spawn-per-track path).
  *
  * Idempotent: a track with an existing beat record (any model) is
  * skipped unless --force. --json emits one summary object (P1).
@@ -78,6 +87,10 @@ export async function beats(opts: BeatsOptions): Promise<void> {
   let failed = 0;
   let idx = 0;
   async function worker() {
+    // One persistent session per worker: the env load amortizes across
+    // this worker's whole queue; null session (env missing) degrades to
+    // per-track nulls exactly like the old one-shot path.
+    const session = opts.dryRun ? null : await openBeatSession();
     while (true) {
       const my = idx++;
       if (my >= queue.length) break;
@@ -94,7 +107,7 @@ export async function beats(opts: BeatsOptions): Promise<void> {
         continue;
       }
       try {
-        const r = await analyzeBeats(path);
+        const r = await analyzeBeats(path, session);
         if (!r || !r.beats.length) {
           failed++;
           log(
@@ -125,6 +138,7 @@ export async function beats(opts: BeatsOptions): Promise<void> {
         );
       }
     }
+    session?.close();
   }
   await Promise.all(Array.from({ length: jobs }, () => worker()));
 
