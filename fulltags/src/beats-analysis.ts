@@ -176,7 +176,7 @@ const BEAT_RESPONSE_TIMEOUT_MS = 180_000;
  * over the shared session kit (analysis-worker.ts, #189): this file owns
  * only the uv argv + worker script + response parsing. */
 export async function openBeatSession(): Promise<BeatSession | null> {
-  // GA-02: the DBN is opt-in (MADJ_DBN=1) and non-commercial (madmom's
+  // GA-02: the DBN is opt-in (MEGADJ_DBN=1) and non-commercial (madmom's
   // models are CC BY-NC-SA — the plan's licensing posture).
   const useDbn = process.env.MEGADJ_DBN === "1";
   return openWorkerSession<string, BeatResult>({
