@@ -42,6 +42,8 @@ export interface MegasetOptions {
   /** Force a sequencer strategy (A/B compare); undefined = automatic. */
   search?: SetSearchOverride | undefined;
   json?: boolean | undefined;
+  /** Log sink override (tests); default = commandLog routing. */
+  onProgress?: ((msg: string) => void) | undefined;
 }
 
 export async function megaset(opts: MegasetOptions): Promise<void> {
@@ -173,8 +175,15 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       let at = 0;
       for (const s of built.steps) {
         at = s.atMin;
+        // #106 Phase D: handoff windows ride the per-step line — same
+        // evidence the web hover cards and the M3U8 #EXTREM comments
+        // carry; null pair = no cues ledger row, printed as dashes.
+        const windows =
+          s.mixInCue !== null || s.mixOutCue !== null
+            ? `  ♪ in ${Math.round(s.mixInCue?.position ?? 0)}s/bar ${s.mixInCue?.bar ?? "—"} · out ${Math.round(s.mixOutCue?.position ?? 0)}s/bar ${s.mixOutCue?.bar ?? "—"}`
+            : "  ♪ no cue windows";
         log(
-          `  ${String(s.atMin).padStart(5)}m  ${s.bpm === null ? "  —  " : String(Math.round(s.bpm * 10) / 10).padStart(5)} bpm  ${(s.key ?? "—").padEnd(4)}  ${s.transition === null ? "open " : s.transition.toFixed(3)}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}`,
+          `  ${String(s.atMin).padStart(5)}m  ${s.bpm === null ? "  —  " : String(Math.round(s.bpm * 10) / 10).padStart(5)} bpm  ${(s.key ?? "—").padEnd(4)}  ${s.transition === null ? "open " : s.transition.toFixed(3)}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}${windows}`,
         );
       }
       log(`  total ${at} min — propose-only, nothing written`);
