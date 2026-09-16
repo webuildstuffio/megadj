@@ -51,8 +51,9 @@ import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 import {
   PY_FIND_PLAYLIST_FN,
   PY_MATCH_TRACK_STEP,
-  PY_RID_FN,
+  pyAddSongPlaylist,
   pyContentMatchPreamble,
+  pyEnsurePlaylistLadder,
   pyPathKeyFn,
 } from "./rb-script-kit.js";
 
@@ -147,33 +148,12 @@ ${PY_MATCH_TRACK_STEP}
 
 ${PY_FIND_PLAYLIST_FN}
 
-${PY_RID_FN}
-
-parent = find_playlist(group_name, 1, 0)
-if parent is None:
-    parent = DjmdPlaylist(ID=rid(), Name=group_name, Attribute=1, ParentID=0,
-                          Seq=db.query(DjmdPlaylist).count() + 1,
-                          UUID=str(uuid.uuid4()), created_at=now, updated_at=now)
-    db.add(parent); db.session.commit()
-out["parentId"] = str(parent.ID)
-
-if find_playlist(playlist_name, 0, parent.ID) is not None:
-    out["errors"].append('playlist "%s" already exists in "%s" — rename it, delete it, or pass --playlist' % (playlist_name, group_name))
-    print(json.dumps(out)); db.close(); sys.exit(0)
-
-pl = DjmdPlaylist(ID=rid(), Name=playlist_name, Attribute=0,
-                  ParentID=parent.ID, Seq=db.query(DjmdPlaylist).count() + 1,
-                  UUID=str(uuid.uuid4()), created_at=now, updated_at=now)
-db.add(pl); db.session.commit()
-out["playlistId"] = str(pl.ID)
+${pyEnsurePlaylistLadder({ createMissingGroup: true, onExisting: "refuse" })}
 
 track_no = 0
 for cid in content_ids:
     try:
-        sp = DjmdSongPlaylist(ID=rid(), PlaylistID=pl.ID, ContentID=cid,
-                              TrackNo=track_no + 1, UUID=str(uuid.uuid4()),
-                              created_at=now, updated_at=now)
-        db.add(sp); db.session.commit()
+        ${pyAddSongPlaylist("sp", "pl.ID", "cid", "track_no + 1").replaceAll("\n", "\n        ")}
         track_no += 1
         out["linked"] += 1
     except Exception as e:

@@ -40,6 +40,8 @@ import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 import {
   PY_FIND_PLAYLIST_FN,
   PY_RID_FN,
+  pyAddSongPlaylist,
+  pyEnsurePlaylistLadder,
   pyPathKeyFn,
 } from "./rb-script-kit.js";
 import { commandLog } from "../progress";
@@ -206,26 +208,7 @@ ${PY_FIND_PLAYLIST_FN}
 
 ${PY_RID_FN}
 
-parent = None
-if group_name:
-    parent = find_playlist(group_name, 1, 0)
-    if parent is None:
-        pid = rid()
-        parent = DjmdPlaylist(ID=pid, Name=group_name, Attribute=1, ParentID=0,
-                              Seq=db.query(DjmdPlaylist).count() + 1,
-                              UUID=str(uuid.uuid4()), created_at=now, updated_at=now)
-        db.add(parent); db.session.commit()
-    out["parentId"] = str(parent.ID)
-
-pl = find_playlist(playlist_name, 0, parent.ID if parent else 0)
-if pl is None:
-    seq = db.query(DjmdPlaylist).count() + 1
-    pid = rid()
-    pl = DjmdPlaylist(ID=pid, Name=playlist_name, Attribute=0,
-                      ParentID=parent.ID if parent else 0, Seq=seq,
-                      UUID=str(uuid.uuid4()), created_at=now, updated_at=now)
-    db.add(pl); db.session.commit()
-out["playlistId"] = str(pl.ID)
+${pyEnsurePlaylistLadder({ createMissingGroup: false, onExisting: "reuse" })}
 
 track_no = db.query(DjmdSongPlaylist).filter(DjmdSongPlaylist.PlaylistID == pl.ID).count()
 playlist_content = {
@@ -292,11 +275,7 @@ for f in files:
         if cid not in playlist_content:
             # playlist membership for both new and already-imported content
             # so re-runs repair an incomplete batch playlist idempotently.
-            spid = rid()
-            sp = DjmdSongPlaylist(ID=spid, PlaylistID=pl.ID, ContentID=cid,
-                                  TrackNo=track_no + 1, UUID=str(uuid.uuid4()),
-                                  created_at=now, updated_at=now)
-            db.add(sp); db.session.commit()
+            ${pyAddSongPlaylist("sp", "pl.ID", "cid", "track_no + 1").replaceAll("\n", "\n            ")}
             track_no += 1
             playlist_content.add(cid)
             out["linked"] += 1

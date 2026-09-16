@@ -61,6 +61,82 @@ export function pyPathKeyFn(withNfc = true): string {
 export const PY_RID_FN = `def rid():
     return db.random_id() if hasattr(db, "random_id") else int.from_bytes(os.urandom(4), "big") & 0x7FFFFFFF`;
 
+/** One DjmdPlaylist row construction (#88 diet): the field set
+ *  (ID/Name/Attribute/ParentID/Seq/UUID/timestamps) is the RB-side twin
+ *  of masterPlaylists6.xml rows — every rb-* script that creates a
+ *  playlist creates it EXACTLY like this, committed immediately. */
+export function pyNewPlaylist(
+  varName: string,
+  nameExpr: string,
+  attrExpr: string,
+  parentExpr: string,
+  seqExpr: string,
+): string {
+  return `${varName} = DjmdPlaylist(ID=rid(), Name=${nameExpr}, Attribute=${attrExpr}, ParentID=${parentExpr}, Seq=${seqExpr}, UUID=str(uuid.uuid4()), created_at=now, updated_at=now)
+db.add(${varName}); db.session.commit()`;
+}
+
+/** The group+playlist ensure ladder (#88 diet): find the parent group
+ *  (creating it when missing, unless the caller passes find_group=False
+ *  and treats a missing group as its own condition), then find or create
+ *  the child playlist. rb-import and rb-playlist interpolated byte-twin
+ *  blocks of this; the ladder now lives here so a DjmdPlaylist field
+ *  change is one edit. Returns the block that sets `parent`/`pl` (plus
+ *  `parentId`/`playlistId` in `out` when wanted) — `group_name`,
+ *  `playlist_name`, and `out` must exist in scope. */
+export function pyEnsurePlaylistLadder(opts: {
+  /** rb-import skips group creation when no group was given (parent may
+   *  end up None); rb-playlist requires the group and creates it. */
+  createMissingGroup: boolean;
+  /** duplicate-name policy: rb-playlist refuses loudly (its dry-run has
+   *  already reported); rb-import links the existing playlist. */
+  onExisting: "refuse" | "reuse";
+}): string {
+  const groupEnsure = opts.createMissingGroup
+    ? `parent = find_playlist(group_name, 1, 0)
+if parent is None:
+    ${pyNewPlaylist("parent", "group_name", "1", "0", "db.query(DjmdPlaylist).count() + 1").replaceAll("\n", "\n    ")}
+out["parentId"] = str(parent.ID)`
+    : `parent = None
+if group_name:
+    parent = find_playlist(group_name, 1, 0)
+    if parent is None:
+        ${pyNewPlaylist("parent", "group_name", "1", "0", "db.query(DjmdPlaylist).count() + 1").replaceAll("\n", "\n        ")}
+    out["parentId"] = str(parent.ID)`;
+  const parentExpr = opts.createMissingGroup
+    ? "parent.ID"
+    : "parent.ID if parent else 0";
+  const existing =
+    opts.onExisting === "refuse"
+      ? `if find_playlist(playlist_name, 0, parent.ID) is not None:
+    out["errors"].append('playlist "%s" already exists in "%s" — rename it, delete it, or pass --playlist' % (playlist_name, group_name))
+    print(json.dumps(out)); db.close(); sys.exit(0)
+${pyNewPlaylist("pl", "playlist_name", "0", "parent.ID", "db.query(DjmdPlaylist).count() + 1")}
+out["playlistId"] = str(pl.ID)`
+      : `pl = find_playlist(playlist_name, 0, ${parentExpr})
+if pl is None:
+    ${pyNewPlaylist("pl", "playlist_name", "0", parentExpr, "db.query(DjmdPlaylist).count() + 1").replaceAll("\n", "\n    ")}
+out["playlistId"] = str(pl.ID)`;
+  return `${groupEnsure}
+
+${existing}`;
+}
+
+/** One DjmdSongPlaylist membership row (#88 diet): the link block
+ *  rb-import (batch-idempotent variant, membership deduped against the
+ *  existing set) and rb-playlist (plain counter variant) both
+ *  interpolate. The field set is the XML-twin rule from
+ *  rb-playlist-twin.ts — Playlists live in DB + XML or neither. */
+export function pyAddSongPlaylist(
+  spVar: string,
+  playlistIdExpr: string,
+  contentIdExpr: string,
+  trackNoExpr: string,
+): string {
+  return `${spVar} = DjmdSongPlaylist(ID=rid(), PlaylistID=${playlistIdExpr}, ContentID=${contentIdExpr}, TrackNo=${trackNoExpr}, UUID=str(uuid.uuid4()), created_at=now, updated_at=now)
+db.add(${spVar}); db.session.commit()`;
+}
+
 /** Root-only playlist finder: exact (Name, Attribute, ParentID) match with
  *  the str()-coerced parent comparison that keeps sqlite ints and python
  *  ints from disagreeing. The pinned test asserts these exact lines. */

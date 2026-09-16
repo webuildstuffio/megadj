@@ -90,5 +90,14 @@ describe("rb-import subprocess boundaries", () => {
     expect(script).toContain(
       "find_playlist(playlist_name, 0, parent.ID if parent else 0)",
     );
+    // the ensure ladder + link rows come from rb-script-kit (the #88 seam):
+    // two DjmdPlaylist constructions (group + playlist), and the
+    // membership insert is the shared pyAddSongPlaylist block — the
+    // hand-inlined twin is gone from this file.
+    expect(script).toContain('out["parentId"] = str(parent.ID)');
+    expect(script.match(/DjmdPlaylist\(ID=rid\(\)/gu)?.length).toBe(2);
+    expect(script).toContain(
+      "sp = DjmdSongPlaylist(ID=rid(), PlaylistID=pl.ID, ContentID=cid, TrackNo=track_no + 1,",
+    );
   });
 });

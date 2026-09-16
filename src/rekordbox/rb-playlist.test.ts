@@ -227,12 +227,18 @@ describe("rb-playlist subprocess boundaries", () => {
     ).toThrow();
   });
 
-  test("the requested group is matched at the root only", () => {
+  test("the requested group is matched at the root only, via the kit ladder", () => {
     const script = __test.buildScript();
     expect(script).toContain("def find_playlist(name, attr, parent_id):");
     expect(script).toContain("DjmdPlaylist.ParentID == parent_id");
     expect(script).toContain("find_playlist(group_name, 1, 0)");
     expect(script).toContain("find_playlist(playlist_name, 0, parent.ID)");
+    // the ensure ladder comes from rb-script-kit: ONE DjmdPlaylist field
+    // set + ONE duplicate-name refusal, interpolated (the hand twin is
+    // gone — a field change is a kit edit, not two script edits)
+    expect(script).toContain('out["parentId"] = str(parent.ID)');
+    expect(script).toContain("already exists in");
+    expect(script.match(/DjmdPlaylist\(ID=rid\(\)/gu)?.length).toBe(2);
   });
 });
 
