@@ -7,9 +7,9 @@
  */
 export interface LineReader {
   /** Resolve the next complete line, or null on timeout/EOF. */
-  next(timeoutMs: number): Promise<string | null>;
+  next: (timeoutMs: number) => Promise<string | null>;
   /** True once the stream reported EOF. */
-  done(): boolean;
+  done: () => boolean;
 }
 
 export function lineReader(stdout: ReadableStream): LineReader {
@@ -22,7 +22,7 @@ export function lineReader(stdout: ReadableStream): LineReader {
       const t0 = Date.now();
       while (Date.now() - t0 < timeoutMs) {
         const nl = buf.indexOf("\n");
-        if (nl >= 0) {
+        if (nl !== -1) {
           const line = buf.slice(0, nl);
           buf = buf.slice(nl + 1);
           return line;

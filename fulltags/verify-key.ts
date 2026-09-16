@@ -14,8 +14,7 @@
  */
 import { readdirSync, statSync, existsSync, readFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
-import { analyzeKeys } from "./src/analysis";
-import type { KeyResult } from "./src/analysis";
+import { analyzeKeys, type KeyResult } from "./src/analysis";
 import { groundTruth } from "./src/readers";
 
 const AUDIO = new Set([
@@ -115,13 +114,13 @@ function main() {
   const args = process.argv.slice(2);
   const json = args.includes("--json");
   const limIdx = args.indexOf("--limit");
-  const limit = limIdx >= 0 ? parseInt(args[limIdx + 1] ?? "20", 10) : 20;
+  const limit = limIdx !== -1 ? parseInt(args[limIdx + 1] ?? "20", 10) : 20;
   const refsIdx = args.indexOf("--refs");
   const targets = args.filter(
     (a) =>
       !a.startsWith("--") &&
       a !== String(limit) &&
-      (refsIdx < 0 || a !== args[refsIdx + 1]),
+      (refsIdx === -1 || a !== args[refsIdx + 1]),
   );
   const files: string[] = [];
   for (const t of targets) {
@@ -144,7 +143,7 @@ function main() {
   // archive files often carry NO key tags yet (that's why they're being
   // verified before write), while rekordbox has already analyzed them.
   let externalRefs: Record<string, string> | null = null;
-  if (refsIdx >= 0) {
+  if (refsIdx !== -1) {
     const p = args[refsIdx + 1];
     if (!p || !existsSync(p)) {
       console.error(`--refs: file not found: ${p}`);

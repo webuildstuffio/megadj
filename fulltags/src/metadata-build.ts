@@ -3,8 +3,7 @@
  * EnrichedMetadata record. Migrated from src/metadata.ts (the yt-dlp +
  * description-credits + genre-inference pass).
  */
-import type { EnrichedMetadata } from "./schema";
-import { inferGenre } from "./schema";
+import { inferGenre, type EnrichedMetadata } from "./schema";
 
 export interface YtdlpInfo {
   title?: string;

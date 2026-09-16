@@ -33,11 +33,11 @@ import { validatePatch } from "./schema-guards";
 import { id3Open, mutagenOk } from "./mutagen";
 
 export interface WriterAtomicOps {
-  copyFile(from: string, to: string): void;
-  writeFile(path: string, data: Uint8Array): void;
-  rename(from: string, to: string): void;
-  mutagenOk(script: string): boolean;
-  fsyncFile(path: string): void;
+  copyFile: (from: string, to: string) => void;
+  writeFile: (path: string, data: Uint8Array) => void;
+  rename: (from: string, to: string) => void;
+  mutagenOk: (script: string) => boolean;
+  fsyncFile: (path: string) => void;
 }
 
 function fsyncFile(path: string): void {

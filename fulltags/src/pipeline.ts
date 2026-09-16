@@ -14,6 +14,8 @@
  *   energy   → ffmpeg RMS astats → 1–10 scale
  */
 import { basename } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { appendFile } from "node:fs/promises";
 import { groundTruth } from "./readers";
 import { embedArt, writePatch } from "./writer";
 import { canonGenre, type TagPatch } from "./schema";
@@ -464,8 +466,6 @@ async function itunesArt(r: ArtRow): Promise<Uint8Array | null> {
 }
 
 function appendQueue(queuePath: string, r: ArtRow): boolean {
-  const { existsSync, readFileSync } =
-    require("node:fs") as typeof import("node:fs");
   try {
     // Dedupe: a path already queued (by path) must not re-queue on every
     // re-run — the queue is consumed by megadj artwork, duplicates just
@@ -474,8 +474,6 @@ function appendQueue(queuePath: string, r: ArtRow): boolean {
       const seen = readFileSync(queuePath, "utf8");
       if (seen.includes(JSON.stringify(r.file_path))) return false;
     }
-    const { appendFile } =
-      require("node:fs/promises") as typeof import("node:fs/promises");
     void appendFile(
       queuePath,
       `${JSON.stringify({

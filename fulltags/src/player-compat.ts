@@ -23,8 +23,12 @@
  * module answers "will it PLAY"; convert.ts answers "will it SHOW".
  */
 import type { Probe } from "./media-probe";
-import { resolveFleet, DEFAULT_FLEET, fleetFloor } from "./fleet";
-import type { FleetProfile } from "./fleet";
+import {
+  DEFAULT_FLEET,
+  fleetFloor,
+  resolveFleet,
+  type FleetProfile,
+} from "./fleet";
 /** The configured booth fleet (player ids) — set once by the entrypoint
  *  from config.toml [booth].fleet; defaults to the three always-on
  *  players. Both gates (playerCompat + boothTextCompat) read this, so

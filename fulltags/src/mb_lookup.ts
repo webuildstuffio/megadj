@@ -90,7 +90,7 @@ interface MbRecording {
   id?: string;
   "artist-credit"?: {
     name?: string;
-    artist?: { name?: string; tags?: Array<{ name: string; count: number }> };
+    artist?: { name?: string; tags?: { name: string; count: number }[] };
   }[];
   releases?: { title?: string; date?: string }[];
 }

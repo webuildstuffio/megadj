@@ -174,9 +174,9 @@ export function parseFilename(basename: string): ParsedName {
   }
   const parts = rest.split(/\s+-\s+/);
   if (parts.length >= 2) {
-    const artistPart = parts[0]?.trim();
+    const artistPart = parts[0]?.trim() ?? "";
     const artistOk =
-      !!artistPart && !/^unknown(\s*artist)?$/iu.test(artistPart);
+      artistPart !== "" && !/^unknown(\s*artist)?$/iu.test(artistPart);
     return {
       trackNo,
       artist: artistOk ? artistPart : null,

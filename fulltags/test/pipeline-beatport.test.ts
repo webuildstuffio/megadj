@@ -6,11 +6,14 @@ import {
   beatportReset,
   bpStamp,
   BP_STAMP_MAX,
+  type BpTrack,
 } from "../src/beatport";
-import { setScSearchImpl } from "../src/art-sources";
+import {
+  setScSearchImpl,
+  type SearchRow,
+  type ScHit,
+} from "../src/art-sources";
 import { groundTruth } from "../src/readers";
-import type { BpTrack } from "../src/beatport";
-import type { SearchRow, ScHit } from "../src/art-sources";
 
 const DIR = `/tmp/fulltags-bp-pipeline-test-${process.pid}`;
 

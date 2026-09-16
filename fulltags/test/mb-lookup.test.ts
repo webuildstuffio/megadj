@@ -6,14 +6,17 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mbLookupCached, mbRecording } from "../src/mb_lookup";
 
-type FetchCall = { url: string; signal: AbortSignal | null };
+interface FetchCall {
+  url: string;
+  signal: AbortSignal | null;
+}
 
 const originalFetch = globalThis.fetch;
 let calls: FetchCall[] = [];
 let responder: (url: string) => Response | Promise<Response>;
 
 function okJson(body: unknown): Response {
-  return new Response(JSON.stringify(body), {
+  return Response.json(body, {
     status: 200,
     headers: { "content-type": "application/json" },
   });

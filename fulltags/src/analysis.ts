@@ -291,9 +291,9 @@ export interface BeatSession {
   /** Analyze one file. Null on missing file, analyzer error, or a dead
    * session (a timed-out request kills the session — a late response
    * could otherwise be misattributed to the next request). */
-  analyze(path: string): Promise<BeatResult | null>;
+  analyze: (path: string) => Promise<BeatResult | null>;
   /** Kill the worker. Idempotent; also safe after natural EOF exit. */
-  close(): void;
+  close: () => void;
 }
 
 const BEAT_READY_TIMEOUT_MS = 90_000;
@@ -664,15 +664,12 @@ export async function analyzeKeys(
 
 /** Does this analyzer stdout line announce readiness? Tolerant of partial
  *  lines (JSON.parse guarded — sanctioned resilience, returns false). */
-const lineIsReady = (l: string): boolean => {
-  return parseJsonObject(l)?.type === "ready";
-};
+const lineIsReady = (l: string): boolean =>
+  parseJsonObject(l)?.type === "ready";
 
 /** Does this analyzer stdout line carry a response id? Tolerant of partial
  *  lines (JSON.parse guarded — sanctioned resilience, returns false). */
-const lineHasId = (l: string): boolean => {
-  return parseKeyServerLine(l) !== null;
-};
+const lineHasId = (l: string): boolean => parseKeyServerLine(l) !== null;
 
 export interface KeyServerLine {
   id: string;

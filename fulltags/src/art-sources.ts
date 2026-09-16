@@ -7,9 +7,8 @@
  * Migrated from tools/fetch-lib.ts + src/commands/embed.ts; identical
  * behavior, one home.
  */
-import { readdirSync } from "node:fs";
+import { readdirSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import {
   cleanSearchParts,
   cleanSearchQuery,
@@ -236,7 +235,7 @@ export function twinArt(r: ArtRow): Uint8Array | null {
         .replace(/[^a-z0-9]/g, "") !== stem
     )
       continue;
-    const dump = r.file_path + ".twin.jpg";
+    const dump = `${r.file_path}.twin.jpg`;
     const pr = Bun.spawnSync({
       cmd: [
         "ffmpeg",
