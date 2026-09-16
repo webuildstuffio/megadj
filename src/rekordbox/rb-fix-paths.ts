@@ -19,12 +19,12 @@
  *   - corrupt/missing DB is a visible failure, never a fake pass
  */
 
-import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { commandLog } from "../progress";
 import { isUnknownArray } from "../../cratedeck/shared/guards";
 import { nameKey } from "../shared/name-key";
-import { AUDIO_EXTS as AUDIO_EXT } from "../shared/audio-exts";
+import { walkAudioDir } from "../shared/audio-walk";
 import {
   assertRbClosed,
   backupMaster,
@@ -135,27 +135,8 @@ function stripCopySuffix(name: string): string {
 }
 
 function walkAudio(root: string, out: string[]): void {
-  let entries: string[];
-  try {
-    entries = readdirSync(root);
-  } catch {
-    return; // unreadable/missing root — index just stays smaller
-  }
-  for (const e of entries) {
-    if (e.startsWith(".")) continue; // junk/quarantine (shelf-root rule)
-    const full = join(root, e);
-    let st: Stats;
-    try {
-      st = statSync(full);
-    } catch {
-      continue;
-    }
-    if (st.isDirectory()) {
-      walkAudio(full, out);
-    } else if (AUDIO_EXT.has(e.slice(e.lastIndexOf(".")).toLowerCase())) {
-      out.push(full);
-    }
-  }
+  // shared walker (#142): soft-fail, dotfile/`._` skip, AUDIO_EXTS SSOT
+  out.push(...walkAudioDir(root));
 }
 
 /** Shared with rb-unmatched: the live-audio index (same roots, same junk

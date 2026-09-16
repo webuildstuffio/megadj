@@ -25,6 +25,7 @@ export {
 } from "../../../fulltags/src/exports";
 import type { ParsedName, Probe } from "../../../fulltags/src/exports";
 import { errorText } from "../../shared/error-text";
+import { AUDIO_EXTS } from "../../shared/audio-exts";
 export type { ParsedName, Probe };
 
 const md5File = md5FileStream;
@@ -105,9 +106,7 @@ export async function quarantine(
   } catch (error) {
     // A failed move/copy leaves the source in place for retry and is visible
     // to the batch summary through the existing log channel.
-    log(
-      `  [dupe] quarantine failed: ${basename(file)} — ${errorText(error)}`,
-    );
+    log(`  [dupe] quarantine failed: ${basename(file)} — ${errorText(error)}`);
   }
 }
 
@@ -143,4 +142,4 @@ export async function walkAudio(
   return out;
 }
 
-const AUDIO_EXTS = new Set([".m4a", ".mp3", ".wav", ".flac", ".aiff", ".aif"]);
+

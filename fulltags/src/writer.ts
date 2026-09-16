@@ -16,6 +16,7 @@
 import { $ } from "bun";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, extname, join } from "node:path";
+import { walkAudioDir } from "../../src/shared/audio-walk";
 import {
   closeSync,
   copyFileSync,
@@ -23,12 +24,10 @@ import {
   fsyncSync,
   openSync,
   readSync,
-  readdirSync,
   renameSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import type { Dirent } from "node:fs";
 import type { EnrichedMetadata, TagPatch } from "./schema";
 import { validatePatch } from "./schema-guards";
 import { id3Open, mutagenOk } from "./mutagen";
@@ -173,18 +172,11 @@ function mutagenPatchFrame(
   }
 }
 
-export const AUDIO_EXTS = new Set([
-  ".m4a",
-  ".mp3",
-  ".wav",
-  ".flac",
-  ".aiff",
-  ".aif",
-]);
-
-export function isAudioFile(p: string): boolean {
-  return AUDIO_EXTS.has(extname(p).toLowerCase());
-}
+// AUDIO_EXTS/isAudioFile delegate to the megadj SSOT (issue #69/#142):
+// the package previously shipped its own six-format set, so ogg/opus and
+// aac/alac were invisible to every package-side pass.
+export { AUDIO_EXTS } from "../../src/shared/audio-exts";
+export { isAudioFile } from "../../src/shared/audio-exts";
 
 /** Recursively list audio files under `dir`, skipping hidden entries.
  * One shared walker for every "collect the archive" pass — fetch/audit,
@@ -195,19 +187,7 @@ export function isAudioFile(p: string): boolean {
  * short CLI passes; for server/event-loop contexts use cratedeck's
  * async walkTree instead. */
 export function walkAudioFiles(dir: string, out: string[] = []): string[] {
-  let entries: Dirent[];
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return out;
-  }
-  for (const ent of entries) {
-    if (ent.name.startsWith(".")) continue;
-    const full = join(dir, ent.name);
-    if (ent.isDirectory()) walkAudioFiles(full, out);
-    else if (ent.isFile() && isAudioFile(ent.name)) out.push(full);
-  }
-  return out;
+  return walkAudioDir(dir, out);
 }
 
 /**

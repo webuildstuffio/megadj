@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { walkAudio } from "./shelf-dupescan";
 import { walkShelf } from "../archive/hygiene/walk";
 import { AUDIO_EXTS_RE } from "../shared/audio-exts";
+import { walkAudioDir } from "../shared/audio-walk";
 
 function makeTree(files: Record<string, string>): string {
   const root = mkdtempSync("/tmp/megadj-ext-drift-");
@@ -72,5 +73,31 @@ describe("ext drift #69: scanners see what shelf-sync copies", () => {
       expect(AUDIO_EXTS_RE.test(`track${ext}`)).toBe(true);
     }
     expect(AUDIO_EXTS_RE.test("track.m4b")).toBe(false); // membership is explicit
+  });
+
+  test("walker SSOT #142: walkAudioDir sees ogg/opus/aac/alac, skips dotfiles and AppleDouble", () => {
+    // ingest-probe's private set missed ogg/opus/aac/alac and its loop
+    // didn't skip `._` AppleDouble junk; writer's set was the stale
+    // six-format list. One walker now serves every pass.
+    const dir = makeTree({
+      "Artist/live.opus": "x",
+      "Artist/set.aac": "x",
+      "Artist/x.alac": "x",
+      "Artist/song.mp3": "x",
+      "Artist/._song.mp3": "junk", // AppleDouble — never audio
+      "Artist/.hidden/hid.flac": "x", // dotdir — never walked
+      "Artist/notes.txt": "x",
+    });
+    const found = walkAudioDir(dir)
+      .map((p) => p.slice(dir.length))
+      .toSorted();
+    expect(found).toEqual(
+      [
+        "/Artist/song.mp3",
+        "/Artist/set.aac",
+        "/Artist/x.alac",
+        "/Artist/live.opus",
+      ].toSorted(),
+    );
   });
 });
