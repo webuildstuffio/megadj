@@ -93,6 +93,86 @@ const AUDIO_EXT = new Set([
   ".aac",
 ]);
 
+/** Gate 1–4 of rb-import (issue #181 phase split): the hard pre-flight
+ *  refusals, in order — flags, DB present, folder present, rekordbox
+ *  quit. Each is a failure with its own message; null = all clear. */
+function importGateRefusal(
+  opts: RbImportOptions,
+  dbPath: string,
+): string | null {
+  // gate 1 — flags before any I/O
+  const flagRefusal = applyConfirmationRefusal(opts);
+  if (flagRefusal !== null) return flagRefusal;
+  // gate 2 — DB present
+  if (!existsSync(dbPath)) return `no master DB at ${dbPath}`;
+  // gate 3 — folder present
+  if (!existsSync(folderArg(opts))) return `no such folder: ${opts.folder}`;
+  // gate 4 — rekordbox quit
+  if (rekordboxRunning())
+    return "rekordbox is running — quit it (live WAL) before rb-import";
+  return null;
+}
+
+const folderArg = (opts: RbImportOptions): string =>
+  opts.folder.replace(/\/+$/u, "");
+
+/** rb-import phase 2 (#181): scan the flat intake folder for audio files
+ *  and probe each via the ffprobe seam so rows carry real duration/
+ *  bitrate. Tag halves parse the archive convention
+ *  "Artist · Album · Title" from the stem. Returns the Python payload
+ *  rows (full path first — the write script's FolderPath source). */
+function probePayloadFiles(
+  folder: string,
+  log: (s: string) => void,
+): (string | number | null)[][] {
+  const files: [string, string][] = [];
+  // single-level intake-folder listing (the gate above already failed on
+  // a missing folder; a top-level readdir is the documented rb-import
+  // shape — intake batches are flat) — not the recursive tree walk
+  for (const e of readdirSync(folder)) {
+    if (e.startsWith(".")) continue;
+    const full = join(folder, e);
+    let st: Stats;
+    try {
+      st = statSync(full);
+    } catch {
+      continue;
+    }
+    if (st.isFile() && AUDIO_EXT.has(extname(e).toLowerCase()))
+      files.push([full, e]);
+  }
+  if (files.length === 0) return [];
+
+  // probe durations/bitrate via ffprobe so rows carry real values
+  // (THE media seam, #80 — one spawn style, guarded JSON boundary)
+  const payloadFiles: (string | number | null)[][] = [];
+  for (const [full, fname] of files) {
+    const probe = probeMediaSync(full);
+    const duration = probe?.durationS ?? 0;
+    const bitrate = probe?.bitrateKbps ?? 0;
+    // tags come from the archive DB conventions: parse "Artist · Album · Title"
+    const stem = fname.replace(/\.[^.]+$/u, "");
+    const parts = stem.split(" · ");
+    const title = parts[2] ?? parts[1] ?? stem;
+    const artist = parts.length >= 3 ? (parts[0] ?? null) : (parts[0] ?? null);
+    payloadFiles.push([
+      full,
+      fname,
+      title,
+      artist,
+      null,
+      null,
+      null,
+      duration,
+      bitrate,
+      null,
+      null,
+    ]);
+  }
+  log(`rb-import: probed ${payloadFiles.length} audio files`);
+  return payloadFiles;
+}
+
 /** The full write script: idempotent (skips files that already have a
  *  content row), per-row commit, playlist per folder, rows returned for
  *  verification. All Python-side so one spawn does the whole job. */
@@ -326,6 +406,117 @@ function verificationError(
   return null;
 }
 
+/** The delayed fresh-process verification script: covers content paths,
+ *  playlist membership, and TrackNo continuity. The shared twin seam
+ *  separately verifies XML. */
+const VERIFY_SCRIPT =
+  "import json,os,sys;from pyrekordbox import Rekordbox6Database as R\n" +
+  "from pyrekordbox.db6.tables import DjmdContent,DjmdPlaylist,DjmdSongPlaylist\n" +
+  "db=R(sys.argv[1]);files=set(json.loads(sys.argv[2]));pid=int(sys.argv[3])\n" +
+  "rows=db.query(DjmdContent).all()\n" +
+  "hit=sum(1 for c in rows if c.FolderPath in files)\n" +
+  "broken=sum(1 for c in rows if c.FolderPath and not (os.path.exists(c.FolderPath) or os.path.basename(c.FolderPath) in files))\n" +
+  "members=db.query(DjmdSongPlaylist).filter(DjmdSongPlaylist.PlaylistID == pid).all()\n" +
+  "nos=sorted(r.TrackNo for r in members)\n" +
+  "playlist_exists=db.query(DjmdPlaylist).filter(DjmdPlaylist.ID == pid).first() is not None\n" +
+  'print(json.dumps({"hit":hit,"broken":broken,"total":len(rows),"playlistRows":len(members),"contiguous":nos == list(range(1,len(nos)+1)),"playlistExists":playlist_exists}));db.close()';
+
+/** The success counters + error bookkeeping the apply phase threads
+ *  through (mutation + verify callbacks write into these). */
+interface ApplyCounters {
+  py: PyOut;
+  backedUpTo: string | null;
+  verified: number;
+  stillBroken: number;
+}
+
+/** rb-import phase 3 (#181): the ONE sanctioned master-DB write — dated
+ *  backup via the twin seam, pyrekordbox write, XML twin nodes, delayed
+ *  fresh-process post-verify. Throws only for the caller's failure
+ *  envelope; all counters are kept in `counters` so a mid-apply error
+ *  still reports partial state. */
+function applyImport(
+  ctx: {
+    dbPath: string;
+    folder: string;
+    playlist: string;
+    group: string | null;
+    payloadFiles: (string | number | null)[][];
+    log: (s: string) => void;
+  },
+  counters: ApplyCounters,
+): void {
+  const { dbPath, playlist, group, payloadFiles, log } = ctx;
+  const mutation = applyPlaylistTwinMutation({
+    dbPath,
+    what: "rb-import",
+    log,
+    onBackup: ({ db }) => {
+      counters.backedUpTo = db;
+    },
+    mutateDb: () => {
+      const result = runPyScript({
+        script: buildScript(),
+        dbPath,
+        args: [JSON.stringify({ files: payloadFiles, playlist, group })],
+        timeoutMs: 300_000,
+        label: "pyrekordbox write",
+      });
+      const value = parseWriteOutput(lastJsonLine(result.stdout));
+      if (value.playlistId === null || value.errors.length > 0)
+        throw new Error(
+          value.errors[0]?.join(": ") ??
+            "pyrekordbox write returned no playlist id",
+        );
+      return value;
+    },
+    nodes: (value) => {
+      if (value.playlistId === null)
+        throw new Error("playlist mutation returned no playlist id");
+      const parentId = value.parentId ?? "0";
+      return [
+        ...(group && value.parentId
+          ? [
+              {
+                id: value.parentId,
+                name: group,
+                parentId: "0",
+                attribute: 1,
+              },
+            ]
+          : []),
+        {
+          id: value.playlistId,
+          name: playlist,
+          parentId,
+          attribute: 0,
+        },
+      ];
+    },
+    verifyDb: (value) => {
+      if (value.playlistId === null)
+        throw new Error("playlist mutation returned no playlist id");
+      const result = runPyScript({
+        script: VERIFY_SCRIPT,
+        dbPath,
+        args: [
+          JSON.stringify(payloadFiles.map((file) => file[0])),
+          value.playlistId,
+        ],
+        timeoutMs: 120_000,
+        label: "pyrekordbox post-verify",
+      });
+      const verify = parseVerifyOutput(lastJsonLine(result.stdout));
+      counters.verified = verify.hit;
+      counters.stillBroken = verify.broken;
+      const failure = verificationError(payloadFiles.length, value, verify);
+      if (failure) throw new Error(failure);
+    },
+  });
+  counters.py = mutation.value;
+  counters.backedUpTo = mutation.backedUpTo;
+}
+
 export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   const log = opts.log ?? commandLog({ json: opts.json });
   // Issue #66 SSOT: masterDbPath owns the env override + every layout
@@ -355,162 +546,43 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
     error: msg,
   }));
 
-  // gate 1 — flags before any I/O
-  if (applyConfirmationRefusal(opts) !== null)
-    return fail(applyConfirmationRefusal(opts) ?? "unreachable");
-  // gate 2 — DB present
-  if (!existsSync(dbPath)) return fail(`no master DB at ${dbPath}`);
-  // gate 3 — folder present with audio
-  if (!existsSync(folder)) return fail(`no such folder: ${folder}`);
-  // gate 4 — rekordbox quit
-  if (rekordboxRunning())
-    return fail("rekordbox is running — quit it (live WAL) before rb-import");
+  // gates 1–4 (flags → DB → folder → rekordbox quit), extracted (#181)
+  const gateRefusal = importGateRefusal(opts, dbPath);
+  if (gateRefusal !== null) return fail(gateRefusal);
 
-  const files: [string, string][] = [];
-  // single-level intake-folder listing (the gate above already failed on
-  // a missing folder; a top-level readdir is the documented rb-import
-  // shape — intake batches are flat) — not the recursive tree walk
-  for (const e of readdirSync(folder)) {
-    if (e.startsWith(".")) continue;
-    const full = join(folder, e);
-    let st: Stats;
-    try {
-      st = statSync(full);
-    } catch {
-      continue;
-    }
-    if (st.isFile() && AUDIO_EXT.has(extname(e).toLowerCase()))
-      files.push([full, e]);
-  }
-  if (files.length === 0) return fail(`no audio files in ${folder}`);
-
-  // probe durations/bitrate via ffprobe so rows carry real values
-  // (THE media seam, #80 — one spawn style, guarded JSON boundary)
-  const payloadFiles: (string | number | null)[][] = [];
-  for (const [full, fname] of files) {
-    const probe = probeMediaSync(full);
-    const duration = probe?.durationS ?? 0;
-    const bitrate = probe?.bitrateKbps ?? 0;
-    // tags come from the archive DB conventions: parse "Artist · Album · Title"
-    const stem = fname.replace(/\.[^.]+$/u, "");
-    const parts = stem.split(" · ");
-    const title = parts[2] ?? parts[1] ?? stem;
-    const artist = parts.length >= 3 ? (parts[0] ?? null) : (parts[0] ?? null);
-    payloadFiles.push([
-      full,
-      fname,
-      title,
-      artist,
-      null,
-      null,
-      null,
-      duration,
-      bitrate,
-      null,
-      null,
-    ]);
-  }
+  // phase 2 — folder scan + ffprobe payload build (extracted, #181)
+  const payloadFiles = probePayloadFiles(folder, log);
+  if (payloadFiles.length === 0) return fail(`no audio files in ${folder}`);
 
   log(
     `rb-import: ${payloadFiles.length} audio files → playlist "${playlist}"${group ? ` in group "${group}"` : ""} on ${dbPath}`,
   );
 
-  // Delayed fresh-process verification covers content, playlist membership,
-  // and TrackNo continuity. The shared twin seam separately verifies XML.
-  const verifyScript =
-    "import json,os,sys;from pyrekordbox import Rekordbox6Database as R\n" +
-    "from pyrekordbox.db6.tables import DjmdContent,DjmdPlaylist,DjmdSongPlaylist\n" +
-    "db=R(sys.argv[1]);files=set(json.loads(sys.argv[2]));pid=int(sys.argv[3])\n" +
-    "rows=db.query(DjmdContent).all()\n" +
-    "hit=sum(1 for c in rows if c.FolderPath in files)\n" +
-    "broken=sum(1 for c in rows if c.FolderPath and not (os.path.exists(c.FolderPath) or os.path.basename(c.FolderPath) in files))\n" +
-    "members=db.query(DjmdSongPlaylist).filter(DjmdSongPlaylist.PlaylistID == pid).all()\n" +
-    "nos=sorted(r.TrackNo for r in members)\n" +
-    "playlist_exists=db.query(DjmdPlaylist).filter(DjmdPlaylist.ID == pid).first() is not None\n" +
-    'print(json.dumps({"hit":hit,"broken":broken,"total":len(rows),"playlistRows":len(members),"contiguous":nos == list(range(1,len(nos)+1)),"playlistExists":playlist_exists}));db.close()';
-  let backedUpTo: string | null = null;
-  let py: PyOut = {
-    inserted: 0,
-    already: 0,
-    linked: 0,
-    playlistId: null,
-    parentId: null,
-    errors: [],
+  // phase 3 — the apply write (backup → pyrekordbox → XML twin → verify),
+  // extracted (#181). Counters thread partial state back into the result
+  // envelope when a mid-apply error fires.
+  const counters: ApplyCounters = {
+    py: {
+      inserted: 0,
+      already: 0,
+      linked: 0,
+      playlistId: null,
+      parentId: null,
+      errors: [],
+    },
+    backedUpTo: null,
+    verified: 0,
+    stillBroken: 0,
   };
-  let verified = 0;
-  let stillBroken = 0;
   if (opts.apply && opts.yes) {
     try {
-      const mutation = applyPlaylistTwinMutation({
-        dbPath,
-        what: "rb-import",
-        log,
-        onBackup: ({ db }) => {
-          backedUpTo = db;
-        },
-        mutateDb: () => {
-          const result = runPyScript({
-            script: buildScript(),
-            dbPath,
-            args: [JSON.stringify({ files: payloadFiles, playlist, group })],
-            timeoutMs: 300_000,
-            label: "pyrekordbox write",
-          });
-          const value = parseWriteOutput(lastJsonLine(result.stdout));
-          if (value.playlistId === null || value.errors.length > 0)
-            throw new Error(
-              value.errors[0]?.join(": ") ??
-                "pyrekordbox write returned no playlist id",
-            );
-          return value;
-        },
-        nodes: (value) => {
-          if (value.playlistId === null)
-            throw new Error("playlist mutation returned no playlist id");
-          const parentId = value.parentId ?? "0";
-          return [
-            ...(group && value.parentId
-              ? [
-                  {
-                    id: value.parentId,
-                    name: group,
-                    parentId: "0",
-                    attribute: 1,
-                  },
-                ]
-              : []),
-            {
-              id: value.playlistId,
-              name: playlist,
-              parentId,
-              attribute: 0,
-            },
-          ];
-        },
-        verifyDb: (value) => {
-          if (value.playlistId === null)
-            throw new Error("playlist mutation returned no playlist id");
-          const result = runPyScript({
-            script: verifyScript,
-            dbPath,
-            args: [
-              JSON.stringify(payloadFiles.map((file) => file[0])),
-              value.playlistId,
-            ],
-            timeoutMs: 120_000,
-            label: "pyrekordbox post-verify",
-          });
-          const verify = parseVerifyOutput(lastJsonLine(result.stdout));
-          verified = verify.hit;
-          stillBroken = verify.broken;
-          const failure = verificationError(payloadFiles.length, value, verify);
-          if (failure) throw new Error(failure);
-        },
-      });
-      py = mutation.value;
-      backedUpTo = mutation.backedUpTo;
+      applyImport(
+        { dbPath, folder, playlist, group, payloadFiles, log },
+        counters,
+      );
     } catch (error) {
       const message = errorText(error);
+      const { py, backedUpTo, verified, stillBroken } = counters;
       return {
         ...fail(message),
         found: payloadFiles.length,
@@ -535,14 +607,14 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
     playlist,
     group,
     found: payloadFiles.length,
-    inserted: py.inserted,
-    already: py.already,
-    verified,
-    stillBroken,
+    inserted: counters.py.inserted,
+    already: counters.py.already,
+    verified: counters.verified,
+    stillBroken: counters.stillBroken,
     appliedMode: Boolean(opts.apply),
-    backedUpTo,
-    playlistId: py.playlistId,
-    errors: py.errors.map(([f, e]) => `${f}: ${e}`),
+    backedUpTo: counters.backedUpTo,
+    playlistId: counters.py.playlistId,
+    errors: counters.py.errors.map(([f, e]) => `${f}: ${e}`),
     ok: true,
   };
 }

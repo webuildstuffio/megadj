@@ -63,6 +63,162 @@ export interface ShelfHygieneOptions {
   md5?: ((path: string) => string | null) | undefined;
 }
 
+/** Decision-mode branch of shelf-hygiene (#181 ride-along): confirm/
+ *  dismiss by id(s) plus bucket batch-confirm. Returns true when the
+ *  command's work ended here (caller returns immediately). */
+async function decisionMode(
+  store: HygieneStore,
+  opts: {
+    confirm: string[];
+    dismiss: string[];
+    bucket: string | undefined;
+    json: boolean;
+    emitJson: (payload: unknown) => void | Promise<void>;
+    setExitCode: (code: number) => void;
+    fail: (error: string) => Promise<void>;
+  },
+): Promise<boolean> {
+  const { confirm, dismiss, bucket, json, emitJson, setExitCode, fail } = opts;
+  if (!confirm.length && !dismiss.length && !bucket) return false;
+  const decided: string[] = [];
+  const failed: { id: string; why: string }[] = [];
+  const run = (id: string, confirmIt: boolean): void => {
+    if (store.decide(id, confirmIt)) decided.push(id);
+    else failed.push({ id, why: "not found or not open" });
+  };
+  for (const id of confirm) run(id, true);
+  for (const id of dismiss) run(id, false);
+  // bucket batch-confirm: every OPEN acoustic-twin whose evidence
+  // subcategory falls in the requested bucket (composite buckets
+  // like safe-batch/ear-check match via BUCKET_MEMBERSHIP). Two-step
+  // safety still applies downstream: applying needs --apply --yes
+  // separately.
+  let bucketMatched = 0;
+  if (bucket) {
+    if (!(bucket in BUCKET_MEMBERSHIP)) {
+      await fail(
+        `unknown bucket "${bucket}" — valid: ${Object.keys(BUCKET_MEMBERSHIP).join(", ")}`,
+      );
+      return true;
+    }
+    // Listen-first buckets are FILTER-ONLY (subcategory.ts): their
+    // findings need ears before a keep decision, so batch-confirm
+    // refuses them instead of stamping "confirmed" over unreviewed
+    // rows. Dismiss by id stays available for genuine junk.
+    if (isListenFirst(bucket)) {
+      await fail(
+        `bucket "${bucket}" is listen-first — its findings need an A/B listen before a keep decision (Hygiene tab → A/B compare). Batch-confirm only: metadata-diff, re-encode, safe-batch.`,
+      );
+      return true;
+    }
+    const open = store.list({ status: "open", kind: "acoustic-twin" });
+    for (const f of open) {
+      const sub = (f.evidence as Record<string, unknown>).subcategory;
+      if (typeof sub !== "string" || !inBucket(sub, bucket)) continue;
+      if (store.decide(f.id, true)) {
+        decided.push(f.id);
+        bucketMatched++;
+      } else failed.push({ id: f.id, why: "bucket confirm race" });
+    }
+  }
+  if (json)
+    await emitJson({
+      command: "shelf-hygiene",
+      decided,
+      bucket: bucket ?? null,
+      bucketMatched,
+      failed,
+    });
+  else {
+    if (bucket)
+      console.error(
+        `shelf-hygiene: bucket ${bucket}: ${bucketMatched} confirmed`,
+      );
+    for (const f of failed) console.error(`shelf-hygiene: ${f.id}: ${f.why}`);
+  }
+  if (failed.length) setExitCode(1);
+  return true;
+}
+
+/** Apply-pass branch of shelf-hygiene (#181 ride-along): execute
+ *  confirmed quarantine-loser findings whose walkToken still matches,
+ *  validating each with the per-move shelf-count receipt. The operation
+ *  lease is acquired/released here. Returns applied = −1 to signal
+ *  "failed to start" (lease busy / stale walk) — the caller has already
+ *  emitted the failure. */
+async function applyConfirmed(
+  store: HygieneStore,
+  ctx: CheckCtx,
+  shelfVolume: string,
+  walkToken: string,
+  log: (s: string) => void,
+  fail: (error: string) => Promise<void>,
+): Promise<{ applied: number; failed: number; applyErrors: string[] }> {
+  let failed = 0;
+  const applyErrors: string[] = [];
+  let appliedCount = 0;
+  const operationOwner = crypto.randomUUID();
+  if (!store.acquireOperation(operationOwner)) {
+    await fail("hygiene apply/restore already in flight");
+    return { applied: -1, failed: 0, applyErrors: [] };
+  }
+  try {
+    const fresh = walkShelf(shelfVolume);
+    if (fresh.walkToken !== walkToken) {
+      await fail("shelf changed during scan — re-run (stale-walk abort)");
+      return { applied: -1, failed: 0, applyErrors: [] };
+    }
+    const confirmed = store.list({ status: "confirmed" });
+    // True shelf count at apply start (the fresh walk above) — the
+    // baseline every receipt's delta is measured from. Per-move
+    // arithmetic: after_i = start − moved_i. A fresh walk per finding
+    // is minutes on exFAT; the whole-shelf audit is the caller's leg.
+    const startCount = fresh.files.length;
+    let moved = 0;
+    for (const f of confirmed) {
+      if (f.walkToken !== walkToken) {
+        applyErrors.push(`stale walkToken: ${f.id}`);
+        failed++;
+        continue;
+      }
+      if (f.proposedAction.type !== "quarantine-loser") {
+        // never "executed" then lied about — the row keeps its status
+        // and the skip is visible (its human step hasn't been built)
+        applyErrors.push(
+          `${f.id}: ${f.proposedAction.type} has no executor yet — left confirmed`,
+        );
+        continue;
+      }
+      const r = applyFinding(f, shelfVolume, ctx);
+      if (!r.moved) {
+        applyErrors.push(`${f.id}: ${r.error ?? "unknown"}`);
+        failed++;
+        continue;
+      }
+      moved++;
+      const receipt = validateFinding(
+        f,
+        startCount - moved + 1,
+        startCount - moved,
+        ctx,
+        r.dest,
+      );
+      store.markApplied(f.id, receipt);
+      if (receipt.ok) appliedCount++;
+      else {
+        failed++;
+        applyErrors.push(
+          `${f.id}: validation failed — ${JSON.stringify(receipt.shelfDelta)}`,
+        );
+      }
+      log(`  applied ${f.kind}: ${basename(r.loser ?? "")}`);
+    }
+  } finally {
+    store.releaseOperation(operationOwner);
+  }
+  return { applied: appliedCount, failed, applyErrors };
+}
+
 export async function shelfHygiene(
   opts: ShelfHygieneOptions = {},
 ): Promise<void> {
@@ -103,68 +259,19 @@ export async function shelfHygiene(
   try {
     const store = new HygieneStore(db);
 
-    // ---- decision mode: confirm/dismiss by id(s) ---------------------
-    if (confirm.length || dismiss.length || bucket) {
-      const decided: string[] = [];
-      const failed: { id: string; why: string }[] = [];
-      const run = (id: string, confirmIt: boolean): void => {
-        if (store.decide(id, confirmIt)) decided.push(id);
-        else failed.push({ id, why: "not found or not open" });
-      };
-      for (const id of confirm) run(id, true);
-      for (const id of dismiss) run(id, false);
-      // bucket batch-confirm: every OPEN acoustic-twin whose evidence
-      // subcategory falls in the requested bucket (composite buckets
-      // like safe-batch/ear-check match via BUCKET_MEMBERSHIP). Two-step
-      // safety still applies downstream: applying needs --apply --yes
-      // separately.
-      let bucketMatched = 0;
-      if (bucket) {
-        if (!(bucket in BUCKET_MEMBERSHIP)) {
-          await fail(
-            `unknown bucket "${bucket}" — valid: ${Object.keys(BUCKET_MEMBERSHIP).join(", ")}`,
-          );
-          return;
-        }
-        // Listen-first buckets are FILTER-ONLY (subcategory.ts): their
-        // findings need ears before a keep decision, so batch-confirm
-        // refuses them instead of stamping "confirmed" over unreviewed
-        // rows. Dismiss by id stays available for genuine junk.
-        if (isListenFirst(bucket)) {
-          await fail(
-            `bucket "${bucket}" is listen-first — its findings need an A/B listen before a keep decision (Hygiene tab → A/B compare). Batch-confirm only: metadata-diff, re-encode, safe-batch.`,
-          );
-          return;
-        }
-        const open = store.list({ status: "open", kind: "acoustic-twin" });
-        for (const f of open) {
-          const sub = (f.evidence as Record<string, unknown>).subcategory;
-          if (typeof sub !== "string" || !inBucket(sub, bucket)) continue;
-          if (store.decide(f.id, true)) {
-            decided.push(f.id);
-            bucketMatched++;
-          } else failed.push({ id: f.id, why: "bucket confirm race" });
-        }
-      }
-      if (json)
-        await emitJson({
-          command: "shelf-hygiene",
-          decided,
-          bucket: bucket ?? null,
-          bucketMatched,
-          failed,
-        });
-      else {
-        if (bucket)
-          console.error(
-            `shelf-hygiene: bucket ${bucket}: ${bucketMatched} confirmed`,
-          );
-        for (const f of failed)
-          console.error(`shelf-hygiene: ${f.id}: ${f.why}`);
-      }
-      if (failed.length) setExitCode(1);
+    // ---- decision mode: confirm/dismiss by id(s) + bucket batch ------
+    if (
+      await decisionMode(store, {
+        confirm,
+        dismiss,
+        bucket,
+        json,
+        emitJson,
+        setExitCode,
+        fail,
+      })
+    )
       return;
-    }
 
     // ---- detection pass ---------------------------------------------
     const { files, walkToken, unreadable } = walkShelf(shelfVolume);
@@ -206,65 +313,18 @@ export async function shelfHygiene(
     let failed = 0;
     const applyErrors: string[] = [];
     if (apply && yes) {
-      const operationOwner = crypto.randomUUID();
-      if (!store.acquireOperation(operationOwner)) {
-        await fail("hygiene apply/restore already in flight");
-        return;
-      }
-      try {
-        const fresh = walkShelf(shelfVolume);
-        if (fresh.walkToken !== walkToken) {
-          await fail("shelf changed during scan — re-run (stale-walk abort)");
-          return;
-        }
-        const confirmed = store.list({ status: "confirmed" });
-        // True shelf count at apply start (the fresh walk above) — the
-        // baseline every receipt's delta is measured from. Per-move
-        // arithmetic: after_i = start − moved_i. A fresh walk per finding
-        // is minutes on exFAT; the whole-shelf audit is the caller's leg.
-        const startCount = fresh.files.length;
-        let moved = 0;
-        for (const f of confirmed) {
-          if (f.walkToken !== walkToken) {
-            applyErrors.push(`stale walkToken: ${f.id}`);
-            failed++;
-            continue;
-          }
-          if (f.proposedAction.type !== "quarantine-loser") {
-            // never "executed" then lied about — the row keeps its status
-            // and the skip is visible (its human step hasn't been built)
-            applyErrors.push(
-              `${f.id}: ${f.proposedAction.type} has no executor yet — left confirmed`,
-            );
-            continue;
-          }
-          const r = applyFinding(f, shelfVolume, ctx);
-          if (!r.moved) {
-            applyErrors.push(`${f.id}: ${r.error ?? "unknown"}`);
-            failed++;
-            continue;
-          }
-          moved++;
-          const receipt = validateFinding(
-            f,
-            startCount - moved + 1,
-            startCount - moved,
-            ctx,
-            r.dest,
-          );
-          store.markApplied(f.id, receipt);
-          if (receipt.ok) applied++;
-          else {
-            failed++;
-            applyErrors.push(
-              `${f.id}: validation failed — ${JSON.stringify(receipt.shelfDelta)}`,
-            );
-          }
-          log(`  applied ${f.kind}: ${basename(r.loser ?? "")}`);
-        }
-      } finally {
-        store.releaseOperation(operationOwner);
-      }
+      const r = await applyConfirmed(
+        store,
+        ctx,
+        shelfVolume,
+        walkToken,
+        log,
+        fail,
+      );
+      if (r.applied < 0) return; // failed to start; failure already emitted
+      applied = r.applied;
+      failed = r.failed;
+      applyErrors.push(...r.applyErrors);
     }
 
     // ---- summary (one JSON object on stdout in --json mode) ----------

@@ -103,102 +103,103 @@ export interface GenreOptions {
   json?: boolean | undefined;
 }
 
-export async function genre(opts: GenreOptions): Promise<void> {
-  const log = commandLog(opts);
-  const k = opts.k ?? 5;
-  const minAgreement = opts.minAgreement ?? 0.6;
-
-  // ---- #64 dispute review/resolution — runs before the other passes
-  // (review is read-only; the resolution verbs are the only writers).
-  // A bare --note without agree/keep is a usage error (exit 2, no work).
+/** #64 dispute review/resolution mode (genre() branch split, #181):
+ *  review is read-only; the resolution verbs are the only writers. A
+ *  bare --note without agree/keep is a usage error (exit 2, no work).
+ *  Returns true when the invocation was a disputes-mode run. */
+async function genreDisputesMode(
+  opts: GenreOptions,
+  log: (s: string) => void,
+  k: number,
+): Promise<boolean> {
   if (
-    opts.disputes ||
-    opts.note !== undefined ||
-    opts.agree !== undefined ||
-    opts.keep !== undefined
-  ) {
-    const resolutionCount =
-      (opts.agree !== undefined ? 1 : 0) + (opts.keep !== undefined ? 1 : 0);
-    if (resolutionCount > 1) {
-      await finishCommandError({
-        command: "genre",
-        json: opts.json === true,
-        error: "--agree and --keep resolve one row each — pass one, not both",
-        exitCode: 2,
-      });
-      return;
-    }
-    if (opts.note !== undefined && resolutionCount === 0) {
-      await finishCommandError({
-        command: "genre",
-        json: opts.json === true,
-        error:
-          "--note rides with --agree or --keep — nothing to note on its own",
-        exitCode: 2,
-      });
-      return;
-    }
-    if (opts.agree !== undefined || opts.keep !== undefined) {
-      const verb = opts.agree !== undefined ? "agree" : "keep";
-      const videoId = (opts.agree ?? opts.keep)!;
-      const result = resolveDispute(opts.state, {
-        videoId,
-        verb,
-        note: opts.note,
-      });
-      if (!result.ok) {
-        await finishCommandError({
-          command: "genre",
-          json: opts.json === true,
-          error: result.message,
-          exitCode: 1,
-        });
-        return;
-      }
-      log(result.message);
-      await writeJson({
-        command: "genre",
-        mode: "dispute-resolve",
-        video_id: videoId,
-        verb,
-        applied: true,
-        message: result.message,
-      });
-      return;
-    }
-    // read-only review
-    const review = collectDisputes(opts.state, k);
-    log(
-      `genre disputes: ${review.flagged} flagged (${review.alreadyAgree} already agree with live consensus — --keep resolves those)`,
-    );
-    for (const r of review.rows.slice(0, 30)) {
-      const evidence = r.consensus
-        ? `consensus ${r.consensus} @ ${Math.round((r.agreement ?? 0) * 100)}% · embed ${r.embedAgeDays ?? "?"}d`
-        : "no live consensus (re-run --flag)";
-      log(`  ${r.videoId}  "${r.genre}"  — ${evidence}`);
-      log(`    ${r.artist ?? "?"} — ${r.title ?? "?"}`);
-    }
-    await writeJson({
-      command: "genre",
-      mode: "disputes",
-      flagged: review.flagged,
-      alreadyAgree: review.alreadyAgree,
-      rows: review.rows,
-    });
-    return;
-  }
-
-  if (opts.refold && opts.flag) {
+    !opts.disputes &&
+    opts.note === undefined &&
+    opts.agree === undefined &&
+    opts.keep === undefined
+  )
+    return false;
+  const resolutionCount =
+    (opts.agree !== undefined ? 1 : 0) + (opts.keep !== undefined ? 1 : 0);
+  if (resolutionCount > 1) {
     await finishCommandError({
       command: "genre",
       json: opts.json === true,
-      error: "--refold and --flag are separate passes — run one at a time",
+      error: "--agree and --keep resolve one row each — pass one, not both",
       exitCode: 2,
     });
-    return;
+    return true;
   }
+  if (opts.note !== undefined && resolutionCount === 0) {
+    await finishCommandError({
+      command: "genre",
+      json: opts.json === true,
+      error: "--note rides with --agree or --keep — nothing to note on its own",
+      exitCode: 2,
+    });
+    return true;
+  }
+  if (opts.agree !== undefined || opts.keep !== undefined) {
+    const verb = opts.agree !== undefined ? "agree" : "keep";
+    const videoId = (opts.agree ?? opts.keep)!;
+    const result = resolveDispute(opts.state, {
+      videoId,
+      verb,
+      note: opts.note,
+    });
+    if (!result.ok) {
+      await finishCommandError({
+        command: "genre",
+        json: opts.json === true,
+        error: result.message,
+        exitCode: 1,
+      });
+      return true;
+    }
+    log(result.message);
+    await writeJson({
+      command: "genre",
+      mode: "dispute-resolve",
+      video_id: videoId,
+      verb,
+      applied: true,
+      message: result.message,
+    });
+    return true;
+  }
+  // read-only review
+  const review = collectDisputes(opts.state, k);
+  log(
+    `genre disputes: ${review.flagged} flagged (${review.alreadyAgree} already agree with live consensus — --keep resolves those)`,
+  );
+  for (const r of review.rows.slice(0, 30)) {
+    const evidence = r.consensus
+      ? `consensus ${r.consensus} @ ${Math.round((r.agreement ?? 0) * 100)}% · embed ${r.embedAgeDays ?? "?"}d`
+      : "no live consensus (re-run --flag)";
+    log(`  ${r.videoId}  "${r.genre}"  — ${evidence}`);
+    log(`    ${r.artist ?? "?"} — ${r.title ?? "?"}`);
+  }
+  await writeJson({
+    command: "genre",
+    mode: "disputes",
+    flagged: review.flagged,
+    alreadyAgree: review.alreadyAgree,
+    rows: review.rows,
+  });
+  return true;
+}
 
-  if (opts.eval) {
+/** --eval mode (genre() branch split, #181): measure, never write.
+ *  Runs the LOO harness plus the optional diagnostics/artist-disjoint/
+ *  probe/refold readouts and emits the eval JSON. #160 ring 3: setExit
+ *  is the one mutation point (eval's pass/fail). */
+async function genreEvalMode(
+  opts: GenreOptions,
+  log: (s: string) => void,
+  k: number,
+  minAgreement: number,
+): Promise<void> {
+  {
     // ---- eval mode: measure, never write ----
     const pop = opts.state.evalPopulation();
     const seeds: GenreSeed[] = [];
@@ -348,75 +349,68 @@ export async function genre(opts: GenreOptions): Promise<void> {
     });
     // #160 ring 3: setExit is the one mutation point (eval's pass/fail).
     setExit(pass ? 0 : 1);
-    return;
   }
+}
 
-  // ---- --refold (standalone): the DATA half — canonicalization
-  // proposals over the LABELED population, never the unlabeled one.
-  // Umbrella rows are explicitly NOT rewritten here (their refinement
-  // is a scoring decision, measured in --eval --refold); --apply only
-  // writes repaired/split/aliased rows that DIFFER. Runs before any
-  // seed loading — it needs labels only, never embeddings.
-  if (opts.refold) {
-    const labeled = opts.state.labeledPopulation();
-    const changes: {
-      video_id: string;
-      from: string;
-      to: string;
-      escaped: boolean;
-      split: boolean;
-      aliased: boolean;
-    }[] = [];
-    // Placeholder labels (pre-guard intake legacy: literal `Music` ×154,
-    // `unknown`, `fixme`) resolve to null via refoldDetail — they are NOT
-    // labels. Clear them so genreSeeds() re-enrolls the rows as QUERIES
-    // (#61): a non-empty value blocked both directions before.
-    const unstrand: { video_id: string; from: string }[] = [];
-    let unchanged = 0;
-    let abstained = 0;
-    for (const row of labeled) {
-      const detail = refoldDetail(row.genre);
-      if (detail.label === null) {
-        const raw = row.genre.trim().toLowerCase();
-        if (raw === "music" || raw === "unknown" || raw === "fixme") {
-          unstrand.push({ video_id: row.video_id, from: row.genre });
-        } else {
-          // URL junk / empty-after-trim: visible in the census, but not
-          // mechanically deletable — a human decides those.
-          unchanged++;
-        }
-        continue;
-      }
-      if (detail.label === row.genre) {
+/** --refold standalone mode (genre() branch split, #181): the DATA half
+ *  — canonicalization proposals over the LABELED population, never the
+ *  unlabeled one. Umbrella rows are explicitly NOT rewritten here (their
+ *  refinement is a scoring decision, measured in --eval --refold);
+ *  --apply only writes repaired/split/aliased rows that DIFFER. */
+async function genreRefoldMode(
+  opts: GenreOptions,
+  log: (s: string) => void,
+): Promise<boolean> {
+  if (!opts.refold) return false;
+  const labeled = opts.state.labeledPopulation();
+  const changes: {
+    video_id: string;
+    from: string;
+    to: string;
+    escaped: boolean;
+    split: boolean;
+    aliased: boolean;
+  }[] = [];
+  // Placeholder labels (pre-guard intake legacy: literal `Music` ×154,
+  // `unknown`, `fixme`) resolve to null via refoldDetail — they are NOT
+  // labels. Clear them so genreSeeds() re-enrolls the rows as QUERIES
+  // (#61): a non-empty value blocked both directions before.
+  const unstrand: { video_id: string; from: string }[] = [];
+  let unchanged = 0;
+  let abstained = 0;
+  for (const row of labeled) {
+    const detail = refoldDetail(row.genre);
+    if (detail.label === null) {
+      const raw = row.genre.trim().toLowerCase();
+      if (raw === "music" || raw === "unknown" || raw === "fixme") {
+        unstrand.push({ video_id: row.video_id, from: row.genre });
+      } else {
+        // URL junk / empty-after-trim: visible in the census, but not
+        // mechanically deletable — a human decides those.
         unchanged++;
-        continue;
       }
-      if (isUmbrellaLabel(detail.label)) {
-        // plain-umbrella rows keep their parent label (scoring arbitrates,
-        // not the column) — EXCEPT:
-        // 1. casing-only fixes: "edm" → "EDM", "DANCE" → "Dance" is
-        //    display hygiene (kills the label twins that fragment
-        //    group-by), not a genre rewrite. Propose it.
-        // 2. split outcomes: "Dance/Electronic" resolved to a bare
-        //    umbrella because BOTH tokens are parents — the refold's
-        //    canonicalization (one spelling, primary first) is still the
-        //    data half's job and kills the case-twin pair. The VALUE
-        //    class (umbrella) is preserved, so no genre knowledge is
-        //    invented.
-        const casingOnly =
-          detail.label.toLowerCase() === row.genre.trim().toLowerCase();
-        if (!detail.split && !casingOnly) {
-          abstained++;
-          continue;
-        }
-        changes.push({
-          video_id: row.video_id,
-          from: row.genre,
-          to: detail.label,
-          escaped: detail.escaped,
-          split: detail.split,
-          aliased: true,
-        });
+      continue;
+    }
+    if (detail.label === row.genre) {
+      unchanged++;
+      continue;
+    }
+    if (isUmbrellaLabel(detail.label)) {
+      // plain-umbrella rows keep their parent label (scoring arbitrates,
+      // not the column) — EXCEPT:
+      // 1. casing-only fixes: "edm" → "EDM", "DANCE" → "Dance" is
+      //    display hygiene (kills the label twins that fragment
+      //    group-by), not a genre rewrite. Propose it.
+      // 2. split outcomes: "Dance/Electronic" resolved to a bare
+      //    umbrella because BOTH tokens are parents — the refold's
+      //    canonicalization (one spelling, primary first) is still the
+      //    data half's job and kills the case-twin pair. The VALUE
+      //    class (umbrella) is preserved, so no genre knowledge is
+      //    invented.
+      const casingOnly =
+        detail.label.toLowerCase() === row.genre.trim().toLowerCase();
+      if (!detail.split && !casingOnly) {
+        abstained++;
         continue;
       }
       changes.push({
@@ -425,79 +419,121 @@ export async function genre(opts: GenreOptions): Promise<void> {
         to: detail.label,
         escaped: detail.escaped,
         split: detail.split,
-        aliased: detail.aliased,
+        aliased: true,
       });
+      continue;
     }
-    log(
-      `genre refold: ${changes.length} changeable of ${labeled.length} labeled (${abstained} umbrella rows kept honest, ${unchanged} already canonical, ${unstrand.length} placeholder rows to unstrand) — ${opts.apply ? "WRITTEN" : "proposals only (use --apply to write)"}`,
-    );
-    for (const c of changes.slice(0, 20))
-      log(`  ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}`);
-    await writeJson({
-      command: "genre",
-      mode: "refold",
-      labeled: labeled.length,
-      changes: changes.length,
-      umbrellaKept: abstained,
-      alreadyCanonical: unchanged,
-      unstrand: unstrand.length,
-      applied: opts.apply === true,
-      samples: changes.slice(0, 40),
+    changes.push({
+      video_id: row.video_id,
+      from: row.genre,
+      to: detail.label,
+      escaped: detail.escaped,
+      split: detail.split,
+      aliased: detail.aliased,
     });
-    if (opts.apply) {
-      for (const c of changes) opts.state.updateGenre(c.video_id, c.to);
-      for (const c of unstrand) opts.state.clearGenre(c.video_id);
-    }
+  }
+  log(
+    `genre refold: ${changes.length} changeable of ${labeled.length} labeled (${abstained} umbrella rows kept honest, ${unchanged} already canonical, ${unstrand.length} placeholder rows to unstrand) — ${opts.apply ? "WRITTEN" : "proposals only (use --apply to write)"}`,
+  );
+  for (const c of changes.slice(0, 20))
+    log(`  ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}`);
+  await writeJson({
+    command: "genre",
+    mode: "refold",
+    labeled: labeled.length,
+    changes: changes.length,
+    umbrellaKept: abstained,
+    alreadyCanonical: unchanged,
+    unstrand: unstrand.length,
+    applied: opts.apply === true,
+    samples: changes.slice(0, 40),
+  });
+  if (opts.apply) {
+    for (const c of changes) opts.state.updateGenre(c.video_id, c.to);
+    for (const c of unstrand) opts.state.clearGenre(c.video_id);
+  }
+  return true;
+}
+
+/** --flag standalone mode (genre() branch split, #181): the
+ *  demote-and-flag pass (§5b.3 step 2). Runs the LOO harness; rows whose
+ *  label contradicts a UNANIMOUS kNN consensus get genre_flag='disputed'
+ *  — never rewritten, but excluded from inference seeding
+ *  (state_tracks.genreSeeds filters them). Previously-flagged rows are
+ *  REASSESSED from scratch each run: if a fixed label (or a changed
+ *  neighbourhood) now agrees, the flag clears — idempotent,
+ *  self-healing. */
+async function genreFlagMode(
+  opts: GenreOptions,
+  log: (s: string) => void,
+  k: number,
+  minAgreement: number,
+): Promise<boolean> {
+  if (!opts.flag) return false;
+  const pop = opts.state.evalPopulation();
+  const seeds: GenreSeed[] = [];
+  const durations: { videoId: string; durationS: number | null }[] = [];
+  for (const row of pop) {
+    seeds.push({
+      videoId: row.video_id,
+      genre: row.genre,
+      vec: parseEmbeddingVector(row.vec_json, `genre flag ${row.video_id}`),
+    });
+    durations.push({ videoId: row.video_id, durationS: row.duration_s });
+  }
+  const summary = evalLeaveOneOut(seeds, k, minAgreement, durations);
+  const result = classifyDisputes(summary);
+  const disputeIds = new Set(result.rows.map((r) => r.videoId));
+  // every embedded labeled row is reassessed: set the flag on new
+  // disputes, CLEAR it on rows no longer disputed (self-healing)
+  if (opts.apply)
+    for (const row of pop)
+      opts.state.setGenreFlag(
+        row.video_id,
+        disputeIds.has(row.video_id) ? "disputed" : null,
+      );
+  log(
+    `genre flag: ${result.disputed} disputed of ${result.evaluated} assessed (${result.upheld} upheld by unanimous consensus, ${result.noQuorum} no quorum) — ${opts.apply ? "FLAGS WRITTEN (labels untouched)" : "proposals only (use --apply to write flags)"}`,
+  );
+  for (const r of result.rows.slice(0, 15))
+    log(`  ${r.family} → consensus ${r.consensus}  (${r.videoId})`);
+  await writeJson({
+    command: "genre",
+    mode: "flag",
+    evaluated: result.evaluated,
+    disputed: result.disputed,
+    upheld: result.upheld,
+    noQuorum: result.noQuorum,
+    applied: opts.apply === true,
+    samples: result.rows.slice(0, 40),
+  });
+  return true;
+}
+
+export async function genre(opts: GenreOptions): Promise<void> {
+  const log = commandLog(opts);
+  const k = opts.k ?? 5;
+  const minAgreement = opts.minAgreement ?? 0.6;
+
+  if (await genreDisputesMode(opts, log, k)) return;
+
+  if (opts.refold && opts.flag) {
+    await finishCommandError({
+      command: "genre",
+      json: opts.json === true,
+      error: "--refold and --flag are separate passes — run one at a time",
+      exitCode: 2,
+    });
     return;
   }
 
-  // ---- --flag (standalone): the demote-and-flag pass (§5b.3 step 2).
-  // Runs the LOO harness; rows whose label contradicts a UNANIMOUS kNN
-  // consensus get genre_flag='disputed' — never rewritten, but excluded
-  // from inference seeding (state_tracks.genreSeeds filters them).
-  // Previously-flagged rows are REASSESSED from scratch each run: if a
-  // fixed label (or a changed neighbourhood) now agrees, the flag
-  // clears — the pass is idempotent and self-healing.
-  if (opts.flag) {
-    const pop = opts.state.evalPopulation();
-    const seeds: GenreSeed[] = [];
-    const durations: { videoId: string; durationS: number | null }[] = [];
-    for (const row of pop) {
-      seeds.push({
-        videoId: row.video_id,
-        genre: row.genre,
-        vec: parseEmbeddingVector(row.vec_json, `genre flag ${row.video_id}`),
-      });
-      durations.push({ videoId: row.video_id, durationS: row.duration_s });
-    }
-    const summary = evalLeaveOneOut(seeds, k, minAgreement, durations);
-    const result = classifyDisputes(summary);
-    const disputeIds = new Set(result.rows.map((r) => r.videoId));
-    // every embedded labeled row is reassessed: set the flag on new
-    // disputes, CLEAR it on rows no longer disputed (self-healing)
-    if (opts.apply)
-      for (const row of pop)
-        opts.state.setGenreFlag(
-          row.video_id,
-          disputeIds.has(row.video_id) ? "disputed" : null,
-        );
-    log(
-      `genre flag: ${result.disputed} disputed of ${result.evaluated} assessed (${result.upheld} upheld by unanimous consensus, ${result.noQuorum} no quorum) — ${opts.apply ? "FLAGS WRITTEN (labels untouched)" : "proposals only (use --apply to write flags)"}`,
-    );
-    for (const r of result.rows.slice(0, 15))
-      log(`  ${r.family} → consensus ${r.consensus}  (${r.videoId})`);
-    await writeJson({
-      command: "genre",
-      mode: "flag",
-      evaluated: result.evaluated,
-      disputed: result.disputed,
-      upheld: result.upheld,
-      noQuorum: result.noQuorum,
-      applied: opts.apply === true,
-      samples: result.rows.slice(0, 40),
-    });
+  if (opts.eval) {
+    await genreEvalMode(opts, log, k, minAgreement);
     return;
   }
+
+  if (await genreRefoldMode(opts, log)) return;
+  if (await genreFlagMode(opts, log, k, minAgreement)) return;
 
   // seeds: embedded tracks WITH a trusted genre; queries: embedded
   // tracks WITHOUT one (COALESCE means we could also never clobber, but
