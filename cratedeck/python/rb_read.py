@@ -19,7 +19,22 @@ import os
 import sys
 import time
 import unicodedata
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    # sqlalchemy resolves in the mypy env (venv dependency, PEP 561 stubs);
+    # pyrekordbox resolves only inside `uv run --with pyrekordbox` at
+    # runtime — TYPE_CHECKING keeps the module importable without it.
+    # DeviceLibraryPlus satisfies this protocol structurally: its
+    # `.query()` forwards to `session.query()` (sqlalchemy Query, whose
+    # all()/first() the snapshot readers consume).
+    from typing import Protocol
+
+    class _DeviceDb(Protocol):
+        def query(self, *entities: Any) -> Any: ...
+
+        @property
+        def session(self) -> Any: ...
 
 
 def casefold(s: str) -> str:
@@ -43,7 +58,7 @@ from anlz_paths import (  # type: ignore[import-not-found]  # noqa: E402
 )
 
 
-def analyze_anlz_coverage(db: Any, content_model: Any, drive_root: str) -> float:
+def analyze_anlz_coverage(db: "_DeviceDb", content_model: Any, drive_root: str) -> float:
     """Fraction of tracks whose ANLZ exists at the hash-computed path."""
     usb_anlz = os.path.join(drive_root, "PIONEER", "USBANLZ")
     total = found = 0
@@ -83,7 +98,7 @@ def _bpm_bucket(bpm: float) -> str | None:
     return f"{int(bpm // 10) * 10}-{int(bpm // 10) * 10 + 9}"
 
 
-def dj_stats(db: Any, contents: list[Any]) -> dict[str, Any]:
+def dj_stats(db: "_DeviceDb", contents: list[Any]) -> dict[str, Any]:
     """Genre/BPM/key/artist/duration/bitrate/artwork analytics from Content rows."""
     from pyrekordbox.devicelib_plus.models import Genre, Key  # type: ignore[import-not-found]
 
@@ -160,7 +175,7 @@ def dj_stats(db: Any, contents: list[Any]) -> dict[str, Any]:
     }
 
 
-def track_inventory(db: Any, contents: list[Any]) -> list[dict[str, Any]]:
+def track_inventory(db: "_DeviceDb", contents: list[Any]) -> list[dict[str, Any]]:
     """Per-track fleet rows (ideas.md §B6/B7/B8): path-keyed identity plus the
     metadata the coverage UI shows. Casefolded here so TS consumers never
     re-implement the fold. Only audio rows (fileType 4=mp3, 1=others)."""
@@ -194,7 +209,7 @@ def track_inventory(db: Any, contents: list[Any]) -> list[dict[str, Any]]:
     return out
 
 
-def playlist_membership(db: Any) -> list[dict[str, str]]:
+def playlist_membership(db: "_DeviceDb") -> list[dict[str, str]]:
     """One row per (playlist, track-path) so the redundancy audit can union
     playlists across drives. Folder nodes are skipped; paths casefolded to
     match track_inventory."""
@@ -213,7 +228,7 @@ def playlist_membership(db: Any) -> list[dict[str, str]]:
     return rows
 
 
-def open_device_db(db_path: str) -> Any:
+def open_device_db(db_path: str) -> "_DeviceDb":
     """Open a device-library copy. Real rekordbox drives carry SQLCipher
     encryption (default key path); plaintext copies (dev fixtures, some
     tooling) fail the decrypt with 'file is not a database' — retry those
@@ -225,16 +240,16 @@ def open_device_db(db_path: str) -> Any:
     from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus as _DLP  # type: ignore[import-not-found] # noqa: I001
 
     DeviceLibraryPlus = _DLP
-    from sqlalchemy import text  # type: ignore[import-not-found]
+    from sqlalchemy import text
 
-    db = DeviceLibraryPlus(db_path)
+    db: _DeviceDb = DeviceLibraryPlus(db_path)
     try:
         db.session.execute(text("SELECT 1 FROM content LIMIT 1"))
         return db
     except Exception as exc:  # probe plaintext fallback (BLE001 scoped)
         if "file is not a database" in str(exc):
             db.session.close()
-            plain = DeviceLibraryPlus(db_path, unlock=False)
+            plain: _DeviceDb = DeviceLibraryPlus(db_path, unlock=False)
             plain.session.execute(text("SELECT 1 FROM content LIMIT 1"))
             return plain
         raise

@@ -7,6 +7,7 @@
 // of hand-written JSON-Schema boilerplate.
 
 import { apiGet } from "./deckapi";
+import type { ToolDef } from "./mcp_server";
 import { parseMegasetQuery } from "./megaset";
 import {
   clampMegasetPool,
@@ -28,8 +29,12 @@ import {
 } from "./mcp_params";
 import { isSimilarSpace } from "../shared/vector-space";
 
-/** The archive_* tool table (O82b, readonly reads over megadj's DB). */
-export function archiveTools(): Record<string, unknown> {
+/** The archive_* + megaset/getdat-adjacent tool table (O82b: readonly
+ *  reads over megadj's DB through the server's /api/archive/* routes).
+ *  Typed as ToolDef so mcp.ts's TOOLS spread inherits the exact contract
+ *  instead of `Record<string, unknown>` — a tool added here without a
+ *  description/schema/run is a compile error, not a runtime surprise. */
+export function archiveTools(): Record<string, ToolDef> {
   return {
     archive_search_tracks: {
       description:

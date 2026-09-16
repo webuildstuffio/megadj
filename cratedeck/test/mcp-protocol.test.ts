@@ -11,6 +11,7 @@
 // parameterized tool failed with "drive is required".
 import { describe, it, expect, afterAll } from "bun:test";
 import { join } from "node:path";
+import { DECK_MCP_SURFACES } from "../src/mcp_surfaces";
 
 // Use the module-level functions where possible by importing is not possible
 // (mcp.ts runs main() at import), so drive the real process over stdio.
@@ -169,26 +170,21 @@ describe("mcp stdio protocol", () => {
     // …and carry the right safety hints: help readonly, dismiss not
     expect(byName.get("deck_help")?.annotations?.readOnlyHint).toBe(true);
     expect(byName.get("deck_dismiss")?.annotations?.readOnlyHint).toBe(false);
-    // census parity: every deckctl verb with a tool twin is present
+    // census parity: every deckctl verb with a tool twin is present —
+    // derived from DECK_MCP_SURFACES (#47), not a hand-copied verb list;
+    // a surface row added without a producer edit fails here.
     const names = new Set(byName.keys());
-    for (const verb of [
-      "status",
-      "drives",
-      "report",
-      "search",
-      "note",
-      "notes",
-      "dismiss",
-      "help",
-      "rename",
-      "prep",
-      "preflight",
-      "players",
-    ]) {
-      expect(names.has(`deck_${verb}`), `deck_${verb} in tools/list`).toBe(
-        true,
-      );
+    for (const { tool } of DECK_MCP_SURFACES) {
+      expect(names.has(tool), `${tool} in tools/list`).toBe(true);
     }
+    // and the derived twins are EXACTLY the deck_* tools listed — no
+    // orphan deck_* entry may exist in TOOLS without a surface row.
+    const listedDeck = (tools ?? [])
+      .map((t) => t.name as string)
+      .filter((n) => n.startsWith("deck_"));
+    expect(new Set(listedDeck)).toEqual(
+      new Set(DECK_MCP_SURFACES.map((s2) => s2.tool)),
+    );
   }, 15_000);
 
   it("tools/list exposes GetDat intake tools with mutating schemas", async () => {
