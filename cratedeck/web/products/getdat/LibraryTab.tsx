@@ -33,6 +33,17 @@ import {
   STATUS_LANG,
 } from "../shared";
 
+/** One recent-library row as a copy line — shared by the ListHead summary
+ *  and the table's copyLines (jscpd-flagged twin; copy matches display). */
+const recentLine = (t: {
+  video_id: string;
+  title: string | null;
+  artist: string | null;
+  status: string;
+  artwork_status: string | null;
+}): string =>
+  `${t.title ?? t.video_id}${t.artist ? ` — ${t.artist}` : ""} [${STATUS_LANG[t.status] ?? t.status}] ${artLang(t.artwork_status)}`;
+
 type Track = ArchiveIngestStatus["recent_tracks"][number];
 
 /** Art-ladder rung → human phrasing (provenance embedded in the
@@ -305,10 +316,7 @@ export function LibraryTab() {
           title="Freshest tag/ingest updates"
           n={lib.recent.length}
           hint="Newest by archive update time — recent ingests and enrichment passes surface here with their art rung. Filter to drill into an artist or status; pages keep the DOM small."
-          lines={lib.recent.map(
-            (t) =>
-              `${t.title ?? t.video_id}${t.artist ? ` — ${t.artist}` : ""} [${STATUS_LANG[t.status] ?? t.status}] ${artLang(t.artwork_status)}`,
-          )}
+          lines={lib.recent.map(recentLine)}
         />
         <DataTable
           columns={[
@@ -372,12 +380,7 @@ export function LibraryTab() {
           paginate
           pageSize={15}
           copyName="Recently updated"
-          copyLines={(rows) =>
-            rows.map(
-              (t) =>
-                `${t.title ?? t.video_id}${t.artist ? ` — ${t.artist}` : ""} [${STATUS_LANG[t.status] ?? t.status}] ${artLang(t.artwork_status)}`,
-            )
-          }
+          copyLines={(rows) => rows.map(recentLine)}
           ariaLabel="Recently updated archive tracks"
         />
       </div>

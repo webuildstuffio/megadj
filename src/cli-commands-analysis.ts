@@ -16,17 +16,11 @@ const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
     ["limit", "jobs", "max-seconds"],
     ["force", "dry-run", "json"],
   );
-  if (nonNegOptInvalid(flags, "limit", "beats", flags.bools.has("json")))
-    return;
-  const limit = nonNegOpt(flags, "limit", "beats", flags.bools.has("json"));
-  if (nonNegOptInvalid(flags, "max-seconds", "beats", flags.bools.has("json")))
-    return;
-  const maxSeconds = nonNegOpt(
-    flags,
-    "max-seconds",
-    "beats",
-    flags.bools.has("json"),
-  );
+  const json = flags.bools.has("json");
+  if (nonNegOptInvalid(flags, "limit", "beats", json)) return;
+  const limit = nonNegOpt(flags, "limit", "beats", json);
+  if (nonNegOptInvalid(flags, "max-seconds", "beats", json)) return;
+  const maxSeconds = nonNegOpt(flags, "max-seconds", "beats", json);
   const { beats: analyzeBeats } = await import("./fulltags/beats");
   await analyzeBeats({
     state,
@@ -35,7 +29,7 @@ const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
     limit,
     force: flags.bools.has("force"),
     dryRun: flags.bools.has("dry-run"),
-    json: flags.bools.has("json"),
+    json,
     maxSeconds,
   });
 };
@@ -46,8 +40,9 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
     ["limit", "jobs"],
     ["force", "dry-run", "json", "embeddings"],
   );
-  if (nonNegOptInvalid(flags, "limit", "mood", flags.bools.has("json"))) return;
-  const limit = nonNegOpt(flags, "limit", "mood", flags.bools.has("json"));
+  const json = flags.bools.has("json");
+  if (nonNegOptInvalid(flags, "limit", "mood", json)) return;
+  const limit = nonNegOpt(flags, "limit", "mood", json);
   const { mood: analyzeMood } = await import("./fulltags/mood");
   await analyzeMood({
     state,
@@ -56,7 +51,7 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
     limit,
     force: flags.bools.has("force"),
     dryRun: flags.bools.has("dry-run"),
-    json: flags.bools.has("json"),
+    json,
     embeddings: flags.bools.has("embeddings"),
   });
 };

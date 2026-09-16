@@ -338,6 +338,15 @@ function closeEvalSummary(
   return s;
 }
 
+/** Deterministic tally ordering shared by both LOO harnesses (#99):
+ *  count descending, ties alphabetical. The top-2 slice and the best
+ *  lookup both need this exact rule (jscpd-flagged twin). */
+function tallySorted(tally: Map<string, number>): [string, number][] {
+  return [...tally.entries()].toSorted(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+  );
+}
+
 export function evalLeaveOneOut(
   seeds: GenreSeed[],
   k = 5,
@@ -375,8 +384,7 @@ export function evalLeaveOneOut(
     const tally = new Map<string, number>();
     for (const n of nn)
       if (n.label) tally.set(n.label, (tally.get(n.label) ?? 0) + 1);
-    const top2 = [...tally.entries()]
-      .toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    const top2 = tallySorted(tally)
       .slice(0, 2)
       .map(([label]) => label);
     summary.rows.push({
@@ -432,9 +440,7 @@ export function evalLeaveOneOutArtistDisjoint(
       .slice(0, Math.min(Math.max(k, 1), rest.length));
     const tally = new Map<string, number>();
     for (const n of usable) tally.set(n.family, (tally.get(n.family) ?? 0) + 1);
-    const best = [...tally.entries()].toSorted(
-      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-    )[0];
+    const best = tallySorted(tally)[0];
     const agreement = usable.length > 0 && best ? best[1] / usable.length : 0;
     const predicted =
       best !== undefined && agreement >= minAgreement ? best[0] : null;
@@ -442,8 +448,7 @@ export function evalLeaveOneOutArtistDisjoint(
     else if (predicted === family) summary.agree++;
     else summary.disagree++;
     if (best !== undefined && best[0] === family) ungatedAgree++;
-    const top2 = [...tally.entries()]
-      .toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    const top2 = tallySorted(tally)
       .slice(0, 2)
       .map(([label]) => label);
     summary.rows.push({

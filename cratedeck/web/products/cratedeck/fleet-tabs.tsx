@@ -29,6 +29,15 @@ import { TabIntro } from "../../ui/InfoTip";
 import { FixNote } from "../../ui/ListHead";
 import { Verdict } from "../shared";
 
+/** One at-risk row as a copy line — shared by the ListHead summary and the
+ *  table's copyLines (jscpd-flagged twin; copy must match what's shown). */
+const atRiskLine = (r: {
+  identity: { path: string; title: string | null; artist: string | null };
+  copies: number;
+  drives: string[];
+}): string =>
+  `${r.identity.title ?? r.identity.path}${r.identity.artist ? ` — ${r.identity.artist}` : ""} (${r.copies} cop${r.copies === 1 ? "y" : "ies"}: ${r.drives.join(", ")})`;
+
 // TrackHit is DERIVED from the wire SSOT (shared/types.ts) —
 // TrackLocationsResponse is what GET /api/fleet/track actually returns
 // (a local duplicate drifted once; the Sep 7 lesson).
@@ -190,10 +199,7 @@ export function CoverageTab() {
             title="At-risk tracks"
             n={atRisk}
             hint={`Tracks living on fewer than ${data.min_copies} drives — one dead stick away from gone. The fix is the ordinary mirror run: it converges master → mirror. Copy the list to hand it to an agent. Click a column to sort.`}
-            lines={data.at_risk.map(
-              (r) =>
-                `${r.identity.title ?? r.identity.path}${r.identity.artist ? ` — ${r.identity.artist}` : ""} (${r.copies} cop${r.copies === 1 ? "y" : "ies"}: ${r.drives.join(", ")})`,
-            )}
+            lines={data.at_risk.map(atRiskLine)}
           />
           <DataTable
             columns={[
@@ -235,12 +241,7 @@ export function CoverageTab() {
             cap={200}
             ariaLabel="At-risk tracks"
             copyName="At-risk tracks"
-            copyLines={(rows) =>
-              rows.map(
-                (r) =>
-                  `${r.identity.title ?? r.identity.path}${r.identity.artist ? ` — ${r.identity.artist}` : ""} (${r.copies} cop${r.copies === 1 ? "y" : "ies"}: ${r.drives.join(", ")})`,
-              )
-            }
+            copyLines={(rows) => rows.map(atRiskLine)}
           />
           <FixNote>
             run <code>Mirror</code> (topbar or <code>deckctl run mirror</code>)

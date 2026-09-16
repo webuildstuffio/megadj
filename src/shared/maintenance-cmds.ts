@@ -241,6 +241,27 @@ const rbAdoptCmd: MaintenanceHandler = async (rest) => {
   }
 };
 
+/** The shared rb-writer option block (`playlist` + `group` + apply/yes +
+ *  json contract) — rb-import and rb-playlist carry identical option
+ *  surfaces on top of their own fields (jscpd-flagged twin). */
+function rbWriteOpts(
+  flags: ReturnType<typeof parseFlags>,
+  json: boolean,
+): {
+  playlist: string | undefined;
+  group: string | undefined;
+  apply: boolean;
+  yes: boolean;
+} & ReturnType<typeof jsonOpts> {
+  return {
+    playlist: flags.strings.get("playlist"),
+    group: flags.strings.get("group"),
+    apply: flags.bools.has("apply"),
+    yes: flags.bools.has("yes"),
+    ...jsonOpts(json),
+  };
+}
+
 const rbImportCmd: MaintenanceHandler = async (rest) => {
   // the SANCTIONED headless master-DB import (AGENTS.md: auto-writes
   // are rb-import's job only). One playlist per intake folder under a
@@ -268,11 +289,7 @@ const rbImportCmd: MaintenanceHandler = async (rest) => {
   const r = await rbImport({
     mount,
     folder,
-    playlist: flags.strings.get("playlist"),
-    group: flags.strings.get("group"),
-    apply: flags.bools.has("apply"),
-    yes: flags.bools.has("yes"),
-    ...jsonOpts(json),
+    ...rbWriteOpts(flags, json),
   });
   await emitResult(json, r, printRbImportReport);
   if (!r.ok) setExit(1);
@@ -410,11 +427,7 @@ const rbPlaylistCmd: MaintenanceHandler = async (rest) => {
     minutes,
     opener: flags.strings.get("opener"),
     limit,
-    playlist: flags.strings.get("playlist"),
-    group: flags.strings.get("group"),
-    apply: flags.bools.has("apply"),
-    yes: flags.bools.has("yes"),
-    ...jsonOpts(json),
+    ...rbWriteOpts(flags, json),
   });
   await emitResult(json, r, printRbPlaylistReport);
   if (!r.ok || r.unmatched.length > 0) setExit(1);
