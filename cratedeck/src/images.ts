@@ -1,5 +1,6 @@
-// images — provider search (brave | exa) proxied server-side; chosen images
-// cached forever under data/images/<drive>/.
+// images — the dual-save cover-photo STORE; provider search (brave | exa)
+// lives in image-search.ts (#42 split). Chosen images are cached forever
+// under data/images/<drive>/.
 //
 // The photo lives in TWO places by design (dual-save):
 //   1. locally  — data/images/<driveId>/photo.<ext>  (canonical, always there
@@ -22,14 +23,10 @@ import type { CrateConfig } from "./config";
 import type { Guard } from "./guard";
 import type { DB } from "./db";
 import type { DriveImage } from "../shared/types";
-export { type DriveImage } from "../shared/types";
+import { searchProviders, type ImageHit } from "./image-search";
 
-export interface ImageHit {
-  id: string;
-  thumb: string;
-  full: string;
-  source: string;
-}
+export { type DriveImage } from "../shared/types";
+export type { ImageHit } from "./image-search";
 
 /** Exact filename(s) CrateDeck writes: local copies may be extensionless
  *  (legacy uploads), stick copies keep their extension. */
@@ -82,27 +79,6 @@ export async function readBoundedImageBody(
     offset += chunk.byteLength;
   }
   return out;
-}
-
-/** Minimal response typing for the Brave image-search API. */
-interface BraveResponse {
-  results?: {
-    index?: number;
-    url?: string;
-    source?: string;
-    thumbnail?: { src?: string };
-    properties?: { image?: string };
-  }[];
-}
-
-/** Minimal response typing for the Exa search API. */
-interface ExaResponse {
-  results?: {
-    id?: string;
-    image?: string;
-    url?: string;
-    extras?: { imageLinks?: string[] };
-  }[];
 }
 
 export class ImageService {
@@ -274,76 +250,12 @@ export class ImageService {
     if (!this.cfg.imageProvider || !this.cfg.imageKey) {
       return { provider: "none", hits: [] };
     }
-    const hits =
-      this.cfg.imageProvider === "brave"
-        ? await this.brave(q)
-        : await this.exa(q);
-    return { provider: this.cfg.imageProvider, hits };
-  }
-
-  private async brave(q: string): Promise<ImageHit[]> {
-    const res = await fetch(
-      `https://api.search.brave.com/res/v1/images/search?q=${encodeURIComponent(q)}&count=12&safesearch=off`,
-      {
-        headers: {
-          "X-Subscription-Token": this.cfg.imageKey!,
-          Accept: "application/json",
-        },
-        // every fetch gets a deadline: a hung provider must surface as a
-        // catchable failure, not a wedged route (repo fetch-deadline rule)
-        signal: AbortSignal.timeout(10_000),
-      },
+    const hits = await searchProviders(
+      this.cfg.imageProvider,
+      this.cfg.imageKey,
+      q,
     );
-    if (!res.ok) throw new Error(`brave ${res.status}`);
-    const data = (await res.json()) as BraveResponse;
-    return (data.results ?? []).slice(0, 12).map((r, i) => ({
-      id: String(r.index ?? i),
-      thumb: r.thumbnail?.src ?? r.properties?.image ?? r.url ?? "",
-      full: r.properties?.image ?? r.url ?? "",
-      source: r.source ?? "web",
-    }));
-  }
-
-  private async exa(q: string): Promise<ImageHit[]> {
-    // Exa's search only returns a page-level `image` sometimes; the reliable
-    // way to get product images is contents.extras.imageLinks. Merge both.
-    const res = await fetch("https://api.exa.ai/search", {
-      method: "POST",
-      headers: {
-        "x-api-key": this.cfg.imageKey!,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: q,
-        numResults: 12,
-        type: "keyword",
-        contents: { extras: { imageLinks: 4 }, text: false },
-      }),
-      signal: AbortSignal.timeout(10_000), // deadline: see brave()
-    });
-    if (!res.ok) throw new Error(`exa ${res.status}`);
-    const data = (await res.json()) as ExaResponse;
-    const hits: ImageHit[] = [];
-    for (const r of data.results ?? []) {
-      const source = r.url ?? "web";
-      if (r.image)
-        hits.push({
-          id: `${r.id ?? hits.length}-main`,
-          thumb: r.image,
-          full: r.image,
-          source,
-        });
-      for (const [i, img] of (r.extras?.imageLinks ?? []).entries()) {
-        hits.push({
-          id: `${r.id ?? hits.length}-${i}`,
-          thumb: img,
-          full: img,
-          source,
-        });
-        if (hits.length >= 12) return hits;
-      }
-    }
-    return hits;
+    return { provider: this.cfg.imageProvider, hits };
   }
 
   /** Persist a chosen image for a drive: local canonical copy + on-stick

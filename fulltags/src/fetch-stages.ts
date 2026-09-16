@@ -36,7 +36,7 @@ import {
   type Row,
   type TagValues,
 } from "./archive-ledger";
-import { imprintVote } from "../../src/fulltags/imprint-prior";
+import { stageGenreArm, stageYearArm } from "./fetch-genre-year";
 
 /** Where the SC-art fallback ladder stops being tried (artless → queue). */
 export interface Stats {
@@ -270,8 +270,13 @@ function markArt(
   ).run(`embedded:${label}`, ...(formatId ? [formatId] : []), t.row.video_id);
 }
 
-/** One SC genre win: canonicalize → file tag + DB row + stat + note. */
-function applyScGenre(t: StageCtx, rawGenre: string): void {
+/** One SC genre win: canonicalize → file tag + DB row + stat + note.
+ *  Structurally typed on GenreYearCtx (the stage-2 arms' context) — the
+ *  arm-split module in fetch-genre-year.ts calls this injected rung. */
+function applyScGenre(
+  t: Parameters<typeof stageGenreArm>[0],
+  rawGenre: string,
+): void {
   // Junk gate: numeric genres (SC genre IDs leaked through yt-dlp) and the
   // placeholder "Music" are not genres — refuse, never write them anywhere.
   if (/^\d+$/.test(rawGenre) || rawGenre.toLowerCase() === "music") return;
@@ -288,29 +293,10 @@ function applyScGenre(t: StageCtx, rawGenre: string): void {
   t.notes.push(`genre:${g}`);
 }
 
-/** The #128 imprint prior vote: the track's imprint (Beatport-filled
- *  TPUB) maps to a scene family through the cited IMPRINT_FAMILIES
- *  table. A VOTE, not a write-over: it fires only when both catalog
- *  sources (SC + BP) missed the genre, and never when the file's own
- *  label disagrees with the DB (stale row). Same write-first discipline
- *  as the SC/BP paths. Returns true when it wrote a genre. */
-function applyImprintGenre(t: StageCtx): boolean {
-  const label = t.truth.label ?? t.row.label;
-  const vote = imprintVote(label);
-  if (!vote) return false;
-  // Tag write first, DB row only on success (the ladder discipline).
-  if (!setFileTags(t.row.file_path, { genre: vote.family })) {
-    t.notes.push("genre:WRITE-FAILED (imprint)");
-    return false;
-  }
-  db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
-    vote.family,
-    t.row.video_id,
-  );
-  t.stats.genreImprint++;
-  t.notes.push(`genre:${vote.family} (imprint:${vote.imprint})`);
-  return true;
-}
+/** The #128 imprint prior vote lives in fetch-genre-year.ts now (the
+ *  stage-2 arms' shared rung); bcApplyGenre keeps its own copy of the
+ *  write-first shape because the Bandcamp consume-on-failed-write
+ *  semantics differ (see its comment). */
 
 /** The Bandcamp genre vote: canonicalize the page's best tag through the
  *  SAME junk gates every other source funnels through (numeric refuse,
@@ -379,65 +365,13 @@ export async function stageBandcamp(
 }
 
 /** Stage 2 — SC search hit → genre + year (the cheap half of the fan-out;
- *  original-res art needs the page fetch and lives in stage 3). */
+ *  original-res art needs the page fetch and lives in stage 3). The two
+ *  ladders live in fetch-genre-year.ts (#42 arm split); this is the
+ *  dispatcher: dry gate + want gates, then one call per ladder. */
 export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
   if (t.dry) return;
-  if (t.needGenre) {
-    if (best?.genre) {
-      applyScGenre(t, best.genre);
-    } else if (t.bpBest) {
-      // Beatport store genre is the vote BETWEEN SC and AI.
-      const g = bpGenre(t.bpBest);
-      if (g) {
-        // Tag write first, DB row only on success — the DB never claims
-        // a genre the file doesn't carry (mirrors markYear's discipline).
-        if (setFileTags(t.row.file_path, { genre: g })) {
-          db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
-            g,
-            t.row.video_id,
-          );
-          t.stats.genreBp++;
-          t.notes.push(`genre:${g} (bp)`);
-        } else {
-          t.notes.push("genre:WRITE-FAILED (bp)");
-        }
-      } else if (applyImprintGenre(t)) {
-        // both catalog genres missed but Beatport matched the release —
-        // the #128 imprint prior votes from the label it carries
-      } else {
-        if (t.aiAllowed) t.aiGenreBatch.push(t.row);
-        else t.notes.push("genre:UNRESOLVED (no SC/bp hit — AI fallback off)");
-      }
-    } else if (applyImprintGenre(t)) {
-      // no BP hit at all, but a BP-filled label already on the row/file
-      // votes (e.g. a re-run after the identity stage landed)
-    } else {
-      if (t.aiAllowed) t.aiGenreBatch.push(t.row);
-      else t.notes.push("genre:UNRESOLVED (no SC/bp hit — AI fallback off)");
-    }
-  }
-  if (t.needYear) {
-    if (best?.year) {
-      markYear(t, best.year);
-    } else if (t.bpBest?.year) {
-      // Beatport publish date = official release year (SC's upload
-      // timestamp is preferred for remixes; bp fills when SC missed).
-      // Same write-first discipline as markYear.
-      if (setFileTags(t.row.file_path, { year: t.bpBest.year })) {
-        db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-          String(t.bpBest.year),
-          t.row.video_id,
-        );
-        t.stats.yearBp++;
-        t.notes.push(`year:${t.bpBest.year} (bp)`);
-      } else {
-        t.notes.push("year:WRITE-FAILED (bp)");
-      }
-    } else {
-      if (t.aiAllowed) t.aiYearBatch.push(t.row);
-      else t.notes.push("year:UNRESOLVED (no SC/bp hit — AI fallback off)");
-    }
-  }
+  if (t.needGenre) stageGenreArm(t, best, applyScGenre);
+  if (t.needYear) stageYearArm(t, best);
 }
 
 /** Stage 2.5 — Beatport identity fields (label / mix name / ISRC /
