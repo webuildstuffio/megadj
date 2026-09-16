@@ -668,6 +668,15 @@ const TOOLS: Record<string, ToolDef> = {
 
 // ---- server loop (plumbing lives in mcp_server.ts) --------------------------
 async function main(): Promise<void> {
+  // Offline harnesses set CRATEDECK_OFFLINE=1: never probe, never spawn —
+  // the stdio server serves immediately and backend-backed tools get a
+  // clean "unreachable" error from the transport gate in deckapi.ts.
+  // Local tools (deck_explain, deck_help, getdat arg validation) and
+  // tools/list stay fully answerable — the Sep 15/16 root-cause fix.
+  if (process.env.CRATEDECK_OFFLINE === "1") {
+    await serveMcp(TOOLS, true);
+    return;
+  }
   // Refuse to serve if the backend never comes up — but answer initialize
   // first so clients surface a clean error instead of hanging.
   const up = await ensureServer();

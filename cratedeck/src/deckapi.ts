@@ -48,10 +48,23 @@ export function jobTerminal(status: JobStatus | string): boolean {
   return (TERMINAL_JOB_STATUSES as readonly string[]).includes(status);
 }
 
+// Offline transport gate: when CRATEDECK_OFFLINE=1, every HTTP round-trip
+// throws immediately. The MCP stdio server runs this way in offline
+// harnesses: registry metadata and purely local tools stay answerable, and
+// backend-backed tools surface a clean catchable error instead of a
+// timeout — no server is ever spawned from the process (root-cause fix for
+// the Sep 15/16 detached index.ts leak on port 59999).
+function offlineGate(): void {
+  if (process.env.CRATEDECK_OFFLINE === "1") {
+    throw new Error("cratedeck server unreachable (offline mode)");
+  }
+}
+
 export async function apiGet(
   path: string,
   timeoutMs = 10_000,
 ): Promise<Response> {
+  offlineGate();
   // every server round-trip gets a deadline: a wedged/restarting server
   // must surface as a catchable failure, not an infinite client hang
   return fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(timeoutMs) });
@@ -79,6 +92,7 @@ export async function apiPost(
   body?: unknown,
   timeoutMs = 30_000,
 ): Promise<Response> {
+  offlineGate();
   return fetch(`${BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -87,8 +101,23 @@ export async function apiPost(
   });
 }
 
-/** Wait for the server, auto-starting it if it isn't running. */
+/** Wait for the server, auto-starting it if it isn't running. Tests (and
+ *  embedders) can set CRATEDECK_NO_AUTOSTART=1 to make this a pure probe:
+ *  the auto-spawn is detached + unref'd, so in a test process it becomes a
+ *  launchd-reparented orphan the test cannot kill (Sep 15/16 leak: two
+ *  servers survived a day on the test port, one holding the SQLite it
+ *  auto-opened). */
 export async function ensureServer(): Promise<boolean> {
+  if (process.env.CRATEDECK_NO_AUTOSTART === "1") {
+    try {
+      const r = await fetch(`${BASE}/api/interlock`, {
+        signal: AbortSignal.timeout(1500),
+      });
+      return r.ok;
+    } catch {
+      return false;
+    }
+  }
   try {
     const r = await fetch(`${BASE}/api/interlock`, {
       signal: AbortSignal.timeout(1500),

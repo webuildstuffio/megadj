@@ -142,6 +142,9 @@ export async function serveMcp(
         replyError(null, -32700, "parse error");
         continue;
       }
+      // Backend down: suppress everything except initialize/ping. Offline
+      // harnesses must use CRATEDECK_OFFLINE=1 (mcp.ts main) instead — that
+      // mode serves the full registry and local tools without any backend.
       if (!up && req.method !== "initialize" && req.method !== "ping") {
         if (req.id !== undefined && req.id !== null) {
           replyError(req.id, ERR_INTERNAL, "cratedeck server unreachable");

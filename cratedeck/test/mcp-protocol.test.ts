@@ -15,19 +15,50 @@ import { DECK_MCP_SURFACES } from "../src/mcp_surfaces";
 
 // Use the module-level functions where possible by importing is not possible
 // (mcp.ts runs main() at import), so drive the real process over stdio.
-const proc = Bun.spawn(["bun", "run", join("src", "mcp.ts")], {
-  cwd: join(import.meta.dir, ".."),
-  env: {
-    ...process.env,
-    // Unreachable port: ensureServer() gives up quickly; initialize still
-    // answers, tools/call replies with a clean internal error (not a hang).
-    CRATEDECK_PORT: "59999",
-    CRATEDECK_ENSURE_TIMEOUT_MS: "1500",
+// The python3 -c wrapper calls setsid(2) then execs the MCP process, making
+// it its own session AND process-group leader — afterAll can then kill the
+// entire tree (including ensureServer()'s detached index.ts grandchild)
+// with one negative-PID kill. macOS ships no setsid(1) binary. Sep 15/16
+// incident: two auto-spawned servers survived this suite for a day on
+// ports 59999/59997 (PPID 1), one with the production SQLite open.
+const MCP_CMD = ["bun", "run", join("src", "mcp.ts")];
+const proc = Bun.spawn(
+  [
+    "python3",
+    "-c",
+    "import os,sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])",
+    ...MCP_CMD,
+  ],
+  {
+    cwd: join(import.meta.dir, ".."),
+    env: {
+      ...process.env,
+      // NO_AUTOSTART + OFFLINE: ensureServer() must never probe/spawn the
+      // detached index.ts grandchild from a test process — it would
+      // reparent to launchd and outlive the suite (the Sep 15/16 port-59999
+      // leak). OFFLINE additionally gates every HTTP round-trip in
+      // deckapi.ts, so backend-backed tools fail fast while tools/list and
+      // local tools (deck_explain, deck_help, getdat arg validation) stay
+      // answerable. The belt in depth: the synchronous port sweep in
+      // afterAll catches anything that spawns anyway. The isolated
+      // CRATEDECK_DATA stands so a leak can never touch production SQLite.
+      CRATEDECK_NO_AUTOSTART: "1",
+      CRATEDECK_OFFLINE: "1",
+      CRATEDECK_PORT: "59999",
+      CRATEDECK_DATA: join(import.meta.dir, "..", "data-test-mcp-protocol"),
+      CRATEDECK_ROOT: join(import.meta.dir, ".."),
+      CRATEDECK_VOLUMES: join(
+        import.meta.dir,
+        "..",
+        "data-test-mcp-protocol",
+        "volumes",
+      ),
+    },
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
   },
-  stdin: "pipe",
-  stdout: "pipe",
-  stderr: "pipe",
-});
+);
 
 let nextId = 1;
 
@@ -121,7 +152,44 @@ async function readLine(deadline: number): Promise<string | null> {
 }
 
 afterAll(() => {
-  proc.kill();
+  // Kill the whole process group: the python3 setsid wrapper makes the MCP
+  // process a group leader, taking its direct children with it.
+  try {
+    process.kill(-proc.pid, "SIGTERM");
+  } catch {
+    /* group already gone */
+  }
+  try {
+    proc.kill();
+  } catch {
+    /* already gone */
+  }
+  // ensureServer()'s fallback index.ts is spawned detached (own session —
+  // POSIX double-detach), so NO group kill reaches it, and bun test drops
+  // pending timers after afterAll returns — the sweep must be synchronous.
+  // Whatever still LISTENs on the test port is our grandchild (Sep 16
+  // leak: one such server survived a day holding the SQLite it opened).
+  // The port is test-private (59999). Bounded loop: ~5s worst case.
+  for (let i = 0; i < 25; i++) {
+    const out = Bun.spawnSync(["lsof", "-tiTCP:59999", "-sTCP:LISTEN"], {
+      stdout: "pipe",
+      stderr: "ignore",
+    });
+    const pids = new TextDecoder()
+      .decode(out.stdout)
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => /^\d+$/u.test(l) && l !== String(process.pid));
+    if (pids.length === 0) break;
+    for (const pid of pids) {
+      try {
+        process.kill(Number(pid), "SIGKILL");
+      } catch {
+        /* raced exit */
+      }
+    }
+    Bun.spawnSync(["sleep", "0.2"]);
+  }
 });
 
 describe("mcp stdio protocol", () => {

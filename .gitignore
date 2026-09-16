@@ -31,6 +31,7 @@ workspace-megadj/
 *.sqlite-wal
 *.sqlite-shm
 cratedeck/data/
+cratedeck/data-test-*/
 cratedeck/config.toml
 config.toml
 .env
