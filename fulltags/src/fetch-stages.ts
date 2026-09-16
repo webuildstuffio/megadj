@@ -242,7 +242,8 @@ export async function fanOutBandcamp(
   scGenreWon: boolean,
   scYearWon: boolean,
 ): Promise<void> {
-  const wantsBcGenre = t.needGenre && !scGenreWon && !(t.bpBest && bpGenre(t.bpBest));
+  const wantsBcGenre =
+    t.needGenre && !scGenreWon && !(t.bpBest && bpGenre(t.bpBest));
   const wantsBcYear = t.needYear && !scYearWon && !t.bpBest?.year;
   const wantsBcLabel = t.needTags && !t.truth.label && !t.bpBest?.label;
   if (t.dry || !(wantsBcGenre || wantsBcYear || wantsBcLabel)) return;

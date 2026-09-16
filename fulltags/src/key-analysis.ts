@@ -10,6 +10,7 @@
 import { existsSync } from "node:fs";
 import { parseJsonObject } from "./parse-json";
 import { lineReader } from "./stdio";
+import { readUntilLine } from "./analysis-worker";
 import { keyscanDir } from "./fingerprint";
 
 export interface KeyResult {
@@ -62,12 +63,15 @@ export async function analyzeKeys(
 }
 
 /** Does this analyzer stdout line announce readiness? Tolerant of partial
- *  lines (JSON.parse guarded — sanctioned resilience, returns false). */
+ *  lines (JSON.parse guarded — sanctioned resilience, returns false).
+ *  The one implementation lives in analysis-worker.ts (#189). */
 const lineIsReady = (l: string): boolean =>
   parseJsonObject(l)?.type === "ready";
 
 /** Does this analyzer stdout line carry a response id? Tolerant of partial
- *  lines (JSON.parse guarded — sanctioned resilience, returns false). */
+ *  lines (JSON.parse guarded — sanctioned resilience, returns false).
+ *  (The generic id-shape predicate lives in analysis-worker.ts; this one
+ *  goes through the key-server's own guarded line parser.) */
 const lineHasId = (l: string): boolean => parseKeyServerLine(l) !== null;
 
 export interface KeyServerLine {
@@ -127,7 +131,8 @@ async function runKeyServer(
   const lr = lineReader(proc.stdout as ReadableStream);
   /** Read lines until pred matches (or timeout/EOF). Deterministic: each
    * iteration either consumes a buffered line or awaits exactly one read()
-   * — no polling race between a pump task and the caller. */
+   * — no polling race between a pump task and the caller. readUntilLine
+   * itself is the ONE shared implementation (analysis-worker.ts, #189). */
   const readUntil = (pred: (line: string) => boolean, timeoutMs: number) =>
     readUntilLine(lr, pred, timeoutMs);
   const isReady = lineIsReady;
@@ -171,23 +176,6 @@ async function runKeyServer(
   // above hands back the same empty map typed through the promise.
   for (const [k, v] of out) if (v === null) out.delete(k);
   return out as Map<string, KeyResult>;
-}
-
-/** Resolve the next stdout line matching `pred`, or null on timeout/EOF.
- * Deterministic: consumes a buffered line or awaits exactly one read(). */
-async function readUntilLine(
-  lr: ReturnType<typeof lineReader>,
-  pred: (line: string) => boolean,
-  timeoutMs: number,
-): Promise<string | null> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) return null;
-    const line = await lr.next(remaining);
-    if (line == null) return null;
-    if (pred(line)) return line;
-  }
 }
 
 /** Convenience single-file wrapper over analyzeKeys. */

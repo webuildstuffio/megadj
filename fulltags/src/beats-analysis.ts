@@ -10,7 +10,12 @@
 import { existsSync } from "node:fs";
 import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
 import { parseJsonObject } from "./parse-json";
-import { lineReader } from "./stdio";
+import {
+  lineHasRequestId,
+  lineIsReady,
+  openWorkerSession,
+  writeNdjsonRequest,
+} from "./analysis-worker";
 import { fitConstantTempo } from "./grid-audit";
 
 function finiteNumberArray(raw: unknown): number[] | null {
@@ -147,22 +152,10 @@ for line in sys.stdin:
 `;
 }
 
-/** Resolve the next stdout line matching `pred`, or null on timeout/EOF.
- * Deterministic: consumes a buffered line or awaits exactly one read(). */
-async function readUntilLine(
-  lr: ReturnType<typeof lineReader>,
-  pred: (line: string) => boolean,
-  timeoutMs: number,
-): Promise<string | null> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) return null;
-    const line = await lr.next(remaining);
-    if (line == null) return null;
-    if (pred(line)) return line;
-  }
-}
+/** The worker-session kit lives in analysis-worker.ts (#189); beats
+ * rides it as a thin adapter. (A readUntilLine re-export used to sit
+ * here "for the session tests" — nothing imports it from this file and
+ * knip rightly flagged it; the tests import from the kit directly.) */
 
 export interface BeatSession {
   /** Analyze one file. Null on missing file, analyzer error, or a dead
@@ -179,75 +172,41 @@ const BEAT_RESPONSE_TIMEOUT_MS = 180_000;
 /** Persistent beat_this worker (NDJSON protocol above). Null when the
  * env is missing/fails the ready handshake — callers keep their
  * degrade-to-null contract. Single-flight: one request in flight per
- * session; batches open one session per parallel worker. */
+ * session; batches open one session per parallel worker. Thin adapter
+ * over the shared session kit (analysis-worker.ts, #189): this file owns
+ * only the uv argv + worker script + response parsing. */
 export async function openBeatSession(): Promise<BeatSession | null> {
   // GA-02: the DBN is opt-in (MADJ_DBN=1) and non-commercial (madmom's
   // models are CC BY-NC-SA — the plan's licensing posture).
   const useDbn = process.env.MEGADJ_DBN === "1";
-  const proc = Bun.spawn({
-    cmd: [
-      "uv",
-      "run",
-      ...beatWorkerArgs(useDbn),
-      "python",
-      "-c",
-      beatWorkerScript(useDbn),
-    ],
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "ignore",
-  });
-  const lr = lineReader(proc.stdout as ReadableStream);
-  const enc = new TextEncoder();
-  const readyLine = await readUntilLine(
-    lr,
-    (l) => parseJsonObject(l)?.type === "ready",
-    BEAT_READY_TIMEOUT_MS,
-  );
-  let alive = readyLine !== null;
-  if (!alive) {
-    try {
-      proc.kill();
-    } catch (error) {
-      // Process exit can race cleanup; there is no recovery work to do.
-      void error;
-    }
-    return null;
-  }
-  const kill = () => {
-    if (!alive) return;
-    alive = false;
-    try {
-      proc.kill();
-    } catch (error) {
-      void error;
-    }
-  };
-  return {
-    async analyze(path: string): Promise<BeatResult | null> {
-      if (!alive || !existsSync(path)) return null;
-      proc.stdin.write(enc.encode(`${JSON.stringify({ id: path, path })}\n`));
-      const line = await readUntilLine(
-        lr,
-        (l) => {
-          const v = parseJsonObject(l);
-          return typeof v?.id === "string" && v.id.length > 0;
-        },
-        BEAT_RESPONSE_TIMEOUT_MS,
-      );
-      if (line == null) {
-        // Timeout/EOF desyncs the protocol — kill so a late response can
-        // never be misattributed to the next request.
-        kill();
-        return null;
-      }
+  return openWorkerSession<string, BeatResult>({
+    spawn: () =>
+      Bun.spawn({
+        cmd: [
+          "uv",
+          "run",
+          ...beatWorkerArgs(useDbn),
+          "python",
+          "-c",
+          beatWorkerScript(useDbn),
+        ],
+        stdin: "pipe",
+        stdout: "pipe",
+        stderr: "ignore",
+      }),
+    isReady: lineIsReady,
+    readyTimeoutMs: BEAT_READY_TIMEOUT_MS,
+    encodeRequest: (path, enc, proc) =>
+      writeNdjsonRequest(proc, enc, { id: path, path }),
+    isResponse: lineHasRequestId,
+    responseTimeoutMs: BEAT_RESPONSE_TIMEOUT_MS,
+    parse: (line, path) => {
       const v = parseJsonObject(line);
       if (!v || v.id !== path) return null;
       // Error lines ({"id","error"}) fail the BeatResult schema → null.
       return parseBeatThisJson(line);
     },
-    close: kill,
-  };
+  });
 }
 
 /** Parse the last JSON line emitted by beat_this. Invalid JSON, non-finite

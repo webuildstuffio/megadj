@@ -1,9 +1,19 @@
 /**
  * Shared NDJSON line reader for Bun.spawn subprocesses with piped stdout
- * (the mood and key analyzers). Both callers used to hand-roll the same
- * buffered decoder loop — one deterministic implementation here: each
- * iteration consumes a buffered line or awaits exactly one read(), so
- * there is no polling race between a pump task and the caller.
+ * (the mood and key analyzers, and the #189 worker-session kit). Both
+ * callers used to hand-roll the same buffered decoder loop — one
+ * deterministic implementation here.
+ *
+ * Deadline semantics (root-caused Sep 16, #180 family): a bare
+ * `await reader.read()` suspends until data OR EOF arrives, so a timeout
+ * checked between reads never fired while a read was pending — a silent
+ * worker hung the caller forever, violating the "null on timeout"
+ * contract. `next()` now races the read against the remaining budget and
+ * RETURNS NULL AT THE DEADLINE even with a read still pending. The
+ * pending read is kept as `inflight` and reused by the next call (a
+ * ReadableStream reader allows exactly one read at a time), so a chunk
+ * that arrives late is decoded on the next call — nothing is lost and
+ * the reader is never double-read.
  */
 export interface LineReader {
   /** Resolve the next complete line, or null on timeout/EOF. */
@@ -17,24 +27,45 @@ export function lineReader(stdout: ReadableStream): LineReader {
   const dec = new TextDecoder();
   let buf = "";
   let eof = false;
+  // The single allowed in-progress read. A deadline that fires while this
+  // is pending leaves it here; the next next() call consumes it instead
+  // of issuing a second overlapping read.
+  let inflight: Promise<ReadableStreamReadResult<Uint8Array>> | null = null;
+
   return {
     async next(timeoutMs: number): Promise<string | null> {
-      const t0 = Date.now();
-      while (Date.now() - t0 < timeoutMs) {
+      const deadline = Date.now() + timeoutMs;
+      for (;;) {
         const nl = buf.indexOf("\n");
         if (nl !== -1) {
           const line = buf.slice(0, nl);
           buf = buf.slice(nl + 1);
           return line;
         }
-        const { done, value } = await reader.read();
-        if (done) {
+        if (!inflight) inflight = reader.read();
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) return null;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const winner = await Promise.race([
+          inflight.then(
+            (r): { kind: "read"; r: ReadableStreamReadResult<Uint8Array> } => ({
+              kind: "read",
+              r,
+            }),
+          ),
+          new Promise<{ kind: "timeout" }>((resolve) => {
+            timer = setTimeout(() => resolve({ kind: "timeout" }), remaining);
+          }),
+        ]);
+        clearTimeout(timer);
+        if (winner.kind === "timeout") return null;
+        inflight = null;
+        if (winner.r.done) {
           eof = true;
           return null;
         }
-        buf += dec.decode(value, { stream: true });
+        buf += dec.decode(winner.r.value, { stream: true });
       }
-      return null;
     },
     done: () => eof,
   };
