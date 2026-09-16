@@ -42,6 +42,7 @@ import {
   collectBreakers,
   MOOD_GLOSS,
   STATUS_LANG,
+  Verdict,
 } from "../shared";
 
 // Payload types are DERIVED from ArchiveReader's return types
@@ -181,16 +182,18 @@ function VerdictBanner(props: {
         };
   return (
     <>
-      <div class={`arch-verdict ${verdict.cls}`}>
-        <Icon name={verdict.cls === "ok" ? "check" : "warn"} size={15} />
-        <span>{verdict.text}</span>
-        <span class="arch-verdict-meta">
-          {props.inArchive.toLocaleString()} in the archive
-          {props.moodAvailable && props.analyzed > 0 && (
-            <> · {props.analyzed} analyzed</>
-          )}
-        </span>
-      </div>
+      <Verdict
+        cls={verdict.cls === "ok" ? "ok" : "warn"}
+        text={verdict.text}
+        meta={
+          <>
+            {props.inArchive.toLocaleString()} in the archive
+            {props.moodAvailable && props.analyzed > 0 && (
+              <> · {props.analyzed} analyzed</>
+            )}
+          </>
+        }
+      />
       {issues.length > 1 && (
         <div class="arch-issues">
           {issues.slice(1).map((i) => (

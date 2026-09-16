@@ -478,9 +478,10 @@ export const DRIVE_TABS = [
   },
 ] as const;
 
-/** The one-line verdict a human reads before anything else. `meta` accepts
- *  a node (InfoTip, Copy button, multi-part counts) — the old string-only
- *  signature is why 5 pages hand-rolled `arch-verdict` divs. */
+/** The one-line verdict a human reads before anything else. `text` and
+ *  `meta` accept nodes (counts, pills, InfoTip, Copy buttons) — every
+ *  product page renders its banner through this component now; the hand-
+ *  rolled `arch-verdict` divs were retired in the #89/#90 skeleton pass. */
 /** ArchiveAbsentGate — the "archive DB absent" note-card every GetDat
  *  tab (and every future archive-DB page) shows when `available` is
  *  false. One card, one copy string — the 4 hand-rolled clones in
@@ -497,7 +498,9 @@ export function ArchiveAbsentGate() {
 
 export function Verdict(props: {
   cls: "ok" | "warn" | "bad";
-  text: string;
+  /** Node, not just string — counts/pills/InfoTip ride in the meta slot
+   *  too (the reason 5+ pages kept hand-rolling the div). */
+  text?: ComponentChildren;
   meta?: ComponentChildren;
   /** icon override (default check/warn by cls) */
   icon?: string;
@@ -508,7 +511,9 @@ export function Verdict(props: {
         name={props.icon ?? (props.cls === "ok" ? "check" : "warn")}
         size={15}
       />
-      <span>{props.text}</span>
+      {props.text !== null && props.text !== undefined && (
+        <span>{props.text}</span>
+      )}
       {props.meta && <span class="arch-verdict-meta">{props.meta}</span>}
     </div>
   );

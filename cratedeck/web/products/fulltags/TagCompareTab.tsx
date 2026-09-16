@@ -31,7 +31,7 @@ import {
   KVVal,
   DataTable,
 } from "../../ui/data";
-import { ArchiveAbsentGate, SectionHead } from "../shared";
+import { ArchiveAbsentGate, SectionHead, Verdict } from "../shared";
 import { TrackPickSearch, type TrackPick } from "./TrackPickSearch";
 
 /** Pill classes per comparison outcome. */
@@ -117,23 +117,24 @@ export function TagCompareTab() {
         how="The census compares the two DB mirrors (archive enrichment vs the rb-adopt import of rekordbox's collection) — genre, key, BPM, identity — no file reads, so it's instant. Click any row for the full three-source view of that track: the live file tags (ground truth), the archive mirror, and rekordbox's row, differences precomputed."
         next="Disagreements here are display/scoring input, never auto-rewrites: genres come from real sources, and the disputed-flag pass (genre --flag) already excludes unanimous-consensus contradictions from inference seeding."
       />
-      <div class={`arch-verdict ${c.differing > 0 ? "warn" : "ok"}`}>
-        <Icon name="tag" size={15} />
-        <span>
-          {c.matched.toLocaleString()} tracks in both mirrors ·{" "}
-          <b>{c.differing.toLocaleString()}</b> disagree on ≥1 field
-          {c.unmatched > 0 && (
-            <> · {c.unmatched.toLocaleString()} not in rekordbox</>
-          )}
-        </span>
-        <span class="arch-verdict-meta">
-          {c.fieldCounts.slice(0, 4).map((f) => (
-            <span class="arch-pill" key={f.field}>
-              {f.field} {f.count.toLocaleString()}
-            </span>
-          ))}
-        </span>
-      </div>
+      <Verdict
+        cls={c.differing > 0 ? "warn" : "ok"}
+        icon="tag"
+        text={
+          <>
+            {c.matched.toLocaleString()} tracks in both mirrors ·{" "}
+            <b>{c.differing.toLocaleString()}</b> disagree on ≥1 field
+            {c.unmatched > 0 && (
+              <> · {c.unmatched.toLocaleString()} not in rekordbox</>
+            )}
+          </>
+        }
+        meta={c.fieldCounts.slice(0, 4).map((f) => (
+          <span class="arch-pill" key={f.field}>
+            {f.field} {f.count.toLocaleString()}
+          </span>
+        ))}
+      />
 
       <SectionHead icon="search" title="Pick a track for the three-source view">
         <span class="sect-n">{picked ? "1" : "0"}</span>

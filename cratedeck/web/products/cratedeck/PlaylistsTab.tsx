@@ -28,6 +28,7 @@ import {
   type CamelotPos,
 } from "../../../shared/camelot";
 import { fmtDur } from "../../../shared/fmt";
+import { Verdict } from "../shared";
 import { Icon } from "../../ui/icons";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
 import { copyList } from "../../ui/data";
@@ -223,41 +224,46 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
         how="Click a playlist to open the crate — sort columns by BPM, key or runtime to plan the energy arc. The filter digs into track titles and artists, auto-opens the crate holding the hit and highlights it inline. Press / to jump to the filter, Escape to clear. Copy exports the whole inventory."
         next="Cross-drive playlist safety (would a playlist survive one drive dying?) lives in Fleet → Redundancy."
       />
-      <div class="arch-verdict ok">
-        <Icon name="disc" size={15} />
-        <span>
-          {all.length} playlist{all.length === 1 ? "" : "s"} ·{" "}
-          {totalEntries.toLocaleString()} entr
-          {totalEntries === 1 ? "y" : "ies"}
-          {biggest && biggest.entries > 0 && (
-            <>
-              {" "}
-              · biggest crate <b>{biggest.name}</b> ({biggest.entries})
-            </>
-          )}
-          {folders.size > 0 && (
-            <>
-              {" "}
-              · {folders.size} folder{folders.size === 1 ? "" : "s"}
-            </>
-          )}
-        </span>
-        <span class="arch-verdict-meta">
-          <InfoTip
-            title="Playlist inventory"
-            body="Copy exports every playlist with folder + entry count — for agents rebuilding lists on a fresh stick, auditing crates, or feeding a set-planning tool."
-            align="right"
-          />
-          <button
-            type="button"
-            class="btn sm ghostbtn"
-            title="Copy the full playlist inventory — paste to an agent or notes"
-            onClick={copyInventory}
-          >
-            <Icon name="copy" size={12} /> Copy
-          </button>
-        </span>
-      </div>
+      <Verdict
+        cls="ok"
+        icon="disc"
+        text={
+          <>
+            {all.length} playlist{all.length === 1 ? "" : "s"} ·{" "}
+            {totalEntries.toLocaleString()} entr
+            {totalEntries === 1 ? "y" : "ies"}
+            {biggest && biggest.entries > 0 && (
+              <>
+                {" "}
+                · biggest crate <b>{biggest.name}</b> ({biggest.entries})
+              </>
+            )}
+            {folders.size > 0 && (
+              <>
+                {" "}
+                · {folders.size} folder{folders.size === 1 ? "" : "s"}
+              </>
+            )}
+          </>
+        }
+        meta={
+          <>
+            <InfoTip
+              title="Playlist inventory"
+              body="Copy exports every playlist with folder + entry count — for agents rebuilding lists on a fresh stick, auditing crates, or feeding a set-planning tool."
+              align="right"
+            />
+            <button
+              type="button"
+              class="btn sm ghostbtn"
+              title="Copy the full playlist inventory — paste to an agent or notes"
+              onClick={copyInventory}
+            >
+              <Icon name="copy" size={12} /> Copy
+            </button>
+          </>
+        }
+      />
       <div class="pl-tools">
         <div class="plsearch">
           <Icon name="search" size={13} />

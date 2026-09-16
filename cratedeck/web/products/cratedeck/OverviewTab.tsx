@@ -16,6 +16,7 @@ import {
 } from "../../ui/DrivePanels";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
 import { copyList } from "../../ui/data";
+import { Verdict } from "../shared";
 
 export function OverviewTab(props: {
   name: string;
@@ -34,48 +35,46 @@ export function OverviewTab(props: {
         next="Deep audit with per-track detail lives in the Verify tab; this page is the quick verdict."
       />
       {checks.length > 0 && (
-        <div
-          class={`arch-verdict ${failing > 0 || warning > 0 ? "warn" : "ok"}`}
-        >
-          <Icon
-            name={failing > 0 || warning > 0 ? "warn" : "check"}
-            size={15}
-          />
-          <span>
-            {failing > 0
+        <Verdict
+          cls={failing > 0 || warning > 0 ? "warn" : "ok"}
+          icon={failing > 0 || warning > 0 ? "warn" : "check"}
+          text={
+            failing > 0
               ? `${failing} check${failing > 1 ? "s" : ""} failing — fix before a gig`
               : warning > 0
                 ? `${warning} warning${warning > 1 ? "s" : ""} — usable, but look into it`
-                : `All ${checks.length} checks passed — this stick is gig-ready.`}
-          </span>
-          {(failing > 0 || warning > 0) && (
-            <span class="arch-verdict-meta">
-              <InfoTip
-                title="Needs attention"
-                body="Copy exports every failing/warning check with its measured detail — paste to an agent (or deckctl) to work the list."
-                align="right"
-              />
-              <button
-                type="button"
-                class="btn sm ghostbtn"
-                title="Copy the failing/warning checks — paste to an agent to work the list"
-                onClick={() =>
-                  copyList(
-                    `${name} issues`,
-                    checks
-                      .filter((c) => c.status !== "pass")
-                      .map(
-                        (c) =>
-                          `${c.id}: ${c.status}${c.detail ? ` — ${c.detail}` : ""}${c.fix ? ` | fix: ${c.fix}` : ""}`,
-                      ),
-                  )
-                }
-              >
-                <Icon name="copy" size={12} /> Copy
-              </button>
-            </span>
-          )}
-        </div>
+                : `All ${checks.length} checks passed — this stick is gig-ready.`
+          }
+          meta={
+            failing > 0 || warning > 0 ? (
+              <>
+                <InfoTip
+                  title="Needs attention"
+                  body="Copy exports every failing/warning check with its measured detail — paste to an agent (or deckctl) to work the list."
+                  align="right"
+                />
+                <button
+                  type="button"
+                  class="btn sm ghostbtn"
+                  title="Copy the failing/warning checks — paste to an agent to work the list"
+                  onClick={() =>
+                    copyList(
+                      `${name} issues`,
+                      checks
+                        .filter((c) => c.status !== "pass")
+                        .map(
+                          (c) =>
+                            `${c.id}: ${c.status}${c.detail ? ` — ${c.detail}` : ""}${c.fix ? ` | fix: ${c.fix}` : ""}`,
+                        ),
+                    )
+                  }
+                >
+                  <Icon name="copy" size={12} /> Copy
+                </button>
+              </>
+            ) : undefined
+          }
+        />
       )}
       <div class="checks">
         {checks.length === 0 && (

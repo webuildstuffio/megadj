@@ -14,13 +14,14 @@ import { StatCard } from "../../ui/DrivePanels";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
 import { FixNote } from "../../ui/ListHead";
 import { BarList, ListHead } from "../../ui/data";
+import { Verdict } from "../shared";
 import { LineChart } from "../../ui/charts";
 
 // The bench row shape is DERIVED from shared/types.ts (BenchRun) — the
 // same producer contract DrivePage reads; no consumer-side re-declaration.
 export type HealthTabBench = BenchRun;
 
-/** A verdict banner's shape (cls feeds `arch-verdict {cls}`). */
+/** A verdict banner's shape (cls feeds the shared Verdict component). */
 interface Verdict {
   cls: "ok" | "warn";
   label: string;
@@ -78,18 +79,19 @@ function benchDropPct(bench: HealthTabBench[], seq: number | null): number {
     : 0;
 }
 
-/** A verdict banner (speed or USB link) — the `arch-verdict` strip. */
+/** A verdict banner (speed or USB link) — the shared Verdict strip. */
 function VerdictBanner(props: {
   v: Verdict;
   icon: "check" | "usb" | "warn";
   children?: preact.ComponentChildren;
 }) {
   return (
-    <div class={`arch-verdict ${props.v.cls}`}>
-      <Icon name={props.v.cls === "ok" ? props.icon : "warn"} size={15} />
-      <span>{props.children ?? props.v.text}</span>
-      <span class="arch-verdict-meta">{props.v.label}</span>
-    </div>
+    <Verdict
+      cls={props.v.cls}
+      icon={props.v.cls === "ok" ? props.icon : "warn"}
+      text={props.children ?? props.v.text}
+      meta={props.v.label}
+    />
   );
 }
 
