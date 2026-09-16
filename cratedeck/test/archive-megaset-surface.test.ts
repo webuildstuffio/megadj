@@ -234,7 +234,75 @@ describe("megaset_propose candidate-pool contract", () => {
     );
   });
 
-  test("the full DB is audited, but missing files cannot enter a proposal", () => {
+  test("B1 (#104): the M3U8 export skips metadata-only steps (no dead paths) and says so", async () => {
+    const filePath = "/Volumes/SHELF1/Contents/Test Artist/Test Track.aiff";
+    const archive = {
+      setCandidates: () => ({
+        available: true,
+        sourceTotal: 2,
+        total: 2,
+        missingFiles: 1,
+        metadataOnly: 1,
+        duplicateFiles: 0,
+        keyReads: 0,
+        keyReadFailures: 0,
+        freshness: { beatsAt: null, moodAt: null },
+        candidates: [
+          {
+            videoId: "track-1",
+            title: "Test Track",
+            artist: "Test Artist",
+            durationS: 300,
+            bpm: 128,
+            key: "8A",
+            valence: 5,
+            arousal: 6,
+            dance: 0.8,
+            filePath,
+            metadataOnly: false,
+          },
+          {
+            videoId: "meta-1",
+            title: "Mirror Only Track",
+            artist: "Test Artist",
+            durationS: null,
+            bpm: 126,
+            key: null,
+            valence: 5,
+            arousal: 6,
+            dance: 0.8,
+            filePath: null,
+            metadataOnly: true,
+          },
+        ],
+      }),
+    } as unknown as ArchiveReader;
+
+    const response = await archiveRoutes(
+      "/archive/megaset",
+      new URL(
+        "http://localhost/api/archive/megaset?preset=warmup&minutes=10&format=m3u8",
+      ),
+      {
+        archive,
+        db: {} as DB,
+        cfg: {} as CrateConfig,
+      },
+    );
+
+    expect(response?.status).toBe(200);
+    const text = await response?.text();
+    // the mounted track exports with its real path…
+    expect(text).toContain("#EXTINF:300,Test Artist - Test Track");
+    expect(text).toContain(filePath);
+    // …the metadata-only track is NOT a dead entry — it is a counted note
+    expect(text).not.toContain("Mirror Only Track\n/Volumes");
+    expect(text).toContain(
+      "# megadj: 1 of 2 proposal tracks skipped — no mounted file",
+    );
+  });
+
+  test("the full DB is audited, but unmeasurable missing files cannot enter a proposal", () => {
     const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-pool-"));
     const existingPath = join(dir, "actual.m4a");
     const missingPath = join(dir, "missing.m4a");
@@ -257,7 +325,10 @@ describe("megaset_propose candidate-pool contract", () => {
         artist: "DJ",
         duration_s: 300,
         file_path: missingPath,
-        bpm_folded: 128,
+        // no measured tempo anywhere (null ledger + null mirror) — the
+        // B1 gate keeps this row OUT: metadata without a tempo cannot
+        // be sequenced
+        bpm_folded: null,
         valence: 5,
         arousal: 6,
         dance: 0.8,
@@ -268,7 +339,7 @@ describe("megaset_propose candidate-pool contract", () => {
         artist: "DJ",
         duration_s: 300,
         file_path: null,
-        bpm_folded: 128,
+        bpm_folded: null,
         valence: 5,
         arousal: 6,
         dance: 0.8,
@@ -289,6 +360,7 @@ describe("megaset_propose candidate-pool contract", () => {
       expect(result.sourceTotal).toBe(3);
       expect(result.total).toBe(1);
       expect(result.missingFiles).toBe(2);
+      expect(result.metadataOnly).toBe(0);
       expect(result.duplicateFiles).toBe(0);
       expect(result.candidates.map((candidate) => candidate.videoId)).toEqual([
         "actual",
@@ -296,6 +368,105 @@ describe("megaset_propose candidate-pool contract", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("B1 (#104): a missing file with MEASURED tempo stays in the pool as metadata-only", () => {
+    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-pool-"));
+    const existingPath = join(dir, "actual.m4a");
+    const missingPath = join(dir, "missing-but-analyzed.m4a");
+    writeFileSync(existingPath, "cached test fixture");
+    const dbRows = [
+      {
+        video_id: "actual",
+        title: "Actual",
+        artist: "DJ",
+        duration_s: 300,
+        file_path: existingPath,
+        bpm_folded: 128,
+        valence: 5,
+        arousal: 6,
+        dance: 0.8,
+      },
+      {
+        video_id: "meta",
+        title: "Meta Only",
+        artist: "DJ",
+        duration_s: 300,
+        file_path: missingPath,
+        // beats-ledger BPM present, file gone (shelf asleep) — the B1
+        // admission: scored from measured metadata, no file needed
+        bpm_folded: 126,
+        valence: 5,
+        arousal: 6,
+        dance: 0.8,
+      },
+    ];
+    const reader: ArchiveQuery = {
+      available: () => true,
+      rows: <T>() => dbRows as T[],
+      row: <T>() => ({ beats_at: null, mood_at: null }) as T,
+      // the cache can NEVER match a null path; key must come from the
+      // mirror or stay null — no live read is attempted (keyRecord is
+      // the only key source this stub offers and it validates paths)
+      keyRecord: (_videoId, path) =>
+        path === null ? null : { key: "8A", analyzedAt: "2026-09-11" },
+      rememberKeyRecord: () => undefined,
+      trackCols: () => "",
+    };
+
+    try {
+      const result = setCandidates(reader, 0);
+
+      expect(result.sourceTotal).toBe(2);
+      // the offline shelf no longer zeroes the pool: both rows survive
+      expect(result.total).toBe(2);
+      expect(result.missingFiles).toBe(1);
+      expect(result.metadataOnly).toBe(1);
+      const meta = result.candidates.find((c) => c.videoId === "meta");
+      expect(meta?.metadataOnly).toBe(true);
+      expect(meta?.bpm).toBe(126); // the measured tempo travelled
+      expect(meta?.filePath).toBeNull(); // no dead path on the wire
+      expect(meta?.key).toBeNull(); // no file → no live TKEY read
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("B1 (#104): the rekordbox mirror BPM alone admits a metadata-only row", () => {
+    const missingPath = join(tmpdir(), "never-exists-mirror-admit.m4a");
+    const dbRows = [
+      {
+        video_id: "rb-meta",
+        title: "RB Mirror Only",
+        artist: "DJ",
+        duration_s: null,
+        file_path: missingPath,
+        bpm_folded: null, // no beats ledger…
+        rekordbox_bpm: 125, // …but the mirror has the pre-divided 125.0
+        rekordbox_key: "8A",
+        valence: 5,
+        arousal: 6,
+        dance: 0.8,
+      },
+    ];
+    const reader: ArchiveQuery = {
+      available: () => true,
+      rows: <T>() => dbRows as T[],
+      row: <T>() => ({ beats_at: null, mood_at: null }) as T,
+      keyRecord: () => null,
+      rememberKeyRecord: () => undefined,
+      trackCols: () => "",
+    };
+
+    const result = setCandidates(reader, 0);
+    expect(result.total).toBe(1);
+    expect(result.metadataOnly).toBe(1);
+    expect(result.rekordboxBpmHits).toBe(1);
+    const meta = result.candidates[0]!;
+    expect(meta.metadataOnly).toBe(true);
+    expect(meta.bpm).toBe(125); // the mirror's already-divided BPM value
+    expect(meta.key).toBe("8A"); // the mirror key is the metadata-only ceiling
+    expect(meta.filePath).toBeNull();
   });
 
   test("one physical file can enter the candidate pool only once", () => {

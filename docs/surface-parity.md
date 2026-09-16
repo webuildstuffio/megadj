@@ -15,6 +15,7 @@ fails the build on it.
 - rev-26 (2026-09-16): #42 split — `/api` dispatch moved to `api_routes.ts` (census reads its exact-table keys); `/events/` trailing-slash spelling restored + 406 negotiation pinned by e2e. 63 → 64 routes (the restored alias).
 - rev-27 (2026-09-16): #143 registry — megadj help/census SSOT is `src/command-registry.ts` (`COMMAND_DOCS`); `usage.ts` renders from it; census + help cross-check off the one table. 45 commands unchanged (the stale duplicate `rb-comment-sync --limit` help block — a flag the arm never parsed — is the one removed line).
 - rev-28 (2026-09-16): #47 producer split — `getdat_ingest`/`getdat_convert` moved to `getdat_tools.ts` (mcp.ts is pure assembly: deriveDeckTools + archiveTools + getdatTools); `archiveTools()` typed `Record<string, ToolDef>`; the deck parity census derives exactly from `DECK_MCP_SURFACES`. 41 tools unchanged.
+- rev-29 (2026-09-16): #104 — MegaSet payload gains `metadata_only` + `excluded_groups` (B1 offline pool, B13 exclusion shape); all three surfaces read the same wire contract, no new params, census counts unchanged.
 
 The full prose of all 27 revisions lives in Git history
 (`git log --follow -- docs/surface-parity.md`) per §5 — this doc keeps

@@ -12,6 +12,15 @@ confirmed primary on both metrics; second-tower/fusion sweep settled — best en
 implementation sketches, delta-pinned against the measured verdicts. Identifier
 renaming (`setbuild` → `set`) is planned in [09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md), not started.
 
+> **2026-09-16 — Phase A shipped:** B2/B3/B7/B9 landed in #105; B1+B13 landed in
+> [#104](https://github.com/webuildstuffio/megadj/issues/104) (metadata-only
+> admission gate = measured tempo, not an `availability` flag; `excluded_groups`
+> derived engine-side by the shared `groupMegasetExcluded`). B11 shipped earlier
+> as `MEGASET_EXCLUDED_PREVIEW_MAX`. B12's `pool_hint` is superseded: with B1,
+> an offline shelf builds a chain and the payload/UI say "mirror-metadata
+> draft" instead. Verified live: shelf asleep → 200/200 limited rows admitted
+> metadata-only, 7-track chain built, honest plan-not-playlist note.
+
 > Glossary: [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 _2026-09-13. Scope: `cratedeck/src/setbuild.ts` (engine), `cratedeck/src/archive_similar.ts`

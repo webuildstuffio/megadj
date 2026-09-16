@@ -10,7 +10,11 @@ import {
   ReproLine,
   ExcludedBreakdown,
 } from "../products/fulltags/MegasetStatus";
-import { MEGASET_PRESET_DEFS, type MegasetPayload } from "../../shared/types";
+import {
+  MEGASET_PRESET_DEFS,
+  groupMegasetExcluded,
+  type MegasetPayload,
+} from "../../shared/types";
 import { TrackPickSearch } from "../products/fulltags/TrackPickSearch";
 import { SearchBar } from "../ui/data";
 
@@ -199,27 +203,31 @@ describe("FullTags Similar and Set Builder UX", () => {
   });
 
   test("the excluded list groups by reason with examples and keeps the raw audit", () => {
+    const excluded = [
+      { videoId: "1", title: "A", reason: "set budget filled" },
+      { videoId: "2", title: "B", reason: "set budget filled" },
+      { videoId: "3", title: null, reason: "set budget filled" },
+      {
+        videoId: "4",
+        title: "D",
+        reason:
+          "no compatible transition (key clash, tempo outside ±6%, or beyond the set's drift budget)",
+      },
+      {
+        videoId: "5",
+        title: "E",
+        reason:
+          "no compatible transition (key clash, tempo outside ±6%, or beyond the set's drift budget)",
+      },
+    ] as MegasetPayload["excluded"];
     const data: MegasetPayload = {
       ...baseData,
       pool: 300,
       excluded_total: 5,
-      excluded: [
-        { videoId: "1", title: "A", reason: "set budget filled" },
-        { videoId: "2", title: "B", reason: "set budget filled" },
-        { videoId: "3", title: null, reason: "set budget filled" },
-        {
-          videoId: "4",
-          title: "D",
-          reason:
-            "no compatible transition (key clash, tempo outside ±6%, or beyond the set's drift budget)",
-        },
-        {
-          videoId: "5",
-          title: "E",
-          reason:
-            "no compatible transition (key clash, tempo outside ±6%, or beyond the set's drift budget)",
-        },
-      ],
+      excluded,
+      // B13: the buckets come from the WIRE now (derived engine-side
+      // from the FULL excluded list) — the component never re-buckets
+      excluded_groups: groupMegasetExcluded(excluded),
     };
     const html = render(<ExcludedBreakdown data={data} />);
     // grouped buckets, biggest first, with example titles
@@ -388,16 +396,18 @@ describe("FullTags Similar and Set Builder UX", () => {
       },
     ],
     excluded: [],
+    excluded_groups: [],
+    excluded_total: 0,
     source_total: 3664,
     pool: 3563,
     missing_files: 93,
+    metadata_only: 0,
     duplicate_files: 8,
     relocated_files: 12,
     rekordbox_key_hits: 3362,
     rekordbox_bpm_hits: 3015,
     key_reads: 201,
     key_read_failures: 0,
-    excluded_total: 0,
     freshness: { beatsAt: null, moodAt: null },
     search: "greedy",
   };
@@ -466,6 +476,30 @@ describe("FullTags Similar and Set Builder UX", () => {
     const htmlSmall = render(<MegasetResult data={smallPool} />);
     expect(htmlSmall).toContain("More compatible tracks needed");
     expect(htmlSmall).toContain("22-minute Warm-up partial draft");
+  });
+
+  test("B1 (#104): a shelf-offline build that used mirror tempo is a PLAN, honestly labeled", () => {
+    // the audit's live case, AFTER B1: the shelf is asleep but 3,500
+    // rows carry measured tempo → the pool survives and the chain builds.
+    // The verdict must say mirror-metadata draft, not "ready to review".
+    const mirrorBuilt: MegasetPayload = {
+      ...baseData,
+      complete: true,
+      pool: 3508,
+      missing_files: 148,
+      metadata_only: 3500,
+    };
+    const html = render(<MegasetResult data={mirrorBuilt} />);
+    expect(html).toContain("Mirror-metadata draft — shelf offline");
+    expect(html).toContain("scored from measured Rekordbox/FullTags tempo");
+    expect(html).toContain("a PLAN, not a playable playlist");
+    expect(html).toContain("3,500"); // the metadata-only count is visible
+    // the mounted-pool metric no longer overstates: 3508 − 3500 = 8
+    expect(html).toContain("8");
+    expect(html).toContain("mounted files in the pool");
+    // the tone is warn, not ok — a mirror draft is never presented as a
+    // fully mounted build
+    expect(html).toContain("megaset-result warn");
   });
 
   test("FullTags stays usable on a phone before the archive rail", () => {

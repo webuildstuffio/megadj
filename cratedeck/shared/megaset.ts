@@ -33,6 +33,17 @@ export interface MegasetResult {
   /** candidates excluded from the chain, with the reason — the honest
    * "why isn't my track in here" list */
   excluded: { videoId: string; title: string | null; reason: string }[];
+  /** Full exclusion count (the payload's `excluded[]` is a 40-preview;
+   *  this keeps the real number). */
+  excluded_total: number;
+  /** B13 (#104): the same exclusions grouped by reason (derived from
+   *  the flat list by the shared `groupMegasetExcluded` — never a
+   *  second bucket list). Examples cap at 4 per group. */
+  excluded_groups: {
+    reason: string;
+    count: number;
+    examples: string[];
+  }[];
   /** Which sequencer path ran: "greedy" or "beam". Beam activates
    * automatically for pools below MEGASET_BEAM_POOL_MAX (the measured E7
    * sparse-pool failure zone); surfaced so the deep search is visible,
@@ -47,18 +58,28 @@ export interface MegasetResult {
  *  a server flag: the client classifies from the same census numbers the
  *  engine measured, so a drifted wire field cannot lie twice. The steps
  *  param only needs a length — full MegasetResult and bare test
- *  doubles both satisfy it structurally. */
+ *  doubles both satisfy it structurally. B1 (#104): metadata-only rows
+ *  are part of the missing-files population, so the identity is
+ *  `pool_file + metadata_only + missing = source_total` — with
+ *  metadata-only rows admitted, a sleeping shelf leaves
+ *  `missing = source_total - pool_file - metadata_only` and the old
+ *  identity would never fire. */
 export function isShelfOffline(
   result: { steps: readonly unknown[] },
   census: Pick<
     MegasetPayload,
-    "source_total" | "pool" | "missing_files" | "relocated_files"
+    | "source_total"
+    | "pool"
+    | "missing_files"
+    | "relocated_files"
+    | "metadata_only"
   >,
 ): boolean {
   return (
     result.steps.length === 0 &&
     census.source_total > 0 &&
-    census.missing_files + census.pool === census.source_total &&
+    census.missing_files + census.pool + census.metadata_only ===
+      census.source_total &&
     census.relocated_files === 0
   );
 }
@@ -72,6 +93,11 @@ export interface MegasetPayload extends MegasetResult {
   pool: number;
   /** Stale downloaded rows whose file path no longer exists. */
   missing_files: number;
+  /** B1 (#104): missing rows still scored from measured tempo (beats
+   *  ledger / rekordbox mirror). A nonzero value means part of the
+   *  pool is mirror metadata, not mounted audio — surfaced, never
+   *  silent. */
+  metadata_only: number;
   /** Extra DB identities collapsed because they resolve to one physical file. */
   duplicate_files: number;
   /** Unique files found under the mounted shelf after a stale import path. */
@@ -194,6 +220,37 @@ export const MEGASET_DRIFT_BUDGET = 0.12;
 /** Half/double-time factor tolerance: a candidate within this relative
  *  distance of 2×/½× the anchor passes the budget on the branch lane. */
 export const MEGASET_BRANCH_TOLERANCE = 0.06;
+
+/** B13 (#104): one excluded-reason bucketing, derived from the SAME
+ *  excluded[] the engine produced — never a hand-copied bucket list.
+ *  Per-track rows stay the honest record (`excluded[]` flat preview +
+ *  `excluded_total`); the groups give the DJ the SHAPE of what was left
+ *  out without scanning 40 identical rows. Biggest bucket first,
+ *  examples capped at 4, `sum(count) === excluded_total` when callers
+ *  pass the full list (the CLI/web pass the capped preview; `total` is
+ *  authoritative). */
+export function groupMegasetExcluded(
+  excluded: readonly {
+    videoId: string;
+    title: string | null;
+    reason: string;
+  }[],
+): { reason: string; count: number; examples: string[] }[] {
+  const byReason = new Map<
+    string,
+    { reason: string; count: number; examples: string[] }
+  >();
+  for (const e of excluded) {
+    let bucket = byReason.get(e.reason);
+    if (!bucket) {
+      bucket = { reason: e.reason, count: 0, examples: [] };
+      byReason.set(e.reason, bucket);
+    }
+    bucket.count += 1;
+    if (bucket.examples.length < 4) bucket.examples.push(e.title ?? e.videoId);
+  }
+  return [...byReason.values()].toSorted((a, b) => b.count - a.count);
+}
 
 /** An optional candidate-pool cap (`?limit=`), shared by HTTP, CLI and MCP.
  * Omission means the whole downloaded DB census; an explicit value remains

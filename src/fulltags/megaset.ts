@@ -86,6 +86,7 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       sourceTotal,
       total,
       missingFiles,
+      metadataOnly,
       duplicateFiles,
       relocatedFiles,
       rekordboxKeyHits,
@@ -124,7 +125,9 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       complete: built.complete,
       steps: built.steps,
       excluded: built.excluded.slice(0, MEGASET_EXCLUDED_PREVIEW_MAX),
+      excluded_groups: built.excluded_groups,
       excluded_total: built.excluded.length,
+      metadata_only: metadataOnly,
       freshness,
       search: built.search,
     };
@@ -137,24 +140,33 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
         source_total: sourceTotal,
         pool: total,
         missing_files: missingFiles,
+        metadata_only: metadataOnly,
         relocated_files: relocatedFiles,
       });
       log(
         offline
-          ? `megaset: shelf volume is offline — all ${missingFiles} downloaded paths are unreadable. Mount the shelf drive, then build again (nothing is lost; the ledger is intact)`
-          : total === 0 && sourceTotal > 0 && missingFiles === sourceTotal
-            ? `megaset: checked ${sourceTotal} downloaded DB rows, but none of their files exist — run \`megadj status\`, then repair or resync those rows`
-            : `megaset: nothing mixable in a ${total}-track actual-file pool — run \`megadj beats\` + \`megadj mood\` first`,
+          ? `megaset: shelf volume is offline and no row carries mirror tempo — all ${missingFiles} downloaded paths are unreadable. Mount the shelf drive, then build again (nothing is lost; the ledger is intact)`
+          : total === 0 &&
+              sourceTotal > 0 &&
+              missingFiles + metadataOnly === sourceTotal
+            ? `megaset: checked ${sourceTotal} downloaded DB rows, but none are playable or carry measured tempo — run \`megadj status\`, then repair or resync those rows`
+            : `megaset: nothing mixable in a ${total}-track pool — run \`megadj beats\` + \`megadj mood\` first`,
       );
       // #160 ring 3: setExit is the one mutation point.
       setExit(1);
     } else {
       // staleness UX: the pool is only as fresh as its newest analysis —
       // surface the ledger ages so "why isn't my new track in here" is
-      // answerable without opening a DB shell
+      // answerable without opening a DB shell. B1: metadata-only rows
+      // are named so a shelf-offline proposal is visibly mirror-built.
       log(
-        `megaset: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search (checked ${sourceTotal} DB rows; ${total} unique actual files; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
+        `megaset: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search (checked ${sourceTotal} DB rows; ${total} pool tracks; ${metadataOnly} metadata-only${metadataOnly > 0 ? " — shelf offline, scored from mirror tempo" : ""}; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
       );
+      if (metadataOnly > 0) {
+        log(
+          `  note: ${metadataOnly} proposal tracks have no mounted file — the chain is a plan, not a playable playlist until the shelf is mounted`,
+        );
+      }
       log(
         `  analysis freshness — beats: ${formatAge(ledgerFreshness(payload.freshness.beatsAt))}, mood: ${formatAge(ledgerFreshness(payload.freshness.moodAt))} (newer imports need \`megadj beats\` + \`megadj mood\`)`,
       );

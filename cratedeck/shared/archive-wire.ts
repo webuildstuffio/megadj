@@ -172,6 +172,11 @@ export interface ArchiveSetCandidate {
   dance: number | null;
   /** Server-internal field removed before route/MCP/CLI serialization. */
   filePath: string | null;
+  /** B1 (#104): true when the file is absent (shelf asleep) but the
+   *  row carries measured tempo (beats ledger or rekordbox mirror) —
+   *  admitted so an offline shelf cannot zero the pool. Never carries a
+   *  live file path, so M3U8 export skips it (no dead paths). */
+  metadataOnly: boolean;
 }
 
 export interface ArchiveSetCandidates {
@@ -181,6 +186,11 @@ export interface ArchiveSetCandidates {
   missingFiles: number;
   duplicateFiles: number;
   relocatedFiles: number;
+  /** B1 (#104): rows admitted WITHOUT a mounted file because measured
+   *  tempo (beats ledger / rekordbox mirror) covers them. Part of the
+   *  missing-files population; the payload surfaces the count so a
+   *  proposal built from mirror metadata is visible, never silent. */
+  metadataOnly: number;
   rekordboxKeyHits: number;
   rekordboxBpmHits: number;
   keyReads: number;

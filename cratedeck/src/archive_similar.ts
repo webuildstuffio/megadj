@@ -55,6 +55,24 @@ function existingCandidatePath(
   return existsSync(rebased) ? { path: rebased, relocated: true } : null;
 }
 
+/** B1 (#104): the MEASURED tempo of a pool row — the beats ledger's
+ *  folded BPM first, else the rekordbox mirror's BPM (analysis
+ *  rekordbox ran itself). Both are real measurements, not guesses; a
+ *  row with either can be scored without its file. */
+function measuredBpm(row: {
+  bpm_folded: number | null;
+  rekordbox_bpm: number | null;
+}): number | null {
+  if (row.bpm_folded !== null && Number.isFinite(row.bpm_folded)) {
+    return row.bpm_folded;
+  }
+  return row.rekordbox_bpm !== null &&
+    Number.isFinite(row.rekordbox_bpm) &&
+    row.rekordbox_bpm > 0
+    ? row.rekordbox_bpm
+    : null;
+}
+
 /**
  * I49 "sounds like": cosine kNN over megadj's `embeddings` ledger
  * (effnet 1280-d mean embeddings, written by `megadj mood
@@ -250,27 +268,54 @@ export function setCandidates(
      ${limit !== undefined && limit > 0 ? "LIMIT ?" : ""}`,
     ...(limit !== undefined && limit > 0 ? [limit] : []),
   );
-  const existingRows = rows.flatMap((row) => {
-    const resolvedPath = existingCandidatePath(row.file_path, shelfContents);
-    return resolvedPath
-      ? [
-          {
-            ...row,
-            file_path: resolvedPath.path,
-            relocated: resolvedPath.relocated,
-          },
-        ]
-      : [];
-  });
+  /** B1 (#104): a row whose FILE is gone can still be scored when
+   *  MEASURED tempo exists — the beats ledger's folded BPM, or the
+   *  rekordbox mirror's BPM (analysis rekordbox ran itself). Both are
+   *  real measurements, not guesses. Metadata-only rows keep filePath
+   *  null so no surface can export a dead path. */
+  type CandidateRow = (typeof rows)[number] & {
+    relocated: boolean;
+    metadataOnly: boolean;
+  };
+  const [existingRows, metadataRows] = rows.reduce<
+    [CandidateRow[], CandidateRow[]]
+  >(
+    (acc, row) => {
+      const resolvedPath = existingCandidatePath(row.file_path, shelfContents);
+      if (resolvedPath) {
+        acc[0].push({
+          ...row,
+          file_path: resolvedPath.path,
+          relocated: resolvedPath.relocated,
+          metadataOnly: false,
+        });
+      } else if (measuredBpm(row) !== null) {
+        // no file, but measured tempo — admitted as metadata-only (the
+        // duration falls back to the engine's 300 s assumption)
+        acc[1].push({
+          ...row,
+          file_path: null,
+          relocated: false,
+          metadataOnly: true,
+        });
+      }
+      // else: no file AND no measured tempo — unscorable, stays excluded
+      return acc;
+    },
+    [[], []],
+  );
   const missingFiles = rows.length - existingRows.length;
+  const metadataOnlyCount = metadataRows.length;
   const seenFiles = new Set<string>();
-  const actualRows = existingRows.filter((row) => {
+  const actualRows = [...existingRows, ...metadataRows].filter((row) => {
+    if (row.file_path === null) return true; // metadata-only: no path to dedupe
     const key = physicalPathKey(row.file_path);
     if (seenFiles.has(key)) return false;
     seenFiles.add(key);
     return true;
   });
-  const duplicateFiles = existingRows.length - actualRows.length;
+  const duplicateFiles =
+    existingRows.length - (actualRows.length - metadataRows.length);
   const relocatedFiles = actualRows.filter((row) => row.relocated).length;
   let rekordboxKeyHits = 0;
   let rekordboxBpmHits = 0;
@@ -279,15 +324,18 @@ export function setCandidates(
   const candidates = actualRows.map((r) => {
     // TKEY lives on the FILE (AIFF/MP3 only — WAV has no key field).
     // Cache first (exact source path validated); a miss pays one groundTruth
-    // read without mutating the archive DB.
+    // read without mutating the archive DB. B1: a metadata-only row has
+    // no file to read — the mirror key (if any) is its ceiling, and no
+    // live read/count is attempted.
     let key: string | null = null;
-    const cached = reader.keyRecord(r.video_id, r.file_path);
+    const cached =
+      r.file_path !== null ? reader.keyRecord(r.video_id, r.file_path) : null;
     if (cached) {
       key = cached.key === "" ? null : cached.key;
     } else if (r.rekordbox_key?.trim()) {
       key = r.rekordbox_key.trim();
       rekordboxKeyHits++;
-    } else {
+    } else if (r.file_path !== null) {
       keyReads++;
       try {
         key = groundTruth(r.file_path).key;
@@ -323,6 +371,7 @@ export function setCandidates(
       arousal: r.arousal,
       dance: r.dance,
       filePath: r.file_path,
+      metadataOnly: r.metadataOnly,
     };
   });
   return {
@@ -330,6 +379,7 @@ export function setCandidates(
     sourceTotal: rows.length,
     total: candidates.length,
     missingFiles,
+    metadataOnly: metadataOnlyCount,
     duplicateFiles,
     relocatedFiles,
     rekordboxKeyHits,

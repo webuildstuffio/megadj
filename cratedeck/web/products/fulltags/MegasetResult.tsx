@@ -11,9 +11,18 @@ export function MegasetResult(props: { data: MegasetPayload }) {
   // path points under /Volumes/<shelf>/ and none can exist). This is an
   // environment state, not a library verdict — the old "more compatible
   // tracks needed" framing sent the user hunting for tracks that are
-  // merely on a sleeping drive.
+  // merely on a sleeping drive. B1 (#104): with metadata-only rows
+  // admitted, an offline shelf usually still BUILDS a chain from mirror
+  // tempo — the pool is then mirror-metadata, not mounted audio.
   const shelfOffline = !data.complete && isShelfOffline(data, data);
-  const tone = data.complete ? "ok" : shelfOffline ? "stale" : "warn";
+  const mirrorBuilt = data.metadata_only > 0;
+  const tone = data.complete
+    ? mirrorBuilt
+      ? "warn"
+      : "ok"
+    : shelfOffline
+      ? "stale"
+      : "warn";
   const journey = MEGASET_PRESET_DEFS.find(
     (preset) => preset.id === data.preset,
   );
@@ -44,16 +53,18 @@ export function MegasetResult(props: { data: MegasetPayload }) {
         <span class="megaset-result-kicker">
           {empty
             ? "Library needs attention"
-            : data.complete
-              ? "Ready to review"
-              : shelfOffline
-                ? "Shelf not mounted"
-                : "More compatible tracks needed"}
+            : mirrorBuilt
+              ? "Mirror-metadata draft — shelf offline"
+              : data.complete
+                ? "Ready to review"
+                : shelfOffline
+                  ? "Shelf not mounted"
+                  : "More compatible tracks needed"}
         </span>
         <h4 id="megaset-result-title">
           {empty
             ? "No playable set could be built"
-            : shelfOffline
+            : shelfOffline && !mirrorBuilt
               ? "Connect the shelf volume, then build again"
               : `${data.actualMinutes}-minute ${journeyLabel} ${data.complete ? "set draft" : "partial draft"}`}
         </h4>
@@ -62,11 +73,13 @@ export function MegasetResult(props: { data: MegasetPayload }) {
             ? data.source_total > 0 && data.missing_files === data.source_total
               ? `All ${data.source_total.toLocaleString()} downloaded database paths are missing. Repair the archive paths, then build again.`
               : "Run FullTags beats and mood analysis so the builder has enough tempo and energy data."
-            : shelfOffline
+            : shelfOffline && !mirrorBuilt
               ? `Every one of the ${data.missing_files.toLocaleString()} archive paths is unreadable — the shelf drive is offline. Mount it (Finder or megadj), confirm the files are back, then build again. Nothing is lost; the library ledger is intact.`
-              : data.complete
-                ? `FullTags reached the ${data.minutes}-minute target with ${data.steps.length} unique tracks.`
-                : `FullTags found ${data.actualMinutes} of ${data.minutes} minutes — ${data.shortfallMinutes} minutes short.`}
+              : mirrorBuilt
+                ? `${data.metadata_only.toLocaleString()} of ${data.pool.toLocaleString()} proposal tracks have no mounted file — they are scored from measured Rekordbox/FullTags tempo, so this chain is a PLAN, not a playable playlist until the shelf is mounted.`
+                : data.complete
+                  ? `FullTags reached the ${data.minutes}-minute target with ${data.steps.length} unique tracks.`
+                  : `FullTags found ${data.actualMinutes} of ${data.minutes} minutes — ${data.shortfallMinutes} minutes short.`}
         </p>
       </div>
 
@@ -88,8 +101,8 @@ export function MegasetResult(props: { data: MegasetPayload }) {
         <div>
           <dt>Mounted pool</dt>
           <dd>
-            <strong>{data.pool.toLocaleString()}</strong>
-            <small>actual mounted files</small>
+            <strong>{(data.pool - data.metadata_only).toLocaleString()}</strong>
+            <small>mounted files in the pool</small>
           </dd>
         </div>
       </dl>
@@ -106,7 +119,16 @@ export function MegasetResult(props: { data: MegasetPayload }) {
             <small>
               {shelfOffline
                 ? "shelf offline — no mounted files considered"
-                : `${data.pool.toLocaleString()} mounted files considered`}
+                : `${data.pool.toLocaleString()} pool tracks considered`}
+            </small>
+          </div>
+          <div>
+            <span>Metadata-only tracks</span>
+            <strong>{data.metadata_only.toLocaleString()}</strong>
+            <small>
+              {data.metadata_only > 0
+                ? "no mounted file — scored from measured tempo"
+                : "every pool track is a mounted file"}
             </small>
           </div>
           <div>

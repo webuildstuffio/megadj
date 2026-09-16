@@ -14,6 +14,7 @@ export { camelotOf } from "../shared/camelot";
 export type { MegasetPresetDef, MegasetPresetId } from "../shared/types";
 import {
   DEFAULT_MEGASET_PRESET,
+  groupMegasetExcluded,
   isMegasetSearchOverride,
   MEGASET_ANCHOR_WEIGHT,
   MEGASET_AROUSAL_EPSILON,
@@ -538,6 +539,11 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       complete: shortfallMinutes === 0,
       steps,
       excluded,
+      // B13: ONE grouping, derived here from the same excluded[] — the
+      // full list (not the wire's 40-preview), so group counts sum to
+      // excluded_total
+      excluded_groups: groupMegasetExcluded(excluded),
+      excluded_total: excluded.length,
       search,
     };
   };

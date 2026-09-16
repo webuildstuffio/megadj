@@ -202,15 +202,27 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
           ]),
         );
         const lines = ["#EXTM3U"];
+        let skippedMetadataOnly = 0;
         for (const step of resolved.built.steps) {
           const candidate = byId.get(step.videoId);
-          if (!candidate?.filePath) continue;
+          if (!candidate?.filePath) {
+            // B1 (#104): metadata-only steps have no mounted file — they
+            // must NOT become dead playlist entries. Counted so the
+            // export tells the truth about what it dropped.
+            if (candidate?.metadataOnly) skippedMetadataOnly++;
+            continue;
+          }
           const duration = Math.max(0, Math.round(candidate.durationS ?? 300));
           const artist = m3uText(step.artist, "Unknown artist");
           const title = m3uText(step.title, step.videoId);
           const filePath = m3uText(candidate.filePath, "");
           if (!filePath) continue;
           lines.push(`#EXTINF:${duration},${artist} - ${title}`, filePath);
+        }
+        if (skippedMetadataOnly > 0) {
+          lines.push(
+            `# megadj: ${skippedMetadataOnly} of ${resolved.built.steps.length} proposal tracks skipped — no mounted file (shelf offline; rebuild after mounting to get the full playlist)`,
+          );
         }
         const actual = String(resolved.built.actualMinutes).replace(".", "-");
         return new Response(`${lines.join("\n")}\n`, {
@@ -225,6 +237,7 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         sourceTotal,
         total,
         missingFiles,
+        metadataOnly,
         duplicateFiles,
         relocatedFiles,
         rekordboxKeyHits,
@@ -239,6 +252,7 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         source_total: sourceTotal,
         pool: total,
         missing_files: missingFiles,
+        metadata_only: metadataOnly,
         duplicate_files: duplicateFiles,
         relocated_files: relocatedFiles,
         rekordbox_key_hits: rekordboxKeyHits,
@@ -261,6 +275,8 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
         // the excluded preview shares one cap with the CLI/panel
         // (MEGASET_EXCLUDED_PREVIEW_MAX); excluded_total keeps the full count
         excluded: built.excluded.slice(0, MEGASET_EXCLUDED_PREVIEW_MAX),
+        // B13: reason groups derived from the FULL excluded list engine-side
+        excluded_groups: built.excluded_groups,
         excluded_total: built.excluded.length,
         // which sequencer ran (beam = deep search on small pools) — the
         // UI and CLI quote this, never re-derive the threshold themselves

@@ -113,38 +113,18 @@ export function FreshnessLine(props: {
   );
 }
 
-/** One excluded bucket: grouped reason → count + example tracks. */
-interface ExcludedBucket {
-  reason: string;
-  count: number;
-  examples: string[];
-}
-
-/** Group the wire's excluded[] into reason buckets. The raw list is
- * per-track (honest, sortable) but 40 rows of "budget filled" is noise;
- * the DJ wants the SHAPE of what was left out. Order: biggest first. */
-export function bucketExcluded(
-  excluded: MegasetPayload["excluded"],
-): ExcludedBucket[] {
-  const byReason = new Map<string, ExcludedBucket>();
-  for (const e of excluded) {
-    let bucket = byReason.get(e.reason);
-    if (!bucket) {
-      bucket = { reason: e.reason, count: 0, examples: [] };
-      byReason.set(e.reason, bucket);
-    }
-    bucket.count += 1;
-    if (bucket.examples.length < 4) bucket.examples.push(e.title ?? e.videoId);
-  }
-  return [...byReason.values()].toSorted((a, b) => b.count - a.count);
-}
-
+/** One excluded bucket: grouped reason → count + example tracks.
+ *  B13 (#104): the buckets come from the WIRE (`excluded_groups`,
+ *  derived engine-side from the FULL excluded list by the shared
+ *  `groupMegasetExcluded`) — this component renders them and never
+ *  re-buckets locally (the old local twin could drift from the engine's
+ *  full-census grouping by only seeing the 40-row preview). */
 /** The excluded view: reason-shape summary on top (grouped, with example
  * tracks), the raw per-track list in a nested details for auditing. */
 export function ExcludedBreakdown(props: { data: MegasetPayload }) {
   const { data } = props;
   if (data.excluded_total <= 0) return null;
-  const buckets = bucketExcluded(data.excluded);
+  const buckets = data.excluded_groups;
   const shown = data.excluded.length;
   return (
     <details class="megaset-excluded">
