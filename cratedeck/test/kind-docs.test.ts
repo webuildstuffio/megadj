@@ -53,7 +53,11 @@ describe("KIND_DOCS covers every job kind (the explain census)", () => {
   });
 
   test("the deck_explain schema enum derives from KIND_DOCS (not a literal)", () => {
-    const mcp = readFileSync(join(ROOT, "cratedeck/src/mcp.ts"), "utf8");
+    // #89 split: the explain handler lives in mcp_read_tools.ts
+    const mcp = readFileSync(
+      join(ROOT, "cratedeck/src/mcp_read_tools.ts"),
+      "utf8",
+    );
     expect(mcp).toContain('["verify", ...Object.keys(KIND_DOCS)]');
     // the old hand-filtered literal is gone
     expect(mcp).not.toContain('JOB_KINDS.filter((k) => k !== "verify"');

@@ -22,6 +22,8 @@ import {
   tagCensus as tagCensusImpl,
   trackTagCompare as trackTagCompareImpl,
 } from "./archive_tagcensus";
+import { gridCrossCheck as gridCrossCheckImpl } from "./archive_grid";
+import { moodProfile as moodProfileImpl } from "./archive_mood";
 import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
 import type {
   ArchiveAnalysisCoverage,
@@ -39,24 +41,10 @@ import type {
   ArchiveTagCensus,
   ArchiveTrackTagCompare,
 } from "../shared/archive-wire";
-// The grid math is ONE SSOT (fulltags/src/analysis.ts): fitConstantTempo /
-// gridAudit are the same functions `megadj beats` computes with. A
-// hand-copied twin drifted once already (the v1 verdicts lived inline
-// here); the import keeps verdicts identical across surfaces.
-import {
-  gridAudit,
-  type GridAuditVerdict,
-} from "../../fulltags/src/grid-audit";
-import { isFiniteNumberArray } from "../shared/guards";
-
 // ArchiveTrack is canonically defined in the leaf archive_types.ts (along
 // with the ArchiveQuery seam the split-out modules type against); re-export
 // keeps every existing `from "./archive"` import working unchanged.
 export type { ArchiveTrack } from "./archive_types";
-
-/** Round to 3 decimals for wire payloads (null degrades to 0). Pure —
- *  module-level, shared by moodRoster paths (oxlint scoping). */
-const r4 = (v: number | null): number => Math.round((v ?? 0) * 1000) / 1000;
 
 /** Rows of megadj's `tracks` table — see archive_types.ts. */
 
@@ -476,200 +464,21 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
 
   /**
    * INDEPENDENT beatgrid cross-check (roadmap rev 5 §2/#2 → plan.md
-   * GA-04/GA-05): beat_this's beat arrays (megadj `beats` ledger) vs the
-   * track's rekordbox BPM. The verify pipeline's own grid check is
-   * self-referential (duration × BPM vs beat count from the SAME
-   * analysis) — this one compares a SECOND analyzer's grid against RB's
-   * stored BPM, so a drifted or octave-locked grid actually shows.
-   *
-   * Verdicts come from the ONE grid-math SSOT (`gridAudit` in
-   * fulltags/src/analysis.ts — the same functions `megadj beats` fits
-   * with):
-   * - `off`    — fitted grid tempo >2% from RB (drift-in-waiting)
-   * - `octave` — grid locked half/double RB's tempo
-   * - `drift`  — grid drifts >15 ms monotonically (the real failure the
-   *              v1 shape couldn't see: it compared COUNTS, not POSITIONS)
-   * - `ok`     — within tolerance
-   * `aok` is the count of clean tracks; offender lists stay per-class so
-   * the UI keeps its fix-first ordering (octave > off > drift).
+   * GA-04/GA-05): beat_this's grid vs rekordbox BPM, a SECOND analyzer's
+   * verdicts against the stored tempo. Implementation lives in
+   * archive_grid.ts (file-length guard); delegate keeps the surface.
    */
   gridCrossCheck(limit = 200): ArchiveGridCrossCheck {
-    // Pre-ledger archive DBs have no `beats` table — degrade to an empty
-    // result (the SQLiteError would otherwise break every caller).
-    const hasBeats = this.rows<{ name: string }>(
-      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'beats'`,
-    );
-    if (!hasBeats.length) {
-      return {
-        available: this.handle() !== null,
-        ledgered: 0,
-        checked: 0,
-        ok: 0,
-        off: [],
-        octave: [],
-        drift: [],
-      };
-    }
-    const rows = this.rows<{
-      video_id: string;
-      title: string | null;
-      duration_s: number | null;
-      beats_json: string;
-      bpm_folded: number | null;
-    }>(
-      `SELECT t.video_id, t.title, t.duration_s, b.beats_json, b.bpm_folded
-       FROM tracks t JOIN beats b ON b.video_id = t.video_id
-       WHERE t.status = 'downloaded' AND t.duration_s IS NOT NULL
-       ORDER BY t.updated_at DESC LIMIT ?`,
-      Math.min(Math.max(limit, 1), 500),
-    );
-    interface Offender {
-      video_id: string;
-      title: string | null;
-      rbBpm: number;
-      ledgerBpm: number;
-      driftMs: number;
-      reason: string;
-    }
-    const off: Offender[] = [];
-    const octave: Offender[] = [];
-    const drift: Offender[] = [];
-    const result = {
-      available: this.handle() !== null,
-      ledgered: rows.length,
-      checked: 0,
-      ok: 0,
-      off,
-      octave,
-      drift,
-    };
-    for (const r of rows) {
-      if (r.bpm_folded == null) continue;
-      let beats: number[] = [];
-      try {
-        const parsed: unknown = JSON.parse(r.beats_json);
-        if (!isFiniteNumberArray(parsed)) {
-          console.warn(
-            `beat record ${r.video_id} has invalid beats_json — skipping`,
-          );
-          continue;
-        }
-        beats = parsed;
-      } catch (error) {
-        console.warn(
-          `beat record ${r.video_id} has invalid beats_json — skipping`,
-          error,
-        );
-        continue;
-      }
-      if (beats.length < 8 || !r.duration_s) continue;
-      const rbBpm = r.bpm_folded;
-      const v: GridAuditVerdict | null = gridAudit(beats, rbBpm);
-      if (!v) continue;
-      result.checked++;
-      const row = {
-        video_id: r.video_id,
-        title: r.title,
-        rbBpm,
-        // the FITTED grid tempo (bpmDelta = rb − fitted, so fitted = rb − Δ)
-        ledgerBpm: Math.round((rbBpm - v.bpmDelta) * 10) / 10,
-        driftMs: v.driftMs,
-        reason: v.reason,
-      };
-      switch (v.bucket) {
-        case "TEMPO":
-          octave.push(row); // half/double lock — the dangerous class
-          break;
-        case "DRIFT":
-        case "CHAOS":
-          drift.push(row);
-          break;
-        case "SHIFT":
-          off.push(row);
-          break;
-        default:
-          result.ok++;
-      }
-    }
-    result.ok = result.checked - off.length - octave.length - drift.length;
-    return result;
+    return gridCrossCheckImpl(this, limit);
   }
 
   /**
-   * MOOD / dance / valence profile (roadmap #4): the aggregate + the
-   * extremes of megadj's `mood` ledger (mirror of the TXXX:MOOD file
-   * stamps, written by `megadj mood`). Gives agents/UI the vibe-map view
-   * without touching audio: averages for pickers, highest/lowest
-   * valence + arousal + danceability tracks for "play me something…".
-   * Degrades to available:false on pre-mood DBs (no `mood` table).
+   * MOOD / dance / valence profile (roadmap #4): the aggregate + extremes
+   * of megadj's `mood` ledger — the vibe-map view. Implementation lives
+   * in archive_mood.ts (file-length guard); delegate keeps the surface.
    */
   moodProfile(limit = 5): ArchiveMoodProfile {
-    const empty = {
-      available: this.handle() !== null,
-      analyzed: 0,
-      avg: {
-        dance: 0,
-        valence: 0,
-        arousal: 0,
-        party: 0,
-        electronic: 0,
-        aggressive: 0,
-      },
-      extremes: {
-        valence: [] as MoodExtreme[],
-        arousal: [] as MoodExtreme[],
-        dance: [] as MoodExtreme[],
-      },
-    };
-    const hasMood = this.rows<{ name: string }>(
-      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mood'`,
-    );
-    if (!hasMood.length) return empty;
-    const agg = this.rows<{
-      n: number;
-      dance: number | null;
-      valence: number | null;
-      arousal: number | null;
-      party: number | null;
-      electronic: number | null;
-      aggressive: number | null;
-    }>(
-      `SELECT COUNT(*) n, AVG(dance) dance, AVG(valence) valence,
-              AVG(arousal) arousal, AVG(party) party,
-              AVG(electronic) electronic, AVG(aggressive) aggressive
-       FROM mood`,
-    )[0];
-    if (!agg || !agg.n) return empty;
-    const n = Math.min(Math.max(limit, 1), 25);
-    const top = (col: string, dir: "DESC" | "ASC"): MoodExtreme[] =>
-      this.rows<{
-        video_id: string;
-        title: string | null;
-        artist: string | null;
-        v: number;
-      }>(
-        `SELECT m.video_id, t.title, t.artist, m.${col} v
-         FROM mood m LEFT JOIN tracks t ON t.video_id = m.video_id
-         ORDER BY m.${col} ${dir}, m.video_id LIMIT ?`,
-        n,
-      ).map((row) => ({ ...row, v: r4(row.v) }));
-    return {
-      available: true,
-      analyzed: agg.n,
-      avg: {
-        dance: r4(agg.dance),
-        valence: r4(agg.valence),
-        arousal: r4(agg.arousal),
-        party: r4(agg.party),
-        electronic: r4(agg.electronic),
-        aggressive: r4(agg.aggressive),
-      },
-      extremes: {
-        valence: [...top("valence", "DESC"), ...top("valence", "ASC")],
-        arousal: [...top("arousal", "DESC"), ...top("arousal", "ASC")],
-        dance: [...top("dance", "DESC"), ...top("dance", "ASC")],
-      },
-    };
+    return moodProfileImpl(this, limit);
   }
 
   // I49 sounds-like + set-builder extensions live in archive_similar.ts
@@ -718,11 +527,4 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   trackTagCompare(videoId: string): ArchiveTrackTagCompare {
     return trackTagCompareImpl(this, videoId);
   }
-}
-
-interface MoodExtreme {
-  video_id: string;
-  title: string | null;
-  artist: string | null;
-  v: number;
 }

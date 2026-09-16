@@ -100,14 +100,16 @@ export async function auditArchive(musicDir: string): Promise<{
 }
 
 export async function fetch(opts: FetchOptions): Promise<void> {
-  // In-process run through the exports leaf — the child-process spawn
+  // In-process run through the pipeline module — the child-process spawn
   // (bun tools/fetch-all.ts) is gone AND the pipeline now lives inside
   // the fulltags package (#184). The dynamic import stays LAZY: the
   // pipeline graph opens the archive DB at module load, which must not
-  // ride every `megadj` CLI boot.
-  const { runFetch } = await import("../../fulltags/src/exports").then((m) => ({
-    runFetch: m.runFetch,
-  }));
+  // ride every `megadj` CLI boot. (#89: aims at fetch-pipeline directly —
+  // re-exporting runFetch through the exports barrel closed a madge
+  // cycle exports → fetch-pipeline → archive-ledger → exports.)
+  const { runFetch } = await import("../../fulltags/src/fetch-pipeline").then(
+    (m) => ({ runFetch: m.runFetch }),
+  );
   await runFetch({
     all: opts.all ?? false,
     only: opts.only ?? "all",

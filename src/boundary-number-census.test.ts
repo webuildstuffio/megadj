@@ -20,11 +20,13 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "m[1] is a digits-only phase regex capture and array lookup has an explicit fallback.",
   "fulltags/src/writer.ts::applyTags::Number(meta.date.match(/\\d{4}/)?.[0])":
     "the optional value is a four-digit regex capture; absence becomes undefined.",
-  "fulltags/src/writer.ts::mp4Statement::Number(v)":
+  "fulltags/src/writer-mutagen.ts::mp4Statement::Number(v)":
     "the bpm branch receives a typed internal TagPatch number before serialization.",
-  "fulltags/src/writer.ts::mp4VerifyStatement::Number(v)":
+  "fulltags/src/writer-mutagen.ts::mp4VerifyStatement::Number(v)":
     "the verifier receives the same typed internal TagPatch BPM number before serialization.",
-  "fulltags/src/pipeline.ts::parseMoodStamp::Number(m[2])":
+  // #90 scope 1: parseMoodStamp re-homed pipeline.ts → pipeline-stamps.ts
+  // (owner+path moved; the sanction follows the site).
+  "fulltags/src/pipeline-stamps.ts::parseMoodStamp::Number(m[2])":
     "m[2] is a digits-and-decimal-only regex capture and need() finite-checks every consumed value.",
   "src/fulltags/years.ts::parseScPageDates::Number(year)":
     "year is a four-digit regex capture.",
@@ -79,7 +81,11 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 16 (#184): fetch pipeline re-homed into fulltags; the second
     // front door's argv Number() site died with the shim (audited 44→43,
     // sanctioned 18→17) and fetch-stages moved owner+path (digest shift).
-    digest: "0623ceafdbcd58db0bb28e61fea177fd1792e88e16f315cf33910f5c998f9fca",
+    // Sep 16 (#90 scope 1): parseMoodStamp/mp4Statement/mp4VerifyStatement
+    // re-homed (pipeline.ts→pipeline-stamps.ts, writer.ts→writer-
+    // mutagen.ts) — sanctions re-keyed to the new owner paths, counts
+    // unchanged, digest shifted.
+    digest: "7873b5e3eca8357ad3741fc847b5c6c082c232de321a85b5af3baf5b02d5d8ff",
   });
 });
 

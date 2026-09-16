@@ -86,7 +86,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     audited: 60,
     guarded: 44,
     sanctioned: 16,
-    digest: "21fca82950e4aec731021a396500465e097ec97ad936f8209ad9f1519bd1f179",
+    digest: "51cb5244e94968c22ae20837631559c9148b2a8c3d6745fcfc2df191e7d40a88",
   });
 });
 

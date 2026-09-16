@@ -153,11 +153,11 @@ export {
   type AnlzGrid,
   type AnlzInventory,
 } from "./anlz";
-export {
-  runFetch,
-  type FetchAllOptions,
-  // #184: the batch fetch pipeline lives here now (re-homed from
-  // tools/fetch-all.ts) — but the archive-ledger DB graph must stay out
-  // of every CLI boot, so this export is consumed ONLY through a lazy
-  // dynamic import (src/fulltags/fetch.ts), never a static one.
-} from "./fetch-pipeline";
+// #89 madge-cycle fix: runFetch + FetchAllOptions no longer re-export
+// through this barrel. The static re-export closed a 3-cycle
+// (exports → fetch-pipeline → archive-ledger → exports) that the
+// documented `bunx madge --circular` gate flags. The pipeline's ONE
+// consumer (src/fulltags/fetch.ts) already went through a LAZY dynamic
+// import — it now aims at ../src/fetch-pipeline directly; no static
+// importer of runFetch exists anywhere. The archive-ledger DB graph
+// still never rides a CLI boot.

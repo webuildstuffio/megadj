@@ -40,7 +40,10 @@ import {
   type Row,
   type TagValues,
 } from "./archive-ledger";
-import { aiGenres } from "./exports";
+// #89 madge-cycle fix: import aiGenres from its home module, not the
+// exports barrel — the barrel import re-closed
+// exports → fetch-pipeline → archive-ledger → exports.
+import { aiGenres } from "./ai";
 import { existsSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import { ProgressBar } from "../../src/progress";
