@@ -66,15 +66,19 @@ export interface DisputeReview {
 /** Day length in ms — embed-age math. */
 const DAY_MS = 86_400_000;
 
-/** k for the consensus vote (matches the flag pass default). */
-const CONSENSUS_K = 5;
+/** k for the consensus vote (matches the flag pass default; the CLI's
+ *  --k threads through to the review too). */
+const DEFAULT_CONSENSUS_K = 5;
 /** minAgreement for the consensus vote — the flag pass flags on
  *  UNANIMITY, but for review a 0.6-gated consensus is the human-useful
  *  evidence line (the harness's own gate). */
 const CONSENSUS_MIN_AGREEMENT = 0.6;
 
 /** The read half: every flagged row + live evidence. */
-export function collectDisputes(state: ArchiveState): DisputeReview {
+export function collectDisputes(
+  state: ArchiveState,
+  k: number = DEFAULT_CONSENSUS_K,
+): DisputeReview {
   const flagged = state.disputedRows();
   const { flagged: voteRows, seeds } = state.disputeVoteInputs();
   const seedVecs = seeds.map((s) => ({
@@ -95,12 +99,7 @@ export function collectDisputes(state: ArchiveState): DisputeReview {
     let agreement: number | null = null;
     if (vecJson) {
       const vec = parseEmbeddingVector(vecJson, `dispute query ${r.video_id}`);
-      const vote = inferGenre(
-        seedVecs,
-        vec,
-        CONSENSUS_K,
-        CONSENSUS_MIN_AGREEMENT,
-      );
+      const vote = inferGenre(seedVecs, vec, k, CONSENSUS_MIN_AGREEMENT);
       if (vote.inferred !== null) {
         consensus = vote.inferred;
         agreement = vote.agreement;
@@ -174,7 +173,7 @@ export function resolveDispute(
   if (res.note) state.setGenreFlagNote(res.videoId, res.note);
   return {
     ok: true,
-    message: `label "${row.genre}" → "${review.consensus}" (audio ratified, ${review.agreement ?? "?%"} agreement), flag cleared — row re-enters seeding`,
+    message: `label "${row.genre}" → "${review.consensus}" (audio ratified, ${review.agreement !== null ? `${Math.round(review.agreement * 100)}%` : "?"} agreement), flag cleared — row re-enters seeding`,
   };
 }
 
@@ -193,7 +192,12 @@ function collectDisputesRow(
     vec: parseEmbeddingVector(s.vec_json, `dispute seed ${s.video_id}`),
   }));
   const vec = parseEmbeddingVector(vecJson, `dispute query ${videoId}`);
-  const vote = inferGenre(seedVecs, vec, CONSENSUS_K, CONSENSUS_MIN_AGREEMENT);
+  const vote = inferGenre(
+    seedVecs,
+    vec,
+    DEFAULT_CONSENSUS_K,
+    CONSENSUS_MIN_AGREEMENT,
+  );
   return vote.inferred !== null
     ? { consensus: vote.inferred, agreement: vote.agreement }
     : { consensus: null, agreement: null };

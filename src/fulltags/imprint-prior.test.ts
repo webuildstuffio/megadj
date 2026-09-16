@@ -20,10 +20,11 @@ describe("imprint prior (#128): the map is data with provenance", () => {
 
   test("every mapping's family is a live scoring family", () => {
     // a mapping into a family the vocab no longer knows is a dead vote —
-    // the same failure class as a junk label mapping to edm (#187)
-    const dead = IMPRINT_FAMILIES.filter(
-      (m) => !familyOf(m.family) && !isKnownFamily(m.family),
-    );
+    // the same failure class as a junk label mapping to edm (#187). Also
+    // pins the units: `family` is a FAMILY, never a display label (the
+    // afterlife regression — a display label in the vote slot always
+    // abstains in imprintStands because it never equals a kNN family).
+    const dead = IMPRINT_FAMILIES.filter((m) => familyOf(m.family) === null);
     expect(dead).toEqual([]);
   });
 
@@ -39,6 +40,23 @@ describe("imprint prior (#128): the vote", () => {
     expect(imprintVote("drumcode records")?.family).toBe("techno");
     expect(imprintVote("Anjunabeats")?.family).toBe("trance");
     expect(imprintVote("Defected Records")?.family).toBe("house");
+  });
+
+  test("bare input matching a TAIL-WORD key resolves (no substring fuzz)", () => {
+    // "Toolroom" → key "toolroom productions"; "Afterlife Records" →
+    // key "afterlife recordings" (corporate-word swap, not identity).
+    // Both directions resolve; ambiguity would abstain, never guess.
+    expect(imprintVote("Toolroom")?.family).toBe("house");
+    expect(imprintVote("Toolroom Productions")?.family).toBe("house");
+    expect(imprintVote("Afterlife Records")?.family).toBe("techno");
+    expect(imprintVote("Afterlife Recordings")?.family).toBe("techno");
+  });
+
+  test("the vote slot carries FAMILIES, never display labels", () => {
+    // the afterlife regression: "melodic house & techno" in the family
+    // slot always abstained in imprintStands (display ≠ family space).
+    // every mapping's family must round-trip through familyOf.
+    for (const m of IMPRINT_FAMILIES) expect(familyOf(m.family)).not.toBeNull();
   });
 
   test("unknown/junk labels abstain (null, never a guess)", () => {
@@ -59,20 +77,3 @@ describe("imprint prior (#128): the vote", () => {
     expect(imprintStands(vote, null)).toBe(true);
   });
 });
-
-/** Family vocabulary is fixed by the vocab module's FAMILIES table; the
- *  nine names here are that table's output space (pinned by the
- *  cross-map test). Keep this list in lockstep with genre-vocab. */
-function isKnownFamily(family: string): boolean {
-  return [
-    "bass",
-    "house",
-    "techno",
-    "trance",
-    "hiphop",
-    "edm",
-    "pop",
-    "groove",
-    "mood",
-  ].includes(family);
-}

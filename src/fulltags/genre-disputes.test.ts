@@ -180,4 +180,36 @@ describe("genre --disputes (#64 review surface)", () => {
     expect(res.ok).toBe(false);
     expect(res.message).toContain("no current consensus");
   });
+
+  test("--k threads into the review consensus (tighter k flips a split row)", () => {
+    // k=5: 2 house + 2 techno + 1 groove → no 60% quorum. k=2: the two
+    // house seeds are the nearest → unanimous. Same data, different k.
+    // (module-scope factory — consistent-function-scoping)
+    const wide = collectDisputes(SPLIT_ROW_STATE, 5).rows[0]!;
+    const tight = collectDisputes(SPLIT_ROW_STATE, 2).rows[0]!;
+    expect(wide.consensus).toBeNull();
+    expect(tight.consensus).toBe("house");
+  });
 });
+
+const SPLIT_ROW_STATE = {
+  disputedRows: () => [
+    { video_id: "rb-4", title: "T", artist: "A", genre: "EDM" },
+  ],
+  disputeVoteInputs: () => ({
+    flagged: [
+      {
+        video_id: "rb-4",
+        vec_json: "[0.9,0.1]",
+        analyzed_at: new Date().toISOString(),
+      },
+    ],
+    seeds: [
+      { video_id: "h1", genre: "House", vec_json: "[1,0]" },
+      { video_id: "h2", genre: "House", vec_json: "[0.95,0.05]" },
+      { video_id: "t1", genre: "Techno", vec_json: "[0.3,0.9]" },
+      { video_id: "t2", genre: "Techno", vec_json: "[0.2,0.95]" },
+      { video_id: "g1", genre: "Groove", vec_json: "[0.5,0.8]" },
+    ],
+  }),
+} as unknown as ArchiveState;

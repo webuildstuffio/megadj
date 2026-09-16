@@ -167,13 +167,13 @@ export async function genre(opts: GenreOptions): Promise<void> {
       return;
     }
     // read-only review
-    const review = collectDisputes(opts.state);
+    const review = collectDisputes(opts.state, k);
     log(
       `genre disputes: ${review.flagged} flagged (${review.alreadyAgree} already agree with live consensus — --keep resolves those)`,
     );
     for (const r of review.rows.slice(0, 30)) {
       const evidence = r.consensus
-        ? `consensus ${r.consensus} @ ${(r.agreement ?? 0) * 100}% · embed ${r.embedAgeDays ?? "?"}d`
+        ? `consensus ${r.consensus} @ ${Math.round((r.agreement ?? 0) * 100)}% · embed ${r.embedAgeDays ?? "?"}d`
         : "no live consensus (re-run --flag)";
       log(`  ${r.videoId}  "${r.genre}"  — ${evidence}`);
       log(`    ${r.artist ?? "?"} — ${r.title ?? "?"}`);

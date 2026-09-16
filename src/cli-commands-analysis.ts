@@ -186,6 +186,34 @@ const genre: CliCommandHandler = async (rest, { state }) => {
     });
     return;
   }
+  // the dispute surface is its own pass — mixing it with the other
+  // genre passes is a typo, not a union (same discipline as the
+  // eval-only guard above): fail loudly, exit 2, zero work
+  const disputeMode =
+    flags.bools.has("disputes") ||
+    flags.strings.has("agree") ||
+    flags.strings.has("keep");
+  if (disputeMode) {
+    const stray = (
+      [
+        "eval",
+        "refold",
+        "flag",
+        "diagnostics",
+        "artist-disjoint",
+        "probe",
+      ] as const
+    ).find((f) => flags.bools.has(f));
+    if (stray !== undefined) {
+      await finishCommandError({
+        command: "genre",
+        json: flags.bools.has("json"),
+        error: `--${stray} is a separate pass — dispute review/resolution runs alone`,
+        exitCode: 2,
+      });
+      return;
+    }
+  }
   const { genre: inferGenre } = await import("./fulltags/genre");
   await inferGenre({
     state,

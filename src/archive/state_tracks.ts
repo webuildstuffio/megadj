@@ -180,8 +180,22 @@ export class ArchiveTracks extends ArchiveCore {
 
   /** Set/clear the dispute flag on one track. `flag` is the audited
    *  vocabulary ('disputed'); null clears. The label column is NEVER
-   *  touched — flagging is metadata, a human decision stays human. */
+   *  touched — flagging is metadata, a human decision stays human.
+   *  A null clear is CONDITIONAL: it only clears the 'disputed'
+   *  vocabulary value, never a `resolved:<note>` audit trail (#64) —
+   *  the --flag self-heal loop calls this on every embedded row each
+   *  run, and an unconditional clear would erase review notes. A new
+   *  'disputed' write DOES overwrite a stale resolution (fresh
+   *  evidence supersedes an old verdict). */
   setGenreFlag(videoId: string, flag: "disputed" | null): void {
+    if (flag === null) {
+      this.db
+        .query(
+          "UPDATE tracks SET genre_flag = NULL, updated_at = ? WHERE video_id = ? AND (genre_flag IS NULL OR genre_flag = 'disputed')",
+        )
+        .run(this.now(), videoId);
+      return;
+    }
     this.db
       .query(
         "UPDATE tracks SET genre_flag = ?, updated_at = ? WHERE video_id = ?",

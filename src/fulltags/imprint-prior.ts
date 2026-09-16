@@ -63,8 +63,11 @@ export const IMPRINT_FAMILIES: readonly ImprintMapping[] = [
   },
   {
     imprint: "afterlife recordings",
-    family: "melodic house & techno",
-    src: "label scene (afterlife = melodic techno)",
+    // "melodic house & techno" is a Beatport DISPLAY label, not a scoring
+    // family — the vote must land in the kNN family space (the same
+    // lesson as #187: display labels in vote slots abstain forever)
+    family: "techno",
+    src: "label scene (afterlife = melodic techno; melodic scores in the techno family)",
     verified: "2026-09-15",
   },
   {
@@ -87,7 +90,10 @@ export const IMPRINT_FAMILIES: readonly ImprintMapping[] = [
   },
   {
     imprint: "ninja tune",
-    family: "mood",
+    // "mood" is the family REGEX BUCKET name, not a scoring family —
+    // familyOf("mood") is null (the bucket's labels — downtempo, idm,
+    // ambient — score into it). Vote a label the family map recognizes.
+    family: "downtempo",
     src: "label scene (downtempo/electronic leftfield)",
     verified: "2026-09-15",
   },
@@ -108,6 +114,14 @@ export const IMPRINT_FAMILIES: readonly ImprintMapping[] = [
     family: "edm",
     src: "label scene (mainstage dance)",
     verified: "2026-09-15",
+  },
+  {
+    // bare alias for the apostrophe-less spelling (Beatport writes
+    // both); the apostrophe would break the exact-word prefix match
+    imprint: "spinnin records",
+    family: "edm",
+    src: "alias of spinnin' records (same scene)",
+    verified: "2026-09-16",
   },
   {
     imprint: "toolroom productions",
@@ -132,17 +146,32 @@ const IMPRINT_INDEX: ReadonlyMap<string, ImprintMapping> = new Map(
  *  (the issue's acceptance: "census test pins its size from the producer"). */
 export const IMPRINT_COUNT = IMPRINT_FAMILIES.length;
 
-/** Normalize a raw label string for lookup: lowercase, trim, drop
- *  " recordings"/" records" suffix noise only when the bare name IS the
- *  key (e.g. "Drumcode Records" → "drumcode"). Never guesses. */
+/** Normalize a raw label string for lookup: lowercase, trim, then try
+ *  THREE keys — the input as-is, the input with a corporate-suffix word
+ *  stripped ("Drumcode Records" → "drumcode"), and the input with a
+ *  scene-word tail stripped ("Afterlife Records" → key "afterlife
+ *  recordings" via FIRST-WORD prefix). Prefix matches are exact-word
+ *  only (no substring fuzz — a prefix match that isn't the whole first
+ *  word would be a guess). Never guesses. */
 function lookupKey(rawLabel: string): string | null {
   const base = rawLabel.trim().toLowerCase();
   if (!base || /^\d+$/.test(base) || base === "music") return null;
   if (IMPRINT_INDEX.has(base)) return base;
   const stripped = base
-    .replace(/\s+(recordings?|records?|music|ltd)$/i, "")
+    .replace(/\s+(recordings?|records?|music|ltd|productions?)$/i, "")
     .trim();
-  return stripped && IMPRINT_INDEX.has(stripped) ? stripped : null;
+  // precedence 1: the input's own suffix-stripped form is a key — done
+  // ("Drumcode Records" → "drumcode"). No expansion past a hit.
+  if (stripped && IMPRINT_INDEX.has(stripped)) return stripped;
+  // precedence 2: input is the BARE form, the key carries a tail word
+  // ("toolroom" → key "toolroom productions"; "afterlife records" →
+  // key "afterlife recordings" via its stripped form). Exact-word
+  // prefix only — no substring fuzz — and ambiguity (≥2 keys) is a
+  // guess → abstain.
+  const candidates = new Set<string>();
+  for (const k of IMPRINT_INDEX.keys())
+    if (k.startsWith(`${stripped} `)) candidates.add(k);
+  return candidates.size === 1 ? [...candidates][0]! : null;
 }
 
 export interface ImprintVote {
