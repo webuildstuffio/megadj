@@ -8,10 +8,12 @@ This file contains only rules and traps. Product detail belongs in
 
 - English only. Product decisions follow [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md).
 - macOS/Pioneer only; no CI. Before pushing: `bun run check && bun test`.
-  Type coverage is a hard 100%: `bun run check:full`. `check` also runs knip
-  and the web vite build; `check:full` additionally runs the Python gates
-  (`lint:py` ruff + `typecheck:py` mypy strict over `cratedeck/python` and
-  `tools/*.py`) and coverage lives in `test:coverage`.
+ Type coverage is a hard 100%: `bun run check:full`. `check` also runs knip
+ and the web vite build; `check:full` additionally runs the Python gates
+ (`lint:py` ruff + `typecheck:py` mypy strict over `cratedeck/python` and
+ `tools/*.py`, config in `pyproject.toml`), coverage lives in `test:coverage`,
+ and `test:py` runs the Python unittests (`tools/*_test.py`) — part of
+ `check:full`, not `bun test`.
 - Pre-commit runs STAGED-SCOPED tests (`SC_HOOK_TEST_SCOPE=staged` in
   `.shell-config-hooks.conf`): only test files in packages touched by the
   staged paths (root `src/`/`test/` → root tests; `cratedeck/*` → cratedeck
@@ -54,7 +56,9 @@ This file contains only rules and traps. Product detail belongs in
 `megadj sync` downloads; `megadj ingest` imports; `megadj fetch`/`audit`
 enriches and verifies; `megadj shelf-sync` sends archive → shelf;
 `megadj shelf-archive` sends drive → shelf. Every command supports `--json`
-with one summary object on stdout and a meaningful exit code.
+with one summary object on stdout and a meaningful exit code. The set-builder
+product is **MegaSet** — verb `megadj megaset`; the `setbuild` alias is
+retired (unknown-command since #56): one name everywhere, no shims.
 
 The shelf is the archive master. `shelf-archive` is additive, junk-filtered,
 NFC/casefold matched, MD5 verified, and preserves divergent same-name files.
@@ -91,7 +95,10 @@ placeholder genre: `?? "Music"` is banned — unknown stays null (the
 backup + census); never resurrect it without owning its writer.
 Every master.db write must hard-gate on rekordbox being closed — RB's
 in-memory state silently overwrites external edits on quit; verify with
-a delayed re-read, not just a successful commit.
+a delayed re-read, not just a successful commit. Audio analysis decodes
+compressed containers IN-PROCESS via PyAV and feeds raw samples to the
+model APIs (`Audio2Beats(signal, sr)`); never reintroduce the ffmpeg
+temp-WAV-bridge beside originals (orphan leak class, drift-prone twins).
 
 `shelf-dupescan` judges duplicates by fingerprint, never by name; keep its
 fpcalc parser base64url-complete (`-`/`_`) — a truncating regex silently
@@ -178,6 +185,18 @@ unwritable; only Comment carries derived energy, never BPM.
 - Keep this file short and durable: record rules, invariants, and failure
   traps only. Do not embed volatile file trees, counts, session notes, or
   duplicated product detail; link to the owning document instead.
+- GitHub is the roadmap SSOT: issues own WHAT/priority/status; docs keep
+  WHY, measured numbers, and safety gates. The former `ideas.md` /
+  `roadmap-index.md` mirrors are archived (`docs/archive/`) — never
+  resurrect hand-built roadmap mirrors; source issues from PRDs/plans/
+  audits, not `ideas.md` (least-authoritative — its issues get closed as
+  rejected).
+- `tokensave` MCP is rooted per project (`tokensave serve -p <root>` in
+  `~/.cursor/mcp.json`); results citing another workspace (folio-app) mean
+  the server is mis-rooted — fix the root flag, never the index; its
+  analysis tools reject a second project's `graph_root`.
+- No PR flow: work lands as direct pushes to `main`; the review target is the
+  landed-but-unreviewed commit range (branch-review audit), not open PRs.
 - For GitHub work, use one `type:*`, one `priority:*`, and one `effort:*`
   label per issue. Bug fixes require a reproducer/regression test, local
   verification, and an evidence-based close; docs issues close only when the
@@ -205,9 +224,11 @@ unwritable; only Comment carries derived energy, never BPM.
   playlists.
 - Hot cues: max 8 per track (8 pads on supported gear), semantically placed
   (phrase/chorus/drop); pads require clickable hot cues (`djmdCue.Kind = 1`).
-- Track genres come from real sources (SoundCloud/Beatport/Hypeddit); the AI
-  genre fallback stays opt-in, off by default — a missing genre remains an
-  honest gap, never a guess.
+- Track genres come from real sources
+  (SoundCloud/Beatport/Bandcamp/Hypeddit); the AI genre fallback stays opt-in,
+  off by default — a missing genre remains an honest gap, never a guess. No
+  hand-labeling pass exists by owner policy (2026-09-15): the product stays
+  fully automated; genre coverage work is automation-side only.
 - FullTags comment format is `Key · Energy · Mood` (Camelot key, E-score,
   top ONNX moods); BPM never enters the comment — it has its own RB column.
 - ID3 genre frames are unreliable and the pool ecosystem is worse: numeric
@@ -216,8 +237,12 @@ unwritable; only Comment carries derived energy, never BPM.
   trust the tag frame as a genre source.
 - Two DBs, two roles: the SHELF1 `master.db` is the collection SSOT;
   `archive.db` is megadj's pipeline ledger (FullTags/mood/cue results,
-  `shelf_fingerprints`), not a collection copy — never
-  present ledger coverage as library size. Disk-file counts on the shelf
+  `shelf_fingerprints`),   not a collection copy — never
+  present ledger coverage as library size. Decompose ledger cohorts before
+  quoting any archive.db number: unlabeled rows split into sync-pending
+  (liked-videos queued, never downloaded), skipped-not-music, rekordbox
+  intake, and deleted/gone ledger-only rows — the actionable population is
+  far below the raw row count. Disk-file counts on the shelf
   (incl. quarantine/variants) always exceed rekordbox DB rows; explain
   deltas by provenance (UnknownArtist residue, dedup orphans), never
   report the two counts as the same population.

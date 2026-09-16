@@ -15,7 +15,6 @@
         "yt-dlp",
         "plutil",
         "wait",
-        "md5",
         "ffmpeg",
         "pgrep",
         "uv"
