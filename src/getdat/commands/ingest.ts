@@ -18,6 +18,7 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { md5FileStream } from "../../shared/hash";
+import { pickScoredKeeper } from "../../shared/keeper";
 import { existsSync, renameSync } from "node:fs";
 import type { Stats } from "node:fs";
 import { join, basename, extname } from "node:path";
@@ -186,12 +187,16 @@ async function dedupeWithinFolder(
       survivors.push(rec);
       continue;
     }
-    const [keep, drop] =
-      rec.score > incumbent.score ||
-      (rec.score === incumbent.score &&
-        basename(rec.file).length < basename(incumbent.file).length)
-        ? [rec, incumbent]
-        : [incumbent, rec];
+    const keep =
+      pickScoredKeeper(
+        incumbent,
+        rec,
+        (r) => r.file,
+        (r) => r.score,
+      ) === "a"
+        ? incumbent
+        : rec;
+    const drop = keep === incumbent ? rec : incumbent;
     byIdentity.set(keep.identity, keep);
     // Remove the loser even when it was first-seen (it entered survivors
     // earlier) — leaving it in meant Phase D tried to copy an already
@@ -250,12 +255,16 @@ async function dedupeByContent(
         hashes.set(digest, rec);
         continue;
       }
-      const [keep, drop] =
-        rec.score > twin.score ||
-        (rec.score === twin.score &&
-          basename(rec.file).length < basename(twin.file).length)
-          ? [rec, twin]
-          : [twin, rec];
+      const keep =
+        pickScoredKeeper(
+          twin,
+          rec,
+          (r) => r.file,
+          (r) => r.score,
+        ) === "a"
+          ? twin
+          : rec;
+      const drop = keep === twin ? rec : twin;
       contentDupes++;
       log(
         `  [dupe] ${basename(drop.file)} — byte-identical twin of ${basename(keep.file)} (md5)`,
@@ -335,12 +344,16 @@ async function dedupeByFingerprint(
       );
       continue;
     }
-    const [keep, drop] =
-      rec.score > seen.score ||
-      (rec.score === seen.score &&
-        basename(rec.file).length < basename(seen.file).length)
-        ? [rec, seen]
-        : [seen, rec];
+    const keep =
+      pickScoredKeeper(
+        seen,
+        rec,
+        (r) => r.file,
+        (r) => r.score,
+      ) === "a"
+        ? seen
+        : rec;
+    const drop = keep === seen ? rec : seen;
     fpDupes++;
     log(
       `  [dupe] ${basename(drop.file)} — same recording as ${basename(keep.file)} (acoustic fingerprint)`,

@@ -1,4 +1,5 @@
 import { isAbsolute, join, relative, sep } from "node:path";
+import { pickRbKeeper } from "../shared/keeper";
 import { printResult } from "./rb-command-kit.js";
 
 interface MutationPair {
@@ -9,19 +10,14 @@ interface MutationPair {
   basis: "same-path" | "path-twin" | "fingerprint";
 }
 
-const inContents = (path: string): boolean => /\/Contents(?:\/|$)/u.test(path);
-
-/** Choose the canonical keeper using location, quality, and stable path. */
+/** Choose the canonical keeper using location, quality, and stable path.
+ * Delegates to the shared tier policy (#158) — one comparator home, this
+ * export keeps the rb-dedup surface stable for tests and callers. */
 export function pickKeeper(
   first: { path: string; size: number; bitrate: number },
   second: { path: string; size: number; bitrate: number },
 ): "a" | "b" {
-  if (inContents(first.path) !== inContents(second.path))
-    return inContents(first.path) ? "a" : "b";
-  if (first.bitrate !== second.bitrate)
-    return first.bitrate > second.bitrate ? "a" : "b";
-  if (first.size !== second.size) return first.size > second.size ? "a" : "b";
-  return first.path <= second.path ? "a" : "b";
+  return pickRbKeeper(first, second);
 }
 
 export function inspectMutationPaths(
