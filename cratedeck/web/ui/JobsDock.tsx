@@ -10,8 +10,13 @@
 // actually kills it after cfg.stall_timeout_min), and the header spinner
 // only turns while something is genuinely running (not queued).
 import { useState } from "preact/hooks";
-import type { DriveCardData, Job, VerifyReport } from "../../shared/types";
-import { ACTIVE_JOB_STATUSES, TERMINAL_JOB_STATUSES } from "../../shared/types";
+import {
+  ACTIVE_JOB_STATUSES,
+  TERMINAL_JOB_STATUSES,
+  type DriveCardData,
+  type Job,
+  type VerifyReport,
+} from "../../shared/types";
 import { errMessage, fmtEta, timeAgo } from "../../shared/fmt";
 import { apiPost, toast } from "./toast";
 import { Icon } from "./icons";

@@ -88,7 +88,7 @@ function Hi(props: { text: string; q: string }) {
   const { text, q } = props;
   if (!q) return <>{text}</>;
   const i = text.toLowerCase().indexOf(q);
-  if (i < 0) return <>{text}</>;
+  if (i === -1) return <>{text}</>;
   return (
     <>
       {text.slice(0, i)}
@@ -137,8 +137,7 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
     // byte identical (the track index is keyed by name), and as React keys
     // they collide: same key = lost/misrouted crate toggles. Keep the first.
     const seen = new Set<string>();
-    return (snap?.playlists ?? [])
-      .slice()
+    return [...(snap?.playlists ?? [])]
       .toSorted((a, b) => b.entries - a.entries)
       .filter((pl) => {
         const k = plKey(pl);
@@ -162,13 +161,9 @@ export function PlaylistsTab({ snap }: { snap: SnapshotData | null }) {
           ),
         )
       : all;
-    return rows
-      .slice()
-      .toSorted((a, b) =>
-        sort === "entries"
-          ? b.entries - a.entries
-          : a.name.localeCompare(b.name),
-      );
+    return [...rows].toSorted((a, b) =>
+      sort === "entries" ? b.entries - a.entries : a.name.localeCompare(b.name),
+    );
   }, [all, fActive, q, sort, tracksByPl]);
 
   // how many in-crate tracks the filter hits — the readout line

@@ -7,17 +7,17 @@
 // schema and the engine quote. Help text is written for a DJ who has
 // never read the docs: what it does, when to touch it, what happens if
 // they don't.
-import type { MegasetPresetDef } from "../../../shared/types";
-import { MEGASET_PRESET_DEFS } from "../../../shared/types";
 import {
-  MEGASET_TRACK_MINUTES_MIN,
+  MEGASET_PRESET_DEFS,
   MEGASET_TRACK_MINUTES_MAX,
+  MEGASET_TRACK_MINUTES_MIN,
   MEGASET_TEMPO_PERFECT,
   MEGASET_TEMPO_WINDOW,
   MEGASET_TRANSITION_WEIGHTS,
   MEGASET_POOL_MAX,
   MEGASET_BEAM_POOL_MAX,
   MEGASET_BEAM_WIDTH,
+  type MegasetPresetDef,
 } from "../../../shared/types";
 import { Icon } from "../../ui/icons";
 

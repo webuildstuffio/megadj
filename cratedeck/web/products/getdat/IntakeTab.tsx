@@ -11,12 +11,12 @@
 // The folder allowlist is enforced server-side (/intake/start 403s
 // anything outside /intake/folders).
 import { useEffect, useState } from "preact/hooks";
-import type {
-  Job,
-  IntakeResult,
-  IntakeFoldersResponse,
+import {
+  INTAKE_COUNTER_KEYS,
+  type IntakeFoldersResponse,
+  type IntakeResult,
+  type Job,
 } from "../../../shared/types";
-import { INTAKE_COUNTER_KEYS } from "../../../shared/types";
 import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";

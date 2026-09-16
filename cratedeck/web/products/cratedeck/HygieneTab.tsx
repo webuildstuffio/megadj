@@ -96,7 +96,7 @@ function subOf(f: Finding): string {
 /** basename for the compare card labels */
 function baseName(p: string): string {
   const i = p.lastIndexOf("/");
-  return i >= 0 ? p.slice(i + 1) : p;
+  return i !== -1 ? p.slice(i + 1) : p;
 }
 
 /** The A/B compare card state for one finding. */

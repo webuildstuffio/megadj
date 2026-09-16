@@ -23,8 +23,15 @@ import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
-import { ListHead, StatCard, KVRows, KVRow, KVKey, KVVal } from "../../ui/data";
-import { DataTable } from "../../ui/data";
+import {
+  DataTable,
+  KVKey,
+  KVRow,
+  KVRows,
+  KVVal,
+  ListHead,
+  StatCard,
+} from "../../ui/data";
 import { SimilarTab } from "./SimilarTab";
 import { TagCompareTab } from "./TagCompareTab";
 import {

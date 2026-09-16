@@ -4,8 +4,10 @@
 // profile (sizes, codecs) of the playable files. Read-only over the
 // archive DB's own columns; the files are ground truth.
 import { useCallback, useState } from "preact/hooks";
-import type { ArchiveLibraryOverview } from "../../../shared/types";
-import type { ArchiveIngestStatus } from "../../../shared/types";
+import type {
+  ArchiveIngestStatus,
+  ArchiveLibraryOverview,
+} from "../../../shared/types";
 import { errMessage, fmtBytes, timeAgo } from "../../../shared/fmt";
 import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
@@ -28,8 +30,8 @@ import {
   ShareBar,
   Verdict,
   TrackTitle,
+  STATUS_LANG,
 } from "../shared";
-import { STATUS_LANG } from "../shared";
 
 type Track = ArchiveIngestStatus["recent_tracks"][number];
 

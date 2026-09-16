@@ -16,6 +16,7 @@ export function setApiErrorReporter(
 export class ApiError extends Error {
   /** HTTP status, or 0 when the request never got a response. */
   status: number;
+  override readonly name = "ApiError";
   constructor(message: string, status: number) {
     super(message);
     this.status = status;

@@ -132,5 +132,5 @@ export function placeCard(
     candidates.push(rawPlacement(anchor, card, place));
   }
   const fitting = candidates.find((p) => fits(p, card, vp));
-  return fitting ? fitting : clamped(candidates[0]!, card, vp);
+  return fitting || clamped(candidates[0]!, card, vp);
 }

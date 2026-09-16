@@ -141,7 +141,7 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
           </h3>
           <div class="checks">
             {fixRows.map((r) => (
-              <div class="check" key={r.file + r.reasons.join()}>
+              <div class="check" key={r.file + r.reasons.join(",")}>
                 <span class="pill">{actionLabel(r.action)}</span>
                 <span class="check-body">
                   <b>{reasonLabel(r.reasons)}</b>
@@ -167,7 +167,7 @@ export function FixesTab(_props: { driveId: string; driveName: string }) {
           </h3>
           <div class="checks">
             {manualRows.map((r) => (
-              <div class="check muted" key={r.file + r.reasons.join()}>
+              <div class="check muted" key={r.file + r.reasons.join(",")}>
                 <span class="pill warn">manual</span>
                 <span class="check-body">
                   <b>{reasonLabel(r.reasons)}</b>

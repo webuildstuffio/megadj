@@ -13,8 +13,7 @@ import { Icon } from "../../ui/icons";
 import { StatCard } from "../../ui/DrivePanels";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
 import { FixNote } from "../../ui/ListHead";
-import { ListHead } from "../../ui/data";
-import { BarList } from "../../ui/data";
+import { BarList, ListHead } from "../../ui/data";
 import { LineChart } from "../../ui/charts";
 
 // The bench row shape is DERIVED from shared/types.ts (BenchRun) — the

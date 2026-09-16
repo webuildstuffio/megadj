@@ -10,10 +10,9 @@ import {
   ReproLine,
   ExcludedBreakdown,
 } from "../products/fulltags/MegasetStatus";
-import { MEGASET_PRESET_DEFS } from "../../shared/types";
+import { MEGASET_PRESET_DEFS, type MegasetPayload } from "../../shared/types";
 import { TrackPickSearch } from "../products/fulltags/TrackPickSearch";
 import { SearchBar } from "../ui/data";
-import type { MegasetPayload } from "../../shared/types";
 
 const noop = () => undefined;
 const source = readFileSync(

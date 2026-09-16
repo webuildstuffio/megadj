@@ -23,7 +23,14 @@ import { errMessage, fmtBytes } from "../../../shared/fmt";
 import { api, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { useFetched } from "../../ui/useFetched";
-import { StatCard, CountStat, DataTable, SearchBar } from "../../ui/data";
+import {
+  StatCard,
+  CountStat,
+  DataTable,
+  SearchBar,
+  copyList,
+  ListHead,
+} from "../../ui/data";
 import { fuzzyFilter } from "../../ui/fuzzy";
 import { PreflightTab } from "./PreflightTab";
 import { BoothSettings } from "./BoothSettings";
@@ -31,7 +38,6 @@ import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
 import { TabIntro } from "../../ui/InfoTip";
 import { FixNote } from "../../ui/ListHead";
-import { copyList, ListHead } from "../../ui/data";
 import { PRODUCT_TABS, ProductIntro } from "../shared";
 
 // the fleet content tabs live in the product SSOT (ProductPage

@@ -8,8 +8,9 @@ import type { HealthCheck, SnapshotData } from "../../shared/types";
 import { fmtBytes, fmtDur } from "../../shared/fmt";
 import { Icon } from "./icons";
 import { InfoTip } from "./InfoTip";
-import { BarList } from "./data";
 import { Histogram } from "./charts";
+import { BarList, StatCard } from "./data";
+export { StatCard } from "./data";
 
 export function countCheckVerdicts(checks: readonly HealthCheck[]) {
   return {
@@ -17,11 +18,6 @@ export function countCheckVerdicts(checks: readonly HealthCheck[]) {
     warning: checks.filter((check) => check.status === "warn").length,
   };
 }
-
-// StatCard moved to ui/data.tsx (it gained tone/em support) — imported for
-// DjPanel and re-exported here so existing import sites keep working.
-import { StatCard } from "./data";
-export { StatCard };
 
 /** Two-step destructive-action button: first click arms it ("Sure?"), a
  *  second click within 3s fires, clicking away disarms. Kills accidental

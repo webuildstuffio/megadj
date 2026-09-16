@@ -9,18 +9,16 @@
 // render). The preset picker derives from the SAME MEGASET_PRESET_DEFS
 // registry the engine scores against.
 import { useState } from "preact/hooks";
-import type {
-  ArchiveSearchHit,
-  MegasetPayload,
-  MegasetStep,
-  MegasetPresetDef,
-} from "../../../shared/types";
 import {
   MEGASET_PRESET_DEFS,
   MEGASET_MINUTES_MAX,
   MEGASET_MINUTES_MIN,
   isShelfOffline,
   clampMegasetPool,
+  type ArchiveSearchHit,
+  type MegasetPayload,
+  type MegasetStep,
+  type MegasetPresetDef,
 } from "../../../shared/types";
 import { api, toast } from "../../ui/toast";
 import { errMessage } from "../../../shared/fmt";
