@@ -38,8 +38,7 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       "historical rev line (deleted tempoFromBeatGrid, former module path)",
     // §4 lesson 7 names the deleted shim's fold-in + CUT dates (#93);
     // recoverable from git history, referenced as history on purpose.
-    "tools/fix-years.ts":
-      "historical retirement note (deleted shim, #93 CUT)",
+    "tools/fix-years.ts": "historical retirement note (deleted shim, #93 CUT)",
   },
   "docs/surface-parity.md": {
     // rev-9/rev-10 lines describe the PAST web restructure ("same
