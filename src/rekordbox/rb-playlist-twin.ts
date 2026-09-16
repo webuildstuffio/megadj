@@ -1,15 +1,8 @@
 /** Atomic, compensating mutation seam for Rekordbox playlist DB/XML twins. */
 
-import {
-  copyFileSync,
-  existsSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { atomicReplace as atomicReplaceFile } from "../shared/atomic-file";
 import {
   assertRbClosed,
   backupMaster,
@@ -124,17 +117,9 @@ function playlistNodesMatch(
 }
 
 function atomicReplace(path: string, content: string | Uint8Array): void {
-  const temp = join(
-    dirname(path),
-    `.${path.slice(path.lastIndexOf("/") + 1)}.tmp-${process.pid}-${crypto.randomUUID()}`,
-  );
-  try {
-    const mode = existsSync(path) ? statSync(path).mode : 0o644;
-    writeFileSync(temp, content, { mode });
-    renameSync(temp, path);
-  } finally {
-    rmSync(temp, { force: true });
-  }
+  // shared seam (#162): collision-proof sibling, mode-preserving swap,
+  // residue unlink on every failure path
+  atomicReplaceFile(path, content);
 }
 
 export function appendPlaylistNodesAtomic(

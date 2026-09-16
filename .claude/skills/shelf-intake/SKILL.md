@@ -135,3 +135,11 @@ Long drives (100+ GB) can outlive one tool call. Keep the process in the
 foreground and use resumable per-directory chunks with file-count checkpoints;
 background jobs on this machine may be reaped. Already copied files classify
 as covered on the next run.
+
+## Crash residue: `*.tmp-*` beside artifacts
+
+An interrupted atomic write (playlist twin, upgrade gate, any
+`withTempSiblingSync` caller) leaves ONE hidden `.name.tmp-<pid>-<uuid>`
+file beside the artifact. Safe to delete after checking mtime — but
+inspect first: if the artifact itself is older than the residue and
+truncated, the write half-landed; restore from the dated backup instead.

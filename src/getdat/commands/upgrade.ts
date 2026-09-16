@@ -12,7 +12,7 @@
 // Agent-first contract: --json (one summary object), --dry-run, contained
 // per-file failures, meaningful exit code.
 import { existsSync, renameSync, rmSync, statSync } from "node:fs";
-import { basename, dirname, extname, join } from "node:path";
+import { tempSiblingPath } from "../../shared/atomic-file";
 import {
   applyTags,
   fingerprintFile,
@@ -94,12 +94,11 @@ function ffprobeKbps(path: string): number | null {
 }
 
 /** Unique temp path beside the target (keeps the extension — ffmpeg/yt-dlp
- * infer muxers from filenames). */
+ * infer muxers from filenames). Shared seam (#162): the name is
+ * collision-proof (pid+uuid), so a crashed gate never collides with the
+ * next run's slot. */
 function tmpPathFor(target: string): string {
-  const d = dirname(target);
-  const b = basename(target);
-  const ext = extname(target) || ".m4a";
-  return join(d, `.${b}.upgrade-${process.pid}${ext}`);
+  return tempSiblingPath(target, { keepExt: true });
 }
 
 /** Replace a validated incumbent with its staged upgrade. */
