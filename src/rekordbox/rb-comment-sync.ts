@@ -399,6 +399,35 @@ async function rbCommentSyncWithRuntime(
     return mk((e as Error).message);
   }
 
+  /** ONE sync spawn + parse (the apply path and the report path were
+   *  token-identical 8-line twins; the mode only changes the CLI arg and
+   *  the apply flag handed to parseSyncOutput). Throws on spawn/parse
+   *  failure — apply wraps it in compensate(), report projects to mk(). */
+  const spawnSyncRun = (mode: "apply" | "report"): SyncOutput => {
+    const r = deps.spawn(
+      pyUvArgv({
+        script: commentSyncScript(),
+        args: [
+          dbPath,
+          ledger,
+          mode,
+          opts.batch ?? "",
+          String(opts.limit ?? 0),
+        ],
+        withPkg: "pyrekordbox,mutagen",
+      }),
+      600_000,
+    );
+    if (r.status !== 0 || !r.stdout)
+      throw new Error(
+        `sync failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
+      );
+    return parseSyncOutput(
+      r.stdout.trim().split("\n").pop() ?? "",
+      mode === "apply",
+    );
+  };
+
   if (apply) {
     let backedUpTo: string;
     try {
@@ -417,28 +446,7 @@ async function rbCommentSyncWithRuntime(
 
     try {
       deps.assertClosed("rb-comment-sync --apply");
-      const r = deps.spawn(
-        pyUvArgv({
-          script: commentSyncScript(),
-          args: [
-            dbPath,
-            ledger,
-            "apply",
-            opts.batch ?? "",
-            String(opts.limit ?? 0),
-          ],
-          withPkg: "pyrekordbox,mutagen",
-        }),
-        600_000,
-      );
-      if (r.status !== 0 || !r.stdout)
-        throw new Error(
-          `sync failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
-        );
-      const out = parseSyncOutput(
-        r.stdout.trim().split("\n").pop() ?? "",
-        true,
-      );
+      const out = spawnSyncRun("apply");
       deps.sleep(250);
       deps.assertClosed("rb-comment-sync verification");
       const checked = deps.spawn(
@@ -467,32 +475,9 @@ async function rbCommentSyncWithRuntime(
     }
   }
 
-  let r: SyncCommandResult;
-  try {
-    r = deps.spawn(
-      pyUvArgv({
-        script: commentSyncScript(),
-        args: [
-          dbPath,
-          ledger,
-          "report",
-          opts.batch ?? "",
-          String(opts.limit ?? 0),
-        ],
-        withPkg: "pyrekordbox,mutagen",
-      }),
-      600_000,
-    );
-  } catch (error) {
-    return mk(errorText(error));
-  }
-  if (r.status !== 0 || !r.stdout)
-    return mk(
-      `sync failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
-    );
   let out: SyncOutput;
   try {
-    out = parseSyncOutput(r.stdout.trim().split("\n").pop() ?? "", false);
+    out = spawnSyncRun("report");
   } catch (error) {
     return mk(errorText(error));
   }

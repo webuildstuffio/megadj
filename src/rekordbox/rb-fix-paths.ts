@@ -120,8 +120,17 @@ export interface LiveIndex {
   byPrefix20: Map<string, string[]>; // 20-char prefix → paths
 }
 
-function nfkc(s: string): string {
-  return nameKey(s);
+/** One empty LiveIndex — was duplicated in buildIndex and the test seam. */
+function emptyIndex(): LiveIndex {
+  return {
+    byNorm: new Map(),
+    byBasename: new Map(),
+    byStripped: new Map(),
+    byPrefix20: new Map(),
+  };
+}
+
+function nfkc(s: string): string {  return nameKey(s);
 }
 
 /** "track - 1.mp3", "track - 1 2.mp3" → "track.mp3" — auto-relocate
@@ -149,12 +158,7 @@ export function buildIndex(mount: string): LiveIndex {
   // PIONEER REC is walked per coverage rules; PIONEER/ device DBs never
   const rec = join(mount, "PIONEER REC");
   if (existsSync(rec)) walkAudio(rec, files);
-  const idx: LiveIndex = {
-    byNorm: new Map(),
-    byBasename: new Map(),
-    byStripped: new Map(),
-    byPrefix20: new Map(),
-  };
+  const idx: LiveIndex = emptyIndex();
   for (const f of files) {
     const n = nfkc(f);
     idx.byNorm.set(n, f);
@@ -570,12 +574,7 @@ export const __test = {
   parseRewriteResult,
   readScript: PY,
   rewriteScript,
-  emptyIndex: (): LiveIndex => ({
-    byNorm: new Map(),
-    byBasename: new Map(),
-    byStripped: new Map(),
-    byPrefix20: new Map(),
-  }),
+  emptyIndex,
 };
 /** Emit the human report (non-json mode). */
 export function printRbFixReport(
