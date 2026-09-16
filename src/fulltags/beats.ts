@@ -67,8 +67,27 @@ export async function beats(opts: BeatsOptions): Promise<void> {
     }
     todo.push(t);
   }
+  let analyzed = 0;
+  let failed = 0;
+  let idx = 0;
+
   const limit = opts.limit ?? todo.length;
   const queue = todo.slice(0, Math.max(0, limit));
+
+  // Missing files fail BEFORE any session work (#180): the old in-worker
+  // check ran after `openBeatSession()`, so a queue of ghosts still paid
+  // the full uv/torch resolve — under `bun test --parallel=16` that spawn
+  // raced the default test timeout (the flake). Also just correct: never
+  // load the analysis env for nonexistent audio.
+  const present: typeof queue = [];
+  for (const t of queue) {
+    if (existsSync(t.file_path!)) {
+      present.push(t);
+      continue;
+    }
+    failed++;
+    log(`  ✗ file missing — ${basename(t.file_path!)}`);
+  }
 
   // A zero-work run must read as SUCCESS, not as a silent mystery —
   // "analyzed 0" once read as a bug (it WAS a bug once, the mood queue
@@ -84,27 +103,24 @@ export async function beats(opts: BeatsOptions): Promise<void> {
     );
   }
 
-  let analyzed = 0;
-  let failed = 0;
-  let idx = 0;
   async function worker() {
     // One persistent session per worker: the env load amortizes across
     // this worker's whole queue; null session (env missing) degrades to
-    // per-track nulls exactly like the old one-shot path.
-    const session = opts.dryRun ? null : await openBeatSession();
+    // per-track nulls exactly like the old one-shot path. Opened LAZILY
+    // on the first real item (#180): an empty/ghost queue must never pay
+    // the uv/torch resolve — under `bun test --parallel=16` that spawn
+    // raced the 5s default test timeout and failed both the beats and
+    // the drop (beats-stage) suites.
+    let session: Awaited<ReturnType<typeof openBeatSession>> | null = null;
     while (true) {
       const my = idx++;
-      if (my >= queue.length) break;
-      const t = queue[my]!;
+      if (my >= present.length) break;
+      if (!session && !opts.dryRun) session = await openBeatSession();
+      const t = present[my]!;
       const path = t.file_path!;
       if (opts.dryRun) {
-        log(`  [${my + 1}/${queue.length}] (dry) — ${basename(path)}`);
+        log(`  [${my + 1}/${present.length}] (dry) — ${basename(path)}`);
         analyzed++;
-        continue;
-      }
-      if (!existsSync(path)) {
-        failed++;
-        log(`  [${my + 1}/${queue.length}] ✗ file missing — ${basename(path)}`);
         continue;
       }
       try {
@@ -112,7 +128,7 @@ export async function beats(opts: BeatsOptions): Promise<void> {
         if (!r || !r.beats.length) {
           failed++;
           log(
-            `  [${my + 1}/${queue.length}] ✗ no beats (env missing or silence) — ${basename(path)}`,
+            `  [${my + 1}/${present.length}] ✗ no beats (env missing or silence) — ${basename(path)}`,
           );
           continue;
         }
@@ -130,12 +146,12 @@ export async function beats(opts: BeatsOptions): Promise<void> {
         });
         analyzed++;
         log(
-          `  [${my + 1}/${queue.length}] ${r.beats.length} beats · ${foldTempo(r.bpm).toFixed(1)} BPM (ledger)${r.bpmFitted ? ` · fitted ${r.bpmFitted.toFixed(2)} (residual ${(r.residualStd ?? 0).toFixed(3)} beats)` : ""} — ${basename(path)}`,
+          `  [${my + 1}/${present.length}] ${r.beats.length} beats · ${foldTempo(r.bpm).toFixed(1)} BPM (ledger)${r.bpmFitted ? ` · fitted ${r.bpmFitted.toFixed(2)} (residual ${(r.residualStd ?? 0).toFixed(3)} beats)` : ""} — ${basename(path)}`,
         );
       } catch (err) {
         failed++;
         log(
-          `  [${my + 1}/${queue.length}] ✗ ${(err as Error).message?.slice(0, 80)} — ${basename(path)}`,
+          `  [${my + 1}/${present.length}] ✗ ${(err as Error).message?.slice(0, 80)} — ${basename(path)}`,
         );
       }
     }

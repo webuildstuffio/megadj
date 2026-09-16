@@ -18,9 +18,8 @@ import {
   completeness,
 } from "../../fulltags/src/exports";
 import type { AuditRow } from "./audit-row";
+export { type AuditRow } from "./audit-row";
 import type { FetchTarget } from "./fetch-target";
-
-export type { AuditRow };
 
 export interface FetchOptions {
   all?: boolean | undefined;

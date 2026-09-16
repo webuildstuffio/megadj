@@ -90,7 +90,7 @@ export function sanitizeFilename(name: string): string {
   // is export-hostile on exFAT as well). Same code-point checks as the
   // booth-text SSOT — no literal control chars in a pattern, no suppression.
   if (hasControlChars(cleaned)) {
-    cleaned = Array.from(cleaned)
+    cleaned = [...cleaned]
       .filter((ch) => {
         const cp = ch.codePointAt(0)!;
         return !(cp <= 0x1f || cp === 0x7f || (cp >= 0x80 && cp <= 0x9f));

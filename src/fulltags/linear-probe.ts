@@ -84,7 +84,7 @@ export function fitProbe(
         probs[c] = Math.exp(probs[c]! - max);
         sum += probs[c]!;
       }
-      for (let c = 0; c < C; c++) probs[c] = probs[c]! / sum;
+      for (let c = 0; c < C; c++) probs[c]! /= sum;
       loss -= Math.log(Math.max(probs[y]!, 1e-12));
       // backward: accumulate gradients
       for (let c = 0; c < C; c++) {
@@ -99,7 +99,7 @@ export function fitProbe(
     const scale = lr / n;
     for (let j = 0; j < C * d; j++)
       W[j] = W[j]! - scale * gradW[j]! + lr * l2 * W[j]!;
-    for (let c = 0; c < C; c++) b[c] = b[c]! - scale * gradB[c]!;
+    for (let c = 0; c < C; c++) b[c]! -= scale * gradB[c]!;
   }
   return {
     fit: { classes, weights: W, bias: b },

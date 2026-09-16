@@ -19,10 +19,12 @@ import {
   probeFile,
   playerCompat,
   isHiresOnly,
+  wavToAiff,
 } from "../../fulltags/src/exports";
-import { wavToAiff } from "../../fulltags/src/exports";
-import { fetchAndEmbedArtwork } from "../getdat/commands/ingest-art";
-import { flushArtworkQueue } from "../getdat/commands/ingest-art";
+import {
+  fetchAndEmbedArtwork,
+  flushArtworkQueue,
+} from "../getdat/commands/ingest-art";
 import type { QueueEntry } from "../getdat/commands/queue";
 import { commandLog } from "../progress";
 import type { ArchiveState } from "../archive/state";
