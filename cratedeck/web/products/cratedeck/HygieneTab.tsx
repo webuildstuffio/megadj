@@ -150,6 +150,436 @@ function fixCommand(
   return `deckctl hygiene ${decide} ${f.id}`;
 }
 
+/** Fetch both A/B sides' audio stats (null on any per-side failure —
+ *  the card degrades to "stats unavailable" per side, never throws). */
+async function fetchSideStats(
+  paths: string[],
+): Promise<(HygieneAudioStats | null)[]> {
+  return Promise.all(
+    paths.map(async (p) => {
+      try {
+        const r = await fetch(
+          `/api/hygiene/stats?path=${encodeURIComponent(p)}`,
+        );
+        if (!r.ok) return null;
+        return (await r.json()) as HygieneAudioStats;
+      } catch {
+        return null;
+      }
+    }),
+  );
+}
+
+/** Work-queue banner: one line a human reads first (two-thirds UX law).
+ *  Pure over the counts — no state, no handlers. */
+function hygieneBanner(
+  counts: HygienePayload["counts"],
+  findingsCount: number,
+): { cls: "ok" | "warn"; text: string } {
+  if (counts.open === 0 && counts.confirmed === 0) {
+    return {
+      cls: "ok",
+      text:
+        counts.review + counts.safe === 0 && findingsCount === 0
+          ? "No hygiene findings yet — run a scan to audit the shelf."
+          : "All clear — nothing waiting for a decision.",
+    };
+  }
+  if (counts.confirmed > 0) {
+    return {
+      cls: "warn",
+      text: `${counts.confirmed} confirmed finding${counts.confirmed === 1 ? "" : "s"} ready to apply — Apply moves copies to quarantine, never deletes.`,
+    };
+  }
+  return {
+    cls: counts.review > 0 ? "warn" : "ok",
+    text: `${counts.open} open finding${counts.open === 1 ? "" : "s"}: ${counts.review} need${counts.review === 1 ? "s" : ""} your call, ${counts.safe} safe to batch-apply.`,
+  };
+}
+
+/** One A/B side: name, stats line, audio player, keep-decision. */
+function CompareSide(props: {
+  f: Finding;
+  side: number;
+  path: string;
+  st: HygieneAudioStats | null;
+  loaded: boolean;
+  playing: boolean;
+  busy: boolean;
+  onPlay: () => void;
+  onPause: () => void;
+  onKeepOther: () => void;
+}) {
+  const { f, side, path: p, st, loaded, playing, busy } = props;
+  const keeper = f.keeperPath === p;
+  const statsLine = !loaded
+    ? "…"
+    : st
+      ? [
+          st.durationS !== null &&
+            `${Math.floor(st.durationS / 60)}:${String(Math.round(st.durationS % 60)).padStart(2, "0")}`,
+          st.bitrateKbps !== null && `${st.bitrateKbps.toLocaleString()} kbps`,
+          st.codec &&
+            st.sampleRate !== null &&
+            `${st.codec} ${(st.sampleRate / 1000).toFixed(1).replace(/\.0$/, "")} kHz`,
+          `${(st.bytes / 1_048_576).toFixed(1)} MB`,
+        ]
+          .filter(Boolean)
+          .join(" · ") || "no metadata"
+      : "stats unavailable";
+  return (
+    <div class="abside">
+      <div class="abside-head">
+        <b>
+          {side === 0 ? "A" : "B"}
+          {keeper ? " · current keeper" : ""}
+        </b>
+        <span class="abside-name" title={p}>
+          {baseName(p)}
+        </span>
+      </div>
+      <div class="abside-stats">{statsLine}</div>
+      <audio
+        controls
+        preload="none"
+        src={`/api/hygiene/audio?path=${encodeURIComponent(p)}`}
+        onPlay={props.onPlay}
+        onPause={props.onPause}
+        data-playing={playing}
+      />
+      <div class="abside-actions">
+        <button
+          type="button"
+          class="btn sm"
+          disabled={busy || keeper}
+          onClick={props.onKeepOther}
+          title="Confirm = this side's twin moves to quarantine, the keeper stays"
+        >
+          {keeper ? "Keeper — keep this" : "Keep the other (A) — confirm"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** The A/B compare expansion under a twin finding: duration delta, two
+ *  playable sides, and the nothing-deleted note. */
+function CompareCardPanel(props: {
+  f: Finding;
+  cmp: CompareState;
+  playing: string | null;
+  /** The useState setter — accepts a value or an updater function. */
+  setPlaying: (
+    next: string | null | ((cur: string | null) => string | null),
+  ) => void;
+  busy: boolean;
+  onKeepOther: (id: string) => void;
+}) {
+  const { f, cmp, playing, setPlaying, busy, onKeepOther } = props;
+  const isTwin = f.kind === "acoustic-twin" || f.kind === "byte-twin";
+  const dDelta = isTwin
+    ? durationDelta(cmp.stats[0] ?? null, cmp.stats[1] ?? null)
+    : null;
+  return (
+    <div class="abcompare">
+      {dDelta && (
+        <span
+          class={`pill ${dDelta === "same length" ? "ok" : "warn"}`}
+          title="Duration difference between the two copies — a big gap means different recordings/mixes, not just encodes"
+        >
+          {dDelta}
+        </span>
+      )}
+      {[0, 1].map((side) => {
+        const p = f.paths[side];
+        if (!p) return null;
+        const playKey = `${f.id}:${side}`;
+        return (
+          <CompareSide
+            key={side}
+            f={f}
+            side={side}
+            path={p}
+            st={cmp.stats[side] ?? null}
+            loaded={cmp.loaded}
+            playing={playing === playKey}
+            busy={busy}
+            onPlay={() => setPlaying(playKey)}
+            onPause={() => setPlaying((cur) => (cur === playKey ? null : cur))}
+            onKeepOther={() => onKeepOther(f.id)}
+          />
+        );
+      })}
+      <div class="abnote">
+        Confirm quarantines the <b>non-keeper</b> copy — nothing is deleted, and
+        you can restore it later. Dismiss keeps both files untouched.
+      </div>
+    </div>
+  );
+}
+
+/** One work-queue row: select checkbox, pills, body, actions, and the
+ *  expanded A/B compare when open. */
+function FindingRow(props: {
+  f: Finding;
+  cmp: CompareState | undefined;
+  selected: boolean;
+  toggleSelected: () => void;
+  playing: string | null;
+  setPlaying: (
+    next: string | null | ((cur: string | null) => string | null),
+  ) => void;
+  busy: boolean;
+  onOpenCompare: () => void;
+  onDecide: (confirm: boolean) => void;
+}) {
+  const { f, cmp, selected, busy } = props;
+  const isTwin = f.kind === "acoustic-twin" || f.kind === "byte-twin";
+  return (
+    <div class="check">
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={props.toggleSelected}
+        aria-label={`Select ${f.id}`}
+      />
+      <span
+        class={`pill ${f.status === "confirmed" ? "ok" : f.severity === "review" ? "warn" : ""}`}
+      >
+        {f.status === "confirmed" ? "confirmed" : f.severity}
+      </span>
+      {f.kind === "acoustic-twin" && f.status !== "confirmed" && (
+        <span
+          class="pill subpill"
+          title={
+            (f.evidence as Record<string, unknown>).subcategory === undefined
+              ? "No subcategory — re-run the scan"
+              : (SUB_BUCKET_META[subOf(f)]?.hint ?? subOf(f))
+          }
+        >
+          {SUB_BUCKET_META[subOf(f)]?.label ?? subOf(f)}
+        </span>
+      )}
+      <span class="check-body">
+        <b>{KIND_LABEL[f.kind] ?? f.kind}</b>
+        <span class="check-detail" title={f.paths.join("\n")}>
+          {baseName(f.keeperPath ?? f.paths[0] ?? "")}
+          {f.paths.length > 1 && ` vs ${baseName(f.paths[1] ?? "")}`}
+          {" — "}
+          {actionLine(f)}
+        </span>
+        <code class="hyg-cmd">{fixCommand(f)}</code>
+      </span>
+      <span class="hyg-row-actions">
+        {isTwin && f.paths.length >= 2 && (
+          <button
+            type="button"
+            class={`btn sm ${cmp ? "ghostbtn" : ""}`}
+            disabled={busy}
+            onClick={props.onOpenCompare}
+            title="Open the A/B compare: play both copies, see lengths + bitrates, keep either side"
+          >
+            {cmp ? "Close" : "A/B compare"}
+          </button>
+        )}
+        <button
+          type="button"
+          class="btn sm"
+          disabled={busy}
+          onClick={() => props.onDecide(true)}
+          title={`deckctl hygiene confirm ${f.id}`}
+        >
+          Confirm
+        </button>
+        <button
+          type="button"
+          class="btn sm ghostbtn"
+          disabled={busy}
+          onClick={() => props.onDecide(false)}
+        >
+          Dismiss
+        </button>
+      </span>
+      {cmp && (
+        <CompareCardPanel
+          f={f}
+          cmp={cmp}
+          playing={props.playing}
+          setPlaying={props.setPlaying}
+          busy={busy}
+          onKeepOther={(id) => props.onDecide(id === f.id)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** The subcategory bucket strip: filter buttons + safe-batch confirm. */
+function BucketStrip(props: {
+  counts: HygienePayload["counts"];
+  subFilter: string | null;
+  busy: boolean;
+  onFilter: (sub: string | null) => void;
+  onBatchConfirm: (bucket: string) => void;
+}) {
+  const { counts, subFilter, busy } = props;
+  if (Object.keys(counts.bySub).length === 0) return null;
+  return (
+    <div class="bucketstrip">
+      {Object.entries(counts.bySub)
+        .toSorted((a, b) => b[1] - a[1])
+        .map(([sub, n]) => {
+          const meta = SUB_BUCKET_META[sub] ?? {
+            label: sub,
+            hint: sub,
+            canBatch: false,
+          };
+          const active = subFilter === sub;
+          return (
+            <div
+              class={`bucket${active ? " active" : ""}${meta.canBatch ? "" : " manual"}`}
+              key={sub}
+            >
+              <button
+                type="button"
+                class="bucket-filter"
+                disabled={busy}
+                onClick={() => props.onFilter(active ? null : sub)}
+                title={meta.hint}
+              >
+                <b>{n}</b> {meta.label}
+              </button>
+              {meta.canBatch && !active && (
+                <button
+                  type="button"
+                  class="btn sm"
+                  disabled={busy}
+                  onClick={() => props.onBatchConfirm(sub)}
+                  title={`${meta.hint}\n\nConfirms all ${n} — then Apply executes them (quarantine, never delete).`}
+                >
+                  Confirm all
+                </button>
+              )}
+            </div>
+          );
+        })}
+      {subFilter !== null && (
+        <button
+          type="button"
+          class="btn sm ghostbtn"
+          onClick={() => props.onFilter(null)}
+        >
+          Show all
+        </button>
+      )}
+      <InfoTip
+        title="Duplicate buckets"
+        body="Duplicates are grouped by WHY the files differ: metadata-only diffs and re-encodes are safe to batch-confirm (the bigger file wins). Quality diffs and same-size oddballs need your ears first — those buttons only filter the queue."
+        why="Same fingerprint ≠ same decision: a 0.2% tag difference and a 30% bitrate difference demand different levels of trust."
+      />
+    </div>
+  );
+}
+
+/** The toolbar above the work queue: scan/apply remote, bulk decisions,
+ *  and the quarantine explainer. */
+function ActionBar(props: {
+  busy: string | null;
+  applyDisabled: boolean;
+  selCount: number;
+  confirmed: number;
+  onScan: () => void;
+  onApply: () => void;
+  onDecideSelected: (confirm: boolean) => void;
+}) {
+  const { busy, applyDisabled, selCount, confirmed } = props;
+  const quarTerm = HELP_TERMS.find((t) => t.term === "Quarantine");
+  const quarWhy = HELP_TERMS.find((t) => t.term === "Quarantine")?.why;
+  return (
+    <div class="actions" style={{ marginTop: 10 }}>
+      <ScanApplyActions
+        busy={busy}
+        applyDisabled={applyDisabled}
+        scanTitle="Re-walk the shelf and refresh every finding (job)"
+        applyTitle="Execute confirmed findings — copies move to quarantine, the keepers stay untouched"
+        applyLabel={() => `Apply ${confirmed} confirmed`}
+        onScan={props.onScan}
+        onApply={props.onApply}
+      />
+      {selCount > 0 && (
+        <>
+          <button
+            type="button"
+            class="btn"
+            disabled={busy !== null}
+            onClick={() => props.onDecideSelected(true)}
+          >
+            <Icon name="check" size={14} /> Confirm {selCount}
+          </button>
+          <button
+            type="button"
+            class="btn ghostbtn"
+            disabled={busy !== null}
+            onClick={() => props.onDecideSelected(false)}
+          >
+            Dismiss {selCount}
+          </button>
+        </>
+      )}
+      <InfoTip
+        title="Quarantine"
+        body={
+          quarTerm?.def ??
+          "Findings are never deleted — apply moves extra copies into a dated quarantine folder on the shelf."
+        }
+        why={
+          quarWhy ??
+          "Deletion is never automated. Quarantine is reversible by hand; emptying it is a human ritual."
+        }
+      />
+    </div>
+  );
+}
+
+/** One settled row: status pill, body, validation receipt flag. */
+function DoneRow({ f }: { f: Finding }) {
+  return (
+    <div class="check muted">
+      <span class={`pill ${f.status === "applied" ? "ok" : ""}`}>
+        {f.status}
+      </span>
+      <span class="check-body">
+        <b>{KIND_LABEL[f.kind] ?? f.kind}</b>
+        <span class="check-detail">
+          {f.paths[0]}
+          {f.validation
+            ? ` — validated ${f.validation.keepersPresent} keeper${f.validation.keepersPresent === 1 ? "" : "s"} present${f.validation.ok ? "" : " (MISMATCH — review the receipt)"}`
+            : ""}
+        </span>
+      </span>
+      {f.validation && !f.validation.ok && (
+        <span class="pill warn">receipt</span>
+      )}
+    </div>
+  );
+}
+
+/** The settled tail: recently applied & dismissed findings (capped). */
+function SettledSection({ rows }: { rows: Finding[] }) {
+  return (
+    <>
+      <h3 class="sect">
+        <Icon name="history" /> Settled — applied & dismissed
+      </h3>
+      <div class="checks">
+        {rows.slice(0, 30).map((f) => (
+          <DoneRow key={f.id} f={f} />
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function HygieneTab(_props: { driveId: string; driveName: string }) {
   const { payload, loadErr, busy, enqueue, runAction } =
     useScanApply<HygienePayload | null>({
@@ -162,6 +592,15 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
       },
     });
   const [selected, setSelected] = useState<Decided>(new Set());
+  /** Toggle one finding's checkbox in the selection set. */
+  const toggleSelected = (id: string) => {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   /** active subcategory filter (null = show all) */
   const [subFilter, setSubFilter] = useState<string | null>(null);
   /** expanded A/B compare cards: finding id → per-side stats */
@@ -203,20 +642,7 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
       return;
     }
     setCompares((m) => ({ ...m, [f.id]: { stats: {}, loaded: false } }));
-    const sides = f.paths.slice(0, 2);
-    const stats = await Promise.all(
-      sides.map(async (p) => {
-        try {
-          const r = await fetch(
-            `/api/hygiene/stats?path=${encodeURIComponent(p)}`,
-          );
-          if (!r.ok) return null;
-          return (await r.json()) as HygieneAudioStats;
-        } catch {
-          return null;
-        }
-      }),
-    );
+    const stats = await fetchSideStats(f.paths.slice(0, 2));
     setCompares((m) =>
       m[f.id] ? { ...m, [f.id]: { stats, loaded: true } } : m,
     );
@@ -234,6 +660,8 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
       bySub: {},
     },
   };
+  /** The open work queue: not-yet-settled findings, worst first,
+   *  narrowed by the active subcategory filter. */
   const openRows = findings
     .filter(
       (f) =>
@@ -251,27 +679,8 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
       ),
     );
   const selCount = selected.size;
-  const quarTerm = HELP_TERMS.find((t) => t.term === "Quarantine");
-  const quarWhy = HELP_TERMS.find((t) => t.term === "Quarantine")?.why;
 
-  const banner =
-    counts.open === 0 && counts.confirmed === 0
-      ? {
-          cls: "ok" as const,
-          text:
-            counts.review + counts.safe === 0 && findings.length === 0
-              ? "No hygiene findings yet — run a scan to audit the shelf."
-              : "All clear — nothing waiting for a decision.",
-        }
-      : counts.confirmed > 0
-        ? {
-            cls: "warn" as const,
-            text: `${counts.confirmed} confirmed finding${counts.confirmed === 1 ? "" : "s"} ready to apply — Apply moves copies to quarantine, never deletes.`,
-          }
-        : {
-            cls: counts.review > 0 ? ("warn" as const) : ("ok" as const),
-            text: `${counts.open} open finding${counts.open === 1 ? "" : "s"}: ${counts.review} need${counts.review === 1 ? "s" : ""} your call, ${counts.safe} safe to batch-apply.`,
-          };
+  const banner = hygieneBanner(counts, findings.length);
 
   return (
     <ScanApplyGate
@@ -282,305 +691,48 @@ export function HygieneTab(_props: { driveId: string; driveName: string }) {
     >
       <Verdict cls={banner.cls} text={banner.text} />
 
-      <div class="actions" style={{ marginTop: 10 }}>
-        <ScanApplyActions
-          busy={busy}
-          applyDisabled={counts.confirmed === 0}
-          scanTitle="Re-walk the shelf and refresh every finding (job)"
-          applyTitle="Execute confirmed findings — copies move to quarantine, the keepers stay untouched"
-          applyLabel={() => `Apply ${counts.confirmed} confirmed`}
-          onScan={() => enqueue("scan")}
-          onApply={() => enqueue("apply")}
-        />
-        {selCount > 0 && (
-          <>
-            <button
-              type="button"
-              class="btn"
-              disabled={busy !== null}
-              onClick={() => decide([...selected], true)}
-            >
-              <Icon name="check" size={14} /> Confirm {selCount}
-            </button>
-            <button
-              type="button"
-              class="btn ghostbtn"
-              disabled={busy !== null}
-              onClick={() => decide([...selected], false)}
-            >
-              Dismiss {selCount}
-            </button>
-          </>
-        )}
-        <InfoTip
-          title="Quarantine"
-          body={
-            quarTerm?.def ??
-            "Findings are never deleted — apply moves extra copies into a dated quarantine folder on the shelf."
-          }
-          why={
-            quarWhy ??
-            "Deletion is never automated. Quarantine is reversible by hand; emptying it is a human ritual."
-          }
-        />
-      </div>
+      <ActionBar
+        busy={busy}
+        applyDisabled={counts.confirmed === 0}
+        selCount={selCount}
+        confirmed={counts.confirmed}
+        onScan={() => enqueue("scan")}
+        onApply={() => enqueue("apply")}
+        onDecideSelected={(confirm) => decide([...selected], confirm)}
+      />
 
       {counts.open + counts.confirmed === 0 ? null : (
         <>
-          {Object.keys(counts.bySub).length > 0 && (
-            <div class="bucketstrip">
-              {Object.entries(counts.bySub)
-                .toSorted((a, b) => b[1] - a[1])
-                .map(([sub, n]) => {
-                  const meta = SUB_BUCKET_META[sub] ?? {
-                    label: sub,
-                    hint: sub,
-                    canBatch: false,
-                  };
-                  const active = subFilter === sub;
-                  return (
-                    <div
-                      class={`bucket${active ? " active" : ""}${meta.canBatch ? "" : " manual"}`}
-                      key={sub}
-                    >
-                      <button
-                        type="button"
-                        class="bucket-filter"
-                        disabled={busy !== null}
-                        onClick={() => setSubFilter(active ? null : sub)}
-                        title={meta.hint}
-                      >
-                        <b>{n}</b> {meta.label}
-                      </button>
-                      {meta.canBatch && !active && (
-                        <button
-                          type="button"
-                          class="btn sm"
-                          disabled={busy !== null}
-                          onClick={() => batchConfirm(sub)}
-                          title={`${meta.hint}\n\nConfirms all ${n} — then Apply executes them (quarantine, never delete).`}
-                        >
-                          Confirm all
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              {subFilter !== null && (
-                <button
-                  type="button"
-                  class="btn sm ghostbtn"
-                  onClick={() => setSubFilter(null)}
-                >
-                  Show all
-                </button>
-              )}
-              <InfoTip
-                title="Duplicate buckets"
-                body="Duplicates are grouped by WHY the files differ: metadata-only diffs and re-encodes are safe to batch-confirm (the bigger file wins). Quality diffs and same-size oddballs need your ears first — those buttons only filter the queue."
-                why="Same fingerprint ≠ same decision: a 0.2% tag difference and a 30% bitrate difference demand different levels of trust."
-              />
-            </div>
-          )}
+          <BucketStrip
+            counts={counts}
+            subFilter={subFilter}
+            busy={busy !== null}
+            onFilter={setSubFilter}
+            onBatchConfirm={batchConfirm}
+          />
           <h3 class="sect">
             <Icon name="warn" /> Work queue — worst first
           </h3>
           <div class="checks">
-            {openRows.map((f) => {
-              const isTwin =
-                f.kind === "acoustic-twin" || f.kind === "byte-twin";
-              const cmp = compares[f.id];
-              const sA = cmp?.stats[0] ?? null;
-              const sB = cmp?.stats[1] ?? null;
-              const dDelta = isTwin ? durationDelta(sA, sB) : null;
-              return (
-                <div class="check" key={f.id}>
-                  <input
-                    type="checkbox"
-                    checked={selected.has(f.id)}
-                    onChange={(e) => {
-                      const next = new Set(selected);
-                      if ((e.target as HTMLInputElement).checked)
-                        next.add(f.id);
-                      else next.delete(f.id);
-                      setSelected(next);
-                    }}
-                    aria-label={`Select ${f.id}`}
-                  />
-                  <span
-                    class={`pill ${f.status === "confirmed" ? "ok" : f.severity === "review" ? "warn" : ""}`}
-                  >
-                    {f.status === "confirmed" ? "confirmed" : f.severity}
-                  </span>
-                  {f.kind === "acoustic-twin" && f.status !== "confirmed" && (
-                    <span
-                      class="pill subpill"
-                      title={
-                        (f.evidence as Record<string, unknown>).subcategory ===
-                        undefined
-                          ? "No subcategory — re-run the scan"
-                          : (SUB_BUCKET_META[subOf(f)]?.hint ?? subOf(f))
-                      }
-                    >
-                      {SUB_BUCKET_META[subOf(f)]?.label ?? subOf(f)}
-                    </span>
-                  )}
-                  <span class="check-body">
-                    <b>{KIND_LABEL[f.kind] ?? f.kind}</b>
-                    <span class="check-detail" title={f.paths.join("\n")}>
-                      {baseName(f.keeperPath ?? f.paths[0] ?? "")}
-                      {f.paths.length > 1 &&
-                        ` vs ${baseName(f.paths[1] ?? "")}`}
-                      {" — "}
-                      {actionLine(f)}
-                    </span>
-                    <code class="hyg-cmd">{fixCommand(f)}</code>
-                  </span>
-                  <span class="hyg-row-actions">
-                    {isTwin && f.paths.length >= 2 && (
-                      <button
-                        type="button"
-                        class={`btn sm ${cmp ? "ghostbtn" : ""}`}
-                        disabled={busy !== null}
-                        onClick={() => openCompare(f)}
-                        title="Open the A/B compare: play both copies, see lengths + bitrates, keep either side"
-                      >
-                        {cmp ? "Close" : "A/B compare"}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      class="btn sm"
-                      disabled={busy !== null}
-                      onClick={() => decide([f.id], true)}
-                      title={`deckctl hygiene confirm ${f.id}`}
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      type="button"
-                      class="btn sm ghostbtn"
-                      disabled={busy !== null}
-                      onClick={() => decide([f.id], false)}
-                    >
-                      Dismiss
-                    </button>
-                  </span>
-                  {cmp && (
-                    <div class="abcompare">
-                      {dDelta && (
-                        <span
-                          class={`pill ${dDelta === "same length" ? "ok" : "warn"}`}
-                          title="Duration difference between the two copies — a big gap means different recordings/mixes, not just encodes"
-                        >
-                          {dDelta}
-                        </span>
-                      )}
-                      {[0, 1].map((side) => {
-                        const p = f.paths[side];
-                        if (!p) return null;
-                        const st = cmp.stats[side];
-                        const playKey = `${f.id}:${side}`;
-                        const keeper = f.keeperPath === p;
-                        return (
-                          <div class="abside" key={side}>
-                            <div class="abside-head">
-                              <b>
-                                {side === 0 ? "A" : "B"}
-                                {keeper ? " · current keeper" : ""}
-                              </b>
-                              <span class="abside-name" title={p}>
-                                {baseName(p)}
-                              </span>
-                            </div>
-                            <div class="abside-stats">
-                              {cmp.loaded
-                                ? st
-                                  ? [
-                                      st.durationS !== null &&
-                                        `${Math.floor(st.durationS / 60)}:${String(Math.round(st.durationS % 60)).padStart(2, "0")}`,
-                                      st.bitrateKbps !== null &&
-                                        `${st.bitrateKbps.toLocaleString()} kbps`,
-                                      st.codec &&
-                                        st.sampleRate !== null &&
-                                        `${st.codec} ${(st.sampleRate / 1000).toFixed(1).replace(/\.0$/, "")} kHz`,
-                                      `${(st.bytes / 1_048_576).toFixed(1)} MB`,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(" · ") || "no metadata"
-                                  : "stats unavailable"
-                                : "…"}
-                            </div>
-                            <audio
-                              controls
-                              preload="none"
-                              src={`/api/hygiene/audio?path=${encodeURIComponent(p)}`}
-                              onPlay={() => setPlaying(playKey)}
-                              onPause={() =>
-                                setPlaying((cur) =>
-                                  cur === playKey ? null : cur,
-                                )
-                              }
-                              data-playing={playing === playKey}
-                            />
-                            <div class="abside-actions">
-                              <button
-                                type="button"
-                                class="btn sm"
-                                disabled={busy !== null || keeper}
-                                onClick={() => decide([f.id], true)}
-                                title="Confirm = this side's twin moves to quarantine, the keeper stays"
-                              >
-                                {keeper
-                                  ? "Keeper — keep this"
-                                  : "Keep the other (A) — confirm"}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div class="abnote">
-                        Confirm quarantines the <b>non-keeper</b> copy — nothing
-                        is deleted, and you can restore it later. Dismiss keeps
-                        both files untouched.
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {doneRows.length > 0 && (
-        <>
-          <h3 class="sect">
-            <Icon name="history" /> Settled — applied & dismissed
-          </h3>
-          <div class="checks">
-            {doneRows.slice(0, 30).map((f) => (
-              <div class="check muted" key={f.id}>
-                <span class={`pill ${f.status === "applied" ? "ok" : ""}`}>
-                  {f.status}
-                </span>
-                <span class="check-body">
-                  <b>{KIND_LABEL[f.kind] ?? f.kind}</b>
-                  <span class="check-detail">
-                    {f.paths[0]}
-                    {f.validation
-                      ? ` — validated ${f.validation.keepersPresent} keeper${f.validation.keepersPresent === 1 ? "" : "s"} present${f.validation.ok ? "" : " (MISMATCH — review the receipt)"}`
-                      : ""}
-                  </span>
-                </span>
-                {f.validation && !f.validation.ok && (
-                  <span class="pill warn">receipt</span>
-                )}
-              </div>
+            {openRows.map((f) => (
+              <FindingRow
+                key={f.id}
+                f={f}
+                cmp={compares[f.id]}
+                selected={selected.has(f.id)}
+                toggleSelected={() => toggleSelected(f.id)}
+                playing={playing}
+                setPlaying={setPlaying}
+                busy={busy !== null}
+                onOpenCompare={() => openCompare(f)}
+                onDecide={(confirm) => decide([f.id], confirm)}
+              />
             ))}
           </div>
         </>
       )}
+
+      {doneRows.length > 0 && <SettledSection rows={doneRows} />}
     </ScanApplyGate>
   );
 }
