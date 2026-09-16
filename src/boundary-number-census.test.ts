@@ -74,7 +74,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     sanctioned: 18,
     // Sep 15 evening: megaset rename churn — the sanctioned site moved
     // files (setbuild.*→megaset.*), shifting the digest; counts unchanged.
-    digest: "a9ffed391b4d409f9cbfefef4fd967bf95b40d502d54c6218ffa2591c27ad369",
+    // Sep 16 (#181): beatport parseTrack decomposed — the publish-date
+    // Number() site moved owner parseTrack→parseYear (still guarded by
+    // Number.isInteger; counts unchanged, digest shifted).
+    digest: "535959fd6c58bd599519b228e7b39bace12e6d2ee1a021a8b84cec42a11578ea",
   });
 });
 

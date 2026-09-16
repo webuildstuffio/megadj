@@ -184,15 +184,13 @@ function artUrlFrom(
 const artistNames = (list?: BpArtist[]): string[] =>
   (list ?? []).map((a) => a.name ?? "").filter((n) => n.trim().length > 0);
 
-/** Parse one raw catalog row into BpTrack. Undefined numeric/string holes
- * degrade to nulls — the scoring layer decides whether the row is usable. */
-function parseTrack(raw: BpRaw): BpTrack | null {
-  const { id } = raw;
-  if (typeof id !== "number") return null;
-  const yearNum = raw.publish_date
-    ? Number(raw.publish_date.match(/\d{4}/)?.[0])
-    : NaN;
-  const kn = raw.key ?? undefined;
+/** Key vote: `camelot_number`+`camelot_letter` → "5A" form (both must be
+ *  present and valid); keyName prefers the store's full name, else
+ *  "Letter ChordType" composed. Undefined holes → null (scoring decides). */
+function parseKey(kn: BpRaw["key"]): {
+  camelot: string | null;
+  keyName: string | null;
+} {
   const camelotNum = kn?.camelot_number;
   const camelotLetter = kn?.camelot_letter;
   const camelot =
@@ -205,6 +203,33 @@ function parseTrack(raw: BpRaw): BpTrack | null {
     (kn?.letter && kn?.chord_type?.name
       ? `${kn.letter} ${kn.chord_type.name}`
       : undefined);
+  return { camelot, keyName: keyName ?? null };
+}
+
+/** Publish-date → year, sanity-windowed (1900–2100). Anything else (odd
+ *  formats, out-of-window junk) is null, never a guess. */
+function parseYear(publishDate: BpRaw["publish_date"]): number | null {
+  const yearNum = publishDate ? Number(publishDate.match(/\d{4}/)?.[0]) : NaN;
+  return Number.isInteger(yearNum) && yearNum > 1900 && yearNum < 2100
+    ? yearNum
+    : null;
+}
+
+/** Canonical track URL — slug form when present, id-form fallback. */
+function trackUrl(slug: BpRaw["slug"], id: number): string {
+  return slug
+    ? `https://www.beatport.com/track/${slug}/${id}`
+    : `https://www.beatport.com/track/${id}`;
+}
+
+/** Parse one raw catalog row into BpTrack. Undefined numeric/string holes
+ * degrade to nulls — the scoring layer decides whether the row is usable.
+ * Key/year/URL/art each live in their own parser above; this body is the
+ * flat field mapping (#181). */
+function parseTrack(raw: BpRaw): BpTrack | null {
+  const { id } = raw;
+  if (typeof id !== "number") return null;
+  const { camelot, keyName } = parseKey(raw.key);
   return {
     id,
     name: raw.name ?? "",
@@ -217,18 +242,13 @@ function parseTrack(raw: BpRaw): BpTrack | null {
     release: raw.release?.name ?? null,
     bpm: typeof raw.bpm === "number" && raw.bpm > 0 ? raw.bpm : null,
     camelot,
-    keyName: keyName ?? null,
-    year:
-      Number.isInteger(yearNum) && yearNum > 1900 && yearNum < 2100
-        ? yearNum
-        : null,
+    keyName,
+    year: parseYear(raw.publish_date),
     artUrl: artUrlFrom(raw.image, raw.release_image),
     lengthMs: typeof raw.length_ms === "number" ? raw.length_ms : null,
     isrc: raw.isrc ?? null,
     catalogNumber: raw.catalog_number ?? null,
-    url: raw.slug
-      ? `https://www.beatport.com/track/${raw.slug}/${id}`
-      : `https://www.beatport.com/track/${id}`,
+    url: trackUrl(raw.slug, id),
   };
 }
 
