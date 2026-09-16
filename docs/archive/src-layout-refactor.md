@@ -56,7 +56,8 @@ making docs-to-code mapping worse. Decision: keep `shelf/`.
 4. **MB logic in three places** in fulltags: `mb.ts`, `mb_lookup.ts`, and
    MB helpers inside `probes.ts` (whose name is a grab-bag lie).
 5. **`tools/` holds internal libs**: `fetch-lib.ts` + `fetch-stages.ts` are
-   imported only by `fetch-all.ts`/`fix-years.ts` — not standalone scripts.
+   imported only by `fetch-all.ts` — not standalone scripts. (`fix-years.ts`
+   was the other consumer until its #93 CUT delete, Sep 16 2026.)
 
 And what's _right_ (verified, must not regress):
 
@@ -144,8 +145,8 @@ megadj/
 ├── fulltags/
 │   └── src/mb.ts  mb_lookup.ts  media-probe.ts   # ← probes.ts split (§4)
 ├── tools/
-│   ├── fetch-all.ts  fetch-lib.ts  fetch-stages.ts  fix-years.ts  # lib+consumers together
-│   ├── prof-sweep.ts  rb_art.py            # true standalones
+│   ├── fetch-all.ts  fetch-lib.ts  fetch-stages.ts  # lib+consumers together
+│   ├── prof-sweep.ts  rb_art.py            # true standalones (rb_art.py since deleted, #93)
 ├── plugin/  scripts/                       # unchanged
 └── docs/archive/codebase-quality-report.md # ← reports/ (one-time snapshot)
 ```

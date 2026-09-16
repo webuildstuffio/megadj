@@ -35,11 +35,10 @@ test("no bun-shebang scripts outside the three CLI entry files", () => {
 });
 
 test("no import.meta.main entry blocks outside sanctioned entry points", () => {
-  // import.meta.main is the standalone-harness marker (fix-years' shim
-  // and repo-hygiene run through their own surfaces; a NEW block outside
-  // these files means a new bun-only entry point).
+  // import.meta.main is the standalone-harness marker (the fix-years shim
+  // was deleted Sep 16 2026, #93 CUT — the live surface is `megadj years`;
+  // a NEW block outside these files means a new bun-only entry point).
   const allowed = new Set([
-    "tools/fix-years.ts", // operator shim, retained for git-history compat
     "tools/repo-hygiene.ts", // hygiene gate script (git hook surface)
     "tools/loc-budget.ts",
   ]);

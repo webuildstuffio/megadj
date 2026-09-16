@@ -636,8 +636,10 @@ those ledgers are populated rather than manufacturing a pass.
    _consistently, plausibly wrong_ at a rate no listener would notice in
    isolation but every sync would.
 7. **Old-code retirement** — `src/fulltags/enrich.ts` owns #5's
-   genre-vote work; `tools/fix-years.ts` already folded into
-   `megadj years` (Sep 5 2026).
+   genre-vote work; `tools/fix-years.ts` (folded into `megadj years`
+   Sep 5 2026) was deleted Sep 16 2026 (#93 CUT — zero callers; the
+   census-test allowance and LibraryTab hints now point at `megadj
+   years`).
 
 ## 5. Stress-test log (2026-09-05, v0 code)
 
