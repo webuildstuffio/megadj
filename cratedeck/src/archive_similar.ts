@@ -188,7 +188,7 @@ export function similarTracks(
 /**
  * Set-builder: load the candidate pool (playable tracks joined with
  * beats + mood ledgers + the cached TKEY ledger). Feeds the pure engine
- * in setbuild.ts. Unparsable keys degrade to null (no key-score), never
+ * in megaset.ts. Unparsable keys degrade to null (no key-score), never
  * throw.
  *
  * The source census is the WHOLE downloaded library by default — the old

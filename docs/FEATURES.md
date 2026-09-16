@@ -81,7 +81,7 @@ mood → cues → organize → tag-check → audit), `megadj fetch`, `megadj
 enrich`, `megadj artwork`, `megadj audit`, `megadj tag-check` (tag
 structure + booth-text health), `megadj years`, `megadj booth-fix`,
 `megadj beats`, `megadj mood`, `megadj cues`, `megadj similar`,
-`megadj megaset` (alias: `setbuild`), `megadj gold-report`/`regate` (gold-set gate harness)
+`megadj megaset`, `megadj gold-report`/`regate` (gold-set gate harness)
 **Also:** FullTags ships standalone in [`fulltags/`](../fulltags/README.md)
 — same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
 commands are thin wrappers over it.
@@ -143,7 +143,7 @@ propose-only: the DJ keeps every creative decision.
 | **The write-off** | `megadj rb-playlist` links a proposal into the rekordbox master as a real playlist — dry-run first; `--apply` requires rekordbox closed, backs up both collection surfaces, writes the DB row and `masterPlaylists6.xml` twin, then verifies both.                                  |
 | **Docs**          | [Set doc set](set/01-prd.md) (PRD · architecture · 30-comparator analysis) · [audit + plan detail](set/08-audit-and-plan.md)                                                                                                                                                        |
 
-**Commands:** `megadj megaset --preset peak --minutes 60 [--opener <id>] [--search greedy|beam] [--json]` (`setbuild` legacy alias) ·
+**Commands:** `megadj megaset --preset peak --minutes 60 [--opener <id>] [--search greedy|beam] [--json]` (the old `setbuild` verb is retired — unknown-command since #56) ·
 `megadj rb-playlist [drive] [--preset …] [--apply --yes]`
 **Vibe:** "the opener sells the night — Set makes sure you never open
 with a 73-BPM track in a 128 room."

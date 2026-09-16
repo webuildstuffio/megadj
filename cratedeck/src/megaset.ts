@@ -59,7 +59,7 @@ export type { MegasetPresetDef, MegasetPresetId };
  *  the old local `SetPreset` interface name, kept for callers). */
 export type SetPreset = MegasetPresetDef;
 
-/** Clamp + validate the setbuild query params in ONE place — the HTTP
+/** Clamp + validate the megaset query params in ONE place — the HTTP
  *  route, the MCP tool and any future caller share it. Minutes fall back
  *  to the default when missing/non-numeric and clamp to the documented
  *  range (a caller can't smuggle `minutes=99999` past the UI's input
