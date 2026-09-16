@@ -54,66 +54,83 @@ export class Registry {
   ): Promise<void> {
     const seen = new Set<string>();
     for (const vol of current) {
-      const id = identity(vol.volumeUuid, vol.name, vol.capacityBytes);
-      let drive = vol.volumeUuid
-        ? this.db.getDriveByUuid(vol.volumeUuid)
-        : null;
-      if (!drive) drive = this.db.getDrive(id);
-      if (!drive) {
-        drive = { id, volume_uuid: vol.volumeUuid, name: vol.name } as Drive;
-        this.db.upsertDrive({
-          id,
-          volume_uuid: vol.volumeUuid,
-          ...volPatch(vol),
-          mounted: true,
-        });
-        this.db.event(id, "first-seen", {
-          name: vol.name,
-          capacity: vol.capacityBytes,
-        });
-        this.emit("drives", this.list());
-      } else {
-        const wasMounted = Boolean(drive.mounted);
-        // No-op write guard: the reconcile sweep fires every few seconds; a
-        // stable drive used to rewrite the full row each time (WAL churn).
-        // `last_seen_at` is now only bumped on real changes or mount flips.
-        if (
-          !wasMounted ||
-          drive.name !== vol.name ||
-          drive.capacity_bytes !== vol.capacityBytes ||
-          drive.fs !== vol.fs ||
-          drive.usb_serial !== vol.usbSerial ||
-          drive.last_port_key !== vol.portKey ||
-          drive.model !== vol.model ||
-          drive.vendor !== vol.vendor ||
-          drive.link_bps !== vol.linkBps
-        ) {
-          this.db.upsertDrive({
-            id: drive.id,
-            ...volPatch(vol),
-            mounted: true,
-          });
-        }
-        if (!wasMounted) {
-          this.db.bumpPlugCount(drive.id); // accurate session count
-          const fresh = this.db.getDrive(drive.id)!;
-          this.db.event(drive.id, "mounted", {
-            port: vol.portKey,
-            plug_count: fresh.plug_count,
-          });
-          this.justMountedIds.add(drive.id); // auto-scheduler picks this up
-          this.emit("drives", this.list());
-        }
-      }
-      seen.add(vol.volumeUuid ?? id);
+      seen.add(this.reconcileVolume(vol));
     }
+    this.ghostVanishedDrives(seen);
+  }
 
-    // ghost anything that vanished
+  /** One mounted volume → registry row; returns the seen-key to collect. */
+  private reconcileVolume(vol: MountedVolume): string {
+    const id = identity(vol.volumeUuid, vol.name, vol.capacityBytes);
+    const drive =
+      (vol.volumeUuid ? this.db.getDriveByUuid(vol.volumeUuid) : null) ??
+      this.db.getDrive(id);
+    if (!drive) {
+      this.adoptDrive(id, vol);
+      return vol.volumeUuid ?? id;
+    }
+    this.writeChangedDrive(drive, vol);
+    if (!drive.mounted) this.recordRemount(drive.id, vol.portKey);
+    return vol.volumeUuid ?? id;
+  }
+
+  /** First-seen adoption: upsert + timeline event + drive-list refresh. */
+  private adoptDrive(id: string, vol: MountedVolume): void {
+    this.db.upsertDrive({
+      id,
+      volume_uuid: vol.volumeUuid,
+      ...volPatch(vol),
+      mounted: true,
+    });
+    this.db.event(id, "first-seen", {
+      name: vol.name,
+      capacity: vol.capacityBytes,
+    });
+    this.emit("drives", this.list());
+  }
+
+  /** No-op write guard: the reconcile sweep fires every few seconds; a
+   *  stable drive used to rewrite the full row each time (WAL churn).
+   *  `last_seen_at` is now only bumped on real changes or mount flips. */
+  private writeChangedDrive(drive: Drive, vol: MountedVolume): void {
+    if (
+      drive.mounted &&
+      drive.name === vol.name &&
+      drive.capacity_bytes === vol.capacityBytes &&
+      drive.fs === vol.fs &&
+      drive.usb_serial === vol.usbSerial &&
+      drive.last_port_key === vol.portKey &&
+      drive.model === vol.model &&
+      drive.vendor === vol.vendor &&
+      drive.link_bps === vol.linkBps
+    ) {
+      return;
+    }
+    this.db.upsertDrive({
+      id: drive.id,
+      ...volPatch(vol),
+      mounted: true,
+    });
+  }
+
+  /** Mount flip ghost → mounted: session count + timeline + scheduler pickup. */
+  private recordRemount(driveId: string, portKey: string | null): void {
+    this.db.bumpPlugCount(driveId);
+    const fresh = this.db.getDrive(driveId)!;
+    this.db.event(driveId, "mounted", {
+      port: portKey,
+      plug_count: fresh.plug_count,
+    });
+    this.justMountedIds.add(driveId); // auto-scheduler picks this up
+    this.emit("drives", this.list());
+  }
+
+  /** Ghost drives that vanished without a clean eject marker (recorded
+   *  dirty so the timeline shows why a verify is worthwhile after re-mount). */
+  private ghostVanishedDrives(seen: Set<string>): void {
     for (const drive of this.db.allDrives()) {
       const key = drive.volume_uuid ?? drive.id;
       if (drive.mounted && !seen.has(key)) {
-        // volume gone without a clean eject marker — recorded as dirty so
-        // the timeline shows why a verify is worthwhile after re-mount
         this.db.setMounted(drive.id, false);
         this.db.event(drive.id, "unmounted-dirty", {});
         this.emit("drives", this.list());
