@@ -236,7 +236,7 @@ export class Ledgers extends RecordLedger {
   cueAnalyzedTracks(): {
     videoId: string;
     title: string | null;
-    cues: Array<{ index: number; position: number; bar: number }>;
+    cues: { index: number; position: number; bar: number }[];
     source: string;
   }[] {
     const rows = this.db

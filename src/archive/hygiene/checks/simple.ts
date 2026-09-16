@@ -10,8 +10,13 @@
  * (walkShelf filters them; this check exists for the quarantine audit
  * path where the input is an arbitrary file list). Auto-clean severity.
  */
-import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
-import { baseFinding } from "../types";
+import {
+  baseFinding,
+  type CheckCtx,
+  type CheckDef,
+  type Finding,
+  type ShelfFile,
+} from "../types";
 import { isJunkName } from "../walk";
 
 export const zeroByte: CheckDef = {

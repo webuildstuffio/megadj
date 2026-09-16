@@ -9,8 +9,13 @@
  * is not re-reported here (claimed-set short-circuit at the call site).
  */
 import { basename } from "node:path";
-import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
-import { baseFinding } from "../types";
+import {
+  baseFinding,
+  type CheckCtx,
+  type CheckDef,
+  type Finding,
+  type ShelfFile,
+} from "../types";
 import { nameSimilarity } from "./similarity";
 import { classifyAcousticSub } from "../subcategory";
 

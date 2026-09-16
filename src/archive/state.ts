@@ -53,7 +53,7 @@ export class ArchiveState extends ArchiveBeats {
   cueAnalyzedTracks(): {
     videoId: string;
     title: string | null;
-    cues: Array<{ index: number; position: number; bar: number }>;
+    cues: { index: number; position: number; bar: number }[];
     source: string;
   }[] {
     return this.ledgers.cueAnalyzedTracks();

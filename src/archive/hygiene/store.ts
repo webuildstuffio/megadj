@@ -21,13 +21,16 @@ import {
   hydrateHygieneFinding,
   hygieneWhere,
   HYGIENE_ORDER_SQL,
+  type HygieneFindingRow,
 } from "../../../cratedeck/shared/hygiene";
-import type { HygieneFindingRow } from "../../../cratedeck/shared/hygiene";
 
 type Row = HygieneFindingRow;
 
 export class HygieneStore {
-  constructor(private db: Database) {
+  private readonly db: Database;
+
+  constructor(db: Database) {
+    this.db = db;
     db.exec(`
       CREATE TABLE IF NOT EXISTS hygiene_findings (
         id TEXT PRIMARY KEY,

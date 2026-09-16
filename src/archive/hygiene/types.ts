@@ -51,10 +51,10 @@ export interface CheckCtx {
   volume: string;
   /** the walk token these detections are stamped with */
   walkToken: string;
-  md5(path: string): string | null;
-  fp(path: string, size: number): string | null;
+  md5: (path: string) => string | null;
+  fp: (path: string, size: number) => string | null;
   /** ISO timestamp factory (injectable clock in tests) */
-  now(): string;
+  now: () => string;
 }
 
 /** Every check detector implements this one shape. Deterministic, ordered
@@ -65,7 +65,7 @@ export interface CheckCtx {
 export interface CheckDef {
   kind: FindingKind;
   defaultSeverity: Severity;
-  detect(files: ShelfFile[], ctx: CheckCtx): Finding[];
+  detect: (files: ShelfFile[], ctx: CheckCtx) => Finding[];
 }
 
 /** The uuid generator for finding ids (crypto.randomUUID at call sites —

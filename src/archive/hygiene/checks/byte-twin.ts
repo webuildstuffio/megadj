@@ -6,8 +6,13 @@
  * groups only — cheap and decisive, exactly the shelf-dupescan rule.
  */
 import { basename } from "node:path";
-import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
-import { baseFinding } from "../types";
+import {
+  baseFinding,
+  type CheckCtx,
+  type CheckDef,
+  type Finding,
+  type ShelfFile,
+} from "../types";
 import { nameSimilarity } from "./similarity";
 
 export const byteTwin: CheckDef = {

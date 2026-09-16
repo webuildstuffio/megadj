@@ -10,8 +10,13 @@
  * merged (a wrong merge renames real albums).
  */
 import { dirname, basename } from "node:path";
-import type { CheckCtx, CheckDef, Finding, ShelfFile } from "../types";
-import { baseFinding } from "../types";
+import {
+  baseFinding,
+  type CheckCtx,
+  type CheckDef,
+  type Finding,
+  type ShelfFile,
+} from "../types";
 import { nameSimilarityTokens } from "./similarity";
 
 /** Artist folder = the path segment directly under Contents/Artist/…

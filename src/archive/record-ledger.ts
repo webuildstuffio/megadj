@@ -14,10 +14,13 @@
 import type { Database, SQLQueryBindings } from "bun:sqlite";
 
 export class RecordLedger {
-  constructor(
-    protected readonly db: Database,
-    protected readonly now: () => string,
-  ) {}
+  protected readonly db: Database;
+  protected readonly now: () => string;
+
+  constructor(db: Database, now: () => string) {
+    this.db = db;
+    this.now = now;
+  }
 
   /** Idempotent upsert: a re-run replaces the row with fresh values and
    * a fresh timestamp. `columns` binds positional values in order. */

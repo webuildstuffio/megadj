@@ -46,7 +46,10 @@ export interface ShelfSweepRow {
 }
 
 export class ShelfSweeps {
-  constructor(private db: Database) {
+  private readonly db: Database;
+
+  constructor(db: Database) {
+    this.db = db;
     db.exec(`
       CREATE TABLE IF NOT EXISTS shelf_sweeps (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
