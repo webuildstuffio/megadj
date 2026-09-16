@@ -31,6 +31,7 @@ import {
   applyConfirmed,
   applyConfirmationRefusal,
   compensateRestore,
+  DECIMAL_ID_RE,
   isStringNumberPair,
   isStringPair,
   lastJsonLine,
@@ -117,6 +118,40 @@ const nonNegativeInteger = isNonNegativeInteger;
 
 const isKindPair = isStringNumberPair;
 
+/** Shorthand: `written_ids: string[]` with every entry a string. */
+const isStringList = (v: unknown): v is string[] =>
+  isUnknownArray(v) && v.every((id) => typeof id === "string");
+
+/** Decimal ids, unique — the write-acknowledgement rule. */
+function isUniqueDecimalIdList(ids: string[]): boolean {
+  return (
+    ids.every((id) => DECIMAL_ID_RE.test(id)) &&
+    new Set(ids).size === ids.length
+  );
+}
+
+/** Cross-field consistency checks over an already shape-valid payload —
+ *  the first failure wins, in the original throw order. Returns the
+ *  full error message to throw, or null when every check holds. */
+function restampConsistencyError(
+  output: RestampOutput,
+  apply: boolean,
+): string | null {
+  if (output.errors.length > 0) {
+    const detail = output.errors.map(([id, err]) => `${id}: ${err}`).join("; ");
+    return `rb-cues restamp transaction failed: ${detail}`;
+  }
+  if (apply && output.written !== output.found)
+    return `rb-cues restamped ${output.written}/${output.found} rows`;
+  if (output.writtenIds.length !== output.written)
+    return "rb-cues write acknowledgements are incomplete";
+  if (!apply && output.written !== 0)
+    return "rb-cues census mode unexpectedly wrote rows";
+  if (!isUniqueDecimalIdList(output.writtenIds))
+    return "rb-cues returned invalid or duplicate cue ids";
+  return null;
+}
+
 function parseRestampOutput(raw: string, apply: boolean): RestampOutput {
   const value = parseJsonBoundary(raw, "rb-cues restamp");
   if (
@@ -124,8 +159,7 @@ function parseRestampOutput(raw: string, apply: boolean): RestampOutput {
     !nonNegativeInteger(value.found) ||
     !nonNegativeInteger(value.written) ||
     !nonNegativeInteger(value.protected) ||
-    !isUnknownArray(value.written_ids) ||
-    !value.written_ids.every((id) => typeof id === "string") ||
+    !isStringList(value.written_ids) ||
     !isUnknownArray(value.errors) ||
     !value.errors.every(isStringPair)
   ) {
@@ -138,21 +172,8 @@ function parseRestampOutput(raw: string, apply: boolean): RestampOutput {
     writtenIds: value.written_ids,
     errors: value.errors,
   };
-  if (output.errors.length > 0)
-    throw new Error(
-      `rb-cues restamp transaction failed: ${output.errors.map(([id, detail]) => `${id}: ${detail}`).join("; ")}`,
-    );
-  if (apply && output.written !== output.found)
-    throw new Error(`rb-cues restamped ${output.written}/${output.found} rows`);
-  if (output.writtenIds.length !== output.written)
-    throw new Error("rb-cues write acknowledgements are incomplete");
-  if (!apply && output.written !== 0)
-    throw new Error("rb-cues census mode unexpectedly wrote rows");
-  if (
-    new Set(output.writtenIds).size !== output.writtenIds.length ||
-    output.writtenIds.some((id) => !/^(?:0|[1-9]\d*)$/u.test(id))
-  )
-    throw new Error("rb-cues returned invalid or duplicate cue ids");
+  const error = restampConsistencyError(output, apply);
+  if (error) throw new Error(error);
   return output;
 }
 
@@ -324,69 +345,10 @@ async function rbCuesWithRuntime(
   }
 
   if (apply) {
-    let backedUpTo: string;
-    try {
-      backedUpTo = deps.backup(dbPath);
-    } catch (error) {
-      return fail(errorText(error));
-    }
-
-    const compensate = (error: unknown): RbCuesResult => {
-      const detail = compensateRestore(deps, dbPath, backedUpTo, error);
-      return {
-        ...fail(detail),
-        backedUpTo,
-        verifyFailures: [detail],
-      };
-    };
-
-    try {
-      deps.assertClosed("rb-cues --apply");
-      const r = deps.spawn(
-        pyUvArgv({
-          script: restampScript(),
-          args: [dbPath, "apply", opts.mount],
-        }),
-        300_000,
-      );
-      if (r.status !== 0 || !r.stdout)
-        throw new Error(
-          `restamp failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
-        );
-      const output = parseRestampOutput(lastJsonLine(r.stdout), true);
-      deps.sleep(250);
-      deps.assertClosed("rb-cues verification");
-      const zeroCheck = deps.spawn(
-        pyUvArgv({ script: cueVerifyScript(), args: [dbPath] }),
-        120_000,
-        JSON.stringify(output.writtenIds),
-      );
-      if (zeroCheck.status !== 0 || !zeroCheck.stdout)
-        throw new Error(
-          `cue verification failed (exit ${String(zeroCheck.status)}): ${zeroCheck.stderr.slice(-300)}`,
-        );
-      const checked = parseVerifyOutput(lastJsonLine(zeroCheck.stdout));
-      validateVerification(output.writtenIds, checked);
-      log(
-        `re-read: ${checked.matched}/${checked.total} intended cue rows, ${checked.remaining} Kind=0 remaining`,
-      );
-      return {
-        command: "rb-cues",
-        db: dbPath,
-        mode,
-        found: output.found,
-        written: output.written,
-        gated: gatedFor(output.protected),
-        verifyFailures: [],
-        appliedMode: true,
-        backedUpTo,
-        ok: true,
-      };
-    } catch (error) {
-      return compensate(error);
-    }
+    return restampApplyLeg(opts, deps, dbPath, mode, fail, log);
   }
 
+  // Census (dry-run) leg: read-only probe of the incident signature.
   let result: CueCommandResult;
   try {
     result = deps.spawn(
@@ -422,6 +384,80 @@ async function rbCuesWithRuntime(
     backedUpTo: null,
     ok: true,
   };
+}
+
+/** The apply leg: dated backup → restamp → delayed re-read verify, with
+ *  compensation (restore) on any failure after the backup. Split out of
+ *  rbCuesWithRuntime so the mode dispatch stays readable. */
+function restampApplyLeg(
+  opts: RbCuesOptions,
+  deps: RbCuesRuntime,
+  dbPath: string,
+  mode: RbCuesMode,
+  fail: (msg: string) => RbCuesResult,
+  log: (s: string) => void,
+): RbCuesResult {
+  let backedUpTo: string;
+  try {
+    backedUpTo = deps.backup(dbPath);
+  } catch (error) {
+    return fail(errorText(error));
+  }
+
+  const compensate = (error: unknown): RbCuesResult => {
+    const detail = compensateRestore(deps, dbPath, backedUpTo, error);
+    return {
+      ...fail(detail),
+      backedUpTo,
+      verifyFailures: [detail],
+    };
+  };
+
+  try {
+    deps.assertClosed("rb-cues --apply");
+    const r = deps.spawn(
+      pyUvArgv({
+        script: restampScript(),
+        args: [dbPath, "apply", opts.mount],
+      }),
+      300_000,
+    );
+    if (r.status !== 0 || !r.stdout)
+      throw new Error(
+        `restamp failed (exit ${String(r.status)}): ${r.stderr.slice(-300)}`,
+      );
+    const output = parseRestampOutput(lastJsonLine(r.stdout), true);
+    deps.sleep(250);
+    deps.assertClosed("rb-cues verification");
+    const zeroCheck = deps.spawn(
+      pyUvArgv({ script: cueVerifyScript(), args: [dbPath] }),
+      120_000,
+      JSON.stringify(output.writtenIds),
+    );
+    if (zeroCheck.status !== 0 || !zeroCheck.stdout)
+      throw new Error(
+        `cue verification failed (exit ${String(zeroCheck.status)}): ${zeroCheck.stderr.slice(-300)}`,
+      );
+    const checked = parseVerifyOutput(lastJsonLine(zeroCheck.stdout));
+    validateVerification(output.writtenIds, checked);
+    log(
+      `re-read: ${checked.matched}/${checked.total} intended cue rows, ${checked.remaining} Kind=0 remaining`,
+    );
+    return {
+      command: "rb-cues",
+      db: dbPath,
+      mode,
+      found: output.found,
+      written: output.written,
+      gated: gatedFor(output.protected),
+      verifyFailures: [],
+      appliedMode: true,
+      backedUpTo,
+      ok: true,
+    };
+  } catch (error) {
+    return compensate(error);
+  }
 }
 
 export const __test = {

@@ -72,38 +72,37 @@ function repoRoot(): string | undefined {
   return r.ok ? r.stdout.trim() : undefined;
 }
 
-/** Count every budgeted code line in a commit's tree (0 when it cannot
- *  be read — the caller treats 0 as advisory). One `git cat-file
- *  --batch` over the tree's code blobs; read in latin1 so the framing
- *  parse is byte-accurate even when payloads contain NULs/UTF-8. */
-function treeLoc(commitish: string, root: string): number {
+/** Budgeted paths in a commit tree ([] when the tree cannot be read). */
+function treePaths(commitish: string): string[] {
   const ls = git(["ls-tree", "-r", "--name-only", commitish]);
-  if (!ls.ok) return 0;
-  const paths = ls.stdout
+  if (!ls.ok) return [];
+  return ls.stdout
     .split("\n")
     .map((p) => p.trim())
     .filter((p) => p.length > 0 && isBudgetedCode(p));
-  if (paths.length === 0) return 0;
+}
 
+/** One `git cat-file --batch` over `commitish:path` requests; returns
+ *  raw latin1 output (framing is byte-parsed by the caller) or null. */
+function batchBlobs(requests: string[], root: string): string | null {
   const batch = spawnSync("git", ["cat-file", "--batch"], {
     encoding: "latin1",
     maxBuffer: 256 * 1024 * 1024,
-    input: `${paths.map((p) => `${commitish}:${p}`).join("\n")}\n`,
+    input: `${requests.join("\n")}\n`,
     cwd: root,
   });
   if (batch.error !== undefined || batch.status !== 0 || batch.stdout === null)
-    return 0;
-  // --batch interleaves `<sha> blob <size>\n<payload>\n` records; parse
-  // sizes and slice payloads instead of relying on record framing.
+    return null;
+  return batch.stdout;
+}
+
+/** Sum the payload sizes of consecutive `<sha> blob <size>\n<payload>\n`
+ *  records — walk the byte stream, `countLines` each payload. */
+function sumBlobLoc(out: string, recordCount: number): number {
   let total = 0;
   let cursor = 0;
-  const out = batch.stdout;
-  // One blob record per requested path, in order — `record` is unused per
-  // iteration (framing is parsed from the byte stream), so consume the
-  // array with a while loop instead of an index loop (prefer-for-of).
-  const remaining = paths.length;
   let consumed = 0;
-  while (consumed < remaining) {
+  while (consumed < recordCount) {
     consumed += 1;
     const nl = out.indexOf("\n", cursor);
     if (nl === -1) break;
@@ -115,6 +114,21 @@ function treeLoc(commitish: string, root: string): number {
     cursor = nl + 1 + size + 1; // payload + trailing newline
   }
   return total;
+}
+
+/** Count every budgeted code line in a commit's tree (0 when it cannot
+ *  be read — the caller treats 0 as advisory). One `git cat-file
+ *  --batch` over the tree's code blobs; read in latin1 so the framing
+ *  parse is byte-accurate even when payloads contain NULs/UTF-8. */
+function treeLoc(commitish: string, root: string): number {
+  const paths = treePaths(commitish);
+  if (paths.length === 0) return 0;
+  const out = batchBlobs(
+    paths.map((p) => `${commitish}:${p}`),
+    root,
+  );
+  if (out === null) return 0;
+  return sumBlobLoc(out, paths.length);
 }
 
 function resolveCommit(rev: string, root: string): string | undefined {
@@ -134,53 +148,15 @@ function failAdvisory(reason: string): Verdict {
   };
 }
 
-function runGate(baselineArg: string | undefined): Verdict {
-  // Precedence: explicit argv > MEGADJ_LOC_BASELINE env (hook-friendly) >
-  // policy default day. Anything malformed degrades to advisory — the
-  // knob must never become a wedge.
-  const baselineDay =
-    baselineArg ?? process.env.MEGADJ_LOC_BASELINE ?? DEFAULT_BASELINE;
-  if (!/^\d{4}-\d{2}-\d{2}$/u.test(baselineDay)) {
-    return failAdvisory(`bad baseline date "${baselineDay}"`);
-  }
-  const root = repoRoot();
-  if (root === undefined) return failAdvisory("not inside a git repo");
-  process.chdir(root);
-
-  const stagedPaths =
-    git(["diff", "--cached", "--name-only", "--diff-filter=ACMR"]).stdout ?? "";
-  const files = stagedPaths
-    .split("\n")
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
-  if (files.length === 0) return { code: 0, summary: "" };
-  const codeFiles = files.filter((p) => isBudgetedCode(p));
-  if (codeFiles.length === 0) {
-    return { code: 0, summary: "" };
-  }
-
-  // Bypass: explicit, reasoned, audit-logged. GIT_SKIP_HOOKS skips every
-  // check; this flag skips ONLY the census gate.
-  const bypass = process.env.MEGADJ_LOC_BYPASS;
-  if (bypass !== undefined && bypass.trim().length > 0) {
-    try {
-      mkdirSync(dirname(join(root, AUDIT_LOG)), { recursive: true });
-      appendFileSync(
-        join(root, AUDIT_LOG),
-        `${new Date().toISOString()}\tbypass\treason=${bypass.trim()}\tfiles=${codeFiles.join(",")}\n`,
-      );
-    } catch {
-      // An unwritable audit log must not wedge a bypassed commit.
-    }
-    return {
-      code: 0,
-      summary:
-        "LOC-budget gate: BYPASSED (MEGADJ_LOC_BYPASS) — reason audit-logged",
-    };
-  }
-
+/** Added/deleted over budgeted code in the staged diff. Null rows are
+ *  binary/unresolvable — the caller degrades to advisory (fail soft). */
+function stagedCodeDelta(): {
+  added: number;
+  deleted: number;
+  parseFailed: boolean;
+} {
   const staged = git(["diff", "--cached", "--numstat", "--"]);
-  if (!staged.ok) return failAdvisory("git diff --cached failed");
+  if (!staged.ok) return { added: 0, deleted: 0, parseFailed: true };
   let added = 0;
   let deleted = 0;
   let parseFailed = false;
@@ -199,22 +175,79 @@ function runGate(baselineArg: string | undefined): Verdict {
     added += a;
     deleted += d;
   }
-  if (parseFailed) {
-    return failAdvisory("binary/unreadable staged rows — numbers partial");
-  }
+  return { added, deleted, parseFailed };
+}
 
-  const delta = added - deleted;
-  if (delta <= 0) {
-    return {
-      code: 0,
-      summary: `LOC-budget: OK — staged code delta ${delta >= 0 ? "+" : ""}${delta} (net reduction policy in force until ${LOC_TARGET.toLocaleString("en-US")} LOC)`,
-    };
+/** The bypass escape hatch: audit-log the reason, never block. An
+ *  unwritable audit log must not wedge a bypassed commit. */
+function bypassVerdict(root: string, codeFiles: string[]): Verdict {
+  try {
+    mkdirSync(dirname(join(root, AUDIT_LOG)), { recursive: true });
+    appendFileSync(
+      join(root, AUDIT_LOG),
+      `${new Date().toISOString()}\tbypass\treason=${(process.env.MEGADJ_LOC_BYPASS ?? "").trim()}\tfiles=${codeFiles.join(",")}\n`,
+    );
+  } catch {
+    // audit-log failure is advisory by design
   }
+  return {
+    code: 0,
+    summary:
+      "LOC-budget gate: BYPASSED (MEGADJ_LOC_BYPASS) — reason audit-logged",
+  };
+}
 
-  // Growth: compare the census against the baseline-day snapshot. Under
-  // the target with growth still allowed? No — policy says reduction
-  // until the target is HIT, so growth blocks unless the whole tree is
-  // already at/below target (then the gate retires itself quietly).
+/** The block verdict: the growth case, with the census numbers and the
+ *  two legitimate land-it paths spelled out. */
+function growthVerdict(
+  added: number,
+  deleted: number,
+  delta: number,
+  baselineDay: string,
+  headLoc: number,
+  baseLoc: number,
+  baselineCommit: string,
+): Verdict {
+  const vsBaseline = headLoc + delta - baseLoc;
+  const below = [
+    `staged code: +${added}/−${deleted} = net +${delta}`,
+    `census: ${headLoc.toLocaleString("en-US")} → ~${(headLoc + delta).toLocaleString("en-US")} (target ${LOC_TARGET.toLocaleString("en-US")})`,
+    `vs ${baselineDay} snapshot ${baselineCommit.slice(0, 7)} (${baseLoc.toLocaleString("en-US")}): ${vsBaseline >= 0 ? "+" : ""}${vsBaseline}`,
+  ];
+  return {
+    code: 1,
+    summary: [
+      "🛑 LOC-BUDGET: commit grows the code census — policy is NET REDUCTION",
+      `   until the census reaches ${LOC_TARGET.toLocaleString("en-US")} LOC (canvas: megadj-quality-trend).`,
+      ...below.map((l) => `   ${l}`),
+      "   Land it by pairing the growth with an equal-or-bigger deletion, or",
+      "   bypass ONCE with a reason (audit-logged, never silent):",
+      '     MEGADJ_LOC_BYPASS="reason: why growth is justified" git commit …',
+    ].join("\n"),
+  };
+}
+
+/** Extract the staged code-file set ([] when nothing code-budgeted is
+ *  staged). The caller returns "no work" on an empty set. */
+function stagedCodeFiles(): string[] {
+  const stagedPaths =
+    git(["diff", "--cached", "--name-only", "--diff-filter=ACMR"]).stdout ?? "";
+  return stagedPaths
+    .split("\n")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0 && isBudgetedCode(p));
+}
+
+/** The census comparison half of the gate: only reached when the staged
+ *  delta GROWS the census (policy is net reduction until the target).
+ *  Every unresolvable input degrades to advisory — never blocks. */
+function censusGrowthVerdict(
+  added: number,
+  deleted: number,
+  delta: number,
+  baselineDay: string,
+  root: string,
+): Verdict {
   const headCommit = resolveCommit("HEAD", root);
   if (headCommit === undefined) {
     return failAdvisory("HEAD unresolvable (fresh repo?)");
@@ -233,27 +266,62 @@ function runGate(baselineArg: string | undefined): Verdict {
       summary: `LOC-budget: OK — census ${headLoc.toLocaleString("en-US")} ≤ target ${LOC_TARGET.toLocaleString("en-US")}, gate retired`,
     };
   }
-  const baseLoc =
-    baselineCommit !== undefined ? treeLoc(baselineCommit, root) : headLoc;
+  const baseLoc = treeLoc(baselineCommit, root);
   if (baseLoc === 0) return failAdvisory("census unreadable at baseline");
+  return growthVerdict(
+    added,
+    deleted,
+    delta,
+    baselineDay,
+    headLoc,
+    baseLoc,
+    baselineCommit,
+  );
+}
 
-  const vsBaseline = headLoc + delta - baseLoc;
-  const below = [
-    `staged code: +${added}/−${deleted} = net +${delta}`,
-    `census: ${headLoc.toLocaleString("en-US")} → ~${(headLoc + delta).toLocaleString("en-US")} (target ${LOC_TARGET.toLocaleString("en-US")})`,
-    `vs ${baselineDay} snapshot ${baselineCommit.slice(0, 7)} (${baseLoc.toLocaleString("en-US")}): ${vsBaseline >= 0 ? "+" : ""}${vsBaseline}`,
-  ];
-  return {
-    code: 1,
-    summary: [
-      "🛑 LOC-BUDGET: commit grows the code census — policy is NET REDUCTION",
-      `   until the census reaches ${LOC_TARGET.toLocaleString("en-US")} LOC (canvas: megadj-quality-trend).`,
-      ...below.map((l) => `   ${l}`),
-      "   Land it by pairing the growth with an equal-or-bigger deletion, or",
-      "   bypass ONCE with a reason (audit-logged, never silent):",
-      '     MEGADJ_LOC_BYPASS="reason: why growth is justified" git commit …',
-    ].join("\n"),
-  };
+function runGate(baselineArg: string | undefined): Verdict {
+  // Precedence: explicit argv > MEGADJ_LOC_BASELINE env (hook-friendly) >
+  // policy default day. Anything malformed degrades to advisory — the
+  // knob must never become a wedge.
+  const baselineDay =
+    baselineArg ?? process.env.MEGADJ_LOC_BASELINE ?? DEFAULT_BASELINE;
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(baselineDay)) {
+    return failAdvisory(`bad baseline date "${baselineDay}"`);
+  }
+  const root = repoRoot();
+  if (root === undefined) return failAdvisory("not inside a git repo");
+  process.chdir(root);
+
+  const codeFiles = stagedCodeFiles();
+  if (codeFiles.length === 0) {
+    return { code: 0, summary: "" };
+  }
+
+  // Bypass: explicit, reasoned, audit-logged. GIT_SKIP_HOOKS skips every
+  // check; this flag skips ONLY the census gate.
+  const bypass = process.env.MEGADJ_LOC_BYPASS;
+  if (bypass !== undefined && bypass.trim().length > 0) {
+    return bypassVerdict(root, codeFiles);
+  }
+
+  const { added, deleted, parseFailed } = stagedCodeDelta();
+  if (parseFailed) {
+    return failAdvisory("binary/unreadable staged rows — numbers partial");
+  }
+
+  const delta = added - deleted;
+  if (delta <= 0) {
+    return {
+      code: 0,
+      summary: `LOC-budget: OK — staged code delta ${delta >= 0 ? "+" : ""}${delta} (net reduction policy in force until ${LOC_TARGET.toLocaleString("en-US")} LOC)`,
+    };
+  }
+
+  // Growth: compare the census against the baseline-day snapshot. Under
+  // the target with growth still allowed? No — policy says reduction
+  // until the target is HIT, so growth blocks unless the whole tree is
+  // already at/below target (then the gate retires itself quietly).
+  return censusGrowthVerdict(added, deleted, delta, baselineDay, root);
 }
 
 function selfTest(): number {
