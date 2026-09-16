@@ -88,7 +88,7 @@ function treeLoc(commitish: string, root: string): number {
   const batch = spawnSync("git", ["cat-file", "--batch"], {
     encoding: "latin1",
     maxBuffer: 256 * 1024 * 1024,
-    input: paths.map((p) => `${commitish}:${p}`).join("\n") + "\n",
+    input: `${paths.map((p) => `${commitish}:${p}`).join("\n")}\n`,
     cwd: root,
   });
   if (batch.error !== undefined || batch.status !== 0 || batch.stdout === null)
@@ -98,9 +98,15 @@ function treeLoc(commitish: string, root: string): number {
   let total = 0;
   let cursor = 0;
   const out = batch.stdout;
-  for (let i = 0; i < paths.length; i++) {
+  // One blob record per requested path, in order — `record` is unused per
+  // iteration (framing is parsed from the byte stream), so consume the
+  // array with a while loop instead of an index loop (prefer-for-of).
+  const remaining = paths.length;
+  let consumed = 0;
+  while (consumed < remaining) {
+    consumed += 1;
     const nl = out.indexOf("\n", cursor);
-    if (nl < 0) break;
+    if (nl === -1) break;
     const header = out.slice(cursor, nl);
     const size = Number.parseInt(header.split(" ").pop() ?? "", 10);
     if (!Number.isFinite(size) || size < 0) break;

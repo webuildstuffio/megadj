@@ -11,6 +11,7 @@
  * USB drive between runs (or `sudo purge` on the internal SSD).
  */
 import { readdir, stat } from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import { createHash } from "node:crypto";
 
 const DIR =
@@ -19,7 +20,7 @@ const DIR =
   `${process.env.HOME}/Music/DJ-Imports`;
 
 async function walkCollect(dir: string, out: string[] = []): Promise<string[]> {
-  let entries: import("node:fs").Dirent[];
+  let entries: Dirent[];
   try {
     entries = await readdir(dir, { withFileTypes: true });
   } catch {

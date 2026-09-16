@@ -14,10 +14,10 @@ export interface DeckctlOutputOptions {
 }
 
 export interface DeckctlOutput {
-  emitJson(payload: unknown): Promise<void>;
-  flushStdout(): Promise<void>;
-  log(message: string): void;
-  errOut(message: string): Promise<void>;
+  emitJson: (payload: unknown) => Promise<void>;
+  flushStdout: () => Promise<void>;
+  log: (message: string) => void;
+  errOut: (message: string) => Promise<void>;
 }
 
 export function createDeckctlOutput(
@@ -31,7 +31,15 @@ export function createDeckctlOutput(
   const emitJson = async (payload: unknown): Promise<void> => {
     await write(`${JSON.stringify(payload, null, 2)}\n`);
   };
-  const flushStdout = (): Promise<void> => write("").then(() => undefined);
+  // Flush via process.stdout.write("") — NEVER write(fd, ""). An empty
+  // Bun.write to a file-redirected stdout TRUNCATES everything already
+  // buffered (verified Bun 1.3.14: `deckctl help --json > f` produced a
+  // 0-byte file); process.stdout's no-op write is the harmless drain.
+  // Same contract as src/shared/cli-output.ts drainStdout (megadj side).
+  const flushStdout = (): Promise<void> =>
+    new Promise((resolve) => {
+      process.stdout.write("", () => resolve());
+    });
   const log = (message: string): void => {
     if (!options.jsonMode) logLine(message);
   };

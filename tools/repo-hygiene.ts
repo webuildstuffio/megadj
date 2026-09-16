@@ -1,5 +1,7 @@
 /** Fail the local quality gate when Git tracks a path its ignore policy forbids. */
 
+import { writeJson } from "../src/shared/cli-output";
+
 export interface RepoHygieneResult {
   ok: boolean;
   trackedIgnored: string[];
@@ -30,7 +32,10 @@ if (import.meta.main) {
   const result = repoHygiene();
   const json = process.argv.includes("--json");
   if (json) {
-    console.log(JSON.stringify({ command: "repo-hygiene", ...result }));
+    // The awaited writeJson seam (#159/#53): a raw console.log here is
+    // fire-and-forget — on a piped/file consumer the process can exit
+    // before the tail flushes, truncating the summary JSON.
+    await writeJson({ command: "repo-hygiene", ...result });
   } else if (result.ok) {
     console.log("repo hygiene: clean (no tracked files match ignore policy)");
   } else {

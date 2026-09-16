@@ -14,10 +14,8 @@ import {
   validatePatch,
   walkAudioFiles,
   writePatchSync,
-  canonGenre as ftCanonGenre,
   type TagPatch,
 } from "../fulltags/src/exports";
-
 export const home = process.env.HOME!;
 export const ARCH = process.env.MEGADJ_MUSIC_DIR ?? `${home}/Music/DJ-Imports`;
 export const QUEUE = `${home}/.local/state/megadj/artwork-queue.jsonl`;
@@ -90,8 +88,6 @@ export async function fetchImage(url: string): Promise<Uint8Array | null> {
   return ftFetchImage(url);
 }
 
-export { ftCanonGenre as canonGenre };
-
 /** Embed art bytes as the front cover — FullTags writer. */
 export function embedArt(p: string, bytes: Uint8Array): boolean {
   return ftEmbedArt(p, bytes);
@@ -143,6 +139,7 @@ export {
   pageOgImage,
   scSearch,
   twinArt,
+  canonGenre,
 } from "../fulltags/src/exports";
 
 // ---------- Beatport (second source, behind SC — fulltags/src/beatport.ts) ----------

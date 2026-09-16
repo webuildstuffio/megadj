@@ -133,7 +133,53 @@ test("#44: deckctl output flushes complete JSON and never logs in JSON mode", as
   await output.flushStdout();
 
   expect(lines).toEqual([]);
-  expect(writes).toEqual(['{\n  "healthy": true\n}\n', ""]);
+  // The flush rides process.stdout (never the injected write sink — an
+  // injected sink must not be re-written to with a "" payload, and the
+  // real flush must be the harmless process.stdout drain, not an empty
+  // Bun.write which truncates file-redirected output).
+  expect(writes).toEqual(['{\n  "healthy": true\n}\n']);
+});
+
+test("#159-class: flushStdout never truncates file-redirected stdout", async () => {
+  // The Sep 15 regression class: Bun.write(Bun.stdout, "") wipes buffered
+  // bytes when stdout is a FILE (piped consumers were safe — only the
+  // redirect topology truncated, so the pipe-only spawn tests stayed
+  // green while `deckctl <verb> --json > out.json` produced 0 bytes).
+  // Pin the repair with a real file redirect.
+  const {
+    mkdtempSync: mkdtemp,
+    readFileSync,
+    openSync,
+    closeSync,
+  } = await import("node:fs");
+  const { tmpdir: sysTmpdir } = await import("node:os");
+  const { join: pathJoin } = await import("node:path");
+  const { execFileSync } = await import("node:child_process");
+  const dir = mkdtemp(pathJoin(sysTmpdir(), "deckctl-flush-"));
+  const out = pathJoin(dir, "out.json");
+  const fd = openSync(out, "w");
+  try {
+    execFileSync(
+      "bun",
+      [
+        "-e",
+        [
+          "const { createDeckctlOutput } = await import(process.argv[2]);",
+          "const o = createDeckctlOutput({ jsonMode: true });",
+          'await o.emitJson({ probe: "x".repeat(5000) });',
+          "await o.flushStdout();",
+        ].join("\n"),
+        "-",
+        join(import.meta.dir, "..", "src", "deckctl_output.ts"),
+      ],
+      { stdio: ["ignore", fd, "ignore"] },
+    );
+  } finally {
+    closeSync(fd);
+  }
+  const text = readFileSync(out, "utf8");
+  const parsed = JSON.parse(text) as { probe: string };
+  expect(parsed.probe.length).toBe(5000);
 });
 
 class TestLedgerReader extends ArchiveLedgerReader {
