@@ -19,7 +19,7 @@ import {
   triageRow,
   type MasterRow,
 } from "./grid-triage";
-import { buildAnlz, parseAnlzGrid } from "../../fulltags/src/anlz";
+import { buildAnlz, parseAnlzGrid } from "../../fulltags/src/exports";
 
 // ---- fixtures -------------------------------------------------------------
 

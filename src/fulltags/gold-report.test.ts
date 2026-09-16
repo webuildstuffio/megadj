@@ -12,7 +12,7 @@ import { goldReport, predictedPhraseBars } from "./gold-report";
 import {
   GOLD_SCHEMA_VERSION,
   type GoldAnnotation,
-} from "../../fulltags/src/gold";
+} from "../../fulltags/src/exports";
 
 /**
  * A valid annotation used to exercise the corrupt/valid loader split in

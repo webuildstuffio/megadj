@@ -39,7 +39,7 @@ import {
   type GoldAnnotation,
   type GoldMetrics,
   type GoldTrackScore,
-} from "../../fulltags/src/gold";
+} from "../../fulltags/src/exports";
 
 /** blake2b256 hex of a file — the same fingerprint the gold set keys
  * annotations by. Null when the file is missing/unreadable (the track

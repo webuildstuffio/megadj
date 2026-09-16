@@ -3,12 +3,12 @@ import {
   goldDir,
   loadGoldSet,
   type GoldAnnotation,
-} from "../../fulltags/src/gold";
+} from "../../fulltags/src/exports";
 import {
   runRegate,
   type GateResult,
   type GateObservation,
-} from "../../fulltags/src/gates";
+} from "../../fulltags/src/exports";
 
 export interface RegateResult {
   command: "regate";

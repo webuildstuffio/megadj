@@ -6,10 +6,10 @@ import { basename, dirname, join } from "node:path";
 import { existsSync, renameSync } from "node:fs";
 import {
   cp1252Bytes,
+  hasControlChars,
   writePatchSync,
   type TextCompatResult,
 } from "../../fulltags/src/exports";
-import { hasControlChars } from "../../fulltags/src/booth-text";
 import type { BoothFixRow } from "./booth-fix-types";
 
 /** One applied fix (counter + log line for the run summary). */

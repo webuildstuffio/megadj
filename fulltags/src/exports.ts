@@ -114,3 +114,30 @@ export {
   titleOverlap,
   ARTIST_MIN_LEN,
 } from "./name-match";
+export {
+  analyzeBeats,
+  foldTempo,
+  gridAuditFull,
+  type BeatResult,
+} from "./analysis";
+export { mbGenreForArtist } from "./mb";
+export {
+  aggregateScores,
+  goldDir,
+  GOLD_SCHEMA_VERSION,
+  loadGoldSet,
+  splitGoldSet,
+  scoreGoldTrack,
+  type GoldAnnotation,
+  type GoldMetrics,
+  type GoldSet,
+  type GoldSplit,
+  type GoldTrackScore,
+} from "./gold";
+export {
+  buildAnlz,
+  parseAnlzGrid,
+  parseAnlzInventory,
+  type AnlzGrid,
+  type AnlzInventory,
+} from "./anlz";

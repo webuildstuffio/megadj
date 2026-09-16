@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
-import { analyzeBeats, foldTempo } from "../../fulltags/src/analysis";
+import { analyzeBeats, foldTempo } from "../../fulltags/src/exports";
 import type { ArchiveState, TrackRow } from "../archive/state";
 import { commandLog } from "../progress";
 

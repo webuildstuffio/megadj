@@ -13,7 +13,7 @@ import { $ } from "bun";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildAnlz } from "../../fulltags/src/anlz";
+import { buildAnlz } from "../../fulltags/src/exports";
 
 const TEST_ROOT = mkdtempSync(join(tmpdir(), "megadj-maintenance-test-"));
 const TEST_SPIKE_DIR = join(TEST_ROOT, "spike");

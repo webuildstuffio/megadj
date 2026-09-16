@@ -39,7 +39,7 @@ import { errorText } from "../shared/error-text";
 import type { Dirent } from "node:fs";
 import { join, basename } from "node:path";
 import { createHash } from "node:crypto";
-import { parseAnlzInventory } from "../../fulltags/src/anlz";
+import { parseAnlzInventory } from "../../fulltags/src/exports";
 
 export type AnlzSpikeMode = "snapshot" | "compare";
 

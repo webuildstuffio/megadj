@@ -20,7 +20,7 @@ import {
   playerCompat,
   isHiresOnly,
 } from "../../fulltags/src/exports";
-import { wavToAiff } from "../../fulltags/src/convert";
+import { wavToAiff } from "../../fulltags/src/exports";
 import { fetchAndEmbedArtwork } from "../getdat/commands/ingest-art";
 import { flushArtworkQueue } from "../getdat/commands/ingest-art";
 import type { QueueEntry } from "../getdat/commands/queue";
