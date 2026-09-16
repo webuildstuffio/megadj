@@ -65,7 +65,7 @@ function relativeLoserPath(f: Finding): string | null {
   if (!loser) return null;
   const marker = "/Contents/";
   const at = loser.indexOf(marker);
-  return at >= 0 ? loser.slice(at + marker.length) : basename(loser);
+  return at !== -1 ? loser.slice(at + marker.length) : basename(loser);
 }
 
 function destinationFor(f: Finding, into?: string): string | null {

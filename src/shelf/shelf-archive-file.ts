@@ -14,7 +14,7 @@ import {
 } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { md5FileChunked } from "../shared/hash";
-import { ShelfIndex, landingPath } from "./shelf-index";
+import { landingPath, type ShelfIndex } from "./shelf-index";
 import { isJunkDir, isSkippedName, key } from "./shelf-match";
 import { errorText } from "../shared/error-text";
 

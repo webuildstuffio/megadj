@@ -25,7 +25,7 @@ export interface VerdictTally {
 
 /** Narrow filesystem seam for deterministic rename-failure tests. */
 export interface DedupeApplyOps {
-  rename(from: string, to: string): void;
+  rename: (from: string, to: string) => void;
 }
 
 const DEFAULT_APPLY_OPS: DedupeApplyOps = { rename: renameSync };

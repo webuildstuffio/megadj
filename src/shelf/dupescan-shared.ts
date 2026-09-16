@@ -13,10 +13,12 @@ import type { Database } from "bun:sqlite";
  *  new/changed files). Table name is the caller's concern so each
  *  command keeps its own cache namespace. */
 export class DupFpCache {
-  constructor(
-    private db: Database,
-    private table: string,
-  ) {
+  private readonly db: Database;
+  private readonly table: string;
+
+  constructor(db: Database, table: string) {
+    this.db = db;
+    this.table = table;
     db.exec(`
       CREATE TABLE IF NOT EXISTS ${table} (
         path TEXT PRIMARY KEY,

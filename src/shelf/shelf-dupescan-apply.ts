@@ -6,8 +6,7 @@
 // (byte-equal); (2) losers move to quarantine, never deleted; (3) collisions
 // in quarantine abort that file, not the run.
 import { basename } from "node:path";
-import type { DupGroup } from "./dupescan-shared";
-import { moveLoser } from "./dupescan-shared";
+import { moveLoser, type DupGroup } from "./dupescan-shared";
 import { nameSimilarity } from "../archive/hygiene/checks/similarity";
 import { md5Cli } from "./md5-cli";
 

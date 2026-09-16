@@ -5,9 +5,7 @@
 
 /** NFC + casefold key lives in shared/name-key (issue #67 SSOT);
  *  re-exported here so the shelf commands keep their import shape. */
-import { nameKey as key } from "../shared/name-key";
-
-export { key };
+export { nameKey as key } from "../shared/name-key";
 
 /** Junk that must never count as content (the AppleDouble trap). */
 export function isJunk(name: string): boolean {
