@@ -70,10 +70,14 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // parseJsonBoundary twin in rb-dedup.ts is gone; the parse module
     // calls the rb-command-kit guarded seam, so one JSON.parse left
     // the audited surface. sanctioned 16 unchanged.
+    // Sep 16 (#185): digest changed — fulltags/src/verify-key.ts adds
+    // one GUARDED parse (the --refs map read: try/JSON.parse/catch
+    // rethrow with cause; the old standalone harness never appeared in
+    // this census because it was not under a production root).
     audited: 59,
     guarded: 43,
     sanctioned: 16,
-    digest: "a4b398ba262f80cace38d6efa0d6ab6acaf2e5c15f07f26c8438d1f23daa85cc",
+    digest: "0512af1d6bfb90315965dab8e8f6e6e593312b8346403efd39fe4eb8445a7269",
   });
 });
 

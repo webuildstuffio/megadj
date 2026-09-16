@@ -6,6 +6,8 @@
  *   bun run fulltags/cli.ts <file-or-folder>          [flags]
  *   fulltags audit <folder>                           completeness gate
  *   fulltags single <file> --title T --artist A ...   one file with hints
+ *   fulltags verify-key <folder> [--limit N] [--refs m.json] [--json]
+ *                                                     key gauntlet gate
  *
  * flags:
  *   --tags --genre --art --year --energy   run only these stages (repeatable)
@@ -43,6 +45,8 @@ function printHelp(): void {
 usage:
   fulltags <file-or-folder> [flags]      fill every missing field
   fulltags audit <folder> [--json]       ground-truth completeness gate
+  fulltags verify-key <folder> [--limit N] [--refs m.json] [--json]
+                                         key gauntlet gate (≥80% required)
 
 stages: --tags --genre --art --year --energy --fingerprint --bpm --key --mood
         (default: all; analysis stages need fpcalc / beat-this / the
@@ -50,6 +54,11 @@ stages: --tags --genre --art --year --energy --fingerprint --bpm --key --mood
         auto-downloaded on first --mood use) — missing envs skip with a note)
 more:   --jobs N · --dry-run · --upgrade-sc-art · --archive-dir DIR
         --artwork-queue PATH | --no-queue · --json
+
+verify-key: compares OpenKeyScan keys against existing tags (or a --refs
+        JSON map {basename: "Ebm"} — e.g. rekordbox master.db ScaleName via
+        pyrekordbox) and FAILS (exit 1) below 80% exact agreement — run it
+        BEFORE any batch key write (roadmap #3 gauntlet).
 
 env: OPENROUTER_API_KEY (AI genre/year fallback) · artwork queue appends to
      ~/.local/state/megadj/artwork-queue.jsonl so \`megadj artwork\` can pick up`);
@@ -86,9 +95,11 @@ function parseArgs(argv: string[]): CliArgs {
     hints: {},
   };
   const stages = new Set<Stage>();
-  // `audit` and `single` are subcommands, not targets — skip them during
-  // target pickup (`single` is the documented per-file hint entrypoint).
-  const skipFirst = argv[0] === "audit" || argv[0] === "single";
+  // `audit`, `single`, and `verify-key` are subcommands, not targets —
+  // skip them during target pickup (`single` is the documented per-file
+  // hint entrypoint; verify-key consumes its own argv via parseVerifyKeyArgs).
+  const skipFirst =
+    argv[0] === "audit" || argv[0] === "single" || argv[0] === "verify-key";
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a) continue;
@@ -160,6 +171,38 @@ async function main(): Promise<void> {
       console.error("models still missing after download — check disk space");
       process.exitCode = 1;
     }
+    return;
+  }
+
+  // fulltags verify-key — the roadmap #3 gauntlet gate (#185): OpenKeyScan
+  // vs existing tags, ≥80% exact agreement or exit 1 (no batch key write).
+  if (argv[0] === "verify-key") {
+    const { parseVerifyKeyArgs, runVerifyKey, printVerifyKeyReport } =
+      await import("./src/verify-key");
+    const vk = parseVerifyKeyArgs(argv.slice(1));
+    if (vk.error || !vk.targets.length) {
+      if (vk.error) console.error(vk.error);
+      console.error(
+        "usage: fulltags verify-key <folder|files...> [--limit 20] [--refs map.json] [--json]",
+      );
+      process.exitCode = 2;
+      return;
+    }
+    let summary: Awaited<ReturnType<typeof runVerifyKey>> | null = null;
+    try {
+      summary = await runVerifyKey({
+        targets: vk.targets,
+        limit: vk.limit,
+        refsPath: vk.refsPath,
+      });
+      if (vk.json) console.log(JSON.stringify(summary, null, 2));
+      else printVerifyKeyReport(console.log, summary);
+    } catch (e) {
+      console.error((e as Error).message);
+      process.exitCode = 2;
+      return;
+    }
+    if (!summary.gatePass) process.exitCode = 1;
     return;
   }
 

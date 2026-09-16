@@ -24,7 +24,7 @@
       "entry": [
         "src/index-all.ts",
         "src/fetch-pipeline.ts",
-        "verify-key.ts",
+        "src/verify-key.ts",
         "test/*.test.ts",
         "test/helpers/*.ts"
       ],
@@ -34,7 +34,6 @@
     "cratedeck": {
       "entry": [
         "src/deckctl.ts",
-        "src/bench.ts",
         "src/mcp.ts",
         "test/*.test.ts",
         "shared/types.ts"

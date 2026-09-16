@@ -181,12 +181,6 @@ export async function checksumLedger(
   return { hashed, changed, bytes_hashed: bytesHashed };
 }
 
-export async function hashFile(path: string): Promise<string> {
-  // (was sync readFileSync; nothing calls it in-repo — kept as a thin
-  // alias of the async streaming hasher so external callers stay correct)
-  return hashFileAsync(path);
-}
-
 /** Async variant so long hash runs never block the HTTP/SSE event loop.
  *  Throws on cancellation — the caller must NOT persist a digest of the
  *  partial bytes as the file's known-good fingerprint (a poisoned baseline

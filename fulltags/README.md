@@ -35,13 +35,13 @@ fulltags <folder> --fingerprint      chromaprint fingerprint → TXXX:ACOUSTID (
 fulltags <folder> --bpm              beat_this tempo → TBPM (uv-managed env; ~1 s/track CPU)fulltags <folder> --key              OpenKeyScan key → TKEY + TXXX:CAMELOT (clone the analyzer repo)
 fulltags <folder> --mood             Essentia ONNX mood/dance/valence → TXXX:MOOD (~320 MB models, auto-downloaded once)
 fulltags ensure-models               pre-download the mood model set (~320 MB → ~/.local/share/fulltags-models)
-bun run fulltags/verify-key.ts <folder> --limit 20   # key gauntlet gate: ≥80% vs existing tags
+fulltags verify-key <folder> --limit 20   # key gauntlet gate: ≥80% vs existing tags
 ```
 
 Key-stage operational gauntlet (before any library-wide run): disable
 rekordbox Key analysis (it overwrites imported keys), batch-write, Reload
-Tags in RB, then run `verify-key.ts` against tracks with existing MIK/RB
-keys — require ≥80% exact agreement. BPM stage: compare against
+Tags in RB, then run `fulltags verify-key` against tracks with existing
+MIK/RB keys — require ≥80% exact agreement. BPM stage: compare against
 rekordbox-reanalyzed grids; flag disagreements > 2%.
 
 ## 🧩 Why a sub-project
@@ -57,9 +57,9 @@ shim history without keeping obsolete paths in current documentation.
 
 ```
 fulltags/
-  cli.ts                 CLI entry (enrich + audit + single + ensure-models subcommands)
-  verify-key.ts          the key gauntlet gate (≥80% vs existing MIK/RB keys)
+  cli.ts                 CLI entry (enrich + audit + single + ensure-models + verify-key)
   src/
+    verify-key.ts        the key gauntlet gate (`fulltags verify-key`, ≥80% vs existing MIK/RB keys)
     schema.ts            FullTag / TagPatch types, genre canon + vocabulary
     schema-guards.ts     validatePatch (runtime guards before any write)
     writer.ts            ONE write surface: writePatch / applyTags / embedArt

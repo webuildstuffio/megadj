@@ -312,8 +312,9 @@ next action is a command you can run.**
 - Analysis stages (`fulltags --fingerprint|--bpm|--key`): chromaprint →
   `TXXX:ACOUSTID`, beat_this → `TBPM` (70–180 folded), OpenKeyScan →
   `TKEY`+`TXXX:CAMELOT`. All offline, idempotent by existing-stamp skip,
-  env-missing → skip with a note. `fulltags/verify-key.ts` gate harness,
-  now also `--refs map.json` for external reference keys (rekordbox
+  env-missing → skip with a note. `fulltags verify-key` gate verb (#185,
+  part of the fulltags CLI), also `--refs map.json` for external
+  reference keys (rekordbox
   master.db ScaleName via pyrekordbox — the normal case, since archive
   files carry no key tags yet).
 - **Beats ledger (rev 6):** `megadj beats` analyzes every downloaded
@@ -622,7 +623,7 @@ those ledgers are populated rather than manufacturing a pass.
    archive without a measured agreement number in this doc.
 3. **Verifier scarcity — now solved for this library.** RB's master.db
    (3092 Content rows, KeyID on 100%, BPM on ~97%) is the reference set;
-   `verify-key.ts --refs` + the x100 BPM extraction snippet are
+   `fulltags verify-key --refs` + the x100 BPM extraction snippet are
    reproducible. New analysis stages get gates the same way, same data.
 4. **License asymmetry** — Essentia models + MuQ are non-commercial.
    Fine for a personal archive; a wall for any future public/commercial
