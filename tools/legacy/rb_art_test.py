@@ -8,7 +8,7 @@ from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
-from tools import rb_art
+from tools.legacy import rb_art
 
 
 class RbArtTargetSafetyTest(unittest.TestCase):

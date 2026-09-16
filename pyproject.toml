@@ -7,17 +7,23 @@ dependencies = [
   "mypy>=1.11",
   "ruff>=0.6",
   "mutagen>=1.47",
+  # emb_benchmark (tools/) imports numpy at module scope; mypy needs it
+  # resolvable to check that file. 2.x is deliberate: its bundled stubs
+  # use PEP 695 `type` statements, which require python_version >= 3.12.
+  "numpy>=2.0",
 ]
 
 [tool.mypy]
 strict = true
-python_version = "3.11"
+python_version = "3.12"
 warn_unreachable = true
 pretty = true
 cache_dir = "node_modules/.cache/mypy"
 # tools/legacy is dormant (rb_art.py retired behind the WAV→AIFF intake
-# converter, issue #101) — gate-covered code is cratedeck/python only.
-files = ["cratedeck/python"]
+# converter, issue #101). Gate-covered code: cratedeck/python (device-DB
+# seams) + tools (the embedding benchmark harness; its unittest rides
+# test:py).
+files = ["cratedeck/python", "tools"]
 
 [tool.ruff]
 line-length = 100

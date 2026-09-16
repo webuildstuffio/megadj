@@ -60,7 +60,9 @@ def chunks(frames: FloatArray, size: int) -> FloatArray:
 
 
 def audio(path: str, rate: int = 16000) -> FloatArray:
-    from essentia.standard import MonoLoader
+    # essentia ships no type stubs and is a --with-only runtime dep; mypy
+    # would flag every lazy import (import-untyped under strict mode).
+    from essentia.standard import MonoLoader  # type: ignore[import-not-found]
 
     return np.asarray(
         MonoLoader(filename=path, sampleRate=rate, resampleQuality=4)(),
@@ -291,7 +293,7 @@ def main() -> None:
     if args.k < 1:
         parser.error("--k must be at least 1")
 
-    import onnxruntime as ort
+    import onnxruntime as ort  # type: ignore[import-not-found]
 
     prov = ["CPUExecutionProvider"]
 
