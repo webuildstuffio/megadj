@@ -70,6 +70,14 @@ type Handler = (req: Request, url: URL) => Response | Promise<Response>;
  *  `deckctl status --json` prints. */
 function metaRoutes(deps: ApiDeps): Record<string, Handler> {
   const { db, registry, jobs, json, sse, stopServer } = deps;
+  /** SSE job-event stream. 406 (was fall-through 404 pre-#42) when the
+   *  client doesn't ask for event-stream — a plain GET is a client bug,
+   *  and 406 says so instead of masquerading as a missing route. */
+  const eventsHandler: Handler = (req) => {
+    if (!req.headers.get("accept")?.includes("event-stream"))
+      return json({ error: "text/event-stream required" }, 406);
+    return sse();
+  };
   return {
     "/status": async () =>
       json({
@@ -97,11 +105,10 @@ function metaRoutes(deps: ApiDeps): Record<string, Handler> {
     "/ports": () => json(portView(db.allDrives())),
     "/search": (_req, url) =>
       json(registry.search(url.searchParams.get("q") ?? "")),
-    "/events": (req) => {
-      if (!req.headers.get("accept")?.includes("event-stream"))
-        return json({ error: "text/event-stream required" }, 406);
-      return sse();
-    },
+    "/events": eventsHandler,
+    // trailing-slash spelling kept (base matched both; hand-written
+    // clients use either) — same handler, same 406 negotiation.
+    "/events/": eventsHandler,
     "/stop": (req) => {
       if (req.method !== "POST") return json({ error: "POST only" }, 405);
       // graceful: stop watcher + jobs, then exit (used by deckctl stop)
@@ -139,22 +146,17 @@ function boothRoutes(deps: ApiDeps): Record<string, Handler> {
   };
 }
 
-/** Job census + per-job reads + cancel. */
+/** Job census + per-job reads + cancel. /jobs/:id(/cancel) is matched by
+ *  the jobMatch regex in makeApiRouter — exact-table keys can't carry
+ *  path params, so only the census route lives here. */
 function jobRoutes(deps: ApiDeps): Record<string, Handler> {
-  const { db, jobs, json } = deps;
+  const { db, json } = deps;
   return {
     "/jobs": (_req, url) => {
       const active = url.searchParams.get("active");
       const drive = url.searchParams.get("drive");
       if (drive) return json(db.jobsForDrive(drive, 20, Boolean(active)));
       return json(active ? db.activeJobs() : db.jobsForDrive("*", 50));
-    },
-    "/jobs/:id": (req, url) => {
-      const m = /\/jobs\/([^/]+)(\/cancel)?$/.exec(url.pathname.slice(4));
-      const id = m?.[1];
-      if (!id) return json({ error: "not found" }, 404);
-      if (m[2] && req.method === "POST") return json({ ok: jobs.cancel(id) });
-      return json(db.getJob(id));
     },
   };
 }

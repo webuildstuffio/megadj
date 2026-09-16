@@ -12,6 +12,7 @@ fails the build on it.
 ## Revision history
 
 - rev-25 (2026-09-15): MegaSet rename — verb/route/tool renamed (`megadj megaset`, `/api/archive/megaset`, `megaset_propose`); census unchanged.
+- rev-26 (2026-09-16): #42 split — `/api` dispatch moved to `api_routes.ts` (census reads its exact-table keys); `/events/` trailing-slash spelling restored + 406 negotiation pinned by e2e. 63 → 64 routes (the restored alias).
 
 The full prose of all 27 revisions lives in Git history
 (`git log --follow -- docs/surface-parity.md`) per §5 — this doc keeps
@@ -37,7 +38,7 @@ deliberate exemptions are in §4. Historical repair details belong in
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 45 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
 | MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 41 tools               |
-| HTTP API   | `cratedeck/src/index.ts` (localhost:7742)                   | 63 routes              |
+| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742) | 64 routes              |
 | Web UI     | `cratedeck/web/` (hash-routed pages)                        | 6 pages, ~22 actions   |
 
 The server's HTTP API is the **fourth surface** and the seam everything

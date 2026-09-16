@@ -105,6 +105,23 @@ describe("cratedeck e2e", () => {
     expect(typeof body?.rekordbox_running).toBe("boolean");
   });
 
+  it("SSE negotiation: plain GET → 406, event-stream Accept → 200 stream", async () => {
+    // The events route is table-dispatched since the #42 split; both
+    // spellings (with/without trailing slash) must behave identically —
+    // base matched "/events" and "/events/" before the split.
+    for (const path of ["/events", "/events/"]) {
+      const plain = await fetch(`http://127.0.0.1:${PORT}/api${path}`);
+      expect(plain.status, `${path} without Accept`).toBe(406);
+      await plain.body?.cancel();
+      const sse = await fetch(`http://127.0.0.1:${PORT}/api${path}`, {
+        headers: { Accept: "text/event-stream" },
+      });
+      expect(sse.status, `${path} with Accept`).toBe(200);
+      expect(sse.headers.get("content-type")).toContain("text/event-stream");
+      await sse.body?.cancel();
+    }
+  });
+
   it("lists drives (fixture ghost from prior state or empty)", async () => {
     const { status, body } = await api<unknown[]>("/drives");
     expect(status).toBe(200);
