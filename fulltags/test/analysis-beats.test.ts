@@ -95,21 +95,24 @@ describe("beat_this BPM (roadmap #2)", () => {
   );
 
   test.skipIf(!hasBeatThis)(
-    "m4a/mp3 decode: compressed containers analyzed via tmp wav (regression)",
+    "m4a decode: analyzed IN-PROCESS via PyAV — no temp wav ever (regression)",
     async () => {
-      // beat_this's loader (torchaudio→soundfile→madmom) can't demux
-      // m4a/aac: torchaudio needs torchcodec, libsndfile can't. The stage
-      // must ffmpeg-decode to a temp wav, analyze, and clean up.
+      // beat_this's own loader (torchaudio→soundfile→madmom) can't demux
+      // m4a/aac in this env (torchcodec needs FFmpeg ≤ 8, brew is on 9).
+      // The stage must decode IN-PROCESS via PyAV inside the worker script
+      // — the old ffmpeg-to-temp-wav bridge (Sep 5–15 2026) wrote a hidden
+      // `.name.beats-<pid>.wav` beside the source; that must stay dead.
       const p = `${DIR}/bpm-c.m4a`;
       await $`mkdir -p ${DIR}`.quiet();
       await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i "sine=frequency=220:duration=20" -af "tremolo=f=4:d=0.9" ${p}`.quiet();
       const res = await analyzeBeats(p);
       expect(res).toBeTruthy();
       expect(res!.bpm).toBeGreaterThan(0);
-      // tmp wav cleaned up
+      // no temp wav beside the source — then or ever
       expect(existsSync(`${DIR}/.bpm-c.m4a.beats-${process.pid}.wav`)).toBe(
         false,
       );
+      expect(existsSync(`${p}.beats-${process.pid}.wav`)).toBe(false);
       // pipeline stage end-to-end on the same file
       const r = await enrichTrack(
         { path: p },

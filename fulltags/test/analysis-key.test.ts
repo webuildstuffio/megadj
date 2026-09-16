@@ -72,18 +72,19 @@ describe("OpenKeyScan key (roadmap #3)", () => {
   );
 
   test.skipIf(!hasKeyscan)(
-    "m4a decode: key analysis via tmp wav, id maps to original (regression)",
+    "m4a decode: server-side PyAV, results keyed by original path (regression)",
     async () => {
-      // The analyzer's librosa/libsndfile loader can't demux m4a. The
-      // stage must decode via ffmpeg and return results keyed by the
-      // ORIGINAL path (not the temp wav's).
+      // The analyzer's librosa/libsndfile loader can't demux m4a on macOS;
+      // its PyAV fast path (now ungated for darwin) does. The stage sends
+      // ORIGINAL paths and gets results keyed by them — no temp wav is
+      // ever written (the old ffmpeg bridge died Sep 15 2026).
       const p = `${DIR}/key-c.m4a`;
       await $`mkdir -p ${DIR}`.quiet();
       await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=8 ${p}`.quiet();
       const m = await analyzeKeys([p]);
       expect(m.get(p)).toBeTruthy(); // keyed by original path
       expect(m.get(p)!.camelot).toMatch(/^\d{1,2}[AB]$/);
-      // tmp wav cleaned up
+      // no temp wav beside the source — then or ever
       expect(existsSync(`${DIR}/.key-c.m4a.key-${process.pid}.wav`)).toBe(
         false,
       );

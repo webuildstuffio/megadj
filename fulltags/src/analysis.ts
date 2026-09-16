@@ -8,8 +8,7 @@
  * existing tag stamp (TXXX:ACOUSTID / TBPM / TKEY) before spending
  * compute.
  */
-import { existsSync, rmSync } from "node:fs";
-import { basename, dirname, extname } from "node:path";
+import { existsSync } from "node:fs";
 import { isFiniteNumberArray, isRecord } from "../../cratedeck/shared/guards";
 import { lineReader } from "./stdio";
 import type { AnlzBeat } from "./anlz";
@@ -169,63 +168,26 @@ export function foldTempo(bpm: number, lo = 70, hi = 180): number {
  * skip (idempotent re-run). Spawns `uv run --with beat-this` so the
  * ~2 GB torch env lives in the uv cache, never the repo.
  *
- * beat_this v1.1 API: `File2Beats.__call__(path)` returns
+ * beat_this v1.1 API: `Audio2Beats.__call__(signal, sr)` returns
  * `(beats, downbeats)` — arrays of timestamps in SECONDS. Track tempo is
  * derived from the median inter-beat interval (the package exposes no
  * tempo field on this path).
  *
- * COMPRESSED-CONTAINER GOTCHA: beat_this's `load_audio` tries torchaudio →
- * soundfile → madmom. torchaudio ≥2.1 needs torchcodec for mp3/m4a/aac
- * (not in this env) and libsndfile can't demux them — so m4a/mp3/aac
- * inputs fail with "Could not load audio". Fix: decode via ffmpeg to a
- * temp WAV first (the archive always has ffmpeg); lossless containers
- * (wav/aiff/flac) go straight to beat_this.
+ * COMPRESSED-CONTAINER DECODE (in-process, no temp files): beat_this's
+ * `load_audio` tries torchaudio → soundfile → madmom, and neither
+ * torchaudio (needs torchcodec, which requires FFmpeg ≤ 8 — brew is on 9)
+ * nor libsndfile can demux mp3/m4a/aac in this env. But `Audio2Beats`
+ * takes a raw sample ARRAY (`File2Beats` is just `load_audio` +
+ * `__call__`), so the script decodes any container itself via PyAV
+ * (bundled FFmpeg, mono downmix, native rate — soxr resamples to 22050
+ * inside beat_this). Replaces the old ffmpeg-to-temp-WAV bridge
+ * byte-for-byte on BPM/beats (A/B'd Sep 15 2026) with zero disk I/O.
  *
  * VERIFY GATE (roadmap #2): compare against rekordbox's re-analyzed
  * grids before any batch run; flag disagreements > 2%. */
 export async function analyzeBeats(path: string): Promise<BeatResult | null> {
   if (!existsSync(path)) return null;
-  // m4a/mp3/aac/ogg: ffmpeg-decode to a temp wav (same dir, cleaned up
-  // below) so beat_this's loader never sees a compressed container.
-  const ext = extname(path).toLowerCase();
-  const needsDecode = [
-    ".m4a",
-    ".m4b",
-    ".mp3",
-    ".aac",
-    ".ogg",
-    ".opus",
-  ].includes(ext);
-  let decodedTmp: string | null = null;
-  let analyzePath = path;
-  if (needsDecode) {
-    decodedTmp = `${dirname(path)}/.${basename(path)}.beats-${process.pid}.wav`;
-    const dec = Bun.spawnSync({
-      cmd: [
-        "ffmpeg",
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-i",
-        path,
-        decodedTmp,
-      ],
-      stdout: "ignore",
-      stderr: "pipe",
-    });
-    if (dec.exitCode !== 0 || !existsSync(decodedTmp)) {
-      if (decodedTmp && existsSync(decodedTmp)) rmSync(decodedTmp);
-      decodedTmp = null;
-    } else {
-      analyzePath = decodedTmp;
-    }
-  }
-  try {
-    return await runBeatThis(analyzePath);
-  } finally {
-    if (decodedTmp && existsSync(decodedTmp)) rmSync(decodedTmp);
-  }
+  return runBeatThis(path);
 }
 
 async function runBeatThis(path: string): Promise<BeatResult | null> {
@@ -237,10 +199,31 @@ async function runBeatThis(path: string): Promise<BeatResult | null> {
   // postprocessor. Peak-picking (MIT, no madmom) stays the default.
   const useDbn = process.env.MEGADJ_DBN === "1";
   const script = `import json
+import warnings
+warnings.filterwarnings("ignore")
 import numpy as np
-from beat_this.inference import File2Beats
-f = File2Beats(device="cpu", dbn=${useDbn ? "True" : "False"})
-beats, downbeats = f(${JSON.stringify(path)})
+import av
+from beat_this.inference import Audio2Beats
+
+# Decode ANY container in-process (mp3/m4a/aac included): PyAV speaks the
+# bundled FFmpeg, so beat_this's own loader (torchaudio→soundfile→madmom)
+# never sees a compressed file. Mono downmix, native sample rate —
+# Audio2Beats resamples to 22050 internally (soxr).
+def load_mono(path, sr=22050):
+    c = av.open(path)
+    res = av.AudioResampler(format="fltp", layout="mono", rate=sr)
+    frames = []
+    for chunk in c.decode(audio=0):
+        frames.extend(res.resample(chunk))
+    c.close()
+    arrs = [f.to_ndarray().reshape(-1) for f in frames]
+    if not arrs:
+        raise ValueError("no audio frames in %r" % path)
+    return np.concatenate(arrs).astype("float64"), sr
+
+f = Audio2Beats(device="cpu", dbn=${useDbn ? "True" : "False"})
+signal, sr = load_mono(${JSON.stringify(path)})
+beats, downbeats = f(signal, sr)
 beats = np.asarray(beats, dtype=float)
 downbeats = np.asarray(downbeats, dtype=float)
 tempo = float(60.0 / np.median(np.diff(beats))) if len(beats) >= 4 else 0.0
@@ -260,6 +243,8 @@ print(json.dumps({
       ...(useDbn ? ["--with", "git+https://github.com/CPJKU/madmom.git"] : []),
       "--with",
       "soundfile", // beat_this's torchaudio fallback needs it for mp3/m4a
+      "--with",
+      "av", // PyAV — in-process decode of compressed containers
       "python",
       "-c",
       script,
@@ -545,47 +530,18 @@ export async function analyzeKeys(
   const server = `${keyscanDir()}/openkeyscan_analyzer_server.py`;
   if (!existsSync(server) || !paths.length)
     return out as Map<string, KeyResult>;
-  // COMPRESSED-CONTAINER GOTCHA (same as analyzeBeats): the analyzer's
-  // librosa/libsndfile loader can't demux m4a/mp3/aac. ffmpeg-decode any
-  // compressed input to temp WAVs (beside the originals, cleaned up in
-  // finally) and analyze those; id stays the ORIGINAL path so callers map
-  // results back correctly.
-  const decodeMap = new Map<string, string>(); // tmp wav -> original path
-  const tmps: string[] = [];
-  const prepared = paths.map((p) => {
-    const ext = extname(p).toLowerCase();
-    if (
-      ![".m4a", ".m4b", ".mp3", ".aac", ".ogg", ".opus"].includes(ext) ||
-      !existsSync(p)
-    ) {
-      return p;
-    }
-    const tmp = `${dirname(p)}/.${basename(p)}.key-${process.pid}.wav`;
-    const dec = Bun.spawnSync({
-      cmd: ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", p, tmp],
-      stdout: "ignore",
-      stderr: "pipe",
-    });
-    if (dec.exitCode === 0 && existsSync(tmp)) {
-      tmps.push(tmp);
-      decodeMap.set(tmp, p);
-      return tmp; // request references the tmp; response id maps back
-    }
-    return p; // decode failed — let the analyzer report the real error
-  });
+  // COMPRESSED-CONTAINER DECODE lives INSIDE the server: its PyAV fast
+  // path (load_audio_pyav_optimized — upstream's own macOS build path,
+  // previously gated to win32) demuxes mp3/m4a/aac in-process, so no
+  // temp WAVs are ever written beside the originals. Requests pass the
+  // ORIGINAL paths; ids map 1:1. (The old ffmpeg-decode-then-map dance
+  // here died Sep 15 2026 with the same fix in analyzeBeats.)
   try {
-    const results = await runKeyServer(server, prepared);
-    // Map tmp ids back to original paths; null placeholders drop here so
-    // the returned map is the honest Map<string, KeyResult> wire type.
-    for (const [tmp, orig] of decodeMap) {
-      const r = results.get(tmp);
-      results.delete(tmp);
-      if (r) results.set(orig, r);
-    }
+    const results = await runKeyServer(server, paths);
     for (const [k, v] of results) if (v === null) results.delete(k);
     return results as Map<string, KeyResult>;
   } finally {
-    for (const t of tmps) if (existsSync(t)) rmSync(t);
+    // Temp decode files are gone as a concept — nothing to clean up.
   }
 }
 

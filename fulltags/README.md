@@ -157,8 +157,15 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
 - **analysis-stage envs** (see roadmap rev 4 §7 + rev 6.1 §2/#4 for the full
   list): beat_this has no tempo field on the programmatic path (derive
   `60/median(Δbeats)`; beats arrive in seconds); **compressed containers
-  (mp3/m4a/aac) must be ffmpeg-decoded to a temp wav first** — beat_this's
-  loader and the key analyzer's librosa both fail to demux them;
+  (mp3/m4a/aac) decode IN-PROCESS via PyAV** — beat_this's own loader and
+  the key analyzer's librosa both fail to demux them in this env
+  (torchcodec needs FFmpeg ≤ 8; brew ships 9), so no temp WAV is ever
+  written: the beat worker decodes to a sample array (PyAV → `Audio2Beats`)
+  and the key server's PyAV fast path (`KEYSCAN_PYAV` gate, darwin-enabled
+  since Sep 15 2026, `av` pinned in its requirements.txt) takes the file
+  path directly. If a re-clone of the analyzer repo loses the darwin gate,
+  the m4a key regression test fails loudly — re-apply the two-line gate
+  flip.
   OpenKeyScan treats **stdin EOF as shutdown** (never `stdin.end()` before
   responses land) and its stdout must be read line-by-line, never
   buffered-to-end; uv `--with-requirements` ≠ the same pins spelled as
