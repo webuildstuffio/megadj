@@ -232,7 +232,10 @@ print(json.dumps({
     "beats": beats.tolist(),
     "downbeats": downbeats.tolist(),
 }))`;
-  const proc = Bun.spawnSync({
+  // ASYNC spawn, not spawnSync: inference runs seconds per track, and a
+  // synchronous block freezes the event loop — the caller's --jobs worker
+  // pool degrades to serial. Awaited here, tracks genuinely parallelize.
+  const proc = Bun.spawn({
     cmd: [
       "uv",
       "run",
@@ -252,8 +255,12 @@ print(json.dumps({
     stdout: "pipe",
     stderr: "pipe",
   });
-  if (proc.exitCode !== 0) return null;
-  return parseBeatThisJson(new TextDecoder().decode(proc.stdout));
+  const [stdout, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    proc.exited,
+  ]);
+  if (exitCode !== 0) return null;
+  return parseBeatThisJson(stdout);
 }
 
 /** Parse the last JSON line emitted by beat_this. Invalid JSON, non-finite

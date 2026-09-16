@@ -655,11 +655,11 @@ on every container in the matrix, or it's not a claim, it's a wish.
 What landed, and the env gotchas that cost real time (would have cost more
 without the smoke-tests-first loop):
 
-| Stage           | Path                                                                                                    | Writes                                                       | Idempotency stamp             |
-| --------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------- |
-| `--fingerprint` | `fpcalc -json` (brew chromaprint) → `analysis.ts fingerprintWithDuration`                               | `TXXX:ACOUSTID` (all formats)                                | existing TXXX:ACOUSTID        |
-| `--bpm`         | `uv run --with beat-this` → `File2Beats(path)` → beats in **seconds**; tempo = `60/median(diff(beats))` | `TBPM` integer, half/double folded into 70–180 (`foldTempo`) | existing TBPM                 |
-| `--key`         | OpenKeyScan analyzer server (JSON over stdin/stdout, MPS auto-select), batched per run                  | `TKEY` + `TXXX:CAMELOT` (+ m4a freeform `initialkey`)        | existing TXXX:CAMELOT or TKEY |
+| Stage           | Path                                                                                                                                      | Writes                                                       | Idempotency stamp             |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------- |
+| `--fingerprint` | `fpcalc -json` (brew chromaprint) → `analysis.ts fingerprintWithDuration`                                                                 | `TXXX:ACOUSTID` (all formats)                                | existing TXXX:ACOUSTID        |
+| `--bpm`         | `uv run --with beat-this` → PyAV decode (in-process) → `Audio2Beats(signal, sr)` → beats in **seconds**; tempo = `60/median(diff(beats))` | `TBPM` integer, half/double folded into 70–180 (`foldTempo`) | existing TBPM                 |
+| `--key`         | OpenKeyScan analyzer server (JSON over stdin/stdout, MPS auto-select), batched per run                                                    | `TKEY` + `TXXX:CAMELOT` (+ m4a freeform `initialkey`)        | existing TXXX:CAMELOT or TKEY |
 
 Env gotchas, each empirically verified:
 
@@ -669,8 +669,13 @@ Env gotchas, each empirically verified:
    back in **seconds**, frame-rate assumptions don't apply. **Rev 5
    addendum:** the median-inter-beat tempo itself is the weak output —
    phase-locks 2.2–2.6% off RB on half the pilot. Don't trust it for tags.
-2. **beat_this needs `soundfile`** for mp3/m4a: its `load_audio` falls back
-   torchaudio → soundfile → madmom, and torchaudio alone fails on mp3.
+2. **beat_this can't demux mp3/m4a itself in this env** — its `load_audio`
+   falls back torchaudio → soundfile → madmom, and torchaudio needs
+   torchcodec (requires FFmpeg ≤ 8; brew ships 9) while libsndfile can't
+   read compressed containers. Since Sep 15 2026 the worker decodes
+   **in-process via PyAV** and feeds the sample array to
+   `Audio2Beats(signal, sr)` directly — the old ffmpeg→temp-WAV bridge is
+   gone (see `fulltags/README.md`).
 3. **OpenKeyScan treats stdin EOF as shutdown** — writing all requests then
    `stdin.end()` kills the server before responses are computed
    ("cannot schedule new futures after shutdown"). Keep stdin open; reap
