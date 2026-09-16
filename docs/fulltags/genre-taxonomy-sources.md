@@ -248,7 +248,7 @@ towers on demand.
 **Queued (in dependency order):**
 
 0. ~~**Tier-0 diagnostics**~~ **✅ SHIPPED + RUN LIVE 2026-09-15**
-   ([verdicts](tier0-diagnostics-2026-09-15.md)): label noise RANDOM,
+   ([verdicts](../archive/tier0-diagnostics-2026-09-15.md)): label noise RANDOM,
    no artist leakage, hub tail confirmed, `edm↔house` = the error
    block, probe loses to kNN.
 1. ~~`genre --refold`~~ **✅ SHIPPED + APPLIED LIVE 2026-09-15** — data
@@ -271,7 +271,7 @@ towers on demand.
    ~~Queued extensions: `--probe`, `--artist-disjoint`, confusion
    matrix + top-2~~ **ALL SHIPPED 2026-09-15** — one command:
    `genre --eval --diagnostics --artist-disjoint --probe --json`
-   (verdicts: [tier0-diagnostics-2026-09-15](tier0-diagnostics-2026-09-15.md)).
+   (verdicts: [tier0-diagnostics (archived)](../archive/tier0-diagnostics-2026-09-15.md)).
 5. **Multi-source vote ladder + Bandcamp arm** (M) — the §5c disputed pass
    generalized to a weighted vote across RB / ingest pools / SC / Beatport
    / Bandcamp (direct page fetch; yt-dlp's BC extractor is broken upstream)

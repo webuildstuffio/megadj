@@ -1,5 +1,8 @@
 # MegaSet — Sequencing Deep Dive & Benchmarks
 
+> **🗄️ ARCHIVED 2026-09-15** — superseded by GitHub as the source of truth
+> (issues + labels + Project board). Retained as historical evidence; do not
+> update. Open work lives in [issues](https://github.com/webuildstuffio/megadj/issues).
 **Status:** ✅ COMPLETE — Sep 14 sequencing benchmark and co-occurrence design evidence.
 
 v1 · 2026-09-14 · **Benchmarks** → [PRD](01-prd.md) · [Analysis](03-competitive-analysis.md) · [Audit & plan](08-audit-and-plan.md)
@@ -406,3 +409,4 @@ new _independent_ signal available, it reuses existing machinery
 (fetch pipeline, fuzzy matching, kNN projection), and it directly
 attacks our two measured weaknesses: opener quality (3.1's familiarity
 prior) and genre-family truth (B6's prerequisite).
+

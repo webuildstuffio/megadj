@@ -18,7 +18,7 @@ import type { DriveCompat, PlayerSpec, SnapshotData } from "../shared/types";
 // for existing `from "./players"` consumers.
 export type { DriveCompat, PlayerSpec } from "../shared/types";
 
-/** The official matrix (research note 2026-09-04, ideas.md N75). Notes carry
+/** The official matrix (research note 2026-09-04, archived ideas N75 (docs/archive/ideas-2026-09-15.md)). Notes carry
  *  known firmware advisories (N76) — the CDJ-3000 v3.30 playlist-vanishing
  *  pull is the newest recurring failure class. */
 export const PLAYERS: PlayerSpec[] = [

@@ -6,8 +6,9 @@ v1 · 2026-09-03 · Brief merged into this doc (Sep 9 cleanup) · **PRD** → [A
 `cratedeck/` (registry, detection, images, rekordbox introspection via the
 Python seam, jobs + interlock, health reports, timeline, search, cockpit UI);
 Acceptance evidence per feature: [acceptance.md](acceptance.md). Remaining
-hardware checks live there; future product work is tracked in
-[Ideas](../ideas.md).
+hardware checks are tracked in
+[#175](https://github.com/webuildstuffio/megadj/issues/175); future product
+work lives on GitHub issues.
 
 This doc is the product + feature SSOT for CrateDeck. Every feature has an
 ID used by the architecture and acceptance evidence. All F1–F9 shipped in

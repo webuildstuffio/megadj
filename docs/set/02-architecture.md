@@ -2,7 +2,7 @@
 
 **Status:** 📚 REFERENCE — current data flow, variable inventory, and ownership.
 
-v2 · 2026-09-14 · **Architecture** → [PRD](01-prd.md) · [Analysis](03-competitive-analysis.md) · [Benchmarks](04-sequencing-benchmarks.md)
+v2 · 2026-09-14 · **Architecture** → [PRD](01-prd.md) · [Analysis](03-competitive-analysis.md) · [Benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md)
 
 > New here? Term glossary (Camelot, LOO, beam, effnet, SSOT, …) lives in
 > [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
@@ -12,7 +12,7 @@ v2 rewrite: adds the **complete variable inventory** (§2) — every variable we
 compute or could compute, split into **set variables** (the request + engine
 knobs) and **song variables** (per-track data), each with type, default,
 status (v0 uses / planned / rejected) and the exact order things are applied
-(§3). Benchmark evidence for the choices lives in [04](04-sequencing-benchmarks.md).
+(§3). Benchmark evidence for the choices lives in [04 (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md).
 
 ## 1. The shape
 

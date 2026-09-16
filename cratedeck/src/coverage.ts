@@ -1,4 +1,4 @@
-// fleet.ts — the fleet superpowers (docs/ideas.md §B6/B7/B8), as pure
+// fleet.ts — the fleet superpowers (archived ideas §B6/B7/B8 (docs/archive/ideas-2026-09-15.md)), as pure
 // functions over track inventories. No I/O: rows go in, verdicts come out.
 //
 //   coverage    — track × drive matrix: which stick has this track?

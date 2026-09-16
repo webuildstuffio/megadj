@@ -316,7 +316,8 @@ archive (~55h, three sessions). Gate numbers live in
 All 63 transcripts re-read with a TODO/findings lens (distinct from the
 memory pass). New issues: #24–#29. Already-shipped or already-tracked
 threads are not repeated here — dedup checked against issues #1–#23,
-`docs/ideas.md`, `docs/runbooks/`, and the usb-sync log.
+the ideas catalog (now archived at `docs/archive/ideas-2026-09-15.md`),
+`docs/runbooks/`, and the usb-sync log.
 
 - **Verify blind spot predates the jobs fix** (b82aae0e, Sep 4): the
   `usb_verify.py` leg sat at "0%" with no phase or current-file
@@ -355,7 +356,8 @@ threads are not repeated here — dedup checked against issues #1–#23,
 - **Cold-cache I/O truth still unmeasured** (f40fd72d, Sep 8): the
   sweep-optimization plan is blocked on a real cold-cache profile — the
   archive fits the page cache, so local harness numbers are ~10×
-  fiction. Tracked in `docs/ideas.md` §0f; needs `sudo purge` (TTY) or a
+  fiction. Tracked in the ideas catalog §0f (now archived at
+  `docs/archive/ideas-2026-09-15.md`); needs `sudo purge` (TTY) or a
   borrowed machine. Related: `/bin/dd` measured SHELF1 at 62 MB/s — a
   bad USB port was the real bottleneck once, not code.
 - **Shebang-less `bun` scripts die under launchd** (51549cd4): a

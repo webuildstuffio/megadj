@@ -75,7 +75,7 @@ export interface GenreOptions {
   /** --eval: additionally run the linear-probe LOO readout (frozen
    * softmax regression over the same vectors). Slower: fits n probes. */
   probe?: boolean | undefined;
-  /** Refold pass (genre-audit §5b.3 step 1, ideas.md #94). With --eval:
+  /** Refold pass (genre-audit §5b.3 step 1, archived ideas #94 (docs/archive/ideas-2026-09-15.md)). With --eval:
    * score through the umbrella arbitration (`scoringFamily` — plain
    * EDM/Dance/Electronic abstain) and report the baseline delta. Alone:
    * propose data-half canonicalizations (escape repair, multi-label

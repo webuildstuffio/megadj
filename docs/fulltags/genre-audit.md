@@ -5,7 +5,7 @@
 how a track's genre actually flows (write points → hygiene → inference →
 scoring → gate), with invariants and live state.
 
-v3 · 2026-09-14 · **Audit** → [PRD](../set/01-prd.md) · [Benchmarks](../set/04-sequencing-benchmarks.md) · [Analysis](../set/03-competitive-analysis.md) · [Taxonomy sources & family map](genre-taxonomy-sources.md)
+v3 · 2026-09-14 · **Audit** → [PRD](../set/01-prd.md) · [Benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md) · [Analysis](../set/03-competitive-analysis.md) · [Taxonomy sources & family map](genre-taxonomy-sources.md)
 
 > Glossary (LOO, CI, McNemar, Jaccard, kNN, duration guard):
 > [10-findings §5](../set/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
@@ -279,7 +279,7 @@ ground-truth philosophy unchanged.
 
 0. **Tier-0 diagnostics (run before/refold-adjacent; they decide what
    the later steps are worth).** From the
-   [external research review](embedding-research-2026-09-14.md) §4/§5:
+   [external research review](../archive/embedding-research-2026-09-14.md) §4/§5:
    (a) **label-error clustering by artist/release/imprint** — if errors are
    systematic the 0.58 ceiling story is wrong and relabelling buys ~nothing;
    (b) **artist-overlap rate in top-5 neighbours** (Sturm's "horse" check —
@@ -297,7 +297,7 @@ ground-truth philosophy unchanged.
      triangle share 17.7% with `edm↔house` the single biggest error block
      (confirms the umbrella arbitration below), probe 5-fold 51.5% (Δ −11.1
      vs kNN — kNN stays the production readout). Full readout + plan
-     changes: [tier0-diagnostics-2026-09-15](tier0-diagnostics-2026-09-15.md).**
+     changes: [tier0-diagnostics (archived)](../archive/tier0-diagnostics-2026-09-15.md).**
 1. **Refold** (§5, now with the measured target: **105 labels cover 90%**;
    the alias table is small and finite). Split multi-label strings on
    `/ , &` into ranked secondaries (389 rows healed here). **Extended per

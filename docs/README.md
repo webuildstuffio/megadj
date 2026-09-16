@@ -13,8 +13,12 @@ document for the topic you are changing.
 - [Product state](product-state-2026-09-07.md) owns the qualitative shipped,
   active, and blocked summary. Its dated filename is retained for stable
   inbound links; the status header carries the actual as-of date.
-- [Features](FEATURES.md) owns the durable product map; [Ideas](ideas.md) owns
-  backlog rationale; GitHub issues own executable work and priority.
+- **GitHub is the single source of truth for roadmap work**: issues own
+  executable work, priority, and status; product PRDs and plan docs own the
+  WHY and the measured numbers. The former ideas/roadmap-index pages are
+  archived (`archive/ideas-2026-09-15.md`,
+  `archive/roadmap-index-2026-09-15.md`) — file and triage work on GitHub.
+- [Features](FEATURES.md) owns the durable product map.
 - [Surface parity](surface-parity.md) owns exact CLI, HTTP, MCP, and UI census
   numbers. Other docs link there instead of copying them.
 - [Data stores and schemas](getdat/data-model.md) owns schema navigation. Executable
@@ -26,6 +30,15 @@ document for the topic you are changing.
 Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 `ACTIVE`, 🟡 `BLOCKED`, and 🗄️ `ARCHIVED`.
 
+## Roadmap on GitHub
+
+Product-categorized backlog lives in GitHub issues (labels `type:*`,
+`priority:*`, `effort:*`; product is in the title prefix). Notable
+umbrellas: the [parked ledger](https://github.com/webuildstuffio/megadj/issues/178)
+(deliberately-unbuilt register), [#175](https://github.com/webuildstuffio/megadj/issues/175)
+(the three manual CrateDeck hardware checks), and #178's rejection register
+for the ideas closed NOT_PLANNED.
+
 ## Product and decision references
 
 - [Product state](product-state-2026-09-07.md) — current product-level status
@@ -33,8 +46,10 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 - [Features and projects](FEATURES.md) — GetDat, FullTags, Set, and
   CrateDeck responsibilities.
 - [Product principles](PRINCIPLES.md) — decision authority and non-goals.
-- [Ideas and future backlog](ideas.md) — rationale and parked possibilities;
-  issue state lives on GitHub.
+- GitHub issues — the roadmap and backlog; see the "Roadmap on GitHub"
+  section above.
+- [Archived ideas backlog](archive/ideas-2026-09-15.md) — historical idea
+  catalog; superseded by GitHub issues.
 - [Data stores and schemas](getdat/data-model.md) — database roles, schema producers,
   and migration ownership.
 - [Surface parity](surface-parity.md) — live interface contract and exemptions.
@@ -48,8 +63,8 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   producer boundaries.
 - [Playing USB boundary](getdat/usb-sync.md) — SHELF1-to-USB handoff rules and
   user-managed export limits.
-- [Shelf hygiene snapshot](getdat/shelf-hygiene-2026-09-09.md) — Sep 9–10
-  detect/restore limits and current operator receipts.
+- [Shelf hygiene snapshot](archive/shelf-hygiene-2026-09-09.md) — Sep 9–10
+  detect/restore record (archived; pending work tracked in #35/#36/#37).
 
 ### FullTags and analysis
 
@@ -67,11 +82,12 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   prior (B10p).
 - [Genre taxonomy sources](fulltags/genre-taxonomy-sources.md) — external
   authorities and the family map.
-- [Embedding research review (Sep 14)](fulltags/embedding-research-2026-09-14.md)
-  — external deep-read: tower landscape, probe/readout ladder, compute +
-  licence audit, adoption verdicts.
-- [Tier-0 diagnostics, first live run (Sep 15)](fulltags/tier0-diagnostics-2026-09-15.md)
-  — the battery implemented + measured on the full library: random label
+- [Embedding research review (Sep 14)](archive/embedding-research-2026-09-14.md)
+  — external deep-read (archived): tower landscape, probe/readout ladder,
+  compute + licence audit, adoption verdicts.
+- [Tier-0 diagnostics, first live run (Sep 15)](archive/tier0-diagnostics-2026-09-15.md)
+  — the battery implemented + measured on the full library (archived;
+  verdicts live in the FullTags roadmap revs): random label
   noise, no artist leakage, hub tail confirmed, `edm↔house` is the error
   block, probe loses to kNN. Re-ranked the genre plan.
 - [Genre refold (Sep 15)](fulltags/genre-audit.md) — `edm` umbrella
@@ -107,14 +123,13 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   flow.
 - [Competitive analysis](set/03-competitive-analysis.md) — comparator
   research and the re-ranked roadmap.
-- [Sequencing benchmarks](set/04-sequencing-benchmarks.md) — algorithm and
-  benchmark evidence.
-- [**Consolidated findings & next steps**](set/10-findings.md) — every
+- [Consolidated findings & next steps](set/10-findings.md) — every
   measured verdict across the doc set, critical-bug list, prioritized next
   3–5 actions.
-- [Migration plan](set/09-migration-plan.md) — the executed `setbuild →
-  megaset` identifier rename (SUPERSEDED 2026-09-15 — the product is Set;
-  kept as a dated record).
+- [Migration plan (archived)](archive/set-09-migration-plan-2026-09-15.md) —
+  the executed `setbuild → megaset` identifier rename; superseded 2026-09-15
+  (the product is Set) and archived with the Sequencing benchmarks
+  ([archive/set-04-sequencing-benchmarks-2026-09-14.md](archive/set-04-sequencing-benchmarks-2026-09-14.md)).
 - [Audit and plan](set/08-audit-and-plan.md) — per-item
   implementation sketches, delta-pinned against the re-ranked roadmap;
   current conclusions link to the owners above.
@@ -132,8 +147,8 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
   and read-only verification.
 - [Intake and cue postmortem](fulltags/intake-cue-postmortem.md) — executed incident
   analysis and remaining follow-up.
-- [Shelf hygiene snapshot](getdat/shelf-hygiene-2026-09-09.md) — Sep 9–10 record
-  with current detector and restore-surface limits.
+- [Shelf hygiene snapshot (archived)](archive/shelf-hygiene-2026-09-09.md) — Sep 9–10 record
+  with detector and restore-surface limits; live work is #35/#36/#37.
 - [Source-layout refactor](archive/src-layout-refactor.md) — completed proposal
   and migration receipt, archived 2026-09-14; historical paths in the proposal
   are labeled as such.
@@ -165,7 +180,20 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 Archived files are historical evidence, not current instructions:
 
 - [Executed roadmap proposal](archive/roadmap-proposal.md)
+- [Archived ideas backlog](archive/ideas-2026-09-15.md) — the pre-GitHub-SSOT
+  idea catalog, archived 2026-09-15; its trackers and parking block moved to
+  GitHub issues (#104–#178).
+- [Archived roadmap index](archive/roadmap-index-2026-09-15.md) — the former
+  product-categorized issue index; superseded by GitHub labels/search.
 - [Codebase quality snapshot](archive/codebase-quality-report.md)
 - [Source-layout refactor receipt](archive/src-layout-refactor.md) — moved
   2026-09-14; the old-path redirect stub was removed 2026-09-15, so this
   archive path is the only reference.
+- [Set sequencing benchmarks](archive/set-04-sequencing-benchmarks-2026-09-14.md)
+  and [Set migration plan](archive/set-09-migration-plan-2026-09-15.md) —
+  measured evidence + executed rename receipt, archived 2026-09-15.
+- [Tier-0 diagnostics](archive/tier0-diagnostics-2026-09-15.md) and
+  [embedding research review](archive/embedding-research-2026-09-14.md) —
+  completed measurement runs retained as evidence.
+- [Shelf hygiene snapshot](archive/shelf-hygiene-2026-09-09.md) — Sep 9–10
+  session record; live work is #35/#36/#37.

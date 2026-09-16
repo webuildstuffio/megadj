@@ -3,9 +3,10 @@
 **Status:** 🧭 ACTIVE — implementation and hardware validation remain.
 
 _2026-09-10. Supersedes the chat-plan v2. This file is the project SSOT for
-grid audit + auto-cue; `docs/ideas.md` I46/#47 and
+grid audit + auto-cue; the archived ideas catalog (I46/#47, now
+[docs/archive/ideas-2026-09-15.md](../archive/ideas-2026-09-15.md)) and
 `fulltags-roadmap.md` #2/P2 point here. (The old root `plan.md`'s
-runtime-perf round now lives in [docs/ideas.md](../ideas.md) §0f.)_
+runtime-perf round lived in the archived ideas §0f.)_
 
 Two systems sharing one analysis pass:
 
@@ -679,4 +680,5 @@ _Append dated entries as stages land — gate numbers, spike verdicts,
 calibration tables. Nothing here is done until it has a dated row._
 
 - 2026-09-10 — plan written (v3); audit vs repo done; the old runtime
-  performance plan was consolidated into [Ideas §0f](../ideas.md).
+  performance plan was consolidated into the ideas backlog (now archived at
+  [docs/archive/ideas-2026-09-15.md](../archive/ideas-2026-09-15.md)).

@@ -183,11 +183,11 @@ contradict a UNANIMOUS kNN consensus as `tracks.genre_flag='disputed'`
 Tier-0 battery re-ran on the canonicalized+flagged column: arbitration
 69.2% holds, label-noise verdict still RANDOM, still no artist leakage,
 triangle 19.1% / top-2 77.4%, probe still loses. Post-flag verdict table:
-[tier0-diagnostics-2026-09-15.md](tier0-diagnostics-2026-09-15.md)._
+[tier0-diagnostics (archived)](../archive/tier0-diagnostics-2026-09-15.md)._
 
 _Rev 6.7, 2026-09-15: **Tier-0 diagnostics implemented, run live, and
 the plan re-ranked by their verdicts**
-([tier0-diagnostics-2026-09-15.md](tier0-diagnostics-2026-09-15.md)) —
+([tier0-diagnostics (archived)](../archive/tier0-diagnostics-2026-09-15.md)) —
 label noise is RANDOM (no systematic-corruption escape hatch), NO artist
 leakage (plain LOO numbers stand), the hub tail is real (whitening+CSLS
 shipped flag-gated on all retrieval surfaces), the `edm↔house` matrix
@@ -199,7 +199,7 @@ command: `megadj genre --eval --diagnostics --artist-disjoint --probe
 
 _Rev 6.6, 2026-09-14: **genre/readout quality takes the queue** per the
 external research review
-([fulltags/embedding-research-2026-09-14.md](embedding-research-2026-09-14.md))
+([embedding-research (archived)](../archive/embedding-research-2026-09-14.md))
 — Tier-0 diagnostics (artist-leakage check, hubness histogram, confusion
 matrix), the linear-probe readout experiment, whitening+CSLS retrieval,
 the `edm` umbrella arbitration, and full-population LOO are the new top
@@ -207,7 +207,7 @@ block (before any further set-generation work); MERT rejection marked
 provisional pending a per-layer re-test; multi-source genre vote ladder
 (+ Bandcamp arm) and transition-window similarity queued. Effnet stays
 the single tower — the review's core finding is that the wins are in
-readout/labels/taxonomy, not the encoder (ideas.md §P has the idea rows)._
+readout/labels/taxonomy, not the encoder (idea rows: archived docs/archive/ideas-2026-09-15.md §P)._
 
 _Rev 6.5, 2026-09-11: **hardening + 1:1 parity pass over rev 6.4's
 Beatport integration** — the batch stage (`megadj fetch`/`enrich`) now
@@ -252,7 +252,7 @@ Rev 3 re-verified external claims; rev 2 fact-checked + found the 6.4× write-pa
 
 How to read: ranked by **value-per-effort** for a 3–10k track dance
 library on one Mac, offline-first. Effort: S <1d / M 1–3d / L >3d.
-ideas.md cap rule applies: something ships or leaves before something new
+The ideas cap rule applies: something ships or leaves before something new
 enters. **One recommendation per item, no "optionally could also" hedging.
 If an item has a gate, the gate result is stated with numbers, and the
 next action is a command you can run.**
@@ -267,7 +267,7 @@ next action is a command you can run.**
   refold arm and exits 0). **Live A/B (reproducible): 61.7% → 69.2%
   gated LOO (+7.4 pts, n 2982→2424, refusal 20.7%→13.0%) — the ≥65%
   post-refold target PASSES.** Engine: `src/fulltags/genre-refold.ts`
-  (pure, 21 tests); ideas.md #94 closed.
+  (pure, 21 tests); #94 closed.
 - **Demote-and-flag (rev 6.9, Sep 15):** `megadj genre --flag`
   (`--apply` to write; dry by default) — engine
   `src/fulltags/genre-flag.ts` (`classifyDisputes` over the LOO rows,
@@ -345,7 +345,7 @@ defaults to the first 120 s.
 
 The only gate-free stage, and the only one that exited rev 5 fully done.
 One brew dep, one `TXXX:ACOUSTID` frame, four backlog items unlocked
-(ideas.md D24 upgrade-verify, D25 dupe hunter, L62 ledger, L63 mirror
+(idea refs D24 upgrade-verify, D25 dupe hunter, L62 ledger, L63 mirror
 fingerprint-sample). The execution also paid for itself as a test: it
 exposed the WAV stamp-read hole that would have silently corrupted every
 later idempotent re-run.
@@ -491,11 +491,11 @@ the OpenKeyScan SSOT decision (#3).
 > **2026-09-14 re-rank (research review):** the old "Similarity (MUSE →
 > sqlite-vec)" step-up is superseded by the readout ladder — probe,
 > whitening+CSLS, projection head, transition-window similarity
-> (ideas.md §P89–P98) all come BEFORE any second tower or second ledger.
+> (§P89–P98 of the archived ideas catalog) all come BEFORE any second tower or second ledger.
 > The embedding-research snapshot's §6 has the per-item verdicts.
 >
 > **2026-09-15 update (Tier-0 verdicts —
-> [tier0-diagnostics-2026-09-15.md](tier0-diagnostics-2026-09-15.md)):**
+> [tier0-diagnostics (archived)](../archive/tier0-diagnostics-2026-09-15.md)):**
 > the ladder re-ordered again by measurement. ✅ whitening+CSLS SHIPPED
 > (flag-gated A/B, coherence proxy flat — P100's 100-mix judgment
 > decides). ❌ linear probe LOST (51.5% vs kNN 62.6% — P90's gate fails;
@@ -540,14 +540,14 @@ the OpenKeyScan SSOT decision (#3).
   CLAP-side; gate any stem-similarity work behind a 200-track probe
   before paying the 6–12 h Demucs bill (review §5 J3).**
 - **Transition-window similarity (NEW, S–M)** — outro→intro retrieval
-  over the existing patch embeddings + cues ledger (ideas.md P98; review
+  over the existing patch embeddings + cues ledger (archived ideas P98; review
   §5 J4). Cheapest genuinely-new retrieval quality: no new model, no
   Demucs.
 - **Genre vote ladder + Bandcamp arm (NEW, M)** — weighted multi-source
   vote (RB/ingest-pool/SC/BP/Bandcamp-page/Discogs-400 head/kNN
-  consensus) replacing first-win-writes (genre-audit §5b.3.6, ideas.md
+  consensus) replacing first-win-writes (genre-audit §5b.3.6, archived ideas
   P75/K58); imprint prior + LLM pre-labelling cuts human labelling ~60%
-  (ideas.md P96).
+  (archived ideas P96).
 - **Similarity (MUSE from #4 → sqlite-vec)** — M after #4. Step-up:
   **MuQ-MuLan** (Tencent, MIT code) — 2026 SOTA zero-shot music tagging
   (MagnaTagATune AUC 79.3 vs CLAP 73.9–75.5); weights CC-BY-NC
@@ -723,27 +723,27 @@ parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
 
 ## Research base (rev 5 — rev 4 rows re-checked 2026-09-05)
 
-| Verdict     | Project                                        | Status                                                                                                                                                             |
-| ----------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Adopt (#1)  | chromaprint/fpcalc + AcoustID                  | verified: 3 rps, non-comm, 120s default; chromaprint 1.6.1 via brew; **88/88 executed**                                                                            |
-| Adopt (#2)  | beat_this (CPJKU)                              | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork. **Gate: 12/24 within 2% — TBPM writes blocked**                                                  |
-| Adopt (#3)  | OpenKeyScan analyzer (repo mode)               | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
-| Fallback    | essentia `Key` / keyfinder-cli                 | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
-| Adopt (#4)  | Essentia ONNX heads + onnxruntime              | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
-| Shipped #5  | MusicBrainz ws/2 artist search                 | folksonomy tags 1 rps; shipped as fulltags/src/mb.ts + enrich fold (rev 6.1)                                                                                       |
-| Shipped #6  | Beatport v4 catalog (client-credentials)       | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `fulltags/src/beatport.ts` (rev 6.4)                           |
-| Verified    | Dubspot 200-track test                         | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
-| Verified    | rekordbox tag matrix                           | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
-| Verified    | pyrekordbox 0.4.4 (local master.db)            | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                                                                          |
-| Adopt (#1b) | dupsonic                                       | verified: v0.2.5 (Jul 2026), Rust, macOS-aarch64 prebuilt, LSH + SQLite cache                                                                                      |
-| Adopt-up    | MuQ-MuLan                                      | 2026 SOTA zero-shot tagging (AUC 79.3); MIT code / CC-BY-NC weights; supersedes MERT for embeddings                                                                |
-| Verified    | all-in-one-infer v3 / -mlx                     | v3 pure-PyTorch NATTEN (no compiler on AS); mlx port ~12.6× (repo-reported)                                                                                        |
-| Watch       | livechord-beat-refiner, settag, BeatFM         | refiner (May 2026) targets exactly the #2 BPM phase-lock failure; settag = competitor-as-reference; BeatFM weightless                                              |
-| Verified    | yt-dlp SC/Bandcamp (GetDat side)               | SC works (impersonation merged Feb 2026; DRM tracks 404 by design); Bandcamp broken since 2026-08-21 (#17506)                                                      |
-| Blueprint   | robertolupi/deep-cuts                          | ONNX + sqlite-vec local tagger architecture                                                                                                                        |
-| Adopt-read  | **MARBLE probing protocol** (arXiv:2306.10548) | linear probe on frozen features = the benchmark standard; replaces kNN-on-raw-cosine as our genre readout (ideas.md P90)                                           |
-| Reference   | TuneJury (arXiv:2606.17006)                    | frozen towers + 2.8M MLP head + pairwise-logistic on 17.5K prefs — the validated recipe behind ideas.md P93                                                        |
-| Reference   | MuQ / MuQ-MuLan (arXiv:2501.01108)             | MARBLE 77.0 avg; beats MERT/MusicFM with 180× less data (Mel-RVQ target is the lever); no first-class ONNX → parked (J6)                                           |
-| Reference   | EDM subgenre (arXiv:2110.08862)                | 60.6% @ 30 classes / 75K songs = the honest calibration for our families; tempogram late-fusion fixes exactly our trance/tech-trance fuzz (ideas.md P97)           |
-| Reference   | Perceptual similarity (arXiv:2601.19109)       | stems 86.8→90.4% on MuQ but CLAP got worse; hubness + CSLS fix; ~330 ABX triplets fit the ridge (ideas.md P91, P98; §3 stems caveat)                               |
-| Snapshot    | **fulltags/embedding-research-2026-09-14.md**  | full external review: findings F1–F6, cost tables, licence ledger, ranked ladder, adoption verdicts §6                                                             |
+| Verdict     | Project                                                  | Status                                                                                                                                                             |
+| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Adopt (#1)  | chromaprint/fpcalc + AcoustID                            | verified: 3 rps, non-comm, 120s default; chromaprint 1.6.1 via brew; **88/88 executed**                                                                            |
+| Adopt (#2)  | beat_this (CPJKU)                                        | verified: MIT, pip v1.1.0, CLI; torch dep; DBN→CPJKU madmom fork. **Gate: 12/24 within 2% — TBPM writes blocked**                                                  |
+| Adopt (#3)  | OpenKeyScan analyzer (repo mode)                         | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
+| Fallback    | essentia `Key` / keyfinder-cli                           | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
+| Adopt (#4)  | Essentia ONNX heads + onnxruntime                        | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
+| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as fulltags/src/mb.ts + enrich fold (rev 6.1)                                                                                       |
+| Shipped #6  | Beatport v4 catalog (client-credentials)                 | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `fulltags/src/beatport.ts` (rev 6.4)                           |
+| Verified    | Dubspot 200-track test                                   | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
+| Verified    | rekordbox tag matrix                                     | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
+| Verified    | pyrekordbox 0.4.4 (local master.db)                      | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                                                                          |
+| Adopt (#1b) | dupsonic                                                 | verified: v0.2.5 (Jul 2026), Rust, macOS-aarch64 prebuilt, LSH + SQLite cache                                                                                      |
+| Adopt-up    | MuQ-MuLan                                                | 2026 SOTA zero-shot tagging (AUC 79.3); MIT code / CC-BY-NC weights; supersedes MERT for embeddings                                                                |
+| Verified    | all-in-one-infer v3 / -mlx                               | v3 pure-PyTorch NATTEN (no compiler on AS); mlx port ~12.6× (repo-reported)                                                                                        |
+| Watch       | livechord-beat-refiner, settag, BeatFM                   | refiner (May 2026) targets exactly the #2 BPM phase-lock failure; settag = competitor-as-reference; BeatFM weightless                                              |
+| Verified    | yt-dlp SC/Bandcamp (GetDat side)                         | SC works (impersonation merged Feb 2026; DRM tracks 404 by design); Bandcamp broken since 2026-08-21 (#17506)                                                      |
+| Blueprint   | robertolupi/deep-cuts                                    | ONNX + sqlite-vec local tagger architecture                                                                                                                        |
+| Adopt-read  | **MARBLE probing protocol** (arXiv:2306.10548)           | linear probe on frozen features = the benchmark standard; replaces kNN-on-raw-cosine as our genre readout (archived ideas P90)                                     |
+| Reference   | TuneJury (arXiv:2606.17006)                              | frozen towers + 2.8M MLP head + pairwise-logistic on 17.5K prefs — the validated recipe behind archived ideas P93                                                  |
+| Reference   | MuQ / MuQ-MuLan (arXiv:2501.01108)                       | MARBLE 77.0 avg; beats MERT/MusicFM with 180× less data (Mel-RVQ target is the lever); no first-class ONNX → parked (J6)                                           |
+| Reference   | EDM subgenre (arXiv:2110.08862)                          | 60.6% @ 30 classes / 75K songs = the honest calibration for our families; tempogram late-fusion fixes exactly our trance/tech-trance fuzz (archived ideas P97)     |
+| Reference   | Perceptual similarity (arXiv:2601.19109)                 | stems 86.8→90.4% on MuQ but CLAP got worse; hubness + CSLS fix; ~330 ABX triplets fit the ridge (archived ideas P91, P98; §3 stems caveat)                         |
+| Snapshot    | **fulltags/../archive/embedding-research-2026-09-14.md** | full external review: findings F1–F6, cost tables, licence ledger, ranked ladder, adoption verdicts §6                                                             |

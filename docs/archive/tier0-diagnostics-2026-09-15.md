@@ -1,5 +1,8 @@
 # Tier-0 diagnostics — first live run (2026-09-15)
 
+> **🗄️ ARCHIVED 2026-09-15** — superseded by GitHub as the source of truth
+> (issues + labels + Project board). Retained as historical evidence; do not
+> update. Open work lives in [issues](https://github.com/webuildstuffio/megadj/issues).
 **Status:** ✅ COMPLETE — implemented, run live, and re-run post-refold +
 post-flag the same day; the plan re-ranked by the verdicts (see §0 and
 the POST-REFOLD + POST-FLAG section below).
@@ -104,3 +107,4 @@ the 65% gate. The confusion mass that remains is real sub-genre
 ambiguity (`house→techno` 100), which is the §5b.3.5 clustering fix, not
 a label-hygiene fix. Hubness is vector-geometry, untouched by any label
 work — the whitened+CSLS retrieval path remains the lever there.
+

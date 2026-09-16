@@ -21,7 +21,7 @@ web panel. Everything below is measured evidence for the design choices.
 
 ## 1. What we now know (every finding, one line each)
 
-### MegaSet-builder engine ([04-sequencing-benchmarks](04-sequencing-benchmarks.md))
+### MegaSet-builder engine ([04-sequencing-benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md))
 
 | #   | Finding                                      | Number                                                                                                          |
 | --- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -172,20 +172,20 @@ engines; cloud anything.
 
 ## 4. Doc map (what lives where)
 
-| Doc                                                                           | Role                                                                                           | State                  |
-| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------- |
-| [01-prd](01-prd.md)                                                           | Product brief, kill criteria, F1–F7                                                            | current                |
-| [02-architecture](02-architecture.md)                                         | Engine shape, variable inventory (20 set + 24 song vars)                                       | current                |
-| [03-competitive-analysis](03-competitive-analysis.md)                         | 30 comparators + re-ranked roadmap (plan of record)                                            | current                |
-| [04-sequencing-benchmarks](04-sequencing-benchmarks.md)                       | E1–E8 measured engine claims                                                                   | current                |
-| [genre-audit](../fulltags/genre-audit.md) (was 05)                            | Genre policy + v3 statistical revalidation (FullTags doc)                                      | current                |
-| [embedding-models](../fulltags/embedding-models.md) (was 06)                  | Tower benchmark, fusion sweep, MERT verdict (FullTags doc)                                     | current                |
-| [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07)      | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc)                       | current                |
-| [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md) | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot               |
-| [08-audit-and-plan](08-audit-and-plan.md)                                     | Implementation audit + per-item sketches (reference)                                           | reference              |
-| [09-migration-plan](09-migration-plan.md)                                     | `setbuild → megaset` atomic rename plan                                                        | ✅ executed 2026-09-15 |
-| [tier0-diagnostics-2026-09-15](../fulltags/tier0-diagnostics-2026-09-15.md)   | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current                |
-| [10-findings](10-findings.md)                                                 | **this page** — distilled verdicts + next actions                                              | current                |
+| Doc                                                                                          | Role                                                                                           | State                  |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------- |
+| [01-prd](01-prd.md)                                                                          | Product brief, kill criteria, F1–F7                                                            | current                |
+| [02-architecture](02-architecture.md)                                                        | Engine shape, variable inventory (20 set + 24 song vars)                                       | current                |
+| [03-competitive-analysis](03-competitive-analysis.md)                                        | 30 comparators + re-ranked roadmap (plan of record)                                            | current                |
+| [04-sequencing-benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md) | E1–E8 measured engine claims                                                                   | current                |
+| [genre-audit](../fulltags/genre-audit.md) (was 05)                                           | Genre policy + v3 statistical revalidation (FullTags doc)                                      | current                |
+| [embedding-models](../fulltags/embedding-models.md) (was 06)                                 | Tower benchmark, fusion sweep, MERT verdict (FullTags doc)                                     | current                |
+| [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07)                     | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc)                       | current                |
+| [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md)                | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot               |
+| [08-audit-and-plan](08-audit-and-plan.md)                                                    | Implementation audit + per-item sketches (reference)                                           | reference              |
+| [09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md)               | `setbuild → megaset` atomic rename plan                                                        | ✅ executed 2026-09-15 |
+| [tier0-diagnostics-2026-09-15](../fulltags/tier0-diagnostics-2026-09-15.md)                  | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current                |
+| [10-findings](10-findings.md)                                                                | **this page** — distilled verdicts + next actions                                              | current                |
 
 ---
 
@@ -199,7 +199,8 @@ engines; cloud anything.
 ([embedding-models](../fulltags/embedding-models.md)) — these three live in
 `docs/fulltags/` (FullTags owns the analysis stack; MegaSet consumes it) —
 _also_ M66-style numbers are idea-IDs
-from `docs/ideas.md` (M66 = the original set-builder idea row), `S#` = set
+from the archived [docs/archive/ideas-2026-09-15.md](../archive/ideas-2026-09-15.md)
+(M66 = the original set-builder idea row), `S#` = set
 variable (02 §2a), `T#` in 02 = song/track variable (02 §2b, separate
 numbering from 07's T#), `B#` = bug/plan items (08/audit Phase A–D),
 `F1–F7` = PRD feature list (01), `P#` = plan/parity findings (§1 here),

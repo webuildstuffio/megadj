@@ -1,4 +1,4 @@
-// genre-refold.ts — the P94 label refold (genre-audit §5b.3 step 1, ideas.md
+// genre-refold.ts — the P94 label refold (genre-audit §5b.3 step 1, archived ideas (docs/archive/ideas-2026-09-15.md)
 // #94): two halves, one seam.
 //
 // 1. DATA canonicalization (`refoldLabel`): repair `\uXXXX` escape
@@ -179,7 +179,7 @@ export function refoldDetail(genre: string): RefoldOutcome {
     return { label: null, escaped, split: false, aliased: false };
 
   // Rank multi-label tokens: the SPECIFIC label outranks a bare parent
-  // (ideas.md #94: "Electronic/House" must refold to House, not stay the
+  // (archived ideas #94 (docs/archive/ideas-2026-09-15.md): "Electronic/House" must refold to House, not stay the
   // umbrella Electronic). A token is "umbrella" when its canonical form
   // is a parent-only label; among the rest, order is the stored rank.
   const isUmbrella = (token: string): boolean => {

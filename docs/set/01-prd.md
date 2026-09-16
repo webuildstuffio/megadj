@@ -1,6 +1,6 @@
 # MegaSet — PRD
 
-v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks](04-sequencing-benchmarks.md) · [Genre audit](../fulltags/genre-audit.md) · [Audit & plan](08-audit-and-plan.md)
+v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md) · [Genre audit](../fulltags/genre-audit.md) · [Audit & plan](08-audit-and-plan.md)
 
 > First read of the doc set? Start here, then [10-findings](10-findings.md)
 > (distilled verdicts + the glossary for every acronym: Camelot, LOO, beam,
@@ -13,7 +13,7 @@ M3U8 export + MCP + web panel, gated `megadj rb-playlist` write-off. v1 plan = t
 (plan of record); the [audit's Part 3](08-audit-and-plan.md) keeps the
 per-item sketches, delta-pinned to the measured verdicts. (The `setbuild → megaset` identifier
 rename EXECUTED 2026-09-15 — the product is **MegaSet** and the verb is
-`megadj megaset`; see [09-migration-plan.md](09-migration-plan.md)'s
+`megadj megaset`; see [09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md)'s
 executed header.)
 
 MegaSet (roadmap §M66) is the set-building product:

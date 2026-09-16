@@ -47,10 +47,11 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "cratedeck/shared/setbuild.ts": "dated audit text (rename executed)",
     "src/fulltags/setbuild.ts": "dated audit text (rename executed)",
   },
-  "docs/set/09-migration-plan.md": {
+  "docs/archive/set-09-migration-plan-2026-09-15.md": {
     // The dated migration plan names setbuild.* paths throughout; the
     // rename EXECUTED 2026-09-15 (megaset is canonical), so the doc's
     // old-name references are historical plan text, not staleness.
+    // (Archived 2026-09-15 in the docs→GitHub SSOT move.)
     "cratedeck/src/setbuild.ts": "dated migration plan (rename executed)",
     "cratedeck/shared/setbuild.ts": "dated migration plan (rename executed)",
     "cratedeck/test/setbuild.test.ts": "dated migration plan (rename executed)",
@@ -60,7 +61,7 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "fulltags/intake-cue-postmortem.md":
       "relative link inside the planned-docs table (resolves from docs/)",
   },
-  "docs/set/04-sequencing-benchmarks.md": {
+  "docs/archive/set-04-sequencing-benchmarks-2026-09-14.md": {
     "cratedeck/src/setbuild.ts": "dated benchmark doc (rename executed)",
   },
   "docs/set/02-architecture.md": {

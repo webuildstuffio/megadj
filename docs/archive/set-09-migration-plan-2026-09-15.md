@@ -1,5 +1,8 @@
 # MegaSet — Full Atomic Migration Plan (setbuild → megaset)
 
+> **🗄️ ARCHIVED 2026-09-15** — superseded by GitHub as the source of truth
+> (issues + labels + Project board). Retained as historical evidence; do not
+> update. Open work lives in [issues](https://github.com/webuildstuffio/megadj/issues).
 **Status:** ✅ EXECUTED (2026-09-15, evening) — the full atomic migration
 shipped after the user re-decided: **MegaSet is the product name.** The
 earlier reversal (commit `0aa95aa`, roadmap rev 7.6) was itself reversed;
@@ -194,3 +197,4 @@ music, not the product).
 | MCP clients cache old tool name                    | session-scoped only; tools/list re-read per session                                                                                         |
 | Silent drift between renamed surfaces and docs     | C2 lands with docs still pointing at old names (deliberate); C4 closes the gap same-branch                                                  |
 | Payload key accidentally renamed                   | checklist asserts JSON keys unchanged — the wire API is MegaSet-branded by name, not by payload                                             |
+

@@ -1,5 +1,5 @@
 // genre-diagnostics.ts — Tier-0 diagnostics battery for the genre kNN
-// (docs/fulltags/embedding-research-2026-09-14.md §5 items 0.1–0.4, the
+// (docs/archive/embedding-research-2026-09-14.md §5 items 0.1–0.4, the
 // explicit "do first": ~4 h of measurement that decides whether the rest
 // of the genre plan is worth 20 points or 5).
 //

@@ -6,10 +6,10 @@
 // one track, pure read over the DB.
 //
 // `--space whitened` applies the research review's retrieval corrections
-// (docs/fulltags/embedding-research-2026-09-14.md R5): mean-centre +
+// (docs/archive/embedding-research-2026-09-14.md R5): mean-centre +
 // all-but-the-top whitening + CSLS penalties, fitted on the live corpus
 // per query (pure math, ~seconds at 3k). Raw stays the default until the
-// A/B (ideas.md P100) retires one of the two.
+// A/B (archived ideas P100 (docs/archive/ideas-2026-09-15.md)) retires one of the two.
 //
 // Agent-first contract: --json (one summary object), human logs suppressed
 // in json mode, exit codes meaningful (1 = no such track / no embeddings).

@@ -1,6 +1,9 @@
 # megadj — Roadmap Index by Product
 
-**Status:** 🧭 ACTIVE — categorized index of every OPEN GitHub issue mapped to
+> **🗄️ ARCHIVED 2026-09-15** — superseded by GitHub as the source of truth
+> (issues + labels + Project board). Retained as historical evidence; do not
+> update. Open work lives in [issues](https://github.com/webuildstuffio/megadj/issues).
+**Status:** 🗄️ ARCHIVED (was 🧭 ACTIVE) — categorized index of every OPEN GitHub issue mapped to
 its owning roadmap row, plus the superseded/done receipts. GitHub issues are
 the execution tracker; this page is the cross-product view, refreshed by the
 Sep 15 roadmap-sync audits (issues #104–#174). Live state per product lives in
@@ -127,3 +130,4 @@ prioritized).
 | #172  | Set audit Phase B item 11      | no `loudness` command, no `lufs` ledger column                             |
 | #173  | genre-pipeline §5b.3.6         | doc says "issue-tracked" but no ladder issue existed (dangling pointer)    |
 | #174  | AGENTS ledger-freshness rules  | FreshnessLine exists only on the Set panel; comment-sync/compare have none |
+

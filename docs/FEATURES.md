@@ -12,8 +12,8 @@ download    perfect       propose      organize, verify,      play on
 & archive   metadata      the mix      sync DJ USB drives     Pioneer
 ```
 
-Status: ✅ shipped · 🔨 in progress · 🧭 coming (roadmap in
-[ideas.md](ideas.md))
+Status: ✅ shipped · 🔨 in progress · 🧭 coming (roadmap on
+[GitHub issues](https://github.com/webuildstuffio/megadj/issues))
 
 ---
 
@@ -153,9 +153,10 @@ with a 73-BPM track in a 128 room."
 ## 🧭 Coming next (from the roadmap)
 
 The [current product state](product-state-2026-09-07.md) owns the short ordered
-outcome list. [Ideas](ideas.md) owns backlog rationale, and GitHub issues own
-execution priority. The executed Sep 6 proposal is retained only as
-[archive evidence](archive/roadmap-proposal.md).
+outcome list. GitHub issues own backlog rationale and execution priority (the
+former ideas catalog is archived at
+[archive/ideas-2026-09-15.md](archive/ideas-2026-09-15.md)). The executed Sep 6
+proposal is retained only as [archive evidence](archive/roadmap-proposal.md).
 
 ---
 

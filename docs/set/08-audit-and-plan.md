@@ -3,14 +3,14 @@
 **Status:** 📚 REFERENCE — implementation audit and design sketches. The active roadmap is the
 [30-comparator analysis](03-competitive-analysis.md) (10 OSS + 10 commercial +
 10 dream ideas, with the re-ranked roadmap); sequencing-algorithm claims are now
-**measured** in [04-sequencing-benchmarks.md](04-sequencing-benchmarks.md)
+**measured** in [04-sequencing-benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md)
 (E1–E8: greedy's 59% sparse-pool loss, 2-opt's +0.0% at scale, the beam-under-250 rule,
 weights frozen as engine constants); the embedding-tower question is measured in
 [embedding-models.md](../fulltags/embedding-models.md) (v2 rerun: effnet
 confirmed primary on both metrics; second-tower/fusion sweep settled — best ensemble +1.1 pt, not adopted).
 **Plan of record = the re-ranked roadmap** (03 §5); Part 3 below preserves the per-item
 implementation sketches, delta-pinned against the measured verdicts. Identifier
-renaming (`setbuild` → `set`) is planned in [09-migration-plan.md](09-migration-plan.md), not started.
+renaming (`setbuild` → `set`) is planned in [09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md), not started.
 
 > Glossary: [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 

@@ -41,7 +41,7 @@ export function makeServerLifecycle(deps: {
     }
   }
 
-  /** ideas.md §C17: on mount → light scan automatically; stale verify → auto
+  /** archived ideas §C17 (docs/archive/ideas-2026-09-15.md): on mount → light scan automatically; stale verify → auto
    *  verify weekly. Decisions in auto_schedule.ts (pure, tested); this only
    *  resolves inputs and enqueues. All job-engine guards (dedupe, interlock,
    *  per-drive concurrency) still apply on top. */

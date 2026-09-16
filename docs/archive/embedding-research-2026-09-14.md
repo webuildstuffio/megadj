@@ -1,5 +1,8 @@
 # FullTags — Embedding & Genre Research Review (external deep-read, Sep 14, 2026)
 
+> **🗄️ ARCHIVED 2026-09-15** — superseded by GitHub as the source of truth
+> (issues + labels + Project board). Retained as historical evidence; do not
+> update. Open work lives in [issues](https://github.com/webuildstuffio/megadj/issues).
 **Status:** 📥 SNAPSHOT — an external research review (9 papers + model/checkpoint
 landscape + Apple-Silicon compute audit) integrated into the FullTags plan the
 same day. Verdicts below are cross-referenced against the measured docs; the
@@ -424,3 +427,4 @@ cues.ts`, `grid-audit-plan` §structure); the patch models already emit
 
 Everything else — stems, fusion, second ledgers, MuQ, MLX — stays parked
 until those three land.
+

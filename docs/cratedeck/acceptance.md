@@ -48,7 +48,9 @@ that trust", architecture §9). Last audited: 2026-09-15.
   is the drive page.
 - **F10 extras** — dossier export (`GET /drives/:id/export` incl. report),
   deckctl CLI (`cratedeck/src/deckctl.ts`, agent-facing with interlock
-  exit codes); gig mode + new-music radar remain → [../ideas.md](../ideas.md) B/F
+  exit codes); gig mode + new-music radar remain →
+  [#148](https://github.com/webuildstuffio/megadj/issues/148) (radar);
+  gig mode was closed NOT_PLANNED (#140)
 
 ## Sep 2026 UI redesign (verified end-to-end)
 
@@ -72,8 +74,9 @@ surface (B12 preflight, N75/N78 players, O82b archive reads, O83 prep,
 O85 plugin, O87 origin attribution, O88 agent notes), and the CLI gates
 are all shipped — status and evidence live in
 [product-state-2026-09-07.md](../product-state-2026-09-07.md),
-capability surface in [../surface-parity.md](../surface-parity.md), idea
-detail in [../ideas.md](../ideas.md) §B/§O.
+capability surface in [../surface-parity.md](../surface-parity.md); the
+three open hardware checks are tracked in
+[#175](https://github.com/webuildstuffio/megadj/issues/175).
 
 ## Test coverage
 

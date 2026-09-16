@@ -1,7 +1,7 @@
 // upgrade.ts — D24 LOWQ re-fetch: re-download below-floor tracks at best
 // quality and swap ONLY when the new file proves itself.
 //
-// The safety rail (ideas.md D24's exact rule): the re-fetched file must
+// The safety rail (archived ideas D24: docs/archive/ideas-2026-09-15.md): the re-fetched file must
 // (a) probe at a bitrate ≥ the current row's floor expectation, and
 // (b) carry the SAME acoustic fingerprint (fpcalc) as the file it would
 // replace — a different fingerprint means YouTube served a different

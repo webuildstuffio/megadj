@@ -32,7 +32,7 @@ export interface AutoVerifyInput {
   now: number;
 }
 
-/** Weekly auto-verify (ideas.md §C17): a drive whose last verify is older
+/** Weekly auto-verify (archived ideas §C17): a drive whose last verify is older
  *  than intervalDays gets one when it's mounted. Never-verified drives are
  *  prioritized the moment they mount. */
 export function shouldAutoVerify(

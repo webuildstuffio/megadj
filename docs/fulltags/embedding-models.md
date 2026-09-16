@@ -257,14 +257,14 @@ recalibration to 0.65–0.75** (best published EDM-subgenre result: 60.6% on
 depth (and used the 95M, not the 330M) — the rejection stays in force but
 is quoted as _provisional_ until the ~1 h per-layer re-test. Full findings,
 cost tables, licences, and the ranked ladder with adoption verdicts:
-[embedding-research-2026-09-14](embedding-research-2026-09-14.md).
+[embedding-research-2026-09-14](../archive/embedding-research-2026-09-14.md).
 
 **Plan deltas (live):**
 
 1. `genre --eval` gains `--probe`, `--artist-disjoint`, confusion-matrix +
    top-2 output, and a hubness histogram — the diagnostics are the next
    work, ahead of any further tower work. **✅ SHIPPED Sep 15 (measured
-   verdicts: [tier0-diagnostics-2026-09-15](tier0-diagnostics-2026-09-15.md)).**
+   verdicts: [tier0-diagnostics (archived)](../archive/tier0-diagnostics-2026-09-15.md)).**
 2. `megadj similar` / Set retrieval gains a flag-gated
    `--space raw|whitened` (mean-centre + whiten + CSLS; ~10 lines) for A/B.
    **✅ SHIPPED Sep 15 (CLI + route + MCP; coherence proxy flat, A/B
