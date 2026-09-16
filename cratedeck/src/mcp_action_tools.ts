@@ -233,6 +233,7 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
   booth: {
     description:
       "The booth fleet: which Pioneer players the compat gates (megadj audit / booth-fix / ingest) enforce, each with its spec profile and triple citations. ids omitted = read-only show; ids given = SELECT that fleet (persists to config.toml [booth].fleet) — confirm with the human before setting. Empty selection re-applies the default trio.",
+    destructive: true,
     inputSchema: obj({
       ids: sArr(
         "player ids to enforce (xdj-xz, cdj-3000, cdj-2000nxs2, cdj-2000); omit to just show",

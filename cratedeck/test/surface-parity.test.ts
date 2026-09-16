@@ -441,6 +441,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     for (const tool of [
       "deck_run",
       "deck_cancel",
+      "deck_booth",
       "deck_note",
       "deck_rename",
       "deck_dismiss",
