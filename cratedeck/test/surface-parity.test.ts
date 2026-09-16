@@ -42,27 +42,17 @@ function deckctlVerbs(): string[] {
   return [...new Set(verbs)].toSorted();
 }
 
-/** megadj CLI command set: the family registries delegated by src/cli.ts,
- *  plus the shelf-hygiene/rb-fix-paths dispatch into maintenance-cmds.ts. This
+/** megadj CLI command set: derived from the #143 command registry (the
+ *  help/census SSOT) plus the maintenance dispatch table read. This
  *  surface was historically NOT censused (deckctl + MCP were), which is
  *  exactly how the doc drifted to "19 commands" while the code carried 30
  *  (the whole shelf family + booth-fix + similar + upgrade landed with no
  *  census to fail). */
 function megadjCommands(): string[] {
   const verbs: string[] = [];
-  for (const file of [
-    "src/cli-commands-core.ts",
-    "src/cli-commands-shelf.ts",
-    "src/cli-commands-tags.ts",
-    "src/cli-commands-analysis.ts",
-  ]) {
-    const registry = read(file).join("\n").split("_COMMANDS:")[1] ?? "";
-    for (const match of registry.matchAll(
-      /^\s{2}(?:"([a-z-]+)"|([a-z]+))(?::|,)/gm,
-    )) {
-      const verb = match[1] ?? match[2];
-      if (verb) verbs.push(verb);
-    }
+  const registry = read("src/command-registry.ts").join("\n");
+  for (const match of registry.matchAll(/name: "([a-z][a-z-]+)"/g)) {
+    if (match[1]) verbs.push(match[1]);
   }
   const maintenance = read("src/shared/maintenance-cmds.ts").join("\n");
   const family = maintenance
@@ -258,15 +248,32 @@ describe("surface parity (docs/surface-parity.md)", () => {
 
   test("every megadj command appears in its help text (usage can't rot)", () => {
     // P1 (--json on every command) makes the help text an agent-facing
-    // contract: a command missing from src/usage.ts is a capability half
-    // the agent surface can't discover. Same census class as deckctl's
-    // "usage lists every case" test (deckctl-help.test.ts).
+    // contract: a command missing from the help is a capability half
+    // the agent surface can't discover. #143: help content lives in
+    // src/command-registry.ts (usage.ts only renders); this census now
+    // reads BOTH directions off the registry — dispatch census
+    // (megadjCommands) vs doc census (COMMAND_DOCS) must agree exactly,
+    // so a command can neither lose its help block nor gain an
+    // undocumented twin.
+    const registry = read("src/command-registry.ts").join("\n");
     const usage = read("src/usage.ts").join("\n");
-    for (const cmd of megadjCommands())
-      expect(
-        usage.includes(`megadj ${cmd} `) || usage.includes(`megadj ${cmd}\n`),
-        `megadj command "${cmd}" is missing from src/usage.ts help text`,
-      ).toBeTrue();
+    expect(usage).toContain("command-registry");
+    const docNames = [...registry.matchAll(/name: "([a-z][a-z-]+)"/g)].map(
+      (m) => m[1] ?? "",
+    );
+    const dispatch = megadjCommands();
+    const missing = dispatch.filter((cmd) => !docNames.includes(cmd));
+    expect(
+      missing,
+      `commands with handlers but no registry block: ${missing.join(", ")}`,
+    ).toEqual([]);
+    const undocumented = docNames.filter(
+      (cmd) => !dispatch.includes(cmd) && cmd !== "help",
+    );
+    expect(
+      undocumented,
+      `registry blocks with no dispatch entry: ${undocumented.join(", ")}`,
+    ).toEqual([]);
   });
 
   test("GetDat CLI intake commands have MCP twins", () => {

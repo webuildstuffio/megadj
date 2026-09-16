@@ -13,6 +13,7 @@ fails the build on it.
 
 - rev-25 (2026-09-15): MegaSet rename — verb/route/tool renamed (`megadj megaset`, `/api/archive/megaset`, `megaset_propose`); census unchanged.
 - rev-26 (2026-09-16): #42 split — `/api` dispatch moved to `api_routes.ts` (census reads its exact-table keys); `/events/` trailing-slash spelling restored + 406 negotiation pinned by e2e. 63 → 64 routes (the restored alias).
+- rev-27 (2026-09-16): #143 registry — megadj help/census SSOT is `src/command-registry.ts` (`COMMAND_DOCS`); `usage.ts` renders from it; census + help cross-check off the one table. 45 commands unchanged (the stale duplicate `rb-comment-sync --limit` help block — a flag the arm never parsed — is the one removed line).
 
 The full prose of all 27 revisions lives in Git history
 (`git log --follow -- docs/surface-parity.md`) per §5 — this doc keeps
@@ -237,14 +238,15 @@ honest, in order of strength:
 
 1. **`cratedeck/test/surface-parity.test.ts` (shipped with this doc).**
    Source-parsed, zero fixtures: it re-derives each surface's census
-   from the actual files (the `*_COMMANDS` family registries delegated by
-   `src/cli.ts` +
+   from the actual files (the `name:` rows in the #143 `src/command-registry.ts`
+   help/census SSOT +
    `deckctl.ts`, tool keys in `mcp.ts`, exact-path table keys +
    `route ===`/`sub ===` literals across `index.ts` + `api_routes.ts`
    (+ `drive_routes.ts`/`fleet_routes.ts`), `run("`/`api(` strings in
    `web/**/*.tsx`) and asserts:
-   - every megadj CLI command appears in `src/usage.ts`'s help (a
-     command the help can't show is half an agent surface);
+   - every megadj CLI command has a registry block and vice versa (the
+     census and the help derive from ONE table; a command the help
+     can't show is half an agent surface);
    - every deckctl verb has an MCP twin **or** an exemption-tagged skip;
    - every job kind in the `shared/types.ts` JOB_KINDS SSOT is
      enqueueable from the UI (or exempt) — and deckctl/mcp derive
