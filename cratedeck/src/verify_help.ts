@@ -5,8 +5,7 @@
 // consume); this module derives from it so prose and shape can't fork.
 
 import type { VerifyHelpDoc } from "../shared/types";
-
-export type { VerifyHelpDoc };
+export { type VerifyHelpDoc } from "../shared/types";
 
 export const VERIFY_HELP: VerifyHelpDoc = {
   intro:

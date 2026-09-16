@@ -14,6 +14,10 @@ import type {
   PreflightDriveResult,
   PreflightReport,
 } from "../shared/types";
+export {
+  type PreflightDriveResult,
+  type PreflightReport,
+} from "../shared/types";
 import { checkApplies, type CheckId } from "../shared/check_matrix";
 import { firmwareAdvisories } from "./players";
 import {
@@ -32,19 +36,6 @@ import {
 // shared/types.ts — the dependency leaf — and imported above. Re-exported
 // here for existing `from "./preflight"` consumers (shared/types consumers
 // switched to the canonical definitions).
-export type { PreflightDriveResult, PreflightReport };
-
-// Builders re-exported for their direct consumers (tests, dossier).
-export {
-  benchCheck,
-  bitrotCheck,
-  dualDbCheck,
-  gridsCheck,
-  mirrorCheck,
-  playersCheck,
-  spaceCheck,
-  verifyCheck,
-};
 
 // PreflightInput is DEFINED in preflight_checks.ts (the leaf seam for the
 // builder split — a split-out module must never import its parent's types

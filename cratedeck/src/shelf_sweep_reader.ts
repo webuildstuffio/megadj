@@ -22,7 +22,11 @@ export class ShelfSweepReader {
   private db: Database | null = null;
   private tried = false;
 
-  constructor(private readonly path: string) {}
+  private readonly path: string;
+
+  constructor(path: string) {
+    this.path = path;
+  }
 
   private open(): Database | null {
     if (this.tried) return this.db;

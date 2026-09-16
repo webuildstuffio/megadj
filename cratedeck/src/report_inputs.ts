@@ -7,10 +7,9 @@ import type { Registry } from "./registry";
 import type { DB } from "./db";
 import type { CrateConfig } from "./config";
 import { driveCompatibility } from "./players";
-import type { PlayerSpec } from "../shared/types";
+import type { Drive, PlayerSpec, SnapshotData } from "../shared/types";
 import { buildReport } from "./report";
 import type { PreflightInput } from "./preflight";
-import type { Drive, SnapshotData } from "../shared/types";
 import { parseSnapshotJson } from "../shared/badges";
 
 export interface ReportDeps {

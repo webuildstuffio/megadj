@@ -16,12 +16,9 @@ export const NOTE_MAX = 600;
 /** Longest attribution tag. */
 export const ORIGIN_MAX = 40;
 
+import type { SQLQueryBindings } from "bun:sqlite";
 import type { NoteSeverity, StoredNote } from "../shared/types";
-
-// StoredNote (the feed's wire row) is DEFINED in shared/types.ts — the
-// dependency leaf — and imported here. Re-exported below for existing
-// `from "./notes"` consumers.
-export type { StoredNote };
+export { type StoredNote } from "../shared/types";
 
 export interface NoteInput {
   drive_id: string;
@@ -149,12 +146,16 @@ function parseNoteRow(row: NoteEventRow): StoredNote | null {
 /** The slice of DB the note store needs: the event() writer plus the raw
  *  sqlite handle (readonly public field on DB). */
 export interface NotesStore {
-  event(driveId: string, kind: string, data?: Record<string, unknown>): string;
+  event: (
+    driveId: string,
+    kind: string,
+    data?: Record<string, unknown>,
+  ) => string;
   readonly sqlite: {
-    query(sql: string): {
-      all(...p: unknown[]): unknown[];
-      get(...p: unknown[]): unknown;
-      run(...p: unknown[]): unknown;
+    query: (sql: string) => {
+      all: (...p: SQLQueryBindings[]) => unknown[];
+      get: (...p: SQLQueryBindings[]) => unknown;
+      run: (...p: SQLQueryBindings[]) => unknown;
     };
   };
 }

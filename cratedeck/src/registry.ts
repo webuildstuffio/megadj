@@ -5,6 +5,7 @@ import type { DB } from "./db";
 import type { Drive, SearchResult, SnapshotData } from "../shared/types";
 import { parseSnapshotJson } from "../shared/badges";
 import { legacySyncVerdict } from "./report";
+import type { listMountedVolumes, MountedVolume } from "./detect";
 
 export type Emit = (channel: string, data: unknown) => void;
 
@@ -19,9 +20,7 @@ function decodeSnapshot(
 
 /** The drive-row fields that come straight off a mounted volume — both
  * upsert paths (first-seen and reconcile) write this same projection. */
-function volPatch(
-  vol: import("./detect").MountedVolume,
-): Partial<Drive> & Pick<Drive, "name"> {
+function volPatch(vol: MountedVolume): Partial<Drive> & Pick<Drive, "name"> {
   return {
     name: vol.name,
     capacity_bytes: vol.capacityBytes,
@@ -39,15 +38,19 @@ export class Registry {
    *  Consumed (and cleared) by the auto-scheduler in index.ts. */
   justMountedIds = new Set<string>();
 
-  constructor(
-    private cfg: CrateConfig,
-    private db: DB,
-    private emit: Emit,
-  ) {}
+  private readonly cfg: CrateConfig;
+  private readonly db: DB;
+  private readonly emit: Emit;
+
+  constructor(cfg: CrateConfig, db: DB, emit: Emit) {
+    this.cfg = cfg;
+    this.db = db;
+    this.emit = emit;
+  }
 
   /** Called by detect on every sweep. Reconciles mounted volumes ↔ registry. */
   async reconcile(
-    current: Awaited<ReturnType<typeof import("./detect").listMountedVolumes>>,
+    current: Awaited<ReturnType<typeof listMountedVolumes>>,
   ): Promise<void> {
     const seen = new Set<string>();
     for (const vol of current) {

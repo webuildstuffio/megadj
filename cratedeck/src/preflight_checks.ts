@@ -7,9 +7,8 @@
 // a split-out module types its parent-input against a leaf seam, never
 // against the parent) and preflight.ts re-exports it — madge counts a
 // type-only back-edge as a cycle.
-import type { HealthCheck, SnapshotData } from "../shared/types";
 import { fmtBytes } from "../shared/fmt";
-import type { Drive } from "../shared/types";
+import type { Drive, HealthCheck, SnapshotData } from "../shared/types";
 import type { PlayerSpec } from "./players";
 
 /** Everything a check needs, all measured upstream (DB rows, snapshots). */

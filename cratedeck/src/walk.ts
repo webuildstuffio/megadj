@@ -101,5 +101,5 @@ async function rec(
 
 export function extOf(name: string): string {
   const i = name.lastIndexOf(".");
-  return i >= 0 ? name.slice(i).toLowerCase() : "(none)";
+  return i !== -1 ? name.slice(i).toLowerCase() : "(none)";
 }
