@@ -148,7 +148,7 @@ describe("FpCache", () => {
 
 /**
  * Quarantine-move SSOT regression (issue #84): the three apply sites
- * (dupescan, dedupe-archive-apply, shelf-dedupe-verdict) share ONE
+ * (dupescan, dedupe-archive, shelf-dedupe-verdict) share ONE
  * collision-check + never-overwrite + rename body. The hooks path must
  * keep the never-overwrite guarantee and per-file isolation that
  * `quarantineLoser`/`applyMove` used to hand-roll separately.

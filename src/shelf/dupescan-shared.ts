@@ -64,9 +64,9 @@ export interface DupGroup {
 /** Move one loser into quarantine. Returns true when the file moved.
  *  Quarantine collisions abort THAT file, never the run.
  *  THE quarantine move (issue #84): collision-check + never-overwrite +
- *  rename + per-file error capture in ONE body — dedupe-archive-apply's
- *  `quarantineLoser` and shelf-dedupe-verdict's `applyMove` were private
- *  re-rolls of this loop. Hooks carry each caller's counters/logging;
+ *  rename + per-file error capture in ONE body — the former private
+ *  quarantineLoser/applyMove re-rolls are gone (#142 folded them into
+ *  the engine). Hooks carry each caller's counters/logging;
  *  the SAFETY (never overwrite, never throw out of a batch) lives here. */
 export interface MoveHooks {
   /** Called after a successful rename (src → dest). */

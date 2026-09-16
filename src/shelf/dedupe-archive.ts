@@ -12,29 +12,32 @@
  *
  * Fingerprints cache in the archive DB (file_archive_fingerprints) keyed
  * by path+size, so re-runs only compute new/changed files.
+ *
+ * #142: the fingerprint/group/apply stages ARE the shared engine
+ * (dupescan-engine.ts) — this shell owns walk, policy, gate, report.
  */
 import { openLedger } from "../shared/sqlite-ledger";
 import { basename, join } from "node:path";
-import { statSync } from "node:fs";
 import {
-  walkAudioFiles,
   fingerprintFile,
   nameSimilarityTokens,
+  walkAudioFiles,
 } from "../../fulltags/src/exports";
 import { commandLog } from "../progress";
+import { DupFpCache, type DupGroup as DupeGroup } from "./dupescan-shared";
 import {
-  DupFpCache,
-  groupByFingerprint,
-  type DupGroup as DupeGroup,
-} from "./dupescan-shared";
+  applyGroupsSafety,
+  cutDupGroups,
+  fingerprintFiles,
+  sameSizeSafe,
+} from "./dupescan-engine";
 import {
   applyConfirmed,
   applyConfirmationRefusal,
 } from "../rekordbox/rb-command-kit.js";
-import { applyArchiveGroups } from "./dedupe-archive-apply";
 
 // DupeGroup is the shared dupescan group shape (dupescan-shared.ts, the
-// leaf both this command and its apply stage import) — re-exported so
+// leaf both this command and the engine import) — re-exported so
 // existing `from "./dedupe-archive"` sites hold.
 export type { DupGroup as DupeGroup } from "./dupescan-shared";
 
@@ -62,7 +65,9 @@ export interface DedupeArchiveResult {
 }
 
 /** The archive-tier fingerprint table (distinct from the shelf tier's
- *  shelf_fingerprints — same DupFpCache, direct instantiation, issue #73). */
+ *  shelf_fingerprints — same DupFpCache, direct instantiation, issue #73;
+ *  cache VALUES are tier-local: the archive tier fingerprints with
+ *  fpcalc -json full-length, not the shelf's -length 120). */
 const ARCHIVE_FINGERPRINTS_TABLE = "file_archive_fingerprints";
 
 export async function dedupeArchive(
@@ -90,64 +95,38 @@ export async function dedupeArchive(
   res.scanned = files.length;
   log(`dedupe-archive: ${files.length} files in ${basename(opts.musicDir)}/`);
 
-  // ---- fingerprint (cached by path+size) ---------------------------------
-  let done = 0;
-  for (const f of files) {
-    done++;
-    let size = 0;
-    try {
-      size = statSync(f).size;
-    } catch {
-      continue; // vanished mid-scan
-    }
-    const hit = cache.get(f, size);
-    if (hit !== undefined) {
-      res.cached++;
-      continue;
-    }
-    const fp = fingerprintFile(f);
-    // Never cache a miss: a transient fpcalc failure would otherwise
-    // poison the row permanently and drop the file out of every future
-    // dedupe pass (the Sep 11 poisoning trap class).
-    if (fp !== null) cache.put(f, size, fp);
-    res.fingerprinted++;
-    if (res.fingerprinted % 25 === 0)
-      log(`  ${res.fingerprinted} new fingerprints (${done}/${files.length})…`);
-  }
+  // stage 1: fingerprint (engine, serial — the archive tier never raced
+  // the pool against a hygiene worker; keep it that way)
+  const stats = await fingerprintFiles(files, cache, {
+    fingerprint: fingerprintFile,
+    log,
+    every: 25,
+  });
+  res.cached = stats.cached;
+  res.fingerprinted = stats.computed;
   log(`fingerprints: ${res.cached} cached, ${res.fingerprinted} computed`);
 
-  // ---- group by fingerprint ----------------------------------------------
-  const groups = groupByFingerprint(files, cache);
-  for (const [fp, arr] of groups) {
-    if (arr.length < 2) continue;
-    // keeper = biggest lossless-leaning pick: size is a good proxy inside
-    // one recording group (AIFF > MP3 of the same audio), then shorter name
-    arr.sort(
-      (a, b) =>
-        b.bytes - a.bytes || basename(a.path).length - basename(b.path).length,
-    );
-    const nameRatio = Math.min(
-      ...arr
-        .slice(1)
-        .map((f) =>
-          nameSimilarityTokens(basename(f.path), basename(arr[0]!.path)),
-        ),
-    );
-    res.groups.push({
-      fingerprint: fp,
-      files: arr,
-      keep: arr[0]!.path,
-      reason:
-        nameRatio >= 0.5
-          ? `largest of ${arr.length} identical-recording copies`
-          : `largest of ${arr.length} fp-equal copies (dissimilar names — review)`,
-    });
-  }
-  res.groups.sort((a, b) => b.files.length - a.files.length);
-  res.redundantBytes = res.groups.reduce(
-    (sum, g) => sum + g.files.slice(1).reduce((s, f) => s + f.bytes, 0),
-    0,
-  );
+  // stage 2: group (engine). Keeper = biggest lossless-leaning pick:
+  // size is a good proxy inside one recording group (AIFF > MP3 of the
+  // same audio), then shorter name.
+  const cut = cutDupGroups(files, cache, {
+    keeperSort: (a, b) =>
+      b.bytes - a.bytes || basename(a.path).length - basename(b.path).length,
+    reason: (group, keeper) => {
+      const minRatio = Math.min(
+        ...group
+          .slice(1)
+          .map((f) =>
+            nameSimilarityTokens(basename(f.path), basename(keeper.path)),
+          ),
+      );
+      return minRatio >= 0.5
+        ? `largest of ${group.length} identical-recording copies`
+        : `largest of ${group.length} fp-equal copies (dissimilar names — review)`;
+    },
+  });
+  res.groups = cut.groups;
+  res.redundantBytes = cut.redundantBytes;
   for (const g of res.groups) {
     log(
       `  [group] ${g.files.length} copies · keep ${basename(g.keep)} · ${g.reason}`,
@@ -157,19 +136,39 @@ export async function dedupeArchive(
   }
 
   // ---- apply stage (only with --apply --yes) ------------------------------
-  // Safety rules live in dedupe-archive-apply.ts: md5 re-verify at apply
+  // Safety rules live in dupescan-engine.ts: md5 re-verify at apply
   // time, name-similarity review gate, quarantine-never-delete.
   const applied = applyConfirmed(opts);
   if (applyConfirmationRefusal(opts) !== null) {
     log(applyConfirmationRefusal(opts) ?? "unreachable");
   }
   if (applied) {
-    applyArchiveGroups(
+    // Policy: same-size losers require md5 equality (sameSizeSafe);
+    // different-size requires the names to agree (≥0.5 token ratio — a
+    // real re-rip), else possible fingerprint collision → review.
+    const qDir = join(opts.musicDir, ".dupescan-quarantine");
+    const tally = applyGroupsSafety(
       res.groups,
-      join(opts.musicDir, ".dupescan-quarantine"),
-      res,
-      log,
+      qDir,
+      (loser, ctx) =>
+        loser.bytes === ctx.keeper.bytes
+          ? sameSizeSafe(loser, ctx, {
+              onError: (m) => res.errors.push(m),
+            })
+          : ctx.nameRatio >= 0.5,
+      (keeper, losers) =>
+        Math.min(
+          ...losers.map((f) =>
+            nameSimilarityTokens(basename(f.path), basename(keeper.path)),
+          ),
+        ),
+      {
+        onError: (m) => res.errors.push(m),
+        onQuarantined: (p) => log(`  → quarantined: ${basename(p)}`),
+      },
     );
+    res.quarantined = tally.quarantined;
+    res.skippedForReview = tally.skippedForReview;
   }
   res.applied = applied;
   db.close();

@@ -12,26 +12,27 @@
  * Report-only by default (fingerprints cached in the archive DB). `--apply`
  * is intentionally absent: groups feed the same human-gated quarantine flow
  * as shelf-dedupe. Parallel worker pool; fp cache makes re-runs fast.
+ *
+ * #142: the fingerprint/group/apply stages ARE the shared engine
+ * (dupescan-engine.ts) — this shell owns walk, policy, gate, report.
  */
 import { openLedger } from "../shared/sqlite-ledger";
-import { existsSync, mkdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
+import { basename, join } from "node:path";
 import { fingerprintFileLength } from "../../fulltags/src/exports";
 export { parseFpcalcOutput } from "../../fulltags/src/exports";
+import { DupFpCache, type DupGroup } from "./dupescan-shared";
 import {
-  DupFpCache,
-  groupByFingerprint,
-  type DupGroup,
-} from "./dupescan-shared";
-import { applyDupGroups } from "./shelf-dupescan-apply";
+  applyGroupsSafety,
+  cutDupGroups,
+  fingerprintFiles,
+  sameSizeSafe,
+} from "./dupescan-engine";
+import { nameSimilarity } from "../archive/hygiene/checks/similarity";
 import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson, setExit } from "../shared/cli-output";
 import { walkAudioDir } from "../shared/audio-walk";
-
-// md5sum / nameSimilarity / moveLoser / DupGroup all live in the leaf
-// modules (shelf-dupescan-apply.ts / dupescan-shared.ts) — import from
-// there directly; re-exports from this module are dead surface (knip).
 
 export function walkAudio(root: string): string[] {
   return walkAudioDir(root);
@@ -42,16 +43,15 @@ export function walkAudio(root: string): string[] {
  *  implementation (fingerprintFileLength) for every fingerprint pass in
  *  the repo. The Sep 11 mass-collision parse fix now has exactly one
  *  home; these regression tests pin it. */
-
 function fingerprint(path: string): string | null {
   return fingerprintFileLength(path);
 }
 
 /** Persistent fp cache — one row per file path (re-runs only decode
- *  new/changed files). DupFpCache is instantiated DIRECTLY with its table
- *  name (issue #73: the one-method FpCache subclass was a jscpd-flagged
- *  twin of dedupe-archive's). This alias keeps the exported name that
- *  shelf-hygiene and the dedupe tests import. */
+ * new/changed files). DupFpCache is instantiated DIRECTLY with its table
+ * name (issue #73: the one-method FpCache subclass was a jscpd-flagged
+ * twin of dedupe-archive's). This alias keeps the exported name that
+ * shelf-hygiene and the dedupe tests import. */
 export const FpCache = DupFpCache;
 
 /** The shelf-tier fingerprint table (shelf-cache namespace). */
@@ -115,61 +115,24 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
     `shelf-dupescan: ${files.length} audio files on ${shelfVolume}${scanDirs.length ? ` (+${scanDirs.length} extra dir(s))` : ""}`,
   );
 
-  // compute missing fingerprints with a small parallel pool
-  const missing = files.filter((f) => {
-    try {
-      return cache.get(f, statSync(f).size) === undefined;
-    } catch {
-      return false;
-    }
+  // stage 1+2: fingerprint (engine) → group (engine, keeper = largest)
+  const { cached, computed } = await fingerprintFiles(files, cache, {
+    jobs,
+    fingerprint,
+    log,
+    every: 250,
   });
-  log(
-    `fingerprints cached: ${files.length - missing.length} · to compute: ${missing.length}`,
-  );
-  let done = 0;
-  const workers = Array.from(
-    { length: Math.min(jobs, missing.length || 1) },
-    async () => {
-      for (;;) {
-        const f = missing[done];
-        if (f === undefined) break;
-        done++;
-        const { size } = statSync(f);
-        const fp = fingerprint(f);
-        // Never cache a miss: a transient fpcalc failure would otherwise
-        // poison the row permanently and drop the file out of every
-        // future dupescan pass (the Sep 11 poisoning trap class).
-        if (fp !== null) cache.put(f, size, fp);
-        if (done % 250 === 0) log(`  ${done}/${missing.length} fingerprints…`);
-      }
-    },
-  );
-  await Promise.all(workers);
-
-  // group by fingerprint (skip nulls/unfingerprintable)
-  const groups = groupByFingerprint(files, cache);
-
-  // a duplicate group = >=2 files with the same fingerprint
-  const dupes: DupGroup[] = [];
-  for (const [fp, arr] of groups) {
-    if (arr.length < 2) continue;
-    arr.sort((a, b) => b.bytes - a.bytes);
-    dupes.push({
-      fingerprint: fp,
-      files: arr,
-      keep: arr[0]!.path,
-      reason: `largest of ${arr.length} identical-fingerprint copies`,
-    });
-  }
-  dupes.sort((a, b) => b.files.length - a.files.length);
-
-  const redundantBytes = dupes.reduce(
-    (sum, g) => sum + g.files.slice(1).reduce((s, f) => s + f.bytes, 0),
-    0,
-  );
+  log(`fingerprints cached: ${cached} · to compute: ${computed}`);
+  const cut = cutDupGroups(files, cache, {
+    keeperSort: (a, b) => b.bytes - a.bytes,
+    reason: (group) =>
+      `largest of ${group.length} identical-fingerprint copies`,
+  });
+  const dupes = cut.groups;
+  const redundantBytes = cut.redundantBytes;
 
   // ---- apply stage (only with --quarantine --yes) ----------------------
-  // Guards live in shelf-dupescan-apply.ts: md5 re-verify at apply time,
+  // Safety rules live in dupescan-engine.ts: md5 re-verify at apply time,
   // quarantine-never-delete, per-file collision isolation. Groups whose
   // KEEPER lies outside Contents/ (extra scan dirs) are never applied —
   // an extra dir is a reporting lens, not a quarantine source.
@@ -194,12 +157,30 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
     );
   }
   const applied = quarantine && yes;
+  const errors: string[] = [];
   let quarantined = 0;
   let skippedForReview = 0;
-  const errors: string[] = [];
   if (applied) {
     mkdirSync(qDir, { recursive: true });
-    const tally = applyDupGroups(applyable, qDir, onlyIdentical, errors);
+    // Policy: same-size losers require md5 equality (sameSizeSafe);
+    // different-size requires the names to agree (≥0.5 char ratio — a
+    // real re-rip), unless --only-identical forbids all same-fp/
+    // different-bytes moves. Anything else = possible long-mix fp
+    // collision → review, never auto-quarantined.
+    const tally = applyGroupsSafety(
+      applyable,
+      qDir,
+      (loser, ctx) =>
+        loser.bytes === ctx.keeper.bytes
+          ? sameSizeSafe(loser, ctx, { onError: (m) => errors.push(m) })
+          : !onlyIdentical && ctx.nameRatio >= 0.5,
+      (keeper, losers) =>
+        losers.reduce(
+          (s, f) => s + nameSimilarity(basename(keeper.path), basename(f.path)),
+          0,
+        ) / losers.length,
+      { onError: (m) => errors.push(m) },
+    );
     quarantined = tally.quarantined;
     skippedForReview = tally.skippedForReview;
   }
