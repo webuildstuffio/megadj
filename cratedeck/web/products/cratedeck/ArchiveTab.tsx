@@ -101,6 +101,132 @@ function PipelineBars(props: { ingest: IngestPayload }) {
   );
 }
 
+/** The work queue inputs, derived once from the payloads (pure — no I/O,
+ *  no JSX). Shared by the verdict banner and the "Needs work" section. */
+interface ArchiveVerdict {
+  issues: { n: number; text: string }[];
+  syncRisk: number;
+  qualityDebt: number;
+  retryBacklog: number;
+  unanalyzed: number;
+  analyzed: number;
+  inArchive: number;
+}
+
+function deriveVerdict(
+  ingest: IngestPayload,
+  mood: MoodPayload | null,
+  lowq: LowqPayload | null,
+  grid: GridPayload | null,
+): ArchiveVerdict {
+  const syncRisk = grid?.available
+    ? grid.off.length + grid.octave.length + grid.drift.length
+    : 0;
+  const qualityDebt = lowq?.available ? lowq.tracks.length : 0;
+  const retryBacklog = ingest.available
+    ? (ingest.counts["failed"] ?? 0) + (ingest.counts["gone"] ?? 0)
+    : 0;
+  const analyzed = mood?.available ? mood.analyzed : 0;
+  const inArchive = ingest.available ? (ingest.counts["downloaded"] ?? 0) : 0;
+  // unmetered = in the archive but no mood stamp — the analysis backlog
+  const unanalyzed =
+    inArchive > 0 && mood?.available ? Math.max(0, inArchive - analyzed) : 0;
+
+  const issues = [
+    syncRisk > 0 && {
+      n: syncRisk,
+      text: `${syncRisk} track${syncRisk === 1 ? "" : "s"} will Beat Sync badly (grid check)`,
+    },
+    qualityDebt > 0 && {
+      n: qualityDebt,
+      text: `${qualityDebt} below the quality bar (LOWQ)`,
+    },
+    retryBacklog > 0 && {
+      n: retryBacklog,
+      text: `${retryBacklog} failed/gone downloads to retry or drop`,
+    },
+    unanalyzed > 0 && {
+      n: unanalyzed,
+      text: `${unanalyzed} not yet mood-analyzed`,
+    },
+  ].filter((x): x is { n: number; text: string } => Boolean(x));
+  return {
+    issues,
+    syncRisk,
+    qualityDebt,
+    retryBacklog,
+    unanalyzed,
+    analyzed,
+    inArchive,
+  };
+}
+
+/** The verdict banner + secondary issue pills. */
+function VerdictBanner(props: {
+  verdict: ArchiveVerdict;
+  inArchive: number;
+  analyzed: number;
+  moodAvailable: boolean;
+}) {
+  const { issues } = props.verdict;
+  const verdict =
+    issues.length === 0
+      ? {
+          cls: "ok",
+          text: "Archive is healthy — everything analyzed, nothing flagged.",
+        }
+      : {
+          cls: "warn",
+          text: `${issues[0]!.text}${issues.length > 1 ? ` · +${issues.length - 1} more below` : ""}`,
+        };
+  return (
+    <>
+      <div class={`arch-verdict ${verdict.cls}`}>
+        <Icon name={verdict.cls === "ok" ? "check" : "warn"} size={15} />
+        <span>{verdict.text}</span>
+        <span class="arch-verdict-meta">
+          {props.inArchive.toLocaleString()} in the archive
+          {props.moodAvailable && props.analyzed > 0 && (
+            <> · {props.analyzed} analyzed</>
+          )}
+        </span>
+      </div>
+      {issues.length > 1 && (
+        <div class="arch-issues">
+          {issues.slice(1).map((i) => (
+            <span key={i.text} class="arch-issue">
+              <Icon name="dot" size={10} /> {i.text}
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Card 1 of the work queue — Beat Sync breakers with numbers. */
+function SyncBreakersSection(props: {
+  grid: GridPayload | null;
+  breakers: ReturnType<typeof collectBreakers>;
+  syncRisk: number;
+}) {
+  const { grid, breakers, syncRisk } = props;
+  if (!grid?.available || syncRisk <= 0) return null;
+  return (
+    <BeatSyncBreakersCard
+      breakers={breakers}
+      syncRisk={syncRisk}
+      hint="These tracks' independent beatgrid analysis disagrees with rekordbox — off by >2% tempo, locked an octave (half/double) out, or drifting positionally across the track (>15 ms). They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the worst (Sync lands on the wrong pulse entirely); drift rows slide out of phase as the track plays. Click a numeric header to sort."
+      fixNote={
+        <>
+          <code>megadj beats --force</code> re-analyzes — the write-gate on BPM
+          tags is documented in the FullTags roadmap
+        </>
+      }
+    />
+  );
+}
+
 export function ArchiveTab() {
   const page = useFetched<ArchivePayload>(
     () =>
@@ -119,37 +245,8 @@ export function ArchiveTab() {
     return <FetchedGate page={page} loading="loading archive reads…" />;
 
   // ---- the verdict: one line a human reads before anything else ---------
-  const syncRisk = grid?.available
-    ? grid.off.length + grid.octave.length + grid.drift.length
-    : 0;
-  const qualityDebt = lowq?.available ? lowq.tracks.length : 0;
-  const retryBacklog = ingest.available
-    ? (ingest.counts["failed"] ?? 0) + (ingest.counts["gone"] ?? 0)
-    : 0;
-  const analyzed = mood?.available ? mood.analyzed : 0;
-  const inArchive = ingest.available ? (ingest.counts["downloaded"] ?? 0) : 0;
-  // unmetered = in the archive but no mood stamp — the analysis backlog
-  const unanalyzed =
-    inArchive > 0 && mood?.available ? Math.max(0, inArchive - analyzed) : 0;
-
-  const issues: { n: number; text: string }[] = [
-    syncRisk > 0 && {
-      n: syncRisk,
-      text: `${syncRisk} track${syncRisk === 1 ? "" : "s"} will Beat Sync badly (grid check)`,
-    },
-    qualityDebt > 0 && {
-      n: qualityDebt,
-      text: `${qualityDebt} below the quality bar (LOWQ)`,
-    },
-    retryBacklog > 0 && {
-      n: retryBacklog,
-      text: `${retryBacklog} failed/gone downloads to retry or drop`,
-    },
-    unanalyzed > 0 && {
-      n: unanalyzed,
-      text: `${unanalyzed} not yet mood-analyzed`,
-    },
-  ].filter((x): x is { n: number; text: string } => Boolean(x));
+  const verdict = deriveVerdict(ingest, mood, lowq, grid);
+  const { syncRisk, qualityDebt, retryBacklog, analyzed, inArchive } = verdict;
 
   const c = ingest.available ? ingest.counts : {};
   const cEntry = (k: string) => c[k] ?? 0;
@@ -160,17 +257,7 @@ export function ArchiveTab() {
   );
   const newest = ingest.recent_tracks.slice(0, 8);
   const breakers = collectBreakers(grid);
-
-  const verdict =
-    issues.length === 0
-      ? {
-          cls: "ok",
-          text: "Archive is healthy — everything analyzed, nothing flagged.",
-        }
-      : {
-          cls: "warn",
-          text: `${issues[0]!.text}${issues.length > 1 ? ` · +${issues.length - 1} more below` : ""}`,
-        };
+  const { issues } = verdict;
 
   return (
     <div>
@@ -181,23 +268,12 @@ export function ArchiveTab() {
       />
 
       {/* ---- verdict banner ---- */}
-      <div class={`arch-verdict ${verdict.cls}`}>
-        <Icon name={verdict.cls === "ok" ? "check" : "warn"} size={15} />
-        <span>{verdict.text}</span>
-        <span class="arch-verdict-meta">
-          {inArchive.toLocaleString()} in the archive
-          {mood?.available && analyzed > 0 && <> · {analyzed} analyzed</>}
-        </span>
-      </div>
-      {issues.length > 1 && (
-        <div class="arch-issues">
-          {issues.slice(1).map((i) => (
-            <span key={i.text} class="arch-issue">
-              <Icon name="dot" size={10} /> {i.text}
-            </span>
-          ))}
-        </div>
-      )}
+      <VerdictBanner
+        verdict={verdict}
+        inArchive={inArchive}
+        analyzed={analyzed}
+        moodAvailable={Boolean(mood?.available)}
+      />
 
       {/* ---- what the archive IS (one sentence + the pipeline shape) ---- */}
       <div class="card arch-what">
@@ -279,19 +355,11 @@ export function ArchiveTab() {
 
       {/* 1 — Beat Sync breakers: the highest-stakes list, with numbers.
           Card body is the shared BeatSyncBreakersCard (products/shared). */}
-      {grid?.available && syncRisk > 0 && (
-        <BeatSyncBreakersCard
-          breakers={breakers}
-          syncRisk={syncRisk}
-          hint="These tracks' independent beatgrid analysis disagrees with rekordbox — off by >2% tempo, locked an octave (half/double) out, or drifting positionally across the track (>15 ms). They will drift or jump badly when you hit Sync on hardware, even though they sound fine at home. Octave rows are the worst (Sync lands on the wrong pulse entirely); drift rows slide out of phase as the track plays. Click a numeric header to sort."
-          fixNote={
-            <>
-              <code>megadj beats --force</code> re-analyzes — the write-gate on
-              BPM tags is documented in the FullTags roadmap
-            </>
-          }
-        />
-      )}
+      <SyncBreakersSection
+        grid={grid}
+        breakers={breakers}
+        syncRisk={syncRisk}
+      />
 
       {/* 2 — LOWQ: quality upgrades, with the reason each track is flagged */}
       {lowq?.available && qualityDebt > 0 && (

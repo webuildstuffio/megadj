@@ -112,6 +112,19 @@ const BUCKETS: BucketName[] = [
   "CHAOS",
 ];
 
+/** A zeroed bucket census (derive from BUCKETS — never hand-copy keys). */
+const emptyBuckets = (): Record<BucketName, number> =>
+  Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Record<BucketName, number>;
+
+/** Existence gates before any work: master DB present, compare stick
+ *  mounted. Returns the failure message, or null when clear to proceed. */
+function preflight(dbPath: string, stickMount: string | null): string | null {
+  if (!existsSync(dbPath)) return `no master DB at ${dbPath}`;
+  if (stickMount && !existsSync(stickMount))
+    return `compare drive not mounted: ${stickMount}`;
+  return null;
+}
+
 const PY_ROWS =
   "import sys, json\n" +
   "sys.path.insert(0, sys.argv[2])\n" +
@@ -285,6 +298,58 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   return true;
 }
 
+/** Read one row's shelf + stick ANLZ bytes (null when missing) and run
+ *  the triage classifier. I/O only — no accumulator logic. */
+function triageRowWithBytes(
+  row: MasterRow,
+  mount: string,
+  stickMount: string | null,
+  idx: ReturnType<typeof buildLedgerIndex>,
+): TriageRow {
+  const shelfAnlz = resolveCollectionAnlz(mount, row.anlz);
+  const shelfBytes = shelfAnlz ? new Uint8Array(readFileSync(shelfAnlz)) : null;
+  let stickBytes: Uint8Array | null = null;
+  if (stickMount) {
+    const p = join(
+      stickMount,
+      "PIONEER",
+      "USBANLZ",
+      row.hashDir,
+      "ANLZ0000.DAT",
+    );
+    stickBytes = existsSync(p) ? new Uint8Array(readFileSync(p)) : null;
+  }
+  return triageRow({
+    row,
+    shelfAnlzBytes: shelfBytes,
+    stickAnlzBytes: stickBytes,
+    compareActive: Boolean(stickMount),
+    ledgerBeats: ledgerBeatsFor(row.path, idx),
+  });
+}
+
+/** Fold one triage row into the running result accumulator. One branch
+ *  chain per row class — the only place verdicts touch counters. */
+function absorbTriageRow(
+  result: GridTriageResult,
+  offenderRows: TriageRow[],
+  t: TriageRow,
+): void {
+  if (t.cls in result.buckets) {
+    result.buckets[t.cls as BucketName]++;
+    result.audited++;
+    if (t.cls !== "A-OK") offenderRows.push(t);
+  } else if (t.cls === "SYNC" || t.cls === "DRIVE-MISSING") {
+    result.syncIssues!++; // a missing stick sidecar IS out of sync
+    offenderRows.push(t);
+  } else {
+    result.synced!++;
+  }
+  if (t.cls === "NO-ANLZ") result.noAnlz++;
+  if (t.cls === "NO-LEDGER") result.noLedger++;
+  if (t.cls === "NO-GRID") result.noGrid++;
+}
+
 export async function gridTriage(
   opts: GridTriageOptions,
 ): Promise<GridTriageResult> {
@@ -305,10 +370,7 @@ export async function gridTriage(
     compareDrive,
     total: 0,
     audited: 0,
-    buckets: Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Record<
-      BucketName,
-      number
-    >,
+    buckets: emptyBuckets(),
     synced: null,
     syncIssues: null,
     noAnlz: 0,
@@ -319,13 +381,9 @@ export async function gridTriage(
     error: msg,
   }));
 
-  if (!existsSync(dbPath)) {
-    const r = fail(`no master DB at ${dbPath}`);
-    log(r.error ?? "unknown failure");
-    return r;
-  }
-  if (stickMount && !existsSync(stickMount)) {
-    const r = fail(`compare drive not mounted: ${stickMount}`);
+  const gate = preflight(dbPath, stickMount);
+  if (gate) {
+    const r = fail(gate);
     log(r.error ?? "unknown failure");
     return r;
   }
@@ -355,42 +413,11 @@ export async function gridTriage(
 
   const offenderRows: TriageRow[] = [];
   for (const row of todo) {
-    const shelfAnlz = resolveCollectionAnlz(mount, row.anlz);
-    const shelfBytes = shelfAnlz
-      ? new Uint8Array(readFileSync(shelfAnlz))
-      : null;
-    let stickBytes: Uint8Array | null = null;
-    if (stickMount) {
-      const p = join(
-        stickMount,
-        "PIONEER",
-        "USBANLZ",
-        row.hashDir,
-        "ANLZ0000.DAT",
-      );
-      stickBytes = existsSync(p) ? new Uint8Array(readFileSync(p)) : null;
-    }
-    const beats = ledgerBeatsFor(row.path, idx);
-    const t = triageRow({
-      row,
-      shelfAnlzBytes: shelfBytes,
-      stickAnlzBytes: stickBytes,
-      compareActive: Boolean(stickMount),
-      ledgerBeats: beats,
-    });
-    if (t.cls in result.buckets) {
-      result.buckets[t.cls as BucketName]++;
-      result.audited++;
-      if (t.cls !== "A-OK") offenderRows.push(t);
-    } else if (t.cls === "SYNC" || t.cls === "DRIVE-MISSING") {
-      result.syncIssues!++; // a missing stick sidecar IS out of sync
-      offenderRows.push(t);
-    } else {
-      result.synced!++;
-    }
-    if (t.cls === "NO-ANLZ") result.noAnlz++;
-    if (t.cls === "NO-LEDGER") result.noLedger++;
-    if (t.cls === "NO-GRID") result.noGrid++;
+    absorbTriageRow(
+      result,
+      offenderRows,
+      triageRowWithBytes(row, mount, stickMount, idx),
+    );
   }
 
   // Worst-first sample: SYNC issues, then non-A-OK buckets; cap 50.

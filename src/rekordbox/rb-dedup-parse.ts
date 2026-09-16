@@ -54,6 +54,40 @@ export const finiteNonNegative = (value: unknown): value is number =>
 export const isUnknownArray = (value: unknown): value is unknown[] =>
   Array.isArray(value);
 
+/** Non-empty string. The every wire id must be one. */
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.length > 0;
+
+/** Every element passes the guard. Point-free helper for the validators
+ *  below — the old inline `.every()` lambdas were the CCN 37 wall. */
+const everyIs = (value: unknown, guard: (item: unknown) => boolean): boolean =>
+  isUnknownArray(value) && value.every(guard);
+
+/** A `[playlist_name, position]` membership tuple (integer position ≥ 0). */
+const isMembership = (value: unknown): value is [string, number] =>
+  isUnknownArray(value) &&
+  value.length === 2 &&
+  isNonEmptyString(value[0]) &&
+  finiteNonNegative(value[1]) &&
+  Number.isInteger(value[1]);
+
+/** A non-empty cue signature string. */
+const isCueSignature = (value: unknown): value is string =>
+  isNonEmptyString(value);
+
+/** A wire association proof: keeper id + playlists + cue signatures. */
+const isAssociationWire = (
+  value: unknown,
+): value is AssociationExpectationWire =>
+  typeof value === "object" &&
+  value !== null &&
+  "keep_id" in value &&
+  isNonEmptyString(value.keep_id) &&
+  "playlists" in value &&
+  everyIs(value.playlists, isMembership) &&
+  "cue_signatures" in value &&
+  everyIs(value.cue_signatures, isCueSignature);
+
 function isScanRow(value: unknown): value is ScanRow {
   return (
     typeof value === "object" &&
@@ -109,52 +143,34 @@ export function parseDeleteResult(
   raw: string,
   expectedIds?: readonly string[],
 ): DeleteResult {
-  const value = parseJsonBoundary(raw, "rb-dedup delete");
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("removed_ids" in value) ||
-    !isUnknownArray(value.removed_ids) ||
-    !value.removed_ids.every(
-      (id): id is string => typeof id === "string" && id.length > 0,
-    ) ||
-    new Set(value.removed_ids).size !== value.removed_ids.length ||
-    !("errors" in value) ||
-    !isUnknownArray(value.errors) ||
-    !value.errors.every(
-      (entry): entry is [string, string] =>
+  const value = parseJsonBoundary(raw, "rb-dedup delete") as Record<
+    string,
+    unknown
+  > | null;
+  /** unique non-empty strings — the removed/acknowledged id rule. */
+  const isUniqueStringList = (v: unknown): v is string[] => {
+    if (!isUnknownArray(v)) return false;
+    if (!v.every(isNonEmptyString)) return false;
+    return new Set(v as string[]).size === v.length;
+  };
+  /** `[error_id, message]` tuple on every entry. */
+  const isErrorsWire = (v: unknown): v is [string, string][] => {
+    if (!isUnknownArray(v)) return false;
+    return v.every(
+      (entry) =>
         isUnknownArray(entry) &&
         entry.length === 2 &&
         typeof entry[0] === "string" &&
         typeof entry[1] === "string",
-    ) ||
-    !("associations" in value) ||
-    !isUnknownArray(value.associations) ||
-    !value.associations.every(
-      (association) =>
-        typeof association === "object" &&
-        association !== null &&
-        "keep_id" in association &&
-        typeof association.keep_id === "string" &&
-        association.keep_id.length > 0 &&
-        "playlists" in association &&
-        isUnknownArray(association.playlists) &&
-        association.playlists.every(
-          (membership: unknown) =>
-            isUnknownArray(membership) &&
-            membership.length === 2 &&
-            typeof membership[0] === "string" &&
-            membership[0].length > 0 &&
-            finiteNonNegative(membership[1]) &&
-            Number.isInteger(membership[1]),
-        ) &&
-        "cue_signatures" in association &&
-        isUnknownArray(association.cue_signatures) &&
-        association.cue_signatures.every(
-          (signature: unknown) =>
-            typeof signature === "string" && signature.length > 0,
-        ),
-    )
+    );
+  };
+
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !isUniqueStringList(value.removed_ids) ||
+    !isErrorsWire(value.errors) ||
+    !everyIs(value.associations, isAssociationWire)
   ) {
     throw new Error(
       "rb-dedup delete returned invalid JSON: expected removed ids, errors, and association proofs",
@@ -215,47 +231,41 @@ interface VerifyRowWire {
 }
 
 export function parseVerifyRows(raw: string): VerifyRow[] {
-  const value = parseJsonBoundary(raw, "rb-dedup verification");
+  const value = parseJsonBoundary(raw, "rb-dedup verification") as Record<
+    string,
+    unknown
+  > | null;
+  /** One wire verify row (snake_case), fully validated. */
+  const isVerifyRowWire = (row: unknown): row is VerifyRowWire =>
+    typeof row === "object" &&
+    row !== null &&
+    "id" in row &&
+    isNonEmptyString(row.id) &&
+    "path" in row &&
+    typeof row.path === "string" &&
+    "playlists" in row &&
+    everyIs(row.playlists, isMembership) &&
+    "cue_signatures" in row &&
+    everyIs(row.cue_signatures, isCueSignature) &&
+    "cue_owners_valid" in row &&
+    typeof row.cue_owners_valid === "boolean";
+  /** All rows valid AND ids unique — the verification contract. */
+  const isVerifyRowsWire = (v: unknown): v is VerifyRowWire[] => {
+    if (!isUnknownArray(v)) return false;
+    if (!v.every(isVerifyRowWire)) return false;
+    return new Set(v.map((row) => row.id)).size === v.length;
+  };
+  const value2 = value;
   if (
-    typeof value !== "object" ||
-    value === null ||
-    !("rows" in value) ||
-    !isUnknownArray(value.rows) ||
-    !value.rows.every(
-      (row): row is VerifyRowWire =>
-        typeof row === "object" &&
-        row !== null &&
-        "id" in row &&
-        typeof row.id === "string" &&
-        row.id.length > 0 &&
-        "path" in row &&
-        typeof row.path === "string" &&
-        "playlists" in row &&
-        isUnknownArray(row.playlists) &&
-        row.playlists.every(
-          (membership: unknown) =>
-            isUnknownArray(membership) &&
-            membership.length === 2 &&
-            typeof membership[0] === "string" &&
-            finiteNonNegative(membership[1]) &&
-            Number.isInteger(membership[1]),
-        ) &&
-        "cue_signatures" in row &&
-        isUnknownArray(row.cue_signatures) &&
-        row.cue_signatures.every(
-          (signature: unknown) =>
-            typeof signature === "string" && signature.length > 0,
-        ) &&
-        "cue_owners_valid" in row &&
-        typeof row.cue_owners_valid === "boolean",
-    ) ||
-    new Set(value.rows.map((row) => row.id)).size !== value.rows.length
+    typeof value2 !== "object" ||
+    value2 === null ||
+    !isVerifyRowsWire(value2.rows)
   ) {
     throw new Error(
       "rb-dedup verification returned invalid JSON: expected unique id/path rows",
     );
   }
-  return value.rows.map((row) => ({
+  return value2.rows.map((row) => ({
     id: row.id,
     path: row.path,
     playlists: row.playlists,
