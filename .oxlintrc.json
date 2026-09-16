@@ -2,7 +2,8 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "categories": {
     "correctness": "error",
-    "suspicious": "warn"
+    "suspicious": "warn",
+    "style": "error"
   },
   "rules": {
     "eslint/no-underscore-dangle": [
@@ -10,6 +11,35 @@
       {
         "allow": ["_received", "__test"]
       }
-    ]
+    ],
+    "eslint/capitalized-comments": "off",
+    "eslint/id-length": "off",
+    "eslint/one-var": "off",
+    "eslint/no-magic-numbers": "off",
+    "eslint/sort-keys": "off",
+    "eslint/sort-imports": "off",
+    "eslint/max-statements": "off",
+    "eslint/max-params": "off",
+    "eslint/func-style": "off",
+    "eslint/no-ternary": "off",
+    "eslint/no-continue": "off",
+    "eslint/init-declarations": "off",
+    "eslint/curly": "off",
+    "eslint/no-nested-ternary": "off",
+    "eslint/prefer-destructuring": "off",
+    "eslint/prefer-named-capture-group": "off",
+    "eslint/new-cap": "off",
+    "unicorn/filename-case": "off",
+    "unicorn/no-null": "off",
+    "unicorn/catch-error-name": "off",
+    "unicorn/numeric-separators-style": "off",
+    "unicorn/number-literal-case": "off",
+    "unicorn/no-nested-ternary": "off",
+    "unicorn/switch-case-braces": "off",
+    "unicorn/max-nested-calls": "off",
+    "unicorn/prefer-global-this": "off",
+    "unicorn/no-await-expression-member": "off",
+    "unicorn/no-zero-fractions": "off",
+    "unicorn/prefer-string-raw": "off"
   }
 }
