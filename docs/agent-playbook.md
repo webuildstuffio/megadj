@@ -353,6 +353,15 @@ the ideas catalog (now archived at `docs/archive/ideas-2026-09-15.md`),
   were split across dedicated passes; db.ts is now 614 lines and
   `canon` as a monolith is gone. Future audits should re-run lizard and
   compare against that baseline rather than assume the old top-10.
+- **Hotspot tables go stale in days — re-measure before acting**
+  (0814e80, Sep 16): #191's census (rbFixPaths 43, cli main 38) was
+  outdated before anyone picked it up — #88/#90 had already fixed its
+  top two entries, and two more named targets (`parseMegasetQuery`,
+  `toCamelot`) were lizard parse artifacts (real CCN ~7/~8; regex
+  alternations + swallowed braces inflate it). Always re-run lizard at
+  HEAD and sanity-check a named function's real complexity before
+  refactoring it. The Sep 16 measured top: parseDeleteResult 37→11,
+  gridTriage 34→20, ArchiveTab 35→7 — all three landed same-day.
 - **Cold-cache I/O truth still unmeasured** (f40fd72d, Sep 8): the
   sweep-optimization plan is blocked on a real cold-cache profile — the
   archive fits the page cache, so local harness numbers are ~10×
