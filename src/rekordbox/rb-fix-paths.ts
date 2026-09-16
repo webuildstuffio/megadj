@@ -283,13 +283,257 @@ export function readRows(dbPath: string): [string, string][] {
   return parseReadRows(lastJsonLine(r.stdout));
 }
 
+/** Shared apply/verify context: the scan facts plus the mutable counters
+ *  the result builder reads at call time (same semantics as the old
+ *  closure-captured `applied`/`backedUpTo`/`stillBroken`/`appliedList`). */
+interface FixCtx {
+  opts: RbFixPathsOptions;
+  runtime: RbFixPathsRuntime;
+  log: (s: string) => void;
+  dbPath: string;
+  rows: [string, string][];
+  brokenRows: RbFixRow[];
+  fixable: RbFixRow[];
+  dead: RbFixRow[];
+  applied: number;
+  appliedList: string[];
+  backedUpTo: string | null;
+  stillBroken: number;
+}
+
+/** Success-shaped result built from the ctx counters (the old `result()`
+ *  closure, made a function of its inputs). */
+function resultOf(ctx: FixCtx, values: Partial<RbFixResult> = {}): RbFixResult {
+  return {
+    command: "rb-fix-paths",
+    mount: normalizeMount(ctx.opts.mount),
+    db: ctx.dbPath,
+    total: ctx.rows.length,
+    broken: ctx.brokenRows.length,
+    fixable: ctx.fixable.length,
+    dead: ctx.dead.length,
+    applied: ctx.applied,
+    appliedList: ctx.appliedList,
+    deadList: ctx.dead.map((d) => d.brokenPath),
+    stillBroken: ctx.stillBroken,
+    appliedMode: Boolean(ctx.opts.apply),
+    backedUpTo: ctx.backedUpTo,
+    ok: true,
+    ...values,
+  };
+}
+
+/** Preflight + scan phase: confirmation/mount guards, then the read-only
+ *  classification of every content row against the live index. Either a
+ *  refusal reason or the full scan state — no mutation here. */
+function preflightAndScan(
+  opts: RbFixPathsOptions,
+  runtime: RbFixPathsRuntime,
+  dbPath: string,
+  log: (s: string) => void,
+):
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      rows: [string, string][];
+      brokenRows: RbFixRow[];
+      fixable: RbFixRow[];
+      dead: RbFixRow[];
+    } {
+  const refusal = applyConfirmationRefusal(opts);
+  if (refusal !== null) return { ok: false, error: refusal };
+  if (!runtime.fileExists(dbPath)) {
+    return { ok: false, error: `no master DB at ${dbPath}` };
+  }
+  if (opts.apply) {
+    try {
+      runtime.assertClosed("rb-fix-paths --apply preflight");
+    } catch (error) {
+      return { ok: false, error: errorText(error) };
+    }
+  }
+
+  log(`rb-fix-paths: reading ${dbPath}`);
+  let rows: [string, string][];
+  try {
+    rows = runtime.readRows(dbPath);
+  } catch (e) {
+    return { ok: false, error: errorText(e) };
+  }
+  const idx = runtime.buildIndex(normalizeMount(opts.mount));
+  log(
+    `rb-fix-paths: ${rows.length} content rows · ${idx.byNorm.size} live audio files indexed`,
+  );
+
+  const brokenRows: RbFixRow[] = [];
+  for (const [id, p] of rows) {
+    if (p && !runtime.fileExists(p)) {
+      const row = matchLadder(p, idx);
+      row.id = id;
+      brokenRows.push(row);
+    }
+  }
+  return {
+    ok: true,
+    rows,
+    brokenRows,
+    fixable: brokenRows.filter((r) => r.fixPath),
+    dead: brokenRows.filter((r) => !r.fixPath),
+  };
+}
+
+/** Failure path with rollback: when a backup exists, restore it and
+ *  verify the restoration byte-for-byte (row-for-row); report honestly
+ *  either way — a failed rollback is the loudest line in the report. */
+function restoreAfterFailure(
+  ctx: FixCtx,
+  reason: string,
+  attempted: number,
+  measuredStillBroken: number,
+): RbFixResult {
+  if (ctx.backedUpTo === null) {
+    return resultOf(ctx, {
+      ok: false,
+      error: reason,
+      applied: attempted,
+      stillBroken: measuredStillBroken,
+    });
+  }
+  try {
+    ctx.runtime.assertClosed("rb-fix-paths rollback");
+    ctx.runtime.restore(ctx.dbPath, ctx.backedUpTo);
+    ctx.runtime.sleep(250);
+    ctx.runtime.assertClosed("rb-fix-paths rollback verification");
+    const restored = ctx.runtime.readRows(ctx.dbPath);
+    if (!sameRows(ctx.rows, restored)) {
+      throw new Error("restored database does not match its pre-write rows");
+    }
+    return resultOf(ctx, {
+      ok: false,
+      error: `${reason}; backup restored and verified`,
+      applied: 0,
+      appliedList: [],
+      stillBroken: ctx.brokenRows.length,
+    });
+  } catch (error) {
+    const detail = errorText(error);
+    return resultOf(ctx, {
+      ok: false,
+      error: `${reason}; ROLLBACK FAILED: ${detail}`,
+      applied: attempted,
+      appliedList: [],
+      stillBroken: measuredStillBroken,
+    });
+  }
+}
+
+/** Apply phase: re-check the guard immediately before BOTH the sacred
+ *  backup and the mutation (rekordbox cannot open unnoticed during the
+ *  long volume walk), back up, rewrite. Returns a failure result (after
+ *  rollback) or null to proceed to verification. */
+async function applyRewrites(ctx: FixCtx): Promise<RbFixResult | null> {
+  if (!ctx.opts.apply || ctx.fixable.length === 0) return null;
+  try {
+    ctx.runtime.assertClosed("rb-fix-paths --apply backup");
+    ctx.backedUpTo = ctx.runtime.backup(ctx.dbPath);
+    ctx.log(`rb-fix-paths: DB backed up to ${ctx.backedUpTo}`);
+    ctx.runtime.assertClosed("rb-fix-paths --apply mutation");
+    ctx.applied = await ctx.runtime.rewrite(ctx.dbPath, ctx.fixable, ctx.log);
+  } catch (error) {
+    const detail = errorText(error);
+    return restoreAfterFailure(
+      ctx,
+      `rewrite failed: ${detail}`,
+      ctx.applied,
+      ctx.brokenRows.length,
+    );
+  }
+  if (ctx.applied !== ctx.fixable.length) {
+    return restoreAfterFailure(
+      ctx,
+      `partial rewrite: applied ${ctx.applied}/${ctx.fixable.length}`,
+      ctx.applied,
+      ctx.brokenRows.length,
+    );
+  }
+  return null;
+}
+
+/** Classify the post-write re-read: the three independent ways a write
+ *  can be wrong (target rows not what we wrote, rows we never touched
+ *  going broken, row count drift). Kept separate so the verify function
+ *  stays a thin gate over it. */
+function verifyRowIntegrity(
+  ctx: FixCtx,
+  reread: [string, string][],
+): { targetFailures: number; unexpectedBroken: number } {
+  const byId = new Map(reread);
+  const deadIds = new Set(ctx.dead.map((row) => row.id));
+  const targetFailures = ctx.fixable.filter(
+    (row) =>
+      row.fixPath === null ||
+      byId.get(row.id) !== row.fixPath ||
+      !ctx.runtime.fileExists(row.fixPath),
+  );
+  const unexpectedBroken = reread.filter(
+    ([id, path]) => path && !ctx.runtime.fileExists(path) && !deadIds.has(id),
+  );
+  return {
+    targetFailures: targetFailures.length,
+    unexpectedBroken: unexpectedBroken.length,
+  };
+}
+
+/** FULL-TABLE delayed re-read in a fresh process — every row, not just
+ *  the intended updates. A successful commit is not proof that paths
+ *  survived. Returns a failure result (after rollback) or null = clean,
+ *  with ctx.appliedList filled for the report. */
+function verifyRewrite(ctx: FixCtx): RbFixResult | null {
+  if (!ctx.opts.apply) return null;
+  let reread: [string, string][];
+  try {
+    ctx.runtime.sleep(250);
+    ctx.runtime.assertClosed("rb-fix-paths verification");
+    reread = ctx.runtime.readRows(ctx.dbPath);
+  } catch (error) {
+    const detail = errorText(error);
+    return restoreAfterFailure(
+      ctx,
+      `verification failed: ${detail}`,
+      ctx.applied,
+      ctx.brokenRows.length,
+    );
+  }
+
+  ctx.stillBroken = reread.reduce(
+    (count, [, path]) =>
+      path && !ctx.runtime.fileExists(path) ? count + 1 : count,
+    0,
+  );
+  const failures = verifyRowIntegrity(ctx, reread);
+  if (
+    reread.length !== ctx.rows.length ||
+    failures.targetFailures > 0 ||
+    failures.unexpectedBroken > 0
+  ) {
+    return restoreAfterFailure(
+      ctx,
+      `verification failed: ${failures.targetFailures} rewritten target(s) invalid, ${failures.unexpectedBroken} unexpected broken row(s), row count ${reread.length}/${ctx.rows.length}`,
+      ctx.applied,
+      ctx.stillBroken,
+    );
+  }
+  for (const row of ctx.fixable)
+    ctx.appliedList.push(`${row.brokenPath} → ${row.fixPath}`);
+  return null;
+}
+
 export async function rbFixPaths(
   opts: RbFixPathsOptions,
   overrides: Partial<RbFixPathsRuntime> = {},
 ): Promise<RbFixResult> {
   const log = opts.log ?? commandLog({ json: opts.json });
-  const mount = normalizeMount(opts.mount);
-  const dbPath = masterDbPath(opts.mount);
+  const dbPath = masterDbPath(normalizeMount(opts.mount));
   const runtime: RbFixPathsRuntime = {
     fileExists: existsSync,
     assertClosed: assertRbClosed,
@@ -304,7 +548,7 @@ export async function rbFixPaths(
 
   const fail = makeFail((msg: string): RbFixResult => ({
     command: "rb-fix-paths",
-    mount,
+    mount: normalizeMount(opts.mount),
     db: dbPath,
     total: 0,
     broken: 0,
@@ -320,197 +564,39 @@ export async function rbFixPaths(
     error: msg,
   }));
 
-  if (applyConfirmationRefusal(opts) !== null) {
-    const r = fail(applyConfirmationRefusal(opts) ?? "unreachable");
+  const scan = preflightAndScan(opts, runtime, dbPath, log);
+  if (!scan.ok) {
+    const r = fail(scan.error);
     log(r.error ?? "unknown failure");
     return r;
   }
-  if (!runtime.fileExists(dbPath)) {
-    const r = fail(`no master DB at ${dbPath}`);
-    log(r.error ?? "unknown failure");
-    return r;
-  }
-  if (opts.apply) {
-    try {
-      runtime.assertClosed("rb-fix-paths --apply preflight");
-    } catch (error) {
-      const r = fail(errorText(error));
-      log(r.error ?? "unknown failure");
-      return r;
-    }
-  }
 
-  log(`rb-fix-paths: reading ${dbPath}`);
-  let rows: [string, string][];
-  try {
-    rows = runtime.readRows(dbPath);
-  } catch (e) {
-    const r = fail(errorText(e));
-    log(r.error ?? "unknown failure");
-    return r;
-  }
-  const idx = runtime.buildIndex(mount);
-  log(
-    `rb-fix-paths: ${rows.length} content rows · ${idx.byNorm.size} live audio files indexed`,
-  );
-
-  const brokenRows: RbFixRow[] = [];
-  for (const [id, p] of rows) {
-    if (p && !runtime.fileExists(p)) {
-      const row = matchLadder(p, idx);
-      row.id = id;
-      brokenRows.push(row);
-    }
-  }
-  const fixable = brokenRows.filter((r) => r.fixPath);
-  const dead = brokenRows.filter((r) => !r.fixPath);
-
-  let applied = 0;
-  let backedUpTo: string | null = null;
-  const appliedList: string[] = [];
-  let stillBroken = 0;
-  const result = (values: Partial<RbFixResult> = {}): RbFixResult => ({
-    command: "rb-fix-paths",
-    mount,
-    db: dbPath,
-    total: rows.length,
-    broken: brokenRows.length,
-    fixable: fixable.length,
-    dead: dead.length,
-    applied,
-    appliedList,
-    deadList: dead.map((d) => d.brokenPath),
-    stillBroken,
-    appliedMode: Boolean(opts.apply),
-    backedUpTo,
-    ok: true,
-    ...values,
-  });
-
-  const restoreAfterFailure = (
-    reason: string,
-    attempted: number,
-    measuredStillBroken: number,
-  ): RbFixResult => {
-    if (backedUpTo === null) {
-      return result({
-        ok: false,
-        error: reason,
-        applied: attempted,
-        stillBroken: measuredStillBroken,
-      });
-    }
-    try {
-      runtime.assertClosed("rb-fix-paths rollback");
-      runtime.restore(dbPath, backedUpTo);
-      runtime.sleep(250);
-      runtime.assertClosed("rb-fix-paths rollback verification");
-      const restored = runtime.readRows(dbPath);
-      if (!sameRows(rows, restored)) {
-        throw new Error("restored database does not match its pre-write rows");
-      }
-      return result({
-        ok: false,
-        error: `${reason}; backup restored and verified`,
-        applied: 0,
-        appliedList: [],
-        stillBroken: brokenRows.length,
-      });
-    } catch (error) {
-      const detail = errorText(error);
-      return result({
-        ok: false,
-        error: `${reason}; ROLLBACK FAILED: ${detail}`,
-        applied: attempted,
-        appliedList: [],
-        stillBroken: measuredStillBroken,
-      });
-    }
+  const ctx: FixCtx = {
+    opts,
+    runtime,
+    log,
+    dbPath,
+    rows: scan.rows,
+    brokenRows: scan.brokenRows,
+    fixable: scan.fixable,
+    dead: scan.dead,
+    applied: 0,
+    appliedList: [],
+    backedUpTo: null,
+    stillBroken: 0,
   };
 
-  if (opts.apply && fixable.length > 0) {
-    try {
-      // The volume walk can be long. Re-check immediately before both the
-      // sacred backup and the mutation so rekordbox cannot open unnoticed.
-      runtime.assertClosed("rb-fix-paths --apply backup");
-      backedUpTo = runtime.backup(dbPath);
-      log(`rb-fix-paths: DB backed up to ${backedUpTo}`);
-      runtime.assertClosed("rb-fix-paths --apply mutation");
-      applied = await runtime.rewrite(dbPath, fixable, log);
-    } catch (error) {
-      const detail = errorText(error);
-      const failed = restoreAfterFailure(
-        `rewrite failed: ${detail}`,
-        applied,
-        brokenRows.length,
-      );
-      log(failed.error ?? "unknown failure");
-      return failed;
-    }
-    if (applied !== fixable.length) {
-      const failed = restoreAfterFailure(
-        `partial rewrite: applied ${applied}/${fixable.length}`,
-        applied,
-        brokenRows.length,
-      );
-      log(failed.error ?? "unknown failure");
-      return failed;
-    }
+  const applyFailure = await applyRewrites(ctx);
+  if (applyFailure) {
+    log(applyFailure.error ?? "unknown failure");
+    return applyFailure;
   }
-
-  // FULL-TABLE delayed re-read in a fresh process — every row, not just the
-  // intended updates. A successful commit is not proof that paths survived.
-  if (opts.apply) {
-    let reread: [string, string][];
-    try {
-      runtime.sleep(250);
-      runtime.assertClosed("rb-fix-paths verification");
-      reread = runtime.readRows(dbPath);
-    } catch (error) {
-      const detail = errorText(error);
-      const failed = restoreAfterFailure(
-        `verification failed: ${detail}`,
-        applied,
-        brokenRows.length,
-      );
-      log(failed.error ?? "unknown failure");
-      return failed;
-    }
-
-    const byId = new Map(reread);
-    stillBroken = reread.reduce(
-      (count, [, path]) =>
-        path && !runtime.fileExists(path) ? count + 1 : count,
-      0,
-    );
-    const deadIds = new Set(dead.map((row) => row.id));
-    const unexpectedBroken = reread.filter(
-      ([id, path]) => path && !runtime.fileExists(path) && !deadIds.has(id),
-    );
-    const targetFailures = fixable.filter(
-      (row) =>
-        row.fixPath === null ||
-        byId.get(row.id) !== row.fixPath ||
-        !runtime.fileExists(row.fixPath),
-    );
-    if (
-      reread.length !== rows.length ||
-      targetFailures.length > 0 ||
-      unexpectedBroken.length > 0
-    ) {
-      const failed = restoreAfterFailure(
-        `verification failed: ${targetFailures.length} rewritten target(s) invalid, ${unexpectedBroken.length} unexpected broken row(s), row count ${reread.length}/${rows.length}`,
-        applied,
-        stillBroken,
-      );
-      log(failed.error ?? "unknown failure");
-      return failed;
-    }
-    for (const row of fixable)
-      appliedList.push(`${row.brokenPath} → ${row.fixPath}`);
+  const verifyFailure = verifyRewrite(ctx);
+  if (verifyFailure) {
+    log(verifyFailure.error ?? "unknown failure");
+    return verifyFailure;
   }
-
-  return result();
+  return resultOf(ctx);
 }
 
 function sameRows(
