@@ -80,11 +80,17 @@ describe("shelf-dupescan", () => {
     }
     const parsed = JSON.parse(out.slice(out.indexOf("{"))) as {
       command: string;
+      generatedAt: string;
+      contentsDir: string;
       scanned: number;
       duplicateGroups: number;
       applied: boolean;
     };
     expect(parsed.command).toBe("shelf-dupescan");
+    // report provenance (#10): generated timestamp + scanned tree identify
+    // a saved dossier — stale reports self-identify instead of lying
+    expect(parsed.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(parsed.contentsDir).toBe(join(shelf, "Contents"));
     expect(parsed.scanned).toBe(3);
     expect(parsed.duplicateGroups).toBe(1);
     expect(parsed.applied).toBe(false);

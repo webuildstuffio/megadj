@@ -192,6 +192,10 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
     await writeJson({
       command: "shelf-dupescan",
       shelf: shelfVolume,
+      // report provenance (issue #10): a saved dossier must self-identify
+      // — stale reports (pre-cleanup counts) otherwise read as current
+      generatedAt: new Date().toISOString(),
+      contentsDir: contents,
       scanned: files.length,
       duplicateGroups: dupes.length,
       redundantFiles: dupes.reduce((s, g) => s + g.files.length - 1, 0),
