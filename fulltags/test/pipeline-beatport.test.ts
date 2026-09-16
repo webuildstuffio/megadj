@@ -73,6 +73,12 @@ async function withBp(
 }
 
 describe("enrichTrack × Beatport (second source, behind SC)", () => {
+  // Hints covering title+artist make enrichTrack's MB-skip guard
+  // (`hinted`) fire: without them every test made a REAL MusicBrainz
+  // network call (8 s timeout + 1 rps rate-limit sleep) — not hermetic,
+  // and the source of the parallel-run timeout flake (#180 family).
+  const noMbHints = { title: "Signal", artist: "Test Artist" };
+
   test(
     "fills label/mix/isrc/remixer + provenance stamp + year when the file lacks them",
     async () => {
@@ -84,7 +90,11 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
             { path: p, title: "Signal", artist: "Test Artist" },
             // Genre/year ride the BP ladder (SC seam returns no hits);
             // identity fields ride the tags stage.
-            { only: ["tags", "year", "genre"], artworkQueue: null },
+            {
+              hints: noMbHints,
+              only: ["tags", "year", "genre"],
+              artworkQueue: null,
+            },
           );
           const t = groundTruth(p);
           expect(t.label).toBe("Ropeadope");
@@ -109,7 +119,7 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
           const p = await makeFile("origmix.mp3");
           await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },
-            { only: ["tags"], artworkQueue: null },
+            { hints: noMbHints, only: ["tags"], artworkQueue: null },
           );
           const t = groundTruth(p);
           expect(t.label).toBe("Ropeadope");
@@ -128,6 +138,7 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
         async () => {
           const p = await makeFile("idem.mp3");
           const opts = {
+            hints: noMbHints,
             only: ["tags" as const],
             artworkQueue: null,
           };
@@ -158,7 +169,7 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
           await writePatch(p, { remixer: "Existing Credit" });
           await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },
-            { only: ["tags"], artworkQueue: null },
+            { hints: noMbHints, only: ["tags"], artworkQueue: null },
           );
           const t = groundTruth(p);
           expect(t.remixer).toBe("Existing Credit");
@@ -181,7 +192,7 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
           await writePatch(p, { genre: "House" });
           const res = await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },
-            { only: ["tags", "genre"], artworkQueue: null },
+            { hints: noMbHints, only: ["tags", "genre"], artworkQueue: null },
           );
           const t = groundTruth(p);
           expect(t.genre).toBe("House");
@@ -207,7 +218,7 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
           const p = await makeFile("dur.mp3");
           const res = await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },
-            { only: ["tags"], artworkQueue: null },
+            { hints: noMbHints, only: ["tags"], artworkQueue: null },
           );
           const t = groundTruth(p);
           expect(t.label).toBe("Ropeadope");
@@ -232,10 +243,18 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
           const p = await makeFile("dry.mp3");
           const res = await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },
-            { only: ["tags", "year"], dryRun: true, artworkQueue: null },
+            {
+              hints: noMbHints,
+              only: ["tags", "year"],
+              dryRun: true,
+              artworkQueue: null,
+            },
           );
           expect(searched).toBe(false);
-          expect(res.notes.length).toBe(0);
+          // Dry-run notes report what WOULD be written: the two hint
+          // fills. Anything beyond title/artist (bp:/year:/genre:) would
+          // mean the BP ladder ran — it must stay offline.
+          expect(res.notes).toEqual(["title", "artist"]);
           const t = groundTruth(p);
           expect(t.label).toBeNull();
         },
@@ -253,7 +272,7 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
           const p = await makeFile("junk.mp3");
           const res = await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },
-            { only: ["tags", "year"], artworkQueue: null },
+            { hints: noMbHints, only: ["tags", "year"], artworkQueue: null },
           );
           const t = groundTruth(p);
           expect(t.label).toBeNull();
