@@ -1,7 +1,8 @@
 /**
- * fetch-all.ts — THE one-shot fetch pipeline: metadata + genre + artwork for
- * every archive track. Ground-truth verified (reads files, not the DB),
- * parallel, idempotent — safe to re-run any time.
+ * fetch-pipeline.ts — THE one-shot fetch pipeline (#184, re-homed from
+ * tools/fetch-all.ts): metadata + genre + artwork for every archive
+ * track. Ground-truth verified (reads files, not the DB), parallel,
+ * idempotent — safe to re-run any time.
  *
  * Per track (skips whatever is already complete):
  *   1. tags    — title/artist/album/genre/year from DB → file
@@ -14,26 +15,19 @@
  *
  * One yt-dlp call per track feeds genre AND art AND year.
  *
- * usage:
- *   bun tools/fetch-all.ts                 # fill everything missing
- *   bun tools/fetch-all.ts --all           # + upgrade existing SC art to original res
- *   bun tools/fetch-all.ts --art           # artwork only
- *   bun tools/fetch-all.ts --genres        # genres only
- *   bun tools/fetch-all.ts --tags          # tags only
- *   bun tools/fetch-all.ts --years         # years only
- *   bun tools/fetch-all.ts --jobs 8        # workers (default 6)
- *   bun tools/fetch-all.ts --dry-run       # report what would happen
- *   bun tools/fetch-all.ts --ai-fallback   # + AI genre/year for what SC+BP miss
- *                                          #   (opt-in: remix years default "2023")
+ * Flags (--art/--genres/--tags/--years/--jobs/--all/--dry-run/
+ * --ai-fallback/--json) belong to `megadj fetch` — the only front door
+ * (the `bun tools/fetch-all.ts` shim was retired with the re-home, the
+ * megaset precedent: one name everywhere, no shims). AI fallback stays
+ * opt-in — remix years default "2023".
  *
  * env: OPENROUTER_API_KEY (only needed for AI genre/year fallback + covers)
  *
- * Shared plumbing lives in tools/fetch-lib.ts; AI fallbacks come from
- * fulltags/src/ai.ts (via fulltags/src/exports).
+ * Shared archive plumbing lives in archive-ledger.ts; stage runners in
+ * fetch-stages.ts; AI fallbacks come from ai.ts (via exports).
  *
- * Callers: `megadj fetch` (src/fulltags/fetch.ts) runs runFetch() IN-PROCESS
- * — the child-process spawn seam is gone (one Bun boot, no 6.4s overhead).
- * The `bun tools/fetch-all.ts` CLI remains for direct operator runs.
+ * Callers: `megadj fetch` (src/fulltags/fetch.ts) runs runFetch()
+ * IN-PROCESS through the exports leaf — one Bun boot, no 6.4s overhead.
  */
 import {
   ARCH,
@@ -49,12 +43,12 @@ import {
   bpGenre,
   type Row,
   type TagValues,
-} from "./fetch-lib";
-import { aiGenres } from "../fulltags/src/exports";
+} from "./archive-ledger";
+import { aiGenres } from "./exports";
 import { existsSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
-import { ProgressBar } from "../src/progress";
-import { writeJson } from "../src/shared/cli-output";
+import { ProgressBar } from "../../src/progress";
+import { writeJson } from "../../src/shared/cli-output";
 import {
   cleanTitle,
   stageArt,
@@ -66,9 +60,8 @@ import {
   type Stats,
 } from "./fetch-stages";
 
-/** Pipeline options — the former module-level argv constants. `megadj
- * fetch` passes these from parsed FetchOptions; the CLI shim parses argv
- * into the same shape, so there is one pipeline and two thin front doors. */
+/** Pipeline options. `megadj fetch` passes these from parsed
+ * FetchOptions — the CLI argv shim went with the old front door. */
 export interface FetchAllOptions {
   all?: boolean | undefined;
   /** scope: one stage, or "all" (default) */
@@ -476,36 +469,4 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
       `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + imprint ${stats.genreImprint} + BC ${stats.genreBc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + BC ${stats.yearBc} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | bandcamp filled: ${stats.bcFilled} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + bandcamp ${stats.artBandcamp} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
     );
   }
-}
-
-// direct CLI entry (`megadj fetch` is the supported path; this shim stays
-// for direct operator runs). argv parsing here ONLY under import.meta.main
-// — importing this module must never read process.argv.
-if (import.meta.main) {
-  const argv = process.argv.slice(2);
-  const only = (
-    argv.includes("--art")
-      ? "art"
-      : argv.includes("--genres")
-        ? "genres"
-        : argv.includes("--tags")
-          ? "tags"
-          : argv.includes("--years")
-            ? "years"
-            : "all"
-  ) as "art" | "genres" | "tags" | "years" | "all";
-  const jobsArg = argv.indexOf("--jobs");
-  const jobsRaw = jobsArg !== -1 ? Number(argv[jobsArg + 1]) : NaN;
-  if ((jobsArg !== -1 && !Number.isFinite(jobsRaw)) || jobsRaw < 1) {
-    console.error(`fetch-all: bad --jobs value ${argv[jobsArg + 1] ?? ""}`);
-    process.exit(2);
-  }
-  await runFetch({
-    all: argv.includes("--all"),
-    only,
-    aiFallback: argv.includes("--ai-fallback"),
-    onlyDryRun: argv.includes("--dry-run"),
-    jobs: Number.isFinite(jobsRaw) ? jobsRaw : 6,
-    json: argv.includes("--json"),
-  });
 }

@@ -2,8 +2,9 @@
  * fetch-stages.test.ts — the per-stage #54 regression tests. `processTask`
  * used to be a CCN-66, 10-param function with three mutable out-params; it
  * is now a 4-field input object returning a `ProcessTaskResult`, and each
- * per-row decision lives in a `tools/fetch-stages.ts` stage runner. These
- * tests pin the behaviors that made the old shape untestable:
+ * per-row decision lives in a `fulltags/src/fetch-stages.ts` stage runner
+ * (re-homed from tools/ per #184). These tests pin the behaviors that made
+ * the old shape untestable:
  *
  *   - genre fallback ladder: SC → Beatport → AI-batch ONLY when the gate
  *     is on; junk genres (numeric SC IDs, "Music") are refused everywhere.
@@ -13,7 +14,7 @@
  *     `megadj fetch --dry-run` safe on a live library.
  *
  * Everything runs through ONE hermetic harness: `bun -e` with MEGADJ_DB
- * scoped to a throwaway SQLite file. fetch-lib opens its Database at
+ * scoped to a throwaway SQLite file. archive-ledger opens its Database at
  * module import (and bun test shares one process across files), so
  * importing the stages in-process would touch the operator's real
  * archive.db — the child-process seam keeps every scenario isolated.
@@ -23,7 +24,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const REPO = join(import.meta.dir, "..");
+const REPO = join(import.meta.dir, "..", "..");
 const SCENARIO_DIR = mkdtempSync(join(tmpdir(), "megadj-fetch-stages-"));
 afterAll(() => rmSync(SCENARIO_DIR, { recursive: true, force: true }));
 
@@ -59,8 +60,8 @@ function runScenario(
         ('vid1', 'Track One', 'Artist One', 'Album One', NULL, NULL,
          ${JSON.stringify(rowLabel)}, '/nonexistent/track.mp3', NULL, NULL);
     \`);
-    const stages = await import(${JSON.stringify(join(REPO, "tools/fetch-stages.ts"))});
-    const lib = await import(${JSON.stringify(join(REPO, "tools/fetch-lib.ts"))});
+    const stages = await import(${JSON.stringify(join(REPO, "fulltags/src/fetch-stages.ts"))});
+    const lib = await import(${JSON.stringify(join(REPO, "fulltags/src/archive-ledger.ts"))});
     const row = lib.db
       .query("SELECT video_id, title, artist, album, genre, label, file_path, format_id FROM tracks WHERE video_id='vid1'")
       .get();

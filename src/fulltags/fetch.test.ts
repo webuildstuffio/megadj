@@ -10,7 +10,7 @@ import { writeFakeAudio, ffmpegTone } from "../test-support/audio-fixtures";
  *  - auditArchive must walk genre SUBFOLDERS (organize() moves tracks into
  *    them; the top-level readdir audited an empty set post-organize)
  *  - fetch() must forward --art/--genres/--tags/--years/--jobs/--dry-run to
- *    tools/fetch-all.ts (they were parsed then silently dropped)
+ *    the fetch pipeline (they were parsed then silently dropped)
  */
 
 let dir: string;
@@ -75,8 +75,16 @@ describe("auditArchive folder walk", () => {
   });
 });
 
+/**
+ * fetch flag forwarding
+ *
+ * NOTE (#184): fetchAllArgs historically mapped options onto the
+ * `bun tools/fetch-all.ts` argv surface; the pipeline is in-process now
+ * (and re-homed into fulltags), so the flags are dead weight the CLI no
+ * longer needs — these tests pin the option mapping itself.
+ */
 describe("fetch flag forwarding", () => {
-  test("every parsed option maps to a fetch-all.ts flag", () => {
+  test("every parsed option maps to its fetch pipeline scope", () => {
     expect(
       fetchAllArgs({
         all: true,

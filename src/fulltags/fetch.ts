@@ -1,7 +1,9 @@
 /**
- * fetch command — agent/user-facing wrapper around tools/fetch-all.ts.
- * Runs the enrichment pipeline (tags + genres + years + artwork) in-process
- * with the same flags, so `megadj fetch --dry-run` etc. just work.
+ * fetch command — agent/user-facing wrapper around the FullTags fetch
+ * pipeline (fulltags/src/fetch-pipeline.ts, re-homed from tools/ per
+ * #184). Runs the enrichment pipeline (tags + genres + years + artwork)
+ * in-process with the same flags, so `megadj fetch --dry-run` etc. just
+ * work.
  *
  * `auditArchive` reads ground truth through FullTags' reader (one
  * implementation — the file is the truth, and `megadj audit` and
@@ -98,10 +100,14 @@ export async function auditArchive(musicDir: string): Promise<{
 }
 
 export async function fetch(opts: FetchOptions): Promise<void> {
-  // In-process run — the child-process spawn (bun tools/fetch-all.ts) is
-  // gone: one Bun boot, no interpreter-startup overhead per invocation.
-  // Same flag surface, verified by fetchAllArgs' forwarding tests.
-  const { runFetch } = await import("../../tools/fetch-all");
+  // In-process run through the exports leaf — the child-process spawn
+  // (bun tools/fetch-all.ts) is gone AND the pipeline now lives inside
+  // the fulltags package (#184). The dynamic import stays LAZY: the
+  // pipeline graph opens the archive DB at module load, which must not
+  // ride every `megadj` CLI boot.
+  const { runFetch } = await import("../../fulltags/src/exports").then((m) => ({
+    runFetch: m.runFetch,
+  }));
   await runFetch({
     all: opts.all ?? false,
     only: opts.only ?? "all",

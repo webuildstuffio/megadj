@@ -5,10 +5,11 @@
  * tests); internal-only helpers are exported from their own modules.
  */
 export {
-  // Compat alias — `canonGenre` is the old name of canonicalizeClaim.
-  // Kept ONLY for beatport.ts (#181 in flight) and tools/fetch-lib
-  // (#184 re-homing); both retire it in their own pass. No new consumers.
-  canonGenre,
+  // canonicalizeClaim — the claim canonicalization verb; re-exported from
+  // genre-vocab (schema.ts's `canonGenre` alias is package-internal only).
+  canonicalizeClaim,
+} from "./genre-vocab";
+export {
   sanitizeGenreFolder,
   completeness,
   type EnrichedMetadata,
@@ -152,3 +153,11 @@ export {
   type AnlzGrid,
   type AnlzInventory,
 } from "./anlz";
+export {
+  runFetch,
+  type FetchAllOptions,
+  // #184: the batch fetch pipeline lives here now (re-homed from
+  // tools/fetch-all.ts) — but the archive-ledger DB graph must stay out
+  // of every CLI boot, so this export is consumed ONLY through a lazy
+  // dynamic import (src/fulltags/fetch.ts), never a static one.
+} from "./fetch-pipeline";

@@ -34,8 +34,9 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "m[1] is a digits-only date regex capture.",
   "src/fulltags/genre-refold.ts::refoldDetail::Number(i)":
     "i is a digits-only capture from the SENTINEL(\\d+)SENTINEL restore regex, and stash lookups use the same captured index.",
-  "tools/fetch-all.ts::<module>::Number(argv[jobsArg + 1])":
-    "the command rejects a non-finite or sub-one jobs value with process.exit(2) before constructing options.",
+  // #184: the second front door (tools/fetch-all.ts import.meta.main argv
+  // parse, with its Number(argv[jobsArg+1]) site) was deleted — `megadj
+  // fetch` is the only entry and its --jobs rides nonNegOpt.
   "fulltags/src/bandcamp.ts::parseIsoDuration::Number(d)":
     "d is a digits-only ISO-8601 duration capture (P…D group), truthiness-gated before use.",
   "fulltags/src/bandcamp.ts::parseIsoDuration::Number(h)":
@@ -44,7 +45,7 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "min is a digits-only ISO-8601 duration capture (T…M group), truthiness-gated before use.",
   "fulltags/src/bandcamp.ts::parseIsoDuration::Number(s)":
     "s is a digits-or-decimal ISO-8601 duration capture (T…S group), truthiness-gated before use.",
-  "tools/fetch-stages.ts::stageBandcamp::Number(page.datePublished.slice(0, 4))":
+  "fulltags/src/fetch-stages.ts::stageBandcamp::Number(page.datePublished.slice(0, 4))":
     "datePublished is DB JSON produced by the fetch pipeline's four-digit year regex; the slice is exactly four chars.",
 };
 
@@ -69,15 +70,16 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // fulltags media seam (removed its 2 Number() sites); audited 42→44
     // and sanctioned 13→18 from the concurrent bandcamp ISO-duration +
     // fetch-stages stageBandcamp year work landing in the same worktree.
-    audited: 44,
+    audited: 43,
     guarded: 26,
-    sanctioned: 18,
-    // Sep 15 evening: megaset rename churn — the sanctioned site moved
-    // files (setbuild.*→megaset.*), shifting the digest; counts unchanged.
+    sanctioned: 17,
     // Sep 16 (#181): beatport parseTrack decomposed — the publish-date
     // Number() site moved owner parseTrack→parseYear (still guarded by
     // Number.isInteger; counts unchanged, digest shifted).
-    digest: "535959fd6c58bd599519b228e7b39bace12e6d2ee1a021a8b84cec42a11578ea",
+    // Sep 16 (#184): fetch pipeline re-homed into fulltags; the second
+    // front door's argv Number() site died with the shim (audited 44→43,
+    // sanctioned 18→17) and fetch-stages moved owner+path (digest shift).
+    digest: "0623ceafdbcd58db0bb28e61fea177fd1792e88e16f315cf33910f5c998f9fca",
   });
 });
 

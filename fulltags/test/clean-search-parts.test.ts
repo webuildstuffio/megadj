@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { cleanSearchParts } from "../src/art-sources";
-import { cleanArtist } from "../../tools/fetch-lib";
+import { cleanArtist } from "../src/archive-ledger";
 
 /** Sep 11 regression: junk-composed artist/title strings reached the SC
  *  search keys and the uploader scorer — every query poisoned, 13 pool
@@ -27,7 +27,7 @@ describe("cleanSearchParts", () => {
   });
 });
 
-describe("cleanArtist (fetch-lib DB guard)", () => {
+describe("cleanArtist (archive-ledger DB guard)", () => {
   test("un-bakes composed junk DB rows", () => {
     expect(cleanArtist("UnknownArtist · UnknownAlbum · Audiojack")).toBe(
       "Audiojack",

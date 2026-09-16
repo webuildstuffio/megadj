@@ -104,7 +104,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
  [W1] markDownloaded + updateGenre ────────────► tracks.genre (SSOT)
    │
    ▼
- megadj fetch  (tools/fetch-all → fetch-stages)
+ megadj fetch  (fulltags fetch-pipeline → fetch-stages)
    │  ladder, first-win-writes, per track:
    │  [W2] SC search hit → junk gate (numeric/"Music") → canonicalizeClaim
    │        (SC_GENRE_CANON + title-case) → setFileTags FIRST,
@@ -256,7 +256,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | Tier-0 diagnostics engine                                                                                                                          | `src/fulltags/genre-diagnostics.ts`                                                                                                                                |
 | Linear probe (informational readout)                                                                                                               | `src/fulltags/linear-probe.ts`                                                                                                                                     |
 | CLI wiring (`--eval/--refold/--flag/--diagnostics/…`)                                                                                              | `src/fulltags/genre.ts`                                                                                                                                            |
-| Fetch ladder (SC → BP → imprint → BC → AI) + junk gate + tag-first writes                                                                          | `tools/fetch-all.ts` + `tools/fetch-stages.ts`                                                                                                                     |
+| Fetch ladder (SC → BP → imprint → BC → AI) + junk gate + tag-first writes                                                                          | `fulltags/src/fetch-pipeline.ts` + `fulltags/src/fetch-stages.ts` + `fulltags/src/archive-ledger.ts` (#184 — re-homed from tools/)                                  |
 | Bandcamp arm (search + gated page fetch + genre/label/date/art)                                                                                    | `fulltags/src/bandcamp.ts`                                                                                                                                         |
 | Name-matching SSOT (artist gate, title overlap, tokens)                                                                                            | `fulltags/src/name-match.ts`                                                                                                                                       |
 | Intake vocabularies (`guessFromFreeText` regex, `SC_GENRE_CANON`, `AI_VOCAB`, `canonicalizeClaim`, family map `FAMILIES`/`familyOf`, umbrella set) | `fulltags/src/genre-vocab.ts` (#187 — one module owns every named genre map; `canonGenre` remains a compat alias on `schema.ts`/`exports.ts` until #181/#184 land) |

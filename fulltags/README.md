@@ -214,7 +214,7 @@ use).
 | megadj command  | What it does now                                                                             |
 | --------------- | -------------------------------------------------------------------------------------------- |
 | `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims                          |
-| `megadj fetch`  | `tools/fetch-all.ts` writes through FullTags `writePatch`                                    |
+| `megadj fetch`  | `fulltags/src/fetch-pipeline.ts` writes through FullTags `writePatch` (#184 — re-homed)      |
 | `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                                      |
 | `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted)         |
 | `megadj mood`   | syncs `TXXX:MOOD` stamps into the archive DB `mood` ledger; analyzes unstamped tracks inline |

@@ -1,9 +1,9 @@
 // fetch-stages.ts — processTask's stage runners, extracted from
-// tools/fetch-all.ts so each stage reads (and reports CCN) on its own:
+// fetch-pipeline.ts so each stage reads (and reports CCN) on its own:
 // tags-from-DB, the SC-search fan-out (genre + year + original-res art),
 // and the art fallback ladder (gateway → mp3-twin → deezer → itunes).
 // Shared mutable state (Stats, notes, the AI batches) rides a Ctx the
-// stages mutate; the orchestration order stays in fetch-all.ts.
+// stages mutate; the orchestration order stays in fetch-pipeline.ts.
 
 import {
   beatportArt,
@@ -29,8 +29,8 @@ import {
   type BpTrack,
   type Row,
   type TagValues,
-} from "./fetch-lib";
-import { imprintVote } from "../src/fulltags/imprint-prior";
+} from "./archive-ledger";
+import { imprintVote } from "../../src/fulltags/imprint-prior";
 
 /** Where the SC-art fallback ladder stops being tried (artless → queue). */
 export interface Stats {

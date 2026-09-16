@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
-import { canonGenre, validatePatchUntrusted } from "../../src/exports";
+import { canonicalizeClaim, validatePatchUntrusted } from "../../src/exports";
 
 /** Shared validatePatch scenario cases (used by schema.test.ts and
- *  compat-fetch-lib.test.ts — the compat shim delegates to validatePatch,
- *  so both suites must prove the same behavior). Negative cases go through
- *  validatePatchUntrusted: the runtime validator genuinely receives
- *  unknown-typed values there, which is exactly what a bad batch is. */
+ *  compat-fetch-lib.test.ts — the archive-ledger validateTagValues shim
+ *  delegates to validatePatch, so both suites must prove the same
+ *  behavior). Negative cases go through validatePatchUntrusted: the
+ *  runtime validator genuinely receives unknown-typed values there,
+ *  which is exactly what a bad batch is. */
 export function runValidatePatchCases(): void {
   test("accepts valid values", () => {
     expect(() =>
@@ -53,25 +54,25 @@ export function runValidatePatchCases(): void {
   });
 }
 
-/** Shared canonGenre scenario cases (schema.test.ts owns the canon map
- *  coverage; compat-fetch-lib proves the shim delegates to the same impl). */
+/** Shared canonicalizeClaim scenario cases (schema.test.ts owns the canon
+ *  map coverage; compat-fetch-lib proves the same verb end-to-end). */
 export function runCanonGenreCases(): void {
   test("maps known SC labels to canonical genres", () => {
-    expect(canonGenre("Hip-Hop & Rap")).toBe("Hip-Hop");
-    expect(canonGenre("hip-hop & rap")).toBe("Hip-Hop");
-    expect(canonGenre("#house")).toBe("House");
-    expect(canonGenre("Tech House")).toBe("Tech House");
-    expect(canonGenre("r&b / soul")).toBe("R&B");
-    expect(canonGenre("Drum & Bass")).toBe("Drum & Bass");
-    expect(canonGenre("dance & edm")).toBe("EDM");
+    expect(canonicalizeClaim("Hip-Hop & Rap")).toBe("Hip-Hop");
+    expect(canonicalizeClaim("hip-hop & rap")).toBe("Hip-Hop");
+    expect(canonicalizeClaim("#house")).toBe("House");
+    expect(canonicalizeClaim("Tech House")).toBe("Tech House");
+    expect(canonicalizeClaim("r&b / soul")).toBe("R&B");
+    expect(canonicalizeClaim("Drum & Bass")).toBe("Drum & Bass");
+    expect(canonicalizeClaim("dance & edm")).toBe("EDM");
   });
 
   test("title-cases unknown labels", () => {
-    expect(canonGenre("afro house")).toBe("Afro house");
-    expect(canonGenre("Baltimore club")).toBe("Baltimore club");
+    expect(canonicalizeClaim("afro house")).toBe("Afro house");
+    expect(canonicalizeClaim("Baltimore club")).toBe("Baltimore club");
   });
 
   test("strips hashtag prefix", () => {
-    expect(canonGenre("#techno")).toBe("Techno");
+    expect(canonicalizeClaim("#techno")).toBe("Techno");
   });
 }

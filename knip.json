@@ -3,7 +3,6 @@
   "workspaces": {
     ".": {
       "entry": [
-        "tools/fetch-all.ts",
         "tools/fix-years.ts",
         "tools/loc-budget.ts",
         "tools/prof-sweep.ts"
@@ -24,6 +23,7 @@
     "fulltags": {
       "entry": [
         "src/index-all.ts",
+        "src/fetch-pipeline.ts",
         "verify-key.ts",
         "test/*.test.ts",
         "test/helpers/*.ts"

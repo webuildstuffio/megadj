@@ -172,8 +172,8 @@ export function sanitizeGenreFolder(genre: string | null): string {
 }
 
 /** The genre vocabulary moved to genre-vocab.ts (#187 — one module owns
- *  every named genre map). The two aliases below are a CONCURRENT-WORK
- *  courtesy only: beatport.ts's in-flight #181 refactor still imports
- *  `canonGenre`/`SC_GENRE_CANON` from here. Retire both aliases in the
- *  same pass that lands #181 — no new consumers. */
+ *  every named genre map). The `canonGenre`/`SC_GENRE_CANON` re-exports
+ *  below are a package-internal convenience for beatport.ts (whose #181
+ *  refactor landed importing from here); the bridge exports the
+ *  canonical names. No new external consumers. */
 export { canonicalizeClaim as canonGenre, SC_GENRE_CANON } from "./genre-vocab";

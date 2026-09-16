@@ -1,10 +1,12 @@
 /**
- * fetch-lib — megadj archive-side plumbing, now backed by FullTags.
+ * archive-ledger.ts — the megadj archive-side ledger plumbing for the
+ * fetch pipeline (#184, re-homed from tools/fetch-lib.ts).
  *
- * FullTags (fulltags/) owns the format logic: ground-truth reads, tag
- * writes, artwork sources, SC search, genre canon. What stays here is the
- * archive-specific state: the SQLite DB, archive paths, the queue file, and
- * the Row/TagValues shapes the DB pipeline speaks.
+ * FullTags (this package) owns the format logic: ground-truth reads,
+ * tag writes, artwork sources, SC search, genre canon. What stays here
+ * is the archive-specific state the pipeline speaks: the SQLite tracks
+ * DB, archive paths, the artwork queue file, and the Row/TagValues
+ * shapes shared by the stages.
  */
 import { Database } from "bun:sqlite";
 import {
@@ -15,7 +17,7 @@ import {
   walkAudioFiles,
   writePatchSync,
   type TagPatch,
-} from "../fulltags/src/exports";
+} from "./exports";
 export const home = process.env.HOME!;
 export const ARCH = process.env.MEGADJ_MUSIC_DIR ?? `${home}/Music/DJ-Imports`;
 export const QUEUE = `${home}/.local/state/megadj/artwork-queue.jsonl`;
@@ -133,7 +135,7 @@ export function setFileTags(p: string, vals: TagValues): boolean {
   return writePatchSync(p, vals as TagPatch);
 }
 
-// ---------- SoundCloud search + art sources (FullTags re-exports) ----------
+// ---------- FullTags re-exports (same package now — import straight) ----------
 export {
   deezerArt,
   fetchBestScArt,
@@ -142,19 +144,19 @@ export {
   pageOgImage,
   scSearch,
   twinArt,
-  canonGenre,
-} from "../fulltags/src/exports";
+  canonicalizeClaim as canonGenre,
+} from "./exports";
 
-// ---------- Beatport (second source, behind SC — fulltags/src/beatport.ts) ----------
+// ---------- Beatport (second source, behind SC — beatport.ts) ----------
 export {
   beatportArt,
   beatportLookup,
   bpGenre,
   bpStamp,
   type BpTrack,
-} from "../fulltags/src/exports";
+} from "./exports";
 
-// ---------- Bandcamp (third source, behind SC + BP — fulltags/src/bandcamp.ts) ----------
+// ---------- Bandcamp (third source, behind SC + BP — bandcamp.ts) ----------
 export {
   artUrlLarge,
   bcFetchPage,
@@ -162,4 +164,4 @@ export {
   bcSearch,
   type BcPage,
   type BcTrack,
-} from "../fulltags/src/exports";
+} from "./exports";
