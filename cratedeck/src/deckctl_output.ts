@@ -20,6 +20,18 @@ export interface DeckctlOutput {
   errOut: (message: string) => Promise<void>;
 }
 
+/** Flush via process.stdout.write("") — NEVER write(fd, ""). An empty
+ *  Bun.write to a file-redirected stdout TRUNCATES everything already
+ *  buffered (verified Bun 1.3.14: `deckctl help --json > f` produced a
+ *  0-byte file); process.stdout's no-op write is the harmless drain.
+ *  Same contract as src/shared/cli-output.ts drainStdout (megadj side).
+ *  Module-level so oxlint's consistent-function-scoping is honest: the
+ *  drain touches only process.stdout, by design. */
+const flushStdout = (): Promise<void> =>
+  new Promise((resolve) => {
+    process.stdout.write("", () => resolve());
+  });
+
 export function createDeckctlOutput(
   options: DeckctlOutputOptions,
 ): DeckctlOutput {
@@ -31,15 +43,6 @@ export function createDeckctlOutput(
   const emitJson = async (payload: unknown): Promise<void> => {
     await write(`${JSON.stringify(payload, null, 2)}\n`);
   };
-  // Flush via process.stdout.write("") — NEVER write(fd, ""). An empty
-  // Bun.write to a file-redirected stdout TRUNCATES everything already
-  // buffered (verified Bun 1.3.14: `deckctl help --json > f` produced a
-  // 0-byte file); process.stdout's no-op write is the harmless drain.
-  // Same contract as src/shared/cli-output.ts drainStdout (megadj side).
-  const flushStdout = (): Promise<void> =>
-    new Promise((resolve) => {
-      process.stdout.write("", () => resolve());
-    });
   const log = (message: string): void => {
     if (!options.jsonMode) logLine(message);
   };
