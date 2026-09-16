@@ -27,7 +27,8 @@ export interface PlTrack {
 }
 
 /** stable row key (rekordbox allows the same playlist name in two folders) */
-export const plKey = (pl: PlaylistInfo): string => `${pl.parent ?? ""}/${pl.name}`;
+export const plKey = (pl: PlaylistInfo): string =>
+  `${pl.parent ?? ""}/${pl.name}`;
 
 /** index over the snapshot's raw rows: playlist name → ordered tracks with
  *  DJ metadata. Built once per snapshot; expansion is then O(1). Push, not
@@ -36,8 +37,19 @@ export const plKey = (pl: PlaylistInfo): string => `${pl.parent ?? ""}/${pl.name
  *  satisfies it; exactOptionalPropertyTypes keeps the props `| undefined`). */
 export function buildTrackIndex(
   snap: {
-    tracks?: { path: string; title: string | null; artist: string | null; bpm: number | null; key: string | null; duration_ms: number | null }[] | null | undefined;
-    playlist_entries?: { playlist_name: string; track_path: string }[] | null | undefined;
+    tracks?:
+      | {
+          path: string;
+          title: string | null;
+          artist: string | null;
+          bpm: number | null;
+          key: string | null;
+          duration_ms: number | null;
+        }[]
+      | null
+      | undefined;
+    playlist_entries?:
+      { playlist_name: string; track_path: string }[] | null | undefined;
   } | null,
 ): Map<string, PlTrack[]> {
   const m = new Map<string, PlTrack[]>();

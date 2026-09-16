@@ -29,10 +29,7 @@ import { Icon } from "../../ui/icons";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
 import { copyList } from "../../ui/data";
 import { fuzzyFilter, fuzzyMatch } from "../../ui/fuzzy";
-import {
-  buildTrackIndex,
-  PlList,
-} from "./playlists-crate";
+import { buildTrackIndex, PlList } from "./playlists-crate";
 
 type SortKey = "entries" | "name";
 
