@@ -78,7 +78,7 @@ describe("rb-import subprocess boundaries", () => {
       "playlist membership for both new and already-imported",
     );
 
-    const source = Bun.file(new URL("./rb-import.ts", import.meta.url));
+    const source = Bun.file(new URL("rb-import.ts", import.meta.url));
     expect(source.text()).resolves.toContain("applyPlaylistTwinMutation({");
   });
 

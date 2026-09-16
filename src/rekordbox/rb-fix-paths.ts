@@ -91,18 +91,18 @@ export interface RbFixResult {
 }
 
 export interface RbFixPathsRuntime {
-  fileExists(path: string): boolean;
-  assertClosed(what: string): void;
-  backup(dbPath: string): string;
-  readRows(dbPath: string): [string, string][];
-  buildIndex(mount: string): LiveIndex;
-  rewrite(
+  fileExists: (path: string) => boolean;
+  assertClosed: (what: string) => void;
+  backup: (dbPath: string) => string;
+  readRows: (dbPath: string) => [string, string][];
+  buildIndex: (mount: string) => LiveIndex;
+  rewrite: (
     dbPath: string,
     rows: RbFixRow[],
     log: (s: string) => void,
-  ): Promise<number>;
-  sleep(ms: number): void;
-  restore(dbPath: string, backupPath: string): void;
+  ) => Promise<number>;
+  sleep: (ms: number) => void;
+  restore: (dbPath: string, backupPath: string) => void;
 }
 
 const PY =

@@ -32,11 +32,11 @@ import {
   readFileSync,
   readdirSync,
   writeFileSync,
+  type Dirent,
 } from "node:fs";
 import { makeFail, printResult } from "./rb-command-kit.js";
 import { commandLog } from "../progress";
 import { errorText } from "../shared/error-text";
-import type { Dirent } from "node:fs";
 import { join, basename } from "node:path";
 import { createHash } from "node:crypto";
 import { parseAnlzInventory } from "../../fulltags/src/exports";
@@ -78,7 +78,7 @@ export interface SpikeSnapshot {
     file: string;
     was: string;
     now: string;
-    sections: Array<{ tag: string; was: number; now: number }>;
+    sections: { tag: string; was: number; now: number }[];
   }[];
   added?: string[];
   removed?: string[];

@@ -29,8 +29,11 @@
 
 import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { applyConfirmationRefusal, makeFail } from "./rb-command-kit.js";
-import { printResult } from "./rb-command-kit.js";
+import {
+  applyConfirmationRefusal,
+  makeFail,
+  printResult,
+} from "./rb-command-kit.js";
 import { QUARANTINE_DIR, quarantineDest } from "../archive/hygiene/apply";
 import { buildIndex, readRows } from "./rb-fix-paths";
 import { masterDbPath, normalizeMount } from "./master-path.js";

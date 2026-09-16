@@ -154,7 +154,7 @@ export function appendPlaylistNodesAtomic(
   );
   if (!changed && missing.length === 0) return;
   const closing = repaired.lastIndexOf("</PLAYLISTS>");
-  if (closing < 0)
+  if (closing === -1)
     throw new Error(`${xmlPath} has no closing PLAYLISTS element`);
   const before = repaired.slice(0, closing);
   const separator = before.endsWith("\n") ? "" : "\n";

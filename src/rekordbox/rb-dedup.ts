@@ -20,14 +20,21 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { buildDupePairs, type DupePair } from "./rb-dedup-graph.js";
+import {
+  parseDeleteResult,
+  parseScanResult,
+  parseVerifyRows,
+  type DeleteResult,
+  type ScanResult,
+  type VerifyRow,
+} from "./rb-dedup-parse.js";
 import {
   dedupDeleteScript,
   dedupScanScript,
   dedupVerifyScript,
 } from "./rb-dedup-scripts.js";
 import { fingerprintFileLength } from "../../fulltags/src/exports";
-import type { DupePair } from "./rb-dedup-graph.js";
-import type { DeleteResult, ScanResult, VerifyRow } from "./rb-dedup-parse.js";
 import { inspectMutationPaths } from "./rb-dedup-support.js";
 import {
   applyConfirmed,
@@ -121,12 +128,6 @@ export {
   parseDeleteResult,
   parseScanResult,
   type ScanPair,
-} from "./rb-dedup-parse.js";
-import { buildDupePairs } from "./rb-dedup-graph.js";
-import {
-  parseDeleteResult,
-  parseScanResult,
-  parseVerifyRows,
 } from "./rb-dedup-parse.js";
 
 export async function rbDedup(

@@ -47,16 +47,16 @@ describe("guard", () => {
     const backup = `${db}.bak-test`;
     try {
       writeFileSync(db, "mutated");
-      writeFileSync(db + "-wal", "stale-wal");
-      writeFileSync(db + "-shm", "stale-shm");
+      writeFileSync(`${db}-wal`, "stale-wal");
+      writeFileSync(`${db}-shm`, "stale-shm");
       writeFileSync(backup, "original");
-      writeFileSync(backup + "-wal", "original-wal");
+      writeFileSync(`${backup}-wal`, "original-wal");
 
       restoreMasterBackup(db, backup, "test restore");
 
       expect(readFileSync(db, "utf8")).toBe("original");
-      expect(readFileSync(db + "-wal", "utf8")).toBe("original-wal");
-      expect(fileExistsSafe(db + "-shm")).toBe(false);
+      expect(readFileSync(`${db}-wal`, "utf8")).toBe("original-wal");
+      expect(fileExistsSafe(`${db}-shm`)).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -67,12 +67,9 @@ describe("guard", () => {
     // VACUUM-INTO snapshot stamps `_bak_<stamp>` — one format, one producer.
     // A hand-rolled second stamp format must fail here, not in an operator's
     // backup listing.
-    const guardSrc = readFileSync(
-      new URL("./guard.ts", import.meta.url),
-      "utf8",
-    );
+    const guardSrc = readFileSync(new URL("guard.ts", import.meta.url), "utf8");
     const adoptSrc = readFileSync(
-      new URL("./rb-adopt.ts", import.meta.url),
+      new URL("rb-adopt.ts", import.meta.url),
       "utf8",
     );
     expect(guardSrc).toContain("backupStamp()");
