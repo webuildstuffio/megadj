@@ -1,5 +1,5 @@
 import { ArchiveCore } from "./state_core";
-import type { TrackRow, TrackStatus } from "./state-types";
+import type { TrackRow, TrackStatus, MarkDownloadedInfo } from "./state-types";
 
 /** Track lifecycle and inventory queries. */
 export class ArchiveTracks extends ArchiveCore {
@@ -34,23 +34,7 @@ export class ArchiveTracks extends ArchiveCore {
       .run((row?.attempts ?? 0) + 1, now, error, now, videoId);
   }
 
-  markDownloaded(
-    videoId: string,
-    info: {
-      title: string | null;
-      artist: string | null;
-      album: string | null;
-      genre?: string | null | undefined;
-      formatId: string | null;
-      bitrateKbps: number | null;
-      codec: string | null;
-      filePath: string | null;
-      fileSizeBytes: number | null;
-      durationS: number | null;
-      energy?: number | null | undefined;
-      artworkStatus?: string | null | undefined;
-    },
-  ): void {
+  markDownloaded(videoId: string, info: MarkDownloadedInfo): void {
     const now = this.now();
     this.db
       .query(

@@ -43,3 +43,24 @@ export interface RunRow {
   failed: number;
   bytes_downloaded: number;
 }
+
+/** The row `ArchiveTracks.markDownloaded` accepts — the ONE declaration
+ *  of the downloaded-row shape (#190). Previously hand-mirrored as
+ *  `MarkDownloadedRow` in getdat/commands/ingest-register.ts; that site
+ *  now derives from this leaf (which imports nothing, so the getdat leaf
+ *  seam can import it without any cycle). `exactOptionalPropertyTypes`
+ *  shape: optional fields are `| undefined` explicitly. */
+export interface MarkDownloadedInfo {
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  genre?: string | null | undefined;
+  formatId: string | null;
+  bitrateKbps: number | null;
+  codec: string | null;
+  filePath: string | null;
+  fileSizeBytes: number | null;
+  durationS: number | null;
+  energy?: number | null | undefined;
+  artworkStatus?: string | null | undefined;
+}

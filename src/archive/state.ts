@@ -7,7 +7,7 @@ import type {
 import { ArchiveBeats } from "./state_beats";
 import type { RunRow } from "./state-types";
 
-export type { RunRow, TrackRow } from "./state-types";
+export type { RunRow, TrackRow, MarkDownloadedInfo } from "./state-types";
 
 /**
  * Stable archive-state facade. Connection/schema, track lifecycle, and beat

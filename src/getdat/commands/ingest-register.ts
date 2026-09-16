@@ -15,6 +15,7 @@ import type { Record_ } from "./ingest-probe";
 import type { ArtworkOutcome } from "./ingest-art";
 import type { QueueEntry } from "./queue";
 import type { RemixInfo } from "../../../fulltags/src/remix";
+import type { MarkDownloadedInfo } from "../../archive/state-types";
 import {
   INTAKE_COUNTER_KEYS,
   type IntakeCounterKey,
@@ -61,22 +62,13 @@ export function counterSummary(counters: IngestCounters): {
 }
 
 /** The row shape markDownloaded actually receives at every call site —
- *  mirrors state_tracks.ts markDownloaded's info param (kept narrow here
- *  so this leaf seam never imports ArchiveState back — madge cycle). */
-export interface MarkDownloadedRow {
-  title: string | null;
-  artist: string | null;
-  album: string | null;
-  genre?: string | null | undefined;
-  formatId: string | null;
-  bitrateKbps: number | null;
-  codec: string | null;
-  filePath: string | null;
-  fileSizeBytes: number | null;
-  durationS: number | null;
-  energy?: number | null | undefined;
-  artworkStatus?: string | null | undefined;
-}
+ *  DERIVED from the archive type leaf's MarkDownloadedInfo (#190), not
+ *  hand-mirrored: a field added to markDownloaded's param must flow
+ *  through this alias (a mismatch is a typecheck error, never a silent
+ *  seam narrowing). The import is type-only from state-types.ts, which
+ *  imports nothing — the madge-cycle guard that forced the old hand twin
+ *  is not violated (verified: state-types.ts has zero imports). */
+export type MarkDownloadedRow = MarkDownloadedInfo;
 
 /** Narrow view of IngestOptions the landing helpers need. */
 export interface IngestOptsLike {
