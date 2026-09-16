@@ -55,6 +55,132 @@ export interface ConvertResult {
   hiresWarnings: string[];
 }
 
+/** One WAV's convert + tag-probe + art + compat verdict. Kept out of the
+ *  loop body so convertArchive reads as the batch shape, not the per-file
+ *  plumbing. Returns the res counters to bump and any queue entry. */
+interface PerWavOutcome {
+  ok: boolean;
+  artAdded: boolean;
+  artQueued: boolean;
+  hiresOnly: boolean;
+  failure: { file: string; reason: string } | null;
+  hiresWarning: string | null;
+  queueEntry: QueueEntry | null;
+  newPath: string | null;
+}
+
+/** The shared failure outcome for convertOneWav — shape once, use twice. */
+function wavFail(file: string, reason: string): PerWavOutcome {
+  return {
+    ok: false,
+    artAdded: false,
+    artQueued: false,
+    hiresOnly: false,
+    failure: { file, reason },
+    hiresWarning: null,
+    queueEntry: null,
+    newPath: null,
+  };
+}
+
+/** The success outcome — only the art/compat flags vary. */
+function wavOk(o: {
+  newPath: string;
+  artAdded: boolean;
+  artQueued: boolean;
+  hiresOnly: boolean;
+  failure: { file: string; reason: string } | null;
+  hiresWarning: string | null;
+  queueEntry: QueueEntry | null;
+}): PerWavOutcome {
+  return { ok: true, ...o };
+}
+
+async function convertOneWav(
+  opts: ConvertOptions,
+  wav: string,
+  byPath: Map<string, string>,
+  log: (m: string) => void,
+): Promise<PerWavOutcome> {
+  const aiff = await wavToAiff(wav);
+  if (!aiff) {
+    log(`  ✗ conversion failed — wav kept in place`);
+    return wavFail(wav, "conversion failed — wav kept");
+  }
+
+  // DB path follows the file (row may not exist for strays — fine).
+  const videoId = byPath.get(wav);
+  if (videoId) opts.state.updateFilePath(videoId, aiff);
+
+  // Artwork ladder on the new AIFF: the WAV's tags rode along via
+  // mutagen, but WAV tags rarely carry embedded art.
+  const probe = await probeFile(aiff);
+  if (!probe.ok) return wavFail(aiff, "post-conversion probe failed");
+
+  const title = probe.tags["title"] ?? basename(aiff).replace(/\.aiff$/i, "");
+  const artist = probe.tags["artist"] ?? null;
+  const album = probe.tags["album"] ?? null;
+  const art = await fetchAndEmbedArtwork(aiff, {
+    tags: probe.tags,
+    hasArt: probe.hasArt,
+    noArtwork: opts.noArtwork,
+    artist,
+    album,
+    title,
+  });
+  if (art.source) log(`  ✓ art: ${art.source}`);
+  let queueEntry: QueueEntry | null = null;
+  if (art.queued) {
+    queueEntry = {
+      path: aiff,
+      title,
+      artist,
+      album,
+      reason: "no-source-found",
+      remixOf: null,
+    };
+    if (videoId) opts.state.updateArtworkStatus(videoId, "queued");
+    log(`  ~ art: queued for image-maker`);
+  }
+  // Player-compat verdict on what the booth will actually load.
+  const compat = playerCompat(probe);
+  if (isHiresOnly(compat)) {
+    const warning = `${basename(aiff)} — ${compat.detail}`;
+    log(`  ⚠ hires-only: ${compat.detail}`);
+    return wavOk({
+      newPath: aiff,
+      artAdded: art.source !== null,
+      artQueued: art.queued,
+      hiresOnly: true,
+      failure: null,
+      hiresWarning: warning,
+      queueEntry,
+    });
+  }
+  if (!compat.ok) {
+    log(`  ⛔ player-incompatible even as aiff: ${compat.detail}`);
+    return wavOk({
+      newPath: aiff,
+      artAdded: art.source !== null,
+      artQueued: art.queued,
+      hiresOnly: false,
+      failure: { file: aiff, reason: compat.detail },
+      hiresWarning: null,
+      queueEntry,
+    });
+  }
+  log(`  ✓ booth-playable`);
+  return wavOk({
+    newPath: aiff,
+    artAdded: art.source !== null,
+    artQueued: art.queued,
+    hiresOnly: false,
+    failure: null,
+    hiresWarning: null,
+    queueEntry,
+  });
+}
+
 export async function convertArchive(
   opts: ConvertOptions,
 ): Promise<ConvertResult> {
@@ -92,73 +218,31 @@ export async function convertArchive(
       log(`  [convert] would convert to aiff (+ art ladder)`);
       continue;
     }
-    const aiff = await wavToAiff(wav);
-    if (!aiff) {
-      res.failed.push({ file: wav, reason: "conversion failed — wav kept" });
-      log(`  ✗ conversion failed — wav kept in place`);
-      continue;
-    }
-    res.converted++;
-
-    // DB path follows the file (row may not exist for strays — fine).
-    const videoId = byPath.get(wav);
-    if (videoId) opts.state.updateFilePath(videoId, aiff);
-
-    // Artwork ladder on the new AIFF: the WAV's tags rode along via
-    // mutagen, but WAV tags rarely carry embedded art.
-    const probe = await probeFile(aiff);
-    if (probe.ok) {
-      const title =
-        probe.tags["title"] ?? basename(aiff).replace(/\.aiff$/i, "");
-      const artist = probe.tags["artist"] ?? null;
-      const album = probe.tags["album"] ?? null;
-      const art = await fetchAndEmbedArtwork(aiff, {
-        tags: probe.tags,
-        hasArt: probe.hasArt,
-        noArtwork: opts.noArtwork,
-        artist,
-        album,
-        title,
-      });
-      if (art.source) {
-        res.artAdded++;
-        log(`  ✓ art: ${art.source}`);
-      }
-      if (art.queued) {
-        queueEntries.push({
-          path: aiff,
-          title,
-          artist,
-          album,
-          reason: "no-source-found",
-          remixOf: null,
-        });
-        res.artQueued++;
-        if (videoId) opts.state.updateArtworkStatus(videoId, "queued");
-        log(`  ~ art: queued for image-maker`);
-      }
-      // Player-compat verdict on what the booth will actually load.
-      const compat = playerCompat(probe);
-      if (isHiresOnly(compat)) {
-        res.hiresOnly++;
-        res.hiresWarnings.push(`${basename(aiff)} — ${compat.detail}`);
-        log(`  ⚠ hires-only: ${compat.detail}`);
-      } else if (!compat.ok) {
-        res.failed.push({ file: aiff, reason: compat.detail });
-        log(`  ⛔ player-incompatible even as aiff: ${compat.detail}`);
-      } else {
-        log(`  ✓ booth-playable`);
-      }
-    } else {
-      res.failed.push({
-        file: aiff,
-        reason: "post-conversion probe failed",
-      });
-    }
+    const out = await convertOneWav(opts, wav, byPath, log);
+    applyOutcome(res, queueEntries, out);
   }
 
   if (queueEntries.length > 0 && !opts.dryRun) {
     await flushArtworkQueue(opts.state.dbDir, queueEntries);
   }
   return res;
+}
+
+/** Fold one file's outcome into the run result. The only place outcome
+ *  fields map onto result counters — a new outcome field fails review
+ *  here instead of silently not being counted. */
+function applyOutcome(
+  res: ConvertResult,
+  queueEntries: QueueEntry[],
+  out: PerWavOutcome,
+): void {
+  if (out.newPath) res.converted++;
+  if (out.artAdded) res.artAdded++;
+  if (out.failure) res.failed.push(out.failure);
+  if (out.hiresOnly) res.hiresOnly++;
+  if (out.hiresWarning) res.hiresWarnings.push(out.hiresWarning);
+  if (out.queueEntry) {
+    queueEntries.push(out.queueEntry);
+    res.artQueued++;
+  }
 }

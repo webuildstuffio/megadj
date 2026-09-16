@@ -754,68 +754,15 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     log(`artwork queue: ${queueEntries.length} entries`);
   }
 
-  log(
-    `\ndone: ${counters.tagged} retagged, ${counters.artAdded} artwork embedded${
-      counters.wavConverted ? `, ${counters.wavConverted} wav→aiff` : ""
-    }${
-      counters.compatRejected
-        ? `, ${counters.compatRejected} PLAYER-INCOMPATIBLE (left in place)`
-        : ""
-    }${
-      counters.compatHires
-        ? `, ${counters.compatHires} hires-only (no XDJ-XZ/CDJ-2000)`
-        : ""
-    }${
-      counters.artQueued
-        ? `, ${counters.artQueued} artwork QUEUED for image-maker`
-        : ""
-    }${
-      counters.artSkippedWav
-        ? `, ${counters.artSkippedWav} wav skipped for art`
-        : ""
-    }${
-      counters.shortSkipped
-        ? `, ${counters.shortSkipped} skipped (<${minDuration}s)`
-        : ""
-    }, ${counters.unchanged} already clean` +
-      `, ${folderDupes} in-folder dupes, ${archiveDupes} archive dupes (${upgrades} quality upgrades)${
-        broken.length ? `, ${broken.length} BROKEN (left in place)` : ""
-      }${
-        counters.writeFailed
-          ? `, ${counters.writeFailed} TAG-WRITE FAILED (left in place, see ✗ lines)`
-          : ""
-      }`,
-  );
-  if (opts.dryRun) log("(dry run — nothing written)");
-  else if (folderDupes + archiveDupes > 0)
-    log(`duplicates moved to: ${quarantineDir}`);
-  if (broken.length > 0)
-    log(`broken files:\n  ${broken.map((b) => basename(b)).join("\n  ")}`);
-
-  if (opts.json) {
-    // P1 (--json on every command): one summary object on stdout, LAST —
-    // keyed over THE counter list (cratedeck/shared/types.ts, issue #159)
-    // so a key added to IntakeResult fails typecheck here until produced,
-    // and cratedeck's parser needs no hand-copied twin list. Awaits the
-    // stdout seam (writeJson) — fire-and-forget console.log truncated
-    // piped output (#53's EOF class).
-    const summary = {
-      command: "ingest",
-      dryRun: opts.dryRun ?? false,
-      // run-derived counters (not in IngestCounters — computed above)
-      files: files.length,
-      folderDupes,
-      archiveDupes,
-      upgrades,
-      broken: broken.length,
-      // counter-backed keys, derived: IngestCounters ∩ INTAKE_COUNTER_KEYS
-      ...counterSummary(counters),
-    } satisfies {
-      command: string;
-      dryRun: boolean;
-    } & Record<IntakeCounterKey, number>;
-    await writeJson(summary);
-  }
+  const runStats = {
+    files: files.length,
+    folderDupes,
+    archiveDupes,
+    upgrades,
+    broken,
+    minDuration,
+  };
+  await emitIngestReport(opts, counters, runStats, quarantineDir);
 
   // Zips: delete only when EVERY file staged from them has left the source
   // folder (i.e. was moved into the archive or quarantined as a dupe).
@@ -827,4 +774,109 @@ export async function ingest(opts: IngestOptions): Promise<void> {
       log,
     );
   }
+}
+
+/** Run-scoped numbers the summary needs that IngestCounters doesn't own. */
+interface IngestRunStats {
+  files: number;
+  folderDupes: number;
+  archiveDupes: number;
+  upgrades: number;
+  broken: string[];
+  minDuration: number;
+}
+
+/** The done-line, dry-run/dupes/broken epilogue, and the --json summary.
+ *  One seam so the report stays in sync with the payload — both read the
+ *  same counters object. Async end-to-end: the --json write is awaited,
+ *  never fire-and-forget (#53's EOF class — a lesson re-learned the same
+ *  day in mood.ts). */
+async function emitIngestReport(
+  opts: IngestOptions,
+  counters: IngestCounters,
+  run: IngestRunStats,
+  quarantineDir: string,
+): Promise<void> {
+  const log = commandLog(opts);
+  const dupesTotal = run.folderDupes + run.archiveDupes;
+  // Summary segments: [segment, condition] pairs — a segment only joins
+  // the line when its condition holds, so a zero counter stays silent.
+  const segments: [string, boolean][] = [
+    [`${counters.tagged} retagged`, true],
+    [`${counters.artAdded} artwork embedded`, true],
+    [`${counters.wavConverted} wav→aiff`, counters.wavConverted > 0],
+    [
+      `${counters.compatRejected} PLAYER-INCOMPATIBLE (left in place)`,
+      counters.compatRejected > 0,
+    ],
+    [
+      `${counters.compatHires} hires-only (no XDJ-XZ/CDJ-2000)`,
+      counters.compatHires > 0,
+    ],
+    [
+      `${counters.artQueued} artwork QUEUED for image-maker`,
+      counters.artQueued > 0,
+    ],
+    [
+      `${counters.artSkippedWav} wav skipped for art`,
+      counters.artSkippedWav > 0,
+    ],
+    [
+      `${counters.shortSkipped} skipped (<${run.minDuration}s)`,
+      counters.shortSkipped > 0,
+    ],
+    [`${counters.unchanged} already clean`, true],
+    [`${run.folderDupes} in-folder dupes`, true],
+    [
+      `${run.archiveDupes} archive dupes (${run.upgrades} quality upgrades)`,
+      true,
+    ],
+    [`${run.broken.length} BROKEN (left in place)`, run.broken.length > 0],
+    [
+      `${counters.writeFailed} TAG-WRITE FAILED (left in place, see ✗ lines)`,
+      counters.writeFailed > 0,
+    ],
+  ];
+  const doneLine = segments
+    .filter(([, keep]) => keep)
+    .map(([text]) => text)
+    .join(", ");
+  log(`\ndone: ${doneLine}`);
+
+  if (opts.dryRun) log("(dry run — nothing written)");
+  else if (dupesTotal > 0) log(`duplicates moved to: ${quarantineDir}`);
+  if (run.broken.length > 0)
+    log(`broken files:\n  ${run.broken.map((b) => basename(b)).join("\n  ")}`);
+
+  if (!opts.json) return;
+  // P1 (--json on every command): one summary object on stdout, LAST —
+  // keyed over THE counter list (cratedeck/shared/types.ts, issue #159)
+  // so a key added to IntakeResult fails typecheck here until produced,
+  // and cratedeck's parser needs no hand-copied twin list. Awaited here —
+  // fire-and-forget console.log truncated piped output (#53's EOF class).
+  await writeIngestJson(counters, run, opts.dryRun ?? false);
+}
+
+/** The --json payload (async tail of the report seam). */
+async function writeIngestJson(
+  counters: IngestCounters,
+  run: IngestRunStats,
+  dryRun: boolean,
+): Promise<void> {
+  const summary = {
+    command: "ingest",
+    dryRun,
+    // run-derived counters (not in IngestCounters — computed by the caller)
+    files: run.files,
+    folderDupes: run.folderDupes,
+    archiveDupes: run.archiveDupes,
+    upgrades: run.upgrades,
+    broken: run.broken.length,
+    // counter-backed keys, derived: IngestCounters ∩ INTAKE_COUNTER_KEYS
+    ...counterSummary(counters),
+  } satisfies {
+    command: string;
+    dryRun: boolean;
+  } & Record<IntakeCounterKey, number>;
+  await writeJson(summary);
 }
