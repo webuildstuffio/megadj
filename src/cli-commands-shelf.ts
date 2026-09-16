@@ -1,6 +1,6 @@
 import type { CliCommandHandler } from "./cli-command";
 import { parseFlags } from "./cli-flags";
-import { writeJson } from "./shared/cli-output";
+import { writeJson, setExit } from "./shared/cli-output";
 import {
   runShelfArchive,
   runShelfSweeps,
@@ -75,7 +75,8 @@ const convert: CliCommandHandler = async (rest, { state, musicDir }) => {
   for (const failure of report.failed)
     console.log(`  ✗ ${failure.reason}: ${failure.file}`);
   for (const warning of report.hiresWarnings) console.log(`  ⚠ ${warning}`);
-  if (report.failed.length) process.exitCode = 1;
+  // #160 ring 3: setExit is the one mutation point.
+  if (report.failed.length) setExit(1);
 };
 
 const dedupeArchive: CliCommandHandler = async (rest, { musicDir, dbPath }) => {
@@ -101,7 +102,8 @@ const dedupeArchive: CliCommandHandler = async (rest, { musicDir, dbPath }) => {
     }`,
   );
   for (const error of report.errors) console.log(`  ✗ ${error}`);
-  if (report.errors.length) process.exitCode = 1;
+  // #160 ring 3: setExit is the one mutation point.
+  if (report.errors.length) setExit(1);
 };
 
 export const SHELF_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {

@@ -17,7 +17,7 @@ import { organize } from "../getdat/commands/organize";
 import { ytdlpCookieArgs } from "../getdat/ytdlp";
 import type { ArchiveState } from "../archive/state";
 import { commandLog } from "../progress";
-import { writeJson } from "./cli-output";
+import { writeJson, setExit } from "./cli-output";
 
 export interface DropOptions {
   state: ArchiveState;
@@ -371,5 +371,6 @@ export async function drop(opts: DropOptions): Promise<void> {
         `  ${s.status === "ok" ? "✓" : s.status === "skipped" ? "-" : "✗"} ${s.stage}${s.detail ? ` — ${s.detail}` : ""}`,
       );
   }
-  if (!ok) process.exitCode = 1;
+  // #160 ring 3: setExit is the one mutation point.
+  if (!ok) setExit(1);
 }

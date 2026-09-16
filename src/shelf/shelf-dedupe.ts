@@ -29,7 +29,7 @@ import {
 } from "../rekordbox/rb-command-kit.js";
 import { judgePair, applyPairs } from "./shelf-dedupe-verdict";
 import { resolveShelfVolume } from "../shared/volume";
-import { writeJson } from "../shared/cli-output";
+import { writeJson, setExit } from "../shared/cli-output";
 import { AUDIO_EXTS } from "../shared/audio-exts";
 
 // DedupePair/DedupeResult are DEFINED in shelf-dedupe-types.ts (the leaf
@@ -169,7 +169,9 @@ export async function shelfDedupe(
         reason: p.reason,
       })),
     });
-    if (!ok) process.exitCode = 1;
+    // #160 ring 3: setExit is the one mutation point (failure stays
+    // summary-coupled).
+    if (!ok) setExit(1);
     return result;
   }
 
@@ -197,7 +199,8 @@ export async function shelfDedupe(
   }
   if (!ok) {
     log(`ERRORS: ${errors.length} (first: ${errors[0]})`);
-    process.exitCode = 1;
+    // #160 ring 3: setExit is the one mutation point.
+    setExit(1);
   }
   return result;
 }

@@ -15,7 +15,7 @@ import { ArchiveReader } from "../../cratedeck/src/archive";
 import { loadConfig } from "../../cratedeck/src/config";
 import { DB_PATH } from "../cli-env";
 import { commandLog } from "../progress";
-import { writeJson } from "../shared/cli-output";
+import { writeJson, finishCommandError, setExit } from "../shared/cli-output";
 import {
   buildMegaset,
   parseMegasetQuery,
@@ -61,20 +61,24 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
     minutes: opts.minutes ?? null,
   });
   if ("error" in parsed) {
-    console.error(`megaset: ${parsed.error}`);
-    process.exitCode = 2;
+    await finishCommandError({
+      command: "megaset",
+      json: opts.json === true,
+      error: parsed.error,
+      exitCode: 2,
+    });
     return;
   }
 
   const reader = archive;
   try {
     if (!reader.available()) {
-      console.error(
-        `megaset: no archive at ${DB_PATH} — run \`megadj sync\`/\`megadj drop\` first`,
-      );
-      if (opts.json)
-        await writeJson({ command: "megaset", error: "no archive" });
-      process.exitCode = 1;
+      await finishCommandError({
+        command: "megaset",
+        json: opts.json === true,
+        error: `no archive at ${DB_PATH} — run \`megadj sync\`/\`megadj drop\` first`,
+        exitCode: 1,
+      });
       return;
     }
 
@@ -142,7 +146,8 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
             ? `megaset: checked ${sourceTotal} downloaded DB rows, but none of their files exist — run \`megadj status\`, then repair or resync those rows`
             : `megaset: nothing mixable in a ${total}-track actual-file pool — run \`megadj beats\` + \`megadj mood\` first`,
       );
-      process.exitCode = 1;
+      // #160 ring 3: setExit is the one mutation point.
+      setExit(1);
     } else {
       // staleness UX: the pool is only as fresh as its newest analysis —
       // surface the ledger ages so "why isn't my new track in here" is
@@ -161,7 +166,7 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
         );
       }
       log(`  total ${at} min — propose-only, nothing written`);
-      if (!built.complete) process.exitCode = 1;
+      if (!built.complete) setExit(1);
     }
     await writeJson(payload);
   } finally {

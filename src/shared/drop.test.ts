@@ -101,11 +101,11 @@ describe("megadj drop (K61 one-shot pipeline)", () => {
     }
   }, 30_000);
 
-  test("missing target: usage error, exit 1", async () => {
+  test("missing target: usage error, exit 2 (bad input = zero work)", async () => {
     const { dir, env } = freshEnv();
     try {
       const { code, stderr } = await runDrop([], env);
-      expect(code).toBe(1);
+      expect(code).toBe(2);
       expect(stderr).toContain("drop: pass a folder or URL");
     } finally {
       rmSync(dir, { recursive: true, force: true });

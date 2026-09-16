@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
 import { ArchiveState } from "./archive/state";
 import { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR } from "./cli-env";
+export { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR } from "./cli-env";
 import { dispatchCommand } from "./cli-dispatch";
-import { drainStdout } from "./shared/cli-output";
+import { drainStdout, finishCommandError } from "./shared/cli-output";
 import {
   MAINTENANCE_VERBS,
   runMaintenanceCommand,
 } from "./shared/maintenance-cmds";
 import { printHelp as printHelpImpl } from "./usage";
 
-export { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR };
 export { firstPositional, nonNegOpt, numOpt, parseFlags } from "./cli-flags";
 
 /** macOS-only by design (Principle 2) — fail fast with the reason. */
@@ -30,7 +30,7 @@ async function configureBoothFleet(): Promise<void> {
   try {
     const { loadConfig } = await import("../cratedeck/src/config");
     const config = loadConfig(
-      process.env.CRATEDECK_ROOT ?? import.meta.dir + "/../cratedeck",
+      process.env.CRATEDECK_ROOT ?? `${import.meta.dir}/../cratedeck`,
     );
     const environmentFleet = process.env.MEGADJ_FLEET?.split(",")
       .map((player) => player.trim())
@@ -81,9 +81,14 @@ async function main(): Promise<void> {
       cookiesFile: COOKIES_FILE,
     });
     if (!handled) {
-      console.error(`unknown command: ${command}`);
-      printHelp();
-      process.exitCode = 1;
+      // #160 ring 3: json-mode-safe unknown-command epilogue (was bare
+      // stderr + raw exit-code write; the json channel stays clean).
+      await finishCommandError({
+        command,
+        json: rest.includes("--json"),
+        error: `unknown command: ${command} — try \`megadj --help\``,
+        exitCode: 1,
+      });
     }
   } finally {
     state.close();

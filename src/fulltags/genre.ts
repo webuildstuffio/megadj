@@ -17,7 +17,7 @@
 // §5b.3 step 4 — target: gated ≥65% after refold, baseline 62.7%).
 
 import { commandLog } from "../progress";
-import { writeJson } from "../shared/cli-output";
+import { writeJson, finishCommandError, setExit } from "../shared/cli-output";
 import {
   evalLeaveOneOut,
   evalLeaveOneOutArtistDisjoint,
@@ -97,10 +97,12 @@ export async function genre(opts: GenreOptions): Promise<void> {
   const minAgreement = opts.minAgreement ?? 0.6;
 
   if (opts.refold && opts.flag) {
-    console.error(
-      "genre: --refold and --flag are separate passes — run one at a time",
-    );
-    process.exitCode = 2;
+    await finishCommandError({
+      command: "genre",
+      json: opts.json === true,
+      error: "--refold and --flag are separate passes — run one at a time",
+      exitCode: 2,
+    });
     return;
   }
 
@@ -252,7 +254,8 @@ export async function genre(opts: GenreOptions): Promise<void> {
       ...(probe !== undefined ? { probe } : {}),
       ...(refold !== undefined ? { refold } : {}),
     });
-    process.exitCode = pass ? 0 : 1;
+    // #160 ring 3: setExit is the one mutation point (eval's pass/fail).
+    setExit(pass ? 0 : 1);
     return;
   }
 

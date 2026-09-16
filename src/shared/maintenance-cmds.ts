@@ -396,6 +396,11 @@ export async function runMaintenanceCommand(
         return n;
       };
       const minutes = numOpt("minutes");
+      // These two READS are the only exitCode reads repo-wide (all writes
+      // go through setExit/finishCommandError* — pinned by
+      // src/exit-code-census.test.ts, whose regex skips comment lines,
+      // hence the inline mention below stays invisible to it): bail out
+      // when the preceding numOpt stamped a usage error.
       if (process.exitCode === 2) return;
       const limit = numOpt("limit");
       if (process.exitCode === 2) return;

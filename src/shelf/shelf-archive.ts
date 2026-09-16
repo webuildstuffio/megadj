@@ -39,10 +39,11 @@
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ArchiveState } from "../archive/state";
+import type { ShelfSweeps } from "../archive/sweeps";
 import { ShelfIndex } from "./shelf-index";
 import { sweepVolume, type DriveResult } from "./shelf-archive-file";
 import { resolveShelfVolume } from "../shared/volume";
-import { writeJson } from "../shared/cli-output";
+import { writeJson, setExit } from "../shared/cli-output";
 
 /** The archive DB (sweep ledger host). Env-overridable like cli.ts. */
 const DB_PATH =
@@ -86,7 +87,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
   // full — the "when did drive X last get archived, and what happened" is
   // DB state, not markdown memory. The DB lives on this Mac, so a missing
   // file is recorded as note, never a crash (the sweep itself is I/O work).
-  let sweeps: import("../archive/sweeps").ShelfSweeps | null = null;
+  let sweeps: ShelfSweeps | null = null;
   let state: ArchiveState | null = null;
   if (ledgerPath !== null) {
     try {
@@ -108,7 +109,8 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
     if (json)
       await writeJson({ command: "shelf-archive", error: msg, ok: false });
     else log(`shelf-archive: ${msg}`);
-    process.exitCode = 1;
+    // #160 ring 3: setExit is the one mutation point.
+    setExit(1);
     return;
   }
 
@@ -179,7 +181,8 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
       drives: results,
       ok: allOk,
     });
-    if (!allOk) process.exitCode = 1;
+    // #160 ring 3: setExit is the one mutation point.
+    if (!allOk) setExit(1);
     return;
   }
 
@@ -198,7 +201,8 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
   }
   if (!allOk) {
     log("shelf-archive: NOT fully covered — see failures above");
-    process.exitCode = 1;
+    // #160 ring 3: setExit is the one mutation point.
+    setExit(1);
   } else {
     log("shelf-archive: ✅ every drive file is covered on the shelf");
   }

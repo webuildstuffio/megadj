@@ -14,8 +14,12 @@
 // Agent-first contract: --json (one summary object), human logs suppressed
 // in json mode, exit codes meaningful (1 = no such track / no embeddings).
 import { commandLog } from "../progress";
-import { writeJson } from "../shared/cli-output";
-import { similarTracks, cosineSimilarity } from "../archive/state";
+import { writeJson, finishCommandError } from "../shared/cli-output";
+import {
+  similarTracks,
+  cosineSimilarity,
+  type ArchiveState,
+} from "../archive/state";
 import {
   applySpace,
   cslsPenalties,
@@ -26,7 +30,7 @@ import {
 } from "../../cratedeck/shared/vector-space";
 
 export interface SimilarOptions {
-  state: import("../archive/state").ArchiveState;
+  state: ArchiveState;
   videoId: string;
   k?: number | undefined;
   /** Retrieval space: raw cosine (default) or whitened+CSLS. */
@@ -40,28 +44,37 @@ export async function similar(opts: SimilarOptions): Promise<void> {
   const space: SimilarSpace =
     opts.space !== undefined && isSimilarSpace(opts.space) ? opts.space : "raw";
   if (opts.space !== undefined && !isSimilarSpace(opts.space)) {
-    console.error(
-      `similar: unknown --space "${opts.space}" — expected raw or whitened`,
-    );
-    process.exitCode = 2;
+    await finishCommandError({
+      command: "similar",
+      json: opts.json === true,
+      error: `unknown --space "${opts.space}" — expected raw or whitened`,
+      exitCode: 2,
+    });
     return;
   }
 
   const t = opts.state.allTracks().find((x) => x.video_id === opts.videoId);
   if (!t) {
-    console.error(`similar: no track ${opts.videoId}`);
-    if (opts.json)
-      await writeJson({ command: "similar", error: "unknown track" });
-    process.exit(1);
+    // finishCommandError replaces the bare process.exit(1)s (they skipped
+    // the awaited stdout drain — #53 truncation class) and unifies the
+    // human channel onto stderr (#160 ring 3).
+    await finishCommandError({
+      command: "similar",
+      json: opts.json === true,
+      error: `no track ${opts.videoId}`,
+      exitCode: 1,
+    });
+    return;
   }
   const q = opts.state.embeddingRecord(opts.videoId);
   if (!q) {
-    console.error(
-      `similar: ${opts.videoId} has no embedding — run \`megadj mood\` (mirrors embeddings) first`,
-    );
-    if (opts.json)
-      await writeJson({ command: "similar", error: "no embedding" });
-    process.exit(1);
+    await finishCommandError({
+      command: "similar",
+      json: opts.json === true,
+      error: `${opts.videoId} has no embedding — run \`megadj mood\` (mirrors embeddings) first`,
+      exitCode: 1,
+    });
+    return;
   }
 
   const corpus = opts.state.embeddingCorpus();

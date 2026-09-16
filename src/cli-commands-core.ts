@@ -9,7 +9,12 @@ import {
 } from "./cli-flags";
 import type { CliCommandHandler } from "./cli-command";
 import { listJson, listTracks, status, statusJson } from "./shared/status";
-import { writeJson, writeJsonText } from "./shared/cli-output";
+import {
+  writeJson,
+  writeJsonText,
+  finishCommandError,
+  setExit,
+} from "./shared/cli-output";
 
 const doctor: CliCommandHandler = async (rest) => {
   const flags = parseFlags(rest, [], ["json"]);
@@ -18,17 +23,16 @@ const doctor: CliCommandHandler = async (rest) => {
   const results = runDoctor();
   if (flags.bools.has("json")) {
     await writeJsonText(doctorJson(results));
-    process.exitCode = results.some((check) => !check.ok && check.required)
-      ? 1
-      : 0;
+    // #160 ring 3: setExit is the one mutation point.
+    setExit(results.some((check) => !check.ok && check.required) ? 1 : 0);
   } else {
-    process.exitCode = printDoctor(results);
+    setExit(printDoctor(results));
   }
 };
 
 const init: CliCommandHandler = async () => {
   const { runInit } = await import("./shared/doctor");
-  process.exitCode = runInit();
+  setExit(runInit());
 };
 
 const syncCommand: CliCommandHandler = async (rest, context) => {
@@ -45,10 +49,16 @@ const syncCommand: CliCommandHandler = async (rest, context) => {
         `  (backoff #${attempt}: ${(ms / 1000).toFixed(1)}s — ${reason.slice(0, 60)})\n`,
       ),
   });
-  if (nonNegOptInvalid(flags, "limit")) return;
-  const limit = nonNegOpt(flags, "limit", "sync");
-  if (nonNegOptInvalid(flags, "target-total")) return;
-  const targetTotal = nonNegOpt(flags, "target-total", "sync");
+  if (nonNegOptInvalid(flags, "limit", "sync", flags.bools.has("json"))) return;
+  const limit = nonNegOpt(flags, "limit", "sync", flags.bools.has("json"));
+  if (nonNegOptInvalid(flags, "target-total", "sync", flags.bools.has("json")))
+    return;
+  const targetTotal = nonNegOpt(
+    flags,
+    "target-total",
+    "sync",
+    flags.bools.has("json"),
+  );
 
   const sources = (flags.strings.get("sources") ?? "LM")
     .split(",")
@@ -138,18 +148,24 @@ const ingest: CliCommandHandler = async (rest, { state, musicDir }) => {
   );
   const folder = firstPositional(rest, "ingest") ?? flags.strings.get("folder");
   if (!folder) {
-    console.error("ingest: pass a folder — megadj ingest <folder> [--dry-run]");
-    process.exitCode = 1;
+    await finishCommandError({
+      command: "ingest",
+      json: flags.bools.has("json"),
+      error: "pass a folder — megadj ingest <folder> [--dry-run]",
+      exitCode: 2,
+    });
     return;
   }
   const minDurationRaw = flags.strings.get("min-duration");
   const minDuration =
     minDurationRaw !== undefined ? Number(minDurationRaw) : Number.NaN;
   if (minDurationRaw !== undefined && !Number.isFinite(minDuration)) {
-    console.error(
-      `ingest: --min-duration must be a number of seconds (got "${minDurationRaw}")`,
-    );
-    process.exitCode = 1;
+    await finishCommandError({
+      command: "ingest",
+      json: flags.bools.has("json"),
+      error: `--min-duration must be a number of seconds (got "${minDurationRaw}")`,
+      exitCode: 2,
+    });
     return;
   }
   const { ingest: ingestFolder } = await import("./getdat/commands/ingest");
@@ -166,8 +182,9 @@ const ingest: CliCommandHandler = async (rest, { state, musicDir }) => {
 
 const upgrade: CliCommandHandler = async (rest, context) => {
   const flags = parseFlags(rest, ["limit"], ["dry-run", "json"]);
-  if (nonNegOptInvalid(flags, "limit")) return;
-  const limit = nonNegOpt(flags, "limit", "upgrade");
+  if (nonNegOptInvalid(flags, "limit", "upgrade", flags.bools.has("json")))
+    return;
+  const limit = nonNegOpt(flags, "limit", "upgrade", flags.bools.has("json"));
   const { upgrade: upgradeTracks } = await import("./getdat/commands/upgrade");
   await upgradeTracks({
     state: context.state,

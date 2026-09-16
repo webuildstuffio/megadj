@@ -13,10 +13,9 @@ import { join, basename, extname } from "node:path";
 import type { ArchiveState } from "../archive/state";
 import { embedArt, fetchImage, ARTWORK_EXTS } from "../../fulltags/src/exports";
 import type { QueueEntry } from "../getdat/commands/queue";
+export { type QueueEntry } from "../getdat/commands/queue";
 import { commandLog } from "../progress";
-import { writeJson } from "../shared/cli-output";
-
-export type { QueueEntry };
+import { writeJson, setExit } from "../shared/cli-output";
 
 export interface ArtworkOptions {
   state: ArchiveState;
@@ -135,13 +134,13 @@ async function loadQueue(
 async function processEntry(
   log: (msg: string) => void,
   client: {
-    generate(req: {
+    generate: (req: {
       prompt: string;
       model: string;
       size: string;
       output: string;
       outputFormat: string;
-    }): Promise<{ cost?: number }>;
+    }) => Promise<{ cost?: number }>;
   },
   entry: QueueEntry,
   coverDir: string,
@@ -214,7 +213,8 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
   if (!apiKey && !opts.dryRun) {
     log("OPENROUTER_API_KEY not set — cannot generate. Export it and retry.");
     log(`queue (${entries.length} entries) is preserved at ${QUEUE_PATH()}`);
-    process.exitCode = 1;
+    // #160 ring 3: setExit is the one mutation point.
+    setExit(1);
     return;
   }
 
@@ -232,13 +232,13 @@ export async function artwork(opts: ArtworkOptions): Promise<void> {
       `${process.env.HOME}/github/image-maker-cli/dist/client.js`
   )) as {
     ImageClient: new (apiKey: string) => {
-      generate(req: {
+      generate: (req: {
         prompt: string;
         model: string;
         size: string;
         output: string;
         outputFormat: string;
-      }): Promise<{ cost?: number }>;
+      }) => Promise<{ cost?: number }>;
     };
   };
   const client = new ImageClient(apiKey ?? "");

@@ -1,3 +1,5 @@
+import { finishCommandErrorSync } from "./shared/cli-output";
+
 // cli-flags.ts — Bun's util.parseArgs is broken (strict:true rejects known
 // options, strict:false coerces string values to true), so the CLI parses
 // manually. Split from cli.ts at the complexity guard; the semantics are
@@ -58,14 +60,17 @@ export function numOpt(flags: ParsedFlags, key: string): number | undefined {
 
 /** Non-negative numeric option with a hard error (`--limit 5`). Returns
  * undefined when absent — AND undefined when present but invalid (after
- * printing the error + exitCode 2), so callers can break out instead of
- * letting NaN flow through as "unlimited" (NaN is falsy: it would skip
- * every slice/stop guard downstream). The beats/mood/cues case blocks
- * each hand-rolled this check 3× inline. */
+ * emitting the error via the json-safe epilogue + exitCode 2), so callers
+ * can break out instead of letting NaN flow through as "unlimited" (NaN
+ * is falsy: it would skip every slice/stop guard downstream). The
+ * beats/mood/cues case blocks each hand-rolled this check 3× inline.
+ * `json` routes the error: json mode → {command,error} on stdout; human
+ * → stderr (#160 ring 3 — the emit was stdout-blind before). */
 export function nonNegOpt(
   flags: ParsedFlags,
   key: string,
   cmd: string,
+  json = false,
 ): number | undefined {
   const raw = flags.strings.get(key);
   if (raw === undefined) return undefined;
@@ -74,18 +79,22 @@ export function nonNegOpt(
   // NaN/Infinity must never slip through as a limit either.
   const trimmed = raw.trim();
   if (trimmed === "" || !/^\d+$/.test(trimmed)) {
-    console.error(
-      `${cmd}: --${key} must be a non-negative number (got "${raw}")`,
-    );
-    process.exitCode = 2;
+    finishCommandErrorSync({
+      command: cmd,
+      json,
+      error: `--${key} must be a non-negative number (got "${raw}")`,
+      exitCode: 2,
+    });
     return undefined;
   }
   const n = Number(trimmed);
   if (!Number.isFinite(n) || n < 0) {
-    console.error(
-      `${cmd}: --${key} must be a non-negative number (got "${raw}")`,
-    );
-    process.exitCode = 2;
+    finishCommandErrorSync({
+      command: cmd,
+      json,
+      error: `--${key} must be a non-negative number (got "${raw}")`,
+      exitCode: 2,
+    });
     return undefined;
   }
   return n;
@@ -95,11 +104,18 @@ export function nonNegOpt(
  *  "flag absent" (keep going with defaults) from "flag present but bad"
  *  (loud exit 2, zero work). One seam so the guard pair
  *  `if (v === undefined && flags.strings.get(k) !== undefined) return;`
- *  — repeated at every numeric-flag call site — has one home. */
-export function nonNegOptInvalid(flags: ParsedFlags, key: string): boolean {
-  return flags.strings.has(key) && nonNegOpt(flags, key, "") === undefined;
+ *  — repeated at every numeric-flag call site — has one home. `json`
+ *  forwards into the epilogue so --json runs keep a clean stdout. */
+export function nonNegOptInvalid(
+  flags: ParsedFlags,
+  key: string,
+  cmd = "",
+  json = false,
+): boolean {
+  return (
+    flags.strings.has(key) && nonNegOpt(flags, key, cmd, json) === undefined
+  );
 }
-
 /** First positional argument (skips flags and the command word itself). */
 export function firstPositional(
   args: string[],

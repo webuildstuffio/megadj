@@ -24,12 +24,12 @@ import {
 } from "../archive/hygiene/subcategory";
 import { applyFinding, validateFinding } from "../archive/hygiene/apply";
 import { fingerprintFileLength } from "../../fulltags/src/exports";
+import { setExit, writeJson } from "../shared/cli-output";
 import type { CheckCtx } from "../archive/hygiene/types";
 import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { FpCache, SHELF_FINGERPRINTS_TABLE } from "./shelf-dupescan";
 import { md5Cli } from "./md5-cli";
 import { resolveShelfVolume } from "../shared/volume";
-import { writeJson } from "../shared/cli-output";
 
 export interface ShelfHygieneOptions {
   shelfVolume?: string | undefined;
@@ -78,9 +78,9 @@ export async function shelfHygiene(
     json = false,
     log = (s) => console.error(s),
     emitJson = writeJson,
-    setExitCode = (code) => {
-      process.exitCode = code;
-    },
+    // #160 ring 3: defaults route through the one mutation point; tests
+    // keep injecting their capture seam.
+    setExitCode = setExit,
   } = opts;
 
   const fail = async (error: string): Promise<void> => {

@@ -7,7 +7,7 @@ import {
   parseFlags,
 } from "./cli-flags";
 import { isMegasetSearchOverride } from "../cratedeck/shared/types";
-import { finishCommandError, writeJson } from "./shared/cli-output";
+import { finishCommandError, setExit, writeJson } from "./shared/cli-output";
 import { isSimilarSpace } from "../cratedeck/shared/vector-space";
 
 const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
@@ -16,10 +16,17 @@ const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
     ["limit", "jobs", "max-seconds"],
     ["force", "dry-run", "json"],
   );
-  if (nonNegOptInvalid(flags, "limit")) return;
-  const limit = nonNegOpt(flags, "limit", "beats");
-  if (nonNegOptInvalid(flags, "max-seconds")) return;
-  const maxSeconds = nonNegOpt(flags, "max-seconds", "beats");
+  if (nonNegOptInvalid(flags, "limit", "beats", flags.bools.has("json")))
+    return;
+  const limit = nonNegOpt(flags, "limit", "beats", flags.bools.has("json"));
+  if (nonNegOptInvalid(flags, "max-seconds", "beats", flags.bools.has("json")))
+    return;
+  const maxSeconds = nonNegOpt(
+    flags,
+    "max-seconds",
+    "beats",
+    flags.bools.has("json"),
+  );
   const { beats: analyzeBeats } = await import("./fulltags/beats");
   await analyzeBeats({
     state,
@@ -39,8 +46,8 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
     ["limit", "jobs"],
     ["force", "dry-run", "json", "embeddings"],
   );
-  if (nonNegOptInvalid(flags, "limit")) return;
-  const limit = nonNegOpt(flags, "limit", "mood");
+  if (nonNegOptInvalid(flags, "limit", "mood", flags.bools.has("json"))) return;
+  const limit = nonNegOpt(flags, "limit", "mood", flags.bools.has("json"));
   const { mood: analyzeMood } = await import("./fulltags/mood");
   await analyzeMood({
     state,
@@ -59,10 +66,17 @@ const similar: CliCommandHandler = async (rest, { state }) => {
   const videoId =
     firstPositional(rest, "similar") ?? flags.strings.get("similar");
   if (!videoId) {
-    console.error(
-      "similar: pass a video id — `megadj similar <video_id> [--k N] [--space raw|whitened]`",
-    );
-    process.exit(1);
+    // #160 ring 3: json-mode-safe epilogue (was bare console.error + the
+    // only raw process.exit(1) left in a command body — process.exit
+    // skips the awaited stdout drain and can truncate piped --json).
+    await finishCommandError({
+      command: "similar",
+      json: flags.bools.has("json"),
+      error:
+        "pass a video id — `megadj similar <video_id> [--k N] [--space raw|whitened]`",
+      exitCode: 2,
+    });
+    return;
   }
   const spaceRaw = flags.strings.get("space");
   if (spaceRaw !== undefined && !isSimilarSpace(spaceRaw)) {
@@ -89,10 +103,17 @@ const megaset: CliCommandHandler = async (rest) => {
     ["preset", "minutes", "opener", "limit", "search"],
     ["json"],
   );
-  if (nonNegOptInvalid(flags, "minutes")) return;
-  const minutes = nonNegOpt(flags, "minutes", "megaset");
-  if (nonNegOptInvalid(flags, "limit")) return;
-  const limit = nonNegOpt(flags, "limit", "megaset");
+  if (nonNegOptInvalid(flags, "minutes", "megaset", flags.bools.has("json")))
+    return;
+  const minutes = nonNegOpt(
+    flags,
+    "minutes",
+    "megaset",
+    flags.bools.has("json"),
+  );
+  if (nonNegOptInvalid(flags, "limit", "megaset", flags.bools.has("json")))
+    return;
+  const limit = nonNegOpt(flags, "limit", "megaset", flags.bools.has("json"));
   // the A/B hook (E7): same contract as the HTTP ?search= / MCP search
   // param — but a CLI typo must fail loudly (exit 2, zero work), not
   // silently compare the automatic pick against itself
@@ -100,6 +121,7 @@ const megaset: CliCommandHandler = async (rest) => {
   if (searchRaw !== undefined && !isMegasetSearchOverride(searchRaw)) {
     await finishCommandError({
       command: "megaset",
+      json: flags.bools.has("json"),
       error: `unknown --search "${searchRaw}" — expected greedy or beam`,
       exitCode: 2,
     });
@@ -132,8 +154,8 @@ const genre: CliCommandHandler = async (rest, { state }) => {
       "json",
     ],
   );
-  if (nonNegOptInvalid(flags, "k")) return;
-  const k = nonNegOpt(flags, "k", "genre");
+  if (nonNegOptInvalid(flags, "k", "genre", flags.bools.has("json"))) return;
+  const k = nonNegOpt(flags, "k", "genre", flags.bools.has("json"));
 
   const minAgreementRaw = flags.strings.get("min-agreement");
   let minAgreement: number | undefined;
@@ -142,6 +164,7 @@ const genre: CliCommandHandler = async (rest, { state }) => {
     if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1) {
       await finishCommandError({
         command: "genre",
+        json: flags.bools.has("json"),
         error: `--min-agreement must be a number in (0, 1], got "${minAgreementRaw}"`,
         exitCode: 2,
       });
@@ -181,8 +204,8 @@ const genre: CliCommandHandler = async (rest, { state }) => {
 
 const cues: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["limit"], ["force", "dry-run", "json"]);
-  if (nonNegOptInvalid(flags, "limit")) return;
-  const limit = nonNegOpt(flags, "limit", "cues");
+  if (nonNegOptInvalid(flags, "limit", "cues", flags.bools.has("json"))) return;
+  const limit = nonNegOpt(flags, "limit", "cues", flags.bools.has("json"));
   const { cues: generateCues } = await import("./fulltags/cues");
   await generateCues({
     state,
@@ -203,7 +226,8 @@ const goldReport: CliCommandHandler = async (rest, { state }) => {
   });
   if (flags.bools.has("json")) await writeJson(report);
   else printGoldReport(report, console.log);
-  if (!report.ok) process.exitCode = 1;
+  // #160 ring 3: setExit is the one mutation point.
+  if (!report.ok) setExit(1);
 };
 
 const regate: CliCommandHandler = async (rest, { state }) => {
@@ -225,7 +249,8 @@ const regate: CliCommandHandler = async (rest, { state }) => {
     );
     if (report.error) console.error(`error: ${report.error}`);
   }
-  if (!report.ok) process.exitCode = 1;
+  // #160 ring 3: setExit is the one mutation point.
+  if (!report.ok) setExit(1);
 };
 
 export const ANALYSIS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {

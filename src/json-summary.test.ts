@@ -169,4 +169,56 @@ describe("principles P1: --json on every command", () => {
       ).toContain("--json");
     }
   });
+
+  test("#160 ring 3: FORCED-FAILURE --json runs keep stdout one parseable object", async () => {
+    // The drift this ring kills: a usage error used to hand-roll
+    // console.error + exitCode (or even process.exit), so a --json run
+    // emitted a HUMAN line (or nothing) and the one-object contract died
+    // exactly when agents need it most — at failure. Each case: usage
+    // error → exit 2, stdout parses as ONE object naming the command.
+    for (const t of [
+      { args: ["similar", "--json"], command: "similar" }, // missing video id
+      { args: ["ingest", "--json"], command: "ingest" }, // missing folder
+      { args: ["drop", "--json"], command: "drop" }, // missing target
+      {
+        args: ["genre", "--min-agreement", "nope", "--json"],
+        command: "genre",
+      },
+      {
+        args: ["beats", "--limit", "abc", "--json"],
+        command: "beats",
+      },
+    ] as const) {
+      const { code, stdout } = await runCli([...t.args], env);
+      expect(code, `${t.args.join(" ")} exits 2 on usage error`).toBe(2);
+      const lines = stdout
+        .trim()
+        .split("\n")
+        .filter((l) => l.length > 0);
+      expect(
+        lines.length,
+        `${t.args.join(" ")}: stdout is exactly one line (no human pollution)`,
+      ).toBe(1);
+      const parsed = JSON.parse(lines[0] ?? "") as Record<string, unknown>;
+      expect(
+        parsed.error,
+        `${t.args.join(" ")} carries the error`,
+      ).toBeString();
+      if (t.command !== undefined)
+        expect(parsed.command, `${t.args.join(" ")} names the command`).toBe(
+          t.command,
+        );
+    }
+  });
+
+  test("#160 ring 3: failure-path exit codes stay meaningful (non-usage failures = 1)", async () => {
+    // unknown command: exit 1 (command-level failure, not a flag typo)
+    const { code, stdout } = await runCli(
+      ["definitely-not-a-verb", "--json"],
+      env,
+    );
+    expect(code).toBe(1);
+    const parsed = lastJsonLine(stdout);
+    expect(parsed.error).toBeString();
+  });
 });

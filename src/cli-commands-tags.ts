@@ -6,7 +6,7 @@ import {
   numOpt,
   parseFlags,
 } from "./cli-flags";
-import { writeJson } from "./shared/cli-output";
+import { writeJson, setExit, finishCommandError } from "./shared/cli-output";
 import { FETCH_TARGETS, type FetchTarget } from "./fulltags/fetch-target";
 
 const boothFix: CliCommandHandler = async (rest, { state, musicDir }) => {
@@ -36,7 +36,8 @@ const boothFix: CliCommandHandler = async (rest, { state, musicDir }) => {
     console.log(`  [${row.gate}: ${row.reasons.join(",")}] ${row.plan}`);
     console.log(`    ${row.file}`);
   }
-  if (report.rows.some((row) => row.action === "none")) process.exitCode = 1;
+  // #160 ring 3: setExit is the one mutation point.
+  if (report.rows.some((row) => row.action === "none")) setExit(1);
 };
 
 const drop: CliCommandHandler = async (rest, context) => {
@@ -45,14 +46,28 @@ const drop: CliCommandHandler = async (rest, context) => {
     ["drop", "target", "max-beat-seconds"],
     ["dry-run", "no-mood", "no-fetch", "ai-fallback", "json"],
   );
-  if (nonNegOptInvalid(flags, "max-beat-seconds")) return;
-  const maxBeatSeconds = nonNegOpt(flags, "max-beat-seconds", "drop");
+  if (
+    nonNegOptInvalid(flags, "max-beat-seconds", "drop", flags.bools.has("json"))
+  )
+    return;
+  const maxBeatSeconds = nonNegOpt(
+    flags,
+    "max-beat-seconds",
+    "drop",
+    flags.bools.has("json"),
+  );
   const target = firstPositional(rest, "drop") ?? flags.strings.get("target");
   if (!target) {
-    console.error(
-      "drop: pass a folder or URL — megadj drop <folder-or-url> [--dry-run] [--no-mood] [--no-fetch] [--ai-fallback]",
-    );
-    process.exitCode = 1;
+    // Usage error → exit 2 class (P1/AGENTS: bad input = exit 2, zero
+    // work); json-safe epilogue (#160 ring 3). The drop.test.ts pin
+    // asserted exit 1 — usage and command failure are different classes.
+    await finishCommandError({
+      command: "drop",
+      json: flags.bools.has("json"),
+      error:
+        "pass a folder or URL — megadj drop <folder-or-url> [--dry-run] [--no-mood] [--no-fetch] [--ai-fallback]",
+      exitCode: 2,
+    });
     return;
   }
   const { drop: dropTarget } = await import("./shared/drop");
@@ -89,8 +104,8 @@ const fetchCommand: CliCommandHandler = async (rest) => {
     ["jobs"],
     ["art", "genres", "tags", "years", "all", "ai-fallback", "dry-run", "json"],
   );
-  if (nonNegOptInvalid(flags, "jobs")) return;
-  const jobs = nonNegOpt(flags, "jobs", "fetch");
+  if (nonNegOptInvalid(flags, "jobs", "fetch", flags.bools.has("json"))) return;
+  const jobs = nonNegOpt(flags, "jobs", "fetch", flags.bools.has("json"));
   const { fetch } = await import("./fulltags/fetch");
   const only: FetchTarget =
     FETCH_TARGETS.find(
@@ -128,7 +143,8 @@ const audit: CliCommandHandler = async (rest, { musicDir }) => {
         missing: auditRowFlags(row),
       })),
     });
-    if (gaps.length) process.exitCode = 1;
+    // #160 ring 3: setExit is the one mutation point.
+    if (gaps.length) setExit(1);
     return;
   }
 
@@ -141,7 +157,7 @@ const audit: CliCommandHandler = async (rest, { musicDir }) => {
     console.log("\nincomplete:");
     for (const row of gaps)
       console.log(`  [${auditRowFlags(row)}] ${row.file}`);
-    process.exitCode = 1;
+    setExit(1);
   } else {
     console.log("✅ all tracks fully tagged + booth-playable");
   }
@@ -173,7 +189,8 @@ const tagCheck: CliCommandHandler = async (rest, { musicDir }) => {
       "\nwhat these mean: no-title-artist = identity frames empty; mojibake-* = double-encoded text (fix the spelling and re-stamp); control-bytes-* = invisible junk in frame text; booth-text:* = garbles on a CDJ/XDJ display (see `megadj booth-fix --dry-run`).",
     );
   }
-  if (bad.length) process.exitCode = 1;
+  // #160 ring 3: setExit is the one mutation point.
+  if (bad.length) setExit(1);
 };
 
 const years: CliCommandHandler = async (rest) => {

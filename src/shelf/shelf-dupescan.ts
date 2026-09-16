@@ -16,10 +16,8 @@
 import { openLedger } from "../shared/sqlite-ledger";
 import { existsSync, mkdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import {
-  fingerprintFileLength,
-  parseFpcalcOutput as fulltagsParseFpcalcOutput,
-} from "../../fulltags/src/exports";
+import { fingerprintFileLength } from "../../fulltags/src/exports";
+export { parseFpcalcOutput } from "../../fulltags/src/exports";
 import {
   DupFpCache,
   groupByFingerprint,
@@ -28,7 +26,7 @@ import {
 import { applyDupGroups } from "./shelf-dupescan-apply";
 import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
 import { resolveShelfVolume } from "../shared/volume";
-import { writeJson } from "../shared/cli-output";
+import { writeJson, setExit } from "../shared/cli-output";
 import { walkAudioDir } from "../shared/audio-walk";
 
 // md5sum / nameSimilarity / moveLoser / DupGroup all live in the leaf
@@ -44,7 +42,6 @@ export function walkAudio(root: string): string[] {
  *  implementation (fingerprintFileLength) for every fingerprint pass in
  *  the repo. The Sep 11 mass-collision parse fix now has exactly one
  *  home; these regression tests pin it. */
-export const parseFpcalcOutput = fulltagsParseFpcalcOutput;
 
 function fingerprint(path: string): string | null {
   return fingerprintFileLength(path);
@@ -96,7 +93,8 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   if (!existsSync(contents)) {
     if (json) await writeJson({ error: "shelf not mounted" });
     else log(`shelf not mounted: ${shelfVolume}`);
-    process.exitCode = 1;
+    // #160 ring 3: setExit is the one mutation point.
+    setExit(1);
     return;
   }
 

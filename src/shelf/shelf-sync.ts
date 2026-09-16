@@ -19,12 +19,13 @@ import {
   mkdirSync,
   readdirSync,
   statSync,
+  type Dirent,
 } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { nameKey } from "../shared/name-key";
 import { AUDIO_EXTS_RE } from "../shared/audio-exts";
 import { resolveShelfVolume } from "../shared/volume";
-import { writeJson } from "../shared/cli-output";
+import { writeJson, setExit } from "../shared/cli-output";
 import { md5Cli } from "./md5-cli";
 
 export interface ShelfSyncOptions {
@@ -85,7 +86,7 @@ function isSkippedEntry(name: string): boolean {
 function shelfAudioIndex(contents: string): Map<string, string[]> {
   const idx = new Map<string, string[]>();
   const walk = (dir: string) => {
-    let entries: import("node:fs").Dirent[];
+    let entries: Dirent[];
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch {
@@ -218,7 +219,8 @@ export async function shelfSync(opts: ShelfSyncOptions): Promise<void> {
   if (!existsSync(musicDir)) {
     if (json) await writeJson({ error: `archive dir missing: ${musicDir}` });
     else log(`shelf-sync: archive dir missing: ${musicDir}`);
-    process.exitCode = 1;
+    // #160 ring 3: setExit is the one mutation point.
+    setExit(1);
     return;
   }
 
