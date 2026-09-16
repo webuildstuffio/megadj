@@ -22,6 +22,16 @@ cache_dir = "node_modules/.cache/mypy"
 # Gate-covered code: cratedeck/python (device-DB seams) + tools (the
 # embedding benchmark harness; its unittest rides test:py).
 files = ["cratedeck/python", "tools"]
+# The usb-sync skill's mirror planner is imported by
+# tools/usb_mirror_plan_test.py (#117); mirror_plan must resolve (and
+# be strict-checked via import following) for the test file to typecheck.
+mypy_path = [".claude/skills/rekordbox-usb-sync/scripts"]
+
+[[tool.mypy.overrides]]
+# Same skill dir: usb_verify is hardware-gated runbook code (never runs
+# in CI) — resolvable for import following, not held to strict here.
+module = ["usb_verify", "anlz_paths"]
+ignore_errors = true
 
 [tool.ruff]
 line-length = 100

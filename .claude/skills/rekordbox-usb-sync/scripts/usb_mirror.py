@@ -20,9 +20,15 @@ import random
 import shutil
 import sys
 import unicodedata
+from typing import Any
+
+# Mirror state ledger: state-key → sorted list of completed mirror-relative
+# paths (e.g. "contents", "anlz", "audio_parity").
+StateDict = dict[str, Any]
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from progress import Progress, Stage
+from mirror_plan import files_differ, plan_copies  # noqa: E402
+from progress import Progress, Stage  # noqa: E402
 
 MASTER = os.environ.get("USB_SYNC_MASTER", "/Volumes/DJMASTER")
 MIRROR = os.environ.get("USB_SYNC_MIRROR", "/Volumes/DJMIRROR")
@@ -62,17 +68,18 @@ def manifest(root: str, subdir: str) -> dict[str, str]:
     return m
 
 
-def load_state() -> dict:
+def load_state() -> StateDict:
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE) as f:
-                return json.load(f)
+                state: StateDict = json.load(f)
+                return state
         except (json.JSONDecodeError, OSError):
             pass
     return {"contents": [], "anlz": []}
 
 
-def save_state(state: dict) -> None:
+def save_state(state: StateDict) -> None:
     os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
@@ -83,24 +90,58 @@ def copy_missing(
     state_key: str,
     src_root: str,
     dst_root: str,
-    src_manifest: dict,
-    dst_manifest: dict,
+    src_manifest: dict[str, str],
+    dst_manifest: dict[str, str],
     label: str,
 ) -> None:
-    missing = [rel for k, rel in sorted(src_manifest.items()) if k not in dst_manifest]
+    # Differential plan (#117): skip files identical by size+mtime (ExFAT
+    # 2s resolution), hash-verify size-matched/mtime-drifted files, re-copy
+    # size-mismatched files (a partial copy from an interrupted run, or a
+    # changed file — both must re-copy or they'd never heal). The old
+    # name-manifest-first behavior copied only by absence, so a partial
+    # copy stayed partial forever and a changed master file never traveled.
     already = set(load_state().get(state_key, []))
-    todo = [r for r in missing if r not in already]
+    plan = plan_copies(src_root, dst_root, src_manifest, dst_manifest, already)
+    todo = plan["copy"]
     total_bytes = sum(
         os.path.getsize(os.path.join(src_root, r))
         for r in todo
         if os.path.exists(os.path.join(src_root, r))
     )
     if not todo:
-        stage.info(f"{label}: nothing to do (0 missing)")
+        stage.info(
+            f"{label}: nothing to do (0 to copy · {len(plan['skip'])} identical · "
+            f"{len(plan['verify'])} size-ok/mtime-drift · {len(plan['done'])} done in prior runs)"
+        )
         return
     stage.info(
-        f"{label}: {len(missing)} missing, {len(already & set(missing))} already done in prior runs"
+        f"{label}: {len(todo)} to copy · {len(plan['skip'])} identical (skipped, not re-read) · "
+        f"{len(plan['verify'])} size-ok/mtime-drift (hashing) · {len(plan['done'])} done in prior runs"
     )
+
+    # The verify bucket: size matches but mtime drifted. One hash decides —
+    # same bytes → skip; different bytes → re-copy (heals changed masters).
+    verify_extra: list[str] = []
+    if plan["verify"]:
+        prog_v = Progress(len(plan["verify"]), label=f"{label} verify", unit="files")
+        v_errs = 0
+        for rel in plan["verify"]:
+            s = os.path.join(src_root, rel)
+            d = os.path.join(dst_root, dst_manifest.get(key(rel), rel))
+            try:
+                if files_differ(s, d):
+                    verify_extra.append(rel)
+            except Exception as e:
+                v_errs += 1
+                print(f"\nERR verify {rel[:80]}: {e}", flush=True)
+            prog_v.update(1)
+        prog_v.close(f"differ: {len(verify_extra)}, errors: {v_errs}")
+        todo.extend(verify_extra)
+        total_bytes += sum(
+            os.path.getsize(os.path.join(src_root, r))
+            for r in verify_extra
+            if os.path.exists(os.path.join(src_root, r))
+        )
 
     prog = Progress(len(todo), label=label, total_bytes=total_bytes)
     errs = 0
@@ -111,15 +152,11 @@ def copy_missing(
         s = os.path.join(src_root, rel)
         d = os.path.join(dst_root, rel)
         try:
-            if os.path.exists(d):
-                done_set.add(rel)  # case-variant present
-                prog.update(0)
-                continue
             os.makedirs(os.path.dirname(d), exist_ok=True)
             shutil.copy2(s, d)
             done_set.add(rel)
             prog.update(1, os.path.getsize(s))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             errs += 1
             print(f"\nERR {rel[:80]}: {e}", flush=True)
         if prog.done % 200 == 0:
@@ -231,7 +268,7 @@ def audio_parity(stage: Stage) -> int:
     Resumable via state['audio_parity'].
     """
     backup_dir = "/tmp/usb-sync/nm_replaced_variants"
-    midx = {}
+    midx: dict[str, list[str]] = {}
     base = os.path.join(MIRROR, "Contents")
     for dp, _, fns in os.walk(base):
         for fn in fns:
@@ -260,7 +297,7 @@ def audio_parity(stage: Stage) -> int:
                 shutil.copy2(fa, mp)
                 fixed += 1
             done.add(rel)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             errs += 1
             print(f"\nERR {rel[:80]}: {e}", flush=True)
         prog.update(1)

@@ -52,7 +52,7 @@ sys.path.insert(0, SKILL_SCRIPTS)
 
 # E402 sanctioned: the import below MUST follow the sys.path insertion —
 # anlz_paths lives in the skill's scripts dir, not on the default path.
-from anlz_paths import (  # type: ignore[import-not-found]  # noqa: E402
+from anlz_paths import (  # noqa: E402
     compute_anlz_folder,
     folder_key,
 )
@@ -258,7 +258,7 @@ def open_device_db(db_path: str) -> "_DeviceDb":
 def snapshot(db_path: str, drive_root: str) -> dict[str, Any]:
     from pyrekordbox.devicelib_plus.models import Content, Playlist, PlaylistContent
 
-    from usb_verify import pdb_live_rows  # type: ignore[import-not-found]
+    from usb_verify import pdb_live_rows
 
     db = open_device_db(db_path)
     try:
