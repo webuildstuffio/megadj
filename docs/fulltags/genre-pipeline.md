@@ -79,7 +79,8 @@ Three facts people get wrong, corrected:
    then fetches the item page once and votes genre (artist tags),
    year (publish date), label (publisher), and art (og:image). The
    weighted multi-source vote ladder that would supersede
-   first-win-writes remains issue-tracked, not live.
+   first-win-writes is issue-tracked
+   ([#173](https://github.com/webuildstuffio/megadj/issues/173)), not live.
 3. **YouTube's category is "Music", not a genre.** yt-dlp gives every
    YT Music track the same `category: Music` — that is why W1's regex
    over title/artist/album exists, and why it so often ends in

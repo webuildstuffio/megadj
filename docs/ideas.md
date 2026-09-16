@@ -762,6 +762,30 @@ raw|whitened`) for A/B. Effort S.
 > depth → [#155](https://github.com/webuildstuffio/megadj/issues/155),
 > P95 active labelling →
 > [#157](https://github.com/webuildstuffio/megadj/issues/157).
+>
+> **2026-09-15 (batch 4 — PRD/plan/postmortem docs ONLY; ideas.md declared
+> the least authoritative source and the top ideas-sourced item from each
+> earlier round closed: #109, #126, #151. Full receipts in
+> [docs/roadmap-index.md](roadmap-index.md) §Batch-4 sourcing):**
+> F11 rb-import dupe gate →
+> [#163](https://github.com/webuildstuffio/megadj/issues/163), F12
+> dot-file receipts →
+> [#164](https://github.com/webuildstuffio/megadj/issues/164), AC-07
+> cue_feedback → [#165](https://github.com/webuildstuffio/megadj/issues/165),
+> GA-05b calibration →
+> [#166](https://github.com/webuildstuffio/megadj/issues/166), GA-05c
+> grid-health card →
+> [#167](https://github.com/webuildstuffio/megadj/issues/167), GA-08
+> verify/rollout → [#168](https://github.com/webuildstuffio/megadj/issues/168),
+> regate genre/effnet →
+> [#169](https://github.com/webuildstuffio/megadj/issues/169), license
+> ledger → [#170](https://github.com/webuildstuffio/megadj/issues/170),
+> Set embeddings prior →
+> [#171](https://github.com/webuildstuffio/megadj/issues/171), Set LUFS →
+> [#172](https://github.com/webuildstuffio/megadj/issues/172), vote
+> ladder → [#173](https://github.com/webuildstuffio/megadj/issues/173),
+> freshness ages on compare surfaces →
+> [#174](https://github.com/webuildstuffio/megadj/issues/174).
 
 **Deliberately unbuilt:** C18b/c (pdb write gauntlet — parked), I52
 (deleted), K56 (lyrics), K60 (setlist.fm), E31/E44 (struck 2026-09-05:
