@@ -37,13 +37,11 @@ import {
   type MegasetStep,
   type SetSearchOverride,
 } from "../shared/types";
-export {
-  bpmScore,
-  keyScore,
-  mixableBpm,
-  transitionScore,
-  withinAnchorBudget,
-} from "./megaset-scoring";
+// bpmScore/keyScore/withinAnchorBudget are the public scoring surface
+// (test + spoke imports). mixableBpm/transitionScore have no external
+// consumer — they stay internal to the two engine modules (knip-pinned);
+// megaset-scoring.ts is the import point for any new caller.
+export { bpmScore, keyScore, withinAnchorBudget } from "./megaset-scoring";
 import { mixableBpm, transitionScore } from "./megaset-scoring";
 
 export interface SetCandidate {
