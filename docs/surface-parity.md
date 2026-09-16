@@ -14,6 +14,7 @@ fails the build on it.
 - rev-25 (2026-09-15): MegaSet rename — verb/route/tool renamed (`megadj megaset`, `/api/archive/megaset`, `megaset_propose`); census unchanged.
 - rev-26 (2026-09-16): #42 split — `/api` dispatch moved to `api_routes.ts` (census reads its exact-table keys); `/events/` trailing-slash spelling restored + 406 negotiation pinned by e2e. 63 → 64 routes (the restored alias).
 - rev-27 (2026-09-16): #143 registry — megadj help/census SSOT is `src/command-registry.ts` (`COMMAND_DOCS`); `usage.ts` renders from it; census + help cross-check off the one table. 45 commands unchanged (the stale duplicate `rb-comment-sync --limit` help block — a flag the arm never parsed — is the one removed line).
+- rev-28 (2026-09-16): #47 producer split — `getdat_ingest`/`getdat_convert` moved to `getdat_tools.ts` (mcp.ts is pure assembly: deriveDeckTools + archiveTools + getdatTools); `archiveTools()` typed `Record<string, ToolDef>`; the deck parity census derives exactly from `DECK_MCP_SURFACES`. 41 tools unchanged.
 
 The full prose of all 27 revisions lives in Git history
 (`git log --follow -- docs/surface-parity.md`) per §5 — this doc keeps
@@ -38,7 +39,7 @@ deliberate exemptions are in §4. Historical repair details belong in
 | ---------- | ----------------------------------------------------------- | ---------------------- |
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 45 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
-| MCP        | `bun run mcp` (`cratedeck/src/mcp.ts` + `archive_tools.ts`) | 41 tools               |
+| MCP        | `bun run mcp` (`mcp.ts` + `archive_tools.ts` + `getdat_tools.ts`) | 41 tools               |
 | HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742) | 64 routes              |
 | Web UI     | `cratedeck/web/` (hash-routed pages)                        | 6 pages, ~22 actions   |
 

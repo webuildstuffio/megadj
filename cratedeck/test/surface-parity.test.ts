@@ -110,7 +110,11 @@ function httpApiRoutes(): string[] {
  *  module (both are part of the server's tool census; the module's keys sit
  *  one level deeper — 4 spaces — inside its factory). */
 function mcpTools(): string[] {
-  const files = ["cratedeck/src/mcp.ts", "cratedeck/src/archive_tools.ts"];
+  const files = [
+    "cratedeck/src/mcp.ts",
+    "cratedeck/src/archive_tools.ts",
+    "cratedeck/src/getdat_tools.ts",
+  ];
   const tools = files
     .flatMap((f) =>
       read(f).map((l) =>
