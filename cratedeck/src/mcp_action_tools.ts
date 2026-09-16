@@ -59,33 +59,51 @@ async function jobResult(job: Job): Promise<unknown> {
   }
 }
 
-/** Enqueue a job-producing POST (after the interlock guard), optionally
- *  wait for it to finish, and shape the reply. The scan/apply tail of
- *  deck_hygiene and deck_fixes was byte-identical (jscpd-flagged clone);
- *  both tools now delegate here so the wait/timeout/423 contract is
- *  defined once. */
+/** One enqueue: POST + the TOCTOU 423 map + the error unwrap. The server
+ *  re-checks the interlock at enqueue; its 423 becomes the same clean
+ *  param-style message our own guard throws. */
+async function enqueueMapped(
+  apiPath: string,
+  body: Record<string, unknown>,
+): Promise<Job> {
+  const r = await apiPost(apiPath, body);
+  if (r.status === 423)
+    throw new RpcParamError(
+      "rekordbox started mid-request — drive operations locked. Quit rekordbox and retry.",
+    );
+  const job = (await r.json()) as Job & { error?: string };
+  if (!r.ok) throw new Error(job.error ?? `enqueue failed (${r.status})`);
+  return job;
+}
+
+/** The wait tail shared by deck_run and the hygiene/fixes family:
+ *  wait=false → the bare job plus the tool's identity fields; else block
+ *  on the job and attach the parsed result + ok. One seam for the whole
+ *  wait/timeout contract (jscpd flagged this tail twice). */
+async function waitReply(
+  job: Job,
+  args: Record<string, unknown>,
+  identity: Record<string, unknown>,
+): Promise<unknown> {
+  if (args["wait"] === false) return { ...identity, job, status: job.status };
+  const timeoutMs = (num(args, "timeout_minutes") ?? 30) * 60 * 1000;
+  const final = await waitForJob(job.id, { timeoutMs });
+  return {
+    ...identity,
+    job: { ...final, result: await jobResult(final) },
+    ok: final.status === "done",
+  };
+}
+
+/** Hygiene/fixes scan-apply leg: interlock guard → enqueue → wait tail. */
 async function runJobAction(
   action: string,
   apiPath: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {
   await interlockGuard();
-  const r = await apiPost(apiPath, { origin: MCP_SESSION });
-  if (r.status === 423)
-    throw new RpcParamError(
-      "rekordbox started mid-request — drive operations locked. Quit rekordbox and retry.",
-    );
-  const body = (await r.json()) as Job & { error?: string };
-  if (!r.ok) throw new Error(body.error ?? `enqueue failed (${r.status})`);
-  const wait = args["wait"] !== false;
-  if (!wait) return { job: body, action, status: body.status };
-  const timeoutMs = (num(args, "timeout_minutes") ?? 30) * 60 * 1000;
-  const final = await waitForJob(body.id, { timeoutMs });
-  return {
-    job: { ...final, result: await jobResult(final) },
-    action,
-    ok: final.status === "done",
-  };
+  const job = await enqueueMapped(apiPath, { origin: MCP_SESSION });
+  return waitReply(job, args, { action });
 }
 
 /** Mutating deck_* handlers, keyed by CLI verb (mcp.ts derives the deck_*
@@ -121,31 +139,11 @@ export const DECK_ACTION_HANDLERS: Record<string, ToolDef> = {
       await interlockGuard();
       // O87 attribution: agent-initiated jobs carry the MCP session so the
       // timeline answers "why did this verify run at 3am" ("mcp:<session>")
-      const res = await apiPost(`/api/drives/${d.id}/jobs`, {
+      const job = await enqueueMapped(`/api/drives/${d.id}/jobs`, {
         kind,
         origin: `mcp:${MCP_SESSION}`,
       });
-      // server re-checks the interlock at enqueue (TOCTOU guard); map its
-      // 423 to the same clean param-style message our own guard throws
-      if (res.status === 423) {
-        throw new RpcParamError(
-          "rekordbox started mid-request — drive operations locked. Quit rekordbox and retry.",
-        );
-      }
-      const body = (await res.json()) as Job & { error?: string };
-      if (!res.ok) {
-        throw new Error(body.error ?? `enqueue failed (${res.status})`);
-      }
-      const wait = args["wait"] !== false;
-      if (!wait) return { job: body, drive: d.name, kind, status: body.status };
-      const timeoutMs = (num(args, "timeout_minutes") ?? 30) * 60 * 1000;
-      const final = await waitForJob(body.id, { timeoutMs });
-      return {
-        job: { ...final, result: await jobResult(final) },
-        drive: d.name,
-        kind,
-        ok: final.status === "done",
-      };
+      return waitReply(job, args, { drive: d.name, kind });
     },
   },
 

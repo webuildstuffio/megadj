@@ -19,6 +19,31 @@ export interface BenchResult {
   bytes_read: number;
 }
 
+/** Pump a Bun file stream start-to-`cap` bytes, honouring cancellation.
+ *  The shared read pump of speedProbe and benchmarkDrive's sequential
+ *  leg (jscpd-flagged twin): both read the biggest file(s) sequentially
+ *  under a byte cap and must abort promptly when the job is cancelled. */
+async function pumpStream(
+  path: string,
+  cap: number,
+  bytesRead: number,
+  signal: { cancelled: boolean } | undefined,
+): Promise<number> {
+  const reader = Bun.file(path).stream().getReader();
+  try {
+    for (;;) {
+      if (signal?.cancelled) throw new Error("cancelled");
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytesRead += value.byteLength;
+      if (bytesRead >= cap) break;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return bytesRead;
+}
+
 /** Minimal link-class probe: read ≤10MB sequentially from the biggest file.
  *  Runs in well under a second on any USB3 link (~0.2s read + walk cost) and
  *  reads a few MB at most — negligible battery/wear, unlike the 512MB bench.
@@ -53,21 +78,8 @@ export async function speedProbe(
   }
   if (!target) throw new Error("no audio files found to probe");
   const cap = capMb * 1024 * 1024;
-  let bytes = 0;
   const t0 = performance.now();
-  const file = Bun.file(target);
-  const reader = file.stream().getReader();
-  try {
-    for (;;) {
-      if (signal?.cancelled) throw new Error("cancelled");
-      const { done, value } = await reader.read();
-      if (done) break;
-      bytes += value.byteLength;
-      if (bytes >= cap) break;
-    }
-  } finally {
-    reader.releaseLock();
-  }
+  const bytes = await pumpStream(target, cap, 0, signal);
   const sec = (performance.now() - t0) / 1000;
   return { mbps: round(bytes / 1024 / 1024 / sec), bytes_read: bytes };
 }
@@ -82,24 +94,11 @@ export async function benchmarkDrive(
   const cap = capMb * 1024 * 1024;
 
   // sequential: read the biggest files start-to-end up to cap
-  let seqBytes = 0;
   const t0 = performance.now();
+  let seqBytes = 0;
   for (const f of candidates) {
     if (seqBytes >= cap) break;
-    if (signal?.cancelled) throw new Error("cancelled");
-    const file = Bun.file(f);
-    const reader = file.stream().getReader();
-    try {
-      for (;;) {
-        if (signal?.cancelled) throw new Error("cancelled");
-        const { done, value } = await reader.read();
-        if (done) break;
-        seqBytes += value.byteLength;
-        if (seqBytes >= cap) break;
-      }
-    } finally {
-      reader.releaseLock();
-    }
+    seqBytes = await pumpStream(f, cap, seqBytes, signal);
   }
   const seqSec = (performance.now() - t0) / 1000;
 
