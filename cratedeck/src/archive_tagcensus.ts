@@ -208,6 +208,142 @@ export function tagCensus(reader: ArchiveQuery, limit = 200): ArchiveTagCensus {
   };
 }
 
+/** The rb-adopt mirror row for one track (newest first), parsed from its
+ *  metadata_json snapshot. Corrupt mirror JSON → null (the DB row stays
+ *  untouched; rb-adopt re-adopt rewrites it). */
+function readRekordboxMirror(
+  reader: ArchiveQuery,
+  videoId: string,
+): ArchiveTrackTagCompare["rekordbox"] {
+  const rbMeta = reader.row<{ metadata_json: string }>(
+    `SELECT metadata_json FROM rekordbox_content rc
+     WHERE rc.video_id = ?
+     ORDER BY rc.updated_at DESC, rc.content_id DESC LIMIT 1`,
+    videoId,
+  );
+  if (!rbMeta || !rbMeta.metadata_json) return null;
+  try {
+    const m = JSON.parse(rbMeta.metadata_json) as Record<string, unknown>;
+    const s = (k: string): string | null => {
+      const v = m[k];
+      return typeof v === "string" && v.trim() ? v.trim() : null;
+    };
+    const bpmRaw = m["BPM"];
+    const bpm =
+      typeof bpmRaw === "number" && Number.isFinite(bpmRaw) && bpmRaw > 0
+        ? bpmRaw / 100
+        : null;
+    const yearRaw = s("ReleaseYear");
+    const year =
+      yearRaw && yearRaw !== "0" && /^\d{4}$/.test(yearRaw) ? yearRaw : null;
+    return {
+      contentId: s("ID") ?? videoId,
+      title: s("Title"),
+      artist: s("ArtistName"),
+      album: s("AlbumName"),
+      genre: s("GenreName"),
+      key: s("KeyName"),
+      bpm,
+      year,
+      label: s("LabelName"),
+      comment: s("Commnt"),
+      metadata: m,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** LIVE ground truth — null on missing/unreadable, never a throw. */
+function readFileTags(filePath: string | null): ArchiveTrackTagCompare["file"] {
+  if (!filePath) return null;
+  try {
+    const g = groundTruth(filePath);
+    return {
+      readable: true,
+      title: g.title,
+      artist: g.artist,
+      genre: g.genre,
+      year: g.year,
+      bpm: g.bpm,
+      key: g.key,
+      label: g.label,
+      mixName: g.mixName,
+      remixer: g.remixer,
+      energy: g.energy,
+      mood: g.mood,
+      comment: g.comment,
+      art: g.art,
+    };
+  } catch {
+    return null; // unreadable file → the mirror views stand alone
+  }
+}
+
+/** Headline difference check: push the field when the three-way values
+ *  disagree (trim-equal strings are equal). */
+function makeDifferFn(
+  diffs: ArchiveTrackTagCompare["differences"],
+): (field: string, vals: (string | number | null)[]) => void {
+  return (field, vals) => {
+    const present = vals.filter((v) => v !== null);
+    const allSame =
+      present.length < 2 ||
+      present.every((v) =>
+        typeof v === "string"
+          ? (present[0] as string).trim().toLowerCase() ===
+            (v as string).trim().toLowerCase()
+          : v === present[0],
+      );
+    if (!allSame)
+      diffs.push({
+        field,
+        file: vals[0] ?? null,
+        archive: vals[1] ?? null,
+        rekordbox: vals[2] ?? null,
+      });
+  };
+}
+
+/** The three-way comparison fields: [field name, file, archive, rb].
+ *  The remixer value is special — the RB side keeps it in metadata, not
+ *  a top-level mirror column — so it carries its own getter. Data-driven:
+ *  the diff loop walks this table, so a new compared field is one row,
+ *  not another hand-copied push line. */
+type CompareTrio = [
+  file: string | number | null,
+  archive: string | number | null,
+  rekordbox: string | number | null,
+];
+
+function compareFields(
+  t: {
+    title: string | null;
+    artist: string | null;
+    genre: string | null;
+    archive_key: string | null;
+    bpm_folded: number | null;
+  },
+  file: NonNullable<ArchiveTrackTagCompare["file"]> | null,
+  rekordbox: NonNullable<ArchiveTrackTagCompare["rekordbox"]> | null,
+): [string, CompareTrio][] {
+  const rbRemixer =
+    rekordbox === null
+      ? null
+      : ((rekordbox.metadata["RemixerName"] as string | null) ?? null);
+  return [
+    ["title", [file?.title ?? null, t.title, rekordbox?.title ?? null]],
+    ["artist", [file?.artist ?? null, t.artist, rekordbox?.artist ?? null]],
+    ["genre", [file?.genre ?? null, t.genre, rekordbox?.genre ?? null]],
+    ["key", [file?.key ?? null, t.archive_key, rekordbox?.key ?? null]],
+    ["bpm", [file?.bpm ?? null, t.bpm_folded, rekordbox?.bpm ?? null]],
+    ["year", [file?.year ?? null, null, rekordbox?.year ?? null]],
+    ["label", [file?.label ?? null, null, rekordbox?.label ?? null]],
+    ["mix", [file?.mixName ?? null, null, null]],
+    ["remixer", [file?.remixer ?? null, null, rbRemixer]],
+  ];
+}
+
 /** Three-source read of ONE track. The file is read LIVE (ground truth:
  *  one ffprobe+mutagen read per request); mirrors come from the DBs. */
 export function trackTagCompare(
@@ -262,73 +398,8 @@ export function trackTagCompare(
   );
   if (!t) return base;
 
-  const rbMeta = reader.row<{ metadata_json: string }>(
-    `SELECT metadata_json FROM rekordbox_content rc
-     WHERE rc.video_id = ?
-     ORDER BY rc.updated_at DESC, rc.content_id DESC LIMIT 1`,
-    videoId,
-  );
-  let rekordbox: ArchiveTrackTagCompare["rekordbox"] = null;
-  if (rbMeta && rbMeta.metadata_json) {
-    try {
-      const m = JSON.parse(rbMeta.metadata_json) as Record<string, unknown>;
-      const s = (k: string): string | null => {
-        const v = m[k];
-        return typeof v === "string" && v.trim() ? v.trim() : null;
-      };
-      const bpmRaw = m["BPM"];
-      const bpm =
-        typeof bpmRaw === "number" && Number.isFinite(bpmRaw) && bpmRaw > 0
-          ? bpmRaw / 100
-          : null;
-      const yearRaw = s("ReleaseYear");
-      const year =
-        yearRaw && yearRaw !== "0" && /^\d{4}$/.test(yearRaw) ? yearRaw : null;
-      rekordbox = {
-        contentId: s("ID") ?? videoId,
-        title: s("Title"),
-        artist: s("ArtistName"),
-        album: s("AlbumName"),
-        genre: s("GenreName"),
-        key: s("KeyName"),
-        bpm,
-        year,
-        label: s("LabelName"),
-        comment: s("Commnt"),
-        metadata: m,
-      };
-    } catch {
-      // corrupt mirror JSON → treat as no RB row (the DB row itself
-      // stays untouched; rb-adopt re-adopt rewrites it)
-      rekordbox = null;
-    }
-  }
-
-  // LIVE ground truth — null on missing/unreadable, never a throw.
-  let file: ArchiveTrackTagCompare["file"] = null;
-  if (t.file_path) {
-    try {
-      const g = groundTruth(t.file_path);
-      file = {
-        readable: true,
-        title: g.title,
-        artist: g.artist,
-        genre: g.genre,
-        year: g.year,
-        bpm: g.bpm,
-        key: g.key,
-        label: g.label,
-        mixName: g.mixName,
-        remixer: g.remixer,
-        energy: g.energy,
-        mood: g.mood,
-        comment: g.comment,
-        art: g.art,
-      };
-    } catch {
-      file = null; // unreadable file → the mirror views stand alone
-    }
-  }
+  const rekordbox = readRekordboxMirror(reader, videoId);
+  const file = readFileTags(t.file_path);
 
   const pipeline = {
     genre: t.genre,
@@ -345,39 +416,10 @@ export function trackTagCompare(
   // file-vs-archive and file-vs-rb and archive-vs-rb are all checked
   // through the same trim-equal rule)
   const diffs: ArchiveTrackTagCompare["differences"] = [];
-  const push = (field: string, vals: (string | number | null)[]): void => {
-    const present = vals.filter((v) => v !== null);
-    const allSame =
-      present.length < 2 ||
-      present.every((v) =>
-        typeof v === "string"
-          ? (present[0] as string).trim().toLowerCase() ===
-            (v as string).trim().toLowerCase()
-          : v === present[0],
-      );
-    if (!allSame)
-      diffs.push({
-        field,
-        file: vals[0] ?? null,
-        archive: vals[1] ?? null,
-        rekordbox: vals[2] ?? null,
-      });
-  };
-  push("title", [file?.title ?? null, t.title, rekordbox?.title ?? null]);
-  push("artist", [file?.artist ?? null, t.artist, rekordbox?.artist ?? null]);
-  push("genre", [file?.genre ?? null, t.genre, rekordbox?.genre ?? null]);
-  push("key", [file?.key ?? null, t.archive_key, rekordbox?.key ?? null]);
-  push("bpm", [file?.bpm ?? null, t.bpm_folded, rekordbox?.bpm ?? null]);
-  push("year", [file?.year ?? null, null, rekordbox?.year ?? null]);
-  push("label", [file?.label ?? null, null, rekordbox?.label ?? null]);
-  push("mix", [file?.mixName ?? null, null, null]);
-  push("remixer", [
-    file?.remixer ?? null,
-    null,
-    rekordbox
-      ? ((rekordbox.metadata["RemixerName"] as string | null) ?? null)
-      : null,
-  ]);
+  const push = makeDifferFn(diffs);
+  for (const [field, vals] of compareFields(t, file, rekordbox)) {
+    push(field, vals);
+  }
 
   return {
     available: true,

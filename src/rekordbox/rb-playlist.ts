@@ -39,7 +39,6 @@ import {
   isDecimalIdOrNull,
   isStringArray,
   lastJsonLine,
-  makeFail,
   parseJsonBoundary,
   printResult,
   runPyScript,
@@ -346,14 +345,146 @@ function buildChain(
   }
 }
 
-export async function rbPlaylist(
-  opts: RbPlaylistOptions,
-): Promise<RbPlaylistResult> {
-  const log = opts.log ?? commandLog({});
-  const dbPath = masterDbPath(opts.mount);
-  const group = opts.group ?? "DJ-Imports";
+/** Unmatched chain titles → report rows (the reason is uniform). */
+function unmatchedRows(titles: string[]): { title: string; reason: string }[] {
+  return titles.map((t) => ({
+    title: t,
+    reason: "no content row in master — run the fullpush import for it first",
+  }));
+}
 
-  const fail = makeFail((msg: string): RbPlaylistResult => ({
+/** Apply mode: run the playlist-twin mutation (backup → python write →
+ *  XML nodes → post-verify). All failure returns keep the counters the
+ *  report needs. */
+function applyPlaylist(
+  dbPath: string,
+  group: string,
+  playlist: string,
+  chain: ChainTrack[],
+  log: (s: string) => void,
+): {
+  py: PyOut;
+  backedUpTo: string | null;
+  verified: number;
+  error?: string;
+} {
+  let backedUpTo: string | null = null;
+  const py: PyOut = {
+    linked: 0,
+    unmatched: [],
+    playlistId: null,
+    parentId: null,
+    errors: [],
+  };
+  let verified = 0;
+  try {
+    const mutation = applyPlaylistTwinMutation({
+      dbPath,
+      what: "rb-playlist",
+      log,
+      onBackup: ({ db }) => {
+        backedUpTo = db;
+      },
+      mutateDb: () => {
+        const result = runPyScript({
+          script: buildScript(),
+          dbPath,
+          args: [
+            JSON.stringify({
+              chain: chain.map((track) => ({
+                path: track.path ?? "",
+                base: track.base ?? "",
+                title: track.title,
+              })),
+              playlist,
+              group,
+            }),
+          ],
+          timeoutMs: 300_000,
+          tag: PYRK_TAG,
+          label: "pyrekordbox write",
+        });
+        const value = parseWriteOutput(lastJsonLine(result.stdout));
+        if (
+          value.playlistId === null ||
+          value.parentId === null ||
+          value.errors.length > 0
+        )
+          throw new Error(
+            value.errors[0] ??
+              "pyrekordbox playlist write returned incomplete playlist ids",
+          );
+        return value;
+      },
+      nodes: (value) => {
+        if (value.playlistId === null || value.parentId === null)
+          throw new Error("playlist mutation returned incomplete ids");
+        return [
+          { id: value.parentId, name: group, parentId: "0", attribute: 1 },
+          {
+            id: value.playlistId,
+            name: playlist,
+            parentId: value.parentId,
+            attribute: 0,
+          },
+        ];
+      },
+      verifyDb: (value) => {
+        if (value.playlistId === null)
+          throw new Error("playlist mutation returned no playlist id");
+        const result = runPyScript({
+          script: verifyScript(),
+          dbPath,
+          args: [value.playlistId],
+          timeoutMs: 120_000,
+          tag: PYRK_TAG,
+          label: "pyrekordbox playlist post-verify",
+        });
+        const check = parseVerifyOutput(lastJsonLine(result.stdout));
+        verified = check.rows;
+        if (!check.contiguous || verified !== value.linked)
+          throw new Error(
+            !check.contiguous
+              ? "post-verify: TrackNo sequence is not contiguous"
+              : `post-verify: ${verified}/${value.linked} linked rows found`,
+          );
+      },
+    });
+    return { py: mutation.value, backedUpTo: mutation.backedUpTo, verified };
+  } catch (error) {
+    return { py, backedUpTo, verified, error: errorText(error) };
+  }
+}
+
+/** Dry-run honesty: predict the matches READ-ONLY so the report shows
+ *  real numbers, never a fake "0 linked". */
+function predictUnmatched(
+  dbPath: string,
+  chain: ChainTrack[],
+  log: (s: string) => void,
+): { unmatched: string[]; error?: string } {
+  try {
+    const pred = predictMatches(
+      dbPath,
+      chain.map((c) => ({ path: c.path, base: c.base, title: c.title })),
+    );
+    log(
+      `rb-playlist: predict ${pred.hit}/${chain.length} chain tracks have master rows (read-only probe)`,
+    );
+    return { unmatched: pred.unmatched };
+  } catch (error) {
+    return { unmatched: [], error: errorText(error) };
+  }
+}
+
+/** Early-gate failure: everything not yet known stays at its zero value. */
+function gateFail(
+  opts: RbPlaylistOptions,
+  dbPath: string,
+  group: string,
+  error: string,
+): RbPlaylistResult {
+  return {
     command: "rb-playlist",
     db: dbPath,
     playlist: opts.playlist ?? "",
@@ -369,12 +500,107 @@ export async function rbPlaylist(
     backedUpTo: null,
     errors: [],
     ok: false,
-    error: msg,
-  }));
+    error,
+  };
+}
+
+/** The apply leg's success/failure result shapes (gate 5 has passed).
+ *  Split from the gates so each half stays reviewable on its own. */
+function rbPlaylistApplyLeg(
+  opts: RbPlaylistOptions,
+  dbPath: string,
+  group: string,
+  playlistName: string,
+  chain: ChainTrack[],
+  preset: string,
+  minutes: number,
+  log: (s: string) => void,
+): RbPlaylistResult {
+  const applied = applyPlaylist(dbPath, group, playlistName, chain, log);
+  if (applied.error !== undefined) {
+    return {
+      ...gateFail(opts, dbPath, group, applied.error),
+      playlist: playlistName,
+      preset,
+      minutes,
+      chain: chain.length,
+      linked: applied.py.linked,
+      verified: applied.verified,
+      playlistId: applied.py.playlistId,
+      backedUpTo: applied.backedUpTo,
+      errors: [...applied.py.errors, applied.error],
+    };
+  }
+  return {
+    command: "rb-playlist",
+    db: dbPath,
+    playlist: playlistName,
+    group,
+    preset,
+    minutes,
+    chain: chain.length,
+    linked: applied.py.linked,
+    unmatched: unmatchedRows(applied.py.unmatched),
+    playlistId: applied.py.playlistId,
+    verified: applied.verified,
+    appliedMode: true,
+    backedUpTo: applied.backedUpTo,
+    errors: applied.py.errors,
+    ok: true,
+  };
+}
+
+/** The dry-run leg: read-only match prediction, no DB writes. */
+function rbPlaylistDryRunLeg(
+  opts: RbPlaylistOptions,
+  dbPath: string,
+  group: string,
+  playlistName: string,
+  chain: ChainTrack[],
+  preset: string,
+  minutes: number,
+  log: (s: string) => void,
+): RbPlaylistResult {
+  const pred = predictUnmatched(dbPath, chain, log);
+  if (pred.error !== undefined) {
+    return {
+      ...gateFail(opts, dbPath, group, pred.error),
+      playlist: playlistName,
+      preset,
+      minutes,
+      chain: chain.length,
+      errors: [pred.error],
+    };
+  }
+  return {
+    command: "rb-playlist",
+    db: dbPath,
+    playlist: playlistName,
+    group,
+    preset,
+    minutes,
+    chain: chain.length,
+    linked: 0,
+    unmatched: unmatchedRows(pred.unmatched),
+    playlistId: null,
+    verified: 0,
+    appliedMode: false,
+    backedUpTo: null,
+    errors: [],
+    ok: true,
+  };
+}
+
+export async function rbPlaylist(
+  opts: RbPlaylistOptions,
+): Promise<RbPlaylistResult> {
+  const log = opts.log ?? commandLog({});
+  const dbPath = masterDbPath(opts.mount);
+  const group = opts.group ?? "DJ-Imports";
 
   // gate 1 — flags before any I/O
-  if (applyConfirmationRefusal(opts) !== null)
-    return fail(applyConfirmationRefusal(opts) ?? "unreachable");
+  const flagRefusal = applyConfirmationRefusal(opts);
+  if (flagRefusal !== null) return gateFail(opts, dbPath, group, flagRefusal);
 
   // gate 2 — validate the shared set-builder inputs without touching either
   // database. Invalid presets must still beat a missing-drive error.
@@ -382,182 +608,62 @@ export async function rbPlaylist(
     preset: opts.preset ?? null,
     minutes: opts.minutes ?? null,
   });
-  if ("error" in parsed) return fail(parsed.error);
+  if ("error" in parsed) return gateFail(opts, dbPath, group, parsed.error);
 
   // gate 3 — reject an absent master before scanning/probing every archive
   // file. This is both the cheap failure path and a hardware safety boundary.
-  if (!existsSync(dbPath)) return fail(`no master DB at ${dbPath}`);
+  if (!existsSync(dbPath))
+    return gateFail(opts, dbPath, group, `no master DB at ${dbPath}`);
 
   // gate 4 — the chain (same engine as megaset CLI/web)
   const built = buildChain(opts, parsed);
-  if ("error" in built) return fail(built.error);
+  if ("error" in built) return gateFail(opts, dbPath, group, built.error);
   const { chain, preset, minutes } = built;
   const noFile = chain.filter((c) => c.base === null).length;
   if (noFile > 0)
     log(
       `rb-playlist: ${noFile} chain tracks have no local file path — reported as unmatched`,
     );
-  const playlist =
+  const playlistName =
     opts.playlist ?? `megaset ${preset} ${minutes}min ${todayStamp()}`;
   log(
-    `rb-playlist: chain of ${chain.length} (${preset}, ${minutes} min) → "${playlist}" in "${group}" on ${dbPath}`,
+    `rb-playlist: chain of ${chain.length} (${preset}, ${minutes} min) → "${playlistName}" in "${group}" on ${dbPath}`,
   );
 
   // gate 5 — rekordbox quit
   if (rekordboxRunning())
-    return fail("rekordbox is running — quit it (live WAL) before rb-playlist");
+    return gateFail(
+      opts,
+      dbPath,
+      group,
+      "rekordbox is running — quit it (live WAL) before rb-playlist",
+    );
 
-  let backedUpTo: string | null = null;
-  let py: PyOut = {
-    linked: 0,
-    unmatched: [],
-    playlistId: null,
-    parentId: null,
-    errors: [],
-  };
-
-  let verified = 0;
   if (opts.apply && opts.yes) {
-    try {
-      const mutation = applyPlaylistTwinMutation({
-        dbPath,
-        what: "rb-playlist",
-        log,
-        onBackup: ({ db }) => {
-          backedUpTo = db;
-        },
-        mutateDb: () => {
-          const result = runPyScript({
-            script: buildScript(),
-            dbPath,
-            args: [
-              JSON.stringify({
-                chain: chain.map((track) => ({
-                  path: track.path ?? "",
-                  base: track.base ?? "",
-                  title: track.title,
-                })),
-                playlist,
-                group,
-              }),
-            ],
-            timeoutMs: 300_000,
-            tag: PYRK_TAG,
-            label: "pyrekordbox write",
-          });
-          const value = parseWriteOutput(lastJsonLine(result.stdout));
-          if (
-            value.playlistId === null ||
-            value.parentId === null ||
-            value.errors.length > 0
-          )
-            throw new Error(
-              value.errors[0] ??
-                "pyrekordbox playlist write returned incomplete playlist ids",
-            );
-          return value;
-        },
-        nodes: (value) => {
-          if (value.playlistId === null || value.parentId === null)
-            throw new Error("playlist mutation returned incomplete ids");
-          return [
-            { id: value.parentId, name: group, parentId: "0", attribute: 1 },
-            {
-              id: value.playlistId,
-              name: playlist,
-              parentId: value.parentId,
-              attribute: 0,
-            },
-          ];
-        },
-        verifyDb: (value) => {
-          if (value.playlistId === null)
-            throw new Error("playlist mutation returned no playlist id");
-          const result = runPyScript({
-            script: verifyScript(),
-            dbPath,
-            args: [value.playlistId],
-            timeoutMs: 120_000,
-            tag: PYRK_TAG,
-            label: "pyrekordbox playlist post-verify",
-          });
-          const check = parseVerifyOutput(lastJsonLine(result.stdout));
-          verified = check.rows;
-          if (!check.contiguous || verified !== value.linked)
-            throw new Error(
-              !check.contiguous
-                ? "post-verify: TrackNo sequence is not contiguous"
-                : `post-verify: ${verified}/${value.linked} linked rows found`,
-            );
-        },
-      });
-      py = mutation.value;
-      backedUpTo = mutation.backedUpTo;
-    } catch (error) {
-      const message = errorText(error);
-      return {
-        ...fail(message),
-        playlist,
-        group,
-        preset,
-        minutes,
-        chain: chain.length,
-        linked: py.linked,
-        verified,
-        playlistId: py.playlistId,
-        backedUpTo,
-        errors: [...py.errors, message],
-      };
-    }
+    return rbPlaylistApplyLeg(
+      opts,
+      dbPath,
+      group,
+      playlistName,
+      chain,
+      preset,
+      minutes,
+      log,
+    );
   }
 
   // dry-run honesty: predict the matches READ-ONLY so the report shows
   // real numbers, never a fake "0 linked"
-  let unmatched = py.unmatched;
-  if (!(opts.apply && opts.yes)) {
-    try {
-      const pred = predictMatches(
-        dbPath,
-        chain.map((c) => ({ path: c.path, base: c.base, title: c.title })),
-      );
-      unmatched = pred.unmatched;
-      log(
-        `rb-playlist: predict ${pred.hit}/${chain.length} chain tracks have master rows (read-only probe)`,
-      );
-    } catch (error) {
-      const message = errorText(error);
-      return {
-        ...fail(message),
-        playlist,
-        group,
-        preset,
-        minutes,
-        chain: chain.length,
-        errors: [message],
-      };
-    }
-  }
-
-  return {
-    command: "rb-playlist",
-    db: dbPath,
-    playlist,
+  return rbPlaylistDryRunLeg(
+    opts,
+    dbPath,
     group,
+    playlistName,
+    chain,
     preset,
     minutes,
-    chain: chain.length,
-    linked: py.linked,
-    unmatched: unmatched.map((t) => ({
-      title: t,
-      reason: "no content row in master — run the fullpush import for it first",
-    })),
-    playlistId: py.playlistId,
-    verified,
-    appliedMode: Boolean(opts.apply),
-    backedUpTo,
-    errors: py.errors,
-    ok: true,
-  };
+    log,
+  );
 }
 
 /** Python probe (READ-ONLY): which chain basenames have a content row in

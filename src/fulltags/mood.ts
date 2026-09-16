@@ -72,9 +72,36 @@ export async function mood(opts: MoodOptions): Promise<void> {
   // Pass 1 — sync existing file stamps into the ledger (cheap, no ONNX).
   // Embedding request rides along: every file visited here gets its vector
   // computed in pass 2 anyway, so pass-1 files must not miss out (I49).
+  const pass1 = syncPass(opts, candidates, record);
+  const needAnalysis = buildAnalysisQueue(opts, pass1, candidates);
+
+  // Pass 2 — analyze tracks with no (or malformed) file stamps.
+  const { analyzed, failed } = await analysisPass(
+    opts,
+    needAnalysis,
+    record,
+    log,
+  );
+
+  emitMoodSummary(opts, { ...pass1, analyzed, failed });
+}
+
+/** Pass-1 counters (synced from file stamps). */
+interface SyncCounts {
+  synced: number;
+  energySynced: number;
+}
+
+/** Pass 1 — for every candidate: mirror the file's energy stamp into the
+ *  DB column, and ledger the mood record when a valid stamp exists.
+ *  Stamped-but-unembedded tracks are returned for pass 2 (ONNX only). */
+function syncPass(
+  opts: MoodOptions,
+  candidates: TrackRow[],
+  record: (t: TrackRow, m: MoodResult) => void,
+): SyncCounts & { needEmbedding: TrackRow[] } {
   let synced = 0;
   let energySynced = 0;
-  const needAnalysis: TrackRow[] = [];
   const needEmbedding: TrackRow[] = [];
   for (const t of candidates) {
     const truth = groundTruth(t.file_path!);
@@ -86,10 +113,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
     }
     const stamp = truth.mood;
     const m = stamp ? parseMoodStamp(stamp) : undefined;
-    if (!m) {
-      needAnalysis.push(t);
-      continue;
-    }
+    if (!m) continue;
     if (
       opts.embeddings &&
       !opts.dryRun &&
@@ -103,53 +127,84 @@ export async function mood(opts: MoodOptions): Promise<void> {
     record(t, m);
     synced++;
   }
-  needAnalysis.push(...needEmbedding);
-  // --limit caps the ONNX pass (help documents it); pass-1 stamp sync is
-  // cheap and stays whole-file so no stamp is left unsynced.
-  // BUGFIX (Sep 10 2026 "mood analyzes nothing"): when limit is undefined
-  // the ternary handed back the SAME array reference, and the unconditional
-  // `needAnalysis.length = 0` below then wiped the refill source too — the
-  // ONNX pass silently became a no-op on every flagless `megadj mood` run
-  // (the `--limit N` path took `slice( + ` and worked, hiding the defect).
-  // Copy first (`slice()` unconditionally), then truncate the original.
+  return { synced, energySynced, needEmbedding };
+}
+
+/** The ONNX queue: every track without a valid file stamp (analysis
+ *  needed), plus stamped-but-unembedded tracks when embeddings are on.
+ *  --limit caps the ONNX pass (help documents it); pass-1 stamp sync is
+ *  cheap and stays whole-file so no stamp is left unsynced.
+ *  BUGFIX (Sep 10 2026 "mood analyzes nothing"): when limit is undefined
+ *  the ternary handed back the SAME array reference, and the unconditional
+ *  `needAnalysis.length = 0` below then wiped the refill source too — the
+ *  ONNX pass silently became a no-op on every flagless `megadj mood` run
+ *  (the `--limit N` path took `slice(` and worked, hiding the defect).
+ *  Copy first (`slice()` unconditionally), then truncate the original. */
+function buildAnalysisQueue(
+  opts: MoodOptions,
+  pass1: SyncCounts & { needEmbedding: TrackRow[] },
+  candidates: TrackRow[],
+): TrackRow[] {
+  const needAnalysis = candidates.filter((t) => {
+    const truth = groundTruth(t.file_path!);
+    return !(truth.mood && parseMoodStamp(truth.mood));
+  });
+  needAnalysis.push(...pass1.needEmbedding);
   const analysisQueue = needAnalysis.slice(
     0,
     opts.limit === undefined ? needAnalysis.length : Math.max(0, opts.limit),
   );
   needAnalysis.length = 0;
   needAnalysis.push(...analysisQueue);
+  return needAnalysis;
+}
 
-  // Pass 2 — analyze tracks with no (or malformed) file stamps.
+/** Pass 2 — ONNX analysis for the queue; each result is recorded through
+ *  the same `record` seam as pass 1. */
+async function analysisPass(
+  opts: MoodOptions,
+  needAnalysis: TrackRow[],
+  record: (t: TrackRow, m: MoodResult) => void,
+  log: (msg: string) => void,
+): Promise<{ analyzed: number; failed: number }> {
   let analyzed = 0;
   let failed = 0;
-  if (needAnalysis.length) {
-    const results = await analyzeMoods(
-      needAnalysis.map((t) => t.file_path!),
-      {
-        withEmbedding: opts.embeddings === true,
-      },
-    );
-    for (const t of needAnalysis) {
-      const m = results.get(t.file_path!);
-      if (!m) {
-        failed++;
-        continue;
-      }
-      record(t, m);
-      analyzed++;
-      log(
-        `  analyzed dance=${m.danceability.toFixed(2)} V=${m.valence.toFixed(1)} A=${m.arousal.toFixed(1)} — ${basename(t.file_path!)}`,
-      );
+  if (!needAnalysis.length) return { analyzed, failed };
+  const results = await analyzeMoods(
+    needAnalysis.map((t) => t.file_path!),
+    {
+      withEmbedding: opts.embeddings === true,
+    },
+  );
+  for (const t of needAnalysis) {
+    const m = results.get(t.file_path!);
+    if (!m) {
+      failed++;
+      continue;
     }
+    record(t, m);
+    analyzed++;
+    log(
+      `  analyzed dance=${m.danceability.toFixed(2)} V=${m.valence.toFixed(1)} A=${m.arousal.toFixed(1)} — ${basename(t.file_path!)}`,
+    );
   }
+  return { analyzed, failed };
+}
 
+/** Summary line + the --json payload. A zero-work run must read as
+ *  SUCCESS (same contract as beats/cues): "analyzed 0" once WAS a real
+ *  bug (the queue reference defect), so the summary now states why
+ *  nothing ran. */
+async function emitMoodSummary(
+  opts: MoodOptions,
+  counts: SyncCounts & { analyzed: number; failed: number },
+): Promise<void> {
+  const log = commandLog(opts);
+  const { synced, analyzed, failed, energySynced } = counts;
   const total = opts.state.moodSummary().analyzed;
   const embedded = opts.embeddings
     ? opts.state.embeddingCorpus().length
     : undefined;
-  // A zero-work run must read as SUCCESS (same contract as beats/cues):
-  // "analyzed 0" once WAS a real bug (the queue reference defect), so
-  // the summary now states why nothing ran.
   if (
     synced === 0 &&
     analyzed === 0 &&

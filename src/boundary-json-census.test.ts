@@ -39,7 +39,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   // rb-adopt mirror payload: the catch converts corrupt JSON into
   // "no RB row" (the mirrors then stand alone; rb-adopt re-adopt
   // rewrites the row) — the DB row itself is never touched.
-  "cratedeck/src/archive_tagcensus.ts::trackTagCompare::JSON.parse(rbMeta.metadata_json)":
+  "cratedeck/src/archive_tagcensus.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
     "Corrupt mirror JSON is treated as no rekordbox row: the census shows the archive side alone, rb-adopt re-adopt rewrites the row; never a throw into the route.",
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(lastJsonLine(r.stdout, "[]"))',
@@ -77,10 +77,13 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 16 (#42): digest changed again — parseJsonObject moved from
     // the analysis.ts shim to its own module (parse-json.ts); same
     // call, same sanction, new path in the digest input.
+    // Sep 16 (CCN diet): digest changed — the rb-adopt mirror parse
+    // moved from trackTagCompare into the extracted readRekordboxMirror
+    // helper; same call, same sanction, new enclosing-function path.
     audited: 59,
     guarded: 43,
     sanctioned: 16,
-    digest: "fdc29d8993ef9bb0d94f31b055a91bf045827204dec0fb0f1f7f99a338bd33e5",
+    digest: "5e466fe6105bcab80a0183612678be7a09a32ada0dc83f04a97fffd98ba514bb",
   });
 });
 
