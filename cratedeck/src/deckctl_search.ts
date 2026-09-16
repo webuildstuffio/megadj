@@ -8,6 +8,7 @@
 // not re-declared here — a local duplicate drifts silently and ships
 // runtime bugs (the Sep 7 ArchiveTab bug class).
 
+import { emitJson } from "./deckctl_runtime";
 import { apiGet } from "./deckapi";
 import type { SearchResult } from "../shared/types";
 
@@ -31,7 +32,7 @@ export async function cmdSearch(
   const res = await apiGet(`/api/search?q=${encodeURIComponent(q)}`);
   const hits = (await res.json()) as SearchResult[];
   if (h.jsonMode) {
-    console.log(JSON.stringify({ query: q, hits }, null, 2));
+    await emitJson({ query: q, hits });
     return;
   }
   if (!hits.length) {

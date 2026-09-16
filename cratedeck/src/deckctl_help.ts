@@ -15,6 +15,7 @@
 
 import { HELP_JOBS, HELP_SURFACES, HELP_TERMS } from "../shared/help";
 import { apiPost, resolveDriveOrExit } from "./deckapi";
+import { emitJson } from "./deckctl_runtime";
 import { printKindDoc } from "./deckctl_docs";
 
 /** Print hooks shared with deckctl.ts (deckctl_notes.ts pattern). */
@@ -27,7 +28,10 @@ export interface HelpPrintHooks {
 }
 
 /** `deckctl help [term|kind]` — the in-app help SSOT as a CLI verb. */
-export function cmdHelp(h: HelpPrintHooks, topic?: string): void {
+export async function cmdHelp(
+  h: HelpPrintHooks,
+  topic?: string,
+): Promise<void> {
   const t = topic?.trim().toLowerCase();
   if (t) {
     // single glossary term or job kind — the `explain`-style deep dive.
@@ -41,7 +45,7 @@ export function cmdHelp(h: HelpPrintHooks, topic?: string): void {
         HELP_TERMS.find((x) => x.term.toLowerCase().startsWith(t)));
     if (term) {
       if (h.jsonMode) {
-        console.log(JSON.stringify({ term }, null, 2));
+        await emitJson({ term });
         return;
       }
       h.log(`── ${term.term} ──`);
@@ -51,7 +55,7 @@ export function cmdHelp(h: HelpPrintHooks, topic?: string): void {
     }
     if (job) {
       if (h.jsonMode) {
-        console.log(JSON.stringify({ job }, null, 2));
+        await emitJson({ job });
         return;
       }
       printKindDoc(
@@ -76,13 +80,11 @@ export function cmdHelp(h: HelpPrintHooks, topic?: string): void {
     h.exit(2);
   }
   if (h.jsonMode) {
-    console.log(
-      JSON.stringify(
-        { terms: HELP_TERMS, jobs: HELP_JOBS, surfaces: HELP_SURFACES },
-        null,
-        2,
-      ),
-    );
+    await emitJson({
+      terms: HELP_TERMS,
+      jobs: HELP_JOBS,
+      surfaces: HELP_SURFACES,
+    });
     return;
   }
   h.log("── vocabulary ──");
@@ -114,8 +116,6 @@ export async function cmdDismiss(
     h.exit(res.status === 404 ? 2 : 1);
   }
   if (h.jsonMode)
-    console.log(
-      JSON.stringify({ dismissed: true, drive: d.name, id: noteId }, null, 2),
-    );
+    await emitJson({ dismissed: true, drive: d.name, id: noteId });
   else h.log(`✓ note dismissed on ${d.nickname ?? d.name}`);
 }

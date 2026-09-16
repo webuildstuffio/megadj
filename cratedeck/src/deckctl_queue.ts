@@ -4,6 +4,7 @@
 // legs (jscpd-class clone); this is the one implementation (§1: parity is
 // cheapest to guarantee when the spokes share seams, not copies).
 import { apiPost, pollJob, jobTerminal, type Job } from "./deckapi";
+import { emitJson } from "./deckctl_runtime";
 
 /** Output hooks — the same shape deckctl_hygiene/deckctl_fixes already
  *  receive from deckctl.ts's baseHooks(). */
@@ -36,7 +37,7 @@ export async function enqueueAndFollow(
         string,
         unknown
       >;
-      if (h.jsonMode) console.log(JSON.stringify(result, null, 2));
+      if (h.jsonMode) await emitJson(result);
       return result;
     }
     h.errOut(

@@ -11,6 +11,7 @@
 // until the UI renders `[object Object]`).
 
 import { apiGet, apiPost, resolveDriveOrExit } from "./deckapi";
+import { emitJson } from "./deckctl_runtime";
 import type { StoredNote } from "./notes";
 import { errMessage as errorText } from "../shared/fmt";
 
@@ -49,7 +50,7 @@ export async function cmdNote(
     h.exit(1);
   }
   if (h.jsonMode) {
-    console.log(JSON.stringify({ posted: true, id: body.id }, null, 2));
+    await emitJson({ posted: true, id: body.id });
     return;
   }
   h.log(`✓ note landed on ${d.nickname ?? d.name} (dismiss it in the UI)`);
@@ -102,13 +103,13 @@ export async function cmdNotes(
         for (const n of notes)
           h.log(`${d.nickname ?? d.name} [${n.severity}] ${n.note}`);
     }
-    if (h.jsonMode) console.log(JSON.stringify({ notes: perDrive }, null, 2));
+    if (h.jsonMode) await emitJson({ notes: perDrive });
     return;
   }
   const d = await resolveDriveOrExit(h, nameOrId);
   const notes = await getJson<StoredNote[]>(`/api/drives/${d.id}/notes`);
   if (h.jsonMode) {
-    console.log(JSON.stringify({ drive: d.name, notes }, null, 2));
+    await emitJson({ drive: d.name, notes });
     return;
   }
   for (const n of notes)
@@ -134,12 +135,10 @@ export async function cmdRename(
     h.exit(1);
   }
   if (h.jsonMode)
-    console.log(
-      JSON.stringify({
-        command: "rename",
-        drive: d.name,
-        nickname: nickname?.trim() || null,
-      }),
-    );
+    await emitJson({
+      command: "rename",
+      drive: d.name,
+      nickname: nickname?.trim() || null,
+    });
   else h.log(`renamed ${d.name} → ${nickname?.trim() || "(cleared)"}`);
 }

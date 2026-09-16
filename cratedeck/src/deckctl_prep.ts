@@ -1,4 +1,4 @@
-import { JSON_MODE, getJson, log } from "./deckctl_runtime";
+import { JSON_MODE, emitJson, getJson, log } from "./deckctl_runtime";
 
 export async function cmdPrep(outPath: string | undefined): Promise<void> {
   const { fetchWeeklyPrepInput, renderWeeklyPrep } =
@@ -7,9 +7,7 @@ export async function cmdPrep(outPath: string | undefined): Promise<void> {
   const markdown = renderWeeklyPrep(input);
   if (outPath) await Bun.write(outPath, `${markdown}\n`);
   if (JSON_MODE) {
-    console.log(
-      JSON.stringify({ ...input, markdown, written: outPath }, null, 2),
-    );
+    await emitJson({ ...input, markdown, written: outPath });
     return;
   }
   log(markdown);

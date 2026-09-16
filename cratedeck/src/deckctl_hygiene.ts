@@ -5,6 +5,7 @@
 // scan/apply enqueue+follow leg lives in deckctl_queue.ts (shared with
 // `fixes` — was a byte-identical clone).
 import { apiGet, apiPost } from "./deckapi";
+import { emitJson } from "./deckctl_runtime";
 import { enqueueAndFollow, type QueueHooks } from "./deckctl_queue";
 import type { HygienePayload } from "../shared/hygiene";
 
@@ -21,7 +22,7 @@ export async function cmdHygiene(
       const res = await apiGet("/api/hygiene");
       const p = (await res.json()) as HygienePayload;
       if (h.jsonMode) {
-        console.log(JSON.stringify(p.counts, null, 2));
+        await emitJson(p.counts);
         return;
       }
       h.log(

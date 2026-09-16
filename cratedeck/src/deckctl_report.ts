@@ -5,6 +5,7 @@
 // serves (--out FILE writes it to disk instead).
 
 import { apiGet, resolveDrive } from "./deckapi";
+import { emitJson } from "./deckctl_runtime";
 import type { DriveReport } from "../shared/types";
 
 export interface ReportPrintHooks {
@@ -35,13 +36,11 @@ export async function cmdReport(
     if (outFile) {
       await Bun.write(outFile, `${text}\n`);
       if (h.jsonMode)
-        console.log(
-          JSON.stringify({
-            command: "report",
-            dossier: true,
-            written: outFile,
-          }),
-        );
+        await emitJson({
+          command: "report",
+          dossier: true,
+          written: outFile,
+        });
       else h.log(`dossier written: ${outFile}`);
       return;
     }
@@ -52,7 +51,7 @@ export async function cmdReport(
     x.json(),
   )) as DriveReport & { overall?: string };
   if (h.jsonMode) {
-    console.log(JSON.stringify(r, null, 2));
+    await emitJson(r);
     return;
   }
   const checks = r.checks ?? [];

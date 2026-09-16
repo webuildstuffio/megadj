@@ -4,6 +4,7 @@
 // The scan/apply enqueue+follow leg lives in deckctl_queue.ts (shared with
 // `hygiene` — was a byte-identical clone).
 import { apiGet } from "./deckapi";
+import { emitJson } from "./deckctl_runtime";
 import { enqueueAndFollow, type QueueHooks } from "./deckctl_queue";
 import type { FixesPayload } from "../shared/fixes";
 
@@ -20,14 +21,14 @@ export async function cmdFixes(
       const p = (await res.json()) as FixesPayload | null;
       if (!p || !p.scannedPath) {
         if (h.jsonMode) {
-          console.log(JSON.stringify({ scanned: false, fixable: 0 }, null, 2));
+          await emitJson({ scanned: false, fixable: 0 });
         } else {
           h.log("no fixes scan yet — run: deckctl fixes scan");
         }
         return;
       }
       if (h.jsonMode) {
-        console.log(JSON.stringify(p, null, 2));
+        await emitJson(p);
         return;
       }
       h.log(

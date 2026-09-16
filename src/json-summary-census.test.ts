@@ -8,14 +8,15 @@
  * (`console.log(\n  JSON.stringify(...)`) so a flat single-line grep
  * silently passed them.
  *
- * Scope: src/ + fulltags/src production files. Tests deliberately keep
- * their own emit idioms (capture harnesses stringify by hand).
+ * Scope: src/ + fulltags/src + cratedeck/src production files. Tests
+ * deliberately keep their own emit idioms (capture harnesses stringify by
+ * hand).
  */
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync, type Stats } from "node:fs";
 import { join, relative } from "node:path";
 
-const ROOTS = ["src", "fulltags/src"] as const;
+const ROOTS = ["src", "fulltags/src", "cratedeck/src"] as const;
 const SKIP_DIRS = new Set(["node_modules", ".git", "test", "test-support"]);
 /** tools/ ships operator CLIs with the same --json contract; scan them too
  *  but skip the intentional string fixtures (loc-budget writes raw text). */
