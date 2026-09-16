@@ -16,9 +16,24 @@
  * server/event-loop contexts use cratedeck's async walkTree instead.
  */
 import { AUDIO_EXTS } from "./audio-exts";
-import { walkTree } from "./walk-tree";
+import { walkTree, type WalkTreeOptions } from "./walk-tree";
 
-export function walkAudioDir(dir: string, out: string[] = []): string[] {
-  for (const e of walkTree(dir, { exts: AUDIO_EXTS }).entries) out.push(e.abs);
+/** Options this module forwards to the walker: everything except the
+ * audio extension filter, which is the SSOT enforced HERE. */
+export type WalkAudioOptions = Omit<WalkTreeOptions, "exts">;
+
+export function walkAudioDir(
+  dir: string,
+  out: string[] = [],
+  opts?: WalkAudioOptions,
+): string[] {
+  const res = walkTree(dir, { ...opts, exts: AUDIO_EXTS });
+  for (const u of res.unreadable) {
+    // keep the one visible stderr note the missing-intake-folder path
+    // printed (ingest's `megadj ingest <typoed-path>` must fail soft,
+    // not silently): the boundary surfaces once per unreadable dir.
+    console.error(`walk: directory not found: ${u}`);
+  }
+  for (const e of res.entries) out.push(e.abs);
   return out;
 }

@@ -10,8 +10,7 @@ import { md5FileStream } from "../../shared/hash";
 
 import type { ParsedName, Probe } from "../../../fulltags/src/exports";
 import { errorText } from "../../shared/error-text";
-import { AUDIO_EXTS } from "../../shared/audio-exts";
-import { walkTree, type WalkTreeOptions } from "../../shared/walk-tree";
+import { walkAudioDir } from "../../shared/audio-walk";
 
 const md5File = md5FileStream;
 
@@ -95,26 +94,15 @@ export async function quarantine(
   }
 }
 
-/** Recursively list audio files under `dir`, skipping hidden entries.
- * A missing/unreadable dir returns [] (with an stderr note) rather than
- * crashing — e.g. `megadj ingest <typoed-path>` must fail soft like
- * adopt does. Rides the shared walker (#69) with the quarantine/
- * rekordbox path-prefix skips as options; the async signature stays
- * because the intake folder can be a mounted volume and the caller is
- * already async. */
+/** Recursively list audio files under `dir`, skipping the quarantine and
+ * rekordbox subtrees when given. Thin async wrapper over the shared
+ * audio walker (#69/#142 SSOT — the skipPaths option carries ingest's
+ * prefix skips); the async signature stays because the intake folder can
+ * be a mounted volume and the caller is already async. */
 export async function walkAudio(
   dir: string,
   out: string[] = [],
   skip?: string[],
 ): Promise<string[]> {
-  const opts: WalkTreeOptions = { exts: AUDIO_EXTS };
-  if (skip) opts.skipPaths = skip;
-  const { entries, unreadable } = walkTree(dir, opts);
-  for (const u of unreadable) {
-    // the shared walker soft-fails every readdir; keep the one visible
-    // stderr note the old ENOENT path printed (missing intake folder)
-    console.error(`walk: directory not found: ${u}`);
-  }
-  for (const e of entries) out.push(e.abs);
-  return out;
+  return walkAudioDir(dir, out, skip ? { skipPaths: skip } : undefined);
 }
