@@ -11,13 +11,23 @@ import type { MegasetPayload } from "../../../shared/types";
 import { camelotOf } from "../../../shared/camelot";
 import { KVRows, KVRow, KVKey, KVVal } from "../../ui/data";
 
-/** ISO timestamp → age in whole days (null input → null). */
-const daysAgo = (iso: string | null): number | null =>
-  iso === null ? null : Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
+// freshness compute/format from the SSOT (#161) — the private
+// daysAgo/ageWord pair and its 2d/14d tribal thresholds are gone; the
+// AGENTS bands (green <24h, amber <7d, red ≥7d) are named in code now.
+import {
+  formatAge,
+  ledgerFreshness,
+  worstBand,
+  type FreshnessBand,
+} from "../../../shared/ledger-freshness";
 
-/** Days-since → display word ("never" / "today" / "3d ago"). */
-const ageWord = (d: number | null): string =>
-  d === null ? "never" : d <= 0 ? "today" : `${d}d ago`;
+/** SSOT band → the card's css class (ok/warn/stale palette unchanged). */
+const bandClass: Record<FreshnessBand, string> = {
+  none: "ok",
+  green: "ok",
+  amber: "warn",
+  red: "stale",
+};
 
 /** The build's visible phases — shown as a checklist while loading so the
  *  wait is legible ("what is it doing NOW?" has an answer). The active
@@ -85,17 +95,14 @@ export function FreshnessLine(props: {
   pool: number;
 }) {
   if (props.pool === 0) return null;
-  const beats = daysAgo(props.freshness.beatsAt);
-  const mood = daysAgo(props.freshness.moodAt);
-  const worst = Math.max(
-    beats ?? Number.POSITIVE_INFINITY,
-    mood ?? Number.POSITIVE_INFINITY,
-  );
-  const cls = worst <= 2 ? "ok" : worst <= 14 ? "warn" : "stale";
+  const beats = ledgerFreshness(props.freshness.beatsAt);
+  const mood = ledgerFreshness(props.freshness.moodAt);
+  const worst = worstBand([beats.band, mood.band]);
+  const cls = bandClass[worst];
   return (
     <div class={`megaset-fresh ${cls}`}>
-      analysis freshness — beats {ageWord(beats)}, mood {ageWord(mood)}
-      {worst > 2 && (
+      analysis freshness — beats {formatAge(beats)}, mood {formatAge(mood)}
+      {worst !== "green" && worst !== "none" && (
         <span class="fresh-note">
           {" "}
           — newer imports? run <code>megadj beats</code> +{" "}

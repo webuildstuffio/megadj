@@ -29,10 +29,10 @@ import {
   type SetSearchOverride,
 } from "../../cratedeck/shared/types";
 
-/** ISO timestamp → YYYY-MM-DD (null → "never"). Module scope — the
- *  staleness line formats both ledger ages with one helper. */
-const dayOf = (iso: string | null): string =>
-  iso === null ? "never" : iso.slice(0, 10);
+import {
+  formatAge,
+  ledgerFreshness,
+} from "../../cratedeck/shared/ledger-freshness";
 
 export interface MegasetOptions {
   preset?: string | undefined;
@@ -151,7 +151,7 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
         `megaset: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search (checked ${sourceTotal} DB rows; ${total} unique actual files; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
       );
       log(
-        `  analysis freshness — beats: ${dayOf(payload.freshness.beatsAt)}, mood: ${dayOf(payload.freshness.moodAt)} (newer imports need \`megadj beats\` + \`megadj mood\`)`,
+        `  analysis freshness — beats: ${formatAge(ledgerFreshness(payload.freshness.beatsAt))}, mood: ${formatAge(ledgerFreshness(payload.freshness.moodAt))} (newer imports need \`megadj beats\` + \`megadj mood\`)`,
       );
       let at = 0;
       for (const s of built.steps) {
