@@ -30,7 +30,11 @@ export function migrateArchiveLedger(sqlite: Database): void {
 }
 
 export class LedgerQueries {
-  constructor(private sqlite: Database) {}
+  private readonly sqlite: Database;
+
+  constructor(sqlite: Database) {
+    this.sqlite = sqlite;
+  }
 
   /** All known-good archive hashes (file_path → row). */
   all(): Map<string, LedgerRow> {

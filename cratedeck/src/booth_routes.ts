@@ -50,7 +50,7 @@ export function boothFleetPayload(
 export function normalizeFleetSelection(ids: readonly string[]): string[] {
   const known = new Set(FLEET_PROFILES.map((p) => p.id as string));
   const valid = ids.filter((id) => known.has(id));
-  return valid.length > 0 ? valid : (DEFAULT_FLEET as string[]).slice();
+  return valid.length > 0 ? valid : [...(DEFAULT_FLEET as string[])];
 }
 
 export function parseBoothFleetRequest(value: unknown): string[] {
@@ -88,18 +88,13 @@ export function writeConfigBoothFleet(
   let next: string;
   if (existsSync(cfgPath)) {
     const text = readFileSync(cfgPath, "utf8");
-    if (/^\[booth\]$/m.test(text)) {
-      // replace the existing [booth] block (up to the next [section]
-      // HEADER or EOF). The lookahead anchors on a real TOML section
-      // header (`[^\]]*\]`) — a bare `[` inside the fleet array (never
-      // happens: ids are plain words) would otherwise truncate it.
-      next = text.replace(
-        /\n\[booth\]\n(?:(?!\n\[[^\]]*\])[\s\S])*/,
-        `\n${section}`,
-      );
-    } else {
-      next = `${text.replace(/\n*$/, "\n")}${section}`;
-    }
+    // replace the existing [booth] block (up to the next [section]
+    // HEADER or EOF) — the lookahead anchors on a real TOML section
+    // header (`[^\]]*\]`); a bare `[` inside the fleet array (never
+    // happens: ids are plain words) would otherwise truncate it.
+    next = /^\[booth\]$/m.test(text)
+      ? text.replace(/\n\[booth\]\n(?:(?!\n\[[^\]]*\])[\s\S])*/, `\n${section}`)
+      : `${text.replace(/\n*$/, "\n")}${section}`;
   } else {
     next = `${section}\n`;
   }

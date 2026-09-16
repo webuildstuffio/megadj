@@ -1,5 +1,6 @@
 import type { Drive, SnapshotData, VerifyReport } from "../shared/types";
 import type { ManifestRow, PlaylistEntryRow, TrackRow } from "./coverage";
+import type { LedgerRow as ArchiveLedgerRow } from "./archive_sweep";
 import { DBCore } from "./db_core";
 import { FleetStore } from "./fleet-db";
 
@@ -12,11 +13,11 @@ export class DBLibrary extends DBCore {
     return this.fleetStore;
   }
 
-  archiveLedger(): Map<string, import("./archive_sweep").LedgerRow> {
+  archiveLedger(): Map<string, ArchiveLedgerRow> {
     return this.ledger.all();
   }
 
-  upsertArchiveLedger(row: import("./archive_sweep").LedgerRow): void {
+  upsertArchiveLedger(row: ArchiveLedgerRow): void {
     this.ledger.upsert(row);
   }
 

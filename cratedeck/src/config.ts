@@ -51,7 +51,9 @@ export interface CrateConfig {
 
 /** Raw TOML value: what the tiny parser can produce. */
 type TomlValue = string | string[] | number | boolean | TomlTable;
-type TomlTable = { [key: string]: TomlValue };
+interface TomlTable {
+  [key: string]: TomlValue;
+}
 
 function isTomlTable(v: TomlValue | undefined): v is TomlTable {
   return typeof v === "object" && v !== null && !Array.isArray(v);

@@ -11,12 +11,12 @@
 import { apiGet } from "./deckapi";
 import type { SearchResult } from "../shared/types";
 
-export type SearchPrintHooks = {
+export interface SearchPrintHooks {
   jsonMode: boolean;
   log: (s: string) => void;
   errOut: (s: string) => void;
   exit: (code: number) => never;
-};
+}
 
 /** `deckctl search <query>` — playlists + folders across every snapshot. */
 export async function cmdSearch(

@@ -11,24 +11,26 @@ import { megadjCliPath, splitIntakeStdout } from "./intake_run";
 export interface CliJobDeps {
   cfg: { root: string };
   jobTimeoutMin: number;
-  cancelled(): boolean;
-  killProc(proc: Bun.Subprocess): void;
-  log(line: string): void;
-  tick(
+  cancelled: () => boolean;
+  killProc: (proc: Bun.Subprocess) => void;
+  log: (line: string) => void;
+  tick: (
     done: number,
     total: number,
     message: string,
     phase: string,
     force?: boolean,
-  ): void;
+  ) => void;
   /** drain() re-exported from jobs.ts — injected to avoid an import cycle */
-  drain(
+  drain: (
     stream: ReadableStream<Uint8Array>,
     onLine: (l: string) => void,
     handle: { cancelled: boolean; proc?: Bun.Subprocess },
     timeoutMs: number,
-  ): Promise<{ out: string }>;
-  drainText(stream: ReadableStream<Uint8Array> | undefined): Promise<string>;
+  ) => Promise<{ out: string }>;
+  drainText: (
+    stream: ReadableStream<Uint8Array> | undefined,
+  ) => Promise<string>;
 }
 
 /** Extra argv after the subcommand (e.g. --apply --yes, --shelf V). */

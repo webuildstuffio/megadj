@@ -36,7 +36,11 @@ CREATE INDEX IF NOT EXISTS fleet_tracks_path ON fleet_tracks(path);
 export class FleetStore {
   private migrated = false;
 
-  constructor(private readonly sqlite: Database) {}
+  private readonly sqlite: Database;
+
+  constructor(sqlite: Database) {
+    this.sqlite = sqlite;
+  }
 
   private migrate(): void {
     if (this.migrated) return;

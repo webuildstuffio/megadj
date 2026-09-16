@@ -138,7 +138,7 @@ export class Guard {
   private wildcardAnchor(pattern: string): string | null {
     const parsed = this.parts(pattern);
     const wildcardIndex = parsed.parts.indexOf("*");
-    if (wildcardIndex < 0) return null;
+    if (wildcardIndex === -1) return null;
     return resolve(parsed.root, ...parsed.parts.slice(0, wildcardIndex));
   }
 

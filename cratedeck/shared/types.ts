@@ -4,9 +4,12 @@
 // cratedeck/shared cratedeck/web`): this file is the leaf of the graph.
 // It may import NOTHING from src/ — every wire type used across the
 // server/web boundary is DEFINED here, and src/ producers import their
-// wire shapes FROM here. Re-exporting producer types from this file
+// wire shapes FROM here. The single allowed import is shared/hygiene.ts
+// (leaf of the leaf — it imports nothing), used before its re-export below.
+// Re-exporting producer types from this file
 // created four shared/types → src cycles (fleet/notes/players/preflight),
 // which made the pre-commit hook block any staged edit to types.ts.
+import type { HygieneBadge } from "./hygiene";
 
 export type DriveRole = "master" | "mirror" | "shelf" | "library" | "unknown";
 
@@ -121,7 +124,7 @@ export type DriveCardData = Omit<Drive, "last_snapshot_json"> & {
   /** Latest drive→shelf sweep verdict from the megadj archive ledger. */
   shelf_sweep: ShelfSweepSummary | null;
   /** Shelf-hygiene census — shelf drive only, null elsewhere (§4.3). */
-  hygiene: import("./hygiene").HygieneBadge | null;
+  hygiene: HygieneBadge | null;
   snapshot_summary: {
     track_count?: number;
     file_count?: number;
@@ -734,7 +737,7 @@ export interface BoothPlayerProfile {
   citations: BoothCitation[];
 }
 
-export type BoothFleetPayload = {
+export interface BoothFleetPayload {
   /** Currently selected ids (order-insensitive). */
   selected: string[];
   /** Full catalog with citations (settings UI renders this). */
@@ -746,7 +749,7 @@ export type BoothFleetPayload = {
     maxBitDepth: number;
     unicodeText: boolean;
   };
-};
+}
 
 // ---- notes (O88): the feed's row type lives here; src/notes.ts (the
 // producer) imports it back so deckctl and any other consumer read the

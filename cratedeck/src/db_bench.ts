@@ -4,7 +4,11 @@ import type { Database } from "bun:sqlite";
 
 /** Benchmarks + checksum-ledger query surface (owned by DB via delegation). */
 export class BenchLedger {
-  constructor(private readonly sqlite: Database) {}
+  private readonly sqlite: Database;
+
+  constructor(sqlite: Database) {
+    this.sqlite = sqlite;
+  }
 
   addBenchmark(driveId: string, seq: number, rand4k: number): void {
     this.sqlite

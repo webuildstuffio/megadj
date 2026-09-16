@@ -9,17 +9,20 @@
 // A mount-time re-sync pushes the local copy back onto a drive that lacks it
 // (or restores the local copy from the stick when the local side is gone) —
 // see syncOnMount. Scanners skip Contents/CrateDeck (walk.ts DEFAULT_SKIP_DIRS).
-import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
+import {
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+  type Dirent,
+} from "node:fs";
 import { readdir } from "node:fs/promises";
 import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { CrateConfig } from "./config";
 import type { Guard } from "./guard";
 import type { DB } from "./db";
 import type { DriveImage } from "../shared/types";
-
-// The wire shape is canonically defined in shared/types.ts; re-export keeps
-// every existing `from "./images"` import working unchanged.
-export type { DriveImage };
+export { type DriveImage } from "../shared/types";
 
 export interface ImageHit {
   id: string;
@@ -103,11 +106,15 @@ interface ExaResponse {
 }
 
 export class ImageService {
-  constructor(
-    private cfg: CrateConfig,
-    private db: DB,
-    private guard: Guard,
-  ) {}
+  private cfg: CrateConfig;
+  private db: DB;
+  private guard: Guard;
+
+  constructor(cfg: CrateConfig, db: DB, guard: Guard) {
+    this.cfg = cfg;
+    this.db = db;
+    this.guard = guard;
+  }
 
   /** The writable prefix on a mounted drive (guard.allow'ed at boot). */
   static driveDirName(): string {
@@ -205,7 +212,7 @@ export class ImageService {
       push(f.abs, f.rel);
     }
     // 2 — volume root, one level, image extensions only
-    let entries: import("node:fs").Dirent[];
+    let entries: Dirent[];
     try {
       entries = await readdir(root, { withFileTypes: true });
     } catch {
@@ -237,9 +244,7 @@ export class ImageService {
         canonicalRel.startsWith(`..${sep}`)
       )
         return null;
-      const appPrefix = join("Contents", ImageService.driveDirName()).concat(
-        sep,
-      );
+      const appPrefix = `${join("Contents", ImageService.driveDirName())}${sep}`;
       const inAppDir = canonicalRel.startsWith(appPrefix);
       const atRoot = !canonicalRel.includes(sep);
       if (!inAppDir && !atRoot) return null;
@@ -349,13 +354,13 @@ export class ImageService {
   async choose(
     driveId: string,
     opts: {
-      url?: string;
-      localPath?: string;
-      data?: Uint8Array;
+      url?: string | undefined;
+      localPath?: string | undefined;
+      data?: Uint8Array | undefined;
       /** Original filename for uploads (derives the extension). */
-      name?: string;
+      name?: string | undefined;
       /** Path relative to the drive root (a pick from listDriveImages). */
-      driveRel?: string;
+      driveRel?: string | undefined;
     },
   ): Promise<string> {
     const dir = this.localDir(driveId);

@@ -66,7 +66,11 @@ export function inferRole(
 
 /** Drives + snapshots query surface (owned by DB via delegation). */
 export class DriveStore {
-  constructor(private readonly sqlite: Database) {}
+  private readonly sqlite: Database;
+
+  constructor(sqlite: Database) {
+    this.sqlite = sqlite;
+  }
 
   private normDrive(d: DriveRow): Drive {
     const verifyReport = d.verify_report_json
@@ -214,7 +218,7 @@ export class DriveStore {
     // Whitespace/empty is not a name — callers mean "clear" (null) or sent
     // garbage; storing "" or "   " renders as a blank label downstream.
     const trimmed = nickname?.trim();
-    const value = trimmed ? trimmed : null;
+    const value = trimmed || null;
     this.sqlite.query("UPDATE drives SET nickname=? WHERE id=?").run(value, id);
   }
 

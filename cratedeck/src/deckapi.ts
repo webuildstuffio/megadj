@@ -41,7 +41,7 @@ import {
   type Job,
   type JobStatus,
 } from "../shared/types";
-export type { Drive, Job, JobStatus };
+export { type Drive, type Job, type JobStatus } from "../shared/types";
 
 /** True when a job has reached a terminal state. */
 export function jobTerminal(status: JobStatus | string): boolean {
@@ -101,7 +101,7 @@ export async function ensureServer(): Promise<boolean> {
     const proc = Bun.spawn(["bun", "run", "cratedeck/src/index.ts"], {
       stdout: "ignore",
       stderr: "ignore",
-      cwd: import.meta.dir + "/../..",
+      cwd: `${import.meta.dir}/../..`,
       detached: true,
     });
     proc.unref();

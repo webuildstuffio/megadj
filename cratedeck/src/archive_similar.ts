@@ -50,7 +50,7 @@ function existingCandidatePath(
       part.toLocaleLowerCase("en-US") === "music" &&
       parts[index + 1]?.toLocaleLowerCase("en-US") === "dj-imports",
   );
-  if (anchor < 0 || anchor + 2 >= parts.length) return null;
+  if (anchor === -1 || anchor + 2 >= parts.length) return null;
   const rebased = resolve(shelfContents, ...parts.slice(anchor + 2));
   return existsSync(rebased) ? { path: rebased, relocated: true } : null;
 }

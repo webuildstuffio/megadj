@@ -10,24 +10,28 @@
 // Same shape as fleet.ts: pure functions in, plain data out, no I/O —
 // the API route / MCP tool / UI feed it and render it.
 import { camelotOf, keyCompatScore } from "../shared/camelot";
+export { camelotOf } from "../shared/camelot";
+export type { MegasetPresetDef, MegasetPresetId } from "../shared/types";
 import {
-  MEGASET_MINUTES_DEFAULT,
-  MEGASET_MINUTES_MAX,
-  MEGASET_MINUTES_MIN,
-  MEGASET_TRACK_MINUTES_MIN,
-  MEGASET_TRACK_MINUTES_MAX,
-  MEGASET_TEMPO_PERFECT,
-  MEGASET_TEMPO_WINDOW,
-  MEGASET_TRANSITION_WEIGHTS,
-  MEGASET_PRESET_DEFS,
-  MEGASET_PRESET_IDS,
   DEFAULT_MEGASET_PRESET,
   isMegasetSearchOverride,
   MEGASET_BEAM_POOL_MAX,
   MEGASET_BEAM_WIDTH,
-  type SetSearchOverride,
+  MEGASET_MINUTES_DEFAULT,
+  MEGASET_MINUTES_MAX,
+  MEGASET_MINUTES_MIN,
+  MEGASET_PRESET_DEFS,
+  MEGASET_PRESET_IDS,
+  MEGASET_TEMPO_PERFECT,
+  MEGASET_TEMPO_WINDOW,
+  MEGASET_TRANSITION_WEIGHTS,
+  MEGASET_TRACK_MINUTES_MAX,
+  MEGASET_TRACK_MINUTES_MIN,
   type MegasetPresetDef,
   type MegasetPresetId,
+  type MegasetResult,
+  type MegasetStep,
+  type SetSearchOverride,
 } from "../shared/types";
 
 export interface SetCandidate {
@@ -54,7 +58,6 @@ export const SET_PRESETS: Record<MegasetPresetId, MegasetPresetDef> =
     MegasetPresetId,
     MegasetPresetDef
   >;
-export type { MegasetPresetDef, MegasetPresetId };
 /** The preset type `buildMegaset` scores against (alias of the shared def —
  *  the old local `SetPreset` interface name, kept for callers). */
 export type SetPreset = MegasetPresetDef;
@@ -99,7 +102,6 @@ export function parseMegasetQuery(params: {
 
 /** Key compat — re-exported from the shared Camelot SSOT so existing
  *  engine-callers (tests, future engines) keep one import point. */
-export { camelotOf };
 
 /** Camelot compatibility score 0..1 between two candidates. 1 = same wheel
  * position or the four classic moves (±1 number same letter, ±1 letter
@@ -207,8 +209,6 @@ export interface MegasetInput {
 // MegasetStep + MegasetResult (the wire shapes) are DEFINED in
 // shared/types.ts — the engine imports them back so the HTTP route and
 // the UI read the same contract with no drifting duplicate.
-import type { MegasetResult, MegasetStep } from "../shared/types";
-export type { MegasetResult };
 
 /** Candidate duration with the 5:00 assumption when unknown. Pure —
  *  module-level, not re-created per `buildMegaset` call (oxlint scoping). */

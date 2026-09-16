@@ -29,7 +29,7 @@ export async function cmdReport(
   // Export button (same GET /drives/:id/export payload).
   if (argv.includes("--dossier")) {
     const outIdx = argv.indexOf("--out");
-    const outFile = outIdx >= 0 ? argv[outIdx + 1] : undefined;
+    const outFile = outIdx !== -1 ? argv[outIdx + 1] : undefined;
     const res = await apiGet(`/api/drives/${d.id}/export`);
     const text = await res.text();
     if (outFile) {

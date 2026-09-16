@@ -43,7 +43,9 @@ export function optNum(
 }
 
 /** Invalid/missing tool argument — maps to JSON-RPC -32602. */
-export class RpcParamError extends Error {}
+export class RpcParamError extends Error {
+  override readonly name = "RpcParamError";
+}
 
 // ---- input-schema builders --------------------------------------------------
 // One source of truth for the JSON-Schema boilerplate every tool repeats

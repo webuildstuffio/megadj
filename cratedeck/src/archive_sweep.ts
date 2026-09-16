@@ -18,7 +18,7 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
-import { ArchiveReader } from "./archive";
+import type { ArchiveReader } from "./archive";
 
 /** One ledger row: the last known-good fingerprint of an archive file.
  *  Corruption memory: when a file's hash diverges from the trusted

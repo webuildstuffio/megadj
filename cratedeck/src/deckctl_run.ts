@@ -6,8 +6,7 @@ import {
   resolveDrive,
   type Job,
 } from "./deckapi";
-import { DRIVE_JOB_KINDS } from "../shared/types";
-import type { InterlockState } from "../shared/types";
+import { DRIVE_JOB_KINDS, type InterlockState } from "../shared/types";
 import {
   IS_TTY,
   JSON_MODE,

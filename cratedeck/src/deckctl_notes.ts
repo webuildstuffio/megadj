@@ -36,7 +36,7 @@ export async function cmdNote(
   text: string,
 ): Promise<void> {
   const sevIdx = h.argv.indexOf("--severity");
-  const severity = sevIdx >= 0 ? h.argv[sevIdx + 1] : undefined;
+  const severity = sevIdx !== -1 ? h.argv[sevIdx + 1] : undefined;
   const d = await resolveDriveOrExit(h, nameOrId);
   const res = await apiPost(`/api/drives/${d.id}/notes`, {
     note: text,

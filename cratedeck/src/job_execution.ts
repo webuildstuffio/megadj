@@ -1,9 +1,12 @@
 /** Job-kind execution legs. JobEngine owns queueing and lifecycle only. */
 import { basename } from "node:path";
 import type { FixesPayload } from "../shared/fixes";
-import { fmtBytes } from "../shared/fmt";
-import type { IntakeResult, Job } from "../shared/types";
-import { INTAKE_COUNTER_KEYS } from "../shared/types";
+import { errMessage as errorText, fmtBytes } from "../shared/fmt";
+import {
+  INTAKE_COUNTER_KEYS,
+  type IntakeResult,
+  type Job,
+} from "../shared/types";
 import { benchmarkDrive, checksumLedger, speedProbe } from "./bench";
 import type { CrateConfig } from "./config";
 import type { DB } from "./db";
@@ -27,7 +30,6 @@ import {
 import { rbSnapshot, spawnMirror, spawnVerify } from "./rb";
 import { scanVolume } from "./scan";
 import { lastLines, parseVerifyReport } from "./verify_report";
-import { errMessage as errorText } from "../shared/fmt";
 
 export interface JobExecutionDeps {
   cfg: CrateConfig;

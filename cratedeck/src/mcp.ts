@@ -71,21 +71,24 @@ import {
   resolveDrive,
   PORT,
   waitForJob,
-  jobTerminal,
   type Job,
 } from "./deckapi";
+export { jobTerminal } from "./deckapi";
 import { KIND_DOCS } from "./deckctl_docs";
 import { VERIFY_HELP } from "./verify_help";
 import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
-import type { CoverageResponse, RedundancyResult } from "../shared/types";
+import {
+  JOB_KINDS,
+  type CoverageResponse,
+  type RedundancyResult,
+} from "../shared/types";
 import { serveMcp, type ToolDef } from "./mcp_server";
-import { JOB_KINDS } from "../shared/types";
 import { loadConfig } from "./config";
 import { drain } from "./jobs";
 import { runCliJob } from "./cli_job_leg";
 
 // re-exported for tests (deckapi's terminal-status predicate)
-export { jobTerminal };
+
 export type { ToolDef } from "./mcp_server";
 
 // ---- tool definitions -------------------------------------------------------
@@ -155,7 +158,7 @@ async function runGetDatCli(
   argv: string[],
   dryRun: boolean,
 ): Promise<Record<string, unknown>> {
-  const cfg = loadConfig(import.meta.dir + "/..");
+  const cfg = loadConfig(`${import.meta.dir}/..`);
   const handle: { cancelled: boolean; proc?: Bun.Subprocess } = {
     cancelled: false,
   };

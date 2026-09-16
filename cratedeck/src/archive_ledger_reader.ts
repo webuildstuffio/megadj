@@ -11,7 +11,11 @@ export abstract class ArchiveLedgerReader {
   private db: Database | null = null;
   private tried = false;
 
-  constructor(private readonly path: string) {}
+  private readonly path: string;
+
+  constructor(path: string) {
+    this.path = path;
+  }
 
   /** Subclass tag for the logged boundary (e.g. "shelf-sweeps"). */
   protected abstract readonly label: string;

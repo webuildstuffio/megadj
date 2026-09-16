@@ -25,7 +25,7 @@ export async function photoUpload(
   req: Request,
   id: string,
   images: {
-    choose(
+    choose: (
       id: string,
       src: {
         data?: Uint8Array | undefined;
@@ -34,8 +34,8 @@ export async function photoUpload(
         localPath?: string | undefined;
         driveRel?: string | undefined;
       },
-    ): Promise<string>;
-    clear(id: string): void;
+    ) => Promise<string>;
+    clear: (id: string) => void;
   },
   json: (data: unknown, status?: number) => Response,
 ): Promise<Response> {
@@ -116,15 +116,15 @@ export function makeEnqueueDriveJob(deps: {
   cfg: CrateConfig;
   images: Parameters<typeof photoUpload>[2];
   jobs: {
-    enqueue(
+    enqueue: (
       driveId: string,
       kind: JobKind,
       mountPoint: string,
       origin: string,
-    ): { id: string };
+    ) => { id: string };
   };
-  getDrive(id: string): (Drive & { mounted?: boolean }) | undefined;
-  json(data: unknown, status?: number): Response;
+  getDrive: (id: string) => (Drive & { mounted?: boolean }) | undefined;
+  json: (data: unknown, status?: number) => Response;
 }) {
   const { cfg, jobs, getDrive, json } = deps;
   return async function enqueueDriveJob(

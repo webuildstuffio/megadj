@@ -72,10 +72,13 @@ class ArchiveReaderCore {
     string,
     { key: string; analyzedAt: string; size: number; mtimeMs: number }
   >();
-  constructor(
-    readonly path: string,
-    protected readonly shelfContents?: string,
-  ) {}
+  readonly path: string;
+  protected readonly shelfContents: string | undefined;
+
+  constructor(path: string, shelfContents?: string) {
+    this.path = path;
+    this.shelfContents = shelfContents;
+  }
 
   /** Public "is the archive DB present" probe (routes/agents use this to
    *  degrade gracefully; keeps `handle( + ` private). */
@@ -517,14 +520,14 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
        ORDER BY t.updated_at DESC LIMIT ?`,
       Math.min(Math.max(limit, 1), 500),
     );
-    type Offender = {
+    interface Offender {
       video_id: string;
       title: string | null;
       rbBpm: number;
       ledgerBpm: number;
       driftMs: number;
       reason: string;
-    };
+    }
     const off: Offender[] = [];
     const octave: Offender[] = [];
     const drift: Offender[] = [];

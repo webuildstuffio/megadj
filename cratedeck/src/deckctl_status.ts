@@ -1,5 +1,4 @@
-import type { Job, Drive } from "./deckapi";
-import { apiPost, resolveDrive } from "./deckapi";
+import { apiPost, resolveDrive, type Drive, type Job } from "./deckapi";
 import type { InterlockState } from "../shared/types";
 import type { PreflightReport } from "./preflight";
 import { collectPlayers } from "./deckctl_players";

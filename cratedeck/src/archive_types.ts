@@ -18,9 +18,9 @@ export type { ArchiveTrack } from "../shared/archive-wire";
  *  the leaf stays dependency-free and `implements` verifies equality. */
 export interface ArchiveQuery {
   /** Public "is the archive DB present" probe. */
-  available(): boolean;
+  available: () => boolean;
   /** Parameterised SELECT only — still read-only by construction. */
-  rows<T>(
+  rows: <T>(
     sql: string,
     ...params: (
       | string
@@ -28,13 +28,13 @@ export interface ArchiveQuery {
       | bigint
       | boolean
       | null
-      | { [k: string]: string | number | bigint | boolean | null }
+      | Record<string, string | number | bigint | boolean | null>
     )[]
-  ): T[];
+  ) => T[];
   /** rows(...)[0] — undefined when the query matched nothing. Kept on
    *  the leaf so single-row probes (freshness census) don't over-fetch
    *  or lean on noUncheckedIndexedAccess gymnastics. */
-  row<T>(
+  row: <T>(
     sql: string,
     ...params: (
       | string
@@ -42,21 +42,21 @@ export interface ArchiveQuery {
       | bigint
       | boolean
       | null
-      | { [k: string]: string | number | bigint | boolean | null }
+      | Record<string, string | number | bigint | boolean | null>
     )[]
-  ): T | undefined;
+  ) => T | undefined;
   /** Cached musical key (Camelot TKEY), valid for this exact source path.
    *  Null means read the actual file. */
-  keyRecord(
+  keyRecord: (
     videoId: string,
     sourcePath: string,
-  ): { key: string; analyzedAt: string } | null;
+  ) => { key: string; analyzedAt: string } | null;
   /** Remember a live file read for this reader's lifetime only. */
-  rememberKeyRecord(rec: {
+  rememberKeyRecord: (rec: {
     videoId: string;
     key: string;
     sourcePath: string;
-  }): void;
+  }) => void;
   /** The ArchiveTrack column list shared by every full-row query. */
-  trackCols(): string;
+  trackCols: () => string;
 }

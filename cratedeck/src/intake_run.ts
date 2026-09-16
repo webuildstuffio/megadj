@@ -141,7 +141,7 @@ export function splitIntakeStdout(out: string): {
     }
   }
   const idx = out.lastIndexOf("\n{");
-  if (idx < 0) return { log: out, summary: null };
+  if (idx === -1) return { log: out, summary: null };
   try {
     const summary = JSON.parse(out.slice(idx + 1)) as Record<string, unknown>;
     return { log: out.slice(0, idx + 1), summary };

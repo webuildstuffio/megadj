@@ -45,12 +45,16 @@ export class JobEngine {
    *  actually moves, which is exactly the wedge we must catch). */
   private progressAt = new Map<string, number>();
 
-  constructor(
-    private cfg: CrateConfig,
-    private db: DB,
-    private guard: Guard,
-    private emit: Emit,
-  ) {
+  private cfg: CrateConfig;
+  private db: DB;
+  private guard: Guard;
+  private emit: Emit;
+
+  constructor(cfg: CrateConfig, db: DB, guard: Guard, emit: Emit) {
+    this.cfg = cfg;
+    this.db = db;
+    this.guard = guard;
+    this.emit = emit;
     // Phantom-job reaper: if a 'running' row hasn't been touched in 2 min
     // while no in-process handle owns it, the completion event was lost
     // (crash, full server freeze). Mark it interrupted so the UI and the
@@ -179,7 +183,7 @@ export class JobEngine {
       return true;
     }
     const qi = this.queue.findIndex((q) => q.job.id === jobId);
-    if (qi >= 0) {
+    if (qi !== -1) {
       this.queue.splice(qi, 1);
       this.db.updateJob(jobId, {
         status: "cancelled",

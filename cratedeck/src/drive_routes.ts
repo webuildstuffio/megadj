@@ -45,7 +45,7 @@ export function makeDriveRoutes(deps: {
     json: (data: unknown, status?: number) => Response,
   ) => Promise<Response> | Response;
   hygieneBadge: () => unknown;
-  shelfSweeps: { latestPerDrive(): Map<string, unknown> };
+  shelfSweeps: { latestPerDrive: () => Map<string, unknown> };
   json: (data: unknown, status?: number) => Response;
 }) {
   const { db, cfg, registry, images, reportDeps, json } = deps;

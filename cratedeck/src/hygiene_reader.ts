@@ -2,15 +2,13 @@
 // `hygiene_findings` ledger (the shelf-hygiene feature's SSOT). Lifecycle
 // + the degrade-to-empty guarantee live in ArchiveLedgerReader (shared
 // with the shelf-sweeps ledger — one implementation, not two copies).
-import type {
-  Finding,
-  HygieneBadge,
-  HygieneFindingRow,
-} from "../shared/hygiene";
 import {
   hydrateHygieneFinding,
   hygieneWhere,
   HYGIENE_ORDER_SQL,
+  type Finding,
+  type HygieneBadge,
+  type HygieneFindingRow,
 } from "../shared/hygiene";
 import { ArchiveLedgerReader } from "./archive_ledger_reader";
 

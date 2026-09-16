@@ -105,7 +105,7 @@ const images = new ImageService(cfg, db, guard);
 const jobs = new JobEngine(cfg, db, guard, emit);
 
 function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
+  return Response.json(data, {
     status,
     headers: { "Content-Type": "application/json" },
   });
@@ -216,14 +216,13 @@ const fixesMusicDir = (): string => {
   return `/Volumes/${shelf.name}/Contents`;
 };
 const fixesApi = makeFixesRoutes({
-  enqueue: (kind) => {
-    return jobs.enqueue(
+  enqueue: (kind) =>
+    jobs.enqueue(
       registry.list().find((d) => d.role === "shelf" && d.mounted)!.id,
       kind,
       fixesMusicDir(),
       "web",
-    );
-  },
+    ),
   json,
 });
 

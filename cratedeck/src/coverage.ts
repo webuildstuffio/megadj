@@ -22,11 +22,11 @@ import type {
   TrackCoverage,
   TrackRow,
 } from "../shared/types";
-
-// TrackRow/PlaylistEntryRow/ManifestRow re-exports stay (db.ts + tests
-// import them from here); the rest of the wire types live canonically in
-// shared/types.ts — import them from there.
-export type { ManifestRow, PlaylistEntryRow, TrackRow };
+export {
+  type ManifestRow,
+  type PlaylistEntryRow,
+  type TrackRow,
+} from "../shared/types";
 
 /** Casefold like scan.nfcCasefold without importing scan (keeps this pure). */
 function fold(s: string): string {

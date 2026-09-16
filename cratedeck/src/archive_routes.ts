@@ -89,12 +89,9 @@ function resolveSetBuild(
  * than allowing track metadata to inject playlist directives. Built from
  * code points instead of a literal control-char class (no-control-regex). */
 const M3U_CONTROL_CHARS = new RegExp(
-  "[" +
-    String.fromCharCode(0x00) +
-    "-" +
-    String.fromCharCode(0x1f) +
-    String.fromCharCode(0x7f) +
-    "]+",
+  `[${String.fromCharCode(0x00)}-${String.fromCharCode(
+    0x1f,
+  )}${String.fromCharCode(0x7f)}]+`,
   "g",
 );
 function m3uText(value: string | null, fallback: string): string {
@@ -331,7 +328,7 @@ export function archiveRoutes(
 }
 
 function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
+  return Response.json(data, {
     status,
     headers: { "Content-Type": "application/json" },
   });
