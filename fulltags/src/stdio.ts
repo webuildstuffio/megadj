@@ -30,7 +30,7 @@ export function lineReader(stdout: ReadableStream): LineReader {
   // The single allowed in-progress read. A deadline that fires while this
   // is pending leaves it here; the next next() call consumes it instead
   // of issuing a second overlapping read.
-  let inflight: Promise<ReadableStreamReadResult<Uint8Array>> | null = null;
+  let inflight: ReturnType<typeof reader.read> | null = null;
 
   return {
     async next(timeoutMs: number): Promise<string | null> {
@@ -42,17 +42,15 @@ export function lineReader(stdout: ReadableStream): LineReader {
           buf = buf.slice(nl + 1);
           return line;
         }
-        if (!inflight) inflight = reader.read();
+        // Snapshot (non-null via ??) — TS cannot keep narrowing of the
+        // captured `let` across the loop + awaited race below.
+        const pending = inflight ?? reader.read();
+        inflight = pending;
         const remaining = deadline - Date.now();
         if (remaining <= 0) return null;
         let timer: ReturnType<typeof setTimeout> | undefined;
         const winner = await Promise.race([
-          inflight.then(
-            (r): { kind: "read"; r: ReadableStreamReadResult<Uint8Array> } => ({
-              kind: "read",
-              r,
-            }),
-          ),
+          pending.then((r) => ({ kind: "read", r }) as const),
           new Promise<{ kind: "timeout" }>((resolve) => {
             timer = setTimeout(() => resolve({ kind: "timeout" }), remaining);
           }),

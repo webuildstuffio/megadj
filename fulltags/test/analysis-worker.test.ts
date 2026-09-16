@@ -7,6 +7,7 @@ import {
   lineHasRequestId,
 } from "../src/analysis-worker";
 import { lineReader } from "../src/stdio";
+import { parseJsonObject } from "../src/parse-json";
 import { join } from "node:path";
 
 /** The fake workers live as real files: `bun -e` heredoc scripts proved
@@ -28,7 +29,9 @@ describe("analysis-worker session kit (#189)", () => {
     const lr = lineReader(proc.stdout as ReadableStream);
     const line = await readUntilLine(lr, (l) => l.includes("hit"), 2_000);
     expect(line).not.toBeNull();
-    expect(JSON.parse(line!).hit).toBe(1);
+    // parseJsonObject (the guarded boundary) instead of a bare JSON.parse
+    // non-null assertion — the repo's 100% type-coverage rule.
+    expect(parseJsonObject(line ?? "")?.hit).toBe(1);
     // stream drained → next read hits EOF → null (no hang)
     expect(await readUntilLine(lr, () => true, 500)).toBeNull();
     proc.kill();

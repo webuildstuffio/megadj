@@ -26,7 +26,8 @@
         "src/fetch-pipeline.ts",
         "src/verify-key.ts",
         "test/*.test.ts",
-        "test/helpers/*.ts"
+        "test/helpers/*.ts",
+        "test/fixtures/*.ts"
       ],
       "ignoreBinaries": ["ffmpeg"],
       "ignoreExportsUsedInFile": true

@@ -4,7 +4,7 @@
 // the kit's kill() reaps it (mirrors the real analyzers' shutdown shape).
 const DELAY_MS = Number(process.argv[2] ?? "0");
 let buf = "";
-process.stdout.write(JSON.stringify({ type: "ready" }) + "\n");
+process.stdout.write(`${JSON.stringify({ type: "ready" })}\n`);
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk: string) => {
   buf += chunk;
@@ -13,8 +13,9 @@ process.stdin.on("data", (chunk: string) => {
     const line = buf.slice(0, nl);
     buf = buf.slice(nl + 1);
     const req = JSON.parse(line) as { id: string };
-    const reply = (): void =>
-      process.stdout.write(JSON.stringify({ id: req.id, ok: true }) + "\n");
+    const reply = (): void => {
+      process.stdout.write(`${JSON.stringify({ id: req.id, ok: true })}\n`);
+    };
     if (DELAY_MS > 0) setTimeout(reply, DELAY_MS);
     else reply();
   }
