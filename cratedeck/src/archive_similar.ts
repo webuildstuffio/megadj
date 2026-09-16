@@ -10,7 +10,11 @@
 import { existsSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { groundTruth } from "../../fulltags/src/exports";
-import { isFiniteNumberArray } from "../shared/guards";
+import {
+  isFiniteNumber,
+  isFiniteNumberArray,
+  isRecord,
+} from "../shared/guards";
 import { cosineSimilarity } from "../shared/similarity";
 import {
   applySpace,
@@ -71,6 +75,43 @@ function measuredBpm(row: {
     row.rekordbox_bpm > 0
     ? row.rekordbox_bpm
     : null;
+}
+
+/** #106 Phase D: parse the `cues` ledger join into the pool-candidate
+ *  cue subset (bar + position). Guarded: null/absent → [] (the track
+ *  simply has no derivation); malformed JSON or non-finite fields → []
+ *  with a console.warn diagnostic — one bad row never kills a pool
+ *  build, and the handoff derivation degrades to null, never invented
+ *  bars. The `memory` flag and model fields are ignored here (the
+ *  memory spine is a CDJ-write concern, not a proposal concern). */
+function parsePoolCues(raw: string | null): {
+  bar: number;
+  position: number;
+}[] {
+  if (raw === null) return [];
+  let value: unknown;
+  try {
+    value = JSON.parse(raw) as unknown;
+  } catch (error) {
+    console.warn("cues_json is malformed JSON — pool row scored without cues");
+    void error;
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    console.warn("cues_json is not an array — pool row scored without cues");
+    return [];
+  }
+  const out: { bar: number; position: number }[] = [];
+  for (const entry of value as unknown[]) {
+    if (
+      isRecord(entry) &&
+      isFiniteNumber(entry.bar) &&
+      isFiniteNumber(entry.position)
+    ) {
+      out.push({ bar: entry.bar, position: entry.position });
+    }
+  }
+  return out;
 }
 
 /**
@@ -243,6 +284,16 @@ export function setCandidates(
          ORDER BY rc2.updated_at DESC, rc2.content_id DESC LIMIT 1
        )`
     : "";
+  // #106 Phase D: the phrase-cue join. Like `cueStats`, guarded on the
+  // table's existence — pre-cues archive DBs must still build sets (the
+  // derivation then degrades to null handoff windows, not a crash).
+  const hasCues =
+    reader.row<{ present: number }>(
+      `SELECT 1 AS present FROM sqlite_master
+     WHERE type = 'table' AND name = 'cues'`,
+    )?.present === 1;
+  const cuesJoin = hasCues ? `LEFT JOIN cues c ON c.video_id = t.video_id` : "";
+  const cuesColumn = hasCues ? "c.cues_json" : "NULL";
   const rows = reader.rows<{
     video_id: string;
     title: string | null;
@@ -255,13 +306,16 @@ export function setCandidates(
     valence: number | null;
     arousal: number | null;
     dance: number | null;
+    cues_json: string | null;
   }>(
     `SELECT t.video_id, t.title, t.artist, t.duration_s, t.file_path,
             b.bpm_folded, ${rekordboxColumns},
-            m.valence, m.arousal, m.dance
+            m.valence, m.arousal, m.dance,
+            ${cuesColumn} AS cues_json
      FROM tracks t
      LEFT JOIN beats b ON b.video_id = t.video_id
      LEFT JOIN mood m ON m.video_id = t.video_id
+     ${cuesJoin}
      ${rekordboxJoin}
      WHERE t.status = 'downloaded'
      ORDER BY t.updated_at DESC
@@ -370,6 +424,7 @@ export function setCandidates(
       valence: r.valence,
       arousal: r.arousal,
       dance: r.dance,
+      cues: parsePoolCues(r.cues_json),
       filePath: r.file_path,
       metadataOnly: r.metadataOnly,
     };

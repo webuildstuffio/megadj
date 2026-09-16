@@ -16,6 +16,7 @@ fails the build on it.
 - rev-27 (2026-09-16): #143 registry — megadj help/census SSOT is `src/command-registry.ts` (`COMMAND_DOCS`); `usage.ts` renders from it; census + help cross-check off the one table. 45 commands unchanged (the stale duplicate `rb-comment-sync --limit` help block — a flag the arm never parsed — is the one removed line).
 - rev-28 (2026-09-16): #47 producer split — `getdat_ingest`/`getdat_convert` moved to `getdat_tools.ts` (mcp.ts is pure assembly: deriveDeckTools + archiveTools + getdatTools); `archiveTools()` typed `Record<string, ToolDef>`; the deck parity census derives exactly from `DECK_MCP_SURFACES`. 41 tools unchanged.
 - rev-29 (2026-09-16): #104 — MegaSet payload gains `metadata_only` + `excluded_groups` (B1 offline pool, B13 exclusion shape); all three surfaces read the same wire contract, no new params, census counts unchanged.
+- rev-30 (2026-09-16): #106 Phase D — MegaSet steps gain `mixInCue`/`mixOutCue` (8-bar phrase windows derived from the cues ledger, nearest to the 45 s intro/outro handoff targets); M3U8 export renders them as `#EXTREM` comments; `rb-playlist` dry-run reports per-step cue windows (`cueWindows`); arc-chart hover cards carry the windows. No new routes/tools/params; census counts unchanged.
 
 The full prose of all 27 revisions lives in Git history
 (`git log --follow -- docs/surface-parity.md`) per §5 — this doc keeps

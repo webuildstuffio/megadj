@@ -294,6 +294,8 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 3,
         atMin: 5,
         transition: null,
+        mixOutCue: null,
+        mixInCue: { bar: 9, position: 15.2 },
       },
       {
         videoId: "b",
@@ -304,6 +306,8 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 6,
         atMin: 12,
         transition: 0.8,
+        mixOutCue: { bar: 41, position: 76.2 },
+        mixInCue: { bar: 9, position: 15.2 },
       },
       {
         videoId: "c",
@@ -314,6 +318,8 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 8.5,
         atMin: 30,
         transition: 0.7,
+        mixOutCue: { bar: 57, position: 91 },
+        mixInCue: { bar: 25, position: 44 },
       },
     ];
     const html = render(
@@ -332,6 +338,10 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("#3 DJ — Peak");
     expect(html).toContain("30 min · 130 BPM · 5A · energy Maximum (8.5/9)");
     expect(html).toContain("transition 0.70");
+    // #106 Phase D: handoff windows render in the hover evidence; steps
+    // without a cue derivation simply omit the lines (never "bar ?")
+    expect(html).toContain("mix-in 44s (bar 25)");
+    expect(html).toContain("mix-out 91s (bar 57)");
     // caption: legend + glide + totals
     expect(html).toContain("Peak time target");
     expect(html).toContain("key glide 8A → 5A");
@@ -393,6 +403,8 @@ describe("FullTags Similar and Set Builder UX", () => {
         arousal: 4,
         atMin: 5.2,
         transition: null,
+        mixOutCue: null,
+        mixInCue: null,
       },
     ],
     excluded: [],

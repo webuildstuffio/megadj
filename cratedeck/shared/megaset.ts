@@ -6,6 +6,16 @@
 // the UI panel (web SimilarTab) all derive from THIS file — never a
 // local twin (a local duplicate drifted once and crashed the render).
 
+/** One phrase-boundary landmark on a set step (#106 Phase D handoff
+ *  layer): an 8-bar DJ phrase cue from the `cues` ledger, in the units
+ *  the ledger stores (bar 1-based, position in seconds). Both fields
+ *  null together when the track has no cues ledger row — a missing
+ *  derivation degrades honestly, never an invented bar. */
+export interface MegasetCuePoint {
+  bar: number;
+  position: number;
+}
+
 export interface MegasetStep {
   videoId: string;
   title: string | null;
@@ -17,6 +27,12 @@ export interface MegasetStep {
   atMin: number;
   /** transition score into this track (first track: null) */
   transition: number | null;
+  /** #106: 8-bar boundary nearest the handoff overlap window — where
+   *  the PREVIOUS track hands over (outro side of this step's end). */
+  mixOutCue: MegasetCuePoint | null;
+  /** #106: 8-bar boundary nearest the handoff overlap window — where
+   *  THIS track can take over (intro side, a few phrases in). */
+  mixInCue: MegasetCuePoint | null;
 }
 
 export interface MegasetResult {
@@ -221,6 +237,17 @@ export const MEGASET_DRIFT_BUDGET = 0.12;
  *  distance of 2×/½× the anchor passes the budget on the branch lane. */
 export const MEGASET_BRANCH_TOLERANCE = 0.06;
 
+// ---- Phase D handoff layer (#106): phrase-aware transition windows ----
+/** How deep into a track's end the mix-out overlap targets (seconds).
+ *  45 s ≈ 16 bars at 128 BPM — a full 8-bar boundary + slack inside the
+ *  classic 32–64 bar outro blend. Frozen like the scoring constants (no
+ *  user-tunable knobs); every surface quotes the same number. */
+export const MEGASET_HANDOFF_OVERLAP_S = 45;
+/** How deep into a track's start the mix-in overlap targets (seconds).
+ *  45 s ≈ bar 9–17 — the first phrases are usually intro (drums/hats),
+ *  so the takeover landmark sits a phrase or two in. */
+export const MEGASET_HANDOFF_INTRO_S = 45;
+
 /** B13 (#104): one excluded-reason bucketing, derived from the SAME
  *  excluded[] the engine produced — never a hand-copied bucket list.
  *  Per-track rows stay the honest record (`excluded[]` flat preview +
@@ -250,6 +277,69 @@ export function groupMegasetExcluded(
     if (bucket.examples.length < 4) bucket.examples.push(e.title ?? e.videoId);
   }
   return [...byReason.values()].toSorted((a, b) => b.count - a.count);
+}
+
+// ---- Phase D handoff derivation (#106) -------------------------------------
+// Pure over the cues-ledger join: the engine (and any surface re-rendering
+// a step) derives the SAME windows from the SAME cue arrays — no surface
+// re-derives with its own "nearest boundary" math.
+
+/** One phrase cue as joined from the `cues` ledger (subset of the
+ *  writer's shape — the fields the handoff derivation needs). */
+export interface MegasetCue {
+  bar: number;
+  position: number;
+}
+
+/** Nearest-in-list helper with a documented tie-break: when two cues are
+ *  equidistant from the target, the EARLIER boundary wins (deterministic
+ *  and DJ-sensible — an earlier takeover is always safer than a later
+ *  one caught mid-phrase). Returns null for an empty list: no ledger
+ *  row → no invented bar. */
+export function nearestMegasetCue(
+  cues: readonly MegasetCue[],
+  targetS: number,
+): MegasetCuePoint | null {
+  let best: MegasetCuePoint | null = null;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const cue of cues) {
+    if (!Number.isFinite(cue.position) || !Number.isFinite(cue.bar)) continue;
+    const dist = Math.abs(cue.position - targetS);
+    // strict < keeps the FIRST-SEEN cue on a distance tie; the ledger is
+    // written in ascending bar order, so first-seen == earlier boundary.
+    // (An equal-distance later bar would flip only with `<=` — the tie
+    // regression test pins the earlier-bar outcome either way.)
+    if (
+      dist < bestDist ||
+      (dist === bestDist && cue.bar < (best?.bar ?? cue.bar))
+    ) {
+      bestDist = dist;
+      best = { bar: cue.bar, position: cue.position };
+    }
+  }
+  return best;
+}
+
+/** mix-out landmark for a step: the 8-bar boundary nearest the outro
+ *  overlap target (duration − MEGASET_HANDOFF_OVERLAP_S). Needs a finite
+ *  duration; a metadata-only row without one degrades to null. */
+export function megasetMixOutCue(
+  cues: readonly MegasetCue[],
+  durationS: number | null,
+): MegasetCuePoint | null {
+  if (cues.length === 0 || durationS === null || !Number.isFinite(durationS))
+    return null;
+  return nearestMegasetCue(cues, durationS - MEGASET_HANDOFF_OVERLAP_S);
+}
+
+/** mix-in landmark for a step: the 8-bar boundary nearest the intro
+ *  overlap target (MEGASET_HANDOFF_INTRO_S from the start — the first
+ *  phrases are usually intro, so the takeover landmark sits a phrase or
+ *  two in). Works without a duration (the intro side never needs one). */
+export function megasetMixInCue(
+  cues: readonly MegasetCue[],
+): MegasetCuePoint | null {
+  return nearestMegasetCue(cues, MEGASET_HANDOFF_INTRO_S);
 }
 
 /** An optional candidate-pool cap (`?limit=`), shared by HTTP, CLI and MCP.

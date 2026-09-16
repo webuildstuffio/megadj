@@ -8,6 +8,11 @@ import { bpmScore, parseMegasetQuery } from "../src/megaset";
 import {
   isShelfOffline,
   clampMegasetPool,
+  MEGASET_HANDOFF_INTRO_S,
+  MEGASET_HANDOFF_OVERLAP_S,
+  megasetMixInCue,
+  megasetMixOutCue,
+  nearestMegasetCue,
   MEGASET_POOL_MAX,
   MEGASET_POOL_UNLIMITED,
   MEGASET_TEMPO_PERFECT,
@@ -153,5 +158,59 @@ describe("isShelfOffline (the unmounted-shelf signature)", () => {
     // but if the chain built from those metadata rows, it is NOT offline
     const built = { ...offlineWithMeta, steps: [{ atMin: 30 }] };
     expect(isShelfOffline(built, built)).toBe(false);
+  });
+});
+
+describe("megaset handoff cues (#106 Phase D) — pure derivation over the cues ledger", () => {
+  const cues = [
+    { bar: 1, position: 0 },
+    { bar: 9, position: 15.2 },
+    { bar: 17, position: 30.4 },
+    { bar: 25, position: 45.1 },
+    { bar: 33, position: 60.8 },
+    { bar: 41, position: 76.2 },
+    { bar: 49, position: 91.4 },
+    { bar: 57, position: 106.9 },
+  ];
+  test("nearestMegasetCue picks the closest boundary; ties go to the EARLIER cue", () => {
+    expect(nearestMegasetCue(cues, 29)).toEqual({ bar: 17, position: 30.4 });
+    expect(nearestMegasetCue(cues, 100)).toEqual({ bar: 57, position: 106.9 });
+    // exact tie (15 and 45 are 15 s from 30) → the earlier boundary wins
+    expect(
+      nearestMegasetCue(
+        [
+          { bar: 9, position: 45 },
+          { bar: 1, position: 15 },
+        ],
+        30,
+      ),
+    ).toEqual({ bar: 1, position: 15 });
+  });
+  test("empty list → null (no ledger row → no invented bar)", () => {
+    expect(nearestMegasetCue([], 45)).toBeNull();
+  });
+  test("non-finite cue fields are skipped, never selected", () => {
+    const dirty = [
+      { bar: Number.NaN, position: 45 },
+      { bar: 5, position: Number.NaN },
+      { bar: 9, position: 15 },
+    ];
+    expect(nearestMegasetCue(dirty, 44)).toEqual({ bar: 9, position: 15 });
+  });
+  test("mix-in targets the intro landmark (MEGASET_HANDOFF_INTRO_S) without needing a duration", () => {
+    // intro target 45 s → nearest boundary is bar 25 @ 45.1
+    expect(megasetMixInCue(cues)).toEqual({ bar: 25, position: 45.1 });
+    expect(MEGASET_HANDOFF_INTRO_S).toBe(45);
+  });
+  test("mix-out targets the outro landmark (duration − MEGASET_HANDOFF_OVERLAP_S)", () => {
+    expect(MEGASET_HANDOFF_OVERLAP_S).toBe(45);
+    // 150 s track → target 105 s → bar 57 @ 106.9
+    expect(megasetMixOutCue(cues, 150)).toEqual({ bar: 57, position: 106.9 });
+  });
+  test("mix-out degrades honestly: null duration or no cues → null", () => {
+    expect(megasetMixOutCue(cues, null)).toBeNull();
+    expect(megasetMixOutCue([], 150)).toBeNull();
+    expect(megasetMixOutCue([], null)).toBeNull();
+    expect(megasetMixInCue([])).toBeNull();
   });
 });

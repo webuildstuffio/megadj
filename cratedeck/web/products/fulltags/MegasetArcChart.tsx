@@ -85,7 +85,7 @@ export function MegasetArcChart(props: {
         {props.steps.map((s, i) => (
           <g key={s.videoId}>
             <title>
-              {`#${i + 1} ${s.artist ?? "?"} — ${s.title ?? s.videoId}\n${Math.round(s.atMin)} min · ${s.bpm === null ? "?" : Math.round(s.bpm)} BPM · ${s.key ?? "?"} · energy ${s.arousal === null ? "?" : `${energyBand(s.arousal)} (${s.arousal.toFixed(1)}/9)`}${s.transition === null ? "" : `\ntransition ${s.transition.toFixed(2)}`}`}
+              {`#${i + 1} ${s.artist ?? "?"} — ${s.title ?? s.videoId}\n${Math.round(s.atMin)} min · ${s.bpm === null ? "?" : Math.round(s.bpm)} BPM · ${s.key ?? "?"} · energy ${s.arousal === null ? "?" : `${energyBand(s.arousal)} (${s.arousal.toFixed(1)}/9)`}${s.transition === null ? "" : `\ntransition ${s.transition.toFixed(2)}`}${s.mixInCue === null ? "" : `\nmix-in ${Math.round(s.mixInCue.position)}s (bar ${s.mixInCue.bar})`}${s.mixOutCue === null ? "" : `\nmix-out ${Math.round(s.mixOutCue.position)}s (bar ${s.mixOutCue.bar})`}`}
             </title>
             <rect
               class="arc-hit"

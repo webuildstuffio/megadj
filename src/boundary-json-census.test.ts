@@ -80,10 +80,13 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 16 (CCN diet): digest changed — the rb-adopt mirror parse
     // moved from trackTagCompare into the extracted readRekordboxMirror
     // helper; same call, same sanction, new enclosing-function path.
-    audited: 59,
-    guarded: 43,
+    // Sep 16 (#106): audited/guarded 59→60 / 43→44 — the cues-ledger
+    // pool join (archive_similar.ts parsePoolCues) adds one GUARDED
+    // parse under the same EXPLICIT_NULL contract as parseCuePoints.
+    audited: 60,
+    guarded: 44,
     sanctioned: 16,
-    digest: "5e466fe6105bcab80a0183612678be7a09a32ada0dc83f04a97fffd98ba514bb",
+    digest: "21fca82950e4aec731021a396500465e097ec97ad936f8209ad9f1519bd1f179",
   });
 });
 

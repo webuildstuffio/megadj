@@ -16,6 +16,8 @@ import {
   DEFAULT_MEGASET_PRESET,
   groupMegasetExcluded,
   isMegasetSearchOverride,
+  megasetMixInCue,
+  megasetMixOutCue,
   MEGASET_ANCHOR_WEIGHT,
   MEGASET_AROUSAL_EPSILON,
   MEGASET_BEAM_POOL_MAX,
@@ -52,6 +54,10 @@ export interface SetCandidate {
   valence: number | null;
   arousal: number | null;
   dance: number | null;
+  /** #106 Phase D: phrase cues from the `cues` ledger (8-bar boundaries,
+   *  bar 1-based / position seconds). Empty when the track has no ledger
+   *  row — the handoff derivation degrades to null, never invented bars. */
+  cues: { bar: number; position: number }[];
 }
 
 // N80 energy-arc presets — DERIVED from the shared registry
@@ -512,6 +518,11 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
   let search: MegasetResult["search"] = "greedy";
   const push = (c: SetCandidate, transition: number | null): void => {
     elapsed += dur(c);
+    // #106 Phase D: phrase-aware handoff landmarks, derived from the
+    // cues ledger join. `?? []` hardens the boundary: pool producers
+    // written before the cues join (or test doubles) omit the field —
+    // degrading to "no derivation" beats a crash mid-build.
+    const cueList = c.cues ?? [];
     steps.push({
       videoId: c.videoId,
       title: c.title,
@@ -522,6 +533,8 @@ export function buildMegaset(input: MegasetInput): MegasetResult {
       atMin: minutesAt(elapsed),
       transition:
         transition === null ? null : Math.round(transition * 1000) / 1000,
+      mixOutCue: megasetMixOutCue(cueList, c.durationS),
+      mixInCue: megasetMixInCue(cueList),
     });
   };
   /** Finish from the chain's real elapsed time. Whole-track selection can

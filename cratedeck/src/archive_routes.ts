@@ -217,7 +217,23 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
           const title = m3uText(step.title, step.videoId);
           const filePath = m3uText(candidate.filePath, "");
           if (!filePath) continue;
-          lines.push(`#EXTINF:${duration},${artist} - ${title}`, filePath);
+          // #106 Phase D: carry the derived handoff windows as comments.
+          // m3u8 tolerates unknown directives; rekordbox import keeps the
+          // text visible as track descriptions (positions are seconds from
+          // track start — matching rekordbox's own cue unit).
+          const windows = [
+            step.mixInCue
+              ? `mix-in @ ${Math.round(step.mixInCue.position)}s (bar ${step.mixInCue.bar})`
+              : null,
+            step.mixOutCue
+              ? `mix-out @ ${Math.round(step.mixOutCue.position)}s (bar ${step.mixOutCue.bar})`
+              : null,
+          ].filter((part) => part !== null);
+          lines.push(
+            `#EXTINF:${duration},${artist} - ${title}`,
+            ...(windows.length > 0 ? [`#EXTREM:${windows.join(" · ")}`] : []),
+            filePath,
+          );
         }
         if (skippedMetadataOnly > 0) {
           lines.push(

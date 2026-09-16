@@ -20,6 +20,18 @@ renaming (`setbuild` → `set`) is planned in [09-migration-plan (archived)](../
 > an offline shelf builds a chain and the payload/UI say "mirror-metadata
 > draft" instead. Verified live: shelf asleep → 200/200 limited rows admitted
 > metadata-only, 7-track chain built, honest plan-not-playlist note.
+>
+> **2026-09-16 — Phase D item 16 shipped (#106):** steps carry
+> `mixInCue`/`mixOutCue` — the 8-bar boundary nearest the 45 s intro/outro
+> handoff targets (`MEGASET_HANDOFF_INTRO_S`/`MEGASET_HANDOFF_OVERLAP_S`),
+> derived by the shared pure helpers (`nearestMegasetCue`/`megasetMixInCue`/
+> `megasetMixOutCue`) from the cues-ledger join; tie-break = earlier bar.
+> Rendered as `#EXTREM` comments in the M3U8 export, per-step `cueWindows`
+> rows in the rb-playlist dry-run, and hover-card lines in the arc chart.
+> Null pair when a track has no cue row — absence is honest, never invented
+> bars. Planning, not playback: propose-only stands (items 17–18 partially
+> land with this — the dry-run shows the windows, not yet the full
+> `{keyScore, tempoScore, fit, phrasePair}` math).
 
 > Glossary: [10-findings §5](10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 

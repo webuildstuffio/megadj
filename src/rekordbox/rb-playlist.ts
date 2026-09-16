@@ -80,6 +80,11 @@ export interface RbPlaylistResult {
   linked: number;
   /** Chain tracks with NO content row in the master (not imported yet). */
   unmatched: { title: string; reason: string }[];
+  /** #106 Phase D: per-step handoff windows from the cues ledger, in
+   *  chain order ("45s @ bar 25"; null = no cue row for that track).
+   *  Dry-run evidence only — the apply leg writes the playlist rows, not
+   *  cue pads (cue writes are a separate gated surface). */
+  cueWindows: { title: string; mixIn: string | null; mixOut: string | null }[];
   /** In apply mode: playlist row ID. */
   playlistId: string | null;
   /** Post-write verify: song-playlist rows under our playlist. */
@@ -298,7 +303,18 @@ interface ChainTrack {
   path: string | null;
   base: string | null;
   title: string | null;
+  /** #106 Phase D: derived handoff windows (8-bar ledger boundaries),
+   *  rendered in the dry-run report as per-step mix evidence. Null when
+   *  the track has no cues ledger row — absence is honest. */
+  mixIn: string | null;
+  mixOut: string | null;
 }
+
+/** The handoff evidence string for one window ("45s @ bar 25"), or null. */
+const cueWindowLabel = (
+  cue: { bar: number; position: number } | null,
+): string | null =>
+  cue === null ? null : `${Math.round(cue.position)}s @ bar ${cue.bar}`;
 
 /** Build the chain with the SAME engine the CLI/web use, and keep each
  *  track's archive FILENAME — the join key into the master's content
@@ -335,6 +351,8 @@ function buildChain(
           // sends exactly what buildScript matches
           base: fp ? basename(fp) : null,
           title: s.title ?? s.videoId,
+          mixIn: cueWindowLabel(s.mixInCue),
+          mixOut: cueWindowLabel(s.mixOutCue),
         };
       }),
       preset: parsed.preset,
@@ -494,6 +512,7 @@ function gateFail(
     chain: 0,
     linked: 0,
     unmatched: [],
+    cueWindows: [],
     playlistId: null,
     verified: 0,
     appliedMode: Boolean(opts.apply),
@@ -541,6 +560,13 @@ function rbPlaylistApplyLeg(
     chain: chain.length,
     linked: applied.py.linked,
     unmatched: unmatchedRows(applied.py.unmatched),
+    // apply leg: the playlist write carries no cue pads (cue writes are a
+    // separate gated surface) — the windows stay dry-run evidence only
+    cueWindows: chain.map((c) => ({
+      title: c.title ?? c.videoId,
+      mixIn: c.mixIn,
+      mixOut: c.mixOut,
+    })),
     playlistId: applied.py.playlistId,
     verified: applied.verified,
     appliedMode: true,
@@ -569,6 +595,7 @@ function rbPlaylistDryRunLeg(
       preset,
       minutes,
       chain: chain.length,
+      cueWindows: [],
       errors: [pred.error],
     };
   }
@@ -582,6 +609,11 @@ function rbPlaylistDryRunLeg(
     chain: chain.length,
     linked: 0,
     unmatched: unmatchedRows(pred.unmatched),
+    cueWindows: chain.map((c) => ({
+      title: c.title ?? c.videoId,
+      mixIn: c.mixIn,
+      mixOut: c.mixOut,
+    })),
     playlistId: null,
     verified: 0,
     appliedMode: false,
@@ -795,6 +827,21 @@ export function printRbPlaylistReport(
         log(
           `${body.unmatched.length} chain track(s) have no master row yet — they will be skipped and reported`,
         );
+      }
+      // #106 Phase D: per-step handoff windows — dry-run evidence for the
+      // phrase-aware handoff plan (the apply leg writes playlist rows,
+      // never cue pads). Tracks without a ledger row say so honestly.
+      if (body.cueWindows.some((w) => w.mixIn !== null || w.mixOut !== null)) {
+        for (const w of body.cueWindows) {
+          const windows =
+            w.mixIn !== null || w.mixOut !== null
+              ? [
+                  w.mixIn !== null ? `mix-in ${w.mixIn}` : null,
+                  w.mixOut !== null ? `mix-out ${w.mixOut}` : null,
+                ].filter((part) => part !== null)
+              : ["no cue windows (no cues ledger row)"];
+          log(`  ♪ ${w.title} — ${windows.join(" · ")}`);
+        }
       }
     }
   });

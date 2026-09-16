@@ -172,6 +172,10 @@ export interface ArchiveSetCandidate {
   dance: number | null;
   /** Server-internal field removed before route/MCP/CLI serialization. */
   filePath: string | null;
+  /** #106 Phase D: phrase cues from the `cues` ledger (8-bar boundaries).
+   *  Empty when the track has no derivation — the handoff windows degrade
+   *  to null, never invented bars. */
+  cues: { bar: number; position: number }[];
   /** B1 (#104): true when the file is absent (shelf asleep) but the
    *  row carries measured tempo (beats ledger or rekordbox mirror) —
    *  admitted so an offline shelf cannot zero the pool. Never carries a

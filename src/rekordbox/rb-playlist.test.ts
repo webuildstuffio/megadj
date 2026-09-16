@@ -74,6 +74,7 @@ describe("rb-playlist report contract", () => {
       errors: [],
       ok: false,
       error: "no master DB at /x/master.db",
+      cueWindows: [],
     });
     expect(out).toEqual(["error: no master DB at /x/master.db"]);
   });
@@ -94,6 +95,10 @@ describe("rb-playlist report contract", () => {
           reason:
             "no content row in master — run the fullpush import for it first",
         },
+      ],
+      cueWindows: [
+        { title: "Cued Track", mixIn: "45s @ bar 25", mixOut: "107s @ bar 57" },
+        { title: "Only Track", mixIn: null, mixOut: null },
       ],
       playlistId: null,
       verified: 0,
@@ -125,12 +130,47 @@ describe("rb-playlist report contract", () => {
       appliedMode: true,
       backedUpTo: "/Volumes/SHELF1/PIONEER/Master/master.db.bak-20260911200000",
       errors: [],
+      cueWindows: [],
       ok: true,
     });
     const joined = out.join("\n");
     expect(joined).toContain("linked 5");
     expect(joined).toContain("post-verify: 5/5");
     expect(joined).toContain(".bak-");
+  });
+
+  test("#106 Phase D: dry-run report renders per-step handoff windows", () => {
+    const out = lines({
+      command: "rb-playlist",
+      db: "/Volumes/SHELF1/PIONEER/Master/master.db",
+      playlist: "setbuild warmup 30min 2026-09-16",
+      group: "DJ-Imports",
+      preset: "warmup",
+      minutes: 30,
+      chain: 2,
+      linked: 0,
+      unmatched: [],
+      cueWindows: [
+        {
+          title: "Cued Opener",
+          mixIn: "45s @ bar 25",
+          mixOut: "107s @ bar 57",
+        },
+        { title: "Cueless Track", mixIn: null, mixOut: null },
+      ],
+      playlistId: null,
+      verified: 0,
+      appliedMode: false,
+      backedUpTo: null,
+      errors: [],
+      ok: true,
+    });
+    const joined = out.join("\n");
+    // cue evidence appears per step, with the cueless track honestly null
+    expect(joined).toContain("Cued Opener");
+    expect(joined).toContain("mix-in 45s @ bar 25 · mix-out 107s @ bar 57");
+    expect(joined).toContain("Cueless Track");
+    expect(joined).toContain("no cue windows (no cues ledger row)");
   });
 });
 

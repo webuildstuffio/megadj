@@ -771,6 +771,7 @@ export interface StoredNote {
 // consumers keep working with zero drift risk (re-export, never a twin).
 export type {
   MegasetStep,
+  MegasetCuePoint,
   MegasetResult,
   MegasetPayload,
   MegasetPresetDef,
@@ -799,6 +800,11 @@ export {
   MEGASET_BEAM_POOL_MAX,
   MEGASET_BEAM_WIDTH,
   MEGASET_EXCLUDED_PREVIEW_MAX,
+  MEGASET_HANDOFF_OVERLAP_S,
+  MEGASET_HANDOFF_INTRO_S,
+  megasetMixOutCue,
+  megasetMixInCue,
+  nearestMegasetCue,
   isMegasetSearchOverride,
   isShelfOffline,
   type SetSearchOverride,

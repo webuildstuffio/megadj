@@ -30,6 +30,7 @@ const cand = (over: Partial<SetCandidate>): SetCandidate => ({
   valence: 5,
   arousal: 5,
   dance: 0.7,
+  cues: [],
   ...over,
 });
 
@@ -156,6 +157,57 @@ describe("buildMegaset", () => {
     expect(a.steps.map((s) => s.videoId)).toEqual(
       b.steps.map((s) => s.videoId),
     );
+  });
+  test("#106 Phase D: steps carry ledger-derived mix-in/mix-out windows", () => {
+    const withCues: SetCandidate[] = [
+      cand({
+        videoId: "cued",
+        title: "Cued",
+        durationS: 150,
+        cues: [
+          { bar: 1, position: 0 },
+          { bar: 17, position: 30.4 },
+          { bar: 57, position: 106.9 },
+        ],
+      }),
+      cand({ videoId: "cueless", title: "Cueless", cues: [] }),
+    ];
+    const r = buildMegaset({
+      candidates: withCues,
+      preset: SET_PRESETS.warmup,
+      minutes: 10,
+    });
+    const cued = r.steps.find((s) => s.videoId === "cued");
+    const cueless = r.steps.find((s) => s.videoId === "cueless");
+    expect(cued).toBeDefined();
+    expect(cueless).toBeDefined();
+    // mix-in: nearest the 45 s intro target → bar 17 @ 30.4
+    expect(cued!.mixInCue).toEqual({ bar: 17, position: 30.4 });
+    // mix-out: 150 − 45 = 105 s target → bar 57 @ 106.9
+    expect(cued!.mixOutCue).toEqual({ bar: 57, position: 106.9 });
+    // no ledger row → null pair, never invented bars
+    expect(cueless!.mixInCue).toBeNull();
+    expect(cueless!.mixOutCue).toBeNull();
+  });
+  test("#106 Phase D: metadata-only candidate (null duration) gets a mix-in but an honest null mix-out", () => {
+    const r = buildMegaset({
+      candidates: [
+        cand({
+          videoId: "mirror",
+          title: "Mirror",
+          durationS: null,
+          cues: [
+            { bar: 1, position: 0 },
+            { bar: 25, position: 45.1 },
+          ],
+        }),
+      ],
+      preset: SET_PRESETS.warmup,
+      minutes: 10,
+    });
+    expect(r.steps.length).toBe(1);
+    expect(r.steps[0]!.mixInCue).toEqual({ bar: 25, position: 45.1 });
+    expect(r.steps[0]!.mixOutCue).toBeNull();
   });
   test("unmixable leftovers land in excluded with a reason — never dropped silently", () => {
     const r = buildMegaset({
