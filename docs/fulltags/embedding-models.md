@@ -5,7 +5,7 @@
 implementation gated by the larger post-refold evaluation.
 
 > Glossary (tower, LOO, coherence, effnet/musicnn/MERT, ONNX, 5k proj):
-> [10-findings §5](../set/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+> [10-findings §5](../megaset/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 **Reproduction (Sep 14, 2026, ~28 min, background).** Full 6-tower rerun
 on `eval_set_v2.json` (180 tracks, 120 s cap) matched the recorded table

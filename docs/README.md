@@ -43,7 +43,7 @@ for the ideas closed NOT_PLANNED.
 
 - [Product state](product-state-2026-09-07.md) — current product-level status
   and the next safe outcomes.
-- [Features and projects](FEATURES.md) — GetDat, FullTags, Set, and
+- [Features and projects](FEATURES.md) — GetDat, FullTags, MegaSet, and
   CrateDeck responsibilities.
 - [Product principles](PRINCIPLES.md) — decision authority and non-goals.
 - GitHub issues — the roadmap and backlog; see the "Roadmap on GitHub"
@@ -63,8 +63,8 @@ for the ideas closed NOT_PLANNED.
   producer boundaries.
 - [Playing USB boundary](getdat/usb-sync.md) — SHELF1-to-USB handoff rules and
   user-managed export limits.
-- [Shelf hygiene snapshot](archive/shelf-hygiene-2026-09-09.md) — Sep 9–10
-  detect/restore record (archived; pending work tracked in #35/#36/#37).
+- [Shelf hygiene snapshot](getdat/shelf-hygiene-2026-09-09.md) — Sep 9–10
+  detect/restore record; pending work tracked in #35/#36/#37.
 
 ### FullTags and analysis
 
@@ -75,10 +75,10 @@ for the ideas closed NOT_PLANNED.
   (`archive_tag_compare`); read-only, files never read on the census path.
 - [Genre audit](fulltags/genre-audit.md) — inclusion and source-precedence
   policy; v3 statistical revalidation (CIs, McNemar, duration guards).
-  Set consumes it family-level only.
+  MegaSet consumes it family-level only.
 - [Embedding model benchmark](fulltags/embedding-models.md) — tower
   evaluation and decision; v2 rerun (effnet confirmed on both metrics),
-  fusion sweep settled (+1.1 pt — not adopted). Feeds Set's similarity
+  fusion sweep settled (+1.1 pt — not adopted). Feeds MegaSet's similarity
   prior (B10p).
 - [Genre taxonomy sources](fulltags/genre-taxonomy-sources.md) — external
   authorities and the family map.
@@ -116,21 +116,21 @@ for the ideas closed NOT_PLANNED.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision
   retained as a reference.
 
-### Set
+### MegaSet
 
-- [PRD](set/01-prd.md) — scope, shipped v0, and product contract.
-- [Architecture](set/02-architecture.md) — variables, ownership, and data
+- [PRD](megaset/01-prd.md) — scope, shipped v0, and product contract.
+- [Architecture](megaset/02-architecture.md) — variables, ownership, and data
   flow.
-- [Competitive analysis](set/03-competitive-analysis.md) — comparator
+- [Competitive analysis](megaset/03-competitive-analysis.md) — comparator
   research and the re-ranked roadmap.
-- [Consolidated findings & next steps](set/10-findings.md) — every
+- [Consolidated findings & next steps](megaset/10-findings.md) — every
   measured verdict across the doc set, critical-bug list, prioritized next
   3–5 actions.
 - [Migration plan (archived)](archive/set-09-migration-plan-2026-09-15.md) —
   the executed `setbuild → megaset` identifier rename; superseded 2026-09-15
-  (the product is Set) and archived with the Sequencing benchmarks
+  (the product name is MegaSet) and archived with the Sequencing benchmarks
   ([archive/set-04-sequencing-benchmarks-2026-09-14.md](archive/set-04-sequencing-benchmarks-2026-09-14.md)).
-- [Audit and plan](set/08-audit-and-plan.md) — per-item
+- [Audit and plan](megaset/08-audit-and-plan.md) — per-item
   implementation sketches, delta-pinned against the re-ranked roadmap;
   current conclusions link to the owners above.
 
@@ -147,7 +147,7 @@ for the ideas closed NOT_PLANNED.
   and read-only verification.
 - [Intake and cue postmortem](fulltags/intake-cue-postmortem.md) — executed incident
   analysis and remaining follow-up.
-- [Shelf hygiene snapshot (archived)](archive/shelf-hygiene-2026-09-09.md) — Sep 9–10 record
+- [Shelf hygiene snapshot](getdat/shelf-hygiene-2026-09-09.md) — Sep 9–10 record
   with detector and restore-surface limits; live work is #35/#36/#37.
 - [Source-layout refactor](archive/src-layout-refactor.md) — completed proposal
   and migration receipt, archived 2026-09-14; historical paths in the proposal
@@ -189,11 +189,9 @@ Archived files are historical evidence, not current instructions:
 - [Source-layout refactor receipt](archive/src-layout-refactor.md) — moved
   2026-09-14; the old-path redirect stub was removed 2026-09-15, so this
   archive path is the only reference.
-- [Set sequencing benchmarks](archive/set-04-sequencing-benchmarks-2026-09-14.md)
+- [MegaSet sequencing benchmarks](archive/set-04-sequencing-benchmarks-2026-09-14.md)
   and [Set migration plan](archive/set-09-migration-plan-2026-09-15.md) —
   measured evidence + executed rename receipt, archived 2026-09-15.
 - [Tier-0 diagnostics](archive/tier0-diagnostics-2026-09-15.md) and
   [embedding research review](archive/embedding-research-2026-09-14.md) —
   completed measurement runs retained as evidence.
-- [Shelf hygiene snapshot](archive/shelf-hygiene-2026-09-09.md) — Sep 9–10
-  session record; live work is #35/#36/#37.

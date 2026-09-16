@@ -2,10 +2,10 @@
 
 **Status:** 📚 REFERENCE — current taxonomy authorities, family map, and validation.
 
-**Audit** → [genre-audit](genre-audit.md) · [embedding-models](embedding-models.md) · [Set PRD](../set/01-prd.md)
+**Audit** → [genre-audit](genre-audit.md) · [embedding-models](embedding-models.md) · [MegaSet PRD](../megaset/01-prd.md)
 
 > Glossary (Discogs-400 head, Tier 1/2/3, kNN, tower):
-> [10-findings §5](../set/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+> [10-findings §5](../megaset/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 The follow-up to the genre audit: _which external taxonomy is authoritative,
 is our 9-family map right, how deep do sub-genres go, and is the embedding

@@ -43,10 +43,11 @@ tint every other product already had. The `ProductMeta.color` field
 (unread since Set landed) retired — accents live in CSS. MegaSet naming
 finished off everywhere: palette keywords de-twin, m3u8 export renamed
 `set-…m3u8` (was `fulltags-…`), MCP/deckctl "M66 copilot" → "Set builder
-copilot", CLI help de-numbered, and the whole doc set moved
-`docs/megaset/` → `docs/set/` with prose swept — issue #56's `setbuild →
-megaset` identifier rename is SUPERSEDED (the product is Set; the verb
-`megadj megaset` is the verb (the `setbuild` alias stays — muscle memory), it's a command not a brand)._
+copilot", CLI help de-numbered. The doc set moved `docs/megaset/` →
+`docs/set/` on Sep 14, then **moved BACK to `docs/megaset/` on Sep 15**
+(atomic-naming decision: one name everywhere — MegaSet for folder, docs,
+issues, and product; `megadj megaset` is the verb; the `setbuild` alias
+stays for muscle memory)._
 
 _Rev 7.6, 2026-09-15: **Set is its own product — the fourth nav-strip
 button.** The set builder left FullTags' tab strip entirely: it is now a

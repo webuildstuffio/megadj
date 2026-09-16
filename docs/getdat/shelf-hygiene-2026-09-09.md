@@ -1,8 +1,5 @@
 # Shelf Hygiene & Dedupe — Sep 9 2026 Session
 
-> **🗄️ ARCHIVED 2026-09-15** — superseded by GitHub as the source of truth
-> (issues + labels + Project board). Retained as historical evidence; do not
-> update. Open work lives in [issues](https://github.com/webuildstuffio/megadj/issues).
 **Status:** 🟡 PARTIAL — the Sep 10 core shipped, but this snapshot previously
 overstated detector and restore-surface coverage. `megadj shelf-hygiene` +
 `deckctl hygiene` + `deck_hygiene` + the Hygiene tab are live, and
@@ -119,4 +116,3 @@ decisions surface. Surfaces: `megadj shelf-hygiene --bucket NAME`,
 Hygiene tab's bucket strip. First live pass (Sep 11, SHELF1): 108
 metadata-diff + 20 re-encode batch-confirmed + 2 byte-twins → 130
 applied, 0 failed, 130 green receipts.
-

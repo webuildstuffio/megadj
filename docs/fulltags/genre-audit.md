@@ -5,10 +5,10 @@
 how a track's genre actually flows (write points → hygiene → inference →
 scoring → gate), with invariants and live state.
 
-v3 · 2026-09-14 · **Audit** → [PRD](../set/01-prd.md) · [Benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md) · [Analysis](../set/03-competitive-analysis.md) · [Taxonomy sources & family map](genre-taxonomy-sources.md)
+v3 · 2026-09-14 · **Audit** → [PRD](../megaset/01-prd.md) · [Benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md) · [Analysis](../megaset/03-competitive-analysis.md) · [Taxonomy sources & family map](genre-taxonomy-sources.md)
 
 > Glossary (LOO, CI, McNemar, Jaccard, kNN, duration guard):
-> [10-findings §5](../set/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
+> [10-findings §5](../megaset/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
 
 > v2: baselines refreshed post-`rb-comment-sync`; LOO corrected to
 > full-population methodology; §5c source ranking. v3: **statistical

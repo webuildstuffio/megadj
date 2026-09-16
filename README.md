@@ -12,7 +12,7 @@ ready for the booth. No spreadsheets, no tag editors, no "I'll fix the
 artwork later".
 
 ```
-GetDat ──▶ FullTags ──▶ Set ──▶ CrateDeck ──▶ the booth
+GetDat ──▶ FullTags ──▶ MegaSet ──▶ CrateDeck ──▶ the booth
 download    perfect       propose      sync &       play on
 & archive   metadata      the mix      verify USBs   Pioneer
 ```
@@ -115,7 +115,7 @@ megadj rb-playlist SHELF1 --preset peak        # dry-run by default
 ```
 
 Product contract and measured roadmap:
-[Set docs](docs/set/01-prd.md).
+[MegaSet docs](docs/megaset/01-prd.md).
 
 ### 🗄️ The shelf master — the archive that never leaves the desk
 
@@ -174,11 +174,11 @@ megadj shelf-archive <volume>   # archive a stray drive into the shelf, verified
 
 The remaining work is deliberately gated: hardware backup/acceptance,
 rekordbox grid-write experiments, gold annotations for analysis gates, and
-Set v1's measured sequencing improvements. The
+MegaSet v1's measured sequencing improvements. The
 [current product state](docs/product-state-2026-09-07.md) owns that short
-outcome list; [Ideas](docs/ideas.md) owns backlog rationale; GitHub issues own
-execution priority. Agents already talk to the shipped surface over MCP with
-`bun run mcp`.
+outcome list; GitHub issues own the roadmap SSOT (the ideas catalog is
+archived at `docs/archive/ideas-2026-09-15.md`). Agents already talk to the
+shipped surface over MCP with `bun run mcp`.
 
 ---
 

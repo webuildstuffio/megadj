@@ -1,4 +1,4 @@
-// megaset.ts — the set-builder CLI spoke (`megadj megaset`; `setbuild` alias).
+// megaset.ts — the set-builder CLI spoke (`megadj megaset` (the old `setbuild` alias is gone)).
 //
 // Closes the last CLI-vs-MCP archive read gap (docs/surface-parity.md §4
 // item 4, the same way `megadj similar` closed I49's): the engine and the

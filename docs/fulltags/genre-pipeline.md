@@ -28,7 +28,7 @@ Reading order by question:
 **Consumers** → [genre-audit](genre-audit.md) (policy + numbers) ·
 [genre-taxonomy-sources](genre-taxonomy-sources.md) (authorities + family
 map) · [tier0-diagnostics (archived)](../archive/tier0-diagnostics-2026-09-15.md)
-(measured verdicts) · [Set PRD](../set/01-prd.md) (downstream).
+(measured verdicts) · [MegaSet PRD](../megaset/01-prd.md) (downstream).
 
 ---
 

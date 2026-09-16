@@ -38,7 +38,7 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "web/app/App.tsx": "historical rev line (rev-9 restructure note)",
     "web/products/shared.tsx": "historical rev line (rev-9 restructure note)",
   },
-  "docs/set/08-audit-and-plan.md": {
+  "docs/megaset/08-audit-and-plan.md": {
     // Dated 2026-09-13 audit: names the setbuild.* layout as it was when
     // written; the #56 rename executed 2026-09-15.
     "web/products/fulltags/SimilarTab.tsx":
@@ -64,7 +64,7 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   "docs/archive/set-04-sequencing-benchmarks-2026-09-14.md": {
     "cratedeck/src/setbuild.ts": "dated benchmark doc (rename executed)",
   },
-  "docs/set/02-architecture.md": {
+  "docs/megaset/02-architecture.md": {
     // Dated architecture diagram naming the setbuild layout as it was
     // when written — historical structure text.
     "cratedeck/src/setbuild.ts": "dated architecture diagram (rename executed)",
@@ -195,7 +195,7 @@ describe("docs paths census (issue #58 regression gate)", () => {
 
     // set findings: no volatile concurrent-agent WIP status
     const findings = readFileSync(
-      join(ROOT, "docs/set/10-findings.md"),
+      join(ROOT, "docs/megaset/10-findings.md"),
       "utf8",
     );
     expect(findings).not.toMatch(/do not touch; wait/u);
