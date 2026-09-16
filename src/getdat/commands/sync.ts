@@ -8,19 +8,17 @@
 
 import { $ } from "bun";
 import type { ArchiveState } from "../../archive/state";
-import type { RateLimiter } from "../ratelimit";
-import { withRetry } from "../ratelimit";
+import { type RateLimiter, withRetry } from "../ratelimit";
 import { Downloader, type DownloadResult } from "../downloader";
 import { ytdlpCookieArgs } from "../ytdlp";
-import type { YtdlpInfo } from "../../../fulltags/src/exports";
-import { commandLog } from "../../progress";
+import { commandLog, ProgressBar } from "../../progress";
 import { writeJson } from "../../shared/cli-output";
 import {
   applyTags,
   buildMetadata,
   inferGenre,
+  type YtdlpInfo,
 } from "../../../fulltags/src/exports";
-import { ProgressBar } from "../../progress";
 import { isRecord, isUnknownArray } from "../../../cratedeck/shared/guards";
 
 const isTty = process.stdout.isTTY ?? false;

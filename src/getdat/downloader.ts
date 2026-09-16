@@ -5,8 +5,10 @@
  */
 
 import { $ } from "bun";
-import type { YtdlpInfo } from "../../fulltags/src/exports";
-import { sanitizeGenreFolder } from "../../fulltags/src/exports";
+import {
+  sanitizeGenreFolder,
+  type YtdlpInfo,
+} from "../../fulltags/src/exports";
 import { ytdlpCookieArgs } from "./ytdlp";
 export interface DownloadResult {
   status: "downloaded" | "already-had" | "gone" | "failed";

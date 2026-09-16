@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { parseFilename, qualityScore } from "./ingest-probe";
+import {
+  detectRemix,
+  parseFilename,
+  qualityScore,
+} from "../../../fulltags/src/exports";
 import { normalize } from "../../../fulltags/src/identity";
-import { detectRemix } from "../../../fulltags/src/exports";
 
 describe("parseFilename", () => {
   test("NNN - Artist - Title prefix", () => {

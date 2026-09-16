@@ -117,10 +117,12 @@ export async function deleteFullyIngestedZips(
   // now; a zip is only fully ingested when its staged files are SOMEWHERE
   // under the archive (or quarantined) — not just at the archive root.
   const archiveBatches = existsSync(musicDir)
-    ? (await readdir(musicDir, { withFileTypes: true }))
-        .filter((e) => e.isDirectory() && !e.name.startsWith("."))
-        .map((e) => join(musicDir, e.name))
-        .concat(musicDir)
+    ? [
+        ...(await readdir(musicDir, { withFileTypes: true }))
+          .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+          .map((e) => join(musicDir, e.name)),
+        musicDir,
+      ]
     : [musicDir];
   for (const [zip, staged] of pendingZipDeletes) {
     // A zip that staged NOTHING is not "fully ingested" — it means staging

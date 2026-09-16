@@ -17,45 +17,40 @@
 
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
+import { existsSync, renameSync, type Stats } from "node:fs";
 import { md5FileStream } from "../../shared/hash";
 import { pickScoredKeeper } from "../../shared/keeper";
-import { existsSync, renameSync } from "node:fs";
-import type { Stats } from "node:fs";
 import { join, basename, extname } from "node:path";
 import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
 import type { ArchiveState, TrackRow } from "../../archive/state";
 import { commandLog } from "../../progress";
 import { writeJson } from "../../shared/cli-output";
 import type { IntakeCounterKey } from "../../../cratedeck/shared/types";
-import { applyTags, inferGenre } from "../../../fulltags/src/exports";
+import {
+  applyTags,
+  compareFingerprint,
+  detectRemix,
+  energyFromLufs,
+  firstTag,
+  inferGenre,
+  measureRms,
+  mbRecording,
+  nameSimilarityTokens,
+  parseFilename,
+  playerCompat,
+  isHiresOnly,
+  probeFile,
+  qualityScore,
+  trueContainerExt,
+} from "../../../fulltags/src/exports";
+import { quarantine, walkAudio, type Record_ } from "./ingest-probe";
 import {
   expandZips,
   deleteFullyIngestedZips,
   pendingZipDeletes,
 } from "./ingest-zips";
-import {
-  firstTag,
-  mbRecording,
-  parseFilename,
-  probeFile,
-  qualityScore,
-  quarantine,
-  trueContainerExt,
-  walkAudio,
-  type Record_,
-} from "./ingest-probe";
-import {
-  compareFingerprint,
-  nameSimilarityTokens,
-} from "../../../fulltags/src/exports";
 import { identityKey } from "../../../fulltags/src/identity";
-import {
-  detectRemix,
-  energyFromLufs,
-  measureRms,
-} from "../../../fulltags/src/exports";
 import { wavToAiff } from "../../../fulltags/src/convert";
-import { playerCompat, isHiresOnly } from "../../../fulltags/src/exports";
 import {
   fetchAndEmbedArtwork,
   flushArtworkQueue,
@@ -65,7 +60,13 @@ import type { QueueEntry } from "./queue";
 // copyIntoArchive / queueArtworkFallback / registerAndMove (the archive-
 // landing half of Phase D) live in ingest-register.ts with narrow param
 // types — this module never imported back keeps madge at zero cycles.
-import { registerAndMove, counterSummary } from "./ingest-register";
+// IngestCounters is also DEFINED there (the leaf seam shared with the
+// landing helpers).
+import {
+  registerAndMove,
+  counterSummary,
+  type IngestCounters,
+} from "./ingest-register";
 
 export interface IngestOptions {
   state: ArchiveState;
@@ -82,11 +83,6 @@ export interface IngestOptions {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-// IngestCounters is DEFINED in ingest-register.ts (the leaf seam shared
-// with the landing helpers — a split-out module must never import its
-// parent's types back: madge counts a type-only back-edge as a cycle).
-import type { IngestCounters } from "./ingest-register";
 
 function newCounters(): IngestCounters {
   return {
@@ -204,7 +200,7 @@ async function dedupeWithinFolder(
     // earlier) — leaving it in meant Phase D tried to copy an already
     // quarantined file (ENOENT mid-batch, Sep 10 2026).
     const dropIdx = survivors.indexOf(drop);
-    if (dropIdx >= 0) survivors.splice(dropIdx, 1);
+    if (dropIdx !== -1) survivors.splice(dropIdx, 1);
     if (!survivors.includes(keep)) survivors.push(keep);
     folderDupes++;
     log(
@@ -272,7 +268,7 @@ async function dedupeByContent(
         `  [dupe] ${basename(drop.file)} — byte-identical twin of ${basename(keep.file)} (md5)`,
       );
       const idx = survivors.indexOf(drop);
-      if (idx >= 0) survivors.splice(idx, 1);
+      if (idx !== -1) survivors.splice(idx, 1);
       await quarantine(drop.file, quarantineDir, dryRun, log);
       if (hashes.get(digest) === drop) hashes.set(digest, keep);
     }
@@ -322,7 +318,7 @@ async function dedupeByFingerprint(
       `  [dupe] ${basename(loser.file)} — mp3 twin of the same-stem lossless copy`,
     );
     const idx = survivors.indexOf(loser);
-    if (idx >= 0) survivors.splice(idx, 1);
+    if (idx !== -1) survivors.splice(idx, 1);
     await quarantine(loser.file, quarantineDir, dryRun, log);
     fpDupes++;
   }
@@ -361,7 +357,7 @@ async function dedupeByFingerprint(
       `  [dupe] ${basename(drop.file)} — same recording as ${basename(keep.file)} (acoustic fingerprint)`,
     );
     const idx = survivors.indexOf(drop);
-    if (idx >= 0) survivors.splice(idx, 1);
+    if (idx !== -1) survivors.splice(idx, 1);
     await quarantine(drop.file, quarantineDir, dryRun, log);
     if (byFp.get(v.fp) === drop) byFp.set(v.fp, keep);
   }
@@ -456,7 +452,8 @@ async function ingestOne(
   queueEntries: QueueEntry[],
   batchDir: string | null,
 ): Promise<void> {
-  let { file, probe, parsed } = rec;
+  let { file, probe } = rec;
+  const { parsed } = rec;
   let ext = extname(file).toLowerCase();
   const title = firstTag(probe.tags, ["title"]) || parsed.title;
   let artist = firstTag(probe.tags, ["artist"]) || parsed.artist;
@@ -531,7 +528,7 @@ async function ingestOne(
     if (title.length >= 4) {
       await sleep(1100); // MusicBrainz politeness
       const mb = await mbRecording(artist, title);
-      artist = artist || mb.artist;
+      artist ||= mb.artist;
       if (!album && mb.album) album = mb.album;
       if (!date && mb.date) date = mb.date;
       if (!genre || genre === "Music")

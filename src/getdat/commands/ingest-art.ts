@@ -13,8 +13,6 @@ import {
 import { soundcloudUrlInTags } from "../../../fulltags/src/exports";
 import { appendQueueEntries, type QueueEntry } from "./queue";
 
-export { soundcloudUrlInTags };
-
 /** Containers that reliably hold embedded artwork. */
 export const ARTWORK_EXTS = new Set([
   ".m4a",

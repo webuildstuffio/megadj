@@ -88,7 +88,7 @@ export class RateLimiter {
     this.consecutiveFailures += 1;
     const raw =
       this.opts.baseBackoffMs *
-      Math.pow(this.opts.backoffMultiplier, this.consecutiveFailures - 1);
+      this.opts.backoffMultiplier ** (this.consecutiveFailures - 1);
     const capped = Math.min(raw, this.opts.maxBackoffMs);
     const wait = this.jitter(capped);
     this.onBackoff?.(this.consecutiveFailures, wait, reason);

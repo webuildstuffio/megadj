@@ -5,8 +5,7 @@
  * the tool.
  */
 
-import type { Dirent, Stats } from "node:fs";
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync, type Dirent, type Stats } from "node:fs";
 import { basename, join } from "node:path";
 import { walkAudioFiles, groundTruth } from "../../../fulltags/src/exports";
 import { normalize } from "../../../fulltags/src/identity";

@@ -28,15 +28,23 @@ async function makeSilent(
 ): Promise<string> {
   const p = join(dir, name);
   const { $ } = await import("bun");
-  if (codec === "wav") {
-    await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i anullsrc=r=44100:cl=stereo -t ${duration} -c:a pcm_s16le ${p}`
-      .quiet()
-      .nothrow();
-  } else {
-    await $`ffmpeg -y -hide_banner -loglevel error -f lavfi -i anullsrc=r=44100:cl=stereo -t ${duration} -c:a libmp3lame -b:a 128k ${p}`
-      .quiet()
-      .nothrow();
-  }
+  const common = [
+    "-y",
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "anullsrc=r=44100:cl=stereo",
+    "-t",
+    String(duration),
+  ];
+  const codecArgs =
+    codec === "wav"
+      ? ["-c:a", "pcm_s16le"]
+      : ["-c:a", "libmp3lame", "-b:a", "128k"];
+  await $`ffmpeg ${common} ${codecArgs} ${p}`.quiet().nothrow();
   return p;
 }
 

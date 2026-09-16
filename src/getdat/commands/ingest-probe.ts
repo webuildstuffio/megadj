@@ -4,7 +4,7 @@
  * quarantine (dupe handling) and walkAudio (intake-folder traversal).
  */
 import { basename, join } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, type Dirent } from "node:fs";
 import {
   copyFile,
   mkdir,
@@ -15,18 +15,9 @@ import {
 } from "node:fs/promises";
 import { md5FileStream } from "../../shared/hash";
 
-export {
-  parseFilename,
-  probeFile,
-  qualityScore,
-  firstTag,
-  mbRecording,
-  trueContainerExt,
-} from "../../../fulltags/src/exports";
 import type { ParsedName, Probe } from "../../../fulltags/src/exports";
 import { errorText } from "../../shared/error-text";
 import { AUDIO_EXTS } from "../../shared/audio-exts";
-export type { ParsedName, Probe };
 
 const md5File = md5FileStream;
 
@@ -119,7 +110,7 @@ export async function walkAudio(
   out: string[] = [],
   skip?: string[],
 ): Promise<string[]> {
-  let ents: import("node:fs").Dirent[];
+  let ents: Dirent[];
   try {
     ents = await readdir(dir, { withFileTypes: true });
   } catch (e) {

@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { ArchiveState } from "../../archive/state";
+import type { ArchiveState } from "../../archive/state";
 import { RateLimiter } from "../ratelimit";
 import { Downloader } from "../downloader";
 import {

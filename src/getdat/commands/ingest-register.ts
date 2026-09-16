@@ -60,21 +60,39 @@ export function counterSummary(counters: IngestCounters): {
   };
 }
 
+/** The row shape markDownloaded actually receives at every call site —
+ *  mirrors state_tracks.ts markDownloaded's info param (kept narrow here
+ *  so this leaf seam never imports ArchiveState back — madge cycle). */
+export interface MarkDownloadedRow {
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  genre?: string | null | undefined;
+  formatId: string | null;
+  bitrateKbps: number | null;
+  codec: string | null;
+  filePath: string | null;
+  fileSizeBytes: number | null;
+  durationS: number | null;
+  energy?: number | null | undefined;
+  artworkStatus?: string | null | undefined;
+}
+
 /** Narrow view of IngestOptions the landing helpers need. */
 export interface IngestOptsLike {
   musicDir: string;
   noArtwork?: boolean | undefined;
   state: {
-    updateArtworkStatus(extId: string, status: string): unknown;
-    upsertTrackFromPlaylist(
+    updateArtworkStatus: (extId: string, status: string) => unknown;
+    upsertTrackFromPlaylist: (
       extId: string,
       idx: number,
       title: string,
       src: string,
-    ): unknown;
-    markDownloaded(extId: string, row: Record<string, unknown>): unknown;
+    ) => unknown;
+    markDownloaded: (extId: string, row: MarkDownloadedRow) => unknown;
     /** Existing downloaded row pointing at a path (upgrade replacement). */
-    trackByFilePath(filePath: string): { video_id: string } | null;
+    trackByFilePath: (filePath: string) => { video_id: string } | null;
   };
 }
 
