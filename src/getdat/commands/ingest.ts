@@ -13,43 +13,35 @@
  *     WAVs are converted to AIFF first (rekordbox can't read WAV art).
  *  5. Tagged files are copied into the music dir (sources never touched) and
  *     registered in the state DB so `organize` / USB sync pick them up.
+ *
+ * Split per concern (#88 item 3): probe (Phase A) lives in
+ * ingest-probe-files.ts, the dedupe passes (Phases B/C) in
+ * ingest-dedupe.ts, the run report + --json payload in ingest-report.ts —
+ * this file is the per-track Phase D work and the phase orchestration.
  */
 
 import { createHash } from "node:crypto";
-import { stat } from "node:fs/promises";
-import { existsSync, renameSync, type Stats } from "node:fs";
-import { md5FileStream } from "../../shared/hash";
-import { pickScoredKeeper } from "../../shared/keeper";
-import { join, basename, extname } from "node:path";
+import { basename, extname, join } from "node:path";
 import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
-import type { ArchiveState, TrackRow } from "../../archive/state";
+import type { ArchiveState } from "../../archive/state";
 import { commandLog } from "../../progress";
-import { writeJson } from "../../shared/cli-output";
-import type { IntakeCounterKey } from "../../../cratedeck/shared/types";
 import {
   applyTags,
-  compareFingerprint,
   detectRemix,
   energyFromLufs,
   firstTag,
   guessFromFreeText,
   measureRms,
   mbRecording,
-  nameSimilarityTokens,
-  parseFilename,
   playerCompat,
   isHiresOnly,
-  probeFile,
-  qualityScore,
-  trueContainerExt,
 } from "../../../fulltags/src/exports";
-import { quarantine, walkAudio, type Record_ } from "./ingest-probe";
+import { walkAudio, type Record_ } from "./ingest-probe";
 import {
   expandZips,
   deleteFullyIngestedZips,
   pendingZipDeletes,
 } from "./ingest-zips";
-import { identityKey } from "../../../fulltags/src/identity";
 import { wavToAiff } from "../../../fulltags/src/convert";
 import {
   fetchAndEmbedArtwork,
@@ -62,11 +54,10 @@ import type { QueueEntry } from "./queue";
 // types — this module never imported back keeps madge at zero cycles.
 // IngestCounters is also DEFINED there (the leaf seam shared with the
 // landing helpers).
-import {
-  registerAndMove,
-  counterSummary,
-  type IngestCounters,
-} from "./ingest-register";
+import { registerAndMove, type IngestCounters } from "./ingest-register";
+import { probeAllFiles } from "./ingest-probe-files";
+import { dedupeWithinFolder, dedupeAgainstArchive } from "./ingest-dedupe";
+import { emitIngestReport, type IngestRunStats } from "./ingest-report";
 
 export interface IngestOptions {
   state: ArchiveState;
@@ -97,348 +88,6 @@ function newCounters(): IngestCounters {
     compatHires: 0,
     writeFailed: 0,
   };
-}
-
-/** Phase A: probe every file; broken/zero-byte files are reported, never moved.
- *  A file that vanishes between walk and stat is skipped — one ENOENT must
- *  not kill the whole pass (same hardening `sync` got for its byte counter).
- *  Also repairs mislabeled containers: pool rips ship AAC-in-MP4 wearing
- *  `.mp3` names; the mp3 muxer (and Pioneer hardware) rejects those, so the
- *  file is renamed to its true extension BEFORE dedupe/tagging (Sep 11: 14
- *  rescue files all failed tag-write with ffmpeg exit 234 for this). */
-async function probeAllFiles(
-  files: string[],
-  log: (msg: string) => void,
-): Promise<{ records: Record_[]; broken: string[] }> {
-  const records: Record_[] = [];
-  const broken: string[] = [];
-  for (const file of files) {
-    let st: Stats;
-    try {
-      st = await stat(file);
-    } catch {
-      log(`  ✗ vanished mid-scan, skipped: ${basename(file)}`);
-      continue;
-    }
-    const probe = await probeFile(file);
-    if (!st.size || !probe.ok) {
-      broken.push(file);
-      log(`  ✗ broken/zero-byte: ${basename(file)}`);
-      continue;
-    }
-    // Container-truth rename: extension says mp3, container says MP4 →
-    // rename in place (collision-safe), then continue with the real name.
-    let livePath = file;
-    const truth = trueContainerExt(probe);
-    const ext = extname(file).toLowerCase();
-    if (truth && truth !== ext && truth !== ".aiff") {
-      const fixedPath = file.slice(0, -ext.length) + truth;
-      if (!existsSync(fixedPath)) {
-        try {
-          renameSync(file, fixedPath);
-          livePath = fixedPath;
-          log(
-            `  [fix] mislabeled container renamed: ${basename(file)} → ${basename(fixedPath)} (audio untouched)`,
-          );
-        } catch (e) {
-          log(
-            `  ✗ rename failed, keeping original: ${basename(file)} — ${(e as Error).message?.slice(0, 60)}`,
-          );
-        }
-      } else {
-        log(
-          `  ⚠ truth-name exists, keeping both for review: ${basename(file)}`,
-        );
-      }
-    }
-    const parsed = parseFilename(basename(livePath));
-    const tagTitle = firstTag(probe.tags, ["title"]);
-    const tagArtist = firstTag(probe.tags, ["artist"]);
-    const title = tagTitle || parsed.title;
-    const artist = tagArtist || parsed.artist;
-    records.push({
-      file: livePath,
-      size: st.size,
-      probe,
-      parsed,
-      identity: identityKey(artist, title),
-      score: qualityScore(probe),
-    });
-  }
-  return { records, broken };
-}
-
-/** Phase B: within-folder dedupe — highest quality wins, losers quarantined. */
-async function dedupeWithinFolder(
-  records: Record_[],
-  quarantineDir: string,
-  dryRun: boolean | undefined,
-  log: (msg: string) => void,
-): Promise<{ survivors: Record_[]; folderDupes: number }> {
-  const byIdentity = new Map<string, Record_>();
-  const survivors: Record_[] = [];
-  let folderDupes = 0;
-  for (const rec of records) {
-    const incumbent = byIdentity.get(rec.identity);
-    if (!incumbent) {
-      byIdentity.set(rec.identity, rec);
-      survivors.push(rec);
-      continue;
-    }
-    const keep =
-      pickScoredKeeper(
-        incumbent,
-        rec,
-        (r) => r.file,
-        (r) => r.score,
-      ) === "a"
-        ? incumbent
-        : rec;
-    const drop = keep === incumbent ? rec : incumbent;
-    byIdentity.set(keep.identity, keep);
-    // Remove the loser even when it was first-seen (it entered survivors
-    // earlier) — leaving it in meant Phase D tried to copy an already
-    // quarantined file (ENOENT mid-batch, Sep 10 2026).
-    const dropIdx = survivors.indexOf(drop);
-    if (dropIdx !== -1) survivors.splice(dropIdx, 1);
-    if (!survivors.includes(keep)) survivors.push(keep);
-    folderDupes++;
-    log(
-      `  [dupe] ${basename(drop.file)} — keeping higher-quality ${basename(keep.file)}` +
-        ` (${(keep.score / 1e3).toFixed(0)} vs ${(drop.score / 1e3).toFixed(0)})`,
-    );
-    await quarantine(drop.file, quarantineDir, dryRun, log);
-  }
-  // Content-hash pass over the survivors (Back To Friends trap, Sep 9
-  // 2026): a mislabeled "Extended Mix" was a byte-identical copy of the
-  // Radio Edit — different filename + title tag → different identity →
-  // both got ingested. Same size is the cheap trigger; MD5 confirms
-  // before anything quarantines. Different content at the same size is
-  // KEPT (size alone is not a dupe — AGENTS.md).
-  folderDupes += await dedupeByContent(survivors, quarantineDir, dryRun, log);
-  // Acoustic pass (name-blind, the shelf-dupescan guarantee at intake):
-  // same recording re-rip under a different name/container/bitrate.
-  // fp-equal + name-similar → dupe; fp-equal + name-dissimilar → possible
-  // long-mix fp collision, kept for human review (never auto-quarantined).
-  folderDupes += await dedupeByFingerprint(
-    survivors,
-    quarantineDir,
-    dryRun,
-    log,
-  );
-  return { survivors, folderDupes };
-}
-
-/** MD5-verified twin pass over the identity-dedupe survivors. */
-async function dedupeByContent(
-  survivors: Record_[],
-  quarantineDir: string,
-  dryRun: boolean | undefined,
-  log: (m: string) => void,
-): Promise<number> {
-  let contentDupes = 0;
-  const bySize = new Map<number, Record_[]>();
-  for (const rec of survivors) {
-    const list = bySize.get(rec.size) ?? [];
-    list.push(rec);
-    bySize.set(rec.size, list);
-  }
-  for (const group of bySize.values()) {
-    if (group.length < 2) continue;
-    const hashes = new Map<string, Record_>();
-    for (const rec of group) {
-      const digest = await md5File(rec.file);
-      const twin = hashes.get(digest);
-      if (!twin) {
-        hashes.set(digest, rec);
-        continue;
-      }
-      const keep =
-        pickScoredKeeper(
-          twin,
-          rec,
-          (r) => r.file,
-          (r) => r.score,
-        ) === "a"
-          ? twin
-          : rec;
-      const drop = keep === twin ? rec : twin;
-      contentDupes++;
-      log(
-        `  [dupe] ${basename(drop.file)} — byte-identical twin of ${basename(keep.file)} (md5)`,
-      );
-      const idx = survivors.indexOf(drop);
-      if (idx !== -1) survivors.splice(idx, 1);
-      await quarantine(drop.file, quarantineDir, dryRun, log);
-      if (hashes.get(digest) === drop) hashes.set(digest, keep);
-    }
-  }
-  return contentDupes;
-}
-
-const md5File = md5FileStream;
-
-/** Filename stem, lowercased and stripped to alphanumerics — the same-stem
- *  pair key for the mp3↔lossless dupe pass. Pure — module-level. */
-const stemOf = (f: string): string =>
-  basename(f)
-    .replace(/\.[^.]+$/, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-
-/** Acoustic-fingerprint pass over the identity+MD5 survivors (name-blind
- *  dupe class: same recording, different rip). fpcalc per file is ~1s, so
- *  this runs only for pairs the cheaper passes couldn't resolve. Loser =
- *  lower quality score, then longer name — same tiebreaks as everywhere. */
-async function dedupeByFingerprint(
-  survivors: Record_[],
-  quarantineDir: string,
-  dryRun: boolean | undefined,
-  log: (m: string) => void,
-): Promise<number> {
-  let fpDupes = 0;
-  const byFp = new Map<string, Record_>();
-  // SAME-STEM PAIR pass (the Play Hard trap, Sep 10 2026): pools ship
-  // mp3+wav pairs whose fingerprints differ slightly (lossy vs lossless
-  // decode), so the fp equality check below can never match them — and
-  // both copies ingested. A same-stem mp3↔lossless pair IS one recording
-  // by convention (the skill's zip rule); the lossless side always wins,
-  // regardless of what qualityScore says (an mp3's nominal bitrate must
-  // never beat the lossless file it shipped with).
-  const LOSSLESS_RE = /\.(wav|aiff?|flac)$/i;
-  const losslessStems = new Set<string>();
-  for (const rec of survivors) {
-    if (LOSSLESS_RE.test(rec.file)) losslessStems.add(stemOf(rec.file));
-  }
-  const mp3Losers = survivors.filter(
-    (rec) => /\.mp3$/i.test(rec.file) && losslessStems.has(stemOf(rec.file)),
-  );
-  for (const loser of mp3Losers) {
-    log(
-      `  [dupe] ${basename(loser.file)} — mp3 twin of the same-stem lossless copy`,
-    );
-    const idx = survivors.indexOf(loser);
-    if (idx !== -1) survivors.splice(idx, 1);
-    await quarantine(loser.file, quarantineDir, dryRun, log);
-    fpDupes++;
-  }
-  for (const rec of survivors) {
-    // One fpcalc call per file — compareFingerprint hashes the second file
-    // again; group sequentially so each file is hashed at most twice.
-    const v = await compareFingerprint(rec.file, rec.file);
-    if (!v.fp) continue;
-    const seen = byFp.get(v.fp);
-    if (!seen) {
-      byFp.set(v.fp, rec);
-      continue;
-    }
-    const similar =
-      nameSimilarityTokens(basename(rec.file), basename(seen.file)) >= 0.5;
-    if (!similar) {
-      // fp collision across dissimilar names → likely different recordings
-      // (long-mix), never auto-quarantine — surface it and keep both.
-      log(
-        `  [fp] same fingerprint, dissimilar names — kept for review: ${basename(rec.file)} ≈ ${basename(seen.file)}`,
-      );
-      continue;
-    }
-    const keep =
-      pickScoredKeeper(
-        seen,
-        rec,
-        (r) => r.file,
-        (r) => r.score,
-      ) === "a"
-        ? seen
-        : rec;
-    const drop = keep === seen ? rec : seen;
-    fpDupes++;
-    log(
-      `  [dupe] ${basename(drop.file)} — same recording as ${basename(keep.file)} (acoustic fingerprint)`,
-    );
-    const idx = survivors.indexOf(drop);
-    if (idx !== -1) survivors.splice(idx, 1);
-    await quarantine(drop.file, quarantineDir, dryRun, log);
-    if (byFp.get(v.fp) === drop) byFp.set(v.fp, keep);
-  }
-  return fpDupes;
-}
-
-/** Phase B seam for tests (ingest-pair.test.ts): probe a folder's files
- * and run the within-folder dedupe passes — no DB, no archive check. */
-export async function dedupeWithinFolderForTest(
-  folder: string,
-  quarantineDir: string,
-  dryRun: boolean | undefined,
-  log: (msg: string) => void,
-): Promise<{ survivors: Record_[]; dupes: number }> {
-  const files = await walkAudio(folder, [], [quarantineDir]);
-  const { records } = await probeAllFiles(files, log);
-  const { survivors, folderDupes } = await dedupeWithinFolder(
-    records,
-    quarantineDir,
-    dryRun,
-    log,
-  );
-  return { survivors, dupes: folderDupes };
-}
-
-/** Phase C: archive collision check — archive dupes quarantine unless the new
- *  copy beats the stored one by >5% quality (a "quality upgrade"). */
-async function dedupeAgainstArchive(
-  state: ArchiveState,
-  survivors: Record_[],
-  quarantineDir: string,
-  dryRun: boolean | undefined,
-  log: (msg: string) => void,
-): Promise<{ toIngest: Record_[]; archiveDupes: number; upgrades: number }> {
-  const archiveTracks = state.downloadedWithFiles();
-  const archiveByIdentity = new Map<string, TrackRow>();
-  for (const t of archiveTracks) {
-    if (!t.title) continue;
-    const key = identityKey(t.artist, t.title);
-    if (!archiveByIdentity.has(key)) archiveByIdentity.set(key, t);
-  }
-  let archiveDupes = 0;
-  let upgrades = 0;
-  const toIngest: Record_[] = [];
-  for (const rec of survivors) {
-    const existing = archiveByIdentity.get(rec.identity);
-    if (!existing?.file_path) {
-      toIngest.push(rec);
-      continue;
-    }
-    // SELF-MATCH GUARD: the "existing" row may point at THIS VERY FILE.
-    // Every batch folder lives inside musicDir, so last night's ingest of
-    // this folder registered rows whose file_path is the file we're now
-    // looking at. Quarantining here would rename the archive's only copy
-    // into ingest-duplicates and leave the row pointing at a missing path
-    // (the Sep 10 14:29 UI re-run did exactly that to 14 rows — the file
-    // survived in quarantine, but the archive pointer broke). A self-match
-    // means "already ingested, nothing to do": skip in place.
-    if (existing.file_path === rec.file) {
-      log(
-        `  [dupe] already in archive (self): ${basename(rec.file)} — unchanged`,
-      );
-      archiveDupes++;
-      continue;
-    }
-    archiveDupes++;
-    const existingProbe = await probeFile(existing.file_path);
-    const existingScore = existingProbe.ok ? qualityScore(existingProbe) : -1;
-    if (rec.score > existingScore * 1.05) {
-      upgrades++;
-      log(
-        `  [upgrade] ${basename(rec.file)} beats archive copy of "${existing.title}"` +
-          ` — will replace`,
-      );
-      toIngest.push(rec);
-    } else {
-      log(`  [dupe] already in archive: ${basename(rec.file)} — quarantining`);
-      await quarantine(rec.file, quarantineDir, dryRun, log);
-    }
-  }
-  return { toIngest, archiveDupes, upgrades };
 }
 
 /** Phase D per-track work: tag + artwork + register + move into the archive. */
@@ -754,7 +403,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     log(`artwork queue: ${queueEntries.length} entries`);
   }
 
-  const runStats = {
+  const runStats: IngestRunStats = {
     files: files.length,
     folderDupes,
     archiveDupes,
@@ -776,107 +425,21 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   }
 }
 
-/** Run-scoped numbers the summary needs that IngestCounters doesn't own. */
-interface IngestRunStats {
-  files: number;
-  folderDupes: number;
-  archiveDupes: number;
-  upgrades: number;
-  broken: string[];
-  minDuration: number;
-}
-
-/** The done-line, dry-run/dupes/broken epilogue, and the --json summary.
- *  One seam so the report stays in sync with the payload — both read the
- *  same counters object. Async end-to-end: the --json write is awaited,
- *  never fire-and-forget (#53's EOF class — a lesson re-learned the same
- *  day in mood.ts). */
-async function emitIngestReport(
-  opts: IngestOptions,
-  counters: IngestCounters,
-  run: IngestRunStats,
+/** Phase B seam for tests (ingest-pair.test.ts): probe a folder's files
+ * and run the within-folder dedupe passes — no DB, no archive check. */
+export async function dedupeWithinFolderForTest(
+  folder: string,
   quarantineDir: string,
-): Promise<void> {
-  const log = commandLog(opts);
-  const dupesTotal = run.folderDupes + run.archiveDupes;
-  // Summary segments: [segment, condition] pairs — a segment only joins
-  // the line when its condition holds, so a zero counter stays silent.
-  const segments: [string, boolean][] = [
-    [`${counters.tagged} retagged`, true],
-    [`${counters.artAdded} artwork embedded`, true],
-    [`${counters.wavConverted} wav→aiff`, counters.wavConverted > 0],
-    [
-      `${counters.compatRejected} PLAYER-INCOMPATIBLE (left in place)`,
-      counters.compatRejected > 0,
-    ],
-    [
-      `${counters.compatHires} hires-only (no XDJ-XZ/CDJ-2000)`,
-      counters.compatHires > 0,
-    ],
-    [
-      `${counters.artQueued} artwork QUEUED for image-maker`,
-      counters.artQueued > 0,
-    ],
-    [
-      `${counters.artSkippedWav} wav skipped for art`,
-      counters.artSkippedWav > 0,
-    ],
-    [
-      `${counters.shortSkipped} skipped (<${run.minDuration}s)`,
-      counters.shortSkipped > 0,
-    ],
-    [`${counters.unchanged} already clean`, true],
-    [`${run.folderDupes} in-folder dupes`, true],
-    [
-      `${run.archiveDupes} archive dupes (${run.upgrades} quality upgrades)`,
-      true,
-    ],
-    [`${run.broken.length} BROKEN (left in place)`, run.broken.length > 0],
-    [
-      `${counters.writeFailed} TAG-WRITE FAILED (left in place, see ✗ lines)`,
-      counters.writeFailed > 0,
-    ],
-  ];
-  const doneLine = segments
-    .filter(([, keep]) => keep)
-    .map(([text]) => text)
-    .join(", ");
-  log(`\ndone: ${doneLine}`);
-
-  if (opts.dryRun) log("(dry run — nothing written)");
-  else if (dupesTotal > 0) log(`duplicates moved to: ${quarantineDir}`);
-  if (run.broken.length > 0)
-    log(`broken files:\n  ${run.broken.map((b) => basename(b)).join("\n  ")}`);
-
-  if (!opts.json) return;
-  // P1 (--json on every command): one summary object on stdout, LAST —
-  // keyed over THE counter list (cratedeck/shared/types.ts, issue #159)
-  // so a key added to IntakeResult fails typecheck here until produced,
-  // and cratedeck's parser needs no hand-copied twin list. Awaited here —
-  // fire-and-forget console.log truncated piped output (#53's EOF class).
-  await writeIngestJson(counters, run, opts.dryRun ?? false);
-}
-
-/** The --json payload (async tail of the report seam). */
-async function writeIngestJson(
-  counters: IngestCounters,
-  run: IngestRunStats,
-  dryRun: boolean,
-): Promise<void> {
-  const summary = {
-    command: "ingest",
+  dryRun: boolean | undefined,
+  log: (msg: string) => void,
+): Promise<{ survivors: Record_[]; dupes: number }> {
+  const files = await walkAudio(folder, [], [quarantineDir]);
+  const { records } = await probeAllFiles(files, log);
+  const { survivors, folderDupes } = await dedupeWithinFolder(
+    records,
+    quarantineDir,
     dryRun,
-    // run-derived counters (not in IngestCounters — computed by the caller)
-    files: run.files,
-    folderDupes: run.folderDupes,
-    archiveDupes: run.archiveDupes,
-    upgrades: run.upgrades,
-    broken: run.broken.length,
-    // counter-backed keys, derived: IngestCounters ∩ INTAKE_COUNTER_KEYS
-    ...counterSummary(counters),
-  } satisfies {
-    command: string;
-    dryRun: boolean;
-  } & Record<IntakeCounterKey, number>;
-  await writeJson(summary);
+    log,
+  );
+  return { survivors, dupes: folderDupes };
 }
