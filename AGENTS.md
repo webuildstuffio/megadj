@@ -70,7 +70,8 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - The hygiene engine owns the listen-first guard: `quality-diff`, `oddball`,
   `ear-check` findings cannot be batch-confirmed from any spoke.
 - `shelf-dupescan` judges duplicates by fingerprint, never by name; keep its
-  fpcalc parser base64url-complete; guard every `DupFpCache.put` on non-null
+  fpcalc parser base64url-complete (a truncating regex poisons the whole
+  `shelf_fingerprints` cache); guard every `DupFpCache.put` on non-null
   fp (a persisted null poisons the row). One md5 seam
   (`src/shelf/md5-cli.ts`) — never hand-roll a second spawn.
 
