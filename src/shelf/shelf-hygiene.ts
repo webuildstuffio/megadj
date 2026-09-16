@@ -196,11 +196,15 @@ async function applyConfirmed(
         continue;
       }
       moved++;
+      // §5 Phase 4: the receipt re-verifies with a LIVE fpcalc (cache
+      // bypassed) — the ledger's cached fps predate the move, and a
+      // receipt built from pre-move evidence validates nothing.
+      const liveCtx: CheckCtx = { ...ctx, fp: (p) => fingerprintFileLength(p) };
       const receipt = validateFinding(
         f,
         startCount - moved + 1,
         startCount - moved,
-        ctx,
+        liveCtx,
         r.dest,
       );
       store.markApplied(f.id, receipt);

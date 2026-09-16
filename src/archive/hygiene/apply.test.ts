@@ -112,4 +112,39 @@ describe("validateFinding", () => {
     const receipt = validateFinding(f, 10, 10, ctx(), q);
     expect(receipt.ok).toBe(false);
   });
+
+  // issue #35: EVERY quarantine-loser kind is re-verified, not just
+  // byte-twins — an acoustic-twin apply whose loser changed bytes
+  // between detection and apply must fail the receipt, never pass
+  // silently (the fp path above was a no-op for non-byte kinds).
+  test("acoustic-twin receipt fails when the loser bytes diverge", () => {
+    const v = vol();
+    const keeper = seed(v, "A/k.mp3", "abc");
+    const loser = seed(v, "B/l.mp3", "abc");
+    const f = confirmedFinding(keeper, loser);
+    f.kind = "acoustic-twin";
+    const q = seed(v, "../.hygiene-quarantine/B · l.mp3", "different");
+    const live: CheckCtx = {
+      ...ctx(),
+      fp: (p) => `fp:${readFileSync(p).toString()}`,
+    };
+    const receipt = validateFinding(f, 10, 9, live, q);
+    expect(receipt.ok).toBe(false);
+    expect(receipt.fpMismatches).toContain(q);
+  });
+
+  test("acoustic-twin receipt passes on fingerprint equality", () => {
+    const v = vol();
+    const keeper = seed(v, "A/k.mp3", "abc");
+    const loser = seed(v, "B/l.mp3", "abc");
+    const f = confirmedFinding(keeper, loser);
+    f.kind = "acoustic-twin";
+    const q = seed(v, "../.hygiene-quarantine/B · l.mp3", "abc");
+    const live: CheckCtx = {
+      ...ctx(),
+      fp: (p) => `fp:${readFileSync(p).toString()}`,
+    };
+    const receipt = validateFinding(f, 10, 9, live, q);
+    expect(receipt.ok).toBe(true);
+  });
 });

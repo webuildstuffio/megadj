@@ -121,6 +121,16 @@ export function validateFinding(
     if (!lm || !km || lm !== km) fpMismatches.push(loserCheck);
   } else if (f.kind === "byte-twin") {
     fpMismatches.push(loserCheck ?? "loser missing");
+  } else if (loserCheck) {
+    // acoustic-twin (every other quarantine-loser kind): fingerprint
+    // equality is the proof. The quarantine path is a cache miss by
+    // construction (new path) → live fpcalc, per §5 Phase 4 — never the
+    // pre-move cached entry.
+    const lf = existsSync(loserCheck) ? ctx.fp(loserCheck, 0) : null;
+    const kf = keeper && existsSync(keeper) ? ctx.fp(keeper, 0) : null;
+    if (!lf || !kf || lf !== kf) fpMismatches.push(loserCheck);
+  } else {
+    fpMismatches.push("loser missing");
   }
   const delta = {
     before: shelfBefore,
