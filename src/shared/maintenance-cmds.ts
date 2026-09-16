@@ -19,7 +19,11 @@ import { DB_PATH } from "../cli-env";
 import { parseFlags, nonNegOpt } from "../cli-flags";
 import { ArchiveState } from "../archive/state";
 import { resolveShelfVolume, volumePath } from "./volume";
-import { writeJson } from "./cli-output";
+import {
+  finishCommandError,
+  finishCommandErrorSync,
+  writeJson,
+} from "./cli-output";
 import type { AnlzSpikeMode } from "../rekordbox/anlz-spike";
 
 /** Commands handled by this module; cli.ts and the parity census share it. */
@@ -87,8 +91,11 @@ export async function runMaintenanceCommand(
       const flags = parseFlags(rest, ["into"], ["json"]);
       const input = positionalArgs(rest, ["into"])[0];
       if (!input) {
-        console.error("shelf-restore: finding-id|path is required");
-        process.exitCode = 2;
+        await finishCommandError({
+          command: "shelf-restore",
+          error: "finding-id|path is required",
+          exitCode: 2,
+        });
         return;
       }
       const { shelfRestore } = await import("../shelf/shelf-restore");
@@ -222,10 +229,11 @@ export async function runMaintenanceCommand(
       const mount = mountFrom(args[0]);
       const folder = args[1];
       if (!folder) {
-        console.error(
-          "rb-import: usage — megadj rb-import <mount> <folder> [--playlist NAME] [--group NAME] [--apply --yes]",
-        );
-        process.exitCode = 1;
+        await finishCommandError({
+          command: "rb-import",
+          error:
+            "usage — megadj rb-import <mount> <folder> [--playlist NAME] [--group NAME] [--apply --yes]",
+        });
         return;
       }
       const { rbImport, printRbImportReport } =
@@ -377,8 +385,11 @@ export async function runMaintenanceCommand(
         if (raw === undefined) return undefined;
         const n = Number(raw);
         if (!Number.isFinite(n) || n < 0) {
-          console.error(`rb-playlist: --${key} must be a non-negative number`);
-          process.exitCode = 2;
+          finishCommandErrorSync({
+            command: "rb-playlist",
+            error: `--${key} must be a non-negative number`,
+            exitCode: 2,
+          });
           return undefined;
         }
         return n;
@@ -424,23 +435,28 @@ export async function runMaintenanceCommand(
       if (
         args.some((a) => a !== "snapshot" && a !== "compare" && a !== mountPos)
       ) {
-        console.error(
-          "rb-anlz-spike: too many arguments (usage: [drive] snapshot|compare)",
-        );
-        process.exitCode = 2;
+        await finishCommandError({
+          command: "rb-anlz-spike",
+          error: "too many arguments (usage: [drive] snapshot|compare)",
+          exitCode: 2,
+        });
         return;
       }
       if (modeWord === undefined) {
-        console.error("rb-anlz-spike: mode is required (snapshot|compare)");
-        process.exitCode = 2;
+        await finishCommandError({
+          command: "rb-anlz-spike",
+          error: "mode is required (snapshot|compare)",
+          exitCode: 2,
+        });
         return;
       }
       const tag = flags.strings.get("tag") ?? "";
       if (!tag) {
-        console.error(
-          "rb-anlz-spike: --tag=<label> is required (names the baseline file)",
-        );
-        process.exitCode = 2;
+        await finishCommandError({
+          command: "rb-anlz-spike",
+          error: "--tag=<label> is required (names the baseline file)",
+          exitCode: 2,
+        });
         return;
       }
       const mount = mountFrom(mountPos);
@@ -474,8 +490,11 @@ export async function runMaintenanceCommand(
       if (flags.strings.has("limit") && limit === undefined) return;
       const rawCompare = flags.strings.get("compare");
       if (rawCompare === "") {
-        console.error("rb-grid-triage: --compare= requires a drive name");
-        process.exitCode = 2;
+        await finishCommandError({
+          command: "rb-grid-triage",
+          error: "--compare= requires a drive name",
+          exitCode: 2,
+        });
         return;
       }
       // `--compare DJMASTER` (string value), bare `--compare` (default to

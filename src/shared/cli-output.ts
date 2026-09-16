@@ -24,3 +24,39 @@ export function drainStdout(): Promise<void> {
     process.stdout.write("", () => resolve());
   });
 }
+
+/** The command failure epilogue (issue #160): emit the error in the right
+ * channel, set the exit code — ONE home for the three-part contract
+ * ("--json: one summary object on stdout, meaningful exit code").
+ * `json` mode writes `{ command, error }` to stdout; human mode logs via
+ * commandLog-style stderr-safe console.error. Exit code defaults to 1. */
+export async function finishCommandError(opts: {
+  command: string;
+  json?: boolean;
+  error: string;
+  exitCode?: number;
+}): Promise<void> {
+  if (opts.json) {
+    await writeJson({ command: opts.command, error: opts.error });
+  } else {
+    console.error(`${opts.command}: ${opts.error}`);
+  }
+  await drainStdout();
+  process.exitCode = opts.exitCode ?? 1;
+}
+
+/** Synchronous twin of finishCommandError for sync closures (e.g. an
+ * inline numeric-option validator). Same channel/exit contract. */
+export function finishCommandErrorSync(opts: {
+  command: string;
+  json?: boolean;
+  error: string;
+  exitCode?: number;
+}): void {
+  if (opts.json) {
+    void writeJson({ command: opts.command, error: opts.error });
+  } else {
+    console.error(`${opts.command}: ${opts.error}`);
+  }
+  process.exitCode = opts.exitCode ?? 1;
+}
