@@ -130,7 +130,8 @@ function emptyIndex(): LiveIndex {
   };
 }
 
-function nfkc(s: string): string {  return nameKey(s);
+function nfkc(s: string): string {
+  return nameKey(s);
 }
 
 /** "track - 1.mp3", "track - 1 2.mp3" → "track.mp3" — auto-relocate

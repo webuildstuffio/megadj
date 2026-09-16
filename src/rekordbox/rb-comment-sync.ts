@@ -407,13 +407,7 @@ async function rbCommentSyncWithRuntime(
     const r = deps.spawn(
       pyUvArgv({
         script: commentSyncScript(),
-        args: [
-          dbPath,
-          ledger,
-          mode,
-          opts.batch ?? "",
-          String(opts.limit ?? 0),
-        ],
+        args: [dbPath, ledger, mode, opts.batch ?? "", String(opts.limit ?? 0)],
         withPkg: "pyrekordbox,mutagen",
       }),
       600_000,
