@@ -15,6 +15,9 @@ export interface Truth {
   art: boolean;
   title: string | null;
   artist: string | null;
+  /** Album artist (TPE2 / freeform aART) — round-trips the writer's
+   * albumArtist field (groundTruth is the idempotency probe). */
+  albumArtist: string | null;
   album: string | null;
   genre: string | null;
   year: string | null;
@@ -30,6 +33,9 @@ export interface Truth {
   label: string | null;
   /** Mix name (TIT3 / freeform MIXNAME) — "Club Mix", "Original Mix". */
   mixName: string | null;
+  /** Grouping (TIT1 / freeform GROUPING) — round-trips the writer's
+   * grouping field. */
+  grouping: string | null;
   /** ISRC (TSRC / freeform ISRC) — store-grade recording identity. */
   isrc: string | null;
   /** Official remixer credit (TXXX:version / freeform REMIXER) — read
@@ -166,6 +172,8 @@ print(json.dumps({"art": art, "tags": tags}))`;
 const TRUTH_KEY: Record<string, string> = {
   TIT2: "title",
   TPE1: "artist",
+  TPE2: "albumArtist",
+  TIT1: "grouping",
   TALB: "album",
   TCON: "genre",
   TDRC: "date",
@@ -218,6 +226,9 @@ export function groundTruth(p: string): Truth {
     durationS: ff.durationS,
     title: g("title"),
     artist: g("artist"),
+    // ID3 renders TPE2 as "album_artist"/"albumartist" through ffprobe;
+    // mutagen keeps the literal "TPE2" key (TRUTH_KEY maps it).
+    albumArtist: g("albumArtist", "album_artist", "albumartist", "TPE2"),
     album: g("album"),
     genre,
     year,
@@ -229,6 +240,7 @@ export function groundTruth(p: string): Truth {
     // ID3 renders TPUB as "publisher" through ffprobe; flac keeps "TPUB".
     label: g("publisher", "TPUB", "tpub", "LABEL", "label"),
     mixName: g("TIT3", "tit3", "MIXNAME", "mixname"),
+    grouping: g("grouping", "GROUPING", "TIT1"),
     remixer,
     isrc: g("TSRC", "tsrc", "ISRC", "isrc", "ISRC:", "isrc:"),
   };
@@ -240,12 +252,12 @@ export function readFullTag(p: string): FullTag {
   return {
     title: t.title,
     artist: t.artist,
-    albumArtist: null,
+    albumArtist: t.albumArtist,
     album: t.album,
     genre: t.genre,
     year: t.year,
     remixer: t.remixer,
-    grouping: null,
+    grouping: t.grouping,
     composer: null,
     label: t.label,
     mixName: t.mixName,

@@ -12,38 +12,28 @@
  *   art      → embedded → SC page og:image (original/t1080) → gateways →
  *              mp3-twin → Deezer → iTunes → AI queue (last resort)
  *   energy   → ffmpeg RMS astats → 1–10 scale
+ *
+ * Split per concern (#90 diet): stamp readers live in pipeline-stamps.ts,
+ * the art ladder + AI queue in pipeline-art.ts — this file is the stage
+ * orchestration only.
  */
 import { basename } from "node:path";
-import { existsSync, readFileSync } from "node:fs";
-import { appendFile } from "node:fs/promises";
 import { groundTruth } from "./readers";
 import { embedArt, writePatch } from "./writer";
 import { canonGenre, type TagPatch } from "./schema";
-import { mutagenJson } from "./mutagen";
-import {
-  deezerArt,
-  fetchBestScArt,
-  fetchImage,
-  gatewayArt,
-  pageOgImage,
-  scSearch,
-  twinArt,
-  type ArtRow,
-} from "./art-sources";
+import { scSearch } from "./art-sources";
 import { energyFromLufs, measureRms } from "./media-probe";
 import { detectRemix } from "./remix";
 import { analyzeBeats, foldTempo } from "./beats-analysis";
 import { analyzeKey } from "./key-analysis";
 import { fingerprintWithDuration } from "./fingerprint";
-import { analyzeMoods, moodStamp, type MoodResult } from "./models";
+import { analyzeMoods, moodStamp } from "./models";
 import { mbLookupCached } from "./mb_lookup";
-import {
-  beatportArt,
-  beatportLookup,
-  bpGenre,
-  bpStamp,
-  type BpTrack,
-} from "./beatport";
+import { beatportLookup, bpGenre, bpStamp, type BpTrack } from "./beatport";
+import { appendQueue, artLadder, scArt } from "./pipeline-art";
+import { parseMoodStamp, readEnergyStamp, readStamp } from "./pipeline-stamps";
+
+export { parseMoodStamp, readAiStamps } from "./pipeline-stamps";
 
 /** Injectable Beatport lookup (tests swap this; null = skip the source). */
 export type BpLookupFn = (q: {
@@ -113,10 +103,7 @@ export interface TrackResult {
   missing: string[];
 }
 
-/** Where AI-cover misses are queued when no explicit queue path is passed. */
-export const DEFAULT_QUEUE =
-  process.env.FULLTAGS_ARTWORK_QUEUE ??
-  `${process.env.HOME}/.local/state/megadj/artwork-queue.jsonl`;
+export { DEFAULT_QUEUE } from "./pipeline-art";
 
 /** One-track pass. Returns the human-readable change notes. */
 export async function enrichTrack(
@@ -284,7 +271,7 @@ export async function enrichTrack(
 
   // ---------- art ladder ----------
   if (needArt && !opts.dryRun) {
-    const artRow: ArtRow = {
+    const artRow = {
       artist: patch.artist ?? truth.artist ?? t.artist ?? null,
       title: patch.title ?? truth.title ?? t.title ?? basename(t.path),
       album: t.album ?? null,
@@ -293,38 +280,13 @@ export async function enrichTrack(
     let bytes: Uint8Array | null = null;
     let source: string | null = null;
     if (scBest) {
-      const og = await pageOgImage(scBest.url);
-      bytes = og
-        ? await fetchBestScArt(og)
-        : scBest.thumb
-          ? await fetchImage(scBest.thumb)
-          : null;
+      bytes = await scArt(scBest);
       if (bytes) source = scBest.url.includes("-original") ? "sc-orig" : "sc";
     }
-    // Beatport official release art at 1500² — second rung, before the
-    // hype-gateway scraping (store master beats a gateway screenshot).
-    if (!bytes && bpBest) {
-      bytes = await beatportArt(bpBest);
-      if (bytes) source = "beatport";
-    }
     if (!bytes) {
-      const gw = await gatewayArt(artRow);
-      if (gw) {
-        bytes = gw.bytes;
-        source = "gateway";
-      }
-    }
-    if (!bytes) {
-      bytes = twinArt(artRow);
-      if (bytes) source = "twin";
-    }
-    if (!bytes) {
-      bytes = await deezerArt(artRow);
-      if (bytes) source = "deezer";
-    }
-    if (!bytes) {
-      bytes = await itunesArt(artRow);
-      if (bytes) source = "itunes";
+      const rung = await artLadder(artRow, bpBest);
+      bytes = rung.bytes;
+      source = rung.source;
     }
     if (bytes && embedArt(t.path, bytes)) {
       notes.push(`art:${source}`);
@@ -455,145 +417,6 @@ export async function enrichTrack(
   return { path: t.path, notes, complete, missing };
 }
 
-async function itunesArt(r: ArtRow): Promise<Uint8Array | null> {
-  const { itunesArtwork } = await import("./art-sources");
-  const url = await itunesArtwork(r.artist ?? "", r.album ?? r.title);
-  if (!url) return null;
-  return fetchImage(url);
-}
-
-function appendQueue(queuePath: string, r: ArtRow): boolean {
-  try {
-    // Dedupe: a path already queued (by path) must not re-queue on every
-    // re-run — the queue is consumed by megadj artwork, duplicates just
-    // burn AI generations.
-    if (existsSync(queuePath)) {
-      const seen = readFileSync(queuePath, "utf8");
-      if (seen.includes(JSON.stringify(r.file_path))) return false;
-    }
-    void appendFile(
-      queuePath,
-      `${JSON.stringify({
-        path: r.file_path,
-        title: r.title,
-        artist: r.artist,
-        album: r.album ?? null,
-        reason: "no-online-cover",
-      })}\n`,
-    ).catch((e: unknown) => {
-      // queue is best-effort (never fails the pipeline) but not silent:
-      // a failed append means the artwork-queue silently stays empty and
-      // the track never gets its AI cover — the operator needs to know.
-      console.error(`artwork queue append failed (${queuePath})`, e);
-    });
-    return true;
-  } catch {
-    // queue is best-effort — never fail the pipeline over it
-    return false;
-  }
-}
-
-/**
- * Read TXXX frames (mutagen) in one spawn: pass descriptions, get values.
- * Shared by the energy stamp and AI-provenance reads — same format
- * dispatch, one python script, never throws.
- */
-function readTxxx(p: string, descs: string[]): Record<string, string | null> {
-  const script = `import json
-p = ${JSON.stringify(p)}
-wanted = ${JSON.stringify(descs)}
-vals = {d: None for d in wanted}
-try:
-    a = None
-    if p.lower().endswith(".wav"):
-        from mutagen.wave import WAVE
-        a = WAVE(p)
-    elif p.lower().endswith((".aiff", ".aif")):
-        from mutagen.aiff import AIFF
-        a = AIFF(p)
-    elif p.lower().endswith((".m4a", ".m4b")):
-        from mutagen.mp4 import MP4
-        a = MP4(p)
-        tags = a.tags
-        if tags is not None:
-            for key, v in tags.items():
-                if not key.startswith("----:"):
-                    continue
-                desc = key.rsplit(":", 1)[-1]
-                if desc in vals and vals[desc] is None:
-                    try:
-                        vals[desc] = bytes(v[0]).decode("utf-8")
-                    except Exception:
-                        pass
-    elif p.lower().endswith(".flac"):
-        from mutagen.flac import FLAC
-        a = FLAC(p)
-        tags = a.tags
-        if tags is not None:
-            # ffmpeg writes these as Vorbis comments in lowercase
-            # (energy=6), never TXXX — match keys case-insensitively
-            # and unwrap the single-element list mutagen returns.
-            upper = {k.upper(): k for k in tags.keys()}
-            for d in wanted:
-                k = upper.get(d.upper())
-                if k is not None and vals[d] is None:
-                    v = tags.get(k)
-                    vals[d] = str(v[0]) if isinstance(v, list) and v else str(v)
-    else:
-        from mutagen.mp3 import MP3
-        a = MP3(p)
-    # ID3-family containers (WAV RIFF/INFO:ID3 chunk, AIFF ID3 chunk, MP3):
-    # all expose a.tags as an ID3 dict with TXXX frames keyed by desc.
-    # REGRESSION NOTE: the WAV/AIFF branches used to open the file and read
-    # NOTHING — every stamp probe (ACOUSTID/CAMELOT/ENERGY/AI-*) returned
-    # null on 73 archive WAVs, so fingerprint/key/energy re-runs rewrote
-    # all of them forever (idempotency was mp3/flac/m4a-only).
-    if a is not None and getattr(a, "tags", None) is not None:
-        tags = a.tags
-        try:
-            for k in tags.keys():
-                if str(k).startswith("TXXX"):
-                    desc = getattr(tags.get(k), "desc", "")
-                    if desc in vals and vals[desc] is None:
-                        vals[desc] = str(tags.get(k).text[0])
-        except Exception:
-            pass
-except Exception:
-    pass
-print(json.dumps(vals))`;
-  return mutagenJson<Record<string, string | null>>(
-    script,
-    Object.fromEntries(descs.map((d) => [d, null])),
-  );
-}
-
-/** Read the TXXX:ENERGY stamp (mutagen) — null when absent. */
-function readEnergyStamp(p: string): number | null {
-  const { ENERGY: v } = readTxxx(p, ["ENERGY"]);
-  const n = v === null || v === undefined ? NaN : Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-/** Generic stamp read: any TXXX/freeform/vorbis stamp by description
- * (ACOUSTID, CAMELOT, …). Null when absent. */
-function readStamp(p: string, desc: string): string | null {
-  const out = readTxxx(p, [desc]);
-  return out[desc] ?? null;
-}
-
-/** AI provenance stamps on a file: {aiGenre, aiYear} = "value|confidence",
- * null when not AI-filled (mutagen TXXX read; never throws). */
-export function readAiStamps(p: string): {
-  aiGenre: string | null;
-  aiYear: string | null;
-} {
-  const { "AI-GENRE": genre, "AI-YEAR": year } = readTxxx(p, [
-    "AI-GENRE",
-    "AI-YEAR",
-  ]);
-  return { aiGenre: genre ?? null, aiYear: year ?? null };
-}
-
 function completenessOf(
   truth: ReturnType<typeof groundTruth>,
   hint: TrackInput,
@@ -653,39 +476,4 @@ export async function enrichAll(
     notes: results.filter((r) => r.notes.length).length,
     results,
   };
-}
-
-/** Parse a TXXX:MOOD stamp ("dance=0.155; …; valence=4.04; arousal=4.61")
- * into a MoodResult. Null when the stamp is malformed. */
-export function parseMoodStamp(s: string): MoodResult | null {
-  const parts = s
-    .split(";")
-    .map((p) => p.trim())
-    .filter(Boolean);
-  const kv: Record<string, number> = {};
-  for (const p of parts) {
-    const m = /^([a-zA-Z]+)=([\d.]+)$/.exec(p);
-    if (!m?.[1] || !m[2]) return null;
-    kv[m[1].toLowerCase()] = Number(m[2]);
-  }
-  const need = (k: string, min: number, max: number): number => {
-    const v = kv[k];
-    if (typeof v !== "number" || !Number.isFinite(v) || v < min || v > max) {
-      throw new Error(`invalid ${k}`);
-    }
-    return v;
-  };
-  try {
-    return {
-      danceability: need("dance", 0, 1),
-      moodAggressive: need("aggressive", 0, 1),
-      moodHappy: need("happy", 0, 1),
-      moodElectronic: need("electronic", 0, 1),
-      moodParty: need("party", 0, 1),
-      valence: need("valence", 1, 9),
-      arousal: need("arousal", 1, 9),
-    };
-  } catch {
-    return null;
-  }
 }

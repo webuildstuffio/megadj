@@ -87,6 +87,14 @@ describe("writePatchSync", () => {
     const t = groundTruth(p);
     expect(t.title).toBe("AIFF Sync");
     expect(t.year).toBe("2023");
+    // Full readback of every field this patch carries — the TPE2/TIT1
+    // statements used to be droppable without failing this test (the
+    // write still succeeded, the fields silently vanished). groundTruth
+    // now reads both frames, so a dropped statement fails here.
+    expect(t.albumArtist).toBe("AA");
+    expect(t.grouping).toBe("Deep House");
+    expect(t.energy).toBe(7);
+    expect(t.bpm).toBe(128);
     rmSync(p);
   });
 

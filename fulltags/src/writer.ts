@@ -1,176 +1,40 @@
 /**
  * FullTags writer — ONE surface for writing tags into mp3/m4a/flac/wav/aiff.
  *
- * Format gotchas consolidated here (each one was learned the hard way):
- *  - ffmpeg's AIFF muxer DROPS the ID3 chunk → AIFF writes go through
- *    mutagen, editing the ID3 chunk in place (artwork survives).
- *  - ffmpeg's WAV muxer canNOT carry attached_pic → WAV art via mutagen APIC.
- *    (rekordbox ignores art in WAVs entirely — convert to AIFF instead,
- *    see convert/wav-to-aiff.ts. WAV tag writes are still supported.)
+ * Split per concern (#90 diet): the mutagen half (atomic machinery +
+ * ID3-in-container/MP4 statement builders) lives in writer-mutagen.ts;
+ * THIS file owns the ffmpeg remux half and the public write API.
+ *
+ * Remaining format gotchas owned here:
  *  - mp3 needs id3v2.3 for widest hardware compatibility.
  *  - m4a uses the ipod muxer; covers re-encode to mjpeg + attached_pic.
+ *  - Audio is always stream-copied (`-c:a copy`) — never re-encoded.
  *  - Every write is atomic: tmp file → rename, a crash never truncates.
- *
- * Audio is always stream-copied (`-c:a copy`) — never re-encoded.
  */
 import { $ } from "bun";
-import { randomUUID } from "node:crypto";
-import { basename, dirname, extname, join } from "node:path";
+import { extname } from "node:path";
+import { existsSync, renameSync, unlinkSync } from "node:fs";
 import { walkAudioDir } from "../../src/shared/audio-walk";
-import {
-  closeSync,
-  copyFileSync,
-  existsSync,
-  fsyncSync,
-  openSync,
-  readSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
 import type { EnrichedMetadata, TagPatch } from "./schema";
 import { validatePatch } from "./schema-guards";
-import { id3Open, mutagenOk } from "./mutagen";
+import { id3Open } from "./mutagen";
+import {
+  atomicMutagenWrite,
+  atomicOps,
+  type TagPair,
+  type WriterAtomicOps,
+  mp4Statement,
+  mp4VerifyStatement,
+  mutagenPatchFrame,
+  tagPairs,
+  tmpLike,
+  uniqueTempLike,
+  unlinkIfPresent,
+  wavId3Statement,
+  wavVerifyStatement,
+} from "./writer-mutagen";
 
-export interface WriterAtomicOps {
-  copyFile: (from: string, to: string) => void;
-  writeFile: (path: string, data: Uint8Array) => void;
-  rename: (from: string, to: string) => void;
-  mutagenOk: (script: string) => boolean;
-  fsyncFile: (path: string) => void;
-}
-
-function fsyncFile(path: string): void {
-  const fd = openSync(path, "r");
-  try {
-    fsyncSync(fd);
-  } finally {
-    closeSync(fd);
-  }
-}
-
-const DEFAULT_ATOMIC_OPS: WriterAtomicOps = {
-  copyFile: copyFileSync,
-  writeFile: writeFileSync,
-  rename: renameSync,
-  mutagenOk,
-  fsyncFile,
-};
-
-function atomicOps(overrides?: Partial<WriterAtomicOps>): WriterAtomicOps {
-  return { ...DEFAULT_ATOMIC_OPS, ...overrides };
-}
-
-/** Defined entries of a TagPatch — set fields only (year/bpm/energy are numeric). */
-type TagPair = [keyof TagPatch, string | number];
-function tagPairs(patch: TagPatch): TagPair[] {
-  return Object.entries(patch).filter(
-    (pair): pair is TagPair => pair[1] !== undefined,
-  );
-}
-
-/** Keep the extension on ffmpeg tmp outputs — the muxer is inferred from
- * the filename, so `.fa` (extensionless) fails with "Unable to choose an
- * output format". Pattern: `track.m4a` → `track.m4a.fa.m4a`. */
-function tmpLike(p: string, suffix: string): string {
-  return `${p}${suffix}${extname(p).toLowerCase()}`;
-}
-
-/** A unique same-directory lease whose final suffix remains the media type,
- * so mutagen/ffmpeg infer the same container as the source. */
-function uniqueTempLike(p: string, purpose: string, extension = extname(p)) {
-  const ext = extension.toLowerCase();
-  const stem = basename(p, extname(p));
-  return join(dirname(p), `.${stem}.fulltags-${purpose}-${randomUUID()}${ext}`);
-}
-
-function unlinkIfPresent(path: string): void {
-  if (!existsSync(path)) return;
-  try {
-    unlinkSync(path);
-  } catch (error) {
-    console.error(`fulltags temp cleanup failed for ${path}`, error);
-  }
-}
-
-function hasValidContainerHeader(path: string): boolean {
-  const ext = extname(path).toLowerCase();
-  const header = Buffer.alloc(12);
-  let fd: number | null = null;
-  try {
-    fd = openSync(path, "r");
-    if (readSync(fd, header, 0, header.length, 0) < header.length) return false;
-  } catch (error) {
-    void error;
-    return false;
-  } finally {
-    if (fd !== null) closeSync(fd);
-  }
-  const fourcc = (at: number): string => header.toString("ascii", at, at + 4);
-  if (ext === ".wav")
-    return ["RIFF", "RF64"].includes(fourcc(0)) && fourcc(8) === "WAVE";
-  if (ext === ".aiff" || ext === ".aif")
-    return fourcc(0) === "FORM" && ["AIFF", "AIFC"].includes(fourcc(8));
-  if (ext === ".m4a" || ext === ".m4b") return fourcc(4) === "ftyp";
-  return false;
-}
-
-function atomicMutagenWrite(
-  filePath: string,
-  scriptFor: (tempPath: string) => string,
-  overrides?: Partial<WriterAtomicOps>,
-): boolean {
-  const ops = atomicOps(overrides);
-  const temp = uniqueTempLike(filePath, "media");
-  try {
-    ops.copyFile(filePath, temp);
-    if (!ops.mutagenOk(scriptFor(temp))) return false;
-    if (!hasValidContainerHeader(temp)) return false;
-    ops.fsyncFile(temp);
-    ops.rename(temp, filePath);
-    return true;
-  } catch (error) {
-    void error;
-    return false;
-  } finally {
-    unlinkIfPresent(temp);
-  }
-}
-
-/**
- * THE mutagen patch frame (jscpd, issue #99): `writePatchWav` and
- * `writePatchMp4` were the same validate → pairs → empty-check →
- * statement/verify build → atomic write → catch→false skeleton around
- * ONE format-specific part each (the statement builders + the python
- * open/save lines). The frame owns the skeleton; the caller owns the
- * format language. Script text is byte-identical to the inlined form —
- * writer.test.ts + writer-sync.test.ts pin both legs end-to-end.
- */
-function mutagenPatchFrame(
-  filePath: string,
-  patch: TagPatch,
-  frame: {
-    sets: (pairs: TagPair[]) => string;
-    verifies: (pairs: TagPair[]) => string;
-    script: (tempPath: string, sets: string, verifies: string) => string;
-  },
-  ops?: Partial<WriterAtomicOps>,
-): boolean {
-  try {
-    validatePatch(patch);
-    const pairs = tagPairs(patch);
-    if (!pairs.length) return true;
-    return atomicMutagenWrite(
-      filePath,
-      (tempPath) =>
-        frame.script(tempPath, frame.sets(pairs), frame.verifies(pairs)),
-      ops,
-    );
-  } catch (error) {
-    void error;
-    return false;
-  }
-}
+export type { WriterAtomicOps } from "./writer-mutagen";
 
 // AUDIO_EXTS/isAudioFile delegate to the megadj SSOT (issue #69/#142):
 // the package previously shipped its own six-format set, so ogg/opus and
@@ -227,7 +91,6 @@ function ffmpegTagPlan(
   pairs: TagPair[],
   sync = false,
 ): { args: string[]; tagged: string } {
-  const ext = extname(filePath).toLowerCase();
   const args = sync
     ? ["-y", "-hide_banner", "-loglevel", "error", "-i", filePath]
     : ["-y", "-i", filePath];
@@ -246,7 +109,7 @@ function ffmpegTagPlan(
   for (const [k, v] of pairs)
     args.push("-metadata", `${FFMPEG_KEY[k]}=${String(v)}`);
   const tagged = tmpLike(filePath, ".tagged");
-  if (ext === ".mp3") {
+  if (extname(filePath).toLowerCase() === ".mp3") {
     // One -c:v decision, not two: the base plan sets mjpeg and this used to
     // append a second `-c:v copy`, which ffmpeg resolves as LAST-WINS —
     // copying whatever codec the embedded art already is (png/webp) into
@@ -265,6 +128,25 @@ function ffmpegTagPlan(
  * Merge a partial TagPatch into the file's tags. Only the provided fields
  * are written; audio stream-copied; art preserved; atomic swap at the end.
  */
+
+/** Mutagen-container dispatch (the twin-leg seam): WAV/AIFF → the ID3-in-
+ * container path, m4a/m4b → MP4 atoms, everything else → null (the caller's
+ * ffmpeg branch owns those). */
+function mutagenDispatch(
+  filePath: string,
+  patch: TagPatch,
+  ops?: Partial<WriterAtomicOps>,
+): boolean | null {
+  const ext = extname(filePath).toLowerCase();
+  if (ext === ".aiff" || ext === ".aif" || ext === ".wav") {
+    return writePatchWav(filePath, patch, ops);
+  }
+  if (ext === ".m4a" || ext === ".m4b") {
+    return writePatchMp4(filePath, patch, ops);
+  }
+  return null;
+}
+
 export async function writePatch(
   filePath: string,
   patch: TagPatch,
@@ -274,22 +156,14 @@ export async function writePatch(
   const pairs = tagPairs(patch);
   if (!pairs.length) return;
 
-  const ext = extname(filePath).toLowerCase();
   // WAV/AIFF/M4A: mutagen edits the metadata in place. ffmpeg's wav/aiff
   // muxers DROP the ID3 chunk entirely (art + TXXX stamps vanish), and the
   // ipod (m4a) muxer has no metadata mapping for bpm/energy/remixer/mbid/
   // AI-* keys — they are silently dropped, plus every remux wipes existing
   // freeform atoms. The mutagen paths exist precisely for this.
-  if (ext === ".aiff" || ext === ".aif" || ext === ".wav") {
-    if (!writePatchWav(filePath, patch, ops)) {
-      throw new Error(`mutagen tag write failed for ${filePath}`);
-    }
-    return;
-  }
-  if (ext === ".m4a" || ext === ".m4b") {
-    if (!writePatchMp4(filePath, patch, ops)) {
-      throw new Error(`mutagen tag write failed for ${filePath}`);
-    }
+  const handled = mutagenDispatch(filePath, patch, ops);
+  if (handled !== null) {
+    if (!handled) throw new Error(`mutagen tag write failed for ${filePath}`);
     return;
   }
 
@@ -328,13 +202,9 @@ export function writePatchSync(
     const pairs = tagPairs(patch);
     if (!pairs.length) return true;
 
-    const ext = extname(filePath).toLowerCase();
-    if (ext === ".aiff" || ext === ".aif" || ext === ".wav") {
-      return writePatchWav(filePath, patch, ops); // mutagen ID3-in-container
-    }
-    if (ext === ".m4a" || ext === ".m4b") {
-      return writePatchMp4(filePath, patch, ops); // mutagen MP4 atoms
-    }
+    const handled = mutagenDispatch(filePath, patch, ops);
+    if (handled !== null) return handled;
+
     const { args, tagged } = ffmpegTagPlan(filePath, pairs, true);
     const pr = Bun.spawnSync({
       cmd: ["ffmpeg", ...args],
@@ -380,148 +250,6 @@ const FFMPEG_KEY: Record<keyof TagPatch, string> = {
   mood: "MOOD",
   beatport: "BP-FIELDS",
 };
-
-/** One ID3 frame per known key (WAV/AIFF path). Unknown keys are skipped
- *  (empty statement) — the filter drops them. */
-const WAV_ID3: Partial<Record<keyof TagPatch, string>> = {
-  title: "TIT2",
-  artist: "TPE1",
-  album: "TALB",
-  genre: "TCON",
-  composer: "TCOM",
-  label: "TPUB",
-  mixName: "TIT3",
-  key: "TKEY",
-};
-
-const WAV_ID3_READ: Record<keyof TagPatch, string> = {
-  title: "TIT2",
-  artist: "TPE1",
-  albumArtist: "TPE2",
-  album: "TALB",
-  genre: "TCON",
-  year: "TDRC",
-  composer: "TCOM",
-  grouping: "TIT1",
-  remixer: "TXXX:version",
-  comment: "COMM::eng",
-  mbid: "TXXX:MusicBrainz Track Id",
-  isrc: "TSRC",
-  bpm: "TBPM",
-  energy: "TXXX:ENERGY",
-  aiGenre: "TXXX:AI-GENRE",
-  aiYear: "TXXX:AI-YEAR",
-  key: "TKEY",
-  camelot: "TXXX:CAMELOT",
-  label: "TPUB",
-  mixName: "TIT3",
-  fingerprint: "TXXX:ACOUSTID",
-  mood: "TXXX:MOOD",
-  beatport: "TXXX:BP-FIELDS",
-};
-
-function wavId3Statement(k: keyof TagPatch, v: unknown): string {
-  const t = JSON.stringify(String(v));
-  switch (k) {
-    case "year":
-      return `a.tags.add(TDRC(encoding=3, text="${String(v)}"))`;
-    case "bpm":
-      return `a.tags.add(TBPM(encoding=3, text="${String(v)}"))`;
-    case "comment":
-      return `a.tags.add(COMM(encoding=3, lang="eng", desc="", text=${t}))`;
-    case "mbid":
-      return `a.tags.add(TXXX(encoding=3, desc="MusicBrainz Track Id", text=${t}))`;
-    case "isrc":
-      return `a.tags.add(TSRC(encoding=3, text=${t}))`;
-    case "energy":
-      return `a.tags.add(TXXX(encoding=3, desc="ENERGY", text=${t}))`;
-    case "fingerprint":
-      return `a.tags.add(TXXX(encoding=3, desc="ACOUSTID", text=${t}))`;
-    case "mood":
-      return `a.tags.add(TXXX(encoding=3, desc="MOOD", text=${t}))`;
-    case "beatport":
-      return `a.tags.add(TXXX(encoding=3, desc="BP-FIELDS", text=${t}))`;
-    case "camelot":
-      return `a.tags.add(TXXX(encoding=3, desc="CAMELOT", text=${t}))`;
-    case "aiGenre":
-      return `a.tags.add(TXXX(encoding=3, desc="AI-GENRE", text=${t}))`;
-    case "aiYear":
-      return `a.tags.add(TXXX(encoding=3, desc="AI-YEAR", text=${t}))`;
-    case "remixer":
-      return `a.tags.add(TXXX(encoding=3, desc="version", text=${t}))`;
-    case "albumArtist":
-      return `a.tags.add(TPE2(encoding=3, text=${t}))`;
-    case "grouping":
-      return `a.tags.add(TIT1(encoding=3, text=${t}))`;
-  }
-  const frame = WAV_ID3[k];
-  return frame ? `a.tags.add(${frame}(encoding=3, text=${t}))` : "";
-}
-
-function wavVerifyStatement(k: keyof TagPatch, v: unknown): string {
-  const key = WAV_ID3_READ[k];
-  const expected = JSON.stringify(String(v));
-  return `if str(a.tags.get(${JSON.stringify(key)}, "")) != ${expected}: raise RuntimeError(${JSON.stringify(`tag readback failed: ${String(k)}`)})`;
-}
-
-/** MP4 freeform atom statement (----:com.apple.iTunes:<name>). */
-function mp4Freeform(name: string, v: unknown): string {
-  return `a["----:com.apple.iTunes:${name}"] = [MP4FreeForm(${JSON.stringify(String(v))}.encode("utf-8"), 3)]`;
-}
-
-/** Fixed text atoms: key → iTunes atom code (bracket-quoted values). */
-const MP4_ATOMS: Partial<Record<keyof TagPatch, string>> = {
-  title: "\xa9nam",
-  artist: "\xa9ART",
-  albumArtist: "aART",
-  album: "\xa9alb",
-  genre: "\xa9gen",
-  year: "\xa9day",
-  composer: "\xa9wrt",
-  grouping: "\xa9grp",
-  comment: "\xa9cmt",
-};
-
-/** Freeform atoms: key → ----:com.apple.iTunes:<name> suffix. */
-const MP4_FREEFORM: Partial<Record<keyof TagPatch, string>> = {
-  remixer: "REMIXER",
-  mbid: "MusicBrainz Track Id",
-  isrc: "ISRC",
-  energy: "ENERGY",
-  fingerprint: "ACOUSTID",
-  mood: "MOOD",
-  key: "initialkey",
-  camelot: "CAMELOT",
-  label: "LABEL",
-  mixName: "MIXNAME",
-  aiGenre: "AI-GENRE",
-  aiYear: "AI-YEAR",
-  beatport: "BP-FIELDS",
-};
-
-/** One mutagen MP4 statement per known key. Unknown keys return "" and are
- *  dropped by the filter — same skip semantics as before. */
-function mp4Statement(k: keyof TagPatch, v: unknown): string {
-  if (k === "bpm") return `a["tmpo"] = [${Math.round(Number(v))}]`;
-  const ff = MP4_FREEFORM[k];
-  if (ff) return mp4Freeform(ff, v);
-  const atom = MP4_ATOMS[k];
-  if (atom) return `a["${atom}"] = [${JSON.stringify(String(v))}]`;
-  return "";
-}
-
-function mp4VerifyStatement(k: keyof TagPatch, v: unknown): string {
-  if (k === "bpm") {
-    return `if int(a["tmpo"][0]) != ${Math.round(Number(v))}: raise RuntimeError("tag readback failed: bpm")`;
-  }
-  const ff = MP4_FREEFORM[k];
-  if (ff) {
-    const atom = `----:com.apple.iTunes:${ff}`;
-    return `if bytes(a[${JSON.stringify(atom)}][0]).decode("utf-8") != ${JSON.stringify(String(v))}: raise RuntimeError(${JSON.stringify(`tag readback failed: ${String(k)}`)})`;
-  }
-  const atom = MP4_ATOMS[k];
-  return `if str(a[${JSON.stringify(atom)}][0]) != ${JSON.stringify(String(v))}: raise RuntimeError(${JSON.stringify(`tag readback failed: ${String(k)}`)})`;
-}
 
 /**
  * Sync tag write for ID3-in-container formats (WAV RIFF / AIFF ID3 chunk)
@@ -670,11 +398,10 @@ print("ok")`,
       ops.rename(remuxTemp, p);
     }
     return ok;
-  } catch (error) {
-    void error;
+  } catch {
     return false;
   } finally {
     unlinkIfPresent(dump);
-    if (remuxTemp) unlinkIfPresent(remuxTemp);
+    if (remuxTemp !== null) unlinkIfPresent(remuxTemp);
   }
 }
