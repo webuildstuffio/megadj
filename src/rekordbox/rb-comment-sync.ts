@@ -24,6 +24,7 @@ import {
   applyConfirmed,
   applyConfirmationRefusal,
   compensateRestore,
+  DECIMAL_ID_RE,
   isStringPair,
   isStringTriple,
   parseJsonBoundary,
@@ -104,26 +105,27 @@ const runtime: RbCommentSyncRuntime = {
 
 const nonNegativeInteger = isNonNegativeInteger;
 
-function parseSyncOutput(raw: string, apply: boolean): SyncOutput {
-  const value = parseJsonBoundary(raw, "rb-comment-sync");
+/** `Array<[string, string]>` wire guard (skip/sample/write/error rows). */
+function isStringPairArray(v: unknown): v is [string, string][] {
+  return isUnknownArray(v) && v.every(isStringPair);
+}
+
+/** Shape gate for the sync subprocess payload: counters are non-negative
+ *  integers, pair rows are [string, string]. Throws on the first drift. */
+function requireSyncShape(value: Record<string, unknown>): SyncOutput {
   if (
-    !isRecord(value) ||
     !nonNegativeInteger(value.scanned) ||
     !nonNegativeInteger(value.eligible) ||
     !nonNegativeInteger(value.written) ||
     !nonNegativeInteger(value.alreadyHad) ||
-    !isUnknownArray(value.skipped) ||
-    !value.skipped.every(isStringPair) ||
-    !isUnknownArray(value.samples) ||
-    !value.samples.every(isStringPair) ||
-    !isUnknownArray(value.writes) ||
-    !value.writes.every(isStringPair) ||
-    !isUnknownArray(value.errors) ||
-    !value.errors.every(isStringPair)
+    !isStringPairArray(value.skipped) ||
+    !isStringPairArray(value.samples) ||
+    !isStringPairArray(value.writes) ||
+    !isStringPairArray(value.errors)
   ) {
     throw new Error("rb-comment-sync returned an invalid result payload");
   }
-  const out: SyncOutput = {
+  return {
     scanned: value.scanned,
     eligible: value.eligible,
     written: value.written,
@@ -133,28 +135,47 @@ function parseSyncOutput(raw: string, apply: boolean): SyncOutput {
     writes: value.writes,
     errors: value.errors,
   };
+}
+
+/** Decimal ids, unique — the write-acknowledgement rule. */
+function isUniqueDecimalIdList(ids: string[]): boolean {
+  return (
+    ids.every((id) => DECIMAL_ID_RE.test(id)) &&
+    new Set(ids).size === ids.length
+  );
+}
+
+/** Cross-field consistency checks over a shape-valid payload — the first
+ *  failure wins, in the original throw order. Returns the full error
+ *  message to throw, or null when every check holds. */
+function syncConsistencyError(out: SyncOutput, apply: boolean): string | null {
   if (out.scanned !== out.eligible + out.alreadyHad + out.skipped.length)
-    throw new Error("rb-comment-sync returned inconsistent scan counters");
-  if (out.errors.length > 0)
-    throw new Error(
-      `rb-comment-sync transaction failed: ${out.errors.map(([id, detail]) => `${id}: ${detail}`).join("; ")}`,
-    );
+    return "rb-comment-sync returned inconsistent scan counters";
+  if (out.errors.length > 0) {
+    const joined = out.errors
+      .map(([id, detail]) => `${id}: ${detail}`)
+      .join("; ");
+    return `rb-comment-sync transaction failed: ${joined}`;
+  }
   if (apply && out.written !== out.eligible)
-    throw new Error(
-      `rb-comment-sync wrote ${out.written}/${out.eligible} eligible rows`,
-    );
+    return `rb-comment-sync wrote ${out.written}/${out.eligible} eligible rows`;
   if (out.writes.length !== out.written)
-    throw new Error("rb-comment-sync write acknowledgements are incomplete");
+    return "rb-comment-sync write acknowledgements are incomplete";
   if (!apply && out.written !== 0)
-    throw new Error("rb-comment-sync report mode unexpectedly wrote rows");
-  const ids = out.writes.map(([id]) => id);
-  if (
-    new Set(ids).size !== ids.length ||
-    ids.some((id) => !/^(?:0|[1-9]\d*)$/u.test(id))
-  )
-    throw new Error(
-      "rb-comment-sync returned invalid or duplicate content ids",
-    );
+    return "rb-comment-sync report mode unexpectedly wrote rows";
+  if (!isUniqueDecimalIdList(out.writes.map(([id]) => id)))
+    return "rb-comment-sync returned invalid or duplicate content ids";
+  return null;
+}
+
+function parseSyncOutput(raw: string, apply: boolean): SyncOutput {
+  const value = parseJsonBoundary(raw, "rb-comment-sync");
+  if (!isRecord(value)) {
+    throw new Error("rb-comment-sync returned an invalid result payload");
+  }
+  const out = requireSyncShape(value);
+  const error = syncConsistencyError(out, apply);
+  if (error) throw new Error(error);
   return out;
 }
 
@@ -423,50 +444,7 @@ async function rbCommentSyncWithRuntime(
   };
 
   if (apply) {
-    let backedUpTo: string;
-    try {
-      backedUpTo = deps.backup(dbPath);
-    } catch (error) {
-      return mk(errorText(error));
-    }
-
-    const compensate = (error: unknown): RbCommentSyncResult => {
-      const detail = compensateRestore(deps, dbPath, backedUpTo, error);
-      return mk(detail, {
-        backedUpTo,
-        verify: { ok: false, detail },
-      });
-    };
-
-    try {
-      deps.assertClosed("rb-comment-sync --apply");
-      const out = spawnSyncRun("apply");
-      deps.sleep(250);
-      deps.assertClosed("rb-comment-sync verification");
-      const checked = deps.spawn(
-        pyUvArgv({ script: commentVerifyScript(), args: [dbPath] }),
-        120_000,
-        JSON.stringify(out.writes),
-      );
-      if (checked.status !== 0 || !checked.stdout)
-        throw new Error(
-          `comment verification failed (exit ${String(checked.status)}): ${checked.stderr.slice(-300)}`,
-        );
-      const verified = parseVerifyOutput(
-        checked.stdout.trim().split("\n").pop() ?? "",
-      );
-      validateVerification(out.writes, verified);
-      return synced(out, {
-        appliedMode: true,
-        backedUpTo,
-        verify: {
-          ok: true,
-          detail: `re-read ${verified.matched}/${verified.total} intended comments exactly`,
-        },
-      });
-    } catch (error) {
-      return compensate(error);
-    }
+    return syncApplyLeg(deps, dbPath, mk, synced, spawnSyncRun);
   }
 
   let out: SyncOutput;
@@ -480,6 +458,72 @@ async function rbCommentSyncWithRuntime(
     backedUpTo: null,
     verify: { ok: true, detail: "report mode — no write to verify" },
   });
+}
+
+/** The apply leg: dated backup → sync → delayed re-read verify, with
+ *  compensation (restore) on any failure after the backup. Split out of
+ *  rbCommentSyncWithRuntime so the mode dispatch stays readable. */
+function syncApplyLeg(
+  deps: RbCommentSyncRuntime,
+  dbPath: string,
+  mk: (
+    msg: string,
+    over?: Partial<Pick<RbCommentSyncResult, "backedUpTo" | "verify">>,
+  ) => RbCommentSyncResult,
+  synced: (
+    out: SyncOutput,
+    over: {
+      appliedMode: boolean;
+      backedUpTo: string | null;
+      verify: { ok: boolean; detail: string };
+    },
+  ) => RbCommentSyncResult,
+  spawnSyncRun: (mode: "apply" | "report") => SyncOutput,
+): RbCommentSyncResult {
+  let backedUpTo: string;
+  try {
+    backedUpTo = deps.backup(dbPath);
+  } catch (error) {
+    return mk(errorText(error));
+  }
+
+  const compensate = (error: unknown): RbCommentSyncResult => {
+    const detail = compensateRestore(deps, dbPath, backedUpTo, error);
+    return mk(detail, {
+      backedUpTo,
+      verify: { ok: false, detail },
+    });
+  };
+
+  try {
+    deps.assertClosed("rb-comment-sync --apply");
+    const out = spawnSyncRun("apply");
+    deps.sleep(250);
+    deps.assertClosed("rb-comment-sync verification");
+    const checked = deps.spawn(
+      pyUvArgv({ script: commentVerifyScript(), args: [dbPath] }),
+      120_000,
+      JSON.stringify(out.writes),
+    );
+    if (checked.status !== 0 || !checked.stdout)
+      throw new Error(
+        `comment verification failed (exit ${String(checked.status)}): ${checked.stderr.slice(-300)}`,
+      );
+    const verified = parseVerifyOutput(
+      checked.stdout.trim().split("\n").pop() ?? "",
+    );
+    validateVerification(out.writes, verified);
+    return synced(out, {
+      appliedMode: true,
+      backedUpTo,
+      verify: {
+        ok: true,
+        detail: `re-read ${verified.matched}/${verified.total} intended comments exactly`,
+      },
+    });
+  } catch (error) {
+    return compensate(error);
+  }
 }
 
 export const __test = {

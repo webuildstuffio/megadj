@@ -78,51 +78,95 @@ const BRANCHES: ReadonlySet<string> = new Set(["house", "trap", "unknown"]);
  * Validate one parsed JSON value against the GA-00 schema. Returns the
  * error message (null = valid) — pure, so tests hit every rule.
  */
-export function goldSchemaError(v: unknown): string | null {
-  if (typeof v !== "object" || v === null)
-    return "annotation must be a JSON object";
-  const a = v as Record<string, unknown>;
+/** All entries are integers ≥ min and strictly increasing. */
+function strictlyIncreasingInts(xs: number[]): boolean {
+  for (let i = 1; i < xs.length; i++) {
+    if (xs[i]! <= xs[i - 1]!) return false;
+  }
+  return true;
+}
+
+/** `[string, number]` field: finite number ≥ min. Null when ok. */
+function finiteMinError(
+  a: Record<string, unknown>,
+  k: string,
+  min: number,
+): string | null {
+  const n = a[k];
+  if (typeof n !== "number" || !Number.isFinite(n) || n < min)
+    return `${k} must be a finite number ≥ ${min}`;
+  return null;
+}
+
+/** An array field with a per-entry numeric gate and strict monotonicity:
+ *  every entry passes `ok`, strictly increasing. `max` caps the length.
+ *  Null when ok, the field's error message otherwise. */
+function intArrayError(
+  xs: unknown,
+  opts: {
+    min: number;
+    max?: number;
+    field: string;
+    shape: string;
+    /** Per-entry gate — phraseBars wants integers ≥ 1; hotCuesMs only
+     *  finite ≥ 0 (original contract: ms times need not be whole). */
+    ok: (v: unknown) => v is number;
+  },
+): string | null {
+  if (!Array.isArray(xs)) return opts.shape;
+  if (opts.max !== undefined && xs.length > opts.max) return opts.shape;
+  const nums = xs.filter(opts.ok);
+  if (nums.length !== xs.length) return opts.shape;
+  if (!strictlyIncreasingInts(nums))
+    return `${opts.field} must be strictly increasing`;
+  return null;
+}
+
+const isIntegerAtLeast =
+  (min: number) =>
+  (v: unknown): v is number =>
+    typeof v === "number" && Number.isInteger(v) && v >= min;
+const isFiniteAtLeast =
+  (min: number) =>
+  (v: unknown): v is number =>
+    typeof v === "number" && Number.isFinite(v) && v >= min;
+
+/** Object header fields: hash/version/branch. Null when ok. */
+function headerError(a: Record<string, unknown>): string | null {
   if (typeof a.hash !== "string" || !/^[0-9a-f]{64}$/u.test(a.hash))
     return "hash must be a 64-char blake2b256 hex string";
   if (a.version !== GOLD_SCHEMA_VERSION)
     return `version must be ${GOLD_SCHEMA_VERSION} (got ${JSON.stringify(a.version)})`;
   if (typeof a.branch !== "string" || !BRANCHES.has(a.branch))
     return `branch must be one of house|trap|unknown (got ${JSON.stringify(a.branch)})`;
-  for (const [k, min] of [
-    ["firstDownbeatMs", 0],
-    ["bpm", 1],
-  ] as const) {
-    const n = a[k];
-    if (typeof n !== "number" || !Number.isFinite(n) || n < min)
-      return `${k} must be a finite number ≥ ${min}`;
-  }
+  return null;
+}
+
+export function goldSchemaError(v: unknown): string | null {
+  if (typeof v !== "object" || v === null)
+    return "annotation must be a JSON object";
+  const a = v as Record<string, unknown>;
+  const header = headerError(a);
+  if (header) return header;
+  const numericErr =
+    finiteMinError(a, "firstDownbeatMs", 0) ?? finiteMinError(a, "bpm", 1);
+  if (numericErr) return numericErr;
   if (typeof a.bpm !== "number" || a.bpm > 400) return "bpm must be ≤ 400";
-  if (!Array.isArray(a.phraseBars))
-    return "phraseBars must be an array of 1-based bar integers ≥ 1";
-  const bars: unknown[] = a.phraseBars;
-  const bnums = bars.filter(
-    (b): b is number => typeof b === "number" && Number.isInteger(b) && b >= 1,
-  );
-  if (bnums.length !== bars.length)
-    return "phraseBars must be an array of 1-based bar integers ≥ 1";
-  for (let i = 1; i < bnums.length; i++) {
-    if (bnums[i]! <= bnums[i - 1]!)
-      return "phraseBars must be strictly increasing";
-  }
-  if (!Array.isArray(a.hotCuesMs))
-    return "hotCuesMs must be an array of ≤ 8 finite times (ms) ≥ 0";
-  if (a.hotCuesMs.length > 8)
-    return "hotCuesMs must be an array of ≤ 8 finite times (ms) ≥ 0";
-  const cues: unknown[] = a.hotCuesMs;
-  const cnums = cues.filter(
-    (t): t is number => typeof t === "number" && Number.isFinite(t) && t >= 0,
-  );
-  if (cnums.length !== cues.length)
-    return "hotCuesMs must be an array of ≤ 8 finite times (ms) ≥ 0";
-  for (let i = 1; i < cnums.length; i++) {
-    if (cnums[i]! <= cnums[i - 1]!)
-      return "hotCuesMs must be strictly increasing";
-  }
+  const barsErr = intArrayError(a.phraseBars, {
+    min: 1,
+    field: "phraseBars",
+    shape: "phraseBars must be an array of 1-based bar integers ≥ 1",
+    ok: isIntegerAtLeast(1),
+  });
+  if (barsErr) return barsErr;
+  const cuesErr = intArrayError(a.hotCuesMs, {
+    min: 0,
+    max: 8,
+    field: "hotCuesMs",
+    shape: "hotCuesMs must be an array of ≤ 8 finite times (ms) ≥ 0",
+    ok: isFiniteAtLeast(0),
+  });
+  if (cuesErr) return cuesErr;
   if (a.note !== undefined && typeof a.note !== "string")
     return "note must be a string when present";
   return null;
