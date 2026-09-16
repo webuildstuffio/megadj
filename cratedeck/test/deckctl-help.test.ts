@@ -125,13 +125,17 @@ describe("deckctl help + --help (work with the server down)", () => {
     expect(stderr).toContain("no help entry");
   });
 
-  it("help text stays in sync with the actual verbs (usage lists every case)", async () => {
-    // read the source: every `case "x":` in main() must appear in usage()
-    // (pre-server verbs come from PRE_SERVER_VERBS — help is in usage too)
+  it("help text stays in sync with the actual verbs (usage lists every verb)", async () => {
+    // read the source: every DECK_COMMANDS table key (the dispatch SSOT —
+    // the old switch's `case "x":` arms) plus the PRE_SERVER_VERBS must
+    // appear in usage()
     const src = await Bun.file(
       join(import.meta.dir, "..", "src", "deckctl.ts"),
     ).text();
-    const cases = [...src.matchAll(/case "([a-z-]+)":/g)]
+    const tableStart = src.indexOf("DECK_COMMANDS: Record<");
+    const tableEnd = src.indexOf("};", tableStart);
+    const table = src.slice(tableStart, tableEnd > 0 ? tableEnd : undefined);
+    const cases = [...table.matchAll(/^\s{2}([a-z-]+):/gm)]
       .map((m) => m[1])
       .filter((v): v is string => v !== undefined);
     const preServer = (src.match(/PRE_SERVER_VERBS = \[([^\]]+)\]/)?.[1] ?? "")
@@ -141,6 +145,7 @@ describe("deckctl help + --help (work with the server down)", () => {
     const usageStart = src.indexOf("function usageText()");
     const mainStart = src.indexOf("// ---- main", usageStart);
     const usage = src.slice(usageStart, mainStart > 0 ? mainStart : undefined);
+    expect(cases.length).toBeGreaterThanOrEqual(22);
     for (const verb of new Set([...cases, ...preServer])) {
       expect(
         usage.includes(verb),

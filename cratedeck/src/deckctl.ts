@@ -31,6 +31,59 @@ import { baseHooks, errOut, flushStdout, log } from "./deckctl_runtime";
 
 const PRE_SERVER_VERBS = ["help"] as const;
 
+/** One deckctl verb: args already `--json`-filtered, `arg()` dies with
+ *  usage on a missing positional. Table entries stay one-line closures. */
+interface DeckArgs {
+  args: string[];
+  arg: (index: number) => string;
+}
+
+/** The verb table — the dispatch SSOT (#89: the old 22-arm switch was the
+ *  package's top CCN). A verb without an entry here falls to `usage()` in
+ *  main(); help-census derives from these keys. */
+const DECK_COMMANDS: Record<string, (a: DeckArgs) => Promise<void>> = {
+  status: () => cmdStatus(),
+  drives: () => cmdDrives(),
+  preflight: () => cmdPreflight(),
+  prep: () =>
+    cmdPrep(
+      process.argv.includes("--out")
+        ? process.argv[process.argv.indexOf("--out") + 1]
+        : undefined,
+    ),
+  note: ({ arg }) => cmdNote(baseHooks(), arg(1), arg(2)),
+  notes: ({ args }) => cmdNotes(baseHooks(), args[1]),
+  search: ({ arg }) => cmdSearch(baseHooks(), arg(1)),
+  report: ({ arg }) => cmdReport(baseHooks(), arg(1), process.argv),
+  rename: ({ args, arg }) =>
+    cmdRename(baseHooks(), arg(1), args.slice(2).join(" ") || null),
+  players: ({ args }) => cmdPlayers(args[1]),
+  booth: ({ args }) =>
+    cmdBoothFleet(
+      args[1] === "set" ? "set" : undefined,
+      args[1] === "set" ? args.slice(2) : undefined,
+    ),
+  run: ({ arg }) => cmdRun(arg(1), arg(2), !process.argv.includes("--no-wait")),
+  jobs: () => cmdJobs(),
+  coverage: ({ args }) => cmdCoverage(args[1]),
+  redundancy: ({ args }) => cmdRedundancy(args[1]),
+  diff: ({ args }) => cmdDiff(args[1], args[2]),
+  explain: ({ args }) => cmdExplain(args[1], Object.keys(KIND_DOCS).join(", ")),
+  hygiene: ({ args }) => cmdHygiene(baseHooks(), args[1], args[2]),
+  fixes: ({ args }) => cmdFixes(baseHooks(), args[1]),
+  dismiss: ({ arg }) => cmdDismiss(baseHooks(), arg(1), arg(2)),
+  cancel: ({ arg }) => cmdCancel(arg(1)),
+  stop: async () => {
+    log("stopping server…");
+    await apiPost("/api/stop").catch((error: unknown) => {
+      console.error(
+        "stop request failed (server may already be down):",
+        error instanceof Error ? error.message : error,
+      );
+    });
+  },
+};
+
 function usageText(): string {
   return [
     "usage: deckctl <command> [args] [--json]",
@@ -89,68 +142,9 @@ async function main(): Promise<void> {
     await errOut("cratedeck server unreachable and could not be started");
     process.exit(4);
   }
-  switch (cmd) {
-    case "status":
-      return cmdStatus();
-    case "drives":
-      return cmdDrives();
-    case "preflight":
-      return cmdPreflight();
-    case "prep":
-      return cmdPrep(
-        process.argv.includes("--out")
-          ? process.argv[process.argv.indexOf("--out") + 1]
-          : undefined,
-      );
-    case "note":
-      return cmdNote(baseHooks(), arg(1), (args[2] ?? "").trim() || usage());
-    case "notes":
-      return cmdNotes(baseHooks(), args[1]);
-    case "search":
-      return cmdSearch(baseHooks(), arg(1));
-    case "report":
-      return cmdReport(baseHooks(), arg(1), process.argv);
-    case "rename":
-      return cmdRename(baseHooks(), arg(1), args.slice(2).join(" ") || null);
-    case "players":
-      return cmdPlayers(args[1]);
-    case "booth":
-      return cmdBoothFleet(
-        args[1] === "set" ? "set" : undefined,
-        args[1] === "set" ? args.slice(2) : undefined,
-      );
-    case "run":
-      return cmdRun(arg(1), arg(2), !process.argv.includes("--no-wait"));
-    case "jobs":
-      return cmdJobs();
-    case "coverage":
-      return cmdCoverage(args[1]);
-    case "redundancy":
-      return cmdRedundancy(args[1]);
-    case "diff":
-      return cmdDiff(args[1], args[2]);
-    case "explain":
-      return cmdExplain(args[1], Object.keys(KIND_DOCS).join(", "));
-    case "hygiene":
-      return cmdHygiene(baseHooks(), args[1], args[2]);
-    case "fixes":
-      return cmdFixes(baseHooks(), args[1]);
-    case "dismiss":
-      return cmdDismiss(baseHooks(), arg(1), arg(2));
-    case "cancel":
-      return cmdCancel(arg(1));
-    case "stop":
-      log("stopping server…");
-      await apiPost("/api/stop").catch((error: unknown) => {
-        console.error(
-          "stop request failed (server may already be down):",
-          error instanceof Error ? error.message : error,
-        );
-      });
-      return;
-    default:
-      usage();
-  }
+  const handler = cmd === undefined ? undefined : DECK_COMMANDS[cmd];
+  if (handler === undefined) usage();
+  await handler({ args, arg });
 }
 
 try {

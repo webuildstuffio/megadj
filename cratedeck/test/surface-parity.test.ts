@@ -24,13 +24,17 @@ const read = (p: string) =>
 
 // ---- census: derive each surface from source -----------------------------
 
-/** deckctl verb set: the switch in main(), e.g. `case "status":`, plus the
- *  PRE_SERVER_VERBS list (help works before the server boots — still a
+/** deckctl verb set: the DECK_COMMANDS dispatch table in deckctl.ts (the
+ *  old switch's `case "x":` arms — #89 turned it into a verb table), plus
+ *  the PRE_SERVER_VERBS list (help works before the server boots — still a
  *  first-class verb, documented in usage). */
 function deckctlVerbs(): string[] {
   const src = read("cratedeck/src/deckctl.ts");
+  const tableStart = src.findIndex((l) => l.includes("DECK_COMMANDS: Record<"));
+  const tableEnd = src.indexOf("};");
   const verbs = src
-    .map((l) => l.match(/^\s*case "([a-z-]+)":/))
+    .slice(tableStart, tableEnd > tableStart ? tableEnd : src.length)
+    .map((l) => l.match(/^\s{2}([a-z-]+):/))
     .map((m) => (m ? m[1] : undefined))
     .filter((v): v is string => v !== undefined);
   const pre = src
