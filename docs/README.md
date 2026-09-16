@@ -102,13 +102,14 @@ for the ideas closed NOT_PLANNED.
   consolidation: #66 masterDbPath (11/11 callers), #67 NFC+casefold
   name key, #82 errorText SSOT — all pinned by tests; #67/#82/#75/#100
   issues closed with evidence.
-- [Genre pipeline architecture (Sep 15, rev 4)](fulltags/genre-pipeline.md) —
+- [Genre pipeline architecture (Sep 16, rev 5)](fulltags/genre-pipeline.md) —
   how the genre system processes a track end to end: **§2 is the full
   write-source inventory** (every path that can put a genre in the DB —
-  sync/fetch-SC/fetch-BP/fetch-Bandcamp/AI/MusicBrainz/ingest/kNN —
-  including the two
+  sync/fetch-SC/fetch-BP/**fetch-imprint (W7)**/fetch-Bandcamp/AI/MusicBrainz/
+  ingest/kNN — including the two
   commonly forgotten: `megadj enrich` and `megadj ingest`), then hygiene
-  passes, inference discipline, scoring read path, the ≥65%
+  passes, **the dispute review surface (`genre --disputes` +
+  `--agree`/`--keep`, #64)**, inference discipline, scoring read path, the ≥65%
   gate, the tag census/compare surfaces, 11 invariants, design
   rationale, and live state. Start here for "where does genre come from?"
 - [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and

@@ -348,6 +348,11 @@ ground-truth philosophy unchanged.
    8.4%→8.6%), artist leakage still nil (4.2%, Δ −0.8), hub tail
    unchanged (408/2643), triangle share 17.7%→19.1%, top-2 77.4%,
    probe 51.2% (Δ −10.6), artist-disjoint 60.9% (Δ −0.8).**
+   > **Review door (Sep 16, #64):** the flags are no longer a dead end —
+   > `megadj genre --disputes` lists flagged rows with LIVE recomputed
+   > evidence, and `genre --agree <id>` (audio wins) / `genre --keep <id>`
+   > (source wins) / `--note` resolve one row at a time. Details +
+   > invariants: [genre-pipeline.md](genre-pipeline.md) §5.
 3. **Inference for the unlabeled 206** (203 already embedded): existing
    `inferGenre` at k=5, minAgreement 0.6 — now benchmark-validated with
    CIs (57.6% ungated → 62.7% gated; the gate trades 19.8%

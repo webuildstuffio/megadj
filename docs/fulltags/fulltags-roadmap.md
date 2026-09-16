@@ -11,6 +11,19 @@ once per `--jobs` worker instead of once per track (61% faster over 3 tracks,
 byte-equal results). Getcha #1/#2 below updated accordingly; see
 `fulltags/README.md` § analysis-stage envs._
 
+_Rev 7.11, 2026-09-16: **the flag loop closed + the imprint prior voted.**
+#64 dispute review shipped (`megadj genre --disputes` — live recomputed
+consensus + agreement + embed age per flagged row; `--agree <id>` ratifies
+the audio, `--keep <id>` vouches for the source, `--note` audit trail;
+per-row writes only, notes survive the `--flag` self-heal via the
+conditional clear in `setGenreFlag`). #128 imprint prior shipped as fetch
+ladder rung W7 (`src/fulltags/imprint-prior.ts` — cited, dated
+label→family map; unknown/junk labels abstain; `imprintStands` yields to a
+contradicting kNN consensus). Issue #113 transition-window similarity
+**rejected with evidence**: the embeddings ledger stores only whole-track
+time-mean vectors, so window pooling would require the re-analysis runs
+its own acceptance forbids._
+
 _Rev 7.10, 2026-09-15: **roadmap-sync audit — every open item verified against
 code and re-tracked on GitHub.** Verified DONE and marked here: full-population
 LOO (P92 — subsumed by the Sep 15 Tier-0 run: the eval battery now covers the
@@ -526,8 +539,9 @@ the OpenKeyScan SSOT decision (#3).
 > roadmap Rev 7.2 — only the unstrand remains),
 > **#62 cluster-proposed labels** (M, the ONLY fix that
 > attacks the remaining error mass), **#63 ranked secondaries via head
-> top-3** (S–M, runs on cached embeddings), **#64 human-review UI for
-> the 96 disputed rows** (S, closes the flag loop), **#65 LLM residue
+> top-3** (S–M, runs on cached embeddings), ~~**#64 human-review UI for
+> the 96 disputed rows**~~ (**SHIPPED Sep 16** — `genre --disputes` +
+> `--agree`/`--keep`/`--note`, rev 7.11), **#65 LLM residue
 > pass** (S, one-shot, for the ~6.6% unmapped tail — with the Sep 15
 > search spot-check showing the tail is ~⅔ real-but-unmapped labels:
 > phonk, EBM, new wave, D&B, merengue are REAL and mappable; the junk
@@ -556,8 +570,10 @@ the OpenKeyScan SSOT decision (#3).
 - **Genre vote ladder + Bandcamp arm (NEW, M)** — weighted multi-source
   vote (RB/ingest-pool/SC/BP/Bandcamp-page/Discogs-400 head/kNN
   consensus) replacing first-win-writes (genre-audit §5b.3.6, archived ideas
-  P75/K58); imprint prior + LLM pre-labelling cuts human labelling ~60%
-  (archived ideas P96).
+  P75/K58); the **imprint prior rung is LIVE** (Sep 16, fetch W7 —
+  `src/fulltags/imprint-prior.ts`, cited map, abstain-on-unknown,
+  audio-over-metadata arbitration); LLM pre-labelling remains the
+  future half of the P96 estimate (~60% human-hours cut).
 - **Similarity (MUSE from #4 → sqlite-vec)** — M after #4. Step-up:
   **MuQ-MuLan** (Tencent, MIT code) — 2026 SOTA zero-shot music tagging
   (MagnaTagATune AUC 79.3 vs CLAP 73.9–75.5); weights CC-BY-NC

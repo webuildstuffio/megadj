@@ -23,14 +23,14 @@ Status: ✅ shipped · 🔨 in progress · 🧭 coming (roadmap on
 the local archive — highest quality available, rate-limited and polite,
 nothing ever downloaded twice.
 
-|                    |                                                                                                                                                                         |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**         | 🔨 YouTube Music downloads today; SC/BP/Bandcamp enrichment live in the fetch ladder                                                                                    |
-| **Sources today**  | YouTube Music (liked songs, playlists); SoundCloud + Beatport + **Bandcamp (Sep 15)** vote genre/year/label/art at `megadj fetch` time                                  |
-| **Sources coming** | SoundCloud as a download source (#109) · 1001tracklists mining as a discovery queue (#110) · Bandcamp downloads once yt-dlp's extractor recovers (#124 context)         |
-| **How it works**   | `megadj sync` → yt-dlp at the best format available (256 kbps AAC first, graceful fallback); polite pacing and backoff, permanent failures classified and never retried |
-| **State**          | SQLite tracks every video ID: status, format, bitrate, path, attempt history. Nothing re-downloads.                                                                     |
-| **Flag**           | anything below 250 kbps is flagged `LOWQ` in `megadj list` — quality only ever ratchets up                                                                              |
+|                    |                                                                                                                                                                                                                                                     |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**         | 🔨 YouTube Music downloads today; SC/BP/Bandcamp enrichment live in the fetch ladder                                                                                                                                                                |
+| **Sources today**  | YouTube Music (liked songs, playlists); SoundCloud + Beatport + **Bandcamp (Sep 15)** vote genre/year/label/art at `megadj fetch` time; the **imprint prior (Sep 16, W7)** converts Beatport-filled labels into a genre vote when the catalogs miss |
+| **Sources coming** | SoundCloud as a download source (#109) · 1001tracklists mining as a discovery queue (#110) · Bandcamp downloads once yt-dlp's extractor recovers (#124 context)                                                                                     |
+| **How it works**   | `megadj sync` → yt-dlp at the best format available (256 kbps AAC first, graceful fallback); polite pacing and backoff, permanent failures classified and never retried                                                                             |
+| **State**          | SQLite tracks every video ID: status, format, bitrate, path, attempt history. Nothing re-downloads.                                                                                                                                                 |
+| **Flag**           | anything below 250 kbps is flagged `LOWQ` in `megadj list` — quality only ever ratchets up                                                                                                                                                          |
 
 **Vibe:** the archiver that never says "this source isn't supported" without
 also saying "here's the issue where it will be".
