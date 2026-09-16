@@ -13,6 +13,13 @@
  * ZERO rows while "succeeding" (the exact Number() trap AGENTS.md
  * bans); and the positional filter ate the `snapshot`/`compare` mode
  * word plus `--compare DJMASTER`'s value.
+ *
+ * #88 (scope 1): the arms are named handler functions behind the
+ * MAINTENANCE_COMMANDS table instead of a 12-case switch (CCN 67 — the
+ * repo's last P0-complexity function). The `MaintenanceVerb` union
+ * makes the table exhaustive at compile time: a verb without a handler
+ * — or a handler without a verb — is a type error, not a silent
+ * fall-through.
  */
 
 import { DB_PATH } from "../cli-env";
@@ -43,8 +50,13 @@ export const MAINTENANCE_VERBS = [
   "rb-grid-triage",
 ] as const;
 
+export type MaintenanceVerb = (typeof MAINTENANCE_VERBS)[number];
+
+/** One maintenance arm: parse flags, delegate, set exits. */
+export type MaintenanceHandler = (rest: string[]) => Promise<void>;
+
 /** Resolve the drive mount: first positional (`SHELF1` or an absolute
- * path) else the configured volume name. Shared by every case below. */
+ * path) else the configured volume name. Shared by every arm below. */
 function mountFrom(positional: string | undefined): string {
   if (positional) return volumePath(positional);
   return resolveShelfVolume();
@@ -83,462 +95,484 @@ function positionalArgs(rest: string[], stringOpts: string[]): string[] {
   return rest.filter((a, i) => !a.startsWith("--") && !isFlagValue.has(i));
 }
 
+// ---- shelf tier ----------------------------------------------------------
+
+const shelfRestoreCmd: MaintenanceHandler = async (rest) => {
+  const flags = parseFlags(rest, ["into"], ["json"]);
+  const input = positionalArgs(rest, ["into"])[0];
+  if (!input) {
+    await finishCommandError({
+      command: "shelf-restore",
+      error: "finding-id|path is required",
+      exitCode: 2,
+    });
+    return;
+  }
+  const { shelfRestore } = await import("../shelf/shelf-restore");
+  const r = await shelfRestore({
+    input,
+    into: flags.strings.get("into"),
+    shelfVolume: mountFrom(undefined),
+    dbPath: DB_PATH,
+    json: flags.bools.has("json"),
+    log: progressLog(flags.bools.has("json")),
+  });
+  if (!r.ok) setExit(1);
+};
+
+const shelfHygieneCmd: MaintenanceHandler = async (rest) => {
+  // Detect → ledger → review → apply → validate (the shelf-hygiene
+  // feature, CLI half; the web queue lives in CrateDeck). Findings
+  // live in the archive DB — the SSOT every surface reads.
+  const flags = parseFlags(
+    rest,
+    ["kind", "shelf", "bucket"],
+    ["json", "apply", "yes"],
+  );
+  const { shelfHygiene } = await import("../shelf/shelf-hygiene");
+  await shelfHygiene({
+    json: flags.bools.has("json"),
+    apply: flags.bools.has("apply"),
+    yes: flags.bools.has("yes"),
+    // repeatable list flags stay raw-parsed: parseFlags keeps only
+    // the last value per key, and confirm/dismiss are multi-value
+    confirm: manyOf(rest, "confirm"),
+    dismiss: manyOf(rest, "dismiss"),
+    kind: flags.strings.get("kind"),
+    bucket: flags.strings.get("bucket"),
+    shelfVolume: flags.strings.get("shelf"),
+  });
+};
+
+// ---- rekordbox tier ------------------------------------------------------
+
+const rbFixPathsCmd: MaintenanceHandler = async (rest) => {
+  // rekordbox library repair: stale djmdContent.FolderPath rows after
+  // folder moves/merges. Dry-run by default; --apply --yes rewrites
+  // rows (backs the DB up first, refuses while rekordbox runs).
+  const flags = parseFlags(rest, [], ["json", "apply", "yes"]);
+  const mount = mountFrom(positionalArgs(rest, [])[0]);
+  const { rbFixPaths, printRbFixReport } =
+    await import("../rekordbox/rb-fix-paths");
+  const json = flags.bools.has("json");
+  const r = await rbFixPaths({
+    mount,
+    apply: flags.bools.has("apply"),
+    yes: flags.bools.has("yes"),
+    json,
+    log: progressLog(json),
+  });
+  if (json) {
+    await writeJson(r);
+  } else {
+    printRbFixReport(r, console.log);
+  }
+  if (!r.ok) setExit(1);
+};
+
+const rbUnmatchedCmd: MaintenanceHandler = async (rest) => {
+  // disk→DB reconcile half: audio files NO rekordbox row references.
+  // Read-only census by default; --quarantine --yes moves the unknown
+  // set to the shelf quarantine (never deletes, manifest kept). Safe
+  // while rekordbox runs — only row-less files move.
+  const flags = parseFlags(rest, ["ext"], ["json", "quarantine", "yes"]);
+  const mount = mountFrom(positionalArgs(rest, [])[0]);
+  const { rbUnmatched, printRbUnmatchedReport } =
+    await import("../rekordbox/rb-unmatched");
+  const json = flags.bools.has("json");
+  const r = await rbUnmatched({
+    mount,
+    ext: manyOf(rest, "ext"),
+    quarantine: flags.bools.has("quarantine"),
+    yes: flags.bools.has("yes"),
+    json,
+    log: progressLog(json),
+  });
+  if (json) {
+    await writeJson(r);
+  } else {
+    printRbUnmatchedReport(r, console.log);
+  }
+  // gate parity: an unresolved backlog is a visible failure state —
+  // but a SUCCESSFUL apply (quarantine ran) leaves unknown == 0 and
+  // must read as success; failing it would block automation loops
+  if (!r.ok || (r.unknown > 0 && !r.appliedMode)) setExit(1);
+};
+
+const rbAdoptCmd: MaintenanceHandler = async (rest) => {
+  // Collection census → archive cross-reference. This reads every
+  // master Content row but writes archive.db only: exact Rekordbox IDs
+  // live in rekordbox_content while source/YouTube IDs remain intact.
+  const flags = parseFlags(rest, [], ["json", "apply", "yes"]);
+  const mount = mountFrom(positionalArgs(rest, [])[0]);
+  const json = flags.bools.has("json");
+  const state = new ArchiveState(DB_PATH);
+  try {
+    const { rbAdopt, printRbAdoptReport } =
+      await import("../rekordbox/rb-adopt");
+    const result = rbAdopt({
+      state,
+      archiveDb: DB_PATH,
+      mount,
+      apply: flags.bools.has("apply"),
+      yes: flags.bools.has("yes"),
+      log: progressLog(json),
+    });
+    if (json) await writeJson(result);
+    else printRbAdoptReport(result, console.log);
+    if (!result.ok || (!result.appliedMode && result.missingFiles > 0))
+      setExit(1);
+  } finally {
+    state.close();
+  }
+};
+
+const rbImportCmd: MaintenanceHandler = async (rest) => {
+  // the SANCTIONED headless master-DB import (AGENTS.md: auto-writes
+  // are rb-import's job only). One playlist per intake folder under a
+  // parent group; dated backup + rekordbox-quit gate + whole-table
+  // verify. Dry-run by default; --apply --yes writes.
+  const flags = parseFlags(
+    rest,
+    ["playlist", "group"],
+    ["apply", "yes", "json"],
+  );
+  const args = positionalArgs(rest, []);
+  const mount = mountFrom(args[0]);
+  const folder = args[1];
+  if (!folder) {
+    await finishCommandError({
+      command: "rb-import",
+      error:
+        "usage — megadj rb-import <mount> <folder> [--playlist NAME] [--group NAME] [--apply --yes]",
+    });
+    return;
+  }
+  const { rbImport, printRbImportReport } =
+    await import("../rekordbox/rb-import");
+  const json = flags.bools.has("json");
+  const r = await rbImport({
+    mount,
+    folder,
+    playlist: flags.strings.get("playlist"),
+    group: flags.strings.get("group"),
+    apply: flags.bools.has("apply"),
+    yes: flags.bools.has("yes"),
+    json,
+    log: progressLog(json),
+  });
+  if (json) {
+    await writeJson(r);
+  } else {
+    printRbImportReport(r, console.log);
+  }
+  if (!r.ok) setExit(1);
+};
+
+const rbCuesCmd: MaintenanceHandler = async (rest) => {
+  // F1/F3 seam (docs/fulltags/intake-cue-postmortem.md): the ONLY writer of
+  // djmdCue rows. Default: census of the provenance-pinned Sep 12
+  // incident rows; legitimate Kind=0 memory cues are never restamped.
+  const flags = parseFlags(
+    rest,
+    [],
+    ["restamp", "ledger", "force", "apply", "yes", "json"],
+  );
+  const args = positionalArgs(rest, []);
+  const mount = mountFrom(args[0]);
+  const { rbCues, printRbCuesReport } = await import("../rekordbox/rb-cues");
+  const json = flags.bools.has("json");
+  const r = await rbCues({
+    mount,
+    restamp: flags.bools.has("restamp"),
+    fromLedger: flags.bools.has("ledger"),
+    force: flags.bools.has("force"),
+    apply: flags.bools.has("apply"),
+    yes: flags.bools.has("yes"),
+    json,
+    log: progressLog(json),
+  });
+  if (json) {
+    await writeJson(r);
+  } else {
+    printRbCuesReport(r, console.log);
+  }
+  if (!r.ok) setExit(1);
+};
+
+const rbDedupCmd: MaintenanceHandler = async (rest) => {
+  // F2 (BUG-2): fingerprint-ish dupe sweep over master.db. Report
+  // default; --apply --yes retires loser rows + quarantines files.
+  const flags = parseFlags(rest, [], ["report", "apply", "yes", "json"]);
+  const args = positionalArgs(rest, []);
+  const mount = mountFrom(args[0]);
+  const { rbDedup, printRbDedupReport } = await import("../rekordbox/rb-dedup");
+  const json = flags.bools.has("json");
+  const r = await rbDedup({
+    mount,
+    report: flags.bools.has("report"),
+    apply: flags.bools.has("apply"),
+    yes: flags.bools.has("yes"),
+    json,
+    log: progressLog(json),
+  });
+  if (json) {
+    await writeJson(r);
+  } else {
+    printRbDedupReport(r, console.log);
+  }
+  if (!r.ok) setExit(1);
+};
+
+const rbCommentSyncCmd: MaintenanceHandler = async (rest) => {
+  // fulltags → RB comment backfill: file TXXX (CAMELOT/ENERGY/MOOD)
+  // + archive.db mood ledger → Commnt in FullTags format. Never
+  // clobbers a non-empty comment. Dry-run default.
+  const flags = parseFlags(rest, ["batch"], ["apply", "yes", "json"]);
+  const args = positionalArgs(rest, ["batch"]);
+  const mount = mountFrom(args[0]);
+  const { rbCommentSync, printRbCommentSyncReport } =
+    await import("../rekordbox/rb-comment-sync");
+  const json = flags.bools.has("json");
+  const r = await rbCommentSync({
+    mount,
+    batch: flags.strings.get("batch"),
+    apply: flags.bools.has("apply"),
+    yes: flags.bools.has("yes"),
+    json,
+    log: progressLog(json),
+  });
+  if (json) {
+    await writeJson(r);
+  } else {
+    printRbCommentSyncReport(r, console.log);
+  }
+  if (!r.ok) setExit(1);
+};
+
+const rbPlaylistCmd: MaintenanceHandler = async (rest) => {
+  // `megadj rb-playlist reconcile` — XML-twin healer (F7): diff
+  // djmdPlaylist rows vs masterPlaylists6.xml NODEs; apply adds
+  // missing NODEs. Anything else = the set-builder chain writer.
+  const restArgs = rest.filter((a) => a !== "reconcile");
+  if (rest.length !== restArgs.length) {
+    const flags = parseFlags(restArgs, [], ["apply", "yes", "json"]);
+    const args = positionalArgs(restArgs, []);
+    const mount = mountFrom(args[0]);
+    const { rbPlaylistReconcile, printReconcileReport } =
+      await import("../rekordbox/rb-playlist-reconcile");
+    const json = flags.bools.has("json");
+    const r = await rbPlaylistReconcile({
+      mount,
+      apply: flags.bools.has("apply"),
+      yes: flags.bools.has("yes"),
+      json,
+      log: progressLog(json),
+    });
+    if (json) {
+      await writeJson(r);
+    } else {
+      printReconcileReport(r, console.log);
+    }
+    if (!r.ok) setExit(1);
+    return;
+  }
+  // set-builder chain → master-DB playlist. The write-side twin of
+  // `megadj megaset`: NO new content rows, only playlist + links to
+  // rows the fullpush pipeline already imported (basename match).
+  // Same gates as rb-import: dated backup, rekordbox-quit gate,
+  // dry-run default, post-verify.
+  const flags = parseFlags(
+    rest,
+    ["playlist", "group", "preset", "minutes", "opener", "limit"],
+    ["apply", "yes", "json"],
+  );
+  const args = positionalArgs(rest, []);
+  const mount = mountFrom(args[0]);
+  const json = flags.bools.has("json");
+  const numOpt = (key: string): number | undefined => {
+    const raw = flags.strings.get(key);
+    if (raw === undefined) return undefined;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      finishCommandErrorSync({
+        command: "rb-playlist",
+        error: `--${key} must be a non-negative number`,
+        exitCode: 2,
+      });
+      return undefined;
+    }
+    return n;
+  };
+  const minutes = numOpt("minutes");
+  // These two READS are the only exitCode reads repo-wide (all writes
+  // go through setExit/finishCommandError* — pinned by
+  // src/exit-code-census.test.ts, whose regex skips comment lines,
+  // hence the inline mention below stays invisible to it): bail out
+  // when the preceding numOpt stamped a usage error.
+  if (process.exitCode === 2) return;
+  const limit = numOpt("limit");
+  if (process.exitCode === 2) return;
+  const { rbPlaylist, printRbPlaylistReport } =
+    await import("../rekordbox/rb-playlist");
+  const r = await rbPlaylist({
+    mount,
+    preset: flags.strings.get("preset"),
+    minutes,
+    opener: flags.strings.get("opener"),
+    limit,
+    playlist: flags.strings.get("playlist"),
+    group: flags.strings.get("group"),
+    apply: flags.bools.has("apply"),
+    yes: flags.bools.has("yes"),
+    log: progressLog(json),
+  });
+  if (json) {
+    await writeJson(r);
+  } else {
+    printRbPlaylistReport(r, console.log);
+  }
+  if (!r.ok || r.unmatched.length > 0) setExit(1);
+};
+
+// ---- analysis/harness tier ----------------------------------------------
+
+const rbAnlzSpikeCmd: MaintenanceHandler = async (rest) => {
+  // GA-07 harness: snapshot/compare ANLZ sidecars around a manual
+  // rekordbox experiment (re-export, grid nudge). Read-only on the
+  // drive; the baseline lives in ~/.local/state/megadj/spike/.
+  const flags = parseFlags(rest, ["tag"], ["json"]);
+  // Two positionals: mount (first) + mode word (snapshot|compare).
+  // Order-free per usage: `[drive] snapshot|compare`.
+  const args = positionalArgs(rest, ["tag"]);
+  const modeWord = args.find((a) => a === "snapshot" || a === "compare");
+  const mountPos = args.find((a) => a !== "snapshot" && a !== "compare");
+  const mode: AnlzSpikeMode = modeWord === "compare" ? "compare" : "snapshot";
+  if (args.some((a) => a !== "snapshot" && a !== "compare" && a !== mountPos)) {
+    await finishCommandError({
+      command: "rb-anlz-spike",
+      error: "too many arguments (usage: [drive] snapshot|compare)",
+      exitCode: 2,
+    });
+    return;
+  }
+  if (modeWord === undefined) {
+    await finishCommandError({
+      command: "rb-anlz-spike",
+      error: "mode is required (snapshot|compare)",
+      exitCode: 2,
+    });
+    return;
+  }
+  const tag = flags.strings.get("tag") ?? "";
+  if (!tag) {
+    await finishCommandError({
+      command: "rb-anlz-spike",
+      error: "--tag=<label> is required (names the baseline file)",
+      exitCode: 2,
+    });
+    return;
+  }
+  const mount = mountFrom(mountPos);
+  const json = flags.bools.has("json");
+  const { anlzSpike, printSpikeReport } =
+    await import("../rekordbox/anlz-spike");
+  const r = anlzSpike({
+    mount,
+    tag,
+    mode,
+    json,
+    log: progressLog(json),
+  });
+  if (json) {
+    await writeJson(r);
+  } else {
+    printSpikeReport(r, console.log);
+  }
+  if (!r.ok) setExit(1);
+};
+
+const rbGridTriageCmd: MaintenanceHandler = async (rest) => {
+  // GA-03 triage + GA-04 completion: decode the collection ANLZ
+  // grid, byte-compare against a stick (--compare), and audit our
+  // fitted ledger grids against what rekordbox actually wrote.
+  // Read-only — no pgrep guard needed (only writes need it).
+  const flags = parseFlags(rest, ["limit", "compare"], ["json"]);
+  const limit = nonNegOpt(flags, "limit", "rb-grid-triage");
+  // `--limit` present but invalid: nonNegOpt printed the error and
+  // set exit 2 — bail with zero work (the nonNegOpt contract).
+  if (flags.strings.has("limit") && limit === undefined) return;
+  const rawCompare = flags.strings.get("compare");
+  if (rawCompare === "") {
+    await finishCommandError({
+      command: "rb-grid-triage",
+      error: "--compare= requires a drive name",
+      exitCode: 2,
+    });
+    return;
+  }
+  // `--compare DJMASTER` (string value), bare `--compare` (default to
+  // the configured master drive), or absent (undefined = no compare).
+  const compareDrive =
+    rawCompare !== undefined
+      ? rawCompare
+      : rest.includes("--compare")
+        ? (process.env.MEGADJ_MASTER_DRIVE ?? "DJMASTER")
+        : undefined;
+  const mount = mountFrom(
+    positionalArgs(rest, ["limit", "compare"]).find(
+      (a) => a !== "snapshot" && a !== "compare",
+    ),
+  );
+  const json = flags.bools.has("json");
+  const state = new ArchiveState(DB_PATH);
+  try {
+    const { gridTriage, printGridTriageReport } =
+      await import("../rekordbox/grid-triage");
+    const r = await gridTriage({
+      mount,
+      state,
+      limit,
+      compareDrive,
+      json,
+      log: progressLog(json),
+    });
+    if (json) {
+      await writeJson(r);
+    } else {
+      printGridTriageReport(r, console.log);
+    }
+    if (!r.ok) setExit(1);
+  } finally {
+    state.close();
+  }
+};
+
+// ---- the dispatch table (compile-time exhaustive over the verbs) --------
+
+export const MAINTENANCE_COMMANDS: Readonly<
+  Record<MaintenanceVerb, MaintenanceHandler>
+> = {
+  "shelf-hygiene": shelfHygieneCmd,
+  "shelf-restore": shelfRestoreCmd,
+  "rb-fix-paths": rbFixPathsCmd,
+  "rb-unmatched": rbUnmatchedCmd,
+  "rb-adopt": rbAdoptCmd,
+  "rb-import": rbImportCmd,
+  "rb-playlist": rbPlaylistCmd,
+  "rb-cues": rbCuesCmd,
+  "rb-dedup": rbDedupCmd,
+  "rb-comment-sync": rbCommentSyncCmd,
+  "rb-anlz-spike": rbAnlzSpikeCmd,
+  "rb-grid-triage": rbGridTriageCmd,
+};
+
+/** Thin runner: table lookup + delegate (the old CCN-67 switch). */
 export async function runMaintenanceCommand(
   command: string,
   rest: string[],
 ): Promise<void> {
-  switch (command) {
-    case "shelf-restore": {
-      const flags = parseFlags(rest, ["into"], ["json"]);
-      const input = positionalArgs(rest, ["into"])[0];
-      if (!input) {
-        await finishCommandError({
-          command: "shelf-restore",
-          error: "finding-id|path is required",
-          exitCode: 2,
-        });
-        return;
-      }
-      const { shelfRestore } = await import("../shelf/shelf-restore");
-      const r = await shelfRestore({
-        input,
-        into: flags.strings.get("into"),
-        shelfVolume: mountFrom(undefined),
-        dbPath: DB_PATH,
-        json: flags.bools.has("json"),
-        log: progressLog(flags.bools.has("json")),
-      });
-      if (!r.ok) setExit(1);
-      return;
-    }
-    case "shelf-hygiene": {
-      // Detect → ledger → review → apply → validate (the shelf-hygiene
-      // feature, CLI half; the web queue lives in CrateDeck). Findings
-      // live in the archive DB — the SSOT every surface reads.
-      const flags = parseFlags(
-        rest,
-        ["kind", "shelf", "bucket"],
-        ["json", "apply", "yes"],
-      );
-      const { shelfHygiene } = await import("../shelf/shelf-hygiene");
-      await shelfHygiene({
-        json: flags.bools.has("json"),
-        apply: flags.bools.has("apply"),
-        yes: flags.bools.has("yes"),
-        // repeatable list flags stay raw-parsed: parseFlags keeps only
-        // the last value per key, and confirm/dismiss are multi-value
-        confirm: manyOf(rest, "confirm"),
-        dismiss: manyOf(rest, "dismiss"),
-        kind: flags.strings.get("kind"),
-        bucket: flags.strings.get("bucket"),
-        shelfVolume: flags.strings.get("shelf"),
-      });
-      return;
-    }
-    case "rb-fix-paths": {
-      // rekordbox library repair: stale djmdContent.FolderPath rows after
-      // folder moves/merges. Dry-run by default; --apply --yes rewrites
-      // rows (backs the DB up first, refuses while rekordbox runs).
-      const flags = parseFlags(rest, [], ["json", "apply", "yes"]);
-      const mount = mountFrom(positionalArgs(rest, [])[0]);
-      const { rbFixPaths, printRbFixReport } =
-        await import("../rekordbox/rb-fix-paths");
-      const json = flags.bools.has("json");
-      const r = await rbFixPaths({
-        mount,
-        apply: flags.bools.has("apply"),
-        yes: flags.bools.has("yes"),
-        json,
-        log: progressLog(json),
-      });
-      if (json) {
-        await writeJson(r);
-      } else {
-        printRbFixReport(r, console.log);
-      }
-      if (!r.ok) setExit(1);
-      return;
-    }
-    case "rb-unmatched": {
-      // disk→DB reconcile half: audio files NO rekordbox row references.
-      // Read-only census by default; --quarantine --yes moves the unknown
-      // set to the shelf quarantine (never deletes, manifest kept). Safe
-      // while rekordbox runs — only row-less files move.
-      const flags = parseFlags(rest, ["ext"], ["json", "quarantine", "yes"]);
-      const mount = mountFrom(positionalArgs(rest, [])[0]);
-      const { rbUnmatched, printRbUnmatchedReport } =
-        await import("../rekordbox/rb-unmatched");
-      const json = flags.bools.has("json");
-      const r = await rbUnmatched({
-        mount,
-        ext: manyOf(rest, "ext"),
-        quarantine: flags.bools.has("quarantine"),
-        yes: flags.bools.has("yes"),
-        json,
-        log: progressLog(json),
-      });
-      if (json) {
-        await writeJson(r);
-      } else {
-        printRbUnmatchedReport(r, console.log);
-      }
-      // gate parity: an unresolved backlog is a visible failure state —
-      // but a SUCCESSFUL apply (quarantine ran) leaves unknown == 0 and
-      // must read as success; failing it would block automation loops
-      if (!r.ok || (r.unknown > 0 && !r.appliedMode)) setExit(1);
-      return;
-    }
-    case "rb-adopt": {
-      // Collection census → archive cross-reference. This reads every
-      // master Content row but writes archive.db only: exact Rekordbox IDs
-      // live in rekordbox_content while source/YouTube IDs remain intact.
-      const flags = parseFlags(rest, [], ["json", "apply", "yes"]);
-      const mount = mountFrom(positionalArgs(rest, [])[0]);
-      const json = flags.bools.has("json");
-      const state = new ArchiveState(DB_PATH);
-      try {
-        const { rbAdopt, printRbAdoptReport } =
-          await import("../rekordbox/rb-adopt");
-        const result = rbAdopt({
-          state,
-          archiveDb: DB_PATH,
-          mount,
-          apply: flags.bools.has("apply"),
-          yes: flags.bools.has("yes"),
-          log: progressLog(json),
-        });
-        if (json) await writeJson(result);
-        else printRbAdoptReport(result, console.log);
-        if (!result.ok || (!result.appliedMode && result.missingFiles > 0))
-          setExit(1);
-      } finally {
-        state.close();
-      }
-      return;
-    }
-    case "rb-import": {
-      // the SANCTIONED headless master-DB import (AGENTS.md: auto-writes
-      // are rb-import's job only). One playlist per intake folder under a
-      // parent group; dated backup + rekordbox-quit gate + whole-table
-      // verify. Dry-run by default; --apply --yes writes.
-      const flags = parseFlags(
-        rest,
-        ["playlist", "group"],
-        ["apply", "yes", "json"],
-      );
-      const args = positionalArgs(rest, []);
-      const mount = mountFrom(args[0]);
-      const folder = args[1];
-      if (!folder) {
-        await finishCommandError({
-          command: "rb-import",
-          error:
-            "usage — megadj rb-import <mount> <folder> [--playlist NAME] [--group NAME] [--apply --yes]",
-        });
-        return;
-      }
-      const { rbImport, printRbImportReport } =
-        await import("../rekordbox/rb-import");
-      const json = flags.bools.has("json");
-      const r = await rbImport({
-        mount,
-        folder,
-        playlist: flags.strings.get("playlist"),
-        group: flags.strings.get("group"),
-        apply: flags.bools.has("apply"),
-        yes: flags.bools.has("yes"),
-        json,
-        log: progressLog(json),
-      });
-      if (json) {
-        await writeJson(r);
-      } else {
-        printRbImportReport(r, console.log);
-      }
-      if (!r.ok) setExit(1);
-      return;
-    }
-    case "rb-cues": {
-      // F1/F3 seam (docs/fulltags/intake-cue-postmortem.md): the ONLY writer of
-      // djmdCue rows. Default: census of the provenance-pinned Sep 12
-      // incident rows; legitimate Kind=0 memory cues are never restamped.
-      const flags = parseFlags(
-        rest,
-        [],
-        ["restamp", "ledger", "force", "apply", "yes", "json"],
-      );
-      const args = positionalArgs(rest, []);
-      const mount = mountFrom(args[0]);
-      const { rbCues, printRbCuesReport } =
-        await import("../rekordbox/rb-cues");
-      const json = flags.bools.has("json");
-      const r = await rbCues({
-        mount,
-        restamp: flags.bools.has("restamp"),
-        fromLedger: flags.bools.has("ledger"),
-        force: flags.bools.has("force"),
-        apply: flags.bools.has("apply"),
-        yes: flags.bools.has("yes"),
-        json,
-        log: progressLog(json),
-      });
-      if (json) {
-        await writeJson(r);
-      } else {
-        printRbCuesReport(r, console.log);
-      }
-      if (!r.ok) setExit(1);
-      return;
-    }
-    case "rb-dedup": {
-      // F2 (BUG-2): fingerprint-ish dupe sweep over master.db. Report
-      // default; --apply --yes retires loser rows + quarantines files.
-      const flags = parseFlags(rest, [], ["report", "apply", "yes", "json"]);
-      const args = positionalArgs(rest, []);
-      const mount = mountFrom(args[0]);
-      const { rbDedup, printRbDedupReport } =
-        await import("../rekordbox/rb-dedup");
-      const json = flags.bools.has("json");
-      const r = await rbDedup({
-        mount,
-        report: flags.bools.has("report"),
-        apply: flags.bools.has("apply"),
-        yes: flags.bools.has("yes"),
-        json,
-        log: progressLog(json),
-      });
-      if (json) {
-        await writeJson(r);
-      } else {
-        printRbDedupReport(r, console.log);
-      }
-      if (!r.ok) setExit(1);
-      return;
-    }
-    case "rb-comment-sync": {
-      // fulltags → RB comment backfill: file TXXX (CAMELOT/ENERGY/MOOD)
-      // + archive.db mood ledger → Commnt in FullTags format. Never
-      // clobbers a non-empty comment. Dry-run default.
-      const flags = parseFlags(rest, ["batch"], ["apply", "yes", "json"]);
-      const args = positionalArgs(rest, ["batch"]);
-      const mount = mountFrom(args[0]);
-      const { rbCommentSync, printRbCommentSyncReport } =
-        await import("../rekordbox/rb-comment-sync");
-      const json = flags.bools.has("json");
-      const r = await rbCommentSync({
-        mount,
-        batch: flags.strings.get("batch"),
-        apply: flags.bools.has("apply"),
-        yes: flags.bools.has("yes"),
-        json,
-        log: progressLog(json),
-      });
-      if (json) {
-        await writeJson(r);
-      } else {
-        printRbCommentSyncReport(r, console.log);
-      }
-      if (!r.ok) setExit(1);
-      return;
-    }
-    case "rb-playlist": {
-      // `megadj rb-playlist reconcile` — XML-twin healer (F7): diff
-      // djmdPlaylist rows vs masterPlaylists6.xml NODEs; apply adds
-      // missing NODEs. Anything else = the set-builder chain writer.
-      const restArgs = rest.filter((a) => a !== "reconcile");
-      if (rest.length !== restArgs.length) {
-        const flags = parseFlags(restArgs, [], ["apply", "yes", "json"]);
-        const args = positionalArgs(restArgs, []);
-        const mount = mountFrom(args[0]);
-        const { rbPlaylistReconcile, printReconcileReport } =
-          await import("../rekordbox/rb-playlist-reconcile");
-        const json = flags.bools.has("json");
-        const r = await rbPlaylistReconcile({
-          mount,
-          apply: flags.bools.has("apply"),
-          yes: flags.bools.has("yes"),
-          json,
-          log: progressLog(json),
-        });
-        if (json) {
-          await writeJson(r);
-        } else {
-          printReconcileReport(r, console.log);
-        }
-        if (!r.ok) setExit(1);
-        return;
-      }
-      // set-builder chain → master-DB playlist. The write-side twin of
-      // `megadj megaset`: NO new content rows, only playlist + links to
-      // rows the fullpush pipeline already imported (basename match).
-      // Same gates as rb-import: dated backup, rekordbox-quit gate,
-      // dry-run default, post-verify.
-      const flags = parseFlags(
-        rest,
-        ["playlist", "group", "preset", "minutes", "opener", "limit"],
-        ["apply", "yes", "json"],
-      );
-      const args = positionalArgs(rest, []);
-      const mount = mountFrom(args[0]);
-      const json = flags.bools.has("json");
-      const numOpt = (key: string): number | undefined => {
-        const raw = flags.strings.get(key);
-        if (raw === undefined) return undefined;
-        const n = Number(raw);
-        if (!Number.isFinite(n) || n < 0) {
-          finishCommandErrorSync({
-            command: "rb-playlist",
-            error: `--${key} must be a non-negative number`,
-            exitCode: 2,
-          });
-          return undefined;
-        }
-        return n;
-      };
-      const minutes = numOpt("minutes");
-      // These two READS are the only exitCode reads repo-wide (all writes
-      // go through setExit/finishCommandError* — pinned by
-      // src/exit-code-census.test.ts, whose regex skips comment lines,
-      // hence the inline mention below stays invisible to it): bail out
-      // when the preceding numOpt stamped a usage error.
-      if (process.exitCode === 2) return;
-      const limit = numOpt("limit");
-      if (process.exitCode === 2) return;
-      const { rbPlaylist, printRbPlaylistReport } =
-        await import("../rekordbox/rb-playlist");
-      const r = await rbPlaylist({
-        mount,
-        preset: flags.strings.get("preset"),
-        minutes,
-        opener: flags.strings.get("opener"),
-        limit,
-        playlist: flags.strings.get("playlist"),
-        group: flags.strings.get("group"),
-        apply: flags.bools.has("apply"),
-        yes: flags.bools.has("yes"),
-        log: progressLog(json),
-      });
-      if (json) {
-        await writeJson(r);
-      } else {
-        printRbPlaylistReport(r, console.log);
-      }
-      if (!r.ok || r.unmatched.length > 0) setExit(1);
-      return;
-    }
-    case "rb-anlz-spike": {
-      // GA-07 harness: snapshot/compare ANLZ sidecars around a manual
-      // rekordbox experiment (re-export, grid nudge). Read-only on the
-      // drive; the baseline lives in ~/.local/state/megadj/spike/.
-      const flags = parseFlags(rest, ["tag"], ["json"]);
-      // Two positionals: mount (first) + mode word (snapshot|compare).
-      // Order-free per usage: `[drive] snapshot|compare`.
-      const args = positionalArgs(rest, ["tag"]);
-      const modeWord = args.find((a) => a === "snapshot" || a === "compare");
-      const mountPos = args.find((a) => a !== "snapshot" && a !== "compare");
-      const mode: AnlzSpikeMode =
-        modeWord === "compare" ? "compare" : "snapshot";
-      if (
-        args.some((a) => a !== "snapshot" && a !== "compare" && a !== mountPos)
-      ) {
-        await finishCommandError({
-          command: "rb-anlz-spike",
-          error: "too many arguments (usage: [drive] snapshot|compare)",
-          exitCode: 2,
-        });
-        return;
-      }
-      if (modeWord === undefined) {
-        await finishCommandError({
-          command: "rb-anlz-spike",
-          error: "mode is required (snapshot|compare)",
-          exitCode: 2,
-        });
-        return;
-      }
-      const tag = flags.strings.get("tag") ?? "";
-      if (!tag) {
-        await finishCommandError({
-          command: "rb-anlz-spike",
-          error: "--tag=<label> is required (names the baseline file)",
-          exitCode: 2,
-        });
-        return;
-      }
-      const mount = mountFrom(mountPos);
-      const json = flags.bools.has("json");
-      const { anlzSpike, printSpikeReport } =
-        await import("../rekordbox/anlz-spike");
-      const r = anlzSpike({
-        mount,
-        tag,
-        mode,
-        json,
-        log: progressLog(json),
-      });
-      if (json) {
-        await writeJson(r);
-      } else {
-        printSpikeReport(r, console.log);
-      }
-      if (!r.ok) setExit(1);
-      return;
-    }
-    case "rb-grid-triage": {
-      // GA-03 triage + GA-04 completion: decode the collection ANLZ
-      // grid, byte-compare against a stick (--compare), and audit our
-      // fitted ledger grids against what rekordbox actually wrote.
-      // Read-only — no pgrep guard needed (only writes need it).
-      const flags = parseFlags(rest, ["limit", "compare"], ["json"]);
-      const limit = nonNegOpt(flags, "limit", "rb-grid-triage");
-      // `--limit` present but invalid: nonNegOpt printed the error and
-      // set exit 2 — bail with zero work (the nonNegOpt contract).
-      if (flags.strings.has("limit") && limit === undefined) return;
-      const rawCompare = flags.strings.get("compare");
-      if (rawCompare === "") {
-        await finishCommandError({
-          command: "rb-grid-triage",
-          error: "--compare= requires a drive name",
-          exitCode: 2,
-        });
-        return;
-      }
-      // `--compare DJMASTER` (string value), bare `--compare` (default to
-      // the configured master drive), or absent (undefined = no compare).
-      const compareDrive =
-        rawCompare !== undefined
-          ? rawCompare
-          : rest.includes("--compare")
-            ? (process.env.MEGADJ_MASTER_DRIVE ?? "DJMASTER")
-            : undefined;
-      const mount = mountFrom(
-        positionalArgs(rest, ["limit", "compare"]).find(
-          (a) => a !== "snapshot" && a !== "compare",
-        ),
-      );
-      const json = flags.bools.has("json");
-      const state = new ArchiveState(DB_PATH);
-      try {
-        const { gridTriage, printGridTriageReport } =
-          await import("../rekordbox/grid-triage");
-        const r = await gridTriage({
-          mount,
-          state,
-          limit,
-          compareDrive,
-          json,
-          log: progressLog(json),
-        });
-        if (json) {
-          await writeJson(r);
-        } else {
-          printGridTriageReport(r, console.log);
-        }
-        if (!r.ok) setExit(1);
-      } finally {
-        state.close();
-      }
-      return;
-    }
-  }
+  const handler = MAINTENANCE_COMMANDS[command as MaintenanceVerb];
+  if (!handler) return;
+  await handler(rest);
 }
