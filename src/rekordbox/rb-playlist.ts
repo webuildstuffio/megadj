@@ -48,6 +48,13 @@ import { errorText } from "../shared/error-text";
 import { commandLog } from "../progress";
 import { rekordboxRunning } from "./guard.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
+import {
+  PY_FIND_PLAYLIST_FN,
+  PY_MATCH_TRACK_STEP,
+  PY_RID_FN,
+  pyContentMatchPreamble,
+  pyPathKeyFn,
+} from "./rb-script-kit.js";
 
 export interface RbPlaylistOptions {
   /** Drive mount root (master DB at <mount>/PIONEER/Master/master.db)
@@ -103,7 +110,10 @@ const PYRK_TAG =
  *  playlist. Per-link commit (one bad row never kills the batch);
  *  playlist row committed once; duplicate name is a LOUD error, never a
  *  silent merge. NFC normalization kills the macOS NFD trap that made a
- *  1/60 basename miss ("Hernández" bytes differ across filesystems). */
+ *  1/60 basename miss ("Hernández" bytes differ across filesystems).
+ *  Shared Python fragments come from rb-script-kit (#88 diet): nfc/
+ *  path_key, find_playlist, rid, and the by-path/by-base match preamble
+ *  are the SAME strings the predict program interpolates. */
 function buildScript(): string {
   return `
 import json, os, sys, unicodedata, uuid, datetime
@@ -117,35 +127,16 @@ db = Rekordbox6Database(db_path)
 
 out = {"linked": 0, "unmatched": [], "playlistId": None, "parentId": None, "errors": []}
 
-def nfc(s):
-    return unicodedata.normalize("NFC", s) if s else s
-
-def path_key(s):
-    return nfc(s).casefold()
+${pyPathKeyFn()}
 
 # Exact normalized path wins. Basename fallback is allowed only when it is
 # unique; duplicate filenames across artist folders are ambiguous and must
 # never silently link the arbitrary first row.
-by_path = {}
-by_base = {}
-for c in db.query(DjmdContent).all():
-    if c.FolderPath:
-        path = path_key(c.FolderPath)
-        by_path.setdefault(path, c.ID)
-        b = path_key(os.path.basename(path))
-        by_base.setdefault(b, []).append(c.ID)
+${pyContentMatchPreamble()}
 
 content_ids = []
 for track in chain:
-    path = path_key(track["path"])
-    base = path_key(track["base"])
-    cid = by_path.get(path)
-    candidates = by_base.get(base, []) if cid is None else []
-    if cid is None and not candidates and len(base) > 60:
-        # tolerate the FileNameL 60-char clip ("..." suffix), still unique-only
-        candidates = by_base.get(base[:57] + "...", [])
-    if cid is None and len(candidates) == 1:
-        cid = candidates[0]
+${PY_MATCH_TRACK_STEP}
     if cid is None and len(candidates) > 1:
         out["unmatched"].append((track["title"] + " (ambiguous filename)")[:100])
         continue
@@ -154,21 +145,9 @@ for track in chain:
         continue
     content_ids.append(cid)
 
-def find_playlist(name, attr, parent_id):
-    parent = None if parent_id == 0 else db.query(DjmdPlaylist).filter(DjmdPlaylist.ID == parent_id).first()
-    expected_parent_id = parent.ID if parent is not None else 0
-    q = db.query(DjmdPlaylist).filter(
-        DjmdPlaylist.Name == name,
-        DjmdPlaylist.Attribute == attr,
-        DjmdPlaylist.ParentID == parent_id,
-    )
-    for p in q.all():
-        if str(p.ParentID or 0) == str(expected_parent_id):
-            return p
-    return None
+${PY_FIND_PLAYLIST_FN}
 
-def rid():
-    return db.random_id() if hasattr(db, "random_id") else int.from_bytes(os.urandom(4), "big") & 0x7FFFFFFF
+${PY_RID_FN}
 
 parent = find_playlist(group_name, 1, 0)
 if parent is None:
@@ -700,7 +679,8 @@ export async function rbPlaylist(
 
 /** Python probe (READ-ONLY): which chain basenames have a content row in
  *  the master — powers the dry-run report so the user sees the real link
- *  count BEFORE writing anything. Same matching as buildScript. */
+ *  count BEFORE writing anything. Same matching as buildScript, from the
+ *  SAME rb-script-kit fragments (the drift-prone twin is gone). */
 function predictScript(): string {
   return `
 import json, os, sys, unicodedata
@@ -710,32 +690,14 @@ from pyrekordbox.db6.tables import DjmdContent
 db = Rekordbox6Database(sys.argv[1])
 chain = json.loads(sys.argv[2])["chain"]
 
-def nfc(s):
-    return unicodedata.normalize("NFC", s) if s else s
+${pyPathKeyFn()}
 
-def path_key(s):
-    return nfc(s).casefold()
-
-by_path = {}
-by_base = {}
-for c in db.query(DjmdContent).all():
-    if c.FolderPath:
-        path = path_key(c.FolderPath)
-        by_path.setdefault(path, c.ID)
-        b = path_key(os.path.basename(path))
-        by_base.setdefault(b, []).append(c.ID)
+${pyContentMatchPreamble()}
 
 hit = 0
 unmatched = []
 for track in chain:
-    path = path_key(track["path"])
-    base = path_key(track["base"])
-    cid = by_path.get(path)
-    candidates = by_base.get(base, []) if cid is None else []
-    if cid is None and not candidates and len(base) > 60:
-        candidates = by_base.get(base[:57] + "...", [])
-    if cid is None and len(candidates) == 1:
-        cid = candidates[0]
+${PY_MATCH_TRACK_STEP}
     if cid is None and len(candidates) > 1:
         unmatched.append((track["title"] + " (ambiguous filename)")[:100])
         continue

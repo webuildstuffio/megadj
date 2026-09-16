@@ -23,16 +23,16 @@ import {
 } from "../../cratedeck/src/megaset";
 import {
   clampMegasetPool,
-  isShelfOffline,
   MEGASET_EXCLUDED_PREVIEW_MAX,
   type MegasetPayload,
   type SetSearchOverride,
 } from "../../cratedeck/shared/types";
 
 import {
-  formatAge,
-  ledgerFreshness,
-} from "../../cratedeck/shared/ledger-freshness";
+  emptyPoolDiagnosis,
+  logProposalHeader,
+  logSteps,
+} from "./megaset-report";
 
 export interface MegasetOptions {
   preset?: string | undefined;
@@ -138,21 +138,17 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       // mixable), not a crash — same honesty as the web Verdict row.
       // The all-missing signature gets its own diagnosis: the shelf
       // volume is away (paths cannot exist), not the library.
-      const offline = isShelfOffline(built, {
-        source_total: sourceTotal,
-        pool: total,
-        missing_files: missingFiles,
-        metadata_only: metadataOnly,
-        relocated_files: relocatedFiles,
-      });
       log(
-        offline
-          ? `megaset: shelf volume is offline and no row carries mirror tempo — all ${missingFiles} downloaded paths are unreadable. Mount the shelf drive, then build again (nothing is lost; the ledger is intact)`
-          : total === 0 &&
-              sourceTotal > 0 &&
-              missingFiles + metadataOnly === sourceTotal
-            ? `megaset: checked ${sourceTotal} downloaded DB rows, but none are playable or carry measured tempo — run \`megadj status\`, then repair or resync those rows`
-            : `megaset: nothing mixable in a ${total}-track pool — run \`megadj beats\` + \`megadj mood\` first`,
+        emptyPoolDiagnosis(
+          {
+            sourceTotal,
+            total,
+            missingFiles,
+            metadataOnly,
+            relocatedFiles,
+          },
+          built.steps,
+        ),
       );
       // #160 ring 3: setExit is the one mutation point.
       setExit(1);
@@ -161,31 +157,24 @@ export async function megaset(opts: MegasetOptions): Promise<void> {
       // surface the ledger ages so "why isn't my new track in here" is
       // answerable without opening a DB shell. B1: metadata-only rows
       // are named so a shelf-offline proposal is visibly mirror-built.
-      log(
-        `megaset: ${built.steps.length}-track ${built.preset} proposal, ${built.actualMinutes}/${built.minutes} min${built.complete ? "" : ` (${built.shortfallMinutes} min short)`} via ${built.search} search (checked ${sourceTotal} DB rows; ${total} pool tracks; ${metadataOnly} metadata-only${metadataOnly > 0 ? " — shelf offline, scored from mirror tempo" : ""}; ${rekordboxKeyHits} Rekordbox keys; ${rekordboxBpmHits} Rekordbox BPMs; ${keyReads} file key reads; ${relocatedFiles} relocated; ${duplicateFiles} aliases collapsed; ${missingFiles} missing; excluded ${payload.excluded_total})`,
+      logProposalHeader(
+        built,
+        freshness,
+        {
+          sourceTotal,
+          total,
+          missingFiles,
+          metadataOnly,
+          duplicateFiles,
+          relocatedFiles,
+          rekordboxKeyHits,
+          rekordboxBpmHits,
+          keyReads,
+        },
+        payload.excluded_total,
+        log,
       );
-      if (metadataOnly > 0) {
-        log(
-          `  note: ${metadataOnly} proposal tracks have no mounted file — the chain is a plan, not a playable playlist until the shelf is mounted`,
-        );
-      }
-      log(
-        `  analysis freshness — beats: ${formatAge(ledgerFreshness(payload.freshness.beatsAt))}, mood: ${formatAge(ledgerFreshness(payload.freshness.moodAt))} (newer imports need \`megadj beats\` + \`megadj mood\`)`,
-      );
-      let at = 0;
-      for (const s of built.steps) {
-        at = s.atMin;
-        // #106 Phase D: handoff windows ride the per-step line — same
-        // evidence the web hover cards and the M3U8 #EXTREM comments
-        // carry; null pair = no cues ledger row, printed as dashes.
-        const windows =
-          s.mixInCue !== null || s.mixOutCue !== null
-            ? `  ♪ in ${Math.round(s.mixInCue?.position ?? 0)}s/bar ${s.mixInCue?.bar ?? "—"} · out ${Math.round(s.mixOutCue?.position ?? 0)}s/bar ${s.mixOutCue?.bar ?? "—"}`
-            : "  ♪ no cue windows";
-        log(
-          `  ${String(s.atMin).padStart(5)}m  ${s.bpm === null ? "  —  " : String(Math.round(s.bpm * 10) / 10).padStart(5)} bpm  ${(s.key ?? "—").padEnd(4)}  ${s.transition === null ? "open " : s.transition.toFixed(3)}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}${windows}`,
-        );
-      }
+      const at = logSteps(built.steps, log);
       log(`  total ${at} min — propose-only, nothing written`);
       if (!built.complete) setExit(1);
     }

@@ -1,6 +1,9 @@
 /** Python subprocess programs used by the Rekordbox duplicate workflow.
- *  DB-open boilerplate comes from rb-script-kit (#78). */
-import { pyDbOpen, pyDbOpenImports } from "./rb-script-kit.js";
+ *  DB-open boilerplate comes from rb-script-kit (#78); the cue-signature
+ *  fragments come from there too (#88) — the delete + verify scripts
+ *  interpolated byte-identical copies, and a drift between them would
+ *  make the verify leg disagree with what delete actually wrote. */
+import { pyCueSigBlock, pyDbOpen, pyDbOpenImports } from "./rb-script-kit.js";
 
 /** Pull content rows and emit cheap duplicate candidates. */
 export function dedupScanScript(): string {
@@ -59,28 +62,7 @@ import hashlib, json, sys
 ${pyDbOpenImports()}
 from pyrekordbox.db6.tables import DjmdContent, DjmdCue, DjmdSongPlaylist
 
-cue_identity_fields = {
-    "ID", "ContentID", "ContentUUID", "UUID", "rb_data_status",
-    "rb_local_data_status", "rb_local_deleted", "rb_local_synced",
-    "usn", "rb_local_usn", "created_at", "updated_at",
-}
-cue_fields = sorted(c.name for c in DjmdCue.__table__.columns
-                    if c.name not in cue_identity_fields)
-
-def scalar(value):
-    if isinstance(value, bytes):
-        return {"bytes": value.hex()}
-    if hasattr(value, "isoformat"):
-        return {"iso": value.isoformat()}
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    return repr(value)
-
-def cue_sig(cue):
-    values = [[name, scalar(getattr(cue, name, None))] for name in cue_fields]
-    payload = json.dumps(values, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
+${pyCueSigBlock()}
 ${pyDbOpen("sys.argv[1]")}
 mappings = json.loads(sys.argv[2])
 out = {"removed_ids": [], "errors": [], "associations": []}
@@ -147,27 +129,7 @@ import hashlib, json, sys
 ${pyDbOpenImports()}
 from pyrekordbox.db6.tables import DjmdContent, DjmdCue, DjmdSongPlaylist
 
-cue_identity_fields = {
-    "ID", "ContentID", "ContentUUID", "UUID", "rb_data_status",
-    "rb_local_data_status", "rb_local_deleted", "rb_local_synced",
-    "usn", "rb_local_usn", "created_at", "updated_at",
-}
-cue_fields = sorted(c.name for c in DjmdCue.__table__.columns
-                    if c.name not in cue_identity_fields)
-
-def scalar(value):
-    if isinstance(value, bytes):
-        return {"bytes": value.hex()}
-    if hasattr(value, "isoformat"):
-        return {"iso": value.isoformat()}
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    return repr(value)
-
-def cue_sig(cue):
-    values = [[name, scalar(getattr(cue, name, None))] for name in cue_fields]
-    payload = json.dumps(values, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+${pyCueSigBlock()}
 
 ids = set(json.loads(sys.argv[2]))
 ${pyDbOpen("sys.argv[1]")}

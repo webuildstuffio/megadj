@@ -8,6 +8,12 @@
 // to resume. A stage that has nothing to do costs ~0; a failed stage is
 // reported and does not abort the pipeline's earlier results (each stage
 // commits its own work), but `ok` reflects full completion.
+//
+// #88 diet: the stage ladder is DATA. `STAGE_RUNNERS` declares each
+// stage's name, skip-policy and runner once; `drop` is the ~30-line
+// interpreter over that table. Adding a stage = adding one table row, not
+// another branch in a 250-line ladder (the old shape was lizard's top CCN
+// carrier in src/).
 
 import { ingest } from "../getdat/commands/ingest";
 import { beats } from "../fulltags/beats";
@@ -28,13 +34,13 @@ export interface DropOptions {
   /** Skip the ONNX mood stage even when models are present. */
   noMood?: boolean;
   /** Skip the fast (no-key/bpm) stages of the fetch pass. Off by default —
-   *  the whole point of drop is "point at a folder, get finished tracks". */
+   * the whole point of drop is "point at a folder, get finished tracks". */
   noFetch?: boolean;
   /** Opt-in AI genre/year fallback inside the fetch stage (SC + Beatport
-   *  stay primary; AI covers only what both miss). Off by default. */
+   * stay primary; AI covers only what both miss). Off by default. */
   aiFallback?: boolean;
   /** Beat-analysis length cap in seconds (default 900 = 15min; 0 disables) —
-   *  longer tracks skip the beats stage (grid cost scales with runtime). */
+   * longer tracks skip the beats stage (grid cost scales with runtime). */
   maxBeatSeconds?: number | undefined;
   /** Machine-readable summary (P1). Human logs still go to stderr. */
   json?: boolean;
@@ -117,241 +123,243 @@ async function runStage(
   }
 }
 
+/** The download stage (stage 0) is special: it decides whether the run
+ *  starts at all and can be skipped by --dry-run. Handled in `drop`, not
+ *  in the table. Everything below runs in order, each only if all
+ *  predecessors succeeded. */
+interface StageCtx {
+  opts: DropOptions;
+  folder: string;
+}
+
+interface StageSpec {
+  name: string;
+  /** The skip DETAIL when opts.noFetch gates this stage. Absent = the
+   *  stage is not gated by --no-fetch. */
+  noFetchDetail?: string;
+  /** The skip DETAIL when opts.noMood gates this stage (checked first:
+   *  mood also consults model presence). Absent = not gated. */
+  noMoodDetail?: string;
+  /** Async gate for run-conditions that need I/O (mood's model-presence
+   *  check). Returns a skip DETAIL to record a skipped row, or null to
+   *  run. Checked after the sync flag gates, only when the chain is ok. */
+  skipDetail?: (ctx: StageCtx) => Promise<string | null>;
+  run: (ctx: StageCtx) => Promise<void>;
+}
+
+const STAGE_RUNNERS: StageSpec[] = [
+  {
+    name: "ingest",
+    // Stage 1 — ingest: clean names, tags, artwork, dedupe, WAV→AIFF.
+    run: ({ opts, folder }) =>
+      ingest({
+        state: opts.state,
+        musicDir: opts.musicDir,
+        folder,
+        dryRun: opts.dryRun,
+        json: true, // human logs suppressed; summary comes from drop
+      }),
+  },
+  {
+    name: "fetch",
+    noFetchDetail: "no-fetch flag",
+    // Stage 1b — enrichment (fetch-all: tags/genre/art/year + energy,
+    // fingerprint, key stamps) and year verification against the real SC
+    // page dates. These are the stages the artist/comment/tag gaps of the
+    // early passes lived in — a drop that skips them re-creates those
+    // bugs. fetch runs the pipeline in-process via runFetch (it owns its
+    // own progress bar + AI batching); years is the in-process verify.
+    run: async ({ opts }) => {
+      const { fetch } = await import("../fulltags/fetch");
+      await fetch({
+        all: false,
+        only: "all",
+        aiFallback: opts.aiFallback,
+        dryRun: opts.dryRun,
+        json: true,
+      });
+    },
+  },
+  {
+    name: "years",
+    noFetchDetail: "no-fetch flag",
+    run: async ({ opts }) => {
+      const { runFixYears } = await import("../fulltags/years");
+      await runFixYears({ dryRun: opts.dryRun ?? false, json: true });
+    },
+  },
+  {
+    name: "beats",
+    // Stage 2 — beats ledger (beat_this → DB; no tag writes). Tracks over
+    // maxBeatSeconds (default 15min) skip the grid — cost scales with
+    // runtime.
+    run: ({ opts }) =>
+      beats({
+        state: opts.state,
+        musicDir: opts.musicDir,
+        dryRun: opts.dryRun,
+        json: true,
+        maxSeconds: opts.maxBeatSeconds,
+      }),
+  },
+  {
+    name: "mood",
+    noMoodDetail: "no-mood flag",
+    // Stage 3 — mood ledger, gated on models present (320 MB one-time
+    // download is NOT something a drop should silently trigger).
+    skipDetail: async () => {
+      const { moodModelsPresent } = await import("../../fulltags/src/models");
+      return moodModelsPresent()
+        ? null
+        : "models absent (bun run fulltags/cli.ts ensure-models)";
+    },
+    run: async ({ opts }) => {
+      await mood({
+        state: opts.state,
+        musicDir: opts.musicDir,
+        dryRun: opts.dryRun,
+        json: true,
+      });
+    },
+  },
+  {
+    name: "cues",
+    // Stage 4 — phrase cues from the beats ledger (DB-side).
+    run: ({ opts }) =>
+      cues({
+        state: opts.state,
+        dryRun: opts.dryRun,
+        json: true,
+      }),
+  },
+  {
+    name: "organize",
+    // Stage 5 — organize into genre folders (never deletes; moves only).
+    run: ({ opts }) =>
+      organize({
+        state: opts.state,
+        musicDir: opts.musicDir,
+        dryRun: opts.dryRun,
+        json: true,
+      }),
+  },
+  {
+    name: "tag-check",
+    // Stage 6 — tag-check gate (well-formedness: unreadable containers,
+    // mojibake, control bytes, no-title/artist voids — the "Unknown Artist
+    // in the booth" trap). Report-only here: drop reports, the operator
+    // fixes via booth-fix; a failed gate fails the run.
+    run: async ({ opts }) => {
+      const { walkAudioFiles, tagHealth } =
+        await import("../../fulltags/src/exports");
+      const bad: { file: string; reasons: string[] }[] = [];
+      for (const f of walkAudioFiles(opts.musicDir)) {
+        const h = tagHealth(f);
+        if (!h.ok) bad.push({ file: f, reasons: h.reasons });
+      }
+      if (bad.length)
+        throw new Error(
+          `${bad.length} file(s) with broken tags: ${bad
+            .slice(0, 3)
+            .map((b) => `${b.file.split("/").pop()} [${b.reasons.join(",")}]`)
+            .join(
+              "; ",
+            )}${bad.length > 3 ? "; …" : ""} — megadj tag-check for the full list`,
+        );
+    },
+  },
+  {
+    name: "audit",
+    // Stage 7 — final completeness gate (audit: art+tags+genre+year+mood+
+    // energy+player-compat+booth-text). Exits 1 on any gap; the summary's
+    // detail carries the gap count so --json consumers see it in one line.
+    run: async ({ opts }) => {
+      const { auditArchive } = await import("../fulltags/fetch");
+      const report = await auditArchive(opts.musicDir);
+      const gaps = report.rows.filter((r) => !r.complete);
+      if (gaps.length)
+        throw new Error(
+          `${gaps.length}/${report.total} incomplete — megadj audit for the per-file list`,
+        );
+    },
+  },
+];
+
+/** Stage 0 — URL → download into the music dir; folder → use as-is.
+ *  Returns the effective intake folder and false when the run must stop. */
+async function downloadStage(
+  opts: DropOptions,
+  stages: DropStage[],
+  log: (m: string) => void,
+): Promise<{ folder: string; ok: boolean }> {
+  if (!isUrl(opts.target)) return { folder: opts.target, ok: true };
+  log(`downloading ${opts.target}…`);
+  if (opts.dryRun) {
+    stages.push({ stage: "download", status: "skipped", detail: "dry-run" });
+    return { folder: opts.musicDir, ok: true };
+  }
+  const r = await downloadUrl(opts.target, opts.musicDir, opts);
+  if (r.error) {
+    stages.push({ stage: "download", status: "failed", detail: r.error });
+    return { folder: opts.musicDir, ok: false };
+  }
+  stages.push({ stage: "download", status: "ok" });
+  return { folder: opts.musicDir, ok: true };
+}
+
+/** Human report: one line per stage, honest symbols. */
+function printStageReport(
+  stages: DropStage[],
+  ok: boolean,
+  log: (m: string) => void,
+): void {
+  log("");
+  log(ok ? "✓ drop complete" : "✗ drop incomplete — see stages above");
+  for (const s of stages)
+    log(
+      `  ${s.status === "ok" ? "✓" : s.status === "skipped" ? "-" : "✗"} ${s.stage}${s.detail ? ` — ${s.detail}` : ""}`,
+    );
+}
+
 export async function drop(opts: DropOptions): Promise<void> {
   const log = commandLog(opts);
   const stages: DropStage[] = [];
   let ok = true;
 
-  // Stage 0 — URL → download into the music dir; folder → use as-is.
-  let folder = opts.target;
-  if (isUrl(opts.target)) {
-    log(`downloading ${opts.target}…`);
-    if (opts.dryRun) {
+  // Stage 0 — download when the target is a URL, then run the table.
+  const { folder, ok: downloaded } = await downloadStage(opts, stages, log);
+  ok = downloaded;
+  const ctx: StageCtx = { opts, folder };
+  for (const spec of STAGE_RUNNERS) {
+    if (!ok) {
+      stages.push({ stage: spec.name, status: "skipped" });
+      continue;
+    }
+    if (opts.noFetch && spec.noFetchDetail) {
       stages.push({
-        stage: "download",
+        stage: spec.name,
         status: "skipped",
-        detail: "dry-run",
+        detail: spec.noFetchDetail,
       });
-      folder = opts.musicDir;
-    } else {
-      const r = await downloadUrl(opts.target, opts.musicDir, opts);
-      if (r.error) {
-        stages.push({
-          stage: "download",
-          status: "failed",
-          detail: r.error,
-        });
-        ok = false;
-      } else {
-        stages.push({ stage: "download", status: "ok" });
-        folder = opts.musicDir;
+      continue;
+    }
+    if (opts.noMood && spec.noMoodDetail) {
+      stages.push({
+        stage: spec.name,
+        status: "skipped",
+        detail: spec.noMoodDetail,
+      });
+      continue;
+    }
+    if (spec.skipDetail) {
+      const detail = await spec.skipDetail(ctx);
+      if (detail !== null) {
+        stages.push({ stage: spec.name, status: "skipped", detail });
+        continue;
       }
     }
+    ok = await runStage(spec.name, () => spec.run(ctx), stages, log);
   }
-
-  // Stage 1 — ingest: clean names, tags, artwork, dedupe, WAV→AIFF.
-  if (ok) {
-    ok = await runStage(
-      "ingest",
-      () =>
-        ingest({
-          state: opts.state,
-          musicDir: opts.musicDir,
-          folder,
-          dryRun: opts.dryRun,
-          json: true, // human logs suppressed; summary comes from drop
-        }),
-      stages,
-      log,
-    );
-  } else {
-    stages.push({
-      stage: "ingest",
-      status: "skipped",
-      detail: "download failed",
-    });
-  }
-
-  // Stage 1b — enrichment (fetch-all: tags/genre/art/year + energy,
-  // fingerprint, key stamps) and year verification against the real SC
-  // page dates. These are the stages the artist/comment/tag gaps of the
-  // early passes lived in — a drop that skips them re-creates those bugs.
-  // fetch runs the pipeline in-process via runFetch (it owns its own
-  // progress bar + AI batching); years is the in-process verify pass.
-  if (ok) {
-    if (opts.noFetch) {
-      stages.push({
-        stage: "fetch",
-        status: "skipped",
-        detail: "no-fetch flag",
-      });
-    } else {
-      ok = await runStage(
-        "fetch",
-        async () => {
-          const { fetch } = await import("../fulltags/fetch");
-          await fetch({
-            all: false,
-            only: "all",
-            aiFallback: opts.aiFallback,
-            dryRun: opts.dryRun,
-            json: true,
-          });
-        },
-        stages,
-        log,
-      );
-    }
-  } else stages.push({ stage: "fetch", status: "skipped" });
-
-  if (ok) {
-    if (opts.noFetch) {
-      stages.push({
-        stage: "years",
-        status: "skipped",
-        detail: "no-fetch flag",
-      });
-    } else {
-      ok = await runStage(
-        "years",
-        async () => {
-          const { runFixYears } = await import("../fulltags/years");
-          await runFixYears({ dryRun: opts.dryRun ?? false, json: true });
-        },
-        stages,
-        log,
-      );
-    }
-  } else stages.push({ stage: "years", status: "skipped" });
-
-  // Stage 2 — beats ledger (beat_this → DB; no tag writes). Tracks over
-  // maxBeatSeconds (default 15min) skip the grid — cost scales with runtime.
-  if (ok)
-    ok = await runStage(
-      "beats",
-      () =>
-        beats({
-          state: opts.state,
-          musicDir: opts.musicDir,
-          dryRun: opts.dryRun,
-          json: true,
-          maxSeconds: opts.maxBeatSeconds,
-        }),
-      stages,
-      log,
-    );
-  else stages.push({ stage: "beats", status: "skipped" });
-
-  // Stage 3 — mood ledger, gated on models present (320 MB one-time
-  // download is NOT something a drop should silently trigger).
-  if (!ok) {
-    stages.push({ stage: "mood", status: "skipped" });
-  } else if (opts.noMood) {
-    stages.push({ stage: "mood", status: "skipped", detail: "no-mood flag" });
-  } else {
-    const { moodModelsPresent } = await import("../../fulltags/src/models");
-    if (moodModelsPresent()) {
-      ok = await runStage(
-        "mood",
-        () =>
-          mood({
-            state: opts.state,
-            musicDir: opts.musicDir,
-            dryRun: opts.dryRun,
-            json: true,
-          }),
-        stages,
-        log,
-      );
-    } else {
-      stages.push({
-        stage: "mood",
-        status: "skipped",
-        detail: "models absent (bun run fulltags/cli.ts ensure-models)",
-      });
-    }
-  }
-
-  // Stage 4 — phrase cues from the beats ledger (DB-side).
-  if (ok)
-    ok = await runStage(
-      "cues",
-      () =>
-        cues({
-          state: opts.state,
-          dryRun: opts.dryRun,
-          json: true,
-        }),
-      stages,
-      log,
-    );
-  else stages.push({ stage: "cues", status: "skipped" });
-
-  // Stage 5 — organize into genre folders (never deletes; moves only).
-  if (ok)
-    ok = await runStage(
-      "organize",
-      () =>
-        organize({
-          state: opts.state,
-          musicDir: opts.musicDir,
-          dryRun: opts.dryRun,
-          json: true,
-        }),
-      stages,
-      log,
-    );
-  else stages.push({ stage: "organize", status: "skipped" });
-
-  // Stage 6 — tag-check gate (well-formedness: unreadable containers,
-  // mojibake, control bytes, no-title/artist voids — the "Unknown Artist
-  // in the booth" trap). Report-only here: drop reports, the operator
-  // fixes via booth-fix; a failed gate fails the run.
-  if (ok)
-    ok = await runStage(
-      "tag-check",
-      async () => {
-        const { walkAudioFiles, tagHealth } =
-          await import("../../fulltags/src/exports");
-        const bad: { file: string; reasons: string[] }[] = [];
-        for (const f of walkAudioFiles(opts.musicDir)) {
-          const h = tagHealth(f);
-          if (!h.ok) bad.push({ file: f, reasons: h.reasons });
-        }
-        if (bad.length)
-          throw new Error(
-            `${bad.length} file(s) with broken tags: ${bad
-              .slice(0, 3)
-              .map((b) => `${b.file.split("/").pop()} [${b.reasons.join(",")}]`)
-              .join(
-                "; ",
-              )}${bad.length > 3 ? "; …" : ""} — megadj tag-check for the full list`,
-          );
-      },
-      stages,
-      log,
-    );
-  else stages.push({ stage: "tag-check", status: "skipped" });
-
-  // Stage 7 — final completeness gate (audit: art+tags+genre+year+mood+
-  // energy+player-compat+booth-text). Exits 1 on any gap; the summary's
-  // detail carries the gap count so --json consumers see it in one line.
-  if (ok)
-    ok = await runStage(
-      "audit",
-      async () => {
-        const { auditArchive } = await import("../fulltags/fetch");
-        const report = await auditArchive(opts.musicDir);
-        const gaps = report.rows.filter((r) => !r.complete);
-        if (gaps.length)
-          throw new Error(
-            `${gaps.length}/${report.total} incomplete — megadj audit for the per-file list`,
-          );
-      },
-      stages,
-      log,
-    );
-  else stages.push({ stage: "audit", status: "skipped" });
 
   const summary: DropSummary = {
     command: "drop",
@@ -363,14 +371,7 @@ export async function drop(opts: DropOptions): Promise<void> {
     // P1: one summary object as the LAST stdout line — compact, so the
     // rollup parses as a single line even with per-stage objects above it.
     await writeJson(summary);
-  } else {
-    log("");
-    log(ok ? "✓ drop complete" : "✗ drop incomplete — see stages above");
-    for (const s of stages)
-      log(
-        `  ${s.status === "ok" ? "✓" : s.status === "skipped" ? "-" : "✗"} ${s.stage}${s.detail ? ` — ${s.detail}` : ""}`,
-      );
-  }
+  } else printStageReport(stages, ok, log);
   // #160 ring 3: setExit is the one mutation point.
   if (!ok) setExit(1);
 }

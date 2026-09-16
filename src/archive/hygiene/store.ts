@@ -9,7 +9,7 @@
  * keeps status (a dismissed finding stays down); CHANGED evidence resets
  * status to open — the only way a "no" comes back (§5 Phase 0 tests).
  */
-import type { Database } from "bun:sqlite";
+import type { Database, SQLQueryBindings } from "bun:sqlite";
 import type {
   Finding,
   FindingKind,
@@ -25,6 +25,28 @@ import {
 } from "../../../cratedeck/shared/hygiene";
 
 type Row = HygieneFindingRow;
+
+/** Column order for the INSERT — one declaration feeding both the SQL
+ *  placeholder count and (via insertParams) the value tuple. */
+const HYGIENE_INSERT_COLUMNS = [
+  "id",
+  "kind",
+  "severity",
+  "status",
+  "paths",
+  "bytes",
+  "md5s",
+  "fps",
+  "evidence",
+  "proposed_action",
+  "keeper_path",
+  "walk_token",
+  "auto_safe",
+  "created_at",
+  "decided_at",
+  "applied_at",
+  "validation",
+] as const;
 
 export class HygieneStore {
   private readonly db: Database;
@@ -99,6 +121,50 @@ export class HygieneStore {
     };
   }
 
+  /** The INSERT parameter tuple in column order — derived from rowFor so
+   *  the 17 placeholders can never drift from the fields. */
+  private static insertParams(
+    r: Omit<Row, "id"> & { id: string },
+  ): SQLQueryBindings[] {
+    return [
+      r.id,
+      r.kind,
+      r.severity,
+      r.status,
+      r.paths,
+      r.bytes,
+      r.md5s,
+      r.fps,
+      r.evidence,
+      r.proposed_action,
+      r.keeper_path,
+      r.walk_token,
+      r.auto_safe,
+      r.created_at,
+      r.decided_at,
+      r.applied_at,
+      r.validation,
+    ];
+  }
+
+  /** The UPDATE parameter tuple (evidence half only; status resets to
+   *  open, id/created_at stay the row's own). */
+  private static updateParams(
+    r: Omit<Row, "id"> & { id: string },
+  ): SQLQueryBindings[] {
+    return [
+      r.severity,
+      r.paths,
+      r.bytes,
+      r.md5s,
+      r.fps,
+      r.evidence,
+      r.proposed_action,
+      r.walk_token,
+      r.auto_safe,
+    ];
+  }
+
   /** The evidence fingerprint of a finding — every field a re-run could
    *  change. Status/decidedAt/appliedAt are deliberately NOT part of it
    *  (that's the mutable half a decision writes). */
@@ -149,7 +215,7 @@ export class HygieneStore {
        (id, kind, severity, status, paths, bytes, md5s, fps, evidence,
         proposed_action, keeper_path, walk_token, auto_safe, created_at,
         decided_at, applied_at, validation)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (${HYGIENE_INSERT_COLUMNS.map(() => "?").join(", ")})`,
     );
     const update = this.db.query(
       `UPDATE hygiene_findings SET severity=?, status='open', paths=?, bytes=?,
@@ -164,25 +230,7 @@ export class HygieneStore {
         f.paths[1] ?? null,
       ) as Row | null;
       if (!prev) {
-        insert.run(
-          r.id,
-          r.kind,
-          r.severity,
-          r.status,
-          r.paths,
-          r.bytes,
-          r.md5s,
-          r.fps,
-          r.evidence,
-          r.proposed_action,
-          r.keeper_path,
-          r.walk_token,
-          r.auto_safe,
-          r.created_at,
-          r.decided_at,
-          r.applied_at,
-          r.validation,
-        );
+        insert.run(...HygieneStore.insertParams(r));
         written++;
         continue;
       }
@@ -190,16 +238,8 @@ export class HygieneStore {
       const prevFp = HygieneStore.evidenceFp(prev);
       if (newFp === prevFp) continue; // unchanged: decision stands, id stable
       update.run(
-        r.severity,
-        r.paths,
-        r.bytes,
-        r.md5s,
-        r.fps,
-        r.evidence,
-        r.proposed_action,
-        r.walk_token,
-        r.auto_safe,
         // keep the ORIGINAL id + created_at — consumers hold references
+        ...HygieneStore.updateParams(r),
         prev.id,
       );
       written++;

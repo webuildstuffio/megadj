@@ -84,6 +84,83 @@ function matchesInput(f: Finding, input: string, source: string): boolean {
   );
 }
 
+/** #88 diet: the guard ladder is data. Each entry either fails the run
+ *  (returns an error string) or narrows the working state. `shelfRestore`
+ *  walks the ladder; every refusal shape (findingId/source/destination/
+ *  md5 carrying) lives in ONE `refuse` builder instead of eight 9-line
+ *  object literals. */
+interface RestoreScope {
+  store: HygieneStore;
+  shelfVolume: string;
+  input: string;
+  into?: string | undefined;
+}
+
+interface RestoreMatch {
+  f: Finding;
+  source: string;
+  destination: string;
+  sourceMd5: string;
+}
+
+type GuardResult = { error: string } | { match: RestoreMatch };
+
+/** Locate the applied ledger finding that owns the input (by id, source
+ *  path, or any recorded path). */
+function findOwningFinding(
+  scope: RestoreScope,
+): { f: Finding; source: string } | { error: string } {
+  const applied = scope.store.list({ status: "applied" });
+  const match = applied
+    .map((f) => ({ f, source: quarantineSource(f, scope.shelfVolume) }))
+    .find(
+      (candidate) =>
+        candidate.source !== null &&
+        matchesInput(candidate.f, scope.input, candidate.source),
+    );
+  if (!match?.source)
+    return {
+      error: "no applied ledger finding owns that quarantine source",
+    };
+  return { f: match.f, source: match.source };
+}
+
+/** The post-match guard chain: destination resolvable + free, source
+ *  hashable, and the bytes still identical to the ledger keeper. */
+function guardMatch(
+  scope: RestoreScope,
+  f: Finding,
+  source: string,
+): GuardResult {
+  const destination = destinationFor(f, scope.into);
+  if (!destination)
+    return { error: "ledger finding has no restorable loser path" };
+  if (existsSync(destination))
+    return { error: `destination exists: ${destination}` };
+  const sourceMd5 = md5Cli(source);
+  if (!sourceMd5) return { error: "source MD5 unavailable" };
+  const keeper = f.paths[0];
+  if (keeper && existsSync(keeper)) {
+    const keeperMd5 = md5Cli(keeper);
+    if (keeperMd5 && keeperMd5 !== sourceMd5)
+      return { error: "source MD5 differs from ledger keeper" };
+  }
+  return { match: { f, source, destination, sourceMd5 } };
+}
+
+/** The byte move + post-copy verification. Unlinks a bad copy — a corrupt
+ *  restore must not look like a success on a later re-run. */
+function copyVerified(match: RestoreMatch): { error: string } | null {
+  mkdirSync(dirname(match.destination), { recursive: true });
+  copyFileSync(match.source, match.destination);
+  const destinationMd5 = md5Cli(match.destination);
+  if (destinationMd5 !== match.sourceMd5) {
+    if (existsSync(match.destination)) unlinkSync(match.destination);
+    return { error: "MD5 verification failed after copy" };
+  }
+  return null;
+}
+
 export async function shelfRestore(
   opts: ShelfRestoreOptions,
 ): Promise<ShelfRestoreResult> {
@@ -128,15 +205,14 @@ export async function shelfRestore(
     });
   }
   try {
-    const applied = store.list({ status: "applied" });
-    const match = applied
-      .map((f) => ({ f, source: quarantineSource(f, shelfVolume) }))
-      .find(
-        (candidate) =>
-          candidate.source !== null &&
-          matchesInput(candidate.f, opts.input, candidate.source),
-      );
-    if (!match?.source)
+    const scope: RestoreScope = {
+      store,
+      shelfVolume,
+      input: opts.input,
+      into: opts.into,
+    };
+    const owned = findOwningFinding(scope);
+    if ("error" in owned) {
       return await result({
         command: "shelf-restore",
         ok: false,
@@ -144,76 +220,40 @@ export async function shelfRestore(
         source: null,
         destination: null,
         md5: null,
-        error: "no applied ledger finding owns that quarantine source",
+        error: owned.error,
       });
-    const destination = destinationFor(match.f, opts.into);
-    if (!destination)
+    }
+    const guarded = guardMatch(scope, owned.f, owned.source);
+    if ("error" in guarded) {
       return await result({
         command: "shelf-restore",
         ok: false,
-        findingId: match.f.id,
-        source: match.source,
+        findingId: owned.f.id,
+        source: owned.source,
         destination: null,
         md5: null,
-        error: "ledger finding has no restorable loser path",
+        error: guarded.error,
       });
-    if (existsSync(destination))
-      return await result({
-        command: "shelf-restore",
-        ok: false,
-        findingId: match.f.id,
-        source: match.source,
-        destination,
-        md5: null,
-        error: `destination exists: ${destination}`,
-      });
-    const sourceMd5 = md5Cli(match.source);
-    if (!sourceMd5)
-      return await result({
-        command: "shelf-restore",
-        ok: false,
-        findingId: match.f.id,
-        source: match.source,
-        destination,
-        md5: null,
-        error: "source MD5 unavailable",
-      });
-    const keeper = match.f.paths[0];
-    if (keeper && existsSync(keeper)) {
-      const keeperMd5 = md5Cli(keeper);
-      if (keeperMd5 && keeperMd5 !== sourceMd5)
-        return await result({
-          command: "shelf-restore",
-          ok: false,
-          findingId: match.f.id,
-          source: match.source,
-          destination,
-          md5: sourceMd5,
-          error: "source MD5 differs from ledger keeper",
-        });
     }
-    mkdirSync(dirname(destination), { recursive: true });
-    copyFileSync(match.source, destination);
-    const destinationMd5 = md5Cli(destination);
-    if (destinationMd5 !== sourceMd5) {
-      if (existsSync(destination)) unlinkSync(destination);
+    const copyError = copyVerified(guarded.match);
+    if (copyError) {
       return await result({
         command: "shelf-restore",
         ok: false,
-        findingId: match.f.id,
-        source: match.source,
-        destination,
-        md5: sourceMd5,
-        error: "MD5 verification failed after copy",
+        findingId: owned.f.id,
+        source: owned.source,
+        destination: guarded.match.destination,
+        md5: guarded.match.sourceMd5,
+        error: copyError.error,
       });
     }
     return await result({
       command: "shelf-restore",
       ok: true,
-      findingId: match.f.id,
-      source: match.source,
-      destination,
-      md5: sourceMd5,
+      findingId: owned.f.id,
+      source: owned.source,
+      destination: guarded.match.destination,
+      md5: guarded.match.sourceMd5,
     });
   } finally {
     store.releaseOperation(owner);

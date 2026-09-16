@@ -37,6 +37,11 @@ import {
   runPyScript,
 } from "./rb-command-kit.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
+import {
+  PY_FIND_PLAYLIST_FN,
+  PY_RID_FN,
+  pyPathKeyFn,
+} from "./rb-script-kit.js";
 import { commandLog } from "../progress";
 import { errorText } from "../shared/error-text.js";
 import { masterDbPath } from "./master-path.js";
@@ -189,11 +194,7 @@ db = Rekordbox6Database(db_path)
 
 out = {"inserted": 0, "already": 0, "linked": 0, "playlistId": None, "parentId": None, "errors": []}
 
-def nfc(s):
-    return unicodedata.normalize("NFC", s) if s else s
-
-def path_key(s):
-    return nfc(s).casefold()
+${pyPathKeyFn()}
 
 existing = {}
 for c in db.query(DjmdContent).all():
@@ -201,24 +202,15 @@ for c in db.query(DjmdContent).all():
         existing[path_key(c.FolderPath)] = c.ID
 
 # --- playlist (child of group when given) ---
-def find_playlist(name, attr, parent_id):
-    parent = None if parent_id == 0 else db.query(DjmdPlaylist).filter(DjmdPlaylist.ID == parent_id).first()
-    expected_parent_id = parent.ID if parent is not None else 0
-    q = db.query(DjmdPlaylist).filter(
-        DjmdPlaylist.Name == name,
-        DjmdPlaylist.Attribute == attr,
-        DjmdPlaylist.ParentID == parent_id,
-    )
-    for p in q.all():
-        if str(p.ParentID or 0) == str(expected_parent_id):
-            return p
-    return None
+${PY_FIND_PLAYLIST_FN}
+
+${PY_RID_FN}
 
 parent = None
 if group_name:
     parent = find_playlist(group_name, 1, 0)
     if parent is None:
-        pid = db.random_id() if hasattr(db, "random_id") else int.from_bytes(os.urandom(4), "big") & 0x7FFFFFFF
+        pid = rid()
         parent = DjmdPlaylist(ID=pid, Name=group_name, Attribute=1, ParentID=0,
                               Seq=db.query(DjmdPlaylist).count() + 1,
                               UUID=str(uuid.uuid4()), created_at=now, updated_at=now)
@@ -228,7 +220,7 @@ if group_name:
 pl = find_playlist(playlist_name, 0, parent.ID if parent else 0)
 if pl is None:
     seq = db.query(DjmdPlaylist).count() + 1
-    pid = db.random_id() if hasattr(db, "random_id") else int.from_bytes(os.urandom(4), "big") & 0x7FFFFFFF
+    pid = rid()
     pl = DjmdPlaylist(ID=pid, Name=playlist_name, Attribute=0,
                       ParentID=parent.ID if parent else 0, Seq=seq,
                       UUID=str(uuid.uuid4()), created_at=now, updated_at=now)
@@ -262,12 +254,12 @@ for f in files:
             if artist:
                 a = db.query(DjmdArtist).filter(DjmdArtist.Name == artist).first()
                 if a is None:
-                    aid = db.random_id() if hasattr(db, "random_id") else int.from_bytes(os.urandom(4), "big") & 0x7FFFFFFF
+                    aid = rid()
                     a = DjmdArtist(ID=aid, Name=artist, UUID=str(uuid.uuid4()),
                                    created_at=now, updated_at=now)
                     db.add(a); db.session.commit()
                 art_id = a.ID
-            cid = db.random_id() if hasattr(db, "random_id") else int.from_bytes(os.urandom(4), "big") & 0x7FFFFFFF
+            cid = rid()
             row = DjmdContent(
                 ID=cid, FolderPath=full, FileNameL=clip, Title=title or fname,
                 ArtistID=art_id, AlbumID=None, GenreID=None,
@@ -300,7 +292,7 @@ for f in files:
         if cid not in playlist_content:
             # playlist membership for both new and already-imported content
             # so re-runs repair an incomplete batch playlist idempotently.
-            spid = db.random_id() if hasattr(db, "random_id") else int.from_bytes(os.urandom(4), "big") & 0x7FFFFFFF
+            spid = rid()
             sp = DjmdSongPlaylist(ID=spid, PlaylistID=pl.ID, ContentID=cid,
                                   TrackNo=track_no + 1, UUID=str(uuid.uuid4()),
                                   created_at=now, updated_at=now)
