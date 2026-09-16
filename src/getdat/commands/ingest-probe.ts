@@ -4,20 +4,14 @@
  * quarantine (dupe handling) and walkAudio (intake-folder traversal).
  */
 import { basename, join } from "node:path";
-import { existsSync, type Dirent } from "node:fs";
-import {
-  copyFile,
-  mkdir,
-  readdir,
-  rename,
-  stat,
-  unlink,
-} from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { copyFile, mkdir, rename, stat, unlink } from "node:fs/promises";
 import { md5FileStream } from "../../shared/hash";
 
 import type { ParsedName, Probe } from "../../../fulltags/src/exports";
 import { errorText } from "../../shared/error-text";
 import { AUDIO_EXTS } from "../../shared/audio-exts";
+import { walkTree, type WalkTreeOptions } from "../../shared/walk-tree";
 
 const md5File = md5FileStream;
 
@@ -104,31 +98,23 @@ export async function quarantine(
 /** Recursively list audio files under `dir`, skipping hidden entries.
  * A missing/unreadable dir returns [] (with an stderr note) rather than
  * crashing — e.g. `megadj ingest <typoed-path>` must fail soft like
- * adopt does. */
+ * adopt does. Rides the shared walker (#69) with the quarantine/
+ * rekordbox path-prefix skips as options; the async signature stays
+ * because the intake folder can be a mounted volume and the caller is
+ * already async. */
 export async function walkAudio(
   dir: string,
   out: string[] = [],
   skip?: string[],
 ): Promise<string[]> {
-  let ents: Dirent[];
-  try {
-    ents = await readdir(dir, { withFileTypes: true });
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") {
-      console.error(`walk: directory not found: ${dir}`);
-      return out;
-    }
-    throw e;
+  const opts: WalkTreeOptions = { exts: AUDIO_EXTS };
+  if (skip) opts.skipPaths = skip;
+  const { entries, unreadable } = walkTree(dir, opts);
+  for (const u of unreadable) {
+    // the shared walker soft-fails every readdir; keep the one visible
+    // stderr note the old ENOENT path printed (missing intake folder)
+    console.error(`walk: directory not found: ${u}`);
   }
-  for (const ent of ents) {
-    if (ent.name.startsWith(".")) continue;
-    const full = join(dir, ent.name);
-    if (ent.isDirectory()) {
-      if (skip?.some((s) => full === s || full.startsWith(`${s}/`))) continue;
-      await walkAudio(full, out, skip);
-    } else if (AUDIO_EXTS.has(ent.name.replace(/^.*\./, ".").toLowerCase())) {
-      out.push(full);
-    }
-  }
+  for (const e of entries) out.push(e.abs);
   return out;
 }

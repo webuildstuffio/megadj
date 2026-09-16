@@ -2,10 +2,12 @@
 // for `shelf-archive`, split out so the sweep loop reads as orchestration
 // and each rule (exact match, variant twins, never-overwrite naming) is a
 // named unit. All keys are NFC+casefold (the only honest comparison on
-// exFAT).
-import { existsSync, readdirSync, statSync } from "node:fs";
+// exFAT). The directory traversal rides the shared walker (#69); this
+// module adds the key/variant indexing policy.
+import { existsSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { isSkippedName, key } from "./shelf-match";
+import { walkTree } from "../shared/walk-tree";
 
 /** One indexed shelf file. */
 export interface ShelfEntry {
@@ -35,17 +37,12 @@ export class ShelfIndex {
   }
 
   private indexDir(dir: string): void {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (isSkippedName(entry.name)) continue;
-      const abs = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        this.indexDir(abs);
-        continue;
-      }
-      const rel = relative(this.contents, abs);
+    for (const e of walkTree(dir, { skip: (name) => isSkippedName(name) })
+      .entries) {
+      const rel = relative(this.contents, e.abs);
       const d = dirname(rel);
       const n = basename(rel);
-      const bytes = statSync(abs).size;
+      const bytes = e.bytes;
       this.push(this.exact, `${key(d)}/${key(n)}`, { rel, bytes });
       // "<stem> [<suffix>]<ext>" twins also answer to their original stem
       const m = n.match(/^(.*) \[([^\]]+)\](\.[^.]*)$/);

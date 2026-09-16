@@ -5,12 +5,13 @@
  * the tool.
  */
 
-import { readdirSync, statSync, type Dirent, type Stats } from "node:fs";
+import { statSync, type Stats } from "node:fs";
 import { basename, join } from "node:path";
 import { walkAudioFiles, groundTruth } from "../../../fulltags/src/exports";
 import { normalize } from "../../../fulltags/src/identity";
 import type { ArchiveState } from "../../archive/state";
 import { commandLog } from "../../progress";
+import { walkTree } from "../../shared/walk-tree";
 import { resolveShelfVolume } from "../../shared/volume";
 import { writeJson } from "../../shared/cli-output";
 
@@ -41,30 +42,18 @@ function walkM4a(dir: string): string[] {
 /** NFC+casefold basename index of every audio file under `<shelf>/Contents/`.
  * Walks the real filesystem (not the rekordbox library) so files not yet
  * imported into master.db still match. `PIONEER/` lives outside Contents/
- * and is never walked. */
+ * and is never walked. Rides the shared walker (#69): every FILE collects
+ * (no ext gate — the DB key match itself decides), dot-entries skipped,
+ * soft-fail on unreadable subtrees. */
 function shelfNameIndex(contentsDir: string): Map<string, string> {
   const index = new Map<string, string>();
-  const walk = (dir: string): void => {
-    let entries: Dirent[];
-    try {
-      entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return; // unreadable subtree — skip, never crash the pass
-    }
-    for (const ent of entries) {
-      if (ent.name.startsWith(".")) continue;
-      const full = join(dir, ent.name);
-      if (ent.isDirectory()) {
-        walk(full);
-      } else if (ent.isFile()) {
-        const key = `${ent.name.normalize("NFC").toLowerCase()}`;
-        // First hit wins; genuine name twins on the shelf are handled by
-        // shelf-dupescan, not by guessing here.
-        if (!index.has(key)) index.set(key, full);
-      }
-    }
-  };
-  walk(contentsDir);
+  for (const e of walkTree(contentsDir).entries) {
+    const full = e.abs;
+    const key = `${e.rel.split("/").pop()!.normalize("NFC").toLowerCase()}`;
+    // First hit wins; genuine name twins on the shelf are handled by
+    // shelf-dupescan, not by guessing here.
+    if (!index.has(key)) index.set(key, full);
+  }
   return index;
 }
 

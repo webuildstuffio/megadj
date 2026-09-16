@@ -13,17 +13,11 @@
  * only touched when mounted, and each root is checked per-run.
  */
 
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  statSync,
-  type Dirent,
-} from "node:fs";
-import { basename, join, relative } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
+import { basename, join } from "node:path";
 import { nameKey } from "../shared/name-key";
-import { AUDIO_EXTS_RE } from "../shared/audio-exts";
+import { AUDIO_EXTS } from "../shared/audio-exts";
+import { walkTree } from "../shared/walk-tree";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson, setExit } from "../shared/cli-output";
 import { md5Cli } from "./md5-cli";
@@ -47,6 +41,17 @@ interface CopyPlan {
   bytes: number;
 }
 
+/** walkArchive rides the shared walker (#69): dot-entries skipped, the
+ * AUDIO_EXTS regex SSOT as the ext gate, soft-fail on unreadable
+ * dirs. Plans are {src, rel, bytes} over the walker's entries. */
+function walkArchive(root: string): CopyPlan[] {
+  return walkTree(root, { exts: AUDIO_EXTS }).entries.map((e) => ({
+    src: e.abs,
+    rel: e.rel,
+    bytes: e.bytes,
+  }));
+}
+
 interface VolumeResult {
   volume: string;
   mounted: boolean;
@@ -66,48 +71,29 @@ function artistFolder(rel: string): string {
     : "[unknown]";
 }
 
-/** Shelf-sync's audio match — the repo-wide SSOT regex
+/** Shelf-sync's audio match — the repo-wide SSOT set
  *  (src/shared/audio-exts.ts, issue #69). The scanner sets derive from
  *  the same membership, so a copied file can never be invisible to
  *  hygiene/dedupe/dupescan (the ogg/opus drift this closes). */
-const AudioRe = AUDIO_EXTS_RE;
-
-/** dotfiles + recycle bin — the two byte-identical walker lines merge (#99). */
-function isSkippedEntry(name: string): boolean {
-  return name.startsWith(".") || name === "$RECYCLE.BIN";
-}
 
 /** Index of every audio file already on the shelf: basename → paths. A file
  *  counts as "already there" when ANY shelf copy of the same name has the
  *  same bytes — the shelf is artist-foldered while the archive keeps its
  *  batch folders, so the raw relative-path destination is only ONE of the
  *  places the file may legitimately live. Without this, a regrouped shelf
- *  re-copies the whole archive into dated folders (the Sep 11 discovery). */
+ *  re-copies the whole archive into dated folders (the Sep 11 discovery).
+ *  Rides the shared walker (#69). */
 function shelfAudioIndex(contents: string): Map<string, string[]> {
   const idx = new Map<string, string[]>();
-  const walk = (dir: string) => {
-    let entries: Dirent[];
-    try {
-      entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return; // unreadable subtree — skip, never crash the sync
-    }
-    for (const entry of entries) {
-      if (isSkippedEntry(entry.name)) continue;
-      const abs = join(dir, entry.name);
-      if (entry.isDirectory()) walk(abs);
-      else if (AudioRe.test(entry.name)) {
-        // fskit exFAT hands back NFD; the archive side is NFC. Key the index
-        // on the shared NFC+casefold name key (issue #67 SSOT) so Unicode
-        // forms AND case variants can never split one file into two.
-        const key = nameKey(entry.name);
-        const paths = idx.get(key) ?? [];
-        paths.push(abs);
-        idx.set(key, paths);
-      }
-    }
-  };
-  walk(contents);
+  for (const e of walkTree(contents, { exts: AUDIO_EXTS }).entries) {
+    // fskit exFAT hands back NFD; the archive side is NFC. Key the index
+    // on the shared NFC+casefold name key (issue #67 SSOT) so Unicode
+    // forms AND case variants can never split one file into two.
+    const key = nameKey(basename(e.abs));
+    const paths = idx.get(key) ?? [];
+    paths.push(e.abs);
+    idx.set(key, paths);
+  }
   return idx;
 }
 
@@ -137,26 +123,6 @@ function divergentDestination(contents: string, rel: string): string {
     candidate = join(contents, artist, `${stem} [archive ${i}]${ext}`);
   }
   return candidate;
-}
-
-/** Every audio file under root, as CopyPlan relative paths. */
-function walkArchive(root: string): CopyPlan[] {
-  const out: CopyPlan[] = [];
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (isSkippedEntry(entry.name)) continue;
-      const abs = join(dir, entry.name);
-      if (entry.isDirectory()) walk(abs);
-      else if (AudioRe.test(entry.name))
-        out.push({
-          src: abs,
-          rel: relative(root, abs),
-          bytes: statSync(abs).size,
-        });
-    }
-  };
-  walk(root);
-  return out;
 }
 
 /** Copy plan → one volume. Returns per-volume counters for the summary. */

@@ -367,6 +367,9 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
     return fail("rekordbox is running — quit it (live WAL) before rb-import");
 
   const files: [string, string][] = [];
+  // single-level intake-folder listing (the gate above already failed on
+  // a missing folder; a top-level readdir is the documented rb-import
+  // shape — intake batches are flat) — not the recursive tree walk
   for (const e of readdirSync(folder)) {
     if (e.startsWith(".")) continue;
     const full = join(folder, e);

@@ -7,13 +7,13 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
-  readdirSync,
   statSync,
   unlinkSync,
   utimesSync,
 } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { md5FileChunked } from "../shared/hash";
+import { walkTree } from "../shared/walk-tree";
 import { landingPath, type ShelfIndex } from "./shelf-index";
 import { isJunkDir, isSkippedName, key } from "./shelf-match";
 import { errorText } from "../shared/error-text";
@@ -68,53 +68,33 @@ function copyVerified(src: string, dest: string): void {
   utimesSync(dest, st.atime, st.mtime);
 }
 
-/** Walk one source root; landing paths are relative to `landingRoot`. */
-function walkRoot(
-  srcRoot: string,
-  landingRoot: string,
-  out: DriveFile[],
-): void {
-  if (!existsSync(srcRoot)) return;
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (isSkippedName(entry.name)) continue;
-      const abs = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (isJunkDir(entry.name)) continue;
-        walk(abs);
-      } else {
-        out.push({
-          abs,
-          rel: relative(landingRoot, abs),
-          bytes: statSync(abs).size,
-        });
-      }
-    }
-  };
-  walk(srcRoot);
-}
-
 /** Every real file worth archiving on a drive. PIONEER/ (device DBs) is
- * deliberately NOT walked; PIONEER REC/ (user recordings) is. */
+ * deliberately NOT walked; PIONEER REC/ (user recordings) is. Both roots
+ * ride the shared walker (#69): junk-name/dir policy via shelf-match,
+ * rel computed against the LANDING root (Contents/ files keep their
+ * artist layout; PIONEER REC/x lands as x), trashes flat-land by bare
+ * name. */
 export function walkDrive(volume: string, trashes: boolean): DriveFile[] {
   const out: DriveFile[] = [];
   const contents = join(volume, "Contents");
-  walkRoot(contents, contents, out); // Contents/<artist>/… → <artist>/…
-  walkRoot(join(volume, "PIONEER REC"), volume, out); // PIONEER REC/x → x
+  const collect = (srcRoot: string, landingRoot: string, flat: boolean) => {
+    if (!existsSync(srcRoot)) return;
+    for (const e of walkTree(srcRoot, {
+      skip: (name, isDir) => (isDir ? isJunkDir(name) : isSkippedName(name)),
+      relRoot: landingRoot,
+      flat,
+    }).entries) {
+      out.push({ abs: e.abs, rel: e.rel, bytes: e.bytes });
+    }
+  };
+  collect(contents, contents, false); // Contents/<artist>/… → <artist>/…
+  collect(join(volume, "PIONEER REC"), volume, false); // PIONEER REC/x → x
   if (trashes) {
     const tr = join(volume, ".Trashes");
     if (existsSync(tr)) {
       // flat landing: trash files get Names, not paths (they came from
       // folders that mean nothing once deleted)
-      const walkFlat = (dir: string) => {
-        for (const entry of readdirSync(dir, { withFileTypes: true })) {
-          if (isSkippedName(entry.name)) continue;
-          const abs = join(dir, entry.name);
-          if (entry.isDirectory()) walkFlat(abs);
-          else out.push({ abs, rel: entry.name, bytes: statSync(abs).size });
-        }
-      };
-      walkFlat(tr);
+      collect(tr, tr, true);
     }
   }
   return out;
