@@ -158,6 +158,77 @@ export interface VerifyKeySummary {
  *  real OpenKeyScan protocol). Null results mean "no key produced". */
 export type KeyAnalyzer = (paths: string[]) => Promise<Map<string, KeyResult>>;
 
+/** Collect candidate files from the target list: named FILEs pass as-is
+ *  (the operator pointed at it — the gate verifies what was named), a
+ *  DIRECTORY recurses through the audio walker (the #69 SSOT: same ext
+ *  set, same dot/junk skipping). Missing paths are skipped. */
+function collectTargets(targets: readonly string[]): string[] {
+  const files: string[] = [];
+  for (const t of targets) {
+    if (!existsSync(t)) continue;
+    if (statSync(t).isFile()) {
+      files.push(t);
+      continue;
+    }
+    files.push(...walkAudioDir(t));
+  }
+  return files;
+}
+
+/** Load the --refs JSON map ({basename: "Ebm"}) — e.g. rekordbox
+ *  master.db ScaleName values extracted via pyrekordbox. This is the
+ *  real-world path: archive files often carry NO key tags yet (that's
+ *  why they're being verified before write), while rekordbox has already
+ *  analyzed them. Throws (flag named) on unreadable/malformed input —
+ *  a usage error, exit 2. */
+function loadExternalRefs(refsPath: string): Record<string, string> {
+  if (!existsSync(refsPath))
+    throw new Error(`verify-key: --refs file not found: ${refsPath}`);
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(refsPath, "utf8"));
+    const record =
+      typeof parsed === "object" &&
+      parsed !== null &&
+      !Array.isArray(parsed) &&
+      Object.values(parsed as Record<string, unknown>).every(
+        (v) => typeof v === "string",
+      )
+        ? (parsed as Record<string, string>)
+        : null;
+    if (record === null)
+      throw new Error("expected a JSON object of {basename: key}");
+    return record;
+  } catch (error) {
+    throw new Error(
+      `verify-key: --refs invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+}
+
+/** Per-file verdict rows: reference (tag or external map) vs analyzer
+ *  output, judged on the camelot wheel (0 = match, 1 = near, else far). */
+function compareRows(
+  sample: string[],
+  refs: Map<string, string | null>,
+  keys: Map<string, KeyResult>,
+): VerifyKeyRow[] {
+  return sample
+    .filter((f) => refs.get(f))
+    .map((f) => {
+      const ref = toCamelot(refs.get(f) ?? null);
+      const got = keys.get(f)?.camelot ?? null;
+      const dist = ref && got ? camelotDist(ref, got) : 99;
+      return {
+        file: basename(f),
+        ref: refs.get(f) ?? null,
+        refCamelot: ref,
+        got,
+        verdict: dist === 0 ? "match" : dist === 1 ? "near" : "mismatch",
+      };
+    });
+}
+
 /** Run the gauntlet gate over the sampled files. Throws (with the flag
  *  name) on an unreadable/malformed --refs file — a usage error, exit 2. */
 export async function runVerifyKey(opts: {
@@ -168,50 +239,13 @@ export async function runVerifyKey(opts: {
   log?: (s: string) => void;
   analyze?: KeyAnalyzer;
 }): Promise<VerifyKeySummary> {
-  const files: string[] = [];
-  for (const t of opts.targets) {
-    if (!existsSync(t)) continue;
-    // A named FILE is taken as-is (the operator pointed at it — the gate
-    // verifies what was named); a DIRECTORY recurses through the audio
-    // walker (the #69 SSOT: same ext set, same dot/junk skipping).
-    if (statSync(t).isFile()) {
-      files.push(t);
-      continue;
-    }
-    files.push(...walkAudioDir(t));
-  }
+  const files = collectTargets(opts.targets);
   // Usage errors surface BEFORE the no-files error: a bad --refs path is
   // the operator's explicit input, so it wins over an implicit empty walk.
-  // Reference = existing key tags on disk (MIK/rekordbox output), or an
-  // external --refs JSON map {basename: "Ebm"} — e.g. rekordbox master.db
-  // ScaleName values extracted via pyrekordbox. This is the real-world path:
-  // archive files often carry NO key tags yet (that's why they're being
-  // verified before write), while rekordbox has already analyzed them.
-  let externalRefs: Record<string, string> | null = null;
-  if (opts.refsPath !== null) {
-    if (!existsSync(opts.refsPath))
-      throw new Error(`verify-key: --refs file not found: ${opts.refsPath}`);
-    try {
-      const parsed: unknown = JSON.parse(readFileSync(opts.refsPath, "utf8"));
-      const record =
-        typeof parsed === "object" &&
-        parsed !== null &&
-        !Array.isArray(parsed) &&
-        Object.values(parsed as Record<string, unknown>).every(
-          (v) => typeof v === "string",
-        )
-          ? (parsed as Record<string, string>)
-          : null;
-      if (record === null)
-        throw new Error("expected a JSON object of {basename: key}");
-      externalRefs = record;
-    } catch (error) {
-      throw new Error(
-        `verify-key: --refs invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
-        { cause: error },
-      );
-    }
-  }
+  // Reference = existing key tags on disk (MIK/rekordbox output), or the
+  // external --refs map.
+  const externalRefs =
+    opts.refsPath === null ? null : loadExternalRefs(opts.refsPath);
 
   const sample = files.slice(0, opts.limit);
   if (!sample.length) {
@@ -225,24 +259,12 @@ export async function runVerifyKey(opts: {
     refs.set(f, groundTruth(f).key ?? externalRefs?.[basename(f)] ?? null);
   }
 
-  const withRefs = sample.filter((f) => refs.get(f));
   const t0 = Date.now();
   const analyze = opts.analyze ?? analyzeKeys;
-  const keys: Map<string, KeyResult> = withRefs.length
-    ? await analyze(withRefs)
+  const keys: Map<string, KeyResult> = refs.size
+    ? await analyze(sample.filter((f) => refs.get(f)))
     : new Map<string, KeyResult>();
-  const rows: VerifyKeyRow[] = withRefs.map((f) => {
-    const ref = toCamelot(refs.get(f) ?? null);
-    const got = keys.get(f)?.camelot ?? null;
-    const dist = ref && got ? camelotDist(ref, got) : 99;
-    return {
-      file: basename(f),
-      ref: refs.get(f) ?? null,
-      refCamelot: ref,
-      got,
-      verdict: dist === 0 ? "match" : dist === 1 ? "near" : "mismatch",
-    };
-  });
+  const rows = compareRows(sample, refs, keys);
   const match = rows.filter((r) => r.verdict === "match").length;
   const near = rows.filter((r) => r.verdict === "near").length;
   const mismatch = rows.filter((r) => r.verdict === "mismatch").length;
