@@ -62,11 +62,37 @@ function mountFrom(positional: string | undefined): string {
   return resolveShelfVolume();
 }
 
+/** The common `--json` read shared by every arm. */
+function jsonFlag(flags: ReturnType<typeof parseFlags>): boolean {
+  return flags.bools.has("json");
+}
+
+/** Option-object fragment: `json` + the matching quiet progress log. */
+function jsonOpts(json: boolean): {
+  json: boolean;
+  log: (message: string) => void;
+} {
+  return { json, log: progressLog(json) };
+}
+
 /** Keep progress messages off stdout when --json owns that channel. */
 function progressLog(json: boolean): (message: string) => void {
   return (message) => {
     if (!json) console.log(message);
   };
+}
+
+/** Emit a command result (the #88 shared seam): `--json` writes exactly
+ *  one stdout object through the awaited `writeJson` seam; otherwise
+ *  render the human report. Every maintenance arm ends with this — the
+ *  old 10× hand-written if/else was where report/json parity drifted. */
+async function emitResult<T>(
+  json: boolean,
+  result: T,
+  printReport: (result: T, log: (message: string) => void) => void,
+): Promise<void> {
+  if (json) await writeJson(result);
+  else printReport(result, console.log);
 }
 
 /** Repeatable `--key=value` string options (shelf-hygiene's
@@ -114,8 +140,7 @@ const shelfRestoreCmd: MaintenanceHandler = async (rest) => {
     into: flags.strings.get("into"),
     shelfVolume: mountFrom(undefined),
     dbPath: DB_PATH,
-    json: flags.bools.has("json"),
-    log: progressLog(flags.bools.has("json")),
+    ...jsonOpts(jsonFlag(flags)),
   });
   if (!r.ok) setExit(1);
 };
@@ -131,7 +156,7 @@ const shelfHygieneCmd: MaintenanceHandler = async (rest) => {
   );
   const { shelfHygiene } = await import("../shelf/shelf-hygiene");
   await shelfHygiene({
-    json: flags.bools.has("json"),
+    ...jsonOpts(jsonFlag(flags)),
     apply: flags.bools.has("apply"),
     yes: flags.bools.has("yes"),
     // repeatable list flags stay raw-parsed: parseFlags keeps only
@@ -154,19 +179,14 @@ const rbFixPathsCmd: MaintenanceHandler = async (rest) => {
   const mount = mountFrom(positionalArgs(rest, [])[0]);
   const { rbFixPaths, printRbFixReport } =
     await import("../rekordbox/rb-fix-paths");
-  const json = flags.bools.has("json");
+  const json = jsonFlag(flags);
   const r = await rbFixPaths({
     mount,
     apply: flags.bools.has("apply"),
     yes: flags.bools.has("yes"),
-    json,
-    log: progressLog(json),
+    ...jsonOpts(json),
   });
-  if (json) {
-    await writeJson(r);
-  } else {
-    printRbFixReport(r, console.log);
-  }
+  await emitResult(json, r, printRbFixReport);
   if (!r.ok) setExit(1);
 };
 
@@ -179,20 +199,15 @@ const rbUnmatchedCmd: MaintenanceHandler = async (rest) => {
   const mount = mountFrom(positionalArgs(rest, [])[0]);
   const { rbUnmatched, printRbUnmatchedReport } =
     await import("../rekordbox/rb-unmatched");
-  const json = flags.bools.has("json");
+  const json = jsonFlag(flags);
   const r = await rbUnmatched({
     mount,
     ext: manyOf(rest, "ext"),
     quarantine: flags.bools.has("quarantine"),
     yes: flags.bools.has("yes"),
-    json,
-    log: progressLog(json),
+    ...jsonOpts(json),
   });
-  if (json) {
-    await writeJson(r);
-  } else {
-    printRbUnmatchedReport(r, console.log);
-  }
+  await emitResult(json, r, printRbUnmatchedReport);
   // gate parity: an unresolved backlog is a visible failure state —
   // but a SUCCESSFUL apply (quarantine ran) leaves unknown == 0 and
   // must read as success; failing it would block automation loops
@@ -205,7 +220,7 @@ const rbAdoptCmd: MaintenanceHandler = async (rest) => {
   // live in rekordbox_content while source/YouTube IDs remain intact.
   const flags = parseFlags(rest, [], ["json", "apply", "yes"]);
   const mount = mountFrom(positionalArgs(rest, [])[0]);
-  const json = flags.bools.has("json");
+  const json = jsonFlag(flags);
   const state = new ArchiveState(DB_PATH);
   try {
     const { rbAdopt, printRbAdoptReport } =
@@ -216,10 +231,9 @@ const rbAdoptCmd: MaintenanceHandler = async (rest) => {
       mount,
       apply: flags.bools.has("apply"),
       yes: flags.bools.has("yes"),
-      log: progressLog(json),
+      ...jsonOpts(json),
     });
-    if (json) await writeJson(result);
-    else printRbAdoptReport(result, console.log);
+    await emitResult(json, result, printRbAdoptReport);
     if (!result.ok || (!result.appliedMode && result.missingFiles > 0))
       setExit(1);
   } finally {
@@ -250,7 +264,7 @@ const rbImportCmd: MaintenanceHandler = async (rest) => {
   }
   const { rbImport, printRbImportReport } =
     await import("../rekordbox/rb-import");
-  const json = flags.bools.has("json");
+  const json = jsonFlag(flags);
   const r = await rbImport({
     mount,
     folder,
@@ -258,14 +272,9 @@ const rbImportCmd: MaintenanceHandler = async (rest) => {
     group: flags.strings.get("group"),
     apply: flags.bools.has("apply"),
     yes: flags.bools.has("yes"),
-    json,
-    log: progressLog(json),
+    ...jsonOpts(json),
   });
-  if (json) {
-    await writeJson(r);
-  } else {
-    printRbImportReport(r, console.log);
-  }
+  await emitResult(json, r, printRbImportReport);
   if (!r.ok) setExit(1);
 };
 
@@ -281,7 +290,7 @@ const rbCuesCmd: MaintenanceHandler = async (rest) => {
   const args = positionalArgs(rest, []);
   const mount = mountFrom(args[0]);
   const { rbCues, printRbCuesReport } = await import("../rekordbox/rb-cues");
-  const json = flags.bools.has("json");
+  const json = jsonFlag(flags);
   const r = await rbCues({
     mount,
     restamp: flags.bools.has("restamp"),
@@ -289,14 +298,9 @@ const rbCuesCmd: MaintenanceHandler = async (rest) => {
     force: flags.bools.has("force"),
     apply: flags.bools.has("apply"),
     yes: flags.bools.has("yes"),
-    json,
-    log: progressLog(json),
+    ...jsonOpts(json),
   });
-  if (json) {
-    await writeJson(r);
-  } else {
-    printRbCuesReport(r, console.log);
-  }
+  await emitResult(json, r, printRbCuesReport);
   if (!r.ok) setExit(1);
 };
 
@@ -307,20 +311,15 @@ const rbDedupCmd: MaintenanceHandler = async (rest) => {
   const args = positionalArgs(rest, []);
   const mount = mountFrom(args[0]);
   const { rbDedup, printRbDedupReport } = await import("../rekordbox/rb-dedup");
-  const json = flags.bools.has("json");
+  const json = jsonFlag(flags);
   const r = await rbDedup({
     mount,
     report: flags.bools.has("report"),
     apply: flags.bools.has("apply"),
     yes: flags.bools.has("yes"),
-    json,
-    log: progressLog(json),
+    ...jsonOpts(json),
   });
-  if (json) {
-    await writeJson(r);
-  } else {
-    printRbDedupReport(r, console.log);
-  }
+  await emitResult(json, r, printRbDedupReport);
   if (!r.ok) setExit(1);
 };
 
@@ -333,20 +332,15 @@ const rbCommentSyncCmd: MaintenanceHandler = async (rest) => {
   const mount = mountFrom(args[0]);
   const { rbCommentSync, printRbCommentSyncReport } =
     await import("../rekordbox/rb-comment-sync");
-  const json = flags.bools.has("json");
+  const json = jsonFlag(flags);
   const r = await rbCommentSync({
     mount,
     batch: flags.strings.get("batch"),
     apply: flags.bools.has("apply"),
     yes: flags.bools.has("yes"),
-    json,
-    log: progressLog(json),
+    ...jsonOpts(json),
   });
-  if (json) {
-    await writeJson(r);
-  } else {
-    printRbCommentSyncReport(r, console.log);
-  }
+  await emitResult(json, r, printRbCommentSyncReport);
   if (!r.ok) setExit(1);
 };
 
@@ -361,19 +355,14 @@ const rbPlaylistCmd: MaintenanceHandler = async (rest) => {
     const mount = mountFrom(args[0]);
     const { rbPlaylistReconcile, printReconcileReport } =
       await import("../rekordbox/rb-playlist-reconcile");
-    const json = flags.bools.has("json");
+    const json = jsonFlag(flags);
     const r = await rbPlaylistReconcile({
       mount,
       apply: flags.bools.has("apply"),
       yes: flags.bools.has("yes"),
-      json,
-      log: progressLog(json),
+      ...jsonOpts(json),
     });
-    if (json) {
-      await writeJson(r);
-    } else {
-      printReconcileReport(r, console.log);
-    }
+    await emitResult(json, r, printReconcileReport);
     if (!r.ok) setExit(1);
     return;
   }
@@ -389,7 +378,7 @@ const rbPlaylistCmd: MaintenanceHandler = async (rest) => {
   );
   const args = positionalArgs(rest, []);
   const mount = mountFrom(args[0]);
-  const json = flags.bools.has("json");
+  const json = jsonFlag(flags);
   const numOpt = (key: string): number | undefined => {
     const raw = flags.strings.get(key);
     if (raw === undefined) return undefined;
@@ -425,13 +414,9 @@ const rbPlaylistCmd: MaintenanceHandler = async (rest) => {
     group: flags.strings.get("group"),
     apply: flags.bools.has("apply"),
     yes: flags.bools.has("yes"),
-    log: progressLog(json),
+    ...jsonOpts(json),
   });
-  if (json) {
-    await writeJson(r);
-  } else {
-    printRbPlaylistReport(r, console.log);
-  }
+  await emitResult(json, r, printRbPlaylistReport);
   if (!r.ok || r.unmatched.length > 0) setExit(1);
 };
 
@@ -474,21 +459,16 @@ const rbAnlzSpikeCmd: MaintenanceHandler = async (rest) => {
     return;
   }
   const mount = mountFrom(mountPos);
-  const json = flags.bools.has("json");
+  const json = jsonFlag(flags);
   const { anlzSpike, printSpikeReport } =
     await import("../rekordbox/anlz-spike");
   const r = anlzSpike({
     mount,
     tag,
     mode,
-    json,
-    log: progressLog(json),
+    ...jsonOpts(json),
   });
-  if (json) {
-    await writeJson(r);
-  } else {
-    printSpikeReport(r, console.log);
-  }
+  await emitResult(json, r, printSpikeReport);
   if (!r.ok) setExit(1);
 };
 
@@ -524,7 +504,7 @@ const rbGridTriageCmd: MaintenanceHandler = async (rest) => {
       (a) => a !== "snapshot" && a !== "compare",
     ),
   );
-  const json = flags.bools.has("json");
+  const json = jsonFlag(flags);
   const state = new ArchiveState(DB_PATH);
   try {
     const { gridTriage, printGridTriageReport } =
@@ -534,14 +514,9 @@ const rbGridTriageCmd: MaintenanceHandler = async (rest) => {
       state,
       limit,
       compareDrive,
-      json,
-      log: progressLog(json),
+      ...jsonOpts(json),
     });
-    if (json) {
-      await writeJson(r);
-    } else {
-      printGridTriageReport(r, console.log);
-    }
+    await emitResult(json, r, printGridTriageReport);
     if (!r.ok) setExit(1);
   } finally {
     state.close();

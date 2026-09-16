@@ -13,8 +13,9 @@
  *      one supported `MEGADJ_SHELF_VOLUME`).
  *   3. `resolveShelfVolume` precedence: explicit arg → env → config,
  *      hermetically via a child process.
- *   4. The Python residue (`rb_art.py` usage docstring + `rb_art_test.py`
- *      test defaults) is pinned so a second executable site cannot appear.
+ *   4. Zero executable `/Volumes/SHELF1` literals in gate-covered Python
+ *      (docstrings/comments stripped) — the deleted `rb_art.py` carried
+ *      the last known residue; the class stays extinct.
  */
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -52,6 +53,13 @@ function productionTsFiles(): string[] {
   };
   for (const root of TS_ROOTS) visit(join(ROOT, root));
   return out;
+}
+
+/** Strip docstrings/comments from Python source (census-parsing aid). */
+function stripDocstrings(src: string): string {
+  return src
+    .replace(/"""[\s\S]*?"""/gu, '""')
+    .replace(/'''[\s\S]*?'''/gu, "''");
 }
 
 /** String/template literals matching /Volumes/SHELF1 per file, via the TS
@@ -114,34 +122,40 @@ describe("shelf volume census (issue #55 regression gate)", () => {
     ).toEqual([]);
   });
 
-  test("the Python residue stays pinned (docstring + test defaults only)", () => {
-    // rb_art.py's only hit lives in its usage docstring; rb_art_test.py's
-    // two are hermetic test defaults. A new EXECUTABLE default (argparse
-    // `default=` / assignment) in prod Python is the bug class — strip
-    // docstrings/comments and pin the executable count at zero.
-    // (rb_art.py retired to tools/legacy/ Sep 15 2026, issue #101 — the
-    // pin moves with it.)
-    const py = readFileSync(join(ROOT, "tools/legacy/rb_art.py"), "utf8");
-    const noDocstrings = py
-      .replace(/"""[\s\S]*?"""/gu, '""')
-      .replace(/'''[\s\S]*?'''/gu, "''");
-    const executable = noDocstrings
-      .split("\n")
-      .filter((l) => !/^\s*#/u.test(l));
-    const hits = executable.filter((l) => /\/Volumes\/SHELF1/u.test(l));
+  test("no gate-covered Python carries an executable /Volumes/SHELF1 default", () => {
+    // The bug class: a Python script defaulting to the operator's volume
+    // name instead of the configured seam. rb_art.py (retired + deleted
+    // Sep 16 2026, #93 cut) used to hold the known residue — its docstring
+    // hit and the two hermetic test defaults died with the file. The pin
+    // now scans ALL gate-covered Python (mypy/ruff `tools` + the
+    // cratedeck device-DB seams): strip docstrings/comments, then zero
+    // executable `/Volumes/SHELF1` literals, period.
+    const pyFiles: string[] = [];
+    const visit = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === "__pycache__" || entry.name === "node_modules")
+          continue;
+        const p = join(dir, entry.name);
+        if (statSync(p).isDirectory()) visit(p);
+        else if (p.endsWith(".py")) pyFiles.push(p);
+      }
+    };
+    visit(join(ROOT, "tools"));
+    visit(join(ROOT, "cratedeck/python"));
+    const hits: string[] = [];
+    for (const p of pyFiles) {
+      const executable = stripDocstrings(readFileSync(p, "utf8"))
+        .split("\n")
+        .filter((l) => !/^\s*#/u.test(l));
+      for (const [i, line] of executable.entries()) {
+        if (/\/Volumes\/SHELF1/u.test(line))
+          hits.push(`${p.slice(ROOT.length + 1)}:${i + 1}: ${line.trim()}`);
+      }
+    }
     expect(
       hits,
-      "tools/legacy/rb_art.py must not gain an executable SHELF1 default",
+      `gate-covered Python must resolve the shelf through the volume seam, never a /Volumes/SHELF1 literal:\n${hits.join("\n")}`,
     ).toEqual([]);
-    // And the known test-file defaults cannot silently multiply.
-    const pyTest = readFileSync(
-      join(ROOT, "tools/legacy/rb_art_test.py"),
-      "utf8",
-    );
-    const testDoc = pyTest.replace(/"""[\s\S]*?"""/gu, '""');
-    const testExecutable = testDoc.split("\n").filter((l) => !/^\s*#/u.test(l));
-    const testHits = testExecutable.filter((l) => /\/Volumes\/SHELF1/u.test(l));
-    expect(testHits.length).toBe(2);
   });
 
   test("resolveShelfVolume precedence: explicit arg → env → config", async () => {
