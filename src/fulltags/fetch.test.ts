@@ -79,9 +79,9 @@ describe("auditArchive folder walk", () => {
  * fetch flag forwarding
  *
  * NOTE (#184): fetchAllArgs historically mapped options onto the
- * `bun tools/fetch-all.ts` argv surface; the pipeline is in-process now
- * (and re-homed into fulltags), so the flags are dead weight the CLI no
- * longer needs — these tests pin the option mapping itself.
+ * retired `tools/fetch-all.ts` argv surface; the pipeline is in-process
+ * now (and re-homed into fulltags), so the flags are dead weight the CLI
+ * no longer needs — these tests pin the option mapping itself.
  */
 describe("fetch flag forwarding", () => {
   test("every parsed option maps to its fetch pipeline scope", () => {

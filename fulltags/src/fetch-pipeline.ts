@@ -268,7 +268,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
 
   if (!jsonOut) {
     console.log(
-      `fetch-all: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${jobs}${all ? " [--all upgrade]" : ""}${dry ? " [DRY RUN]" : ""}\n`,
+      `megadj fetch: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${jobs}${all ? " [--all upgrade]" : ""}${dry ? " [DRY RUN]" : ""}\n`,
     );
   }
 

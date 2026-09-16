@@ -187,7 +187,7 @@ export async function writePatch(
 
 /**
  * Synchronous twin of writePatch's ffmpeg branch — same behavior, no
- * promise bridge. The sync API is what tools/fetch-all.ts's parallel
+ * promise bridge. The sync API is what `megadj fetch`'s parallel
  * workers need (its setFileTags contract is sync); the nested `bun -e`
  * bridge it used before measured 6.4× slower than direct ffmpeg.
  * WAV/AIFF go through the mutagen paths (natively sync).

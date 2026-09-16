@@ -163,7 +163,7 @@ const STAGE_RUNNERS: StageSpec[] = [
   {
     name: "fetch",
     noFetchDetail: "no-fetch flag",
-    // Stage 1b — enrichment (fetch-all: tags/genre/art/year + energy,
+    // Stage 1b — enrichment (megadj fetch: tags/genre/art/year + energy,
     // fingerprint, key stamps) and year verification against the real SC
     // page dates. These are the stages the artist/comment/tag gaps of the
     // early passes lived in — a drop that skips them re-creates those
