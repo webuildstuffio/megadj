@@ -83,7 +83,7 @@ export async function mood(opts: MoodOptions): Promise<void> {
     log,
   );
 
-  emitMoodSummary(opts, { ...pass1, analyzed, failed });
+  await emitMoodSummary(opts, { ...pass1, analyzed, failed });
 }
 
 /** Pass-1 counters (synced from file stamps). */
