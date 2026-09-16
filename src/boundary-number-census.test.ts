@@ -85,7 +85,11 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // re-homed (pipeline.ts→pipeline-stamps.ts, writer.ts→writer-
     // mutagen.ts) — sanctions re-keyed to the new owner paths, counts
     // unchanged, digest shifted.
-    digest: "7873b5e3eca8357ad3741fc847b5c6c082c232de321a85b5af3baf5b02d5d8ff",
+    // Sep 16 (CCN diet): verify-key's ts→year Number() moved owner
+    // (verify-key.ts→scYear in art-sources.ts) and loadExternalRefs
+    // re-homed the refs-parse helpers — same guarded sites, new
+    // enclosing-function paths, counts unchanged, digest shifted.
+    digest: "c055ffff5fa2d74822e3464681ef5e561746943a88519a4062877f4b2caa5161",
   });
 });
 

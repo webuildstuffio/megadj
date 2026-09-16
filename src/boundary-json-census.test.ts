@@ -83,10 +83,13 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 16 (#106): audited/guarded 59→60 / 43→44 — the cues-ledger
     // pool join (archive_similar.ts parsePoolCues) adds one GUARDED
     // parse under the same EXPLICIT_NULL contract as parseCuePoints.
+    // Sep 16 (CCN diet): digest changed — verify-key's --refs parse
+    // moved owner (runVerifyKey→loadExternalRefs); same call, same
+    // contract, new enclosing-function path.
     audited: 60,
     guarded: 44,
     sanctioned: 16,
-    digest: "51cb5244e94968c22ae20837631559c9148b2a8c3d6745fcfc2df191e7d40a88",
+    digest: "631dd0347df5c7587a6091dbac67ce7dcb0adb4c4e237af81c352055bf3e8653",
   });
 });
 
