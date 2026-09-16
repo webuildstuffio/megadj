@@ -38,7 +38,7 @@ of 2026-09-10. Everything else in this doc is re-scoped around it.
 | Asset                                 | Where                                                                                                                             | State                                                                                                                                                                                       |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Beat + downbeat arrays, whole archive | `megadj beats` → `beats` table (`src/fulltags/beats.ts`, `src/archive/state_core.ts`)                                             | Ledgered and idempotent; live coverage comes from `megadj status --json`. beat_this v1.1.0, MIT, **peak-picking (no DBN), device=cpu**                                                      |
-| Tempo readouts                        | `fulltags/src/analysis.ts` (`analyzeBeats`, median inter-beat; `tempoFromBeatGrid` bar-lag)                                       | TBPM tag writes **blocked by gate** (12/24, re-gate 16/24 — the ~2.2–2.6% phase-lock); arrays are DB-only by decision                                                                       |
+| Tempo readouts                        | `fulltags/src/beats-analysis.ts` (`analyzeBeats`, median inter-beat; the since-deleted `tempoFromBeatGrid` bar-lag)                | TBPM tag writes **blocked by gate** (12/24, re-gate 16/24 — the ~2.2–2.6% phase-lock); arrays are DB-only by decision                                                                       |
 | 8-bar phrase cues                     | `megadj cues` → `cues` table (`src/fulltags/cues.ts`)                                                                             | DB-side only; live coverage comes from the ledger rather than this plan                                                                                                                     |
 | Independent grid cross-check          | `ArchiveReader.gridCrossCheck` (`cratedeck/src/archive.ts`), `GET /api/archive/grid-cross-check`, MCP `archive_grid_cross_check`  | Coarse: BPM-level ok / off (>2%) / octave vs RB. **No anchor/drift/phase — that's the A2 gap**                                                                                              |
 | Drive verify grid check               | `usb_verify.py` `anlz_consistency` → `cratedeck/src/verify_report.ts`                                                             | **Self-referential** (duration×BPM vs beat count from the same analysis). ANLZ existence + between-drive parity are real; independent grid correctness comes from the cross-check           |
@@ -178,7 +178,7 @@ numbers, but enough to catch overfitting to your own 20 favourite records.
 ### GA-01 — Constant-tempo constraint for house
 
 **STATUS: SHIPPED 2026-09-10.** `fitConstantTempo` +
-`gridAudit` live in `fulltags/src/analysis.ts` (pure, tested in
+`gridAudit` live in `fulltags/src/grid-audit.ts` (pure, tested in
 `fulltags/test/analysis-grid.test.ts`); `megadj beats` stores
 `bpm_fitted` + `bpm_residual_std` (columns auto-migrate); the CrateDeck
 grid cross-check derives its verdicts from the SAME functions — one SSOT.

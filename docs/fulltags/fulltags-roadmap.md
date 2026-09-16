@@ -386,8 +386,7 @@ beat period ~2.2–2.6% off rekordbox's on half the pilot (e.g. 130.43 vs
 against rekordbox grids. This is not the 70–180 fold (raw values are
 already in-window) and not decode quality (WAVs fail too).
 
-**Re-gate result (rev 6, bar-grid autocorrelation readout —
-`tempoFromBeatGrid` in `fulltags/src/analysis.ts`): 16/24 within 2% —
+**Re-gate result (rev 6, bar-grid autocorrelation readout — the since-deleted `tempoFromBeatGrid`, formerly `fulltags/src/analysis.ts`): 16/24 within 2% —
 still under the 80% gate.** The bar-lag readout is strictly better than
 the median (16 vs 12) and fixes half of the drift cases, but the 8
 remaining failures are hard to close: half/double phase-locks (75.7 vs

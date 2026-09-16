@@ -14,7 +14,7 @@ import {
   analyzeBeats,
   openBeatSession,
   parseBeatThisJson,
-} from "../src/analysis";
+} from "../src/beats-analysis";
 import { enrichTrack } from "../src/pipeline";
 
 const DIR = `/tmp/fulltags-analysis-test-${process.pid}`;

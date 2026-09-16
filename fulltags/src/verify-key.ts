@@ -14,7 +14,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { walkAudioDir } from "../../src/shared/audio-walk";
-import { analyzeKeys, type KeyResult } from "./analysis";
+import { analyzeKeys, type KeyResult } from "./key-analysis";
 import { groundTruth } from "./readers";
 
 // Note→Camelot maps, extracted from the analyzer's own camelot_output()
@@ -193,15 +193,18 @@ export async function runVerifyKey(opts: {
       throw new Error(`verify-key: --refs file not found: ${opts.refsPath}`);
     try {
       const parsed: unknown = JSON.parse(readFileSync(opts.refsPath, "utf8"));
-      if (
-        typeof parsed !== "object" ||
-        parsed === null ||
-        Array.isArray(parsed) ||
-        !Object.values(parsed).every((v) => typeof v === "string")
-      ) {
+      const record =
+        typeof parsed === "object" &&
+        parsed !== null &&
+        !Array.isArray(parsed) &&
+        Object.values(parsed as Record<string, unknown>).every(
+          (v) => typeof v === "string",
+        )
+          ? (parsed as Record<string, string>)
+          : null;
+      if (record === null)
         throw new Error("expected a JSON object of {basename: key}");
-      }
-      externalRefs = parsed as Record<string, string>;
+      externalRefs = record;
     } catch (error) {
       throw new Error(
         `verify-key: --refs invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
@@ -225,7 +228,9 @@ export async function runVerifyKey(opts: {
   const withRefs = sample.filter((f) => refs.get(f));
   const t0 = Date.now();
   const analyze = opts.analyze ?? analyzeKeys;
-  const keys = withRefs.length ? await analyze(withRefs) : new Map();
+  const keys: Map<string, KeyResult> = withRefs.length
+    ? await analyze(withRefs)
+    : new Map<string, KeyResult>();
   const rows: VerifyKeyRow[] = withRefs.map((f) => {
     const ref = toCamelot(refs.get(f) ?? null);
     const got = keys.get(f)?.camelot ?? null;

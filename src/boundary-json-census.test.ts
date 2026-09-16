@@ -33,7 +33,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "deckctl consumes its own server job contract; invalid JSON terminates the command visibly.",
   ...reviewed(EXPLICIT_NULL_REASON, [
     "cratedeck/src/archive_overview.ts::parseCuePoints::JSON.parse(raw)",
-    "fulltags/src/analysis.ts::parseJsonObject::JSON.parse(raw)",
+    "fulltags/src/parse-json.ts::parseJsonObject::JSON.parse(raw)",
     "fulltags/src/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
   ]),
   // rb-adopt mirror payload: the catch converts corrupt JSON into
@@ -74,10 +74,13 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // one GUARDED parse (the --refs map read: try/JSON.parse/catch
     // rethrow with cause; the old standalone harness never appeared in
     // this census because it was not under a production root).
+    // Sep 16 (#42): digest changed again — parseJsonObject moved from
+    // the analysis.ts shim to its own module (parse-json.ts); same
+    // call, same sanction, new path in the digest input.
     audited: 59,
     guarded: 43,
     sanctioned: 16,
-    digest: "0512af1d6bfb90315965dab8e8f6e6e593312b8346403efd39fe4eb8445a7269",
+    digest: "fdc29d8993ef9bb0d94f31b055a91bf045827204dec0fb0f1f7f99a338bd33e5",
   });
 });
 

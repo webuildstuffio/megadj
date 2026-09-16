@@ -32,12 +32,9 @@ import {
 } from "./art-sources";
 import { energyFromLufs, measureRms } from "./media-probe";
 import { detectRemix } from "./remix";
-import {
-  analyzeBeats,
-  analyzeKey,
-  fingerprintWithDuration,
-  foldTempo,
-} from "./analysis";
+import { analyzeBeats, foldTempo } from "./beats-analysis";
+import { analyzeKey } from "./key-analysis";
+import { fingerprintWithDuration } from "./fingerprint";
 import { analyzeMoods, moodStamp, type MoodResult } from "./models";
 import { mbLookupCached } from "./mb_lookup";
 import {

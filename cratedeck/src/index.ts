@@ -1,7 +1,8 @@
 // index.ts — wire-up: config → db → detector → jobs → HTTP+SSE. 127.0.0.1 only.
-// Route families and the lifecycle loop live in their own modules (complexity
-// hot-spot split, #42): fleet_routes.ts, drive_routes.ts, server_lifecycle.ts.
-// This file keeps ONLY bootstrap, service construction, and the listen call.
+// Route families live in their own modules (complexity hot-spot split, #42):
+// fleet_routes.ts, drive_routes.ts, archive_routes.ts, and now the inline
+// families too (api_routes.ts). This file keeps ONLY bootstrap, service
+// construction, and the listen call.
 import { join } from "node:path";
 import { loadConfig } from "./config";
 import { DB } from "./db";
@@ -14,25 +15,16 @@ import { ShelfSweepReader } from "./shelf_sweep_reader";
 import { HygieneReader } from "./hygiene_reader";
 import { makeHygieneRoutes } from "./hygiene_routes";
 import { makeFixesRoutes } from "./fixes_routes";
-import { buildPreflight } from "./preflight";
-import { VERIFY_HELP } from "./verify_help";
-import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
 import { ArchiveReader } from "./archive";
-import { archiveRoutes } from "./archive_routes";
-import { portView } from "./port_view";
-import { allPreflightInputs, type ReportDeps } from "./report_inputs";
+import { type ReportDeps } from "./report_inputs";
 import { playersFromConfig } from "./players";
-import {
-  intakeCandidateDirs,
-  intakeWatchDir,
-  megadjCliPath,
-} from "./intake_run";
+import { megadjCliPath } from "./intake_run";
 import { isTrustedMutationRequest, withSecurityHeaders } from "./http_security";
 import { makeServerLifecycle } from "./server_lifecycle";
 import { makeFleetRoutes } from "./fleet_routes";
 import { makeDriveRoutes } from "./drive_routes";
+import { makeApiRouter } from "./api_routes";
 import { photoUpload, makeEnqueueDriveJob } from "./drive_job_routes";
-import { errMessage as errorText } from "../shared/fmt";
 
 const here = import.meta.dir.replace(/\/src$/, ""); // .../cratedeck
 const cfg = loadConfig(here);
@@ -164,10 +156,8 @@ Bun.serve({
   },
 });
 
-// Booth fleet payload + config persistence live in booth_routes.ts
-// (file-length guard; the /api/booth/fleet routes call these).
-const { boothFleetPayload, parseBoothFleetRequest, writeConfigBoothFleet } =
-  await import("./booth_routes");
+// Booth fleet payload + config persistence now live in booth_routes.ts and
+// are imported by api_routes.ts directly (the route handlers moved there).
 
 /** Serve a file that lives ON a mounted drive (drive-image picker previews).
  *  NOTE: was historically unreachable — it sat BELOW the /api/ block, which
@@ -268,191 +258,39 @@ async function staticOrSpa(path: string): Promise<Response> {
   }); // SPA fallback
 }
 
-/** The /api surface: dispatches to per-family handlers. Kept as one
- *  function per family so any route's behavior has exactly one home. */
+/** The /api surface: a linear first-match router over the per-family
+ *  slices (#42). Route behavior lives in api_routes.ts; this file keeps
+ *  bootstrap + service construction only. The REKORDBOX_RUNNING/GUARD
+ *  VIOLATION → 423 mapping is the one cross-family concern kept here. */
+const apiRouter = makeApiRouter({
+  cfg,
+  db,
+  registry,
+  jobs,
+  images,
+  archive,
+  reportDeps,
+  hygieneApi,
+  fixesApi,
+  driveListPayload,
+  reportsPayload,
+  driveSubroute,
+  fleetRoutes,
+  json,
+  sse,
+  stopServer: () => {
+    watcher.stop();
+    void jobs.shutdown();
+    archive.close();
+    db.close();
+    process.exit(0);
+  },
+});
+
 async function apiRequest(req: Request, url: URL): Promise<Response> {
-  const path = url.pathname;
-  const route = path.slice(4); // /drives, /drives/:id/...
+  const route = url.pathname.slice(4); // /drives, /drives/:id/...
   try {
-    // deckctl status / deck_status REST twin — one read for the whole
-    // front page: interlock + drive list + active jobs. Wire shape is
-    // exactly what `deckctl status --json` prints.
-    if (route === "/status") {
-      return json({
-        // same shape as GET /api/interlock + deckctl status --json
-        interlock: (() => {
-          const lock = jobs.interlock();
-          return { rekordbox_running: lock.running, pid: lock.pid };
-        })(),
-        drives: await driveListPayload(),
-        jobs: db.activeJobs(),
-      });
-    }
-    if (route === "/drives") {
-      return json(await driveListPayload());
-    }
-    if (route === "/reports") {
-      // batched summaries for the rail: N report fetches → 1 request
-      return json(reportsPayload());
-    }
-    // B12 preflight: the gig-night pass/fail across every mounted drive
-    if (route === "/preflight") {
-      return json(buildPreflight(allPreflightInputs(reportDeps)));
-    }
-    // Booth fleet settings: which players the compat gates enforce. GET
-    // serves the catalog + current selection; POST persists the selection
-    // to config.toml [booth].fleet (atomic rewrite via the tmp+rename in
-    // writeConfigBoothFleet) and re-derives the floor server-side.
-    if (route === "/booth/fleet" && req.method === "GET") {
-      return json(boothFleetPayload(cfg.boothFleet));
-    }
-    if (route === "/booth/fleet" && req.method === "POST") {
-      let body: unknown;
-      try {
-        body = await req.json();
-      } catch (error) {
-        return json(
-          {
-            error: `invalid JSON body: ${errorText(error)}`,
-          },
-          400,
-        );
-      }
-      let next: string[];
-      try {
-        next = parseBoothFleetRequest(body);
-      } catch (error) {
-        return json({ error: errorText(error) }, 400);
-      }
-      writeConfigBoothFleet(cfg.root, next);
-      cfg.boothFleet = next;
-      return json(boothFleetPayload(next));
-    }
-    // in-app help SSOT: glossary + job/surface explainers (deckctl/MCP
-    // can serve the same wording the UI tooltips use)
-    if (route === "/help") {
-      return json({
-        terms: HELP_TERMS,
-        jobs: HELP_JOBS,
-        surfaces: HELP_SURFACES,
-      });
-    }
-    const driveMatch = route.match(/^\/drives\/([^/]+)(\/.*)?$/u);
-    if (driveMatch?.[1]) {
-      const id: string = decodeURIComponent(driveMatch[1]);
-      const sub: string | undefined = driveMatch[2];
-      const resp = await driveSubroute(req, url, id, sub);
-      if (resp) return resp;
-      return json({ error: "unknown drive route" }, 404);
-    }
-    if (route === "/ports") {
-      return json(portView(db.allDrives()));
-    }
-    if (route === "/jobs") {
-      const active = url.searchParams.get("active");
-      const drive = url.searchParams.get("drive");
-      if (drive) return json(db.jobsForDrive(drive, 20, Boolean(active)));
-      return json(active ? db.activeJobs() : db.jobsForDrive("*", 50));
-    }
-    const jobMatch = route.match(/^\/jobs\/([^/]+)(\/cancel)?$/u);
-    if (jobMatch?.[1]) {
-      const id: string = jobMatch[1];
-      const cancel: string | undefined = jobMatch[2];
-      if (cancel && req.method === "POST") return json({ ok: jobs.cancel(id) });
-      return json(db.getJob(id));
-    }
-    if (route === "/search") {
-      return json(registry.search(url.searchParams.get("q") ?? ""));
-    }
-    // ---- fleet superpowers (§B6/B7/B8 + O83 prep): one family, one handler
-    if (route.startsWith("/fleet/")) return fleetRoutes(route, url);
-    // ---- archive reads (O82b): megadj's DB, readonly -----------------
-    // Route family lives in archive_routes.ts (file-length guard);
-    // null = no archive route matched, fall through.
-    const archiveResp = await archiveRoutes(route, url, {
-      archive,
-      db,
-      cfg,
-    });
-    if (archiveResp) return archiveResp;
-    if (route === "/images/search") {
-      return json(await images.search(url.searchParams.get("q") ?? ""));
-    }
-    if (route === "/interlock") {
-      const lock = jobs.interlock();
-      return json({ rekordbox_running: lock.running, pid: lock.pid });
-    }
-    // global help: what does each job kind do (human + agent readable)
-    if (route === "/help/jobs") {
-      return json(VERIFY_HELP); // verify-centric help; per-kind docs live in deckctl explain
-    }
-    if (route === "/stop" && req.method === "POST") {
-      // graceful: stop watcher + jobs, then exit (used by deckctl stop)
-      setTimeout(async () => {
-        watcher.stop();
-        await jobs.shutdown();
-        archive.close();
-        db.close();
-        process.exit(0);
-      }, 50);
-      return json({ ok: true });
-    }
-    if (
-      (route === "/events" || route === "/events/") &&
-      req.headers.get("accept")?.includes("event-stream")
-    ) {
-      return sse();
-    }
-    // ---- shelf hygiene (docs/getdat/shelf-hygiene-2026-09-09.md §4) -----------
-    if (route === "/hygiene") return hygieneApi.list(url);
-    if (route === "/hygiene/scan" && req.method === "POST")
-      return hygieneApi.scan();
-    if (route === "/hygiene/apply" && req.method === "POST")
-      return hygieneApi.apply();
-    if (route === "/hygiene/decide" && req.method === "POST")
-      return hygieneApi.decide(req);
-    if (route === "/hygiene/bucket-confirm" && req.method === "POST")
-      return hygieneApi.bucketConfirm(req);
-    if (route === "/hygiene/audio") return hygieneApi.audio(url);
-    if (route === "/hygiene/stats") return hygieneApi.stats(url);
-    // ---- booth fixes (Fleet→Booth fleet drives these checks) -----------
-    if (route === "/fixes") return fixesApi.list();
-    if (route === "/fixes/scan" && req.method === "POST")
-      return fixesApi.scan();
-    if (route === "/fixes/apply" && req.method === "POST")
-      return fixesApi.apply();
-    // ---- archive intake (GetDat Intake tab) -----------------------------
-    if (route === "/intake/folders") {
-      return json({
-        watch: intakeWatchDir(cfg),
-        candidates: intakeCandidateDirs(cfg),
-      });
-    }
-    if (route === "/intake/start" && req.method === "POST") {
-      let body: { folder?: string };
-      try {
-        body = (await req.json()) as typeof body;
-      } catch {
-        return json({ error: "invalid JSON body" }, 400);
-      }
-      const folder = (body.folder ?? "").trim();
-      if (!folder) return json({ error: "folder is required" }, 400);
-      const candidates = intakeCandidateDirs(cfg);
-      const ok = candidates.some((c) => c.path === folder && c.exists);
-      if (!ok) {
-        return json(
-          {
-            error:
-              "folder not on the intake allowlist — pick one from /intake/folders",
-          },
-          403,
-        );
-      }
-      // Same job engine as drive jobs: interlock, one-at-a-time, SSE live.
-      const job = jobs.enqueue("local-archive", "ingest", folder, "web");
-      return json(job);
-    }
-    return json({ error: "not found" }, 404);
+    return await apiRouter(req, url, route);
   } catch (e) {
     const msg = (e as Error).message;
     const status =

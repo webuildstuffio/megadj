@@ -12,7 +12,7 @@ import {
   parseAnlzInventory,
   type AnlzBeat,
 } from "../src/anlz";
-import { gridAuditFull } from "../src/analysis";
+import { gridAuditFull } from "../src/grid-audit";
 
 /** A clean 128 BPM grid: beats every 468.75 ms, downbeat first. */
 function grid(beats: number, bpm = 128, startMs = 0): AnlzBeat[] {

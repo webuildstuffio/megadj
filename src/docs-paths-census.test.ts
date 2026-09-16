@@ -31,6 +31,12 @@ const PACKAGE_ROOTS = ["cratedeck", "fulltags", "plugin", "tools"];
 /** allowlist: file → { stalePath → reason }. Every entry needs a reason
  *  that explains why the old path is LEGITIMATE text. */
 const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "docs/fulltags/fulltags-roadmap.md": {
+    // rev-6 re-gate note describes the deleted bar-lag readout as it
+    // was (the #42 split later moved the probes to sibling modules).
+    "fulltags/src/analysis.ts":
+      "historical rev line (deleted tempoFromBeatGrid, former module path)",
+  },
   "docs/surface-parity.md": {
     // rev-9/rev-10 lines describe the PAST web restructure ("same
     // surfaces, new paths (...)") — historical rev prose, deliberately

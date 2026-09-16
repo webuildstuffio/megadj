@@ -77,7 +77,7 @@ export {
   fingerprintFile,
   fingerprintFileLength,
   parseFpcalcOutput,
-} from "./analysis";
+} from "./fingerprint";
 export {
   applyGateWritesSync,
   GateSaturationError,
@@ -128,10 +128,10 @@ export {
   analyzeBeats,
   openBeatSession,
   foldTempo,
-  gridAuditFull,
   type BeatResult,
   type BeatSession,
-} from "./analysis";
+} from "./beats-analysis";
+export { gridAuditFull, type GridAuditVerdict } from "./grid-audit";
 export { mbGenreForArtist } from "./mb";
 export {
   aggregateScores,

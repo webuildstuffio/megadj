@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, type Stats } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -112,7 +112,7 @@ function* walk(dir: string): Generator<string> {
   for (const e of entries) {
     if (e === "node_modules" || e === "dist" || e === "web") continue;
     const full = join(dir, e);
-    let st;
+    let st: Stats;
     try {
       st = statSync(full);
     } catch {

@@ -10,7 +10,7 @@
  *    surfaced, kept (human review, mirrors shelf-dupescan's skip rule)
  *  - fpcalc missing/fails → degrade to null, pass is a no-op
  */
-import { fingerprintFile } from "./analysis";
+import { fingerprintFile } from "./fingerprint";
 import { sharedTokenRatio } from "./name-match";
 
 export interface FpVerdict {

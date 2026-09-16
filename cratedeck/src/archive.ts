@@ -43,7 +43,10 @@ import type {
 // gridAudit are the same functions `megadj beats` computes with. A
 // hand-copied twin drifted once already (the v1 verdicts lived inline
 // here); the import keeps verdicts identical across surfaces.
-import { gridAudit, type GridAuditVerdict } from "../../fulltags/src/analysis";
+import {
+  gridAudit,
+  type GridAuditVerdict,
+} from "../../fulltags/src/grid-audit";
 import { isFiniteNumberArray } from "../shared/guards";
 
 // ArchiveTrack is canonically defined in the leaf archive_types.ts (along

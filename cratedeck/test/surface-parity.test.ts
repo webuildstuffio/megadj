@@ -73,19 +73,26 @@ function megadjCommands(): string[] {
 }
 
 /** HTTP API path census. Route literals are intentionally derived from the
- * dispatchers: top-level paths from index.ts, drive subpaths get the
- * /drives/:id prefix, and archive handlers come from archive_routes.ts. */
+ * dispatchers: exact-path table keys (`"/status": …`) in api_routes.ts,
+ * top-level `route ===` literals, drive subpaths get the /drives/:id
+ * prefix, and archive handlers come from archive_routes.ts. */
 function httpApiRoutes(): string[] {
   // route families live in their own modules since the #42 split; the
   // census reads ALL of them so a literal can't hide in a new file
   const index = [
     "cratedeck/src/index.ts",
+    "cratedeck/src/api_routes.ts",
     "cratedeck/src/drive_routes.ts",
     "cratedeck/src/fleet_routes.ts",
   ]
     .map((f) => read(f).join("\n"))
     .join("\n");
   const routes = new Set<string>();
+  // exact-path dispatch-table keys in api_routes.ts (`"/status": …`)
+  for (const match of index.matchAll(/^\s{4}"(\/[^"]+)":/gm)) {
+    const path = match[1];
+    if (path) routes.add(path);
+  }
   for (const match of index.matchAll(/(route|sub) === "(\/[^"]+)"/g)) {
     const path = match[2];
     if (!path) continue;
@@ -435,7 +442,9 @@ describe("surface parity (docs/surface-parity.md)", () => {
       .join("\n");
     expect(ui).toContain("../../shared/help");
     // server: GET /api/help serves the same content
-    const server = readFileSync(join(ROOT, "cratedeck/src/index.ts"), "utf8");
+    const server = ["cratedeck/src/index.ts", "cratedeck/src/api_routes.ts"]
+      .map((f) => readFileSync(join(ROOT, f), "utf8"))
+      .join("\n");
     expect(server).toContain('"/help"');
     // CLI: deckctl help [topic]
     expect(deckctlVerbs()).toContain("help");

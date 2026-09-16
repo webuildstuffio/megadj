@@ -238,8 +238,10 @@ honest, in order of strength:
    Source-parsed, zero fixtures: it re-derives each surface's census
    from the actual files (the `*_COMMANDS` family registries delegated by
    `src/cli.ts` +
-   `deckctl.ts`, tool keys in `mcp.ts`, `route ===`/`sub ===` literals
-   in `index.ts`, `run("`/`api(` strings in `web/**/*.tsx`) and asserts:
+   `deckctl.ts`, tool keys in `mcp.ts`, exact-path table keys +
+   `route ===`/`sub ===` literals across `index.ts` + `api_routes.ts`
+   (+ `drive_routes.ts`/`fleet_routes.ts`), `run("`/`api(` strings in
+   `web/**/*.tsx`) and asserts:
    - every megadj CLI command appears in `src/usage.ts`'s help (a
      command the help can't show is half an agent surface);
    - every deckctl verb has an MCP twin **or** an exemption-tagged skip;
