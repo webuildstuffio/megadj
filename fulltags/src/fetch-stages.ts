@@ -4,13 +4,18 @@
 // and the art fallback ladder (gateway → mp3-twin → deezer → itunes).
 // Shared mutable state (Stats, notes, the AI batches) rides a Ctx the
 // stages mutate; the orchestration order stays in fetch-pipeline.ts.
+// The source fan-outs (Beatport / SoundCloud / Bandcamp lookups) are
+// stages too (#188): each owns its want-decision and writes its hit onto
+// the Ctx, so the pipeline is a flat sequencer with no lookup logic.
 
 import {
   beatportArt,
+  beatportLookup,
   bpGenre,
   bpStamp,
   bcFetchPage,
   bcGenre,
+  bcSearch,
   artUrlLarge,
   canonGenre,
   cleanArtist,
@@ -22,6 +27,7 @@ import {
   gatewayArt,
   itunesArtwork as itunesArtUrl,
   pageOgImage,
+  scSearch,
   setFileTags,
   twinArt,
   type BcPage,
@@ -89,9 +95,9 @@ export interface StageCtx {
    *  the operator re-runs the bounded list explicitly. */
   aiAllowed: boolean;
   /** Beatport hit for this track (second source behind SC) — filled by
-   * processTask's fan-out when any Beatport-fed field is needed. */
+   * fanOutBeatport when any Beatport-fed field is needed. */
   bpBest: BpTrack | null;
-  /** Bandcamp hit (third source behind SC + BP) — filled by processTask
+  /** Bandcamp hit (third source behind SC + BP) — filled by fanOutBandcamp
    * only when BOTH SC and BP missed the field Bandcamp is being asked
    * for, so the extra page fetch leg stays rare. */
   bcBest: BcTrack | null;
@@ -195,6 +201,57 @@ export function markYear(t: StageCtx, year: number): void {
   t.notes.push(`year:${year}`);
 }
 
+// ---- source fan-out stages (#188) ----------------------------------------
+// Each catalog lookup is a stage: it owns its want-decision (which fields
+// still need that source), performs the one search, and writes the hit
+// onto the Ctx. The pipeline body stays a flat sequencer with identical
+// stage order — the lookups were inline fan-out branches before.
+
+/** Fan-out 1 — Beatport lookup (second source, behind SC). One catalog
+ *  search feeds genre AND year AND art AND identity. Runs when any
+ *  Beatport-fed field is needed; SC wins every field it covers. */
+export async function fanOutBeatport(t: StageCtx): Promise<void> {
+  const needsIdentity =
+    t.needTags &&
+    (!t.truth.label || !t.truth.mixName || !t.truth.isrc || !t.truth.remixer);
+  if (t.dry || !(t.needGenre || t.needArt || t.needYear || needsIdentity))
+    return;
+  t.bpBest = await beatportLookup({
+    artist: cleanArtist(t.truth.artist) ?? cleanArtist(t.row.artist),
+    title: cleanTitle(t.truth.title ?? t.row.title),
+    durationS: t.durationS ?? undefined,
+  });
+}
+
+/** Fan-out 2 — SoundCloud search (first source). One yt-dlp call feeds
+ *  genre AND art AND year. Returns the first hit for the art/genre/year
+ *  stages; null when nothing was wanted or the search missed. */
+export async function fanOutSoundcloud(t: StageCtx): Promise<ScHit | null> {
+  if (t.dry || !(t.needGenre || t.needArt || t.upgradeSc || t.needYear))
+    return null;
+  const sc = await scSearch(t.row);
+  return sc?.[0] ?? null;
+}
+
+/** Fan-out 3 — Bandcamp vote search (third source). The page fetch inside
+ *  stageBandcamp is the expensive leg, so the search only fires when SC
+ *  and BP BOTH left a Bandcamp-readable field unfilled (genre/year/label).
+ *  Search hits were artist-gated in bandcamp.ts (scoreBcHits). */
+export async function fanOutBandcamp(
+  t: StageCtx,
+  scGenreWon: boolean,
+  scYearWon: boolean,
+): Promise<void> {
+  const wantsBcGenre = t.needGenre && !scGenreWon && !(t.bpBest && bpGenre(t.bpBest));
+  const wantsBcYear = t.needYear && !scYearWon && !t.bpBest?.year;
+  const wantsBcLabel = t.needTags && !t.truth.label && !t.bpBest?.label;
+  if (t.dry || !(wantsBcGenre || wantsBcYear || wantsBcLabel)) return;
+  t.bcBest = await bcSearch({
+    artist: cleanArtist(t.truth.artist) ?? cleanArtist(t.row.artist),
+    title: cleanTitle(t.truth.title ?? t.row.title),
+  });
+}
+
 /** Record an SC-art win: stats bucket + note + tracks.artwork_status. */
 function markArt(
   t: StageCtx,
@@ -275,7 +332,7 @@ function bcApplyGenre(t: StageCtx, page: BcPage): boolean {
 /** Stage 2b — Bandcamp vote, THIRD in the ladder (behind SC and BP).
  *  Only runs when SC and BP both missed the field, so the extra page
  *  fetch stays rare; the search hit was already artist-gated in
- *  processTask. Fills genre first (tag list), then year (publish date),
+ *  bandcamp.ts. Fills genre first (tag list), then year (publish date),
  *  then label (the publisher field only BP also carries). Synchronous
  *  DB/tag writes per the markYear discipline; page fetch is the one
  *  async leg, done once per task and shared across the three fields. */

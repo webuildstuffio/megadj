@@ -36,11 +36,7 @@ import {
   groundTruth,
   archiveFiles,
   cleanArtist,
-  scSearch,
   setFileTags,
-  beatportLookup,
-  bcSearch,
-  bpGenre,
   type Row,
   type TagValues,
 } from "./archive-ledger";
@@ -51,6 +47,9 @@ import { ProgressBar } from "../../src/progress";
 import { writeJson } from "../../src/shared/cli-output";
 import {
   cleanTitle,
+  fanOutBandcamp,
+  fanOutBeatport,
+  fanOutSoundcloud,
   stageArt,
   stageBeatportIdentity,
   stageBandcamp,
@@ -153,7 +152,7 @@ async function processTask({
   aiFallback,
   progress,
 }: ProcessTaskInput): Promise<ProcessTaskResult> {
-  const { row: r, truth } = t;
+  const { row: r } = t;
   const name = `${cleanArtist(r.artist) ?? "?"} - ${cleanTitle(r.title)}`.slice(
     0,
     56,
@@ -166,7 +165,7 @@ async function processTask({
 
   const ctx: StageCtx = {
     row: r,
-    truth,
+    truth: t.truth,
     needTags: t.needTags,
     needGenre: t.needGenre,
     needArt: t.needArt,
@@ -180,59 +179,31 @@ async function processTask({
     aiAllowed: aiFallback,
     bpBest: null,
     bcBest: null,
-    durationS: truth.durationS,
+    durationS: t.truth.durationS,
   };
 
   // ---- 1. tags (DB → file) ----
   stageTags(ctx);
 
-  // ---- Beatport lookup (second source, behind SC) ----
-  // One catalog search feeds genre AND year AND art AND identity. Runs
-  // when any Beatport-fed field is needed; SC wins every field it covers.
-  const wantsBp =
-    !dry &&
-    (t.needGenre ||
-      t.needArt ||
-      t.needYear ||
-      (t.needTags &&
-        (!truth.label || !truth.mixName || !truth.isrc || !truth.remixer)));
-  ctx.bpBest = wantsBp
-    ? await beatportLookup({
-        artist: cleanArtist(truth.artist) ?? cleanArtist(r.artist),
-        title: cleanTitle(truth.title ?? r.title),
-        durationS: truth.durationS ?? undefined,
-      })
-    : null;
+  // ---- fan-out: Beatport (second source, behind SC) ----
+  await fanOutBeatport(ctx);
 
   // ---- 2+3+4. SC search feeds genre AND art AND year ----
-  const wantsSc = t.needGenre || t.needArt || t.upgradeSc || t.needYear;
-  const sc = wantsSc && !dry ? scSearch(r) : null;
-  const best = sc?.[0] ?? null;
+  const best = await fanOutSoundcloud(ctx);
 
   stageGenreYear(ctx, best);
   stageBeatportIdentity(ctx);
 
-  // ---- Bandcamp vote (third source, behind SC + BP) ----
-  // The page fetch is the expensive leg, so it only fires when SC and BP
-  // BOTH left a Bandcamp-readable field unfilled (genre/year/label).
-  // Search hits were artist-gated in bandcamp.ts (scoreBcHits).
-  const scGenreWon = Boolean(best?.genre);
-  const scYearWon = Boolean(best?.year);
-  const wantsBc =
-    !dry &&
-    ((t.needGenre && !scGenreWon && !(ctx.bpBest && bpGenre(ctx.bpBest))) ||
-      (t.needYear && !scYearWon && !ctx.bpBest?.year) ||
-      (t.needTags && !truth.label && !ctx.bpBest?.label));
-  if (wantsBc) {
-    ctx.bcBest = await bcSearch({
-      artist: cleanArtist(truth.artist) ?? cleanArtist(r.artist),
-      title: cleanTitle(truth.title ?? r.title),
-    });
+  // ---- fan-out: Bandcamp vote (third source, behind SC + BP) ----
+  await fanOutBandcamp(ctx, Boolean(best?.genre), Boolean(best?.year));
+
+  // ---- 2b. Bandcamp vote fills what SC and BP both missed ----
+  if (ctx.bcBest) {
     await stageBandcamp(
       ctx,
-      t.needGenre && !scGenreWon,
-      t.needYear && !scYearWon,
-      t.needTags && !truth.label,
+      t.needGenre && !best?.genre,
+      t.needYear && !best?.year,
+      t.needTags && !t.truth.label,
     );
   }
 
@@ -240,9 +211,7 @@ async function processTask({
   const artDone = await stageArt(ctx, best);
   if (t.needArt && !dry && !artDone) artless.push(r);
 
-  if (progress) {
-    progress.update(1);
-  }
+  progress?.update(1);
   return { stats, aiGenreBatch, aiYearBatch, artless, notes, name, dry };
 }
 
