@@ -2,6 +2,15 @@
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
 
+_Rev 7.11, 2026-09-15: **beat analysis stack modernized — decode + session.**
+The compressed-container decode is IN-PROCESS via PyAV feeding sample arrays
+to `Audio2Beats(signal, sr)` (the ffmpeg→temp-WAV bridge is dead; torchcodec
+and audioread were measured as dead ends — FFmpeg ≤ 8 requirement, dropped
+ffmpeg backend). `openBeatSession()` amortizes the uv resolve + torch load
+once per `--jobs` worker instead of once per track (61% faster over 3 tracks,
+byte-equal results). Getcha #1/#2 below updated accordingly; see
+`fulltags/README.md` § analysis-stage envs._
+
 _Rev 7.10, 2026-09-15: **roadmap-sync audit — every open item verified against
 code and re-tracked on GitHub.** Verified DONE and marked here: full-population
 LOO (P92 — subsumed by the Sep 15 Tier-0 run: the eval battery now covers the
@@ -664,8 +673,9 @@ without the smoke-tests-first loop):
 Env gotchas, each empirically verified:
 
 1. **beat_this has no tempo field on the programmatic path** — `File2File`
-   wants `(audio_path, output_path)` and writes TSV; use `File2Beats` and
-   derive tempo from the median inter-beat interval. Beats/downbeats come
+   wants `(audio_path, output_path)` and writes TSV; the worker uses
+   `Audio2Beats(signal, sr)` (sample array in) and derives tempo from the
+   median inter-beat interval. Beats/downbeats come
    back in **seconds**, frame-rate assumptions don't apply. **Rev 5
    addendum:** the median-inter-beat tempo itself is the weak output —
    phase-locks 2.2–2.6% off RB on half the pilot. Don't trust it for tags.

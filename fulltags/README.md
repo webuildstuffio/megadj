@@ -71,6 +71,8 @@ fulltags/
     art-sources.ts       SC search + every artwork source (the art ladder)
     ai.ts                OpenRouter genre/year fallback (conf ≥ 0.7)
     analysis.ts          chromaprint / beat_this / OpenKeyScan stages
+                         (PyAV in-process decode; openBeatSession —
+                         persistent per-worker analyzer, NDJSON protocol)
     anlz.ts              ANLZ/PQTZ grid analysis + triage helpers
     models.ts            ONNX mood/dance/valence (essentia melspec + onnxruntime)
     mb.ts                MusicBrainz folksonomy genre harvest (1 rps)
