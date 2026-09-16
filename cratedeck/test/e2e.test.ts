@@ -7,7 +7,7 @@ import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 const FIX_ROOT = `/tmp/cratedeck-e2e-${Date.now()}`;
 const FIX_DRIVE = `${FIX_ROOT}/vol/DJTESTCRATE`;
 const DATA = `${FIX_ROOT}/data`;
-let PORT = 7800 + Math.floor(Math.random() * 100);
+const PORT = 7800 + Math.floor(Math.random() * 100);
 
 let serverProc: Bun.Subprocess<"ignore", "pipe", "pipe">;
 let serverStdout = "";

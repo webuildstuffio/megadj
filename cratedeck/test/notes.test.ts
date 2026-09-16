@@ -124,7 +124,7 @@ describe("agent notes (O88)", () => {
       data_json: string;
     }[] = [];
     const store: NotesStore = {
-      event(driveId: string, kind: string, data: Record<string, unknown>) {
+      event(driveId: string, kind: string, data?: Record<string, unknown>) {
         const id = `row-${storeRows.length + 1}`;
         storeRows.push({
           id,

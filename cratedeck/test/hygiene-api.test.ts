@@ -175,10 +175,10 @@ test("reader: filters (status/kind/severity) and confirmed-first order", () => {
 
 // -- 2. route contract --------------------------------------------------
 
-type Captured = {
+interface Captured {
   enqueued: ("hygiene-scan" | "hygiene-apply")[];
   cli: string[][];
-};
+}
 
 function harness(reader: HygieneReader): {
   api: ReturnType<typeof makeHygieneRoutes>;

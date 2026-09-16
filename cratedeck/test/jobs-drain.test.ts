@@ -52,21 +52,20 @@ describe("drain stdout capture", () => {
     // "café ✓" — é and ✓ are multi-byte; force the split between their bytes
     const s = "track — café ✓ good\n";
     const bytes = new TextEncoder().encode(s);
-    const cut = s.indexOf("✓") >= 0 ? 14 : 10; // inside the ✓ sequence
-    const proc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        `process.stdout.write(new Uint8Array(${JSON.stringify(
-          Array.from(bytes.slice(0, cut)),
-        )}));
-         await new Promise((r) => setTimeout(r, 10));
-         process.stdout.write(new Uint8Array(${JSON.stringify(
-           Array.from(bytes.slice(cut)),
-         )}));`,
-      ],
-      { stdout: "pipe", stderr: "ignore" },
-    );
+    const cut = s.includes("✓") ? 14 : 10; // inside the ✓ sequence
+    const head = bytes.slice(0, cut);
+    const tail = bytes.slice(cut);
+    const script = [
+      `const head = new Uint8Array([${head.join(",")}]);`,
+      `const tail = new Uint8Array([${tail.join(",")}]);`,
+      "process.stdout.write(head);",
+      "await new Promise((r) => setTimeout(r, 10));",
+      "process.stdout.write(tail);",
+    ].join("\n");
+    const proc = Bun.spawn(["bun", "-e", script], {
+      stdout: "pipe",
+      stderr: "ignore",
+    });
     const { out } = await drain(proc, () => {}, { cancelled: false });
     expect(out).toBe(s);
   });

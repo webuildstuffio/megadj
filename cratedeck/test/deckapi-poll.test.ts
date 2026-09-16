@@ -28,7 +28,7 @@ function job(status: Job["status"]): Job {
 }
 
 function jsonOf(j: Job): Response {
-  return new Response(JSON.stringify(j), {
+  return Response.json(j, {
     headers: { "Content-Type": "application/json" },
   });
 }

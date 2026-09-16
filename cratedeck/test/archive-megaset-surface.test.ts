@@ -18,9 +18,9 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-type MegasetTool = {
-  run(args: Record<string, unknown>): Promise<unknown>;
-};
+interface MegasetTool {
+  run: (args: Record<string, unknown>) => Promise<unknown>;
+}
 
 function captureSetBuildRequest(): {
   urls: URL[];

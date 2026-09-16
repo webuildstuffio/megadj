@@ -186,9 +186,9 @@ describe("drive cover photos (dual-save)", () => {
     await images.syncOnMount("d4");
     expect(readdirSync(stickPhotoDir()).length).toBe(1);
     // second sweep = no-op (same bytes, same ext)
-    const before = readdirSync(stickPhotoDir()).join();
+    const before = readdirSync(stickPhotoDir()).join(",");
     await images.syncOnMount("d4");
-    expect(readdirSync(stickPhotoDir()).join()).toBe(before);
+    expect(readdirSync(stickPhotoDir()).join(",")).toBe(before);
   });
 
   it("syncOnMount restores a lost local copy from the stick", async () => {

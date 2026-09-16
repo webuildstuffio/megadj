@@ -8,8 +8,8 @@ import {
   parsePlist,
   isPhysicalExternal,
   listMountedVolumes,
+  type UsbDevice,
 } from "../src/detect";
-import type { UsbDevice } from "../src/detect";
 import { progressFromLine } from "../src/rb";
 
 // ---- fixtures -------------------------------------------------------------

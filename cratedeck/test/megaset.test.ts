@@ -661,7 +661,7 @@ describe("parseMegasetQuery", () => {
 describe("SET_PRESETS registry census (derive, never hand-copy)", () => {
   test("engine registry matches the shared MEGASET_PRESET_DEFS table exactly", () => {
     expect(Object.keys(SET_PRESETS).toSorted()).toEqual(
-      MEGASET_PRESET_IDS.slice().toSorted(),
+      [...MEGASET_PRESET_IDS].toSorted(),
     );
     for (const def of MEGASET_PRESET_DEFS) {
       const derived = SET_PRESETS[def.id];

@@ -14,7 +14,7 @@ function makeApi(enqueued: string[] = []) {
       return { id: `job-${enqueued.length}` };
     },
     json: (data, status = 200) =>
-      new Response(JSON.stringify(data), {
+      Response.json(data, {
         status,
         headers: { "Content-Type": "application/json" },
       }),
@@ -25,7 +25,7 @@ describe("fixes routes (/api/fixes)", () => {
   test("GET before any scan answers null (never scanned), not an error", async () => {
     const api = makeFixesRoutes({
       enqueue: () => ({ id: "j" }),
-      json: (d, s = 200) => new Response(JSON.stringify(d), { status: s }),
+      json: (d, s = 200) => Response.json(d, { status: s }),
     });
     const res = api.list();
     expect(res.status).toBe(200);

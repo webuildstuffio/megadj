@@ -86,7 +86,7 @@ let pending = "";
 async function readLine(deadline: number): Promise<string | null> {
   for (;;) {
     const nl = pending.indexOf("\n");
-    if (nl >= 0) {
+    if (nl !== -1) {
       const line = pending.slice(0, nl).trim();
       pending = pending.slice(nl + 1);
       return line || null;

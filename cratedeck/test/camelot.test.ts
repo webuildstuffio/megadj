@@ -194,8 +194,7 @@ describe("keySortToken", () => {
       k,
       t: keySortToken(k),
     }));
-    const sorted = rows
-      .slice()
+    const sorted = [...rows]
       .toSorted((a, b) => (a.t! < b.t! ? -1 : 1))
       .map((r) => r.k);
     expect(sorted).toEqual(["1A", "8A", "10B", "12B"]);
