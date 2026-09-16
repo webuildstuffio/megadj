@@ -11,7 +11,10 @@
  */
 import { Database } from "bun:sqlite";
 
-export function openLedger(path: string, opts?: { create?: boolean }): Database {
+export function openLedger(
+  path: string,
+  opts?: { create?: boolean },
+): Database {
   // bun:sqlite quirk: create:false alone is an invalid flag combo
   // (SQLITE_MISUSE — flags must include READONLY or READWRITE). The bare
   // `new Database(path)` these sites replace auto-created, so default true.
