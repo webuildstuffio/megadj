@@ -32,6 +32,9 @@ export interface DriveData {
   probes: { ran_at: number; mbps: number }[];
   jobs: Job[];
   verify: VerifyReport | null;
+  /** #231: legs that failed on the LAST fan-out (page still renders from
+   *  the healthy legs; each consumer shows its own degraded state). */
+  degraded: Set<string>;
   refresh: () => Promise<void>;
 }
 
@@ -48,20 +51,18 @@ export function useDriveData(driveId: string): DriveData {
   const [probes, setProbes] = useState<{ ran_at: number; mbps: number }[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [verify, setVerify] = useState<VerifyReport | null>(null);
+  const [degraded, setDegraded] = useState<Set<string>>(new Set());
   const loadError = page.status === "error" ? page.message : null;
 
   const refresh = useCallback(async () => {
     const enc = encodeURIComponent(driveId);
-    try {
-      const [
-        detail,
-        nextReport,
-        nextTimeline,
-        nextBench,
-        nextProbes,
-        nextJobs,
-        nextVerify,
-      ] = await Promise.all([
+    // #231: allSettled the fan-out — one dead leg must not blank the
+    // six healthy ones. The DETAIL leg owns the page gate (its failure
+    // is the page's failure); every other leg degrades its own panel.
+    // A named tuple (not Object.values, which erases element types)
+    // keeps every leg's fulfilled-value fully typed.
+    const [detailR, reportR, timelineR, benchR, probesR, jobsR, verifyR] =
+      await Promise.allSettled([
         api<DriveDetail>(`/api/drives/${enc}`, { quiet: true }),
         api<DriveReport>(`/api/drives/${enc}/report`, { quiet: true }),
         api<TimelineEvent[]>(`/api/drives/${enc}/timeline`, { quiet: true }),
@@ -75,31 +76,57 @@ export function useDriveData(driveId: string): DriveData {
         api<Job[]>(`/api/jobs?drive=${enc}`, { quiet: true }),
         api<VerifyReport>(`/api/drives/${enc}/verify`, { quiet: true }),
       ]);
-      if (!detail?.drive) {
-        // api() only gets here after a real 200, so this represents a stale
-        // registry link rather than a transport failure.
+    const legNames = [
+      "detail",
+      "report",
+      "timeline",
+      "bench",
+      "probes",
+      "jobs",
+      "verify",
+    ] as const;
+    const failed = new Set<string>(
+      legNames.filter(
+        (_, i) =>
+          [detailR, reportR, timelineR, benchR, probesR, jobsR, verifyR][i]
+            ?.status === "rejected",
+      ),
+    );
+
+    if (failed.has("detail")) {
+      // The page-defining leg failed — distinguish 404 (gone) from
+      // transport/500 (retryable) exactly as before.
+      const reason = detailR.status === "rejected" ? detailR.reason : undefined;
+      console.error(`drive ${driveId} load failed`, reason);
+      if (reason instanceof ApiError && reason.status === 404) {
         setPage({ status: "not-found" });
         return;
       }
-      setPage({ status: "ok", detail });
-      setReport(nextReport);
-      setTimeline(nextTimeline);
-      setBench(nextBench);
-      setProbes(nextProbes);
-      setJobs(nextJobs);
-      setVerify(nextVerify);
-    } catch (error) {
-      // Keep a last good render visible while surfacing a failed refresh.
-      console.error(`drive ${driveId} load failed`, error);
-      if (error instanceof ApiError && error.status === 404) {
-        setPage({ status: "not-found" });
-        return;
-      }
-      const message = errMessage(error);
+      const message = errMessage(reason);
       setPage((previous) =>
         previous.status === "ok" ? previous : { status: "error", message },
       );
+      setDegraded(failed);
+      return;
     }
+
+    if (detailR.status !== "fulfilled" || !detailR.value?.drive) {
+      // api() only gets here after a real 200, so this represents a stale
+      // registry link rather than a transport failure.
+      setPage({ status: "not-found" });
+      return;
+    }
+    const detail = detailR.value;
+    // Keep the LAST GOOD payload for a failed leg (stale beats blank);
+    // only a fulfilled leg replaces its state.
+    if (reportR.status === "fulfilled") setReport(reportR.value);
+    if (timelineR.status === "fulfilled") setTimeline(timelineR.value);
+    if (benchR.status === "fulfilled") setBench(benchR.value);
+    if (probesR.status === "fulfilled") setProbes(probesR.value);
+    if (jobsR.status === "fulfilled") setJobs(jobsR.value);
+    if (verifyR.status === "fulfilled") setVerify(verifyR.value);
+    setPage({ status: "ok", detail });
+    setDegraded(failed);
   }, [driveId]);
 
   useEffect(() => {
@@ -180,5 +207,15 @@ export function useDriveData(driveId: string): DriveData {
     };
   }, [refreshJobs]);
 
-  return { page, report, timeline, bench, probes, jobs, verify, refresh };
+  return {
+    page,
+    report,
+    timeline,
+    bench,
+    probes,
+    jobs,
+    verify,
+    degraded,
+    refresh,
+  };
 }

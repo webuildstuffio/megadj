@@ -12,17 +12,12 @@
  * DB-state checks (cue kinds, dupes, playlist XML) live in doctor-state.ts.
  * This module is the runner: check order, output formats, exit codes.
  */
-import {
-  existsSync,
-  readFileSync,
-  copyFileSync,
-  readdirSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, readFileSync, copyFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CheckResult } from "./doctor-types";
 import {
   CRATEDECK_DIR,
+  applyDriveNames,
   checkBun,
   checkCookies,
   checkCrateConfig,
@@ -33,6 +28,7 @@ import {
   checkPyrekordbox,
   checkUvPython,
   checkYtdlp,
+  detectVolumes,
 } from "./doctor-checks";
 import {
   checkCueKinds,
@@ -121,35 +117,8 @@ export function doctorJson(results: CheckResult[]): string {
 }
 
 // ---- init -------------------------------------------------------------------
-/** Mounted volumes worth offering as drives (excludes system/junk mounts). */
-export function detectVolumes(): string[] {
-  try {
-    return readdirSync("/Volumes")
-      .filter((n) => n !== "Macintosh HD" && !n.startsWith("Macintosh HD "))
-      .toSorted();
-  } catch {
-    return [];
-  }
-}
-
-/** Set one TOML key to a quoted value when present, else pass through.
- *  Pure — module-level, not re-created per `applyDriveNames` call. */
-const setTomlKey = (c: string, key: string, val: string): string =>
-  new RegExp(`^\\s*${key}\\s*=`, "m").test(c)
-    ? c.replace(new RegExp(`^(\\s*${key}\\s*=\\s*).*$`, "m"), `$1"${val}"`)
-    : c;
-
-export function applyDriveNames(
-  cfg: string,
-  master: string,
-  mirror: string,
-): string {
-  return setTomlKey(
-    setTomlKey(cfg, "master_drive", master),
-    "mirror_drive",
-    mirror,
-  );
-}
+// detectVolumes + applyDriveNames moved to doctor-checks.ts (#210 — pure
+// helpers live beside the probes; doctor.ts keeps only orchestration).
 
 export function runInit(): number {
   const sample = join(CRATEDECK_DIR, "config.sample.toml");

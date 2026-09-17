@@ -92,6 +92,7 @@ export function DrivePage(props: {
     probes,
     jobs,
     verify,
+    degraded,
     refresh: load,
   } = useDriveData(driveId);
   const detailOrNull = page.status === "ok" ? page.detail : null;
@@ -236,6 +237,21 @@ export function DrivePage(props: {
       <button type="button" class="crumb" onClick={() => navigate(null)}>
         <Icon name="back" size={13} /> all drives
       </button>
+
+      {degraded.size > 0 && (
+        <div class="note-card" role="status">
+          <Icon name="warn" size={14} />{" "}
+          {`some panels are stale — refresh failed for: ${[...degraded]
+            .map((leg) =>
+              leg === "detail"
+                ? "drive info"
+                : leg === "verify"
+                  ? "verify report"
+                  : leg,
+            )
+            .join(", ")}`}
+        </div>
+      )}
 
       <DriveHero
         detail={detail}

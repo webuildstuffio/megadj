@@ -2,7 +2,7 @@
 // (#42 item 2 split, out of doctor.ts): one CheckResult per external
 // dependency/env/config value. doctor.ts keeps the runner, output, and
 // `init` bootstrap.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, platform } from "node:os";
 import type { CheckResult } from "./doctor-types";
@@ -284,4 +284,37 @@ export function checkMusicDir(): CheckResult {
     ok,
     detail: `${MUSIC_DIR}${ok ? "" : " (will be created on first sync/ingest)"}`,
   };
+}
+
+// ---- init bootstrap helpers (#210): pure config/volume helpers that
+// doctor.ts's runInit sequences. No spawn/IO beyond readdir. --------------
+
+/** Mounted volumes worth offering as drives (excludes system/junk mounts). */
+export function detectVolumes(): string[] {
+  try {
+    return readdirSync("/Volumes")
+      .filter((n) => n !== "Macintosh HD" && !n.startsWith("Macintosh HD "))
+      .toSorted();
+  } catch {
+    return [];
+  }
+}
+
+/** Set one TOML key to a quoted value when present, else pass through.
+ *  Pure — module-level, not re-created per `applyDriveNames` call. */
+const setTomlKey = (c: string, key: string, val: string): string =>
+  new RegExp(`^\\s*${key}\\s*=`, "m").test(c)
+    ? c.replace(new RegExp(`^(\\s*${key}\\s*=\\s*).*$`, "m"), `$1"${val}"`)
+    : c;
+
+export function applyDriveNames(
+  cfg: string,
+  master: string,
+  mirror: string,
+): string {
+  return setTomlKey(
+    setTomlKey(cfg, "master_drive", master),
+    "mirror_drive",
+    mirror,
+  );
 }
