@@ -13,6 +13,7 @@ import { commandLog } from "../progress";
 import {
   drainStdout,
   finishCommandError,
+  setExit,
   writeJson,
 } from "../shared/cli-output";
 import {
@@ -115,6 +116,6 @@ export async function genreWhy(opts: GenreWhyOptions): Promise<void> {
     // Meaningful exit codes (P1): a drifted row is a finding, not a
     // clean read. Pure --json agents can detect it by exit code alone.
     await drainStdout();
-    process.exitCode = 1;
+    setExit(1);
   }
 }

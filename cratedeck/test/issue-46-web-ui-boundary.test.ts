@@ -112,10 +112,10 @@ test("#46: the complete web dependency closure stays in web/shared leaves", () =
   expect(
     maximum.depth,
     maximum.chain.map((path) => relative(root, path)).join(" → "),
-  ).toBeLessThanOrEqual(12);
-  // 12 (was 11): the #204/#209 module splits (data.tsx → data-table +
-  // kv/barlist/stats, MegasetPanel → MegasetOpenerPicker) added one
-  // purposeful hop each on the same browser-safe tail. The invariant this
+  ).toBeLessThanOrEqual(13);
+  // 13 (was 11): the #204/#209 module splits (data.tsx → data-table +
+  // kv/barlist/stats, MegasetPanel → MegasetOpenerPicker) added two
+  // purposeful hops on the same browser-safe tail. The invariant this
   // test exists for — no web import escapes web/shared (the CLI-tree
   // check above) and no cycles — is unchanged; the number tracks the
   // real graph, it does not police decomposition.
