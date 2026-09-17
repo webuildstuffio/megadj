@@ -147,6 +147,7 @@ function uiJobKinds(): string[] {
     "cratedeck/web/products/cratedeck/VerifyTab.tsx",
     "cratedeck/web/products/cratedeck/HygieneTab.tsx",
     "cratedeck/web/products/cratedeck/FixesTab.tsx",
+    "cratedeck/web/products/cratedeck/GridHealthCard.tsx",
     "cratedeck/web/products/getdat/IntakeTab.tsx",
     "cratedeck/web/products/shared.tsx",
   ]) {
@@ -161,6 +162,8 @@ function uiJobKinds(): string[] {
         kinds.push("hygiene-scan", "hygiene-apply");
       if (line.includes("/api/fixes")) kinds.push("fixes-scan", "fixes-apply");
       if (line.includes("/api/intake/start")) kinds.push("ingest");
+      // grid-health scan → the grid-health job kind (#167)
+      if (line.includes("/api/grid-health/scan")) kinds.push("grid-health");
     }
   }
   return [...new Set(kinds)].toSorted();

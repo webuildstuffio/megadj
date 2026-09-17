@@ -13,6 +13,7 @@ import type { ArchiveReader } from "./archive";
 import type { ImageService } from "./images";
 import type { makeFixesRoutes } from "./fixes_routes";
 import type { makeHygieneRoutes } from "./hygiene_routes";
+import type { makeGridHealthRoutes } from "./grid_health_routes";
 import type { ReportDeps } from "./report_inputs";
 
 /** The HTTP API's dependency bundle: built once in index.ts, threaded
@@ -27,6 +28,7 @@ export interface ApiDeps {
   reportDeps: ReportDeps;
   hygieneApi: ReturnType<typeof makeHygieneRoutes>;
   fixesApi: ReturnType<typeof makeFixesRoutes>;
+  gridHealthApi: ReturnType<typeof makeGridHealthRoutes>;
   driveListPayload: () => Promise<unknown>;
   reportsPayload: () => unknown;
   driveSubroute: (

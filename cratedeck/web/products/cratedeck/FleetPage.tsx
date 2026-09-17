@@ -12,6 +12,7 @@ import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
 import { CoverageTab, RedundancyTab } from "./fleet-tabs";
 import { DiffTab } from "./fleet-diff-tab";
+import { RadarTab } from "./fleet-radar-tab";
 import { PRODUCT_TABS, ProductIntro } from "../shared";
 
 // the fleet content tabs live in the product SSOT (ProductPage
@@ -30,6 +31,7 @@ export function FleetPage(props: { tab: string }) {
       />
       {tab === "coverage" && <CoverageTab />}
       {tab === "redundancy" && <RedundancyTab />}
+      {tab === "radar" && <RadarTab />}
       {tab === "diff" && <DiffTab />}
       {tab === "preflight" && <PreflightTab />}
       {tab === "booth" && <BoothSettings />}

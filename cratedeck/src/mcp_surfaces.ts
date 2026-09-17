@@ -12,6 +12,7 @@ export const DECK_MCP_SURFACES = [
   { verb: "coverage", tool: "deck_coverage" },
   { verb: "redundancy", tool: "deck_redundancy" },
   { verb: "diff", tool: "deck_diff" },
+  { verb: "radar", tool: "deck_radar" },
   { verb: "jobs", tool: "deck_jobs" },
   { verb: "run", tool: "deck_run" },
   { verb: "cancel", tool: "deck_cancel" },

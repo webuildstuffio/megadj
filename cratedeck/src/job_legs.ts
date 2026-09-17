@@ -34,6 +34,9 @@ import { rbSnapshot, spawnMirror, spawnVerify } from "./rb";
 import { scanVolume } from "./scan";
 import { lastLines } from "./verify_report";
 import { parseVerifyReport } from "./verify_parse";
+import { recordGridHealth } from "./grid_health_routes";
+import { summarizeGridHealth } from "./grid_health_parse";
+import { runCliJob } from "./cli_job_leg";
 /** Same shape as job_execution's JobExecutionDeps — redeclared here (a
  *  3-field wiring record) so the legs never import back from the
  *  dispatcher: the dependency arrow stays one-way (execution → legs). */
@@ -482,6 +485,50 @@ export async function runSpeedtest({
   });
   tick(1, 1, `read ${result.mbps.toLocaleString()} MB/s`, "done", true);
   return { mbps: result.mbps, bytes_read: result.bytes_read };
+}
+
+/** grid-health leg (#167, GA-05c): spawn `megadj rb-grid-triage --json`
+ *  over the SHELF (the engine SSOT) and record the summary for the
+ *  /api/grid-health reads. The mountPoint arg is the shelf volume the
+ *  enqueue passed; the CLI triages the shelf's master DB. Runs through
+ *  the ONE CLI spawn seam (runCliJob) — no second hand-rolled drain. */
+export async function runGridHealth(args: LegArgs) {
+  const summary = await runCliJob(
+    cliDeps(args),
+    {
+      command: "rb-grid-triage",
+      label: "megadj rb-grid-triage",
+      argv: [args.mountPoint, "--json"],
+    },
+    false,
+    args.handle,
+  );
+  const payload = summarizeGridHealth(
+    summary,
+    args.job.drive_id,
+    args.deps.db.getDrive(args.job.drive_id)?.nickname ??
+      args.deps.db.getDrive(args.job.drive_id)?.name ??
+      args.job.drive_id,
+  );
+  recordGridHealth(args.job.drive_id, payload);
+  args.deps.db.event(args.job.drive_id, "grid-health", {
+    audited: payload.audited,
+    offenders:
+      payload.buckets.SHIFT +
+      payload.buckets.PHASE +
+      payload.buckets.TEMPO +
+      payload.buckets.DRIFT +
+      payload.buckets.CHAOS,
+    syncIssues: payload.syncIssues,
+  });
+  args.tick(
+    1,
+    1,
+    `${payload.audited}/${payload.total} audited · ${payload.offenders.length} flagged`,
+    "done",
+    true,
+  );
+  return payload;
 }
 
 function cliDeps({ deps, job, handle, tick, log }: LegArgs) {

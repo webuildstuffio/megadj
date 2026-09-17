@@ -15,6 +15,7 @@ import { ShelfSweepReader } from "./shelf_sweep_reader";
 import { HygieneReader } from "./hygiene_reader";
 import { makeHygieneRoutes } from "./hygiene_routes";
 import { makeFixesRoutes } from "./fixes_routes";
+import { makeGridHealthRoutes } from "./grid_health_routes";
 import { ArchiveReader } from "./archive";
 import { type ReportDeps } from "./report_inputs";
 import { playersFromConfig } from "./players";
@@ -216,6 +217,35 @@ const fixesApi = makeFixesRoutes({
   json,
 });
 
+/** The /api/grid-health family (GA-05c, #167): triage runs live on the
+ *  SHELF drive's row (the master DB it reads), like fixes/hygiene. */
+const gridHealthApi = makeGridHealthRoutes({
+  enqueue: (driveId) => {
+    const shelf = registry.list().find((d) => d.role === "shelf" && d.mounted);
+    if (!shelf)
+      throw new Error("shelf drive not mounted — grid health needs SHELF1");
+    return jobs.enqueue(
+      driveId,
+      "grid-health",
+      `/Volumes/${shelf.name}`,
+      "web",
+    );
+  },
+  json,
+  resolveDrive: (nameOrId) => {
+    const d = db.getDriveByUuid(nameOrId) ?? db.getDrive(nameOrId);
+    if (d) return { id: d.id, name: d.nickname ?? d.name };
+    const byName = registry
+      .list()
+      .find(
+        (x) => x.name === nameOrId || (x.nickname && x.nickname === nameOrId),
+      );
+    return byName
+      ? { id: byName.id, name: byName.nickname ?? byName.name }
+      : null;
+  },
+});
+
 const fleetRoutes = makeFleetRoutes({ db, cfg, json });
 
 /** Shared deps for the report/preflight/dossier collectors
@@ -272,6 +302,7 @@ const apiRouter = makeApiRouter({
   reportDeps,
   hygieneApi,
   fixesApi,
+  gridHealthApi,
   driveListPayload,
   reportsPayload,
   driveSubroute,

@@ -82,5 +82,11 @@ export async function hygieneFixesDispatch(
   if (route === "/fixes") return deps.fixesApi.list();
   if (route === "/fixes/scan" && post) return deps.fixesApi.scan();
   if (route === "/fixes/apply" && post) return deps.fixesApi.apply();
+  // ---- grid health (GA-05c, #167): triage runs + the card's reads ----
+  if (route === "/grid-health") {
+    return await deps.gridHealthApi.get(url.searchParams.get("drive"));
+  }
+  if (route === "/grid-health/scan" && post)
+    return await deps.gridHealthApi.scan(url.searchParams.get("drive"));
   return null;
 }

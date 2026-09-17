@@ -45,6 +45,12 @@ export const KIND_DOCS: Record<string, KindDoc> = {
     safe: "Renames + tag writes only, nothing deletes. Renames need one rekordbox pass: Collection → ⌘A → Relocate Lost Files, then re-sync sticks.",
     needs: "shelf drive mounted; a completed fixes-scan plan",
   },
+  "grid-health": {
+    what: "Beatgrid triage (GA-05c, #167): runs `megadj rb-grid-triage` over the shelf master — buckets every audited track SYNC (drive sidecar ≠ collection) vs analysis (SHIFT/PHASE/TEMPO/DRIFT/CHAOS) and records the worst-first work queue for the drive card.",
+    typical: "1–5 min (reads ANLZ + collection, no audio decode)",
+    safe: "Read-only — a triage report. Grid repair itself waits on the GA-06 writer; nothing is written to rekordbox or the drive.",
+    needs: "shelf drive mounted, rekordbox NOT running (reads master.db)",
+  },
   mirror: {
     what: "Copy master → mirror so both USB drives are identical (files + both databases + ANLZ). Skips files that already match.",
     typical: "minutes–1h+ depending on how much changed",

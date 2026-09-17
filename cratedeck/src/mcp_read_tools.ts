@@ -139,6 +139,23 @@ export const DECK_READ_HANDLERS: Record<string, ToolDef> = {
     },
   },
 
+  radar: {
+    description:
+      "New-music radar (#148): archived tracks NOT yet on each drive — the pre-sync delta between megadj's archive ledger and every drive's latest scan snapshot. Per-drive counts come from the full comparison (COUNT truth); preview lists are capped. Each row carries its snapshot's age — a never-scanned drive reads as unknown, not current. Read-only: the fix is the copyable `megadj shelf-sync` command, never an automatic write.",
+    inputSchema: obj({
+      drive: s("optional: one drive (volume name, nickname, or id) to focus"),
+    }),
+    run: async (args) => {
+      const name = str(args, "drive");
+      if (!name) return apiGetJson("/api/fleet/radar");
+      const d = await needDrive(name);
+      const all = (await apiGetJson("/api/fleet/radar")) as {
+        drives: { driveId: string }[];
+      };
+      return { ...all, drives: all.drives.filter((r) => r.driveId === d.id) };
+    },
+  },
+
   jobs: {
     description: "Recent CrateDeck jobs with status/progress.",
     inputSchema: noArgs(),

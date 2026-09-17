@@ -3,6 +3,7 @@ import type {
   BoothFleetPayload,
   CoverageResponse,
   FleetDiff,
+  FleetRadar,
   RedundancyResult,
 } from "../shared/types";
 import { JSON_MODE, emitJson, errOut, getJson, log } from "./deckctl_runtime";
@@ -105,6 +106,40 @@ export async function cmdDiff(a?: string, b?: string): Promise<void> {
   }
   if (!result.added.length && !result.removed.length && !result.changed.length)
     log("  identical inventories");
+}
+
+/** deckctl radar (#148): archive rows each drive's snapshot lacks, with the
+ *  copyable sync command. v1 is copy-only — never an automatic write. */
+export async function cmdRadar(drive?: string): Promise<void> {
+  const result = await getJson<FleetRadar>("/api/fleet/radar");
+  if (JSON_MODE) {
+    await emitJson(result);
+    return;
+  }
+  log(`new-music radar — ${result.summary}`);
+  const wants = drive
+    ? result.drives.filter((d) => d.driveId === drive)
+    : result.drives;
+  if (drive && wants.length === 0) {
+    await errOut(`unknown drive: ${drive}`);
+    process.exit(2);
+  }
+  for (const r of wants) {
+    const snap = r.snapshotAt
+      ? ` · snapshot ${r.snapshotAt.slice(0, 10)}`
+      : " · never scanned";
+    log(`  ${r.driveName}: ${r.summary}${snap}`);
+    for (const row of r.missing.slice(0, 10))
+      log(
+        `    ${row.artist ? `${row.artist} — ` : ""}${row.title ?? row.path}`,
+      );
+    if (r.missing.length > 10)
+      log(`    … and ${r.missingCount - 10} more (web Radar tab or --json)`);
+  }
+  if (result.totalMissing > 0)
+    log(
+      `  fix: megadj shelf-sync (additive, MD5-verified) — then re-scan the drive`,
+    );
 }
 
 async function reportFleet(data: BoothFleetPayload): Promise<void> {

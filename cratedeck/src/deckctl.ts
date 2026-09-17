@@ -22,6 +22,7 @@ import {
   cmdBoothFleet,
   cmdCoverage,
   cmdDiff,
+  cmdRadar,
   cmdRedundancy,
 } from "./deckctl_fleet";
 import { cmdPrep } from "./deckctl_prep";
@@ -67,6 +68,7 @@ const DECK_COMMANDS: Record<string, (a: DeckArgs) => Promise<void>> = {
   jobs: () => cmdJobs(),
   coverage: ({ args }) => cmdCoverage(args[1]),
   redundancy: ({ args }) => cmdRedundancy(args[1]),
+  radar: ({ args }) => cmdRadar(args[1]),
   diff: ({ args }) => cmdDiff(args[1], args[2]),
   explain: ({ args }) => cmdExplain(args[1], Object.keys(KIND_DOCS).join(", ")),
   hygiene: ({ args }) => cmdHygiene(baseHooks(), args[1], args[2]),
@@ -95,6 +97,7 @@ function usageText(): string {
     `  run <drive> <kind>            enqueue + follow a job (${DRIVE_JOB_KINDS.join("|")})`,
     "  coverage [min-copies]         which tracks live on which drives + at-risk list",
     "  redundancy [min-copies]       per-playlist audit: every track on ≥N drives?",
+    "  radar [drive]                 new-music radar: archived tracks not on each drive yet",
     "  preflight                     gig-night pass/fail across all mounted drives (exit 1 if not ready)",
     "  players [drive]               which CDJs/XDJs can read each stick (measured dual-DB state)",
     "  booth [set ID ...]            the players compat checks enforce (no args = show; set persists)",

@@ -131,6 +131,12 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
         "Per-playlist audit: is every track on enough drives to survive one dying?",
     },
     {
+      id: "radar",
+      label: "Radar",
+      icon: "download",
+      title: "The new-music radar: archived tracks not on each drive yet",
+    },
+    {
       id: "diff",
       label: "Diff",
       icon: "sort",

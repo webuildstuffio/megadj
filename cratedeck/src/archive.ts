@@ -255,6 +255,24 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
     );
   }
 
+  /** New-music radar mirror side (#148): every downloaded row's path +
+   *  identity + first-seen. The radar engine folds/strips the path; this
+   *  query stays raw so the pure half owns all matching decisions. */
+  downloadedForRadar(): {
+    video_id: string;
+    file_path: string | null;
+    title: string | null;
+    artist: string | null;
+    first_seen_at: string | null;
+  }[] {
+    return this.rows(
+      `SELECT video_id, file_path, title, artist, first_seen_at
+       FROM tracks
+       WHERE status = 'downloaded'
+       ORDER BY first_seen_at DESC`,
+    );
+  }
+
   /**
    * SKIP-REASON CENSUS (GetDat Pipeline/Backlog): why non-downloaded rows
    * didn't land. Every track carries `last_error` — for gone/skipped rows

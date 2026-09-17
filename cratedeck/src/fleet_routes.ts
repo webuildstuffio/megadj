@@ -5,6 +5,9 @@ import type { DB } from "./db";
 import type { CrateConfig } from "./config";
 import { coverage, trackLocations } from "./coverage";
 import { redundancy, diff } from "./coverage_fleet";
+import { radar, type RadarSource } from "./radar";
+import { ArchiveReader } from "./archive";
+import type { FleetRadar, RadarResult } from "../shared/types";
 import { fetchWeeklyPrepInput, renderWeeklyPrep } from "./weekly_prep";
 
 export function makeFleetRoutes(deps: {
@@ -18,6 +21,95 @@ export function makeFleetRoutes(deps: {
    *  fleet payloads answer with nicknames the UI already shows. */
   function driveNames(): Map<string, string> {
     return new Map(db.allDrives().map((d) => [d.id, d.nickname ?? d.name]));
+  }
+
+  // ---- new-music radar (#148) --------------------------------------------
+  // The delta is a pure set difference (radar.ts) over two injected row
+  // sets: the archive DB's downloaded mirror and each drive's fleet_tracks
+  // snapshot. Freshness rule: every row carries its snapshot's age — a
+  // stale snapshot reads as stale, never as "drive is current".
+
+  /** Archive mirror rows, or null when the archive DB is absent (the radar
+   *  answers "unavailable", not zero). One short-lived readonly handle per
+   *  call — the radar is a nav-tab read, not a hot loop; closing keeps the
+   *  server's long-lived sqlite footprint unchanged. */
+  function radarArchive() {
+    const reader = new ArchiveReader(cfg.archiveDbPath);
+    try {
+      if (!reader.available()) return null;
+      return reader.downloadedForRadar();
+    } finally {
+      reader.close();
+    }
+  }
+
+  function fleetRadar(): FleetRadar {
+    const rows = radarArchive();
+    const names = driveNames();
+    const drives: RadarResult[] = [];
+    for (const d of db.allDrives()) {
+      const inv = db.fleetInventories([d.id]).get(d.id) ?? [];
+      const snap = db.latestSnapshots().get(d.id);
+      // taken_at is a wall-clock ms epoch from the scan leg (scan.ts).
+      const snapshotAt =
+        snap?.taken_at && Number.isFinite(snap.taken_at)
+          ? new Date(snap.taken_at).toISOString()
+          : null;
+      if (rows === null) {
+        drives.push({
+          driveId: d.id,
+          driveName: names.get(d.id) ?? d.name,
+          archiveTracks: 0,
+          driveTracks: inv.length,
+          missingCount: 0,
+          missing: [],
+          summary: "archive DB absent — radar unavailable",
+          snapshotAt,
+          archiveAvailable: false,
+        });
+        continue;
+      }
+      const archive: (RadarSource & {
+        videoId: string;
+        firstSeenAt: string | null;
+      })[] = rows.map((r) => ({
+        path: r.file_path,
+        title: r.title,
+        artist: r.artist,
+        videoId: r.video_id,
+        firstSeenAt: r.first_seen_at,
+      }));
+      const driveRows: RadarSource[] = inv.map((t) => ({
+        path: t.path,
+        title: t.title,
+        artist: t.artist,
+      }));
+      drives.push({
+        ...radar(d.id, names.get(d.id) ?? d.name, archive, driveRows),
+        snapshotAt,
+        archiveAvailable: true,
+      });
+    }
+    const archiveTracks = rows?.length ?? 0;
+    const totalMissing = drives.reduce((s, d) => s + d.missingCount, 0);
+    const stale = drives.filter((d) => d.snapshotAt === null).length;
+    const parts: string[] = [];
+    if (rows === null) parts.push("archive DB absent — radar unavailable");
+    else if (totalMissing === 0)
+      parts.push(`fleet matches the archive (${archiveTracks} tracks)`);
+    else
+      parts.push(`${totalMissing} archive track(s) missing across the fleet`);
+    if (stale > 0)
+      parts.push(
+        `${stale} drive${stale === 1 ? "" : "s"} never scanned — radar unknown there`,
+      );
+    return {
+      drives,
+      totalMissing,
+      archiveTracks,
+      archiveAvailable: rows !== null,
+      summary: parts.join(" · "),
+    };
   }
 
   return async function fleetRoutes(
@@ -82,6 +174,12 @@ export function makeFleetRoutes(deps: {
           })),
         })),
       });
+    }
+    // New-music radar (#148, PRD F10): archive rows each drive's latest
+    // snapshot lacks. v1 is COPY-only — the fix command is text, never an
+    // automatic write (the playing-USB boundary stands).
+    if (route === "/fleet/radar") {
+      return json(fleetRadar());
     }
     if (route === "/fleet/diff") {
       const a = url.searchParams.get("a");

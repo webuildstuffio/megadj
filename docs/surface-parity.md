@@ -18,6 +18,8 @@ fails the build on it.
 - rev-29 (2026-09-16): #104 — MegaSet payload gains `metadata_only` + `excluded_groups` (B1 offline pool, B13 exclusion shape); all three surfaces read the same wire contract, no new params, census counts unchanged.
 - rev-30 (2026-09-16): #106 Phase D — MegaSet steps gain `mixInCue`/`mixOutCue` (8-bar phrase windows derived from the cues ledger, nearest to the 45 s intro/outro handoff targets); M3U8 export renders them as `#EXTREM` comments; `rb-playlist` dry-run reports per-step cue windows (`cueWindows`); arc-chart hover cards carry the windows. No new routes/tools/params; census counts unchanged.
 - rev-31 (2026-09-16): #10 — `shelf-dupescan --json` summary gains `generatedAt` + `contentsDir` provenance stamps (a saved dossier self-identifies; stale reports can't read as current). Additive keys only; no census change.
+- rev-32 (2026-09-16): #148 new-music radar — `deckctl radar [drive]`, `deck_radar {drive?}`, `/api/fleet/radar`, Fleet ⌗ Radar tab over the same pure delta (cratedeck/src/radar.ts). 23 → 24 verbs, 41 → 42 tools, 64 → 65 routes.
+- rev-33 (2026-09-16): #167 grid health (GA-05c) — `grid-health` job kind (deckctl run / deck_run), `GET /api/grid-health` + `POST /api/grid-health/scan`, and the drive-page card (Archive tab) rendering the triage buckets worst-first with per-row fix commands + freshness line. 65 → 67 routes.
 
 The full prose of all 27 revisions lives in Git history
 (`git log --follow -- docs/surface-parity.md`) per §5 — this doc keeps
@@ -38,13 +40,13 @@ deliberate exemptions are in §4. Historical repair details belong in
 
 ## 1. The three surfaces, as they stand
 
-| Surface    | Entry points                                                | Count                  |
-| ---------- | ----------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                               | 45 commands + `--help` |
-| deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                   | 23 verbs               |
-| MCP        | `bun run mcp` (`mcp.ts` + `archive_tools.ts` + `getdat_tools.ts`) | 41 tools               |
-| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742) | 64 routes              |
-| Web UI     | `cratedeck/web/` (hash-routed pages)                        | 6 pages, ~22 actions   |
+| Surface    | Entry points                                                      | Count                  |
+| ---------- | ----------------------------------------------------------------- | ---------------------- |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                                     | 45 commands + `--help` |
+| deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                         | 24 verbs               |
+| MCP        | `bun run mcp` (`mcp.ts` + `archive_tools.ts` + `getdat_tools.ts`) | 42 tools               |
+| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742)       | 67 routes              |
+| Web UI     | `cratedeck/web/` (hash-routed pages)                              | 6 pages, ~22 actions   |
 
 The server's HTTP API is the **fourth surface** and the seam everything
 converges on: deckctl and MCP are HTTP clients of it, and the UI talks to
@@ -78,13 +80,15 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 
 ### 2b. Fleet queries
 
-| Capability       | CLI                  | MCP                          | UI            | Verdict       |
-| ---------------- | -------------------- | ---------------------------- | ------------- | ------------- |
-| Coverage matrix  | `coverage` ✅        | `deck_coverage` ✅           | Fleet page ✅ | —             |
-| Redundancy audit | `redundancy` ✅      | `deck_redundancy` ✅         | Fleet page ✅ | —             |
-| Fleet diff       | `diff A B` ✅        | `deck_diff` ✅               | Fleet page ✅ | —             |
-| Track locations  | `coverage` output ✅ | via `deck_coverage` ⛔ §4-F1 | Fleet page ✅ | —             |
-| Global search    | `search <q>` ✅      | `deck_search {q}` ✅         | ⌘K ✅         | — (F2 closed) |
+| Capability           | CLI                          | MCP                          | UI                            | Verdict                                                  |
+| -------------------- | ---------------------------- | ---------------------------- | ----------------------------- | -------------------------------------------------------- |
+| Coverage matrix      | `coverage` ✅                | `deck_coverage` ✅           | Fleet page ✅                 | —                                                        |
+| Redundancy audit     | `redundancy` ✅              | `deck_redundancy` ✅         | Fleet page ✅                 | —                                                        |
+| Fleet diff           | `diff A B` ✅                | `deck_diff` ✅               | Fleet page ✅                 | —                                                        |
+| New-music radar      | `radar [drive]` ✅           | `deck_radar` ✅              | Fleet ⌗ Radar tab ✅          | — (#148: v1 copy-only, never an auto-write)              |
+| Grid health (GA-05c) | `run <shelf> grid-health` ✅ | `deck_run` ✅                | Archive ⌗ Grid health card ✅ | — (#167: triage read + queue; repair writer stays GA-06) |
+| Track locations      | `coverage` output ✅         | via `deck_coverage` ⛔ §4-F1 | Fleet page ✅                 | —                                                        |
+| Global search        | `search <q>` ✅              | `deck_search {q}` ✅         | ⌘K ✅                         | — (F2 closed)                                            |
 
 ### 2c. Gig-night + agent layer
 

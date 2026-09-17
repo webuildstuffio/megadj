@@ -25,6 +25,7 @@ import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";
+import { GridHealthCard } from "./GridHealthCard";
 import {
   ListHead,
   KVRows,
@@ -230,6 +231,12 @@ function SyncBreakersSection(props: {
   );
 }
 
+/** Card 1b — grid health (GA-05c, #167): shelf triage buckets. Reads the
+ *  last run; the card carries its own scan button when none exists. */
+function GridHealthSection() {
+  return <GridHealthCard drive="SHELF1" />;
+}
+
 export function ArchiveTab() {
   const page = useFetched<ArchivePayload>(
     () =>
@@ -363,6 +370,10 @@ export function ArchiveTab() {
         breakers={breakers}
         syncRisk={syncRisk}
       />
+
+      {/* 1b — Grid health (GA-05c, #167): the shelf-tier triage buckets
+          (SYNC vs analysis) over the collection's ANLZ + our ledger. */}
+      <GridHealthSection />
 
       {/* 2 — LOWQ: quality upgrades, with the reason each track is flagged */}
       {lowq?.available && qualityDebt > 0 && (

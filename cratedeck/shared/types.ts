@@ -237,6 +237,7 @@ export const JOB_KINDS = [
   "hygiene-apply",
   "fixes-scan",
   "fixes-apply",
+  "grid-health",
 ] as const;
 
 export type JobKind = (typeof JOB_KINDS)[number];
@@ -626,6 +627,53 @@ export interface FleetDiff {
   added: DiffRow[]; // on b, missing on a
   removed: DiffRow[]; // on a, missing on b
   changed: DiffRow[]; // both present, bytes differ
+  summary: string;
+}
+
+// ---- new-music radar (#148, PRD F10): archive rows a drive is missing ----
+// Engine: cratedeck/src/radar.ts (pure); the UI's RadarMiss rows re-export
+// from here so page and server share one contract.
+
+/** One archive track a drive's snapshot lacks (radar preview row). */
+export interface RadarMiss {
+  /** NFC-casefolded Contents-relative path (the fleet path key). */
+  path: string;
+  title: string | null;
+  artist: string | null;
+  videoId: string;
+  /** ISO first_seen_at from the archive ledger (display only). */
+  firstSeenAt: string | null;
+}
+
+/** Per-drive radar answer + the snapshot freshness the delta was computed
+ *  against (the freshness rule: a stale snapshot reads as stale, never as
+ *  "drive is current"). */
+export interface RadarResult {
+  driveId: string;
+  driveName: string;
+  /** Downloaded archive rows compared (the mirror side's size). */
+  archiveTracks: number;
+  /** Drive inventory rows compared. */
+  driveTracks: number;
+  /** COUNT truth — never derived from a displayed (capped) list. */
+  missingCount: number;
+  /** Newest-first preview, capped. */
+  missing: RadarMiss[];
+  summary: string;
+  /** Snapshot age: ISO taken_at of the newest fleet_tracks row for this
+   *  drive, null = never scanned (radar answers "unknown", not 0). */
+  snapshotAt: string | null;
+  /** false when the archive DB is absent (radar unavailable, not zero). */
+  archiveAvailable: boolean;
+}
+
+/** Fleet-wide radar: one row per known drive + the overall census. */
+export interface FleetRadar {
+  drives: RadarResult[];
+  /** SUM of per-drive missingCount — each drive answers its own delta. */
+  totalMissing: number;
+  archiveTracks: number;
+  archiveAvailable: boolean;
   summary: string;
 }
 

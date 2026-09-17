@@ -12,6 +12,7 @@ import {
   runSpeedtest,
   runHygiene,
   runFixes,
+  runGridHealth,
   type LegArgs,
 } from "./job_legs";
 
@@ -39,6 +40,8 @@ export async function executeJob(args: LegArgs): Promise<unknown> {
       return runFixes(args, false);
     case "fixes-apply":
       return runFixes(args, true);
+    case "grid-health":
+      return runGridHealth(args);
     default:
       return null;
   }
