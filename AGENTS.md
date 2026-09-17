@@ -42,7 +42,12 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   folds regex-literal data tables and adjacent small fns into phantom
   hotspots (5 of #195's 7 "CCN≥24" entries were phantoms; #195 comment,
   2026-09-17). File-level `awk '$2>30'` sweeps compound the error — grep
-  the `name@start-end` rows and read the span.
+  the `name@start-end` rows and read the span. Anonymous closures get NO
+  lizard name rows at all, so "no named fn ≥X" is blind to every arrow
+  function — before claiming a complexity tier is empty, sweep with the
+  census-parity AST rules (`src/test-support/source-metrics.ts`), which
+  is also the only measurer whose numbers match the pinned census tests
+  (#199 found six real 16–22 fns invisible to the lizard table).
 - One source of truth per shared surface: derive types, job lists, help,
   counts, census strings from producers — never hand-copied twins.
 - No private identifiers, local paths, stored state, or secrets in commits.
