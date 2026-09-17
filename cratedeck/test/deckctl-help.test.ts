@@ -12,6 +12,7 @@
 //      every verb, in every branch).
 import { describe, it, expect } from "bun:test";
 import { join } from "node:path";
+import { JOB_KINDS } from "../shared/types/jobs";
 
 /** Spawn deckctl with an unreachable server port; return exit code + output. */
 async function runDeckctl(args: string[]): Promise<{
@@ -106,7 +107,8 @@ describe("deckctl help + --help (work with the server down)", () => {
       surfaces: unknown[];
     };
     expect(parsed.terms.length).toBeGreaterThan(5);
-    expect(parsed.jobs.length).toBe(10); // the job kinds (incl. speedtest + hygiene/fixes pairs)
+    // #216: now ALL 12 job kinds (was 10 — ingest + grid-health were missing)
+    expect(parsed.jobs.length).toBe(JOB_KINDS.length);
     expect(parsed.surfaces.length).toBeGreaterThan(3);
   });
 

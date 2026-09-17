@@ -4,6 +4,7 @@ import { basename, join } from "node:path";
 import type { CrateConfig } from "../src/config";
 import {
   makeEnqueueDriveJob,
+  photoUpload,
   resolveMountPoint,
 } from "../src/drive_job_routes";
 import { DRIVE_JOB_KINDS, type Drive } from "../shared/types";
@@ -150,5 +151,61 @@ test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects
   expect(bad.status).toBe(400);
   expect(((await bad.json()) as { error: string }).error).toContain(
     "grid-health",
+  );
+});
+
+// Issue #226: malformed JSON bodies are a CLIENT mistake — the route
+// family's contract is 400 "invalid JSON body", never an opaque 500.
+test("enqueue returns 400 (not 500) on a malformed JSON body", async () => {
+  const root = mkdtempSync("/tmp/cratedeck-badjson-");
+  mkdirSync(join(root, "SHELF1"));
+  const enqueue = makeEnqueueDriveJob({
+    cfg: config(root),
+    images: {
+      async choose() {
+        return "unused";
+      },
+      clear() {},
+    },
+    jobs: {
+      enqueue() {
+        return { id: "job-1" };
+      },
+    },
+    getDrive: () => mountedDrive("SHELF1"),
+    json: (data, status = 200) => Response.json(data, { status }),
+  });
+  const r = await enqueue(
+    new Request("http://127.0.0.1:7742/api/drives/drive-1/jobs", {
+      method: "POST",
+      body: "not json",
+    }),
+    "drive-1",
+  );
+  expect(r.status).toBe(400);
+  expect(((await r.json()) as { error: string }).error).toContain(
+    "invalid JSON body",
+  );
+});
+
+test("photoUpload returns 400 (not 500) on a malformed JSON body", async () => {
+  const r = await photoUpload(
+    new Request("http://127.0.0.1:7742/api/drives/drive-1/photo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "not json",
+    }),
+    "drive-1",
+    {
+      async choose() {
+        return "unused";
+      },
+      clear() {},
+    },
+    (data, status = 200) => Response.json(data, { status }),
+  );
+  expect(r.status).toBe(400);
+  expect(((await r.json()) as { error: string }).error).toContain(
+    "invalid JSON body",
   );
 });

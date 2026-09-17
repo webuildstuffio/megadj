@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { FLEET_PROFILES, DEFAULT_FLEET } from "../../src/fulltags/fleet";
 import { isUnknownArray } from "../shared/guards";
+import { resolveServerPort } from "./server-port";
 
 export type ImageProvider = "brave" | "exa";
 
@@ -127,7 +128,6 @@ export function loadConfig(root: string): CrateConfig {
   const file = existsSync(cfgPath)
     ? parseTomlSimple(readFileSync(cfgPath, "utf8"))
     : {};
-  const server = isTomlTable(file.server) ? file.server : {};
   const library = isTomlTable(file.library) ? file.library : {};
   const images = isTomlTable(file.images) ? file.images : {};
   const jobs = isTomlTable(file.jobs) ? file.jobs : {};
@@ -150,10 +150,12 @@ export function loadConfig(root: string): CrateConfig {
     dbPath: join(dataDir, "cratedeck.sqlite"),
     scratchDir: join(dataDir, "scratch"),
     imagesDir: join(dataDir, "images"),
-    serverPort:
-      parseInt(process.env.CRATEDECK_PORT ?? "", 10) ||
-      (typeof server.port === "number" ? server.port : 0) ||
-      7742,
+    // #227: THE strict port resolver (env → config → default; invalid
+    // env throws loudly instead of the old `||` silent rank-fallthrough)
+    serverPort: resolveServerPort(
+      process.env.CRATEDECK_PORT,
+      join(root, "config.toml"),
+    ),
     volumesRoot: process.env.CRATEDECK_VOLUMES ?? "/Volumes",
     masterDrive:
       typeof library.master_drive === "string"

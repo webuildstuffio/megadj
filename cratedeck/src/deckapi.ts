@@ -5,32 +5,19 @@
  * used by both deckctl.ts (human/CLI) and mcp.ts (agent/MCP). Handles
  * server auto-start and drive resolution exactly once.
  */
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+// #227: ONE port resolution for the server AND its CLI/MCP clients —
+// the private configuredPort() twin here used to drift on strictness.
+import { resolveServerPort } from "./server-port";
 
-// Port must match what the server actually binds: CRATEDECK_PORT env, then
-// config.toml [server] port, then the default. Reading only the constant
-// default here meant a configured port silently broke deckctl AND mcp
-// (probe fails → ensureServer spawns a SECOND server against one SQLite DB).
-function configuredPort(): number {
-  const env = parseInt(process.env.CRATEDECK_PORT ?? "", 10);
-  if (Number.isFinite(env) && env > 0) return env;
-  // same resolution order as config.ts: <repo>/cratedeck/config.toml
-  const cfgPath = join(import.meta.dir, "..", "config.toml");
-  if (existsSync(cfgPath)) {
-    try {
-      const m = readFileSync(cfgPath, "utf8")
-        .split("\n")
-        .find((l) => /^\s*port\s*=\s*(\d+)/.exec(l));
-      const n = m ? parseInt(/port\s*=\s*(\d+)/.exec(m)![1]!, 10) : NaN;
-      if (Number.isFinite(n) && n > 0) return n;
-    } catch {
-      /* fall through to default */
-    }
-  }
-  return 7742;
-}
-export const PORT = configuredPort();
+// Port must match what the server actually binds. Reading only the
+// constant default here meant a configured port silently broke deckctl
+// AND mcp (probe fails → ensureServer spawns a SECOND server against
+// one SQLite DB).
+export const PORT = resolveServerPort(
+  process.env.CRATEDECK_PORT,
+  join(import.meta.dir, "..", "config.toml"),
+);
 export const BASE = `http://127.0.0.1:${PORT}`;
 
 // Wire shapes come from the shared type SSOT (cratedeck/shared/types.ts) so

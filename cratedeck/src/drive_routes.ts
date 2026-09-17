@@ -224,7 +224,13 @@ export function makeDriveRoutes(deps: {
       return json(await images.listDriveImages(drive.name));
     }
     if (sub === "/name" && req.method === "POST") {
-      const body = (await req.json()) as { nickname: string | null };
+      let body: { nickname: string | null };
+      try {
+        body = (await req.json()) as typeof body;
+      } catch {
+        // client mistake → the route family's 400 contract (#226)
+        return json({ error: "invalid JSON body" }, 400);
+      }
       registry.rename(id, body.nickname);
       return json({ ok: true });
     }

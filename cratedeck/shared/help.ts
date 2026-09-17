@@ -299,6 +299,26 @@ export const HELP_JOBS: HelpJob[] = [
     safety: "Read-only. Interlocked.",
     duration: "slow once (~10+ min for 3.5k files), fast after",
   },
+  {
+    kind: "ingest",
+    label: "Intake",
+    icon: "inbox",
+    what: "Runs the GetDat intake pipeline over a batch or watch folder: dedupes, tags and artwork downloads, MusicBrainz fill — then the post-run audit verdict.",
+    when: "After dropping new downloads into a batch folder, or whenever the Intake tab shows a backlog.",
+    safety:
+      "Writes into the archive only (music dir + ledger) — never the shelf or any drive. Each batch lands in its own fresh subfolder.",
+    duration: "minutes (scales with batch size)",
+  },
+  {
+    kind: "grid-health",
+    label: "Grid health",
+    icon: "pulse",
+    what: "Beatgrid triage over the shelf master: buckets every audited track's grid drift (sync vs analysis) into a worst-first repair queue shown on the drive card.",
+    when: "After rekordbox re-analysis, or before grid-repair work — the queue tells you which tracks actually need it.",
+    safety:
+      "Read-only — a triage report. Grid repair itself is a separate, gated step; nothing is written to rekordbox or the drive.",
+    duration: "1–5 minutes (no audio decode)",
+  },
 ];
 
 /** The fleet pages, for the Welcome tour. Order = reading order. */

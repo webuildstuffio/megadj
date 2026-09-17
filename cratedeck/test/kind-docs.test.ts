@@ -78,3 +78,34 @@ describe("KIND_DOCS covers every job kind (the explain census)", () => {
     expect(deckctl).toContain('Object.keys(KIND_DOCS).join(", ")');
   });
 });
+
+/**
+ * The SECOND pin (issue #216): HELP_JOBS (cratedeck/shared/help.ts — the
+ * web Welcome/tour explainers behind GET /api/help) is the other job-kind
+ * doc surface, and it had NO census — `ingest` and `grid-health` had
+ * KIND_DOCS rows but no HELP_JOBS explainer, invisible in the web glossary.
+ * Contract: HELP_JOBS kinds === JOB_KINDS exactly. A new JobKind must
+ * land BOTH rows (KIND_DOCS + HELP_JOBS) in the same commit or the build
+ * fails here.
+ */
+describe("HELP_JOBS covers every job kind (the web-help census, #216)", () => {
+  const { JOB_KINDS } = require("../shared/types/jobs") as {
+    JOB_KINDS: readonly string[];
+  };
+  const { HELP_JOBS } = require("../shared/help") as {
+    HELP_JOBS: { kind: string }[];
+  };
+
+  test("HELP_JOBS kinds === JOB_KINDS (exact, both directions)", () => {
+    const helpKinds = HELP_JOBS.map((j) => j.kind);
+    const kindSet = new Set(JOB_KINDS);
+    const missing = JOB_KINDS.filter((k) => !helpKinds.includes(k));
+    const orphans = helpKinds.filter((k) => !kindSet.has(k));
+    expect({ missing, orphans }).toEqual({ missing: [], orphans: [] });
+  });
+
+  test("HELP_JOBS carries no duplicate kinds", () => {
+    const kinds = HELP_JOBS.map((j) => j.kind);
+    expect(new Set(kinds).size).toBe(kinds.length);
+  });
+});

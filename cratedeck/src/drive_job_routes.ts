@@ -58,13 +58,19 @@ export async function photoUpload(
     });
     return json({ ok: true, path: dest });
   }
-  const body = (await req.json()) as {
+  let body: {
     url?: string;
     localPath?: string;
     /** relative-to-volume path of an image picked FROM the drive */
     drive_rel?: string;
     clear?: boolean;
   };
+  try {
+    body = (await req.json()) as typeof body;
+  } catch {
+    // client mistake → the route family's 400 contract, never a 500 (#226)
+    return json({ error: "invalid JSON body" }, 400);
+  }
   if (body.clear) {
     images.clear(id);
     return json({ ok: true, cleared: true });
@@ -131,10 +137,13 @@ export function makeEnqueueDriveJob(deps: {
     req: Request,
     id: string,
   ): Promise<Response> {
-    const body = (await req.json()) as {
-      kind: JobKind;
-      origin?: string;
-    };
+    let body: { kind: JobKind; origin?: string };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      // client mistake → 400 contract, never a 500 (#226)
+      return json({ error: "invalid JSON body" }, 400);
+    }
     // SSOT check: DRIVE_JOB_KINDS (which deckctl run's help renders) is
     // the authority — a literal array here was a hand-copied twin that
     // already drifted once (grid-health 400'd while MCP advertised it).
