@@ -245,7 +245,8 @@ honest, in order of strength:
    help/census SSOT +
    `deckctl.ts`, tool keys in `mcp.ts`, exact-path table keys +
    `route ===`/`sub ===` literals across `index.ts` + `api_routes.ts`
-   (+ `drive_routes.ts`/`fleet_routes.ts`), `run("`/`api(` strings in
+   (+ `api_dispatch.ts`/`drive_routes.ts`/`fleet_routes.ts`),
+   `run("`/`api(` strings in
    `web/**/*.tsx`) and asserts:
    - every megadj CLI command has a registry block and vice versa (the
      census and the help derive from ONE table; a command the help

@@ -24,7 +24,12 @@ import { buildPreflight } from "./preflight";
 import { type ReportDeps, allPreflightInputs } from "./report_inputs";
 import { VERIFY_HELP } from "./verify_help";
 import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
-import { archiveRoutes } from "./archive_routes";
+import {
+  archiveDispatch,
+  driveDispatch,
+  hygieneFixesDispatch,
+  jobDispatch,
+} from "./api_dispatch";
 import { portView } from "./port_view";
 import { intakeCandidateDirs, intakeWatchDir } from "./intake_run";
 import {
@@ -216,62 +221,31 @@ export function makeApiRouter(deps: ApiDeps): ApiRouter {
   register(boothRoutes(deps));
   register(jobRoutes(deps));
   register(intakeRoutes(deps));
-  // /drives and /images/search are dynamic; handled below.
+  // Dynamic families live in api_dispatch.ts (one flat probe each); the
+  // closure below stays a linear first-match walk so it sits far under
+  // the CCN 30 ceiling (#89 acceptance — the inline version had crept to
+  // CCN 31).
 
-  const { db, jobs, images, json } = deps;
+  const { json, images } = deps;
 
   return async (req, url, route) => {
     const exactHandler = exact.get(route);
     if (exactHandler) return exactHandler(req, url);
     // prefix families (delegators first so nested exacts can't shadow)
-    if (route === "/drives") return json(await deps.driveListPayload());
-    const driveMatch = route.match(/^\/drives\/([^/]+)(\/.*)?$/u);
-    if (driveMatch?.[1]) {
-      const id: string = decodeURIComponent(driveMatch[1]);
-      const sub: string | undefined = driveMatch[2];
-      const resp = await deps.driveSubroute(req, url, id, sub);
-      if (resp) return resp;
-      return json({ error: "unknown drive route" }, 404);
-    }
-    const jobMatch = route.match(/^\/jobs\/([^/]+)(\/cancel)?$/u);
-    if (jobMatch?.[1]) {
-      const id: string = jobMatch[1];
-      const cancel: string | undefined = jobMatch[2];
-      if (cancel && req.method === "POST") return json({ ok: jobs.cancel(id) });
-      return json(db.getJob(id));
-    }
+    const driveResp = await driveDispatch(deps, req, url, route);
+    if (driveResp) return driveResp;
+    const jobResp = jobDispatch(deps, req, route);
+    if (jobResp) return jobResp;
     // ---- fleet superpowers (§B6/B7/B8 + O83 prep): one family, one handler
     if (route.startsWith("/fleet/")) return deps.fleetRoutes(route, url);
     // ---- archive reads (O82b): megadj's DB, readonly -----------------
-    // Route family lives in archive_routes.ts (file-length guard);
-    // null = no archive route matched, fall through.
-    const archiveResp = await archiveRoutes(route, url, {
-      archive: deps.archive,
-      db,
-      cfg: deps.cfg,
-    });
+    const archiveResp = await archiveDispatch(deps, route, url);
     if (archiveResp) return archiveResp;
     if (route === "/images/search") {
       return json(await images.search(url.searchParams.get("q") ?? ""));
     }
-    // ---- shelf hygiene (docs/getdat/shelf-hygiene-2026-09-09.md §4) ---
-    if (route === "/hygiene") return deps.hygieneApi.list(url);
-    if (route === "/hygiene/scan" && req.method === "POST")
-      return deps.hygieneApi.scan();
-    if (route === "/hygiene/apply" && req.method === "POST")
-      return deps.hygieneApi.apply();
-    if (route === "/hygiene/decide" && req.method === "POST")
-      return deps.hygieneApi.decide(req);
-    if (route === "/hygiene/bucket-confirm" && req.method === "POST")
-      return deps.hygieneApi.bucketConfirm(req);
-    if (route === "/hygiene/audio") return deps.hygieneApi.audio(url);
-    if (route === "/hygiene/stats") return deps.hygieneApi.stats(url);
-    // ---- booth fixes (Fleet→Booth fleet drives these checks) -----------
-    if (route === "/fixes") return deps.fixesApi.list();
-    if (route === "/fixes/scan" && req.method === "POST")
-      return deps.fixesApi.scan();
-    if (route === "/fixes/apply" && req.method === "POST")
-      return deps.fixesApi.apply();
+    const hygieneFixesResp = await hygieneFixesDispatch(deps, req, url, route);
+    if (hygieneFixesResp) return hygieneFixesResp;
     return json({ error: "not found" }, 404);
   };
 }

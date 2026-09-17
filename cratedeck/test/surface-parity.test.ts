@@ -76,6 +76,7 @@ function httpApiRoutes(): string[] {
   const index = [
     "cratedeck/src/index.ts",
     "cratedeck/src/api_routes.ts",
+    "cratedeck/src/api_dispatch.ts",
     "cratedeck/src/drive_routes.ts",
     "cratedeck/src/fleet_routes.ts",
   ]
