@@ -3,7 +3,6 @@ import {
   firstPositional,
   nonNegOpt,
   nonNegOptInvalid,
-  numOpt,
   parseFlags,
 } from "./cli-flags";
 import { isMegasetSearchOverride } from "../cratedeck/shared/types";
@@ -21,11 +20,13 @@ const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
   const limit = nonNegOpt(flags, "limit", "beats", json);
   if (nonNegOptInvalid(flags, "max-seconds", "beats", json)) return;
   const maxSeconds = nonNegOpt(flags, "max-seconds", "beats", json);
+  if (nonNegOptInvalid(flags, "jobs", "beats", json)) return;
+  const jobs = nonNegOpt(flags, "jobs", "beats", json);
   const { beats: analyzeBeats } = await import("./fulltags/beats");
   await analyzeBeats({
     state,
     musicDir,
-    jobs: numOpt(flags, "jobs"),
+    jobs,
     limit,
     force: flags.bools.has("force"),
     dryRun: flags.bools.has("dry-run"),
@@ -43,11 +44,13 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
   const json = flags.bools.has("json");
   if (nonNegOptInvalid(flags, "limit", "mood", json)) return;
   const limit = nonNegOpt(flags, "limit", "mood", json);
+  if (nonNegOptInvalid(flags, "jobs", "mood", json)) return;
+  const jobs = nonNegOpt(flags, "jobs", "mood", json);
   const { mood: analyzeMood } = await import("./fulltags/mood");
   await analyzeMood({
     state,
     musicDir,
-    jobs: numOpt(flags, "jobs"),
+    jobs,
     limit,
     force: flags.bools.has("force"),
     dryRun: flags.bools.has("dry-run"),
@@ -59,7 +62,8 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
 const similar: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["similar", "k", "space"], ["json"]);
   const videoId =
-    firstPositional(rest, "similar") ?? flags.strings.get("similar");
+    firstPositional(rest, "similar", ["similar", "k", "space"]) ??
+    flags.strings.get("similar");
   if (!videoId) {
     // #160 ring 3: json-mode-safe epilogue (was bare console.error + the
     // only raw process.exit(1) left in a command body — process.exit
@@ -73,10 +77,13 @@ const similar: CliCommandHandler = async (rest, { state }) => {
     });
     return;
   }
+  if (nonNegOptInvalid(flags, "k", "similar", flags.bools.has("json"))) return;
+  const k = nonNegOpt(flags, "k", "similar", flags.bools.has("json"));
   const spaceRaw = flags.strings.get("space");
   if (spaceRaw !== undefined && !isSimilarSpace(spaceRaw)) {
     await finishCommandError({
       command: "similar",
+      json: flags.bools.has("json"),
       error: `unknown --space "${spaceRaw}" — expected raw or whitened`,
       exitCode: 2,
     });
@@ -86,7 +93,7 @@ const similar: CliCommandHandler = async (rest, { state }) => {
   await findSimilar({
     state,
     videoId,
-    k: numOpt(flags, "k"),
+    k,
     space: spaceRaw,
     json: flags.bools.has("json"),
   });
@@ -260,7 +267,8 @@ const goldReport: CliCommandHandler = async (rest, { state }) => {
 
 const regate: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["detector", "gold-dir"], ["json"]);
-  const dimension = firstPositional(rest, "regate") ?? "bpm";
+  const dimension =
+    firstPositional(rest, "regate", ["detector", "gold-dir"]) ?? "bpm";
   const detector = flags.strings.get("detector") ?? "ledger";
   const { regate: runRegate } = await import("./fulltags/regate");
   const report = runRegate(

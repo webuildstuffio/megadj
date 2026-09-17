@@ -3,7 +3,6 @@ import {
   firstPositional,
   nonNegOpt,
   nonNegOptInvalid,
-  numOpt,
   parseFlags,
 } from "./cli-flags";
 import { writeJson, setExit, finishCommandError } from "./shared/cli-output";
@@ -56,7 +55,9 @@ const drop: CliCommandHandler = async (rest, context) => {
     "drop",
     flags.bools.has("json"),
   );
-  const target = firstPositional(rest, "drop") ?? flags.strings.get("target");
+  const target =
+    firstPositional(rest, "drop", ["drop", "target", "max-beat-seconds"]) ??
+    flags.strings.get("target");
   if (!target) {
     // Usage error → exit 2 class (P1/AGENTS: bad input = exit 2, zero
     // work); json-safe epilogue (#160 ring 3). The drop.test.ts pin
@@ -88,11 +89,13 @@ const drop: CliCommandHandler = async (rest, context) => {
 
 const artwork: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["model", "max"], ["dry-run", "json"]);
+  if (nonNegOptInvalid(flags, "max", "artwork", flags.bools.has("json")))
+    return;
   const { artwork: addArtwork } = await import("./fulltags/artwork");
   await addArtwork({
     state,
     model: flags.strings.get("model"),
-    maxImages: numOpt(flags, "max"),
+    maxImages: nonNegOpt(flags, "max", "artwork", flags.bools.has("json")),
     dryRun: flags.bools.has("dry-run"),
     json: flags.bools.has("json"),
   });

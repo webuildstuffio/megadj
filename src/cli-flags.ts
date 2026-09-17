@@ -50,12 +50,36 @@ export function parseFlags(
   return { strings, bools };
 }
 
-/** Numeric string option: `numOpt(flags, "jobs")` → number | undefined. */
-export function numOpt(flags: ParsedFlags, key: string): number | undefined {
-  const raw = flags.strings.get(key);
-  if (!raw) return undefined;
-  const n = Number(raw);
-  return Number.isFinite(n) && n !== 0 ? n : undefined;
+/** Positional arguments: everything that is not a flag token and not the
+ *  VALUE of a space-form string flag (`--min-duration 30 /x` → ["/x"]).
+ *  Same consumption rule as parseFlags — one seam so a positional can
+ *  never be mistaken for the preceding flag's value (the ingest
+ *  `--min-duration 30 <folder>` class; maintenance-cmds hand-rolled this
+ *  correctly first — promoted here so every command shares it). */
+export function positionalArgs(args: string[], stringOpts: string[]): string[] {
+  const isFlagValue = new Set<number>();
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === undefined || !a.startsWith("--") || a.includes("=")) continue;
+    const key = a.slice(2);
+    if (!stringOpts.includes(key)) continue;
+    const next = args[i + 1];
+    if (next !== undefined && !next.startsWith("--")) isFlagValue.add(i + 1);
+  }
+  return args.filter((a, i) => !a.startsWith("--") && !isFlagValue.has(i));
+}
+
+/** First positional argument (skips the command word itself). MUST be
+ *  handed the same stringOpts parseFlags got — without them,
+ *  `firstPositional(rest, "ingest")` on `--min-duration 30 /x` returned
+ *  "30" as the folder (a flag token is skipped but its VALUE still looks
+ *  positional). */
+export function firstPositional(
+  args: string[],
+  cmd: string,
+  stringOpts: string[],
+): string | undefined {
+  return positionalArgs(args, stringOpts).find((a) => a !== cmd);
 }
 
 /** Non-negative numeric option with a hard error (`--limit 5`). Returns
@@ -115,11 +139,4 @@ export function nonNegOptInvalid(
   return (
     flags.strings.has(key) && nonNegOpt(flags, key, cmd, json) === undefined
   );
-}
-/** First positional argument (skips flags and the command word itself). */
-export function firstPositional(
-  args: string[],
-  cmd: string,
-): string | undefined {
-  return args.find((a) => !a.startsWith("--") && a !== cmd);
 }

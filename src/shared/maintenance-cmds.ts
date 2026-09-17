@@ -23,15 +23,15 @@
  */
 
 import { DB_PATH } from "../cli-env";
-import { parseFlags, nonNegOpt } from "../cli-flags";
+import {
+  parseFlags,
+  nonNegOpt,
+  nonNegOptInvalid,
+  positionalArgs as positionalArgsShared,
+} from "../cli-flags";
 import { ArchiveState } from "../archive/state";
 import { resolveShelfVolume, volumePath } from "./volume";
-import {
-  finishCommandError,
-  finishCommandErrorSync,
-  setExit,
-  writeJson,
-} from "./cli-output";
+import { finishCommandError, setExit, writeJson } from "./cli-output";
 import type { AnlzSpikeMode } from "../rekordbox/anlz-spike";
 
 /** Commands handled by this module; cli.ts and the parity census share it. */
@@ -107,19 +107,10 @@ function manyOf(rest: string[], key: string): string[] {
 /** First positional that is not a consumed flag VALUE: `--tag q1
  * snapshot` must not read "q1" as a positional. Mirrors parseFlags'
  * space-form consumption (a `--key` in stringOpts eats the next
- * non-flag arg). */
-function positionalArgs(rest: string[], stringOpts: string[]): string[] {
-  const isFlagValue = new Set<number>();
-  for (let i = 0; i < rest.length; i++) {
-    const a = rest[i];
-    if (a === undefined || !a.startsWith("--") || a.includes("=")) continue;
-    const key = a.slice(2);
-    if (!stringOpts.includes(key)) continue;
-    const next = rest[i + 1];
-    if (next !== undefined && !next.startsWith("--")) isFlagValue.add(i + 1);
-  }
-  return rest.filter((a, i) => !a.startsWith("--") && !isFlagValue.has(i));
-}
+ * non-flag arg). Hand-rolled here first (Sep 10) — promoted to
+ * cli-flags.positionalArgs as the one seam; alias keeps the 14 call
+ * sites in this file unchanged. */
+const positionalArgs = positionalArgsShared;
 
 // ---- shelf tier ----------------------------------------------------------
 
@@ -398,29 +389,14 @@ const rbPlaylistCmd: MaintenanceHandler = async (rest) => {
   const args = positionalArgs(rest, []);
   const mount = mountFrom(args[0]);
   const json = jsonFlag(flags);
-  const numOpt = (key: string): number | undefined => {
-    const raw = flags.strings.get(key);
-    if (raw === undefined) return undefined;
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n < 0) {
-      finishCommandErrorSync({
-        command: "rb-playlist",
-        error: `--${key} must be a non-negative number`,
-        exitCode: 2,
-      });
-      return undefined;
-    }
-    return n;
-  };
-  const minutes = numOpt("minutes");
-  // These two READS are the only exitCode reads repo-wide (all writes
-  // go through setExit/finishCommandError* — pinned by
-  // src/exit-code-census.test.ts, whose regex skips comment lines,
-  // hence the inline mention below stays invisible to it): bail out
-  // when the preceding numOpt stamped a usage error.
-  if (process.exitCode === 2) return;
-  const limit = numOpt("limit");
-  if (process.exitCode === 2) return;
+  // nonNegOpt is the sanctioned numeric seam (cli-flags.ts): bad input =
+  // json-safe exit-2 epilogue, zero work. The old hand-rolled numOpt twin
+  // duplicated it and needed exitCode READS to bail out (the census's only
+  // sanctioned reads) — nonNegOpt + nonNegOptInvalid needs neither.
+  if (nonNegOptInvalid(flags, "minutes", "rb-playlist", json)) return;
+  const minutes = nonNegOpt(flags, "minutes", "rb-playlist", json);
+  if (nonNegOptInvalid(flags, "limit", "rb-playlist", json)) return;
+  const limit = nonNegOpt(flags, "limit", "rb-playlist", json);
   const { rbPlaylist, printRbPlaylistReport } =
     await import("../rekordbox/rb-playlist");
   const r = await rbPlaylist({

@@ -10,7 +10,13 @@ import {
 } from "./shared/maintenance-cmds";
 import { printHelp as printHelpImpl } from "./usage";
 
-export { firstPositional, nonNegOpt, numOpt, parseFlags } from "./cli-flags";
+export {
+  firstPositional,
+  nonNegOpt,
+  nonNegOptInvalid,
+  parseFlags,
+  positionalArgs,
+} from "./cli-flags";
 
 /** macOS-only by design (Principle 2) — fail fast with the reason. */
 function assertMac(): void {

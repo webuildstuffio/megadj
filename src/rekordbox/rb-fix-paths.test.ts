@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { writeFakeAudio } from "../test-support/audio-fixtures";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
+import { writeFakeAudio } from "../test-support/audio-fixtures";
 import {
   rbFixPaths,
   printRbFixReport,
@@ -311,6 +317,15 @@ describe("rb-fix-paths", () => {
     expect(__test.stripCopySuffix("Plain.mp3")).toBe("Plain.mp3");
   });
 
+  test("stripCopySuffix strips REPEATEDLY — double-renumbered copies fold to the base name", () => {
+    // the docstring's own example, which a single .replace() failed:
+    expect(__test.stripCopySuffix("track - 1 2.mp3")).toBe("track.mp3");
+    expect(__test.stripCopySuffix("track 1 2 3.mp3")).toBe("track.mp3");
+    expect(__test.stripCopySuffix("Song One 2.aiff")).toBe("Song One.aiff");
+    // all-digits name is a real (junk) name — empty stem is kept, not stripped to ""
+    expect(__test.stripCopySuffix("2.mp3")).toBe("2.mp3");
+  });
+
   test("malformed rewrite output fails visibly after the write boundary", () => {
     expect(() => __test.parseRewriteResult("not-json")).toThrow(
       "pyrekordbox rewrite returned malformed JSON",
@@ -334,7 +349,12 @@ describe("rb-fix-paths", () => {
     expect(() => __test.parseReadRows(`[[${id},"/music/a.aiff"]]`)).toThrow(
       "decimal string id",
     );
-    expect(__test.readScript).toContain("str(c.ID)");
+    expect(
+      readFileSync(
+        join(import.meta.dir, "rb-scripts", "fix-paths-read.py"),
+        "utf8",
+      ),
+    ).toContain("str(c.ID)");
   });
 
   test("generated rewrite script commits once and rolls back as one transaction", () => {

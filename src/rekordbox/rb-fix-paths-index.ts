@@ -30,12 +30,23 @@ function nfkc(s: string): string {
 
 /** "track - 1.mp3", "track - 1 2.mp3" → "track.mp3" — auto-relocate
  *  renumbers copies; merges scatter them. Strip trailing " - N"/" N"
- *  before the extension, repeatedly. */
+ *  before the extension, REPEATEDLY (until stable): a single pass left
+ *  "track - 1 2.mp3" as "track - 1.mp3", so double-renumbered copies
+ *  missed the byStripped ladder rung and their DB rows stayed dead
+ *  (fixed 2026-09-17, pinned in rb-fix-paths.test.ts). Guarded against
+ *  the pathological all-digits name ("2.mp3" → "" stem → kept as-is). */
 export function stripCopySuffix(name: string): string {
   const dot = name.lastIndexOf(".");
   const stem = dot > 0 ? name.slice(0, dot) : name;
   const ext = dot > 0 ? name.slice(dot) : "";
-  return stem.replace(/(\s*-\s*|\s+)\d+$/u, "").trimEnd() + ext;
+  let out = stem;
+  for (;;) {
+    const stripped = out.replace(/(\s*-\s*|\s+)\d+$/u, "").trimEnd();
+    // An empty stem means the WHOLE name was digits ("2.mp3") — that is
+    // a real (junk) name, not a copy suffix; keep it rather than "".
+    if (stripped === "" || stripped === out) return stripped + ext;
+    out = stripped;
+  }
 }
 
 function walkAudio(root: string, out: string[]): void {

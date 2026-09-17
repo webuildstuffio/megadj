@@ -146,7 +146,9 @@ const ingest: CliCommandHandler = async (rest, { state, musicDir }) => {
     ["ingest", "folder", "min-duration"],
     ["dry-run", "no-artwork", "json"],
   );
-  const folder = firstPositional(rest, "ingest") ?? flags.strings.get("folder");
+  const folder =
+    firstPositional(rest, "ingest", ["ingest", "folder", "min-duration"]) ??
+    flags.strings.get("folder");
   if (!folder) {
     await finishCommandError({
       command: "ingest",

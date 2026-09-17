@@ -68,13 +68,17 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
+    // Sep 17 (CLI numeric hardening): the silent `numOpt` seam (cli-flags +
+    // maintenance-cmds' hand-rolled twin) retired — every numeric flag now
+    // rides nonNegOpt's validated path, removing its 2 guarded Number()
+    // sites (audited 43→41, guarded 26→24).
+    audited: 41,
+    guarded: 24,
+    sanctioned: 17,
     // Sep 15 (#79/#80/#84 pass): rb-import payload probing moved to the
     // fulltags media seam (removed its 2 Number() sites); audited 42→44
     // and sanctioned 13→18 from the concurrent bandcamp ISO-duration +
     // fetch-stages stageBandcamp year work landing in the same worktree.
-    audited: 43,
-    guarded: 26,
-    sanctioned: 17,
     // Sep 16 (#181): beatport parseTrack decomposed — the publish-date
     // Number() site moved owner parseTrack→parseYear (still guarded by
     // Number.isInteger; counts unchanged, digest shifted).
@@ -95,7 +99,12 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 16 (#42): detect.ts's USB-tree family moved to detect-usb.ts
     // (its guarded Number() sites re-homed) — counts unchanged, digest
     // shifted.
-    digest: "f000262ffef1cbfb44873bbbaf0a4eb837411ad37d947eb95e667e8e0098467a",
+    // Sep 16 (#184): fetch pipeline re-homed into fulltags; the second
+    // front door's argv Number() site died with the shim (audited 44→43,
+    // sanctioned 18→17) and fetch-stages moved owner+path (digest shift).
+    // Sep 17 (CLI numeric hardening): numOpt retirement removed the two
+    // cli-flags/maintenance guarded sites (digest shift + counts above).
+    digest: "f8fe10379bebb469ba26f3cf971594953fb3d688a48b60292ad7af4912fec1e6",
   });
 });
 
