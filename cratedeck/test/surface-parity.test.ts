@@ -388,12 +388,17 @@ describe("surface parity (docs/surface-parity.md)", () => {
     }
   });
 
-  test("job-kind lists are derived from the shared/types.ts SSOT (no hand twins)", () => {
+  test("job-kind lists are derived from the shared/types SSOT (no hand twins)", () => {
     // The old literal lists drifted: deckctl's kinds dropped `speedtest`,
     // deck_explain's MCP enum dropped `ingest`, while server-side routes
     // accepted it. Any new hand-copied enumeration of the kinds is a
     // regression — surfaces import JOB_KINDS / DRIVE_JOB_KINDS instead.
-    const types = read("cratedeck/shared/types.ts").join("\n");
+    // (#196: the SSOT source lives in shared/types/jobs.ts; the barrel
+    // re-exports it.)
+    const types = [
+      ...read("cratedeck/shared/types.ts"),
+      ...read("cratedeck/shared/types/jobs.ts"),
+    ].join("\n");
     expect(types).toMatch(
       /export const JOB_KINDS = \[[\s\S]*?\] as const;\s+export type JobKind = \(typeof JOB_KINDS\)\[number\];/,
     );

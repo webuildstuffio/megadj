@@ -22,13 +22,15 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..", "..");
 
-/** The JobKind union as written in shared/types.ts (the SSOT constant). */
+/** The JobKind union as written in shared/types/jobs.ts (the SSOT
+ *  constant; #196 split the types barrel into domain files — the barrel
+ *  re-exports this module, but the SOURCE lives here). */
 function jobKindsFromSource(): string[] {
-  const src = readFileSync(join(ROOT, "cratedeck/shared/types.ts"), "utf8");
+  const src = readFileSync(join(ROOT, "cratedeck/shared/types/jobs.ts"), "utf8");
   const block = src.match(
-    /export const JOB_KINDS = \[([\s\S]*?)\] as const satisfies/,
+    /export const JOB_KINDS = \[([\s\S]*?)\] as const/,
   )?.[1];
-  if (!block) throw new Error("JOB_KINDS not found in shared/types.ts");
+  if (!block) throw new Error("JOB_KINDS not found in shared/types/jobs.ts");
   return [...block.matchAll(/"([a-z-]+)"/g)].map((m) => m[1]!);
 }
 
