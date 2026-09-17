@@ -54,6 +54,12 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   census-parity AST rules (`src/test-support/source-metrics.ts`), which
   is also the only measurer whose numbers match the pinned census tests
   (#199 found six real 16–22 fns invisible to the lizard table).
+  The AST census is now ENFORCED: `src/issue-198-ccn-census.test.ts`
+  pins a repo-wide CCN ceiling (ratchet — lower it to just above the new
+  max in the same commit as a refactor, never raise it), and
+  `bun tools/ast-ccn.ts --list <files.txt> N` is the probe. The 159–64
+  "lizard ≥45" tier was entirely phantom — the real max was 56 after the
+  #88 splits (2026-09-17).
 - One source of truth per shared surface: derive types, job lists, help,
   counts, census strings from producers — never hand-copied twins.
 - No private identifiers, local paths, stored state, or secrets in commits.
