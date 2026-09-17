@@ -33,7 +33,12 @@ interface ScenarioResult {
   notes: string[];
   aiGenre: number;
   aiYear: number;
-  dbRow: { genre: string | null; year: string | null } | null;
+  votes: { rung: string; genre: string; weight: number; detail?: string }[];
+  dbRow: {
+    genre: string | null;
+    year: string | null;
+    genre_votes: string | null;
+  } | null;
 }
 
 /** Run one stage call against a fresh throwaway DB in a child process. */
@@ -54,11 +59,11 @@ function runScenario(
       CREATE TABLE tracks (
         video_id TEXT PRIMARY KEY, title TEXT, artist TEXT, album TEXT,
         genre TEXT, year TEXT, label TEXT, file_path TEXT, format_id TEXT,
-        artwork_status TEXT
+        artwork_status TEXT, genre_votes TEXT
       );
       INSERT INTO tracks VALUES
         ('vid1', 'Track One', 'Artist One', 'Album One', NULL, NULL,
-         ${JSON.stringify(rowLabel)}, '/nonexistent/track.mp3', NULL, NULL);
+         ${JSON.stringify(rowLabel)}, '/nonexistent/track.mp3', NULL, NULL, NULL);
     \`);
     const stages = await import(${JSON.stringify(join(REPO, "fulltags/src/fetch-stages.ts"))});
     const lib = await import(${JSON.stringify(join(REPO, "fulltags/src/archive-ledger.ts"))});
@@ -78,12 +83,23 @@ function runScenario(
                bpIdentity:0, genreBc:0, yearBc:0, bcFilled:0, genreImprint:0 },
       notes: [], aiGenreBatch: [], aiYearBatch: [], aiAllowed: false,
       bpBest: null, durationS: null,
+      genreVotes: [], // #173: the pipeline's production shape opens the accumulator
     };
     stages.stageGenreYear(ctx, ${scHit});
+    // #173: the pipeline runs the election after the ladder when the
+    // accumulator holds votes (mirrors processTask's sequence exactly).
+    if (ctx.genreVotes.length > 0) {
+      stages.stageGenreElection(ctx, (vid, genre, serialized) => {
+        lib.db.query(
+          "UPDATE tracks SET genre = COALESCE(?, genre), genre_votes = ? WHERE video_id = ?",
+        ).run(genre, serialized, vid);
+      });
+    }
     console.log(JSON.stringify({
       stats: ctx.stats, notes: ctx.notes,
       aiGenre: ctx.aiGenreBatch.length, aiYear: ctx.aiYearBatch.length,
-      dbRow: lib.db.query("SELECT genre, year FROM tracks WHERE video_id='vid1'").get(),
+      votes: ctx.genreVotes,
+      dbRow: lib.db.query("SELECT genre, year, genre_votes FROM tracks WHERE video_id='vid1'").get(),
     }));
   `;
   const proc = Bun.spawnSync({
@@ -102,9 +118,13 @@ const NO_HIT = "null";
 describe("stageGenreYear ladder (issue #54 stage tests)", () => {
   test("real SC genre + year: tag write fails (file absent) → DB stays honest", () => {
     // Write-first discipline: the DB only records values that reached the
-    // file; the failed year write is noted, not faked.
+    // file. #173 vote mode: the SC rung COLLECTS its vote (stat counts the
+    // vote cast); the ONE election owns the tag write, and when it fails
+    // nothing reaches the DB — noted, not faked.
     const res = runScenario(SC_HIT);
-    expect(res.stats.genreSc).toBe(0);
+    expect(res.stats.genreSc).toBe(1); // the vote was cast
+    expect(res.notes).toContain("genre:Techno (sc, vote)");
+    expect(res.notes).toContain("genre:WRITE-FAILED (vote election)");
     expect(res.dbRow?.genre).toBeNull();
     expect(res.stats.yearSc).toBe(0);
     expect(res.notes).toContain("year:WRITE-FAILED");
@@ -154,13 +174,18 @@ describe("stageGenreYear ladder (issue #54 stage tests)", () => {
   });
 
   test("#128 imprint rung: SC+BP miss but a Drumcode label votes techno", () => {
-    // tag write fails (file absent) → the write-first discipline keeps
-    // the DB honest: the vote happened but nothing was recorded. The
-    // note proves the rung fired; genreImprint stays 0 because the tag
-    // write (the gate) failed.
+    // #173 vote mode: the imprint rung casts a family vote (weight 0.15 —
+    // it elects only when it's the sole voice). The tag write is the
+    // ELECTION's job; with the file absent the election fails, the
+    // write-first discipline keeps the DB honest: the vote is on the
+    // breakdown, nothing reaches genre.
     const res = runScenario(NO_HIT, true, false, false, "Drumcode", "Drumcode");
-    expect(res.notes).toContain("genre:WRITE-FAILED (imprint)");
-    expect(res.dbRow?.genre).toBeNull();
+    expect(res.notes).toContain("genre:techno (imprint:drumcode, vote)");
+    expect(res.stats.genreImprint).toBe(1); // the vote was cast
+    expect(res.votes).toEqual([
+      { rung: "imprint", genre: "techno", weight: 0.15, detail: "drumcode" },
+    ]);
+    expect(res.dbRow?.genre).toBeNull(); // election's tag write failed
   });
 
   test("#128 imprint rung: unknown label abstains → falls through to AI gate", () => {

@@ -35,6 +35,9 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "cratedeck/src/archive_overview.ts::parseCuePoints::JSON.parse(raw)",
     "fulltags/src/parse-json.ts::parseJsonObject::JSON.parse(raw)",
     "fulltags/src/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
+    // #173 genre-vote breakdown: the vote ledger's explainability column;
+    // corrupt JSON reads as an empty breakdown, never a throw into a query.
+    "src/fulltags/genre-vote.ts::parseVotes::JSON.parse(raw)",
   ]),
   // rb-adopt mirror payload: the catch converts corrupt JSON into
   // "no RB row" (the mirrors then stand alone; rb-adopt re-adopt
@@ -86,10 +89,14 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 16 (CCN diet): digest changed — verify-key's --refs parse
     // moved owner (runVerifyKey→loadExternalRefs); same call, same
     // contract, new enclosing-function path.
-    audited: 60,
-    guarded: 44,
-    sanctioned: 16,
-    digest: "631dd0347df5c7587a6091dbac67ce7dcb0adb4c4e237af81c352055bf3e8653",
+    // Sep 16 (#173): audited 60→62 — fetch-genre-year's vote-collect
+    // path re-homes one parse and genre-vote.ts parseVotes adds one;
+    // sanctioned 16→17 (parseVotes joins EXPLICIT_NULL: corrupt vote
+    // breakdown reads as empty, never a throw into a query).
+    audited: 62,
+    guarded: 45,
+    sanctioned: 17,
+    digest: "c11f0181a33029e8c412b11373241e21649ff005687cfd657bc3ca9c38cd5320",
   });
 });
 

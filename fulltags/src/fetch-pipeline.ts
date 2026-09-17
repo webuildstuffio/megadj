@@ -56,11 +56,13 @@ import {
   stageArt,
   stageBeatportIdentity,
   stageBandcamp,
+  stageGenreElection,
   stageGenreYear,
   stageTags,
   type StageCtx,
   type Stats,
 } from "./fetch-stages";
+import type { GenreVote } from "../../src/fulltags/genre-vote";
 
 /** Pipeline options. `megadj fetch` passes these from parsed
  * FetchOptions — the CLI argv shim went with the old front door. */
@@ -166,6 +168,9 @@ async function processTask({
   const aiYearBatch: Row[] = [];
   const artless: Row[] = [];
 
+  // #173 vote ladder: when the genre leg is live (and not a dry run),
+  // every rung COLLECTS a vote and the ONE election writes at the end.
+  const genreVotes: GenreVote[] = [];
   const ctx: StageCtx = {
     row: r,
     truth: t.truth,
@@ -183,6 +188,7 @@ async function processTask({
     bpBest: null,
     bcBest: null,
     durationS: t.truth.durationS,
+    genreVotes: t.needGenre && !dry ? genreVotes : undefined,
   };
 
   // ---- 1. tags (DB → file) ----
@@ -208,6 +214,15 @@ async function processTask({
       t.needYear && !best?.year,
       t.needTags && !t.truth.label,
     );
+  }
+
+  // ---- #173 the ONE genre election + write (vote mode only) ----
+  if (t.needGenre && !dry && genreVotes.length > 0) {
+    stageGenreElection(ctx, (vid, genre, serialized) => {
+      db.query(
+        "UPDATE tracks SET genre = COALESCE(?, genre), genre_votes = ? WHERE video_id = ?",
+      ).run(genre, serialized, vid);
+    });
   }
 
   // ---- 3. artwork ladder (SC original-res first, then fallbacks) ----

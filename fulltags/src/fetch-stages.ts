@@ -103,6 +103,11 @@ export interface StageCtx {
   bcBest: BcTrack | null;
   /** Track duration in seconds (ffprobe) — the BP scorer's signal. */
   durationS: number | null;
+  /** #173 vote ladder: when present (non-undefined) the genre rungs
+   *  COLLECT votes instead of first-win writing; the ONE election +
+   *  write happens in stageGenreElection. Undefined keeps the legacy
+   *  first-win behavior exactly. */
+  genreVotes?: GenreVote[] | undefined;
 }
 
 /** SC search result shape (first hit feeds genre + year + art). */
@@ -270,9 +275,20 @@ function markArt(
   ).run(`embedded:${label}`, ...(formatId ? [formatId] : []), t.row.video_id);
 }
 
+/** SC vote rung: the same junk gates as first-win, then COLLECTED. */
+import {
+  GENRE_VOTE_WEIGHTS,
+  electGenre,
+  serializeVotes,
+  type GenreVote,
+} from "../../src/fulltags/genre-vote";
+
 /** One SC genre win: canonicalize → file tag + DB row + stat + note.
  *  Structurally typed on GenreYearCtx (the stage-2 arms' context) — the
- *  arm-split module in fetch-genre-year.ts calls this injected rung. */
+ *  arm-split module in fetch-genre-year.ts calls this injected rung.
+ *  #173: when the ctx carries a vote accumulator it COLLECTS (the
+ *  election writes once, in stageGenreElection); without one it keeps
+ *  the legacy first-win write. */
 function applyScGenre(
   t: Parameters<typeof stageGenreArm>[0],
   rawGenre: string,
@@ -281,6 +297,17 @@ function applyScGenre(
   // placeholder "Music" are not genres — refuse, never write them anywhere.
   if (/^\d+$/.test(rawGenre) || rawGenre.toLowerCase() === "music") return;
   const g = canonGenre(rawGenre);
+  if (t.genreVotes !== undefined) {
+    // vote mode: collect, never write (the election owns the write)
+    t.genreVotes.push({
+      rung: "sc",
+      genre: g,
+      weight: GENRE_VOTE_WEIGHTS.sc,
+    });
+    t.stats.genreSc++;
+    t.notes.push(`genre:${g} (sc, vote)`);
+    return;
+  }
   // Tag write first, DB row only on success — the DB never claims a genre
   // the file doesn't carry (the discipline markYear and the BP path use;
   // the SC path silently skipped it and could leave a lying DB row).
@@ -302,10 +329,22 @@ function applyScGenre(
  *  SAME junk gates every other source funnels through (numeric refuse,
  *  "Music" refuse — applyScGenre's guard class, inside bcGenre). Never
  *  invents a label: an unmapped tag set returns null and the ladder
- *  moves on. */
+ *  moves on. #173: in vote mode it COLLECTS (weight W2b) and still
+ *  consumes the fetch (the page fetch is the scarce resource); the
+ *  election owns the write. */
 function bcApplyGenre(t: StageCtx, page: BcPage): boolean {
   const g = bcGenre(page, canonGenre);
   if (!g) return false;
+  if (t.genreVotes !== undefined) {
+    t.genreVotes.push({
+      rung: "bc",
+      genre: g,
+      weight: GENRE_VOTE_WEIGHTS.bc,
+    });
+    t.stats.genreBc++;
+    t.notes.push(`genre:${g} (bc, vote)`);
+    return true; // consumed: the page fetch already happened
+  }
   if (!setFileTags(t.row.file_path, { genre: g })) {
     t.notes.push("genre:WRITE-FAILED (bc)");
     return true; // consumed: stop the ladder even though the write failed
@@ -367,11 +406,47 @@ export async function stageBandcamp(
 /** Stage 2 — SC search hit → genre + year (the cheap half of the fan-out;
  *  original-res art needs the page fetch and lives in stage 3). The two
  *  ladders live in fetch-genre-year.ts (#42 arm split); this is the
- *  dispatcher: dry gate + want gates, then one call per ladder. */
+ *  dispatcher: dry gate + want gates, then one call per ladder.
+ *
+ *  #173 vote mode: the caller (fetch-pipeline) opens the accumulator on
+ *  the ctx; the SC rung votes through voteScGenre below, and the one
+ *  election+write happens in stageGenreElection. */
 export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
   if (t.dry) return;
   if (t.needGenre) stageGenreArm(t, best, applyScGenre);
   if (t.needYear) stageYearArm(t, best);
+}
+
+/** #173 SC vote rung: the SAME junk gates as the first-win arm (numeric
+ *  refuse, "Music" refuse — the genre ID leak class), then a COLLECTED
+ *  vote instead of an immediate write (handled inside applyScGenre).
+ *  Sourced from the search hit the hard artist gate already filtered
+ *  (scoreScHits). */
+
+/** #173 the ONE genre write for a voted track: elect + file-tag + DB row
+ *  + breakdown persist. Write-first discipline preserved — a failed tag
+ *  write leaves BOTH the DB genre and the breakdown untouched (the DB
+ *  never claims a genre the file doesn't carry). The vote mode never
+ *  overwrites an existing label (COALESCE in the injected writeRow):
+ *  re-runs stay idempotent, and a stronger late rung wins on the NEXT
+ *  re-fetch of an empty row per the issue's acceptance. */
+export function stageGenreElection(
+  t: StageCtx,
+  writeRow: (videoId: string, genre: string, votes: string) => void,
+): void {
+  if (t.dry) return;
+  const votes = t.genreVotes;
+  if (!votes || votes.length === 0) return;
+  const elected = electGenre(votes);
+  if (elected.genre === null) return;
+  if (!setFileTags(t.row.file_path, { genre: elected.genre })) {
+    t.notes.push("genre:WRITE-FAILED (vote election)");
+    return;
+  }
+  writeRow(t.row.video_id, elected.genre, serializeVotes(votes));
+  t.notes.push(
+    `genre:${elected.genre} ELECTED w=${elected.weight.toFixed(2)} [${elected.winnerRungs.join("+")}]`,
+  );
 }
 
 /** Stage 2.5 — Beatport identity fields (label / mix name / ISRC /

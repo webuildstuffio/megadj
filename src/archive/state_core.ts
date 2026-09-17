@@ -53,6 +53,7 @@ export class ArchiveCore {
     );
     this.addColumnIfMissing("tracks", "genre", "TEXT");
     this.addColumnIfMissing("tracks", "genre_flag", "TEXT");
+    this.addColumnIfMissing("tracks", "genre_votes", "TEXT");
     this.addColumnIfMissing("tracks", "year", "TEXT");
     this.addColumnIfMissing("tracks", "label", "TEXT");
     this.addColumnIfMissing("tracks", "energy", "INTEGER");

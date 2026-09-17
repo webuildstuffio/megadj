@@ -1,5 +1,11 @@
 import { ArchiveCore } from "./state_core";
 import type { TrackRow, TrackStatus, MarkDownloadedInfo } from "./state-types";
+import {
+  electGenre,
+  parseVotes,
+  serializeVotes,
+  type GenreVote,
+} from "../fulltags/genre-vote";
 
 /** Track lifecycle and inventory queries. */
 export class ArchiveTracks extends ArchiveCore {
@@ -148,6 +154,39 @@ export class ArchiveTracks extends ArchiveCore {
         "UPDATE tracks SET genre = COALESCE(?, genre), updated_at = ? WHERE video_id = ?",
       )
       .run(genre, this.now(), videoId);
+  }
+
+  /** #173 vote-ladder write seam: elect from collected votes and persist
+   *  the breakdown. The genre write keeps updateGenre's COALESCE (fills
+   *  EMPTY columns; the kNN inference rung is the only caller allowed to
+   *  write over existing labels, via overwriteGenre). A null election is
+   *  an honest no-op — the breakdown still persists so the absent genre
+   *  is explainable ("two rungs voted, weights 0.2 < 0.35" etc.).
+   *  Returns the elected genre (null = nothing written). */
+  applyGenreVotes(videoId: string, votes: GenreVote[]): string | null {
+    const elected = electGenre(votes);
+    if (elected.genre !== null) {
+      this.db
+        .query(
+          "UPDATE tracks SET genre = COALESCE(?, genre), genre_votes = ?, updated_at = ? WHERE video_id = ?",
+        )
+        .run(elected.genre, serializeVotes(votes), this.now(), videoId);
+    } else {
+      this.db
+        .query(
+          "UPDATE tracks SET genre_votes = ?, updated_at = ? WHERE video_id = ?",
+        )
+        .run(serializeVotes(votes), this.now(), videoId);
+    }
+    return elected.genre;
+  }
+
+  /** The persisted vote breakdown for one track (null when never voted). */
+  genreVotes(videoId: string): GenreVote[] {
+    const row = this.db
+      .query("SELECT genre_votes FROM tracks WHERE video_id = ?")
+      .get(videoId) as { genre_votes: string | null } | null;
+    return parseVotes(row?.genre_votes ?? null);
   }
 
   /** Explicitly clear a label (genre = NULL) so the row re-enters the

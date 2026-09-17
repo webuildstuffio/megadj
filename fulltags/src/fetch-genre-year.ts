@@ -13,6 +13,10 @@ import {
   type Row,
 } from "./archive-ledger";
 import { imprintVote } from "../../src/fulltags/imprint-prior";
+import {
+  GENRE_VOTE_WEIGHTS,
+  type GenreVote,
+} from "../../src/fulltags/genre-vote";
 
 /** Minimal SC search hit (the fields stage 2 consumes). */
 export interface ScHit {
@@ -37,6 +41,11 @@ export interface GenreYearCtx {
     "genreSc" | "genreBp" | "genreImprint" | "yearBp" | "yearSc"
   >;
   notes: string[];
+  /** #173 vote ladder: every genre rung that fires ADDS a vote here;
+   *  the single write happens once in applyGenreVotes at stage end (the
+   *  first-win arms below only write when the ladder is ALONE — see the
+   *  vote-collect guard at stageGenreYear's call site). */
+  genreVotes?: GenreVote[] | undefined;
 }
 /** Structural mirror of fetch-stages' Stats (kept local: importing it
  *  would re-create the cycle the split removes). */
@@ -72,17 +81,18 @@ function applyImprintGenre(t: GenreYearCtx): boolean {
   const label = t.truth.label ?? t.row.label;
   const vote = imprintVote(label);
   if (!vote) return false;
-  // Tag write first, DB row only on success (the ladder discipline).
-  if (!setFileTags(t.row.file_path, { genre: vote.family })) {
-    t.notes.push("genre:WRITE-FAILED (imprint)");
-    return false;
-  }
-  db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
-    vote.family,
-    t.row.video_id,
-  );
+  // #173 ladder: cast the family vote (imprint elects scene FAMILIES,
+  // weight 0.15 — it only wins when it's the sole voice) and let the
+  // single election write. The vote path skips the immediate tag write:
+  // the elected label is tagged once, by the vote seam.
+  t.genreVotes?.push({
+    rung: "imprint",
+    genre: vote.family,
+    weight: GENRE_VOTE_WEIGHTS.imprint,
+    detail: vote.imprint,
+  });
   t.stats.genreImprint++;
-  t.notes.push(`genre:${vote.family} (imprint:${vote.imprint})`);
+  t.notes.push(`genre:${vote.family} (imprint:${vote.imprint}, vote)`);
   return true;
 }
 
@@ -95,12 +105,46 @@ function queueAiGenre(t: GenreYearCtx): void {
 
 /** The genre ladder: SC hit → BP store genre → imprint prior → AI queue.
  *  `applyScGenre` is injected (the SC rung stays in fetch-stages with the
- *  Stats/junk-gate context it shares with the art path). */
+ *  Stats/junk-gate context it shares with the art path).
+ *
+ *  #173 vote ladder: when the context carries a vote accumulator (the
+ *  caller opened one), the rungs COLLECT instead of first-win write —
+ *  the SC arm votes via the injected applyScGenre wrapper, BP/imprint
+ *  votes land here, and the ONE election+write happens in
+ *  stageGenreElection after this returns. Without the accumulator the
+ *  legacy first-win behavior is preserved exactly (write-on-first-claim). */
 export function stageGenreArm(
   t: GenreYearCtx,
   best: ScHit | null,
   applyScGenre: (t: GenreYearCtx, rawGenre: string) => void,
 ): void {
+  if (t.genreVotes !== undefined) {
+    // ---- vote-collection mode (#173) ----
+    if (best?.genre) {
+      // junk gates live in applyScGenre; it pushes the vote when clean
+      applyScGenre(t, best.genre);
+      return;
+    }
+    if (t.bpBest) {
+      const g = bpGenre(t.bpBest);
+      if (g) {
+        t.genreVotes.push({
+          rung: "bp",
+          genre: g,
+          weight: GENRE_VOTE_WEIGHTS.bp,
+        });
+        t.stats.genreBp++;
+        t.notes.push(`genre:${g} (bp, vote)`);
+        return;
+      }
+      if (applyImprintGenre(t)) return;
+      return queueAiGenre(t);
+    }
+    if (applyImprintGenre(t)) return;
+    queueAiGenre(t);
+    return;
+  }
+  // ---- legacy first-win mode (unchanged shape, no vote accumulator) ----
   if (best?.genre) return applyScGenre(t, best.genre);
   if (t.bpBest) {
     // Beatport store genre is the vote BETWEEN SC and AI.
