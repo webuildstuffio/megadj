@@ -1,4 +1,4 @@
-// cli-shelf-cmds.ts — the shelf-family CLI case bodies, extracted from
+// cli-cmds.ts — the shelf-family CLI case bodies, extracted from
 // cli.ts's main switch at the complexity guard. Each runner takes the
 // parsed rest-args and owns its dynamic import; main stays the dispatcher
 // (the usage census parses PRE_SERVER_VERBS in cli.ts, so the verbs
@@ -8,7 +8,7 @@ import { MUSIC_DIR, DB_PATH } from "../cli-env";
 import { resolveShelfVolume, volumePath } from "../shared/volume";
 import { writeJson } from "../shared/cli-output";
 
-/** shelf-sync: shelf master → both sticks. Volume names come from
+/** sync: shelf master → both sticks. Volume names come from
  *  config.toml [library] via env overrides — never hardcoded literals. */
 export async function runShelfSync(rest: string[]): Promise<void> {
   const json = rest.includes("--json");
@@ -18,7 +18,7 @@ export async function runShelfSync(rest: string[]): Promise<void> {
     process.env.USB_SYNC_MASTER ?? "DJMASTER",
     process.env.USB_SYNC_MIRROR ?? "DJMIRROR",
   ];
-  const { shelfSync } = await import("./shelf-sync");
+  const { shelfSync } = await import("./sync");
   await shelfSync({
     musicDir: MUSIC_DIR,
     shelfVolume,
@@ -28,7 +28,7 @@ export async function runShelfSync(rest: string[]): Promise<void> {
   });
 }
 
-/** shelf-archive: drive(s) → shelf, additive + verified. The
+/** archive: drive(s) → shelf, additive + verified. The
  *  generalization of the Sep 9 2026 three-stick manual merge. */
 export async function runShelfArchive(rest: string[]): Promise<void> {
   const json = rest.includes("--json");
@@ -45,10 +45,10 @@ export async function runShelfArchive(rest: string[]): Promise<void> {
   const master = process.env.USB_SYNC_MASTER ?? "DJMASTER";
   const mirror = process.env.USB_SYNC_MIRROR ?? "DJMIRROR";
   const positionals = rest.filter(
-    (a) => !a.startsWith("--") && a !== "shelf-archive",
+    (a) => !a.startsWith("--") && a !== "archive",
   );
   const volumes = positionals.length ? positionals : [master, mirror];
-  const { shelfArchive } = await import("./shelf-archive");
+  const { shelfArchive } = await import("./archive");
   await shelfArchive({
     volumes: volumes.map((v) => volumePath(v)),
     shelfVolume,
@@ -83,7 +83,7 @@ export async function runShelfSweeps(rest: string[]): Promise<void> {
         );
       }
       if (rows.length === 0)
-        console.log("  (no sweeps recorded yet — run megadj shelf-archive)");
+        console.log("  (no sweeps recorded yet — run megadj archive)");
     }
   } finally {
     state.close();

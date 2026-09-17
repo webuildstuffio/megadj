@@ -1,12 +1,12 @@
-// shelf-index.ts — the shelf-side coverage index + per-file copy decision
-// for `shelf-archive`, split out so the sweep loop reads as orchestration
+// index-files.ts — the shelf-side coverage index + per-file copy decision
+// for `archive`, split out so the sweep loop reads as orchestration
 // and each rule (exact match, variant twins, never-overwrite naming) is a
 // named unit. All keys are NFC+casefold (the only honest comparison on
 // exFAT). The directory traversal rides the shared walker (#69); this
 // module adds the key/variant indexing policy.
 import { existsSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
-import { isSkippedName, key } from "./shelf-match";
+import { isSkippedName, key } from "./match";
 import { walkTree } from "../shared/walk-tree";
 
 /** One indexed shelf file. */

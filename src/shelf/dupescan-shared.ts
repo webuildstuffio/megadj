@@ -1,5 +1,5 @@
 // dupescan-shared.ts — the shared plumbing behind the archive dedupe
-// commands (dedupe-archive + shelf-dupescan). The FpCache twin (same
+// commands (dedupe-archive + dupescan). The FpCache twin (same
 // class, two table names) and the group-by-fingerprint loop were
 // byte-identical across both commands until jscpd flagged them; the
 // group-by loop parameterizes policy here, and the twin subclass shells

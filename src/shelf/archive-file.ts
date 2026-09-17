@@ -1,6 +1,6 @@
-// shelf-archive-file.ts — the per-drive sweep for `shelf-archive`: classify
+// archive-file.ts — the per-drive sweep for `archive`: classify
 // every drive file against the shelf index (covered / preserved-twin /
-// copy) and land the copies. Split from shelf-archive.ts so the command
+// copy) and land the copies. Split from archive.ts so the command
 // reads as orchestration (opts → sweeps ledger → JSON/human verdict) and
 // the classification rules live here as named steps.
 import {
@@ -14,8 +14,8 @@ import {
 import { basename, dirname, join, relative } from "node:path";
 import { md5FileChunked } from "../shared/hash";
 import { walkTree } from "../shared/walk-tree";
-import { landingPath, type ShelfIndex } from "./shelf-index";
-import { isJunkDir, isSkippedName, key } from "./shelf-match";
+import { landingPath, type ShelfIndex } from "./index-files";
+import { isJunkDir, isSkippedName, key } from "./match";
 import { errorText } from "../shared/error-text";
 
 /** Chunked sync digest via the shared seam (issue #70) — same signature
@@ -70,7 +70,7 @@ function copyVerified(src: string, dest: string): void {
 
 /** Every real file worth archiving on a drive. PIONEER/ (device DBs) is
  * deliberately NOT walked; PIONEER REC/ (user recordings) is. Both roots
- * ride the shared walker (#69): junk-name/dir policy via shelf-match,
+ * ride the shared walker (#69): junk-name/dir policy via match,
  * rel computed against the LANDING root (Contents/ files keep their
  * artist layout; PIONEER REC/x lands as x), trashes flat-land by bare
  * name. */

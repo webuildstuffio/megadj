@@ -5,7 +5,7 @@ import {
   runShelfArchive,
   runShelfSweeps,
   runShelfSync,
-} from "./shelf/cli-shelf-cmds";
+} from "./shelf/cli-cmds";
 
 const shelfSync: CliCommandHandler = async (rest) => {
   await runShelfSync(rest);
@@ -16,7 +16,7 @@ const shelfArchive: CliCommandHandler = async (rest) => {
 };
 
 const shelfDedupe: CliCommandHandler = async (rest) => {
-  const { shelfDedupe: dedupe } = await import("./shelf/shelf-dedupe");
+  const { shelfDedupe: dedupe } = await import("./shelf/dedupe");
   await dedupe({
     apply: rest.includes("--apply"),
     yes: rest.includes("--yes"),
@@ -32,7 +32,7 @@ const shelfDupescan: CliCommandHandler = async (rest) => {
       if (value) scanDirs.push(value);
     }
   }
-  const { shelfDupescan: scan } = await import("./shelf/shelf-dupescan");
+  const { shelfDupescan: scan } = await import("./shelf/dupescan");
   await scan({
     json: rest.includes("--json"),
     quarantine: rest.includes("--quarantine"),

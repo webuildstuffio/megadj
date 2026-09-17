@@ -29,9 +29,9 @@ const AUDITED_COMMANDS: readonly string[] = [
   "src/rekordbox/rb-playlist.ts",
   "src/rekordbox/rb-unmatched.ts",
   "src/shelf/dedupe-archive.ts",
-  "src/shelf/shelf-dedupe.ts",
-  "src/shelf/shelf-dupescan.ts",
-  "src/shelf/shelf-hygiene.ts",
+  "src/shelf/dedupe.ts",
+  "src/shelf/dupescan.ts",
+  "src/shelf/hygiene.ts",
 ];
 
 const SSOT = "applyConfirmationRefusal";

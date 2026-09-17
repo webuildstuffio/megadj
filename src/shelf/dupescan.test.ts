@@ -7,7 +7,7 @@ import {
   FpCache,
   SHELF_FINGERPRINTS_TABLE,
   parseFpcalcOutput,
-} from "./shelf-dupescan";
+} from "./dupescan";
 import { moveLoser } from "./dupescan-shared";
 import { ffmpegTone } from "../test-support/audio-fixtures";
 
@@ -62,7 +62,7 @@ function makeShelf(files: Record<string, "tone" | "tone2">): string {
   return shelf;
 }
 
-describe("shelf-dupescan", () => {
+describe("dupescan", () => {
   test("report mode finds cross-folder duplicates, touches nothing", async () => {
     const shelf = makeShelf({
       "Artist A/Album/song.mp3": "tone",
@@ -86,7 +86,7 @@ describe("shelf-dupescan", () => {
       duplicateGroups: number;
       applied: boolean;
     };
-    expect(parsed.command).toBe("shelf-dupescan");
+    expect(parsed.command).toBe("dupescan");
     // report provenance (#10): generated timestamp + scanned tree identify
     // a saved dossier — stale reports self-identify instead of lying
     expect(parsed.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -154,7 +154,7 @@ describe("FpCache", () => {
 
 /**
  * Quarantine-move SSOT regression (issue #84): the three apply sites
- * (dupescan, dedupe-archive, shelf-dedupe-verdict) share ONE
+ * (dupescan, dedupe-archive, dedupe-verdict) share ONE
  * collision-check + never-overwrite + rename body. The hooks path must
  * keep the never-overwrite guarantee and per-file isolation that
  * `quarantineLoser`/`applyMove` used to hand-roll separately.

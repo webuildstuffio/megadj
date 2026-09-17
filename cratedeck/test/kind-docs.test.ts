@@ -93,7 +93,7 @@ describe("HELP_JOBS covers every job kind (the web-help census, #216)", () => {
     JOB_KINDS: readonly string[];
   };
   const { HELP_JOBS } = require("../shared/help") as {
-    HELP_JOBS: { kind: string }[];
+    HELP_JOBS: { kind: string; icon: string }[];
   };
 
   test("HELP_JOBS kinds === JOB_KINDS (exact, both directions)", () => {
@@ -107,5 +107,47 @@ describe("HELP_JOBS covers every job kind (the web-help census, #216)", () => {
   test("HELP_JOBS carries no duplicate kinds", () => {
     const kinds = HELP_JOBS.map((j) => j.kind);
     expect(new Set(kinds).size).toBe(kinds.length);
+  });
+
+  // Super-sure pass (Sep 17, post-#216): every HELP_JOBS icon must exist
+  // in the web icon table — an unknown name silently renders a dot
+  // (icons.tsx falls back to Circle).
+  test("every HELP_JOBS icon resolves in the web Icon table", () => {
+    const icons = readFileSync(
+      join(ROOT, "cratedeck/web/ui/icons.tsx"),
+      "utf8",
+    );
+    const unnamed = HELP_JOBS.filter(
+      (j) => !new RegExp(`\\b${j.icon}\\s*:`, "m").test(icons),
+    ).map((j) => `${j.kind}: "${j.icon}"`);
+    expect(unnamed).toEqual([]);
+  });
+
+  // Super-sure pass: `deckctl help <kind>` must read `needs` from KIND_DOCS
+  // (the explain SSOT), never a hand-rolled ternary — the old twin printed
+  // "requires: drive mounted, rekordbox closed" for ingest/speedtest/
+  // checksum, none of which is true.
+  test("deckctl help reads job `needs` from KIND_DOCS, not a hand twin", () => {
+    const src = readFileSync(
+      join(ROOT, "cratedeck/src/deckctl_help.ts"),
+      "utf8",
+    );
+    expect(src).toContain("KIND_DOCS[job.kind]?.needs");
+    expect(src).not.toContain('"drive mounted, rekordbox closed"');
+  });
+
+  // Super-sure pass: the jobs-section headers were hard-coded "five jobs"
+  // and rotted the moment the 11th kind landed — copy must stay count-free.
+  test("no hard-coded job count in help copy (the 'five jobs' rot)", () => {
+    for (const rel of [
+      "cratedeck/src/deckctl_help.ts",
+      "cratedeck/web/ui/Onboard.tsx",
+    ]) {
+      const src = readFileSync(join(ROOT, rel), "utf8");
+      expect({ file: rel, stale: /five jobs/.test(src) }).toEqual({
+        file: rel,
+        stale: false,
+      });
+    }
   });
 });

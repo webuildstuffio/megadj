@@ -83,9 +83,9 @@ describe("keeper policy table (#158)", () => {
 
 describe("shelf-dedupe qualityRank policy (same table, rank form)", () => {
   test("higher rank wins; equal rank keeps the incumbent (original)", () => {
-    // shelf-dedupe-verdict compares qualityRank(original) vs qualityRank(twin):
+    // dedupe-verdict compares qualityRank(original) vs qualityRank(twin):
     // higher wins, tie keeps original. The policy lives in
-    // shelf-dedupe-probe (ext ladder + probe bitrate); the DECISION shape
+    // dedupe-probe (ext ladder + probe bitrate); the DECISION shape
     // is pinned here so a flip cannot land silently.
     expect(decide(4.032, 4.032)).toBe("keep-original"); // tie → original
     expect(decide(1.0, 4.032)).toBe("keep-twin"); // flac(320k) beats mp3

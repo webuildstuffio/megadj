@@ -7,10 +7,10 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, join } from "node:path";
-import { shelfArchive } from "./shelf-archive";
+import { shelfArchive } from "./archive";
 
 /**
- * shelf-archive: the drive → shelf intake sweep. Tests exercise the walk,
+ * archive: the drive → shelf intake sweep. Tests exercise the walk,
  * the junk filter, the coverage classes, and the never-overwrite guarantee
  * with temp "volumes" (plain dirs) — no real drives touched.
  */
@@ -40,7 +40,7 @@ const run = (opts: Partial<Parameters<typeof shelfArchive>[0]> = {}) =>
     ...opts,
   } as Parameters<typeof shelfArchive>[0]);
 
-describe("shelf-archive", () => {
+describe("archive", () => {
   test("copies fresh drive content into Contents/, preserving layout", async () => {
     const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-drive-"), {
       "Contents/Artist/Album/track.mp3": "audio-bytes",
@@ -185,7 +185,7 @@ describe("shelf-archive", () => {
       log: (s) => logs.push(s),
     });
     expect(logs.some((l) => l.includes("shelf not mounted"))).toBe(true);
-    // shelf-archive signals failure via the STICKY process.exitCode — left
+    // archive signals failure via the STICKY process.exitCode — left
     // set, every later bun test exit in this process reports 1 with 0
     // failed tests (the hook then blocks the commit on a green suite).
     // Restore it so the failure is the assertion's to report, not the
@@ -223,7 +223,7 @@ describe("shelf-archive", () => {
       }[];
       ok: boolean;
     };
-    expect(parsed.command).toBe("shelf-archive");
+    expect(parsed.command).toBe("archive");
     expect(parsed.drives[0]?.files).toBe(1);
     expect(parsed.drives[0]?.copied).toBe(1);
     expect(parsed.ok).toBe(true);

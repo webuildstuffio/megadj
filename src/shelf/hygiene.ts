@@ -1,6 +1,6 @@
 /**
- * shelf-hygiene — detect → ledger → review → apply → validate (the docs/
- * getdat/shelf-hygiene-2026-09-09.md §4 feature, CLI half).
+ * hygiene — detect → ledger → review → apply → validate (the docs/
+ * getdat/hygiene-2026-09-09.md §4 feature, CLI half).
  *
  * Default run: walk the shelf, run every check, upsert the findings
  * ledger (hygiene_findings in the archive DB), print the census. Findings
@@ -38,7 +38,7 @@ import {
 } from "../rekordbox/rb-command-kit.js";
 import { masterDbPath } from "../rekordbox/master-path";
 import { errorText } from "../shared/error-text";
-import { FpCache, SHELF_FINGERPRINTS_TABLE } from "./shelf-dupescan";
+import { FpCache, SHELF_FINGERPRINTS_TABLE } from "./dupescan";
 import { md5Cli } from "./md5-cli";
 import { resolveShelfVolume } from "../shared/volume";
 import { isUnknownArray } from "../../cratedeck/shared/guards";
@@ -74,7 +74,7 @@ function masterDbRowsReader(
       });
     } catch (error) {
       log(
-        `shelf-hygiene: master DB read failed (${errorText(error).slice(0, 200)}) — DB-seam checks detect nothing this run`,
+        `hygiene: master DB read failed (${errorText(error).slice(0, 200)}) — DB-seam checks detect nothing this run`,
       );
       return [];
     }
@@ -91,7 +91,7 @@ function masterDbRowsReader(
       )
     ) {
       log(
-        "shelf-hygiene: master DB read returned invalid rows — DB-seam checks detect nothing this run",
+        "hygiene: master DB read returned invalid rows — DB-seam checks detect nothing this run",
       );
       return [];
     }
@@ -120,7 +120,7 @@ export interface ShelfHygieneOptions {
    *  --apply, or works standalone as a batch-confirm. */
   bucket?: string | undefined;
   /** execute confirmed autoSafe findings after re-verification. Requires
-   *  --yes (two-step safety, same as shelf-dupescan). */
+   *  --yes (two-step safety, same as dupescan). */
   apply?: boolean | undefined;
   yes?: boolean | undefined;
   json?: boolean | undefined;
@@ -136,7 +136,7 @@ export interface ShelfHygieneOptions {
   md5?: ((path: string) => string | null) | undefined;
 }
 
-/** Decision-mode branch of shelf-hygiene (#181 ride-along): confirm/
+/** Decision-mode branch of hygiene (#181 ride-along): confirm/
  *  dismiss by id(s) plus bucket batch-confirm. Returns true when the
  *  command's work ended here (caller returns immediately). */
 async function decisionMode(
@@ -196,7 +196,7 @@ async function decisionMode(
   }
   if (json)
     await emitJson({
-      command: "shelf-hygiene",
+      command: "hygiene",
       decided,
       bucket: bucket ?? null,
       bucketMatched,
@@ -205,15 +205,15 @@ async function decisionMode(
   else {
     if (bucket)
       console.error(
-        `shelf-hygiene: bucket ${bucket}: ${bucketMatched} confirmed`,
+        `hygiene: bucket ${bucket}: ${bucketMatched} confirmed`,
       );
-    for (const f of failed) console.error(`shelf-hygiene: ${f.id}: ${f.why}`);
+    for (const f of failed) console.error(`hygiene: ${f.id}: ${f.why}`);
   }
   if (failed.length) setExitCode(1);
   return true;
 }
 
-/** Apply-pass branch of shelf-hygiene (#181 ride-along): execute
+/** Apply-pass branch of hygiene (#181 ride-along): execute
  *  confirmed quarantine-loser findings whose walkToken still matches,
  *  validating each with the per-move shelf-count receipt. The operation
  *  lease is acquired/released here. Returns applied = −1 to signal
@@ -318,8 +318,8 @@ export async function shelfHygiene(
   } = opts;
 
   const fail = async (error: string): Promise<void> => {
-    if (json) await emitJson({ command: "shelf-hygiene", error });
-    else console.error(`shelf-hygiene: ${error}`);
+    if (json) await emitJson({ command: "hygiene", error });
+    else console.error(`hygiene: ${error}`);
     setExitCode(1);
   };
 
@@ -353,7 +353,7 @@ export async function shelfHygiene(
 
     // ---- detection pass ---------------------------------------------
     const { files, walkToken, unreadable } = walkShelf(shelfVolume);
-    log(`shelf-hygiene: ${files.length} files on ${shelfVolume}`);
+    log(`hygiene: ${files.length} files on ${shelfVolume}`);
     for (const dir of unreadable)
       log(`  WARNING: unreadable dir skipped — ${dir}`);
     // --kind validation BEFORE any work: an unknown kind is a usage
@@ -425,7 +425,7 @@ export async function shelfHygiene(
     const byKind: Record<string, number> = {};
     for (const f of all) byKind[f.kind] = (byKind[f.kind] ?? 0) + 1;
     const summary = {
-      command: "shelf-hygiene" as const,
+      command: "hygiene" as const,
       shelf: shelfVolume,
       walkToken,
       scanned: files.length,

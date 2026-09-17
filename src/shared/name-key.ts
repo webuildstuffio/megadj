@@ -2,7 +2,7 @@
  * name-key.ts — the ONE NFC+casefold name key (issue #67).
  *
  * Ten sites used to hand-roll `s.normalize("NFC").toLowerCase()` (or
- * NFC-only, which still splits on case): shelf-match.key, rb-adopt's
+ * NFC-only, which still splits on case): match.key, rb-adopt's
  * normPath, rb-fix-paths' nfkc, grid-triage's norm, rb-unmatched's
  * inline trio, shelf-sync's NFC-only index keys, and the Python seams'
  * unicodedata twins. One wrong variant = a variant-sprawl bug class:

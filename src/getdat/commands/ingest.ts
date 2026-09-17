@@ -60,6 +60,10 @@ import { probeAllFiles } from "./ingest-probe-files";
 import { dedupeWithinFolder, dedupeAgainstArchive } from "./ingest-dedupe";
 import { emitIngestReport, type IngestRunStats } from "./ingest-report";
 
+/** The Phase-B test seam lives in ingest-pair.ts (#211 — test-only export
+ *  out of the command body); re-exported for the existing test import. */
+export { dedupeWithinFolderForTest } from "./ingest-pair";
+
 export interface IngestOptions {
   state: ArchiveState;
   musicDir: string;
@@ -383,23 +387,4 @@ export async function ingest(opts: IngestOptions): Promise<void> {
       log,
     );
   }
-}
-
-/** Phase B seam for tests (ingest-pair.test.ts): probe a folder's files
- * and run the within-folder dedupe passes — no DB, no archive check. */
-export async function dedupeWithinFolderForTest(
-  folder: string,
-  quarantineDir: string,
-  dryRun: boolean | undefined,
-  log: (msg: string) => void,
-): Promise<{ survivors: Record_[]; dupes: number }> {
-  const files = await walkAudio(folder, [], [quarantineDir]);
-  const { records } = await probeAllFiles(files, log);
-  const { survivors, folderDupes } = await dedupeWithinFolder(
-    records,
-    quarantineDir,
-    dryRun,
-    log,
-  );
-  return { survivors, dupes: folderDupes };
 }

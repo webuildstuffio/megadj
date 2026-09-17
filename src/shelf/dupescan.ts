@@ -1,7 +1,7 @@
 /**
- * shelf-dupescan — whole-shelf acoustic duplicate scan.
+ * dupescan — whole-shelf acoustic duplicate scan.
  *
- * The twin pass (shelf-dedupe) only resolves "<stem> [<drive>]" pairs the
+ * The twin pass (dedupe) only resolves "<stem> [<drive>]" pairs the
  * archive sweeps created. It cannot see the other duplicate class: the SAME
  * recording filed under DIFFERENT artist folders or filenames (ripped twice,
  * organized differently) — the ANOTR case. This pass fingerprints EVERY
@@ -11,7 +11,7 @@
  *
  * Report-only by default (fingerprints cached in the archive DB). `--apply`
  * is intentionally absent: groups feed the same human-gated quarantine flow
- * as shelf-dedupe. Parallel worker pool; fp cache makes re-runs fast.
+ * as dedupe. Parallel worker pool; fp cache makes re-runs fast.
  *
  * #142: the fingerprint/group/apply stages ARE the shared engine
  * (dupescan-engine.ts) — this shell owns walk, policy, gate, report.
@@ -51,7 +51,7 @@ function fingerprint(path: string): string | null {
  * new/changed files). DupFpCache is instantiated DIRECTLY with its table
  * name (issue #73: the one-method FpCache subclass was a jscpd-flagged
  * twin of dedupe-archive's). This alias keeps the exported name that
- * shelf-hygiene and the dedupe tests import. */
+ * hygiene and the dedupe tests import. */
 export const FpCache = DupFpCache;
 
 /** The shelf-tier fingerprint table (shelf-cache namespace). */
@@ -106,13 +106,13 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
   // the apply stage skips groups whose keeper lies outside Contents/).
   for (const dir of scanDirs) {
     if (!existsSync(dir)) {
-      log(`shelf-dupescan: scan dir missing, skipped: ${dir}`);
+      log(`dupescan: scan dir missing, skipped: ${dir}`);
       continue;
     }
     files.push(...walkAudio(dir));
   }
   log(
-    `shelf-dupescan: ${files.length} audio files on ${shelfVolume}${scanDirs.length ? ` (+${scanDirs.length} extra dir(s))` : ""}`,
+    `dupescan: ${files.length} audio files on ${shelfVolume}${scanDirs.length ? ` (+${scanDirs.length} extra dir(s))` : ""}`,
   );
 
   // stage 1+2: fingerprint (engine) → group (engine, keeper = largest)
@@ -190,7 +190,7 @@ export async function shelfDupescan(opts: DupScanOptions = {}): Promise<void> {
     // compact shape is the repo-wide standard (#159 — the pretty-printed
     // variant was the drift).
     await writeJson({
-      command: "shelf-dupescan",
+      command: "dupescan",
       shelf: shelfVolume,
       // report provenance (issue #10): a saved dossier must self-identify
       // — stale reports (pre-cleanup counts) otherwise read as current

@@ -60,7 +60,7 @@ describe("deckctl help + --help (work with the server down)", () => {
     // glossary, job explainers, and the tour are all in the default dump
     expect(stdout).toContain("vocabulary");
     expect(stdout).toContain("Ghost");
-    expect(stdout).toContain("the five jobs");
+    expect(stdout).toContain("the jobs");
     expect(stdout).toContain("where everything lives");
   });
 

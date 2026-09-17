@@ -1,5 +1,5 @@
-// shelf-dedupe-probe.ts — the measurement primitives behind the dedupe
-// ladder (md5, fpcalc fingerprint, quality rank). Split from shelf-dedupe.ts
+// dedupe-probe.ts — the measurement primitives behind the dedupe
+// ladder (md5, fpcalc fingerprint, quality rank). Split from dedupe.ts
 // so the verdict logic and the probes read (and test) separately.
 import { md5FileChunked } from "../shared/hash";
 import { fingerprintFileLength } from "../fulltags/fingerprint";
@@ -20,7 +20,7 @@ export function md5(path: string): string | null {
  *  parse keeps `-`/`_`: a char class without them truncated at the first
  *  hyphen and unrelated files sharing the prefix collided into fake
  *  duplicate groups (the Sep 11 mass-collision; now regression-pinned in
- *  shelf-dupescan.test.ts against the single implementation). */
+ *  dupescan.test.ts against the single implementation). */
 export function fingerprint(path: string): string | null {
   return fingerprintFileLength(path);
 }

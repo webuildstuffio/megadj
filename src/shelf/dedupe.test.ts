@@ -9,10 +9,10 @@ import {
   renameSync,
 } from "node:fs";
 import { join } from "node:path";
-import { findTwinPairs, shelfDedupe } from "./shelf-dedupe";
-import { applyPairs } from "./shelf-dedupe-verdict";
+import { findTwinPairs, shelfDedupe } from "./dedupe";
+import { applyPairs } from "./dedupe-verdict";
 import { dedupePair } from "../test-support/scan-rows";
-import type { DedupePair } from "./shelf-dedupe-types";
+import type { DedupePair } from "./dedupe-types";
 
 function makeShelf(
   withPair: { stem: string; origContent: string; twinContent: string },
@@ -199,7 +199,7 @@ describe("shelfDedupe", () => {
       ok: boolean;
       scanned: number;
     };
-    expect(parsed.command).toBe("shelf-dedupe");
+    expect(parsed.command).toBe("dedupe");
     expect(parsed.ok).toBe(true);
     expect(parsed.scanned).toBe(1);
   });

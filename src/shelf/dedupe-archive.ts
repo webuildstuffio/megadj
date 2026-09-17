@@ -6,7 +6,7 @@
  * batch folders, or re-added months apart).
  *
  * Reports first; `--apply` quarantines group losers (never deletes) after
- * re-verifying byte/md5 equality where sizes match — the shelf-dupescan
+ * re-verifying byte/md5 equality where sizes match — the dupescan
  * safety rules apply verbatim: fp-equal + same-size + md5-equal → safe;
  * fp-equal + dissimilar names + different sizes → left for review.
  *

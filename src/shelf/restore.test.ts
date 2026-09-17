@@ -11,8 +11,8 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { HygieneStore } from "../archive/hygiene/store";
-import { shelfHygiene } from "./shelf-hygiene";
-import { shelfRestore } from "./shelf-restore";
+import { shelfHygiene } from "./hygiene";
+import { shelfRestore } from "./restore";
 
 function fixture(): { shelf: string; db: string; loser: string } {
   const shelf = mkdtempSync("/tmp/megadj-restore-shelf-");
@@ -69,7 +69,7 @@ async function detectAndApply(f: ReturnType<typeof fixture>): Promise<string> {
   return finding.id;
 }
 
-describe("shelf-restore command", () => {
+describe("restore command", () => {
   test("restores by finding id, verifies MD5, and preserves the quarantine source", async () => {
     const f = fixture();
     const id = await detectAndApply(f);

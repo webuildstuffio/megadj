@@ -3,7 +3,7 @@
  * builder 1).
  *
  * Replaces the hand-rolled ffmpeg `makeWav`/`makeWavPair`/`tone` blocks
- * in src/fulltags/convert.test.ts, src/shelf/shelf-dupescan.test.ts,
+ * in src/fulltags/convert.test.ts, src/shelf/dupescan.test.ts,
  * src/getdat/commands/ingest-md5-dedupe.test.ts,
  * src/getdat/commands/ingest-fingerprint.test.ts,
  * src/getdat/commands/intake-folders.e2e.test.ts, and the

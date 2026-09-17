@@ -7,16 +7,16 @@
  *    src/rekordbox/rb-dedup.test.ts
  *  - the hand-rolled HygieneStore finding objects in
  *    src/archive/hygiene/store.test.ts (`finding()`) and
- *    src/shelf/shelf-hygiene.test.ts (`mk()`/`store0.upsert`)
+ *    src/shelf/hygiene.test.ts (`mk()`/`store0.upsert`)
  *  - the `upgradePair()` DedupePair builder in
- *    src/shelf/shelf-dedupe.test.ts
+ *    src/shelf/dedupe.test.ts
  *
  * Defaults mirror what every suite assumed: same title, 180 s, 256 kbps,
  * 1_000 bytes — per-field overrides for the property under test.
  */
 import { newFindingId, type Finding } from "../archive/hygiene/types";
 import type { ScanPair, ScanRow } from "../rekordbox/rb-dedup-parse";
-import type { DedupePair } from "../shelf/shelf-dedupe-types";
+import type { DedupePair } from "../shelf/dedupe-types";
 
 const rowDefaults = {
   title: "Same title",

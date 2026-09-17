@@ -129,7 +129,7 @@ const shelfRestoreCmd: MaintenanceHandler = async (rest) => {
     });
     return;
   }
-  const { shelfRestore } = await import("../shelf/shelf-restore");
+  const { shelfRestore } = await import("../shelf/restore");
   const r = await shelfRestore({
     input,
     into: flags.strings.get("into"),
@@ -149,7 +149,7 @@ const shelfHygieneCmd: MaintenanceHandler = async (rest) => {
     ["kind", "shelf", "bucket"],
     ["json", "apply", "yes"],
   );
-  const { shelfHygiene } = await import("../shelf/shelf-hygiene");
+  const { shelfHygiene } = await import("../shelf/hygiene");
   await shelfHygiene({
     ...jsonOpts(jsonFlag(flags)),
     apply: flags.bools.has("apply"),

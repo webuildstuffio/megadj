@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { writeFakeAudio } from "../test-support/audio-fixtures";
 import { join } from "node:path";
-import { shelfSync } from "./shelf-sync";
+import { shelfSync } from "./sync";
 
 /**
- * shelf-sync: the shelf master is append-only. Tests exercise the walk +
+ * sync: the shelf master is append-only. Tests exercise the walk +
  * skip/copy decision with temp "volumes" (plain dirs) — no real drives.
  */
 
@@ -17,7 +17,7 @@ function makeArchive(): string {
   return root;
 }
 
-describe("shelf-sync", () => {
+describe("sync", () => {
   test("copies into Contents/<artist>/ and skips on re-run", () => {
     const src = makeArchive();
     const vol = mkdtempSync("/tmp/megadj-shelf-vol-");
@@ -78,7 +78,7 @@ describe("shelf-sync", () => {
       volumes: { copied: number; skipped: number }[];
       ok: boolean;
     };
-    expect(parsed.command).toBe("shelf-sync");
+    expect(parsed.command).toBe("sync");
     expect(parsed.tracked).toBe(2);
     expect(parsed.volumes[0]?.copied).toBe(2);
     expect(parsed.ok).toBe(true);
@@ -86,7 +86,7 @@ describe("shelf-sync", () => {
 
   test("regrouped shelf: file under a DIFFERENT artist folder counts as already there", async () => {
     // The Sep 11 discovery: the shelf was regrouped into per-artist folders
-    // while the archive keeps its batch folders — shelf-sync must not
+    // while the archive keeps its batch folders — sync must not
     // re-copy everything into dated folders. Same basename + same size
     // anywhere under Contents/ = already synced.
     const src = mkdtempSync("/tmp/megadj-shelf-batch-");

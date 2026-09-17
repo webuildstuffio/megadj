@@ -105,10 +105,13 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 17 (#88): digest changed — the usb_verify.py VERIFY_JSON read
     // in verify_parse.ts moved to verify-parse-metrics.ts
     // (extractVerifyMetrics); same guarded shape, new file path.
+    // Sep 17 (#207): digest changed — parseAuditSummary's JSON.parse
+    // moved from cratedeck job_legs.ts to job-legs-parse.ts (the #207
+    // parse-seam split); same guarded shape, new file path.
     audited: 62,
     guarded: 45,
     sanctioned: 17,
-    digest: "89ecff2bb265c2fdda22f357f02243d106657bddf85b1f80e6455b1803c04a69",
+    digest: "0adc2a0b1c2d5d4ff4d53b48e02d0e6364b59324a62eb6edc9ad0c3c68669251",
   });
 });
 

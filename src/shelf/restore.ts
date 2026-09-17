@@ -27,7 +27,7 @@ export interface ShelfRestoreOptions {
 }
 
 export interface ShelfRestoreResult {
-  command: "shelf-restore";
+  command: "restore";
   ok: boolean;
   findingId: string | null;
   source: string | null;
@@ -173,14 +173,14 @@ export async function shelfRestore(
   ): Promise<ShelfRestoreResult> => {
     if (opts.json) await writeJson(value);
     else if (!value.ok)
-      log(`shelf-restore: ${value.error ?? "restore failed"}`);
-    else log(`shelf-restore: restored ${value.source} → ${value.destination}`);
+      log(`restore: ${value.error ?? "restore failed"}`);
+    else log(`restore: restored ${value.source} → ${value.destination}`);
     return value;
   };
 
   if (!existsSync(join(shelfVolume, "Contents")))
     return await result({
-      command: "shelf-restore",
+      command: "restore",
       ok: false,
       findingId: null,
       source: null,
@@ -195,7 +195,7 @@ export async function shelfRestore(
   if (!store.acquireOperation(owner)) {
     db.close();
     return await result({
-      command: "shelf-restore",
+      command: "restore",
       ok: false,
       findingId: null,
       source: null,
@@ -214,7 +214,7 @@ export async function shelfRestore(
     const owned = findOwningFinding(scope);
     if ("error" in owned) {
       return await result({
-        command: "shelf-restore",
+        command: "restore",
         ok: false,
         findingId: null,
         source: null,
@@ -226,7 +226,7 @@ export async function shelfRestore(
     const guarded = guardMatch(scope, owned.f, owned.source);
     if ("error" in guarded) {
       return await result({
-        command: "shelf-restore",
+        command: "restore",
         ok: false,
         findingId: owned.f.id,
         source: owned.source,
@@ -238,7 +238,7 @@ export async function shelfRestore(
     const copyError = copyVerified(guarded.match);
     if (copyError) {
       return await result({
-        command: "shelf-restore",
+        command: "restore",
         ok: false,
         findingId: owned.f.id,
         source: owned.source,
@@ -248,7 +248,7 @@ export async function shelfRestore(
       });
     }
     return await result({
-      command: "shelf-restore",
+      command: "restore",
       ok: true,
       findingId: owned.f.id,
       source: owned.source,

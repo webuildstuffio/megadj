@@ -4,11 +4,11 @@
  * `src/shared/hash.ts` — one implementation per execution style, never
  * a new hand-roll (issue #70).
  *
- * Previously two hand-rolled twin spawns (shelf-restore/shelf-sync's
- * md5Cli and shelf-hygiene's inline closure) — jscpd-class drift, and
+ * Previously two hand-rolled twin spawns (restore/sync's
+ * md5Cli and hygiene's inline closure) — jscpd-class drift, and
  * both were single-shot: one transient md5 failure under load (the
  * test-suite's parallel workers or a busy box) silently degraded the
- * caller — hygiene dropped the file from twin detection, shelf-sync
+ * caller — hygiene dropped the file from twin detection, sync
  * mis-judged "already there". Now: one retrying seam, short backoff
  * tuned for transient resource pressure, deterministic in tests.
  *

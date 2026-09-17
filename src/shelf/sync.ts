@@ -1,9 +1,9 @@
 /**
- * megadj shelf-sync — copy new music from the archive onto the shelf master
+ * megadj sync — copy new music from the archive onto the shelf master
  * (and optionally the gig sticks), resumable and additive-only.
  *
  * The standing workflow after `megadj drop`: new tracks land in the archive
- * (~/Music/DJ-Imports), shelf-sync copies anything not already on the shelf
+ * (~/Music/DJ-Imports), sync copies anything not already on the shelf
  * into Contents/<artist>/ (folder-per-artist, matching the drive layout),
  * then optionally mirrors to the master/mirror USBs. Never deletes — the
  * shelf is append-only; removal is a human decision.
@@ -184,7 +184,7 @@ export async function shelfSync(opts: ShelfSyncOptions): Promise<void> {
 
   if (!existsSync(musicDir)) {
     if (json) await writeJson({ error: `archive dir missing: ${musicDir}` });
-    else log(`shelf-sync: archive dir missing: ${musicDir}`);
+    else log(`sync: archive dir missing: ${musicDir}`);
     // #160 ring 3: setExit is the one mutation point.
     setExit(1);
     return;
@@ -198,7 +198,7 @@ export async function shelfSync(opts: ShelfSyncOptions): Promise<void> {
 
   if (json) {
     await writeJson({
-      command: "shelf-sync",
+      command: "sync",
       archive: musicDir,
       tracked: plans.length,
       dry_run: dryRun,
@@ -209,7 +209,7 @@ export async function shelfSync(opts: ShelfSyncOptions): Promise<void> {
   }
 
   log(
-    `shelf-sync: ${plans.length} archive tracks${dryRun ? " (dry run)" : ""}`,
+    `sync: ${plans.length} archive tracks${dryRun ? " (dry run)" : ""}`,
   );
   for (const r of results) {
     if (!r.mounted) {

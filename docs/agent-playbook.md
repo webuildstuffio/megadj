@@ -253,7 +253,7 @@ mirror` = the mirror job). The usage-text-syncs-with-dispatch census
   bun test reports the PROCESS exit code, so leaving `exitCode = 1` set
   (shelf-archive's no-shelf hard-error test did) made any suite including
   that file exit 1 with 0 failed tests, and the pre-commit hook blocked on a
-  green suite (documented + reset in `src/shelf/shelf-archive.test.ts`).
+  green suite (documented + reset in `src/shelf/archive.test.ts`).
 
 ## Meta-lessons (Sep 5–7 build window)
 

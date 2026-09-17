@@ -1,5 +1,5 @@
 /**
- * shelf-dedupe — the twin-resolution pass for the shelf master.
+ * dedupe — the twin-resolution pass for the shelf master.
  *
  * The archive sweeps preserve divergent same-name rips as
  * "<stem> [<volume>]<ext>" twins beside the shelf original. Twins exist so
@@ -22,18 +22,18 @@
 
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
-import type { DedupeResult } from "./shelf-dedupe-types";
+import type { DedupeResult } from "./dedupe-types";
 import {
   applyConfirmed,
   applyConfirmationRefusal,
 } from "../rekordbox/rb-command-kit.js";
-import { judgePair, applyPairs } from "./shelf-dedupe-verdict";
+import { judgePair, applyPairs } from "./dedupe-verdict";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson, setExit } from "../shared/cli-output";
 import { AUDIO_EXTS } from "../shared/audio-exts";
 
-// DedupePair/DedupeResult are DEFINED in shelf-dedupe-types.ts (the leaf
-// seam shared with shelf-dedupe-verdict.ts — a split-out module must never
+// DedupePair/DedupeResult are DEFINED in dedupe-types.ts (the leaf
+// seam shared with dedupe-verdict.ts — a split-out module must never
 // import its parent's types back: madge counts a type-only back-edge as a
 // cycle).
 export interface ShelfDedupeOptions {
@@ -149,7 +149,7 @@ export async function shelfDedupe(
     // P1: one summary object, awaited (writeJson = #53 pipe-EOF seam,
     // compact shape per #159); the failure exit code stays summary-coupled.
     await writeJson({
-      command: "shelf-dedupe",
+      command: "dedupe",
       shelf: shelfVolume,
       quarantine,
       scanned: raw.length,
@@ -175,7 +175,7 @@ export async function shelfDedupe(
     return result;
   }
 
-  log(`shelf-dedupe on ${shelfVolume}: ${raw.length} twin pairs`);
+  log(`dedupe on ${shelfVolume}: ${raw.length} twin pairs`);
   log(
     `  byte-identical: ${byteDupes} · same recording (fingerprint): ${fingerprintDupes} · different audio: ${keepBoth}`,
   );

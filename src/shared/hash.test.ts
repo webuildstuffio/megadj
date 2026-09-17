@@ -2,7 +2,7 @@
  * hash.test.ts — pins the in-process MD5 seam (issue #70):
  *  - chunked sync digest matches the known vector and streams a file
  *    larger than the 1 MB chunk without loading it whole (the old
- *    shelf-dedupe-probe readFileSync variant was the latent OOM);
+ *    dedupe-probe readFileSync variant was the latent OOM);
  *  - the explicit null-degrade contract: unreadable path → null, never
  *    a silent wrong digest;
  *  - the async stream form agrees with the sync form.

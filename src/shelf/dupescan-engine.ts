@@ -1,6 +1,6 @@
 // dupescan-engine.ts — THE fingerprint-dedupe engine (issue #142).
 //
-// shelf-dupescan and dedupe-archive ran the same three stages as
+// dupescan and dedupe-archive ran the same three stages as
 // hand-copied loops: fingerprint (cache-get → compute-missing → put),
 // group (fp-equality, >=2 cut, keeper sort, reason strings), and the
 // apply gate (same-size → md5-equality; different-size → name
@@ -9,10 +9,10 @@
 // per-tier policy; the commands are walk + policy + report shells.
 //
 // Kept distinct on purpose:
-// - shelf-dedupe (the twins tier) is a per-PAIR ladder (md5 → fp →
+// - dedupe (the twins tier) is a per-PAIR ladder (md5 → fp →
 //   keep-both) with a quality-upgrade two-rename rollback and no fp
 //   cache — a different verdict model, not a policy knob. It keeps
-//   shelf-dedupe-verdict.ts and shares only moveLoser (#84).
+//   dedupe-verdict.ts and shares only moveLoser (#84).
 // - The fingerprint function is per-tier (dupescan: fpcalc -length 120
 //   raw parse; archive: fpcalc -json full-length) and so is the cache
 //   table — the cached values are NOT interchangeable. Do not unify

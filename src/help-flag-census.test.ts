@@ -37,7 +37,7 @@ const DISPATCH_FILES = [
   "src/cli-commands-shelf.ts",
   "src/cli-commands-analysis.ts",
   "src/shared/maintenance-cmds.ts",
-  "src/shelf/cli-shelf-cmds.ts",
+  "src/shelf/cli-cmds.ts",
 ];
 
 /** verb → flags the arm accepts via raw rest-parses that no parseFlags
@@ -48,10 +48,10 @@ const HAND_PARSED: Readonly<Record<string, readonly string[]>> = {
   retry: ["json"], // rest.includes contract
   audit: ["json"], // rest.includes contract
   adopt: ["shelf", "apply", "json"], // rest.includes contract
-  "shelf-sync": ["json", "dry-run"], // cli-shelf-cmds.ts rest-parses
+  "shelf-sync": ["json", "dry-run"], // cli-cmds.ts rest-parses
   "shelf-archive": ["json", "dry-run", "deep", "trashes", "into", "suffix"],
-  "shelf-sweeps": ["json"], // cli-shelf-cmds.ts
-  "shelf-dedupe": ["apply", "yes", "json"], // cli-shelf-cmds.ts rest-parses
+  "shelf-sweeps": ["json"], // cli-cmds.ts
+  "shelf-dedupe": ["apply", "yes", "json"], // cli-cmds.ts rest-parses
   "shelf-dupescan": [
     "json",
     "quarantine",
@@ -262,7 +262,7 @@ function dispatchFlags(): Map<string, ArmFlags> {
         if (factoryBody) out.set(verb, factoryBody);
       }
     }
-    // 3. cli-shelf-cmds runners: exported functions called from the
+    // 3. cli-cmds runners: exported functions called from the
     // cli-commands-shelf wrapper — map runShelfX to the shelf verb
     for (const m of src.matchAll(/export async function (runShelf\w+)\(/g)) {
       const fn = m[1];

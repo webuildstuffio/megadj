@@ -1,8 +1,8 @@
 /**
- * megadj shelf-archive — pull EVERYTHING from any number of drives into the
+ * megadj archive — pull EVERYTHING from any number of drives into the
  * shelf master, additively, with a verified coverage verdict.
  *
- * The inverse of `shelf-sync` (archive → shelf): this is the intake sweep for
+ * The inverse of `sync` (archive → shelf): this is the intake sweep for
  * stray USBs/HDDs — "is anything on this drive missing from the archive, and
  * if so, move it over fully". Born from the Sep 9 2026 three-stick sweep
  * (BANGERS library + BOSEXY firmware stick + an empty stick), where the
@@ -40,8 +40,8 @@ import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ArchiveState } from "../archive/state";
 import type { ShelfSweeps } from "../archive/sweeps";
-import { ShelfIndex } from "./shelf-index";
-import { sweepVolume, type DriveResult } from "./shelf-archive-file";
+import { ShelfIndex } from "./index-files";
+import { sweepVolume, type DriveResult } from "./archive-file";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson, setExit } from "../shared/cli-output";
 
@@ -95,7 +95,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
       sweeps = state.shelfSweeps;
     } catch (e) {
       log(
-        `shelf-archive: (sweep ledger unavailable: ${e instanceof Error ? e.message : e})`,
+        `archive: (sweep ledger unavailable: ${e instanceof Error ? e.message : e})`,
       );
     }
   }
@@ -107,15 +107,15 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
   if (!shelfMounted) {
     const msg = `shelf not mounted (no ${contents})`;
     if (json)
-      await writeJson({ command: "shelf-archive", error: msg, ok: false });
-    else log(`shelf-archive: ${msg}`);
+      await writeJson({ command: "archive", error: msg, ok: false });
+    else log(`archive: ${msg}`);
     // #160 ring 3: setExit is the one mutation point.
     setExit(1);
     return;
   }
 
   // Shelf index (exact + variant twins) — built and maintained by
-  // ShelfIndex (shelf-index.ts); just-created variants register as they
+  // ShelfIndex (index-files.ts); just-created variants register as they
   // land so multi-file sweeps and in-run re-runs stay idempotent.
   const shelf = new ShelfIndex(contents);
 
@@ -172,7 +172,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
   state?.close(); // flush + release the ledger DB before any exit path
   if (json) {
     await writeJson({
-      command: "shelf-archive",
+      command: "archive",
       shelf: shelfVolume,
       into: into ?? null,
       trashes,
@@ -187,7 +187,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
   }
 
   log(
-    `shelf-archive → ${shelfVolume}${dryRun ? " (dry run)" : ""}${deep ? " [deep]" : ""}${trashes ? " [trashes]" : ""}`,
+    `archive → ${shelfVolume}${dryRun ? " (dry run)" : ""}${deep ? " [deep]" : ""}${trashes ? " [trashes]" : ""}`,
   );
   for (const r of results) {
     if (!r.mounted) {
@@ -200,10 +200,10 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
     for (const m of r.stillMissing.slice(0, 10)) log(`    ! ${m}`);
   }
   if (!allOk) {
-    log("shelf-archive: NOT fully covered — see failures above");
+    log("archive: NOT fully covered — see failures above");
     // #160 ring 3: setExit is the one mutation point.
     setExit(1);
   } else {
-    log("shelf-archive: ✅ every drive file is covered on the shelf");
+    log("archive: ✅ every drive file is covered on the shelf");
   }
 }

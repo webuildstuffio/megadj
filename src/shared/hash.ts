@@ -3,7 +3,7 @@
  * execution style; every other in-process digest is a hand-roll of these.
  *
  *  - `md5FileChunked`  sync, 1 MB chunks — 300 MB WAV sets never enter
- *    memory whole (the shelf-dedupe-probe readFileSync variant was the
+ *    memory whole (the dedupe-probe readFileSync variant was the
  *    latent OOM). Returns null when the bytes could NOT be read: the
  *    explicit degrade contract — null means "cannot prove identical",
  *    never "not a duplicate" without the caller saying so.

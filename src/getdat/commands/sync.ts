@@ -12,7 +12,6 @@ import { type RateLimiter, withRetry } from "../ratelimit";
 import { Downloader, type DownloadResult } from "../downloader";
 import { ytdlpCookieArgs } from "../ytdlp";
 import { commandLog, ProgressBar } from "../../progress";
-import { writeJson } from "../../shared/cli-output";
 import { applyTags } from "../../fulltags/writer";
 import { buildMetadata, type YtdlpInfo } from "../../fulltags/metadata-build";
 import { guessFromFreeText } from "../../fulltags/genre-vocab";
@@ -376,54 +375,9 @@ async function processQueue(
   bar.close();
 }
 
-/** Phase 4: run row + human/JSON summary. */
-async function finishRun(
-  opts: SyncOptions,
-  log: (msg: string) => void,
-  runId: number | null,
-  totals: SyncTotals,
-): Promise<void> {
-  if (runId !== null) {
-    opts.state.finishRun(runId, {
-      attempted: totals.attempted,
-      downloaded: totals.downloaded,
-      gone: totals.gone,
-      failed: totals.failed,
-      bytesDownloaded: totals.bytes,
-    });
-  }
-  log(
-    `\nrun complete: ${totals.downloaded} downloaded, ${totals.notMusic} not-music, ${totals.gone} gone, ${totals.failed} failed, ${(totals.bytes / 1e6).toFixed(1)} MB`,
-  );
-  const counts = opts.state.statusCounts();
-  log(
-    `archive: ${counts["downloaded"] ?? 0} downloaded / ${counts["gone"] ?? 0} gone / ${counts["failed"] ?? 0} failed / ${counts["pending"] ?? 0} pending / ${counts["skipped_not_music"] ?? 0} not-music`,
-  );
-  if (opts.json) {
-    // P1 (--json on every command): one summary object on stdout, last.
-    await writeJson({
-      command: "sync",
-      dryRun: opts.dryRun ?? false,
-      runId,
-      attempted: totals.attempted,
-      downloaded: totals.downloaded,
-      notMusic: totals.notMusic,
-      gone: totals.gone,
-      failed: totals.failed,
-      bytesDownloaded: totals.bytes,
-      // Dry runs only ever "would download" — give agents the queue size
-      // a real run would have attempted.
-      wouldAttempt: opts.dryRun ? totals.attempted : undefined,
-      archive: {
-        downloaded: counts["downloaded"] ?? 0,
-        gone: counts["gone"] ?? 0,
-        failed: counts["failed"] ?? 0,
-        pending: counts["pending"] ?? 0,
-        skippedNotMusic: counts["skipped_not_music"] ?? 0,
-      },
-    });
-  }
-}
+/** Phase 4 lives in sync-summary.ts (#211 split: the report/summary tail
+ *  beside the totals it reports; sync.ts is the flow). */
+import { finishRun } from "./sync-summary";
 
 export async function sync(opts: SyncOptions): Promise<void> {
   const log = commandLog(opts);

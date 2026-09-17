@@ -1,12 +1,12 @@
-// Issue #69 regression: the extension drift was LIVE — shelf-sync copied
+// Issue #69 regression: the extension drift was LIVE — sync copied
 // ogg/opus onto the shelf while dupescan's AUDIO set and hygiene's
 // AUDIO_EXT skipped them, so those files were never scanned, never
 // deduplicated, never quarantined. Both scanners now read the SSOT
-// (src/shared/audio-exts.ts) and MUST see what shelf-sync ships.
+// (src/shared/audio-exts.ts) and MUST see what sync ships.
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { walkAudio } from "./shelf-dupescan";
+import { walkAudio } from "./dupescan";
 import { walkShelf } from "../archive/hygiene/walk";
 import { AUDIO_EXTS_RE } from "../shared/audio-exts";
 import { walkAudioDir } from "../shared/audio-walk";
@@ -21,7 +21,7 @@ function makeTree(files: Record<string, string>): string {
   return root;
 }
 
-describe("ext drift #69: scanners see what shelf-sync copies", () => {
+describe("ext drift #69: scanners see what sync copies", () => {
   test("dupescan walkAudio finds ogg/opus (the drifted set)", () => {
     const dir = makeTree({
       "Artist/live.opus": "x",
@@ -54,8 +54,8 @@ describe("ext drift #69: scanners see what shelf-sync copies", () => {
     ]);
   });
 
-  test("shelf-sync's copy regex and the scanner set agree exactly", () => {
-    // shelf-sync uses AUDIO_EXTS_RE; scanners use AUDIO_EXTS. Every
+  test("sync's copy regex and the scanner set agree exactly", () => {
+    // sync uses AUDIO_EXTS_RE; scanners use AUDIO_EXTS. Every
     // regex match must be a set member and vice versa — the drift class
     // this SSOT closes.
     for (const ext of [

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { HygieneStore } from "../archive/hygiene/store";
-import { shelfHygiene } from "./shelf-hygiene";
+import { shelfHygiene } from "./hygiene";
 import { hygieneFinding } from "../test-support/scan-rows";
 
 /** byte-twin fixture: two identical + one unique file, no fpcalc needed
@@ -40,16 +40,16 @@ async function run(
     },
     ...opts,
   });
-  if (!parsed) throw new Error("shelf-hygiene did not emit its JSON summary");
+  if (!parsed) throw new Error("hygiene did not emit its JSON summary");
   return { parsed, code };
 }
 
-describe("shelf-hygiene command", () => {
+describe("hygiene command", () => {
   test("detect: one summary object, byte-twin found, ledger written", async () => {
     const { vol, db } = shelf();
     const { parsed, code } = await run({ shelfVolume: vol, dbPath: db });
     expect(code).toBe(0);
-    expect(parsed.command).toBe("shelf-hygiene");
+    expect(parsed.command).toBe("hygiene");
     expect(parsed.scanned).toBe(3);
     expect((parsed.byKind as Record<string, number>)["byte-twin"]).toBe(1);
     expect(parsed.open).toBe(1);
