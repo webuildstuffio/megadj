@@ -98,9 +98,11 @@ function m3uText(value: string | null, fallback: string): string {
   return (value ?? fallback).replaceAll(M3U_CONTROL_CHARS, " ").trim();
 }
 
-/** One handler per /api/archive/* route. The regex dispatch above guarantees
- *  `sub` is a key here; each handler stays single-purpose and testable. */
-function archiveHandlers(): Record<string, ArchiveHandler> {
+/** One handler per /api/archive/* route. `archiveRoutes` derives the route
+ *  list from these keys — the keys ARE the route census, never a second
+ *  hand-copied list (the drift that 404'd `genre-why`, found live
+ *  2026-09-17). Exported for the dispatch-census test. */
+export function archiveHandlers(): Record<string, ArchiveHandler> {
   return {
     search: (url, archive) => {
       const q = (url.searchParams.get("q") ?? "").trim();
@@ -356,15 +358,17 @@ export function archiveRoutes(
   deps: ArchiveRouteDeps,
 ): Promise<Response | null> | Response | null {
   const { archive, db, cfg } = deps;
-  const match =
-    /\/archive\/(search|track|ingest-status|lowq|source-diff|grid-cross-check|mood|similar|megaset|sweep|cues|library|skip-census|sources|analysis-coverage|tag-census|tag-compare)$/.exec(
-      route,
-    );
+  // One source of truth: the handler map's keys ARE the route list — the
+  // regex here only asserts SHAPE (`/archive/<name>`), never enumerates
+  // routes. The old hand-copied route-list regex drifted the moment
+  // `genre-why` was added to the map but not the list: handler present,
+  // every request 404'd (found live 2026-09-17). A new route is now one
+  // edit, not two; an unknown name falls through (null → upstream 404),
+  // exactly as before.
+  const match = /\/archive\/([a-z-]+)$/.exec(route);
   if (!match) return Promise.resolve(null);
-  const sub = match[1]!;
-  const handlers = archiveHandlers();
-  const handler = handlers[sub];
-  if (!handler) return null; // regex and map can never disagree; TS-narrowed anyway
+  const handler = archiveHandlers()[match[1]!];
+  if (!handler) return null;
   return Promise.resolve(handler(url, archive, db, cfg));
 }
 
