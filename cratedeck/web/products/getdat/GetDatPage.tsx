@@ -15,7 +15,8 @@
 // READ-ONLY (§4-A1): this page describes work, it never writes — every
 // card names the megadj command that does the fixing.
 import { PRODUCT_TABS, ProductIntro } from "../shared";
-import { BacklogTab, PipelineTab, SourcesTab } from "./getdat-tabs";
+import { BacklogTab, PipelineTab } from "./getdat-tabs";
+import { SourcesTab } from "./getdat-sources-tab";
 import { LibraryTab } from "./LibraryTab";
 import { IntakeTab } from "./IntakeTab";
 

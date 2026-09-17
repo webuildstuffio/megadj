@@ -18,12 +18,20 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dir, "..", "..");
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
 
-/** The rungs the batch ladder can stamp into tracks.artwork_status. */
+/** The rungs the batch ladder can stamp into tracks.artwork_status.
+ *  The fallback ladder lives in fetch-art.ts (#89/#90 diet split from
+ *  fetch-stages.ts); scan BOTH so the rungs stay covered wherever the
+ *  producer code sits. */
 function producerRungs(): string[] {
-  const src = read("fulltags/src/fetch-stages.ts");
   const rungs = new Set<string>(["sc", "sc-orig"]);
-  for (const m of src.matchAll(/label: "([a-z0-9-]+)"/g)) {
-    if (m[1]) rungs.add(m[1]);
+  for (const p of [
+    "fulltags/src/fetch-stages.ts",
+    "fulltags/src/fetch-art.ts",
+  ]) {
+    const src = read(p);
+    for (const m of src.matchAll(/label: "([a-z0-9-]+)"/g)) {
+      if (m[1]) rungs.add(m[1]);
+    }
   }
   return [...rungs].toSorted();
 }

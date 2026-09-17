@@ -21,7 +21,7 @@ import { basename } from "node:path";
 import { groundTruth } from "./readers";
 import { embedArt, writePatch } from "./writer";
 import { canonGenre, type TagPatch } from "./schema";
-import { scSearch } from "./art-sources";
+import { scSearch } from "./sc-search";
 import { energyFromLufs, measureRms } from "./media-probe";
 import { detectRemix } from "./remix";
 import { analyzeBeats, foldTempo } from "./beats-analysis";

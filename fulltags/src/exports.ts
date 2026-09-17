@@ -41,8 +41,14 @@ export {
   deezerArt,
   gatewayArt,
   twinArt,
-  scSearch,
 } from "./art-sources";
+export {
+  scSearch,
+  scoreScHits,
+  SC_ARTIST_MIN_LEN,
+  type ScHit,
+  type SearchRow,
+} from "./sc-search";
 export { aiGenres, albumHeuristic, AI_MODEL_PIN as AI_MODEL } from "./ai";
 export { groundTruth } from "./readers";
 export {
@@ -134,18 +140,22 @@ export {
 export { gridAuditFull, type GridAuditVerdict } from "./grid-audit";
 export { mbGenreForArtist } from "./mb";
 export {
-  aggregateScores,
   goldDir,
   GOLD_SCHEMA_VERSION,
   loadGoldSet,
   splitGoldSet,
-  scoreGoldTrack,
   type GoldAnnotation,
-  type GoldMetrics,
   type GoldSet,
   type GoldSplit,
-  type GoldTrackScore,
 } from "./gold";
+export {
+  scoreGoldTrack,
+  aggregateScores,
+  PHRASE_WINDOW_BARS,
+  CUE_ACCEPT_MS,
+  type GoldMetrics,
+  type GoldTrackScore,
+} from "./gold-score";
 export {
   buildAnlz,
   parseAnlzGrid,

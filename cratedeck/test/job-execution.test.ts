@@ -5,7 +5,7 @@ import {
   parseAuditSummary,
   parseIngestSummary,
   requireSuccessfulExit,
-} from "../src/job_execution";
+} from "../src/job_legs";
 import { INTAKE_COUNTER_KEYS } from "../shared/types";
 
 describe("job subprocess completion", () => {

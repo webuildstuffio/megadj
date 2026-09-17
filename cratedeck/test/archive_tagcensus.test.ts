@@ -10,8 +10,8 @@ import {
   differ as _unusedDiffer,
   hasRekordboxMirror,
   tagCensus,
-  trackTagCompare,
 } from "../src/archive_tagcensus";
+import { trackTagCompare } from "../src/archive_tagcompare";
 import { ArchiveReader } from "../src/archive";
 
 void _unusedDiffer; // differ is exercised through the public census reads
@@ -244,5 +244,29 @@ describe("trackTagCompare", () => {
     expect(t.available).toBe(true); // DB present
     expect(t.title).toBeNull();
     expect(t.differences).toEqual([]);
+  });
+});
+
+describe("tagCensus freshness (#174)", () => {
+  it("surfaces ledger stamps from MAX(analyzed_at), never mtimes", () => {
+    insBeats.run("a", 128.0);
+    const c = tagCensus(reader);
+    // the fixture's analyzed_at is '2026-09-15' — the census must carry
+    // it so the UI can band the census's age (green/amber/red)
+    expect(c.freshness.beatsAt).toBe("2026-09-15");
+    expect(c.freshness.moodAt).toBeNull();
+  });
+
+  it("degrades to null stamps on a mirror-less DB (no throw)", () => {
+    const altDir = mkdtempSync("/tmp/cratedeck-tagcensus-fresh-");
+    const alt = new ArchiveReader(join(altDir, "archive.db"));
+    try {
+      const c = tagCensus(alt);
+      expect(c.freshness.beatsAt).toBeNull();
+      expect(c.freshness.moodAt).toBeNull();
+    } finally {
+      alt.close();
+      rmSync(altDir, { recursive: true, force: true });
+    }
   });
 });

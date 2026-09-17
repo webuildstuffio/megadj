@@ -8,11 +8,7 @@ import {
   BP_STAMP_MAX,
   type BpTrack,
 } from "../src/beatport";
-import {
-  setScSearchImpl,
-  type SearchRow,
-  type ScHit,
-} from "../src/art-sources";
+import { setScSearchImpl, type SearchRow, type ScHit } from "../src/sc-search";
 import { groundTruth } from "../src/readers";
 
 const DIR = `/tmp/fulltags-bp-pipeline-test-${process.pid}`;

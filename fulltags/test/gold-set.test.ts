@@ -8,17 +8,19 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  aggregateScores,
   GOLD_SCHEMA_VERSION,
   goldDir,
   goldSchemaError,
   loadGoldSet,
   parseGoldAnnotation,
-  scoreGoldTrack,
   splitGoldSet,
   type GoldAnnotation,
-  type GoldTrackScore,
 } from "../src/gold";
+import {
+  aggregateScores,
+  scoreGoldTrack,
+  type GoldTrackScore,
+} from "../src/gold-score";
 
 const valid: GoldAnnotation = {
   hash: "a".repeat(64),

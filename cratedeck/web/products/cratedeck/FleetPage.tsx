@@ -10,7 +10,8 @@ import { PreflightTab } from "./PreflightTab";
 import { BoothSettings } from "./BoothSettings";
 import { PrepTab } from "./PrepTab";
 import { ArchiveTab } from "./ArchiveTab";
-import { CoverageTab, RedundancyTab, DiffTab } from "./fleet-tabs";
+import { CoverageTab, RedundancyTab } from "./fleet-tabs";
+import { DiffTab } from "./fleet-diff-tab";
 import { PRODUCT_TABS, ProductIntro } from "../shared";
 
 // the fleet content tabs live in the product SSOT (ProductPage

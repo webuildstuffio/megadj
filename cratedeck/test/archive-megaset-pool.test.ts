@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { setCandidates } from "../src/archive_similar";
+import { setCandidates } from "../src/archive_pool";
 import { ArchiveReader } from "../src/archive";
 import type { ArchiveQuery } from "../src/archive_types";
 

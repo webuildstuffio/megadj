@@ -9,19 +9,17 @@
 // a bug here physically cannot corrupt megadj's state (P9 safety rails).
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 import { existsSync, statSync } from "node:fs";
-import {
-  poolFreshness,
-  similarTracks as similarTracksImpl,
-  setCandidates as setCandidatesImpl,
-} from "./archive_similar";
+import { similarTracks as similarTracksImpl } from "./archive_similar";
 import {
   cueStats as cueStatsImpl,
   libraryOverview as libraryOverviewImpl,
 } from "./archive_overview";
+import { tagCensus as tagCensusImpl } from "./archive_tagcensus";
 import {
-  tagCensus as tagCensusImpl,
-  trackTagCompare as trackTagCompareImpl,
-} from "./archive_tagcensus";
+  poolFreshness as poolFreshnessImpl,
+  setCandidates as setCandidatesImpl,
+} from "./archive_pool";
+import { trackTagCompare as trackTagCompareImpl } from "./archive_tagcompare";
 import { gridCrossCheck as gridCrossCheckImpl } from "./archive_grid";
 import { moodProfile as moodProfileImpl } from "./archive_mood";
 import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
@@ -494,9 +492,9 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   }
 
   /** Newest beats/mood ledger timestamps — set-builder staleness UX.
-   *  Implementation in archive_similar.ts (poolFreshness). */
+   *  Implementation in archive_pool.ts (poolFreshness). */
   freshness(): ArchiveFreshness {
-    return poolFreshness(this);
+    return poolFreshnessImpl(this);
   }
 
   /**

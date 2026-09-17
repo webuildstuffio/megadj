@@ -4,11 +4,8 @@
 // tables, and error/loading gates from the shared SSOT components.
 import { describe, expect, test } from "bun:test";
 import { render } from "preact-render-to-string";
-import {
-  CoverageTab,
-  RedundancyTab,
-  DiffTab,
-} from "../products/cratedeck/fleet-tabs";
+import { CoverageTab, RedundancyTab } from "../products/cratedeck/fleet-tabs";
+import { DiffTab } from "../products/cratedeck/fleet-diff-tab";
 
 /** Silence the fetches each tab fires on mount (jsdom-free SSR: effects
  *  don't run, but the api module still parses at import). */

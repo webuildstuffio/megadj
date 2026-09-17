@@ -3,13 +3,12 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import {
   coverage,
-  redundancy,
-  diff,
   trackLocations,
   type TrackRow,
   type PlaylistEntryRow,
   type ManifestRow,
 } from "../src/coverage";
+import { redundancy, diff } from "../src/coverage_fleet";
 import { DB } from "../src/db";
 import type { SnapshotData } from "../shared/types";
 

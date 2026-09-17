@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { SC_ARTIST_MIN_LEN, scoreScHits } from "../src/art-sources";
+import { SC_ARTIST_MIN_LEN, scoreScHits } from "../src/sc-search";
 
 /** Regression: the Taylor Swift problem (Sep 15). SC search used to score
  *  uploader agreement as a +1 bonus only, so a high title-overlap hit from

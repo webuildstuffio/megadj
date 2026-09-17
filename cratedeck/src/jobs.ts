@@ -399,8 +399,5 @@ export class JobEngine {
 
 export { createEtaEstimator, drain, verifyPhase } from "./job_runtime";
 
-export {
-  parseVerifyReport,
-  sanitizeVerifyReport,
-  verifyDeltas,
-} from "./verify_report";
+export { sanitizeVerifyReport, verifyDeltas } from "./verify_report";
+export { parseVerifyReport } from "./verify_parse";

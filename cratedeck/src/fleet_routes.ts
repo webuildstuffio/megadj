@@ -3,7 +3,8 @@
 // route family, deps injected — no import back to index.ts (cycle safety).
 import type { DB } from "./db";
 import type { CrateConfig } from "./config";
-import { coverage, redundancy, diff, trackLocations } from "./coverage";
+import { coverage, trackLocations } from "./coverage";
+import { redundancy, diff } from "./coverage_fleet";
 import { fetchWeeklyPrepInput, renderWeeklyPrep } from "./weekly_prep";
 
 export function makeFleetRoutes(deps: {

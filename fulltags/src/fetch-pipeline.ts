@@ -53,7 +53,8 @@ import {
   fanOutBandcamp,
   fanOutBeatport,
   fanOutSoundcloud,
-  stageArt,
+  applyScGenre,
+  markYear,
   stageBeatportIdentity,
   stageBandcamp,
   stageGenreElection,
@@ -62,6 +63,10 @@ import {
   type StageCtx,
   type Stats,
 } from "./fetch-stages";
+// #89/#90 diet: the art family (SC hit path + fallback ladder) lives in
+// fetch-art.ts; the genre/year rungs are injected so the junk gates and
+// vote-mode branches stay in ONE place.
+import { stageArt } from "./fetch-art";
 import type { GenreVote } from "../../src/fulltags/genre-vote";
 
 /** Pipeline options. `megadj fetch` passes these from parsed
@@ -226,7 +231,7 @@ async function processTask({
   }
 
   // ---- 3. artwork ladder (SC original-res first, then fallbacks) ----
-  const artDone = await stageArt(ctx, best);
+  const artDone = await stageArt(ctx, best, applyScGenre, markYear);
   if (t.needArt && !dry && !artDone) artless.push(r);
 
   progress?.update(1);
