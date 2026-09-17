@@ -5,13 +5,18 @@
 import { describe, expect, test } from "bun:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
 import {
   printRbPlaylistReport,
   rbPlaylist,
   __test,
   type RbPlaylistResult,
 } from "./rb-playlist";
+
+const scriptsSource = readFileSync(
+  join(import.meta.dir, "rb-playlist-scripts.ts"),
+  "utf8",
+);
 
 const lines = (r: RbPlaylistResult): string[] => {
   const out: string[] = [];
@@ -192,6 +197,12 @@ describe("rb-playlist subprocess boundaries", () => {
     expect(__test.buildScript()).toContain(
       "import DjmdContent, DjmdPlaylist, DjmdSongPlaylist",
     );
+    // #88 item 2: the builders/parsers moved to rb-playlist-scripts.ts —
+    // this module imports them; a copy BACK here is the drift twin.
+    expect(scriptsSource).toContain("export function buildScript");
+    expect(scriptsSource).toContain("export function predictScript");
+    expect(scriptsSource).toContain("export function parseWriteOutput");
+    expect(scriptsSource).not.toContain("export function buildMegaset");
   });
 
   test("write, verify, and prediction parsers reject empty schemas", () => {
