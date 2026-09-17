@@ -113,7 +113,7 @@ this table as issues are filed.
 
 **STATUS: HARNESS SHIPPED 2026-09-10** — schema, guards, loader, and the
 dev/holdout split live in `src/fulltags/gold.ts` (tested in
-`src/fulltags/test-support/fulltags/gold-set.test.ts`); scoring runs via `megadj gold-report`
+`src/fulltags/test/gold-set.test.ts`); scoring runs via `megadj gold-report`
 (GA-00b). What remains is the manual half: annotate 30 tracks into
 `~/Music/DJ-Imports/_gold/` — one versioned JSON per track, shape
 enforced by `goldSchemaError` (blake2b hash key, first downbeat ms, BPM,
@@ -134,7 +134,7 @@ Store as JSON next to the audio, keyed by file hash (blake2b — the same
 hash the archive sweep already computes), versioned. Expected location:
 `~/Music/DJ-Imports/_gold/` (NOT in the repo) + a schema + loader test in
 repo. Annotation itself is manual; the loader, schema guards, and split
-logic are code (`src/fulltags/test-support/fulltags/gold-set.test.ts`).
+logic are code (`src/fulltags/test/gold-set.test.ts`).
 
 ### GA-00b — Metrics harness
 
@@ -179,7 +179,7 @@ numbers, but enough to catch overfitting to your own 20 favourite records.
 
 **STATUS: SHIPPED 2026-09-10.** `fitConstantTempo` +
 `gridAudit` live in `src/fulltags/grid-audit.ts` (pure, tested in
-`src/fulltags/test-support/fulltags/analysis-grid.test.ts`); `megadj beats` stores
+`src/fulltags/test/analysis-grid.test.ts`); `megadj beats` stores
 `bpm_fitted` + `bpm_residual_std` (columns auto-migrate); the CrateDeck
 grid cross-check derives its verdicts from the SAME functions — one SSOT.
 

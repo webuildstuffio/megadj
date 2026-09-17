@@ -351,7 +351,7 @@ next action is a command you can run.**
     (MPS, 88 tracks ≈ 31 s end-to-end); RB reference keys + BPM
     extracted from local `master.db` via pyrekordbox 0.4.4.
 - **Two latent bugs found BY executing, both fixed with regression
-  tests** (`src/fulltags/test-support/fulltags/pipeline.test.ts`):
+  tests** (`src/fulltags/test/pipeline.test.ts`):
   1. `readTxxx`'s WAV/AIFF branches read **nothing** — stamp probes
      returned null on WAVs, so the "idempotent" fingerprint stage
      rewrote **73 archive WAVs on every re-run**. One shared ID3-TXXX
@@ -671,7 +671,7 @@ benchmark **caught a 6.4× write-path regression** (19.3 ms direct-ffmpeg
 write. Fix: `writePatchSync`, the in-process sync writer (ffmpeg spawn
 for mp3/m4a/flac, mutagen for wav/aiff); re-benchmark 19 ms/write
 (parity), AIFF sync path verified. Regression tests:
-`src/fulltags/test-support/fulltags/writer-sync.test.ts` (round-trips + AIFF + perf).
+`src/fulltags/test/writer-sync.test.ts` (round-trips + AIFF + perf).
 
 **Lesson recorded:** any sync API bridged to an async implementation via
 a spawned interpreter is a perf trap — expose a native sync twin instead
@@ -680,7 +680,7 @@ a spawned interpreter is a perf trap — expose a native sync twin instead
 ## 5b. Bug-audit log (2026-09-05 — 5 bugs found + fixed; +2 found by rev 5 execution)
 
 Pre-rev-4 audit of the shipped surface; all fixed same day with regression
-tests (engine in `src/fulltags/test-support/fulltags/`). Rev 5's execution pass found two more.
+tests (engine in `src/fulltags/test/`). Rev 5's execution pass found two more.
 
 | #   | Bug + root cause                                                                                                                                                | Fix                                                                                                        |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |

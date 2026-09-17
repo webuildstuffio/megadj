@@ -7,12 +7,12 @@
         "tools/prof-sweep.ts",
         "tools/ast-ccn.ts",
         "src/fulltags/cli.ts",
-        "src/fulltags/test-support/fulltags/*.test.ts",
-        "src/fulltags/test-support/fulltags/fake-echo-worker.ts",
-        "src/fulltags/test-support/fulltags/idle-worker.ts",
-        "src/fulltags/test-support/fulltags/stamp.ts",
-        "src/fulltags/test-support/fulltags/patchCases.ts",
-        "src/fulltags/test-support/fulltags/analysis.ts"
+        "src/fulltags/test/*.test.ts",
+        "src/fulltags/test/fake-echo-worker.ts",
+        "src/fulltags/test/idle-worker.ts",
+        "src/fulltags/test/stamp.ts",
+        "src/fulltags/test/patchCases.ts",
+        "src/fulltags/test/analysis.ts"
       ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
