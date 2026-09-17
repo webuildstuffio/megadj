@@ -21,6 +21,10 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   verify `git log --oneline -1` + `git status` after every commit. The census
   tests (`src/apply-gate-census.test.ts`, `src/boundary-*-census.test.ts`) are
   the tripwire for silently reverted refactors — re-commit a clobbered fix.
+  Never pipe `git commit` through `| tail`/`| head`: a blocked commit's
+  nonzero exit code is masked by the pipe and a hooked block looks landed
+  (redirect to a file, then read it). Oversized commits need
+  `GIT_ALLOW_LARGE_COMMIT=1` (42-file diet split d02eb55).
 - No bare `catch {}` / `.catch(() => {})`. Boundary `JSON.parse` uses a guarded
   parser; gate numerics with `Number.isFinite`; CLI numeric options use
   `nonNegOpt` (bad input → exit 2, zero work). Keep

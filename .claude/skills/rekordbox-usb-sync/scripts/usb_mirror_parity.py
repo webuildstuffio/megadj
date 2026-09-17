@@ -55,10 +55,12 @@ def hash_parity(master: str, mirror: str, stage: Stage) -> int:
         d = os.path.join(mirror, "PIONEER/USBANLZ", rel)
         try:
             hp = cached_md5(p, hash_cache, dirty)
-            hd = cached_md5(d, hash_cache, dirty) if os.path.exists(d) else None
+            hd: str | None = cached_md5(d, hash_cache, dirty) if os.path.exists(d) else None
         except OSError:
+            # unreadable on either side = mismatch by definition; report and
+            # continue — one unreadable file must not kill the parity run
+            hp = ""
             hd = None
-            hp = cached_md5(p, hash_cache, dirty)
         if hd is None or hp != hd:
             mm += 1
             stage.info(f"  ANLZ MISMATCH: {rel}")
@@ -72,9 +74,17 @@ def hash_parity(master: str, mirror: str, stage: Stage) -> int:
     for rel in sample:
         fa = os.path.join(master, "Contents", rel)
         fb = os.path.join(mirror, "Contents", rel)
-        if os.path.exists(fb) and cached_md5(
-            fa, hash_cache, dirty
-        ) != cached_md5(fb, hash_cache, dirty):
+        if not os.path.exists(fb):
+            continue
+        try:
+            differs = cached_md5(fa, hash_cache, dirty) != cached_md5(
+                fb, hash_cache, dirty
+            )
+        except OSError:
+            # unreadable master file: count it, don't die — the report
+            # must complete for the remaining sampled files
+            differs = True
+        if differs:
             am += 1
             stage.info(f"  AUDIO MISMATCH (different rips — run --audio-parity): {rel}")
     stage.info(f"audio spot-check ({len(sample)}): {am} mismatches")

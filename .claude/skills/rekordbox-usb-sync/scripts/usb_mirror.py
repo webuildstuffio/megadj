@@ -238,9 +238,15 @@ def verify(stage: Stage) -> int:
                 stage.info(f"  MISSING: {r}")
     src_db = os.path.join(MASTER, "PIONEER/rekordbox/exportLibrary.db")
     dst_db = os.path.join(MIRROR, "PIONEER/rekordbox/exportLibrary.db")
-    same = cached_md5(src_db, hash_cache, dirty) == cached_md5(
-        dst_db, hash_cache, dirty
-    )
+    try:
+        same = cached_md5(src_db, hash_cache, dirty) == cached_md5(
+            dst_db, hash_cache, dirty
+        )
+    except OSError as e:
+        # missing/unreadable DB on either drive: report it, don't traceback —
+        # the runbook must end in "VERIFY FAILED", never a bare crash
+        same = False
+        stage.info(f"DB UNREADABLE ({e})")
     stage.info(f"DB identical across drives: {same}")
     failures += 0 if same else 1
 
