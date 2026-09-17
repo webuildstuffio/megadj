@@ -134,19 +134,27 @@ describe("rb-import subprocess boundaries", () => {
       '{"inserted":1,"already":0,"gated":1,"linked":1,"playlistId":"42","parentId":null,"errors":[]}',
     );
     expect(
-      __test.verificationError(2, py, verifyResult({ hit: 1, playlistRows: 1 })),
+      __test.verificationError(
+        2,
+        py,
+        verifyResult({ hit: 1, playlistRows: 1 }),
+      ),
     ).toBeNull();
     // short rows still fail
     expect(__test.verificationError(2, py, verifyResult({ hit: 0 }))).toContain(
       "0/1",
     );
     // gated-only accounting mismatch still fails
-    expect(
-      __test.verificationError(3, py, verifyResult({ hit: 1 })),
-    ).toContain("accounted for 2/3");
+    expect(__test.verificationError(3, py, verifyResult({ hit: 1 }))).toContain(
+      "accounted for 2/3",
+    );
     // playlist rows expect the row-bearing count, never the gated file
     expect(
-      __test.verificationError(2, py, verifyResult({ hit: 1, playlistRows: 2 })),
+      __test.verificationError(
+        2,
+        py,
+        verifyResult({ hit: 1, playlistRows: 2 }),
+      ),
     ).toContain("2/1 playlist member rows");
   });
 });

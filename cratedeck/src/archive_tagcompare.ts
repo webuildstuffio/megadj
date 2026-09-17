@@ -135,11 +135,26 @@ const COMPARE_ROWS: readonly (readonly [
   field: string,
   get: (s: CompareSources) => CompareTrio,
 ])[] = [
-  ["title", (s) => [s.file?.title ?? null, s.t.title, s.rekordbox?.title ?? null]],
-  ["artist", (s) => [s.file?.artist ?? null, s.t.artist, s.rekordbox?.artist ?? null]],
-  ["genre", (s) => [s.file?.genre ?? null, s.t.genre, s.rekordbox?.genre ?? null]],
-  ["key", (s) => [s.file?.key ?? null, s.t.archive_key, s.rekordbox?.key ?? null]],
-  ["bpm", (s) => [s.file?.bpm ?? null, s.t.bpm_folded, s.rekordbox?.bpm ?? null]],
+  [
+    "title",
+    (s) => [s.file?.title ?? null, s.t.title, s.rekordbox?.title ?? null],
+  ],
+  [
+    "artist",
+    (s) => [s.file?.artist ?? null, s.t.artist, s.rekordbox?.artist ?? null],
+  ],
+  [
+    "genre",
+    (s) => [s.file?.genre ?? null, s.t.genre, s.rekordbox?.genre ?? null],
+  ],
+  [
+    "key",
+    (s) => [s.file?.key ?? null, s.t.archive_key, s.rekordbox?.key ?? null],
+  ],
+  [
+    "bpm",
+    (s) => [s.file?.bpm ?? null, s.t.bpm_folded, s.rekordbox?.bpm ?? null],
+  ],
   ["year", (s) => [s.file?.year ?? null, null, s.rekordbox?.year ?? null]],
   ["label", (s) => [s.file?.label ?? null, null, s.rekordbox?.label ?? null]],
   ["mix", (s) => [s.file?.mixName ?? null, null, null]],
