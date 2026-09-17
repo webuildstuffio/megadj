@@ -21,6 +21,7 @@ describe("rb-import subprocess boundaries", () => {
       JSON.stringify({
         inserted: 1,
         already: 0,
+        gated: 0,
         linked: 1,
         playlistId: id,
         parentId: "9007199254740995",
@@ -42,7 +43,7 @@ describe("rb-import subprocess boundaries", () => {
 
   test("counter mismatches and collection breakage fail verification", () => {
     const py = __test.parseWriteOutput(
-      '{"inserted":2,"already":0,"linked":2,"playlistId":"42","parentId":null,"errors":[]}',
+      '{"inserted":2,"already":0,"gated":0,"linked":2,"playlistId":"42","parentId":null,"errors":[]}',
     );
     expect(__test.verificationError(2, py, verifyResult({ hit: 1 }))).toContain(
       "1/2",
@@ -99,5 +100,53 @@ describe("rb-import subprocess boundaries", () => {
     expect(script).toContain(
       "sp = DjmdSongPlaylist(ID=rid(), PlaylistID=pl.ID, ContentID=cid, TrackNo=track_no + 1,",
     );
+  });
+
+  // F11 dupe gate (#163): the idempotency key must be NFC+casefold path
+  // OR acoustic fingerprint — raw string compare is how the case-variant
+  // path bug (F5) and silent dupes share a root cause.
+  test("write script counts gated files and never imports them", () => {
+    const script = __test.buildScript();
+    // the gated set rides the payload; gated files count, never insert
+    expect(script).toContain('gate = {d[0] for d in payload.get("gated", [])}');
+    expect(script).toContain("elif full in gate:");
+    expect(script).toContain('out["gated"] += 1');
+    // the 12-field payload row ends with the fingerprint (index 11)
+    expect(script).toContain(
+      "full, fname, title, artist, album, genre, year, duration, bitrate, bpm, key, fp = f",
+    );
+  });
+
+  test("gate scan script: NFC+casefold path proof + duration-±2s candidates", () => {
+    expect(__test.gateScanScript()).toContain(
+      "def path_key(s):\n    return nfc(s).casefold()",
+    );
+    // path proof emits the incoming target; fp candidates emit bare rows
+    expect(__test.gateScanScript()).toContain('"targets": [full]');
+    expect(__test.gateScanScript()).toContain("abs(e_dur - dur) <= 2.0");
+    // read-only: no session.commit anywhere in the scan
+    expect(__test.gateScanScript()).not.toContain("commit");
+  });
+
+  test("verification counts gated files as accounted-for without rows", () => {
+    // 2 files found: 1 inserted, 1 gated → verify expects exactly 1 row
+    const py = __test.parseWriteOutput(
+      '{"inserted":1,"already":0,"gated":1,"linked":1,"playlistId":"42","parentId":null,"errors":[]}',
+    );
+    expect(
+      __test.verificationError(2, py, verifyResult({ hit: 1, playlistRows: 1 })),
+    ).toBeNull();
+    // short rows still fail
+    expect(__test.verificationError(2, py, verifyResult({ hit: 0 }))).toContain(
+      "0/1",
+    );
+    // gated-only accounting mismatch still fails
+    expect(
+      __test.verificationError(3, py, verifyResult({ hit: 1 })),
+    ).toContain("accounted for 2/3");
+    // playlist rows expect the row-bearing count, never the gated file
+    expect(
+      __test.verificationError(2, py, verifyResult({ hit: 1, playlistRows: 2 })),
+    ).toContain("2/1 playlist member rows");
   });
 });

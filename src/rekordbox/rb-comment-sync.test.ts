@@ -1,7 +1,51 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { Database } from "bun:sqlite";
 import { __test, commentSyncScript } from "./rb-comment-sync.js";
 
 describe("rb-comment-sync", () => {
+  test("ledgerFreshnessOf reads MAX(analyzed_at) stamps (#174)", () => {
+    const dir = mkdtempSync("/tmp/megadj-csync-fresh-");
+    const p = join(dir, "archive.db");
+    const db = new Database(p);
+    db.exec(`CREATE TABLE beats (analyzed_at TEXT NOT NULL);
+      CREATE TABLE mood (analyzed_at TEXT NOT NULL);
+      INSERT INTO beats VALUES ('2026-09-10T00:00:00Z');
+      INSERT INTO beats VALUES ('2026-09-16T00:00:00Z');
+      INSERT INTO mood VALUES ('2026-09-01T00:00:00Z');`);
+    try {
+      expect(__test.ledgerFreshnessOf(p)).toEqual({
+        beatsAt: "2026-09-16T00:00:00Z",
+        moodAt: "2026-09-01T00:00:00Z",
+      });
+    } finally {
+      db.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("ledgerFreshnessOf degrades to null stamps, never throws", () => {
+    // missing file
+    expect(__test.ledgerFreshnessOf("/tmp/does-not-exist-fresh.db")).toEqual({
+      beatsAt: null,
+      moodAt: null,
+    });
+    // wrong schema (no beats/mood tables) → honest nulls, not a crash
+    const dir = mkdtempSync("/tmp/megadj-csync-fresh-bad-");
+    const p = join(dir, "archive.db");
+    const db = new Database(p);
+    db.exec("CREATE TABLE other (x TEXT);");
+    db.close();
+    try {
+      expect(__test.ledgerFreshnessOf(p)).toEqual({
+        beatsAt: null,
+        moodAt: null,
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
   test("script never clobbers non-empty comments and reads TXXX only", () => {
     const s = commentSyncScript();
     // hard skip when a comment already exists — the never-clobber rule

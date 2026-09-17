@@ -324,4 +324,8 @@ export interface ArchiveTagCensus {
   /** Which mirrors exist in this DB (absent rekordbox_content table =
    *  `megadj rb-adopt` never ran). */
   rekordboxMirror: boolean;
+  /** Ledger freshness (#174): the age stamps the compared analysis
+   *  rides on — a census against week-old beats/mood rows must not read
+   *  as current. Ages come from MAX(analyzed_at), never file mtimes. */
+  freshness: ArchiveFreshness;
 }

@@ -551,3 +551,25 @@
 .wcard {
   border-left: 3px solid var(--tab-c, var(--accent));
 }
+
+/* ledger freshness line (ui/freshness.tsx, #174) — the shared
+ * green/amber/red left-rail palette; MegasetStatus's .megaset-fresh
+ * keeps its own block for zero visual change on that panel. */
+.ledger-fresh {
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-left: 2px solid var(--line);
+  color: var(--faint);
+}
+.ledger-fresh.ok {
+  border-left-color: var(--ok, #3fb26f);
+}
+.ledger-fresh.warn {
+  border-left-color: var(--warn, #d9a441);
+}
+.ledger-fresh.stale {
+  border-left-color: var(--bad, #d05555);
+}
+.ledger-fresh .fresh-note code {
+  font-size: 10.5px;
+}

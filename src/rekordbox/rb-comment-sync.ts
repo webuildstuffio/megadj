@@ -37,6 +37,51 @@ import {
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
+import { openLedger } from "../shared/sqlite-ledger";
+import {
+  formatAge,
+  ledgerFreshness,
+} from "../../cratedeck/shared/ledger-freshness";
+
+/** The `T | null` narrows a stamp column value: string-and-non-empty
+ *  passes, everything else (absent table, wrong type) degrades to null.
+ *  Module-level so `ledgerFreshnessOf` doesn't rebuild it per call. */
+const stampOf = (v: unknown): string | null =>
+  typeof v === "string" && v ? v : null;
+
+/** Ledger freshness for the sync result (#174): MAX(analyzed_at) per
+ *  analysis ledger, straight from the archive DB — never file mtimes.
+ *  Null stamps mean an empty/missing ledger and render as "no analysis
+ *  yet" upstream, the honest gap. Read through the ONE SQLite seam
+ *  (openLedger); any failure degrades to null stamps — freshness is
+ *  display metadata and must never fail the sync. */
+export function ledgerFreshnessOf(ledgerPath: string): {
+  beatsAt: string | null;
+  moodAt: string | null;
+} {
+  if (!existsSync(ledgerPath)) return { beatsAt: null, moodAt: null };
+  try {
+    const db = openLedger(ledgerPath);
+    try {
+      const row = db
+        .query<Record<string, unknown>, []>(
+          `SELECT
+             (SELECT MAX(analyzed_at) FROM beats) AS beats_at,
+             (SELECT MAX(analyzed_at) FROM mood) AS mood_at`,
+        )
+        .get();
+      return {
+        beatsAt: stampOf(row?.beats_at),
+        moodAt: stampOf(row?.mood_at),
+      };
+    } finally {
+      db.close();
+    }
+  } catch {
+    // absent tables (schema drift / fresh ledger) → honest null stamps
+    return { beatsAt: null, moodAt: null };
+  }
+}
 
 export interface RbCommentSyncOptions {
   mount: string;
@@ -62,6 +107,11 @@ export interface RbCommentSyncResult {
   skipped: { path: string; reason: string }[];
   /** rows that already had a non-empty comment (never clobbered) */
   alreadyHad: number;
+  /** Ledger freshness (#174): the archive-ledger stamps this run's
+   *  fallback data rides on (MAX(analyzed_at) per ledger, null = empty
+   *  ledger). Surfaced so a comparison/sync against week-old analysis
+   *  reads as stale, not current — the AGENTS freshness rule. */
+  freshness: { beatsAt: string | null; moodAt: string | null };
   appliedMode: boolean;
   backedUpTo: string | null;
   verify: { ok: boolean; detail: string };
@@ -383,6 +433,9 @@ async function rbCommentSyncWithRuntime(
     written: 0,
     skipped: [],
     alreadyHad: 0,
+    freshness: deps.exists(ledger)
+      ? ledgerFreshnessOf(ledger)
+      : { beatsAt: null, moodAt: null },
     appliedMode: apply,
     backedUpTo: null,
     verify: { ok: false, detail: "not run" },
@@ -406,6 +459,9 @@ async function rbCommentSyncWithRuntime(
     written: out.written,
     skipped: out.skipped.map(([path, reason]) => ({ path, reason })),
     alreadyHad: out.alreadyHad,
+    freshness: deps.exists(ledger)
+      ? ledgerFreshnessOf(ledger)
+      : { beatsAt: null, moodAt: null },
     ...over,
     ok: true,
   });
@@ -532,6 +588,7 @@ export const __test = {
   parseVerifyOutput,
   validateVerification,
   commentVerifyScript,
+  ledgerFreshnessOf,
 };
 
 export function printRbCommentSyncReport(
@@ -541,6 +598,19 @@ export function printRbCommentSyncReport(
   printResult(log, r, (body) => {
     log(
       `${body.scanned} rows scanned · ${body.eligible} eligible (file carries tag data) · ${body.alreadyHad} already had comments (kept) · ${body.skipped.length} skipped`,
+    );
+    // #174: the ledger fallback data ages — say how old it is
+    const bands = [
+      { name: "beats", at: body.freshness.beatsAt },
+      { name: "mood", at: body.freshness.moodAt },
+    ].map((a) => ({ ...a, f: ledgerFreshness(a.at) }));
+    log(
+      `ledger freshness — ${bands
+        .map(
+          (b) =>
+            `${b.name}: ${b.f.ageHours === null ? "no analysis yet" : formatAge(b.f)}`,
+        )
+        .join(" · ")}`,
     );
     if (body.appliedMode) {
       log(

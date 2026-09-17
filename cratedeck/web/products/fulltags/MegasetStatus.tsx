@@ -14,20 +14,35 @@ import { KVRows, KVRow, KVKey, KVVal } from "../../ui/data";
 // freshness compute/format from the SSOT (#161) — the private
 // daysAgo/ageWord pair and its 2d/14d tribal thresholds are gone; the
 // AGENTS bands (green <24h, amber <7d, red ≥7d) are named in code now.
-import {
-  formatAge,
-  ledgerFreshness,
-  worstBand,
-  type FreshnessBand,
-} from "../../../shared/ledger-freshness";
+import { FreshnessLine as SharedFreshnessLine } from "../../ui/freshness";
 
-/** SSOT band → the card's css class (ok/warn/stale palette unchanged). */
-const bandClass: Record<FreshnessBand, string> = {
-  none: "ok",
-  green: "ok",
-  amber: "warn",
-  red: "stale",
-};
+/** Pool freshness: ledger ages under the proposal, so a stale pool is
+ * VISIBLE instead of silently proposing from yesterday's analysis. Tone:
+ * ok ≤2 days, warn ≤14 days, stale beyond. Thin delegation to the shared
+ * renderer (#174) — one FreshnessLine implementation repo-wide; this
+ * wrapper keeps the megaset class + exact line text (zero visual
+ * change). */
+export function FreshnessLine(props: {
+  freshness: { beatsAt: string | null; moodAt: string | null };
+  pool: number;
+}) {
+  if (props.pool === 0) return null;
+  return (
+    <SharedFreshnessLine
+      cls="megaset-fresh"
+      ages={[
+        { name: "beats", at: props.freshness.beatsAt },
+        { name: "mood", at: props.freshness.moodAt },
+      ]}
+      note={
+        <>
+          newer imports? run <code>megadj beats</code> +{" "}
+          <code>megadj mood</code>
+        </>
+      }
+    />
+  );
+}
 
 /** The build's visible phases — shown as a checklist while loading so the
  *  wait is legible ("what is it doing NOW?" has an answer). The active
@@ -83,32 +98,6 @@ export function MegasetLoading(props: { startedAt: number }) {
           whole-shelf build usually takes 15–30 seconds.
         </small>
       </span>
-    </div>
-  );
-}
-
-/** Pool freshness: ledger ages under the proposal, so a stale pool is
- * VISIBLE instead of silently proposing from yesterday's analysis. Tone:
- * ok ≤2 days, warn ≤14 days, stale beyond. */
-export function FreshnessLine(props: {
-  freshness: { beatsAt: string | null; moodAt: string | null };
-  pool: number;
-}) {
-  if (props.pool === 0) return null;
-  const beats = ledgerFreshness(props.freshness.beatsAt);
-  const mood = ledgerFreshness(props.freshness.moodAt);
-  const worst = worstBand([beats.band, mood.band]);
-  const cls = bandClass[worst];
-  return (
-    <div class={`megaset-fresh ${cls}`}>
-      analysis freshness — beats {formatAge(beats)}, mood {formatAge(mood)}
-      {worst !== "green" && worst !== "none" && (
-        <span class="fresh-note">
-          {" "}
-          — newer imports? run <code>megadj beats</code> +{" "}
-          <code>megadj mood</code>
-        </span>
-      )}
     </div>
   );
 }

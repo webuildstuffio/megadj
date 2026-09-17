@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import render from "preact-render-to-string";
 import { TagCompareTab, CompareCard } from "../products/fulltags/TagCompareTab";
+import { FreshnessLine } from "../ui/freshness";
 import type {
   ArchiveTagCensus,
   ArchiveTrackTagCompare,
@@ -17,6 +18,10 @@ const censusFixture: ArchiveTagCensus = {
   matched: 3563,
   differing: 2,
   unmatched: 101,
+  freshness: {
+    beatsAt: "2026-09-16T01:00:00Z",
+    moodAt: "2026-09-16T01:00:00Z",
+  },
   fieldCounts: [
     { field: "bpm", count: 2 },
     { field: "genre", count: 1 },
@@ -167,5 +172,26 @@ describe("FullTags tag-compare UX (Tags tab)", () => {
     expect(censusFixture.rows[0]!.genreFlag).toBe("disputed");
     expect(compareFixture.differences.length).toBe(2);
     expect(TagCompareTab).toBeTypeOf("function");
+  });
+
+  test("the freshness line renders on the compare surface (#174)", () => {
+    // the shared renderer exists and the tab mounts it with the wire's
+    // freshness stamps — a stale census must not read as current
+    const src = readFileSync(
+      join(import.meta.dir, "../products/fulltags/TagCompareTab.tsx"),
+      "utf8",
+    );
+    expect(src).toContain("<FreshnessLine");
+    expect(src).toContain("c.freshness.beatsAt");
+    // empty ledger renders the explicit honest state, never a fake age
+    const emptyHtml = render(
+      <FreshnessLine ages={[{ name: "beats", at: null }]} />,
+    );
+    expect(emptyHtml).toContain("no beats analysis yet");
+    // banded classes: stale stamps get the red rail
+    const staleHtml = render(
+      <FreshnessLine ages={[{ name: "beats", at: "2026-01-01T00:00:00Z" }]} />,
+    );
+    expect(staleHtml).toContain("stale");
   });
 });

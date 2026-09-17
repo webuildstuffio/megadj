@@ -266,11 +266,12 @@ const rbImportCmd: MaintenanceHandler = async (rest) => {
   // the SANCTIONED headless master-DB import (AGENTS.md: auto-writes
   // are rb-import's job only). One playlist per intake folder under a
   // parent group; dated backup + rekordbox-quit gate + whole-table
-  // verify. Dry-run by default; --apply --yes writes.
+  // verify. F11 dupe gate on by default; --allow-dupe escapes it.
+  // Dry-run by default; --apply --yes writes.
   const flags = parseFlags(
     rest,
     ["playlist", "group"],
-    ["apply", "yes", "json"],
+    ["apply", "yes", "json", "allow-dupe"],
   );
   const args = positionalArgs(rest, []);
   const mount = mountFrom(args[0]);
@@ -279,7 +280,7 @@ const rbImportCmd: MaintenanceHandler = async (rest) => {
     await finishCommandError({
       command: "rb-import",
       error:
-        "usage — megadj rb-import <mount> <folder> [--playlist NAME] [--group NAME] [--apply --yes]",
+        "usage — megadj rb-import <mount> <folder> [--playlist NAME] [--group NAME] [--allow-dupe] [--apply --yes]",
     });
     return;
   }
@@ -290,9 +291,10 @@ const rbImportCmd: MaintenanceHandler = async (rest) => {
     mount,
     folder,
     ...rbWriteOpts(flags, json),
+    allowDupe: flags.bools.has("allow-dupe"),
   });
   await emitResult(json, r, printRbImportReport);
-  if (!r.ok) setExit(1);
+  if (!r.ok || r.dupes.length > 0) setExit(1);
 };
 
 const rbCuesCmd: MaintenanceHandler = async (rest) => {

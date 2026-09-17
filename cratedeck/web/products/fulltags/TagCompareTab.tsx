@@ -32,6 +32,7 @@ import {
   DataTable,
 } from "../../ui/data";
 import { ArchiveAbsentGate, SectionHead, Verdict } from "../shared";
+import { FreshnessLine } from "../../ui/freshness";
 import { TrackPickSearch, type TrackPick } from "./TrackPickSearch";
 
 /** Pill classes per comparison outcome. */
@@ -134,6 +135,20 @@ export function TagCompareTab() {
             {f.field} {f.count.toLocaleString()}
           </span>
         ))}
+      />
+      {/* #174: the census compares analysis (beats BPM, mirror key) whose
+       * ledgers age — say how old instead of reading stale as current. */}
+      <FreshnessLine
+        ages={[
+          { name: "beats", at: c.freshness.beatsAt },
+          { name: "mood", at: c.freshness.moodAt },
+        ]}
+        note={
+          <>
+            newer imports? run <code>megadj beats</code> +{" "}
+            <code>megadj mood</code>
+          </>
+        }
       />
 
       <SectionHead icon="search" title="Pick a track for the three-source view">
