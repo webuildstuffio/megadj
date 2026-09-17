@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { JOB_KINDS } from "../shared/types";
 import { DECK_MCP_SURFACES } from "../src/mcp_surfaces";
@@ -98,6 +98,18 @@ function httpApiRoutes(): string[] {
     routes.add("/jobs/:id");
     routes.add("/jobs/:id/cancel");
   }
+  // Regex/dispatch-shaped routes the `===` scan can't see, each verified
+  // against its source pattern so a rename of the regex fails the census:
+  // /jobs/:id + /jobs/:id/cancel live in the jobMatch regex above;
+  // /drives/:id is the `!sub` detail arm in driveSubroute;
+  // /drives/:id/notes/:id/dismiss is the noteMatch regex in drive_routes;
+  // /fleet/prep is the fall-through tail of the fleet router (no guard —
+  // the /fleet/ prefix delegator in api_routes.ts routes it there).
+  if (index.includes("const noteMatch = sub.match"))
+    routes.add("/drives/:id/notes/:id/dismiss");
+  if (index.includes('if (route.startsWith("/fleet/"))'))
+    routes.add("/fleet/prep");
+  if (index.includes("if (!sub) {")) routes.add("/drives/:id");
   const archive = read("cratedeck/src/archive_routes.ts").join("\n");
   const handlers = archive.match(
     /function archiveHandlers\(\)[\s\S]*?return \{([\s\S]*?)\n  \};/,
@@ -169,6 +181,67 @@ function uiJobKinds(): string[] {
   return [...new Set(kinds)].toSorted();
 }
 
+/** UI endpoint surface (audit gap G4): every distinct `/api/...` path
+ *  family the web app talks to — the source-derived replacement for the
+ *  doc's old hand-approximated "~22 actions" cell. Derived by scanning
+ *  every web module (not just the tab list: a call site hiding in a
+ *  product dir must count too) for the four transport shapes:
+ *  `api<T>(...)`/`apiPost(...)` (ui/api.ts via ui/toast.ts), raw
+ *  `fetch("/api/...")` (hygiene-compare's stats loader), `actionPath:`
+ *  props (the useScanApply scan/apply scaffold), and the SSE
+ *  `EventSource("/api/events")` feed. Query strings strip (a family is
+ *  an endpoint, not its params) and `${...}` interpolations collapse to
+ *  `:x` (drive id changes don't fork the family). The transport hosts
+ *  themselves (ui/api.ts, ui/toast.tsx) are excluded so the wrapper
+ *  doesn't census itself. */
+function uiEndpointFamilies(): string[] {
+  const WEB_ROOT = "cratedeck/web";
+  const families = new Set<string>();
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) {
+        if (e.name === "node_modules" || e.name === "test") continue;
+        walk(rel);
+      } else if (/\.(tsx|ts)$/.test(e.name)) {
+        if (e.name === "api.ts" || e.name === "toast.tsx") continue;
+        const src = read(rel).join("\n");
+        const callShapes = [
+          /\bapi(?:Post)?(?:<[^>]*>)?\s*\(/g,
+          /\bfetch\s*\(/g,
+          /new EventSource\s*\(/g,
+        ];
+        for (const re of callShapes) {
+          for (const m of src.matchAll(re)) {
+            // first string literal after the call's open paren — handles
+            // literals on the next line (prettier-wrapped api( calls)
+            let i = (m.index ?? 0) + m[0].length;
+            while (i < src.length && /\s/.test(src[i] ?? "")) i += 1;
+            const q: string = src[i] ?? "";
+            if (q !== "`" && q !== "'" && q !== '"') continue;
+            let j = i + 1;
+            let lit = "";
+            while (j < src.length && src[j] !== q) {
+              lit += src[j];
+              j += 1;
+            }
+            if (lit.startsWith("/api/")) {
+              const head = lit.split("?")[0];
+              if (head !== undefined)
+                families.add(head.replace(/\$\{[^}]*\}/g, ":x"));
+            }
+          }
+        }
+        // scaffold-mediated families: actionPath + `/${kind}`
+        for (const m of src.matchAll(/actionPath: "([^"]+)"/g))
+          if (m[1]) families.add(m[1]);
+      }
+    }
+  };
+  walk(WEB_ROOT);
+  return [...families].toSorted();
+}
+
 /** The canonical job-kind set comes directly from the runtime SSOT. Importing
  *  the producer avoids a text parser that can drift when its type declaration
  *  changes — exactly the class of hand-maintained twin this test forbids. */
@@ -210,9 +283,15 @@ const TOOL_EXEMPTIONS: Record<string, string> = {
 const UI_KIND_EXEMPTIONS: Record<string, string> = {};
 
 /** Whitespace-tolerant census-cell matcher. Module-level — captures
- *  nothing from the enclosing test. */
+ *  nothing from the enclosing test. The number may be preceded by other
+ *  words in the same cell ("6 pages, 54 UI calls"), so the pattern
+ *  anchors on a word boundary, not the pipe. */
 const censusCell = (n: number, unit: string): RegExp =>
-  new RegExp(`\\|\\s+${n} ${unit}[^|]*\\|`);
+  new RegExp(`\\|\\s*[^|]*\\b${n} ${unit}\\b[^|]*\\|`);
+
+/** escapeRegExp hoisted to module scope (oxlint consistent-function-scoping). */
+const escapeRegExp = (s: string): string =>
+  s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // ---- tests ----------------------------------------------------------------
 
@@ -242,6 +321,37 @@ describe("surface parity (docs/surface-parity.md)", () => {
     const routes = httpApiRoutes();
     expect(routes.length).toBeGreaterThan(0);
     expect(doc).toMatch(censusCell(routes.length, "routes"));
+    // G4: the UI cell is source-derived too — the doc's old "~22 actions"
+    // was a hand approximation that no test could fail. The census counts
+    // distinct /api/ endpoint families the web app calls (api/apiPost/
+    // fetch/EventSource call sites + the useScanApply actionPath props).
+    const uiFamilies = uiEndpointFamilies();
+    expect(uiFamilies.length).toBeGreaterThan(20);
+    expect(doc).toMatch(censusCell(uiFamilies.length, "UI calls"));
+    // every UI-called family must exist in the route census — a UI button
+    // pointing at a non-route is a broken promise, not a parity gap.
+    // Notation normalization: the route census stores paths AFTER the
+    // server's `/api` slice (`/drives/:id`, `/archive/search`), while UI
+    // families are full client paths with interpolations collapsed to
+    // `:x`. Matching is per-segment: a route `:id` segment becomes a
+    // `[^/]+` wildcard (which swallows the UI side's literal `:x`
+    // marker); everything else escapes literally.
+    const routeRegexes = routes.map((r) => {
+      const segs = r
+        .replace(/^\/api\//, "")
+        .replace(/^\//, "")
+        .split("/")
+        .map((seg) => (seg === ":id" ? "[^/]+" : escapeRegExp(seg)));
+      return new RegExp(`^${segs.join("\\/")}$`);
+    });
+    const unmatched = uiFamilies.filter((f) => {
+      const fam = f.replace(/^\/api\//, "").replace(/^\//, "");
+      return !routeRegexes.some((re) => re.test(fam));
+    });
+    expect(
+      unmatched,
+      `UI calls these endpoints but the route census has no such route: ${unmatched.join(", ")}`,
+    ).toEqual([]);
     // the dated-revs header must also carry the CURRENT tool count when
     // it names one (rev entries may name a past count only if a LATER rev
     // names the newer one — simplest honest rule: the doc must contain
