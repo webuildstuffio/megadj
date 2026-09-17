@@ -26,7 +26,6 @@ import {
   isRecord,
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
-import { incidentCuePredicatePython } from "./cue-incident.js";
 import {
   applyConfirmed,
   applyConfirmationRefusal,
@@ -38,13 +37,11 @@ import {
   makeFail,
   parseJsonBoundary,
   printResult,
-  pyUvArgv,
-  RB_CLOSED_PY_GUARD,
+  pyUvFileArgv,
   rbCommandRuntime,
   type RbCommandResult,
   type RbCommandRuntime,
 } from "./rb-command-kit.js";
-import { pyDbOpen, pyDbOpenImports } from "./rb-script-kit.js";
 import { commandLog } from "../progress";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -224,69 +221,8 @@ function validateVerification(
     throw new Error(`${result.remaining} Kind=0 rows survived the re-read`);
 }
 
-function cueVerifyScript(): string {
-  return `
-import json, sys
-${pyDbOpenImports()}
-from pyrekordbox.db6.tables import DjmdCue
-expected = [str(i) for i in json.load(sys.stdin)]
-${pyDbOpen("sys.argv[1]")}
-rows = db.query(DjmdCue).filter(DjmdCue.ID.in_([int(i) for i in expected])).all() if expected else []
-actual = {str(row.ID): int(row.Kind) for row in rows}
-remaining = sum(1 for i in expected if actual.get(i) == 0)
-db.close()
-missing = sorted(i for i in expected if i not in actual)
-mismatched = [[i, actual[i]] for i in expected if i in actual and actual[i] != 1]
-matched = sum(1 for i in expected if actual.get(i) == 1)
-print(json.dumps({"total": len(actual), "matched": matched, "remaining": remaining, "missing": missing, "mismatched": mismatched}))
-`;
-}
-
 function dbPathFor(mount: string): string {
   return masterDbPath(mount);
-}
-
-/**
- * The one-shot BUG-1 repair. Kind=0 is also the legitimate collection-DB
- * value for memory cues, so a broad Kind=0 rewrite is unsafe. The broken
- * Sep 12 intake writer left a provenance signature pinned from the sacred
- * pre-repair backup: a 14-minute creation window, its semantic label/color
- * vocabulary, NULL RB-authored cue fields, and a content path under this
- * shelf's Contents tree. Only rows matching every part are candidates.
- */
-export function restampScript(): string {
-  return `
-import datetime, json, os, subprocess, sys
-${pyDbOpenImports()}
-from pyrekordbox.db6.tables import DjmdContent, DjmdCue
-
-db_path = sys.argv[1]
-apply = sys.argv[2] == "apply"
-mount = os.path.abspath(sys.argv[3])
-${pyDbOpen("db_path")}
-all_kind_zero = db.query(DjmdCue).filter(DjmdCue.Kind == 0).all()
-contents = os.path.normpath(os.path.join(mount, "Contents"))
-content_paths = {str(content.ID): content.FolderPath or "" for content in db.query(DjmdContent).all()}
-${incidentCuePredicatePython()}
-
-rows = [cue for cue in all_kind_zero if is_incident_cue(cue)]
-out = {"found": len(rows), "written": 0, "protected": len(all_kind_zero) - len(rows),
-       "written_ids": [], "errors": []}
-if apply:
-    try:
-        for r in rows:
-            r.Kind = 1
-        ${RB_CLOSED_PY_GUARD}
-            raise RuntimeError("rekordbox reopened before cue commit")
-        db.session.commit()
-        out["written_ids"] = [str(r.ID) for r in rows]
-        out["written"] = len(out["written_ids"])
-    except Exception as e:
-        db.session.rollback()
-        out["errors"].append(["transaction", repr(e)[:200]])
-print(json.dumps(out))
-db.close()
-`;
 }
 
 export async function rbCues(opts: RbCuesOptions): Promise<RbCuesResult> {
@@ -352,8 +288,8 @@ async function rbCuesWithRuntime(
   let result: CueCommandResult;
   try {
     result = deps.spawn(
-      pyUvArgv({
-        script: restampScript(),
+      pyUvFileArgv({
+        file: "cue-restamp.kit.py",
         args: [dbPath, "census", opts.mount],
       }),
       120_000,
@@ -416,8 +352,8 @@ function restampApplyLeg(
   try {
     deps.assertClosed("rb-cues --apply");
     const r = deps.spawn(
-      pyUvArgv({
-        script: restampScript(),
+      pyUvFileArgv({
+        file: "cue-restamp.kit.py",
         args: [dbPath, "apply", opts.mount],
       }),
       300_000,
@@ -430,7 +366,7 @@ function restampApplyLeg(
     deps.sleep(250);
     deps.assertClosed("rb-cues verification");
     const zeroCheck = deps.spawn(
-      pyUvArgv({ script: cueVerifyScript(), args: [dbPath] }),
+      pyUvFileArgv({ file: "cue-verify.py", args: [dbPath] }),
       120_000,
       JSON.stringify(output.writtenIds),
     );
@@ -465,7 +401,6 @@ export const __test = {
   parseRestampOutput,
   parseVerifyOutput,
   validateVerification,
-  cueVerifyScript,
 };
 
 export function printRbCuesReport(

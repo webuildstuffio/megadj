@@ -29,7 +29,7 @@ describe("rb-import subprocess boundaries", () => {
       }),
     );
     expect(result.playlistId).toBe(id);
-    expect(__test.buildScript()).toContain('out["playlistId"] = str(pl.ID)');
+    expect(__test.writeScript()).toContain('out["playlistId"] = str(pl.ID)');
   });
 
   test("write and verify payloads reject empty or malformed schemas", () => {
@@ -66,7 +66,7 @@ describe("rb-import subprocess boundaries", () => {
   });
 
   test("same-name files use case-folded full paths and both writers use the twin seam", () => {
-    const script = __test.buildScript();
+    const script = __test.writeScript();
     expect(script).toContain("existing[path_key(c.FolderPath)] = c.ID");
     expect(script).toContain("return nfc(s).casefold()");
     expect(script).toContain("existing.get(path_key(full))");
@@ -84,7 +84,7 @@ describe("rb-import subprocess boundaries", () => {
   });
 
   test("root playlists and groups never reuse a nested same-name row", () => {
-    const script = __test.buildScript();
+    const script = __test.writeScript();
     expect(script).toContain("def find_playlist(name, attr, parent_id):");
     expect(script).toContain("DjmdPlaylist.ParentID == parent_id");
     expect(script).toContain("find_playlist(group_name, 1, 0)");
@@ -106,7 +106,7 @@ describe("rb-import subprocess boundaries", () => {
   // OR acoustic fingerprint — raw string compare is how the case-variant
   // path bug (F5) and silent dupes share a root cause.
   test("write script counts gated files and never imports them", () => {
-    const script = __test.buildScript();
+    const script = __test.writeScript();
     // the gated set rides the payload; gated files count, never insert
     expect(script).toContain('gate = {d[0] for d in payload.get("gated", [])}');
     expect(script).toContain("elif full in gate:");
@@ -119,7 +119,7 @@ describe("rb-import subprocess boundaries", () => {
 
   test("gate scan script: NFC+casefold path proof + duration-±2s candidates", () => {
     expect(__test.gateScanScript()).toContain(
-      "def path_key(s):\n    return nfc(s).casefold()",
+      'def path_key(s: str) -> str:\n    normalized = nfc(s)\n    return normalized.casefold() if normalized else ""',
     );
     // path proof emits the incoming target; fp candidates emit bare rows
     expect(__test.gateScanScript()).toContain('"targets": [full]');

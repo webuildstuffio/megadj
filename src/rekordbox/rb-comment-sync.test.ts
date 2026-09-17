@@ -1,8 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { __test, commentSyncScript } from "./rb-comment-sync.js";
+import { __test } from "./rb-comment-sync.js";
+import { renderKitMarkers } from "./rb-command-kit";
+
+/** The RENDERED sync program — kit markers resolved exactly as
+ *  pyUvFileArgv does at spawn time (#194 corpus extraction). */
+const commentSyncScript = () =>
+  renderKitMarkers(
+    readFileSync(
+      join(import.meta.dir, "rb-scripts", "comment-sync.kit.py"),
+      "utf8",
+    ),
+  );
 
 describe("rb-comment-sync", () => {
   test("ledgerFreshnessOf reads MAX(analyzed_at) stamps (#174)", () => {

@@ -29,18 +29,13 @@ import {
   type ScanResult,
   type VerifyRow,
 } from "./rb-dedup-parse.js";
-import {
-  dedupDeleteScript,
-  dedupScanScript,
-  dedupVerifyScript,
-} from "./rb-dedup-scripts.js";
 import { fingerprintFileLength } from "../fulltags/fingerprint";
 import { inspectMutationPaths } from "./rb-dedup-support.js";
 import {
   applyConfirmed,
   applyConfirmationRefusal,
   makeFail,
-  pyUvArgv,
+  pyUvFileArgv,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 export { pickKeeper, printRbDedupReport } from "./rb-dedup-support.js";
@@ -162,7 +157,7 @@ export async function rbDedup(
 
   const r = deps.spawn(
     "uv",
-    pyUvArgv({ script: dedupScanScript(), args: [dbPath] }),
+    pyUvFileArgv({ file: "dedup-scan.py", args: [dbPath] }),
     { encoding: "utf8", timeout: 300_000 },
   );
   if (r.status !== 0 || !r.stdout)
@@ -216,8 +211,8 @@ export async function rbDedup(
     }
     const rd = deps.spawn(
       "uv",
-      pyUvArgv({
-        script: dedupDeleteScript(),
+      pyUvFileArgv({
+        file: "dedup-delete.kit.py",
         args: [
           dbPath,
           JSON.stringify(unique.map((pair) => [pair.loseId, pair.keepId])),
@@ -305,8 +300,8 @@ export async function rbDedup(
       ];
       const verification = deps.spawn(
         "uv",
-        pyUvArgv({
-          script: dedupVerifyScript(),
+        pyUvFileArgv({
+          file: "dedup-verify.kit.py",
           args: [dbPath, JSON.stringify(ids)],
         }),
         { encoding: "utf8", timeout: 120_000 },

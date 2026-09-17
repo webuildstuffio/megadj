@@ -35,7 +35,7 @@ import {
   lastJsonLine,
   makeFail,
   printResult,
-  rbPythonRun,
+  rbPythonFile,
 } from "./rb-command-kit.js";
 import { errorText } from "../shared/error-text";
 
@@ -126,28 +126,13 @@ function preflight(dbPath: string, stickMount: string | null): string | null {
   return null;
 }
 
-const PY_ROWS =
-  "import sys, json\n" +
-  "sys.path.insert(0, sys.argv[2])\n" +
-  "from pyrekordbox import Rekordbox6Database as R\n" +
-  "from anlz_paths import compute_anlz_folder\n" +
-  "db = R(sys.argv[1])\n" +
-  "rows = []\n" +
-  "for c in db.get_content():\n" +
-  '    p = compute_anlz_folder(c.FolderPath or "")\n' +
-  '    rows.append({"id": c.ID, "path": c.FolderPath or "",\n' +
-  '                 "anlz": getattr(c, "AnalysisDataPath", "") or "",\n' +
-  '                 "hashDir": "P%03X/%08X" % p})\n' +
-  "print(json.dumps(rows))\n" +
-  "db.close()\n";
-
 /** Read every content row + its hash path (the python SSOT seam). */
 export function readMasterRows(
   dbPath: string,
   scriptsDir: string,
 ): MasterRow[] {
-  const r = rbPythonRun({
-    script: PY_ROWS,
+  const r = rbPythonFile({
+    file: "grid-triage-rows.py",
     args: [dbPath, scriptsDir],
     timeoutMs: 180_000,
   });

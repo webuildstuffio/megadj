@@ -17,7 +17,13 @@
  * to 60 chars, FileType by extension, FolderPath as the FULL path.
  */
 
-import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  type Stats,
+} from "node:fs";
 import { basename, extname, join } from "node:path";
 import {
   isNonNegativeInteger,
@@ -35,16 +41,10 @@ import {
   makeFail,
   parseJsonBoundary,
   printResult,
-  runPyScript,
+  rbPythonFile,
+  renderKitMarkers,
 } from "./rb-command-kit.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
-import {
-  PY_FIND_PLAYLIST_FN,
-  PY_RID_FN,
-  pyAddSongPlaylist,
-  pyEnsurePlaylistLadder,
-  pyPathKeyFn,
-} from "./rb-script-kit.js";
 import { commandLog } from "../progress";
 import { errorText } from "../shared/error-text.js";
 import { masterDbPath } from "./master-path.js";
@@ -228,10 +228,10 @@ function dupeGateScan(
       : [];
   });
 
-  const scan = runPyScript({
-    script: GATE_SCAN_SCRIPT,
-    dbPath,
+  const scan = rbPythonFile({
+    file: "import-gate-scan.py",
     args: [
+      dbPath,
       JSON.stringify({
         files: payloadFiles.map((f) => [
           f[0],
@@ -240,7 +240,6 @@ function dupeGateScan(
       }),
     ],
     timeoutMs: 120_000,
-    label: "dupe gate scan",
   });
   const raw = parseJsonBoundary(lastJsonLine(scan.stdout), "dupe gate scan");
   if (!isRecord(raw) || !isUnknownArray(raw.candidates)) {
@@ -294,159 +293,6 @@ function dupeGateScan(
       refused.set(hit, { file: hit, matchedBy: "fingerprint", rowId: c.rowId });
   }
   return { refused: [...refused.values()] };
-}
-
-/** Read-only Python half of the F11 dupe gate: for each incoming file,
- *  emit (a) any existing row whose path_key EXACTLY matches (the
- *  NFC+casefold path proof) and (b) rows whose Length sits within ±2s —
- *  the fingerprint candidates TS will judge. Never writes; runs against
- *  the same scratch-copy discipline as every other read. */
-const GATE_SCAN_SCRIPT = `
-import json, sys, unicodedata
-from pyrekordbox import Rekordbox6Database
-from pyrekordbox.db6.tables import DjmdContent
-
-db_path, payload = sys.argv[1], json.loads(sys.argv[2])
-incoming = {str(f[0]): float(f[1] or 0) for f in payload["files"]}
-
-${pyPathKeyFn()}
-
-existing = []
-for c in db.query(DjmdContent).all():
-    if not c.FolderPath:
-        continue
-    dur = float(c.Length) if c.Length else 0.0
-    existing.append((str(c.ID), str(c.FolderPath), dur, path_key(c.FolderPath)))
-
-candidates = []
-for full, dur in incoming.items():
-    key = path_key(full)
-    for row_id, path, e_dur, e_key in existing:
-        if e_key == key:
-            # (a) NFC+casefold path proof — same file row already
-            candidates.append({"rowId": row_id, "path": path,
-                               "duration": e_dur, "targets": [full]})
-        elif abs(e_dur - dur) <= 2.0:
-            # (b) duration candidate — TS fingerprints this row's file
-            candidates.append({"rowId": row_id, "path": path,
-                               "duration": e_dur, "targets": []})
-
-print(json.dumps({"candidates": candidates}))
-`;
-
-/** The full write script: idempotent (skips files that already have a
- *  content row OR were refused by the F11 dupe gate the caller resolved),
- *  per-row commit, playlist per folder, rows returned for verification.
- *  All Python-side so one spawn does the whole job. */
-function buildScript(): string {
-  return `
-import json, os, sys, unicodedata, uuid, datetime
-from pyrekordbox import Rekordbox6Database
-from pyrekordbox.db6.tables import DjmdContent, DjmdArtist, DjmdPlaylist, DjmdSongPlaylist
-
-db_path, payload = sys.argv[1], json.loads(sys.argv[2])
-files, playlist_name, group_name = payload["files"], payload["playlist"], payload["group"]
-gate = {d[0] for d in payload.get("gated", [])}
-now = datetime.datetime.now()
-db = Rekordbox6Database(db_path)
-
-out = {"inserted": 0, "already": 0, "linked": 0, "gated": 0, "playlistId": None, "parentId": None, "errors": []}
-
-${pyPathKeyFn()}
-
-existing = {}
-for c in db.query(DjmdContent).all():
-    if c.FolderPath:
-        existing[path_key(c.FolderPath)] = c.ID
-
-# --- playlist (child of group when given) ---
-${PY_FIND_PLAYLIST_FN}
-
-${PY_RID_FN}
-
-${pyEnsurePlaylistLadder({ createMissingGroup: false, onExisting: "reuse" })}
-
-track_no = db.query(DjmdSongPlaylist).filter(DjmdSongPlaylist.PlaylistID == pl.ID).count()
-playlist_content = {
-    r.ContentID for r in db.query(DjmdSongPlaylist).filter(DjmdSongPlaylist.PlaylistID == pl.ID).all()
-}
-
-master_db_id = ""
-c0 = db.query(DjmdContent).first()
-if c0 is not None and getattr(c0, "MasterDBID", None):
-    master_db_id = c0.MasterDBID
-
-device_id = "adeae5be-3cc0-4f1d-bb8a-cf6c61c01bdf"
-
-for f in files:
-    full, fname, title, artist, album, genre, year, duration, bitrate, bpm, key, fp = f
-    cid = existing.get(path_key(full))
-    if cid is not None:
-        out["already"] += 1
-    elif full in gate:
-        # F11 dupe gate: the caller proved this file duplicates an
-        # existing recording (fingerprint or NFC path match) and the
-        # run is not --allow-dupe. Counted, never silently imported.
-        out["gated"] += 1
-    else:
-        try:
-            ext = os.path.splitext(fname)[1].lower()
-            file_type = {".mp3": 1, ".wav": 11, ".aiff": 12, ".aif": 12,
-                         ".flac": 14, ".m4a": 5, ".aac": 5}.get(ext, 0)
-            clip = fname if len(fname) <= 60 else fname[:57] + "..."
-            art_id = None
-            if artist:
-                a = db.query(DjmdArtist).filter(DjmdArtist.Name == artist).first()
-                if a is None:
-                    aid = rid()
-                    a = DjmdArtist(ID=aid, Name=artist, UUID=str(uuid.uuid4()),
-                                   created_at=now, updated_at=now)
-                    db.add(a); db.session.commit()
-                art_id = a.ID
-            cid = rid()
-            row = DjmdContent(
-                ID=cid, FolderPath=full, FileNameL=clip, Title=title or fname,
-                ArtistID=art_id, AlbumID=None, GenreID=None,
-                BPM=bpm, Length=duration, BitRate=bitrate, BitDepth=0,
-                FileType=file_type, Rating=0, ReleaseYear=year, KeyID=None,
-                StockDate=now.strftime("%Y-%m-%d"), ColorID=0,
-                MasterDBID=master_db_id,
-                UUID=str(uuid.uuid4()),
-                FileSize=os.path.getsize(full) if os.path.exists(full) else 0,
-                SearchStr=(title or "") + " " + (artist or ""),
-                Commnt="",
-                SamplerGain=0.0, VideoAssociate=0, Lyricist="",
-                ServiceID=0, OrgFolderPath="", Reserved1="", Reserved2="", Reserved3="", Reserved4="",
-                ExtInfo="null",
-                DeviceID=device_id,
-                SrcID=0, SrcTitle="", SrcArtistName="", SrcAlbumName="",
-                SrcLength=0, rb_data_status=0, rb_local_data_status=0,
-                rb_local_deleted=0, rb_local_synced=0, usn=None, rb_local_usn=0,
-                created_at=now, updated_at=now,
-            )
-            db.add(row)
-            db.session.commit()
-            out["inserted"] += 1
-            existing[path_key(full)] = cid
-        except Exception as e:
-            db.session.rollback()
-            out["errors"].append([os.path.basename(full)[:60], repr(e)[:140]])
-            continue
-    try:
-        if cid not in playlist_content:
-            # playlist membership for both new and already-imported content
-            # so re-runs repair an incomplete batch playlist idempotently.
-            ${pyAddSongPlaylist("sp", "pl.ID", "cid", "track_no + 1").replaceAll("\n", "\n            ")}
-            track_no += 1
-            playlist_content.add(cid)
-            out["linked"] += 1
-    except Exception as e:
-        db.session.rollback()
-        out["errors"].append([os.path.basename(full)[:60], repr(e)[:140]])
-
-print(json.dumps(out))
-db.close()
-`;
 }
 
 interface PyOut {
@@ -544,21 +390,6 @@ function verificationError(
   return null;
 }
 
-/** The delayed fresh-process verification script: covers content paths,
- *  playlist membership, and TrackNo continuity. The shared twin seam
- *  separately verifies XML. */
-const VERIFY_SCRIPT =
-  "import json,os,sys;from pyrekordbox import Rekordbox6Database as R\n" +
-  "from pyrekordbox.db6.tables import DjmdContent,DjmdPlaylist,DjmdSongPlaylist\n" +
-  "db=R(sys.argv[1]);files=set(json.loads(sys.argv[2]));pid=int(sys.argv[3])\n" +
-  "rows=db.query(DjmdContent).all()\n" +
-  "hit=sum(1 for c in rows if c.FolderPath in files)\n" +
-  "broken=sum(1 for c in rows if c.FolderPath and not (os.path.exists(c.FolderPath) or os.path.basename(c.FolderPath) in files))\n" +
-  "members=db.query(DjmdSongPlaylist).filter(DjmdSongPlaylist.PlaylistID == pid).all()\n" +
-  "nos=sorted(r.TrackNo for r in members)\n" +
-  "playlist_exists=db.query(DjmdPlaylist).filter(DjmdPlaylist.ID == pid).first() is not None\n" +
-  'print(json.dumps({"hit":hit,"broken":broken,"total":len(rows),"playlistRows":len(members),"contiguous":nos == list(range(1,len(nos)+1)),"playlistExists":playlist_exists}));db.close()';
-
 /** The success counters + error bookkeeping the apply phase threads
  *  through (mutation + verify callbacks write into these). */
 interface ApplyCounters {
@@ -595,10 +426,10 @@ function applyImport(
       counters.backedUpTo = db;
     },
     mutateDb: () => {
-      const result = runPyScript({
-        script: buildScript(),
-        dbPath,
+      const result = rbPythonFile({
+        file: "import-write.kit.py",
         args: [
+          dbPath,
           JSON.stringify({
             files: payloadFiles,
             playlist,
@@ -607,7 +438,6 @@ function applyImport(
           }),
         ],
         timeoutMs: 300_000,
-        label: "pyrekordbox write",
       });
       const value = parseWriteOutput(lastJsonLine(result.stdout));
       if (value.playlistId === null || value.errors.length > 0)
@@ -643,15 +473,14 @@ function applyImport(
     verifyDb: (value) => {
       if (value.playlistId === null)
         throw new Error("playlist mutation returned no playlist id");
-      const result = runPyScript({
-        script: VERIFY_SCRIPT,
-        dbPath,
+      const result = rbPythonFile({
+        file: "import-verify.py",
         args: [
+          dbPath,
           JSON.stringify(payloadFiles.map((file) => file[0])),
           value.playlistId,
         ],
         timeoutMs: 120_000,
-        label: "pyrekordbox post-verify",
       });
       const verify = parseVerifyOutput(lastJsonLine(result.stdout));
       counters.verified = verify.hit;
@@ -797,8 +626,18 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
 }
 
 export const __test = {
-  buildScript,
-  gateScanScript: (): string => GATE_SCAN_SCRIPT,
+  writeScript: (): string =>
+    renderKitMarkers(
+      readFileSync(
+        join(import.meta.dir, "rb-scripts", "import-write.kit.py"),
+        "utf8",
+      ),
+    ),
+  gateScanScript: (): string =>
+    readFileSync(
+      join(import.meta.dir, "rb-scripts", "import-gate-scan.py"),
+      "utf8",
+    ),
   parseWriteOutput,
   parseVerifyOutput,
   verificationError,

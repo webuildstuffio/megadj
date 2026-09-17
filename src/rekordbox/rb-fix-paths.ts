@@ -21,7 +21,8 @@
  *   - corrupt/missing DB is a visible failure, never a fake pass
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { commandLog } from "../progress";
 import { isUnknownArray } from "../../cratedeck/shared/guards";
 import {
@@ -37,7 +38,7 @@ import {
   makeFail,
   parseJsonBoundary,
   printResult,
-  rbPythonRun,
+  rbPythonFile,
 } from "./rb-command-kit.js";
 import { masterDbPath, normalizeMount } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -61,12 +62,6 @@ export type {
   RbFixRow,
 } from "./rb-fix-paths-types.js";
 export { buildIndex } from "./rb-fix-paths-index.js";
-
-const PY =
-  "import sys, json;from pyrekordbox import Rekordbox6Database as R\n" +
-  "db=R(sys.argv[1])\n" +
-  'rows=[(str(c.ID),c.FolderPath or "") for c in db.get_content()]\n' +
-  "print(json.dumps(rows));db.close()";
 
 function parseJsonResult(raw: string, operation: "read" | "rewrite"): unknown {
   return parseJsonBoundary(raw, `pyrekordbox ${operation}`);
@@ -115,7 +110,11 @@ function parseRewriteResult(raw: string): number {
 /** Read (ID, FolderPath) for every content row via pyrekordbox. Shared
  *  with rb-unmatched (read-only reuse — one DB reader, two consumers). */
 export function readRows(dbPath: string): [string, string][] {
-  const r = rbPythonRun({ script: PY, args: [dbPath], timeoutMs: 120_000 });
+  const r = rbPythonFile({
+    file: "fix-paths-read.py",
+    args: [dbPath],
+    timeoutMs: 120_000,
+  });
   if (r.status !== 0 || !r.stdout) {
     throw new Error(
       `pyrekordbox read failed (exit ${String(r.status)}): ${r.stderr.slice(0, 300)}`,
@@ -455,9 +454,8 @@ async function rewriteRows(
   log: (s: string) => void,
 ): Promise<number> {
   const payload = JSON.stringify(rows.map((r) => [r.id, r.fixPath]));
-  const script = rewriteScript();
-  const r = rbPythonRun({
-    script,
+  const r = rbPythonFile({
+    file: "fix-paths-rewrite.py",
     args: [dbPath, payload],
     timeoutMs: 180_000,
   });
@@ -472,27 +470,6 @@ async function rewriteRows(
   return parseRewriteResult(line);
 }
 
-function rewriteScript(): string {
-  return (
-    "import sys,json;from pyrekordbox import Rekordbox6Database as R\n" +
-    "db=R(sys.argv[1])\n" +
-    "updates=json.loads(sys.argv[2]);n=0\n" +
-    "try:\n" +
-    "    for cid,path in updates:\n" +
-    "        c=db.get_content(ID=int(cid))\n" +
-    "        if c is None:\n" +
-    '            raise RuntimeError(f"content row {cid} disappeared before rewrite")\n' +
-    "        c.FolderPath=path;n+=1\n" +
-    "    db.session.commit()\n" +
-    "except Exception:\n" +
-    "    db.session.rollback()\n" +
-    "    raise\n" +
-    "finally:\n" +
-    "    db.close()\n" +
-    'print(json.dumps({"applied":n}))'
-  );
-}
-
 /** Test seam: the matching ladder against a live index (no DB needed). */
 export const __test = {
   matchLadder: (broken: string, mount: string): RbFixRow =>
@@ -500,8 +477,12 @@ export const __test = {
   stripCopySuffix,
   parseReadRows,
   parseRewriteResult,
-  readScript: PY,
-  rewriteScript,
+  readScriptFile: "rb-scripts/fix-paths-read.py",
+  rewriteScript: (): string =>
+    readFileSync(
+      join(import.meta.dir, "rb-scripts", "fix-paths-rewrite.py"),
+      "utf8",
+    ),
   emptyIndex,
 };
 /** Emit the human report (non-json mode). */

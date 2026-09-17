@@ -22,7 +22,7 @@ import {
   rmSync,
   statSync,
 } from "node:fs";
-import { pyDbOpenImports } from "./rb-script-kit.js";
+import { rbPythonFile } from "./rb-command-kit.js";
 
 /** True while the rekordbox app is running (its live WAL silently
  *  overwrites external DB edits on quit — never write while open). */
@@ -107,36 +107,11 @@ export function verifyReRead(
   predicate: string,
   timeoutMs = 120_000,
 ): ReReadVerify {
-  const script = `
-import json, sys
-${pyDbOpenImports()}
-import importlib
-db_path, table = sys.argv[1], sys.argv[2]
-key = deobfuscate(BLOB)
-db = db6.Rekordbox6Database(path=db_path, key=key)
-mod = importlib.import_module("pyrekordbox.db6.tables")
-cls = getattr(mod, table)
-rows = [dict(c.__dict__) for c in db.query(cls).all()]
-db.close()
-pred = eval(sys.argv[3])
-failures = [str(r.get("ID")) for r, ok in zip(rows, pred) if not ok]
-print(json.dumps({"total": len(rows), "failures": failures[:50]}))
-`;
-  const r = spawnSync(
-    "uv",
-    [
-      "run",
-      "--with",
-      "pyrekordbox",
-      "python",
-      "-c",
-      script,
-      dbPath,
-      table,
-      predicate,
-    ],
-    { encoding: "utf8", timeout: timeoutMs },
-  );
+  const r = rbPythonFile({
+    file: "verify-reread.py",
+    args: [dbPath, table, predicate],
+    timeoutMs,
+  });
   if (r.status !== 0 || !r.stdout)
     throw new Error(
       `re-read verify failed (exit ${String(r.status)}): ${(r.stderr ?? "").slice(-300)}`,

@@ -18,7 +18,7 @@ import {
   applyConfirmationRefusal,
   lastJsonLine,
   makeFail,
-  rbPythonRun,
+  rbPythonFile,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -97,58 +97,6 @@ interface PlanRow {
   createsTrack: boolean;
   fileExists: boolean;
 }
-
-const PY_READ_CONTENT = String.raw`
-import json, sys
-from sqlalchemy import inspect
-from pyrekordbox import Rekordbox6Database as R
-
-def scalar(value):
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    return str(value)
-
-def lookup(rows, value_name):
-    return {str(row.ID): scalar(getattr(row, value_name, None)) for row in rows}
-
-db = R(sys.argv[1])
-out = []
-try:
-    artists = lookup(db.get_artist(), "Name")
-    albums = lookup(db.get_album(), "Name")
-    genres = lookup(db.get_genre(), "Name")
-    keys = lookup(db.get_key(), "ScaleName")
-    labels = lookup(db.get_label(), "Name")
-    for content in db.get_content():
-        metadata = {
-            column.key: scalar(getattr(content, column.key, None))
-            for column in inspect(content.__class__).columns
-        }
-        metadata.update({
-            "ArtistName": artists.get(str(content.ArtistID)),
-            "AlbumName": albums.get(str(content.AlbumID)),
-            "GenreName": genres.get(str(content.GenreID)),
-            "KeyName": keys.get(str(content.KeyID)),
-            "LabelName": labels.get(str(content.LabelID)),
-            "RemixerName": artists.get(str(content.RemixerID)),
-        })
-        out.append({
-            "contentId": str(content.ID),
-            "folderPath": content.FolderPath or "",
-            "title": content.Title,
-            "artist": metadata["ArtistName"],
-            "album": metadata["AlbumName"],
-            "genre": metadata["GenreName"],
-            "durationS": content.Length,
-            "bitrateKbps": content.BitRate,
-            "fileSizeBytes": content.FileSize,
-            "year": str(content.ReleaseYear) if content.ReleaseYear else None,
-            "metadata": metadata,
-        })
-    print(json.dumps(out, ensure_ascii=False))
-finally:
-    db.close()
-`;
 
 function normPath(path: string): string {
   return nameKey(path);
@@ -579,8 +527,8 @@ export function printRbAdoptReport(
 }
 
 export function readRekordboxContent(dbPath: string): RekordboxContentRow[] {
-  const result = rbPythonRun({
-    script: PY_READ_CONTENT,
+  const result = rbPythonFile({
+    file: "adopt-read-content.py",
     args: [dbPath],
     timeoutMs: 300_000,
     maxBuffer: 64 * 1024 * 1024,

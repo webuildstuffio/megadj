@@ -21,11 +21,23 @@ pretty = true
 cache_dir = "node_modules/.cache/mypy"
 # Gate-covered code: cratedeck/python (device-DB seams) + tools (the
 # embedding benchmark harness; its unittest rides test:py).
-files = ["cratedeck/python", "tools"]
+# .kit.py corpus files are excluded below (#194) — markers render at spawn.
+files = ["cratedeck/python", "src/rekordbox/rb-scripts", "tools"]
+exclude = ["rb-scripts/.*\\.kit\\.py"]
 # The usb-sync skill's mirror planner is imported by
 # tools/usb_mirror_plan_test.py (#117); mirror_plan must resolve (and
 # be strict-checked via import following) for the test file to typecheck.
 mypy_path = [".claude/skills/rekordbox-usb-sync/scripts"]
+
+# #194: kit-composed corpus programs (.kit.py) contain #@kit markers whose
+# substitutions only exist post-render — static analysis can't resolve them;
+# the RENDERED forms are what actually run (and the non-kit statics + the
+# render seam are strict-checked). Discovery excludes them, and the module
+# override silences them when the pre-commit hook passes the files
+# explicitly (explicit args bypass exclude; hooks can't be taught).
+[[tool.mypy.overrides]]
+module = ["*.kit"]
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 # Same skill dir: usb_verify is hardware-gated runbook code (never runs
@@ -44,6 +56,14 @@ select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "RUF"]
 ignore = [
   "E501", # line length — prettier doesn't own .py; keep readable long lines
 ]
+
+# #194 kit-composed corpus programs: `#@kit(...)` marker lines are
+# rendered into finished python by rb-command-kit at spawn time, so
+# marker-provided names read as undefined (F821) and a few stdlib/table
+# imports exist only for the rendered form (F401/F841). Static rules
+# still apply to everything the file itself owns.
+[tool.ruff.lint.per-file-ignores]
+"src/rekordbox/rb-scripts/*.kit.py" = ["F821", "F401", "F841", "B007"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["anlz_paths", "usb_verify"]

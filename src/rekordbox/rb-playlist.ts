@@ -37,7 +37,7 @@ import {
   applyConfirmationRefusal,
   lastJsonLine,
   printResult,
-  runPyScript,
+  rbPythonFile,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
@@ -45,12 +45,9 @@ import { commandLog } from "../progress";
 import { rekordboxRunning } from "./guard.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 import {
-  buildScript,
   parseMatchPrediction,
   parseVerifyOutput,
   parseWriteOutput,
-  predictScript,
-  verifyScript,
   PYRK_TAG,
   type MatchPrediction,
   type PyOut,
@@ -216,10 +213,10 @@ function applyPlaylist(
         backedUpTo = db;
       },
       mutateDb: () => {
-        const result = runPyScript({
-          script: buildScript(),
-          dbPath,
+        const result = rbPythonFile({
+          file: "playlist-write.kit.py",
           args: [
+            dbPath,
             JSON.stringify({
               chain: chain.map((track) => ({
                 path: track.path ?? "",
@@ -231,8 +228,7 @@ function applyPlaylist(
             }),
           ],
           timeoutMs: 300_000,
-          tag: PYRK_TAG,
-          label: "pyrekordbox write",
+          withPkg: PYRK_TAG,
         });
         const value = parseWriteOutput(lastJsonLine(result.stdout));
         if (
@@ -262,13 +258,11 @@ function applyPlaylist(
       verifyDb: (value) => {
         if (value.playlistId === null)
           throw new Error("playlist mutation returned no playlist id");
-        const result = runPyScript({
-          script: verifyScript(),
-          dbPath,
-          args: [value.playlistId],
+        const result = rbPythonFile({
+          file: "playlist-verify.py",
+          args: [dbPath, value.playlistId],
           timeoutMs: 120_000,
-          tag: PYRK_TAG,
-          label: "pyrekordbox playlist post-verify",
+          withPkg: PYRK_TAG,
         });
         const check = parseVerifyOutput(lastJsonLine(result.stdout));
         verified = check.rows;
@@ -515,10 +509,10 @@ function predictMatches(
   dbPath: string,
   chain: { path: string | null; base: string | null; title: string | null }[],
 ): { hit: number; unmatched: string[] } {
-  const result = runPyScript({
-    script: predictScript(),
-    dbPath,
+  const result = rbPythonFile({
+    file: "playlist-predict.kit.py",
     args: [
+      dbPath,
       JSON.stringify({
         chain: chain.map((c) => ({
           path: c.path ?? "",
@@ -528,9 +522,7 @@ function predictMatches(
       }),
     ],
     timeoutMs: 120_000,
-    tag: PYRK_TAG,
-    label: "rb-playlist match probe",
-    stderrTail: -200,
+    withPkg: PYRK_TAG,
   });
   return parsePredictionProcess(result);
 }
@@ -556,9 +548,7 @@ function parsePredictionProcess(result: {
 }
 
 export const __test = {
-  buildScript,
   parsePredictionProcess,
-  predictScript,
   parseWriteOutput,
   parseVerifyOutput,
   parseMatchPrediction,

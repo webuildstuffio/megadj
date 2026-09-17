@@ -24,10 +24,9 @@ import {
   lastJsonLine,
   parseJsonBoundary,
   printResult,
-  rbPythonRun,
+  rbPythonFile,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
-import { pyDbOpen, pyDbOpenImports } from "./rb-script-kit.js";
 import { errorText } from "../shared/error-text";
 import { commandLog } from "../progress";
 import {
@@ -70,24 +69,6 @@ export function masterDirFor(mount: string): { db: string; xml: string } {
   const db = masterDbPath(mount);
   const dir = dirname(db);
   return { db, xml: join(dir, "masterPlaylists6.xml") };
-}
-
-/** DB-side playlist census (READ-ONLY python probe). */
-export function twinScanScript(): string {
-  return `
-import json, sys
-${pyDbOpenImports()}
-from pyrekordbox.db6.tables import DjmdPlaylist
-
-${pyDbOpen("sys.argv[1]")}
-rows = [
-    {"id": str(p.ID), "name": p.Name or "", "parentId": str(p.ParentID or 0),
-     "attribute": p.Attribute or 0, "seq": p.Seq or 0}
-    for p in db.query(DjmdPlaylist).all()
-]
-db.close()
-print(json.dumps({"db": rows}))
-`;
 }
 
 /** XML-side parse: NODE entries from masterPlaylists6. RB7 stores `Id` as
@@ -182,8 +163,8 @@ export async function rbPlaylistReconcile(opts: {
     return mk((e as Error).message);
   }
 
-  const r = rbPythonRun({
-    script: twinScanScript(),
+  const r = rbPythonFile({
+    file: "playlist-reconcile-scan.py",
     args: [db],
     timeoutMs: 120_000,
   });

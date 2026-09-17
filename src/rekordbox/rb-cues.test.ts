@@ -1,11 +1,23 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   __test,
   HOT_CUE_KIND,
   LOOP_CUE_KIND,
   MAX_HOT_CUES,
-  restampScript,
 } from "./rb-cues.js";
+import { renderKitMarkers } from "./rb-command-kit";
+
+/** The RENDERED restamp program — kit markers resolved exactly as
+ *  pyUvFileArgv does at spawn time (#194 corpus extraction). */
+const restampScript = () =>
+  renderKitMarkers(
+    readFileSync(
+      join(import.meta.dir, "rb-scripts", "cue-restamp.kit.py"),
+      "utf8",
+    ),
+  );
 
 /** Fake RbCommandRuntime with the green path stubbed; spread overrides in.
  *  One factory instead of seven hand-copied hook objects (jscpd cluster). */

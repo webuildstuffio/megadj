@@ -12,9 +12,21 @@ import {
   __test,
   type RbPlaylistResult,
 } from "./rb-playlist";
+import { renderKitMarkers } from "./rb-command-kit";
 
 const scriptsSource = readFileSync(
   join(import.meta.dir, "rb-playlist-scripts.ts"),
+  "utf8",
+);
+
+/** The RENDERED write/predict programs — kit markers resolved exactly as
+ *  rbPythonFile does at spawn time (#194 corpus extraction). */
+const writeScriptSource = readFileSync(
+  join(import.meta.dir, "rb-scripts", "playlist-write.kit.py"),
+  "utf8",
+);
+const predictScriptSource = readFileSync(
+  join(import.meta.dir, "rb-scripts", "playlist-predict.kit.py"),
   "utf8",
 );
 
@@ -193,14 +205,15 @@ describe("rb-playlist subprocess boundaries", () => {
         }),
       ).playlistId,
     ).toBe(id);
-    expect(__test.buildScript()).toContain('out["playlistId"] = str(pl.ID)');
-    expect(__test.buildScript()).toContain(
-      "import DjmdContent, DjmdPlaylist, DjmdSongPlaylist",
+    expect(renderKitMarkers(writeScriptSource)).toContain(
+      'out["playlistId"] = str(pl.ID)',
     );
-    // #88 item 2: the builders/parsers moved to rb-playlist-scripts.ts —
-    // this module imports them; a copy BACK here is the drift twin.
-    expect(scriptsSource).toContain("export function buildScript");
-    expect(scriptsSource).toContain("export function predictScript");
+    expect(writeScriptSource).toContain("from pyrekordbox.db6.tables import");
+    expect(writeScriptSource).toContain("DjmdSongPlaylist");
+    // #88 item 2: builders/parsers live in rb-playlist-scripts.ts; #194:
+    // the PROGRAMS live in rb-scripts/*.py (this module spawns them via
+    // rbPythonFile — no template-string python is left here).
+    expect(scriptsSource).not.toContain("export function buildScript");
     expect(scriptsSource).toContain("export function parseWriteOutput");
     expect(scriptsSource).not.toContain("export function buildMegaset");
   });
@@ -239,7 +252,7 @@ describe("rb-playlist subprocess boundaries", () => {
   });
 
   test("the requested group is matched at the root only, via the kit ladder", () => {
-    const script = __test.buildScript();
+    const script = renderKitMarkers(writeScriptSource);
     expect(script).toContain("def find_playlist(name, attr, parent_id):");
     expect(script).toContain("DjmdPlaylist.ParentID == parent_id");
     expect(script).toContain("find_playlist(group_name, 1, 0)");
@@ -261,8 +274,8 @@ describe("rb-playlist chain→payload shape", () => {
     expect(base).not.toContain("/");
     expect(base.endsWith(".mp3")).toBe(true);
     expect(base.length).toBeGreaterThan(60); // clip-tolerance matters here
-    const script = __test.buildScript();
-    const prediction = __test.predictScript();
+    const script = renderKitMarkers(writeScriptSource);
+    const prediction = renderKitMarkers(predictScriptSource);
     expect(script).toContain('path = path_key(track["path"])');
     expect(script).toContain("return nfc(s).casefold()");
     expect(script).toContain(
