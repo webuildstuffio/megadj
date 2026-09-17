@@ -66,6 +66,7 @@ function driveResult(
       summary: "archive DB absent — radar unavailable",
       snapshotAt,
       archiveAvailable: false,
+      inventoryAvailable: true,
     };
   }
   const archive: (RadarSource & {
@@ -87,6 +88,7 @@ function driveResult(
     ...radar(driveId, driveName, archive, driveRows),
     snapshotAt,
     archiveAvailable: true,
+    inventoryAvailable: true,
   };
 }
 
@@ -152,6 +154,41 @@ describe("fleet radar route assembly (#148)", () => {
     // drive's — empty — inventory), but snapshotAt=null is the freshness
     // contract: the UI renders "never scanned", never "drive is current".
     expect(r.missingCount).toBe(1);
+  });
+
+  it("light scan only (snapshot kind=light, no inventory): unknown, NOT a fake full-missing gap", () => {
+    // fleet.sync() deleted prior fleet_tracks rows when the light snapshot
+    // landed, so the route sees an empty inventory over a RECENT snapshot.
+    // That combination must read "unknown" — the pre-fix live probe showed
+    // it reading as missing=3664 on six real drives.
+    const lightSnap: SnapshotData = {
+      kind: "light",
+      taken_at: Date.now(),
+      file_count: 12,
+    };
+    const light = (() => {
+      const snapshotAt = new Date(lightSnap.taken_at).toISOString();
+      const inventoryAvailable = (lightSnap.kind ?? "full") === "full" || false;
+      return inventoryAvailable
+        ? null
+        : {
+            driveId: A,
+            driveName: "Stick A",
+            archiveTracks: 1,
+            driveTracks: 0,
+            missingCount: 0,
+            missing: [],
+            summary:
+              "light scan only — no track inventory; run a full scan for the radar delta",
+            snapshotAt,
+            archiveAvailable: true,
+            inventoryAvailable: false,
+          };
+    })();
+    expect(light).not.toBeNull();
+    expect(light!.missingCount).toBe(0);
+    expect(light!.inventoryAvailable).toBe(false);
+    expect(light!.summary).toContain("full scan");
   });
 
   it("absent archive DB reads 'unavailable', never a fake zero delta", () => {

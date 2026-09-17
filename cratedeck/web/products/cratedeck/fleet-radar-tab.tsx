@@ -63,10 +63,43 @@ const radarCopy = (rows: RadarRow[]): string[] =>
 /** One drive's radar card: verdict header + missing list. */
 function RadarDriveCard(props: { r: RadarResult }) {
   const { r } = props;
+  if (!r.inventoryAvailable) {
+    return (
+      <div class="card">
+        <ListHead
+          icon="pulse"
+          title={r.driveName}
+          n={0}
+          hint="This drive's latest scan was a light scan — it carried no track inventory, so the radar can't compute a delta. Run a full scan; a light scan never reads as 'drive is current'."
+          lines={[]}
+        />
+        <div class="note-card">
+          <Icon name="pulse" size={20} />
+          Light scan only — radar unknown for this drive.{" "}
+          <code>deckctl run {r.driveId} scan</code> for the full inventory.
+        </div>
+        <FreshnessLine
+          label="snapshot freshness"
+          ages={[{ name: "scan", at: r.snapshotAt }]}
+          note={
+            <>
+              stale snapshot? run <code>deckctl run {r.driveId} scan</code>
+            </>
+          }
+        />
+      </div>
+    );
+  }
   return (
     <div class="card">
       <ListHead
-        icon={r.missingCount > 0 ? "download" : "check"}
+        icon={
+          !r.inventoryAvailable
+            ? "pulse"
+            : r.missingCount > 0
+              ? "download"
+              : "check"
+        }
         title={r.driveName}
         n={r.missingCount}
         hint={
@@ -113,7 +146,8 @@ export function RadarTab() {
     if (page.status !== "ok") return null;
     return onlyMissing
       ? page.data.drives.filter(
-          (d) => d.missingCount > 0 || !d.archiveAvailable,
+          (d) =>
+            d.missingCount > 0 || !d.archiveAvailable || !d.inventoryAvailable,
         )
       : page.data.drives;
   }, [page, onlyMissing]);

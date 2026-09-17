@@ -665,6 +665,10 @@ export interface RadarResult {
   snapshotAt: string | null;
   /** false when the archive DB is absent (radar unavailable, not zero). */
   archiveAvailable: boolean;
+  /** false when the drive's latest snapshot is a light scan (no track
+   *  inventory — the delta reads "unknown", never a fake full-missing
+   *  count). true = the delta was computed over a real inventory. */
+  inventoryAvailable: boolean;
 }
 
 /** Fleet-wide radar: one row per known drive + the overall census. */

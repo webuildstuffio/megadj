@@ -54,9 +54,12 @@ export function archivePathKey(file_path: string | null): string | null {
 }
 
 /** The radar engine's answer — freshness fields (snapshotAt /
- *  archiveAvailable) attach at the route layer, so the pure core returns
- *  the shared RadarResult minus those two. */
-export type RadarCore = Omit<RadarResult, "snapshotAt" | "archiveAvailable">;
+ *  archiveAvailable / inventoryAvailable) attach at the route layer, so
+ *  the pure core returns the shared RadarResult minus those three. */
+export type RadarCore = Omit<
+  RadarResult,
+  "snapshotAt" | "archiveAvailable" | "inventoryAvailable"
+>;
 
 /**
  * The radar: archive rows the drive's snapshot lacks.

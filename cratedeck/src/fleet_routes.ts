@@ -55,6 +55,12 @@ export function makeFleetRoutes(deps: {
         snap?.taken_at && Number.isFinite(snap.taken_at)
           ? new Date(snap.taken_at).toISOString()
           : null;
+      // Light scans carry no track inventory (only full scans fill
+      // snap.tracks), and fleet.sync() deletes prior fleet_tracks rows —
+      // so an empty inventory over a light snapshot is "unknown", not
+      // "drive has zero tracks". The delta must not read as a fake gap.
+      const inventoryAvailable =
+        (snap?.kind ?? "full") === "full" || inv.length > 0;
       if (rows === null) {
         drives.push({
           driveId: d.id,
@@ -66,6 +72,7 @@ export function makeFleetRoutes(deps: {
           summary: "archive DB absent — radar unavailable",
           snapshotAt,
           archiveAvailable: false,
+          inventoryAvailable,
         });
         continue;
       }
@@ -84,15 +91,33 @@ export function makeFleetRoutes(deps: {
         title: t.title,
         artist: t.artist,
       }));
+      if (!inventoryAvailable) {
+        drives.push({
+          driveId: d.id,
+          driveName: names.get(d.id) ?? d.name,
+          archiveTracks: rows.length,
+          driveTracks: inv.length,
+          missingCount: 0,
+          missing: [],
+          summary:
+            "light scan only — no track inventory; run a full scan for the radar delta",
+          snapshotAt,
+          archiveAvailable: true,
+          inventoryAvailable: false,
+        });
+        continue;
+      }
       drives.push({
         ...radar(d.id, names.get(d.id) ?? d.name, archive, driveRows),
         snapshotAt,
         archiveAvailable: true,
+        inventoryAvailable: true,
       });
     }
     const archiveTracks = rows?.length ?? 0;
     const totalMissing = drives.reduce((s, d) => s + d.missingCount, 0);
     const stale = drives.filter((d) => d.snapshotAt === null).length;
+    const light = drives.filter((d) => !d.inventoryAvailable).length;
     const parts: string[] = [];
     if (rows === null) parts.push("archive DB absent — radar unavailable");
     else if (totalMissing === 0)
@@ -102,6 +127,10 @@ export function makeFleetRoutes(deps: {
     if (stale > 0)
       parts.push(
         `${stale} drive${stale === 1 ? "" : "s"} never scanned — radar unknown there`,
+      );
+    if (light > 0)
+      parts.push(
+        `${light} drive${light === 1 ? "" : "s"} light-scanned only — run a full scan`,
       );
     return {
       drives,
