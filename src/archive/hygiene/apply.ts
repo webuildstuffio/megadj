@@ -90,6 +90,57 @@ export function applyFinding(
  *  whole shelf is the caller's job (it owns the fresh walk). The loser is
  *  verified from its QUARANTINE location (the move already happened —
  *  that's the recoverable copy), passed as `loserNow`. */
+/** The keeper half of the receipt: the keeper path must exist and still
+ *  hold its recorded byte size (a size change = silently rewritten file).
+ *  Returns the list of missing/changed keeper proofs — empty means green. */
+function keeperProofs(f: Finding): string[] {
+  const keeper = f.paths[0];
+  const missing: string[] = [];
+  if (!keeper) return missing;
+  if (!existsSync(keeper)) {
+    missing.push(keeper);
+    return missing;
+  }
+  try {
+    const recorded = f.bytes[0];
+    const actual = statSync(keeper).size;
+    if (recorded !== undefined && recorded !== actual)
+      missing.push(`${keeper} (size changed)`);
+  } catch {
+    missing.push(keeper);
+  }
+  return missing;
+}
+
+/** The loser half of the receipt, re-verified from its QUARANTINE copy —
+ *  cache-busted (the ledger's cached hashes predate the move). Byte-twins
+ *  prove by md5 equality; every other quarantine-loser kind proves by
+ *  fingerprint equality, live fpcalc per §5 Phase 4 (the quarantine path
+ *  is a cache miss by construction — never the pre-move cached entry). */
+function loserProofs(
+  f: Finding,
+  ctx: CheckCtx,
+  loserNow?: string,
+): string[] {
+  const mismatches: string[] = [];
+  const keeper = f.paths[0];
+  const loserCheck = loserNow ?? f.paths[1];
+  if (f.kind === "byte-twin" && loserCheck && existsSync(loserCheck)) {
+    const lm = ctx.md5(loserCheck);
+    const km = keeper ? ctx.md5(keeper) : null;
+    if (!lm || !km || lm !== km) mismatches.push(loserCheck);
+  } else if (f.kind === "byte-twin") {
+    mismatches.push(loserCheck ?? "loser missing");
+  } else if (loserCheck) {
+    const lf = existsSync(loserCheck) ? ctx.fp(loserCheck, 0) : null;
+    const kf = keeper && existsSync(keeper) ? ctx.fp(keeper, 0) : null;
+    if (!lf || !kf || lf !== kf) mismatches.push(loserCheck);
+  } else {
+    mismatches.push("loser missing");
+  }
+  return mismatches;
+}
+
 export function validateFinding(
   f: Finding,
   shelfBefore: number,
@@ -97,41 +148,8 @@ export function validateFinding(
   ctx: CheckCtx,
   loserNow?: string,
 ): ValidationReceipt {
-  const keeper = f.paths[0];
-  const keepersMissing: string[] = [];
-  if (keeper && !existsSync(keeper)) keepersMissing.push(keeper);
-  else if (keeper) {
-    try {
-      const recorded = f.bytes[0];
-      const actual = statSync(keeper).size;
-      if (recorded !== undefined && recorded !== actual)
-        keepersMissing.push(`${keeper} (size changed)`);
-    } catch {
-      keepersMissing.push(keeper);
-    }
-  }
-  // loser re-verified vs keeper from its QUARANTINE copy — cache-busted
-  // (the ledger's cached hashes predate the move)
-  const fpMismatches: string[] = [];
-  const loserCheck = loserNow ?? f.paths[1];
-  if (f.kind === "byte-twin" && loserCheck && existsSync(loserCheck)) {
-    const lm = ctx.md5(loserCheck);
-    const km = keeper ? ctx.md5(keeper) : null;
-    // byte-twins: md5 equality is the proof
-    if (!lm || !km || lm !== km) fpMismatches.push(loserCheck);
-  } else if (f.kind === "byte-twin") {
-    fpMismatches.push(loserCheck ?? "loser missing");
-  } else if (loserCheck) {
-    // acoustic-twin (every other quarantine-loser kind): fingerprint
-    // equality is the proof. The quarantine path is a cache miss by
-    // construction (new path) → live fpcalc, per §5 Phase 4 — never the
-    // pre-move cached entry.
-    const lf = existsSync(loserCheck) ? ctx.fp(loserCheck, 0) : null;
-    const kf = keeper && existsSync(keeper) ? ctx.fp(keeper, 0) : null;
-    if (!lf || !kf || lf !== kf) fpMismatches.push(loserCheck);
-  } else {
-    fpMismatches.push("loser missing");
-  }
+  const keepersMissing = keeperProofs(f);
+  const fpMismatches = loserProofs(f, ctx, loserNow);
   const delta = {
     before: shelfBefore,
     after: shelfAfter,
