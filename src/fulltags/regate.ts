@@ -7,6 +7,7 @@ import {
   type GateResult,
   type GoldAnnotation,
 } from "../../fulltags/src/exports";
+import { regateEffnet, regateGenre } from "./regate-genre";
 
 export interface RegateResult {
   command: "regate";
@@ -16,6 +17,29 @@ export interface RegateResult {
   gate: GateResult;
   ok: boolean;
   error?: string;
+}
+
+/** The genre/effnet result reuses the same envelope as the BPM one so
+ * consumers never branch: `gate` stays present (null inside would break
+ * `report.gate.passPercent`), so an unavailable ledger carries a ZERO
+ * GateResult with the reason on `error` — measured-nothing, not
+ * measured-zero. `unavailable` distinguishes the two on the wire. */
+export interface RegateReport {
+  command: "regate";
+  detector: string;
+  matched: number;
+  unmatched: number;
+  gate: GateResult;
+  ok: boolean;
+  error?: string | undefined;
+  /** true = the reference ledger is absent → nothing was measured */
+  unavailable?: boolean | undefined;
+  /** measured agreement share (genre) — null when unavailable */
+  measured?: number | null | undefined;
+  /** LOO population size (genre) */
+  evaluated?: number | undefined;
+  /** the concrete dimension when genre/effnet (bpm keeps detector) */
+  dimension?: "genre" | "effnet" | undefined;
 }
 
 type BeatRow = ReturnType<ArchiveState["beatAnalyzedTracks"]>[number];
@@ -70,12 +94,21 @@ export function regateBpm(
   };
 }
 
+const zeroGate = (dimension: "genre" | "effnet"): GateResult => ({
+  dimension,
+  tolerancePercent: 0,
+  passPercent: 0,
+  requiredPercent: 0,
+  passed: false,
+  tracks: [],
+});
+
 export function regate(
   state: ArchiveState,
   dimension: string,
   detector = "ledger",
   dir?: string,
-): RegateResult {
+): RegateReport {
   if (dimension !== "bpm" && dimension !== "genre" && dimension !== "effnet") {
     const gate = runRegate({
       dimension: "bpm",
@@ -103,16 +136,36 @@ export function regate(
       error: `unknown detector ${detector}; available detector: ledger`,
     };
   }
-  if (dimension !== "bpm") {
-    const gate = runRegate({ dimension, observations: [] });
+  if (dimension === "genre") {
+    const r = regateGenre(state);
+    return {
+      command: "regate",
+      detector,
+      matched: r.evaluated,
+      unmatched: 0,
+      gate: r.gate ?? zeroGate("genre"),
+      ok: r.ok,
+      unavailable: r.unavailable,
+      ...(r.reason !== undefined ? { error: r.reason } : {}),
+      measured: r.measured,
+      evaluated: r.evaluated,
+      dimension: "genre",
+    };
+  }
+  if (dimension === "effnet") {
+    const r = regateEffnet();
     return {
       command: "regate",
       detector,
       matched: 0,
       unmatched: 0,
-      gate,
-      ok: false,
-      error: `${dimension} reference ledger is not populated; use the reusable runRegate harness with fixture/reference observations`,
+      gate: zeroGate("effnet"),
+      ok: r.ok,
+      unavailable: true,
+      error: r.reason,
+      measured: null,
+      evaluated: 0,
+      dimension: "effnet",
     };
   }
   return regateBpm(

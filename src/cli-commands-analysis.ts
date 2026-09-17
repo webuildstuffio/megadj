@@ -270,7 +270,13 @@ const regate: CliCommandHandler = async (rest, { state }) => {
     flags.strings.get("gold-dir"),
   );
   if (flags.bools.has("json")) await writeJson(report);
-  else {
+  else if (report.unavailable === true) {
+    // honest gap (#169): the ledger isn't populated — say so on stdout
+    // with the reason and exit 0. Never a manufactured FAIL/PASS.
+    console.log(
+      `${report.dimension ?? dimension}: unavailable — ${report.error ?? "reference ledger not populated"}`,
+    );
+  } else {
     console.log(
       `${report.detector}: ${report.gate.passPercent.toFixed(1)}% passed ` +
         `(required ${report.gate.requiredPercent.toFixed(1)}%) — ${report.ok ? "PASS" : "FAIL"}`,

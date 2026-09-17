@@ -238,7 +238,8 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     group: "fulltags",
     block: [
       "  megadj regate bpm [--gold-dir F] [--json]    re-gate BPM ledger against gold (80% / 2% bar)",
-      "                                               genre and effnet share the same fulltags harness",
+      "  megadj regate genre [--json]                 re-gate genre kNN vs the ≥65% ship gate (LOO harness)",
+      "  megadj regate effnet [--json]                reports unavailable until the effnet reference ledger exists",
     ],
   },
   {
