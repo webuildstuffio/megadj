@@ -20,13 +20,13 @@ import {
   type MegasetStep,
   type MegasetPresetDef,
 } from "../../../shared/types";
-import { api, toast } from "../../ui/toast";
+import { api } from "../../ui/toast";
 import { errMessage } from "../../../shared/fmt";
 import { Icon } from "../../ui/icons";
 import { useFetched } from "../../ui/useFetched";
 import { ListHead, DataTable, Card } from "../../ui/data";
 import { SectionHead } from "../shared";
-import { TrackPickSearch, type TrackPick } from "./TrackPickSearch";
+import type { TrackPick } from "./TrackPickSearch";
 import { MegasetMethod } from "./MegasetMethod";
 import { MegasetResult } from "./MegasetResult";
 import { MegasetArcChart } from "./MegasetArcChart";
@@ -43,6 +43,8 @@ import {
   ReproLine,
   keyGlideOf,
 } from "./MegasetStatus";
+import { MegasetOpenerPicker } from "./MegasetOpenerPicker";
+import { saveDraft } from "./megaset-draft";
 
 const SET_DURATION_PRESETS = [30, 60, 90, 120] as const;
 
@@ -63,94 +65,6 @@ const fmtBpm = (bpm: number | null): string =>
  *  inline arrow pairs). */
 const stepLine = (s: MegasetStep): string =>
   `${s.atMin}min  ${fmtBpm(s.bpm)} BPM ${s.key ?? ""}  ${s.artist ?? "?"} — ${s.title ?? s.videoId}`;
-
-/** Save the proposal as a local review artifact. No API call and no library
- * mutation: the browser downloads exactly the measured result on screen. */
-function saveDraft(data: MegasetPayload): void {
-  const blob = new Blob(
-    [
-      JSON.stringify(
-        {
-          kind: "megadj-set-draft",
-          savedAt: new Date().toISOString(),
-          status: data.complete ? "complete" : "partial",
-          ...data,
-        },
-        null,
-        2,
-      ),
-    ],
-    { type: "application/json" },
-  );
-  const anchor = document.createElement("a");
-  anchor.href = URL.createObjectURL(blob);
-  anchor.download = `set-${data.preset}-${data.actualMinutes}min-${data.complete ? "draft" : "partial"}.json`;
-  anchor.click();
-  URL.revokeObjectURL(anchor.href);
-  toast(
-    data.complete ? "MegaSet draft saved" : "Partial set draft saved",
-    "ok",
-  );
-}
-
-/** Set-builder opener: the first track, either auto-picked by the arc or
- *  forced (the `opener` param every other surface takes). */
-function OpenerPicker(props: {
-  query: string;
-  onQuery: (v: string) => void;
-  hits: ArchiveSearchHit[] | null;
-  hitsStatus: "ok" | "loading" | "error";
-  opener: TrackPick | null;
-  onPick: (t: TrackPick | null) => void;
-  busy: boolean;
-}) {
-  if (props.opener)
-    return (
-      <span
-        class="megaset-opener"
-        title="Chosen opening track — the arc starts here"
-      >
-        <span>Opening track</span>
-        <b>{props.opener.title ?? props.opener.video_id}</b>
-        <button
-          type="button"
-          class="plsearch-clear"
-          aria-label="Clear opener (auto-pick instead)"
-          title="Clear opener (auto-pick instead)"
-          disabled={props.busy}
-          onClick={() => props.onPick(null)}
-        >
-          <Icon name="x" size={11} />
-        </button>
-      </span>
-    );
-  if (props.busy)
-    return (
-      <span class="megaset-opener-disabled" aria-disabled="true">
-        Opening track <span>Auto-picked for this build</span>
-      </span>
-    );
-  return (
-    <details class="megaset-opener-pick">
-      <summary title="Choose the first track — otherwise FullTags picks it">
-        <Icon name="search" size={12} /> Choose opening track
-        <span>optional · otherwise auto-picked</span>
-      </summary>
-      <TrackPickSearch
-        query={props.query}
-        onQuery={props.onQuery}
-        hits={props.hits}
-        hitsStatus={props.hitsStatus}
-        placeholder="Search for the opener — title or artist…"
-        emptyNote="no tracks match"
-        onPick={(t) => {
-          props.onPick(t);
-          props.onQuery("");
-        }}
-      />
-    </details>
-  );
-}
 
 export function MegasetPanel() {
   // the picker is keyed off the SHARED registry — preset ids, labels and
@@ -387,7 +301,7 @@ export function MegasetPanel() {
           />
         </fieldset>
         <div class="megaset-controls">
-          <OpenerPicker
+          <MegasetOpenerPicker
             query={openerQuery}
             onQuery={setOpenerQuery}
             hits={openerSearch.status === "ok" ? openerSearch.data : null}

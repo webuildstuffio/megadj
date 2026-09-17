@@ -5,10 +5,16 @@
 // genre, weight, elected flag — never from code reading.
 //
 // Agent-first contract (same shape as `similar`): --json carries one
-// summary object; exit 2 = bad input, exit 1 = no such track / never
-// voted (honest empty-state, no fake data).
+// summary object; exit 2 = bad input, exit 1 = no such track OR a
+// DRIFTED row (replay ≠ stored genre — the one finding this command
+// exists to surface; exit code makes it agent-detectable without
+// parsing). Never-voted is exit 0: a status, not an error.
 import { commandLog } from "../progress";
-import { finishCommandError, writeJson } from "../shared/cli-output";
+import {
+  drainStdout,
+  finishCommandError,
+  writeJson,
+} from "../shared/cli-output";
 import {
   GENRE_VOTE_WEIGHTS,
   electGenre,
@@ -68,6 +74,7 @@ export async function genreWhy(opts: GenreWhyOptions): Promise<void> {
   // Re-elect through the WRITE path's exact seam (same electGenre, same
   // tie-breaks) — a stored breakdown always replays to the same winner.
   const elected = electGenre(votes);
+  const matchesDb = elected.genre === track.genre;
   const rows: GenreWhyVote[] = votes.map((v) => ({
     rung: v.rung,
     genre: v.genre,
@@ -83,6 +90,13 @@ export async function genreWhy(opts: GenreWhyOptions): Promise<void> {
   log(
     `elected: ${elected.genre ?? "—"} (w=${elected.weight.toFixed(2)}) — stored genre: ${track.genre ?? "null"}`,
   );
+  if (!matchesDb) {
+    // Drift is the one state this command exists to catch — never let it
+    // scroll past as a quiet field. exit 1 mirrors it for --json agents.
+    log(
+      `DRIFT: the replay elects "${elected.genre ?? "—"}" but the row stores "${track.genre ?? "null"}" — re-run \`megadj fetch --genres\` or inspect manually`,
+    );
+  }
 
   await writeJson({
     command: "genre-why",
@@ -94,7 +108,13 @@ export async function genreWhy(opts: GenreWhyOptions): Promise<void> {
     elected: elected.genre,
     elected_weight: elected.weight,
     winner_rungs: elected.winnerRungs,
-    matches_db: elected.genre === track.genre,
+    matches_db: matchesDb,
     votes: rows,
   });
+  if (!matchesDb) {
+    // Meaningful exit codes (P1): a drifted row is a finding, not a
+    // clean read. Pure --json agents can detect it by exit code alone.
+    await drainStdout();
+    process.exitCode = 1;
+  }
 }

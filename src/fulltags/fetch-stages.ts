@@ -379,12 +379,6 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
   if (t.needYear) stageYearArm(t, best);
 }
 
-/** #173 SC vote rung: the SAME junk gates as the first-win arm (numeric
- *  refuse, "Music" refuse — the genre ID leak class), then a COLLECTED
- *  vote instead of an immediate write (handled inside applyScGenre).
- *  Sourced from the search hit the hard artist gate already filtered
- *  (scoreScHits). */
-
 /** #173 the ONE genre write for a voted track: elect + file-tag + DB row
  *  + breakdown persist. Write-first discipline preserved — a failed tag
  *  write leaves BOTH the DB genre and the breakdown untouched (the DB

@@ -2,6 +2,12 @@
 
 **Status:** 📚 REFERENCE — how the genre system processes a track, end to
 end. Every stage below ships and runs on the live archive.
+**Rev 6 (Sep 17): the breakdown's explainability read is wired through
+every surface (#215) — `megadj genre-why <id>` (CLI; exit 1 on a DRIFTED
+row), `archive_genre_why` (MCP), `/api/archive/genre-why` (HTTP), and
+the FullTags ⌗ Genre Why tab (UI, weight bars + drift callout). All
+three replay through the write path's exact `electGenre` seam, so a
+displayed winner can never disagree with the row.**
 **Rev 5 (Sep 16): the weighted multi-source vote ladder is LIVE (#173)
 — every rung (SC/BP/BC/imprint/AI/MB/file/sync) casts a vote
 (genre + weight + provenance) through `src/fulltags/genre-vote.ts`;
@@ -263,6 +269,8 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | Linear probe (informational readout)                                                                                                               | `src/fulltags/linear-probe.ts`                                                                                                                                                    |
 | CLI wiring (`--eval/--refold/--flag/--diagnostics/…`)                                                                                              | `src/fulltags/genre.ts`                                                                                                                                                           |
 | Fetch ladder (SC → BP → imprint → BC → AI) + junk gate + tag-first writes                                                                          | `src/fulltags/fetch-pipeline.ts` + `src/fulltags/fetch-stages.ts` + `src/fulltags/archive-ledger.ts` (#184 — re-homed from tools/)                                                |
+| Vote ladder weights + election + (de)serialization (#173)                                                                                          | `src/fulltags/genre-vote.ts`                                                                                                                                                      |
+| Explainability read — CLI `genre-why` (#215; MCP/UI ride the same `electGenre` replay)                                                             | `src/fulltags/genre-why.ts`                                                                                                                                                       |
 | Bandcamp arm (search + gated page fetch + genre/label/date/art)                                                                                    | `src/fulltags/bandcamp.ts`                                                                                                                                                        |
 | Name-matching SSOT (artist gate, title overlap, tokens)                                                                                            | `src/fulltags/name-match.ts`                                                                                                                                                      |
 | Intake vocabularies (`guessFromFreeText` regex, `SC_GENRE_CANON`, `AI_VOCAB`, `canonicalizeClaim`, family map `FAMILIES`/`familyOf`, umbrella set) | `src/fulltags/genre-vocab.ts` (#187 — one module owns every named genre map; `canonGenre` remains a compat alias on `schema.ts`; the old exports.ts bridge was dissolved by #193) |

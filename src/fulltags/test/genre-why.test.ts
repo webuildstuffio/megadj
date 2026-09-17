@@ -109,4 +109,33 @@ describe("#215 genre-why: the vote breakdown's production reader", () => {
     const parsed = lastJsonLine(stdout);
     expect(parsed.error).toBeString();
   });
+
+  test("drifted row: replay ≠ stored → exit 1 with the full breakdown (finding, not a clean read)", async () => {
+    // Seed through the real serializer: the breakdown elects House (bp
+    // 0.6 + sc 0.35 = 0.95) but the row stores 'Techno' — the exact
+    // hand-edit class the drift flag exists to catch.
+    const drift = new Database(env.MEGADJ_DB);
+    drift
+      .query(
+        "UPDATE tracks SET genre='Techno', genre_votes=? WHERE video_id='vid2'",
+      )
+      .run(
+        serializeVotes([
+          { rung: "sc", genre: "House", weight: 0.35 },
+          { rung: "bp", genre: "House", weight: 0.6 },
+        ]),
+      );
+    drift.close();
+
+    const { code, stdout } = await runCli(["genre-why", "vid2", "--json"], env);
+    expect(code).toBe(1);
+    const parsed = lastJsonLine(stdout);
+    expect(parsed.voted).toBe(true);
+    expect(parsed.elected).toBe("House");
+    expect(parsed.db_genre).toBe("Techno");
+    expect(parsed.matches_db).toBe(false);
+    // The object still carries everything an agent needs — exit code is
+    // the signal, the payload stays complete.
+    expect((parsed.votes as unknown[]).length).toBe(2);
+  });
 });

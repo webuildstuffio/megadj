@@ -15,6 +15,13 @@ import { TrackPickSearch, type TrackPick } from "./TrackPickSearch";
 const genreWhyUrl = (id: string) =>
   `/api/archive/genre-why?id=${encodeURIComponent(id)}`;
 
+/** Weight as a fraction of the displayed election — the bar width. The
+ *  TOTAL of all votes is the honest denominator: a rung's bar is its
+ *  share of the conversation, the ★ marks the winner. Pure — module
+ *  level, captures nothing. */
+const totalWeight = (votes: { weight: number }[]): number =>
+  votes.reduce((sum, v) => sum + v.weight, 0);
+
 export function GenreWhyTab() {
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<TrackPick | null>(null);
@@ -59,13 +66,23 @@ export function GenreWhyTab() {
       {picked &&
         (why.status !== "ok" ? (
           <FetchedGate page={why} loading="replaying the vote election…" />
-        ) : why.data ? (
+        ) : why.data === null || why.data.missing ? (
+          // Unknown id (deep link / stale pick): a named empty state,
+          // never a blank panel — the payload arrives ok-shaped with
+          // missing:true, so FetchedGate cannot catch it.
+          <div class="card">
+            <div class="empty">
+              No track {picked.video_id} in the archive — pick another or search
+              above.
+            </div>
+          </div>
+        ) : (
           <Card>
             <ListHead
               icon="info"
               title={`Genre breakdown — ${picked.title ?? picked.video_id}`}
               n={why.data.votes.length}
-              hint="Each source rung votes its claim with a fixed weight; the highest total elects. ★ = on the winning side."
+              hint="Each source rung votes its claim with a fixed weight; the bar is the rung's share of all votes cast, ★ = the elected winner."
               lines={why.data.votes.map(
                 (v) =>
                   `${v.elected ? "★" : " "} ${v.rung}  w=${v.weight.toFixed(2)}  ${v.genre}`,
@@ -73,21 +90,34 @@ export function GenreWhyTab() {
             />
             {why.data.voted ? (
               <KVRows>
-                {why.data.votes.map((v) => (
-                  <KVRow key={`${v.rung}:${v.genre}`}>
-                    <KVKey>
-                      <span class={v.elected ? "arch-pill ok" : "arch-pill"}>
-                        {v.elected ? "★ " : ""}
-                        {v.rung}
-                      </span>{" "}
-                      {v.genre}
-                      {v.detail ? <small>{` — ${v.detail}`}</small> : null}
-                    </KVKey>
-                    <KVVal>
-                      <span class="arch-pill ok">w={v.weight.toFixed(2)}</span>
-                    </KVVal>
-                  </KVRow>
-                ))}
+                {(() => {
+                  const total = totalWeight(why.data.votes) || 1;
+                  return why.data.votes.map((v) => (
+                    <KVRow key={`${v.rung}:${v.genre}`}>
+                      <KVKey>
+                        <span class={v.elected ? "arch-pill ok" : "arch-pill"}>
+                          {v.elected ? "★ " : ""}
+                          {v.rung}
+                        </span>{" "}
+                        {v.genre}
+                        {v.detail ? <small>{` — ${v.detail}`}</small> : null}
+                      </KVKey>
+                      <KVVal>
+                        <span
+                          class="votebar"
+                          style={{
+                            width: `${Math.max(4, (v.weight / total) * 100).toFixed(1)}%`,
+                          }}
+                        />
+                        <span
+                          class={v.elected ? "arch-pill ok" : "arch-pill muted"}
+                        >
+                          w={v.weight.toFixed(2)}
+                        </span>
+                      </KVVal>
+                    </KVRow>
+                  ));
+                })()}
                 <KVRow>
                   <KVKey>
                     <TrackTitle
@@ -122,8 +152,19 @@ export function GenreWhyTab() {
                 path.
               </div>
             )}
+            {why.data.voted && why.data.matches_db === false ? (
+              // Drift is the ONE finding this tab exists to surface — a
+              // callout, not a pill you might miss.
+              <div class="note-card">
+                ⚠ Drift: the replay elects <b>{why.data.elected ?? "—"}</b> but
+                the row stores <b>{why.data.db_genre ?? "null"}</b> — the genre
+                column was edited outside the vote path (hand UPDATE / older
+                write). Re-run <code>megadj fetch --genres</code> to re-elect,
+                or inspect with <code>megadj genre-why {picked.video_id}</code>.
+              </div>
+            ) : null}
           </Card>
-        ) : null)}
+        ))}
     </div>
   );
 }

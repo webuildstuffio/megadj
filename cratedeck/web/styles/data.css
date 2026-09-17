@@ -296,6 +296,18 @@
   font-variant-numeric: tabular-nums;
   flex-shrink: 1;
 }
+/* votebar (Genre Why #215): slim inline weight bar so the election reads
+   at a glance — a rung's share of all votes cast, not just "w=0.60". */
+.votebar {
+  display: inline-block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  margin-right: 6px;
+  vertical-align: 2px;
+  min-width: 8px;
+}
 .kvrow:hover {
   background: var(--surface3);
 }
