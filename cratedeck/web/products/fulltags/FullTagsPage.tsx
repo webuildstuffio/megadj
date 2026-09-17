@@ -22,6 +22,7 @@
 import { PRODUCT_TABS, ProductIntro } from "../shared";
 import { BeatgridsTab, MoodTab, CuesTab } from "./fulltags-tabs";
 import { SimilarTab } from "./SimilarTab";
+import { GenreWhyTab } from "./GenreWhyTab";
 import { TagCompareTab } from "./TagCompareTab";
 
 const TABS = PRODUCT_TABS.fulltags;
@@ -37,6 +38,7 @@ export function FullTagsPage(props: { tab: string }) {
       {tab === "beatgrids" && <BeatgridsTab />}
       {tab === "mood" && <MoodTab />}
       {tab === "similar" && <SimilarTab />}
+      {tab === "genre-why" && <GenreWhyTab />}
       {tab === "cues" && <CuesTab />}
       {tab === "tags" && <TagCompareTab />}
     </div>

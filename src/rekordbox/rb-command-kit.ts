@@ -12,7 +12,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { isUnknownArray } from "../../cratedeck/shared/guards";
+import { isRecord, isUnknownArray } from "../../cratedeck/shared/guards";
 import {
   assertRbClosed,
   backupMaster,
@@ -91,6 +91,29 @@ export function parseJsonBoundary(raw: string, context: string): unknown {
   } catch (error) {
     throw new Error(`${context} returned malformed JSON`, { cause: error });
   }
+}
+
+/** The ONE guarded subprocess-payload parser factory (#202): every rb-*
+ *  parseWriteOutput/parseVerifyOutput was the same hand-rolled skeleton —
+ *  parseJsonBoundary, isRecord, per-field predicates, typed assembly.
+ *  Bind once per payload shape; the returned parser throws
+ *  invalidMessage for a non-record payload or any failed field guard.
+ *  Guards must cover EVERY key of T (enforced by the mapped type) so a
+ *  new field cannot skip the boundary check. */
+export function makePayloadParser<T extends object>(
+  context: string,
+  invalidMessage: string,
+  guards: { [K in keyof T]-?: (v: unknown) => v is T[K] },
+): (raw: string) => T {
+  return (raw) => {
+    const value: unknown = parseJsonBoundary(raw, context);
+    if (!isRecord(value)) throw new Error(invalidMessage);
+    for (const [field, guard] of Object.entries(guards)) {
+      if (!(guard as (v: unknown) => boolean)(value[field]))
+        throw new Error(invalidMessage);
+    }
+    return value as T;
+  };
 }
 
 /** THE python-subprocess argv (#68): `["run","--with",pkg,"python","-c",

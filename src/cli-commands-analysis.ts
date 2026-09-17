@@ -265,6 +265,26 @@ const goldReport: CliCommandHandler = async (rest, { state }) => {
   if (!report.ok) setExit(1);
 };
 
+const genreWhy: CliCommandHandler = async (rest, { state }) => {
+  const flags = parseFlags(rest, [], ["json"]);
+  const videoId = firstPositional(rest, "genre-why", []);
+  if (!videoId) {
+    await finishCommandError({
+      command: "genre-why",
+      json: flags.bools.has("json"),
+      error: "pass a video id — `megadj genre-why <video_id>`",
+      exitCode: 2,
+    });
+    return;
+  }
+  const { genreWhy: explainGenre } = await import("./fulltags/genre-why");
+  await explainGenre({
+    state,
+    videoId,
+    json: flags.bools.has("json"),
+  });
+};
+
 const regate: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["detector", "gold-dir"], ["json"]);
   const dimension =
@@ -301,6 +321,7 @@ export const ANALYSIS_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   similar,
   megaset,
   genre,
+  "genre-why": genreWhy,
   cues,
   "gold-report": goldReport,
   regate,

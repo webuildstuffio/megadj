@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { __test } from "./rb-import";
+import { AUDIO_EXTS } from "../shared/audio-exts";
 
 const verifyResult = (overrides: Record<string, unknown>) =>
   __test.parseVerifyOutput(
@@ -156,5 +157,16 @@ describe("rb-import subprocess boundaries", () => {
         verifyResult({ hit: 1, playlistRows: 2 }),
       ),
     ).toContain("2/1 playlist member rows");
+  });
+
+  // Issue #200: rb-import's private AUDIO_EXT set was missing .alac, so
+  // an ALAC rip that reached intake was invisible to discovery — the
+  // exact #69 drift class. Discovery membership IS the #69 SSOT now.
+  test("discovery accepts every SSOT audio extension incl. .alac (#69/#200)", () => {
+    for (const ext of [".alac", ".aac", ".ogg", ".opus", ".m4a", ".mp3"]) {
+      expect(__test.AUDIO_EXTS.has(ext), ext).toBe(true);
+    }
+    // and it is the SSOT set itself, not a re-twin
+    expect(__test.AUDIO_EXTS).toBe(AUDIO_EXTS);
   });
 });

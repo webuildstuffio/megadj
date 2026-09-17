@@ -15,6 +15,9 @@
 // (the FleetDiff precedent; RadarMiss stays import-only here — it's the
 // row type of `missing`, not part of this module's surface).
 import type { RadarMiss, RadarResult } from "../shared/types";
+// fold + metaKey: the #201 one-definition module (was a byte-identical
+// twin here, coverage.ts, coverage_fleet.ts).
+import { fold, metaKey } from "./meta-key";
 
 export type { RadarResult } from "../shared/types";
 
@@ -24,23 +27,6 @@ export interface RadarSource {
   path: string | null;
   title?: string | null;
   artist?: string | null;
-}
-
-/** Casefold like coverage.ts's fold — kept local (pure module, no I/O
- *  imports) so this module stays dependency-leaf; the identical fold is
- *  pinned in radar.test.ts so the two can't drift silently. */
-function fold(s: string): string {
-  return s.normalize("NFC").toLowerCase();
-}
-
-function metaKey(t: {
-  title?: string | null;
-  artist?: string | null;
-}): string | null {
-  const artist = (t.artist ?? "").trim();
-  const title = (t.title ?? "").trim();
-  if (!artist && !title) return null;
-  return fold(artist ? `${artist} - ${title}` : title);
 }
 
 /** Strip everything through a leading Contents/ and fold — the archive

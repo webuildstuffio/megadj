@@ -23,7 +23,6 @@
 
 import {
   isNonNegativeInteger,
-  isRecord,
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
 import {
@@ -35,7 +34,7 @@ import {
   isStringPair,
   lastJsonLine,
   makeFail,
-  parseJsonBoundary,
+  makePayloadParser,
   printResult,
   pyUvFileArgv,
   rbCommandRuntime,
@@ -93,7 +92,9 @@ interface RestampOutput {
   found: number;
   written: number;
   protected: number;
-  writtenIds: string[];
+  /** wire name `written_ids` — kept 1:1 so the #202 shape parser maps
+   *  the payload directly (the Python side emits the snake_case key). */
+  written_ids: string[];
   errors: [string, string][];
 }
 
@@ -119,6 +120,14 @@ const isKindPair = isStringNumberPair;
 const isStringList = (v: unknown): v is string[] =>
   isUnknownArray(v) && v.every((id) => typeof id === "string");
 
+/** `[id, error]` write-failure rows. */
+const isStringPairList = (v: unknown): v is [string, string][] =>
+  isUnknownArray(v) && v.every(isStringPair);
+
+/** `[id, Kind]` cue mismatch rows. */
+const isStringNumberPairList = (v: unknown): v is [string, number][] =>
+  isUnknownArray(v) && v.every(isKindPair);
+
 /** Decimal ids, unique — the write-acknowledgement rule. */
 function isUniqueDecimalIdList(ids: string[]): boolean {
   return (
@@ -140,61 +149,48 @@ function restampConsistencyError(
   }
   if (apply && output.written !== output.found)
     return `rb-cues restamped ${output.written}/${output.found} rows`;
-  if (output.writtenIds.length !== output.written)
+  if (output.written_ids.length !== output.written)
     return "rb-cues write acknowledgements are incomplete";
   if (!apply && output.written !== 0)
     return "rb-cues census mode unexpectedly wrote rows";
-  if (!isUniqueDecimalIdList(output.writtenIds))
+  if (!isUniqueDecimalIdList(output.written_ids))
     return "rb-cues returned invalid or duplicate cue ids";
   return null;
 }
 
+const parseRestampShape = makePayloadParser<RestampOutput>(
+  "rb-cues restamp",
+  "rb-cues restamp returned an invalid result payload",
+  {
+    found: nonNegativeInteger,
+    written: nonNegativeInteger,
+    protected: nonNegativeInteger,
+    written_ids: isStringList,
+    errors: isStringPairList,
+  },
+);
+
 function parseRestampOutput(raw: string, apply: boolean): RestampOutput {
-  const value = parseJsonBoundary(raw, "rb-cues restamp");
-  if (
-    !isRecord(value) ||
-    !nonNegativeInteger(value.found) ||
-    !nonNegativeInteger(value.written) ||
-    !nonNegativeInteger(value.protected) ||
-    !isStringList(value.written_ids) ||
-    !isUnknownArray(value.errors) ||
-    !value.errors.every(isStringPair)
-  ) {
-    throw new Error("rb-cues restamp returned an invalid result payload");
-  }
-  const output: RestampOutput = {
-    found: value.found,
-    written: value.written,
-    protected: value.protected,
-    writtenIds: value.written_ids,
-    errors: value.errors,
-  };
+  const output = parseRestampShape(raw);
   const error = restampConsistencyError(output, apply);
   if (error) throw new Error(error);
   return output;
 }
 
+const parseVerifyShape = makePayloadParser<CueVerifyOutput>(
+  "rb-cues verification",
+  "rb-cues verification returned an invalid payload",
+  {
+    total: isNonNegativeInteger,
+    matched: isNonNegativeInteger,
+    remaining: isNonNegativeInteger,
+    missing: isStringList,
+    mismatched: isStringNumberPairList,
+  },
+);
+
 function parseVerifyOutput(raw: string): CueVerifyOutput {
-  const value = parseJsonBoundary(raw, "rb-cues verification");
-  if (
-    !isRecord(value) ||
-    !nonNegativeInteger(value.total) ||
-    !nonNegativeInteger(value.matched) ||
-    !nonNegativeInteger(value.remaining) ||
-    !isUnknownArray(value.missing) ||
-    !value.missing.every((id) => typeof id === "string") ||
-    !isUnknownArray(value.mismatched) ||
-    !value.mismatched.every(isKindPair)
-  ) {
-    throw new Error("rb-cues verification returned an invalid payload");
-  }
-  return {
-    total: value.total,
-    matched: value.matched,
-    remaining: value.remaining,
-    missing: value.missing,
-    mismatched: value.mismatched,
-  };
+  return parseVerifyShape(raw);
 }
 
 function validateVerification(
@@ -368,14 +364,14 @@ function restampApplyLeg(
     const zeroCheck = deps.spawn(
       pyUvFileArgv({ file: "cue-verify.py", args: [dbPath] }),
       120_000,
-      JSON.stringify(output.writtenIds),
+      JSON.stringify(output.written_ids),
     );
     if (zeroCheck.status !== 0 || !zeroCheck.stdout)
       throw new Error(
         `cue verification failed (exit ${String(zeroCheck.status)}): ${zeroCheck.stderr.slice(-300)}`,
       );
     const checked = parseVerifyOutput(lastJsonLine(zeroCheck.stdout));
-    validateVerification(output.writtenIds, checked);
+    validateVerification(output.written_ids, checked);
     log(
       `re-read: ${checked.matched}/${checked.total} intended cue rows, ${checked.remaining} Kind=0 remaining`,
     );

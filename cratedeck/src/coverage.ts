@@ -17,23 +17,9 @@ export {
   type PlaylistEntryRow,
   type TrackRow,
 } from "../shared/types";
-
-/** Casefold like scan.nfcCasefold without importing scan (keeps this pure). */
-function fold(s: string): string {
-  return s.normalize("NFC").toLowerCase();
-}
-
-/** Fallback identity: "artist - title". null when neither side exists.
- *  Fields optional: manifests (DiffSource) carry no metadata at all. */
-function metaKey(t: {
-  title?: string | null;
-  artist?: string | null;
-}): string | null {
-  const artist = (t.artist ?? "").trim();
-  const title = (t.title ?? "").trim();
-  if (!artist && !title) return null;
-  return fold(artist ? `${artist} - ${title}` : title);
-}
+// fold + metaKey: the #201 one-definition module (was a byte-identical
+// twin here, radar.ts, coverage_fleet.ts).
+import { fold, metaKey } from "./meta-key";
 
 // ---- coverage (B6) ----------------------------------------------------------
 // (TrackCoverage / CoverageResult / CoverageResponse are defined in

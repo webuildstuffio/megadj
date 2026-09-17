@@ -20,6 +20,7 @@ fails the build on it.
 - rev-31 (2026-09-16): #10 — `shelf-dupescan --json` summary gains `generatedAt` + `contentsDir` provenance stamps (a saved dossier self-identifies; stale reports can't read as current). Additive keys only; no census change.
 - rev-32 (2026-09-16): #148 new-music radar — `deckctl radar [drive]`, `deck_radar {drive?}`, `/api/fleet/radar`, Fleet ⌗ Radar tab over the same pure delta (cratedeck/src/radar.ts). 23 → 24 verbs, 41 → 42 tools, 64 → 65 routes.
 - rev-33 (2026-09-16): #167 grid health (GA-05c) — `grid-health` job kind (deckctl run / deck_run), `GET /api/grid-health` + `POST /api/grid-health/scan`, and the drive-page card (Archive tab) rendering the triage buckets worst-first with per-row fix commands + freshness line. 65 → 67 routes.
+- rev-34 (2026-09-17): audit gaps G2+G3 closed — §2d matrix completed (every census command now has a row; 16 were missing when the Sep 14 audit found them), and §4-A1 cites `MAINTENANCE_VERBS` instead of a hand-enumerated verb list. Both drift classes are parity-test-pinned. 45 → 46 commands, 42 → 43 tools, 67 → 68 routes (#215's `genre-why` CLI verb + `archive_genre_why` tool + `/api/archive/genre-why` route, matrix row added).
 
 The full prose of all 27 revisions lives in Git history
 (`git log --follow -- docs/surface-parity.md`) per §5 — this doc keeps
@@ -42,10 +43,10 @@ deliberate exemptions are in §4. Historical repair details belong in
 
 | Surface    | Entry points                                                      | Count                  |
 | ---------- | ----------------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                                     | 45 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                                     | 46 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                         | 24 verbs               |
-| MCP        | `bun run mcp` (`mcp.ts` + `archive_tools.ts` + `getdat_tools.ts`) | 42 tools               |
-| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742)       | 67 routes              |
+| MCP        | `bun run mcp` (`mcp.ts` + `archive_tools.ts` + `getdat_tools.ts`) | 43 tools               |
+| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742)       | 68 routes              |
 | Web UI     | `cratedeck/web/` (hash-routed pages)                              | 6 pages, ~22 actions   |
 
 The server's HTTP API is the **fourth surface** and the seam everything
@@ -135,6 +136,36 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Archive integrity sweep                           | Prep digest (`archive integrity` section) ✅                                                              | `archive_sweep` ✅                                        | Fleet ⌗ Prep (digest section) ✅                                           | — (D30)                                                                       |
 | Rename drive                                      | `rename <d> [nick]` ✅                                                                                    | `deck_rename` ✅                                          | inline rename ✅                                                           | —(D2-rename closed)                                                           |
 | Set drive photo                                   | —                                                                                                         | ⛔ §4-D2 (human picks the art)                            | Photo tab ✅                                                               | —                                                                             |
+| Genre inference + eval + refold + disputes        | `megadj genre [--apply/--eval/--refold/--flag/--disputes]` ✅                                              | ⛔ §4-A1 (ledger write stays CLI)                         | ⛔ §4-A1                                                                   | —                                                                             |
+| Genre vote explainability (#215)                  | `megadj genre-why <video_id>` ✅                                                                          | `archive_genre_why` ✅ (readonly read of the same ledger) | FullTags ⌗ Genre Why ✅ (tab)                                              | —                                                                             |
+| One-shot intake (download → organize)             | `megadj drop <folder-or-url>` ✅                                                                          | ⛔ §4-A1                                                  | ⛔ §4-A1 (Intake drives the pipeline stages, not `drop`)                    | —                                                                             |
+| Tag structure / booth-text health                 | `megadj tag-check` ✅ · `megadj booth-fix [--apply --yes]` ✅                                              | ⛔ §4-A1 (booth-fix renames files)                        | Drive ⌗ Fixes tab renders the booth queue ✅                               | —                                                                             |
+| Shelf dedupe (drive twins)                        | `megadj shelf-dedupe [--apply --yes]` ✅                                                                  | ⛔ §4-A1 (quarantine moves stay CLI)                      | ⛔ §4-A1                                                                   | —                                                                             |
+| Shelf fingerprint dupescan                        | `megadj shelf-dupescan [--quarantine --yes]` ✅                                                           | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                   | —                                                                             |
+| Archive dedupe (DJ-Imports)                       | `megadj dedupe-archive [--apply --yes]` ✅                                                                | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                   | —                                                                             |
+| Hygiene sweep + confirm/dismiss + apply           | `megadj shelf-hygiene [--confirm/--dismiss/--bucket/--apply --yes]` ✅                                    | `deck_hygiene {action?}` ✅ (CrateDeck tier)              | Drive ⌗ Hygiene tab ✅ (listen-first checks refuse remote batch-confirm)   | —                                                                             |
+| Quarantine restore                                | `megadj shelf-restore <finding-id\|path>` ✅                                                              | ⛔ §4-R1                                                  | ⛔ §4-R1                                                                   | —                                                                             |
+| Drive→shelf archive sweep                         | `megadj shelf-archive [volumes] [--into F] [--trashes] [--deep]` ✅                                       | ⛔ §4-A1 (bulk file moves stay CLI)                       | ⛔ §4-A1 (CrateDeck records sweeps, never drives them)                     | —                                                                             |
+| Sweep ledger (drive→shelf history)                | `megadj shelf-sweeps [--json]` ✅                                                                         | `archive_sweep` ✅ (sweep census rides the archive reads) | Fleet ⌗ Prep (digest section) ✅                                           | —                                                                             |
+| Shelf sync (archive→sticks)                       | `megadj shelf-sync [--dry-run]` ✅                                                                        | ⛔ §4-A1 (stick writes stay CLI; drives are user-staged)  | ⛔ §4-A1                                                                   | — (AGENTS: agents never write the playing USB)                               |
+| Gold-set metrics report                           | `megadj gold-report [--json]` ✅                                                                          | ⛔ §4-A1 (dev-gate harness stays CLI)                     | ⛔ §4-A1                                                                   | —                                                                             |
+| BPM/genre re-gate harness                         | `megadj regate bpm\|genre\|effnet [--detector --gold-dir]` ✅                                             | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                   | —                                                                             |
+| RB path repair                                    | `megadj rb-fix-paths [drive] [--apply --yes]` ✅                                                          | ⛔ §4-A1 (master-DB mutation stays CLI)                   | ⛔ §4-A1                                                                   | —                                                                             |
+| RB unmatched census / quarantine                  | `megadj rb-unmatched [drive] [--quarantine --yes]` ✅                                                     | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                   | —                                                                             |
+| RB headless import                                | `megadj rb-import [drive] <folder> [--apply --yes]` ✅                                                    | ⛔ §4-A1 (master-DB writes are rb-import's job only)      | ⛔ §4-A1                                                                   | —                                                                             |
+| RB hot-cue restamp                                | `megadj rb-cues [drive] [--restamp --apply --yes]` ✅                                                     | ⛔ §4-A1 (djmdCue write seam stays CLI)                   | ⛔ §4-A1                                                                   | —                                                                             |
+| RB duplicate-row sweep                            | `megadj rb-dedup [drive] [--apply --yes]` ✅                                                              | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                   | —                                                                             |
+| RB comment backfill                               | `megadj rb-comment-sync [drive] [--batch TOKEN] [--apply --yes]` ✅                                       | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                   | —                                                                             |
+| RB playlist reconcile (XML twin)                  | `megadj rb-playlist <drive> reconcile [--apply --yes]` ✅                                                 | ⛔ §4-A1                                                  | ⛔ §4-A1                                                                   | —                                                                             |
+| RB grid triage (GA-03/04)                         | `megadj rb-grid-triage [drive] [--compare D]` ✅                                                          | `archive_grid_cross_check` ✅ (coarse read)               | FullTags ⌗ Beatgrids + Grid health card ✅                                 | — (repair writer stays GA-06)                                                |
+| ANLZ write-path spike (GA-07)                     | `megadj rb-anlz-spike [drive] snapshot\|compare --tag T` ✅                                               | ⛔ §4-A1 (drive-side harness stays CLI)                   | ⛔ §4-A1                                                                   | —                                                                             |
+
+Every §2d CLI cell resolves to one of three verdicts: **A1** (mutating
+pipeline arm — CLI-only by exemption), **A2** (host setup), or the
+dev-gate harnesses (`gold-report`/`regate`, CLI-only under A1). The
+parity test pins this: every command in the census must appear in §2d
+or in §4, so a new command without a matrix row is a red build (G2's
+drift class can't rot the doc again).
 
 ## 3. True gaps (all closed — kept as the record)
 
@@ -217,16 +248,19 @@ this table AND the enforcement test together (that's the point).
   the UI column covered.
 - **G2 — CLOSED.** The Fleet ⌗ Prep tab renders the
   digest.
-- **A1 — archive mutation stays CLI-shaped.** `sync`/`ingest`/`fetch`/
-  `beats`/`mood`/`cues`/`organize`/`upgrade`/`rb-adopt` are long-running,
-  file-mutating pipeline stages; MCP's archive half is **readonly by
+- **A1 — archive mutation stays CLI-shaped.** The mutating pipeline
+  arms — every verb in `src/shared/maintenance-cmds.ts`'s
+  `MAINTENANCE_VERBS` plus `genre`/`drop`/`upgrade` — are long-running,
+  file- and DB-mutating stages; MCP's archive half is **readonly by
   design** (`readonly: true` sqlite handle — a bug there cannot corrupt
   archive state). The UI does not re-implement pipeline logic — the
   GetDat ⌗ Intake tab SPAWNS `megadj ingest <folder> --json` as
   a job, so the CLI remains the single implementation (the tab is a
   remote control, not a second engine). Agents still drive archive work
   through `megadj` CLI + skills, which is the P1 contract (`--json`
-  everywhere).
+  everywhere). The verb list is derived, not copied: the parity test
+  reads `MAINTENANCE_VERBS` + the registry (no hand twin — the hand
+  list this row replaced had already drifted by construction).
 - **A2 — doctor/init are host setup**, not library operations; they
   scaffold config and check the local machine. No UI/MCP sense.
 - **A3 — CLOSED.** The Fleet ⌗ Archive tab serves the

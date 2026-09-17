@@ -14,18 +14,10 @@
 // UI round-trips them — anything else is a 403, never a partial read.
 import { realpathSync, statSync } from "node:fs";
 import { extname, resolve, sep } from "node:path";
+// AUDIO_EXTS: the #69 SSOT — the private set here diverged BOTH ways
+// (had .alac, missed .ogg/.opus), the twin-proof of issue #200.
+import { AUDIO_EXTS } from "../../src/shared/audio-exts";
 import { fmtDur } from "../shared/fmt";
-
-const AUDIO_EXT = new Set([
-  ".aiff",
-  ".aif",
-  ".wav",
-  ".mp3",
-  ".flac",
-  ".m4a",
-  ".aac",
-  ".alac",
-]);
 
 export interface AudioStats {
   path: string;
@@ -47,7 +39,7 @@ export function servableAudioPath(
 ): string | null {
   if (!raw || raw.split(sep).includes("..")) return null;
   const ext = extname(raw).toLowerCase();
-  if (!AUDIO_EXT.has(ext)) return null;
+  if (!AUDIO_EXTS.has(ext)) return null;
   let p: string;
   try {
     p = resolve(raw);
@@ -60,7 +52,7 @@ export function servableAudioPath(
     const canonicalRoot = realpathSync(root);
     const canonicalPath = realpathSync(p);
     if (!canonicalPath.startsWith(canonicalRoot + sep)) return null;
-    if (!AUDIO_EXT.has(extname(canonicalPath).toLowerCase())) return null;
+    if (!AUDIO_EXTS.has(extname(canonicalPath).toLowerCase())) return null;
     if (!statSync(canonicalPath).isFile()) return null;
   } catch {
     return null;

@@ -11,6 +11,10 @@ import { Database, type SQLQueryBindings } from "bun:sqlite";
 import { existsSync, statSync } from "node:fs";
 import { similarTracks as similarTracksImpl } from "./archive_similar";
 import {
+  genreWhy as genreWhyImpl,
+  type ArchiveGenreWhy,
+} from "./archive_genre";
+import {
   cueStats as cueStatsImpl,
   libraryOverview as libraryOverviewImpl,
 } from "./archive_overview";
@@ -503,6 +507,15 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   // unchanged while the implementations stay outside this file.
   similarTracks(videoId: string, k = 10, space = "raw"): ArchiveSimilar {
     return similarTracksImpl(this, videoId, k, space);
+  }
+
+  /**
+   * GENRE-WHY (#215): one track's #173 vote-ladder breakdown, re-elected
+   * through the write path's exact seam. Implementation lives in
+   * archive_genre.ts (file-length guard); delegate keeps the surface.
+   */
+  genreWhy(videoId: string): ArchiveGenreWhy {
+    return genreWhyImpl(this, videoId);
   }
 
   setCandidates(limit?: number): ArchiveSetCandidates {

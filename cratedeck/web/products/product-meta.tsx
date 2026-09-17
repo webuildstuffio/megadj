@@ -220,6 +220,13 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
       title: "I49 sounds-like: nearest tracks by audio embedding similarity",
     },
     {
+      id: "genre-why",
+      label: "Genre Why",
+      icon: "info",
+      title:
+        "#215 genre explainability: the vote ladder's per-rung breakdown for one track",
+    },
+    {
       id: "cues",
       label: "Cues",
       icon: "play",

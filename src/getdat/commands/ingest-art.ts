@@ -12,16 +12,16 @@ import {
 } from "../../fulltags/embed";
 import { soundcloudUrlInTags } from "../../fulltags/art-sources";
 import { appendQueueEntries, type QueueEntry } from "./queue";
+// ARTWORK_EXTS is DERIVED from the #69 SSOT (subset by art support), not
+// hand-listed — a new SSOT extension never silently misses art again
+// (issue #200 class). .wav is excluded on purpose: RB ignores WAV art.
+import { AUDIO_EXTS } from "../../shared/audio-exts";
 
-/** Containers that reliably hold embedded artwork. */
-export const ARTWORK_EXTS = new Set([
-  ".m4a",
-  ".mp3",
-  ".flac",
-  ".aiff",
-  ".aif",
-  ".wav",
-]);
+/** Containers that reliably hold embedded artwork: every audio ext the
+ *  scanners know, minus the formats that can't carry art. */
+export const ARTWORK_EXTS: ReadonlySet<string> = new Set(
+  [...AUDIO_EXTS].filter((e) => e !== ".wav"),
+);
 
 /** Outcome of the artwork step for one track. */
 export interface ArtworkOutcome {

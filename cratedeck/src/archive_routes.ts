@@ -182,6 +182,15 @@ function archiveHandlers(): Record<string, ArchiveHandler> {
           : archive.similarTracks(id, 10, space),
       );
     },
+    // GENRE-WHY (#215): one track's #173 vote-ladder breakdown — every
+    // rung's genre + weight + elected flag, re-elected through the write
+    // path's exact seam (`electGenre`). The explainability read the
+    // write side promised: "why Techno?" answered from the row.
+    "genre-why": (url, archive) => {
+      const id = (url.searchParams.get("id") ?? "").trim();
+      if (!id) return json({ error: "id (video_id) required" }, 400);
+      return json(archive.genreWhy(id));
+    },
     // Set-builder copilot: propose an ordered mix chain from the
     // measured data (beats BPM + mood axes + file TKEY). Propose-only.
     // Params validated by the engine's parseMegasetQuery (shared with the

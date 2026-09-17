@@ -38,6 +38,7 @@ export type { RadarMiss, RadarResult, FleetRadar } from "../radar";
 export type {
   ArchiveAnalysisCoverage,
   ArchiveCueStats,
+  ArchiveGenreWhy,
   ArchiveGridCrossCheck,
   ArchiveIngestStatus,
   ArchiveLibraryOverview,

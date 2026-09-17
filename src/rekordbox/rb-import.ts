@@ -39,6 +39,7 @@ import {
   isStringPair,
   lastJsonLine,
   makeFail,
+  makePayloadParser,
   parseJsonBoundary,
   printResult,
   rbPythonFile,
@@ -47,6 +48,10 @@ import {
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 import { commandLog } from "../progress";
 import { errorText } from "../shared/error-text.js";
+// AUDIO_EXTS: the #69 SSOT — the private set that lived here missed
+// .alac, so an ALAC rip reaching intake was invisible to discovery
+// (issue #200: the #69 drift class, regrown).
+import { AUDIO_EXTS } from "../shared/audio-exts";
 import { masterDbPath } from "./master-path.js";
 
 export interface RbImportOptions {
@@ -99,16 +104,6 @@ export interface RbImportResult {
   error?: string;
 }
 
-const AUDIO_EXT = new Set([
-  ".aiff",
-  ".aif",
-  ".mp3",
-  ".wav",
-  ".flac",
-  ".m4a",
-  ".aac",
-]);
-
 /** Gate 1–4 of rb-import (issue #181 phase split): the hard pre-flight
  *  refusals, in order — flags, DB present, folder present, rekordbox
  *  quit. Each is a failure with its own message; null = all clear. */
@@ -157,7 +152,7 @@ function probePayloadFiles(
     } catch {
       continue;
     }
-    if (st.isFile() && AUDIO_EXT.has(extname(e).toLowerCase()))
+    if (st.isFile() && AUDIO_EXTS.has(extname(e).toLowerCase()))
       files.push([full, e]);
   }
   if (files.length === 0) return [];
@@ -314,53 +309,43 @@ interface VerifyOut {
   playlistExists: boolean;
 }
 
+const isStringPairList = (v: unknown): v is [string, string][] =>
+  isUnknownArray(v) && v.every(isStringPair);
+const isBoolean = (v: unknown): v is boolean => typeof v === "boolean";
+
+const parseWriteShape = makePayloadParser<PyOut>(
+  "pyrekordbox write",
+  "pyrekordbox write returned an invalid result payload",
+  {
+    inserted: isNonNegativeInteger,
+    already: isNonNegativeInteger,
+    linked: isNonNegativeInteger,
+    gated: isNonNegativeInteger,
+    playlistId: isDecimalIdOrNull,
+    parentId: isDecimalIdOrNull,
+    errors: isStringPairList,
+  },
+);
+
+const parseVerifyShape = makePayloadParser<VerifyOut>(
+  "pyrekordbox post-verify",
+  "pyrekordbox post-verify returned invalid counters",
+  {
+    hit: isNonNegativeInteger,
+    broken: isNonNegativeInteger,
+    total: isNonNegativeInteger,
+    playlistRows: isNonNegativeInteger,
+    contiguous: isBoolean,
+    playlistExists: isBoolean,
+  },
+);
+
 function parseWriteOutput(raw: string): PyOut {
-  const value = parseJsonBoundary(raw, "pyrekordbox write");
-  if (
-    !isRecord(value) ||
-    !isNonNegativeInteger(value.inserted) ||
-    !isNonNegativeInteger(value.already) ||
-    !isNonNegativeInteger(value.linked) ||
-    !isNonNegativeInteger(value.gated) ||
-    !isDecimalIdOrNull(value.playlistId) ||
-    !isDecimalIdOrNull(value.parentId) ||
-    !isUnknownArray(value.errors) ||
-    !value.errors.every(isStringPair)
-  ) {
-    throw new Error("pyrekordbox write returned an invalid result payload");
-  }
-  return {
-    inserted: value.inserted,
-    already: value.already,
-    linked: value.linked,
-    gated: value.gated,
-    playlistId: value.playlistId,
-    parentId: value.parentId,
-    errors: value.errors,
-  };
+  return parseWriteShape(raw);
 }
 
 function parseVerifyOutput(raw: string): VerifyOut {
-  const value = parseJsonBoundary(raw, "pyrekordbox post-verify");
-  if (
-    !isRecord(value) ||
-    !isNonNegativeInteger(value.hit) ||
-    !isNonNegativeInteger(value.broken) ||
-    !isNonNegativeInteger(value.total) ||
-    !isNonNegativeInteger(value.playlistRows) ||
-    typeof value.contiguous !== "boolean" ||
-    typeof value.playlistExists !== "boolean"
-  ) {
-    throw new Error("pyrekordbox post-verify returned invalid counters");
-  }
-  return {
-    hit: value.hit,
-    broken: value.broken,
-    total: value.total,
-    playlistRows: value.playlistRows,
-    contiguous: value.contiguous,
-    playlistExists: value.playlistExists,
-  };
+  return parseVerifyShape(raw);
 }
 
 function verificationError(
@@ -641,6 +626,10 @@ export const __test = {
   parseWriteOutput,
   parseVerifyOutput,
   verificationError,
+  /** Issue #200 acceptance: discovery membership IS the #69 SSOT —
+   *  .alac (the drifted-out extension) must be member, never a private
+   *  twin again. */
+  AUDIO_EXTS,
 };
 
 export function printRbImportReport(

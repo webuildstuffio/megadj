@@ -27,6 +27,7 @@ import {
   DECIMAL_ID_RE,
   isStringPair,
   isStringTriple,
+  makePayloadParser,
   parseJsonBoundary,
   printResult,
   pyUvFileArgv,
@@ -89,7 +90,6 @@ export interface RbCommentSyncOptions {
   apply?: boolean | undefined;
   yes?: boolean | undefined;
   json?: boolean | undefined;
-  limit?: number | undefined;
   log?: (s: string) => void;
 }
 
@@ -228,25 +228,25 @@ function parseSyncOutput(raw: string, apply: boolean): SyncOutput {
   return out;
 }
 
+const isStringList = (v: unknown): v is string[] =>
+  isUnknownArray(v) && v.every((id) => typeof id === "string");
+
+const isStringTripleList = (v: unknown): v is [string, string, string][] =>
+  isUnknownArray(v) && v.every(isStringTriple);
+
+const parseVerifyShape = makePayloadParser<CommentVerifyOutput>(
+  "rb-comment-sync verification",
+  "rb-comment-sync verification returned an invalid payload",
+  {
+    total: nonNegativeInteger,
+    matched: nonNegativeInteger,
+    missing: isStringList,
+    mismatched: isStringTripleList,
+  },
+);
+
 function parseVerifyOutput(raw: string): CommentVerifyOutput {
-  const value = parseJsonBoundary(raw, "rb-comment-sync verification");
-  if (
-    !isRecord(value) ||
-    !nonNegativeInteger(value.total) ||
-    !nonNegativeInteger(value.matched) ||
-    !isUnknownArray(value.missing) ||
-    !value.missing.every((id) => typeof id === "string") ||
-    !isUnknownArray(value.mismatched) ||
-    !value.mismatched.every(isStringTriple)
-  ) {
-    throw new Error("rb-comment-sync verification returned an invalid payload");
-  }
-  return {
-    total: value.total,
-    matched: value.matched,
-    missing: value.missing,
-    mismatched: value.mismatched,
-  };
+  return parseVerifyShape(raw);
 }
 
 function validateVerification(
@@ -346,7 +346,7 @@ async function rbCommentSyncWithRuntime(
     const r = deps.spawn(
       pyUvFileArgv({
         file: "comment-sync.kit.py",
-        args: [dbPath, ledger, mode, opts.batch ?? "", String(opts.limit ?? 0)],
+        args: [dbPath, ledger, mode, opts.batch ?? ""],
         withPkg: "pyrekordbox,mutagen",
       }),
       600_000,

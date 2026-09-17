@@ -153,6 +153,35 @@ export interface ArchiveSimilar {
   }[];
 }
 
+/** #215 — one track's #173 vote-ladder breakdown (genre-why). The read
+ *  twin of `serializeVotes`: every rung's claim, re-elected through the
+ *  write path's exact seam. */
+export interface ArchiveGenreWhy {
+  available: boolean;
+  video_id: string;
+  title: string | null;
+  artist: string | null;
+  /** The genre column (may carry a first-win-era/sync-era label). */
+  db_genre: string | null;
+  /** false = never voted: an honest empty-state, never fake data. */
+  voted: boolean;
+  /** only when voted: the replayed election result. */
+  elected?: string | null;
+  elected_weight?: number;
+  winner_rungs?: string[];
+  /** only when voted: does the replay re-elect the stored genre? */
+  matches_db?: boolean;
+  /** only when the video_id matched no row at all. */
+  missing?: boolean;
+  votes: {
+    rung: string;
+    genre: string;
+    weight: number;
+    elected: boolean;
+    detail: string | null;
+  }[];
+}
+
 export type ArchiveSearchHit = ArchiveTrack;
 
 export interface ArchiveFreshness {

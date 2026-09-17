@@ -159,7 +159,7 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "beats",
     group: "fulltags",
     block: [
-      "  megadj beats   [--limit N] [--jobs N] [--force] [--dry-run] [--json]",
+      "  megadj beats   [--limit N] [--jobs N] [--max-seconds S] [--force] [--dry-run] [--json]",
       "                                               beat_this → DB ledger (downbeats for cues/grid checks; no tag writes)",
     ],
   },
@@ -184,7 +184,7 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "genre",
     group: "fulltags",
     block: [
-      "  megadj genre    [--apply] [--eval] [--refold] [--k N] [--min-agreement F] [--json]",
+      "  megadj genre    [--apply] [--eval] [--refold] [--k N] [--min-agreement F] [--no-duration-guard] [--json]",
       "                                               infer genres from audio embeddings (kNN vote over trusted seeds); propose-only by default;",
       "                                               --eval runs the leave-one-out accuracy harness (target: gated ≥65%);",
       "                                               --eval extras: --diagnostics (Tier-0 battery), --artist-disjoint (leakage control), --probe (linear readout);",
@@ -234,10 +234,19 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "genre-why",
+    group: "fulltags",
+    block: [
+      "  megadj genre-why <video_id> [--json]         the #173 vote ladder's breakdown for one track:",
+      "                                               every rung: genre + weight + elected flag —",
+      '                                               "why Techno?" answered from the row, not code',
+    ],
+  },
+  {
     name: "regate",
     group: "fulltags",
     block: [
-      "  megadj regate bpm [--gold-dir F] [--json]    re-gate BPM ledger against gold (80% / 2% bar)",
+      "  megadj regate bpm [--detector D] [--gold-dir F] [--json]    re-gate BPM ledger against gold (80% / 2% bar)",
       "  megadj regate genre [--json]                 re-gate genre kNN vs the ≥65% ship gate (LOO harness)",
       "  megadj regate effnet [--json]                reports unavailable until the effnet reference ledger exists",
     ],
@@ -327,7 +336,7 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "shelf-hygiene",
     group: "fulltags",
     block: [
-      "  megadj shelf-hygiene [--json]                the hygiene sweep: byte/fp/junk checks →",
+      "  megadj shelf-hygiene [--shelf V] [--kind K] [--json]         the hygiene sweep: byte/fp/junk checks →",
       "                                               findings ledger (--json = census);",
       "                                               [--confirm ID | --dismiss ID] decide one;",
       "                                               [--bucket NAME] batch-confirm one SAFE",
@@ -411,7 +420,7 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "rb-cues",
     group: "fulltags",
     block: [
-      "  megadj rb-cues [drive] [--restamp] [--apply --yes] [--json]",
+      "  megadj rb-cues [drive] [--restamp] [--ledger F] [--force] [--apply --yes] [--json]",
       "                                               THE djmdCue write seam (postmortem",
       "                                               F1/F3): dry-run counts only Sep 12",
       "                                               incident rows matching the proven",
@@ -426,7 +435,7 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "rb-dedup",
     group: "fulltags",
     block: [
-      "  megadj rb-dedup [drive] [--apply --yes] [--json]",
+      "  megadj rb-dedup [drive] [--report] [--apply --yes] [--json]",
       "                                               fingerprint-ish duplicate sweep over",
       "                                               the master DB (postmortem F2/BUG-2):",
       "                                               finds same-title ±2s / same-path twin",
@@ -469,7 +478,7 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     group: "fulltags",
     block: [
       "  megadj rb-playlist [drive] [--preset P] [--minutes N] [--opener ID]",
-      "                                               [--playlist NAME] [--group NAME]",
+      "                                               [--playlist NAME] [--group NAME] [--limit N]",
       "                                               [--apply --yes] [--json]",
       "                                               set-builder chain → playlist in",
       "                                               the shelf master DB (no new",

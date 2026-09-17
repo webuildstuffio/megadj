@@ -288,6 +288,42 @@ describe("surface parity (docs/surface-parity.md)", () => {
     ).toEqual([]);
   });
 
+  test("every megadj command appears in the doc's §2d matrix (G2 can't rot)", () => {
+    // The Sep 14 audit (surface-parity canvas, gap G2) found 16 of 45
+    // commands missing from the §2d capability matrix: the census pinned
+    // the COUNTS while the audit table — the actual contract — silently
+    // omitted a third of the surface. This closes it mechanically: every
+    // command from the census must appear in docs/surface-parity.md
+    // (matrix row or exemption prose). A new command without either is a
+    // red build, same as the help census above.
+    const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
+    for (const verb of megadjCommands()) {
+      expect(
+        new RegExp(`\\b${verb}\\b`).test(doc),
+        `command "${verb}" appears nowhere in docs/surface-parity.md — add its §2d matrix row or cite its §4 exemption (audit gap G2)`,
+      ).toBe(true);
+    }
+  });
+
+  test("§4-A1 cites the MAINTENANCE_VERBS SSOT instead of a hand list (G3 can't rot)", () => {
+    // Audit gap G3: the A1 exemption hand-enumerated its command set
+    // (sync/ingest/fetch/beats/mood/cues/organize/upgrade/rb-adopt) —
+    // nine names copied from an older tree that had already drifted by
+    // construction (12 MAINTENANCE_VERBS existed when it was written).
+    // The fix is derive-don't-duplicate, same rule the census follows:
+    // the doc must NAME the SSOT, and the old hand-enumeration must NOT
+    // come back as an inline verb list in that row.
+    const doc = readFileSync(join(ROOT, "docs/surface-parity.md"), "utf8");
+    const a1 = doc.split("**A1 —")[1]?.split(/\n- \*\*[A-Z]/)[0] ?? "";
+    expect(a1.length).toBeGreaterThan(0);
+    expect(a1).toContain("MAINTENANCE_VERBS");
+    expect(a1).toContain("src/shared/maintenance-cmds.ts");
+    // the old hand list's signature: a slash-chained enumeration of the
+    // pipeline verbs inside the A1 row — any return of that shape fails
+    const handList = a1.match(/`sync`\/`ingest`\/`fetch`|sync\/ingest\/fetch/);
+    expect(handList === null).toBeTrue();
+  });
+
   test("GetDat CLI intake commands have MCP twins", () => {
     const tools = new Set(mcpTools());
     expect(tools.has("getdat_ingest")).toBeTrue();

@@ -11,16 +11,12 @@
 // every API request (see AGENTS.md invariants — keep scans async).
 import type { SnapshotData } from "../shared/types";
 import { walkTree, extOf } from "./walk";
-
-export const AUDIO_EXT = new Set([
-  ".mp3",
-  ".m4a",
-  ".aac",
-  ".wav",
-  ".aiff",
-  ".aif",
-  ".flac",
-]);
+// AUDIO_EXT: re-exported #69 SSOT (src/shared/audio-exts.ts) — the
+// private 7-entry set here had no alac/aac/ogg/opus (issue #200). The
+// value is ALSO imported for scanVolume's own age/manifest filtering;
+// `export … from` alone would not bind it in this module's scope.
+import { AUDIO_EXTS as AUDIO_EXT } from "../../src/shared/audio-exts";
+export { AUDIO_EXTS as AUDIO_EXT } from "../../src/shared/audio-exts";
 
 export function nfcCasefold(s: string): string {
   return s.normalize("NFC").toLowerCase();

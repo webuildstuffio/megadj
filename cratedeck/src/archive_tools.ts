@@ -313,5 +313,21 @@ export function archiveTools(): Record<string, ToolDef> {
       inputSchema: noArgs(),
       run: async () => apiGet("/api/archive/sweep").then((r) => r.json()),
     },
+
+    archive_genre_why: {
+      description:
+        "[READ-ONLY] #215 explainability read: one track's #173 weighted genre vote-ladder breakdown. Every rung's claim (rung, genre, weight, elected flag, provenance detail) is returned, re-elected through the SAME seam the write path used (`electGenre`) so the replay always matches the stored genre — plus matches_db drift detection, and an honest voted:false empty-state for never-voted tracks. Answers 'why Techno?' from the row, not from code.",
+      inputSchema: obj({
+        id: s("video_id of the track (archive_search_tracks finds them)"),
+      }),
+      run: async (args: Record<string, unknown>) => {
+        const id = typeof args["id"] === "string" ? args["id"].trim() : "";
+        if (!id) throw new RpcParamError("id (video_id) is required");
+        const res = await apiGet(
+          `/api/archive/genre-why?id=${encodeURIComponent(id)}`,
+        );
+        return res.json();
+      },
+    },
   };
 }
