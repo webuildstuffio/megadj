@@ -20,6 +20,9 @@ one-SSOT rule).
 - **Whole-shelf acoustic dupescan:** `megadj shelf-dupescan`
   fingerprinted 4,635 audio files (fpcalc → `shelf_fingerprints` ledger);
   **969 duplicate groups — 1,271 redundant copies, 38.9 GB**.
+  Sep 16 (#10): the `--json` summary now self-identifies with
+  `generatedAt` + `contentsDir` provenance stamps — a saved dossier
+  dates itself instead of reading as current.
 - **Quarantine-apply (human-gated):** 955 byte-identical copies moved to
   `Contents/.dupescan-quarantine/` (`--quarantine --yes`); post-apply MD5
   audit: **0 orphans**, 969/969 keepers intact. 312 left for human review.

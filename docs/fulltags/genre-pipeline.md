@@ -2,6 +2,13 @@
 
 **Status:** 📚 REFERENCE — how the genre system processes a track, end to
 end. Every stage below ships and runs on the live archive.
+**Rev 5 (Sep 16): the weighted multi-source vote ladder is LIVE (#173)
+— every rung (SC/BP/BC/imprint/AI/MB/file/sync) casts a vote
+(genre + weight + provenance) through `src/fulltags/genre-vote.ts`;
+highest total weight elects, ties break toward the harder gate, and the
+breakdown persists in `tracks.genre_votes` (every stored genre is
+explainable). First-win writes are gone. Also Sep 16: `megadj regate
+genre` runs the LOO harness against the ≥65% ship gate (#169).**
 **Rev 4 (Sep 15): Bandcamp is now a LIVE ladder source (W2b, third vote
 behind SC → BP) with the shared hard artist gate; W1's `Music` mint
 removed (#61 stop-new-damage half; unstrand of ~154 legacy rows still
@@ -78,10 +85,9 @@ Three facts people get wrong, corrected:
    autocomplete API — yt-dlp's extractor is still broken), applies the
    SAME hard artist gate (band/artist must contain the query artist),
    then fetches the item page once and votes genre (artist tags),
-   year (publish date), label (publisher), and art (og:image). The
-   weighted multi-source vote ladder that would supersede
-   first-win-writes is issue-tracked
-   ([#173](https://github.com/webuildstuffio/megadj/issues/173)), not live.
+   year (publish date), label (publisher), and art (og:image). Since
+   Rev 5 those votes are cast through the weighted vote ladder (#173),
+   not consumed by a first-win write.
 3. **YouTube's category is "Music", not a genre.** yt-dlp gives every
    YT Music track the same `category: Music` — that is why W1's regex
    over title/artist/album exists, and why it so often ends in
@@ -256,7 +262,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | Tier-0 diagnostics engine                                                                                                                          | `src/fulltags/genre-diagnostics.ts`                                                                                                                                |
 | Linear probe (informational readout)                                                                                                               | `src/fulltags/linear-probe.ts`                                                                                                                                     |
 | CLI wiring (`--eval/--refold/--flag/--diagnostics/…`)                                                                                              | `src/fulltags/genre.ts`                                                                                                                                            |
-| Fetch ladder (SC → BP → imprint → BC → AI) + junk gate + tag-first writes                                                                          | `fulltags/src/fetch-pipeline.ts` + `fulltags/src/fetch-stages.ts` + `fulltags/src/archive-ledger.ts` (#184 — re-homed from tools/)                                  |
+| Fetch ladder (SC → BP → imprint → BC → AI) + junk gate + tag-first writes                                                                          | `fulltags/src/fetch-pipeline.ts` + `fulltags/src/fetch-stages.ts` + `fulltags/src/archive-ledger.ts` (#184 — re-homed from tools/)                                 |
 | Bandcamp arm (search + gated page fetch + genre/label/date/art)                                                                                    | `fulltags/src/bandcamp.ts`                                                                                                                                         |
 | Name-matching SSOT (artist gate, title overlap, tokens)                                                                                            | `fulltags/src/name-match.ts`                                                                                                                                       |
 | Intake vocabularies (`guessFromFreeText` regex, `SC_GENRE_CANON`, `AI_VOCAB`, `canonicalizeClaim`, family map `FAMILIES`/`familyOf`, umbrella set) | `fulltags/src/genre-vocab.ts` (#187 — one module owns every named genre map; `canonGenre` remains a compat alias on `schema.ts`/`exports.ts` until #181/#184 land) |
@@ -273,12 +279,18 @@ gate; transparency surfaces (T) let a human see what any track claims.
 
 ## 8. Design rationale — why the seams are where they are
 
-- **Why the fetch ladder is first-win-writes today:** SC free-text,
-  Beatport store tags, and the AI fallback each answer "what does this
-  track claim", and the first claim stops the search — cheap and
-  one-write. The weighted multi-source vote (audit §5b.3.6) is the
-  planned replacement: sources VOTE, consensus writes, disputes flag.
-  It's queued, not shipped — the docs and code now say the same thing.
+- **Why the fetch ladder votes instead of first-win-writes (Rev 5):**
+  SC free-text, Beatport store tags, Bandcamp artist tags, the AI
+  fallback, MusicBrainz, the file's own TCON, sync-time category, and
+  the imprint prior each answer "what does this source claim" — and
+  since #173 every claim is a VOTE (`src/fulltags/genre-vote.ts`,
+  weights versioned in `GENRE_VOTE_WEIGHTS` per the doc's W-table).
+  The highest total weight elects; ties break toward the harder single
+  gate (deterministic); the full breakdown persists in
+  `tracks.genre_votes`, so "why Techno?" is answerable from the row.
+  Hard gates stay absolute upstream — a vote only exists for a claim
+  that already passed its rung's gates. Migration of existing rows is
+  a pipeline re-run, never a hand UPDATE.
 - **Why file reads live only on the per-track compare (T2), not the
   census (T1):** the file is ground truth, but a census page over 3.5k
   tracks would pay a ffprobe+mutagen spawn per row — seconds of I/O

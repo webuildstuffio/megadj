@@ -6,6 +6,28 @@ This index lists every maintained document under `docs/`. Start with the
 [current product state](product-state-2026-09-07.md), then follow the owning
 document for the topic you are changing.
 
+## The four products, one paragraph each
+
+- **GetDat** — the intake pipeline: `megadj sync` pulls new music,
+  `megadj drop` runs the one-shot download → ingest → fetch → analyze →
+  organize → tag-check chain, `megadj shelf-archive`/`shelf-sync` land
+  everything on the SHELF1 archive master (additive, junk-filtered,
+  MD5-verified). The shelf is the collection SSOT.
+- **FullTags** — the enrichment engine: format-specific atomic tag
+  writers, the art/year/genre ladders, beats/mood/cues/embeddings
+  ledgers, and the ≥65%-gated kNN genre readout. Genre comes from a
+  weighted multi-source vote (#173) with the full breakdown persisted
+  per track; `megadj audit` is the ground-truth gate.
+- **MegaSet** — the co-pilot: turns measured data (beats, key, mood,
+  energy, embeddings, 8-bar phrase cues) into a Camelot-compatible
+  ordered mix proposal with cue-window handoffs — propose-only, the DJ
+  keeps every creative decision; `megadj rb-playlist` is the gated
+  write-off.
+- **CrateDeck** — mission control for DJ USB drives: every drive a card
+  (mounted or ghost), deep verify down to ANLZ beatgrid math, dual-DB
+  agreement, mirror parity, bench anomaly + role-aware checks, and the
+  rekordbox interlock that refuses everything while rekordbox runs.
+
 ## Ownership and status
 
 - `AGENTS.md` owns agent rules and safety invariants.
@@ -112,6 +134,21 @@ for the ideas closed NOT_PLANNED.
   `--agree`/`--keep`, #64)**, inference discipline, scoring read path, the ≥65%
   gate, the tag census/compare surfaces, 11 invariants, design
   rationale, and live state. Start here for "where does genre come from?"
+- **Weighted genre vote ladder (Sep 16, #173)** — the fetch ladder no
+  longer writes first-win: every rung (SC / Beatport / Bandcamp /
+  imprint prior / AI / MusicBrainz / file tags / sync category) casts a
+  vote — genre + weight + provenance — with the weights versioned in
+  code (`GENRE_VOTE_WEIGHTS`, `src/fulltags/genre-vote.ts`, mirroring
+  the pipeline doc's W-table). Highest total weight elects; ties break
+  deterministically toward the harder single gate; the full per-track
+  breakdown persists in `tracks.genre_votes`, so any stored genre is
+  explainable from its row ("why Techno?" needs no code reading). Hard
+  gates stay absolute upstream (artist gate, numeric/`Music` refusal) —
+  a vote only exists for a claim that already passed its rung's gates.
+- **Regate extends to genre (Sep 16, #169)** — `megadj regate genre
+--json` runs the same leave-one-out harness as `genre --eval` against
+  the ≥65% ship gate; `regate effnet` reports unavailable honestly
+  until its reference ledger exists (never a manufactured pass).
 - [Grid audit, repair, and auto-cue plan](fulltags/grid-audit-plan.md) — active grid and
   cue program.
 - [rekordbox WAV artwork](fulltags/rekordbox-wav-artwork.md) — resolved format decision
@@ -134,6 +171,13 @@ for the ideas closed NOT_PLANNED.
 - [Audit and plan](megaset/08-audit-and-plan.md) — per-item
   implementation sketches, delta-pinned against the re-ranked roadmap;
   current conclusions link to the owners above.
+- **Embeddings similarity prior (Sep 16, #171)** — `transitionScore`
+  gains a capped bonus (`MEGASET_SIMILARITY_WEIGHT` 0.1) from the
+  cosine similarity of both tracks' stored embedding vectors,
+  rescaled 0..1. Precedence is untouched: the tempo/key/anchor gates
+  run first, so timbre only breaks ties among already-mixable
+  candidates — it never rescues a clash. Tracks without stored vectors
+  get no bonus, never a penalty (honest-gap rule).
 
 ### CrateDeck
 

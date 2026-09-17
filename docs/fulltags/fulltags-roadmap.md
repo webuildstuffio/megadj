@@ -24,6 +24,19 @@ contradicting kNN consensus). Issue #113 transition-window similarity
 time-mean vectors, so window pooling would require the re-analysis runs
 its own acceptance forbids._
 
+_Rev 7.12, 2026-09-16: **the vote ladder is the write path (#173), the
+similarity prior trims ties (#171), regate covers genre (#169).**
+#173: every fetch rung (SC/BP/BC/imprint/AI/MB/file/sync) casts a vote
+(genre + weight + provenance, `GENRE_VOTE_WEIGHTS` = the doc's W-table
+versioned in code) — highest total elects, deterministic tie-break
+toward the harder gate, full breakdown persists in `tracks.genre_votes`;
+first-win writes are gone. #171: MegaSet `transitionScore` gains a
+capped cosine-similarity bonus (`MEGASET_SIMILARITY_WEIGHT` 0.1) from
+stored embeddings — precedence untouched, it trims among mixable
+candidates and never rescues a clash. #169: `megadj regate genre` runs
+the same LOO harness as `genre --eval` against the ≥65% ship gate;
+`regate effnet` reports unavailable honestly (no reference ledger yet)._
+
 _Rev 7.10, 2026-09-15: **roadmap-sync audit — every open item verified against
 code and re-tracked on GitHub.** Verified DONE and marked here: full-population
 LOO (P92 — subsumed by the Sep 15 Tier-0 run: the eval battery now covers the
@@ -567,13 +580,16 @@ the OpenKeyScan SSOT decision (#3).
   over the existing patch embeddings + cues ledger (archived ideas P98; review
   §5 J4). Cheapest genuinely-new retrieval quality: no new model, no
   Demucs.
-- **Genre vote ladder + Bandcamp arm (NEW, M)** — weighted multi-source
-  vote (RB/ingest-pool/SC/BP/Bandcamp-page/Discogs-400 head/kNN
-  consensus) replacing first-win-writes (genre-audit §5b.3.6, archived ideas
-  P75/K58); the **imprint prior rung is LIVE** (Sep 16, fetch W7 —
-  `src/fulltags/imprint-prior.ts`, cited map, abstain-on-unknown,
-  audio-over-metadata arbitration); LLM pre-labelling remains the
-  future half of the P96 estimate (~60% human-hours cut).
+- **Genre vote ladder + Bandcamp arm (NEW, M)** — ~~weighted multi-source
+  vote replacing first-win-writes~~ (**SHIPPED Sep 16, #173** —
+  `src/fulltags/genre-vote.ts`: every rung votes genre+weight+
+  provenance per the doc's W-table, highest total elects, ties break
+  toward the harder gate, breakdown persists in `tracks.genre_votes`).
+  The **imprint prior rung is LIVE** in the vote (Sep 16, W7 —
+  `src/fulltags/imprint-prior.ts`, cited map, weight 0.15: a scene
+  FAMILY inference that abstains against real genre votes unless it's
+  the only voice); LLM pre-labelling remains the future half of the
+  P96 estimate (~60% human-hours cut).
 - **Similarity (MUSE from #4 → sqlite-vec)** — M after #4. Step-up:
   **MuQ-MuLan** (Tencent, MIT code) — 2026 SOTA zero-shot music tagging
   (MagnaTagATune AUC 79.3 vs CLAP 73.9–75.5); weights CC-BY-NC
@@ -604,9 +620,14 @@ entry point to `applyGateWritesSync`, which delegates to the existing
 format-aware `writePatchSync`; failed and saturated runs cannot write tags.
 
 `megadj regate bpm --json` wires the existing content-hash-keyed gold and beat
-ledgers into that harness. Genre and effnet use the same pure API when their
-reference ledgers are available; the CLI reports them as unavailable until
-those ledgers are populated rather than manufacturing a pass.
+ledgers into that harness. **Since Sep 16 (#169), `megadj regate genre`
+is live**: it runs the SAME leave-one-out harness `genre --eval` runs
+(`evalLeaveOneOut` — no second eval implementation) over the same
+evalPopulation and reports against the ≥65% ship gate from the tier-0
+work. `megadj regate effnet` honestly reports unavailable (exit 0,
+`unavailable` + reason on the wire): its reference ledger (audio-true
+genre labels on the effnet tower's own vectors) does not exist yet —
+never a manufactured pass (§4's own rule).
 
 1. **The erasure risk is rekordbox, not the code — and now it's the
    ONLY thing standing between #3 being done and being durable.** Key
@@ -639,7 +660,7 @@ those ledgers are populated rather than manufacturing a pass.
    genre-vote work; `tools/fix-years.ts` (folded into `megadj years`
    Sep 5 2026) was deleted Sep 16 2026 (#93 CUT — zero callers; the
    census-test allowance and LibraryTab hints now point at `megadj
-   years`).
+years`).
 
 ## 5. Stress-test log (2026-09-05, v0 code)
 
