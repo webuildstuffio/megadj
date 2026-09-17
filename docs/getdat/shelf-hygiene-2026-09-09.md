@@ -1,7 +1,10 @@
 # Shelf Hygiene & Dedupe — Sep 9 2026 Session
 
-**Status:** 🟡 PARTIAL — the Sep 10 core shipped, but this snapshot previously
-overstated detector and restore-surface coverage. `megadj shelf-hygiene` +
+**Status:** 🟡 PARTIAL — the Sep 10 core shipped; the `truncated-name`
+detector (the #9/#37 slice) shipped Sep 17: prefix20 rename ladder +
+pyrekordbox row seam + a real `--kind` filter (was parsed-then-dropped;
+unknown kinds now exit 2). This snapshot previously overstated detector
+and restore-surface coverage. `megadj shelf-hygiene` +
 `deckctl hygiene` + `deck_hygiene` + the Hygiene tab are live, and
 `megadj shelf-restore` is the CLI-only restore seam. The landed code is the truth:
 `src/archive/hygiene/` (engine/store/apply), `cratedeck/src/hygiene_*.ts` (API/job/
@@ -74,9 +77,9 @@ re-download "Eat Me Better".
 
 ## 4. Current implementation
 
-`megadj shelf-hygiene --json` computes five live finding kinds into the
+`megadj shelf-hygiene --json` computes six live finding kinds into the
 `hygiene_findings` ledger: `appledouble-junk`, `byte-twin`, `acoustic-twin`,
-`folder-variant`, and `zero-byte`. The status machine is
+`folder-variant`, `truncated-name` (Sep 17), and `zero-byte`. The status machine is
 `open → confirmed → applied` or `open → dismissed`; **only `safe` findings
 ever auto-apply**, and apply means quarantine. The current per-finding receipt
 checks keeper presence and size, live MD5 equality for byte twins, and the
@@ -85,8 +88,11 @@ provide one-click revert; those remain in [issue #35](https://github.com/webuild
 
 `megadj shelf-restore <finding-id|path> [--into F]` restores a quarantined
 file through the ledger and hash gates. Restore is not implemented in the
-Hygiene tab, API, or MCP, and no empty-quarantine path exists. The planned
-`truncated-name`, `stale-pointer`, `orphan-audio`, and `re-download` detectors
+Hygiene tab, API, or MCP, and no empty-quarantine path exists. The `truncated-name`
+detector shipped Sep 17 (#9/#37 slice 3): dead master-DB rows joined to
+same-directory disk files by the rb-fix-paths prefix20 ladder propose
+human-gated same-dir renames (`review`, never auto-safe); the planned
+`stale-pointer`, `orphan-audio`, and `re-download` detectors
 are not registered; the planned `spelling-typo` kind is also absent (the live
 `folder-variant` check handles token-set variants, not typo heuristics).
 

@@ -16,7 +16,7 @@ import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { HygieneStore } from "../archive/hygiene/store";
 import { walkShelf } from "../archive/hygiene/walk";
-import { runChecks } from "../archive/hygiene/checks";
+import { REGISTERED_KINDS, runChecks } from "../archive/hygiene/checks";
 import {
   BUCKET_MEMBERSHIP,
   inBucket,
@@ -25,11 +25,83 @@ import {
 import { applyFinding, validateFinding } from "../archive/hygiene/apply";
 import { fingerprintFileLength } from "../fulltags/fingerprint";
 import { setExit, writeJson } from "../shared/cli-output";
-import type { CheckCtx } from "../archive/hygiene/types";
-import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
+import type {
+  CheckCtx,
+  DbContentRow,
+  FindingKind,
+} from "../archive/hygiene/types";
+import {
+  applyConfirmationRefusal,
+  lastJsonLine,
+  parseJsonBoundary,
+  runPyScript,
+} from "../rekordbox/rb-command-kit.js";
+import { masterDbPath } from "../rekordbox/master-path";
+import { errorText } from "../shared/error-text";
 import { FpCache, SHELF_FINGERPRINTS_TABLE } from "./shelf-dupescan";
 import { md5Cli } from "./md5-cli";
 import { resolveShelfVolume } from "../shared/volume";
+import { isUnknownArray } from "../../cratedeck/shared/guards";
+
+/**
+ * The one pyrekordbox read for the DB-vs-disk checks (truncated-name):
+ * decimal id + Title + FolderPath per content row via the kit's
+ * runPyScript frame (same guarded boundary rb-fix-paths reads through).
+ * Returns null when the master DB is missing or the read throws — the
+ * DB-seam checks then detect nothing (an honest gap, never a
+ * half-read); the reason is surfaced once on the log channel.
+ */
+function masterDbRowsReader(
+  shelfVolume: string,
+  log: (s: string) => void,
+): (() => DbContentRow[]) | null {
+  const dbPath = masterDbPath(shelfVolume);
+  if (!existsSync(dbPath)) return null;
+  const PY =
+    "import sys, json;from pyrekordbox import Rekordbox6Database as R\n" +
+    "db=R(sys.argv[1])\n" +
+    'rows=[(str(c.ID),c.Title or "",c.FolderPath or "") for c in db.get_content()]\n' +
+    "print(json.dumps(rows));db.close()";
+  return (): DbContentRow[] => {
+    let r: ReturnType<typeof runPyScript>;
+    try {
+      r = runPyScript({
+        script: PY,
+        dbPath,
+        timeoutMs: 120_000,
+        label: "pyrekordbox read",
+        stderrTail: -300,
+      });
+    } catch (error) {
+      log(
+        `shelf-hygiene: master DB read failed (${errorText(error).slice(0, 200)}) — DB-seam checks detect nothing this run`,
+      );
+      return [];
+    }
+    const value = parseJsonBoundary(lastJsonLine(r.stdout), "pyrekordbox read");
+    if (
+      !isUnknownArray(value) ||
+      !value.every(
+        (row): row is [string, string, string] =>
+          isUnknownArray(row) &&
+          row.length === 3 &&
+          typeof row[0] === "string" &&
+          typeof row[1] === "string" &&
+          typeof row[2] === "string",
+      )
+    ) {
+      log(
+        "shelf-hygiene: master DB read returned invalid rows — DB-seam checks detect nothing this run",
+      );
+      return [];
+    }
+    return value.map(([id, title, folderPath]) => ({
+      id,
+      title,
+      folderPath,
+    }));
+  };
+}
 
 export interface ShelfHygieneOptions {
   shelfVolume?: string | undefined;
@@ -40,7 +112,8 @@ export interface ShelfHygieneOptions {
   confirm?: string[] | undefined;
   /** dismiss findings by id */
   dismiss?: string[] | undefined;
-  /** restrict detection to one check kind */
+  /** restrict detection to one check kind (unknown kind = usage error,
+   *  exit 2, zero work; valid kinds = REGISTERED_KINDS) */
   kind?: string | undefined;
   /** confirm every open finding whose acoustic subcategory falls in this
    *  bucket (subcategory.ts). Acoustic-twin only; requires --yes with
@@ -232,6 +305,7 @@ export async function shelfHygiene(
       `${process.env.HOME}/.local/state/megadj/archive.db`,
     confirm = [],
     dismiss = [],
+    kind,
     bucket,
     apply = false,
     yes = false,
@@ -282,6 +356,21 @@ export async function shelfHygiene(
     log(`shelf-hygiene: ${files.length} files on ${shelfVolume}`);
     for (const dir of unreadable)
       log(`  WARNING: unreadable dir skipped — ${dir}`);
+    // --kind validation BEFORE any work: an unknown kind is a usage
+    // error (exit 2, zero work), never a silent full scan (the nonNegOpt
+    // rule; the flag used to be parsed then silently dropped).
+    if (kind !== undefined && !REGISTERED_KINDS.includes(kind as FindingKind)) {
+      await fail(
+        `unknown --kind "${kind}" — registered kinds: ${REGISTERED_KINDS.join(", ")}`,
+      );
+      setExitCode(2);
+      return;
+    }
+    const only = kind !== undefined ? new Set<string>([kind]) : undefined;
+    // One pyrekordbox read feeds the DB-vs-disk checks (truncated-name,
+    // the #9 slice); no master DB → those checks detect nothing (an
+    // honest gap, never a half-read).
+    const dbRows = masterDbRowsReader(shelfVolume, log);
     const cache = new FpCache(db, SHELF_FINGERPRINTS_TABLE);
     const ctx: CheckCtx = {
       volume: shelfVolume,
@@ -304,8 +393,9 @@ export async function shelfHygiene(
         return fp;
       },
       now: () => new Date().toISOString(),
+      ...(dbRows ? { dbRows } : {}),
     };
-    const results = runChecks(files, ctx);
+    const results = runChecks(files, ctx, only);
     const all = results.flatMap((r) => r.findings);
     const { written, reopened } = store.upsert(all);
     log(
@@ -343,6 +433,7 @@ export async function shelfHygiene(
       written,
       reopened,
       byKind,
+      ...(kind !== undefined ? { kind } : {}),
       open: store.list({ status: "open" }).length,
       confirmed: store.list({ status: "confirmed" }).length,
       applied,
@@ -357,7 +448,7 @@ export async function shelfHygiene(
       log(
         `census: ${summary.open} open · ${summary.confirmed} confirmed · ${summary.applied} applied · ${summary.failed} failed`,
       );
-      for (const [kind, n] of Object.entries(byKind)) log(`  ${kind}: ${n}`);
+      for (const [k, n] of Object.entries(byKind)) log(`  ${k}: ${n}`);
     }
   } finally {
     db.close();

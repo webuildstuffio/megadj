@@ -187,6 +187,50 @@ describe("shelf-hygiene command", () => {
     expect(parsed.error).toContain("not mounted");
   });
 
+  // ---- --kind: restrict detection (was parsed then silently dropped —
+  // the flag existed in help + CLI wiring but the engine never read it)
+
+  test("--kind restricts detection to that kind only", async () => {
+    const { vol, db } = shelf();
+    const { parsed } = await run({
+      shelfVolume: vol,
+      dbPath: db,
+      kind: "byte-twin",
+    });
+    expect(parsed.detected).toBe(1);
+    expect(Object.keys(parsed.byKind as Record<string, number>)).toEqual([
+      "byte-twin",
+    ]);
+    const store = new HygieneStore(new Database(db));
+    expect(store.list().length).toBe(1);
+  });
+
+  test("--kind with no matches detects nothing but succeeds", async () => {
+    const { vol, db } = shelf();
+    const { parsed, code } = await run({
+      shelfVolume: vol,
+      dbPath: db,
+      kind: "folder-variant",
+    });
+    expect(code).toBe(0);
+    expect(parsed.detected).toBe(0);
+    expect(parsed.kind).toBe("folder-variant");
+  });
+
+  test("unknown --kind is a usage error: exit 2, zero work", async () => {
+    const { vol, db } = shelf();
+    const { parsed, code } = await run({
+      shelfVolume: vol,
+      dbPath: db,
+      kind: "not-a-kind",
+    });
+    expect(code).toBe(2);
+    expect(parsed.error).toContain("unknown --kind");
+    expect(parsed.error).toContain("byte-twin"); // lists the real vocab
+    const store = new HygieneStore(new Database(db));
+    expect(store.list().length).toBe(0); // nothing written
+  });
+
   // ---- bucket batch-confirm (--bucket, the acoustic subcategory slice)
 
   test("bucket confirm: matches only the requested subcategory", async () => {

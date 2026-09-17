@@ -82,6 +82,14 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   size/duration/name BEFORE hashing (full-volume MD5 ≈ 50 min).
 - The hygiene engine owns the listen-first guard: `quality-diff`, `oddball`,
   `ear-check` findings cannot be batch-confirmed from any spoke.
+- The `hygiene_findings` natural key is (kind, paths[0], paths[1]) — NEVER
+  keeper-based: a keeper-only key collapses every singleton finding
+  (zero-byte/junk: null keeper) of a kind onto ONE row and a confirm on
+  file A silently absorbs file B's evidence (the #9-class status bleed,
+  fixed 2026-09-17; pinned in store.test.ts). New check kinds register in
+  REGISTERED_KINDS (`checks/index.ts`) — `--kind` validates against it
+  (unknown = exit 2, zero work); a CLI flag the engine never reads is a
+  silent no-op bug (`--kind` shipped parsed-but-dropped for months).
 - `shelf-dupescan` judges duplicates by fingerprint, never by name; keep its
   fpcalc parser base64url-complete (a truncating regex poisons the whole
   `shelf_fingerprints` cache); guard every `DupFpCache.put` on non-null

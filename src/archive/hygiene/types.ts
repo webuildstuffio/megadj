@@ -55,6 +55,19 @@ export interface CheckCtx {
   fp: (path: string, size: number) => string | null;
   /** ISO timestamp factory (injectable clock in tests) */
   now: () => string;
+  /** Master-DB content rows for the DB-vs-disk checks (truncated-name):
+   *  supplied by the CLI scan seam (one pyrekordbox spawn); absent in
+   *  offline/unit contexts — those checks then detect nothing (an honest
+   *  gap, never a half-read). */
+  dbRows?: (() => DbContentRow[]) | undefined;
+}
+
+/** One master-DB content row — the fields the DB-vs-disk checks read
+ *  (decimal-string id, Title, FolderPath from pyrekordbox). */
+export interface DbContentRow {
+  id: string;
+  title: string;
+  folderPath: string;
 }
 
 /** Every check detector implements this one shape. Deterministic, ordered
