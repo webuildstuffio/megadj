@@ -147,3 +147,44 @@ describe("rb-grid-triage flag forms (P1)", () => {
     }
   });
 });
+
+describe("positional vs space-form flag value across maintenance arms (Sep 17)", () => {
+  // The rb-unmatched class: `--ext` is a string flag but the arm handed
+  // positionalArgs an EMPTY stringOpts list, so `--ext 1 <mount>` read
+  // "1" as the mount. The mount positional must survive a preceding
+  // space-form flag value on EVERY arm that has both.
+  test("rb-unmatched: `--ext 1 <mount>` reads <mount>, not 1", async () => {
+    const mount = fakeMount();
+    const r = await run(["rb-unmatched", "--ext", "1", mount, "--json"]);
+    // no master DB in the fixture → visible ok:false (exit 1) whose
+    // payload names the mount the arm RESOLVED: it must be the fake
+    // mount path, never "1".
+    expect(r.code).toBe(1);
+    const out = JSON.parse(r.stdout.trim().split("\n").pop() ?? "") as {
+      mount?: string;
+      error?: string;
+    };
+    expect(out.mount ?? out.error ?? "").toContain(mount);
+    expect(out.mount ?? out.error ?? "").not.toMatch(/mount-.*[/^]1$/u);
+  });
+
+  test("rb-import: `--playlist X <mount> <folder>` keeps both positionals", async () => {
+    // rb-import's second positional (folder) is required — with the
+    // stringOpts bug, `--playlist X` made "X" positional #1 (mount) and
+    // the real mount positional #2 (folder), so the folder check
+    // misfired. Post-fix, the folder check fails on the FOLDER's
+    // absence. json mode: usage class = exit 2 with the error in the
+    // JSON payload (P1/#160 ring 3), never human text on stderr.
+    const r = await run([
+      "rb-import",
+      "--playlist",
+      "X",
+      "/Volumes/NOPE",
+      "--json",
+    ]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toBe("");
+    const out = JSON.parse(r.stdout.trim()) as { error?: string };
+    expect(out.error).toMatch(/usage — megadj rb-import <mount> <folder>/u);
+  });
+});

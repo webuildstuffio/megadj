@@ -342,14 +342,16 @@ async function processQueue(
         continue;
       }
 
-      // Genre decides the destination folder for this download.
-      const downloadGenre =
-        guessFromFreeText([
-          result.genre,
-          result.artist,
-          result.album,
-          result.title,
-        ]) ?? "Music";
+      // Genre decides the destination folder for this download. No
+      // "Music" mint (#61): sanitizeGenreFolder maps null (and "Music"
+      // itself) through the same "Unknown Genre" bucket organize uses,
+      // so unknown stays ONE recoverable bucket, never a fake genre.
+      const downloadGenre = guessFromFreeText([
+        result.genre,
+        result.artist,
+        result.album,
+        result.title,
+      ]);
 
       const dl = await downloader.download(
         track.video_id,

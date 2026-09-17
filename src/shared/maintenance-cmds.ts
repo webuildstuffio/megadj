@@ -30,7 +30,11 @@ import {
   positionalArgs as positionalArgsShared,
 } from "../cli-flags";
 import { ArchiveState } from "../archive/state";
-import { resolveShelfVolume, volumePath } from "./volume";
+import {
+  configuredMasterDrive,
+  resolveShelfVolume,
+  volumePath,
+} from "./volume";
 import { finishCommandError, setExit, writeJson } from "./cli-output";
 import type { AnlzSpikeMode } from "../rekordbox/anlz-spike";
 
@@ -187,7 +191,7 @@ const rbUnmatchedCmd: MaintenanceHandler = async (rest) => {
   // set to the shelf quarantine (never deletes, manifest kept). Safe
   // while rekordbox runs — only row-less files move.
   const flags = parseFlags(rest, ["ext"], ["json", "quarantine", "yes"]);
-  const mount = mountFrom(positionalArgs(rest, [])[0]);
+  const mount = mountFrom(positionalArgs(rest, ["ext"])[0]);
   const { rbUnmatched, printRbUnmatchedReport } =
     await import("../rekordbox/rb-unmatched");
   const json = jsonFlag(flags);
@@ -264,14 +268,19 @@ const rbImportCmd: MaintenanceHandler = async (rest) => {
     ["playlist", "group"],
     ["apply", "yes", "json", "allow-dupe"],
   );
-  const args = positionalArgs(rest, []);
+  const args = positionalArgs(rest, ["playlist", "group"]);
   const mount = mountFrom(args[0]);
   const folder = args[1];
   if (!folder) {
+    // json-safe usage epilogue (P1/#160 ring 3): usage class = exit 2 —
+    // the bare finishCommandError call printed human text on stderr even
+    // for --json runs and exited 1 (a command-failure code, not usage).
     await finishCommandError({
       command: "rb-import",
+      json: flags.bools.has("json"),
       error:
         "usage — megadj rb-import <mount> <folder> [--playlist NAME] [--group NAME] [--allow-dupe] [--apply --yes]",
+      exitCode: 2,
     });
     return;
   }
@@ -386,7 +395,14 @@ const rbPlaylistCmd: MaintenanceHandler = async (rest) => {
     ["playlist", "group", "preset", "minutes", "opener", "limit"],
     ["apply", "yes", "json"],
   );
-  const args = positionalArgs(rest, []);
+  const args = positionalArgs(rest, [
+    "playlist",
+    "group",
+    "preset",
+    "minutes",
+    "opener",
+    "limit",
+  ]);
   const mount = mountFrom(args[0]);
   const json = jsonFlag(flags);
   // nonNegOpt is the sanctioned numeric seam (cli-flags.ts): bad input =
@@ -483,12 +499,15 @@ const rbGridTriageCmd: MaintenanceHandler = async (rest) => {
     return;
   }
   // `--compare DJMASTER` (string value), bare `--compare` (default to
-  // the configured master drive), or absent (undefined = no compare).
+  // the CONFIGURED master drive — config.toml library.master_drive is the
+  // SSOT; the old undocumented MEGADJ_MASTER_DRIVE env twin made this arm
+  // diverge from every other surface's drive name), or absent
+  // (undefined = no compare).
   const compareDrive =
     rawCompare !== undefined
       ? rawCompare
       : rest.includes("--compare")
-        ? (process.env.MEGADJ_MASTER_DRIVE ?? "DJMASTER")
+        ? configuredMasterDrive()
         : undefined;
   const mount = mountFrom(
     positionalArgs(rest, ["limit", "compare"]).find(

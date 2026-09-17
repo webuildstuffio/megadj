@@ -13,3 +13,12 @@ export function resolveShelfVolume(explicit?: string): string {
   const configured = loadConfig(root).shelfDrive;
   return volumePath(process.env.MEGADJ_SHELF_VOLUME ?? configured);
 }
+
+/** The master stick's configured drive name (config `library.master_drive`
+ *  SSOT). No private env twin — callers that honored `MEGADJ_MASTER_DRIVE`
+ *  silently diverged from every other surface's drive name. */
+export function configuredMasterDrive(): string {
+  const root =
+    process.env.CRATEDECK_ROOT ?? join(import.meta.dir, "../../cratedeck");
+  return loadConfig(root).masterDrive;
+}

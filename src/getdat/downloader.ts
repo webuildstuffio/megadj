@@ -166,6 +166,9 @@ export class Downloader {
     genre?: string | null,
   ): Promise<DownloadResult> {
     const url = `https://music.youtube.com/watch?v=${videoId}`;
+    // Null genre still lands in the archive root (as before) — but a
+    // "Music"/junk genre can no longer mint a fake folder; both flow to
+    // the shared "Unknown Genre" bucket.
     const folder = genre ? `/${sanitizeGenreFolder(genre)}` : "";
     const outTemplate = `${this.opts.musicDir}${folder}/%(title)s.%(ext)s`;
 

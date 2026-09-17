@@ -158,18 +158,20 @@ const ingest: CliCommandHandler = async (rest, { state, musicDir }) => {
     });
     return;
   }
-  const minDurationRaw = flags.strings.get("min-duration");
-  const minDuration =
-    minDurationRaw !== undefined ? Number(minDurationRaw) : Number.NaN;
-  if (minDurationRaw !== undefined && !Number.isFinite(minDuration)) {
-    await finishCommandError({
-      command: "ingest",
-      json: flags.bools.has("json"),
-      error: `--min-duration must be a number of seconds (got "${minDurationRaw}")`,
-      exitCode: 2,
-    });
+  // nonNegOpt is the sanctioned numeric seam: negative/empty/non-numeric
+  // input = json-safe exit-2 epilogue, zero work. The hand-rolled
+  // Number()+isFinite pair let "-30" and "" slip through as 0 (and a
+  // bare Number("-30") is finite, so the old guard never fired).
+  if (
+    nonNegOptInvalid(flags, "min-duration", "ingest", flags.bools.has("json"))
+  )
     return;
-  }
+  const minDuration = nonNegOpt(
+    flags,
+    "min-duration",
+    "ingest",
+    flags.bools.has("json"),
+  );
   const { ingest: ingestFolder } = await import("./getdat/commands/ingest");
   await ingestFolder({
     state,
@@ -177,7 +179,7 @@ const ingest: CliCommandHandler = async (rest, { state, musicDir }) => {
     folder,
     dryRun: flags.bools.has("dry-run"),
     noArtwork: flags.bools.has("no-artwork"),
-    minDuration: minDurationRaw !== undefined ? minDuration : undefined,
+    minDuration,
     json: flags.bools.has("json"),
   });
 };

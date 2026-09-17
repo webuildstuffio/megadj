@@ -10,8 +10,6 @@ import {
 
 const repo = join(import.meta.dir, "..");
 const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
-  "src/cli-commands-core.ts::ingest::Number(minDurationRaw)":
-    "The option gate rejects non-finite values, while the undefined branch passes undefined rather than the NaN sentinel to ingest.",
   "cratedeck/src/bench.ts::biggestFiles::Number(st.size)":
     "Bun stat size is trusted filesystem metadata and practical drive sizes are safe integers.",
   "cratedeck/web/products/fulltags/MegasetPanel.tsx::MegasetPanel::Number(minutesInput)":
@@ -68,13 +66,15 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     sanctioned: result.sanctioned,
     digest: result.digest,
   }).toEqual({
-    // Sep 17 (CLI numeric hardening): the silent `numOpt` seam (cli-flags +
-    // maintenance-cmds' hand-rolled twin) retired — every numeric flag now
-    // rides nonNegOpt's validated path, removing its 2 guarded Number()
-    // sites (audited 43→41, guarded 26→24).
+    // Sep 17 (CLI numeric hardening, second pass): ingest's LAST
+    // hand-rolled numeric seam (`--min-duration`) rides nonNegOpt now —
+    // the stale Number(minDurationRaw) sanction is gone (sanctioned
+    // 17→16) and tools/ast-ccn.ts's argv tail parses digits-only under
+    // a census-visible Number.isFinite gate (its 2 raw Number() sites
+    // became 1 guarded site: audited unchanged at 41, guarded 24→25).
     audited: 41,
-    guarded: 24,
-    sanctioned: 17,
+    guarded: 25,
+    sanctioned: 16,
     // Sep 15 (#79/#80/#84 pass): rb-import payload probing moved to the
     // fulltags media seam (removed its 2 Number() sites); audited 42→44
     // and sanctioned 13→18 from the concurrent bandcamp ISO-duration +
@@ -104,7 +104,9 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // sanctioned 18→17) and fetch-stages moved owner+path (digest shift).
     // Sep 17 (CLI numeric hardening): numOpt retirement removed the two
     // cli-flags/maintenance guarded sites (digest shift + counts above).
-    digest: "f8fe10379bebb469ba26f3cf971594953fb3d688a48b60292ad7af4912fec1e6",
+    // Sep 17 (second pass): ast-ccn argv tail hardening + minDurationRaw
+    // sanction removal (digest shift; counts in the block above).
+    digest: "be5898032aead43201d3f47ef8be542c280effc7891105d9441b2ab13d78063d",
   });
 });
 
