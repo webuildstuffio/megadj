@@ -176,6 +176,10 @@ export interface ArchiveSetCandidate {
    *  Empty when the track has no derivation — the handoff windows degrade
    *  to null, never invented bars. */
   cues: { bar: number; position: number }[];
+  /** #171 similarity prior: the stored embedding vector (null = none —
+   *  no bonus, never a penalty). Server-internal like filePath: stripped
+   *  before serialization (fat payload, not client-relevant). */
+  embedding: number[] | null;
   /** B1 (#104): true when the file is absent (shelf asleep) but the
    *  row carries measured tempo (beats ledger or rekordbox mirror) —
    *  admitted so an offline shelf cannot zero the pool. Never carries a

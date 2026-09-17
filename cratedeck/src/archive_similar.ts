@@ -114,6 +114,30 @@ function parsePoolCues(raw: string | null): {
   return out;
 }
 
+/** #171 similarity prior: guarded vector parse for one pool row. A
+ * corrupt/malformed embedding degrades to null (no prior) exactly like
+ * every other poison-row ledger read — never throws into the build. */
+function parsePoolEmbedding(raw: string | null): number[] | null {
+  if (raw === null) return null;
+  let value: unknown;
+  try {
+    value = JSON.parse(raw) as unknown;
+  } catch (error) {
+    console.warn(
+      "embeddings.vec_json is malformed JSON — pool row scored without the similarity prior",
+    );
+    void error;
+    return null;
+  }
+  if (!isFiniteNumberArray(value) || value.length === 0) {
+    console.warn(
+      "embeddings.vec_json is not a finite-number array — pool row scored without the similarity prior",
+    );
+    return null;
+  }
+  return value;
+}
+
 /**
  * I49 "sounds like": cosine kNN over megadj's `embeddings` ledger
  * (effnet 1280-d mean embeddings, written by `megadj mood
@@ -294,6 +318,18 @@ export function setCandidates(
     )?.present === 1;
   const cuesJoin = hasCues ? `LEFT JOIN cues c ON c.video_id = t.video_id` : "";
   const cuesColumn = hasCues ? "c.cues_json" : "NULL";
+  // #171 embeddings join for the similarity prior. Same guarded pattern:
+  // an archive without the embeddings table builds sets with every
+  // candidate's embedding null (no prior, never a penalty).
+  const hasEmbeddings =
+    reader.row<{ present: number }>(
+      `SELECT 1 AS present FROM sqlite_master
+     WHERE type = 'table' AND name = 'embeddings'`,
+    )?.present === 1;
+  const embJoin = hasEmbeddings
+    ? `LEFT JOIN embeddings e ON e.video_id = t.video_id`
+    : "";
+  const embColumn = hasEmbeddings ? "e.vec_json" : "NULL";
   const rows = reader.rows<{
     video_id: string;
     title: string | null;
@@ -307,15 +343,18 @@ export function setCandidates(
     arousal: number | null;
     dance: number | null;
     cues_json: string | null;
+    vec_json: string | null;
   }>(
     `SELECT t.video_id, t.title, t.artist, t.duration_s, t.file_path,
             b.bpm_folded, ${rekordboxColumns},
             m.valence, m.arousal, m.dance,
-            ${cuesColumn} AS cues_json
+            ${cuesColumn} AS cues_json,
+            ${embColumn} AS vec_json
      FROM tracks t
      LEFT JOIN beats b ON b.video_id = t.video_id
      LEFT JOIN mood m ON m.video_id = t.video_id
      ${cuesJoin}
+     ${embJoin}
      ${rekordboxJoin}
      WHERE t.status = 'downloaded'
      ORDER BY t.updated_at DESC
@@ -425,6 +464,10 @@ export function setCandidates(
       arousal: r.arousal,
       dance: r.dance,
       cues: parsePoolCues(r.cues_json),
+      // #171 similarity prior: parse guarded — a corrupt vector row must
+      // degrade to null (no bonus) like every other poison-row ledger
+      // read, never throw into the pool build.
+      embedding: parsePoolEmbedding(r.vec_json),
       filePath: r.file_path,
       metadataOnly: r.metadataOnly,
     };

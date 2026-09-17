@@ -31,6 +31,7 @@ const cand = (over: Partial<SetCandidate>): SetCandidate => ({
   arousal: 5,
   dance: 0.7,
   cues: [],
+  embedding: null,
   ...over,
 });
 

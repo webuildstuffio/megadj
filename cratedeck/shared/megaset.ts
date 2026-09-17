@@ -228,6 +228,13 @@ export const MEGASET_TRANSITION_WEIGHTS = {
  *  beside MEGASET_TRANSITION_WEIGHTS (frozen constants, E6 — no
  *  user-tunable knobs); the three mixability weights stay untouched. */
 export const MEGASET_ANCHOR_WEIGHT = 0.15;
+
+/** #171 embeddings similarity prior: bonus (0..MEGASET_SIMILARITY_WEIGHT)
+ *  added to transitionScore when BOTH candidates have embeddings in the
+ *  ledger — "sounds like" is measured data (3,618+ tracks). Missing
+ *  embeddings = no bonus, never a penalty (honest gap rule); the tempo
+ *  anchor and key gates still decide mixability first (precedence). */
+export const MEGASET_SIMILARITY_WEIGHT = 0.1;
 /** Hard drift budget: max |candidate/anchor − 1| allowed ANYWHERE on the
  *  chain (≈ ±2 half-steps at moderate BPM). Candidates beyond it are
  *  unmixable for THIS set — mix-out branches (2×/½×, see bpmScore) are

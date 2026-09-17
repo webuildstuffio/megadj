@@ -42,26 +42,16 @@ import {
 // consumer — they stay internal to the two engine modules (knip-pinned);
 // megaset-scoring.ts is the import point for any new caller.
 export { bpmScore, keyScore, withinAnchorBudget } from "./megaset-scoring";
-import { mixableBpm, transitionScore } from "./megaset-scoring";
-
-export interface SetCandidate {
-  videoId: string;
-  title: string | null;
-  artist: string | null;
-  durationS: number | null;
-  /** Folded BPM from the beats ledger — null = not analyzed (excluded). */
-  bpm: number | null;
-  /** Camelot or open key from the file's TKEY ("8A", "8a", "Am", …). */
-  key: string | null;
-  /** Mood-ledger axes (1–9 valence/arousal, 0–1 dance). */
-  valence: number | null;
-  arousal: number | null;
-  dance: number | null;
-  /** #106 Phase D: phrase cues from the `cues` ledger (8-bar boundaries,
-   *  bar 1-based / position seconds). Empty when the track has no ledger
-   *  row — the handoff derivation degrades to null, never invented bars. */
-  cues: { bar: number; position: number }[];
-}
+// SetCandidate — canonically DEFINED in ./megaset-scoring (the scoring
+// family owns the row shape it scores; #173 madge pass moved it here so
+// scoring's type-only back-edge into this file stops being a cycle).
+// Re-exported for every existing consumer — same symbol, never a twin.
+import {
+  mixableBpm,
+  transitionScore,
+  type SetCandidate,
+} from "./megaset-scoring";
+export type { SetCandidate } from "./megaset-scoring";
 
 // N80 energy-arc presets — DERIVED from the shared registry
 // (shared/types.ts MEGASET_PRESET_DEFS), never hand-copied: the route, the UI

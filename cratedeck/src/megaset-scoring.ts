@@ -10,12 +10,40 @@ import {
   MEGASET_AROUSAL_EPSILON,
   MEGASET_BRANCH_TOLERANCE,
   MEGASET_DRIFT_BUDGET,
+  MEGASET_SIMILARITY_WEIGHT,
   MEGASET_TEMPO_PERFECT,
   MEGASET_TEMPO_WINDOW,
   MEGASET_TRANSITION_WEIGHTS,
   type MegasetPresetDef,
 } from "../shared/types";
-import type { SetCandidate } from "./megaset";
+import { cosineSimilarity } from "../shared/similarity";
+
+/** The pool row the whole set-builder scores and chains (#171 madge
+ *  pass: canonically lives HERE — the scoring family owns the shape it
+ *  scores; megaset.ts re-exports it so consumers never moved). */
+export interface SetCandidate {
+  videoId: string;
+  title: string | null;
+  artist: string | null;
+  durationS: number | null;
+  /** Folded BPM from the beats ledger — null = not analyzed (excluded). */
+  bpm: number | null;
+  /** Camelot or open key from the file's TKEY ("8A", "8a", "Am", …). */
+  key: string | null;
+  /** Mood-ledger axes (1–9 valence/arousal, 0–1 dance). */
+  valence: number | null;
+  arousal: number | null;
+  dance: number | null;
+  /** #106 Phase D: phrase cues from the `cues` ledger (8-bar boundaries,
+   *  bar 1-based / position seconds). Empty when the track has no ledger
+   *  row — the handoff derivation degrades to null, never invented bars. */
+  cues: { bar: number; position: number }[];
+  /** #171 embeddings-similarity prior: the track's stored vector
+   *  (whitened+CSLS space when enabled, raw otherwise — whatever the
+   *  producer loaded). Null = no embedding: the candidate builds with
+   *  NO similarity bonus, never a penalty (honest gap rule). */
+  embedding: number[] | null;
+}
 
 /** The preset type the scorer scores against (alias of the shared def —
  *  megaset.ts re-exports it for callers). */
@@ -103,11 +131,26 @@ function segmentDirection(preset: SetPreset, t: number): number {
   return Math.abs(d) < 1e-9 ? 0 : d > 0 ? 1 : -1;
 }
 
+/** #171 embeddings similarity prior 0..1: cosine between the two stored
+ *  vectors, rescaled from [-1,1] to [0,1]. Pure function of the stored
+ *  vectors — no model calls at build time (the acceptance rule). Either
+ *  side missing (or dimension mismatch — different towers/spaces) → 0:
+ *  no bonus, never a penalty (the honest gap rule). */
+export function similarityScore(prev: SetCandidate, c: SetCandidate): number {
+  if (!prev.embedding || !c.embedding) return 0;
+  if (prev.embedding.length !== c.embedding.length) return 0;
+  const cos = cosineSimilarity(prev.embedding, c.embedding);
+  return (cos + 1) / 2;
+}
+
 /** Transition score: how well does candidate `c` continue FROM `prev`
  * given the arc position `t` (0..1)? Key + tempo are hard-ish filters,
  * energy fit is a soft bonus. B2: also pulls toward the arc's ANCHORED
  * tempo target (soft) so a chain cannot out-walk the set's tempo
- * neighborhood one ±6% hop at a time. */
+ * neighborhood one ±6% hop at a time. #171: + a timbre bonus when BOTH
+ * candidates carry stored embeddings (capped at MEGASET_SIMILARITY_WEIGHT,
+ * 0.1 — trims among compatible candidates; never rescues an incompatible
+ * one because the tempo/key/anchor gates above run first). */
 export function transitionScore(
   prev: SetCandidate,
   c: SetCandidate,
@@ -160,6 +203,10 @@ export function transitionScore(
     MEGASET_TRANSITION_WEIGHTS.tempo * tempo +
     MEGASET_TRANSITION_WEIGHTS.key * key +
     MEGASET_TRANSITION_WEIGHTS.arcFit * fit +
-    MEGASET_ANCHOR_WEIGHT * anchor
+    MEGASET_ANCHOR_WEIGHT * anchor +
+    // #171 timbre prior: pure bonus over the weighted core — two key/tempo
+    // equals score identically today whether the tracks are sonically
+    // siblings or a jarring genre jump; this term breaks those ties.
+    MEGASET_SIMILARITY_WEIGHT * similarityScore(prev, c)
   );
 }
