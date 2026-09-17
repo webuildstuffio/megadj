@@ -108,39 +108,55 @@ function makeDifferFn(
  *  The remixer value is special — the RB side keeps it in metadata, not
  *  a top-level mirror column — so it carries its own getter. Data-driven:
  *  the diff loop walks this table, so a new compared field is one row,
- *  not another hand-copied push line. */
+ *  not another hand-copied push line. Each row is its own accessor so
+ *  the branch tokens (?. / ??) stay per-row instead of piling into one
+ *  function's CCN (#195). */
 type CompareTrio = [
   file: string | number | null,
   archive: string | number | null,
   rekordbox: string | number | null,
 ];
 
-function compareFields(
+/** Everything a row accessor may read, resolved once. */
+interface CompareSources {
   t: {
     title: string | null;
     artist: string | null;
     genre: string | null;
     archive_key: string | null;
     bpm_folded: number | null;
-  },
-  file: NonNullable<ArchiveTrackTagCompare["file"]> | null,
-  rekordbox: NonNullable<ArchiveTrackTagCompare["rekordbox"]> | null,
+  };
+  file: NonNullable<ArchiveTrackTagCompare["file"]> | null;
+  rekordbox: NonNullable<ArchiveTrackTagCompare["rekordbox"]> | null;
+  rbRemixer: string | null;
+}
+
+const COMPARE_ROWS: readonly (readonly [
+  field: string,
+  get: (s: CompareSources) => CompareTrio,
+])[] = [
+  ["title", (s) => [s.file?.title ?? null, s.t.title, s.rekordbox?.title ?? null]],
+  ["artist", (s) => [s.file?.artist ?? null, s.t.artist, s.rekordbox?.artist ?? null]],
+  ["genre", (s) => [s.file?.genre ?? null, s.t.genre, s.rekordbox?.genre ?? null]],
+  ["key", (s) => [s.file?.key ?? null, s.t.archive_key, s.rekordbox?.key ?? null]],
+  ["bpm", (s) => [s.file?.bpm ?? null, s.t.bpm_folded, s.rekordbox?.bpm ?? null]],
+  ["year", (s) => [s.file?.year ?? null, null, s.rekordbox?.year ?? null]],
+  ["label", (s) => [s.file?.label ?? null, null, s.rekordbox?.label ?? null]],
+  ["mix", (s) => [s.file?.mixName ?? null, null, null]],
+  ["remixer", (s) => [s.file?.remixer ?? null, null, s.rbRemixer]],
+];
+
+function compareFields(
+  t: CompareSources["t"],
+  file: CompareSources["file"],
+  rekordbox: CompareSources["rekordbox"],
 ): [string, CompareTrio][] {
   const rbRemixer =
     rekordbox === null
       ? null
       : ((rekordbox.metadata["RemixerName"] as string | null) ?? null);
-  return [
-    ["title", [file?.title ?? null, t.title, rekordbox?.title ?? null]],
-    ["artist", [file?.artist ?? null, t.artist, rekordbox?.artist ?? null]],
-    ["genre", [file?.genre ?? null, t.genre, rekordbox?.genre ?? null]],
-    ["key", [file?.key ?? null, t.archive_key, rekordbox?.key ?? null]],
-    ["bpm", [file?.bpm ?? null, t.bpm_folded, rekordbox?.bpm ?? null]],
-    ["year", [file?.year ?? null, null, rekordbox?.year ?? null]],
-    ["label", [file?.label ?? null, null, rekordbox?.label ?? null]],
-    ["mix", [file?.mixName ?? null, null, null]],
-    ["remixer", [file?.remixer ?? null, null, rbRemixer]],
-  ];
+  const src: CompareSources = { t, file, rekordbox, rbRemixer };
+  return COMPARE_ROWS.map(([field, get]) => [field, get(src)]);
 }
 
 /** Three-source read of ONE track. The file is read LIVE (ground truth:
