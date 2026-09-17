@@ -49,6 +49,7 @@ function runScenario(
   dry = false,
   rowLabel: string | null = null,
   truthLabel: string | null = null,
+  bpBest: string | null = null,
 ): ScenarioResult {
   const dbPath = join(SCENARIO_DIR, `${crypto.randomUUID()}.db`);
   mkdirSync(SCENARIO_DIR, { recursive: true });
@@ -80,9 +81,10 @@ function runScenario(
       stats: { tags:0, genreSc:0, genreBp:0, genreAi:0, artSc:0,
                artScOrig:0, artBeatport:0, artGateway:0, artTwin:0,
                artDeezer:0, artItunes:0, yearSc:0, yearBp:0, yearAi:0,
-               bpIdentity:0, genreBc:0, yearBc:0, bcFilled:0, genreImprint:0 },
+               bpIdentity:0, genreBc:0, yearBc:0, bcFilled:0, genreImprint:0,
+               genreElected:0, votesCast:0 },
       notes: [], aiGenreBatch: [], aiYearBatch: [], aiAllowed: false,
-      bpBest: null, durationS: null,
+      bpBest: ${bpBest ?? "null"}, durationS: null,
       genreVotes: [], // #173: the pipeline's production shape opens the accumulator
     };
     stages.stageGenreYear(ctx, ${scHit});
@@ -140,8 +142,40 @@ describe("stageGenreYear ladder (issue #54 stage tests)", () => {
       );
       expect(res.stats.genreSc).toBe(0);
       expect(res.dbRow?.genre).toBeNull();
-      expect(res.notes).toEqual([]);
+      // #215: a junk refusal is NOT a silent death — no vote was cast, so
+      // the ladder falls through honestly (UNRESOLVED when AI is off).
+      expect(res.votes).toEqual([]);
+      expect(res.notes).toContain(
+        "genre:UNRESOLVED (no SC/bp hit — AI fallback off)",
+      );
     }
+  });
+
+  test("#215 multi-collect: SC + BP both vote; the ladder no longer early-returns", () => {
+    // SC 0.35 + BP 0.60 in ONE election: BP wins on mass, the breakdown
+    // records both claims, and the election note carries the full story.
+    // (The pre-#215 arm early-returned after SC's vote — BP never voted.)
+    const res = runScenario(
+      `{ url: "https://sc/x", genre: "Tech House", year: 2021 }`,
+      true,
+      false,
+      false,
+      null,
+      null,
+      `{ id: 1, name: "Track One", artists: ["Artist One"], genre: "Techno", subGenre: null, label: "Drumcode", year: null }`,
+    );
+    expect(res.stats.genreSc).toBe(1);
+    expect(res.stats.genreBp).toBe(1);
+    expect(res.votes).toEqual([
+      { rung: "sc", genre: "Tech House", weight: 0.35 },
+      { rung: "bp", genre: "Techno", weight: 0.6 },
+    ]);
+    // Write-first: the file is absent, so the election fails and the DB
+    // stays honest — but the multi-rung vote tally is the #215 fix proof.
+    expect(res.dbRow?.genre).toBeNull();
+    expect(res.stats.votesCast).toBe(2);
+    expect(res.stats.genreElected).toBe(0);
+    expect(res.notes).toContain("genre:WRITE-FAILED (vote election)");
   });
 
   test("SC miss + BP miss + gate OFF → bounded unresolved note, zero batches", () => {

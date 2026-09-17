@@ -50,8 +50,6 @@ import {
   fanOutBandcamp,
   fanOutBeatport,
   fanOutSoundcloud,
-  applyScGenre,
-  markYear,
   stageBeatportIdentity,
   stageBandcamp,
   stageGenreElection,
@@ -61,8 +59,9 @@ import {
   type Stats,
 } from "./fetch-stages";
 // #89/#90 diet: the art family (SC hit path + fallback ladder) lives in
-// fetch-art.ts; the genre/year rungs are injected so the junk gates and
-// vote-mode branches stay in ONE place.
+// fetch-art.ts; the genre/year rungs live in the genre stage only (the
+// old art-stage piggyback double-voted SC — fixed with #215's election
+// visibility pass).
 import { stageArt } from "./fetch-art";
 import type { GenreVote } from "../fulltags/genre-vote";
 
@@ -161,6 +160,8 @@ function emptyStats(): Stats {
     yearBc: 0,
     bcFilled: 0,
     genreImprint: 0,
+    genreElected: 0,
+    votesCast: 0,
   };
 }
 
@@ -257,7 +258,7 @@ async function processTask({
   }
 
   // ---- 3. artwork ladder (SC original-res first, then fallbacks) ----
-  const artDone = await stageArt(ctx, best, applyScGenre, markYear);
+  const artDone = await stageArt(ctx, best);
   if (t.needArt && !dry && !artDone) artless.push(r);
 
   progress?.update(1);
@@ -385,13 +386,18 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     yearBc: stats.yearBc,
     bcFilled: stats.bcFilled,
     artBandcamp: stats.artBandcamp,
+    /** #215 election visibility: votes cast vs elections landed — the
+     *  ladder's live output is measurable from every summary, not just
+     *  the notes stream. */
+    votesCast: stats.votesCast,
+    genreElected: stats.genreElected,
   };
   if (jsonOut) {
     // P1 (--json on every command): one summary object on stdout, last.
     await writeJson(summary);
   } else {
     progress?.close(
-      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + imprint ${stats.genreImprint} + BC ${stats.genreBc} + AI ${stats.genreAi} | years: SC ${stats.yearSc} + BP ${stats.yearBp} + BC ${stats.yearBc} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | bandcamp filled: ${stats.bcFilled} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + bandcamp ${stats.artBandcamp} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
+      `DONE${dry ? " (dry)" : ""} — tags: ${stats.tags} | genres: SC ${stats.genreSc} + BP ${stats.genreBp} + imprint ${stats.genreImprint} + BC ${stats.genreBc} + AI ${stats.genreAi} | vote ladder: ${stats.votesCast} votes → ${stats.genreElected} elected | years: SC ${stats.yearSc} + BP ${stats.yearBp} + BC ${stats.yearBc} + AI ${stats.yearAi} | bp identity: ${stats.bpIdentity} | bandcamp filled: ${stats.bcFilled} | art: SC ${stats.artSc} (${stats.artScOrig} orig-res) + beatport ${stats.artBeatport} + bandcamp ${stats.artBandcamp} + gateway ${stats.artGateway} + twin ${stats.artTwin} + deezer ${stats.artDeezer} + itunes ${stats.artItunes} | artless→queue: ${artless.length}${aiFallback ? "" : ` | unresolved (AI off): genre ${aiGenreBatch.length}, year ${aiYearBatch.length}`}`,
     );
   }
 }

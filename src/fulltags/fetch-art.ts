@@ -19,12 +19,6 @@ import {
 } from "./archive-ledger";
 import type { ScHit, StageCtx, Stats } from "./fetch-stages";
 
-/** markArt + genre/year piggyback helper import shape: applyScGenre and
- *  markYear are injected (they live in fetch-stages / fetch-genre-year
- *  and carry the junk gates + vote-mode branches). */
-type ScGenreRung = (t: StageCtx, rawGenre: string) => void;
-type YearMark = (t: StageCtx, year: number) => void;
-
 function markArt(
   t: StageCtx,
   label: string,
@@ -41,12 +35,7 @@ function markArt(
   ).run(`embedded:${label}`, ...(formatId ? [formatId] : []), t.row.video_id);
 }
 
-async function scArt(
-  t: StageCtx,
-  best: ScHit,
-  applyScGenre: ScGenreRung,
-  markYear: YearMark,
-): Promise<boolean> {
+async function scArt(t: StageCtx, best: ScHit): Promise<boolean> {
   const og = await pageOgImage(best.url);
   const bytes = og
     ? await fetchBestScArt(og)
@@ -57,12 +46,6 @@ async function scArt(
   if (!embedArt(t.row.file_path, bytes)) return false;
   const orig = og?.includes("-original") === true;
   markArt(t, `sc${orig ? "-orig" : ""}`, orig, `sc:${best.url}`);
-  // SC hit can also fill genre when the cheap stage didn't run. The same
-  // junk gate + write-first discipline as applyScGenre — a bare DB write
-  // here bypassed both (numeric IDs could land via this path, and the row
-  // could claim a genre the file never received).
-  if (best.genre && t.needGenre) applyScGenre(t, best.genre);
-  if (best.year && t.needYear) markYear(t, best.year);
   return true;
 }
 
@@ -130,15 +113,17 @@ async function fallbackArt(t: StageCtx): Promise<boolean> {
   return false;
 }
 
-/** Stage 3 — artwork. Returns false when every source missed (→ artless). */
+/** Stage 3 — artwork. Returns false when every source missed (→ artless).
+ *  (Genre/year no longer piggyback here: the #173 vote ladder owns those
+ *  rungs in stageGenreArm, and the old piggyback re-fired them AFTER the
+ *  ladder had already voted — a double SC vote (0.70 vs BP's 0.60) plus
+ *  double-counted genreSc/yearSc stats. One rung, one vote, one stage.) */
 export async function stageArt(
   t: StageCtx,
   best: ScHit | null,
-  applyScGenre: ScGenreRung,
-  markYear: YearMark,
 ): Promise<boolean> {
   if (!t.needArt || t.dry) return true;
-  if (best && (await scArt(t, best, applyScGenre, markYear))) return true;
+  if (best && (await scArt(t, best))) return true;
   // Beatport official release art — second rung, ahead of the gateway
   // scrape (its ladder slot is inside fallbackArt).
   return fallbackArt(t);

@@ -51,8 +51,15 @@ export interface Stats {
   yearBc: number;
   /** Tracks where the Bandcamp vote filled ≥1 field (genre/year/label). */
   bcFilled: number;
-  /** Tracks where the #128 imprint prior cast the deciding genre vote. */
+  /** #128 imprint-prior votes that decided a genre (SC+BP both missed). */
   genreImprint: number;
+  /** #215 election visibility: tracks where the vote ladder ELECTED a
+   *  genre and the write seam landed it (tag + DB). */
+  genreElected: number;
+  /** #215 election visibility: total votes CAST across all rungs — with
+   *  genreElected it separates "nothing to vote on" from "votes that
+   *  lost/abstained". */
+  votesCast: number;
 }
 
 /** Per-task mutable state shared by the stage runners. */
@@ -176,24 +183,6 @@ export function stageTags(t: StageCtx): void {
   t.stats.tags++;
   t.notes.push(`tags(${Object.keys(vals).join(",")})`);
   refreshTrackRow(r, t.truth, artist, vals);
-}
-
-/** SC-path year stamp: file tag + DB row + stat + note, in one call (the
- *  art path and the direct year path were identical 8-liners). */
-export function markYear(t: StageCtx, year: number): void {
-  // Tag write first: the DB row only records a value that reached the
-  // file — a failed write leaves the field "still missing" for the next
-  // run instead of a DB row lying about the file.
-  if (!setFileTags(t.row.file_path, { year })) {
-    t.notes.push("year:WRITE-FAILED");
-    return;
-  }
-  db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-    String(year),
-    t.row.video_id,
-  );
-  t.stats.yearSc++;
-  t.notes.push(`year:${year}`);
 }
 
 // ---- source fan-out stages (#188) ----------------------------------------
@@ -410,6 +399,7 @@ export function stageGenreElection(
   if (t.dry) return;
   const votes = t.genreVotes;
   if (!votes || votes.length === 0) return;
+  t.stats.votesCast += votes.length;
   const elected = electGenre(votes);
   if (elected.genre === null) return;
   if (!setFileTags(t.row.file_path, { genre: elected.genre })) {
@@ -417,6 +407,7 @@ export function stageGenreElection(
     return;
   }
   writeRow(t.row.video_id, elected.genre, serializeVotes(votes));
+  t.stats.genreElected++;
   t.notes.push(
     `genre:${elected.genre} ELECTED w=${elected.weight.toFixed(2)} [${elected.winnerRungs.join("+")}]`,
   );

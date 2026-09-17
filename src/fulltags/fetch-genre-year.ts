@@ -116,11 +116,13 @@ export function stageGenreArm(
   applyScGenre: (t: GenreYearCtx, rawGenre: string) => void,
 ): void {
   if (t.genreVotes !== undefined) {
-    // ---- vote-collection mode (#173) ----
+    // ---- vote-collection mode (#173): EVERY rung with a claim votes —
+    // the ladder order no longer hides later rungs (the old early-return
+    // let SC's 0.35 vote block BP's 0.6 even when bpBest was in hand;
+    // the election, not the ladder order, picks the winner). ----
     if (best?.genre) {
       // junk gates live in applyScGenre; it pushes the vote when clean
       applyScGenre(t, best.genre);
-      return;
     }
     if (t.bpBest) {
       const g = bpGenre(t.bpBest);
@@ -132,13 +134,14 @@ export function stageGenreArm(
         });
         t.stats.genreBp++;
         t.notes.push(`genre:${g} (bp, vote)`);
-        return;
       }
-      if (applyImprintGenre(t)) return;
-      return queueAiGenre(t);
     }
-    if (applyImprintGenre(t)) return;
-    queueAiGenre(t);
+    // The imprint prior's rung gate stays absolute: it speaks only when
+    // NO catalog genre claim exists (a junk-refused SC genre is not a
+    // claim). Zero votes = honest AI-queue fallback, exactly the old
+    // when-catalog-misses rule — multi-collect changed who votes, never
+    // when the AI fallback fires.
+    if (t.genreVotes.length === 0 && !applyImprintGenre(t)) queueAiGenre(t);
     return;
   }
   // ---- legacy first-win mode (unchanged shape, no vote accumulator) ----
@@ -158,8 +161,8 @@ export function stageGenreArm(
   queueAiGenre(t);
 }
 
-/** One BP year win: file tag + DB row + stat + note (markYear's
- *  write-first discipline with the bp source stamp). */
+/** One BP year win: file tag + DB row + stat + note (write-first
+ *  discipline with the bp source stamp). */
 function applyBpYear(t: GenreYearCtx, year: number): void {
   if (setFileTags(t.row.file_path, { year })) {
     db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
@@ -182,7 +185,7 @@ export function stageYearArm(t: GenreYearCtx, best: ScHit | null): void {
   else t.notes.push("year:UNRESOLVED (no SC/bp hit — AI fallback off)");
 }
 
-/** SC-path year stamp: file tag + DB row + stat + note (markYear's
+/** SC-path year stamp: file tag + DB row + stat + note (write-first
  *  discipline — the DB never claims a value the file doesn't carry). */
 function applyScYearArm(t: GenreYearCtx, year: number): void {
   if (!setFileTags(t.row.file_path, { year })) {
