@@ -64,7 +64,12 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   "lizard ≥45" tier was entirely phantom — the real max was 56 after the
   #88 splits (2026-09-17).
 - One source of truth per shared surface: derive types, job lists, help,
-  counts, census strings from producers — never hand-copied twins.
+  counts, census strings from producers — never hand-copied twins. Route
+  dispatch too: `archiveRoutes` derives the /api/archive/* route list from
+  the `archiveHandlers()` map keys (a hand-copied route-list regex twin
+  404'd `genre-why` live, Sep 17); `cratedeck/test/archive-dispatch-census.test.ts`
+  pins every key's reachability. When a route 404s but the handler exists,
+  suspect a dispatch twin first.
 - No private identifiers, local paths, stored state, or secrets in commits.
   No dependency bumps without the release-age floor + full gate.
 - No one-off scripts: encode safety in reusable commands, tests, skills.
