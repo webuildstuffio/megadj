@@ -55,59 +55,68 @@ export class JobEngine {
     this.db = db;
     this.guard = guard;
     this.emit = emit;
-    // Phantom-job reaper: if a 'running' row hasn't been touched in 2 min
-    // while no in-process handle owns it, the completion event was lost
-    // (crash, full server freeze). Mark it interrupted so the UI and the
-    // per-drive dup-check heal automatically.
-    this.reaper = setInterval(() => {
-      const cutoff = Date.now() - 120_000;
-      for (const [id, at] of this.touched) {
-        if (at < cutoff) this.touched.delete(id);
-      }
-      const orphans = this.db
-        .activeJobs()
-        .filter((j) => j.started_at && j.started_at < cutoff - 60_000)
-        .filter((j) => !this.running.has(j.drive_id))
-        .filter((j) => (this.touched.get(j.id) ?? 0) < cutoff);
-      for (const j of orphans) {
-        this.db.updateJob(j.id, {
-          status: "interrupted",
-          error: "job lost — completion event never delivered",
-          finished_at: Date.now(),
-        });
-        this.emit("job", this.db.getJob(j.id));
-      }
-      if (orphans.length)
-        console.log(`cratedeck: reaped ${orphans.length} phantom job(s)`);
+    this.reaper = setInterval(() => this.reapWatchdogs(), 30_000);
+  }
 
-      // Stall watchdog: a LIVE job whose progress hasn't moved for
-      // cfg.stallTimeoutMin is wedged (hung subprocess stdout, dead NFS
-      // mount, deadlock) — its own 5s liveness heartbeat hides it from the
-      // reaper above forever, and the UI spins on it forever. Kill it so
-      // the normal catch path records a terminal state.
-      const stallCutoff = Date.now() - this.cfg.stallTimeoutMin * 60_000;
-      for (const handle of this.running.values()) {
-        const job = handle.jobId ? this.db.getJob(handle.jobId) : null;
-        if (!job || job.status !== "running") continue;
-        const lastMove = Math.max(
-          this.progressAt.get(job.id) ?? 0,
-          job.started_at ?? 0,
+  /** Reaper tick = two independent watchdogs: (1) phantom-job reaper — a
+   *  'running' row untouched for 2 min while no in-process handle owns it
+   *  lost its completion event (crash, full server freeze); mark it
+   *  interrupted so the UI and the per-drive dup-check heal automatically.
+   *  (2) stall watchdog — a LIVE job whose progress fraction hasn't moved
+   *  for cfg.stallTimeoutMin is wedged (hung subprocess stdout, dead NFS
+   *  mount, deadlock); its own 5s liveness heartbeat hides it from the
+   *  reaper above forever, and the UI spins on it forever. Kill it so the
+   *  normal catch path records a terminal state. */
+  private reapWatchdogs(): void {
+    this.reapPhantoms();
+    this.killStalled();
+  }
+
+  private reapPhantoms(): void {
+    const cutoff = Date.now() - 120_000;
+    for (const [id, at] of this.touched) {
+      if (at < cutoff) this.touched.delete(id);
+    }
+    const orphans = this.db
+      .activeJobs()
+      .filter((j) => j.started_at && j.started_at < cutoff - 60_000)
+      .filter((j) => !this.running.has(j.drive_id))
+      .filter((j) => (this.touched.get(j.id) ?? 0) < cutoff);
+    for (const j of orphans) {
+      this.db.updateJob(j.id, {
+        status: "interrupted",
+        error: "job lost — completion event never delivered",
+        finished_at: Date.now(),
+      });
+      this.emit("job", this.db.getJob(j.id));
+    }
+    if (orphans.length)
+      console.log(`cratedeck: reaped ${orphans.length} phantom job(s)`);
+  }
+
+  private killStalled(): void {
+    const stallCutoff = Date.now() - this.cfg.stallTimeoutMin * 60_000;
+    for (const handle of this.running.values()) {
+      const job = handle.jobId ? this.db.getJob(handle.jobId) : null;
+      if (!job || job.status !== "running") continue;
+      const lastMove = Math.max(
+        this.progressAt.get(job.id) ?? 0,
+        job.started_at ?? 0,
+      );
+      if (lastMove > 0 && lastMove < stallCutoff && !handle.cancelled) {
+        console.log(
+          `cratedeck: job ${job.id.slice(0, 8)} (${job.kind}) stalled ` +
+            `${Math.round((Date.now() - lastMove) / 60_000)}m without progress — cancelling`,
         );
-        if (lastMove > 0 && lastMove < stallCutoff && !handle.cancelled) {
-          console.log(
-            `cratedeck: job ${job.id.slice(0, 8)} (${job.kind}) stalled ` +
-              `${Math.round((Date.now() - lastMove) / 60_000)}m without progress — cancelling`,
-          );
-          // visible trail: the unwind path keeps this error unless the
-          // throw carries a more specific one
-          this.db.updateJob(job.id, {
-            error: `stalled — no progress for ${this.cfg.stallTimeoutMin} min; auto-cancelled`,
-          });
-          handle.cancelled = true;
-          handle.proc?.kill();
-        }
+        // visible trail: the unwind path keeps this error unless the
+        // throw carries a more specific one
+        this.db.updateJob(job.id, {
+          error: `stalled — no progress for ${this.cfg.stallTimeoutMin} min; auto-cancelled`,
+        });
+        handle.cancelled = true;
+        handle.proc?.kill();
       }
-    }, 30_000);
+    }
   }
 
   /** Stop background work (SIGINT path). */

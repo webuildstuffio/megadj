@@ -117,28 +117,39 @@ function keeperProofs(f: Finding): string[] {
  *  prove by md5 equality; every other quarantine-loser kind proves by
  *  fingerprint equality, live fpcalc per §5 Phase 4 (the quarantine path
  *  is a cache miss by construction — never the pre-move cached entry). */
-function loserProofs(
-  f: Finding,
+/** Byte-twin receipt: both sides must still md5-match after the move. */
+function byteTwinProofs(
   ctx: CheckCtx,
-  loserNow?: string,
+  keeper: string | undefined,
+  loserCheck: string | undefined,
 ): string[] {
-  const mismatches: string[] = [];
+  if (!loserCheck || !existsSync(loserCheck)) {
+    return [loserCheck ?? "loser missing"];
+  }
+  const lm = ctx.md5(loserCheck);
+  const km = keeper ? ctx.md5(keeper) : null;
+  return !lm || !km || lm !== km ? [loserCheck] : [];
+}
+
+/** Fingerprint receipt (every non-byte-twin loser kind): live fpcalc both
+ *  sides — the quarantine path is a cache miss by construction. */
+function fingerprintProofs(
+  ctx: CheckCtx,
+  keeper: string | undefined,
+  loserCheck: string | undefined,
+): string[] {
+  if (!loserCheck) return ["loser missing"];
+  const lf = existsSync(loserCheck) ? ctx.fp(loserCheck, 0) : null;
+  const kf = keeper && existsSync(keeper) ? ctx.fp(keeper, 0) : null;
+  return !lf || !kf || lf !== kf ? [loserCheck] : [];
+}
+
+function loserProofs(f: Finding, ctx: CheckCtx, loserNow?: string): string[] {
   const keeper = f.paths[0];
   const loserCheck = loserNow ?? f.paths[1];
-  if (f.kind === "byte-twin" && loserCheck && existsSync(loserCheck)) {
-    const lm = ctx.md5(loserCheck);
-    const km = keeper ? ctx.md5(keeper) : null;
-    if (!lm || !km || lm !== km) mismatches.push(loserCheck);
-  } else if (f.kind === "byte-twin") {
-    mismatches.push(loserCheck ?? "loser missing");
-  } else if (loserCheck) {
-    const lf = existsSync(loserCheck) ? ctx.fp(loserCheck, 0) : null;
-    const kf = keeper && existsSync(keeper) ? ctx.fp(keeper, 0) : null;
-    if (!lf || !kf || lf !== kf) mismatches.push(loserCheck);
-  } else {
-    mismatches.push("loser missing");
-  }
-  return mismatches;
+  return f.kind === "byte-twin"
+    ? byteTwinProofs(ctx, keeper, loserCheck)
+    : fingerprintProofs(ctx, keeper, loserCheck);
 }
 
 export function validateFinding(

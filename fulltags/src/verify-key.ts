@@ -101,6 +101,16 @@ export interface VerifyKeyArgs {
   error: string | null;
 }
 
+/** Digits-only boundary check for --limit, then parseInt (never a bare
+ *  Number() conversion on unvalidated argv — the boundary-census rule).
+ *  Returns the parsed limit, or an error string on bad input. */
+function parseLimit(raw: string | undefined): number | string {
+  if (raw === undefined || !/^\d+$/u.test(raw) || raw === "0") {
+    return `verify-key: --limit must be a positive integer (got "${raw ?? ""}")`;
+  }
+  return parseInt(raw, 10);
+}
+
 /** Parse the verify-key verb's argv (targets + --limit/--refs/--json). */
 export function parseVerifyKeyArgs(argv: readonly string[]): VerifyKeyArgs {
   const targets: string[] = [];
@@ -114,13 +124,12 @@ export function parseVerifyKeyArgs(argv: readonly string[]): VerifyKeyArgs {
     if (a === "--json") json = true;
     else if (a === "--limit" || a.startsWith("--limit=")) {
       const raw = a === "--limit" ? argv[++i] : a.slice("--limit=".length);
-      // digits-only boundary check, then parseInt (never a bare Number()
-      // conversion on unvalidated argv — the boundary-census rule)
-      if (raw === undefined || !/^\d+$/u.test(raw) || raw === "0") {
-        error = `verify-key: --limit must be a positive integer (got "${raw ?? ""}")`;
+      const parsed = parseLimit(raw);
+      if (typeof parsed === "string") {
+        error = parsed;
         break;
       }
-      limit = parseInt(raw, 10);
+      limit = parsed;
     } else if (a === "--refs" || a.startsWith("--refs=")) {
       refsPath =
         a === "--refs" ? (argv[++i] ?? null) : a.slice("--refs=".length);
