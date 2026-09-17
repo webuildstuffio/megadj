@@ -1,4 +1,4 @@
-# FullTags — Prioritized Roadmap (rev 7.9)
+# FullTags — Prioritized Roadmap (rev 7.12)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
 
