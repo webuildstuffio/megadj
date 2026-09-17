@@ -7,9 +7,15 @@ Usage:
     uv run python ... --anlz-only            # just PIONEER/USBANLZ/
     uv run python ... --rekordbox-only       # just PIONEER/rekordbox DB + support files
     uv run python ... --verify-only          # manifest comparison, no copying
+    uv run python ... --hash-parity          # full byte-level parity report
+    uv run python ... --audio-parity         # make audio byte-identical (slow)
 
 Resumable: a state JSON in /tmp records already-copied paths across interrupted
 runs (background jobs on this machine can be reaped mid-copy).
+
+Structure (#117/#42 split): the differential copy plan + hash cache live in
+mirror_plan.py; the byte-parity legs (hash_parity, audio_parity) live in
+usb_mirror_parity.py; this file is the driver + verify.
 """
 
 import argparse
@@ -27,7 +33,13 @@ from typing import Any
 StateDict = dict[str, Any]
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from mirror_plan import files_differ, plan_copies  # noqa: E402
+import usb_mirror_parity  # noqa: E402
+from mirror_plan import (  # noqa: E402
+    cached_md5,
+    load_hash_cache,
+    plan_copies,
+    save_hash_cache,
+)
 from progress import Progress, Stage  # noqa: E402
 
 MASTER = os.environ.get("USB_SYNC_MASTER", "/Volumes/DJMASTER")
@@ -121,21 +133,28 @@ def copy_missing(
 
     # The verify bucket: size matches but mtime drifted. One hash decides —
     # same bytes → skip; different bytes → re-copy (heals changed masters).
+    # Hashes go through the cached_md5 store (#117): a file already hashed
+    # in a prior run at the same (path, size, mtime) is NOT re-read.
     verify_extra: list[str] = []
     if plan["verify"]:
+        hash_cache = load_hash_cache()
+        dirty: set[str] = set()
         prog_v = Progress(len(plan["verify"]), label=f"{label} verify", unit="files")
         v_errs = 0
         for rel in plan["verify"]:
             s = os.path.join(src_root, rel)
             d = os.path.join(dst_root, dst_manifest.get(key(rel), rel))
             try:
-                if files_differ(s, d):
+                if cached_md5(s, hash_cache, dirty) != cached_md5(
+                    d, hash_cache, dirty
+                ):
                     verify_extra.append(rel)
             except Exception as e:
                 v_errs += 1
                 print(f"\nERR verify {rel[:80]}: {e}", flush=True)
             prog_v.update(1)
         prog_v.close(f"differ: {len(verify_extra)}, errors: {v_errs}")
+        save_hash_cache(hash_cache)
         todo.extend(verify_extra)
         total_bytes += sum(
             os.path.getsize(os.path.join(src_root, r))
@@ -193,10 +212,21 @@ def sync_rekordbox(stage: Stage) -> None:
     stage.info(
         f"DB MD5 master={h1[:10]}… mirror={h2[:10]}… -> {'IDENTICAL' if h1 == h2 else 'MISMATCH!'}"
     )
+    # A DB just rewritten here must NOT be served stale by the #117 hash
+    # cache — invalidate both sides so the next verify() re-hashes honestly.
+    cache = load_hash_cache()
+    for p in (s, d):
+        if os.path.exists(p):
+            st = os.stat(p)
+            stale = f"{p}:{st.st_size}:{st.st_mtime}"
+            cache.pop(stale, None)
+    save_hash_cache(cache)
 
 
 def verify(stage: Stage) -> int:
     failures = 0
+    hash_cache = load_hash_cache()
+    dirty: set[str] = set()
     for subdir, label in (("Contents", "music"), ("PIONEER/USBANLZ", "analysis")):
         src = manifest(MASTER, subdir)
         dst = manifest(MIRROR, subdir)
@@ -208,7 +238,9 @@ def verify(stage: Stage) -> int:
                 stage.info(f"  MISSING: {r}")
     src_db = os.path.join(MASTER, "PIONEER/rekordbox/exportLibrary.db")
     dst_db = os.path.join(MIRROR, "PIONEER/rekordbox/exportLibrary.db")
-    same = md5(src_db) == md5(dst_db)
+    same = cached_md5(src_db, hash_cache, dirty) == cached_md5(
+        dst_db, hash_cache, dirty
+    )
     stage.info(f"DB identical across drives: {same}")
     failures += 0 if same else 1
 
@@ -217,96 +249,15 @@ def verify(stage: Stage) -> int:
     sample = random.sample(pool, min(10, len(pool)))
     mismatches = 0
     for rel in sample:
-        if md5(os.path.join(MASTER, "Contents", rel)) != md5(
-            os.path.join(MIRROR, "Contents", rel)
-        ):
+        if cached_md5(
+            os.path.join(MASTER, "Contents", rel), hash_cache, dirty
+        ) != cached_md5(os.path.join(MIRROR, "Contents", rel), hash_cache, dirty):
             mismatches += 1
             stage.info(f"  HASH MISMATCH: {rel}")
     stage.info(f"hash spot-check ({len(sample)} files): {mismatches} mismatches")
+    save_hash_cache(hash_cache)
     failures += mismatches
     return failures
-
-
-def hash_parity(stage: Stage) -> int:
-    """Byte-level parity: analysis full-hash, audio spot-check. Fixes nothing — reports."""
-    src = {}
-    for dp, _, fns in os.walk(os.path.join(MASTER, "PIONEER/USBANLZ")):
-        for fn in fns:
-            if fn.startswith("._"):
-                continue
-            p = os.path.join(dp, fn)
-            src[os.path.relpath(p, os.path.join(MASTER, "PIONEER/USBANLZ"))] = p
-    prog = Progress(len(src), label="anlz hash")
-    mm = 0
-    for rel, p in src.items():
-        d = os.path.join(MIRROR, "PIONEER/USBANLZ", rel)
-        if not os.path.exists(d) or md5(p) != md5(d):
-            mm += 1
-            stage.info(f"  ANLZ MISMATCH: {rel}")
-        prog.update(1)
-    prog.close(f"mismatches: {mm}")
-
-    pool = list(manifest(MASTER, "Contents").values())
-    random.seed()
-    sample = random.sample(pool, min(40, len(pool)))
-    am = 0
-    for rel in sample:
-        fa = os.path.join(MASTER, "Contents", rel)
-        fb = os.path.join(MIRROR, "Contents", rel)
-        if os.path.exists(fb) and md5(fa) != md5(fb):
-            am += 1
-            stage.info(f"  AUDIO MISMATCH (different rips — run --audio-parity): {rel}")
-    stage.info(f"audio spot-check ({len(sample)}): {am} mismatches")
-    return mm + am
-
-
-def audio_parity(stage: Stage) -> int:
-    """Make every mirrored audio file byte-identical to master's version.
-
-    Multi-origin libraries accumulate different rips of the same track (same
-    path, different bytes). Master wins; mirror variants are backed up first.
-    Resumable via state['audio_parity'].
-    """
-    backup_dir = "/tmp/usb-sync/nm_replaced_variants"
-    midx: dict[str, list[str]] = {}
-    base = os.path.join(MIRROR, "Contents")
-    for dp, _, fns in os.walk(base):
-        for fn in fns:
-            if fn.startswith("._") or fn == ".DS_Store":
-                continue
-            p = os.path.join(dp, fn)
-            midx.setdefault(key(os.path.relpath(p, base)), []).append(p)
-
-    state = load_state()
-    done = set(state.get("audio_parity", []))
-    pool = sorted(manifest(MASTER, "Contents").values())
-    [r for r in pool if r not in done]
-    prog = Progress(len(pool), label="audio hash", initial=len(done))
-    fixed = errs = 0
-    for rel in pool:
-        if rel in done:
-            prog.update(0)
-            continue
-        cands = midx.get(key(rel), [])
-        mp = cands[0] if cands else None
-        fa = os.path.join(MASTER, "Contents", rel)
-        try:
-            if mp and os.path.exists(fa) and os.path.exists(mp) and md5(fa) != md5(mp):
-                os.makedirs(backup_dir, exist_ok=True)
-                shutil.copy2(mp, os.path.join(backup_dir, rel.replace("/", "__")))
-                shutil.copy2(fa, mp)
-                fixed += 1
-            done.add(rel)
-        except Exception as e:
-            errs += 1
-            print(f"\nERR {rel[:80]}: {e}", flush=True)
-        prog.update(1)
-        if prog.done % 100 == 0:
-            save_state({**state, "audio_parity": sorted(done)})
-    state["audio_parity"] = sorted(done)
-    save_state(state)
-    prog.close(f"variants fixed: {fixed}, errors: {errs} (backups: {backup_dir})")
-    return errs
 
 
 def main() -> int:
@@ -342,7 +293,7 @@ def main() -> int:
         if verify(stage):
             print("\nRESULT: VERIFY FAILED")
             return 1
-        if args.hash_parity and hash_parity(stage):
+        if args.hash_parity and usb_mirror_parity.hash_parity(MASTER, MIRROR, stage):
             print("\nRESULT: HASH PARITY FAILED")
             return 1
 
@@ -352,9 +303,12 @@ def main() -> int:
 
     if args.audio_parity:
         stage.step("Audio byte-parity (master wins, variants backed up)")
-        if audio_parity(stage):
+        state = load_state()
+        if usb_mirror_parity.audio_parity(MASTER, MIRROR, stage, state):
+            save_state(state)
             print("\nRESULT: AUDIO PARITY ERRORS")
             return 1
+        save_state(state)
         print("\nRESULT: OK")
         return 0
 
@@ -395,7 +349,7 @@ def main() -> int:
         if verify(stage):
             print("\nRESULT: MIRRORED, VERIFY FAILED")
             return 1
-        if args.hash_parity and hash_parity(stage):
+        if args.hash_parity and usb_mirror_parity.hash_parity(MASTER, MIRROR, stage):
             print("\nRESULT: MIRRORED, HASH PARITY FAILED")
             return 1
 

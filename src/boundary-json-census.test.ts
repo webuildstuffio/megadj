@@ -42,7 +42,10 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   // rb-adopt mirror payload: the catch converts corrupt JSON into
   // "no RB row" (the mirrors then stand alone; rb-adopt re-adopt
   // rewrites the row) — the DB row itself is never touched.
-  "cratedeck/src/archive_tagcensus.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
+  // Sep 16 (#89/#90 diet): re-keyed to archive_tagcompare.ts — the
+  // one-track compare family (readRekordboxMirror included) moved out
+  // of archive_tagcensus.ts; same call, same sanction, new file path.
+  "cratedeck/src/archive_tagcompare.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
     "Corrupt mirror JSON is treated as no rekordbox row: the census shows the archive side alone, rb-adopt re-adopt rewrites the row; never a throw into the route.",
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(lastJsonLine(r.stdout, "[]"))',
@@ -93,10 +96,13 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // path re-homes one parse and genre-vote.ts parseVotes adds one;
     // sanctioned 16→17 (parseVotes joins EXPLICIT_NULL: corrupt vote
     // breakdown reads as empty, never a throw into a query).
+    // Sep 16 (#42): digest changed — detect.ts's USB-tree family moved
+    // to detect-usb.ts (parseUsbTreeJson) and photo primitives to
+    // photo-files.ts; same calls, same guard shapes, new file paths.
     audited: 62,
     guarded: 45,
     sanctioned: 17,
-    digest: "c11f0181a33029e8c412b11373241e21649ff005687cfd657bc3ca9c38cd5320",
+    digest: "7eae689b2904be95c1f8e4e42879acbd7d4398155d4342e3d96fd6eea3bcaf53",
   });
 });
 

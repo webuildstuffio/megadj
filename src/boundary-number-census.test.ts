@@ -89,7 +89,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // (verify-key.ts→scYear in art-sources.ts) and loadExternalRefs
     // re-homed the refs-parse helpers — same guarded sites, new
     // enclosing-function paths, counts unchanged, digest shifted.
-    digest: "c055ffff5fa2d74822e3464681ef5e561746943a88519a4062877f4b2caa5161",
+    // Sep 16 (#42): detect.ts's USB-tree family moved to detect-usb.ts
+    // (its guarded Number() sites re-homed) — counts unchanged, digest
+    // shifted.
+    digest: "2a2b52803145961c4e7431f4867a8cdd7e2905eba0b880aa3bb9c5bd99ad6249",
   });
 });
 

@@ -2,14 +2,16 @@ import { describe, it, expect } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { nfcCasefold, scanVolume } from "../src/scan";
 import {
-  pickUsbDevice,
   parseDiskutilJson,
-  parseUsbTreeJson,
   parsePlist,
   isPhysicalExternal,
   listMountedVolumes,
-  type UsbDevice,
 } from "../src/detect";
+import {
+  parseUsbTreeJson,
+  pickUsbDevice,
+  type UsbDevice,
+} from "../src/detect-usb";
 import { progressFromLine } from "../src/rb";
 
 // ---- fixtures -------------------------------------------------------------
