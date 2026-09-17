@@ -43,6 +43,10 @@ const sharedSource = readFileSync(
   join(import.meta.dir, "../products/shared.tsx"),
   "utf8",
 );
+const productMetaSource = readFileSync(
+  join(import.meta.dir, "../products/product-meta.tsx"),
+  "utf8",
+);
 const appSource = readFileSync(join(import.meta.dir, "../app/App.tsx"), "utf8");
 const helpCss = readFileSync(
   join(import.meta.dir, "../styles/help.css"),
@@ -107,14 +111,17 @@ describe("FullTags Similar and Set Builder UX", () => {
   test("MegaSet is its own top-level product, equal to CrateDeck/GetDat/FullTags", () => {
     // product SSOT: MegaSet is a Product union member, a nav-strip row
     // with its own lede + launcher card, and its own canvas route
-    // (#/megaset; legacy #/set + #/fulltags/set still resolve)
+    // (#/megaset; legacy #/set + #/fulltags/set still resolve).
+    // (#89/#90 split: the PRODUCTS/LEDE tables live in product-meta.tsx,
+    // re-exported through shared.tsx — the pin follows the SSOT.)
     expect(routerSource).toContain(
       '"drives" | "fleet" | "getdat" | "fulltags" | "megaset"',
     );
-    expect(sharedSource).toContain('id: "megaset"');
-    expect(sharedSource).toContain('label: "MegaSet"');
-    expect(sharedSource).toContain("the library gets played");
-    expect(sharedSource).toContain(
+    expect(sharedSource).toContain('from "./product-meta"');
+    expect(productMetaSource).toContain('id: "megaset"');
+    expect(productMetaSource).toContain('label: "MegaSet"');
+    expect(productMetaSource).toContain("the library gets played");
+    expect(productMetaSource).toContain(
       "The payoff. MegaSet turns every measurement",
     );
     // the canvas switch renders MegasetPage on the megaset route, and the

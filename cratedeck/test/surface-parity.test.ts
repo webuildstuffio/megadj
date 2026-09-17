@@ -323,7 +323,9 @@ describe("surface parity (docs/surface-parity.md)", () => {
     const app = read("cratedeck/web/app/App.tsx").join("\n");
     for (const product of ["drives", "getdat", "fulltags", "fleet"])
       expect(app, `nav route for ${product}`).toContain(`"${product}"`);
-    const products = read("cratedeck/web/products/shared.tsx").join("\n");
+    // #89/#90 split: PRODUCTS/PRODUCT_TABS live in product-meta.tsx,
+    // re-exported through shared.tsx — the pin follows the SSOT.
+    const products = read("cratedeck/web/products/product-meta.tsx").join("\n");
     for (const product of ["drives", "getdat", "fulltags"])
       expect(products, `nav tab for ${product}`).toContain(`id: "${product}"`);
     const router = read("cratedeck/web/app/router.ts").join("\n");
