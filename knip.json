@@ -5,6 +5,7 @@
       "entry": [
         "tools/loc-budget.ts",
         "tools/prof-sweep.ts",
+        "tools/ast-ccn.ts",
         "src/fulltags/cli.ts",
         "src/fulltags/test-support/fulltags/*.test.ts",
         "src/fulltags/test-support/fulltags/fake-echo-worker.ts",

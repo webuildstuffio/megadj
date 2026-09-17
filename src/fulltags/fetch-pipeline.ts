@@ -31,23 +31,20 @@
  */
 import {
   ARCH,
-  QUEUE,
   db,
   groundTruth,
   archiveFiles,
   cleanArtist,
-  setFileTags,
   type Row,
-  type TagValues,
 } from "./archive-ledger";
-// #89 madge-cycle fix: import aiGenres from its home module, not the
-// exports barrel — the barrel import re-closed
-// exports → fetch-pipeline → archive-ledger → exports.
-import { aiGenres } from "./ai";
 import { existsSync } from "node:fs";
-import { appendFile } from "node:fs/promises";
 import { ProgressBar } from "../progress";
 import { writeJson } from "../shared/cli-output";
+import {
+  aiGenreFallback,
+  aiYearFallback,
+  queueArtless,
+} from "./fetch-ai-fallback";
 import {
   cleanTitle,
   fanOutBandcamp,
@@ -111,6 +108,35 @@ interface Task {
   needArt: boolean;
   needYear: boolean;
   upgradeSc: boolean;
+}
+
+/** Build the per-track task list: one pass over the downloaded rows,
+ *  deciding which stages each row needs (the fetch stage gates). */
+function buildTasks(rows: Row[], only: string, all: boolean): Task[] {
+  const tasks: Task[] = [];
+  for (const r of rows) {
+    const truth = groundTruth(r.file_path);
+    const genreOk = truth.genre && truth.genre !== "Music";
+    const needTags =
+      (only === "all" || only === "tags") &&
+      (!truth.title || !truth.artist || !truth.album || !genreOk);
+    const needGenre = (only === "all" || only === "genres") && !genreOk;
+    const needYear = (only === "all" || only === "years") && !truth.year;
+    const upgradeSc = all && r.format_id?.startsWith("sc:") === true;
+    const needArt =
+      (only === "all" || only === "art") && (!truth.art || upgradeSc);
+    if (needTags || needGenre || needArt || needYear)
+      tasks.push({
+        row: r,
+        truth,
+        needTags,
+        needGenre,
+        needArt,
+        needYear,
+        upgradeSc,
+      });
+  }
+  return tasks;
 }
 
 function emptyStats(): Stats {
@@ -262,29 +288,7 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     (r) => files.has(r.file_path) && existsSync(r.file_path),
   );
 
-  const tasks: Task[] = [];
-  for (const r of rows) {
-    const truth = groundTruth(r.file_path);
-    const genreOk = truth.genre && truth.genre !== "Music";
-    const needTags =
-      (only === "all" || only === "tags") &&
-      (!truth.title || !truth.artist || !truth.album || !genreOk);
-    const needGenre = (only === "all" || only === "genres") && !genreOk;
-    const needYear = (only === "all" || only === "years") && !truth.year;
-    const upgradeSc = all && r.format_id?.startsWith("sc:") === true;
-    const needArt =
-      (only === "all" || only === "art") && (!truth.art || upgradeSc);
-    if (needTags || needGenre || needArt || needYear)
-      tasks.push({
-        row: r,
-        truth,
-        needTags,
-        needGenre,
-        needArt,
-        needYear,
-        upgradeSc,
-      });
-  }
+  const tasks = buildTasks(rows, only, all);
 
   if (!jsonOut) {
     console.log(
@@ -341,83 +345,12 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
   }
   await Promise.all(Array.from({ length: jobs }, () => worker()));
   activeBar = null;
-  // ---- AI genre fallback (batched, after the parallel pass) ----
+  // ---- AI fallbacks + cover queue (extracted, #88 item 1) ----
   // OPT-IN: batches stay empty unless --ai-fallback was passed (the stage
   // gate keeps them clean, so no filtering needed here).
-  if (aiGenreBatch.length && !dry) {
-    progressLog(`AI genre fallback for ${aiGenreBatch.length}…`);
-    for (let k = 0; k < aiGenreBatch.length; k += 20) {
-      const batch = aiGenreBatch.slice(k, k + 20);
-      const res = await aiGenres(batch);
-      for (const [vid, result] of res) {
-        const genre = result[0];
-        if (!genre) continue;
-        const row = batch.find((b) => b.video_id === vid)!;
-        db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(genre, vid);
-        setFileTags(row.file_path, {
-          genre,
-          aiGenre: `${genre}|${result[2] ?? 1}`,
-        });
-        stats.genreAi++;
-      }
-    }
-    if (!jsonOut)
-      console.log(`  AI set: ${stats.genreAi}/${aiGenreBatch.length}`);
-  }
-
-  // ---- AI year fallback (single batched call: genre + year together) ----
-  if (aiYearBatch.length && !dry) {
-    if (!jsonOut) console.log(`\nAI year fallback for ${aiYearBatch.length}…`);
-    for (let k = 0; k < aiYearBatch.length; k += 20) {
-      const batch = aiYearBatch.slice(k, k + 20);
-      const res = await aiGenres(batch, true);
-      for (const [vid, result] of res) {
-        const [genre, year, confidence] = result;
-        const row = batch.find((b) => b.video_id === vid)!;
-        const vals: TagValues = {};
-        if (genre) {
-          db.query("UPDATE tracks SET genre=? WHERE video_id=?").run(
-            genre,
-            vid,
-          );
-          vals.genre = genre;
-          vals.aiGenre = `${genre}|${confidence ?? 1}`;
-          stats.genreAi++;
-        }
-        if (year) {
-          db.query("UPDATE tracks SET year=? WHERE video_id=?").run(
-            String(year),
-            vid,
-          );
-          vals.year = year;
-          vals.aiYear = `${year}|${confidence ?? 1}`;
-          stats.yearAi++;
-        }
-        if (Object.keys(vals).length) setFileTags(row.file_path, vals);
-      }
-    }
-    if (!jsonOut) {
-      console.log(
-        `  AI years set: ${stats.yearAi}/${aiYearBatch.length} (genres too where missing: +${stats.genreAi})`,
-      );
-    }
-  }
-
-  // ---- AI cover queue append ----
-  if (artless.length && !dry) {
-    const lines = artless
-      .filter((r) => r.artist && r.title)
-      .map((r) =>
-        JSON.stringify({
-          path: r.file_path,
-          title: r.title,
-          artist: r.artist,
-          album: r.album,
-          reason: "no-online-cover",
-        }),
-      );
-    if (lines.length) await appendFile(QUEUE, `${lines.join("\n")}\n`);
-  }
+  await aiGenreFallback(aiGenreBatch, stats, dry, jsonOut);
+  await aiYearFallback(aiYearBatch, stats, dry, jsonOut);
+  await queueArtless(artless, dry);
 
   // ---- summary ----
   const summary = {

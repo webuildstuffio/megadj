@@ -18,17 +18,9 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { buildDupePairs, type DupePair } from "./rb-dedup-graph.js";
-import {
-  parseDeleteResult,
-  parseScanResult,
-  parseVerifyRows,
-  type DeleteResult,
-  type ScanResult,
-  type VerifyRow,
-} from "./rb-dedup-parse.js";
+import { parseScanResult, type ScanResult } from "./rb-dedup-parse.js";
 import { fingerprintFileLength } from "../fulltags/fingerprint";
 import { inspectMutationPaths } from "./rb-dedup-support.js";
 import {
@@ -39,7 +31,15 @@ import {
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
 export { pickKeeper, printRbDedupReport } from "./rb-dedup-support.js";
-import { quarantineDest } from "../archive/hygiene/apply";
+import {
+  deleteLoserRows,
+  verifyAssociationProofs,
+  quarantineLosers,
+  verifyRowsFresh,
+  writeReceipt,
+  compensate,
+  type ApplyPhase,
+} from "./rb-dedup-apply";
 import {
   assertRbClosed,
   backupMaster,
@@ -172,12 +172,14 @@ export async function rbDedup(
   }
   const unique = buildDupePairs(out.pairs, deps.fingerprint);
 
-  let removed = 0;
-  const quarantined: string[] = [];
-  const missingFiles: string[] = [];
-  let backedUpTo: string | null = null;
   const mutationErrors: string[] = [];
-
+  const applyPhase: ApplyPhase = {
+    removed: 0,
+    quarantined: [],
+    missingFiles: [],
+    backedUpTo: null,
+    errors: [],
+  };
   if (apply && unique.length) {
     const pathInspection = inspectMutationPaths(
       opts.mount,
@@ -192,257 +194,81 @@ export async function rbDedup(
       return fail(errorText(error));
     }
     try {
-      backedUpTo = deps.backup(dbPath);
+      applyPhase.backedUpTo = deps.backup(dbPath);
     } catch (error) {
       return fail(`backup failed: ${errorText(error)}`);
     }
+
     // 1. merge associations, then delete loser rows (one transaction/pair).
-    const loseIds = unique.map((p) => p.loseId);
-    const pairByLoser = new Map(unique.map((pair) => [pair.loseId, pair]));
-    try {
-      // The report/fingerprinting pass can take minutes. Close the race by
-      // checking again at the last possible moment before the write spawn.
-      deps.assertClosed("rb-dedup --apply delete");
-    } catch (error) {
-      return {
-        ...fail(errorText(error)),
-        backedUpTo,
-      };
-    }
-    const rd = deps.spawn(
-      "uv",
-      pyUvFileArgv({
-        file: "dedup-delete.kit.py",
-        args: [
-          dbPath,
-          JSON.stringify(unique.map((pair) => [pair.loseId, pair.keepId])),
-        ],
-      }),
-      { encoding: "utf8", timeout: 300_000 },
-    );
-    let del: DeleteResult = { removedIds: [], errors: [], associations: [] };
-    if (rd.status !== 0 || !rd.stdout) {
-      mutationErrors.push(
-        `row deletion process failed (exit ${String(rd.status)}): ${(rd.stderr ?? "").slice(-300)}`,
-      );
-    } else {
-      try {
-        del = parseDeleteResult(
-          rd.stdout.trim().split("\n").pop() ?? "",
-          loseIds,
-        );
-      } catch (error) {
-        mutationErrors.push(errorText(error));
-      }
-    }
-    const removedIds = new Set(del.removedIds);
-    removed = removedIds.size;
-    if (del.errors.length)
-      mutationErrors.push(
-        `row deletion errors: ${del.errors.map(([i, e]) => `${i}: ${e}`).join(", ")}`,
-      );
-    for (const [index, loserId] of del.removedIds.entries()) {
-      const expectedKeeper = pairByLoser.get(loserId)?.keepId;
-      const actualKeeper = del.associations[index]?.keepId;
-      if (expectedKeeper === undefined || actualKeeper !== expectedKeeper) {
+    const del = deleteLoserRows(deps, dbPath, unique, mutationErrors);
+    if (del) {
+      verifyAssociationProofs(unique, del, mutationErrors);
+      const removedIds = new Set(del.removedIds);
+      applyPhase.removed = removedIds.size;
+      if (del.errors.length)
         mutationErrors.push(
-          `association proof mismatch for loser ${loserId}: expected keeper ${expectedKeeper ?? "unknown"}, got ${actualKeeper ?? "missing"}`,
+          `row deletion errors: ${del.errors.map(([i, e]) => `${i}: ${e}`).join(", ")}`,
         );
-      }
-    }
 
-    // 2. quarantine loser files (never delete) — EXCEPT same-path pairs,
-    // where both rows point at ONE file the keeper still uses.
-    const stamp = deps.now().toISOString().slice(0, 10);
-    const qdir = join(
-      opts.mount.replace(/\/+$/u, ""),
-      "Quarantine",
-      `rb-dedup-${stamp}`,
-    );
-    let receipt: string | null = null;
-    let receiptAttempted = false;
-    const moves: { source: string; destination: string }[] = [];
-    for (const p of mutationErrors.length === 0 ? unique : []) {
-      // Never move a file when its loser row was not confirmed deleted.
-      if (!removedIds.has(p.loseId)) continue;
-      // Exact/NFC+casefold path twins and equal resolved realpaths are one
-      // physical file on the target macOS/ExFAT shelf. Only retire the extra
-      // DB row; moving that path would also move the keeper's bytes.
-      if (pathInspection.sharedLoserIds.has(p.loseId)) continue;
-      if (!deps.fileExists(p.losePath)) {
-        missingFiles.push(p.losePath);
-        continue;
-      }
-      if (p.losePath === p.keepPath) continue; // belt: never move keeper's file
-      try {
-        deps.mkdir(qdir);
-        const dest = quarantineDest(qdir, p.losePath);
-        deps.rename(p.losePath, dest);
-        quarantined.push(dest);
-        moves.push({ source: p.losePath, destination: dest });
-      } catch (error) {
-        mutationErrors.push(
-          `quarantine failed for ${p.losePath}: ${errorText(error)}`,
-        );
-        break;
-      }
-    }
+      // 2. quarantine loser files (never delete) — EXCEPT same-path pairs,
+      // where both rows point at ONE file the keeper still uses.
+      const { moves, qdir, stamp } = quarantineLosers(
+        deps,
+        opts,
+        unique,
+        removedIds,
+        pathInspection.sharedLoserIds,
+        mutationErrors,
+        applyPhase.missingFiles,
+        applyPhase.quarantined,
+      );
 
-    // A successful subprocess is not proof. Wait briefly, then read the
-    // affected content rows from a new pyrekordbox process and compare the
-    // complete requested loser/keeper set against disk reality.
-    let verifyRows: VerifyRow[] | null = null;
-    try {
+      // 3. post-write verification: a successful subprocess is not proof.
+      // Wait briefly, then read the affected content rows from a new
+      // pyrekordbox process and compare the complete requested loser/keeper
+      // set against disk reality.
       await deps.sleep(250);
-      deps.assertClosed("rb-dedup post-write verification");
-      const ids = [
-        ...new Set(unique.flatMap((pair) => [pair.keepId, pair.loseId])),
-      ];
-      const verification = deps.spawn(
-        "uv",
-        pyUvFileArgv({
-          file: "dedup-verify.kit.py",
-          args: [dbPath, JSON.stringify(ids)],
-        }),
-        { encoding: "utf8", timeout: 120_000 },
+      const verifyRows = verifyRowsFresh(
+        deps,
+        dbPath,
+        unique,
+        del,
+        mutationErrors,
       );
-      if (verification.status !== 0 || !verification.stdout) {
-        mutationErrors.push(
-          `verification read failed (exit ${String(verification.status)}): ${(verification.stderr ?? "").slice(-300)}`,
-        );
-      } else {
-        verifyRows = parseVerifyRows(
-          verification.stdout.trim().split("\n").pop() ?? "",
-        );
+      if (verifyRows) {
+        const rowById = new Map(verifyRows.map((row) => [row.id, row]));
+        applyPhase.removed = unique.filter(
+          (pair) => !rowById.has(pair.loseId),
+        ).length;
       }
-    } catch (error) {
-      mutationErrors.push(`verification failed: ${errorText(error)}`);
-    }
-    if (verifyRows) {
-      const rowById = new Map(verifyRows.map((row) => [row.id, row]));
-      // The fresh DB is the source of truth even when the delete process
-      // exited badly or returned malformed acknowledgements.
-      removed = unique.filter((pair) => !rowById.has(pair.loseId)).length;
-      const survivingLosers = unique
-        .filter((pair) => rowById.has(pair.loseId))
-        .map((pair) => pair.loseId);
-      if (survivingLosers.length)
-        mutationErrors.push(
-          `loser rows still present: ${survivingLosers.join(", ")}`,
-        );
-      const missingKeepers = unique
-        .filter((pair) => !rowById.has(pair.keepId))
-        .map((pair) => pair.keepId);
-      if (missingKeepers.length)
-        mutationErrors.push(
-          `keeper rows missing: ${missingKeepers.join(", ")}`,
-        );
-      const mismatchedKeepers = unique
-        .filter((pair) => {
-          const row = rowById.get(pair.keepId);
-          return row !== undefined && row.path !== pair.keepPath;
-        })
-        .map((pair) => pair.keepId);
-      if (mismatchedKeepers.length)
-        mutationErrors.push(
-          `keeper path mismatch: ${mismatchedKeepers.join(", ")}`,
-        );
-      const missingKeeperFiles = unique
-        .filter((pair) => !deps.fileExists(pair.keepPath))
-        .map((pair) => pair.keepId);
-      if (missingKeeperFiles.length)
-        mutationErrors.push(
-          `keeper files missing: ${missingKeeperFiles.join(", ")}`,
-        );
-      const associationsByKeeper = new Map(
-        del.associations.map((association) => [
-          association.keepId,
-          association,
-        ]),
-      );
-      for (const [keeperId, expected] of associationsByKeeper) {
-        const actual = rowById.get(keeperId);
-        if (
-          actual !== undefined &&
-          JSON.stringify(actual.playlists) !==
-            JSON.stringify(expected.playlists)
-        ) {
-          mutationErrors.push(`playlist associations mismatch: ${keeperId}`);
-        }
-        if (
-          actual !== undefined &&
-          JSON.stringify(actual.cueSignatures) !==
-            JSON.stringify(expected.cueSignatures)
-        ) {
-          mutationErrors.push(`cue associations mismatch: ${keeperId}`);
-        }
-        if (actual !== undefined && !actual.cueOwnersValid)
-          mutationErrors.push(`cue ownership mismatch: ${keeperId}`);
-      }
-    }
 
-    // A receipt is part of the successful mutation contract. Give each run
-    // a collision-proof receipt and compensate if persisting it fails.
-    if (mutationErrors.length === 0 && moves.length > 0) {
-      try {
-        deps.mkdir(qdir);
-        receipt = quarantineDest(qdir, "receipt.json");
-        receiptAttempted = true;
-        const appliedPairs = unique.filter((pair) =>
-          removedIds.has(pair.loseId),
-        );
-        deps.writeFile(
+      // 4. receipt — part of the successful mutation contract.
+      const { receipt, attempted } = writeReceipt(
+        deps,
+        unique,
+        removedIds,
+        applyPhase.removed,
+        applyPhase.quarantined,
+        stamp,
+        qdir,
+        mutationErrors,
+      );
+
+      // 5. compensation on any mutation error.
+      if (mutationErrors.length > 0) {
+        const undone = compensate(
+          deps,
+          dbPath,
+          applyPhase.backedUpTo,
+          moves,
+          applyPhase.quarantined,
           receipt,
-          JSON.stringify(
-            {
-              date: stamp,
-              pairs: appliedPairs,
-              removedRows: removed,
-              quarantined,
-            },
-            null,
-            2,
-          ),
+          attempted,
+          applyPhase.removed,
+          mutationErrors,
         );
-      } catch (error) {
-        mutationErrors.push(`receipt write failed: ${errorText(error)}`);
-      }
-    }
-
-    if (mutationErrors.length > 0) {
-      let restored = false;
-      try {
-        deps.assertClosed("restoring failed rb-dedup");
-        deps.restore(dbPath, backedUpTo);
-        restored = true;
-        removed = 0;
-        mutationErrors.push(`restored from backup ${backedUpTo}`);
-      } catch (error) {
-        mutationErrors.push(
-          `automatic DB restore failed; ${removed} loser row(s) remain absent: ${errorText(error)}`,
-        );
-      }
-      if (restored) {
-        for (const move of moves.toReversed()) {
-          try {
-            deps.rename(move.destination, move.source);
-            const index = quarantined.indexOf(move.destination);
-            if (index !== -1) quarantined.splice(index, 1);
-          } catch (error) {
-            mutationErrors.push(
-              `quarantine reversal failed; DB row was restored at ${move.source} but file remains at ${move.destination}: ${errorText(error)}`,
-            );
-          }
-        }
-      }
-      if (receiptAttempted && receipt) {
-        try {
-          deps.remove(receipt);
-        } catch (error) {
-          mutationErrors.push(
-            `failed to remove compensated receipt ${receipt}: ${errorText(error)}`,
-          );
-        }
+        applyPhase.removed = undone.removed;
+        applyPhase.quarantined = undone.quarantined;
       }
     }
   }
@@ -452,11 +278,11 @@ export async function rbDedup(
     db: dbPath,
     scanned: out.scanned,
     pairs: unique,
-    removed,
-    quarantined,
-    missingFiles,
+    removed: applyPhase.removed,
+    quarantined: applyPhase.quarantined,
+    missingFiles: applyPhase.missingFiles,
     appliedMode: apply,
-    backedUpTo,
+    backedUpTo: applyPhase.backedUpTo,
     ok: mutationErrors.length === 0,
   };
   if (mutationErrors.length) result.error = mutationErrors.join("; ");

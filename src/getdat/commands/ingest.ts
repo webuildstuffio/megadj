@@ -20,8 +20,7 @@
  * this file is the per-track Phase D work and the phase orchestration.
  */
 
-import { createHash } from "node:crypto";
-import { basename, extname, join } from "node:path";
+import { basename, join } from "node:path";
 import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
 import type { ArchiveState } from "../../archive/state";
 import { commandLog } from "../../progress";
@@ -32,16 +31,19 @@ import {
   firstTag,
   measureRms,
 } from "../../fulltags/media-probe";
-import { guessFromFreeText } from "../../fulltags/genre-vocab";
-import { mbRecording } from "../../fulltags/mb_lookup";
-import { playerCompat, isHiresOnly } from "../../fulltags/player-compat";
 import { walkAudio, type Record_ } from "./ingest-probe";
 import {
   expandZips,
   deleteFullyIngestedZips,
   pendingZipDeletes,
 } from "./ingest-zips";
-import { wavToAiff } from "../../fulltags/convert-aiff";
+import {
+  gateDuration,
+  gateWavConversion,
+  gatePlayerCompat,
+  gateMbFill,
+  type IngestGateCtx,
+} from "./ingest-one-stages";
 import {
   fetchAndEmbedArtwork,
   flushArtworkQueue,
@@ -72,8 +74,6 @@ export interface IngestOptions {
   json?: boolean | undefined;
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 function newCounters(): IngestCounters {
   return {
     tagged: 0,
@@ -89,7 +89,10 @@ function newCounters(): IngestCounters {
   };
 }
 
-/** Phase D per-track work: tag + artwork + register + move into the archive. */
+/** Phase D per-track work: tag + artwork + register + move into the archive.
+ *  The early gates (duration / wav→aiff / player-compat / MB fill) live in
+ *  ingest-one-stages.ts (#88 item 1); this body is the sequencer + the
+ *  tag-write tail it feeds. */
 async function ingestOne(
   opts: IngestOptions,
   log: (msg: string) => void,
@@ -102,95 +105,53 @@ async function ingestOne(
 ): Promise<void> {
   let { file, probe } = rec;
   const { parsed } = rec;
-  let ext = extname(file).toLowerCase();
   const title = firstTag(probe.tags, ["title"]) || parsed.title;
-  let artist = firstTag(probe.tags, ["artist"]) || parsed.artist;
-  let album = firstTag(probe.tags, ["album"]);
-  let date = firstTag(probe.tags, ["date", "year"]);
-  let genre = firstTag(probe.tags, ["genre"]);
-  let mbidUsed: string | null =
-    firstTag(probe.tags, ["musicbrainz_trackid"]) ?? null;
-  const remixOf = detectRemix(parsed.title);
-  const bootleg = /\b(bootleg|unofficial|unreleased)\b/i.test(parsed.title);
+  const ctx: IngestGateCtx = {
+    opts,
+    log,
+    rec,
+    counters,
+    minDuration,
+    title,
+    artist: firstTag(probe.tags, ["artist"]) || parsed.artist,
+    album: firstTag(probe.tags, ["album"]),
+    date: firstTag(probe.tags, ["date", "year"]),
+    genre: firstTag(probe.tags, ["genre"]),
+    mbidUsed: firstTag(probe.tags, ["musicbrainz_trackid"]) ?? null,
+    remixOf: detectRemix(parsed.title),
+    bootleg: /\b(bootleg|unofficial|unreleased)\b/i.test(parsed.title),
+    proceed: true,
+  };
 
+  // ---- gates (each may reject; order matters) ----
   // Duration gate: tracks under 60s are not DJ material (usually clips,
   // ringtones, ads, or corrupted extractions). Still registered in the
   // DB (status skipped_short) so they show up in `megadj list` — but
   // never copied to the music dir or tagged. Override: --min-duration 0.
-  if ((probe.durationS ?? Infinity) < minDuration) {
-    counters.shortSkipped++;
-    log(
-      `  ⚠ short (${probe.durationS?.toFixed(0)}s < ${minDuration}s): ${basename(file)} — skipped`,
-    );
-    if (!opts.dryRun) {
-      const shortId = `ext-${createHash("sha1").update(file).digest("hex").slice(0, 12)}`;
-      opts.state.upsertTrackFromPlaylist(shortId, 0, title, "ingest");
-      opts.state.markShortSkipped(shortId, file, probe.durationS);
-    }
-    return;
-  }
+  gateDuration(ctx);
+  if (!ctx.proceed) return;
 
   // WAV → AIFF lossless conversion (stream copy, tags ride along).
   // rekordbox cannot read embedded art from WAVs; AIFF is bit-identical
   // audio with native art support. See docs/fulltags/rekordbox-wav-artwork.md.
-  if (ext === ".wav" && !opts.dryRun) {
-    const aiff = await wavToAiff(file);
-    if (aiff) {
-      file = aiff;
-      ext = ".aiff";
-      // Same PCM stream in a new container — codec/bit depth are the
-      // source's (s16le→s16be etc.), only art presence changes.
-      probe = { ...probe, hasArt: true };
-      counters.wavConverted++;
-      log(`  ⇄ wav→aiff: ${basename(aiff)}`);
-    }
-  }
+  await gateWavConversion(ctx);
+  file = rec.file;
+  probe = rec.probe;
 
   // Player-compat gate — the file must PLAY on the whole booth fleet
   // (XDJ-XZ / CDJ-3000 / CDJ-2000NXS2 / CDJ-2000). See
   // fulltags/src/player-compat.ts for the spec table this enforces.
   // Checked AFTER wav→aiff so a 96kHz WAV becomes a compliant 96kHz AIFF
   // verdict on the same probe it will register with.
-  {
-    const compat = playerCompat(probe);
-    if (!compat.ok && !isHiresOnly(compat)) {
-      counters.compatRejected++;
-      log(
-        `  ⛔ player-incompatible (${compat.detail}): ${basename(file)} — left in place`,
-      );
-      // No DB row on purpose: same treatment as broken files. A `failed`
-      // row would be resurrected by `megadj retry` into the download
-      // queue; the refusal lives in this log + counter and, if the file
-      // ever lands in the archive anyway, the audit's playable gate.
-      return;
-    }
-    if (isHiresOnly(compat)) {
-      counters.compatHires++;
-      log(
-        `  ⚠ hires-only (${compat.detail}): ${basename(file)} — ingesting; will NOT load on XDJ-XZ / CDJ-2000`,
-      );
-    }
-  }
+  gatePlayerCompat(ctx);
+  if (!ctx.proceed) return;
 
-  if (!artist || !album || !genre || genre === "Music") {
-    if (title.length >= 4) {
-      await sleep(1100); // MusicBrainz politeness
-      const mb = await mbRecording(artist, title);
-      artist ||= mb.artist;
-      if (!album && mb.album) album = mb.album;
-      if (!date && mb.date) date = mb.date;
-      if (!genre || genre === "Music")
-        genre = guessFromFreeText([genre, mb.artistTags, artist]);
-      if (mb.mbid) mbidUsed = mb.mbid;
-    }
-  }
-  // No "Music" mint (#61): an unknown genre stays null (fetch fills it
-  // later). A real file tag the regex table can't match survives — the
-  // old `?? "Music"` replaced genuine tags with the placeholder.
-  genre =
-    guessFromFreeText([genre, artist, album, title]) ??
-    (genre && genre.toLowerCase() !== "music" ? genre : null);
-
+  // MB fill + genre normalize (no "Music" mint, #61).
+  await gateMbFill(ctx);
+  const { artist, date, genre, mbidUsed } = ctx;
+  let { album } = ctx;
+  const remixOf = ctx.remixOf;
+  const bootleg = ctx.bootleg;
   const changes: string[] = [];
   if (firstTag(probe.tags, ["title"]) !== title) changes.push("title");
   if (artist && firstTag(probe.tags, ["artist"]) !== artist)

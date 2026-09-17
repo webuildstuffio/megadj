@@ -2,54 +2,15 @@
 // extraction from verify_report.ts): VERIFY_JSON structured payload
 // first, human-output regex fallback second; every check gets a status,
 // plain-English meaning, and a fix when failing.
+// Metric extraction lives in verify-parse-metrics.ts (#88 item 1) —
+// this file is check ASSEMBLY only.
 import { VERIFY_HELP } from "./verify_help";
 import type { VerifyCheck, VerifyReport } from "../shared/types";
 import { lastLines } from "./verify_report";
-
-interface VerifyJsonPayload {
-  drives?: Record<
-    string,
-    {
-      pdb_tracks?: number;
-      onelibrary_tracks?: number;
-      tracks?: number;
-      playlists?: number;
-      playlist_entries?: number;
-      dangling_entries?: number;
-      artist_fk_bad?: number;
-      missing_files?: string[];
-      missing_anlz?: string[];
-      anlz_hash_missing?: string[];
-      no_bpm?: string[];
-      bad_length?: string[];
-      anlz_consistency?: string[];
-      /** Backward-compatible input from older usb_verify.py runs. */
-      bad_grids?: string[];
-    }
-  >;
-  db_identical?: boolean;
-  anlz_total?: number;
-  anlz_mismatches?: string[];
-  audio_mismatches?: string[];
-  fails?: string[];
-}
-
-/** Longest offender list kept per check (full list stays in the log). */
-const MAX_OFFENDERS = 50;
+import { cap, extractVerifyMetrics } from "./verify-parse-metrics";
 
 /** Check doc lookup from the shared help SSOT: meaning + fix stay in one place. */
 const DOC = new Map(VERIFY_HELP.checks.map((c) => [c.id, c]));
-
-function cap(list: string[] | undefined): {
-  offenders?: string[];
-  offender_count?: number;
-} {
-  if (!list?.length) return {};
-  return {
-    offenders: list.slice(0, MAX_OFFENDERS),
-    offender_count: list.length,
-  };
-}
 
 /** Parse usb_verify.py output into a full structured verify report.
  *
@@ -68,147 +29,8 @@ export function parseVerifyReport(
    *  so player-facing pdb parity is informational, never a failure. */
   driveRole?: string,
 ): VerifyReport {
-  // ---- structured payload first ------------------------------------------
-  const jsonLine = out.split("\n").find((l) => l.startsWith("VERIFY_JSON: "));
-  let j: VerifyJsonPayload | null = null;
-  if (jsonLine) {
-    try {
-      j = JSON.parse(
-        jsonLine.slice("VERIFY_JSON: ".length),
-      ) as VerifyJsonPayload;
-    } catch (error) {
-      console.warn(
-        "usb_verify.py VERIFY_JSON payload is malformed; using human-output fallback",
-        error,
-      );
-      j = null; // malformed payload → regex fallback below
-    }
-  }
-
-  const stats: Record<string, number> = {};
+  const m = extractVerifyMetrics(out);
   const checks: VerifyCheck[] = [];
-  // sanitize: a structurally-broken payload (e.g. {"drives":{"DJX":null}})
-  // must degrade to regex fallback, not throw away the whole verdict.
-  const drives: NonNullable<VerifyJsonPayload["drives"]>[string][] = j?.drives
-    ? (Object.values(j.drives).filter(
-        (d): d is NonNullable<VerifyJsonPayload["drives"]>[string] =>
-          Boolean(d) && typeof d === "object",
-      ) as NonNullable<VerifyJsonPayload["drives"]>[string][])
-    : [];
-  if (j !== null && drives.length === 0) {
-    console.warn(
-      "usb_verify.py VERIFY_JSON has no usable drive entries; using human-output fallback",
-    );
-  }
-
-  // script may verify 1 or 2 drives; per-drive metrics aggregate when 2
-  const sum = (
-    pick: (
-      d: NonNullable<VerifyJsonPayload["drives"]>[string],
-    ) => number | undefined,
-  ): number | null => {
-    const vals = drives
-      .map(pick)
-      .filter((v): v is number => typeof v === "number");
-    return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
-  };
-
-  // When the payload parsed but yielded no usable drive entries (drift,
-  // truncation), fall back to the human-text regexes instead of reporting
-  // an all-undefined (and all-empty-offender) report.
-  const useJson = j !== null && drives.length > 0;
-  const tracks = useJson
-    ? sum((d) => d.tracks)
-    : grabNum(out, /^  tracks: (\d+)/m);
-  const pdb = useJson
-    ? sum((d) => d.pdb_tracks)
-    : grabNum(out, /export\.pdb=(\d+) tracks/);
-  const odb = useJson
-    ? sum((d) => d.onelibrary_tracks)
-    : grabNum(out, /OneLibrary DB=(\d+) tracks/);
-  const playlists = useJson
-    ? sum((d) => d.playlists)
-    : grabNum(out, /playlists: (\d+)/);
-  const entries = useJson
-    ? sum((d) => d.playlist_entries)
-    : grabNum(out, /entries: (\d+)/);
-  const dangling = useJson
-    ? sum((d) => d.dangling_entries)
-    : (grabNum(out, /dangling: (\d+)/) ?? 0);
-  const artistFk = useJson
-    ? sum((d) => d.artist_fk_bad)
-    : (grabNum(out, /artist FK bad: (\d+)/) ?? 0);
-  const pioneerVar = grabNum(
-    out,
-    /pioneer-native variance \(informational\): (\d+)/,
-  );
-
-  // offenders: JSON gives exact lists; regex fallback has counts only
-  const allOff = (
-    pick: (
-      d: NonNullable<VerifyJsonPayload["drives"]>[string],
-    ) => string[] | undefined,
-  ): string[] => (useJson ? drives.flatMap((d) => pick(d) ?? []) : []);
-  const missingFiles = allOff((d) => d.missing_files);
-  const missingAnlzList = allOff((d) => d.missing_anlz);
-  const anlzHashList = allOff((d) => d.anlz_hash_missing);
-  const noBpmList = allOff((d) => d.no_bpm);
-  const badLenList = allOff((d) => d.bad_length);
-  const badGridList = allOff((d) => d.anlz_consistency ?? d.bad_grids);
-
-  const hasList = (
-    pick: (
-      d: NonNullable<VerifyJsonPayload["drives"]>[string],
-    ) => string[] | undefined,
-  ): boolean => useJson && drives.every((d) => Array.isArray(pick(d)));
-
-  const missingAudio = hasList((d) => d.missing_files)
-    ? missingFiles.length
-    : (grabNum(out, /missing audio: (\d+)/) ?? 0);
-  const missingAnlz = hasList((d) => d.missing_anlz)
-    ? missingAnlzList.length
-    : (grabNum(out, /missing analysis: (\d+)/) ?? 0);
-  const noBpm = hasList((d) => d.no_bpm)
-    ? noBpmList.length
-    : (grabNum(out, /no BPM: (\d+)/) ?? 0);
-  const badLen = hasList((d) => d.bad_length)
-    ? badLenList.length
-    : (grabNum(out, /bad length: (\d+)/) ?? 0);
-  const badGrids = hasList((d) => d.anlz_consistency ?? d.bad_grids)
-    ? badGridList.length
-    : (grabNum(out, /ANLZ consistency failures \(generated\): (\d+)/) ??
-      grabNum(out, /bad grids \(generated\): (\d+)/) ??
-      0);
-  const anlzHash = hasList((d) => d.anlz_hash_missing)
-    ? anlzHashList.length
-    : (grabNum(out, /ANLZ missing at hash path AND at DB path: (\d+)/) ?? 0);
-
-  if (pdb !== null) stats.pdb_tracks = pdb;
-  if (odb !== null) stats.onelibrary_tracks = odb;
-  if (tracks !== null) stats.tracks = tracks;
-  if (playlists !== null) stats.playlists = playlists;
-  if (entries !== null) stats.playlist_entries = entries;
-  if (pioneerVar !== null) stats.pioneer_variance = pioneerVar;
-
-  const crossDrive = useJson
-    ? typeof j!.db_identical === "boolean" ||
-      j!.anlz_mismatches !== undefined ||
-      j!.audio_mismatches !== undefined
-    : out.includes("=== cross-drive ===");
-  const dbIdentical = useJson
-    ? (j!.db_identical ?? false)
-    : out.includes("DB byte-identical: true");
-  const anlzMismatchList = useJson ? (j!.anlz_mismatches ?? []) : [];
-  const anlzParity: [number, number] | null = useJson
-    ? j!.anlz_total !== undefined || anlzMismatchList.length
-      ? [j!.anlz_mismatches?.length ?? 0, j!.anlz_total ?? 0]
-      : null
-    : grab2Num(out, /ANLZ full hash parity: (\d+)\/(\d+) mismatches/);
-  if (anlzParity) stats.anlz_hash_mismatches = anlzParity[0];
-  const audioMismatchList = useJson ? (j!.audio_mismatches ?? []) : [];
-  const audioMismatch = useJson
-    ? audioMismatchList.length
-    : grabNum(out, /audio hash spot-check \(40\): (\d+) mismatches/);
 
   const mk = (
     id: string,
@@ -232,50 +54,50 @@ export function parseVerifyReport(
   // master library lives there (rekordbox Database Management) and the
   // legacy pdb is a vestigial copy of a migrated stick tree. Parity is a
   // gig-stick concern — on a shelf it's informational, never a fail.
-  if (pdb !== null && odb !== null) {
+  if (m.pdb !== null && m.odb !== null) {
     const shelfTier = driveRole === "shelf";
     checks.push(
       mk(
         "dual-db",
-        pdb === odb || shelfTier ? "pass" : "fail",
-        pdb === odb
-          ? `${odb} tracks in both databases`
+        m.pdb === m.odb || shelfTier ? "pass" : "fail",
+        m.pdb === m.odb
+          ? `${m.odb} tracks in both databases`
           : shelfTier
-            ? `archive tier — master library lives here (${odb} tracks); legacy pdb (${pdb}) is vestigial and not read by players`
-            : `export.pdb ${pdb} vs OneLibrary ${odb} (${
-                odb > pdb
-                  ? `${odb - pdb} newer tracks invisible to hardware`
-                  : `${pdb - odb} stale rows hardware will show but rekordbox won't`
+            ? `archive tier — master library lives here (${m.odb} tracks); legacy pdb (${m.pdb}) is vestigial and not read by players`
+            : `export.pdb ${m.pdb} vs OneLibrary ${m.odb} (${
+                m.odb > m.pdb
+                  ? `${m.odb - m.pdb} newer tracks invisible to hardware`
+                  : `${m.pdb - m.odb} stale rows hardware will show but rekordbox won't`
               })`,
       ),
     );
   }
 
   // 2 — audio files present
-  if (tracks !== null) {
+  if (m.tracks !== null) {
     checks.push(
       mk(
         "audio-files",
-        missingAudio === 0 ? "pass" : "fail",
-        missingAudio === 0
-          ? `all ${tracks} DB tracks have their file on disk`
-          : `${missingAudio} of ${tracks} DB tracks have NO file on disk`,
-        cap(missingFiles),
+        m.missingAudio === 0 ? "pass" : "fail",
+        m.missingAudio === 0
+          ? `all ${m.tracks} DB tracks have their file on disk`
+          : `${m.missingAudio} of ${m.tracks} DB tracks have NO file on disk`,
+        cap(m.missingFiles),
       ),
     );
   }
 
   // 3 — analysis files (waveforms + beatgrids)
-  const anlzTotal = missingAnlz + anlzHash;
-  if (tracks !== null) {
+  const anlzTotal = m.missingAnlz + m.anlzHash;
+  if (m.tracks !== null) {
     checks.push(
       mk(
         "anlz",
         anlzTotal === 0 ? "pass" : anlzTotal < 20 ? "warn" : "fail",
         anlzTotal === 0
-          ? `all ${tracks} tracks have analysis at both the DB and hardware hash path`
-          : `${anlzTotal} track(s) missing analysis (${missingAnlz} at DB path, ${anlzHash} at hardware hash path)`,
-        cap([...missingAnlzList, ...anlzHashList]),
+          ? `all ${m.tracks} tracks have analysis at both the DB and hardware hash path`
+          : `${anlzTotal} track(s) missing analysis (${m.missingAnlz} at DB path, ${m.anlzHash} at hardware hash path)`,
+        cap([...m.missingAnlzList, ...m.anlzHashList]),
       ),
     );
   }
@@ -284,87 +106,87 @@ export function parseVerifyReport(
   // unconditional, which turned a CRASHED verify into a green "all ? tracks
   // have plausible BPM and length" line — the "?" was the tell that no
   // measurement happened. A crash is not a measurement.
-  if (tracks !== null) {
+  if (m.tracks !== null) {
     checks.push(
       mk(
         "fields",
-        noBpm + badLen === 0 ? "pass" : "warn",
-        noBpm + badLen === 0
-          ? `all ${tracks} tracks have plausible BPM and length`
-          : `${noBpm} without BPM, ${badLen} with implausible length`,
-        cap([...noBpmList, ...badLenList]),
+        m.noBpm + m.badLen === 0 ? "pass" : "warn",
+        m.noBpm + m.badLen === 0
+          ? `all ${m.tracks} tracks have plausible BPM and length`
+          : `${m.noBpm} without BPM, ${m.badLen} with implausible length`,
+        cap([...m.noBpmList, ...m.badLenList]),
       ),
     );
   }
 
   // 5 — grid plausibility
-  if (tracks !== null) {
+  if (m.tracks !== null) {
     checks.push(
       mk(
         "grids",
-        badGrids === 0 ? "pass" : "warn",
-        badGrids === 0
+        m.badGrids === 0 ? "pass" : "warn",
+        m.badGrids === 0
           ? `all generated grids pass the ANLZ-vs-DB consistency check`
-          : `${badGrids} generated track(s) failed the ANLZ-vs-DB consistency check`,
-        cap(badGridList),
+          : `${m.badGrids} generated track(s) failed the ANLZ-vs-DB consistency check`,
+        cap(m.badGridList),
       ),
     );
   }
-  if (pioneerVar !== null && pioneerVar > 0) {
+  if (m.pioneerVar !== null && m.pioneerVar > 0) {
     checks.push(
       mk(
         "pioneer-variance",
         "pass",
-        `${pioneerVar} Pioneer-shipped tracks have loose grids — informational, not an error`,
+        `${m.pioneerVar} Pioneer-shipped tracks have loose grids — informational, not an error`,
       ),
     );
   }
 
   // 6 — playlists + relations
-  if (playlists !== null) {
-    const dang = dangling ?? 0;
-    const fk = artistFk ?? 0;
+  if (m.playlists !== null) {
+    const dang = m.dangling ?? 0;
+    const fk = m.artistFk ?? 0;
     checks.push(
       mk(
         "relations",
         dang + fk === 0 ? "pass" : "fail",
         dang + fk === 0
-          ? `${playlists} playlists, ${entries ?? "?"} entries, no dangling rows`
-          : `${playlists} playlists · ${dang} dangling entries · ${fk} broken artist links`,
+          ? `${m.playlists} playlists, ${m.entries ?? "?"} entries, no dangling rows`
+          : `${m.playlists} playlists · ${dang} dangling entries · ${fk} broken artist links`,
       ),
     );
   }
 
   // 7..9 — cross-drive parity (only present in 2-drive runs)
-  if (crossDrive) {
+  if (m.crossDrive) {
     checks.push(
       mk(
         "db-parity",
-        dbIdentical ? "pass" : "fail",
-        dbIdentical
+        m.dbIdentical ? "pass" : "fail",
+        m.dbIdentical
           ? "exportLibrary.db byte-identical on both drives"
           : "exportLibrary.db differs between drives",
       ),
     );
-    if (anlzParity) {
+    if (m.anlzParity) {
       checks.push(
         mk(
           "anlz-parity",
-          anlzParity[0] === 0 ? "pass" : "fail",
-          `${anlzParity[0]} of ${anlzParity[1]} analysis files differ between drives`,
-          cap(anlzMismatchList),
+          m.anlzParity[0] === 0 ? "pass" : "fail",
+          `${m.anlzParity[0]} of ${m.anlzParity[1]} analysis files differ between drives`,
+          cap(m.anlzMismatchList),
         ),
       );
     }
-    if (j || audioMismatch !== null) {
+    if (m.j || m.audioMismatch !== null) {
       checks.push(
         mk(
           "audio-parity",
-          audioMismatch === 0 ? "pass" : "fail",
-          audioMismatch === 0
+          m.audioMismatch === 0 ? "pass" : "fail",
+          m.audioMismatch === 0
             ? "40 random tracks hash-identical across drives"
-            : `${audioMismatch}/40 sampled tracks DIFFER between drives (different rips)`,
-          cap(audioMismatchList),
+            : `${m.audioMismatch}/40 sampled tracks DIFFER between drives (different rips)`,
+          cap(m.audioMismatchList),
         ),
       );
     }
@@ -400,23 +222,7 @@ export function parseVerifyReport(
     final: finalLine,
     duration_s: durationS,
     checks,
-    stats,
+    stats: m.stats,
     summary: lastLines(out, 25),
   };
-}
-
-function grabNum(out: string, re: RegExp): number | null {
-  const m = out.match(re);
-  if (!m?.[1]) return null;
-  const v = parseInt(m[1], 10);
-  return Number.isNaN(v) ? null : v;
-}
-
-function grab2Num(out: string, re: RegExp): [number, number] | null {
-  const m = out.match(re);
-  if (!m?.[1] || !m[2]) return null;
-  const a = parseInt(m[1], 10);
-  const b = parseInt(m[2], 10);
-  if (Number.isNaN(a) || Number.isNaN(b)) return null;
-  return [a, b];
 }

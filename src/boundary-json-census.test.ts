@@ -102,10 +102,13 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 16 (#42): digest changed — detect.ts's USB-tree family moved
     // to detect-usb.ts (parseUsbTreeJson) and photo primitives to
     // photo-files.ts; same calls, same guard shapes, new file paths.
+    // Sep 17 (#88): digest changed — the usb_verify.py VERIFY_JSON read
+    // in verify_parse.ts moved to verify-parse-metrics.ts
+    // (extractVerifyMetrics); same guarded shape, new file path.
     audited: 62,
     guarded: 45,
     sanctioned: 17,
-    digest: "cb9c417ea96308c3bd96753dd403d1bbfbdc844b10736c9bb2fb9ccf7415899b",
+    digest: "89ecff2bb265c2fdda22f357f02243d106657bddf85b1f80e6455b1803c04a69",
   });
 });
 
