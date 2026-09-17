@@ -227,47 +227,20 @@ export class ImageService {
       driveRel?: string | undefined;
     },
   ): Promise<string> {
+    // One leg per image source (#199): each staging fn lands the bytes in
+    // the local canonical dir and returns the dest path.
     const dir = this.localDir(driveId);
-    let dest: string;
-    if (opts.url) {
-      const sourceUrl = new URL(opts.url);
-      if (sourceUrl.protocol !== "http:" && sourceUrl.protocol !== "https:")
-        throw new Error("image URL must use http or https");
-      const res = await fetch(sourceUrl, {
-        // 30s deadline: image hosts stall; without it the route hangs and
-        // the UI spin never resolves
-        signal: AbortSignal.timeout(30_000),
-      });
-      if (!res.ok) throw new Error(`download failed ${res.status}`);
-      const buf = await readBoundedImageBody(res);
-      const ext =
-        extFromMime(res.headers.get("content-type") ?? "") ??
-        extOfPhotoPath(opts.url);
-      if (!ext) throw new Error("unsupported image type");
-      dest = join(dir, `photo${ext}`);
-      await this.guard.write(dest, buf);
-    } else if (opts.data) {
-      if (opts.data.length > MAX_IMAGE_BYTES) throw new Error("image > 10MB");
-      const ext = opts.name ? extOfPhotoPath(opts.name) : ".jpg";
-      if (!ext) throw new Error("unsupported image type");
-      dest = join(dir, `photo${ext}`);
-      await this.guard.write(dest, opts.data);
-    } else if (opts.driveRel) {
-      const drive = this.db.getDrive(driveId);
-      if (!drive?.mounted) throw new Error("drive not mounted");
-      const src = this.driveImageFile(drive.name, opts.driveRel);
-      if (!src) throw new Error("image not found on drive");
-      const ext = extOfPhotoPath(src) ?? ".jpg";
-      dest = join(dir, `photo${ext}`);
-      await this.guard.copy(src, dest);
-    } else if (opts.localPath) {
-      const ext = extOfPhotoPath(opts.localPath);
-      if (!ext) throw new Error("unsupported image type");
-      dest = join(dir, `photo${ext}`);
-      await this.guard.copy(opts.localPath, dest);
-    } else {
-      throw new Error("nothing to choose");
-    }
+    const staging = opts.url
+      ? () => this.stageFromUrl(dir, opts.url!)
+      : opts.data
+        ? () => this.stageFromUpload(dir, opts.data!, opts.name)
+        : opts.driveRel
+          ? () => this.stageFromDrive(dir, driveId, opts.driveRel!)
+          : opts.localPath
+            ? () => this.stageFromLocal(dir, opts.localPath!)
+            : null;
+    if (staging === null) throw new Error("nothing to choose");
+    const dest = await staging();
     this.removeStalePhotos(dir, dest);
     await this.syncToDrive(driveId);
     this.db.setPhoto(driveId, dest);
@@ -280,6 +253,38 @@ export class ImageService {
             ? "drive"
             : "upload",
     });
+    return dest;
+  }
+
+  /** Fetch a remote image (30s deadline: image hosts stall; without it the
+   *  route hangs and the UI spin never resolves) into the canonical dir. */
+  private async stageFromUrl(dir: string, url: string): Promise<string> {
+    const sourceUrl = new URL(url);
+    if (sourceUrl.protocol !== "http:" && sourceUrl.protocol !== "https:")
+      throw new Error("image URL must use http or https");
+    const res = await fetch(sourceUrl, { signal: AbortSignal.timeout(30_000) });
+    if (!res.ok) throw new Error(`download failed ${res.status}`);
+    const buf = await readBoundedImageBody(res);
+    const ext =
+      extFromMime(res.headers.get("content-type") ?? "") ?? extOfPhotoPath(url);
+    if (!ext) throw new Error("unsupported image type");
+    const dest = join(dir, `photo${ext}`);
+    await this.guard.write(dest, buf);
+    return dest;
+  }
+
+  /** Stage a file that already exists on the mounted drive. */
+  private async stageFromDrive(
+    dir: string,
+    driveId: string,
+    driveRel: string,
+  ): Promise<string> {
+    const drive = this.db.getDrive(driveId);
+    if (!drive?.mounted) throw new Error("drive not mounted");
+    const src = this.driveImageFile(drive.name, driveRel);
+    if (!src) throw new Error("image not found on drive");
+    const dest = join(dir, `photo${extOfPhotoPath(src) ?? ".jpg"}`);
+    await this.guard.copy(src, dest);
     return dest;
   }
 
@@ -365,5 +370,31 @@ export class ImageService {
     }
     this.db.setPhoto(driveId, "");
     this.db.event(driveId, "photo-cleared", {});
+  }
+
+  /** Stage uploaded bytes into the canonical dir (10MB cap: images only). */
+  private async stageFromUpload(
+    dir: string,
+    data: Uint8Array,
+    name: string | undefined,
+  ): Promise<string> {
+    if (data.length > MAX_IMAGE_BYTES) throw new Error("image > 10MB");
+    const ext = name ? extOfPhotoPath(name) : ".jpg";
+    if (!ext) throw new Error("unsupported image type");
+    const dest = join(dir, `photo${ext}`);
+    await this.guard.write(dest, data);
+    return dest;
+  }
+
+  /** Stage a local server-side file into the canonical dir. */
+  private async stageFromLocal(
+    dir: string,
+    localPath: string,
+  ): Promise<string> {
+    const ext = extOfPhotoPath(localPath);
+    if (!ext) throw new Error("unsupported image type");
+    const dest = join(dir, `photo${ext}`);
+    await this.guard.copy(localPath, dest);
+    return dest;
   }
 }

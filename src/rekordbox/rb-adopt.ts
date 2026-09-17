@@ -153,11 +153,16 @@ function createSchema(state: ArchiveState): void {
   `);
 }
 
-function buildPlan(
+/** Identity indexes over the archive ledger + this source DB's links
+ *  (#199): loading them is pure reads, separate from plan decisions. */
+function loadIdentityIndexes(
   state: ArchiveState,
   sourceDb: string,
-  rows: RekordboxContentRow[],
-): { plan: PlanRow[]; matchedExisting: number; uniqueFiles: number } {
+): {
+  byId: Map<string, TrackIdentityRow>;
+  byPath: Map<string, TrackIdentityRow[]>;
+  linkByContent: Map<string, string>;
+} {
   const tracks = state.db
     .query(
       `SELECT video_id, file_path, source, status, first_seen_at
@@ -185,8 +190,56 @@ function buildPlan(
   const linkByContent = new Map(
     existingLinks.map((row) => [row.content_id, row.video_id]),
   );
+  return { byId, byPath, linkByContent };
+}
+
+/** Resolve (and reserve, when creating) the video id for one content row:
+ *  prior selection wins, then the ledger link, then the same-path track;
+ *  otherwise mint a fresh id and mark the row as a create. */
+function resolveVideoId(
+  row: RekordboxContentRow,
+  indexes: {
+    byId: Map<string, TrackIdentityRow>;
+    byPath: Map<string, TrackIdentityRow[]>;
+    linkByContent: Map<string, string>;
+  },
+  selectedByPath: Map<string, string>,
+  reservedIds: Set<string>,
+): { videoId: string; createsTrack: boolean; matchedExisting: boolean } {
+  const pathKey = identityPathKey(row);
+  const linked = indexes.linkByContent.get(row.contentId);
+  const existingAtPath = indexes.byPath.get(pathKey)?.[0]?.video_id;
+  const selected = selectedByPath.get(pathKey);
+  let videoId =
+    selected ??
+    (linked && indexes.byId.has(linked) ? linked : undefined) ??
+    existingAtPath ??
+    undefined;
+  let createsTrack = false;
+  let matchedExisting = false;
+  if (videoId === undefined) {
+    const direct = `rb-${row.contentId}`;
+    videoId = reservedIds.has(direct)
+      ? generatedId(row.contentId, row.folderPath)
+      : direct;
+    while (reservedIds.has(videoId)) videoId = `${videoId}-x`;
+    reservedIds.add(videoId);
+    createsTrack = true;
+  } else if (existingAtPath !== undefined || linked !== undefined) {
+    matchedExisting = true;
+  }
+  selectedByPath.set(pathKey, videoId);
+  return { videoId, createsTrack, matchedExisting };
+}
+
+function buildPlan(
+  state: ArchiveState,
+  sourceDb: string,
+  rows: RekordboxContentRow[],
+): { plan: PlanRow[]; matchedExisting: number; uniqueFiles: number } {
+  const indexes = loadIdentityIndexes(state, sourceDb);
   const selectedByPath = new Map<string, string>();
-  const reservedIds = new Set(byId.keys());
+  const reservedIds = new Set(indexes.byId.keys());
   const plan: PlanRow[] = [];
   let matchedExisting = 0;
 
@@ -197,32 +250,12 @@ function buildPlan(
       : a.contentId.localeCompare(b.contentId, undefined, { numeric: true });
   });
   for (const row of ordered) {
-    const pathKey = identityPathKey(row);
-    const linked = linkByContent.get(row.contentId);
-    const existingAtPath = byPath.get(pathKey)?.[0]?.video_id;
-    const selected = selectedByPath.get(pathKey);
-    let videoId =
-      selected ??
-      (linked && byId.has(linked) ? linked : undefined) ??
-      existingAtPath ??
-      undefined;
-    let createsTrack = false;
-    if (videoId === undefined) {
-      const direct = `rb-${row.contentId}`;
-      videoId = reservedIds.has(direct)
-        ? generatedId(row.contentId, row.folderPath)
-        : direct;
-      while (reservedIds.has(videoId)) videoId = `${videoId}-x`;
-      reservedIds.add(videoId);
-      createsTrack = true;
-    } else if (existingAtPath !== undefined || linked !== undefined) {
-      matchedExisting += 1;
-    }
-    selectedByPath.set(pathKey, videoId);
+    const resolved = resolveVideoId(row, indexes, selectedByPath, reservedIds);
+    if (resolved.matchedExisting) matchedExisting += 1;
     plan.push({
       row,
-      videoId,
-      createsTrack,
+      videoId: resolved.videoId,
+      createsTrack: resolved.createsTrack,
       fileExists: existsSync(row.folderPath),
     });
   }

@@ -115,12 +115,22 @@ interface ArchiveVerdict {
   inArchive: number;
 }
 
-function deriveVerdict(
+/** Raw work-queue metrics pulled off the payloads (pure). */
+interface ArchiveMetrics {
+  syncRisk: number;
+  qualityDebt: number;
+  retryBacklog: number;
+  unanalyzed: number;
+  analyzed: number;
+  inArchive: number;
+}
+
+export function archiveMetrics(
   ingest: IngestPayload,
   mood: MoodPayload | null,
   lowq: LowqPayload | null,
   grid: GridPayload | null,
-): ArchiveVerdict {
+): ArchiveMetrics {
   const syncRisk = grid?.available
     ? grid.off.length + grid.octave.length + grid.drift.length
     : 0;
@@ -133,27 +143,7 @@ function deriveVerdict(
   // unmetered = in the archive but no mood stamp — the analysis backlog
   const unanalyzed =
     inArchive > 0 && mood?.available ? Math.max(0, inArchive - analyzed) : 0;
-
-  const issues = [
-    syncRisk > 0 && {
-      n: syncRisk,
-      text: `${syncRisk} track${syncRisk === 1 ? "" : "s"} will Beat Sync badly (grid check)`,
-    },
-    qualityDebt > 0 && {
-      n: qualityDebt,
-      text: `${qualityDebt} below the quality bar (LOWQ)`,
-    },
-    retryBacklog > 0 && {
-      n: retryBacklog,
-      text: `${retryBacklog} failed/gone downloads to retry or drop`,
-    },
-    unanalyzed > 0 && {
-      n: unanalyzed,
-      text: `${unanalyzed} not yet mood-analyzed`,
-    },
-  ].filter((x): x is { n: number; text: string } => Boolean(x));
   return {
-    issues,
     syncRisk,
     qualityDebt,
     retryBacklog,
@@ -161,6 +151,38 @@ function deriveVerdict(
     analyzed,
     inArchive,
   };
+}
+
+/** One issue pill per non-zero metric (table of label fns, #199). */
+function metricIssues(m: ArchiveMetrics): { n: number; text: string }[] {
+  return [
+    m.syncRisk > 0 && {
+      n: m.syncRisk,
+      text: `${m.syncRisk} track${m.syncRisk === 1 ? "" : "s"} will Beat Sync badly (grid check)`,
+    },
+    m.qualityDebt > 0 && {
+      n: m.qualityDebt,
+      text: `${m.qualityDebt} below the quality bar (LOWQ)`,
+    },
+    m.retryBacklog > 0 && {
+      n: m.retryBacklog,
+      text: `${m.retryBacklog} failed/gone downloads to retry or drop`,
+    },
+    m.unanalyzed > 0 && {
+      n: m.unanalyzed,
+      text: `${m.unanalyzed} not yet mood-analyzed`,
+    },
+  ].filter((x): x is { n: number; text: string } => Boolean(x));
+}
+
+function deriveVerdict(
+  ingest: IngestPayload,
+  mood: MoodPayload | null,
+  lowq: LowqPayload | null,
+  grid: GridPayload | null,
+): ArchiveVerdict {
+  const metrics = archiveMetrics(ingest, mood, lowq, grid);
+  return { issues: metricIssues(metrics), ...metrics };
 }
 
 /** The verdict banner + secondary issue pills. */

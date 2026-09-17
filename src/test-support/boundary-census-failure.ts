@@ -94,8 +94,36 @@ function isAssignment(kind: ts.SyntaxKind): boolean {
   );
 }
 
+/** One predicate per silent-swallow shape (#199). Splitting the shape
+ *  matchers out of the visitor keeps `catchHasVisibleFailure` a flat
+ *  dispatch; adding a shape is one row here, not another visitor branch. */
+function failureShapes(
+  locals: ReadonlySet<string>,
+): ((node: ts.Node) => boolean)[] {
+  return [
+    (node) => ts.isThrowStatement(node),
+    (node) =>
+      ts.isReturnStatement(node) &&
+      node.expression !== undefined &&
+      isFailureExpression(node.expression),
+    (node) => ts.isCallExpression(node) && isVisibleReporter(node, locals),
+    (node) =>
+      ts.isBinaryExpression(node) &&
+      isAssignment(node.operatorToken.kind) &&
+      ts.isIdentifier(node.left) &&
+      !locals.has(node.left.text) &&
+      (isFailureName(node.left.text) || hasFailureProperty(node.right)),
+    (node) =>
+      (ts.isPostfixUnaryExpression(node) || ts.isPrefixUnaryExpression(node)) &&
+      ts.isIdentifier(node.operand) &&
+      !locals.has(node.operand.text) &&
+      isFailureName(node.operand.text),
+  ];
+}
+
 function catchHasVisibleFailure(block: ts.Block): boolean {
   const locals = localNames(block);
+  const shapes = failureShapes(locals);
   let visible = false;
   const visit = (node: ts.Node): void => {
     if (
@@ -103,30 +131,7 @@ function catchHasVisibleFailure(block: ts.Block): boolean {
       (node !== block && (isFunctionBoundary(node) || ts.isClassLike(node)))
     )
       return;
-    if (ts.isThrowStatement(node)) visible = true;
-    else if (
-      ts.isReturnStatement(node) &&
-      node.expression !== undefined &&
-      isFailureExpression(node.expression)
-    )
-      visible = true;
-    else if (ts.isCallExpression(node) && isVisibleReporter(node, locals))
-      visible = true;
-    else if (
-      ts.isBinaryExpression(node) &&
-      isAssignment(node.operatorToken.kind) &&
-      ts.isIdentifier(node.left) &&
-      !locals.has(node.left.text) &&
-      (isFailureName(node.left.text) || hasFailureProperty(node.right))
-    )
-      visible = true;
-    else if (
-      (ts.isPostfixUnaryExpression(node) || ts.isPrefixUnaryExpression(node)) &&
-      ts.isIdentifier(node.operand) &&
-      !locals.has(node.operand.text) &&
-      isFailureName(node.operand.text)
-    )
-      visible = true;
+    if (shapes.some((matches) => matches(node))) visible = true;
     else ts.forEachChild(node, visit);
   };
   visit(block);
