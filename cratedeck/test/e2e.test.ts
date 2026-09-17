@@ -7,7 +7,26 @@ import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 const FIX_ROOT = `/tmp/cratedeck-e2e-${Date.now()}`;
 const FIX_DRIVE = `${FIX_ROOT}/vol/DJTESTCRATE`;
 const DATA = `${FIX_ROOT}/data`;
-const PORT = 7800 + Math.floor(Math.random() * 100);
+// Random in 7800–7899, then PROBED: the deck launchd service and unrelated
+// user services live in this range (megamem binds :7823), and EADDRINUSE
+// mid-boot surfaces as a confusing "server failed to boot" (2026-09-17
+// suite run). Bind-probe with net.createServer so the spawn below starts
+// on a port that is actually free.
+const PORT = await (async (): Promise<number> => {
+  const { createServer } = await import("node:net");
+  for (let i = 0; i < 100; i++) {
+    const candidate = 7800 + Math.floor(Math.random() * 100);
+    const free = await new Promise<boolean>((resolve) => {
+      const probe = createServer();
+      probe.once("error", () => resolve(false));
+      probe.listen(candidate, "127.0.0.1", () => {
+        probe.close(() => resolve(true));
+      });
+    });
+    if (free) return candidate;
+  }
+  return 7800 + Math.floor(Math.random() * 100); // give up probing; surface boot error
+})();
 
 let serverProc: Bun.Subprocess<"ignore", "pipe", "pipe">;
 let serverStdout = "";
