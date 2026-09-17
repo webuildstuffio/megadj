@@ -74,7 +74,7 @@ web panel. Everything below is measured evidence for the design choices.
 | M6  | CLAP is worst-in-class for music kNN                            | 0.244 — text-alignment towers don't cluster music                                                                 |
 | M7  | 5k-library projections (single pass)                            | effnet 0.8 h · musicnn 1.0 h · vggish 1.0 h · openl3 4.1 h · MERT 5.4 h · clap 0.7 h                              |
 
-### External research review (Sep 14 — [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md))
+### External research review (Sep 14 — [embedding-research-2026-09-14](../archive/embedding-research-2026-09-14.md))
 
 | #   | Finding                                                                                              | Number / source                                                                                                                                                   |
 | --- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -116,7 +116,7 @@ set-generation work** — genre is the easier goal and the better input to
 every downstream pool. **Sep 15 update: the refold (item 2) and the
 demote-and-flag pass SHIPPED (61.7% → 69.2% gated LOO, ≥65% target PASS;
 96/2982 labels flagged disputed — [genre-audit §5b.3](../fulltags/genre-audit.md),
-[tier-0 verdicts](../fulltags/tier0-diagnostics-2026-09-15.md)); the probe
+[tier-0 verdicts](../archive/tier0-diagnostics-2026-09-15.md)); the probe
 lost to kNN (item 3 below), so the readout thread is closed.**
 
 1. **Tier-0 diagnostics** (research review §5, ~4 h): label-error clustering
@@ -134,7 +134,7 @@ lost to kNN (item 3 below), so the readout thread is closed.**
    output, and it is S-sized with a measured target (105 labels → 90%).
 3. ~~**Full-population LOO + the probe experiment** (`genre --eval
 --probe`, `--artist-disjoint`; n=3,500 instead of 180)~~ **DONE Sep 15**
-   ([tier0-diagnostics](../fulltags/tier0-diagnostics-2026-09-15.md)):
+   ([tier0-diagnostics](../archive/tier0-diagnostics-2026-09-15.md)):
    ran live at full population (n=2,982); the probe **lost** to kNN
    (51.5% vs 62.6%, Δ −11.1 — R3's literature prior does not hold
    here) and artist leakage is absent (4.2%), so the tower-swap/probe
@@ -181,10 +181,10 @@ engines; cloud anything.
 | [genre-audit](../fulltags/genre-audit.md) (was 05)                                           | Genre policy + v3 statistical revalidation (FullTags doc)                                      | current                |
 | [embedding-models](../fulltags/embedding-models.md) (was 06)                                 | Tower benchmark, fusion sweep, MERT verdict (FullTags doc)                                     | current                |
 | [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07)                     | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc)                       | current                |
-| [embedding-research-2026-09-14](../fulltags/embedding-research-2026-09-14.md)                | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot               |
+| [embedding-research-2026-09-14](../archive/embedding-research-2026-09-14.md)                | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot               |
 | [08-audit-and-plan](08-audit-and-plan.md)                                                    | Implementation audit + per-item sketches (reference)                                           | reference              |
 | [09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md)               | `setbuild → megaset` atomic rename plan                                                        | ✅ executed 2026-09-15 |
-| [tier0-diagnostics-2026-09-15](../fulltags/tier0-diagnostics-2026-09-15.md)                  | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current                |
+| [tier0-diagnostics-2026-09-15](../archive/tier0-diagnostics-2026-09-15.md)                  | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current                |
 | [10-findings](10-findings.md)                                                                | **this page** — distilled verdicts + next actions                                              | current                |
 
 ---
