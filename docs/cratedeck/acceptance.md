@@ -51,6 +51,12 @@ that trust", architecture §9). Last audited: 2026-09-15.
   exit codes); gig mode + new-music radar remain →
   [#148](https://github.com/webuildstuffio/megadj/issues/148) (radar);
   gig mode was closed NOT_PLANNED (#140)
+- **F10 radar (SHIPPED 2026-09-16, #148)** — archive-vs-drive delta over
+  one pure engine (`cratedeck/src/radar.ts`, folded-path + artist-title
+  fallback): `/api/fleet/radar`, `deckctl radar`, `deck_radar` MCP, Fleet
+  ⌗ Radar tab. Copy-only (`megadj shelf-sync`); per-drive `snapshotAt`
+  freshness; never-scanned/light-scan drives read "unknown", never
+  current. v1.1 "run as job" stays out of scope.
 
 ## Sep 2026 UI redesign (verified end-to-end)
 

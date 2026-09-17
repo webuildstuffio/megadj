@@ -243,8 +243,10 @@ export const JOB_KINDS = [
 export type JobKind = (typeof JOB_KINDS)[number];
 
 /** Job kinds enqueued against a DRIVE (POST /api/drives/:id/jobs) — the
- *  deckctl run / deck_run subset. The rest (ingest = local-archive job;
- *  the hygiene and fixes family routes) have their own enqueue endpoints. */
+ *  deckctl run / deck_run subset (grid-health included: the #167 card and
+ *  KIND_DOCS point operators at `deckctl run SHELF1 grid-health`). The
+ *  rest (ingest = local-archive job; the hygiene and fixes family
+ *  routes) have their own enqueue endpoints. */
 export const DRIVE_JOB_KINDS = [
   "scan",
   "verify",
@@ -252,6 +254,7 @@ export const DRIVE_JOB_KINDS = [
   "benchmark",
   "checksum",
   "speedtest",
+  "grid-health",
 ] as const satisfies readonly JobKind[];
 
 export type JobStatus =
@@ -630,56 +633,10 @@ export interface FleetDiff {
   summary: string;
 }
 
-// ---- new-music radar (#148, PRD F10): archive rows a drive is missing ----
-// Engine: cratedeck/src/radar.ts (pure); the UI's RadarMiss rows re-export
-// from here so page and server share one contract.
-
-/** One archive track a drive's snapshot lacks (radar preview row). */
-export interface RadarMiss {
-  /** NFC-casefolded Contents-relative path (the fleet path key). */
-  path: string;
-  title: string | null;
-  artist: string | null;
-  videoId: string;
-  /** ISO first_seen_at from the archive ledger (display only). */
-  firstSeenAt: string | null;
-}
-
-/** Per-drive radar answer + the snapshot freshness the delta was computed
- *  against (the freshness rule: a stale snapshot reads as stale, never as
- *  "drive is current"). */
-export interface RadarResult {
-  driveId: string;
-  driveName: string;
-  /** Downloaded archive rows compared (the mirror side's size). */
-  archiveTracks: number;
-  /** Drive inventory rows compared. */
-  driveTracks: number;
-  /** COUNT truth — never derived from a displayed (capped) list. */
-  missingCount: number;
-  /** Newest-first preview, capped. */
-  missing: RadarMiss[];
-  summary: string;
-  /** Snapshot age: ISO taken_at of the newest fleet_tracks row for this
-   *  drive, null = never scanned (radar answers "unknown", not 0). */
-  snapshotAt: string | null;
-  /** false when the archive DB is absent (radar unavailable, not zero). */
-  archiveAvailable: boolean;
-  /** false when the drive's latest snapshot is a light scan (no track
-   *  inventory — the delta reads "unknown", never a fake full-missing
-   *  count). true = the delta was computed over a real inventory. */
-  inventoryAvailable: boolean;
-}
-
-/** Fleet-wide radar: one row per known drive + the overall census. */
-export interface FleetRadar {
-  drives: RadarResult[];
-  /** SUM of per-drive missingCount — each drive answers its own delta. */
-  totalMissing: number;
-  archiveTracks: number;
-  archiveAvailable: boolean;
-  summary: string;
-}
+// ---- new-music radar (#148, PRD F10): wire types moved to shared/radar.ts --
+// (the megaset.ts precedent — shared/types.ts is the import leaf, but the
+// leaf re-exports so existing `from "../shared/types"` callers don't move.)
+export type { RadarMiss, RadarResult, FleetRadar } from "./radar";
 
 // ---- archive reads: one browser-safe contract for producers + consumers ---
 // The dedicated shared leaf owns the wire shapes. Server producers annotate

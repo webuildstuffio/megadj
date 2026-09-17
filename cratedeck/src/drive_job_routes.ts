@@ -7,7 +7,7 @@
 import { readdirSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { CrateConfig } from "./config";
-import type { Drive, JobKind } from "../shared/types";
+import { DRIVE_JOB_KINDS, type Drive, type JobKind } from "../shared/types";
 import { MAX_IMAGE_BYTES } from "./images";
 
 function isContainedMount(root: string, candidate: string): boolean {
@@ -135,17 +135,14 @@ export function makeEnqueueDriveJob(deps: {
       kind: JobKind;
       origin?: string;
     };
-    if (
-      ![
-        "scan",
-        "verify",
-        "mirror",
-        "benchmark",
-        "checksum",
-        "speedtest",
-      ].includes(body.kind)
-    ) {
-      return json({ error: "bad kind" }, 400);
+    // SSOT check: DRIVE_JOB_KINDS (which deckctl run's help renders) is
+    // the authority — a literal array here was a hand-copied twin that
+    // already drifted once (grid-health 400'd while MCP advertised it).
+    if (!(DRIVE_JOB_KINDS as readonly string[]).includes(body.kind)) {
+      return json(
+        { error: `bad kind — one of: ${DRIVE_JOB_KINDS.join(", ")}` },
+        400,
+      );
     }
     const drive = getDrive(id);
     if (!drive?.mounted) return json({ error: "drive not mounted" }, 409);

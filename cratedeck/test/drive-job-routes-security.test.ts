@@ -6,7 +6,7 @@ import {
   makeEnqueueDriveJob,
   resolveMountPoint,
 } from "../src/drive_job_routes";
-import type { Drive } from "../shared/types";
+import { DRIVE_JOB_KINDS, type Drive } from "../shared/types";
 
 function config(volumesRoot: string): CrateConfig {
   return { volumesRoot } as CrateConfig;
@@ -108,4 +108,47 @@ test("enqueue rejects a persisted traversal name before creating a job", async (
     ),
   ).rejects.toThrow("outside configured volumes root");
   expect(enqueued).toBe(false);
+});
+
+test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects junk kinds", async () => {
+  const root = mkdtempSync("/tmp/cratedeck-kinds-");
+  mkdirSync(join(root, "SHELF1")); // resolveMountPoint requires a real dir
+  const enqueuedKinds: string[] = [];
+  const enqueue = makeEnqueueDriveJob({
+    cfg: config(root),
+    images: {
+      async choose() {
+        return "unused";
+      },
+      clear() {},
+    },
+    jobs: {
+      enqueue(_driveId, kind) {
+        enqueuedKinds.push(kind);
+        return { id: "job-1" };
+      },
+    },
+    getDrive: () => mountedDrive("SHELF1"),
+    json: (data, status = 200) => Response.json(data, { status }),
+  });
+  const post = (kind: string) =>
+    enqueue(
+      new Request("http://127.0.0.1:7742/api/drives/drive-1/jobs", {
+        method: "POST",
+        body: JSON.stringify({ kind }),
+      }),
+      "drive-1",
+    );
+  // The regression: grid-health used to 400 here while the card, KIND_DOCS,
+  // and the parity doc advertised `deckctl run SHELF1 grid-health`.
+  for (const kind of DRIVE_JOB_KINDS) {
+    const r = await post(kind);
+    expect(r.status).toBe(200);
+  }
+  expect(enqueuedKinds).toContain("grid-health");
+  const bad = await post("not-a-kind");
+  expect(bad.status).toBe(400);
+  expect(((await bad.json()) as { error: string }).error).toContain(
+    "grid-health",
+  );
 });

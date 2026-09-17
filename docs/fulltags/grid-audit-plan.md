@@ -359,6 +359,11 @@ edits worth keeping.
   with a Copy button carrying the exact `megadj` fix command per item,
   then raw detail. Census totals from `COUNT`, never from summing the
   displayed bucket list.
+  **SHIPPED 2026-09-16 (#167, 2ac6a22):** Archive ⌗ Grid health card —
+  `grid-health` job kind + `GET /api/grid-health`(+`/scan`) +
+  `GridHealthCard.tsx`; verdict banner, worst-first queue with
+  `gridFixCommand()` per row, COUNT-truth truncation note, triage
+  freshness line. Repair itself remains GA-06 (blocked on #147).
 
 ### GA-06 — Repair (writer) — blocked on GA-07's verdict
 
