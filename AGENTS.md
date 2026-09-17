@@ -187,3 +187,23 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - MegaMem workspace: `megamem search "<query>"` before grepping docs; never
   re-index manually. `tokensave` MCP is rooted per project — mis-rooted
   results mean fix the root flag, never the index.
+## Learned User Preferences
+
+- Types informally with frequent typos and stream-of-consciousness requests; infers intent from context rather than asking clarifying questions.
+- "fully 100% 10x" is the run-to-completion bar — no partial fixes, no dangling follow-ups; bare "10x" pushes polish harder each pass.
+- When fixing a bug, harden the fix into `AGENTS.md` / skills / docs so the same class of bug cannot recur (regression test + doc update in the same pass).
+- Audit and consolidate before adding — one CLI/script with different params over new one-offs, merge duplicate docs; stale canvases are working artifacts: audit them, file surviving opportunities as GitHub issues, then delete the canvas.
+- Turns audit/code-quality findings into GitHub issues first (batched ~3–10, one `type:*`/`priority:*`/`effort:*` label each), then burns them down in later sessions; issues close only with measured evidence, and fixes land as logical chunks pushed straight to `main`.
+- Re-sends identical messages as emphasis ("do another 2 genre categorization features" ×2) — treat duplicates as "keep going", not new scope; never restart or duplicate in-flight work because of a re-send.
+- Wants live, measured numbers with a cited timestamp for any status/coverage answer — stale or remembered counts repeatedly caused confusion; prefers an honest "I don't know" over a guessed figure.
+- Expects a locally running dev server to hand-test UI changes ("dev up please and let me test it out").
+
+## Learned Workspace Facts
+
+- `AGENTS.md` and docs content is test-pinned by census tests (the two `boundary-*-census.test.ts` strings, plus `docs-paths`/`docs-safety` censuses) — keep pinned strings intact when condensing; archive-internal broken links are intentionally left (frozen snapshots).
+- Genre source matching has one artist-gate SSOT, `fulltags/src/name-match.ts` (test-pinned): SoundCloud and Beatport scorers both route through it; the hard must-contain-artist gate is what makes remix-safe matches possible.
+- `fulltags/src/bandcamp.ts` is the fetch ladder's third genre vote (W2b): `autocomplete_elastic` search → `scoreBcHits` (shares the artist gate) → JSON-LD/HTML page parse (tags, genre, label, art); `bcGenre` refuses numeric/`Music` junk like the SC/BP arms.
+- Genre vocabularies are consolidated in `fulltags/src/genre-vocab.ts` (one module, plainly-named maps) — it replaced the `GENRE_MAP`/`SC_GENRE_CANON`/`DJ_GENRES`/`GENRE_FAMILY` twins and the two different `inferGenre` functions.
+- Genre writes stay first-win as of Sep 16; the weighted vote ladder (#173) is designed, not verified shipped (a `genre-vote.ts` WIP exists): planned weights are measured (Beatport 6 > SoundCloud 5 = Bandcamp), SC trust raised because it carries ~3.4× the remix rate, migration is shadow-mode first. Don't quote canvas plans as shipped.
+- `archive.db` is megadj's own intake ledger, not a shelf copy: rows decompose into YouTube liked-videos (music-checked by `megadj sync`, mostly never downloaded), local ingests, and playlists; `pending` ≠ gap and `skipped_not_music` rows are correctly parked non-music. Never present ledger counts as library size.
+- Concurrent-agent collisions resolve content-first: a foreign commit that swept staged files counts as landed when the diff is byte-identical vs the worktree (hash is irrelevant); a stash round-trip restores content byte-identical but loses the staged/unstaged distinction.
