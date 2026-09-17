@@ -10,7 +10,7 @@ import { RecordLedger } from "./record-ledger";
 // fulltags/src/genre-vocab.ts (#187 — one module owns every named map).
 // This file keeps the kNN inference engine; `familyOf` is the injected
 // label→family map.
-import { familyOf as defaultFamilyOf } from "../../fulltags/src/exports";
+import { familyOf as defaultFamilyOf } from "../fulltags/genre-vocab";
 
 export { cosineSimilarity } from "../../cratedeck/shared/similarity";
 

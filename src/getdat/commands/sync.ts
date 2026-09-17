@@ -13,12 +13,9 @@ import { Downloader, type DownloadResult } from "../downloader";
 import { ytdlpCookieArgs } from "../ytdlp";
 import { commandLog, ProgressBar } from "../../progress";
 import { writeJson } from "../../shared/cli-output";
-import {
-  applyTags,
-  buildMetadata,
-  guessFromFreeText,
-  type YtdlpInfo,
-} from "../../../fulltags/src/exports";
+import { applyTags } from "../../fulltags/writer";
+import { buildMetadata, type YtdlpInfo } from "../../fulltags/metadata-build";
+import { guessFromFreeText } from "../../fulltags/genre-vocab";
 import { isRecord, isUnknownArray } from "../../../cratedeck/shared/guards";
 
 const isTty = process.stdout.isTTY ?? false;

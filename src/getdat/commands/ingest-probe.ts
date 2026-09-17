@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
 import { copyFile, mkdir, rename, stat, unlink } from "node:fs/promises";
 import { md5FileStream } from "../../shared/hash";
 
-import type { ParsedName, Probe } from "../../../fulltags/src/exports";
+import type { ParsedName, Probe } from "../../fulltags/media-probe";
 import { errorText } from "../../shared/error-text";
 import { walkAudioDir } from "../../shared/audio-walk";
 

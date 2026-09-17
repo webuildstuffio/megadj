@@ -24,10 +24,8 @@ import {
   isRecord,
   isUnknownArray,
 } from "../../cratedeck/shared/guards";
-import {
-  probeMediaSync,
-  fingerprintFileLength,
-} from "../../fulltags/src/exports";
+import { probeMediaSync } from "../fulltags/media-probe";
+import { fingerprintFileLength } from "../fulltags/fingerprint";
 import { rekordboxRunning } from "./guard.js";
 import {
   applyConfirmationRefusal,

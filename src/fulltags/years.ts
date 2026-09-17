@@ -2,7 +2,8 @@
 import { DB_PATH, MUSIC_DIR } from "../cli-env";
 import { ArchiveState } from "../archive/state";
 import { writeJson } from "../shared/cli-output";
-import { groundTruth, writePatchSync } from "../../fulltags/src/exports";
+import { groundTruth } from "./readers";
+import { writePatchSync } from "./writer";
 
 interface Row {
   video_id: string;

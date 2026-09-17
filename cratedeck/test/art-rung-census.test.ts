@@ -25,8 +25,8 @@ const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
 function producerRungs(): string[] {
   const rungs = new Set<string>(["sc", "sc-orig"]);
   for (const p of [
-    "fulltags/src/fetch-stages.ts",
-    "fulltags/src/fetch-art.ts",
+    "src/fulltags/fetch-stages.ts",
+    "src/fulltags/fetch-art.ts",
   ]) {
     const src = read(p);
     for (const m of src.matchAll(/label: "([a-z0-9-]+)"/g)) {

@@ -53,7 +53,7 @@ the remix's, not the original's.
    can't display or export (glyph tables, mojibake, illegal filename
    characters, over-long paths). `megadj booth-fix [--apply --yes]`
    proposes (and applies) the safe fixes. Fleet selection + citations:
-   `fulltags/src/fleet.ts`; the full pick → audit → fix → reload loop is
+   `src/fulltags/fleet.ts`; the full pick → audit → fix → reload loop is
    a skill: `.claude/skills/booth-check/SKILL.md`.
 2. **Source-correct metadata** — the source the track came from is the
    first source of truth (SoundCloud page art, remix year from the upload
@@ -72,7 +72,7 @@ the remix's, not the original's.
    (SC original-res → Beatport 1500² → gateways → mp3-twin → Deezer →
    iTunes → AI-generated cover as the rare, queued last resort). Same
    ratchet for audio: LOWQ tracks are re-fetch candidates. The
-   ladder's single home is `fulltags/src/art-sources.ts`.
+   ladder's single home is `src/fulltags/art-sources.ts`.
 4. **AI fills the gaps — explicitly and measurably** — deterministic sources
    first; `--ai-fallback` opts into OpenRouter genre/year proposals with a
    ≥0.7 confidence gate. `megadj years` then verifies years against the source
@@ -90,7 +90,7 @@ enrich`, `megadj artwork`, `megadj audit`, `megadj tag-check` (tag
 structure + booth-text health), `megadj years`, `megadj booth-fix`,
 `megadj beats`, `megadj mood`, `megadj cues`, `megadj similar`,
 `megadj megaset`, `megadj gold-report`/`regate` (gold-set gate harness)
-**Also:** FullTags ships standalone in [`fulltags/`](../fulltags/README.md)
+**Also:** FullTags ships standalone in [`src/fulltags/`](../fulltags/README.md)
 — same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
 commands are thin wrappers over it.
 **Docs:** [new-music-intake skill](../.claude/skills/new-music-intake/SKILL.md)
@@ -185,5 +185,5 @@ bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 
 Going deeper: [getdat/usb-sync.md](getdat/usb-sync.md) (pipeline what/why) ·
-[`fulltags/`](../fulltags/README.md) (the enrichment engine) ·
+[`src/fulltags/`](../fulltags/README.md) (the enrichment engine) ·
 [fulltags/fulltags-roadmap.md](fulltags/fulltags-roadmap.md) (what's next for tags)

@@ -2,10 +2,8 @@
 // ladder (md5, fpcalc fingerprint, quality rank). Split from shelf-dedupe.ts
 // so the verdict logic and the probes read (and test) separately.
 import { md5FileChunked } from "../shared/hash";
-import {
-  fingerprintFileLength,
-  probeMediaSync,
-} from "../../fulltags/src/exports";
+import { fingerprintFileLength } from "../fulltags/fingerprint";
+import { probeMediaSync } from "../fulltags/media-probe";
 
 /** MD5 in-process via the shared chunked seam (src/shared/hash.ts, issue
  *  #70): 300 MB WAV sets never enter memory whole, and under bun

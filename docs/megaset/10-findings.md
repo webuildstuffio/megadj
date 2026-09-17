@@ -181,10 +181,10 @@ engines; cloud anything.
 | [genre-audit](../fulltags/genre-audit.md) (was 05)                                           | Genre policy + v3 statistical revalidation (FullTags doc)                                      | current                |
 | [embedding-models](../fulltags/embedding-models.md) (was 06)                                 | Tower benchmark, fusion sweep, MERT verdict (FullTags doc)                                     | current                |
 | [genre-taxonomy-sources](../fulltags/genre-taxonomy-sources.md) (was 07)                     | Beatport/Discogs/EN anchors, Discogs-400 head, LLM design (FullTags doc)                       | current                |
-| [embedding-research-2026-09-14](../archive/embedding-research-2026-09-14.md)                | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot               |
+| [embedding-research-2026-09-14](../archive/embedding-research-2026-09-14.md)                 | External research review: towers, probes, compute, licences + adoption verdicts (FullTags doc) | snapshot               |
 | [08-audit-and-plan](08-audit-and-plan.md)                                                    | Implementation audit + per-item sketches (reference)                                           | reference              |
 | [09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md)               | `setbuild → megaset` atomic rename plan                                                        | ✅ executed 2026-09-15 |
-| [tier0-diagnostics-2026-09-15](../archive/tier0-diagnostics-2026-09-15.md)                  | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current                |
+| [tier0-diagnostics-2026-09-15](../archive/tier0-diagnostics-2026-09-15.md)                   | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current                |
 | [10-findings](10-findings.md)                                                                | **this page** — distilled verdicts + next actions                                              | current                |
 
 ---

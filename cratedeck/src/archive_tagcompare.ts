@@ -3,7 +3,7 @@
 // FILE is truth) vs the archive mirror columns vs the rb-adopt mirror
 // row, plus the difference table the UI renders. The fleet-wide census
 // stays in archive_tagcensus.ts.
-import { groundTruth } from "../../fulltags/src/exports";
+import { groundTruth } from "../../src/fulltags/readers";
 import type { ArchiveTrackTagCompare } from "../shared/archive-wire";
 import type { ArchiveQuery } from "./archive_types";
 

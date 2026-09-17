@@ -8,10 +8,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../archive/state";
 import { goldReport, predictedPhraseBars } from "./gold-report";
-import {
-  GOLD_SCHEMA_VERSION,
-  type GoldAnnotation,
-} from "../../fulltags/src/exports";
+import { GOLD_SCHEMA_VERSION, type GoldAnnotation } from "./gold";
 import { runCli, cliEnv } from "../test-support/cli-run";
 
 /**

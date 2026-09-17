@@ -11,7 +11,8 @@
 import { readFile, appendFile } from "node:fs/promises";
 import { join, basename, extname } from "node:path";
 import type { ArchiveState } from "../archive/state";
-import { embedArt, fetchImage, ARTWORK_EXTS } from "../../fulltags/src/exports";
+import { embedArt, AUDIO_EXTS as ARTWORK_EXTS } from "./writer";
+import { fetchImage } from "./art-sources";
 import type { QueueEntry } from "../getdat/commands/queue";
 export { type QueueEntry } from "../getdat/commands/queue";
 import { commandLog } from "../progress";

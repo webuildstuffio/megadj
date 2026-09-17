@@ -15,7 +15,7 @@ import { $ } from "bun";
 import type { ArchiveState, TrackRow } from "../../archive/state";
 import { commandLog } from "../../progress";
 import { writeJson } from "../../shared/cli-output";
-import { sanitizeGenreFolder } from "../../../fulltags/src/exports";
+import { sanitizeGenreFolder } from "../../fulltags/schema";
 
 export interface OrganizeOptions {
   state: ArchiveState;

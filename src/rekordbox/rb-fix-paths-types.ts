@@ -1,7 +1,12 @@
 // rb-fix-paths-types.ts — the result-row types for rb-fix-paths (#42
 // item 2 split): a type-only leaf so the index/ladder module and the
 // command module can share the shapes without an import cycle.
-import type { LiveIndex } from "./rb-fix-paths-index";
+export interface LiveIndex {
+  byNorm: Map<string, string>; // NFC+casefold abs path
+  byBasename: Map<string, string[]>; // casefold basename → paths
+  byStripped: Map<string, string[]>; // stripped-copy-suffix name → paths
+  byPrefix20: Map<string, string[]>; // 20-char prefix → paths
+}
 
 export interface RbFixRow {
   /** Decimal text preserves Rekordbox's 64-bit ID exactly across JSON. */

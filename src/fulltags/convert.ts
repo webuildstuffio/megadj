@@ -14,13 +14,10 @@
  * summary names every straggler so a re-run can retry them.
  */
 import { basename } from "node:path";
-import {
-  walkAudioFiles,
-  probeFile,
-  playerCompat,
-  isHiresOnly,
-  wavToAiff,
-} from "../../fulltags/src/exports";
+import { walkAudioFiles } from "./writer";
+import { probeFile } from "./media-probe";
+import { playerCompat, isHiresOnly } from "./player-compat";
+import { wavToAiff } from "./convert-aiff";
 import {
   fetchAndEmbedArtwork,
   flushArtworkQueue,

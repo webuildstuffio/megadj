@@ -34,7 +34,7 @@ import {
   dedupScanScript,
   dedupVerifyScript,
 } from "./rb-dedup-scripts.js";
-import { fingerprintFileLength } from "../../fulltags/src/exports";
+import { fingerprintFileLength } from "../fulltags/fingerprint";
 import { inspectMutationPaths } from "./rb-dedup-support.js";
 import {
   applyConfirmed,

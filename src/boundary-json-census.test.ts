@@ -33,8 +33,8 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "deckctl consumes its own server job contract; invalid JSON terminates the command visibly.",
   ...reviewed(EXPLICIT_NULL_REASON, [
     "cratedeck/src/archive_overview.ts::parseCuePoints::JSON.parse(raw)",
-    "fulltags/src/parse-json.ts::parseJsonObject::JSON.parse(raw)",
-    "fulltags/src/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
+    "src/fulltags/parse-json.ts::parseJsonObject::JSON.parse(raw)",
+    "src/fulltags/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
     // #173 genre-vote breakdown: the vote ledger's explainability column;
     // corrupt JSON reads as an empty breakdown, never a throw into a query.
     "src/fulltags/genre-vote.ts::parseVotes::JSON.parse(raw)",
@@ -96,13 +96,16 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // path re-homes one parse and genre-vote.ts parseVotes adds one;
     // sanctioned 16→17 (parseVotes joins EXPLICIT_NULL: corrupt vote
     // breakdown reads as empty, never a throw into a query).
+    // Sep 17 (#193): digest changed — the fulltags package folded into
+    // src/fulltags (digest input re-rooted; same calls, same guards,
+    // counts unchanged).
     // Sep 16 (#42): digest changed — detect.ts's USB-tree family moved
     // to detect-usb.ts (parseUsbTreeJson) and photo primitives to
     // photo-files.ts; same calls, same guard shapes, new file paths.
     audited: 62,
     guarded: 45,
     sanctioned: 17,
-    digest: "7eae689b2904be95c1f8e4e42879acbd7d4398155d4342e3d96fd6eea3bcaf53",
+    digest: "cb9c417ea96308c3bd96753dd403d1bbfbdc844b10736c9bb2fb9ccf7415899b",
   });
 });
 

@@ -30,7 +30,7 @@ import { l2normalize } from "../../cratedeck/shared/vector-space";
 import { tier0Diagnostics } from "./genre-diagnostics";
 import { probeLeaveOneOut, type ProbeRow } from "./linear-probe";
 import { refoldDetail, scoringFamily } from "./genre-refold";
-import { isUmbrellaLabel } from "../../fulltags/src/exports";
+import { isUmbrellaLabel } from "./genre-vocab";
 import { classifyDisputes } from "./genre-flag";
 import { collectDisputes, resolveDispute } from "./genre-disputes";
 import type { ArchiveState } from "../archive/state";

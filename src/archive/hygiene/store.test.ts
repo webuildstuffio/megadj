@@ -133,6 +133,74 @@ describe("HygieneStore", () => {
     expect(s.get(f2.id)?.status).toBe("failed");
   });
 
+  // #9-class status bleed: the OLD natural key was (kind, keeper_path,
+  // paths[1]) — null keeper + null loser for every singleton kind, so all
+  // zero-byte/junk findings collapsed onto ONE row and a confirm on file
+  // A silently absorbed file B's evidence on the next scan.
+  test("singleton kinds key on their file — two files never share a row", () => {
+    const s = store();
+    const a = finding({
+      kind: "zero-byte",
+      severity: "likely",
+      autoSafe: false,
+      paths: ["/V/Contents/A/empty1.mp3"],
+      bytes: [0],
+      md5s: [null],
+      keeperPath: null,
+      proposedAction: { type: "delete-corrupt" },
+    });
+    const b = finding({
+      kind: "zero-byte",
+      severity: "likely",
+      autoSafe: false,
+      paths: ["/V/Contents/A/empty2.mp3"],
+      bytes: [0],
+      md5s: [null],
+      keeperPath: null,
+      proposedAction: { type: "delete-corrupt" },
+    });
+    s.upsert([a, b]);
+    expect(s.list({ kind: "zero-byte" }).length).toBe(2);
+    // deciding A must not touch B
+    s.decide(a.id, true);
+    expect(s.get(a.id)?.status).toBe("confirmed");
+    expect(s.get(b.id)?.status).toBe("open");
+    // a re-run of BOTH keeps B open (identical evidence → no rewrite)
+    const rerun = s.upsert([
+      finding({
+        kind: "zero-byte",
+        severity: "likely",
+        autoSafe: false,
+        id: a.id,
+        paths: ["/V/Contents/A/empty1.mp3"],
+        bytes: [0],
+        md5s: [null],
+        keeperPath: null,
+        proposedAction: { type: "delete-corrupt" },
+        createdAt: a.createdAt,
+      }),
+      b,
+    ]);
+    expect(rerun.written).toBe(0);
+    expect(s.get(b.id)?.status).toBe("open");
+    // B's evidence changes → only B re-opens/status resets; A untouched
+    const bChanged = finding({
+      kind: "zero-byte",
+      severity: "likely",
+      autoSafe: false,
+      id: newFindingId(),
+      paths: ["/V/Contents/A/empty2.mp3"],
+      bytes: [512],
+      md5s: [null],
+      keeperPath: null,
+      proposedAction: { type: "delete-corrupt" },
+    });
+    const second = s.upsert([bChanged]);
+    expect(second.written).toBe(1);
+    expect(s.get(a.id)?.status).toBe("confirmed");
+    expect(s.get(a.id)?.paths[0]).toBe("/V/Contents/A/empty1.mp3");
+  });
+
   test("list filters by status/kind/severity", () => {
     const s = store();
     s.upsert([

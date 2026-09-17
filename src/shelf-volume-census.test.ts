@@ -29,9 +29,9 @@ const TS_ROOTS = [
   "cratedeck/src",
   "cratedeck/shared",
   "cratedeck/web",
-  "fulltags",
   "tools",
 ];
+// fulltags merged into src/fulltags (#193) — already covered by "src".
 
 function isProductionTs(path: string): boolean {
   return (

@@ -32,14 +32,16 @@ import { MUSIC_DIR } from "../cli-env";
 import { createHash } from "node:crypto";
 import {
   aggregateScores,
+  scoreGoldTrack,
+  type GoldMetrics,
+  type GoldTrackScore,
+} from "./gold-score";
+import {
   goldDir,
   loadGoldSet,
   splitGoldSet,
-  scoreGoldTrack,
   type GoldAnnotation,
-  type GoldMetrics,
-  type GoldTrackScore,
-} from "../../fulltags/src/exports";
+} from "./gold";
 
 /** blake2b256 hex of a file — the same fingerprint the gold set keys
  * annotations by. Null when the file is missing/unreadable (the track

@@ -23,11 +23,12 @@ test("no bun-shebang scripts outside the three CLI entry files", () => {
   // git hook, not by operators — it IS its surface).
   const allowed = new Set([
     "src/cli.ts",
-    "fulltags/cli.ts",
+    "src/fulltags/cli.ts",
     "tools/loc-budget.ts",
   ]);
   const offenders: string[] = [];
-  for (const f of ["src", "fulltags", "cratedeck", "tools"])
+  for (const f of ["src", "cratedeck", "tools"])
+    // fulltags -> src/fulltags (#193)
     for (const line of walkShebangs(join(repo, f)))
       if (!allowed.has(line.path))
         offenders.push(`${line.path}: ${line.firstLine.trim()}`);
@@ -43,7 +44,8 @@ test("no import.meta.main entry blocks outside sanctioned entry points", () => {
     "tools/loc-budget.ts",
   ]);
   const offenders: string[] = [];
-  for (const f of ["src", "fulltags", "cratedeck/src", "tools"]) {
+  for (const f of ["src", "cratedeck/src", "tools"]) {
+    // #193
     for (const p of walkTs(join(repo, f))) {
       if (allowed.has(p) || p.endsWith(".test.ts")) continue;
       if (read(p).includes("import.meta.main")) offenders.push(p);
@@ -72,14 +74,16 @@ test("knip lists no library module as a workspace entry point", () => {
 });
 
 test("fulltags verify-key verb exists and is documented", () => {
-  const cli = read("fulltags/cli.ts");
+  const cli = read("src/fulltags/cli.ts");
   expect(cli).toContain('"verify-key"');
   const help = cli;
   expect(help).toContain("verify-key <folder>");
   // the gate contract is in the help text (agent-facing surface)
   expect(help).toContain("80% exact agreement");
   // the old bare path is gone everywhere operators look
-  expect(read("fulltags/README.md")).not.toContain("fulltags/verify-key.ts");
+  expect(read("src/fulltags/README.md")).not.toContain(
+    "fulltags/verify-key.ts",
+  );
 });
 
 // --- tiny walkers (test-local; the prod walker is sync/fs-rooted too) ---

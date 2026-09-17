@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeGenre } from "../../fulltags/src/exports";
+import { normalizeGenre } from "../fulltags/genre-vocab";
 import { genreFamily, inferGenre } from "./similar";
 describe("archive similarity genre voting", () => {
   test("normalizes and buckets common genre labels", () => {

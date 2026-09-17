@@ -31,15 +31,11 @@
  */
 import { basename } from "node:path";
 import { existsSync } from "node:fs";
-import {
-  groundTruth,
-  walkAudioFiles,
-  probeFile,
-  playerCompat,
-  isHiresOnly,
-  boothTextCompat,
-  type TextCompatResult,
-} from "../../fulltags/src/exports";
+import { groundTruth } from "./readers";
+import { walkAudioFiles } from "./writer";
+import { probeFile } from "./media-probe";
+import { playerCompat, isHiresOnly } from "./player-compat";
+import { boothTextCompat, type TextCompatResult } from "./booth-text";
 import { fixBoothText } from "./booth-fix-text";
 import type { BoothFixRow, BoothFixResult } from "./booth-fix-types";
 import type { ArchiveState } from "../archive/state";
@@ -95,7 +91,7 @@ export async function boothFix(opts: BoothFixOptions): Promise<BoothFixResult> {
   const seen = new Set<string>();
   let checked = 0;
   let applied = 0;
-  const { getBoothFleet } = await import("../../fulltags/src/exports");
+  const { getBoothFleet } = await import("./player-compat");
   const sink = { apply, applied, log };
 
   for (const p of walkRoots(opts.musicDir, opts.alsoWalk)) {

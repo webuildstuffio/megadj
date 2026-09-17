@@ -14,7 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { anlzSpike } from "./anlz-spike";
-import { buildAnlz } from "../../fulltags/src/exports";
+import { buildAnlz } from "../fulltags/anlz";
 
 const TEST_ROOT = mkdtempSync(join(tmpdir(), "megadj-anlz-spike-test-"));
 const TEST_SPIKE_DIR = join(TEST_ROOT, "baselines");

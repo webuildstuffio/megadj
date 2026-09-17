@@ -34,7 +34,8 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   "docs/fulltags/fulltags-roadmap.md": {
     // rev-6 re-gate note describes the deleted bar-lag readout as it
     // was (the #42 split later moved the probes to sibling modules).
-    "fulltags/src/analysis.ts":
+    // (#193 fold renamed the tree; the historical path is the old root.)
+    "src/fulltags/analysis.ts":
       "historical rev line (deleted tempoFromBeatGrid, former module path)",
     // §4 lesson 7 names the deleted shim's fold-in + CUT dates (#93);
     // recoverable from git history, referenced as history on purpose.

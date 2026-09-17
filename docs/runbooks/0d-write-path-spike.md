@@ -97,7 +97,7 @@ megadj rb-anlz-spike compare --tag q2   # did anything change?
 
 ## Q4 — Direct ANLZ grid edit (only if Q3 failed)
 
-Uses the `fulltags/src/anlz.ts` decoder (validated against the
+Uses the `src/fulltags/anlz.ts` decoder (validated against the
 crate-digger/djl-analysis/fourfour specs) plus the rbox writer claim.
 Work on ONE sacrificial track; keep the pre-edit copy.
 

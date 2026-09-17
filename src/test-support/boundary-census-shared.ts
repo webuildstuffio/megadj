@@ -32,9 +32,9 @@ export const PRODUCTION_ROOTS = [
   "cratedeck/src",
   "cratedeck/shared",
   "cratedeck/web",
-  "fulltags",
   "tools",
 ];
+// fulltags merged into src/fulltags (#193) — "src" already covers it.
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts"]);
 const TEST_DIRECTORIES = new Set([
   "test",

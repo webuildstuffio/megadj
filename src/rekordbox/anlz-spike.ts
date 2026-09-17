@@ -39,7 +39,7 @@ import { commandLog } from "../progress";
 import { errorText } from "../shared/error-text";
 import { join, basename } from "node:path";
 import { createHash } from "node:crypto";
-import { parseAnlzInventory } from "../../fulltags/src/exports";
+import { parseAnlzInventory } from "../fulltags/anlz";
 
 export type AnlzSpikeMode = "snapshot" | "compare";
 

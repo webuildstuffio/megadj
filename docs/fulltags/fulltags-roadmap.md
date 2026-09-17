@@ -9,7 +9,7 @@ and audioread were measured as dead ends — FFmpeg ≤ 8 requirement, dropped
 ffmpeg backend). `openBeatSession()` amortizes the uv resolve + torch load
 once per `--jobs` worker instead of once per track (61% faster over 3 tracks,
 byte-equal results). Getcha #1/#2 below updated accordingly; see
-`fulltags/README.md` § analysis-stage envs._
+`src/fulltags/README.md` § analysis-stage envs._
 
 _Rev 7.11, 2026-09-16: **the flag loop closed + the imprint prior voted.**
 #64 dispute review shipped (`megadj genre --disputes` — live recomputed
@@ -41,7 +41,7 @@ _Rev 7.10, 2026-09-15: **roadmap-sync audit — every open item verified against
 code and re-tracked on GitHub.** Verified DONE and marked here: full-population
 LOO (P92 — subsumed by the Sep 15 Tier-0 run: the eval battery now covers the
 canonicalized+flagged population, making the ±1 error bars moot); Bandcamp
-genre arm live (rev 7.8, verified in `fulltags/src/bandcamp.ts`); B11
+genre arm live (rev 7.8, verified in `src/fulltags/bandcamp.ts`); B11
 `SET_EXCLUDED_PREVIEW_MAX` shared cap; `genre --flag` self-healing (96/2982).
 Re-tracked where the tracker had drifted: ranked secondaries stay on open
 issue #63 (no code has landed — the audit closed an accidental duplicate
@@ -153,7 +153,7 @@ _Rev 7.8, 2026-09-15 (supersedes the duplicate 7.3/7.2 numbering from the
 parallel workstreams; set-product revs keep their 7.x names): **Bandcamp
 arm live + the name-matching SSOT + the top-3 low-hanging consolidation
 fixes.** (1) **W2b Bandcamp vote**
-(`fulltags/src/bandcamp.ts`): when SC and BP both miss genre/year/label,
+(`src/fulltags/bandcamp.ts`): when SC and BP both miss genre/year/label,
 fetch searches the Bandcamp catalog (official autocomplete API —
 yt-dlp's extractor stays dead), hard-artist-gates the hits, then fetches
 the item page once: genre from artist tags (through the SAME
@@ -161,7 +161,7 @@ numeric/`Music` junk gate), year from publish date, label from the
 ld+json publisher, art from og:image — slotted into the art ladder
 between Beatport and the gateway. Verified live: gated search, page
 parse, genre vote, Drumcode label identity. (2) **name-match SSOT**
-(`fulltags/src/name-match.ts`): the SC, BP, and Bandcamp scorers shared
+(`src/fulltags/name-match.ts`): the SC, BP, and Bandcamp scorers shared
 three near-copied tokenizers/gates (issue #85's twin class) — now one
 `artistGate`/`titleOverlap`/`nameTokens` seam. (3) **#66 finished**:
 rb-import was the last hand-rolled `MEGADJ_RB_MASTER ?? join(...)`
@@ -351,7 +351,7 @@ next action is a command you can run.**
     (MPS, 88 tracks ≈ 31 s end-to-end); RB reference keys + BPM
     extracted from local `master.db` via pyrekordbox 0.4.4.
 - **Two latent bugs found BY executing, both fixed with regression
-  tests** (`fulltags/test/pipeline.test.ts`):
+  tests** (`src/fulltags/test-support/fulltags/pipeline.test.ts`):
   1. `readTxxx`'s WAV/AIFF branches read **nothing** — stamp probes
      returned null on WAVs, so the "idempotent" fingerprint stage
      rewrote **73 archive WAVs on every re-run**. One shared ID3-TXXX
@@ -399,7 +399,7 @@ beat period ~2.2–2.6% off rekordbox's on half the pilot (e.g. 130.43 vs
 against rekordbox grids. This is not the 70–180 fold (raw values are
 already in-window) and not decode quality (WAVs fail too).
 
-**Re-gate result (rev 6, bar-grid autocorrelation readout — the since-deleted `tempoFromBeatGrid`, formerly `fulltags/src/analysis.ts`): 16/24 within 2% —
+**Re-gate result (rev 6, bar-grid autocorrelation readout — the since-deleted `tempoFromBeatGrid`, formerly `src/fulltags/analysis.ts`): 16/24 within 2% —
 still under the 80% gate.** The bar-lag readout is strictly better than
 the median (16 vs 12) and fixes half of the drift cases, but the 8
 remaining failures are hard to close: half/double phase-locks (75.7 vs
@@ -456,7 +456,7 @@ regardless of what RB reads.
 
 ### #4 — Essentia ONNX mood/dance/valence — **M — ✅ SHIPPED (rev 6.1)**
 
-`fulltags/src/models.ts`: two ONNX towers (effnet-1280 → dance + 4 mood
+`src/fulltags/models.ts`: two ONNX towers (effnet-1280 → dance + 4 mood
 heads; vggish-128 → valence-arousal) under `uv --with onnxruntime`;
 `fulltags --mood` → `TXXX:MOOD` stamp; energy 2.0 blends
 `0.5·RMS + 0.3·dance + 0.2·arousal`. Archive verdict 88/88 stamped,
@@ -472,7 +472,7 @@ log: Git history (rev 6.1–6.2).
 
 ### #5 — MBID provenance + MusicBrainz genre harvest — **S — ✅ SHIPPED (rev 6.1)**
 
-`fulltags/src/mb.ts`: MB artist folksonomy harvest (1 rps, cached,
+`src/fulltags/mb.ts`: MB artist folksonomy harvest (1 rps, cached,
 canonGenre-mapped). `megadj enrich` is now a thin shim over it + the
 shared writer — the last duplicate ffmpeg writer is deleted; genre
 ladder = SC tag → canonical map → MB folksonomy → AI (conf ≥ 0.7).
@@ -487,7 +487,7 @@ ISRC**. So: SC wins every field it covers; BP fills what SC missed and
 owns the identity fields outright (only when the file lacks them —
 ground truth is never overwritten).
 
-**Shipped:** `fulltags/src/beatport.ts` — v4 catalog client:
+**Shipped:** `src/fulltags/beatport.ts` — v4 catalog client:
 client-credentials token (embed-player parity, cached, early-refresh,
 401 self-heal), relevance-scored search (artist-match HARD gate — the
 store's same-name pack-filler long tail makes title+duration matching
@@ -612,7 +612,7 @@ the OpenKeyScan SSOT decision (#3).
 
 ### Re-gate harness (issue #18)
 
-`fulltags/src/gates.ts` is the shared verdict harness for BPM, genre, and
+`src/fulltags/gates.ts` is the shared verdict harness for BPM, genre, and
 effnet reference runs. It reports every track's relative offset, applies the
 80% pass bar (BPM's default tolerance is 2%), and rejects a detector whose
 non-null output is saturated to one value. A passing verdict is the only
@@ -671,7 +671,7 @@ benchmark **caught a 6.4× write-path regression** (19.3 ms direct-ffmpeg
 write. Fix: `writePatchSync`, the in-process sync writer (ffmpeg spawn
 for mp3/m4a/flac, mutagen for wav/aiff); re-benchmark 19 ms/write
 (parity), AIFF sync path verified. Regression tests:
-`fulltags/test/writer-sync.test.ts` (round-trips + AIFF + perf).
+`src/fulltags/test-support/fulltags/writer-sync.test.ts` (round-trips + AIFF + perf).
 
 **Lesson recorded:** any sync API bridged to an async implementation via
 a spawned interpreter is a perf trap — expose a native sync twin instead
@@ -680,7 +680,7 @@ a spawned interpreter is a perf trap — expose a native sync twin instead
 ## 5b. Bug-audit log (2026-09-05 — 5 bugs found + fixed; +2 found by rev 5 execution)
 
 Pre-rev-4 audit of the shipped surface; all fixed same day with regression
-tests (engine in `fulltags/test/`). Rev 5's execution pass found two more.
+tests (engine in `src/fulltags/test-support/fulltags/`). Rev 5's execution pass found two more.
 
 | #   | Bug + root cause                                                                                                                                                | Fix                                                                                                        |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -725,7 +725,7 @@ Env gotchas, each empirically verified:
    read compressed containers. Since Sep 15 2026 the worker decodes
    **in-process via PyAV** and feeds the sample array to
    `Audio2Beats(signal, sr)` directly — the old ffmpeg→temp-WAV bridge is
-   gone (see `fulltags/README.md`).
+   gone (see `src/fulltags/README.md`).
 3. **OpenKeyScan treats stdin EOF as shutdown** — writing all requests then
    `stdin.end()` kills the server before responses are computed
    ("cannot schedule new futures after shutdown"). Keep stdin open; reap
@@ -780,8 +780,8 @@ parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
 | Adopt (#3)  | OpenKeyScan analyzer (repo mode)                         | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
 | Fallback    | essentia `Key` / keyfinder-cli                           | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
 | Adopt (#4)  | Essentia ONNX heads + onnxruntime                        | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
-| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as fulltags/src/mb.ts + enrich fold (rev 6.1)                                                                                       |
-| Shipped #6  | Beatport v4 catalog (client-credentials)                 | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `fulltags/src/beatport.ts` (rev 6.4)                           |
+| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as src/fulltags/mb.ts + enrich fold (rev 6.1)                                                                                       |
+| Shipped #6  | Beatport v4 catalog (client-credentials)                 | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `src/fulltags/beatport.ts` (rev 6.4)                           |
 | Verified    | Dubspot 200-track test                                   | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
 | Verified    | rekordbox tag matrix                                     | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
 | Verified    | pyrekordbox 0.4.4 (local master.db)                      | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                                                                          |

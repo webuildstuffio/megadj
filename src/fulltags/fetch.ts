@@ -10,15 +10,12 @@
  * `fulltags audit` must agree by construction).
  */
 import { existsSync } from "node:fs";
-import {
-  groundTruth,
-  walkAudioFiles,
-  probeFile,
-  playerCompat,
-  isHiresOnly,
-  boothTextCompat,
-  completeness,
-} from "../../fulltags/src/exports";
+import { groundTruth } from "./readers";
+import { walkAudioFiles } from "./writer";
+import { probeFile } from "./media-probe";
+import { playerCompat, isHiresOnly } from "./player-compat";
+import { boothTextCompat } from "./booth-text";
+import { completeness } from "./schema";
 import type { AuditRow } from "./audit-row";
 export { type AuditRow } from "./audit-row";
 import type { FetchTarget } from "./fetch-target";
@@ -107,9 +104,9 @@ export async function fetch(opts: FetchOptions): Promise<void> {
   // ride every `megadj` CLI boot. (#89: aims at fetch-pipeline directly —
   // re-exporting runFetch through the exports barrel closed a madge
   // cycle exports → fetch-pipeline → archive-ledger → exports.)
-  const { runFetch } = await import("../../fulltags/src/fetch-pipeline").then(
-    (m) => ({ runFetch: m.runFetch }),
-  );
+  const { runFetch } = await import("./fetch-pipeline").then((m) => ({
+    runFetch: m.runFetch,
+  }));
   await runFetch({
     all: opts.all ?? false,
     only: opts.only ?? "all",

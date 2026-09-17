@@ -7,9 +7,9 @@ import { existsSync, renameSync } from "node:fs";
 import {
   cp1252Bytes,
   hasControlChars,
-  writePatchSync,
   type TextCompatResult,
-} from "../../fulltags/src/exports";
+} from "./booth-text";
+import { writePatchSync } from "./writer";
 import type { BoothFixRow } from "./booth-fix-types";
 
 /** One applied fix (counter + log line for the run summary). */

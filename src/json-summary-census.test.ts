@@ -16,7 +16,7 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync, type Stats } from "node:fs";
 import { join, relative } from "node:path";
 
-const ROOTS = ["src", "fulltags/src", "cratedeck/src"] as const;
+const ROOTS = ["src", "cratedeck/src"] as const; // fulltags -> src/fulltags (#193)
 const SKIP_DIRS = new Set(["node_modules", ".git", "test", "test-support"]);
 /** tools/ ships operator CLIs with the same --json contract; scan them too
  *  but skip the intentional string fixtures (loc-budget writes raw text). */

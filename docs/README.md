@@ -118,9 +118,9 @@ for the ideas closed NOT_PLANNED.
   (§5b.3 step 2) shipped: 96/2982 disputed labels flagged + excluded from
   seeding; Tier-0 battery re-ran clean post-flag.
 - **Bandcamp arm (Sep 15, rev 7.8)** — the fetch ladder's third catalog
-  vote (`fulltags/src/bandcamp.ts`, W2b): hard-artist-gated search +
+  vote (`src/fulltags/bandcamp.ts`, W2b): hard-artist-gated search +
   one page fetch voting genre/year/label/art, on the shared
-  name-matching SSOT (`fulltags/src/name-match.ts`). Same-day
+  name-matching SSOT (`src/fulltags/name-match.ts`). Same-day
   consolidation: #66 masterDbPath (11/11 callers), #67 NFC+casefold
   name key, #82 errorText SSOT — all pinned by tests; #67/#82/#75/#100
   issues closed with evidence.
@@ -213,7 +213,7 @@ for the ideas closed NOT_PLANNED.
 - [`README.md`](../README.md) — repository overview and setup.
 - [`cratedeck/README.md`](../cratedeck/README.md) and
   [`deckctl.md`](../cratedeck/deckctl.md) — CrateDeck operator entry points.
-- [`fulltags/README.md`](../fulltags/README.md) — FullTags package reference.
+- [`src/fulltags/README.md`](../fulltags/README.md) — FullTags package reference.
 - [`plugin/README.md`](../plugin/README.md) — plugin packaging and symlinked
   skill ownership.
 - CrateDeck UI implementation notes:

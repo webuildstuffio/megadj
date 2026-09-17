@@ -18,7 +18,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const ROOTS = ["src", "fulltags/src"] as const;
+const ROOTS = ["src"] as const; // fulltags merged into src (#193)
 const ALLOWED_FILES = new Set([
   "src/shared/cli-output.ts", // the seam itself
 ]);

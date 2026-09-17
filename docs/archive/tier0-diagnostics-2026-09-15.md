@@ -3,9 +3,9 @@
 > **🗄️ ARCHIVED 2026-09-15** — superseded by GitHub as the source of truth
 > (issues + labels + Project board). Retained as historical evidence; do not
 > update. Open work lives in [issues](https://github.com/webuildstuffio/megadj/issues).
-**Status:** ✅ COMPLETE — implemented, run live, and re-run post-refold +
-post-flag the same day; the plan re-ranked by the verdicts (see §0 and
-the POST-REFOLD + POST-FLAG section below).
+> **Status:** ✅ COMPLETE — implemented, run live, and re-run post-refold +
+> post-flag the same day; the plan re-ranked by the verdicts (see §0 and
+> the POST-REFOLD + POST-FLAG section below).
 
 The [research review](embedding-research-2026-09-14.md) §5 ranked the Tier-0
 diagnostics first ("they decide whether the rest of this page is worth 20
@@ -88,14 +88,14 @@ column (`genre --eval --refold --diagnostics --artist-disjoint --probe
 --json`; the flag pass flagged 96/2982 rows 'disputed' — 3.2% — which
 now stop seeding votes):
 
-| #    | Diagnostic                   | Pre-refold            | Post-refold+flag      | Verdict shift                        |
-| ---- | ---------------------------- | --------------------- | --------------------- | ------------------------------------ |
-| gate | baseline LOO / arbitration   | 62.6% / —             | 61.7% / **69.2%**     | ship gate PASSES on the refold arm   |
-| 0.1  | top-10 artist error share    | 8.4% (random)         | 8.6% (worst 3.4% `unknown`) | still RANDOM — relabel imprints buys nothing |
-| 0.2  | same-artist top-5 / disjoint | 4.2% / Δ −0.8         | 4.2% / 60.9% (Δ −0.8) | still NO ARTIST LEAKAGE              |
-| 0.3  | hubness                      | 408/2643, max 31      | 408/2643, max 31      | unchanged (vector-side, not labels)  |
-| 0.4  | triangle share / top-2       | 17.7% / 79.3%         | 19.1% / **77.4%**     | `edm→house` 250 + `house→edm` 78 still the biggest block |
-| probe | 5-fold CV                   | 51.5% (Δ −11.1)       | 51.2% (Δ −10.6)       | probe still loses; kNN stays readout |
+| #     | Diagnostic                   | Pre-refold       | Post-refold+flag            | Verdict shift                                            |
+| ----- | ---------------------------- | ---------------- | --------------------------- | -------------------------------------------------------- |
+| gate  | baseline LOO / arbitration   | 62.6% / —        | 61.7% / **69.2%**           | ship gate PASSES on the refold arm                       |
+| 0.1   | top-10 artist error share    | 8.4% (random)    | 8.6% (worst 3.4% `unknown`) | still RANDOM — relabel imprints buys nothing             |
+| 0.2   | same-artist top-5 / disjoint | 4.2% / Δ −0.8    | 4.2% / 60.9% (Δ −0.8)       | still NO ARTIST LEAKAGE                                  |
+| 0.3   | hubness                      | 408/2643, max 31 | 408/2643, max 31            | unchanged (vector-side, not labels)                      |
+| 0.4   | triangle share / top-2       | 17.7% / 79.3%    | 19.1% / **77.4%**           | `edm→house` 250 + `house→edm` 78 still the biggest block |
+| probe | 5-fold CV                    | 51.5% (Δ −11.1)  | 51.2% (Δ −10.6)             | probe still loses; kNN stays readout                     |
 
 Reading: the refold did exactly what the diagnosis predicted — it removed
 the `edm` umbrella from the SCORING population (558 rows abstain, n
@@ -107,4 +107,3 @@ the 65% gate. The confusion mass that remains is real sub-genre
 ambiguity (`house→techno` 100), which is the §5b.3.5 clustering fix, not
 a label-hygiene fix. Hubness is vector-geometry, untouched by any label
 work — the whitened+CSLS retrieval path remains the lever there.
-

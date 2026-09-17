@@ -3,14 +3,14 @@
 > **🗄️ ARCHIVED 2026-09-15** — superseded by GitHub as the source of truth
 > (issues + labels + Project board). Retained as historical evidence; do not
 > update. Open work lives in [issues](https://github.com/webuildstuffio/megadj/issues).
-**Status:** 📥 SNAPSHOT — an external research review (9 papers + model/checkpoint
-landscape + Apple-Silicon compute audit) integrated into the FullTags plan the
-same day. Verdicts below are cross-referenced against the measured docs; the
-living plan of record is
-[embedding-models](embedding-models.md) + [genre-audit](genre-audit.md) §5b +
-[10-findings](../set/10-findings.md) §3. This page is the dated evidence
-base and the full resource list — it does not drift; updates land in the live
-docs with a pointer back here.
+> **Status:** 📥 SNAPSHOT — an external research review (9 papers + model/checkpoint
+> landscape + Apple-Silicon compute audit) integrated into the FullTags plan the
+> same day. Verdicts below are cross-referenced against the measured docs; the
+> living plan of record is
+> [embedding-models](embedding-models.md) + [genre-audit](genre-audit.md) §5b +
+> [10-findings](../set/10-findings.md) §3. This page is the dated evidence
+> base and the full resource list — it does not drift; updates land in the live
+> docs with a pointer back here.
 
 > Glossary (tower, LOO, kNN, probe, CSLS, hubness, SupCon):
 > [10-findings §5](../set/10-findings.md#5-glossary--every-acronym-and-term-used-across-the-doc-set).
@@ -427,4 +427,3 @@ cues.ts`, `grid-audit-plan` §structure); the patch models already emit
 
 Everything else — stems, fusion, second ledgers, MuQ, MLX — stays parked
 until those three land.
-

@@ -208,7 +208,7 @@ const STAGE_RUNNERS: StageSpec[] = [
     // Stage 3 — mood ledger, gated on models present (320 MB one-time
     // download is NOT something a drop should silently trigger).
     skipDetail: async () => {
-      const { moodModelsPresent } = await import("../../fulltags/src/models");
+      const { moodModelsPresent } = await import("../fulltags/models");
       return moodModelsPresent()
         ? null
         : "models absent (bun run fulltags/cli.ts ensure-models)";
@@ -250,8 +250,8 @@ const STAGE_RUNNERS: StageSpec[] = [
     // in the booth" trap). Report-only here: drop reports, the operator
     // fixes via booth-fix; a failed gate fails the run.
     run: async ({ opts }) => {
-      const { walkAudioFiles, tagHealth } =
-        await import("../../fulltags/src/exports");
+      const { walkAudioFiles } = await import("../fulltags/writer");
+      const { tagHealth } = await import("../fulltags/tag-health");
       const bad: { file: string; reasons: string[] }[] = [];
       for (const f of walkAudioFiles(opts.musicDir)) {
         const h = tagHealth(f);

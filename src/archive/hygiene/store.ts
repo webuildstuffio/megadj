@@ -81,10 +81,29 @@ export class HygieneStore {
         pid INTEGER NOT NULL,
         started_at TEXT NOT NULL
       );
-      -- natural key: a re-run UPDATES the row instead of duplicating it
+      -- natural key: a re-run UPDATES the row instead of duplicating it.
+      -- Key = (kind + FIRST TWO paths): pair findings key on keeper+loser;
+      -- single-path kinds (zero-byte, appledouble-junk, truncated-name)
+      -- key on the file alone. The old keeper-only key collapsed every
+      -- singleton of a kind onto ONE arbitrary row — a confirm on file A
+      -- silently absorbed file B's evidence on the next scan (#9-class
+      -- status bleed).
       CREATE UNIQUE INDEX IF NOT EXISTS idx_hygiene_natural
-        ON hygiene_findings(kind, keeper_path, json_extract(paths, '$[1]'));
+        ON hygiene_findings(kind, json_extract(paths, '$[0]'), json_extract(paths, '$[1]'));
     `);
+    // DBs created by the old engine carry the collapsed keeper-only key;
+    // rebuild it in place when found (the old columns are a subset of the
+    // new key's — the rebuild can never hit a unique violation).
+    const idx = db
+      .query(
+        "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_hygiene_natural'",
+      )
+      .get() as { sql: string | null } | null;
+    if (!idx?.sql?.includes("json_extract(paths, '$[0]')")) {
+      db.exec("DROP INDEX IF EXISTS idx_hygiene_natural");
+      db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_hygiene_natural
+        ON hygiene_findings(kind, json_extract(paths, '$[0]'), json_extract(paths, '$[1]'))`);
+    }
   }
 
   private tryHydrate(r: Row): Finding | null {
@@ -206,9 +225,12 @@ export class HygieneStore {
   upsert(findings: Finding[]): { written: number; reopened: number } {
     let written = 0;
     let reopened = 0;
+    // Natural key = (kind, paths[0], paths[1]) — MUST stay aligned with
+    // the idx_hygiene_natural columns above (single-path kinds key on
+    // their one file; pair kinds on keeper + first loser).
     const selectFull = this.db.query(
       `SELECT * FROM hygiene_findings
-       WHERE kind = ? AND keeper_path IS ? AND json_extract(paths, '$[1]') IS ?`,
+       WHERE kind = ? AND json_extract(paths, '$[0]') IS ? AND json_extract(paths, '$[1]') IS ?`,
     );
     const insert = this.db.query(
       `INSERT INTO hygiene_findings
@@ -226,7 +248,7 @@ export class HygieneStore {
       const r = this.rowFor(f);
       const prev = selectFull.get(
         f.kind,
-        f.keeperPath,
+        f.paths[0] ?? null,
         f.paths[1] ?? null,
       ) as Row | null;
       if (!prev) {

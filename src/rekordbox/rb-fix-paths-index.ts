@@ -9,16 +9,10 @@ import { existsSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { nameKey } from "../shared/name-key";
 import { walkAudioDir } from "../shared/audio-walk";
-import type { RbFixRow } from "./rb-fix-paths-types";
+import type { LiveIndex, RbFixRow } from "./rb-fix-paths-types";
 
 /** The unique-path index: every audio file under <mount>/Contents (and
  *  PIONEER REC, the walked roots), keyed by the ladder's match keys. */
-export interface LiveIndex {
-  byNorm: Map<string, string>; // NFC+casefold abs path
-  byBasename: Map<string, string[]>; // casefold basename → paths
-  byStripped: Map<string, string[]>; // stripped-copy-suffix name → paths
-  byPrefix20: Map<string, string[]>; // 20-char prefix → paths
-}
 
 /** One empty LiveIndex — was duplicated in buildIndex and the test seam. */
 export function emptyIndex(): LiveIndex {

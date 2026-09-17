@@ -9,8 +9,7 @@
     "megadj": "./src/cli.ts"
   },
   "workspaces": [
-    "cratedeck",
-    "fulltags"
+    "cratedeck"
   ],
   "scripts": {
     "megadj": "bun run src/cli.ts",
@@ -19,14 +18,14 @@
     "mcp": "bun run cratedeck/src/mcp.ts",
     "typecheck": "tsc --noEmit --pretty false",
     "typecheck:py": "uv run --no-sync mypy",
-    "lint": "oxlint --deny-warnings src fulltags tools cratedeck/src cratedeck/shared cratedeck/web cratedeck/test",
+    "lint": "oxlint --deny-warnings src tools cratedeck/src cratedeck/shared cratedeck/web cratedeck/test",
     "lint:py": "uv run --no-sync ruff check cratedeck/python tools",
     "format:py:check": "uv run --no-sync ruff format --check cratedeck/python tools",
     "format:py": "uv run --no-sync ruff format cratedeck/python tools",
     "test:py": "uv run --no-sync python -m unittest discover -s tools -p '*_test.py' -v",
     "web:build": "cd cratedeck/web && bun run build",
-    "format:check": "prettier --cache --cache-location node_modules/.cache/prettier-cache --cache-strategy content --check src tools fulltags cratedeck/src cratedeck/shared cratedeck/web cratedeck/test knip.json .oxlintrc.json plugin",
-    "format": "prettier --cache --cache-location node_modules/.cache/prettier-cache --cache-strategy content --write src tools fulltags cratedeck/src cratedeck/shared cratedeck/web cratedeck/test knip.json .oxlintrc.json plugin",
+    "format:check": "prettier --cache --cache-location node_modules/.cache/prettier-cache --cache-strategy content --check src tools cratedeck/src cratedeck/shared cratedeck/web cratedeck/test knip.json .oxlintrc.json plugin",
+    "format": "prettier --cache --cache-location node_modules/.cache/prettier-cache --cache-strategy content --write src tools cratedeck/src cratedeck/shared cratedeck/web cratedeck/test knip.json .oxlintrc.json plugin",
     "knip": "knip",
     "repo:hygiene": "bun run tools/repo-hygiene.ts",
     "typecov": "type-coverage --detail --ignore-tests --at-least 100",

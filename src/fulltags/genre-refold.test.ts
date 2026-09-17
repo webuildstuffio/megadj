@@ -4,7 +4,7 @@ import {
   familyOf as genreFamily,
   isUmbrellaLabel,
   repairEscapes,
-} from "../../fulltags/src/exports";
+} from "./genre-vocab";
 
 describe("repairEscapes", () => {
   test("decodes \\uXXXX artifacts", () => {

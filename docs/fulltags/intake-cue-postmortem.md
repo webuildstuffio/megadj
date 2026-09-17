@@ -297,7 +297,7 @@ and keep the DB row as the authority.
 
 ### F8b — Shared JSON boundary guard (P2, LOC-negative + reliability)
 
-120 `JSON.parse` sites across `src/`/`tools/`/`fulltags/` with **no shared
+120 `JSON.parse` sites across `src/`/`tools/`/`src/fulltags/` with **no shared
 guarded parser** — the marathon's "silent undefined" debugging sessions (the
 `MEGADJ_DB` env bug, the `cues_json` missing-key bug) were unguarded parses
 at boundaries. One `safeParseJson<T>` in `src/shared/`, migrate the ~30

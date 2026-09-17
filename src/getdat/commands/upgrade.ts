@@ -13,12 +13,10 @@
 // per-file failures, meaningful exit code.
 import { existsSync, renameSync, rmSync, statSync } from "node:fs";
 import { tempSiblingPath } from "../../shared/atomic-file";
-import {
-  applyTags,
-  fingerprintFile,
-  type EnrichedMetadata,
-  probeMediaSync,
-} from "../../../fulltags/src/exports";
+import { applyTags } from "../../fulltags/writer";
+import { fingerprintFile } from "../../fulltags/fingerprint";
+import type { EnrichedMetadata } from "../../fulltags/schema";
+import { probeMediaSync } from "../../fulltags/media-probe";
 import { Downloader, type DownloadResult } from "../downloader";
 import type { ArchiveState } from "../../archive/state";
 import { commandLog } from "../../progress";

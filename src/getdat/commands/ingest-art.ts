@@ -10,7 +10,7 @@ import {
   soundcloudArtwork,
   itunesArtwork,
 } from "../../fulltags/embed";
-import { soundcloudUrlInTags } from "../../../fulltags/src/exports";
+import { soundcloudUrlInTags } from "../../fulltags/art-sources";
 import { appendQueueEntries, type QueueEntry } from "./queue";
 
 /** Containers that reliably hold embedded artwork. */

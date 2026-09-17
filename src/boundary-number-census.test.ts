@@ -18,15 +18,15 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "clampMinutes finite-checks the converted form value and supplies the default.",
   "cratedeck/web/ui/JobsDock.tsx::phaseLabel::Number(m[1])":
     "m[1] is a digits-only phase regex capture and array lookup has an explicit fallback.",
-  "fulltags/src/writer.ts::applyTags::Number(meta.date.match(/\\d{4}/)?.[0])":
+  "src/fulltags/writer.ts::applyTags::Number(meta.date.match(/\\d{4}/)?.[0])":
     "the optional value is a four-digit regex capture; absence becomes undefined.",
-  "fulltags/src/writer-mutagen.ts::mp4Statement::Number(v)":
+  "src/fulltags/writer-mutagen.ts::mp4Statement::Number(v)":
     "the bpm branch receives a typed internal TagPatch number before serialization.",
-  "fulltags/src/writer-mutagen.ts::mp4VerifyStatement::Number(v)":
+  "src/fulltags/writer-mutagen.ts::mp4VerifyStatement::Number(v)":
     "the verifier receives the same typed internal TagPatch BPM number before serialization.",
   // #90 scope 1: parseMoodStamp re-homed pipeline.ts → pipeline-stamps.ts
   // (owner+path moved; the sanction follows the site).
-  "fulltags/src/pipeline-stamps.ts::parseMoodStamp::Number(m[2])":
+  "src/fulltags/pipeline-stamps.ts::parseMoodStamp::Number(m[2])":
     "m[2] is a digits-and-decimal-only regex capture and need() finite-checks every consumed value.",
   "src/fulltags/years.ts::parseScPageDates::Number(year)":
     "year is a four-digit regex capture.",
@@ -39,15 +39,15 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
   // #184: the second front door (tools/fetch-all.ts import.meta.main argv
   // parse, with its Number(argv[jobsArg+1]) site) was deleted — `megadj
   // fetch` is the only entry and its --jobs rides nonNegOpt.
-  "fulltags/src/bandcamp.ts::parseIsoDuration::Number(d)":
+  "src/fulltags/bandcamp.ts::parseIsoDuration::Number(d)":
     "d is a digits-only ISO-8601 duration capture (P…D group), truthiness-gated before use.",
-  "fulltags/src/bandcamp.ts::parseIsoDuration::Number(h)":
+  "src/fulltags/bandcamp.ts::parseIsoDuration::Number(h)":
     "h is a digits-only ISO-8601 duration capture (T…H group), truthiness-gated before use.",
-  "fulltags/src/bandcamp.ts::parseIsoDuration::Number(min)":
+  "src/fulltags/bandcamp.ts::parseIsoDuration::Number(min)":
     "min is a digits-only ISO-8601 duration capture (T…M group), truthiness-gated before use.",
-  "fulltags/src/bandcamp.ts::parseIsoDuration::Number(s)":
+  "src/fulltags/bandcamp.ts::parseIsoDuration::Number(s)":
     "s is a digits-or-decimal ISO-8601 duration capture (T…S group), truthiness-gated before use.",
-  "fulltags/src/fetch-stages.ts::stageBandcamp::Number(page.datePublished.slice(0, 4))":
+  "src/fulltags/fetch-stages.ts::stageBandcamp::Number(page.datePublished.slice(0, 4))":
     "datePublished is DB JSON produced by the fetch pipeline's four-digit year regex; the slice is exactly four chars.",
 };
 
@@ -78,6 +78,9 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 16 (#181): beatport parseTrack decomposed — the publish-date
     // Number() site moved owner parseTrack→parseYear (still guarded by
     // Number.isInteger; counts unchanged, digest shifted).
+    // Sep 17 (#193): digest changed — the fulltags package folded into
+    // src/fulltags (digest input re-rooted; same calls, same guards,
+    // counts unchanged).
     // Sep 16 (#184): fetch pipeline re-homed into fulltags; the second
     // front door's argv Number() site died with the shim (audited 44→43,
     // sanctioned 18→17) and fetch-stages moved owner+path (digest shift).
@@ -92,7 +95,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 16 (#42): detect.ts's USB-tree family moved to detect-usb.ts
     // (its guarded Number() sites re-homed) — counts unchanged, digest
     // shifted.
-    digest: "2a2b52803145961c4e7431f4867a8cdd7e2905eba0b880aa3bb9c5bd99ad6249",
+    digest: "f000262ffef1cbfb44873bbbaf0a4eb837411ad37d947eb95e667e8e0098467a",
   });
 });
 

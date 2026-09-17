@@ -15,10 +15,9 @@ import type { ArchiveState, TrackRow } from "../../archive/state";
 import {
   compareFingerprint,
   nameSimilarityTokens,
-  probeFile,
-  qualityScore,
-} from "../../../fulltags/src/exports";
-import { identityKey } from "../../../fulltags/src/identity";
+} from "../../fulltags/fingerprint-dedupe";
+import { probeFile, qualityScore } from "../../fulltags/media-probe";
+import { identityKey } from "../../fulltags/identity";
 import { quarantine, type Record_ } from "./ingest-probe";
 
 const md5File = md5FileStream;

@@ -2,7 +2,17 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["tools/loc-budget.ts", "tools/prof-sweep.ts"],
+      "entry": [
+        "tools/loc-budget.ts",
+        "tools/prof-sweep.ts",
+        "src/fulltags/cli.ts",
+        "src/fulltags/test-support/fulltags/*.test.ts",
+        "src/fulltags/test-support/fulltags/fake-echo-worker.ts",
+        "src/fulltags/test-support/fulltags/idle-worker.ts",
+        "src/fulltags/test-support/fulltags/stamp.ts",
+        "src/fulltags/test-support/fulltags/patchCases.ts",
+        "src/fulltags/test-support/fulltags/analysis.ts"
+      ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": [
         "ditto",
@@ -15,18 +25,6 @@
         "uv"
       ],
       "ignoreDependencies": ["preact"]
-    },
-    "fulltags": {
-      "entry": [
-        "src/index-all.ts",
-        "src/fetch-pipeline.ts",
-        "src/verify-key.ts",
-        "test/*.test.ts",
-        "test/helpers/*.ts",
-        "test/fixtures/*.ts"
-      ],
-      "ignoreBinaries": ["ffmpeg"],
-      "ignoreExportsUsedInFile": true
     },
     "cratedeck": {
       "entry": [

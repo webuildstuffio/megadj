@@ -25,24 +25,23 @@ import { basename, extname, join } from "node:path";
 import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
 import type { ArchiveState } from "../../archive/state";
 import { commandLog } from "../../progress";
+import { applyTags } from "../../fulltags/writer";
+import { detectRemix } from "../../fulltags/remix";
 import {
-  applyTags,
-  detectRemix,
   energyFromLufs,
   firstTag,
-  guessFromFreeText,
   measureRms,
-  mbRecording,
-  playerCompat,
-  isHiresOnly,
-} from "../../../fulltags/src/exports";
+} from "../../fulltags/media-probe";
+import { guessFromFreeText } from "../../fulltags/genre-vocab";
+import { mbRecording } from "../../fulltags/mb_lookup";
+import { playerCompat, isHiresOnly } from "../../fulltags/player-compat";
 import { walkAudio, type Record_ } from "./ingest-probe";
 import {
   expandZips,
   deleteFullyIngestedZips,
   pendingZipDeletes,
 } from "./ingest-zips";
-import { wavToAiff } from "../../../fulltags/src/convert";
+import { wavToAiff } from "../../fulltags/convert-aiff";
 import {
   fetchAndEmbedArtwork,
   flushArtworkQueue,

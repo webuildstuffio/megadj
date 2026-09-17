@@ -23,7 +23,7 @@ import type { ArchiveQuery } from "./archive_types";
 import {
   gridAudit,
   type GridAuditVerdict,
-} from "../../fulltags/src/grid-audit";
+} from "../../src/fulltags/grid-audit";
 import { isFiniteNumberArray } from "../shared/guards";
 import type { ArchiveGridCrossCheck } from "../shared/archive-wire";
 

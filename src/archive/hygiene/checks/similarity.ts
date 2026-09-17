@@ -11,7 +11,7 @@
  *   — exactly the trap). Threshold ≥0.5, and only token-equality + a
  *   human confirm ever merges folders.
  */
-import { sharedTokenRatio } from "../../../../fulltags/src/name-match";
+import { sharedTokenRatio } from "../../../fulltags/name-match";
 
 /** Lowercase and strip every non-alphanumeric (shared by the levenshtein
  *  and token helpers). Pure — module-level, not re-created per call. */

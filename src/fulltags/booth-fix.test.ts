@@ -4,7 +4,7 @@ import {
   sanitizeFilename,
   repairMojibake,
 } from "./booth-fix";
-import { setBoothFleet } from "../../fulltags/src/exports";
+import { setBoothFleet } from "./player-compat";
 
 describe("sanitizeDisplayText", () => {
   test("strips emoji + ZWJ + variation selectors", () => {

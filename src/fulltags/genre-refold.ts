@@ -34,7 +34,7 @@ import {
   familyOf as genreFamily,
   isUmbrellaLabel,
   repairEscapes,
-} from "../../fulltags/src/exports";
+} from "./genre-vocab";
 
 /** Established compound labels containing the `&` separator. Protected
  *  BEFORE splitting so "R&B" does not become "R" + "B". Measured against

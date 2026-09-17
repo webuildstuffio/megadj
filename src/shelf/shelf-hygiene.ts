@@ -23,7 +23,7 @@ import {
   isListenFirst,
 } from "../archive/hygiene/subcategory";
 import { applyFinding, validateFinding } from "../archive/hygiene/apply";
-import { fingerprintFileLength } from "../../fulltags/src/exports";
+import { fingerprintFileLength } from "../fulltags/fingerprint";
 import { setExit, writeJson } from "../shared/cli-output";
 import type { CheckCtx } from "../archive/hygiene/types";
 import { applyConfirmationRefusal } from "../rekordbox/rb-command-kit.js";
