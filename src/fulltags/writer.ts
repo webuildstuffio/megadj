@@ -55,6 +55,18 @@ export function walkAudioFiles(dir: string, out: string[] = []): string[] {
 }
 
 /**
+ * #230: the ONE year gate for legacy metadata dates — the first 4-digit
+ * run must be a plausible year (1000..3000), else the year is ABSENT.
+ * The old `Number(...) || undefined` silently merged malformed ("garbage"
+ * → NaN) into absent with no signal, and admitted any 4 digits (0000,
+ * 9999). The Number() site stays census-visible, isFinite-gated inside.
+ */
+export function yearFromDate(date: string): number | undefined {
+  const y = Number(date.match(/\d{4}/)?.[0]);
+  return Number.isFinite(y) && y >= 1000 && y <= 3000 ? y : undefined;
+}
+
+/**
  * Write a legacy EnrichedMetadata (full-record replace semantics).
  * Thin wrapper kept for megadj ingest/sync compat.
  */
@@ -68,9 +80,7 @@ export async function applyTags(
     albumArtist: meta.albumArtist ?? undefined,
     album: meta.album ?? undefined,
     genre: meta.genre ?? undefined,
-    year: meta.date
-      ? Number(meta.date.match(/\d{4}/)?.[0]) || undefined
-      : undefined,
+    year: meta.date ? yearFromDate(meta.date) : undefined,
     composer: meta.composer ?? undefined,
     grouping: meta.grouping ?? undefined,
     remixer: meta.remixer ?? undefined,

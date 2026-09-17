@@ -7,7 +7,24 @@
 import { VERIFY_HELP } from "./verify_help";
 import type { VerifyCheck, VerifyReport } from "../shared/types";
 import { lastLines } from "./verify_report";
-import { cap, extractVerifyMetrics } from "./verify-parse-metrics";
+import { extractVerifyMetrics } from "./verify-parse-metrics";
+
+/** Longest offender list kept per check (full list stays in the log). */
+const MAX_OFFENDERS = 50;
+
+/** Cap an offender list for a check: at most MAX_OFFENDERS entries plus
+ *  the true count (the UI shows "and N more"). Lives here — its only
+ *  consumers are the check builders below (#212). */
+export function cap(list: string[] | undefined): {
+  offenders?: string[];
+  offender_count?: number;
+} {
+  if (!list?.length) return {};
+  return {
+    offenders: list.slice(0, MAX_OFFENDERS),
+    offender_count: list.length,
+  };
+}
 
 /** Check doc lookup from the shared help SSOT: meaning + fix stay in one place. */
 const DOC = new Map(VERIFY_HELP.checks.map((c) => [c.id, c]));

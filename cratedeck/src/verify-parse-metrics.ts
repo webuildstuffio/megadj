@@ -2,6 +2,9 @@
 // (#88 item 1): pull the raw numbers + offender lists out of either the
 // VERIFY_JSON structured payload or the human-output regex fallback.
 // Pure data; no check assembly. verify_parse.ts turns this into checks.
+// (#212) the generic grab helpers live INSIDE this module (grabNum/
+// grab2Num are private — no other parser re-uses them yet) and the
+// offender-cap helper moved to its only consumer, verify_parse.ts.
 
 export interface VerifyJsonPayload {
   drives?: Record<
@@ -33,22 +36,8 @@ export interface VerifyJsonPayload {
 
 export type DriveEntry = NonNullable<VerifyJsonPayload["drives"]>[string];
 
-/** Longest offender list kept per check (full list stays in the log). */
-const MAX_OFFENDERS = 50;
-
-export function cap(list: string[] | undefined): {
-  offenders?: string[];
-  offender_count?: number;
-} {
-  if (!list?.length) return {};
-  return {
-    offenders: list.slice(0, MAX_OFFENDERS),
-    offender_count: list.length,
-  };
-}
-
 /** Grab the last integer match of `re` in `out`, or null. */
-export function grabNum(out: string, re: RegExp): number | null {
+function grabNum(out: string, re: RegExp): number | null {
   const m = out.match(re);
   if (!m?.[1]) return null;
   const v = parseInt(m[1], 10);

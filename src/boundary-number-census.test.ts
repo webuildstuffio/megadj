@@ -16,8 +16,9 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "clampMinutes finite-checks the converted form value and supplies the default.",
   "cratedeck/web/ui/JobsDock.tsx::phaseLabel::Number(m[1])":
     "m[1] is a digits-only phase regex capture and array lookup has an explicit fallback.",
-  "src/fulltags/writer.ts::applyTags::Number(meta.date.match(/\\d{4}/)?.[0])":
-    "the optional value is a four-digit regex capture; absence becomes undefined.",
+  // #230 (Sep 17): writer.ts applyTags's year parse was UPGRADED from a
+  // sanctioned raw Number() to an isFinite-gated site — the sanction is
+  // gone (sanctioned 16→15, guarded 25→26), see the counts trail below.
   "src/fulltags/writer-mutagen.ts::mp4Statement::Number(v)":
     "the bpm branch receives a typed internal TagPatch number before serialization.",
   "src/fulltags/writer-mutagen.ts::mp4VerifyStatement::Number(v)":
@@ -72,9 +73,14 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // 17→16) and tools/ast-ccn.ts's argv tail parses digits-only under
     // a census-visible Number.isFinite gate (its 2 raw Number() sites
     // became 1 guarded site: audited unchanged at 41, guarded 24→25).
+    // Sep 17 (#230): writer.ts applyTags's year parse upgraded from a
+    // sanctioned raw Number() to an explicit isFinite+range gate, now
+    // extracted as writer.ts::yearFromDate — the site reclassifies
+    // sanctioned→guarded (audited 41 unchanged, guarded 25→26,
+    // sanctioned 16→15) and the owner move shifts the digest.
     audited: 41,
-    guarded: 25,
-    sanctioned: 16,
+    guarded: 26,
+    sanctioned: 15,
     // Sep 15 (#79/#80/#84 pass): rb-import payload probing moved to the
     // fulltags media seam (removed its 2 Number() sites); audited 42→44
     // and sanctioned 13→18 from the concurrent bandcamp ISO-duration +
@@ -106,7 +112,7 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // cli-flags/maintenance guarded sites (digest shift + counts above).
     // Sep 17 (second pass): ast-ccn argv tail hardening + minDurationRaw
     // sanction removal (digest shift; counts in the block above).
-    digest: "be5898032aead43201d3f47ef8be542c280effc7891105d9441b2ab13d78063d",
+    digest: "31ac12b06e055294dd54a7072b9e82f3f1ba05ec689ab1f882f6fcfdb374ef65",
   });
 });
 
