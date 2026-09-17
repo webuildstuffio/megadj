@@ -2,7 +2,12 @@
 // notes wire domain (#196): N75/N78 compat verdicts, the B12 preflight
 // report, the booth fleet settings envelope, and the O88 agent-note row.
 // Split out of the 846-line types.ts monolith.
-import type { Drive, HealthCheck, NoteSeverity, PreflightVerdict } from "./drive";
+import type {
+  Drive,
+  HealthCheck,
+  NoteSeverity,
+  PreflightVerdict,
+} from "./drive";
 
 // ---- preflight (B12): the wire shapes are DEFINED here; src/preflight.ts
 // (the pure engine that produces them) imports them back. One source of

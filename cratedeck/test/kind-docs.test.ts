@@ -26,7 +26,10 @@ const ROOT = join(import.meta.dir, "..", "..");
  *  constant; #196 split the types barrel into domain files — the barrel
  *  re-exports this module, but the SOURCE lives here). */
 function jobKindsFromSource(): string[] {
-  const src = readFileSync(join(ROOT, "cratedeck/shared/types/jobs.ts"), "utf8");
+  const src = readFileSync(
+    join(ROOT, "cratedeck/shared/types/jobs.ts"),
+    "utf8",
+  );
   const block = src.match(
     /export const JOB_KINDS = \[([\s\S]*?)\] as const/,
   )?.[1];

@@ -191,6 +191,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - MegaMem workspace: `megamem search "<query>"` before grepping docs; never
   re-index manually. `tokensave` MCP is rooted per project — mis-rooted
   results mean fix the root flag, never the index.
+
 ## Learned User Preferences
 
 - Types informally with frequent typos and stream-of-consciousness requests; infers intent from context rather than asking clarifying questions.
