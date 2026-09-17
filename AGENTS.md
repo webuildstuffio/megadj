@@ -37,8 +37,12 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - Strict TS: `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
   `noUncheckedSideEffectImports`, `allowUnreachableCode:false`. Never run
   repo-wide `oxlint --fix`/sed rewriters unattended (they corrupted template
-  literals on main once). Lizard CCN hotspots are ghosts here — span-verify
-  against real `function` boundaries before refactoring.
+  literals on main once). Lizard CCN hotspots are usually ghosts here —
+  span-verify against real `function` boundaries before refactoring: lizard
+  folds regex-literal data tables and adjacent small fns into phantom
+  hotspots (5 of #195's 7 "CCN≥24" entries were phantoms; #195 comment,
+  2026-09-17). File-level `awk '$2>30'` sweeps compound the error — grep
+  the `name@start-end` rows and read the span.
 - One source of truth per shared surface: derive types, job lists, help,
   counts, census strings from producers — never hand-copied twins.
 - No private identifiers, local paths, stored state, or secrets in commits.
