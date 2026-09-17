@@ -6,7 +6,7 @@
 // the route, null to fall through to the next probe. makeApiRouter walks
 // the probes in order and 404s when every one declines.
 import { archiveRoutes } from "./archive_routes";
-import type { ApiDeps } from "./api_routes";
+import type { ApiDeps } from "./api_deps";
 
 /** The dynamic /drives family: /drives (list) + /drives/:id/<sub> (the
  *  id/sub pair delegated to the drive route table via driveSubroute). */

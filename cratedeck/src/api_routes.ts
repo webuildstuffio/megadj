@@ -14,14 +14,8 @@
 //   intakeRoutes   — /intake/folders, /intake/start
 //   driveRoutes    — /drives, /drives/:id/... (delegates to driveSubroute)
 //   imageRoutes    — /images/search
-import type { DB } from "./db";
-import type { Registry } from "./registry";
-import type { JobEngine } from "./jobs";
-import type { ImageService } from "./images";
-import type { CrateConfig } from "./config";
-import type { ArchiveReader } from "./archive";
 import { buildPreflight } from "./preflight";
-import { type ReportDeps, allPreflightInputs } from "./report_inputs";
+import { allPreflightInputs } from "./report_inputs";
 import { VERIFY_HELP } from "./verify_help";
 import { HELP_TERMS, HELP_JOBS, HELP_SURFACES } from "../shared/help";
 import {
@@ -38,37 +32,17 @@ import {
   writeConfigBoothFleet,
 } from "./booth_routes";
 import { errMessage as errorText } from "../shared/fmt";
-import type { makeHygieneRoutes } from "./hygiene_routes";
-import type { makeFixesRoutes } from "./fixes_routes";
+// ApiDeps/Handler moved to the api_deps leaf (#173 madge pass): dispatch's
+// type-only back-edge into this file WAS a cycle. Both sides import the
+// leaf now; the dependency arrow runs one way again.
+import type { ApiDeps, Handler } from "./api_deps";
 
-/** The shared services the /api slices read. Mirrors index.ts's module
- *  singletons — populated once at bootstrap, never reassigned. */
-export interface ApiDeps {
-  cfg: CrateConfig;
-  db: DB;
-  registry: Registry;
-  jobs: JobEngine;
-  images: ImageService;
-  archive: ArchiveReader;
-  reportDeps: ReportDeps;
-  hygieneApi: ReturnType<typeof makeHygieneRoutes>;
-  fixesApi: ReturnType<typeof makeFixesRoutes>;
-  driveListPayload: () => Promise<unknown>;
-  reportsPayload: () => unknown;
-  driveSubroute: (
-    req: Request,
-    url: URL,
-    id: string,
-    sub: string | undefined,
-  ) => Promise<Response | null> | Response | null;
-  fleetRoutes: (route: string, url: URL) => Response | Promise<Response>;
-  json: (data: unknown, status?: number) => Response;
-  sse: () => Response;
-  /** graceful stop (deckctl stop): watcher + jobs + closes + exit. */
-  stopServer: () => void;
-}
-
-type Handler = (req: Request, url: URL) => Response | Promise<Response>;
+/** The shared services the /api slices read — canonically DEFINED in
+ *  ./api_deps (this re-export keeps existing `from "./api_routes"`
+ *  consumers on the same symbol, never a twin). Handler is internal:
+ *  it has no importer outside these two modules, so it is NOT
+ *  re-exported (knip would flag a dead twin). */
+export type { ApiDeps } from "./api_deps";
 
 /** Front-page aggregate: interlock + drives + jobs in one read — the
  *  deckctl status / deck_status REST twin. Wire shape is exactly what
