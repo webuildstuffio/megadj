@@ -24,7 +24,7 @@ export async function aiGenreFallback(
   jsonOut: boolean,
 ): Promise<void> {
   if (!batch.length || dry) return;
-  console.log(`AI genre fallback for ${batch.length}…`);
+  if (!jsonOut) console.log(`AI genre fallback for ${batch.length}…`);
   for (let k = 0; k < batch.length; k += BATCH) {
     const slice = batch.slice(k, k + BATCH);
     const res = await aiGenres(slice);
@@ -51,7 +51,7 @@ export async function aiYearFallback(
   jsonOut: boolean,
 ): Promise<void> {
   if (!batch.length || dry) return;
-  console.log(`\nAI year fallback for ${batch.length}…`);
+  if (!jsonOut) console.log(`\nAI year fallback for ${batch.length}…`);
   for (let k = 0; k < batch.length; k += BATCH) {
     const slice = batch.slice(k, k + BATCH);
     const res = await aiGenres(slice, true);

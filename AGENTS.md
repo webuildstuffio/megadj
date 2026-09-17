@@ -32,8 +32,11 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   green when either call surface changes. Positionals go through
   `firstPositional(args, cmd, stringOpts)`/`positionalArgs` — the stringOpts
   argument is load-bearing: without it a space-form flag's VALUE reads as the
-  positional (`ingest --min-duration 30 <folder>` took "30" as the folder,
-  fixed 2026-09-17). Never hand-roll a numeric-parse closure beside
+  positional (`ingest --min-duration 30 <folder>` took "30" as the folder;
+  the SAME bug recurred in the rb-unmatched/rb-import/rb-playlist arms via
+  `positionalArgs(rest, [])` beside a non-empty parseFlags string list,
+  re-fixed 2026-09-17 — the stringOpts lists must MATCH parseFlags, a
+  mismatch is a bug). Never hand-roll a numeric-parse closure beside
   `nonNegOpt` (the rb-playlist twin needed exitCode READS to bail out);
   `numOpt` (silent default on bad input, `0` → unlimited) is retired.
 - stdout is a boundary: JSON via the awaited seams (`emitJson` deckctl,
@@ -116,7 +119,9 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - `yt-dlp` SC metadata returns numeric genre IDs: both write points
   (`art-sources.ts` hit filter, `applyScGenre`) refuse numeric/`Music` genres.
   SC hits pass a hard artist gate (`scoreScHits`, mirrors `scoreBpHit`). Keep
-  the `COL|` destructure aligned to the real 6 fields. `?? "Music"` is banned;
+  the `COL|` destructure aligned to the real 6 fields. `?? "Music"` is banned
+  EVERYWHERE (the sync download-folder plumbing still had one in Sep 17 —
+  null + "Music" both land in sanitizeGenreFolder's "Unknown Genre" bucket);
   the `sc_genre_ids` cache was dropped (#108) — never resurrect without owning
   its writer. ID3 genre frames are unreliable: curated genres live in the
   archive ledger, never the tag frame.
@@ -129,7 +134,11 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   and verifies with a delayed re-read. Dated `rekordbox_bak_*.zip` backups are
   sacred. Never write drive DBs in place; never delete source files.
 - Master DB: `/Volumes/SHELF1/PIONEER/Master/master.db` (configured volume
-  names win over examples). Pass DB paths positionally to Python seams; verify
+  names win over examples; drive-name lookups go through
+  `src/shared/volume.ts` — `configuredMasterDrive()` reads config
+  `library.master_drive`, never a private env twin like the
+  `MEGADJ_MASTER_DRIVE` that made rb-grid-triage diverge, removed
+  2026-09-17). Pass DB paths positionally to Python seams; verify
   every row's file after path rewrites. Local
   `~/Library/Pioneer/rekordbox/master.db` is stale.
 - Two DBs, two roles: SHELF1 `master.db` = collection SSOT; `archive.db` =
