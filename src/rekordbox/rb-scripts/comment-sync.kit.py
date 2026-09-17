@@ -1,6 +1,6 @@
 """rb-comment-sync write leg — FullTags comment from TXXX + ledger.
 
-argv: <dbPath> <ledgerPath> <apply> <batch> <limit> — for each master
+argv: <dbPath> <ledgerPath> <apply> <batch> — for each master
 row with an empty Comment and an existing file: read TXXX
 CAMELOT/ENERGY/MOOD (+ MOODS variant) via mutagen and build the
 FullTags comment `Camelot · E<energy> · Mood1+Mood2`; falls back to
@@ -46,7 +46,7 @@ def read_txxx(path):
 def main() -> None:
     db_path, ledger_path = sys.argv[1], sys.argv[2]
     apply = sys.argv[3] == "apply"
-    batch, limit = sys.argv[4], int(sys.argv[5] or 0)
+    batch = sys.argv[4]
     db = db6.Rekordbox6Database(path=db_path, key=deobfuscate(BLOB))
 
     rows = []
@@ -55,8 +55,6 @@ def main() -> None:
         if batch and batch not in p:
             continue
         rows.append(c)
-    if limit > 0:
-        rows = rows[:limit]
 
     # ledger fallback data (video_id keyed)
     led = {}
