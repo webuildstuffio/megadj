@@ -29,7 +29,13 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   parser; gate numerics with `Number.isFinite`; CLI numeric options use
   `nonNegOpt` (bad input → exit 2, zero work). Keep
   `src/boundary-number-census.test.ts` and `src/boundary-json-census.test.ts`
-  green when either call surface changes.
+  green when either call surface changes. Positionals go through
+  `firstPositional(args, cmd, stringOpts)`/`positionalArgs` — the stringOpts
+  argument is load-bearing: without it a space-form flag's VALUE reads as the
+  positional (`ingest --min-duration 30 <folder>` took "30" as the folder,
+  fixed 2026-09-17). Never hand-roll a numeric-parse closure beside
+  `nonNegOpt` (the rb-playlist twin needed exitCode READS to bail out);
+  `numOpt` (silent default on bad input, `0` → unlimited) is retired.
 - stdout is a boundary: JSON via the awaited seams (`emitJson` deckctl,
   `writeJson` megadj CLI) — never raw `console.log(JSON.stringify)` (pipe-EOF
   truncation) or `Bun.write(Bun.stdout, "")`; drain with
