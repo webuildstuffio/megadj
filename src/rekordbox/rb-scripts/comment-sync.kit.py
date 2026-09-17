@@ -17,30 +17,44 @@ from pyrekordbox import db6  # type: ignore[import-not-found]
 from pyrekordbox.db6.database import BLOB, deobfuscate  # type: ignore[import-not-found]
 from pyrekordbox.db6.tables import DjmdContent  # type: ignore[import-not-found]
 
+# Sentinel: the file exists but its tag block is corrupt/unparseable.
+# Distinct from None ("readable, no usable frames") so the skip list can
+# report "unreadable" — a data-integrity signal — instead of "no tag data"
+# (issue #229: corrupt indistinguishable from untagged).
+UNREADABLE = object()
+
 
 def read_txxx(path):
-    """Read CAMELOT/ENERGY/MOOD TXXX frames + comment-format fields."""
+    """Read CAMELOT/ENERGY/MOOD TXXX frames + comment-format fields.
+
+    Returns {..frames..}, None (readable file, no usable tag frames),
+    or UNREADABLE (the file's tag block exists but mutagen cannot
+    parse it — issue #229: corrupt must not read as "no tag data",
+    a data-integrity signal mislabeled as absence).
+    """
     try:
         from mutagen import File as MFile
-
-        a = MFile(path, easy=False)
-        if a is None or not hasattr(a, "tags") or a.tags is None:
-            return None
-        out = {}
-        for tag in a.tags.values():
-            k = getattr(tag, "desc", "") or ""
-            v = getattr(tag, "text", [""])
-            v = str(v[0]) if v else ""
-            ku = k.upper()
-            if ku in ("CAMELOT", "TKEY", "INITIALKEY") and v:
-                out.setdefault("key", v)
-            elif ku == "ENERGY" and v:
-                out.setdefault("energy", v)
-            elif ku in ("MOOD", "MOODS") and v:
-                out.setdefault("mood", v)
-        return out or None
-    except Exception:
+    except Exception:  # mutagen absent — the whole read leg can't run
         return None
+    try:
+        a = MFile(path, easy=False)
+    except Exception:
+        return UNREADABLE
+    if a is None or not hasattr(a, "tags") or a.tags is None:
+        return None
+    out = {}
+    for tag in a.tags.values():
+        k = getattr(tag, "desc", "") or ""
+        v = getattr(tag, "text", [""])
+        v = str(v[0]) if v else ""
+        ku = k.upper()
+        if ku in ("CAMELOT", "TKEY", "INITIALKEY") and v:
+            out.setdefault("key", v)
+        elif ku == "ENERGY" and v:
+            out.setdefault("energy", v)
+        elif ku in ("MOOD", "MOODS") and v:
+            out.setdefault("mood", v)
+    return out or None
 
 
 def main() -> None:
@@ -93,6 +107,9 @@ def main() -> None:
             out["skipped"].append([p[-70:], "file missing"])
             continue
         tags = read_txxx(p)
+        if tags is UNREADABLE:
+            out["skipped"].append([p[-70:], "unreadable"])
+            continue
         key = (tags or {}).get("key", "")
         energy = (tags or {}).get("energy", "")
         mood = (tags or {}).get("mood", "")
@@ -114,7 +131,9 @@ def main() -> None:
                     try:
                         if float(m.get(head) or 0) >= 0.5:
                             tops.append(label)
-                    except Exception:
+                    except (TypeError, ValueError):
+                        # malformed score drops that one mood head (#229);
+                        # a non-numeric ledger cell must not crash the batch
                         pass
                 mood = "+".join(tops[:3])
         if not (energy or mood or key):
