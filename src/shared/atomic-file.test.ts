@@ -1,10 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, afterEach } from "bun:test";
 import {
   chmodSync,
   existsSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -16,9 +17,23 @@ import {
   withTempSiblingSync,
 } from "./atomic-file";
 
+// Leak guard (#236 pattern): scratch dirs are removed when each test
+// ends — 1,312 megadj-atomic-* dirs were left in tmpdir by this suite
+// before the guard (measured Sep 18).
+const createdDirs: string[] = [];
+
 function scratch(): string {
-  return mkdtempSync(join(tmpdir(), "megadj-atomic-"));
+  const dir = mkdtempSync(join(tmpdir(), "megadj-atomic-"));
+  createdDirs.push(dir);
+  return dir;
 }
+
+afterEach(() => {
+  while (createdDirs.length > 0) {
+    const dir = createdDirs.pop();
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 describe("atomic-file seam (#162)", () => {
   test("atomicReplace swaps content and leaves zero residue", () => {
