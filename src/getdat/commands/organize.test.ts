@@ -78,3 +78,77 @@ describe("organize (move-failure honesty)", () => {
     expect(row?.file_path).toBe(join(musicDir, "House", "Track Y.m4a"));
   });
 });
+
+describe("organize F5 move-or-merge", () => {
+  test("a byte-identical destination MERGES: source removed, row repointed, no [id] twin born", async () => {
+    const destDir = join(musicDir, "House");
+    mkdirSync(destDir, { recursive: true });
+    // the destination already holds the organized copy
+    writeFakeAudio(join(destDir, "Track M.m4a"), "same-bytes");
+    // a second row whose loose root copy has IDENTICAL bytes (the
+    // case-variant download twin the merge exists for)
+    const src = join(dir, "loose", "track m.m4a");
+    mkdirSync(join(dir, "loose"), { recursive: true });
+    writeFakeAudio(src, "same-bytes");
+    state.upsertTrackFromPlaylist("vm", 0, "Track M");
+    state.markDownloaded("vm", {
+      title: "Track M",
+      artist: "A",
+      album: null,
+      genre: "House",
+      formatId: null,
+      bitrateKbps: 256,
+      codec: "aac",
+      filePath: src,
+      fileSizeBytes: 10,
+      durationS: 200,
+    });
+
+    const logs: string[] = [];
+    await organize({ state, musicDir, onProgress: (m) => logs.push(m) });
+
+    const { existsSync } = await import("node:fs");
+    expect(existsSync(src)).toBe(false); // merged away
+    expect(existsSync(join(destDir, "Track M.m4a"))).toBe(true);
+    expect(existsSync(join(destDir, "track m [vm].m4a"))).toBe(false); // no twin born
+    const row = state.allTracks().find((t) => t.video_id === "vm");
+    // the row repoints at the destination — compared case-insensitively
+    // (the row keeps its own case-spelling of the same APFS file, which
+    // is exactly the F5 rule: byte identity, not string identity)
+    expect(row?.file_path?.toLowerCase()).toBe(
+      join(destDir, "Track M.m4a").toLowerCase(),
+    );
+    expect(logs.some((m) => m.includes("merged into"))).toBe(true);
+  });
+
+  test("a different-bytes destination keeps the disambiguating rename (no data loss)", async () => {
+    const destDir = join(musicDir, "House");
+    mkdirSync(destDir, { recursive: true });
+    writeFakeAudio(join(destDir, "Track D.m4a"), "the-organized-rip");
+    const src = join(dir, "loose2", "Track D.m4a");
+    mkdirSync(join(dir, "loose2"), { recursive: true });
+    writeFakeAudio(src, "a-different-rip");
+    state.upsertTrackFromPlaylist("vd", 0, "Track D");
+    state.markDownloaded("vd", {
+      title: "Track D",
+      artist: "A",
+      album: null,
+      genre: "House",
+      formatId: null,
+      bitrateKbps: 256,
+      codec: "aac",
+      filePath: src,
+      fileSizeBytes: 10,
+      durationS: 200,
+    });
+
+    await organize({ state, musicDir, onProgress: () => {} });
+
+    const { existsSync } = await import("node:fs");
+    // BOTH rips survive: destination untouched + the [id] twin
+    expect(existsSync(join(destDir, "Track D.m4a"))).toBe(true);
+    expect(existsSync(join(destDir, "Track D [vd].m4a"))).toBe(true);
+    const row = state.allTracks().find((t) => t.video_id === "vd");
+    expect(row?.file_path).toBe(join(destDir, "Track D [vd].m4a"));
+  });
+});

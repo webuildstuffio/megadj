@@ -22,7 +22,7 @@
  * fall-through.
  */
 
-import { DB_PATH } from "../cli-env";
+import { DB_PATH, MUSIC_DIR } from "../cli-env";
 import {
   parseFlags,
   nonNegOpt,
@@ -41,6 +41,7 @@ import type { AnlzSpikeMode } from "../rekordbox/anlz-spike";
 /** Commands handled by this module; cli.ts and the parity census share it. */
 export const MAINTENANCE_VERBS = [
   "shelf-hygiene",
+  "intake-status",
   "shelf-restore",
   "tmp-purge",
   "rb-fix-paths",
@@ -139,6 +140,37 @@ const shelfRestoreCmd: MaintenanceHandler = async (rest) => {
     ...jsonOpts(jsonFlag(flags)),
   });
   if (!r.ok) setExit(1);
+};
+
+const intakeStatusCmd: MaintenanceHandler = async (rest) => {
+  // #238 (postmortem F5): ONE reconciled census — files on disk ↔
+  // archive.db rows under NFC+casefold (the case-variant path class
+  // that ate 3 files can't read as a mismatch here). Optional master
+  // leg degrades honestly when the drive is absent. Read-only.
+  const flags = parseFlags(rest, [], ["json"]);
+  const mountPos = positionalArgs(rest, [])[0];
+  const mount = mountPos ? volumePath(mountPos) : undefined;
+  const json = jsonFlag(flags);
+  const state = new ArchiveState(DB_PATH);
+  try {
+    const { intakeStatus, printIntakeStatus } =
+      await import("../shelf/intake-status");
+    const r = intakeStatus({
+      state,
+      musicDir: MUSIC_DIR,
+      driveMount: mount,
+      json,
+      log: progressLog(json),
+    });
+    await emitResult(json, r, printIntakeStatus);
+    const drift =
+      r.rowsMissingOnDisk > 0 ||
+      r.filesWithoutDbRow > 0 ||
+      r.caseCollisions.length > 0;
+    if (drift) setExit(1);
+  } finally {
+    state.close();
+  }
 };
 
 const shelfHygieneCmd: MaintenanceHandler = async (rest) => {
@@ -559,6 +591,7 @@ export const MAINTENANCE_COMMANDS: Readonly<
   Record<MaintenanceVerb, MaintenanceHandler>
 > = {
   "shelf-hygiene": shelfHygieneCmd,
+  "intake-status": intakeStatusCmd,
   "shelf-restore": shelfRestoreCmd,
   "tmp-purge": tmpPurgeCmd,
   "rb-fix-paths": rbFixPathsCmd,

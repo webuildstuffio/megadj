@@ -151,16 +151,7 @@ interface AllowEntry {
   reason: string;
 }
 
-const ALLOWED: Readonly<Record<string, readonly AllowEntry[]>> = {
-  // the F5 spec text names the PLANNED command; it is the tracker
-  // pointer (#238), not a claim that the verb exists today.
-  "docs/fulltags/intake-cue-postmortem.md": [
-    {
-      name: "intake-status",
-      reason: "planned megadj verb, spec text tracked in #238",
-    },
-  ],
-};
+const ALLOWED: Readonly<Record<string, readonly AllowEntry[]>> = {};
 
 /* ---------- scanning ---------- */
 

@@ -282,6 +282,14 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "intake-status",
+    group: "getdat",
+    block: [
+      "  megadj intake-status [drive] [--json]        one reconciled census: files ↔ archive.db (NFC+casefold);",
+      "                                               exit 1 on drift; the [drive] leg adds master.db counts",
+    ],
+  },
+  {
     name: "shelf-sync",
     group: "fulltags",
     block: [

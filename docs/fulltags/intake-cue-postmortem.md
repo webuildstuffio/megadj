@@ -234,13 +234,19 @@ tracks show clickable labeled pads in RB, then batch. The constant
 `HOT_CUE_KIND = 1` lives in `src/rekordbox/rb-cues.ts` with a regression
 test asserting no writer emits 0.
 
-### F5 — Intake race + stale-count hygiene (P1) — 🧭 tracked as [#238](https://github.com/webuildstuffio/megadj/issues/238)
+### F5 — Intake race + stale-count hygiene (P1) — ✅ SHIPPED as [`megadj intake-status`] (#238, Sep 18 2026)
 
 - One `megadj intake-status` census: files-in-Contents ↔ DB rows ↔ archive.db,
   case/unicode-normalized (NFC + casefold), single source printed for the
   user. Kill the stale `4,427`-style canvases (mark superseded).
 - `organize` must move-or-merge and update rows in the same transaction; the
   stray-sweep must check DB rows case-insensitively (the bug that ate 3 files).
+- SHIPPED receipt (Sep 18 2026): `megadj intake-status [drive] [--json]` —
+  the files ↔ archive.db census joins under NFC+casefold, reports
+  case-variant twins as an explicit collision bucket, exits 1 on drift, and
+  the optional master.db leg degrades to `available: false` (never a fake
+  zero) when the drive is absent. This census is the count SSOT — retire any
+  canvas or doc that still quotes its own reconcile numbers.
 
 ### F6 — One write-seam module per shared surface (P1) — ✅ SHIPPED (rev 5)
 

@@ -25,6 +25,7 @@ fails the build on it.
 - rev-36 (2026-09-17): #208 plugin audit — `plugin/` is a **packaging wrapper, not a fourth surface**: 96 unique LOC (4 files) whose skills are git symlinks (mode 120000) into `.claude/skills/` and whose MCP/hook entries shell out to the SAME `cratedeck/src/mcp.ts` / `deckctl` the rows above govern. Audited KEEP (2026-09-17, evidence in the issue): wiring verified live (MCP handshake + 43-tool `tools/list`; SessionStart hook `deckctl status --json` returns a valid payload), but NOT installed in `~/.claude/plugins/installed_plugins.json` and no Cursor MCP entry — dormant packaging, zero surface drift risk by construction (it can only re-expose the audited MCP). Every plugin capability is covered by the CLI/MCP rows in §1; no parity rows change.
 - rev-37 (2026-09-17): #215 live-run pass — `fetch` job kind (the Genre tab's Run view): `POST /api/fetch/start` (same job engine as intake: interlock, one-at-a-time, cancel) + `GET /api/fetch/feed` (the run's vote-ladder event ring: per-track votes + elections, streamed from megadj fetch --json's stderr `@event` protocol). megadj CLI and the KIND_DOCS/HELP_JOBS rows unchanged in count (the new kind reuses the run verb family); 71 → 73 routes, 54 → 56 UI calls.
 - rev-38 (2026-09-18): #236 — `megadj tmp-purge [--apply] [--all] [--json]`, the stale-fixture sweep for the OS tmpdir (the cratedeck-* test-fixture leak measured at 16k dirs / 2.6 GB Sep 18; known-prefix-only, age-gated >24h by default, read-only without `--apply`). CLI-only by §4-A1 (host filesystem hygiene, nothing archive-or-drive-shaped to expose); 46 → 47 commands.
+- rev-39 (2026-09-18): #238 (postmortem F5) — `megadj intake-status [drive] [--json]`, the ONE reconciled census: files on disk ↔ archive.db rows joined under NFC+casefold (the case-variant path class that ate 3 files in the unreferenced-strays incident now reads as a match, and a true twin reports as a case-collision bucket instead of being silently absorbed); drift = exit 1; optional master.db leg degrades to an explicit `available: false` when the drive is absent — an honest gap, never a zero. Kill-the-canvas: this command is the count SSOT the stale-`4,427` failure mode was missing. 47 → 48 commands.
 
 The full prose of all 27 revisions lives in Git history
 (`git log --follow -- docs/surface-parity.md`) per §5 — this doc keeps
@@ -47,7 +48,7 @@ deliberate exemptions are in §4. Historical repair details belong in
 
 | Surface    | Entry points                                                      | Count                  |
 | ---------- | ----------------------------------------------------------------- | ---------------------- |
-| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                                     | 47 commands + `--help` |
+| megadj CLI | `megadj <cmd>` (`src/cli.ts`)                                     | 48 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                         | 24 verbs               |
 | MCP        | `bun run mcp` (`mcp.ts` + `archive_tools.ts` + `getdat_tools.ts`) | 43 tools               |
 | HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742)       | 73 routes              |
@@ -164,6 +165,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | RB grid triage (GA-03/04)                         | `megadj rb-grid-triage [drive] [--compare D]` ✅                                                          | `archive_grid_cross_check` ✅ (coarse read)               | FullTags ⌗ Beatgrids + Grid health card ✅                                 | — (repair writer stays GA-06)                                                 |
 | ANLZ write-path spike (GA-07)                     | `megadj rb-anlz-spike [drive] snapshot\|compare --tag T` ✅                                               | ⛔ §4-A1 (drive-side harness stays CLI)                   | ⛔ §4-A1                                                                   | —                                                                             |
 | Stale test-fixture sweep (host tmpdir)            | `megadj tmp-purge [--apply] [--all] [--json]` ✅                                                          | ⛔ §4-A1 (host filesystem hygiene stays CLI)              | ⛔ §4-A1                                                                   | —                                                                             |
+| Intake census (files ↔ archive.db, F5)            | `megadj intake-status [drive] [--json]` ✅ (NFC+casefold compare; drift = exit 1)                         | ⛔ §4-A1 (the count SSOT stays CLI)                       | ⛔ §4-A1 (GetDat ⌗ Pipeline renders the same ledger buckets)               | —                                                                             |
 
 Every §2d CLI cell resolves to one of three verdicts: **A1** (mutating
 pipeline arm — CLI-only by exemption), **A2** (host setup), or the
