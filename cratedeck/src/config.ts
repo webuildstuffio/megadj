@@ -1,7 +1,7 @@
 // Config — config.toml + env, validated once at boot.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { FLEET_PROFILES, DEFAULT_FLEET } from "../../src/fulltags/fleet";
+import { FLEET_PROFILES, DEFAULT_FLEET } from "../../src/fulltags/booth/fleet";
 import { isUnknownArray } from "../shared/guards";
 import { resolveServerPort } from "./server-port";
 

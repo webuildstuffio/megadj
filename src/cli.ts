@@ -41,7 +41,7 @@ async function configureBoothFleet(): Promise<void> {
     const environmentFleet = process.env.MEGADJ_FLEET?.split(",")
       .map((player) => player.trim())
       .filter(Boolean);
-    const { setBoothFleet } = await import("./fulltags/player-compat");
+    const { setBoothFleet } = await import("./fulltags/booth/player-compat");
     setBoothFleet(
       environmentFleet && environmentFleet.length > 0
         ? environmentFleet

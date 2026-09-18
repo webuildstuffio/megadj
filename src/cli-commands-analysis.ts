@@ -290,7 +290,7 @@ const regate: CliCommandHandler = async (rest, { state }) => {
   const dimension =
     firstPositional(rest, "regate", ["detector", "gold-dir"]) ?? "bpm";
   const detector = flags.strings.get("detector") ?? "ledger";
-  const { regate: runRegate } = await import("./fulltags/regate");
+  const { regate: runRegate } = await import("./fulltags/regate/regate");
   const report = runRegate(
     state,
     dimension,

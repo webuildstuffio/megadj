@@ -9,7 +9,7 @@ import type { IngestCounters } from "./ingest-register";
 import type { IngestOptions } from "./ingest";
 import type { Record_ } from "./ingest-probe";
 import type { detectRemix } from "../../fulltags/sources/remix";
-import { isHiresOnly, playerCompat } from "../../fulltags/player-compat";
+import { isHiresOnly, playerCompat } from "../../fulltags/booth/player-compat";
 import { guessFromFreeText } from "../../fulltags/genre/genre-vocab";
 import { mbRecording } from "../../fulltags/sources/mb_lookup";
 

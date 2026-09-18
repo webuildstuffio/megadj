@@ -13,7 +13,7 @@ import {
   DEFAULT_FLEET,
   fleetFloor,
   resolveFleet,
-} from "../../src/fulltags/fleet";
+} from "../../src/fulltags/booth/fleet";
 
 /** The GET/POST /api/booth/fleet payload — profiles + citations + the
  *  floor the current selection produces. */

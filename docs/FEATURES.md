@@ -27,7 +27,7 @@ nothing ever downloaded twice.
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Status**         | 🔨 YouTube Music downloads today; SC/BP/Bandcamp enrichment live in the fetch ladder                                                                                                                                                                |
 | **Sources today**  | YouTube Music (liked songs, playlists); SoundCloud + Beatport + **Bandcamp (Sep 15)** vote genre/year/label/art at `megadj fetch` time; the **imprint prior (Sep 16, W7)** converts Beatport-filled labels into a genre vote when the catalogs miss |
-| **Sources coming** | 1001tracklists mining as a discovery queue (#110) · Bandcamp downloads once yt-dlp's extractor recovers (#124 context) · SoundCloud-as-download-source closed deliberately-untracked (#109 — re-file from a PRD if it earns a slot)                                                            |
+| **Sources coming** | 1001tracklists mining as a discovery queue (#110) · Bandcamp downloads once yt-dlp's extractor recovers (#124 context) · SoundCloud-as-download-source closed deliberately-untracked (#109 — re-file from a PRD if it earns a slot)                 |
 | **How it works**   | `megadj sync` → yt-dlp at the best format available (256 kbps AAC first, graceful fallback); polite pacing and backoff, permanent failures classified and never retried                                                                             |
 | **State**          | SQLite tracks every video ID: status, format, bitrate, path, attempt history. Nothing re-downloads.                                                                                                                                                 |
 | **Flag**           | anything below 250 kbps is flagged `LOWQ` in `megadj list` — quality only ever ratchets up                                                                                                                                                          |
@@ -53,7 +53,7 @@ the remix's, not the original's.
    can't display or export (glyph tables, mojibake, illegal filename
    characters, over-long paths). `megadj booth-fix [--apply --yes]`
    proposes (and applies) the safe fixes. Fleet selection + citations:
-   `src/fulltags/fleet.ts`; the full pick → audit → fix → reload loop is
+   `src/fulltags/booth/fleet.ts`; the full pick → audit → fix → reload loop is
    a skill: `.claude/skills/booth-check/SKILL.md`.
 2. **Source-correct metadata** — the source the track came from is the
    first source of truth (SoundCloud page art, remix year from the upload

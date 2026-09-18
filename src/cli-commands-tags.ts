@@ -14,7 +14,7 @@ const boothFix: CliCommandHandler = async (rest, { state, musicDir }) => {
     ["booth-fix"],
     ["apply", "yes", "dry-run", "json"],
   );
-  const { boothFix: fix } = await import("./fulltags/booth-fix");
+  const { boothFix: fix } = await import("./fulltags/booth/booth-fix");
   const report = await fix({
     state,
     musicDir,
