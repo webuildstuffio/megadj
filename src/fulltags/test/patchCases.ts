@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { canonicalizeClaim } from "../genre-vocab";
+import { canonicalizeClaim } from "../genre/genre-vocab";
 import { validatePatchUntrusted } from "../schema-guards";
 
 /** Shared validatePatch scenario cases (used by schema.test.ts and

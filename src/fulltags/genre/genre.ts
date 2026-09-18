@@ -21,7 +21,7 @@
 // (flag parse → ladder invocation → report) lives in genre-run.ts, the
 // #88 fetch-split pattern.
 
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../../archive/state";
 
 export { genre } from "./genre-run";
 

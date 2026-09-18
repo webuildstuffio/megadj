@@ -52,7 +52,7 @@ const db = new Database(env.MEGADJ_DB);
 db.exec("ALTER TABLE tracks ADD COLUMN genre TEXT");
 db.exec("ALTER TABLE tracks ADD COLUMN genre_flag TEXT");
 db.exec("ALTER TABLE tracks ADD COLUMN genre_votes TEXT");
-const { serializeVotes } = await import("../genre-vote");
+const { serializeVotes } = await import("./genre-vote");
 db.query(
   "UPDATE tracks SET genre='Techno', genre_votes=? WHERE video_id='vid1'",
 ).run(

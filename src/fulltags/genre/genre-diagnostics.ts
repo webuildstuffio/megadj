@@ -26,7 +26,7 @@ import {
   cosineSimilarity,
   type GenreSeed,
   type LoORowOutcome,
-} from "../archive/similar";
+} from "../../archive/similar";
 
 /** The four Tier-0 readouts, one JSON-serializable shape. */
 export interface GenreDiagnostics {

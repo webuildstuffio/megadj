@@ -5,7 +5,7 @@ import {
   SC_GENRE_CANON,
   type FullTag,
 } from "../schema";
-import { guessFromFreeText } from "../genre-vocab";
+import { guessFromFreeText } from "../genre/genre-vocab";
 import { validatePatch } from "../schema-guards";
 import { runCanonGenreCases, runValidatePatchCases } from "./patchCases";
 

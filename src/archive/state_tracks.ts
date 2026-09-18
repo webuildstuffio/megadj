@@ -5,7 +5,7 @@ import {
   parseVotes,
   serializeVotes,
   type GenreVote,
-} from "../fulltags/genre-vote";
+} from "../fulltags/genre/genre-vote";
 
 /** Track lifecycle and inventory queries. */
 export class ArchiveTracks extends ArchiveCore {

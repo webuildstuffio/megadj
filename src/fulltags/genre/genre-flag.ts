@@ -18,7 +18,7 @@
 //
 // Pure — no DB, no IO; genre.ts wires it into `--flag`.
 
-import type { EvalSummary } from "../archive/similar";
+import type { EvalSummary } from "../../archive/similar";
 
 /** One disputed row: identity + the evidence (what the audio said, how
  *  hard it said it). JSON-serializable for the summary output. */

@@ -5,7 +5,7 @@
  * for years — verify with the years stage (`megadj years`) before trusting.
  */
 import { basename } from "node:path";
-import { AI_VOCAB } from "./genre-vocab";
+import { AI_VOCAB } from "./genre/genre-vocab";
 
 /** The model id the AI ladder pins (cheapest solid); referenced by the
  * fulltags docs/roadmap. Re-exported as `AI_MODEL` by exports.ts — no

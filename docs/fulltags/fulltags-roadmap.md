@@ -302,11 +302,11 @@ next action is a command you can run.**
   abstention via injectable `scoringFamily`; the eval gate judges the
   refold arm and exits 0). **Live A/B (reproducible): 61.7% → 69.2%
   gated LOO (+7.4 pts, n 2982→2424, refusal 20.7%→13.0%) — the ≥65%
-  post-refold target PASSES.** Engine: `src/fulltags/genre-refold.ts`
+  post-refold target PASSES.** Engine: `src/fulltags/genre/genre-refold.ts`
   (pure, 21 tests); #94 closed.
 - **Demote-and-flag (rev 6.9, Sep 15):** `megadj genre --flag`
   (`--apply` to write; dry by default) — engine
-  `src/fulltags/genre-flag.ts` (`classifyDisputes` over the LOO rows,
+  `src/fulltags/genre/genre-flag.ts` (`classifyDisputes` over the LOO rows,
   4 tests), flag column `tracks.genre_flag` (migration), seeding
   exclusion in `genreSeeds()`. Unanimity bar: gated prediction +
   agreement 1.0 + family mismatch. **Applied live: 96 disputed of 2982
@@ -582,7 +582,7 @@ the OpenKeyScan SSOT decision (#3).
   Demucs.
 - **Genre vote ladder + Bandcamp arm (NEW, M)** — ~~weighted multi-source
   vote replacing first-win-writes~~ (**SHIPPED Sep 16, #173** —
-  `src/fulltags/genre-vote.ts`: every rung votes genre+weight+
+  `src/fulltags/genre/genre-vote.ts`: every rung votes genre+weight+
   provenance per the doc's W-table, highest total elects, ties break
   toward the harder gate, breakdown persists in `tracks.genre_votes`).
   The **imprint prior rung is LIVE** in the vote (Sep 16, W7 —

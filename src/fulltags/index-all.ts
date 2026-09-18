@@ -31,4 +31,4 @@ export * from "./mb";
 export * from "./gold";
 export * from "./gold-score";
 export * from "./anlz";
-export * from "./genre-vocab";
+export * from "./genre/genre-vocab";

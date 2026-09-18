@@ -33,7 +33,7 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "the enclosing branch first validates uploadDate as exactly eight digits.",
   "src/getdat/commands/intake-folder.ts::dumpDateFromNameParts::Number(m[1])":
     "m[1] is a digits-only date regex capture.",
-  "src/fulltags/genre-refold.ts::refoldDetail::Number(i)":
+  "src/fulltags/genre/genre-refold.ts::refoldDetail::Number(i)":
     "i is a digits-only capture from the SENTINEL(\\d+)SENTINEL restore regex, and stash lookups use the same captured index.",
   // #184: the second front door (tools/fetch-all.ts import.meta.main argv
   // parse, with its Number(argv[jobsArg+1]) site) was deleted — `megadj
@@ -115,7 +115,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 17 (#220 fetch/ slice): fetch cluster re-homed from fulltags
     // root to src/fulltags/fetch/ — the stageBandcamp sanction re-keyed,
     // same call, same guard; counts unchanged, digest shifted.
-    digest: "12b2ef000067addae75bcc9754c5fe4c0c3a5bc74fef531a92532096605b58ee",
+    // Sep 17 (#220 genre/ slice): genre-refold sanction re-keyed to
+    // src/fulltags/genre/genre-refold.ts (same call, same guard, counts
+    // unchanged) — digest shifted.
+    digest: "9f68833d14165d344e8ab140336f62a6f06bf5cacdac138e8d6deff7516d911c",
   });
 });
 

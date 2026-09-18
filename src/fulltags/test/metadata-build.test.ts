@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { guessFromFreeText } from "../genre-vocab";
+import { guessFromFreeText } from "../genre/genre-vocab";
 import { buildMetadata, cleanTitle, extractComposer } from "../metadata-build";
 
 describe("cleanTitle", () => {

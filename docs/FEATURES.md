@@ -64,7 +64,7 @@ the remix's, not the original's.
    (SC / Beatport / Bandcamp / imprint prior / AI / MusicBrainz / file
    tags / sync category) casts genre + weight + provenance
    (`GENRE_VOTE_WEIGHTS`, the doc's W-table versioned in
-   `src/fulltags/genre-vote.ts`); the highest total elects, ties break
+   `src/fulltags/genre/genre-vote.ts`); the highest total elects, ties break
    toward the harder gate, and the full breakdown persists in
    `tracks.genre_votes` — every stored genre is explainable after the
    fact.

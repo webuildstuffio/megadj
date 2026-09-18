@@ -63,7 +63,7 @@ import {
 // old art-stage piggyback double-voted SC — fixed with #215's election
 // visibility pass).
 import { stageArt } from "./fetch-art";
-import type { GenreVote } from "../genre-vote";
+import type { GenreVote } from "../genre/genre-vote";
 
 /** Pipeline options. `megadj fetch` passes these from parsed
  * FetchOptions — the CLI argv shim went with the old front door. */

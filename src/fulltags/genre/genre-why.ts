@@ -9,19 +9,19 @@
 // DRIFTED row (replay ≠ stored genre — the one finding this command
 // exists to surface; exit code makes it agent-detectable without
 // parsing). Never-voted is exit 0: a status, not an error.
-import { commandLog } from "../progress";
+import { commandLog } from "../../progress";
 import {
   drainStdout,
   finishCommandError,
   setExit,
   writeJson,
-} from "../shared/cli-output";
+} from "../../shared/cli-output";
 import {
   GENRE_VOTE_WEIGHTS,
   electGenre,
   type GenreVoteRung,
 } from "./genre-vote";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../../archive/state";
 
 export interface GenreWhyOptions {
   state: ArchiveState;

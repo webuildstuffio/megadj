@@ -30,8 +30,8 @@ import {
   genreFamily,
   inferGenre,
   parseEmbeddingVector,
-} from "../archive/similar";
-import type { ArchiveState } from "../archive/state";
+} from "../../archive/similar";
+import type { ArchiveState } from "../../archive/state";
 
 /** One disputed row with the evidence a decision needs. */
 export interface DisputeRow {

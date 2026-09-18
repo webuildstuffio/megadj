@@ -98,7 +98,7 @@ are the fine-grained similarity source.**
 ### Tier 1 — canonical label (display + browsing)
 
 - One-time `megadj genre --refold` pass (SHIPPED, §5b.3.1): casefold+trim →
-  alias-map (inside `src/fulltags/genre-refold.ts` — the
+  alias-map (inside `src/fulltags/genre/genre-refold.ts` — the
   `shared/genre-aliases.ts` file once planned here was folded into the
   refold engine; one SSOT) → canonical. `Hip-Hop`/`hiphop`/`HipHop` →
   `hip-hop`; `House`/`house` → `house`. Mechanical wins first: applied
@@ -166,7 +166,7 @@ all, only soft penalties and filters).
 1. ~~`megadj genre --refold` (S, one session): casefold+trim → alias table
    (`shared/genre-aliases.ts`, tested SSOT) → write canonical back;
    `--report` lists unmapped labels by count. Expected: 459→~120.~~
-   SHIPPED — alias logic folded into `src/fulltags/genre-refold.ts`; the
+   SHIPPED — alias logic folded into `src/fulltags/genre/genre-refold.ts`; the
    dry-run census is `megadj genre --refold --json`; case-twins: 0.
 2. ~~Family coverage check~~ DONE: 93.4% (target >90%; `music`/
    `edits / bootlegs` intentionally unmapped).
@@ -308,7 +308,7 @@ ground-truth philosophy unchanged.
    and ALL sub-genre labels — **hardtekk and friends are explicitly kept**
    as Tier-1 display; only the _scoring_ family arbitration changes.
    **✅ IMPLEMENTED + APPLIED LIVE (Sep 15): `megadj genre --refold`
-   (+ `--eval --refold` A/B), engine in `src/fulltags/genre-refold.ts`.
+   (+ `--eval --refold` A/B), engine in `src/fulltags/genre/genre-refold.ts`.
    Data half applied: 790 canonicalization writes (escape repair,
    multi-label split with specific-outranks-umbrella ranking, casing
    collapse — killed the `House/House/house` ×3 and `EDM/edm` ×3 twins)
@@ -330,7 +330,7 @@ ground-truth philosophy unchanged.
    NOT rewritten (a human decision), but excluded from inference seeding
    so one bad label poisons fewer votes.
    **✅ IMPLEMENTED + APPLIED LIVE (Sep 15): `megadj genre --flag`
-   (+`--apply`), engine in `src/fulltags/genre-flag.ts`
+   (+`--apply`), engine in `src/fulltags/genre/genre-flag.ts`
    (`classifyDisputes`), flag column `tracks.genre_flag` (migration),
    seeding exclusion in `state_tracks.genreSeeds()`. Unanimity is the
    evidence bar (gated prediction + agreement 1.0 + family mismatch);

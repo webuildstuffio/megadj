@@ -243,7 +243,7 @@ import {
   electGenre,
   serializeVotes,
   type GenreVote,
-} from "../genre-vote";
+} from "../genre/genre-vote";
 
 /** One SC genre win: canonicalize → file tag + DB row + stat + note.
  *  Structurally typed on GenreYearCtx (the stage-2 arms' context) — the

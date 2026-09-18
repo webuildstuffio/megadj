@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../../archive/state";
 import { genre } from "./genre";
 
 describe("genre command JSON boundary", () => {

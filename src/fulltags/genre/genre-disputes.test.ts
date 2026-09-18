@@ -4,7 +4,7 @@
 // the real inferGenre engine (2-d vectors, same as the --flag tests).
 import { describe, expect, test } from "bun:test";
 import { collectDisputes, resolveDispute } from "./genre-disputes";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../../archive/state";
 
 describe("genre --disputes (#64 review surface)", () => {
   test("collect lists flagged rows with live consensus + embed age", () => {

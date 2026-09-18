@@ -13,7 +13,7 @@ import {
   type Row,
 } from "../archive-ledger";
 import { imprintVote } from "../imprint-prior";
-import { GENRE_VOTE_WEIGHTS, type GenreVote } from "../genre-vote";
+import { GENRE_VOTE_WEIGHTS, type GenreVote } from "../genre/genre-vote";
 
 /** Minimal SC search hit (the fields stage 2 consumes). */
 export interface ScHit {

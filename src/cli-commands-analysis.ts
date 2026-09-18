@@ -216,7 +216,7 @@ const genre: CliCommandHandler = async (rest, { state }) => {
       return;
     }
   }
-  const { genre: inferGenre } = await import("./fulltags/genre");
+  const { genre: inferGenre } = await import("./fulltags/genre/genre");
   await inferGenre({
     state,
     apply: flags.bools.has("apply"),
@@ -277,7 +277,7 @@ const genreWhy: CliCommandHandler = async (rest, { state }) => {
     });
     return;
   }
-  const { genreWhy: explainGenre } = await import("./fulltags/genre-why");
+  const { genreWhy: explainGenre } = await import("./fulltags/genre/genre-why");
   await explainGenre({
     state,
     videoId,

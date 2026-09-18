@@ -3,8 +3,12 @@
 // vocabulary (GenreOptions/RefoldEvalBlock types); this file owns the
 // runner, mirroring the #88 fetch split (fetch-pipeline + stages) and
 // the #90 command-arm pattern.
-import { commandLog } from "../progress";
-import { writeJson, finishCommandError, setExit } from "../shared/cli-output";
+import { commandLog } from "../../progress";
+import {
+  writeJson,
+  finishCommandError,
+  setExit,
+} from "../../shared/cli-output";
 import {
   evalLeaveOneOut,
   evalLeaveOneOutArtistDisjoint,
@@ -12,10 +16,10 @@ import {
   inferGenre,
   parseEmbeddingVector,
   type GenreSeed,
-} from "../archive/similar";
-import { l2normalize } from "../../cratedeck/shared/vector-space";
+} from "../../archive/similar";
+import { l2normalize } from "../../../cratedeck/shared/vector-space";
 import { tier0Diagnostics } from "./genre-diagnostics";
-import { probeLeaveOneOut, type ProbeRow } from "./linear-probe";
+import { probeLeaveOneOut, type ProbeRow } from "../linear-probe";
 import { refoldDetail, scoringFamily } from "./genre-refold";
 import { isUmbrellaLabel } from "./genre-vocab";
 import { classifyDisputes } from "./genre-flag";

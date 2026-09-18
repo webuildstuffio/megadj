@@ -176,4 +176,7 @@ export function sanitizeGenreFolder(genre: string | null): string {
  *  below are a package-internal convenience for beatport.ts (whose #181
  *  refactor landed importing from here); the bridge exports the
  *  canonical names. No new external consumers. */
-export { canonicalizeClaim as canonGenre, SC_GENRE_CANON } from "./genre-vocab";
+export {
+  canonicalizeClaim as canonGenre,
+  SC_GENRE_CANON,
+} from "./genre/genre-vocab";

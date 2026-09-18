@@ -3,7 +3,7 @@
  * EnrichedMetadata record. Migrated from src/metadata.ts (the yt-dlp +
  * description-credits + genre-inference pass).
  */
-import { guessFromFreeText } from "./genre-vocab";
+import { guessFromFreeText } from "./genre/genre-vocab";
 import type { EnrichedMetadata } from "./schema";
 
 export interface YtdlpInfo {

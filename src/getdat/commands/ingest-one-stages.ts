@@ -10,7 +10,7 @@ import type { IngestOptions } from "./ingest";
 import type { Record_ } from "./ingest-probe";
 import type { detectRemix } from "../../fulltags/remix";
 import { isHiresOnly, playerCompat } from "../../fulltags/player-compat";
-import { guessFromFreeText } from "../../fulltags/genre-vocab";
+import { guessFromFreeText } from "../../fulltags/genre/genre-vocab";
 import { mbRecording } from "../../fulltags/mb_lookup";
 
 export interface IngestGateCtx {

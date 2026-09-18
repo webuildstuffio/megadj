@@ -145,7 +145,7 @@ export {
   twinArt,
 } from "./art-sources";
 export { scSearch } from "./sc-search";
-export { canonicalizeClaim as canonGenre } from "./genre-vocab";
+export { canonicalizeClaim as canonGenre } from "./genre/genre-vocab";
 
 // ---------- Beatport (second source, behind SC — beatport.ts) ----------
 export {

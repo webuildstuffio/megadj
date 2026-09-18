@@ -37,7 +37,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "src/fulltags/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
     // #173 genre-vote breakdown: the vote ledger's explainability column;
     // corrupt JSON reads as an empty breakdown, never a throw into a query.
-    "src/fulltags/genre-vote.ts::parseVotes::JSON.parse(raw)",
+    "src/fulltags/genre/genre-vote.ts::parseVotes::JSON.parse(raw)",
   ]),
   // rb-adopt mirror payload: the catch converts corrupt JSON into
   // "no RB row" (the mirrors then stand alone; rb-adopt re-adopt
@@ -111,7 +111,10 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     audited: 62,
     guarded: 45,
     sanctioned: 17,
-    digest: "0adc2a0b1c2d5d4ff4d53b48e02d0e6364b59324a62eb6edc9ad0c3c68669251",
+    // Sep 17 (#220 genre/ slice): genre-vote.ts parseVotes sanction re-keyed
+    // to src/fulltags/genre/genre-vote.ts (same call, same guard, counts
+    // unchanged) — digest shifted.
+    digest: "3638f4eae153d4a9a0b7d4c6792f7b08986baaa20ac4e13b1f86ebfe2eaff84d",
   });
 });
 

@@ -14,7 +14,7 @@ import { ytdlpCookieArgs } from "../ytdlp";
 import { commandLog, ProgressBar } from "../../progress";
 import { applyTags } from "../../fulltags/writer";
 import { buildMetadata, type YtdlpInfo } from "../../fulltags/metadata-build";
-import { guessFromFreeText } from "../../fulltags/genre-vocab";
+import { guessFromFreeText } from "../../fulltags/genre/genre-vocab";
 import { isRecord, isUnknownArray } from "../../../cratedeck/shared/guards";
 
 const isTty = process.stdout.isTTY ?? false;

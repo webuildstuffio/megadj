@@ -138,7 +138,7 @@ for the ideas closed NOT_PLANNED.
   longer writes first-win: every rung (SC / Beatport / Bandcamp /
   imprint prior / AI / MusicBrainz / file tags / sync category) casts a
   vote — genre + weight + provenance — with the weights versioned in
-  code (`GENRE_VOTE_WEIGHTS`, `src/fulltags/genre-vote.ts`, mirroring
+  code (`GENRE_VOTE_WEIGHTS`, `src/fulltags/genre/genre-vote.ts`, mirroring
   the pipeline doc's W-table). Highest total weight elects; ties break
   deterministically toward the harder single gate; the full per-track
   breakdown persists in `tracks.genre_votes`, so any stored genre is

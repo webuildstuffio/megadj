@@ -8,7 +8,7 @@ import {
   electGenre,
   GENRE_VOTE_WEIGHTS,
   parseVotes,
-} from "../../src/fulltags/genre-vote";
+} from "../../src/fulltags/genre/genre-vote";
 import type { ArchiveQuery } from "./archive_types";
 
 /** Round to 4 decimals for wire payloads. Pure — module-level. */

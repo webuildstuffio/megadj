@@ -11,7 +11,7 @@ import {
   isUmbrellaLabel,
   normalizeGenre,
   SC_GENRE_CANON,
-} from "../genre-vocab";
+} from "./genre-vocab";
 
 describe("genre vocab: cross-map consistency (#187)", () => {
   test("every canon VALUE that is not an umbrella lands on a family", () => {
