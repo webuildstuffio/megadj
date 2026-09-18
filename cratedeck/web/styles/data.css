@@ -308,6 +308,11 @@
   vertical-align: 2px;
   min-width: 8px;
 }
+/* abstained rung row (Genre Why full-ladder render): dimmed but present —
+   the ladder teaches its own shape. */
+.kvrow.votebar-abstain {
+  opacity: 0.55;
+}
 .kvrow:hover {
   background: var(--surface3);
 }

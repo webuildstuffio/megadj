@@ -32,6 +32,18 @@ export interface SearchResult {
 // leaf re-exports so existing `from "../shared/types"` callers don't move.)
 export type { RadarMiss, RadarResult, FleetRadar } from "../radar";
 
+// ---- genre vote ladder: rung display metadata lives in
+// shared/genre-vote-rungs.ts (leaf of the leaf — imports nothing). The
+// weights SSOT is src/fulltags/genre/genre-vote.ts; the UI renders the
+// FULL ladder from this table (abstained rungs included), never a local
+// twin. Re-exported so `../shared/types` callers don't move.
+export {
+  GENRE_VOTE_RUNG_DEFS,
+  GENRE_VOTE_RUNG_COUNT,
+  genreVoteRungsInOrder,
+  type GenreVoteRungDef,
+} from "../genre-vote-rungs";
+
 // ---- archive reads: one browser-safe contract for producers + consumers ---
 // The dedicated shared leaf owns the wire shapes. Server producers annotate
 // against it; the browser re-exports it from this established import surface.

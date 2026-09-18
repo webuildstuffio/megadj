@@ -1,10 +1,17 @@
 // GenreWhyTab.tsx — the FullTags "Genre Why" canvas (#215): one track's
-// #173 vote-ladder breakdown. Every rung's claim (genre + weight +
-// elected flag + provenance), re-elected through the write path's exact
-// seam so the displayed winner is the genre the row carries — "why
-// Techno?" answered from the row, not from code.
+// #173 vote-ladder breakdown. The FULL ladder renders — all 8 rungs in
+// weight order from the shared defs table (cratedeck/shared/
+// genre-vote-rungs.ts, never a local twin), speaking rungs bold with
+// weight bars, abstained rungs dimmed with what they ARE. The election
+// replays through the write path's exact seam so the displayed winner is
+// the genre the row carries — "why Techno?" answered from the row, not
+// from code.
 import { useState } from "preact/hooks";
-import type { ArchiveGenreWhy, ArchiveSearchHit } from "../../../shared/types";
+import {
+  genreVoteRungsInOrder,
+  type ArchiveGenreWhy,
+  type ArchiveSearchHit,
+} from "../../../shared/types";
 import { api } from "../../ui/toast";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { KVRows, KVRow, KVKey, KVVal, Card, ListHead } from "../../ui/data";
@@ -82,7 +89,7 @@ export function GenreWhyTab() {
               icon="info"
               title={`Genre breakdown — ${picked.title ?? picked.video_id}`}
               n={why.data.votes.length}
-              hint="Each source rung votes its claim with a fixed weight; the bar is the rung's share of all votes cast, ★ = the elected winner."
+              hint="The full 8-rung ladder, strongest voice first. A rung with a claim votes its fixed weight (bar = share of all weight cast); ★ = the elected winner. Dimmed rungs found nothing — an honest abstain, never a guess."
               lines={why.data.votes.map(
                 (v) =>
                   `${v.elected ? "★" : " "} ${v.rung}  w=${v.weight.toFixed(2)}  ${v.genre}`,
@@ -91,32 +98,60 @@ export function GenreWhyTab() {
             {why.data.voted ? (
               <KVRows>
                 {(() => {
+                  const byRung = new Map(
+                    why.data.votes.map((v) => [v.rung, v]),
+                  );
                   const total = totalWeight(why.data.votes) || 1;
-                  return why.data.votes.map((v) => (
-                    <KVRow key={`${v.rung}:${v.genre}`}>
-                      <KVKey>
-                        <span class={v.elected ? "arch-pill ok" : "arch-pill"}>
-                          {v.elected ? "★ " : ""}
-                          {v.rung}
-                        </span>{" "}
-                        {v.genre}
-                        {v.detail ? <small>{` — ${v.detail}`}</small> : null}
-                      </KVKey>
-                      <KVVal>
-                        <span
-                          class="votebar"
-                          style={{
-                            width: `${Math.max(4, (v.weight / total) * 100).toFixed(1)}%`,
-                          }}
-                        />
-                        <span
-                          class={v.elected ? "arch-pill ok" : "arch-pill muted"}
-                        >
-                          w={v.weight.toFixed(2)}
-                        </span>
-                      </KVVal>
-                    </KVRow>
-                  ));
+                  return genreVoteRungsInOrder().map((rung) => {
+                    const v = byRung.get(rung.id);
+                    if (!v) {
+                      // Abstained: dimmed, but still on the ladder — the
+                      // descriptor teaches what the rung LOOKS for.
+                      return (
+                        <KVRow key={rung.id} class="votebar-abstain">
+                          <KVKey>
+                            <span class="arch-pill muted">{rung.name}</span>{" "}
+                            <small>{rung.description}</small>
+                          </KVKey>
+                          <KVVal>
+                            <span class="arch-pill muted">
+                              {rung.docRef} · w={rung.weight.toFixed(2)} — no
+                              claim
+                            </span>
+                          </KVVal>
+                        </KVRow>
+                      );
+                    }
+                    return (
+                      <KVRow key={`${v.rung}:${v.genre}`}>
+                        <KVKey>
+                          <span
+                            class={v.elected ? "arch-pill ok" : "arch-pill"}
+                          >
+                            {v.elected ? "★ " : ""}
+                            {rung.name}
+                          </span>{" "}
+                          {v.genre}
+                          {v.detail ? <small>{` — ${v.detail}`}</small> : null}
+                        </KVKey>
+                        <KVVal>
+                          <span
+                            class="votebar"
+                            style={{
+                              width: `${Math.max(4, (v.weight / total) * 100).toFixed(1)}%`,
+                            }}
+                          />
+                          <span
+                            class={
+                              v.elected ? "arch-pill ok" : "arch-pill muted"
+                            }
+                          >
+                            w={v.weight.toFixed(2)}
+                          </span>
+                        </KVVal>
+                      </KVRow>
+                    );
+                  });
                 })()}
                 <KVRow>
                   <KVKey>
