@@ -2,7 +2,7 @@ import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { auditArchive, fetchAllArgs } from "./fetch";
+import { auditArchive, fetchAllArgs } from "./fetch/fetch";
 import { writeFakeAudio, ffmpegTone } from "../test-support/audio-fixtures";
 
 /**

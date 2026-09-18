@@ -4,14 +4,14 @@
 // mutates stats in place. OPT-IN: batches stay empty unless --ai-fallback
 // collected them (the stage gate keeps them clean).
 import { appendFile } from "node:fs/promises";
-import { aiGenres } from "./ai";
+import { aiGenres } from "../ai";
 import {
   QUEUE,
   db,
   setFileTags,
   type Row,
   type TagValues,
-} from "./archive-ledger";
+} from "../archive-ledger";
 import type { Stats } from "./fetch-stages";
 
 const BATCH = 20;

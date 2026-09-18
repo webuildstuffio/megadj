@@ -9,7 +9,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const FILE = join(import.meta.dir, "fulltags/fetch-ai-fallback.ts");
+const FILE = join(import.meta.dir, "fulltags/fetch/fetch-ai-fallback.ts");
 
 test("fetch AI fallback: every console.log is gated on !jsonOut", () => {
   const src = readFileSync(FILE, "utf8");

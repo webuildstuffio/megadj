@@ -36,10 +36,10 @@ import {
   archiveFiles,
   cleanArtist,
   type Row,
-} from "./archive-ledger";
+} from "../archive-ledger";
 import { existsSync } from "node:fs";
-import { ProgressBar } from "../progress";
-import { writeJson } from "../shared/cli-output";
+import { ProgressBar } from "../../progress";
+import { writeJson } from "../../shared/cli-output";
 import {
   aiGenreFallback,
   aiYearFallback,
@@ -63,7 +63,7 @@ import {
 // old art-stage piggyback double-voted SC — fixed with #215's election
 // visibility pass).
 import { stageArt } from "./fetch-art";
-import type { GenreVote } from "../fulltags/genre-vote";
+import type { GenreVote } from "../genre-vote";
 
 /** Pipeline options. `megadj fetch` passes these from parsed
  * FetchOptions — the CLI argv shim went with the old front door. */

@@ -6,7 +6,7 @@ import {
   parseFlags,
 } from "./cli-flags";
 import { writeJson, setExit, finishCommandError } from "./shared/cli-output";
-import { FETCH_TARGETS, type FetchTarget } from "./fulltags/fetch-target";
+import { FETCH_TARGETS, type FetchTarget } from "./fulltags/fetch/fetch-target";
 
 const boothFix: CliCommandHandler = async (rest, { state, musicDir }) => {
   const flags = parseFlags(
@@ -109,7 +109,7 @@ const fetchCommand: CliCommandHandler = async (rest) => {
   );
   if (nonNegOptInvalid(flags, "jobs", "fetch", flags.bools.has("json"))) return;
   const jobs = nonNegOpt(flags, "jobs", "fetch", flags.bools.has("json"));
-  const { fetch } = await import("./fulltags/fetch");
+  const { fetch } = await import("./fulltags/fetch/fetch");
   const only: FetchTarget =
     FETCH_TARGETS.find(
       (target) => target !== "all" && flags.bools.has(target),
@@ -125,7 +125,7 @@ const fetchCommand: CliCommandHandler = async (rest) => {
 };
 
 const audit: CliCommandHandler = async (rest, { musicDir }) => {
-  const { auditArchive } = await import("./fulltags/fetch");
+  const { auditArchive } = await import("./fulltags/fetch/fetch");
   const { auditRowFlags } = await import("./fulltags/audit-row");
   const report = await auditArchive(musicDir);
   const gaps = report.rows.filter((row) => !row.complete);

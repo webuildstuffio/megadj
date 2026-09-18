@@ -25,7 +25,7 @@ import {
   type BpTrack,
   type Row,
   type TagValues,
-} from "./archive-ledger";
+} from "../archive-ledger";
 import { stageGenreArm, stageYearArm } from "./fetch-genre-year";
 
 /** Where the SC-art fallback ladder stops being tried (artless → queue). */
@@ -243,7 +243,7 @@ import {
   electGenre,
   serializeVotes,
   type GenreVote,
-} from "../fulltags/genre-vote";
+} from "../genre-vote";
 
 /** One SC genre win: canonicalize → file tag + DB row + stat + note.
  *  Structurally typed on GenreYearCtx (the stage-2 arms' context) — the

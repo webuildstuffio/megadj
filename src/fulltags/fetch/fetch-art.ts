@@ -16,7 +16,7 @@ import {
   pageOgImage,
   twinArt,
   type Row,
-} from "./archive-ledger";
+} from "../archive-ledger";
 import type { ScHit, StageCtx, Stats } from "./fetch-stages";
 
 function markArt(

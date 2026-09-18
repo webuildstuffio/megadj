@@ -10,14 +10,14 @@
  * `fulltags audit` must agree by construction).
  */
 import { existsSync } from "node:fs";
-import { groundTruth } from "./readers";
-import { walkAudioFiles } from "./writer";
-import { probeFile } from "./media-probe";
-import { playerCompat, isHiresOnly } from "./player-compat";
-import { boothTextCompat } from "./booth-text";
-import { completeness } from "./schema";
-import type { AuditRow } from "./audit-row";
-export { type AuditRow } from "./audit-row";
+import { groundTruth } from "../readers";
+import { walkAudioFiles } from "../writer";
+import { probeFile } from "../media-probe";
+import { playerCompat, isHiresOnly } from "../player-compat";
+import { boothTextCompat } from "../booth-text";
+import { completeness } from "../schema";
+import type { AuditRow } from "../audit-row";
+export { type AuditRow } from "../audit-row";
 import type { FetchTarget } from "./fetch-target";
 
 export interface FetchOptions {

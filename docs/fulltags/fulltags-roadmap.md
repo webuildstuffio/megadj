@@ -656,7 +656,7 @@ never a manufactured pass (§4's own rule).
    found today is the newest member of this family: a model can be
    _consistently, plausibly wrong_ at a rate no listener would notice in
    isolation but every sync would.
-7. **Old-code retirement** — `src/fulltags/enrich.ts` owns #5's
+7. **Old-code retirement** — `src/fulltags/fetch/enrich.ts` owns #5's
    genre-vote work; `tools/fix-years.ts` (folded into `megadj years`
    Sep 5 2026) was deleted Sep 16 2026 (#93 CUT — zero callers; the
    census-test allowance and LibraryTab hints now point at `megadj

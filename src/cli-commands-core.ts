@@ -113,7 +113,7 @@ const organizeOrEnrich =
     > = await import(
       command === "organize"
         ? "./getdat/commands/organize"
-        : "./fulltags/enrich"
+        : "./fulltags/fetch/enrich"
     );
     await mod[command]({
       state,

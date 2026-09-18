@@ -8,7 +8,7 @@
  * src/getdat/commands/ingest-fingerprint.test.ts,
  * src/getdat/commands/intake-folders.e2e.test.ts, and the
  * `writeFileSync(file, "fake audio")` stand-ins in
- * src/fulltags/enrich.test.ts, src/fulltags/beats.test.ts,
+ * src/fulltags/fetch/enrich.test.ts, src/fulltags/beats.test.ts,
  * src/fulltags/mood-queue.test.ts, src/getdat/commands/organize.test.ts,
  * src/getdat/commands/adopt.test.ts.
  *

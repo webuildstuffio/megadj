@@ -11,9 +11,9 @@ import {
   setFileTags,
   type BpTrack,
   type Row,
-} from "./archive-ledger";
-import { imprintVote } from "../fulltags/imprint-prior";
-import { GENRE_VOTE_WEIGHTS, type GenreVote } from "../fulltags/genre-vote";
+} from "../archive-ledger";
+import { imprintVote } from "../imprint-prior";
+import { GENRE_VOTE_WEIGHTS, type GenreVote } from "../genre-vote";
 
 /** Minimal SC search hit (the fields stage 2 consumes). */
 export interface ScHit {

@@ -170,7 +170,7 @@ const STAGE_RUNNERS: StageSpec[] = [
     // bugs. fetch runs the pipeline in-process via runFetch (it owns its
     // own progress bar + AI batching); years is the in-process verify.
     run: async ({ opts }) => {
-      const { fetch } = await import("../fulltags/fetch");
+      const { fetch } = await import("../fulltags/fetch/fetch");
       await fetch({
         all: false,
         only: "all",
@@ -274,7 +274,7 @@ const STAGE_RUNNERS: StageSpec[] = [
     // energy+player-compat+booth-text). Exits 1 on any gap; the summary's
     // detail carries the gap count so --json consumers see it in one line.
     run: async ({ opts }) => {
-      const { auditArchive } = await import("../fulltags/fetch");
+      const { auditArchive } = await import("../fulltags/fetch/fetch");
       const report = await auditArchive(opts.musicDir);
       const gaps = report.rows.filter((r) => !r.complete);
       if (gaps.length)

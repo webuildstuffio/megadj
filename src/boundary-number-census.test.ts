@@ -46,7 +46,7 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "min is a digits-only ISO-8601 duration capture (T…M group), truthiness-gated before use.",
   "src/fulltags/bandcamp.ts::parseIsoDuration::Number(s)":
     "s is a digits-or-decimal ISO-8601 duration capture (T…S group), truthiness-gated before use.",
-  "src/fulltags/fetch-stages.ts::stageBandcamp::Number(page.datePublished.slice(0, 4))":
+  "src/fulltags/fetch/fetch-stages.ts::stageBandcamp::Number(page.datePublished.slice(0, 4))":
     "datePublished is DB JSON produced by the fetch pipeline's four-digit year regex; the slice is exactly four chars.",
 };
 
@@ -112,7 +112,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // cli-flags/maintenance guarded sites (digest shift + counts above).
     // Sep 17 (second pass): ast-ccn argv tail hardening + minDurationRaw
     // sanction removal (digest shift; counts in the block above).
-    digest: "31ac12b06e055294dd54a7072b9e82f3f1ba05ec689ab1f882f6fcfdb374ef65",
+    // Sep 17 (#220 fetch/ slice): fetch cluster re-homed from fulltags
+    // root to src/fulltags/fetch/ — the stageBandcamp sanction re-keyed,
+    // same call, same guard; counts unchanged, digest shifted.
+    digest: "12b2ef000067addae75bcc9754c5fe4c0c3a5bc74fef531a92532096605b58ee",
   });
 });
 
