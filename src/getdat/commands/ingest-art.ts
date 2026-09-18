@@ -9,7 +9,7 @@ import {
   embedArtwork,
   soundcloudArtwork,
   itunesArtwork,
-} from "../../fulltags/embed";
+} from "../../fulltags/writer";
 import { soundcloudUrlInTags } from "../../fulltags/sources/art-sources";
 import { appendQueueEntries, type QueueEntry } from "./queue";
 // ARTWORK_EXTS is DERIVED from the #69 SSOT (subset by art support), not

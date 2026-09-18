@@ -18,6 +18,8 @@ import { walkAudioDir } from "../shared/audio-walk";
 import type { EnrichedMetadata, TagPatch } from "./schema";
 import { validatePatch } from "./schema-guards";
 import { id3Open } from "./mutagen";
+import { fetchImage } from "./sources/art-sources";
+export { itunesArtwork, soundcloudArtwork } from "./sources/art-sources";
 import {
   atomicMutagenWrite,
   atomicOps,
@@ -414,4 +416,18 @@ print("ok")`,
     unlinkIfPresent(dump);
     if (remuxTemp !== null) unlinkIfPresent(remuxTemp);
   }
+}
+
+// ---- convenience shim (was embed.ts, 18L — merged per #221) ---------------
+
+/** Fetch art from a URL and embed it as the front cover. The ingest art
+ *  ladder (ingest-art.ts) rides this one-liner; the primitives (embedArt,
+ *  art sources) live in this module + sources/art-sources.ts. */
+export async function embedArtwork(
+  filePath: string,
+  artUrl: string,
+): Promise<boolean> {
+  const bytes = await fetchImage(artUrl);
+  if (!bytes) return false;
+  return embedArt(filePath, bytes);
 }
