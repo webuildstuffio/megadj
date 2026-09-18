@@ -10,11 +10,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArchiveState } from "../archive/state";
-import {
-  rbAdopt,
-  reconcileRekordboxRows,
-  type RekordboxContentRow,
-} from "./rb-adopt";
+import { rbAdopt, type RekordboxContentRow } from "./rb-adopt";
+import { reconcileRekordboxRows } from "./rb-adopt-apply";
 
 const roots: string[] = [];
 

@@ -66,10 +66,11 @@ describe("guard", () => {
     // Source-pinned: the guard family stamps `.bak-<stamp>` and rb-adopt's
     // VACUUM-INTO snapshot stamps `_bak_<stamp>` — one format, one producer.
     // A hand-rolled second stamp format must fail here, not in an operator's
-    // backup listing.
+    // backup listing. (#232 moved the snapshot into rb-adopt-apply.ts —
+    // the census follows the stamper, not the CLI head.)
     const guardSrc = readFileSync(new URL("guard.ts", import.meta.url), "utf8");
     const adoptSrc = readFileSync(
-      new URL("rb-adopt.ts", import.meta.url),
+      new URL("rb-adopt-apply.ts", import.meta.url),
       "utf8",
     );
     expect(guardSrc).toContain("backupStamp()");
