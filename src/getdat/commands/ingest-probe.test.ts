@@ -1,26 +1,20 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { copyFile } from "node:fs/promises";
 import { join } from "node:path";
 import { moveQuarantineFile } from "./ingest-probe";
+import { tempDir } from "../../test-support/testutil";
 
 describe("quarantine moves", () => {
+  const t = tempDir("megadj-quarantine-test-");
   const dirs: string[] = [];
 
   afterEach(() => {
-    for (const dir of dirs.splice(0))
-      rmSync(dir, { recursive: true, force: true });
+    for (const dir of dirs.splice(0)) t.dispose(dir);
   });
 
   test("cross-device fallback verifies and removes the source", async () => {
-    const dir = mkdtempSync("/tmp/megadj-quarantine-test-");
+    const dir = t.dir();
     dirs.push(dir);
     const source = join(dir, "source.mp3");
     const dest = join(dir, "quarantine", "source.mp3");

@@ -19,8 +19,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - Never `git add -A`; preserve concurrent work. Re-read before editing; check
   for others' PRE-STAGED files before committing (rebuild path-scoped if so);
   verify `git log --oneline -1` + `git status` after every commit. The census
-  tests (`src/census/apply-gate-census.test.ts`,
-  `src/census/boundary-*-census.test.ts`) are
+  tests (`src/census/apply-gate-census.test.ts`, `src/census/boundary-*-census.test.ts`) are
   the tripwire for silently reverted refactors — re-commit a clobbered fix.
   Never pipe `git commit` through `| tail`/`| head`: a blocked commit's
   nonzero exit code is masked by the pipe and a hooked block looks landed

@@ -1,12 +1,13 @@
 // upgrade.test.ts — D24 LOWQ re-fetch: the pure gate logic + the CLI
 // contract. The download/swap itself needs yt-dlp + network; the gates
 // (isLowq floor rule, dry-run shape) are what can regress silently.
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, test } from "bun:test";
 import { ArchiveState } from "../../archive/state";
 import { isLowq, parseFfprobeKbps, replaceFileAtomically } from "./upgrade";
 import { runCli } from "../../test-support/cli-run";
+import { tempDir } from "../../test-support/testutil";
 
 describe("isLowq (the same floor rule as CrateDeck's lowqQueue)", () => {
   test("mp4a/aac below 256", () => {
@@ -38,7 +39,8 @@ describe("upgrade replacement", () => {
     );
   });
   test("keeps the incumbent when the staged rename fails", () => {
-    const dir = mkdtempSync("/tmp/megadj-upgrade-swap-");
+    const t = tempDir("megadj-upgrade-swap-");
+    const dir = t.dir();
     const incumbent = join(dir, "track.m4a");
     const staged = join(dir, ".track.m4a.upgrade");
     writeFileSync(incumbent, "old");
@@ -50,16 +52,17 @@ describe("upgrade replacement", () => {
     ).toThrow("rename failed");
     expect(existsSync(incumbent)).toBe(true);
     expect(Bun.file(incumbent).text()).resolves.toBe("old");
-    rmSync(dir, { recursive: true, force: true });
+    t.dispose(dir);
   });
 });
 
 describe("upgrade CLI contract", () => {
-  const dir = mkdtempSync("/tmp/megadj-upgrade-test-");
+  const t = tempDir("megadj-upgrade-test-");
+  const dir = t.dir();
   const state = new ArchiveState(join(dir, "archive.db"));
   afterAll(() => {
     state.close();
-    rmSync(dir, { recursive: true, force: true });
+    t.dispose(dir);
   });
 
   test("--dry-run --json: lists candidates, attempts nothing, exits 0", async () => {

@@ -11,25 +11,21 @@
  * change nothing on disk (no quarantines) and ingest 0 files.
  */
 import { describe, test, expect, afterAll } from "bun:test";
-import {
-  mkdtempSync,
-  mkdirSync,
-  readdirSync,
-  existsSync,
-  rmSync,
-} from "node:fs";
+import { mkdirSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
+import { tempDir } from "../../test-support/testutil";
 
-const DB_DIR = mkdtempSync("/tmp/megadj-selfmatch-");
+const t = tempDir("megadj-selfmatch-").rippable();
+const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
 // The batch folder INSIDE the archive — the UI's candidate list is exactly
 // these folders, so this shape is the supported re-run path.
 const BATCH = join(ARCHIVE, "2026-09-10 batch import");
 
 afterAll(() => {
-  rmSync(DB_DIR, { recursive: true, force: true });
+  t.rippleAll();
 });
 
 /** One real AIFF per track. Distinct frequencies: the acoustic-fingerprint
@@ -90,7 +86,7 @@ describe("ingest self-match guard (re-run of an in-archive batch)", () => {
     // the rows must still resolve: every registered path exists on disk
     const rows = state
       .allTracks()
-      .filter((t) => t.file_path?.startsWith(`${BATCH}/`));
+      .filter((row) => row.file_path?.startsWith(`${BATCH}/`));
     expect(rows.length).toBe(2);
     for (const r of rows) expect(existsSync(r.file_path as string)).toBe(true);
     state.close();

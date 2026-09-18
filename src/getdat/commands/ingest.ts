@@ -76,6 +76,9 @@ export interface IngestOptions {
   onProgress?: ((msg: string) => void) | undefined;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
   json?: boolean | undefined;
+  /** Clock override for the dated intake-folder name (tests pin it so a
+   * suite that straddles UTC midnight cannot fork a "-2" batch folder). */
+  now?: Date | undefined;
 }
 
 function newCounters(): IngestCounters {
@@ -294,7 +297,10 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   const batchDir =
     opts.dryRun || isSelfIngest
       ? null
-      : resolveIntakeDir(opts.musicDir, intakeFolderName(opts.folder));
+      : resolveIntakeDir(
+          opts.musicDir,
+          intakeFolderName(opts.folder, opts.now),
+        );
   if (batchDir) log(`intake folder: ${basename(batchDir)}/`);
   const files0 = await walkAudio(
     opts.folder,

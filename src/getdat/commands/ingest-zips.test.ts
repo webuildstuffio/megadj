@@ -1,21 +1,22 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { writeFakeAudio } from "../../test-support/audio-fixtures";
 import { join } from "node:path";
 import { expandZips, pendingZipDeletes } from "./ingest-zips";
+import { tempDir } from "../../test-support/testutil";
 
 describe("zip ingest safety", () => {
+  const t = tempDir("megadj-zip-test-");
   const dirs: string[] = [];
 
   afterEach(() => {
     pendingZipDeletes.clear();
-    for (const dir of dirs.splice(0))
-      rmSync(dir, { recursive: true, force: true });
+    for (const dir of dirs.splice(0)) t.dispose(dir);
   });
 
   test("keeps same-name files when same size does not mean same bytes", async () => {
-    const root = mkdtempSync("/tmp/megadj-zip-test-");
+    const root = t.dir();
     dirs.push(root);
     const source = join(root, "source");
     const cd1 = join(source, "CD1");

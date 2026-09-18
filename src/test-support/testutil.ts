@@ -1,8 +1,13 @@
 /**
  * testutil — shared temp-dir + ArchiveState scaffolding for tests that
- * need a fresh on-disk state DB. Every command test carried a byte-identical
- * beforeEach/afterEach pair; this keeps the standard module-level
- * `dir`/`state` bindings working while owning the lifecycle.
+ * need a fresh on-disk state DB (#248). Every command test carried a
+ * byte-identical beforeEach/afterEach pair; this keeps the standard
+ * module-level `dir`/`state` bindings working while owning the lifecycle.
+ *
+ * tempDir (#248) is the dir-only shape: the fixture-prefix + teardown
+ * convention in one place, with a per-file registry (`t.rippable()`)
+ * so a file's `afterAll(() => t.rippleAll())` can never leak — the
+ * #236 class (12.5 GB of `cratedeck-hashcancel-*` staging) died here.
  */
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -34,4 +39,53 @@ export function tempState(prefix: string): {
       rmSync(s.dir, { recursive: true, force: true });
     },
   };
+}
+
+/**
+ * tempDir — the dir-only fixture shape (#248): every
+ * `mkdtempSync("/tmp/megadj-X-")` + hand `rmSync` pair collapses to
+ * `const t = tempDir("megadj-X-")` + `t.dir`. Two lifecycle modes:
+ *
+ *   1. explicit — `t.dispose()` in the test/afterEach that owns it
+ *      (the mirror of tempState's `done`), and
+ *   2. rippled — call `t.rippable()` right after creating the handle
+ *      and put `afterAll(() => t.rippleAll())` at the top of the file;
+ *      every dir registered on the handle is removed at suite end even
+ *      when an individual test forgot (the #236 leak class).
+ *
+ * The prefix stays caller-owned on purpose: the tmp-purge families
+ * (FIXTURE_PREFIXES) key on the prefix, so "megadj-X-" naming must
+ * survive the migration visible.
+ */
+export interface TempDirHandle {
+  /** The fresh dir. Each call makes a NEW dir. */
+  dir: () => string;
+  /** Register the most recent dir for rippleAll disposal. */
+  rippable: () => TempDirHandle;
+  /** Remove every rippled dir so far (idempotent, force:true). */
+  rippleAll: () => void;
+  /** Dispose ONE dir (the path given) right now. */
+  dispose: (dir: string) => void;
+}
+
+/** Remove a fixture dir tree (force:true) — shared by dispose/ripple. */
+const rip = (dir: string): void => {
+  rmSync(dir, { recursive: true, force: true });
+};
+
+export function tempDir(prefix: string): TempDirHandle {
+  const made: string[] = [];
+  const handle: TempDirHandle = {
+    dir: () => {
+      const dir = mkdtempSync(join(tmpdir(), prefix));
+      made.push(dir);
+      return dir;
+    },
+    rippable: () => handle,
+    rippleAll: () => {
+      while (made.length) rip(made.pop()!);
+    },
+    dispose: rip,
+  };
+  return handle;
 }

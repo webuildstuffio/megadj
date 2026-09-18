@@ -33,6 +33,7 @@
         "src/deckctl.ts",
         "src/mcp.ts",
         "test/*.test.ts",
+        "test/testutil.ts",
         "shared/types.ts"
       ],
       "ignoreExportsUsedInFile": true

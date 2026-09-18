@@ -1,3 +1,4 @@
+config_version = 7
 # MegaMem repo registration (REG-1).
 # Declares the workspaces whose content + indexes live in this repo.
 # Per-workspace search tuning lives in .megamem/<ws>/search.toml (generated).

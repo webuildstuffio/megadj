@@ -4,17 +4,18 @@ import { join } from "node:path";
 
 test("#50: boundary rules have permanent executable censuses", () => {
   const repo = join(import.meta.dir, "..", "..");
-  const numberCensus = join(repo, "src/census", "boundary-number-census");
-  const jsonCensus = join(repo, "src/census", "boundary-json-census");
-  expect(existsSync(`${numberCensus}.test.ts`), "missing Number() census").toBe(
-    true,
-  );
+  const dir = join(repo, "src/census");
+  const number = "boundary-number-census.test.ts";
+  const json = "boundary-json-census.test.ts";
   expect(
-    existsSync(`${jsonCensus}.test.ts`),
+    existsSync(join(dir, number)),
+    "missing Number() boundary census",
+  ).toBe(true);
+  expect(
+    existsSync(join(dir, json)),
     "missing JSON.parse persisted-blob census",
   ).toBe(true);
-
   const instructions = readFileSync(join(repo, "AGENTS.md"), "utf8");
-  expect(instructions).toContain("boundary-number-census.test.ts");
-  expect(instructions).toContain("boundary-json-census.test.ts");
+  expect(instructions).toContain(number);
+  expect(instructions).toContain(json);
 });

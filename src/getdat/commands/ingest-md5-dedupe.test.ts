@@ -1,10 +1,10 @@
 import { describe, test, expect, afterAll } from "bun:test";
-import { $ } from "bun";
-import { mkdtempSync, readdirSync, existsSync } from "node:fs";
+import { readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
 import { byteTwinPair, ffmpegTone } from "../../test-support/audio-fixtures";
+import { tempDir } from "../../test-support/testutil";
 
 /**
  * MD5 twin dedupe (Back To Friends trap, Sep 9 2026): a byte-identical
@@ -13,11 +13,12 @@ import { byteTwinPair, ffmpegTone } from "../../test-support/audio-fixtures";
  * twice. Same size + same MD5 must quarantine the twin.
  */
 
-const DB_DIR = mkdtempSync("/tmp/megadj-md5-dedupe-");
+const t = tempDir("megadj-md5-dedupe-").rippable();
+const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
 
-afterAll(async () => {
-  await $`rm -rf ${DB_DIR}`.quiet().nothrow();
+afterAll(() => {
+  t.rippleAll();
 });
 
 describe("ingest content-hash dedupe", () => {

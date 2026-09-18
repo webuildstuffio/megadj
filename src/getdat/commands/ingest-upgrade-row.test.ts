@@ -12,17 +12,19 @@
  * surviving row must be the ORIGINAL (ledger history preserved).
  */
 import { describe, test, expect, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, existsSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
+import { tempDir } from "../../test-support/testutil";
 
-const DB_DIR = mkdtempSync("/tmp/megadj-upgrade-row-");
+const t = tempDir("megadj-upgrade-row-").rippable();
+const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
 const BATCH = join(ARCHIVE, "2026-09-11 intake");
 
 afterAll(() => {
-  rmSync(DB_DIR, { recursive: true, force: true });
+  t.rippleAll();
 });
 
 /** Real AIFF via ffmpeg (probeFile must see it) with the given tone freq. */
@@ -59,7 +61,7 @@ describe("ingest quality-upgrade row replacement", () => {
     await ingest({ state, musicDir: ARCHIVE, folder: BATCH, minDuration: 10 });
     const first = state
       .allTracks()
-      .filter((t) => t.file_path?.includes("Upgrade Target"));
+      .filter((row) => row.file_path?.includes("Upgrade Target"));
     expect(first.length).toBe(1);
     const originalId = first[0]!.video_id;
 
@@ -72,7 +74,7 @@ describe("ingest quality-upgrade row replacement", () => {
     // path-keyed ext- id); the fix keeps exactly one.
     const rows = state
       .allTracks()
-      .filter((t) => t.file_path?.includes("Upgrade Target"));
+      .filter((row) => row.file_path?.includes("Upgrade Target"));
     expect(rows.length).toBe(1);
     // The SURVIVING row is the original — ledger-bearing identity kept.
     expect(rows[0]!.video_id).toBe(originalId);

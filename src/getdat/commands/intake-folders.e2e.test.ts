@@ -1,21 +1,21 @@
 import { describe, test, expect, afterAll } from "bun:test";
-import { $ } from "bun";
-import { mkdtempSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
 import { makeWav } from "../../test-support/audio-fixtures";
-
+import { tempDir } from "../../test-support/testutil";
 /**
  * Per-batch intake folders (user request, Sep 10 2026): separate dumps must
  * land in SEPARATE dated subfolders of the archive — never mixed flat.
  */
 
-const DB_DIR = mkdtempSync("/tmp/megadj-intake-folders-");
+const t = tempDir("megadj-intake-folders-").rippable();
+const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
 
-afterAll(async () => {
-  await $`rm -rf ${DB_DIR}`.quiet().nothrow();
+afterAll(() => {
+  t.rippleAll();
 });
 
 // makeWav comes from test-support/audio-fixtures (its loud ffmpeg-failure
@@ -38,6 +38,12 @@ async function runIngest(sourceFolder: string): Promise<void> {
     musicDir: ARCHIVE,
     folder: sourceFolder,
     minDuration: 10,
+    // Pinned clock: intake folder names carry the date, and a suite that
+    // starts just before UTC midnight straddles the day boundary (Sep 18:
+    // first run dated 09-18, second 09-19 — the "same dump reuses its
+    // batch folder" invariant forked a phantom -2 sibling). Local time is
+    // what the folder code consumes, so pin to a fixed local noon.
+    now: new Date(2026, 8, 18, 12, 0, 0),
   });
   state.close();
 }

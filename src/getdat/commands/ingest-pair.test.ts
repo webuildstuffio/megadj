@@ -1,8 +1,8 @@
 import { describe, test, expect } from "bun:test";
-import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { dedupeWithinFolderForTest } from "./ingest";
+import { tempDir } from "../../test-support/testutil";
 
 /**
  * Regression for the Play Hard trap (Sep 10 2026): pools ship mp3+wav
@@ -50,7 +50,8 @@ async function makeSilent(
 
 describe("same-stem mp3+lossless pair dedupe", () => {
   test("mp3 twin of a same-stem wav quarantines; lossless survives", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-pair-test-"));
+    const t = tempDir("megadj-pair-test-");
+    const dir = t.dir();
     try {
       await makeSilent(dir, "Play Hard (Remix).wav", "wav");
       await makeSilent(dir, "Play Hard (Remix).mp3", "mp3");
@@ -68,12 +69,13 @@ describe("same-stem mp3+lossless pair dedupe", () => {
       expect(existsSync(join(dir, "Play Hard (Remix).mp3"))).toBe(false);
       expect(existsSync(join(q, "Play Hard (Remix).mp3"))).toBe(true);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      t.dispose(dir);
     }
   }, 30000);
 
   test("same-stem lossless vs lossless also collapses (identity pass), mp3 never preferred", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-pair-test2-"));
+    const t = tempDir("megadj-pair-test2-");
+    const dir = t.dir();
     try {
       // different durations → different bytes (md5 pass must not fire)
       await makeSilent(dir, "Track One.wav", "wav", 0.4);
@@ -92,7 +94,7 @@ describe("same-stem mp3+lossless pair dedupe", () => {
       // the invariant that matters: whatever survives is lossless
       expect(/\.(wav|aiff?|flac)$/i.test(survivors[0]!.file)).toBe(true);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      t.dispose(dir);
     }
   }, 30000);
 });

@@ -1,10 +1,10 @@
 import { describe, test, expect, afterAll } from "bun:test";
-import { $ } from "bun";
-import { mkdtempSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveState } from "../../archive/state";
 import { ingest } from "./ingest";
 import { ffmpegTone } from "../../../src/test-support/audio-fixtures";
+import { tempDir } from "../../test-support/testutil";
 
 /**
  * Acoustic-fingerprint dedupe (name-blind): the same recording re-encoded
@@ -14,11 +14,12 @@ import { ffmpegTone } from "../../../src/test-support/audio-fixtures";
  * intake time.
  */
 
-const DB_DIR = mkdtempSync("/tmp/megadj-fp-dedupe-");
+const t = tempDir("megadj-fp-dedupe-").rippable();
+const DB_DIR = t.dir();
 const ARCHIVE = join(DB_DIR, "DJ-Imports");
 
-afterAll(async () => {
-  await $`rm -rf ${DB_DIR}`.quiet().nothrow();
+afterAll(() => {
+  t.rippleAll();
 });
 
 describe("ingest fingerprint dedupe", () => {

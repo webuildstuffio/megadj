@@ -122,20 +122,13 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 17 (#220 sources/ slice): bandcamp ISO-duration sanctions
     // re-keyed to src/fulltags/sources/bandcamp.ts (same calls, same
     // guards, counts unchanged) — digest shifted.
-    // Sep 17 (#215 live-run pass): audited 41→42 / guarded 26→27 —
-    // /fetch/feed's since cursor parses under an explicit
+    // Sep 17 (#215 live-run pass): /fetch/feed's since cursor parses under an explicit
     // Number.isFinite(since) gate (the census guard shape; bad input
     // degrades to a full drain at 0, never a crash) — digest shifted.
     // Digest pinned to the shared-worktree scan including the concurrent
     // fetch-feed work (the #79/#80 precedent): b8a3d783.
-    // Sep 18 (#220 analysis/ slice): file re-homes moved owners (digest
-    // input re-rooted; same calls, same guards, counts unchanged).
-    // Sep 18 (#220 write/ slice): the two writer-mutagen mp4 sanctions
-    // re-key to src/fulltags/write/writer-mutagen.ts (same calls, same
-    // guards, counts unchanged) — digest shifted.
-    // Sep 18 (#220 pipeline/ slice): parseMoodStamp re-keys to
-    // src/fulltags/pipeline/pipeline-stamps.ts (same call, same guard,
-    // counts unchanged) — digest shifted: bf517d78.
+    // Sep 18 (#220 analysis|write|pipeline slices): file re-homes moved owners
+    // (digest input re-rooted; same calls, same guards, counts unchanged).
     // Sep 18 (#247): doctor's new deckServiceStatus parses the launchctl
     // `pid = (\d+)` capture under an explicit Number.isFinite gate (the
     // census guard shape; a non-numeric pid degrades to null, never a
