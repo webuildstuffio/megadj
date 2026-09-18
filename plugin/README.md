@@ -58,3 +58,18 @@ This is the S-effort packaging step the ideas doc gated on O82 existing.
 A published marketplace variant would pin a versioned megadj checkout in
 the manifest and swap `${CLAUDE_PROJECT_DIR}` for an installed CLI path —
 deliberately not done yet (the cap rule: something ships or leaves first).
+
+## Status (2026-09-17, #208 audit)
+
+**KEEP — dormant but wired.** Who launches it: nobody today — this is
+NOT in `~/.claude/plugins/installed_plugins.json` and has no Cursor MCP
+entry; the operator works through the repo-local `deckctl` MCP + skills
+instead. Last exercised: 2026-09-17 (the #208 audit re-proved the
+wiring end-to-end — MCP initialize handshake + `tools/list` (43 tools),
+SessionStart hook `deckctl status --json` returned a live payload). The
+"1,740 LOC" in the audit issue was a symlink double-count: every
+`plugin/skills` file is a git symlink (mode 120000) into
+`.claude/skills/` — unique plugin content is 96 LOC across 4 files, and
+it can never drift from the audited MCP surface by construction. Cut
+candidate if a future pass wants the directory gone; nothing here is
+load-bearing.
