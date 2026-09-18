@@ -10,7 +10,7 @@ import type { Registry } from "./registry";
 import type { JobEngine } from "./jobs";
 import type { CrateConfig } from "./config";
 import type { ArchiveReader } from "./archive";
-import type { ImageService } from "./images";
+import type { ImageService } from "./image-store";
 import type { makeFixesRoutes } from "./fixes_routes";
 import type { makeHygieneRoutes } from "./hygiene_routes";
 import type { makeGridHealthRoutes } from "./grid_health_routes";

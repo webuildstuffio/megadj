@@ -10,7 +10,7 @@ import { Guard } from "./guard";
 import { watchVolumes } from "./detect";
 import { Registry } from "./registry";
 import { JobEngine } from "./jobs";
-import { ImageService } from "./images";
+import { ImageService } from "./image-store";
 import { ShelfSweepReader } from "./shelf_sweep_reader";
 import { HygieneReader } from "./hygiene_reader";
 import { makeHygieneRoutes } from "./hygiene_routes";

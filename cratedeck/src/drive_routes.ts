@@ -6,7 +6,7 @@
 // them.
 import type { DB } from "./db";
 import type { Registry } from "./registry";
-import type { ImageService } from "./images";
+import type { ImageService } from "./image-store";
 import type { CrateConfig } from "./config";
 import { freeBytes } from "./scan";
 import { driveBadgesView } from "./badges_view";

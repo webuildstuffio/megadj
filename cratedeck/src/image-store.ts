@@ -7,6 +7,10 @@
 // A mount-time re-sync pushes the local copy back onto a drive that lacks it
 // (or restores the local copy from the stick when the local side is gone) —
 // see syncOnMount. Scanners skip Contents/CrateDeck (walk.ts DEFAULT_SKIP_DIRS).
+// Provider search (brave | exa) lives in image-search.ts (#42 split).
+// Chosen images cache forever under data/images/<drive>/. This module is
+// also the import surface (images.ts, 19L, was a bare re-export barrel over
+// this file — merged per #221; import "./image-store" directly).
 // File primitives (name/ext rules, capped reader) live in photo-files.ts.
 import {
   readFileSync,

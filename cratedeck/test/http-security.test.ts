@@ -4,7 +4,7 @@ import {
   withSecurityHeaders,
 } from "../src/http_security";
 import { photoUpload } from "../src/drive_job_routes";
-import { MAX_IMAGE_BYTES } from "../src/images";
+import { MAX_IMAGE_BYTES } from "../src/image-store";
 
 describe("CrateDeck HTTP browser boundary", () => {
   it("rejects cross-origin browser mutations", () => {
