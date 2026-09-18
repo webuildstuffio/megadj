@@ -82,6 +82,7 @@ into docs:
 ```bash
 megadj status --json
 megadj shelf-sweeps --json
+megadj intake-status --json
 megadj audit --json
 deckctl status --json
 deckctl coverage --json
@@ -90,3 +91,55 @@ deckctl coverage --json
 For schema debugging, inspect the producer first, then use SQLite metadata on
 a copy or local application database. Never probe or modify a live rekordbox
 database while rekordbox is running.
+
+## The state dir and retention (who owns what on local disk)
+
+`~/.local/state/megadj/` holds the pipeline's local state. Every path has
+exactly one retention owner; nothing here is "junk with no owner" — if a
+path's owner is unclear, that is a bug to file, not a file to delete.
+
+| Path                                                                             | What it is                                                                      | Retention owner                                                                                                                  |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `archive.db` (+ `-wal`/`-shm` when open)                                         | the live pipeline ledger — the one and only                                     | never removable; matches no backup class by construction                                                                         |
+| `archive.db.bak-<ts>`, `archive_bak_<ISO>.db`, `archive.db.pre-restore-<ts>.bak` | dated pipeline backups (pre-migration, pre-restore)                             | [`src/shelf/tmp-purge.ts`](../../src/shelf/tmp-purge.ts) `--state` — newest lineage per stem is always KEPT, older ones eligible |
+| `archive-db-before-<what>-<date>.db`                                             | dated lineage snapshots (#108-class) — the "state before a risky change" record | same `--state` tier: newest snapshot kept verbatim                                                                               |
+| `spike/`                                                                         | `rb-anlz-spike` baselines (the compare side of the GA-07 write-path harness)    | age-gated (>24h) by `tmp-purge --state` — but LOAD-BEARING: a baseline a future compare needs is data, not junk                  |
+| `artwork-covers/`, `artwork-queue.jsonl`                                         | the art pipeline's cover store + AI-queue                                       | active; never swept                                                                                                              |
+| `jobs/`                                                                          | CrateDeck job engine state                                                      | active; never swept                                                                                                              |
+| `cratedeck.sqlite`                                                               | CrateDeck's own registry/events/jobs DB                                         | lives in `cratedeck/data/` (or `$CRATEDECK_DATA`), not here                                                                      |
+
+Backup-name classes are pinned in
+[`src/shelf/tmp-purge.test.ts`](../../src/shelf/tmp-purge.test.ts); the sweep
+is dry-run by default, and `--apply` deletes only what a name class + age
+gate + (for sidecars) an `lsof` open-handle check admit.
+
+## The rekordbox master backups (sacred)
+
+`~/Library/Pioneer/rekordbox/backups-megadj/` holds the dated master.db
+backups `rb-import`/`rb-adopt` create (AGENTS.md: sacred). Rules:
+
+- Never plain-delete a dated RB backup dir. Superseded sets get zipped into
+  ONE dated archive (`rekordbox_bak_<date>-<what>.zip`) plus a `.sha256`
+  sidecar.
+- The local `~/Library/Pioneer/rekordbox/master.db` is the rekordbox app's
+  own DB and is stale by design — SHELF1's `PIONEER/Master/master.db` is the
+  collection SSOT. Do not "clean up" the local one.
+- The playing USB is user-managed; it appears in no storage inventory here.
+
+## Library size: the honest decomposition
+
+The ledger row count is NOT the library size. One `tracks` table mixes
+cohorts: rekordbox mirror rows (real shelf audio), ingest rows (real, partly
+rehomed to the shelf), and YouTube liked-video metadata rows (mostly never
+downloaded; `pending` ≠ gap). When asked "how big is the library":
+
+1. Report known on-disk bytes (`SUM(file_size_bytes)` over rows whose paths
+   exist) and say which volume they live on.
+2. Report the ledger decomposition per source and status (the Sep 18 audit:
+   5,921 rows → 3,133 rekordbox · 750 ingest · 1,883 liked-videos · 135
+   liked · 20 playlist; per-source snapshot freshness matters as much as
+   counts — #253 tracks the census command that makes this one command).
+   The operational loop for these questions is the
+   `storage-intake-census` skill (`.claude/skills/storage-intake-census/SKILL.md`).
+3. If SHELF1 is unmounted, say so — shelf-side bytes are an honest gap, not
+   a zero.

@@ -43,8 +43,12 @@ document for the topic you are changing.
 - [Features](FEATURES.md) owns the durable product map.
 - [Surface parity](surface-parity.md) owns exact CLI, HTTP, MCP, and UI census
   numbers. Other docs link there instead of copying them.
-- [Data stores and schemas](getdat/data-model.md) owns schema navigation. Executable
-  schema definitions remain in their code producers.
+- [Data stores and schemas](getdat/data-model.md) owns schema navigation,
+  the state-dir retention map (which backups exist and who may sweep them),
+  the sacred rekordbox-backup rules, and the honest library-size
+  decomposition. Executable schema definitions remain in their code producers.
+  The operational loop for storage/cleanup questions is the
+  `storage-intake-census` skill.
 - [Agent playbook](agent-playbook.md) owns durable failure mechanics. The local
   `docs/usb-sync-log.md` is append-only operator evidence and is intentionally
   gitignored; it is not a repository link or a second status store.
@@ -73,7 +77,7 @@ tracker is one of those — the recipes stay in the acceptance doc).
 - [Archived ideas backlog](archive/ideas-2026-09-15.md) — historical idea
   catalog; superseded by GitHub issues.
 - [Data stores and schemas](getdat/data-model.md) — database roles, schema producers,
-  and migration ownership.
+  state-dir retention ownership, and the library-size honesty rules.
 - [Surface parity](surface-parity.md) — live interface contract and exemptions.
 - [Agent playbook](agent-playbook.md) — failure history and reusable lessons.
 
