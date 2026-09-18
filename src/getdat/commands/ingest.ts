@@ -23,7 +23,7 @@
 import { basename, join } from "node:path";
 import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
 import type { ArchiveState } from "../../archive/state";
-import { commandLog } from "../../progress";
+import { commandLog } from "../../shared/progress";
 import { applyTags } from "../../fulltags/write/writer";
 import { detectRemix } from "../../fulltags/sources/remix";
 import {

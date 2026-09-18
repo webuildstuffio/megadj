@@ -3,7 +3,7 @@ import { Database } from "bun:sqlite";
 import { join } from "node:path";
 import type { ArchiveState } from "./state";
 import { phraseCues } from "../fulltags/cues"; // cross-domain: fulltags phrase analysis feeds the archive ledger (#234)
-import { tempState } from "../testutil";
+import { tempState } from "../test-support/testutil";
 
 /** Roadmap rev 6.1 #4: the mood ledger — same contract family as the beats
  * ledger (upsert idempotent by video_id, summary aggregate, corrupt-free). */

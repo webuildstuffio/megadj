@@ -3,7 +3,7 @@
 // vocabulary (GenreOptions/RefoldEvalBlock types); this file owns the
 // runner, mirroring the #88 fetch split (fetch-pipeline + stages) and
 // the #90 command-arm pattern.
-import { commandLog } from "../../progress";
+import { commandLog } from "../../shared/progress";
 import {
   writeJson,
   finishCommandError,

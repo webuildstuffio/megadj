@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { ArchiveReader } from "../../cratedeck/src/archive";
 import { loadConfig } from "../../cratedeck/src/config";
 import { DB_PATH } from "../cli-env";
-import { commandLog } from "../progress";
+import { commandLog } from "../shared/progress";
 import { writeJson, finishCommandError, setExit } from "../shared/cli-output";
 import {
   buildMegaset,

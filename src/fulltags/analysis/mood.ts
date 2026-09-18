@@ -4,7 +4,7 @@ import { analyzeMoods, type MoodResult } from "./models";
 import { groundTruth } from "../write/readers";
 import { parseMoodStamp } from "../pipeline/pipeline";
 import type { ArchiveState, TrackRow } from "../../archive/state";
-import { commandLog } from "../../progress";
+import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
 
 /**

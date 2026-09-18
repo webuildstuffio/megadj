@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, utimesSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import type { ArchiveState } from "../../archive/state";
 import { adopt, adoptFromShelf } from "./adopt";
-import { tempState } from "../../testutil";
+import { tempState } from "../../test-support/testutil";
 import { writeFakeAudio } from "../../test-support/audio-fixtures";
 
 let dir: string;

@@ -6,6 +6,7 @@
         "tools/loc-budget.ts",
         "tools/prof-sweep.ts",
         "tools/ast-ccn.ts",
+        "ops/**/*.{ts,tsx}",
         "src/fulltags/cli.ts",
         "src/fulltags/test/*.test.ts",
         "src/fulltags/test/fake-echo-worker.ts",

@@ -41,7 +41,7 @@ import {
   type RbCommandResult,
   type RbCommandRuntime,
 } from "./rb-command-kit.js";
-import { commandLog } from "../progress";
+import { commandLog } from "../shared/progress";
 import { masterDbPath } from "./master-path.js";
 import { errorText } from "../shared/error-text";
 

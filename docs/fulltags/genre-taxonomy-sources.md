@@ -293,6 +293,6 @@ towers on demand.
 6. ~~**`sc_genre_ids` orphan (S)**~~ **✅ DROPPED 2026-09-15
    ([#108](https://github.com/webuildstuffio/megadj/issues/108)
    closed)** — the table was deleted (269 rows backed up to a dated
-   archive + CSV) and `src/sc-genre-ids-census.test.ts` keeps it dead:
+   archive + CSV) and `src/census/sc-genre-ids-census.test.ts` keeps it dead:
    any code reintroduction fails the suite. Verdict record:
    [genre-pipeline §5](genre-pipeline.md).

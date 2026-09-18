@@ -25,7 +25,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { ArchiveState } from "../archive/state";
-import { commandLog } from "../progress";
+import { commandLog } from "../shared/progress";
 import { gridAuditFull } from "../fulltags/grid-audit";
 import { parseAnlzGrid } from "../fulltags/anlz";
 import { MUSIC_DIR } from "../cli-env";

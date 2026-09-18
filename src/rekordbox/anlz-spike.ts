@@ -35,7 +35,7 @@ import {
   type Dirent,
 } from "node:fs";
 import { makeFail, printResult } from "./rb-command-kit.js";
-import { commandLog } from "../progress";
+import { commandLog } from "../shared/progress";
 import { errorText } from "../shared/error-text";
 import { join, basename } from "node:path";
 import { createHash } from "node:crypto";

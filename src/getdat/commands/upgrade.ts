@@ -19,7 +19,7 @@ import type { EnrichedMetadata } from "../../fulltags/write/schema";
 import { probeMediaSync } from "../../fulltags/media-probe";
 import { Downloader, type DownloadResult } from "../downloader";
 import type { ArchiveState } from "../../archive/state";
-import { commandLog } from "../../progress";
+import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
 
 export interface UpgradeOptions {

@@ -11,7 +11,7 @@ import { walkAudioFiles } from "../../fulltags/write/writer";
 import { groundTruth } from "../../fulltags/write/readers";
 import { normalize } from "../../fulltags/identity";
 import type { ArchiveState } from "../../archive/state";
-import { commandLog } from "../../progress";
+import { commandLog } from "../../shared/progress";
 import { walkTree } from "../../shared/walk-tree";
 import { resolveShelfVolume } from "../../shared/volume";
 import { writeJson } from "../../shared/cli-output";

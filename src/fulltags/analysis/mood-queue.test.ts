@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { join } from "node:path";
 import type { ArchiveState } from "../../archive/state";
-import { tempState } from "../../testutil";
+import { tempState } from "../../test-support/testutil";
 import { writeFakeAudio } from "../../test-support/audio-fixtures";
 
 /**

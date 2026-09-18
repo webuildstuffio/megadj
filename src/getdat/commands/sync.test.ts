@@ -8,7 +8,7 @@ import {
   sync,
   type SyncOptions,
 } from "./sync";
-import { tempState } from "../../testutil";
+import { tempState } from "../../test-support/testutil";
 
 /**
  * GetDat regression tests for the sync pipeline — run with an injected

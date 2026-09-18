@@ -38,7 +38,7 @@ import { QUARANTINE_DIR, quarantineDest } from "../archive/hygiene/apply";
 import { buildIndex, readRows } from "./rb-fix-paths";
 import { masterDbPath, normalizeMount } from "./master-path.js";
 import { errorText } from "../shared/error-text";
-import { commandLog } from "../progress";
+import { commandLog } from "../shared/progress";
 
 export interface RbUnmatchedOptions {
   /** Drive mount root, e.g. /Volumes/SHELF1. */

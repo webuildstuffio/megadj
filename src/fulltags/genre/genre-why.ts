@@ -9,7 +9,7 @@
 // DRIFTED row (replay ≠ stored genre — the one finding this command
 // exists to surface; exit code makes it agent-detectable without
 // parsing). Never-voted is exit 0: a status, not an error.
-import { commandLog } from "../../progress";
+import { commandLog } from "../../shared/progress";
 import {
   drainStdout,
   finishCommandError,

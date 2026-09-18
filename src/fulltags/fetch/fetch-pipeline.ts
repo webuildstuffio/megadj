@@ -38,7 +38,7 @@ import {
   type Row,
 } from "../archive-ledger";
 import { existsSync } from "node:fs";
-import { ProgressBar } from "../../progress";
+import { ProgressBar } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
 import {
   aiGenreFallback,

@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { ArchiveState } from "../../archive/state";
 import { organize } from "./organize";
-import { tempState } from "../../testutil";
+import { tempState } from "../../test-support/testutil";
 import { writeFakeAudio } from "../../test-support/audio-fixtures";
 
 let dir: string;

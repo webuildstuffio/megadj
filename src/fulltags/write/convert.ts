@@ -23,7 +23,7 @@ import {
   flushArtworkQueue,
 } from "../../getdat/commands/ingest-art";
 import type { QueueEntry } from "../../getdat/commands/queue";
-import { commandLog } from "../../progress";
+import { commandLog } from "../../shared/progress";
 import type { ArchiveState } from "../../archive/state";
 
 export interface ConvertOptions {

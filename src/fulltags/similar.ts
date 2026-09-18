@@ -13,7 +13,7 @@
 //
 // Agent-first contract: --json (one summary object), human logs suppressed
 // in json mode, exit codes meaningful (1 = no such track / no embeddings).
-import { commandLog } from "../progress";
+import { commandLog } from "../shared/progress";
 import { writeJson, finishCommandError } from "../shared/cli-output";
 import {
   similarTracks,

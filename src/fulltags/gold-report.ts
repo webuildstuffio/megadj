@@ -26,7 +26,7 @@
  */
 
 import type { ArchiveState } from "../archive/state";
-import { commandLog } from "../progress";
+import { commandLog } from "../shared/progress";
 import { printResult } from "../rekordbox/rb-command-kit";
 import { MUSIC_DIR } from "../cli-env";
 import { createHash } from "node:crypto";

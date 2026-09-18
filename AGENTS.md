@@ -19,7 +19,8 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - Never `git add -A`; preserve concurrent work. Re-read before editing; check
   for others' PRE-STAGED files before committing (rebuild path-scoped if so);
   verify `git log --oneline -1` + `git status` after every commit. The census
-  tests (`src/apply-gate-census.test.ts`, `src/boundary-*-census.test.ts`) are
+  tests (`src/census/apply-gate-census.test.ts`,
+  `src/census/boundary-*-census.test.ts`) are
   the tripwire for silently reverted refactors — re-commit a clobbered fix.
   Never pipe `git commit` through `| tail`/`| head`: a blocked commit's
   nonzero exit code is masked by the pipe and a hooked block looks landed
@@ -28,7 +29,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - No bare `catch {}` / `.catch(() => {})`. Boundary `JSON.parse` uses a guarded
   parser; gate numerics with `Number.isFinite`; CLI numeric options use
   `nonNegOpt` (bad input → exit 2, zero work). Keep
-  `src/boundary-number-census.test.ts` and `src/boundary-json-census.test.ts`
+  `src/census/boundary-number-census.test.ts` and `src/census/boundary-json-census.test.ts`
   green when either call surface changes. Positionals go through
   `firstPositional(args, cmd, stringOpts)`/`positionalArgs` — the stringOpts
   argument is load-bearing: without it a space-form flag's VALUE reads as the
@@ -57,7 +58,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   census-parity AST rules (`src/test-support/source-metrics.ts`), which
   is also the only measurer whose numbers match the pinned census tests
   (#199 found six real 16–22 fns invisible to the lizard table).
-  The AST census is now ENFORCED: `src/issue-198-ccn-census.test.ts`
+  The AST census is now ENFORCED: `src/census/issue-198-ccn-census.test.ts`
   pins a repo-wide CCN ceiling (ratchet — lower it to just above the new
   max in the same commit as a refactor, never raise it), and
   `bun tools/ast-ccn.ts --list <files.txt> N` is the probe. The 159–64
@@ -195,7 +196,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   `$HOME/.githooks/pre-push` + `bun run test` (landed 13e43e8, Sep 17 — until
   then the AGENTS-documented full-suite-at-pre-push never ran; `core.hooksPath`
   overrides the global hook dir, so an unchained hook is silently dead).
-  `src/githooks-census.test.ts` pins existence + exec bit + chained gates.
+  `src/census/githooks-census.test.ts` pins existence + exec bit + chained gates.
 - Suite wedges are environmental first: leaked `/tmp/megadj-*` fixtures (purge
   > 24h old) and orphaned bun processes; identify a spinning worker via open
   > file handles, not stack traces.
@@ -246,7 +247,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   archived `ideas.md`/`roadmap-index.md` mirrors. Issue labels: one each of
   `type:*`, `priority:*`, `effort:*`; bug fixes need a reproducer + evidence.
 - Docs teaching surface names are census-enforced:
-  `src/docs-surface-names-census.test.ts` derives every megadj verb,
+  `src/census/docs-surface-names-census.test.ts` derives every megadj verb,
   deckctl verb, MCP tool, and job kind FROM THE PRODUCERS
   (`command-registry.ts`, `DECK_COMMANDS`/`PRE_SERVER_VERBS`, the
   `*_tools.ts` key maps, `JOB_KINDS`) and fails when docs/skills teach a
@@ -274,7 +275,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 
 ## Learned Workspace Facts
 
-- Test/support trees follow one convention (Sep 17, post-rename): per-product `test/` dirs beside source (`src/fulltags/test/`, `cratedeck/test/`, `src/test-support/` shared helpers) — never a stuttered `test-support/fulltags/fulltags` doubling. When moving a test tree, the four pin classes that break are: relative import specifiers, `import.meta.dir` constructions, knip entry globs, and ACTIVE docs citing the path (`docs-paths-census` validates those live; archived docs are exempt). Tests move WITH their subject (#23/#234, completed Sep 17); `src/` root keeps exactly the host-kit + census set — host-kit tests (`cli-flags`, `numeric-options`, `json-summary`, `progress`) plus the `*-census` / `issue-*` tripwires pinning the root itself.
+- Test/support trees follow one convention (Sep 17, post-rename): per-product `test/` dirs beside source (`src/fulltags/test/`, `cratedeck/test/`, `src/test-support/` shared helpers) — never a stuttered `test-support/fulltags/fulltags` doubling. When moving a test tree, the four pin classes that break are: relative import specifiers, `import.meta.dir` constructions, knip entry globs, and ACTIVE docs citing the path (`docs-paths-census` validates those live; archived docs are exempt). Tests move WITH their subject (#23/#234, completed Sep 17); `src/` root keeps exactly the host-kit set — host-kit tests (`cli-flags`, `numeric-options`, `json-summary`) plus `src/census/` (the `*-census` / `issue-*` tripwires, #244) and `src/test-support/`; cross-domain plumbing like `progress` lives in `src/shared/`, never at the root.
 - `AGENTS.md` and docs content is test-pinned by census tests (the two `boundary-*-census.test.ts` strings, plus `docs-paths`/`docs-safety` censuses) — keep pinned strings intact when condensing; archive-internal broken links are intentionally left (frozen snapshots).
 - Genre source matching has one artist-gate SSOT, `fulltags/src/sources/name-match.ts` (test-pinned): SoundCloud and Beatport scorers both route through it; the hard must-contain-artist gate is what makes remix-safe matches possible.
 - `fulltags/src/sources/bandcamp.ts` is the fetch ladder's third genre vote (W2b): `autocomplete_elastic` search → `scoreBcHits` (shares the artist gate) → JSON-LD/HTML page parse (tags, genre, label, art); `bcGenre` refuses numeric/`Music` junk like the SC/BP arms.

@@ -6,7 +6,7 @@
  * parser needs no hand-copied twin list.
  */
 import { basename } from "node:path";
-import { commandLog } from "../../progress";
+import { commandLog } from "../../shared/progress";
 import { writeJson } from "../../shared/cli-output";
 import type { IntakeCounterKey } from "../../../cratedeck/shared/types";
 import { counterSummary, type IngestCounters } from "./ingest-register";

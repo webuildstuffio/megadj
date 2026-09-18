@@ -239,7 +239,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
   consumer. Dated backup:
   `~/.local/state/megadj/archive-db-before-sc-genre-ids-drop-2026-09-15.db`
   (+ `sc-genre-ids-dropped-rows-2026-09-15.csv`, 269 rows). The
-  `src/sc-genre-ids-census.test.ts` census keeps it dead: any code
+  `src/census/sc-genre-ids-census.test.ts` census keeps it dead: any code
   reintroduction fails the suite. AGENTS.md's "orphaned data" trap is
   retired with this verdict.
 - **The unmapped tail (~6.6% of labels)**: 63 unmapped labels covering

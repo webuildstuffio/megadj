@@ -30,7 +30,7 @@ import {
   printResult,
   renderKitMarkers,
 } from "./rb-command-kit.js";
-import { commandLog } from "../progress";
+import { commandLog } from "../shared/progress";
 import { errorText } from "../shared/error-text.js";
 // AUDIO_EXTS re-exported for the __test sink below: discovery membership
 // IS the #69 SSOT (issue #200) — the probe module imports the real set,

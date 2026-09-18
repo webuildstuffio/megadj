@@ -25,6 +25,7 @@
   },
   "include": [
     "src/**/*.ts",
+    "ops/**/*.ts",
     "cratedeck/src/**/*.ts",
     "cratedeck/shared/**/*.ts",
     "cratedeck/web/**/*.ts",

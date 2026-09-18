@@ -20,7 +20,14 @@ const doctor: CliCommandHandler = async (rest) => {
   const flags = parseFlags(rest, [], ["json"]);
   const { runDoctor, printDoctor, doctorJson } =
     await import("./shared/doctor");
-  const results = runDoctor();
+  // The deck-service check is async (launchctl + an HTTP probe) — run it
+  // alongside the sync checks and append so both output formats carry it.
+  const { checkDeckService } = await import("./shared/doctor-checks");
+  const [results, deckCheck] = await Promise.all([
+    Promise.resolve(runDoctor()),
+    checkDeckService(),
+  ]);
+  results.push(deckCheck);
   if (flags.bools.has("json")) {
     await writeJsonText(doctorJson(results));
     // #160 ring 3: setExit is the one mutation point.

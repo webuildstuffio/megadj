@@ -22,7 +22,7 @@ import { cues } from "../fulltags/cues";
 import { organize } from "../getdat/commands/organize";
 import { ytdlpCookieArgs } from "../getdat/ytdlp";
 import type { ArchiveState } from "../archive/state";
-import { commandLog } from "../progress";
+import { commandLog } from "./progress";
 import { writeJson, setExit } from "./cli-output";
 
 export interface DropOptions {

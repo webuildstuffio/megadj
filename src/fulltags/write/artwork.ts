@@ -15,7 +15,7 @@ import { embedArt, AUDIO_EXTS as ARTWORK_EXTS } from "./writer";
 import { fetchImage } from "../sources/art-sources";
 import type { QueueEntry } from "../../getdat/commands/queue";
 export { type QueueEntry } from "../../getdat/commands/queue";
-import { commandLog } from "../../progress";
+import { commandLog } from "../../shared/progress";
 import { writeJson, setExit } from "../../shared/cli-output";
 
 export interface ArtworkOptions {

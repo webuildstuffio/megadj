@@ -1,11 +1,17 @@
 // doctor-checks.ts — the individual probe checks for `megadj doctor`
 // (#42 item 2 split, out of doctor.ts): one CheckResult per external
 // dependency/env/config value. doctor.ts keeps the runner, output, and
-// `init` bootstrap.
+// `init` bootstrap. checkBin (#86 item 2) is the shared body for the
+// binary-probe trio.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { homedir, platform } from "node:os";
+import { homedir, platform, userInfo } from "node:os";
 import type { CheckResult } from "./doctor";
+import {
+  DECK_SERVICE_LABEL,
+  classifyDeckService,
+} from "../../ops/deck-service";
+import { resolveServerPort } from "../../cratedeck/src/server-port";
 
 export const MUSIC_DIR =
   process.env.MEGADJ_MUSIC_DIR ?? `${homedir()}/Music/DJ-Imports`;
@@ -87,40 +93,55 @@ export function checkPlatform(): CheckResult {
   };
 }
 
-export function checkBun(): CheckResult {
-  const v = binVersion("bun", ["--version"]);
+/** One body for the "external binary present?" probes — checkBun /
+ *  checkFfmpeg / checkYtdlp differ only in constants (#86 item 2). The
+ *  named wrappers stay so doctor.ts's check list reads as data. */
+function checkBin(
+  id: string,
+  label: string,
+  bin: string,
+  args: string[],
+  fix: string,
+): CheckResult {
+  const v = binVersion(bin, args);
   return {
-    id: "bun",
-    label: "bun runtime",
+    id,
+    label,
     required: true,
     ok: Boolean(v),
-    detail: v ? `bun ${v}` : "bun not found",
-    fix: "install: curl -fsSL https://bun.sh/install | bash",
+    detail: v ? `${bin} ${v}` : `${bin} not found`,
+    fix,
   };
+}
+
+export function checkBun(): CheckResult {
+  return checkBin(
+    "bun",
+    "bun runtime",
+    "bun",
+    ["--version"],
+    "install: curl -fsSL https://bun.sh/install | bash",
+  );
 }
 
 export function checkFfmpeg(): CheckResult {
-  const v = binVersion("ffmpeg", ["-version"]);
-  return {
-    id: "ffmpeg",
-    label: "ffmpeg + ffprobe",
-    required: true,
-    ok: Boolean(v),
-    detail: v ? `ffmpeg ${v}` : "ffmpeg not found",
-    fix: "brew install ffmpeg",
-  };
+  return checkBin(
+    "ffmpeg",
+    "ffmpeg + ffprobe",
+    "ffmpeg",
+    ["-version"],
+    "brew install ffmpeg",
+  );
 }
 
 export function checkYtdlp(): CheckResult {
-  const v = binVersion("yt-dlp", ["--version"]);
-  return {
-    id: "ytdlp",
-    label: "yt-dlp (GetDat downloads)",
-    required: true,
-    ok: Boolean(v),
-    detail: v ? `yt-dlp ${v}` : "yt-dlp not found",
-    fix: "brew install yt-dlp  ·  keep it current: brew upgrade yt-dlp",
-  };
+  return checkBin(
+    "ytdlp",
+    "yt-dlp (GetDat downloads)",
+    "yt-dlp",
+    ["--version"],
+    "brew install yt-dlp  ·  keep it current: brew upgrade yt-dlp",
+  );
 }
 
 export function checkUvPython(): CheckResult {
@@ -283,6 +304,116 @@ export function checkMusicDir(): CheckResult {
     required: false,
     ok,
     detail: `${MUSIC_DIR}${ok ? "" : " (will be created on first sync/ingest)"}`,
+  };
+}
+
+// ---- deck service (#247): the launchd-managed CrateDeck server probe ----
+
+/** Port used for the health probe: the ONE resolver (server-port.ts), so
+ *  doctor agrees with what the server and its clients would resolve.
+ *  resolveServerPort itself gates on the config file existing, so the
+ *  raw path is passed unconditionally; a throw is impossible on a valid
+ *  env value and surfaces honestly otherwise (bad CRATEDECK_PORT is a
+ *  real config error doctor SHOULD report, not swallow). */
+function deckProbePort(): number {
+  return resolveServerPort(
+    process.env.CRATEDECK_PORT,
+    join(CRATEDECK_DIR, "config.toml"),
+  );
+}
+
+async function deckHttpProbe(port: number): Promise<boolean> {
+  try {
+    const r = await fetch(`http://127.0.0.1:${port}/api/interlock`, {
+      signal: AbortSignal.timeout(1200),
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** A bare (non-launchd) deck server answering on the port — the #247
+ *  orphan class. pgrep for the entry file, since port answers could in
+ *  principle be the service (checked first by the caller). */
+function orphanDeckPids(): string[] {
+  try {
+    const p = Bun.spawnSync({
+      cmd: ["pgrep", "-f", "cratedeck/src/index.ts"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    if (p.exitCode !== 0) return [];
+    return new TextDecoder()
+      .decode(p.stdout)
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/** Is the launchd service loaded (and what pid does it report)? Reads
+ *  via launchctl print — gui domain, this user. */
+function deckServiceStatus(): { loaded: boolean; pid: number | null } {
+  try {
+    // userInfo().uid is the real posix uid — the homedir basename is a
+    // USERNAME, and `gui/<name>/...` fails launchctl parsing (exit 64).
+    const uid = userInfo().uid;
+    const p = Bun.spawnSync({
+      cmd: ["/bin/launchctl", "print", `gui/${uid}/${DECK_SERVICE_LABEL}`],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    if (p.exitCode !== 0) return { loaded: false, pid: null };
+    const out = new TextDecoder().decode(p.stdout);
+    const pid =
+      /state = \d+\. running.*?pid = (\d+)/s.exec(out) ??
+      /pid = (\d+)/.exec(out);
+    const raw = pid?.[1];
+    // finite-gated (boundary-number census): digits-only capture, but the
+    // gate is cheap and keeps this file off the sanction list.
+    const parsed = raw !== undefined ? Number(raw) : Number.NaN;
+    return {
+      loaded: true,
+      pid: Number.isFinite(parsed) ? parsed : null,
+    };
+  } catch {
+    return { loaded: false, pid: null };
+  }
+}
+
+/** `megadj doctor`'s deck-server check (#247): the service SSOT's
+ *  classifier, fed with launchctl + HTTP + orphan observations.
+ *  required=false — the deck is a feature, not the whole toolkit — but
+ *  the fix hint is concrete (deck:install / kickstart), never "see docs". */
+export async function checkDeckService(): Promise<CheckResult> {
+  const port = deckProbePort();
+  const { loaded, pid } = deckServiceStatus();
+  // The HTTP probe hits the RESOLVED port; a live answer means "a server
+  // is up" regardless of who owns it. The orphan signal is pgrep-only:
+  // when launchd knows the label, any pgrep hit IS the service (launchd
+  // children match the same cmdline), so the orphan probe must not
+  // double-fire. When launchd does NOT know the label, a pgrep hit that
+  // answers HTTP is precisely the #247 orphan class (it may sit on a
+  // non-default port — 59997 in the incident — which is fine: it is
+  // still an unmanaged server to replace).
+  const probeOk = await deckHttpProbe(port);
+  const orphanHit = !loaded && orphanDeckPids().length > 0;
+  const verdict = classifyDeckService({
+    serviceLoaded: loaded,
+    servicePid: pid,
+    probeOk,
+    orphanProbeOk: orphanHit,
+  });
+  return {
+    id: "deck-service",
+    label: "deck server (launchd)",
+    required: false,
+    ok: verdict.ok,
+    detail: `${verdict.detail} · port ${port}`,
+    fix: verdict.fix,
   };
 }
 
