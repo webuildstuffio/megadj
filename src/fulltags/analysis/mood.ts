@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { analyzeMoods, type MoodResult } from "./models";
 import { groundTruth } from "../write/readers";
-import { parseMoodStamp } from "../pipeline";
+import { parseMoodStamp } from "../pipeline/pipeline";
 import type { ArchiveState, TrackRow } from "../../archive/state";
 import { commandLog } from "../../progress";
 import { writeJson } from "../../shared/cli-output";

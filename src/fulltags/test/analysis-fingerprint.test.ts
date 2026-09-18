@@ -16,7 +16,7 @@ import {
 } from "../analysis/fingerprint";
 import { foldTempo } from "../analysis/beats-analysis";
 import { readStampGuard } from "./stamp";
-import { enrichTrack } from "../pipeline";
+import { enrichTrack } from "../pipeline/pipeline";
 import { DIR, makeFile } from "./analysis";
 
 const hasFpcalc =

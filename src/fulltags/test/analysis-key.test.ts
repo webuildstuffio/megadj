@@ -18,7 +18,7 @@ import {
 } from "../analysis/key-analysis";
 import { writePatchSync } from "../write/writer";
 import { readStampGuard } from "./stamp";
-import { enrichTrack } from "../pipeline";
+import { enrichTrack } from "../pipeline/pipeline";
 import { DIR, makeFile } from "./analysis";
 
 const hasKeyscan = existsSync(`${keyscanDir()}/openkeyscan_analyzer_server.py`);

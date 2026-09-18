@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
-import { enrichTrack } from "../pipeline";
+import { enrichTrack } from "../pipeline/pipeline";
 import {
   setBeatportSearchImpl,
   beatportReset,

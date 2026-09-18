@@ -25,7 +25,7 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
     "the verifier receives the same typed internal TagPatch BPM number before serialization.",
   // #90 scope 1: parseMoodStamp re-homed pipeline.ts → pipeline-stamps.ts
   // (owner+path moved; the sanction follows the site).
-  "src/fulltags/pipeline-stamps.ts::parseMoodStamp::Number(m[2])":
+  "src/fulltags/pipeline/pipeline-stamps.ts::parseMoodStamp::Number(m[2])":
     "m[2] is a digits-and-decimal-only regex capture and need() finite-checks every consumed value.",
   "src/fulltags/years.ts::parseScPageDates::Number(year)":
     "year is a four-digit regex capture.",
@@ -132,11 +132,14 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // input re-rooted; same calls, same guards, counts unchanged).
     // Sep 18 (#220 write/ slice): the two writer-mutagen mp4 sanctions
     // re-key to src/fulltags/write/writer-mutagen.ts (same calls, same
-    // guards, counts unchanged) — digest shifted: 959d7f15.
+    // guards, counts unchanged) — digest shifted.
+    // Sep 18 (#220 pipeline/ slice): parseMoodStamp re-keys to
+    // src/fulltags/pipeline/pipeline-stamps.ts (same call, same guard,
+    // counts unchanged) — digest shifted: bf517d78.
     audited: 42,
     guarded: 27,
     sanctioned: 15,
-    digest: "959d7f15f3956ac65a5ebd613bae778b36b0e6ebaa0b561dab4fa6d1ab55ef22",
+    digest: "bf517d7813bf7a96b93e1a60f703ab8724c0276dcac43a8776d4fca8abac564c",
   });
 });
 

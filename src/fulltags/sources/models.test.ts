@@ -16,7 +16,7 @@ import {
   parseMoodWorkerLine,
   type MoodResult,
 } from "../analysis/models";
-import { enrichTrack, parseMoodStamp } from "../pipeline";
+import { enrichTrack, parseMoodStamp } from "../pipeline/pipeline";
 import { writePatchSync } from "../write/writer";
 import { mbGenreCacheReset } from "./mb";
 import { readStampGuard } from "../test/stamp";

@@ -12,7 +12,7 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
 import { readdirSync } from "node:fs";
 import { writePatch, writePatchSync } from "../write/writer";
-import { readAiStamps } from "../pipeline";
+import { readAiStamps } from "../pipeline/pipeline";
 import { qualityScore, probeFile } from "../media-probe";
 
 const DIR = `/tmp/fulltags-bugfix-test-${process.pid}`;

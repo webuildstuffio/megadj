@@ -4,7 +4,7 @@
 import { existsSync, statSync, readdirSync } from "node:fs";
 import { setExit, writeJson } from "../shared/cli-output";
 import { basename, join } from "node:path";
-import { enrichAll, readAiStamps } from "./pipeline";
+import { enrichAll, readAiStamps } from "./pipeline/pipeline";
 import { groundTruth } from "./write/readers";
 import { completeness } from "./write/schema";
 import { isAudioFile } from "./write/writer";

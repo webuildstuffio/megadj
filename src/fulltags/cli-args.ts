@@ -3,7 +3,7 @@
 // BOOL/VALUE opt tables. cli.ts keeps help text + the verb table.
 import { nonNegOpt, parseFlags } from "../cli-flags";
 import { setExit } from "../shared/cli-output";
-import { DEFAULT_QUEUE, STAGES, type Stage } from "./pipeline";
+import { DEFAULT_QUEUE, STAGES, type Stage } from "./pipeline/pipeline";
 
 /** Narrow a CLI word to a Stage (undefined = not a stage name). */
 function isStage(word: string): word is Stage {
