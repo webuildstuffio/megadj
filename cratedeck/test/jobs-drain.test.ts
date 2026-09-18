@@ -69,4 +69,27 @@ describe("drain stdout capture", () => {
     const { out } = await drain(proc, () => {}, { cancelled: false });
     expect(out).toBe(s);
   });
+
+  it("delivers a final UNTERMINATED line to onLine (the #228 carry flush)", async () => {
+    // issue #228: the loop pops the trailing partial into `carry`; the
+    // bytes reached `out` (post-loop decode flush) but carry was never
+    // handed to onLine — a child whose last progress line lacks "\n"
+    // lost its final tick to every onLine consumer.
+    const proc = spawnWriter(["phase 1 done\nfinal phase 100%"]);
+    const lines: string[] = [];
+    const { out } = await drain(proc, (l) => lines.push(l), {
+      cancelled: false,
+    });
+    expect(lines).toEqual(["phase 1 done", "final phase 100%"]);
+    expect(out).toBe("phase 1 done\nfinal phase 100%");
+  });
+
+  it("never delivers a blank carry line", async () => {
+    // trailing "\n" leaves an empty carry; the flush is trim-guarded so
+    // onLine never sees a phantom blank tick
+    const proc = spawnWriter(["a\n\n"]);
+    const lines: string[] = [];
+    await drain(proc, (l) => lines.push(l), { cancelled: false });
+    expect(lines).toEqual(["a"]);
+  });
 });

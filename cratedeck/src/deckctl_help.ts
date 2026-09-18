@@ -16,7 +16,7 @@
 import { HELP_JOBS, HELP_SURFACES, HELP_TERMS } from "../shared/help";
 import { apiPost, resolveDriveOrExit } from "./deckapi";
 import { emitJson } from "./deckctl_runtime";
-import { printKindDoc } from "./deckctl_docs";
+import { KIND_DOCS, printKindDoc } from "./deckctl_docs";
 
 /** Print hooks shared with deckctl.ts (deckctl_notes.ts pattern). */
 export interface HelpPrintHooks {
@@ -58,16 +58,17 @@ export async function cmdHelp(
         await emitJson({ job });
         return;
       }
+      // `needs` comes from KIND_DOCS (the explain SSOT) — the hand-rolled
+      // two-way ternary here was a #216-class twin that printed "requires:
+      // drive mounted, rekordbox closed" for ingest/speedtest/checksum,
+      // none of which is true for those kinds.
       printKindDoc(
         job.kind,
         {
           what: job.what,
           typical: job.duration,
           safe: job.safety,
-          needs:
-            job.kind === "scan" || job.kind === "benchmark"
-              ? "drive mounted"
-              : "drive mounted, rekordbox closed",
+          needs: KIND_DOCS[job.kind]?.needs ?? "",
         },
         h.log,
       );
@@ -90,7 +91,7 @@ export async function cmdHelp(
   h.log("── vocabulary ──");
   for (const term of HELP_TERMS) h.log(`  ${term.term}: ${term.def}`);
   h.log("");
-  h.log("── the five jobs ──");
+  h.log("── the jobs ──");
   for (const j of HELP_JOBS) h.log(`  ${j.label.toLowerCase()} — ${j.what}`);
   h.log("");
   h.log("── where everything lives ──");

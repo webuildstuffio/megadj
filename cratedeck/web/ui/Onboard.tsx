@@ -86,7 +86,7 @@ export function Onboard() {
 
       <section class="ob-sec">
         <h3 class="sect">
-          <Icon name="shield" /> The five jobs
+          <Icon name="shield" /> The jobs
         </h3>
         <div class="ob-jobs">
           {HELP_JOBS.map((j) => (
