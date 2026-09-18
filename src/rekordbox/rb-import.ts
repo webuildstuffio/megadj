@@ -16,11 +16,9 @@
  * SamplerGain float (empty string crashes the flush), FileNameL clipped
  * to 60 chars, FileType by extension, FolderPath as the FULL path.
  *
- * Split per concern (#203, the rb-dedup pattern): this file keeps the
- * hard pre-flight gates + the rbImport gate→probe→dupeGate→apply
- * sequencer; rb-import-probe.ts owns phase-2 preparation (folder scan,
- * ffprobe payload, F11 dupe gate) and rb-import-verify.ts owns the
- * verify/apply arm (payload parsers, verificationError, applyImport).
+ * Split per concern (#203): hard gates + the rbImport sequencer stay
+ * here; rb-import-probe.ts owns phase-2 prep (scan, payload, dupe gate),
+ * rb-import-verify.ts the verify/apply arm (parsers, applyImport).
  */
 
 import { existsSync, readFileSync } from "node:fs";
