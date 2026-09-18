@@ -19,8 +19,8 @@
 import { openLedger } from "../shared/sqlite-ledger";
 import { existsSync, mkdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { fingerprintFileLength } from "../fulltags/fingerprint";
-export { parseFpcalcOutput } from "../fulltags/fingerprint";
+import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
+export { parseFpcalcOutput } from "../fulltags/analysis/fingerprint";
 import { DupFpCache, type DupGroup } from "./dupescan-shared";
 import {
   applyGroupsSafety,

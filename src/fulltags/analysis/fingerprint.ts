@@ -7,7 +7,7 @@
  * before spending compute.
  */
 import { existsSync } from "node:fs";
-import { parseJsonObject } from "./parse-json";
+import { parseJsonObject } from "../parse-json";
 
 /** Parse fpcalc's JSON boundary. Null is an explicit malformed/schema-failed
  * result; callers preserve their documented degrade-to-null contract. */

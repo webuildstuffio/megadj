@@ -133,7 +133,9 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 17 (#215 live-run pass): digest changed — api_routes.ts
     // /fetch/start body parse (guarded) + job_legs.ts safeJsonParse
     // (sanctioned) join the census.
-    digest: "ec18af5c8b0f08fa827719eb1607b219379d0569f8d276c795109b29e325ff2b",
+    // Sep 18 (#220 analysis/ slice): file re-homes moved owners (digest
+    // input re-rooted; same calls, same guards, counts unchanged).
+    digest: "7962fea905343269b5c4b255ec2aa21f321038d7547d02ba9627bbee6098c30c",
   });
 });
 

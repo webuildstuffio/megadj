@@ -128,10 +128,14 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // degrades to a full drain at 0, never a crash) — digest shifted.
     // Digest pinned to the shared-worktree scan including the concurrent
     // fetch-feed work (the #79/#80 precedent): b8a3d783.
+    // Sep 18 (#220 analysis/ slice): the writer-mutagen + pipeline-stamps
+    // sanctions re-key to src/fulltags/analysis/* owners re-homed from the
+    // fulltags root (same calls, same guards, counts unchanged) — digest
+    // shifted: 86f96c24.
     audited: 42,
     guarded: 27,
     sanctioned: 15,
-    digest: "b8a3d783a47a4b1d9b4be6a96e2e4823de0e0f06f32d7fa8166cf34fc038fb55",
+    digest: "86f96c244e33ab52097d01316c81622bb7715fe1330911575367424373c0cdf7",
   });
 });
 

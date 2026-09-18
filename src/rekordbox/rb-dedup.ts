@@ -21,7 +21,7 @@ import {
 import { spawnSync } from "node:child_process";
 import { buildDupePairs, type DupePair } from "./rb-dedup-graph.js";
 import { parseScanResult, type ScanResult } from "./rb-dedup-parse.js";
-import { fingerprintFileLength } from "../fulltags/fingerprint";
+import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import { inspectMutationPaths } from "./rb-dedup-support.js";
 import {
   applyConfirmed,

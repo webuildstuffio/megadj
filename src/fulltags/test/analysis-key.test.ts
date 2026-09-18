@@ -10,8 +10,12 @@
 import { describe, test, expect } from "bun:test";
 import { $ } from "bun";
 import { existsSync } from "node:fs";
-import { keyscanDir } from "../fingerprint";
-import { analyzeKey, analyzeKeys, parseKeyServerLine } from "../key-analysis";
+import { keyscanDir } from "../analysis/fingerprint";
+import {
+  analyzeKey,
+  analyzeKeys,
+  parseKeyServerLine,
+} from "../analysis/key-analysis";
 import { writePatchSync } from "../writer";
 import { readStampGuard } from "./stamp";
 import { enrichTrack } from "../pipeline";

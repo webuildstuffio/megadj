@@ -22,9 +22,9 @@
  * Idempotency: TXXX:MOOD / TXXX:DANCE stamps (same pattern as ENERGY).
  */
 import { existsSync, mkdirSync, rmSync } from "node:fs";
-import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
-import { errMessage as errorText } from "../../cratedeck/shared/fmt";
-import { lineReader } from "./stdio";
+import { isFiniteNumberArray } from "../../../cratedeck/shared/guards";
+import { errMessage as errorText } from "../../../cratedeck/shared/fmt";
+import { lineReader } from "../stdio";
 
 // Fail fast on a missing HOME: `)?? ""` produced "/.local/share/…" which
 // failed much later with a confusing EACCES/ENOENT far from the cause.

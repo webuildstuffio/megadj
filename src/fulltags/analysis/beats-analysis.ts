@@ -8,15 +8,15 @@
  * spending compute.
  */
 import { existsSync } from "node:fs";
-import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
-import { parseJsonObject } from "./parse-json";
+import { isFiniteNumberArray } from "../../../cratedeck/shared/guards";
+import { parseJsonObject } from "../parse-json";
 import {
   lineHasRequestId,
   lineIsReady,
   openWorkerSession,
   writeNdjsonRequest,
 } from "./analysis-worker";
-import { fitConstantTempo } from "./grid-audit";
+import { fitConstantTempo } from "../grid-audit";
 
 function finiteNumberArray(raw: unknown): number[] | null {
   return isFiniteNumberArray(raw) ? raw : null;

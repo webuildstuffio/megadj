@@ -1,9 +1,9 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { join } from "node:path";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../../archive/state";
 import { beats } from "./beats";
-import { tempState } from "../testutil";
-import { writeFakeAudio } from "../test-support/audio-fixtures";
+import { tempState } from "../../testutil";
+import { writeFakeAudio } from "../../test-support/audio-fixtures";
 
 let dir: string;
 let state: ArchiveState;

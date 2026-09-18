@@ -13,8 +13,8 @@ import {
   fingerprintFile,
   fingerprintWithDuration,
   parseFpcalcJson,
-} from "../fingerprint";
-import { foldTempo } from "../beats-analysis";
+} from "../analysis/fingerprint";
+import { foldTempo } from "../analysis/beats-analysis";
 import { readStampGuard } from "./stamp";
 import { enrichTrack } from "../pipeline";
 import { DIR, makeFile } from "./analysis";
@@ -116,7 +116,7 @@ describe("chromaprint fingerprints (roadmap #1)", () => {
       // Re-spawn THIS bun with a PATH that has no fpcalc and import the
       // probe there — runs even on machines where fpcalc IS installed.
       const script = `
-const { fingerprintFile, fingerprintWithDuration } = await import(${JSON.stringify(`${import.meta.dir}/../fingerprint.ts`)});
+const { fingerprintFile, fingerprintWithDuration } = await import(${JSON.stringify(`${import.meta.dir}/../analysis/fingerprint.ts`)});
 const r1 = fingerprintFile(${JSON.stringify(`${DIR}/fp-t.mp3`)});
 if (r1 !== null) throw new Error("expected null, got " + r1);
 const r2 = fingerprintWithDuration(${JSON.stringify(`${DIR}/fp-t.mp3`)});

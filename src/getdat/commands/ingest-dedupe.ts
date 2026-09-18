@@ -15,7 +15,7 @@ import type { ArchiveState, TrackRow } from "../../archive/state";
 import {
   compareFingerprint,
   nameSimilarityTokens,
-} from "../../fulltags/fingerprint-dedupe";
+} from "../../fulltags/analysis/fingerprint-dedupe";
 import { probeFile, qualityScore } from "../../fulltags/media-probe";
 import { identityKey } from "../../fulltags/identity";
 import { quarantine, type Record_ } from "./ingest-probe";

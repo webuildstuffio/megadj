@@ -431,7 +431,7 @@ conservative choice for display; nothing about the write-block changes.
 the LEAST valuable BPM output anyway. The valuable outputs — downbeats +
 beat grids — now live in the archive DB ledger, and that shipped:**
 
-1. `megadj beats` (`src/fulltags/beats.ts` + the `beats` schema in
+1. `megadj beats` (`src/fulltags/analysis/beats.ts` + the `beats` schema in
    `src/archive/state_core.ts`): beat_this over every downloaded track →
    `beats(video_id PK, bpm_raw, bpm_folded, beats_json, downbeats_json,
 model, source_path, analyzed_at)`. No tags are touched — ever.
@@ -476,7 +476,7 @@ regardless of what RB reads.
 
 ### #4 — Essentia ONNX mood/dance/valence — **M — ✅ SHIPPED (rev 6.1)**
 
-`src/fulltags/models.ts`: two ONNX towers (effnet-1280 → dance + 4 mood
+`src/fulltags/analysis/models.ts`: two ONNX towers (effnet-1280 → dance + 4 mood
 heads; vggish-128 → valence-arousal) under `uv --with onnxruntime`;
 `fulltags --mood` → `TXXX:MOOD` stamp; energy 2.0 blends
 `0.5·RMS + 0.3·dance + 0.2·arousal`. Archive verdict 88/88 stamped,

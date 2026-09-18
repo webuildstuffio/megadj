@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { analyzeBeats, foldTempo, openBeatSession } from "./beats-analysis";
-import type { ArchiveState, TrackRow } from "../archive/state";
-import { commandLog } from "../progress";
-import { writeJson } from "../shared/cli-output";
+import type { ArchiveState, TrackRow } from "../../archive/state";
+import { commandLog } from "../../progress";
+import { writeJson } from "../../shared/cli-output";
 
 /**
  * megadj beats — beat_this analysis into the archive DB ledger.

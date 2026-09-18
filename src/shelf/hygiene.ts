@@ -23,7 +23,7 @@ import {
   isListenFirst,
 } from "../archive/hygiene/subcategory";
 import { applyFinding, validateFinding } from "../archive/hygiene/apply";
-import { fingerprintFileLength } from "../fulltags/fingerprint";
+import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import { setExit, writeJson } from "../shared/cli-output";
 import type {
   CheckCtx,

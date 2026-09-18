@@ -19,7 +19,7 @@ import {
 } from "../../archive/similar";
 import { l2normalize } from "../../../cratedeck/shared/vector-space";
 import { tier0Diagnostics } from "./genre-diagnostics";
-import { probeLeaveOneOut, type ProbeRow } from "../linear-probe";
+import { probeLeaveOneOut, type ProbeRow } from "../analysis/linear-probe";
 import { refoldDetail, scoringFamily } from "./genre-refold";
 import { isUmbrellaLabel } from "./genre-vocab";
 import { classifyDisputes } from "./genre-flag";

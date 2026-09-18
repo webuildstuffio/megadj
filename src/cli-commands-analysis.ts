@@ -22,7 +22,7 @@ const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
   const maxSeconds = nonNegOpt(flags, "max-seconds", "beats", json);
   if (nonNegOptInvalid(flags, "jobs", "beats", json)) return;
   const jobs = nonNegOpt(flags, "jobs", "beats", json);
-  const { beats: analyzeBeats } = await import("./fulltags/beats");
+  const { beats: analyzeBeats } = await import("./fulltags/analysis/beats");
   await analyzeBeats({
     state,
     musicDir,
@@ -46,7 +46,7 @@ const mood: CliCommandHandler = async (rest, { state, musicDir }) => {
   const limit = nonNegOpt(flags, "limit", "mood", json);
   if (nonNegOptInvalid(flags, "jobs", "mood", json)) return;
   const jobs = nonNegOpt(flags, "jobs", "mood", json);
-  const { mood: analyzeMood } = await import("./fulltags/mood");
+  const { mood: analyzeMood } = await import("./fulltags/analysis/mood");
   await analyzeMood({
     state,
     musicDir,

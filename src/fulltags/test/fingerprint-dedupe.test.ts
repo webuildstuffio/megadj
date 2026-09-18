@@ -1,5 +1,8 @@
 import { describe, test, expect } from "bun:test";
-import { nameSimilarityTokens, type FpVerdict } from "../fingerprint-dedupe";
+import {
+  nameSimilarityTokens,
+  type FpVerdict,
+} from "../analysis/fingerprint-dedupe";
 
 /** The verdict rules are pure functions over (fp equality, name tokens);
  * fpcalc itself is exercised end-to-end in the ingest e2e tests. */

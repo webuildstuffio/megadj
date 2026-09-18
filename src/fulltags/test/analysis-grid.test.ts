@@ -6,7 +6,7 @@
  */
 import { describe, test, expect } from "bun:test";
 import { fitConstantTempo, gridAudit } from "../grid-audit";
-import { foldTempo } from "../beats-analysis";
+import { foldTempo } from "../analysis/beats-analysis";
 
 /** Perfect machine grid: n beats at exactly `bpm` starting at t0. */
 const perfectGrid = (bpm: number, n: number, t0 = 0.02): number[] =>

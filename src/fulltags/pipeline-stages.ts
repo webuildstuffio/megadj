@@ -23,10 +23,10 @@ import {
 import { appendQueue, artLadder, scArt } from "./pipeline-art";
 import { parseMoodStamp, readEnergyStamp, readStamp } from "./pipeline-stamps";
 import { energyFromLufs, measureRms } from "./media-probe";
-import { analyzeBeats, foldTempo } from "./beats-analysis";
-import { analyzeKey } from "./key-analysis";
-import { fingerprintWithDuration } from "./fingerprint";
-import { analyzeMoods, moodStamp } from "./models";
+import { analyzeBeats, foldTempo } from "./analysis/beats-analysis";
+import { analyzeKey } from "./analysis/key-analysis";
+import { fingerprintWithDuration } from "./analysis/fingerprint";
+import { analyzeMoods, moodStamp } from "./analysis/models";
 import { mbLookupCached } from "./sources/mb_lookup";
 import { embedArt } from "./writer";
 import { type Truth } from "./readers";

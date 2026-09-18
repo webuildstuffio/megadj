@@ -5,7 +5,7 @@ import {
   writeNdjsonRequest,
   lineIsReady,
   lineHasRequestId,
-} from "../analysis-worker";
+} from "../analysis/analysis-worker";
 import { lineReader } from "../stdio";
 import { parseJsonObject } from "../parse-json";
 import { join } from "node:path";

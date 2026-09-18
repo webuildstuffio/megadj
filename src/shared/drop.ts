@@ -16,8 +16,8 @@
 // carrier in src/).
 
 import { ingest } from "../getdat/commands/ingest";
-import { beats } from "../fulltags/beats";
-import { mood } from "../fulltags/mood";
+import { beats } from "../fulltags/analysis/beats";
+import { mood } from "../fulltags/analysis/mood";
 import { cues } from "../fulltags/cues";
 import { organize } from "../getdat/commands/organize";
 import { ytdlpCookieArgs } from "../getdat/ytdlp";
@@ -208,7 +208,7 @@ const STAGE_RUNNERS: StageSpec[] = [
     // Stage 3 — mood ledger, gated on models present (320 MB one-time
     // download is NOT something a drop should silently trigger).
     skipDetail: async () => {
-      const { moodModelsPresent } = await import("../fulltags/models");
+      const { moodModelsPresent } = await import("../fulltags/analysis/models");
       return moodModelsPresent()
         ? null
         : "models absent (bun run fulltags/cli.ts ensure-models)";

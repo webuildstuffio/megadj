@@ -2,7 +2,7 @@
 // ladder (md5, fpcalc fingerprint, quality rank). Split from dedupe.ts
 // so the verdict logic and the probes read (and test) separately.
 import { md5FileChunked } from "../shared/hash";
-import { fingerprintFileLength } from "../fulltags/fingerprint";
+import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import { probeMediaSync } from "../fulltags/media-probe";
 
 /** MD5 in-process via the shared chunked seam (src/shared/hash.ts, issue

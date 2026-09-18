@@ -6,7 +6,7 @@
  * subprocess contract — rows in, pairs out.
  */
 
-import { fingerprintFileLength } from "../fulltags/fingerprint";
+import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import type { ScanPair, ScanRow } from "./rb-dedup-parse.js";
 import { pickKeeper } from "./rb-dedup-support.js";
 

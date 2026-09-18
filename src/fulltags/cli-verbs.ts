@@ -25,7 +25,7 @@ export function collectFiles(target: string): string[] {
  *  run never stalls on a 320 MB fetch mid-batch. */
 export async function cmdEnsureModels(): Promise<void> {
   const { modelsEnsure, moodModelsPresent, modelDir } =
-    await import("./models");
+    await import("./analysis/models");
   try {
     const got = modelsEnsure();
     console.log(
@@ -178,7 +178,7 @@ export async function cmdEnrich({ args }: CliCtx): Promise<void> {
   const moodWanted = !args.stages || args.stages.includes("mood");
   if (moodWanted && !args.dryRun) {
     const { moodModelsPresent, modelsEnsure, modelDir } =
-      await import("./models");
+      await import("./analysis/models");
     if (!moodModelsPresent()) {
       console.log(
         `fulltags: mood models missing — downloading to ${modelDir()} (~320 MB, once)…`,

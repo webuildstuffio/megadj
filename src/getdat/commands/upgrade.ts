@@ -14,7 +14,7 @@
 import { existsSync, renameSync, rmSync, statSync } from "node:fs";
 import { tempSiblingPath } from "../../shared/atomic-file";
 import { applyTags } from "../../fulltags/writer";
-import { fingerprintFile } from "../../fulltags/fingerprint";
+import { fingerprintFile } from "../../fulltags/analysis/fingerprint";
 import type { EnrichedMetadata } from "../../fulltags/schema";
 import { probeMediaSync } from "../../fulltags/media-probe";
 import { Downloader, type DownloadResult } from "../downloader";

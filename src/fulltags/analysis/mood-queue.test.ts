@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { join } from "node:path";
-import type { ArchiveState } from "../archive/state";
-import { tempState } from "../testutil";
-import { writeFakeAudio } from "../test-support/audio-fixtures";
+import type { ArchiveState } from "../../archive/state";
+import { tempState } from "../../testutil";
+import { writeFakeAudio } from "../../test-support/audio-fixtures";
 
 /**
  * Regression for the Sep 10 2026 "mood analyzes nothing" bug: when
