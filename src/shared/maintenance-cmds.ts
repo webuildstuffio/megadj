@@ -203,12 +203,16 @@ const tmpPurgeCmd: MaintenanceHandler = async (rest) => {
   // #236: the stale-fixture sweep (cratedeck-hashcancel-* et al grew to
   // 16k dirs / 2.6 GB). Read-only by default; --apply deletes; --all
   // drops the 24h age gate (only when the test gate is known-quiet).
-  const flags = parseFlags(rest, [], ["apply", "all", "json"]);
+  // --state retargets the sweep at ~/.local/state/megadj: superseded
+  // archive.db backups (newest lineage per stem kept), orphan SQLite
+  // sidecars of DBs not open, age-gated spike/ artifacts.
+  const flags = parseFlags(rest, [], ["apply", "all", "json", "state"]);
   const json = jsonFlag(flags);
   const { tmpPurge, printTmpPurgeReport } = await import("../shelf/tmp-purge");
   const r = tmpPurge({
     apply: flags.bools.has("apply"),
     all: flags.bools.has("all"),
+    state: flags.bools.has("state"),
     json,
     log: progressLog(json),
   });

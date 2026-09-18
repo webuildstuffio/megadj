@@ -277,8 +277,10 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "tmp-purge",
     group: "cratedeck",
     block: [
-      "  megadj tmp-purge [--apply] [--all] [--json]   sweep stale test fixture dirs from the OS tmpdir;",
-      "                                               age-gated >24h by default, read-only without --apply",
+      "  megadj tmp-purge [--state] [--apply] [--all] [--json]",
+      "                                               sweep stale test fixture dirs from the OS tmpdir (--state:",
+      "                                               the ~/.local/state/megadj backup/sidecar/spike tier, newest",
+      "                                               lineage backup kept); age-gated >24h, read-only without --apply",
     ],
   },
   {
