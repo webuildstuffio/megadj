@@ -23,6 +23,7 @@ import { organize } from "../getdat/commands/organize";
 import { ytdlpCookieArgs } from "../getdat/ytdlp";
 import type { ArchiveState } from "../archive/state";
 import { commandLog } from "./progress";
+import { errorText } from "./error-text";
 import { writeJson, setExit } from "./cli-output";
 
 export interface DropOptions {
@@ -116,7 +117,7 @@ async function runStage(
     stages.push({ stage: name, status: "ok" });
     return true;
   } catch (e) {
-    const detail = e instanceof Error ? e.message : String(e);
+    const detail = errorText(e);
     stages.push({ stage: name, status: "failed", detail });
     log(`${name} failed: ${detail}`);
     return false;

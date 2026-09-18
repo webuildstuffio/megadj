@@ -17,6 +17,7 @@ import type { QueueEntry } from "../../getdat/commands/queue";
 export { type QueueEntry } from "../../getdat/commands/queue";
 import { commandLog } from "../../shared/progress";
 import { writeJson, setExit } from "../../shared/cli-output";
+import { errMessage } from "../../../cratedeck/shared/fmt";
 
 export interface ArtworkOptions {
   state: ArchiveState;
@@ -190,9 +191,7 @@ async function processEntry(
       return "failed";
     }
   } catch (err) {
-    log(
-      `    generation FAILED: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    log(`    generation FAILED: ${errMessage(err)}`);
     counters.failed++;
     return "failed";
   }

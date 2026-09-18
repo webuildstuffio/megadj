@@ -14,6 +14,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { walkAudioDir } from "../shared/audio-walk";
+import { errMessage } from "../../cratedeck/shared/fmt";
 import { analyzeKeys, type KeyResult } from "./analysis/key-analysis";
 import { groundTruth } from "./write/readers";
 
@@ -208,10 +209,9 @@ function loadExternalRefs(refsPath: string): Record<string, string> {
       throw new Error("expected a JSON object of {basename: key}");
     return record;
   } catch (error) {
-    throw new Error(
-      `verify-key: --refs invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error },
-    );
+    throw new Error(`verify-key: --refs invalid JSON: ${errMessage(error)}`, {
+      cause: error,
+    });
   }
 }
 
