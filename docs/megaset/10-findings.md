@@ -186,6 +186,7 @@ engines; cloud anything.
 | [09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md)               | `setbuild → megaset` atomic rename plan                                                        | ✅ executed 2026-09-15 |
 | [tier0-diagnostics-2026-09-15](../archive/tier0-diagnostics-2026-09-15.md)                   | Tier-0 diagnostics battery, first live run (Sep 15 verdicts)                                   | current                |
 | [10-findings](10-findings.md)                                                                | **this page** — distilled verdicts + next actions                                              | current                |
+| [11-master-architecture-v2](11-master-architecture-v2.md)                                    | **Master v2 architecture** — the synthesis doc: cross-shop invariants, B10p/Phase D/family specs, reject list, build order | 📐 proposal |
 
 ---
 
