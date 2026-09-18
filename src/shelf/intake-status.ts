@@ -122,7 +122,7 @@ export function findCaseCollisions(paths: string[]): CaseCollision[] {
   }
   return [...byKey.entries()]
     .filter(([, ps]) => ps.length > 1)
-    .map(([key, paths]) => ({ key, paths }));
+    .map(([key, twinPaths]) => ({ key, paths: twinPaths }));
 }
 
 export function intakeStatus(opts: IntakeStatusOptions): IntakeStatusResult {
