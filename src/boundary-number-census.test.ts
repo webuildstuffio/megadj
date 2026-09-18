@@ -78,9 +78,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // extracted as writer.ts::yearFromDate — the site reclassifies
     // sanctioned→guarded (audited 41 unchanged, guarded 25→26,
     // sanctioned 16→15) and the owner move shifts the digest.
-    audited: 41,
-    guarded: 26,
-    sanctioned: 15,
+    // Sep 17 (#215 live-run pass): audited 41→42 / guarded 26→27 —
+    // /fetch/feed's since cursor parses under an explicit
+    // Number.isFinite(since) gate (the census guard shape; bad input
+    // degrades to a full drain at 0, never a crash) — digest shifted.
     // Sep 15 (#79/#80/#84 pass): rb-import payload probing moved to the
     // fulltags media seam (removed its 2 Number() sites); audited 42→44
     // and sanctioned 13→18 from the concurrent bandcamp ISO-duration +
@@ -121,7 +122,16 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 17 (#220 sources/ slice): bandcamp ISO-duration sanctions
     // re-keyed to src/fulltags/sources/bandcamp.ts (same calls, same
     // guards, counts unchanged) — digest shifted.
-    digest: "f9cbabdde74fa28626f0f5b056f14798f8e463fb760747802798831cff498448",
+    // Sep 17 (#215 live-run pass): audited 41→42 / guarded 26→27 —
+    // /fetch/feed's since cursor parses under an explicit
+    // Number.isFinite(since) gate (the census guard shape; bad input
+    // degrades to a full drain at 0, never a crash) — digest shifted.
+    // Digest pinned to the shared-worktree scan including the concurrent
+    // fetch-feed work (the #79/#80 precedent): b8a3d783.
+    audited: 42,
+    guarded: 27,
+    sanctioned: 15,
+    digest: "b8a3d783a47a4b1d9b4be6a96e2e4823de0e0f06f32d7fa8166cf34fc038fb55",
   });
 });
 
