@@ -240,6 +240,10 @@ Archived files are historical evidence, not current instructions:
 - [Archived roadmap index](archive/roadmap-index-2026-09-15.md) — the former
   product-categorized issue index; superseded by GitHub labels/search.
 - [Codebase quality snapshot](archive/codebase-quality-report.md)
+- [Code quality progress report (Sep 17)](code-quality-2026-09-17.md) — measured
+  push summary (60 issues/3 days), remaining-refactor projection, and the
+  honest 75k-census verdict; the live trend lives in the megadj-quality-trend
+  canvas.
 - [Source-layout refactor receipt](archive/src-layout-refactor.md) — moved
   2026-09-14; the old-path redirect stub was removed 2026-09-15, so this
   archive path is the only reference.
