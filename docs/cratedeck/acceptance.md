@@ -2,13 +2,15 @@
 
 **Status:** 🟡 BLOCKED — code gates are verified; three hardware checks remain.
 The release-policy decision in issue #29 closed 2026-09-15 with the `v0.2.0`
-tag pushed.
+tag pushed. Their tracking issue (#175) closed NOT_PLANNED 2026-09-16 — the
+checks stay manual-by-design; run them from the recipes below when the gig
+drives are at hand and record the results in this file.
 
 Tracks the PRD (F1–F10) and build-plan milestone acceptance items. Evidence
 here is **code-verified only** (file/route/test existence in `cratedeck/`).
 Items marked ☐ require real-hardware runs (gig drives) — those stay manual
 by design ("real gig drives stay manual — the Python tools already carry
-that trust", architecture §9). Last audited: 2026-09-15.
+that trust", architecture §9). Last audited: 2026-09-17.
 
 ## Milestones
 
@@ -81,8 +83,9 @@ O85 plugin, O87 origin attribution, O88 agent notes), and the CLI gates
 are all shipped — status and evidence live in
 [product-state-2026-09-07.md](../product-state-2026-09-07.md),
 capability surface in [../surface-parity.md](../surface-parity.md); the
-three open hardware checks are tracked in
-[#175](https://github.com/webuildstuffio/megadj/issues/175).
+three open hardware checks were tracked in
+[#175](https://github.com/webuildstuffio/megadj/issues/175), closed
+NOT_PLANNED 2026-09-16 — the recipes remain below.
 
 ## Test coverage
 

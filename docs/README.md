@@ -57,9 +57,9 @@ Status vocabulary: ✅ `CURRENT`/`COMPLETE`/`SHIPPED`, 📚 `REFERENCE`, 🧭
 Product-categorized backlog lives in GitHub issues (labels `type:*`,
 `priority:*`, `effort:*`; product is in the title prefix). Notable
 umbrellas: the [parked ledger](https://github.com/webuildstuffio/megadj/issues/178)
-(deliberately-unbuilt register), [#175](https://github.com/webuildstuffio/megadj/issues/175)
-(the three manual CrateDeck hardware checks), and #178's rejection register
-for the ideas closed NOT_PLANNED.
+(deliberately-unbuilt register) and #178's rejection register
+for the ideas closed NOT_PLANNED (the former #175 hardware-checks
+tracker is one of those — the recipes stay in the acceptance doc).
 
 ## Product and decision references
 
@@ -198,8 +198,9 @@ genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
 
 - [PRD](cratedeck/02-prd.md) — product requirements.
 - [Architecture](cratedeck/03-architecture.md) — current runtime structure.
-- [Acceptance](cratedeck/acceptance.md) — verified code gates and remaining
-  hardware checks.
+- [Acceptance](cratedeck/acceptance.md) — verified code gates and the three
+  hardware-check recipes (their tracker closed NOT_PLANNED; run them from
+  the doc when the drives are at hand).
 
 ## Operations and incident references
 
@@ -254,7 +255,7 @@ Archived files are historical evidence, not current instructions:
   2026-09-14; the old-path redirect stub was removed 2026-09-15, so this
   archive path is the only reference.
 - [MegaSet sequencing benchmarks](archive/set-04-sequencing-benchmarks-2026-09-14.md)
-  and [Set migration plan](archive/set-09-migration-plan-2026-09-15.md) —
+  and [MegaSet migration plan](archive/set-09-migration-plan-2026-09-15.md) —
   measured evidence + executed rename receipt, archived 2026-09-15.
 - [Tier-0 diagnostics](archive/tier0-diagnostics-2026-09-15.md) and
   [embedding research review](archive/embedding-research-2026-09-14.md) —

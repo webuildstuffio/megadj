@@ -92,7 +92,7 @@ only goal is: **get the job done. Make people dance.**
 ## 10. Every product needs a name, a vibe, and a goal
 
 megadj's sub-projects are named, opinionated units — **GetDat**, **FullTags**,
-**Set**, **CrateDeck** — each with its own one-line goal and personality (see
+**MegaSet**, **CrateDeck** — each with its own one-line goal and personality (see
 [FEATURES.md](FEATURES.md)). A name forces scope: if a feature doesn't fit an
 existing project's goal, it either starts a new named project or it doesn't
 belong.

@@ -186,7 +186,7 @@ propose-only.
 
 Club reality: a set perceived as "one journey" is largely a loudness-stable
 set (±3 LU across transitions). No planner scores LUFS continuity.
-**Steal:** the Phase-B `megadj loudness` pass earns its keep here — a
+**Steal:** the Phase-B `loudness` pass (#172) earns its keep here — a
 soft penalty on >6 LU steps, and the payload flags tracks that will sound
 like a volume jump.
 

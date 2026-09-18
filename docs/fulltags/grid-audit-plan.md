@@ -288,8 +288,9 @@ drive_anlz_hash  vs  collection_anlz_hash
 
 You'll have both; they need opposite fixes, and conflating them means
 re-analyzing tracks that were fine. Build on `anlz_paths.py` (hash-path
-computation) + the verify pipeline's ANLZ enumeration. Command shape:
-`megadj grid-triage [drive] --json` (P1 contract).
+computation) + the verify pipeline's ANLZ enumeration. Command shape
+(SHIPPED as `rb-grid-triage`, GA-03 above):
+`megadj rb-grid-triage [drive] --json`.
 
 **WEEK-1 TEST (do first):** does rekordbox write byte-identical ANLZ for
 unchanged content across re-exports? Re-export one unchanged playlist,
@@ -328,8 +329,11 @@ the archive (103 tracks): 99 DRIFT, 2 ok — RB stores integer BPMs (125)
 against fitted 124.00 grids, ~1.6 s of accumulated slide: exactly the
 predicted class.
 
-Deliverable: `megadj grid-audit --json` — one row per track, cached,
-resumable, feeding the CrateDeck surface (GA-05c).
+Deliverable (library-side SHIPPED): the grid-math SSOT `gridAudit`
+(`src/fulltags/grid-audit.ts`, consumed by CrateDeck's
+`archive_grid.ts` and `megadj rb-grid-triage`) — one row per track,
+cached, resumable. The standalone grid-audit CLI face and the CrateDeck
+surface card (GA-05c) remain open.
 
 ### GA-05 — Bucket + thresholds + surface
 

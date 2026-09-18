@@ -1,7 +1,8 @@
 # Postmortem & Master Improvement Plan — Sep 2026 intake/cue marathon
 
 **Status:** 🧭 ACTIVE — rev 5 repairs and doctor gates executed on 2026-09-14;
-F5's unified census remains to land.
+F5's unified census is tracked in
+[#238](https://github.com/webuildstuffio/megadj/issues/238).
 
 **Execution receipt:** F6/F1/F2/F3-surface/F7 shipped as commands + doctor
 gates; the SHELF1 applies ran and all three repair exit gates were green. Rev
@@ -233,7 +234,7 @@ tracks show clickable labeled pads in RB, then batch. The constant
 `HOT_CUE_KIND = 1` lives in `src/rekordbox/rb-cues.ts` with a regression
 test asserting no writer emits 0.
 
-### F5 — Intake race + stale-count hygiene (P1)
+### F5 — Intake race + stale-count hygiene (P1) — 🧭 tracked as [#238](https://github.com/webuildstuffio/megadj/issues/238)
 
 - One `megadj intake-status` census: files-in-Contents ↔ DB rows ↔ archive.db,
   case/unicode-normalized (NFC + casefold), single source printed for the
@@ -246,9 +247,11 @@ test asserting no writer emits 0.
 `src/rekordbox/guard.ts` landed with `assertRbClosed()` + `backupMaster()` +
 `verifyReRead()` (+ `rekordboxRunning`, `fileExistsSafe`). Every NEW rb-*
 command (rb-cues, rb-dedup, rb-playlist-reconcile) imports it — zero fresh
-pgrep/backup re-rolls. **Remaining:** migrate the three LEGACY copies
-(rb-import / rb-fix-paths / rb-playlist) onto it; done-when stays
-`rg "pgrep" src/` matches exactly once.
+pgrep/backup re-rolls. **Remaining: DONE (verified 2026-09-17)** — the three
+LEGACY copies (rb-import / rb-fix-paths / rb-playlist) all import
+`rekordboxRunning`/`assertRbClosed` from the guard now; the only TS spawn
+site is `guard.ts` (the `rb-command-kit.py` hit is a Python-side prompt
+string, not a second spawn).
 
 **Sep 13 audit — duplication already measured (this is the LOC cut):**
 
@@ -257,7 +260,9 @@ pgrep/backup re-rolls. **Remaining:** migrate the three LEGACY copies
   `src/rekordbox/guard.ts` with `assertRbClosed()` + `backupDb()` +
   `verifyReRead()` deletes ~60 LOC and makes the RB-open gate un-bypassable.
   Backup helpers also duplicated (`rb-adopt.ts:459 backupName`).
-- F6 done-when: `rg "pgrep" src/` matches exactly once.
+- F6 done-when: `rg "pgrep" src/` matches exactly once. — ✅ verified
+  2026-09-17 (single TS spawn site in `guard.ts`; all three legacy copies
+  import the seam).
 
 ### F7 — Playlist XML twin maintenance (P1) — ✅ CODE + SHELF1 APPLY DONE (rev 5)
 

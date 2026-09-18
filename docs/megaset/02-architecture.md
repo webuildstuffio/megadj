@@ -22,21 +22,21 @@ status (v0 uses / planned / rejected) and the exact order things are applied
    rekordbox mirror (master.db read-only seam) ── BPM×100 · KeyName
         │
         ▼
-   setCandidates() ── pool census w/ honest counters (cratedeck/src/archive_similar.ts)
+   setCandidates() ── pool census w/ honest counters (cratedeck/src/archive_pool.ts)
         │
         ▼
    buildMegaset() ── pure engine, zero I/O (cratedeck/src/megaset.ts)
         │          score = 0.45·tempo + 0.3·key + 0.25·energy-fit
         │          hard gates: ±6% tempo, Camelot clash, opener neighborhood
         ▼
-   SetBuildPayload ── steps[] · excluded[] · pool/freshness counters
+   MegasetResult ── steps[] · excluded[] · pool/freshness counters
         │
         ├─▶ CLI        megadj megaset (src/fulltags/megaset.ts; no alias kept)
         ├─▶ HTTP       GET /api/archive/megaset · ?format=m3u8 (archive_routes.ts)
-        ├─▶ MCP        archive_set_build (cratedeck/src/archive_tools.ts)
-        ├─▶ Web        FullTags ⌗ Similar tab — SetBuildPanel.tsx (form +
-        │             proposal) · SimilarTab.tsx (tab shell) ·
-        │             TrackPickSearch.tsx (shared picker)
+        ├─▶ MCP        megaset_propose (cratedeck/src/archive_tools.ts;
+        │             the pre-rename archive_set_build name is retired)
+        ├─▶ Web        MegaSet product page (MegasetPage.tsx) — MegasetPanel.tsx
+        │             (form + proposal) · TrackPickSearch.tsx (shared picker)
         └─▶ rb-playlist  megadj rb-playlist (src/rekordbox/rb-playlist.ts)
                          dry-run first · --apply --yes · rekordbox-quit gate
                          · dated backup · whole-table verify · delayed re-read
@@ -65,13 +65,13 @@ engine. If a variable isn't in these tables, the engine doesn't see it.
 | S10 | tie-break                | —                                    | `(score, videoId)` lexicographic        | engine const                  | ✅ v0                                   | determinism guarantee                                                                                             |
 | S11 | score weights            | `tempo/key/fit`                      | `0.45 / 0.30 / 0.25`                    | engine consts                 | ✅ v0, **deliberately not a param**     | E6: 5 variants moved meanTr 0.989↔0.9945 at archive scale — user-facing weights would be a knob that does nothing |
 | S12 | search strategy          | `"greedy" \| "beam"`                 | greedy; **beam-B8 when pool < ~250**    | benchmark-derived             | ✅ **shipped 2026-09-14**               | E7: beam +59% chain length in sparse pools, 0 ms cost; auto-picked, `search` on the wire, `?search=` forces A/B   |
-| S13 | `--track <id>` landmarks | `videoId[]`                          | none                                    | repeatable                    | 🔨 planned (C13)                        | must-plays sequenced at arc-right positions                                                                       |
-| S14 | `candidates N`           | `int`                                | 1                                       | 2–5 sensible                  | 🔨 planned (C14)                        | N alternatives + quality score to compare                                                                         |
-| S15 | lock/keep tracks         | `videoId[]`                          | none                                    | —                             | 🔨 planned (open-crate UX)              | regenerate around frozen picks                                                                                    |
+| S13 | `--track <id>` landmarks | `videoId[]`                          | none                                    | repeatable                    | 🔨 planned ([#107](https://github.com/webuildstuffio/megadj/issues/107))                       | must-plays sequenced at arc-right positions                                                                       |
+| S14 | `candidates N`           | `int`                                | 1                                       | 2–5 sensible                  | 🔨 planned ([#59](https://github.com/webuildstuffio/megadj/issues/59))                        | N alternatives + quality score to compare                                                                         |
+| S15 | lock/keep tracks         | `videoId[]`                          | none                                    | —                             | ❌ closed NOT_PLANNED ([#176](https://github.com/webuildstuffio/megadj/issues/176), Sep 16) | regenerate around frozen picks — the landmarks half lives in #107 (S13)                                        |
 | S16 | beam width `B`           | `int`                                | 8 when active (`SET_BEAM_WIDTH`)        | 4–16                          | ✅ **shipped 2026-09-14**               | cost ≈ B× greedy; `SET_BEAM_POOL_MAX` sets the crossover                                                          |
 | S17 | diversity knobs          | thresholds                           | artist-adjacent = 0, family-run ≤3      | —                             | 🔨 planned (B6)                         | soft penalties, counters exposed                                                                                  |
 | S18 | `seed`                   | `int`                                | 0 (deterministic)                       | any                           | 🔮 later                                | only meaningful with S14 N-candidates                                                                             |
-| S19 | pool filter preset       | named rule                           | none                                    | e.g. "126–128 + family house" | 🔮 later                                | Smart-Crate-style saved pools                                                                                     |
+| S19 | pool filter preset       | named rule                           | none                                    | e.g. "126–128 + family house" | ❌ closed NOT_PLANNED ([#121](https://github.com/webuildstuffio/megadj/issues/121))                     | Smart-Crate-style saved pools                                                                                    |
 | S20 | `valence` envelope       | `[start,end] 0–1`                    | absent (arousal+dance only)             | per preset                    | 🔶 planned, **demoted** (Part 4 triage) | mood-stdev is 0.12 — valence reorders by noise; its budget goes to `aggressive`/`happy` (T17)                     |
 
 **Defaults from measurement** (benchmarks doc Parts 2–4): S11 weights are
@@ -125,7 +125,7 @@ duplicate, relocated, excluded_total) rides the payload.
 
 ## 3. The invariants
 
-1. **The engine is pure.** `buildSet()` takes candidates in, returns a chain
+1. **The engine is pure.** `buildMegaset()` takes candidates in, returns a chain
    out — no file I/O, no clock, no randomness. Determinism (same inputs →
    byte-identical chain) is pinned by tests; tie-breaks are (score, videoId).
 2. **One wire SSOT.** `cratedeck/shared/megaset.ts` owns presets, pool
@@ -158,7 +158,7 @@ duplicate, relocated, excluded_total) rides the payload.
 | Genre (normalized, family-mapped) | `tracks.genre` + `genreFamily()` SSOT         | diversity guard (B6)                      |
 | 8-bar phrase cues + downbeats     | FullTags cues ledger                          | handoff layer (Phase D)                   |
 | Embeddings (effnet 1280-d)        | embeddings ledger                             | similarity prior (B10p)                   |
-| LUFS                              | not yet stored                                | `megadj loudness` pass (B11p, optional)   |
+| LUFS                              | not yet stored                                | a `loudness` pass (B11p, optional — [#172](https://github.com/webuildstuffio/megadj/issues/172)) writing `lufs` to the beats ledger |
 | Co-occurrence / rotation stats    | `setlist_edges` (planned, co-occur lane)      | sceneAffinity + rotationWeight soft terms |
 | Collection rows + playlist twins  | SHELF1 `master.db` + `masterPlaylists6.xml`   | mirror fallback + rb-playlist write-off   |
 

@@ -24,8 +24,8 @@ Dev mode (hot reload): `bun run web:dev` in `cratedeck/web/` alongside `bun run 
   `CRATEDECK_IMAGE_KEY`). Photos dual-save locally + on the stick at
   `Contents/CrateDeck/` and re-sync at mount.
 - 🧰 **Jobs** — Scan / Verify / Benchmark / Checksum / Speed probe /
-  Mirror, with live progress + honest ETAs. All refused while rekordbox is
-  running (the interlock, exit 3).
+  Mirror / Grid health, with live progress + honest ETAs. All refused
+  while rekordbox is running (the interlock, exit 3).
 - 📤 **Export** — per-drive JSON dossier from the drive page (or
   `deckctl report --dossier`).
 - 🔧 **Your drives** — set `master_drive` / `mirror_drive` in `config.toml`

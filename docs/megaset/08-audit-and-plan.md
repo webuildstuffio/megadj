@@ -9,8 +9,10 @@ weights frozen as engine constants); the embedding-tower question is measured in
 [embedding-models.md](../fulltags/embedding-models.md) (v2 rerun: effnet
 confirmed primary on both metrics; second-tower/fusion sweep settled — best ensemble +1.1 pt, not adopted).
 **Plan of record = the re-ranked roadmap** (03 §5); Part 3 below preserves the per-item
-implementation sketches, delta-pinned against the measured verdicts. Identifier
-renaming (`setbuild` → `set`) is planned in [09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md), not started.
+implementation sketches, delta-pinned against the measured verdicts. The identifier
+rename (`setbuild` → `megaset`) EXECUTED 2026-09-15 evening — receipt in
+[09-migration-plan (archived)](../archive/set-09-migration-plan-2026-09-15.md); dated
+scope blocks below name the old `setbuild.*` paths as they were when written.
 
 > **2026-09-16 — Phase A shipped:** B2/B3/B7/B9 landed in #105; B1+B13 landed in
 > [#104](https://github.com/webuildstuffio/megadj/issues/104) (metadata-only
@@ -67,8 +69,8 @@ tempo ≠0 outside ±6% and key =0 on clashes. Opener anchored by tempo-neighbor
 count (≥15 within ±6%) then arousal-distance to the arc start. Deterministic
 tie-breaks (score, then `videoId`). Whole-track budget fill; honest `excluded[]`
 list capped at 40 with `excluded_total`. Freshness line for beats/mood ages.
-Surfaces: CLI / HTTP(+M3U8 export) / MCP `archive_set_build` / web panel — one
-shared parse (`parseSetbuildQuery`), one preset registry, one Camelot SSOT
+Surfaces: CLI / HTTP(+M3U8 export) / MCP `megaset_propose` / web panel — one
+shared parse (`parseMegasetQuery`), one preset registry, one Camelot SSOT
 (all-24-key pinned tests), one clamp table.
 
 ### 1.3 Bugs & defects found this audit (ranked)
@@ -81,7 +83,7 @@ shared parse (`parseSetbuildQuery`), one preset registry, one Camelot SSOT
 | B4  | **MED**      | **`valence` is dead data.** Stored, transmitted, never scored. Either use it (mood-lift bonus / darker-arc presets) or drop from the candidate wire to save payload.                                                                                  | engine read                            |
 | B5  | **MED**      | **Greedy myopia.** Each slot takes the locally best track; a high-scoring next step can strand the chain (documented probe: picking `b` leaves no successors while `c→d` continues). No lookahead/backtracking.                                       | probe: dead-end test                   |
 | B6  | **LOW-MED**  | **No artist/diversity guard.** Nothing prevents 3 tracks by one artist back-to-back beyond coincidence; no genre-família spread either (440 raw genres make bucketing unavailable today).                                                             | engine read                            |
-| B7  | **LOW**      | **`parseSetbuildQuery("abc")` silently defaults minutes.** Unknown preset errors (correct) but non-numeric minutes falls back to 60 with no signal. Minor honesty gap vs the "never silent fallback" principle.                                       | probe                                  |
+| B7  | **LOW**      | **`parseSetbuildQuery("abc")` silently defaults minutes** (the parse is today's `parseMegasetQuery`). Unknown preset errors (correct) but non-numeric minutes falls back to 60 with no signal. Minor honesty gap vs the "never silent fallback" principle.                                       | probe                                  |
 | B8  | **LOW**      | **Half/double-time BPM not honored.** 87 vs 174 DnB scores 0 today; every serious comparator (djkr8, mixmaster, digcrate, auto-dj-ai) treats 2×/½× as mixable. Currently the pool is house/techno-centric so impact is latent.                        | probe                                  |
 | B9  | **COSMETIC** | `OPENNER_MIN_NEIGHBORS` typo (opener). `duplicate_files` naming vs `duplicateFiles` internal. `key_reads` counts probes, not reads, in some paths.                                                                                                    | code                                   |
 | B10 | **NOTE**     | **M3U8 export writes `#EXTINF` lines only from steps** — fine for players, but lacks the per-transition scores that rb-playlist dry-run prints; the two exports tell slightly different stories.                                                      | route read                             |
@@ -195,9 +197,9 @@ runtime deps without the release-age floor; algorithms stay pure functions in
    may not move the chain's arousal opposite its segment's direction by more than ε.
    Regression: peak chain's last slot ≥ second slot; afterhours strictly non-increasing
    beyond ε.
-4. **B7 minutes validation:** `parseSetbuildQuery` returns `{error}` for non-numeric
+4. **B7 minutes validation:** `parseSetbuildQuery` (today `parseMegasetQuery`) returns `{error}` for non-numeric
    minutes (route → 400, MCP → RpcParamError, CLI → exit 2). "absent" stays default-60.
-5. **B11:** `SET_EXCLUDED_PREVIEW_MAX = 40` into `shared/setbuild.ts`; both surfaces import.
+5. **B11:** `MEGASET_EXCLUDED_PREVIEW_MAX = 40` into `shared/megaset.ts` (then-named `SET_EXCLUDED_PREVIEW_MAX` in `shared/setbuild.ts`); both surfaces import.
 6. **B9:** rename constant to `OPENER_MIN_NEIGHBORS`; docs pass on payload field names.
 
 **Added during PRD pass (Sep 13):**
@@ -205,7 +207,9 @@ runtime deps without the release-age floor; algorithms stay pure functions in
 7. **B12 empty-pool UX:** the audit's live probe hit the worst case — pool 8, 3 steps,
    "complete: false" with no human hint. When `pool` < a floor (say 10), the payload/UI
    gains a `pool_hint` ("only 8 playable candidates — is the shelf mounted? FullTags
-   mirror covers 3,563 rows; run `megadj rb-mirror`") instead of a bare shortfall.
+   mirror covers 3,563 rows; run the RB mirror adoption") instead of a bare shortfall.
+   (Superseded Sep 16 by B1: an offline shelf now builds a chain from mirror metadata
+   and the payload says so — see the Phase A receipt in the header.)
 8. **B13 excluded-reason consolidation:** the excluded list at 3,600-scale repeats the
    same 3 reasons ~3,585 times; the payload should group by reason with representative
    videoIds (`excluded_groups`), keeping the flat list for the 40-preview.
@@ -224,9 +228,10 @@ runtime deps without the release-age floor; algorithms stay pure functions in
 10. **Embeddings into the pool:** cosine kNN (existing `similarTracks` math) as a
     similarity prior between consecutive tracks (bonus 0–0.1 term, tunable) — "sounds
     like" is measured data we already store for 3,618 tracks.
-11. **LUFS (analysis phase, cheap):** `megadj loudness` pass writing `lufs` to the beats
+11. **LUFS (analysis phase, cheap):** a `loudness` pass writing `lufs` to the beats
     ledger row via ffmpeg `ebur128` (local, fast); scoring trims extremes (nothing mixes
-    well across a 12-LU gap). Optional, off by default, like genre.
+    well across a 12-LU gap). Optional, off by default, like genre. Now tracked as
+    [#172](https://github.com/webuildstuffio/megadj/issues/172).
 
 ### Phase C — Sequencing power (algorithms) · 🧭
 

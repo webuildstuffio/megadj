@@ -9,8 +9,8 @@ shelf master or any drive whose master DB rekordbox manages.
 ## When to use
 
 - Missing File Manager shows a pile of missing tracks (tens/hundreds)
-- `deckctl verify <drive>` fails `audio-files` (DB tracks with no file)
-- `deckctl verify <drive>` fails `dual-db` (OneLibrary vs pdb drift)
+- `deckctl run <drive> verify` fails `audio-files` (DB tracks with no file)
+- `deckctl run <drive> verify` fails `dual-db` (OneLibrary vs pdb drift)
 - Auto Relocate is too slow (hours) or keeps "not finding" files that exist
 
 ## Rules (read first)

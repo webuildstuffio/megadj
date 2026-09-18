@@ -9,7 +9,7 @@ v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Archit
 > (distilled verdicts + the glossary for every acronym: Camelot, LOO, beam,
 > effnet, MCP, …).
 
-**Status:** ✅ SHIPPED — v0 graduated propose-only on 2026-09-12; greedy
+The v0 above graduated propose-only on 2026-09-12: greedy
 Camelot/energy-arc engine, whole-library pool, CLI + HTTP +
 M3U8 export + MCP + web panel, gated `megadj rb-playlist` write-off. v1 plan = the
 [re-ranked roadmap](03-competitive-analysis.md#part-5--prioritized-roadmap-re-ranked-across-all-30)
@@ -105,10 +105,10 @@ Compat table: same/±1 same-letter = 1.0, diagonal = 0.9, mood-lift
 ## F4 — Surfaces, one engine (shipped v0)
 
 CLI (`megadj megaset`; MegaSet verb), HTTP (`GET /api/archive/megaset`, `?format=m3u8`
-export), MCP (`archive_set_build`, propose-only declared in its
-description), and the FullTags web panel (segmented presets, arc sparkline,
+export), MCP (`megaset_propose`, propose-only declared in its
+description), and the MegaSet web page (segmented presets, arc sparkline,
 mix pills, filterable table, excluded cross-check, freshness line). One
-`parseSetbuildQuery` validates preset/minutes everywhere; unknown preset is
+`parseMegasetQuery` validates preset/minutes everywhere; unknown preset is
 an error, never a silent peak fallback. Parity pinned in
 [surface parity](../surface-parity.md) (rev 20–23).
 

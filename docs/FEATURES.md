@@ -7,7 +7,7 @@ vibe and a goal (see [PRINCIPLES.md](PRINCIPLES.md) §10). They chain together
 into one pipeline:
 
 ```
-GetDat ──▶ FullTags ──▶ Set ──▶ CrateDeck (the Crate) ──▶ the booth
+GetDat ──▶ FullTags ──▶ MegaSet ──▶ CrateDeck (the Crate) ──▶ the booth
 download    perfect       propose      organize, verify,      play on
 & archive   metadata      the mix      sync DJ USB drives     Pioneer
 ```
@@ -27,7 +27,7 @@ nothing ever downloaded twice.
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Status**         | 🔨 YouTube Music downloads today; SC/BP/Bandcamp enrichment live in the fetch ladder                                                                                                                                                                |
 | **Sources today**  | YouTube Music (liked songs, playlists); SoundCloud + Beatport + **Bandcamp (Sep 15)** vote genre/year/label/art at `megadj fetch` time; the **imprint prior (Sep 16, W7)** converts Beatport-filled labels into a genre vote when the catalogs miss |
-| **Sources coming** | SoundCloud as a download source (#109) · 1001tracklists mining as a discovery queue (#110) · Bandcamp downloads once yt-dlp's extractor recovers (#124 context)                                                                                     |
+| **Sources coming** | 1001tracklists mining as a discovery queue (#110) · Bandcamp downloads once yt-dlp's extractor recovers (#124 context) · SoundCloud-as-download-source closed deliberately-untracked (#109 — re-file from a PRD if it earns a slot)                                                            |
 | **How it works**   | `megadj sync` → yt-dlp at the best format available (256 kbps AAC first, graceful fallback); polite pacing and backoff, permanent failures classified and never retried                                                                             |
 | **State**          | SQLite tracks every video ID: status, format, bitrate, path, attempt history. Nothing re-downloads.                                                                                                                                                 |
 | **Flag**           | anything below 250 kbps is flagged `LOWQ` in `megadj list` — quality only ever ratchets up                                                                                                                                                          |
@@ -154,7 +154,7 @@ propose-only: the DJ keeps every creative decision.
 
 **Commands:** `megadj megaset --preset peak --minutes 60 [--opener <id>] [--search greedy|beam] [--json]` (the old `setbuild` verb is retired — unknown-command since #56) ·
 `megadj rb-playlist [drive] [--preset …] [--apply --yes]`
-**Vibe:** "the opener sells the night — Set makes sure you never open
+**Vibe:** "the opener sells the night — MegaSet makes sure you never open
 with a 73-BPM track in a 128 room."
 
 ---

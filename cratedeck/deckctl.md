@@ -18,10 +18,11 @@ bun run deckctl <command> [--json]    # repo-root script (short form)
 | `status`                                                     | rekordbox lock state, every drive with badges, active jobs                                                                                                                                                                                                                                                  |
 | `drives`                                                     | drive list with per-badge ✓/▲/✕ verdicts                                                                                                                                                                                                                                                                    |
 | `report <drive>`                                             | full health dossier: every check, its detail, why it matters, and the fix. `--dossier` = the full export bundle (drive + snapshot + sync + report + timeline + benchmarks), `--out FILE` writes it                                                                                                          |
-| `run <drive> <kind>`                                         | enqueue + **follow** a job live: spinner, %, current step, rolling ETA. Kinds: `scan` `verify` `mirror` `benchmark` `checksum` `speedtest`                                                                                                                                                                  |
+| `run <drive> <kind>`                                         | enqueue + **follow** a job live: spinner, %, current step, rolling ETA. Kinds: `scan` `verify` `mirror` `benchmark` `checksum` `speedtest` `grid-health` (drive jobs — the full kind list incl. `ingest`/`fetch`/hygiene is the `JOB_KINDS` SSOT)                                                          |
 | `coverage [min]`                                             | fleet coverage matrix: tracks per drive + at-risk list (tracks below `min` copies, default 2)                                                                                                                                                                                                               |
 | `redundancy [min]`                                           | per-playlist redundancy audit: every track on ≥`min` drives? pass/warn/fail per playlist                                                                                                                                                                                                                    |
 | `diff <driveA> <driveB>`                                     | drive-vs-drive inventory diff: added / removed / changed bytes                                                                                                                                                                                                                                              |
+| `radar [drive]`                                              | **new-music radar (#148)**: tracks downloaded to the archive but missing from a drive (or all drives) — copy-only verdict, never an auto-write; per-drive `snapshotAt` freshness, never-scanned drives read "unknown"                                                                                       |
 | `jobs`                                                       | recent jobs with progress/messages                                                                                                                                                                                                                                                                          |
 | `cancel <jobId>`                                             | cancel an active job                                                                                                                                                                                                                                                                                        |
 | `stop`                                                       | stop the CrateDeck server                                                                                                                                                                                                                                                                                   |
@@ -138,7 +139,8 @@ Register it in your MCP client config, e.g. (Cursor / Claude Desktop):
 
 Tools: `deck_status` · `deck_drives` · `deck_report {drive,format?}` ·
 `deck_coverage {min_copies?}` · `deck_redundancy {min_copies?}` ·
-`deck_diff {a,b}` · `deck_jobs` · `deck_run {drive,kind,wait?}` ·
+`deck_diff {a,b}` · `deck_radar {drive?}` (new-music radar: the
+archive-vs-drive delta; #148) · `deck_jobs` · `deck_run {drive,kind,wait?}` ·
 `deck_cancel {job_id}` · `deck_explain {kind?}` · `deck_preflight` ·
 `deck_booth {ids?}` (Fleet → Booth profile selection; citations inline) ·
 `deck_players {drive?}` · `deck_note {drive,note,severity?}` ·
@@ -165,11 +167,18 @@ feed — mutating, confirm first) ·
   integrity" section of `deckctl prep`) ·
   `archive_skip_census` / `archive_sources` (why rows didn't land; the
   source census) · `archive_analysis_coverage` (playable-vs-ledgers
-  progress) · `archive_library_overview` / `archive_cue_ledger`
+  progress) · `archive_tag_census` / `archive_tag_compare` (FullTags ↔
+  rekordbox ↔ live-file tag mirrors; the compare reads live file truth) ·
+  `archive_library_overview` / `archive_cue_ledger`
   (FullTags-mirror reads) · `archive_similar_tracks {video_id}`
-  (I49 sounds-like kNN) · `archive_set_build` (propose-only chain
-  builder) —
-  39 tools total (22 `deck_*` + 2 `getdat_*` + 15 `archive_*`; census derives from
+  (I49 sounds-like kNN) · `megaset_propose` (propose-only chain
+  builder; the pre-rename name was archive_set_build, renamed with
+  the MegaSet product, rev-25) ·
+  `archive_genre_why {video_id}` (replays the genre vote ladder's
+  election seam over a row's stored breakdown — `matches_db:false` on
+  a drifted row; the read twin of `megadj genre-why`) —
+  43 tools total (23 `deck_*` + 2 `getdat_*` + 18 `archive_*`+`megaset_*`;
+  census derives from
   source and is pinned by `cratedeck/test/surface-parity.test.ts`).
   `deck_report {format:"dossier"}` returns the full
   export bundle (drive + snapshot + sync + report + timeline +

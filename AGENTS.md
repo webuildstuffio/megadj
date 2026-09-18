@@ -230,6 +230,18 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   WHAT/priority/status; docs own WHY + measured numbers. Never resurrect the
   archived `ideas.md`/`roadmap-index.md` mirrors. Issue labels: one each of
   `type:*`, `priority:*`, `effort:*`; bug fixes need a reproducer + evidence.
+- Docs teaching surface names are census-enforced:
+  `src/docs-surface-names-census.test.ts` derives every megadj verb,
+  deckctl verb, MCP tool, and job kind FROM THE PRODUCERS
+  (`command-registry.ts`, `DECK_COMMANDS`/`PRE_SERVER_VERBS`, the
+  `*_tools.ts` key maps, `JOB_KINDS`) and fails when docs/skills teach a
+  name the producers don't define (`archive_set_build` survived its
+  rename in 4 docs; `deckctl verify <drive>` survived the #41 verb-table
+  split in a skill — both invisible until Sep 17). Rename = code + docs
+  in the same commit; a name that is only historical goes in prose
+  WITHOUT backticks (backticks are the "teachable name" signal the
+  census reads). Planned-but-unbuilt commands need an allowlist entry
+  with a reason (`docs/fulltags/intake-cue-postmortem.md`'s intake-status).
 - MegaMem workspace: `megamem search "<query>"` before grepping docs; never
   re-index manually. `tokensave` MCP is rooted per project — mis-rooted
   results mean fix the root flag, never the index.
