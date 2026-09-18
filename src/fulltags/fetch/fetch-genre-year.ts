@@ -12,7 +12,7 @@ import {
   type BpTrack,
   type Row,
 } from "../archive-ledger";
-import { imprintVote } from "../imprint-prior";
+import { imprintVote } from "../sources/imprint-prior";
 import { GENRE_VOTE_WEIGHTS, type GenreVote } from "../genre/genre-vote";
 
 /** Minimal SC search hit (the fields stage 2 consumes). */

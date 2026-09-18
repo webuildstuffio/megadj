@@ -118,9 +118,9 @@ for the ideas closed NOT_PLANNED.
   (§5b.3 step 2) shipped: 96/2982 disputed labels flagged + excluded from
   seeding; Tier-0 battery re-ran clean post-flag.
 - **Bandcamp arm (Sep 15, rev 7.8)** — the fetch ladder's third catalog
-  vote (`src/fulltags/bandcamp.ts`, W2b): hard-artist-gated search +
+  vote (`src/fulltags/sources/bandcamp.ts`, W2b): hard-artist-gated search +
   one page fetch voting genre/year/label/art, on the shared
-  name-matching SSOT (`src/fulltags/name-match.ts`). Same-day
+  name-matching SSOT (`src/fulltags/sources/name-match.ts`). Same-day
   consolidation: #66 masterDbPath (11/11 callers), #67 NFC+casefold
   name key, #82 errorText SSOT — all pinned by tests; #67/#82/#75/#100
   issues closed with evidence.

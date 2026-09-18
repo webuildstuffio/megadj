@@ -14,7 +14,7 @@ import { join, basename } from "node:path";
 import type { Record_ } from "./ingest-probe";
 import type { ArtworkOutcome } from "./ingest-art";
 import type { QueueEntry } from "./queue";
-import type { RemixInfo } from "../../fulltags/remix";
+import type { RemixInfo } from "../../fulltags/sources/remix";
 import type { MarkDownloadedInfo } from "../../archive/state-types";
 import {
   INTAKE_COUNTER_KEYS,

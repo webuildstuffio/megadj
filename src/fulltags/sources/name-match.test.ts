@@ -13,7 +13,7 @@ import {
   nameTokens,
   primaryArtist,
   titleOverlap,
-} from "../name-match";
+} from "./name-match";
 
 describe("name-match: primaryArtist", () => {
   test("takes the first comma/ampersand-separated artist", () => {

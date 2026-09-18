@@ -4,8 +4,8 @@
  * the primitives (embedArt, art sources) live in fulltags/src/.
  */
 import { embedArt } from "./writer";
-import { fetchImage } from "./art-sources";
-export { soundcloudArtwork, itunesArtwork } from "./art-sources";
+import { fetchImage } from "./sources/art-sources";
+export { soundcloudArtwork, itunesArtwork } from "./sources/art-sources";
 
 /** Fetch art from a URL and embed it as the front cover. */
 export async function embedArtwork(

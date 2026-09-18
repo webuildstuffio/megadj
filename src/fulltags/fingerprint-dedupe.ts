@@ -11,7 +11,7 @@
  *  - fpcalc missing/fails → degrade to null, pass is a no-op
  */
 import { fingerprintFile } from "./fingerprint";
-import { sharedTokenRatio } from "./name-match";
+import { sharedTokenRatio } from "./sources/name-match";
 
 export interface FpVerdict {
   /** acoustic fingerprint, or null when fpcalc failed/missing */

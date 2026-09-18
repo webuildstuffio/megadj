@@ -8,7 +8,7 @@ import {
   imprintStands,
   imprintVote,
 } from "./imprint-prior";
-import { familyOf } from "./genre/genre-vocab";
+import { familyOf } from "../genre/genre-vocab";
 
 describe("imprint prior (#128): the map is data with provenance", () => {
   test("every mapping cites a source and a verification date", () => {

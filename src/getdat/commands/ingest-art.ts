@@ -10,7 +10,7 @@ import {
   soundcloudArtwork,
   itunesArtwork,
 } from "../../fulltags/embed";
-import { soundcloudUrlInTags } from "../../fulltags/art-sources";
+import { soundcloudUrlInTags } from "../../fulltags/sources/art-sources";
 import { appendQueueEntries, type QueueEntry } from "./queue";
 // ARTWORK_EXTS is DERIVED from the #69 SSOT (subset by art support), not
 // hand-listed — a new SSOT extension never silently misses art again

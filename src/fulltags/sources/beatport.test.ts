@@ -9,7 +9,7 @@ import {
   BP_MIN_SCORE,
   setBeatportSearchImpl,
   type BpTrack,
-} from "../beatport";
+} from "./beatport";
 
 /** A fully-populated catalog row for scoring tests. */
 function hit(over: Partial<BpTrack> = {}): BpTrack {

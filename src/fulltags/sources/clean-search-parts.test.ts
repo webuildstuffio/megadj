@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { cleanSearchParts } from "../art-sources";
+import { cleanSearchParts } from "./art-sources";
 import { cleanArtist } from "../archive-ledger";
 
 /** Sep 11 regression: junk-composed artist/title strings reached the SC

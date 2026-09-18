@@ -18,8 +18,8 @@ import {
 } from "../models";
 import { enrichTrack, parseMoodStamp } from "../pipeline";
 import { writePatchSync } from "../writer";
-import { mbGenreCacheReset } from "../mb";
-import { readStampGuard } from "./stamp";
+import { mbGenreCacheReset } from "./mb";
+import { readStampGuard } from "../test/stamp";
 
 const DIR = `/tmp/fulltags-models-test-${process.pid}`;
 

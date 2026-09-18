@@ -1,7 +1,7 @@
 // pipeline-types.ts — shared FullTags pipeline TYPES. Import leaf: both
 // pipeline.ts (the orchestrator) and pipeline-stages.ts (the stage arms)
 // depend on these; nothing here imports back, so no cycle (#88, madge).
-import type { BpTrack } from "./beatport";
+import type { BpTrack } from "./sources/beatport";
 
 /** Injectable Beatport lookup (tests swap this; null = skip the source). */
 export type BpLookupFn = (q: {

@@ -72,7 +72,7 @@ the remix's, not the original's.
    (SC original-res → Beatport 1500² → gateways → mp3-twin → Deezer →
    iTunes → AI-generated cover as the rare, queued last resort). Same
    ratchet for audio: LOWQ tracks are re-fetch candidates. The
-   ladder's single home is `src/fulltags/art-sources.ts`.
+   ladder's single home is `src/fulltags/sources/art-sources.ts`.
 4. **AI fills the gaps — explicitly and measurably** — deterministic sources
    first; `--ai-fallback` opts into OpenRouter genre/year proposals with a
    ≥0.7 confidence gate. `megadj years` then verifies years against the source

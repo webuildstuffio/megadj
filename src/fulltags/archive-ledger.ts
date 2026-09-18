@@ -14,7 +14,7 @@ import {
   walkAudioFiles,
   writePatchSync,
 } from "./writer";
-import { fetchImage as ftFetchImage } from "./art-sources";
+import { fetchImage as ftFetchImage } from "./sources/art-sources";
 import { groundTruth as ftGroundTruth } from "./readers";
 import { validatePatch } from "./schema-guards";
 import type { TagPatch } from "./schema";
@@ -143,8 +143,8 @@ export {
   itunesArtwork,
   pageOgImage,
   twinArt,
-} from "./art-sources";
-export { scSearch } from "./sc-search";
+} from "./sources/art-sources";
+export { scSearch } from "./sources/sc-search";
 export { canonicalizeClaim as canonGenre } from "./genre/genre-vocab";
 
 // ---------- Beatport (second source, behind SC — beatport.ts) ----------
@@ -154,7 +154,7 @@ export {
   bpGenre,
   bpStamp,
   type BpTrack,
-} from "./beatport";
+} from "./sources/beatport";
 
 // ---------- Bandcamp (third source, behind SC + BP — bandcamp.ts) ----------
 export {
@@ -164,4 +164,4 @@ export {
   bcSearch,
   type BcPage,
   type BcTrack,
-} from "./bandcamp";
+} from "./sources/bandcamp";

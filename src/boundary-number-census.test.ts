@@ -38,13 +38,13 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
   // #184: the second front door (tools/fetch-all.ts import.meta.main argv
   // parse, with its Number(argv[jobsArg+1]) site) was deleted — `megadj
   // fetch` is the only entry and its --jobs rides nonNegOpt.
-  "src/fulltags/bandcamp.ts::parseIsoDuration::Number(d)":
+  "src/fulltags/sources/bandcamp.ts::parseIsoDuration::Number(d)":
     "d is a digits-only ISO-8601 duration capture (P…D group), truthiness-gated before use.",
-  "src/fulltags/bandcamp.ts::parseIsoDuration::Number(h)":
+  "src/fulltags/sources/bandcamp.ts::parseIsoDuration::Number(h)":
     "h is a digits-only ISO-8601 duration capture (T…H group), truthiness-gated before use.",
-  "src/fulltags/bandcamp.ts::parseIsoDuration::Number(min)":
+  "src/fulltags/sources/bandcamp.ts::parseIsoDuration::Number(min)":
     "min is a digits-only ISO-8601 duration capture (T…M group), truthiness-gated before use.",
-  "src/fulltags/bandcamp.ts::parseIsoDuration::Number(s)":
+  "src/fulltags/sources/bandcamp.ts::parseIsoDuration::Number(s)":
     "s is a digits-or-decimal ISO-8601 duration capture (T…S group), truthiness-gated before use.",
   "src/fulltags/fetch/fetch-stages.ts::stageBandcamp::Number(page.datePublished.slice(0, 4))":
     "datePublished is DB JSON produced by the fetch pipeline's four-digit year regex; the slice is exactly four chars.",
@@ -118,7 +118,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 17 (#220 genre/ slice): genre-refold sanction re-keyed to
     // src/fulltags/genre/genre-refold.ts (same call, same guard, counts
     // unchanged) — digest shifted.
-    digest: "9f68833d14165d344e8ab140336f62a6f06bf5cacdac138e8d6deff7516d911c",
+    // Sep 17 (#220 sources/ slice): bandcamp ISO-duration sanctions
+    // re-keyed to src/fulltags/sources/bandcamp.ts (same calls, same
+    // guards, counts unchanged) — digest shifted.
+    digest: "f9cbabdde74fa28626f0f5b056f14798f8e463fb760747802798831cff498448",
   });
 });
 

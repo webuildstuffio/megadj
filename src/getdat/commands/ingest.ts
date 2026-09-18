@@ -25,7 +25,7 @@ import { intakeFolderName, resolveIntakeDir } from "./intake-folder";
 import type { ArchiveState } from "../../archive/state";
 import { commandLog } from "../../progress";
 import { applyTags } from "../../fulltags/writer";
-import { detectRemix } from "../../fulltags/remix";
+import { detectRemix } from "../../fulltags/sources/remix";
 import {
   energyFromLufs,
   firstTag,

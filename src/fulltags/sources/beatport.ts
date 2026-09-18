@@ -26,7 +26,7 @@
  * swappable so offline tests pin the scoring/gating logic; the seam
  * resets to the real impls.
  */
-import { canonGenre, SC_GENRE_CANON } from "./schema";
+import { canonGenre, SC_GENRE_CANON } from "../schema";
 import { cleanSearchQuery } from "./search-query";
 import {
   ARTIST_MIN_LEN,

@@ -17,7 +17,7 @@ consensus + agreement + embed age per flagged row; `--agree <id>` ratifies
 the audio, `--keep <id>` vouches for the source, `--note` audit trail;
 per-row writes only, notes survive the `--flag` self-heal via the
 conditional clear in `setGenreFlag`). #128 imprint prior shipped as fetch
-ladder rung W7 (`src/fulltags/imprint-prior.ts` — cited, dated
+ladder rung W7 (`src/fulltags/sources/imprint-prior.ts` — cited, dated
 label→family map; unknown/junk labels abstain; `imprintStands` yields to a
 contradicting kNN consensus). Issue #113 transition-window similarity
 **rejected with evidence**: the embeddings ledger stores only whole-track
@@ -41,7 +41,7 @@ _Rev 7.10, 2026-09-15: **roadmap-sync audit — every open item verified against
 code and re-tracked on GitHub.** Verified DONE and marked here: full-population
 LOO (P92 — subsumed by the Sep 15 Tier-0 run: the eval battery now covers the
 canonicalized+flagged population, making the ±1 error bars moot); Bandcamp
-genre arm live (rev 7.8, verified in `src/fulltags/bandcamp.ts`); B11
+genre arm live (rev 7.8, verified in `src/fulltags/sources/bandcamp.ts`); B11
 `SET_EXCLUDED_PREVIEW_MAX` shared cap; `genre --flag` self-healing (96/2982).
 Re-tracked where the tracker had drifted: ranked secondaries stay on open
 issue #63 (no code has landed — the audit closed an accidental duplicate
@@ -153,7 +153,7 @@ _Rev 7.8, 2026-09-15 (supersedes the duplicate 7.3/7.2 numbering from the
 parallel workstreams; set-product revs keep their 7.x names): **Bandcamp
 arm live + the name-matching SSOT + the top-3 low-hanging consolidation
 fixes.** (1) **W2b Bandcamp vote**
-(`src/fulltags/bandcamp.ts`): when SC and BP both miss genre/year/label,
+(`src/fulltags/sources/bandcamp.ts`): when SC and BP both miss genre/year/label,
 fetch searches the Bandcamp catalog (official autocomplete API —
 yt-dlp's extractor stays dead), hard-artist-gates the hits, then fetches
 the item page once: genre from artist tags (through the SAME
@@ -161,7 +161,7 @@ numeric/`Music` junk gate), year from publish date, label from the
 ld+json publisher, art from og:image — slotted into the art ladder
 between Beatport and the gateway. Verified live: gated search, page
 parse, genre vote, Drumcode label identity. (2) **name-match SSOT**
-(`src/fulltags/name-match.ts`): the SC, BP, and Bandcamp scorers shared
+(`src/fulltags/sources/name-match.ts`): the SC, BP, and Bandcamp scorers shared
 three near-copied tokenizers/gates (issue #85's twin class) — now one
 `artistGate`/`titleOverlap`/`nameTokens` seam. (3) **#66 finished**:
 rb-import was the last hand-rolled `MEGADJ_RB_MASTER ?? join(...)`
@@ -472,7 +472,7 @@ log: Git history (rev 6.1–6.2).
 
 ### #5 — MBID provenance + MusicBrainz genre harvest — **S — ✅ SHIPPED (rev 6.1)**
 
-`src/fulltags/mb.ts`: MB artist folksonomy harvest (1 rps, cached,
+`src/fulltags/sources/mb.ts`: MB artist folksonomy harvest (1 rps, cached,
 canonGenre-mapped). `megadj enrich` is now a thin shim over it + the
 shared writer — the last duplicate ffmpeg writer is deleted; genre
 ladder = SC tag → canonical map → MB folksonomy → AI (conf ≥ 0.7).
@@ -487,7 +487,7 @@ ISRC**. So: SC wins every field it covers; BP fills what SC missed and
 owns the identity fields outright (only when the file lacks them —
 ground truth is never overwritten).
 
-**Shipped:** `src/fulltags/beatport.ts` — v4 catalog client:
+**Shipped:** `src/fulltags/sources/beatport.ts` — v4 catalog client:
 client-credentials token (embed-player parity, cached, early-refresh,
 401 self-heal), relevance-scored search (artist-match HARD gate — the
 store's same-name pack-filler long tail makes title+duration matching
@@ -586,7 +586,7 @@ the OpenKeyScan SSOT decision (#3).
   provenance per the doc's W-table, highest total elects, ties break
   toward the harder gate, breakdown persists in `tracks.genre_votes`).
   The **imprint prior rung is LIVE** in the vote (Sep 16, W7 —
-  `src/fulltags/imprint-prior.ts`, cited map, weight 0.15: a scene
+  `src/fulltags/sources/imprint-prior.ts`, cited map, weight 0.15: a scene
   FAMILY inference that abstains against real genre votes unless it's
   the only voice); LLM pre-labelling remains the future half of the
   P96 estimate (~60% human-hours cut).
@@ -780,8 +780,8 @@ parked▸ P3 with explicit triggers · effnet genre writes (saturated head,
 | Adopt (#3)  | OpenKeyScan analyzer (repo mode)                         | verified: MIT, stdin/stdout JSON, MPS auto-select, GiantSteps-trained. **Gate: 80.7% exact on 88 — PASS**                                                          |
 | Fallback    | essentia `Key` / keyfinder-cli                           | keyfinder-cli NOT in core brew (personal tap, ARM friction)                                                                                                        |
 | Adopt (#4)  | Essentia ONNX heads + onnxruntime                        | verified: essentia.tensorflow broken on ARM (#1486); OnnxPredict PR #1488 unmerged. **Shipped rev 6.1 via `uv --with onnxruntime` (no brew dep, no source build)** |
-| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as src/fulltags/mb.ts + enrich fold (rev 6.1)                                                                                       |
-| Shipped #6  | Beatport v4 catalog (client-credentials)                 | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `src/fulltags/beatport.ts` (rev 6.4)                           |
+| Shipped #5  | MusicBrainz ws/2 artist search                           | folksonomy tags 1 rps; shipped as src/fulltags/sources/mb.ts + enrich fold (rev 6.1)                                                                                       |
+| Shipped #6  | Beatport v4 catalog (client-credentials)                 | anonymous embed-player grant verified live (Sep 11 2026); identity fields + genre/year/art rungs as `src/fulltags/sources/beatport.ts` (rev 6.4)                           |
 | Verified    | Dubspot 200-track test                                   | KeyFinder 76%/90% dance · MIK 89% · RB7 69% · Beatport 60%                                                                                                         |
 | Verified    | rekordbox tag matrix                                     | TKEY read on AIFF/MP3 only; Key-analysis overwrite gotcha; TIT3/TPE4/TPUB writable                                                                                 |
 | Verified    | pyrekordbox 0.4.4 (local master.db)                      | DjmdKey.ScaleName / DjmdContent.BPM(x100) / FolderPath join — the reference-set extractor                                                                          |

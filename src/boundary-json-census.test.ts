@@ -114,7 +114,9 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 17 (#220 genre/ slice): genre-vote.ts parseVotes sanction re-keyed
     // to src/fulltags/genre/genre-vote.ts (same call, same guard, counts
     // unchanged) — digest shifted.
-    digest: "3638f4eae153d4a9a0b7d4c6792f7b08986baaa20ac4e13b1f86ebfe2eaff84d",
+    // Sep 17 (#220 sources/ slice): file re-homes moved owners (digest
+    // input re-rooted; same calls, same guards, counts unchanged).
+    digest: "a697918b5b2bb472fae07a69c12fe038b7309358626a98b0c8f2718742b2c32a",
   });
 });
 

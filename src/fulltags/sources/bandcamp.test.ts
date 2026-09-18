@@ -14,7 +14,7 @@ import {
   parseIsoDuration,
   scoreBcHits,
   type BcTrack,
-} from "../bandcamp";
+} from "./bandcamp";
 
 const hit = (over: Partial<BcTrack>): BcTrack => ({
   id: 1,

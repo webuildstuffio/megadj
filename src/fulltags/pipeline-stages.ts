@@ -11,10 +11,15 @@ import type {
   Stage,
   TrackInput,
 } from "./pipeline-types";
-import { scSearch } from "./sc-search";
+import { scSearch } from "./sources/sc-search";
 import { canonGenre, type TagPatch } from "./schema";
-import { detectRemix } from "./remix";
-import { beatportLookup, bpGenre, bpStamp, type BpTrack } from "./beatport";
+import { detectRemix } from "./sources/remix";
+import {
+  beatportLookup,
+  bpGenre,
+  bpStamp,
+  type BpTrack,
+} from "./sources/beatport";
 import { appendQueue, artLadder, scArt } from "./pipeline-art";
 import { parseMoodStamp, readEnergyStamp, readStamp } from "./pipeline-stamps";
 import { energyFromLufs, measureRms } from "./media-probe";
@@ -22,7 +27,7 @@ import { analyzeBeats, foldTempo } from "./beats-analysis";
 import { analyzeKey } from "./key-analysis";
 import { fingerprintWithDuration } from "./fingerprint";
 import { analyzeMoods, moodStamp } from "./models";
-import { mbLookupCached } from "./mb_lookup";
+import { mbLookupCached } from "./sources/mb_lookup";
 import { embedArt } from "./writer";
 import { type Truth } from "./readers";
 import { basename } from "node:path";

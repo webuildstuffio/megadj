@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { detectRemix } from "../../fulltags/remix";
+import { detectRemix } from "../../fulltags/sources/remix";
 import { parseFilename, qualityScore } from "../../fulltags/media-probe";
 import { normalize } from "../../fulltags/identity";
 

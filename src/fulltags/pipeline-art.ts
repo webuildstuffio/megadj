@@ -16,10 +16,10 @@ import {
   pageOgImage,
   twinArt,
   type ArtRow,
-} from "./art-sources";
-import { beatportArt, type BpTrack } from "./beatport";
+} from "./sources/art-sources";
+import { beatportArt, type BpTrack } from "./sources/beatport";
 
-export type { ArtRow } from "./art-sources";
+export type { ArtRow } from "./sources/art-sources";
 
 /** Where AI-cover misses are queued when no explicit queue path is passed. */
 export const DEFAULT_QUEUE =
@@ -38,7 +38,7 @@ export async function scArt(scBest: {
 }
 
 async function itunesArt(r: ArtRow): Promise<Uint8Array | null> {
-  const { itunesArtwork } = await import("./art-sources");
+  const { itunesArtwork } = await import("./sources/art-sources");
   const url = await itunesArtwork(r.artist ?? "", r.album ?? r.title);
   if (!url) return null;
   return fetchImage(url);
