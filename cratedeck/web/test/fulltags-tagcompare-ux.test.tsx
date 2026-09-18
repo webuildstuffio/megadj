@@ -5,7 +5,9 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import render from "preact-render-to-string";
-import { TagCompareTab, CompareCard } from "../products/fulltags/TagCompareTab";
+import { TagCompareTab } from "../products/fulltags/TagCompareTab";
+// #233 moved the compare card to its own module — the import follows it.
+import { CompareCard } from "../products/fulltags/TagCompareRows";
 import { FreshnessLine } from "../ui/freshness";
 import type {
   ArchiveTagCensus,
