@@ -243,6 +243,7 @@ import {
   electGenre,
   serializeVotes,
   type GenreVote,
+  type GenreVoteResult,
 } from "../genre/genre-vote";
 
 /** One SC genre win: canonicalize → file tag + DB row + stat + note.
@@ -385,26 +386,30 @@ export function stageGenreYear(t: StageCtx, best: ScHit | null): void {
  *  never claims a genre the file doesn't carry). The vote mode never
  *  overwrites an existing label (COALESCE in the injected writeRow):
  *  re-runs stay idempotent, and a stronger late rung wins on the NEXT
- *  re-fetch of an empty row per the issue's acceptance. */
+ *  re-fetch of an empty row per the issue's acceptance.
+ *  Returns the election (null when nothing elected: dry, no votes, junk
+ *  gate, or a failed tag write) so the caller's live-run event carries
+ *  the ladder outcome. */
 export function stageGenreElection(
   t: StageCtx,
   writeRow: (videoId: string, genre: string, votes: string) => void,
-): void {
-  if (t.dry) return;
+): GenreVoteResult | null {
+  if (t.dry) return null;
   const votes = t.genreVotes;
-  if (!votes || votes.length === 0) return;
+  if (!votes || votes.length === 0) return null;
   t.stats.votesCast += votes.length;
   const elected = electGenre(votes);
-  if (elected.genre === null) return;
+  if (elected.genre === null) return null;
   if (!setFileTags(t.row.file_path, { genre: elected.genre })) {
     t.notes.push("genre:WRITE-FAILED (vote election)");
-    return;
+    return null;
   }
   writeRow(t.row.video_id, elected.genre, serializeVotes(votes));
   t.stats.genreElected++;
   t.notes.push(
     `genre:${elected.genre} ELECTED w=${elected.weight.toFixed(2)} [${elected.winnerRungs.join("+")}]`,
   );
+  return elected;
 }
 
 /** Stage 2.5 — Beatport identity fields (label / mix name / ISRC /

@@ -28,7 +28,7 @@ that trust", architecture §9). Last audited: 2026-09-15.
   snapshots tables), ghost rendering in `web/app/App.tsx`
 - **F2 detection & ports** — `src/detect.ts` (FSEvents + diskutil), port
   route `GET /ports`, `python/usb_tree.py`
-- **F3 photo identity** — `src/images.ts`, picker in
+- **F3 photo identity** — `src/image-store.ts`, picker in
   `web/products/cratedeck/PhotoTab.tsx`, cached under `data/images/`
 - **F4 rekordbox introspection** — `src/rb.ts` (the seam) +
   `python/rb_read.py`, light scan in `src/scan.ts`

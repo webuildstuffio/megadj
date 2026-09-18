@@ -20,6 +20,12 @@ const CHECKED_SUBPROCESS_REASON =
 const EXPLICIT_NULL_REASON =
   "The parser returns null as an explicit failure value; its caller converts that value into a logged skip or a failed probe result.";
 const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
+  // #215 fetch live-run protocol: the stderr @event line parser — a
+  // malformed event line returns null and the feed simply skips it (the
+  // run's stdout summary is the authoritative payload; the feed is
+  // advisory). Never a throw into the job leg.
+  "cratedeck/src/job_legs.ts::safeJsonParse::JSON.parse(line)":
+    EXPLICIT_NULL_REASON,
   ...reviewed(HYGIENE_ROW_REASON, [
     "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.paths)",
     "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.bytes)",
@@ -111,15 +117,23 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 17 (#232): digest changed — the parse/verify payloads of
     // rb-comment-sync moved to rb-comment-sync-parse.ts (the #232
     // parse-seam split); same guarded shape, new file path.
-    audited: 62,
-    guarded: 45,
-    sanctioned: 17,
+    // Sep 17 (#215 live-run pass): audited 62→64 / guarded 45→46 — the
+    // fetch @event protocol adds a GUARDED parse in api_routes.ts
+    // (/fetch/start body, 400-with-error catch) and job_legs.ts's
+    // safeJsonParse; sanctioned 17→18 (safeJsonParse joins
+    // EXPLICIT_NULL: a malformed feed line is skipped, never thrown).
+    audited: 64,
+    guarded: 46,
+    sanctioned: 18,
     // Sep 17 (#220 genre/ slice): genre-vote.ts parseVotes sanction re-keyed
     // to src/fulltags/genre/genre-vote.ts (same call, same guard, counts
     // unchanged) — digest shifted.
     // Sep 17 (#220 sources/ slice): file re-homes moved owners (digest
     // input re-rooted; same calls, same guards, counts unchanged).
-    digest: "92a80a2fee3dd20ac9dc16edb06c104be4236933665cafdb857b314f96fe1ac5",
+    // Sep 17 (#215 live-run pass): digest changed — api_routes.ts
+    // /fetch/start body parse (guarded) + job_legs.ts safeJsonParse
+    // (sanctioned) join the census.
+    digest: "ec18af5c8b0f08fa827719eb1607b219379d0569f8d276c795109b29e325ff2b",
   });
 });
 

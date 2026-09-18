@@ -8,7 +8,6 @@
 // Split per concern (#233, closing slice): the shared coverage hook +
 // strip live in coverage.tsx; the three analysis tabs stay here.
 import { CoverageStrip, useCoverage } from "./coverage";
-export { CoverageStrip, useCoverage } from "./coverage";
 import type {
   ArchiveCueStats,
   ArchiveGridCrossCheck,

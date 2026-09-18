@@ -26,6 +26,7 @@ import {
 } from "./api_dispatch";
 import { portView } from "./port_view";
 import { intakeCandidateDirs, intakeWatchDir } from "./intake_run";
+import { fetchFeedSince } from "./fetch_feed";
 import {
   boothFleetPayload,
   parseBoothFleetRequest,
@@ -140,6 +141,83 @@ function jobRoutes(deps: ApiDeps): Record<string, Handler> {
   };
 }
 
+/** FullTags fetch (Genre tab live run): start + feed. The start route
+ *  mirrors /intake/start (same job engine, same interlock); the feed
+ *  route drains the run's ladder-event ring buffer (fetch_feed.ts). */
+function fetchRoutes(deps: ApiDeps): Record<string, Handler> {
+  const { jobs, json } = deps;
+  return {
+    "/fetch/start": async (req) => {
+      if (req.method !== "POST") return json({ error: "not found" }, 404);
+      let body: {
+        all?: boolean;
+        only?: string;
+        aiFallback?: boolean;
+        dryRun?: boolean;
+        jobs?: number;
+      } = {};
+      // Bun's Request doesn't surface content-length on every path — read
+      // the text and treat "" as "no options" (defaults), not an error.
+      const raw = await req.text();
+      let parseError = "";
+      if (raw.trim() !== "") {
+        try {
+          body = JSON.parse(raw) as typeof body;
+        } catch {
+          parseError = "invalid JSON body";
+        }
+      }
+      if (parseError) return json({ error: parseError }, 400);
+      // option validation: only known flags pass through — an unknown
+      // `only` target or a bad jobs number is a 400, not a garbage run
+      const opts: {
+        all?: boolean;
+        only?: string;
+        aiFallback?: boolean;
+        dryRun?: boolean;
+        jobs?: number;
+      } = {};
+      if (body.all === true) opts.all = true;
+      if (body.aiFallback === true) opts.aiFallback = true;
+      if (body.dryRun === true) opts.dryRun = true;
+      if (body.only !== undefined) {
+        if (typeof body.only !== "string" || !/^[a-z-]+$/.test(body.only))
+          return json({ error: "invalid only target" }, 400);
+        opts.only = body.only;
+      }
+      if (body.jobs !== undefined) {
+        if (
+          typeof body.jobs !== "number" ||
+          !Number.isFinite(body.jobs) ||
+          !Number.isInteger(body.jobs) ||
+          body.jobs < 1 ||
+          body.jobs > 32
+        )
+          return json({ error: "jobs must be an integer 1–32" }, 400);
+        opts.jobs = body.jobs;
+      }
+      // Same job engine as drive jobs: interlock, one-at-a-time, SSE live.
+      // Options ride the mountPoint slot as JSON (runFetchJob parses).
+      const job = jobs.enqueue(
+        "local-archive",
+        "fetch",
+        JSON.stringify(opts),
+        "web",
+      );
+      return json(job);
+    },
+    "/fetch/feed": (_req, url) => {
+      // Feed cursor is client state: non-finite/negative → 0 (full drain).
+      // The Number.isFinite(since) gate is the boundary-census guard shape.
+      const since = Number(url.searchParams.get("since") ?? "0");
+      const cursor =
+        Number.isFinite(since) && since >= 0 ? Math.floor(since) : 0;
+      const feed = fetchFeedSince(cursor);
+      return json(feed);
+    },
+  };
+}
+
 /** Archive intake (GetDat Intake tab): allowlisted folder listing + start. */
 function intakeRoutes(deps: ApiDeps): Record<string, Handler> {
   const { cfg, jobs, json } = deps;
@@ -195,6 +273,7 @@ export function makeApiRouter(deps: ApiDeps): ApiRouter {
   register(boothRoutes(deps));
   register(jobRoutes(deps));
   register(intakeRoutes(deps));
+  register(fetchRoutes(deps));
   // Dynamic families live in api_dispatch.ts (one flat probe each); the
   // closure below stays a linear first-match walk so it sits far under
   // the CCN 30 ceiling (#89 acceptance — the inline version had crept to

@@ -43,13 +43,6 @@ export interface RekordboxContentRow {
   metadata: Record<string, unknown>;
 }
 
-export interface ReconcileRekordboxOptions {
-  state: ArchiveState;
-  sourceDb: string;
-  rows: RekordboxContentRow[];
-  apply: boolean;
-}
-
 export type ReconcileRekordboxResult = ReconcileRekordboxResultShape;
 
 export interface RbAdoptOptions {

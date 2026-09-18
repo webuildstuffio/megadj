@@ -23,12 +23,7 @@ import { TabIntro } from "../../ui/InfoTip";
 import { SectionHead } from "../shared";
 import { errMessage } from "../../../shared/fmt";
 import { IntakeRun, IntakeVerdict } from "./IntakeRun";
-export {
-  IntakeRun,
-  IntakeVerdict,
-  isIntakeResult,
-  parseIntakeResult,
-} from "./IntakeRun";
+export { IntakeRun, IntakeVerdict, isIntakeResult } from "./IntakeRun";
 
 export function IntakeTab() {
   const folders = useFetched<IntakeFoldersResponse>(

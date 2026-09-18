@@ -313,6 +313,67 @@
 .kvrow.votebar-abstain {
   opacity: 0.55;
 }
+
+/* ---- genre run feed (Genre Run tab, #215 live-run pass) ---- */
+.genre-feed {
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.genre-feed-row {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--surface3);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+.genre-feed-row.start,
+.genre-feed-row.done {
+  border-style: dashed;
+  color: var(--muted);
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.genre-feed-name {
+  font-weight: 600;
+}
+.genre-feed-votes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.genre-feed-elect {
+  color: var(--ok);
+}
+.genre-feed-elect.muted,
+.genre-feed-votes.muted {
+  color: var(--muted);
+}
+.genre-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+}
+.genre-tally-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.genre-tally-name {
+  min-width: 90px;
+  text-align: right;
+  color: var(--text-dim);
+}
+.genre-tally-nums {
+  color: var(--muted);
+}
 .kvrow:hover {
   background: var(--surface3);
 }

@@ -23,6 +23,7 @@ import { PRODUCT_TABS, ProductIntro } from "../shared";
 import { BeatgridsTab, MoodTab, CuesTab } from "./fulltags-tabs";
 import { SimilarTab } from "./SimilarTab";
 import { GenreWhyTab } from "./GenreWhyTab";
+import { GenreRunTab } from "./GenreRunTab";
 import { TagCompareTab } from "./TagCompareTab";
 
 const TABS = PRODUCT_TABS.fulltags;
@@ -36,6 +37,7 @@ export function FullTagsPage(props: { tab: string }) {
         sub="Analysis runs live in DB ledgers (beats, mood, cues); tags only get written when a measured gate passes. Browse what's known per track and what's still blocked."
       />
       {tab === "beatgrids" && <BeatgridsTab />}
+      {tab === "run" && <GenreRunTab />}
       {tab === "mood" && <MoodTab />}
       {tab === "similar" && <SimilarTab />}
       {tab === "genre-why" && <GenreWhyTab />}

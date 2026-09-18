@@ -5,11 +5,7 @@
 import type { ArchiveTrackTagCompare } from "../../../shared/types";
 import { api } from "../../ui/toast";
 import { Card, ListHead, KVRows, KVRow, KVKey, KVVal } from "../../ui/data";
-import {
-  useFetched,
-  FetchedGate,
-  type Fetched,
-} from "../../ui/useFetched";
+import { useFetched, FetchedGate, type Fetched } from "../../ui/useFetched";
 import type { TrackPick } from "./TrackPickSearch";
 
 /** Pill classes per comparison outcome. */

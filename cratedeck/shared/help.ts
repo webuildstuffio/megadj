@@ -310,6 +310,16 @@ export const HELP_JOBS: HelpJob[] = [
     duration: "minutes (scales with batch size)",
   },
   {
+    kind: "fetch",
+    label: "Fetch (enrich)",
+    icon: "tag",
+    what: "Runs the FullTags enrichment pass over the archive: the genre vote ladder elects each track's genre from weighted source votes (SoundCloud, Beatport, Bandcamp, imprint…), then tags, years and artwork fill. The Genre tab shows every vote and election live as it runs.",
+    when: "After an ingest, or whenever tracks are missing genres/art/years — watch the ladder decide live on the Genre tab.",
+    safety:
+      "Writes into the archive only (file tags + ledger DB). Write-first: a genre is recorded only when it landed in the file.",
+    duration: "minutes (scales with task count; source lookups dominate)",
+  },
+  {
     kind: "grid-health",
     label: "Grid health",
     icon: "pulse",

@@ -7,6 +7,7 @@ import {
   runVerify,
   runMirror,
   runIngest,
+  runFetchJob,
   runBenchmark,
   runChecksum,
   runSpeedtest,
@@ -26,6 +27,8 @@ export async function executeJob(args: LegArgs): Promise<unknown> {
       return runMirror(args);
     case "ingest":
       return runIngest(args);
+    case "fetch":
+      return runFetchJob(args);
     case "benchmark":
       return runBenchmark(args);
     case "checksum":

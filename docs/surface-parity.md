@@ -23,6 +23,7 @@ fails the build on it.
 - rev-34 (2026-09-17): audit gaps G2+G3 closed — §2d matrix completed (every census command now has a row; 16 were missing when the Sep 14 audit found them), and §4-A1 cites `MAINTENANCE_VERBS` instead of a hand-enumerated verb list. Both drift classes are parity-test-pinned. 45 → 46 commands, 42 → 43 tools, 67 → 68 routes (#215's `genre-why` CLI verb + `archive_genre_why` tool + `/api/archive/genre-why` route, matrix row added).
 - rev-35 (2026-09-17): audit gaps G4+G5 closed — §1's Web UI cell is now source-derived (54 distinct `/api/` endpoint families called from `cratedeck/web/`, counted by the parity test across the api/apiPost/fetch/EventSource call sites + the useScanApply `actionPath` props; the old "~22 actions" was a hand approximation), and every UI-called family is asserted to exist in the route census (a UI button pointing at a non-route is now a red build). G5 (regate help omitting `--detector`) was fixed by the help-flag census. The route census itself gained the three regex/fall-through arms it could not see: `GET /api/drives/:id` (the `!sub` detail arm), `POST /api/drives/:id/notes/:id/dismiss` (the noteMatch regex), and `GET /api/fleet/prep` (the fleet router's fall-through tail). 68 → 71 routes.
 - rev-36 (2026-09-17): #208 plugin audit — `plugin/` is a **packaging wrapper, not a fourth surface**: 96 unique LOC (4 files) whose skills are git symlinks (mode 120000) into `.claude/skills/` and whose MCP/hook entries shell out to the SAME `cratedeck/src/mcp.ts` / `deckctl` the rows above govern. Audited KEEP (2026-09-17, evidence in the issue): wiring verified live (MCP handshake + 43-tool `tools/list`; SessionStart hook `deckctl status --json` returns a valid payload), but NOT installed in `~/.claude/plugins/installed_plugins.json` and no Cursor MCP entry — dormant packaging, zero surface drift risk by construction (it can only re-expose the audited MCP). Every plugin capability is covered by the CLI/MCP rows in §1; no parity rows change.
+- rev-37 (2026-09-17): #215 live-run pass — `fetch` job kind (the Genre tab's Run view): `POST /api/fetch/start` (same job engine as intake: interlock, one-at-a-time, cancel) + `GET /api/fetch/feed` (the run's vote-ladder event ring: per-track votes + elections, streamed from megadj fetch --json's stderr `@event` protocol). megadj CLI and the KIND_DOCS/HELP_JOBS rows unchanged in count (the new kind reuses the run verb family); 71 → 73 routes, 54 → 56 UI calls.
 
 The full prose of all 27 revisions lives in Git history
 (`git log --follow -- docs/surface-parity.md`) per §5 — this doc keeps
@@ -48,8 +49,8 @@ deliberate exemptions are in §4. Historical repair details belong in
 | megadj CLI | `megadj <cmd>` (`src/cli.ts`)                                     | 46 commands + `--help` |
 | deckctl    | `bun run cratedeck/src/deckctl.ts <verb>`                         | 24 verbs               |
 | MCP        | `bun run mcp` (`mcp.ts` + `archive_tools.ts` + `getdat_tools.ts`) | 43 tools               |
-| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742)       | 71 routes              |
-| Web UI     | `cratedeck/web/` (hash-routed pages)                              | 6 pages, 54 UI calls   |
+| HTTP API   | `cratedeck/src/index.ts` + `api_routes.ts` (localhost:7742)       | 73 routes              |
+| Web UI     | `cratedeck/web/` (hash-routed pages)                              | 6 pages, 56 UI calls   |
 
 The server's HTTP API is the **fourth surface** and the seam everything
 converges on: deckctl and MCP are HTTP clients of it, and the UI talks to

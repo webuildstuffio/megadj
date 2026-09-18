@@ -64,6 +64,12 @@ import {
 // visibility pass).
 import { stageArt } from "./fetch-art";
 import type { GenreVote } from "../genre/genre-vote";
+import {
+  emitFetchDone,
+  emitFetchStart,
+  emitTaskDone,
+  taskDoneEvent,
+} from "./fetch-events";
 
 /** Pipeline options. `megadj fetch` passes these from parsed
  * FetchOptions — the CLI argv shim went with the old front door. */
@@ -180,6 +186,14 @@ interface ProcessTaskResult {
   notes: string[];
   name: string;
   dry: boolean;
+  /** The track's vote-ladder outcome — feeds the live-run @task-done
+   *  event (the in-product ladder view). */
+  votes: GenreVote[];
+  elected: {
+    genre: string;
+    weight: number;
+    winnerRungs: string[];
+  } | null;
 }
 // Stats shape lives in fetch-stages.ts (the stage runners' shared currency).
 
@@ -249,8 +263,9 @@ async function processTask({
   }
 
   // ---- #173 the ONE genre election + write (vote mode only) ----
+  let elected: ReturnType<typeof stageGenreElection> = null;
   if (t.needGenre && !dry && genreVotes.length > 0) {
-    stageGenreElection(ctx, (vid, genre, serialized) => {
+    elected = stageGenreElection(ctx, (vid, genre, serialized) => {
       db.query(
         "UPDATE tracks SET genre = COALESCE(?, genre), genre_votes = ? WHERE video_id = ?",
       ).run(genre, serialized, vid);
@@ -262,7 +277,24 @@ async function processTask({
   if (t.needArt && !dry && !artDone) artless.push(r);
 
   progress?.update(1);
-  return { stats, aiGenreBatch, aiYearBatch, artless, notes, name, dry };
+  return {
+    stats,
+    aiGenreBatch,
+    aiYearBatch,
+    artless,
+    notes,
+    name,
+    dry,
+    votes: genreVotes,
+    elected:
+      elected && elected.genre !== null
+        ? {
+            genre: elected.genre,
+            weight: elected.weight,
+            winnerRungs: [...elected.winnerRungs],
+          }
+        : null,
+  };
 }
 
 /** Run the pipeline in-process. Owns no DB handle — fetch-lib's shared
@@ -291,7 +323,10 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
 
   const tasks = buildTasks(rows, only, all);
 
-  if (!jsonOut) {
+  if (jsonOut) {
+    // structured stderr channel: the job leg's ladder feed lives on these
+    emitFetchStart({ total: rows.length, tasks: tasks.length, jobs, dry });
+  } else {
     console.log(
       `megadj fetch: ${rows.length} tracks | tasks: ${tasks.length} (tags ${tasks.filter((t) => t.needTags).length}, genres ${tasks.filter((t) => t.needGenre).length}, art ${tasks.filter((t) => t.needArt).length}, years ${tasks.filter((t) => t.needYear).length}) | jobs: ${jobs}${all ? " [--all upgrade]" : ""}${dry ? " [DRY RUN]" : ""}\n`,
     );
@@ -327,6 +362,20 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
         aiGenreBatch.push(...result.aiGenreBatch);
         aiYearBatch.push(...result.aiYearBatch);
         artless.push(...result.artless);
+        // live-run event: the CrateDeck leg parses @task-done lines into
+        // the web ladder feed (JSON mode only — human stderr keeps the bar)
+        if (jsonOut)
+          emitTaskDone(
+            taskDoneEvent({
+              done: my + 1,
+              total: tasks.length,
+              name: result.name,
+              notes: result.notes,
+              votes: result.votes,
+              elected: result.elected,
+            }),
+            true,
+          );
         if (!progress && !jsonOut) {
           if (result.notes.length)
             console.log(
@@ -393,6 +442,8 @@ export async function runFetch(opts: FetchAllOptions = {}): Promise<void> {
     genreElected: stats.genreElected,
   };
   if (jsonOut) {
+    // structured stderr channel: the ladder feed's footer
+    emitFetchDone({ ...stats });
     // P1 (--json on every command): one summary object on stdout, last.
     await writeJson(summary);
   } else {

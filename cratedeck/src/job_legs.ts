@@ -33,6 +33,7 @@ import {
   type RunHandle,
   verifyPhase,
 } from "./job_runtime";
+import { fetchFeedPush, fetchFeedReset } from "./fetch_feed";
 import { rbSnapshot, spawnMirror, spawnVerify } from "./rb";
 import { scanVolume } from "./scan";
 import { lastLines } from "./verify_report";
@@ -324,6 +325,246 @@ export async function auditArchive(
     true,
   );
   return result;
+}
+
+// ---- fetch leg (the #215 live-run ladder feed) ----------------------------
+// Guards for the megadj fetch stderr protocol (@event {json} lines).
+// Every parse is shape-checked: a malformed line logs and is skipped, a
+// malformed one never kills the run.
+
+function safeJsonParse(line: string): unknown {
+  try {
+    return JSON.parse(line) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function finiteOf(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/** Parse one @fetch-start line's payload. */
+export function parseFetchStart(
+  payload: unknown,
+): { total: number; tasks: number; jobs: number; dry: boolean } | null {
+  if (!isRecord(payload)) return null;
+  const total = finiteOf(payload.total);
+  const tasks = finiteOf(payload.tasks);
+  const jobs = finiteOf(payload.jobs);
+  if (total === null || tasks === null || jobs === null) return null;
+  return { total, tasks, jobs, dry: payload.dry === true };
+}
+
+/** Parse one @task-done payload into the wire shape. */
+export function parseFetchTask(payload: unknown): {
+  done: number;
+  total: number;
+  name: string;
+  notes: string[];
+  votes: { rung: string; genre: string; weight: number }[];
+  elected: {
+    genre: string;
+    weight: number;
+    winnerRungs: string[];
+  } | null;
+} | null {
+  if (!isRecord(payload)) return null;
+  const done = finiteOf(payload.done);
+  const total = finiteOf(payload.total);
+  if (done === null || total === null) return null;
+  const name = typeof payload.name === "string" ? payload.name : "";
+  const notes = Array.isArray(payload.notes)
+    ? payload.notes.filter((n): n is string => typeof n === "string")
+    : [];
+  const votes = Array.isArray(payload.votes)
+    ? payload.votes.flatMap((v) => {
+        if (!isRecord(v)) return [];
+        const weight = finiteOf(v.weight);
+        if (
+          typeof v.rung !== "string" ||
+          typeof v.genre !== "string" ||
+          weight === null
+        )
+          return [];
+        return [{ rung: v.rung, genre: v.genre, weight }];
+      })
+    : [];
+  let elected: {
+    genre: string;
+    weight: number;
+    winnerRungs: string[];
+  } | null = null;
+  if (isRecord(payload.elected)) {
+    const weight = finiteOf(payload.elected.weight);
+    if (
+      typeof payload.elected.genre === "string" &&
+      weight !== null &&
+      Array.isArray(payload.elected.winnerRungs)
+    ) {
+      const rungs = payload.elected.winnerRungs.filter(
+        (r): r is string => typeof r === "string",
+      );
+      elected = { genre: payload.elected.genre, weight, winnerRungs: rungs };
+    }
+  }
+  return { done, total, name, notes, votes, elected };
+}
+
+/** The megadj CLI argv for one fetch run. `--json` keeps stdout as one
+ *  summary object and switches stderr to the structured @event protocol
+ *  the feed parses; the flags mirror the Fetch tab's options. */
+export function fetchArgs(opts: {
+  all?: boolean;
+  only?: string;
+  aiFallback?: boolean;
+  dryRun?: boolean;
+  jobs?: number;
+}): string[] {
+  const args = ["fetch", "--json"];
+  if (opts.all) args.push("--all");
+  if (opts.only && opts.only !== "all") args.push(`--${opts.only}`);
+  if (opts.aiFallback) args.push("--ai-fallback");
+  if (opts.dryRun) args.push("--dry-run");
+  if (opts.jobs !== undefined) args.push("--jobs", String(opts.jobs));
+  return args;
+}
+
+/** One fetch job: run megadj fetch over the archive, streaming the
+ *  per-track vote-ladder events into the shared feed the web tab polls.
+ *  Progress comes from the task-done counter (real fraction, feeds the
+ *  stall watchdog); the ladder feed carries the detail. */
+export async function runFetchJob({
+  deps,
+  mountPoint: _mountPoint,
+  handle,
+  tick,
+  log,
+}: LegArgs): Promise<unknown> {
+  const opts = parseFetchJobMount(mountPointString(_mountPoint));
+  tick(0, 1, "starting the fetch pipeline…", "probe", true);
+  fetchFeedReset();
+  const proc = Bun.spawn(
+    ["bun", megadjCliPath(deps.cfg.root), ...fetchArgs(opts)],
+    { stdout: "pipe", stderr: "pipe", cwd: deps.cfg.root },
+  );
+  handle.proc = proc;
+
+  let tasksTotal = 0;
+  let lastDone = 0;
+  const onErrLine = (line: string): void => {
+    log(line);
+    const text = line.trim();
+    if (!text.startsWith("@")) return;
+    const sp = text.indexOf(" ");
+    if (sp === -1) return;
+    const tag = text.slice(0, sp);
+    const payload = safeJsonParse(text.slice(sp + 1));
+    if (tag === "@fetch-start") {
+      const start = parseFetchStart(payload);
+      if (start) {
+        tasksTotal = start.tasks;
+        fetchFeedPush({ at: Date.now(), type: "start", start });
+        log(
+          `ladder: ${start.tasks} tasks (${start.total} tracks)${start.dry ? " DRY" : ""}`,
+        );
+      }
+      return;
+    }
+    if (tag === "@task-done") {
+      const task = parseFetchTask(payload);
+      if (task) {
+        fetchFeedPush({ at: Date.now(), type: "task", task });
+        if (tasksTotal > 0) {
+          lastDone = Math.max(lastDone, task.done);
+          tick(
+            lastDone,
+            tasksTotal,
+            `${task.done}/${tasksTotal} — ${task.name}`,
+            "enrich",
+          );
+        }
+      }
+      return;
+    }
+    if (tag === "@fetch-done") {
+      if (isRecord(payload) && isRecord(payload.stats)) {
+        const stats: Record<string, number> = {};
+        for (const [k, v] of Object.entries(payload.stats)) {
+          const n = finiteOf(v);
+          if (n !== null) stats[k] = n;
+        }
+        fetchFeedPush({ at: Date.now(), type: "done", stats });
+      }
+    }
+  };
+
+  const [result, errResult] = await Promise.all([
+    drain(proc, (line) => log(line), handle, deps.cfg.jobTimeoutMin * 60_000),
+    drain(proc.stderr, onErrLine, handle),
+  ]);
+  await proc.exited;
+  if (handle.cancelled) throw new Error("cancelled");
+  if (proc.exitCode !== 0) {
+    const suffix = errResult.out.trim()
+      ? `: ${errResult.out.trim().slice(-400)}`
+      : "";
+    throw new Error(`megadj fetch exited ${proc.exitCode}${suffix}`);
+  }
+  // stdout is the trailing JSON summary (same split contract as ingest)
+  const { summary } = splitIntakeStdout(result.out);
+  tick(1, 1, "fetch finished", "done", true);
+  deps.db.event("local-archive", "fetch", {
+    votes:
+      summary && typeof summary.votesCast === "number"
+        ? summary.votesCast
+        : null,
+    elected:
+      summary && typeof summary.genreElected === "number"
+        ? summary.genreElected
+        : null,
+  });
+  return summary ?? { feed: "summary unparsable — see the feed" };
+}
+
+/** Fetch options ride the mountPoint slot (the enqueue signature's free
+ *  string). JSON-encoded; a plain string = default run. Bad JSON = a
+ *  clean default run, never a crash — the operator's intent is "run
+ *  fetch", the options are negotiable. */
+function mountPointString(m: string): string {
+  return m;
+}
+
+function parseFetchJobMount(m: string): {
+  all?: boolean;
+  only?: string;
+  aiFallback?: boolean;
+  dryRun?: boolean;
+  jobs?: number;
+} {
+  if (!m || m === "local-archive" || !m.startsWith("{")) return {};
+  const parsed = safeJsonParse(m);
+  if (!isRecord(parsed)) return {};
+  const out: {
+    all?: boolean;
+    only?: string;
+    aiFallback?: boolean;
+    dryRun?: boolean;
+    jobs?: number;
+  } = {};
+  if (parsed.all === true) out.all = true;
+  if (typeof parsed.only === "string" && /^[a-z-]+$/.test(parsed.only))
+    out.only = parsed.only;
+  if (parsed.aiFallback === true) out.aiFallback = true;
+  if (parsed.dryRun === true) out.dryRun = true;
+  const jobs = finiteOf(parsed.jobs);
+  if (jobs !== null && Number.isInteger(jobs) && jobs >= 1 && jobs <= 32)
+    out.jobs = jobs;
+  return out;
 }
 
 export async function runBenchmark({

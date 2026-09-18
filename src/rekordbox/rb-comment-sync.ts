@@ -42,8 +42,6 @@ import {
   type SyncOutput,
 } from "./rb-comment-sync-parse";
 
-export { ledgerFreshnessOf } from "./rb-comment-sync-parse";
-
 export interface RbCommentSyncOptions {
   mount: string;
   /** Only sync rows whose FolderPath contains this token (batch scope). */

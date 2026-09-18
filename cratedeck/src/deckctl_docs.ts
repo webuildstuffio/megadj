@@ -81,6 +81,12 @@ export const KIND_DOCS: Record<string, KindDoc> = {
     safe: "Writes into the archive (music dir + DB). Batch folders land in their own fresh subfolder; zips expand only when fully ingested.",
     needs: "archive reachable; a batch/watch folder",
   },
+  fetch: {
+    what: "The FullTags enrichment pipeline as a job (the Genre tab's live run view): runs megadj fetch over the archive — genre vote ladder, tags, years, artwork — streaming per-track ladder events into the web feed.",
+    typical: "minutes (scales with task count; HTTP lookups dominate)",
+    safe: "Writes into the archive only (file tags + ledger DB). Genre is write-first: the DB only records what landed in the file.",
+    needs: "archive reachable; network for SC/BP/BC lookups",
+  },
 };
 
 /** One KIND_DOCS entry as CLI prose (shared by the all-kinds + single-kind

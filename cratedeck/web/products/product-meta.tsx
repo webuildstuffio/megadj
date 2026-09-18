@@ -202,6 +202,13 @@ export const PRODUCT_TABS: Record<Product, ProductTab[]> = {
   ],
   fulltags: [
     {
+      id: "run",
+      label: "Run",
+      icon: "pulse",
+      title:
+        "The live enrichment run: the genre vote ladder deciding track by track — votes, elections, rung tally, streaming in as it works",
+    },
+    {
       id: "beatgrids",
       label: "Beatgrids",
       icon: "pulse",

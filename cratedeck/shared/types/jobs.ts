@@ -17,6 +17,7 @@ export const JOB_KINDS = [
   "benchmark",
   "checksum",
   "ingest",
+  "fetch",
   "speedtest",
   "hygiene-scan",
   "hygiene-apply",
@@ -126,4 +127,49 @@ export interface SpeedProbe {
   ran_at: number;
   mbps: number;
   bytes_read: number;
+}
+
+// ---- fetch: the FullTags enrichment job (#215 visibility). The live-run
+// ladder feed (per-track votes + election) rides the /api/fetch/feed
+// ring buffer while the job runs; the job row's result_json carries the
+// final summary like every other kind.
+
+/** One rung's vote on one track, as the feed carries it. Mirrors the
+ *  megadj side's serialized GenreVote (rung + claim + weight). */
+export interface FetchVoteWire {
+  rung: string;
+  genre: string;
+  weight: number;
+}
+
+/** One track's completed pass through the pipeline. */
+export interface FetchTaskWire {
+  done: number;
+  total: number;
+  name: string;
+  notes: string[];
+  votes: FetchVoteWire[];
+  elected: {
+    genre: string;
+    weight: number;
+    winnerRungs: string[];
+  } | null;
+}
+
+/** The run's scope header (@fetch-start). */
+export interface FetchStartWire {
+  total: number;
+  tasks: number;
+  jobs: number;
+  dry: boolean;
+}
+
+/** One GET /api/fetch/feed response — the drained tail + the next cursor. */
+export interface FetchFeedWire {
+  entries: (
+    | { at: number; type: "start"; start: FetchStartWire }
+    | { at: number; type: "task"; task: FetchTaskWire }
+    | { at: number; type: "done"; stats: Record<string, number> }
+  )[];
+  next: number;
 }

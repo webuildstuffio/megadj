@@ -161,6 +161,7 @@ function uiJobKinds(): string[] {
     "cratedeck/web/products/cratedeck/FixesTab.tsx",
     "cratedeck/web/products/cratedeck/GridHealthCard.tsx",
     "cratedeck/web/products/getdat/IntakeTab.tsx",
+    "cratedeck/web/products/fulltags/GenreRunTab.tsx",
     "cratedeck/web/products/shared.tsx",
   ]) {
     for (const line of read(file)) {
@@ -176,6 +177,8 @@ function uiJobKinds(): string[] {
       if (line.includes("/api/intake/start")) kinds.push("ingest");
       // grid-health scan → the grid-health job kind (#167)
       if (line.includes("/api/grid-health/scan")) kinds.push("grid-health");
+      // fetch start → the fetch job kind (#215 live-run pass)
+      if (line.includes("/api/fetch/start")) kinds.push("fetch");
     }
   }
   return [...new Set(kinds)].toSorted();
