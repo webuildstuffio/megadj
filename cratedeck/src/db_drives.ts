@@ -2,12 +2,33 @@
 // the file-length guard (lizard was also reporting the whole drive/snapshot
 // half of class DB as one 75-CCN "canon" blob); DB delegates so every call
 // site is unchanged. canon() and inferRole() live here with their only
-// callers — this module never imports db.ts (no cycle).
+// callers — this module never imports db.ts (no cycle). canon() was
+// db_canon.ts (27L, its own file only to dodge a lizard mis-parse that
+// no longer applies — the AST census is the measurer now); merged per #221.
 import type { Database } from "bun:sqlite";
 import type { Drive, SnapshotData, VerifyReport } from "../shared/types";
-import { canon } from "./db_canon";
 import { sanitizeVerifyReport } from "./verify_report";
 import { parseSnapshotJson } from "../shared/badges";
+
+/** Stable stringify: key-sorted at EVERY depth, arrays kept in order, every
+ *  key included. Used by the setSnapshot change-detector, which must SEE
+ *  nested edits. The old `JSON.stringify(o, Object.keys(o).sort())` passed
+ *  the top-level key list as the replacer — replacer arrays filter keys at
+ *  ALL levels, so nested objects stringified as {} and any same-length
+ *  nested change (track title/BPM edit, playlist membership swap) read as
+ *  "unchanged" and was silently dropped (stale fleet tables + parity). */
+export function canon(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canon).join(",")}]`;
+  if (v !== null && typeof v === "object") {
+    const entries = Object.entries(v as Record<string, unknown>).toSorted(
+      ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
+    );
+    return `{${entries
+      .map(([k, val]) => `${JSON.stringify(k)}:${canon(val)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "null";
+}
 
 /** Raw row shape as stored in the drives table (mounted is 0/1). */
 interface DriveRow extends Omit<Drive, "mounted"> {
