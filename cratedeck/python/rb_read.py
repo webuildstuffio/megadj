@@ -240,7 +240,7 @@ def open_device_db(db_path: str) -> "_DeviceDb":
     from pyrekordbox.devicelib_plus.database import DeviceLibraryPlus as _DLP  # type: ignore[import-not-found] # noqa: I001
 
     DeviceLibraryPlus = _DLP
-    from sqlalchemy import text
+    from sqlalchemy import text  # type: ignore[import-not-found]
 
     db: _DeviceDb = DeviceLibraryPlus(db_path)
     try:

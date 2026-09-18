@@ -379,10 +379,10 @@ export function parseFetchTask(payload: unknown): {
   if (done === null || total === null) return null;
   const name = typeof payload.name === "string" ? payload.name : "";
   const notes = Array.isArray(payload.notes)
-    ? payload.notes.filter((n): n is string => typeof n === "string")
+    ? payload.notes.filter((n: unknown): n is string => typeof n === "string")
     : [];
   const votes = Array.isArray(payload.votes)
-    ? payload.votes.flatMap((v) => {
+    ? payload.votes.flatMap((v: unknown) => {
         if (!isRecord(v)) return [];
         const weight = finiteOf(v.weight);
         if (
@@ -407,7 +407,7 @@ export function parseFetchTask(payload: unknown): {
       Array.isArray(payload.elected.winnerRungs)
     ) {
       const rungs = payload.elected.winnerRungs.filter(
-        (r): r is string => typeof r === "string",
+        (r: unknown): r is string => typeof r === "string",
       );
       elected = { genre: payload.elected.genre, weight, winnerRungs: rungs };
     }

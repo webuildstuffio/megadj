@@ -9,7 +9,7 @@ import sys
 from typing import Any
 
 from pyrekordbox import Rekordbox6Database as R  # type: ignore[import-not-found]
-from sqlalchemy import inspect
+from sqlalchemy import inspect  # type: ignore[import-not-found]
 
 
 def scalar(value: Any) -> Any:

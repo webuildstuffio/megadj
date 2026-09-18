@@ -10,6 +10,15 @@ import { errMessage } from "../../../shared/fmt";
 import { ApiError, api, toast } from "../../ui/toast";
 import type { HealthTabBench } from "./HealthTab";
 
+/** `PromiseRejectedResult.reason` is typed `any`; read it through an
+ *  `{ reason: unknown }` view so the any never becomes an expression
+ *  type (typecov 100% bar, #231 fan-out). */
+function rejectedReason(result: PromiseSettledResult<unknown>): unknown {
+  return result.status === "rejected"
+    ? (result as { status: "rejected"; reason: unknown }).reason
+    : undefined;
+}
+
 export interface DriveDetail {
   drive: DriveReport["drive"];
   snapshot: SnapshotData | null;
@@ -96,7 +105,8 @@ export function useDriveData(driveId: string): DriveData {
     if (failed.has("detail")) {
       // The page-defining leg failed — distinguish 404 (gone) from
       // transport/500 (retryable) exactly as before.
-      const reason = detailR.status === "rejected" ? detailR.reason : undefined;
+      const reason: unknown = rejectedReason(detailR);
+
       console.error(`drive ${driveId} load failed`, reason);
       if (reason instanceof ApiError && reason.status === 404) {
         setPage({ status: "not-found" });
