@@ -108,6 +108,9 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 17 (#207): digest changed — parseAuditSummary's JSON.parse
     // moved from cratedeck job_legs.ts to job-legs-parse.ts (the #207
     // parse-seam split); same guarded shape, new file path.
+    // Sep 17 (#232): digest changed — the parse/verify payloads of
+    // rb-comment-sync moved to rb-comment-sync-parse.ts (the #232
+    // parse-seam split); same guarded shape, new file path.
     audited: 62,
     guarded: 45,
     sanctioned: 17,
@@ -116,7 +119,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // unchanged) — digest shifted.
     // Sep 17 (#220 sources/ slice): file re-homes moved owners (digest
     // input re-rooted; same calls, same guards, counts unchanged).
-    digest: "a697918b5b2bb472fae07a69c12fe038b7309358626a98b0c8f2718742b2c32a",
+    digest: "92a80a2fee3dd20ac9dc16edb06c104be4236933665cafdb857b314f96fe1ac5",
   });
 });
 
