@@ -8,13 +8,13 @@
 // exist yet, so the CLI honestly reports unavailable — never a
 // manufactured pass (roadmap §4 gap 2's own rule).
 
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../../archive/state";
 import {
   evalLeaveOneOut,
   genreFamily,
   parseEmbeddingVector,
-} from "../archive/similar";
-import type { GateResult } from "./gates";
+} from "../../archive/similar";
+import type { GateResult } from "../gates";
 
 /** The genre ship gate (genre-pipeline.md §V2, tier-0 arbitration bar). */
 export const GENRE_GATE_PERCENT = 65;

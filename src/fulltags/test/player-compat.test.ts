@@ -4,7 +4,7 @@ import {
   isHiresOnly,
   setBoothFleet,
   type CompatResult,
-} from "../player-compat";
+} from "../booth/player-compat";
 import type { Probe } from "../media-probe";
 
 // Every test pins its fleet explicitly — the default trio (XZ/3000/NXS2)

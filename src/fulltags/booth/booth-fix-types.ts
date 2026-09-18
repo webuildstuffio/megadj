@@ -5,7 +5,7 @@
 import type {
   BoothFixAction,
   BoothFixGate,
-} from "../../cratedeck/shared/fixes";
+} from "../../../cratedeck/shared/fixes";
 
 /** One proposed/applied fix (one row per file per gate). */
 export interface BoothFixRow {

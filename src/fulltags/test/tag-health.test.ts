@@ -9,7 +9,7 @@
  */
 import { describe, test, expect } from "bun:test";
 import { tagHealth } from "../write/tag-health";
-import { hasControlChars, isMojibake } from "../booth-text";
+import { hasControlChars, isMojibake } from "../booth/booth-text";
 
 describe("isMojibake (SSOT — tag-health depends on it)", () => {
   test("legit accented names pass", () => {

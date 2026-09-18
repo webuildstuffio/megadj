@@ -4,7 +4,7 @@
  * (manuals + field reports), pinned so the checker can't regress.
  */
 import { describe, expect, test } from "bun:test";
-import { boothTextCompat, isMojibake } from "../booth-text";
+import { boothTextCompat, isMojibake } from "../booth/booth-text";
 
 const safe = (over: Record<string, string> = {}) => ({
   filename: "Artist - Title.mp3",

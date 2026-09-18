@@ -31,14 +31,14 @@
  */
 import { basename } from "node:path";
 import { existsSync } from "node:fs";
-import { groundTruth } from "./write/readers";
-import { walkAudioFiles } from "./write/writer";
-import { probeFile } from "./media-probe";
+import { groundTruth } from "../write/readers";
+import { walkAudioFiles } from "../write/writer";
+import { probeFile } from "../media-probe";
 import { playerCompat, isHiresOnly } from "./player-compat";
 import { boothTextCompat, type TextCompatResult } from "./booth-text";
 import { fixBoothText } from "./booth-fix-text";
 import type { BoothFixRow, BoothFixResult } from "./booth-fix-types";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../../archive/state";
 
 // Text sanitizers moved to booth-fix-text.ts with the fixer; re-exported so
 // existing `from "./booth-fix"` import sites (tests, CLI help) stay put.

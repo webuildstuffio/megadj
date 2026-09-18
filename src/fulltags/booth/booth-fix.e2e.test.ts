@@ -1,10 +1,10 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { mkdtempSync, mkdirSync, rmSync, readdirSync } from "node:fs";
-import { writeFakeAudio } from "../test-support/audio-fixtures";
+import { writeFakeAudio } from "../../test-support/audio-fixtures";
 import { join } from "node:path";
 import { boothFix } from "./booth-fix";
 import { setBoothFleet } from "./player-compat";
-import { ArchiveState } from "../archive/state";
+import { ArchiveState } from "../../archive/state";
 
 // ---- fixture: a tiny fake archive -------------------------------------------
 const tmp = mkdtempSync("/tmp/boothfix-e2e-");

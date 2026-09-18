@@ -10,7 +10,7 @@ import {
   regateGenre,
 } from "./regate-genre";
 import { regate } from "./regate";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../../archive/state";
 
 /** Minimal ArchiveState double: only evalPopulation() is read. */
 function stateWith(

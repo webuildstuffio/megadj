@@ -9,7 +9,7 @@ import {
   hasControlChars,
   type TextCompatResult,
 } from "./booth-text";
-import { writePatchSync } from "./write/writer";
+import { writePatchSync } from "../write/writer";
 import type { BoothFixRow } from "./booth-fix-types";
 
 /** One applied fix (counter + log line for the run summary). */

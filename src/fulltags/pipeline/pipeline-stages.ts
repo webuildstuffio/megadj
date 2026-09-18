@@ -11,25 +11,25 @@ import type {
   Stage,
   TrackInput,
 } from "./pipeline-types";
-import { scSearch } from "./sources/sc-search";
-import { canonGenre, type TagPatch } from "./write/schema";
-import { detectRemix } from "./sources/remix";
+import { scSearch } from "../sources/sc-search";
+import { canonGenre, type TagPatch } from "../write/schema";
+import { detectRemix } from "../sources/remix";
 import {
   beatportLookup,
   bpGenre,
   bpStamp,
   type BpTrack,
-} from "./sources/beatport";
+} from "../sources/beatport";
 import { appendQueue, artLadder, scArt } from "./pipeline-art";
 import { parseMoodStamp, readEnergyStamp, readStamp } from "./pipeline-stamps";
-import { energyFromLufs, measureRms } from "./media-probe";
-import { analyzeBeats, foldTempo } from "./analysis/beats-analysis";
-import { analyzeKey } from "./analysis/key-analysis";
-import { fingerprintWithDuration } from "./analysis/fingerprint";
-import { analyzeMoods, moodStamp } from "./analysis/models";
-import { mbLookupCached } from "./sources/mb_lookup";
-import { embedArt } from "./write/writer";
-import { type Truth } from "./write/readers";
+import { energyFromLufs, measureRms } from "../media-probe";
+import { analyzeBeats, foldTempo } from "../analysis/beats-analysis";
+import { analyzeKey } from "../analysis/key-analysis";
+import { fingerprintWithDuration } from "../analysis/fingerprint";
+import { analyzeMoods, moodStamp } from "../analysis/models";
+import { mbLookupCached } from "../sources/mb_lookup";
+import { embedArt } from "../write/writer";
+import { type Truth } from "../write/readers";
 import { basename } from "node:path";
 
 /** Mutable stage context: one track's accumulated patch + notes, plus

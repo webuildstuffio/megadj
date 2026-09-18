@@ -9,8 +9,8 @@
  * reason WAV/AIFF stamps are read at all (the original branches opened
  * the file and read NOTHING, so re-runs rewrote 73 archive WAVs forever).
  */
-import type { MoodResult } from "./analysis/models";
-import { mutagenJson } from "./write/mutagen";
+import type { MoodResult } from "../analysis/models";
+import { mutagenJson } from "../write/mutagen";
 
 /**
  * Read TXXX frames (mutagen) in one spawn: pass descriptions, get values.
