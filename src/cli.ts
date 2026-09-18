@@ -4,6 +4,7 @@ import { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR } from "./cli-env";
 export { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR } from "./cli-env";
 import { dispatchCommand } from "./cli-dispatch";
 import { drainStdout, finishCommandError } from "./shared/cli-output";
+import { errorText } from "./shared/error-text";
 import {
   MAINTENANCE_VERBS,
   runMaintenanceCommand,
@@ -49,7 +50,7 @@ async function configureBoothFleet(): Promise<void> {
     );
   } catch (error) {
     console.error(
-      `booth fleet: config.toml unreadable (${error instanceof Error ? error.message : String(error)}) — using default fleet`,
+      `booth fleet: config.toml unreadable (${errorText(error)}) — using default fleet`,
     );
   }
 }

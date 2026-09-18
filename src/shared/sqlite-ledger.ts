@@ -7,7 +7,8 @@
  * put retries into md5-cli), and blocked readers-during-write (hygiene
  * scans while dupescan writes fingerprints).
  *
- * WAL + busy_timeout = 5000, nothing else — no schema, no migrations.
+ * WAL + busy_timeout = 5000 + synchronous = NORMAL, nothing else — no
+ * schema, no migrations.
  */
 import { Database } from "bun:sqlite";
 
@@ -19,7 +20,13 @@ export function openLedger(
   // (SQLITE_MISUSE — flags must include READONLY or READWRITE). The bare
   // `new Database(path)` these sites replace auto-created, so default true.
   const db = new Database(path, { create: opts?.create ?? true });
+  // Pragma set mirrors cratedeck/src/db_core.ts DBCore (#87 ride-along):
+  // alignment by convention, NEVER a cross-package import (cratedeck/
+  // shared/types.ts is the import-leaf rule). synchronous=NORMAL matches
+  // DBCore's durability stance for ledger DBs; WAL + busy_timeout keep
+  // parallel-suite concurrency honest.
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA busy_timeout = 5000;");
+  db.exec("PRAGMA synchronous = NORMAL;");
   return db;
 }

@@ -29,6 +29,7 @@ import { cmdPrep } from "./deckctl_prep";
 import { cmdExplain } from "./deckctl_explain";
 import { KIND_DOCS } from "./deckctl_docs";
 import { baseHooks, errOut, flushStdout, log } from "./deckctl_runtime";
+import { errMessage } from "../shared/fmt";
 
 const PRE_SERVER_VERBS = ["help"] as const;
 
@@ -80,7 +81,7 @@ const DECK_COMMANDS: Record<string, (a: DeckArgs) => Promise<void>> = {
     await apiPost("/api/stop").catch((error: unknown) => {
       console.error(
         "stop request failed (server may already be down):",
-        error instanceof Error ? error.message : error,
+        errMessage(error),
       );
     });
   },
@@ -154,6 +155,8 @@ try {
   await main();
   await flushStdout();
 } catch (error) {
+  // The one sanctioned stack-preserving site: deckctl's own crash prints
+  // the stack, not just the message (#82 bespoke list).
   console.error(
     error instanceof Error ? (error.stack ?? error.message) : error,
   );

@@ -12,6 +12,7 @@
 // base only owns the SQL plumbing. `archive.db` stays the pipeline
 // ledger: no schema changes, no new tables.
 import type { Database, SQLQueryBindings } from "bun:sqlite";
+import { errorText } from "../shared/error-text";
 
 export class RecordLedger {
   protected readonly db: Database;
@@ -64,7 +65,7 @@ export class RecordLedger {
     context: string,
     warn: (message: string) => void,
   ): null {
-    warn(`${context}: ${error instanceof Error ? error.message : error}`);
+    warn(`${context}: ${errorText(error)}`);
     return null;
   }
 }

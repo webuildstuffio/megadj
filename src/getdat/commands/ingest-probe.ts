@@ -44,7 +44,7 @@ export async function moveQuarantineFile(
       } catch (cleanupError) {
         console.error(
           `quarantine cleanup failed: ${dest}`,
-          cleanupError instanceof Error ? cleanupError.message : cleanupError,
+          errorText(cleanupError),
         );
       }
       throw new Error(`quarantine copy verification failed: ${source}`, {

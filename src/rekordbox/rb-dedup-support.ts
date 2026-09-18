@@ -1,6 +1,7 @@
 import { isAbsolute, join, relative, sep } from "node:path";
 import { pickRbKeeper } from "../shared/keeper";
 import { printResult } from "./rb-command-kit.js";
+import { errorText } from "../shared/error-text";
 
 interface MutationPair {
   keepId: string;
@@ -30,9 +31,7 @@ export function inspectMutationPaths(
     contentsRoot = realpath(join(mount, "Contents"));
   } catch (error) {
     return {
-      errors: [
-        `selected Contents root is unavailable: ${error instanceof Error ? error.message : String(error)}`,
-      ],
+      errors: [`selected Contents root is unavailable: ${errorText(error)}`],
       sharedLoserIds: new Set(),
     };
   }
@@ -49,7 +48,7 @@ export function inspectMutationPaths(
         resolved = realpath(path);
       } catch (error) {
         errors.push(
-          `${role} ${pair[role === "keeper" ? "keepId" : "loseId"]} path cannot be resolved: ${path} (${error instanceof Error ? error.message : String(error)})`,
+          `${role} ${pair[role === "keeper" ? "keepId" : "loseId"]} path cannot be resolved: ${path} (${errorText(error)})`,
         );
         continue;
       }

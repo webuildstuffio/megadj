@@ -23,6 +23,7 @@ import { apiGetJson, apiPost, PORT, waitForJob, type Job } from "./deckapi";
 import { JOB_KINDS } from "../shared/types";
 import type { ToolDef } from "./mcp_server";
 import { DRIVE_PARAM, needDrive } from "./mcp_read_tools";
+import { errMessage } from "../shared/fmt";
 
 // DERIVED from the canonical JobKind union in shared/types.ts (`as const
 // satisfies` there type-checks the array against the union) — a kind added
@@ -51,10 +52,7 @@ async function jobResult(job: Job): Promise<unknown> {
   try {
     return JSON.parse(job.result_json);
   } catch (e) {
-    console.error(
-      `job ${job.id} has corrupt result_json`,
-      e instanceof Error ? e.message : e,
-    );
+    console.error(`job ${job.id} has corrupt result_json`, errMessage(e));
     return null;
   }
 }

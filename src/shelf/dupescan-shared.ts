@@ -8,6 +8,7 @@
 import { statSync, existsSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { Database } from "bun:sqlite";
+import { errorText } from "../shared/error-text";
 
 /** Persistent fp cache — one row per file path (re-runs only decode
  *  new/changed files). Table name is the caller's concern so each
@@ -104,7 +105,7 @@ export function moveLoser(
     hooks?.onMoved?.(path, dest);
     return true;
   } catch (e) {
-    errors.push(`${path}: ${e instanceof Error ? e.message : e}`);
+    errors.push(`${path}: ${errorText(e)}`);
     return false;
   }
 }

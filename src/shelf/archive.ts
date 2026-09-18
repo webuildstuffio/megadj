@@ -44,6 +44,7 @@ import { ShelfIndex } from "./index-files";
 import { sweepVolume, type DriveResult } from "./archive-file";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson, setExit } from "../shared/cli-output";
+import { errorText } from "../shared/error-text";
 
 /** The archive DB (sweep ledger host). Env-overridable like cli.ts. */
 const DB_PATH =
@@ -94,9 +95,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
       state = new ArchiveState(ledgerPath);
       sweeps = state.shelfSweeps;
     } catch (e) {
-      log(
-        `archive: (sweep ledger unavailable: ${e instanceof Error ? e.message : e})`,
-      );
+      log(`archive: (sweep ledger unavailable: ${errorText(e)})`);
     }
   }
 

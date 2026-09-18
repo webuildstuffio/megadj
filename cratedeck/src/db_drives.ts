@@ -9,6 +9,7 @@ import type { Database } from "bun:sqlite";
 import type { Drive, SnapshotData, VerifyReport } from "../shared/types";
 import { sanitizeVerifyReport } from "./verify_report";
 import { parseSnapshotJson } from "../shared/badges";
+import { errMessage } from "../shared/fmt";
 
 /** Stable stringify: key-sorted at EVERY depth, arrays kept in order, every
  *  key included. Used by the setSnapshot change-detector, which must SEE
@@ -44,7 +45,7 @@ function decodeVerifyReport(driveId: string, raw: string): VerifyReport | null {
   } catch (e) {
     console.error(
       `verify report for drive ${driveId} is corrupt — treating as never verified`,
-      e instanceof Error ? e.message : e,
+      errMessage(e),
     );
     return null;
   }

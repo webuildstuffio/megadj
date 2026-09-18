@@ -17,7 +17,7 @@ import { extname, resolve, sep } from "node:path";
 // AUDIO_EXTS: the #69 SSOT — the private set here diverged BOTH ways
 // (had .alac, missed .ogg/.opus), the twin-proof of issue #200.
 import { AUDIO_EXTS } from "../../src/shared/audio-exts";
-import { fmtDur } from "../shared/fmt";
+import { fmtDur, errMessage } from "../shared/fmt";
 
 export interface AudioStats {
   path: string;
@@ -126,7 +126,7 @@ export function audioStats(path: string): AudioStats {
       bitrateKbps: null,
       codec: null,
       sampleRate: null,
-      error: e instanceof Error ? e.message : "stat failed",
+      error: errMessage(e),
     };
   }
   statsCache.set(path, out);

@@ -11,6 +11,7 @@ import {
   type HygieneFindingRow,
 } from "../shared/hygiene";
 import { ArchiveLedgerReader } from "./archive_ledger_reader";
+import { errMessage } from "../shared/fmt";
 
 export interface HygieneCounts {
   open: number;
@@ -46,7 +47,7 @@ export class HygieneReader extends ArchiveLedgerReader {
       } catch (error) {
         console.error(
           `hygiene finding ${row.id} has corrupt JSON — skipping`,
-          error instanceof Error ? error.message : error,
+          errMessage(error),
         );
         return [];
       }
@@ -92,10 +93,7 @@ export class HygieneReader extends ArchiveLedgerReader {
           } catch (e) {
             // guarded parse (rule: corrupt ledger JSON is a visible
             // "unclassified" bucket, never a 500)
-            console.error(
-              "hygiene: unparseable evidence JSON",
-              e instanceof Error ? e.message : e,
-            );
+            console.error("hygiene: unparseable evidence JSON", errMessage(e));
           }
           out.bySub[sub] = (out.bySub[sub] ?? 0) + r.n;
         }

@@ -228,11 +228,7 @@ export function statePurge(opts: TmpPurgeOptions): TmpPurgeResult {
       if (!kept.includes(c.name)) kept.push(c.name);
       continue;
     }
-    if (
-      c.kind === "sidecar" &&
-      held !== null &&
-      held.has(join(root, c.stem))
-    ) {
+    if (c.kind === "sidecar" && held !== null && held.has(join(root, c.stem))) {
       continue; // DB is open — its sidecars are live WAL/SHM state
     }
     eligible++;

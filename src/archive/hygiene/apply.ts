@@ -20,6 +20,7 @@
 import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { CheckCtx, Finding, ValidationReceipt } from "./types";
+import { errorText } from "../../shared/error-text";
 
 export const QUARANTINE_DIR = ".hygiene-quarantine";
 
@@ -81,7 +82,7 @@ export function applyFinding(
   } catch (e) {
     return {
       moved: false,
-      error: e instanceof Error ? e.message : String(e),
+      error: errorText(e),
     };
   }
 }

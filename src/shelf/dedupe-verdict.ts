@@ -7,6 +7,7 @@ import { basename, join } from "node:path";
 import type { DedupePair } from "./dedupe-types";
 import { md5, fingerprint, qualityRank } from "./dedupe-probe";
 import { moveLoser } from "./dupescan-shared";
+import { errorText } from "../shared/error-text";
 
 /** Verdict inputs for one twin pair. */
 export interface TwinPair {
@@ -29,10 +30,6 @@ export interface DedupeApplyOps {
 }
 
 const DEFAULT_APPLY_OPS: DedupeApplyOps = { rename: renameSync };
-
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 /** The three-stage ladder for one pair: byte-MD5 first, then the acoustic
  *  fingerprint; fingerprint-identical pairs upgrade to the higher-quality

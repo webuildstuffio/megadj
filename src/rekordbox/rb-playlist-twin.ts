@@ -3,6 +3,7 @@
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { atomicReplace as atomicReplaceFile } from "../shared/atomic-file";
+import { errorText } from "../shared/error-text";
 import {
   assertRbClosed,
   backupMaster,
@@ -93,7 +94,7 @@ export function parsePlaylistXmlNodes(xml: string): PlaylistXmlNode[] {
       });
     } catch (error) {
       console.error(
-        `masterPlaylists6.xml contains an invalid NODE: ${error instanceof Error ? error.message : String(error)}`,
+        `masterPlaylists6.xml contains an invalid NODE: ${errorText(error)}`,
       );
     }
   }
@@ -222,14 +223,14 @@ export function applyPlaylistTwinMutation<T>(
     verifyPlaylistNodes(xmlPath, nodes);
     return { value, backedUpTo, xmlBackedUpTo };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorText(error);
     try {
       closed(`restoring failed ${options.what}`);
       restoreMasterBackup(options.dbPath, backedUpTo);
       atomicReplace(xmlPath, readFileSync(xmlBackedUpTo));
     } catch (restoreError) {
       throw new Error(
-        `${options.what} failed: ${message}; automatic restore also failed: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}; backups: ${backedUpTo}, ${xmlBackedUpTo}`,
+        `${options.what} failed: ${message}; automatic restore also failed: ${errorText(restoreError)}; backups: ${backedUpTo}, ${xmlBackedUpTo}`,
         { cause: restoreError },
       );
     }

@@ -18,6 +18,7 @@ export const ORIGIN_MAX = 40;
 
 import type { SQLQueryBindings } from "bun:sqlite";
 import type { NoteSeverity, StoredNote } from "../shared/types";
+import { errMessage } from "../shared/fmt";
 export { type StoredNote } from "../shared/types";
 
 export interface NoteInput {
@@ -123,10 +124,7 @@ function parseNoteData(row: NoteEventRow): Record<string, unknown> | null {
   try {
     return JSON.parse(row.data_json) as Record<string, unknown>;
   } catch (e) {
-    console.error(
-      `agent note ${row.id} has corrupt data_json`,
-      e instanceof Error ? e.message : e,
-    );
+    console.error(`agent note ${row.id} has corrupt data_json`, errMessage(e));
     return null;
   }
 }

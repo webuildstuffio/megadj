@@ -10,6 +10,7 @@
  * status to open — the only way a "no" comes back (§5 Phase 0 tests).
  */
 import type { Database, SQLQueryBindings } from "bun:sqlite";
+import { errorText } from "../../shared/error-text";
 import type {
   Finding,
   FindingKind,
@@ -112,7 +113,7 @@ export class HygieneStore {
     } catch (e) {
       console.error(
         `hygiene finding ${r.id} has corrupt JSON — skipping`,
-        e instanceof Error ? e.message : e,
+        errorText(e),
       );
       return null;
     }

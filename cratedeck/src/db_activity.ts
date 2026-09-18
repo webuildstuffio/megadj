@@ -2,6 +2,7 @@ import type { Database } from "bun:sqlite";
 import type { Job, JobKind, TimelineEvent } from "../shared/types";
 import { MAX_EVENTS_PER_DRIVE } from "./db_core";
 import { DBLibrary } from "./db_library";
+import { errMessage } from "../shared/fmt";
 
 interface EventRow {
   id: string;
@@ -242,7 +243,7 @@ export class DBActivity extends DBLibrary {
     } catch (error) {
       console.error(
         `checksum result for ${driveId} has corrupt result_json`,
-        error instanceof Error ? error.message : error,
+        errMessage(error),
       );
       return null;
     }

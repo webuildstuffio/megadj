@@ -20,6 +20,7 @@ import { AUDIO_EXTS } from "../shared/audio-exts";
 import { walkTree } from "../shared/walk-tree";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson, setExit } from "../shared/cli-output";
+import { errorText } from "../shared/error-text";
 import { md5Cli } from "./md5-cli";
 
 export interface ShelfSyncOptions {
@@ -162,7 +163,7 @@ function syncToVolume(
           throw new Error("byte mismatch after copy");
       } catch (e) {
         res.failed++;
-        opts.log?.(`failed: ${p.rel} (${e instanceof Error ? e.message : e})`);
+        opts.log?.(`failed: ${p.rel} (${errorText(e)})`);
         continue;
       }
     }

@@ -6,6 +6,7 @@
 // archive DB degrades to empty results — never throws, never 500s the
 // API route the subclass feeds (regression-covered by each subclass).
 import { Database } from "bun:sqlite";
+import { errMessage } from "../shared/fmt";
 
 export abstract class ArchiveLedgerReader {
   private db: Database | null = null;
@@ -30,7 +31,7 @@ export abstract class ArchiveLedgerReader {
       // the route this feeds must answer, not fail
       console.error(
         `${this.label}: archive DB unavailable at ${this.path}`,
-        e instanceof Error ? e.message : e,
+        errMessage(e),
       );
       this.db = null;
     }
@@ -45,10 +46,7 @@ export abstract class ArchiveLedgerReader {
     try {
       return db.query(sql).all(...params) as T[];
     } catch (e) {
-      console.error(
-        `${this.label}: ledger query failed`,
-        e instanceof Error ? e.message : e,
-      );
+      console.error(`${this.label}: ledger query failed`, errMessage(e));
       return [];
     }
   }
