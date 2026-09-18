@@ -10,7 +10,19 @@
  */
 
 import type { Database } from "bun:sqlite";
-import { sqliteRowId } from "./sqlite-id";
+
+/** Convert bun:sqlite's row-id union without silently rounding a 64-bit id.
+ *  (Was sqlite-id.ts, 10L — merged per #221; sweeps + state_beats are its
+ *  only two consumers, both in this directory.) */
+export function sqliteRowId(raw: number | bigint): number {
+  const id = Number(raw);
+  if (!Number.isSafeInteger(id) || id < 1) {
+    throw new RangeError(
+      `SQLite row id ${raw.toString()} is outside JavaScript's safe integer range`,
+    );
+  }
+  return id;
+}
 
 export interface ShelfSweepRow {
   id: number;
