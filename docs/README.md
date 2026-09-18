@@ -146,7 +146,7 @@ for the ideas closed NOT_PLANNED.
   gates stay absolute upstream (artist gate, numeric/`Music` refusal) —
   a vote only exists for a claim that already passed its rung's gates.
 - **Genre explainability + the live run (Sep 17, #215)** — `megadj
-  genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
+genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
   `/api/archive/genre-why`, FullTags ⌗ Genre Why tab) replays the
   write path's exact election seam over a row's stored breakdown; a
   drifted row reports `matches_db:false` (CLI exit 1). The Genre tab's
@@ -187,6 +187,12 @@ for the ideas closed NOT_PLANNED.
   run first, so timbre only breaks ties among already-mixable
   candidates — it never rescues a clash. Tracks without stored vectors
   get no bonus, never a penalty (honest-gap rule).
+- [Embedding learnings from megamem (Sep 17)](megaset/embedding-learnings-from-megamem-2026-09-17.md)
+  — cross-pollination review of the megamem dev-docs corpus (1786
+  experiments, 127 model-swap MDLs) for MegaSet's embedding prior:
+  whitening/hubness convergence with our tier-0 results, prior-weight
+  and A/B methodology (Wilcoxon), what doesn't transfer, and 5 ranked
+  actions (ledger model column, pre-registered A/B, spectral diagnostic).
 
 ### CrateDeck
 
