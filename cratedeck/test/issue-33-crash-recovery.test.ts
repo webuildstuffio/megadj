@@ -1,14 +1,32 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync } from "node:fs";
+import { describe, expect, test, afterEach } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DB } from "../src/db";
 
 const DRIVE_ID = "1111-2222-3333";
 
+// Leak guard (#236): fixture DBs (each ~4.5 MB after the 2,005-row
+// event loop) are removed when each test ends — the old runs left
+// 1,207 cratedeck-event-cap-* dirs in tmpdir (measured Sep 18).
+const createdDirs: string[] = [];
+
+function leakTrackedTmp(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  createdDirs.push(dir);
+  return dir;
+}
+
+afterEach(() => {
+  while (createdDirs.length > 0) {
+    const dir = createdDirs.pop();
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 describe("issue #33: process-crash recovery", () => {
   test("a SIGKILL during a running job is recovered on the next boot", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "cratedeck-kill-9-"));
+    const dir = leakTrackedTmp("cratedeck-kill-9-");
     const dbPath = join(dir, "db.sqlite");
     const dbUrl = new URL("../src/db.ts", import.meta.url).href;
     const childCode = `
@@ -41,7 +59,7 @@ describe("issue #33: process-crash recovery", () => {
   test(
     "timeline event retention remains capped across a database restart",
     () => {
-      const dir = mkdtempSync(join(tmpdir(), "cratedeck-event-cap-"));
+      const dir = leakTrackedTmp("cratedeck-event-cap-");
       const dbPath = join(dir, "db.sqlite");
       const db = new DB(dbPath);
       db.upsertDrive({

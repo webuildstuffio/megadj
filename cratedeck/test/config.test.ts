@@ -1,5 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { describe, it, expect, afterEach } from "bun:test";
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "../src/config";
@@ -7,6 +7,24 @@ import {
   parseBoothFleetRequest,
   writeConfigBoothFleet,
 } from "../src/booth_routes";
+
+// Leak guard (#236): every fixture dir this suite creates is removed
+// when the test ends — the old runs left 1,076 cratedeck-config-* dirs
+// in tmpdir (measured Sep 18).
+const createdDirs: string[] = [];
+
+function leakTrackedTmp(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  createdDirs.push(dir);
+  return dir;
+}
+
+afterEach(() => {
+  while (createdDirs.length > 0) {
+    const dir = createdDirs.pop();
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 describe("config", () => {
   it("loads defaults with no config file", () => {
@@ -65,7 +83,7 @@ describe("config", () => {
   });
 
   it("round-trips a saved non-default booth fleet", () => {
-    const root = mkdtempSync(join(tmpdir(), "cratedeck-config-"));
+    const root = leakTrackedTmp("cratedeck-config-");
     writeFileSync(join(root, "config.toml"), "[server]\nport = 7742\n");
 
     writeConfigBoothFleet(root, ["cdj-2000"]);

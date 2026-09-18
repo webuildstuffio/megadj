@@ -42,6 +42,7 @@ import type { AnlzSpikeMode } from "../rekordbox/anlz-spike";
 export const MAINTENANCE_VERBS = [
   "shelf-hygiene",
   "shelf-restore",
+  "tmp-purge",
   "rb-fix-paths",
   "rb-unmatched",
   "rb-adopt",
@@ -162,6 +163,25 @@ const shelfHygieneCmd: MaintenanceHandler = async (rest) => {
     bucket: flags.strings.get("bucket"),
     shelfVolume: flags.strings.get("shelf"),
   });
+};
+
+// ---- tmp tier ------------------------------------------------------------
+
+const tmpPurgeCmd: MaintenanceHandler = async (rest) => {
+  // #236: the stale-fixture sweep (cratedeck-hashcancel-* et al grew to
+  // 16k dirs / 2.6 GB). Read-only by default; --apply deletes; --all
+  // drops the 24h age gate (only when the test gate is known-quiet).
+  const flags = parseFlags(rest, [], ["apply", "all", "json"]);
+  const json = jsonFlag(flags);
+  const { tmpPurge, printTmpPurgeReport } = await import("../shelf/tmp-purge");
+  const r = tmpPurge({
+    apply: flags.bools.has("apply"),
+    all: flags.bools.has("all"),
+    json,
+    log: progressLog(json),
+  });
+  await emitResult(json, r, printTmpPurgeReport);
+  if (!r.ok) setExit(1);
 };
 
 // ---- rekordbox tier ------------------------------------------------------
@@ -540,6 +560,7 @@ export const MAINTENANCE_COMMANDS: Readonly<
 > = {
   "shelf-hygiene": shelfHygieneCmd,
   "shelf-restore": shelfRestoreCmd,
+  "tmp-purge": tmpPurgeCmd,
   "rb-fix-paths": rbFixPathsCmd,
   "rb-unmatched": rbUnmatchedCmd,
   "rb-adopt": rbAdoptCmd,

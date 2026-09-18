@@ -274,6 +274,14 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   {
+    name: "tmp-purge",
+    group: "cratedeck",
+    block: [
+      "  megadj tmp-purge [--apply] [--all] [--json]   sweep stale test fixture dirs from the OS tmpdir;",
+      "                                               age-gated >24h by default, read-only without --apply",
+    ],
+  },
+  {
     name: "shelf-sync",
     group: "fulltags",
     block: [

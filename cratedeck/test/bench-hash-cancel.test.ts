@@ -5,19 +5,33 @@
 // every future sweep would report the healthy file as "changed".
 // Invariant under test: whatever lands in the ledger equals the FULL file
 // digest (or nothing lands at all).
-import { describe, expect, it } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { describe, expect, it, afterEach } from "bun:test";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { checksumLedger, hashFileAsync } from "../src/bench";
 import { DB } from "../src/db";
 
+// Leak guard (#236): these dirs hold multi-MB zero-filled fixtures and
+// tmpdir is shared — every prior run left one behind (25,892 dirs /
+// 16 GB measured Sep 18). Cleanup runs even when an assertion throws.
+const createdDirs: string[] = [];
+
 function tmpDir(): string {
-  return join(
+  const dir = join(
     tmpdir(),
     `cratedeck-hashcancel-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
+  createdDirs.push(dir);
+  return dir;
 }
+
+afterEach(() => {
+  while (createdDirs.length > 0) {
+    const dir = createdDirs.pop();
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 /** Write a file big enough to clear biggestFiles' 1MB audio floor and span
  *  multiple stream chunks (so a cancel can land mid-hash). */
