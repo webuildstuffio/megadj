@@ -204,9 +204,7 @@ async function decisionMode(
     });
   else {
     if (bucket)
-      console.error(
-        `hygiene: bucket ${bucket}: ${bucketMatched} confirmed`,
-      );
+      console.error(`hygiene: bucket ${bucket}: ${bucketMatched} confirmed`);
     for (const f of failed) console.error(`hygiene: ${f.id}: ${f.why}`);
   }
   if (failed.length) setExitCode(1);

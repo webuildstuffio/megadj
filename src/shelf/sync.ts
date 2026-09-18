@@ -208,9 +208,7 @@ export async function shelfSync(opts: ShelfSyncOptions): Promise<void> {
     return;
   }
 
-  log(
-    `sync: ${plans.length} archive tracks${dryRun ? " (dry run)" : ""}`,
-  );
+  log(`sync: ${plans.length} archive tracks${dryRun ? " (dry run)" : ""}`);
   for (const r of results) {
     if (!r.mounted) {
       log(`  ${r.volume}: not mounted — skipped`);

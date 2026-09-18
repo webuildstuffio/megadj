@@ -106,8 +106,7 @@ export async function shelfArchive(opts: ShelfArchiveOptions): Promise<void> {
 
   if (!shelfMounted) {
     const msg = `shelf not mounted (no ${contents})`;
-    if (json)
-      await writeJson({ command: "archive", error: msg, ok: false });
+    if (json) await writeJson({ command: "archive", error: msg, ok: false });
     else log(`archive: ${msg}`);
     // #160 ring 3: setExit is the one mutation point.
     setExit(1);

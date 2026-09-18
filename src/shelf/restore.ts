@@ -172,8 +172,7 @@ export async function shelfRestore(
     value: ShelfRestoreResult,
   ): Promise<ShelfRestoreResult> => {
     if (opts.json) await writeJson(value);
-    else if (!value.ok)
-      log(`restore: ${value.error ?? "restore failed"}`);
+    else if (!value.ok) log(`restore: ${value.error ?? "restore failed"}`);
     else log(`restore: restored ${value.source} → ${value.destination}`);
     return value;
   };
