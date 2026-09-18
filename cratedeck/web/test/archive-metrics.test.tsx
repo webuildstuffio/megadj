@@ -3,7 +3,7 @@
 // extraction) + metricIssues (pill assembly); these pins keep the metric
 // math byte-stable across further splits.
 import { describe, expect, test } from "bun:test";
-import { archiveMetrics } from "../products/cratedeck/ArchiveTab";
+import { archiveMetrics } from "../products/cratedeck/ArchiveTabVerdict";
 import type {
   ArchiveGridCrossCheck,
   ArchiveIngestStatus,
