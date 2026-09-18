@@ -7,8 +7,8 @@
 
 import { statSync, type Stats } from "node:fs";
 import { basename, join } from "node:path";
-import { walkAudioFiles } from "../../fulltags/writer";
-import { groundTruth } from "../../fulltags/readers";
+import { walkAudioFiles } from "../../fulltags/write/writer";
+import { groundTruth } from "../../fulltags/write/readers";
 import { normalize } from "../../fulltags/identity";
 import type { ArchiveState } from "../../archive/state";
 import { commandLog } from "../../progress";

@@ -12,7 +12,7 @@ import type {
   TrackInput,
 } from "./pipeline-types";
 import { scSearch } from "./sources/sc-search";
-import { canonGenre, type TagPatch } from "./schema";
+import { canonGenre, type TagPatch } from "./write/schema";
 import { detectRemix } from "./sources/remix";
 import {
   beatportLookup,
@@ -28,8 +28,8 @@ import { analyzeKey } from "./analysis/key-analysis";
 import { fingerprintWithDuration } from "./analysis/fingerprint";
 import { analyzeMoods, moodStamp } from "./analysis/models";
 import { mbLookupCached } from "./sources/mb_lookup";
-import { embedArt } from "./writer";
-import { type Truth } from "./readers";
+import { embedArt } from "./write/writer";
+import { type Truth } from "./write/readers";
 import { basename } from "node:path";
 
 /** Mutable stage context: one track's accumulated patch + notes, plus

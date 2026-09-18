@@ -20,7 +20,7 @@ import { openLedger } from "../shared/sqlite-ledger";
 import { basename, join } from "node:path";
 import { fingerprintFile } from "../fulltags/analysis/fingerprint";
 import { nameSimilarityTokens } from "../fulltags/analysis/fingerprint-dedupe";
-import { walkAudioFiles } from "../fulltags/writer";
+import { walkAudioFiles } from "../fulltags/write/writer";
 import { commandLog } from "../progress";
 import { DupFpCache, type DupGroup as DupeGroup } from "./dupescan-shared";
 import {

@@ -13,11 +13,11 @@ import {
   embedArt as ftEmbedArt,
   walkAudioFiles,
   writePatchSync,
-} from "./writer";
+} from "./write/writer";
 import { fetchImage as ftFetchImage } from "./sources/art-sources";
-import { groundTruth as ftGroundTruth } from "./readers";
-import { validatePatch } from "./schema-guards";
-import type { TagPatch } from "./schema";
+import { groundTruth as ftGroundTruth } from "./write/readers";
+import { validatePatch } from "./write/schema-guards";
+import type { TagPatch } from "./write/schema";
 export const home = process.env.HOME!;
 export const ARCH = process.env.MEGADJ_MUSIC_DIR ?? `${home}/Music/DJ-Imports`;
 export const QUEUE = `${home}/.local/state/megadj/artwork-queue.jsonl`;

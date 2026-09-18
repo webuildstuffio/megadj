@@ -15,7 +15,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { walkAudioDir } from "../shared/audio-walk";
 import { analyzeKeys, type KeyResult } from "./analysis/key-analysis";
-import { groundTruth } from "./readers";
+import { groundTruth } from "./write/readers";
 
 // Note→Camelot maps, extracted from the analyzer's own camelot_output()
 // (authoritative — a generic circle-of-fifths table disagrees with it).

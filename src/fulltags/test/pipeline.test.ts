@@ -82,7 +82,7 @@ describe("enrichTrack (offline stages)", () => {
         artworkQueue: null,
       },
     );
-    const t = await import("../readers").then((m) => m.groundTruth(p));
+    const t = await import("../write/readers").then((m) => m.groundTruth(p));
     expect(t.title).toBe("Hint Song");
     expect(t.artist).toBe("Hint Artist");
     expect(res.notes).toContain("title");

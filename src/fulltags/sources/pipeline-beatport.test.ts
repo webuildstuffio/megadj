@@ -9,7 +9,7 @@ import {
   type BpTrack,
 } from "./beatport";
 import { setScSearchImpl, type SearchRow, type ScHit } from "./sc-search";
-import { groundTruth } from "../readers";
+import { groundTruth } from "../write/readers";
 
 const DIR = `/tmp/fulltags-bp-pipeline-test-${process.pid}`;
 
@@ -161,7 +161,7 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
         async () => [hit({ remixers: ["Other Remixer"] })],
         async () => {
           const p = await makeFile("credited.mp3");
-          const { writePatch } = await import("../writer");
+          const { writePatch } = await import("../write/writer");
           await writePatch(p, { remixer: "Existing Credit" });
           await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },
@@ -184,7 +184,7 @@ describe("enrichTrack × Beatport (second source, behind SC)", () => {
           const p = await makeFile("both.mp3");
           // Pre-seed genre from "SC" by writing it first; the pipeline must
           // keep it even though BP offers Techno.
-          const { writePatch } = await import("../writer");
+          const { writePatch } = await import("../write/writer");
           await writePatch(p, { genre: "House" });
           const res = await enrichTrack(
             { path: p, title: "Signal", artist: "Test Artist" },

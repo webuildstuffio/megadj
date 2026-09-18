@@ -14,12 +14,11 @@
 import { $ } from "bun";
 import { extname } from "node:path";
 import { existsSync, renameSync, unlinkSync } from "node:fs";
-import { walkAudioDir } from "../shared/audio-walk";
+import { walkAudioDir } from "../../shared/audio-walk";
 import type { EnrichedMetadata, TagPatch } from "./schema";
 import { validatePatch } from "./schema-guards";
 import { id3Open } from "./mutagen";
-import { fetchImage } from "./sources/art-sources";
-export { itunesArtwork, soundcloudArtwork } from "./sources/art-sources";
+import { fetchImage } from "../sources/art-sources";
 import {
   atomicMutagenWrite,
   atomicOps,
@@ -41,8 +40,8 @@ export type { WriterAtomicOps } from "./writer-mutagen";
 // AUDIO_EXTS/isAudioFile delegate to the megadj SSOT (issue #69/#142):
 // the package previously shipped its own six-format set, so ogg/opus and
 // aac/alac were invisible to every package-side pass.
-export { AUDIO_EXTS } from "../shared/audio-exts";
-export { isAudioFile } from "../shared/audio-exts";
+export { AUDIO_EXTS } from "../../shared/audio-exts";
+export { isAudioFile } from "../../shared/audio-exts";
 
 /** Recursively list audio files under `dir`, skipping hidden entries.
  * One shared walker for every "collect the archive" pass — fetch/audit,

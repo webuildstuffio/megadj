@@ -179,4 +179,4 @@ export function sanitizeGenreFolder(genre: string | null): string {
 export {
   canonicalizeClaim as canonGenre,
   SC_GENRE_CANON,
-} from "./genre/genre-vocab";
+} from "../genre/genre-vocab";

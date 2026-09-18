@@ -6,8 +6,8 @@
  * Keeping those concerns here lets BPM, genre, and effnet use one harness
  * without weakening the synchronous writer contract.
  */
-import { writePatchSync } from "./writer";
-import type { TagPatch } from "./schema";
+import { writePatchSync } from "./write/writer";
+import type { TagPatch } from "./write/schema";
 
 export type GateDimension = "bpm" | "genre" | "effnet";
 

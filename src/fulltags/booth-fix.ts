@@ -31,8 +31,8 @@
  */
 import { basename } from "node:path";
 import { existsSync } from "node:fs";
-import { groundTruth } from "./readers";
-import { walkAudioFiles } from "./writer";
+import { groundTruth } from "./write/readers";
+import { walkAudioFiles } from "./write/writer";
 import { probeFile } from "./media-probe";
 import { playerCompat, isHiresOnly } from "./player-compat";
 import { boothTextCompat, type TextCompatResult } from "./booth-text";

@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { guessFromFreeText } from "../genre/genre-vocab";
-import { buildMetadata, cleanTitle, extractComposer } from "../metadata-build";
+import {
+  buildMetadata,
+  cleanTitle,
+  extractComposer,
+} from "../write/metadata-build";
 
 describe("cleanTitle", () => {
   test("strips official-audio noise", () => {

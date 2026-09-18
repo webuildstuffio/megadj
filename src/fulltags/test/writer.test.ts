@@ -1,7 +1,7 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
 import { writePatch, embedArt, groundTruth } from "../index-all";
-import { parseMutagenJsonOutput } from "../mutagen";
+import { parseMutagenJsonOutput } from "../write/mutagen";
 
 const DIR = `/tmp/fulltags-writer-test-${process.pid}`;
 

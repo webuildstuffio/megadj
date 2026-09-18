@@ -12,8 +12,11 @@ import { type RateLimiter, withRetry } from "../ratelimit";
 import { Downloader, type DownloadResult } from "../downloader";
 import { ytdlpCookieArgs } from "../ytdlp";
 import { commandLog, ProgressBar } from "../../progress";
-import { applyTags } from "../../fulltags/writer";
-import { buildMetadata, type YtdlpInfo } from "../../fulltags/metadata-build";
+import { applyTags } from "../../fulltags/write/writer";
+import {
+  buildMetadata,
+  type YtdlpInfo,
+} from "../../fulltags/write/metadata-build";
 import { guessFromFreeText } from "../../fulltags/genre/genre-vocab";
 import { isRecord, isUnknownArray } from "../../../cratedeck/shared/guards";
 

@@ -4,9 +4,9 @@ import {
   sanitizeGenreFolder,
   SC_GENRE_CANON,
   type FullTag,
-} from "../schema";
+} from "../write/schema";
 import { guessFromFreeText } from "../genre/genre-vocab";
-import { validatePatch } from "../schema-guards";
+import { validatePatch } from "../write/schema-guards";
 import { runCanonGenreCases, runValidatePatchCases } from "./patchCases";
 
 describe("schema: genre canon", () => {

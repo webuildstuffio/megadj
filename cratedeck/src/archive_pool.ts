@@ -3,7 +3,7 @@
 // ⋈ embeddings ledgers) + pool freshness. Feeds the pure engine in
 // megaset.ts. Unparsable keys/rows degrade to null, never throw.
 import { existsSync } from "node:fs";
-import { groundTruth } from "../../src/fulltags/readers";
+import { groundTruth } from "../../src/fulltags/write/readers";
 import { resolve, sep } from "node:path";
 import {
   isFiniteNumber,

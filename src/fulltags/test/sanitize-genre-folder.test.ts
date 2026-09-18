@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sanitizeGenreFolder } from "../schema";
+import { sanitizeGenreFolder } from "../write/schema";
 
 /** Sep 11 regression: unix timestamps baked into scraped genre tags were
  *  used as folder names — 278 tracks landed in 278 one-file numeric

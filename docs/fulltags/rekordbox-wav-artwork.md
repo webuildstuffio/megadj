@@ -68,7 +68,7 @@ same rules the repo already uses for any rekordbox touching (see below).
 ## The chosen implementation — Option A
 
 > **Sep 2026 update:** a second fix shipped alongside this — **ingest now
-> converts every new WAV to AIFF on the way in** (`src/fulltags/convert.ts`),
+> converts every new WAV to AIFF on the way in** (`src/fulltags/write/convert.ts`),
 > so anything ingested from now on has native AIFF covers and never needs
 > Option A. Option A remains the one-time fix for legacy WAVs
 > already in the archive.

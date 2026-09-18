@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { analyzeMoods, type MoodResult } from "./models";
-import { groundTruth } from "../readers";
+import { groundTruth } from "../write/readers";
 import { parseMoodStamp } from "../pipeline";
 import type { ArchiveState, TrackRow } from "../../archive/state";
 import { commandLog } from "../../progress";

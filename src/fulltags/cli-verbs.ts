@@ -5,9 +5,9 @@ import { existsSync, statSync, readdirSync } from "node:fs";
 import { setExit, writeJson } from "../shared/cli-output";
 import { basename, join } from "node:path";
 import { enrichAll, readAiStamps } from "./pipeline";
-import { groundTruth } from "./readers";
-import { completeness } from "./schema";
-import { isAudioFile } from "./writer";
+import { groundTruth } from "./write/readers";
+import { completeness } from "./write/schema";
+import { isAudioFile } from "./write/writer";
 import type { CliCtx } from "./cli-args";
 
 export function collectFiles(target: string): string[] {

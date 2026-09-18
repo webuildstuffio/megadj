@@ -4,7 +4,7 @@
 // the explicit isFinite+range gate, census-visible (sanction removed
 // from boundary-number-census).
 import { describe, test, expect } from "bun:test";
-import { yearFromDate } from "../writer";
+import { yearFromDate } from "../write/writer";
 
 describe("yearFromDate (#230)", () => {
   test("plain and padded years parse", () => {

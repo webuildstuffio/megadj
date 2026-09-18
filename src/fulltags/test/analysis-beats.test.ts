@@ -72,7 +72,7 @@ describe("beat_this BPM (roadmap #2)", () => {
       expect(note).toBeTruthy();
       expect(note).not.toContain("SKIP");
       expect(r.notes.some((n) => n.includes("→120"))).toBe(true);
-      const { groundTruth } = await import("../readers");
+      const { groundTruth } = await import("../write/readers");
       expect(groundTruth(p).bpm).toBe(120);
       const r2 = await enrichTrack(
         { path: p },

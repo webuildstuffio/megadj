@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { canonicalizeClaim } from "../genre/genre-vocab";
-import { validatePatchUntrusted } from "../schema-guards";
+import { validatePatchUntrusted } from "../write/schema-guards";
 
 /** Shared validatePatch scenario cases (used by schema.test.ts and
  *  compat-fetch-lib.test.ts — the archive-ledger validateTagValues shim

@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
-import { wavToAiff } from "../convert-aiff";
+import { wavToAiff } from "../write/convert-aiff";
 
 const DIR = `/tmp/megadj-wav-aiff-test-${process.pid}`;
 

@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { embedArt, groundTruth, writePatchSync } from "../index-all";
-import type { WriterAtomicOps } from "../writer";
+import type { WriterAtomicOps } from "../write/writer";
 
 const DIR = `/tmp/fulltags-wsync-test-${process.pid}`;
 

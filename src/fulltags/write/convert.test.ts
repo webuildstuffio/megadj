@@ -2,9 +2,9 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
 import { mkdtempSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { ArchiveState } from "../archive/state";
+import { ArchiveState } from "../../archive/state";
 import { convertArchive } from "./convert";
-import { makeWav } from "../test-support/audio-fixtures";
+import { makeWav } from "../../test-support/audio-fixtures";
 
 /**
  * megadj convert — archive-wide wav→aiff (legacy WAVs have no art on the

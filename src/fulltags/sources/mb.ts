@@ -7,7 +7,7 @@
  * `megadj enrich` now delegates here — the old duplicate writer in
  * src/commands/enrich.ts is deleted, one genre ladder remains.
  */
-import { canonGenre } from "../schema";
+import { canonGenre } from "../write/schema";
 
 interface MbArtistSearch {
   artists?: {

@@ -11,7 +11,7 @@ import type { ArchiveState } from "../../archive/state";
 import { commandLog } from "../../progress";
 import { writeJson } from "../../shared/cli-output";
 import { mbGenreForArtist } from "../sources/mb";
-import { writePatch } from "../writer";
+import { writePatch } from "../write/writer";
 
 export interface EnrichOptions {
   state: ArchiveState;

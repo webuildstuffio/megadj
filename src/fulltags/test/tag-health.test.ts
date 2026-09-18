@@ -8,7 +8,7 @@
  * distinguishes isolated accents from dominant high-byte runs.
  */
 import { describe, test, expect } from "bun:test";
-import { tagHealth } from "../tag-health";
+import { tagHealth } from "../write/tag-health";
 import { hasControlChars, isMojibake } from "../booth-text";
 
 describe("isMojibake (SSOT — tag-health depends on it)", () => {

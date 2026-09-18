@@ -4,7 +4,7 @@
 // sequencer; the DB register/move tail stays there (it owns opts/log).
 import { createHash } from "node:crypto";
 import { basename } from "node:path";
-import { wavToAiff } from "../../fulltags/convert-aiff";
+import { wavToAiff } from "../../fulltags/write/convert-aiff";
 import type { IngestCounters } from "./ingest-register";
 import type { IngestOptions } from "./ingest";
 import type { Record_ } from "./ingest-probe";

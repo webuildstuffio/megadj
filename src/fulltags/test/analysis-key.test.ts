@@ -16,7 +16,7 @@ import {
   analyzeKeys,
   parseKeyServerLine,
 } from "../analysis/key-analysis";
-import { writePatchSync } from "../writer";
+import { writePatchSync } from "../write/writer";
 import { readStampGuard } from "./stamp";
 import { enrichTrack } from "../pipeline";
 import { DIR, makeFile } from "./analysis";

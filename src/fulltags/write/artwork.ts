@@ -10,13 +10,13 @@
  */
 import { readFile, appendFile } from "node:fs/promises";
 import { join, basename, extname } from "node:path";
-import type { ArchiveState } from "../archive/state";
+import type { ArchiveState } from "../../archive/state";
 import { embedArt, AUDIO_EXTS as ARTWORK_EXTS } from "./writer";
-import { fetchImage } from "./sources/art-sources";
-import type { QueueEntry } from "../getdat/commands/queue";
-export { type QueueEntry } from "../getdat/commands/queue";
-import { commandLog } from "../progress";
-import { writeJson, setExit } from "../shared/cli-output";
+import { fetchImage } from "../sources/art-sources";
+import type { QueueEntry } from "../../getdat/commands/queue";
+export { type QueueEntry } from "../../getdat/commands/queue";
+import { commandLog } from "../../progress";
+import { writeJson, setExit } from "../../shared/cli-output";
 
 export interface ArtworkOptions {
   state: ArchiveState;

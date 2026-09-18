@@ -91,7 +91,7 @@ const artwork: CliCommandHandler = async (rest, { state }) => {
   const flags = parseFlags(rest, ["model", "max"], ["dry-run", "json"]);
   if (nonNegOptInvalid(flags, "max", "artwork", flags.bools.has("json")))
     return;
-  const { artwork: addArtwork } = await import("./fulltags/artwork");
+  const { artwork: addArtwork } = await import("./fulltags/write/artwork");
   await addArtwork({
     state,
     model: flags.strings.get("model"),
@@ -168,8 +168,8 @@ const audit: CliCommandHandler = async (rest, { musicDir }) => {
 
 const tagCheck: CliCommandHandler = async (rest, { musicDir }) => {
   const flags = parseFlags(rest, [], ["json"]);
-  const { walkAudioFiles } = await import("./fulltags/writer");
-  const { tagHealth } = await import("./fulltags/tag-health");
+  const { walkAudioFiles } = await import("./fulltags/write/writer");
+  const { tagHealth } = await import("./fulltags/write/tag-health");
   const files = walkAudioFiles(musicDir);
   const bad: { file: string; reasons: string[] }[] = [];
   for (const file of files) {

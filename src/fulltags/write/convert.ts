@@ -15,16 +15,16 @@
  */
 import { basename } from "node:path";
 import { walkAudioFiles } from "./writer";
-import { probeFile } from "./media-probe";
-import { playerCompat, isHiresOnly } from "./player-compat";
+import { probeFile } from "../media-probe";
+import { playerCompat, isHiresOnly } from "../player-compat";
 import { wavToAiff } from "./convert-aiff";
 import {
   fetchAndEmbedArtwork,
   flushArtworkQueue,
-} from "../getdat/commands/ingest-art";
-import type { QueueEntry } from "../getdat/commands/queue";
-import { commandLog } from "../progress";
-import type { ArchiveState } from "../archive/state";
+} from "../../getdat/commands/ingest-art";
+import type { QueueEntry } from "../../getdat/commands/queue";
+import { commandLog } from "../../progress";
+import type { ArchiveState } from "../../archive/state";
 
 export interface ConvertOptions {
   state: ArchiveState;

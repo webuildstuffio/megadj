@@ -19,9 +19,9 @@ const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
   // #230 (Sep 17): writer.ts applyTags's year parse was UPGRADED from a
   // sanctioned raw Number() to an isFinite-gated site — the sanction is
   // gone (sanctioned 16→15, guarded 25→26), see the counts trail below.
-  "src/fulltags/writer-mutagen.ts::mp4Statement::Number(v)":
+  "src/fulltags/write/writer-mutagen.ts::mp4Statement::Number(v)":
     "the bpm branch receives a typed internal TagPatch number before serialization.",
-  "src/fulltags/writer-mutagen.ts::mp4VerifyStatement::Number(v)":
+  "src/fulltags/write/writer-mutagen.ts::mp4VerifyStatement::Number(v)":
     "the verifier receives the same typed internal TagPatch BPM number before serialization.",
   // #90 scope 1: parseMoodStamp re-homed pipeline.ts → pipeline-stamps.ts
   // (owner+path moved; the sanction follows the site).
@@ -128,14 +128,15 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // degrades to a full drain at 0, never a crash) — digest shifted.
     // Digest pinned to the shared-worktree scan including the concurrent
     // fetch-feed work (the #79/#80 precedent): b8a3d783.
-    // Sep 18 (#220 analysis/ slice): the writer-mutagen + pipeline-stamps
-    // sanctions re-key to src/fulltags/analysis/* owners re-homed from the
-    // fulltags root (same calls, same guards, counts unchanged) — digest
-    // shifted: 86f96c24.
+    // Sep 18 (#220 analysis/ slice): file re-homes moved owners (digest
+    // input re-rooted; same calls, same guards, counts unchanged).
+    // Sep 18 (#220 write/ slice): the two writer-mutagen mp4 sanctions
+    // re-key to src/fulltags/write/writer-mutagen.ts (same calls, same
+    // guards, counts unchanged) — digest shifted: 959d7f15.
     audited: 42,
     guarded: 27,
     sanctioned: 15,
-    digest: "86f96c244e33ab52097d01316c81622bb7715fe1330911575367424373c0cdf7",
+    digest: "959d7f15f3956ac65a5ebd613bae778b36b0e6ebaa0b561dab4fa6d1ab55ef22",
   });
 });
 

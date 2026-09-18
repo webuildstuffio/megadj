@@ -125,7 +125,7 @@ export function tmpPurge(opts: TmpPurgeOptions): TmpPurgeResult {
     }
   }
 
-  const families = [...byFamily.values()].sort((a, b) => b.dirs - a.dirs);
+  const families = [...byFamily.values()].toSorted((a, b) => b.dirs - a.dirs);
   return {
     ok: true,
     root,

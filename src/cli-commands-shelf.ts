@@ -52,7 +52,7 @@ const convert: CliCommandHandler = async (rest, { state, musicDir }) => {
     ["convert"],
     ["dry-run", "no-artwork", "json"],
   );
-  const { convertArchive } = await import("./fulltags/convert");
+  const { convertArchive } = await import("./fulltags/write/convert");
   const report = await convertArchive({
     state,
     musicDir,

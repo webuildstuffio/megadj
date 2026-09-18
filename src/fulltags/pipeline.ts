@@ -18,8 +18,8 @@
  * orchestration only.
  */
 import { basename } from "node:path";
-import { groundTruth } from "./readers";
-import { writePatch } from "./writer";
+import { groundTruth } from "./write/readers";
+import { writePatch } from "./write/writer";
 import {
   type TrackCtx,
   stageRemixCredit,

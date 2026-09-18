@@ -11,7 +11,7 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
 import { readdirSync } from "node:fs";
-import { writePatch, writePatchSync } from "../writer";
+import { writePatch, writePatchSync } from "../write/writer";
 import { readAiStamps } from "../pipeline";
 import { qualityScore, probeFile } from "../media-probe";
 
@@ -64,7 +64,7 @@ describe("bug 1: `fulltags single <file>` subcommand", () => {
     // The old bug: "single" became the target → usage error, file untouched.
     expect(r.stdout).not.toContain("pass an existing file or folder");
     expect(r.stdout).toContain("DONE");
-    const t = await import("../readers").then((m) => m.groundTruth(p));
+    const t = await import("../write/readers").then((m) => m.groundTruth(p));
     expect(t.title).toBe("S");
     expect(t.artist).toBe("A");
   }, 60_000);
@@ -114,7 +114,7 @@ describe("bug 3: m4a stamps survive write + read-back", () => {
     await writePatch(p, { title: "RT", album: "AL", year: 2021 });
     const ai = readAiStamps(p);
     expect(ai.aiGenre).toBeNull(); // nothing stamped — read path is honest
-    const { groundTruth } = await import("../readers");
+    const { groundTruth } = await import("../write/readers");
     const t = groundTruth(p);
     expect(t.title).toBe("RT");
     expect(t.year).toBe("2021");
@@ -193,7 +193,7 @@ describe("bug 5: `fulltags audit --json` exit gate", () => {
       "B",
       "--tags",
     ]);
-    const t = await import("../readers").then((m) => m.groundTruth(p));
+    const t = await import("../write/readers").then((m) => m.groundTruth(p));
     expect(t.title).toBe("T");
     // genre/year/art still missing after a --tags-only pass, so the audit
     // stays red — the invariant under test: exit code always tracks ok.

@@ -1,8 +1,8 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { $ } from "bun";
-import { applyTags } from "../writer";
-import type { EnrichedMetadata } from "../schema";
-import { wavToAiff } from "../convert-aiff";
+import { applyTags } from "../write/writer";
+import type { EnrichedMetadata } from "../write/schema";
+import { wavToAiff } from "../write/convert-aiff";
 
 const DIR = `/tmp/megadj-aiff-tags-test-${process.pid}`;
 const WAV = `${DIR}/track.wav`;
