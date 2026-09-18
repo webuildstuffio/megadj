@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# =============================================================================
+# .githooks/pre-push — repo pre-push leg CHAINED onto the shared shell-config
+# hook (same pattern as .githooks/pre-commit; core.hooksPath points here, so
+# without this file the shared pre-push validation never ran in this repo).
+#
+# Policy (AGENTS.md): the full suite runs at PRE-PUSH against the SHARED
+# worktree — another agent's red WIP blocks your push; don't --no-verify
+# over it. The shared hook first runs its changed-refspec targeted
+# validation, then this file runs the repo suite.
+#
+# Bypass: git push --no-verify (or GIT_SKIP_HOOKS=1, which skips the repo
+# suite but still runs the shared hook's own gate set).
+# =============================================================================
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+
+# 1) Shared shell-config pre-push: refspec-targeted validation, unchanged.
+"$HOME/.githooks/pre-push" "$@"
+SHARED_RC=$?
+
+# 2) Repo leg: the full suite against the shared worktree.
+if [[ $SHARED_RC -eq 0 && "${GIT_SKIP_HOOKS:-}" != "1" ]]; then
+    if command -v bun >/dev/null 2>&1; then
+        (cd "$REPO_ROOT" && bun run test)
+        TEST_RC=$?
+        if [[ $TEST_RC -ne 0 ]]; then
+            echo "repo pre-push suite FAILED (see above) — push blocked." >&2
+            exit 1
+        fi
+    else
+        echo "⚠️  pre-push suite skipped: bun not found (advisory only)" >&2
+    fi
+fi
+
+exit $SHARED_RC
