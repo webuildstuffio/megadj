@@ -186,12 +186,27 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   Lazy-open expensive sessions only for real work; hermetic workers
   (`CRATEDECK_OFFLINE` kills HTTP spawns; kill the process GROUP — detached
   grandchildren reparent to launchd and leak ports).
+- Red tests/censuses during a concurrent-agent push are a torn read first:
+  re-run on settled HEAD before debugging (Sep 17: `891b330` landed mid-suite
+  and broke a `CompareCard` import mid-run; retry was green). Same for census
+  digests — a foreign WIP refactor (e.g. `job_legs.ts` → `job-legs-parse.ts`)
+  feeds the digest; verify against clean HEAD, don't "fix" your own pass.
+- The pre-push leg is the repo's OWN `.githooks/pre-push` chaining
+  `$HOME/.githooks/pre-push` + `bun run test` (landed 13e43e8, Sep 17 — until
+  then the AGENTS-documented full-suite-at-pre-push never ran; `core.hooksPath`
+  overrides the global hook dir, so an unchained hook is silently dead).
+  `src/githooks-census.test.ts` pins existence + exec bit + chained gates.
 - Suite wedges are environmental first: leaked `/tmp/megadj-*` fixtures (purge
   > 24h old) and orphaned bun processes; identify a spinning worker via open
   > file handles, not stack traces.
 - The launchctl deck server (`:7742`) goes stale the moment commits land on
   `main`: `launchctl kickstart -k` and re-probe live before debugging a route
-  delta.
+  delta. Don't assume the port either: a concurrent agent's dev server may
+  answer on a random port (Sep 17: :59997 ran the newer route while :7742
+  was absent), and E2E must bind-probe candidates before spawn — its random
+  7800–7899 range collided with the launchd megamem service (:7823), and
+  EADDRINUSE mid-boot masqueraded as "server failed to boot" (fixed
+  03e5ed2, Sep 17).
 
 ## CrateDeck
 
@@ -264,7 +279,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - Genre source matching has one artist-gate SSOT, `fulltags/src/sources/name-match.ts` (test-pinned): SoundCloud and Beatport scorers both route through it; the hard must-contain-artist gate is what makes remix-safe matches possible.
 - `fulltags/src/sources/bandcamp.ts` is the fetch ladder's third genre vote (W2b): `autocomplete_elastic` search → `scoreBcHits` (shares the artist gate) → JSON-LD/HTML page parse (tags, genre, label, art); `bcGenre` refuses numeric/`Music` junk like the SC/BP arms.
 - Genre vocabularies are consolidated in `fulltags/src/genre/genre-vocab.ts` (one module, plainly-named maps) — it replaced the `GENRE_MAP`/`SC_GENRE_CANON`/`DJ_GENRES`/`GENRE_FAMILY` twins and the two different `inferGenre` functions.
-- Genre vote ladder (#173) SHIPPED in f54ba04 (Sep 16, closed Sep 17): every rung votes (genre+weight+provenance), one election seam (`stageGenreElection`) owns tag+DB write, breakdown persists in `tracks.genre_votes`, weights versioned in code as `GENRE_VOTE_WEIGHTS` (test-pinned ordering). First-win writes are gone. The writer-only GAP closed: `genre-why.ts` is now the production reader of `ArchiveState.genreVotes()` (#215 closed Sep 17). Lesson stands: knip is blind to dead methods on live classes — only a caller census catches that class.
-- `archive.db` is megadj's own intake ledger, not a shelf copy: rows decompose into YouTube liked-videos (music-checked by `megadj sync`, mostly never downloaded), local ingests, and playlists; `pending` ≠ gap and `skipped_not_music` rows are correctly parked non-music. Never present ledger counts as library size.
+- Genre vote ladder (#173) SHIPPED in f54ba04 (Sep 16, closed Sep 17): every rung votes (genre+weight+provenance), one election seam (`stageGenreElection`) owns tag+DB write, breakdown persists in `tracks.genre_votes`, weights versioned in code as `GENRE_VOTE_WEIGHTS` (test-pinned ordering). First-win writes are gone. The writer-only GAP closed: `genre-why.ts` is now the production reader of `ArchiveState.genreVotes()` (#215 closed Sep 17). Lesson stands: knip is blind to dead methods on live classes — only a caller census catches that class. Shipped ≠ run: a day after ship, `tracks.genre_votes` was still 0 rows (no real fetch since the ship run) — quote per-cohort run state, not the feature's existence (Sep 18).
+- `archive.db` is megadj's own intake ledger, not a shelf copy: rows decompose into YouTube liked-videos (music-checked by `megadj sync`, mostly never downloaded), local ingests, and playlists; `pending` ≠ gap and `skipped_not_music` rows are correctly parked non-music. Never present ledger counts as library size. Measured decomposition (Sep 18): ~5.9k tracks = 3.1k rekordbox mirror + 750 ingest + ~2.0k liked/liked-videos (1,087 liked-videos pending, unclassified since Aug 22); known audio ~26 GB vs 3,125 rows on SHELF1. YT rows are `tracks` rows keyed by video_id ONLY — zero embeddings/beats/mood; FullTags has NO YouTube search arm (votes: SoundCloud via yt-dlp, Beatport, Bandcamp), so there is no youtube-find store to reconcile.
 - Concurrent-agent collisions resolve content-first: a foreign commit that swept staged files counts as landed when the diff is byte-identical vs the worktree (hash is irrelevant); a stash round-trip restores content byte-identical but loses the staged/unstaged distinction.
 - plugin/skills files are git symlinks (mode 120000) into .claude/skills — that IS the dedup mechanism, not duplication; `wc` over `git ls-files` double-counts symlinked content (a v1 audit claimed 1.3kL of dupes that don't exist). Verify with `git ls-files -s` mode 120000 before proposing a dedup.
