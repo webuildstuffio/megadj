@@ -10,11 +10,12 @@
  *
  * The individual probes live in doctor-checks.ts (#42 item 2 split); the
  * DB-state checks (cue kinds, dupes, playlist XML) live in doctor-state.ts.
- * This module is the runner: check order, output formats, exit codes.
+ * This module is the runner: check order, output formats, exit codes. The
+ * CheckResult shape (was doctor-types.ts, 9L — merged per #221) lives here:
+ * it is the result type of the checks this module owns.
  */
 import { existsSync, readFileSync, copyFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { CheckResult } from "./doctor-types";
 import {
   CRATEDECK_DIR,
   applyDriveNames,
@@ -37,7 +38,15 @@ import {
   masterDbPath,
 } from "./doctor-state";
 
-export type { CheckResult } from "./doctor-types";
+export interface CheckResult {
+  id: string;
+  label: string;
+  /** required = toolkit unusable without it; optional = feature-scoped. */
+  required: boolean;
+  ok: boolean;
+  detail: string;
+  fix?: string | undefined;
+}
 
 export function runDoctor(): CheckResult[] {
   const dbPath = masterDbPath(mountArg());

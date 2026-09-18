@@ -16,7 +16,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { CheckResult } from "./doctor-types";
+import type { CheckResult } from "./doctor";
 import { rekordboxRunning } from "../rekordbox/guard";
 import { incidentCuePredicatePython } from "../rekordbox/cue-incident";
 import { masterDbPath } from "../rekordbox/master-path";

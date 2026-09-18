@@ -5,7 +5,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, platform } from "node:os";
-import type { CheckResult } from "./doctor-types";
+import type { CheckResult } from "./doctor";
 
 export const MUSIC_DIR =
   process.env.MEGADJ_MUSIC_DIR ?? `${homedir()}/Music/DJ-Imports`;
