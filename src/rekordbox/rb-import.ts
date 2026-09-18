@@ -15,44 +15,38 @@
  * File fields follow the proven Sep 11 one-off (docs/usb-sync-log.md):
  * SamplerGain float (empty string crashes the flush), FileNameL clipped
  * to 60 chars, FileType by extension, FolderPath as the FULL path.
+ *
+ * Split per concern (#203, the rb-dedup pattern): this file keeps the
+ * hard pre-flight gates + the rbImport gate→probe→dupeGate→apply
+ * sequencer; rb-import-probe.ts owns phase-2 preparation (folder scan,
+ * ffprobe payload, F11 dupe gate) and rb-import-verify.ts owns the
+ * verify/apply arm (payload parsers, verificationError, applyImport).
  */
 
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-  type Stats,
-} from "node:fs";
-import { basename, extname, join } from "node:path";
-import {
-  isNonNegativeInteger,
-  isRecord,
-  isUnknownArray,
-} from "../../cratedeck/shared/guards";
-import { probeMediaSync } from "../fulltags/media-probe";
-import { fingerprintFileLength } from "../fulltags/fingerprint";
+import { existsSync, readFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { rekordboxRunning } from "./guard.js";
 import {
   applyConfirmationRefusal,
-  isDecimalIdOrNull,
-  isStringPair,
-  lastJsonLine,
   makeFail,
-  makePayloadParser,
-  parseJsonBoundary,
   printResult,
-  rbPythonFile,
   renderKitMarkers,
 } from "./rb-command-kit.js";
-import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
 import { commandLog } from "../progress";
 import { errorText } from "../shared/error-text.js";
-// AUDIO_EXTS: the #69 SSOT — the private set that lived here missed
-// .alac, so an ALAC rip reaching intake was invisible to discovery
-// (issue #200: the #69 drift class, regrown).
+// AUDIO_EXTS re-exported for the __test sink below: discovery membership
+// IS the #69 SSOT (issue #200) — the probe module imports the real set,
+// rb-import keeps a test-visible handle on it.
 import { AUDIO_EXTS } from "../shared/audio-exts";
 import { masterDbPath } from "./master-path.js";
+import { dupeGateScan, probePayloadFiles } from "./rb-import-probe";
+import {
+  applyImport,
+  parseWriteOutput,
+  parseVerifyOutput,
+  verificationError,
+  type ApplyCounters,
+} from "./rb-import-verify";
 
 export interface RbImportOptions {
   /** Drive mount root (master DB at <mount>/PIONEER/Master/master.db)
@@ -127,357 +121,6 @@ function importGateRefusal(
 const folderArg = (opts: RbImportOptions): string =>
   opts.folder.replace(/\/+$/u, "");
 
-/** rb-import phase 2 (#181): scan the flat intake folder for audio files
- *  and probe each via the ffprobe seam so rows carry real duration/
- *  bitrate. Tag halves parse the archive convention
- *  "Artist · Album · Title" from the stem. Each row also carries its
- *  chromaprint fingerprint (the F11 dupe gate's acoustic half — the ONE
- *  fpcalc spawn+parse, `fingerprintFileLength`; null degrades the gate
- *  to the path key, never aborts the import). Returns the Python payload
- *  rows (full path first, fingerprint LAST). */
-function probePayloadFiles(
-  folder: string,
-  log: (s: string) => void,
-): (string | number | null)[][] {
-  const files: [string, string][] = [];
-  // single-level intake-folder listing (the gate above already failed on
-  // a missing folder; a top-level readdir is the documented rb-import
-  // shape — intake batches are flat) — not the recursive tree walk
-  for (const e of readdirSync(folder)) {
-    if (e.startsWith(".")) continue;
-    const full = join(folder, e);
-    let st: Stats;
-    try {
-      st = statSync(full);
-    } catch {
-      continue;
-    }
-    if (st.isFile() && AUDIO_EXTS.has(extname(e).toLowerCase()))
-      files.push([full, e]);
-  }
-  if (files.length === 0) return [];
-
-  // probe durations/bitrate via ffprobe so rows carry real values
-  // (THE media seam, #80 — one spawn style, guarded JSON boundary)
-  const payloadFiles: (string | number | null)[][] = [];
-  let fingerprinted = 0;
-  for (const [full, fname] of files) {
-    const probe = probeMediaSync(full);
-    const duration = probe?.durationS ?? 0;
-    const bitrate = probe?.bitrateKbps ?? 0;
-    // tags come from the archive DB conventions: parse "Artist · Album · Title"
-    const stem = fname.replace(/\.[^.]+$/u, "");
-    const parts = stem.split(" · ");
-    const title = parts[2] ?? parts[1] ?? stem;
-    const artist = parts.length >= 3 ? (parts[0] ?? null) : (parts[0] ?? null);
-    const fp = fingerprintFileLength(full);
-    if (fp !== null) fingerprinted++;
-    payloadFiles.push([
-      full,
-      fname,
-      title,
-      artist,
-      null,
-      null,
-      null,
-      duration,
-      bitrate,
-      null,
-      null,
-      fp,
-    ]);
-  }
-  log(
-    `rb-import: probed ${payloadFiles.length} audio files (${fingerprinted} fingerprinted for the dupe gate)`,
-  );
-  return payloadFiles;
-}
-
-/** A dupe-gate refusal: the incoming file duplicates a recording already
- *  in the collection, proven by fingerprint or NFC-casefold path. */
-export interface DupeRefusal {
-  file: string;
-  matchedBy: "fingerprint" | "path";
-  rowId: string;
-}
-
-/** The F11 dupe-gate scan (read-only, ONE fresh spawn): Python emits the
- *  incoming files' path-key hits plus the duration-±2s candidate rows;
- *  TS judges fingerprint candidates through the ONE fpcalc seam — the
- *  rb-dedup shape (Python lists, TS fingerprints), never a second
- *  fpcalc spawn style. Duration prefilter first: a full-collection
- *  fpcalc pass would be minutes; candidates after ±2s are a handful. */
-function dupeGateScan(
-  dbPath: string,
-  payloadFiles: (string | number | null)[][],
-  opts: RbImportOptions,
-): { refused: DupeRefusal[] } {
-  if (opts.allowDupe) return { refused: [] };
-
-  // incoming fingerprints (already computed in phase 2, index 11)
-  const incoming = payloadFiles.flatMap((f) => {
-    const path = f[0];
-    const fp = f[11];
-    return typeof path === "string" && typeof fp === "string" && fp
-      ? [{ path, fp }]
-      : [];
-  });
-
-  const scan = rbPythonFile({
-    file: "import-gate-scan.py",
-    args: [
-      dbPath,
-      JSON.stringify({
-        files: payloadFiles.map((f) => [
-          f[0],
-          typeof f[7] === "number" ? f[7] : 0,
-        ]),
-      }),
-    ],
-    timeoutMs: 120_000,
-  });
-  const raw = parseJsonBoundary(lastJsonLine(scan.stdout), "dupe gate scan");
-  if (!isRecord(raw) || !isUnknownArray(raw.candidates)) {
-    throw new Error("dupe gate scan returned an invalid payload");
-  }
-  const candidates = raw.candidates.flatMap((c) => {
-    if (!isRecord(c)) return [];
-    const rowId = typeof c.rowId === "string" ? c.rowId : null;
-    const path = typeof c.path === "string" ? c.path : null;
-    const duration =
-      typeof c.duration === "number" && Number.isFinite(c.duration)
-        ? c.duration
-        : null;
-    const targets = isUnknownArray(c.targets) ? c.targets : [];
-    if (rowId === null || path === null || !existsSync(path)) return [];
-    return [{ rowId, path, duration, targets }];
-  });
-
-  const refused = new Map<string, DupeRefusal>();
-  // path half — NFC+casefold full-path hits (Python already judged)
-  for (const c of candidates) {
-    for (const t of c.targets) {
-      const target = String(t);
-      if (!refused.has(target)) {
-        refused.set(target, {
-          file: target,
-          matchedBy: "path",
-          rowId: c.rowId,
-        });
-      }
-    }
-  }
-  // acoustic half — fingerprint the duration candidates (the ONE seam)
-  const fpCandidates = candidates.filter(
-    (c) => !c.targets.length && c.duration !== null,
-  );
-  const fpByPath = new Map<string, string | null>();
-  const incomingByFp = new Map<string, string>();
-  for (const f of incoming) {
-    if (f.fp) incomingByFp.set(f.fp, f.path);
-  }
-  for (const c of fpCandidates) {
-    let fp = fpByPath.get(c.path);
-    if (fp === undefined) {
-      fp = fingerprintFileLength(c.path);
-      fpByPath.set(c.path, fp);
-    }
-    if (fp === null) continue;
-    const hit = incomingByFp.get(fp);
-    if (hit && !refused.has(hit))
-      refused.set(hit, { file: hit, matchedBy: "fingerprint", rowId: c.rowId });
-  }
-  return { refused: [...refused.values()] };
-}
-
-interface PyOut {
-  inserted: number;
-  already: number;
-  gated: number;
-  linked: number;
-  playlistId: string | null;
-  parentId: string | null;
-  errors: [string, string][];
-}
-
-interface VerifyOut {
-  hit: number;
-  broken: number;
-  total: number;
-  playlistRows: number;
-  contiguous: boolean;
-  playlistExists: boolean;
-}
-
-const isStringPairList = (v: unknown): v is [string, string][] =>
-  isUnknownArray(v) && v.every(isStringPair);
-const isBoolean = (v: unknown): v is boolean => typeof v === "boolean";
-
-const parseWriteShape = makePayloadParser<PyOut>(
-  "pyrekordbox write",
-  "pyrekordbox write returned an invalid result payload",
-  {
-    inserted: isNonNegativeInteger,
-    already: isNonNegativeInteger,
-    linked: isNonNegativeInteger,
-    gated: isNonNegativeInteger,
-    playlistId: isDecimalIdOrNull,
-    parentId: isDecimalIdOrNull,
-    errors: isStringPairList,
-  },
-);
-
-const parseVerifyShape = makePayloadParser<VerifyOut>(
-  "pyrekordbox post-verify",
-  "pyrekordbox post-verify returned invalid counters",
-  {
-    hit: isNonNegativeInteger,
-    broken: isNonNegativeInteger,
-    total: isNonNegativeInteger,
-    playlistRows: isNonNegativeInteger,
-    contiguous: isBoolean,
-    playlistExists: isBoolean,
-  },
-);
-
-function parseWriteOutput(raw: string): PyOut {
-  return parseWriteShape(raw);
-}
-
-function parseVerifyOutput(raw: string): VerifyOut {
-  return parseVerifyShape(raw);
-}
-
-function verificationError(
-  found: number,
-  py: PyOut,
-  verified: VerifyOut,
-): string | null {
-  // F11: gated files are accounted for but get NO content row and NO
-  // playlist row — the verify expectations use the row-bearing count.
-  const rows = py.inserted + py.already;
-  if (py.errors.length > 0)
-    return `pyrekordbox write reported ${py.errors.length} row error(s)`;
-  if (rows + py.gated !== found)
-    return `pyrekordbox write accounted for ${rows + py.gated}/${found} imported files`;
-  if (verified.total < verified.hit)
-    return `post-verify returned impossible counters (${verified.hit} hits across ${verified.total} rows)`;
-  if (verified.hit !== rows)
-    return `post-verify referenced ${verified.hit}/${rows} imported files`;
-  if (verified.broken !== 0)
-    return `post-verify found ${verified.broken} missing file path(s) in the collection`;
-  if (!verified.playlistExists)
-    return "post-verify could not re-read the playlist row";
-  if (!verified.contiguous)
-    return "post-verify found a non-contiguous playlist TrackNo sequence";
-  if (verified.playlistRows !== rows)
-    return `post-verify found ${verified.playlistRows}/${rows} playlist member rows`;
-  return null;
-}
-
-/** The success counters + error bookkeeping the apply phase threads
- *  through (mutation + verify callbacks write into these). */
-interface ApplyCounters {
-  py: PyOut;
-  backedUpTo: string | null;
-  verified: number;
-  stillBroken: number;
-}
-
-/** rb-import phase 3 (#181): the ONE sanctioned master-DB write — dated
- *  backup via the twin seam, pyrekordbox write, XML twin nodes, delayed
- *  fresh-process post-verify. Throws only for the caller's failure
- *  envelope; all counters are kept in `counters` so a mid-apply error
- *  still reports partial state. `gatedPaths` are F11 dupe-gated files —
- *  imported never, and excluded from post-verify's expected row count. */
-function applyImport(
-  ctx: {
-    dbPath: string;
-    folder: string;
-    playlist: string;
-    group: string | null;
-    payloadFiles: (string | number | null)[][];
-    gatedPaths: string[];
-    log: (s: string) => void;
-  },
-  counters: ApplyCounters,
-): void {
-  const { dbPath, playlist, group, payloadFiles, gatedPaths } = ctx;
-  const mutation = applyPlaylistTwinMutation({
-    dbPath,
-    what: "rb-import",
-    log: ctx.log,
-    onBackup: ({ db }) => {
-      counters.backedUpTo = db;
-    },
-    mutateDb: () => {
-      const result = rbPythonFile({
-        file: "import-write.kit.py",
-        args: [
-          dbPath,
-          JSON.stringify({
-            files: payloadFiles,
-            playlist,
-            group,
-            gated: gatedPaths.map((p) => [p]),
-          }),
-        ],
-        timeoutMs: 300_000,
-      });
-      const value = parseWriteOutput(lastJsonLine(result.stdout));
-      if (value.playlistId === null || value.errors.length > 0)
-        throw new Error(
-          value.errors[0]?.join(": ") ??
-            "pyrekordbox write returned no playlist id",
-        );
-      return value;
-    },
-    nodes: (value) => {
-      if (value.playlistId === null)
-        throw new Error("playlist mutation returned no playlist id");
-      const parentId = value.parentId ?? "0";
-      return [
-        ...(group && value.parentId
-          ? [
-              {
-                id: value.parentId,
-                name: group,
-                parentId: "0",
-                attribute: 1,
-              },
-            ]
-          : []),
-        {
-          id: value.playlistId,
-          name: playlist,
-          parentId,
-          attribute: 0,
-        },
-      ];
-    },
-    verifyDb: (value) => {
-      if (value.playlistId === null)
-        throw new Error("playlist mutation returned no playlist id");
-      const result = rbPythonFile({
-        file: "import-verify.py",
-        args: [
-          dbPath,
-          JSON.stringify(payloadFiles.map((file) => file[0])),
-          value.playlistId,
-        ],
-        timeoutMs: 120_000,
-      });
-      const verify = parseVerifyOutput(lastJsonLine(result.stdout));
-      counters.verified = verify.hit;
-      counters.stillBroken = verify.broken;
-      const failure = verificationError(payloadFiles.length, value, verify);
-      if (failure) throw new Error(failure);
-    },
-  });
-  counters.py = mutation.value;
-  counters.backedUpTo = mutation.backedUpTo;
-}
-
 export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   const log = opts.log ?? commandLog({ json: opts.json });
   // Issue #66 SSOT: masterDbPath owns the env override + every layout
@@ -522,7 +165,7 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   // duration-±2s candidates through the ONE fpcalc seam
   // (fingerprintFileLength — same judge rb-dedup uses). The verify leg
   // accounts for gated files by NOT expecting content rows for them.
-  const dupeGate = dupeGateScan(dbPath, payloadFiles, opts);
+  const dupeGate = dupeGateScan(dbPath, payloadFiles, opts.allowDupe);
   const gatedPaths = dupeGate.refused.map((d) => d.file);
   for (const d of dupeGate.refused)
     log(
@@ -534,8 +177,8 @@ export async function rbImport(opts: RbImportOptions): Promise<RbImportResult> {
   );
 
   // phase 3 — the apply write (backup → pyrekordbox → XML twin → verify),
-  // extracted (#181). Counters thread partial state back into the result
-  // envelope when a mid-apply error fires.
+  // extracted (#181, rb-import-verify.ts #203). Counters thread partial
+  // state back into the result envelope when a mid-apply error fires.
   const counters: ApplyCounters = {
     py: {
       inserted: 0,

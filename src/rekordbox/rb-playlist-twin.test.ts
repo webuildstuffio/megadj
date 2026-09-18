@@ -127,7 +127,9 @@ describe("playlist DB/XML twin mutation", () => {
 
   test("every playlist mutation routes through the twin seam", () => {
     for (const file of [
-      "rb-import.ts",
+      // #203 moved rb-import's apply arm to rb-import-verify.ts — the
+      // census follows the mutation site, not the CLI head.
+      "rb-import-verify.ts",
       "rb-playlist.ts",
       "rb-playlist-reconcile.ts",
     ]) {
