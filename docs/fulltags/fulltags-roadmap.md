@@ -1,6 +1,24 @@
-# FullTags — Prioritized Roadmap (rev 7.12)
+# FullTags — Prioritized Roadmap (rev 7.13)
 
 **Status:** 🧭 ACTIVE — remaining analysis gates and future stages.
+
+_Rev 7.13, 2026-09-17: **explainability shipped end to end + the queue
+re-grounded on live numbers.** #215 closed: `megadj genre-why` (CLI /
+MCP `archive_genre_why` / HTTP `/api/archive/genre-why` / FullTags ⌗
+Genre Why tab) replays the write path's exact `electGenre` seam over a
+row's stored breakdown — a drifted row reports `matches_db:false` (CLI
+exit 1) — and the Genre tab's Run view streams the ladder live (fetch
+job kind + `@event` feed + per-track vote render). Queue corrections
+from the Sep 17 docs audit: **#61 unstrand is SHIPPED in code**
+(0254c64 — `genre --refold` detects all 154 placeholders, `--apply`
+clears them via `clearGenre()`); only the operator `--apply` pass on
+the live DB remains. **#65 (LLM residue pass) closed without the verb
+shipping** — no `genre --residue` exists; the unmapped tail is live at
+63 labels / 265 rows / 93.0% family coverage (2026-09-17), so the work
+is re-filed as
+[#237](https://github.com/webuildstuffio/megadj/issues/237). Live eval
+re-measured same day: 61.9%
+baseline / **69.3%** arbitration (n=2,982, gate PASS), top-2 77.6%._
 
 _Rev 7.11, 2026-09-15: **beat analysis stack modernized — decode + session.**
 The compressed-container decode is IN-PROCESS via PyAV feeding sample arrays
@@ -203,11 +221,13 @@ roadmap re-ranked by its verdicts.** Shipped in one day: Tier-0
 diagnostics (plan re-ranked), whitening+CSLS on all retrieval surfaces,
 the `edm` umbrella refold (+7.4 LOO, gate now judged on the arbitration
 arm), and the demote-and-flag pass (96/2982 disputed, seeding-excluded,
-self-healing). Key learnings (audit §5b.4): the biggest error block was
+self-healing). Key learnings (audit §5b.6): the biggest error block was
 a scoring-policy bug, not bad labels; unanimity keeps the dispute
 census reviewable; label hygiene cleaned provenance, not the score.
 Architecture walkthrough:
-[genre-pipeline.md](genre-pipeline.md). Next highest-value queue: #61
+[genre-pipeline.md](genre-pipeline.md). Next highest-value queue (Sep 15
+at the time; #61 unstrand and the vote ladder have since shipped —
+current state: rev 7.13): #61
 (Music-placeholder unstrand), #62 (cluster-proposed labels — the only
 fix that attacks the remaining `house→techno` mass), #63 (ranked
 secondaries), then the multi-source vote ladder._
@@ -546,24 +566,28 @@ the OpenKeyScan SSOT decision (#3).
 > refold + flag work closed the scoring-policy bug AND verified the
 > remaining error mass is real sub-genre ambiguity (`house→techno` 100
 > disagreements; umbrella block down to 250/78 and now abstaining).
-> Therefore the next genre queue is, in order: **#61 Music-placeholder
-> unstrand** (S, mechanical — 154 rows invisible to BOTH seeds and
-> inference; the `?? "Music"` fallback removal HALF shipped Sep 15 —
-> roadmap Rev 7.2 — only the unstrand remains),
+> Therefore the next genre queue is, in order: **~~#61 Music-placeholder
+> unstrand~~** (**SHIPPED Sep 15, #61 closed — 0254c64**: `genre
+> --refold` detects all 154 placeholders (`unstrand:154`, idempotent)
+> and `--apply` clears them to NULL through `clearGenre()` so inference
+> re-enrolls them as queries; the operator `--apply` pass on the live
+> DB is the remaining step — see rev 7.13),
 > **#62 cluster-proposed labels** (M, the ONLY fix that
 > attacks the remaining error mass), **#63 ranked secondaries via head
 > top-3** (S–M, runs on cached embeddings), ~~**#64 human-review UI for
 > the 96 disputed rows**~~ (**SHIPPED Sep 16** — `genre --disputes` +
-> `--agree`/`--keep`/`--note`, rev 7.11), **#65 LLM residue
-> pass** (S, one-shot, for the ~6.6% unmapped tail — with the Sep 15
-> search spot-check showing the tail is ~⅔ real-but-unmapped labels:
-> phonk, EBM, new wave, D&B, merengue are REAL and mappable; the junk
-> third stays refused). The multi-source
-> vote ladder + Bandcamp arm stays M and follows once the label column
-> is clean enough to vote over. **New S item — `sc_genre_ids` orphan:**
-> the ID→name cache has no committed writer (pipeline doc §5); commit a
-> resolution command or drop the table. **2026-09-15: tracked as
-> [#108](https://github.com/webuildstuffio/megadj/issues/108).**
+> `--agree`/`--keep`/`--note`, rev 7.11), ~~**#65 LLM residue
+> pass**~~ (**closed WITHOUT shipping Sep 16** — no `genre --residue`
+> verb exists in code; the tail is live at 63 labels / 265 rows / 93.0%
+> family coverage (2026-09-17), ~⅔ real-but-unmapped per the Sep 15
+> spot-check: phonk, EBM, new wave, D&B, merengue; the junk third stays
+> refused — the residue pass is re-filed on GitHub as
+> [#237](https://github.com/webuildstuffio/megadj/issues/237)
+> (rev 7.13). The multi-source
+> vote ladder + Bandcamp arm **SHIPPED Sep 16 (#173, rev 7.12)**.
+> **~~`sc_genre_ids` orphan~~** — **DROPPED 2026-09-15
+> ([#108](https://github.com/webuildstuffio/megadj/issues/108)
+> closed)**; the census test keeps it dead.
 
 - **Structure cues (all-in-one-infer v3 / -mlx)** — M–L. Still the 10x
   item; #2's beat/downbeat ledger (DB-side, not tags) is its anchor, so
@@ -576,10 +600,13 @@ the OpenKeyScan SSOT decision (#3).
   helped MuQ but HURT CLAP (84.6→83.2) — effnet is architecturally
   CLAP-side; gate any stem-similarity work behind a 200-track probe
   before paying the 6–12 h Demucs bill (review §5 J3).**
-- **Transition-window similarity (NEW, S–M)** — outro→intro retrieval
-  over the existing patch embeddings + cues ledger (archived ideas P98; review
-  §5 J4). Cheapest genuinely-new retrieval quality: no new model, no
-  Demucs.
+- **Transition-window similarity (NEW, S–M; REJECTED Sep 16)** —
+  outro→intro retrieval over the patch embeddings + cues ledger
+  (archived ideas P98; review §5 J4) looked like the cheapest
+  genuinely-new retrieval quality, but the ledger stores whole-track
+  time-mean vectors only — window pooling needs a full re-analysis run,
+  which the item's own acceptance forbids (#113; rev 7.11). Only
+  revives if a future ledger schema persists patch embeddings.
 - **Genre vote ladder + Bandcamp arm (NEW, M)** — ~~weighted multi-source
   vote replacing first-win-writes~~ (**SHIPPED Sep 16, #173** —
   `src/fulltags/genre/genre-vote.ts`: every rung votes genre+weight+

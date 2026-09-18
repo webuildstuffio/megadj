@@ -259,29 +259,40 @@ towers on demand.
    (metadata only, excluded from seeding).
 2. Ranked secondaries via head top-3 (S–M) — the §2 pipeline; runs on
    cached embeddings in minutes, no rescan
-3. LLM residue pass (S, one-shot) — only for labels the first two can't
-   place; OpenRouter, temp 0, vocabulary-constrained; **now fed by a
+3. ~~LLM residue pass (S, one-shot)~~ — its issue #65 closed Sep 16
+   WITHOUT the verb shipping (no `genre --residue` exists in code); the
+   live tail is 63 labels / 265 rows / 93.0% family coverage
+   (2026-09-17), and the work is re-filed on GitHub as
+   [#237](https://github.com/webuildstuffio/megadj/issues/237)
+   (roadmap rev 7.13).
+   Design stands: OpenRouter, temp 0, vocabulary-constrained; **fed by a
    web-search (exa/brave) research arm for disputed imprint→scene
    confirmations — harness-only, never a runtime ladder dependency**
 4. ~~`genre --eval` harness as a command~~ **SHIPPED 2026-09-14** —
-   `megadj genre --eval` runs the LOO harness over the live DB (gated
-   61.7% baseline / 69.2% arbitration; the exit gate judges the CURRENT
+   `megadj genre --eval` runs the LOO harness over the live DB (Sep 17
+   readout: 61.9% baseline / 69.3% arbitration — ship gate PASS; the
+   exit gate judges the CURRENT
    readout — the refold arm when armed — and exits 0 at ≥65%, exit 1
    below so scripts fail loudly). The standing hygiene gate.
    ~~Queued extensions: `--probe`, `--artist-disjoint`, confusion
    matrix + top-2~~ **ALL SHIPPED 2026-09-15** — one command:
    `genre --eval --diagnostics --artist-disjoint --probe --json`
    (verdicts: [tier0-diagnostics (archived)](../archive/tier0-diagnostics-2026-09-15.md)).
-5. **Multi-source vote ladder + Bandcamp arm** (M) — the §5c disputed pass
-   generalized to a weighted vote across RB / ingest pools / SC / Beatport
-   / Bandcamp (direct page fetch; yt-dlp's BC extractor is broken upstream)
-   / Discogs-400 head / kNN consensus; deeper label wins for display when
-   sources agree, disputes flag, and a future **display-depth config** lets
-   the DJ choose Tier-1-only vs Tier-1+Tier-3 display. The DB stays the
-   multi-value SSOT (ID3v2.3 TCON carries one slash-joined primary — file
-   tags remain output-only).
-6. **`sc_genre_ids` orphan (S)** — the ID→name cache in archive.db (269
-   rows) has no committed writer/reader; either ship a proper
-   `megadj genre sc-resolve` command (track-page scrape, committed) or
-   drop the table and the AGENTS.md mention. Tracked in
+5. ~~**Multi-source vote ladder + Bandcamp arm**~~ **✅ SHIPPED Sep 16
+   (#173, roadmap rev 7.12)** — the weighted vote IS the write path:
+   every rung (SC / Beatport / Bandcamp / imprint prior / AI /
+   MusicBrainz / file tags / sync category) votes genre + weight +
+   provenance (`GENRE_VOTE_WEIGHTS`, `src/fulltags/genre/genre-vote.ts`),
+   highest total elects, the breakdown persists in `tracks.genre_votes`,
+   and `megadj genre-why` (#215) explains any stored genre. Disputes
+   still flag, never clobber (the §5c semantics hold inside the ladder's
+   gates). A future **display-depth config** (Tier-1-only vs
+   Tier-1+Tier-3 display) remains unbuilt; the DB stays the multi-value
+   SSOT (ID3v2.3 TCON carries one slash-joined primary — file tags
+   remain output-only).
+6. ~~**`sc_genre_ids` orphan (S)**~~ **✅ DROPPED 2026-09-15
+   ([#108](https://github.com/webuildstuffio/megadj/issues/108)
+   closed)** — the table was deleted (269 rows backed up to a dated
+   archive + CSV) and `src/sc-genre-ids-census.test.ts` keeps it dead:
+   any code reintroduction fails the suite. Verdict record:
    [genre-pipeline §5](genre-pipeline.md).

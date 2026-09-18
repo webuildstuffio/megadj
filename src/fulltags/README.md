@@ -49,49 +49,60 @@ rekordbox-reanalyzed grids; flag disagreements > 2%.
 megadj originally spread enrichment across command and tool modules. Each
 carried a hard-won format gotcha (AIFF drops ID3 chunks; WAV cannot carry
 ffmpeg artwork; MP3 wants ID3v2.3). FullTags consolidated that history behind
-**one schema, one writer, and one pipeline**. Import
-`fulltags/src/exports.ts` directly; `git log --follow` retains the deleted
-shim history without keeping obsolete paths in current documentation.
+**one schema, one writer, and one pipeline**. The old `exports.ts` bridge was
+dissolved by #193 — import the specific modules directly; `git log --follow`
+retains the deleted shim history without keeping obsolete paths in current
+documentation.
 
 ## 📁 Layout
 
 ```
-fulltags/
+src/fulltags/
   cli.ts                 CLI entry (enrich + audit + single + ensure-models + verify-key)
-  src/
-    verify-key.ts        the key gauntlet gate (`fulltags verify-key`, ≥80% vs existing MIK/RB keys)
-    schema.ts            FullTag / TagPatch types, genre canon + vocabulary
-    schema-guards.ts     validatePatch (runtime guards before any write)
-    writer.ts            ONE write surface: writePatch / applyTags / embedArt
+  fetch/                 the megadj fetch ladder: fetch-pipeline (vote-ladder
+                         orchestration + stageGenreElection), fetch-stages,
+                         fetch-genre-year (SC/BP arms), fetch-art, fetch-events
+                         (#215 @event feed), enrich (MB), fetch-target
+  genre/                 genre-refold (H1), genre-flag (H2), genre-disputes
+                         (#64 review verbs), genre-vote (#173 weights +
+                         election), genre-why (#215 explainability), genre-vocab
+                         (#187 family map + vocabularies), genre-diagnostics,
+                         genre-run, genre.ts (CLI wiring)
+  sources/               bandcamp (W2b), beatport (W3), art-sources (SC/W2),
+                         imprint-prior (W7), mb/mb-lookup (W5), name-match
+                         (the artist-gate SSOT)
+  verify-key.ts          the key gauntlet gate (`fulltags verify-key`, ≥80% vs existing MIK/RB keys)
+  schema.ts              FullTag / TagPatch types, genre canon + vocabulary
+  schema-guards.ts       validatePatch (runtime guards before any write)
+  writer.ts              ONE write surface: writePatch / applyTags / embedArt
                          (all format gotchas live here)
-    readers.ts           groundTruth / readFullTag — file-first reads
-    media-probe.ts       bounded ffprobe/audio probing
-    metadata-build.ts    yt-dlp info → EnrichedMetadata (cleanTitle, credits)
-    identity.ts          MB recording lookup + the audit ground-truth row
-    art-sources.ts       SC search + every artwork source (the art ladder)
-    ai.ts                OpenRouter genre/year fallback (conf ≥ 0.7)
-    analysis.ts          chromaprint / beat_this / OpenKeyScan stages
+  readers.ts             groundTruth / readFullTag — file-first reads
+  media-probe.ts         bounded ffprobe/audio probing
+  metadata-build.ts      yt-dlp info → EnrichedMetadata (cleanTitle, credits)
+  identity.ts            MB recording lookup + the audit ground-truth row
+  art-sources.ts         SC search + every artwork source (the art ladder)
+  ai.ts                  OpenRouter genre/year fallback (conf ≥ 0.7)
+  analysis-worker.ts     chromaprint / beat_this / OpenKeyScan stages
                          (PyAV in-process decode; openBeatSession —
                          persistent per-worker analyzer, NDJSON protocol)
-    anlz.ts              ANLZ/PQTZ grid analysis + triage helpers
-    models.ts            ONNX mood/dance/valence (essentia melspec + onnxruntime)
-    mb.ts                MusicBrainz folksonomy genre harvest (1 rps)
-    mb_lookup.ts         MB recording/artist resolution used by identity
-    beatport.ts          Beatport v4 catalog source (2nd behind SC): identity
+  anlz.ts                ANLZ/PQTZ grid analysis + triage helpers
+  models.ts              ONNX mood/dance/valence (essentia melspec + onnxruntime)
+  mb.ts                  MusicBrainz folksonomy genre harvest (1 rps)
+  mb_lookup.ts           MB recording/artist resolution used by identity
+  beatport.ts            Beatport v4 catalog source (2nd behind SC): identity
                          fields, genre/year/art rungs, provenance stamps
-    fingerprint-dedupe.ts  acoustic-twin detection over the fingerprint ledger
-    gold.ts              gold-set scoring (megadj gold-report's engine)
-    fleet.ts             booth player profiles WITH citations (the compat SSOT)
-    player-compat.ts     codec/sample-rate floors for the selected fleet
-    booth-text.ts        emoji/mojibake/path-char display + export checks
-    mutagen.ts           the python mutagen bridge (AIFF/WAV/m4a writes)
-    convert.ts           WAV → AIFF (rekordbox covers)
-    remix.ts             `X - Y (Z Remix)` detection
-    tag-health.ts        tag-quality lint (encoding, truncation, garbage)
-    index-all.ts         batch driver: full analysis pass over a folder
-    stdio.ts             child-process helpers (line-by-line streams)
-    pipeline.ts          enrichTrack / enrichAll — the orchestrator
-    exports.ts           public import surface
+  fingerprint-dedupe.ts  acoustic-twin detection over the fingerprint ledger
+  gold.ts                gold-set scoring (megadj gold-report's engine)
+  fleet.ts               booth player profiles WITH citations (the compat SSOT)
+  player-compat.ts       codec/sample-rate floors for the selected fleet
+  booth-text.ts          emoji/mojibake/path-char display + export checks
+  mutagen.ts             the python mutagen bridge (AIFF/WAV/m4a writes)
+  convert.ts             WAV → AIFF (rekordbox covers)
+  remix.ts               `X - Y (Z Remix)` detection
+  tag-health.ts          tag-quality lint (encoding, truncation, garbage)
+  index-all.ts           batch driver: full analysis pass over a folder
+  stdio.ts               child-process helpers (line-by-line streams)
+  pipeline.ts            enrichTrack / enrichAll — the orchestrator
   test/                  (schema, writer round-trips, pipeline, m4a/AIFF
                          stamps, audit gate, CLI subcommands, analysis +
                          mood stages + label-order pin — env-gated; the
@@ -99,17 +110,17 @@ fulltags/
                          live count — volatile numbers live in neither)
 ```
 
-## 🪜 The ladders (first success wins)
+## 🪜 The ladders
 
-| Field              | Order                                                                                                                                      |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| identity           | file tags → filename parse → MusicBrainz recording (1 rps)                                                                                 |
-| genre              | file → SoundCloud tags (via yt-dlp scsearch) → canonical map → **Beatport store genre** → MB folksonomy → AI (conf ≥ 0.7)                  |
-| year               | file → SC upload timestamp (the **remix** year) → **Beatport release date** → AI (verify: flash-lite guesses 2023)                         |
-| artwork            | embedded → SC page og:image (original/t1080) → **Beatport release master (1500²)** → hype gateways → mp3-twin → Deezer → iTunes → AI queue |
-| remixer            | title/filename `(Remixer Remix/Flip/Edit)` pattern → **Beatport official remixers credit**                                                 |
-| label / mix / ISRC | (Beatport-only fields) file → **Beatport catalog row** — never overwritten once present                                                    |
-| energy             | RMS 1–10 baseline; **energy 2.0**: `0.5·RMS + 0.3·dance + 0.2·arousal` when a MOOD stamp exists                                            |
+| Field              | Order                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| identity           | file tags → filename parse → MusicBrainz recording (1 rps)                                                                                                                                                                                                                                                                                                                                                                                                             |
+| genre              | **NOT first-win — a weighted VOTE (#173)**: every rung that fires casts a vote (SC tags → canonical map → **Beatport store genre** → imprint prior → Bandcamp tags → MB folksonomy → AI conf ≥ 0.7 → file TCON at intake → sync category); highest total weight elects, the full breakdown persists in `tracks.genre_votes`, and `megadj genre-why` explains any stored genre. Hard gates (artist match, numeric/`Music` refusal) stay absolute upstream of every vote |
+| year               | file → SC upload timestamp (the **remix** year) → **Beatport release date** → Bandcamp publish date → AI (verify: flash-lite guesses 2023)                                                                                                                                                                                                                                                                                                                             |
+| artwork            | embedded → SC page og:image (original/t1080) → **Beatport release master (1500²)** → hype gateways → mp3-twin → Deezer → iTunes → AI queue                                                                                                                                                                                                                                                                                                                             |
+| remixer            | title/filename `(Remixer Remix/Flip/Edit)` pattern → **Beatport official remixers credit**                                                                                                                                                                                                                                                                                                                                                                             |
+| label / mix / ISRC | (Beatport-only fields) file → **Beatport catalog row** — never overwritten once present                                                                                                                                                                                                                                                                                                                                                                                |
+| energy             | RMS 1–10 baseline; **energy 2.0**: `0.5·RMS + 0.3·dance + 0.2·arousal` when a MOOD stamp exists                                                                                                                                                                                                                                                                                                                                                                        |
 
 **Beatport ranking (rev 6.4, hardened 6.5):** second in every ladder, behind SoundCloud —
 SC wins every field it covers (its tags reflect how tracks actually
@@ -191,10 +202,10 @@ them (`genre←AI(0.92)` in the `aiFilled` column, both text and `--json`).
 ## 🧪 Usage
 
 ```bash
-bun run fulltags/cli.ts <folder-or-file>               # enrich (folder or single file)
-bun run fulltags/cli.ts track.mp3 --energy --dry-run   # stage subset, no write
-bun run fulltags/cli.ts audit <archive-folder>         # completeness gate (--json for machines)
-bun run fulltags/cli.ts ensure-models                  # pre-pull the ~320 MB mood model set
+bun src/fulltags/cli.ts <folder-or-file>               # enrich (folder or single file)
+bun src/fulltags/cli.ts track.mp3 --energy --dry-run   # stage subset, no write
+bun src/fulltags/cli.ts audit <archive-folder>         # completeness gate (--json for machines)
+bun src/fulltags/cli.ts ensure-models                  # pre-pull the ~320 MB mood model set
 ```
 
 Stages: `--tags --genre --art --year --energy --fingerprint --bpm --key
@@ -211,14 +222,14 @@ use).
 
 ## 🔗 Relationship to megadj commands
 
-| megadj command  | What it does now                                                                             |
-| --------------- | -------------------------------------------------------------------------------------------- |
-| `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims                          |
-| `megadj fetch`  | `fulltags/src/fetch-pipeline.ts` writes through FullTags `writePatch` (#184 — re-homed)      |
-| `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                                      |
-| `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted)         |
-| `megadj mood`   | syncs `TXXX:MOOD` stamps into the archive DB `mood` ledger; analyzes unstamped tracks inline |
-| `megadj cues`   | 8-bar phrase cues from the beats ledger → `cues` DB table (no player writes)                 |
+| megadj command  | What it does now                                                                              |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| `megadj ingest` | unchanged — calls FullTags `applyTags`/`wavToAiff`/energy via shims                           |
+| `megadj fetch`  | `src/fulltags/fetch/fetch-pipeline.ts` writes through FullTags `writePatch` (#184 — re-homed) |
+| `megadj audit`  | same completeness gate as `fulltags audit` (one reader)                                       |
+| `megadj enrich` | thin shim over FullTags `mb.ts` + `writePatch` (the old duplicate writer is deleted)          |
+| `megadj mood`   | syncs `TXXX:MOOD` stamps into the archive DB `mood` ledger; analyzes unstamped tracks inline  |
+| `megadj cues`   | 8-bar phrase cues from the beats ledger → `cues` DB table (no player writes)                  |
 
 The **roadmap** for what comes next (rekordbox cue writes, vocal density,
 similarity) lives in

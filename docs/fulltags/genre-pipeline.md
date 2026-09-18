@@ -83,8 +83,9 @@ Three facts people get wrong, corrected:
    honest gap `fetch` fills later), and a real raw genre the regex table
    can't match survives instead of being replaced by the placeholder.
    `organize` routes null through `sanitizeGenreFolder` → the single
-   "Unknown Genre" bucket. The ~154 legacy `Music` rows still need the
-   unstrand pass (#61 remainder, not started).
+   "Unknown Genre" bucket. The ~154 legacy `Music` rows: the unstrand
+   pass SHIPPED (#61 closed Sep 15 — `genre --refold` detects them,
+   `--apply` clears them; the live-DB apply pass is pending).
 2. **Bandcamp IS a live ladder source (since Rev 4).** W2b: when SC and
    BP both leave genre/year/label unfilled, `megadj fetch` searches the
    Bandcamp catalog (`src/fulltags/sources/bandcamp.ts`, the official
@@ -205,7 +206,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | #   | Invariant                                                                                                                                                                                                      | Enforced at                                                                                    |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | 1   | Numeric SC genre IDs and the `Music` placeholder are never _propagated_ by fetch/enrich                                                                                                                        | `applyScGenre` junk gate (W2), enrich's weak-genre filter (W5), ingest's real-genre check (W6) |
-| 1a  | ✅ FIXED Sep 15: W1 no longer mints `Music` — the `?? "Music"` fallback is gone (`metadata-build.ts`, `ingest.ts`); unknown stays null, real raw genres survive. Legacy ~154 rows still queued (#61 remainder) | W1 fixed at source                                                                             |
+| 1a  | ✅ FIXED Sep 15: W1 no longer mints `Music` — the `?? "Music"` fallback is gone (`metadata-build.ts`, `ingest.ts`); unknown stays null, real raw genres survive. The 154 legacy rows: unstrand SHIPPED (#61 closed, 0254c64 — `clearGenre()` seam; live-DB apply pending) | W1 fixed at source; unstrand via `genre --refold --apply`                                                       |
 | 2   | Tag write FIRST, DB row only on success — the DB never claims a genre the file doesn't carry                                                                                                                   | W2/W3/W5                                                                                       |
 | 3   | File TCON is output-only cache of the DB, never upstream (round-trip pollution measured) — W6 is the one sanctioned intake exception (there is no DB row yet; the file tag is the only claim available)        | readers (R1–R3)                                                                                |
 | 4   | Inference fills EMPTY columns only; a source label is never clobbered                                                                                                                                          | `updateGenre` COALESCE (I2)                                                                    |
@@ -219,10 +220,15 @@ gate; transparency surfaces (T) let a human see what any track claims.
 
 ## 5. Known residue (honest gaps, tracked)
 
-- **154 `Music` placeholder rows + the W1 leak**: visible to neither
-  seeds (family null) nor inference queries (`genre != ''`) — stranded;
-  W1 no longer mints new ones (fixed Sep 15, #61 stop-new-damage half;
-  unstrand still queued).
+- **154 `Music` placeholder rows**: visible to neither seeds (family
+  null) nor inference queries (`genre != ''`) — stranded. The unstrand
+  SHIPPED Sep 15 (#61 closed, 0254c64): `genre --refold` detects all 154
+  (live receipt: `unstrand:154`, idempotent re-runs 0) and `--apply`
+  clears them to NULL through `clearGenre()` so inference re-enrolls
+  them as queries; W1 no longer mints new ones (fixed Sep 15). The
+  operator `--apply` pass on the live DB is the remaining step — until
+  it runs, the 154 rows still sit in the column (measured 2026-09-17;
+  tracked on the roadmap rev 7.13 queue).
 - **Orphaned `sc_genre_ids` cache — DROPPED 2026-09-15 (issue #108)**:
   the table existed in `archive.db` (269 resolved IDs, last resolved
   2026-09-12) but **no code in the repo read or wrote it** — the one-off
@@ -236,14 +242,17 @@ gate; transparency surfaces (T) let a human see what any track claims.
   `src/sc-genre-ids-census.test.ts` census keeps it dead: any code
   reintroduction fails the suite. AGENTS.md's "orphaned data" trap is
   retired with this verdict.
-- **~6.6% of labels unmapped** by the 9-family map → mood/abstain; the
-  LLM residue pass (one-shot, vocabulary-constrained) is queued for the
-  long tail (#65).
+- **The unmapped tail (~6.6% of labels)**: 63 unmapped labels covering
+  265 rows; family coverage 93.0% (2026-09-17). The LLM residue pass
+  (one-shot, vocabulary-constrained) is the queued fix — its first
+  issue #65 closed Sep 16 WITHOUT the verb shipping; re-filed as
+  [#237](https://github.com/webuildstuffio/megadj/issues/237).
 - **`edm` 299 rows** display as-is (hard-EDM mixed with umbrella use);
   scoring abstains via R3 — the display split waits for
   cluster-proposed labels (§5b.3.5, #62).
-- **241 distinct raw labels** vs the 105-label 90%-coverage target —
-  the refold killed case-twins; alias depth is the remaining gap.
+- **240 distinct cohort labels** vs the 105-label 90%-coverage target —
+  the refold killed case-twins; alias depth is the remaining gap
+  (#155).
 - **Disputed rows now have a review door (SHIPPED 2026-09-16, #64):**
   `megadj genre --disputes` lists every flagged row with LIVE evidence
   (recomputed consensus + agreement + embed age), and `--agree <id>`
@@ -253,7 +262,7 @@ gate; transparency surfaces (T) let a human see what any track claims.
   never bulk. `--note "…"` appends an audit trail (flag becomes
   `resolved:<note>`).
 
-## 6. Live state (measured 2026-09-17 22:55, `~/.local/state/megadj/archive.db`)
+## 6. Live state (measured 2026-09-17 22:55 + 23:20 eval rerun, `~/.local/state/megadj/archive.db`)
 
 | Metric                     | Value                                                                                                                          |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -263,8 +272,9 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | Disputed flags             | 92 live (96 at the Sep 15 flag pass; 4 resolved through the #64 review verbs — review re-computes the live count on every run) |
 | Distinct raw labels        | 240 (cohort)                                                                                                                   |
 | Top labels                 | House 833 · Techno 337 · EDM 299 · Tech House 221 · Dance 156 · Music 154 · Pop 131                                            |
-| LOO baseline / arbitration | 61.7% / **69.2%** (ship gate ≥65% PASS)                                                                                        |
-| top-2 accuracy             | 77.4%                                                                                                                          |
+| LOO baseline / arbitration | 61.9% / **69.3%** (re-measured 2026-09-17: `genre --eval --refold --json`, n=2,982; ship gate ≥65% PASS)                        |
+| top-2 accuracy             | 77.6% (2026-09-17 diagnostics rerun; label noise still RANDOM, no artist leakage, hub tail unchanged)                          |
+| Family coverage            | 93.0% (3,533/3,798 labeled rows ledger-wide; 63 unmapped labels covering 265 rows — the #65-class tail, [#237](https://github.com/webuildstuffio/megadj/issues/237)) |
 | `genre_votes` breakdowns   | 0 rows — the ladder shipped Sep 16 21:00, the last fetch ran Sep 16 07:20; breakdowns populate on the next real fetch run       |
 
 ## 7. Where everything lives

@@ -19,7 +19,9 @@ v3 · 2026-09-14 · **Audit** → [PRD](../megaset/01-prd.md) · [Benchmarks (ar
 > §5b.3 eval target updated to gated ≥65%.
 
 Questions this doc answers, with live data (`archive.db`, 3,458 genre-labeled
-of 3,664 downloaded rows, 2026-09-14):
+of 3,664 downloaded rows — re-verified 2026-09-17, the cohort is unchanged
+since Sep 14; the ledger around it grew to 5,921 rows, see
+[genre-pipeline §6](genre-pipeline.md#6-live-state)):
 
 1. Can we trust our genre mapping? (No — measured.)
 2. Sub-genres: keep, alias, or rank? (Two-tier: labels for humans, families
@@ -134,7 +136,10 @@ the refold's dry-run proposal census lists unmapped labels by frequency
 5-minute data-driven task, not a
 guess. No LLM mapping, no cloud genre APIs (the one-shot residue pass
 in §6 of [genre-taxonomy-sources](genre-taxonomy-sources.md) is the
-single, constrained exception — queued, #65).
+single, constrained exception — its issue #65 closed Sep 16 WITHOUT
+the verb shipping; no `genre --residue` exists; the work is re-filed
+as [#237](https://github.com/webuildstuffio/megadj/issues/237),
+see the roadmap rev 7.13).
 
 ### Is generic-better or specific-better?
 
@@ -218,7 +223,7 @@ re-embedding would change nothing about label quality. The post-refold
 | kNN vs head (paired, same population)                             | +11.6 pts for kNN · **McNemar p=2×10⁻³⁰ — conclusive**                                                                                                                                              |
 | **Jaccard(kNN-top5-families, head-top5-families)**                | 0.486 — ~half-overlapping family sets; genuinely complementary signals                                                                                                                              |
 | Genre coverage (downloaded)                                       | **3,458/3,664 = 94.4%**; 30-row spot check: 0 suspicious labels (real labels, not placeholders)                                                                                                     |
-| Coverage by source                                                | `ingest` 526/531 · `rekordbox` 2,932/3,133 · 206 unlabeled (203 embedded). Live recount Sep 15 (post-refold): 360 rows now `Music`/empty — 206 never-labeled + 154 `Music` placeholders (issue #61) |
+| Coverage by source                                                | `ingest` 526/531 · `rekordbox` 2,932/3,133 · 206 unlabeled (203 embedded). Live recount Sep 15 (post-refold): 360 rows now `Music`/empty — 206 never-labeled + 154 `Music` placeholders. **Sep 17: the 154 placeholders remain in-column — #61's unstrand code shipped (0254c64), the live-DB `--apply` pass is pending** |
 | Labels covering 90% of rows                                       | **105** — the alias table has a hard, small target                                                                                                                                                  |
 | Distinct raw labels / casefolded                                  | 459 / 440 → **241 after the Sep 15 refold** (idempotent; twins gone)                                                                                                                                |
 | Multi-genre strings already in the wild                           | **389 rows** — the data is ALREADY multi-genre, stored as slash-soup (refold now splits these)                                                                                                      |
@@ -353,7 +358,9 @@ ground-truth philosophy unchanged.
    > evidence, and `genre --agree <id>` (audio wins) / `genre --keep <id>`
    > (source wins) / `--note` resolve one row at a time. Details +
    > invariants: [genre-pipeline.md](genre-pipeline.md) §5.
-3. **Inference for the unlabeled 206** (203 already embedded): existing
+3. **Inference for the unlabeled 206** (203 already embedded; 154
+   further rows re-enter as queries once #61's pending `--apply`
+   unstrand clears the placeholders): existing
    `inferGenre` at k=5, minAgreement 0.6 — now benchmark-validated with
    CIs (57.6% ungated → 62.7% gated; the gate trades 19.8%
    refusal for +5.1 pts). `--apply` fills empty columns only;
@@ -378,35 +385,37 @@ ground-truth philosophy unchanged.
 --json`. Calibration note kept: **0.65–0.75
    is the realistic aspiration band** (best published EDM-subgenre result:
    60.6% @ 30 classes, 75K songs), with ≥65% remaining the ship gate.
-   Current live readout: **69.2% arbitration — PASS**.
+   Current live readout (re-measured 2026-09-17): **69.3% arbitration —
+   PASS** (baseline arm 61.9%, n=2,982; the Sep 15 pass measured
+   69.2%/61.7% — the small drift is label-column churn, gate unchanged).
 5. **Embedding-neighborhood labels (later, the deep fix)**: cluster the
    3,415 vectors; coherent clusters _propose_ canonical labels from their
    members' consensus, reviewed by a human — new sub-genres enter the
    taxonomy from audio reality, not tag folklore.
-6. **Multi-source vote ladder (NEW, Sep 14 — user-directed).** The fetch
-   ladder is currently `SC → Beatport → AI(opt-in)` with first-win-writes
-   (plus MusicBrainz via `megadj enrich` as the offline gap-filler, and
-   file tags via `megadj ingest` at intake — see the pipeline doc §2 for
-   the full write-path inventory). Evolve to a **weighted vote** across
-   the arms we already have — RB
-   mirror, ingest pool (Bandcamp/Hypeddit-quality), SC, Beatport,
-   Discogs-400 head, kNN consensus — with the measured trust weights (G6:
-   RB > ingest) and the §5c disputed-pass semantics (disagreement flags,
-   never clobbers). New arms: a **Bandcamp page-fetch arm** (yt-dlp's
-   Bandcamp extractor is broken upstream since Aug 2026, but album pages
-   expose publisher tags + label directly) and a **web-search research arm**
-   (exa/brave) used ONLY as a harness to confirm imprint→scene mappings for
-   the disputed residue (feeding the LLM pass) — never a runtime ladder
-   dependency. Replaces "first source wins" with "sources vote, consensus
-   writes, disputes flag".
+6. **Multi-source vote ladder (NEW, Sep 14 — user-directed). ✅ SHIPPED
+   Sep 16 (#173, rev 7.12)** — the fetch ladder votes, it no longer
+   first-win-writes: every rung (SC / Beatport / Bandcamp / imprint
+   prior / AI / MusicBrainz / file tags / sync category) casts a vote
+   (genre + weight + provenance) through
+   `src/fulltags/genre/genre-vote.ts` (`GENRE_VOTE_WEIGHTS` = the
+   pipeline doc's W-table versioned in code); highest total elects,
+   ties break toward the harder gate, and the full breakdown persists
+   in `tracks.genre_votes` — explainable via `megadj genre-why` (#215).
+   The full write-path inventory that feeds the ladder lives in
+   [genre-pipeline §2](genre-pipeline.md#2-where-genre-comes-from--every-write-path-the-full-inventory).
+   The web-search research arm (exa/brave) remains a HARNESS-ONLY idea
+   for disputed imprint→scene mapping confirmations — never a runtime
+   ladder dependency.
 7. **Transition-window embeddings (NEW, Sep 14 — the user's chunking
-   instinct, and the cheapest basin jump).** DJs mix 32-bar sections, not
-   tracks. The Essentia patch towers already emit per-~3 s patch embeddings
-   before mean-pooling, and the cues ledger already stores 32-bar phrase
-   boundaries — so **intro/outro-window similarity** (pool only the first/
-   last-N-second patches; outro→intro "sounds like" index) is S–M with
-   **zero new models** and no Demucs bill. See the research review §5 J4
-   (its "days" estimate assumes new infrastructure; ours mostly exists).
+   instinct, and the cheapest basin jump). ❌ REJECTED Sep 16 (#113
+   remains OPEN by owner call, but its acceptance forbids the
+   re-analysis this needs):** the embeddings ledger stores whole-track
+   time-mean vectors only — the Essentia patch embeddings are
+   mean-pooled before they hit the DB, so intro/outro window pooling
+   would require re-running analysis on the whole library, which the
+   item's own acceptance forbids (roadmap rev 7.11). Kept here as the
+   record of why "zero new models" was wrong in one load-bearing
+   detail: the models exist, the pooled data does not.
 
 ### 5b.4 What NOT to build
 
@@ -483,7 +492,9 @@ null** — `Music`, `Other`, artist names (`Tuxedo`, `Nvoy`,
 ironically mapped to edm by an over-broad regex, a map bug to fix),
 URLs/JSON blobs. Net: the unmapped tail is ~⅔ real-but-unmapped, ~⅓
 correctly-refused junk — the family map still has real wins on the
-table (queued with #65), and the junk refusals are working as designed.
+table (the residue pass remains unshipped: #65 closed Sep 16 without
+the verb; live tail 63 labels / 265 rows / 93.0% coverage,
+2026-09-17), and the junk refusals are working as designed.
 
 **Junk-label criterion (was implicit, now stated):** a label is junk (not
 mapped, excluded from the 105-label target) iff it is (a) a non-genre
@@ -520,7 +531,7 @@ destroys the display signal (measured 3–27% survival band, §2) that humans
 still want, and refold can always broaden later; it can't recover what
 intake threw away.
 
-### 5b.4 What the Sep 15 hygiene work taught us (learnings)
+### 5b.6 What the Sep 15 hygiene work taught us (learnings)
 
 The refold → flag → Tier-0 re-run cycle, executed in one day, produced
 measured lessons that shape everything queued next:
