@@ -124,7 +124,7 @@ for the ideas closed NOT_PLANNED.
   consolidation: #66 masterDbPath (11/11 callers), #67 NFC+casefold
   name key, #82 errorText SSOT — all pinned by tests; #67/#82/#75/#100
   issues closed with evidence.
-- [Genre pipeline architecture (Sep 16, rev 5)](fulltags/genre-pipeline.md) —
+- [Genre pipeline architecture (Sep 16, rev 6)](fulltags/genre-pipeline.md) —
   how the genre system processes a track end to end: **§2 is the full
   write-source inventory** (every path that can put a genre in the DB —
   sync/fetch-SC/fetch-BP/**fetch-imprint (W7)**/fetch-Bandcamp/AI/MusicBrainz/
@@ -145,6 +145,15 @@ for the ideas closed NOT_PLANNED.
   explainable from its row ("why Techno?" needs no code reading). Hard
   gates stay absolute upstream (artist gate, numeric/`Music` refusal) —
   a vote only exists for a claim that already passed its rung's gates.
+- **Genre explainability + the live run (Sep 17, #215)** — `megadj
+  genre-why <id>` (CLI, MCP `archive_genre_why`, HTTP
+  `/api/archive/genre-why`, FullTags ⌗ Genre Why tab) replays the
+  write path's exact election seam over a row's stored breakdown; a
+  drifted row reports `matches_db:false` (CLI exit 1). The Genre tab's
+  **Run view** streams the ladder live: `fetch` is a job kind (the
+  shared JobEngine — interlock, cancel), the CLI's stderr `@event`
+  protocol feeds a server ring buffer, and the tab renders every
+  track's votes, the election, and a rung tally as they happen.
 - **Regate extends to genre (Sep 16, #169)** — `megadj regate genre
 --json` runs the same leave-one-out harness as `genre --eval` against
   the ≥65% ship gate; `regate effnet` reports unavailable honestly
@@ -213,7 +222,7 @@ for the ideas closed NOT_PLANNED.
 - [`README.md`](../README.md) — repository overview and setup.
 - [`cratedeck/README.md`](../cratedeck/README.md) and
   [`deckctl.md`](../cratedeck/deckctl.md) — CrateDeck operator entry points.
-- [`src/fulltags/README.md`](../fulltags/README.md) — FullTags package reference.
+- [`src/fulltags/README.md`](../src/fulltags/README.md) — FullTags package reference.
 - [`plugin/README.md`](../plugin/README.md) — plugin packaging and symlinked
   skill ownership.
 - CrateDeck UI implementation notes:

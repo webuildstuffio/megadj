@@ -1,5 +1,8 @@
 # MegaSet — PRD
 
+**Status:** ✅ SHIPPED v0 / 🧭 ACTIVE v1 — deterministic propose-only mix
+builder live on CLI/HTTP/MCP/web; v1 improvements tracked on GitHub.
+
 v1 · 2026-09-13 · graduated to its own doc set (Sep 14) · **PRD** → [Architecture](02-architecture.md) (variable inventory) · [Analysis](03-competitive-analysis.md) (30 comparators) · [Benchmarks (archived)](../archive/set-04-sequencing-benchmarks-2026-09-14.md) · [Genre audit](../fulltags/genre-audit.md) · [Audit & plan](08-audit-and-plan.md)
 
 > First read of the doc set? Start here, then [10-findings](10-findings.md)

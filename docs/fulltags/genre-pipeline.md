@@ -1,4 +1,4 @@
-# FullTags — Genre Pipeline Architecture (Sep 15, 2026)
+# FullTags — Genre Pipeline Architecture (Sep 16, 2026, rev 6)
 
 **Status:** 📚 REFERENCE — how the genre system processes a track, end to
 end. Every stage below ships and runs on the live archive.
@@ -117,17 +117,27 @@ gate; transparency surfaces (T) let a human see what any track claims.
    │
    ▼
  megadj fetch  (fulltags fetch-pipeline → fetch-stages)
-   │  ladder, first-win-writes, per track:
-   │  [W2] SC search hit → junk gate (numeric/"Music") → canonicalizeClaim
-   │        (SC_GENRE_CANON + title-case) → setFileTags FIRST,
-   │        DB row only on tag success (ground truth)
-   │  [W3] else Beatport store genre → same tag-first discipline
-   │  [W2b] else Bandcamp vote (search + artist-gated page fetch):
+   │  the WEIGHTED VOTE LADDER (#173, since Rev 5 — first-win writes are
+   │  gone). Every rung that fires casts a vote (genre + weight +
+   │  provenance); the write gate stays tag-first, the election writes
+   │  once:
+   │  [W2] SC search hit → junk gate (numeric/"Music") → artist gate
+   │        (scoreScHits) → vote
+   │  [W3] Beatport store genre → artist gate (scoreBpHit) → vote
+   │  [W2b] Bandcamp vote (search + artist-gated page fetch):
    │        genre (artist tag) / year (publish date) / label
-   │        (publisher) — only when SC AND BP both missed the field
-   │  [W4] else AI classifier (OPT-IN, off by default, conf ≥ 0.7,
+   │        (publisher)
+   │  [W7] imprint prior vote (cited label→family map, #128)
+   │  [W4] AI classifier vote (OPT-IN, off by default, conf ≥ 0.7,
    │        closed AI_VOCAB vocabulary) — a missing genre stays an
    │        honest gap, never a guess
+   │  ▶ stageGenreElection: highest total weight elects (ties break
+   │    toward the harder gate); setFileTags FIRST, then the DB row
+   │    (genre + genre_votes breakdown) — "why Techno?" is answerable
+   │    from the row, and megadj genre-why replays the exact seam
+   │    (#215: CLI genre-why / MCP archive_genre_why / HTTP
+   │    /api/archive/genre-why / FullTags ⌗ Genre Why tab; a drifted
+   │    row reports matches_db:false, CLI exit 1)
    ▼
  megadj mood  (fulltags analyzeMoods)
    │  essentia ONNX via uv python worker:
@@ -210,8 +220,9 @@ gate; transparency surfaces (T) let a human see what any track claims.
 ## 5. Known residue (honest gaps, tracked)
 
 - **154 `Music` placeholder rows + the W1 leak**: visible to neither
-  seeds (family null) nor inference queries (`genre != ''`) — stranded,
-  AND W1 keeps minting new ones at download time (issue #61).
+  seeds (family null) nor inference queries (`genre != ''`) — stranded;
+  W1 no longer mints new ones (fixed Sep 15, #61 stop-new-damage half;
+  unstrand still queued).
 - **Orphaned `sc_genre_ids` cache — DROPPED 2026-09-15 (issue #108)**:
   the table existed in `archive.db` (269 resolved IDs, last resolved
   2026-09-12) but **no code in the repo read or wrote it** — the one-off
@@ -242,18 +253,19 @@ gate; transparency surfaces (T) let a human see what any track claims.
   never bulk. `--note "…"` appends an audit trail (flag becomes
   `resolved:<note>`).
 
-## 6. Live state (measured 2026-09-16, `~/.local/state/megadj/archive.db`)
+## 6. Live state (measured 2026-09-17 22:55, `~/.local/state/megadj/archive.db`)
 
 | Metric                     | Value                                                                                                                          |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Downloaded tracks          | 3,664                                                                                                                          |
-| Labeled (genre non-empty)  | 3,458 (94.4%)                                                                                                                  |
-| Embedded (effnet 1280-d)   | 3,618 (98.8%)                                                                                                                  |
+| Ledger rows                | 5,921 (decomposed: 3,664 downloaded · 1,100 pending · 602 skipped-not-music · 464 deleted · 90 gone) — ledger ≠ library size   |
+| Downloaded cohort          | 3,664 tracks; 3,458 labeled (94.4%)                                                                                            |
+| Embedded (effnet 1280-d)   | 3,618 (98.8% of the cohort)                                                                                                    |
 | Disputed flags             | 92 live (96 at the Sep 15 flag pass; 4 resolved through the #64 review verbs — review re-computes the live count on every run) |
-| Distinct raw labels        | 241                                                                                                                            |
+| Distinct raw labels        | 240 (cohort)                                                                                                                   |
 | Top labels                 | House 833 · Techno 337 · EDM 299 · Tech House 221 · Dance 156 · Music 154 · Pop 131                                            |
 | LOO baseline / arbitration | 61.7% / **69.2%** (ship gate ≥65% PASS)                                                                                        |
 | top-2 accuracy             | 77.4%                                                                                                                          |
+| `genre_votes` breakdowns   | 0 rows — the ladder shipped Sep 16 21:00, the last fetch ran Sep 16 07:20; breakdowns populate on the next real fetch run       |
 
 ## 7. Where everything lives
 
@@ -268,9 +280,12 @@ gate; transparency surfaces (T) let a human see what any track claims.
 | Tier-0 diagnostics engine                                                                                                                          | `src/fulltags/genre/genre-diagnostics.ts`                                                                                                                                               |
 | Linear probe (informational readout)                                                                                                               | `src/fulltags/linear-probe.ts`                                                                                                                                                    |
 | CLI wiring (`--eval/--refold/--flag/--diagnostics/…`)                                                                                              | `src/fulltags/genre/genre.ts`                                                                                                                                                           |
-| Fetch ladder (SC → BP → imprint → BC → AI) + junk gate + tag-first writes                                                                          | `src/fulltags/fetch/fetch-pipeline.ts` + `src/fulltags/fetch/fetch-stages.ts` + `src/fulltags/archive-ledger.ts` (#184 — re-homed from tools/)                                                |
+| Fetch ladder + election write + junk gate + tag-first writes (#173/#215)                                                                           | `src/fulltags/fetch/fetch-pipeline.ts` + `src/fulltags/fetch/fetch-stages.ts` + `src/fulltags/archive-ledger.ts` (#184 — re-homed from tools/)                                                |
 | Vote ladder weights + election + (de)serialization (#173)                                                                                          | `src/fulltags/genre/genre-vote.ts`                                                                                                                                                      |
 | Explainability read — CLI `genre-why` (#215; MCP/UI ride the same `electGenre` replay)                                                             | `src/fulltags/genre/genre-why.ts`                                                                                                                                                       |
+| Live-run event protocol (`fetch --json` stderr `@event` lines, #215)                                                                               | `src/fulltags/fetch/fetch-events.ts`                                                                                                                                                    |
+| Run-tab server side: `fetch` job kind, feed ring, `/api/fetch/start` + `/api/fetch/feed` (#215)                                                    | `cratedeck/src/job_legs.ts` (`runFetchJob`) + `cratedeck/src/fetch_feed.ts` + `cratedeck/src/api_routes.ts` (`fetchRoutes`)                                                                   |
+| Run-tab UI (the ladder deciding live: per-track votes, elections, tally)                                                                           | `cratedeck/web/products/fulltags/GenreRunTab.tsx`; rung display defs: `cratedeck/shared/genre-vote-rungs.ts` (census-pinned to `GENRE_VOTE_WEIGHTS`)                                            |
 | Bandcamp arm (search + gated page fetch + genre/label/date/art)                                                                                    | `src/fulltags/sources/bandcamp.ts`                                                                                                                                                        |
 | Name-matching SSOT (artist gate, title overlap, tokens)                                                                                            | `src/fulltags/sources/name-match.ts`                                                                                                                                                      |
 | Intake vocabularies (`guessFromFreeText` regex, `SC_GENRE_CANON`, `AI_VOCAB`, `canonicalizeClaim`, family map `FAMILIES`/`familyOf`, umbrella set) | `src/fulltags/genre/genre-vocab.ts` (#187 — one module owns every named genre map; `canonGenre` remains a compat alias on `schema.ts`; the old exports.ts bridge was dissolved by #193) |

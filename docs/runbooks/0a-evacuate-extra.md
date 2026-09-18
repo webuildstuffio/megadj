@@ -1,5 +1,8 @@
 # 0a — Evacuate the dying SSD (Extra) — runbook
 
+**Status:** 🟡 BLOCKED — waiting on the Extra volume to mount; execute top
+to bottom when it is plugged in.
+
 The SSD ("Extra") is dying (STATUS-FINAL.md: "evacuate when convenient").
 It is NOT mounted right now. This runbook is the whole job — when the drive
 is plugged in, execute top to bottom, then close issue #1.

@@ -67,7 +67,8 @@ the remix's, not the original's.
    `src/fulltags/genre/genre-vote.ts`); the highest total elects, ties break
    toward the harder gate, and the full breakdown persists in
    `tracks.genre_votes` — every stored genre is explainable after the
-   fact.
+   fact (#215: `megadj genre-why` replays the exact election seam, and
+   the FullTags ⌗ Run tab streams the ladder live as a fetch job runs).
 3. **Highest quality, always** — the art ladder escalates rung by rung
    (SC original-res → Beatport 1500² → gateways → mp3-twin → Deezer →
    iTunes → AI-generated cover as the rare, queued last resort). Same
@@ -90,7 +91,7 @@ enrich`, `megadj artwork`, `megadj audit`, `megadj tag-check` (tag
 structure + booth-text health), `megadj years`, `megadj booth-fix`,
 `megadj beats`, `megadj mood`, `megadj cues`, `megadj similar`,
 `megadj megaset`, `megadj gold-report`/`regate` (gold-set gate harness)
-**Also:** FullTags ships standalone in [`src/fulltags/`](../fulltags/README.md)
+**Also:** FullTags ships standalone in [`src/fulltags/`](../src/fulltags/README.md)
 — same schema, writer, art ladder, its own CLI + `audit --json`; megadj's
 commands are thin wrappers over it.
 **Docs:** [new-music-intake skill](../.claude/skills/new-music-intake/SKILL.md)
@@ -185,5 +186,5 @@ bun run deck                   # CrateDeck: see every drive, sync + verify
 ```
 
 Going deeper: [getdat/usb-sync.md](getdat/usb-sync.md) (pipeline what/why) ·
-[`src/fulltags/`](../fulltags/README.md) (the enrichment engine) ·
+[`src/fulltags/`](../src/fulltags/README.md) (the enrichment engine) ·
 [fulltags/fulltags-roadmap.md](fulltags/fulltags-roadmap.md) (what's next for tags)

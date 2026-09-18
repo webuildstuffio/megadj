@@ -1,5 +1,8 @@
 # 0b — Cold backup of the master library — runbook
 
+**Status:** 🟡 BLOCKED — waiting on the cloud target (B2/R2 bucket); the
+procedure is ready to execute once it exists.
+
 The only protection against all local drives failing at once — the one
 failure that ends the archive. B2 or R2 of `Contents/` + the archive DB
 via rclone; read-only on the drives, versioned on the cloud side.
