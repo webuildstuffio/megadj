@@ -16,7 +16,7 @@ import {
   MEGASET_TRANSITION_WEIGHTS,
   type MegasetPresetDef,
 } from "../shared/types";
-import { cosineSimilarity } from "../shared/similarity";
+import { cosineSimilarity } from "../shared/vector-space";
 
 /** The pool row the whole set-builder scores and chains (#171 madge
  *  pass: canonically lives HERE — the scoring family owns the shape it

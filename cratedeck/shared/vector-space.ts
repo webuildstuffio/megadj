@@ -188,3 +188,22 @@ export function cslsQueryPenalty(
   const sims = corpusVecs.map((c) => dot(queryVec, c));
   return roundedMeanTop(sims, r);
 }
+
+// ---- cosine similarity (was similarity.ts, 21L — merged per #221; same
+// pure-math leaf, one import surface for the archive↔CrateDeck seam) ------
+
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return 0;
+  let dotProduct = 0;
+  let aNorm = 0;
+  let bNorm = 0;
+  for (let index = 0; index < a.length; index++) {
+    const aValue = a[index]!;
+    const bValue = b[index]!;
+    dotProduct += aValue * bValue;
+    aNorm += aValue * aValue;
+    bNorm += bValue * bValue;
+  }
+  if (aNorm === 0 || bNorm === 0) return 0;
+  return dotProduct / Math.sqrt(aNorm * bNorm);
+}

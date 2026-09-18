@@ -9,9 +9,9 @@
 //                   ledger (written by `megadj mood --embeddings`)
 //   (the set-builder pool reader lives in archive_pool.ts)
 import { isFiniteNumberArray } from "../shared/guards";
-import { cosineSimilarity } from "../shared/similarity";
 import {
   applySpace,
+  cosineSimilarity,
   cslsPenalties,
   cslsQueryPenalty,
   fitAllButTheTop,
