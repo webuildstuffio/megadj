@@ -260,10 +260,23 @@ describe("sync --sc-url validation (#255)", () => {
   // (the module-level `spawnSync` import now serves this describe —
   //  the old local require() redeclaration shadowed it)
   const CLI = join(import.meta.dir, "../../cli.ts");
+  // Hermeticity (Sep 19): the spawned CLI resolves DB_PATH from MEGADJ_DB
+  // (cli-env.ts). Without the override these tests wrote sync_runs rows
+  // into the LIVE ~/.local/state/megadj/archive.db — empty run rows every
+  // ~15s during any full-suite gate (the 21:41Z empty-runs incident). The
+  // dead-slug test also hit real network (yt-dlp resolved the 404).
+  const cliDir = tempState("megadj-sync-cli-").next().dir;
+  const cliDb = join(cliDir, "archive.db");
   const runCli = (args: string[]) => {
     const proc = spawnSync(process.execPath, ["run", CLI, ...args], {
       encoding: "utf8",
       timeout: 60_000,
+      env: {
+        ...process.env,
+        MEGADJ_DB: cliDb,
+        MEGADJ_MUSIC_DIR: cliDb.replace(/\.db$/, "-music"),
+        MEGADJ_COOKIES: "none",
+      },
     });
     return {
       status: proc.status,
