@@ -68,25 +68,13 @@ export interface IntakeFoldersResponse {
   candidates: IntakeCandidate[];
 }
 
-/** One dump unit (#20): a dated batch folder with its run tallies.
- *  Mirrors src/archive/dump-ledger.ts (the writer) — derived consumers
- *  on the wire import THIS side (shared/intake.ts), never a hand twin. */
-export interface DumpRecord {
-  /** the dated batch folder name ("2026-09-09 new dump") — the key */
-  folder: string;
-  sourceFolder: string;
-  status: "partial" | "done";
-  ingested: number;
-  duplicates: number;
-  /** broken/tag-write/skip tail — a re-run resumes these */
-  pending: number;
-  lastError: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
+// The dump wire shapes are DERIVED from the owning leaf (#262): the one
+// declaration of DumpRecord + the dump census shape lives in
+// cratedeck/shared/dump.ts (the contract src/archive/dump-ledger.ts
+// writes and cratedeck/src/dump-reader.ts reads). This module re-exports
+// them for the barrel/web — a second hand-copied interface here would
+// compile fine and drift silently the day the ledger adds a field; the
+// colocated intake.test.ts census fails the build on any redeclaration.
+export type { DumpRecord } from "../dump";
 /** Wire shape of GET /api/intake/dumps — the dumps strip's census. */
-export interface IntakeDumpsResponse {
-  dumps: DumpRecord[];
-  counts: { total: number; partial: number; done: number; pending: number };
-}
+export type { DumpCensus as IntakeDumpsResponse } from "../dump";
