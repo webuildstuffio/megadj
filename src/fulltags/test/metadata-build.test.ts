@@ -4,6 +4,7 @@ import {
   buildMetadata,
   cleanTitle,
   extractComposer,
+  scInfoToYtdlpInfo,
 } from "../write/metadata-build";
 
 describe("cleanTitle", () => {
@@ -108,5 +109,67 @@ describe("buildMetadata", () => {
   test("refuses the literal Music placeholder", () => {
     // YouTube-tier category "Music" is not a genre — must not pass through.
     expect(buildMetadata({ title: "X", genre: "Music" }).genre).toBeNull();
+  });
+});
+
+describe("scInfoToYtdlpInfo (#258 — the SC payload shape bridge)", () => {
+  test("uploader becomes artist when artist is absent (live SC shape)", () => {
+    // Measured live Sep 19: SC gives uploader="Porter Robinson", no artist.
+    const mapped = scInfoToYtdlpInfo({
+      title: "Shelter",
+      uploader: "Porter Robinson",
+      timestamp: 1470950832,
+    });
+    expect(mapped.artist).toBe("Porter Robinson");
+    expect(mapped.upload_date).toBe("20160811");
+    expect(mapped.uploader).toBe("Porter Robinson");
+  });
+
+  test("an explicit artist is never overwritten", () => {
+    const mapped = scInfoToYtdlpInfo({
+      title: "X",
+      artist: "Real Artist",
+      uploader: "Reuploader Channel",
+    });
+    expect(mapped.artist).toBe("Real Artist");
+  });
+
+  test("existing upload_date wins over timestamp", () => {
+    const mapped = scInfoToYtdlpInfo({
+      title: "X",
+      upload_date: "20200101",
+      timestamp: 1470950832,
+    });
+    expect(mapped.upload_date).toBe("20200101");
+  });
+
+  test("missing/bad timestamp leaves upload_date undefined", () => {
+    const mapped = scInfoToYtdlpInfo({ title: "X" });
+    expect(mapped.upload_date).toBeUndefined();
+    expect(
+      scInfoToYtdlpInfo({ title: "X", timestamp: 0 }).upload_date,
+    ).toBeUndefined();
+  });
+
+  test("the mapped info builds real tags (artist + date land)", () => {
+    const meta = buildMetadata(
+      scInfoToYtdlpInfo({
+        title: "Porter Robinson & Madeon - Shelter",
+        uploader: "Porter Robinson",
+        timestamp: 1470950832,
+      }),
+    );
+    expect(meta.artist).toBe("Porter Robinson");
+    expect(meta.date).toBe("2016");
+  });
+
+  test("idempotent — mapping twice changes nothing", () => {
+    const once = scInfoToYtdlpInfo({
+      title: "X",
+      uploader: "A",
+      timestamp: 1470950832,
+    });
+    const twice = scInfoToYtdlpInfo(once);
+    expect(twice).toStrictEqual(once);
   });
 });

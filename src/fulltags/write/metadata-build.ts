@@ -21,6 +21,36 @@ export interface YtdlpInfo {
   webpage_url?: string;
   duration?: number;
   ext?: string;
+  /** SC payloads (measured Sep 19): uploader = artist name, timestamp =
+   *  epoch upload date, genre/release_date are ABSENT. The SC arm maps
+   *  these onto the YT-shaped fields instead of teaching every consumer
+   *  a second shape (#258). */
+  timestamp?: number;
+}
+
+/** Map the SC payload shape onto the YT-shaped YtdlpInfo (pure).
+ *  uploader→artist (when artist is absent), timestamp→upload_date
+ *  (YYYYMMDD string, buildMetadata's native form). Idempotent. */
+export function scInfoToYtdlpInfo(info: YtdlpInfo): YtdlpInfo {
+  if (
+    info.artist === undefined &&
+    typeof info.uploader === "string" &&
+    info.uploader.length > 0
+  ) {
+    info = { ...info, artist: info.uploader };
+  }
+  if (
+    info.upload_date === undefined &&
+    Number.isFinite(info.timestamp) &&
+    (info.timestamp ?? 0) > 0
+  ) {
+    const d = new Date((info.timestamp ?? 0) * 1000);
+    info = {
+      ...info,
+      upload_date: `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`,
+    };
+  }
+  return info;
 }
 
 /** Extract "Producer: X" style credits from a YouTube description. */

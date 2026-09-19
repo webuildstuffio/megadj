@@ -8,12 +8,15 @@ import {
   SC_SOURCE,
   classifyScFailure,
   extractAcquisitionLinks,
+  isPrivateUser404,
   isSoundCloudUrl,
   ripDecision,
   scFormatKbps,
   scTrackIdFromUrl,
   scTrackUrl,
+  scUserGateNeeded,
   type ScAcquisitionLink,
+  type SyncSource,
 } from "./soundcloud";
 
 describe("SC URL forms (#255)", () => {
@@ -135,6 +138,20 @@ describe("link-first extraction (#256)", () => {
     expect(links[0]?.url).toBe("https://lnk.to/track");
   });
 
+  test("smarturl.it routes as smart_link (live Shelter shape, Sep 19)", () => {
+    // Measured: the canonical Shelter description carries exactly these —
+    // missing the host meant the biggest tracks silently ripped.
+    const links = extractAcquisitionLinks({
+      description:
+        "Spotify: http://smarturl.it/ShelterSpotify \niTunes: http://smarturl.it/ShelterDownload",
+    });
+    expect(links.map((l) => l.kind)).toStrictEqual([
+      "smart_link",
+      "smart_link",
+    ]);
+    expect(links[0]?.url).toBe("http://smarturl.it/ShelterSpotify");
+  });
+
   test("no links at all → empty (the rip case)", () => {
     expect(
       extractAcquisitionLinks({ description: "just vibes https://x.com/a" }),
@@ -165,6 +182,44 @@ describe("rip decision (#256 — surface beats rip unless forced)", () => {
       action: "rip",
       link: null,
     });
+  });
+});
+
+describe("likes/user cookie gate (#258 — private 404s name the remedy)", () => {
+  test("only the likes/user kinds need the gate", () => {
+    const likes: SyncSource = {
+      kind: "sc-likes",
+      url: "https://soundcloud.com/x/likes",
+      label: SC_SOURCE,
+    };
+    const user: SyncSource = {
+      kind: "sc-user",
+      url: "https://soundcloud.com/x/tracks",
+      label: SC_SOURCE,
+    };
+    const track: SyncSource = {
+      kind: "sc-track",
+      url: "https://soundcloud.com/a/b",
+      label: SC_SOURCE,
+    };
+    const ytm: SyncSource = { kind: "ytm-playlist", id: "LM", label: "liked" };
+    expect(scUserGateNeeded(likes)).toBe(true);
+    expect(scUserGateNeeded(user)).toBe(true);
+    expect(scUserGateNeeded(track)).toBe(false);
+    expect(scUserGateNeeded(ytm)).toBe(false);
+  });
+
+  test("the private-page 404 shape is recognized (live stderr, Sep 19)", () => {
+    expect(
+      isPrivateUser404(
+        "ERROR: [soundcloud:user] nichm44: Unable to download JSON metadata: HTTP Error 404: Not Found (caused by <HTTPError 404: Not Found>)",
+      ),
+    ).toBe(true);
+    // A plain track 404 is NOT the private-user shape.
+    expect(
+      isPrivateUser404("ERROR: [soundcloud] a/b: HTTP Error 404: Not Found"),
+    ).toBe(false);
+    expect(isPrivateUser404("connection reset")).toBe(false);
   });
 });
 

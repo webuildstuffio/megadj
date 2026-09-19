@@ -8,7 +8,7 @@
 
 import { $ } from "bun";
 import type { ArchiveState } from "../../archive/state";
-import { type RateLimiter, withRetry } from "../ratelimit";
+import { type RateLimiter, TrackGoneError, withRetry } from "../ratelimit";
 import {
   Downloader,
   ScPermanentError,
@@ -19,8 +19,10 @@ import {
   SC_SOURCE,
   classifyScFailure,
   extractAcquisitionLinks,
+  isPrivateUser404,
   ripDecision,
   scTrackIdFromUrl,
+  scUserGateNeeded,
   type SyncSource,
 } from "../soundcloud";
 
@@ -32,6 +34,7 @@ import { commandLog, ProgressBar } from "../../shared/progress";
 import { applyTags } from "../../fulltags/write/writer";
 import {
   buildMetadata,
+  scInfoToYtdlpInfo,
   type YtdlpInfo,
 } from "../../fulltags/write/metadata-build";
 import { guessFromFreeText } from "../../fulltags/genre/genre-vocab";
@@ -159,6 +162,14 @@ async function scSourceQueue(
     const stderr = new TextDecoder().decode(proc.stderr);
     const cls = classifyScFailure(stderr);
     const detail = stderr.split("\n").slice(-2).join(" ").slice(0, 200);
+    // #258: a PRIVATE likes/user page 404s exactly like a dead one when
+    // no cookies were passed — name the remedy instead of a bare 404.
+    if (scUserGateNeeded(source) && isPrivateUser404(stderr)) {
+      const remedy = opts.cookiesFromBrowser
+        ? "cookies loaded but SC says private/not-found — check the profile name"
+        : "pass --cookies-from-browser <browser> (or --cookies <file>) — private likes need auth";
+      throw new Error(`SC likes/user unavailable: ${detail} — ${remedy}`);
+    }
     if (cls === "gone" || cls === "permanent") {
       // Permanent at the SOURCE level: an honest error, zero work.
       throw new Error(`SC source unavailable (permanent): ${detail}`);
@@ -166,7 +177,15 @@ async function scSourceQueue(
     throw new Error(`SC source fetch failed: ${detail}`);
   }
   const stdout = new TextDecoder().decode(proc.stdout);
-  const parsed: unknown = JSON.parse(stdout);
+  // Guarded parse (same contract as parsePlaylistOutput): a malformed
+  // body throws with cause instead of tripping the boundary census's
+  // sanction list (#255 follow-through).
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout) as unknown;
+  } catch (error) {
+    throw new Error("SC source output was not valid JSON", { cause: error });
+  }
   if (!isRecord(parsed)) {
     throw new Error("SC source output was not valid JSON");
   }
@@ -465,6 +484,10 @@ async function processQueue(
         () => downloader.probe(track.video_id),
         { maxRetries: 2 },
       );
+      // #258: SC payloads carry uploader/timestamp instead of artist/date
+      // (measured live) — normalize BEFORE the music gate, link-first
+      // extraction and tag build read it.
+      const probed = isSc ? scInfoToYtdlpInfo(result) : result;
 
       if (!isSc && !classifyMusic(result, opts)) {
         const cats = result.categories ?? [];
@@ -479,7 +502,7 @@ async function processQueue(
       // user goes through it instead — the rip is skipped, the link is
       // printed AND persisted. --force-ip rips anyway.
       if (isSc) {
-        const links = extractAcquisitionLinks(result);
+        const links = extractAcquisitionLinks(probed);
         const decision = ripDecision(links, opts.forceRip === true);
         if (decision.action === "surface" && decision.link) {
           const linksJson = JSON.stringify(links);
@@ -504,21 +527,21 @@ async function processQueue(
       // itself) through the same "Unknown Genre" bucket organize uses,
       // so unknown stays ONE recoverable bucket, never a fake genre.
       const downloadGenre = guessFromFreeText([
-        result.genre,
-        result.artist,
-        result.album,
-        result.title,
+        probed.genre,
+        probed.artist,
+        probed.album,
+        probed.title,
       ]);
 
       const dl = await downloader.download(
         track.video_id,
-        result,
+        probed,
         downloadGenre,
       );
       await settleDownload(opts, log, bar, totals, track, dl, isSc);
     } catch (error) {
       const { message } = error as Error;
-      if (message === "GONE") {
+      if (error instanceof TrackGoneError) {
         totals.gone++;
         opts.state.markGone(track.video_id, "track unavailable");
         log(`  ↳ gone (unavailable)`);

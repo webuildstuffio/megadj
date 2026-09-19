@@ -7,7 +7,16 @@ censuses ([#255](https://github.com/webuildstuffio/megadj/issues/255),
 [#257](https://github.com/webuildstuffio/megadj/issues/257),
 [#258](https://github.com/webuildstuffio/megadj/issues/258),
 [#259](https://github.com/webuildstuffio/megadj/issues/259)).
-Plan text below retained as the design record.
+
+**10x hardening pass (later Sep 19):** drop's SC link-surface writes the
+ledger row (`link_surfaced` keyed by the numeric SC id — `sync` never
+re-attempts); `status`/`list` render the cohort (`LINK` flag,
+`links_surfaced` count, source-aware HIGHQ bar); `smarturl.it` joined
+`SMART_LINK_HOSTS` (live Shelter probe: the canonical track's store
+links silently ripped before); private likes/user 404s now name the
+cookie remedy; SC payloads' `uploader`/`timestamp` map onto
+artist/date (`scInfoToYtdlpInfo` — SC has no artist/release_date
+fields, measured). Plan text below retained as the design record.
 
 _As of 2026-09-19 (live-verified): yt-dlp 2026.08.19, Chrome cookies
 extracting fine (3,424 cookies), `scsearch` + track `-J` probe + set

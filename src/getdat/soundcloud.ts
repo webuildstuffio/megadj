@@ -58,7 +58,9 @@ export interface ScAcquisitionLink {
 
 /** Smart-link services (linktr.ee / fanlink / etc.) resolve to stores —
  *  surfaced as `smart_link`; direct store hosts are
- *  `description_store_link`. */
+ *  `description_store_link`. smarturl.it measured live (Sep 19): the
+ *  canonical Shelter description routes its Spotify/iTunes through it —
+ *  without the row the biggest tracks silently ripped. */
 const SMART_LINK_HOSTS = [
   "linktr.ee",
   "fanlink.to",
@@ -70,6 +72,7 @@ const SMART_LINK_HOSTS = [
   "orcd.co",
   "onerpm.link",
   "found.ee",
+  "smarturl.it",
 ];
 const STORE_HOSTS = [
   "bandcamp.com",
@@ -182,4 +185,19 @@ export function classifyScFailure(stderr: string): ScFailureClass {
   if (/PROTECTED-CCS/i.test(stderr)) return "permanent";
   if (/\[soundcloud\].*(DRM|not available)/i.test(stderr)) return "permanent";
   return "retryable";
+}
+
+/** #258: likes/user-page reads are the one SC surface that (a) needs
+ *  impersonation (yt-dlp's curl_cffi) and (b) 404s on PRIVATE profiles
+ *  with no cookies — a shape indistinguishable from a dead profile
+ *  without context. The gate classifies so callers can say "add
+ *  --cookies-from-browser" instead of a bare 404. */
+export function scUserGateNeeded(source: SyncSource): boolean {
+  return source.kind === "sc-likes" || source.kind === "sc-user";
+}
+
+/** True when the 404 came from a likely-PRIVATE likes/user page (cookies
+ *  absent). Pure: the callers append their own remedy text. */
+export function isPrivateUser404(stderr: string): boolean {
+  return /\[soundcloud:user\].*HTTP Error 404/i.test(stderr);
 }

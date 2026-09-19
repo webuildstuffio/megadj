@@ -24,8 +24,10 @@ import { ytdlpCookieArgs } from "../getdat/downloader";
 import {
   SC_FORMAT,
   extractAcquisitionLinks,
+  isPrivateUser404,
   isSoundCloudUrl,
   ripDecision,
+  scTrackIdFromUrl,
 } from "../getdat/soundcloud";
 import {
   intakeFolderName,
@@ -138,6 +140,19 @@ async function downloadScUrl(
     timeout: 120_000,
   });
   if (flat.exitCode !== 0) {
+    const stderr = new TextDecoder().decode(flat.stderr);
+    // #258: a likes/user target without cookies 404s like a dead profile —
+    // name the remedy (drop takes full SC URLs; /likes & /tracks pages
+    // are the auth-gated shapes).
+    if (
+      (/\/likes|\/tracks/.test(target) || /soundcloud:user/.test(stderr)) &&
+      isPrivateUser404(stderr)
+    ) {
+      const remedy = opts.cookiesFromBrowser
+        ? "cookies loaded but SC says private/not-found — check the URL"
+        : "pass --cookies-from-browser <browser> (or --cookies <file>) — likes/user pages need auth";
+      return { downloaded: 0, error: `${stderr.slice(-160)} — ${remedy}` };
+    }
     const err =
       new TextDecoder()
         .decode(flat.stderr)
@@ -145,7 +160,7 @@ async function downloadScUrl(
         .slice(-2)
         .join(" ")
         .slice(0, 200) || `yt-dlp exit ${flat.exitCode}`;
-    return { downloaded: 0, error: err };
+    return { downloaded: 0, error: err || `yt-dlp exit ${flat.exitCode}` };
   }
   let parsed: unknown;
   try {
@@ -200,10 +215,24 @@ async function downloadScUrl(
           .slice(0, 200) || `yt-dlp exit ${proc.exitCode}`;
       return { downloaded: 0, error: err };
     }
+    // #258: a set-rip's files are SC provenance — register each landed
+    // file under the ledger (soundcloud source) so `megadj list`, the
+    // LOWQ floor (SC 160k) and the collection counts see them. Keyed by
+    // the numeric SC id when the flat entries carry one, ext- hash
+    // otherwise (ingest's own register pass would key it by path).
+    for (const entry of entries) {
+      const row = (entry ?? {}) as { id?: unknown };
+      const scId = typeof row.id === "string" ? row.id : null;
+      if (scId) {
+        opts.state.upsertTrackFromPlaylist(scId, 0, null, "soundcloud");
+      }
+    }
     return { downloaded: entries.length, folder: batchDir };
   }
   // SINGLE TRACK: link-first (#256). A real acquisition link is SURFACED,
-  // not ripped — the user goes through the official channel.
+  // not ripped — the user goes through the official channel. Surfaced
+  // rows land in the LEDGER (keyed by the numeric SC id) so `sync` sees
+  // the decision too and never re-attempts the track from its sources.
   const info = parsed as {
     id?: unknown;
     title?: unknown;
@@ -215,6 +244,18 @@ async function downloadScUrl(
   const links = extractAcquisitionLinks(info);
   const decision = ripDecision(links, opts.forceRip === true);
   if (decision.action === "surface" && decision.link) {
+    const scId =
+      typeof info.id === "string" && info.id.length > 0
+        ? info.id
+        : scTrackIdFromUrl(target);
+    if (scId) {
+      opts.state.upsertTrackFromPlaylist(scId, 0, null, "soundcloud");
+      opts.state.markLinkSurfaced(
+        scId,
+        JSON.stringify(links),
+        `${decision.link.kind}: ${decision.link.url}`,
+      );
+    }
     return {
       downloaded: 0,
       error: `link available — go through it instead of ripping: ${decision.link.url} (--force-rip overrides)`,
