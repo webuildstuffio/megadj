@@ -34,6 +34,7 @@ import {
 export type { SyncSource as PlaylistSource } from "../soundcloud";
 import { commandLog, ProgressBar } from "../../shared/progress";
 import { applyTags } from "../../fulltags/write/writer";
+import { probeFile } from "../../fulltags/media-probe";
 import {
   buildMetadata,
   scInfoToYtdlpInfo,
@@ -59,6 +60,9 @@ export interface SyncOptions {
   targetTotal?: number | undefined;
   /** #256 link-first: rip even when the track offers an official link. */
   forceRip?: boolean | undefined;
+  /** #258-followup: re-probe terminal SC rows (gone/link_surfaced) that
+   *  have empty title/artist and backfill identity from the raw API. */
+  repairIdentity?: boolean | undefined;
   onProgress?: ((msg: string) => void) | undefined;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
   json?: boolean | undefined;
@@ -135,6 +139,39 @@ export interface SyncTotals {
   /** #256 link-first: tracks where the rip was SKIPPED because an
    *  official acquisition link was surfaced instead. */
   surfaced: number;
+}
+
+/** --repair-identity (#258-followup): re-probe terminal SC rows whose
+ *  title/artist are empty and backfill them from the raw API. The probe
+ *  is best-effort — a null merge changes nothing. */
+async function repairScIdentity(
+  opts: SyncOptions,
+  log: (msg: string) => void,
+): Promise<Partial<SyncTotals>> {
+  const thin = opts.state
+    .allTracks()
+    .filter(
+      (t) =>
+        t.source.startsWith(SC_SOURCE) &&
+        (t.status === "gone" || t.status === "link_surfaced") &&
+        (!t.title ||
+          t.title.trim() === "" ||
+          !t.artist ||
+          t.artist.trim() === ""),
+    );
+  log(`${thin.length} thin terminal row(s) to repair`);
+  let repaired = 0;
+  for (const row of thin) {
+    const raw = await scRawTrackLinks(row.video_id);
+    if (raw === null) continue;
+    const title = typeof raw.title === "string" ? raw.title : null;
+    const artist = typeof raw.user === "string" ? raw.user : null;
+    if (title === null && artist === null) continue;
+    opts.state.backfillTrackIdentity(row.video_id, title, artist);
+    repaired++;
+  }
+  log(`repaired identity on ${repaired} row(s)`);
+  return { attempted: thin.length, downloaded: repaired };
 }
 
 /** Build the Downloader source + queue for one sync source. YT playlist
@@ -252,7 +289,7 @@ function scUrlOf(source: SyncSource): string {
 }
 
 /** Fresh zeroed counters for one sync run. */
-function newTotals(): SyncTotals {
+export function newTotals(): SyncTotals {
   return {
     attempted: 0,
     downloaded: 0,
@@ -408,7 +445,7 @@ export async function statSizeSafe(
 /** Handle one resolved download outcome (downloaded / gone / failed / no-path).
  *  `isSc` selects the SC codec/format facts (the mp3 twin lands .mp3 at
  *  128k; SC aac rows keep the "aac" codec the LOWQ floors already know). */
-async function settleDownload(
+export async function settleDownload(
   opts: SyncOptions,
   log: (msg: string) => void,
   bar: ProgressBar,
@@ -433,6 +470,30 @@ async function settleDownload(
     return;
   }
   if (dl.filePath && dl.info) {
+    // Preview-clip guard (super-sure pass, Sep 19): SC tracks behind Go+
+    // walls serve ONLY a 30-second preview. yt-dlp happily downloads it
+    // and the run registered a 30s clip as a full download (15 paro-set
+    // rows). The SC probe payload's duration is the FULL track's — a
+    // landed file at less than half that duration is a preview, never a
+    // rip. SC-only: YT Music never serves previews.
+    if (isSc) {
+      const fullDuration = dl.info.duration ?? 0;
+      const landedProbe = (await probeFile(dl.filePath)).durationS;
+      if (
+        fullDuration > 90 &&
+        landedProbe !== null &&
+        landedProbe < fullDuration * 0.5
+      ) {
+        totals.gone++;
+        state.markGone(
+          track.video_id,
+          `preview-only (${Math.round(landedProbe)}s clip of ${Math.round(fullDuration)}s track) — SC serves no full stream`,
+        );
+        log(`  ↳ gone: 30s preview downloaded, not the full track`);
+        bar.update();
+        return;
+      }
+    }
     const meta = buildMetadata(dl.info);
     await applyTags(dl.filePath, meta);
     const fileSize = await statSizeSafe(dl.filePath, log);
@@ -537,6 +598,16 @@ async function processQueue(
             ),
           )
         : result;
+      // Identity backfill (before any terminal mark): the raw-API merge
+      // may have recovered title/user for a row whose probe payload was
+      // thin (set fan-out rows carry only id+url). Fill-don't-clobber.
+      if (isSc) {
+        opts.state.backfillTrackIdentity(
+          track.video_id,
+          typeof probed.title === "string" ? probed.title : null,
+          typeof probed.artist === "string" ? probed.artist : null,
+        );
+      }
 
       if (!isSc && !classifyMusic(result, opts)) {
         const cats = result.categories ?? [];
@@ -638,6 +709,18 @@ export async function sync(opts: SyncOptions): Promise<void> {
   // (no playlist upserts, no run rows). The old dry-run recorded tracks and
   // a finished run row, so "dry" mutated the archive's memory.
   const runId = isDry ? null : opts.state.startRun();
+
+  // --repair-identity (#258-followup, Sep 19): SC rows that reached a
+  // terminal state (gone / link_surfaced) with thin metadata — set/user
+  // fan-out entries carry only id+url, so a row marked terminal at probe
+  // time never learned its title/artist. This scoped pass re-probes JUST
+  // those rows through the raw-API enrichment and backfills the empty
+  // columns. Fill-don't-clobber; a failed probe changes nothing.
+  if (opts.repairIdentity === true) {
+    const repaired = await repairScIdentity(opts, log);
+    await finishRun(opts, log, runId, { ...newTotals(), ...repaired });
+    return;
+  }
 
   const { queue } = await prepareQueue(opts, log, isDry);
   log(`${queue.length} track(s) to attempt this run`);

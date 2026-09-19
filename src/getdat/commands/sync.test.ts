@@ -1,16 +1,33 @@
-import { describe, expect, test, beforeEach, afterEach } from "bun:test";
+import {
+  describe,
+  expect,
+  test,
+  beforeEach,
+  afterEach,
+  beforeAll,
+} from "bun:test";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import type { ArchiveState } from "../../archive/state";
 import { RateLimiter, TrackGoneError } from "../ratelimit";
 import { Downloader } from "../downloader";
 import {
+  newTotals,
   parsePlaylistOutput,
   setScSourceQueueImpl,
+  settleDownload,
   statSizeSafe,
   sync,
   type SyncOptions,
 } from "./sync";
 import { tempState } from "../../test-support/testutil";
+import { ProgressBar } from "../../shared/progress";
+import { SC_SOURCE } from "../soundcloud";
+
+/** A real 1-second audio file — the preview guard ffprobes the landed
+ *  path, so the fixture must carry actual media (written by the setup
+ *  block below; ffmpeg is a repo dev dependency via media-probe). */
+const PREVIEW_FIXTURE = "/tmp/megadj-preview-guard-test.m4a";
 
 /**
  * GetDat regression tests for the sync pipeline — run with an injected
@@ -52,6 +69,29 @@ function baseOpts(
 
 beforeEach(() => {
   ({ dir, state } = ts.next());
+});
+
+/** The preview-guard tests ffprobe a REAL media file — synthesize one
+ *  (1-second sine) if absent; ffmpeg is a repo dev dependency. */
+beforeAll(() => {
+  if (!Bun.file(PREVIEW_FIXTURE).size) {
+    spawnSync(
+      "ffmpeg",
+      [
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:duration=1",
+        "-c:a",
+        "aac",
+        "-t",
+        "1",
+        PREVIEW_FIXTURE,
+        "-y",
+      ],
+      { timeout: 30_000 },
+    );
+  }
 });
 
 afterEach(() => {
@@ -145,20 +185,75 @@ describe("sync (GetDat pipeline)", () => {
       expect(e instanceof TrackGoneError).toBe(false);
     }
   }, 60_000);
+
+  // super-sure pass, Sep 19: SC Go+ tracks serve ONLY a 30s preview;
+  // yt-dlp downloads it and the run registered a 30s clip as a full
+  // download (15 paro-set rows). The guard compares the landed file's
+  // real duration against the probe payload's FULL duration.
+  test("settleDownload marks a preview-length SC clip gone, never downloaded", async () => {
+    state.upsertTrackFromPlaylist(
+      "sc-preview-1",
+      0,
+      "Preview Victim",
+      SC_SOURCE,
+    );
+    const logs: string[] = [];
+    const bar = new ProgressBar(1, "test");
+    const totals = newTotals();
+    await settleDownload(
+      baseOpts(state, { onProgress: (m) => logs.push(m) }),
+      (m) => logs.push(m),
+      bar,
+      totals,
+      { video_id: "sc-preview-1", title: "Preview Victim" },
+      {
+        status: "downloaded",
+        filePath: PREVIEW_FIXTURE,
+        formatId: "http_mp3_1_0_preview",
+        info: {
+          title: "Preview Victim",
+          duration: 214, // the FULL track is 3:34 …
+        },
+      },
+      true, // isSc
+    );
+    expect(totals.gone).toBe(1);
+    expect(totals.downloaded).toBe(0);
+    expect(state.trackById("sc-preview-1")?.status).toBe("gone");
+    expect(state.trackById("sc-preview-1")?.last_error).toContain(
+      "preview-only",
+    );
+  });
+
+  test("settleDownload still marks a full-length SC file downloaded", async () => {
+    state.upsertTrackFromPlaylist("sc-full-1", 0, "Full Track", SC_SOURCE);
+    const bar = new ProgressBar(1, "test");
+    const totals = newTotals();
+    await settleDownload(
+      baseOpts(state),
+      () => {},
+      bar,
+      totals,
+      { video_id: "sc-full-1", title: "Full Track" },
+      {
+        status: "downloaded",
+        // 1s real file, full track declared 2s: the >90s full-duration
+        // precondition is false, so the guard never fires — a short
+        // ambient/interlude rip stays a legitimate download.
+        filePath: PREVIEW_FIXTURE,
+        formatId: "hls_aac_160k",
+        info: { title: "Full Track", duration: 2 },
+      },
+      true,
+    );
+    expect(totals.downloaded).toBe(1);
+    expect(state.trackById("sc-full-1")?.status).toBe("downloaded");
+  });
 });
 
 describe("sync --sc-url validation (#255)", () => {
-  const { spawnSync } = require("node:child_process") as {
-    spawnSync: (
-      cmd: string,
-      args: string[],
-      opts: Record<string, unknown>,
-    ) => {
-      status: number | null;
-      stdout: string | null;
-      stderr: string | null;
-    };
-  };
+  // (the module-level `spawnSync` import now serves this describe —
+  //  the old local require() redeclaration shadowed it)
   const CLI = join(import.meta.dir, "../../cli.ts");
   const runCli = (args: string[]) => {
     const proc = spawnSync(process.execPath, ["run", CLI, ...args], {

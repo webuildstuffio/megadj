@@ -59,7 +59,7 @@ const syncCommand: CliCommandHandler = async (rest, context) => {
   const flags = parseFlags(
     rest,
     ["limit", "sources", "target-total", "sc-url"],
-    ["dry-run", "music-only", "json", "force-rip"],
+    ["dry-run", "music-only", "json", "force-rip", "repair-identity"],
   );
   const limiter = new RateLimiter({
     onPace: (ms) =>
@@ -110,6 +110,7 @@ const syncCommand: CliCommandHandler = async (rest, context) => {
     targetTotal,
     sources,
     forceRip: flags.bools.has("force-rip"),
+    repairIdentity: flags.bools.has("repair-identity"),
     json: flags.bools.has("json"),
   });
 };

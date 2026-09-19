@@ -430,6 +430,27 @@ export class ArchiveTracks extends ArchiveCore {
       .run(linksJson, detail, this.now(), trackId);
   }
 
+  /** Identity backfill for SC rows that reached a terminal state with thin
+   *  metadata (#258-followup): set/user fan-out entries carry only id+url,
+   *  so a row marked gone/link_surfaced at probe time never learned its
+   *  title/artist. Fills ONLY empty columns — never overwrites real
+   *  metadata (same fill-don't-clobber contract as markDownloaded). */
+  backfillTrackIdentity(
+    videoId: string,
+    title: string | null,
+    artist: string | null,
+  ): void {
+    this.db
+      .query(
+        `UPDATE tracks SET
+           title = COALESCE(NULLIF(TRIM(title), ''), ?, title),
+           artist = COALESCE(NULLIF(TRIM(artist), ''), ?, artist),
+           updated_at = updated_at
+         WHERE video_id = ?`,
+      )
+      .run(title, artist, videoId);
+  }
+
   /** Record that a rip happened despite an existing link (--force-rip):
    *  the decision is kept on the row for provenance. */
   markForcedRip(trackId: string, linksJson: string): void {

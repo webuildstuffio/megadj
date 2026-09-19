@@ -233,6 +233,13 @@ export interface ScRawTrackInfo {
   downloadable?: boolean;
   download_url?: string;
   description?: string;
+  /** Identity backfill: SC set/user fan-out entries carry only id+url, so
+   *  rows that go straight to a terminal state (gone / link_surfaced)
+   *  never learn their title/artist at probe time. The raw object has
+   *  both (title, user.username) — carried so the sync loop can backfill
+   *  the ledger before marking terminal. */
+  title?: string;
+  user?: string;
 }
 
 /** The web client_id, scraped once per process from SC's asset bundle
@@ -334,6 +341,15 @@ export async function scRawTrackLinks(
   if (typeof raw["description"] === "string") {
     out.description = raw["description"];
   }
+  if (typeof raw["title"] === "string") out.title = raw["title"];
+  const user = raw["user"];
+  if (
+    user !== null &&
+    typeof user === "object" &&
+    typeof (user as { username?: unknown }).username === "string"
+  ) {
+    out.user = (user as { username: string }).username;
+  }
   return out;
 }
 
@@ -356,5 +372,7 @@ export function mergeScRawLinks<T extends Record<string, unknown>>(
   assign("downloadable");
   assign("download_url");
   assign("description");
+  assign("title");
+  assign("user");
   return merged;
 }

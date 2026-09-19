@@ -5,9 +5,10 @@ export const GETDAT_COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "sync",
     group: "getdat",
     block: [
-      "  megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,sc-user:NAME,sc-likes:NAME] [--sc-url <soundcloud-url>] [--force-rip] [--json]",
+      "  megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,sc-user:NAME,sc-likes:NAME] [--sc-url <soundcloud-url>] [--force-rip] [--repair-identity] [--json]",
       "                                               download from YouTube Music playlists and SoundCloud",
       "                                               (tracks/sets/user pages); link-first on SC, resumable, rate-limited",
+      "                                               --repair-identity: backfill empty title/artist on terminal SC rows",
     ],
   },
   {
