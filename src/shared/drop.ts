@@ -215,18 +215,13 @@ async function downloadScUrl(
           .slice(0, 200) || `yt-dlp exit ${proc.exitCode}`;
       return { downloaded: 0, error: err };
     }
-    // #258: a set-rip's files are SC provenance — register each landed
-    // file under the ledger (soundcloud source) so `megadj list`, the
-    // LOWQ floor (SC 160k) and the collection counts see them. Keyed by
-    // the numeric SC id when the flat entries carry one, ext- hash
-    // otherwise (ingest's own register pass would key it by path).
-    for (const entry of entries) {
-      const row = (entry ?? {}) as { id?: unknown };
-      const scId = typeof row.id === "string" ? row.id : null;
-      if (scId) {
-        opts.state.upsertTrackFromPlaylist(scId, 0, null, "soundcloud");
-      }
-    }
+    // Registration is INGEST's job: the stage-1 pass registers each
+    // landed file under its path-hash ext- id (dedupe, tags, artwork).
+    // Upserting the flat entries HERE too (#258 first cut) double-keyed
+    // every file — a pending soundcloud row (numeric id) BESIDE the
+    // downloaded ext- row — and the pending twin sent later sync runs
+    // after the same set again. The ledger gets exactly one row per
+    // file, from the stage that owns files.
     return { downloaded: entries.length, folder: batchDir };
   }
   // SINGLE TRACK: link-first (#256). A real acquisition link is SURFACED,
@@ -249,12 +244,22 @@ async function downloadScUrl(
         ? info.id
         : scTrackIdFromUrl(target);
     if (scId) {
+      // #258-superfix: only PENDING rows take the link_surfaced flip. If
+      // the row already downloaded (this URL was ripped before the link
+      // was noticed, or a set carried it), the FILE exists — flipping it
+      // to a terminal link_surfaced would hide a real download from every
+      // count and queue. Provenance still lands either way.
+      const existing = scId ? opts.state.trackById(scId) : null;
       opts.state.upsertTrackFromPlaylist(scId, 0, null, "soundcloud");
-      opts.state.markLinkSurfaced(
-        scId,
-        JSON.stringify(links),
-        `${decision.link.kind}: ${decision.link.url}`,
-      );
+      if ((existing?.status ?? "pending") === "pending") {
+        opts.state.markLinkSurfaced(
+          scId,
+          JSON.stringify(links),
+          `${decision.link.kind}: ${decision.link.url}`,
+        );
+      } else {
+        opts.state.markForcedRip(scId, JSON.stringify(links));
+      }
     }
     return {
       downloaded: 0,

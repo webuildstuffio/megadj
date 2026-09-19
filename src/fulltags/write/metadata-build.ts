@@ -26,6 +26,9 @@ export interface YtdlpInfo {
    *  these onto the YT-shaped fields instead of teaching every consumer
    *  a second shape (#258). */
   timestamp?: number;
+  /** yt-dlp's chosen format id (SC: hls_* ids; YT: numeric). The
+   *  Downloader reads it to pick source-aware extraction flags. */
+  format_id?: string;
 }
 
 /** Map the SC payload shape onto the YT-shaped YtdlpInfo (pure).

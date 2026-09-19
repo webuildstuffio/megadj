@@ -149,8 +149,21 @@ export function ripDecision(
 /** The SC format selector. HLS AAC 160k is the platform ceiling (no
  *  progressive 320 for non-Go+; Go+ streams are DRM-protected) —
  *  measured live Sep 19: formats = hls_mp3_0_1 (128k), hls_aac_96k,
- *  hls_aac_160k. yt-dlp's `-f` chain falls through each step. */
+ *  hls_aac_160k. yt-dlp's `-f` chain falls through each step. The mp3
+ *  fallback exists because some legacy uploads stream ONLY mp3 — the
+ *  container rules below keep it a stream-copy, never a re-encode. */
 export const SC_FORMAT = "hls_aac_160k/bestaudio[ext=m4a]/bestaudio/bestaudio*";
+
+/** #258-superfix: the extraction rule per landed SC format. AAC lands
+ *  m4a (stream copy); the mp3 fallback must NOT go through
+ *  `-x --audio-format m4a` — that re-encodes mp3→AAC (lossy→lossy, the
+ *  exact double-transcode the archive refuses). Copy-as-is keeps the
+ *  original bytes: mp3 in, mp3 out (isLowq's 128k mp3 floor already
+ *  judges it correctly). Null = no extraction flags (stream copy). */
+export function scExtractionArgs(formatId: string | null): string[] {
+  if (formatId === "hls_mp3_0_1") return [];
+  return ["-x", "--audio-format", "m4a", "--audio-quality", "0"];
+}
 
 /** SC format-id → kbps (the formatBitrateKbps twin for SC ids).
  *  Unknown ids → null (the row keeps ffprobe-able facts only). */

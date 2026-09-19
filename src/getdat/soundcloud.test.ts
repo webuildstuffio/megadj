@@ -11,6 +11,7 @@ import {
   isPrivateUser404,
   isSoundCloudUrl,
   ripDecision,
+  scExtractionArgs,
   scFormatKbps,
   scTrackIdFromUrl,
   scTrackUrl,
@@ -150,6 +151,34 @@ describe("link-first extraction (#256)", () => {
       "smart_link",
     ]);
     expect(links[0]?.url).toBe("http://smarturl.it/ShelterSpotify");
+  });
+
+  test("scExtractionArgs: mp3 fallback stream-copies, AAC extracts to m4a", () => {
+    // mp3→m4a would be a lossy→lossy re-encode — the archive refuses
+    // double transcodes. The mp3 fallback lands original bytes.
+    expect(scExtractionArgs("hls_mp3_0_1")).toStrictEqual([]);
+    expect(scExtractionArgs("hls_aac_160k")).toStrictEqual([
+      "-x",
+      "--audio-format",
+      "m4a",
+      "--audio-quality",
+      "0",
+    ]);
+    expect(scExtractionArgs("hls_aac_96k")).toStrictEqual([
+      "-x",
+      "--audio-format",
+      "m4a",
+      "--audio-quality",
+      "0",
+    ]);
+    // Unknown format: extract to m4a (the safe default for AAC-family).
+    expect(scExtractionArgs(null)).toStrictEqual([
+      "-x",
+      "--audio-format",
+      "m4a",
+      "--audio-quality",
+      "0",
+    ]);
   });
 
   test("no links at all → empty (the rip case)", () => {

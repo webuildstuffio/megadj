@@ -12,6 +12,7 @@ import {
   SC_FORMAT,
   SC_SOURCE,
   classifyScFailure,
+  scExtractionArgs,
   scFormatKbps,
 } from "./soundcloud";
 
@@ -286,11 +287,13 @@ export class Downloader {
       target.soundcloud
         ? SC_FORMAT
         : "141/bestaudio[ext=m4a]/bestaudio/bestaudio*",
-      "-x",
-      "--audio-format",
-      "m4a",
-      "--audio-quality",
-      "0",
+      // #258-superfix: extraction flags are SOURCE-AWARE. SC's mp3
+      // fallback must stream-copy (scExtractionArgs → []), never
+      // mp3→m4a re-encode (lossy→lossy); YT keeps the m4a extraction —
+      // its bestaudio is already AAC, so that is copy semantics.
+      ...(target.soundcloud
+        ? scExtractionArgs(info.format_id ?? null)
+        : ["-x", "--audio-format", "m4a", "--audio-quality", "0"]),
       "-o",
       outTemplate,
       "--no-playlist",
@@ -305,7 +308,6 @@ export class Downloader {
       "after_move:%(format_id)s",
     ];
     args.push(...this.cookieArgs());
-    void info;
     const proc = await this.spawn([...args, target.url]);
     const stderr = new TextDecoder().decode(proc.stderr);
 
