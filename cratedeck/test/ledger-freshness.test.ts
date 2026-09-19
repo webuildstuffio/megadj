@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { formatAge, ledgerFreshness, worstBand } from "./ledger-freshness";
+import {
+  formatAge,
+  ledgerFreshness,
+  worstBand,
+} from "../shared/ledger-freshness";
 
 const NOW = new Date("2026-09-15T20:00:00Z");
 const hoursAgo = (h: number): string =>
