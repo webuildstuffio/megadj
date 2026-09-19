@@ -286,40 +286,98 @@ function applyDeps(
   };
 }
 
+function withSpawnCount(deps: RbDedupDeps): {
+  deps: RbDedupDeps;
+  count: () => number;
+} {
+  let calls = 0;
+  const spawn = deps.spawn;
+  deps.spawn = (...args) => {
+    calls++;
+    return spawn(...args);
+  };
+  return { deps, count: () => calls };
+}
+
+function associationApplyJson(): string {
+  return JSON.stringify({
+    removed_ids: ["lose"],
+    errors: [],
+    associations: [
+      {
+        keep_id: "keep",
+        playlists: [["playlist-1", 7]],
+        cue_signatures: ["cue-semantic-hash"],
+      },
+    ],
+  });
+}
+
+function associationVerifyJson(
+  overrides: Record<string, unknown> = {},
+): string {
+  return JSON.stringify({
+    rows: [
+      {
+        id: "keep",
+        path: "/mnt/Contents/Artist/keep.aiff",
+        playlists: [["playlist-1", 7]],
+        cue_signatures: ["cue-semantic-hash"],
+        ...overrides,
+      },
+    ],
+  });
+}
+
+function rollbackTracker(): {
+  overrides: Pick<RbDedupDeps, "rename" | "restore">;
+  renames: string[];
+  restored: () => boolean;
+} {
+  const renames: string[] = [];
+  let restored = false;
+  return {
+    overrides: {
+      rename: (from, to) => renames.push(`${from} -> ${to}`),
+      restore: () => {
+        restored = true;
+      },
+    },
+    renames,
+    restored: () => restored,
+  };
+}
+
 describe("rb-dedup apply safety", () => {
   test("rekordbox reopening before backup prevents backup and delete", async () => {
     let checks = 0;
     let backups = 0;
-    let spawns = 0;
-    const deps = applyDeps(
-      '{"removed_ids":["lose"],"errors":[]}',
-      '{"rows":[{"id":"keep","path":"/mnt/Contents/Artist/keep.aiff"}]}',
-      {
-        assertClosed: () => {
-          checks++;
-          if (checks === 2) throw new Error("rekordbox reopened");
+    const tracked = withSpawnCount(
+      applyDeps(
+        '{"removed_ids":["lose"],"errors":[]}',
+        '{"rows":[{"id":"keep","path":"/mnt/Contents/Artist/keep.aiff"}]}',
+        {
+          assertClosed: () => {
+            checks++;
+            if (checks === 2) throw new Error("rekordbox reopened");
+          },
+          backup: () => {
+            backups++;
+            return "/backup/master.db";
+          },
         },
-        backup: () => {
-          backups++;
-          return "/backup/master.db";
-        },
-      },
+      ),
     );
-    const spawn = deps.spawn;
-    deps.spawn = (...args) => {
-      spawns++;
-      return spawn(...args);
-    };
 
     const result = await rbDedup(
       { mount: "/mnt", apply: true, yes: true },
-      deps,
+      tracked.deps,
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("rekordbox reopened");
     expect(checks).toBe(2);
     expect(backups).toBe(0);
-    expect(spawns).toBe(1); // scan only
+    expect(tracked.count()).toBe(1); // scan only
   });
 
   test("cross-volume paths are rejected before backup, delete, or rename", async () => {
@@ -336,35 +394,31 @@ describe("rb-dedup apply safety", () => {
     );
     let backups = 0;
     let renames = 0;
-    let spawns = 0;
-    const deps = applyDeps(
-      '{"removed_ids":["inside-lose"],"errors":[]}',
-      '{"rows":[]}',
-      {
-        backup: () => {
-          backups++;
-          return "/backup/master.db";
+    const tracked = withSpawnCount(
+      applyDeps(
+        '{"removed_ids":["inside-lose"],"errors":[]}',
+        '{"rows":[]}',
+        {
+          backup: () => {
+            backups++;
+            return "/backup/master.db";
+          },
+          rename: () => {
+            renames++;
+          },
         },
-        rename: () => {
-          renames++;
-        },
-      },
-      [outside],
+        [outside],
+      ),
     );
-    const spawn = deps.spawn;
-    deps.spawn = (...args) => {
-      spawns++;
-      return spawn(...args);
-    };
     const result = await rbDedup(
       { mount: "/mnt", apply: true, yes: true },
-      deps,
+      tracked.deps,
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("outside selected Contents root");
     expect(backups).toBe(0);
     expect(renames).toBe(0);
-    expect(spawns).toBe(1); // read-only scan only
+    expect(tracked.count()).toBe(1); // read-only scan only
   });
 
   test("casefold path twins retire only the duplicate row and never move shared bytes", async () => {
@@ -423,11 +477,8 @@ describe("rb-dedup apply safety", () => {
     expect(renames).toBe(0);
 
     let backups = 0;
-    let spawns = 0;
-    const deps = applyDeps(
-      '{"removed_ids":["lose"],"errors":[]}',
-      '{"rows":[]}',
-      {
+    const tracked = withSpawnCount(
+      applyDeps('{"removed_ids":["lose"],"errors":[]}', '{"rows":[]}', {
         realpath: (path) => {
           if (path.endsWith("lose.aiff"))
             throw new Error("identity unreadable");
@@ -437,21 +488,16 @@ describe("rb-dedup apply safety", () => {
           backups++;
           return "/backup/master.db";
         },
-      },
+      }),
     );
-    const spawn = deps.spawn;
-    deps.spawn = (...args) => {
-      spawns++;
-      return spawn(...args);
-    };
     const failedResult = await rbDedup(
       { mount: "/mnt", apply: true, yes: true },
-      deps,
+      tracked.deps,
     );
     expect(failedResult.ok).toBe(false);
     expect(failedResult.error).toContain("identity unreadable");
     expect(backups).toBe(0);
-    expect(spawns).toBe(1);
+    expect(tracked.count()).toBe(1);
   });
 
   test("partial row deletion fails closed and reports exact surviving state", async () => {
@@ -502,54 +548,26 @@ describe("rb-dedup apply safety", () => {
   });
 
   test("fresh re-read mismatch fails closed with keeper and loser details", async () => {
-    const renames: string[] = [];
-    let restored = false;
+    const rollback = rollbackTracker();
     const result = await rbDedup(
       { mount: "/mnt", apply: true, yes: true },
       applyDeps(
         '{"removed_ids":["lose"],"errors":[]}',
         '{"rows":[{"id":"keep","path":"/wrong/path.aiff"},{"id":"lose","path":"/mnt/Contents/Artist/lose.aiff"}]}',
-        {
-          rename: (from, to) => renames.push(`${from} -> ${to}`),
-          restore: () => {
-            restored = true;
-          },
-        },
+        rollback.overrides,
       ),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("loser rows still present: lose");
     expect(result.error).toContain("keeper path mismatch: keep");
     expect(result.error).toContain("restored from backup");
-    expect(restored).toBe(true);
-    expect(renames).toHaveLength(2); // quarantine, then reverse compensation
+    expect(rollback.restored()).toBe(true);
+    expect(rollback.renames).toHaveLength(2); // quarantine, then reverse compensation
   });
 
   test("unique playlist memberships and cue semantics are re-homed and verified", async () => {
     const scripts: string[] = [];
-    const deps = applyDeps(
-      JSON.stringify({
-        removed_ids: ["lose"],
-        errors: [],
-        associations: [
-          {
-            keep_id: "keep",
-            playlists: [["playlist-1", 7]],
-            cue_signatures: ["cue-semantic-hash"],
-          },
-        ],
-      }),
-      JSON.stringify({
-        rows: [
-          {
-            id: "keep",
-            path: "/mnt/Contents/Artist/keep.aiff",
-            playlists: [["playlist-1", 7]],
-            cue_signatures: ["cue-semantic-hash"],
-          },
-        ],
-      }),
-    );
+    const deps = applyDeps(associationApplyJson(), associationVerifyJson());
     const spawn = deps.spawn;
     deps.spawn = (command, args, options) => {
       scripts.push(args[5] ?? "");
@@ -568,47 +586,25 @@ describe("rb-dedup apply safety", () => {
   });
 
   test("association verification mismatch restores DB and quarantined file", async () => {
-    let restored = false;
-    const renames: string[] = [];
+    const rollback = rollbackTracker();
     const result = await rbDedup(
       { mount: "/mnt", apply: true, yes: true },
       applyDeps(
-        JSON.stringify({
-          removed_ids: ["lose"],
-          errors: [],
-          associations: [
-            {
-              keep_id: "keep",
-              playlists: [["playlist-1", 7]],
-              cue_signatures: ["cue-semantic-hash"],
-            },
-          ],
+        associationApplyJson(),
+        associationVerifyJson({
+          playlists: [],
+          cue_signatures: [],
+          cue_owners_valid: false,
         }),
-        JSON.stringify({
-          rows: [
-            {
-              id: "keep",
-              path: "/mnt/Contents/Artist/keep.aiff",
-              playlists: [],
-              cue_signatures: [],
-              cue_owners_valid: false,
-            },
-          ],
-        }),
-        {
-          rename: (from, to) => renames.push(`${from} -> ${to}`),
-          restore: () => {
-            restored = true;
-          },
-        },
+        rollback.overrides,
       ),
     );
     expect(result.ok).toBe(false);
     expect(result.error).toContain("playlist associations mismatch: keep");
     expect(result.error).toContain("cue associations mismatch: keep");
     expect(result.error).toContain("cue ownership mismatch: keep");
-    expect(restored).toBe(true);
-    expect(renames).toHaveLength(2);
+    expect(rollback.restored()).toBe(true);
+    expect(rollback.renames).toHaveLength(2);
   });
 
   test("receipt failure restores DB and reverses quarantine", async () => {

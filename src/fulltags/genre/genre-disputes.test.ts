@@ -5,6 +5,7 @@
 import { describe, expect, test } from "bun:test";
 import { collectDisputes, resolveDispute } from "./genre-disputes";
 import type { ArchiveState } from "../../archive/state";
+import { genreEvalRow } from "../../test-support/genre-row";
 
 describe("genre --disputes (#64 review surface)", () => {
   test("collect lists flagged rows with live consensus + embed age", () => {
@@ -42,16 +43,16 @@ describe("genre --disputes (#64 review surface)", () => {
           },
         ],
         seeds: [
-          { video_id: "h1", genre: "House", vec_json: "[1,0.01]" },
-          { video_id: "h2", genre: "House", vec_json: "[1,0.02]" },
-          { video_id: "h3", genre: "House", vec_json: "[0.99,0.03]" },
+          genreEvalRow("h1", "House", "[1,0.01]"),
+          genreEvalRow("h2", "House", "[1,0.02]"),
+          genreEvalRow("h3", "House", "[0.99,0.03]"),
           // a techno corner for the "split" row to sit in: with k=5 the
           // split row's 5 nearest include 2 house (h1/h3 are near it too
           // in 2-d) — make the split real by keeping its neighbours
           // balanced: 2 house + 2 techno + 1 groove → no 60% quorum
-          { video_id: "t1", genre: "Techno", vec_json: "[0,0.95]" },
-          { video_id: "t2", genre: "Techno", vec_json: "[0.02,0.97]" },
-          { video_id: "g1", genre: "Groove", vec_json: "[0.4,0.9]" },
+          genreEvalRow("t1", "Techno", "[0,0.95]"),
+          genreEvalRow("t2", "Techno", "[0.02,0.97]"),
+          genreEvalRow("g1", "Groove", "[0.4,0.9]"),
         ],
       }),
     } as unknown as ArchiveState;

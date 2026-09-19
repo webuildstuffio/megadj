@@ -1,6 +1,32 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { ArchiveState } from "../../archive/state";
+import { genreEvalRow } from "../../test-support/genre-row";
 import { genre } from "./genre";
+
+async function captureGenreJson(
+  state: ArchiveState,
+  options: Omit<Parameters<typeof genre>[0], "state">,
+): Promise<Record<string, unknown>> {
+  const logged: string[] = [];
+  const original = console.log;
+  console.log = (line: string) => logged.push(String(line));
+  try {
+    await genre({ state, ...options });
+  } finally {
+    console.log = original;
+  }
+  return JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+}
+
+function refoldState(
+  rows: ReturnType<ArchiveState["labeledPopulation"]>,
+  updates: { videoId: string; to: string }[],
+): ArchiveState {
+  return {
+    labeledPopulation: () => rows,
+    updateGenre: (videoId: string, to: string) => updates.push({ videoId, to }),
+  } as unknown as ArchiveState;
+}
 
 describe("genre command JSON boundary", () => {
   afterEach(() => {
@@ -45,9 +71,9 @@ describe("genre command JSON boundary", () => {
   test("genre --eval sets exit code 1 when agreement is below target", async () => {
     const state = {
       evalPopulation: () => [
-        { video_id: "a", genre: "House", vec_json: "[1,0]", duration_s: 300 },
-        { video_id: "b", genre: "House", vec_json: "[1,0]", duration_s: 300 },
-        { video_id: "c", genre: "Bass", vec_json: "[0,1]", duration_s: 300 },
+        genreEvalRow("a", "House", "[1,0]"),
+        genreEvalRow("b", "House", "[1,0]"),
+        genreEvalRow("c", "Bass", "[0,1]"),
       ],
     } as unknown as ArchiveState;
 
@@ -59,9 +85,9 @@ describe("genre command JSON boundary", () => {
   test("genre --eval sets exit code 0 when agreement passes the gate", async () => {
     const state = {
       evalPopulation: () => [
-        { video_id: "a", genre: "House", vec_json: "[1,0]", duration_s: 300 },
-        { video_id: "b", genre: "House", vec_json: "[1,0]", duration_s: 300 },
-        { video_id: "c", genre: "House", vec_json: "[1,0]", duration_s: 300 },
+        genreEvalRow("a", "House", "[1,0]"),
+        genreEvalRow("b", "House", "[1,0]"),
+        genreEvalRow("c", "House", "[1,0]"),
       ],
     } as unknown as ArchiveState;
 
@@ -73,39 +99,15 @@ describe("genre command JSON boundary", () => {
   test("--eval --artist-disjoint adds the artist_disjoint block", async () => {
     const state = {
       evalPopulation: () => [
-        {
-          video_id: "a",
-          genre: "House",
-          vec_json: "[1,0]",
-          duration_s: 300,
-          artist: "X",
-        },
-        {
-          video_id: "b",
-          genre: "House",
-          vec_json: "[1,0]",
-          duration_s: 300,
-          artist: "Y",
-        },
-        {
-          video_id: "c",
-          genre: "House",
-          vec_json: "[1,0]",
-          duration_s: 300,
-          artist: "Z",
-        },
+        genreEvalRow("a", "House", "[1,0]", { artist: "X" }),
+        genreEvalRow("b", "House", "[1,0]", { artist: "Y" }),
+        genreEvalRow("c", "House", "[1,0]", { artist: "Z" }),
       ],
     } as unknown as ArchiveState;
-    // capture the JSON summary via console.log interception
-    const logged: string[] = [];
-    const orig = console.log;
-    console.log = (line: string) => logged.push(String(line));
-    try {
-      await genre({ state, eval: true, artistDisjoint: true });
-    } finally {
-      console.log = orig;
-    }
-    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    const parsed = await captureGenreJson(state, {
+      eval: true,
+      artistDisjoint: true,
+    });
     expect(parsed.command).toBe("genre");
     expect(parsed.artist_disjoint).toBeDefined();
     expect((parsed.artist_disjoint as Record<string, unknown>).evaluated).toBe(
@@ -116,38 +118,12 @@ describe("genre command JSON boundary", () => {
   test("--eval --probe adds the probe block with delta vs kNN", async () => {
     const state = {
       evalPopulation: () => [
-        {
-          video_id: "a",
-          genre: "House",
-          vec_json: "[1,0]",
-          duration_s: 300,
-          artist: "X",
-        },
-        {
-          video_id: "b",
-          genre: "House",
-          vec_json: "[1,0]",
-          duration_s: 300,
-          artist: "Y",
-        },
-        {
-          video_id: "c",
-          genre: "Bass",
-          vec_json: "[0,1]",
-          duration_s: 300,
-          artist: "Z",
-        },
+        genreEvalRow("a", "House", "[1,0]", { artist: "X" }),
+        genreEvalRow("b", "House", "[1,0]", { artist: "Y" }),
+        genreEvalRow("c", "Bass", "[0,1]", { artist: "Z" }),
       ],
     } as unknown as ArchiveState;
-    const logged: string[] = [];
-    const orig = console.log;
-    console.log = (line: string) => logged.push(String(line));
-    try {
-      await genre({ state, eval: true, probe: true });
-    } finally {
-      console.log = orig;
-    }
-    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    const parsed = await captureGenreJson(state, { eval: true, probe: true });
     expect(parsed.probe).toBeDefined();
     const probe = parsed.probe as Record<string, unknown>;
     expect(probe.evaluated).toBe(3);
@@ -203,47 +179,14 @@ describe("genre command JSON boundary", () => {
     // are a coherent cluster either way.
     const state = {
       evalPopulation: () => [
-        {
-          video_id: "a",
-          genre: "House",
-          vec_json: "[1,0]",
-          duration_s: 300,
-        },
-        {
-          video_id: "b",
-          genre: "House",
-          vec_json: "[1,0]",
-          duration_s: 300,
-        },
-        {
-          video_id: "c",
-          genre: "House",
-          vec_json: "[0.99,0.02]",
-          duration_s: 300,
-        },
-        {
-          video_id: "u",
-          genre: "Dance",
-          vec_json: "[1,0]",
-          duration_s: 300,
-        },
-        {
-          video_id: "v",
-          genre: "House",
-          vec_json: "[0,1]",
-          duration_s: 300,
-        },
+        genreEvalRow("a", "House", "[1,0]"),
+        genreEvalRow("b", "House", "[1,0]"),
+        genreEvalRow("c", "House", "[0.99,0.02]"),
+        genreEvalRow("u", "Dance", "[1,0]"),
+        genreEvalRow("v", "House", "[0,1]"),
       ],
     } as unknown as ArchiveState;
-    const logged: string[] = [];
-    const orig = console.log;
-    console.log = (line: string) => logged.push(String(line));
-    try {
-      await genre({ state, eval: true, refold: true });
-    } finally {
-      console.log = orig;
-    }
-    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    const parsed = await captureGenreJson(state, { eval: true, refold: true });
     const rf = parsed.refold as Record<string, unknown>;
     expect(rf).toBeDefined();
     // baseline population 5; the one plain-'Dance' row abstains
@@ -265,15 +208,7 @@ describe("genre command JSON boundary", () => {
       updateGenre: (videoId: string, to: string) =>
         updates.push({ videoId, to }),
     } as unknown as ArchiveState;
-    const logged: string[] = [];
-    const orig = console.log;
-    console.log = (line: string) => logged.push(String(line));
-    try {
-      await genre({ state, refold: true });
-    } finally {
-      console.log = orig;
-    }
-    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    const parsed = await captureGenreJson(state, { refold: true });
     expect(parsed.mode).toBe("refold");
     expect(parsed.changes).toBe(1); // only split-me
     expect(parsed.applied).toBe(false);
@@ -283,37 +218,31 @@ describe("genre command JSON boundary", () => {
 
   test("umbrella rows get casing-only fixes carried, value changes refused", async () => {
     const updates: { videoId: string; to: string }[] = [];
-    const state = {
-      labeledPopulation: () => [
+    const state = refoldState(
+      [
         { video_id: "lower", genre: "edm" },
         { video_id: "screaming", genre: "DANCE" },
         // a real value change: EDM → House must NEVER happen here
         { video_id: "value-ok", genre: "EDM" },
       ],
-      updateGenre: (videoId: string, to: string) =>
-        updates.push({ videoId, to }),
-    } as unknown as ArchiveState;
-    const logged: string[] = [];
-    const orig = console.log;
-    console.log = (line: string) => logged.push(String(line));
-    try {
-      await genre({ state, refold: true, apply: true });
-    } finally {
-      console.log = orig;
-    }
+      updates,
+    );
+    const parsed = await captureGenreJson(state, {
+      refold: true,
+      apply: true,
+    });
     expect(updates).toEqual([
       { videoId: "lower", to: "EDM" },
       { videoId: "screaming", to: "Dance" },
     ]);
-    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
     expect(parsed.umbrellaKept).toBe(0);
     expect(parsed.changes).toBe(2);
   });
 
   test("umbrella SPLIT outcomes are canonicalized (case-twin leak, super-sure)", async () => {
     const updates: { videoId: string; to: string }[] = [];
-    const state = {
-      labeledPopulation: () => [
+    const state = refoldState(
+      [
         // both tokens umbrella → resolves to bare "Dance"; the SPLIT is
         // still canonicalization and must write (case-twin pair killed)
         { video_id: "twin-a", genre: "Dance/electronic" },
@@ -321,22 +250,16 @@ describe("genre command JSON boundary", () => {
         // bare umbrella, no split, already-casing-canonical → kept honest
         { video_id: "plain", genre: "Dance" },
       ],
-      updateGenre: (videoId: string, to: string) =>
-        updates.push({ videoId, to }),
-    } as unknown as ArchiveState;
-    const logged: string[] = [];
-    const orig = console.log;
-    console.log = (line: string) => logged.push(String(line));
-    try {
-      await genre({ state, refold: true, apply: true });
-    } finally {
-      console.log = orig;
-    }
+      updates,
+    );
+    const parsed = await captureGenreJson(state, {
+      refold: true,
+      apply: true,
+    });
     expect(updates).toEqual([
       { videoId: "twin-a", to: "Dance" },
       { videoId: "twin-b", to: "Dance" },
     ]);
-    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
     // bare "Dance" hits the label===input branch first (already canonical)
     expect(parsed.umbrellaKept).toBe(0);
     expect(parsed.alreadyCanonical).toBe(1);
@@ -439,37 +362,14 @@ describe("genre command JSON boundary", () => {
     // arbitration arm: umbrella rows out, remaining population agrees.
     const state = {
       evalPopulation: () => [
-        { video_id: "a", genre: "House", vec_json: "[1,0]", duration_s: 300 },
-        { video_id: "b", genre: "House", vec_json: "[1,0]", duration_s: 300 },
-        {
-          video_id: "c",
-          genre: "House",
-          vec_json: "[0.99,0.02]",
-          duration_s: 300,
-        },
-        {
-          video_id: "u",
-          genre: "Dance",
-          vec_json: "[0,1]",
-          duration_s: 300,
-        },
-        {
-          video_id: "v",
-          genre: "House",
-          vec_json: "[0,1]",
-          duration_s: 300,
-        },
+        genreEvalRow("a", "House", "[1,0]"),
+        genreEvalRow("b", "House", "[1,0]"),
+        genreEvalRow("c", "House", "[0.99,0.02]"),
+        genreEvalRow("u", "Dance", "[0,1]"),
+        genreEvalRow("v", "House", "[0,1]"),
       ],
     } as unknown as ArchiveState;
-    const logged: string[] = [];
-    const orig = console.log;
-    console.log = (line: string) => logged.push(String(line));
-    try {
-      await genre({ state, eval: true, refold: true });
-    } finally {
-      console.log = orig;
-    }
-    const parsed = JSON.parse(logged.at(-1)!) as Record<string, unknown>;
+    const parsed = await captureGenreJson(state, { eval: true, refold: true });
     const rf = parsed.refold as Record<string, unknown>;
     // the arbitration arm must clear the bar even when the baseline cannot
     expect(rf.agreement).toBeGreaterThanOrEqual(0.65);
