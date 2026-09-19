@@ -138,10 +138,13 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // domains ({getdat,shelf,fulltags}/cli-commands.ts) — owners
     // re-rooted, same calls, same guards, counts unchanged, digest
     // shifted: 65df7222.
+    // Sep 19 (#240 kebab rename): cratedeck/src + shared module files
+    // re-spelled kebab-case — owners re-rooted again, same calls, same
+    // guards, counts unchanged, digest shifted: 5ab35a72.
     audited: 43,
     guarded: 28,
     sanctioned: 15,
-    digest: "65df722215ea5c1c0cd4869d060c7c36fdff908b695a3a9e969fbc91ca911812",
+    digest: "5ab35a72817037add33197fe4b93f2d2ee351e172bb660eea72f70f5ef63d4af",
   });
 });
 

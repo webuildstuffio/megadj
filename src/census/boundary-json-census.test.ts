@@ -24,7 +24,7 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   // malformed event line returns null and the feed simply skips it (the
   // run's stdout summary is the authoritative payload; the feed is
   // advisory). Never a throw into the job leg.
-  "cratedeck/src/job_legs.ts::safeJsonParse::JSON.parse(line)":
+  "cratedeck/src/job-legs.ts::safeJsonParse::JSON.parse(line)":
     EXPLICIT_NULL_REASON,
   ...reviewed(HYGIENE_ROW_REASON, [
     "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.paths)",
@@ -35,10 +35,10 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse( row.proposed_action, )",
     "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.validation)",
   ]),
-  'cratedeck/src/deckctl_queue.ts::enqueueAndFollow::JSON.parse(polled.result_json ?? "{}")':
+  'cratedeck/src/deckctl-queue.ts::enqueueAndFollow::JSON.parse(polled.result_json ?? "{}")':
     "deckctl consumes its own server job contract; invalid JSON terminates the command visibly.",
   ...reviewed(EXPLICIT_NULL_REASON, [
-    "cratedeck/src/archive_overview.ts::parseCuePoints::JSON.parse(raw)",
+    "cratedeck/src/archive-overview.ts::parseCuePoints::JSON.parse(raw)",
     "src/fulltags/parse-json.ts::parseJsonObject::JSON.parse(raw)",
     "src/fulltags/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
     // #173 genre-vote breakdown: the vote ledger's explainability column;
@@ -51,11 +51,16 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   // Sep 16 (#89/#90 diet): re-keyed to archive_tagcompare.ts — the
   // one-track compare family (readRekordboxMirror included) moved out
   // of archive_tagcensus.ts; same call, same sanction, new file path.
-  "cratedeck/src/archive_tagcompare.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
+  "cratedeck/src/archive-tagcompare.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
     "Corrupt mirror JSON is treated as no rekordbox row: the census shows the archive side alone, rb-adopt re-adopt rewrites the row; never a throw into the route.",
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(lastJsonLine(r.stdout, "[]"))',
     "src/rekordbox/guard.ts::verifyReRead::JSON.parse(line)",
+    // #20 SoundCloud sources: yt-dlp --flat-playlist -J; the exit-code
+    // gate + classifyScFailure above already surfaced real failures,
+    // and the isRecord/isUnknownArray guards reject a malformed body
+    // below — a non-JSON body cannot pass as entries.
+    "src/getdat/commands/sync.ts::scSourceQueue::JSON.parse(stdout)",
   ]),
 };
 
@@ -133,9 +138,14 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // arm moved from shared/maintenance-cmds.ts to
     // rekordbox/cli-commands.ts (same guarded --beats parse, new file
     // path in the digest input).
-    audited: 66,
-    guarded: 50,
-    sanctioned: 16,
+    // Sep 19 (#20 SC sources): audited 66→68 / guarded 50→51 /
+    // sanctioned 16→17 — sync.ts's SC source fan-out adds one guarded
+    // parse (parsePlaylistOutput) and one sanctioned
+    // CHECKED_SUBPROCESS parse (scSourceQueue: exit-code gate +
+    // classifyScFailure above, isRecord/isUnknownArray guards below).
+    audited: 68,
+    guarded: 51,
+    sanctioned: 17,
     // Sep 17 (#220 genre/ slice): genre-vote.ts parseVotes sanction re-keyed
     // to src/fulltags/genre/genre-vote.ts (same call, same guard, counts
     // unchanged) — digest shifted.
@@ -148,7 +158,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // input re-rooted; same calls, same guards, counts unchanged).
     // Sep 18 (#220 write/ slice): file re-homes moved owners again (same
     // calls, same guards, counts unchanged) — digest shifted: acd7abc3.
-    digest: "d726406f069e29e0f7156720da346ea5bfddb800a8e88b2761ab06f024565da9",
+    digest: "d139df24e5665934ac909f2092e6d89400fb4136d1fd62f5e23d9887ed305bb8",
   });
 });
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { JOB_KINDS } from "../shared/types";
-import { DECK_MCP_SURFACES } from "../src/mcp_surfaces";
+import { DECK_MCP_SURFACES } from "../src/mcp-surfaces";
 
 /**
  * Surface-parity regression guard (docs/surface-parity.md).
@@ -84,10 +84,10 @@ function httpApiRoutes(): string[] {
   // census reads ALL of them so a literal can't hide in a new file
   const index = [
     "cratedeck/src/index.ts",
-    "cratedeck/src/api_routes.ts",
-    "cratedeck/src/api_dispatch.ts",
-    "cratedeck/src/drive_routes.ts",
-    "cratedeck/src/fleet_routes.ts",
+    "cratedeck/src/api-routes.ts",
+    "cratedeck/src/api-dispatch.ts",
+    "cratedeck/src/drive-routes.ts",
+    "cratedeck/src/fleet-routes.ts",
   ]
     .map((f) => read(f).join("\n"))
     .join("\n");
@@ -119,7 +119,7 @@ function httpApiRoutes(): string[] {
   if (index.includes('if (route.startsWith("/fleet/"))'))
     routes.add("/fleet/prep");
   if (index.includes("if (!sub) {")) routes.add("/drives/:id");
-  const archive = read("cratedeck/src/archive_routes.ts").join("\n");
+  const archive = read("cratedeck/src/archive-routes.ts").join("\n");
   const handlers = archive.match(
     /function archiveHandlers\(\)[\s\S]*?return \{([\s\S]*?)\n  \};/,
   );
@@ -138,8 +138,8 @@ function httpApiRoutes(): string[] {
 function mcpTools(): string[] {
   const files = [
     "cratedeck/src/mcp.ts",
-    "cratedeck/src/archive_tools.ts",
-    "cratedeck/src/getdat_tools.ts",
+    "cratedeck/src/archive-tools.ts",
+    "cratedeck/src/getdat-tools.ts",
   ];
   const tools = files
     .flatMap((f) =>
@@ -567,7 +567,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     );
     for (const f of [
       "cratedeck/src/deckctl.ts",
-      "cratedeck/src/mcp_action_tools.ts",
+      "cratedeck/src/mcp-action-tools.ts",
     ]) {
       const src = read(f).join("\n");
       // must name the SSOT symbol itself, not just import anything from
@@ -584,7 +584,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // literal AND a 6-kind re-twin.
     for (const f of [
       "cratedeck/src/deckctl.ts",
-      "cratedeck/src/mcp_action_tools.ts",
+      "cratedeck/src/mcp-action-tools.ts",
     ]) {
       const src = read(f).join("\n");
       // enumerate ≥3 JOB kinds in a validation position (kinds = [...],
@@ -606,7 +606,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
   test("mutating MCP tools are flagged destructive + interlock-guarded", () => {
     // #89 split: the mutating handler table lives in mcp_action_tools.ts
     const src = readFileSync(
-      join(ROOT, "cratedeck/src/mcp_action_tools.ts"),
+      join(ROOT, "cratedeck/src/mcp-action-tools.ts"),
       "utf8",
     );
     for (const tool of [
@@ -637,7 +637,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
       .join("\n");
     expect(ui).toContain("../../shared/help");
     // server: GET /api/help serves the same content
-    const server = ["cratedeck/src/index.ts", "cratedeck/src/api_routes.ts"]
+    const server = ["cratedeck/src/index.ts", "cratedeck/src/api-routes.ts"]
       .map((f) => readFileSync(join(ROOT, f), "utf8"))
       .join("\n");
     expect(server).toContain('"/help"');
@@ -648,13 +648,13 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // every surface imports the SAME SSOT module — wording can't fork
     // (deckctl's help leg lives in deckctl_help.ts, the extraction)
     const deckctlHelp = readFileSync(
-      join(ROOT, "cratedeck/src/deckctl_help.ts"),
+      join(ROOT, "cratedeck/src/deckctl-help.ts"),
       "utf8",
     );
     expect(deckctlHelp).toContain('../shared/help"');
     // #89 split: the help handler lives in mcp_read_tools.ts
     const mcp = readFileSync(
-      join(ROOT, "cratedeck/src/mcp_read_tools.ts"),
+      join(ROOT, "cratedeck/src/mcp-read-tools.ts"),
       "utf8",
     );
     expect(mcp).toContain('../shared/help"');

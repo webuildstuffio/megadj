@@ -27,7 +27,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { archiveHandlers } from "../src/archive_routes";
+import { archiveHandlers } from "../src/archive-routes";
 
 const ROOT = join(import.meta.dir, "..", "..");
 const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
@@ -39,7 +39,7 @@ function serverRoutes(): Set<string> {
 
   // Slice tables in api_routes.ts: the register(...) calls name the
   // producers; each factory's return-table keys ARE the routes it serves.
-  const apiRoutes = read("cratedeck/src/api_routes.ts");
+  const apiRoutes = read("cratedeck/src/api-routes.ts");
   const sliceFactories = [
     ...apiRoutes.matchAll(/register\((\w+)\(deps\)\)/g),
   ].map((m) => m[1]);
@@ -58,7 +58,7 @@ function serverRoutes(): Set<string> {
 
   // Dynamic families in api_dispatch.ts — the regexes/literals the
   // runtime actually matches.
-  const dispatch = read("cratedeck/src/api_dispatch.ts");
+  const dispatch = read("cratedeck/src/api-dispatch.ts");
   if (dispatch.includes("jobMatch = route.match")) {
     routes.add("/jobs/:id");
     routes.add("/jobs/:id/cancel");
@@ -68,7 +68,7 @@ function serverRoutes(): Set<string> {
 
   // Drive subroutes: sub === literals in drive_routes.ts + the regex
   // shapes the sub matcher uses (the noteMatch dismiss arm).
-  const driveRoutes = read("cratedeck/src/drive_routes.ts");
+  const driveRoutes = read("cratedeck/src/drive-routes.ts");
   for (const m of driveRoutes.matchAll(/sub === "(\/[a-z/-]+)"/g))
     if (m[1]) routes.add(`/drives/:id${m[1]}`);
   if (driveRoutes.includes("const noteMatch = sub.match"))
@@ -79,7 +79,7 @@ function serverRoutes(): Set<string> {
     routes.add(`/archive/${key}`);
 
   // fleet family: route === literals + the /fleet/ prefix fall-through.
-  const fleet = read("cratedeck/src/fleet_routes.ts");
+  const fleet = read("cratedeck/src/fleet-routes.ts");
   for (const m of fleet.matchAll(/route === "(\/fleet\/[a-z]+)"/g))
     if (m[1]) routes.add(m[1]);
   if (apiRoutes.includes('route.startsWith("/fleet/")'))
@@ -189,8 +189,10 @@ function deckctlTargets(): ClientTarget[] {
     // deckctl.ts itself (the stop arm) scans beside the deckctl_* legs;
     // image-store.ts is the drive-images producer whose entries carry a
     // /api URL the web client renders verbatim (`src={img.url}`).
+    // #240: the kebab rename re-homed archive_tools→archive-tools and
+    // mcp_read_tools→mcp-read-tools — the scan regex follows BOTH spellings.
     if (
-      !/^(deckctl|deckctl_|archive_tools|mcp_read_tools|deckapi|image-store)/.test(
+      !/^(deckctl|deckctl_|deckctl-|archive_tools|archive-tools|mcp_read_tools|mcp-read-tools|deckapi|image-store)/.test(
         f,
       )
     )

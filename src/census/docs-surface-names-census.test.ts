@@ -88,8 +88,8 @@ function mcpTools(): string[] {
   const tools: string[] = [];
   const files = [
     "cratedeck/src/mcp.ts",
-    "cratedeck/src/archive_tools.ts",
-    "cratedeck/src/getdat_tools.ts",
+    "cratedeck/src/archive-tools.ts",
+    "cratedeck/src/getdat-tools.ts",
   ];
   for (const f of files) {
     for (const line of read(f).split("\n")) {
@@ -98,7 +98,7 @@ function mcpTools(): string[] {
     }
   }
   const surfacesFile = [
-    "cratedeck/src/mcp_surfaces.ts",
+    "cratedeck/src/mcp-surfaces.ts",
     "cratedeck/src/mcp.ts",
   ].find((f) => existsSync(join(ROOT, f)));
   if (surfacesFile) {
