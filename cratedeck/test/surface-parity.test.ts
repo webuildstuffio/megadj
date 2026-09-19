@@ -150,7 +150,7 @@ function mcpTools(): string[] {
  *  (DrivePage/VerifyTab); the family kinds POST their family route with
  *  the kind as the URL tail — either via the tabs' own `api/hygiene/${kind}`
  *  spelling or via the shared `useScanApply` hook's `actionPath` +
- *  `/${kind}` construction in products/shared.tsx; IntakeTab posts the
+ *  `/${kind}` construction in products/shared/index.tsx; IntakeTab posts the
  *  fixed `ingest` job. All spellings are censused. */
 function uiJobKinds(): string[] {
   const kinds: string[] = [];
@@ -162,7 +162,7 @@ function uiJobKinds(): string[] {
     "cratedeck/web/products/cratedeck/GridHealthCard.tsx",
     "cratedeck/web/products/getdat/IntakeTab.tsx",
     "cratedeck/web/products/fulltags/GenreRunTab.tsx",
-    "cratedeck/web/products/shared.tsx",
+    "cratedeck/web/products/shared/index.tsx",
   ]) {
     for (const line of read(file)) {
       for (const m of line.matchAll(/run\("([a-z]+)"\)/g))
@@ -470,14 +470,16 @@ describe("surface parity (docs/surface-parity.md)", () => {
   test("the product tabs exist and are hash-routed (one route per product)", () => {
     // the web shell renders one top-level tab per product; the router
     // parses one route per product. The nav strip (App) and the product
-    // SSOT (products/shared.tsx PRODUCTS) are the two surfaces, keyed by
+    // SSOT (products/shared/index.tsx PRODUCTS) are the two surfaces, keyed by
     // the router's Product union.
     const app = read("cratedeck/web/app/App.tsx").join("\n");
     for (const product of ["drives", "getdat", "fulltags", "fleet"])
       expect(app, `nav route for ${product}`).toContain(`"${product}"`);
-    // #89/#90 split: PRODUCTS/PRODUCT_TABS live in product-meta.tsx,
+    // #89/#90 split: PRODUCTS/PRODUCT_TABS live in shared/product-meta.tsx,
     // re-exported through shared.tsx — the pin follows the SSOT.
-    const products = read("cratedeck/web/products/product-meta.tsx").join("\n");
+    const products = read(
+      "cratedeck/web/products/shared/product-meta.tsx",
+    ).join("\n");
     for (const product of ["drives", "getdat", "fulltags"])
       expect(products, `nav tab for ${product}`).toContain(`id: "${product}"`);
     const router = read("cratedeck/web/app/router.ts").join("\n");
