@@ -1,6 +1,6 @@
 // genre-disputes.test.ts — the #64 review surface: collect (read-only
 // evidence) + resolve (agree/keep verbs through the state seam).
-// The state double mirrors genre.test.ts's shape; the consensus math is
+// The state double mirrors similar-genre.test.ts's shape; the consensus math is
 // the real inferGenre engine (2-d vectors, same as the --flag tests).
 import { describe, expect, test } from "bun:test";
 import { collectDisputes, resolveDispute } from "./genre-disputes";

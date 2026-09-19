@@ -57,7 +57,6 @@ const ALLOWLIST: Readonly<Record<string, string>> = {
   "src/fulltags/sources/sc-artist-gate.test.ts": "#220: subject sc-search.ts",
   // ---- archive/rekordbox/shelf/shared/getdat co-location debt (#214-adjacent
   // slices; migrate when the subject moves or name the subject test):
-  "src/archive/genre.test.ts": "#214: subject similar.ts genre arms",
   "src/archive/mood-ledger.test.ts":
     "#214: subject record-ledger/state mood rows",
   "src/archive/state-genreflag.test.ts": "#214: subject state.ts genreflag",

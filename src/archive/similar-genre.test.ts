@@ -1,4 +1,4 @@
-// genre.test.ts — embedding-kNN genre inference (the "ID3 genre is
+// similar-genre.test.ts — embedding-kNN genre inference (the "ID3 genre is
 // unreliable" answer): family collapse, unusable-seed filtering, split-
 // vote honesty, and determinism. Pure-engine coverage; the DB round-trip
 // (embeddings ledger) is similar.test.ts's job.
