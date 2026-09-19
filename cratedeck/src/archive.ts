@@ -9,24 +9,24 @@
 //
 // READ-ONLY, by construction and by promise: opened with `readonly: true` so
 // a bug here physically cannot corrupt megadj's state (P9 safety rails).
-import { similarTracks as similarTracksImpl } from "./archive_similar";
+import { similarTracks as similarTracksImpl } from "./archive-similar";
 import {
   genreWhy as genreWhyImpl,
   type ArchiveGenreWhy,
-} from "./archive_genre";
+} from "./archive-genre";
 import {
   cueStats as cueStatsImpl,
   libraryOverview as libraryOverviewImpl,
-} from "./archive_overview";
-import { tagCensus as tagCensusImpl } from "./archive_tagcensus";
+} from "./archive-overview";
+import { tagCensus as tagCensusImpl } from "./archive-tagcensus";
 import {
   poolFreshness as poolFreshnessImpl,
   setCandidates as setCandidatesImpl,
-} from "./archive_pool";
-import { trackTagCompare as trackTagCompareImpl } from "./archive_tagcompare";
-import { gridCrossCheck as gridCrossCheckImpl } from "./archive_grid";
-import { moodProfile as moodProfileImpl } from "./archive_mood";
-import type { ArchiveQuery, ArchiveTrack } from "./archive_types";
+} from "./archive-pool";
+import { trackTagCompare as trackTagCompareImpl } from "./archive-tagcompare";
+import { gridCrossCheck as gridCrossCheckImpl } from "./archive-grid";
+import { moodProfile as moodProfileImpl } from "./archive-mood";
+import type { ArchiveQuery, ArchiveTrack } from "./archive-types";
 import type {
   ArchiveAnalysisCoverage,
   ArchiveCueStats,
@@ -46,7 +46,7 @@ import type {
 // ArchiveTrack is canonically defined in the leaf archive_types.ts (along
 // with the ArchiveQuery seam the split-out modules type against); re-export
 // keeps every existing `from "./archive"` import working unchanged.
-export type { ArchiveTrack } from "./archive_types";
+export type { ArchiveTrack } from "./archive-types";
 // The core stays importable from archive-reader-core.ts (the canonical
 // home); no re-export here — the split modules type against the
 // ArchiveQuery leaf, not this class.
@@ -275,21 +275,32 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   }
 
   /** LOWQ upgrade queue (D24): downloaded tracks below the DJ quality bar —
-   *  lossy codecs under bitrate floors. Duration NULLs excluded (unknown). */
+   *  lossy codecs under bitrate floors. Duration NULLs excluded (unknown).
+   *  #258: soundcloud-source rows use the SC platform ceiling instead
+   *  (160k aac / 128k mp3 — hls_aac_160k is the best SC serves), and are
+   *  the ONLY rows here that cannot be upgraded by re-download. */
   lowqQueue(): ArchiveLowqQueue {
     const rows = this.rows<ArchiveTrack>(
       `SELECT ${TRACK_COLS} FROM tracks
        WHERE status = 'downloaded' AND bitrate_kbps IS NOT NULL
          AND duration_s IS NOT NULL AND (
-           (codec IN ('mp4a', 'aac') AND bitrate_kbps < 256) OR
-           (codec IN ('mp3') AND bitrate_kbps < 320))
+           (source = 'soundcloud' AND
+             ((codec IN ('mp4a', 'aac') AND bitrate_kbps < 160) OR
+              (codec = 'mp3' AND bitrate_kbps < 128)))
+           OR
+           (source != 'soundcloud' AND
+             ((codec IN ('mp4a', 'aac') AND bitrate_kbps < 256) OR
+              (codec = 'mp3' AND bitrate_kbps < 320))))
        ORDER BY bitrate_kbps ASC LIMIT 200`,
     );
     return {
       available: this.handle() !== null,
       tracks: rows.map((t) => ({
         ...t,
-        reason: `${t.bitrate_kbps} kbps ${t.codec ?? "audio"} — below the set-ready floor`,
+        reason:
+          t.source === "soundcloud"
+            ? `${t.bitrate_kbps} kbps ${t.codec ?? "audio"} — below the SoundCloud ceiling (160k aac)`
+            : `${t.bitrate_kbps} kbps ${t.codec ?? "audio"} — below the set-ready floor`,
       })),
     };
   }

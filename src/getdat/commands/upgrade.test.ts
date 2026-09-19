@@ -22,6 +22,27 @@ describe("isLowq (the same floor rule as CrateDeck's lowqQueue)", () => {
     expect(isLowq({ bitrate_kbps: 64, codec: "opus" })).toBe(false);
     expect(isLowq({ bitrate_kbps: null, codec: "mp4a" })).toBe(false);
   });
+  // #258: soundcloud rows floor at the PLATFORM CEILING, not the YT bar.
+  test("soundcloud rows use the SC ceiling (160 aac / 128 mp3)", () => {
+    expect(
+      isLowq({ bitrate_kbps: 160, codec: "aac", source: "soundcloud" }),
+    ).toBe(false);
+    expect(
+      isLowq({ bitrate_kbps: 160, codec: "mp4a", source: "soundcloud" }),
+    ).toBe(false);
+    expect(
+      isLowq({ bitrate_kbps: 96, codec: "aac", source: "soundcloud" }),
+    ).toBe(true);
+    expect(
+      isLowq({ bitrate_kbps: 128, codec: "mp3", source: "soundcloud" }),
+    ).toBe(false);
+    expect(
+      isLowq({ bitrate_kbps: 96, codec: "mp3", source: "soundcloud" }),
+    ).toBe(true);
+    // YT rows keep the legacy floors byte-identical.
+    expect(isLowq({ bitrate_kbps: 255, codec: "aac" })).toBe(true);
+    expect(isLowq({ bitrate_kbps: 256, codec: "aac" })).toBe(false);
+  });
 });
 
 describe("upgrade replacement", () => {

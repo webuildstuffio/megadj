@@ -29,6 +29,7 @@ import {
   checkPyrekordbox,
   checkUvPython,
   checkYtdlp,
+  checkYtdlpImpersonate,
   detectVolumes,
 } from "./doctor-checks";
 import {
@@ -55,6 +56,7 @@ export function runDoctor(): CheckResult[] {
     checkBun(),
     checkFfmpeg(),
     checkYtdlp(),
+    checkYtdlpImpersonate(),
     checkUvPython(),
     checkPyrekordbox(),
     checkOpenrouter(),

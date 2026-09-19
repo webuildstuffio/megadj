@@ -21,6 +21,8 @@ export async function finishRun(
         },
       ) => unknown;
       statusCounts: () => Record<string, number>;
+      /** #256: surfaced-link rows (surfaced ≠ downloaded). */
+      linkSurfacedCount?: () => number;
     };
     json?: boolean | undefined;
     dryRun?: boolean | undefined;
@@ -38,12 +40,18 @@ export async function finishRun(
       bytesDownloaded: totals.bytes,
     });
   }
+  // #256: surfaced links are NOT downloads — their own cohort, never
+  // folded into the downloaded count (the honesty rule).
+  const surfaced =
+    totals.surfaced > 0
+      ? totals.surfaced
+      : (opts.state.linkSurfacedCount?.() ?? 0);
   log(
-    `\nrun complete: ${totals.downloaded} downloaded, ${totals.notMusic} not-music, ${totals.gone} gone, ${totals.failed} failed, ${(totals.bytes / 1e6).toFixed(1)} MB`,
+    `\nrun complete: ${totals.downloaded} downloaded, ${totals.notMusic} not-music, ${surfaced} link-surfaced, ${totals.gone} gone, ${totals.failed} failed, ${(totals.bytes / 1e6).toFixed(1)} MB`,
   );
   const counts = opts.state.statusCounts();
   log(
-    `archive: ${counts["downloaded"] ?? 0} downloaded / ${counts["gone"] ?? 0} gone / ${counts["failed"] ?? 0} failed / ${counts["pending"] ?? 0} pending / ${counts["skipped_not_music"] ?? 0} not-music`,
+    `archive: ${counts["downloaded"] ?? 0} downloaded / ${counts["gone"] ?? 0} gone / ${counts["failed"] ?? 0} failed / ${counts["pending"] ?? 0} pending / ${counts["link_surfaced"] ?? 0} link-surfaced / ${counts["skipped_not_music"] ?? 0} not-music`,
   );
   if (opts.json) {
     // P1 (--json on every command): one summary object on stdout, last.
@@ -54,6 +62,7 @@ export async function finishRun(
       attempted: totals.attempted,
       downloaded: totals.downloaded,
       notMusic: totals.notMusic,
+      linkSurfaced: totals.surfaced,
       gone: totals.gone,
       failed: totals.failed,
       bytesDownloaded: totals.bytes,
@@ -65,6 +74,7 @@ export async function finishRun(
         gone: counts["gone"] ?? 0,
         failed: counts["failed"] ?? 0,
         pending: counts["pending"] ?? 0,
+        linkSurfaced: counts["link_surfaced"] ?? 0,
         skippedNotMusic: counts["skipped_not_music"] ?? 0,
       },
     });

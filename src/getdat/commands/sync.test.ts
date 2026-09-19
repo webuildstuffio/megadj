@@ -1,4 +1,5 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
+import { join } from "node:path";
 import type { ArchiveState } from "../../archive/state";
 import { RateLimiter } from "../ratelimit";
 import { Downloader } from "../downloader";
@@ -37,7 +38,7 @@ function baseOpts(
     musicDir: "/tmp/megadj-sync-test",
     cookiesFromBrowser: null,
     cookiesFile: null,
-    sources: [{ id: "LM", label: "liked" }],
+    sources: [{ kind: "ytm-playlist", id: "LM", label: "liked" }],
     fetchPlaylistFn: fakeFetch,
     // nonexistent binary → probes fail fast (exit 1, no network), exactly
     // what this file's design comment promises; without it the two "real
@@ -143,4 +144,52 @@ describe("sync (GetDat pipeline)", () => {
       expect((e as Error).message).not.toBe("GONE");
     }
   }, 60_000);
+});
+
+describe("sync --sc-url validation (#255)", () => {
+  const { spawnSync } = require("node:child_process") as {
+    spawnSync: (
+      cmd: string,
+      args: string[],
+      opts: Record<string, unknown>,
+    ) => { status: number | null; stdout: string | null; stderr: string | null };
+  };
+  const CLI = join(import.meta.dir, "../../cli.ts");
+  const runCli = (args: string[]) => {
+    const proc = spawnSync(process.execPath, ["run", CLI, ...args], {
+      encoding: "utf8",
+      timeout: 60_000,
+    });
+    return {
+      status: proc.status,
+      stdout: proc.stdout ?? "",
+      stderr: proc.stderr ?? "",
+    };
+  };
+
+  test("a non-SC URL is a usage error (exit 2, zero work)", () => {
+    const r = runCli([
+      "sync",
+      "--sc-url",
+      "https://example.invalid/x",
+      "--json",
+    ]);
+    expect(r.status).toBe(2);
+    const last = r.stdout.trim().split("\n").at(-1) ?? "";
+    const parsed = JSON.parse(last) as { command: string; error: string };
+    expect(parsed.command).toBe("sync");
+    expect(parsed.error).toContain("soundcloud.com");
+  });
+
+  test("a SC URL passes validation; a dead slug fails honestly (offline)", () => {
+    // No network in the gate: the yt-dlp spawn fails fast, the failure is
+    // CONTAINED — a permanent source-level error, exit 1 — never a crash.
+    const r = runCli([
+      "sync",
+      "--sc-url",
+      "https://soundcloud.com/definitely-not-a-real-artist-zz/definitely-not-a-real-track-zz",
+      "--json",
+    ]);
+    expect(r.status !== null && [0, 1].includes(r.status)).toBe(true);
+  });
 });

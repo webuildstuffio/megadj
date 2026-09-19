@@ -7,6 +7,12 @@
 import { $ } from "bun";
 import { sanitizeGenreFolder } from "../fulltags/write/schema";
 import type { YtdlpInfo } from "../fulltags/write/metadata-build";
+import {
+  SC_FORMAT,
+  SC_SOURCE,
+  classifyScFailure,
+  scFormatKbps,
+} from "./soundcloud";
 
 /** Cookie flags for yt-dlp: explicit jar wins, then browser extraction,
  *  else nothing. Empty array when unconfigured — callers spread it.
@@ -33,6 +39,35 @@ export interface DownloadResult {
   error?: string | undefined;
 }
 
+/** The download target for one row. `video_id` remains the ledger PK:
+ *  YT rows keep their 11-char video id, SC rows keep the numeric SC
+ *  track id (no collision — disjoint shapes). `url` is the exact URL
+ *  yt-dlp is fed (the source seam — #255 replaced the hardcoded
+ *  music.youtube.com strings). */
+export interface DownloadTarget {
+  id: string;
+  url: string;
+  soundcloud: boolean;
+}
+
+/** Build the target from a ledger row id + its source column. The ONE
+ *  place that knows how ids map to URLs (the old code hardcoded
+ *  `https://music.youtube.com/watch?v=` in both probe and download). */
+export function targetFor(trackId: string, source: string): DownloadTarget {
+  if (source === SC_SOURCE) {
+    return {
+      id: trackId,
+      url: `https://api.soundcloud.com/tracks/${trackId}`,
+      soundcloud: true,
+    };
+  }
+  return {
+    id: trackId,
+    url: `https://music.youtube.com/watch?v=${trackId}`,
+    soundcloud: false,
+  };
+}
+
 export interface DownloaderOptions {
   musicDir: string;
   /** yt-dlp binary to invoke (default "yt-dlp") — previously declared and
@@ -42,6 +77,19 @@ export interface DownloaderOptions {
   /** Cookie jar file (netscape format) — preferred over browser extraction. */
   cookiesFile?: string | null | undefined;
   minBitrateKbps?: number | undefined;
+  /** The ledger source of the rows being downloaded ("liked" | "liked-videos"
+   *  | "soundcloud" | …) — decides the probe/download URL seam (#255). */
+  source?: string | undefined;
+}
+
+/** Permanent SC failure (DRM/Go+): surfaced as its own error class so the
+ *  sync loop can park the row WITHOUT the retry ladder and WITHOUT the
+ *  gone-marking (the track exists; the stream is not acquirable). */
+export class ScPermanentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ScPermanentError";
+  }
 }
 
 /** Decode yt-dlp metadata at the process boundary with a useful failure. */
@@ -96,9 +144,9 @@ export class Downloader {
       ytdlpBin: opts.ytdlpBin ?? "yt-dlp",
       cookiesFromBrowser: opts.cookiesFromBrowser ?? null,
       cookiesFile: opts.cookiesFile ?? null,
+      source: opts.source ?? "liked",
     };
   }
-
   classifyError(stderr: string): "gone" | "throttle" | "other" {
     if (GONE_PATTERNS.some((p) => p.test(stderr))) return "gone";
     if (THROTTLE_PATTERNS.some((p) => p.test(stderr))) return "throttle";
@@ -122,15 +170,23 @@ export class Downloader {
 
   /** Fetch metadata JSON without downloading. */
   async probe(videoId: string): Promise<YtdlpInfo> {
-    const url = `https://music.youtube.com/watch?v=${videoId}`;
+    const target = targetFor(videoId, this.opts.source ?? "liked");
     const proc = await this.spawn([
       "-J",
       "--no-playlist",
       ...this.cookieArgs(),
-      url,
+      target.url,
     ]);
     if (proc.exitCode !== 0) {
       const errText = new TextDecoder().decode(proc.stderr);
+      if (target.soundcloud) {
+        // SC failure classes first: a permalink 404 is permanent-gone,
+        // DRM/Go+ is permanent — neither may fall into retry-backoff
+        // (#255; the generic classifier retried 404 slugs forever).
+        const sc = classifyScFailure(errText);
+        if (sc === "gone") throw new Error("GONE");
+        if (sc === "permanent") throw new ScPermanentError(errText);
+      }
       const kind = this.classifyError(errText);
       if (kind === "gone") throw new Error("GONE");
       throw new Error(errText.split("\n").slice(-3).join(" ").slice(0, 300));
@@ -138,8 +194,11 @@ export class Downloader {
     return parseYtdlpInfo(new TextDecoder().decode(proc.stdout));
   }
 
-  /** Bitrate by known YouTube format ID. */
+  /** Bitrate by known YouTube format ID. SC ids route through the SC map
+   *  (soundcloud.ts) — one lookup per family, one caller seam. */
   static formatBitrateKbps(formatId: string | null | undefined): number | null {
+    const sc = scFormatKbps(formatId);
+    if (sc !== null) return sc;
     switch (formatId) {
       case "141":
         return 256;
@@ -161,19 +220,48 @@ export class Downloader {
   /**
    * Parse yt-dlp's stdout after a download: --newline progress lines start
    * with "[" and must not shadow the printed filepath / format id.
+   * `soundcloud` selects the SC output shapes (the SC mp3 path lands a
+   * .mp3; SC format ids are not numeric).
    */
-  static parseDownloadOutput(stdout: string): {
+  static parseDownloadOutput(
+    stdout: string,
+    opts: { soundcloud?: boolean } = {},
+  ): {
     filePath?: string | undefined;
     formatId?: string | undefined;
   } {
-    const printed = stdout
-      .trim()
-      .split("\n")
-      .filter((l) => !l.startsWith("["));
-    return {
-      filePath: printed.find((l) => l.endsWith(".m4a")),
-      formatId: printed.find((l) => /^[0-9]+$/.test(l.trim())),
-    };
+    // The after_move prints (path, then format id) are the LAST two
+    // non-progress lines — grabbing them positionally is immune to a
+    // filename that starts with "[" (Artist - [EP] Title.m4a), which the
+    // old filter-then-scan dropped entirely for SC titles.
+    const lines = stdout.trim().split("\n");
+    const printed = lines.filter(
+      (l) =>
+        !/^\[(download|ExtractAudio|Metadata|EmbedThumbnail|Merger|move)/.test(
+          l,
+        ),
+    );
+    const filePath = printed.filter((l) => l !== "").at(-2);
+    const formatId = printed.at(-1);
+    if (
+      filePath === undefined ||
+      formatId === undefined ||
+      !filePath.includes("/")
+    ) {
+      // Fallback: the legacy scan (non-bracket lines ending in the ext).
+      const legacy = stdout
+        .trim()
+        .split("\n")
+        .filter((l) => !l.startsWith("["));
+      const ext = opts.soundcloud ? "mp3" : "m4a";
+      return {
+        filePath: legacy.find((l) => l.endsWith(`.${ext}`)),
+        formatId: opts.soundcloud
+          ? legacy.find((l) => /^hls_[a-z0-9_]+$/.test(l.trim()))
+          : legacy.find((l) => /^[0-9]+$/.test(l.trim())),
+      };
+    }
+    return { filePath, formatId };
   }
 
   /** Download best audio; returns path of the landed file. */
@@ -182,7 +270,7 @@ export class Downloader {
     info: YtdlpInfo,
     genre?: string | null,
   ): Promise<DownloadResult> {
-    const url = `https://music.youtube.com/watch?v=${videoId}`;
+    const target = targetFor(videoId, this.opts.source ?? "liked");
     // No "Music" mint (#61): junk genres bucket to "Unknown Genre" here;
     // NULL genre sits at the archive root until `organize` moves it into
     // the same bucket (sanitizeGenreFolder(null)). Never a fake genre.
@@ -192,8 +280,11 @@ export class Downloader {
     const args = [
       // Audio-only, always. Never let format fallback pick a merged
       // video+audio format (that's how .webm/.mp4 strays happen).
+      // SC picks its own ladder: hls_aac_160k is the ceiling (#255).
       "-f",
-      "141/bestaudio[ext=m4a]/bestaudio/bestaudio*",
+      target.soundcloud
+        ? SC_FORMAT
+        : "141/bestaudio[ext=m4a]/bestaudio/bestaudio*",
       "-x",
       "--audio-format",
       "m4a",
@@ -214,10 +305,20 @@ export class Downloader {
     ];
     args.push(...this.cookieArgs());
     void info;
-    const proc = await this.spawn([...args, url]);
+    const proc = await this.spawn([...args, target.url]);
     const stderr = new TextDecoder().decode(proc.stderr);
 
     if (proc.exitCode !== 0) {
+      if (target.soundcloud) {
+        const sc = classifyScFailure(stderr);
+        if (sc === "gone")
+          return { status: "gone", error: "track unavailable" };
+        if (sc === "permanent")
+          return {
+            status: "failed",
+            error: `permanent (DRM/Go+ or unavailable stream): ${stderr.split("\n").slice(-1).join(" ").slice(0, 200)}`,
+          };
+      }
       const kind = this.classifyError(stderr);
       if (kind === "gone")
         return { status: "gone", error: "video unavailable" };
@@ -231,6 +332,7 @@ export class Downloader {
     // numeric-looking fragment of a filename can't shadow the format ID.
     const { filePath, formatId } = Downloader.parseDownloadOutput(
       new TextDecoder().decode(proc.stdout),
+      { soundcloud: target.soundcloud },
     );
     if (!filePath) {
       return { status: "failed", error: "no output path from yt-dlp" };

@@ -52,7 +52,7 @@ const drop: CliCommandHandler = async (rest, context) => {
   const flags = parseFlags(
     rest,
     ["drop", "target", "max-beat-seconds"],
-    ["dry-run", "no-mood", "no-fetch", "ai-fallback", "json"],
+    ["dry-run", "no-mood", "no-fetch", "ai-fallback", "force-rip", "json"],
   );
   if (
     nonNegOptInvalid(flags, "max-beat-seconds", "drop", flags.bools.has("json"))
@@ -89,6 +89,7 @@ const drop: CliCommandHandler = async (rest, context) => {
     noMood: flags.bools.has("no-mood"),
     noFetch: flags.bools.has("no-fetch"),
     aiFallback: flags.bools.has("ai-fallback"),
+    forceRip: flags.bools.has("force-rip"),
     maxBeatSeconds,
     json: flags.bools.has("json"),
     cookiesFromBrowser: context.cookies || null,

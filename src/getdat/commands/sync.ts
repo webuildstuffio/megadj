@@ -11,9 +11,23 @@ import type { ArchiveState } from "../../archive/state";
 import { type RateLimiter, withRetry } from "../ratelimit";
 import {
   Downloader,
+  ScPermanentError,
   ytdlpCookieArgs,
   type DownloadResult,
 } from "../downloader";
+import {
+  SC_SOURCE,
+  classifyScFailure,
+  extractAcquisitionLinks,
+  ripDecision,
+  scTrackIdFromUrl,
+  type SyncSource,
+} from "../soundcloud";
+
+/** The sync-options source type, re-exported under the CLI arm's name
+ *  (cli-commands.ts builds these without importing the module internals).
+ *  unicorn's prefer-export-from wants the direct-from-source form — done. */
+export type { SyncSource as PlaylistSource } from "../soundcloud";
 import { commandLog, ProgressBar } from "../../shared/progress";
 import { applyTags } from "../../fulltags/write/writer";
 import {
@@ -33,11 +47,13 @@ export interface SyncOptions {
   cookiesFile?: string | null | undefined;
   limit?: number | undefined;
   dryRun?: boolean | undefined;
-  sources?: PlaylistSource[] | undefined;
+  sources?: SyncSource[] | undefined;
   /** Only download tracks YouTube categorizes as Music. */
   musicOnly?: boolean | undefined;
   /** Stop once this many tracks are downloaded in total. */
   targetTotal?: number | undefined;
+  /** #256 link-first: rip even when the track offers an official link. */
+  forceRip?: boolean | undefined;
   onProgress?: ((msg: string) => void) | undefined;
   /** Machine-readable summary instead of human logs (P1: --json everywhere). */
   json?: boolean | undefined;
@@ -46,12 +62,6 @@ export interface SyncOptions {
   /** yt-dlp binary passed to the Downloader. Tests set a nonexistent path
    * so probes fail fast (exit 1, no network) — see sync.test.ts. */
   ytdlpBin?: string | undefined;
-}
-
-/** A playlist source: id (e.g. "LM", "LL", "PL...") plus a label for state. */
-interface PlaylistSource {
-  id: string;
-  label: string;
 }
 
 interface PlaylistEntry {
@@ -117,6 +127,94 @@ export interface SyncTotals {
   failed: number;
   notMusic: number;
   bytes: number;
+  /** #256 link-first: tracks where the rip was SKIPPED because an
+   *  official acquisition link was surfaced instead. */
+  surfaced: number;
+}
+
+/** Build the Downloader source + queue for one sync source. YT playlist
+ *  sources keep the flat-playlist -J probe; SC sources (single track, set,
+ *  user page) resolve through the SAME yt-dlp invocation, then route by
+ *  result shape: a playlist payload fans out to entries, a single-track
+ *  payload is a queue of one (#255/#257). Each SC entry becomes a ledger
+ *  row keyed by its NUMERIC SC track id; the source column carries
+ *  provenance ("soundcloud" / "soundcloud:<label-slug>" for sets). */
+async function scSourceQueue(
+  source: SyncSource,
+  opts: SyncOptions,
+): Promise<{ id: string; title: string | null; label: string }[]> {
+  const proc = Bun.spawnSync({
+    cmd: [
+      "yt-dlp",
+      ...ytdlpCookieArgs(opts.cookiesFile, opts.cookiesFromBrowser),
+      "--flat-playlist",
+      "-J",
+      scUrlOf(source),
+    ],
+    stdout: "pipe",
+    stderr: "pipe",
+    timeout: 120_000,
+  });
+  if (proc.exitCode !== 0) {
+    const stderr = new TextDecoder().decode(proc.stderr);
+    const cls = classifyScFailure(stderr);
+    const detail = stderr.split("\n").slice(-2).join(" ").slice(0, 200);
+    if (cls === "gone" || cls === "permanent") {
+      // Permanent at the SOURCE level: an honest error, zero work.
+      throw new Error(`SC source unavailable (permanent): ${detail}`);
+    }
+    throw new Error(`SC source fetch failed: ${detail}`);
+  }
+  const stdout = new TextDecoder().decode(proc.stdout);
+  const parsed: unknown = JSON.parse(stdout);
+  if (!isRecord(parsed)) {
+    throw new Error("SC source output was not valid JSON");
+  }
+  const entries = parsed.entries;
+  if (isUnknownArray(entries)) {
+    // A set / user page: fan out. Titles arrive at probe time (flat
+    // entries carry only id + url).
+    return entries.flatMap((entry) => {
+      if (entry === null || typeof entry !== "object") return [];
+      const row = entry as { id?: unknown; url?: unknown };
+      if (typeof row.id !== "string" || row.id.length === 0) return [];
+      const label =
+        source.kind === "sc-set"
+          ? `${SC_SOURCE}:${scSlug(scUrlOf(source))}`
+          : SC_SOURCE;
+      return [{ id: row.id, title: null, label }];
+    });
+  }
+  // Single track: the payload IS the track object.
+  const trackId =
+    typeof parsed.id === "string" && parsed.id.length > 0
+      ? parsed.id
+      : scTrackIdFromUrl(scUrlOf(source));
+  if (!trackId) return [];
+  const meta = parsed as { title?: unknown };
+  return [
+    {
+      id: trackId,
+      title: typeof meta.title === "string" ? meta.title : null,
+      label: SC_SOURCE,
+    },
+  ];
+}
+
+/** "listening-house" from a /sets/<slug> URL — set provenance for the
+ *  ledger source column (bounded, no private data). */
+function scSlug(url: string): string {
+  const slug = url.split("/sets/")[1]?.split(/[?#]/)[0] ?? "";
+  return (slug || "set").slice(0, 30);
+}
+
+/** Narrow one source of the tagged union to the SC arms (the ytm arm has
+ *  no url). Throws never — callers only pass url-bearing kinds. */
+function scUrlOf(source: SyncSource): string {
+  if (source.kind === "ytm-playlist") {
+    throw new Error("ytm-playlist has no SC url");
+  }
+  return source.url;
 }
 
 /** Fresh zeroed counters for one sync run. */
@@ -128,6 +226,7 @@ function newTotals(): SyncTotals {
     failed: 0,
     notMusic: 0,
     bytes: 0,
+    surfaced: 0,
   };
 }
 
@@ -142,8 +241,8 @@ async function prepareQueue(
   log: (msg: string) => void,
   isDry: boolean,
 ): Promise<PreparedSources> {
-  const sources: PlaylistSource[] = opts.sources ?? [
-    { id: "LM", label: "liked" },
+  const sources: SyncSource[] = opts.sources ?? [
+    { kind: "ytm-playlist", id: "LM", label: "liked" },
   ];
   const pendingPreview: {
     video_id: string;
@@ -153,36 +252,59 @@ async function prepareQueue(
   }[] = [];
 
   for (const source of sources) {
-    log(`fetching playlist ${source.id} (${source.label})…`);
-    const entries = await (opts.fetchPlaylistFn ?? fetchPlaylist)(
-      source.id,
-      opts.cookiesFile,
-      opts.cookiesFromBrowser,
-    );
-    log(`  ${entries.length} tracks`);
-    if (!isDry) {
-      entries.forEach((entry, index) => {
+    if (source.kind === "ytm-playlist") {
+      log(`fetching playlist ${source.id} (${source.label})…`);
+      const entries = await (opts.fetchPlaylistFn ?? fetchPlaylist)(
+        source.id,
+        opts.cookiesFile,
+        opts.cookiesFromBrowser,
+      );
+      log(`  ${entries.length} tracks`);
+      if (!isDry) {
+        entries.forEach((entry, index) => {
+          opts.state.upsertTrackFromPlaylist(
+            entry.id,
+            index,
+            entry.title,
+            source.label,
+          );
+        });
+      } else {
+        // Dry-run on a fresh DB would otherwise report 0 tracks (the pending
+        // queue is only populated by real runs). Project what WOULD be
+        // tracked — in memory, nothing written — so `--dry-run` answers
+        // "what would the next real run do?" on any database state.
+        pendingPreview.push(
+          ...entries.map((entry, index) => ({
+            video_id: entry.id,
+            title: entry.title,
+            liked_position: index,
+            status: "pending",
+          })),
+        );
+      }
+      continue;
+    }
+    // SC sources (#255/#257): single track / set / user page.
+    log(`fetching soundcloud ${source.kind} (${source.label})…`);
+    const entries = await scSourceQueue(source, opts);
+    log(`  ${entries.length} track(s)`);
+    entries.forEach((entry, index) => {
+      if (!isDry) {
         opts.state.upsertTrackFromPlaylist(
           entry.id,
           index,
           entry.title,
-          source.label,
+          entry.label,
         );
+      }
+      pendingPreview.push({
+        video_id: entry.id,
+        title: entry.title,
+        liked_position: index,
+        status: "pending",
       });
-    } else {
-      // Dry-run on a fresh DB would otherwise report 0 tracks (the pending
-      // queue is only populated by real runs). Project what WOULD be
-      // tracked — in memory, nothing written — so `--dry-run` answers
-      // "what would the next real run do?" on any database state.
-      pendingPreview.push(
-        ...entries.map((entry, index) => ({
-          video_id: entry.id,
-          title: entry.title,
-          liked_position: index,
-          status: "pending",
-        })),
-      );
-    }
+    });
   }
 
   // Cross-source dedupe: a video already downloaded from one source stays put.
@@ -228,7 +350,9 @@ export async function statSizeSafe(
   }
 }
 
-/** Handle one resolved download outcome (downloaded / gone / failed / no-path). */
+/** Handle one resolved download outcome (downloaded / gone / failed / no-path).
+ *  `isSc` selects the SC codec/format facts (the mp3 twin lands .mp3 at
+ *  128k; SC aac rows keep the "aac" codec the LOWQ floors already know). */
 async function settleDownload(
   opts: SyncOptions,
   log: (msg: string) => void,
@@ -236,11 +360,12 @@ async function settleDownload(
   totals: SyncTotals,
   track: { video_id: string; title: string | null },
   dl: DownloadResult,
+  isSc = false,
 ): Promise<void> {
   const { state } = opts;
   if (dl.status === "gone") {
     totals.gone++;
-    state.markGone(track.video_id, "video unavailable");
+    state.markGone(track.video_id, "track unavailable");
     log(`  ↳ gone (unavailable)`);
     bar.update();
     return;
@@ -274,7 +399,7 @@ async function settleDownload(
       genre: meta.genre,
       formatId: dl.formatId ?? null,
       bitrateKbps: Downloader.formatBitrateKbps(dl.formatId),
-      codec: "aac",
+      codec: isSc && dl.filePath.endsWith(".mp3") ? "mp3" : "aac",
       filePath: dl.filePath,
       fileSizeBytes: fileSize,
       durationS: dl.info.duration ?? null,
@@ -329,6 +454,9 @@ async function processQueue(
       continue;
     }
 
+    const row = opts.state.trackById(track.video_id);
+    const isSc = row?.source === SC_SOURCE;
+
     opts.state.markAttempt(track.video_id, null);
 
     try {
@@ -338,13 +466,37 @@ async function processQueue(
         { maxRetries: 2 },
       );
 
-      if (!classifyMusic(result, opts)) {
+      if (!isSc && !classifyMusic(result, opts)) {
         const cats = result.categories ?? [];
         totals.notMusic++;
         opts.state.markNotMusic(track.video_id, cats[0] ?? null);
         log(`  ↳ skipped (not music: ${cats[0] ?? "no category"})`);
         bar.update();
         continue;
+      }
+
+      // #256 LINK-FIRST (SC only): an official acquisition link means the
+      // user goes through it instead — the rip is skipped, the link is
+      // printed AND persisted. --force-ip rips anyway.
+      if (isSc) {
+        const links = extractAcquisitionLinks(result);
+        const decision = ripDecision(links, opts.forceRip === true);
+        if (decision.action === "surface" && decision.link) {
+          const linksJson = JSON.stringify(links);
+          opts.state.markLinkSurfaced(
+            track.video_id,
+            linksJson,
+            `${decision.link.kind}: ${decision.link.url}`,
+          );
+          totals.surfaced++;
+          log(`  ↳ link available — go through it: ${decision.link.url}`);
+          bar.update();
+          continue;
+        }
+        if (links.length > 0) {
+          // force-rip with links present: record the provenance either way.
+          opts.state.markForcedRip(track.video_id, JSON.stringify(links));
+        }
       }
 
       // Genre decides the destination folder for this download. No
@@ -363,13 +515,19 @@ async function processQueue(
         result,
         downloadGenre,
       );
-      await settleDownload(opts, log, bar, totals, track, dl);
+      await settleDownload(opts, log, bar, totals, track, dl, isSc);
     } catch (error) {
       const { message } = error as Error;
       if (message === "GONE") {
         totals.gone++;
-        opts.state.markGone(track.video_id, "video unavailable");
+        opts.state.markGone(track.video_id, "track unavailable");
         log(`  ↳ gone (unavailable)`);
+      } else if (error instanceof ScPermanentError) {
+        // SC DRM/Go+: parked as gone-class with an honest reason — the
+        // stream is not acquirable; retrying would never succeed.
+        totals.gone++;
+        opts.state.markGone(track.video_id, "DRM/Go+ protected stream");
+        log(`  ↳ gone (DRM/Go+ protected — not acquirable)`);
       } else {
         totals.failed++;
         opts.state.markFailed(track.video_id, message.slice(0, 300));
@@ -387,11 +545,20 @@ import { finishRun } from "./sync-summary";
 
 export async function sync(opts: SyncOptions): Promise<void> {
   const log = commandLog(opts);
+  // One downloader per source FAMILY: the URL seam (#255) is decided by
+  // the row's source column, so SC and YT legs can share a run — but
+  // probes during the playlist phase need the right family when a run is
+  // SC-only. The per-track reads below re-derive the target from the ROW,
+  // so mixed runs stay correct even with one downloader instance.
+  const onlySc =
+    (opts.sources ?? []).length > 0 &&
+    (opts.sources ?? []).every((s) => s.kind !== "ytm-playlist");
   const downloader = new Downloader({
     musicDir: opts.musicDir,
     ytdlpBin: opts.ytdlpBin,
     cookiesFromBrowser: opts.cookiesFromBrowser,
     cookiesFile: opts.cookiesFile ?? null,
+    source: onlySc ? SC_SOURCE : "liked",
   });
 
   const isDry = opts.dryRun === true;

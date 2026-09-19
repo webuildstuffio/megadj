@@ -41,12 +41,24 @@ interface UpgradeCandidate {
   codec: string | null;
 }
 
-/** The same floor rule as CrateDeck's lowqQueue() — one quality bar. */
+/** The same floor rule as CrateDeck's lowqQueue() — one quality bar.
+ *  #258: `source='soundcloud'` rows use the SC PLATFORM CEILING instead
+ *  (160k aac / 128k mp3 — probed Sep 19, formats = hls_aac_160k /
+ *  hls_mp3_0_1 / hls_aac_96k): flagging every SC rip LOWQ against the YT
+ *  floors would make the flag noise, while an UNDER-ceiling rip still
+ *  flags. YT rows keep the byte-identical legacy rule. */
 export function isLowq(row: {
   bitrate_kbps: number | null;
   codec: string | null;
+  source?: string | null;
 }): boolean {
   if (row.bitrate_kbps === null) return false;
+  if (row.source === "soundcloud") {
+    if (row.codec === "mp4a" || row.codec === "aac")
+      return row.bitrate_kbps < 160;
+    if (row.codec === "mp3") return row.bitrate_kbps < 128;
+    return false;
+  }
   if (row.codec === "mp4a" || row.codec === "aac")
     return row.bitrate_kbps < 256;
   if (row.codec === "mp3") return row.bitrate_kbps < 320;
@@ -115,19 +127,26 @@ export function replaceFileAtomically(
 export async function upgrade(opts: UpgradeOptions): Promise<void> {
   const log = commandLog(opts);
 
-  const candidates = (
-    opts.state.allTracks() as {
-      video_id: string;
-      title: string | null;
-      file_path: string | null;
-      bitrate_kbps: number | null;
-      codec: string | null;
-      status: string;
-    }[]
-  )
+  const all = opts.state.allTracks() as {
+    video_id: string;
+    title: string | null;
+    file_path: string | null;
+    bitrate_kbps: number | null;
+    codec: string | null;
+    status: string;
+    source?: string | null;
+  }[];
+  // #258: SC rows are never YT-upgradable — a re-fetch would swap in a
+  // DIFFERENT recording (the fingerprint gate would refuse it, but only
+  // after the full download). Skipped up front, counted honestly.
+  const scSkipped = all.filter(
+    (t) => t.status === "downloaded" && t.source === "soundcloud",
+  ).length;
+  const candidates = all
     .filter(
       (t) =>
         t.status === "downloaded" &&
+        t.source !== "soundcloud" &&
         t.file_path &&
         existsSync(t.file_path) &&
         isLowq(t),
@@ -135,7 +154,7 @@ export async function upgrade(opts: UpgradeOptions): Promise<void> {
     .slice(0, opts.limit ?? 20) as UpgradeCandidate[];
 
   log(
-    `upgrade: ${candidates.length} below-floor candidate(s)${opts.dryRun ? " (dry run)" : ""}`,
+    `upgrade: ${candidates.length} below-floor candidate(s)${opts.dryRun ? " (dry run)" : ""}${scSkipped > 0 ? ` · ${scSkipped} soundcloud row(s) skipped (not YT-upgradable)` : ""}`,
   );
 
   const totals = { attempted: 0, upgraded: 0, refused: 0, failed: 0 };
@@ -309,6 +328,8 @@ export async function upgrade(opts: UpgradeOptions): Promise<void> {
     command: "upgrade",
     candidates: candidates.length,
     ...totals,
+    // #258: rows excluded up front because a YT re-fetch can't upgrade them.
+    scSkipped,
     dryRun: opts.dryRun === true,
     details,
   });

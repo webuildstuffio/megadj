@@ -53,8 +53,9 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "sync",
     group: "getdat",
     block: [
-      "  megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,PLxxxx] [--json]",
-      "                                               download from YouTube Music; resumable, rate-limited",
+      "  megadj sync    [--limit N] [--dry-run] [--music-only] [--target-total N] [--sources LM,LL,sc-user:NAME,sc-likes:NAME] [--sc-url <soundcloud-url>] [--force-rip] [--json]",
+      "                                               download from YouTube Music playlists and SoundCloud",
+      "                                               (tracks/sets/user pages); link-first on SC, resumable, rate-limited",
     ],
   },
   {
@@ -109,12 +110,14 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     name: "drop",
     group: "fulltags",
     block: [
-      "  megadj drop    <folder-or-url> [--dry-run] [--no-mood] [--no-fetch] [--ai-fallback] [--json]",
+      "  megadj drop    <folder-or-url> [--dry-run] [--no-mood] [--no-fetch] [--ai-fallback] [--force-rip] [--json]",
       "                                               one-shot intake: download → ingest → fetch",
       "                                               (tags/genre/art/year/energy/fingerprint/key)",
       "                                               → years → beats → mood → cues → organize",
       "                                               → tag-check → audit — point at a folder,",
-      "                                               get finished tracks; exits 1 on any gap",
+      "                                               get finished tracks; SC urls are link-first",
+      "                                               (a purchase/free-download link is offered",
+      "                                               instead of ripping; sets expand fully)",
     ],
   },
   {

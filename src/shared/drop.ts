@@ -21,6 +21,18 @@ import { mood } from "../fulltags/analysis/mood";
 import { cues } from "../fulltags/cues";
 import { organize } from "../getdat/commands/organize";
 import { ytdlpCookieArgs } from "../getdat/downloader";
+import {
+  SC_FORMAT,
+  extractAcquisitionLinks,
+  isSoundCloudUrl,
+  ripDecision,
+} from "../getdat/soundcloud";
+import {
+  intakeFolderName,
+  resolveIntakeDir,
+} from "../getdat/commands/intake-folder";
+import { mkdirSync } from "node:fs";
+import { isRecord, isUnknownArray } from "./leaf/guards";
 import type { ArchiveState } from "../archive/state";
 import { commandLog } from "./progress";
 import { errMessage as errorText } from "./leaf/fmt";
@@ -40,6 +52,8 @@ export interface DropOptions {
   /** Opt-in AI genre/year fallback inside the fetch stage (SC + Beatport
    * stay primary; AI covers only what both miss). Off by default. */
   aiFallback?: boolean;
+  /** #256: rip even when the track offers an official acquisition link. */
+  forceRip?: boolean;
   /** Beat-analysis length cap in seconds (default 900 = 15min; 0 disables) —
    * longer tracks skip the beats stage (grid cost scales with runtime). */
   maxBeatSeconds?: number | undefined;
@@ -66,8 +80,8 @@ export interface DropSummary {
 
 const isUrl = (s: string) => /^https?:\/\//.test(s);
 
-/** Download a URL straight into the music dir via yt-dlp (best-audio,
- *  no playlist expansion, same cookie plumbing as sync). */
+/** Download a non-SC URL straight into the music dir via yt-dlp
+ *  (best-audio, no playlist expansion, same cookie plumbing as sync). */
 async function downloadUrl(
   target: string,
   musicDir: string,
@@ -102,6 +116,145 @@ async function downloadUrl(
     return { downloaded: 0, error: err || `yt-dlp exit ${proc.exitCode}` };
   }
   return { downloaded: 1 };
+}
+
+/** The stage-0 SC download (#255/#256/#257): link-first, set-aware.
+ *
+ *  A SoundCloud URL is probed FLAT first: a single-track payload goes
+ *  through the link-first decision (surface the official link and skip
+ *  the rip when one exists), a playlist payload (a /sets/ page) rips
+ *  every entry into a dated intake folder. Returns the intake folder for
+ *  the rest of the pipeline plus honest stage detail. */
+async function downloadScUrl(
+  target: string,
+  musicDir: string,
+  opts: DropOptions,
+): Promise<{ downloaded: number; error?: string; folder?: string }> {
+  const cookies = ytdlpCookieArgs(opts.cookiesFile, opts.cookiesFromBrowser);
+  const flat = Bun.spawnSync({
+    cmd: ["yt-dlp", ...cookies, "--flat-playlist", "-J", target],
+    stdout: "pipe",
+    stderr: "pipe",
+    timeout: 120_000,
+  });
+  if (flat.exitCode !== 0) {
+    const err =
+      new TextDecoder()
+        .decode(flat.stderr)
+        .split("\n")
+        .slice(-2)
+        .join(" ")
+        .slice(0, 200) || `yt-dlp exit ${flat.exitCode}`;
+    return { downloaded: 0, error: err };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(new TextDecoder().decode(flat.stdout));
+  } catch {
+    return { downloaded: 0, error: "SC probe returned malformed JSON" };
+  }
+  if (!isRecord(parsed)) {
+    return { downloaded: 0, error: "SC probe output was not an object" };
+  }
+  const entries = parsed.entries;
+  if (isUnknownArray(entries) && entries.length > 0) {
+    // A SET (or user page): rip every entry into one dated batch folder —
+    // the folder name carries the set slug so the intake is visible.
+    const slug = target.split("/sets/")[1]?.split(/[?#]/)[0] ?? "set";
+    const batchDir = resolveIntakeDir(
+      musicDir,
+      intakeFolderName(slug.endsWith(".mp3") ? slug : `${slug} soundcloud`),
+    );
+    mkdirSync(batchDir, { recursive: true });
+    const args = [
+      "-f",
+      SC_FORMAT,
+      "-x",
+      "--audio-format",
+      "m4a",
+      "--audio-quality",
+      "0",
+      "-o",
+      `${batchDir}/%(title)s.%(ext)s`,
+      // Set expansion IS the point here — no --no-playlist.
+      "--no-overwrites",
+      "--newline",
+      "--quiet",
+      "--no-warnings",
+      ...cookies,
+      target,
+    ];
+    const proc = Bun.spawnSync({
+      cmd: ["yt-dlp", ...args],
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 1_800_000, // sets are long; the wall-clock budget lives here
+    });
+    if (proc.exitCode !== 0) {
+      const err =
+        new TextDecoder()
+          .decode(proc.stderr)
+          .split("\n")
+          .slice(-2)
+          .join(" ")
+          .slice(0, 200) || `yt-dlp exit ${proc.exitCode}`;
+      return { downloaded: 0, error: err };
+    }
+    return { downloaded: entries.length, folder: batchDir };
+  }
+  // SINGLE TRACK: link-first (#256). A real acquisition link is SURFACED,
+  // not ripped — the user goes through the official channel.
+  const info = parsed as {
+    id?: unknown;
+    title?: unknown;
+    purchase_url?: unknown;
+    downloadable?: unknown;
+    download_url?: unknown;
+    description?: unknown;
+  };
+  const links = extractAcquisitionLinks(info);
+  const decision = ripDecision(links, opts.forceRip === true);
+  if (decision.action === "surface" && decision.link) {
+    return {
+      downloaded: 0,
+      error: `link available — go through it instead of ripping: ${decision.link.url} (--force-rip overrides)`,
+    };
+  }
+  const args = [
+    "-f",
+    SC_FORMAT,
+    "-x",
+    "--audio-format",
+    "m4a",
+    "--audio-quality",
+    "0",
+    "-o",
+    `${musicDir}/%(title)s.%(ext)s`,
+    "--no-playlist",
+    "--embed-thumbnail",
+    "--embed-metadata",
+    "--quiet",
+    "--no-warnings",
+    ...cookies,
+    target,
+  ];
+  const proc = Bun.spawnSync({
+    cmd: ["yt-dlp", ...args],
+    stdout: "pipe",
+    stderr: "pipe",
+    timeout: 600_000,
+  });
+  if (proc.exitCode !== 0) {
+    const err =
+      new TextDecoder()
+        .decode(proc.stderr)
+        .split("\n")
+        .slice(-2)
+        .join(" ")
+        .slice(0, 200) || `yt-dlp exit ${proc.exitCode}`;
+    return { downloaded: 0, error: err };
+  }
+  return { downloaded: 1, folder: musicDir };
 }
 
 /** Run one pipeline stage, converting throw → failed row. */
@@ -287,6 +440,7 @@ const STAGE_RUNNERS: StageSpec[] = [
 ];
 
 /** Stage 0 — URL → download into the music dir; folder → use as-is.
+ *  SoundCloud URLs get the SC stage (link-first, set-aware, #256/#257).
  *  Returns the effective intake folder and false when the run must stop. */
 async function downloadStage(
   opts: DropOptions,
@@ -299,13 +453,33 @@ async function downloadStage(
     stages.push({ stage: "download", status: "skipped", detail: "dry-run" });
     return { folder: opts.musicDir, ok: true };
   }
-  const r = await downloadUrl(opts.target, opts.musicDir, opts);
+  const isSc = isSoundCloudUrl(opts.target);
+  const r: { downloaded: number; error?: string; folder?: string } = isSc
+    ? await downloadScUrl(opts.target, opts.musicDir, opts)
+    : await downloadUrl(opts.target, opts.musicDir, opts);
   if (r.error) {
+    // A surfaced link is an HONEST stop (exit 0 class): the target offers
+    // an official channel and the rip was refused on purpose — recorded
+    // as skipped, not failed (#256).
+    if (r.error.startsWith("link available")) {
+      stages.push({
+        stage: "download",
+        status: "skipped",
+        detail: r.error,
+      });
+      return { folder: opts.musicDir, ok: true };
+    }
     stages.push({ stage: "download", status: "failed", detail: r.error });
     return { folder: opts.musicDir, ok: false };
   }
-  stages.push({ stage: "download", status: "ok" });
-  return { folder: opts.musicDir, ok: true };
+  stages.push({
+    stage: "download",
+    status: "ok",
+    ...(isSc && r.downloaded > 1
+      ? { detail: `${r.downloaded} tracks from set` }
+      : {}),
+  });
+  return { folder: r.folder ?? opts.musicDir, ok: true };
 }
 
 /** Human report: one line per stage, honest symbols. */

@@ -11,7 +11,8 @@
 // `nonNegOptInvalid`/`firstPositional`) — the sanctioned parser; bad
 // numeric input = json-safe exit 2, zero work.
 import type { OrganizeOptions } from "./commands/organize";
-import { sync } from "./commands/sync";
+import { sync, type PlaylistSource } from "./commands/sync";
+import { SC_SOURCE, isSoundCloudUrl } from "./soundcloud";
 import { RateLimiter } from "./ratelimit";
 import {
   firstPositional,
@@ -57,8 +58,8 @@ const init: CliCommandHandler = async () => {
 const syncCommand: CliCommandHandler = async (rest, context) => {
   const flags = parseFlags(
     rest,
-    ["limit", "sources", "target-total"],
-    ["dry-run", "music-only", "json"],
+    ["limit", "sources", "target-total", "sc-url"],
+    ["dry-run", "music-only", "json", "force-rip"],
   );
   const limiter = new RateLimiter({
     onPace: (ms) =>
@@ -79,14 +80,24 @@ const syncCommand: CliCommandHandler = async (rest, context) => {
     flags.bools.has("json"),
   );
 
-  const sources = (flags.strings.get("sources") ?? "LM")
-    .split(",")
-    .map((source) => source.trim())
-    .filter(Boolean)
-    .map((id) => ({
-      id,
-      label: id === "LM" ? "liked" : id === "LL" ? "liked-videos" : id,
-    }));
+  // #255/--sc-url: a direct SoundCloud URL (single track or set) becomes
+  // the run's only source — user-directed intake through the ledgered,
+  // rate-limited path. Validated BEFORE any state write (zero work on
+  // bad input): a non-SC URL is an exit-2 usage error.
+  let sources = buildSources(flags.strings.get("sources"));
+  const scUrl = flags.strings.get("sc-url");
+  if (scUrl !== undefined) {
+    if (!isSoundCloudUrl(scUrl)) {
+      await finishCommandError({
+        command: "sync",
+        json: flags.bools.has("json"),
+        error: `--sc-url wants a soundcloud.com URL, got: ${scUrl}`,
+        exitCode: 2,
+      });
+      return;
+    }
+    sources = [{ kind: "sc-track", url: scUrl, label: SC_SOURCE }];
+  }
   await sync({
     state: context.state,
     limiter,
@@ -98,9 +109,42 @@ const syncCommand: CliCommandHandler = async (rest, context) => {
     musicOnly: flags.bools.has("music-only"),
     targetTotal,
     sources,
+    forceRip: flags.bools.has("force-rip"),
     json: flags.bools.has("json"),
   });
 };
+
+/** "--sources LM,LL,sc-user:jones" → the tagged union (#255/#257). YT
+ *  playlist ids stay first-class; the sc-user:/sc-likes: forms carry the
+ *  channel name (public pages; likes additionally need cookies). */
+function buildSources(raw: string | undefined): PlaylistSource[] {
+  return (raw ?? "LM")
+    .split(",")
+    .map((source) => source.trim())
+    .filter(Boolean)
+    .map((id): PlaylistSource => {
+      if (id === "LM") return { kind: "ytm-playlist", id, label: "liked" };
+      if (id === "LL")
+        return { kind: "ytm-playlist", id, label: "liked-videos" };
+      if (id.startsWith("sc-user:")) {
+        const name = id.slice("sc-user:".length).replace(/^@/, "").trim();
+        return {
+          kind: "sc-user",
+          url: `https://soundcloud.com/${name}/tracks`,
+          label: SC_SOURCE,
+        };
+      }
+      if (id.startsWith("sc-likes:")) {
+        const name = id.slice("sc-likes:".length).replace(/^@/, "").trim();
+        return {
+          kind: "sc-likes",
+          url: `https://soundcloud.com/${name}/likes`,
+          label: SC_SOURCE,
+        };
+      }
+      return { kind: "ytm-playlist", id, label: id };
+    });
+}
 
 const statusCommand: CliCommandHandler = async (rest, { state }) => {
   if (rest.includes("--json")) await statusJson(state);

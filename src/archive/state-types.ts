@@ -3,6 +3,7 @@ export type TrackStatus =
   | "downloaded"
   | "gone"
   | "failed"
+  | "link_surfaced"
   | "skipped_low_quality"
   | "skipped_not_music"
   | "skipped_short";
@@ -29,6 +30,8 @@ export interface TrackRow {
   artwork_status: string | null;
   year: string | null;
   content_hash: string | null;
+  /** #256 link-first: JSON-encoded acquisition links (when surfaced). */
+  source_links?: string | null;
   first_seen_at: string;
   updated_at: string;
 }

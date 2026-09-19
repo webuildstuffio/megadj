@@ -144,6 +144,48 @@ export function checkYtdlp(): CheckResult {
   );
 }
 
+/** #257: SC likes/user pages need yt-dlp's impersonation support
+ *  (curl_cffi). Warn-only — tracks/sets/search work without it; the fix
+ *  is the one command. `--list-impersonate-targets` exits 0 and prints
+ *  the target table; an install WITHOUT curl_cffi shows "(unavailable)". */
+export function checkYtdlpImpersonate(): CheckResult {
+  const path = have("yt-dlp");
+  if (!path) {
+    return {
+      id: "ytdlp-impersonate",
+      label: "yt-dlp impersonation (SC likes/user pages)",
+      required: false,
+      ok: false,
+      detail: "yt-dlp not found (the yt-dlp check above covers the base)",
+      fix: "brew install yt-dlp",
+    };
+  }
+  const proc = Bun.spawnSync({
+    cmd: ["yt-dlp", "--list-impersonate-targets"],
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const out = `${new TextDecoder().decode(proc.stdout)}${new TextDecoder().decode(proc.stderr)}`;
+  // The target table prints one row per client, e.g.
+  // "Tor       -    curl_cffi>=0.11 (unavailable)". Parse the curl_cffi
+  // ROW and check the marker — a substring match on "available" alone
+  // false-positives on "(unavailable)" (measured on this machine).
+  const row = out.split("\n").find((l) => l.includes("curl_cffi")) ?? "";
+  const available = row.length > 0 && !/unavailable/i.test(row);
+  return {
+    id: "ytdlp-impersonate",
+    label: "yt-dlp impersonation (SC likes/user pages)",
+    required: false,
+    ok: available,
+    detail: available
+      ? `curl_cffi present — likes/user pages supported (${row.trim().split(/\s{2,}/)[0] ?? ""})`
+      : "curl_cffi absent — single tracks/sets/search fine; likes & user pages will fail",
+    fix: available
+      ? undefined
+      : "uv pip install --system curl_cffi  (or: pipx inject yt-dlp curl_cffi)",
+  };
+}
+
 export function checkUvPython(): CheckResult {
   const uv = binVersion("uv", ["--version"]);
   if (!uv) {
