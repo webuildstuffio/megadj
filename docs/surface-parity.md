@@ -110,7 +110,7 @@ Legend: ✅ reachable · ⛔ deliberate exemption (§4) · ❌ TRUE GAP.
 | Booth fleet settings       | `booth [set IDs]` ✅                                    | `deck_booth {ids?}` ✅                       | Fleet ⌗ Booth tab ✅ (citations inline) | —                    |
 | Booth fixes queue          | `fixes [scan\|apply]` ✅                                | `deck_fixes {action?}` ✅                    | Drive ⌗ Fixes tab ✅                    | —                    |
 | Hygiene queue              | `hygiene [scan\|apply\|confirm\|dismiss]` ✅            | `deck_hygiene {action?}` ✅                  | Drive ⌗ Hygiene tab ✅                  | —                    |
-| Restore hygiene quarantine | `megadj shelf-restore <finding-id\|path> [--into F]` ✅ | ⛔ §4-R1                                     | ⛔ §4-R1                                | —                    |
+| Restore hygiene quarantine | `megadj shelf-restore <finding-id\|path> [--into F]` ✅ | via `/api/hygiene/restore` ✅ (rev-43: §4-R1 retired) | Hygiene tab — QuarantinePanel Revert ✅ | —                    |
 | Weekly digest              | `prep [--out]` ✅                                       | `deck_prep` ✅ (markdown; `--out` stays CLI) | Fleet ⌗ Prep tab ✅                     | —(G2 closed)         |
 | Agent notes feed           | `note`/`notes` ✅                                       | `deck_note`/`deck_notes` ✅                  | Timeline cards ✅                       | — (GAP-3 closed)     |
 | Note dismissal             | `dismiss <d> <id>` ✅                                   | `deck_dismiss` ✅                            | Timeline dismiss ✅                     | — (GAP-11/12 closed) |
