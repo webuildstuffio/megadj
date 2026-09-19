@@ -4,6 +4,7 @@ import { join } from "node:path";
 import render from "preact-render-to-string";
 import { MegasetPanel } from "../products/fulltags/MegasetPanel";
 import { MegasetArcChart } from "../products/fulltags/MegasetArcChart";
+import { MegasetChain } from "../products/fulltags/megaset-chain";
 import { MegasetResult } from "../products/fulltags/MegasetResult";
 import {
   MegasetLoading,
@@ -19,10 +20,18 @@ import { TrackPickSearch } from "../products/fulltags/TrackPickSearch";
 import { SearchBar } from "../ui/data";
 
 const noop = () => undefined;
-const source = readFileSync(
-  join(import.meta.dir, "../products/fulltags/MegasetPanel.tsx"),
-  "utf8",
-);
+const source = [
+  "MegasetPanel.tsx",
+  "megaset-settings.tsx",
+  "megaset-proposal.tsx",
+  "megaset-chain.tsx",
+  "megaset-actions.tsx",
+  "megaset-builder.ts",
+]
+  .map((file) =>
+    readFileSync(join(import.meta.dir, "../products/fulltags", file), "utf8"),
+  )
+  .join("\n");
 const similarSource = readFileSync(
   join(import.meta.dir, "../products/fulltags/SimilarTab.tsx"),
   "utf8",
@@ -150,8 +159,8 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("Maximum");
     expect(html).toContain('class="megaset-preset-arc"');
     expect(html).toContain("Selected");
-    expect(source).toContain("disabled={build.loading}");
-    expect(source).toContain("busy={build.loading}");
+    expect(source).toContain("disabled={model.build.loading}");
+    expect(source).toContain("busy={model.build.loading}");
   });
 
   test("settings changes invalidate an old proposal and promote the one CTA", () => {
@@ -168,14 +177,18 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("optional · otherwise auto-picked");
     expect(source).toContain("invalidateProposal");
     expect(source).toContain('build.stale ? "Update"');
-    expect(source).toContain("if (!build.loading) void run()");
+    expect(source).toContain(
+      "if (!props.model.build.loading) void props.model.run()",
+    );
     expect(source).toContain("Proposal settings changed");
   });
 
   test("minutes stay editable before normalizing to the supported range", () => {
     expect(source).toContain('useState("60")');
     expect(source).toContain("setMinutesInput(next)");
-    expect(source).toContain("onBlur={() => setMinutesInput(String(minutes))}");
+    expect(source).toContain(
+      "commitMinutes: () => setMinutesInput(String(minutes))",
+    );
   });
 
   test("the advanced drawer exposes the pool cap and the engine's real numbers", () => {
@@ -206,7 +219,7 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain("15–30 seconds");
     // source wires the timer to a real start timestamp
     expect(source).toContain("startedAt: Date.now()");
-    expect(source).toContain("build.startedAt !== null");
+    expect(source).toContain("props.startedAt === null");
   });
 
   test("the excluded list groups by reason with examples and keeps the raw audit", () => {
@@ -372,10 +385,25 @@ describe("FullTags Similar and Set Builder UX", () => {
     expect(html).toContain('aria-label="Custom set length in minutes');
   });
 
+  test("a successful zero-step build keeps the accessible chain table", () => {
+    const html = render(
+      <MegasetChain
+        steps={[]}
+        preset={MEGASET_PRESET_DEFS[0]!}
+        keyGlide={null}
+      />,
+    );
+    expect(html).toContain('role="table"');
+    expect(html).toContain('aria-label="MegaSet builder chain"');
+    expect(html.match(/role="columnheader"/g)).toHaveLength(6);
+    for (const heading of ["track", "bpm", "key", "mix", "at"])
+      expect(html).toContain(`>${heading}<`);
+  });
+
   test("short proposals are unmistakably partial and report the measured gap", () => {
-    expect(source).toContain("build.data.complete");
-    expect(source).toContain("build.data.actualMinutes");
-    expect(source).toContain("build.data.shortfallMinutes");
+    expect(source).toContain("data.complete");
+    expect(source).toContain("data.actualMinutes");
+    expect(source).toContain("data.shortfallMinutes");
     expect(source).toContain('role="alert"');
     expect(source).toContain("Partial draft");
     expect(source).toContain("minutes short");
@@ -480,7 +508,7 @@ describe("FullTags Similar and Set Builder UX", () => {
 
     // the panel suppresses the partial-draft alarm for this state (the
     // guard is in source; the rendered form has no data yet)
-    expect(source).toContain("!isShelfOffline(build.data, build.data)");
+    expect(source).toContain("isShelfOffline(data, data)");
 
     // a genuinely small analyzed pool KEEPS the honest partial wording
     const smallPool: MegasetPayload = {

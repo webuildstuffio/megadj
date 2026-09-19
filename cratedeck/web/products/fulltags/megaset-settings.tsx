@@ -1,0 +1,166 @@
+import type { ComponentChildren } from "preact";
+import {
+  MEGASET_MINUTES_MAX,
+  MEGASET_MINUTES_MIN,
+  MEGASET_PRESET_DEFS,
+} from "../../../shared/types";
+import { Icon } from "../../ui/icons";
+import {
+  AdvancedDrawer,
+  PresetOption,
+  SequencerRow,
+  StepTitle,
+} from "./MegasetForm";
+import type { MegasetBuilder } from "./megaset-builder";
+
+const SET_DURATION_PRESETS = [30, 60, 90, 120] as const;
+
+function PresetSettings(props: { model: MegasetBuilder }) {
+  const { model } = props;
+  return (
+    <fieldset class="megaset-preset" disabled={model.build.loading}>
+      <StepTitle
+        n={1}
+        title="Energy journey"
+        hint="how the room should feel from first track to last"
+      />
+      <div
+        class="megaset-preset-grid"
+        role="radiogroup"
+        aria-labelledby="megaset-preset-label"
+      >
+        {MEGASET_PRESET_DEFS.map((preset, index) => (
+          <PresetOption
+            key={preset.id}
+            preset={preset}
+            selected={model.preset.id === preset.id}
+            disabled={model.build.loading}
+            index={index}
+            onSelect={(next) => {
+              if (next.id === model.preset.id) return;
+              model.choosePreset(next);
+            }}
+          />
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+function DurationSettings(props: { model: MegasetBuilder }) {
+  const { model } = props;
+  return (
+    <fieldset class="megaset-length" disabled={model.build.loading}>
+      <StepTitle n={2} title="MegaSet length" />
+      <div class="megaset-duration">
+        <div
+          class="megaset-duration-presets"
+          role="group"
+          aria-label="Common set lengths"
+        >
+          {SET_DURATION_PRESETS.map((duration) => (
+            <button
+              key={duration}
+              type="button"
+              class={`megaset-duration-option${model.minutes === duration ? " on" : ""}`}
+              aria-pressed={model.minutes === duration}
+              onClick={() => model.setMinutesInput(String(duration))}
+            >
+              {duration} min
+            </button>
+          ))}
+        </div>
+        <label
+          class="megaset-minutes"
+          title="Enter a custom target between the supported limits"
+        >
+          <span>
+            Custom
+            <small>
+              {MEGASET_MINUTES_MIN}–{MEGASET_MINUTES_MAX} minutes
+            </small>
+          </span>
+          <input
+            type="number"
+            min={MEGASET_MINUTES_MIN}
+            max={MEGASET_MINUTES_MAX}
+            value={model.minutesInput}
+            aria-label={`Custom set length in minutes (${MEGASET_MINUTES_MIN}–${MEGASET_MINUTES_MAX})`}
+            onInput={(event) =>
+              model.setMinutesInput((event.target as HTMLInputElement).value)
+            }
+            onBlur={model.commitMinutes}
+          />
+        </label>
+      </div>
+    </fieldset>
+  );
+}
+
+function SequencerSettings(props: { model: MegasetBuilder }) {
+  const { model } = props;
+  return (
+    <fieldset class="megaset-length" disabled={model.build.loading}>
+      <StepTitle n={3} title="Sequencer" />
+      <SequencerRow
+        searchChoice={model.searchChoice}
+        onChoice={model.chooseSearch}
+        disabled={model.build.loading}
+      />
+      <AdvancedDrawer
+        poolLimitInput={model.poolLimitInput}
+        onPoolLimitInput={model.setPoolLimitInput}
+        onPoolLimitBlur={model.commitPoolLimit}
+        disabled={model.build.loading}
+        lastPool={model.build.data ? model.build.data.pool : null}
+        searchChoice={model.searchChoice}
+      />
+    </fieldset>
+  );
+}
+
+function BuildControls(props: {
+  model: MegasetBuilder;
+  openerPicker: ComponentChildren;
+}) {
+  const { model, openerPicker } = props;
+  return (
+    <div class="megaset-controls">
+      {openerPicker}
+      <button
+        type="submit"
+        class="btn primary megaset-build"
+        disabled={model.build.loading}
+        aria-busy={model.build.loading}
+      >
+        {model.build.loading ? (
+          <span class="spin" aria-hidden="true" />
+        ) : (
+          <Icon name="play" size={12} />
+        )}{" "}
+        {model.buildLabel}
+      </button>
+    </div>
+  );
+}
+
+export function MegasetSettings(props: {
+  model: MegasetBuilder;
+  openerPicker: ComponentChildren;
+}) {
+  return (
+    <form
+      class="megaset-form"
+      aria-label="MegaSet builder settings"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!props.model.build.loading) void props.model.run();
+      }}
+    >
+      <PresetSettings model={props.model} />
+      <DurationSettings model={props.model} />
+      <SequencerSettings model={props.model} />
+      <BuildControls model={props.model} openerPicker={props.openerPicker} />
+    </form>
+  );
+}

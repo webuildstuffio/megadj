@@ -12,7 +12,7 @@ const repo = join(import.meta.dir, "..", "..");
 const NUMBER_SANCTIONS: Readonly<Record<string, string>> = {
   "cratedeck/src/bench.ts::biggestFiles::Number(st.size)":
     "Bun stat size is trusted filesystem metadata and practical drive sizes are safe integers.",
-  "cratedeck/web/products/fulltags/MegasetPanel.tsx::MegasetPanel::Number(minutesInput)":
+  "cratedeck/web/products/fulltags/megaset-builder.ts::minutesFrom::Number(input)":
     "clampMinutes finite-checks the converted form value and supplies the default.",
   "cratedeck/web/ui/JobsDock.tsx::phaseLabel::Number(m[1])":
     "m[1] is a digits-only phase regex capture and array lookup has an explicit fallback.",
@@ -141,10 +141,14 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // Sep 19 (#240 kebab rename): cratedeck/src + shared module files
     // re-spelled kebab-case — owners re-rooted again, same calls, same
     // guards, counts unchanged, digest shifted: 5ab35a72.
+    // Sep 19 (#239 MegaSet split): the custom-minutes conversion moved
+    // from MegasetPanel to minutesFrom in megaset-builder; clampMinutes
+    // remains the finite gate, so counts are unchanged and only the
+    // reason-carrying sanction owner/digest moved: bee18045.
     audited: 43,
     guarded: 28,
     sanctioned: 15,
-    digest: "5ab35a72817037add33197fe4b93f2d2ee351e172bb660eea72f70f5ef63d4af",
+    digest: "bee180458325ba959e2f44e73b2d82a5911e7c40aee2ef9485b7b39ea6d29a2f",
   });
 });
 
