@@ -148,7 +148,10 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     audited: 43,
     guarded: 28,
     sanctioned: 15,
-    digest: "bee180458325ba959e2f44e73b2d82a5911e7c40aee2ef9485b7b39ea6d29a2f",
+    digest: "fa1e6ad6ffcd581dc1f7c3eff9aaa4d4de893bd9179f0d795efbc9a094a47fb2",
+    // Sep 19 (super-sure pass, #214 rename tail): the archive/deckctl
+    // module regroup re-rooted owners after the MegaSet pin — same calls,
+    // same guards, counts unchanged, digest shifted: fa1e6ad6.
   });
 });
 
