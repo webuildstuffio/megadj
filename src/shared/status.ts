@@ -1,4 +1,6 @@
 import type { ArchiveState } from "../archive/state";
+import type { TrackRow } from "../archive/state-types";
+import { isLowq } from "../getdat/commands/upgrade";
 import { writeJson } from "./cli-output";
 import { storageReport, printStorageReport } from "./storage";
 
@@ -10,14 +12,10 @@ function summary(state: ArchiveState) {
   const all = state.allTracks();
   const downloaded = all.filter((t) => t.status === "downloaded");
   const bytes = downloaded.reduce((a, t) => a + (t.file_size_bytes ?? 0), 0);
-  // #258: the HIGHQ bar follows the source — SC's ceiling is 160k, so
-  // judging SC rips against the 250k YT bar misflagged every honest rip.
-  const highQ = downloaded.filter((t) => {
-    if (t.bitrate_kbps === null) return true;
-    return t.source === "soundcloud"
-      ? t.bitrate_kbps >= 160
-      : t.bitrate_kbps >= 250;
-  });
+  // The HIGHQ bar IS isLowq (SSOT: upgrade.ts's floor, mirrored by
+  // CrateDeck's lowqQueue SQL) — never hand-roll a second bar here.
+  // Unprobed rows (null bitrate) count as high-Q, honest gap.
+  const highQ = downloaded.filter((t) => t.bitrate_kbps === null || !isLowq(t));
   // #256: the "go get these properly" queue — links surfaced instead of
   // rips. Its own cohort, never folded into downloaded counts.
   const surfaced = all.filter((t) => t.status === "link_surfaced");
@@ -43,7 +41,7 @@ export function status(state: ArchiveState): void {
   }
   console.log(`\narchive size: ${(s.bytes / 1e9).toFixed(2)} GB`);
   console.log(
-    `high-quality tracks (>=250kbps, SC >=160k, or unprobed): ${s.highQ}/${s.downloadedCount}`,
+    `high-quality tracks (isLowq floor — SC 160k/128k, YT 256k/320k — or unprobed): ${s.highQ}/${s.downloadedCount}`,
   );
   if (s.surfacedLinks > 0) {
     console.log(
@@ -89,17 +87,11 @@ function filterTracks(state: ArchiveState, filter?: string) {
     : tracks;
 }
 
-function flagOf(t: {
-  status: string;
-  bitrate_kbps: number | null;
-  codec?: string | null;
-  source?: string | null;
-}): string {
-  // #258: the LOWQ floor is source-aware — SC rows judge against the
-  // platform ceiling, not the YT bar (same rule as isLowq/lowqQueue).
-  const isSc = t.source === "soundcloud";
+function flagOf(t: TrackRow): string {
+  // The LOWQ flag IS isLowq (SSOT — same floor as highQ above and
+  // CrateDeck's lowqQueue); unprobed rows never flag (honest gap).
   return t.status === "downloaded"
-    ? t.bitrate_kbps && (isSc ? t.bitrate_kbps < 160 : t.bitrate_kbps < 250)
+    ? t.bitrate_kbps !== null && isLowq(t)
       ? "LOWQ"
       : "ok  "
     : t.status === "link_surfaced"

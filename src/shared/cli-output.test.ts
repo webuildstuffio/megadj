@@ -75,7 +75,7 @@ describe("json stdout deadline (#pipe-wedge)", () => {
       );
       // Consume ONLY the first chunk, then destroy — head -c's shape.
       let got = 0;
-      for await (const chunk of cli.stdout) {
+      for await (const chunk of cli.stdout as AsyncIterable<Buffer>) {
         got += chunk.length;
         if (got >= 400) break;
       }
@@ -110,7 +110,8 @@ describe("json stdout deadline (#pipe-wedge)", () => {
       },
     );
     let bytes = 0;
-    for await (const chunk of cli.stdout) bytes += chunk.length;
+    for await (const chunk of cli.stdout as AsyncIterable<Buffer>)
+      bytes += chunk.length;
     const code = await new Promise<number | null>((resolve) =>
       cli.on("exit", (c) => resolve(c)),
     );

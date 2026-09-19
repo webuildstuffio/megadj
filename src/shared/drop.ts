@@ -90,8 +90,17 @@ async function downloadUrl(
   opts: DropOptions,
 ): Promise<{ downloaded: number; error?: string }> {
   const args = [
+    // Audio-only, never a merged video+audio format (that's how .webm/.mp4
+    // strays happen — the same rule downloader.download enforces for YT).
+    // `-x --audio-format m4a` is COPY semantics here: bestaudio is already
+    // AAC; the extraction only normalizes the container.
     "-f",
-    "bestaudio/best",
+    "bestaudio[ext=m4a]/bestaudio/bestaudio*",
+    "-x",
+    "--audio-format",
+    "m4a",
+    "--audio-quality",
+    "0",
     "--no-playlist",
     // P1: drop's stdout carries the one-line JSON summary — yt-dlp progress
     // MUST not inherit into it. stderr is drained to a buffer for errors.
@@ -184,11 +193,13 @@ async function downloadScUrl(
     const args = [
       "-f",
       SC_FORMAT,
+      // #258-superfix parity: a set entry can land on the mp3 fallback
+      // (legacy uploads stream ONLY mp3), and `-x --audio-format m4a`
+      // would re-encode it lossy→lossy. `--audio-format` DEFAULTS to
+      // `best` = keep the source codec (stream copy), so `-x` alone is
+      // the per-entry source-aware rule — identical outcomes to the
+      // single path's scExtractionArgs without knowing formats up front.
       "-x",
-      "--audio-format",
-      "m4a",
-      "--audio-quality",
-      "0",
       "-o",
       `${batchDir}/%(title)s.%(ext)s`,
       // Set expansion IS the point here — no --no-playlist.
@@ -269,11 +280,11 @@ async function downloadScUrl(
   const args = [
     "-f",
     SC_FORMAT,
+    // Single-track rip: only reached when NO acquisition link exists —
+    // legacy/direct-stream targets. Same copy rule as the set path:
+    // `-x` alone keeps the source codec (best), never a lossy→lossy
+    // re-encode when the mp3 fallback lands.
     "-x",
-    "--audio-format",
-    "m4a",
-    "--audio-quality",
-    "0",
     "-o",
     `${musicDir}/%(title)s.%(ext)s`,
     "--no-playlist",
@@ -330,6 +341,9 @@ async function runStage(
 interface StageCtx {
   opts: DropOptions;
   folder: string;
+  /** The batch's ledger source (stage-0 decided: soundcloud vs ingest)
+   *  — the ingest stage registers rows under it (#258-superfix). */
+  ledgerSource: string;
 }
 
 interface StageSpec {
@@ -351,12 +365,15 @@ const STAGE_RUNNERS: StageSpec[] = [
   {
     name: "ingest",
     // Stage 1 — ingest: clean names, tags, artwork, dedupe, WAV→AIFF.
-    run: ({ opts, folder }) =>
+    // ledgerSource carries stage-0's provenance decision (soundcloud for
+    // SC rips) so the LOWQ floor and sync's URL seam see the truth.
+    run: ({ opts, folder, ledgerSource }) =>
       ingest({
         state: opts.state,
         musicDir: opts.musicDir,
         folder,
         dryRun: opts.dryRun,
+        ledgerSource,
         json: true, // human logs suppressed; summary comes from drop
       }),
   },
@@ -487,17 +504,20 @@ const STAGE_RUNNERS: StageSpec[] = [
 
 /** Stage 0 — URL → download into the music dir; folder → use as-is.
  *  SoundCloud URLs get the SC stage (link-first, set-aware, #256/#257).
- *  Returns the effective intake folder and false when the run must stop. */
+ *  Returns the effective intake folder, whether the run must stop, and
+ *  the batch's LEDGER SOURCE (soundcloud vs ingest) for the ingest
+ *  stage's registration (#258-superfix). */
 async function downloadStage(
   opts: DropOptions,
   stages: DropStage[],
   log: (m: string) => void,
-): Promise<{ folder: string; ok: boolean }> {
-  if (!isUrl(opts.target)) return { folder: opts.target, ok: true };
+): Promise<{ folder: string; ok: boolean; ledgerSource: string }> {
+  const notSc = { ledgerSource: "ingest" } as const;
+  if (!isUrl(opts.target)) return { folder: opts.target, ok: true, ...notSc };
   log(`downloading ${opts.target}…`);
   if (opts.dryRun) {
     stages.push({ stage: "download", status: "skipped", detail: "dry-run" });
-    return { folder: opts.musicDir, ok: true };
+    return { folder: opts.musicDir, ok: true, ...notSc };
   }
   const isSc = isSoundCloudUrl(opts.target);
   const r: { downloaded: number; error?: string; folder?: string } = isSc
@@ -513,10 +533,10 @@ async function downloadStage(
         status: "skipped",
         detail: r.error,
       });
-      return { folder: opts.musicDir, ok: true };
+      return { folder: opts.musicDir, ok: true, ...notSc };
     }
     stages.push({ stage: "download", status: "failed", detail: r.error });
-    return { folder: opts.musicDir, ok: false };
+    return { folder: opts.musicDir, ok: false, ...notSc };
   }
   stages.push({
     stage: "download",
@@ -525,7 +545,11 @@ async function downloadStage(
       ? { detail: `${r.downloaded} tracks from set` }
       : {}),
   });
-  return { folder: r.folder ?? opts.musicDir, ok: true };
+  return {
+    folder: r.folder ?? opts.musicDir,
+    ok: true,
+    ledgerSource: isSc ? "soundcloud" : "ingest",
+  };
 }
 
 /** Human report: one line per stage, honest symbols. */
@@ -548,9 +572,13 @@ export async function drop(opts: DropOptions): Promise<void> {
   let ok = true;
 
   // Stage 0 — download when the target is a URL, then run the table.
-  const { folder, ok: downloaded } = await downloadStage(opts, stages, log);
+  const {
+    folder,
+    ok: downloaded,
+    ledgerSource,
+  } = await downloadStage(opts, stages, log);
   ok = downloaded;
-  const ctx: StageCtx = { opts, folder };
+  const ctx: StageCtx = { opts, folder, ledgerSource };
   for (const spec of STAGE_RUNNERS) {
     if (!ok) {
       stages.push({ stage: spec.name, status: "skipped" });
