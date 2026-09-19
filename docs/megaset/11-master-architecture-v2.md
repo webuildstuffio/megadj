@@ -305,7 +305,7 @@ this doc documents, never twins.
   tier0-diagnostics-2026-09-15, set-04-sequencing-benchmarks-2026-09-14;
   megaset/embedding-learnings-from-megamem-2026-09-17 (v2, same-day);
   cratedeck/shared/megaset.ts (weight const 0.1, beam consts),
-  cratedeck/shared/vector-space.ts (all-but-the-top + CSLS, CSLS_R=10,
+  src/shared/leaf/vector-space.ts (all-but-the-top + CSLS, CSLS_R=10,
   CSLS_REF_CAP=1500), src/archive/state_core.ts (embeddings schema — model
   column absent, verified Sep 18).
 - **Megamem corpus (foreign, prose):** mem-bench ARCHITECTURE reference

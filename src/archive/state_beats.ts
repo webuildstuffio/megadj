@@ -1,7 +1,7 @@
 import { ArchiveTracks } from "./state_tracks";
 import { sqliteRowId } from "./sweeps";
 import type { RunRow, TrackRow } from "./state-types";
-import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
+import { isFiniteNumberArray } from "../shared/leaf/guards";
 
 function parseNumberArray(
   raw: string,

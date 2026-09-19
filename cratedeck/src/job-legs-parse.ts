@@ -3,7 +3,7 @@
 // with zero spawn/IO, so they are trivially unit-testable as a leaf.
 // job_legs.ts keeps the leg runners (spawn seam) and imports this seam.
 import { INTAKE_COUNTER_KEYS, type IntakeResult } from "../shared/types";
-import { errMessage as errorText } from "../shared/fmt";
+import { errMessage as errorText } from "../../src/shared/leaf/fmt";
 
 type IntakeCounters = Omit<IntakeResult, "audit" | "auditErrors">;
 

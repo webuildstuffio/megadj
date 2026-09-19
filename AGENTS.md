@@ -211,7 +211,12 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 ## CrateDeck
 
 - `cratedeck/shared/types.ts` is the import leaf; run the madge cycle check on
-  boundary changes.
+  boundary changes. The src ↔ cratedeck seam has ONE direction rule (#222,
+  census-pinned by `src/census/boundary-direction-census.test.ts`): the two
+  trees may import each other ONLY through the dependency-free leaf
+  `src/shared/leaf/{guards,fmt,vector-space,fixes}.ts` plus the allowlisted
+  seam modules in that census — any other crossing is a red build, and new
+  rows need an owning issue (#225A retires them).
 - Snapshot/checksum work stays async; only physical external hardware passes
   `detect.ts`. Unknown-only checks are never healthy; bitrot requires real
   checksums.

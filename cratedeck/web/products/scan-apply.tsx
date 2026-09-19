@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import { Icon } from "../ui/icons";
 import { api, apiPost, toast } from "../ui/toast";
-import { errMessage } from "../../shared/fmt";
+import { errMessage } from "../../../src/shared/leaf/fmt";
 
 export function useScanApply<T>(props: {
   readPath: string;

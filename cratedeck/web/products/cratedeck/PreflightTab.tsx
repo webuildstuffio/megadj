@@ -9,7 +9,7 @@
 import { useState } from "preact/hooks";
 import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
-import { errMessage } from "../../../shared/fmt";
+import { errMessage } from "../../../../src/shared/leaf/fmt";
 import { useFetched } from "../../ui/useFetched";
 import type {
   CheckStatus,

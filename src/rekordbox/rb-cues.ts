@@ -21,10 +21,7 @@
  *     cues in, ≤8 hot cues out, dry-run default, gates per §AC-06.
  */
 
-import {
-  isNonNegativeInteger,
-  isUnknownArray,
-} from "../../cratedeck/shared/guards";
+import { isNonNegativeInteger, isUnknownArray } from "../shared/leaf/guards";
 import {
   applyConfirmed,
   applyConfirmationRefusal,

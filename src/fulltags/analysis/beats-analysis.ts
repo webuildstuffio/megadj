@@ -8,7 +8,7 @@
  * spending compute.
  */
 import { existsSync } from "node:fs";
-import { isFiniteNumberArray } from "../../../cratedeck/shared/guards";
+import { isFiniteNumberArray } from "../../shared/leaf/guards";
 import { parseJsonObject } from "../parse-json";
 import {
   lineHasRequestId,

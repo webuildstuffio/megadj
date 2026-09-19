@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fmtDur, fmtEta } from "../shared/fmt";
+import { fmtDur, fmtEta } from "../../src/shared/leaf/fmt";
 import { statsLine } from "../src/hygiene_audio";
 
 describe("duration formatting", () => {

@@ -2,10 +2,7 @@
 // Leaf seam (AGENTS.md split rule): booth-fix.ts and booth-fix-text.ts both
 // declare/use these; the split-out fixer must never import its parent's
 // types back — madge counts a type-only back-edge as a cycle.
-import type {
-  BoothFixAction,
-  BoothFixGate,
-} from "../../../cratedeck/shared/fixes";
+import type { BoothFixAction, BoothFixGate } from "../../shared/leaf/fixes";
 
 /** One proposed/applied fix (one row per file per gate). */
 export interface BoothFixRow {

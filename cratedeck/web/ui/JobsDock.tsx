@@ -17,7 +17,7 @@ import {
   type Job,
   type VerifyReport,
 } from "../../shared/types";
-import { errMessage, fmtEta, timeAgo } from "../../shared/fmt";
+import { errMessage, fmtEta, timeAgo } from "../../../src/shared/leaf/fmt";
 import { apiPost, toast } from "./toast";
 import { Icon } from "./icons";
 import { HELP_JOBS } from "../../shared/help";

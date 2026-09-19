@@ -7,7 +7,7 @@ import {
   isStringArray,
   makePayloadParser,
 } from "./rb-command-kit.js";
-import { isNonNegativeInteger } from "../../cratedeck/shared/guards";
+import { isNonNegativeInteger } from "../shared/leaf/guards";
 
 export const PYRK_TAG =
   "pyrekordbox @ git+https://github.com/dylanljones/pyrekordbox.git@f695541827cc488af267d6ca8a8e0052598d85a0";

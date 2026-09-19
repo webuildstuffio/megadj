@@ -2,7 +2,7 @@
 // chips + icons so scanning beats reading.
 import { useMemo, useState } from "preact/hooks";
 import type { TimelineEvent } from "../../../shared/types";
-import { fmtWhen, fmtEventData } from "../../../shared/fmt";
+import { fmtWhen, fmtEventData } from "../../../../src/shared/leaf/fmt";
 import { Icon } from "../../ui/icons";
 import { toast, apiPost } from "../../ui/toast";
 import { TabIntro } from "../../ui/InfoTip";

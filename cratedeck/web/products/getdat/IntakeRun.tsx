@@ -13,7 +13,7 @@ import {
   isFiniteNumber,
   isRecord,
   isUnknownArray,
-} from "../../../shared/guards";
+} from "../../../../src/shared/leaf/guards";
 
 /** The pipeline's visible steps — mirrors INTAKE_PHASES on the server
  *  (intake_run.ts) plus the audit leg. Kept as a display list; the job's

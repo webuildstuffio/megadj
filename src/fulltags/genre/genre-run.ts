@@ -17,7 +17,7 @@ import {
   parseEmbeddingVector,
   type GenreSeed,
 } from "../../archive/similar";
-import { l2normalize } from "../../../cratedeck/shared/vector-space";
+import { l2normalize } from "../../shared/leaf/vector-space";
 import { tier0Diagnostics } from "./genre-diagnostics";
 import { probeLeaveOneOut, type ProbeRow } from "../analysis/linear-probe";
 import { refoldDetail, scoringFamily } from "./genre-refold";

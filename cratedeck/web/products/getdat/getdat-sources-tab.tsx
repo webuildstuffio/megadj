@@ -6,7 +6,7 @@ import type {
   ArchiveIngestStatus,
   ArchiveSourceCensus,
 } from "../../../shared/types";
-import { errMessage } from "../../../shared/fmt";
+import { errMessage } from "../../../../src/shared/leaf/fmt";
 import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";

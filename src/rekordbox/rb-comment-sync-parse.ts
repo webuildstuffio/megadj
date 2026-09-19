@@ -9,7 +9,7 @@ import {
   isNonNegativeInteger,
   isRecord,
   isUnknownArray,
-} from "../../cratedeck/shared/guards";
+} from "../shared/leaf/guards";
 import {
   DECIMAL_ID_RE,
   isStringPair,

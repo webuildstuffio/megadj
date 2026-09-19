@@ -24,7 +24,7 @@ import {
   gridAudit,
   type GridAuditVerdict,
 } from "../../src/fulltags/grid-audit";
-import { isFiniteNumberArray } from "../shared/guards";
+import { isFiniteNumberArray } from "../../src/shared/leaf/guards";
 import type { ArchiveGridCrossCheck } from "../shared/archive-wire";
 
 interface Offender {

@@ -41,7 +41,7 @@ import { errorText } from "../shared/error-text";
 import { FpCache, SHELF_FINGERPRINTS_TABLE } from "./dupescan";
 import { md5Cli } from "./md5-cli";
 import { resolveShelfVolume } from "../shared/volume";
-import { isUnknownArray } from "../../cratedeck/shared/guards";
+import { isUnknownArray } from "../shared/leaf/guards";
 
 /**
  * The one pyrekordbox read for the DB-vs-disk checks (truncated-name):

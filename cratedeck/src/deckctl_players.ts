@@ -5,7 +5,7 @@
 // once printed the literal "undefined" in --json mode, invalid JSON for
 // any agent parsing it (the Sep 7-8 silent-fallback purge class).
 import type { PlayersPayload } from "../shared/types";
-import { errMessage as errorText } from "../shared/fmt";
+import { errMessage as errorText } from "../../src/shared/leaf/fmt";
 
 export interface PlayerFleetPayload {
   players: PlayersPayload[];

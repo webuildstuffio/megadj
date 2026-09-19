@@ -17,7 +17,7 @@ import type { QueueEntry } from "../../getdat/commands/queue";
 export { type QueueEntry } from "../../getdat/commands/queue";
 import { commandLog } from "../../shared/progress";
 import { writeJson, setExit } from "../../shared/cli-output";
-import { errMessage } from "../../../cratedeck/shared/fmt";
+import { errMessage } from "../../shared/leaf/fmt";
 
 export interface ArtworkOptions {
   state: ArchiveState;

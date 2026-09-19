@@ -8,6 +8,9 @@ import { extname, isAbsolute, join, relative, resolve } from "node:path";
 const root = resolve(import.meta.dir, "..", "..");
 const webRoot = join(root, "cratedeck/web");
 const sharedRoot = join(root, "cratedeck/shared");
+// #222: the dependency-free leaf (src/shared/leaf/*) is browser-safe too —
+// it imports nothing, so web may pull it without leaving the leaf set.
+const leafRoot = join(root, "src/shared/leaf");
 
 function isWithin(parent: string, path: string): boolean {
   const rel = relative(parent, path);
@@ -68,7 +71,11 @@ test("#46: the complete web dependency closure stays in web/shared leaves", () =
     const current = pending.pop()!;
     if (visited.has(current)) continue;
     visited.add(current);
-    if (!isWithin(webRoot, current) && !isWithin(sharedRoot, current)) {
+    if (
+      !isWithin(webRoot, current) &&
+      !isWithin(sharedRoot, current) &&
+      !isWithin(leafRoot, current)
+    ) {
       throw new Error(
         `web dependency escaped browser-safe roots: ${relative(root, current)}`,
       );

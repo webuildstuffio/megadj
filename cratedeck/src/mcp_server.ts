@@ -5,7 +5,7 @@
 // handle loop parameterised over a tool table so the tool definitions stay
 // the single concern of mcp.ts.
 import { str, RpcParamError } from "./mcp_params";
-import { errMessage as errorText } from "../shared/fmt";
+import { errMessage as errorText } from "../../src/shared/leaf/fmt";
 
 /** One MCP tool: description, JSON-schema, and the run function. */
 export interface ToolDef {

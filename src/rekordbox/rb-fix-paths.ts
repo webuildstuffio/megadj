@@ -29,7 +29,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { commandLog } from "../shared/progress";
-import { isUnknownArray } from "../../cratedeck/shared/guards";
+import { isUnknownArray } from "../shared/leaf/guards";
 import {
   assertRbClosed,
   backupMaster,

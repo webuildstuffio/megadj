@@ -20,7 +20,7 @@ import { MegasetPage } from "../products/megaset/MegasetPage";
 import { JobsDock } from "../ui/JobsDock";
 import { Toaster, api, toast } from "../ui/toast";
 import { navigate, useRoute } from "../app/router";
-import { errMessage } from "../../shared/fmt";
+import { errMessage } from "../../../src/shared/leaf/fmt";
 import { Palette } from "../ui/Palette";
 import { bindGlobalKeys } from "../ui/keys";
 import { useJobEvents } from "./useJobEvents";

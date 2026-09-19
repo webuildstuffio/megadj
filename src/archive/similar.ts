@@ -3,8 +3,8 @@
 // ledger rules: corrupt rows read as ABSENT (never poison a ranking),
 // upserts are idempotent by video_id — both contracts live in
 // RecordLedger (#74), the ledgers below only own their SQL + shapes.
-import { isFiniteNumberArray } from "../../cratedeck/shared/guards";
-import { cosineSimilarity } from "../../cratedeck/shared/vector-space";
+import { isFiniteNumberArray } from "../shared/leaf/guards";
+import { cosineSimilarity } from "../shared/leaf/vector-space";
 import { RecordLedger } from "./record-ledger";
 // The genre vocabulary (normalizeGenre, familyOf, repairEscapes) lives in
 // fulltags/src/genre-vocab.ts (#187 — one module owns every named map).
@@ -12,7 +12,7 @@ import { RecordLedger } from "./record-ledger";
 // label→family map.
 import { familyOf as defaultFamilyOf } from "../fulltags/genre/genre-vocab";
 
-export { cosineSimilarity } from "../../cratedeck/shared/vector-space";
+export { cosineSimilarity } from "../shared/leaf/vector-space";
 
 /** Parse one persisted embedding vector. Syntactically valid JSON is not
  * enough: every downstream cosine operation requires a non-empty vector of

@@ -3,7 +3,11 @@
 // seam, the port-key join against diskutil's DeviceTreePath, and the
 // 2s tree cache that keeps the 5s sweep from spawning python per volume.
 import { join } from "node:path";
-import { isFiniteNumber, isRecord, isUnknownArray } from "../shared/guards";
+import {
+  isFiniteNumber,
+  isRecord,
+  isUnknownArray,
+} from "../../src/shared/leaf/guards";
 
 export interface UsbDevice {
   product: string;

@@ -6,7 +6,7 @@
 // archive DB degrades to empty results — never throws, never 500s the
 // API route the subclass feeds (regression-covered by each subclass).
 import { Database } from "bun:sqlite";
-import { errMessage } from "../shared/fmt";
+import { errMessage } from "../../src/shared/leaf/fmt";
 
 export abstract class ArchiveLedgerReader {
   private db: Database | null = null;

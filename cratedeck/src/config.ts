@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { FLEET_PROFILES, DEFAULT_FLEET } from "../../src/fulltags/booth/fleet";
-import { isUnknownArray } from "../shared/guards";
+import { isUnknownArray } from "../../src/shared/leaf/guards";
 import { resolveServerPort } from "./server-port";
 
 export type ImageProvider = "brave" | "exa";

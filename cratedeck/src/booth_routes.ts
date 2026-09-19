@@ -7,7 +7,7 @@
 import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import type { BoothFleetPayload, BoothPlayerProfile } from "../shared/types";
-import { isUnknownArray } from "../shared/guards";
+import { isUnknownArray } from "../../src/shared/leaf/guards";
 import {
   FLEET_PROFILES,
   DEFAULT_FLEET,

@@ -22,8 +22,8 @@
  * Idempotency: TXXX:MOOD / TXXX:DANCE stamps (same pattern as ENERGY).
  */
 import { existsSync, mkdirSync, rmSync } from "node:fs";
-import { isFiniteNumberArray } from "../../../cratedeck/shared/guards";
-import { errMessage as errorText } from "../../../cratedeck/shared/fmt";
+import { isFiniteNumberArray } from "../../shared/leaf/guards";
+import { errMessage as errorText } from "../../shared/leaf/fmt";
 import { lineReader } from "../stdio";
 
 // Fail fast on a missing HOME: `)?? ""` produced "/.local/share/…" which

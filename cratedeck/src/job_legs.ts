@@ -4,8 +4,8 @@
 // kind→leg dispatch + summary parsers stay in job_execution.ts.
 import { basename } from "node:path";
 import type { IntakeResult, Job } from "../shared/types";
-import type { FixesPayload } from "../shared/fixes";
-import { errMessage as errorText, fmtBytes } from "../shared/fmt";
+import type { FixesPayload } from "../../src/shared/leaf/fixes";
+import { errMessage as errorText, fmtBytes } from "../../src/shared/leaf/fmt";
 import {
   finiteJobNumber,
   parseIngestSummary,

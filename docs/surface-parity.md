@@ -290,7 +290,7 @@ this table AND the enforcement test together (that's the point).
   `openLedger()` (both open WAL + busy_timeout 5000 + synchronous NORMAL;
   aligned by convention Sep 18 per #87's ride-along — never a
   cross-package import; `cratedeck/shared/types.ts` stays the import
-  leaf) and `cratedeck/shared/fmt.ts` `errMessage()` vs
+  leaf) and `src/shared/leaf/fmt.ts` `errMessage()` vs
   `src/shared/error-text.ts` `errorText` (one body, the src name
   re-exports the leaf's; #82). A third seam appearing between the tiers
   gets a row here before anyone reaches for a bridge import.

@@ -11,7 +11,7 @@ import {
   sep,
 } from "node:path";
 import type { CrateConfig } from "./config";
-import { errMessage as errorText } from "../shared/fmt";
+import { errMessage as errorText } from "../../src/shared/leaf/fmt";
 
 export class Guard {
   private allowed: string[]; // prefixes that may be written

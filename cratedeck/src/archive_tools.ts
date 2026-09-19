@@ -27,7 +27,7 @@ import {
   s,
   n,
 } from "./mcp_params";
-import { isSimilarSpace } from "../shared/vector-space";
+import { isSimilarSpace } from "../../src/shared/leaf/vector-space";
 
 /** The archive_* + megaset/getdat-adjacent tool table (O82b: readonly
  *  reads over megadj's DB through the server's /api/archive/* routes).

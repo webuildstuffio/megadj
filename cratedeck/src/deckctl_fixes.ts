@@ -6,7 +6,7 @@
 import { apiGet } from "./deckapi";
 import { emitJson } from "./deckctl_runtime";
 import { enqueueAndFollow, type QueueHooks } from "./deckctl_queue";
-import type { FixesPayload } from "../shared/fixes";
+import type { FixesPayload } from "../../src/shared/leaf/fixes";
 
 export type FixesHooks = QueueHooks;
 

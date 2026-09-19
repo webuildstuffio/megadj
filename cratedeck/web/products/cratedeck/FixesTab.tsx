@@ -4,7 +4,7 @@
 // button), then raw detail. The tab is a remote control: scan/apply
 // enqueue jobs over /api/fixes — megadj's booth-fix CLI stays the single
 // implementation (the fleet selected on Fleet → Booth drives every check).
-import type { FixRow, FixesPayload } from "../../../../cratedeck/shared/fixes";
+import type { FixRow, FixesPayload } from "../../../../src/shared/leaf/fixes";
 import { Icon } from "../../ui/icons";
 import { InfoTip } from "../../ui/InfoTip";
 import {

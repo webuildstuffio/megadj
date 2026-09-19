@@ -3,7 +3,7 @@
 // data/err/alive/useEffect quartet (four copies existed). Failure is a
 // named branch the UI must render — never a silent null.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { errMessage } from "../../shared/fmt";
+import { errMessage } from "../../../src/shared/leaf/fmt";
 import { Icon } from "./icons";
 
 export type Fetched<T> =

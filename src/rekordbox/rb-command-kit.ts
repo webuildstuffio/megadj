@@ -12,7 +12,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { isRecord, isUnknownArray } from "../../cratedeck/shared/guards";
+import { isRecord, isUnknownArray } from "../shared/leaf/guards";
 import {
   assertRbClosed,
   backupMaster,

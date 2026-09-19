@@ -9,7 +9,7 @@ import {
   isFiniteNumber,
   isFiniteNumberArray,
   isRecord,
-} from "../shared/guards";
+} from "../../src/shared/leaf/guards";
 import type {
   ArchiveFreshness,
   ArchiveSetCandidates,

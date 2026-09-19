@@ -9,7 +9,7 @@ import type {
   RedundancyResult,
   TrackLocationsResponse,
 } from "../../../shared/types";
-import { errMessage } from "../../../shared/fmt";
+import { errMessage } from "../../../../src/shared/leaf/fmt";
 import { api, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { useFetched } from "../../ui/useFetched";

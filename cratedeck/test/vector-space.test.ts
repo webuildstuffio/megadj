@@ -6,7 +6,7 @@ import {
   fitAllButTheTop,
   isSimilarSpace,
   l2normalize,
-} from "../shared/vector-space";
+} from "../../src/shared/leaf/vector-space";
 
 /** A corpus with one dominant direction (loudness proxy) plus per-track
  *  structure — the anisotropy the whitening correction targets. */

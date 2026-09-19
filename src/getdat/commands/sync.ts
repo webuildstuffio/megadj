@@ -18,7 +18,7 @@ import {
   type YtdlpInfo,
 } from "../../fulltags/write/metadata-build";
 import { guessFromFreeText } from "../../fulltags/genre/genre-vocab";
-import { isRecord, isUnknownArray } from "../../../cratedeck/shared/guards";
+import { isRecord, isUnknownArray } from "../../shared/leaf/guards";
 
 const isTty = process.stdout.isTTY ?? false;
 

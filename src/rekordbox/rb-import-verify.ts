@@ -4,10 +4,7 @@
 // write (applyImport). rb-import.ts keeps the gates, probe, dupe gate,
 // and the rbImport sequencer; this module owns everything that runs
 // AFTER the dupe gate says yes.
-import {
-  isNonNegativeInteger,
-  isUnknownArray,
-} from "../../cratedeck/shared/guards";
+import { isNonNegativeInteger, isUnknownArray } from "../shared/leaf/guards";
 import {
   isDecimalIdOrNull,
   isStringPair,

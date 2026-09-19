@@ -33,7 +33,7 @@ import {
   Verdict,
   TrackTitle,
 } from "../shared";
-import { fmtBytes } from "../../../shared/fmt";
+import { fmtBytes } from "../../../../src/shared/leaf/fmt";
 
 // ---- pipeline ---------------------------------------------------------------
 

@@ -18,7 +18,7 @@ export const ORIGIN_MAX = 40;
 
 import type { SQLQueryBindings } from "bun:sqlite";
 import type { NoteSeverity, StoredNote } from "../shared/types";
-import { errMessage } from "../shared/fmt";
+import { errMessage } from "../../src/shared/leaf/fmt";
 export { type StoredNote } from "../shared/types";
 
 export interface NoteInput {

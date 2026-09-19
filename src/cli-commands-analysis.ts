@@ -7,7 +7,7 @@ import {
 } from "./cli-flags";
 import { isMegasetSearchOverride } from "../cratedeck/shared/types";
 import { finishCommandError, setExit, writeJson } from "./shared/cli-output";
-import { isSimilarSpace } from "../cratedeck/shared/vector-space";
+import { isSimilarSpace } from "./shared/leaf/vector-space";
 
 const beats: CliCommandHandler = async (rest, { state, musicDir }) => {
   const flags = parseFlags(

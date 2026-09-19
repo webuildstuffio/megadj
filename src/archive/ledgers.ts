@@ -2,7 +2,7 @@ import {
   isFiniteNumber,
   isRecord,
   isUnknownArray,
-} from "../../cratedeck/shared/guards";
+} from "../shared/leaf/guards";
 import { RecordLedger } from "./record-ledger";
 
 /** Round to 3 decimals for wire payloads (null degrades to 0). Pure —

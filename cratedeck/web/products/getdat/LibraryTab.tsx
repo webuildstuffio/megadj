@@ -8,7 +8,7 @@ import type {
   ArchiveIngestStatus,
   ArchiveLibraryOverview,
 } from "../../../shared/types";
-import { errMessage, fmtBytes, timeAgo } from "../../../shared/fmt";
+import { errMessage, fmtBytes, timeAgo } from "../../../../src/shared/leaf/fmt";
 import { api } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";

@@ -13,7 +13,7 @@ import {
   isMegasetSearchOverride,
   MEGASET_EXCLUDED_PREVIEW_MAX,
 } from "../shared/megaset";
-import { isSimilarSpace } from "../shared/vector-space";
+import { isSimilarSpace } from "../../src/shared/leaf/vector-space";
 import type { DB } from "./db";
 import type { CrateConfig } from "./config";
 

@@ -5,7 +5,7 @@
  * corruption through their explicit null result — a malformed line can
  * never become a false success.
  */
-import { isRecord } from "../../cratedeck/shared/guards";
+import { isRecord } from "../shared/leaf/guards";
 
 export function parseJsonObject(raw: string): Record<string, unknown> | null {
   try {

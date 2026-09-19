@@ -5,7 +5,7 @@
 // diskutil/plutil probe half and re-exports the USB seam for callers.
 import { readdirSync, watch } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { isRecord } from "../shared/guards";
+import { isRecord } from "../../src/shared/leaf/guards";
 
 import { invalidateUsbTreeCache, pickUsbDevice, usbTree } from "./detect-usb";
 

@@ -16,7 +16,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { isRecord, isUnknownArray } from "../../cratedeck/shared/guards.js";
+import { isRecord, isUnknownArray } from "../shared/leaf/guards";
 import { assertRbClosed } from "./guard.js";
 import {
   applyConfirmed,

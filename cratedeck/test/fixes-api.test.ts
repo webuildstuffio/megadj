@@ -5,7 +5,7 @@
 // the CrateDeck wiring.
 import { describe, expect, test } from "bun:test";
 import { makeFixesRoutes, recordFixes } from "../src/fixes_routes";
-import type { FixesPayload } from "../shared/fixes";
+import type { FixesPayload } from "../../src/shared/leaf/fixes";
 
 function makeApi(enqueued: string[] = []) {
   return makeFixesRoutes({

@@ -6,7 +6,7 @@
 // gates + the rbImport sequencer; rb-import-verify.ts owns the write.
 import { existsSync, readdirSync, statSync, type Stats } from "node:fs";
 import { extname, join } from "node:path";
-import { isRecord, isUnknownArray } from "../../cratedeck/shared/guards";
+import { isRecord, isUnknownArray } from "../shared/leaf/guards";
 import { probeMediaSync } from "../fulltags/media-probe";
 import { fingerprintFileLength } from "../fulltags/analysis/fingerprint";
 import {

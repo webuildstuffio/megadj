@@ -12,7 +12,7 @@ import {
   keySortToken,
   type CamelotPos,
 } from "../../../shared/camelot";
-import { fmtDur } from "../../../shared/fmt";
+import { fmtDur } from "../../../../src/shared/leaf/fmt";
 import { Icon } from "../../ui/icons";
 import { copyList } from "../../ui/data";
 import { Sparkline } from "../../ui/charts";

@@ -6,7 +6,11 @@ import type {
   ArchiveCueStats,
   ArchiveLibraryOverview,
 } from "../shared/archive-wire";
-import { isFiniteNumber, isRecord, isUnknownArray } from "../shared/guards";
+import {
+  isFiniteNumber,
+  isRecord,
+  isUnknownArray,
+} from "../../src/shared/leaf/guards";
 
 interface CuePoint {
   index: number;

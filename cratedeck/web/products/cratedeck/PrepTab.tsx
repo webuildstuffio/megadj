@@ -10,7 +10,7 @@
 import { api, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
-import { errMessage } from "../../../shared/fmt";
+import { errMessage } from "../../../../src/shared/leaf/fmt";
 
 export function PrepTab() {
   const page = useFetched<{ markdown: string }>(

@@ -8,7 +8,7 @@
 // stutter). The bench history is copyable so a dying-stick trend can be
 // handed to an agent in one paste.
 import type { Drive, SnapshotData, BenchRun } from "../../../shared/types";
-import { fmtBytes, shortSerial } from "../../../shared/fmt";
+import { fmtBytes, shortSerial } from "../../../../src/shared/leaf/fmt";
 import { Icon } from "../../ui/icons";
 import { StatCard } from "../../ui/DrivePanels";
 import { InfoTip, TabIntro } from "../../ui/InfoTip";

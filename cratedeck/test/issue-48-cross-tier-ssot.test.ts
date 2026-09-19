@@ -4,7 +4,7 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cosineSimilarity } from "../shared/vector-space";
+import { cosineSimilarity } from "../../src/shared/leaf/vector-space";
 
 const root = join(import.meta.dir, "..", "..");
 
@@ -18,8 +18,8 @@ test("#48: engine and spoke import the one cosine implementation", () => {
     join(root, "cratedeck/src/archive_similar.ts"),
     "utf8",
   );
-  expect(engine).toContain('from "../../cratedeck/shared/vector-space"');
-  expect(spoke).toContain('from "../shared/vector-space"');
+  expect(engine).toContain('from "../shared/leaf/vector-space"');
+  expect(spoke).toContain('from "../../src/shared/leaf/vector-space"');
   expect(engine).not.toContain("function cosineSimilarity(");
   expect(spoke).not.toContain("function cosine(");
 });

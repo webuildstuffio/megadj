@@ -32,7 +32,7 @@ import {
   parseBoothFleetRequest,
   writeConfigBoothFleet,
 } from "./booth_routes";
-import { errMessage as errorText } from "../shared/fmt";
+import { errMessage as errorText } from "../../src/shared/leaf/fmt";
 // ApiDeps/Handler moved to the api_deps leaf (#173 madge pass): dispatch's
 // type-only back-edge into this file WAS a cycle. Both sides import the
 // leaf now; the dependency arrow runs one way again.

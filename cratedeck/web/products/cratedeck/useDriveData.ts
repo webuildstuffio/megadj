@@ -6,7 +6,7 @@ import type {
   TimelineEvent,
   VerifyReport,
 } from "../../../shared/types";
-import { errMessage } from "../../../shared/fmt";
+import { errMessage } from "../../../../src/shared/leaf/fmt";
 import { ApiError, api, toast } from "../../ui/toast";
 import type { HealthTabBench } from "./HealthTab";
 

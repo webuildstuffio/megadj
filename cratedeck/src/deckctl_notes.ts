@@ -13,7 +13,7 @@
 import { apiGet, apiPost, resolveDriveOrExit } from "./deckapi";
 import { emitJson } from "./deckctl_runtime";
 import type { StoredNote } from "./notes";
-import { errMessage as errorText } from "../shared/fmt";
+import { errMessage as errorText } from "../../src/shared/leaf/fmt";
 
 export interface NotePrintHooks {
   /** true when --json is on: emit one JSON object, no prose. */

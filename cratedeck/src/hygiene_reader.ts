@@ -11,7 +11,7 @@ import {
   type HygieneFindingRow,
 } from "../shared/hygiene";
 import { ArchiveLedgerReader } from "./archive_ledger_reader";
-import { errMessage } from "../shared/fmt";
+import { errMessage } from "../../src/shared/leaf/fmt";
 
 export interface HygieneCounts {
   open: number;

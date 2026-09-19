@@ -27,7 +27,7 @@ import {
   fitAllButTheTop,
   isSimilarSpace,
   type SimilarSpace,
-} from "../../cratedeck/shared/vector-space";
+} from "../shared/leaf/vector-space";
 
 export interface SimilarOptions {
   state: ArchiveState;

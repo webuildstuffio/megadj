@@ -21,7 +21,7 @@ import {
   type MegasetPresetDef,
 } from "../../../shared/types";
 import { api } from "../../ui/toast";
-import { errMessage } from "../../../shared/fmt";
+import { errMessage } from "../../../../src/shared/leaf/fmt";
 import { Icon } from "../../ui/icons";
 import { useFetched } from "../../ui/useFetched";
 import { ListHead, DataTable, Card } from "../../ui/data";

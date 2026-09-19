@@ -8,7 +8,7 @@
 //   similarTracks — I49 "sounds like": cosine kNN over the embeddings
 //                   ledger (written by `megadj mood --embeddings`)
 //   (the set-builder pool reader lives in archive_pool.ts)
-import { isFiniteNumberArray } from "../shared/guards";
+import { isFiniteNumberArray } from "../../src/shared/leaf/guards";
 import {
   applySpace,
   cosineSimilarity,
@@ -16,7 +16,7 @@ import {
   cslsQueryPenalty,
   fitAllButTheTop,
   isSimilarSpace,
-} from "../shared/vector-space";
+} from "../../src/shared/leaf/vector-space";
 import type { ArchiveSimilar } from "../shared/archive-wire";
 import type { ArchiveQuery } from "./archive_types";
 

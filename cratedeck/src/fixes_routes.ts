@@ -4,8 +4,8 @@
 // — it enqueues a job whose leg spawns megadj's booth-fix CLI (the
 // engine SSOT). The cache is module state: jobs.ts's leg imports
 // recordFixes() after a scan/apply (leaf import — no cycle; this module
-// imports only shared/fixes).
-import type { FixesPayload } from "../shared/fixes";
+// imports only the leaf fixes module).
+import type { FixesPayload } from "../../src/shared/leaf/fixes";
 import type { JobKind } from "../shared/types";
 
 type FixesJobKind = Extract<JobKind, "fixes-scan" | "fixes-apply">;

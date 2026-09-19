@@ -5,7 +5,7 @@
 // .barrow/.extrow/.bpmhist implementations are gone.
 import { useState } from "preact/hooks";
 import type { HealthCheck, SnapshotData } from "../../shared/types";
-import { fmtBytes, fmtDur } from "../../shared/fmt";
+import { fmtBytes, fmtDur } from "../../../src/shared/leaf/fmt";
 import { Icon } from "./icons";
 import { InfoTip } from "./InfoTip";
 import { Histogram } from "./charts";

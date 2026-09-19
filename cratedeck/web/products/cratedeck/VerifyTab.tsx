@@ -8,7 +8,7 @@ import type {
   VerifyReport,
   VerifyHelpDoc,
 } from "../../../shared/types";
-import { timeAgo } from "../../../shared/fmt";
+import { timeAgo } from "../../../../src/shared/leaf/fmt";
 import { api, apiPost, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 

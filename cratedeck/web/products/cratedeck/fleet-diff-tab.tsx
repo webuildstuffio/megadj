@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import type { FleetDiff, DriveRef } from "../../../shared/types";
-import { errMessage, fmtBytes } from "../../../shared/fmt";
+import { errMessage, fmtBytes } from "../../../../src/shared/leaf/fmt";
 import { api, toast } from "../../ui/toast";
 import { Icon } from "../../ui/icons";
 import { DataTable, ListHead } from "../../ui/data";

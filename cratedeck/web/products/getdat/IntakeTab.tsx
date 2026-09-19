@@ -21,7 +21,7 @@ import { Icon } from "../../ui/icons";
 import { FetchedGate, useFetched } from "../../ui/useFetched";
 import { TabIntro } from "../../ui/InfoTip";
 import { SectionHead } from "../shared";
-import { errMessage } from "../../../shared/fmt";
+import { errMessage } from "../../../../src/shared/leaf/fmt";
 import { IntakeRun, IntakeVerdict } from "./IntakeRun";
 export { IntakeRun, IntakeVerdict, isIntakeResult } from "./IntakeRun";
 

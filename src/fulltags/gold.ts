@@ -17,7 +17,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { errMessage as errorText } from "../../cratedeck/shared/fmt";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** Current annotation schema version. Bump on breaking shape changes. */
 export const GOLD_SCHEMA_VERSION = 1;

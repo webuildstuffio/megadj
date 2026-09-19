@@ -69,7 +69,7 @@ Megamem's hardest-won space-geometry lessons, with our transfer verdicts:
   (+0.34pp, QRY-026), and "all-but-the-top" (remove top-1/2 dominant components)
   is their standing recipe for the retrieval space.
 - **Megadj convergence (independent validation):** our whitened+CSLS retrieval
-  space (all-but-the-top + CSLS, `cratedeck/shared/vector-space.ts`, shipped
+  space (all-but-the-top + CSLS, `src/shared/leaf/vector-space.ts`, shipped
   flag-gated Sep 15) measured **raw-space score saturation at 0.90+ with junk
   "gym mix" hubs in every top-5**, vs whitened spreading 0.70→0.05 and demoting
   hub junk (tier-0 run). Same pathology, same fix family, measured independently
@@ -510,7 +510,7 @@ docs/archive/tier0-diagnostics-2026-09-15.md (hubness/probe/whitened verdicts),
 docs/archive/embedding-research-2026-09-14.md (external review + adoption
 ladder), docs/megaset/02-architecture.md §2b T10 + §4 (B10p ownership),
 cratedeck/shared/megaset.ts (`MEGASET_SIMILARITY_WEIGHT` 0.1),
-cratedeck/shared/vector-space.ts (all-but-the-top + CSLS, CSLS_R=10),
+src/shared/leaf/vector-space.ts (all-but-the-top + CSLS, CSLS_R=10),
 src/archive/state_core.ts (embeddings schema — model column still absent,
 verified Sep 18).
 

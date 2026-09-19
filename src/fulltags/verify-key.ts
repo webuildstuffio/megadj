@@ -14,7 +14,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { walkAudioDir } from "../shared/audio-walk";
-import { errMessage } from "../../cratedeck/shared/fmt";
+import { errMessage } from "../shared/leaf/fmt";
 import { analyzeKeys, type KeyResult } from "./analysis/key-analysis";
 import { groundTruth } from "./write/readers";
 

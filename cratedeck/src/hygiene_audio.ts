@@ -17,7 +17,7 @@ import { extname, resolve, sep } from "node:path";
 // AUDIO_EXTS: the #69 SSOT — the private set here diverged BOTH ways
 // (had .alac, missed .ogg/.opus), the twin-proof of issue #200.
 import { AUDIO_EXTS } from "../../src/shared/audio-exts";
-import { fmtDur, errMessage } from "../shared/fmt";
+import { fmtDur, errMessage } from "../../src/shared/leaf/fmt";
 
 export interface AudioStats {
   path: string;

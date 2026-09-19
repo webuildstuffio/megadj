@@ -2,7 +2,7 @@
 // Card/Truncated/copyList + the .kvrows/.kvrow key-value family.
 import type { ComponentChildren } from "preact";
 import { toast } from "./toast";
-import { errMessage } from "../../shared/fmt";
+import { errMessage } from "../../../src/shared/leaf/fmt";
 
 /** Copy a text list to the clipboard (moved here from ListHead so DataTable
  *  and BarList can copy without a page-level dependency cycle — ListHead
