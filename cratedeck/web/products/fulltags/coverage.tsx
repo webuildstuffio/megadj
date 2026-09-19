@@ -1,5 +1,5 @@
 // coverage.tsx — the shared analysis-coverage read + strip (#233 split
-// from fulltags-tabs.tsx): one hook for the unified coverage fetch and
+// from tabs.tsx): one hook for the unified coverage fetch and
 // the per-ledger meter strip every FullTags analysis tab mounts, so the
 // three views can't disagree about progress.
 import type { ArchiveAnalysisCoverage } from "../../../shared/types";

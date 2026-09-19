@@ -1,26 +1,30 @@
 // products-shared-split.test.tsx — pins the #89/#90 page-skeleton split
-// of products/shared.tsx: the three extracted families (product-meta,
-// scan-apply, beat-sync) keep rendering identically, and the split
-// modules stay the canonical homes (a family copied BACK into
-// shared.tsx is the regression this catches). family-level imports go
-// through shared.tsx (the consumer seam); helpers knip keeps unexported
-// import from their owning module.
+// of products/shared/ (the #242 dir re-home): the three extracted
+// families (product-meta, scan-apply, beat-sync) keep rendering
+// identically, and the split modules stay the canonical homes (a family
+// copied BACK into the barrel is the regression this catches).
+// family-level imports go through the shared/ barrel (the consumer
+// seam); helpers knip keeps unexported import from their owning module.
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { render } from "preact-render-to-string";
 import { ArchiveAbsentGate, Meter, collectBreakers } from "../products/shared";
-import { gridDeltaPct, mkBreaker, beatSyncCopy } from "../products/beat-sync";
-import { ProductIntro } from "../products/product-meta";
-import { ScanApplyActions } from "../products/scan-apply";
+import {
+  gridDeltaPct,
+  mkBreaker,
+  beatSyncCopy,
+} from "../products/shared/beat-sync";
+import { ProductIntro } from "../products/shared/product-meta";
+import { ScanApplyActions } from "../products/shared/scan-apply";
 
 const read = (p: string): string =>
   readFileSync(join(import.meta.dir, "..", p), "utf8");
-const sharedSource = read("products/shared.tsx");
-const productMetaSource = read("products/product-meta.tsx");
+const sharedSource = read("products/shared/index.tsx");
+const productMetaSource = read("products/shared/product-meta.tsx");
 
-describe("products/shared split (#89 item 2)", () => {
-  test("shared.tsx is the re-export seam, not a second copy of the families", () => {
+describe("products/shared split (#89 item 2, re-homed #242)", () => {
+  test("the shared barrel is the re-export seam, not a second copy of the families", () => {
     // the re-exports exist…
     expect(sharedSource).toContain('from "./product-meta"');
     expect(sharedSource).toContain('from "./scan-apply"');

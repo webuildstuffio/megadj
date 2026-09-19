@@ -1,4 +1,4 @@
-// fulltags-tabs.tsx — the FullTagsPage content tabs, extracted from
+// tabs.tsx — the FullTagsPage content tabs, extracted from
 // FullTagsPage.tsx (#90 page-monolith split): beatgrids (the beats ledger
 // + the independent grid cross-check), mood (the vibe map), and cues (the
 // 8-bar phrase-cue ledger). FullTagsPage keeps the tab routing; each tab

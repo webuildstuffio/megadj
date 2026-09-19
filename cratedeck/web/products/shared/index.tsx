@@ -1,16 +1,21 @@
-// shared.tsx — the shared render primitives for the megadj web product
+// index.tsx — the shared render primitives for the megadj web product
 // pages (Verdict banner, ShareBar, Meter, SectionHead, TrackTitle, the
 // GetDat/archive language tables, ArchiveAbsentGate). The bigger shared
-// families live in their own modules now (#89/#90 page-skeleton pass):
+// families live beside this barrel in the same shared/ dir (#242
+// re-home; #89/#90 page-skeleton pass did the original split):
 //   product-meta.tsx — PRODUCTS/LEDE/PRODUCT_TABS/DRIVE_TABS SSOT +
 //                      ProductIntro (the nav/page switch tables)
 //   scan-apply.tsx   — useScanApply + ScanApplyGate/ScanApplyActions
 //                      (the Hygiene/Fixes job-remote scaffold)
 //   beat-sync.tsx    — the grid-cross-check breaker cluster
 //                      (GridBreaker → BeatSyncBreakersCard)
-// Everything re-exports through here so page imports stay one seam.
+// Everything re-exports through this barrel so page imports stay one
+// seam — pages import from "../shared" (or "../products/shared"), NEVER
+// from a member module directly; the products-shared-dir census pins
+// that (the one violation, ArchiveTabSections's type import, was routed
+// through the seam in #242).
 import type { ComponentChildren } from "preact";
-import { Icon } from "../ui/icons";
+import { Icon } from "../../ui/icons";
 
 export {
   DRIVE_TABS,
@@ -19,6 +24,7 @@ export {
   PRODUCT_TABS,
   ProductIntro,
 } from "./product-meta";
+export type { GridBreaker } from "./beat-sync";
 export { ScanApplyActions, ScanApplyGate, useScanApply } from "./scan-apply";
 export { collectBreakers, BeatSyncBreakersCard } from "./beat-sync";
 

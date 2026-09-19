@@ -25,11 +25,10 @@ import {
   ShareBar,
   TrackTitle,
   BeatSyncBreakersCard,
+  type GridBreaker,
   MOOD_GLOSS,
   STATUS_LANG,
 } from "../shared";
-import type { GridBreaker } from "../beat-sync";
-
 /** The breakers payload shape produced by the shared collector. */
 type Breakers = GridBreaker[];
 

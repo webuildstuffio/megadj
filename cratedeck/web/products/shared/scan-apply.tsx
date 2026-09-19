@@ -1,6 +1,6 @@
 // scan-apply.tsx — the load/job-event-reload/scan-apply scaffold behind
 // the Hygiene and Fixes tabs (#89/#90 page-skeleton pass; extracted from
-// products/shared.tsx). Both tabs are remote controls over a job API:
+// products/shared/index.tsx). Both tabs are remote controls over a job API:
 // tri-state payload fetch (undefined = in flight, null = fetched, never
 // scanned), reload on every `cratedeck:job` event, and scan/apply
 // enqueue with busy tracking + toasts. This is the ONE implementation —
@@ -9,9 +9,9 @@
 // same busy + toast + reload pattern.
 import { useCallback, useEffect, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
-import { Icon } from "../ui/icons";
-import { api, apiPost, toast } from "../ui/toast";
-import { errMessage } from "../../../src/shared/leaf/fmt";
+import { Icon } from "../../ui/icons";
+import { api, apiPost, toast } from "../../ui/toast";
+import { errMessage } from "../../../../src/shared/leaf/fmt";
 
 export function useScanApply<T>(props: {
   readPath: string;

@@ -1,5 +1,5 @@
 // product-meta.tsx — the megadj product SSOT (#89/#90 page-skeleton
-// pass; extracted from products/shared.tsx).
+// pass; extracted from products/shared/index.tsx).
 //
 // megadj is the suite; the four PRODUCTS are its pipeline phases:
 //   1. CrateDeck — keep the DJ USB drives honest (health, playlists,
@@ -11,8 +11,8 @@
 // [data-prod] CSS rules + per-product tokens in styles/).
 // PRODUCT_TABS is the one table both the header nav strip and the page
 // canvases switch on — a tab can't exist on one surface only.
-import type { Product } from "../app/router";
-import { Icon } from "../ui/icons";
+import type { Product } from "../../app/router";
+import { Icon } from "../../ui/icons";
 
 export interface ProductMeta {
   id: Product;

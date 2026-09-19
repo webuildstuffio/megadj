@@ -40,11 +40,11 @@ const routerSource = readFileSync(
   "utf8",
 );
 const sharedSource = readFileSync(
-  join(import.meta.dir, "../products/shared.tsx"),
+  join(import.meta.dir, "../products/shared/index.tsx"),
   "utf8",
 );
 const productMetaSource = readFileSync(
-  join(import.meta.dir, "../products/product-meta.tsx"),
+  join(import.meta.dir, "../products/shared/product-meta.tsx"),
   "utf8",
 );
 const appSource = readFileSync(join(import.meta.dir, "../app/App.tsx"), "utf8");

@@ -1,5 +1,5 @@
 // beat-sync.tsx — the beat-grid cross-check breaker cluster (#89/#90
-// page-skeleton pass; extracted from products/shared.tsx). The ArchiveTab
+// page-skeleton pass; extracted from products/shared/index.tsx). The ArchiveTab
 // and FullTagsPage "Beat Sync breakers" cards rendered byte-identical
 // markup — this is the ONE implementation (rows, columns, copy, card).
 // Verdict classes (plan GA-04/GA-05): octave > drift > off, severity
@@ -7,7 +7,7 @@
 // track (the v1 card couldn't show it because the old verdict compared
 // counts, not positions).
 import type { ComponentChildren } from "preact";
-import { Card, ListHead, DataTable, type DataTableColumn } from "../ui/data";
+import { Card, ListHead, DataTable, type DataTableColumn } from "../../ui/data";
 
 /** delta % between the beat_this ledger BPM and rekordbox's BPM (1dp). */
 export function gridDeltaPct(ledgerBpm: number, rbBpm: number): number {

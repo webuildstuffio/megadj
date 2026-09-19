@@ -11,7 +11,7 @@
 //   Tags      — the tag mirror: genres/years/art/energy (ground truth: files)
 // (Set moved out: it's its own product now — #/set, SetPage.tsx.)
 //
-// (#90 page-monolith split): the content tabs live in fulltags-tabs.tsx
+// (#90 page-monolith split): the content tabs live in tabs.tsx
 // (beatgrids/mood/cues), TagCompareTab.tsx (tags), and SimilarTab.tsx
 // (similar); this file is the routing shell — tab nav switches on the
 // SAME PRODUCT_TABS rows the header nav renders, so a tab can't exist on
@@ -20,7 +20,7 @@
 // READ-ONLY (§4-A1): analysis writes stay `megadj beats|mood|cues` CLI;
 // batch BPM/genre tag writes are BLOCKED by the roadmap gates — shown.
 import { PRODUCT_TABS, ProductIntro } from "../shared";
-import { BeatgridsTab, MoodTab, CuesTab } from "./fulltags-tabs";
+import { BeatgridsTab, MoodTab, CuesTab } from "./tabs";
 import { SimilarTab } from "./SimilarTab";
 import { GenreWhyTab } from "./GenreWhyTab";
 import { GenreRunTab } from "./GenreRunTab";
