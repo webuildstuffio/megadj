@@ -52,7 +52,7 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
 - No bare `catch {}` / `.catch(() => {})`. Boundary `JSON.parse` uses a guarded
   parser; gate numerics with `Number.isFinite`; CLI numeric options use
   `nonNegOpt` (bad input → exit 2, zero work). Keep
-  `src/census/  boundary-number-census.test.ts` and `src/census/boundary-json-census.test.ts`
+  `src/census/boundary-number-census.test.ts` and `src/census/boundary-json-census.test.ts`
   green when either call surface changes. Positionals go through
   `firstPositional(args, cmd, stringOpts)`/`positionalArgs` — the stringOpts
   argument is load-bearing: without it a space-form flag's VALUE reads as the

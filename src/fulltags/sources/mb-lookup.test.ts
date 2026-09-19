@@ -4,7 +4,7 @@
 // ONE fetch/UA/timeout/not-ok/parse block, per-caller logging policy,
 // malformed JSON throws (never a silent false answer).
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mbLookupCached, mbRecording } from "./mb_lookup";
+import { mbLookupCached, mbRecording } from "./mb-lookup";
 
 interface FetchCall {
   url: string;

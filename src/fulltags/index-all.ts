@@ -11,7 +11,7 @@ export * from "./sources/sc-search";
 export * from "./analysis/ai";
 export * from "./write/readers";
 export * from "./media-probe";
-export * from "./sources/mb_lookup";
+export * from "./sources/mb-lookup";
 export * from "./write/metadata-build";
 export * from "./sources/remix";
 export * from "./write/convert-aiff";

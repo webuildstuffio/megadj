@@ -433,7 +433,7 @@ the LEAST valuable BPM output anyway. The valuable outputs — downbeats +
 beat grids — now live in the archive DB ledger, and that shipped:**
 
 1. `megadj beats` (`src/fulltags/analysis/beats.ts` + the `beats` schema in
-   `src/archive/state_core.ts`): beat_this over every downloaded track →
+   `src/archive/state-core.ts`): beat_this over every downloaded track →
    `beats(video_id PK, bpm_raw, bpm_folded, beats_json, downbeats_json,
 model, source_path, analyzed_at)`. No tags are touched — ever.
    Idempotent (ledgered tracks skipped without `--force`), `--json` P1-
@@ -529,7 +529,7 @@ shipped JS — no account, no scraping, no Cloudflare HTML fight; the
 `www.beatport.com/search` SSR page and `api.beatport.com` unauth are
 both gated, yt-dlp's Beatport extractor is broken — "Unable to extract
 playables info"). Search rows carry bpm/key(camelot)/genre/subgenre/
-label/release/isrc/catalog_number/length_ms/publish_date + dynamic art
+label/release/isrc/catalog-number/length_ms/publish-date + dynamic art
 URIs (`{w}x{h}` templates; 1500x1500 fills verified). Per-container tag
 probes: mp3 `TPUB`→ffprobe "publisher", `TIT3` survives, `TSRC` frame;
 flac keeps raw names; aiff/wav need the mutagen ID3 path (**TSRC must

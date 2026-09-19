@@ -27,7 +27,7 @@ import { analyzeBeats, foldTempo } from "../analysis/beats-analysis";
 import { analyzeKey } from "../analysis/key-analysis";
 import { fingerprintWithDuration } from "../analysis/fingerprint";
 import { analyzeMoods, moodStamp } from "../analysis/models";
-import { mbLookupCached } from "../sources/mb_lookup";
+import { mbLookupCached } from "../sources/mb-lookup";
 import { embedArt } from "../write/writer";
 import { type Truth } from "../write/readers";
 import { basename } from "node:path";

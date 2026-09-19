@@ -92,6 +92,18 @@ export class ScPermanentError extends Error {
   }
 }
 
+/** The track is gone from the source (404 / terminated account): thrown
+ *  by the probe and download legs, matched by instanceof — never by the
+ *  message string. The retry ladder skips it (a 404 never heals), and
+ *  the sync loop parks the row as gone. Replaces the bare "GONE"
+ *  string-sentinel contract. */
+export class TrackGoneError extends Error {
+  constructor(message = "track gone from source") {
+    super(message);
+    this.name = "TrackGoneError";
+  }
+}
+
 /** Decode yt-dlp metadata at the process boundary with a useful failure. */
 export function parseYtdlpInfo(stdout: string): YtdlpInfo {
   try {
@@ -184,11 +196,11 @@ export class Downloader {
         // DRM/Go+ is permanent — neither may fall into retry-backoff
         // (#255; the generic classifier retried 404 slugs forever).
         const sc = classifyScFailure(errText);
-        if (sc === "gone") throw new Error("GONE");
+        if (sc === "gone") throw new TrackGoneError(errText);
         if (sc === "permanent") throw new ScPermanentError(errText);
       }
       const kind = this.classifyError(errText);
-      if (kind === "gone") throw new Error("GONE");
+      if (kind === "gone") throw new TrackGoneError(errText);
       throw new Error(errText.split("\n").slice(-3).join(" ").slice(0, 300));
     }
     return parseYtdlpInfo(new TextDecoder().decode(proc.stdout));

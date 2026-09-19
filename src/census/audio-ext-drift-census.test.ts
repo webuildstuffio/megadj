@@ -67,7 +67,7 @@ test("census: the three former twins read the SSOT", () => {
       /import \{ AUDIO_EXTS \} from "\.\.\/shared\/audio-exts"/,
     ],
     [
-      "cratedeck/src/hygiene_audio.ts",
+      "cratedeck/src/hygiene-audio.ts",
       /import \{ AUDIO_EXTS \} from "\.\.\/\.\.\/src\/shared\/audio-exts"/,
     ],
     [

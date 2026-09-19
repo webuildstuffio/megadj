@@ -122,9 +122,9 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   all along. Before chasing any count, ask which DB/tree the number comes
   FROM. Shelf-tier pdb/OneLibrary parity is informational, never a gate;
   verify + preflight handle this via `--shelf-drives` (usb_verify.py) and
-  role-aware dual-db (preflight.ts/verify_report.ts); the Drives tab marks
+  role-aware dual-db (preflight.ts/verify-report.ts); the Drives tab marks
   the card "master library lives here · sticks sync from this". The
-  role-aware check matrix lives ONCE in `cratedeck/shared/check_matrix.ts`
+  role-aware check matrix lives ONCE in `cratedeck/shared/check-matrix.ts`
   (`CHECK_APPLIES`, `checkApplies`, `TIER_EXPLANATION`); a refactor once
   dropped the `driveRole` arg and the `--shelf-drives` flag and shelf drives
   silently re-failed — the derived census in `check-matrix.test.ts` catches
