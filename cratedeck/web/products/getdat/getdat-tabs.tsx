@@ -54,7 +54,13 @@ export function PipelineTab() {
   const inArchive = entry("downloaded");
   const broken = entry("failed") + entry("gone");
   const waiting = entry("pending");
-  const movedOn = entry("deleted") + entry("skipped_not_music");
+  const movedOn =
+    entry("deleted") +
+    entry("skipped_not_music") +
+    entry("skipped_short") +
+    entry("skipped_low_quality");
+  const surfacedRows = ingest.surfaced;
+  const surfaced = surfacedRows.length;
   const runs = ingest.recent_runs.filter(
     (r) => r.downloaded + r.failed + r.gone > 0,
   );
@@ -97,6 +103,12 @@ export function PipelineTab() {
               icon="clock"
             />
             <StatCard
+              v={surfaced.toLocaleString()}
+              l="links surfaced — go through them"
+              icon="compass"
+              title="SoundCloud tracks that offer an official download/purchase link: the rip was skipped on purpose. The card below lists the URLs."
+            />
+            <StatCard
               v={movedOn.toLocaleString()}
               l="removed / skipped (bookkeeping)"
               icon="doc"
@@ -120,6 +132,13 @@ export function PipelineTab() {
                   title: "the re-download backlog",
                 },
                 {
+                  n: surfaced,
+                  cls: "surfaced",
+                  label: "links surfaced",
+                  title:
+                    "an official link exists — rip skipped on purpose (#256)",
+                },
+                {
                   n: waiting,
                   cls: "waiting",
                   label: "waiting to download",
@@ -134,6 +153,10 @@ export function PipelineTab() {
               ]}
             />
           </div>
+
+          {surfacedRows.length > 0 && (
+            <SurfacedLinksCard rows={surfacedRows} context="ledger" />
+          )}
 
           <SectionHead icon="history" title="Recent runs">
             <span class="sect-n">{runs.length}</span>
@@ -289,6 +312,9 @@ export function BacklogTab() {
   const gone = c["gone"] ?? 0;
   const retry = failed + gone;
   const quality = lowq.available ? lowq.tracks : [];
+  // #256: surfaced links are backlog work of a different KIND — the fix
+  // isn't a re-download, it's the user going through the official link.
+  const surfaced = ingest.available ? ingest.surfaced : [];
   const total = retry + quality.length;
 
   return (
@@ -306,7 +332,9 @@ export function BacklogTab() {
             cls={total === 0 ? "ok" : "warn"}
             text={
               total === 0
-                ? "Backlog is empty — nothing to retry, nothing to upgrade."
+                ? surfaced.length > 0
+                  ? `No download or quality debt — ${surfaced.length} surfaced link${surfaced.length === 1 ? "" : "s"} below are yours to click.`
+                  : "Backlog is empty — nothing to retry, nothing to upgrade."
                 : `${total.toLocaleString()} item${total === 1 ? "" : "s"} in the backlog: ${retry} download${retry === 1 ? "" : "s"}, ${quality.length} quality upgrade${quality.length === 1 ? "" : "s"}.`
             }
             meta={
@@ -367,10 +395,16 @@ export function BacklogTab() {
             </div>
           )}
 
+          {surfaced.length > 0 && (
+            <SurfacedLinksCard rows={surfaced} context="backlog" />
+          )}
+
           {total === 0 && (
             <div class="note ok">
-              <Icon name="check" size={14} /> Nothing needs work — the queue is
-              empty.
+              <Icon name="check" size={14} />{" "}
+              {surfaced.length > 0
+                ? `No downloads need work — ${surfaced.length} surfaced link${surfaced.length === 1 ? "" : "s"} await you above.`
+                : "Nothing needs work — the queue is empty."}
             </div>
           )}
         </>
@@ -380,3 +414,62 @@ export function BacklogTab() {
 }
 
 // ---- sources ----------------------------------------------------------------
+
+/** SurfacedLinksCard — ONE component for the #256 surfaced-link cohort on
+ *  both GetDat tabs that show it (Pipeline = the ledger view; Backlog =
+ *  the "yours to click" work view). Same rows, same wire
+ *  (ArchiveIngestStatus.surfaced), same rendering — only the framing text
+ *  changes per context. Extracted when the two hand-rolled copies started
+ *  drifting (the DRY rule that bit the route table, Sep 17). */
+export function SurfacedLinksCard(props: {
+  rows: ArchiveIngestStatus["surfaced"];
+  context: "ledger" | "backlog";
+}) {
+  const n = props.rows.length;
+  const copy = {
+    ledger: {
+      title: "Surfaced links — go through them instead of ripping",
+      hint: "These tracks advertise an official purchase or free-download link, so megadj skipped the rip and parked the URL here (--force-rip overrides, per drop). Surfaced rows are never counted as downloaded library.",
+      fix: "the decision is ledgered",
+    },
+    backlog: {
+      title: "Links surfaced — yours to click",
+      hint: "No code fixes these: the track advertises an official download/purchase link, the rip was skipped on purpose, and the URL waits in megadj list --status link_surfaced. This card keeps them from being forgotten.",
+      fix: "these are YOUR click",
+    },
+  }[props.context];
+  return (
+    <div class="card">
+      <ListHead
+        icon="compass"
+        title={copy.title}
+        n={n}
+        hint={copy.hint}
+        lines={props.rows.map(
+          (s) => `${s.title ?? s.video_id} — ${s.detail ?? "link"}`,
+        )}
+      />
+      <KVRows>
+        {props.rows.slice(0, 30).map((s) => (
+          <KVRow key={s.video_id}>
+            <KVKey>
+              <TrackTitle
+                title={s.title}
+                videoId={s.video_id}
+                artist={s.artist}
+              />
+            </KVKey>
+            <KVVal>
+              <span class="dt-sub">{s.detail ?? "link available"}</span>
+            </KVVal>
+          </KVRow>
+        ))}
+        {n > 30 && <Truncated shown={30} total={n} />}
+      </KVRows>
+      <div class="arch-fix">
+        {copy.fix} — <code>megadj list --status link_surfaced</code> for the
+        full URLs
+      </div>
+    </div>
+  );
+}

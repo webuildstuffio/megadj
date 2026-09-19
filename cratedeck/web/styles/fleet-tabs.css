@@ -516,6 +516,11 @@
 .arch-seg.moved {
   background: var(--stroke2);
 }
+/* #256 link-first: the surfaced-link cohort — outside-action blue
+ * (distinct from accent green = playable, bad red = broken). */
+.arch-seg.surfaced {
+  background: var(--info);
+}
 .arch-legend {
   display: flex;
   flex-wrap: wrap;
@@ -546,6 +551,9 @@
 }
 .arch-legend i.moved {
   background: var(--stroke2);
+}
+.arch-legend i.surfaced {
+  background: var(--info);
 }
 .arch-legend em {
   font-style: normal;

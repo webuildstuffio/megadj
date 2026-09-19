@@ -45,7 +45,7 @@ export function Toaster() {
         <div class={`toast ${t.tone}`} key={t.id}>
           <Icon
             name={
-              t.tone === "ok" ? "check" : t.tone === "err" ? "warn" : "bolt"
+              t.tone === "ok" ? "check" : t.tone === "err" ? "warn" : "info"
             }
           />
           <span>{t.text}</span>

@@ -38,7 +38,12 @@ export function useFetched<T>(
 
 /** Shared loading/error gates for a useFetched tab: the `card > empty`
  * rendering every tab hand-rolled. Returns the branch JSX, or null when
- * the payload is ready (caller renders the real content). */
+ * the payload is ready (caller renders the real content).
+ *
+ * UX polish (Sep 19): loading spins (the JobsDock `.spin` vocabulary —
+ * spinning implies motion, static text implied a hang) and errors carry
+ * the `.note bad` tone so failures read as failures at a glance, not
+ * more muted prose. */
 export function FetchedGate(props: {
   page: Fetched<unknown>;
   loading: string;
@@ -46,15 +51,20 @@ export function FetchedGate(props: {
   if (props.page.status === "error")
     return (
       <div class="card">
-        <div class="empty">
-          <Icon name="x" size={16} /> {props.page.message}
+        <div class="empty note bad">
+          <Icon name="circleX" size={16} /> {props.page.message}
         </div>
       </div>
     );
   if (props.page.status === "loading")
     return (
       <div class="card">
-        <div class="empty">{props.loading}</div>
+        <div class="empty">
+          <span class="spin">
+            <Icon name="refresh" size={14} />
+          </span>{" "}
+          {props.loading}
+        </div>
       </div>
     );
   return null;

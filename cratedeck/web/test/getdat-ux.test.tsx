@@ -1,0 +1,106 @@
+// getdat-ux.test.tsx — pins for the Sep 19 polish pass:
+//   1. FetchedGate renders a SPINNING loading gate and a bad-toned error
+//      (the shared fetch-state vocabulary — a bare muted line read as a
+//      hang and errors didn't read as errors).
+//   2. The #256 surfaced-link cohort is visible in the web UI: the
+//      SurfacedLinksCard renders on Pipeline + Backlog, keyed off
+//      ingestStatus().surfaced (the wire the producer fills), and the
+//      pipeline share-bar gains its seg.
+//   3. Canvas.css consumes the primary-button token block — the raw-green
+//      hexes must stay retired (tokens.css header rule).
+import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import render from "preact-render-to-string";
+import { FetchedGate } from "../ui/useFetched";
+import { SurfacedLinksCard } from "../products/getdat/getdat-tabs";
+
+const canvasCss = readFileSync(
+  join(import.meta.dir, "../styles/canvas.css"),
+  "utf8",
+);
+const tokensCss = readFileSync(
+  join(import.meta.dir, "../styles/tokens.css"),
+  "utf8",
+);
+const tabsSrc = readFileSync(
+  join(import.meta.dir, "../products/getdat/getdat-tabs.tsx"),
+  "utf8",
+);
+
+const surfacedRow = {
+  video_id: "123",
+  title: "Shelter",
+  artist: "Porter Robinson",
+  detail: "purchase_url: https://example.com/buy",
+};
+
+describe("FetchedGate shared states (Sep 19 polish)", () => {
+  test("loading spins — motion implies work, static text implied a hang", () => {
+    const html = render(
+      <FetchedGate page={{ status: "loading" }} loading="loading library…" />,
+    );
+    expect(html).toContain("loading library…");
+    expect(html).toContain('class="spin"');
+    expect(html).toContain("lucide-rotate-cw");
+  });
+
+  test("errors carry the bad tone + a real error glyph", () => {
+    const html = render(
+      <FetchedGate
+        page={{ status: "error", message: "archive offline" }}
+        loading="x"
+      />,
+    );
+    expect(html).toContain("archive offline");
+    expect(html).toContain("note bad");
+    expect(html).toContain("lucide-circle-x");
+  });
+});
+
+describe("surfaced-link cohort in the web UI (#256 parity)", () => {
+  test("SurfacedLinksCard renders rows, count and the CLI pointer", () => {
+    const html = render(
+      <SurfacedLinksCard rows={[surfacedRow]} context="ledger" />,
+    );
+    expect(html).toContain("Shelter");
+    expect(html).toContain("Porter Robinson");
+    expect(html).toContain("purchase_url: https://example.com/buy");
+    expect(html).toContain("megadj list --status link_surfaced");
+  });
+
+  test("the two contexts frame the same rows differently (one component)", () => {
+    const ledger = render(
+      <SurfacedLinksCard rows={[surfacedRow]} context="ledger" />,
+    );
+    const backlog = render(
+      <SurfacedLinksCard rows={[surfacedRow]} context="backlog" />,
+    );
+    expect(ledger).toContain("go through them instead of ripping");
+    expect(backlog).toContain("yours to click");
+  });
+
+  test("both GetDat tabs key off ingest.surfaced (the producer-filled wire)", () => {
+    expect(tabsSrc).toContain("ingest.surfaced");
+    // pipeline renders it as ledger context, backlog as the work item
+    expect(tabsSrc).toContain('context="ledger"');
+    expect(tabsSrc).toContain('context="backlog"');
+  });
+
+  test("pipeline share-bar has a surfaced seg wired to the info color", () => {
+    expect(tabsSrc).toContain('cls: "surfaced"');
+    const fleetCss = readFileSync(
+      join(import.meta.dir, "../styles/fleet-tabs.css"),
+      "utf8",
+    );
+    expect(fleetCss).toContain(".arch-seg.surfaced");
+    expect(fleetCss).toContain(".arch-legend i.surfaced");
+  });
+
+  test("canvas.css reads the primary-button tokens (raw greens retired)", () => {
+    expect(tokensCss).toContain("--accent-btn-bg");
+    expect(canvasCss).toContain("var(--accent-btn-bg)");
+    expect(canvasCss).not.toContain("#0f2b1e");
+    expect(canvasCss).not.toContain("#256b49");
+  });
+});

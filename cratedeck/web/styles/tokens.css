@@ -44,6 +44,17 @@
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* primary-button greens live here (canvas.css's .btn.primary reads them) —
+ * the tokens.css header rule says stylesheets consume tokens, never raw
+ * hexes; these five were the last raw-color block in the app CSS. */
+:root {
+  --accent-btn-bg: #0f2b1e;
+  --accent-btn-border: #256b49;
+  --accent-btn-text: #7fe8b6;
+  --accent-btn-bg-hover: #123524;
+  --accent-btn-border-hover: #2f8659;
+}
+
 * {
   box-sizing: border-box;
 }

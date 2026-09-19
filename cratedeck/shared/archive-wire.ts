@@ -34,6 +34,15 @@ export interface ArchiveIngestStatus {
     bytes_downloaded: number | null;
   }[];
   recent_tracks: ArchiveTrack[];
+  /** #256 link-first: the surfaced-link cohort with its acquisition URLs
+   *  (last_error carries "kind: url" for these rows). Distinct list —
+   *  surfaced is an HONEST terminal state, never folded into downloaded. */
+  surfaced: {
+    video_id: string;
+    title: string | null;
+    artist: string | null;
+    detail: string | null;
+  }[];
 }
 
 export interface ArchiveLowqQueue {

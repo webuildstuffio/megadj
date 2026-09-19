@@ -276,13 +276,13 @@
   cursor: not-allowed;
 }
 .btn.primary {
-  background: #0f2b1e;
-  border-color: #256b49;
-  color: #7fe8b6;
+  background: var(--accent-btn-bg);
+  border-color: var(--accent-btn-border);
+  color: var(--accent-btn-text);
 }
 .btn.primary:hover:not(:disabled) {
-  background: #123524;
-  border-color: #2f8659;
+  background: var(--accent-btn-bg-hover);
+  border-color: var(--accent-btn-border-hover);
 }
 .btn.danger {
   color: var(--bad);

@@ -232,7 +232,9 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
     };
   }
 
-  /** Ingest pipeline status: per-status counts, recent runs, newest files. */
+  /** Ingest pipeline status: per-status counts, recent runs, newest files.
+   *  #256: the surfaced-link cohort rides along (its own list — surfaced
+   *  rows are "go buy it / grab the official file" work, not library). */
   ingestStatus(): ArchiveIngestStatus {
     const db = this.handle();
     if (!db) {
@@ -242,6 +244,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
         total: 0,
         recent_runs: [],
         recent_tracks: [],
+        surfaced: [],
       };
     }
     const countRows = this.rows<{
@@ -264,6 +267,18 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
     const recent = this.rows<ArchiveTrack>(
       `SELECT ${TRACK_COLS} FROM tracks ORDER BY updated_at DESC LIMIT 10`,
     );
+    // last_error holds "kind: url" for surfaced rows (markLinkSurfaced).
+    const surfaced = this.rows<{
+      video_id: string;
+      title: string | null;
+      artist: string | null;
+      detail: string | null;
+    }>(
+      `SELECT video_id, title, artist,
+              NULLIF(TRIM(last_error), '') detail
+       FROM tracks WHERE status = 'link_surfaced'
+       ORDER BY updated_at DESC LIMIT 100`,
+    );
     const counts = Object.fromEntries(countRows.map((r) => [r.status, r.n]));
     return {
       available: true,
@@ -271,6 +286,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
       total: Object.values(counts).reduce((a, b) => a + b, 0),
       recent_runs: runs,
       recent_tracks: recent,
+      surfaced,
     };
   }
 
