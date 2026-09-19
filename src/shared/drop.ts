@@ -82,13 +82,20 @@ export interface DropSummary {
 
 const isUrl = (s: string) => /^https?:\/\//.test(s);
 
+interface DownloadResult {
+  downloaded: number;
+  error?: string;
+  folder?: string;
+  skipReason?: string;
+}
+
 /** Download a non-SC URL straight into the music dir via yt-dlp
  *  (best-audio, no playlist expansion, same cookie plumbing as sync). */
 async function downloadUrl(
   target: string,
   musicDir: string,
   opts: DropOptions,
-): Promise<{ downloaded: number; error?: string }> {
+): Promise<DownloadResult> {
   const args = [
     // Audio-only, never a merged video+audio format (that's how .webm/.mp4
     // strays happen — the same rule downloader.download enforces for YT).
@@ -140,7 +147,7 @@ async function downloadScUrl(
   target: string,
   musicDir: string,
   opts: DropOptions,
-): Promise<{ downloaded: number; error?: string; folder?: string }> {
+): Promise<DownloadResult> {
   const cookies = ytdlpCookieArgs(opts.cookiesFile, opts.cookiesFromBrowser);
   const flat = Bun.spawnSync({
     cmd: ["yt-dlp", ...cookies, "--flat-playlist", "-J", target],
@@ -274,7 +281,7 @@ async function downloadScUrl(
     }
     return {
       downloaded: 0,
-      error: `link available — go through it instead of ripping: ${decision.link.url} (--force-rip overrides)`,
+      skipReason: `link available — go through it instead of ripping: ${decision.link.url} (--force-rip overrides)`,
     };
   }
   const args = [
@@ -511,7 +518,12 @@ async function downloadStage(
   opts: DropOptions,
   stages: DropStage[],
   log: (m: string) => void,
-): Promise<{ folder: string; ok: boolean; ledgerSource: string }> {
+): Promise<{
+  folder: string;
+  ok: boolean;
+  ledgerSource: string;
+  terminal?: true;
+}> {
   const notSc = { ledgerSource: "ingest" } as const;
   if (!isUrl(opts.target)) return { folder: opts.target, ok: true, ...notSc };
   log(`downloading ${opts.target}…`);
@@ -520,21 +532,15 @@ async function downloadStage(
     return { folder: opts.musicDir, ok: true, ...notSc };
   }
   const isSc = isSoundCloudUrl(opts.target);
-  const r: { downloaded: number; error?: string; folder?: string } = isSc
+  const r = isSc
     ? await downloadScUrl(opts.target, opts.musicDir, opts)
     : await downloadUrl(opts.target, opts.musicDir, opts);
+  if (r.skipReason) {
+    stages.push({ stage: "download", status: "skipped", detail: r.skipReason });
+    // Link surfacing succeeds without audio; never process the existing archive.
+    return { folder: opts.musicDir, ok: true, terminal: true, ...notSc };
+  }
   if (r.error) {
-    // A surfaced link is an HONEST stop (exit 0 class): the target offers
-    // an official channel and the rip was refused on purpose — recorded
-    // as skipped, not failed (#256).
-    if (r.error.startsWith("link available")) {
-      stages.push({
-        stage: "download",
-        status: "skipped",
-        detail: r.error,
-      });
-      return { folder: opts.musicDir, ok: true, ...notSc };
-    }
     stages.push({ stage: "download", status: "failed", detail: r.error });
     return { folder: opts.musicDir, ok: false, ...notSc };
   }
@@ -576,11 +582,12 @@ export async function drop(opts: DropOptions): Promise<void> {
     folder,
     ok: downloaded,
     ledgerSource,
+    terminal,
   } = await downloadStage(opts, stages, log);
   ok = downloaded;
   const ctx: StageCtx = { opts, folder, ledgerSource };
   for (const spec of STAGE_RUNNERS) {
-    if (!ok) {
+    if (!ok || terminal) {
       stages.push({ stage: spec.name, status: "skipped" });
       continue;
     }

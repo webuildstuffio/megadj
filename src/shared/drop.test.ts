@@ -1,5 +1,5 @@
 import { describe, expect, test, afterAll } from "bun:test";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { runCli, cliEnv } from "../test-support/cli-run";
 import { tempDir } from "../test-support/testutil";
@@ -25,6 +25,48 @@ function freshEnv() {
 }
 
 describe("megadj drop (K61 one-shot pipeline)", () => {
+  test("SoundCloud acquisition link stops before processing the archive", async () => {
+    const { dir, env } = freshEnv();
+    const bin = join(dir, "bin");
+    mkdirSync(bin);
+    mkdirSync(env.MEGADJ_MUSIC_DIR);
+    const marker = join(env.MEGADJ_MUSIC_DIR, "keep.mp3");
+    writeFileSync(marker, "existing archive contents");
+    const link = "https://example.invalid/buy-track";
+    writeFileSync(
+      join(bin, "yt-dlp"),
+      `#!/bin/sh\nprintf '%s\\n' '${JSON.stringify({ id: "12345", purchase_url: link })}'\n`,
+      { mode: 0o755 },
+    );
+    const { code, stdout } = await runDrop(
+      [
+        "https://soundcloud.com/artist/track",
+        "--no-fetch",
+        "--no-mood",
+        "--json",
+      ],
+      { ...env, PATH: `${bin}:${process.env.PATH ?? ""}` },
+    );
+    const parsed = JSON.parse(stdout.trim().split("\n").at(-1) ?? "") as {
+      ok: boolean;
+      stages: { stage: string; status: string; detail?: string }[];
+    };
+    expect(code).toBe(0);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.stages[0]).toMatchObject({
+      stage: "download",
+      status: "skipped",
+    });
+    expect(parsed.stages[0]?.detail).toContain(link);
+    expect(parsed.stages).toHaveLength(10);
+    expect(parsed.stages.every((stage) => stage.status === "skipped")).toBe(
+      true,
+    );
+    expect(stdout.trim().split("\n")).toHaveLength(1);
+    expect(readdirSync(env.MEGADJ_MUSIC_DIR)).toEqual(["keep.mp3"]);
+    expect(readFileSync(marker, "utf8")).toBe("existing archive contents");
+  });
+
   test("--json on a folder with no audio: full pipeline, every stage ok/skipped", async () => {
     const { dir, env } = freshEnv();
     const empty = join(dir, "empty-inbox");
