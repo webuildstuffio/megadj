@@ -3,8 +3,9 @@
 // mirror (the lossless rb-adopt payload), so schema drift breaks here
 // before it breaks the UI.
 import { describe, expect, it, beforeEach, afterAll } from "bun:test";
+import { tempDir } from "./testutil";
 import { Database } from "bun:sqlite";
-import { mkdtempSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import {
   differ as _unusedDiffer,
@@ -14,9 +15,21 @@ import {
 import { trackTagCompare } from "../src/archive_tagcompare";
 import { ArchiveReader } from "../src/archive";
 
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("cratedeck-tagcensus-").rippable();
+const t2 = tempDir("cratedeck-tagcensus-norc-").rippable();
+const t3 = tempDir("cratedeck-tagcensus-norc2-").rippable();
+const t4 = tempDir("cratedeck-tagcensus-fresh-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+  t4.rippleAll();
+});
+
 void _unusedDiffer; // differ is exercised through the public census reads
 
-const dir = mkdtempSync("/tmp/cratedeck-tagcensus-");
+const dir = t.dir();
 const dbPath = join(dir, "archive.db");
 const seed = new Database(dbPath, { create: true });
 seed.exec(`
@@ -104,7 +117,7 @@ afterAll(() => {
 
 describe("hasRekordboxMirror", () => {
   it("false when the mirror table is absent", () => {
-    const altDir = mkdtempSync("/tmp/cratedeck-tagcensus-norc-");
+    const altDir = t2.dir();
     const alt = new ArchiveReader(join(altDir, "archive.db"));
     try {
       expect(hasRekordboxMirror(alt)).toBe(false);
@@ -121,7 +134,7 @@ describe("hasRekordboxMirror", () => {
 
 describe("tagCensus", () => {
   it("degrades to rekordboxMirror:false on a mirror-less DB", () => {
-    const altDir = mkdtempSync("/tmp/cratedeck-tagcensus-norc2-");
+    const altDir = t3.dir();
     const alt = new ArchiveReader(join(altDir, "archive.db"));
     try {
       const c = tagCensus(alt);
@@ -215,16 +228,16 @@ describe("trackTagCompare", () => {
         Commnt: "8A · E9 · Dance+Party",
       }),
     );
-    const t = trackTagCompare(reader, "h");
-    expect(t.available).toBe(true);
-    expect(t.file).toBeNull(); // no physical file in the fixture
-    expect(t.pipeline.genre).toBe("EDM");
-    expect(t.pipeline.genreFlag).toBe("disputed");
-    expect(t.pipeline.bpmFolded).toBe(128.4);
-    expect(t.rekordbox?.genre).toBe("House");
-    expect(t.rekordbox?.bpm).toBe(128);
-    expect(t.rekordbox?.comment).toBe("8A · E9 · Dance+Party");
-    const fields = t.differences.map((d) => d.field);
+    const cmp = trackTagCompare(reader, "h");
+    expect(cmp.available).toBe(true);
+    expect(cmp.file).toBeNull(); // no physical file in the fixture
+    expect(cmp.pipeline.genre).toBe("EDM");
+    expect(cmp.pipeline.genreFlag).toBe("disputed");
+    expect(cmp.pipeline.bpmFolded).toBe(128.4);
+    expect(cmp.rekordbox?.genre).toBe("House");
+    expect(cmp.rekordbox?.bpm).toBe(128);
+    expect(cmp.rekordbox?.comment).toBe("8A · E9 · Dance+Party");
+    const fields = cmp.differences.map((d) => d.field);
     expect(fields).toContain("genre"); // EDM vs House
     expect(fields).toContain("key"); // 8A vs 9A
     expect(fields).not.toContain("title"); // both "Track H"
@@ -233,17 +246,17 @@ describe("trackTagCompare", () => {
 
   it("returns an honest no-RB-row shape for unlinked tracks", () => {
     insT.run("i", "Track I", "Artist I", "House", null);
-    const t = trackTagCompare(reader, "i");
-    expect(t.rekordbox).toBeNull();
-    expect(t.pipeline.genre).toBe("House");
-    expect(t.differences).toEqual([]);
+    const cmp = trackTagCompare(reader, "i");
+    expect(cmp.rekordbox).toBeNull();
+    expect(cmp.pipeline.genre).toBe("House");
+    expect(cmp.differences).toEqual([]);
   });
 
   it("unknown video_id → available:false (route maps to 404/503 upstream)", () => {
-    const t = trackTagCompare(reader, "missing");
-    expect(t.available).toBe(true); // DB present
-    expect(t.title).toBeNull();
-    expect(t.differences).toEqual([]);
+    const cmp = trackTagCompare(reader, "missing");
+    expect(cmp.available).toBe(true); // DB present
+    expect(cmp.title).toBeNull();
+    expect(cmp.differences).toEqual([]);
   });
 });
 
@@ -258,7 +271,7 @@ describe("tagCensus freshness (#174)", () => {
   });
 
   it("degrades to null stamps on a mirror-less DB (no throw)", () => {
-    const altDir = mkdtempSync("/tmp/cratedeck-tagcensus-fresh-");
+    const altDir = t4.dir();
     const alt = new ArchiveReader(join(altDir, "archive.db"));
     try {
       const c = tagCensus(alt);

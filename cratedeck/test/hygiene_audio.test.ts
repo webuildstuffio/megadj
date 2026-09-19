@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "./testutil";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   servableAudioPath,
@@ -8,8 +9,16 @@ import {
   pruneStatsCache,
 } from "../src/hygiene_audio";
 
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-hyg-audio-").rippable();
+const t2 = tempDir("megadj-hyg-outside-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+});
+
 function shelf(): { root: string; rel: string } {
-  const root = mkdtempSync("/tmp/megadj-hyg-audio-");
+  const root = t.dir();
   const dir = join(root, "Contents", "Artist A");
   mkdirSync(dir, { recursive: true });
   const rel = join(dir, "song.mp3");
@@ -63,7 +72,7 @@ describe("hygiene audio guard (servableAudioPath)", () => {
 
   test("rejects a symlink that escapes the shelf root", () => {
     const { root } = shelf();
-    const outsideDir = mkdtempSync("/tmp/megadj-hyg-outside-");
+    const outsideDir = t2.dir();
     const outside = join(outsideDir, "private.mp3");
     const linked = join(root, "Contents", "Artist A", "linked.mp3");
     writeFileSync(outside, "outside shelf");

@@ -5,9 +5,16 @@
 // — finished jobs were stranded as phantom "running 0%" (AGENTS.md).
 // This test is the tripwire: if sync fs APIs creep back into scan/walk/bench,
 // it fails and names the offender.
-import { describe, it, expect } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
+import { tempDir } from "./testutil";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("cratedeck-walk-async-").rippable();
+afterAll(() => {
+  t.rippleAll();
+});
 
 const SYNC_FS_APIS = [
   "readdirSync",
@@ -54,9 +61,8 @@ describe("async-only invariant for event-loop fs code", () => {
     // A sync walk would block this timer from firing; the async walker
     // lets a 0ms timer interleave between directory reads.
     const { walkTree } = await import("../src/walk");
-    const { mkdirSync, mkdtempSync, writeFileSync, rmSync } =
-      await import("node:fs");
-    const dir = mkdtempSync("/tmp/cratedeck-walk-async-");
+    const { mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+    const dir = t.dir();
     try {
       for (let i = 0; i < 40; i++) {
         const sub = join(dir, `d${i}`);

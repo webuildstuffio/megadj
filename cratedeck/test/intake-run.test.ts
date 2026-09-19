@@ -1,13 +1,7 @@
-import { describe, test, expect } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "./testutil";
 import { join } from "node:path";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import {
   intakePhaseFor,
   splitIntakeStdout,
@@ -16,6 +10,12 @@ import {
   ensureIntakeWatchDir,
   INTAKE_FILE_LINE,
 } from "../src/intake_run";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-intake-watch-").rippable();
+afterAll(() => {
+  t.rippleAll();
+});
 
 describe("intakePhaseFor", () => {
   test("maps megadj's own log lines onto forward-only phases", () => {
@@ -122,7 +122,7 @@ describe("argv builders", () => {
 
 describe("ensureIntakeWatchDir", () => {
   test("creates a missing watch folder so the drop point exists", () => {
-    const base = mkdtempSync(join(tmpdir(), "intake-watch-"));
+    const base = t.dir();
     const musicDir = join(base, "archive");
     mkdirSync(musicDir, { recursive: true });
     const watch = ensureIntakeWatchDir({ musicDir });
@@ -132,7 +132,7 @@ describe("ensureIntakeWatchDir", () => {
   });
 
   test("is idempotent — existing folder stays untouched", () => {
-    const base = mkdtempSync(join(tmpdir(), "intake-watch-"));
+    const base = t.dir();
     const musicDir = join(base, "archive");
     const watch = join(musicDir, "..", "Downloads");
     mkdirSync(watch, { recursive: true });
@@ -143,7 +143,7 @@ describe("ensureIntakeWatchDir", () => {
   });
 
   test("MEGADJ_INTAKE_WATCH override is honored and created", () => {
-    const base = mkdtempSync(join(tmpdir(), "intake-watch-"));
+    const base = t.dir();
     process.env.MEGADJ_INTAKE_WATCH = join(base, "custom", "drop");
     try {
       const watch = ensureIntakeWatchDir({ musicDir: join(base, "archive") });

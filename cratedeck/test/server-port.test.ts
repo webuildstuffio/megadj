@@ -1,8 +1,14 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "./testutil";
+import { writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { resolveServerPort, DEFAULT_PORT } from "../src/server-port";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("cratedeck-port-").rippable();
+afterAll(() => {
+  t.rippleAll();
+});
 
 // Issue #227: ONE strict port resolution. The old twins disagreed —
 // config.ts's `||` chain silently swallowed CRATEDECK_PORT=0/abc while
@@ -10,7 +16,7 @@ import { resolveServerPort, DEFAULT_PORT } from "../src/server-port";
 // named; valid env wins over config; config wins over the default.
 
 function withCfg(body: string | null): string {
-  const dir = mkdtempSync(join(tmpdir(), "cratedeck-port-"));
+  const dir = t.dir();
   if (body !== null) writeFileSync(join(dir, "config.toml"), body);
   return dir;
 }

@@ -1,17 +1,19 @@
-import { describe, it, expect } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
+import { tempDir } from "./testutil";
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
-  rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Guard } from "../src/guard";
 import type { CrateConfig } from "../src/config";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-guard-root-").rippable();
+afterAll(() => t.rippleAll());
 
 const testConfig = { dataDir: "/tmp/cratedeck-guard-test" } as CrateConfig;
 
@@ -65,7 +67,7 @@ describe("guard", () => {
   });
 
   it("rejects write, copy, and rm when the wildcard segment is an escaping symlink", async () => {
-    const root = mkdtempSync(join(tmpdir(), "cratedeck-guard-wildcard-link-"));
+    const root = t.dir();
     const volumes = join(root, "volumes");
     const externalVolume = join(root, "outside", "external-volume");
     const externalAllowed = join(externalVolume, "PIONEER", "CrateDeck");
@@ -78,22 +80,16 @@ describe("guard", () => {
     writeFileSync(victim, "keep");
     const g = new Guard({ dataDir: join(root, "data") } as CrateConfig);
     g.allow(join(volumes, "*", "PIONEER", "CrateDeck"));
-    try {
-      await expectEscapeBlocked(
-        g,
-        source,
-        join(volumes, "LINK", "PIONEER", "CrateDeck"),
-        victim,
-      );
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    await expectEscapeBlocked(
+      g,
+      source,
+      join(volumes, "LINK", "PIONEER", "CrateDeck"),
+      victim,
+    );
   });
 
   it("rejects write, copy, and rm through a symlink below a wildcard root", async () => {
-    const root = mkdtempSync(
-      join(tmpdir(), "cratedeck-guard-wildcard-descendant-"),
-    );
+    const root = t.dir();
     const allowed = join(root, "volumes", "REAL", "PIONEER", "CrateDeck");
     const outside = join(root, "outside");
     mkdirSync(allowed, { recursive: true });
@@ -105,15 +101,11 @@ describe("guard", () => {
     writeFileSync(victim, "keep");
     const g = new Guard({ dataDir: join(root, "data") } as CrateConfig);
     g.allow(join(root, "volumes", "*", "PIONEER", "CrateDeck"));
-    try {
-      await expectEscapeBlocked(g, source, join(allowed, "escape"), victim);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    await expectEscapeBlocked(g, source, join(allowed, "escape"), victim);
   });
 
   it("rejects .. escapes before write, copy, or rm can mutate outside", async () => {
-    const root = mkdtempSync(join(tmpdir(), "cratedeck-guard-traversal-"));
+    const root = t.dir();
     const allowed = join(root, "allowed");
     mkdirSync(allowed);
     const g = new Guard({ dataDir: allowed } as CrateConfig);
@@ -121,41 +113,33 @@ describe("guard", () => {
     const victim = join(root, "victim.txt");
     writeFileSync(source, "source");
     writeFileSync(victim, "keep");
-    try {
-      const escapedWrite = `${allowed}/../written.txt`;
-      const escapedCopy = `${allowed}/../copied.txt`;
-      expect(() => g.assertAllowed(escapedWrite)).toThrow(/GUARD VIOLATION/);
-      await expect(g.write(escapedWrite, "bad")).rejects.toThrow(
-        /GUARD VIOLATION/,
-      );
-      await expect(g.copy(source, escapedCopy)).rejects.toThrow(
-        /GUARD VIOLATION/,
-      );
-      expect(() => g.rm(`${allowed}/../victim.txt`)).toThrow(/GUARD VIOLATION/);
-      expect(existsSync(escapedWrite)).toBe(false);
-      expect(existsSync(escapedCopy)).toBe(false);
-      expect(readFileSync(victim, "utf8")).toBe("keep");
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    const escapedWrite = `${allowed}/../written.txt`;
+    const escapedCopy = `${allowed}/../copied.txt`;
+    expect(() => g.assertAllowed(escapedWrite)).toThrow(/GUARD VIOLATION/);
+    await expect(g.write(escapedWrite, "bad")).rejects.toThrow(
+      /GUARD VIOLATION/,
+    );
+    await expect(g.copy(source, escapedCopy)).rejects.toThrow(
+      /GUARD VIOLATION/,
+    );
+    expect(() => g.rm(`${allowed}/../victim.txt`)).toThrow(/GUARD VIOLATION/);
+    expect(existsSync(escapedWrite)).toBe(false);
+    expect(existsSync(escapedCopy)).toBe(false);
+    expect(readFileSync(victim, "utf8")).toBe("keep");
   });
 
   it("rejects a sibling prefix before creating a file", async () => {
-    const root = mkdtempSync(join(tmpdir(), "cratedeck-guard-sibling-"));
+    const root = t.dir();
     const allowed = join(root, "data");
     const sibling = join(root, "data-evil", "file.txt");
     mkdirSync(allowed);
-    try {
-      const g = new Guard({ dataDir: allowed } as CrateConfig);
-      await expect(g.write(sibling, "bad")).rejects.toThrow(/GUARD VIOLATION/);
-      expect(existsSync(sibling)).toBe(false);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    const g = new Guard({ dataDir: allowed } as CrateConfig);
+    await expect(g.write(sibling, "bad")).rejects.toThrow(/GUARD VIOLATION/);
+    expect(existsSync(sibling)).toBe(false);
   });
 
   it("rejects an existing symlink escape before write, copy, or rm", async () => {
-    const root = mkdtempSync(join(tmpdir(), "cratedeck-guard-symlink-"));
+    const root = t.dir();
     const allowed = join(root, "allowed");
     const outside = join(root, "outside");
     mkdirSync(allowed);
@@ -165,62 +149,50 @@ describe("guard", () => {
     const victim = join(outside, "victim.txt");
     writeFileSync(source, "source");
     writeFileSync(victim, "keep");
-    try {
-      const escapedWrite = join(allowed, "escape", "written.txt");
-      const escapedCopy = join(allowed, "escape", "copied.txt");
-      await expect(gWrite(allowed, escapedWrite, "bad")).rejects.toThrow(
-        /GUARD VIOLATION/,
-      );
-      const g = new Guard({ dataDir: allowed } as CrateConfig);
-      await expect(g.copy(source, escapedCopy)).rejects.toThrow(
-        /GUARD VIOLATION/,
-      );
-      expect(() => g.rm(join(allowed, "escape", "victim.txt"))).toThrow(
-        /GUARD VIOLATION/,
-      );
-      expect(existsSync(escapedWrite)).toBe(false);
-      expect(existsSync(escapedCopy)).toBe(false);
-      expect(readFileSync(victim, "utf8")).toBe("keep");
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    const escapedWrite = join(allowed, "escape", "written.txt");
+    const escapedCopy = join(allowed, "escape", "copied.txt");
+    await expect(gWrite(allowed, escapedWrite, "bad")).rejects.toThrow(
+      /GUARD VIOLATION/,
+    );
+    const g = new Guard({ dataDir: allowed } as CrateConfig);
+    await expect(g.copy(source, escapedCopy)).rejects.toThrow(
+      /GUARD VIOLATION/,
+    );
+    expect(() => g.rm(join(allowed, "escape", "victim.txt"))).toThrow(
+      /GUARD VIOLATION/,
+    );
+    expect(existsSync(escapedWrite)).toBe(false);
+    expect(existsSync(escapedCopy)).toBe(false);
+    expect(readFileSync(victim, "utf8")).toBe("keep");
   });
 
   it("rejects a symlink escape inside a matched wildcard suffix", () => {
-    const root = mkdtempSync(join(tmpdir(), "cratedeck-guard-wildcard-"));
+    const root = t.dir();
     const volumes = join(root, "Volumes");
     const stick = join(volumes, "USB");
     const outside = join(root, "outside");
     mkdirSync(stick, { recursive: true });
     mkdirSync(outside);
     symlinkSync(outside, join(stick, "Contents"), "dir");
-    try {
-      const g = new Guard({ dataDir: join(root, "data") } as CrateConfig);
-      g.allow(join(volumes, "*", "Contents", "CrateDeck"));
-      expect(() =>
-        g.assertAllowed(join(stick, "Contents", "CrateDeck", "photo.jpg")),
-      ).toThrow(/GUARD VIOLATION/);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    const g = new Guard({ dataDir: join(root, "data") } as CrateConfig);
+    g.allow(join(volumes, "*", "Contents", "CrateDeck"));
+    expect(() =>
+      g.assertAllowed(join(stick, "Contents", "CrateDeck", "photo.jpg")),
+    ).toThrow(/GUARD VIOLATION/);
   });
 
   it("allows normalized in-root writes and copies", async () => {
-    const root = mkdtempSync(join(tmpdir(), "cratedeck-guard-valid-"));
+    const root = t.dir();
     const allowed = join(root, "data", "..", "data");
     const source = join(root, "source.txt");
     writeFileSync(source, "source");
-    try {
-      const g = new Guard({ dataDir: allowed } as CrateConfig);
-      const written = join(root, "data", "nested", "written.txt");
-      const copied = join(root, "data", "nested", "copied.txt");
-      await g.write(written, "written");
-      await g.copy(source, copied);
-      expect(readFileSync(written, "utf8")).toBe("written");
-      expect(readFileSync(copied, "utf8")).toBe("source");
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    const g = new Guard({ dataDir: allowed } as CrateConfig);
+    const written = join(root, "data", "nested", "written.txt");
+    const copied = join(root, "data", "nested", "copied.txt");
+    await g.write(written, "written");
+    await g.copy(source, copied);
+    expect(readFileSync(written, "utf8")).toBe("written");
+    expect(readFileSync(copied, "utf8")).toBe("source");
   });
 
   it("requires absolute candidate and allow-list paths", () => {

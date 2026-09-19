@@ -3,11 +3,21 @@
 // (62 MB/s measured = USB3-class), but nothing in the product TOLD you that.
 // These tests pin the classification + the minimal probe's contract.
 import { describe, it, expect, afterAll } from "bun:test";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tempDir } from "./testutil";
+import { writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { usbLinkClass } from "../src/detect";
 import { speedProbe } from "../src/bench";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-speedprobe-").rippable();
+const t2 = tempDir("megadj-speedprobe-walk-").rippable();
+const t3 = tempDir("megadj-speedprobe-empty-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+});
 
 describe("usbLinkClass", () => {
   it("classifies the negotiated rates from ioreg", () => {
@@ -25,7 +35,7 @@ describe("usbLinkClass", () => {
 });
 
 describe("speedProbe", () => {
-  const dir = mkdtempSync(join(tmpdir(), "speedprobe-"));
+  const dir = t.dir();
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   it("reads a known path when given one (no volume walk)", async () => {
@@ -38,7 +48,7 @@ describe("speedProbe", () => {
   });
 
   it("falls back to a walk when known paths are gone", async () => {
-    const iso = mkdtempSync(join(tmpdir(), "speedprobe-walk-"));
+    const iso = t2.dir();
     try {
       writeFileSync(join(iso, "only.aiff"), Buffer.alloc(1_500_000, 3));
       const r = await speedProbe(iso, 10, undefined, [
@@ -57,7 +67,7 @@ describe("speedProbe", () => {
   });
 
   it("errors honestly with nothing to read", async () => {
-    const empty = mkdtempSync(join(tmpdir(), "speedprobe-empty-"));
+    const empty = t3.dir();
     try {
       expect(speedProbe(empty, 10)).rejects.toThrow(
         "no audio files found to probe",

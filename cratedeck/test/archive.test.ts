@@ -1,14 +1,31 @@
 import { describe, expect, it, beforeEach, afterAll } from "bun:test";
+import { tempDir } from "./testutil";
 import { Database } from "bun:sqlite";
-import { mkdtempSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { ArchiveReader } from "../src/archive";
 import { similarTracks } from "../src/archive_similar";
 import type { ArchiveQuery } from "../src/archive_types";
 
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("cratedeck-archive-").rippable();
+const t2 = tempDir("cratedeck-archive-old-").rippable();
+const t3 = tempDir("cratedeck-archive-nomood-").rippable();
+const t4 = tempDir("cratedeck-archive-nocues-").rippable();
+const t5 = tempDir("cratedeck-archive-nolib-").rippable();
+const t6 = tempDir("cratedeck-archive-nol ledger-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+  t4.rippleAll();
+  t5.rippleAll();
+  t6.rippleAll();
+});
+
 // ArchiveReader must read megadj's REAL schema — tests build the same tables
 // src/state.ts creates, so a schema drift breaks here before it breaks agents.
-const dir = mkdtempSync("/tmp/cratedeck-archive-");
+const dir = t.dir();
 const dbPath = join(dir, "archive.db");
 const seed = new Database(dbPath, { create: true });
 seed.exec(`
@@ -157,9 +174,9 @@ describe("ArchiveReader (O82b)", () => {
 
   it("returns full row for track_stats", () => {
     const r = reader();
-    const t = r.trackStats("v2");
-    expect(t?.title).toBe("Spastik");
-    expect(t?.bitrate_kbps).toBe(128);
+    const ts = r.trackStats("v2");
+    expect(ts?.title).toBe("Spastik");
+    expect(ts?.bitrate_kbps).toBe(128);
     expect(r.trackStats("nope")).toBeNull();
     r.close();
   });
@@ -175,7 +192,7 @@ describe("ArchiveReader (O82b)", () => {
 
   it("lowq_queue flags lossy below the floor and excludes lossless", () => {
     const q = reader().lowqQueue();
-    const ids = q.tracks.map((t) => t.video_id);
+    const ids = q.tracks.map((tr) => tr.video_id);
     expect(ids).toContain("v2"); // 128 kbps mp4a
     expect(ids).not.toContain("v1"); // 320 mp3 is at the floor
     expect(ids).not.toContain("v4"); // aiff lossless
@@ -184,8 +201,8 @@ describe("ArchiveReader (O82b)", () => {
 
   it("source_diff splits two sources", () => {
     const d = reader().sourceDiff("liked", "PLzip123");
-    expect(d?.only_in_a.map((t) => t.video_id)).toEqual(["v1", "v2", "v3"]);
-    expect(d?.only_in_b.map((t) => t.video_id)).toEqual(["v4"]);
+    expect(d?.only_in_a.map((tr) => tr.video_id)).toEqual(["v1", "v2", "v3"]);
+    expect(d?.only_in_b.map((tr) => tr.video_id)).toEqual(["v4"]);
     expect(d?.shared).toBe(0);
     // same source on both sides → everything shared
     const same = reader().sourceDiff("liked", "LIKED");
@@ -370,7 +387,7 @@ describe("ArchiveReader (O82b)", () => {
 
   it("gridCrossCheck degrades gracefully on a schema without beats", () => {
     // a DB built before the ledger (no beats table) → empty result, no throw
-    const oldDir = mkdtempSync("/tmp/cratedeck-archive-old-");
+    const oldDir = t2.dir();
     const oldPath = join(oldDir, "archive.db");
     const old = new Database(oldPath, { create: true });
     old.exec(
@@ -436,7 +453,7 @@ describe("ArchiveReader (O82b)", () => {
 
   it("moodProfile degrades on a schema without mood and on an empty ledger", () => {
     // no mood table at all → available stays true (DB exists), zeros out
-    const oldDir = mkdtempSync("/tmp/cratedeck-archive-nomood-");
+    const oldDir = t3.dir();
     const oldPath = join(oldDir, "archive.db");
     const old = new Database(oldPath, { create: true });
     old.exec(
@@ -510,7 +527,7 @@ describe("ArchiveReader (O82b)", () => {
   });
 
   it("cueStats degrades on a schema without cues", () => {
-    const oldDir = mkdtempSync("/tmp/cratedeck-archive-nocues-");
+    const oldDir = t4.dir();
     const oldPath = join(oldDir, "archive.db");
     const old = new Database(oldPath, { create: true });
     old.exec(
@@ -586,7 +603,7 @@ describe("ArchiveReader (O82b)", () => {
     expect(lib.years.unknown).toBe(lib.tracks - 1);
     expect(lib.energy.stamped).toBe(1);
     // recent rows carry the enrichment columns through
-    const v9 = lib.recent.find((t) => t.video_id === "v9");
+    const v9 = lib.recent.find((tr) => tr.video_id === "v9");
     expect(v9?.year).toBe("2026");
     expect(v9?.artwork_status).toBe("embedded:sc-page-1080");
     // put the fixtures back (restore the base fixture's energy stamp)
@@ -596,7 +613,7 @@ describe("ArchiveReader (O82b)", () => {
   });
 
   it("libraryOverview degrades on an empty archive", () => {
-    const oldDir = mkdtempSync("/tmp/cratedeck-archive-nolib-");
+    const oldDir = t5.dir();
     const oldPath = join(oldDir, "archive.db");
     const old = new Database(oldPath, { create: true });
     old.exec(
@@ -742,7 +759,7 @@ describe("ArchiveReader (O82b)", () => {
   });
 
   it("analysisCoverage reports null for absent ledgers, not 0", () => {
-    const oldDir = mkdtempSync("/tmp/cratedeck-archive-nol ledger-");
+    const oldDir = t6.dir();
     const oldPath = join(oldDir, "archive.db");
     const old = new Database(oldPath, { create: true });
     old.exec(

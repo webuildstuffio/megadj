@@ -1,15 +1,20 @@
 // Issue #44: direct tests for the high fan-in helpers that previously had no
 // graph-visible coverage. These are deliberately unit-level: failures should
 // pinpoint the shared primitive rather than one of its many consumers.
-import { afterEach, expect, test } from "bun:test";
+import { afterAll, afterEach, expect, test } from "bun:test";
+import { tempDir } from "./testutil";
 import { Database } from "bun:sqlite";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ArchiveLedgerReader } from "../src/archive_ledger_reader";
 import { createDeckctlOutput } from "../src/deckctl_output";
 import { api, ApiError, apiPost, setApiErrorReporter } from "../web/ui/api";
 import { Icon, ICON_NAMES } from "../web/ui/icons";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-ledger-reader-").rippable();
+afterAll(() => {
+  t.rippleAll();
+});
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -146,16 +151,10 @@ test("#159-class: flushStdout never truncates file-redirected stdout", async () 
   // redirect topology truncated, so the pipe-only spawn tests stayed
   // green while `deckctl <verb> --json > out.json` produced 0 bytes).
   // Pin the repair with a real file redirect.
-  const {
-    mkdtempSync: mkdtemp,
-    readFileSync,
-    openSync,
-    closeSync,
-  } = await import("node:fs");
-  const { tmpdir: sysTmpdir } = await import("node:os");
+  const { readFileSync, openSync, closeSync } = await import("node:fs");
   const { join: pathJoin } = await import("node:path");
   const { execFileSync } = await import("node:child_process");
-  const dir = mkdtemp(pathJoin(sysTmpdir(), "deckctl-flush-"));
+  const dir = t.dir();
   const out = pathJoin(dir, "out.json");
   const fd = openSync(out, "w");
   try {
@@ -191,7 +190,7 @@ class TestLedgerReader extends ArchiveLedgerReader {
 }
 
 test("#44: ledger reader stays read-only and degrades query failures to empty", () => {
-  const dir = mkdtempSync(join(tmpdir(), "megadj-ledger-reader-"));
+  const dir = t.dir();
   const path = join(dir, "ledger.db");
   const db = new Database(path);
   db.exec("CREATE TABLE rows (value TEXT NOT NULL)");
@@ -204,5 +203,4 @@ test("#44: ledger reader stays read-only and degrades query failures to empty", 
   ]);
   expect(reader.all("SELECT missing FROM rows")).toEqual([]);
   reader.close();
-  rmSync(dir, { recursive: true, force: true });
 });

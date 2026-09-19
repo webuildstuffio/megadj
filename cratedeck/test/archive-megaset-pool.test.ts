@@ -4,8 +4,9 @@
 // scratch sqlite DB): the admission gate (B1), the cues-ledger join
 // (#106 Phase D), dedupe, mirror fallback, relocation, and the readonly
 // key-cache guarantees.
-import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "./testutil";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
@@ -13,9 +14,31 @@ import { setCandidates } from "../src/archive_pool";
 import { ArchiveReader } from "../src/archive";
 import type { ArchiveQuery } from "../src/archive_types";
 
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-setbuild-pool-").rippable();
+const t2 = tempDir("megadj-setbuild-cues-").rippable();
+const t3 = tempDir("megadj-setbuild-cues-bad-").rippable();
+const t4 = tempDir("megadj-setbuild-precues-").rippable();
+const t5 = tempDir("megadj-setbuild-dedupe-").rippable();
+const t6 = tempDir("megadj-setbuild-rb-source-").rippable();
+const t7 = tempDir("megadj-setbuild-relocated-").rippable();
+const t8 = tempDir("megadj-setbuild-readonly-").rippable();
+const t9 = tempDir("megadj-setbuild-key-cache-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+  t4.rippleAll();
+  t5.rippleAll();
+  t6.rippleAll();
+  t7.rippleAll();
+  t8.rippleAll();
+  t9.rippleAll();
+});
+
 describe("setCandidates pool contract", () => {
   test("the full DB is audited, but unmeasurable missing files cannot enter a proposal", () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-pool-"));
+    const dir = t.dir();
     const existingPath = join(dir, "actual.m4a");
     const missingPath = join(dir, "missing.m4a");
     writeFileSync(existingPath, "cached test fixture");
@@ -83,7 +106,7 @@ describe("setCandidates pool contract", () => {
   });
 
   test("B1 (#104): a missing file with MEASURED tempo stays in the pool as metadata-only", () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-pool-"));
+    const dir = t.dir();
     const existingPath = join(dir, "actual.m4a");
     const missingPath = join(dir, "missing-but-analyzed.m4a");
     writeFileSync(existingPath, "cached test fixture");
@@ -182,7 +205,7 @@ describe("setCandidates pool contract", () => {
   });
 
   test("#106 Phase D: the cues ledger join fills SetCandidate.cues from cues_json", () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-cues-"));
+    const dir = t2.dir();
     const audioPath = join(dir, "cued.m4a");
     writeFileSync(audioPath, "cached test fixture");
     const cuesJson = JSON.stringify([
@@ -222,7 +245,7 @@ describe("setCandidates pool contract", () => {
   });
 
   test("#106 Phase D: malformed cues_json degrades to [] (warned, never fatal)", () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-cues-bad-"));
+    const dir = t3.dir();
     const audioPath = join(dir, "cued.m4a");
     writeFileSync(audioPath, "cached test fixture");
     const dbRows = [
@@ -254,7 +277,7 @@ describe("setCandidates pool contract", () => {
   });
 
   test("#106 Phase D: a pre-cues archive DB (no cues table) still builds a pool", () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-precues-"));
+    const dir = t4.dir();
     const audioPath = join(dir, "old.m4a");
     writeFileSync(audioPath, "cached test fixture");
     const dbRows = [
@@ -288,7 +311,7 @@ describe("setCandidates pool contract", () => {
   });
 
   test("one physical file can enter the candidate pool only once", () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-dedupe-"));
+    const dir = t5.dir();
     const audioPath = join(dir, "same-track.m4a");
     writeFileSync(audioPath, "cached test fixture");
     const dbRows = ["older-id", "newer-id"].map((video_id) => ({
@@ -325,7 +348,7 @@ describe("setCandidates pool contract", () => {
   });
 
   test("Rekordbox metadata supplies key and BPM without probing the file", () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-rb-source-"));
+    const dir = t6.dir();
     const audioPath = join(dir, "master-track.m4a");
     writeFileSync(audioPath, "the file must not be decoded for known metadata");
     const reader: ArchiveQuery = {
@@ -366,7 +389,7 @@ describe("setCandidates pool contract", () => {
   });
 
   test("paths moved from DJ-Imports resolve under the mounted shelf", () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-relocated-"));
+    const dir = t7.dir();
     const path = join(dir, "archive.db");
     const shelfContents = join(dir, "SHELF1", "Contents");
     const relative = join("2026-09-11 intake", "track.m4a");
@@ -441,7 +464,7 @@ describe("setCandidates pool contract", () => {
   });
 
   test("a proposal cannot create or write a key-cache table", () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-readonly-"));
+    const dir = t8.dir();
     const path = join(dir, "archive.db");
     const audioPath = join(dir, "track.m4a");
     writeFileSync(audioPath, "not real audio");
@@ -504,7 +527,7 @@ describe("setCandidates pool contract", () => {
   });
 
   test("a changed file invalidates its cached musical key", () => {
-    const dir = mkdtempSync(join(tmpdir(), "megadj-setbuild-key-cache-"));
+    const dir = t9.dir();
     const path = join(dir, "archive.db");
     const audioPath = join(dir, "track.m4a");
     writeFileSync(audioPath, "newer contents");

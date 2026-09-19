@@ -40,22 +40,10 @@ const ALLOWED = new Set<string>([
   // getdat + host-kit census set at src root: FULLY MIGRATED (the nine
   // getdat files in pass 1, json-summary/numeric-options in pass 3) —
   // kept out of this set so a regression re-adding mkdtempSync fails.
-  // cratedeck: pool/guard/security suites build volume trees
-  "cratedeck/test/archive-megaset-pool.test.ts",
-  "cratedeck/test/guard.test.ts",
-  "cratedeck/test/drive-job-routes-security.test.ts",
-  "cratedeck/test/archive.test.ts",
-  "cratedeck/test/archive_tagcensus.test.ts",
-  "cratedeck/test/usb-link.test.ts",
-  "cratedeck/test/intake-run.test.ts",
-  "cratedeck/test/hygiene_audio.test.ts",
-  "cratedeck/test/hygiene-api.test.ts",
-  "cratedeck/test/walk-async.test.ts",
-  "cratedeck/test/server-port.test.ts",
-  "cratedeck/test/issue-33-crash-recovery.test.ts",
-  "cratedeck/test/config.test.ts",
-  "cratedeck/test/archive_sweep.test.ts",
-  "cratedeck/test/issue-44-high-fan-in.test.ts",
+  // cratedeck: FULLY MIGRATED to tempDir (#248 pass 5, Sep 18) — all 15
+  // suites including the two leakTrackedTmp registries (issue-33,
+  // config), whose hand-rolled createdDirs+afterEach the seam replaces;
+  // entries kept out on purpose so a regression fails the first test.
 ]);
 
 /** The seam module itself is always allowed (not counted against N). */
@@ -150,6 +138,40 @@ describe("fixture-seam census (#248 ratchet)", () => {
     expect(
       offenders,
       `production code must not mkdtemp (fixture dirs are a test concern):\n${offenders.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  test("raw new ArchiveState() in test files stays pinned (tempState seam ratchet)", () => {
+    const ALLOWED_STATE = new Set<string>([
+      // named per-file builders (makeState/makeRows) — the state creation
+      // is already centralized inside the file; migrating the builder body
+      // to tempState is follow-on polish, tracked in #248.
+      "src/fulltags/write/convert.test.ts",
+      "src/fulltags/booth/booth-fix.e2e.test.ts",
+      "src/fulltags/megaset-cli.test.ts",
+      "src/fulltags/gold-report.test.ts",
+      "src/archive/state-genreflag.test.ts",
+      "src/rekordbox/grid-triage.test.ts",
+      "src/rekordbox/rb-adopt.test.ts",
+      "src/shelf/intake-status.test.ts",
+    ]);
+    const offenders: string[] = [];
+    for (const root of ["src", "cratedeck"]) {
+      for (const file of walk(join(ROOT, root))) {
+        const rel = relative(ROOT, file);
+        // the census's own doc text mentions the call shape — skip self
+        if (rel === "src/census/fixture-seam-census.test.ts") continue;
+        if (ALLOWED_STATE.has(rel)) continue;
+        const text = readFileSync(file, "utf8");
+        if (text.includes("new ArchiveState("))
+          offenders.push(
+            `  ${rel} — build state through tempState() (src/test-support/testutil) or join the pinned builder set with a reason`,
+          );
+      }
+    }
+    expect(
+      offenders,
+      `raw ArchiveState sites outside the pinned builder set:\n${offenders.join("\n")}`,
     ).toEqual([]);
   });
 });

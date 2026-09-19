@@ -9,12 +9,20 @@
 // The fixture DB is a real sqlite file built with the engine's exact
 // CREATE TABLE (src/hygiene/store.ts) so the reader walks real rows.
 import { afterAll, beforeAll, expect, test } from "bun:test";
+import { tempDir } from "./testutil";
 import { Database } from "bun:sqlite";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { HygieneReader } from "../src/hygiene_reader";
 import { makeHygieneRoutes } from "../src/hygiene_routes";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-hyg-route-").rippable();
+const t2 = tempDir("megadj-hygiene-api-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+});
 
 let dir: string;
 function schema(db: Database): void {
@@ -208,7 +216,7 @@ let guardShelf: string | undefined;
 
 test("routes: audio/stats guard — traversal, non-audio, outside-root are 403", () => {
   // build a real mini-shelf so the "allowed" case has a file to serve
-  const root = mkdtempSync(join(tmpdir(), "megadj-hyg-route-"));
+  const root = t.dir();
   guardShelf = root;
   const audioDir = join(root, "Contents", "A");
   mkdirSync(audioDir, { recursive: true });
@@ -347,7 +355,7 @@ test("routes: decide rejects empty body; CLI failure surfaces 409 + stderr", asy
 });
 
 beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), "hygiene-api-"));
+  dir = t2.dir();
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });

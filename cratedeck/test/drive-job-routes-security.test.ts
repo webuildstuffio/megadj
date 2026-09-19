@@ -1,5 +1,6 @@
-import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, realpathSync, symlinkSync } from "node:fs";
+import { afterAll, expect, test } from "bun:test";
+import { tempDir } from "./testutil";
+import { mkdirSync, realpathSync, symlinkSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { CrateConfig } from "../src/config";
 import {
@@ -8,6 +9,22 @@ import {
   resolveMountPoint,
 } from "../src/drive_job_routes";
 import { DRIVE_JOB_KINDS, type Drive } from "../shared/types";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("cratedeck-volumes-").rippable();
+const t2 = tempDir("cratedeck-mount-parent-").rippable();
+const t3 = tempDir("cratedeck-outside-").rippable();
+const t4 = tempDir("cratedeck-enqueue-parent-").rippable();
+const t5 = tempDir("cratedeck-kinds-").rippable();
+const t6 = tempDir("cratedeck-badjson-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+  t4.rippleAll();
+  t5.rippleAll();
+  t6.rippleAll();
+});
 
 function config(volumesRoot: string): CrateConfig {
   return { volumesRoot } as CrateConfig;
@@ -40,7 +57,7 @@ function mountedDrive(name: string): Drive {
 }
 
 test("resolveMountPoint returns a readable volume contained by volumesRoot", () => {
-  const root = mkdtempSync("/tmp/cratedeck-volumes-");
+  const root = t.dir();
   const volume = join(root, "DJMASTER");
   mkdirSync(volume);
 
@@ -50,7 +67,7 @@ test("resolveMountPoint returns a readable volume contained by volumesRoot", () 
 });
 
 test("resolveMountPoint rejects traversal into a sibling-prefix directory", () => {
-  const parent = mkdtempSync("/tmp/cratedeck-mount-parent-");
+  const parent = t2.dir();
   const root = join(parent, "Volumes");
   const sibling = join(parent, "Volumes-escape");
   mkdirSync(root);
@@ -62,8 +79,8 @@ test("resolveMountPoint rejects traversal into a sibling-prefix directory", () =
 });
 
 test("resolveMountPoint rejects absolute names and symlink escapes", () => {
-  const root = mkdtempSync("/tmp/cratedeck-volumes-");
-  const outside = mkdtempSync("/tmp/cratedeck-outside-");
+  const root = t.dir();
+  const outside = t3.dir();
   symlinkSync(outside, join(root, "escaped"));
 
   expect(() => resolveMountPoint(config(root), outside)).toThrow(
@@ -75,7 +92,7 @@ test("resolveMountPoint rejects absolute names and symlink escapes", () => {
 });
 
 test("enqueue rejects a persisted traversal name before creating a job", async () => {
-  const parent = mkdtempSync("/tmp/cratedeck-enqueue-parent-");
+  const parent = t4.dir();
   const root = join(parent, "Volumes");
   const sibling = join(parent, "Volumes-escape");
   mkdirSync(root);
@@ -112,7 +129,7 @@ test("enqueue rejects a persisted traversal name before creating a job", async (
 });
 
 test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects junk kinds", async () => {
-  const root = mkdtempSync("/tmp/cratedeck-kinds-");
+  const root = t5.dir();
   mkdirSync(join(root, "SHELF1")); // resolveMountPoint requires a real dir
   const enqueuedKinds: string[] = [];
   const enqueue = makeEnqueueDriveJob({
@@ -157,7 +174,7 @@ test("enqueue accepts every DRIVE_JOB_KIND (incl. grid-health) and still rejects
 // Issue #226: malformed JSON bodies are a CLIENT mistake — the route
 // family's contract is 400 "invalid JSON body", never an opaque 500.
 test("enqueue returns 400 (not 500) on a malformed JSON body", async () => {
-  const root = mkdtempSync("/tmp/cratedeck-badjson-");
+  const root = t6.dir();
   mkdirSync(join(root, "SHELF1"));
   const enqueue = makeEnqueueDriveJob({
     cfg: config(root),

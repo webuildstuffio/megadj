@@ -1,8 +1,15 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "./testutil";
+import { writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { sweepArchive, type LedgerRow } from "../src/archive_sweep";
 import { renderWeeklyPrep, type WeeklyPrepInput } from "../src/weekly_prep";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-sweep-test-").rippable();
+afterAll(() => {
+  t.rippleAll();
+});
 
 /**
  * D30 archive-integrity sweep: bitrot/truncation detection before files
@@ -11,7 +18,7 @@ import { renderWeeklyPrep, type WeeklyPrepInput } from "../src/weekly_prep";
  */
 
 function fixtureDir() {
-  return mkdtempSync("/tmp/megadj-sweep-test-");
+  return t.dir();
 }
 
 function baseTrack(file: string, size = 1000) {
