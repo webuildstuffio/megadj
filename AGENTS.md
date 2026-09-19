@@ -106,8 +106,21 @@ history: [`docs/agent-playbook.md`](docs/agent-playbook.md).
   pins every key's reachability. When a route 404s but the handler exists,
   suspect a dispatch twin first.
 - No private identifiers, local paths, stored state, or secrets in commits.
-  No dependency bumps without the release-age floor + full gate.
+  No dependency bumps without the release-age floor + full gate. Probe it with
+  `bun run deps:age` (latest publish date per devDep) before any bump; a bump
+  candidate younger than ~7 days waits (oxlint ships weekly, so "latest" is
+  almost never a same-week action).
 - No one-off scripts: encode safety in reusable commands, tests, skills.
+- `cratedeck/tsconfig.json` must stay an `extends` shim (it duplicates the
+  root compilerOptions 1:1 today — the twin drifted once and shares the root
+  `tsBuildInfoFile`, so `tsc -p cratedeck` Poisons the shared cache; never run
+  a project-scoped tsc there without `--incremental false`). Root
+  `typecheck` runs warm-incremental; `typecheck:forced` is the cold full-tree
+  check — reach for it when a cache is suspected (Sep 19 audit: warm and
+  forced disagreed only on a foreign WIP break, never on cache staleness).
+  `.oxlintrc.json` rule list: the `off` entries are deliberate (each kills
+  a firing style rule — e.g. sort-keys fires 3,255× without it); add
+  stricter `typescript/*` rules before re-enabling style noise.
 
 ## Workflow map
 

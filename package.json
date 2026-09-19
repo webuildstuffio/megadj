@@ -17,6 +17,7 @@
     "deckctl": "bun run cratedeck/src/deckctl.ts",
     "mcp": "bun run cratedeck/src/mcp.ts",
     "typecheck": "tsc --noEmit --pretty false",
+    "typecheck:forced": "tsc --noEmit --pretty false --incremental false",
     "typecheck:py": "uv run --no-sync mypy",
     "lint": "oxlint --deny-warnings src tools ops cratedeck/src cratedeck/shared cratedeck/web cratedeck/test",
     "lint:py": "uv run --no-sync ruff check cratedeck/python src/rekordbox/rb-scripts tools",
@@ -36,7 +37,8 @@
     "test:fast": "bun test --parallel=16 --path-ignore-patterns cratedeck/test/e2e.test.ts",
     "test:coverage": "bun test --parallel=16 --coverage",
     "test:watch": "bun test --watch",
-    "check:watch": "tsc --noEmit --watch --pretty false & bun --watch run lint & wait"
+    "check:watch": "tsc --noEmit --watch --pretty false & bun --watch run lint & wait",
+    "deps:age": "bun -e 'const p=require(\"./package.json\");for(const n of Object.keys({...p.dependencies,...p.devDependencies})){const r=await fetch(\"https://registry.npmjs.org/\"+n).then(r=>r.json());const ks=Object.keys(r.time).filter(k=>!k.includes(\"-\")&&k!==\"created\");console.log(n.padEnd(20),ks[ks.length-1].slice(0,10))}'"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0",
