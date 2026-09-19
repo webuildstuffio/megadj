@@ -26,7 +26,9 @@ import {
   extractAcquisitionLinks,
   isPrivateUser404,
   isSoundCloudUrl,
+  mergeScRawLinks,
   ripDecision,
+  scRawTrackLinks,
   scTrackIdFromUrl,
 } from "../getdat/soundcloud";
 import {
@@ -246,7 +248,24 @@ async function downloadScUrl(
   // not ripped — the user goes through the official channel. Surfaced
   // rows land in the LEDGER (keyed by the numeric SC id) so `sync` sees
   // the decision too and never re-attempts the track from its sources.
-  const info = parsed as {
+  // #256-followup: yt-dlp never maps the API's purchase_url — enrich from
+  // the raw API (best-effort; yt-dlp's own values win).
+  const scIdForEnrich =
+    typeof (parsed as { id?: unknown }).id === "string"
+      ? (parsed as { id: string }).id
+      : scTrackIdFromUrl(target);
+  const rawLinks = scIdForEnrich ? await scRawTrackLinks(scIdForEnrich) : null;
+  const info = mergeScRawLinks(
+    parsed as {
+      id?: unknown;
+      title?: unknown;
+      purchase_url?: unknown;
+      downloadable?: unknown;
+      download_url?: unknown;
+      description?: unknown;
+    } as unknown as Record<string, unknown>,
+    rawLinks,
+  ) as unknown as {
     id?: unknown;
     title?: unknown;
     purchase_url?: unknown;

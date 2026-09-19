@@ -11,6 +11,7 @@
 // Pure logic is exported for tests; the spawn lives in the Downloader.
 // Metadata-only SC reads (the genre/art/year ladders) stay in
 // fulltags/sources/sc-search.ts — this file never duplicates them.
+import { parseJsonObject } from "../fulltags/parse-json";
 
 /** The ledger `source` value for SoundCloud rows (tracks.source). */
 export const SC_SOURCE = "soundcloud";
@@ -213,4 +214,147 @@ export function scUserGateNeeded(source: SyncSource): boolean {
  *  absent). Pure: the callers append their own remedy text. */
 export function isPrivateUser404(stderr: string): boolean {
   return /\[soundcloud:user\].*HTTP Error 404/i.test(stderr);
+}
+
+// --- #256-followup: the purchase_url enrichment probe -----------------
+// Measured live (Sep 19, paro sets census): yt-dlp's soundcloud extractor
+// NEVER maps the API's `purchase_url` field (the return dict in
+// soundcloud.py whitelists keys; purchase_url is not one). The raw API
+// carries it on a large share of label tracks — 90 of the 220 paro-set
+// rows — so link-first was silently blind to every one of them. The fix
+// is a post-probe enrichment: fetch the raw track object and merge its
+// links into the yt-dlp payload's.
+
+/** The whitelisted raw-API fields the enrichment probe reads. The values
+ *  mirror the yt-dlp payload types (purchase_url/description strings,
+ *  downloadable boolean) so the merged object stays a valid YtdlpInfo. */
+export interface ScRawTrackInfo {
+  purchase_url?: string;
+  downloadable?: boolean;
+  download_url?: string;
+  description?: string;
+}
+
+/** The web client_id, scraped once per process from SC's asset bundle
+ *  (the API 401s anonymous reads; yt-dlp ships its own list but has no
+ *  CLI to expose it). Cached module-level; a failed scrape disables the
+ *  probe for the run (null) rather than retrying per track. */
+let cachedClientId: string | null | undefined;
+
+/** Install a canned client id (tests) — restore via the returned fn. */
+export function setScClientIdForTest(id: string | null): () => void {
+  const prev = cachedClientId;
+  cachedClientId = id;
+  return () => {
+    cachedClientId = prev;
+  };
+}
+
+const TimeoutSignal = {
+  tenSeconds(): AbortSignal {
+    return AbortSignal.timeout(10_000);
+  },
+};
+
+async function fetchText(
+  url: string,
+  init?: RequestInit,
+): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      ...init,
+      signal: TimeoutSignal.tenSeconds(),
+      headers: { "User-Agent": "Mozilla/5.0", ...init?.headers },
+    });
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    return null;
+  }
+}
+
+/** Scrape a working web client_id from SC's page → asset bundle. Null
+ *  when the scrape fails (offline, markup drift) — callers treat null as
+ *  "enrichment unavailable", never as "no link". */
+export async function scWebClientId(): Promise<string | null> {
+  if (cachedClientId !== undefined) return cachedClientId;
+  const page = await fetchText("https://soundcloud.com/");
+  if (page === null) {
+    cachedClientId = null;
+    return null;
+  }
+  // The main bundles are a-v2.sndcdn.com/assets/*.js; the client_id sits
+  // in one of them as client_id:"<22-40 alnum>". Try the LAST match (the
+  // main app bundle) first — measured live Sep 19.
+  const assets = [
+    ...page.matchAll(/https:\/\/a-v2\.sndcdn\.com\/assets\/[^"']+\.js/g),
+  ].map((m) => m[0]);
+  for (const asset of assets.toReversed().slice(0, 5)) {
+    const js = await fetchText(asset);
+    if (js === null) continue;
+    const m = /client_id[:"=]+([a-zA-Z0-9]{20,40})/.exec(js);
+    if (m?.[1]) {
+      cachedClientId = m[1];
+      return cachedClientId;
+    }
+  }
+  cachedClientId = null;
+  return null;
+}
+
+/** Fetch the RAW SC track object and return just the link-bearing fields
+ *  yt-dlp drops. Null on any failure (offline / throttled / bad shape).
+ *  This is BEST-EFFORT enrichment: null must never fail the run. */
+export async function scRawTrackLinks(
+  trackId: string,
+): Promise<ScRawTrackInfo | null> {
+  const clientId = await scWebClientId();
+  if (clientId === null) return null;
+  const body = await fetchText(
+    `https://api-v2.soundcloud.com/tracks/${encodeURIComponent(trackId)}?client_id=${clientId}`,
+  );
+  if (body === null) return null;
+  // The shared guarded parser (boundary-json census): corrupt body → null.
+  const parsed = parseJsonObject(body);
+  if (parsed === null) return null;
+  const raw = parsed as Record<string, unknown>;
+  // Carry only the fields extractAcquisitionLinks reads — the caller
+  // merges them UNDER the yt-dlp payload (yt-dlp's own values win).
+  // Values are type-gated (not blindly cast) so the merged object stays
+  // a valid YtdlpInfo at the type level too.
+  const out: ScRawTrackInfo = {};
+  const v = raw["purchase_url"];
+  if (typeof v === "string") out.purchase_url = v;
+  if (typeof raw["downloadable"] === "boolean") {
+    out.downloadable = raw["downloadable"];
+  }
+  if (typeof raw["download_url"] === "string") {
+    out.download_url = raw["download_url"];
+  }
+  if (typeof raw["description"] === "string") {
+    out.description = raw["description"];
+  }
+  return out;
+}
+
+/** Merge the raw-API links under a yt-dlp payload (pure). yt-dlp values
+ *  win: the probe only FILLS fields yt-dlp left empty. */
+export function mergeScRawLinks<T extends Record<string, unknown>>(
+  probed: T,
+  raw: ScRawTrackInfo | null,
+): T & ScRawTrackInfo {
+  if (raw === null) return probed as T & ScRawTrackInfo;
+  const merged: T & ScRawTrackInfo = { ...probed };
+  const assign = (key: keyof ScRawTrackInfo): void => {
+    const current = merged[key];
+    const incoming = raw[key];
+    if ((current === undefined || current === null) && incoming !== undefined) {
+      (merged as Record<string, unknown>)[key] = incoming;
+    }
+  };
+  assign("purchase_url");
+  assign("downloadable");
+  assign("download_url");
+  assign("description");
+  return merged;
 }

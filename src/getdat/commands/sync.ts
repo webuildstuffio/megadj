@@ -20,7 +20,9 @@ import {
   classifyScFailure,
   extractAcquisitionLinks,
   isPrivateUser404,
+  mergeScRawLinks,
   ripDecision,
+  scRawTrackLinks,
   scTrackIdFromUrl,
   scUserGateNeeded,
   type SyncSource,
@@ -486,8 +488,21 @@ async function processQueue(
       );
       // #258: SC payloads carry uploader/timestamp instead of artist/date
       // (measured live) — normalize BEFORE the music gate, link-first
-      // extraction and tag build read it.
-      const probed = isSc ? scInfoToYtdlpInfo(result) : result;
+      // extraction and tag build read it. #256-followup (Sep 19): yt-dlp's
+      // SC extractor NEVER maps the API's `purchase_url` (verified in
+      // soundcloud.py's return dict) — the raw API carries it on a large
+      // share of label tracks (90 of 220 in the paro-set census). The
+      // enrichment fills ONLY the fields yt-dlp left empty (yt-dlp wins),
+      // then scInfoToYtdlpInfo normalizes the merged shape. Best-effort:
+      // a failed probe changes nothing.
+      const probed = isSc
+        ? scInfoToYtdlpInfo(
+            mergeScRawLinks(
+              result as unknown as Record<string, unknown>,
+              await scRawTrackLinks(track.video_id),
+            ),
+          )
+        : result;
 
       if (!isSc && !classifyMusic(result, opts)) {
         const cats = result.categories ?? [];

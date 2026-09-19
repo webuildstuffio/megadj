@@ -10,12 +10,15 @@ import {
   extractAcquisitionLinks,
   isPrivateUser404,
   isSoundCloudUrl,
+  mergeScRawLinks,
   ripDecision,
   scExtractionArgs,
   scFormatKbps,
+  scRawTrackLinks,
   scTrackIdFromUrl,
   scTrackUrl,
   scUserGateNeeded,
+  setScClientIdForTest,
   type ScAcquisitionLink,
   type SyncSource,
 } from "./soundcloud";
@@ -255,5 +258,45 @@ describe("likes/user cookie gate (#258 — private 404s name the remedy)", () =>
 describe("the SC source value stays the ledger constant", () => {
   test("SC_SOURCE is 'soundcloud' (the LOWQ floors key off it)", () => {
     expect(SC_SOURCE).toBe("soundcloud");
+  });
+});
+
+describe("purchase_url enrichment (#256-followup, Sep 19)", () => {
+  test("mergeScRawLinks fills ONLY fields yt-dlp left empty", () => {
+    // yt-dlp drops purchase_url entirely (undefined) but carries its own
+    // description — the raw-API description must NOT overwrite it.
+    const merged = mergeScRawLinks(
+      { id: "2044086960", description: "yt-dlp desc" },
+      {
+        purchase_url: "https://www.beatport.com/release/dope/4933098",
+        description: "raw api desc",
+      },
+    );
+    expect(merged.purchase_url).toBe(
+      "https://www.beatport.com/release/dope/4933098",
+    );
+    expect(merged.description).toBe("yt-dlp desc");
+  });
+
+  test("mergeScRawLinks with null raw is the identity", () => {
+    const base = { id: "1", title: "x" };
+    expect(mergeScRawLinks(base, null)).toStrictEqual(base);
+  });
+
+  test("mergeScRawLinks tolerates an empty yt-dlp null field", () => {
+    const merged = mergeScRawLinks<{ id: string; purchase_url?: string }>(
+      { id: "1" },
+      { purchase_url: "https://ffm.to/x" },
+    );
+    expect(merged.purchase_url).toBe("https://ffm.to/x");
+  });
+
+  test("scRawTrackLinks returns null when no client id is scrapeable", async () => {
+    const restore = setScClientIdForTest(null);
+    try {
+      expect(await scRawTrackLinks("2044086960")).toBeNull();
+    } finally {
+      restore();
+    }
   });
 });

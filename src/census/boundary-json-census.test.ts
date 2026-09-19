@@ -141,6 +141,10 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // Sep 19 (#240-review follow-through): scSourceQueue's raw parse is
     // now GUARDED (try/catch with cause, same contract as
     // parsePlaylistOutput) — the sanction retires; sanctioned 17→16.
+    // Sep 19 (#256 purchase_url): soundcloud.ts's enrichment probe reads
+    // the raw api-v2 track object through parseJsonObject (the shared
+    // guarded parser, explicit-null) — audited 68 (parseJsonObject was
+    // already the counted call), digest shifted only.
     audited: 68,
     guarded: 52,
     sanctioned: 16,
