@@ -12,7 +12,7 @@
 // base only owns the SQL plumbing. `archive.db` stays the pipeline
 // ledger: no schema changes, no new tables.
 import type { Database, SQLQueryBindings } from "bun:sqlite";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 export class RecordLedger {
   protected readonly db: Database;

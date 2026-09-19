@@ -6,7 +6,7 @@
 // sequencer; this module owns everything that writes the master DB.
 import { lastJsonLine, rbPythonFile } from "./rb-command-kit.js";
 import { applyPlaylistTwinMutation } from "./rb-playlist-twin.js";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 import {
   parseVerifyOutput,
   parseWriteOutput,

@@ -4,7 +4,7 @@ import { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR } from "./cli-env";
 export { COOKIES, COOKIES_FILE, DB_PATH, MUSIC_DIR } from "./cli-env";
 import { dispatchCommand } from "./cli-dispatch";
 import { drainStdout, finishCommandError } from "./shared/cli-output";
-import { errorText } from "./shared/error-text";
+import { errMessage as errorText } from "./shared/leaf/fmt";
 import {
   MAINTENANCE_VERBS,
   runMaintenanceCommand,

@@ -45,7 +45,7 @@ import {
   rbPythonFile,
 } from "./rb-command-kit.js";
 import { masterDbPath } from "./master-path.js";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 import { commandLog } from "../shared/progress";
 import { rekordboxRunning } from "./guard.js";
 import {

@@ -9,8 +9,11 @@
 import { $ } from "bun";
 import type { ArchiveState } from "../../archive/state";
 import { type RateLimiter, withRetry } from "../ratelimit";
-import { Downloader, type DownloadResult } from "../downloader";
-import { ytdlpCookieArgs } from "../ytdlp";
+import {
+  Downloader,
+  ytdlpCookieArgs,
+  type DownloadResult,
+} from "../downloader";
 import { commandLog, ProgressBar } from "../../shared/progress";
 import { applyTags } from "../../fulltags/write/writer";
 import {

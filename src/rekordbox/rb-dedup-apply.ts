@@ -10,7 +10,7 @@ import {
   type DeleteResult,
   type VerifyRow,
 } from "./rb-dedup-parse.js";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 import { pyUvFileArgv } from "./rb-command-kit.js";
 import { quarantineDest } from "../archive/hygiene/apply";
 import type { DupePair } from "./rb-dedup-graph.js";

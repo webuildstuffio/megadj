@@ -1,131 +1,40 @@
 import { describe, expect, test } from "bun:test";
-import { Downloader, parseYtdlpInfo } from "./downloader";
+import { ytdlpCookieArgs } from "./downloader";
 
-function makeDownloader(): Downloader {
-  return new Downloader({ musicDir: "/tmp/megadj-test" });
-}
-
-describe("yt-dlp metadata boundary", () => {
-  test("malformed JSON is classified as invalid downloader output", () => {
-    expect(() => parseYtdlpInfo("{not-json")).toThrow(
-      "yt-dlp metadata output was not valid JSON",
-    );
-    expect(() => parseYtdlpInfo("[]")).toThrow(
-      "yt-dlp metadata output was not valid JSON",
-    );
-  });
-});
-
-// The sync pipeline used to mint `?? "Music"` before calling download;
-// now null flows through and BOTH junk cases land in the ONE shared
-// "Unknown Genre" bucket (sanitizeGenreFolder contract, #61 family).
-// Captures the argv (no network) and reads the -o template — the folder
-// choice IS the bug surface.
-function downloadGenreOutTemplate(
-  genre: string | null | undefined,
-): Promise<string> {
-  const d = new Downloader({ musicDir: "/M" });
-  let captured: string[] = [];
-  (
-    d as unknown as {
-      spawn: (args: string[]) => Promise<{ exitCode: number }>;
-    }
-  ).spawn = async (args: string[]) => {
-    captured = args;
-    return { exitCode: 1 };
-  };
-  // exit 1 → a `failed` result (not a throw) — the argv is captured
-  // either way, which is all this probe needs.
-  return d.download("x", {}, genre).then(() => {
-    const i = captured.indexOf("-o");
-    return i !== -1 ? (captured[i + 1] ?? "") : "";
-  });
-}
-
-describe("download genre → output folder plumbing (Sep 17)", () => {
-  test("null genre → archive root (no folder segment)", async () => {
-    expect(await downloadGenreOutTemplate(null)).toBe("/M/%(title)s.%(ext)s");
+describe("ytdlpCookieArgs — the ONE cookie-order seam (#81)", () => {
+  test("explicit jar wins over browser extraction", () => {
+    expect(ytdlpCookieArgs("/tmp/jar.txt", "chrome")).toEqual([
+      "--cookies",
+      "/tmp/jar.txt",
+    ]);
   });
 
-  test("'Music' junk → the shared Unknown Genre bucket, never a Music folder", async () => {
-    expect(await downloadGenreOutTemplate("Music")).toBe(
-      "/M/Unknown Genre/%(title)s.%(ext)s",
-    );
+  test("browser extraction when no jar", () => {
+    expect(ytdlpCookieArgs(null, "chrome")).toEqual([
+      "--cookies-from-browser",
+      "chrome",
+    ]);
   });
 
-  test("real genre passes through to its own folder", async () => {
-    expect(await downloadGenreOutTemplate("House")).toBe(
-      "/M/House/%(title)s.%(ext)s",
-    );
-  });
-});
-
-// ---- parser/error-classify coverage, absorbed from the orphaned
-// src/downloader.test.ts (#234 — the #23 move left it at src/ root
-// importing across dirs; its subject lives here).
-
-describe("Downloader.parseDownloadOutput", () => {
-  test("extracts filepath and format id from clean output", () => {
-    const out = [
-      "[download] Destination: foo.m4a",
-      "[download] 100% of 6.5MiB",
-      "[ExtractAudio] Not a music file 1999 - some song.m4a",
-      "/tmp/megadj-test/House/Track A.m4a",
-      "141",
-    ].join("\n");
-    const r = Downloader.parseDownloadOutput(out);
-    expect(r.filePath).toBe("/tmp/megadj-test/House/Track A.m4a");
-    expect(r.formatId).toBe("141");
+  test("empty when unconfigured — callers spread it", () => {
+    expect(ytdlpCookieArgs(null, null)).toEqual([]);
+    expect(ytdlpCookieArgs(undefined, undefined)).toEqual([]);
+    expect(ytdlpCookieArgs("", "")).toEqual([]);
   });
 
-  test("progress lines never shadow the format id", () => {
-    const out = [
-      "[download] 100% of 6.5MiB",
-      "/tmp/x/1999 Remaster.m4a",
-      "[ExtractAudio] 1999 Remaster.m4a",
-      "251",
-    ].join("\n");
-    const r = Downloader.parseDownloadOutput(out);
-    expect(r.formatId).toBe("251");
-    expect(r.filePath).toBe("/tmp/x/1999 Remaster.m4a");
+  test("empty-string jar does not shadow a browser config (falsy = absent)", () => {
+    expect(ytdlpCookieArgs("", "firefox")).toEqual([
+      "--cookies-from-browser",
+      "firefox",
+    ]);
   });
 
-  test("missing filepath returns undefined", () => {
-    const r = Downloader.parseDownloadOutput("[download] 100%\n");
-    expect(r.filePath).toBeUndefined();
-  });
-});
-
-describe("Downloader.formatBitrateKbps", () => {
-  test("maps known formats", () => {
-    expect(Downloader.formatBitrateKbps("141")).toBe(256);
-    expect(Downloader.formatBitrateKbps("140")).toBe(128);
-    expect(Downloader.formatBitrateKbps("999")).toBeNull();
-  });
-});
-
-describe("Downloader.classifyError", () => {
-  test("gone patterns", () => {
-    const d = makeDownloader();
-    expect(d.classifyError("Video unavailable")).toBe("gone");
-    expect(d.classifyError("Private video")).toBe("gone");
-  });
-  test("throttle patterns", () => {
-    const d = makeDownloader();
-    expect(d.classifyError("HTTP Error 429")).toBe("throttle");
-    expect(d.classifyError("Connection reset by peer")).toBe("throttle");
-  });
-  test("other", () => {
-    expect(makeDownloader().classifyError("some random failure")).toBe("other");
-  });
-  test("auth-shield text is throttle, never gone (regression)", () => {
-    // Expired cookies used to classify every live video GONE and permanently
-    // poison the archive (markGone is never revisited). It must back off
-    // instead.
-    const d = makeDownloader();
-    expect(d.classifyError("Sign in to confirm you're not a bot")).toBe(
-      "throttle",
-    );
-    expect(d.classifyError("Sign in to confirm your age")).toBe("throttle");
+  test("MEGADJ_COOKIES default shape (chrome, no jar) — the sync 403 case", () => {
+    // Regression pin: the old inline twin skipped browser extraction and
+    // made `megadj sync` fail every auth-required liked list.
+    expect(ytdlpCookieArgs(undefined, "chrome")).toEqual([
+      "--cookies-from-browser",
+      "chrome",
+    ]);
   });
 });

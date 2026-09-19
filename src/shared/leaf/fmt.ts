@@ -1,12 +1,13 @@
 // fmt.ts — shared human formatters (server + web).
 
 /** THE `unknown → message` seam (issue #82): one implementation, every
- *  tier. src/shared/error-text.ts re-exports this as `errorText`; the
- *  fulltags leaf imports it directly from here (cratedeck/shared is the
- *  sanctioned dependency leaf — src/ is NOT importable from fulltags).
- *  One shared helper so caught unknowns render identically everywhere —
- *  and so a future improvement (e.g. cause chains) lands in every error
- *  path at once. */
+ *  tier. src/ callers import it as `errMessage as errorText` (#221:
+ *  the errorText re-export shim, 9L, merged away — the alias IS the
+ *  seam name); the fulltags leaf imports it directly from here
+ *  (cratedeck/shared is the sanctioned dependency leaf — src/ is NOT
+ *  importable from fulltags). One shared helper so caught unknowns
+ *  render identically everywhere — and so a future improvement (e.g.
+ *  cause chains) lands in every error path at once. */
 export function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }

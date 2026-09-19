@@ -53,7 +53,7 @@ test("census: no private re-roll of the helper body", () => {
     if (!existsSync(abs)) continue;
     for (const p of repoFiles(abs)) {
       const rel = p.slice(ROOT.length + 1);
-      if (rel === SELF || rel === "src/shared/error-text.ts") continue;
+      if (rel === SELF) continue;
       if (rel === "src/shared/leaf/fmt.ts") continue; // the SSOT itself
       if (/\bfunction (errorText|errMessage)\b/.test(readFileSync(p, "utf8")))
         offenders.push(rel);

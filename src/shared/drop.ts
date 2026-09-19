@@ -20,10 +20,10 @@ import { beats } from "../fulltags/analysis/beats";
 import { mood } from "../fulltags/analysis/mood";
 import { cues } from "../fulltags/cues";
 import { organize } from "../getdat/commands/organize";
-import { ytdlpCookieArgs } from "../getdat/ytdlp";
+import { ytdlpCookieArgs } from "../getdat/downloader";
 import type { ArchiveState } from "../archive/state";
 import { commandLog } from "./progress";
-import { errorText } from "./error-text";
+import { errMessage as errorText } from "./leaf/fmt";
 import { writeJson, setExit } from "./cli-output";
 
 export interface DropOptions {

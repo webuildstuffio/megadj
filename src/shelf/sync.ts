@@ -20,7 +20,7 @@ import { AUDIO_EXTS } from "../shared/audio-exts";
 import { walkTree } from "../shared/walk-tree";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson, setExit } from "../shared/cli-output";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 import { md5Cli } from "./md5-cli";
 
 export interface ShelfSyncOptions {

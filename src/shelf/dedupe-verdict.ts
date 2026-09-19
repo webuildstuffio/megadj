@@ -7,7 +7,7 @@ import { basename, join } from "node:path";
 import type { DedupePair } from "./dedupe-types";
 import { md5, fingerprint, qualityRank } from "./dedupe-probe";
 import { moveLoser } from "./dupescan-shared";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** Verdict inputs for one twin pair. */
 export interface TwinPair {

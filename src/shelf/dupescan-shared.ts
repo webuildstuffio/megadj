@@ -8,7 +8,7 @@
 import { statSync, existsSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { Database } from "bun:sqlite";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** Persistent fp cache — one row per file path (re-runs only decode
  *  new/changed files). Table name is the caller's concern so each

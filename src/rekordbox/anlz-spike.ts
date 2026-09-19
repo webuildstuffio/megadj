@@ -37,7 +37,7 @@ import {
 } from "node:fs";
 import { makeFail, printResult } from "./rb-command-kit.js";
 import { commandLog } from "../shared/progress";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 import { join, basename, resolve as resolvePath } from "node:path";
 import { createHash } from "node:crypto";
 import {

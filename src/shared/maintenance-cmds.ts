@@ -37,7 +37,7 @@ import {
 } from "./volume";
 import { finishCommandError, setExit, writeJson } from "./cli-output";
 import type { AnlzBeat, AnlzSpikeMode } from "../rekordbox/anlz-spike";
-import { errorText } from "./error-text";
+import { errMessage as errorText } from "./leaf/fmt";
 
 /** Commands handled by this module; cli.ts and the parity census share it. */
 export const MAINTENANCE_VERBS = [

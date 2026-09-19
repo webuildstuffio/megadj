@@ -37,7 +37,7 @@ import {
 import { QUARANTINE_DIR, quarantineDest } from "../archive/hygiene/apply";
 import { buildIndex, readRows } from "./rb-fix-paths";
 import { masterDbPath, normalizeMount } from "./master-path.js";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 import { commandLog } from "../shared/progress";
 
 export interface RbUnmatchedOptions {

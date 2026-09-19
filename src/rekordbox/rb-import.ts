@@ -31,7 +31,7 @@ import {
   renderKitMarkers,
 } from "./rb-command-kit.js";
 import { commandLog } from "../shared/progress";
-import { errorText } from "../shared/error-text.js";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 // AUDIO_EXTS re-exported for the __test sink below: discovery membership
 // IS the #69 SSOT (issue #200) — the probe module imports the real set,
 // rb-import keeps a test-visible handle on it.

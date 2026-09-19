@@ -1,7 +1,7 @@
 // cli-commands.ts — the shelf-family verb handlers for the megadj CLI
 // (#243: moved from src/cli-commands-shelf.ts — product command bodies
 // live in their domain dirs; src/ root keeps host-kit + census only).
-import type { CliCommandHandler } from "../cli-command";
+import type { CliCommandHandler } from "../cli-dispatch";
 import { parseFlags } from "../cli-flags";
 import { writeJson, setExit } from "../shared/cli-output";
 import { runShelfArchive, runShelfSweeps, runShelfSync } from "./cli-cmds";

@@ -1,3 +1,9 @@
+/** Enrichment stages accepted by both the CLI parser and the fetch
+ *  orchestrator (#221: was fetch-target.ts, 4L — merged into its host). */
+export const FETCH_TARGETS = ["art", "genres", "tags", "years", "all"] as const;
+
+export type FetchTarget = (typeof FETCH_TARGETS)[number];
+
 /**
  * fetch command — agent/user-facing wrapper around the FullTags fetch
  * pipeline (fulltags/src/fetch-pipeline.ts, re-homed from tools/ per
@@ -18,7 +24,6 @@ import { boothTextCompat } from "../booth/booth-text";
 import { completeness } from "../write/schema";
 import type { AuditRow } from "../audit-row";
 export { type AuditRow } from "../audit-row";
-import type { FetchTarget } from "./fetch-target";
 
 export interface FetchOptions {
   all?: boolean | undefined;

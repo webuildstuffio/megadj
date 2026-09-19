@@ -5,7 +5,7 @@
 // rb-fix-paths.ts keeps the parsers, the read seam, the preflight/scan,
 // and the rbFixPaths sequencer; this module owns everything that runs
 // AFTER the scan says there is something to rewrite.
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 import type {
   RbFixPathsOptions,
   RbFixPathsRuntime,

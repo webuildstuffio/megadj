@@ -16,7 +16,7 @@ import { md5FileChunked } from "../shared/hash";
 import { walkTree } from "../shared/walk-tree";
 import { landingPath, type ShelfIndex } from "./index-files";
 import { isJunkDir, isSkippedName, key } from "./match";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** Chunked sync digest via the shared seam (issue #70) — same signature
  *  and throw-on-unreadable behavior this module's callers already own. */

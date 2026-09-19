@@ -10,7 +10,7 @@
  * status to open — the only way a "no" comes back (§5 Phase 0 tests).
  */
 import type { Database, SQLQueryBindings } from "bun:sqlite";
-import { errorText } from "../../shared/error-text";
+import { errMessage as errorText } from "../../shared/leaf/fmt";
 import type {
   Finding,
   FindingKind,

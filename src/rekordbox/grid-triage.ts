@@ -37,7 +37,7 @@ import {
   printResult,
   rbPythonFile,
 } from "./rb-command-kit.js";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** The plan A3 bucket names (subset of GridAuditVerdict["bucket"]). */
 export type BucketName =

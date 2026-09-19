@@ -9,7 +9,7 @@ import { copyFile, mkdir, rename, stat, unlink } from "node:fs/promises";
 import { md5FileStream } from "../../shared/hash";
 
 import type { ParsedName, Probe } from "../../fulltags/media-probe";
-import { errorText } from "../../shared/error-text";
+import { errMessage as errorText } from "../../shared/leaf/fmt";
 import { walkAudioDir } from "../../shared/audio-walk";
 
 const md5File = md5FileStream;

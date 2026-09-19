@@ -1,7 +1,7 @@
 import { isAbsolute, join, relative, sep } from "node:path";
 import { pickRbKeeper } from "../shared/keeper";
 import { printResult } from "./rb-command-kit.js";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 interface MutationPair {
   keepId: string;

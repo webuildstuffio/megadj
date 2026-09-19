@@ -19,7 +19,7 @@ import {
   nonNegOptInvalid,
   parseFlags,
 } from "../cli-flags";
-import type { CliCommandHandler } from "../cli-command";
+import type { CliCommandHandler } from "../cli-dispatch";
 import { listJson, listTracks, status, statusJson } from "../shared/status";
 import {
   writeJson,

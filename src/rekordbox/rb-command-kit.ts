@@ -34,7 +34,7 @@ import {
   pyEnsurePlaylistLadder,
   pyPathKeyFn,
 } from "./rb-script-kit.js";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** One subprocess result — the raw spawn boundary every command inspects. */
 export interface RbCommandResult {

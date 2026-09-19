@@ -5,7 +5,7 @@
 // tag-enrichment arms (drop/artwork/fetch/audit/tag-check/years/booth-fix)
 // and the analysis arms (beats/mood/similar/megaset/genre/cues/regate)
 // share one domain, one vote-ladder engine, one ledger family.
-import type { CliCommandHandler } from "../cli-command";
+import type { CliCommandHandler } from "../cli-dispatch";
 import {
   firstPositional,
   nonNegOpt,
@@ -15,7 +15,7 @@ import {
 import { isMegasetSearchOverride } from "../../cratedeck/shared/types";
 import { finishCommandError, setExit, writeJson } from "../shared/cli-output";
 import { isSimilarSpace } from "../shared/leaf/vector-space";
-import { FETCH_TARGETS, type FetchTarget } from "./fetch/fetch-target";
+import { FETCH_TARGETS, type FetchTarget } from "./fetch/fetch";
 
 const boothFix: CliCommandHandler = async (rest, { state, musicDir }) => {
   const flags = parseFlags(

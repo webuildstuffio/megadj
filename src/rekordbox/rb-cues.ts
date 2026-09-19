@@ -40,7 +40,7 @@ import {
 } from "./rb-command-kit.js";
 import { commandLog } from "../shared/progress";
 import { masterDbPath } from "./master-path.js";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** DB-side hot cue Kind — pinned by F4 (RB7-written rows: 1 only). */
 export const HOT_CUE_KIND = 1;

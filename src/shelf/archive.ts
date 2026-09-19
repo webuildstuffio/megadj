@@ -44,7 +44,7 @@ import { ShelfIndex } from "./index-files";
 import { sweepVolume, type DriveResult } from "./archive-file";
 import { resolveShelfVolume } from "../shared/volume";
 import { writeJson, setExit } from "../shared/cli-output";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 /** The archive DB (sweep ledger host). Env-overridable like cli.ts. */
 const DB_PATH =

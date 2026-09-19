@@ -7,7 +7,24 @@
 import { $ } from "bun";
 import { sanitizeGenreFolder } from "../fulltags/write/schema";
 import type { YtdlpInfo } from "../fulltags/write/metadata-build";
-import { ytdlpCookieArgs } from "./ytdlp";
+
+/** Cookie flags for yt-dlp: explicit jar wins, then browser extraction,
+ *  else nothing. Empty array when unconfigured — callers spread it.
+ *  (#81) Cookie resolution order used to live twice: downloader.cookieArgs()
+ *  and an inline twin in sync.ts whose comment admitted it was a
+ *  hand-maintained mirror. The mirror had already cost one outage —
+ *  skipping browser extraction made `megadj sync` 403 every
+ *  auth-required liked list while the downloader worked. ONE builder;
+ *  both call sites delegate. (#221: ytdlp.ts, 22L, merged into its
+ *  only procedural host.) */
+export function ytdlpCookieArgs(
+  cookiesFile: string | null | undefined,
+  cookiesFromBrowser: string | null | undefined,
+): string[] {
+  if (cookiesFile) return ["--cookies", cookiesFile];
+  if (cookiesFromBrowser) return ["--cookies-from-browser", cookiesFromBrowser];
+  return [];
+}
 export interface DownloadResult {
   status: "downloaded" | "already-had" | "gone" | "failed";
   filePath?: string | undefined;

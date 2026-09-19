@@ -3,7 +3,7 @@
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { atomicReplace as atomicReplaceFile } from "../shared/atomic-file";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 import {
   assertRbClosed,
   backupMaster,

@@ -46,7 +46,7 @@ import {
   fileExistsSafe,
   restoreMasterBackup,
 } from "./guard.js";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 
 export interface RbDedupOptions {
   mount: string;

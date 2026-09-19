@@ -37,7 +37,7 @@ import {
   runPyScript,
 } from "../rekordbox/rb-command-kit.js";
 import { masterDbPath } from "../rekordbox/master-path";
-import { errorText } from "../shared/error-text";
+import { errMessage as errorText } from "../shared/leaf/fmt";
 import { FpCache, SHELF_FINGERPRINTS_TABLE } from "./dupescan";
 import { md5Cli } from "./md5-cli";
 import { resolveShelfVolume } from "../shared/volume";

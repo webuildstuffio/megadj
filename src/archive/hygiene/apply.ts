@@ -20,7 +20,7 @@
 import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { CheckCtx, Finding, ValidationReceipt } from "./types";
-import { errorText } from "../../shared/error-text";
+import { errMessage as errorText } from "../../shared/leaf/fmt";
 
 export const QUARANTINE_DIR = ".hygiene-quarantine";
 
