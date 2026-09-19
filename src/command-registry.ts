@@ -10,8 +10,8 @@
  * usage.ts renders from it, and the surface-parity census derives the
  * megadj verb set from the registry's `name:` rows (no second hand list).
  *
- * Handlers stay in cli-commands-{core,shelf,tags,analysis}.ts +
- * shared/maintenance-cmds.ts (file caps + dynamic-import discipline);
+ * Handlers stay in the domain dirs — {getdat,shelf,fulltags}/cli-commands.ts
+ * + shared/maintenance-cmds.ts (file caps + dynamic-import discipline);
  * src/shared/maintenance-verbs.test.ts pins MAINTENANCE_VERBS to the
  * dispatch table, and this registry's names are cross-checked against
  * that union by the census tests — two lists, one test-guaranteed set.
@@ -531,10 +531,10 @@ export const COMMAND_DOCS: readonly CommandDocEntry[] = [
     ],
   },
   // cratedeck family — doctor/init are real dispatch verbs
-  // (cli-commands-core.ts) that used to hide their help lines inside the
-  // hand-written footer; the registry owns them like every other command.
-  // deck/deckctl/mcp are not megadj verbs (bun-run entry points) and
-  // stay in usage.ts's FOOTER.
+  // (getdat/cli-commands.ts) that used to hide their help lines inside
+  // the hand-written footer; the registry owns them like every other
+  // command. deck/deckctl/mcp are not megadj verbs (bun-run entry
+  // points) and stay in usage.ts's FOOTER.
   {
     name: "doctor",
     group: "cratedeck",

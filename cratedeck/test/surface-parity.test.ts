@@ -460,7 +460,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     }
     // the CLI megaset case must use the shared engine seam (no local
     // re-parse — the whole point of the parity fix)
-    const cli = read("src/cli-commands-analysis.ts").join("\n");
+    const cli = read("src/fulltags/cli-commands.ts").join("\n");
     expect(cli).toMatch(/^\s{2}megaset,$/m);
     expect(read("src/fulltags/megaset.ts").join("\n")).toContain(
       'from "../../cratedeck/src/megaset"',

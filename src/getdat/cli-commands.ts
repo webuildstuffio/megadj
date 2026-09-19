@@ -1,28 +1,40 @@
-import type { OrganizeOptions } from "./getdat/commands/organize";
-import { sync } from "./getdat/commands/sync";
-import { RateLimiter } from "./getdat/ratelimit";
+// cli-commands.ts — the getdat-family verb handlers for the megadj CLI
+// (#243: moved from src/cli-commands-core.ts — product command bodies
+// live in their domain dirs; src/ root keeps host-kit + census only).
+//
+// doctor/init ride here too: they are the toolkit's lifecycle commands
+// (registry group "cratedeck") with no domain of their own, and their
+// arms keep doctor's probes LAZY (dynamic import) so a plain
+// `megadj status` never pays the diagnostics module graph at boot.
+//
+// Flags go through cli-flags.ts (`parseFlags`/`nonNegOpt`/
+// `nonNegOptInvalid`/`firstPositional`) — the sanctioned parser; bad
+// numeric input = json-safe exit 2, zero work.
+import type { OrganizeOptions } from "./commands/organize";
+import { sync } from "./commands/sync";
+import { RateLimiter } from "./ratelimit";
 import {
   firstPositional,
   nonNegOpt,
   nonNegOptInvalid,
   parseFlags,
-} from "./cli-flags";
-import type { CliCommandHandler } from "./cli-command";
-import { listJson, listTracks, status, statusJson } from "./shared/status";
+} from "../cli-flags";
+import type { CliCommandHandler } from "../cli-command";
+import { listJson, listTracks, status, statusJson } from "../shared/status";
 import {
   writeJson,
   writeJsonText,
   finishCommandError,
   setExit,
-} from "./shared/cli-output";
+} from "../shared/cli-output";
 
 const doctor: CliCommandHandler = async (rest) => {
   const flags = parseFlags(rest, [], ["json"]);
   const { runDoctor, printDoctor, doctorJson } =
-    await import("./shared/doctor");
+    await import("../shared/doctor");
   // The deck-service check is async (launchctl + an HTTP probe) — run it
   // alongside the sync checks and append so both output formats carry it.
-  const { checkDeckService } = await import("./shared/doctor-checks");
+  const { checkDeckService } = await import("../shared/doctor-checks");
   const [results, deckCheck] = await Promise.all([
     Promise.resolve(runDoctor()),
     checkDeckService(),
@@ -38,7 +50,7 @@ const doctor: CliCommandHandler = async (rest) => {
 };
 
 const init: CliCommandHandler = async () => {
-  const { runInit } = await import("./shared/doctor");
+  const { runInit } = await import("../shared/doctor");
   setExit(runInit());
 };
 
@@ -119,8 +131,8 @@ const organizeOrEnrich =
       (options: OrganizeOptions) => Promise<void>
     > = await import(
       command === "organize"
-        ? "./getdat/commands/organize"
-        : "./fulltags/fetch/enrich"
+        ? "./commands/organize"
+        : "../fulltags/fetch/enrich"
     );
     await mod[command]({
       state,
@@ -132,7 +144,7 @@ const organizeOrEnrich =
 
 const adopt: CliCommandHandler = async (rest, { state, musicDir }) => {
   const { adopt: adoptLocal, adoptFromShelf } =
-    await import("./getdat/commands/adopt");
+    await import("./commands/adopt");
   const json = rest.includes("--json");
   if (rest.includes("--shelf")) {
     await adoptFromShelf({
@@ -179,7 +191,7 @@ const ingest: CliCommandHandler = async (rest, { state, musicDir }) => {
     "ingest",
     flags.bools.has("json"),
   );
-  const { ingest: ingestFolder } = await import("./getdat/commands/ingest");
+  const { ingest: ingestFolder } = await import("./commands/ingest");
   await ingestFolder({
     state,
     musicDir,
@@ -196,7 +208,7 @@ const upgrade: CliCommandHandler = async (rest, context) => {
   if (nonNegOptInvalid(flags, "limit", "upgrade", flags.bools.has("json")))
     return;
   const limit = nonNegOpt(flags, "limit", "upgrade", flags.bools.has("json"));
-  const { upgrade: upgradeTracks } = await import("./getdat/commands/upgrade");
+  const { upgrade: upgradeTracks } = await import("./commands/upgrade");
   await upgradeTracks({
     state: context.state,
     musicDir: context.musicDir,
@@ -208,7 +220,7 @@ const upgrade: CliCommandHandler = async (rest, context) => {
   });
 };
 
-export const CORE_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
+export const GETDAT_COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
   doctor,
   init,
   sync: syncCommand,

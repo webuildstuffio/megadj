@@ -29,13 +29,12 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dir, "..", "..");
 const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
 
-/** verb → dispatch source file. The four handler records + the
+/** verb → dispatch source file. The three domain command records + the
  *  maintenance table + the shelf runners (exported fns, no table). */
 const DISPATCH_FILES = [
-  "src/cli-commands-core.ts",
-  "src/cli-commands-tags.ts",
-  "src/cli-commands-shelf.ts",
-  "src/cli-commands-analysis.ts",
+  "src/getdat/cli-commands.ts",
+  "src/shelf/cli-commands.ts",
+  "src/fulltags/cli-commands.ts",
   "src/shared/maintenance-cmds.ts",
   "src/shelf/cli-cmds.ts",
 ];
@@ -263,7 +262,7 @@ function dispatchFlags(): Map<string, ArmFlags> {
       }
     }
     // 3. cli-cmds runners: exported functions called from the
-    // cli-commands-shelf wrapper — map runShelfX to the shelf verb
+    // shelf/cli-commands wrapper — map runShelfX to the shelf verb
     for (const m of src.matchAll(/export async function (runShelf\w+)\(/g)) {
       const fn = m[1];
       if (!fn) continue;

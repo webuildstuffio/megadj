@@ -134,10 +134,14 @@ test("boundary Number() calls are finite-gated or explicitly sanctioned", () => 
     // census guard shape; a non-numeric pid degrades to null, never a
     // crash) — audited 42→43, guarded 27→27+1=28, sanctioned unchanged —
     // digest shifted: c2d930f2.
+    // Sep 18 (#243): the four root cli-commands-*.ts folded into their
+    // domains ({getdat,shelf,fulltags}/cli-commands.ts) — owners
+    // re-rooted, same calls, same guards, counts unchanged, digest
+    // shifted: 65df7222.
     audited: 43,
     guarded: 28,
     sanctioned: 15,
-    digest: "c2d930f22b0d89f47fe0d3446fe90c70f11ce9949fa5445b76315631d27bdf93",
+    digest: "65df722215ea5c1c0cd4869d060c7c36fdff908b695a3a9e969fbc91ca911812",
   });
 });
 

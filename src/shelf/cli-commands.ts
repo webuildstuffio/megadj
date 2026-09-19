@@ -1,11 +1,10 @@
-import type { CliCommandHandler } from "./cli-command";
-import { parseFlags } from "./cli-flags";
-import { writeJson, setExit } from "./shared/cli-output";
-import {
-  runShelfArchive,
-  runShelfSweeps,
-  runShelfSync,
-} from "./shelf/cli-cmds";
+// cli-commands.ts — the shelf-family verb handlers for the megadj CLI
+// (#243: moved from src/cli-commands-shelf.ts — product command bodies
+// live in their domain dirs; src/ root keeps host-kit + census only).
+import type { CliCommandHandler } from "../cli-command";
+import { parseFlags } from "../cli-flags";
+import { writeJson, setExit } from "../shared/cli-output";
+import { runShelfArchive, runShelfSweeps, runShelfSync } from "./cli-cmds";
 
 const shelfSync: CliCommandHandler = async (rest) => {
   await runShelfSync(rest);
@@ -16,7 +15,7 @@ const shelfArchive: CliCommandHandler = async (rest) => {
 };
 
 const shelfDedupe: CliCommandHandler = async (rest) => {
-  const { shelfDedupe: dedupe } = await import("./shelf/dedupe");
+  const { shelfDedupe: dedupe } = await import("./dedupe");
   await dedupe({
     apply: rest.includes("--apply"),
     yes: rest.includes("--yes"),
@@ -32,7 +31,7 @@ const shelfDupescan: CliCommandHandler = async (rest) => {
       if (value) scanDirs.push(value);
     }
   }
-  const { shelfDupescan: scan } = await import("./shelf/dupescan");
+  const { shelfDupescan: scan } = await import("./dupescan");
   await scan({
     json: rest.includes("--json"),
     quarantine: rest.includes("--quarantine"),
@@ -52,7 +51,7 @@ const convert: CliCommandHandler = async (rest, { state, musicDir }) => {
     ["convert"],
     ["dry-run", "no-artwork", "json"],
   );
-  const { convertArchive } = await import("./fulltags/write/convert");
+  const { convertArchive } = await import("../fulltags/write/convert");
   const report = await convertArchive({
     state,
     musicDir,
@@ -81,7 +80,7 @@ const convert: CliCommandHandler = async (rest, { state, musicDir }) => {
 
 const dedupeArchive: CliCommandHandler = async (rest, { musicDir, dbPath }) => {
   const flags = parseFlags(rest, ["dedupe-archive"], ["apply", "yes", "json"]);
-  const { dedupeArchive: dedupe } = await import("./shelf/dedupe-archive");
+  const { dedupeArchive: dedupe } = await import("./dedupe-archive");
   const report = await dedupe({
     musicDir,
     dbPath,

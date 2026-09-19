@@ -1,14 +1,12 @@
 import type { CliCommandHandler, CliContext } from "./cli-command";
-import { ANALYSIS_COMMANDS } from "./cli-commands-analysis";
-import { CORE_COMMANDS } from "./cli-commands-core";
-import { SHELF_COMMANDS } from "./cli-commands-shelf";
-import { TAG_COMMANDS } from "./cli-commands-tags";
+import { GETDAT_COMMANDS } from "./getdat/cli-commands";
+import { SHELF_COMMANDS } from "./shelf/cli-commands";
+import { FULLTAGS_COMMANDS } from "./fulltags/cli-commands";
 
 const COMMANDS: Readonly<Record<string, CliCommandHandler>> = {
-  ...CORE_COMMANDS,
+  ...GETDAT_COMMANDS,
   ...SHELF_COMMANDS,
-  ...TAG_COMMANDS,
-  ...ANALYSIS_COMMANDS,
+  ...FULLTAGS_COMMANDS,
 };
 
 export async function dispatchCommand(
