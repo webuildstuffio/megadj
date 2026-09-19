@@ -1,13 +1,22 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "../test-support/testutil";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { md5Cli } from "./md5-cli";
 import { DupFpCache } from "./dupescan-shared";
 import { Database } from "bun:sqlite";
 
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-md5cli-").rippable();
+const t2 = tempDir("megadj-md5cli-twins-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+});
+
 describe("md5Cli (the shared digest seam)", () => {
   test("digests a file and returns null for a missing file", () => {
-    const dir = mkdtempSync("/tmp/megadj-md5cli-");
+    const dir = t.dir();
     const p = join(dir, "f.mp3");
     writeFileSync(p, "PAIR-ONE");
     // pinned against the macOS md5 CLI itself (the byte-level contract)
@@ -18,7 +27,7 @@ describe("md5Cli (the shared digest seam)", () => {
   test("returns a digest for every identical copy (twin detection must see it)", () => {
     // the flake pin: a null here silently drops a file out of same-size
     // twin grouping — every call on an existing file must verify or say so
-    const dir = mkdtempSync("/tmp/megadj-md5cli-twins-");
+    const dir = t2.dir();
     const a = join(dir, "a.mp3");
     const b = join(dir, "b.mp3");
     writeFileSync(a, "IDENTICAL");

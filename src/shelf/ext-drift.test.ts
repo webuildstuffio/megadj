@@ -3,16 +3,23 @@
 // AUDIO_EXT skipped them, so those files were never scanned, never
 // deduplicated, never quarantined. Both scanners now read the SSOT
 // (src/shared/audio-exts.ts) and MUST see what sync ships.
-import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "../test-support/testutil";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { walkAudio } from "./dupescan";
 import { walkShelf } from "../archive/hygiene/walk";
 import { AUDIO_EXTS_RE } from "../shared/audio-exts";
 import { walkAudioDir } from "../shared/audio-walk";
 
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-ext-drift-").rippable();
+afterAll(() => {
+  t.rippleAll();
+});
+
 function makeTree(files: Record<string, string>): string {
-  const root = mkdtempSync("/tmp/megadj-ext-drift-");
+  const root = t.dir();
   for (const [rel, content] of Object.entries(files)) {
     const abs = join(root, rel);
     mkdirSync(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });

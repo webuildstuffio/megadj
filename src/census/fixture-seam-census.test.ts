@@ -27,16 +27,6 @@ const ALLOWED = new Set<string>([
   "src/census/fixture-seam-census.test.ts",
   // shelf: the makeDrive/makeShelf builders are the #223 named-fixture
   // families — their migration rides #223, not this pass.
-  "src/shelf/archive.test.ts",
-  "src/shelf/sync.test.ts",
-  "src/shelf/dupescan.test.ts",
-  "src/shelf/dupescan-engine.test.ts",
-  "src/shelf/hygiene.test.ts",
-  "src/shelf/restore.test.ts",
-  "src/shelf/md5-cli.test.ts",
-  "src/shelf/intake-status.test.ts",
-  "src/shelf/dedupe.test.ts",
-  "src/shelf/ext-drift.test.ts",
   // rekordbox: FULLY MIGRATED to tempDir (#248 second pass, Sep 18) —
   // all 10 grid/ANLZ/playlist suites; entries kept out on purpose so a
   // regression re-adding mkdtempSync fails the first test above.
@@ -44,8 +34,8 @@ const ALLOWED = new Set<string>([
   // Sep 18) — hash, drop, walk-tree, atomic-file, volume,
   // maintenance-flags, json-summary, numeric-options all ride the seam;
   // entries kept out on purpose so a regression fails the first test.
-  // fulltags + archive: FULLY MIGRATED to tempDir/tempState (#248
-  // third pass, Sep 18) — all 11 fulltags suites + 3 archive suites;
+  // fulltags + archive + shelf: FULLY MIGRATED to tempDir/tempState
+  // (#248 passes 3+4, Sep 18) — 11 fulltags + 3 archive + 10 shelf suites;
   // entries kept out on purpose so a regression fails the first test.
   // getdat + host-kit census set at src root: FULLY MIGRATED (the nine
   // getdat files in pass 1, json-summary/numeric-options in pass 3) —

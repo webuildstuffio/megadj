@@ -1,15 +1,28 @@
-import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync, existsSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "../test-support/testutil";
+import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { HygieneStore } from "../archive/hygiene/store";
 import { shelfHygiene } from "./hygiene";
 import { hygieneFinding } from "../test-support/scan-rows";
 
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-hygiene-cmd-").rippable();
+const t2 = tempDir("megadj-hygiene-cmdb-").rippable();
+const t3 = tempDir("megadj-hygiene-multi-").rippable();
+const t4 = tempDir("megadj-hygiene-multidb-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+  t4.rippleAll();
+});
+
 /** byte-twin fixture: two identical + one unique file, no fpcalc needed
  *  (byte-twin is md5-only — the whole suite runs without chromaprint). */
 function shelf(): { vol: string; db: string } {
-  const vol = mkdtempSync("/tmp/megadj-hygiene-cmd-");
+  const vol = t.dir();
   const w = (rel: string, c: string) => {
     const abs = join(vol, "Contents", rel);
     mkdirSync(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });
@@ -18,7 +31,7 @@ function shelf(): { vol: string; db: string } {
   w("Artist A/song.mp3", "IDENTICAL");
   w("Artist A/song copy.mp3", "IDENTICAL");
   w("Artist B/other.mp3", "DIFFERENT");
-  const db = join(mkdtempSync("/tmp/megadj-hygiene-cmdb-"), "archive.db");
+  const db = join(t2.dir(), "archive.db");
   return { vol, db };
 }
 
@@ -111,7 +124,7 @@ describe("hygiene command", () => {
   test("MULTI-apply: every receipt is green with delta 1 (no cumulative drift)", async () => {
     // two independent byte-twin pairs — the second receipt must measure
     // its own move, not "everything moved so far"
-    const vol = mkdtempSync("/tmp/megadj-hygiene-multi-");
+    const vol = t3.dir();
     const w = (rel: string, c: string) => {
       const abs = join(vol, "Contents", rel);
       mkdirSync(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });
@@ -122,7 +135,7 @@ describe("hygiene command", () => {
     w("Artist B/two.mp3", "PAIR-TWO");
     w("Artist B/two copy.mp3", "PAIR-TWO");
     w("Artist C/unique.mp3", "UNIQUE");
-    const db = join(mkdtempSync("/tmp/megadj-hygiene-multidb-"), "archive.db");
+    const db = join(t4.dir(), "archive.db");
     await run({ shelfVolume: vol, dbPath: db });
     const store = new HygieneStore(new Database(db));
     const opens = store.list({ status: "open" });

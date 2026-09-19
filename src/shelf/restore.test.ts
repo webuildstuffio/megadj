@@ -1,11 +1,6 @@
-import { describe, expect, test } from "bun:test";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "../test-support/testutil";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { writeFakeAudio } from "../test-support/audio-fixtures";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
@@ -14,14 +9,24 @@ import { HygieneStore } from "../archive/hygiene/store";
 import { shelfHygiene } from "./hygiene";
 import { shelfRestore } from "./restore";
 
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-restore-shelf-").rippable();
+const t2 = tempDir("megadj-restore-db-").rippable();
+const t3 = tempDir("megadj-restore-target-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+});
+
 function fixture(): { shelf: string; db: string; loser: string } {
-  const shelf = mkdtempSync("/tmp/megadj-restore-shelf-");
+  const shelf = t.dir();
   const dir = join(shelf, "Contents", "Artist");
   mkdirSync(dir, { recursive: true });
   writeFakeAudio(join(dir, "track.mp3"), "same bytes");
   const loser = join(dir, "track copy.mp3");
   writeFileSync(loser, "same bytes");
-  const db = join(mkdtempSync("/tmp/megadj-restore-db-"), "archive.db");
+  const db = join(t2.dir(), "archive.db");
   return { shelf, db, loser };
 }
 
@@ -94,7 +99,7 @@ describe("restore command", () => {
     const store = new HygieneStore(db);
     const finding = store.get(store.list({ status: "applied" })[0]!.id)!;
     db.close();
-    const target = mkdtempSync("/tmp/megadj-restore-target-");
+    const target = t3.dir();
     const source = join(
       f.shelf,
       ".hygiene-quarantine",

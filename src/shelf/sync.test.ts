@@ -1,8 +1,33 @@
-import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "../test-support/testutil";
+import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { writeFakeAudio } from "../test-support/audio-fixtures";
 import { join } from "node:path";
 import { shelfSync } from "./sync";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-shelf-src-").rippable();
+const t2 = tempDir("megadj-shelf-vol-").rippable();
+const t3 = tempDir("megadj-shelf-vol2-").rippable();
+const t4 = tempDir("megadj-shelf-vol3-").rippable();
+const t5 = tempDir("megadj-shelf-batch-").rippable();
+const t6 = tempDir("megadj-shelf-regroup-").rippable();
+const t7 = tempDir("megadj-shelf-nfc-").rippable();
+const t8 = tempDir("megadj-shelf-nfc-vol-").rippable();
+const t9 = tempDir("megadj-shelf-divergent-src-").rippable();
+const t10 = tempDir("megadj-shelf-divergent-vol-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+  t4.rippleAll();
+  t5.rippleAll();
+  t6.rippleAll();
+  t7.rippleAll();
+  t8.rippleAll();
+  t9.rippleAll();
+  t10.rippleAll();
+});
 
 /**
  * sync: the shelf master is append-only. Tests exercise the walk +
@@ -10,7 +35,7 @@ import { shelfSync } from "./sync";
  */
 
 function makeArchive(): string {
-  const root = mkdtempSync("/tmp/megadj-shelf-src-");
+  const root = t.dir();
   mkdirSync(join(root, "Artist One", "Album"), { recursive: true });
   writeFakeAudio(join(root, "Artist One", "Album", "track one.mp3"), "aaaa");
   writeFakeAudio(join(root, "loose.mp3"), "bbbb");
@@ -20,7 +45,7 @@ function makeArchive(): string {
 describe("sync", () => {
   test("copies into Contents/<artist>/ and skips on re-run", () => {
     const src = makeArchive();
-    const vol = mkdtempSync("/tmp/megadj-shelf-vol-");
+    const vol = t2.dir();
     const logs: string[] = [];
     // isolated ShelfSyncOptions (no real volumes touched)
     const run = () =>
@@ -47,7 +72,7 @@ describe("sync", () => {
     const src = makeArchive();
     return shelfSync({
       musicDir: src,
-      shelfVolume: mkdtempSync("/tmp/megadj-shelf-vol2-"),
+      shelfVolume: t3.dir(),
       stickVolumes: ["/tmp/megadj-shelf-not-mounted-zz"],
       log: () => {},
     }).then(() => {
@@ -58,7 +83,7 @@ describe("sync", () => {
 
   test("--json emits one parseable summary (P1 contract)", async () => {
     const src = makeArchive();
-    const vol = mkdtempSync("/tmp/megadj-shelf-vol3-");
+    const vol = t4.dir();
     const orig = console.log;
     let out = "";
     console.log = (s: string) => (out += `${s}\n`);
@@ -89,11 +114,11 @@ describe("sync", () => {
     // while the archive keeps its batch folders — sync must not
     // re-copy everything into dated folders. Same basename + same size
     // anywhere under Contents/ = already synced.
-    const src = mkdtempSync("/tmp/megadj-shelf-batch-");
+    const src = t5.dir();
     mkdirSync(join(src, "2026-09-11 intake"), { recursive: true });
     writeFakeAudio(join(src, "2026-09-11 intake", "song.aiff"), "xyz");
 
-    const vol = mkdtempSync("/tmp/megadj-shelf-regroup-");
+    const vol = t6.dir();
     mkdirSync(join(vol, "Contents", "The Artist"), { recursive: true });
     writeFakeAudio(join(vol, "Contents", "The Artist", "song.aiff"), "xyz");
 
@@ -110,12 +135,12 @@ describe("sync", () => {
   });
 
   test("regrouped shelf: NFD on-disk names match NFC archive names (fskit exFAT)", async () => {
-    const src = mkdtempSync("/tmp/megadj-shelf-nfc-");
+    const src = t7.dir();
     mkdirSync(join(src, "batch"), { recursive: true });
     const accented = "Nina Simone - Sinnerman (Ignacio Herna\u0301ndez).aiff"; // NFD á
     writeFileSync(join(src, "batch", accented), "data");
 
-    const vol = mkdtempSync("/tmp/megadj-shelf-nfc-vol-");
+    const vol = t8.dir();
     mkdirSync(join(vol, "Contents", "Nina Simone"), { recursive: true });
     // write the shelf copy NFC (as the archive/mac would produce)
     writeFileSync(
@@ -134,11 +159,11 @@ describe("sync", () => {
   });
 
   test("preserves a divergent same-name destination instead of overwriting it", async () => {
-    const src = mkdtempSync("/tmp/megadj-shelf-divergent-src-");
+    const src = t9.dir();
     mkdirSync(join(src, "Artist"), { recursive: true });
     writeFakeAudio(join(src, "Artist", "track.mp3"), "archive version");
 
-    const vol = mkdtempSync("/tmp/megadj-shelf-divergent-vol-");
+    const vol = t10.dir();
     mkdirSync(join(vol, "Contents", "Artist"), { recursive: true });
     writeFileSync(
       join(vol, "Contents", "Artist", "track.mp3"),

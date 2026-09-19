@@ -1,7 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "../test-support/testutil";
 import {
   mkdirSync,
-  mkdtempSync,
   writeFileSync,
   existsSync,
   readFileSync,
@@ -14,11 +14,17 @@ import { applyPairs } from "./dedupe-verdict";
 import { dedupePair } from "../test-support/scan-rows";
 import type { DedupePair } from "./dedupe-types";
 
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-dedupe-").rippable();
+afterAll(() => {
+  t.rippleAll();
+});
+
 function makeShelf(
   withPair: { stem: string; origContent: string; twinContent: string },
   also: Record<string, string> = {},
 ) {
-  const shelf = mkdtempSync("/tmp/megadj-dedupe-");
+  const shelf = t.dir();
   const artistDir = join(shelf, "Contents", "Artist");
   mkdirSync(artistDir, { recursive: true });
   writeFileSync(join(artistDir, `${withPair.stem}.mp3`), withPair.origContent);

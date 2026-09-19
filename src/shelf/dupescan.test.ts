@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, existsSync, readdirSync } from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "../test-support/testutil";
+import { mkdirSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import {
@@ -10,6 +11,24 @@ import {
 } from "./dupescan";
 import { moveLoser } from "./dupescan-shared";
 import { ffmpegTone } from "../test-support/audio-fixtures";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-dupescan-").rippable();
+const t2 = tempDir("megadj-dupescan-db-").rippable();
+const t3 = tempDir("megadj-dupescan-db2-").rippable();
+const t4 = tempDir("megadj-moveloser-ok-").rippable();
+const t5 = tempDir("megadj-moveloser-coll-").rippable();
+const t6 = tempDir("megadj-moveloser-def-").rippable();
+const t7 = tempDir("megadj-moveloser-fail-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+  t4.rippleAll();
+  t5.rippleAll();
+  t6.rippleAll();
+  t7.rippleAll();
+});
 
 /**
  * Regression (Sep 11 mass-collision): the fingerprint parser's char
@@ -52,7 +71,7 @@ function tone(file: string, freq = 440): void {
 }
 
 function makeShelf(files: Record<string, "tone" | "tone2">): string {
-  const shelf = mkdtempSync("/tmp/megadj-dupescan-");
+  const shelf = t.dir();
   for (const [rel, kind] of Object.entries(files)) {
     const abs = join(shelf, "Contents", rel);
     mkdirSync(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });
@@ -69,7 +88,7 @@ describe("dupescan", () => {
       "Artist B/compilation/song (some edit).mp3": "tone",
       "Artist C/other track.mp3": "tone2",
     });
-    const ledger = join(mkdtempSync("/tmp/megadj-dupescan-db-"), "state.db");
+    const ledger = join(t2.dir(), "state.db");
     let out = "";
     const orig = console.log;
     console.log = (s: string) => (out += `${s}\n`);
@@ -112,7 +131,7 @@ describe("dupescan", () => {
       "Artist A/Album/song.mp3": "tone",
       "Artist A/Album/song-1.mp3": "tone",
     });
-    const ledger = join(mkdtempSync("/tmp/megadj-dupescan-db2-"), "state.db");
+    const ledger = join(t3.dir(), "state.db");
     // without --yes: nothing moves
     await shelfDupescan({
       shelfVolume: shelf,
@@ -161,7 +180,7 @@ describe("FpCache", () => {
  */
 describe("moveLoser quarantine-move SSOT (#84)", () => {
   test("moves a loser and reports the destination through onMoved", () => {
-    const dir = mkdtempSync("/tmp/moveloser-ok-");
+    const dir = t4.dir();
     const src = join(dir, "loser.mp3");
     mkdirSync(src, { recursive: true });
     const qDir = join(dir, "q");
@@ -179,7 +198,7 @@ describe("moveLoser quarantine-move SSOT (#84)", () => {
   });
 
   test("NEVER overwrites — a quarantine collision aborts that file only", () => {
-    const dir = mkdtempSync("/tmp/moveloser-coll-");
+    const dir = t5.dir();
     const qDir = join(dir, "q");
     mkdirSync(qDir, { recursive: true });
     // pre-existing quarantine file that must survive untouched
@@ -199,7 +218,7 @@ describe("moveLoser quarantine-move SSOT (#84)", () => {
   });
 
   test("default collision path lands in errors (dupescan wording)", () => {
-    const dir = mkdtempSync("/tmp/moveloser-def-");
+    const dir = t6.dir();
     const qDir = join(dir, "q");
     mkdirSync(qDir, { recursive: true });
     mkdirSync(join(qDir, "loser.mp3"), { recursive: true });
@@ -210,7 +229,7 @@ describe("moveLoser quarantine-move SSOT (#84)", () => {
   });
 
   test("rename seam propagates injected failures as per-file errors", () => {
-    const dir = mkdtempSync("/tmp/moveloser-fail-");
+    const dir = t7.dir();
     const src = join(dir, "loser.mp3");
     mkdirSync(src, { recursive: true });
     const qDir = join(dir, "q");

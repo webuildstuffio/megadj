@@ -1,11 +1,6 @@
-import { describe, expect, test } from "bun:test";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "../test-support/testutil";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { shelfArchive } from "./archive";
 
@@ -25,7 +20,7 @@ function makeDrive(root: string, files: Record<string, string>): string {
 }
 
 function makeShelf(files: Record<string, string> = {}): string {
-  const vol = mkdtempSync("/tmp/megadj-sa-shelf-");
+  const vol = t.dir();
   mkdirSync(join(vol, "Contents"), { recursive: true });
   return makeDrive(vol, files);
 }
@@ -33,16 +28,16 @@ function makeShelf(files: Record<string, string> = {}): string {
 const run = (opts: Partial<Parameters<typeof shelfArchive>[0]> = {}) =>
   shelfArchive({
     volumes: [],
-    shelfVolume: mkdtempSync("/tmp/megadj-sa-empty-"),
+    shelfVolume: t2.dir(),
     log: () => {},
     // ledger isolation: never touch the developer's real archive DB
-    ledgerPath: join(mkdtempSync("/tmp/megadj-sa-ledger-"), "state.db"),
+    ledgerPath: join(t3.dir(), "state.db"),
     ...opts,
   } as Parameters<typeof shelfArchive>[0]);
 
 describe("archive", () => {
   test("copies fresh drive content into Contents/, preserving layout", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-drive-"), {
+    const drive = makeDrive(t4.dir(), {
       "Contents/Artist/Album/track.mp3": "audio-bytes",
       "PIONEER REC/set.wav": "recording",
     });
@@ -63,7 +58,7 @@ describe("archive", () => {
   });
 
   test("skips AppleDouble/DS_Store junk and PIONEER device trees", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-junk-"), {
+    const drive = makeDrive(t5.dir(), {
       "Contents/Artist/real.mp3": "x",
       "Contents/Artist/._real.mp3": "junk",
       "Contents/Artist/.DS_Store": "junk",
@@ -83,7 +78,7 @@ describe("archive", () => {
   });
 
   test("re-run is a no-op (idempotent coverage)", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-rerun-"), {
+    const drive = makeDrive(t6.dir(), {
       "Contents/A/one.mp3": "1",
       "Contents/A/two.mp3": "2",
     });
@@ -99,7 +94,7 @@ describe("archive", () => {
   });
 
   test("case-variant names count as covered (exFAT is case-insensitive)", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-case-"), {
+    const drive = makeDrive(t7.dir(), {
       "Contents/ARTIST/song.MP3": "x",
     });
     const shelf = makeShelf({ "Contents/artist/Song.mp3": "x" });
@@ -111,7 +106,7 @@ describe("archive", () => {
   });
 
   test("same name + different size is preserved as <stem> [drive] copy — shelf original untouched", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-divergent-"), {
+    const drive = makeDrive(t8.dir(), {
       "Contents/A/track.mp3": "drive-version-bytes",
     });
     const shelf = makeShelf({ "Contents/A/track.mp3": "shelf-original" });
@@ -125,7 +120,7 @@ describe("archive", () => {
   });
 
   test("same size but different content: default trusts size; --deep preserves", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-samesize-"), {
+    const drive = makeDrive(t9.dir(), {
       "Contents/A/track.mp3": "aaaaXXXX",
     });
     // shelf twin has the SAME byte count (8) but different bytes
@@ -146,7 +141,7 @@ describe("archive", () => {
   });
 
   test("--trashes + --into lands trashed files flat under Contents/<into>/", async () => {
-    const drive = mkdtempSync("/tmp/megadj-sa-trash-");
+    const drive = t10.dir();
     makeDrive(drive, {
       ".Trashes/501/Cool Mix.mp3": "mix-bytes",
     });
@@ -163,7 +158,7 @@ describe("archive", () => {
   });
 
   test("unmounted drive is skipped, run stays ok, mounted one still works", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-ok-"), {
+    const drive = makeDrive(t11.dir(), {
       "Contents/A/x.mp3": "x",
     });
     const shelf = makeShelf();
@@ -175,7 +170,7 @@ describe("archive", () => {
   });
 
   test("unmounted shelf is a hard error (exit 1)", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-d2-"), {
+    const drive = makeDrive(t12.dir(), {
       "Contents/A/x.mp3": "x",
     });
     const logs: string[] = [];
@@ -194,7 +189,7 @@ describe("archive", () => {
   });
 
   test("--json emits one parseable summary (P1 contract) with ok flag", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-json-"), {
+    const drive = makeDrive(t13.dir(), {
       "Contents/A/y.mp3": "y",
     });
     const shelf = makeShelf();
@@ -232,6 +227,42 @@ describe("archive", () => {
 
 import { ShelfSweeps, type ShelfSweepRow } from "../archive/sweeps";
 import { Database } from "bun:sqlite";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-sa-shelf-").rippable();
+const t2 = tempDir("megadj-sa-empty-").rippable();
+const t3 = tempDir("megadj-sa-ledger-").rippable();
+const t4 = tempDir("megadj-sa-drive-").rippable();
+const t5 = tempDir("megadj-sa-junk-").rippable();
+const t6 = tempDir("megadj-sa-rerun-").rippable();
+const t7 = tempDir("megadj-sa-case-").rippable();
+const t8 = tempDir("megadj-sa-divergent-").rippable();
+const t9 = tempDir("megadj-sa-samesize-").rippable();
+const t10 = tempDir("megadj-sa-trash-").rippable();
+const t11 = tempDir("megadj-sa-ok-").rippable();
+const t12 = tempDir("megadj-sa-d2-").rippable();
+const t13 = tempDir("megadj-sa-json-").rippable();
+const t14 = tempDir("megadj-sa-ledger2-").rippable();
+const t15 = tempDir("megadj-sa-ledger3-").rippable();
+const t16 = tempDir("megadj-sa-noled-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+  t4.rippleAll();
+  t5.rippleAll();
+  t6.rippleAll();
+  t7.rippleAll();
+  t8.rippleAll();
+  t9.rippleAll();
+  t10.rippleAll();
+  t11.rippleAll();
+  t12.rippleAll();
+  t13.rippleAll();
+  t14.rippleAll();
+  t15.rippleAll();
+  t16.rippleAll();
+});
 
 describe("shelf sweep ledger", () => {
   test("start → finish records a complete verdict with counters", () => {
@@ -309,11 +340,11 @@ describe("shelf sweep ledger", () => {
 
 describe("shelf sweep ledger wiring", () => {
   test("a real sweep records a complete row in the ledger DB", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-ledger2-"), {
+    const drive = makeDrive(t14.dir(), {
       "Contents/A/z.mp3": "z",
     });
     const shelf = makeShelf();
-    const ledgerDb = join(mkdtempSync("/tmp/megadj-sa-ledger3-"), "state.db");
+    const ledgerDb = join(t15.dir(), "state.db");
     await shelfArchive({
       volumes: [drive],
       shelfVolume: shelf,
@@ -334,7 +365,7 @@ describe("shelf sweep ledger wiring", () => {
   });
 
   test("ledgerPath: null disables recording (no DB anywhere)", async () => {
-    const drive = makeDrive(mkdtempSync("/tmp/megadj-sa-noled-"), {
+    const drive = makeDrive(t16.dir(), {
       "Contents/A/w.mp3": "w",
     });
     const shelf = makeShelf();

@@ -2,14 +2,9 @@
 // engine (#142): fingerprint loop (never cache a null), group cut, and
 // the apply safety gate (same-size → md5 equality; different-size →
 // name agreement; collisions abort THAT file, never the run).
-import { describe, expect, test } from "bun:test";
-import {
-  mkdirSync,
-  mkdtempSync,
-  writeFileSync,
-  existsSync,
-  readFileSync,
-} from "node:fs";
+import { afterAll, describe, expect, test } from "bun:test";
+import { tempDir } from "../test-support/testutil";
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { DupFpCache, type DupGroup } from "./dupescan-shared";
@@ -20,6 +15,24 @@ import {
   sameSizeSafe,
   type GroupContext,
 } from "./dupescan-engine";
+
+// #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
+const t = tempDir("megadj-engine-fp-").rippable();
+const t2 = tempDir("megadj-engine-fp-null-").rippable();
+const t3 = tempDir("megadj-engine-cut-").rippable();
+const t4 = tempDir("megadj-engine-solo-").rippable();
+const t5 = tempDir("megadj-engine-apply-").rippable();
+const t6 = tempDir("megadj-engine-coll-").rippable();
+const t7 = tempDir("megadj-engine-err-").rippable();
+afterAll(() => {
+  t.rippleAll();
+  t2.rippleAll();
+  t3.rippleAll();
+  t4.rippleAll();
+  t5.rippleAll();
+  t6.rippleAll();
+  t7.rippleAll();
+});
 
 function group(files: [string, number][], keep?: string): DupGroup {
   const entries = files.map(([path, bytes]) => ({ path, bytes }));
@@ -39,7 +52,7 @@ describe("fingerprintFiles (#142 engine)", () => {
   test("computes missing fingerprints, reports cached vs computed", async () => {
     const db = new Database(":memory:");
     const cache = new DupFpCache(db, "engine_test_fp");
-    const dir = mkdtempSync("/tmp/engine-fp-");
+    const dir = t.dir();
     const a = join(dir, "a.mp3");
     const b = join(dir, "b.mp3");
     writeFileSync(a, "aaa");
@@ -57,7 +70,7 @@ describe("fingerprintFiles (#142 engine)", () => {
   test("NEVER caches a null fingerprint (the poisoning trap)", async () => {
     const db = new Database(":memory:");
     const cache = new DupFpCache(db, "engine_test_fp_null");
-    const dir = mkdtempSync("/tmp/engine-fp-null-");
+    const dir = t2.dir();
     const f = join(dir, "gone.mp3");
     writeFileSync(f, "x");
     const stats = await fingerprintFiles([f], cache, {
@@ -82,7 +95,7 @@ describe("cutDupGroups (#142 engine)", () => {
   test("cuts >=2 same-fingerprint groups, keeper = sort winner", () => {
     const db = new Database(":memory:");
     const cache = new DupFpCache(db, "engine_test_cut");
-    const dir = mkdtempSync("/tmp/engine-cut-");
+    const dir = t3.dir();
     const files = ["big.mp3", "small.mp3", "mid.mp3", "lonely.mp3"].map(
       (n, i) => {
         const p = join(dir, n);
@@ -110,7 +123,7 @@ describe("cutDupGroups (#142 engine)", () => {
   test("singleton fingerprints never group (no >=2 cut, no group)", () => {
     const db = new Database(":memory:");
     const cache = new DupFpCache(db, "engine_test_solo");
-    const dir = mkdtempSync("/tmp/engine-solo-");
+    const dir = t4.dir();
     const f = join(dir, "only.mp3");
     writeFileSync(f, "x");
     cache.put(f, 1, "FP-SOLO");
@@ -125,7 +138,7 @@ describe("cutDupGroups (#142 engine)", () => {
 
 describe("applyGroupsSafety (#142 engine — the ONE safety gate)", () => {
   test("policy-accepted losers quarantine; refusals go to review", () => {
-    const dir = mkdtempSync("/tmp/engine-apply-");
+    const dir = t5.dir();
     const qDir = join(dir, "q");
     mkdirSync(qDir, { recursive: true });
     const keeper = join(dir, "keep.mp3");
@@ -166,7 +179,7 @@ describe("applyGroupsSafety (#142 engine — the ONE safety gate)", () => {
   });
 
   test("quarantine collision aborts THAT file, never the run", () => {
-    const dir = mkdtempSync("/tmp/engine-coll-");
+    const dir = t6.dir();
     const qDir = join(dir, "q");
     mkdirSync(qDir, { recursive: true });
     const keeper = join(dir, "keep.mp3");
@@ -203,7 +216,7 @@ describe("applyGroupsSafety (#142 engine — the ONE safety gate)", () => {
   });
 
   test("moveLoser rename failures surface as per-file errors, run continues", () => {
-    const dir = mkdtempSync("/tmp/engine-err-");
+    const dir = t7.dir();
     const qDir = join(dir, "q-unwritable");
     // qDir's parent exists but qDir itself is a FILE → rename fails
     writeFileSync(join(dir, "q-unwritable"), "not a dir");
