@@ -59,6 +59,11 @@ const NATURAL_INDEX_SQL = `
     )
     WHERE status <> 'archived'`;
 
+/** Wall-clock takeover cap for the hygiene lease: a holder past this age
+ *  (even with a live pid — a wedged process) loses the shelf-mutation
+ *  interlock. Matches the tmp-purge >24h age-gate pattern. */
+const LEASE_TAKEOVER_MS = 24 * 60 * 60 * 1000;
+
 export class HygieneStore {
   private readonly db: Database;
 
@@ -357,7 +362,12 @@ export class HygieneStore {
   }
 
   /** Acquire the single shelf mutation lease. INSERT OR IGNORE makes the
-   * operation atomic across CLI processes sharing the archive DB. */
+   *  operation atomic across CLI processes sharing the archive DB. A
+   *  crashed holder (kill -9, launchd group-kill — the "kill the process
+   *  GROUP" operational reality) never reaches the release `finally`, so
+   *  on conflict the row is probed: a dead holder pid or a lease older
+   *  than the takeover cap is taken over loudly instead of bricking every
+   *  future hygiene run with "already in flight" (#268). */
   acquireOperation(owner: string): boolean {
     this.db
       .query(
@@ -366,9 +376,48 @@ export class HygieneStore {
       )
       .run(owner, process.pid, new Date().toISOString());
     const row = this.db
-      .query("SELECT owner FROM hygiene_operation_lock WHERE id = 1")
-      .get() as { owner: string } | null;
-    return row?.owner === owner;
+      .query(
+        "SELECT owner, pid, started_at FROM hygiene_operation_lock WHERE id = 1",
+      )
+      .get() as { owner: string; pid: number; started_at: string } | null;
+    if (row?.owner === owner) return true;
+    if (row && this.leaseAbandoned(row.pid, row.started_at)) {
+      console.error(
+        `hygiene: lease takeover — holder pid ${row.pid} (${row.owner}, ` +
+          `started ${row.started_at}) is dead or past the ${LEASE_TAKEOVER_MS / 3_600_000}h cap`,
+      );
+      this.db
+        .query("DELETE FROM hygiene_operation_lock WHERE id = 1 AND owner = ?")
+        .run(row.owner);
+      // re-arm through the same atomic insert: if another taker won the
+      // race, its row stands and the read-back answers it as holder.
+      return this.acquireOperation(owner);
+    }
+    return false;
+  }
+
+  /** POSIX pid-liveness probe (signal 0). EPERM means the pid exists but
+   *  belongs to another user — treat as alive. */
+  private holderAlive(pid: number): boolean {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === "EPERM";
+    }
+  }
+
+  /** Takeover eligibility: corrupt timestamps and non-pids count as
+   *  abandoned (unusable evidence); a live pid is taken over only once
+   *  the lease exceeds the wall-clock cap (the tmp-purge >24h age-gate
+   *  pattern — a wedged holder must not hold the shelf interlock
+   *  forever). */
+  private leaseAbandoned(pid: number, startedAt: string): boolean {
+    const started = Date.parse(startedAt);
+    if (!Number.isFinite(started)) return true;
+    if (!Number.isInteger(pid) || pid <= 0) return true;
+    if (!this.holderAlive(pid)) return true;
+    return Date.now() - started > LEASE_TAKEOVER_MS;
   }
 
   releaseOperation(owner: string): void {

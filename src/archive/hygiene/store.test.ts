@@ -284,3 +284,85 @@ describe("HygieneStore", () => {
     expect(s.list({ status: "open" }).length).toBe(3);
   });
 });
+
+describe("hygiene_operation_lock (single-writer lease)", () => {
+  test("acquire grants once and release frees it", () => {
+    const s = store();
+    expect(s.acquireOperation("A")).toBe(true);
+    expect(s.acquireOperation("B")).toBe(false);
+    s.releaseOperation("A");
+    expect(s.acquireOperation("B")).toBe(true);
+  });
+
+  test("a dead holder pid is taken over, loudly (#268)", () => {
+    const raw = new Database(":memory:");
+    const s = new HygieneStore(raw);
+    // simulate a crashed holder: pid 999999 is effectively never alive
+    raw
+      .query(
+        `INSERT INTO hygiene_operation_lock (id, owner, pid, started_at)
+         VALUES (1, 'crashed', 999999, ?)`,
+      )
+      .run(new Date().toISOString());
+    const errors: string[] = [];
+    const orig = console.error;
+    console.error = (m: string) => errors.push(m);
+    try {
+      expect(s.acquireOperation("new-owner")).toBe(true);
+    } finally {
+      console.error = orig;
+    }
+    expect(errors.some((m) => m.includes("lease takeover"))).toBe(true);
+    const row = raw
+      .query("SELECT owner, pid FROM hygiene_operation_lock WHERE id = 1")
+      .get() as { owner: string; pid: number };
+    expect(row.owner).toBe("new-owner");
+    expect(row.pid).toBe(process.pid);
+  });
+
+  test("a live foreign pid holds the lease (#268)", () => {
+    const raw = new Database(":memory:");
+    const s = new HygieneStore(raw);
+    // a live process this test does not own: the bun parent chain is
+    // alive by construction while the test runs
+    const liveForeignPid = process.ppid;
+    raw
+      .query(
+        `INSERT INTO hygiene_operation_lock (id, owner, pid, started_at)
+         VALUES (1, 'live-holder', ?, ?)`,
+      )
+      .run(liveForeignPid, new Date().toISOString());
+    expect(s.acquireOperation("new-owner")).toBe(false);
+  });
+
+  test("a corrupt lease row (garbage timestamp / pid) is abandoned (#268)", () => {
+    const raw = new Database(":memory:");
+    const s = new HygieneStore(raw);
+    raw.exec(
+      `INSERT INTO hygiene_operation_lock (id, owner, pid, started_at)
+       VALUES (1, 'corrupt', -1, 'not-a-date')`,
+    );
+    expect(s.acquireOperation("new-owner")).toBe(true);
+  });
+
+  test("a live holder past the takeover cap is taken over (#268)", () => {
+    const raw = new Database(":memory:");
+    const s = new HygieneStore(raw);
+    // live pid, but started far beyond the 24h wall-clock cap
+    raw
+      .query(
+        `INSERT INTO hygiene_operation_lock (id, owner, pid, started_at)
+         VALUES (1, 'wedged', ?, '2026-09-01T00:00:00.000Z')`,
+      )
+      .run(process.ppid);
+    const errors: string[] = [];
+    const orig = console.error;
+    console.error = (m: string) => errors.push(m);
+    try {
+      expect(s.acquireOperation("new-owner")).toBe(true);
+    } finally {
+      console.error = orig;
+    }
+    expect(errors.some((m) => m.includes("lease takeover"))).toBe(true);
+  });
+});
