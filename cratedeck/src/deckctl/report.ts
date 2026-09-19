@@ -1,12 +1,12 @@
-// deckctl_report.ts — `deckctl report` (health dossier) + its --dossier
+// deckctl/report.ts — `deckctl report` (health dossier) + its --dossier
 // mode (surface-parity GAP-6), extracted from deckctl.ts at the
 // file-length guard. The plain report prints check rows; --dossier
 // streams the exact GET /drives/:id/export bundle the UI's Export button
 // serves (--out FILE writes it to disk instead).
 
-import { apiGet, resolveDrive } from "./deckapi";
-import { emitJson } from "./deckctl-runtime";
-import type { DriveReport } from "../shared/types";
+import { apiGet, resolveDrive } from "../deckapi";
+import type { DriveReport } from "../../shared/types";
+import { emitJson } from "./runtime";
 
 export interface ReportPrintHooks {
   jsonMode: boolean;

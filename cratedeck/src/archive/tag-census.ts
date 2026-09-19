@@ -1,4 +1,4 @@
-// archive_tagcensus.ts — the FullTags-vs-rekordbox tag comparison reads.
+// archive/tag-census.ts — the FullTags-vs-rekordbox tag comparison reads.
 //
 // Two endpoints, one seam:
 //   tagCensus(limit)     — census over the playable archive joined with
@@ -17,8 +17,8 @@
 import type {
   ArchiveTagCensus,
   ArchiveTagCensusRow,
-} from "../shared/archive-wire";
-import type { ArchiveQuery } from "./archive-types";
+} from "../../shared/archive-wire";
+import type { ArchiveQuery } from "./types";
 
 /** Ledger freshness for the census (#174): MAX(analyzed_at) per analysis
  *  ledger — the same stamps the set-builder's poolFreshness reports. A

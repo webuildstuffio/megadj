@@ -1,4 +1,4 @@
-// archive-reader-core.ts — the SQLite query body of the archive reader
+// archive/reader-core.ts — the SQLite query body of the archive reader
 // (#205 split from archive.ts): the readonly handle, the rows/row seam
 // the split-out modules type against, the track_keys read-cache, and
 // TRACK_COLS. archive.ts keeps the ArchiveReader façade and imports this
@@ -58,7 +58,7 @@ export class ArchiveReaderCore {
     this.liveKeys.clear();
   }
 
-  /** Public read access for the split-out modules (archive_similar.ts):
+  /** Public read access for the split-out modules (archive/similar.ts):
    * parameterised SELECT only — still read-only by construction. */
   rows<T>(sql: string, ...params: SQLQueryBindings[]): T[] {
     const db = this.handle();
@@ -67,7 +67,7 @@ export class ArchiveReaderCore {
   }
 
   /** rows(...)[0] — undefined on empty. ArchiveQuery leaf contract; see
-   *  archive_types.ts. */
+   *  archive/types.ts. */
   row<T>(sql: string, ...params: SQLQueryBindings[]): T | undefined {
     return this.rows<T>(sql, ...params)[0];
   }

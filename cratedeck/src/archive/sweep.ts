@@ -1,4 +1,4 @@
-// archive_sweep.ts — D30: archive-integrity sweep (bitrot early warning).
+// archive/sweep.ts — D30: archive-integrity sweep (bitrot early warning).
 //
 // The ideas-doc spec (idea 30, folded into O83's digest by the roadmap):
 // "Nightly checksum sweep of ~/Music/DJ-Imports vs the archive DB (sizes +
@@ -18,7 +18,7 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
-import type { ArchiveReader } from "./archive";
+import type { ArchiveReader } from "../archive";
 
 /** One ledger row: the last known-good fingerprint of an archive file.
  *  Corruption memory: when a file's hash diverges from the trusted

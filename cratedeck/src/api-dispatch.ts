@@ -5,7 +5,7 @@
 // Each family below is its own flat probe: Response when the family owns
 // the route, null to fall through to the next probe. makeApiRouter walks
 // the probes in order and 404s when every one declines.
-import { archiveRoutes } from "./archive-routes";
+import { archiveRoutes } from "./archive/routes";
 import type { ApiDeps } from "./api-deps";
 
 /** The dynamic /drives family: /drives (list) + /drives/:id/<sub> (the
@@ -40,7 +40,7 @@ export function jobDispatch(
 }
 
 /** The archive-read family (O82b): megadj's DB, readonly. Lives in
- *  archive_routes.ts (file-length guard); null = no archive route
+ *  archive/routes.ts (file-length guard); null = no archive route
  *  matched, fall through. */
 export async function archiveDispatch(
   deps: ApiDeps,

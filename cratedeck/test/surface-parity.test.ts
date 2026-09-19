@@ -75,7 +75,7 @@ function megadjCommands(): string[] {
 /** HTTP API path census. Route literals are intentionally derived from the
  * dispatchers: exact-path table keys (`"/status": …`) in api_routes.ts,
  * top-level `route ===` literals, drive subpaths get the /drives/:id
- * prefix, and archive handlers come from archive_routes.ts. */
+ * prefix, and archive handlers come from archive/routes.ts. */
 function httpApiRoutes(): string[] {
   // route families live in their own modules since the #42 split; the
   // census reads ALL of them so a literal can't hide in a new file
@@ -116,7 +116,7 @@ function httpApiRoutes(): string[] {
   if (index.includes('if (route.startsWith("/fleet/"))'))
     routes.add("/fleet/prep");
   if (index.includes("if (!sub) {")) routes.add("/drives/:id");
-  const archive = read("cratedeck/src/archive-routes.ts").join("\n");
+  const archive = read("cratedeck/src/archive/routes.ts").join("\n");
   const handlers = archive.match(
     /function archiveHandlers\(\)[\s\S]*?return \{([\s\S]*?)\n  \};/,
   );
@@ -135,7 +135,7 @@ function httpApiRoutes(): string[] {
 function mcpTools(): string[] {
   const files = [
     "cratedeck/src/mcp.ts",
-    "cratedeck/src/archive-tools.ts",
+    "cratedeck/src/archive/tools.ts",
     "cratedeck/src/getdat-tools.ts",
   ];
   const tools = files
@@ -642,7 +642,7 @@ describe("surface parity (docs/surface-parity.md)", () => {
     // every surface imports the SAME SSOT module — wording can't fork
     // (deckctl's help leg lives in deckctl_help.ts, the extraction)
     const deckctlHelp = readFileSync(
-      join(ROOT, "cratedeck/src/deckctl-help.ts"),
+      join(ROOT, "cratedeck/src/deckctl/help.ts"),
       "utf8",
     );
     expect(deckctlHelp).toContain('../shared/help"');

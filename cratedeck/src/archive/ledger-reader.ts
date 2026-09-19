@@ -1,4 +1,4 @@
-// archive_ledger_reader.ts — the shared base for read-only windows into
+// archive/ledger-reader.ts — the shared base for read-only windows into
 // the megadj archive DB's ledgers (shelf_sweeps, hygiene_findings, …).
 // A dedicated readonly Database per ledger (not ATTACH — SQLCipher-free
 // plain sqlite attach in bun is per-connection) is simpler and can never
@@ -6,7 +6,7 @@
 // archive DB degrades to empty results — never throws, never 500s the
 // API route the subclass feeds (regression-covered by each subclass).
 import { Database } from "bun:sqlite";
-import { errMessage } from "../../src/shared/leaf/fmt";
+import { errMessage } from "../../../src/shared/leaf/fmt";
 
 export abstract class ArchiveLedgerReader {
   private db: Database | null = null;

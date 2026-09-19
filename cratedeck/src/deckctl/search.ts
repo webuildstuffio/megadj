@@ -1,4 +1,4 @@
-// deckctl_search.ts — `deckctl search <query>` (B9 global search from the CLI).
+// deckctl/search.ts — `deckctl search <query>` (B9 global search from the CLI).
 //
 // Extracted module (file-length guard): the ⌘K topbar search reaches
 // GET /api/search; this is the same read for terminals/agents (F2 closed —
@@ -8,9 +8,9 @@
 // not re-declared here — a local duplicate drifts silently and ships
 // runtime bugs (the Sep 7 ArchiveTab bug class).
 
-import { emitJson } from "./deckctl-runtime";
-import { apiGet } from "./deckapi";
-import type { SearchResult } from "../shared/types";
+import { apiGet } from "../deckapi";
+import type { SearchResult } from "../../shared/types";
+import { emitJson } from "./runtime";
 
 export interface SearchPrintHooks {
   jsonMode: boolean;

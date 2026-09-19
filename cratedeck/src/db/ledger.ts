@@ -5,7 +5,7 @@
 // db.ts's migrations.
 
 import type Database from "bun:sqlite";
-import type { LedgerRow } from "../archive-sweep";
+import type { LedgerRow } from "../archive/sweep";
 
 /** v5 migration (D30 corruption memory): archive_ledger rows must survive
  *  a hash divergence with their reference intact — `flagged_at` marks the

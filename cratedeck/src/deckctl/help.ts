@@ -1,7 +1,7 @@
-// deckctl_help.ts — `deckctl help [term|kind]` and `deckctl dismiss
+// deckctl/help.ts — `deckctl help [term|kind]` and `deckctl dismiss
 // <drive> <noteId>` (rev 4 surface-parity twins: GAP-10/11).
 //
-// Extracted from deckctl.ts (file-length guard), like deckctl_notes.ts:
+// Extracted from deckctl.ts (file-length guard), like deckctl/notes.ts:
 // the help verb is self-contained — it reads the shared/help.ts SSOT
 // DIRECTLY (no server call), which is the point: an agent on a cold
 // machine asks "what does Ghost mean" and gets the same wording the UI
@@ -13,12 +13,12 @@
 // (JSON mode + log/errOut + exit), and printKindDoc for job entries —
 // one implementation of "explain a job" across the help/explain verbs.
 
-import { HELP_JOBS, HELP_SURFACES, HELP_TERMS } from "../shared/help";
-import { apiPost, resolveDriveOrExit } from "./deckapi";
-import { emitJson } from "./deckctl-runtime";
-import { KIND_DOCS, printKindDoc } from "./deckctl-docs";
+import { HELP_JOBS, HELP_SURFACES, HELP_TERMS } from "../../shared/help";
+import { apiPost, resolveDriveOrExit } from "../deckapi";
+import { KIND_DOCS, printKindDoc } from "./docs";
+import { emitJson } from "./runtime";
 
-/** Print hooks shared with deckctl.ts (deckctl_notes.ts pattern). */
+/** Print hooks shared with deckctl.ts (deckctl/notes.ts pattern). */
 export interface HelpPrintHooks {
   /** true when --json is on: emit one JSON object, no prose. */
   jsonMode: boolean;

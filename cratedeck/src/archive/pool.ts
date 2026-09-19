@@ -1,20 +1,20 @@
-// archive_pool.ts — the set-builder's pool reader (#89 diet extraction
-// from archive_similar.ts): candidate load (tracks ⋈ beats ⋈ mood ⋈ TKEY
+// archive/pool.ts — the set-builder's pool reader (#89 diet extraction
+// from archive/similar.ts): candidate load (tracks ⋈ beats ⋈ mood ⋈ TKEY
 // ⋈ embeddings ledgers) + pool freshness. Feeds the pure engine in
 // megaset.ts. Unparsable keys/rows degrade to null, never throw.
 import { existsSync } from "node:fs";
-import { groundTruth } from "../../src/fulltags/write/readers";
+import { groundTruth } from "../../../src/fulltags/write/readers";
 import { resolve, sep } from "node:path";
 import {
   isFiniteNumber,
   isFiniteNumberArray,
   isRecord,
-} from "../../src/shared/leaf/guards";
+} from "../../../src/shared/leaf/guards";
 import type {
   ArchiveFreshness,
   ArchiveSetCandidates,
-} from "../shared/archive-wire";
-import type { ArchiveQuery } from "./archive-types";
+} from "../../shared/archive-wire";
+import type { ArchiveQuery } from "./types";
 
 /** ExFAT is case-insensitive. Normalize separators, Unicode, and case so two
  * archive rows cannot propose the same physical shelf file twice. */

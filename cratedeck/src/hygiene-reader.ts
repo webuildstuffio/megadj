@@ -10,7 +10,7 @@ import {
   type HygieneBadge,
   type HygieneFindingRow,
 } from "../shared/hygiene";
-import { ArchiveLedgerReader } from "./archive-ledger-reader";
+import { ArchiveLedgerReader } from "./archive/ledger-reader";
 import { errMessage } from "../../src/shared/leaf/fmt";
 
 export interface HygieneCounts {

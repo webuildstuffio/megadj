@@ -1,13 +1,13 @@
-// deckctl_queue.ts — shared tail for the queue-style deckctl commands
+// deckctl/queue.ts — shared tail for the queue-style deckctl commands
 // (`hygiene`, `fixes`): enqueue on a family route, follow the job, print
 // the result. The two modules carried byte-identical followJob + scan/apply
 // legs (jscpd-class clone); this is the one implementation (§1: parity is
 // cheapest to guarantee when the spokes share seams, not copies).
-import { apiPost, pollJob, jobTerminal, type Job } from "./deckapi";
-import { emitJson } from "./deckctl-runtime";
-import { errMessage } from "../../src/shared/leaf/fmt";
+import { errMessage } from "../../../src/shared/leaf/fmt";
+import { apiPost, pollJob, jobTerminal, type Job } from "../deckapi";
+import { emitJson } from "./runtime";
 
-/** Output hooks — the same shape deckctl_hygiene/deckctl_fixes already
+/** Output hooks — the same shape deckctl/hygiene and deckctl/fixes already
  *  receive from deckctl.ts's baseHooks(). */
 export interface QueueHooks {
   jsonMode: boolean;

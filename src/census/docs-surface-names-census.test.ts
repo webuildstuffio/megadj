@@ -10,7 +10,7 @@
  * Names are DERIVED from the same producers the surface-parity census
  * reads (never hand-copied): src/command-doc-* producer leaves,
  * cratedeck/src/deckctl.ts DECK_COMMANDS + PRE_SERVER_VERBS, the tool
- * keys in mcp.ts / archive_tools.ts / getdat_tools.ts + MCP_SURFACES,
+ * keys in mcp.ts / archive/tools.ts / getdat_tools.ts + MCP_SURFACES,
  * and JOB_KINDS.
  *
  * Scanned prose: docs/ (non-archive), cratedeck/*.md, the repo READMEs,
@@ -83,7 +83,7 @@ function mcpTools(): string[] {
   const tools: string[] = [];
   const files = [
     "cratedeck/src/mcp.ts",
-    "cratedeck/src/archive-tools.ts",
+    "cratedeck/src/archive/tools.ts",
     "cratedeck/src/getdat-tools.ts",
   ];
   for (const f of files) {

@@ -1,11 +1,11 @@
-// deckctl_players.ts — `deckctl players` collection logic (extracted for
+// deckctl/players.ts — `deckctl players` collection logic (extracted for
 // testability at the file guard). The CLI assembles per-drive player
 // compatibility payloads; the fleet loop must SKIP an unreachable drive
 // VISIBLY (skipped[] rides both output modes) — the old silent `catch {}`
 // once printed the literal "undefined" in --json mode, invalid JSON for
 // any agent parsing it (the Sep 7-8 silent-fallback purge class).
-import type { PlayersPayload } from "../shared/types";
-import { errMessage as errorText } from "../../src/shared/leaf/fmt";
+import { errMessage as errorText } from "../../../src/shared/leaf/fmt";
+import type { PlayersPayload } from "../../shared/types";
 
 export interface PlayerFleetPayload {
   players: PlayersPayload[];

@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { tempDir } from "./testutil";
 import { writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { sweepArchive, type LedgerRow } from "../src/archive-sweep";
+import { sweepArchive, type LedgerRow } from "../src/archive/sweep";
 import { renderWeeklyPrep, type WeeklyPrepInput } from "../src/weekly-prep";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).

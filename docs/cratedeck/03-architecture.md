@@ -135,7 +135,7 @@ GET  /images/search?q=           provider proxy
 GET  /events                     SSE: mounts, job progress, interlock
 ```
 
-`index.ts` owns top-level dispatch; `archive_routes.ts`, `booth_routes.ts`,
+`index.ts` owns top-level dispatch; `archive/routes.ts`, `booth_routes.ts`,
 `drive_job_routes.ts`, `fixes_routes.ts`, and `hygiene_routes.ts` own cohesive
 route families. The list above is the stable core shape, not a route census.
 The exact live surface is derived and pinned in

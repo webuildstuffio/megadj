@@ -3,13 +3,13 @@
 
 import { apiPost, ensureServer } from "./deckapi";
 import { DRIVE_JOB_KINDS } from "../shared/types";
-import { cmdNote, cmdNotes, cmdRename } from "./deckctl-notes";
-import { cmdReport } from "./deckctl-report";
-import { cmdSearch } from "./deckctl-search";
-import { cmdHelp, cmdDismiss } from "./deckctl-help";
-import { cmdHygiene } from "./deckctl-hygiene";
-import { cmdFixes } from "./deckctl-fixes";
-import { cmdRun } from "./deckctl-run";
+import { cmdNote, cmdNotes, cmdRename } from "./deckctl/notes";
+import { cmdReport } from "./deckctl/report";
+import { cmdSearch } from "./deckctl/search";
+import { cmdHelp, cmdDismiss } from "./deckctl/help";
+import { cmdHygiene } from "./deckctl/hygiene";
+import { cmdFixes } from "./deckctl/fixes";
+import { cmdRun } from "./deckctl/run";
 import {
   cmdCancel,
   cmdDrives,
@@ -17,23 +17,23 @@ import {
   cmdPlayers,
   cmdPreflight,
   cmdStatus,
-} from "./deckctl-status";
+} from "./deckctl/status";
 import {
   cmdBoothFleet,
   cmdCoverage,
   cmdDiff,
   cmdRadar,
   cmdRedundancy,
-} from "./deckctl-fleet";
+} from "./deckctl/fleet";
 import {
   baseHooks,
   cmdPrep,
   errOut,
   flushStdout,
   log,
-} from "./deckctl-runtime";
-import { cmdExplain } from "./deckctl-explain";
-import { KIND_DOCS } from "./deckctl-docs";
+} from "./deckctl/runtime";
+import { cmdExplain } from "./deckctl/explain";
+import { KIND_DOCS } from "./deckctl/docs";
 import { errMessage } from "../../src/shared/leaf/fmt";
 
 const PRE_SERVER_VERBS = ["help"] as const;

@@ -1,12 +1,12 @@
-// deckctl_fixes.ts — `deckctl fixes [scan|apply]` (file-length guard:
+// deckctl/fixes.ts — `deckctl fixes [scan|apply]` (file-length guard:
 // deckctl.ts is near the cap). CLI surface of the booth-fixes queue: same
 // routes the web uses, same booth-fix engine underneath (no second SSOT).
-// The scan/apply enqueue+follow leg lives in deckctl_queue.ts (shared with
+// The scan/apply enqueue+follow leg lives in deckctl/queue.ts (shared with
 // `hygiene` — was a byte-identical clone).
-import { apiGet } from "./deckapi";
-import { emitJson } from "./deckctl-runtime";
-import { enqueueAndFollow, type QueueHooks } from "./deckctl-queue";
-import type { FixesPayload } from "../../src/shared/leaf/fixes";
+import type { FixesPayload } from "../../../src/shared/leaf/fixes";
+import { apiGet } from "../deckapi";
+import { emitJson } from "./runtime";
+import { enqueueAndFollow, type QueueHooks } from "./queue";
 
 export type FixesHooks = QueueHooks;
 

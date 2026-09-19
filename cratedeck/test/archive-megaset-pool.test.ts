@@ -10,9 +10,9 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
-import { setCandidates } from "../src/archive-pool";
+import { setCandidates } from "../src/archive/pool";
 import { ArchiveReader } from "../src/archive";
-import type { ArchiveQuery } from "../src/archive-types";
+import type { ArchiveQuery } from "../src/archive/types";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).
 const t = tempDir("megadj-setbuild-pool-").rippable();

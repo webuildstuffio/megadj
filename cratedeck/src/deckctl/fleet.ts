@@ -1,12 +1,12 @@
-import { apiPost, resolveDrive } from "./deckapi";
+import { apiPost, resolveDrive } from "../deckapi";
 import type {
   BoothFleetPayload,
   CoverageResponse,
   FleetDiff,
   FleetRadar,
   RedundancyResult,
-} from "../shared/types";
-import { JSON_MODE, emitJson, errOut, getJson, log } from "./deckctl-runtime";
+} from "../../shared/types";
+import { JSON_MODE, emitJson, errOut, getJson, log } from "./runtime";
 
 function showRows(rows: { title: string | null; path: string }[]): void {
   for (const row of rows.slice(0, 30)) log(`    ${row.title ?? row.path}`);

@@ -331,7 +331,7 @@ predicted class.
 
 Deliverable (library-side SHIPPED): the grid-math SSOT `gridAudit`
 (`src/fulltags/grid-audit.ts`, consumed by CrateDeck's
-`archive_grid.ts` and `megadj rb-grid-triage`) — one row per track,
+`archive/grid.ts` and `megadj rb-grid-triage`) — one row per track,
 cached, resumable. The standalone grid-audit CLI face and the CrateDeck
 surface card (GA-05c) remain open.
 

@@ -1,15 +1,15 @@
-// archive_genre.ts — the #215 genre-vote explainability read: one track's
+// archive/genre.ts — the #215 genre-vote explainability read: one track's
 // #173 vote-ladder breakdown, re-elected through the SAME seam the write
 // path used (`electGenre`), so the stored genre and the replayed winner
 // can never disagree. Same readonly ArchiveReader handle, same rules as
-// archive_similar.ts: pure reads — a bug here cannot corrupt archive
+// archive/similar.ts: pure reads — a bug here cannot corrupt archive
 // state.
 import {
   electGenre,
   GENRE_VOTE_WEIGHTS,
   parseVotes,
-} from "../../src/fulltags/genre/genre-vote";
-import type { ArchiveQuery } from "./archive-types";
+} from "../../../src/fulltags/genre/genre-vote";
+import type { ArchiveQuery } from "./types";
 
 /** Round to 4 decimals for wire payloads. Pure — module-level. */
 const r4 = (v: number): number => Math.round(v * 10000) / 10000;

@@ -11,8 +11,8 @@ import {
   differ as _unusedDiffer,
   hasRekordboxMirror,
   tagCensus,
-} from "../src/archive-tagcensus";
-import { trackTagCompare } from "../src/archive-tagcompare";
+} from "../src/archive/tag-census";
+import { trackTagCompare } from "../src/archive/tag-compare";
 import { ArchiveReader } from "../src/archive";
 
 // #248 fixture seam: tempDir owns the mkdtemp lifecycle (ripple teardown).

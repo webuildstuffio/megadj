@@ -15,11 +15,11 @@ test("#48: engine and spoke import the one cosine implementation", () => {
 
   const engine = readFileSync(join(root, "src/archive/similar.ts"), "utf8");
   const spoke = readFileSync(
-    join(root, "cratedeck/src/archive-similar.ts"),
+    join(root, "cratedeck/src/archive/similar.ts"),
     "utf8",
   );
   expect(engine).toContain('from "../shared/leaf/vector-space"');
-  expect(spoke).toContain('from "../../src/shared/leaf/vector-space"');
+  expect(spoke).toContain('from "../../../src/shared/leaf/vector-space"');
   expect(engine).not.toContain("function cosineSimilarity(");
   expect(spoke).not.toContain("function cosine(");
 });

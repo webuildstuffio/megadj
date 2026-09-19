@@ -152,8 +152,8 @@ dropped in the Sep 10 compression, it moved here. Sections mirror AGENTS.md.
   (anything importing `db.ts`/`fleet.ts`) is DEFINED canonically there and
   the producer imports it back — never derived from that producer
   (`DriveImage` was the offender). Split-out implementation modules
-  (`archive_similar.ts`, `archive_overview.ts`, `report_checks.ts`, …) type
-  parent-class/parent-input parameters against a leaf seam (`archive_types.ts`
+  (`archive/similar.ts`, `archive/overview.ts`, `report_checks.ts`, …) type
+  parent-class/parent-input parameters against a leaf seam (`archive/types.ts`
   `ArchiveQuery`, `report_types.ts` `ReportInput`), never against the parent
   module — `ArchiveReader implements ArchiveQuery` verifies the seam at
   compile time.

@@ -27,7 +27,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { archiveHandlers } from "../src/archive-routes";
+import { archiveHandlers } from "../src/archive/routes";
 
 const ROOT = join(import.meta.dir, "..", "..");
 const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
@@ -183,18 +183,29 @@ function walkWebTargets(dir: string, out: ClientTarget[]): void {
 
 /** deckctl/MCP client legs — the server's other consumers. Their targets
  *  must ALSO resolve: a deckctl-only route that 404s is the same bug. */
+function clientSourceFiles(dir: string): string[] {
+  return readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap(
+    (entry) => {
+      const rel = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) return clientSourceFiles(rel);
+      return /\.(tsx|ts)$/.test(entry.name) ? [rel] : [];
+    },
+  );
+}
+
 function deckctlTargets(): ClientTarget[] {
   const out: ClientTarget[] = [];
-  const clientFiles = readdirSync(join(ROOT, "cratedeck/src"))
-    // deckctl.ts itself (the stop arm) scans beside the deckctl_* legs;
-    // image-store.ts is the drive-images producer whose entries carry a
-    // /api URL the web client renders verbatim (`src={img.url}`).
-    .filter((f) =>
-      /^(deckctl|deckctl_|deckctl-|archive_tools|archive-tools|deckapi|image-store)/.test(
-        f,
-      ),
-    )
-    .map((f) => `cratedeck/src/${f}`);
+  const clientFiles = [
+    // Keep the stable root entry and recursively inventory every split-out
+    // command leg: a new nested client must enter parity automatically.
+    "cratedeck/src/deckctl.ts",
+    ...clientSourceFiles("cratedeck/src/deckctl"),
+    "cratedeck/src/archive/tools.ts",
+    "cratedeck/src/deckapi.ts",
+    // drive-images producer whose entries carry an /api URL the web client
+    // renders verbatim (`src={img.url}`).
+    "cratedeck/src/image-store.ts",
+  ];
   // MCP read handlers are now a prefix-domain leaf. Keep this explicit
   // client input: a root-only scan would silently stop checking its API
   // targets after the #214 layout move.

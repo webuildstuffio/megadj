@@ -193,7 +193,7 @@ describe("fetch live-run protocol (megadj stderr ↔ crateck feed)", () => {
   // ---- both sides stay tied to the job-kind SSOT ----
   test("the fetch job kind exists + both doc tables carry it", () => {
     expect(JOB_KINDS).toContain("fetch");
-    const { KIND_DOCS } = require("../src/deckctl-docs") as {
+    const { KIND_DOCS } = require("../src/deckctl/docs") as {
       KIND_DOCS: Record<string, unknown>;
     };
     const { HELP_JOBS } = require("../shared/help") as {

@@ -1,13 +1,13 @@
-// deckctl_hygiene.ts — `deckctl hygiene [scan|apply|confirm <id>|dismiss
+// deckctl/hygiene.ts — `deckctl hygiene [scan|apply|confirm <id>|dismiss
 // <id>]` (file-length guard: deckctl.ts is near the cap). The agent/human
 // CLI surface of the shelf-hygiene queue: same routes the web uses, same
 // findings ledger underneath (§4.4: no second source of truth). The
-// scan/apply enqueue+follow leg lives in deckctl_queue.ts (shared with
+// scan/apply enqueue+follow leg lives in deckctl/queue.ts (shared with
 // `fixes` — was a byte-identical clone).
-import { apiGet, apiPost } from "./deckapi";
-import { emitJson } from "./deckctl-runtime";
-import { enqueueAndFollow, type QueueHooks } from "./deckctl-queue";
-import type { HygienePayload } from "../shared/hygiene";
+import { apiGet, apiPost } from "../deckapi";
+import type { HygienePayload } from "../../shared/hygiene";
+import { emitJson } from "./runtime";
+import { enqueueAndFollow, type QueueHooks } from "./queue";
 
 export type HygieneHooks = QueueHooks;
 

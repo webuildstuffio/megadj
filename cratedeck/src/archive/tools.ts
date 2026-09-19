@@ -1,4 +1,4 @@
-// archive_tools.ts — the O82b archive half of the MCP surface.
+// archive/tools.ts — the O82b archive half of the MCP surface.
 //
 // Extracted from mcp.ts (file-length guard): every archive_* tool is a
 // thin read over the server's /api/archive/* routes (which open megadj's
@@ -6,16 +6,16 @@
 // Schemas are built with the mcp_params helpers (obj/noArgs/s/n) instead
 // of hand-written JSON-Schema boilerplate.
 
-import { apiGet } from "./deckapi";
-import type { ToolDef } from "./mcp/server";
-import { parseMegasetQuery } from "./megaset";
+import { apiGet } from "../deckapi";
+import type { ToolDef } from "../mcp/server";
+import { parseMegasetQuery } from "../megaset";
 import {
   clampMegasetPool,
   isMegasetSearchOverride,
   MEGASET_BEAM_POOL_MAX,
   MEGASET_PRESET_IDS,
   MEGASET_POOL_MAX,
-} from "../shared/types";
+} from "../../shared/types";
 import {
   str,
   num,
@@ -26,8 +26,8 @@ import {
   noArgs,
   s,
   n,
-} from "./mcp/params";
-import { isSimilarSpace } from "../../src/shared/leaf/vector-space";
+} from "../mcp/params";
+import { isSimilarSpace } from "../../../src/shared/leaf/vector-space";
 
 /** The archive_* + megaset/getdat-adjacent tool table (O82b: readonly
  *  reads over megadj's DB through the server's /api/archive/* routes).

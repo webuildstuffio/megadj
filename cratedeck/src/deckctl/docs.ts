@@ -1,4 +1,4 @@
-// deckctl_docs.ts — the KIND_DOCS SSOT behind `deckctl explain [kind]`,
+// deckctl/docs.ts — the KIND_DOCS SSOT behind `deckctl explain [kind]`,
 // extracted from deckctl.ts (file-length guard).
 //
 // "Explain a job" is rendered by TWO verbs — `explain` and (for job
@@ -90,7 +90,7 @@ export const KIND_DOCS: Record<string, KindDoc> = {
 };
 
 /** One KIND_DOCS entry as CLI prose (shared by the all-kinds + single-kind
- *  paths in `explain`, and by `help <kind>` via deckctl_help.ts). */
+ *  paths in `explain`, and by `help <kind>` via deckctl/help.ts). */
 export function printKindDoc(
   kind: string,
   d: KindDoc,

@@ -1,16 +1,16 @@
 // cueStats + libraryOverview — the FullTags-read-side halves of the archive
 // surface. Split from archive.ts for the file-length guard; ArchiveReader
 // delegates so the call sites (`archive.cueStats(... + `) are unchanged.
-import type { ArchiveQuery, ArchiveTrack } from "./archive-types";
+import type { ArchiveQuery, ArchiveTrack } from "./types";
 import type {
   ArchiveCueStats,
   ArchiveLibraryOverview,
-} from "../shared/archive-wire";
+} from "../../shared/archive-wire";
 import {
   isFiniteNumber,
   isRecord,
   isUnknownArray,
-} from "../../src/shared/leaf/guards";
+} from "../../../src/shared/leaf/guards";
 
 interface CuePoint {
   index: number;

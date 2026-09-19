@@ -1,11 +1,11 @@
-// archive_tagcompare.ts — the ONE-track three-source tag comparison
-// (#89 diet extraction from archive_tagcensus.ts): file live tags (the
+// archive/tag-compare.ts — the ONE-track three-source tag comparison
+// (#89 diet extraction from archive/tag-census.ts): file live tags (the
 // FILE is truth) vs the archive mirror columns vs the rb-adopt mirror
 // row, plus the difference table the UI renders. The fleet-wide census
-// stays in archive_tagcensus.ts.
-import { groundTruth } from "../../src/fulltags/write/readers";
-import type { ArchiveTrackTagCompare } from "../shared/archive-wire";
-import type { ArchiveQuery } from "./archive-types";
+// stays in archive/tag-census.ts.
+import { groundTruth } from "../../../src/fulltags/write/readers";
+import type { ArchiveTrackTagCompare } from "../../shared/archive-wire";
+import type { ArchiveQuery } from "./types";
 
 /** The rb-adopt mirror row for one track (newest first), parsed from its
  *  metadata_json snapshot. Corrupt mirror JSON → null (the DB row stays

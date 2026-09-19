@@ -1,4 +1,4 @@
-// archive_grid.ts — the INDEPENDENT beatgrid cross-check, split out of
+// archive/grid.ts — the INDEPENDENT beatgrid cross-check, split out of
 // archive.ts under the file-length guard (the same delegate pattern as
 // archive_similar/archive_overview/archive_tagcensus).
 //
@@ -19,13 +19,13 @@
 // - `ok`     — within tolerance
 // `aok` is the count of clean tracks; offender lists stay per-class so
 // the UI keeps its fix-first ordering (octave > off > drift).
-import type { ArchiveQuery } from "./archive-types";
+import type { ArchiveQuery } from "./types";
 import {
   gridAudit,
   type GridAuditVerdict,
-} from "../../src/fulltags/grid-audit";
-import { isFiniteNumberArray } from "../../src/shared/leaf/guards";
-import type { ArchiveGridCrossCheck } from "../shared/archive-wire";
+} from "../../../src/fulltags/grid-audit";
+import { isFiniteNumberArray } from "../../../src/shared/leaf/guards";
+import type { ArchiveGridCrossCheck } from "../../shared/archive-wire";
 
 interface Offender {
   video_id: string;

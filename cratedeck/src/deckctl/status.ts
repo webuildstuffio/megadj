@@ -1,8 +1,8 @@
-import { apiPost, resolveDrive, type Drive, type Job } from "./deckapi";
-import type { InterlockState } from "../shared/types";
-import type { PreflightReport } from "./preflight";
-import { collectPlayers } from "./deckctl-players";
-import { JSON_MODE, emitJson, errOut, getJson, log } from "./deckctl-runtime";
+import { apiPost, resolveDrive, type Drive, type Job } from "../deckapi";
+import type { PreflightReport } from "../preflight";
+import type { InterlockState } from "../../shared/types";
+import { collectPlayers } from "./players";
+import { JSON_MODE, emitJson, errOut, getJson, log } from "./runtime";
 
 type DriveWithBadges = Drive & {
   badges?: { label: string; tone: string }[];

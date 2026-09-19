@@ -35,10 +35,10 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
     "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse( row.proposed_action, )",
     "cratedeck/shared/hygiene.ts::hydrateHygieneFinding::JSON.parse(row.validation)",
   ]),
-  'cratedeck/src/deckctl-queue.ts::enqueueAndFollow::JSON.parse(polled.result_json ?? "{}")':
+  'cratedeck/src/deckctl/queue.ts::enqueueAndFollow::JSON.parse(polled.result_json ?? "{}")':
     "deckctl consumes its own server job contract; invalid JSON terminates the command visibly.",
   ...reviewed(EXPLICIT_NULL_REASON, [
-    "cratedeck/src/archive-overview.ts::parseCuePoints::JSON.parse(raw)",
+    "cratedeck/src/archive/overview.ts::parseCuePoints::JSON.parse(raw)",
     "src/fulltags/parse-json.ts::parseJsonObject::JSON.parse(raw)",
     "src/fulltags/media-probe.ts::parseFfprobeJson::JSON.parse(stdout)",
     // #173 genre-vote breakdown: the vote ledger's explainability column;
@@ -48,10 +48,10 @@ const PERSISTED_JSON_SANCTIONS: Readonly<Record<string, string>> = {
   // rb-adopt mirror payload: the catch converts corrupt JSON into
   // "no RB row" (the mirrors then stand alone; rb-adopt re-adopt
   // rewrites the row) — the DB row itself is never touched.
-  // Sep 16 (#89/#90 diet): re-keyed to archive_tagcompare.ts — the
+  // Sep 16 (#89/#90 diet): re-keyed to archive/tag-compare.ts — the
   // one-track compare family (readRekordboxMirror included) moved out
-  // of archive_tagcensus.ts; same call, same sanction, new file path.
-  "cratedeck/src/archive-tagcompare.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
+  // of archive/tag-census.ts; same call, same sanction, new file path.
+  "cratedeck/src/archive/tag-compare.ts::readRekordboxMirror::JSON.parse(rbMeta.metadata_json)":
     "Corrupt mirror JSON is treated as no rekordbox row: the census shows the archive side alone, rb-adopt re-adopt rewrites the row; never a throw into the route.",
   ...reviewed(CHECKED_SUBPROCESS_REASON, [
     'src/rekordbox/grid-triage.ts::readMasterRows::JSON.parse(lastJsonLine(r.stdout, "[]"))',
@@ -91,7 +91,7 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // moved from trackTagCompare into the extracted readRekordboxMirror
     // helper; same call, same sanction, new enclosing-function path.
     // Sep 16 (#106): audited/guarded 59→60 / 43→44 — the cues-ledger
-    // pool join (archive_similar.ts parsePoolCues) adds one GUARDED
+    // pool join (archive/similar.ts parsePoolCues) adds one GUARDED
     // parse under the same EXPLICIT_NULL contract as parseCuePoints.
     // Sep 16 (CCN diet): digest changed — verify-key's --refs parse
     // moved owner (runVerifyKey→loadExternalRefs); same call, same
@@ -164,7 +164,9 @@ test("all JSON.parse calls are visibly guarded or explicitly sanctioned", () => 
     // protocol leaf; the explicit-null contract and counts are unchanged.
     // Sep 19 (#214 database slice): guarded event/snapshot/report readers
     // moved under db/; their failure contracts and counts are unchanged.
-    digest: "3e4953302c76e8cfc1700c72c7927e7220a8e16495d391827ed65633ce63cb80",
+    // Sep 19 (#214 archive slice): the overview and tag-compare readers
+    // moved under archive/; their failure contracts and counts are unchanged.
+    digest: "ab69aabf6be684f8d6e795898139706028afa967ddd20e8c5487d1895c2d9623",
   });
 });
 

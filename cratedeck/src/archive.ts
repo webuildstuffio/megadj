@@ -4,29 +4,29 @@
 // `playlist_diff`, `lowq_queue` — "the same thin-wrapper pattern over the
 // archive DB". This module is the public façade; the SQLite query body
 // (readonly handle, rows/row seam, track_keys cache, TRACK_COLS) lives in
-// archive-reader-core.ts (#205 split, the #203/#204 pattern). index.ts +
+// archive/reader-core.ts (#205 split, the #203/#204 pattern). index.ts +
 // mcp.ts wrap it.
 //
 // READ-ONLY, by construction and by promise: opened with `readonly: true` so
 // a bug here physically cannot corrupt megadj's state (P9 safety rails).
-import { similarTracks as similarTracksImpl } from "./archive-similar";
+import { similarTracks as similarTracksImpl } from "./archive/similar";
 import {
   genreWhy as genreWhyImpl,
   type ArchiveGenreWhy,
-} from "./archive-genre";
+} from "./archive/genre";
 import {
   cueStats as cueStatsImpl,
   libraryOverview as libraryOverviewImpl,
-} from "./archive-overview";
-import { tagCensus as tagCensusImpl } from "./archive-tagcensus";
+} from "./archive/overview";
+import { tagCensus as tagCensusImpl } from "./archive/tag-census";
 import {
   poolFreshness as poolFreshnessImpl,
   setCandidates as setCandidatesImpl,
-} from "./archive-pool";
-import { trackTagCompare as trackTagCompareImpl } from "./archive-tagcompare";
-import { gridCrossCheck as gridCrossCheckImpl } from "./archive-grid";
-import { moodProfile as moodProfileImpl } from "./archive-mood";
-import type { ArchiveQuery, ArchiveTrack } from "./archive-types";
+} from "./archive/pool";
+import { trackTagCompare as trackTagCompareImpl } from "./archive/tag-compare";
+import { gridCrossCheck as gridCrossCheckImpl } from "./archive/grid";
+import { moodProfile as moodProfileImpl } from "./archive/mood";
+import type { ArchiveQuery, ArchiveTrack } from "./archive/types";
 import type {
   ArchiveAnalysisCoverage,
   ArchiveCueStats,
@@ -43,21 +43,21 @@ import type {
   ArchiveTagCensus,
   ArchiveTrackTagCompare,
 } from "../shared/archive-wire";
-// ArchiveTrack is canonically defined in the leaf archive_types.ts (along
+// ArchiveTrack is canonically defined in the leaf archive/types.ts (along
 // with the ArchiveQuery seam the split-out modules type against); re-export
 // keeps every existing `from "./archive"` import working unchanged.
-export type { ArchiveTrack } from "./archive-types";
-// The core stays importable from archive-reader-core.ts (the canonical
+export type { ArchiveTrack } from "./archive/types";
+// The core stays importable from archive/reader-core.ts (the canonical
 // home); no re-export here — the split modules type against the
 // ArchiveQuery leaf, not this class.
-import { ArchiveReaderCore, TRACK_COLS } from "./archive-reader-core";
+import { ArchiveReaderCore, TRACK_COLS } from "./archive/reader-core";
 
 /** Public archive-query facade over the read-only core. */
 export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   /**
    * STRUCTURE CUES ledger (roadmap "structure cues" slice): DJ phrase
    * markers (every 8 bars) derived from the beats ledger's downbeats by
-   * `megadj cues`. Implementation lives in archive_overview.ts
+   * `megadj cues`. Implementation lives in archive/overview.ts
    * (file-length guard); this delegate keeps the call surface unchanged.
    * Degrades to available:false on pre-cues DBs (no `cues` table).
    */
@@ -364,7 +364,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
    * INDEPENDENT beatgrid cross-check (roadmap rev 5 §2/#2 → plan.md
    * GA-04/GA-05): beat_this's grid vs rekordbox BPM, a SECOND analyzer's
    * verdicts against the stored tempo. Implementation lives in
-   * archive_grid.ts (file-length guard); delegate keeps the surface.
+   * archive/grid.ts (file-length guard); delegate keeps the surface.
    */
   gridCrossCheck(limit = 200): ArchiveGridCrossCheck {
     return gridCrossCheckImpl(this, limit);
@@ -373,13 +373,13 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   /**
    * MOOD / dance / valence profile (roadmap #4): the aggregate + extremes
    * of megadj's `mood` ledger — the vibe-map view. Implementation lives
-   * in archive_mood.ts (file-length guard); delegate keeps the surface.
+   * in archive/mood.ts (file-length guard); delegate keeps the surface.
    */
   moodProfile(limit = 5): ArchiveMoodProfile {
     return moodProfileImpl(this, limit);
   }
 
-  // I49 sounds-like + set-builder extensions live in archive_similar.ts
+  // I49 sounds-like + set-builder extensions live in archive/similar.ts
   // (file-length guard);
   // these delegates keep the call sites (`archive.similarTracks(...)`)
   // unchanged while the implementations stay outside this file.
@@ -390,7 +390,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   /**
    * GENRE-WHY (#215): one track's #173 vote-ladder breakdown, re-elected
    * through the write path's exact seam. Implementation lives in
-   * archive_genre.ts (file-length guard); delegate keeps the surface.
+   * archive/genre.ts (file-length guard); delegate keeps the surface.
    */
   genreWhy(videoId: string): ArchiveGenreWhy {
     return genreWhyImpl(this, videoId);
@@ -401,7 +401,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   }
 
   /** Newest beats/mood ledger timestamps — set-builder staleness UX.
-   *  Implementation in archive_pool.ts (poolFreshness). */
+   *  Implementation in archive/pool.ts (poolFreshness). */
   freshness(): ArchiveFreshness {
     return poolFreshnessImpl(this);
   }
@@ -409,7 +409,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   /**
    * LIBRARY OVERVIEW (FullTags read side): what the enrichment engine has
    * actually stamped across the playable archive. Implementation lives in
-   * archive_overview.ts (file-length guard); delegate keeps the surface.
+   * archive/overview.ts (file-length guard); delegate keeps the surface.
    */
   libraryOverview(recentLimit = 60): ArchiveLibraryOverview {
     return libraryOverviewImpl(this, recentLimit);
@@ -418,7 +418,7 @@ export class ArchiveReader extends ArchiveReaderCore implements ArchiveQuery {
   /**
    * TAG CENSUS (FullTags ↔ rekordbox): which playable tracks' two DB
    * mirrors disagree, on what. Pure-DB; files are never read on the
-   * census path. Implementation in archive_tagcensus.ts (file-length
+   * census path. Implementation in archive/tag-census.ts (file-length
    * guard). Degrades to rekordboxMirror:false when rb-adopt never ran.
    */
   tagCensus(limit = 200): ArchiveTagCensus {

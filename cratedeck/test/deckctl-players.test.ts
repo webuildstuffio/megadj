@@ -3,7 +3,7 @@
 // drive, and --json mode then printed the literal `undefined` (invalid
 // JSON for any agent parsing deckctl players --json).
 import { describe, expect, it } from "bun:test";
-import { collectPlayers } from "../src/deckctl-players";
+import { collectPlayers } from "../src/deckctl/players";
 import type { PlayersPayload } from "../shared/types";
 
 function payload(id: string): PlayersPayload {

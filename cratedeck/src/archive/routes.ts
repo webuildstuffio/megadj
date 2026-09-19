@@ -1,4 +1,4 @@
-// archive_routes.ts — the /api/archive/* route family, extracted from
+// archive/routes.ts — the /api/archive/* route family, extracted from
 // index.ts (file-length guard). Pure reads over megadj's archive DB via
 // the shared readonly ArchiveReader (§4-A1: archive mutation stays CLI —
 // a bug here physically cannot corrupt archive state).
@@ -6,16 +6,16 @@
 // index.ts calls archiveRoutes({ archive, getArchiveSweepDeps }) with the
 // URL already sliced to the route part ("/archive/..."). Returns null when
 // no archive route matched so index.ts can fall through.
-import type { ArchiveReader } from "./archive";
-import { SET_PRESETS, buildMegaset, parseMegasetQuery } from "./megaset";
+import type { ArchiveReader } from "../archive";
+import { SET_PRESETS, buildMegaset, parseMegasetQuery } from "../megaset";
 import {
   clampMegasetPool,
   isMegasetSearchOverride,
   MEGASET_EXCLUDED_PREVIEW_MAX,
-} from "../shared/megaset";
-import { isSimilarSpace } from "../../src/shared/leaf/vector-space";
-import type { DB } from "./db";
-import type { CrateConfig } from "./config";
+} from "../../shared/megaset";
+import { isSimilarSpace } from "../../../src/shared/leaf/vector-space";
+import type { DB } from "../db";
+import type { CrateConfig } from "../config";
 
 export interface ArchiveRouteDeps {
   archive: ArchiveReader;
@@ -341,7 +341,7 @@ export function archiveHandlers(): Record<string, ArchiveHandler> {
     // event loop — the engine hashes file-by-file with await (dynamic
     // import keeps the sweep module out of the boot path).
     sweep: (_url, archive, db, cfg) =>
-      import("./archive-sweep").then(({ sweepArchive, tracksForSweep }) =>
+      import("./sweep").then(({ sweepArchive, tracksForSweep }) =>
         sweepArchive(
           cfg.musicDir,
           tracksForSweep(archive),

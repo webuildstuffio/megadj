@@ -10,10 +10,10 @@
  * Protocol: MCP 2025-06-18 (JSON-RPC 2.0, newline-delimited over stdio).
  *
  * This file owns ASSEMBLY ONLY (the #89 file-length guard — same split
- * pattern as archive_tools.ts / getdat_tools.ts):
+ * pattern as archive/tools.ts / getdat_tools.ts):
  *   mcp/read-tools.ts    read-only deck_* handlers (status/report/fleet/…)
  *   mcp/action-tools.ts  mutating deck_* handlers (run/cancel/hygiene/…)
- *   archive_tools.ts     the archive_* half (megadj's own DB, readonly)
+ *   archive/tools.ts     the archive_* half (megadj's own DB, readonly)
  *   getdat_tools.ts      GetDat intake/conversion
  *
  * Tools:
@@ -56,7 +56,7 @@
  *   getdat_intake {action?,folder?,dry_run?}  dump census (#20) / process a dump
  *   getdat_convert {dry_run?,no_artwork?}  run archive-wide WAV→AIFF conversion
  */
-import { archiveTools } from "./archive-tools";
+import { archiveTools } from "./archive/tools";
 import { deriveDeckTools, type DeckMcpVerb } from "./mcp/surfaces";
 import { ensureServer } from "./deckapi";
 export { jobTerminal } from "./deckapi";

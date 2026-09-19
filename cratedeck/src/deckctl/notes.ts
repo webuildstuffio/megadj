@@ -1,4 +1,4 @@
-// deckctl_notes.ts — `deckctl note|notes` (O88 findings feed from the CLI).
+// deckctl/notes.ts — `deckctl note|notes` (O88 findings feed from the CLI).
 //
 // Extracted from deckctl.ts (file-length guard): the CLI surface keeps
 // growing one verb at a time, and the note/notes pair is self-contained —
@@ -10,10 +10,10 @@
 // ArchiveTab bug class: same-length local types hide server shape changes
 // until the UI renders `[object Object]`).
 
-import { apiGet, apiPost, resolveDriveOrExit } from "./deckapi";
-import { emitJson } from "./deckctl-runtime";
-import type { StoredNote } from "./notes";
-import { errMessage as errorText } from "../../src/shared/leaf/fmt";
+import { errMessage as errorText } from "../../../src/shared/leaf/fmt";
+import { apiGet, apiPost, resolveDriveOrExit } from "../deckapi";
+import type { StoredNote } from "../notes";
+import { emitJson } from "./runtime";
 
 export interface NotePrintHooks {
   /** true when --json is on: emit one JSON object, no prose. */

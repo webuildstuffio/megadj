@@ -1,6 +1,6 @@
-import { VERIFY_HELP } from "./verify-help";
-import { KIND_DOCS, printKindDoc } from "./deckctl-docs";
-import { JSON_MODE, emitJson, errOut, log } from "./deckctl-runtime";
+import { VERIFY_HELP } from "../verify-help";
+import { KIND_DOCS, printKindDoc } from "./docs";
+import { JSON_MODE, emitJson, errOut, log } from "./runtime";
 
 export async function cmdExplain(
   kind?: string,

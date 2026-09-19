@@ -11,7 +11,7 @@
  * real and require a non-404.
  */
 import { describe, expect, test } from "bun:test";
-import { archiveHandlers, archiveRoutes } from "../src/archive-routes";
+import { archiveHandlers, archiveRoutes } from "../src/archive/routes";
 import type { ArchiveReader } from "../src/archive";
 import type { CrateConfig } from "../src/config";
 import type { DB } from "../src/db";
