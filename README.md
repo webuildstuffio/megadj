@@ -280,7 +280,7 @@ yt-dlp config at `~/.config/yt-dlp/config`:
 ```
 
 Running from a headless session (browser closed)? Export a cookie jar first
-with `scripts/export-cookies.sh` — it writes a private jar outside the
+with `tools/export-cookies.sh` — it writes a private jar outside the
 repo, and it should never be committed.
 
 ### ⚙️ Configuration
@@ -294,7 +294,7 @@ One file and a set of env vars — that's the whole story:
 - 🔧 **Env vars** (below) — per-invocation knobs for the megadj CLI and
   FullTags; nothing else is file-based.
 - 🔌 **`USB_SYNC_MASTER` / `USB_SYNC_MIRROR`** — drive names for the
-  `scripts/sync-usb.sh` one-shot, independent of config.toml.
+  `usb_sync.py` one-shot from the rekordbox-usb-sync skill, independent of config.toml.
 
 ### 🌍 Environment
 

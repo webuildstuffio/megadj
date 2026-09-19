@@ -18,7 +18,7 @@ environment:
   MEGADJ_MUSIC_DIR      target folder (default ~/Music/DJ-Imports)
   MEGADJ_DB             state db path (default ~/.local/state/megadj/archive.db)
   MEGADJ_COOKIES        browser for cookies (default chrome, empty to disable)
-  MEGADJ_COOKIES_FILE   exported cookie jar for headless runs (see scripts/export-cookies.sh)
+  MEGADJ_COOKIES_FILE   exported cookie jar for headless runs (see tools/export-cookies.sh)
   MEGADJ_ART_MAX        max AI covers per artwork pass (default 20)
   MEGADJ_ART_QUEUE      artwork queue path (default ~/.local/state/megadj/artwork-queue.jsonl)
   OPENROUTER_API_KEY    required for \`artwork\` + AI genre/year (load from keychain, never hardcode)

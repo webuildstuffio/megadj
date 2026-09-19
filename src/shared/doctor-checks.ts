@@ -210,7 +210,7 @@ export function checkCookies(): CheckResult {
       detail: ok
         ? `file: ${file}`
         : `MEGADJ_COOKIES_FILE set but missing: ${file}`,
-      fix: ok ? undefined : "check the path, or run scripts/export-cookies.sh",
+      fix: ok ? undefined : "check the path, or run tools/export-cookies.sh",
     };
   }
   const browser = process.env.MEGADJ_COOKIES ?? "chrome";
@@ -230,7 +230,7 @@ export function checkCookies(): CheckResult {
     ok: true,
     detail:
       "will use browser cookies at sync time — verified live on first sync",
-    fix: "if sync hits age/consent walls: scripts/export-cookies.sh, then set MEGADJ_COOKIES_FILE",
+    fix: "if sync hits age/consent walls: tools/export-cookies.sh, then set MEGADJ_COOKIES_FILE",
   };
 }
 

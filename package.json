@@ -22,7 +22,7 @@
     "lint:py": "uv run --no-sync ruff check cratedeck/python src/rekordbox/rb-scripts tools",
     "format:py:check": "uv run --no-sync ruff format --check cratedeck/python src/rekordbox/rb-scripts tools",
     "format:py": "uv run --no-sync ruff format cratedeck/python src/rekordbox/rb-scripts tools",
-    "test:py": "uv run --no-sync python -m unittest discover -s tools -p '*_test.py' -v",
+    "test:py": "uv run --no-sync python -m unittest discover -s tools -p '*_test.py' -v && uv run --no-sync python -m unittest discover -s .claude/skills/rekordbox-usb-sync/scripts -t .claude/skills/rekordbox-usb-sync/scripts -p '*_test.py' -v",
     "web:build": "cd cratedeck/web && bun run build",
     "format:check": "prettier --cache --cache-location node_modules/.cache/prettier-cache --cache-strategy content --check src tools ops cratedeck/src cratedeck/shared cratedeck/web cratedeck/test knip.json .oxlintrc.json plugin",
     "format": "prettier --cache --cache-location node_modules/.cache/prettier-cache --cache-strategy content --write src tools ops cratedeck/src cratedeck/shared cratedeck/web cratedeck/test knip.json .oxlintrc.json plugin",

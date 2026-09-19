@@ -7,22 +7,10 @@ Runs under the repo's unittest discovery:
 from __future__ import annotations
 
 import os
-import sys
 import tempfile
 import unittest
 
-sys.path.insert(
-    0,
-    os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "..",
-        ".claude",
-        "skills",
-        "rekordbox-usb-sync",
-        "scripts",
-    ),
-)
-
+# Beside its subject (#245): the hop out of tools/ is gone.
 from mirror_plan import (
     cached_md5,
     files_differ,

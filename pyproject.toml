@@ -22,12 +22,18 @@ cache_dir = "node_modules/.cache/mypy"
 # Gate-covered code: cratedeck/python (device-DB seams) + tools (the
 # embedding benchmark harness; its unittest rides test:py).
 # .kit.py corpus files are excluded below (#194) — markers render at spawn.
-files = ["cratedeck/python", "src/rekordbox/rb-scripts", "tools"]
+files = ["cratedeck/python", "src/rekordbox/rb-scripts", "tools",
+         ".claude/skills/rekordbox-usb-sync/scripts/usb_mirror_plan_test.py"]
 exclude = ["rb-scripts/.*\\.kit\\.py"]
-# The usb-sync skill's mirror planner is imported by
-# tools/usb_mirror_plan_test.py (#117); mirror_plan must resolve (and
-# be strict-checked via import following) for the test file to typecheck.
+# #245: tools/ has no __init__.py (namespace package now that the test
+# lives beside its subject). explicit_package_bases lets mypy name
+# tools/* via the cwd base without a package marker; the skill-scripts
+# mypy_path root names usb_mirror_plan_test + its `from mirror_plan`
+# import (mirror_plan is strict-checked via import following, as
+# before — the rest of the skill scripts stay out of the direct
+# surface, exactly the pre-#245 shape).
 mypy_path = [".claude/skills/rekordbox-usb-sync/scripts"]
+explicit_package_bases = true
 
 # #194: kit-composed corpus programs (.kit.py) contain #@kit markers whose
 # substitutions only exist post-render — static analysis can't resolve them;
